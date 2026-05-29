@@ -14,7 +14,7 @@ This file converts the per-phase sprint plans into one conservative execution qu
 | Gate | Meaning | Must be true before moving on |
 |---|---|---|
 | G0 | Baseline stays green | `go test ./internal/progress -count=1` and `go run ./cmd/progress-gen --validate` remain green before starting a new tranche |
-| G1 | Runtime realism landed | Phase 2 `P2-A` complete: real child Hermes stream loop is merged and `go test ./internal/subagent ./internal/hermes ./internal/kernel -count=1 -race` is green |
+| G1 | Runtime realism landed | Phase 2 `P2-A` complete: real child Hermes stream loop is merged and `go test ./internal/subagent ./internal/llm ./internal/kernel -count=1 -race` is green |
 | G2 | Shared gateway lifecycle/operator plane landed | Phase 2 remaining `2.B.3` + `2.F.3` + `2.F.4` slices are complete: Slack is registered through the shared manager/command parser, pairing/status read model is green, and home-channel/operator surfaces are green |
 | G3 | Gateway routing substrate landed | Phase 2 `P2-D` complete: session context, delivery routing, and stream fan-out are stable and tested |
 | G4 | Primary adapter wave landed | Phase 2 `P2-E` complete: WhatsApp, Signal, and Email/SMS are on the shared contract |

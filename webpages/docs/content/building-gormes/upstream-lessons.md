@@ -47,7 +47,7 @@ source-backed parity lessons for future rows and tests:
 | Contract-first operations | Go donors | Operation/tool descriptors drive schemas, commands, doctor, audit, and fixtures. |
 | Trust-class enforcement | Hermes gateway | `operator`, `gateway`, `child-agent`, and `system` are enforced before handlers run. |
 | Stable prompt assembly | Hermes | Stable system layers; ephemeral recall injected into the current user turn. |
-| Provider-neutral events | Hermes | Adapters own provider quirks; `internal/hermes` emits one stream/tool-call contract. |
+| Provider-neutral events | Hermes | Adapters own provider quirks; `internal/llm` emits one stream/tool-call contract. |
 | Durable jobs | Go donors | Cron, long work, and subagents get restartable ledgers, bounded queues, worker-health evidence, and operator inspection. |
 | Provenance-rich memory | Honcho + Go donors | Entities and relationships carry source turn, extractor, confidence, freshness, and review state. |
 | Explainable code-context retrieval | Gormes-owned | Parent-scope symbols and call edges become optional evidence for skill/retrieval explanations, not a required TypeScript indexer in the runtime. |
@@ -158,8 +158,8 @@ one donor file that already implements its shape:
 | Stable prompt assembly | `nanobot/pkg/runtime/runtime.go` |
 | Provider-neutral events | `references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md` |
 | Durable jobs | `engram/internal/mcp/write_queue.go`, `engram/internal/mcp/activity.go` |
-| Provenance-rich memory | `engram/internal/store/store.go`, `engram/internal/store/relations.go` |
-| Skills as reviewed code | `engram/internal/store/store.go` for storage; extractor itself is `provenance.origin_type: gormes` |
+| Provenance-rich memory | `engram/internal/persistence/store/store.go`, `engram/internal/persistence/store/relations.go` |
+| Skills as reviewed code | `engram/internal/persistence/store/store.go` for storage; extractor itself is `provenance.origin_type: gormes` |
 | Visible degraded mode | `goclaw/internal/oauth/openai_quota_transport.go` (degraded-state classification) |
 | Cancellable session-scoped workers | `trpc-agent-go/agent/await_user_reply.go` |
 | Before/after callback pipeline | `trpc-agent-go/model/callbacks.go`, `trpc-agent-go/agent/callbacks.go` |

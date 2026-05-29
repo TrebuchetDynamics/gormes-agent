@@ -15,8 +15,8 @@
 - Create: `internal/skills/candidate.go`
 - Create: `internal/skills/candidate_test.go`
 - Modify: `internal/skills/store.go`
-- Modify: `internal/subagent/delegate_tool.go`
-- Modify: `internal/subagent/delegate_tool_test.go`
+- Modify: `internal/core/subagent/delegate_tool.go`
+- Modify: `internal/core/subagent/delegate_tool_test.go`
 - Modify: `gormes/cmd/gormes/registry.go`
 - Modify: `gormes/cmd/gormes/registry_test.go`
 - Modify: `docs/content/building-gormes/architecture_plan/progress.json`

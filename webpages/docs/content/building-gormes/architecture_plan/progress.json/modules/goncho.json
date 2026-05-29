@@ -691,7 +691,7 @@
         "../honcho/docs/v3/guides/integrations/sillytavern.mdx",
         "docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md",
         "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
-        "internal/session/directory.go",
+        "internal/persistence/session/directory.go",
         "internal/goncho/types.go",
         "internal/goncho/service.go",
         "internal/gonchotools/honcho_tools.go"
@@ -710,7 +710,7 @@
       "acceptance": [
         "Default workspace is gormes unless explicit hard isolation is requested.",
         "Workspace-per-user is rejected in fixtures.",
-        "Peer ID selection prefers internal/session.Metadata.UserID and falls back to source-prefixed external IDs.",
+        "Peer ID selection prefers internal/persistence/session.Metadata.UserID and falls back to source-prefixed external IDs.",
         "Deterministic assistants, transport bots, and import helpers default to observe_me=false.",
         "Conversation sessions follow real context boundaries such as thread, channel, repo, import batch, or delegated child run.",
         "Cross-peer observation is opt-in and cannot become a default side effect."
@@ -718,12 +718,12 @@
       "note": "TDD landed: internal/goncho/topology_design_test.go locks the default gormes workspace, rejects workspace-per-user, proves canonical session user IDs before source-prefixed external fallback IDs with evidence, keeps deterministic assistants/transport bots/import helpers unobserved by default, names real session boundaries, and keeps cross-peer observation opt-in.",
       "write_scope": [
         "internal/goncho/",
-        "internal/session/",
+        "internal/persistence/session/",
         "internal/gonchotools/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/goncho ./internal/session ./internal/gonchotools -count=1"
+        "go test ./internal/goncho ./internal/persistence/session ./internal/gonchotools -count=1"
       ],
       "done_signal": [
         "Topology fixtures prove the default workspace, peer ID derivation, observation defaults, and session boundary choices expected by the operator playbook."
@@ -1202,7 +1202,7 @@
         "../hermes-agent/tools/memory_tool.py:129-163",
         "cmd/gormes/registry.go",
         "internal/gonchotools/honcho_tools.go",
-        "internal/hermes/durable_user_context.go",
+        "internal/llm/durable_user_context.go",
         "internal/memory/"
       ],
       "ready_when": [
@@ -2629,8 +2629,8 @@
       "source_refs": [
         "references/go-agent-os/GORMES-REUSE-AUDIT.md#5-deterministic-serialized-mcpmemory-write-queue",
         "references/go-agent-os/engram/internal/mcp/write_queue.go",
-        "references/go-agent-os/engram/internal/store/relations.go",
-        "references/go-agent-os/engram/internal/store/store.go",
+        "references/go-agent-os/engram/internal/persistence/store/relations.go",
+        "references/go-agent-os/engram/internal/persistence/store/store.go",
         "internal/goncho/",
         "internal/memory/",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"

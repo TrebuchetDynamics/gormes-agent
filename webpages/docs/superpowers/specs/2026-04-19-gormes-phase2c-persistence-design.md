@@ -35,7 +35,7 @@ Persist exactly one mapping, `(platform, chat_id) → session_id`, in a pure-Go 
                          └──────────────┬──────────────┘
                                         │
                   ┌─────────────────────┴─────────────────────┐
-                  │         internal/session.Map              │
+                  │         internal/persistence/session.Map              │
                   │   (BoltMap production · MemMap tests)     │
                   └───────┬───────────────────────────┬───────┘
                           │                           │
@@ -74,7 +74,7 @@ UTF-8 bytes of `"<platform>:<chat_id>"`.
 | `tui` | always `default` | `"tui:default"` |
 | `telegram` | decimal of `int64` | `"telegram:5551234567"` |
 
-Helper constructors in `internal/session`:
+Helper constructors in `internal/persistence/session`:
 
 ```go
 func TUIKey() string                  { return "tui:default" }
@@ -101,7 +101,7 @@ Parent directory is auto-created on first Open if missing.
 
 ## 6. Interface
 
-### 6.1 `internal/session` package
+### 6.1 `internal/persistence/session` package
 
 ```go
 package session
@@ -184,7 +184,7 @@ No additional goroutines, no tee of the render channel. `lastSID` lives on the `
 
 **TUI** (`cmd/gormes/main.go`): same pattern with `key := session.TUIKey()`. The existing TUI render consumer gains the same one-if-block persistence hook.
 
-Kernel never imports `internal/session`. Verified by an extension to the T6 build-isolation test.
+Kernel never imports `internal/persistence/session`. Verified by an extension to the T6 build-isolation test.
 
 ## 7. Error Handling
 
@@ -220,7 +220,7 @@ Rationale: the bot must come up even against a flaky filesystem; losing *one* se
 
 ### 7.4 Sentinel errors
 
-Exported by `internal/session`:
+Exported by `internal/persistence/session`:
 
 ```go
 var ErrDBLocked  = errors.New("session: database locked by another process")
@@ -277,7 +277,7 @@ sid, _ := smap.Get(ctx, key)
 - **Budget check (post-Phase 2.C targets):**
   - `bin/gormes` ≤ **10 MB** (budget revised upward from 8.5 MB for Phase 2.C)
   - `bin/gormes-telegram` ≤ **12 MB** (unchanged)
-- **Moat preservation:** the Phase 2.B.1 build-isolation test (T6) remains green — bbolt is pure Go, not a transport adapter. The test is extended to assert `internal/session` is not transitively imported by `internal/kernel`.
+- **Moat preservation:** the Phase 2.B.1 build-isolation test (T6) remains green — bbolt is pure Go, not a transport adapter. The test is extended to assert `internal/persistence/session` is not transitively imported by `internal/kernel`.
 
 ## 10. Security
 
@@ -295,7 +295,7 @@ sid, _ := smap.Get(ctx, key)
 
 ### 11.2 Adapter (real disk via `t.TempDir()`)
 
-Tests in `internal/session/bolt_test.go`:
+Tests in `internal/persistence/session/bolt_test.go`:
 
 - `TestBolt_PutGetRoundTrip` — write, read, assert byte-equal.
 - `TestBolt_PutEmptyDeletes` — Put with `""` removes the key; subsequent Get returns `("", nil)`.
@@ -320,7 +320,7 @@ Tests in `internal/session/bolt_test.go`:
 Extend `internal/buildisolation_test.go`:
 
 - `TestTUIBinaryHasNoTelegramDep` — unchanged (still passes).
-- **New** `TestKernelHasNoSessionDep` — `go list -deps ./internal/kernel` must not contain `/internal/session` or `go.etcd.io/bbolt`.
+- **New** `TestKernelHasNoSessionDep` — `go list -deps ./internal/kernel` must not contain `/internal/persistence/session` or `go.etcd.io/bbolt`.
 
 ### 11.6 Full sweep
 
@@ -334,7 +334,7 @@ Extend `internal/buildisolation_test.go`:
 - [ ] `go build` still produces static binaries (`CGO_ENABLED=0` honored).
 - [ ] `bin/gormes-telegram` survives a `SIGTERM` and resumes context on restart (manual smoke — documented in §13).
 - [ ] `go list -deps ./cmd/gormes` shows zero database-specific logic in `internal/kernel`.
-- [ ] `go list -deps ./internal/kernel` does not contain `go.etcd.io/bbolt` or `internal/session`.
+- [ ] `go list -deps ./internal/kernel` does not contain `go.etcd.io/bbolt` or `internal/persistence/session`.
 - [ ] Binary sizes within the §9 budgets.
 - [ ] All tests in §11 green under `-race`.
 - [ ] `go vet ./...` clean.

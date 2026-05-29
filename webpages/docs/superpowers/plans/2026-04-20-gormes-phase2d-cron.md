@@ -4,7 +4,7 @@
 
 **Goal:** Make Gormes proactive — operator defines a cron job (schedule + prompt) in a bbolt bucket; at the scheduled time Gormes runs the prompt through the full agent loop with an isolated session and delivers the result via the existing Telegram bot, unless the agent returns `[SILENT]`.
 
-**Architecture:** New `internal/cron` package co-located with extractor/embedder/mirror inside the `gormes telegram` subcommand. `robfig/cron/v3` drives the scheduler. Jobs live in a new bbolt bucket; per-run audit rows live in a new SQLite table. Cron turns are tagged `cron=1` on the `turns` table so the extractor (3.B) skips them. Kernel gains two opaque new fields on `PlatformEvent` (`SessionID`, `CronJobID`) for per-event session override — no kernel-level coupling to memory/session/cron packages. Delivery goes through a generic `DeliverySink` interface; Telegram implements it today, Slack/Discord later.
+**Architecture:** New `internal/automation/cron` package co-located with extractor/embedder/mirror inside the `gormes telegram` subcommand. `robfig/cron/v3` drives the scheduler. Jobs live in a new bbolt bucket; per-run audit rows live in a new SQLite table. Cron turns are tagged `cron=1` on the `turns` table so the extractor (3.B) skips them. Kernel gains two opaque new fields on `PlatformEvent` (`SessionID`, `CronJobID`) for per-event session override — no kernel-level coupling to memory/session/cron packages. Delivery goes through a generic `DeliverySink` interface; Telegram implements it today, Slack/Discord later.
 
 **Tech Stack:** Go 1.25+, `github.com/robfig/cron/v3` (new dep; ~20 KB binary impact), existing ncruces SQLite (schema v3d → v3e migration), `go.etcd.io/bbolt` (existing), stdlib `crypto/sha256` + `encoding/json`.
 
@@ -28,22 +28,22 @@
 | `internal/kernel/frame.go` | Modify | Add `SessionID string` and `CronJobID string` to `PlatformEvent` struct |
 | `internal/kernel/kernel.go` | Modify | `processSubmit` saves `k.sessionID`, applies `e.SessionID` override when non-empty, restores after turn; `runTurn` carries cron fields into store payload |
 | `internal/kernel/kernel_test.go` | Modify | `TestKernel_SessionIDOverrideAppliesToTurn`, `TestKernel_SessionIDOverrideDoesNotLeakToNextTurn`, `TestKernel_CronJobIDFlowsToStorePayload` |
-| `internal/cron/job.go` | Create | `Job` struct + `ValidateSchedule(cronExpr string) error` wrapping robfig parser |
-| `internal/cron/job_test.go` | Create | Unit tests for Job field defaults + schedule validation |
-| `internal/cron/store.go` | Create | bbolt `cron_jobs` bucket CRUD: `Create`, `Get`, `List`, `Update`, `Delete` |
-| `internal/cron/store_test.go` | Create | CRUD round-trip tests with real bbolt |
-| `internal/cron/run_store.go` | Create | SQLite `cron_runs` writes: `RecordRun(run Run) error` + `LatestRuns(limit int)` |
-| `internal/cron/run_store_test.go` | Create | SQL round-trip + CHECK-constraint tests |
-| `internal/cron/heartbeat.go` | Create | `const cronHeartbeatPrefix` (verbatim upstream bytes), `BuildPrompt(userPrompt) string`, `DetectSilent(finalResponse) bool` |
-| `internal/cron/heartbeat_test.go` | Create | Byte-match prefix test, `DetectSilent` exact-match vs substring tests |
-| `internal/cron/sink.go` | Create | `DeliverySink` interface + `funcSink` adapter for tests |
-| `internal/cron/sink_test.go` | Create | funcSink forwards + nil-safety tests |
-| `internal/cron/executor.go` | Create | `Executor` struct; `Run(ctx, job)` — build session, submit event, collect final via `kernel.Render()` filter, decide delivery, record run |
-| `internal/cron/executor_test.go` | Create | Silent-suppresses, normal-delivers, timeout-delivers-notice, empty-delivers-notice tests |
-| `internal/cron/scheduler.go` | Create | `Scheduler` wrapping `*cron.Cron`; `Start(ctx)`, `Stop(ctx)`, `Reload()` (future-proof but no-op MVP) |
-| `internal/cron/scheduler_test.go` | Create | Start/Stop lifecycle + bad-schedule skip-but-continue tests |
-| `internal/cron/mirror.go` | Create | Background goroutine: every 30s read jobs + recent runs, atomic-write `CRON.md` |
-| `internal/cron/mirror_test.go` | Create | Atomic write + format tests |
+| `internal/automation/cron/job.go` | Create | `Job` struct + `ValidateSchedule(cronExpr string) error` wrapping robfig parser |
+| `internal/automation/cron/job_test.go` | Create | Unit tests for Job field defaults + schedule validation |
+| `internal/automation/cron/store.go` | Create | bbolt `cron_jobs` bucket CRUD: `Create`, `Get`, `List`, `Update`, `Delete` |
+| `internal/automation/cron/store_test.go` | Create | CRUD round-trip tests with real bbolt |
+| `internal/automation/cron/run_store.go` | Create | SQLite `cron_runs` writes: `RecordRun(run Run) error` + `LatestRuns(limit int)` |
+| `internal/automation/cron/run_store_test.go` | Create | SQL round-trip + CHECK-constraint tests |
+| `internal/automation/cron/heartbeat.go` | Create | `const cronHeartbeatPrefix` (verbatim upstream bytes), `BuildPrompt(userPrompt) string`, `DetectSilent(finalResponse) bool` |
+| `internal/automation/cron/heartbeat_test.go` | Create | Byte-match prefix test, `DetectSilent` exact-match vs substring tests |
+| `internal/automation/cron/sink.go` | Create | `DeliverySink` interface + `funcSink` adapter for tests |
+| `internal/automation/cron/sink_test.go` | Create | funcSink forwards + nil-safety tests |
+| `internal/automation/cron/executor.go` | Create | `Executor` struct; `Run(ctx, job)` — build session, submit event, collect final via `kernel.Render()` filter, decide delivery, record run |
+| `internal/automation/cron/executor_test.go` | Create | Silent-suppresses, normal-delivers, timeout-delivers-notice, empty-delivers-notice tests |
+| `internal/automation/cron/scheduler.go` | Create | `Scheduler` wrapping `*cron.Cron`; `Start(ctx)`, `Stop(ctx)`, `Reload()` (future-proof but no-op MVP) |
+| `internal/automation/cron/scheduler_test.go` | Create | Start/Stop lifecycle + bad-schedule skip-but-continue tests |
+| `internal/automation/cron/mirror.go` | Create | Background goroutine: every 30s read jobs + recent runs, atomic-write `CRON.md` |
+| `internal/automation/cron/mirror_test.go` | Create | Atomic write + format tests |
 | `internal/config/config.go` | Modify | New `CronCfg` + nested field in `Config`; defaults in `defaults()` |
 | `internal/config/config_test.go` | Modify | Append `TestLoad_CronDefaults` |
 | `gormes/cmd/gormes/telegram.go` | Modify | Wire Store/RunStore/Scheduler/Executor/Mirror; implement `telegramDeliverySink` |
@@ -385,7 +385,7 @@ func TestAppendUserTurn_NoncronTurnLeavesColumnsAtDefault(t *testing.T) {
 }
 ```
 
-Add imports as needed: `"database/sql"`, `storepkg "github.com/TrebuchetDynamics/gormes-agent/internal/store"`.
+Add imports as needed: `"database/sql"`, `storepkg "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"`.
 
 - [ ] **Step 3: Run, expect FAIL**
 
@@ -864,10 +864,10 @@ EOF
 ## Task 5: `cron.Job` + `cron.Store` (bbolt CRUD)
 
 **Files:**
-- Create: `internal/cron/job.go`
-- Create: `internal/cron/job_test.go`
-- Create: `internal/cron/store.go`
-- Create: `internal/cron/store_test.go`
+- Create: `internal/automation/cron/job.go`
+- Create: `internal/automation/cron/job_test.go`
+- Create: `internal/automation/cron/store.go`
+- Create: `internal/automation/cron/store_test.go`
 - Modify: `gormes/go.mod` (add robfig/cron/v3)
 
 - [ ] **Step 1: Add robfig/cron/v3 dependency**
@@ -943,7 +943,7 @@ func TestJob_NewGeneratesID(t *testing.T) {
 
 ```bash
 cd gormes
-go test ./internal/cron/... -run "TestValidateSchedule|TestJob_" -v 2>&1 | tail -5
+go test ./internal/automation/cron/... -run "TestValidateSchedule|TestJob_" -v 2>&1 | tail -5
 ```
 
 Expected: package doesn't exist yet.
@@ -1022,7 +1022,7 @@ func newID() string {
 
 ```bash
 cd gormes
-go test ./internal/cron/... -run "TestValidateSchedule|TestJob_" -v
+go test ./internal/automation/cron/... -run "TestValidateSchedule|TestJob_" -v
 go vet ./...
 ```
 
@@ -1155,7 +1155,7 @@ func TestStore_CreateRejectsDuplicateName(t *testing.T) {
 
 ```bash
 cd gormes
-go test ./internal/cron/... -run TestStore_ -v 2>&1 | tail -5
+go test ./internal/automation/cron/... -run TestStore_ -v 2>&1 | tail -5
 ```
 
 Expected: undefined Store / NewStore / ErrJobNotFound / ErrJobNameTaken.
@@ -1294,7 +1294,7 @@ func (s *Store) Delete(id string) error {
 
 ```bash
 cd gormes
-go test -race ./internal/cron/... -v -timeout 30s
+go test -race ./internal/automation/cron/... -v -timeout 30s
 go vet ./...
 ```
 
@@ -1303,20 +1303,20 @@ All tests pass.
 - [ ] **Step 10: Commit**
 
 ```bash
-git add internal/cron/job.go internal/cron/job_test.go internal/cron/store.go internal/cron/store_test.go gormes/go.mod gormes/go.sum
+git add internal/automation/cron/job.go internal/automation/cron/job_test.go internal/automation/cron/store.go internal/automation/cron/store_test.go gormes/go.mod gormes/go.sum
 git commit -m "$(cat <<'EOF'
 feat(gormes/cron): Job struct + bbolt-backed Store
 
 Phase 2.D step one: Job persistence + schedule validation.
 
-internal/cron/job.go:
+internal/automation/cron/job.go:
   type Job { ID, Name, Schedule, Prompt, Paused, CreatedAt,
              LastRunUnix, LastStatus }
   NewJob(name, schedule, prompt) Job   -- fresh random ID
   ValidateSchedule(expr) error         -- wraps robfig/cron/v3
                                           ParseStandard
 
-internal/cron/store.go:
+internal/automation/cron/store.go:
   Store backed by one bbolt bucket 'cron_jobs'. Caller owns the
   *bbolt.DB (reuses the existing Phase 2.C session.db).
   Create/Get/List/Update/Delete with two typed errors:
@@ -1340,8 +1340,8 @@ EOF
 ## Task 6: `cron.RunStore` (SQLite audit trail)
 
 **Files:**
-- Create: `internal/cron/run_store.go`
-- Create: `internal/cron/run_store_test.go`
+- Create: `internal/automation/cron/run_store.go`
+- Create: `internal/automation/cron/run_store_test.go`
 
 - [ ] **Step 1: Write failing tests — `run_store_test.go`**
 
@@ -1469,7 +1469,7 @@ func TestRunStore_RejectsInvalidStatus(t *testing.T) {
 
 ```bash
 cd gormes
-go test ./internal/cron/... -run TestRunStore_ -v 2>&1 | tail -5
+go test ./internal/automation/cron/... -run TestRunStore_ -v 2>&1 | tail -5
 ```
 
 Expected: undefined RunStore / NewRunStore / Run.
@@ -1595,7 +1595,7 @@ func boolToInt(b bool) int {
 
 ```bash
 cd gormes
-go test -race ./internal/cron/... -run TestRunStore_ -v -timeout 30s
+go test -race ./internal/automation/cron/... -run TestRunStore_ -v -timeout 30s
 go vet ./...
 ```
 
@@ -1604,7 +1604,7 @@ All 5 tests pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/cron/run_store.go internal/cron/run_store_test.go
+git add internal/automation/cron/run_store.go internal/automation/cron/run_store_test.go
 git commit -m "$(cat <<'EOF'
 feat(gormes/cron): RunStore for cron_runs audit table
 
@@ -1633,8 +1633,8 @@ EOF
 ## Task 7: Heartbeat prefix + `[SILENT]` detection
 
 **Files:**
-- Create: `internal/cron/heartbeat.go`
-- Create: `internal/cron/heartbeat_test.go`
+- Create: `internal/automation/cron/heartbeat.go`
+- Create: `internal/automation/cron/heartbeat_test.go`
 
 - [ ] **Step 1: Write failing tests — `heartbeat_test.go`**
 
@@ -1705,7 +1705,7 @@ func TestDetectSilent_ExactMatchOnly(t *testing.T) {
 
 ```bash
 cd gormes
-go test ./internal/cron/... -run "TestHeartbeatPrefix_|TestBuildPrompt_|TestDetectSilent_" -v 2>&1 | tail -5
+go test ./internal/automation/cron/... -run "TestHeartbeatPrefix_|TestBuildPrompt_|TestDetectSilent_" -v 2>&1 | tail -5
 ```
 
 Expected: undefined CronHeartbeatPrefix / BuildPrompt / DetectSilent.
@@ -1762,7 +1762,7 @@ func DetectSilent(finalResponse string) bool {
 
 ```bash
 cd gormes
-go test -race ./internal/cron/... -run "TestHeartbeatPrefix_|TestBuildPrompt_|TestDetectSilent_" -v
+go test -race ./internal/automation/cron/... -run "TestHeartbeatPrefix_|TestBuildPrompt_|TestDetectSilent_" -v
 go vet ./...
 ```
 
@@ -1771,7 +1771,7 @@ All 3 tests (covering 12 DetectSilent cases) pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/cron/heartbeat.go internal/cron/heartbeat_test.go
+git add internal/automation/cron/heartbeat.go internal/automation/cron/heartbeat_test.go
 git commit -m "$(cat <<'EOF'
 feat(gormes/cron): Heartbeat prefix + [SILENT] detection
 
@@ -1801,8 +1801,8 @@ EOF
 ## Task 8: `DeliverySink` interface + test adapter
 
 **Files:**
-- Create: `internal/cron/sink.go`
-- Create: `internal/cron/sink_test.go`
+- Create: `internal/automation/cron/sink.go`
+- Create: `internal/automation/cron/sink_test.go`
 
 - [ ] **Step 1: Write failing test — `sink_test.go`**
 
@@ -1843,7 +1843,7 @@ func TestFuncSink_PropagatesError(t *testing.T) {
 
 ```bash
 cd gormes
-go test ./internal/cron/... -run TestFuncSink_ -v 2>&1 | tail -5
+go test ./internal/automation/cron/... -run TestFuncSink_ -v 2>&1 | tail -5
 ```
 
 Expected: undefined FuncSink.
@@ -1883,7 +1883,7 @@ func (f FuncSink) Deliver(ctx context.Context, text string) error {
 
 ```bash
 cd gormes
-go test -race ./internal/cron/... -run TestFuncSink_ -v
+go test -race ./internal/automation/cron/... -run TestFuncSink_ -v
 go vet ./...
 ```
 
@@ -1892,7 +1892,7 @@ Both tests pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/cron/sink.go internal/cron/sink_test.go
+git add internal/automation/cron/sink.go internal/automation/cron/sink_test.go
 git commit -m "$(cat <<'EOF'
 feat(gormes/cron): DeliverySink interface + FuncSink test adapter
 
@@ -1919,8 +1919,8 @@ EOF
 ## Task 9: Executor (the bridge from tick → kernel → decide → deliver)
 
 **Files:**
-- Create: `internal/cron/executor.go`
-- Create: `internal/cron/executor_test.go`
+- Create: `internal/automation/cron/executor.go`
+- Create: `internal/automation/cron/executor_test.go`
 
 This is the biggest task. The executor is the thing that makes a cron fire "do" anything. It:
 1. Builds the ephemeral session_id.
@@ -2206,7 +2206,7 @@ func TestExecutor_UpdatesJobLastRunStatus(t *testing.T) {
 
 ```bash
 cd gormes
-go test ./internal/cron/... -run TestExecutor_ -v 2>&1 | tail -10
+go test ./internal/automation/cron/... -run TestExecutor_ -v 2>&1 | tail -10
 ```
 
 Expected: undefined Executor / NewExecutor / ExecutorConfig.
@@ -2440,7 +2440,7 @@ func truncate(s string, n int) string {
 
 ```bash
 cd gormes
-go test -race ./internal/cron/... -run TestExecutor_ -v -timeout 30s
+go test -race ./internal/automation/cron/... -run TestExecutor_ -v -timeout 30s
 go vet ./...
 ```
 
@@ -2449,7 +2449,7 @@ All 6 executor tests pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/cron/executor.go internal/cron/executor_test.go
+git add internal/automation/cron/executor.go internal/automation/cron/executor_test.go
 git commit -m "$(cat <<'EOF'
 feat(gormes/cron): Executor bridges tick -> kernel -> decide -> deliver
 
@@ -2488,8 +2488,8 @@ EOF
 ## Task 10: Scheduler (robfig/cron/v3 wrapper)
 
 **Files:**
-- Create: `internal/cron/scheduler.go`
-- Create: `internal/cron/scheduler_test.go`
+- Create: `internal/automation/cron/scheduler.go`
+- Create: `internal/automation/cron/scheduler_test.go`
 
 - [ ] **Step 1: Write failing tests — `scheduler_test.go`**
 
@@ -2614,14 +2614,14 @@ func (f *fakeExecutor) Run(ctx context.Context, j Job) {
 
 ```bash
 cd gormes
-go test ./internal/cron/... -run TestScheduler_ -v 2>&1 | tail -5
+go test ./internal/automation/cron/... -run TestScheduler_ -v 2>&1 | tail -5
 ```
 
 Expected: undefined Scheduler / NewScheduler / SchedulerConfig / Executor.Run as interface.
 
 - [ ] **Step 3: Add a Runner interface in `executor.go` (small prerequisite edit)**
 
-Edit `internal/cron/executor.go` to add an interface above `type Executor`:
+Edit `internal/automation/cron/executor.go` to add an interface above `type Executor`:
 
 ```go
 // Runner is the narrow interface the Scheduler uses to fire a job.
@@ -2739,7 +2739,7 @@ func (s *Scheduler) Stop(ctx context.Context) {
 
 ```bash
 cd gormes
-go test -race ./internal/cron/... -run TestScheduler_ -v -timeout 30s
+go test -race ./internal/automation/cron/... -run TestScheduler_ -v -timeout 30s
 go vet ./...
 ```
 
@@ -2748,7 +2748,7 @@ All 3 scheduler tests pass.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add internal/cron/scheduler.go internal/cron/scheduler_test.go internal/cron/executor.go
+git add internal/automation/cron/scheduler.go internal/automation/cron/scheduler_test.go internal/automation/cron/executor.go
 git commit -m "$(cat <<'EOF'
 feat(gormes/cron): Scheduler wraps robfig/cron/v3
 
@@ -2781,8 +2781,8 @@ EOF
 ## Task 11: CRON.md mirror
 
 **Files:**
-- Create: `internal/cron/mirror.go`
-- Create: `internal/cron/mirror_test.go`
+- Create: `internal/automation/cron/mirror.go`
+- Create: `internal/automation/cron/mirror_test.go`
 
 - [ ] **Step 1: Write failing tests — `mirror_test.go`**
 
@@ -2917,7 +2917,7 @@ func TestMirror_EmptyStoreProducesEmptyActiveSection(t *testing.T) {
 
 ```bash
 cd gormes
-go test ./internal/cron/... -run TestMirror_ -v 2>&1 | tail -5
+go test ./internal/automation/cron/... -run TestMirror_ -v 2>&1 | tail -5
 ```
 
 Expected: undefined Mirror / NewMirror / MirrorConfig.
@@ -3097,7 +3097,7 @@ func atomicWrite(path, body string) error {
 
 ```bash
 cd gormes
-go test -race ./internal/cron/... -run TestMirror_ -v -timeout 30s
+go test -race ./internal/automation/cron/... -run TestMirror_ -v -timeout 30s
 go vet ./...
 ```
 
@@ -3106,7 +3106,7 @@ All 3 mirror tests pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/cron/mirror.go internal/cron/mirror_test.go
+git add internal/automation/cron/mirror.go internal/automation/cron/mirror_test.go
 git commit -m "$(cat <<'EOF'
 feat(gormes/cron): CRON.md mirror (3.D.5 pattern for cron state)
 
@@ -3368,7 +3368,7 @@ func newTelegramDeliverySink(bot telegramBotSender, chatID int64) cron.DeliveryS
 }
 ```
 
-Add `"github.com/TrebuchetDynamics/gormes-agent/internal/cron"` to the imports.
+Add `"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"` to the imports.
 
 **Check whether `telegram.Bot` has a `SendToChat` method.** If it doesn't, check what the existing bot uses to send. Likely candidates to wrap: `bot.SendMessage(chatID, text)`, `bot.client.SendMessage(...)`. If the name differs, update the interface method name to match — don't rename upstream methods.
 
@@ -3388,7 +3388,7 @@ In `cmd/gormes/telegram.go`, inside `runTelegram` after the Embedder defer block
 	if cfg.Cron.Enabled && cfg.Telegram.AllowedChatID != 0 {
 		// Reuse the existing session.db for the cron_jobs bucket.
 		// smap already owns the DB handle — we need access to it here.
-		// (Add a DB() accessor to internal/session if needed.)
+		// (Add a DB() accessor to internal/persistence/session if needed.)
 		cronStore, err := cron.NewStore(smap.DB())
 		if err != nil {
 			return fmt.Errorf("cron: init store: %w", err)
@@ -3436,7 +3436,7 @@ In `cmd/gormes/telegram.go`, inside `runTelegram` after the Embedder defer block
 - `mstore.DB()` should exist (added earlier for the RunStore use).
 - `smap.DB()` may need to be added. Search:
   ```bash
-  grep -n "func (s \*Map) DB\|func.*bbolt.DB" internal/session/*.go
+  grep -n "func (s \*Map) DB\|func.*bbolt.DB" internal/persistence/session/*.go
   ```
   If absent, add a one-liner:
   ```go
@@ -3476,7 +3476,7 @@ Expected: the existing `no Telegram bot token` error (unchanged — cron is disa
 - [ ] **Step 8: Commit**
 
 ```bash
-git add gormes/cmd/gormes/telegram.go gormes/cmd/gormes/telegram_cron_sink_test.go internal/session/*.go
+git add gormes/cmd/gormes/telegram.go gormes/cmd/gormes/telegram_cron_sink_test.go internal/persistence/session/*.go
 git commit -m "$(cat <<'EOF'
 feat(gormes/cmd/telegram): wire Phase-2.D cron subsystem
 
@@ -3516,13 +3516,13 @@ EOF
 ## Task 14: Ollama E2E heartbeat test (ship-criterion)
 
 **Files:**
-- Create: `internal/cron/integration_test.go`
+- Create: `internal/automation/cron/integration_test.go`
 
 Optional but high-value. Uses the real extractor-integration-style Ollama skip helper so it runs cleanly under `go test ./...` even without Ollama.
 
 - [ ] **Step 1: Write the integration test**
 
-Create `internal/cron/integration_test.go`:
+Create `internal/automation/cron/integration_test.go`:
 
 ```go
 // Package cron — Phase 2.D heartbeat crucible against local Ollama.
@@ -3561,7 +3561,7 @@ The full test body is ~200 lines. Use the Phase 3.D integration test as your ske
 ```bash
 cd gormes
 GORMES_EXTRACTOR_MODEL="huggingface.co/r1r21nb/qwen2.5-3b-instruct.Q4_K_M.gguf:latest" \
-  go test ./internal/cron/... -run TestCron_Integration_Ollama_Heartbeat -v -timeout 5m
+  go test ./internal/automation/cron/... -run TestCron_Integration_Ollama_Heartbeat -v -timeout 5m
 ```
 
 If PASS: commit. If FAIL: report the full output — do NOT adjust production code to make it pass; the ship criterion is real behavior.
@@ -3569,7 +3569,7 @@ If PASS: commit. If FAIL: report the full output — do NOT adjust production co
 - [ ] **Step 3: Commit (only if Step 2 passes)**
 
 ```bash
-git add internal/cron/integration_test.go
+git add internal/automation/cron/integration_test.go
 git commit -m "$(cat <<'EOF'
 test(gormes/cron): Phase-2.D heartbeat crucible against Ollama
 
@@ -3614,7 +3614,7 @@ Expected: all packages green.
 
 ```bash
 cd gormes
-(go list -deps ./internal/kernel | grep -E "ncruces|internal/memory|internal/session|internal/cron") \
+(go list -deps ./internal/kernel | grep -E "ncruces|internal/memory|internal/persistence/session|internal/automation/cron") \
   && echo "VIOLATION" || echo "OK: kernel isolated"
 ```
 

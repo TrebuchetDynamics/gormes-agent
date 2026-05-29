@@ -17,17 +17,17 @@
         "system"
       ],
       "degraded_mode": "Missing Gormes-owned profile or memory files render missing-context evidence and continue the turn from the platform/session block; HERMES_HOME content is ignored unless explicitly migrated into Gormes-owned files or selected through GORMES_CONTEXT_HOME/GORMES_CONTEXT_MEMORY_DIR.",
-      "fixture": "internal/hermes/context_root_resolver_test.go + internal/gateway/live_turn_prompt_test.go",
+      "fixture": "internal/llm/context_root_resolver_test.go + internal/gateway/live_turn_prompt_test.go",
       "source_refs": [
         "../hermes-agent/hermes_constants.py (reference only; no runtime dependency)",
         "../hermes-agent/run_agent.py (reference only; no runtime dependency)",
-        "internal/hermes/context_files.go",
-        "internal/hermes/durable_user_context.go",
+        "internal/llm/context_files.go",
+        "internal/llm/durable_user_context.go",
         "internal/gateway/live_turn_prompt.go",
         "internal/gateway/live_turn_prompt_test.go"
       ],
       "ready_when": [
-        "Current live-turn context discovery seams are identified in internal/hermes and internal/gateway.",
+        "Current live-turn context discovery seams are identified in internal/llm and internal/gateway.",
         "Temp HERMES_HOME/profile/workspace fixtures can prove resolution order without reading Juan's live profile."
       ],
       "acceptance": [
@@ -37,13 +37,13 @@
         "Unit tests do not read `/home/xel/.gormes` or `/home/xel/.hermes`."
       ],
       "write_scope": [
-        "internal/hermes/",
+        "internal/llm/",
         "internal/gateway/live_turn_prompt.go",
         "internal/gateway/live_turn_prompt_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes ./internal/gateway -run 'ContextRoot|SOUL|DurableUserContext|LiveTurn' -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/llm ./internal/gateway -run 'ContextRoot|SOUL|DurableUserContext|LiveTurn' -count=1",
         "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -445,7 +445,7 @@
       "degraded_mode": "`selector_no_match` typed evidence is returned when no provider/model alias resolves; `selector_helper_unavailable` when one of the helper rows is not yet wired; `selector_alias_resolution_failed` when the static alias resolver returns an error.",
       "fixture": "internal/cli/selector_test.go",
       "source_refs": [
-        "internal/hermes/model_alias_resolver.go",
+        "internal/llm/model_alias_resolver.go",
         "internal/config/config.go:HermesCfg",
         "internal/cli/profile_name.go",
         "internal/cli/profile_root.go",
@@ -1043,13 +1043,13 @@
         "internal/config/agents.go:AgentDefaultsCfg.Workspaces",
         "cmd/gormes/setup.go:runSetupProfilesInteractive writes agents.defaults.workspaces",
         "cmd/gormes/registry.go:buildDefaultRegistry registers file, execute_code, terminal tools",
-        "internal/agenttemplate/default_templates.go:SOUL.md and IDENTITY.md identity files",
+        "internal/core/agenttemplate/default_templates.go:SOUL.md and IDENTITY.md identity files",
         "internal/tools/filesystem_scope.go:NewFilesystemScope",
         "internal/tools/profile_workspace_scope.go:ProfileWorkspaceScope",
         "internal/tools/file_task_tools.go:FileTaskToolConfig / resolveWorkspacePathFromBase",
         "internal/tools/terminal_tool.go:TerminalTool.Execute / terminalWorkdir",
         "internal/tools/execute_code.go:LocalCodeSandbox.Execute",
-        "internal/codingagents/workspace.go:WorkspaceGuard.Resolve",
+        "internal/core/codingagents/workspace.go:WorkspaceGuard.Resolve",
         "hermes-agent/website/docs/user-guide/profiles.md:Profiles vs workspaces vs sandboxing (upstream says profiles do not sandbox; this row is Gormes-owned)"
       ],
       "ready_when": [
@@ -1088,8 +1088,8 @@
         "internal/tools/execute_code_test.go",
         "internal/tools/terminal_tool.go",
         "internal/tools/terminal_tool_test.go",
-        "internal/codingagents/workspace.go",
-        "internal/codingagents/workspace_test.go",
+        "internal/core/codingagents/workspace.go",
+        "internal/core/codingagents/workspace_test.go",
         "webpages/docs/content/cli/setup.md",
         "webpages/docs/content/cli/profile.md",
         "webpages/docs/content/configure/config-file.md",
@@ -1590,12 +1590,12 @@
       ],
       "write_scope": [
         "internal/config/config.go",
-        "internal/hermes/prompt_assembly.go",
+        "internal/llm/prompt_assembly.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -count=1",
         "go build ./cmd/gormes",
         "go run ./cmd/progress validate"
       ],
@@ -1607,9 +1607,9 @@
           "internal/config/config.go: AgentRuntimeCfg extended with 8 new fields incl. Personalities map",
           "internal/config/config.go: DisplayCfg extended with 11 new Hermes-parity fields",
           "internal/config/config.go: defaultPersonalities() returns 12 built-in persona prompts",
-          "internal/hermes/prompt_assembly.go: Personality field in PromptAssemblyOptions, injected as <personality> block"
+          "internal/llm/prompt_assembly.go: Personality field in PromptAssemblyOptions, injected as <personality> block"
         ],
-        "tests": "go test ./internal/config -count=1, go test ./internal/hermes -count=1"
+        "tests": "go test ./internal/config -count=1, go test ./internal/llm -count=1"
       }
     }
   },
@@ -1652,12 +1652,12 @@
       ],
       "write_scope": [
         "internal/config/config.go",
-        "internal/hermes/prompt_assembly.go",
+        "internal/llm/prompt_assembly.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -count=1",
         "go build ./cmd/gormes",
         "go run ./cmd/progress validate"
       ],
@@ -1669,9 +1669,9 @@
           "internal/config/config.go: AgentRuntimeCfg extended with 8 new fields incl. Personalities map",
           "internal/config/config.go: DisplayCfg extended with 11 new Hermes-parity fields",
           "internal/config/config.go: defaultPersonalities() returns 12 built-in persona prompts",
-          "internal/hermes/prompt_assembly.go: Personality field in PromptAssemblyOptions, injected as <personality> block"
+          "internal/llm/prompt_assembly.go: Personality field in PromptAssemblyOptions, injected as <personality> block"
         ],
-        "tests": "go test ./internal/config -count=1, go test ./internal/hermes -count=1"
+        "tests": "go test ./internal/config -count=1, go test ./internal/llm -count=1"
       }
     }
   }

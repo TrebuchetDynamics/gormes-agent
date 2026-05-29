@@ -407,8 +407,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -2011,8 +2011,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -2255,14 +2255,14 @@ Find the block where `request := hermes.ChatRequest{...}` is built (around line 
 		Model:     k.cfg.Model,
 		SessionID: k.sessionID,
 		Stream:    true,
-		Messages:  []hermes.Message{{Role: "user", Content: text}},
+		Messages:  []llm.Message{{Role: "user", Content: text}},
 	}
 ```
 
 With:
 
 ```go
-	msgs := []hermes.Message{{Role: "user", Content: text}}
+	msgs := []llm.Message{{Role: "user", Content: text}}
 
 	if k.cfg.Recall != nil {
 		deadline := k.cfg.RecallDeadline
@@ -2277,7 +2277,7 @@ With:
 		})
 		recallCancel()
 		if ctxStr != "" {
-			msgs = append([]hermes.Message{
+			msgs = append([]llm.Message{
 				{Role: "system", Content: ctxStr},
 			}, msgs...)
 		}
@@ -2575,7 +2575,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // TestRecall_Integration_Ollama_SecondTurnSeesFirstTurnEntities:

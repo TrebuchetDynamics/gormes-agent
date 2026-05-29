@@ -18,7 +18,7 @@
 
 This pass is not "do all of Phase 2." It is a controlled execution pass that lands one vertical slice in each of the two most important remaining Phase 2 fronts:
 
-- a **usable, deterministic subagent runtime core** under `internal/subagent/`
+- a **usable, deterministic subagent runtime core** under `internal/core/subagent/`
 - a **shared gateway chassis** under `internal/gateway/` plus one real second adapter built on top of it
 
 The point of doing both in one pass is strategic, not aesthetic.
@@ -44,7 +44,7 @@ Discord is chosen because Slack credentials are not available in this environmen
 
 **Track A — Phase 2.E runtime core**
 
-- stabilize and finish the current `internal/subagent/` lifecycle surface
+- stabilize and finish the current `internal/core/subagent/` lifecycle surface
 - keep `Manager`, `Registry`, `Runner`, `Subagent`, `SubagentResult`, and `delegate_task` as the public runtime seam
 - wire `[delegation]` config into the binary
 - ensure deterministic cancellation, timeout, depth-limit enforcement, and batch concurrency
@@ -123,7 +123,7 @@ Telegram stops owning the only gateway runtime path. It becomes one adapter impl
 
 ### 3.6 Existing subagent runtime is consolidated, not replaced
 
-This pass starts from the existing `internal/subagent/` code already present in the tree. The work is to finish and harden that runtime core, not to throw it away and redesign it from zero.
+This pass starts from the existing `internal/core/subagent/` code already present in the tree. The work is to finish and harden that runtime core, not to throw it away and redesign it from zero.
 
 ---
 
@@ -131,7 +131,7 @@ This pass starts from the existing `internal/subagent/` code already present in 
 
 ### 4.1 Track A — subagent runtime core
 
-`internal/subagent/` remains the single home of child execution lifecycle.
+`internal/core/subagent/` remains the single home of child execution lifecycle.
 
 The owner boundaries are:
 
@@ -195,7 +195,7 @@ The gateway chassis submits normalized `kernel.PlatformEvent`s and consumes `ker
    - message edit
    - reaction ack/undo
    - typing start/stop
-5. It persists changed session IDs through `internal/session.Map`.
+5. It persists changed session IDs through `internal/persistence/session.Map`.
 
 ### 5.3 Subagent runtime path
 
@@ -295,7 +295,7 @@ Shared logic should change only when a new platform reveals a genuinely reusable
 This pass is successful when all of the following are true:
 
 - `delegate_task` is wired and returns structured results through the subagent runtime core
-- the current `internal/subagent/` lifecycle surface is deterministic and race-clean
+- the current `internal/core/subagent/` lifecycle surface is deterministic and race-clean
 - `internal/gateway/` exists and owns shared adapter mechanics
 - Telegram is running through the chassis, not bespoke runtime code
 - Discord works end-to-end as the second real adapter

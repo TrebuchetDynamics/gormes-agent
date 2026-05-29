@@ -21,10 +21,10 @@ Useful CLIProxyAPI evidence:
 
 Gormes source context:
 
-- `internal/hermes/http_client.go` already has OpenAI-compatible and Codex Responses client behavior.
-- `internal/hermes/provider_transport.go` separates request-shape transports (`chat_completions`, `anthropic_messages`, `bedrock_converse`, `codex_responses`) from HTTP client construction.
-- `internal/hermes/provider_registry_manifest.go` lists provider IDs, aliases, auth types, base URLs, and implementation status.
-- `internal/hermes/fallback_chain.go` and `internal/hermes/model_routing.go` already provide fallback/routing primitives.
+- `internal/llm/http_client.go` already has OpenAI-compatible and Codex Responses client behavior.
+- `internal/llm/provider_transport.go` separates request-shape transports (`chat_completions`, `anthropic_messages`, `bedrock_converse`, `codex_responses`) from HTTP client construction.
+- `internal/llm/provider_registry_manifest.go` lists provider IDs, aliases, auth types, base URLs, and implementation status.
+- `internal/llm/fallback_chain.go` and `internal/llm/model_routing.go` already provide fallback/routing primitives.
 - `cmd/gormes/provider_client.go` resolves configured provider endpoints/credentials and redacts setup errors.
 
 ## Non-goals and safety boundary

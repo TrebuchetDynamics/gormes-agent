@@ -17,9 +17,9 @@
 | File | Action | Responsibility |
 |---|---|---|
 | `gormes/go.mod` / `gormes/go.sum` | Modify | Add `modernc.org/sqlite` |
-| `internal/store/store.go` | Modify | Remove `AppendAssistantDraft` enum value + String() case; tighten comment |
-| `internal/store/recording.go` | Create | `RecordingStore` test double — captures commands for kernel tests |
-| `internal/store/recording_test.go` | Create | RecordingStore unit tests |
+| `internal/persistence/store/store.go` | Modify | Remove `AppendAssistantDraft` enum value + String() case; tighten comment |
+| `internal/persistence/store/recording.go` | Create | `RecordingStore` test double — captures commands for kernel tests |
+| `internal/persistence/store/recording_test.go` | Create | RecordingStore unit tests |
 | `internal/memory/memory.go` | Create | Package doc, `SqliteStore` type, `OpenSqlite`, `Stats`, `Close` |
 | `internal/memory/schema.go` | Create | Schema DDL + `migrate()` helper |
 | `internal/memory/worker.go` | Create | Worker goroutine + `handleCommand` dispatcher |
@@ -96,9 +96,9 @@ EOF
 ## Task 2: Remove `AppendAssistantDraft` + add `RecordingStore`
 
 **Files:**
-- Modify: `internal/store/store.go`
-- Create: `internal/store/recording.go`
-- Create: `internal/store/recording_test.go`
+- Modify: `internal/persistence/store/store.go`
+- Create: `internal/persistence/store/recording.go`
+- Create: `internal/persistence/store/recording_test.go`
 
 - [ ] **Step 1: Confirm zero runtime callers of `AppendAssistantDraft`**
 
@@ -107,11 +107,11 @@ cd gormes
 grep -rn "AppendAssistantDraft" --include="*.go" .
 ```
 
-Expected output: exactly two matches, both in `internal/store/store.go` (the `const` and the `String()` switch case). If any other file matches, STOP — there's an unexpected caller that must be migrated first.
+Expected output: exactly two matches, both in `internal/persistence/store/store.go` (the `const` and the `String()` switch case). If any other file matches, STOP — there's an unexpected caller that must be migrated first.
 
 - [ ] **Step 2: Write the `RecordingStore` failing test FIRST**
 
-Create `internal/store/recording_test.go`:
+Create `internal/persistence/store/recording_test.go`:
 
 ```go
 package store
@@ -179,14 +179,14 @@ func TestRecordingStore_CtxCancelHonored(t *testing.T) {
 
 ```bash
 cd gormes
-go test ./internal/store/... 2>&1 | head -5
+go test ./internal/persistence/store/... 2>&1 | head -5
 ```
 
 Expected: `undefined: NewRecording` (or build error about missing type).
 
 - [ ] **Step 4: Remove `AppendAssistantDraft` from `store.go`**
 
-Open `internal/store/store.go`. Edit the `const` block and the `String()` switch:
+Open `internal/persistence/store/store.go`. Edit the `const` block and the `String()` switch:
 
 ```go
 type CommandKind int
@@ -213,7 +213,7 @@ Also update the package comment at the top of `store.go` if it explicitly lists 
 
 - [ ] **Step 5: Write `recording.go`**
 
-Create `internal/store/recording.go`:
+Create `internal/persistence/store/recording.go`:
 
 ```go
 package store
@@ -261,7 +261,7 @@ func (r *RecordingStore) Commands() []Command {
 
 ```bash
 cd gormes
-go test -race ./internal/store/... -v
+go test -race ./internal/persistence/store/... -v
 go vet ./...
 ```
 
@@ -279,9 +279,9 @@ Expected: all green. Removing `AppendAssistantDraft` is a no-op for every caller
 - [ ] **Step 8: Commit (from repo root)**
 
 ```bash
-git add internal/store/store.go \
-        internal/store/recording.go \
-        internal/store/recording_test.go
+git add internal/persistence/store/store.go \
+        internal/persistence/store/recording.go \
+        internal/persistence/store/recording_test.go
 git commit -m "$(cat <<'EOF'
 refactor(gormes/store): drop AppendAssistantDraft + add RecordingStore
 
@@ -479,7 +479,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 )
 
 // defaultQueueCap is used when OpenSqlite receives queueCap <= 0.
@@ -661,7 +661,7 @@ import (
 	// ... existing imports ...
 	"encoding/json"
 	"time"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 )
 
 // (If the existing imports already have some of these, don't duplicate; just
@@ -960,7 +960,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 )
 
 // turnPayload is the shared JSON schema for AppendUserTurn and
@@ -1065,7 +1065,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 )
 
 func insertTurn(t *testing.T, s *SqliteStore, sid, content string) {
@@ -1222,7 +1222,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 )
 
 func TestClose_DrainsQueue(t *testing.T) {
@@ -1403,8 +1403,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -1547,7 +1547,7 @@ If `encoding/json` is not already imported, add it to the import block of `kerne
 Find the block around line 385-392 in `kernel.go` that appends the final assistant message to history and emits the idle frame. It looks like:
 
 ```go
-	k.history = append(k.history, hermes.Message{Role: "assistant", Content: k.draft})
+	k.history = append(k.history, llm.Message{Role: "assistant", Content: k.draft})
 ```
 
 followed further down by:
@@ -1561,7 +1561,7 @@ followed further down by:
 Insert the FinalizeAssistantTurn call **between** the history-append and the idle-emit — immediately after the history append, before the phase transition:
 
 ```go
-k.history = append(k.history, hermes.Message{Role: "assistant", Content: k.draft})
+k.history = append(k.history, llm.Message{Role: "assistant", Content: k.draft})
 
 // Phase 3.A: finalize in the memory store. Fire-and-forget — the worker
 // handles I/O off the hot path. 250ms context bound kept as a safety net
@@ -1580,7 +1580,7 @@ k.history = append(k.history, hermes.Message{Role: "assistant", Content: k.draft
 
 **IMPORTANT:** the FinalizeAssistantTurn write must happen ONLY on the happy finalization path — NOT on the cancellation path (line ~385 `k.emitFrame("cancelled")`) and NOT on the failure path (line ~364 `k.emitFrame("stream error")`). We record completed turns only.
 
-If the codebase's actual layout has been restructured since this plan was drafted, find the existing `k.history = append(k.history, hermes.Message{Role: "assistant", ...})` line and insert the finalize block immediately after it — that line uniquely marks the "assistant turn succeeded" waypoint.
+If the codebase's actual layout has been restructured since this plan was drafted, find the existing `k.history = append(k.history, llm.Message{Role: "assistant", ...})` line and insert the finalize block immediately after it — that line uniquely marks the "assistant turn succeeded" waypoint.
 
 - [ ] **Step 5: Run — expect PASS**
 
@@ -1798,7 +1798,7 @@ k := kernel.New(kernel.Config{
 }, hc, mstore, tm, slog.Default())
 ```
 
-4. Remove the now-unused `store` import from the import block (grep `store.NewNoop` first — if no other use remains, delete the line `"github.com/TrebuchetDynamics/gormes-agent/internal/store"`).
+4. Remove the now-unused `store` import from the import block (grep `store.NewNoop` first — if no other use remains, delete the line `"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"`).
 
 5. Update the startup log line to include the memory db path:
 
@@ -2294,7 +2294,7 @@ import (
 	"os"
 	"path/filepath"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"encoding/json"
 )
 func main() {

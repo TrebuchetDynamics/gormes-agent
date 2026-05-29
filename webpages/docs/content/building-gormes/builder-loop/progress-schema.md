@@ -102,13 +102,13 @@ generic notes without bounded tests or write scope do not.
   "execution_owner": "provider",
   "trust_class": ["system"],
   "degraded_mode": "Provider status reports missing fixture coverage before routing can select the adapter.",
-  "fixture": "internal/hermes/testdata/provider_transcripts",
+  "fixture": "internal/llm/testdata/provider_transcripts",
   "source_refs": ["docs/content/upstream-hermes/source-study.md"],
   "ready_when": ["Anthropic transcript fixtures replay without live credentials."],
-  "write_scope": ["internal/hermes/"],
-  "test_commands": ["go test ./internal/hermes -count=1"],
+  "write_scope": ["internal/llm/"],
+  "test_commands": ["go test ./internal/llm -count=1"],
   "done_signal": ["Provider transcript replay passes from captured fixtures."],
-  "acceptance": ["All provider transcript fixtures pass under go test ./internal/hermes."]
+  "acceptance": ["All provider transcript fixtures pass under go test ./internal/llm."]
 }
 ```
 

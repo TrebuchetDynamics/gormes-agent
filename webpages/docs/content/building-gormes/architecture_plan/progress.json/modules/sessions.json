@@ -40,7 +40,7 @@
       "name": "user_id concept above chat_id",
       "status": "complete",
       "module": "sessions",
-      "note": "TDD landed: internal/session now persists per-session source/chat/user metadata, resolves canonical user_id bindings above chat_id, inherits known chat bindings for resumed sessions, and rejects conflicting chat-to-user merges."
+      "note": "TDD landed: internal/persistence/session now persists per-session source/chat/user metadata, resolves canonical user_id bindings above chat_id, inherits known chat bindings for resumed sessions, and rejects conflicting chat-to-user merges."
     }
   },
   {
@@ -61,7 +61,7 @@
         "system"
       ],
       "degraded_mode": "Session mirrors and status show missing, orphaned, or looped lineage instead of silently resuming stale roots.",
-      "fixture": "internal/session/lineage_test.go",
+      "fixture": "internal/persistence/session/lineage_test.go",
       "source_refs": [
         "../hermes-agent/hermes_state.py",
         "../hermes-agent/docs/developer-guide/session-storage.md",
@@ -69,7 +69,7 @@
         "docs/content/building-gormes/architecture_plan/phase-3-memory.md"
       ],
       "ready_when": [
-        "internal/session.Metadata already persists source, chat_id, user_id, and updated_at on bbolt-backed sessions."
+        "internal/persistence/session.Metadata already persists source, chat_id, user_id, and updated_at on bbolt-backed sessions."
       ],
       "not_ready_when": [
         "The slice implements compression itself or rewrites existing session IDs instead of adding append-only lineage metadata."
@@ -83,13 +83,13 @@
         "Self-parent and trivial parent loops are rejected in BoltMap and MemMap tests.",
         "SessionIndexMirror or an equivalent read model exposes parent/child/orphan lineage for operator audit."
       ],
-      "note": "Complete: internal/session.Metadata now persists parent_session_id plus lineage_kind, roots default to primary without a parent, BoltMap and MemMap reject self-parent and parent-chain loops, ResolveLineageTip walks append-only compression descendants without rewriting ancestor metadata, and SessionIndexMirror renders child/orphan lineage status for operator audit. Compression execution, gateway resume routing, and lineage-aware search remain separate dependent rows.",
+      "note": "Complete: internal/persistence/session.Metadata now persists parent_session_id plus lineage_kind, roots default to primary without a parent, BoltMap and MemMap reject self-parent and parent-chain loops, ResolveLineageTip walks append-only compression descendants without rewriting ancestor metadata, and SessionIndexMirror renders child/orphan lineage status for operator audit. Compression execution, gateway resume routing, and lineage-aware search remain separate dependent rows.",
       "write_scope": [
-        "internal/session/",
+        "internal/persistence/session/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/session -count=1"
+        "go test ./internal/persistence/session -count=1"
       ],
       "done_signal": [
         "Session lineage fixtures prove append-only parent metadata, loop rejection, and operator-visible orphan status without implementing compression."
@@ -148,11 +148,11 @@
       "note": "Complete: TDD landed internal/memory/session_lineage_search_test.go. SearchMessages and SearchSessions now attach SearchLineage evidence with parent_session_id, lineage_kind, child_session_ids, and explicit ok/orphan/unavailable status without changing the same-chat default recall fence.",
       "write_scope": [
         "internal/memory/",
-        "internal/session/",
+        "internal/persistence/session/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/memory ./internal/session -count=1"
+        "go test ./internal/memory ./internal/persistence/session -count=1"
       ],
       "done_signal": [
         "Lineage-aware search fixtures prove matched sessions carry parent/child context while default same-chat recall stays fenced."
@@ -294,18 +294,18 @@
         "system"
       ],
       "degraded_mode": "Context status reports compression disabled or unavailable instead of using stale budget values from a previous model window.",
-      "fixture": "internal/hermes/context_compressor_budget_test.go",
+      "fixture": "internal/llm/context_compressor_budget_test.go",
       "source_refs": [
         "../hermes-agent/agent/context_compressor.py@5401a008",
         "../hermes-agent/tests/agent/test_context_compressor.py@5401a008",
         "docs/content/upstream-hermes/developer-guide/context-compression-and-caching.md",
-        "internal/hermes/context_engine.go",
-        "internal/hermes/model_context_resolver.go"
+        "internal/llm/context_engine.go",
+        "internal/llm/model_context_resolver.go"
       ],
       "ready_when": [
         "ContextEngine interface + status tool contract is validated on main.",
         "Provider-enforced context-length resolver is validated on main.",
-        "The implementation can be tested as pure internal/hermes budget logic with no live provider call."
+        "The implementation can be tested as pure internal/llm budget logic with no live provider call."
       ],
       "not_ready_when": [
         "The slice mutates kernel message history, calls a summarizer LLM, ports context references, or changes provider routing instead of only implementing compressor budget/status behavior."
@@ -320,16 +320,16 @@
         "Summary target ratio is clamped to the upstream 0.10-0.80 range and the threshold floor preserves MINIMUM_CONTEXT_LENGTH-equivalent behavior.",
         "The focused test mirrors Hermes TestUpdateModelBudgets without wiring compression into the kernel or requiring provider credentials."
       ],
-      "note": "Complete: TDD landed a pure internal/hermes ContextCompressorBudget helper mirroring upstream Hermes 5401a008 budget recalculation. Fixtures prove 200K initialization, 200K to 32K model-window updates, summary_target_ratio clamping, the 64K minimum-context threshold floor, max_summary_tokens sizing, and unavailable degraded status for unknown model windows without kernel wiring, provider credentials, summarizer calls, or message-history mutation.",
+      "note": "Complete: TDD landed a pure internal/llm ContextCompressorBudget helper mirroring upstream Hermes 5401a008 budget recalculation. Fixtures prove 200K initialization, 200K to 32K model-window updates, summary_target_ratio clamping, the 64K minimum-context threshold floor, max_summary_tokens sizing, and unavailable degraded status for unknown model windows without kernel wiring, provider credentials, summarizer calls, or message-history mutation.",
       "write_scope": [
-        "internal/hermes/",
+        "internal/llm/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -count=1"
+        "go test ./internal/llm -count=1"
       ],
       "done_signal": [
-        "internal/hermes/context_compressor_budget_test.go proves initialization and UpdateModelContext-style model switches recalculate threshold, tail, and max-summary budgets from the active context window."
+        "internal/llm/context_compressor_budget_test.go proves initialization and UpdateModelContext-style model switches recalculate threshold, tail, and max-summary budgets from the active context window."
       ],
       "health": {
         "attempt_count": 2,
@@ -366,14 +366,14 @@
         "system"
       ],
       "degraded_mode": "Context status reports whether a threshold used legacy_headroom, single_prompt_aux, provider_cap, or unavailable evidence so operators can see why compression starts early or late.",
-      "fixture": "internal/hermes/context_compressor_single_prompt_test.go",
+      "fixture": "internal/llm/context_compressor_single_prompt_test.go",
       "source_refs": [
         "../hermes-agent/run_agent.py@5006b220",
         "../hermes-agent/tests/run_agent/test_compression_feasibility.py@5006b220",
         "../hermes-agent/hermes_cli/config.py@5006b220",
-        "internal/hermes/context_compressor_budget.go",
-        "internal/hermes/context_compressor_headroom_test.go",
-        "internal/hermes/context_compressor_provider_cap_test.go"
+        "internal/llm/context_compressor_budget.go",
+        "internal/llm/context_compressor_headroom_test.go",
+        "internal/llm/context_compressor_provider_cap_test.go"
       ],
       "ready_when": [
         "Compression token-budget trigger + summary sizing and Aux compression provider-aware context cap are validated on main.",
@@ -392,17 +392,17 @@
         "A compatibility fixture documents the removed legacy headroom behavior and fails if flush_memories assumptions are reintroduced into compression budgeting.",
         "Existing provider-cap and compressor-budget tests remain green after the threshold/status expectation update."
       ],
-      "note": "Complete: TDD added internal/hermes/context_compressor_single_prompt_test.go and updated the prior headroom/provider-cap fixtures for Hermes 5006b220 semantics. ContextCompressorBudget now sets auxiliary-bound compression thresholds to aux_context directly, reports threshold_source evidence for single_prompt_aux, provider_cap, main_context, or unavailable, preserves auxiliary_context_source provider_cap evidence, and omits request_headroom_tokens/headroom_clamped from compression-only status. Compatibility fixtures fail if tool-schema plus 12000 flush-memory headroom is reintroduced.",
+      "note": "Complete: TDD added internal/llm/context_compressor_single_prompt_test.go and updated the prior headroom/provider-cap fixtures for Hermes 5006b220 semantics. ContextCompressorBudget now sets auxiliary-bound compression thresholds to aux_context directly, reports threshold_source evidence for single_prompt_aux, provider_cap, main_context, or unavailable, preserves auxiliary_context_source provider_cap evidence, and omits request_headroom_tokens/headroom_clamped from compression-only status. Compatibility fixtures fail if tool-schema plus 12000 flush-memory headroom is reintroduced.",
       "write_scope": [
-        "internal/hermes/context_compressor_budget.go",
-        "internal/hermes/context_compressor_headroom_test.go",
-        "internal/hermes/context_compressor_provider_cap_test.go",
-        "internal/hermes/context_compressor_single_prompt_test.go",
+        "internal/llm/context_compressor_budget.go",
+        "internal/llm/context_compressor_headroom_test.go",
+        "internal/llm/context_compressor_provider_cap_test.go",
+        "internal/llm/context_compressor_single_prompt_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run 'TestContextCompressor(SinglePrompt|ProviderCap|Headroom|Budget)' -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run 'TestContextCompressor(SinglePrompt|ProviderCap|Headroom|Budget)' -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -438,14 +438,14 @@
         "system"
       ],
       "degraded_mode": "Context status reports compression_length_estimator_unavailable and falls back to conservative tail preservation instead of crashing on mixed multimodal content.",
-      "fixture": "internal/hermes/context_compressor_content_test.go",
+      "fixture": "internal/llm/context_compressor_content_test.go",
       "source_refs": [
         "../hermes-agent/agent/context_compressor.py@cfc8befe:_find_tail_cut_by_tokens",
         "../hermes-agent/agent/context_compressor.py@94346523:_find_tail_cut_by_tokens",
         "../hermes-agent/agent/context_compressor.py@bda2dbc2:_calculate_protect_tail_boundary",
         "../hermes-agent/tests/agent/test_context_compressor.py@cfc8befe:TestTokenBudgetTailProtection",
-        "internal/hermes/context_compressor_budget.go",
-        "internal/hermes/context_engine.go"
+        "internal/llm/context_compressor_budget.go",
+        "internal/llm/context_engine.go"
       ],
       "ready_when": [
         "Compression token-budget trigger + summary sizing and Aux compression single-prompt threshold reconciliation are validated on main.",
@@ -468,15 +468,15 @@
         "TestCompressionContentLength_UnknownListItemFallback converts non-map/non-string list items with fmt.Sprint or equivalent deterministic fallback.",
         "TestCompressionContentLength_ImageOnlyBlockZeroText proves image-only maps contribute zero text chars before the caller adds per-message overhead."
       ],
-      "note": "Complete: TDD added internal/hermes/context_compressor_content.go and internal/hermes/context_compressor_content_test.go. The pure compressionContentLength helper counts plain strings by rune length, sums text fields in mixed multimodal blocks, counts bare string list items, falls back to fmt.Sprint for unknown non-map/non-string list items, and treats image-only blocks as zero text chars before any caller overhead. The fixtures are synthetic Go values only and do not invoke the kernel, provider clients, summarizer, transcript storage, or live message-history mutation.",
+      "note": "Complete: TDD added internal/llm/context_compressor_content.go and internal/llm/context_compressor_content_test.go. The pure compressionContentLength helper counts plain strings by rune length, sums text fields in mixed multimodal blocks, counts bare string list items, falls back to fmt.Sprint for unknown non-map/non-string list items, and treats image-only blocks as zero text chars before any caller overhead. The fixtures are synthetic Go values only and do not invoke the kernel, provider clients, summarizer, transcript storage, or live message-history mutation.",
       "write_scope": [
-        "internal/hermes/context_compressor_content.go",
-        "internal/hermes/context_compressor_content_test.go",
+        "internal/llm/context_compressor_content.go",
+        "internal/llm/context_compressor_content_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run '^TestCompressionContentLength_' -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run '^TestCompressionContentLength_' -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -512,13 +512,13 @@
         "system"
       ],
       "degraded_mode": "Context status reports image_budget_estimator_unavailable and uses conservative compression thresholds instead of treating image-heavy turns as near-empty.",
-      "fixture": "internal/hermes/context_compressor_image_budget_test.go::TestCompressionContentBudgetLength_ImageParts",
+      "fixture": "internal/llm/context_compressor_image_budget_test.go::TestCompressionContentBudgetLength_ImageParts",
       "source_refs": [
         "../hermes-agent/agent/context_compressor.py@ec671c41:_IMAGE_TOKEN_ESTIMATE",
         "../hermes-agent/agent/context_compressor.py@ec671c41:_content_length_for_budget",
         "../hermes-agent/tests/agent/test_compressor_image_tokens.py@ec671c41",
-        "internal/hermes/context_compressor_content.go:compressionContentLength",
-        "internal/hermes/context_compressor_budget.go"
+        "internal/llm/context_compressor_content.go:compressionContentLength",
+        "internal/llm/context_compressor_budget.go"
       ],
       "ready_when": [
         "Compression protected-tail multimodal length estimator is validated on main and remains the text-only helper for tail-cut decisions.",
@@ -545,14 +545,14 @@
       ],
       "note": "Added after Hermes ec671c41 separated multimodal text length from compression budget pressure by charging a flat image-token estimate. This keeps the completed text-tail estimator stable while giving the budget trigger a separate image-aware contract.",
       "write_scope": [
-        "internal/hermes/context_compressor_content.go",
-        "internal/hermes/context_compressor_image_budget_test.go",
-        "internal/hermes/context_compressor_budget.go",
+        "internal/llm/context_compressor_content.go",
+        "internal/llm/context_compressor_image_budget_test.go",
+        "internal/llm/context_compressor_budget.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run 'TestCompressionContent(BudgetLength|Length)_' -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run 'TestCompressionContent(BudgetLength|Length)_' -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -583,14 +583,14 @@
         "system"
       ],
       "degraded_mode": "Reference handles remain pending until a later context-injection row attaches, blocks, or expands source content; handle allocation requires no provider, filesystem, git, URL, or kernel side effect.",
-      "fixture": "internal/hermes/context_references_test.go; internal/transcript/refs_test.go",
+      "fixture": "internal/llm/context_references_test.go; internal/persistence/transcript/refs_test.go",
       "source_refs": [
         "../hermes-agent/agent/context_references.py",
         "../hermes-agent/tests/agent/test_context_references.py",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Context references",
-        "internal/hermes/context_references.go",
+        "internal/llm/context_references.go",
         "internal/contextrefs/refs.go",
-        "internal/transcript/refs.go"
+        "internal/persistence/transcript/refs.go"
       ],
       "ready_when": [
         "ContextEngine interface + status tool contract is validated on main.",
@@ -615,21 +615,21 @@
         "The transcript/contextrefs store coalesces equivalent references by kind, target, and line range rather than prompt position, and Snapshot returns a defensive copy.",
         "Focused Go tests prove the parser and store behavior without provider, filesystem, git, URL, summarizer, or kernel dependencies."
       ],
-      "note": "Complete: TDD added internal/hermes/context_references_test.go, internal/hermes/context_references.go, internal/contextrefs/refs.go, internal/transcript/refs.go, and internal/transcript/refs_test.go. The parser recognizes Hermes @ reference forms, ignores emails/plain handles, strips trailing punctuation, preserves quoted paths and line ranges, removes reference tokens from prompt text, and allocates deterministic pending handles through a store that coalesces equivalent references independently of prompt position. This slice intentionally does not expand file/folder/git/url content or bind context injection into the kernel. Verified with `go test ./internal/hermes -run ContextReferences -count=1`, `go test ./internal/transcript -run ContextReference -count=1`, and `go test ./internal/contextrefs ./internal/hermes ./internal/transcript -count=1`.",
+      "note": "Complete: TDD added internal/llm/context_references_test.go, internal/llm/context_references.go, internal/contextrefs/refs.go, internal/persistence/transcript/refs.go, and internal/persistence/transcript/refs_test.go. The parser recognizes Hermes @ reference forms, ignores emails/plain handles, strips trailing punctuation, preserves quoted paths and line ranges, removes reference tokens from prompt text, and allocates deterministic pending handles through a store that coalesces equivalent references independently of prompt position. This slice intentionally does not expand file/folder/git/url content or bind context injection into the kernel. Verified with `go test ./internal/llm -run ContextReferences -count=1`, `go test ./internal/persistence/transcript -run ContextReference -count=1`, and `go test ./internal/contextrefs ./internal/llm ./internal/persistence/transcript -count=1`.",
       "write_scope": [
-        "internal/hermes/context_references.go",
-        "internal/hermes/context_references_test.go",
+        "internal/llm/context_references.go",
+        "internal/llm/context_references_test.go",
         "internal/contextrefs/refs.go",
-        "internal/transcript/refs.go",
-        "internal/transcript/refs_test.go",
+        "internal/persistence/transcript/refs.go",
+        "internal/persistence/transcript/refs_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json",
         "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run ContextReferences -count=1",
-        "go test ./internal/transcript -run ContextReference -count=1",
-        "go test ./internal/contextrefs ./internal/hermes ./internal/transcript -count=1",
+        "go test ./internal/llm -run ContextReferences -count=1",
+        "go test ./internal/persistence/transcript -run ContextReference -count=1",
+        "go test ./internal/contextrefs ./internal/llm ./internal/persistence/transcript -count=1",
         "go test ./... -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
@@ -688,14 +688,14 @@
         "system"
       ],
       "degraded_mode": "Manual compression unavailable, no-op compression, token-estimate increase, and session-split sync cases return manual_compression_* evidence with counts and approximate token totals only; raw prompt text, summaries, tool results, and provider payloads are never logged by the renderer.",
-      "fixture": "internal/hermes/manual_compression_feedback_test.go",
+      "fixture": "internal/llm/manual_compression_feedback_test.go",
       "source_refs": [
         "./hermes-agent/agent/manual_compression_feedback.py@b816fd4e2:summarize_manual_compression",
         "./hermes-agent/cli.py@b816fd4e2:_manual_compress",
         "./hermes-agent/tests/cli/test_manual_compress.py@b816fd4e2",
         "./hermes-agent/tests/cli/test_compress_focus.py@b816fd4e2",
-        "internal/hermes/context_engine.go:CompressionRequest",
-        "internal/hermes/context_engine.go:CompressionReport"
+        "internal/llm/context_engine.go:CompressionRequest",
+        "internal/llm/context_engine.go:CompressionReport"
       ],
       "ready_when": [
         "ContextEngine interface, compression token-budget rows, and context references stable-handle store are complete, so this helper can remain a pure renderer/parser without running summarization.",
@@ -719,17 +719,17 @@
         "TestParseManualCompressionFocus proves `/compress database schema` yields focus `database schema`, while `/compress` and `/compress   ` yield no focus.",
         "TestManualCompressionSessionSplitEvidence proves old/new session ids and pending-title reset intent can be represented as redacted evidence without mutating a live CLI shell."
       ],
-      "note": "Complete 2026-05-06: the bounded all-topic Hermes/Honcho weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Open P1 rows were either blocked, draft-owned OpenClaw enhancements, or not actually ready for Hermes parity because their prerequisite CLI invocation surface is absent. This row was raised as the highest unblocked small Hermes-sourced builder slice. TDD added internal/hermes/manual_compression_feedback.go and manual_compression_feedback_test.go, locking focus parsing, no-op feedback without success marker, token delta formatting, denser-summary explanation, and redacted session-split evidence without running summarization, mutating history, or binding CLI/TUI slash dispatch.",
+      "note": "Complete 2026-05-06: the bounded all-topic Hermes/Honcho weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Open P1 rows were either blocked, draft-owned OpenClaw enhancements, or not actually ready for Hermes parity because their prerequisite CLI invocation surface is absent. This row was raised as the highest unblocked small Hermes-sourced builder slice. TDD added internal/llm/manual_compression_feedback.go and manual_compression_feedback_test.go, locking focus parsing, no-op feedback without success marker, token delta formatting, denser-summary explanation, and redacted session-split evidence without running summarization, mutating history, or binding CLI/TUI slash dispatch.",
       "write_scope": [
-        "internal/hermes/manual_compression_feedback.go",
-        "internal/hermes/manual_compression_feedback_test.go",
-        "internal/hermes/context_engine.go",
+        "internal/llm/manual_compression_feedback.go",
+        "internal/llm/manual_compression_feedback_test.go",
+        "internal/llm/context_engine.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run '^TestManualCompression|^TestParseManualCompression' -count=1",
-        "go test ./internal/hermes -run '^TestContextEngine|^TestContextCompressor' -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run '^TestManualCompression|^TestParseManualCompression' -count=1",
+        "go test ./internal/llm -run '^TestContextEngine|^TestContextCompressor' -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -742,8 +742,8 @@
         "note": "The existing `Manual compression feedback + context references` row is an inventory placeholder. This child row makes the manual-feedback behavior builder-ready while keeping live context-reference expansion separate."
       },
       "evidence": {
-        "implementation": "internal/hermes/manual_compression_feedback.go",
-        "tests": "go test ./internal/hermes -run '^TestManualCompression|^TestParseManualCompression' -count=1",
+        "implementation": "internal/llm/manual_compression_feedback.go",
+        "tests": "go test ./internal/llm -run '^TestManualCompression|^TestParseManualCompression' -count=1",
         "note": "Pure helper fixtures match Hermes b816fd4e2 manual_compression_feedback.py and cli.py focus/session-split behavior while keeping live compression binding as a future row."
       },
       "unblocks": []
@@ -757,7 +757,7 @@
       "name": "ContextEngine compression-boundary callback vocabulary",
       "priority": "P2",
       "status": "complete",
-      "contract": "internal/hermes defines a compression-boundary callback vocabulary on ContextEngine with stable lineage evidence and status fields, without binding kernel compression execution yet",
+      "contract": "internal/llm defines a compression-boundary callback vocabulary on ContextEngine with stable lineage evidence and status fields, without binding kernel compression execution yet",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "provider",
@@ -767,24 +767,24 @@
         "system"
       ],
       "degraded_mode": "Context status reports compression_boundary_unavailable or last_boundary_missing evidence until kernel compression execution binds the callback.",
-      "fixture": "internal/hermes/context_engine_boundary_test.go::TestContextEngineCompressionBoundaryVocabulary",
+      "fixture": "internal/llm/context_engine_boundary_test.go::TestContextEngineCompressionBoundaryVocabulary",
       "source_refs": [
         "../hermes-agent/run_agent.py@e85b7525",
         "../hermes-agent/tests/run_agent/test_compression_boundary_hook.py@e85b7525",
-        "internal/hermes/context_engine.go:ContextEngine",
-        "internal/hermes/context_engine_test.go",
-        "internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json"
+        "internal/llm/context_engine.go:ContextEngine",
+        "internal/llm/context_engine_test.go",
+        "internal/llm/testdata/context_status/disabled_pressure_unknown_tool.json"
       ],
       "ready_when": [
         "ContextEngine interface + status tool contract is validated on main.",
         "Compression token-budget and single-prompt threshold fixtures are validated, so this slice only adds callback vocabulary and status evidence.",
-        "The worker edits only internal/hermes context-engine files and the declared context_status JSON fixture; no kernel, transcript storage, summarizer, or Goncho/Honcho memory behavior is in scope."
+        "The worker edits only internal/llm context-engine files and the declared context_status JSON fixture; no kernel, transcript storage, summarizer, or Goncho/Honcho memory behavior is in scope."
       ],
       "not_ready_when": [
         "The slice edits internal/kernel/kernel.go, creates internal/kernel/context_engine.go, implements summarization, mutates transcript history, or binds live compression execution.",
         "The slice hides boundary failures or lets status imply a boundary callback ran before the kernel binding row is complete.",
         "The slice changes Goncho/Honcho memory extraction semantics; memory pre/post-compression observation remains a separate Phase 3/4 concern.",
-        "The slice edits any testdata fixture except internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json."
+        "The slice edits any testdata fixture except internal/llm/testdata/context_status/disabled_pressure_unknown_tool.json."
       ],
       "acceptance": [
         "A new CompressionBoundary value carries old_session_id, new_session_id, reason, and compressed_at or equivalent stable lineage evidence.",
@@ -793,17 +793,17 @@
         "Existing context_status tool fixtures remain stable except for the added boundary evidence fields.",
         "The disabled_pressure_unknown_tool.json fixture is updated only as needed to include explicit missing-boundary or unavailable-boundary evidence."
       ],
-      "note": "Complete: TDD added internal/hermes/context_engine_boundary_test.go and extended ContextEngine with CompressionBoundary plus OnCompressionBoundary callback vocabulary. DisabledContextEngine records one boundary with old_session_id, new_session_id, reason, compressed_at, increments compression_count, exposes last_boundary_recorded through Status, and resets to last_boundary_missing on session reset. The disabled_pressure_unknown_tool.json fixture now carries explicit last_boundary_missing evidence. This slice stayed inside internal/hermes and did not bind kernel compression execution, mutate transcript history, or touch Goncho memory behavior.",
+      "note": "Complete: TDD added internal/llm/context_engine_boundary_test.go and extended ContextEngine with CompressionBoundary plus OnCompressionBoundary callback vocabulary. DisabledContextEngine records one boundary with old_session_id, new_session_id, reason, compressed_at, increments compression_count, exposes last_boundary_recorded through Status, and resets to last_boundary_missing on session reset. The disabled_pressure_unknown_tool.json fixture now carries explicit last_boundary_missing evidence. This slice stayed inside internal/llm and did not bind kernel compression execution, mutate transcript history, or touch Goncho memory behavior.",
       "write_scope": [
-        "internal/hermes/context_engine.go",
-        "internal/hermes/context_engine_test.go",
-        "internal/hermes/context_engine_boundary_test.go",
-        "internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json",
+        "internal/llm/context_engine.go",
+        "internal/llm/context_engine_test.go",
+        "internal/llm/context_engine_boundary_test.go",
+        "internal/llm/testdata/context_status/disabled_pressure_unknown_tool.json",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run 'Test.*ContextEngine.*Boundary|TestDisabledContextEngine_StatusToolFixture|TestContextStatusFixtures' -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run 'Test.*ContextEngine.*Boundary|TestDisabledContextEngine_StatusToolFixture|TestContextStatusFixtures' -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -843,10 +843,10 @@
       "source_refs": [
         "../hermes-agent/run_agent.py@e85b7525",
         "../hermes-agent/tests/run_agent/test_compression_boundary_hook.py@e85b7525",
-        "internal/hermes/context_engine.go",
+        "internal/llm/context_engine.go",
         "internal/kernel/kernel.go:updateContextEngineUsage",
         "internal/kernel/contextengine_test.go",
-        "internal/hermes/context_compressor_budget.go"
+        "internal/llm/context_compressor_budget.go"
       ],
       "ready_when": [
         "ContextEngine compression-boundary callback vocabulary is complete on main.",
@@ -857,7 +857,7 @@
         "Context compression remains an umbrella-only placeholder or no explicit kernel compression execution path exists.",
         "The slice implements summarization, tool-result pruning, manual compression, or context references instead of the boundary callback.",
         "The slice hides boundary failures or lets a context cache survive across a compression lineage change without observable status evidence.",
-        "The slice edits internal/hermes/context_engine.go, internal/hermes/context_compressor_budget.go, transcript storage, or session lineage helpers instead of the kernel binding files named in write_scope.",
+        "The slice edits internal/llm/context_engine.go, internal/llm/context_compressor_budget.go, transcript storage, or session lineage helpers instead of the kernel binding files named in write_scope.",
         "The slice changes Goncho/Honcho memory extraction semantics; memory pre/post-compression observation remains a separate Phase 3/4 concern."
       ],
       "blocked_by": [
@@ -879,7 +879,7 @@
       ],
       "test_commands": [
         "go test ./internal/kernel -run 'Test.*CompressionBoundary|Test.*ContextEngine' -count=1",
-        "go test ./internal/hermes ./internal/kernel -count=1",
+        "go test ./internal/llm ./internal/kernel -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -924,7 +924,7 @@
       "source_refs": [
         "./hermes-agent/run_agent.py@e90aa7f28:AIAgent.commit_memory_session",
         "./hermes-agent/tests/run_agent/test_commit_memory_session_context_engine.py@e90aa7f28",
-        "internal/hermes/context_engine.go:ContextEngine.OnSessionEnd",
+        "internal/llm/context_engine.go:ContextEngine.OnSessionEnd",
         "internal/kernel/kernel.go:PlatformEventResetSession"
       ],
       "ready_when": [
@@ -1002,8 +1002,8 @@
         "pi@fc8a155 packages/coding-agent/docs/sessions.md:/tree navigation",
         "pi@fc8a155 packages/coding-agent/docs/session-format.md:labels, branch summaries, tree entries",
         "pi@fc8a155 packages/coding-agent/src/modes/interactive/components/tree-selector.ts",
-        "internal/session/lineage.go:LineageKindFork and ResolveLineageTip",
-        "internal/session/directory.go:SessionDirectoryEntry",
+        "internal/persistence/session/lineage.go:LineageKindFork and ResolveLineageTip",
+        "internal/persistence/session/directory.go:SessionDirectoryEntry",
         "internal/tui/slash_sessions.go:/sessions and /resume picker",
         "internal/tui/slash_branch.go:/branch fork seam"
       ],
@@ -1012,7 +1012,7 @@
         "The first slice may omit LLM-generated branch summaries if it records typed not-yet-supported evidence and keeps labels/navigation functional."
       ],
       "not_ready_when": [
-        "The implementation introduces a second session file format, writes Pi JSONL sessions, or bypasses internal/session and store abstractions.",
+        "The implementation introduces a second session file format, writes Pi JSONL sessions, or bypasses internal/persistence/session and store abstractions.",
         "The navigator silently mutates live session state while the kernel is active or loses fork/compression lineage evidence."
       ],
       "acceptance": [
@@ -1025,9 +1025,9 @@
         "TestTreeSlashLabelSetClearAndRestoreEditablePrompt and TestTreeSlashReplayUnavailableDoesNotCorruptActiveSession prove /tree label/unlabel plus restore behavior, including typed non-user replay evidence and no active-session mutation.",
         "TestTUISessionTreeBindingLocalModelReceivesSessionTreeAdapters proves cmd/gormes wires local TUI /tree adapters to Gormes session metadata and transcript stores."
       ],
-      "note": "Planner 2026-05-25: Pi donor sweep identified tree navigation/labels as a high-value Gormes-owned session UX. Adapt to Gormes lineage stores; do not adopt Pi JSONL as a product contract. The 2026-05-25 builder pass added a Gormes-owned /tree slash surface backed by internal/session metadata and transcript ledgers, with lineage-aware tree rendering, active-leaf markers, filter projections, metadata labels/bookmarks, and typed replay-unavailable evidence for non-user or missing turns. The implementation does not read or write Pi JSONL sessions.",
+      "note": "Planner 2026-05-25: Pi donor sweep identified tree navigation/labels as a high-value Gormes-owned session UX. Adapt to Gormes lineage stores; do not adopt Pi JSONL as a product contract. The 2026-05-25 builder pass added a Gormes-owned /tree slash surface backed by internal/persistence/session metadata and transcript ledgers, with lineage-aware tree rendering, active-leaf markers, filter projections, metadata labels/bookmarks, and typed replay-unavailable evidence for non-user or missing turns. The implementation does not read or write Pi JSONL sessions.",
       "write_scope": [
-        "internal/session/",
+        "internal/persistence/session/",
         "internal/tui/tree_selector.go",
         "internal/tui/slash_tree.go",
         "internal/tui/slash_dispatch.go",
@@ -1039,7 +1039,7 @@
         "cmd/gormes/tui_tree_slash.go"
       ],
       "test_commands": [
-        "go test ./internal/session ./internal/tui -run 'Test.*(Tree|Label|Lineage|Resume|Branch)' -count=1",
+        "go test ./internal/persistence/session ./internal/tui -run 'Test.*(Tree|Label|Lineage|Resume|Branch)' -count=1",
         "go test ./cmd/gormes -run 'Test.*Session.*(Tree|Resume|Branch)' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
@@ -1077,14 +1077,14 @@
         "system"
       ],
       "degraded_mode": "Title status reports auto_title_skipped, title_provider_failed, or title_blank_result evidence instead of silently leaving NULL titles with no operator-visible cause.",
-      "fixture": "internal/hermes/title_generator_test.go::TestTitle*",
+      "fixture": "internal/llm/title_generator_test.go::TestTitle*",
       "source_refs": [
         "../hermes-agent/agent/title_generator.py@4a2ee6c1:generate_title",
         "../hermes-agent/agent/title_generator.py@4a2ee6c1:maybe_auto_title",
         "../hermes-agent/tests/agent/test_title_generator.py@4a2ee6c1",
         "internal/tui/auto_title.go",
-        "internal/session/",
-        "internal/transcript/"
+        "internal/persistence/session/",
+        "internal/persistence/transcript/"
       ],
       "ready_when": [
         "TUI prompt-submit auto-title eligibility helper is validated, so callers can produce a TitleRequest without starting provider work inside the TUI update loop.",
@@ -1104,13 +1104,13 @@
       ],
       "note": "Re-enabled 2026-04-27T11:44:19Z: recent quarantine evidence was backend stdin/usage-limit noise, and the backend health bypass is complete. This remains a pure title prompt/model-result helper with fake model tests only; no session persistence, TUI submit, or Goncho memory source belongs in this row.",
       "write_scope": [
-        "internal/hermes/title_generator.go",
-        "internal/hermes/title_generator_test.go",
+        "internal/llm/title_generator.go",
+        "internal/llm/title_generator_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run '^TestTitle' -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run '^TestTitle' -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -1152,7 +1152,7 @@
         "../hermes-agent/cli.py@4a2ee6c1:_emit_auxiliary_failure",
         "../hermes-agent/gateway/run.py@4a2ee6c1:_emit_auxiliary_failure",
         "../hermes-agent/tests/agent/test_title_generator.py@4a2ee6c1:test_failure_callback",
-        "internal/hermes/title_generator.go",
+        "internal/llm/title_generator.go",
         "internal/kernel/",
         "internal/gateway/"
       ],
@@ -1176,15 +1176,15 @@
       ],
       "note": "Complete: TDD added title failure callback routing to the native title helper. Provider errors now emit title_provider_failed evidence to a supplied auxiliary-failure callback exactly once; callback return errors and panics are swallowed as callback_failed auxiliary evidence while preserving the nonfatal provider-failure result. Kernel/gateway fake warning fixtures prove the provider message reaches the operator-visible warning path without session title persistence or live provider calls.",
       "write_scope": [
-        "internal/hermes/title_generator.go",
-        "internal/hermes/title_generator_test.go",
+        "internal/llm/title_generator.go",
+        "internal/llm/title_generator_test.go",
         "internal/kernel/title_failure_test.go",
         "internal/gateway/title_failure_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes ./internal/kernel ./internal/gateway -run '^TestTitleFailure' -count=1",
-        "go test ./internal/hermes ./internal/kernel ./internal/gateway -count=1",
+        "go test ./internal/llm ./internal/kernel ./internal/gateway -run '^TestTitleFailure' -count=1",
+        "go test ./internal/llm ./internal/kernel ./internal/gateway -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -1219,13 +1219,13 @@
         "system"
       ],
       "degraded_mode": "Untitled sessions remain searchable with auto_title_skipped or title_provider_failed evidence instead of being repeatedly retried without user-visible status.",
-      "fixture": "internal/session/auto_title_test.go",
+      "fixture": "internal/persistence/session/auto_title_test.go",
       "source_refs": [
         "../hermes-agent/agent/title_generator.py@4a2ee6c1:maybe_auto_title",
         "../hermes-agent/tests/agent/test_title_generator.py@4a2ee6c1",
-        "internal/hermes/title_generator.go",
-        "internal/session/",
-        "internal/transcript/"
+        "internal/llm/title_generator.go",
+        "internal/persistence/session/",
+        "internal/persistence/transcript/"
       ],
       "ready_when": [
         "Title prompt and truncation contract and Title auxiliary failure visibility are validated on main.",
@@ -1247,14 +1247,14 @@
       ],
       "note": "Blocked persistence row. It remains draft until pure title generation and failure visibility are validated, preventing workers from hiding provider/session side effects inside title prompt work.",
       "write_scope": [
-        "internal/session/auto_title.go",
-        "internal/session/auto_title_test.go",
-        "internal/transcript/",
+        "internal/persistence/session/auto_title.go",
+        "internal/persistence/session/auto_title_test.go",
+        "internal/persistence/transcript/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/session ./internal/transcript -run '^TestAutoTitleSession_' -count=1",
-        "go test ./internal/session ./internal/transcript ./internal/hermes -count=1",
+        "go test ./internal/persistence/session ./internal/persistence/transcript -run '^TestAutoTitleSession_' -count=1",
+        "go test ./internal/persistence/session ./internal/persistence/transcript ./internal/llm -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -1348,7 +1348,7 @@
         "system"
       ],
       "degraded_mode": "Empty stores, ambiguous/missing prefixes, DB search errors, non-TTY confirmation EOF, curses/browser unavailable, invalid fallback selections, and keyboard interrupts return sessions_cli_* evidence without deleting sessions or leaving DB handles open.",
-      "fixture": "cmd/gormes/sessions_command_test.go; internal/session/mru_test.go",
+      "fixture": "cmd/gormes/sessions_command_test.go; internal/persistence/session/mru_test.go",
       "source_refs": [
         "./hermes-agent/tests/hermes_cli/test_sessions_delete.py@b816fd4e2",
         "./hermes-agent/tests/hermes_cli/test_resolve_last_session.py@b816fd4e2",
@@ -1356,8 +1356,8 @@
         "./hermes-agent/tests/hermes_cli/test_coalesce_session_args.py@b816fd4e2",
         "./hermes-agent/hermes_cli/main.py@b816fd4e2:sessions",
         "./hermes-agent/hermes_state.py@b816fd4e2:SessionDB.search_sessions",
-        "internal/session/directory.go",
-        "internal/transcript/markdown.go",
+        "internal/persistence/session/directory.go",
+        "internal/persistence/transcript/markdown.go",
         "cmd/gormes/session.go",
         "cmd/gormes/hermes_cli_parity.go:sessions"
       ],
@@ -1381,15 +1381,15 @@
       "write_scope": [
         "cmd/gormes/session.go",
         "cmd/gormes/sessions_command_test.go",
-        "internal/session/directory.go",
-        "internal/session/mru_test.go",
-        "internal/session/store.go",
+        "internal/persistence/session/directory.go",
+        "internal/persistence/session/mru_test.go",
+        "internal/persistence/session/store.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestSessions|TestCoalesceSessionArgs' -count=1",
-        "go test ./internal/session -run 'TestSession.*MRU|TestSession.*Resolve' -count=1",
-        "go test ./cmd/gormes ./internal/session -count=1",
+        "go test ./internal/persistence/session -run 'TestSession.*MRU|TestSession.*Resolve' -count=1",
+        "go test ./cmd/gormes ./internal/persistence/session -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1404,20 +1404,20 @@
       "completed_at": "2026-05-06T00:00:00Z",
       "evidence": {
         "implementation": [
-          "internal/session/directory.go now exposes a transcript-backed session directory over the native SQLite turns table, ordered by last activity with started_at fallback, source filtering, unique prefix resolution, delete, and prune helpers.",
+          "internal/persistence/session/directory.go now exposes a transcript-backed session directory over the native SQLite turns table, ordered by last activity with started_at fallback, source filtering, unique prefix resolution, delete, and prune helpers.",
           "cmd/gormes/session.go now exposes the Hermes-compatible plural alias `gormes sessions` with list, delete, prune, and browse subcommands while preserving existing `session export` behavior.",
           "Root startup now coalesces unquoted multi-word session names for -c/--continue and -r/--resume and resolves --continue/-c through the native session directory before applying the TUI resume override."
         ],
         "tests": [
-          "internal/session/mru_test.go proves MRU ordering can select a recently active older-started session beyond the newest-started rows, falls back for legacy rows, and resolves exact/unique/missing/ambiguous prefixes.",
+          "internal/persistence/session/mru_test.go proves MRU ordering can select a recently active older-started session beyond the newest-started rows, falls back for legacy rows, and resolves exact/unique/missing/ambiguous prefixes.",
           "cmd/gormes/sessions_command_test.go proves unique-prefix delete, EOF/non-TTY cancellation for delete and prune, numbered browse fallback with invalid retry and title/preview display, --continue MRU resolution, and session-name argument coalescing."
         ],
         "verification": [
-          "go test ./internal/session -run 'TestSession.*MRU|TestSession.*Resolve' -count=1 -> failed before implementation: ResolveMostRecentSession, ResolveSessionIDPrefix, ErrSessionNotFound, and ErrSessionPrefixAmbiguous were undefined.",
+          "go test ./internal/persistence/session -run 'TestSession.*MRU|TestSession.*Resolve' -count=1 -> failed before implementation: ResolveMostRecentSession, ResolveSessionIDPrefix, ErrSessionNotFound, and ErrSessionPrefixAmbiguous were undefined.",
           "go test ./cmd/gormes -run 'TestSessions|TestCoalesceSessionArgs' -count=1 -> failed before implementation: coalesceSessionNameArgs was undefined and the plural sessions command behavior was absent.",
-          "go test ./internal/session -run 'TestSession.*MRU|TestSession.*Resolve' -count=1 -> pass",
+          "go test ./internal/persistence/session -run 'TestSession.*MRU|TestSession.*Resolve' -count=1 -> pass",
           "go test ./cmd/gormes -run 'TestSessions|TestCoalesceSessionArgs' -count=1 -> pass",
-          "go test ./cmd/gormes ./internal/session -count=1 -> pass"
+          "go test ./cmd/gormes ./internal/persistence/session -count=1 -> pass"
         ]
       }
     }
@@ -1439,8 +1439,8 @@
       "source_refs": [
         "../hermes-agent/hermes_cli/session_recap.py",
         "../hermes-agent/hermes_cli/main.py",
-        "internal/session",
-        "internal/store"
+        "internal/persistence/session",
+        "internal/persistence/store"
       ],
       "ready_when": [
         "Gormes session list/export storage helpers are available for hermetic temp-store tests."
@@ -1454,15 +1454,15 @@
         "Missing or empty sessions return explicit diagnostics without panics or live provider calls.",
         "Long transcripts are bounded with visible truncation evidence."
       ],
-      "note": "Complete 2026-05-19: TDD shipped internal/session/recap.go with RecapConfig, RecapEntry, RecapEnvelope (HumanOutput), SessionRecapResult (HumanOutput), GenerateRecap (list all sessions with truncation), and GenerateSessionRecap (single session with not_found diagnostics). 10 tests cover empty store, single session, missing session, known session, truncation evidence, human output (empty/non-empty), single session human output, not-found human output, and sorted-by-updated-at ordering. CLI wired as `gormes session recap [session-id]` with --limit and --json flags in cmd/gormes/session.go and internal/cli/gormescli/modules/sessions/session.go. No live provider or model calls required.",
+      "note": "Complete 2026-05-19: TDD shipped internal/persistence/session/recap.go with RecapConfig, RecapEntry, RecapEnvelope (HumanOutput), SessionRecapResult (HumanOutput), GenerateRecap (list all sessions with truncation), and GenerateSessionRecap (single session with not_found diagnostics). 10 tests cover empty store, single session, missing session, known session, truncation evidence, human output (empty/non-empty), single session human output, not-found human output, and sorted-by-updated-at ordering. CLI wired as `gormes session recap [session-id]` with --limit and --json flags in cmd/gormes/session.go and internal/cli/gormescli/modules/sessions/session.go. No live provider or model calls required.",
       "write_scope": [
         "cmd/gormes",
-        "internal/session",
-        "internal/store"
+        "internal/persistence/session",
+        "internal/persistence/store"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestSessionRecap|TestSession' -count=1",
-        "go test ./internal/session ./internal/store -run Recap -count=1",
+        "go test ./internal/persistence/session ./internal/persistence/store -run Recap -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -1471,14 +1471,14 @@
       "evidence": {
         "completed_at": "2026-05-19T00:00:00Z",
         "implementation": [
-          "internal/session/recap.go: RecapConfig, RecapEntry, RecapEnvelope, SessionRecapResult, GenerateRecap, GenerateSessionRecap",
-          "internal/session/recap_test.go: 10 TDD tests",
+          "internal/persistence/session/recap.go: RecapConfig, RecapEntry, RecapEnvelope, SessionRecapResult, GenerateRecap, GenerateSessionRecap",
+          "internal/persistence/session/recap_test.go: 10 TDD tests",
           "internal/app/gormescli/modules/sessions/session.go: RunRecap seam, newSessionRecapCommand",
           "cmd/gormes/session.go: runSessionRecapCommand with --limit and --json flags"
         ],
         "tests": [
-          "RED: go test ./internal/session -run TestRecap -count=1 failed before implementation",
-          "GREEN: go test ./internal/session -run TestRecap -count=1 -> ok (10 tests)",
+          "RED: go test ./internal/persistence/session -run TestRecap -count=1 failed before implementation",
+          "GREEN: go test ./internal/persistence/session -run TestRecap -count=1 -> ok (10 tests)",
           "GREEN: go test ./cmd/gormes -run TestSession -count=1 -> ok",
           "go run ./cmd/progress validate -> validated 9 phases"
         ]
@@ -1563,8 +1563,8 @@
         "Generative Agents reflection mechanism (Park et al. 2023)",
         "internal/audit/jsonl.go",
         "internal/kernel/toolexec.go",
-        "internal/hermes/pattern_extractor.go",
-        "internal/hermes/pattern_extractor_test.go"
+        "internal/llm/pattern_extractor.go",
+        "internal/llm/pattern_extractor_test.go"
       ],
       "ready_when": [
         "Session logs are structured and queryable",
@@ -1583,20 +1583,20 @@
       ],
       "note": "Complete 2026-05-09: bounded all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 17, below the 90-row cap, but higher-priority P1 rows were operator/release-infrastructure blocked and P2 rows were inventory-only umbrella parents or already represented by child work. This row was the first concrete builder-ready planned row with local write scope and tests. TDD upgraded the existing placeholder counter into an offline behavioral pattern extractor that computes >80% successful sequences, <30% anti-patterns, successful reasoning fingerprints, and Goncho-ready structured knowledge records from session/tool observations.",
       "write_scope": [
-        "internal/hermes/pattern_extractor.go",
-        "internal/hermes/pattern_extractor_test.go"
+        "internal/llm/pattern_extractor.go",
+        "internal/llm/pattern_extractor_test.go"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run TestPatternExtractor -count=1"
+        "go test ./internal/llm -run TestPatternExtractor -count=1"
       ],
       "done_signal": [
         "Pattern extractor tests prove successful and failed patterns are correctly identified from log data"
       ],
       "completed_at": "2026-05-09T00:00:00Z",
       "implementation": [
-        "internal/hermes/pattern_extractor.go aggregates normalized tool-sequence observations across success and failure outcomes, computes success rates, preserves session-count evidence, and records reasoning fingerprints only from successful observations.",
-        "internal/hermes/pattern_extractor.go exports GonchoKnowledge records with stable kind/source/tags/content/tools/rate/count/evidence fields so the self-evolution loop can ingest structured behavioral knowledge offline.",
-        "internal/hermes/pattern_extractor_test.go locks the >80% success pattern threshold, <30% anti-pattern threshold, successful-reasoning extraction, and structured knowledge output."
+        "internal/llm/pattern_extractor.go aggregates normalized tool-sequence observations across success and failure outcomes, computes success rates, preserves session-count evidence, and records reasoning fingerprints only from successful observations.",
+        "internal/llm/pattern_extractor.go exports GonchoKnowledge records with stable kind/source/tags/content/tools/rate/count/evidence fields so the self-evolution loop can ingest structured behavioral knowledge offline.",
+        "internal/llm/pattern_extractor_test.go locks the >80% success pattern threshold, <30% anti-pattern threshold, successful-reasoning extraction, and structured knowledge output."
       ]
     }
   }

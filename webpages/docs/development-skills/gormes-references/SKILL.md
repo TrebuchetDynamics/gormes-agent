@@ -130,8 +130,8 @@ The provider/auth/streaming map already lives in `references/go-agent-os/GORMES-
 
 | Gormes problem | Donor file | Pattern |
 |---|---|---|
-| SQLite + FTS5 memory store | `engram/internal/store/store.go` | DDL, indexes, migration helpers |
-| Memory relation/conflict vocabulary | `engram/internal/store/relations.go` | `related`, `conflicts_with`, `supersedes`, `compatible`, `scoped`, `not_conflict` |
+| SQLite + FTS5 memory store | `engram/internal/persistence/store/store.go` | DDL, indexes, migration helpers |
+| Memory relation/conflict vocabulary | `engram/internal/persistence/store/relations.go` | `related`, `conflicts_with`, `supersedes`, `compatible`, `scoped`, `not_conflict` |
 | Deterministic serialized MCP write queue | `engram/internal/mcp/write_queue.go` | Mutex-serialized queue, cancel-before-start, evidence vocabulary |
 | MCP activity/audit logging | `engram/internal/mcp/activity.go` | Audit shape, redaction, append-only file |
 

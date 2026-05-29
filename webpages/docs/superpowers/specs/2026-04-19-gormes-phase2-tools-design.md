@@ -57,7 +57,7 @@ Phase 2.A DOES:
 
 | Decision | Value | Rationale |
 |---|---|---|
-| G-1 Vocabulary | No Gateway package. `internal/tools` + extensions to `internal/hermes` and `internal/kernel` | The "Gateway" fossilises a proxy concept we don't need in Phase 2. Tools are the real artefact. |
+| G-1 Vocabulary | No Gateway package. `internal/tools` + extensions to `internal/llm` and `internal/kernel` | The "Gateway" fossilises a proxy concept we don't need in Phase 2. Tools are the real artefact. |
 | G-2 Port | No new listener | Python keeps `:8642`. Port ownership flips in Phase 4. |
 | M-1 MCP | Neither client nor server | Tool interface is MCP-agnostic; adapters ship when we actually need to bridge MCP. |
 | M-2 Registration | Static Go Registry populated explicitly by `main.go` | No init() magic. Testable. Matches Phase-5 "100% Go tools" endgame. |
@@ -91,7 +91,7 @@ internal/
     └── tools_test.go            # NEW — red test for kernel/Tool integration
 ```
 
-No changes to `internal/config`, `internal/store`, `internal/telemetry`, `internal/tui`, or `internal/pybridge`.
+No changes to `internal/config`, `internal/persistence/store`, `internal/telemetry`, `internal/tui`, or `internal/pybridge`.
 
 ---
 
@@ -216,7 +216,7 @@ type ChatRequest struct {
 
 The serialised JSON body adds `"tools": [...]` only when the slice is non-empty. Existing tests unaffected.
 
-### 7.2 `hermes.Message` — tool-call plumbing
+### 7.2 `llm.Message` — tool-call plumbing
 
 ```go
 type Message struct {
@@ -266,7 +266,7 @@ data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"t\
 data: {"choices":[{"finish_reason":"tool_calls"}]}
 ```
 
-The `chatStream` inside `internal/hermes/stream.go` gains a `pendingCalls map[int]*partialCall` that accumulates by `index`. When a chunk carries `finish_reason: "tool_calls"`, the stream emits a single `EventDone` with `FinishReason=="tool_calls"` and `ToolCalls` populated from the pending map (indexes sorted ascending, so ordering is deterministic).
+The `chatStream` inside `internal/llm/stream.go` gains a `pendingCalls map[int]*partialCall` that accumulates by `index`. When a chunk carries `finish_reason: "tool_calls"`, the stream emits a single `EventDone` with `FinishReason=="tool_calls"` and `ToolCalls` populated from the pending map (indexes sorted ascending, so ordering is deterministic).
 
 Malformed tool-call deltas (bad JSON, missing index) are silently dropped — matches the Phase-1 policy of "skip malformed frames, keep stream alive". Logged at slog DEBUG.
 
@@ -566,7 +566,7 @@ These two tests are the user-requested invariant-preservation guard: tool-callin
 
 1. `internal/tools/` compiles with `Tool` + `Registry` + 3 built-in tools + `MockTool` test double.
 2. No `internal/tools/<domain>/` subdirectory exists — domain-specific tools are external modules (see §9).
-3. `hermes.ChatRequest.Tools`, `hermes.Event.ToolCalls`, `hermes.Message.ToolCalls`/`ToolCallID`/`Name` fields exist and serialise correctly (per-field JSON tags verified by round-trip tests).
+3. `hermes.ChatRequest.Tools`, `hermes.Event.ToolCalls`, `llm.Message.ToolCalls`/`ToolCallID`/`Name` fields exist and serialise correctly (per-field JSON tags verified by round-trip tests).
 4. `stream.go` accumulates tool-call deltas and emits a single `EventDone` with `ToolCalls` populated when `finish_reason == "tool_calls"`.
 5. `Kernel.Config` gains `Tools`, `MaxToolIterations`, `MaxToolDuration`.
 6. `runTurn` executes a tool loop: on `finish_reason == "tool_calls"`, dispatches via `executeToolCalls`, appends tool messages, issues a follow-up stream. Up to `MaxToolIterations` iterations per turn.

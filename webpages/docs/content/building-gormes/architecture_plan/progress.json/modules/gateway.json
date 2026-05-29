@@ -185,7 +185,7 @@
       "fixture": "internal/codingagents",
       "source_refs": [
         "User design: 2026-05-13 coding-agent delegation plan",
-        "internal/codingagents/codingagents.go"
+        "internal/core/codingagents/codingagents.go"
       ],
       "ready_when": [
         "internal/codingagents scaffold (interface, request/result, availability, workspace guard, git snapshot, prompt wrap) is complete.",
@@ -205,14 +205,14 @@
         "Workspace guard refuses ambiguous, denied, or outside-root inputs across the voice path."
       ],
       "write_scope": [
-        "internal/codingagents/",
+        "internal/core/codingagents/",
         "internal/tools/",
         "internal/doctor/",
         "cmd/gormes/",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/codingagents/... -count=1",
+        "go test ./internal/core/codingagents/... -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -241,9 +241,9 @@
       "fixture": "internal/codingagents",
       "source_refs": [
         "User design: 2026-05-13 coding-agent delegation plan",
-        "internal/codingagents/codingagents.go",
-        "internal/codingagents/workspace.go",
-        "internal/codingagents/git_snapshot.go"
+        "internal/core/codingagents/codingagents.go",
+        "internal/core/codingagents/workspace.go",
+        "internal/core/codingagents/git_snapshot.go"
       ],
       "ready_when": [
         "Shared CodingAgent interface and CodingAgentRequest/Result cover workspace, prompt, mode, edit permissions, timeout, files-changed, stdout/stderr, and git diff.",
@@ -264,28 +264,28 @@
         "TakeSnapshot + DiffBetween capture HEAD, dirty status, and a unified diff with file list on a temp repo; non-git dirs raise ErrNotAGitRepo."
       ],
       "write_scope": [
-        "internal/codingagents/",
+        "internal/core/codingagents/",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/codingagents/... -count=1",
-        "go vet ./internal/codingagents/...",
+        "go test ./internal/core/codingagents/... -count=1",
+        "go vet ./internal/core/codingagents/...",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
-        "go test ./internal/codingagents/... -count=1 passes locally with the scaffold, availability probe, workspace guard, git snapshot, and prompt wrap covered by unit tests."
+        "go test ./internal/core/codingagents/... -count=1 passes locally with the scaffold, availability probe, workspace guard, git snapshot, and prompt wrap covered by unit tests."
       ],
       "evidence": {
         "implementation": [
-          "internal/codingagents/codingagents.go defines the shared CodingAgent interface, modes, request, and result fields for workspace, prompt, edit permission, timeout, stdout/stderr, files_changed, and git_diff.",
-          "internal/codingagents/availability.go detects codex, claude, claude-code, and opencode without treating missing binaries as hard errors.",
-          "internal/codingagents/workspace.go enforces allowed roots and default denied paths with typed sentinel errors.",
-          "internal/codingagents/git_snapshot.go captures HEAD, branch, dirty state, committed diffs, working-tree diffs, and untracked worker-created file paths.",
-          "internal/codingagents/prompt_wrap.go restates workspace/mode/task and injects Gormes repository rules for gormes-agent workspaces."
+          "internal/core/codingagents/codingagents.go defines the shared CodingAgent interface, modes, request, and result fields for workspace, prompt, edit permission, timeout, stdout/stderr, files_changed, and git_diff.",
+          "internal/core/codingagents/availability.go detects codex, claude, claude-code, and opencode without treating missing binaries as hard errors.",
+          "internal/core/codingagents/workspace.go enforces allowed roots and default denied paths with typed sentinel errors.",
+          "internal/core/codingagents/git_snapshot.go captures HEAD, branch, dirty state, committed diffs, working-tree diffs, and untracked worker-created file paths.",
+          "internal/core/codingagents/prompt_wrap.go restates workspace/mode/task and injects Gormes repository rules for gormes-agent workspaces."
         ],
         "tests": [
-          "go test ./internal/codingagents/... -count=1",
-          "go vet ./internal/codingagents/..."
+          "go test ./internal/core/codingagents/... -count=1",
+          "go vet ./internal/core/codingagents/..."
         ],
         "note": "Completed 2026-05-15 after adding regression coverage that DiffBetween includes untracked working-tree files in FilesChanged for later adapters."
       }
@@ -409,7 +409,7 @@
         "./hermes-agent/tests/gateway/test_fresh_reset_skill_injection.py@b816fd4e2",
         "internal/config/config.go:RuntimeCfg",
         "internal/gateway/manager.go:handleInbound",
-        "internal/session/directory.go:Metadata"
+        "internal/persistence/session/directory.go:Metadata"
       ],
       "ready_when": [
         "Gateway manual reset session-boundary hooks are planned and the worker can keep explicit reset hooks separate from auto-reset notices.",
@@ -437,13 +437,13 @@
         "internal/gateway/session_auto_reset_notify.go",
         "internal/gateway/session_auto_reset_notify_test.go",
         "internal/gateway/manager.go",
-        "internal/session/directory.go",
+        "internal/persistence/session/directory.go",
         "internal/config/config.go",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run '^TestGatewayAutoReset' -count=1",
-        "go test ./internal/session ./internal/config ./internal/gateway -count=1",
+        "go test ./internal/persistence/session ./internal/config ./internal/gateway -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -563,7 +563,7 @@
       "source_refs": [
         "../hermes-agent/run_agent.py",
         "../hermes-agent/agent/prompt_builder.py",
-        "internal/hermes/context_files.go:BuildContextFilesPrompt",
+        "internal/llm/context_files.go:BuildContextFilesPrompt",
         "internal/gateway/manager.go:1534",
         "internal/gateway/turn_adapter.go:TurnRequest.SessionContext",
         "internal/kernel/kernel.go:204",
@@ -571,7 +571,7 @@
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
       ],
       "ready_when": [
-        "internal/hermes/context_files.go BuildContextFilesPrompt is complete (it is) and exposes channel-neutral SOUL/project block rendering with threat-scan guards.",
+        "internal/llm/context_files.go BuildContextFilesPrompt is complete (it is) and exposes channel-neutral SOUL/project block rendering with threat-scan guards.",
         "internal/gateway/manager.go owns a single channel-neutral assembly site (BuildSessionContextPrompt at line 1534) where the prepend can land for all channels at once.",
         "Each child row carries its own ready_when independent of the others so SOUL/project block can ship without USER/MEMORY/skills/tools/timestamp blocks."
       ],
@@ -612,7 +612,7 @@
       "name": "Live-turn SOUL.md and project context wiring (channel-neutral)",
       "priority": "P0",
       "status": "complete",
-      "contract": "gateway.Manager invokes internal/hermes.BuildContextFilesPrompt once per inbound submit and prepends the rendered SOUL.md + project context block (HERMES.md / .hermes.md / AGENTS.md / CLAUDE.md / .cursorrules per BuildContextFilesPrompt's existing first-match-wins precedence) to the existing BuildSessionContextPrompt block before the kernel.PlatformEvent.SessionContext field is set. The wiring lives inside gateway.Manager — never inside any channel adapter — so Telegram, Slack, WhatsApp, BlueBubbles, Discord, Sage Goblin, and any future channel inherit the block automatically. Profile dir resolution uses config.GormesHome() in production with a fakeable seam for tests; CWD resolution uses the manager's configured working directory with a fakeable seam. ContextFilesReport evidence is logged via gateway telemetry but never sent on the channel.",
+      "contract": "gateway.Manager invokes internal/llm.BuildContextFilesPrompt once per inbound submit and prepends the rendered SOUL.md + project context block (HERMES.md / .hermes.md / AGENTS.md / CLAUDE.md / .cursorrules per BuildContextFilesPrompt's existing first-match-wins precedence) to the existing BuildSessionContextPrompt block before the kernel.PlatformEvent.SessionContext field is set. The wiring lives inside gateway.Manager — never inside any channel adapter — so Telegram, Slack, WhatsApp, BlueBubbles, Discord, Sage Goblin, and any future channel inherit the block automatically. Profile dir resolution uses config.GormesHome() in production with a fakeable seam for tests; CWD resolution uses the manager's configured working directory with a fakeable seam. ContextFilesReport evidence is logged via gateway telemetry but never sent on the channel.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "gateway",
@@ -626,9 +626,9 @@
       "source_refs": [
         "../hermes-agent/run_agent.py",
         "../hermes-agent/agent/prompt_builder.py",
-        "internal/hermes/context_files.go:BuildContextFilesPrompt",
-        "internal/hermes/context_files.go:ContextFilesOptions",
-        "internal/hermes/context_files.go:ContextFilesReport",
+        "internal/llm/context_files.go:BuildContextFilesPrompt",
+        "internal/llm/context_files.go:ContextFilesOptions",
+        "internal/llm/context_files.go:ContextFilesReport",
         "internal/gateway/manager.go:1534",
         "internal/gateway/session_context.go:BuildSessionContextPrompt",
         "internal/gateway/turn_adapter.go:TurnRequest",
@@ -636,12 +636,12 @@
         "internal/kernel/frame.go:PlatformEvent.SessionContext"
       ],
       "ready_when": [
-        "BuildContextFilesPrompt is complete and exposes channel-neutral SOUL + project rendering with threat-scan guards (verified — internal/hermes/context_files.go ships and is tested).",
+        "BuildContextFilesPrompt is complete and exposes channel-neutral SOUL + project rendering with threat-scan guards (verified — internal/llm/context_files.go ships and is tested).",
         "The single channel-neutral assembly site at gateway/manager.go:1534 is intact (verified — BuildSessionContextPrompt already lives there and feeds kernel.PlatformEvent.SessionContext).",
         "Tests can construct a fake gateway turn with injected fakes for profile dir + CWD + channel; no live filesystem state under ~/.gormes or ~/.hermes is read."
       ],
       "not_ready_when": [
-        "The slice modifies internal/hermes/context_files.go, internal/kernel/frame.go, internal/kernel/kernel.go, or any channel adapter under internal/channels/.",
+        "The slice modifies internal/llm/context_files.go, internal/kernel/frame.go, internal/kernel/kernel.go, or any channel adapter under internal/channels/.",
         "The slice ports USER.md, MEMORY.md, skills guidance, tool guidance, or time/model/provider metadata — those are sibling child rows.",
         "The slice adds a channel name check (`if platform == 'telegram'`) anywhere on the assembly path.",
         "The slice exposes raw absolute paths or raw threat content to the channel; only redacted evidence may be logged through telemetry.",
@@ -668,7 +668,7 @@
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run LiveTurn -count=1",
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/hermes ./internal/kernel -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/llm ./internal/kernel -count=1",
         "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
@@ -679,7 +679,7 @@
       "provenance": {
         "origin_type": "porting",
         "upstream_ref": "hermes:run_agent.py + agent/prompt_builder.py SOUL + project context blocks",
-        "note": "Hermes loads SOUL.md and project context (HERMES.md / AGENTS.md / CLAUDE.md / .cursorrules) and prepends them to the system prompt before the user message. Gormes already implements the rendering in internal/hermes/context_files.go; this slice is purely the channel-neutral wiring at gateway.Manager."
+        "note": "Hermes loads SOUL.md and project context (HERMES.md / AGENTS.md / CLAUDE.md / .cursorrules) and prepends them to the system prompt before the user message. Gormes already implements the rendering in internal/llm/context_files.go; this slice is purely the channel-neutral wiring at gateway.Manager."
       },
       "evidence": {
         "implementation": [
@@ -701,7 +701,7 @@
         "captured_session_context_for_soul_fixture": "# Project Context\n\nThe following project context files have been loaded and should be followed:\n\nYou are Gormes, not ChatGPT.\n\n## Current Session Context\n\n**Source:** telegram chat `42`\n**User ID:** `7`\n**Session Key:** `telegram:42`\n**Session ID:** `sess-stored`\n**Delivery Targets:** `origin`, `local`, `telegram`",
         "verification": [
           "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run LiveTurn -count=1 -> ok",
-          "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/hermes ./internal/kernel -count=1 -> ok",
+          "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/llm ./internal/kernel -count=1 -> ok",
           "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1 -> ok (including internal/progress phase 2.B.5 derived-status assertion now green)",
           "go run ./cmd/progress validate -> ok",
           "git diff --check -> ok"
@@ -718,7 +718,7 @@
       "name": "Live-turn USER.md and MEMORY.md durable user context block (channel-neutral)",
       "priority": "P1",
       "status": "complete",
-      "contract": "gateway.Manager assembles a durable user-context block from `<GormesHome>/memory/USER.md` (produced by the shipped Memory Mirror, row 3.D.5) and `<GormesHome>/memory/MEMORY.md` (openclaw-migrated under internal/migrate/openclaw or operator-authored), threat-scans and truncates each file using the same patterns internal/hermes/context_files.go uses for SOUL.md / project context, and prepends the rendered block ahead of the platform/session block but after the existing context-files block. The wiring lives inside gateway.Manager — never inside any channel adapter — so all channels inherit it. A new helper internal/hermes/durable_user_context.go (or an extension under internal/hermes) exposes BuildDurableUserContextPrompt(opts) (string, DurableUserContextReport) with hermetic options for the memory dir; the rendered block carries USER.md before MEMORY.md so durable user identity precedes durable session memory.",
+      "contract": "gateway.Manager assembles a durable user-context block from `<GormesHome>/memory/USER.md` (produced by the shipped Memory Mirror, row 3.D.5) and `<GormesHome>/memory/MEMORY.md` (openclaw-migrated under internal/platform/migrate/openclaw or operator-authored), threat-scans and truncates each file using the same patterns internal/llm/context_files.go uses for SOUL.md / project context, and prepends the rendered block ahead of the platform/session block but after the existing context-files block. The wiring lives inside gateway.Manager — never inside any channel adapter — so all channels inherit it. A new helper internal/llm/durable_user_context.go (or an extension under internal/llm) exposes BuildDurableUserContextPrompt(opts) (string, DurableUserContextReport) with hermetic options for the memory dir; the rendered block carries USER.md before MEMORY.md so durable user identity precedes durable session memory.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "gateway",
@@ -728,14 +728,14 @@
         "system"
       ],
       "degraded_mode": "Missing USER.md and missing MEMORY.md return an empty block — captured kernel.PlatformEvent.SessionContext is byte-identical to the slice-1 (SOUL+project + platform/session) output. A USER.md or MEMORY.md that trips the threat-pattern scan is rendered with the existing `[BLOCKED:` marker and never reaches the provider as raw threat content. A truncated USER.md or MEMORY.md carries the existing `[...truncated ... kept H+T of N chars ...]` marker. A failed file read is logged via gateway telemetry and the file is dropped from the block for that turn (the other file still renders if present).",
-      "fixture": "internal/gateway/live_turn_prompt_test.go + internal/hermes/durable_user_context_test.go",
+      "fixture": "internal/gateway/live_turn_prompt_test.go + internal/llm/durable_user_context_test.go",
       "source_refs": [
         "../hermes-agent/run_agent.py",
         "../hermes-agent/agent/prompt_builder.py",
         "internal/memory/mirror.go (USER.md producer; do not modify)",
-        "internal/migrate/openclaw/manifest.go:135-136 (MEMORY.md / USER.md migration target paths)",
+        "internal/platform/migrate/openclaw/manifest.go:135-136 (MEMORY.md / USER.md migration target paths)",
         "internal/config/config.go:GormesHome + MirrorPath",
-        "internal/hermes/context_files.go (threat-scan + truncation reference; do not modify)",
+        "internal/llm/context_files.go (threat-scan + truncation reference; do not modify)",
         "internal/gateway/live_turn_prompt.go:assembleLiveTurnPrompt (slice-1 chain to extend)",
         "internal/gateway/manager.go:ManagerConfig.ContextFilesProfile (slice-1 seam pattern to mirror for memory dir)"
       ],
@@ -745,7 +745,7 @@
         "Tests can construct a fake gateway turn with an injected memory dir; no live filesystem state under ~/.gormes or ~/.hermes is read."
       ],
       "not_ready_when": [
-        "The slice modifies internal/hermes/context_files.go, internal/memory/mirror.go, internal/kernel/, or any channel adapter under internal/channels/.",
+        "The slice modifies internal/llm/context_files.go, internal/memory/mirror.go, internal/kernel/, or any channel adapter under internal/channels/.",
         "The slice ports skills guidance, tool guidance, or time/model/provider metadata — those are sibling child rows.",
         "The slice exposes raw absolute memory dir paths or raw threat content to the channel.",
         "The slice changes the slice-1 SOUL/project block byte output for any existing fixture.",
@@ -769,10 +769,10 @@
         "TestLiveTurn_SystemPrompt_DurableUserMissingNoPanic: a fake gateway turn with no USER.md and no MEMORY.md produces a captured SessionContext byte-identical to the slice-1 output (proves the slice-1 fixtures stay green when the memory dir is empty).",
         "TestLiveTurn_SystemPrompt_DurableUserThreatBlocked: a fake turn with USER.md containing 'ignore previous instructions' produces a captured SessionContext whose USER block carries the `[BLOCKED:` marker."
       ],
-      "note": "Slice 2 of the live-turn prompt assembly umbrella. Pragmatic ordering deviation: Hermes' literal block order is SOUL -> tool/memory -> USER/MEMORY -> skills -> AGENTS, but slice 1 already fuses SOUL+AGENTS via the existing internal/hermes/context_files.go helper. Slice 2 inserts USER/MEMORY between the fused SOUL+AGENTS block and the platform/session block, accepting AGENTS-before-USER as a known deviation. A future slice can split SOUL from AGENTS to achieve strict Hermes ordering if needed; the umbrella row tracks the deviation. Threat-scan + truncation may either be duplicated in internal/hermes/durable_user_context.go (cheapest, no context_files.go change) or factored into a shared internal/hermes helper file (small refactor, also acceptable as long as context_files.go's public API is unchanged). Builder picks based on what the existing context_files.go shape allows.",
+      "note": "Slice 2 of the live-turn prompt assembly umbrella. Pragmatic ordering deviation: Hermes' literal block order is SOUL -> tool/memory -> USER/MEMORY -> skills -> AGENTS, but slice 1 already fuses SOUL+AGENTS via the existing internal/llm/context_files.go helper. Slice 2 inserts USER/MEMORY between the fused SOUL+AGENTS block and the platform/session block, accepting AGENTS-before-USER as a known deviation. A future slice can split SOUL from AGENTS to achieve strict Hermes ordering if needed; the umbrella row tracks the deviation. Threat-scan + truncation may either be duplicated in internal/llm/durable_user_context.go (cheapest, no context_files.go change) or factored into a shared internal/llm helper file (small refactor, also acceptable as long as context_files.go's public API is unchanged). Builder picks based on what the existing context_files.go shape allows.",
       "write_scope": [
-        "internal/hermes/durable_user_context.go",
-        "internal/hermes/durable_user_context_test.go",
+        "internal/llm/durable_user_context.go",
+        "internal/llm/durable_user_context_test.go",
         "internal/gateway/live_turn_prompt.go",
         "internal/gateway/live_turn_prompt_test.go",
         "internal/gateway/manager.go",
@@ -780,9 +780,9 @@
         "www.gormes.ai/internal/site/data/progress.json"
       ],
       "test_commands": [
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -run DurableUserContext -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/llm -run DurableUserContext -count=1",
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run LiveTurn -count=1",
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/hermes ./internal/kernel ./internal/memory -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/llm ./internal/kernel ./internal/memory -count=1",
         "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
@@ -797,10 +797,10 @@
       },
       "evidence": {
         "implementation": [
-          "internal/hermes/durable_user_context.go:DurableUserContextOptions (hermetic memory-dir + MaxChars options struct)",
-          "internal/hermes/durable_user_context.go:DurableUserContextReport (per-file ContextFileEvidence shape: User + Memory)",
-          "internal/hermes/durable_user_context.go:BuildDurableUserContextPrompt (loads USER.md + MEMORY.md, threat-scans + truncates via the existing scanContextContent / truncateContextContent helpers, renders USER-before-MEMORY block; empty memory dir returns empty block with both files Missing=true)",
-          "internal/hermes/durable_user_context.go:loadDurableContextFile (per-file reader + scan + truncate; missing/empty files return ContextFileEvidence{Missing:true})",
+          "internal/llm/durable_user_context.go:DurableUserContextOptions (hermetic memory-dir + MaxChars options struct)",
+          "internal/llm/durable_user_context.go:DurableUserContextReport (per-file ContextFileEvidence shape: User + Memory)",
+          "internal/llm/durable_user_context.go:BuildDurableUserContextPrompt (loads USER.md + MEMORY.md, threat-scans + truncates via the existing scanContextContent / truncateContextContent helpers, renders USER-before-MEMORY block; empty memory dir returns empty block with both files Missing=true)",
+          "internal/llm/durable_user_context.go:loadDurableContextFile (per-file reader + scan + truncate; missing/empty files return ContextFileEvidence{Missing:true})",
           "internal/gateway/live_turn_prompt.go:liveTurnPromptSeams (extended with MemoryDir func + BuildDurable func seams)",
           "internal/gateway/live_turn_prompt.go:defaultLiveTurnPromptSeams (production wiring: MemoryDir=filepath.Join(config.GormesHome(),\"memory\") + hermes.BuildDurableUserContextPrompt)",
           "internal/gateway/live_turn_prompt.go:assembleLiveTurnPrompt (now returns three values: assembled prompt + ContextFilesReport + DurableUserContextReport; pieces joined in fixed order context-files / durable-user / session, empty pieces elided so missing-memory output stays byte-identical to slice 1)",
@@ -809,12 +809,12 @@
           "internal/gateway/manager.go:submitPinned (assembleLiveTurnPrompt's three-return signature consumed at the existing channel-neutral assembly site)"
         ],
         "tests": [
-          "internal/hermes/durable_user_context_test.go:TestBuildDurableUserContextPrompt_LoadsUserMD",
-          "internal/hermes/durable_user_context_test.go:TestBuildDurableUserContextPrompt_LoadsMemoryMD",
-          "internal/hermes/durable_user_context_test.go:TestBuildDurableUserContextPrompt_OrdersUserBeforeMemory",
-          "internal/hermes/durable_user_context_test.go:TestBuildDurableUserContextPrompt_TruncatesLargeFiles",
-          "internal/hermes/durable_user_context_test.go:TestBuildDurableUserContextPrompt_BlocksThreats",
-          "internal/hermes/durable_user_context_test.go:TestBuildDurableUserContextPrompt_MissingFilesReturnsEmpty",
+          "internal/llm/durable_user_context_test.go:TestBuildDurableUserContextPrompt_LoadsUserMD",
+          "internal/llm/durable_user_context_test.go:TestBuildDurableUserContextPrompt_LoadsMemoryMD",
+          "internal/llm/durable_user_context_test.go:TestBuildDurableUserContextPrompt_OrdersUserBeforeMemory",
+          "internal/llm/durable_user_context_test.go:TestBuildDurableUserContextPrompt_TruncatesLargeFiles",
+          "internal/llm/durable_user_context_test.go:TestBuildDurableUserContextPrompt_BlocksThreats",
+          "internal/llm/durable_user_context_test.go:TestBuildDurableUserContextPrompt_MissingFilesReturnsEmpty",
           "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_IncludesUserMD",
           "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_IncludesMemoryMD",
           "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_DurableUserBlockOrder",
@@ -823,11 +823,11 @@
           "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_DurableUserThreatBlocked"
         ],
         "captured_session_context_for_soul_user_memory_fixture": "# Project Context\n\nThe following project context files have been loaded and should be followed:\n\n## AGENTS.md\n\nProject: Gormes — native Go Hermes parity agent.\nYou are Gormes, not ChatGPT.\n\n# Durable User Context\n\nThe following durable user/memory files have been loaded and should be considered when responding:\n\n## USER.md\n\n# User\nName: Juan\n\n## MEMORY.md\n\n# Memory\nLast topic: live prompt parity.\n\n## Current Session Context\n\n**Source:** telegram chat `42`\n**User ID:** `7`\n**Session Key:** `telegram:42`\n**Session ID:** `sess-stored`\n**Delivery Targets:** `origin`, `local`, `telegram`",
-        "threat_scan_strategy": "Reused the existing private scanContextContent / truncateContextContent / contextThreatPatterns / contextInvisibleChars helpers from internal/hermes/context_files.go via package-internal access. No duplication and no factoring change to context_files.go was needed because the new helper lives in the same internal/hermes package; context_files.go's public API is unchanged.",
+        "threat_scan_strategy": "Reused the existing private scanContextContent / truncateContextContent / contextThreatPatterns / contextInvisibleChars helpers from internal/llm/context_files.go via package-internal access. No duplication and no factoring change to context_files.go was needed because the new helper lives in the same internal/llm package; context_files.go's public API is unchanged.",
         "verification": [
-          "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -run DurableUserContext -count=1 -> ok",
+          "GOCACHE=/tmp/gormes-go-cache go test ./internal/llm -run DurableUserContext -count=1 -> ok",
           "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run LiveTurn -count=1 -> ok",
-          "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/hermes ./internal/kernel ./internal/memory -count=1 -> ok",
+          "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/llm ./internal/kernel ./internal/memory -count=1 -> ok",
           "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1 -> ok",
           "go run ./cmd/progress validate -> ok (validated 7 phases)",
           "git diff --check -> ok"
@@ -844,7 +844,7 @@
       "name": "Live-turn timestamp + model/provider/session metadata block + self-help guidance (channel-neutral)",
       "priority": "P1",
       "status": "complete",
-      "contract": "gateway.Manager assembles a Hermes-compatible turn-metadata block per inbound submit, mirroring run_agent.py:3770-3779: `Conversation started: <Weekday>, <Month> <Day>, <Year> <HH:MM AM/PM>` followed by optional `Session ID: <id>`, `Model: <model>`, `Provider: <provider>` lines (each rendered only when the corresponding value is non-empty). The block is appended after the slice-1 context-files block and the slice-2 USER/MEMORY block but before the platform/session block. The same site also gates an inline injection of the already-shipped `internal/hermes.GormesSelfHelpGuidanceForPrompt(submitText)` helper so the gateway-supplied user message can trigger Gormes self-help guidance without a model call. Both pieces honor the channel-neutral assembly site at gateway.Manager — never inside any channel adapter — so all channels (Telegram, Slack, WhatsApp, BlueBubbles, Discord) inherit them automatically.",
+      "contract": "gateway.Manager assembles a Hermes-compatible turn-metadata block per inbound submit, mirroring run_agent.py:3770-3779: `Conversation started: <Weekday>, <Month> <Day>, <Year> <HH:MM AM/PM>` followed by optional `Session ID: <id>`, `Model: <model>`, `Provider: <provider>` lines (each rendered only when the corresponding value is non-empty). The block is appended after the slice-1 context-files block and the slice-2 USER/MEMORY block but before the platform/session block. The same site also gates an inline injection of the already-shipped `internal/llm.GormesSelfHelpGuidanceForPrompt(submitText)` helper so the gateway-supplied user message can trigger Gormes self-help guidance without a model call. Both pieces honor the channel-neutral assembly site at gateway.Manager — never inside any channel adapter — so all channels (Telegram, Slack, WhatsApp, BlueBubbles, Discord) inherit them automatically.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "gateway",
@@ -854,22 +854,22 @@
         "system"
       ],
       "degraded_mode": "Empty session ID, empty model, or empty provider drops the corresponding line from the metadata block; an empty block (none of timestamp/session/model/provider populated) is omitted from the assembled header. Self-help guidance is suppressed when GormesSelfHelpGuidanceForPrompt returns gate=false (user prompt not a Gormes-self-help question). A clock seam returning the zero time produces the deterministic test fixture timestamp; production wiring uses time.Now via the seam default. No raw provider credentials, base URLs, or API keys are ever rendered — only model/provider names.",
-      "fixture": "internal/gateway/live_turn_prompt_test.go + internal/hermes/turn_metadata_test.go",
+      "fixture": "internal/gateway/live_turn_prompt_test.go + internal/llm/turn_metadata_test.go",
       "source_refs": [
         "../hermes-agent/run_agent.py:3638-3803 (_build_system_prompt block ordering)",
         "../hermes-agent/run_agent.py:3770-3779 (timestamp + session_id + model + provider format)",
-        "internal/hermes/self_help_guidance.go:GormesSelfHelpGuidanceForPrompt",
+        "internal/llm/self_help_guidance.go:GormesSelfHelpGuidanceForPrompt",
         "internal/gateway/live_turn_prompt.go:assembleLiveTurnPrompt (slice-1+2 chain to extend)",
         "internal/gateway/manager.go:ManagerConfig (slice-1+2 seam pattern)",
         "internal/kernel/kernel.go (active model/provider source for production wiring)"
       ],
       "ready_when": [
         "Live-turn USER.md and MEMORY.md durable user context block (channel-neutral) is complete (verified — slice 2 shipped at 2dfbe269d).",
-        "internal/hermes.GormesSelfHelpGuidanceForPrompt is complete and exports a gate boolean (verified — internal/hermes/self_help_guidance.go ships).",
+        "internal/llm.GormesSelfHelpGuidanceForPrompt is complete and exports a gate boolean (verified — internal/llm/self_help_guidance.go ships).",
         "Tests can construct a fake gateway turn with injected fakes for clock + active model + active provider + active session id; no live ~/.gormes state is read."
       ],
       "not_ready_when": [
-        "The slice modifies internal/hermes/self_help_guidance.go, internal/hermes/context_files.go, internal/hermes/durable_user_context.go, internal/kernel/, internal/memory/, or any channel adapter under internal/channels/.",
+        "The slice modifies internal/llm/self_help_guidance.go, internal/llm/context_files.go, internal/llm/durable_user_context.go, internal/kernel/, internal/memory/, or any channel adapter under internal/channels/.",
         "The slice ports skills system prompt, tool guidance constants (MEMORY_GUIDANCE / SESSION_SEARCH_GUIDANCE / SKILLS_GUIDANCE / TOOL_USE_ENFORCEMENT_GUIDANCE / GOOGLE_MODEL_OPERATIONAL_GUIDANCE / OPENAI_MODEL_EXECUTION_GUIDANCE), Nous subscription prompt, environment hints (WSL), or platform-specific hint dictionaries — those are sibling rows.",
         "The slice exposes raw provider credentials, base URLs, or API keys.",
         "The slice changes the slice-1 SOUL/project block byte output or the slice-2 USER/MEMORY block byte output for any existing fixture.",
@@ -888,14 +888,14 @@
         "TestLiveTurn_SystemPrompt_TurnMetadataBlockOrder: a fake turn with SOUL.md + AGENTS.md + USER.md + MEMORY.md + clock+model+provider seams produces a SessionContext where context-files precedes USER/MEMORY precedes turn-metadata precedes platform/session (verified via strings.Index).",
         "TestLiveTurn_SystemPrompt_TurnMetadataChannelNeutral: the same fake turn fixture run through fake Telegram, Slack, BlueBubbles, WhatsApp, Discord channel adapters produces a byte-identical turn-metadata block in each captured kernel submit.",
         "TestLiveTurn_SystemPrompt_TurnMetadataMissingNoPanic: a fake gateway turn with empty clock/model/provider/sessionID seams produces a SessionContext byte-identical to the slice-2 (no-metadata) baseline, proving slice-1+2 fixtures stay green when metadata is absent.",
-        "TestLiveTurn_SystemPrompt_SelfHelpGuidanceGateOpen: a fake turn with submitText='How do I configure Gormes?' produces a captured SessionContext containing the GormesSelfHelpGuidanceForPrompt body (proven by string.Contains against the constant from internal/hermes/self_help_guidance.go).",
+        "TestLiveTurn_SystemPrompt_SelfHelpGuidanceGateOpen: a fake turn with submitText='How do I configure Gormes?' produces a captured SessionContext containing the GormesSelfHelpGuidanceForPrompt body (proven by string.Contains against the constant from internal/llm/self_help_guidance.go).",
         "TestLiveTurn_SystemPrompt_SelfHelpGuidanceGateClosed: a fake turn with submitText='What is the capital of France?' produces a captured SessionContext that does NOT contain the self-help guidance body — gate is closed for off-topic prompts.",
         "TestLiveTurn_SystemPrompt_SelfHelpGuidanceChannelNeutral: same gate-open fixture run through five fake channels produces byte-identical self-help injection in each."
       ],
       "note": "Slice 4 of the live-turn prompt assembly umbrella. Targets two unblocked Hermes blocks at once: block 11 (timestamp + session/model/provider) and the already-shipped self-help guidance gate. Skills (Hermes block 9) is blocked on `Toolset-aware skills prompt snapshot` (medium upstream row); tool guidance constants (Hermes block 2) and tool-use enforcement (Hermes block 4) and Nous subscription / model operational guidance (block 4) are not yet ported to Go. This slice is the last small-shape additive piece on the existing seam pattern; the agent that built slice 2 flagged that 4+ pieces is where the per-piece struct-field pattern stops being clean — a future refactor row should converge `liveTurnPromptSeams` to a piece slice before slice 5+ lands. Hermes timestamp format reference: `now.strftime('%A, %B %d, %Y %I:%M %p')` from run_agent.py:3772 — Go equivalent: `t.Format(\"Monday, January 2, 2006 03:04 PM\")`.",
       "write_scope": [
-        "internal/hermes/turn_metadata.go",
-        "internal/hermes/turn_metadata_test.go",
+        "internal/llm/turn_metadata.go",
+        "internal/llm/turn_metadata_test.go",
         "internal/gateway/live_turn_prompt.go",
         "internal/gateway/live_turn_prompt_test.go",
         "internal/gateway/manager.go",
@@ -903,9 +903,9 @@
         "www.gormes.ai/internal/site/data/progress.json"
       ],
       "test_commands": [
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -run TurnMetadata -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/llm -run TurnMetadata -count=1",
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run LiveTurn -count=1",
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/hermes ./internal/kernel ./internal/memory -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/llm ./internal/kernel ./internal/memory -count=1",
         "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
@@ -916,13 +916,13 @@
       "provenance": {
         "origin_type": "porting",
         "upstream_ref": "hermes:run_agent.py:3770-3779 timestamp/session/model/provider lines + run_agent.py self-help guidance gate",
-        "note": "Hermes renders the timestamp/session/model/provider lines once per session as a stable cache-friendly block; Gormes injects them per turn at the channel-neutral assembly site. Self-help guidance was already a complete row (`Gormes self-help skill/docs prompt guidance`) shipping internal/hermes/self_help_guidance.go; this slice wires that helper into live turns."
+        "note": "Hermes renders the timestamp/session/model/provider lines once per session as a stable cache-friendly block; Gormes injects them per turn at the channel-neutral assembly site. Self-help guidance was already a complete row (`Gormes self-help skill/docs prompt guidance`) shipping internal/llm/self_help_guidance.go; this slice wires that helper into live turns."
       },
       "evidence": {
         "implementation": [
-          "internal/hermes/turn_metadata.go:TurnMetadataOptions (clock + SessionID + Model + Provider options struct, doc-cited to run_agent.py:3770-3779)",
-          "internal/hermes/turn_metadata.go:BuildTurnMetadataBlock (renders the Hermes-format `Conversation started: ...` line followed by optional Session ID / Model / Provider lines; zero clock + all-empty fields returns \"\"; honors the supplied time.Time location)",
-          "internal/hermes/turn_metadata.go:turnMetadataTimeFormat (Go layout `Monday, January 2, 2006 03:04 PM` mirroring Python `'%A, %B %d, %Y %I:%M %p'`)",
+          "internal/llm/turn_metadata.go:TurnMetadataOptions (clock + SessionID + Model + Provider options struct, doc-cited to run_agent.py:3770-3779)",
+          "internal/llm/turn_metadata.go:BuildTurnMetadataBlock (renders the Hermes-format `Conversation started: ...` line followed by optional Session ID / Model / Provider lines; zero clock + all-empty fields returns \"\"; honors the supplied time.Time location)",
+          "internal/llm/turn_metadata.go:turnMetadataTimeFormat (Go layout `Monday, January 2, 2006 03:04 PM` mirroring Python `'%A, %B %d, %Y %I:%M %p'`)",
           "internal/gateway/live_turn_prompt.go:liveTurnPromptSeams (extended with Now / ActiveSessionID / ActiveModel / ActiveProvider / BuildMetadata / SelfHelpGate seams)",
           "internal/gateway/live_turn_prompt.go:defaultLiveTurnPromptSeams (defaults BuildMetadata=hermes.BuildTurnMetadataBlock and SelfHelpGate=hermes.GormesSelfHelpGuidanceForPrompt; the active-state getters default to nil so the metadata block is fully elided unless production wiring or a fixture supplies them — keeps slice-1+2 byte output stable)",
           "internal/gateway/live_turn_prompt.go:assembleLiveTurnPrompt (now accepts submitText so the self-help gate runs at the channel-neutral assembly site; pieces joined in fixed order context-files / durable-user / turn-metadata / self-help / session, empty pieces elided so missing-metadata + closed-gate output stays byte-identical to slice 2)",
@@ -933,10 +933,10 @@
           "internal/gateway/manager.go:submitPinned (passes submitText to assembleLiveTurnPrompt at the existing channel-neutral assembly site)"
         ],
         "tests": [
-          "internal/hermes/turn_metadata_test.go:TestBuildTurnMetadataBlock_RendersHermesFormat",
-          "internal/hermes/turn_metadata_test.go:TestBuildTurnMetadataBlock_OmitsEmptyFields (sub-tests: only_timestamp, empty_only_model)",
-          "internal/hermes/turn_metadata_test.go:TestBuildTurnMetadataBlock_EmptyClockReturnsEmpty",
-          "internal/hermes/turn_metadata_test.go:TestBuildTurnMetadataBlock_TimezoneHonorsLocal",
+          "internal/llm/turn_metadata_test.go:TestBuildTurnMetadataBlock_RendersHermesFormat",
+          "internal/llm/turn_metadata_test.go:TestBuildTurnMetadataBlock_OmitsEmptyFields (sub-tests: only_timestamp, empty_only_model)",
+          "internal/llm/turn_metadata_test.go:TestBuildTurnMetadataBlock_EmptyClockReturnsEmpty",
+          "internal/llm/turn_metadata_test.go:TestBuildTurnMetadataBlock_TimezoneHonorsLocal",
           "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_IncludesTurnMetadata",
           "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_TurnMetadataBlockOrder",
           "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_TurnMetadataChannelNeutral (sub-tests: telegram, slack, bluebubbles, whatsapp, discord)",
@@ -946,12 +946,12 @@
           "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_SelfHelpGuidanceChannelNeutral (sub-tests: telegram, slack, bluebubbles, whatsapp, discord)"
         ],
         "captured_session_context_for_full_metadata_gate_open_fixture": "# Project Context\n\nThe following project context files have been loaded and should be followed:\n\n## AGENTS.md\n\nProject: Gormes — native Go Hermes parity agent.\nYou are Gormes, not ChatGPT.\n\n# Durable User Context\n\nThe following durable user/memory files have been loaded and should be considered when responding:\n\n## USER.md\n\n# User\nName: Juan\n\n## MEMORY.md\n\n# Memory\nLast topic: live prompt parity.\n\nConversation started: Wednesday, April 29, 2026 02:46 PM\nSession ID: sess-1\nModel: claude-opus-4-7\nProvider: anthropic\n\nGormes self-help guidance:\nWhen the user asks about configuring, setting up, troubleshooting, or using gormes or Gormes itself, consult Gormes-owned self-help material before answering.\n- Prefer the future gormes-self-help skill when it is available.\n- If that skill is unavailable, use the local Astro/Starlight docs surface at https://docs.gormes.ai/, especially Using Gormes and Building Gormes pages.\n- Include evidence self-help-unavailable when falling back to docs because the skill is unavailable.\n- Keep this guidance scoped to gormes/Gormes self-help; omit it for unrelated prompts.\n\n## Current Session Context\n\n**Source:** telegram chat `42`\n**User ID:** `7`\n**Session Key:** `telegram:42`\n**Session ID:** `sess-stored`\n**Delivery Targets:** `origin`, `local`, `telegram`",
-        "self_help_gate_closed_fixture_prompt": "Write a Go unit test for JSON parsing. (proven gate=false by internal/hermes/self_help_guidance_test.go TestGormesSelfHelpGuidanceGateMatchesSetupQuestions/unrelated)",
+        "self_help_gate_closed_fixture_prompt": "Write a Go unit test for JSON parsing. (proven gate=false by internal/llm/self_help_guidance_test.go TestGormesSelfHelpGuidanceGateMatchesSetupQuestions/unrelated)",
         "byte_identity_baseline": "TestLiveTurn_SystemPrompt_TurnMetadataMissingNoPanic captures the slice-2 baseline via dispatchWithMemory(emptyProfile, emptyCWD, emptyMemory) and asserts byte-equality with dispatchFixture(empty seams + 'hello' submitText) — both elide the metadata block (no clock seam) and the self-help block (gate closed for 'hello').",
         "verification": [
-          "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -run TurnMetadata -count=1 -> ok",
+          "GOCACHE=/tmp/gormes-go-cache go test ./internal/llm -run TurnMetadata -count=1 -> ok",
           "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run LiveTurn -count=1 -> ok",
-          "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/hermes ./internal/kernel ./internal/memory -count=1 -> ok",
+          "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/llm ./internal/kernel ./internal/memory -count=1 -> ok",
           "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1 -> ok",
           "go run ./cmd/progress validate -> ok",
           "git diff --check -> ok"
@@ -968,7 +968,7 @@
       "name": "Hermes MEMORY_GUIDANCE stale-artifact exclusion refresh",
       "priority": "P1",
       "status": "complete",
-      "contract": "Refresh Gormes' pure-data `internal/hermes.MemoryGuidance` constant to byte-match current Hermes `MEMORY_GUIDANCE` after upstream commit 6e5489c9f adds explicit examples of ephemeral PR, issue, commit SHA, completed-work, phase, file-count, and 7-day-stale artifacts that must not be written to durable memory. The slice is data-only: no live-turn prompt wiring, gateway behavior, provider routing, memory store mutation, or channel rendering changes.",
+      "contract": "Refresh Gormes' pure-data `internal/llm.MemoryGuidance` constant to byte-match current Hermes `MEMORY_GUIDANCE` after upstream commit 6e5489c9f adds explicit examples of ephemeral PR, issue, commit SHA, completed-work, phase, file-count, and 7-day-stale artifacts that must not be written to durable memory. The slice is data-only: no live-turn prompt wiring, gateway behavior, provider routing, memory store mutation, or channel rendering changes.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
@@ -978,17 +978,17 @@
         "operator"
       ],
       "degraded_mode": "If the constant drifts, `TestGuidanceConstants_MemoryGuidance_ByteEquivalent` fails before any runtime path changes; operators keep the previous guidance until this data-only refresh lands.",
-      "fixture": "internal/hermes/guidance_constants_test.go::TestGuidanceConstants_MemoryGuidance_ByteEquivalent",
+      "fixture": "internal/llm/guidance_constants_test.go::TestGuidanceConstants_MemoryGuidance_ByteEquivalent",
       "source_refs": [
         "./hermes-agent/agent/prompt_builder.py@6e5489c9f:MEMORY_GUIDANCE",
         "./hermes-agent/tests/run_agent/test_memory_nudge_counter_hydration.py@e612c3d6f (adjacent memory prompt/runtime nudge drift evidence)",
-        "internal/hermes/guidance_constants.go:MemoryGuidance",
-        "internal/hermes/guidance_constants_test.go:TestGuidanceConstants_MemoryGuidance_ByteEquivalent",
+        "internal/llm/guidance_constants.go:MemoryGuidance",
+        "internal/llm/guidance_constants_test.go:TestGuidanceConstants_MemoryGuidance_ByteEquivalent",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#prompt-context-compression-and-skills-in-prompt"
       ],
       "ready_when": [
         "The in-repo Hermes submodule is refreshed to e612c3d6f or newer and includes commit 6e5489c9f.",
-        "`go test ./internal/hermes -run TestGuidanceConstants_MemoryGuidance_ByteEquivalent -count=1` fails only because Gormes' MemoryGuidance is missing the stale-artifact exclusion sentence.",
+        "`go test ./internal/llm -run TestGuidanceConstants_MemoryGuidance_ByteEquivalent -count=1` fails only because Gormes' MemoryGuidance is missing the stale-artifact exclusion sentence.",
         "No live provider, gateway, or private memory directory is required."
       ],
       "not_ready_when": [
@@ -997,14 +997,14 @@
         "The slice attempts to implement relevance-based memory retrieval or memory-nudge counter hydration; those are separate runtime surfaces."
       ],
       "acceptance": [
-        "RED: `go test ./internal/hermes -run TestGuidanceConstants_MemoryGuidance_ByteEquivalent -count=1` fails before implementation with the missing upstream stale-artifact exclusion text.",
-        "GREEN: the same focused test passes after `internal/hermes.MemoryGuidance` includes the upstream PR/issue/SHA/7-day-stale exclusion sentence byte-for-byte.",
-        "`go test ./internal/hermes -run GuidanceConstants -count=1` passes so the refresh did not drift any sibling guidance constant.",
+        "RED: `go test ./internal/llm -run TestGuidanceConstants_MemoryGuidance_ByteEquivalent -count=1` fails before implementation with the missing upstream stale-artifact exclusion text.",
+        "GREEN: the same focused test passes after `internal/llm.MemoryGuidance` includes the upstream PR/issue/SHA/7-day-stale exclusion sentence byte-for-byte.",
+        "`go test ./internal/llm -run GuidanceConstants -count=1` passes so the refresh did not drift any sibling guidance constant.",
         "`go test ./internal/e2e -run 'TestNormalTurnGoldenTranscripts/memory_backed' -count=1` passes with the memory-backed provider prompt golden updated to the new guidance text.",
         "No runtime wiring files are touched; only the guidance constant, memory-backed e2e golden fixture, progress row, generated progress surfaces, and the Hermes submodule pin may change."
       ],
       "write_scope": [
-        "internal/hermes/guidance_constants.go",
+        "internal/llm/guidance_constants.go",
         "internal/support/e2e/testdata/normal_turn/memory_backed.json",
         "docs/content/building-gormes/architecture_plan/progress.json",
         "docs/content/building-gormes/",
@@ -1013,8 +1013,8 @@
         "hermes-agent"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run TestGuidanceConstants_MemoryGuidance_ByteEquivalent -count=1",
-        "go test ./internal/hermes -run GuidanceConstants -count=1",
+        "go test ./internal/llm -run TestGuidanceConstants_MemoryGuidance_ByteEquivalent -count=1",
+        "go test ./internal/llm -run GuidanceConstants -count=1",
         "go test ./internal/e2e -run 'TestNormalTurnGoldenTranscripts/memory_backed' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
@@ -1030,15 +1030,15 @@
       "blocked_by": [],
       "evidence": {
         "implementation": [
-          "internal/hermes/guidance_constants.go:MemoryGuidance now includes Hermes' PR/issue/SHA/7-day-stale artifact exclusion sentence byte-for-byte.",
-          "internal/hermes/guidance_constants.go upstream pin updated to e612c3d6f00624868ce3f73bb6beaacfea36337f.",
+          "internal/llm/guidance_constants.go:MemoryGuidance now includes Hermes' PR/issue/SHA/7-day-stale artifact exclusion sentence byte-for-byte.",
+          "internal/llm/guidance_constants.go upstream pin updated to e612c3d6f00624868ce3f73bb6beaacfea36337f.",
           "internal/support/e2e/testdata/normal_turn/memory_backed.json regenerates the provider-visible memory-backed system prompt with the refreshed guidance text.",
           "hermes-agent submodule refreshed from e90aa7f28 to e612c3d6f."
         ],
         "tests": [
-          "RED: go test ./internal/hermes -run TestGuidanceConstants_MemoryGuidance_ByteEquivalent -count=1 failed before implementation because MemoryGuidance missed the stale-artifact exclusion text.",
-          "GREEN: go test ./internal/hermes -run TestGuidanceConstants_MemoryGuidance_ByteEquivalent -count=1 -> ok.",
-          "GREEN: go test ./internal/hermes -run GuidanceConstants -count=1 -> ok.",
+          "RED: go test ./internal/llm -run TestGuidanceConstants_MemoryGuidance_ByteEquivalent -count=1 failed before implementation because MemoryGuidance missed the stale-artifact exclusion text.",
+          "GREEN: go test ./internal/llm -run TestGuidanceConstants_MemoryGuidance_ByteEquivalent -count=1 -> ok.",
+          "GREEN: go test ./internal/llm -run GuidanceConstants -count=1 -> ok.",
           "GREEN: GORMES_UPDATE_GOLDEN_TRANSCRIPTS=1 go test ./internal/e2e -run 'TestNormalTurnGoldenTranscripts/memory_backed' -count=1 -> ok.",
           "GREEN: go test ./internal/e2e -run 'TestNormalTurnGoldenTranscripts/memory_backed' -count=1 -> ok."
         ],
@@ -1117,7 +1117,7 @@
         "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run GatewayManagerConfig_LiveTurn -count=1",
         "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run '^TestTelegramManagerConfig_LiveTurnMetadataProductionWiring$' -count=1",
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run LiveTurn -count=1",
-        "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/gateway ./internal/hermes -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/gateway ./internal/llm -count=1",
         "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
@@ -1159,7 +1159,7 @@
         "internal/gateway/commands.go",
         "internal/gateway/status_command.go",
         "internal/gateway/title_command.go",
-        "internal/session/directory.go"
+        "internal/persistence/session/directory.go"
       ],
       "ready_when": [
         "Hermes `/title` command semantics and Gormes session metadata storage have been source-audited.",
@@ -1215,12 +1215,12 @@
         "system"
       ],
       "degraded_mode": "Legacy bbolt rows without the field decode as manual=false (zero value) so existing untitled sessions remain auto-title-eligible. If the adapter cannot read metadata, Title() returns err and PerformAutoTitle records auto_title_store_read_failed evidence rather than silently overwriting.",
-      "fixture": "internal/session/title_store_test.go",
+      "fixture": "internal/persistence/session/title_store_test.go",
       "source_refs": [
-        "internal/session/auto_title.go:59-73",
-        "internal/session/auto_title.go:126-144",
-        "internal/session/directory.go:27-48",
-        "internal/session/directory.go:79-143",
+        "internal/persistence/session/auto_title.go:59-73",
+        "internal/persistence/session/auto_title.go:126-144",
+        "internal/persistence/session/directory.go:27-48",
+        "internal/persistence/session/directory.go:79-143",
         "internal/gateway/title_command.go",
         "../hermes-agent/gateway/run.py:7738-7784",
         "../hermes-agent/hermes_state.py:735-779"
@@ -1244,17 +1244,17 @@
         "Legacy decode test confirms a bbolt row written before this slice decodes with TitleManuallySet=false and remains auto-title-eligible."
       ],
       "write_scope": [
-        "internal/session/directory.go",
-        "internal/session/title_store.go",
-        "internal/session/title_store_test.go",
-        "internal/session/directory_test.go",
+        "internal/persistence/session/directory.go",
+        "internal/persistence/session/title_store.go",
+        "internal/persistence/session/title_store_test.go",
+        "internal/persistence/session/directory_test.go",
         "internal/gateway/title_command.go",
         "internal/gateway/title_command_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json",
         "www.gormes.ai/internal/site/data/progress.json"
       ],
       "test_commands": [
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/session -run 'TitleManually|TitleStore|Manual' -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/persistence/session -run 'TitleManually|TitleStore|Manual' -count=1",
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'Title|Manual' -count=1",
         "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1",
         "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
@@ -1265,9 +1265,9 @@
       ],
       "evidence": [
         "GAP: User-shipped e23f0421c implements /title without the manual flag, leaving the contract claim 'manual titles are not overwritten by auto-title' (row L2299) unenforced because session.Metadata has no TitleManuallySet field and no concrete SessionTitleStore adapter exists on dev.",
-        "GAP: internal/session/auto_title.go:67 declares Title(sessionID) (current, manual, ok, err) but no in-tree implementation satisfies it; PerformAutoTitle would skip the manual short-circuit silently.",
+        "GAP: internal/persistence/session/auto_title.go:67 declares Title(sessionID) (current, manual, ok, err) but no in-tree implementation satisfies it; PerformAutoTitle would skip the manual short-circuit silently.",
         "RED: TestMetadata_TitleManuallySetRoundTripsThroughBolt, TestMergeMetadata_ManualFlagIsStickyTrue, TestMetadata_LegacyDecodeHasManualFlagFalse, TestSessionTitleStore_TitleReturnsManualTrueWhenFlagSet, TestSessionTitleStore_TitleReturnsManualFalseForLegacyRow, TestSessionTitleStore_SetTitleClearsManualFlag, TestSessionTitleStore_TitleReturnsOKFalseForUnknownSession, TestSessionTitleStore_TitleReturnsErrorOnStoreFailure, TestPerformAutoTitle_ManualShortCircuitViaConcreteAdapter, TestTitleCommand_SetPathPersistsManualFlag, TestTitleCommand_ShowPathDoesNotMutateManualFlag — all failed at field-missing compile errors before implementation.",
-        "GREEN: TitleManuallySet bool added to session.Metadata with json:title_manually_set,omitempty. mergeMetadata sticky-true block added after Title merge. MetadataTitleStore adapter in internal/session/title_store.go implements SessionTitleStore via read path (GetMetadata) and SetTitle via setTitleAuto read-modify-write that explicitly clears TitleManuallySet=false on both MemMap and BoltMap, bypassing mergeMetadata's sticky guard. /title set path in internal/gateway/title_command.go adds TitleManuallySet:true to the PutMetadata literal.",
+        "GREEN: TitleManuallySet bool added to session.Metadata with json:title_manually_set,omitempty. mergeMetadata sticky-true block added after Title merge. MetadataTitleStore adapter in internal/persistence/session/title_store.go implements SessionTitleStore via read path (GetMetadata) and SetTitle via setTitleAuto read-modify-write that explicitly clears TitleManuallySet=false on both MemMap and BoltMap, bypassing mergeMetadata's sticky guard. /title set path in internal/gateway/title_command.go adds TitleManuallySet:true to the PutMetadata literal.",
         "REGRESSION: GOCACHE=/tmp/gormes-go-cache go test ./... -count=1 — all packages pass. go run ./cmd/progress validate — 7 phases validated. git diff --check — clean.",
         "scope_decisions: SetTitle clearing strategy is read-modify-write via unexported setTitleAuto methods on MemMap and BoltMap. mergeMetadata sticky-true guard covers the common PutMetadata path; setTitleAuto bypasses it with a direct field assignment. This keeps the public SessionTitleStore interface unchanged and satisfies the auto_title.go contract without a sentinel/pointer extension to mergeMetadata."
       ]
@@ -1281,7 +1281,7 @@
       "name": "Gateway auto-title generation wiring",
       "priority": "P1",
       "status": "complete",
-      "contract": "After an assistant turn finalizes (kernel.PhaseIdle), the gateway invokes session.PerformAutoTitle once per turn against the MetadataTitleStore adapter, using internal/hermes.GenerateTitle as the provider boundary, so untitled sessions get one auto-generated title from the first user+assistant exchange while manual titles, already-titled sessions, blank generator output, and provider failures all surface evidence without retry storms or transcript mutation.",
+      "contract": "After an assistant turn finalizes (kernel.PhaseIdle), the gateway invokes session.PerformAutoTitle once per turn against the MetadataTitleStore adapter, using internal/llm.GenerateTitle as the provider boundary, so untitled sessions get one auto-generated title from the first user+assistant exchange while manual titles, already-titled sessions, blank generator output, and provider failures all surface evidence without retry storms or transcript mutation.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
@@ -1295,16 +1295,16 @@
       "fixture": "internal/gateway/auto_title_wiring_test.go",
       "source_refs": [
         "internal/gateway/manager.go:864-938 (dispatchFrame, PhaseIdle case at 896)",
-        "internal/session/auto_title.go:94 (PerformAutoTitle)",
-        "internal/session/title_store.go (MetadataTitleStore, shipped in bffe3c518)",
-        "internal/hermes/title_generator.go:91 (GenerateTitle, TitleModelFunc)",
+        "internal/persistence/session/auto_title.go:94 (PerformAutoTitle)",
+        "internal/persistence/session/title_store.go (MetadataTitleStore, shipped in bffe3c518)",
+        "internal/llm/title_generator.go:91 (GenerateTitle, TitleModelFunc)",
         "internal/kernel/title_failure_test.go (auxiliary-failure routing, 4.F[1] complete)",
         "../hermes-agent/agent/title_generator.py@4a2ee6c1:maybe_auto_title",
         "../hermes-agent/gateway/run.py (auto-title invocation site)"
       ],
       "ready_when": [
         "Session metadata manual-title protection flag row is complete and merged on dev (provides MetadataTitleStore adapter and TitleManuallySet flag).",
-        "internal/hermes.GenerateTitle and TitleModelFunc seam are validated on dev (4.F[0] complete).",
+        "internal/llm.GenerateTitle and TitleModelFunc seam are validated on dev (4.F[0] complete).",
         "Auxiliary-failure callback wiring (4.F[1]) is validated on dev so failure evidence routing is reusable.",
         "The slice runs with hermetic in-memory session.Map + a fake TitleModelFunc; no live provider, Telegram, or profile access required."
       ],
@@ -1333,7 +1333,7 @@
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'AutoTitleWiring|AutoTitle' -count=1",
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/session ./internal/hermes ./cmd/gormes -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/persistence/session ./internal/llm ./cmd/gormes -count=1",
         "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1",
         "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
         "git diff --check"
@@ -1342,7 +1342,7 @@
         "Gateway dispatchFrame PhaseIdle case fires PerformAutoTitle once per turn against MetadataTitleStore + an injected TitleModelFunc, hermetic fixtures cover all evidence codes (generated, skipped_manual, skipped_titled, provider_failed, blank_result, missing_session), production cmd/gormes/gateway.go injects a real provider-backed TitleModelFunc, and the auxiliary-failure callback surfaces failure evidence without crashing the foreground turn."
       ],
       "evidence": [
-        "GAP: dev has session.PerformAutoTitle (internal/session/auto_title.go:94), the MetadataTitleStore adapter (bffe3c518), and internal/hermes.GenerateTitle, but no gateway invocation site — untitled sessions never receive auto-titles. /status renders title_unavailable indefinitely until /title is used manually.",
+        "GAP: dev has session.PerformAutoTitle (internal/persistence/session/auto_title.go:94), the MetadataTitleStore adapter (bffe3c518), and internal/llm.GenerateTitle, but no gateway invocation site — untitled sessions never receive auto-titles. /status renders title_unavailable indefinitely until /title is used manually.",
         "GAP: cmd/gormes/gateway.go does not construct a TitleModelFunc from the configured provider, so even if the gateway invocation lands the production binary will record AutoTitleCodeProviderFailed evidence on every turn — same silent-no-op pattern as live-turn slice-4 production wiring.",
         "RED: 7 tests in internal/gateway/auto_title_wiring_test.go written before implementation.",
         "GREEN: maybeRunAutoTitle wired into dispatchFrame PhaseIdle path; runAutoTitle helper in auto_title_wiring.go; ManagerConfig.TitleModel (hermes.TitleModelFunc) and ManagerConfig.TitleStore (session.SessionTitleStore) seams added.",
@@ -1636,11 +1636,11 @@
         "system"
       ],
       "degraded_mode": "Until the decision is locked, parity matrix rows must mark durable context ordering as partial and avoid claiming strict Hermes prompt equivalence.",
-      "fixture": "internal/gateway/live_turn_prompt_test.go + internal/hermes/durable_user_context_test.go",
+      "fixture": "internal/gateway/live_turn_prompt_test.go + internal/llm/durable_user_context_test.go",
       "source_refs": [
         "../hermes-agent/run_agent.py:3721-3730",
         "../hermes-agent/tools/memory_tool.py:105-124",
-        "internal/hermes/durable_user_context.go",
+        "internal/llm/durable_user_context.go",
         "internal/gateway/live_turn_prompt.go"
       ],
       "ready_when": [
@@ -1655,14 +1655,14 @@
       ],
       "note": "Validated 2026-04-29: Gormes locks the current owned prompt ordering with AGENTS/project content before SOUL inside the context block, durable USER.md before MEMORY.md, then turn metadata and session context. Hermes reference differs by treating SOUL as the primary identity and using a frozen MemoryStore snapshot; Gormes currently reloads durable USER/MEMORY for each prompt build, so MEMORY.md writes affect the next prompt, not an already assembled current provider payload.",
       "write_scope": [
-        "internal/hermes/durable_user_context.go",
-        "internal/hermes/durable_user_context_test.go",
+        "internal/llm/durable_user_context.go",
+        "internal/llm/durable_user_context_test.go",
         "internal/gateway/live_turn_prompt.go",
         "internal/gateway/live_turn_prompt_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes ./internal/gateway -run 'DurableUserContext|LiveTurn|FrozenMemorySnapshot' -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/llm ./internal/gateway -run 'DurableUserContext|LiveTurn|FrozenMemorySnapshot' -count=1",
         "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1670,7 +1670,7 @@
         "Durable context ordering and snapshot semantics are locked by provider-payload fixtures and progress notes."
       ],
       "evidence": [
-        "Validated 2026-04-29: TestLiveTurn_SystemPrompt_TurnMetadataBlockOrder now asserts provider payload order across project/AGENTS content, SOUL, durable USER.md, durable MEMORY.md, turn metadata, and session context; TestBuildDurableUserContextPrompt_ReloadsMemoryEachCall proves per-prompt durable memory reload semantics with temp fixtures only. Focused command: GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes ./internal/gateway -run 'DurableUserContext|LiveTurn|FrozenMemorySnapshot' -count=1."
+        "Validated 2026-04-29: TestLiveTurn_SystemPrompt_TurnMetadataBlockOrder now asserts provider payload order across project/AGENTS content, SOUL, durable USER.md, durable MEMORY.md, turn metadata, and session context; TestBuildDurableUserContextPrompt_ReloadsMemoryEachCall proves per-prompt durable memory reload semantics with temp fixtures only. Focused command: GOCACHE=/tmp/gormes-go-cache go test ./internal/llm ./internal/gateway -run 'DurableUserContext|LiveTurn|FrozenMemorySnapshot' -count=1."
       ]
     }
   },
@@ -1692,11 +1692,11 @@
         "system"
       ],
       "degraded_mode": "If tools or skills are unavailable, the guidance block omits only those gated sections and reports no false capability.",
-      "fixture": "internal/kernel/guidance_test.go + internal/gateway/live_turn_prompt_test.go + internal/hermes/guidance_constants_test.go",
+      "fixture": "internal/kernel/guidance_test.go + internal/gateway/live_turn_prompt_test.go + internal/llm/guidance_constants_test.go",
       "source_refs": [
         "../hermes-agent/run_agent.py:3667-3712",
         "../hermes-agent/agent/prompt_builder.py",
-        "internal/hermes/guidance_constants.go",
+        "internal/llm/guidance_constants.go",
         "internal/kernel/kernel.go",
         "internal/gateway/live_turn_prompt.go"
       ],
@@ -1714,11 +1714,11 @@
       "write_scope": [
         "internal/gateway/",
         "internal/kernel/",
-        "internal/hermes/",
+        "internal/llm/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel ./internal/hermes -run 'Guidance|Tool|Skill|LiveTurn' -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel ./internal/llm -run 'Guidance|Tool|Skill|LiveTurn' -count=1",
         "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1734,7 +1734,7 @@
         "verification": [
           "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/kernel -run 'TestKernel_LiveTurnGuidance' -count=1 failed before implementation because provider payload lacked MemoryGuidance.",
           "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/kernel -run 'TestKernel_LiveTurnGuidance' -count=1 passed.",
-          "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel ./internal/hermes -run 'Guidance|Tool|Skill|LiveTurn' -count=1 passed."
+          "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel ./internal/llm -run 'Guidance|Tool|Skill|LiveTurn' -count=1 passed."
         ]
       }
     }
@@ -1816,7 +1816,7 @@
         "internal/gateway/manager.go:refreshConversationalSessionMetadata",
         "internal/gateway/status_command.go",
         "internal/gateway/manager_test.go:TestManager_Inbound_SubmitCreatesAndRefreshesConversationalSessionMetadata",
-        "internal/session/"
+        "internal/persistence/session/"
       ],
       "ready_when": [
         "Gormes session metadata and status rendering seams are identified.",
@@ -1831,11 +1831,11 @@
       "note": "Validated native gateway conversational turn metadata refresh: normal Telegram-shaped submits now create a Hermes-style session id, persist chat->session mapping and source/user metadata, preserve CreatedAt, refresh UpdatedAt on later turns, and /status reads the same metadata without provider submission.",
       "write_scope": [
         "internal/gateway/",
-        "internal/session/",
+        "internal/persistence/session/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/session -run 'SessionMetadata|Status|Telegram' -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/persistence/session -run 'SessionMetadata|Status|Telegram' -count=1",
         "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1845,7 +1845,7 @@
       "evidence": [
         "RED: TestManager_Inbound_SubmitCreatesAndRefreshesConversationalSessionMetadata failed with first submit SessionID = \"telegram:42\", proving normal conversational turns still used the legacy chat key and did not create metadata.",
         "GREEN: internal/gateway/manager.go refreshConversationalSessionMetadata now generates a Hermes-style session id for missing/legacy chat-key sessions, persists the chat->session mapping, writes source/chat/user metadata, preserves CreatedAt through session.mergeMetadata, and refreshes UpdatedAt on later normal turns before provider submission.",
-        "REGRESSION: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/session -run SessionMetadata|Status|Telegram|SubmitCreatesAndRefreshes -count=1 PASS."
+        "REGRESSION: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/persistence/session -run SessionMetadata|Status|Telegram|SubmitCreatesAndRefreshes -count=1 PASS."
       ]
     }
   },
@@ -1873,7 +1873,7 @@
         "../hermes-agent/gateway/run.py:4674",
         "internal/gateway/status_command.go",
         "internal/gateway/usage_command.go",
-        "internal/hermes/provider_transport.go"
+        "internal/llm/provider_transport.go"
       ],
       "ready_when": [
         "Provider usage surfaces and status rendering seams are identified.",
@@ -1887,19 +1887,19 @@
       ],
       "write_scope": [
         "internal/gateway/",
-        "internal/session/",
-        "internal/hermes/",
+        "internal/persistence/session/",
+        "internal/llm/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/session ./internal/hermes -run 'Token|Usage|Status' -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/persistence/session ./internal/llm -run 'Token|Usage|Status' -count=1",
         "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
         "git diff --check"
       ],
       "done_signal": [
         "Session token accounting fixtures prove accumulated usage appears in `/status` with redacted evidence."
       ],
-      "last_evidence": "RED/GREEN: TestStatusCommand_PersistsAndRendersAccumulatedSessionTokenTotals proves two usage snapshots persist durable per-session token totals, missing usage does not erase them, and /status renders the accumulated total. Validated with GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/session ./internal/hermes -run 'Token|Usage|Status' -count=1."
+      "last_evidence": "RED/GREEN: TestStatusCommand_PersistsAndRendersAccumulatedSessionTokenTotals proves two usage snapshots persist durable per-session token totals, missing usage does not erase them, and /status renders the accumulated total. Validated with GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/persistence/session ./internal/llm -run 'Token|Usage|Status' -count=1."
     }
   },
   {
@@ -2873,7 +2873,7 @@
         "../hermes-agent/hermes_cli/model_switch.py@d4b26df8:list_picker_providers (curated picker list)",
         "internal/gateway/manager.go:1298:handleModelCommand current static-text handler",
         "internal/channels/telegram/approval_buttons.go:87:handleCallbackQuery callback-router pattern Gormes already owns",
-        "internal/hermes/provider_registry_manifest.go:HermesProviderRegistryManifest curated provider list",
+        "internal/llm/provider_registry_manifest.go:HermesProviderRegistryManifest curated provider list",
         "internal/gateway/reasoning_command.go:SessionReasoningState per-session override precedent",
         "docs/content/building-gormes/architecture_plan/progress.json:Gormes model interactive provider/model picker (CLI row 41975, coordinated)"
       ],
@@ -2916,17 +2916,17 @@
         "internal/channels/telegram/model_picker_buttons.go",
         "internal/channels/telegram/model_picker_buttons_test.go",
         "internal/channels/telegram/bot.go",
-        "internal/hermes/picker_providers.go",
-        "internal/hermes/picker_providers_test.go",
+        "internal/llm/picker_providers.go",
+        "internal/llm/picker_providers_test.go",
         "cmd/gormes/hermes_cli_parity.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestGatewayModel(Command|Picker)' -count=1",
         "go test ./internal/channels/telegram -run 'TestTelegramModelPicker|TestCallback' -count=1",
-        "go test ./internal/hermes -run 'TestPickerProviders' -count=1",
+        "go test ./internal/llm -run 'TestPickerProviders' -count=1",
         "go test ./cmd/gormes -run 'TestHermesCLIParityManifest' -count=1",
-        "go test ./internal/gateway ./internal/channels/telegram ./internal/hermes ./cmd/gormes -count=1",
+        "go test ./internal/gateway ./internal/channels/telegram ./internal/llm ./cmd/gormes -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -3259,7 +3259,7 @@
       "name": "Multimodal photo attachment passthrough",
       "priority": "P1",
       "status": "complete",
-      "contract": "TurnAdapter.Dispatch materializes inbound gateway.Attachment{Kind:\"photo\"} entries into kernel.PlatformEvent.ContentParts as hermes.MessageContentPart{Type:\"image_url\", ImageURL:\"data:<media-type>;base64,...\"} before submitting to the kernel. Vision-capable providers (currently openai-codex/gpt-5.5 on the operator's PC, plus Anthropic, Codex Responses, OpenRouter/etc.) receive the image bytes directly through the existing provider stack. Non-photo attachments (voice, document) are skipped — voice has its own transcriber resolver and documents lack a defined multimodal contract today. Unreadable cache files are silently dropped so the existing text-marker fallback in SubmitText remains the user-visible signal and the kernel never sees a broken image_url.",
+      "contract": "TurnAdapter.Dispatch materializes inbound gateway.Attachment{Kind:\"photo\"} entries into kernel.PlatformEvent.ContentParts as llm.MessageContentPart{Type:\"image_url\", ImageURL:\"data:<media-type>;base64,...\"} before submitting to the kernel. Vision-capable providers (currently openai-codex/gpt-5.5 on the operator's PC, plus Anthropic, Codex Responses, OpenRouter/etc.) receive the image bytes directly through the existing provider stack. Non-photo attachments (voice, document) are skipped — voice has its own transcriber resolver and documents lack a defined multimodal contract today. Unreadable cache files are silently dropped so the existing text-marker fallback in SubmitText remains the user-visible signal and the kernel never sees a broken image_url.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "gateway",
@@ -3276,18 +3276,18 @@
         "internal/gateway/turn_adapter.go:Dispatch (wire-up — populates kernel.PlatformEvent.ContentParts)",
         "internal/gateway/turn_adapter_test.go (6 hermetic tests)",
         "internal/kernel/frame.go:PlatformEvent.ContentParts (existing kernel field)",
-        "internal/kernel/kernel.go:378 (kernel constructs hermes.Message{ContentParts: cloneMessageContentParts(contentParts)})",
-        "internal/hermes/client.go:256 (MessageContentPart{Type, Text, ImageURL, Detail})",
-        "internal/hermes/codex_responses_adapter.go:322 (Codex Responses image_url serializer)",
-        "internal/hermes/image_shrink_retry.go (existing retry-on-too-large)",
+        "internal/kernel/kernel.go:378 (kernel constructs llm.Message{ContentParts: cloneMessageContentParts(contentParts)})",
+        "internal/llm/client.go:256 (MessageContentPart{Type, Text, ImageURL, Detail})",
+        "internal/llm/codex_responses_adapter.go:322 (Codex Responses image_url serializer)",
+        "internal/llm/image_shrink_retry.go (existing retry-on-too-large)",
         "internal/channels/telegram/document_cache.go:150 (telegramPhotoMessageAttachment — channel-side download)",
         "../hermes-agent/gateway/run.py (Hermes parity reference)",
         "../picoclaw/pkg/providers/common/common.go:96-156 (sibling Go port — confirms the no-OCR/just-pass-to-provider approach)",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md (Channels / Multimodal section)"
       ],
       "ready_when": [
-        "kernel.PlatformEvent.ContentParts existed and was wired through to hermes.Message{ContentParts} (true at HEAD before this slice).",
-        "internal/hermes provider stack supports image_url content parts end-to-end (true — codex_responses_adapter, image_shrink_retry, context_compressor all image-aware)."
+        "kernel.PlatformEvent.ContentParts existed and was wired through to llm.Message{ContentParts} (true at HEAD before this slice).",
+        "internal/llm provider stack supports image_url content parts end-to-end (true — codex_responses_adapter, image_shrink_retry, context_compressor all image-aware)."
       ],
       "not_ready_when": [
         "The slice introduces OCR or shells to tesseract/python — wrong abstraction; Vision-capable models read images natively.",
@@ -3304,7 +3304,7 @@
         "Existing internal/gateway, internal/channels/telegram, internal/kernel, cmd/gormes test suites remain green.",
         "CGO_ENABLED=0 go build ./... and CGO_ENABLED=0 go build -tags slim ./... both clean."
       ],
-      "note": "Filed and shipped 2026-05-09 from a live regression: user sent a screenshot to the Telegram bot, the model saw a path/marker only and tried unsuccessfully to OCR it via python3+PIL, file, and browser_vision tool calls. Diagnosis: every multimodal piece existed in Gormes (channel download, kernel ContentParts field, hermes.MessageContentPart, codex_responses_adapter image_url serializer, image_shrink_retry, context_compressor image-aware pruning) — the only missing wire was TurnAdapter.Dispatch populating kernel.PlatformEvent.ContentParts from req.Attachments. Picoclaw (sibling Go port, sipeed/picoclaw) confirmed via pkg/providers/common/common.go:96-156 that the right approach is the same: send image bytes as image_url content parts to the Vision-capable provider, no OCR involved.\n\nFollow-up rows worth filing later (NOT covered by this slice):\n- Vision-unsupported retry: when a provider rejects image_url with 'does not support vision' or DeepSeek's 'unknown variant' error, retry the same turn without the media. Picoclaw does this at pkg/agent/llm_media.go and pkg/agent/turn_coord.go:499.\n- Model-callable load_image tool: expose a tool the model can invoke to pull arbitrary local images into the next turn (not just channel attachments). Picoclaw's pkg/tools/fs/load_image.go is the reference.",
+      "note": "Filed and shipped 2026-05-09 from a live regression: user sent a screenshot to the Telegram bot, the model saw a path/marker only and tried unsuccessfully to OCR it via python3+PIL, file, and browser_vision tool calls. Diagnosis: every multimodal piece existed in Gormes (channel download, kernel ContentParts field, llm.MessageContentPart, codex_responses_adapter image_url serializer, image_shrink_retry, context_compressor image-aware pruning) — the only missing wire was TurnAdapter.Dispatch populating kernel.PlatformEvent.ContentParts from req.Attachments. Picoclaw (sibling Go port, sipeed/picoclaw) confirmed via pkg/providers/common/common.go:96-156 that the right approach is the same: send image bytes as image_url content parts to the Vision-capable provider, no OCR involved.\n\nFollow-up rows worth filing later (NOT covered by this slice):\n- Vision-unsupported retry: when a provider rejects image_url with 'does not support vision' or DeepSeek's 'unknown variant' error, retry the same turn without the media. Picoclaw does this at pkg/agent/llm_media.go and pkg/agent/turn_coord.go:499.\n- Model-callable load_image tool: expose a tool the model can invoke to pull arbitrary local images into the next turn (not just channel attachments). Picoclaw's pkg/tools/fs/load_image.go is the reference.",
       "write_scope": [
         "internal/gateway/turn_adapter.go",
         "internal/gateway/turn_adapter_test.go",
@@ -3323,7 +3323,7 @@
       "provenance": {
         "origin_type": "hybrid",
         "upstream_ref": "hermes gateway/run.py multimodal message construction",
-        "note": "Hermes attaches inbound image bytes as image_url content parts on the user turn so Vision-capable providers receive them directly. Picoclaw (sibling Go port at /home/xel/git/sages-openclaw/workspace-mineru/picoclaw) takes the same approach — pkg/providers/common/common.go:96-156 SerializeMessages converts internal Message{Media} into OpenAI multipart [{type:text},{type:image_url}]. Gormes had the channel side (telegram photo download), the kernel side (PlatformEvent.ContentParts), and the provider side (hermes.MessageContentPart{Type:image_url}, codex_responses_adapter image_url serialization, image_shrink_retry, context_compressor image-aware pruning) all in place — only the gateway-to-kernel adapter was not populating ContentParts from req.Attachments."
+        "note": "Hermes attaches inbound image bytes as image_url content parts on the user turn so Vision-capable providers receive them directly. Picoclaw (sibling Go port at /home/xel/git/sages-openclaw/workspace-mineru/picoclaw) takes the same approach — pkg/providers/common/common.go:96-156 SerializeMessages converts internal Message{Media} into OpenAI multipart [{type:text},{type:image_url}]. Gormes had the channel side (telegram photo download), the kernel side (PlatformEvent.ContentParts), and the provider side (llm.MessageContentPart{Type:image_url}, codex_responses_adapter image_url serialization, image_shrink_retry, context_compressor image-aware pruning) all in place — only the gateway-to-kernel adapter was not populating ContentParts from req.Attachments."
       },
       "blocked_by": [],
       "unblocks": []
@@ -3352,8 +3352,8 @@
       "source_refs": [
         "./hermes-agent/agent/image_routing.py@998676dd0:230-295 build_native_content_parts (default prompt + path hints)",
         "./hermes-agent/tests/agent/test_image_routing.py@998676dd0:146-211 path-hint/default-prompt fixtures",
-        "internal/hermes/image_routing.go:BuildNativeImageContentParts (current reusable helper — add path hints)",
-        "internal/hermes/image_routing_test.go:BuildNativeImageContentParts fixtures",
+        "internal/llm/image_routing.go:BuildNativeImageContentParts (current reusable helper — add path hints)",
+        "internal/llm/image_routing_test.go:BuildNativeImageContentParts fixtures",
         "internal/gateway/turn_adapter.go:imageContentPartsFromAttachments (current helper — extend, do not rewrite)",
         "internal/gateway/turn_adapter_test.go:TurnAdapter photo fixtures",
         "internal/gateway/manager_photo_passthrough_test.go:Manager submitPinned photo fixtures",
@@ -3376,10 +3376,10 @@
         "Existing TurnAdapter_Dispatch_PhotoAttachment* tests and manager photo-passthrough tests assert default-prompt and path-hint presence; existing tests for image_url payload bytes stay green.",
         "CGO_ENABLED=0 go build ./... clean; CGO_ENABLED=0 go test ./internal/gateway ./cmd/gormes -count=1 green."
       ],
-      "note": "Complete 2026-05-10. Refined during bounded all-topic weakness sweep after refreshing Hermes to 998676dd0 and planned rows were 23, below the 90-row cap. No new row was added: this existing source-backed row was raised to P1 because higher-priority P1 rows were blocked/operator-owned while this gateway/provider-visible image routing drift was small and fixture-ready. TDD extended internal/hermes BuildNativeImageContentParts fixtures, TurnAdapter photo fixtures, and the real Manager.submitPinned photo path. GREEN: the reusable helper now appends one `[Image attached at: <path>]` hint per readable image, default-prompts image-only native content parts with `What do you see in this image?`, preserves caption text ahead of hints, and never advertises skipped image paths. Gateway photo attachment materialization now routes through that helper, and Manager.submitPinned passes the raw inbound caption so image-only Telegram turns do not treat the generated `Attachments:` marker as the native caption. Plain text projection still preserves existing attachment markers for memory/legacy UI compatibility.",
+      "note": "Complete 2026-05-10. Refined during bounded all-topic weakness sweep after refreshing Hermes to 998676dd0 and planned rows were 23, below the 90-row cap. No new row was added: this existing source-backed row was raised to P1 because higher-priority P1 rows were blocked/operator-owned while this gateway/provider-visible image routing drift was small and fixture-ready. TDD extended internal/llm BuildNativeImageContentParts fixtures, TurnAdapter photo fixtures, and the real Manager.submitPinned photo path. GREEN: the reusable helper now appends one `[Image attached at: <path>]` hint per readable image, default-prompts image-only native content parts with `What do you see in this image?`, preserves caption text ahead of hints, and never advertises skipped image paths. Gateway photo attachment materialization now routes through that helper, and Manager.submitPinned passes the raw inbound caption so image-only Telegram turns do not treat the generated `Attachments:` marker as the native caption. Plain text projection still preserves existing attachment markers for memory/legacy UI compatibility.",
       "write_scope": [
-        "internal/hermes/image_routing.go",
-        "internal/hermes/image_routing_test.go",
+        "internal/llm/image_routing.go",
+        "internal/llm/image_routing_test.go",
         "internal/gateway/turn_adapter.go",
         "internal/gateway/turn_adapter_test.go",
         "internal/gateway/manager.go",
@@ -3387,7 +3387,7 @@
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "CGO_ENABLED=0 go test ./internal/hermes -run 'BuildNativeImageContentParts' -count=1",
+        "CGO_ENABLED=0 go test ./internal/llm -run 'BuildNativeImageContentParts' -count=1",
         "CGO_ENABLED=0 go test ./internal/gateway -run 'TurnAdapter.*Photo|PhotoAttachment|ImageOnlyPhoto' -count=1",
         "CGO_ENABLED=0 go test ./internal/gateway ./cmd/gormes -count=1",
         "go run ./cmd/progress validate"
@@ -3402,9 +3402,9 @@
       },
       "blocked_by": [],
       "evidence": [
-        "RED 2026-05-10: CGO_ENABLED=0 go test ./internal/hermes -run 'BuildNativeImageContentParts' -count=1 failed because text parts lacked `[Image attached at: ...]` hints.",
+        "RED 2026-05-10: CGO_ENABLED=0 go test ./internal/llm -run 'BuildNativeImageContentParts' -count=1 failed because text parts lacked `[Image attached at: ...]` hints.",
         "RED 2026-05-10: CGO_ENABLED=0 go test ./internal/gateway -run 'TurnAdapter.*Photo' -count=1 failed because photo ContentParts contained only image_url parts.",
-        "GREEN 2026-05-10: CGO_ENABLED=0 go test ./internal/hermes -run 'BuildNativeImageContentParts' -count=1 passed.",
+        "GREEN 2026-05-10: CGO_ENABLED=0 go test ./internal/llm -run 'BuildNativeImageContentParts' -count=1 passed.",
         "GREEN 2026-05-10: CGO_ENABLED=0 go test ./internal/gateway -run 'TurnAdapter.*Photo|PhotoAttachment|ImageOnlyPhoto' -count=1 passed.",
         "GREEN 2026-05-10: CGO_ENABLED=0 go test ./internal/gateway ./cmd/gormes -count=1 passed."
       ]
@@ -3449,12 +3449,12 @@
         "system"
       ],
       "degraded_mode": "A no_agent job without a script fails closed with cron_no_agent_script_required evidence and does not create an agent turn.",
-      "fixture": "internal/cron/no_agent_test.go; internal/tools/cronjob_tool_no_agent_test.go",
+      "fixture": "internal/automation/cron/no_agent_test.go; internal/tools/cronjob_tool_no_agent_test.go",
       "source_refs": [
         "./hermes-agent/cron/scheduler.py@b816fd4e2:run_job no_agent short-circuit",
         "./hermes-agent/tools/cronjob_tools.py@b816fd4e2:cronjob no_agent create/update validation",
-        "internal/cron/executor.go:runNoAgentJob",
-        "internal/cron/no_agent_test.go",
+        "internal/automation/cron/executor.go:runNoAgentJob",
+        "internal/automation/cron/no_agent_test.go",
         "internal/tools/cronjob_tool.go",
         "internal/tools/cronjob_tool_no_agent_test.go"
       ],
@@ -3473,18 +3473,18 @@
         "Failure fixtures prove non-zero script and timeout results deliver watchdog alerts, record error/timeout status, and still never submit to the kernel.",
         "Cronjob tool fixtures prove create/update require a script when no_agent=true, allow script-only jobs without prompts, list no_agent state, and allow toggling back to agent mode."
       ],
-      "note": "Complete 2026-05-07: the bounded all-topic weakness sweep found Hermes' cron no_agent=True script-only contract was implemented but not recorded under the canonical cron progress surface. Builder verification used existing TDD fixtures: internal/cron/no_agent_test.go proves script stdout delivery, empty/wakeAgent=false suppression, failure/timeout watchdog alerts, run-store evidence, and zero kernel submit events; internal/tools/cronjob_tool_no_agent_test.go proves create/update script guards, script-only jobs without prompts, list output, and toggling back to agent mode.",
+      "note": "Complete 2026-05-07: the bounded all-topic weakness sweep found Hermes' cron no_agent=True script-only contract was implemented but not recorded under the canonical cron progress surface. Builder verification used existing TDD fixtures: internal/automation/cron/no_agent_test.go proves script stdout delivery, empty/wakeAgent=false suppression, failure/timeout watchdog alerts, run-store evidence, and zero kernel submit events; internal/tools/cronjob_tool_no_agent_test.go proves create/update script guards, script-only jobs without prompts, list output, and toggling back to agent mode.",
       "write_scope": [
-        "internal/cron/executor.go",
-        "internal/cron/no_agent_test.go",
+        "internal/automation/cron/executor.go",
+        "internal/automation/cron/no_agent_test.go",
         "internal/tools/cronjob_tool.go",
         "internal/tools/cronjob_tool_no_agent_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron -run TestCronNoAgent -count=1",
+        "go test ./internal/automation/cron -run TestCronNoAgent -count=1",
         "go test ./internal/tools -run TestCronjobToolNoAgent -count=1",
-        "go test ./internal/cron ./internal/tools -run 'TestCronNoAgent|TestCronjobToolNoAgent' -count=1",
+        "go test ./internal/automation/cron ./internal/tools -run 'TestCronNoAgent|TestCronjobToolNoAgent' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -3603,10 +3603,10 @@
         "system"
       ],
       "degraded_mode": "Doctor and status report append-only run logs without restart rehydration until the durable ledger can claim and resume work.",
-      "fixture": "internal/subagent/durable_ledger_test.go",
+      "fixture": "internal/core/subagent/durable_ledger_test.go",
       "source_refs": [
-        "internal/subagent/runlog.go",
-        "internal/cron/executor.go"
+        "internal/core/subagent/runlog.go",
+        "internal/automation/cron/executor.go"
       ],
       "ready_when": [
         "Routing policy fixtures define which work may enter durable orchestration and which callers are allowed to submit or observe each lane."
@@ -3618,14 +3618,14 @@
       ],
       "note": "Complete: TDD landed a SQLite-first durable ledger in internal/subagent with submit, claim, claim-by-id, expired-lock reclaim, renew, progress, complete, fail, cancel intent, parent child_done events, and restart/replay status. Cron executor and subagent manager can opt into the same ledger without changing append-only run logs or delegate_task output, and internal/doctor distinguishes append-only logs from durable restart/replay availability.",
       "write_scope": [
-        "internal/subagent/",
-        "internal/cron/",
+        "internal/core/subagent/",
+        "internal/automation/cron/",
         "internal/audit/",
         "internal/doctor/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/subagent ./internal/cron ./internal/audit ./internal/doctor -count=1"
+        "go test ./internal/subagent ./internal/automation/cron ./internal/audit ./internal/doctor -count=1"
       ],
       "done_signal": [
         "Durable ledger tests prove minimal restartable job state exists and doctor/status surfaces expose whether replay is available."
@@ -4057,7 +4057,7 @@
         "internal/gateway/manager.go",
         "internal/gateway/manager_test.go",
         "internal/gateway/resume_continuation_test.go",
-        "internal/session/directory.go"
+        "internal/persistence/session/directory.go"
       ],
       "ready_when": [
         "Graceful restart drain + managed shutdown and Active-turn follow-up queue + late-arrival drain policy are complete on main.",
@@ -4078,12 +4078,12 @@
       "note": "TDD landed: drain-timeout resume_pending fixtures preserve the running session identity with source/reason/timestamp evidence, inject exactly one restart/shutdown-aware resume note on the next accepted turn, clear the marker after handoff, preserve queued follow-up FIFO order, and let suspended/cancelled/stuck-loop non-resumable evidence override resume recovery without touching restart service control, PID validation, token locks, or status CLI rendering.",
       "write_scope": [
         "internal/gateway/",
-        "internal/session/",
+        "internal/persistence/session/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'Test.*ResumePending|Test.*Drain' -count=1",
-        "go test ./internal/gateway ./internal/session -count=1",
+        "go test ./internal/gateway ./internal/persistence/session -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -4717,12 +4717,12 @@
         "system"
       ],
       "degraded_mode": "Gateway status reports migrated legacy memory_flushed evidence separately from current expiry_finalized state so operators can tell old session records from new finalization writes.",
-      "fixture": "internal/session/expiry_finalized_migration_test.go",
+      "fixture": "internal/persistence/session/expiry_finalized_migration_test.go",
       "source_refs": [
         "../hermes-agent/gateway/run.py@648b8991",
         "../hermes-agent/gateway/session.py@648b8991",
         "../hermes-agent/tests/gateway/test_resume_command.py@648b8991",
-        "internal/session/directory.go",
+        "internal/persistence/session/directory.go",
         "internal/gateway/manager.go"
       ],
       "ready_when": [
@@ -4742,13 +4742,13 @@
       ],
       "note": "Complete: TDD landed the session metadata data-shape migration only. Legacy raw metadata with memory_flushed=true decodes as expiry_finalized=true with migrated_memory_flushed evidence, rewrites drop the legacy memory_flushed key, new finalized metadata writes only expiry_finalized, and gateway submit/status fixtures report migrated evidence without queuing memory work. Hermes removed flush_memories; Gormes keeps Goncho memory extraction explicit and independent from gateway expiry metadata.",
       "write_scope": [
-        "internal/session/",
+        "internal/persistence/session/",
         "internal/gateway/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/session -run TestExpiryFinalizedMigration -count=1",
-        "go test ./internal/session ./internal/gateway -count=1",
+        "go test ./internal/persistence/session -run TestExpiryFinalizedMigration -count=1",
+        "go test ./internal/persistence/session ./internal/gateway -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -4790,7 +4790,7 @@
         "../hermes-agent/tests/gateway/test_session_boundary_hooks.py@648b8991",
         "../hermes-agent/tests/gateway/test_resume_command.py@648b8991",
         "internal/gateway/manager.go",
-        "internal/session/directory.go"
+        "internal/persistence/session/directory.go"
       ],
       "ready_when": [
         "Session expiry finalized-flag migration is validated on main.",
@@ -4810,12 +4810,12 @@
       "note": "Complete: TDD landed a gateway session-expiry finalization sweep with fakeable scanner/finalizer seams, one-shot successful on_session_finalize-style hooks plus cached-agent cleanup, persisted expiry_finalized metadata across reload, three-attempt retry/give-up evidence in metadata and runtime status, and submit fixtures proving no memory flush, Goncho, or Honcho work is launched on resumed finalized sessions.",
       "write_scope": [
         "internal/gateway/",
-        "internal/session/",
+        "internal/persistence/session/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run TestSessionExpiryHooks -count=1",
-        "go test ./internal/session ./internal/gateway -count=1",
+        "go test ./internal/persistence/session ./internal/gateway -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -4944,14 +4944,14 @@
         "operator"
       ],
       "degraded_mode": "Missing origin metadata falls back to local for origin targets, invalid delivery tokens produce target_parse_failed evidence, and missing home-channel/directory entries produce channel_directory_missing without invoking live adapters.",
-      "fixture": "internal/cron/delivery_plan_test.go and internal/tools/cronjob_tool_test.go",
+      "fixture": "internal/automation/cron/delivery_plan_test.go and internal/tools/cronjob_tool_test.go",
       "source_refs": [
         "../hermes-agent/gateway/delivery.py:DeliveryTarget.parse",
         "../hermes-agent/gateway/delivery.py:DeliveryRouter.deliver",
         "../hermes-agent/gateway/session.py:SessionSource",
         "../hermes-agent/gateway/platforms/api_server.py:_UPDATE_ALLOWED_FIELDS",
-        "internal/cron/delivery_plan.go:PlanCronDeliveryForJob",
-        "internal/cron/job.go:Job",
+        "internal/automation/cron/delivery_plan.go:PlanCronDeliveryForJob",
+        "internal/automation/cron/job.go:Job",
         "internal/tools/cronjob_tool.go:Tool"
       ],
       "ready_when": [
@@ -4980,15 +4980,15 @@
       ],
       "note": "Complete: TDD landed persisted cron.Job Deliver/Origin fields, cronjob tool deliver string/list schema support, normalized deliver persistence/list summaries, and PlanCronDeliveryForJob fixtures proving stored notify-to targets expand through origin and home-channel directory routing before dispatch. Degraded evidence remains target_parse_failed or channel_directory_missing, and no live adapters are invoked by the planner tests.",
       "write_scope": [
-        "internal/cron/job.go",
-        "internal/cron/delivery_plan.go",
-        "internal/cron/delivery_plan_test.go",
+        "internal/automation/cron/job.go",
+        "internal/automation/cron/delivery_plan.go",
+        "internal/automation/cron/delivery_plan_test.go",
         "internal/tools/cronjob_tool.go",
         "internal/tools/cronjob_tool_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron -run 'TestCronDeliveryPlanForJob_UsesStoredDeliverAndOrigin|TestCronDeliveryPlan_ParseTargets' -count=1",
+        "go test ./internal/automation/cron -run 'TestCronDeliveryPlanForJob_UsesStoredDeliverAndOrigin|TestCronDeliveryPlan_ParseTargets' -count=1",
         "go test ./internal/tools -run TestCronjobTool_CreateListAndRedact -count=1",
         "go run ./cmd/progress validate"
       ],
@@ -5277,8 +5277,8 @@
         "../hermes-agent/gateway/sticker_cache.py:cache_sticker_description",
         "../hermes-agent/gateway/sticker_cache.py:build_sticker_injection",
         "../hermes-agent/tests/gateway/test_sticker_cache.py",
-        "internal/session/metadata.go",
-        "internal/store/store.go"
+        "internal/persistence/session/metadata.go",
+        "internal/persistence/store/store.go"
       ],
       "ready_when": [
         "Session metadata exposes platform/chat/user/thread identity in fixtures.",
@@ -5346,10 +5346,10 @@
         "system"
       ],
       "degraded_mode": "If every delivery path fails, the report remains written with delivered=false, channel_degraded evidence, redacted target detail, and a recommended gateway status command.",
-      "fixture": "internal/cron/operator_delivery_report_test.go::TestOperatorRunReportIncludesDeliveryEvidence",
+      "fixture": "internal/automation/cron/operator_delivery_report_test.go::TestOperatorRunReportIncludesDeliveryEvidence",
       "source_refs": [
-        "internal/cron/delivery_plan.go",
-        "internal/cron/executor.go",
+        "internal/automation/cron/delivery_plan.go",
+        "internal/automation/cron/executor.go",
         "internal/gateway/status.go",
         "cmd/gormes/gateway_status.go",
         "cmd/gormes/send.go"
@@ -5371,13 +5371,13 @@
       ],
       "note": "Complete 2026-05-21: TDD added OperatorRunReport.DeliveryResults as a per-target operator read model over existing cron delivery plan/outcome evidence. Report artifacts now record target, delivered boolean, delivery path (live_adapter, standalone_sender, local), fallback_path=fallback_sink when used, stable failure evidence, and gateway repair guidance for failed delivery without live channel credentials.",
       "write_scope": [
-        "internal/cron/operator_run_report.go",
-        "internal/cron/operator_delivery_report_test.go",
-        "internal/cron/delivery_plan.go",
+        "internal/automation/cron/operator_run_report.go",
+        "internal/automation/cron/operator_delivery_report_test.go",
+        "internal/automation/cron/delivery_plan.go",
         "cmd/gormes/gateway_status.go"
       ],
       "test_commands": [
-        "go test ./internal/cron -run 'TestOperatorRunReportIncludesDeliveryEvidence|TestPlanCronDelivery|TestCronDelivery' -count=1",
+        "go test ./internal/automation/cron -run 'TestOperatorRunReportIncludesDeliveryEvidence|TestPlanCronDelivery|TestCronDelivery' -count=1",
         "go test ./cmd/gormes -run 'TestGatewayStatus' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
@@ -5391,13 +5391,13 @@
         "note": "Gormes-owned operator reliability behavior; no Hermes upstream analog."
       },
       "implementation": [
-        "internal/cron/operator_run_report.go",
-        "internal/cron/operator_delivery_report_test.go"
+        "internal/automation/cron/operator_run_report.go",
+        "internal/automation/cron/operator_delivery_report_test.go"
       ],
       "validation": [
-        "go test ./internal/cron -run 'TestOperatorRunReportIncludesDeliveryEvidence|TestPlanCronDelivery|TestCronDelivery' -count=1",
+        "go test ./internal/automation/cron -run 'TestOperatorRunReportIncludesDeliveryEvidence|TestPlanCronDelivery|TestCronDelivery' -count=1",
         "go test ./cmd/gormes -run 'TestGatewayStatus' -count=1",
-        "go test ./internal/cron -count=1",
+        "go test ./internal/automation/cron -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ]
@@ -5761,7 +5761,7 @@
         "system"
       ],
       "degraded_mode": "Missing session metadata, unavailable auxiliary judge, malformed judge JSON, exhausted budgets, queue failures, or active-turn unsafe goal changes return goal_* evidence and continue safely without wedging the session, losing the user message, or starting an unbounded loop.",
-      "fixture": "internal/gateway/goal_loop_test.go; internal/session/goal_state_test.go",
+      "fixture": "internal/gateway/goal_loop_test.go; internal/persistence/session/goal_state_test.go",
       "source_refs": [
         "./hermes-agent/hermes_cli/goals.py@b816fd4e2",
         "./hermes-agent/tests/hermes_cli/test_goals.py@b816fd4e2",
@@ -5793,9 +5793,9 @@
         "TestGatewayGoalActiveTurnPolicy proves mid-run status/pause/resume/clear are allowed while setting a new goal returns safe busy evidence."
       ],
       "write_scope": [
-        "internal/session/goal_state.go",
-        "internal/session/goal_state_test.go",
-        "internal/session/directory.go",
+        "internal/persistence/session/goal_state.go",
+        "internal/persistence/session/goal_state_test.go",
+        "internal/persistence/session/directory.go",
         "internal/gateway/goal_loop.go",
         "internal/gateway/goal_loop_test.go",
         "internal/gateway/event.go",
@@ -5807,8 +5807,8 @@
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/session ./internal/gateway -run 'TestGoal(State|Judge|Gateway)' -count=1",
-        "go test ./internal/session ./internal/gateway ./internal/cli -count=1",
+        "go test ./internal/persistence/session ./internal/gateway -run 'TestGoal(State|Judge|Gateway)' -count=1",
+        "go test ./internal/persistence/session ./internal/gateway ./internal/cli -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -5822,8 +5822,8 @@
       },
       "completed_at": "2026-05-06T00:08:30Z",
       "evidence": [
-        "go test ./internal/session ./internal/gateway -run 'TestGoal(State|Judge|Gateway)' -count=1 -> pass",
-        "go test ./internal/session ./internal/gateway ./internal/cli -count=1 -> pass",
+        "go test ./internal/persistence/session ./internal/gateway -run 'TestGoal(State|Judge|Gateway)' -count=1 -> pass",
+        "go test ./internal/persistence/session ./internal/gateway ./internal/cli -count=1 -> pass",
         "go test ./... -count=1 -> pass",
         "go test ./webpages/docs -count=1 -> pass",
         "go run ./cmd/progress validate -> pass",
@@ -6065,11 +6065,11 @@
       "note": "Complete: TDD added internal/gateway/resume_continuation_test.go proving stored resume roots follow compression lineage to the newest live descendant before gateway submit, fork children are ignored, unresolved continuation chains fall back to the requested root with visible resume status, and the session context still names the requested stale root while using the resolved descendant as the live SessionID.",
       "write_scope": [
         "internal/gateway/",
-        "internal/session/",
+        "internal/persistence/session/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/gateway ./internal/session -count=1"
+        "go test ./internal/gateway ./internal/persistence/session -count=1"
       ],
       "done_signal": [
         "Gateway resume fixtures prove compressed roots reopen live descendants and stale roots are reported visibly."
@@ -6083,7 +6083,7 @@
     "item": {
       "name": "Bedrock stream event decoding (SSE fixtures)",
       "status": "complete",
-      "contract": "internal/hermes/bedrock_stream.go decodes synthetic Bedrock ConverseStream event maps into the shared hermes.Event model without AWS SDK clients: text deltas emit EventToken, reasoningContent.text deltas emit EventReasoning, contentBlockStart/contentBlockDelta/contentBlockStop toolUse chunks accumulate one ToolCall, messageStop maps stopReason to FinishReason, and metadata.usage maps inputTokens/outputTokens to the final EventDone",
+      "contract": "internal/llm/bedrock_stream.go decodes synthetic Bedrock ConverseStream event maps into the shared hermes.Event model without AWS SDK clients: text deltas emit EventToken, reasoningContent.text deltas emit EventReasoning, contentBlockStart/contentBlockDelta/contentBlockStop toolUse chunks accumulate one ToolCall, messageStop maps stopReason to FinishReason, and metadata.usage maps inputTokens/outputTokens to the final EventDone",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "provider",
@@ -6092,19 +6092,19 @@
         "system"
       ],
       "degraded_mode": "Provider status reports bedrock_stream_unavailable until fixtures prove text, reasoning, tool-use, interrupt, and usage event decoding; Bedrock remains request-mapping-only before this row lands.",
-      "fixture": "internal/hermes/bedrock_stream_test.go",
+      "fixture": "internal/llm/bedrock_stream_test.go",
       "source_refs": [
         "../hermes-agent/agent/bedrock_adapter.py:651:normalize_converse_stream_events",
         "../hermes-agent/agent/bedrock_adapter.py:673:stream_converse_with_callbacks",
         "../hermes-agent/tests/agent/test_bedrock_adapter.py:457:TestNormalizeConverseStreamEvents",
         "../hermes-agent/tests/agent/test_bedrock_adapter.py:868:TestStreamConverseWithCallbacks",
-        "internal/hermes/client.go:Event,EventToken,EventReasoning,EventDone",
-        "internal/hermes/bedrock_converse.go"
+        "internal/llm/client.go:Event,EventToken,EventReasoning,EventDone",
+        "internal/llm/bedrock_converse.go"
       ],
       "ready_when": [
-        "Bedrock Converse payload mapping (no AWS SDK) is complete and internal/hermes/bedrock_converse.go defines the request-side Bedrock types.",
+        "Bedrock Converse payload mapping (no AWS SDK) is complete and internal/llm/bedrock_converse.go defines the request-side Bedrock types.",
         "The row can use literal []map[string]any or small typed fixture structs in tests; no boto3, AWS SDK, network, SigV4, credential, or provider registration code is needed.",
-        "The first edit should be internal/hermes/bedrock_stream_test.go with RED tests for text stream, reasoning delta, tool-use split chunks, empty stream, interrupt stop, and usage propagation."
+        "The first edit should be internal/llm/bedrock_stream_test.go with RED tests for text stream, reasoning delta, tool-use split chunks, empty stream, interrupt stop, and usage propagation."
       ],
       "not_ready_when": [
         "The slice imports an AWS SDK, signs requests, opens HTTP, registers a Bedrock provider, or changes buildBedrockConversePayload.",
@@ -6121,21 +6121,21 @@
         "TestDecodeBedrockStream_MixedTextAndToolPreservesText emits the pre-tool text token and still returns the tool call in final EventDone.",
         "TestDecodeBedrockStream_EmptyStreamReturnsStop returns exactly one EventDone with FinishReason='stop' and zero tokens.",
         "TestDecodeBedrockStream_InterruptStopsBeforeRemainingEvents accepts a callback or limit hook and proves later deltas are not emitted after interruption.",
-        "go test ./internal/hermes -run 'TestDecodeBedrockStream_' -count=1 passes without network, AWS SDK, or credential imports."
+        "go test ./internal/llm -run 'TestDecodeBedrockStream_' -count=1 passes without network, AWS SDK, or credential imports."
       ],
-      "note": "Complete: TDD added internal/hermes/bedrock_stream_test.go and a pure internal/hermes/bedrock_stream.go decoder over synthetic ConverseStream event maps. Fixtures prove text deltas, reasoningContent.text deltas, split toolUse input accumulation, mixed text+tool streams, empty-stream stop defaults, interrupt callback short-circuiting, and metadata usage propagation through shared Event values with no AWS SDK, network, SigV4, credential, provider registration, or request-mapping changes.",
+      "note": "Complete: TDD added internal/llm/bedrock_stream_test.go and a pure internal/llm/bedrock_stream.go decoder over synthetic ConverseStream event maps. Fixtures prove text deltas, reasoningContent.text deltas, split toolUse input accumulation, mixed text+tool streams, empty-stream stop defaults, interrupt callback short-circuiting, and metadata usage propagation through shared Event values with no AWS SDK, network, SigV4, credential, provider registration, or request-mapping changes.",
       "write_scope": [
-        "internal/hermes/bedrock_stream.go",
-        "internal/hermes/bedrock_stream_test.go",
+        "internal/llm/bedrock_stream.go",
+        "internal/llm/bedrock_stream_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run 'TestDecodeBedrockStream_' -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run 'TestDecodeBedrockStream_' -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
-        "internal/hermes/bedrock_stream_test.go proves text, reasoning, tool-use chunking, empty stream, interrupt stop, and usage propagation through shared hermes.Event values with no AWS SDK import."
+        "internal/llm/bedrock_stream_test.go proves text, reasoning, tool-use chunking, empty stream, interrupt stop, and usage propagation through shared hermes.Event values with no AWS SDK import."
       ],
       "provenance": {
         "origin_type": "upstream",
@@ -6152,7 +6152,7 @@
       "name": "Trajectory compressor + compressed-evidence lineage",
       "priority": "P2",
       "status": "complete",
-      "contract": "internal/transcript owns the pure Hermes trajectory compression decision and metrics algorithm, while internal/audit owns redacted compressed-lineage evidence that hashes summary text instead of storing it",
+      "contract": "internal/persistence/transcript owns the pure Hermes trajectory compression decision and metrics algorithm, while internal/audit owns redacted compressed-lineage evidence that hashes summary text instead of storing it",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "provider",
@@ -6162,14 +6162,14 @@
         "system"
       ],
       "degraded_mode": "This slice does not call a live summarizer or process directories; callers must supply summary text and can still record lineage without leaking summary contents into audit JSONL.",
-      "fixture": "internal/transcript/trajectory_compressor_test.go",
+      "fixture": "internal/persistence/transcript/trajectory_compressor_test.go",
       "source_refs": [
         "../hermes-agent/trajectory_compressor.py:_find_protected_indices",
         "../hermes-agent/trajectory_compressor.py:_extract_turn_content_for_summary",
         "../hermes-agent/trajectory_compressor.py:_ensure_summary_prefix",
         "../hermes-agent/trajectory_compressor.py:compress_trajectory",
         "../hermes-agent/tests/test_trajectory_compressor.py",
-        "internal/transcript/trajectory_compressor.go",
+        "internal/persistence/transcript/trajectory_compressor.go",
         "internal/audit/trajectory_link.go"
       ],
       "ready_when": [
@@ -6194,10 +6194,10 @@
         "Under-target or all-protected trajectories return unchanged copies with skipped or over-limit metrics.",
         "Audit lineage records parent/child session IDs, compressed region, token/turn counts, timestamp, and summary SHA-256 without writing raw summary text."
       ],
-      "note": "Complete: TDD added internal/transcript/trajectory_compressor.go plus fixtures for Hermes protected-turn selection, config knobs, summary-content extraction, summary-prefix normalization, middle-turn replacement, input immutability, skip-under-target behavior, and metrics. internal/audit/trajectory_link.go adds a redacted compressed-evidence envelope and audit record helper that trims session ids and stores only a SHA-256 of the summary. This ports the deterministic core of trajectory_compressor.py; live summarization, async directory processing, provider temperature selection, and CLI/batch IO remain separate future rows.",
+      "note": "Complete: TDD added internal/persistence/transcript/trajectory_compressor.go plus fixtures for Hermes protected-turn selection, config knobs, summary-content extraction, summary-prefix normalization, middle-turn replacement, input immutability, skip-under-target behavior, and metrics. internal/audit/trajectory_link.go adds a redacted compressed-evidence envelope and audit record helper that trims session ids and stores only a SHA-256 of the summary. This ports the deterministic core of trajectory_compressor.py; live summarization, async directory processing, provider temperature selection, and CLI/batch IO remain separate future rows.",
       "write_scope": [
-        "internal/transcript/trajectory_compressor.go",
-        "internal/transcript/trajectory_compressor_test.go",
+        "internal/persistence/transcript/trajectory_compressor.go",
+        "internal/persistence/transcript/trajectory_compressor_test.go",
         "internal/audit/trajectory_link.go",
         "internal/audit/trajectory_link_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json",
@@ -6205,9 +6205,9 @@
         "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
       ],
       "test_commands": [
-        "go test ./internal/transcript -run TrajectoryCompressor -count=1",
+        "go test ./internal/persistence/transcript -run TrajectoryCompressor -count=1",
         "go test ./internal/audit -run Trajectory -count=1",
-        "go test ./internal/transcript ./internal/audit -count=1",
+        "go test ./internal/persistence/transcript ./internal/audit -count=1",
         "go test ./... -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
@@ -6255,7 +6255,7 @@
         "The slice can route command output through existing gateway and Cobra command boundaries without modifying token-vault, provider routing, or normal turn execution."
       ],
       "not_ready_when": [
-        "The slice reimplements provider account-usage fetching instead of consuming the internal/hermes read model.",
+        "The slice reimplements provider account-usage fetching instead of consuming the internal/llm read model.",
         "The tests require live providers, real credentials, channel adapters, or a running gateway service.",
         "The slice expands into unrelated status/model/profile command handling or broad CLI parity work."
       ],
@@ -6330,11 +6330,11 @@
         "cmd/gormes/main.go",
         "cmd/gormes/gateway.go",
         "internal/config/config.go",
-        "internal/hermes/http_client.go",
+        "internal/llm/http_client.go",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#providers-models-and-credentials",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli",
         "references/go-agent-os/GORMES-REUSE-AUDIT.md:Row A Native runtime wiring replaces dead localhost backend assumption",
-        "internal/hermes/http_client.go:NewHTTPClientWithProvider",
+        "internal/llm/http_client.go:NewHTTPClientWithProvider",
         "internal/gateway/proxy_mode_test.go"
       ],
       "ready_when": [
@@ -6363,14 +6363,14 @@
       "note": "Complete: TDD added internal/runtime/binding.go with a pure ResolveBinding helper plus StatusEvidence redactor, and internal/runtime/native_provider_gateway_binding_test.go covering all four acceptance bullets. Locked invariants: with no explicit endpoint or proxy URL the resolver routes through the injectable NativeClientFactory and never invokes the OpenAI-compatible HTTP factory; explicit endpoint or proxy URL stays on the OpenAI-compatible path with EndpointSource explicit_endpoint; incomplete provider/model/api_key resolution returns EndpointSource unconfigured plus stable provider_config_missing/native_runtime_unavailable codes with a nil client and no implicit 127.0.0.1:8642 dial; the resolver is channel-neutral and StatusEvidence exposes provider, model, endpoint_source, and degraded_reasons without echoing api keys or proxy keys.",
       "write_scope": [
         "internal/runtime/",
-        "internal/hermes/",
+        "internal/llm/",
         "internal/config/",
         "cmd/gormes/",
         "internal/gateway/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/runtime ./internal/config ./internal/hermes ./internal/gateway ./cmd/gormes -run 'NativeRuntime|ResolveInference|Gateway.*Provider|ExplicitEndpoint' -count=1",
+        "go test ./internal/runtime ./internal/config ./internal/llm ./internal/gateway ./cmd/gormes -run 'NativeRuntime|ResolveInference|Gateway.*Provider|ExplicitEndpoint' -count=1",
         "go test ./cmd/gormes ./internal/gateway -count=1",
         "go run ./cmd/progress validate",
         "git diff --check",
@@ -6927,7 +6927,7 @@
       ],
       "test_commands": [
         "go test ./internal/gateway -run MultiAgent -count=1",
-        "go test ./internal/gateway ./internal/session ./internal/kernel -run 'MultiAgent|Agent' -count=1",
+        "go test ./internal/gateway ./internal/persistence/session ./internal/kernel -run 'MultiAgent|Agent' -count=1",
         "go test ./cmd/gormes -run 'Gateway.*Agent|Test.*gatewayAgent|TestGateway' -count=1",
         "go test ./internal/gateway -count=1",
         "go run ./cmd/progress validate"
@@ -6937,7 +6937,7 @@
       ],
       "evidence": {
         "implementation": "internal/gateway/agent_runtime.go, internal/gateway/manager.go, internal/gateway/status_command.go, cmd/gormes/gateway.go",
-        "tests": "go test ./internal/gateway -run MultiAgent -count=1; go test ./internal/gateway ./internal/session ./internal/kernel -run 'MultiAgent|Agent' -count=1; go test ./cmd/gormes -run 'Gateway.*Agent|Test.*gatewayAgent|TestGateway' -count=1; go test ./internal/gateway -count=1",
+        "tests": "go test ./internal/gateway -run MultiAgent -count=1; go test ./internal/gateway ./internal/persistence/session ./internal/kernel -run 'MultiAgent|Agent' -count=1; go test ./cmd/gormes -run 'Gateway.*Agent|Test.*gatewayAgent|TestGateway' -count=1; go test ./internal/gateway -count=1",
         "note": "Route-scoped runtime activation only; per-agent auth/profile/tool-policy isolation remains planned."
       }
     }
@@ -6967,7 +6967,7 @@
         "./hermes-agent/RELEASE_v0.13.0.md",
         "internal/gateway/manager.go (gateway startup lifecycle)",
         "internal/gateway/session_auto_reset_notify.go (existing auto-reset infrastructure)",
-        "internal/session/directory.go (session metadata)"
+        "internal/persistence/session/directory.go (session metadata)"
       ],
       "ready_when": [
         "Gateway session reset notification parity (2.B.5) is complete.",
@@ -6997,7 +6997,7 @@
       ],
       "test_commands": [
         "go test ./internal/gateway -run '^TestGatewayAutoResume' -count=1",
-        "go test ./internal/gateway ./internal/session -count=1",
+        "go test ./internal/gateway ./internal/persistence/session -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -7016,7 +7016,7 @@
           "internal/gateway/auto_resume.go:sessionMetadataLister interface (ListAllMetadata)",
           "internal/gateway/manager.go:ManagerConfig.SkipAutoResume (test isolation flag)",
           "internal/gateway/manager.go:Run wired autoResumePendingSessions as async goroutine after channels start",
-          "internal/session/session.go:NonResumableAdapterNotReady constant"
+          "internal/persistence/session/session.go:NonResumableAdapterNotReady constant"
         ],
         "tests": [
           "internal/gateway/auto_resume_test.go:TestGatewayAutoResume_RecoversInterruptedSession",
@@ -8276,7 +8276,7 @@
         "../hermes-agent/tests/hermes_cli/test_tui_resume_flow.py@283c8fd6",
         "cmd/gormes/main.go",
         "internal/config/config.go",
-        "internal/hermes/model_registry.go"
+        "internal/llm/model_registry.go"
       ],
       "ready_when": [
         "Scripted chat model/provider resolution is validated, but runTUI currently ignores --model/--provider flags and uses cfg.Hermes.Model directly.",
@@ -8298,12 +8298,12 @@
         "cmd/gormes/main.go",
         "cmd/gormes/tui_model_override_test.go",
         "internal/config/",
-        "internal/hermes/model_registry.go",
+        "internal/llm/model_registry.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run TestTUIModelOverride -count=1",
-        "go test ./cmd/gormes ./internal/config ./internal/hermes -run 'Test.*TUI.*Model|Test.*OneshotInference|Test.*ModelRegistry' -count=1",
+        "go test ./cmd/gormes ./internal/config ./internal/llm -run 'Test.*TUI.*Model|Test.*OneshotInference|Test.*ModelRegistry' -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -8347,7 +8347,7 @@
         "../hermes-agent/tests/test_tui_gateway_server.py@9662e321:test_prompt_submit_skips_auto_title_when_interrupted",
         "../hermes-agent/tests/test_tui_gateway_server.py@9662e321:test_prompt_submit_skips_auto_title_when_response_empty",
         "internal/tui/update.go",
-        "internal/session/directory.go"
+        "internal/persistence/session/directory.go"
       ],
       "ready_when": [
         "internal/tui already owns pure helper files and tests; this row adds one helper without touching Bubble Tea update flow.",
@@ -8783,8 +8783,8 @@
         "../hermes-agent/gateway/platforms/api_server.py@b816fd4e2",
         "internal/apiserver/server.go:normalizeChatContent",
         "internal/apiserver/chat_completions_test.go",
-        "internal/hermes/image_routing.go",
-        "internal/hermes/client.go:MessageContentPart",
+        "internal/llm/image_routing.go",
+        "internal/llm/client.go:MessageContentPart",
         "internal/kernel/"
       ],
       "ready_when": [
@@ -8815,15 +8815,15 @@
         "internal/apiserver/chat_completions_test.go",
         "internal/apiserver/multimodal_content_test.go",
         "internal/kernel/",
-        "internal/hermes/client.go",
-        "internal/hermes/http_client.go",
-        "internal/hermes/openai_multimodal_test.go",
+        "internal/llm/client.go",
+        "internal/llm/http_client.go",
+        "internal/llm/openai_multimodal_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/apiserver -run 'TestAPIServerNormalizeMultimodal|TestChatCompletions' -count=1",
-        "go test ./internal/kernel ./internal/hermes -run 'Test.*Multimodal|Test.*Image|TestOpenAICompatibleMessageContent_MultimodalParts' -count=1",
-        "go test ./internal/apiserver ./internal/kernel ./internal/hermes -count=1",
+        "go test ./internal/kernel ./internal/llm -run 'Test.*Multimodal|Test.*Image|TestOpenAICompatibleMessageContent_MultimodalParts' -count=1",
+        "go test ./internal/apiserver ./internal/kernel ./internal/llm -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -8881,12 +8881,12 @@
       "note": "Complete: TDD landed a bounded bbolt-backed ResponseStore with LRU eviction, GET/DELETE /v1/responses, previous_response_id and conversation-name chaining over native session IDs including tool calls/results, /v1/runs lifecycle SSE, orphaned-run sweep, and API health counters for store state, LRU evictions, orphan sweeps, and previous_response_id misses.",
       "write_scope": [
         "internal/apiserver/",
-        "internal/session/",
+        "internal/persistence/session/",
         "internal/gateway/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/apiserver ./internal/session ./internal/gateway -count=1"
+        "go test ./internal/apiserver ./internal/persistence/session ./internal/gateway -count=1"
       ],
       "done_signal": [
         "Responses/runs fixtures prove bounded response storage, previous_response_id chaining, event streaming, and orphan cleanup over native session state."
@@ -9034,17 +9034,17 @@
         "./hermes-agent/gateway/run.py@70bfd429e:_build_replay_entry",
         "./hermes-agent/tests/gateway/test_replay_entry_fields.py@70bfd429e",
         "internal/gateway/proxy_mode.go:safeProxyHistory",
-        "internal/hermes/client.go:Message",
+        "internal/llm/client.go:Message",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Gateway, Channels, Cron, API, TUI, And CLI / OpenAI-compatible API"
       ],
       "ready_when": [
         "Gateway proxy mode forwarding contract is complete and safeProxyHistory already filters unsafe empty/tool-only history.",
-        "Gormes hermes.Message already carries Reasoning, ReasoningContent, ContentParts, CacheControl, and tool-call fields for provider-bound replay fixtures.",
+        "Gormes llm.Message already carries Reasoning, ReasoningContent, ContentParts, CacheControl, and tool-call fields for provider-bound replay fixtures.",
         "The slice can prove behavior with httptest and fake history; no live proxy server, provider credential, or persisted transcript database is required."
       ],
       "not_ready_when": [
         "The slice forwards tool role messages, assistant tool_calls, tool_call_id, or name fields that the proxy filter intentionally strips.",
-        "The slice adds Codex Responses message-item persistence or finish_reason storage beyond the current Gormes hermes.Message shape.",
+        "The slice adds Codex Responses message-item persistence or finish_reason storage beyond the current Gormes llm.Message shape.",
         "The slice changes API server, provider transport, session persistence, or non-proxy gateway history replay behavior."
       ],
       "blocked_by": [
@@ -9383,7 +9383,7 @@
         "../hermes-agent/cron/scheduler.py@755a2804",
         "../hermes-agent/tools/cronjob_tools.py@755a2804",
         "internal/apiserver/",
-        "internal/cron/",
+        "internal/automation/cron/",
         "internal/tools/"
       ],
       "ready_when": [
@@ -9411,12 +9411,12 @@
       "note": "Second row in the 2026-04-27 API split. It is read-only cron admin over the validated native cron store and run audit; all writes remain blocked behind the mutating endpoint row.",
       "write_scope": [
         "internal/apiserver/",
-        "internal/cron/",
+        "internal/automation/cron/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/apiserver -run '^TestAPIServerCronAdmin_(List|Get|RunHistory)' -count=1",
-        "go test ./internal/apiserver ./internal/cron -count=1",
+        "go test ./internal/apiserver ./internal/automation/cron -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -9458,7 +9458,7 @@
         "../hermes-agent/gateway/platforms/api_server.py@755a2804",
         "../hermes-agent/tools/cronjob_tools.py@755a2804",
         "internal/apiserver/",
-        "internal/cron/",
+        "internal/automation/cron/",
         "internal/tools/"
       ],
       "ready_when": [
@@ -9483,13 +9483,13 @@
       "note": "feat(apiserver): create/update/delete/pause/resume/trigger via CronJobMutator+CronTriggerHandler+CronAdminAuditor seams, reusing ScanPromptForCronThreat + ParseCronSchedule + shared error envelope",
       "write_scope": [
         "internal/apiserver/",
-        "internal/cron/",
+        "internal/automation/cron/",
         "internal/tools/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/apiserver -run '^TestAPIServerCronAdmin_(Create|Update|Delete|Pause|Resume|Trigger)' -count=1",
-        "go test ./internal/apiserver ./internal/cron ./internal/tools -count=1",
+        "go test ./internal/apiserver ./internal/automation/cron ./internal/tools -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -9617,7 +9617,7 @@
         "hermes-agent/hermes_cli/main.py",
         "cmd/gormes/provider_client.go",
         "cmd/gormes/main.go",
-        "internal/hermes/client.go"
+        "internal/llm/client.go"
       ],
       "ready_when": [
         "Provider registry exposes per-provider constructor seams reachable from a benchmark without launching the full TUI.",
@@ -9634,7 +9634,7 @@
         "TestProviderClientLazyInit_ConstructedOnce proves the selected provider client is constructed once per process and reused.",
         "TestProviderClientLazyInit_ResetForTesting proves a test-only reset path exists so subsequent benchmarks/tests start from a clean state."
       ],
-      "note": "Source: Hermes v0.12.0 (v2026.4.30) Performance highlights — lead PR #17046 (lazy OpenAI/Anthropic/Firecrawl) inside the ~57% TUI cold-start cut (siblings #17190 lazy agent init, #17041 mtime-cache load_config, #17098 memoize tool definitions, #17206 precompile dangerous patterns — each becomes its own row via `unblocks`). Complete 2026-05-08: internal/provider/lazy_client.go adds ClientPool with Register/Get/Reset; internal/provider/lazy_client_test.go covers does-not-construct-unselected, constructed-once, reset-for-testing, unknown-provider, factory-error, and concurrent-access; internal/runtime/coldstart_bench_test.go enforces a 5ms budget on 10-registered-provider cold start; cmd/gormes/provider_client.go wires getOrCreateProviderClient into the oneshot path via newOneshotHTTPClient; ErrProviderUnavailable sentinel added to internal/hermes/client.go. All 6 lazy-init tests pass, benchmark passes (754µs < 5ms), progress validates, and full repo build succeeds.",
+      "note": "Source: Hermes v0.12.0 (v2026.4.30) Performance highlights — lead PR #17046 (lazy OpenAI/Anthropic/Firecrawl) inside the ~57% TUI cold-start cut (siblings #17190 lazy agent init, #17041 mtime-cache load_config, #17098 memoize tool definitions, #17206 precompile dangerous patterns — each becomes its own row via `unblocks`). Complete 2026-05-08: internal/provider/lazy_client.go adds ClientPool with Register/Get/Reset; internal/provider/lazy_client_test.go covers does-not-construct-unselected, constructed-once, reset-for-testing, unknown-provider, factory-error, and concurrent-access; internal/runtime/coldstart_bench_test.go enforces a 5ms budget on 10-registered-provider cold start; cmd/gormes/provider_client.go wires getOrCreateProviderClient into the oneshot path via newOneshotHTTPClient; ErrProviderUnavailable sentinel added to internal/llm/client.go. All 6 lazy-init tests pass, benchmark passes (754µs < 5ms), progress validates, and full repo build succeeds.",
       "write_scope": [
         "internal/provider/lazy_client.go",
         "internal/provider/lazy_client_test.go",
@@ -9665,24 +9665,24 @@
       "name": "Kernel cross-provider client swap for in-session model switch",
       "priority": "P2",
       "status": "complete",
-      "contract": "Extend the shipped PlatformEventSetModel handler so that when the requested provider (k.sessionProvider, already captured by the prerequisite row) differs from the resident k.client's provider, a new k.client is resolved on the Run-loop goroutine through the EXISTING FallbackClientFactory(ctx, hermes.ModelRoute) machinery (internal/kernel/kernel.go:37) — NOT a bespoke client builder. Requires a pure provider+model -> hermes.ModelRoute resolver (ModelRoute needs BaseURL/APIMode/KeyEnv); source it from the existing provider catalog (internal/hermes ListPickerProviders / provider config) rather than inventing a new catalog. Same-provider switches keep the resident client untouched (already shipped). History is still NOT cleared. The gateway SessionModelOverride stays untouched.",
+      "contract": "Extend the shipped PlatformEventSetModel handler so that when the requested provider (k.sessionProvider, already captured by the prerequisite row) differs from the resident k.client's provider, a new k.client is resolved on the Run-loop goroutine through the EXISTING FallbackClientFactory(ctx, llm.ModelRoute) machinery (internal/kernel/kernel.go:37) — NOT a bespoke client builder. Requires a pure provider+model -> llm.ModelRoute resolver (ModelRoute needs BaseURL/APIMode/KeyEnv); source it from the existing provider catalog (internal/llm ListPickerProviders / provider config) rather than inventing a new catalog. Same-provider switches keep the resident client untouched (already shipped). History is still NOT cleared. The gateway SessionModelOverride stays untouched.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tui",
       "module": "gateway",
       "source_refs": [
         "internal/kernel/kernel.go PlatformEventSetModel handler (shipped same-provider core: sets k.sessionModel/k.sessionProvider, no client swap yet)",
-        "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing client-build machinery to reuse)",
-        "internal/hermes picker/provider catalog (ListPickerProviders + provider config — the BaseURL/APIMode/KeyEnv source for building hermes.ModelRoute)",
+        "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, llm.ModelRoute) (existing client-build machinery to reuse)",
+        "internal/llm picker/provider catalog (ListPickerProviders + provider config — the BaseURL/APIMode/KeyEnv source for building llm.ModelRoute)",
         "internal/kernel/kernel_test.go TestKernel_SetSessionModel* (prerequisite fixtures proving the same-provider seam — extend with a cross-provider factory-invocation fixture)"
       ],
       "ready_when": [
         "Prerequisite row 'Kernel in-session model-switch seam for the native TUI' is complete (PlatformEventSetModel + k.sessionProvider exist).",
-        "A provider+model -> hermes.ModelRoute resolver path is identified in internal/hermes (BaseURL/APIMode/KeyEnv obtainable without a new catalog)."
+        "A provider+model -> llm.ModelRoute resolver path is identified in internal/llm (BaseURL/APIMode/KeyEnv obtainable without a new catalog)."
       ],
       "not_ready_when": [
-        "A bespoke provider-client builder is added instead of routing through the existing FallbackClientFactory/hermes.ModelRoute.",
-        "A new provider catalog is invented instead of reusing the existing internal/hermes provider/picker data.",
+        "A bespoke provider-client builder is added instead of routing through the existing FallbackClientFactory/llm.ModelRoute.",
+        "A new provider catalog is invented instead of reusing the existing internal/llm provider/picker data.",
         "The cross-provider swap clears session history or runs off the Run-loop goroutine (single-owner violation).",
         "The local kernel path is bound to the gateway-only SessionModelOverride."
       ],
@@ -9693,12 +9693,12 @@
         "Native TUI /model slash command binding over the existing model picker"
       ],
       "acceptance": [
-        "A PlatformEventSetModel whose Provider differs from the resident client's provider resolves a new k.client through the existing FallbackClientFactory/hermes.ModelRoute (a fixture proves the factory is invoked with the resolved route; no bespoke builder).",
+        "A PlatformEventSetModel whose Provider differs from the resident client's provider resolves a new k.client through the existing FallbackClientFactory/llm.ModelRoute (a fixture proves the factory is invoked with the resolved route; no bespoke builder).",
         "A same-provider PlatformEventSetModel leaves the resident k.client object unchanged (no needless rebuild).",
         "Session history is preserved across the cross-provider switch; the gateway SessionModelOverride is untouched.",
-        "The provider+model -> hermes.ModelRoute resolution reuses existing internal/hermes provider/picker data, with a fixture covering an unknown provider/model degraded path."
+        "The provider+model -> llm.ModelRoute resolution reuses existing internal/llm provider/picker data, with a fixture covering an unknown provider/model degraded path."
       ],
-      "note": "Complete 2026-05-21: PlatformEventSetModel now swaps k.client on the Run-loop goroutine when the requested provider differs from the resident session provider. The swap reuses the existing FallbackClientFactory(ctx, hermes.ModelRoute) and resolves provider metadata from hermes.ResolveProviderManifestEntry rather than adding a bespoke client builder or new catalog. Same-provider/blank-provider switches keep existing behavior; history is preserved; unknown providers return typed operator evidence without mutating the resident model; gateway SessionModelOverride remains untouched.",
+      "note": "Complete 2026-05-21: PlatformEventSetModel now swaps k.client on the Run-loop goroutine when the requested provider differs from the resident session provider. The swap reuses the existing FallbackClientFactory(ctx, llm.ModelRoute) and resolves provider metadata from hermes.ResolveProviderManifestEntry rather than adding a bespoke client builder or new catalog. Same-provider/blank-provider switches keep existing behavior; history is preserved; unknown providers return typed operator evidence without mutating the resident model; gateway SessionModelOverride remains untouched.",
       "write_scope": [
         "internal/kernel/kernel.go",
         "internal/kernel/kernel_test.go",
@@ -9842,7 +9842,7 @@
         "pi@fc8a155 packages/coding-agent/docs/json.md:JSON Event Stream Mode",
         "pi@fc8a155 packages/coding-agent/src/modes/rpc/rpc-types.ts",
         "internal/kernel/frame.go:RenderFrame",
-        "internal/hermes/events.go:turn/run event types",
+        "internal/llm/events.go:turn/run event types",
         "internal/apiserver/runs.go:run inspection/event surfaces",
         "cmd/gormes/main.go:root command mode selection"
       ],
@@ -9985,7 +9985,7 @@
       "source_refs": [
         "docs/content/papers/agentic-os-design.md",
         "internal/events/bus.go",
-        "internal/hermes/turn_events.go",
+        "internal/llm/turn_events.go",
         "internal/tools/tool_events.go",
         "internal/gateway/event_dispatch.go",
         "internal/gateway/event.go",

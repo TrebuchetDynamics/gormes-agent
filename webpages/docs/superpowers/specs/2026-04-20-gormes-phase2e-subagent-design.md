@@ -90,7 +90,7 @@ Key invariants:
 ## Data Structures
 
 ```go
-// internal/subagent/subagent.go
+// internal/core/subagent/subagent.go
 
 type Subagent struct {
     ID       string
@@ -233,7 +233,7 @@ func newSubagentID() string {
 The Runner is the swappable inner loop. This slice ships `StubRunner`; 2.E.7 will ship `LLMRunner`.
 
 ```go
-// internal/subagent/runner.go
+// internal/core/subagent/runner.go
 
 type Runner interface {
     // Run executes the subagent's work to completion or context cancellation.
@@ -285,7 +285,7 @@ func (StubRunner) Run(ctx context.Context, cfg SubagentConfig, events chan<- Sub
 ## SubagentRegistry
 
 ```go
-// internal/subagent/registry.go
+// internal/core/subagent/registry.go
 
 type SubagentRegistry interface {
     Register(*Subagent)
@@ -309,7 +309,7 @@ func NewRegistry() SubagentRegistry { return &registry{subagents: map[string]*Su
 ## SubagentManager
 
 ```go
-// internal/subagent/manager.go
+// internal/core/subagent/manager.go
 
 type SubagentManager interface {
     Spawn(ctx context.Context, cfg SubagentConfig) (*Subagent, error)
@@ -516,7 +516,7 @@ Wraps the **real** `tools.Tool` interface (`Execute(ctx, json.RawMessage) (json.
 ## delegate_task Tool
 
 ```go
-// internal/subagent/delegate_tool.go
+// internal/core/subagent/delegate_tool.go
 
 type DelegateTool struct {
     manager SubagentManager
@@ -659,7 +659,7 @@ All commits in this slice are **green**. The discipline:
 1. Write the failing test in the working tree. Do not commit.
 2. Implement the minimum to make it pass.
 3. Refactor with the green tests as a safety net.
-4. Run `go test ./internal/subagent/... ./internal/tools/... -race -shuffle=on -v` and confirm clean.
+4. Run `go test ./internal/core/subagent/... ./internal/tools/... -race -shuffle=on -v` and confirm clean.
 5. Commit test + impl together.
 
 Why `-shuffle=on`: this subsystem is goroutines, channels, and shared state. `-race` catches data races; `-shuffle=on` catches order-dependent test bugs (one test leaving a goroutine alive that perturbs the next, for example) which `-race` alone misses.

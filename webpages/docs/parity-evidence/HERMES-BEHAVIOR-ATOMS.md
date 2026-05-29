@@ -37,7 +37,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Normal turn loop: submit → provider stream → tool continuation → final | `run_agent.py` | `internal/kernel/kernel.go` `internal/hermes/client.go` | partial | Kernel loop exists; Hermes has richer context/prefill assembly. |
+| Normal turn loop: submit → provider stream → tool continuation → final | `run_agent.py` | `internal/kernel/kernel.go` `internal/llm/client.go` | partial | Kernel loop exists; Hermes has richer context/prefill assembly. |
 | Tool continuation multi-round | `run_agent.py` `_process_tool_call` | `internal/kernel/kernel.go` `handleToolCall` | covered | Loop drives multi-round tool calls. |
 | Default 90-turn iteration budget | `run_agent.py` `max_iterations=90` | `internal/kernel/kernel.go` | covered | Default 90, toolless summary on exhaustion. |
 | Cancel active turn | `run_agent.py` `cancel()` | `internal/kernel/kernel.go` `cancelCmd` | covered | Context cancellation. |
@@ -54,7 +54,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Context engine status | `agent/context_engine.py` | `internal/hermes/context_engine.go` | covered | Context status with token pressure. |
+| Context engine status | `agent/context_engine.py` | `internal/llm/context_engine.go` | covered | Context status with token pressure. |
 | Context compression | `agent/context_compressor.py` | → `missing` | missing | Not ported. |
 | Manual compression feedback | `agent/manual_compression_feedback.py` | → `missing` | missing | Not ported. |
 | Token budget | `agent/context_engine.py` | `internal/kernel/` | covered | Token budget tracking. |
@@ -68,16 +68,16 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| SOUL.md identity prompt | `agent/prompt_builder.py` | `internal/hermes/context_files.go` | covered | Context files scanned and injected. |
-| AGENTS.md / project context | `agent/prompt_builder.py` | `internal/hermes/context_files.go` | covered | File discovery and injection. |
-| USER.md / MEMORY.md durable context | `tools/memory_tool.py` | `internal/hermes/durable_user_context.go` | covered | Durable context built. |
+| SOUL.md identity prompt | `agent/prompt_builder.py` | `internal/llm/context_files.go` | covered | Context files scanned and injected. |
+| AGENTS.md / project context | `agent/prompt_builder.py` | `internal/llm/context_files.go` | covered | File discovery and injection. |
+| USER.md / MEMORY.md durable context | `tools/memory_tool.py` | `internal/llm/durable_user_context.go` | covered | Durable context built. |
 | Skill guidance injection | `skill_preprocessing.py` | `internal/kernel/kernel.go` `SkillsPrompt` | partial | Hermes ordering differs. |
-| Timestamp/model/provider metadata | `run_agent.py` `:3770-3779` | `internal/hermes/turn_metadata.go` | covered | Block assembly exists. |
+| Timestamp/model/provider metadata | `run_agent.py` `:3770-3779` | `internal/llm/turn_metadata.go` | covered | Block assembly exists. |
 | Platform/session context | `gateway/run.py` `BuildSessionContextPrompt` | `internal/gateway/` | covered | Session context built. |
-| Developer role swap (GPT-5/Codex) | upstream provider tests | `internal/hermes/model_guidance.go` | partial | Helper exists; no API-boundary test. |
+| Developer role swap (GPT-5/Codex) | upstream provider tests | `internal/llm/model_guidance.go` | partial | Helper exists; no API-boundary test. |
 | Tool-use enforcement guidance | `agent/system_prompt.py` `build_system_prompt_parts` | `internal/gateway/live_turn_prompt.go` `buildToolUseEnforcementBlock` | covered | Wired into assembleLiveTurnPrompt; injects when model substring matches ToolUseEnforcementModels (gpt, codex, gemini, gemma, grok, glm). |
-| Memory guidance | `agent/prompt_builder.py` `MEMORY_GUIDANCE` | `internal/hermes/guidance_constants.go` | covered | Byte-equivalent constant ported. |
-| Skills guidance constant | `agent/prompt_builder.py` `SKILLS_GUIDANCE` | `internal/hermes/guidance_constants.go` | covered | Byte-equivalent constant ported. |
+| Memory guidance | `agent/prompt_builder.py` `MEMORY_GUIDANCE` | `internal/llm/guidance_constants.go` | covered | Byte-equivalent constant ported. |
+| Skills guidance constant | `agent/prompt_builder.py` `SKILLS_GUIDANCE` | `internal/llm/guidance_constants.go` | covered | Byte-equivalent constant ported. |
 
 ### 1.5 Redaction
 
@@ -94,19 +94,19 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Chat Completions transport | `agent/transports/chat_completions.py` | `internal/hermes/http_client.go` | covered | Transport request building and fixture replay. |
-| Anthropic Messages transport | `agent/anthropic_adapter.py` | `internal/hermes/` | covered | Adapter shipped. |
-| Bedrock Converse transport | `agent/bedrock_adapter.py` | `internal/hermes/` | partial | Stream events; SigV4 pending. |
-| Codex Responses transport | `agent/codex_responses_adapter.py` | `internal/hermes/` | covered | Responses conversion shipped. |
+| Chat Completions transport | `agent/transports/chat_completions.py` | `internal/llm/http_client.go` | covered | Transport request building and fixture replay. |
+| Anthropic Messages transport | `agent/anthropic_adapter.py` | `internal/llm/` | covered | Adapter shipped. |
+| Bedrock Converse transport | `agent/bedrock_adapter.py` | `internal/llm/` | partial | Stream events; SigV4 pending. |
+| Codex Responses transport | `agent/codex_responses_adapter.py` | `internal/llm/` | covered | Responses conversion shipped. |
 | Gemini transport | `agent/gemini_native_adapter.py` | → `missing` | missing | Not ported. |
 | Google Code Assist | `agent/gemini_cloudcode_adapter.py` | → `missing` | missing | Not ported. |
-| OpenRouter | `tools/openrouter_client.py` | `internal/hermes/` | partial | Uses OpenAI-compatible path; attribution headers not proven. |
+| OpenRouter | `tools/openrouter_client.py` | `internal/llm/` | partial | Uses OpenAI-compatible path; attribution headers not proven. |
 
 ### 2.2 Provider registry
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Provider ID and alias manifest | `hermes_cli/providers.py` `HERMES_OVERLAYS` | `internal/hermes/provider_registry_manifest.go` | covered | Manifest with all Hermes provider IDs and aliases. |
+| Provider ID and alias manifest | `hermes_cli/providers.py` `HERMES_OVERLAYS` | `internal/llm/provider_registry_manifest.go` | covered | Manifest with all Hermes provider IDs and aliases. |
 | Model metadata and pricing | `agent/model_metadata.py` | → `missing` | missing | Not ported. |
 
 ### 2.3 Auth
@@ -126,13 +126,13 @@ file+line ref or explicit `missing`, and a classification.
 | Retry budget | `agent/retry_utils.py` | `internal/kernel/` `NewRetryBudget` | covered | Retry budget with backoff. |
 | Rate limit tracker | `agent/rate_limit_tracker.py` | → `missing` | missing | Not ported. |
 | Prompt cache | `agent/prompt_caching.py` | → `missing` | missing | Not ported. |
-| Account usage reporting | `agent/account_usage.py` | `internal/hermes/` | partial | Provider account usage read model exists; renderer for Codex/Anthropic/OpenRouter. |
+| Account usage reporting | `agent/account_usage.py` | `internal/llm/` | partial | Provider account usage read model exists; renderer for Codex/Anthropic/OpenRouter. |
 
 ### 2.5 Error classification
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Error classifier | `agent/error_classifier.py` | `internal/hermes/` | partial | Basic error mapping; Hermes has richer provider-specific classes. |
+| Error classifier | `agent/error_classifier.py` | `internal/llm/` | partial | Basic error mapping; Hermes has richer provider-specific classes. |
 
 ---
 
@@ -172,7 +172,7 @@ file+line ref or explicit `missing`, and a classification.
 | `browser` subcommand | `hermes_cli/browser_connect.py` | `cmd/gormes/browser*.go` | covered | Browser connect. |
 | `uninstall` subcommand | `hermes_cli/uninstall.py` | → `missing` | missing | Not ported. |
 | `migrate hermes` | `N/A` | `cmd/gormes/migrate.go` | covered | Hermes config/session migration. |
-| `migrate openclaw` | `hermes_cli/claw.py` | `internal/migrate/openclaw/` | covered | OpenClaw migration shipped. |
+| `migrate openclaw` | `hermes_cli/claw.py` | `internal/platform/migrate/openclaw/` | covered | OpenClaw migration shipped. |
 
 ### 3.3 Slash commands (gateway + TUI)
 
@@ -278,7 +278,7 @@ file+line ref or explicit `missing`, and a classification.
 | Channel adapter lifecycle | `gateway/platforms/*.py` | `internal/channels/*` | partial | Telegram, Discord, Slack, WhatsApp, Signal, Navivox, more. |
 | Stream consumer | `gateway/stream_consumer.py` | `internal/gateway/render.go` | covered | Streaming event rendering. |
 | Delivery | `gateway/delivery.py` | `internal/gateway/` | covered | Outbound message delivery. |
-| Session mapping | `gateway/session.py` | `internal/gateway/` + `internal/session/` | covered | Session ID mapping. |
+| Session mapping | `gateway/session.py` | `internal/gateway/` + `internal/persistence/session/` | covered | Session ID mapping. |
 | Active-turn policy | `gateway/run.py` `:2950-3225` | `internal/gateway/manager.go` `:704-727` | covered | Channel-neutral policy. |
 | Restart/PID | `gateway/restart.py` | `internal/gateway/` | covered | PID file, restart markers. |
 | Platform pairing | `gateway/pairing.py` | `internal/gateway/` | covered | Approval pairing. |
@@ -363,15 +363,15 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Cron scheduler | `cron/scheduler.py` | `internal/cron/` | covered | Schedule parser and execution. |
-| Cron job definitions | `cron/jobs.py` | `internal/cron/` | covered | Job store with CRUD. |
+| Cron scheduler | `cron/scheduler.py` | `internal/automation/cron/` | covered | Schedule parser and execution. |
+| Cron job definitions | `cron/jobs.py` | `internal/automation/cron/` | covered | Job store with CRUD. |
 | Cron tool | `tools/cronjob_tools.py` | `internal/tools/` | covered | Cron management tool. |
-| Schedule parser | `cron/jobs.py` `parse_schedule` | `internal/cron/` | covered | Natural language schedule parsing. |
-| Compute next run | `cron/jobs.py` `compute_next_run` | `internal/cron/` | covered | Next execution time calculation. |
+| Schedule parser | `cron/jobs.py` `parse_schedule` | `internal/automation/cron/` | covered | Natural language schedule parsing. |
+| Compute next run | `cron/jobs.py` `compute_next_run` | `internal/automation/cron/` | covered | Next execution time calculation. |
 | Grace seconds | `cron/jobs.py` `_compute_grace_seconds` | → `missing` | missing | Grace window after missed schedule. |
 | Delivery target resolution | `cron/scheduler.py` `_resolve_delivery_targets` | → `missing` | missing | Multi-platform delivery routing. |
 | Multi-target delivery | `cron/scheduler.py` `_deliver_result` | → `missing` | missing | Send results to multiple channels. |
-| Script execution | `cron/scheduler.py` `_run_job_script` | `internal/cron/` | covered | Run shell scripts as job actions. |
+| Script execution | `cron/scheduler.py` `_run_job_script` | `internal/automation/cron/` | covered | Run shell scripts as job actions. |
 | Context_from chaining | `cron/jobs.py` | → `missing` | missing | Chain prompts from previous job output. |
 | Resource release | `cron/jobs.py` | → `missing` | missing | Cleanup after job completion. |
 | Job lock files | `cron/scheduler.py` `_get_lock_paths` | → `missing` | missing | PID-based job locking. |
@@ -469,7 +469,7 @@ file+line ref or explicit `missing`, and a classification.
 |---|---|---|---|---|
 | Workspace identity | `src/models.py` `Collection` | `internal/goncho/` | covered | SQLite workspace with config defaults. |
 | Peer identity | `src/routers/peers.py` | `internal/goncho/` | covered | Peer cards and representation scopes. |
-| Session lifecycle | `src/routers/sessions.py` | `internal/goncho/` + `internal/session/` | covered | Local session crud. |
+| Session lifecycle | `src/routers/sessions.py` | `internal/goncho/` + `internal/persistence/session/` | covered | Local session crud. |
 | Message CRUD | `src/routers/messages.py` | `internal/goncho/` + `internal/memory/` | covered | Workspace/session/peer sequence metadata. |
 | File-backed messages | `src/crud/document.py` | → `missing` | missing | Not ported. |
 | Conclusions / facts | `src/routers/conclusions.py` | → `missing` | missing | Not ported. |
@@ -492,9 +492,9 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Auto title generation | `agent/title_generator.py` | `internal/session/auto_title.go` | partial | Helper exists; gateway wiring not proven. |
+| Auto title generation | `agent/title_generator.py` | `internal/persistence/session/auto_title.go` | partial | Helper exists; gateway wiring not proven. |
 | Session naming from user prompt | `run_agent.py` `auto_title` | → `missing` | missing | Not wired in production. |
-| @ context reference parser | `agent/context_references.py` | `internal/hermes/` + `internal/contextrefs/` | covered | Stable parser shipped; file/folder/URL injection row-backed. |
+| @ context reference parser | `agent/context_references.py` | `internal/llm/` + `internal/contextrefs/` | covered | Stable parser shipped; file/folder/URL injection row-backed. |
 | Subdirectory/project hints | `agent/subdirectory_hints.py` | → `missing` | missing | Not ported. |
 | Background review fork | `run_agent.py` background review | → `missing` | missing | Not ported. |
 | Curator state machine | `agent/curator.py` | → `missing` | missing | Not ported. |
@@ -502,7 +502,7 @@ file+line ref or explicit `missing`, and a classification.
 | Memory prefetch/sync | `agent/memory_manager.py` | → `missing` | missing | Not ported. |
 | Pre-compress hook | `agent/memory_manager.py` | → `missing` | missing | Not ported. |
 | Ephemeral prefill messages | `cli.py` `_load_prefill_messages` | → `missing` | missing | Not ported. |
-| Moonshot/Kimi schema sanitizer | `agent/moonshot_schema.py` | `internal/hermes/moonshot_schema.go` | covered | Tool-parameter sanitizer shipped. |
+| Moonshot/Kimi schema sanitizer | `agent/moonshot_schema.py` | `internal/llm/moonshot_schema.go` | covered | Tool-parameter sanitizer shipped. |
 
 ---
 
@@ -514,7 +514,7 @@ file+line ref or explicit `missing`, and a classification.
 | Google Cloud Code adapter | `agent/gemini_cloudcode_adapter.py` | → `missing` | missing | Not ported. |
 | Google Gemini OAuth | `agent/google_oauth.py` | → `missing` | missing | Not ported. |
 | Google Code Assist | `agent/google_code_assist.py` | → `missing` | missing | Not ported. |
-| Bedrock stream events | `agent/bedrock_adapter.py` | `internal/hermes/` | partial | Stream events partial; SigV4 pending. |
+| Bedrock stream events | `agent/bedrock_adapter.py` | `internal/llm/` | partial | Stream events partial; SigV4 pending. |
 | Bedrock SigV4 credentials | `agent/bedrock_adapter.py` | → `missing` | missing | Not ported. |
 | Bedrock stale-client eviction | `agent/bedrock_adapter.py` | → `missing` | missing | Not ported. |
 | Codex OAuth / device-code | `hermes_cli/auth.py` `_login_openai_codex` | `cmd/gormes/auth.go` | partial | Codex auth path exists; paused pending upstream drift investigation. |
@@ -552,7 +552,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Subagent delegate tool | `tools/delegate_tool.py` | `internal/subagent/` + `internal/tools/` | covered | Deterministic delegate runtime. |
+| Subagent delegate tool | `tools/delegate_tool.py` | `internal/core/subagent/` + `internal/tools/` | covered | Deterministic delegate runtime. |
 | Approval tool | `tools/approval.py` | `internal/tools/approval/` | covered | Approval mode guards. |
 | Path security tool | `tools/path_security.py` | `internal/tools/safety/` | covered | Workspace path guard. |
 | URL safety tool | `tools/url_safety.py` | → `missing` | missing | Not ported. |
@@ -588,7 +588,7 @@ file+line ref or explicit `missing`, and a classification.
 |---|---|---|---|---|
 | Tool registry | `tools/registry.py` | `internal/tools/` | covered | Descriptor-driven registry. |
 | Toolsets | `toolsets.py` | `cmd/gormes/registry.go` | covered | Toolset enable/disable. |
-| Model tools (model selectors) | `model_tools.py` | `internal/cli/` + `internal/hermes/` | partial | Model routing; Hermes model_tools abstractions not fully ported. |
+| Model tools (model selectors) | `model_tools.py` | `internal/cli/` + `internal/llm/` | partial | Model routing; Hermes model_tools abstractions not fully ported. |
 | Toolset distributions | `toolset_distributions.py` | → `missing` | missing | Not ported. |
 
 ---
@@ -603,7 +603,7 @@ file+line ref or explicit `missing`, and a classification.
 | Config show command | `cli.py` | `cmd/gormes/config.go` | covered | `gormes config show`. |
 | Config edit command | `cli.py` | `cmd/gormes/config.go` `newConfigEditCommand` + `config_closeout_test.go` | covered | Opens system editor for config file; creates file before opening; fallback editor chain EDITOR > VISUAL > common binaries. |
 | Config check command | `cli.py` | `cmd/gormes/config.go` `newConfigCheckCommand` + `config_closeout_test.go` | covered | Validates config syntax, reports version, dotenv availability, missing provider fields; redacts secrets; future version fails. |
-| Config migrate | `cli.py` | `internal/migrate/hermes/` | covered | Hermes → Gormes config migration. |
+| Config migrate | `cli.py` | `internal/platform/migrate/hermes/` | covered | Hermes → Gormes config migration. |
 | Config env-path | `cli.py` | `cmd/gormes/config.go` | covered | `gormes config env-path`. |
 | cli-config.yaml.example (51KB schema) | `cli-config.yaml.example` | → `missing` | missing | Not mirrored as canonical schema. |
 | Secrets (.env) loading | `hermes_cli/env_loader.py` | `internal/config/` | covered | Dotenv loading with secret-ref validation. |
@@ -616,8 +616,8 @@ file+line ref or explicit `missing`, and a classification.
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
 | Session ID generation (Hermes-style) | `gateway/session.py` | `internal/gateway/` | covered | Session ID with Hermes-style format. |
-| Session title auto-generation | `agent/title_generator.py` | `internal/session/auto_title.go` | partial | Helper unwired in gateway. |
-| Session title persistence | `gateway/session.py` | `internal/session/` | partial | Metadata persisted. |
+| Session title auto-generation | `agent/title_generator.py` | `internal/persistence/session/auto_title.go` | partial | Helper unwired in gateway. |
+| Session title persistence | `gateway/session.py` | `internal/persistence/session/` | partial | Metadata persisted. |
 | Created timestamp | `gateway/run.py` `:4672` | `internal/gateway/status_command.go` | covered | CreatedAt on fresh sessions. |
 | Last activity timestamp | `gateway/run.py` `:4673` | `internal/gateway/status_command.go` | partial | UpdatedAt written; full refresh not proven. |
 | Token accounting | `gateway/run.py` `:4674` | `internal/gateway/usage_command.go` | partial | Per-frame totals; session-wide not proven. |
@@ -737,7 +737,7 @@ file+line ref or explicit `missing`, and a classification.
 |---|---|---|---|---|
 | Goal set/pause/resume/clear/status | `hermes_cli/goals.py` | `internal/tui/slash_goal.go` + `internal/tools/` | covered | Goal management in TUI and tools. |
 | Goal subgoal add/remove/list | `hermes_cli/goals.py` | `internal/gateway/goal_loop.go` `handleSubgoalCommand` | covered | Add/remove/clear subgoals; saves in GoalState.Subgoals. |
-| Goal budget enforcement | `hermes_cli/goals.py` | `internal/session/goal_state.go` `GoalState.MaxTurns` + `goal_loop.go` | covered | Turn budget tracked via MaxTurns; pauses goal when exhausted. |
+| Goal budget enforcement | `hermes_cli/goals.py` | `internal/persistence/session/goal_state.go` `GoalState.MaxTurns` + `goal_loop.go` | covered | Turn budget tracked via MaxTurns; pauses goal when exhausted. |
 
 ---
 
@@ -745,9 +745,9 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Codex binary delegation | N/A (Hermes gateway delegates) | `internal/codingagents/` | covered | Codex/claude-code/opencode delegation scaffold. |
-| Claude Code binary delegation | N/A | `internal/codingagents/` | covered | Shared CodingAgent interface. |
-| OpenCode binary delegation | N/A | `internal/codingagents/` | covered | Shared CodingAgent interface. |
+| Codex binary delegation | N/A (Hermes gateway delegates) | `internal/core/codingagents/` | covered | Codex/claude-code/opencode delegation scaffold. |
+| Claude Code binary delegation | N/A | `internal/core/codingagents/` | covered | Shared CodingAgent interface. |
+| OpenCode binary delegation | N/A | `internal/core/codingagents/` | covered | Shared CodingAgent interface. |
 
 ---
 
@@ -755,12 +755,12 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Hermes state constants | `hermes_constants.py` | `internal/hermes/` | partial | Not fully ported. |
+| Hermes state constants | `hermes_constants.py` | `internal/llm/` | partial | Not fully ported. |
 | Logging (redacted) | `hermes_logging.py` | `internal/audit/` + `internal/telemetry/` | covered | Audit and telemetry logging. |
-| Timezone resolution | `hermes_time.py` `_resolve_timezone_name` `get_timezone` | `internal/hermes/time_helpers.go` `GetTimezone` | covered | Reads GORMES_TIMEZONE then HERMES_TIMEZONE; returns *time.Location or nil. |
-| `now()` helper | `hermes_time.py` `now` | `internal/hermes/time_helpers.go` `Now` | covered | Returns time.Now() in configured timezone or local. |
-| `is_truthy_value` | `utils.py` `is_truthy_value` | `internal/hermes/helpers.go` `IsTruthyValue` | covered | Boolean coercion for nil/bool/string values. |
-| `env_var_enabled` | `utils.py` `env_var_enabled` | `internal/hermes/helpers.go` `EnvVarEnabled` | covered | Check os.Getenv against truthy string set. |
+| Timezone resolution | `hermes_time.py` `_resolve_timezone_name` `get_timezone` | `internal/llm/time_helpers.go` `GetTimezone` | covered | Reads GORMES_TIMEZONE then HERMES_TIMEZONE; returns *time.Location or nil. |
+| `now()` helper | `hermes_time.py` `now` | `internal/llm/time_helpers.go` `Now` | covered | Returns time.Now() in configured timezone or local. |
+| `is_truthy_value` | `utils.py` `is_truthy_value` | `internal/llm/helpers.go` `IsTruthyValue` | covered | Boolean coercion for nil/bool/string values. |
+| `env_var_enabled` | `utils.py` `env_var_enabled` | `internal/llm/helpers.go` `EnvVarEnabled` | covered | Check os.Getenv against truthy string set. |
 | `atomic_replace` | `utils.py` `atomic_replace` | `internal/tools/atomic_replace.go` `AtomicReplace` | covered | Atomic file replacement preserving symlinks. |
 | `atomic_json_write` | `utils.py` `atomic_json_write` | `internal/tools/atomic_replace.go` `AtomicWrite` | covered | Atomic file write using temp + rename. |
 
@@ -876,9 +876,9 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Cron schedule parser | `cron/scheduler.py` | `internal/cron/` | covered | Schedule parsing. |
-| Cron job store | `cron/jobs.py` | `internal/cron/` | covered | Job CRUD. |
-| Cron job execution | `cron/scheduler.py` | `internal/cron/` | covered | Scheduled execution. |
+| Cron schedule parser | `cron/scheduler.py` | `internal/automation/cron/` | covered | Schedule parsing. |
+| Cron job store | `cron/jobs.py` | `internal/automation/cron/` | covered | Job CRUD. |
+| Cron job execution | `cron/scheduler.py` | `internal/automation/cron/` | covered | Scheduled execution. |
 | Cron context_from chaining | `cron/jobs.py` | → `missing` | missing | Not ported. |
 | Cron multi-target delivery | `cron/scheduler.py` | → `missing` | missing | Not ported. |
 | Cron resource release | `cron/scheduler.py` | → `missing` | missing | Not ported. |
@@ -907,13 +907,13 @@ file+line ref or explicit `missing`, and a classification.
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
 | Model switch CLI (interactive) | `hermes_cli/model_switch.py` | `cmd/gormes/model.go` + `internal/gateway/model_picker.go` | covered | Interactive provider/model picker. |
-| Model catalog suggestions | `hermes_cli/model_catalog.py` | `internal/hermes/provider_registry_manifest.go` | covered | Provider-specific model catalog. |
+| Model catalog suggestions | `hermes_cli/model_catalog.py` | `internal/llm/provider_registry_manifest.go` | covered | Provider-specific model catalog. |
 | Model normalize | `hermes_cli/model_normalize.py` | → `missing` | missing | Not ported. |
-| Direct alias resolution | `model_switch.py` `_ensure_direct_aliases` | `internal/hermes/model_switch.go` `DirectAlias` | covered | DirectAlias type with Model/Provider/BaseURL fields. |
-| ModelIdentity parsing | `model_switch.py` `ModelIdentity` | `internal/hermes/model_switch.go` `ModelIdentity` + `ModelAliases` | covered | 22 built-in model aliases with vendor/family. |
-| ModelSwitchResult | `model_switch.py` `ModelSwitchResult` | `internal/hermes/model_switch.go` `ModelSwitchResult` | covered | Structured result with success/newModel/provider/isGlobal/error. |
-| `--global` flag support | `model_switch.py` `parse_model_flags` | `internal/hermes/model_switch.go` `ParseModelFlags` | covered | Parses --provider, --global, unicode dash normalization. |
-| Model sort key | `model_switch.py` `_model_sort_key` | `internal/hermes/model_switch.go` `ModelSortKey` | covered | Deterministic sort key + SortedModelAliases. |
+| Direct alias resolution | `model_switch.py` `_ensure_direct_aliases` | `internal/llm/model_switch.go` `DirectAlias` | covered | DirectAlias type with Model/Provider/BaseURL fields. |
+| ModelIdentity parsing | `model_switch.py` `ModelIdentity` | `internal/llm/model_switch.go` `ModelIdentity` + `ModelAliases` | covered | 22 built-in model aliases with vendor/family. |
+| ModelSwitchResult | `model_switch.py` `ModelSwitchResult` | `internal/llm/model_switch.go` `ModelSwitchResult` | covered | Structured result with success/newModel/provider/isGlobal/error. |
+| `--global` flag support | `model_switch.py` `parse_model_flags` | `internal/llm/model_switch.go` `ParseModelFlags` | covered | Parses --provider, --global, unicode dash normalization. |
+| Model sort key | `model_switch.py` `_model_sort_key` | `internal/llm/model_switch.go` `ModelSortKey` | covered | Deterministic sort key + SortedModelAliases. |
 
 ---
 
@@ -985,7 +985,7 @@ file+line ref or explicit `missing`, and a classification.
 |---|---|---|---|---|
 | Personality list command | `hermes_cli/commands.py` `/personality` | `internal/gateway/personality_command.go` `handlePersonalityCommand` | covered | Lists available personalities with descriptions. |
 | Personality switch command | `hermes_cli/commands.py` | `internal/gateway/personality_command.go` | covered | Switches active personality by name. |
-| Personality prompt injection | `run_agent.py` | `internal/hermes/prompt_assembly.go` `PromptAssemblyOptions.Personality` | covered | Injects personality block when ActivePersonality is set. |\n| Personality source file loading | `hermes_cli/config.py` personalities config | `internal/config/config.go` `AgentCfg.Personalities` | covered | Loads personalities from config agent.personalities map. |\n| Personality `none` clear | `hermes_cli/commands.py` `personality none` | `internal/gateway/personality_command.go` | covered | Clears active personality via /personality none. |]
+| Personality prompt injection | `run_agent.py` | `internal/llm/prompt_assembly.go` `PromptAssemblyOptions.Personality` | covered | Injects personality block when ActivePersonality is set. |\n| Personality source file loading | `hermes_cli/config.py` personalities config | `internal/config/config.go` `AgentCfg.Personalities` | covered | Loads personalities from config agent.personalities map. |\n| Personality `none` clear | `hermes_cli/commands.py` `personality none` | `internal/gateway/personality_command.go` | covered | Clears active personality via /personality none. |]
 
 ---
 
@@ -1004,11 +1004,11 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Default SOUL.md identity | `hermes_cli/default_soul.py` | `internal/hermes/context_files.go` | covered | Context file loading from GORMES_HOME. |
-| SOUL.md file discovery | `run_agent.py` | `internal/hermes/context_files.go` | covered | Workspace ancestor, Gormes home, Hermes home chain. |
-| SOUL.md frontmatter stripping | `agent/prompt_builder.py` | `internal/hermes/context_files.go` | covered | Frontmatter removed before injection. |
-| Truncation marker | `agent/prompt_builder.py` | `internal/hermes/context_files.go` | covered | `[...truncated ... kept H+T of N chars ...]` |
-| Threat pattern scan | `agent/prompt_builder.py` | `internal/hermes/context_files.go` | covered | `[BLOCKED:` marker for prompt injection. |
+| Default SOUL.md identity | `hermes_cli/default_soul.py` | `internal/llm/context_files.go` | covered | Context file loading from GORMES_HOME. |
+| SOUL.md file discovery | `run_agent.py` | `internal/llm/context_files.go` | covered | Workspace ancestor, Gormes home, Hermes home chain. |
+| SOUL.md frontmatter stripping | `agent/prompt_builder.py` | `internal/llm/context_files.go` | covered | Frontmatter removed before injection. |
+| Truncation marker | `agent/prompt_builder.py` | `internal/llm/context_files.go` | covered | `[...truncated ... kept H+T of N chars ...]` |
+| Threat pattern scan | `agent/prompt_builder.py` | `internal/llm/context_files.go` | covered | `[BLOCKED:` marker for prompt injection. |
 
 ---
 
@@ -1016,7 +1016,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Self-help guidance ("what can you do") | `run_agent.py` | `internal/hermes/guidance_constants.go` | covered | Byte-equivalent self-help guidance. |
+| Self-help guidance ("what can you do") | `run_agent.py` | `internal/llm/guidance_constants.go` | covered | Byte-equivalent self-help guidance. |
 | Quick commands (keyboard shortcuts) | `hermes_cli/__init__.py` | → `missing` | missing | Not ported. |
 
 ---
@@ -1046,7 +1046,7 @@ file+line ref or explicit `missing`, and a classification.
 | Security advisory check | `hermes_cli/security_advisories.py` | `internal/doctor/doctor_security_advisories.go` | **covered** | Supply-chain advisory check with ack support. |
 | Shell command blocklist | `tools/path_security.py` (Hermes path guard) | `internal/tools/shell_blocklist.go` `SecurityAuditCategoryShellBlocklist` | **covered** | Blocklist enforcement with destructive/network/privilege/crypto/data-exfil categories. |
 | Doctor command with security fix | `hermes_cli/doctor.py` | `cmd/gormes/doctor.go` | **covered** | `gormes doctor --fix --ack --target --json --offline`. |
-| Workspace guard (deny list + allowed roots) | N/A (Hermes has `is_write_denied()`) | `internal/codingagents/workspace.go` | **covered** | WorkspaceGuard with default deny of .ssh/.aws/.gcloud/.kube/.gormes. |
+| Workspace guard (deny list + allowed roots) | N/A (Hermes has `is_write_denied()`) | `internal/core/codingagents/workspace.go` | **covered** | WorkspaceGuard with default deny of .ssh/.aws/.gcloud/.kube/.gormes. |
 | URL safety checker | `tools/url_safety.py` | `internal/tools/url_safety.go` | **covered** | Default allowlist/blocklist policy with URL safety checker. |
 | Browser SSRF guard | N/A (Hermes browser tool) | `internal/tools/browser_ssrf_guard.go` | **covered** | Blocks private/loopback/link-local URLs. |
 | **Configurable workspace read-only mode** | N/A (Gormes-owned) | `internal/config/config.go` `internal/tools/filesystem_scope.go` `internal/tools/security_audit.go` | **covered** | `[workspace] mode = "readonly"` config option. `FilesystemScope.ReadOnly` denies all writes. Security audit reports it. Tests in `filesystem_scope_test.go`. |

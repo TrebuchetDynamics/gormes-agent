@@ -59,7 +59,7 @@ The extraction-ready boundary is:
 
 The binary shape is:
 
-1. `internal/store` and `internal/memory`
+1. `internal/persistence/store` and `internal/memory`
    - raw turn persistence
    - bounded worker queues
    - FTS and semantic substrate

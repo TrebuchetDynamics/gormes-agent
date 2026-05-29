@@ -39,7 +39,7 @@ By the end of this spec:
 | Phase 1.5 | Route-B reconnect + compat-probe + discipline tests |
 | Phase 2.A | `internal/tools` + `tool_calls` flow + doctor `CheckTools` |
 | Phase 2.B.1 | `internal/telegram/` + `gormes telegram` subcommand (shipped) |
-| Phase 2.C | `internal/session` session-map persistence (shipped, consumed by chassis) |
+| Phase 2.C | `internal/persistence/session` session-map persistence (shipped, consumed by chassis) |
 | **Phase 2.B.2 (this spec)** | **`internal/gateway/` chassis + `internal/channels/telegram/` refactor + `internal/channels/discord/` new** |
 | Phase 2.B.2 follow-ups | `internal/channels/slack/`, `/whatsapp/`, `/signal/`, `/email/`, `/sms/` — each its own spec, each consumes this chassis |
 | Phase 3 | memory, unchanged |
@@ -50,7 +50,7 @@ Pre-existing packages that change in this spec:
 - `internal/config` — adds `[discord]` TOML block + `DiscordCfg` struct field. Existing `[telegram]` block stays byte-identical.
 - `cmd/gormes/` — adds a new `gormes gateway` cobra subcommand alongside the existing `gormes telegram`. `gormes gateway` wires a `gateway.Manager` around whatever channels are enabled (Telegram when `[telegram]` is configured, Discord when `[discord]` is configured, at least one required). The existing `gormes telegram` subcommand stays as a thin alias that constructs a Manager with Telegram-only enabled — zero user-visible change for existing systemd units.
 
-`internal/kernel`, `internal/tools`, `internal/hermes`, `internal/doctor`, `internal/tui`, `internal/store`, `internal/telemetry`, `internal/session`, `internal/memory`, and `pkg/gormes` stay byte-identical.
+`internal/kernel`, `internal/tools`, `internal/llm`, `internal/doctor`, `internal/tui`, `internal/persistence/store`, `internal/telemetry`, `internal/persistence/session`, `internal/memory`, and `pkg/gormes` stay byte-identical.
 
 ---
 
@@ -67,7 +67,7 @@ Pre-existing packages that change in this spec:
 ### Micro-decisions
 
 - **Package path:** `internal/gateway/` for the chassis, `internal/channels/<name>/` for adapters. `internal/telegram/` is deleted.
-- **Chat identity:** `ChatKey string` encoded as `"<platform>:<chat_id>"` — the same format `internal/session` already uses. No new types.
+- **Chat identity:** `ChatKey string` encoded as `"<platform>:<chat_id>"` — the same format `internal/persistence/session` already uses. No new types.
 - **Discord SDK:** `github.com/bwmarrin/discordgo` — matches picoclaw's choice and is the de facto Go Discord client. Locked to the version picoclaw uses.
 - **Subcommand:** new `gormes gateway` cobra subcommand. Existing `gormes telegram` stays functional (aliases to a single-channel Manager) so existing systemd units keep running untouched.
 - **Discord scope:** text messages in one allowlisted `(guild_id, channel_id)`, commands `/start` `/stop` `/new`, streaming via edits, 👀 reaction ack on inbound. Slash commands, embeds, threads, voice, multi-guild — all deferred.
@@ -170,7 +170,7 @@ type InboundEvent struct {
     Text     string    // body for EventSubmit; empty otherwise
 }
 
-// ChatKey returns "<platform>:<chat_id>" — the format internal/session uses.
+// ChatKey returns "<platform>:<chat_id>" — the format internal/persistence/session uses.
 func (e InboundEvent) ChatKey() string { return e.Platform + ":" + e.ChatID }
 ```
 

@@ -23,7 +23,7 @@ Persistent, searchable state that outlives the process. Structured enough for gr
 
 - **Shipped visibility spine** (3.E.1–3.E.5) — session index mirror, tool audit, transcript export, memory status, and daily insights logging are landed.
 - **`last_seen` closeout** (3.E.6) — shipped: schema v3g backfills `relationships.last_seen`, repeated relationship observations advance it without rewriting legacy `updated_at`, and recall attenuation uses `COALESCE(NULLIF(last_seen, 0), updated_at)`.
-- **Cross-chat identity closeout** (3.E.7) — shipped: GONCHO identity hierarchy is `user_id > chat_id > session_id`; `internal/session` persists canonical chat-to-user bindings, and `internal/memory`, `internal/goncho`, and `internal/gonchotools` cover same-chat default fencing, opt-in canonical user/source-filtered recall, Honcho-compatible schemas, host mappings, SillyTavern persona/group-chat mapping, deny paths, and operator-readable evidence.
+- **Cross-chat identity closeout** (3.E.7) — shipped: GONCHO identity hierarchy is `user_id > chat_id > session_id`; `internal/persistence/session` persists canonical chat-to-user bindings, and `internal/memory`, `internal/goncho`, and `internal/gonchotools` cover same-chat default fencing, opt-in canonical user/source-filtered recall, Honcho-compatible schemas, host mappings, SillyTavern persona/group-chat mapping, deny paths, and operator-readable evidence.
 - **Session lineage + cross-source search closeout** (3.E.8) — shipped: source-filtered search spans one canonical `user_id` across chats inside `internal/memory` and the internal GONCHO service; `parent_session_id`, compression-continuation resume, lineage-aware hits, and operator-auditable search evidence are validated.
 - **Goncho/Honcho parity** (3.F) — shipped and converged: context representation options, typed search filters, directional peer cards, queue status, summary budgeting, dialectic chat, file import, topology fixtures, operator diagnostics, streaming persistence, `[goncho]` config, and dream-scheduler intent are validated while public tools remain `honcho_*`.
 
@@ -49,8 +49,8 @@ live under `references/go-agent-os/engram/`:
 
 | Memory problem | Donor file |
 |---|---|
-| SQLite + FTS5 store with DDL, indexes, migrations | `engram/internal/store/store.go` |
-| Memory relation/conflict vocabulary (`related`, `conflicts_with`, `supersedes`, `compatible`, `scoped`, `not_conflict`) | `engram/internal/store/relations.go` |
+| SQLite + FTS5 store with DDL, indexes, migrations | `engram/internal/persistence/store/store.go` |
+| Memory relation/conflict vocabulary (`related`, `conflicts_with`, `supersedes`, `compatible`, `scoped`, `not_conflict`) | `engram/internal/persistence/store/relations.go` |
 | Deterministic serialized MCP write queue (mutex-serialized, cancel-before-start) | `engram/internal/mcp/write_queue.go` |
 | MCP activity/audit logging (audit shape, redaction, append-only file) | `engram/internal/mcp/activity.go` |
 | Bounded token-budget tracker for recall context assembly | `axe/internal/budget/budget.go` |

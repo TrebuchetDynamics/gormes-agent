@@ -74,7 +74,7 @@ WHERE cnt > 1;
 
 1. **Back up first**: copy DBs, YAML mirrors, gateway pid/state, and logs to a timestamped directory.
 2. **Fix product behavior before live data**: add tests for duplicate export/list, source metadata, lock-safe read-only commands, and status validation.
-3. **Run focused tests**: prefer `go test ./cmd/gormes ./internal/session ./internal/memory -run '<specific>' -count=1` before full gates.
+3. **Run focused tests**: prefer `go test ./cmd/gormes ./internal/persistence/session ./internal/memory -run '<specific>' -count=1` before full gates.
 4. **Repair data only after approval**: stop gateway, verify backup, run targeted migration/cleanup, restart/reload, and compare counts.
 5. **Harden permissions carefully**: chmod specific sensitive files/dirs, not broad recursive trees unless the operator approves.
 

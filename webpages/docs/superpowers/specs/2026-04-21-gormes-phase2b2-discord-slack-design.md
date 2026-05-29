@@ -93,7 +93,7 @@ Primary Gormes anchors:
 - `internal/telegram/client.go`
 - `gormes/cmd/gormes/telegram.go`
 - `internal/config/config.go`
-- `internal/session/*`
+- `internal/persistence/session/*`
 - `internal/memory/*`
 - `internal/kernel/*`
 

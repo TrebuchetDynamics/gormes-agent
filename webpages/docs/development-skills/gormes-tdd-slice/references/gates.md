@@ -21,8 +21,8 @@ go test ./... -count=1
 ## Focused Examples
 
 ```sh
-go test ./internal/goncho ./internal/gonchotools ./internal/memory ./internal/session -count=1
-go test ./internal/gateway ./internal/tools ./internal/hermes -count=1
+go test ./internal/goncho ./internal/gonchotools ./internal/memory ./internal/persistence/session -count=1
+go test ./internal/gateway ./internal/tools ./internal/llm -count=1
 go test ./cmd/gormes ./internal/cli ./internal/doctor -count=1
 go test ./internal/progress -count=1
 ```

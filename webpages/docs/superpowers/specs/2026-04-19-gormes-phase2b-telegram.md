@@ -38,7 +38,7 @@ Phase 2.B.1 changes pre-existing packages in exactly **two** places, both additi
 - `internal/config` — adds a new `[telegram]` TOML block + `TelegramCfg` struct field (no behavior change for existing callers).
 - `internal/kernel` — adds one new method `ResetSession()` + one new `PlatformEventResetSession` enum value to implement the `/new` Telegram command. See §8 for the full contract. This is the FIRST change to `internal/kernel` outside its own package since Phase 2.A landed, and it is necessary-not-optional.
 
-`internal/tools`, `internal/hermes`, `internal/doctor`, `internal/tui`, `internal/store`, `internal/telemetry`, `pkg/gormes`, and `cmd/gormes/` stay byte-identical.
+`internal/tools`, `internal/llm`, `internal/doctor`, `internal/tui`, `internal/persistence/store`, `internal/telemetry`, `pkg/gormes`, and `cmd/gormes/` stay byte-identical.
 
 ---
 
@@ -91,7 +91,7 @@ gormes/
 │       └── config.go               # MODIFY — add TelegramCfg section
 ```
 
-**Zero changes to:** `internal/kernel`, `internal/tools`, `internal/hermes`, `internal/doctor`, `internal/store`, `internal/telemetry`, `internal/tui`, `pkg/gormes`, `cmd/gormes/`.
+**Zero changes to:** `internal/kernel`, `internal/tools`, `internal/llm`, `internal/doctor`, `internal/persistence/store`, `internal/telemetry`, `internal/tui`, `pkg/gormes`, `cmd/gormes/`.
 
 ### 4.2 Process model
 

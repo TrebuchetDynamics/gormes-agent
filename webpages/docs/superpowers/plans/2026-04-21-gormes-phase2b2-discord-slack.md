@@ -316,7 +316,7 @@ git commit -m "feat(gormes): add discord and slack config surfaces"
 
 **Reference anchors:**
 - `gormes/cmd/gormes/telegram.go`
-- `internal/session/*`
+- `internal/persistence/session/*`
 - `internal/memory/*`
 - `internal/kernel/*`
 
@@ -423,10 +423,10 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -673,10 +673,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -935,7 +935,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 type Config struct {
@@ -1534,10 +1534,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -1807,7 +1807,7 @@ import (
 	"github.com/slack-go/slack/socketmode"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 type Config struct {

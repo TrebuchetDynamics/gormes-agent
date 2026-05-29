@@ -6,7 +6,7 @@
 
 **Architecture:** Tests-only plus one enum value. The red test references a named `PhaseReconnecting` constant that is added to `kernel/frame.go` as a TDD seed — the kernel never transitions to that state yet; the future Route-B plan flips the red test green. The compat script is stand-alone bash, invoked manually.
 
-**Tech Stack:** Go 1.22+ (with `toolchain go1.26.1`), bash, Docker (preferred) or `golang.org/dl/go1.22.10` fallback, stdlib `net/http/httptest`, existing `MockClient` from `internal/hermes/`.
+**Tech Stack:** Go 1.22+ (with `toolchain go1.26.1`), bash, Docker (preferred) or `golang.org/dl/go1.22.10` fallback, stdlib `net/http/httptest`, existing `MockClient` from `internal/llm/`.
 
 ---
 
@@ -628,8 +628,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -731,9 +731,9 @@ func TestKernel_NonBlockingUnderTUIStall(t *testing.T) {
 	<-done
 }
 
-// lastAssistantMessage returns a pointer to the last hermes.Message with
+// lastAssistantMessage returns a pointer to the last llm.Message with
 // Role "assistant", or nil if none exist. Helper shared with future tests.
-func lastAssistantMessage(history []hermes.Message) *hermes.Message {
+func lastAssistantMessage(history []llm.Message) *llm.Message {
 	for i := len(history) - 1; i >= 0; i-- {
 		if history[i].Role == "assistant" {
 			return &history[i]
@@ -849,6 +849,6 @@ Expected: `--- SKIP: TestKernel_HandlesMidStreamNetworkDrop`.
 
 **Placeholder scan:** `newRealKernelFromURL` in `reconnect_helpers_test.go` returns `nil` with a comment — it's a deliberate future-use stub, never called because the red test is `t.Skip`'d. Acceptable scoping decision; an alternative (delete the stub) is equally correct. Not a placeholder failure.
 
-**Type consistency:** `PhaseReconnecting` is referenced only in comments in this plan (Task 3's test body is Skip'd); type alignment with `Phase` enum is trivial. `RenderFrame` and `PlatformEvent` names match kernel.go. `hermes.Event`, `hermes.Message`, `hermes.NewMockClient` — all match existing exports.
+**Type consistency:** `PhaseReconnecting` is referenced only in comments in this plan (Task 3's test body is Skip'd); type alignment with `Phase` enum is trivial. `RenderFrame` and `PlatformEvent` names match kernel.go. `hermes.Event`, `llm.Message`, `hermes.NewMockClient` — all match existing exports.
 
 **Scope:** One cohesive plan; 5 tasks; each produces a self-contained commit that advances the Phase-1.5 readiness state.

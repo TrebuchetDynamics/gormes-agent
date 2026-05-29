@@ -415,13 +415,13 @@
         "system"
       ],
       "degraded_mode": "When a run is suppressed, times out, fails provider/auth readiness, or cannot deliver, the report remains written with status=degraded or failed, a stable degraded_reason, redacted detail, and a recommended repair command rather than disappearing into logs.",
-      "fixture": "internal/cron/operator_run_report_test.go::TestOperatorRunReportBuildsSuccessAndDegradedArtifacts",
+      "fixture": "internal/automation/cron/operator_run_report_test.go::TestOperatorRunReportBuildsSuccessAndDegradedArtifacts",
       "source_refs": [
-        "internal/cron/run_store.go",
-        "internal/cron/run_completion.go",
-        "internal/cron/executor.go",
-        "internal/cron/delivery_plan.go",
-        "internal/subagent/durable_ledger.go",
+        "internal/automation/cron/run_store.go",
+        "internal/automation/cron/run_completion.go",
+        "internal/automation/cron/executor.go",
+        "internal/automation/cron/delivery_plan.go",
+        "internal/core/subagent/durable_ledger.go",
         "internal/runtime/binding.go",
         "cmd/gormes/status.go"
       ],
@@ -449,14 +449,14 @@
       ],
       "note": "Complete 2026-05-18: pure OperatorRunReport builder writes stable success/degraded JSON, redacts secrets/home paths, and round-trips temp-home artifacts without live cron/gateway/provider clients.",
       "write_scope": [
-        "internal/cron/operator_run_report.go",
-        "internal/cron/operator_run_report_test.go",
-        "internal/cron/run_store.go",
-        "internal/cron/run_store_test.go"
+        "internal/automation/cron/operator_run_report.go",
+        "internal/automation/cron/operator_run_report_test.go",
+        "internal/automation/cron/run_store.go",
+        "internal/automation/cron/run_store_test.go"
       ],
       "test_commands": [
-        "go test ./internal/cron -run 'TestOperatorRunReport' -count=1",
-        "go test ./internal/cron -count=1",
+        "go test ./internal/automation/cron -run 'TestOperatorRunReport' -count=1",
+        "go test ./internal/automation/cron -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -488,14 +488,14 @@
         "system"
       ],
       "degraded_mode": "If the briefing cannot execute or cannot produce user content, the cron executor still writes a report with status=degraded or failed, run completion evidence, redacted error summary, and next repair command.",
-      "fixture": "internal/cron/operator_briefing_report_test.go::TestScheduledBriefingWritesOperatorRunReport",
+      "fixture": "internal/automation/cron/operator_briefing_report_test.go::TestScheduledBriefingWritesOperatorRunReport",
       "source_refs": [
-        "internal/cron/executor.go",
-        "internal/cron/run_completion.go",
-        "internal/cron/run_store.go",
-        "internal/cron/mirror.go",
-        "internal/cron/job.go",
-        "internal/subagent/durable_ledger.go"
+        "internal/automation/cron/executor.go",
+        "internal/automation/cron/run_completion.go",
+        "internal/automation/cron/run_store.go",
+        "internal/automation/cron/mirror.go",
+        "internal/automation/cron/job.go",
+        "internal/core/subagent/durable_ledger.go"
       ],
       "ready_when": [
         "Durable operator run report for unattended jobs is complete.",
@@ -518,14 +518,14 @@
       ],
       "note": "Gormes-owned works-first local-ownership reliability layer; no Hermes upstream analog.",
       "write_scope": [
-        "internal/cron/executor.go",
-        "internal/cron/operator_run_report.go",
-        "internal/cron/operator_briefing_report_test.go",
-        "internal/cron/run_store.go"
+        "internal/automation/cron/executor.go",
+        "internal/automation/cron/operator_run_report.go",
+        "internal/automation/cron/operator_briefing_report_test.go",
+        "internal/automation/cron/run_store.go"
       ],
       "test_commands": [
-        "go test ./internal/cron -run 'TestScheduledBriefingWritesOperatorRunReport|TestOperatorRunReport' -count=1",
-        "go test ./internal/cron -count=1",
+        "go test ./internal/automation/cron -run 'TestScheduledBriefingWritesOperatorRunReport|TestOperatorRunReport' -count=1",
+        "go test ./internal/automation/cron -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -558,11 +558,11 @@
         "system"
       ],
       "degraded_mode": "Until the policy lands, Gormes exposes in-memory subagents plus append-only run logs only; durable minion routing is documented as unavailable in status/doctor surfaces.",
-      "fixture": "internal/subagent/minion_policy_test.go",
+      "fixture": "internal/core/subagent/minion_policy_test.go",
       "source_refs": [
-        "internal/subagent/minion_policy.go",
-        "internal/subagent/manager.go",
-        "internal/cron/executor.go"
+        "internal/core/subagent/minion_policy.go",
+        "internal/core/subagent/manager.go",
+        "internal/automation/cron/executor.go"
       ],
       "ready_when": [
         "Phase 2.E.0 and 2.E.1 subagent runtime slices are complete and append-only run logs exist for child executions."
@@ -575,15 +575,15 @@
         "Child-agent trust cannot submit privileged deterministic shell jobs through the durable-job route.",
         "Existing delegate_task and subagent manager APIs remain Go-native and are not renamed to Minions."
       ],
-      "note": "Complete: TDD landed a pure Gormes routing policy fixture in internal/subagent/minion_policy_test.go. Deterministic shell/cron-like work routes to a privileged durable-job lane for operator/system trust, judgment-heavy LLM work stays on the live Go-native delegate_task subagent lane, child-agent trust is denied for deterministic durable submits, and no Gormes-owned queue/executor/supervisor runtime was imported.",
+      "note": "Complete: TDD landed a pure Gormes routing policy fixture in internal/core/subagent/minion_policy_test.go. Deterministic shell/cron-like work routes to a privileged durable-job lane for operator/system trust, judgment-heavy LLM work stays on the live Go-native delegate_task subagent lane, child-agent trust is denied for deterministic durable submits, and no Gormes-owned queue/executor/supervisor runtime was imported.",
       "write_scope": [
-        "internal/subagent/",
-        "internal/cron/",
+        "internal/core/subagent/",
+        "internal/automation/cron/",
         "internal/config/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/subagent ./internal/cron ./internal/config -count=1"
+        "go test ./internal/subagent ./internal/automation/cron ./internal/config -count=1"
       ],
       "done_signal": [
         "Routing policy tests prove which work enters durable orchestration, which trust classes may submit it, and that existing delegate_task names remain stable."
@@ -609,9 +609,9 @@
         "system"
       ],
       "degraded_mode": "Doctor/status reports queue full, timeout-at, and stale waiting counts before accepting more durable work.",
-      "fixture": "internal/subagent/durable_backpressure_test.go",
+      "fixture": "internal/core/subagent/durable_backpressure_test.go",
       "source_refs": [
-        "internal/subagent/durable_ledger.go"
+        "internal/core/subagent/durable_ledger.go"
       ],
       "ready_when": [
         "The SQLite-first durable subagent/job ledger is complete and records claim, progress, completion, failure, and cancellation intent."
@@ -624,9 +624,9 @@
         "Wall-clock timeout_at is recorded and surfaced separately from context cancellation.",
         "Doctor/status evidence reports waiting, claimed, timed-out, and backpressure-denied counts."
       ],
-      "note": "Complete: TDD landed internal/subagent/durable_backpressure_test.go over the Go SQLite ledger. Durable submissions now reject with audited backpressure evidence when max_waiting is reached, claims persist timeout_at wall-clock evidence separately from cancellation intent, and doctor/status surfaces waiting, claimed, timed-out, stale waiting, queue-full, and backpressure-denied counts without importing Gormes durable jobs runtime code. The 2026-04-27 Gormes-owned; no new Gormes row is needed for queue pileup.",
+      "note": "Complete: TDD landed internal/core/subagent/durable_backpressure_test.go over the Go SQLite ledger. Durable submissions now reject with audited backpressure evidence when max_waiting is reached, claims persist timeout_at wall-clock evidence separately from cancellation intent, and doctor/status surfaces waiting, claimed, timed-out, stale waiting, queue-full, and backpressure-denied counts without importing Gormes durable jobs runtime code. The 2026-04-27 Gormes-owned; no new Gormes row is needed for queue pileup.",
       "write_scope": [
-        "internal/subagent/",
+        "internal/core/subagent/",
         "internal/doctor/",
         "internal/config/",
         "docs/content/building-gormes/architecture_plan/progress.json"
@@ -658,7 +658,7 @@
         "system"
       ],
       "degraded_mode": "Doctor/status reports no durable worker, stale heartbeat, or supervisor-unavailable instead of silently accepting restart-survivable work.",
-      "fixture": "internal/subagent/durable_supervisor_status_test.go",
+      "fixture": "internal/core/subagent/durable_supervisor_status_test.go",
       "source_refs": [
         "internal/subagent"
       ],
@@ -673,9 +673,9 @@
         "Restart intent is represented as data/audit evidence, not an implicit process launch.",
         "Existing delegate_task and live child-agent APIs remain Go-native and are not renamed to Minions."
       ],
-      "note": "Complete: TDD landed internal/subagent/durable_supervisor_status_test.go over the Go SQLite ledger. Durable status now distinguishes no-worker, healthy heartbeat, stale heartbeat, and supervisor-unavailable states, records restart intent as audit data, and doctor output surfaces worker liveness, supervisor availability, and restart-intent evidence without starting worker processes or renaming Go-native delegate_task APIs to Minions.",
+      "note": "Complete: TDD landed internal/core/subagent/durable_supervisor_status_test.go over the Go SQLite ledger. Durable status now distinguishes no-worker, healthy heartbeat, stale heartbeat, and supervisor-unavailable states, records restart intent as audit data, and doctor output surfaces worker liveness, supervisor availability, and restart-intent evidence without starting worker processes or renaming Go-native delegate_task APIs to Minions.",
       "write_scope": [
-        "internal/subagent/",
+        "internal/core/subagent/",
         "internal/doctor/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
@@ -711,9 +711,9 @@
         "system"
       ],
       "degraded_mode": "Doctor/status reports paused jobs, resume intent, and unsupported child-agent lifecycle control instead of silently leaving workers active.",
-      "fixture": "internal/subagent/durable_lifecycle_test.go",
+      "fixture": "internal/core/subagent/durable_lifecycle_test.go",
       "source_refs": [
-        "internal/subagent/durable_ledger.go",
+        "internal/core/subagent/durable_ledger.go",
         "internal/doctor/durable_ledger.go"
       ],
       "ready_when": [
@@ -728,9 +728,9 @@
         "Child-agent trust cannot pause or resume privileged deterministic shell/cron jobs.",
         "Doctor/status includes paused and resume-pending counts plus degraded evidence when lifecycle control is unsupported."
       ],
-      "note": "Complete: TDD landed internal/subagent/durable_lifecycle_test.go over the Go SQLite ledger. Durable jobs now record pause/resume as explicit operator/system lifecycle intents, transition waiting or active work through a paused state with actor/reason/timestamp evidence, resume paused work back to a claimable waiting state without losing progress, parent, timeout, or lock audit fields, deny child-agent lifecycle control for privileged deterministic jobs, and surface paused, resume-pending, and unsupported lifecycle-control counts through doctor/status without starting worker daemons.",
+      "note": "Complete: TDD landed internal/core/subagent/durable_lifecycle_test.go over the Go SQLite ledger. Durable jobs now record pause/resume as explicit operator/system lifecycle intents, transition waiting or active work through a paused state with actor/reason/timestamp evidence, resume paused work back to a claimable waiting state without losing progress, parent, timeout, or lock audit fields, deny child-agent lifecycle control for privileged deterministic jobs, and surface paused, resume-pending, and unsupported lifecycle-control counts through doctor/status without starting worker daemons.",
       "write_scope": [
-        "internal/subagent/",
+        "internal/core/subagent/",
         "internal/doctor/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
@@ -771,10 +771,10 @@
         "child-agent"
       ],
       "degraded_mode": "Status reports replay unavailable, inbox-unread, and protected-submit denial separately so operators can distinguish observation from mutation.",
-      "fixture": "internal/subagent/durable_replay_inbox_test.go",
+      "fixture": "internal/core/subagent/durable_replay_inbox_test.go",
       "source_refs": [
-        "internal/subagent/minion_policy.go",
-        "internal/subagent/durable_ledger.go"
+        "internal/core/subagent/minion_policy.go",
+        "internal/core/subagent/durable_ledger.go"
       ],
       "ready_when": [
         "Pause/resume intent fixtures are landed and durable ledger status exposes lifecycle-control state without requiring an external worker."
@@ -787,9 +787,9 @@
         "Inbox messages store sender, directive payload, unread/read timestamps, and are only claimable by the owning job or operator/system trust.",
         "Child-agent trust may observe get/list/progress-style durable job state but cannot submit protected shell_command work."
       ],
-      "note": "Complete: TDD landed internal/subagent/durable_replay_inbox_test.go over the Go SQLite ledger. Replay creates a fresh waiting job linked by replay_of, preserves data_overrides_json, and leaves the terminal source job untouched. Durable inbox messages persist sender/trust, directive payload, unread/read timestamps, and owner/operator/system claim boundaries. Child-agent trust can observe get/list/progress-style durable state while protected shell_command submit is denied and audited separately. Doctor/status now reports replay-unavailable, inbox-unread, and protected-submit-denied evidence independently. Gormes keeps this as a local SQLite/in-process durable ledger mode rather than porting Postgres/PGLite engine or shell worker.",
+      "note": "Complete: TDD landed internal/core/subagent/durable_replay_inbox_test.go over the Go SQLite ledger. Replay creates a fresh waiting job linked by replay_of, preserves data_overrides_json, and leaves the terminal source job untouched. Durable inbox messages persist sender/trust, directive payload, unread/read timestamps, and owner/operator/system claim boundaries. Child-agent trust can observe get/list/progress-style durable state while protected shell_command submit is denied and audited separately. Doctor/status now reports replay-unavailable, inbox-unread, and protected-submit-denied evidence independently. Gormes keeps this as a local SQLite/in-process durable ledger mode rather than porting Postgres/PGLite engine or shell worker.",
       "write_scope": [
-        "internal/subagent/",
+        "internal/core/subagent/",
         "internal/doctor/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
@@ -828,12 +828,12 @@
         "system"
       ],
       "degraded_mode": "Durable-worker status reports idle, claim_unavailable, handler_failed, or heartbeat_unavailable without starting a background daemon or shell executor.",
-      "fixture": "internal/subagent/durable_worker_test.go",
+      "fixture": "internal/core/subagent/durable_worker_test.go",
       "source_refs": [
-        "internal/subagent/durable_ledger.go:Claim/UpdateProgress/Complete/Fail/RecordWorkerHeartbeat",
-        "internal/subagent/durable_ledger_test.go",
-        "internal/subagent/durable_backpressure_test.go",
-        "internal/subagent/durable_supervisor_status_test.go",
+        "internal/core/subagent/durable_ledger.go:Claim/UpdateProgress/Complete/Fail/RecordWorkerHeartbeat",
+        "internal/core/subagent/durable_ledger_test.go",
+        "internal/core/subagent/durable_backpressure_test.go",
+        "internal/core/subagent/durable_supervisor_status_test.go",
         "internal/doctor/durable_ledger.go"
       ],
       "ready_when": [
@@ -852,10 +852,10 @@
         "TestDurableWorkerRunOne_NoJobReturnsIdle proves an empty ledger returns idle evidence, records no fake heartbeat, and does not mutate existing terminal jobs.",
         "Doctor/status fixtures expose the last durable-worker heartbeat or heartbeat_unavailable evidence without requiring operators to inspect raw ledger rows."
       ],
-      "note": "Complete: TDD landed internal/subagent/durable_worker_test.go over the existing SQLite DurableLedger. DurableWorker.RunOne now claims one waiting job, records heartbeat evidence only after a successful claim, invokes an injected Go handler with context.Context, persists handler progress, completes result JSON, records handler failures as failed terminal jobs, and returns idle without mutating terminal jobs or starting subprocesses, daemons, shell execution, polling loops, network services, or external TypeScript runtime code. Doctor output now exposes either the last durable-worker heartbeat or heartbeat_unavailable evidence.",
+      "note": "Complete: TDD landed internal/core/subagent/durable_worker_test.go over the existing SQLite DurableLedger. DurableWorker.RunOne now claims one waiting job, records heartbeat evidence only after a successful claim, invokes an injected Go handler with context.Context, persists handler progress, completes result JSON, records handler failures as failed terminal jobs, and returns idle without mutating terminal jobs or starting subprocesses, daemons, shell execution, polling loops, network services, or external TypeScript runtime code. Doctor output now exposes either the last durable-worker heartbeat or heartbeat_unavailable evidence.",
       "write_scope": [
-        "internal/subagent/durable_worker.go",
-        "internal/subagent/durable_worker_test.go",
+        "internal/core/subagent/durable_worker.go",
+        "internal/core/subagent/durable_worker_test.go",
         "internal/doctor/durable_ledger.go",
         "internal/doctor/durable_ledger_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
@@ -897,10 +897,10 @@
         "system"
       ],
       "degraded_mode": "Durable-worker status reports abort_signal_sent, abort_slot_recovered, handler_ignored_abort, or abort_recovery_unavailable instead of leaving capacity wedged.",
-      "fixture": "internal/subagent/durable_worker_abort_test.go",
+      "fixture": "internal/core/subagent/durable_worker_abort_test.go",
       "source_refs": [
-        "internal/subagent/durable_ledger.go",
-        "internal/subagent/durable_supervisor_status_test.go",
+        "internal/core/subagent/durable_ledger.go",
+        "internal/core/subagent/durable_supervisor_status_test.go",
         "internal/doctor/durable_ledger.go"
       ],
       "ready_when": [
@@ -917,10 +917,10 @@
         "TestDurableWorker_ClaimsNextJobAfterRecovery proves a second waiting job can be claimed after recovery from the ignored-abort handler.",
         "Doctor/status fixtures expose handler_ignored_abort and abort_recovery_unavailable without requiring operators to inspect raw ledger rows."
       ],
-      "note": "Complete: TDD landed internal/subagent/durable_worker_abort_test.go over the Go-native DurableWorker.RunOne seam. Timed-out runs now cancel the handler context, record abort_signal_sent audit evidence, terminally cancel the durable job with lock release, and, when a handler ignores cancellation, use an injected bounded grace timer to record handler_ignored_abort plus one-shot abort_slot_recovered evidence before returning capacity. Late handler returns cannot double-complete recovered jobs, a follow-up waiting job can be claimed after recovery, and doctor/status now exposes abort recovery counts including abort_recovery_unavailable.",
+      "note": "Complete: TDD landed internal/core/subagent/durable_worker_abort_test.go over the Go-native DurableWorker.RunOne seam. Timed-out runs now cancel the handler context, record abort_signal_sent audit evidence, terminally cancel the durable job with lock release, and, when a handler ignores cancellation, use an injected bounded grace timer to record handler_ignored_abort plus one-shot abort_slot_recovered evidence before returning capacity. Late handler returns cannot double-complete recovered jobs, a follow-up waiting job can be claimed after recovery, and doctor/status now exposes abort recovery counts including abort_recovery_unavailable.",
       "write_scope": [
-        "internal/subagent/durable_worker.go",
-        "internal/subagent/durable_worker_abort_test.go",
+        "internal/core/subagent/durable_worker.go",
+        "internal/core/subagent/durable_worker_abort_test.go",
         "internal/doctor/durable_ledger.go",
         "internal/doctor/durable_ledger_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
@@ -962,10 +962,10 @@
         "system"
       ],
       "degraded_mode": "Durable-worker policy reports rss_watchdog_disabled, rss_threshold_exceeded, rss_watchdog_unavailable, or stable_watchdog_restart before runtime drain wiring exists.",
-      "fixture": "internal/subagent/durable_worker_rss_watchdog_test.go::TestDurableWorkerRSSWatchdogPolicy",
+      "fixture": "internal/core/subagent/durable_worker_rss_watchdog_test.go::TestDurableWorkerRSSWatchdogPolicy",
       "source_refs": [
-        "internal/subagent/durable_worker.go",
-        "internal/subagent/durable_worker_abort_test.go"
+        "internal/core/subagent/durable_worker.go",
+        "internal/core/subagent/durable_worker_abort_test.go"
       ],
       "ready_when": [
         "Durable worker execution loop and Durable worker abort-slot recovery safety net are validated on main."
@@ -983,10 +983,10 @@
         "TestDurableWorkerRSSWatchdog_RSSReadFailure returns rss_watchdog_unavailable evidence and does not request a drain.",
         "TestDurableWorkerWatchdogRestartPolicy_StableRunReset classifies a watchdog exit after at least five minutes as stable_watchdog_restart and does not increment crash count past one."
       ],
-      "note": "Complete: TDD landed a helper-only durable worker RSS watchdog policy in internal/subagent/durable_worker_rss_watchdog.go. The policy records rss_watchdog_disabled without reading RSS when max_rss_mb=0, degrades RSS read errors as rss_watchdog_unavailable without requesting drain, emits rss_threshold_exceeded evidence with observed_mb/max_mb/checked_at and a drain request, and classifies watchdog exits after at least five minutes as stable_watchdog_restart with crash count reset to one. This slice did not touch DurableWorker.RunOne, doctor/status, cmd/gormes lifecycle, builder-loop backend watchdogs, delegate_task behavior, cron semantics, process self-termination, Goncho memory service code, or Gormes-owned imports.",
+      "note": "Complete: TDD landed a helper-only durable worker RSS watchdog policy in internal/core/subagent/durable_worker_rss_watchdog.go. The policy records rss_watchdog_disabled without reading RSS when max_rss_mb=0, degrades RSS read errors as rss_watchdog_unavailable without requesting drain, emits rss_threshold_exceeded evidence with observed_mb/max_mb/checked_at and a drain request, and classifies watchdog exits after at least five minutes as stable_watchdog_restart with crash count reset to one. This slice did not touch DurableWorker.RunOne, doctor/status, cmd/gormes lifecycle, builder-loop backend watchdogs, delegate_task behavior, cron semantics, process self-termination, Goncho memory service code, or Gormes-owned imports.",
       "write_scope": [
-        "internal/subagent/durable_worker_rss_watchdog.go",
-        "internal/subagent/durable_worker_rss_watchdog_test.go",
+        "internal/core/subagent/durable_worker_rss_watchdog.go",
+        "internal/core/subagent/durable_worker_rss_watchdog_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
@@ -1026,11 +1026,11 @@
         "system"
       ],
       "degraded_mode": "Durable-worker status reports rss_drain_started or rss_handler_abort_sent instead of wedging capacity after threshold evidence.",
-      "fixture": "internal/subagent/durable_worker_rss_drain_test.go",
+      "fixture": "internal/core/subagent/durable_worker_rss_drain_test.go",
       "source_refs": [
-        "internal/subagent/durable_worker.go",
-        "internal/subagent/durable_worker_abort_test.go",
-        "internal/subagent/durable_worker_rss_watchdog.go"
+        "internal/core/subagent/durable_worker.go",
+        "internal/core/subagent/durable_worker_abort_test.go",
+        "internal/core/subagent/durable_worker_rss_watchdog.go"
       ],
       "ready_when": [
         "Durable worker RSS watchdog policy helper is validated on main and exposes threshold/read-failure evidence.",
@@ -1050,12 +1050,12 @@
         "TestDurableWorkerRSSDrain_ReadFailureDoesNotCancel proves rss_watchdog_unavailable evidence does not cancel handlers.",
         "Existing DurableWorker abort-slot recovery tests remain green without sleeps longer than 100ms."
       ],
-      "note": "Complete: TDD added internal/subagent/durable_worker_rss_drain_test.go and wired DurableWorker RSS drain integration through an injected DurableWorkerRSSDrain, fake RSS reader, and optional RSSCheck channel. Completed handlers run a post-job RSS policy check; threshold evidence records rss_drain_started and cancels registered sibling handlers through the existing abort-slot recovery path, which records rss_handler_abort_sent as the abort reason. Periodic checks can start the same drain with zero completions, RSS read failures record rss_watchdog_unavailable without cancelling handlers, and existing timeout/ignored-abort tests still use injected timers with no sleeps longer than 100ms. This slice did not touch doctor/status rendering, cmd/gormes lifecycle, builder-loop backend watchdogs, live delegate_task behavior, cron semantics, process self-termination, or supervisor behavior.",
+      "note": "Complete: TDD added internal/core/subagent/durable_worker_rss_drain_test.go and wired DurableWorker RSS drain integration through an injected DurableWorkerRSSDrain, fake RSS reader, and optional RSSCheck channel. Completed handlers run a post-job RSS policy check; threshold evidence records rss_drain_started and cancels registered sibling handlers through the existing abort-slot recovery path, which records rss_handler_abort_sent as the abort reason. Periodic checks can start the same drain with zero completions, RSS read failures record rss_watchdog_unavailable without cancelling handlers, and existing timeout/ignored-abort tests still use injected timers with no sleeps longer than 100ms. This slice did not touch doctor/status rendering, cmd/gormes lifecycle, builder-loop backend watchdogs, live delegate_task behavior, cron semantics, process self-termination, or supervisor behavior.",
       "write_scope": [
-        "internal/subagent/durable_worker.go",
-        "internal/subagent/durable_worker_rss_watchdog.go",
-        "internal/subagent/durable_worker_rss_drain_test.go",
-        "internal/subagent/durable_worker_abort_test.go",
+        "internal/core/subagent/durable_worker.go",
+        "internal/core/subagent/durable_worker_rss_watchdog.go",
+        "internal/core/subagent/durable_worker_rss_drain_test.go",
+        "internal/core/subagent/durable_worker_abort_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
@@ -1229,7 +1229,7 @@
         "system"
       ],
       "degraded_mode": "Invalid no-agent jobs return cron_no_agent_script_required or cron_no_agent_invalid_mode evidence; script failures return redacted cron_no_agent_script_failed/timeout evidence without leaking secrets or falling back to an agent prompt.",
-      "fixture": "internal/cron/no_agent_test.go; internal/tools/cronjob_tool_no_agent_test.go",
+      "fixture": "internal/automation/cron/no_agent_test.go; internal/tools/cronjob_tool_no_agent_test.go",
       "source_refs": [
         "../hermes-agent/cron/jobs.py@b816fd4e2:create_job",
         "../hermes-agent/cron/scheduler.py@b816fd4e2:run_job,_run_job_script",
@@ -1237,8 +1237,8 @@
         "../hermes-agent/hermes_cli/main.py@b816fd4e2:cron no-agent parser flags",
         "../hermes-agent/hermes_cli/cron.py@b816fd4e2:_add_job,_edit_job",
         "../hermes-agent/tests/cron/test_cron_no_agent.py@b816fd4e2",
-        "internal/cron/job.go",
-        "internal/cron/executor.go",
+        "internal/automation/cron/job.go",
+        "internal/automation/cron/executor.go",
         "internal/tools/cronjob_tool.go"
       ],
       "ready_when": [
@@ -1257,17 +1257,17 @@
         "Non-zero exit and timeout produce redacted alert evidence and never call the provider/kernel submission seam."
       ],
       "write_scope": [
-        "internal/cron/job.go",
-        "internal/cron/executor.go",
-        "internal/cron/no_agent_test.go",
+        "internal/automation/cron/job.go",
+        "internal/automation/cron/executor.go",
+        "internal/automation/cron/no_agent_test.go",
         "internal/tools/cronjob_tool.go",
         "internal/tools/cronjob_tool_no_agent_test.go",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron -run 'TestCronNoAgent' -count=1",
+        "go test ./internal/automation/cron -run 'TestCronNoAgent' -count=1",
         "go test ./internal/tools -run 'TestCronjobTool.*NoAgent' -count=1",
-        "go test ./internal/cron ./internal/tools -count=1",
+        "go test ./internal/automation/cron ./internal/tools -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1286,16 +1286,16 @@
       },
       "evidence": {
         "implementation": [
-          "internal/cron/job.go",
-          "internal/cron/executor.go",
-          "internal/cron/no_agent_test.go",
+          "internal/automation/cron/job.go",
+          "internal/automation/cron/executor.go",
+          "internal/automation/cron/no_agent_test.go",
           "internal/tools/cronjob_tool.go",
           "internal/tools/cronjob_tool_no_agent_test.go"
         ],
         "tests": [
-          "go test ./internal/cron -run 'TestCronNoAgent' -count=1",
+          "go test ./internal/automation/cron -run 'TestCronNoAgent' -count=1",
           "go test ./internal/tools -run 'TestCronjobTool.*NoAgent' -count=1",
-          "go test ./internal/cron ./internal/tools -count=1",
+          "go test ./internal/automation/cron ./internal/tools -count=1",
           "go run ./cmd/progress validate",
           "git diff --check"
         ],

@@ -163,7 +163,7 @@ owner, governing rules, and lifecycle.
 ### `sessions.db`
 | Attribute | Value |
 |---|---|
-| **Readers** | `internal/session` via bbolt; gateway, telegram, TUI, cron, send, chat, discover |
+| **Readers** | `internal/persistence/session` via bbolt; gateway, telegram, TUI, cron, send, chat, discover |
 | **Writers** | Session map, session metadata, cron jobs bucket |
 | **Permissions** | dir parent `0700`, file `0600` |
 | **Rules** | bbolt; 100ms lock timeout → `ErrDBLocked`; corrupt DB detected by `ErrDBCorrupt` → quarantined as `.corrupt-<timestamp>` and recreated. Single bbolt file shared by session map + cron jobs (separate buckets). |
@@ -195,7 +195,7 @@ owner, governing rules, and lifecycle.
 ### `sessions/`
 | Entry | Owner | Rules |
 |---|---|---|
-| `index.yaml` | `internal/session/index_mirror.go` | Read‑only mirror of `sessions.db` for operator audit. Updated periodically on a timer; content‑hash skip avoids redundant writes. |
+| `index.yaml` | `internal/persistence/session/index_mirror.go` | Read‑only mirror of `sessions.db` for operator audit. Updated periodically on a timer; content‑hash skip avoids redundant writes. |
 | `exports/` | `/save` slash handler, `gormes session export` | Transcript `ExportMarkdown` output. Created on first export. Collision-safe with incrementing suffix. |
 
 ### `profiles/<name>/`

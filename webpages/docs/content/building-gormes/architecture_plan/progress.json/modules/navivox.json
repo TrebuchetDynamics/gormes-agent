@@ -1547,14 +1547,14 @@
         "system"
       ],
       "degraded_mode": "If a channel lacks structured tool progress, gateway falls back to existing bounded text progress; if Navivox receives malformed tool metadata, it renders redacted error evidence inside a tool card instead of assistant text.",
-      "fixture": "internal/gateway/tool_progress_structured_test.go; internal/channels/navivox/tool_events_test.go; internal/session/navivox_run_record_test.go",
+      "fixture": "internal/gateway/tool_progress_structured_test.go; internal/channels/navivox/tool_events_test.go; internal/persistence/session/navivox_run_record_test.go",
       "source_refs": [
         "internal/gateway/channel.go:ToolProgressSender",
         "internal/gateway/manager.go:dispatchToolProgress",
         "internal/gateway/render.go:FormatToolProgressEvents",
         "internal/channels/navivox/channel.go:SendToolProgress",
         "internal/channels/navivox/stream.go:safeNavivoxToolMetadata",
-        "internal/session/navivox_run_record.go:AppendToolEvent"
+        "internal/persistence/session/navivox_run_record.go:AppendToolEvent"
       ],
       "ready_when": [
         "`Navivox connect-and-talk first screen` has landed so a streaming chat fixture exists.",
@@ -1589,13 +1589,13 @@
         "internal/channels/navivox/stream.go",
         "internal/channels/navivox/channel_test.go",
         "internal/channels/navivox/tool_events_test.go",
-        "internal/session/navivox_run_record.go",
-        "internal/session/navivox_run_record_test.go",
+        "internal/persistence/session/navivox_run_record.go",
+        "internal/persistence/session/navivox_run_record_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/gateway ./internal/channels/navivox ./internal/session -run 'Test.*Tool.*Progress|Test.*Navivox.*Tool|Test.*RunRecordTool' -count=1",
-        "go test ./internal/gateway ./internal/channels/navivox ./internal/session -count=1",
+        "go test ./internal/gateway ./internal/channels/navivox ./internal/persistence/session -run 'Test.*Tool.*Progress|Test.*Navivox.*Tool|Test.*RunRecordTool' -count=1",
+        "go test ./internal/gateway ./internal/channels/navivox ./internal/persistence/session -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1861,17 +1861,17 @@
         "system"
       ],
       "degraded_mode": "If audio bytes, STT, TTS, or usage data are unavailable, the run record stores explicit unavailable evidence and preserves the text transcript/tool timeline instead of dropping the run or faking costs.",
-      "fixture": "internal/session/navivox_run_record_test.go",
+      "fixture": "internal/persistence/session/navivox_run_record_test.go",
       "source_refs": [
         "internal/apiserver/runs.go:runRecord",
-        "internal/session/",
-        "internal/store/recording.go",
+        "internal/persistence/session/",
+        "internal/persistence/store/recording.go",
         "cmd/gormes/session.go",
         "internal/channels/navivox/channel.go:sessionState",
         "internal/channels/navivox/codemap.md:Voice boundary",
         "https://docs.dograh.com/core-concepts/how-dograh-works",
-        "internal/session/navivox_run_record.go:NavivoxRunRecord",
-        "internal/session/navivox_run_record_test.go:TestNavivoxRunRecordVoiceTurnPreservesEvidenceAndUnknownUsage",
+        "internal/persistence/session/navivox_run_record.go:NavivoxRunRecord",
+        "internal/persistence/session/navivox_run_record_test.go:TestNavivoxRunRecordVoiceTurnPreservesEvidenceAndUnknownUsage",
         "internal/channels/navivox/channel.go:handleRunRecord",
         "internal/channels/navivox/turn.go:turnInput",
         "internal/channels/navivox/channel_test.go:TestNavivoxRunRecordEndpointReturnsRedactedVoiceAndToolTimeline"
@@ -1903,10 +1903,10 @@
         "Tool events appear in the run timeline as typed entries, not assistant prose.",
         "A run inspection endpoint or command returns redacted JSON suitable for the Navivox UI and preserves explicit `unknown` usage/cost evidence when provider usage is absent."
       ],
-      "note": "Complete 2026-05-23 development-goal iteration 60: added internal/session NavivoxRunRecord redacted read model, voice evidence extraction with raw-audio/secret redaction, typed tool timeline entries, explicit unknown provider usage/cost evidence, and authenticated Navivox /v1/navivox/run-records/{run_or_session_id} inspection endpoint. The backend record is retained after turn completion and deliberately stores no raw audio bytes.",
+      "note": "Complete 2026-05-23 development-goal iteration 60: added internal/persistence/session NavivoxRunRecord redacted read model, voice evidence extraction with raw-audio/secret redaction, typed tool timeline entries, explicit unknown provider usage/cost evidence, and authenticated Navivox /v1/navivox/run-records/{run_or_session_id} inspection endpoint. The backend record is retained after turn completion and deliberately stores no raw audio bytes.",
       "write_scope": [
-        "internal/session/",
-        "internal/store/",
+        "internal/persistence/session/",
+        "internal/persistence/store/",
         "internal/apiserver/runs.go",
         "internal/apiserver/responses_runs_test.go",
         "internal/channels/navivox/channel.go",
@@ -1917,9 +1917,9 @@
         "internal/channels/navivox/turn.go"
       ],
       "test_commands": [
-        "go test ./internal/session ./internal/store ./internal/apiserver ./internal/channels/navivox -run 'Test.*Navivox.*Run|Test.*Voice.*Run|Test.*RunRecord' -count=1",
+        "go test ./internal/persistence/session ./internal/persistence/store ./internal/apiserver ./internal/channels/navivox -run 'Test.*Navivox.*Run|Test.*Voice.*Run|Test.*RunRecord' -count=1",
         "go test ./cmd/gormes -run 'TestSession.*Run|TestNavivox.*Run' -count=1",
-        "go test ./internal/session ./internal/store ./internal/apiserver ./internal/channels/navivox -count=1",
+        "go test ./internal/persistence/session ./internal/persistence/store ./internal/apiserver ./internal/channels/navivox -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -2027,7 +2027,7 @@
         "internal/tools/tts_providers.go:BuiltinTTSProviderNames",
         "internal/tools/transcription_providers.go:ValidateTranscriptionProviderConfig",
         "internal/channels/navivox/turn.go:enqueueTurn",
-        "internal/session/navivox_run_record.go:NavivoxVoiceEvidence",
+        "internal/persistence/session/navivox_run_record.go:NavivoxVoiceEvidence",
         "docs/content/building-gormes/architecture_plan/progress.json:Navivox per-profile BYO voice profiles",
         "internal/config/profile_voice_profile_test.go:TestProfileVoiceProfileConfigLoadsAndValidatesProviderMatrix",
         "internal/config/profile_voice_profile_test.go:TestProfileVoiceProfileValidationRejectsUnknownProviders",
@@ -2074,14 +2074,14 @@
         "internal/channels/navivox/turn.go",
         "internal/channels/navivox/voice_profiles.go",
         "internal/channels/navivox/voice_profiles_test.go",
-        "internal/session/navivox_run_record.go",
-        "internal/session/navivox_run_record_test.go",
+        "internal/persistence/session/navivox_run_record.go",
+        "internal/persistence/session/navivox_run_record_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json",
         "internal/tools/slim_stubs.go"
       ],
       "test_commands": [
-        "go test ./internal/config ./internal/tools ./internal/channels/navivox ./internal/session -run 'Test.*VoiceProfile|Test.*TTS|Test.*Transcription|Test.*Navivox.*Voice' -count=1",
-        "go test ./internal/config ./internal/tools ./internal/channels/navivox ./internal/session -count=1",
+        "go test ./internal/config ./internal/tools ./internal/channels/navivox ./internal/persistence/session -run 'Test.*VoiceProfile|Test.*TTS|Test.*Transcription|Test.*Navivox.*Voice' -count=1",
+        "go test ./internal/config ./internal/tools ./internal/channels/navivox ./internal/persistence/session -count=1",
         "go test -tags slim ./internal/channels/navivox -run TestNavivoxVoiceProfilesReadRedactsCredentialsAndValidatesProviders -count=1",
         "go run ./cmd/progress validate",
         "timeout 20m go test ./... -count=1",

@@ -87,11 +87,11 @@ Upstream splits memory across three stores that Gormes compresses into two:
 | Recall + context injection | `agent/memory_provider.py` (recall half) | 3.C | ✅ shipped |
 | Semantic / embeddings | (not in upstream; Gormes-original) | 3.D | ✅ shipped |
 | USER.md mirror | `agent/memory_manager.py` (mirror writer) | 3.D.5 | ✅ shipped |
-| Session index mirror | None (closes bbolt opacity gap) | 3.E.1 | ✅ shipped — `internal/session/index_mirror.go` now ships both the YAML writer and deterministic runtime refresh wiring |
+| Session index mirror | None (closes bbolt opacity gap) | 3.E.1 | ✅ shipped — `internal/persistence/session/index_mirror.go` now ships both the YAML writer and deterministic runtime refresh wiring |
 | Tool execution audit log | None (exceeds Hermes) | 3.E.2 | ✅ shipped |
 | Transcript export command | None (exceeds Hermes; Hermes has no text export) | 3.E.3 | ✅ shipped |
 | Extraction state visibility | None (debug visibility) | 3.E.4 | ✅ shipped — `gormes memory status` renders extractor queue, dead-letter summary, and worker-health heuristics |
-| Insights audit log (lightweight) | `agent/insights.py` (preview; full port in 4.E) | 3.E.5 | ✅ shipped — rollups from `telemetry.Snapshot` plus append-only `internal/insights` JSONL persistence are landed |
+| Insights audit log (lightweight) | `agent/insights.py` (preview; full port in 4.E) | 3.E.5 | ✅ shipped — rollups from `telemetry.Snapshot` plus append-only `internal/automation/insights` JSONL persistence are landed |
 | Memory decay | None (Gormes-original) | 3.E.6 | ✅ shipped — deterministic recall-time attenuation now runs against `COALESCE(NULLIF(last_seen, 0), updated_at)`, schema v3g backfills legacy rows, and relationship writers advance `last_seen` independently of `updated_at` |
 | Cross-chat synthesis | `agent/memory_manager.py` (cross-session), `agent/memory_provider.py` + Honcho/SillyTavern host docs | 3.E.7 | 🔨 in progress — canonical `user_id > chat_id > session_id` metadata, same-chat default fencing, opt-in user/source-filtered recall, interrupted-turn suppression, Honcho-compatible tool schemas, deny-path fixtures, and baseline host-integration fixtures are landed; SillyTavern persona/group-chat mapping and operator evidence still remain |
 | Parent-session chains (compression splits) | `hermes_state.py` (`SessionDB.parent_session_id`) | 3.E.8 | ⏳ planned (pairs with 4.B context compression) |
@@ -131,7 +131,7 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | Subsystem | Upstream | Target phase | Status |
 |---|---|---|---|
 | Anthropic adapter | `agent/anthropic_adapter.py` | 4.A | ✅ complete |
-| Bedrock adapter | `agent/bedrock_adapter.py`, `tests/agent/test_bedrock_adapter.py` | 4.A | 🔨 partial — the pure Converse request-body mapping is landed in `internal/hermes/bedrock_converse.go` with golden fixtures. Remaining Bedrock work stays split into small TDD slices: stream event decoding, SigV4/credential seam, then stale-client eviction/retry classification. Do not attempt another full adapter rewrite until those rows validate |
+| Bedrock adapter | `agent/bedrock_adapter.py`, `tests/agent/test_bedrock_adapter.py` | 4.A | 🔨 partial — the pure Converse request-body mapping is landed in `internal/llm/bedrock_converse.go` with golden fixtures. Remaining Bedrock work stays split into small TDD slices: stream event decoding, SigV4/credential seam, then stale-client eviction/retry classification. Do not attempt another full adapter rewrite until those rows validate |
 | Gemini Cloud Code adapter | `agent/gemini_cloudcode_adapter.py` | 4.A | ⏳ planned |
 | OpenRouter client | `tools/openrouter_client.py`, `agent/auxiliary_client.py`, `agent/model_metadata.py`, `agent/usage_pricing.py`, `hermes_cli/runtime_provider.py` | 4.A | ⏳ planned — not a standalone upstream adapter; it is an OpenAI-compatible resolver/client path with attribution headers, model-family detection, error mapping, and pricing metadata |
 | Google Code Assist | `agent/google_code_assist.py` | 4.A | ⏳ planned |
@@ -142,9 +142,9 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | Billing + cost + usage types | `agent/*` — `BillingRoute`, `CanonicalUsage`, `CostResult` classes | 4.E / 4.H | ⏳ planned |
 | Provider failover | `agent/*` — `FailoverReason` enum + routing logic | 4.H | ⏳ planned |
 | Model metadata types | `agent/model_metadata.py` — `ModelCapabilities`, `ModelInfo` classes | 4.D | ⏳ planned |
-| Error classifier output type | `agent/error_classifier.py` — `ClassifiedError` class | 4.H | 🔨 partial — `internal/hermes/errors.go` exposes retryable/fatal/unknown plus provider-error kinds, and `HTTPError.RetryAfter` parsing is landed; upstream-style structured `ClassifiedError` envelopes remain unported |
+| Error classifier output type | `agent/error_classifier.py` — `ClassifiedError` class | 4.H | 🔨 partial — `internal/llm/errors.go` exposes retryable/fatal/unknown plus provider-error kinds, and `HTTPError.RetryAfter` parsing is landed; upstream-style structured `ClassifiedError` envelopes remain unported |
 | Local edit snapshot | `agent/*` — `LocalEditSnapshot` (for checkpoint rewind) | 5.L | ⏳ planned |
-| Context engine | `agent/context_engine.py` | 4.B | 🔨 partial — Go `ContextEngine` status/tool boundary is validated in `internal/hermes/context_engine.go` and kernel fixtures; compressor budget state, pruning, summaries, and references remain split follow-up slices |
+| Context engine | `agent/context_engine.py` | 4.B | 🔨 partial — Go `ContextEngine` status/tool boundary is validated in `internal/llm/context_engine.go` and kernel fixtures; compressor budget state, pruning, summaries, and references remain split follow-up slices |
 | Context compressor | `agent/context_compressor.py` + `manual_compression_feedback.py` | 4.B | ⏳ planned — status boundary, model-switch budgets, and provider-cap lookup are landed; next pure slice must reconcile Hermes `5006b220` single-prompt auxiliary threshold behavior after `flush_memories` removal before protected head/tail pruning, old tool-output pruning, and manual feedback |
 | Context references | `agent/context_references.py` | 4.B | ⏳ planned — keep separate from compression so reference handles can be tested without provider calls |
 | Prompt builder | `agent/prompt_builder.py` | 4.C | ⏳ planned — split into context-file discovery/injection scan, model-specific role guidance, skills prompt snapshots, and memory/session-search guidance |
@@ -162,7 +162,7 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | Subdirectory hints | `agent/subdirectory_hints.py` | 4.B | ⏳ planned |
 | Skill commands / utils | `agent/skill_commands.py`, `agent/skill_utils.py`, `agent/skill_preprocessing.py` | 4.C / 5.F | ⏳ planned — upstream now has preprocessing and skill-backed slash-command behavior; Gormes should reuse the Phase 2.G active/inactive skill store instead of adding a second skill substrate |
 | Tool-call repair / schema sanitizer | `tests/run_agent/test_repair_tool_call_arguments.py`, `tests/run_agent/test_streaming_tool_call_repair.py`, `tests/run_agent/test_tool_call_args_sanitizer.py`, `tools/schema_sanitizer.py` | 4.A / 5.A | ⏳ planned — shared provider boundary should deterministically repair or reject malformed tool arguments before execution |
-| Error classifier | `agent/error_classifier.py` | 4.H | 🔨 partial — `internal/hermes/errors.go` already classifies retryable vs fatal HTTP/auth/context/rate-limit failures and provider-error kinds for kernel/provider status; richer upstream `ClassifiedError` envelopes still remain |
+| Error classifier | `agent/error_classifier.py` | 4.H | 🔨 partial — `internal/llm/errors.go` already classifies retryable vs fatal HTTP/auth/context/rate-limit failures and provider-error kinds for kernel/provider status; richer upstream `ClassifiedError` envelopes still remain |
 | Redaction | `agent/redact.py` | 4.B | ⏳ planned |
 | Usage / pricing | `agent/usage_pricing.py` | 4.E | ⏳ planned |
 

@@ -5,14 +5,14 @@
     {
       "hermes_file": "agent/context_engine.py",
       "gormes_targets": [
-        "internal/hermes/context_engine.go",
-        "internal/hermes/context_references.go",
-        "internal/hermes/context_compressor_budget.go"
+        "internal/llm/context_engine.go",
+        "internal/llm/context_references.go",
+        "internal/llm/context_compressor_budget.go"
       ],
       "status": "covered",
       "contract": "Hermes context-engine assembly, context references, compression budget/headroom decisions, and provider context-boundary behavior.",
       "tests": [
-        "go test ./internal/hermes -run 'TestContextEngine|TestContextReference|TestContextCompressor' -count=1"
+        "go test ./internal/llm -run 'TestContextEngine|TestContextReference|TestContextCompressor' -count=1"
       ],
       "progress_rows": [
         "Hermes agent runtime strict-fidelity source-pair expansion"
@@ -28,13 +28,13 @@
       "hermes_file": "agent/conversation_loop.py",
       "gormes_targets": [
         "internal/kernel/kernel.go",
-        "internal/hermes/prompt_assembly.go",
-        "internal/hermes/stream.go"
+        "internal/llm/prompt_assembly.go",
+        "internal/llm/stream.go"
       ],
       "status": "partial",
       "contract": "Hermes conversation loop turn orchestration, prompt assembly, streaming events, retry boundaries, and final assistant/tool ordering.",
       "tests": [
-        "go test ./internal/kernel ./internal/hermes -run 'Test.*Turn|Test.*Stream|TestPrompt' -count=1"
+        "go test ./internal/kernel ./internal/llm -run 'Test.*Turn|Test.*Stream|TestPrompt' -count=1"
       ],
       "progress_rows": [
         "Hermes agent runtime strict-fidelity source-pair expansion",
@@ -74,15 +74,15 @@
     {
       "hermes_file": "agent/prompt_builder.py",
       "gormes_targets": [
-        "internal/hermes/prompt_assembly.go",
-        "internal/hermes/context_files.go",
-        "internal/hermes/default_soul.go",
-        "internal/hermes/skills_prompt.go"
+        "internal/llm/prompt_assembly.go",
+        "internal/llm/context_files.go",
+        "internal/llm/default_soul.go",
+        "internal/llm/skills_prompt.go"
       ],
       "status": "partial",
       "contract": "Hermes system-prompt assembly, identity fallback, context-file loading, skill guidance, memory guidance, and provider-visible prompt fragment ordering.",
       "tests": [
-        "go test ./internal/hermes -run 'TestPrompt|TestContextFiles|TestDefaultSoul|TestGuidanceConstants|TestSkillsPrompt' -count=1"
+        "go test ./internal/llm -run 'TestPrompt|TestContextFiles|TestDefaultSoul|TestGuidanceConstants|TestSkillsPrompt' -count=1"
       ],
       "progress_rows": [
         "Default agent identity / SOUL.md loader",
@@ -123,14 +123,14 @@
     {
       "hermes_file": "agent/transports/chat_completions.py",
       "gormes_targets": [
-        "internal/hermes/provider_transport.go",
-        "internal/hermes/openrouter_compatible.go",
-        "internal/hermes/stream.go"
+        "internal/llm/provider_transport.go",
+        "internal/llm/openrouter_compatible.go",
+        "internal/llm/stream.go"
       ],
       "status": "partial",
       "contract": "Hermes OpenAI-compatible chat completions transport, streaming/tool-call projection, provider URL handling, retry diagnostics, and compatibility shims.",
       "tests": [
-        "go test ./internal/hermes -run 'Test.*Transport|Test.*Stream|TestOpenRouter|TestProvider' -count=1"
+        "go test ./internal/llm -run 'Test.*Transport|Test.*Stream|TestOpenRouter|TestProvider' -count=1"
       ],
       "progress_rows": [
         "Hermes agent runtime strict-fidelity source-pair expansion",
@@ -147,14 +147,14 @@
     {
       "hermes_file": "agent/transports/codex.py",
       "gormes_targets": [
-        "internal/hermes/codex_responses_adapter.go",
-        "internal/hermes/codex_responses_stream.go",
-        "internal/hermes/codex_cloudflare_headers.go"
+        "internal/llm/codex_responses_adapter.go",
+        "internal/llm/codex_responses_stream.go",
+        "internal/llm/codex_cloudflare_headers.go"
       ],
       "status": "partial",
       "contract": "Hermes Codex transport request projection, Responses API stream repair, role/content mapping, Cloudflare headers, temperature/model compatibility, and multimodal tool-result handling.",
       "tests": [
-        "go test ./internal/hermes -run 'TestCodex|TestResponses|TestCloudflare' -count=1"
+        "go test ./internal/llm -run 'TestCodex|TestResponses|TestCloudflare' -count=1"
       ],
       "progress_rows": [
         "Hermes agent runtime strict-fidelity source-pair expansion",
@@ -258,7 +258,7 @@
       "gormes_targets": [
         "internal/config",
         "cmd/gormes/config.go",
-        "internal/hermes/default_soul.go"
+        "internal/llm/default_soul.go"
       ],
       "status": "partial",
       "contract": "Hermes home/config defaults, config load/save behavior, secure default SOUL seeding, provider defaults, and user-visible config command behavior.",
@@ -280,14 +280,14 @@
     {
       "hermes_file": "hermes_cli/default_soul.py",
       "gormes_targets": [
-        "internal/hermes/default_soul.go",
-        "internal/agenttemplate/default_templates.go",
-        "internal/agenttemplate/parity_manifest.go"
+        "internal/llm/default_soul.go",
+        "internal/core/agenttemplate/default_templates.go",
+        "internal/core/agenttemplate/parity_manifest.go"
       ],
       "status": "covered",
       "contract": "Default SOUL.md seed text, built-in identity fallback, and fresh-install template classification, with only the intentional Gorm default-persona and gormes runtime substitution.",
       "tests": [
-        "go test ./internal/hermes -run 'TestDefaultSoul|TestIdentityLoader' -count=1",
+        "go test ./internal/llm -run 'TestDefaultSoul|TestIdentityLoader' -count=1",
         "go test ./internal/agenttemplate -count=1"
       ],
       "progress_rows": [
@@ -347,15 +347,15 @@
       "hermes_file": "run_agent.py",
       "gormes_targets": [
         "internal/kernel/kernel.go",
-        "internal/hermes/prompt_assembly.go",
-        "internal/subagent"
+        "internal/llm/prompt_assembly.go",
+        "internal/core/subagent"
       ],
       "status": "partial",
       "contract": "Main Hermes agent turn loop, tool execution budget, background review hooks, subagent behavior, provider turn assembly, and session reset boundaries.",
       "tests": [
         "go test ./internal/kernel -count=1",
-        "go test ./internal/hermes -count=1",
-        "go test ./internal/subagent -count=1"
+        "go test ./internal/llm -count=1",
+        "go test ./internal/core/subagent -count=1"
       ],
       "progress_rows": [
         "Kernel tool loop",

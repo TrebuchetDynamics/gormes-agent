@@ -2463,7 +2463,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func semanticModel() string {
@@ -2697,7 +2697,7 @@ Expected: `bin/gormes` ≤ 18 MB (pure-Go additions, expected growth <250 KB).
 
 ```bash
 cd gormes
-(go list -deps ./internal/kernel | grep -E "ncruces|internal/memory|internal/session") \
+(go list -deps ./internal/kernel | grep -E "ncruces|internal/memory|internal/persistence/session") \
   && echo "VIOLATION" || echo "OK: kernel isolated from memory"
 ```
 

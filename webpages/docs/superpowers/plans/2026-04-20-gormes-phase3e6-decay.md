@@ -867,7 +867,7 @@ Expected: `bin/gormes` stays at ~17 MB (no new deps, no new code paths).
 
 ```bash
 cd <repo>/gormes
-(go list -deps ./internal/kernel | grep -E "ncruces|internal/memory|internal/session|internal/cron") \
+(go list -deps ./internal/kernel | grep -E "ncruces|internal/memory|internal/persistence/session|internal/automation/cron") \
   && echo "VIOLATION" || echo "OK: kernel isolated"
 ```
 

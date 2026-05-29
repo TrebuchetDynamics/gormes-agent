@@ -23,7 +23,7 @@
         "../hermes-agent/run_agent.py",
         "../hermes-agent/agent/",
         "../hermes-agent/plugins/memory/honcho/__init__.py",
-        "internal/hermes/",
+        "internal/llm/",
         "internal/kernel/",
         "internal/tools/",
         "internal/goncho/",
@@ -53,7 +53,7 @@
       "write_scope": [
         "internal/support/e2e/",
         "internal/kernel/",
-        "internal/hermes/",
+        "internal/llm/",
         "internal/goncho/",
         "internal/gonchotools/",
         "internal/memory/",
@@ -62,7 +62,7 @@
       ],
       "test_commands": [
         "go test ./internal/e2e -run '^TestPythonFreeNormalAgentTurn$' -count=1",
-        "go test ./internal/e2e ./internal/kernel ./internal/hermes ./internal/goncho ./internal/gonchotools ./internal/memory ./internal/tools -count=1",
+        "go test ./internal/e2e ./internal/kernel ./internal/llm ./internal/goncho ./internal/gonchotools ./internal/memory ./internal/tools -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -258,7 +258,7 @@
       "name": "Hermes compatibility namespace retirement boundary",
       "priority": "P2",
       "status": "complete",
-      "contract": "Gormes splits the current `internal/hermes` parity staging package into durable Gormes-owned runtime packages and a narrow Hermes compatibility namespace after provider/model/tool-call/context fixtures are stable. Hermes-specific import, drift, command/config, provider/platform inventory, and deprecated-shim evidence moves to `internal/compat/hermes`; provider transport/routing, model metadata, tool-call parsing/repair, account usage, prompt/context/compression helpers, and normal-turn runtime contracts move to Gormes-owned packages. `internal/hermes` is allowed only as a temporary import shim during the migration and must be removed or reduced to no public runtime ownership before release readiness.",
+      "contract": "Gormes splits the current `internal/llm` parity staging package into durable Gormes-owned runtime packages and a narrow Hermes compatibility namespace after provider/model/tool-call/context fixtures are stable. Hermes-specific import, drift, command/config, provider/platform inventory, and deprecated-shim evidence moves to `internal/compat/hermes`; provider transport/routing, model metadata, tool-call parsing/repair, account usage, prompt/context/compression helpers, and normal-turn runtime contracts move to Gormes-owned packages. `internal/llm` is allowed only as a temporary import shim during the migration and must be removed or reduced to no public runtime ownership before release readiness.",
       "contract_status": "validated",
       "slice_size": "large",
       "execution_owner": "provider",
@@ -268,13 +268,13 @@
         "gateway",
         "system"
       ],
-      "degraded_mode": "If a caller still imports `internal/hermes` for Gormes-owned runtime behavior after the migration, package-boundary tests report hermes_namespace_runtime_leak with the importing package and the target replacement package. Hermes compatibility docs and drift manifests remain available under `internal/compat/hermes` so removing the staging namespace does not hide upstream parity evidence.",
+      "degraded_mode": "If a caller still imports `internal/llm` for Gormes-owned runtime behavior after the migration, package-boundary tests report hermes_namespace_runtime_leak with the importing package and the target replacement package. Hermes compatibility docs and drift manifests remain available under `internal/compat/hermes` so removing the staging namespace does not hide upstream parity evidence.",
       "fixture": "internal/compat/hermes/namespace_contract_test.go::TestHermesCompatibilityBoundaryOwnsOnlyCompatibilitySurfaces",
       "source_refs": [
         "docs/content/building-gormes/architecture_plan/boundaries.md:Hermes Compatibility Namespace Boundary",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Namespace note",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Gormes-Native Pending Decisions",
-        "internal/hermes/",
+        "internal/llm/",
         "internal/kernel/",
         "internal/runtime/",
         "internal/config/",
@@ -284,7 +284,7 @@
       "ready_when": [
         "Hermes provider registry and alias manifest is complete so provider IDs, aliases, auth modes, and model metadata have one source-backed table before package movement.",
         "Python-free normal agent turn e2e harness and Provider-tool-memory golden transcript suite remain green, proving provider/tool/memory behavior through public runtime fixtures before and after package movement.",
-        "Native runtime provider gateway binding is complete so gateway callers can depend on a Gormes runtime seam rather than `internal/hermes` package names.",
+        "Native runtime provider gateway binding is complete so gateway callers can depend on a Gormes runtime seam rather than `internal/llm` package names.",
         "The builder can move Go files with mechanical import rewrites and focused boundary tests without changing provider behavior, command spelling, config precedence, or live credential flows."
       ],
       "not_ready_when": [
@@ -305,12 +305,12 @@
       ],
       "acceptance": [
         "`internal/compat/hermes` contains only upstream compatibility surfaces: config/import compatibility, command-surface/drift manifests, provider/platform inventory provenance, fixture metadata, and explicit deprecated shims.",
-        "Gormes-owned runtime code has package names that describe product architecture rather than donor origin: provider transport/routing, model registry, tool-call parser/repair, account usage, prompt/context/compression, and runtime bridge seams no longer live in `internal/hermes`.",
-        "Package-boundary tests fail if a new runtime package imports `internal/hermes` for non-compat behavior or if compat code imports live provider/gateway runtimes directly.",
+        "Gormes-owned runtime code has package names that describe product architecture rather than donor origin: provider transport/routing, model registry, tool-call parser/repair, account usage, prompt/context/compression, and runtime bridge seams no longer live in `internal/llm`.",
+        "Package-boundary tests fail if a new runtime package imports `internal/llm` for non-compat behavior or if compat code imports live provider/gateway runtimes directly.",
         "Normal-turn, provider transcript, tool-call parser, model registry, account usage, config/auth, and gateway native runtime tests pass with no behavior drift.",
         "Docs explain that Hermes remains a compatibility contract and donor reference, while Gormes-owned runtime architecture no longer carries the Hermes package name."
       ],
-      "note": "Long-term namespace plan added 2026-04-29 after the package-boundary review concluded that `internal/hermes` is an honest parity staging name but a poor permanent home for Gormes-owned runtime architecture. This row is intentionally blocked until registry and normal-turn fixtures are stable, so the rename is a behavior-preserving split rather than churn.",
+      "note": "Long-term namespace plan added 2026-04-29 after the package-boundary review concluded that `internal/llm` is an honest parity staging name but a poor permanent home for Gormes-owned runtime architecture. This row is intentionally blocked until registry and normal-turn fixtures are stable, so the rename is a behavior-preserving split rather than churn.",
       "write_scope": [
         "internal/compat/hermes/",
         "internal/provider/",
@@ -319,7 +319,7 @@
         "internal/contextengine/",
         "internal/runtime/",
         "internal/kernel/",
-        "internal/hermes/",
+        "internal/llm/",
         "docs/content/building-gormes/architecture_plan/boundaries.md",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
@@ -327,13 +327,13 @@
       ],
       "test_commands": [
         "go test ./internal/compat/hermes ./internal/provider ./internal/modelregistry ./internal/toolcall ./internal/contextengine ./internal/runtime ./internal/kernel ./internal/e2e -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -count=1",
         "go test ./... -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
       "done_signal": [
-        "Hermes compatibility evidence lives under `internal/compat/hermes`, Gormes-owned runtime imports no longer depend on `internal/hermes`, and full normal-turn/provider/tool-call/config/gateway tests prove behavior stayed stable."
+        "Hermes compatibility evidence lives under `internal/compat/hermes`, Gormes-owned runtime imports no longer depend on `internal/llm`, and full normal-turn/provider/tool-call/config/gateway tests prove behavior stayed stable."
       ],
       "wired": true,
       "provenance": {
@@ -447,8 +447,8 @@
       ],
       "source_refs": [
         "docs/content/papers/safety-and-deployment.md",
-        "internal/hermes/turn.go",
-        "internal/hermes/agent_loop.go"
+        "internal/llm/turn.go",
+        "internal/llm/agent_loop.go"
       ],
       "ready_when": [
         "Agent turn loop has a hook point before tool dispatch",
@@ -464,20 +464,20 @@
         "Safe plans pass through with zero added latency >10ms P99",
         "Plan gate is testable with mock tool sets"
       ],
-      "note": "Complete: internal/hermes/safety_plan_gate.go defines a default plan gate with trust-class validation and custom rule injection; fixtures prove safe plans pass, unsafe plans produce structured refusal reasons, single unsafe calls block the plan, empty plans pass, and custom/multiple rules are honored.",
+      "note": "Complete: internal/llm/safety_plan_gate.go defines a default plan gate with trust-class validation and custom rule injection; fixtures prove safe plans pass, unsafe plans produce structured refusal reasons, single unsafe calls block the plan, empty plans pass, and custom/multiple rules are honored.",
       "write_scope": [
-        "internal/hermes/safety_plan_gate.go",
-        "internal/hermes/safety_plan_gate_test.go"
+        "internal/llm/safety_plan_gate.go",
+        "internal/llm/safety_plan_gate_test.go"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run TestPlanGate -count=1"
+        "go test ./internal/llm -run TestPlanGate -count=1"
       ],
       "done_signal": [
         "Plan gate tests prove safe plans pass and unsafe plans are refused"
       ],
       "evidence": {
-        "implementation": "internal/hermes/safety_plan_gate.go",
-        "tests": "go test ./internal/hermes -run TestPlanGate -count=1",
+        "implementation": "internal/llm/safety_plan_gate.go",
+        "tests": "go test ./internal/llm -run TestPlanGate -count=1",
         "note": "Plan gate behavior is verified by TestPlanGate_* fixtures and participates in the ReAct safety adapter integration tests."
       }
     }
@@ -500,7 +500,7 @@
       ],
       "source_refs": [
         "docs/content/papers/safety-and-deployment.md",
-        "internal/hermes/turn.go"
+        "internal/llm/turn.go"
       ],
       "ready_when": [
         "Plan gate or tool gate exists (4.L rows 1-2)"
@@ -514,20 +514,20 @@
         "Agent can recover and try alternative approach after refusal",
         "Refusal does not count as an error in session stats"
       ],
-      "note": "Complete: internal/hermes/refuse_action.go models refusal as a first-class ReAct action and adapts plan/tool gate denials into refusal decisions with redacted JSON evidence while allowing the turn to continue for recovery.",
+      "note": "Complete: internal/llm/refuse_action.go models refusal as a first-class ReAct action and adapts plan/tool gate denials into refusal decisions with redacted JSON evidence while allowing the turn to continue for recovery.",
       "write_scope": [
-        "internal/hermes/refuse_action.go",
-        "internal/hermes/refuse_action_test.go"
+        "internal/llm/refuse_action.go",
+        "internal/llm/refuse_action_test.go"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run TestRefuseAction -count=1"
+        "go test ./internal/llm -run TestRefuseAction -count=1"
       ],
       "done_signal": [
         "Refusal tests prove the agent can refuse, explain, and recover"
       ],
       "evidence": {
-        "implementation": "internal/hermes/refuse_action.go",
-        "tests": "go test ./internal/hermes -run TestRefuseAction -count=1",
+        "implementation": "internal/llm/refuse_action.go",
+        "tests": "go test ./internal/llm -run TestRefuseAction -count=1",
         "note": "Refusal fixtures prove plan refusal, tool refusal, safe proceed/execute decisions, and MarshalEvidence output."
       }
     }
@@ -551,9 +551,9 @@
       ],
       "source_refs": [
         "docs/content/papers/safety-and-deployment.md",
-        "internal/hermes/safety_plan_gate.go",
+        "internal/llm/safety_plan_gate.go",
         "internal/tools/safety_tool_gate.go",
-        "internal/hermes/refuse_action.go"
+        "internal/llm/refuse_action.go"
       ],
       "ready_when": [
         "Plan gate, tool gate, and refusal all exist (4.L rows 1-3)"
@@ -567,19 +567,19 @@
         "Tool drift in multi-step chain is detected mid-chain",
         "Agent recovers after refusal and completes alternative approach"
       ],
-      "note": "Complete: internal/hermes/safety_loop_integration_test.go proves the plan gate, tool gate, and refusal action work together across safe turns, unsafe plans, tool drift, and recovery after refusal.",
+      "note": "Complete: internal/llm/safety_loop_integration_test.go proves the plan gate, tool gate, and refusal action work together across safe turns, unsafe plans, tool drift, and recovery after refusal.",
       "write_scope": [
-        "internal/hermes/safety_loop_integration_test.go"
+        "internal/llm/safety_loop_integration_test.go"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run TestSafetyLoop -count=1"
+        "go test ./internal/llm -run TestSafetyLoop -count=1"
       ],
       "done_signal": [
         "Integration tests prove end-to-end safety loop handles safe, unsafe, drift, and recovery scenarios"
       ],
       "evidence": {
-        "implementation": "internal/hermes/safety_plan_gate.go, internal/hermes/safety_tool_gate.go, internal/hermes/refuse_action.go",
-        "tests": "go test ./internal/hermes -run TestSafetyLoop -count=1",
+        "implementation": "internal/llm/safety_plan_gate.go, internal/llm/safety_tool_gate.go, internal/llm/refuse_action.go",
+        "tests": "go test ./internal/llm -run TestSafetyLoop -count=1",
         "note": "Safety loop fixtures prove safe actions pass, unsafe plans are caught before tool execution, tactical tool drift is refused, and a later safe action can execute after refusal."
       }
     }
@@ -662,7 +662,7 @@
       "source_refs": [
         "cmd/gormes/status.go",
         "internal/cli/status.go",
-        "internal/cron/operator_run_report.go",
+        "internal/automation/cron/operator_run_report.go",
         "internal/doctor/durable_ledger.go",
         "internal/gateway/status.go"
       ],
@@ -687,11 +687,11 @@
         "cmd/gormes/status.go",
         "cmd/gormes/status_operator_report_test.go",
         "internal/cli/status.go",
-        "internal/cron/operator_run_report.go"
+        "internal/automation/cron/operator_run_report.go"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestStatusRendersLatestOperatorRunReport|TestStatusJSON' -count=1",
-        "go test ./cmd/gormes ./internal/cron -run 'Test(Status|OperatorRunReport)' -count=1",
+        "go test ./cmd/gormes ./internal/automation/cron -run 'Test(Status|OperatorRunReport)' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -712,7 +712,7 @@
         "tests": [
           "RED: go test ./cmd/gormes -run TestStatusRendersLatestOperatorRunReport -count=1 failed before implementation",
           "GREEN: go test ./cmd/gormes -run 'TestStatusRendersLatestOperatorRunReport|TestStatusJSONIncludesOperatorRunReport|TestStatusMissingOperatorRunReport|TestStatusMalformedOperatorRunReport' -count=1 -> ok (4 tests)",
-          "GREEN: go test ./internal/cron -run TestOperatorRunReport -count=1 -> ok (6 subtests)",
+          "GREEN: go test ./internal/automation/cron -run TestOperatorRunReport -count=1 -> ok (6 subtests)",
           "go run ./cmd/progress validate -> validated 9 phases"
         ]
       }
@@ -813,7 +813,7 @@
         "system"
       ],
       "degraded_mode": "Loop events are emitted with type and evidence; agent can break loops or escalate to operator",
-      "fixture": "internal/agent/loop_detector_test.go",
+      "fixture": "internal/core/agent/loop_detector_test.go",
       "source_refs": [
         "mercury-agent/src/core/loop_detection.ts",
         "hermes-agent/agent/auxiliary_client.py"
@@ -831,7 +831,7 @@
       ],
       "note": "Cross-project adoption from mercury-agent: runaway loop prevention is a real production problem.",
       "write_scope": [
-        "internal/agent/loop_detector.go"
+        "internal/core/agent/loop_detector.go"
       ],
       "test_commands": [
         "go test ./internal/agent -run TestLoopDetection -count=1"
@@ -841,17 +841,17 @@
       ],
       "evidence": {
         "implementation": [
-          "internal/agent/loop_detector.go:LoopDetector, TurnRecord, LoopDetectionResult",
-          "internal/agent/loop_detector.go:checkHardLoop, checkFailingLoop, checkTextRepetition, checkNoAction, checkSameTool"
+          "internal/core/agent/loop_detector.go:LoopDetector, TurnRecord, LoopDetectionResult",
+          "internal/core/agent/loop_detector.go:checkHardLoop, checkFailingLoop, checkTextRepetition, checkNoAction, checkSameTool"
         ],
         "tests": [
-          "internal/agent/loop_detector_test.go:TestLoopDetector_HardLoop",
-          "internal/agent/loop_detector_test.go:TestLoopDetector_FailingLoop",
-          "internal/agent/loop_detector_test.go:TestLoopDetector_TextRepetition",
-          "internal/agent/loop_detector_test.go:TestLoopDetector_NoAction",
-          "internal/agent/loop_detector_test.go:TestLoopDetector_SameTool",
-          "internal/agent/loop_detector_test.go:TestLoopDetector_ConfigurableThresholds",
-          "internal/agent/loop_detector_test.go:TestLoopDetector_EvidenceContainsType"
+          "internal/core/agent/loop_detector_test.go:TestLoopDetector_HardLoop",
+          "internal/core/agent/loop_detector_test.go:TestLoopDetector_FailingLoop",
+          "internal/core/agent/loop_detector_test.go:TestLoopDetector_TextRepetition",
+          "internal/core/agent/loop_detector_test.go:TestLoopDetector_NoAction",
+          "internal/core/agent/loop_detector_test.go:TestLoopDetector_SameTool",
+          "internal/core/agent/loop_detector_test.go:TestLoopDetector_ConfigurableThresholds",
+          "internal/core/agent/loop_detector_test.go:TestLoopDetector_EvidenceContainsType"
         ],
         "verification": [
           "go test ./internal/agent -count=1 -> ok",
@@ -881,7 +881,7 @@
         "docs/content/papers/safety-and-deployment.md",
         "OpenCode event bus architecture",
         "internal/gateway/router.go",
-        "internal/hermes/turn.go"
+        "internal/llm/turn.go"
       ],
       "ready_when": [
         "Minimal viable: at least two subsystems that would benefit from decoupling"
@@ -1094,7 +1094,7 @@
       "name": "Agent middleware chain framework",
       "priority": "P1",
       "status": "complete",
-      "contract": "Gormes gains a declarative middleware chain framework for the agent runtime (internal/hermes + internal/agent), inspired by DeerFlow's 19-middleware ordered chain with @Next/@Prev positioning and RuntimeFeatures-style toggle flags. Each middleware implements a single concern: thread-data setup, sandbox lifecycle, tool error handling, loop detection, memory injection, title generation, token usage tracking, clarification interception. Middlewares are assembled into an ordered chain by a factory that accepts a RuntimeFeatures struct where each feature = enabled (use built-in), disabled, or a custom Middleware instance. The middleware ordering is deterministic, and the chain is inspectable (dump to string for debugging).",
+      "contract": "Gormes gains a declarative middleware chain framework for the agent runtime (internal/llm + internal/agent), inspired by DeerFlow's 19-middleware ordered chain with @Next/@Prev positioning and RuntimeFeatures-style toggle flags. Each middleware implements a single concern: thread-data setup, sandbox lifecycle, tool error handling, loop detection, memory injection, title generation, token usage tracking, clarification interception. Middlewares are assembled into an ordered chain by a factory that accepts a RuntimeFeatures struct where each feature = enabled (use built-in), disabled, or a custom Middleware instance. The middleware ordering is deterministic, and the chain is inspectable (dump to string for debugging).",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "orchestrator",
@@ -1104,7 +1104,7 @@
         "system"
       ],
       "degraded_mode": "Without the middleware chain, the agent runtime uses hardcoded turn lifecycle without inspection, ordering, or feature toggles. Individual agents can still run but cannot customize their behavior pipeline.",
-      "fixture": "internal/agent/middleware_test.go",
+      "fixture": "internal/core/agent/middleware_test.go",
       "source_refs": [
         "./deer-flow/backend/packages/harness/deerflow/agents/factory.py",
         "./deer-flow/backend/packages/harness/deerflow/agents/features.py",
@@ -1112,17 +1112,17 @@
         "docs/content/building-gormes/development-skills/deerflow-pattern-theft.md"
       ],
       "ready_when": [
-        "internal/agent/ has a Middleware interface and a MiddlewareChain type with deterministic ordering.",
-        "A RuntimeFeatures struct exists in internal/config or internal/agent/.",
+        "internal/core/agent/ has a Middleware interface and a MiddlewareChain type with deterministic ordering.",
+        "A RuntimeFeatures struct exists in internal/config or internal/core/agent/.",
         "At least 3 built-in middlewares are implemented and tested (e.g. ThreadData, ToolErrorHandling, LoopDetection).",
-        "The existing internal/agent/loop_detector.go is refactored into a middleware.",
-        "go test ./internal/agent/ -count=1 is green after each middleware addition."
+        "The existing internal/core/agent/loop_detector.go is refactored into a middleware.",
+        "go test ./internal/core/agent/ -count=1 is green after each middleware addition."
       ],
       "not_ready_when": [
-        "The middleware chain replaces or duplicates existing internal/hermes agent flow without clear migration path.",
+        "The middleware chain replaces or duplicates existing internal/llm agent flow without clear migration path.",
         "The row tries to port all 19 DeerFlow middlewares in one slice — aim for 3-5 core middlewares first.",
         "The RuntimeFeatures struct uses Go generics for the bool|Middleware union; use a wrapper type instead.",
-        "Existing internal/hermes tests break without a validation plan."
+        "Existing internal/llm tests break without a validation plan."
       ],
       "acceptance": [
         "MiddlewareChain assemblages middlewares in deterministic, inspectable order.",
@@ -1132,18 +1132,18 @@
         "Integration into hermes.Client or kernel.Config allows turn-level Before/After hooks."
       ],
       "write_scope": [
-        "internal/agent/middleware.go",
-        "internal/agent/middleware_test.go",
-        "internal/agent/features.go",
-        "internal/agent/features_test.go",
-        "internal/agent/builtin.go",
-        "internal/hermes/",
+        "internal/core/agent/middleware.go",
+        "internal/core/agent/middleware_test.go",
+        "internal/core/agent/features.go",
+        "internal/core/agent/features_test.go",
+        "internal/core/agent/builtin.go",
+        "internal/llm/",
         "internal/kernel/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/agent -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1152,11 +1152,11 @@
       ],
       "evidence": {
         "implementation": [
-          "internal/agent/middleware.go: Middleware interface, MiddlewareChain type with Add/Names/Dump/Before/After",
-          "internal/agent/features.go: RuntimeFeatures struct, FeatureFlag enum, AssembleFromFeatures() factory",
-          "internal/agent/builtin.go: 5 built-in middlewares (thread_data, tool_error, loop_detector, memory, subagent)",
-          "internal/agent/loop_detector.go: existing LoopDetector wrapped via loopDetectAdapter (unchanged core logic)",
-          "internal/agent/middleware_test.go: 11 tests covering empty chain, ordering, Before/After lifecycle, abort-on-error, Add, loop detector adapter, RuntimeFeatures assembly, disabled/custom features, context data propagation, Dump()"
+          "internal/core/agent/middleware.go: Middleware interface, MiddlewareChain type with Add/Names/Dump/Before/After",
+          "internal/core/agent/features.go: RuntimeFeatures struct, FeatureFlag enum, AssembleFromFeatures() factory",
+          "internal/core/agent/builtin.go: 5 built-in middlewares (thread_data, tool_error, loop_detector, memory, subagent)",
+          "internal/core/agent/loop_detector.go: existing LoopDetector wrapped via loopDetectAdapter (unchanged core logic)",
+          "internal/core/agent/middleware_test.go: 11 tests covering empty chain, ordering, Before/After lifecycle, abort-on-error, Add, loop detector adapter, RuntimeFeatures assembly, disabled/custom features, context data propagation, Dump()"
         ],
         "tests": "go test ./internal/agent -count=1 (20 tests pass)"
       }
@@ -1276,16 +1276,16 @@
         "system"
       ],
       "degraded_mode": "If a child identity cannot be resolved, delegation refuses with child_identity_unresolved evidence and leaves the parent turn untouched rather than running as an ambiguous root persona.",
-      "fixture": "internal/subagent/picoclaw_identity_regression_test.go",
+      "fixture": "internal/core/subagent/picoclaw_identity_regression_test.go",
       "source_refs": [
         "https://github.com/sipeed/picoclaw/issues/1934",
         "https://github.com/sipeed/picoclaw/issues/2148",
         "https://github.com/sipeed/picoclaw/issues/2775",
         "https://github.com/sipeed/picoclaw/issues/294",
         "https://github.com/sipeed/picoclaw/issues/284",
-        "internal/subagent/",
+        "internal/core/subagent/",
         "internal/goncho/dynamic_agents.go",
-        "internal/agent/middleware.go",
+        "internal/core/agent/middleware.go",
         "internal/skills/"
       ],
       "ready_when": [
@@ -1303,10 +1303,10 @@
         "TestDynamicAgentIdentity_MemoryScopeIsChildAware proves child memory/search scope names both child agent ID and parent lineage without merging unrelated root-agent facts."
       ],
       "write_scope": [
-        "internal/subagent/picoclaw_identity_regression_test.go",
-        "internal/subagent/",
+        "internal/core/subagent/picoclaw_identity_regression_test.go",
+        "internal/core/subagent/",
         "internal/goncho/",
-        "internal/agent/",
+        "internal/core/agent/",
         "internal/skills/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
@@ -1327,15 +1327,15 @@
       "completed_at": "2026-05-15T17:38:28-06:00",
       "evidence": {
         "implementation": [
-          "internal/subagent/picoclaw_identity_regression_test.go adds hermetic fixtures that resolve dynamic agents from the Goncho registry, assert child persona/project/tool/memory scope, and prove unresolved child identities refuse launch without mutating the parent turn.",
-          "internal/subagent/dynamic_identity.go adds a pure launch-plan resolver that keeps parent identity as lineage metadata, uses child persona as the active identity, selects child AGENTS/workspace scope, requires explicit parent tool-policy inheritance, emits child-aware memory/search namespaces, and returns child_identity_unresolved evidence for ambiguous launches."
+          "internal/core/subagent/picoclaw_identity_regression_test.go adds hermetic fixtures that resolve dynamic agents from the Goncho registry, assert child persona/project/tool/memory scope, and prove unresolved child identities refuse launch without mutating the parent turn.",
+          "internal/core/subagent/dynamic_identity.go adds a pure launch-plan resolver that keeps parent identity as lineage metadata, uses child persona as the active identity, selects child AGENTS/workspace scope, requires explicit parent tool-policy inheritance, emits child-aware memory/search namespaces, and returns child_identity_unresolved evidence for ambiguous launches."
         ],
         "tests": [
-          "internal/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_ChildPersonaOverridesRootRole",
-          "internal/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_AGENTSScopesDoNotBleedAcrossChild",
-          "internal/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_ToolPolicyInheritedOnlyWhenExplicit",
-          "internal/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_MemoryScopeIsChildAware",
-          "internal/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_UnresolvedChildRefusesLaunch"
+          "internal/core/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_ChildPersonaOverridesRootRole",
+          "internal/core/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_AGENTSScopesDoNotBleedAcrossChild",
+          "internal/core/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_ToolPolicyInheritedOnlyWhenExplicit",
+          "internal/core/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_MemoryScopeIsChildAware",
+          "internal/core/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_UnresolvedChildRefusesLaunch"
         ],
         "verification": [
           "RED: go test ./internal/subagent ./internal/goncho ./internal/agent ./internal/skills -run '^TestDynamicAgentIdentity_' -count=1 failed because ResolveDynamicAgentIdentity and identity evidence types did not exist.",

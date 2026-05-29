@@ -46,7 +46,7 @@ weight: 20
 | Tool truncation | `nanobot/pkg/agents/truncate.go` | `internal/tools` |
 | Token budget | `axe/internal/budget/budget.go` | `internal/budget` |
 | Write queue | `engram/internal/mcp/write_queue.go` | `internal/goncho`, `internal/subagent` |
-| SQLite/FTS5 schema | `engram/internal/store/store.go` | Goncho storage |
+| SQLite/FTS5 schema | `engram/internal/persistence/store/store.go` | Goncho storage |
 | State machine | `agentcontrolplane/acp/internal/controller/task/state_machine.go` | Turn lifecycle |
 | Tool declaration | `trpc-agent-go/tool/tool.go` | Tool descriptor layer |
 | Await-user-reply | `trpc-agent-go/agent/await_user_reply.go` | Gateway routing |

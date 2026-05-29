@@ -11,7 +11,7 @@
 ## Definition of Done
 1. All Phase 4 items marked `complete`.
 2. Provider adapter contract tests pass.
-3. `go test ./internal/hermes ./internal/kernel ./internal/config ./docs -count=1` passes.
+3. `go test ./internal/llm ./internal/kernel ./internal/config ./docs -count=1` passes.
 4. `go test ./... -count=1` passes.
 
 ## Slice P4-A — Provider adapter framework + first providers
@@ -19,13 +19,13 @@ Targets:
 - `4.A` adapters: Anthropic, Bedrock, Gemini, OpenRouter, Google Code Assist, Codex
 
 Files:
-- `internal/hermes/*`
+- `internal/llm/*`
 - `internal/config/*`
-- `internal/hermes/*_test.go`
+- `internal/llm/*_test.go`
 
 Verify:
 ```bash
-go test ./internal/hermes ./internal/config -count=1
+go test ./internal/llm ./internal/config -count=1
 ```
 
 Commit:
@@ -73,13 +73,13 @@ Targets:
 
 Files:
 - `internal/telemetry/*`
-- `internal/session/*`
+- `internal/persistence/session/*`
 - `internal/config/*`
 - `cmd/gormes/*`
 
 Verify:
 ```bash
-go test ./internal/telemetry ./internal/session ./cmd/gormes -count=1
+go test ./internal/telemetry ./internal/persistence/session ./cmd/gormes -count=1
 ```
 
 Commit:

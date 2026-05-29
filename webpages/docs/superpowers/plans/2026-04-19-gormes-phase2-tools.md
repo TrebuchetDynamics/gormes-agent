@@ -13,7 +13,7 @@
 ## Prerequisites
 
 - Phase 1 + Phase 1.5 + Route B all shipped (latest kernel commit `3ed9a6f2` or later).
-- Working tree clean or at least isolated from `internal/tools/`, `internal/hermes/`, `internal/kernel/` paths.
+- Working tree clean or at least isolated from `internal/tools/`, `internal/llm/`, `internal/kernel/` paths.
 - `go.mod` at `go 1.22` with `toolchain go1.26.1`.
 
 ## File Structure Map
@@ -987,9 +987,9 @@ EOF
 ## Task 5: Hermes — ChatRequest/Event/Message tool-call plumbing
 
 **Files:**
-- Modify: `internal/hermes/client.go` (extend types only; no behaviour change in this task)
+- Modify: `internal/llm/client.go` (extend types only; no behaviour change in this task)
 
-- [ ] **Step 1:** Read `internal/hermes/client.go`. Locate `ChatRequest`, `Message`, `Event`.
+- [ ] **Step 1:** Read `internal/llm/client.go`. Locate `ChatRequest`, `Message`, `Event`.
 
 - [ ] **Step 2:** Extend `Message`. Find:
 
@@ -1113,7 +1113,7 @@ All existing tests still PASS — the extensions are additive.
 
 ```bash
 cd ..
-git add internal/hermes/client.go
+git add internal/llm/client.go
 git commit -m "$(cat <<'EOF'
 feat(gormes/hermes): ChatRequest/Event/Message tool-call fields
 
@@ -1141,10 +1141,10 @@ EOF
 ## Task 6: Hermes SSE — accumulate tool-call deltas
 
 **Files:**
-- Modify: `internal/hermes/stream.go`
-- Create: `internal/hermes/stream_tools_test.go`
+- Modify: `internal/llm/stream.go`
+- Create: `internal/llm/stream_tools_test.go`
 
-- [ ] **Step 1:** Write the failing test first. Create `internal/hermes/stream_tools_test.go`:
+- [ ] **Step 1:** Write the failing test first. Create `internal/llm/stream_tools_test.go`:
 
 ```go
 package hermes
@@ -1228,7 +1228,7 @@ func TestStream_ToolCallDeltasAccumulate(t *testing.T) {
 
 - [ ] **Step 2:** Run — expect FAIL (stream parser doesn't handle tool-calls yet).
 
-- [ ] **Step 3:** Read `internal/hermes/stream.go`. Locate `orChunkChoice` / `orChunk` / `orChunkDelta` and the `Recv` method.
+- [ ] **Step 3:** Read `internal/llm/stream.go`. Locate `orChunkChoice` / `orChunk` / `orChunkDelta` and the `Recv` method.
 
 - [ ] **Step 4:** Extend the internal chunk types. Find:
 
@@ -1390,8 +1390,8 @@ Add `"sort"` to the imports.
 
 ```bash
 cd gormes
-go test -race ./internal/hermes/... -timeout 60s -v
-go vet ./internal/hermes/...
+go test -race ./internal/llm/... -timeout 60s -v
+go vet ./internal/llm/...
 ```
 
 `TestStream_ToolCallDeltasAccumulate` passes. All existing hermes tests still pass.
@@ -1400,7 +1400,7 @@ go vet ./internal/hermes/...
 
 ```bash
 cd ..
-git add internal/hermes/stream.go internal/hermes/stream_tools_test.go
+git add internal/llm/stream.go internal/llm/stream_tools_test.go
 git commit -m "$(cat <<'EOF'
 feat(gormes/hermes): accumulate tool-call SSE deltas
 
@@ -1441,7 +1441,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -1567,8 +1567,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
@@ -1728,7 +1728,7 @@ Find the block starting with `retryBudget := NewRetryBudget()` and ending with `
 		Model:     k.cfg.Model,
 		SessionID: k.sessionID,
 		Stream:    true,
-		Messages:  []hermes.Message{{Role: "user", Content: text}},
+		Messages:  []llm.Message{{Role: "user", Content: text}},
 	}
 	if k.cfg.Tools != nil {
 		// Translate tools.ToolDescriptor → hermes.ToolDescriptor.
@@ -1853,14 +1853,14 @@ toolLoop:
 
 		// Append the assistant's tool-requesting message plus one tool-result
 		// message per call. The draft so far is captured in the assistant message.
-		assistantMsg := hermes.Message{
+		assistantMsg := llm.Message{
 			Role:      "assistant",
 			Content:   k.draft,
 			ToolCalls: finalDelta.ToolCalls,
 		}
 		request.Messages = append(request.Messages, assistantMsg)
 		for _, r := range results {
-			request.Messages = append(request.Messages, hermes.Message{
+			request.Messages = append(request.Messages, llm.Message{
 				Role:       "tool",
 				ToolCallID: r.ID,
 				Name:       r.Name,
@@ -1912,7 +1912,7 @@ toolLoop:
 		k.phase = PhaseCancelling
 		k.emitFrame("cancelled")
 	} else if k.draft != "" {
-		k.history = append(k.history, hermes.Message{Role: "assistant", Content: k.draft})
+		k.history = append(k.history, llm.Message{Role: "assistant", Content: k.draft})
 	}
 
 	prov.LogDone(k.log)
@@ -1990,8 +1990,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
@@ -2100,8 +2100,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )

@@ -872,10 +872,10 @@ git commit -m "feat(gormes/db): SQLite store with embedded migrations"
 ## Task 6: Session Package
 
 **Files:**
-- Create: `internal/session/session.go`
-- Create: `internal/session/session_test.go`
+- Create: `internal/persistence/session/session.go`
+- Create: `internal/persistence/session/session_test.go`
 
-- [ ] **Step 1:** Write the failing test. Create `internal/session/session_test.go`:
+- [ ] **Step 1:** Write the failing test. Create `internal/persistence/session/session_test.go`:
 
 ```go
 package session
@@ -969,10 +969,10 @@ func TestUpdateTurnMetadata(t *testing.T) {
 
 ```bash
 cd gormes
-go test ./internal/session/...
+go test ./internal/persistence/session/...
 ```
 
-- [ ] **Step 3:** Implement `internal/session/session.go`:
+- [ ] **Step 3:** Implement `internal/persistence/session/session.go`:
 
 ```go
 // Package session owns a single conversation's history and persists it.
@@ -1091,14 +1091,14 @@ func newID() string {
 - [ ] **Step 4:** Run; expect PASS.
 
 ```bash
-go test ./internal/session/... -v
+go test ./internal/persistence/session/... -v
 ```
 
 - [ ] **Step 5:** Commit.
 
 ```bash
 cd ..
-git add internal/session/
+git add internal/persistence/session/
 git commit -m "feat(gormes/session): conversation history + metadata persistence"
 ```
 
@@ -1818,11 +1818,11 @@ git commit -m "feat(gormes/pybridge): M4-boundary stub — Tool interface only"
 ## Task 12: Agent Orchestrator — Happy-Path Turn
 
 **Files:**
-- Create: `internal/agent/default_prompt.go`
-- Create: `internal/agent/agent.go`
-- Create: `internal/agent/agent_test.go`
+- Create: `internal/core/agent/default_prompt.go`
+- Create: `internal/core/agent/agent.go`
+- Create: `internal/core/agent/agent_test.go`
 
-- [ ] **Step 1:** Create `internal/agent/default_prompt.go`:
+- [ ] **Step 1:** Create `internal/core/agent/default_prompt.go`:
 
 ```go
 package agent
@@ -1844,7 +1844,7 @@ func BuildSystemPrompt(cfg config.Config) string {
 }
 ```
 
-- [ ] **Step 2:** Write the failing test. Create `internal/agent/agent_test.go`:
+- [ ] **Step 2:** Write the failing test. Create `internal/core/agent/agent_test.go`:
 
 ```go
 package agent
@@ -1858,7 +1858,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/db"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/provider"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -1911,7 +1911,7 @@ func TestAgent_HappyPath(t *testing.T) {
 
 - [ ] **Step 3:** Run; expect FAIL.
 
-- [ ] **Step 4:** Implement `internal/agent/agent.go`:
+- [ ] **Step 4:** Implement `internal/core/agent/agent.go`:
 
 ```go
 // Package agent orchestrates the turn lifecycle: build request, stream, persist.
@@ -1924,7 +1924,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/provider"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -2059,14 +2059,14 @@ func (a *Agent) emit(u UIUpdate) {
 
 ```bash
 cd gormes
-go test ./internal/agent/... -v
+go test ./internal/core/agent/... -v
 ```
 
 - [ ] **Step 6:** Commit.
 
 ```bash
 cd ..
-git add internal/agent/
+git add internal/core/agent/
 git commit -m "feat(gormes/agent): turn orchestrator with streaming, telemetry, persistence"
 ```
 
@@ -2075,9 +2075,9 @@ git commit -m "feat(gormes/agent): turn orchestrator with streaming, telemetry, 
 ## Task 13: Agent — Cancellation Coverage
 
 **Files:**
-- Modify: `internal/agent/agent_test.go`
+- Modify: `internal/core/agent/agent_test.go`
 
-- [ ] **Step 1:** Append a cancellation test to `internal/agent/agent_test.go`:
+- [ ] **Step 1:** Append a cancellation test to `internal/core/agent/agent_test.go`:
 
 ```go
 func TestAgent_CancelMidStream(t *testing.T) {
@@ -2112,7 +2112,7 @@ func TestAgent_CancelMidStream(t *testing.T) {
 
 ```bash
 cd gormes
-go test ./internal/agent/... -run CancelMidStream -v
+go test ./internal/core/agent/... -run CancelMidStream -v
 ```
 
 Expected: PASS (the cancel path already works in the implementation from Task 12).
@@ -2121,7 +2121,7 @@ Expected: PASS (the cancel path already works in the implementation from Task 12
 
 ```bash
 cd ..
-git add internal/agent/agent_test.go
+git add internal/core/agent/agent_test.go
 git commit -m "test(gormes/agent): add mid-stream cancellation coverage"
 ```
 
@@ -2140,7 +2140,7 @@ git commit -m "test(gormes/agent): add mid-stream cancellation coverage"
 package gormes
 
 import (
-	"github.com/TrebuchetDynamics/gormes-agent/internal/agent"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agent"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/provider"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/pybridge"
 )
@@ -2203,7 +2203,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/agent"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agent"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -2426,7 +2426,7 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/agent"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agent"
 )
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -2554,7 +2554,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/agent"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agent"
 )
 
 func TestTypeSendRendersUserAndAssistant(t *testing.T) {
@@ -2639,11 +2639,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/agent"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agent"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/db"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/provider"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
@@ -2836,8 +2836,8 @@ Expected: exit code 0, `gormes` binary produced.
 - [ ] **Step 2:** `make test` passes with coverage ≥ 70 % on `internal/` (excluding `tui/`).
 
 ```bash
-go test -cover ./internal/agent/... ./internal/config/... ./internal/db/... \
-  ./internal/provider/... ./internal/session/... ./internal/telemetry/... \
+go test -cover ./internal/core/agent/... ./internal/config/... ./internal/db/... \
+  ./internal/provider/... ./internal/persistence/session/... ./internal/telemetry/... \
   ./internal/pybridge/...
 ```
 

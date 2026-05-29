@@ -6,7 +6,7 @@
 
 **Architecture:** `telegramClient` interface (mockable); three goroutines inside `Bot` (inbound, outbound, coalescer); 1-second edit-coalescing window; allowlist-authenticated private-DM-only. `cmd/gormes/` never imports `internal/telegram/` — a build-isolation test guards the 7.9 MB TUI binary. TDD throughout: mock-driven tests land before any real Telegram API code.
 
-**Tech Stack:** Go 1.22+, `github.com/go-telegram-bot-api/telegram-bot-api/v5`, existing `internal/kernel` + `internal/tools` + `internal/hermes` + `internal/config`, stdlib `os/exec` for the build-isolation test.
+**Tech Stack:** Go 1.22+, `github.com/go-telegram-bot-api/telegram-bot-api/v5`, existing `internal/kernel` + `internal/tools` + `internal/llm` + `internal/config`, stdlib `os/exec` for the build-isolation test.
 
 ---
 
@@ -314,9 +314,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
@@ -968,7 +968,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
@@ -1024,7 +1024,7 @@ func TestFormatStream_EscapesMarkdown(t *testing.T) {
 func TestFormatFinal_ReadsFromHistory(t *testing.T) {
 	f := kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "ping"},
 			{Role: "assistant", Content: "pong"},
 		},
@@ -1535,8 +1535,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -1847,9 +1847,9 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"

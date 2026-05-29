@@ -590,9 +590,9 @@ git commit -m "feat(gormes/config): flag>env>toml>defaults with no --api-key"
 ## Task 5: Hermes Client — types, errors, HTTP skeleton
 
 **Files:**
-- Create: `internal/hermes/client.go`, `errors.go`, `errors_test.go`
+- Create: `internal/llm/client.go`, `errors.go`, `errors_test.go`
 
-- [ ] **Step 1:** Write failing test. Create `internal/hermes/errors_test.go`:
+- [ ] **Step 1:** Write failing test. Create `internal/llm/errors_test.go`:
 
 ```go
 package hermes
@@ -630,7 +630,7 @@ func TestClassify(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2:** Implement `internal/hermes/errors.go`:
+- [ ] **Step 2:** Implement `internal/llm/errors.go`:
 
 ```go
 package hermes
@@ -683,7 +683,7 @@ func Classify(err error) ErrorClass {
 }
 ```
 
-- [ ] **Step 3:** Create `internal/hermes/client.go` (type declarations only — HTTP impl lands in Task 6):
+- [ ] **Step 3:** Create `internal/llm/client.go` (type declarations only — HTTP impl lands in Task 6):
 
 ```go
 // Package hermes speaks HTTP+SSE to Python's api_server on port 8642.
@@ -769,14 +769,14 @@ var ErrRunEventsNotSupported = errors.New("hermes: /v1/runs not supported by thi
 
 ```bash
 cd gormes
-go test ./internal/hermes/...
+go test ./internal/llm/...
 ```
 
 - [ ] **Step 5:** Commit.
 
 ```bash
 cd ..
-git add internal/hermes/client.go internal/hermes/errors.go internal/hermes/errors_test.go
+git add internal/llm/client.go internal/llm/errors.go internal/llm/errors_test.go
 git commit -m "feat(gormes/hermes): types, Client interface, error classifier"
 ```
 
@@ -785,9 +785,9 @@ git commit -m "feat(gormes/hermes): types, Client interface, error classifier"
 ## Task 6: Hermes SSE Client — OpenStream + Recv()
 
 **Files:**
-- Create: `internal/hermes/http_client.go`, `sse.go`, `stream.go`, `client_test.go`
+- Create: `internal/llm/http_client.go`, `sse.go`, `stream.go`, `client_test.go`
 
-- [ ] **Step 1:** Write failing test. Create `internal/hermes/client_test.go`:
+- [ ] **Step 1:** Write failing test. Create `internal/llm/client_test.go`:
 
 ```go
 package hermes
@@ -904,7 +904,7 @@ func TestHealth_OK(t *testing.T) {
 
 - [ ] **Step 2:** Run — expect FAIL (no `NewHTTPClient`).
 
-- [ ] **Step 3:** Implement `internal/hermes/http_client.go`:
+- [ ] **Step 3:** Implement `internal/llm/http_client.go`:
 
 ```go
 package hermes
@@ -1024,7 +1024,7 @@ func (c *httpClient) OpenRunEvents(ctx context.Context, runID string) (RunEventS
 }
 ```
 
-- [ ] **Step 4:** Implement `internal/hermes/sse.go`:
+- [ ] **Step 4:** Implement `internal/llm/sse.go`:
 
 ```go
 package hermes
@@ -1088,7 +1088,7 @@ func (r *sseReader) Next() (*sseFrame, error) {
 }
 ```
 
-- [ ] **Step 5:** Implement `internal/hermes/stream.go`:
+- [ ] **Step 5:** Implement `internal/llm/stream.go`:
 
 ```go
 package hermes
@@ -1183,14 +1183,14 @@ func (s *chatStream) Recv(ctx context.Context) (Event, error) {
 
 ```bash
 cd gormes
-go test ./internal/hermes/... -run "Stream|Health" -v
+go test ./internal/llm/... -run "Stream|Health" -v
 ```
 
 - [ ] **Step 7:** Commit.
 
 ```bash
 cd ..
-git add internal/hermes/http_client.go internal/hermes/sse.go internal/hermes/stream.go internal/hermes/client_test.go
+git add internal/llm/http_client.go internal/llm/sse.go internal/llm/stream.go internal/llm/client_test.go
 git commit -m "feat(gormes/hermes): pull-based OpenStream + SSE parser + Health"
 ```
 
@@ -1199,7 +1199,7 @@ git commit -m "feat(gormes/hermes): pull-based OpenStream + SSE parser + Health"
 ## Task 7: Hermes Run-Events Stream
 
 **Files:**
-- Create: `internal/hermes/events.go`, add cases to `client_test.go`
+- Create: `internal/llm/events.go`, add cases to `client_test.go`
 
 - [ ] **Step 1:** Add test cases to `client_test.go`:
 
@@ -1273,7 +1273,7 @@ func TestOpenRunEvents_404ReturnsNotSupported(t *testing.T) {
 
 - [ ] **Step 2:** Run — expect FAIL.
 
-- [ ] **Step 3:** Implement `internal/hermes/events.go`:
+- [ ] **Step 3:** Implement `internal/llm/events.go`:
 
 ```go
 package hermes
@@ -1359,14 +1359,14 @@ func (s *runEventStream) Recv(ctx context.Context) (RunEvent, error) {
 - [ ] **Step 4:** Run — expect PASS.
 
 ```bash
-cd gormes && go test ./internal/hermes/... -v
+cd gormes && go test ./internal/llm/... -v
 ```
 
 - [ ] **Step 5:** Commit.
 
 ```bash
 cd ..
-git add internal/hermes/events.go internal/hermes/client_test.go
+git add internal/llm/events.go internal/llm/client_test.go
 git commit -m "feat(gormes/hermes): run-events stream with unknown-event forward-compat"
 ```
 
@@ -1375,9 +1375,9 @@ git commit -m "feat(gormes/hermes): run-events stream with unknown-event forward
 ## Task 8: Hermes MockClient / MockStream (used by kernel tests)
 
 **Files:**
-- Create: `internal/hermes/mock.go`
+- Create: `internal/llm/mock.go`
 
-- [ ] **Step 1:** Create `internal/hermes/mock.go`:
+- [ ] **Step 1:** Create `internal/llm/mock.go`:
 
 ```go
 package hermes
@@ -1512,14 +1512,14 @@ func (s *MockRunEventStream) Close() error { return nil }
 
 ```bash
 cd gormes
-go build ./internal/hermes/...
+go build ./internal/llm/...
 ```
 
 - [ ] **Step 3:** Commit.
 
 ```bash
 cd ..
-git add internal/hermes/mock.go
+git add internal/llm/mock.go
 git commit -m "feat(gormes/hermes): MockClient/MockStream for kernel tests"
 ```
 
@@ -1528,9 +1528,9 @@ git commit -m "feat(gormes/hermes): MockClient/MockStream for kernel tests"
 ## Task 9: Store Package — NoopStore + Ack Deadline
 
 **Files:**
-- Create: `internal/store/store.go`, `store_test.go`
+- Create: `internal/persistence/store/store.go`, `store_test.go`
 
-- [ ] **Step 1:** Create `internal/store/store_test.go`:
+- [ ] **Step 1:** Create `internal/persistence/store/store_test.go`:
 
 ```go
 package store
@@ -1568,7 +1568,7 @@ func TestSlowStore_HitsDeadline(t *testing.T) {
 
 - [ ] **Step 2:** Run — expect FAIL.
 
-- [ ] **Step 3:** Implement `internal/store/store.go`:
+- [ ] **Step 3:** Implement `internal/persistence/store/store.go`:
 
 ```go
 // Package store defines the persistence seam. Phase 1 ships NoopStore.
@@ -1635,14 +1635,14 @@ func (s *SlowStore) Exec(ctx context.Context, _ Command) (Ack, error) {
 - [ ] **Step 4:** Run — expect PASS.
 
 ```bash
-cd gormes && go test ./internal/store/... -v
+cd gormes && go test ./internal/persistence/store/... -v
 ```
 
 - [ ] **Step 5:** Commit.
 
 ```bash
 cd ..
-git add internal/store/
+git add internal/persistence/store/
 git commit -m "feat(gormes/store): Store interface, NoopStore, SlowStore for tests"
 ```
 
@@ -1862,7 +1862,7 @@ package kernel
 import (
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -1885,7 +1885,7 @@ type RenderFrame struct {
 	Seq        uint64
 	Phase      Phase
 	DraftText  string
-	History    []hermes.Message
+	History    []llm.Message
 	Telemetry  telemetry.Snapshot
 	StatusText string
 	SessionID  string
@@ -2042,8 +2042,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -2066,7 +2066,7 @@ type Kernel struct {
 	// Owned by Run loop only.
 	phase     Phase
 	draft     string
-	history   []hermes.Message
+	history   []llm.Message
 	soul      []SoulEntry
 	seq       atomic.Uint64
 	sessionID string
@@ -2149,7 +2149,7 @@ func (k *Kernel) handleSubmit(ctx context.Context, text string) {
 		return
 	}
 
-	k.history = append(k.history, hermes.Message{Role: "user", Content: text})
+	k.history = append(k.history, llm.Message{Role: "user", Content: text})
 	k.draft = ""
 	k.phase = PhaseConnecting
 	k.emitFrame("connecting")
@@ -2177,7 +2177,7 @@ func (k *Kernel) handleSubmit(ctx context.Context, text string) {
 
 	stream, err := k.client.OpenStream(runCtx, hermes.ChatRequest{
 		Model: k.cfg.Model, SessionID: k.sessionID, Stream: true,
-		Messages: []hermes.Message{{Role: "user", Content: text}},
+		Messages: []llm.Message{{Role: "user", Content: text}},
 	})
 	if err != nil {
 		prov.ErrorClass = hermes.Classify(err).String()
@@ -2253,7 +2253,7 @@ streamLoop:
 	if prov.TokensIn > 0 {
 		k.tm.SetTokensIn(prov.TokensIn)
 	}
-	k.history = append(k.history, hermes.Message{Role: "assistant", Content: k.draft})
+	k.history = append(k.history, llm.Message{Role: "assistant", Content: k.draft})
 	prov.LogDone(k.log)
 
 	k.phase = PhaseIdle
@@ -2272,7 +2272,7 @@ func (k *Kernel) emitFrame(status string) {
 		Seq:        k.seq.Add(1),
 		Phase:      k.phase,
 		DraftText:  k.draft,
-		History:    append([]hermes.Message(nil), k.history...),
+		History:    append([]llm.Message(nil), k.history...),
 		Telemetry:  k.tm.Snapshot(),
 		StatusText: status,
 		SessionID:  k.sessionID,
@@ -2319,7 +2319,7 @@ func classString(c hermes.ErrorClass) string {
 var _ = strings.TrimSpace
 ```
 
-- [ ] **Step 6:** Add a helper to hermes for `ErrorClass.String()`. Edit `internal/hermes/errors.go` appending:
+- [ ] **Step 6:** Add a helper to hermes for `ErrorClass.String()`. Edit `internal/llm/errors.go` appending:
 
 ```go
 func (c ErrorClass) String() string {
@@ -2345,7 +2345,7 @@ cd gormes && go build ./internal/kernel/...
 
 ```bash
 cd ..
-git add internal/kernel/ internal/hermes/errors.go gormes/go.mod gormes/go.sum
+git add internal/kernel/ internal/llm/errors.go gormes/go.mod gormes/go.sum
 git commit -m "feat(gormes/kernel): single-owner state machine, admission, provenance, frame coalescer"
 ```
 
@@ -2369,8 +2369,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -2590,7 +2590,7 @@ git commit -m "test(gormes/kernel): five discipline tests (coalesce, leak, admis
 package gormes
 
 import (
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/pybridge"
 )
@@ -2601,7 +2601,7 @@ type (
 	Event       = hermes.Event
 	EventKind   = hermes.EventKind
 	RunEvent    = hermes.RunEvent
-	Message     = hermes.Message
+	Message     = llm.Message
 
 	RenderFrame   = kernel.RenderFrame
 	Phase         = kernel.Phase
@@ -3056,7 +3056,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 var doctorCmd = &cobra.Command{
@@ -3100,9 +3100,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
@@ -3221,9 +3221,9 @@ git commit -m "feat(gormes/cmd): cobra scaffold with gormes/doctor/version"
 ## Task 19: Live Integration Test
 
 **Files:**
-- Create: `internal/hermes/live_test.go`
+- Create: `internal/llm/live_test.go`
 
-- [ ] **Step 1:** Create `internal/hermes/live_test.go`:
+- [ ] **Step 1:** Create `internal/llm/live_test.go`:
 
 ```go
 //go:build live
@@ -3311,7 +3311,7 @@ cd gormes && make test-live
 
 ```bash
 cd ..
-git add internal/hermes/live_test.go
+git add internal/llm/live_test.go
 git commit -m "test(gormes/hermes): live api_server integration behind -tags=live"
 ```
 

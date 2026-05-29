@@ -4,7 +4,7 @@
 
 **Goal:** Add an optional `hermes-issues` pathway to `cmd/architecture-planner-loop` that periodically downloads issues from `NousResearch/hermes-agent`, rule-filters ~2400 issues down to ~50–150 high-signal candidates, writes a ranked markdown digest, extracts a grounded keyword vocabulary, and surfaces both in the planner prompt so the LLM can pick the ~20 worth turning into Gormes roadmap rows.
 
-**Architecture:** New isolated subpackage `internal/hermesissues` owns fetch, filter, rank, digest, and keyword extraction. CLI gains a peer subcommand `hermes-issues` that refreshes the cache. The existing `run` subcommand opportunistically reads digest + suggested keywords from the cache directory (no hard dependency — pathway stays optional). The wrapper script gates the refresh behind `HERMES_ISSUES_PATHWAY=1`. Filtering is two-stage rule-based (scope → signal) with reaction-weighted ranking; final issue selection is delegated to the planner LLM via the prompt. **The pathway reinforces the planner's existing `Keywords` feature in two directions:** (1) `Refresh` *generates* `suggested_keywords.json` — labels and top-frequency title nouns extracted from high-signal items — surfaced as a grounded vocabulary the LLM may honor, fixing the disuse pain (the systemd timer never supplies keywords, so the topical clause is dormant); (2) when the user *does* supply keywords positionally, those keywords additionally narrow the digest section so the topical model is coherent across internal context and upstream-issue signal.
+**Architecture:** New isolated subpackage `internal/llmissues` owns fetch, filter, rank, digest, and keyword extraction. CLI gains a peer subcommand `hermes-issues` that refreshes the cache. The existing `run` subcommand opportunistically reads digest + suggested keywords from the cache directory (no hard dependency — pathway stays optional). The wrapper script gates the refresh behind `HERMES_ISSUES_PATHWAY=1`. Filtering is two-stage rule-based (scope → signal) with reaction-weighted ranking; final issue selection is delegated to the planner LLM via the prompt. **The pathway reinforces the planner's existing `Keywords` feature in two directions:** (1) `Refresh` *generates* `suggested_keywords.json` — labels and top-frequency title nouns extracted from high-signal items — surfaced as a grounded vocabulary the LLM may honor, fixing the disuse pain (the systemd timer never supplies keywords, so the topical clause is dormant); (2) when the user *does* supply keywords positionally, those keywords additionally narrow the digest section so the topical model is coherent across internal context and upstream-issue signal.
 
 **Tech Stack:** Go 1.22, stdlib `net/http`/`encoding/json`/`time`, existing `internal/architectureplanner` integration points, no new third-party deps. GitHub REST API v3 (`/repos/{owner}/{repo}/issues`) with optional `GITHUB_TOKEN` auth.
 
@@ -80,9 +80,9 @@ No changes to `internal/autoloop`, `cmd/autoloop`, `pkg/`, `docs/content/`, or `
 
 ## Task 1: Scaffold types
 
-**Files:** Create `internal/hermesissues/types.go`.
+**Files:** Create `internal/llmissues/types.go`.
 
-- [ ] **Step 1:** Create `internal/hermesissues/types.go`:
+- [ ] **Step 1:** Create `internal/llmissues/types.go`:
 
 ```go
 // Package hermesissues fetches, filters, ranks, and digests GitHub issues
@@ -169,14 +169,14 @@ type Digest struct {
 }
 ```
 
-- [ ] **Step 2:** `go build ./internal/hermesissues/` → exit 0.
+- [ ] **Step 2:** `go build ./internal/llmissues/` → exit 0.
 - [ ] **Step 3:** Commit `feat(hermesissues): scaffold core types`.
 
 ---
 
 ## Task 2: GitHub client — single page fetch
 
-**Files:** Create `internal/hermesissues/client.go`, `internal/hermesissues/client_test.go`.
+**Files:** Create `internal/llmissues/client.go`, `internal/llmissues/client_test.go`.
 
 - [ ] **Step 1:** Create `client_test.go`:
 
@@ -279,10 +279,10 @@ func TestClient_FetchPage_StatusError(t *testing.T) {
 - [ ] **Step 2:** Run — fails (`undefined: NewClient`).
 
 ```bash
-go test ./internal/hermesissues/ -run TestClient_FetchPage -v
+go test ./internal/llmissues/ -run TestClient_FetchPage -v
 ```
 
-- [ ] **Step 3:** Create `internal/hermesissues/client.go`:
+- [ ] **Step 3:** Create `internal/llmissues/client.go`:
 
 ```go
 package hermesissues
@@ -450,7 +450,7 @@ Note the test signature `c.fetchPage(ctx, 1)` returns `([]Issue, bool, error)` �
 
 ## Task 3: Pagination — `FetchAll`
 
-**Files:** Modify `internal/hermesissues/client.go`, `internal/hermesissues/client_test.go`.
+**Files:** Modify `internal/llmissues/client.go`, `internal/llmissues/client_test.go`.
 
 - [ ] **Step 1:** Add tests:
 
@@ -524,7 +524,7 @@ func (c *Client) FetchAll(ctx context.Context) ([]Issue, error) {
 
 ## Task 4: Scope filter
 
-**Files:** Create `internal/hermesissues/filter.go`, `internal/hermesissues/filter_test.go`.
+**Files:** Create `internal/llmissues/filter.go`, `internal/llmissues/filter_test.go`.
 
 - [ ] **Step 1:** Tests:
 
@@ -648,7 +648,7 @@ func hasAny(labels []string, set map[string]struct{}) bool {
 
 ## Task 5: Signal filter
 
-**Files:** Modify `internal/hermesissues/filter.go`, `internal/hermesissues/filter_test.go`.
+**Files:** Modify `internal/llmissues/filter.go`, `internal/llmissues/filter_test.go`.
 
 - [ ] **Step 1:** Tests:
 
@@ -709,7 +709,7 @@ func SignalFilter(in []Issue, f Filters) []Issue {
 
 ## Task 6: Score & rank
 
-**Files:** Create `internal/hermesissues/rank.go`, `internal/hermesissues/rank_test.go`.
+**Files:** Create `internal/llmissues/rank.go`, `internal/llmissues/rank_test.go`.
 
 - [ ] **Step 1:** Tests:
 
@@ -877,7 +877,7 @@ func rationaleFor(it Issue, f Filters) string {
 
 ## Task 7: Markdown digest
 
-**Files:** Create `internal/hermesissues/digest.go`, `internal/hermesissues/digest_test.go`.
+**Files:** Create `internal/llmissues/digest.go`, `internal/llmissues/digest_test.go`.
 
 - [ ] **Step 1:** Tests:
 
@@ -990,7 +990,7 @@ func RenderDigest(d Digest) string {
 
 ## Task 7b: Keyword extraction
 
-**Files:** Create `internal/hermesissues/keywords.go`, `internal/hermesissues/keywords_test.go`.
+**Files:** Create `internal/llmissues/keywords.go`, `internal/llmissues/keywords_test.go`.
 
 This task closes pain #1 (the planner's `Keywords` feature is dormant in autonomous mode) by mining a grounded vocabulary from ranked items.
 
@@ -1190,7 +1190,7 @@ func tokenizeTitle(s string) []string {
 
 ## Task 8: Refresh orchestrator
 
-**Files:** Create `internal/hermesissues/refresh.go`, `internal/hermesissues/refresh_test.go`.
+**Files:** Create `internal/llmissues/refresh.go`, `internal/llmissues/refresh_test.go`.
 
 - [ ] **Step 1:** Tests:
 
@@ -1471,7 +1471,7 @@ case "hermes-issues":
     return runHermesIssues(context.Background(), cfg)
 ```
 
-(c) Add imports for `strconv`, `time`, and `internal/hermesissues`. Add helper:
+(c) Add imports for `strconv`, `time`, and `internal/llmissues`. Add helper:
 
 ```go
 func runHermesIssues(ctx context.Context, cfg architectureplanner.Config) error {
@@ -1517,7 +1517,7 @@ func runHermesIssues(ctx context.Context, cfg architectureplanner.Config) error 
 
 ## Task 9b: Filter digest by user-supplied keywords
 
-**Files:** Modify `internal/hermesissues/filter.go`, `internal/hermesissues/filter_test.go`.
+**Files:** Modify `internal/llmissues/filter.go`, `internal/llmissues/filter_test.go`.
 
 This task closes the coherence gap: when the user passes `run streaming`, the existing `FilterContextByKeywords` narrows internal context — `FilterDigestByKeywords` does the same to the upstream-issue signal so the topical clause has consistent meaning end-to-end.
 
@@ -1632,7 +1632,7 @@ HermesIssuesDigest      string                          `json:"hermes_issues_dig
 HermesSuggestedKeywords []hermesissues.KeywordCandidate `json:"hermes_suggested_keywords,omitempty"`
 ```
 
-Add import `"github.com/TrebuchetDynamics/gormes-agent/internal/hermesissues"`.
+Add import `"github.com/TrebuchetDynamics/gormes-agent/internal/llmissues"`.
 
 - [ ] **Step 2:** In `CollectContext`, before the final `return ContextBundle{...}`:
 

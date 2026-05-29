@@ -7,7 +7,7 @@
       "name": "Hermes prompt-builder guidance constants port (data-only, byte-equivalent)",
       "priority": "P2",
       "status": "complete",
-      "contract": "Port the seven unbranded Hermes prompt-builder guidance constants from `../hermes-agent/agent/prompt_builder.py` to Go as exported package-level identifiers in a new file `internal/hermes/guidance_constants.go`: MEMORY_GUIDANCE -> MemoryGuidance, SESSION_SEARCH_GUIDANCE -> SessionSearchGuidance, SKILLS_GUIDANCE -> SkillsGuidance, TOOL_USE_ENFORCEMENT_GUIDANCE -> ToolUseEnforcementGuidance, TOOL_USE_ENFORCEMENT_MODELS -> ToolUseEnforcementModels ([]string), DEVELOPER_ROLE_MODELS -> DeveloperRoleModels ([]string), WSL_ENVIRONMENT_HINT -> WSLEnvironmentHint. Each constant must be byte-equivalent to its Hermes upstream when concatenated (Python parenthesised string literals concatenate adjacent strings into one). The slice is data-only — no wiring into live-turn prompt assembly, no provider routing change, no runtime behavior change. Subsequent slices will wire each constant into `assembleLiveTurnPrompt` gated on the relevant condition (tools loaded, model substring match, WSL detected).",
+      "contract": "Port the seven unbranded Hermes prompt-builder guidance constants from `../hermes-agent/agent/prompt_builder.py` to Go as exported package-level identifiers in a new file `internal/llm/guidance_constants.go`: MEMORY_GUIDANCE -> MemoryGuidance, SESSION_SEARCH_GUIDANCE -> SessionSearchGuidance, SKILLS_GUIDANCE -> SkillsGuidance, TOOL_USE_ENFORCEMENT_GUIDANCE -> ToolUseEnforcementGuidance, TOOL_USE_ENFORCEMENT_MODELS -> ToolUseEnforcementModels ([]string), DEVELOPER_ROLE_MODELS -> DeveloperRoleModels ([]string), WSL_ENVIRONMENT_HINT -> WSLEnvironmentHint. Each constant must be byte-equivalent to its Hermes upstream when concatenated (Python parenthesised string literals concatenate adjacent strings into one). The slice is data-only — no wiring into live-turn prompt assembly, no provider routing change, no runtime behavior change. Subsequent slices will wire each constant into `assembleLiveTurnPrompt` gated on the relevant condition (tools loaded, model substring match, WSL detected).",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
@@ -17,7 +17,7 @@
         "operator"
       ],
       "degraded_mode": "Constants are pure data; no runtime path is affected. If Hermes drifts upstream the byte-equivalence test fails loudly so a follow-up port row can land the new value.",
-      "fixture": "internal/hermes/guidance_constants_test.go",
+      "fixture": "internal/llm/guidance_constants_test.go",
       "source_refs": [
         "../hermes-agent/agent/prompt_builder.py:144-156 MEMORY_GUIDANCE",
         "../hermes-agent/agent/prompt_builder.py:158-162 SESSION_SEARCH_GUIDANCE",
@@ -26,7 +26,7 @@
         "../hermes-agent/agent/prompt_builder.py:190 TOOL_USE_ENFORCEMENT_MODELS",
         "../hermes-agent/agent/prompt_builder.py:283 DEVELOPER_ROLE_MODELS",
         "../hermes-agent/agent/prompt_builder.py:466-475 WSL_ENVIRONMENT_HINT",
-        "internal/hermes/self_help_guidance.go (existing precedent for hermes/<constant>.go file shape)"
+        "internal/llm/self_help_guidance.go (existing precedent for hermes/<constant>.go file shape)"
       ],
       "ready_when": [
         "Sibling repository `../hermes-agent` is checked out at the active commit so byte-equivalence tests can read the upstream source.",
@@ -37,7 +37,7 @@
         "The slice wires any constant into `assembleLiveTurnPrompt`, `gateway.Manager`, kernel, or any channel adapter — wiring is reserved for follow-up rows.",
         "The slice ports DEFAULT_AGENT_IDENTITY, HERMES_AGENT_HELP_GUIDANCE (already shipped as GormesSelfHelpGuidanceForPrompt), OPENAI_MODEL_EXECUTION_GUIDANCE, GOOGLE_MODEL_OPERATIONAL_GUIDANCE, or PLATFORM_HINTS — those need explicit Gormes branding decisions or per-block adaptation rows.",
         "The slice deviates from the upstream byte sequence for any constant (slack, missing whitespace, stripped trailing newline) — drift here would silently change a future wiring slice's prompt text.",
-        "The slice exposes the constants under names that conflict with existing internal/hermes identifiers (verify by `grep -rn` before naming)."
+        "The slice exposes the constants under names that conflict with existing internal/llm identifiers (verify by `grep -rn` before naming)."
       ],
       "acceptance": [
         "TestGuidanceConstants_MemoryGuidance_ByteEquivalent: extracts MEMORY_GUIDANCE concatenated string from `../hermes-agent/agent/prompt_builder.py` and asserts equality to `hermes.MemoryGuidance`. Use a deterministic Python concatenation reproduction (parse the parenthesised literal block) so the test is self-contained without invoking Python.",
@@ -47,24 +47,24 @@
         "TestGuidanceConstants_ToolUseEnforcementModels_MatchesUpstream: parses the TOOL_USE_ENFORCEMENT_MODELS tuple literal from upstream and asserts equality to `hermes.ToolUseEnforcementModels` []string with deterministic order.",
         "TestGuidanceConstants_DeveloperRoleModels_MatchesUpstream: same shape for DEVELOPER_ROLE_MODELS -> DeveloperRoleModels []string.",
         "TestGuidanceConstants_WSLEnvironmentHint_ByteEquivalent: same shape for WSL_ENVIRONMENT_HINT -> WSLEnvironmentHint.",
-        "TestGuidanceConstants_NoRuntimeImport: a static check (e.g. via `go vet ./internal/hermes` or a deliberate `grep` in the test) confirms guidance_constants.go imports nothing beyond stdlib — no internal/gateway, internal/kernel, internal/channels, internal/runtime, or internal/provider import."
+        "TestGuidanceConstants_NoRuntimeImport: a static check (e.g. via `go vet ./internal/llm` or a deliberate `grep` in the test) confirms guidance_constants.go imports nothing beyond stdlib — no internal/gateway, internal/kernel, internal/channels, internal/runtime, or internal/provider import."
       ],
       "note": "Pure parity-data slice that runs in parallel with wiring slices. Each constant becomes a building block for a future block-wiring slice in the live-turn prompt assembly umbrella. The byte-equivalence tests are the durable contract: when Hermes changes a constant upstream, our test fails and a follow-up row lands the new value. Fixtures should pin the upstream commit hash in a comment alongside each constant so divergence is auditable. Naming convention follows Go idiom (CamelCase exported names) rather than Python's UPPER_SNAKE since these are exported Go identifiers; a comment in guidance_constants.go documents the upstream Python name for grep-ability.",
       "write_scope": [
-        "internal/hermes/guidance_constants.go",
-        "internal/hermes/guidance_constants_test.go",
+        "internal/llm/guidance_constants.go",
+        "internal/llm/guidance_constants_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json",
         "www.gormes.ai/internal/site/data/progress.json"
       ],
       "test_commands": [
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -run GuidanceConstants -count=1",
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/llm -run GuidanceConstants -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/llm -count=1",
         "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
       "done_signal": [
-        "Seven byte-equivalence fixtures + the no-runtime-import static check pass; `internal/hermes/guidance_constants.go` exports MemoryGuidance, SessionSearchGuidance, SkillsGuidance, ToolUseEnforcementGuidance, ToolUseEnforcementModels, DeveloperRoleModels, WSLEnvironmentHint as documented; no live-turn or kernel file is modified."
+        "Seven byte-equivalence fixtures + the no-runtime-import static check pass; `internal/llm/guidance_constants.go` exports MemoryGuidance, SessionSearchGuidance, SkillsGuidance, ToolUseEnforcementGuidance, ToolUseEnforcementModels, DeveloperRoleModels, WSLEnvironmentHint as documented; no live-turn or kernel file is modified."
       ],
       "provenance": {
         "origin_type": "porting",
@@ -74,28 +74,28 @@
       "blocked_by": [],
       "evidence": {
         "implementation": [
-          "internal/hermes/guidance_constants.go:MemoryGuidance (string)",
-          "internal/hermes/guidance_constants.go:SessionSearchGuidance (string)",
-          "internal/hermes/guidance_constants.go:SkillsGuidance (string)",
-          "internal/hermes/guidance_constants.go:ToolUseEnforcementGuidance (string)",
-          "internal/hermes/guidance_constants.go:ToolUseEnforcementModels ([]string)",
-          "internal/hermes/guidance_constants.go:DeveloperRoleModels ([]string)",
-          "internal/hermes/guidance_constants.go:WSLEnvironmentHint (string)"
+          "internal/llm/guidance_constants.go:MemoryGuidance (string)",
+          "internal/llm/guidance_constants.go:SessionSearchGuidance (string)",
+          "internal/llm/guidance_constants.go:SkillsGuidance (string)",
+          "internal/llm/guidance_constants.go:ToolUseEnforcementGuidance (string)",
+          "internal/llm/guidance_constants.go:ToolUseEnforcementModels ([]string)",
+          "internal/llm/guidance_constants.go:DeveloperRoleModels ([]string)",
+          "internal/llm/guidance_constants.go:WSLEnvironmentHint (string)"
         ],
         "tests": [
-          "internal/hermes/guidance_constants_test.go:TestGuidanceConstants_MemoryGuidance_ByteEquivalent",
-          "internal/hermes/guidance_constants_test.go:TestGuidanceConstants_SessionSearchGuidance_ByteEquivalent",
-          "internal/hermes/guidance_constants_test.go:TestGuidanceConstants_SkillsGuidance_ByteEquivalent",
-          "internal/hermes/guidance_constants_test.go:TestGuidanceConstants_ToolUseEnforcementGuidance_ByteEquivalent",
-          "internal/hermes/guidance_constants_test.go:TestGuidanceConstants_ToolUseEnforcementModels_MatchesUpstream",
-          "internal/hermes/guidance_constants_test.go:TestGuidanceConstants_DeveloperRoleModels_MatchesUpstream",
-          "internal/hermes/guidance_constants_test.go:TestGuidanceConstants_WSLEnvironmentHint_ByteEquivalent",
-          "internal/hermes/guidance_constants_test.go:TestGuidanceConstants_NoRuntimeImport"
+          "internal/llm/guidance_constants_test.go:TestGuidanceConstants_MemoryGuidance_ByteEquivalent",
+          "internal/llm/guidance_constants_test.go:TestGuidanceConstants_SessionSearchGuidance_ByteEquivalent",
+          "internal/llm/guidance_constants_test.go:TestGuidanceConstants_SkillsGuidance_ByteEquivalent",
+          "internal/llm/guidance_constants_test.go:TestGuidanceConstants_ToolUseEnforcementGuidance_ByteEquivalent",
+          "internal/llm/guidance_constants_test.go:TestGuidanceConstants_ToolUseEnforcementModels_MatchesUpstream",
+          "internal/llm/guidance_constants_test.go:TestGuidanceConstants_DeveloperRoleModels_MatchesUpstream",
+          "internal/llm/guidance_constants_test.go:TestGuidanceConstants_WSLEnvironmentHint_ByteEquivalent",
+          "internal/llm/guidance_constants_test.go:TestGuidanceConstants_NoRuntimeImport"
         ],
         "upstream_pin": "hermes-agent commit 69d4800db77d001ca5b1500ac68a6c76e612c533 (../hermes-agent/agent/prompt_builder.py); byte-equivalence tests parse the upstream parenthesised literal blocks via a stdlib-only Python literal scanner and compare against the Go constants.",
         "verification": [
-          "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -run GuidanceConstants -count=1 -> ok",
-          "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -count=1 -> ok",
+          "GOCACHE=/tmp/gormes-go-cache go test ./internal/llm -run GuidanceConstants -count=1 -> ok",
+          "GOCACHE=/tmp/gormes-go-cache go test ./internal/llm -count=1 -> ok",
           "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1 -> ok",
           "go run ./cmd/progress validate -> ok",
           "git diff --check -> ok"
@@ -122,7 +122,7 @@
         "system"
       ],
       "degraded_mode": "If SOUL.md is missing, the built-in fallback identity is used and records soul_md_fallback evidence",
-      "fixture": "internal/hermes/identity_loader_test.go",
+      "fixture": "internal/llm/identity_loader_test.go",
       "source_refs": [
         "../hermes-agent/hermes_cli/default_soul.py:DEFAULT_SOUL_MD",
         "../hermes-agent/agent/prompt_builder.py:DEFAULT_AGENT_IDENTITY",
@@ -145,15 +145,15 @@
         "TestDefaultSoulMDOwnsGormPersonaBoundary proves the fallback identity reuses DefaultSoulMD, names Gorm as the editable default persona, names gormes as the runtime, and does not leak upstream-only Hermes/Nous or old Gormes Agent persona markers"
       ],
       "write_scope": [
-        "internal/hermes/default_soul.go",
-        "internal/hermes/default_soul_test.go",
-        "internal/hermes/identity_loader.go",
-        "internal/hermes/identity_loader_test.go",
+        "internal/llm/default_soul.go",
+        "internal/llm/default_soul_test.go",
+        "internal/llm/identity_loader.go",
+        "internal/llm/identity_loader_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run 'TestDefaultSoul|TestIdentityLoader' -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run 'TestDefaultSoul|TestIdentityLoader' -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -161,21 +161,21 @@
       ],
       "evidence": {
         "implementation": [
-          "internal/hermes/default_soul.go:DefaultSoulMD, DefaultAgentIdentity",
-          "internal/hermes/identity_loader.go:LoadAgentIdentity, IdentityLoaderOptions, IdentityLoaderResult",
-          "Reuses existing loadSoulContext from internal/hermes/context_files.go for scanning and truncation"
+          "internal/llm/default_soul.go:DefaultSoulMD, DefaultAgentIdentity",
+          "internal/llm/identity_loader.go:LoadAgentIdentity, IdentityLoaderOptions, IdentityLoaderResult",
+          "Reuses existing loadSoulContext from internal/llm/context_files.go for scanning and truncation"
         ],
         "tests": [
-          "internal/hermes/default_soul_test.go:TestDefaultSoulMDPortsUpstreamDefaultSoulWithGormPersona",
-          "internal/hermes/default_soul_test.go:TestDefaultSoulMDOwnsGormPersonaBoundary",
-          "internal/hermes/identity_loader_test.go:TestIdentityLoader_LoadsSoulMd",
-          "internal/hermes/identity_loader_test.go:TestIdentityLoader_Fallback",
-          "internal/hermes/identity_loader_test.go:TestIdentityLoader_SkipSoul",
-          "internal/hermes/identity_loader_test.go:TestIdentityLoader_SoulMdBlocked",
-          "internal/hermes/identity_loader_test.go:TestIdentityLoader_Pure"
+          "internal/llm/default_soul_test.go:TestDefaultSoulMDPortsUpstreamDefaultSoulWithGormPersona",
+          "internal/llm/default_soul_test.go:TestDefaultSoulMDOwnsGormPersonaBoundary",
+          "internal/llm/identity_loader_test.go:TestIdentityLoader_LoadsSoulMd",
+          "internal/llm/identity_loader_test.go:TestIdentityLoader_Fallback",
+          "internal/llm/identity_loader_test.go:TestIdentityLoader_SkipSoul",
+          "internal/llm/identity_loader_test.go:TestIdentityLoader_SoulMdBlocked",
+          "internal/llm/identity_loader_test.go:TestIdentityLoader_Pure"
         ],
         "verification": [
-          "go test ./internal/hermes -count=1 -> ok",
+          "go test ./internal/llm -count=1 -> ok",
           "go run ./cmd/progress validate -> 7 phases validated"
         ]
       }
@@ -199,13 +199,13 @@
         "operator"
       ],
       "degraded_mode": "If profile or project context files are absent, unreadable, blocked by the injection scan, or larger than the budget, the helper returns deterministic empty/blocked/truncated evidence instead of reading live secrets, widening filesystem scope, or falling back to Python Hermes runtime services.",
-      "fixture": "internal/hermes/context_files_test.go::TestContextFiles*",
+      "fixture": "internal/llm/context_files_test.go::TestContextFiles*",
       "source_refs": [
         "../hermes-agent/agent/prompt_builder.py:32-73",
         "../hermes-agent/agent/prompt_builder.py:89-127",
         "../hermes-agent/agent/prompt_builder.py:951-1118",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:104-114",
-        "internal/hermes/self_help_guidance.go"
+        "internal/llm/self_help_guidance.go"
       ],
       "ready_when": [
         "The builder restates the Hermes parity contract and confirms the helper is pure Go and does not call, import, launch, or shell out to hermes-agent runtime services.",
@@ -225,15 +225,15 @@
         "TestContextFilesTruncatesHeadTail proves over-budget content keeps deterministic head/tail text and a middle marker naming the source and original length.",
         "The rendered block starts with the Hermes-compatible Project Context heading and remains deterministic for prompt snapshots."
       ],
-      "note": "Complete: TDD added internal/hermes/context_files.go with a pure BuildContextFilesPrompt helper and hermetic fixtures in internal/hermes/context_files_test.go. Locked invariants: profile SOUL.md loads independently unless skip_soul is set; project context uses Hermes first-match precedence (.hermes.md/HERMES.md walking to git root, then cwd AGENTS.md/agents.md, CLAUDE.md/claude.md, and .cursorrules plus sorted .cursor/rules/*.mdc); .hermes.md/HERMES.md YAML frontmatter is stripped before prompt rendering; invisible Unicode and prompt-injection patterns produce a safe blocked marker without injecting source content; oversized context uses deterministic head/tail truncation with source and original-length evidence; tests use only temp fixtures and no Python Hermes runtime services, live profiles, providers, channel SDKs, network calls, or model calls.",
+      "note": "Complete: TDD added internal/llm/context_files.go with a pure BuildContextFilesPrompt helper and hermetic fixtures in internal/llm/context_files_test.go. Locked invariants: profile SOUL.md loads independently unless skip_soul is set; project context uses Hermes first-match precedence (.hermes.md/HERMES.md walking to git root, then cwd AGENTS.md/agents.md, CLAUDE.md/claude.md, and .cursorrules plus sorted .cursor/rules/*.mdc); .hermes.md/HERMES.md YAML frontmatter is stripped before prompt rendering; invisible Unicode and prompt-injection patterns produce a safe blocked marker without injecting source content; oversized context uses deterministic head/tail truncation with source and original-length evidence; tests use only temp fixtures and no Python Hermes runtime services, live profiles, providers, channel SDKs, network calls, or model calls.",
       "write_scope": [
-        "internal/hermes/context_files.go",
-        "internal/hermes/context_files_test.go",
+        "internal/llm/context_files.go",
+        "internal/llm/context_files_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run '^TestContextFiles' -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run '^TestContextFiles' -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -270,13 +270,13 @@
         "operator"
       ],
       "degraded_mode": "Unreadable directories, permission errors, malformed shell command strings, URLs, git remotes, already-loaded directories, empty hint files, and over-budget hint files return subdirectory_hint_* evidence or no-op results without blocking the tool result or widening filesystem access.",
-      "fixture": "internal/hermes/subdirectory_hints_test.go",
+      "fixture": "internal/llm/subdirectory_hints_test.go",
       "source_refs": [
         "./hermes-agent/agent/subdirectory_hints.py@b816fd4e2:SubdirectoryHintTracker",
         "./hermes-agent/tests/agent/test_subdirectory_hints.py@b816fd4e2",
         "./hermes-agent/agent/prompt_builder.py@b816fd4e2:_scan_context_content",
-        "internal/hermes/context_files.go:BuildContextFilesPrompt",
-        "internal/hermes/context_files_test.go"
+        "internal/llm/context_files.go:BuildContextFilesPrompt",
+        "internal/llm/context_files_test.go"
       ],
       "ready_when": [
         "Context-file discovery + injection scan is complete, so the implementation can reuse the existing scan/truncation behavior instead of duplicating prompt-injection policy.",
@@ -298,17 +298,17 @@
         "TestSubdirectoryHintsPriorityAndFormatting proves AGENTS.md wins over CLAUDE.md/.cursorrules within one directory and renders `[Subdirectory context discovered: <relative path>]`.",
         "TestSubdirectoryHintsScanTruncateAndPermissionErrors proves prompt-injection markers are blocked, large hints are truncated at the configured budget, and permission/read errors return no-op evidence without panic."
       ],
-      "note": "2026-05-06 bounded all-topic Hermes/Honcho weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Higher-priority open rows were blocked, draft-only, or Gormes/OpenClaw-owned rather than the next Hermes-sourced builder slice: Kanban worker rows need CLI invocation/tool prerequisites, event-bus integration depends on producer rows, plugin lifecycle is still blocked by third-party-extension work, self-update is large and prerequisite-heavy, ACP bridge/discover-probe rows are owned OpenClaw enhancements, and gateway discover/probe has existing code but stale/wrong acceptance that should be refined separately. This row is the highest unblocked small Hermes-sourced weakness: Gormes has startup context-file loading, normal-turn prompt assembly, provider/auth rows, gateway/channel rows, Goncho/normal-turn memory, browser/tool progress, setup/docs/release gates, and TUI rows covered or row-backed, but lacked Hermes' progressive tool-result subdirectory context hints. Complete: TDD added internal/hermes/subdirectory_hints.go and subdirectory_hints_test.go. The pure tracker preloads the working directory, extracts path/file_path/workdir and terminal command path tokens, skips empty args/flags/URLs/git remotes, walks bounded ancestors, loads only the first hint file per directory by AGENTS/CLAUDE/.cursorrules priority, reuses the context-file scan/truncation helpers, preserves blocked prompt-injection markers, returns typed stat/read/empty/loaded evidence, formats appendable `[Subdirectory context discovered: <relative path>]` sections, and does not bind tool execution or mutate prompt assembly.",
+      "note": "2026-05-06 bounded all-topic Hermes/Honcho weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Higher-priority open rows were blocked, draft-only, or Gormes/OpenClaw-owned rather than the next Hermes-sourced builder slice: Kanban worker rows need CLI invocation/tool prerequisites, event-bus integration depends on producer rows, plugin lifecycle is still blocked by third-party-extension work, self-update is large and prerequisite-heavy, ACP bridge/discover-probe rows are owned OpenClaw enhancements, and gateway discover/probe has existing code but stale/wrong acceptance that should be refined separately. This row is the highest unblocked small Hermes-sourced weakness: Gormes has startup context-file loading, normal-turn prompt assembly, provider/auth rows, gateway/channel rows, Goncho/normal-turn memory, browser/tool progress, setup/docs/release gates, and TUI rows covered or row-backed, but lacked Hermes' progressive tool-result subdirectory context hints. Complete: TDD added internal/llm/subdirectory_hints.go and subdirectory_hints_test.go. The pure tracker preloads the working directory, extracts path/file_path/workdir and terminal command path tokens, skips empty args/flags/URLs/git remotes, walks bounded ancestors, loads only the first hint file per directory by AGENTS/CLAUDE/.cursorrules priority, reuses the context-file scan/truncation helpers, preserves blocked prompt-injection markers, returns typed stat/read/empty/loaded evidence, formats appendable `[Subdirectory context discovered: <relative path>]` sections, and does not bind tool execution or mutate prompt assembly.",
       "write_scope": [
-        "internal/hermes/subdirectory_hints.go",
-        "internal/hermes/subdirectory_hints_test.go",
-        "internal/hermes/context_files.go",
-        "internal/hermes/context_files_test.go",
+        "internal/llm/subdirectory_hints.go",
+        "internal/llm/subdirectory_hints_test.go",
+        "internal/llm/context_files.go",
+        "internal/llm/context_files_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run '^TestSubdirectoryHints|^TestContextFiles' -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run '^TestSubdirectoryHints|^TestContextFiles' -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -321,10 +321,10 @@
         "note": "Hermes lazily appends subdirectory context after tool navigation so prompt caching is preserved. Gormes has startup context-file loading but no source-backed row for progressive tool-result hint discovery."
       },
       "evidence": [
-        "RED: go test ./internal/hermes -run '^TestSubdirectoryHintsAncestorDiscovery$' -count=1 failed on undefined NewSubdirectoryHintTracker and SubdirectoryHintOptions.",
-        "RED: go test ./internal/hermes -run '^TestSubdirectoryHintsPathSourcesPriorityAndSafety$' -count=1 failed first because blocked prompt-injection markers were truncated, then because stat-error evidence was absent.",
-        "GREEN: go test ./internal/hermes -run '^TestSubdirectoryHints|^TestContextFiles' -count=1 passed.",
-        "GREEN: go test ./internal/hermes -count=1 passed."
+        "RED: go test ./internal/llm -run '^TestSubdirectoryHintsAncestorDiscovery$' -count=1 failed on undefined NewSubdirectoryHintTracker and SubdirectoryHintOptions.",
+        "RED: go test ./internal/llm -run '^TestSubdirectoryHintsPathSourcesPriorityAndSafety$' -count=1 failed first because blocked prompt-injection markers were truncated, then because stat-error evidence was absent.",
+        "GREEN: go test ./internal/llm -run '^TestSubdirectoryHints|^TestContextFiles' -count=1 passed.",
+        "GREEN: go test ./internal/llm -count=1 passed."
       ],
       "unblocks": []
     }
@@ -346,7 +346,7 @@
         "system"
       ],
       "degraded_mode": "Malformed tool_use_enforcement config falls back to Hermes auto mode and records tool_use_enforcement_defaulted evidence; missing tools suppress the guidance block instead of adding model-visible promises about unavailable tools.",
-      "fixture": "internal/hermes/model_guidance_test.go",
+      "fixture": "internal/llm/model_guidance_test.go",
       "source_refs": [
         "../hermes-agent/agent/prompt_builder.py:TOOL_USE_ENFORCEMENT_GUIDANCE",
         "../hermes-agent/agent/prompt_builder.py:TOOL_USE_ENFORCEMENT_MODELS",
@@ -357,12 +357,12 @@
         "../hermes-agent/tests/agent/test_prompt_builder.py:test_tool_use_enforcement_guidance_content",
         "../hermes-agent/tests/agent/test_prompt_builder.py:test_tool_use_enforcement_model_list_includes_gpt_family",
         "../hermes-agent/tests/agent/test_prompt_builder.py:test_openai_model_execution_guidance_content",
-        "internal/hermes/context_files.go",
-        "internal/hermes/self_help_guidance.go",
+        "internal/llm/context_files.go",
+        "internal/llm/self_help_guidance.go",
         "references/go-agent-os/trpc-agent-go/model/callbacks.go"
       ],
       "ready_when": [
-        "Context-file prompt and self-help guidance helpers exist under internal/hermes, so model guidance can be added as another pure prompt block helper.",
+        "Context-file prompt and self-help guidance helpers exist under internal/llm, so model guidance can be added as another pure prompt block helper.",
         "Tests can use synthetic model names, valid-tool-name lists, and injected config values; no provider adapter, model catalog, memory lookup, or live model call is required.",
         "The helper exposes API-boundary role translation data while preserving the internal transcript role used by the rest of Gormes."
       ],
@@ -384,13 +384,13 @@
       ],
       "note": "Builder-ready provider/prompt parity slice. Hermes defines the model-family role translation and tool-use guidance constants; Gormes should freeze the pure helper before native full prompt assembly and provider adapters consume it.",
       "write_scope": [
-        "internal/hermes/model_guidance.go",
-        "internal/hermes/model_guidance_test.go",
+        "internal/llm/model_guidance.go",
+        "internal/llm/model_guidance_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run 'Test(ModelPromptRole|ToolUseEnforcement|ModelOperationalGuidance|PromptGuidanceIsPure)' -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run 'Test(ModelPromptRole|ToolUseEnforcement|ModelOperationalGuidance|PromptGuidanceIsPure)' -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -406,8 +406,8 @@
         "note": "Hermes is the parity contract for prompt content and role choice; the Go donor reference informs keeping provider-boundary transforms separate from model callbacks."
       },
       "evidence": {
-        "implementation": "internal/hermes/model_guidance.go; internal/hermes/model_guidance_test.go; internal/hermes/guidance_constants.go (OpenAI/Google operational guidance constants)",
-        "tests": "go test ./internal/hermes -run 'Test(ModelPromptRole|ToolUseEnforcement|ModelOperationalGuidance|PromptGuidanceIsPure)' -count=1; go test ./internal/hermes -count=1; go run ./cmd/progress validate; git diff --check",
+        "implementation": "internal/llm/model_guidance.go; internal/llm/model_guidance_test.go; internal/llm/guidance_constants.go (OpenAI/Google operational guidance constants)",
+        "tests": "go test ./internal/llm -run 'Test(ModelPromptRole|ToolUseEnforcement|ModelOperationalGuidance|PromptGuidanceIsPure)' -count=1; go test ./internal/llm -count=1; go run ./cmd/progress validate; git diff --check",
         "note": "Pure model-guidance fixtures prove API-boundary developer-role selection for gpt-5/codex families, tool-use enforcement config modes with no-tools suppression/default evidence, and family-specific OpenAI/Codex vs Gemini/Gemma operational guidance without provider/config/env/tool-registry dependencies."
       }
     }
@@ -429,7 +429,7 @@
         "system"
       ],
       "degraded_mode": "If the snapshot is missing, stale, malformed, or unwritable, Gormes falls back to a full active-skill scan and records skills_prompt_snapshot_miss or skills_prompt_snapshot_write_failed evidence without injecting disabled, unsupported, or unavailable skills.",
-      "fixture": "internal/hermes/skills_prompt_test.go",
+      "fixture": "internal/llm/skills_prompt_test.go",
       "source_refs": [
         "../hermes-agent/agent/prompt_builder.py:_build_skills_manifest",
         "../hermes-agent/agent/prompt_builder.py:_load_skills_snapshot",
@@ -471,15 +471,15 @@
       ],
       "note": "Builder-ready tool-calling prompt slice. Hermes defines the skill-index snapshot and conditional tool/toolset filtering contract; Gormes should implement it against the existing internal/skills runtime before native full prompt assembly consumes dynamic skills. Partial TDD evidence landed 2026-04-30: internal/skills now parses metadata.hermes fallback_for_tools, fallback_for_toolsets, requires_tools, and requires_toolsets from SKILL.md frontmatter and RuntimeOptions filters prompt injection with Hermes nil-filter backward compatibility. Focused regression: go test ./internal/skills -run TestRuntimeBuildSkillBlockToolsetConditions -count=1. Upstream contract checked against /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d agent/prompt_builder.py:_skill_should_show and build_skills_system_prompt.",
       "write_scope": [
-        "internal/hermes/skills_prompt.go",
-        "internal/hermes/skills_prompt_test.go",
+        "internal/llm/skills_prompt.go",
+        "internal/llm/skills_prompt_test.go",
         "internal/skills/types.go",
         "internal/skills/parser.go",
         "internal/skills/status.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes ./internal/skills -run 'TestSkillsPrompt' -count=1",
+        "go test ./internal/llm ./internal/skills -run 'TestSkillsPrompt' -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -516,16 +516,16 @@
         "system"
       ],
       "degraded_mode": "If memory guidance is unavailable, the prompt omits the block and records memory_guidance_suppressed evidence",
-      "fixture": "internal/hermes/memory_guidance_test.go",
+      "fixture": "internal/llm/memory_guidance_test.go",
       "source_refs": [
         "../hermes-agent/agent/prompt_builder.py:144-156_MEMORY_GUIDANCE",
-        "internal/hermes/guidance_constants.go:MemoryGuidance"
+        "internal/llm/guidance_constants.go:MemoryGuidance"
       ],
       "ready_when": [
         "Tests can assert byte-equivalence against the upstream parenthesised literal block without calling Python"
       ],
       "not_ready_when": [
-        "The slice changes Goncho memory recall behavior or internal/session memory persistence"
+        "The slice changes Goncho memory recall behavior or internal/persistence/session memory persistence"
       ],
       "acceptance": [
         "TestMemoryGuidance_ByteEquivalent proves the Go constant matches the Hermes MEMORY_GUIDANCE literal",
@@ -534,13 +534,13 @@
         "TestMemoryGuidance_Pure proves deterministic output with no side effects"
       ],
       "write_scope": [
-        "internal/hermes/memory_guidance.go",
-        "internal/hermes/memory_guidance_test.go",
+        "internal/llm/memory_guidance.go",
+        "internal/llm/memory_guidance_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run TestMemoryGuidance -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run TestMemoryGuidance -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -548,17 +548,17 @@
       ],
       "evidence": {
         "implementation": [
-          "internal/hermes/guidance_constants.go:MemoryGuidance (upstream-pinned)",
-          "internal/hermes/memory_guidance.go:BuildMemoryGuidance, MemoryGuidanceResult"
+          "internal/llm/guidance_constants.go:MemoryGuidance (upstream-pinned)",
+          "internal/llm/memory_guidance.go:BuildMemoryGuidance, MemoryGuidanceResult"
         ],
         "tests": [
-          "internal/hermes/memory_guidance_test.go:TestMemoryGuidance_ByteEquivalent",
-          "internal/hermes/memory_guidance_test.go:TestMemoryGuidance_InjectedWhenToolAvailable",
-          "internal/hermes/memory_guidance_test.go:TestMemoryGuidance_SuppressedWhenNoTool",
-          "internal/hermes/memory_guidance_test.go:TestMemoryGuidance_Pure"
+          "internal/llm/memory_guidance_test.go:TestMemoryGuidance_ByteEquivalent",
+          "internal/llm/memory_guidance_test.go:TestMemoryGuidance_InjectedWhenToolAvailable",
+          "internal/llm/memory_guidance_test.go:TestMemoryGuidance_SuppressedWhenNoTool",
+          "internal/llm/memory_guidance_test.go:TestMemoryGuidance_Pure"
         ],
         "verification": [
-          "go test ./internal/hermes -count=1 -> ok",
+          "go test ./internal/llm -count=1 -> ok",
           "go run ./cmd/progress validate -> 7 phases validated"
         ]
       }
@@ -582,10 +582,10 @@
         "system"
       ],
       "degraded_mode": "If session search guidance is unavailable, the prompt omits the block and records session_search_guidance_suppressed evidence",
-      "fixture": "internal/hermes/session_search_guidance_test.go",
+      "fixture": "internal/llm/session_search_guidance_test.go",
       "source_refs": [
         "../hermes-agent/agent/prompt_builder.py:158-162_SESSION_SEARCH_GUIDANCE",
-        "internal/hermes/guidance_constants.go:SessionSearchGuidance"
+        "internal/llm/guidance_constants.go:SessionSearchGuidance"
       ],
       "ready_when": [
         "Tests can assert byte-equivalence against the upstream parenthesised literal block"
@@ -600,13 +600,13 @@
         "TestSessionSearchGuidance_Pure proves deterministic output with no side effects"
       ],
       "write_scope": [
-        "internal/hermes/session_search_guidance.go",
-        "internal/hermes/session_search_guidance_test.go",
+        "internal/llm/session_search_guidance.go",
+        "internal/llm/session_search_guidance_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run TestSessionSearchGuidance -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run TestSessionSearchGuidance -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -614,17 +614,17 @@
       ],
       "evidence": {
         "implementation": [
-          "internal/hermes/guidance_constants.go:SessionSearchGuidance (upstream-pinned)",
-          "internal/hermes/session_search_guidance.go:BuildSessionSearchGuidance, SessionSearchGuidanceResult"
+          "internal/llm/guidance_constants.go:SessionSearchGuidance (upstream-pinned)",
+          "internal/llm/session_search_guidance.go:BuildSessionSearchGuidance, SessionSearchGuidanceResult"
         ],
         "tests": [
-          "internal/hermes/session_search_guidance_test.go:TestSessionSearchGuidance_ByteEquivalent",
-          "internal/hermes/session_search_guidance_test.go:TestSessionSearchGuidance_InjectedWhenEnabled",
-          "internal/hermes/session_search_guidance_test.go:TestSessionSearchGuidance_SuppressedWhenDisabled",
-          "internal/hermes/session_search_guidance_test.go:TestSessionSearchGuidance_Pure"
+          "internal/llm/session_search_guidance_test.go:TestSessionSearchGuidance_ByteEquivalent",
+          "internal/llm/session_search_guidance_test.go:TestSessionSearchGuidance_InjectedWhenEnabled",
+          "internal/llm/session_search_guidance_test.go:TestSessionSearchGuidance_SuppressedWhenDisabled",
+          "internal/llm/session_search_guidance_test.go:TestSessionSearchGuidance_Pure"
         ],
         "verification": [
-          "go test ./internal/hermes -count=1 -> ok",
+          "go test ./internal/llm -count=1 -> ok",
           "go run ./cmd/progress validate -> 7 phases validated"
         ]
       }
@@ -648,7 +648,7 @@
         "operator"
       ],
       "degraded_mode": "If a future Gormes self-help skill is unavailable, prompt assembly still points to the local Astro/Starlight docs surface and emits self-help-unavailable evidence instead of silently falling back to deprecated Gormes Agent or upstream Hermes Agent wording.",
-      "fixture": "internal/hermes/self_help_guidance_test.go::TestGormesSelfHelpGuidance*",
+      "fixture": "internal/llm/self_help_guidance_test.go::TestGormesSelfHelpGuidance*",
       "source_refs": [
         "../hermes-agent/agent/prompt_builder.py@920ebd83:HERMES_AGENT_HELP_GUIDANCE",
         "../hermes-agent/run_agent.py@920ebd83",
@@ -674,13 +674,13 @@
       ],
       "note": "Hermes 920ebd83 points its agent at Hermes Agent skill/docs for self-help. Gormes needs the same UX pattern, but with Gormes-owned docs and future skill naming so prompt drift does not route users back to upstream Python documentation. 2026-05-14 naming cleanup keeps Gormes Agent as a legacy input alias only and removes it from current self-help output.",
       "write_scope": [
-        "internal/hermes/self_help_guidance.go",
-        "internal/hermes/self_help_guidance_test.go",
+        "internal/llm/self_help_guidance.go",
+        "internal/llm/self_help_guidance_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run '^TestGormesSelfHelpGuidance' -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run '^TestGormesSelfHelpGuidance' -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -706,7 +706,7 @@
       "name": "[SYSTEM:→[IMPORTANT: meta-instruction prefix rename for Azure content filter compatibility",
       "priority": "P1",
       "status": "complete",
-      "contract": "Single rename of the bracketed meta-instruction prefix used for skill-invocation and cron-heartbeat prompts: change every occurrence of the literal string \"[SYSTEM:\" to \"[IMPORTANT:\" in (a) internal/skills/commands.go (currently at line 94 inside the BuildSkill block string template) and (b) internal/cron/heartbeat.go's CronHeartbeatPrefix constant. The replacement is byte-for-byte over a 7→10 character literal; semantic meaning to the model is unchanged. Update the two existing assertions in internal/skills/preprocessing_commands_test.go (string literal `[SYSTEM: The user has invoked`) and the two assertions in internal/cron/heartbeat_test.go (HasPrefix and contained \"[SYSTEM:\") to match the new prefix. No public Go API renames, no struct shape changes, no provider/transport edits, no schema migrations.",
+      "contract": "Single rename of the bracketed meta-instruction prefix used for skill-invocation and cron-heartbeat prompts: change every occurrence of the literal string \"[SYSTEM:\" to \"[IMPORTANT:\" in (a) internal/skills/commands.go (currently at line 94 inside the BuildSkill block string template) and (b) internal/automation/cron/heartbeat.go's CronHeartbeatPrefix constant. The replacement is byte-for-byte over a 7→10 character literal; semantic meaning to the model is unchanged. Update the two existing assertions in internal/skills/preprocessing_commands_test.go (string literal `[SYSTEM: The user has invoked`) and the two assertions in internal/automation/cron/heartbeat_test.go (HasPrefix and contained \"[SYSTEM:\") to match the new prefix. No public Go API renames, no struct shape changes, no provider/transport edits, no schema migrations.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "provider",
@@ -715,17 +715,17 @@
         "system"
       ],
       "degraded_mode": "Cron-heartbeat and skill-invocation prompts continue to assemble in the same shape; only the leading bracketed marker token differs. Azure OpenAI content-filter (Default/DefaultV2) no longer rejects with HTTP 400 'prompt-injection attempt' when these markers appear at message head.",
-      "fixture": "internal/cron/heartbeat_test.go",
+      "fixture": "internal/automation/cron/heartbeat_test.go",
       "source_refs": [
         "../hermes-agent/agent/skill_commands.py@d7a34682",
         "../hermes-agent/cron/scheduler.py@d7a34682",
         "internal/skills/commands.go:94",
-        "internal/cron/heartbeat.go:16",
+        "internal/automation/cron/heartbeat.go:16",
         "internal/skills/preprocessing_commands_test.go:181",
-        "internal/cron/heartbeat_test.go:11"
+        "internal/automation/cron/heartbeat_test.go:11"
       ],
       "ready_when": [
-        "Both internal/skills/commands.go and internal/cron/heartbeat.go currently use the literal \"[SYSTEM:\" prefix (verified 2026-04-26 by grep).",
+        "Both internal/skills/commands.go and internal/automation/cron/heartbeat.go currently use the literal \"[SYSTEM:\" prefix (verified 2026-04-26 by grep).",
         "Both *_test.go files assert against the literal \"[SYSTEM:\" prefix and will need synchronized updates inside this slice's write_scope.",
         "No upstream gate beyond the upstream Hermes commit d7a34682 already merged."
       ],
@@ -744,20 +744,20 @@
       "note": "Complete: cron heartbeat and skill-invocation prompts now emit [IMPORTANT: while preserving the existing prompt bodies and public Go APIs. Fixtures assert the new prefix, the absence of legacy [SYSTEM: markers from the relevant rendered prompts, and the exact heartbeat constant body. Mirrors upstream Hermes d7a34682 (fix(prompts): replace [SYSTEM: with [IMPORTANT: to avoid Azure content filter, fixes #6576).",
       "write_scope": [
         "internal/skills/commands.go",
-        "internal/cron/heartbeat.go",
+        "internal/automation/cron/heartbeat.go",
         "internal/skills/preprocessing_commands_test.go",
-        "internal/cron/heartbeat_test.go",
+        "internal/automation/cron/heartbeat_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron -run TestCronHeartbeat -count=1",
+        "go test ./internal/automation/cron -run TestCronHeartbeat -count=1",
         "go test ./internal/skills -run TestPreprocessingCommands -count=1",
-        "go test ./internal/skills ./internal/cron -count=1",
+        "go test ./internal/skills ./internal/automation/cron -count=1",
         "go vet ./...",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
-        "internal/cron/heartbeat_test.go and internal/skills/preprocessing_commands_test.go assert the [IMPORTANT: prefix and the codebase contains zero remaining \"[SYSTEM:\" string literals under internal/skills and internal/cron."
+        "internal/automation/cron/heartbeat_test.go and internal/skills/preprocessing_commands_test.go assert the [IMPORTANT: prefix and the codebase contains zero remaining \"[SYSTEM:\" string literals under internal/skills and internal/automation/cron."
       ],
       "health": {
         "attempt_count": 1,
@@ -791,7 +791,7 @@
         "system"
       ],
       "degraded_mode": "If any block is missing, assembly continues with the remaining blocks and records missing_block evidence; the prompt never falls back to Python Hermes runtime",
-      "fixture": "internal/hermes/prompt_assembly_test.go",
+      "fixture": "internal/llm/prompt_assembly_test.go",
       "source_refs": [
         "../hermes-agent/agent/prompt_builder.py:build_system_prompt",
         "../hermes-agent/run_agent.py:_build_system_prompt"
@@ -807,13 +807,13 @@
         "TestPromptAssembly_Pure proves no Python runtime, provider, network, or credential dependency"
       ],
       "write_scope": [
-        "internal/hermes/prompt_assembly.go",
-        "internal/hermes/prompt_assembly_test.go",
+        "internal/llm/prompt_assembly.go",
+        "internal/llm/prompt_assembly_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run TestPromptAssembly -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run TestPromptAssembly -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -821,16 +821,16 @@
       ],
       "evidence": {
         "implementation": [
-          "internal/hermes/prompt_assembly.go:BuildSystemPrompt, PromptAssemblyOptions, PromptAssemblyResult, PromptBlockEvidence"
+          "internal/llm/prompt_assembly.go:BuildSystemPrompt, PromptAssemblyOptions, PromptAssemblyResult, PromptBlockEvidence"
         ],
         "tests": [
-          "internal/hermes/prompt_assembly_test.go:TestPromptAssembly_BlockOrder",
-          "internal/hermes/prompt_assembly_test.go:TestPromptAssembly_MissingBlockEvidence",
-          "internal/hermes/prompt_assembly_test.go:TestPromptAssembly_Deterministic",
-          "internal/hermes/prompt_assembly_test.go:TestPromptAssembly_Pure"
+          "internal/llm/prompt_assembly_test.go:TestPromptAssembly_BlockOrder",
+          "internal/llm/prompt_assembly_test.go:TestPromptAssembly_MissingBlockEvidence",
+          "internal/llm/prompt_assembly_test.go:TestPromptAssembly_Deterministic",
+          "internal/llm/prompt_assembly_test.go:TestPromptAssembly_Pure"
         ],
         "verification": [
-          "go test ./internal/hermes -count=1 -> ok",
+          "go test ./internal/llm -count=1 -> ok",
           "go run ./cmd/progress validate -> 7 phases validated"
         ]
       }
@@ -855,7 +855,7 @@
         "system"
       ],
       "degraded_mode": "Missing file, unreadable file, malformed JSON, non-array JSON, unsupported role/content shape, or oversized payload returns empty prefill plus typed prefill_messages_unavailable evidence with the redacted path and reason. Gateway and TUI turns continue without prefill instead of failing startup or sending placeholder text to the provider.",
-      "fixture": "internal/hermes/prefill_messages_test.go + internal/gateway/prefill_messages_test.go + internal/kernel/prefill_messages_test.go",
+      "fixture": "internal/llm/prefill_messages_test.go + internal/gateway/prefill_messages_test.go + internal/kernel/prefill_messages_test.go",
       "source_refs": [
         "../hermes-agent/cli.py:_load_prefill_messages",
         "../hermes-agent/gateway/run.py:GatewayRunner._load_prefill_messages",
@@ -866,7 +866,7 @@
         "../hermes-agent/hermes_cli/config.py:prefill_messages_file",
         "../hermes-agent/hermes_cli/tips.py:prefill_messages_file tip",
         "../hermes-agent/website/docs/reference/environment-variables.md:HERMES_PREFILL_MESSAGES_FILE",
-        "internal/hermes/prompt_assembly.go",
+        "internal/llm/prompt_assembly.go",
         "internal/gateway/live_turn_prompt.go",
         "internal/gateway/turn_adapter.go",
         "internal/kernel/kernel.go"
@@ -905,10 +905,10 @@
       ],
       "note": "Added by the 2026-05-04 behavioral parity audit to row-back M42. Hermes treats prefill_messages_file as an operator-visible prompt-control feature that is loaded by CLI/gateway/cron and injected into AIAgent API calls without persistence. Gormes should first port the normal gateway/local turn contract; cron/batch-specific reuse can follow as a dependent row.",
       "write_scope": [
-        "internal/hermes/prefill_messages.go",
-        "internal/hermes/prefill_messages_test.go",
-        "internal/hermes/prompt_assembly.go",
-        "internal/hermes/prompt_assembly_test.go",
+        "internal/llm/prefill_messages.go",
+        "internal/llm/prefill_messages_test.go",
+        "internal/llm/prompt_assembly.go",
+        "internal/llm/prompt_assembly_test.go",
         "internal/gateway/manager.go",
         "internal/gateway/prefill_messages_test.go",
         "internal/kernel/kernel.go",
@@ -917,9 +917,9 @@
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run 'TestPrefillMessages|TestPromptAssembly' -count=1",
+        "go test ./internal/llm -run 'TestPrefillMessages|TestPromptAssembly' -count=1",
         "go test ./internal/gateway ./internal/kernel -run 'Test.*PrefillMessages|TestLiveTurn|TestNormal' -count=1",
-        "go test ./internal/hermes ./internal/gateway ./internal/kernel -count=1",
+        "go test ./internal/llm ./internal/gateway ./internal/kernel -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [

@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go 1.26 stdlib (`context`, `crypto/rand`, `encoding/base32`, `encoding/json`, `errors`, `fmt`, `strings`, `sync`, `sync/atomic`, `time`); `golang.org/x/sync/errgroup` (already in go.sum); existing `internal/tools.Registry`/`internal/tools.Tool`; existing `internal/config`.
 
-**TDD discipline:** Every task = one green commit. Within a task: write failing test → run to confirm red → write minimal impl → run to confirm green → commit. The branch tip is never red. Test invocation is `go test ./internal/subagent/... ./internal/tools/... ./internal/config/... -race -shuffle=on -v`.
+**TDD discipline:** Every task = one green commit. Within a task: write failing test → run to confirm red → write minimal impl → run to confirm green → commit. The branch tip is never red. Test invocation is `go test ./internal/core/subagent/... ./internal/tools/... ./internal/config/... -race -shuffle=on -v`.
 
 ---
 
@@ -53,13 +53,13 @@ Module path prefix: `github.com/TrebuchetDynamics/gormes-agent`.
 ## Task 1: Subagent types — config, events, result
 
 **Files:**
-- Create: `internal/subagent/types.go`
-- Test: `internal/subagent/types_test.go`
+- Create: `internal/core/subagent/types.go`
+- Test: `internal/core/subagent/types_test.go`
 
 - [ ] **Step 1: Write the failing test**
 
 ```go
-// internal/subagent/types_test.go
+// internal/core/subagent/types_test.go
 package subagent
 
 import (
@@ -124,13 +124,13 @@ func TestSubagentResultZeroValue(t *testing.T) {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd gormes && go test ./internal/subagent/... -run "TestSubagentConfigZeroValue|TestEventTypeStringValues|TestResultStatusStringValues|TestSubagentResultZeroValue" -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -run "TestSubagentConfigZeroValue|TestEventTypeStringValues|TestResultStatusStringValues|TestSubagentResultZeroValue" -v`
 Expected: FAIL — `undefined: SubagentConfig` (or similar).
 
 - [ ] **Step 3: Write the minimal implementation**
 
 ```go
-// internal/subagent/types.go
+// internal/core/subagent/types.go
 
 // Package subagent implements goroutine-per-subagent execution isolation
 // with deterministic context cancellation, bounded batch concurrency, and
@@ -210,13 +210,13 @@ type SubagentResult struct {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd gormes && go test ./internal/subagent/... -race -shuffle=on -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -race -shuffle=on -v`
 Expected: PASS (4 tests).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/types.go internal/subagent/types_test.go
+git add internal/core/subagent/types.go internal/core/subagent/types_test.go
 git commit -m "feat(subagent): add SubagentConfig, SubagentEvent, SubagentResult types"
 ```
 
@@ -225,13 +225,13 @@ git commit -m "feat(subagent): add SubagentConfig, SubagentEvent, SubagentResult
 ## Task 2: Lifecycle constants and BlockedTools
 
 **Files:**
-- Create: `internal/subagent/blocked.go`
-- Test: `internal/subagent/blocked_test.go`
+- Create: `internal/core/subagent/blocked.go`
+- Test: `internal/core/subagent/blocked_test.go`
 
 - [ ] **Step 1: Write the failing test**
 
 ```go
-// internal/subagent/blocked_test.go
+// internal/core/subagent/blocked_test.go
 package subagent
 
 import "testing"
@@ -263,13 +263,13 @@ func TestBlockedToolsForwardLooking(t *testing.T) {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd gormes && go test ./internal/subagent/... -run "TestLifecycleConstants|TestBlockedToolsForwardLooking" -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -run "TestLifecycleConstants|TestBlockedToolsForwardLooking" -v`
 Expected: FAIL — `undefined: MaxDepth`.
 
 - [ ] **Step 3: Write the minimal implementation**
 
 ```go
-// internal/subagent/blocked.go
+// internal/core/subagent/blocked.go
 package subagent
 
 const (
@@ -304,13 +304,13 @@ var BlockedTools = map[string]bool{
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd gormes && go test ./internal/subagent/... -race -shuffle=on -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -race -shuffle=on -v`
 Expected: PASS (6 tests cumulative).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/blocked.go internal/subagent/blocked_test.go
+git add internal/core/subagent/blocked.go internal/core/subagent/blocked_test.go
 git commit -m "feat(subagent): add lifecycle constants and BlockedTools forward-looking set"
 ```
 
@@ -319,13 +319,13 @@ git commit -m "feat(subagent): add lifecycle constants and BlockedTools forward-
 ## Task 3: Sentinel errors
 
 **Files:**
-- Create: `internal/subagent/errors.go`
-- Test: `internal/subagent/errors_test.go`
+- Create: `internal/core/subagent/errors.go`
+- Test: `internal/core/subagent/errors_test.go`
 
 - [ ] **Step 1: Write the failing test**
 
 ```go
-// internal/subagent/errors_test.go
+// internal/core/subagent/errors_test.go
 package subagent
 
 import (
@@ -353,13 +353,13 @@ func TestSentinelMessages(t *testing.T) {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd gormes && go test ./internal/subagent/... -run "TestSentinelIdentity|TestSentinelMessages" -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -run "TestSentinelIdentity|TestSentinelMessages" -v`
 Expected: FAIL — `undefined: ErrMaxDepth`.
 
 - [ ] **Step 3: Write the minimal implementation**
 
 ```go
-// internal/subagent/errors.go
+// internal/core/subagent/errors.go
 package subagent
 
 import "errors"
@@ -377,13 +377,13 @@ var (
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd gormes && go test ./internal/subagent/... -race -shuffle=on -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -race -shuffle=on -v`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/errors.go internal/subagent/errors_test.go
+git add internal/core/subagent/errors.go internal/core/subagent/errors_test.go
 git commit -m "feat(subagent): add ErrMaxDepth and ErrSubagentNotFound sentinels"
 ```
 
@@ -392,13 +392,13 @@ git commit -m "feat(subagent): add ErrMaxDepth and ErrSubagentNotFound sentinels
 ## Task 4: crypto/rand subagent IDs
 
 **Files:**
-- Create: `internal/subagent/ids.go`
-- Test: `internal/subagent/ids_test.go`
+- Create: `internal/core/subagent/ids.go`
+- Test: `internal/core/subagent/ids_test.go`
 
 - [ ] **Step 1: Write the failing test**
 
 ```go
-// internal/subagent/ids_test.go
+// internal/core/subagent/ids_test.go
 package subagent
 
 import (
@@ -442,13 +442,13 @@ func TestNewSubagentIDUniqueness(t *testing.T) {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd gormes && go test ./internal/subagent/... -run "TestNewSubagentID" -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -run "TestNewSubagentID" -v`
 Expected: FAIL — `undefined: newSubagentID`.
 
 - [ ] **Step 3: Write the minimal implementation**
 
 ```go
-// internal/subagent/ids.go
+// internal/core/subagent/ids.go
 package subagent
 
 import (
@@ -474,13 +474,13 @@ func newSubagentID() string {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd gormes && go test ./internal/subagent/... -race -shuffle=on -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -race -shuffle=on -v`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/ids.go internal/subagent/ids_test.go
+git add internal/core/subagent/ids.go internal/core/subagent/ids_test.go
 git commit -m "feat(subagent): add crypto/rand subagent ID generator"
 ```
 
@@ -489,13 +489,13 @@ git commit -m "feat(subagent): add crypto/rand subagent ID generator"
 ## Task 5: Runner interface + StubRunner
 
 **Files:**
-- Create: `internal/subagent/runner.go`
-- Test: `internal/subagent/runner_test.go`
+- Create: `internal/core/subagent/runner.go`
+- Test: `internal/core/subagent/runner_test.go`
 
 - [ ] **Step 1: Write the failing test**
 
 ```go
-// internal/subagent/runner_test.go
+// internal/core/subagent/runner_test.go
 package subagent
 
 import (
@@ -597,13 +597,13 @@ func drain(ch <-chan SubagentEvent) []SubagentEvent {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd gormes && go test ./internal/subagent/... -run "TestStubRunner" -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -run "TestStubRunner" -v`
 Expected: FAIL — `undefined: StubRunner`.
 
 - [ ] **Step 3: Write the minimal implementation**
 
 ```go
-// internal/subagent/runner.go
+// internal/core/subagent/runner.go
 package subagent
 
 import (
@@ -667,13 +667,13 @@ func (StubRunner) Run(ctx context.Context, cfg SubagentConfig, events chan<- Sub
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd gormes && go test ./internal/subagent/... -race -shuffle=on -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -race -shuffle=on -v`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/runner.go internal/subagent/runner_test.go
+git add internal/core/subagent/runner.go internal/core/subagent/runner_test.go
 git commit -m "feat(subagent): add Runner interface and StubRunner with ctx-cancel honour"
 ```
 
@@ -682,13 +682,13 @@ git commit -m "feat(subagent): add Runner interface and StubRunner with ctx-canc
 ## Task 6: Subagent struct — Events, WaitForResult, setResult
 
 **Files:**
-- Create: `internal/subagent/subagent.go`
-- Test: `internal/subagent/subagent_test.go`
+- Create: `internal/core/subagent/subagent.go`
+- Test: `internal/core/subagent/subagent_test.go`
 
 - [ ] **Step 1: Write the failing test**
 
 ```go
-// internal/subagent/subagent_test.go
+// internal/core/subagent/subagent_test.go
 package subagent
 
 import (
@@ -765,13 +765,13 @@ func newTestSubagent() *Subagent {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd gormes && go test ./internal/subagent/... -run "TestSubagent" -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -run "TestSubagent" -v`
 Expected: FAIL — `undefined: Subagent`.
 
 - [ ] **Step 3: Write the minimal implementation**
 
 ```go
-// internal/subagent/subagent.go
+// internal/core/subagent/subagent.go
 package subagent
 
 import (
@@ -831,13 +831,13 @@ func (s *Subagent) setResult(r *SubagentResult) {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd gormes && go test ./internal/subagent/... -race -shuffle=on -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -race -shuffle=on -v`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/subagent.go internal/subagent/subagent_test.go
+git add internal/core/subagent/subagent.go internal/core/subagent/subagent_test.go
 git commit -m "feat(subagent): add Subagent struct with Events() and WaitForResult"
 ```
 
@@ -846,13 +846,13 @@ git commit -m "feat(subagent): add Subagent struct with Events() and WaitForResu
 ## Task 7: SubagentRegistry
 
 **Files:**
-- Create: `internal/subagent/registry.go`
-- Test: `internal/subagent/registry_test.go`
+- Create: `internal/core/subagent/registry.go`
+- Test: `internal/core/subagent/registry_test.go`
 
 - [ ] **Step 1: Write the failing test**
 
 ```go
-// internal/subagent/registry_test.go
+// internal/core/subagent/registry_test.go
 package subagent
 
 import (
@@ -924,13 +924,13 @@ func TestRegistryListIsSnapshot(t *testing.T) {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd gormes && go test ./internal/subagent/... -run "TestRegistry" -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -run "TestRegistry" -v`
 Expected: FAIL — `undefined: NewRegistry`.
 
 - [ ] **Step 3: Write the minimal implementation**
 
 ```go
-// internal/subagent/registry.go
+// internal/core/subagent/registry.go
 package subagent
 
 import "sync"
@@ -994,13 +994,13 @@ func (r *registry) List() []*Subagent {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd gormes && go test ./internal/subagent/... -race -shuffle=on -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -race -shuffle=on -v`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/registry.go internal/subagent/registry_test.go
+git add internal/core/subagent/registry.go internal/core/subagent/registry_test.go
 git commit -m "feat(subagent): add SubagentRegistry with InterruptAll"
 ```
 
@@ -1009,13 +1009,13 @@ git commit -m "feat(subagent): add SubagentRegistry with InterruptAll"
 ## Task 8: SubagentManager — Spawn (happy path with StubRunner)
 
 **Files:**
-- Create: `internal/subagent/manager.go`
-- Test: `internal/subagent/manager_test.go`
+- Create: `internal/core/subagent/manager.go`
+- Test: `internal/core/subagent/manager_test.go`
 
 - [ ] **Step 1: Write the failing test**
 
 ```go
-// internal/subagent/manager_test.go
+// internal/core/subagent/manager_test.go
 package subagent
 
 import (
@@ -1097,13 +1097,13 @@ func TestManagerSpawnAppliesIterationDefault(t *testing.T) {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd gormes && go test ./internal/subagent/... -run "TestManagerSpawn" -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -run "TestManagerSpawn" -v`
 Expected: FAIL — `undefined: NewManager`.
 
 - [ ] **Step 3: Write the minimal implementation**
 
 ```go
-// internal/subagent/manager.go
+// internal/core/subagent/manager.go
 package subagent
 
 import (
@@ -1314,13 +1314,13 @@ The unimplemented methods return explicit "not implemented" errors so the packag
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd gormes && go test ./internal/subagent/... -race -shuffle=on -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -race -shuffle=on -v`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/manager.go internal/subagent/manager_test.go
+git add internal/core/subagent/manager.go internal/core/subagent/manager_test.go
 git commit -m "feat(subagent): add SubagentManager.Spawn with lifecycle goroutine"
 ```
 
@@ -1329,8 +1329,8 @@ git commit -m "feat(subagent): add SubagentManager.Spawn with lifecycle goroutin
 ## Task 9: Manager Interrupt + interruptMsg propagation
 
 **Files:**
-- Modify: `internal/subagent/manager.go`
-- Test: `internal/subagent/manager_test.go`
+- Modify: `internal/core/subagent/manager.go`
+- Test: `internal/core/subagent/manager_test.go`
 
 - [ ] **Step 1: Append the failing test to manager_test.go**
 
@@ -1459,7 +1459,7 @@ func TestManagerInterruptIsIdempotent(t *testing.T) {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd gormes && go test ./internal/subagent/... -run "TestManagerInterrupt" -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -run "TestManagerInterrupt" -v`
 Expected: FAIL — Interrupt currently returns "not implemented".
 
 - [ ] **Step 3: Replace Interrupt's stub in manager.go**
@@ -1482,13 +1482,13 @@ func (m *manager) Interrupt(sa *Subagent, message string) error {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd gormes && go test ./internal/subagent/... -race -shuffle=on -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -race -shuffle=on -v`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/manager.go internal/subagent/manager_test.go
+git add internal/core/subagent/manager.go internal/core/subagent/manager_test.go
 git commit -m "feat(subagent): implement Manager.Interrupt with message propagation"
 ```
 
@@ -1497,7 +1497,7 @@ git commit -m "feat(subagent): implement Manager.Interrupt with message propagat
 ## Task 10: Parent ctx cancellation cascade
 
 **Files:**
-- Modify: `internal/subagent/manager_test.go` (append test only)
+- Modify: `internal/core/subagent/manager_test.go` (append test only)
 
 - [ ] **Step 1: Append the failing test**
 
@@ -1538,13 +1538,13 @@ func TestManagerParentCtxCancellationCascades(t *testing.T) {
 
 - [ ] **Step 2: Run the test to verify it passes**
 
-Run: `cd gormes && go test ./internal/subagent/... -run "TestManagerParentCtxCancellationCascades" -race -shuffle=on -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -run "TestManagerParentCtxCancellationCascades" -race -shuffle=on -v`
 Expected: PASS — already implemented by `WithCancel(parentCtx)` in Spawn. This task documents the invariant with a regression test; no impl change needed. If it fails, the bug is in Task 8's Spawn.
 
 - [ ] **Step 3: Commit (test-only commit is green and is the regression guard)**
 
 ```bash
-git add internal/subagent/manager_test.go
+git add internal/core/subagent/manager_test.go
 git commit -m "test(subagent): add regression test for parent ctx cancellation cascade"
 ```
 
@@ -1553,7 +1553,7 @@ git commit -m "test(subagent): add regression test for parent ctx cancellation c
 ## Task 11: Manager depth limit
 
 **Files:**
-- Modify: `internal/subagent/manager_test.go` (append test only)
+- Modify: `internal/core/subagent/manager_test.go` (append test only)
 
 - [ ] **Step 1: Append the failing test**
 
@@ -1595,13 +1595,13 @@ func TestManagerSpawnAtMaxDepthMinusOneAllowed(t *testing.T) {
 
 - [ ] **Step 2: Run the test to verify it passes**
 
-Run: `cd gormes && go test ./internal/subagent/... -run "TestManagerSpawnAtMaxDepth" -race -shuffle=on -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -run "TestManagerSpawnAtMaxDepth" -race -shuffle=on -v`
 Expected: PASS — depth check is already in Task 8's Spawn. This task is the regression test.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add internal/subagent/manager_test.go
+git add internal/core/subagent/manager_test.go
 git commit -m "test(subagent): add depth-limit regression tests"
 ```
 
@@ -1610,8 +1610,8 @@ git commit -m "test(subagent): add depth-limit regression tests"
 ## Task 12: Manager Collect + Close (sync.Once)
 
 **Files:**
-- Modify: `internal/subagent/manager.go`
-- Test: `internal/subagent/manager_test.go`
+- Modify: `internal/core/subagent/manager.go`
+- Test: `internal/core/subagent/manager_test.go`
 
 - [ ] **Step 1: Append the failing test**
 
@@ -1677,7 +1677,7 @@ func TestManagerCloseCancelsAllAndIsIdempotent(t *testing.T) {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd gormes && go test ./internal/subagent/... -run "TestManagerCollect|TestManagerClose" -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -run "TestManagerCollect|TestManagerClose" -v`
 Expected: FAIL — Collect returns nil always; Close is a no-op stub.
 
 - [ ] **Step 3: Replace Collect and Close in manager.go**
@@ -1726,13 +1726,13 @@ func (m *manager) Close() error {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd gormes && go test ./internal/subagent/... -race -shuffle=on -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -race -shuffle=on -v`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/manager.go internal/subagent/manager_test.go
+git add internal/core/subagent/manager.go internal/core/subagent/manager_test.go
 git commit -m "feat(subagent): implement Manager.Collect and idempotent Manager.Close"
 ```
 
@@ -1741,13 +1741,13 @@ git commit -m "feat(subagent): implement Manager.Collect and idempotent Manager.
 ## Task 13: SpawnBatch with errgroup + semaphore
 
 **Files:**
-- Create: `internal/subagent/batch.go`
-- Test: `internal/subagent/batch_test.go`
+- Create: `internal/core/subagent/batch.go`
+- Test: `internal/core/subagent/batch_test.go`
 
 - [ ] **Step 1: Write the failing test**
 
 ```go
-// internal/subagent/batch_test.go
+// internal/core/subagent/batch_test.go
 package subagent
 
 import (
@@ -1863,15 +1863,15 @@ func TestSpawnBatchEmptyInput(t *testing.T) {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd gormes && go test ./internal/subagent/... -run "TestSpawnBatch" -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -run "TestSpawnBatch" -v`
 Expected: FAIL — SpawnBatch is the "not implemented" stub from Task 8.
 
 - [ ] **Step 3: Write batch.go and remove the stub from manager.go**
 
-Create `internal/subagent/batch.go`:
+Create `internal/core/subagent/batch.go`:
 
 ```go
-// internal/subagent/batch.go
+// internal/core/subagent/batch.go
 package subagent
 
 import (
@@ -1940,13 +1940,13 @@ func (m *manager) SpawnBatch(ctx context.Context, cfgs []SubagentConfig, maxConc
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd gormes && go test ./internal/subagent/... -race -shuffle=on -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -race -shuffle=on -v`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/batch.go internal/subagent/manager.go internal/subagent/batch_test.go
+git add internal/core/subagent/batch.go internal/core/subagent/manager.go internal/core/subagent/batch_test.go
 git commit -m "feat(subagent): implement SpawnBatch with errgroup + semaphore (no polling)"
 ```
 
@@ -2249,13 +2249,13 @@ git commit -m "feat(config): add [delegation] TOML section for Phase 2.E"
 ## Task 16: delegate_task tool
 
 **Files:**
-- Create: `internal/subagent/delegate_tool.go`
-- Test: `internal/subagent/delegate_tool_test.go`
+- Create: `internal/core/subagent/delegate_tool.go`
+- Test: `internal/core/subagent/delegate_tool_test.go`
 
 - [ ] **Step 1: Write the failing test**
 
 ```go
-// internal/subagent/delegate_tool_test.go
+// internal/core/subagent/delegate_tool_test.go
 package subagent
 
 import (
@@ -2354,13 +2354,13 @@ func TestDelegateToolToolsetsParsing(t *testing.T) {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd gormes && go test ./internal/subagent/... -run "TestDelegateTool" -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -run "TestDelegateTool" -v`
 Expected: FAIL — `undefined: NewDelegateTool`.
 
 - [ ] **Step 3: Write the minimal implementation**
 
 ```go
-// internal/subagent/delegate_tool.go
+// internal/core/subagent/delegate_tool.go
 package subagent
 
 import (
@@ -2467,13 +2467,13 @@ func (t *DelegateTool) Execute(ctx context.Context, args json.RawMessage) (json.
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd gormes && go test ./internal/subagent/... -race -shuffle=on -v`
+Run: `cd gormes && go test ./internal/core/subagent/... -race -shuffle=on -v`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/delegate_tool.go internal/subagent/delegate_tool_test.go
+git add internal/core/subagent/delegate_tool.go internal/core/subagent/delegate_tool_test.go
 git commit -m "feat(subagent): add delegate_task tool wrapping SubagentManager"
 ```
 
@@ -2483,7 +2483,7 @@ git commit -m "feat(subagent): add delegate_task tool wrapping SubagentManager"
 
 - [ ] **Step 1: Full test sweep with race + shuffle**
 
-Run: `cd gormes && go test ./internal/subagent/... ./internal/tools/... ./internal/config/... -race -shuffle=on -count=3 -v`
+Run: `cd gormes && go test ./internal/core/subagent/... ./internal/tools/... ./internal/config/... -race -shuffle=on -count=3 -v`
 Expected: PASS on every iteration. `-count=3` runs the suite three times to flush out flakes; `-shuffle=on` reorders tests each iteration.
 
 - [ ] **Step 2: Build cleanly**

@@ -101,12 +101,12 @@ go test ./internal/gateway ./cmd/gormes ./internal/config -count=1
 
 **Files**
 - `internal/gateway/*`
-- `internal/session/*`
+- `internal/persistence/session/*`
 - `cmd/gormes/*`
 
 **Verify**
 ```bash
-go test ./internal/gateway ./internal/session ./cmd/gormes -count=1
+go test ./internal/gateway ./internal/persistence/session ./cmd/gormes -count=1
 ```
 
 **Commit**
@@ -122,12 +122,12 @@ go test ./internal/gateway ./internal/session ./cmd/gormes -count=1
 
 **Files**
 - `internal/gateway/*`
-- `internal/session/*`
+- `internal/persistence/session/*`
 - `cmd/gormes/*`
 
 **Verify**
 ```bash
-go test ./internal/gateway ./internal/session ./cmd/gormes -count=1
+go test ./internal/gateway ./internal/persistence/session ./cmd/gormes -count=1
 ```
 
 **Commit**

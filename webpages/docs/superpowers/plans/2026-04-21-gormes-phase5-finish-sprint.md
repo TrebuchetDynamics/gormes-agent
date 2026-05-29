@@ -22,7 +22,7 @@ Targets:
 
 Verify:
 ```bash
-go test ./internal/tools ./internal/kernel ./internal/store -count=1
+go test ./internal/tools ./internal/kernel ./internal/persistence/store -count=1
 ```
 
 Commit:

@@ -15,15 +15,15 @@
 ## File Structure
 
 **Modify:**
-- `internal/subagent/manager.go` — remove misleading “implemented in a later task” comments now that the methods exist
-- `internal/subagent/runner.go` — tighten the current StubRunner scope note so it reads as an intentional runtime seam, not an unbounded TODO
+- `internal/core/subagent/manager.go` — remove misleading “implemented in a later task” comments now that the methods exist
+- `internal/core/subagent/runner.go` — tighten the current StubRunner scope note so it reads as an intentional runtime seam, not an unbounded TODO
 - `gormes/cmd/gormes/registry_test.go` — keep binary-level `delegate_task` wiring covered
 - `docs/content/building-gormes/architecture_plan/phase-2-gateway.md` — mark 2.E as in progress or shipped runtime core, not merely planned
 - `docs/content/building-gormes/architecture_plan/progress.json` — reflect the same ledger state
 - `docs/content/building-gormes/architecture_plan/_index.md` — regenerate if the progress page is derived from `progress.json`
 
 **Verify only:**
-- `internal/subagent/*.go`
+- `internal/core/subagent/*.go`
 - `internal/config/*.go`
 - `gormes/cmd/gormes/*.go`
 
@@ -32,23 +32,23 @@
 ## Task 1: Remove stale lifecycle drift from runtime comments
 
 **Files:**
-- Modify: `internal/subagent/manager.go`
-- Modify: `internal/subagent/runner.go`
+- Modify: `internal/core/subagent/manager.go`
+- Modify: `internal/core/subagent/runner.go`
 
 - [ ] **Step 1: Read the current comment drift before editing**
 
 Run:
 
 ```bash
-sed -n '1,320p' internal/subagent/manager.go
-sed -n '1,220p' internal/subagent/runner.go
+sed -n '1,320p' internal/core/subagent/manager.go
+sed -n '1,220p' internal/core/subagent/runner.go
 ```
 
 Expected: comments still mention “implemented in a later task” and “2.E.7” in places where the runtime is already intentionally wired and tested today.
 
 - [ ] **Step 2: Patch the comments to match shipped behavior**
 
-Update `internal/subagent/manager.go` so the comments above `Interrupt`, `Collect`, `Close`, and `SpawnBatch` describe what the methods actually do today instead of saying they are deferred.
+Update `internal/core/subagent/manager.go` so the comments above `Interrupt`, `Collect`, `Close`, and `SpawnBatch` describe what the methods actually do today instead of saying they are deferred.
 
 Use comment text in this shape:
 
@@ -71,7 +71,7 @@ Use comment text in this shape:
 // returns one result per input config in order.
 ```
 
-Update `internal/subagent/runner.go` so the `StubRunner` comment clearly says it is the intentionally shipped runtime seam for this slice, not a forgotten placeholder. Use wording like:
+Update `internal/core/subagent/runner.go` so the `StubRunner` comment clearly says it is the intentionally shipped runtime seam for this slice, not a forgotten placeholder. Use wording like:
 
 ```go
 // StubRunner is the runtime-core placeholder shipped in Phase 2.E closeout.
@@ -84,7 +84,7 @@ Update `internal/subagent/runner.go` so the `StubRunner` comment clearly says it
 Run:
 
 ```bash
-gofmt -w internal/subagent/manager.go internal/subagent/runner.go
+gofmt -w internal/core/subagent/manager.go internal/core/subagent/runner.go
 ```
 
 Expected: no output.
@@ -102,7 +102,7 @@ Expected: `ok` for `internal/subagent`.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/manager.go internal/subagent/runner.go
+git add internal/core/subagent/manager.go internal/core/subagent/runner.go
 git commit -m "docs(subagent): align lifecycle comments with shipped runtime"
 ```
 
@@ -250,7 +250,7 @@ git commit -m "docs(phase2): mark subagent runtime core as in progress"
 ## Task 4: Run closeout verification for Track A
 
 **Files:**
-- Verify only: `internal/subagent/*`, `internal/config/*`, `gormes/cmd/gormes/*`
+- Verify only: `internal/core/subagent/*`, `internal/config/*`, `gormes/cmd/gormes/*`
 
 - [ ] **Step 1: Run the focused race suite**
 

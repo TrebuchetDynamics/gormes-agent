@@ -12,7 +12,7 @@ High-level map:
 |---|---|
 | `cmd/gormes` | CLI, TUI startup, dashboard, gateway commands, setup/config. |
 | `internal/config` | Native config, `GORMES_HOME`, dotenv, schema validation. |
-| `internal/hermes` | Provider and Hermes-compatible runtime surfaces. |
+| `internal/llm` | Provider and Hermes-compatible runtime surfaces. |
 | `internal/gateway` | Shared command, event, session, and rendering logic for channels. |
 | `internal/tools` | Tool registry and tool implementations. |
 | `internal/goncho` | Honcho-compatible memory facade. |

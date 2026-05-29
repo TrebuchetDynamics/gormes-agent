@@ -6,7 +6,7 @@
 
 **Architecture:** This plan intentionally covers only `2.E0` from the approved Phase 2 OS-AI spine spec. The first slice does not touch active skills or candidate promotion yet. A `subagent.Manager` owns child lifecycle; a `subagent.ChatRunner` drives a one-off child conversation using the existing Hermes streaming client and a filtered `tools.Registry`; the parent kernel sees the child only as a normal Go-native tool call result. This keeps the runtime seam useful without requiring invasive kernel rewrites.
 
-**Tech Stack:** Go 1.26 stdlib (`context`, `crypto/rand`, `encoding/hex`, `encoding/json`, `errors`, `fmt`, `log/slog`, `os`, `path/filepath`, `strings`, `sync`, `time`); existing `internal/hermes`, `internal/tools`, `internal/config`; existing `cmd/gormes/telegram.go`; existing `tools.MockTool` and `hermes.MockClient` test harnesses.
+**Tech Stack:** Go 1.26 stdlib (`context`, `crypto/rand`, `encoding/hex`, `encoding/json`, `errors`, `fmt`, `log/slog`, `os`, `path/filepath`, `strings`, `sync`, `time`); existing `internal/llm`, `internal/tools`, `internal/config`; existing `cmd/gormes/telegram.go`; existing `tools.MockTool` and `hermes.MockClient` test harnesses.
 
 **Spec:** [`../specs/2026-04-21-gormes-phase2-os-ai-spine-design.md`](../specs/2026-04-21-gormes-phase2-os-ai-spine-design.md)
 
@@ -179,14 +179,14 @@ git commit -m "feat(config): add delegation defaults and run-log path"
 ## Task 2: Create Subagent Types + Policy
 
 **Files:**
-- Create: `internal/subagent/types.go`
-- Create: `internal/subagent/types_test.go`
-- Create: `internal/subagent/policy.go`
-- Create: `internal/subagent/policy_test.go`
+- Create: `internal/core/subagent/types.go`
+- Create: `internal/core/subagent/types_test.go`
+- Create: `internal/core/subagent/policy.go`
+- Create: `internal/core/subagent/policy_test.go`
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `internal/subagent/types_test.go`:
+Create `internal/core/subagent/types_test.go`:
 
 ```go
 package subagent
@@ -223,7 +223,7 @@ func TestResultStatusStrings(t *testing.T) {
 }
 ```
 
-Create `internal/subagent/policy_test.go`:
+Create `internal/core/subagent/policy_test.go`:
 
 ```go
 package subagent
@@ -281,7 +281,7 @@ Expected: FAIL with `package .../internal/subagent: no Go files`.
 
 - [ ] **Step 3: Write the minimal implementation**
 
-Create `internal/subagent/types.go`:
+Create `internal/core/subagent/types.go`:
 
 ```go
 package subagent
@@ -334,7 +334,7 @@ type Result struct {
 }
 ```
 
-Create `internal/subagent/policy.go`:
+Create `internal/core/subagent/policy.go`:
 
 ```go
 package subagent
@@ -391,7 +391,7 @@ Expected: PASS, 6 tests.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/types.go internal/subagent/types_test.go internal/subagent/policy.go internal/subagent/policy_test.go
+git add internal/core/subagent/types.go internal/core/subagent/types_test.go internal/core/subagent/policy.go internal/core/subagent/policy_test.go
 git commit -m "feat(subagent): add runtime types and delegation policy"
 ```
 
@@ -400,12 +400,12 @@ git commit -m "feat(subagent): add runtime types and delegation policy"
 ## Task 3: Implement `ChatRunner` Over `hermes.Client`
 
 **Files:**
-- Create: `internal/subagent/runner.go`
-- Create: `internal/subagent/runner_test.go`
+- Create: `internal/core/subagent/runner.go`
+- Create: `internal/core/subagent/runner_test.go`
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `internal/subagent/runner_test.go`:
+Create `internal/core/subagent/runner_test.go`:
 
 ```go
 package subagent
@@ -416,7 +416,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -522,7 +522,7 @@ Expected: FAIL with `undefined: NewChatRunner` and `undefined: ChatRunnerConfig`
 
 - [ ] **Step 3: Write the minimal implementation**
 
-Create `internal/subagent/runner.go`:
+Create `internal/core/subagent/runner.go`:
 
 ```go
 package subagent
@@ -533,7 +533,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -606,7 +606,7 @@ func (r *ChatRunner) Run(ctx context.Context, spec Spec, emit func(Event)) (Resu
 				ToolCalls:    seenTools,
 			}, nil
 		case "tool_calls":
-			req.Messages = append(req.Messages, hermes.Message{
+			req.Messages = append(req.Messages, llm.Message{
 				Role:      "assistant",
 				Content:   assistant.String(),
 				ToolCalls: calls,
@@ -614,7 +614,7 @@ func (r *ChatRunner) Run(ctx context.Context, spec Spec, emit func(Event)) (Resu
 			for _, call := range calls {
 				emit(Event{Type: EventToolCall, ToolName: call.Name})
 				seenTools = append(seenTools, call.Name)
-				msg := hermes.Message{
+				msg := llm.Message{
 					Role:       "tool",
 					Name:       call.Name,
 					ToolCallID: call.ID,
@@ -637,12 +637,12 @@ func chooseModel(specModel, defaultModel string) string {
 	return defaultModel
 }
 
-func childMessages(spec Spec) []hermes.Message {
+func childMessages(spec Spec) []llm.Message {
 	system := "You are a delegated Gormes subagent. Work only on the scoped goal. Return a concise final answer."
 	if spec.Context != "" {
 		system += "\n\nScoped context:\n" + spec.Context
 	}
-	return []hermes.Message{
+	return []llm.Message{
 		{Role: "system", Content: system},
 		{Role: "user", Content: spec.Goal},
 	}
@@ -721,7 +721,7 @@ Expected: PASS, 3 tests.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/runner.go internal/subagent/runner_test.go
+git add internal/core/subagent/runner.go internal/core/subagent/runner_test.go
 git commit -m "feat(subagent): add hermes-backed child chat runner"
 ```
 
@@ -730,14 +730,14 @@ git commit -m "feat(subagent): add hermes-backed child chat runner"
 ## Task 4: Add `Manager`, `Handle`, And JSONL Run Logging
 
 **Files:**
-- Create: `internal/subagent/manager.go`
-- Create: `internal/subagent/manager_test.go`
-- Create: `internal/subagent/log.go`
-- Create: `internal/subagent/log_test.go`
+- Create: `internal/core/subagent/manager.go`
+- Create: `internal/core/subagent/manager_test.go`
+- Create: `internal/core/subagent/log.go`
+- Create: `internal/core/subagent/log_test.go`
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `internal/subagent/manager_test.go`:
+Create `internal/core/subagent/manager_test.go`:
 
 ```go
 package subagent
@@ -812,7 +812,7 @@ func TestManager_Cancel(t *testing.T) {
 }
 ```
 
-Create `internal/subagent/log_test.go`:
+Create `internal/core/subagent/log_test.go`:
 
 ```go
 package subagent
@@ -849,7 +849,7 @@ Expected: FAIL with `undefined: NewManager`, `undefined: RunRecord`, and `undefi
 
 - [ ] **Step 3: Write the minimal implementation**
 
-Create `internal/subagent/log.go`:
+Create `internal/core/subagent/log.go`:
 
 ```go
 package subagent
@@ -893,7 +893,7 @@ func AppendRunLog(path string, rec RunRecord) error {
 }
 ```
 
-Create `internal/subagent/manager.go`:
+Create `internal/core/subagent/manager.go`:
 
 ```go
 package subagent
@@ -1042,7 +1042,7 @@ Expected: PASS, 3 tests.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/manager.go internal/subagent/manager_test.go internal/subagent/log.go internal/subagent/log_test.go
+git add internal/core/subagent/manager.go internal/core/subagent/manager_test.go internal/core/subagent/log.go internal/core/subagent/log_test.go
 git commit -m "feat(subagent): add manager lifecycle and run logging"
 ```
 
@@ -1051,15 +1051,15 @@ git commit -m "feat(subagent): add manager lifecycle and run logging"
 ## Task 5: Add `delegate_task` Tool + Telegram Wiring
 
 **Files:**
-- Create: `internal/subagent/delegate_tool.go`
-- Create: `internal/subagent/delegate_tool_test.go`
+- Create: `internal/core/subagent/delegate_tool.go`
+- Create: `internal/core/subagent/delegate_tool_test.go`
 - Create: `gormes/cmd/gormes/delegation.go`
 - Create: `gormes/cmd/gormes/delegation_test.go`
 - Modify: `gormes/cmd/gormes/telegram.go`
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `internal/subagent/delegate_tool_test.go`:
+Create `internal/core/subagent/delegate_tool_test.go`:
 
 ```go
 package subagent
@@ -1113,7 +1113,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -1161,7 +1161,7 @@ Expected: FAIL with `undefined: NewDelegateTool` and `undefined: registerDelegat
 
 - [ ] **Step 3: Write the minimal implementation**
 
-Create `internal/subagent/delegate_tool.go`:
+Create `internal/core/subagent/delegate_tool.go`:
 
 ```go
 package subagent
@@ -1239,8 +1239,8 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/subagent"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/subagent"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -1279,7 +1279,7 @@ Expected: PASS, 3 tests.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/delegate_tool.go internal/subagent/delegate_tool_test.go gormes/cmd/gormes/delegation.go gormes/cmd/gormes/delegation_test.go gormes/cmd/gormes/telegram.go
+git add internal/core/subagent/delegate_tool.go internal/core/subagent/delegate_tool_test.go gormes/cmd/gormes/delegation.go gormes/cmd/gormes/delegation_test.go gormes/cmd/gormes/telegram.go
 git commit -m "feat(subagent): register delegate_task in telegram runtime"
 ```
 
@@ -1288,11 +1288,11 @@ git commit -m "feat(subagent): register delegate_task in telegram runtime"
 ## Task 6: Prove The Runtime End-To-End
 
 **Files:**
-- Create: `internal/subagent/integration_test.go`
+- Create: `internal/core/subagent/integration_test.go`
 
 - [ ] **Step 1: Write the failing integration test**
 
-Create `internal/subagent/integration_test.go`:
+Create `internal/core/subagent/integration_test.go`:
 
 ```go
 package subagent
@@ -1304,7 +1304,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -1370,7 +1370,7 @@ If the previous five tasks were implemented exactly, no new production files sho
 
 ```go
 // Example: if the second child request forgot to include the tool reply.
-req.Messages = append(req.Messages, hermes.Message{
+req.Messages = append(req.Messages, llm.Message{
 	Role:       "tool",
 	Name:       call.Name,
 	ToolCallID: call.ID,
@@ -1400,7 +1400,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/types.go internal/subagent/types_test.go internal/subagent/policy.go internal/subagent/policy_test.go internal/subagent/runner.go internal/subagent/runner_test.go internal/subagent/manager.go internal/subagent/manager_test.go internal/subagent/log.go internal/subagent/log_test.go internal/subagent/delegate_tool.go internal/subagent/delegate_tool_test.go internal/subagent/integration_test.go internal/config/config.go internal/config/config_test.go gormes/cmd/gormes/delegation.go gormes/cmd/gormes/delegation_test.go gormes/cmd/gormes/telegram.go
+git add internal/core/subagent/types.go internal/core/subagent/types_test.go internal/core/subagent/policy.go internal/core/subagent/policy_test.go internal/core/subagent/runner.go internal/core/subagent/runner_test.go internal/core/subagent/manager.go internal/core/subagent/manager_test.go internal/core/subagent/log.go internal/core/subagent/log_test.go internal/core/subagent/delegate_tool.go internal/core/subagent/delegate_tool_test.go internal/core/subagent/integration_test.go internal/config/config.go internal/config/config_test.go gormes/cmd/gormes/delegation.go gormes/cmd/gormes/delegation_test.go gormes/cmd/gormes/telegram.go
 git commit -m "feat(subagent): ship phase 2.e0 delegated child runtime"
 ```
 

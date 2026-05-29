@@ -11,7 +11,7 @@ The bridge is allowed to exist. The bridge is not allowed to become the destinat
 
 ## Hermes Compatibility Namespace Boundary
 
-`internal/hermes` is a parity staging namespace. It is acceptable while Gormes
+`internal/llm` is a parity staging namespace. It is acceptable while Gormes
 is proving Hermes-compatible provider, prompt, context, model, and tool-call
 contracts in Go. It is not the intended long-term name for Gormes-owned runtime
 architecture.
@@ -25,12 +25,12 @@ The long-term split is:
   and routing under a provider package, model metadata under a model registry
   package, raw tool-call parsing/repair under a tool-call package, and prompt /
   context / compression under runtime or context packages.
-- `internal/hermes` becomes a temporary import shim only during migration and is
+- `internal/llm` becomes a temporary import shim only during migration and is
   removed once callers and fixtures prove the split.
 
 Two alternatives are intentionally rejected. Renaming everything immediately
 would churn tests before the compatibility manifests are strong enough. Keeping
-`internal/hermes` forever would make the donor name the permanent architecture
+`internal/llm` forever would make the donor name the permanent architecture
 for Gormes-owned runtime code.
 
 ## Upstream Contract Boundary
@@ -69,7 +69,7 @@ boundary.
 Provider quirks stay out of the kernel. Anthropic Messages, OpenAI Responses,
 Bedrock Converse, OpenRouter, Gemini, Codex, and custom OpenAI-compatible
 servers currently collapse into the shared Hermes-compatible event contract
-staged under `internal/hermes`:
+staged under `internal/llm`:
 
 - text and reasoning deltas;
 - final finish reason;

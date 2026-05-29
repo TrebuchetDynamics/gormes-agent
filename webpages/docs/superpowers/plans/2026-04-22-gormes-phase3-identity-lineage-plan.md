@@ -4,9 +4,9 @@
 
 **Goal:** Add canonical GONCHO identity and lineage primitives for `3.E.7` and `3.E.8` so Gormes can safely unify one user across multiple chats, preserve compression lineage, and search across sessions without breaking same-chat recall defaults or Honcho-compatible tools.
 
-**Architecture:** Keep `internal/session` authoritative for live session routing metadata, add a GONCHO identity/session catalog read model in SQLite for memory queries, and resolve external Honcho-compatible `peer` values to canonical internal `user_id` values only inside `internal/goncho`. The default prompt fence remains same-chat; cross-chat recall is explicit and only allowed when a canonical `user_id` is known.
+**Architecture:** Keep `internal/persistence/session` authoritative for live session routing metadata, add a GONCHO identity/session catalog read model in SQLite for memory queries, and resolve external Honcho-compatible `peer` values to canonical internal `user_id` values only inside `internal/goncho`. The default prompt fence remains same-chat; cross-chat recall is explicit and only allowed when a canonical `user_id` is known.
 
-**Tech Stack:** Go 1.25+, SQLite/FTS5, bbolt, existing `internal/goncho`, `internal/memory`, `internal/session`, `cmd/gormes`
+**Tech Stack:** Go 1.25+, SQLite/FTS5, bbolt, existing `internal/goncho`, `internal/memory`, `internal/persistence/session`, `cmd/gormes`
 
 ---
 
@@ -16,7 +16,7 @@ Phase 3 memory already stores `session_id` and `chat_id`, and GONCHO already exp
 
 Current code has three concrete gaps:
 
-1. `internal/session` only persists `(platform, chat_id) -> session_id`; there is no `user_id` or `parent_session_id` concept.
+1. `internal/persistence/session` only persists `(platform, chat_id) -> session_id`; there is no `user_id` or `parent_session_id` concept.
 2. `internal/memory` stores `turns.session_id` and `turns.chat_id`, but recall still has a global exact-name path, so a named entity can leak across chats even when the caller did not opt into cross-chat recall.
 3. `internal/goncho` tools accept `peer` and optional `session_key`, but there is no canonical resolution step from external peer aliases to an internal GONCHO `user_id`.
 
@@ -42,7 +42,7 @@ The purpose of `3.E.7` and `3.E.8` is to close those gaps without flattening all
 
 ### Contracts that already exist
 
-- `internal/session/session.go`
+- `internal/persistence/session/session.go`
   - `Map` only supports `Get(ctx, key) -> session_id` and `Put(ctx, key, sessionID)`.
   - Canonical key is still transport-scoped, for example `telegram:<chat_id>` or `discord:<channel_id>`.
 - `internal/memory/schema.go`
@@ -67,7 +67,7 @@ The purpose of `3.E.7` and `3.E.8` is to close those gaps without flattening all
 - Cross-chat recall will either leak unrelated facts or silently miss legitimate same-user facts.
 - Session lineage will become write-only metadata that cannot be debugged when compression splits misbehave.
 - Honcho-compatible tools will drift into inconsistent behavior because `peer` will mean “chat” in some flows and “user” in others.
-- Search semantics will diverge across packages (`internal/goncho`, `internal/memory`, `internal/session`) and become impossible to reason about.
+- Search semantics will diverge across packages (`internal/goncho`, `internal/memory`, `internal/persistence/session`) and become impossible to reason about.
 
 ## 4. Contract decisions
 
@@ -151,7 +151,7 @@ Recommended indexes:
 - `idx_goncho_session_catalog_source` on `(workspace_id, source, updated_at DESC)`
 - `idx_goncho_session_catalog_parent` on `(workspace_id, parent_session_id)`
 
-### 5.2 bbolt additions in `internal/session`
+### 5.2 bbolt additions in `internal/persistence/session`
 
 Add a new bucket alongside `sessions_v1`:
 
@@ -186,11 +186,11 @@ This keeps live routing metadata close to the existing session map while SQLite 
 
 ## 6. API and service design
 
-### 6.1 `internal/session`
+### 6.1 `internal/persistence/session`
 
 Add a metadata-oriented surface without breaking `Map`:
 
-- New file: `internal/session/directory.go`
+- New file: `internal/persistence/session/directory.go`
 - New types:
   - `Metadata`
   - `Directory`
@@ -265,8 +265,8 @@ Same for `ContextParams`. Existing clients remain valid because the new fields a
 
 ### Create
 
-- `internal/session/directory.go`
-- `internal/session/directory_test.go`
+- `internal/persistence/session/directory.go`
+- `internal/persistence/session/directory_test.go`
 - `internal/memory/session_catalog.go`
 - `internal/memory/session_catalog_test.go`
 - `internal/goncho/identity.go`
@@ -274,10 +274,10 @@ Same for `ContextParams`. Existing clients remain valid because the new fields a
 
 ### Modify
 
-- `internal/session/bolt.go`
-- `internal/session/bolt_test.go`
-- `internal/session/index_mirror.go`
-- `internal/session/index_mirror_test.go`
+- `internal/persistence/session/bolt.go`
+- `internal/persistence/session/bolt_test.go`
+- `internal/persistence/session/index_mirror.go`
+- `internal/persistence/session/index_mirror_test.go`
 - `internal/memory/schema.go`
 - `internal/memory/migrate.go`
 - `internal/memory/migrate_test.go`
@@ -302,8 +302,8 @@ Same for `ContextParams`. Existing clients remain valid because the new fields a
 ### Task 1: `3.E.7.1` freeze session metadata and canonical identity scaffolding
 
 **Files:**
-- Create: `internal/session/directory.go`, `internal/session/directory_test.go`
-- Modify: `internal/session/bolt.go`, `internal/session/bolt_test.go`
+- Create: `internal/persistence/session/directory.go`, `internal/persistence/session/directory_test.go`
+- Modify: `internal/persistence/session/bolt.go`, `internal/persistence/session/bolt_test.go`
 - Modify: `internal/memory/schema.go`, `internal/memory/migrate_test.go`
 
 - [ ] **Step 1: Write the failing tests**
@@ -316,7 +316,7 @@ func TestMigrate_AddsGonchoIdentityAndSessionCatalogTables(t *testing.T) {}
 
 - [ ] **Step 2: Run the RED tests**
 
-Run: `go test ./internal/session ./internal/memory -run 'Test(BoltDirectory_|Migrate_AddsGonchoIdentityAndSessionCatalogTables)' -count=1`
+Run: `go test ./internal/persistence/session ./internal/memory -run 'Test(BoltDirectory_|Migrate_AddsGonchoIdentityAndSessionCatalogTables)' -count=1`
 
 Expected: FAIL because `Directory` types, metadata bucket handling, and new schema objects do not exist yet.
 
@@ -335,14 +335,14 @@ type Metadata struct {
 
 - [ ] **Step 4: Run the GREEN tests**
 
-Run: `go test ./internal/session ./internal/memory -run 'Test(BoltDirectory_|Migrate_AddsGonchoIdentityAndSessionCatalogTables)' -count=1`
+Run: `go test ./internal/persistence/session ./internal/memory -run 'Test(BoltDirectory_|Migrate_AddsGonchoIdentityAndSessionCatalogTables)' -count=1`
 
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/session internal/memory
+git add internal/persistence/session internal/memory
 git commit -m "feat: scaffold goncho identity and session catalog"
 ```
 
@@ -397,8 +397,8 @@ git commit -m "feat: add goncho identity resolution and scoped recall"
 ### Task 3: `3.E.8.1` parent lineage for compression splits
 
 **Files:**
-- Modify: `internal/session/directory.go`, `internal/session/directory_test.go`
-- Modify: `internal/session/index_mirror.go`, `internal/session/index_mirror_test.go`
+- Modify: `internal/persistence/session/directory.go`, `internal/persistence/session/directory_test.go`
+- Modify: `internal/persistence/session/index_mirror.go`, `internal/persistence/session/index_mirror_test.go`
 - Modify: `internal/memory/session_catalog.go`, `internal/memory/session_catalog_test.go`
 
 - [ ] **Step 1: Write the failing tests**
@@ -411,7 +411,7 @@ func TestSessionCatalog_LineageQueryReturnsAncestorChain(t *testing.T) {}
 
 - [ ] **Step 2: Run the RED tests**
 
-Run: `go test ./internal/session ./internal/memory -run 'Test(BoltDirectory_Lineage|SessionIndexMirror_RendersUserAndParentSessionFields|SessionCatalog_LineageQueryReturnsAncestorChain)' -count=1`
+Run: `go test ./internal/persistence/session ./internal/memory -run 'Test(BoltDirectory_Lineage|SessionIndexMirror_RendersUserAndParentSessionFields|SessionCatalog_LineageQueryReturnsAncestorChain)' -count=1`
 
 Expected: FAIL because no lineage metadata or enriched mirror output exists yet.
 
@@ -427,14 +427,14 @@ type Metadata struct {
 
 - [ ] **Step 4: Run the GREEN tests**
 
-Run: `go test ./internal/session ./internal/memory -run 'Test(BoltDirectory_Lineage|SessionIndexMirror_RendersUserAndParentSessionFields|SessionCatalog_LineageQueryReturnsAncestorChain)' -count=1`
+Run: `go test ./internal/persistence/session ./internal/memory -run 'Test(BoltDirectory_Lineage|SessionIndexMirror_RendersUserAndParentSessionFields|SessionCatalog_LineageQueryReturnsAncestorChain)' -count=1`
 
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/session internal/memory
+git add internal/persistence/session internal/memory
 git commit -m "feat: add session lineage metadata and mirror output"
 ```
 
@@ -573,7 +573,7 @@ None of these outputs should dump raw alias tables wholesale. Safe summaries fir
 
 `3.E.7` and `3.E.8` are done when all of the following are true:
 
-- `internal/session` persists and reads `user_id` and `parent_session_id` metadata without breaking `sessions_v1`
+- `internal/persistence/session` persists and reads `user_id` and `parent_session_id` metadata without breaking `sessions_v1`
 - `internal/memory` stores a queryable GONCHO session catalog plus identity aliases
 - same-chat remains the default recall fence for both memory recall and Honcho-compatible tools
 - cross-chat recall only activates when explicitly requested and a canonical `user_id` resolves
@@ -586,7 +586,7 @@ None of these outputs should dump raw alias tables wholesale. Safe summaries fir
 Run these commands at the end of implementation:
 
 ```bash
-go test ./internal/session ./internal/memory ./internal/goncho ./cmd/gormes -count=1
+go test ./internal/persistence/session ./internal/memory ./internal/goncho ./cmd/gormes -count=1
 go test ./internal/progress -count=1
 go run ./cmd/progress-gen -write
 go run ./cmd/progress-gen -validate

@@ -795,7 +795,7 @@
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/gateway -run 'Telegram.*ProviderPayload|LiveTurn' -count=1",
-        "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/gateway ./internal/hermes ./internal/runtime -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/gateway ./internal/llm ./internal/runtime -count=1",
         "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -906,8 +906,8 @@
         },
         "scope_decisions": {
           "auto_title_generation_wired": false,
-          "rationale": "internal/hermes/title_generator.go:GenerateTitle remains unwired. This slice closes the rendering gap (title_unavailable sentinel plus verbatim rendering of any metadata-stored title). Wiring GenerateTitle to fire after the first user+assistant turn is a separate progress row to keep this slice TDD-tight and to avoid live LLM coupling.",
-          "followup_row_recommended": "Auto-title generation wiring: call internal/hermes.GenerateTitle after the first assistant turn completes for status-eligible sessions, persist the result through sessionMetadataWriter.PutMetadata, and gate behind an injectable TitleModelFunc so tests stay hermetic."
+          "rationale": "internal/llm/title_generator.go:GenerateTitle remains unwired. This slice closes the rendering gap (title_unavailable sentinel plus verbatim rendering of any metadata-stored title). Wiring GenerateTitle to fire after the first user+assistant turn is a separate progress row to keep this slice TDD-tight and to avoid live LLM coupling.",
+          "followup_row_recommended": "Auto-title generation wiring: call internal/llm.GenerateTitle after the first assistant turn completes for status-eligible sessions, persist the result through sessionMetadataWriter.PutMetadata, and gate behind an injectable TitleModelFunc so tests stay hermetic."
         },
         "verification": [
           "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run Status|Title -count=1 -> ok",
@@ -5168,7 +5168,7 @@
         "gateway"
       ],
       "degraded_mode": "Foreign Hermes config residue is ignored by normal runtime paths; operators use `gormes migrate hermes --dry-run` and `--yes` to copy supported Telegram values into Gormes-native config and dotenv files.",
-      "fixture": "internal/config/config_test.go::TestLoad_IgnoresHermesConfigYAML; internal/config/config_test.go::TestLoad_TelegramHermesEnvAliases; internal/migrate/hermes/manifest_test.go::TestHermesMigrationManifest_DotenvKeysClassifiedAndRedacted; internal/migrate/hermes/writer_test.go::TestHermesConfigWriter_AppliesImportableConfig",
+      "fixture": "internal/config/config_test.go::TestLoad_IgnoresHermesConfigYAML; internal/config/config_test.go::TestLoad_TelegramHermesEnvAliases; internal/platform/migrate/hermes/manifest_test.go::TestHermesMigrationManifest_DotenvKeysClassifiedAndRedacted; internal/platform/migrate/hermes/writer_test.go::TestHermesConfigWriter_AppliesImportableConfig",
       "source_refs": [
         "./hermes-agent/hermes_cli/config.py:get_config_path",
         "./hermes-agent/gateway/config.py:PlatformConfig,_apply_env_overrides",
@@ -5176,8 +5176,8 @@
         "./hermes-agent/hermes_cli/gateway.py:_PLATFORMS telegram",
         "internal/config/config.go:Load,loadEnv",
         "internal/config/config_test.go:TestLoad_IgnoresHermesConfigYAML,TestLoad_TelegramHermesEnvAliases",
-        "internal/migrate/hermes/manifest.go:supportedEnvKeys",
-        "internal/migrate/hermes/writer.go:ApplyManifest"
+        "internal/platform/migrate/hermes/manifest.go:supportedEnvKeys",
+        "internal/platform/migrate/hermes/writer.go:ApplyManifest"
       ],
       "ready_when": [
         "Cross-agent config isolation is complete and owns normal runtime behavior.",
@@ -5204,7 +5204,7 @@
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/config ./internal/migrate/hermes -run 'TestLoad_IgnoresHermesConfigYAML|TestLoad_TelegramHermesEnvAliases|TestHermesMigrationManifest_DotenvKeysClassifiedAndRedacted|TestHermesConfigWriter_AppliesImportableConfig' -count=1",
+        "go test ./internal/config ./internal/platform/migrate/hermes -run 'TestLoad_IgnoresHermesConfigYAML|TestLoad_TelegramHermesEnvAliases|TestHermesMigrationManifest_DotenvKeysClassifiedAndRedacted|TestHermesConfigWriter_AppliesImportableConfig' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -7915,7 +7915,7 @@
       "source_refs": [
         "./hermes-agent/plugins/platforms/google_chat/adapter.py@f1f42a7b9:_standalone_send",
         "./hermes-agent/gateway/platform_registry.py@f1f42a7b9:PlatformEntry.standalone_sender_fn",
-        "internal/cron/delivery_plan.go:StandaloneDeliveryAdapter",
+        "internal/automation/cron/delivery_plan.go:StandaloneDeliveryAdapter",
         "internal/channels/googlechat/runtime.go:PlatformName",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Channels"
       ],

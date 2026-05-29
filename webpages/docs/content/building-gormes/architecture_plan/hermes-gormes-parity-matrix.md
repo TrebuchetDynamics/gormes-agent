@@ -511,7 +511,7 @@ Classification, Progress row).
 
 - **Hermes source**: `../hermes-agent/run_agent.py` + `agent/prompt_builder.py`
   loads SOUL.md and project-context files into the system prompt.
-- **Gormes source**: `internal/hermes/context_files.go::BuildContextFilesPrompt`
+- **Gormes source**: `internal/llm/context_files.go::BuildContextFilesPrompt`
   builds the same block, and `internal/gateway/live_turn_prompt.go`
   + `manager.go:1632-1648` wires it into the channel-neutral
   `kernel.PlatformEvent.SessionContext`. The kernel prepends it as a
@@ -570,7 +570,7 @@ Classification, Progress row).
 ### 26. Final provider request includes AGENTS.md / project context
 
 - Covered by `Live-turn SOUL.md and project context wiring (channel-neutral)`
-  (complete) — `internal/hermes/context_files.go` resolves
+  (complete) — `internal/llm/context_files.go` resolves
   HERMES.md → AGENTS.md → CLAUDE.md → .cursorrules from CWD ancestors.
 - **Status**: `parity`.
 
@@ -606,7 +606,7 @@ Classification, Progress row).
 - **Gormes source**: `Live-turn timestamp + model/provider/session
   metadata block + self-help guidance (channel-neutral)` is `complete`
   (per progress.json) and the metadata block is built by
-  `internal/hermes/live_turn_metadata.go` and assembled in
+  `internal/llm/live_turn_metadata.go` and assembled in
   `internal/gateway/live_turn_prompt.go::assembleLiveTurnPrompt`.
 - **Status**: `parity`.
 
@@ -614,8 +614,8 @@ Classification, Progress row).
 
 - **Hermes source**: `../hermes-agent/agent/prompt_builder.py` injects
   per-tool guidance constants when a toolset is enabled.
-- **Gormes source**: `internal/hermes/prompt_guidance.go` and
-  `internal/hermes/prompt_builder_guidance.go` expose the constants but
+- **Gormes source**: `internal/llm/prompt_guidance.go` and
+  `internal/llm/prompt_builder_guidance.go` expose the constants but
   the live wiring into the assembled live-turn prompt is the planned
   row `Live-turn model/tool guidance wiring`.
 - **Status**: `partial`.
@@ -661,13 +661,13 @@ Classification, Progress row).
 - **Hermes source**: `../hermes-agent/run_agent.py:7616`
   `self._session_db.set_session_title(self.session_id, new_title)`
   after the LLM produces a candidate title from the first user prompt.
-- **Gormes source**: `internal/hermes/title_generator.go::GenerateTitle`
+- **Gormes source**: `internal/llm/title_generator.go::GenerateTitle`
   ships and is unit-tested by `title_generator_test.go`. The TUI helper
   `internal/tui/auto_title.go::BuildAutoTitleRequest` decides
   eligibility. Neither is wired into the gateway live turn — the
   gateway never calls `GenerateTitle`.
 - **Status**: `missing wiring`.
-- **Test coverage** for what exists: `internal/hermes/title_generator_test.go`,
+- **Test coverage** for what exists: `internal/llm/title_generator_test.go`,
   `internal/tui/auto_title_test.go` (presumed; not enumerated here),
   `internal/gateway/title_failure_test.go`.
 - **Lane**: C.
@@ -681,8 +681,8 @@ Classification, Progress row).
 
 - **Hermes source**: `hermes_state.py::set_session_title` /
   `get_session_title` — SQLite state.
-- **Gormes source**: `internal/session/session.go::Metadata` carries
-  Title; `internal/session/bbolt.go` persists metadata (presumed; same
+- **Gormes source**: `internal/persistence/session/session.go::Metadata` carries
+  Title; `internal/persistence/session/bbolt.go` persists metadata (presumed; same
   surface as `sessionMetadataWriter`/`sessionMetadataReader`). The
   `/status` command reads it back via `m.lookupSessionMetadata`.
 - **Status**: `partial`. Persistence works; the fallback synthetic

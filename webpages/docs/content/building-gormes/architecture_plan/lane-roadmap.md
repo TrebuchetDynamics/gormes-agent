@@ -21,10 +21,10 @@ when deciding where an upstream feature belongs in Go.
 | Lane | Owns | Primary phases | Main packages/docs |
 |---|---|---|---|
 | 0 — Control Plane Discipline | skill routing, row quality, progress validation gates | 1.C, 1.D, generated handoff docs | `docs/development-skills/`, `.agents/skills/`, `.claude/skills/`, `.codex/skills/`, `cmd/progress`, `cmd/repoctl`, `internal/progress`, `AGENTS.md`, `CLAUDE.md` |
-| 1 — Native Agent Spine | provider adapters, prompt/context, kernel loop, retry, compression, model routing, telemetry, normal-turn e2e | 4.A-4.I, parts of 2.E, 5.Q | `internal/hermes`, `internal/kernel`, `internal/e2e`, `internal/gateway`, `internal/telemetry`, `docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md` |
-| 2 — Goncho Memory And Honcho Compatibility | local memory, Honcho-compatible public contracts, session lineage, scoped recall, SDK-style local harness | 3.E, 3.F, 3.G, 5.I, 5.N, 4.B | `internal/goncho`, `internal/gonchotools`, `internal/memory`, `internal/session`, `docs/content/building-gormes/goncho_honcho_memory/` |
+| 1 — Native Agent Spine | provider adapters, prompt/context, kernel loop, retry, compression, model routing, telemetry, normal-turn e2e | 4.A-4.I, parts of 2.E, 5.Q | `internal/llm`, `internal/kernel`, `internal/e2e`, `internal/gateway`, `internal/telemetry`, `docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md` |
+| 2 — Goncho Memory And Honcho Compatibility | local memory, Honcho-compatible public contracts, session lineage, scoped recall, SDK-style local harness | 3.E, 3.F, 3.G, 5.I, 5.N, 4.B | `internal/goncho`, `internal/gonchotools`, `internal/memory`, `internal/persistence/session`, `docs/content/building-gormes/goncho_honcho_memory/` |
 | 3 — Tool Surface, Security, And Skills | tool descriptors, toolsets, plugins, MCP/ACP, file/shell/browser/media tools, approvals, skill plumbing | 2.A, 2.G, 5.A-5.M | `internal/tools`, `internal/plugins`, `internal/skills`, `internal/doctor`, `docs/content/building-gormes/architecture_plan/phase-5-final-purge.md` |
-| 4 — Gateway, Channels, Cron, And Delivery | shared gateway, adapters, active-turn policy, home channel, pairing, restart, cron, delivery routing | 2.B-2.F, 7, 5.N, 5.Q | `internal/gateway`, `internal/cron`, `internal/channels/*`, `internal/slack`, `internal/discord`, `docs/content/building-gormes/gateway-donor-map/` |
+| 4 — Gateway, Channels, Cron, And Delivery | shared gateway, adapters, active-turn policy, home channel, pairing, restart, cron, delivery routing | 2.B-2.F, 7, 5.N, 5.Q | `internal/gateway`, `internal/automation/cron`, `internal/channels/*`, `internal/slack`, `internal/discord`, `docs/content/building-gormes/gateway-donor-map/` |
 | 5 — CLI, API, TUI, Packaging, And Release | Hermes CLI parity, OpenAI-compatible API, TUI gateway, installers, services, release docs | 5.O-5.Q, 5.P, Phase 1 TUI divergence | `cmd/gormes`, `internal/cli`, `internal/apiserver`, `internal/tui`, `internal/tuigateway`, `www.gormes.ai/` |
 | 6 — Learning Loop | skill detection, extraction, review, retrieval, feedback, promotion | 6.A-6.F | `internal/skills`, `internal/memory`, `internal/kernel`, `docs/development-skills/`, Phase 6 docs |
 
@@ -95,7 +95,7 @@ Exit when:
 Gate:
 
 ```sh
-go test ./internal/hermes ./internal/kernel ./internal/gateway ./internal/telemetry -count=1
+go test ./internal/llm ./internal/kernel ./internal/gateway ./internal/telemetry -count=1
 # After Phase 4.I creates internal/e2e, include: go test ./internal/e2e -count=1
 ```
 
@@ -114,7 +114,7 @@ Exit when:
 Gate:
 
 ```sh
-go test ./internal/goncho ./internal/gonchotools ./internal/memory ./internal/session ./internal/store -count=1
+go test ./internal/goncho ./internal/gonchotools ./internal/memory ./internal/persistence/session ./internal/persistence/store -count=1
 ```
 
 ### Lane 3 — Tool Surface, Security, And Skills
@@ -144,7 +144,7 @@ Exit when:
 Gate:
 
 ```sh
-go test ./internal/gateway ./internal/cron ./internal/discord ./internal/slack ./internal/channels/... -count=1
+go test ./internal/gateway ./internal/automation/cron ./internal/discord ./internal/slack ./internal/channels/... -count=1
 ```
 
 ### Lane 5 — CLI, API, TUI, Packaging, And Release
@@ -184,7 +184,7 @@ Exit when:
 Gate:
 
 ```sh
-go test ./internal/hermes ./internal/skills ./internal/memory ./internal/cli ./internal/kernel -count=1
+go test ./internal/llm ./internal/skills ./internal/memory ./internal/cli ./internal/kernel -count=1
 ```
 
 ## Next-Lane Priority

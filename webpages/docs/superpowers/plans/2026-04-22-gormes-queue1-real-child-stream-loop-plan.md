@@ -4,19 +4,19 @@
 
 **Goal:** Replace the production `delegate_task` stub seam with a real Hermes-backed child stream loop that can complete normal child turns, execute child `tool_calls` through the existing allowlist/blocklist seam, and fail or stop deterministically.
 
-**Architecture:** Keep `internal/subagent/manager.go` as the lifecycle owner and keep `executeChildTool()` as the only child-tool execution gate. Add a new `HermesRunner` that depends only on `internal/hermes.Client`, translates stream tokens into `SubagentEvent`s, loops on `finish_reason=="tool_calls"`, and returns a typed `SubagentResult`. Wire `buildDefaultRegistry()` to construct this runner from the existing Hermes endpoint/model config, while leaving `NewManager()` defaults on `StubRunner` so current isolated manager tests stay stable.
+**Architecture:** Keep `internal/core/subagent/manager.go` as the lifecycle owner and keep `executeChildTool()` as the only child-tool execution gate. Add a new `HermesRunner` that depends only on `internal/llm.Client`, translates stream tokens into `SubagentEvent`s, loops on `finish_reason=="tool_calls"`, and returns a typed `SubagentResult`. Wire `buildDefaultRegistry()` to construct this runner from the existing Hermes endpoint/model config, while leaving `NewManager()` defaults on `StubRunner` so current isolated manager tests stay stable.
 
-**Tech Stack:** Go stdlib (`context`, `errors`, `fmt`, `io`, `strings`, `time`), existing `internal/hermes`, existing `internal/subagent`, existing `internal/tools`, Cobra command bootstraps, progress/docs generator.
+**Tech Stack:** Go stdlib (`context`, `errors`, `fmt`, `io`, `strings`, `time`), existing `internal/llm`, existing `internal/subagent`, existing `internal/tools`, Cobra command bootstraps, progress/docs generator.
 
 ---
 
 ## File Map
 
-- Create: `internal/subagent/hermes_runner.go`
+- Create: `internal/core/subagent/hermes_runner.go`
   Child-specific LLM loop. Owns prompt assembly, stream consumption, `tool_calls` turn-chaining, and terminal result shaping.
-- Create: `internal/subagent/hermes_runner_test.go`
+- Create: `internal/core/subagent/hermes_runner_test.go`
   Deterministic tests for stop, cancel, `tool_calls`, and error paths using `hermes.MockClient` and small local fake streams.
-- Modify: `internal/subagent/runner.go`
+- Modify: `internal/core/subagent/runner.go`
   Keep `Runner` / `StubRunner` / `executeChildTool()` in place and add any small shared helpers needed by both runners.
 - Modify: `gormes/cmd/gormes/registry.go`
   Build the production `delegate_task` manager with a real `HermesRunner` factory and existing delegation config.
@@ -38,9 +38,9 @@
 ## Task 1: HermesRunner stop and cancellation core
 
 **Files:**
-- Create: `internal/subagent/hermes_runner.go`
-- Create: `internal/subagent/hermes_runner_test.go`
-- Modify: `internal/subagent/runner.go`
+- Create: `internal/core/subagent/hermes_runner.go`
+- Create: `internal/core/subagent/hermes_runner_test.go`
+- Modify: `internal/core/subagent/runner.go`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -52,7 +52,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 type blockingClient struct{}
@@ -175,7 +175,7 @@ Expected: FAIL with `undefined: NewHermesRunner` and `undefined: HermesRunnerCon
 - [ ] **Step 3: Write the minimal implementation**
 
 ```go
-// internal/subagent/hermes_runner.go
+// internal/core/subagent/hermes_runner.go
 package subagent
 
 import (
@@ -184,7 +184,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 type HermesRunnerConfig struct {
@@ -233,7 +233,7 @@ func (r *HermesRunner) Run(ctx context.Context, cfg SubagentConfig, events chan<
 	stream, err := r.client.OpenStream(ctx, hermes.ChatRequest{
 		Model: pickChildModel(cfg.Model, r.model),
 		Stream: true,
-		Messages: []hermes.Message{{
+		Messages: []llm.Message{{
 			Role:    "user",
 			Content: buildChildPrompt(cfg),
 		}},
@@ -348,16 +348,16 @@ Expected: PASS.
 
 ```bash
 cd <repo>
-git add internal/subagent/hermes_runner.go internal/subagent/hermes_runner_test.go
+git add internal/core/subagent/hermes_runner.go internal/core/subagent/hermes_runner_test.go
 git commit -m "feat(subagent): add hermes-backed child runner core"
 ```
 
 ## Task 2: Tool-calls loop and typed child audit
 
 **Files:**
-- Modify: `internal/subagent/hermes_runner.go`
-- Modify: `internal/subagent/hermes_runner_test.go`
-- Modify: `internal/subagent/runner.go`
+- Modify: `internal/core/subagent/hermes_runner.go`
+- Modify: `internal/core/subagent/hermes_runner_test.go`
+- Modify: `internal/core/subagent/runner.go`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -479,7 +479,7 @@ Expected: FAIL because `tool_calls_not_implemented` is still returned and the se
 
 ```go
 // Replace the EventDone branch in HermesRunner.Run with a real loop.
-messages := []hermes.Message{{
+messages := []llm.Message{{
 	Role:    "user",
 	Content: buildChildPrompt(cfg),
 }}
@@ -576,7 +576,7 @@ haveFinal:
 		}
 	}
 
-	assistantMsg := hermes.Message{
+	assistantMsg := llm.Message{
 		Role:      "assistant",
 		Content:   summary,
 		ToolCalls: final.ToolCalls,
@@ -598,7 +598,7 @@ haveFinal:
 				Error:      err.Error(),
 			}
 		}
-		messages = append(messages, hermes.Message{
+		messages = append(messages, llm.Message{
 			Role:       "tool",
 			ToolCallID: call.ID,
 			Name:       call.Name,
@@ -615,7 +615,7 @@ Run:
 ```bash
 cd <repo>/gormes
 go test ./internal/subagent -run 'TestHermesRunner_(ToolCallsRoundTripThroughExecuteChildTool|StreamErrorReturnsFailed|StopCompletesAndStreamsOutput|CancelledDuringStreamReturnsInterrupted)' -count=1
-go test ./internal/subagent ./internal/hermes ./internal/kernel -count=1 -race
+go test ./internal/subagent ./internal/llm ./internal/kernel -count=1 -race
 ```
 
 Expected: PASS.
@@ -624,7 +624,7 @@ Expected: PASS.
 
 ```bash
 cd <repo>
-git add internal/subagent/hermes_runner.go internal/subagent/hermes_runner_test.go internal/subagent/runner.go
+git add internal/core/subagent/hermes_runner.go internal/core/subagent/hermes_runner_test.go internal/core/subagent/runner.go
 git commit -m "feat(subagent): add real child stream loop with tool calls"
 ```
 
@@ -747,7 +747,7 @@ Run:
 ```bash
 cd <repo>/gormes
 go test ./cmd/gormes ./internal/subagent -run 'TestBuildDefaultRegistryDelegationToolExecutesRealChildLoop|TestDelegateTool' -count=1
-go test ./cmd/gormes ./internal/subagent ./internal/hermes ./internal/kernel -count=1
+go test ./cmd/gormes ./internal/subagent ./internal/llm ./internal/kernel -count=1
 ```
 
 Expected: PASS.
@@ -805,8 +805,8 @@ Run:
 
 ```bash
 cd <repo>/gormes
-go test ./internal/subagent ./internal/hermes ./internal/kernel ./cmd/gormes ./internal/progress ./docs -count=1
-go test ./internal/subagent ./internal/hermes ./internal/kernel -count=1 -race
+go test ./internal/subagent ./internal/llm ./internal/kernel ./cmd/gormes ./internal/progress ./docs -count=1
+go test ./internal/subagent ./internal/llm ./internal/kernel -count=1 -race
 go run ./cmd/progress-gen --validate
 ```
 
@@ -826,8 +826,8 @@ Run before claiming Queue 1 complete:
 
 ```bash
 cd <repo>/gormes
-go test ./internal/subagent ./internal/hermes ./internal/kernel ./cmd/gormes ./internal/progress ./docs -count=1
-go test ./internal/subagent ./internal/hermes ./internal/kernel -count=1 -race
+go test ./internal/subagent ./internal/llm ./internal/kernel ./cmd/gormes ./internal/progress ./docs -count=1
+go test ./internal/subagent ./internal/llm ./internal/kernel -count=1 -race
 go run ./cmd/progress-gen --validate
 ```
 

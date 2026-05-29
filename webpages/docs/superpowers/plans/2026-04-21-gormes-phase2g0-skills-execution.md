@@ -23,7 +23,7 @@
 - Modify: `internal/config/config_test.go`
 - Modify: `internal/kernel/kernel.go`
 - Modify: `internal/kernel/kernel_test.go`
-- Modify later vertical proof: `internal/subagent/*` for child-skill injection
+- Modify later vertical proof: `internal/core/subagent/*` for child-skill injection
 
 ## Task 1: Skill artifact schema and parser
 

@@ -638,7 +638,7 @@
                 "execution_owner": "gateway",
                 "contract": "Hermes goal continuation auto-pauses when an in-flight `/goal` turn is interrupted by Ctrl+C or `/stop`: the active per-session goal is marked paused with interrupt evidence, the judge is not called, no continuation prompt is queued, and the operator receives a goal-paused notice. Gormes must port this behavior through the existing gateway/session goal loop rather than the subagent runner.",
                 "contract_status": "validated",
-                "ready_when": "Gateway persistent goal loop + continuation judge is complete: internal/gateway/goal_loop.go, internal/gateway/goal_loop_test.go, and internal/session/goal_state.go already prove per-session `/goal` state, post-turn continuation, pause/resume, and active-turn control.",
+                "ready_when": "Gateway persistent goal loop + continuation judge is complete: internal/gateway/goal_loop.go, internal/gateway/goal_loop_test.go, and internal/persistence/session/goal_state.go already prove per-session `/goal` state, post-turn continuation, pause/resume, and active-turn control.",
                 "not_ready_when": "The slice tries to wire process-wide OS signal handlers, changes subagent delegation, or creates a separate goal runner instead of treating gateway EventCancel/PhaseCancelling as the testable Ctrl+C boundary.",
                 "write_scope": [
                   "internal/gateway/manager.go",
@@ -665,10 +665,10 @@
                   "./hermes-agent/hermes_cli/goals.py@78b0008f4:GoalManager.pause and continuation invariants",
                   "internal/gateway/goal_loop.go:handleGoalPostTurnContinuation",
                   "internal/gateway/manager.go:EventCancel and PhaseCancelling dispatch",
-                  "internal/session/goal_state.go:PauseGoal/ResumeGoal"
+                  "internal/persistence/session/goal_state.go:PauseGoal/ResumeGoal"
                 ],
                 "fixture": "internal/gateway/goal_loop_test.go::TestGatewayGoalInterruptAutoPauses uses EventCancel plus a fake PhaseCancelling render frame to simulate Ctrl+C without real OS signals.",
-                "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 25, below the 90-row cap, but no new row was added. The existing row was stale: it pointed at a nonexistent subagent goal loop even though the source-backed gateway `/goal` row is now complete in internal/gateway and internal/session. Promoted to P1 because Hermes 78b0008f4 explicitly guards Ctrl+C during goal continuation in tests/cli/test_cli_goal_interrupt.py, while Gormes EventCancel marked the turn cancelled without pausing the active goal. TDD added gateway interrupt auto-pause handling so a cancelling goal turn pauses the persisted goal, skips the judge, avoids continuation, and tells the operator how to resume or clear.",
+                "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 25, below the 90-row cap, but no new row was added. The existing row was stale: it pointed at a nonexistent subagent goal loop even though the source-backed gateway `/goal` row is now complete in internal/gateway and internal/persistence/session. Promoted to P1 because Hermes 78b0008f4 explicitly guards Ctrl+C during goal continuation in tests/cli/test_cli_goal_interrupt.py, while Gormes EventCancel marked the turn cancelled without pausing the active goal. TDD added gateway interrupt auto-pause handling so a cancelling goal turn pauses the persisted goal, skips the judge, avoids continuation, and tells the operator how to resume or clear.",
                 "evidence": {
                   "implementation": [
                     "internal/gateway/manager.go: PhaseFailed/PhaseCancelling dispatch now routes cancelled active turns through the goal interruption pause helper before draining follow-ups.",

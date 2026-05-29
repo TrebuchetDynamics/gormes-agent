@@ -169,7 +169,7 @@ Required test classes for provider fixes:
 Minimum validation for provider/auth/runtime changes:
 
 ```sh
-go test ./cmd/gormes ./internal/config ./internal/hermes ./internal/runtime ./internal/gateway -count=1
+go test ./cmd/gormes ./internal/config ./internal/llm ./internal/runtime ./internal/gateway -count=1
 go run ./cmd/progress validate
 git diff --check
 ```

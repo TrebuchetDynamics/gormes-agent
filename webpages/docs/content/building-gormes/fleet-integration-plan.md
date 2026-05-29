@@ -186,18 +186,18 @@ Each fleet pattern is assigned to the Gormes phase and subphase where it natural
 - **Contract:** Port the fleet's session rollover rule (1500KB threshold → write handoff summary → fresh session). `gormes session rollover` exports current session, writes 5-line handoff summary, starts fresh session. Auto-rollover at configurable threshold.
 - **Trust class:** operator, system
 - **Degraded mode:** Session file too large to export cleanly, corrupt session state, or rollover failure reports `session_rollover_failed` with specific path/error and keeps original session intact.
-- **Fixture:** `internal/session/rollover_test.go`
+- **Fixture:** `internal/persistence/session/rollover_test.go`
 - **Source refs:**
   - All 6 workspace AGENTS.md (Session reliability rules)
-  - `internal/session/session.go`
+  - `internal/persistence/session/session.go`
   - `internal/goncho/service.go`
   - `fleet-operational-patterns.md`
 - **Write scope:**
-  - `internal/session/rollover.go`
-  - `internal/session/rollover_test.go`
+  - `internal/persistence/session/rollover.go`
+  - `internal/persistence/session/rollover_test.go`
   - `cmd/gormes/session_rollover.go`
   - `docs/content/building-gormes/progress.json`
-- **Test commands:** `go test ./internal/session -run TestRollover -count=1`
+- **Test commands:** `go test ./internal/persistence/session -run TestRollover -count=1`
 - **Acceptance:**
   - `gormes session rollover` exports and starts fresh session
   - Handoff summary includes: session ID, message count, time range, last 3 actions, blockages

@@ -134,7 +134,7 @@ wrong-home bugs until this checklist says otherwise.
 ## Verification
 
 - Installer behavior: `(cd webpages/landing && go test ./internal/site -run 'TestInstallSH' -count=1)`.
-- Runtime package smoke: `go test ./cmd/gormes ./internal/session -count=1`.
+- Runtime package smoke: `go test ./cmd/gormes ./internal/persistence/session -count=1`.
 - Gateway reload smoke: `go test ./cmd/gormes ./internal/gateway -run 'TestGatewaySignalLoop|TestGatewayReload|TestManager_ReloadCommand' -count=1`.
 - Source/binary/install matrix: run the same focused command through
   `GORMES_HOME="$(mktemp -d)" go run ./cmd/gormes ...`,

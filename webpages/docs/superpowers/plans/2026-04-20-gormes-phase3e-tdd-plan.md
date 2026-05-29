@@ -487,7 +487,7 @@ func TestCrossChat_PrivacyIsolation(t *testing.T) {
 
 **Day 27-28: Chain Creation**
 ```go
-// internal/session/chain_test.go
+// internal/persistence/session/chain_test.go
 func TestSessionChain_CreateChild(t *testing.T) {
     parent := NewSession("parent_123")
     child := parent.CreateChild()

@@ -23,7 +23,7 @@ cd <repo>/gormes
 go test ./cmd/gormes ./internal/tui ./internal/kernel ./internal/doctor ./docs -count=1
 ```
 
-- Full suite currently has a non-Phase-1 flaky failure in `internal/cron` tempdir cleanup; treat as **out of scope** for this plan.
+- Full suite currently has a non-Phase-1 flaky failure in `internal/automation/cron` tempdir cleanup; treat as **out of scope** for this plan.
 
 ---
 

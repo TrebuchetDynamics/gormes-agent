@@ -4,9 +4,9 @@
 
 **Goal:** Close Phase 3 memory identity/lineage delivery safely by sequencing `3.E.6.1`, `3.E.7.2`, `3.E.8.1`, and `3.E.8.2` into small TDD slices that preserve same-chat default safety, keep GONCHO/Honcho boundaries coherent, and make the remaining freshness/lineage/operator gaps explicit before this area is treated as fully closed.
 
-**Architecture:** Treat `internal/session` as the canonical live identity directory, keep `internal/memory` responsible for fenced recall and session/message search semantics, and keep `internal/goncho` plus `internal/tools/honcho_tools.go` as the Honcho-compatible edge. The key delivery rule is: no new cross-chat reach becomes “real” until freshness (`last_seen`), deny-by-default fence behavior, lineage metadata, and operator evidence are all green in that order.
+**Architecture:** Treat `internal/persistence/session` as the canonical live identity directory, keep `internal/memory` responsible for fenced recall and session/message search semantics, and keep `internal/goncho` plus `internal/tools/honcho_tools.go` as the Honcho-compatible edge. The key delivery rule is: no new cross-chat reach becomes “real” until freshness (`last_seen`), deny-by-default fence behavior, lineage metadata, and operator evidence are all green in that order.
 
-**Tech Stack:** Go 1.25+, SQLite/FTS5, bbolt, `internal/memory`, `internal/session`, `internal/goncho`, Cobra CLI, docs/progress generator
+**Tech Stack:** Go 1.25+, SQLite/FTS5, bbolt, `internal/memory`, `internal/persistence/session`, `internal/goncho`, Cobra CLI, docs/progress generator
 
 ---
 
@@ -21,7 +21,7 @@ This execution plan covers these exact backlog items:
 
 ### Already frozen or shipped
 
-- `3.E.7.1` is already shipped in `internal/session/directory.go`:
+- `3.E.7.1` is already shipped in `internal/persistence/session/directory.go`:
   - canonical `user_id > chat_id > session_id` metadata exists
   - chat-to-user binding conflicts are rejected
   - resumed sessions inherit prior chat bindings
@@ -178,11 +178,11 @@ until every migrated row is guaranteed to have `last_seen`.
 
 ### Slice D: lineage metadata
 
-- Modify: `internal/session/directory.go`
-- Modify: `internal/session/directory_test.go`
-- Modify: `internal/session/mem.go`
-- Modify: `internal/session/index_mirror.go`
-- Modify: `internal/session/index_mirror_test.go`
+- Modify: `internal/persistence/session/directory.go`
+- Modify: `internal/persistence/session/directory_test.go`
+- Modify: `internal/persistence/session/mem.go`
+- Modify: `internal/persistence/session/index_mirror.go`
+- Modify: `internal/persistence/session/index_mirror_test.go`
 - Modify: `cmd/gormes/session_mirror_test.go`
 
 ### Slice E: lineage-aware search
@@ -197,7 +197,7 @@ until every migrated row is guaranteed to have `last_seen`.
 - Modify: `internal/memory/status.go`
 - Modify: `internal/memory/status_test.go`
 - Modify: `cmd/gormes/memory.go`
-- Modify: `internal/session/index_mirror.go`
+- Modify: `internal/persistence/session/index_mirror.go`
 - Modify docs under `docs/content/building-gormes/architecture_plan/`
 
 ## 6. TDD slices
@@ -364,14 +364,14 @@ git add internal/goncho/types.go internal/goncho/service.go internal/goncho/cont
 git commit -m "feat: expose scoped goncho search contract at tool edge"
 ```
 
-### Task 4: `3.E.8.1` lineage metadata in `internal/session`
+### Task 4: `3.E.8.1` lineage metadata in `internal/persistence/session`
 
 **Files:**
-- Modify: `internal/session/directory.go`
-- Modify: `internal/session/directory_test.go`
-- Modify: `internal/session/mem.go`
-- Modify: `internal/session/index_mirror.go`
-- Modify: `internal/session/index_mirror_test.go`
+- Modify: `internal/persistence/session/directory.go`
+- Modify: `internal/persistence/session/directory_test.go`
+- Modify: `internal/persistence/session/mem.go`
+- Modify: `internal/persistence/session/index_mirror.go`
+- Modify: `internal/persistence/session/index_mirror_test.go`
 - Modify: `cmd/gormes/session_mirror_test.go`
 
 - [ ] **Step 1: Write the failing tests**
@@ -384,7 +384,7 @@ func TestSessionIndexMirror_WriteIncludesIdentityAndLineageFields(t *testing.T) 
 
 - [ ] **Step 2: Run the RED tests**
 
-Run: `go test ./internal/session ./cmd/gormes -run 'Test(BoltMap_MetadataRoundTripIncludesParentSessionAndLineageKind|BoltMap_PutMetadataRejectsSelfParent|SessionIndexMirror_WriteIncludesIdentityAndLineageFields)' -count=1`
+Run: `go test ./internal/persistence/session ./cmd/gormes -run 'Test(BoltMap_MetadataRoundTripIncludesParentSessionAndLineageKind|BoltMap_PutMetadataRejectsSelfParent|SessionIndexMirror_WriteIncludesIdentityAndLineageFields)' -count=1`
 
 Expected: FAIL because `session.Metadata` has no lineage fields and the mirror output still renders only key -> session_id pairs.
 
@@ -404,14 +404,14 @@ type Metadata struct {
 
 - [ ] **Step 4: Run the GREEN tests**
 
-Run: `go test ./internal/session ./cmd/gormes -run 'Test(BoltMap_MetadataRoundTripIncludesParentSessionAndLineageKind|BoltMap_PutMetadataRejectsSelfParent|SessionIndexMirror_WriteIncludesIdentityAndLineageFields)' -count=1`
+Run: `go test ./internal/persistence/session ./cmd/gormes -run 'Test(BoltMap_MetadataRoundTripIncludesParentSessionAndLineageKind|BoltMap_PutMetadataRejectsSelfParent|SessionIndexMirror_WriteIncludesIdentityAndLineageFields)' -count=1`
 
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/session/directory.go internal/session/directory_test.go internal/session/mem.go internal/session/index_mirror.go internal/session/index_mirror_test.go cmd/gormes/session_mirror_test.go
+git add internal/persistence/session/directory.go internal/persistence/session/directory_test.go internal/persistence/session/mem.go internal/persistence/session/index_mirror.go internal/persistence/session/index_mirror_test.go cmd/gormes/session_mirror_test.go
 git commit -m "feat: add lineage metadata to session directory"
 ```
 
@@ -469,7 +469,7 @@ git commit -m "feat: make cross-chat search lineage-aware"
 - Modify: `internal/memory/status.go`
 - Modify: `internal/memory/status_test.go`
 - Modify: `cmd/gormes/memory.go`
-- Modify: `internal/session/index_mirror.go`
+- Modify: `internal/persistence/session/index_mirror.go`
 - Modify docs under `docs/content/building-gormes/architecture_plan/`
 
 - [ ] **Step 1: Write the failing tests**
@@ -482,7 +482,7 @@ func TestSessionIndexMirror_WriteIncludesUserAndLineageAuditFields(t *testing.T)
 
 - [ ] **Step 2: Run the RED tests**
 
-Run: `go test ./internal/memory ./cmd/gormes ./internal/session -run 'Test(ReadExtractorStatus_IncludesIdentityAndLineageSummary|FormatExtractorStatus_ReportsFreshnessAndOrphanCounts|SessionIndexMirror_WriteIncludesUserAndLineageAuditFields)' -count=1`
+Run: `go test ./internal/memory ./cmd/gormes ./internal/persistence/session -run 'Test(ReadExtractorStatus_IncludesIdentityAndLineageSummary|FormatExtractorStatus_ReportsFreshnessAndOrphanCounts|SessionIndexMirror_WriteIncludesUserAndLineageAuditFields)' -count=1`
 
 Expected: FAIL because the operator surfaces currently only expose extractor health and raw session mappings.
 
@@ -499,14 +499,14 @@ type IdentityLineageStatus struct {
 
 - [ ] **Step 4: Run the GREEN tests**
 
-Run: `go test ./internal/memory ./cmd/gormes ./internal/session -run 'Test(ReadExtractorStatus_IncludesIdentityAndLineageSummary|FormatExtractorStatus_ReportsFreshnessAndOrphanCounts|SessionIndexMirror_WriteIncludesUserAndLineageAuditFields)' -count=1`
+Run: `go test ./internal/memory ./cmd/gormes ./internal/persistence/session -run 'Test(ReadExtractorStatus_IncludesIdentityAndLineageSummary|FormatExtractorStatus_ReportsFreshnessAndOrphanCounts|SessionIndexMirror_WriteIncludesUserAndLineageAuditFields)' -count=1`
 
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/memory/status.go internal/memory/status_test.go cmd/gormes/memory.go internal/session/index_mirror.go docs/content/building-gormes/architecture_plan
+git add internal/memory/status.go internal/memory/status_test.go cmd/gormes/memory.go internal/persistence/session/index_mirror.go docs/content/building-gormes/architecture_plan
 git commit -m "feat: expose identity and lineage evidence to operators"
 ```
 
@@ -570,7 +570,7 @@ These sub-items are done only when all of the following are true:
 Run these commands before marking the delivery complete:
 
 ```bash
-go test ./internal/memory ./internal/session ./internal/goncho -count=1
+go test ./internal/memory ./internal/persistence/session ./internal/goncho -count=1
 go test ./cmd/gormes -count=1
 go test ./internal/progress -count=1
 go run ./cmd/progress-gen -write

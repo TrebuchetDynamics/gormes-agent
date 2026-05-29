@@ -634,7 +634,7 @@ func TestPhase3IdentityLineageExecutionPlanIsLinkedAndSequenced(t *testing.T) {
 		"same-chat default",
 		"opt-in cross-chat",
 		"Rollback and failure containment",
-		"go test ./internal/memory ./internal/session ./internal/goncho -count=1",
+		"go test ./internal/memory ./internal/persistence/session ./internal/goncho -count=1",
 	} {
 		if !strings.Contains(plan, want) {
 			t.Fatalf("identity/lineage execution plan is missing %q", want)

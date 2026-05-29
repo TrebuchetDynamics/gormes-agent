@@ -12,14 +12,14 @@
 
 ## File Map
 
-- Modify: `internal/subagent/manager.go`
-- Modify: `internal/subagent/subagent.go`
-- Modify: `internal/subagent/manager_test.go`
-- Modify: `internal/subagent/batch_test.go`
-- Modify: `internal/subagent/delegate_tool_test.go`
-- Modify: `internal/subagent/types.go` if stable exit-reason constants are introduced
-- Create later slice: `internal/subagent/runlog.go`
-- Create later slice: `internal/subagent/runlog_test.go`
+- Modify: `internal/core/subagent/manager.go`
+- Modify: `internal/core/subagent/subagent.go`
+- Modify: `internal/core/subagent/manager_test.go`
+- Modify: `internal/core/subagent/batch_test.go`
+- Modify: `internal/core/subagent/delegate_tool_test.go`
+- Modify: `internal/core/subagent/types.go` if stable exit-reason constants are introduced
+- Create later slice: `internal/core/subagent/runlog.go`
+- Create later slice: `internal/core/subagent/runlog_test.go`
 
 ## Task 1: Deterministic caller cancellation plumbing
 
@@ -34,8 +34,8 @@
 
 Add these tests:
 
-- `TestManagerSpawnCallerCtxCancellationCascades` in `internal/subagent/manager_test.go`
-- `TestSpawnBatchContextCancellationCancelsChildren` in `internal/subagent/batch_test.go`
+- `TestManagerSpawnCallerCtxCancellationCascades` in `internal/core/subagent/manager_test.go`
+- `TestSpawnBatchContextCancellationCancelsChildren` in `internal/core/subagent/batch_test.go`
 
 Test intent:
 
@@ -60,7 +60,7 @@ Expected:
 
 - [ ] **Step 3: Implement minimal context plumbing**
 
-Modify `internal/subagent/manager.go` and `internal/subagent/subagent.go`:
+Modify `internal/core/subagent/manager.go` and `internal/core/subagent/subagent.go`:
 
 - Derive the child runtime from both `ManagerOpts.ParentCtx` and the per-call `Spawn(ctx, cfg)` context.
 - Use stop hooks or equivalent cleanup so bridge callbacks do not leak after child completion.
@@ -80,7 +80,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/manager.go internal/subagent/subagent.go internal/subagent/manager_test.go internal/subagent/batch_test.go
+git add internal/core/subagent/manager.go internal/core/subagent/subagent.go internal/core/subagent/manager_test.go internal/core/subagent/batch_test.go
 git commit -m "feat(subagent): honor caller cancellation in runtime"
 ```
 
@@ -100,8 +100,8 @@ git commit -m "feat(subagent): honor caller cancellation in runtime"
 
 Add or update:
 
-- `TestManagerTimeoutProducesCanonicalExitReason` in `internal/subagent/manager_test.go`
-- `TestDelegateToolUsesManagerDefaultTimeout` in `internal/subagent/delegate_tool_test.go`
+- `TestManagerTimeoutProducesCanonicalExitReason` in `internal/core/subagent/manager_test.go`
+- `TestDelegateToolUsesManagerDefaultTimeout` in `internal/core/subagent/delegate_tool_test.go`
 
 Test intent:
 
@@ -122,7 +122,7 @@ Expected: FAIL because the current runtime leaks runner-specific `ctx_cancelled`
 
 - [ ] **Step 3: Implement result normalization**
 
-Modify `internal/subagent/manager.go` and `internal/subagent/types.go` as needed:
+Modify `internal/core/subagent/manager.go` and `internal/core/subagent/types.go` as needed:
 
 - Normalize terminal results after runner completion.
 - Map deadline expiry to `timeout`.
@@ -143,7 +143,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/manager.go internal/subagent/types.go internal/subagent/manager_test.go internal/subagent/delegate_tool_test.go
+git add internal/core/subagent/manager.go internal/core/subagent/types.go internal/core/subagent/manager_test.go internal/core/subagent/delegate_tool_test.go
 git commit -m "feat(subagent): normalize timeout and interrupt reasons"
 ```
 
@@ -161,7 +161,7 @@ git commit -m "feat(subagent): normalize timeout and interrupt reasons"
 
 - [ ] **Step 1: Write the failing test**
 
-Add `TestSpawnBatchUsesConfiguredDefaultMaxConcurrent` in `internal/subagent/batch_test.go`.
+Add `TestSpawnBatchUsesConfiguredDefaultMaxConcurrent` in `internal/core/subagent/batch_test.go`.
 
 - [ ] **Step 2: Run the targeted test and verify RED**
 
@@ -176,7 +176,7 @@ Expected: FAIL if the runtime does not honor the configured default semaphore wi
 
 - [ ] **Step 3: Implement the minimal fix**
 
-Modify only `internal/subagent/batch.go` if needed.
+Modify only `internal/core/subagent/batch.go` if needed.
 
 - [ ] **Step 4: Run the targeted test and verify GREEN**
 
@@ -192,7 +192,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/batch.go internal/subagent/batch_test.go
+git add internal/core/subagent/batch.go internal/core/subagent/batch_test.go
 git commit -m "feat(subagent): honor configured batch concurrency defaults"
 ```
 
@@ -212,7 +212,7 @@ git commit -m "feat(subagent): honor configured batch concurrency defaults"
 
 Create:
 
-- `internal/subagent/runlog_test.go`
+- `internal/core/subagent/runlog_test.go`
 
 Test intent:
 
@@ -233,7 +233,7 @@ Expected: FAIL because the logger does not exist yet.
 
 - [ ] **Step 3: Implement the append-only logger**
 
-Create `internal/subagent/runlog.go` and wire it from `manager.go`.
+Create `internal/core/subagent/runlog.go` and wire it from `manager.go`.
 
 - [ ] **Step 4: Run the targeted tests and verify GREEN**
 
@@ -249,7 +249,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/runlog.go internal/subagent/runlog_test.go internal/subagent/manager.go
+git add internal/core/subagent/runlog.go internal/core/subagent/runlog_test.go internal/core/subagent/manager.go
 git commit -m "feat(subagent): append runtime run logs"
 ```
 

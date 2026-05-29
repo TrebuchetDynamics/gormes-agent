@@ -33,7 +33,7 @@ From `docs/content/building-gormes/architecture_plan/progress.json`:
 ## Phase 3 Definition of Done
 
 1. Every Phase 3 item in `progress.json` is `complete`.
-2. `go test ./internal/memory ./internal/session ./internal/progress ./docs -count=1` passes.
+2. `go test ./internal/memory ./internal/persistence/session ./internal/progress ./docs -count=1` passes.
 3. `go run ./cmd/progress-gen --validate` passes.
 4. `go test ./... -count=1` passes.
 
@@ -59,14 +59,14 @@ From `docs/content/building-gormes/architecture_plan/progress.json`:
 - `3.E.2` outcome, duration, and error capture
 
 **Files (expected)**
-- `internal/session/*`
+- `internal/persistence/session/*`
 - `internal/memory/*`
 - `internal/kernel/*`
 - `cmd/gormes/*` (status/export wiring)
 
 **Verify**
 ```bash
-go test ./internal/session ./internal/memory ./internal/kernel -count=1 -race
+go test ./internal/persistence/session ./internal/memory ./internal/kernel -count=1 -race
 ```
 
 **Commit**
@@ -130,13 +130,13 @@ go test ./cmd/gormes ./internal/memory ./internal/kernel -count=1
 
 **Files**
 - `internal/memory/*`
-- `internal/session/*`
+- `internal/persistence/session/*`
 - `internal/progress/*` (if ordering/reporting hooks required)
 - `cmd/gormes/*`
 
 **Verify**
 ```bash
-go test ./internal/memory ./internal/session ./internal/progress ./cmd/gormes -count=1
+go test ./internal/memory ./internal/persistence/session ./internal/progress ./cmd/gormes -count=1
 ```
 
 **Commit**

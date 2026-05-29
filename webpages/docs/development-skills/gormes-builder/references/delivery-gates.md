@@ -21,8 +21,8 @@ go test ./... -count=1
 
 ## Package-Focused Gates
 
-- Gateway/provider/tooling: `go test ./internal/gateway ./internal/tools ./internal/hermes -count=1`
-- Goncho/memory/session: `go test ./internal/goncho ./internal/gonchotools ./internal/memory ./internal/session ./internal/store -count=1`
+- Gateway/provider/tooling: `go test ./internal/gateway ./internal/tools ./internal/llm -count=1`
+- Goncho/memory/session: `go test ./internal/goncho ./internal/gonchotools ./internal/memory ./internal/persistence/session ./internal/persistence/store -count=1`
 - CLI/doctor/config: `go test ./cmd/gormes ./internal/cli ./internal/doctor ./internal/config -count=1`
 - Progress schema/docs: `go test ./internal/progress -count=1`
 - TUI/API/server: `go test ./internal/tui ./internal/tuigateway ./internal/apiserver -count=1`

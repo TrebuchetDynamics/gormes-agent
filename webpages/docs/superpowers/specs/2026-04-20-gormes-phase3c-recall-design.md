@@ -125,7 +125,7 @@ func NewRecall(s *SqliteStore, cfg RecallConfig, log *slog.Logger) *Provider
 func (p *Provider) GetContext(ctx context.Context, params kernel.RecallParams) string
 ```
 
-Note: `memory.Provider` imports `internal/kernel` just for `RecallParams`. That's OK — the existing `internal/memory` already imports `internal/store` (and kernel imports neither). The dependency arrow is `memory → kernel` (implementation → interface), which is the Go-idiomatic direction. Kernel's T12 build-isolation test stays green because it asserts kernel does NOT import memory — it allows memory to import kernel types.
+Note: `memory.Provider` imports `internal/kernel` just for `RecallParams`. That's OK — the existing `internal/memory` already imports `internal/persistence/store` (and kernel imports neither). The dependency arrow is `memory → kernel` (implementation → interface), which is the Go-idiomatic direction. Kernel's T12 build-isolation test stays green because it asserts kernel does NOT import memory — it allows memory to import kernel types.
 
 ### 5.3 `turns.chat_id` for per-chat scoping — schema `3c`
 
@@ -337,7 +337,7 @@ The kernel prepends the memory context as a dedicated **system** message (role =
 The LLM's effective message array for a recall-enabled turn:
 
 ```go
-Messages: []hermes.Message{
+Messages: []llm.Message{
     {Role: "system", Content: "<memory-context>…</memory-context>"},
     {Role: "user",   Content: text},
 }
@@ -352,14 +352,14 @@ request := hermes.ChatRequest{
     Model:     k.cfg.Model,
     SessionID: k.sessionID,
     Stream:    true,
-    Messages:  []hermes.Message{{Role: "user", Content: text}},
+    Messages:  []llm.Message{{Role: "user", Content: text}},
 }
 ```
 
 Phase 3.C changes this to:
 
 ```go
-msgs := []hermes.Message{{Role: "user", Content: text}}
+msgs := []llm.Message{{Role: "user", Content: text}}
 
 if k.cfg.Recall != nil {
     deadline := k.cfg.RecallDeadline
@@ -374,7 +374,7 @@ if k.cfg.Recall != nil {
     })
     recallCancel()
     if ctxStr != "" {
-        msgs = append([]hermes.Message{
+        msgs = append([]llm.Message{
             {Role: "system", Content: ctxStr},
         }, msgs...)
     }

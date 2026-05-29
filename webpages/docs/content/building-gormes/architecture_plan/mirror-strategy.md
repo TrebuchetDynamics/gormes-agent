@@ -122,7 +122,7 @@ Based on the comprehensive Hermes file inventory, these Hermes files do not need
 - Platform breakdowns
 - Session metrics (duration, turns, success rate)
 
-Gormes now has local rollup primitives (`internal/insights/rollup.go`), `telemetry.Snapshot` bridging, and append-only JSONL persistence for daily usage records. Operators can derive usage locally and keep a durable daily audit trail without waiting for the broader Phase 4 InsightsEngine port.
+Gormes now has local rollup primitives (`internal/automation/insights/rollup.go`), `telemetry.Snapshot` bridging, and append-only JSONL persistence for daily usage records. Operators can derive usage locally and keep a durable daily audit trail without waiting for the broader Phase 4 InsightsEngine port.
 
 **Shipped Mirror Addition — Phase 3.E.5: Insights Audit Log**
 

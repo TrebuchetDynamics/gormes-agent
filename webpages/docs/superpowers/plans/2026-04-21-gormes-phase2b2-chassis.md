@@ -6,7 +6,7 @@
 
 **Architecture:** Shared `internal/gateway/` owns cross-channel mechanics (Channel interface, capability sub-interfaces, Manager, coalescer, render helpers, session-map persistence, auth gate, command normalization). Individual channels live under `internal/channels/<name>/` and translate their SDK events to `gateway.InboundEvent`. `gormes gateway` subcommand wires any configured channels into one Manager.
 
-**Tech Stack:** Go 1.23+, `github.com/go-telegram-bot-api/telegram-bot-api/v5` (existing), `github.com/bwmarrin/discordgo` (new), `github.com/spf13/cobra` (existing), `bbolt` (via `internal/session`).
+**Tech Stack:** Go 1.23+, `github.com/go-telegram-bot-api/telegram-bot-api/v5` (existing), `github.com/bwmarrin/discordgo` (new), `github.com/spf13/cobra` (existing), `bbolt` (via `internal/persistence/session`).
 
 **Spec:** [`docs/superpowers/specs/2026-04-21-gormes-phase2b2-chassis-design.md`](../specs/2026-04-21-gormes-phase2b2-chassis-design.md)
 
@@ -47,8 +47,8 @@
 **Modified:**
 - `internal/config/config.go` — add `DiscordCfg` struct + `[discord]` TOML section + defaults
 - `internal/config/config_test.go` — tests for discord defaults and parsing
-- `internal/session/session.go` — add `DiscordKey(channelID string) string` helper
-- `internal/session/mem_test.go` — test for `DiscordKey`
+- `internal/persistence/session/session.go` — add `DiscordKey(channelID string) string` helper
+- `internal/persistence/session/mem_test.go` — test for `DiscordKey`
 - `cmd/gormes/telegram.go` — refactor to construct a single-channel `gateway.Manager`
 - `cmd/gormes/main.go` — register the new `gatewayCmd`
 - `cmd/gormes/doctor.go` — add `CheckGateway` covering both channels
@@ -205,7 +205,7 @@ type InboundEvent struct {
 }
 
 // ChatKey returns "<platform>:<chat_id>" — the format the
-// internal/session.Map uses for its bolt/memory keys.
+// internal/persistence/session.Map uses for its bolt/memory keys.
 func (e InboundEvent) ChatKey() string {
 	return e.Platform + ":" + e.ChatID
 }
@@ -226,7 +226,7 @@ feat(gateway): InboundEvent + EventKind for chassis
 First brick of the Phase 2.B.2 chassis. Normalizes platform
 commands (/new /stop /start) to a single EventKind enum so the
 Manager sees one event shape regardless of channel. ChatKey()
-produces the same "<platform>:<chat_id>" format internal/session
+produces the same "<platform>:<chat_id>" format internal/persistence/session
 already uses.
 EOF
 )"
@@ -580,7 +580,7 @@ import (
 	"sync"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 // ManagerConfig drives the Manager. All fields are optional unless noted.
@@ -985,7 +985,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 // coalescer compatibility shim — the coalescer moved to internal/gateway
@@ -2264,7 +2264,7 @@ func parseChatID(s string) (int64, error) {
 }
 ```
 
-Add to imports: `"fmt"`, `"strconv"`. Remove the unused ones (`"errors"`, `"sync"` if the chatIDByMsg map is gone, `"time"` if coalescer is gone, `"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"`, `"github.com/TrebuchetDynamics/gormes-agent/internal/session"`). Delete the entire `runOutbound`, `persistIfChanged`, `handleFrame`, and `handleUpdate` methods — they belong to Manager now.
+Add to imports: `"fmt"`, `"strconv"`. Remove the unused ones (`"errors"`, `"sync"` if the chatIDByMsg map is gone, `"time"` if coalescer is gone, `"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"`, `"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"`). Delete the entire `runOutbound`, `persistIfChanged`, `handleFrame`, and `handleUpdate` methods — they belong to Manager now.
 
 - [ ] **Step 8.5: Update the existing telegram tests**
 
@@ -3382,10 +3382,10 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )

@@ -435,13 +435,13 @@ func TestNormalizeCandidatesPreservesExecutionMetadataAndSkipsBlockedUmbrella(t 
 								"execution_owner": "provider",
 								"trust_class": ["system"],
 								"degraded_mode": "provider status reports missing fixtures",
-								"fixture": "internal/hermes/testdata/provider_transcripts",
+								"fixture": "internal/llm/testdata/provider_transcripts",
 								"source_refs": ["docs/content/upstream-hermes/source-study.md"],
 								"ready_when": ["fixtures replay"],
 								"not_ready_when": ["live provider call required"],
-								"acceptance": ["go test ./internal/hermes passes"],
-								"write_scope": ["internal/hermes/"],
-								"test_commands": ["go test ./internal/hermes -count=1"],
+								"acceptance": ["go test ./internal/llm passes"],
+								"write_scope": ["internal/llm/"],
+								"test_commands": ["go test ./internal/llm -count=1"],
 								"done_signal": ["provider transcript replay passes"],
 								"unblocks": ["Bedrock adapter"],
 								"note": "Use captured transcript fixtures."
@@ -496,10 +496,10 @@ func TestNormalizeCandidatesPreservesExecutionMetadataAndSkipsBlockedUmbrella(t 
 	if !reflect.DeepEqual(candidate.TrustClass, []string{"system"}) {
 		t.Fatalf("TrustClass = %#v, want system", candidate.TrustClass)
 	}
-	if !reflect.DeepEqual(candidate.WriteScope, []string{"internal/hermes/"}) {
-		t.Fatalf("WriteScope = %#v, want internal/hermes/", candidate.WriteScope)
+	if !reflect.DeepEqual(candidate.WriteScope, []string{"internal/llm/"}) {
+		t.Fatalf("WriteScope = %#v, want internal/llm/", candidate.WriteScope)
 	}
-	if !reflect.DeepEqual(candidate.TestCommands, []string{"go test ./internal/hermes -count=1"}) {
+	if !reflect.DeepEqual(candidate.TestCommands, []string{"go test ./internal/llm -count=1"}) {
 		t.Fatalf("TestCommands = %#v, want provider test", candidate.TestCommands)
 	}
 	if got, want := candidate.SelectionReason(), "P0 handoff"; got != want {
@@ -787,13 +787,13 @@ func TestRunOncePassesExecutionMetadataPromptToBackend(t *testing.T) {
 								"execution_owner": "provider",
 								"trust_class": ["system"],
 								"degraded_mode": "provider status reports missing fixtures",
-								"fixture": "internal/hermes/testdata/provider_transcripts",
+								"fixture": "internal/llm/testdata/provider_transcripts",
 								"source_refs": ["docs/content/upstream-hermes/source-study.md"],
 								"ready_when": ["fixtures replay"],
 								"not_ready_when": ["live provider call required"],
-								"acceptance": ["go test ./internal/hermes passes"],
-								"write_scope": ["internal/hermes/"],
-								"test_commands": ["go test ./internal/hermes -count=1"],
+								"acceptance": ["go test ./internal/llm passes"],
+								"write_scope": ["internal/llm/"],
+								"test_commands": ["go test ./internal/llm -count=1"],
 								"done_signal": ["provider transcript replay passes"],
 								"note": "Use captured transcript fixtures."
 							}
@@ -841,9 +841,9 @@ func TestRunOncePassesExecutionMetadataPromptToBackend(t *testing.T) {
 		"Trust class:",
 		"- system",
 		"Allowed write scope:",
-		"- internal/hermes/",
+		"- internal/llm/",
 		"Required test commands:",
-		"- go test ./internal/hermes -count=1",
+		"- go test ./internal/llm -count=1",
 		"Done signal:",
 		"- provider transcript replay passes",
 		"Source references:",

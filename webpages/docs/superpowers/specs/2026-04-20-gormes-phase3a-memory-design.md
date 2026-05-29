@@ -6,7 +6,7 @@
 ## Related Documents
 
 - [`docs/ARCH_PLAN.md`](../../ARCH_PLAN.md) — executive roadmap. Phase 3 = "The Black Box (Memory) — SQLite + FTS5 + ontological graph". This spec delivers the SQLite + FTS5 foundation (the "concrete slab"); entity/relationship extraction is deferred to Phase 3.B.
-- Phase 2.C — [`2026-04-19-gormes-phase2c-persistence-design.md`](2026-04-19-gormes-phase2c-persistence-design.md) — bbolt session mapping. **Untouched by this spec.** `internal/session` stays exactly as-is; the new `internal/memory` package is a sibling.
+- Phase 2.C — [`2026-04-19-gormes-phase2c-persistence-design.md`](2026-04-19-gormes-phase2c-persistence-design.md) — bbolt session mapping. **Untouched by this spec.** `internal/persistence/session` stays exactly as-is; the new `internal/memory` package is a sibling.
 - Phase 2.B.1 — [`2026-04-19-gormes-phase2b-telegram.md`](2026-04-19-gormes-phase2b-telegram.md) — Telegram adapter + `cmd/gormes-telegram`. This spec extends the bot's startup wiring; the TUI is not touched.
 
 ---
@@ -135,7 +135,7 @@ PRAGMA foreign_keys = ON;
 
 ## 7. Interface & Types
 
-### 7.1 `internal/store` — unchanged API surface, augmented enum
+### 7.1 `internal/persistence/store` — unchanged API surface, augmented enum
 
 The existing `store.Store` interface is already designed for this — commands flow in via `Exec`, Ack flows out. Phase 3.A keeps the interface shape and:
 
@@ -144,7 +144,7 @@ The existing `store.Store` interface is already designed for this — commands f
 - Adds nothing else to `Store`. Reads come later in Phase 3.C via a new sibling interface.
 
 ```go
-// internal/store/store.go (edited)
+// internal/persistence/store/store.go (edited)
 
 type CommandKind int
 const (
@@ -165,7 +165,7 @@ import (
     "database/sql"
 
     _ "modernc.org/sqlite"
-    "github.com/TrebuchetDynamics/gormes-agent/internal/store"
+    "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 )
 
 // SqliteStore is a fire-and-forget store.Store implementation backed by
@@ -292,7 +292,7 @@ Current code (`kernel.go:183`) calls `store.Exec` only for `AppendUserTurn`, bef
 ```go
 // Inside runTurn, AFTER the tool loop completes and the final assistant
 // message has been appended to k.history. Pseudo-location: after the
-// existing `k.history = append(k.history, hermes.Message{Role: "assistant", Content: k.draft})`
+// existing `k.history = append(k.history, llm.Message{Role: "assistant", Content: k.draft})`
 // near kernel.go:387 (subject to line-number drift).
 {
     payload, _ := json.Marshal(map[string]any{
@@ -388,7 +388,7 @@ No env-var override. No CLI flag. Config-file or default only — queue sizing i
 | Schema migration fails | Return wrapped error → exit 1 |
 | Out of disk at Open | Return wrapped error → exit 1 |
 
-No sentinel-error export in 3.A — the bot simply exits on any Open failure. (Unlike `internal/session.ErrDBLocked`, SQLite does not *require* exclusive file locks in WAL mode; multiple processes can open the same DB file. If we later need to distinguish, we add sentinels in 3.B.)
+No sentinel-error export in 3.A — the bot simply exits on any Open failure. (Unlike `internal/persistence/session.ErrDBLocked`, SQLite does not *require* exclusive file locks in WAL mode; multiple processes can open the same DB file. If we later need to distinguish, we add sentinels in 3.B.)
 
 ### 11.2 Write failures (on the worker)
 
@@ -453,7 +453,7 @@ T13 verification will measure the actual post-landing sizes. If `bin/gormes-tele
 
 ### 14.4 Kernel integration
 
-- `TestKernel_FinalizeAssistantTurnReachesStore` — introduce a new `store.RecordingStore` test double in `internal/store/` (alongside `NoopStore` + `SlowStore`) that captures every Command into a `[]Command` slice with a mutex. Submit a turn, assert both `AppendUserTurn` and `FinalizeAssistantTurn` commands are observed, with matching session_id and content after JSON unmarshal.
+- `TestKernel_FinalizeAssistantTurnReachesStore` — introduce a new `store.RecordingStore` test double in `internal/persistence/store/` (alongside `NoopStore` + `SlowStore`) that captures every Command into a `[]Command` slice with a mutex. Submit a turn, assert both `AppendUserTurn` and `FinalizeAssistantTurn` commands are observed, with matching session_id and content after JSON unmarshal.
 - Existing `kernel_test.go` tests that use `NoopStore` must continue passing — the schema change to the payload is cosmetic because `NoopStore` discards.
 - Existing `SlowStore` test must continue tripping `StoreAckDeadline`.
 

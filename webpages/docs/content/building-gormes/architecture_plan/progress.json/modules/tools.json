@@ -60,7 +60,7 @@
         "system"
       ],
       "degraded_mode": "Context status reports disabled compression, cooldowns, unknown tools, token-budget pressure, and replay gaps.",
-      "fixture": "internal/hermes/testdata/context_status and internal/kernel context-engine replay fixtures",
+      "fixture": "internal/llm/testdata/context_status and internal/kernel context-engine replay fixtures",
       "source_refs": [
         "docs/content/upstream-hermes/source-study.md",
         "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
@@ -80,14 +80,14 @@
         "Compression remains an explicit engine boundary, not a hidden kernel side effect.",
         "Fixtures replay context status without live provider calls."
       ],
-      "note": "Complete: TDD landed a provider-owned Go ContextEngine contract in internal/hermes, a disabled engine with context_status payload fixtures for window, budget pressure, compression disabled/cooldown state, replay gaps, and structured unknown-context-tool errors. The kernel now snapshots context status, updates usage from provider EventDone, advertises context-engine tools, and dispatches them through the explicit engine boundary without calling Compress as a hidden side effect.",
+      "note": "Complete: TDD landed a provider-owned Go ContextEngine contract in internal/llm, a disabled engine with context_status payload fixtures for window, budget pressure, compression disabled/cooldown state, replay gaps, and structured unknown-context-tool errors. The kernel now snapshots context status, updates usage from provider EventDone, advertises context-engine tools, and dispatches them through the explicit engine boundary without calling Compress as a hidden side effect.",
       "write_scope": [
         "internal/kernel/",
-        "internal/hermes/",
+        "internal/llm/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/kernel ./internal/hermes -count=1"
+        "go test ./internal/kernel ./internal/llm -count=1"
       ],
       "done_signal": [
         "Context status fixtures expose budget, compression state, and unknown-tool errors without live provider calls."
@@ -117,13 +117,13 @@
         "system"
       ],
       "degraded_mode": "Context status reports headroom-clamped compression thresholds instead of allowing the first compression or flush-memory request to overflow the auxiliary model.",
-      "fixture": "internal/hermes/context_compressor_headroom_test.go",
+      "fixture": "internal/llm/context_compressor_headroom_test.go",
       "source_refs": [
         "../hermes-agent/run_agent.py@6e561ffa",
         "../hermes-agent/tests/run_agent/test_compression_feasibility.py@6e561ffa",
         "../hermes-agent/agent/model_metadata.py@6e561ffa",
-        "internal/hermes/context_compressor_budget.go",
-        "internal/hermes/context_compressor_budget_test.go",
+        "internal/llm/context_compressor_budget.go",
+        "internal/llm/context_compressor_budget_test.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json"
       ],
       "ready_when": [
@@ -144,15 +144,15 @@
         "When overhead would drop below the 64000-token floor, threshold_tokens clamps to the floor and reports headroom_clamped evidence.",
         "The focused test mirrors Hermes test_auto_lowered_threshold_reserves_headroom_for_tools_and_system and test_headroom_floors_at_minimum_context without provider credentials or kernel history mutation."
       ],
-      "note": "Complete: internal/hermes/context_compressor_headroom_test.go covers the auxiliary-bound threshold path with synthetic tool descriptors and the minimum-floor path. ContextCompressorBudget now estimates provider-visible tool descriptor overhead, reserves that plus 12000 fixed system/flush/safety tokens, lowers threshold_tokens below the auxiliary context when needed, and reports headroom_clamped evidence without provider calls or history mutation.",
+      "note": "Complete: internal/llm/context_compressor_headroom_test.go covers the auxiliary-bound threshold path with synthetic tool descriptors and the minimum-floor path. ContextCompressorBudget now estimates provider-visible tool descriptor overhead, reserves that plus 12000 fixed system/flush/safety tokens, lowers threshold_tokens below the auxiliary context when needed, and reports headroom_clamped evidence without provider calls or history mutation.",
       "write_scope": [
-        "internal/hermes/",
+        "internal/llm/",
         "internal/tools/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run TestContextCompressorHeadroom -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run TestContextCompressorHeadroom -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -187,7 +187,7 @@
         "system"
       ],
       "degraded_mode": "Context status reports pruning_skipped, prune_budget_unavailable, or invalid_tool_pair evidence instead of silently truncating JSON arguments, dropping required tool results, or mutating live history.",
-      "fixture": "internal/hermes/context_compressor_pruning_test.go",
+      "fixture": "internal/llm/context_compressor_pruning_test.go",
       "source_refs": [
         "../hermes-agent/agent/context_compressor.py:_prune_old_tool_results",
         "../hermes-agent/agent/context_compressor.py:_find_tail_cut_by_tokens",
@@ -196,7 +196,7 @@
         "references/go-agent-os/nanobot/pkg/agents/truncate.go",
         "references/go-agent-os/nanobot/pkg/agents/tokencount.go",
         "references/go-agent-os/axe/internal/budget/budget.go",
-        "internal/hermes/context_compressor_budget.go",
+        "internal/llm/context_compressor_budget.go",
         "internal/tools/result_budget.go"
       ],
       "ready_when": [
@@ -215,15 +215,15 @@
       ],
       "note": "Donor-backed row: Hermes defines compression behavior and regressions; Nanobot supplies bounded result/truncation and decoded image token-estimate shapes; Axe supplies the minimal per-turn budget counter shape. Adapt patterns only and keep the public behavior Hermes-compatible.",
       "write_scope": [
-        "internal/hermes/context_compressor_pruning.go",
-        "internal/hermes/context_compressor_pruning_test.go",
-        "internal/hermes/context_compressor_budget.go",
+        "internal/llm/context_compressor_pruning.go",
+        "internal/llm/context_compressor_pruning_test.go",
+        "internal/llm/context_compressor_budget.go",
         "internal/tools/result_budget.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run TestContextCompressorPruning -count=1",
-        "go test ./internal/hermes ./internal/tools -count=1",
+        "go test ./internal/llm -run TestContextCompressorPruning -count=1",
+        "go test ./internal/llm ./internal/tools -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -235,8 +235,8 @@
         "note": "Hermes owns the behavior; Go donor files only supply implementation shapes for bounded output, image-token estimation, and budget accounting."
       },
       "evidence": {
-        "implementation": "internal/hermes/context_compressor_pruning.go, internal/hermes/context_compressor_pruning_test.go",
-        "tests": "go test ./internal/hermes -run TestContextCompressorPruning -count=1; go test ./internal/hermes ./internal/tools -count=1",
+        "implementation": "internal/llm/context_compressor_pruning.go, internal/llm/context_compressor_pruning_test.go",
+        "tests": "go test ./internal/llm -run TestContextCompressorPruning -count=1; go test ./internal/llm ./internal/tools -count=1",
         "note": "Pure Go pruning transform protects head and token-budget tail messages, aligns tool-call/result pairs, emits summary-prefix-compatible fallback markers, prunes oversized historical tool results, and records degraded invalid-tool evidence without provider calls or live history mutation."
       }
     }
@@ -338,8 +338,8 @@
       ],
       "source_refs": [
         "docs/content/papers/safety-and-deployment.md",
-        "internal/hermes/safety_tool_gate.go",
-        "internal/hermes/safety_tool_gate_test.go"
+        "internal/llm/safety_tool_gate.go",
+        "internal/llm/safety_tool_gate_test.go"
       ],
       "ready_when": [
         "Plan gate exists (4.L row 1)",
@@ -354,20 +354,20 @@
         "Intent drift across multi-step tool chains is detected",
         "Tool gate adds <5ms P99 overhead"
       ],
-      "note": "Complete: internal/hermes/safety_tool_gate.go defines a default tool gate with intent-pattern and system-only permission rules plus custom rule injection; fixtures prove safe calls execute, dangerous shell patterns are refused, system-only tools require system role, and custom rules block selected tools.",
+      "note": "Complete: internal/llm/safety_tool_gate.go defines a default tool gate with intent-pattern and system-only permission rules plus custom rule injection; fixtures prove safe calls execute, dangerous shell patterns are refused, system-only tools require system role, and custom rules block selected tools.",
       "write_scope": [
-        "internal/hermes/safety_tool_gate.go",
-        "internal/hermes/safety_tool_gate_test.go"
+        "internal/llm/safety_tool_gate.go",
+        "internal/llm/safety_tool_gate_test.go"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run TestToolGate -count=1"
+        "go test ./internal/llm -run TestToolGate -count=1"
       ],
       "done_signal": [
         "Tool gate tests prove intent-aligned calls pass and drift calls are blocked"
       ],
       "evidence": {
-        "implementation": "internal/hermes/safety_tool_gate.go",
-        "tests": "go test ./internal/hermes -run TestToolGate -count=1",
+        "implementation": "internal/llm/safety_tool_gate.go",
+        "tests": "go test ./internal/llm -run TestToolGate -count=1",
         "note": "Tool gate behavior is verified by TestToolGate_* fixtures and used by the ReAct safety adapter."
       }
     }
@@ -472,12 +472,12 @@
         "child-agent"
       ],
       "degraded_mode": "When a schema-array argument is a bad JSON-array-looking string, Gormes keeps the call recoverable only as a single-element list if the item schema permits it and returns typed repair evidence otherwise; malformed required/object values still fail before execution.",
-      "fixture": "internal/hermes/tool_call_argument_repair_test.go",
+      "fixture": "internal/llm/tool_call_argument_repair_test.go",
       "source_refs": [
         "./hermes-agent/model_tools.py@7330183d0:coerce_tool_args,_coerce_value,_coerce_json",
         "./hermes-agent/tests/run_agent/test_tool_arg_coercion.py@7330183d0:TestCoerceToolArgs",
-        "internal/hermes/tool_call_repair.go",
-        "internal/hermes/tool_call_argument_repair_test.go",
+        "internal/llm/tool_call_repair.go",
+        "internal/llm/tool_call_argument_repair_test.go",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / Tool registry and toolsets"
       ],
       "ready_when": [
@@ -499,15 +499,15 @@
         "A malformed string beginning with [ on an array field does not silently disappear; if the item schema permits strings, it degrades to a single-element array before execution, and if the item schema rejects strings, validation reports the wrapped item path.",
         "Existing impossible-repair, missing-required, unadvertised-tool, and schema-sanitizer fixtures still pass."
       ],
-      "note": "Complete 2026-05-09: bounded all-topic weakness sweep refreshed Hermes to f6d45e5df and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing recent deltas for TUI wrap trimming, Telegram edit/DM-topic safety, Feishu, Google Chat, Kanban author hardening, delegate_task JSON-string tasks, profile clone-all, Windows/Termux install, gateway disconnect timeout, browser Camofox, docs/public, and release rows were complete, blocked, owned, or already row-backed. Fresh provider/tools drift remained in Hermes 7330183d0: coerce_tool_args now diagnoses and recovers JSON-string array/object arguments before dispatch, while Gormes' completed repair row still validated those as wrong types. TDD added schema-guided provider-boundary coercion in internal/hermes: JSON-string arrays become native arrays, JSON-string objects become native objects, nullable string \"null\" becomes JSON null, malformed array-looking strings wrap as a single item only when item validation permits it, and wrapped invalid items report the exact item path. Existing impossible-repair, missing-required, unadvertised-tool, and schema-sanitizer fixtures remain green. The row lives under Phase 5.A tool surface rather than reopening completed Phase 4.A provider closure.",
+      "note": "Complete 2026-05-09: bounded all-topic weakness sweep refreshed Hermes to f6d45e5df and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing recent deltas for TUI wrap trimming, Telegram edit/DM-topic safety, Feishu, Google Chat, Kanban author hardening, delegate_task JSON-string tasks, profile clone-all, Windows/Termux install, gateway disconnect timeout, browser Camofox, docs/public, and release rows were complete, blocked, owned, or already row-backed. Fresh provider/tools drift remained in Hermes 7330183d0: coerce_tool_args now diagnoses and recovers JSON-string array/object arguments before dispatch, while Gormes' completed repair row still validated those as wrong types. TDD added schema-guided provider-boundary coercion in internal/llm: JSON-string arrays become native arrays, JSON-string objects become native objects, nullable string \"null\" becomes JSON null, malformed array-looking strings wrap as a single item only when item validation permits it, and wrapped invalid items report the exact item path. Existing impossible-repair, missing-required, unadvertised-tool, and schema-sanitizer fixtures remain green. The row lives under Phase 5.A tool surface rather than reopening completed Phase 4.A provider closure.",
       "write_scope": [
-        "internal/hermes/tool_call_repair.go",
-        "internal/hermes/tool_call_argument_repair_test.go",
+        "internal/llm/tool_call_repair.go",
+        "internal/llm/tool_call_argument_repair_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run 'ToolCallArguments.*(Stringified|Nullable|MalformedArray)|ToolCallArgumentsRepair|SanitizeToolDescriptors' -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run 'ToolCallArguments.*(Stringified|Nullable|MalformedArray)|ToolCallArgumentsRepair|SanitizeToolDescriptors' -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -522,13 +522,13 @@
       "evidence": {
         "completed_at": "2026-05-09T13:15:56Z",
         "implementation": [
-          "internal/hermes/tool_call_repair.go adds schema-guided argument coercion after deterministic JSON repair and before advertised-schema validation.",
-          "internal/hermes/tool_call_argument_repair_test.go covers stringified arrays, stringified objects, nullable string null, malformed array-string fallback, and wrapped item-schema validation."
+          "internal/llm/tool_call_repair.go adds schema-guided argument coercion after deterministic JSON repair and before advertised-schema validation.",
+          "internal/llm/tool_call_argument_repair_test.go covers stringified arrays, stringified objects, nullable string null, malformed array-string fallback, and wrapped item-schema validation."
         ],
         "tests": [
-          "RED: go test ./internal/hermes -run 'ToolCallArguments.*(Stringified|Nullable|MalformedArray)' -count=1 failed because stringified arrays/objects/null were still validated as strings.",
-          "GREEN: go test ./internal/hermes -run 'ToolCallArguments.*(Stringified|Nullable|MalformedArray)' -count=1 -> ok",
-          "go test ./internal/hermes -run 'ToolCallArguments.*(Stringified|Nullable|MalformedArray)|ToolCallArgumentsRepair|SanitizeToolDescriptors' -count=1 -> ok"
+          "RED: go test ./internal/llm -run 'ToolCallArguments.*(Stringified|Nullable|MalformedArray)' -count=1 failed because stringified arrays/objects/null were still validated as strings.",
+          "GREEN: go test ./internal/llm -run 'ToolCallArguments.*(Stringified|Nullable|MalformedArray)' -count=1 -> ok",
+          "go test ./internal/llm -run 'ToolCallArguments.*(Stringified|Nullable|MalformedArray)|ToolCallArgumentsRepair|SanitizeToolDescriptors' -count=1 -> ok"
         ]
       }
     }
@@ -1198,11 +1198,11 @@
       "note": "Complete: TDD landed internal/tools/result_budget.go and result_budget_test.go. FormatToolResult truncates over-budget text, persists full bytes to a sha256-derived artifact under the session OutputDir, and returns a short pointer of the form [tool_output_artifact path=<rel> media=<mt> bytes=<n>]\\n<preview>. Evidence codes tool_output_truncated, tool_output_persisted, tool_output_persistence_failed, and tool_output_under_budget are stable for callers. Persistence_failed degrades to bounded inline preview without leaking secrets or over-budget bytes. Path sanitization derives filenames from a content hash and confirms the joined path stays inside OutputDir.",
       "write_scope": [
         "internal/tools/",
-        "internal/hermes/",
+        "internal/llm/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/tools ./internal/hermes -run 'Tool.*Budget|Truncat|Artifact' -count=1",
+        "go test ./internal/tools ./internal/llm -run 'Tool.*Budget|Truncat|Artifact' -count=1",
         "go test ./internal/tools -count=1",
         "go run ./cmd/progress validate"
       ],
@@ -1381,7 +1381,7 @@
         "system"
       ],
       "degraded_mode": "Unavailable or unsupported environment backends return environment_backend_unavailable or parser_family_row_backed evidence without shelling out, starting containers, or dropping file-sync intent.",
-      "fixture": "internal/tools/environment_contract_test.go; internal/hermes/tool_call_parser_manifest_test.go",
+      "fixture": "internal/tools/environment_contract_test.go; internal/llm/tool_call_parser_manifest_test.go",
       "source_refs": [
         "../hermes-agent/tools/environments/base.py:BaseEnvironment",
         "../hermes-agent/tools/environments/file_sync.py",
@@ -1420,12 +1420,12 @@
       "write_scope": [
         "internal/tools/environment_contract.go",
         "internal/tools/environment_contract_test.go",
-        "internal/hermes/tool_call_parser_manifest.go",
-        "internal/hermes/tool_call_parser_manifest_test.go",
+        "internal/llm/tool_call_parser_manifest.go",
+        "internal/llm/tool_call_parser_manifest_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/tools ./internal/hermes -run 'TestEnvironmentContract|TestToolCallParserManifest' -count=1",
+        "go test ./internal/tools ./internal/llm -run 'TestEnvironmentContract|TestToolCallParserManifest' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1602,7 +1602,7 @@
         "system"
       ],
       "degraded_mode": "Unknown parser files or unsupported parser families remain row-backed with explicit evidence instead of silently falling back to generic parsing.",
-      "fixture": "internal/hermes/tool_call_parser_manifest_test.go",
+      "fixture": "internal/llm/tool_call_parser_manifest_test.go",
       "source_refs": [
         "../hermes-agent/environments/tool_call_parsers/hermes_parser.py",
         "../hermes-agent/environments/tool_call_parsers/deepseek_v3_1_parser.py",
@@ -1636,16 +1636,16 @@
         "The docs test fails if a new upstream parser file appears without a classification.",
         "No runtime Python parser invocation or live model output is required."
       ],
-      "note": "Complete: TDD added `internal/hermes/tool_call_parser_manifest.go`, `internal/hermes/tool_call_parser_manifest_test.go`, and golden fixtures under `internal/hermes/testdata/tool_call_parsers/` (hermes_basic.json, hermes_multi.json, hermes_malformed.json, deepseek_v3_1_basic.json, deepseek_v3_1_malformed.json). The manifest classifies every upstream `environments/tool_call_parsers/*.py` file with model_family, expected_input_style, mapped|row_backed status, and target Go parser package, including the current Qwen and Qwen3-Coder parser files. Hermes XML and DeepSeek v3.1 entries are mapped with golden raw-output fixtures plus malformed-call degraded evidence, while remaining families stay row_backed with no fixtures. The fixture-coverage test fails if a new upstream parser file appears unclassified, fixtures lack a malformed/degraded case, or any entry references a python or live-model runtime, and the manifest is sorted and stable across calls so no live provider or python invocation is needed.",
+      "note": "Complete: TDD added `internal/llm/tool_call_parser_manifest.go`, `internal/llm/tool_call_parser_manifest_test.go`, and golden fixtures under `internal/llm/testdata/tool_call_parsers/` (hermes_basic.json, hermes_multi.json, hermes_malformed.json, deepseek_v3_1_basic.json, deepseek_v3_1_malformed.json). The manifest classifies every upstream `environments/tool_call_parsers/*.py` file with model_family, expected_input_style, mapped|row_backed status, and target Go parser package, including the current Qwen and Qwen3-Coder parser files. Hermes XML and DeepSeek v3.1 entries are mapped with golden raw-output fixtures plus malformed-call degraded evidence, while remaining families stay row_backed with no fixtures. The fixture-coverage test fails if a new upstream parser file appears unclassified, fixtures lack a malformed/degraded case, or any entry references a python or live-model runtime, and the manifest is sorted and stable across calls so no live provider or python invocation is needed.",
       "write_scope": [
-        "internal/hermes/tool_call_parser_manifest.go",
-        "internal/hermes/tool_call_parser_manifest_test.go",
-        "internal/hermes/testdata/tool_call_parsers/",
+        "internal/llm/tool_call_parser_manifest.go",
+        "internal/llm/tool_call_parser_manifest_test.go",
+        "internal/llm/testdata/tool_call_parsers/",
         "docs/content/building-gormes/architecture_plan/progress.json",
         "docs/upstream_coverage_test.go"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run 'TestToolCallParserManifest|TestRawToolCallParser' -count=1",
+        "go test ./internal/llm -run 'TestToolCallParserManifest|TestRawToolCallParser' -count=1",
         "go test ./docs -run TestNestedUpstreamFeatureCoverage -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
@@ -1862,7 +1862,7 @@
       "name": "Image input mode router + native content parts",
       "priority": "P2",
       "status": "complete",
-      "contract": "internal/hermes exposes a pure image input routing helper that resolves agent.image_input_mode auto/native/text from model vision capability and auxiliary vision override, then builds native provider content parts with text plus data-url image_url entries without invoking a live provider",
+      "contract": "internal/llm exposes a pure image input routing helper that resolves agent.image_input_mode auto/native/text from model vision capability and auxiliary vision override, then builds native provider content parts with text plus data-url image_url entries without invoking a live provider",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "provider",
@@ -1872,17 +1872,17 @@
         "system"
       ],
       "degraded_mode": "Multimodal status reports image_input_text_fallback, image_input_native_forced, image_input_native_unavailable, or image_input_auxiliary_vision_override instead of silently dropping images.",
-      "fixture": "internal/hermes/image_routing_test.go::TestImageInputRouting_*",
+      "fixture": "internal/llm/image_routing_test.go::TestImageInputRouting_*",
       "source_refs": [
         "../hermes-agent/agent/image_routing.py@ec671c41",
         "../hermes-agent/tests/agent/test_image_routing.py@ec671c41",
         "../hermes-agent/run_agent.py@ec671c41:_model_supports_vision",
         "../hermes-agent/run_agent.py@ec671c41:vision-aware preprocessing",
-        "internal/hermes/client.go:MessageContentPart",
-        "internal/hermes/model_registry.go"
+        "internal/llm/client.go:MessageContentPart",
+        "internal/llm/model_registry.go"
       ],
       "ready_when": [
-        "The worker can add a pure helper under internal/hermes with injected model capability and auxiliary-vision config values; no run_agent, kernel, gateway, or config-file binding is required.",
+        "The worker can add a pure helper under internal/llm with injected model capability and auxiliary-vision config values; no run_agent, kernel, gateway, or config-file binding is required.",
         "Tests create temp fixture image bytes and inspect generated data URLs; no provider request, image resizing, OCR, or external binary is required.",
         "Auto mode must choose native only when the active model is known to support vision and no auxiliary vision provider/model/base_url override is configured."
       ],
@@ -1901,17 +1901,17 @@
         "TestBuildNativeImageContentParts_TextAndImages emits one text part plus image_url data-url parts in input order, skipping unreadable paths with evidence.",
         "TestBuildNativeImageContentParts_DefaultPrompt inserts a short default prompt when user text is empty and at least one image is present."
       ],
-      "note": "Complete: TDD added internal/hermes/image_routing.go with DecideImageInputMode resolving auto via the active model's ModelVisionCapability and AuxiliaryVisionConfig override, plus BuildNativeImageContentParts emitting a text + image_url data-url multimodal list with unreadable-path evidence and a short default prompt when user text is empty. Auto mode chooses native only when ModelCapabilitySupported is set and no auxiliary vision provider/model/base_url override is configured. Pure provider-routing helper; no run_agent, kernel, gateway, or HTTP-client wiring is touched.",
+      "note": "Complete: TDD added internal/llm/image_routing.go with DecideImageInputMode resolving auto via the active model's ModelVisionCapability and AuxiliaryVisionConfig override, plus BuildNativeImageContentParts emitting a text + image_url data-url multimodal list with unreadable-path evidence and a short default prompt when user text is empty. Auto mode chooses native only when ModelCapabilitySupported is set and no auxiliary vision provider/model/base_url override is configured. Pure provider-routing helper; no run_agent, kernel, gateway, or HTTP-client wiring is touched.",
       "write_scope": [
-        "internal/hermes/image_routing.go",
-        "internal/hermes/image_routing_test.go",
-        "internal/hermes/client.go",
-        "internal/hermes/model_registry.go",
+        "internal/llm/image_routing.go",
+        "internal/llm/image_routing_test.go",
+        "internal/llm/client.go",
+        "internal/llm/model_registry.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run '^TestImageInputRouting_|^TestBuildNativeImageContentParts_' -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run '^TestImageInputRouting_|^TestBuildNativeImageContentParts_' -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -1943,7 +1943,7 @@
         "system"
       ],
       "degraded_mode": "Missing image paths, directories, unsupported schemes, and non-image payloads return redacted vision_analyze_* JSON errors; provider transports that cannot carry multimodal tool-result arrays keep the text summary rather than leaking binary bytes or blocking the tool loop.",
-      "fixture": "internal/tools/vision_analyze_test.go, internal/kernel/toolexec_multimodal_test.go, internal/hermes/codex_responses_multimodal_tool_result_test.go",
+      "fixture": "internal/tools/vision_analyze_test.go, internal/kernel/toolexec_multimodal_test.go, internal/llm/codex_responses_multimodal_tool_result_test.go",
       "source_refs": [
         "./hermes-agent/tools/vision_tools.py@3800972dd:_supports_media_in_tool_results",
         "./hermes-agent/tools/vision_tools.py@3800972dd:_vision_analyze_native",
@@ -1953,10 +1953,10 @@
         "./hermes-agent/agent/codex_responses_adapter.py@3800972dd:_chat_messages_to_responses_input",
         "./hermes-agent/tests/run_agent/test_codex_multimodal_tool_result.py@3800972dd",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:vision_analyze",
-        "internal/hermes/client.go:MessageContentPart",
+        "internal/llm/client.go:MessageContentPart",
         "internal/kernel/toolexec.go:toolResult",
-        "internal/hermes/codex_responses_adapter.go:buildCodexResponsesPayload",
-        "internal/hermes/http_client.go:openAICompatibleMessageContent"
+        "internal/llm/codex_responses_adapter.go:buildCodexResponsesPayload",
+        "internal/llm/http_client.go:openAICompatibleMessageContent"
       ],
       "ready_when": [
         "Image input mode router + native content parts is complete, so Gormes already has MessageContentPart vocabulary and provider serializers for user images.",
@@ -1986,9 +1986,9 @@
         "internal/tools/vision_analyze_test.go",
         "internal/kernel/toolexec.go",
         "internal/kernel/toolexec_multimodal_test.go",
-        "internal/hermes/codex_responses_adapter.go",
-        "internal/hermes/codex_responses_multimodal_tool_result_test.go",
-        "internal/hermes/openai_compatible_role_test.go",
+        "internal/llm/codex_responses_adapter.go",
+        "internal/llm/codex_responses_multimodal_tool_result_test.go",
+        "internal/llm/openai_compatible_role_test.go",
         "cmd/gormes/registry.go",
         "cmd/gormes/registry_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
@@ -1996,7 +1996,7 @@
       "test_commands": [
         "go test ./internal/tools -run 'TestVisionAnalyze' -count=1",
         "go test ./internal/kernel -run 'TestExecuteToolCalls_MultimodalVisionResultCarriesContentParts' -count=1",
-        "go test ./internal/hermes -run 'TestCodexResponsesMultimodalToolResultArray|TestOpenAICompatibleToolResultContentParts' -count=1",
+        "go test ./internal/llm -run 'TestCodexResponsesMultimodalToolResultArray|TestOpenAICompatibleToolResultContentParts' -count=1",
         "go test ./cmd/gormes -run TestDefaultRegistryIncludesVisionAnalyze -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
@@ -2013,15 +2013,15 @@
       "evidence": [
         "RED: go test ./internal/tools -run 'TestVisionAnalyze' -count=1 failed because NewVisionAnalyzeTool was missing.",
         "RED: go test ./internal/kernel -run 'TestExecuteToolCalls_MultimodalVisionResultCarriesContentParts' -count=1 failed because toolResult had no ContentParts field.",
-        "RED: go test ./internal/hermes -run 'TestCodexResponsesMultimodalToolResultArray|TestOpenAICompatibleToolResultContentParts' -count=1 failed because Codex Responses output was string-only.",
+        "RED: go test ./internal/llm -run 'TestCodexResponsesMultimodalToolResultArray|TestOpenAICompatibleToolResultContentParts' -count=1 failed because Codex Responses output was string-only.",
         "RED: go test ./cmd/gormes -run TestBuildDefaultRegistryDelegationDisabled -count=1 failed because vision_analyze was not registered.",
         "GREEN: go test ./internal/tools -run 'TestVisionAnalyze' -count=1 passed.",
         "GREEN: go test ./internal/kernel -run 'TestExecuteToolCalls_MultimodalVisionResultCarriesContentParts' -count=1 passed.",
-        "GREEN: go test ./internal/hermes -run 'TestCodexResponsesMultimodalToolResultArray|TestOpenAICompatibleToolResultContentParts' -count=1 passed.",
+        "GREEN: go test ./internal/llm -run 'TestCodexResponsesMultimodalToolResultArray|TestOpenAICompatibleToolResultContentParts' -count=1 passed.",
         "GREEN: go test ./cmd/gormes -run TestDefaultRegistryIncludesVisionAnalyze -count=1 passed.",
         "GREEN: go test -tags slim ./cmd/gormes -run TestDefaultRegistryIncludesVisionAnalyze -count=1 passed.",
         "GREEN: go test -tags gormes_lite ./cmd/gormes -run TestDefaultRegistryIncludesVisionAnalyze -count=1 passed.",
-        "FOCUSED: go test ./cmd/gormes ./internal/tools ./internal/kernel ./internal/hermes -count=1 passed."
+        "FOCUSED: go test ./cmd/gormes ./internal/tools ./internal/kernel ./internal/llm -count=1 passed."
       ]
     }
   },
@@ -2033,7 +2033,7 @@
       "name": "Image-too-large shrink retry helper",
       "priority": "P2",
       "status": "complete",
-      "contract": "internal/hermes exposes a pure image retry planner that, after a provider image_too_large classification, returns a single bounded retry plan with smaller image content parts and explicit no-retry evidence when shrinking is unavailable",
+      "contract": "internal/llm exposes a pure image retry planner that, after a provider image_too_large classification, returns a single bounded retry plan with smaller image content parts and explicit no-retry evidence when shrinking is unavailable",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "provider",
@@ -2043,12 +2043,12 @@
         "system"
       ],
       "degraded_mode": "Provider status reports image_shrink_unavailable, image_shrink_no_images, image_shrink_limit_reached, or image_shrink_failed instead of retrying the same oversized request.",
-      "fixture": "internal/hermes/image_shrink_retry_test.go::TestImageShrinkRetry_*",
+      "fixture": "internal/llm/image_shrink_retry_test.go::TestImageShrinkRetry_*",
       "source_refs": [
         "../hermes-agent/run_agent.py@ec671c41:_try_shrink_image_parts_in_messages",
         "../hermes-agent/tests/run_agent/test_image_shrink_recovery.py@ec671c41",
-        "internal/hermes/errors.go:ProviderErrorKind",
-        "internal/hermes/image_routing.go"
+        "internal/llm/errors.go:ProviderErrorKind",
+        "internal/llm/image_routing.go"
       ],
       "ready_when": [
         "Provider image-too-large error classification is validated so retry planning can key off a structured image_too_large kind.",
@@ -2073,15 +2073,15 @@
       ],
       "note": "Tracks Hermes ec671c41 image shrink recovery, but scopes the first Gormes slice to a pure retry plan with an injected shrinker so dependency choice and provider retry wiring remain separate.",
       "write_scope": [
-        "internal/hermes/image_shrink_retry.go",
-        "internal/hermes/image_shrink_retry_test.go",
-        "internal/hermes/errors.go",
-        "internal/hermes/image_routing.go",
+        "internal/llm/image_shrink_retry.go",
+        "internal/llm/image_shrink_retry_test.go",
+        "internal/llm/errors.go",
+        "internal/llm/image_routing.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run '^TestImageShrinkRetry_|^TestClassifyProviderError_ImageTooLarge' -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run '^TestImageShrinkRetry_|^TestClassifyProviderError_ImageTooLarge' -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -2117,7 +2117,7 @@
         "../hermes-agent/tools/image_generation_tool.py",
         "../hermes-agent/tools/vision_tools.py@ec671c41",
         "internal/tools/registry.go",
-        "internal/transcript/markdown.go"
+        "internal/persistence/transcript/markdown.go"
       ],
       "ready_when": [
         "Image input mode router + native content parts is fixture-ready or complete, so multimodal artifact vocabulary is no longer ambiguous.",
@@ -2654,7 +2654,7 @@
         "../hermes-agent/cron/scheduler.py@930494d6:tick cleanup",
         "../hermes-agent/tests/tools/test_mcp_stability.py@930494d6",
         "internal/tools/mcp_stdio.go",
-        "internal/cron/scheduler.go"
+        "internal/automation/cron/scheduler.go"
       ],
       "ready_when": [
         "MCP stdio transport + tool/list discovery and Cronjob tool action envelope over native store are validated on main.",
@@ -2677,14 +2677,14 @@
         "internal/tools/mcp_orphan_cleanup.go",
         "internal/tools/mcp_orphan_cleanup_test.go",
         "internal/tools/mcp_stdio.go",
-        "internal/cron/scheduler.go",
-        "internal/cron/scheduler_mcp_cleanup_test.go",
+        "internal/automation/cron/scheduler.go",
+        "internal/automation/cron/scheduler_mcp_cleanup_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestMCPOrphanCleanup_' -count=1",
-        "go test ./internal/cron -run '^TestCronSchedulerRunsMCPOrphanCleanupAfterTickJoin$' -count=1",
-        "go test ./internal/tools ./internal/cron -count=1",
+        "go test ./internal/automation/cron -run '^TestCronSchedulerRunsMCPOrphanCleanupAfterTickJoin$' -count=1",
+        "go test ./internal/tools ./internal/automation/cron -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -2791,7 +2791,7 @@
         "system"
       ],
       "degraded_mode": "Unsupported ACP provider detection, missing auth, and permission prompt paths return explicit acp_row_backed evidence instead of silently registering an incomplete editor bridge.",
-      "fixture": "internal/acp/server_manifest_test.go",
+      "fixture": "internal/protocols/acp/server_manifest_test.go",
       "source_refs": [
         "../hermes-agent/acp_adapter/auth.py:detect_provider",
         "../hermes-agent/acp_adapter/entry.py:main",
@@ -2814,19 +2814,19 @@
       ],
       "acceptance": [
         "ACP manifest fixtures classify auth provider detection, stdio entry startup, session lifecycle, tool rendering, permission prompts, and event streaming as implemented, row-backed, owned, or excluded.",
-        "The Go target names future internal/acp package boundaries and adapter event structs without importing Python.",
+        "The Go target names future internal/protocols/acp package boundaries and adapter event structs without importing Python.",
         "Tests fail when upstream acp_adapter files or acp_registry/agent.json change without manifest classification.",
         "Editor integration docs remain row-backed until protocol fixtures exist."
       ],
-      "note": "Complete: TDD added `internal/acp/server_manifest.go` and `internal/acp/server_manifest_test.go` classifying upstream `acp_adapter/{auth,entry,session,tools,permissions,events,server}.py` and `acp_registry/agent.json` as row_backed against `internal/acp` with exact upstream files, planned Go symbols, and `acp_server_surface_row_backed` evidence. Locked invariants: `MissingUpstreamFiles` flags any new `acp_adapter/*.py` or `acp_registry/agent.json` drift, `PermissionOutcomeForKind` maps ACP `allow_once`/`allow_always`/`reject_once`/`reject_always` to Hermes once/always/deny/deny with an unknown-kind deny fallback, `ToolKindFor` maps Hermes tool names to ACP `read`/`edit`/`search`/`execute`/`fetch`/`think`/`other` with `_thinking` returning think and unknown tools returning other, `DefaultAgentRegistryEntry` matches the upstream `acp_registry/agent.json` shape (schema_version 1, name hermes-agent, distribution.type command, distribution.command hermes, distribution.args [acp]), `DefaultSessionLifecycle` returns the ordered initialize/authenticate/new/load/resume/prompt/cancel phases, and no surface may claim implemented before live ACP rows. No live ACP server, editor subprocess, or Hermes/Python shell-out runs from this slice.",
+      "note": "Complete: TDD added `internal/protocols/acp/server_manifest.go` and `internal/protocols/acp/server_manifest_test.go` classifying upstream `acp_adapter/{auth,entry,session,tools,permissions,events,server}.py` and `acp_registry/agent.json` as row_backed against `internal/protocols/acp` with exact upstream files, planned Go symbols, and `acp_server_surface_row_backed` evidence. Locked invariants: `MissingUpstreamFiles` flags any new `acp_adapter/*.py` or `acp_registry/agent.json` drift, `PermissionOutcomeForKind` maps ACP `allow_once`/`allow_always`/`reject_once`/`reject_always` to Hermes once/always/deny/deny with an unknown-kind deny fallback, `ToolKindFor` maps Hermes tool names to ACP `read`/`edit`/`search`/`execute`/`fetch`/`think`/`other` with `_thinking` returning think and unknown tools returning other, `DefaultAgentRegistryEntry` matches the upstream `acp_registry/agent.json` shape (schema_version 1, name hermes-agent, distribution.type command, distribution.command hermes, distribution.args [acp]), `DefaultSessionLifecycle` returns the ordered initialize/authenticate/new/load/resume/prompt/cancel phases, and no surface may claim implemented before live ACP rows. No live ACP server, editor subprocess, or Hermes/Python shell-out runs from this slice.",
       "write_scope": [
-        "internal/acp/server_manifest.go",
-        "internal/acp/server_manifest_test.go",
+        "internal/protocols/acp/server_manifest.go",
+        "internal/protocols/acp/server_manifest_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json",
         "docs/upstream_coverage_test.go"
       ],
       "test_commands": [
-        "go test ./internal/acp -run TestACPServerManifest -count=1",
+        "go test ./internal/protocols/acp -run TestACPServerManifest -count=1",
         "go test ./docs -run TestNestedUpstreamFeatureCoverage -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
@@ -2859,10 +2859,10 @@
         "system"
       ],
       "degraded_mode": "Unsupported ACP provider, missing auth, session key not found, or permission prompt timeout returns explicit acp_client_row_backed evidence with available fallback modes.",
-      "fixture": "internal/acp/client_test.go",
+      "fixture": "internal/protocols/acp/client_test.go",
       "source_refs": [
         "openclaw acp client CLI surface",
-        "internal/acp/server_manifest_test.go",
+        "internal/protocols/acp/server_manifest_test.go",
         "docs/content/building-gormes/openclaw-platform-parity-audit.md"
       ],
       "ready_when": [
@@ -2883,17 +2883,17 @@
         "--reset-session clears and reinitializes the session key.",
         "--require-existing fails when session does not exist."
       ],
-      "note": "Complete 2026-05-04: TDD landed internal/acp ClientBridge, session key/title resolution over the existing session map, --require-existing row-backed failures, --reset-session reinitialization, off/meta/meta+receipt provenance with sha256 source receipts, --no-prefix-cwd propagation, LocalClientConnector against the Go-native ACP server manifest, and gormes acp client JSON/text output.",
+      "note": "Complete 2026-05-04: TDD landed internal/protocols/acp ClientBridge, session key/title resolution over the existing session map, --require-existing row-backed failures, --reset-session reinitialization, off/meta/meta+receipt provenance with sha256 source receipts, --no-prefix-cwd propagation, LocalClientConnector against the Go-native ACP server manifest, and gormes acp client JSON/text output.",
       "write_scope": [
-        "internal/acp/client.go",
-        "internal/acp/client_test.go",
+        "internal/protocols/acp/client.go",
+        "internal/protocols/acp/client_test.go",
         "cmd/gormes/acp.go",
         "cmd/gormes/acp_command_test.go",
         "cmd/gormes/main.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/acp -run TestClient -count=1",
+        "go test ./internal/protocols/acp -run TestClient -count=1",
         "go test ./cmd/gormes -run TestACPClient -count=1",
         "go run ./cmd/progress validate"
       ],
@@ -2920,7 +2920,7 @@
         "system"
       ],
       "degraded_mode": "Unsupported providers, missing auth, invalid sessions, permission timeout/rejection, queued prompt conflicts, malformed multimodal blocks, or stdio framing errors return explicit acp_jsonrpc_* evidence without shelling out to Hermes Python or leaking protocol messages onto stdout.",
-      "fixture": "internal/acp/jsonrpc_server_test.go; internal/acp/session_runtime_test.go",
+      "fixture": "internal/protocols/acp/jsonrpc_server_test.go; internal/protocols/acp/session_runtime_test.go",
       "source_refs": [
         "../hermes-agent/tests/acp/test_server.py@b816fd4e2",
         "../hermes-agent/tests/acp/test_session.py@b816fd4e2",
@@ -2931,8 +2931,8 @@
         "../hermes-agent/acp_adapter/server.py@b816fd4e2",
         "../hermes-agent/acp_adapter/session.py@b816fd4e2",
         "../hermes-agent/acp_adapter/permissions.py@b816fd4e2",
-        "internal/acp/server_manifest.go",
-        "internal/acp/client.go"
+        "internal/protocols/acp/server_manifest.go",
+        "internal/protocols/acp/client.go"
       ],
       "ready_when": [
         "ACP server side and ACP Client Bridge Mode are complete, so manifest, registry, permission-kind mapping, local client metadata, and session-key resolution are fixture-backed.",
@@ -2955,22 +2955,22 @@
         "TestACPJSONRPCSlashSteerAndQueue proves `/steer` after interrupt, idle steer-as-prompt, `/queue`, and queued prompts draining after the current run.",
         "TestACPJSONRPCPermissionsIsolation proves approval mapping, timeout/rejection behavior, and per-session sudo/password cache isolation under pooled execution."
       ],
-      "note": "Complete: the 2026-05-06 all-topic Hermes parity sweep raised this to P0 after source-ledger, CLI/auth manifest, TUI slash, Goncho/Honcho memory, provider/auth/rate/usage, and gateway/channel focused checks passed. TDD added a Go-native ACP JSON-RPC stdio server and session runtime under internal/acp plus `gormes acp serve`. The slice supports initialize with image/load/resume capabilities, provider authentication matching, ACP-only session persistence/restoration through the existing session map, Windows-drive CWD translation, cancel, prompt streaming/final closeout with duplicate-final suppression, title/usage events, idle /steer and queued prompt draining, per-session permission cache isolation, and clean stdout JSON-RPC framing without Hermes Python, editor subprocesses, live providers, or terminal dependencies.",
+      "note": "Complete: the 2026-05-06 all-topic Hermes parity sweep raised this to P0 after source-ledger, CLI/auth manifest, TUI slash, Goncho/Honcho memory, provider/auth/rate/usage, and gateway/channel focused checks passed. TDD added a Go-native ACP JSON-RPC stdio server and session runtime under internal/protocols/acp plus `gormes acp serve`. The slice supports initialize with image/load/resume capabilities, provider authentication matching, ACP-only session persistence/restoration through the existing session map, Windows-drive CWD translation, cancel, prompt streaming/final closeout with duplicate-final suppression, title/usage events, idle /steer and queued prompt draining, per-session permission cache isolation, and clean stdout JSON-RPC framing without Hermes Python, editor subprocesses, live providers, or terminal dependencies.",
       "write_scope": [
-        "internal/acp/jsonrpc_server.go",
-        "internal/acp/jsonrpc_server_test.go",
-        "internal/acp/session_runtime.go",
-        "internal/acp/session_runtime_test.go",
-        "internal/acp/server_manifest.go",
-        "internal/acp/client.go",
+        "internal/protocols/acp/jsonrpc_server.go",
+        "internal/protocols/acp/jsonrpc_server_test.go",
+        "internal/protocols/acp/session_runtime.go",
+        "internal/protocols/acp/session_runtime_test.go",
+        "internal/protocols/acp/server_manifest.go",
+        "internal/protocols/acp/client.go",
         "cmd/gormes/acp.go",
         "cmd/gormes/acp_command_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/acp -run 'TestACPJSONRPC|TestClient|TestACPServerManifest' -count=1",
+        "go test ./internal/protocols/acp -run 'TestACPJSONRPC|TestClient|TestACPServerManifest' -count=1",
         "go test ./cmd/gormes -run TestACP -count=1",
-        "go test ./internal/acp ./cmd/gormes -count=1",
+        "go test ./internal/protocols/acp ./cmd/gormes -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -2983,11 +2983,11 @@
         "note": "The existing Gormes ACP rows close manifest and local-client inventory; upstream active tests show the user-visible ACP stdio protocol remains unimplemented."
       },
       "evidence": [
-        "RED: go test ./internal/acp -run 'TestACPJSONRPC' -count=1 failed on missing NewSessionRuntime/NewJSONRPCServer/PromptRunnerFunc types.",
+        "RED: go test ./internal/protocols/acp -run 'TestACPJSONRPC' -count=1 failed on missing NewSessionRuntime/NewJSONRPCServer/PromptRunnerFunc types.",
         "RED: go test ./cmd/gormes -run TestACPServeCommandRunsJSONRPCOverStdio -count=1 failed because `acp serve` was unregistered and Cobra help contaminated stdout.",
-        "GREEN: go test ./internal/acp -run 'TestACPJSONRPC' -count=1 passed.",
+        "GREEN: go test ./internal/protocols/acp -run 'TestACPJSONRPC' -count=1 passed.",
         "GREEN: go test ./cmd/gormes -run TestACPServeCommandRunsJSONRPCOverStdio -count=1 passed.",
-        "ROW: go test ./internal/acp -run 'TestACPJSONRPC|TestClient|TestACPServerManifest' -count=1; go test ./cmd/gormes -run TestACP -count=1; go test ./internal/acp ./cmd/gormes -count=1 passed."
+        "ROW: go test ./internal/protocols/acp -run 'TestACPJSONRPC|TestClient|TestACPServerManifest' -count=1; go test ./cmd/gormes -run TestACP -count=1; go test ./internal/protocols/acp ./cmd/gormes -count=1 passed."
       ]
     }
   },
@@ -3009,14 +3009,14 @@
         "system"
       ],
       "degraded_mode": "Benign probe suppression emits acp_benign_probe_suppressed counters on stderr/status only; malformed JSON-RPC, auth/session/tool failures, and non-probe unknown methods remain visible as acp_stdio_error evidence without contaminating stdout frames or leaking prompt/tool payloads.",
-      "fixture": "internal/acp/stdio_ping_suppression_test.go",
+      "fixture": "internal/protocols/acp/stdio_ping_suppression_test.go",
       "source_refs": [
         "./hermes-agent/acp_adapter/entry.py@b816fd4e2:_BenignProbeMethodFilter",
         "./hermes-agent/acp_adapter/entry.py@b816fd4e2:_setup_logging",
         "./hermes-agent/tests/acp/test_ping_suppression.py@b816fd4e2",
         "cmd/gormes/acp.go",
-        "internal/acp/server.go",
-        "internal/acp/server_manifest.go"
+        "internal/protocols/acp/server.go",
+        "internal/protocols/acp/server_manifest.go"
       ],
       "ready_when": [
         "ACP server manifest and JSON-RPC stdio session/prompt closeout rows are complete enough to expose a Go ACP entrypoint seam.",
@@ -3042,15 +3042,15 @@
       "note": "Complete: the 2026-05-06 ACP stdio TDD slice added a Go-native stderr-only diagnostics seam for `gormes acp serve`, exact benign-probe classification for ping/health/healthcheck, bounded redacted suppression counters, and visible non-probe parse/method diagnostics while preserving stdout as JSON-RPC frames only.",
       "write_scope": [
         "cmd/gormes/acp.go",
-        "internal/acp/jsonrpc_server.go",
-        "internal/acp/stdio_ping_suppression.go",
-        "internal/acp/stdio_ping_suppression_test.go",
-        "internal/acp/server.go",
+        "internal/protocols/acp/jsonrpc_server.go",
+        "internal/protocols/acp/stdio_ping_suppression.go",
+        "internal/protocols/acp/stdio_ping_suppression_test.go",
+        "internal/protocols/acp/server.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/acp -run '^TestACPStdio|^TestACPBenignPing|^TestACPProbe' -count=1",
-        "go test ./cmd/gormes ./internal/acp -count=1",
+        "go test ./internal/protocols/acp -run '^TestACPStdio|^TestACPBenignPing|^TestACPProbe' -count=1",
+        "go test ./cmd/gormes ./internal/protocols/acp -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -3064,9 +3064,9 @@
       },
       "blocked_by": [],
       "evidence": [
-        "RED: go test ./internal/acp -run '^TestACPStdio|^TestACPBenignPing|^TestACPProbe|^TestACPUnknownNonProbe|^TestACPMalformedJSON' -count=1 failed on missing NewStdioDiagnostics and JSONRPCServer.Diagnostics.",
-        "GREEN: go test ./internal/acp -run '^TestACPStdio|^TestACPBenignPing|^TestACPProbe|^TestACPUnknownNonProbe|^TestACPMalformedJSON' -count=1 passed.",
-        "ROW: go test ./cmd/gormes ./internal/acp -count=1 passed."
+        "RED: go test ./internal/protocols/acp -run '^TestACPStdio|^TestACPBenignPing|^TestACPProbe|^TestACPUnknownNonProbe|^TestACPMalformedJSON' -count=1 failed on missing NewStdioDiagnostics and JSONRPCServer.Diagnostics.",
+        "GREEN: go test ./internal/protocols/acp -run '^TestACPStdio|^TestACPBenignPing|^TestACPProbe|^TestACPUnknownNonProbe|^TestACPMalformedJSON' -count=1 passed.",
+        "ROW: go test ./cmd/gormes ./internal/protocols/acp -count=1 passed."
       ]
     }
   },
@@ -3088,13 +3088,13 @@
         "system"
       ],
       "degraded_mode": "Missing or blank ACP session cwd leaves RuntimePromptRequest.CWD empty rather than inventing a process cwd; the runner can still use its own safe default, and no live terminal command or provider call is required for this slice.",
-      "fixture": "internal/acp/session_runtime_test.go",
+      "fixture": "internal/protocols/acp/session_runtime_test.go",
       "source_refs": [
         "./hermes-agent/tools/terminal_tool.py@b349ae1e4:terminal_tool",
         "./hermes-agent/tests/tools/test_terminal_task_cwd.py@b349ae1e4",
         "./hermes-agent/acp_adapter/session.py@b816fd4e2",
-        "internal/acp/session_runtime.go",
-        "internal/acp/session_runtime_test.go",
+        "internal/protocols/acp/session_runtime.go",
+        "internal/protocols/acp/session_runtime_test.go",
         "internal/tools/terminal_tool.go"
       ],
       "ready_when": [
@@ -3116,13 +3116,13 @@
       ],
       "note": "Complete: the 2026-05-09 Hermes parity sweep refreshed Hermes to 0bcc327ca and found b349ae1e4's ACP task-cwd fix. TDD added RuntimePromptRequest.CWD and session-runtime fixtures proving new, queued, loaded, and resumed ACP prompts pass the translated session cwd to the prompt runner. The slice does not start terminal commands, change explicit tool workdir overrides, call providers, or shell out to Hermes Python.",
       "write_scope": [
-        "internal/acp/session_runtime.go",
-        "internal/acp/session_runtime_test.go",
+        "internal/protocols/acp/session_runtime.go",
+        "internal/protocols/acp/session_runtime_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/acp -run 'TestACPJSONRPC.*CWD|TestACPLoadResumeUpdatesPromptCWD' -count=1",
-        "go test ./internal/acp -count=1",
+        "go test ./internal/protocols/acp -run 'TestACPJSONRPC.*CWD|TestACPLoadResumeUpdatesPromptCWD' -count=1",
+        "go test ./internal/protocols/acp -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -3135,9 +3135,9 @@
         "note": "Hermes fixed ACP foreground terminal commands by honoring the task/session cwd when no explicit workdir is supplied. Gormes' native ACP seam must carry that cwd to the prompt/tool runtime before terminal bindings can rely on it."
       },
       "evidence": [
-        "RED: go test ./internal/acp -run 'TestACPJSONRPC.*CWD|TestACPLoadResumeUpdatesPromptCWD' -count=1 failed because RuntimePromptRequest had no CWD field.",
-        "GREEN: go test ./internal/acp -run 'TestACPJSONRPC.*CWD|TestACPLoadResumeUpdatesPromptCWD' -count=1 passed after threading session CWD into RuntimePromptRequest.",
-        "ROW: go test ./internal/acp -count=1 passed."
+        "RED: go test ./internal/protocols/acp -run 'TestACPJSONRPC.*CWD|TestACPLoadResumeUpdatesPromptCWD' -count=1 failed because RuntimePromptRequest had no CWD field.",
+        "GREEN: go test ./internal/protocols/acp -run 'TestACPJSONRPC.*CWD|TestACPLoadResumeUpdatesPromptCWD' -count=1 passed after threading session CWD into RuntimePromptRequest.",
+        "ROW: go test ./internal/protocols/acp -count=1 passed."
       ]
     }
   },
@@ -3160,7 +3160,7 @@
         "../hermes-agent/acp_adapter/bootstrap/bootstrap_browser_tools.ps1",
         "../hermes-agent/acp_adapter/entry.py",
         "cmd/gormes/acp.go",
-        "internal/acp"
+        "internal/protocols/acp"
       ],
       "ready_when": [
         "ACP server/client rows are complete and command planning can be tested without installing browser tools."
@@ -3174,14 +3174,14 @@
         "Dry-run output is deterministic and secret-free.",
         "Non-dry-run execution requires explicit operator approval and reports each step outcome."
       ],
-      "note": "Complete 2026-05-18: added a native ACP setup-browser bootstrap planner and approved execution seam. Dry-run JSON/text reports platform-specific Node/npm/Playwright commands without touching the machine; non-dry-run execution requires --yes, uses a fakeable runner, reports each step outcome, and fails before npm when Node is missing or older than v20. Row proof: go test ./cmd/gormes ./internal/acp -run 'ACP.*SetupBrowser|ACP.*Bootstrap' -count=1; go run ./cmd/progress validate.",
+      "note": "Complete 2026-05-18: added a native ACP setup-browser bootstrap planner and approved execution seam. Dry-run JSON/text reports platform-specific Node/npm/Playwright commands without touching the machine; non-dry-run execution requires --yes, uses a fakeable runner, reports each step outcome, and fails before npm when Node is missing or older than v20. Row proof: go test ./cmd/gormes ./internal/protocols/acp -run 'ACP.*SetupBrowser|ACP.*Bootstrap' -count=1; go run ./cmd/progress validate.",
       "write_scope": [
         "cmd/gormes/acp.go",
-        "internal/acp",
+        "internal/protocols/acp",
         "internal/tools"
       ],
       "test_commands": [
-        "go test ./cmd/gormes ./internal/acp -run 'ACP.*SetupBrowser|ACP.*Bootstrap' -count=1",
+        "go test ./cmd/gormes ./internal/protocols/acp -run 'ACP.*SetupBrowser|ACP.*Bootstrap' -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -3382,7 +3382,7 @@
         "child-agent"
       ],
       "degraded_mode": "Until this lands, the Go batch runtime exists but model/tool-call payloads using Hermes' `tasks` batch shape fail at the public delegate_task wrapper or force the model to collapse parallel work into one goal.",
-      "fixture": "internal/subagent/delegate_tool_test.go",
+      "fixture": "internal/core/subagent/delegate_tool_test.go",
       "source_refs": [
         "./hermes-agent/tools/delegate_tool.py@93e25ceb1:_recover_tasks_from_json_string",
         "./hermes-agent/tools/delegate_tool.py@93e25ceb1:delegate_task",
@@ -3390,8 +3390,8 @@
         "./hermes-agent/tests/tools/test_delegate.py@93e25ceb1:test_batch_mode_rejects_non_object_tasks",
         "./hermes-agent/tests/tools/test_delegate.py@93e25ceb1:test_batch_mode_rejects_malformed_json_string_tasks",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Delegate/subagents",
-        "internal/subagent/batch.go",
-        "internal/subagent/delegate_tool.go"
+        "internal/core/subagent/batch.go",
+        "internal/core/subagent/delegate_tool.go"
       ],
       "ready_when": [
         "Phase 2.E.0 SpawnBatch runtime exists and preserves ordered bounded child results.",
@@ -3408,8 +3408,8 @@
       ],
       "note": "Planned by the 2026-05-09 all-topic weakness sweep after refreshing Hermes from 2a7047c2e to 0f1d41a88 with 52 planned/porting rows counted. The sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Fresh upstream source deltas were WebUI prompt hints, model_tools JSON-array diagnostics, delegate_task JSON-string task recovery, and release author mapping; sessions/memory/Goncho, install/runtime, browser automation, and public docs had no higher unblocked source delta than existing rows. This row revisits the completed subagent batch runtime because Gormes has SpawnBatch but its public delegate_task wrapper lacked the newly upstream-tested Hermes batch payload recovery and validation behavior. 2026-05-09 refresh: Hermes advanced to 93e25ceb1; current source still carries the same delegate_task JSON-string tests and recovery helper. The bounded all-topic sweep counted 20 planned rows and 32 porting rows, found no higher unblocked CLI/TUI, provider/auth, gateway/channel, sessions/memory/Goncho, install/runtime, browser automation, docs/public, or release/operator row to add, and selected this already-implemented P1 row for closure rather than growing the queue. Gateway/channel drift from the refreshed Hermes standalone_sender_fn commit remains covered or row-backed by existing platform manifest, Teams, and Google Chat seams. Complete: TDD added delegate_task `tasks` support for native arrays and JSON-string arrays, clear malformed-string and non-object task errors, bounded SpawnBatch fan-out with ordered `results`, and schema anyOf support while preserving single-goal behavior and candidate drafting.",
       "write_scope": [
-        "internal/subagent/delegate_tool.go",
-        "internal/subagent/delegate_tool_test.go",
+        "internal/core/subagent/delegate_tool.go",
+        "internal/core/subagent/delegate_tool_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
@@ -3423,7 +3423,7 @@
       ],
       "evidence": [
         "RED: go test ./internal/subagent -run 'TestDelegateToolBatch|TestDelegateToolMetadata|TestDelegateToolExecuteHappyPath' -count=1 failed because DelegateTool ignored `tasks` and returned `delegate_task: goal is required`.",
-        "GREEN: internal/subagent/delegate_tool.go now parses JSON-string and native-array `tasks`, rejects malformed/non-object task payloads before spawning, dispatches valid batches through SubagentManager.SpawnBatch, and returns ordered result envelopes with total_duration_ms.",
+        "GREEN: internal/core/subagent/delegate_tool.go now parses JSON-string and native-array `tasks`, rejects malformed/non-object task payloads before spawning, dispatches valid batches through SubagentManager.SpawnBatch, and returns ordered result envelopes with total_duration_ms.",
         "Validation: go test ./internal/subagent -run 'TestDelegateToolBatch|TestDelegateToolMetadata|TestDelegateToolExecuteHappyPath' -count=1 PASS; go test ./internal/subagent -count=1 PASS.",
         "2026-05-09 refresh validation: go test ./internal/subagent -run 'TestDelegateToolBatch|TestDelegateToolMetadata|TestDelegateToolExecuteHappyPath' -count=1 PASS; go test ./internal/subagent -count=1 PASS; go run ./cmd/progress validate PASS."
       ]
@@ -3448,13 +3448,13 @@
         "system"
       ],
       "degraded_mode": "Subagent child tool execution returns approval_denied_noninteractive before invoking the executor for hardline commands and for recoverable dangerous commands unless the child config explicitly sets approval mode off.",
-      "fixture": "internal/subagent/dangerous_approval_test.go::TestSubagentDangerousCommand_*",
+      "fixture": "internal/core/subagent/dangerous_approval_test.go::TestSubagentDangerousCommand_*",
       "source_refs": [
         "../hermes-agent/tools/delegate_tool.py@023b1bff",
         "../hermes-agent/tests/tools/test_delegate.py@023b1bff",
         "../hermes-agent/hermes_cli/config.py@023b1bff",
         "../hermes-agent/cli-config.yaml.example@023b1bff",
-        "internal/subagent/manager.go",
+        "internal/core/subagent/manager.go",
         "internal/config/config.go"
       ],
       "ready_when": [
@@ -3474,9 +3474,9 @@
       ],
       "note": "TDD landed: child terminal/execute_code tool calls now pass through the existing pure GuardCommand boundary before any subagent tool executor runs. Default/manual/smart modes fail closed with approval_denied_noninteractive for hardline and recoverable dangerous commands; explicit off mode allows only recoverable dangerous commands while hardline remains denied. Fixtures prove denial happens before executor invocation and benign commands still run.",
       "write_scope": [
-        "internal/subagent/types.go",
-        "internal/subagent/runner.go",
-        "internal/subagent/dangerous_approval_test.go",
+        "internal/core/subagent/types.go",
+        "internal/core/subagent/runner.go",
+        "internal/core/subagent/dangerous_approval_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
@@ -3516,7 +3516,7 @@
         "../hermes-agent/tests/tools/test_approval.py@008860a2",
         "../hermes-agent/tests/run_agent/test_background_review_toolset_restriction.py@8ad29a93",
         "internal/tools/dangerous_command.go",
-        "internal/subagent/manager.go"
+        "internal/core/subagent/manager.go"
       ],
       "ready_when": [
         "Recoverable dangerous patterns + blocked-result schema is validated, so approval decisions can reuse GuardCommand evidence.",
@@ -3547,7 +3547,7 @@
         "internal/tools/approval_callback.go",
         "internal/tools/approval_callback_test.go",
         "internal/tools/dangerous_command.go",
-        "internal/subagent/manager.go",
+        "internal/core/subagent/manager.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
@@ -3584,11 +3584,11 @@
         "system"
       ],
       "degraded_mode": "Background review status reports background_review_toolset_restricted or background_review_toolset_unavailable instead of silently granting full tool access.",
-      "fixture": "internal/subagent/background_review_toolset_test.go::TestBackgroundReviewToolsetRestriction",
+      "fixture": "internal/core/subagent/background_review_toolset_test.go::TestBackgroundReviewToolsetRestriction",
       "source_refs": [
         "../hermes-agent/run_agent.py@8ad29a93:background review agent toolset restriction",
         "../hermes-agent/tests/run_agent/test_background_review_toolset_restriction.py@8ad29a93",
-        "internal/subagent/manager.go",
+        "internal/core/subagent/manager.go",
         "internal/tools/registry.go",
         "internal/skills/"
       ],
@@ -3610,11 +3610,11 @@
         "TestBackgroundReviewToolsetRestriction_TelemetryIncludesEvidence proves review telemetry/status includes the allowlist and denied toolset names without prompt content.",
         "Foreground subagent policy fixtures remain unchanged."
       ],
-      "note": "Complete: TDD added internal/subagent/background_review_toolset.go and internal/subagent/background_review_toolset_test.go. Locked invariants: BackgroundReviewToolsetConfig is a positive allowlist of memory+skills only; CheckToolset returns background_review_toolset_restricted for execute_code/shell/browser/file_write/provider_management plus any unknown toolset and background_review_toolset_unavailable for empty/whitespace names; Telemetry never embeds prompt content (PromptContent always empty, String() omits the prompt body) and surfaces sorted allowlist plus deduped/sorted denied toolset names; AllowedToolsets returns a defensive copy so callers cannot mutate the policy; foreground subagent BlockedTools and runner allowlist behaviour are untouched.",
+      "note": "Complete: TDD added internal/core/subagent/background_review_toolset.go and internal/core/subagent/background_review_toolset_test.go. Locked invariants: BackgroundReviewToolsetConfig is a positive allowlist of memory+skills only; CheckToolset returns background_review_toolset_restricted for execute_code/shell/browser/file_write/provider_management plus any unknown toolset and background_review_toolset_unavailable for empty/whitespace names; Telemetry never embeds prompt content (PromptContent always empty, String() omits the prompt body) and surfaces sorted allowlist plus deduped/sorted denied toolset names; AllowedToolsets returns a defensive copy so callers cannot mutate the policy; foreground subagent BlockedTools and runner allowlist behaviour are untouched.",
       "write_scope": [
-        "internal/subagent/background_review_toolset.go",
-        "internal/subagent/background_review_toolset_test.go",
-        "internal/subagent/manager.go",
+        "internal/core/subagent/background_review_toolset.go",
+        "internal/core/subagent/background_review_toolset_test.go",
+        "internal/core/subagent/manager.go",
         "internal/tools/registry.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
@@ -3659,7 +3659,7 @@
         "internal/tools/approval_mode.go",
         "internal/tools/dangerous_command.go",
         "internal/tools/terminal_tool.go",
-        "internal/cron/executor.go",
+        "internal/automation/cron/executor.go",
         "internal/kernel/frame.go",
         "internal/kernel/kernel.go",
         "internal/config/config.go",
@@ -3698,8 +3698,8 @@
         "internal/tools/terminal_tool_test.go",
         "internal/kernel/frame.go",
         "internal/kernel/kernel.go",
-        "internal/cron/executor.go",
-        "internal/cron/executor_test.go",
+        "internal/automation/cron/executor.go",
+        "internal/automation/cron/executor_test.go",
         "internal/config/config.go",
         "internal/config/config_test.go",
         "cmd/gormes/telegram.go",
@@ -3707,7 +3707,7 @@
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestGuardCronCommand|TestTerminalToolCronApprovalMode|TestNormalizeCronApprovalMode|TestCronApprovalMode' -count=1",
-        "go test ./internal/cron -run TestCronExecutorSubmitsCronApprovalMode -count=1",
+        "go test ./internal/automation/cron -run TestCronExecutorSubmitsCronApprovalMode -count=1",
         "go test ./internal/config -run TestLoad_ApprovalsDefaults -count=1",
         "go run ./cmd/progress validate"
       ],
@@ -3725,17 +3725,17 @@
           "internal/tools/dangerous_command.go: GuardCronCommand denies recoverable dangerous commands in cron deny mode, allows recoverable commands in approve mode, and blocks hardline commands in all modes.",
           "internal/tools/terminal_tool.go: TerminalTool uses the cron guard when the execution context carries cron approval mode and returns blocked JSON with evidence instead of approval_required.",
           "internal/kernel/frame.go and internal/kernel/kernel.go: PlatformEvent carries CronApprovalMode and wraps the turn context without mutating resident tool configuration.",
-          "internal/cron/executor.go and cmd/gormes/telegram.go: cron jobs submit the configured approvals.cron_mode to the kernel, defaulting to deny through config."
+          "internal/automation/cron/executor.go and cmd/gormes/telegram.go: cron jobs submit the configured approvals.cron_mode to the kernel, defaulting to deny through config."
         ],
         "verification": [
           "RED: go test ./internal/tools -run 'TestGuardCronCommand|TestTerminalToolCronApprovalMode|TestNormalizeCronApprovalMode|TestCronApprovalMode' -count=1 failed on undefined GuardCronCommand and WithCronApprovalMode.",
-          "RED: go test ./internal/cron -run TestCronExecutorSubmitsCronApprovalMode -count=1 failed on missing PlatformEvent.CronApprovalMode and ExecutorConfig.CronApprovalMode.",
+          "RED: go test ./internal/automation/cron -run TestCronExecutorSubmitsCronApprovalMode -count=1 failed on missing PlatformEvent.CronApprovalMode and ExecutorConfig.CronApprovalMode.",
           "RED: go test ./internal/config -run TestLoad_ApprovalsDefaults -count=1 failed on missing Config.Approvals.",
           "GREEN: go test ./internal/tools -run 'TestGuardCronCommand|TestTerminalToolCronApprovalMode|TestNormalizeCronApprovalMode|TestCronApprovalMode' -count=1 passed.",
-          "GREEN: go test ./internal/cron -run TestCronExecutorSubmitsCronApprovalMode -count=1 passed.",
+          "GREEN: go test ./internal/automation/cron -run TestCronExecutorSubmitsCronApprovalMode -count=1 passed.",
           "GREEN: go test ./internal/config -run TestLoad_ApprovalsDefaults -count=1 passed.",
           "GREEN: go test ./internal/tools -count=1 passed.",
-          "GREEN: go test ./internal/cron ./internal/config ./internal/kernel -count=1 passed."
+          "GREEN: go test ./internal/automation/cron ./internal/config ./internal/kernel -count=1 passed."
         ]
       }
     }
@@ -5117,7 +5117,7 @@
         "system"
       ],
       "degraded_mode": "Permission-denied, symlink-loop, outside-root, temp-file, chmod, and rename failures return typed atomic_write_failed or atomic_write_symlink_escape evidence without deleting the original target, replacing the symlink, or leaking private absolute home paths.",
-      "fixture": "internal/tools/atomic_replace_test.go; internal/config/writer_test.go; cmd/gormes/secrets_command_test.go; internal/session/index_mirror_test.go",
+      "fixture": "internal/tools/atomic_replace_test.go; internal/config/writer_test.go; cmd/gormes/secrets_command_test.go; internal/persistence/session/index_mirror_test.go",
       "source_refs": [
         "./hermes-agent/utils.py@b816fd4e2:atomic_replace",
         "./hermes-agent/utils.py@b816fd4e2:atomic_json_write",
@@ -5126,7 +5126,7 @@
         "internal/config/writer.go:writeTOMLAtomic",
         "cmd/gormes/setup.go:writeSetupToolsConfig",
         "cmd/gormes/secrets.go:writeSecretsSnapshotFile",
-        "internal/session/index_mirror.go:writeAtomic"
+        "internal/persistence/session/index_mirror.go:writeAtomic"
       ],
       "ready_when": [
         "The worker can implement and test the helper under t.TempDir with ordinary files, live symlinks, broken symlinks, and permission fixtures; no private config home or live gateway state is needed.",
@@ -5153,7 +5153,7 @@
         "Config/secrets/session fixtures prove writeTOMLAtomic, writeSetupToolsConfig, writeSecretsSnapshotFile, and session index mirror writes use the shared helper and retain their current redaction/permission guarantees.",
         "Existing file-task and config writer tests remain green."
       ],
-      "note": "2026-05-06 all-topic Hermes/Honcho weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. No planned P0 row remained; this unblocked Hermes-source-backed state-write safety row was promoted to P0 because config, setup, secrets, session mirrors, migration writers, and future write-capable tools can detach symlinked managed deployments unless the shared atomic helper lands first. The same sweep corrected the row write_scope from the stale webpages/docs mirror path to the canonical docs/content progress.json path. Complete: TDD added internal/tools/atomic_replace.go with symlink-preserving AtomicReplace plus fixtures for live symlinks, broken symlinks, and existing permission preservation; migrated writeTOMLAtomic, resetSetupDefaultConfig, writeSetupToolsConfig, writeSecretsSnapshotFile, and session writeAtomic to the shared helper. Evidence: go test ./internal/tools -run TestAtomicReplace -count=1 PASS; go test ./internal/config ./cmd/gormes ./internal/session -run 'Test.*(Atomic|Symlink|Secrets|SetupTools|IndexMirror)' -count=1 PASS; go test ./internal/tools ./internal/config ./cmd/gormes ./internal/session -count=1 PASS.",
+      "note": "2026-05-06 all-topic Hermes/Honcho weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. No planned P0 row remained; this unblocked Hermes-source-backed state-write safety row was promoted to P0 because config, setup, secrets, session mirrors, migration writers, and future write-capable tools can detach symlinked managed deployments unless the shared atomic helper lands first. The same sweep corrected the row write_scope from the stale webpages/docs mirror path to the canonical docs/content progress.json path. Complete: TDD added internal/tools/atomic_replace.go with symlink-preserving AtomicReplace plus fixtures for live symlinks, broken symlinks, and existing permission preservation; migrated writeTOMLAtomic, resetSetupDefaultConfig, writeSetupToolsConfig, writeSecretsSnapshotFile, and session writeAtomic to the shared helper. Evidence: go test ./internal/tools -run TestAtomicReplace -count=1 PASS; go test ./internal/config ./cmd/gormes ./internal/persistence/session -run 'Test.*(Atomic|Symlink|Secrets|SetupTools|IndexMirror)' -count=1 PASS; go test ./internal/tools ./internal/config ./cmd/gormes ./internal/persistence/session -count=1 PASS.",
       "write_scope": [
         "internal/tools/atomic_replace.go",
         "internal/tools/atomic_replace_test.go",
@@ -5163,14 +5163,14 @@
         "cmd/gormes/setup_tools_test.go",
         "cmd/gormes/secrets.go",
         "cmd/gormes/secrets_command_test.go",
-        "internal/session/index_mirror.go",
-        "internal/session/index_mirror_test.go",
+        "internal/persistence/session/index_mirror.go",
+        "internal/persistence/session/index_mirror_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestAtomicReplace -count=1",
-        "go test ./internal/config ./cmd/gormes ./internal/session -run 'Test.*(Atomic|Symlink|Secrets|SetupTools|IndexMirror)' -count=1",
-        "go test ./internal/tools ./internal/config ./cmd/gormes ./internal/session -count=1",
+        "go test ./internal/config ./cmd/gormes ./internal/persistence/session -run 'Test.*(Atomic|Symlink|Secrets|SetupTools|IndexMirror)' -count=1",
+        "go test ./internal/tools ./internal/config ./cmd/gormes ./internal/persistence/session -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -6758,7 +6758,7 @@
       "name": "Session search tool schema and argument validation",
       "priority": "P3",
       "status": "complete",
-      "contract": "internal/sessionsearchtool defines a session_search Tool descriptor with Hermes-style recall guidance, JSON schema, timeout, and argument validator for query, role_filter, scope, sources, mode, limit, and current_session_id without registering the tool globally or reading memory",
+      "contract": "internal/persistence/sessionsearchtool defines a session_search Tool descriptor with Hermes-style recall guidance, JSON schema, timeout, and argument validator for query, role_filter, scope, sources, mode, limit, and current_session_id without registering the tool globally or reading memory",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
@@ -6769,7 +6769,7 @@
         "system"
       ],
       "degraded_mode": "Invalid input returns session_search_invalid_args evidence instead of widening recall or falling back to global search.",
-      "fixture": "internal/sessionsearchtool/session_search_tool_schema_test.go::TestSessionSearchToolSchema_*",
+      "fixture": "internal/persistence/sessionsearchtool/session_search_tool_schema_test.go::TestSessionSearchToolSchema_*",
       "source_refs": [
         "../hermes-agent/tools/session_search_tool.py:530-567",
         "../hermes-agent/tools/session_search_tool.py@dbe50155",
@@ -6796,15 +6796,15 @@
         "TestSessionSearchToolSchema_RejectsUnsafeScope proves unknown scope, unknown mode, negative limit, non-string role_filter, and non-string sources return session_search_invalid_args evidence.",
         "TestSessionSearchToolSchema_NotRegisteredGlobally proves the row does not edit internal/tools/builtin.go or register the tool outside the local test registry."
       ],
-      "note": "TDD landed: internal/sessionsearchtool now defines a descriptor-only session_search Tool plus argument validation for query, role_filter, scope, sources, mode, limit, and current_session_id. The descriptor ports Hermes recall guidance for recent mode, proactive use, OR-heavy FTS5 search syntax, and role_filter while preserving Gormes' explicit same-chat default. The validator defaults omitted scope/sources/mode to same-chat, empty allowlist, and default mode; unsafe scope, mode, negative limit, non-string role_filter, or non-string sources return session_search_invalid_args evidence. The tool remains unregistered globally and does not call memory, SQLite, Goncho, or the gateway runtime.",
+      "note": "TDD landed: internal/persistence/sessionsearchtool now defines a descriptor-only session_search Tool plus argument validation for query, role_filter, scope, sources, mode, limit, and current_session_id. The descriptor ports Hermes recall guidance for recent mode, proactive use, OR-heavy FTS5 search syntax, and role_filter while preserving Gormes' explicit same-chat default. The validator defaults omitted scope/sources/mode to same-chat, empty allowlist, and default mode; unsafe scope, mode, negative limit, non-string role_filter, or non-string sources return session_search_invalid_args evidence. The tool remains unregistered globally and does not call memory, SQLite, Goncho, or the gateway runtime.",
       "write_scope": [
-        "internal/sessionsearchtool/session_search_tool.go",
-        "internal/sessionsearchtool/session_search_tool_schema_test.go",
+        "internal/persistence/sessionsearchtool/session_search_tool.go",
+        "internal/persistence/sessionsearchtool/session_search_tool_schema_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run '^TestSessionSearchToolSchema_' -count=1",
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/persistence/sessionsearchtool -run '^TestSessionSearchToolSchema_' -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/persistence/sessionsearchtool -count=1",
         "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -6815,10 +6815,10 @@
         "last_attempt": "2026-04-30T15:18:12Z",
         "last_success": "2026-04-30T15:18:12Z",
         "evidence": [
-          "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run TestSessionSearchToolSchema_Descriptor -count=1 failed until Hermes recall guidance appeared in Description().",
-          "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run TestSessionSearchToolSchema_Descriptor -count=1 passed.",
-          "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run 'TestSessionSearchToolSchema_(Descriptor|DefaultArgs|RejectsUnsafeScope)|TestSessionSearchToolExecution_RoleFilter' -count=1 failed until role_filter schema and validation were added.",
-          "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run 'TestSessionSearchToolSchema_(Descriptor|DefaultArgs|RejectsUnsafeScope)|TestSessionSearchToolExecution_RoleFilter' -count=1 passed."
+          "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/persistence/sessionsearchtool -run TestSessionSearchToolSchema_Descriptor -count=1 failed until Hermes recall guidance appeared in Description().",
+          "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/persistence/sessionsearchtool -run TestSessionSearchToolSchema_Descriptor -count=1 passed.",
+          "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/persistence/sessionsearchtool -run 'TestSessionSearchToolSchema_(Descriptor|DefaultArgs|RejectsUnsafeScope)|TestSessionSearchToolExecution_RoleFilter' -count=1 failed until role_filter schema and validation were added.",
+          "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/persistence/sessionsearchtool -run 'TestSessionSearchToolSchema_(Descriptor|DefaultArgs|RejectsUnsafeScope)|TestSessionSearchToolExecution_RoleFilter' -count=1 passed."
         ]
       },
       "provenance": {
@@ -6836,7 +6836,7 @@
       "name": "Session search tool execution wrapper",
       "priority": "P3",
       "status": "complete",
-      "contract": "internal/sessionsearchtool session_search executes over existing internal/memory SearchSessions/SearchMessages APIs, preserving same-chat defaults, explicit user/source widening, Hermes role_filter turn narrowing, hidden tool-source isolation by default, lineage-root exclusion in recent mode, and Goncho/Honcho-compatible evidence without changing ranking or persistence",
+      "contract": "internal/persistence/sessionsearchtool session_search executes over existing internal/memory SearchSessions/SearchMessages APIs, preserving same-chat defaults, explicit user/source widening, Hermes role_filter turn narrowing, hidden tool-source isolation by default, lineage-root exclusion in recent mode, and Goncho/Honcho-compatible evidence without changing ranking or persistence",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
@@ -6847,7 +6847,7 @@
         "system"
       ],
       "degraded_mode": "Tool result reports session_search_unavailable, source_filter_denied, lineage_root_excluded, or session_search_invalid_args evidence instead of widening recall silently.",
-      "fixture": "internal/sessionsearchtool/session_search_tool_execution_test.go::TestSessionSearchToolExecution_* + internal/memory/session_catalog_test.go",
+      "fixture": "internal/persistence/sessionsearchtool/session_search_tool_execution_test.go::TestSessionSearchToolExecution_* + internal/memory/session_catalog_test.go",
       "source_refs": [
         "../hermes-agent/tools/session_search_tool.py@dbe50155",
         "../hermes-agent/tools/session_search_tool.py:281-294",
@@ -6889,18 +6889,18 @@
         "TestSessionSearchToolExecution_RecentModeExcludesCurrentLineageRoot seeds root and compressed child sessions, runs recent mode from the child, and proves the current root is excluded deterministically per Hermes dbe50155.",
         "TestSessionSearchToolExecution_DegradedEvidence covers missing session directory and denied source widening without panics or hidden fallback widening."
       ],
-      "note": "TDD landed: internal/sessionsearchtool now has an opt-in execution wrapper over seeded SQLite plus session.Metadata, preserving same-chat defaults, scope=user source-filtered widening with memory.CrossChatRecallEvidence, Hermes role_filter turn narrowing, hidden source=tool isolation by default with explicit source override, Hermes success messages for no-match and recent-mode results, recent-mode current-lineage-root exclusion evidence, and fail-closed degraded evidence for unavailable bindings or denied source widening. Registration remains a later row.",
+      "note": "TDD landed: internal/persistence/sessionsearchtool now has an opt-in execution wrapper over seeded SQLite plus session.Metadata, preserving same-chat defaults, scope=user source-filtered widening with memory.CrossChatRecallEvidence, Hermes role_filter turn narrowing, hidden source=tool isolation by default with explicit source override, Hermes success messages for no-match and recent-mode results, recent-mode current-lineage-root exclusion evidence, and fail-closed degraded evidence for unavailable bindings or denied source widening. Registration remains a later row.",
       "write_scope": [
-        "internal/sessionsearchtool/session_search_tool.go",
-        "internal/sessionsearchtool/session_search_tool_execution_test.go",
+        "internal/persistence/sessionsearchtool/session_search_tool.go",
+        "internal/persistence/sessionsearchtool/session_search_tool_execution_test.go",
         "internal/memory/session_catalog.go",
         "internal/memory/session_catalog_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run '^TestSessionSearchToolExecution_' -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/persistence/sessionsearchtool -run '^TestSessionSearchToolExecution_' -count=1",
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/memory -run '^TestSessionCatalog_SearchMessages' -count=1",
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool ./internal/memory ./internal/goncho -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/persistence/sessionsearchtool ./internal/memory ./internal/goncho -count=1",
         "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -6911,12 +6911,12 @@
         "last_attempt": "2026-04-30T16:36:46Z",
         "last_success": "2026-04-30T16:36:46Z",
         "evidence": [
-          "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run TestSessionSearchToolExecution_RoleFilter -count=1 and GOCACHE=/tmp/gormes-go-cache go test ./internal/memory -run TestSessionCatalog_SearchMessagesFiltersByRole -count=1 failed until role_filter was threaded to memory.SearchFilter.Roles.",
-          "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run 'TestSessionSearchToolSchema_(Descriptor|DefaultArgs|RejectsUnsafeScope)|TestSessionSearchToolExecution_RoleFilter' -count=1 and GOCACHE=/tmp/gormes-go-cache go test ./internal/memory -run TestSessionCatalog_SearchMessagesFiltersByRole -count=1 passed.",
-          "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run TestSessionSearchToolExecution_ResultMessages -count=1 failed until successful no-match and recent-mode responses included Hermes-style message text.",
-          "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run TestSessionSearchToolExecution_ResultMessages -count=1 passed.",
-          "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run TestSessionSearchToolExecution_HidesToolSourceByDefault -count=1 failed while source=tool sessions appeared in default user-scope results.",
-          "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run TestSessionSearchToolExecution_HidesToolSourceByDefault -count=1 passed after filtering hidden tool sessions unless sources=[tool] is explicit."
+          "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/persistence/sessionsearchtool -run TestSessionSearchToolExecution_RoleFilter -count=1 and GOCACHE=/tmp/gormes-go-cache go test ./internal/memory -run TestSessionCatalog_SearchMessagesFiltersByRole -count=1 failed until role_filter was threaded to memory.SearchFilter.Roles.",
+          "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/persistence/sessionsearchtool -run 'TestSessionSearchToolSchema_(Descriptor|DefaultArgs|RejectsUnsafeScope)|TestSessionSearchToolExecution_RoleFilter' -count=1 and GOCACHE=/tmp/gormes-go-cache go test ./internal/memory -run TestSessionCatalog_SearchMessagesFiltersByRole -count=1 passed.",
+          "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/persistence/sessionsearchtool -run TestSessionSearchToolExecution_ResultMessages -count=1 failed until successful no-match and recent-mode responses included Hermes-style message text.",
+          "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/persistence/sessionsearchtool -run TestSessionSearchToolExecution_ResultMessages -count=1 passed.",
+          "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/persistence/sessionsearchtool -run TestSessionSearchToolExecution_HidesToolSourceByDefault -count=1 failed while source=tool sessions appeared in default user-scope results.",
+          "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/persistence/sessionsearchtool -run TestSessionSearchToolExecution_HidesToolSourceByDefault -count=1 passed after filtering hidden tool sessions unless sources=[tool] is explicit."
         ]
       },
       "provenance": {
@@ -7128,13 +7128,13 @@
       "write_scope": [
         "internal/cli/debug_paste_sweep.go",
         "internal/cli/debug_paste_sweep_test.go",
-        "internal/cron/debug_paste_sweep.go",
-        "internal/cron/debug_paste_sweep_test.go",
+        "internal/automation/cron/debug_paste_sweep.go",
+        "internal/automation/cron/debug_paste_sweep_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run '^TestDebugPasteSweep_' -count=1",
-        "go test ./internal/cron -run '^TestDebugPasteSweep_' -count=1",
+        "go test ./internal/automation/cron -run '^TestDebugPasteSweep_' -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -7241,11 +7241,11 @@
         "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/tools/cronjob_tools.py@69d4800d:_scan_cron_prompt",
         "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/tools/cronjob_tools.py@69d4800d:_validate_cron_script_path",
         "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/tests/tools/test_cronjob_tools.py@69d4800d:TestUnifiedCronjobTool",
-        "internal/cron/schedule_parser.go",
-        "internal/cron/prompt_script_safety.go",
+        "internal/automation/cron/schedule_parser.go",
+        "internal/automation/cron/prompt_script_safety.go",
         "internal/tools/cronjob_tool.go",
-        "internal/cron/context_from.go",
-        "internal/cron/delivery_plan.go"
+        "internal/automation/cron/context_from.go",
+        "internal/automation/cron/delivery_plan.go"
       ],
       "ready_when": [
         "This parent is used only for source-backed inventory continuity and the dependency-ordered child rows remain present below it."
@@ -7278,7 +7278,7 @@
       "name": "Cron schedule parser + repeat state fixtures",
       "priority": "P2",
       "status": "complete",
-      "contract": "internal/cron adds a pure Hermes-compatible schedule parser and repeat-state read model before any public cronjob tool handler is exposed. ParseCronSchedule(input string, now time.Time) returns a typed ParsedSchedule for one-shot durations (`30m`, `2h`, `1d`), recurring intervals (`every 30m`, `every 2h`), 5-field cron expressions, and ISO timestamps. CronNextRunDecision(parsed, lastRunUnix, repeatCompleted, now) reports whether a one-shot is still recoverable inside the 120s grace window, whether recurring jobs should fast-forward stale next-run times, and whether finite repeat counts are exhausted.",
+      "contract": "internal/automation/cron adds a pure Hermes-compatible schedule parser and repeat-state read model before any public cronjob tool handler is exposed. ParseCronSchedule(input string, now time.Time) returns a typed ParsedSchedule for one-shot durations (`30m`, `2h`, `1d`), recurring intervals (`every 30m`, `every 2h`), 5-field cron expressions, and ISO timestamps. CronNextRunDecision(parsed, lastRunUnix, repeatCompleted, now) reports whether a one-shot is still recoverable inside the 120s grace window, whether recurring jobs should fast-forward stale next-run times, and whether finite repeat counts are exhausted.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
@@ -7288,17 +7288,17 @@
         "system"
       ],
       "degraded_mode": "Invalid schedules and exhausted repeat counters return typed unavailable evidence; the scheduler keeps skipping only the bad job instead of stopping the whole cron loop.",
-      "fixture": "internal/cron/schedule_parser_test.go",
+      "fixture": "internal/automation/cron/schedule_parser_test.go",
       "source_refs": [
         "../hermes-agent/cron/jobs.py@755a2804:parse_duration",
         "../hermes-agent/cron/jobs.py@755a2804:parse_schedule",
         "../hermes-agent/cron/jobs.py@755a2804:_recoverable_oneshot_run_at",
         "../hermes-agent/cron/jobs.py@755a2804:_compute_grace_seconds",
-        "internal/cron/job.go:ValidateSchedule",
-        "internal/cron/scheduler.go:Start"
+        "internal/automation/cron/job.go:ValidateSchedule",
+        "internal/automation/cron/scheduler.go:Start"
       ],
       "ready_when": [
-        "internal/cron/job.go currently validates only robfig/cron standard expressions; the new parser can be introduced as a sibling pure helper without changing Scheduler.Start in this slice.",
+        "internal/automation/cron/job.go currently validates only robfig/cron standard expressions; the new parser can be introduced as a sibling pure helper without changing Scheduler.Start in this slice.",
         "Tests can inject a fixed time anchor `now := time.Date(2026,4,26,12,0,0,0,time.UTC)`; no live clock, goroutine, bbolt store, or kernel is required."
       ],
       "not_ready_when": [
@@ -7318,19 +7318,19 @@
         "TestCronNextRunDecision_FiniteRepeatExhaustion marks repeat=1 completed=1 as exhausted while repeat=3 completed=2 remains runnable.",
         "TestCronNextRunDecision_RecurringFastForward returns a next run after now when the stored next-run time is stale by multiple intervals."
       ],
-      "note": "Complete: TDD landed internal/cron/schedule_parser.go and schedule_parser_test.go as a pure parser/read-model slice. Fixtures prove one-shot durations, recurring intervals, 5-field cron validation, ISO timestamps with injected-location naive parsing, one-shot grace recovery, finite repeat exhaustion, and stale recurring fast-forward without touching scheduler goroutines, cron stores, cmd/gormes, or public cronjob tool wiring.",
+      "note": "Complete: TDD landed internal/automation/cron/schedule_parser.go and schedule_parser_test.go as a pure parser/read-model slice. Fixtures prove one-shot durations, recurring intervals, 5-field cron validation, ISO timestamps with injected-location naive parsing, one-shot grace recovery, finite repeat exhaustion, and stale recurring fast-forward without touching scheduler goroutines, cron stores, cmd/gormes, or public cronjob tool wiring.",
       "write_scope": [
-        "internal/cron/schedule_parser.go",
-        "internal/cron/schedule_parser_test.go",
+        "internal/automation/cron/schedule_parser.go",
+        "internal/automation/cron/schedule_parser_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron -run 'TestParseCronSchedule_|TestCronNextRunDecision_' -count=1",
-        "go test ./internal/cron -count=1",
+        "go test ./internal/automation/cron -run 'TestParseCronSchedule_|TestCronNextRunDecision_' -count=1",
+        "go test ./internal/automation/cron -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
-        "internal/cron/schedule_parser_test.go proves one-shot, interval, cron-expression, ISO timestamp, one-shot grace, finite repeat, and stale-recurring fast-forward behavior under an injected clock."
+        "internal/automation/cron/schedule_parser_test.go proves one-shot, interval, cron-expression, ISO timestamp, one-shot grace, finite repeat, and stale-recurring fast-forward behavior under an injected clock."
       ],
       "health": {
         "attempt_count": 1,
@@ -7352,7 +7352,7 @@
       "name": "Cron recurring next-run failure preservation",
       "priority": "P2",
       "status": "complete",
-      "contract": "internal/cron adds a pure run-completion state helper and executor post-run hook that updates LastRunUnix, LastStatus, and RepeatCompleted after every run while preserving recurring cron/interval jobs as active (Paused=false) when next-run computation is unavailable or returns no future time; one-shot or finite-repeat exhaustion may become terminal, but recurring compute failures must produce typed evidence instead of being confused with user pause/completion",
+      "contract": "internal/automation/cron adds a pure run-completion state helper and executor post-run hook that updates LastRunUnix, LastStatus, and RepeatCompleted after every run while preserving recurring cron/interval jobs as active (Paused=false) when next-run computation is unavailable or returns no future time; one-shot or finite-repeat exhaustion may become terminal, but recurring compute failures must produce typed evidence instead of being confused with user pause/completion",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
@@ -7362,16 +7362,16 @@
         "system"
       ],
       "degraded_mode": "When the next-run decision cannot be computed for a recurring schedule, the job remains unpaused with LastStatus=error and run-store/evidence text describing cron_next_run_unavailable; the scheduler may skip the bad tick but must not silently disable the schedule.",
-      "fixture": "internal/cron/run_completion_test.go",
+      "fixture": "internal/automation/cron/run_completion_test.go",
       "source_refs": [
         "../hermes-agent/cron/jobs.py@7c63c246:mark_job_run",
         "../hermes-agent/cron/jobs.py@7c63c246:compute_next_run",
         "../hermes-agent/tests/cron/test_jobs.py@7c63c246:test_recurring_cron_not_disabled_when_croniter_missing",
         "../hermes-agent/tests/cron/test_jobs.py@7c63c246:test_recurring_interval_not_disabled_when_next_run_is_none",
         "../hermes-agent/tests/cron/test_jobs.py@7c63c246:test_oneshot_still_completes_when_next_run_is_none",
-        "internal/cron/job.go:Job",
-        "internal/cron/schedule_parser.go:CronNextRunDecision",
-        "internal/cron/executor.go:recordAndUpdateJob"
+        "internal/automation/cron/job.go:Job",
+        "internal/automation/cron/schedule_parser.go:CronNextRunDecision",
+        "internal/automation/cron/executor.go:recordAndUpdateJob"
       ],
       "ready_when": [
         "Cron schedule parser + repeat state fixtures is validated, so the worker can reuse ParsedSchedule/CronNextRunDecision instead of re-parsing operator text ad hoc.",
@@ -7396,17 +7396,17 @@
         "TestCronRunCompletion_FiniteRepeatExhaustionBecomesTerminal proves Repeat=3 and RepeatCompleted=2 transitions to completed after the third run, while RepeatCompleted=1 remains active.",
         "TestExecutorRecordAndUpdateJob_UsesRunCompletionState proves success, timeout, and suppressed runs all pass through the helper and persist LastStatus/RepeatCompleted without starting Scheduler.Start."
       ],
-      "note": "Complete: TDD landed internal/cron/run_completion.go as a pure post-run state helper and wired Executor.recordAndUpdateJob through it. Fixtures prove recurring cron/interval next-run failures remain active with cron_next_run_unavailable evidence, one-shot and finite-repeat exhaustion become terminal distinctly, and executor success/timeout/suppressed paths persist LastStatus and RepeatCompleted without scheduler/provider side effects.",
+      "note": "Complete: TDD landed internal/automation/cron/run_completion.go as a pure post-run state helper and wired Executor.recordAndUpdateJob through it. Fixtures prove recurring cron/interval next-run failures remain active with cron_next_run_unavailable evidence, one-shot and finite-repeat exhaustion become terminal distinctly, and executor success/timeout/suppressed paths persist LastStatus and RepeatCompleted without scheduler/provider side effects.",
       "write_scope": [
-        "internal/cron/run_completion.go",
-        "internal/cron/run_completion_test.go",
-        "internal/cron/executor.go",
-        "internal/cron/executor_test.go",
+        "internal/automation/cron/run_completion.go",
+        "internal/automation/cron/run_completion_test.go",
+        "internal/automation/cron/executor.go",
+        "internal/automation/cron/executor_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron -run '^TestCronRunCompletion_|^TestExecutorRecordAndUpdateJob_UsesRunCompletionState' -count=1",
-        "go test ./internal/cron -count=1",
+        "go test ./internal/automation/cron -run '^TestCronRunCompletion_|^TestExecutorRecordAndUpdateJob_UsesRunCompletionState' -count=1",
+        "go test ./internal/automation/cron -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -7432,7 +7432,7 @@
       "name": "Cron prompt/script safety + pre-run script contract",
       "priority": "P2",
       "status": "complete",
-      "contract": "internal/cron exposes pure safety helpers for cron creation/update: ScanPromptForCronThreat(prompt string) (CronSafetyFinding, bool) blocks Hermes critical prompt-injection/exfiltration patterns plus invisible Unicode controls, and ValidatePreRunScriptPath(script string, scriptsRoot string) returns a clean relative script path only when it stays under the injected scriptsRoot. No script execution or scheduler wiring occurs in this slice.",
+      "contract": "internal/automation/cron exposes pure safety helpers for cron creation/update: ScanPromptForCronThreat(prompt string) (CronSafetyFinding, bool) blocks Hermes critical prompt-injection/exfiltration patterns plus invisible Unicode controls, and ValidatePreRunScriptPath(script string, scriptsRoot string) returns a clean relative script path only when it stays under the injected scriptsRoot. No script execution or scheduler wiring occurs in this slice.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
@@ -7442,14 +7442,14 @@
         "system"
       ],
       "degraded_mode": "Cron create/update returns blocked_prompt, invisible_unicode, script_absolute, script_home_relative, or script_traversal evidence before persistence instead of silently storing unsafe jobs.",
-      "fixture": "internal/cron/prompt_script_safety_test.go",
+      "fixture": "internal/automation/cron/prompt_script_safety_test.go",
       "source_refs": [
         "../hermes-agent/tools/cronjob_tools.py@755a2804:_CRON_THREAT_PATTERNS",
         "../hermes-agent/tools/cronjob_tools.py@755a2804:_CRON_INVISIBLE_CHARS",
         "../hermes-agent/tools/cronjob_tools.py@755a2804:_scan_cron_prompt",
         "../hermes-agent/tools/cronjob_tools.py@755a2804:_validate_cron_script_path",
         "internal/tools/dangerous_command.go",
-        "internal/cron/heartbeat.go"
+        "internal/automation/cron/heartbeat.go"
       ],
       "ready_when": [
         "Cron schedule parser + repeat state fixtures is complete or fixture-ready, so safe create/update validation can share the same typed error style.",
@@ -7473,15 +7473,15 @@
         "TestValidatePreRunScriptPath_AcceptsRelativeScript returns `daily/fetch.go` unchanged for a scriptsRoot temp dir.",
         "TestValidatePreRunScriptPath_RejectsAbsoluteHomeAndTraversal rejects `/tmp/x`, `~/x`, `../x`, and `daily/../../x` with distinct evidence codes."
       ],
-      "note": "Complete: TDD landed internal/cron/prompt_script_safety.go and prompt_script_safety_test.go as pure create/update boundary helpers. Fixtures prove Hermes critical prompt threat IDs, invisible Unicode codepoint evidence, benign prompt pass-through, relative script acceptance, and absolute/home/traversal rejection without config reads, store writes, scheduler wiring, or script execution.",
+      "note": "Complete: TDD landed internal/automation/cron/prompt_script_safety.go and prompt_script_safety_test.go as pure create/update boundary helpers. Fixtures prove Hermes critical prompt threat IDs, invisible Unicode codepoint evidence, benign prompt pass-through, relative script acceptance, and absolute/home/traversal rejection without config reads, store writes, scheduler wiring, or script execution.",
       "write_scope": [
-        "internal/cron/prompt_script_safety.go",
-        "internal/cron/prompt_script_safety_test.go",
+        "internal/automation/cron/prompt_script_safety.go",
+        "internal/automation/cron/prompt_script_safety_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron -run 'TestScanPromptForCronThreat_|TestValidatePreRunScriptPath_' -count=1",
-        "go test ./internal/cron -count=1",
+        "go test ./internal/automation/cron -run 'TestScanPromptForCronThreat_|TestValidatePreRunScriptPath_' -count=1",
+        "go test ./internal/automation/cron -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -7522,14 +7522,14 @@
         "system"
       ],
       "degraded_mode": "If the scanner drifts, safe built-in GitHub cron skills are blocked on every tick or unsafe Authorization-header exfiltration to non-GitHub hosts is accepted.",
-      "fixture": "internal/cron/prompt_script_safety_test.go::TestScanPromptForCronThreat_GitHubAuthHeaderAllowlist and internal/tools/cronjob_tool_test.go::TestCronjobTool_GitHubAuthHeaderScannerParity",
+      "fixture": "internal/automation/cron/prompt_script_safety_test.go::TestScanPromptForCronThreat_GitHubAuthHeaderAllowlist and internal/tools/cronjob_tool_test.go::TestCronjobTool_GitHubAuthHeaderScannerParity",
       "source_refs": [
         "./hermes-agent/tools/cronjob_tools.py@783d11717:_scan_cron_prompt",
         "./hermes-agent/tools/cronjob_tools.py@691778a08:_CRON_EXFIL_COMMAND_PATTERNS",
         "./hermes-agent/tools/cronjob_tools.py@b6ff96c05:quoted api.github.com allowlist",
         "./hermes-agent/tests/tools/test_cronjob_tools.py@b6ff96c05:test_authorization_header_quoted_url_allowed",
         "./hermes-agent/tests/cron/test_cron_prompt_injection_skill.py@783d11717:test_builtin_style_github_api_example_is_allowed",
-        "internal/cron/prompt_script_safety.go:ScanPromptForCronThreat",
+        "internal/automation/cron/prompt_script_safety.go:ScanPromptForCronThreat",
         "internal/tools/cronjob_tool.go:scanCronjobPrompt"
       ],
       "ready_when": [
@@ -7540,7 +7540,7 @@
       "not_ready_when": [
         "The slice broadens into cron scheduling, skill loading, GitHub API calls, or live gateway cron execution.",
         "The scanner allows Authorization headers carrying secret variables to arbitrary non-api.github.com hosts.",
-        "The cronjob tool path and pure internal/cron helper diverge on the same prompt fixture."
+        "The cronjob tool path and pure internal/automation/cron helper diverge on the same prompt fixture."
       ],
       "blocked_by": [
         "Cron prompt/script safety + pre-run script contract",
@@ -7552,18 +7552,18 @@
         "TestCronjobTool_GitHubAuthHeaderScannerParity proves cronjob create accepts the allowed GitHub API prompt and rejects arbitrary-host Authorization-header exfiltration through the public tool envelope.",
         "Existing cron prompt/script safety and cronjob tool fixtures remain green."
       ],
-      "note": "Complete 2026-05-09: bounded all-topic weakness sweep against Hermes 369cee018 covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 13, below the 90-row cap, so adding one P1 source-backed row was allowed. The stale complete row `Cron prompt/script safety + pre-run script contract` still used the older broad secret regex, while current Hermes commits 783d11717, 691778a08, and b6ff96c05 narrowed exfil detection to URL/data/Auth-header leak paths, allowed bundled api.github.com Authorization-token examples, kept arbitrary-host Authorization-header exfil blocked, and accepted quoted api.github.com URLs. TDD refreshed both the pure internal/cron scanner and the model-visible cronjob tool scanner so safe api.github.com Authorization-token examples pass and arbitrary-host Authorization-header exfiltration remains blocked.",
+      "note": "Complete 2026-05-09: bounded all-topic weakness sweep against Hermes 369cee018 covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 13, below the 90-row cap, so adding one P1 source-backed row was allowed. The stale complete row `Cron prompt/script safety + pre-run script contract` still used the older broad secret regex, while current Hermes commits 783d11717, 691778a08, and b6ff96c05 narrowed exfil detection to URL/data/Auth-header leak paths, allowed bundled api.github.com Authorization-token examples, kept arbitrary-host Authorization-header exfil blocked, and accepted quoted api.github.com URLs. TDD refreshed both the pure internal/automation/cron scanner and the model-visible cronjob tool scanner so safe api.github.com Authorization-token examples pass and arbitrary-host Authorization-header exfiltration remains blocked.",
       "write_scope": [
-        "internal/cron/prompt_script_safety.go",
-        "internal/cron/prompt_script_safety_test.go",
+        "internal/automation/cron/prompt_script_safety.go",
+        "internal/automation/cron/prompt_script_safety_test.go",
         "internal/tools/cronjob_tool.go",
         "internal/tools/cronjob_tool_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron -run 'TestScanPromptForCronThreat_(GitHubAuthHeaderAllowlist|BlocksAuthorizationHeaderExfil)' -count=1",
+        "go test ./internal/automation/cron -run 'TestScanPromptForCronThreat_(GitHubAuthHeaderAllowlist|BlocksAuthorizationHeaderExfil)' -count=1",
         "go test ./internal/tools -run TestCronjobTool_GitHubAuthHeaderScannerParity -count=1",
-        "go test ./internal/cron ./internal/tools -run 'TestScanPromptForCronThreat_|TestCronjobTool_' -count=1",
+        "go test ./internal/automation/cron ./internal/tools -run 'TestScanPromptForCronThreat_|TestCronjobTool_' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -7577,18 +7577,18 @@
       },
       "evidence": {
         "implementation": [
-          "internal/cron/prompt_script_safety.go now sanitizes only current Hermes api.github.com Authorization-token curl examples, including single- and double-quoted URLs, before scanning the prompt.",
-          "internal/cron/prompt_script_safety.go and internal/tools/cronjob_tool.go now split exfil detection into URL secret, form/data secret, wget post, and Authorization-header leak patterns while preserving existing URL/wget evidence IDs.",
-          "internal/cron/prompt_script_safety_test.go pins pure scanner allowlist and arbitrary-host Authorization-header rejection.",
+          "internal/automation/cron/prompt_script_safety.go now sanitizes only current Hermes api.github.com Authorization-token curl examples, including single- and double-quoted URLs, before scanning the prompt.",
+          "internal/automation/cron/prompt_script_safety.go and internal/tools/cronjob_tool.go now split exfil detection into URL secret, form/data secret, wget post, and Authorization-header leak patterns while preserving existing URL/wget evidence IDs.",
+          "internal/automation/cron/prompt_script_safety_test.go pins pure scanner allowlist and arbitrary-host Authorization-header rejection.",
           "internal/tools/cronjob_tool_test.go proves the public cronjob create envelope accepts the GitHub API prompt and rejects the arbitrary-host Authorization-header prompt."
         ],
         "verification": [
-          "RED: go test ./internal/cron -run 'TestScanPromptForCronThreat_(GitHubAuthHeaderAllowlist|BlocksAuthorizationHeaderExfil)' -count=1 failed because safe GitHub auth-header prompts were blocked as exfil_curl and arbitrary-host auth-header prompts reported the old broad ID.",
+          "RED: go test ./internal/automation/cron -run 'TestScanPromptForCronThreat_(GitHubAuthHeaderAllowlist|BlocksAuthorizationHeaderExfil)' -count=1 failed because safe GitHub auth-header prompts were blocked as exfil_curl and arbitrary-host auth-header prompts reported the old broad ID.",
           "RED: go test ./internal/tools -run TestCronjobTool_GitHubAuthHeaderScannerParity -count=1 failed because cronjob create rejected the quoted api.github.com Authorization-token prompt.",
-          "GREEN: go test ./internal/cron -run 'TestScanPromptForCronThreat_(GitHubAuthHeaderAllowlist|BlocksAuthorizationHeaderExfil)' -count=1 passed.",
+          "GREEN: go test ./internal/automation/cron -run 'TestScanPromptForCronThreat_(GitHubAuthHeaderAllowlist|BlocksAuthorizationHeaderExfil)' -count=1 passed.",
           "GREEN: go test ./internal/tools -run TestCronjobTool_GitHubAuthHeaderScannerParity -count=1 passed.",
-          "GREEN: go test ./internal/cron ./internal/tools -run 'TestScanPromptForCronThreat_|TestCronjobTool_' -count=1 passed.",
-          "GREEN: go test ./internal/cron ./internal/tools -count=1 passed."
+          "GREEN: go test ./internal/automation/cron ./internal/tools -run 'TestScanPromptForCronThreat_|TestCronjobTool_' -count=1 passed.",
+          "GREEN: go test ./internal/automation/cron ./internal/tools -count=1 passed."
         ]
       }
     }
@@ -7601,7 +7601,7 @@
       "name": "Cronjob tool action envelope over native store",
       "priority": "P2",
       "status": "complete",
-      "contract": "internal/tools exposes a cronjob action adapter over the native internal/cron Store without starting the scheduler: action=create validates schedule, prompt/script safety, name uniqueness, optional repeat/model/toolsets/workdir fields, then persists a cron.Job; list returns redacted job summaries; update preserves unspecified fields and supports empty-array/string clearing for skills, enabled_toolsets, workdir, script, and context_from; pause/resume flip Paused; remove deletes by ID; run returns a RunNow request object for the caller instead of executing immediately.",
+      "contract": "internal/tools exposes a cronjob action adapter over the native internal/automation/cron Store without starting the scheduler: action=create validates schedule, prompt/script safety, name uniqueness, optional repeat/model/toolsets/workdir fields, then persists a cron.Job; list returns redacted job summaries; update preserves unspecified fields and supports empty-array/string clearing for skills, enabled_toolsets, workdir, script, and context_from; pause/resume flip Paused; remove deletes by ID; run returns a RunNow request object for the caller instead of executing immediately.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tools",
@@ -7618,14 +7618,14 @@
         "../hermes-agent/tools/cronjob_tools.py@755a2804:_format_job",
         "../hermes-agent/cron/jobs.py@755a2804:create_job",
         "../hermes-agent/cron/jobs.py@755a2804:update_job",
-        "internal/cron/job.go",
-        "internal/cron/store.go",
+        "internal/automation/cron/job.go",
+        "internal/automation/cron/store.go",
         "internal/tools/parity_b35d692f_test.go"
       ],
       "ready_when": [
         "Cron schedule parser + repeat state fixtures is validated, so create/update can reject invalid operator schedules before persistence.",
         "Cron prompt/script safety + pre-run script contract is validated, so create/update can block unsafe prompt/script inputs before persistence.",
-        "The existing internal/cron Store supports Create/Get/List/Update/Delete over bbolt and can be opened in tests with newTestStore-style fixtures."
+        "The existing internal/automation/cron Store supports Create/Get/List/Update/Delete over bbolt and can be opened in tests with newTestStore-style fixtures."
       ],
       "not_ready_when": [
         "The slice starts the Scheduler, submits to kernel, delivers messages, calls live providers, or implements HTTP admin endpoints.",
@@ -7651,13 +7651,13 @@
       "write_scope": [
         "internal/tools/cronjob_tool.go",
         "internal/tools/cronjob_tool_test.go",
-        "internal/cron/job.go",
-        "internal/cron/store.go",
+        "internal/automation/cron/job.go",
+        "internal/automation/cron/store.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestCronjobTool_' -count=1",
-        "go test ./internal/cron ./internal/tools -count=1",
+        "go test ./internal/automation/cron ./internal/tools -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -7683,7 +7683,7 @@
       "name": "Cron run resource release contract",
       "priority": "P2",
       "status": "complete",
-      "contract": "internal/cron exposes a typed per-run resource-release ledger helper that records spawned subprocess PIDs (via an injected killer interface), io.Closer values for SQLite session DBs, and outbound HTTP RoundTripper idle-closables. The helper guarantees deterministic close ordering, idempotent re-entry, partial-failure continuation, and explicit evidence vocabulary so a later Executor binding can release every per-run resource exactly once. The helper does not start a kernel turn, hit a provider, manage MCP stdio runtimes, or change the Scheduler goroutine lifecycle.",
+      "contract": "internal/automation/cron exposes a typed per-run resource-release ledger helper that records spawned subprocess PIDs (via an injected killer interface), io.Closer values for SQLite session DBs, and outbound HTTP RoundTripper idle-closables. The helper guarantees deterministic close ordering, idempotent re-entry, partial-failure continuation, and explicit evidence vocabulary so a later Executor binding can release every per-run resource exactly once. The helper does not start a kernel turn, hit a provider, manage MCP stdio runtimes, or change the Scheduler goroutine lifecycle.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "gateway",
@@ -7693,27 +7693,27 @@
         "system"
       ],
       "degraded_mode": "Cron run completion records cron_release_subprocess_killed, cron_release_session_db_closed, cron_release_http_idle_closed, cron_release_http_idle_closed_failed, or cron_release_skipped_no_resource evidence so operator-facing health surfaces show whether ephemeral resources were reaped, instead of silently leaking fds across ticks.",
-      "fixture": "internal/cron/run_release_test.go::TestRunReleaseLedger_*",
+      "fixture": "internal/automation/cron/run_release_test.go::TestRunReleaseLedger_*",
       "source_refs": [
         "../hermes-agent/cron/scheduler.py@9b55365f:run_job",
         "../hermes-agent/gateway/run.py@9b55365f:close ephemeral agents",
         "../hermes-agent/tests/cron/test_scheduler.py@9b55365f",
         "../hermes-agent/tests/gateway/test_gateway_shutdown.py@9b55365f",
         "../hermes-agent/tests/gateway/test_status.py@9b55365f",
-        "internal/cron/executor.go:Executor.Run",
-        "internal/cron/run_completion.go",
-        "internal/cron/heartbeat.go",
+        "internal/automation/cron/executor.go:Executor.Run",
+        "internal/automation/cron/run_completion.go",
+        "internal/automation/cron/heartbeat.go",
         "internal/tools/mcp_stdio.go"
       ],
       "ready_when": [
         "Cronjob tool action envelope over native store, MCP stdio orphan cleanup after cron ticks, and Cron schedule parser + repeat state fixtures are all validated on main; this slice only adds a per-run release ledger helper plus a fixture file.",
-        "internal/cron/run_release.go and internal/cron/run_release_test.go are absent on main; the worker's first edit is the failing fixture.",
+        "internal/automation/cron/run_release.go and internal/automation/cron/run_release_test.go are absent on main; the worker's first edit is the failing fixture.",
         "Tests use synthetic Closer slices, fake subprocess-PID killer fakes, and an injected clock; no real os/exec spawn, real *sql.DB open, real http.Client request, real MCP stdio runtime, or live scheduler goroutine is required."
       ],
       "not_ready_when": [
         "The slice changes Scheduler.tick goroutine lifecycle, kernel turn submission, MCP stdio orphan-cleanup semantics in internal/tools/mcp_stdio.go, executor cron.Job persistence, run heartbeat or run_completion ordering, or kernel/Render() consumer behavior.",
         "The slice depends on real subprocess spawn, real network connections, or live MCP stdio servers in the unit tests.",
-        "The slice promotes cron_release_* evidence to a different surface than the existing internal/cron run completion + heartbeat ledger; cross-package telemetry binding is a dependent row.",
+        "The slice promotes cron_release_* evidence to a different surface than the existing internal/automation/cron run completion + heartbeat ledger; cross-package telemetry binding is a dependent row.",
         "The slice changes Goncho/Honcho memory release semantics; memory cleanup remains the Phase 3/5.N session shutdown row."
       ],
       "blocked_by": [
@@ -7729,21 +7729,21 @@
         "TestRunReleaseLedger_PartialFailureContinues makes the second of three closers return an error; the helper still calls the third, records cron_release_http_idle_closed_failed evidence with the error, and returns the aggregate failure without panicking.",
         "TestRunReleaseLedger_NoResourceRecordsSkippedEvidence calls the helper with empty closer/PID slices and proves cron_release_skipped_no_resource evidence is emitted exactly once.",
         "TestRunReleaseLedger_IsIdempotent calls the helper twice on the same ledger and proves the second call is a no-op with cron_release_skipped_no_resource evidence (no double-close, no double-kill).",
-        "Existing internal/cron Executor, run_completion, heartbeat, and integration tests remain green without editing executor.go, run_completion.go, heartbeat.go, or scheduler.go."
+        "Existing internal/automation/cron Executor, run_completion, heartbeat, and integration tests remain green without editing executor.go, run_completion.go, heartbeat.go, or scheduler.go."
       ],
-      "note": "Complete: TDD added internal/cron/run_release.go exposing RunReleaseLedger with RegisterCloser, RegisterIdleClosable, RegisterSubprocess, and Release(SubprocessKiller). Release closes each registered resource in registration order, continues past errors via errors.Join, and emits cron_release_session_db_closed, cron_release_http_idle_closed, cron_release_subprocess_killed evidence with structured Fields. The session-db and http-idle paths emit *_failed codes when Close() returns an error. Empty ledgers and second Release calls return cron_release_skipped_no_resource exactly once. Executor binding stays a dependent row; scheduler goroutines, kernel turns, MCP stdio runtimes, and run_completion/heartbeat ordering are unchanged.",
+      "note": "Complete: TDD added internal/automation/cron/run_release.go exposing RunReleaseLedger with RegisterCloser, RegisterIdleClosable, RegisterSubprocess, and Release(SubprocessKiller). Release closes each registered resource in registration order, continues past errors via errors.Join, and emits cron_release_session_db_closed, cron_release_http_idle_closed, cron_release_subprocess_killed evidence with structured Fields. The session-db and http-idle paths emit *_failed codes when Close() returns an error. Empty ledgers and second Release calls return cron_release_skipped_no_resource exactly once. Executor binding stays a dependent row; scheduler goroutines, kernel turns, MCP stdio runtimes, and run_completion/heartbeat ordering are unchanged.",
       "write_scope": [
-        "internal/cron/run_release.go",
-        "internal/cron/run_release_test.go",
+        "internal/automation/cron/run_release.go",
+        "internal/automation/cron/run_release_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron -run '^TestRunReleaseLedger_' -count=1",
-        "go test ./internal/cron -count=1",
+        "go test ./internal/automation/cron -run '^TestRunReleaseLedger_' -count=1",
+        "go test ./internal/automation/cron -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
-        "internal/cron/run_release_test.go fixtures prove deterministic close ordering, subprocess kill evidence, partial-failure continuation, no-resource skipped evidence, and idempotent re-entry without editing executor.go, run_completion.go, heartbeat.go, scheduler.go, or internal/tools/mcp_stdio.go."
+        "internal/automation/cron/run_release_test.go fixtures prove deterministic close ordering, subprocess kill evidence, partial-failure continuation, no-resource skipped evidence, and idempotent re-entry without editing executor.go, run_completion.go, heartbeat.go, scheduler.go, or internal/tools/mcp_stdio.go."
       ],
       "provenance": {
         "origin_type": "hybrid",
@@ -7760,7 +7760,7 @@
       "name": "Cron run resource release executor binding",
       "priority": "P2",
       "status": "complete",
-      "contract": "internal/cron Executor.Run pushes per-run *sql.DB session stores, tool subprocess handles, and outbound RoundTripper idle-closables into the validated Cron run resource release ledger before returning, so the next Scheduler tick observes no leaked fds; success, kernel-error, ctx-cancel, and timeout paths all release through the same ledger exactly once.",
+      "contract": "internal/automation/cron Executor.Run pushes per-run *sql.DB session stores, tool subprocess handles, and outbound RoundTripper idle-closables into the validated Cron run resource release ledger before returning, so the next Scheduler tick observes no leaked fds; success, kernel-error, ctx-cancel, and timeout paths all release through the same ledger exactly once.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "gateway",
@@ -7770,13 +7770,13 @@
         "system"
       ],
       "degraded_mode": "Cron run completion ledger reports cron_release_executor_skipped, cron_release_executor_panicked, or cron_release_executor_partial when the executor binding cannot guarantee per-run release, instead of silently leaking handles across ticks.",
-      "fixture": "internal/cron/executor_release_test.go::TestExecutorRunReleasesPerRunResources_*",
+      "fixture": "internal/automation/cron/executor_release_test.go::TestExecutorRunReleasesPerRunResources_*",
       "source_refs": [
         "../hermes-agent/cron/scheduler.py@9b55365f:run_job",
         "../hermes-agent/gateway/run.py@9b55365f:close ephemeral agents",
-        "internal/cron/executor.go:Executor.Run",
-        "internal/cron/run_release.go",
-        "internal/cron/run_completion.go"
+        "internal/automation/cron/executor.go:Executor.Run",
+        "internal/automation/cron/run_release.go",
+        "internal/automation/cron/run_completion.go"
       ],
       "ready_when": [
         "Cron run resource release contract is complete on main and run_release.go exposes the typed ledger.",
@@ -7797,22 +7797,22 @@
         "TestExecutorRunReleasesPerRunResources_KernelErrorPath proves a forced KernelAPI.Submit failure still releases all registered resources before Run returns, with the kernel error returned to the caller unchanged.",
         "TestExecutorRunReleasesPerRunResources_CtxCancelPath cancels the run context after registration but before completion, proves all registered resources are released exactly once, and records cron_release_executor_partial evidence.",
         "TestExecutorRunReleasesPerRunResources_NoRegisteredResources runs a minimal job with no registrations and proves the ledger reports cron_release_skipped_no_resource without errors.",
-        "Existing internal/cron Executor, run_completion, heartbeat, integration_test, and durable_ledger tests remain green without editing run_completion.go, heartbeat.go, scheduler.go, or kernel package code."
+        "Existing internal/automation/cron Executor, run_completion, heartbeat, integration_test, and durable_ledger tests remain green without editing run_completion.go, heartbeat.go, scheduler.go, or kernel package code."
       ],
-      "note": "Complete: TDD landed internal/cron/release_binding_test.go and extended internal/cron/executor.go with two ExecutorConfig fields (SubprocessKiller, RegisterRelease) and a new public Executor.RunWithRelease(ctx, job) ([]ReleaseEvidence, error) method. Run() now delegates through RunWithRelease so every exit path (success, kernel-Submit error, ctx-cancel, timeout) constructs a fresh RunReleaseLedger per call, runs the registration seam, and defers ledger.Release through the configured SubprocessKiller. Tests use fake io.Closer plus fake SubprocessKiller fixtures (no goroutines, no real DB, no real HTTP, no real os.Process) to prove all three release evidence codes fire on success, the kernel error is surfaced with full evidence on kernel-error, ctx cancellation still drains registered resources, an empty ledger emits exactly one cron_release_skipped_no_resource entry, and aggregated Release errors do not mask the kernel error. internal/cron/run_release.go was not modified. Existing cron/Executor/run_completion/heartbeat/durable_ledger tests stay green and `go build ./...` succeeds.",
+      "note": "Complete: TDD landed internal/automation/cron/release_binding_test.go and extended internal/automation/cron/executor.go with two ExecutorConfig fields (SubprocessKiller, RegisterRelease) and a new public Executor.RunWithRelease(ctx, job) ([]ReleaseEvidence, error) method. Run() now delegates through RunWithRelease so every exit path (success, kernel-Submit error, ctx-cancel, timeout) constructs a fresh RunReleaseLedger per call, runs the registration seam, and defers ledger.Release through the configured SubprocessKiller. Tests use fake io.Closer plus fake SubprocessKiller fixtures (no goroutines, no real DB, no real HTTP, no real os.Process) to prove all three release evidence codes fire on success, the kernel error is surfaced with full evidence on kernel-error, ctx cancellation still drains registered resources, an empty ledger emits exactly one cron_release_skipped_no_resource entry, and aggregated Release errors do not mask the kernel error. internal/automation/cron/run_release.go was not modified. Existing cron/Executor/run_completion/heartbeat/durable_ledger tests stay green and `go build ./...` succeeds.",
       "write_scope": [
-        "internal/cron/executor.go",
-        "internal/cron/executor_test.go",
-        "internal/cron/release_binding_test.go",
+        "internal/automation/cron/executor.go",
+        "internal/automation/cron/executor_test.go",
+        "internal/automation/cron/release_binding_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron -run '^TestExecutorRun_' -count=1",
-        "go test ./internal/cron -count=1",
+        "go test ./internal/automation/cron -run '^TestExecutorRun_' -count=1",
+        "go test ./internal/automation/cron -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
-        "internal/cron/release_binding_test.go fixtures prove success, kernel-error, and ctx-cancel paths all release per-run closers/PIDs through the validated ledger exactly once with stable evidence, while existing executor/run_completion/heartbeat/durable_ledger tests stay green."
+        "internal/automation/cron/release_binding_test.go fixtures prove success, kernel-error, and ctx-cancel paths all release per-run closers/PIDs through the validated ledger exactly once with stable evidence, while existing executor/run_completion/heartbeat/durable_ledger tests stay green."
       ],
       "provenance": {
         "origin_type": "hybrid",
@@ -7838,19 +7838,19 @@
         "system"
       ],
       "degraded_mode": "Cron execution skips missing, unreadable, invalid, or not-yet-run context sources with visible evidence while preserving the base prompt.",
-      "fixture": "internal/cron/context_from_test.go",
+      "fixture": "internal/automation/cron/context_from_test.go",
       "source_refs": [
         "../hermes-agent/cron/jobs.py@755a2804",
         "../hermes-agent/cron/scheduler.py@755a2804:_build_job_prompt",
         "../hermes-agent/tools/cronjob_tools.py@755a2804:cronjob(context_from)",
         "../hermes-agent/tests/cron/test_cron_context_from.py@755a2804",
-        "internal/cron/job.go",
-        "internal/cron/store.go",
-        "internal/cron/executor.go"
+        "internal/automation/cron/job.go",
+        "internal/automation/cron/store.go",
+        "internal/automation/cron/executor.go"
       ],
       "ready_when": [
         "Cronjob tool action envelope over native store is validated, so create/update/list can persist and clear context_from without inventing a second tool surface.",
-        "internal/cron RunStore already records completed run output previews; this slice can introduce a bounded output read model over existing run audit instead of Hermes' output directory."
+        "internal/automation/cron RunStore already records completed run output previews; this slice can introduce a bounded output read model over existing run audit instead of Hermes' output directory."
       ],
       "not_ready_when": [
         "The slice waits for upstream referenced jobs to finish in the same scheduler tick, reads arbitrary file paths, or changes Phase 2.D cron run audit semantics."
@@ -7866,14 +7866,14 @@
       ],
       "note": "Complete: TDD added Go-native cron context_from prompt chaining over RunStore output previews. Executor prompt assembly now injects the most recent completed output for referenced job IDs before the base prompt, truncates each context block at 8000 characters with a marker, skips invalid/missing/not-yet-run/unreadable sources with log evidence, and keeps the source of truth in SQLite/bbolt rather than Hermes' Markdown output directory.",
       "write_scope": [
-        "internal/cron/",
+        "internal/automation/cron/",
         "internal/tools/",
         "cmd/gormes/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron -run TestCronContextFrom -count=1",
-        "go test ./internal/cron ./internal/tools ./cmd/gormes -count=1",
+        "go test ./internal/automation/cron -run TestCronContextFrom -count=1",
+        "go test ./internal/automation/cron ./internal/tools ./cmd/gormes -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -7932,12 +7932,12 @@
         "system"
       ],
       "degraded_mode": "Cron delivery evidence reports target_parse_failed, channel_directory_missing, media_ignored, live_adapter_unavailable, and fallback_sink_used without dropping the run audit row.",
-      "fixture": "internal/cron/delivery_plan_test.go",
+      "fixture": "internal/automation/cron/delivery_plan_test.go",
       "source_refs": [
         "../hermes-agent/cron/scheduler.py@755a2804:deliver parsing and MEDIA handling",
         "../hermes-agent/gateway/run.py@755a2804:live adapter delivery",
-        "internal/cron/executor.go",
-        "internal/cron/sink.go",
+        "internal/automation/cron/executor.go",
+        "internal/automation/cron/sink.go",
         "internal/gateway/manager.go"
       ],
       "ready_when": [
@@ -7954,17 +7954,17 @@
         "TestCronDeliveryPlan_MediaTags extracts `[MEDIA:path]` references into media attachments while leaving text delivery intact and redacting traversal paths.",
         "TestCronDeliveryPlan_LiveAdapterFallback uses fake live adapter and fake DeliverySink implementations to prove live success bypasses fallback, live unavailable uses fallback, and both failures surface delivery evidence while preserving run status."
       ],
-      "note": "Complete: TDD landed internal/cron/delivery_plan_test.go and delivery_plan.go. Cron delivery planning now normalizes omitted/local/origin/explicit/comma-separated targets, reports malformed targets and missing channel-directory homes as degraded evidence, extracts safe [MEDIA:path] attachments while redacting traversal paths, and tries a live adapter before falling back through the existing DeliverySink. Executor success delivery now uses the shared helper without changing the Phase 2.D cron_runs schema.",
+      "note": "Complete: TDD landed internal/automation/cron/delivery_plan_test.go and delivery_plan.go. Cron delivery planning now normalizes omitted/local/origin/explicit/comma-separated targets, reports malformed targets and missing channel-directory homes as degraded evidence, extracts safe [MEDIA:path] attachments while redacting traversal paths, and tries a live adapter before falling back through the existing DeliverySink. Executor success delivery now uses the shared helper without changing the Phase 2.D cron_runs schema.",
       "write_scope": [
-        "internal/cron/delivery_plan.go",
-        "internal/cron/delivery_plan_test.go",
-        "internal/cron/sink.go",
-        "internal/cron/executor.go",
+        "internal/automation/cron/delivery_plan.go",
+        "internal/automation/cron/delivery_plan_test.go",
+        "internal/automation/cron/sink.go",
+        "internal/automation/cron/executor.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron -run '^TestCronDeliveryPlan_' -count=1",
-        "go test ./internal/cron ./internal/gateway -count=1",
+        "go test ./internal/automation/cron -run '^TestCronDeliveryPlan_' -count=1",
+        "go test ./internal/automation/cron ./internal/gateway -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -8006,14 +8006,14 @@
         "system"
       ],
       "degraded_mode": "If no channel directory with home targets is available, `all` yields channel_directory_missing evidence and does not invent delivery targets, inspect live config, or fall back to local silently.",
-      "fixture": "internal/cron/delivery_plan_test.go::TestCronDeliveryPlan_RoutingIntentAll",
+      "fixture": "internal/automation/cron/delivery_plan_test.go::TestCronDeliveryPlan_RoutingIntentAll",
       "source_refs": [
         "./hermes-agent/cron/scheduler.py@486b14b42:_expand_routing_tokens",
         "./hermes-agent/cron/scheduler.py@486b14b42:_resolve_delivery_targets",
         "./hermes-agent/tests/cron/test_scheduler.py@486b14b42:TestRoutingIntents",
         "./hermes-agent/tools/cronjob_tools.py@486b14b42:deliver schema description",
-        "internal/cron/delivery_plan.go",
-        "internal/cron/delivery_plan_test.go"
+        "internal/automation/cron/delivery_plan.go",
+        "internal/automation/cron/delivery_plan_test.go"
       ],
       "ready_when": [
         "Cron multi-target delivery + media/live-adapter fallback is complete and already owns comma-separated deliver target parsing.",
@@ -8030,15 +8030,15 @@
         "TestCronDeliveryPlan_RoutingIntentAllComposesAndDedupes proves `origin,all`, explicit targets, and `local` compose while duplicate normalized targets are emitted once.",
         "TestCronDeliveryPlan_RoutingIntentAllMissingDirectoryReturnsEvidence proves unavailable or empty directories return channel_directory_missing evidence for target `all` without defaulting to local."
       ],
-      "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 36, so one P1 source-backed row was allowed. Fresh Hermes 486b14b42 added `deliver=all` routing intent after the existing Gormes cron multi-target row was completed at Hermes 755a2804, making that complete row stale for this new atom. Other fresh upstream deltas were already covered or row-backed: Microsoft Graph helpers are complete, Google Workspace auth/write work is mapped, cron no-agent and delivery rows exist, core provider/Goncho/browser/install/release/public surfaces have builder-ready or completed rows. TDD added `DeliveryAllTargetDirectory` and plan-time `all` expansion in internal/cron/delivery_plan.go. The expansion sorts fake directory home targets deterministically, composes with origin/local/explicit targets, deduplicates normalized platform/chat/thread outputs, and returns channel_directory_missing evidence for unavailable or empty directories instead of treating `all` as a literal platform or silently falling back to local.",
+      "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 36, so one P1 source-backed row was allowed. Fresh Hermes 486b14b42 added `deliver=all` routing intent after the existing Gormes cron multi-target row was completed at Hermes 755a2804, making that complete row stale for this new atom. Other fresh upstream deltas were already covered or row-backed: Microsoft Graph helpers are complete, Google Workspace auth/write work is mapped, cron no-agent and delivery rows exist, core provider/Goncho/browser/install/release/public surfaces have builder-ready or completed rows. TDD added `DeliveryAllTargetDirectory` and plan-time `all` expansion in internal/automation/cron/delivery_plan.go. The expansion sorts fake directory home targets deterministically, composes with origin/local/explicit targets, deduplicates normalized platform/chat/thread outputs, and returns channel_directory_missing evidence for unavailable or empty directories instead of treating `all` as a literal platform or silently falling back to local.",
       "write_scope": [
-        "internal/cron/delivery_plan.go",
-        "internal/cron/delivery_plan_test.go",
+        "internal/automation/cron/delivery_plan.go",
+        "internal/automation/cron/delivery_plan_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron -run '^TestCronDeliveryPlan_RoutingIntentAll' -count=1",
-        "go test ./internal/cron -run '^TestCronDeliveryPlan_' -count=1",
+        "go test ./internal/automation/cron -run '^TestCronDeliveryPlan_RoutingIntentAll' -count=1",
+        "go test ./internal/automation/cron -run '^TestCronDeliveryPlan_' -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -8051,18 +8051,18 @@
       },
       "evidence": {
         "implementation": [
-          "internal/cron/delivery_plan.go: DeliveryAllTargetDirectory lists home targets for routing-intent expansion without reading live config.",
-          "internal/cron/delivery_plan.go: resolveCronDeliveryTargets expands reserved `all`, sorts targets by Normalized(), and preserves existing dedupe across comma-separated parts."
+          "internal/automation/cron/delivery_plan.go: DeliveryAllTargetDirectory lists home targets for routing-intent expansion without reading live config.",
+          "internal/automation/cron/delivery_plan.go: resolveCronDeliveryTargets expands reserved `all`, sorts targets by Normalized(), and preserves existing dedupe across comma-separated parts."
         ],
         "tests": [
-          "internal/cron/delivery_plan_test.go: TestCronDeliveryPlan_RoutingIntentAllExpandsHomeTargets",
-          "internal/cron/delivery_plan_test.go: TestCronDeliveryPlan_RoutingIntentAllComposesAndDedupes",
-          "internal/cron/delivery_plan_test.go: TestCronDeliveryPlan_RoutingIntentAllMissingDirectoryReturnsEvidence"
+          "internal/automation/cron/delivery_plan_test.go: TestCronDeliveryPlan_RoutingIntentAllExpandsHomeTargets",
+          "internal/automation/cron/delivery_plan_test.go: TestCronDeliveryPlan_RoutingIntentAllComposesAndDedupes",
+          "internal/automation/cron/delivery_plan_test.go: TestCronDeliveryPlan_RoutingIntentAllMissingDirectoryReturnsEvidence"
         ],
         "verification": [
-          "RED: go test ./internal/cron -run '^TestCronDeliveryPlan_RoutingIntentAll' -count=1 failed because `all` resolved as missing platform evidence.",
-          "GREEN: go test ./internal/cron -run '^TestCronDeliveryPlan_RoutingIntentAll' -count=1 passed.",
-          "GREEN: go test ./internal/cron -run '^TestCronDeliveryPlan_' -count=1 passed."
+          "RED: go test ./internal/automation/cron -run '^TestCronDeliveryPlan_RoutingIntentAll' -count=1 failed because `all` resolved as missing platform evidence.",
+          "GREEN: go test ./internal/automation/cron -run '^TestCronDeliveryPlan_RoutingIntentAll' -count=1 passed.",
+          "GREEN: go test ./internal/automation/cron -run '^TestCronDeliveryPlan_' -count=1 passed."
         ]
       }
     }
@@ -8641,11 +8641,11 @@
         "system"
       ],
       "degraded_mode": "Session file too large to export cleanly, corrupt session state, or rollover failure reports session_rollover_failed with specific path/error and keeps original session intact.",
-      "fixture": "internal/session/rollover_test.go",
+      "fixture": "internal/persistence/session/rollover_test.go",
       "source_refs": [
         "workspace-link/AGENTS.md",
         "workspace-mineru/AGENTS.md",
-        "internal/session/session.go",
+        "internal/persistence/session/session.go",
         "internal/goncho/service.go",
         "docs/content/building-gormes/fleet-operational-patterns.md",
         "docs/content/building-gormes/fleet-integration-plan.md"
@@ -8668,13 +8668,13 @@
         "Original session preserved after rollover."
       ],
       "write_scope": [
-        "internal/session/rollover.go",
-        "internal/session/rollover_test.go",
+        "internal/persistence/session/rollover.go",
+        "internal/persistence/session/rollover_test.go",
         "cmd/gormes/session_rollover.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/session -run TestRollover -count=1",
+        "go test ./internal/persistence/session -run TestRollover -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -8762,7 +8762,7 @@
         "system"
       ],
       "degraded_mode": "Missing fragment, circular include, or render failure reports prompt_fragment_error with chain trace.",
-      "fixture": "internal/hermes/prompt_fragments_test.go",
+      "fixture": "internal/llm/prompt_fragments_test.go",
       "source_refs": [
         "../agent-zero@7c71185f/prompts/ (72 fragment files)",
         "../agent-zero@7c71185f/agent.py:prepare_prompt,read_prompt,parse_prompt",
@@ -8791,13 +8791,13 @@
         "Fragment cache invalidates on file change."
       ],
       "write_scope": [
-        "internal/hermes/prompt_fragments.go",
-        "internal/hermes/prompt_fragments_test.go",
+        "internal/llm/prompt_fragments.go",
+        "internal/llm/prompt_fragments_test.go",
         "prompts/*.md",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run TestPromptFragments -count=1",
+        "go test ./internal/llm -run TestPromptFragments -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -8810,7 +8810,7 @@
           "agent-zero:7c71185f helpers/files.py",
           "agent-zero:7c71185f prompts/"
         ],
-        "note": "2026-05-07 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 84, below the 90-row ceiling, but no new row was needed: P1 gateway event-bus remained an umbrella parent, Telegram thread fallback remained blocked by thread-aware Go SDK/gateway seams, and this P2 tools row was the highest generated builder-ready slice with prerequisites satisfied by the validated extension hook row and profile skill/profile invocation rows. Source refs were tightened to exact agent-zero prompt include and read paths before implementation. TDD landed internal/hermes/prompt_fragments.go and prompt_fragments_test.go; tests prove priority source lookup, quoted and unquoted include directives, include-original fallback chaining, variable substitution, prompt_fragment_error circular-chain evidence, and mtime/size cache invalidation."
+        "note": "2026-05-07 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 84, below the 90-row ceiling, but no new row was needed: P1 gateway event-bus remained an umbrella parent, Telegram thread fallback remained blocked by thread-aware Go SDK/gateway seams, and this P2 tools row was the highest generated builder-ready slice with prerequisites satisfied by the validated extension hook row and profile skill/profile invocation rows. Source refs were tightened to exact agent-zero prompt include and read paths before implementation. TDD landed internal/llm/prompt_fragments.go and prompt_fragments_test.go; tests prove priority source lookup, quoted and unquoted include directives, include-original fallback chaining, variable substitution, prompt_fragment_error circular-chain evidence, and mtime/size cache invalidation."
       }
     }
   },
@@ -8905,16 +8905,16 @@
         "system"
       ],
       "degraded_mode": "Missing env refs resolve to cron_env_ref_unresolved evidence and concurrent state-write conflicts retry or report cron_state_write_conflict without corrupting the job/run store.",
-      "fixture": "internal/cron/scheduler_env_test.go; internal/cron/run_state_concurrency_test.go",
+      "fixture": "internal/automation/cron/scheduler_env_test.go; internal/automation/cron/run_state_concurrency_test.go",
       "source_refs": [
         "./hermes-agent/cron/scheduler.py@b816fd4e2:_expand_env_vars",
         "./hermes-agent/tests/cron/test_scheduler.py@b816fd4e2:TestRunJobConfigEnvVarExpansion",
         "./hermes-agent/cron/jobs.py@b816fd4e2:_jobs_file_lock",
         "./hermes-agent/tests/cron/test_jobs.py@b816fd4e2:TestMarkJobRunConcurrency",
-        "internal/cron/scheduler.go",
-        "internal/cron/store.go",
-        "internal/cron/run_store.go",
-        "internal/cron/executor.go"
+        "internal/automation/cron/scheduler.go",
+        "internal/automation/cron/store.go",
+        "internal/automation/cron/run_store.go",
+        "internal/automation/cron/executor.go"
       ],
       "ready_when": [
         "Cron job store/run store already exist and can be exercised with temp roots and fake clocks.",
@@ -8931,17 +8931,17 @@
       ],
       "note": "Complete 2026-05-06: the bounded all-topic Hermes parity weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 76, so adding one row was allowed, but existing source-backed cron/operator work was already builder-ready. The sweep classified this row as stale-upstream/refinement-needed, refreshed source refs from older cron drift commits to active nested Hermes b816fd4e2, fixed the canonical progress write scope, and promoted it to P1 before implementation. TDD added a cron env-ref runtime boundary that expands `${VAR}` refs in model/provider/delivery/workdir/script/origin fields only for the active run, leaves unresolved refs literal, emits redacted cron_env_ref_unresolved evidence, and passes the expanded model to the kernel without persisting resolved values back into the job store. TDD also moved post-run job completion through a serialized bbolt transaction that reloads current job state, increments every parallel completion, records every run, and keeps final job status deterministic by latest started_at.",
       "write_scope": [
-        "internal/cron/scheduler.go",
-        "internal/cron/scheduler_env_test.go",
-        "internal/cron/store.go",
-        "internal/cron/run_store.go",
-        "internal/cron/run_state_concurrency_test.go",
-        "internal/cron/executor.go",
+        "internal/automation/cron/scheduler.go",
+        "internal/automation/cron/scheduler_env_test.go",
+        "internal/automation/cron/store.go",
+        "internal/automation/cron/run_store.go",
+        "internal/automation/cron/run_state_concurrency_test.go",
+        "internal/automation/cron/executor.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron -run 'TestCronSchedulerExpandsConfigEnvRefs|TestCronRunStateParallelWritesSerialize' -count=1",
-        "go test ./internal/cron -count=1",
+        "go test ./internal/automation/cron -run 'TestCronSchedulerExpandsConfigEnvRefs|TestCronRunStateParallelWritesSerialize' -count=1",
+        "go test ./internal/automation/cron -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -8957,8 +8957,8 @@
         "note": "Direct nested Hermes cron drift captured as a small Go cron store/executor slice against active Hermes b816fd4e2."
       },
       "evidence": {
-        "implementation": "internal/cron/executor.go, internal/cron/store.go, internal/cron/scheduler_env_test.go, internal/cron/run_state_concurrency_test.go",
-        "tests": "go test ./internal/cron -run 'TestCronSchedulerExpandsConfigEnvRefs|TestCronRunStateParallelWritesSerialize' -count=1; go test ./internal/cron -count=1",
+        "implementation": "internal/automation/cron/executor.go, internal/automation/cron/store.go, internal/automation/cron/scheduler_env_test.go, internal/automation/cron/run_state_concurrency_test.go",
+        "tests": "go test ./internal/automation/cron -run 'TestCronSchedulerExpandsConfigEnvRefs|TestCronRunStateParallelWritesSerialize' -count=1; go test ./internal/automation/cron -count=1",
         "note": "Cron fixtures prove env-ref expansion, unresolved redacted evidence, runtime-only expansion without persisted secret leakage, and serialized parallel run-state writes with deterministic latest-run status."
       }
     }
@@ -8982,12 +8982,12 @@
         "system"
       ],
       "degraded_mode": "If a cron job carries malformed origin metadata, delivery planning records channel_directory_missing or target_parse_failed evidence; kernel submission stays cron-scoped and does not inherit the malformed origin as a sender identity.",
-      "fixture": "internal/cron/executor_test.go:TestCronExecutorDoesNotUseDeliveryOriginAsSessionIdentity",
+      "fixture": "internal/automation/cron/executor_test.go:TestCronExecutorDoesNotUseDeliveryOriginAsSessionIdentity",
       "source_refs": [
         "./hermes-agent/cron/scheduler.py@dbafa083b:run_job clears HERMES_SESSION_* while preserving HERMES_CRON_AUTO_DELIVER_*",
         "./hermes-agent/cron/scheduler.py@f2afa68a4:run_job",
-        "internal/cron/executor.go:runOneTurn",
-        "internal/cron/delivery_plan.go:PlanCronDeliveryForJob",
+        "internal/automation/cron/executor.go:runOneTurn",
+        "internal/automation/cron/delivery_plan.go:PlanCronDeliveryForJob",
         "internal/kernel/frame.go:PlatformEvent.SessionContext"
       ],
       "ready_when": [
@@ -9006,13 +9006,13 @@
       ],
       "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes f2afa68a4 and Honcho e659b6b. The fresh upstream behavior delta was Hermes dbafa083b: cron delivery origin must not seed live sender identity while output delivery still uses origin routing. Gormes already submitted cron turns without origin-derived SessionContext; this slice adds the missing regression fixture so future cron/tool/channel work cannot reintroduce origin-as-sender drift.",
       "write_scope": [
-        "internal/cron/executor.go",
-        "internal/cron/executor_test.go",
+        "internal/automation/cron/executor.go",
+        "internal/automation/cron/executor_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron -run 'TestCronExecutorDoesNotUseDeliveryOriginAsSessionIdentity|TestCronDeliveryPlan|TestCronSchedulerExpandsConfigEnvRefs|TestCronNoAgent' -count=1",
-        "go test ./internal/cron -count=1",
+        "go test ./internal/automation/cron -run 'TestCronExecutorDoesNotUseDeliveryOriginAsSessionIdentity|TestCronDeliveryPlan|TestCronSchedulerExpandsConfigEnvRefs|TestCronNoAgent' -count=1",
+        "go test ./internal/automation/cron -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -9029,14 +9029,14 @@
       },
       "evidence": {
         "implementation": [
-          "internal/cron/executor_test.go:TestCronExecutorDoesNotUseDeliveryOriginAsSessionIdentity"
+          "internal/automation/cron/executor_test.go:TestCronExecutorDoesNotUseDeliveryOriginAsSessionIdentity"
         ],
         "tests": [
-          "go test ./internal/cron -run '^TestCronExecutorDoesNotUseDeliveryOriginAsSessionIdentity$' -count=1"
+          "go test ./internal/automation/cron -run '^TestCronExecutorDoesNotUseDeliveryOriginAsSessionIdentity$' -count=1"
         ],
         "verification": [
           "GUARD: focused fixture passed against existing runtime isolation, proving no production cron change was required.",
-          "GREEN: go test ./internal/cron -run '^TestCronExecutorDoesNotUseDeliveryOriginAsSessionIdentity$' -count=1 -> ok."
+          "GREEN: go test ./internal/automation/cron -run '^TestCronExecutorDoesNotUseDeliveryOriginAsSessionIdentity$' -count=1 -> ok."
         ]
       }
     }
@@ -9060,7 +9060,7 @@
         "system"
       ],
       "degraded_mode": "Script failures, missing workdirs, invalid permissions, idle timeouts, Codex auth refresh failures, and env restoration errors return redacted cron_execution_* evidence without leaking env values, running live shells, or corrupting job/run state.",
-      "fixture": "internal/cron/script_workdir_execution_test.go; internal/cron/inactivity_timeout_test.go",
+      "fixture": "internal/automation/cron/script_workdir_execution_test.go; internal/automation/cron/inactivity_timeout_test.go",
       "source_refs": [
         "../hermes-agent/tests/cron/test_cron_script.py@b816fd4e2",
         "../hermes-agent/tests/cron/test_cron_workdir.py@b816fd4e2",
@@ -9069,8 +9069,8 @@
         "../hermes-agent/tests/cron/test_file_permissions.py@b816fd4e2",
         "../hermes-agent/cron/scheduler.py@b816fd4e2",
         "../hermes-agent/cron/jobs.py@b816fd4e2",
-        "internal/cron/executor.go",
-        "internal/cron/job.go",
+        "internal/automation/cron/executor.go",
+        "internal/automation/cron/job.go",
         "internal/tools/cronjob_tool.go"
       ],
       "ready_when": [
@@ -9098,19 +9098,19 @@
         "TestCronStateFilePermissions proves job/run directories are 0700 and state files are 0600."
       ],
       "write_scope": [
-        "internal/cron/executor.go",
-        "internal/cron/job.go",
-        "internal/cron/script_workdir_execution_test.go",
-        "internal/cron/inactivity_timeout_test.go",
-        "internal/cron/store.go",
-        "internal/cron/run_store.go",
+        "internal/automation/cron/executor.go",
+        "internal/automation/cron/job.go",
+        "internal/automation/cron/script_workdir_execution_test.go",
+        "internal/automation/cron/inactivity_timeout_test.go",
+        "internal/automation/cron/store.go",
+        "internal/automation/cron/run_store.go",
         "internal/tools/cronjob_tool.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron -run 'TestCronScriptExecution|TestCronWorkdirExecution|TestCronInactivityTimeout|TestCronCodexExecutionPath|TestCronStateFilePermissions' -count=1",
+        "go test ./internal/automation/cron -run 'TestCronScriptExecution|TestCronWorkdirExecution|TestCronInactivityTimeout|TestCronCodexExecutionPath|TestCronStateFilePermissions' -count=1",
         "go test ./internal/tools -run TestCronjobTool -count=1",
-        "go test ./internal/cron ./internal/tools -count=1",
+        "go test ./internal/automation/cron ./internal/tools -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -9124,16 +9124,16 @@
       },
       "evidence": {
         "implementation": [
-          "internal/cron/executor.go",
-          "internal/cron/scheduler.go",
-          "internal/cron/store.go",
-          "internal/cron/script_workdir_execution_test.go",
-          "internal/cron/inactivity_timeout_test.go"
+          "internal/automation/cron/executor.go",
+          "internal/automation/cron/scheduler.go",
+          "internal/automation/cron/store.go",
+          "internal/automation/cron/script_workdir_execution_test.go",
+          "internal/automation/cron/inactivity_timeout_test.go"
         ],
         "tests": [
-          "go test ./internal/cron -run 'TestCronScriptExecution|TestCronWorkdirExecution|TestCronInactivityTimeout|TestCronCodexExecutionPath|TestCronStateFilePermissions' -count=1",
+          "go test ./internal/automation/cron -run 'TestCronScriptExecution|TestCronWorkdirExecution|TestCronInactivityTimeout|TestCronCodexExecutionPath|TestCronStateFilePermissions' -count=1",
           "go test ./internal/tools -run TestCronjobTool -count=1",
-          "go test ./internal/cron ./internal/tools -count=1",
+          "go test ./internal/automation/cron ./internal/tools -count=1",
           "go run ./cmd/progress validate"
         ],
         "note": "Cron executor now binds injected pre-run script evidence into prompts, restores TERMINAL_CWD around workdir runs, interrupts idle provider streams through HERMES_CRON_TIMEOUT, retries Codex 401 submissions through an injected refresh seam, serializes workdir jobs before parallel jobs, and tightens cron state directory/file modes."
@@ -9961,19 +9961,19 @@
         "hermes-agent/run_agent.py@b816fd4e2:9780",
         "hermes-agent/gateway/run.py@b816fd4e2:13370",
         "internal/events/bus.go",
-        "internal/hermes/turn_events.go",
+        "internal/llm/turn_events.go",
         "internal/tools/executor.go",
         "internal/tools/tool_events.go"
       ],
       "ready_when": [
         "Event bus core is complete and validated.",
-        "Turn event emitter already exists in internal/hermes; this slice adds the missing tool execution event emitter/wrapper behind the existing tools.ToolExecutor interface."
+        "Turn event emitter already exists in internal/llm; this slice adds the missing tool execution event emitter/wrapper behind the existing tools.ToolExecutor interface."
       ],
       "not_ready_when": [
         "The slice rewrites channel adapter dispatch, the kernel turn loop, or the full P1 event-bus integration row instead of adding the bounded producer event surface."
       ],
       "acceptance": [
-        "TurnStart/Thought/Action/Observe/Complete/Error events remain covered by internal/hermes turn emitter tests.",
+        "TurnStart/Thought/Action/Observe/Complete/Error events remain covered by internal/llm turn emitter tests.",
         "ToolStart event is emitted when a wrapped ToolExecutor invocation begins.",
         "ToolProgress or ToolOutput evidence is emitted for streamed tool output without leaking raw implementation-only errors as final messages.",
         "ToolComplete event is emitted when the wrapped tool completes, and ToolError event is emitted for executor lookup errors or failed tool events.",
@@ -9981,22 +9981,22 @@
       ],
       "note": "Complete 2026-05-06: the all-topic Hermes/Gormes parity sweep raised this existing row to P1 instead of adding backlog because it blocked the P1 `Event bus integration test: full message flow` row. TDD added internal/tools/tool_events.go with ToolEventEmitter and EventingToolExecutor over the existing tools.ToolExecutor boundary, plus lifecycle/error fixtures that prove start/output/complete/error events carry source, trace_id, tool name, agent ID, call ID, metadata, and output/error evidence. Existing turn emitter tests were renamed to match the row selector so the Hermes-side gate is non-empty.",
       "write_scope": [
-        "internal/hermes/turn_events.go",
-        "internal/hermes/turn_events_test.go",
+        "internal/llm/turn_events.go",
+        "internal/llm/turn_events_test.go",
         "internal/tools/tool_events.go",
         "internal/tools/tool_events_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run TestTurnEvents -count=1",
+        "go test ./internal/llm -run TestTurnEvents -count=1",
         "go test ./internal/tools -run TestToolEvents -count=1"
       ],
       "done_signal": [
         "Event tests prove turn lifecycle and wrapped tool execution emit structured, trace-linked bus events with completion and error paths."
       ],
       "evidence": {
-        "implementation": "internal/tools/tool_events.go, internal/tools/tool_events_test.go, internal/hermes/turn_events_test.go",
-        "tests": "go test ./internal/hermes -run TestTurnEvents -count=1; go test ./internal/tools -run TestToolEvents -count=1",
+        "implementation": "internal/tools/tool_events.go, internal/tools/tool_events_test.go, internal/llm/turn_events_test.go",
+        "tests": "go test ./internal/llm -run TestTurnEvents -count=1; go test ./internal/tools -run TestToolEvents -count=1",
         "note": "Wrapped tool execution now mirrors Hermes' tool callback surface onto Gormes' shared event bus without changing channel adapters, the kernel loop, or the full-flow integration row."
       }
     }
@@ -10213,12 +10213,12 @@
       "name": "Internal session search tool package rehome",
       "priority": "P1",
       "status": "complete",
-      "contract": "Move the model-facing session_search adapter from internal/sessionsearchtool to internal/tools/sessionsearch while preserving descriptor text, JSON schema, argument normalization, memory/session catalog execution, degraded evidence, and cmd/gormes registry wiring. This is the next behavior-preserving Tool Adapter Enclave package move after compact and trace.",
+      "contract": "Move the model-facing session_search adapter from internal/persistence/sessionsearchtool to internal/tools/sessionsearch while preserving descriptor text, JSON schema, argument normalization, memory/session catalog execution, degraded evidence, and cmd/gormes registry wiring. This is the next behavior-preserving Tool Adapter Enclave package move after compact and trace.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
       "module": "tools",
-      "degraded_mode": "If the rehome is incomplete, builds fail on the old import path or topology validation reports stale internal/sessionsearchtool references; no runtime compatibility shim is allowed.",
+      "degraded_mode": "If the rehome is incomplete, builds fail on the old import path or topology validation reports stale internal/persistence/sessionsearchtool references; no runtime compatibility shim is allowed.",
       "fixture": "internal/tools/sessionsearch/session_search_tool_schema_test.go and internal/tools/sessionsearch/session_search_tool_execution_test.go after the move, plus cmd/gormes registry tests.",
       "source_refs": [
         "internal/REFACTOR-CMD-PLAN.md:Tool Adapter Enclave",
@@ -10234,24 +10234,24 @@
       "ready_when": [
         "internal topology guard is shipped and can activate a row-scoped forbidden-root entry",
         "internal tool compact and trace helper rehome rows are complete so this move starts from the next clean tool-enclave baseline",
-        "the slice moves only internal/sessionsearchtool, not internal/kanbantools or internal/gonchotools"
+        "the slice moves only internal/persistence/sessionsearchtool, not internal/kanbantools or internal/gonchotools"
       ],
       "not_ready_when": [
         "the row attempts to consolidate multiple tool helper families in one move",
         "session_search descriptor text, JSON schema, argument defaults/limits, current-session binding, same-chat/user scope rules, or degraded evidence changes",
-        "a compatibility shim keeps internal/sessionsearchtool alive after the move"
+        "a compatibility shim keeps internal/persistence/sessionsearchtool alive after the move"
       ],
       "acceptance": [
-        "internal/internal_topology_test.go has an active tools migration entry that forbids internal/sessionsearchtool and requires internal/tools/sessionsearch",
+        "internal/internal_topology_test.go has an active tools migration entry that forbids internal/persistence/sessionsearchtool and requires internal/tools/sessionsearch",
         "internal/tools/sessionsearch preserves the session_search tool descriptor, schema, argument validation, limit clamping, and unavailable-store degraded evidence from the old package tests",
         "session_search execution tests still prove same-chat default recall, explicit user-scope widening evidence, source filters, recent/search mode, lineage shaping, and hidden tool-source filtering through the public tool interface",
         "cmd/gormes default registry imports internal/tools/sessionsearch and still registers session_search with the configured SQLite memory DB and SessionSearchDirectory",
-        "no active Go import or path literal under cmd/ or internal/ points at internal/sessionsearchtool after the move, except the intentional topology migration OldRoots entry"
+        "no active Go import or path literal under cmd/ or internal/ points at internal/persistence/sessionsearchtool after the move, except the intentional topology migration OldRoots entry"
       ],
-      "note": "TDD landed: activated the sessionsearchtool topology migration, moved internal/sessionsearchtool to internal/tools/sessionsearch without a compatibility shim, renamed the Go package to sessionsearch, updated cmd/gormes default-registry imports, and preserved the session_search descriptor, argument validation, memory/session-catalog execution, degraded evidence, same-chat/user scope behavior, lineage filtering, and hidden tool-source isolation through focused tests.",
+      "note": "TDD landed: activated the sessionsearchtool topology migration, moved internal/persistence/sessionsearchtool to internal/tools/sessionsearch without a compatibility shim, renamed the Go package to sessionsearch, updated cmd/gormes default-registry imports, and preserved the session_search descriptor, argument validation, memory/session-catalog execution, degraded evidence, same-chat/user scope behavior, lineage filtering, and hidden tool-source isolation through focused tests.",
       "write_scope": [
         "internal/internal_topology_test.go",
-        "internal/sessionsearchtool/",
+        "internal/persistence/sessionsearchtool/",
         "internal/tools/sessionsearch/",
         "cmd/gormes/registry.go",
         "cmd/gormes/registry_test.go",
@@ -10265,8 +10265,8 @@
         "git diff --check"
       ],
       "done_signal": [
-        "internal/tools/sessionsearch exists and internal/sessionsearchtool is absent",
-        "rg 'internal/sessionsearchtool|github.com/.*/internal/sessionsearchtool' cmd internal --glob '*.go' --glob '!internal/internal_topology_test.go' returns no matches",
+        "internal/tools/sessionsearch exists and internal/persistence/sessionsearchtool is absent",
+        "rg 'internal/persistence/sessionsearchtool|github.com/.*/internal/persistence/sessionsearchtool' cmd internal --glob '*.go' --glob '!internal/internal_topology_test.go' returns no matches",
         "row test_commands pass"
       ]
     }

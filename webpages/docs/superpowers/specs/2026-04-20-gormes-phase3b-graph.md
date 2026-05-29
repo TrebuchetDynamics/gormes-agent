@@ -285,7 +285,7 @@ Reuses the existing `hermes.Client.OpenStream` — same path the kernel uses for
 hermes.ChatRequest{
     Model: cfg.Model,           // or kernel's model if empty
     Stream: true,                // ncruces requires streaming; we collect all tokens
-    Messages: []hermes.Message{
+    Messages: []llm.Message{
         {Role: "system", Content: extractorSystemPrompt},
         {Role: "user",   Content: formattedBatch},
     },
@@ -419,7 +419,7 @@ type TelegramCfg struct {
 
 - **Kernel** MUST still not import `internal/memory`. Unchanged.
 - **TUI** MUST still not import `internal/memory`. Unchanged.
-- **New assertion**: `internal/memory/extractor.go` imports `internal/hermes` — which the persistence worker already does indirectly. This is acceptable because extractor runs in `cmd/gormes-telegram`, which already pulls in the full hermes + telegram stack.
+- **New assertion**: `internal/memory/extractor.go` imports `internal/llm` — which the persistence worker already does indirectly. This is acceptable because extractor runs in `cmd/gormes-telegram`, which already pulls in the full hermes + telegram stack.
 
 ## 10. Testing Strategy
 

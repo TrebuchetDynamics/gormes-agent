@@ -29,7 +29,7 @@ The Hermes prompt builder is a comprehensive system prompt assembly engine:
 
 ### Gormes Current State
 
-- No native prompt builder exists in `internal/hermes/`
+- No native prompt builder exists in `internal/llm/`
 - The `Kernel tool loop` exists but lacks prompt assembly
 - Skills tools (`skills_list`, `skill_view`) are implemented
 - Memory tool exists but no memory guidance injection

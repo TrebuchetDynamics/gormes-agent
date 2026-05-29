@@ -116,7 +116,7 @@ async def prepare_prompt(self, loop_data):
 ```
 
 **What gormes-agent should steal:**
-- gormes-agent's prompt builder is monolithic (`internal/hermes/prompt_builder.go`)
+- gormes-agent's prompt builder is monolithic (`internal/llm/prompt_builder.go`)
 - Add `BeforePromptAssembly` and `AfterPromptAssembly` hooks so plugins can inject custom system blocks, filter history, or add context
 
 ---
@@ -149,7 +149,7 @@ async def _process_chain(self, agent, msg, user=True):
 ```
 
 **What gormes-agent should steal:**
-- gormes-agent's subagents (`internal/subagent/`) are flat goroutine pools
+- gormes-agent's subagents (`internal/core/subagent/`) are flat goroutine pools
 - Add hierarchical parent-child relationships with result chaining
 - This aligns with the planned "Mixture of Agents" (Phase 5.M) and Gormes durable-job DAG pattern
 

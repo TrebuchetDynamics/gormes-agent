@@ -10,8 +10,8 @@ Scored by: **impact** (user-visible, unblocks others), **buildability** (slice s
 
 | # | Section | Missing | Target | Est. slices | Why |
 |---|---|---|---|---|---|
-| 1 | 41. Model Switch | 5 | `internal/hermes/`, `cmd/gormes/model.go` | 2 | Direct aliases, ModelIdentity parsing, --global flag. Existing picker, small gaps. |
-| 2 | 46. Personality | 5 | `internal/hermes/`, `cmd/gormes/` | 2 | List/switch/none clear. `/personality` is advertised unavailable — user-facing. |
+| 1 | 41. Model Switch | 5 | `internal/llm/`, `cmd/gormes/model.go` | 2 | Direct aliases, ModelIdentity parsing, --global flag. Existing picker, small gaps. |
+| 2 | 46. Personality | 5 | `internal/llm/`, `cmd/gormes/` | 2 | List/switch/none clear. `/personality` is advertised unavailable — user-facing. |
 | 3 | 19. Config System | 2 | `internal/config/` | 1 | Schema validation and `cli-config.yaml.example` mirror. |
 | 4 | 28. Goal/Subgoal | 2 | `internal/tools/`, `internal/tui/` | 1 | Subgoal add/remove and budget enforcement. Already have goal infrastructure. |
 
@@ -19,10 +19,10 @@ Scored by: **impact** (user-visible, unblocks others), **buildability** (slice s
 
 | # | Section | Missing | Target | Est. slices | Why |
 |---|---|---|---|---|---|
-| 5 | 41. Cron delivery | 3 | `internal/cron/`, `internal/gateway/` | 2 | Grace seconds, delivery resolution, multi-target delivery. Cron infra exists. |
+| 5 | 41. Cron delivery | 3 | `internal/automation/cron/`, `internal/gateway/` | 2 | Grace seconds, delivery resolution, multi-target delivery. Cron infra exists. |
 | 6 | 42. Send Command | 6 | `cmd/gormes/send.go` | 2 | Target resolution, body reading, result formatting. Oneshot path exists. |
-| 7 | 25. Voice/PTY | 7 | `internal/tools/`, `internal/hermes/` | 3 | TTS result envelope, voice state machine, TTS provider abstraction. Whisper STT exists. |
-| 8 | 7. Cron (from 13) | 3 | `internal/cron/` | 2 | Context_from chaining, resource release, job lock files, prompt guard, recovery. |
+| 7 | 25. Voice/PTY | 7 | `internal/tools/`, `internal/llm/` | 3 | TTS result envelope, voice state machine, TTS provider abstraction. Whisper STT exists. |
+| 8 | 7. Cron (from 13) | 3 | `internal/automation/cron/` | 2 | Context_from chaining, resource release, job lock files, prompt guard, recovery. |
 | 9 | 12. Release | 5 | `Makefile`, `www.gormes.ai`, `install.sh` | 3 | OCI image, Homebrew, Nix build, release script, docker entrypoint. |
 | 10 | 16. Gateway Deep | 3 | `internal/gateway/` | 2 | Boot hooks, webhook CLI, backup CLI. Existing gateway infra. |
 
@@ -30,11 +30,11 @@ Scored by: **impact** (user-visible, unblocks others), **buildability** (slice s
 
 | # | Section | Missing | Target | Est. slices | Why |
 |---|---|---|---|---|---|
-| 11 | 15. Provider Deep | 13 | `internal/hermes/` | 6 | Bedrock SigV4, Gemini adapter, Google Code Assist. Largest block — needs splitting. |
+| 11 | 15. Provider Deep | 13 | `internal/llm/` | 6 | Bedrock SigV4, Gemini adapter, Google Code Assist. Largest block — needs splitting. |
 | 12 | 13. Goncho Memory | 10 | `internal/goncho/`, `internal/memory/` | 5 | File-backed messages, conclusions, representations, context retrieval, dialectic, dreaming. Honcho SDK fixture. |
 | 13 | 44. PTY | 11 | `internal/tools/`, `internal/cmdrunner/` | 4 | PTY bridge (spawn/read/write/resize/close), process registry. No existing infra. |
 | 14 | 17. Tools Deep | 18 | `internal/tools/`, `internal/cmdrunner/` | 6 | URL safety, website policy, OSV check, send-message tool, debug helpers, sandbox environments. |
-| 15 | 30. Cron/Learning | 8 | `internal/cron/`, `internal/skills/` | 4 | Curator state machine, entity discovery, candidate extraction, review. |
+| 15 | 30. Cron/Learning | 8 | `internal/automation/cron/`, `internal/skills/` | 4 | Curator state machine, entity discovery, candidate extraction, review. |
 
 ### P3 — Low urgency, large scope, deferred
 
@@ -51,9 +51,9 @@ Scored by: **impact** (user-visible, unblocks others), **buildability** (slice s
 | # | Section | Missing | Target | Est. slices | Why |
 |---|---|---|---|---|---|
 | 21 | 10. APIServer | 20 | `internal/apiserver/` | 6 | 20 API endpoints (models, responses, runs, jobs). Large surface; deprioritize until API server is the focus. |
-| 22 | 33. Codex Runtime | 6 | `internal/hermes/`, `cmd/gormes/` | 3 | Codex runtime switch, migration, provider, copilot/vercel/dingtalk auth. Depends on upstream Codex OAuth status. |
+| 22 | 33. Codex Runtime | 6 | `internal/llm/`, `cmd/gormes/` | 3 | Codex runtime switch, migration, provider, copilot/vercel/dingtalk auth. Depends on upstream Codex OAuth status. |
 | 23 | 31. ACP Adapter | 6 | `internal/plugins/`, `internal/apiserver/` | 3 | ACP auth, server, events, permissions, session, tools. No consumer yet. |
-| 24 | 34. Root Environments | 5 | `internal/hermes/` | 3 | Agentic OPD, web research, raw tool-call parsers. Research-only until sandbox rows land. |
+| 24 | 34. Root Environments | 5 | `internal/llm/` | 3 | Agentic OPD, web research, raw tool-call parsers. Research-only until sandbox rows land. |
 | 25 | 23. Batch/SWE/RL | 5 | deferred | 4 | Batch runner, mini-SWE, RL, datagen. Research modes; defer until normal turn is stable. |
 | 26 | 50. STDIO | 1 | `cmd/gormes/` | 1 | Pipe mode. Low usage in Gormes context. |
 
@@ -78,4 +78,4 @@ Scored by: **impact** (user-visible, unblocks others), **buildability** (slice s
 4. `--global` flag parity
 5. Model sort key (`_model_sort_key`)
 
-Target: `internal/hermes/model_switch.go` + `cmd/gormes/model.go`
+Target: `internal/llm/model_switch.go` + `cmd/gormes/model.go`

@@ -574,7 +574,7 @@
     "item": {
       "name": "[IMPORTANT:] prompt prefix for cron and skill commands",
       "status": "complete",
-      "contract": "internal/cron.CronHeartbeatPrefix and internal/skills.BuildSkillSlashCommandMessage emit `[IMPORTANT:` instead of `[SYSTEM:` so Azure OpenAI Default/DefaultV2 content filters do not reject Gormes prompts as prompt-injection (HTTP 400) — same semantic meta-instruction, different bracketed marker; tests update in lockstep so the byte-match assertions still cover drift",
+      "contract": "internal/automation/cron.CronHeartbeatPrefix and internal/skills.BuildSkillSlashCommandMessage emit `[IMPORTANT:` instead of `[SYSTEM:` so Azure OpenAI Default/DefaultV2 content filters do not reject Gormes prompts as prompt-injection (HTTP 400) — same semantic meta-instruction, different bracketed marker; tests update in lockstep so the byte-match assertions still cover drift",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "skills",
@@ -584,21 +584,21 @@
         "system"
       ],
       "degraded_mode": "Operator-visible prompt text changes from `[SYSTEM: ...]` to `[IMPORTANT: ...]`; behavior is otherwise identical, including the `[SILENT]` suppression contract and the skill body trimming.",
-      "fixture": "internal/cron/heartbeat_test.go",
+      "fixture": "internal/automation/cron/heartbeat_test.go",
       "source_refs": [
         "../hermes-agent/cron/scheduler.py@d7a34682",
         "../hermes-agent/agent/skill_commands.py@d7a34682",
         "../hermes-agent/cli.py@20cb706e",
         "../hermes-agent/gateway/run.py@20cb706e",
         "../hermes-agent/tools/process_registry.py@20cb706e",
-        "internal/cron/heartbeat.go:CronHeartbeatPrefix",
-        "internal/cron/heartbeat_test.go",
+        "internal/automation/cron/heartbeat.go:CronHeartbeatPrefix",
+        "internal/automation/cron/heartbeat_test.go",
         "internal/skills/commands.go:BuildSkillSlashCommandMessage",
         "internal/skills/preprocessing_commands_test.go"
       ],
       "ready_when": [
         "Upstream Hermes shipped this rename across two commits (d7a34682 + 20cb706e) on 2026-04-09 / 2026-04-26 with explicit cause (Azure content filter HTTP 400 on `[SYSTEM:` markers).",
-        "Gormes uses the same marker pattern in exactly two production code paths today: internal/cron/heartbeat.go (CronHeartbeatPrefix) and internal/skills/commands.go (BuildSkillSlashCommandMessage)."
+        "Gormes uses the same marker pattern in exactly two production code paths today: internal/automation/cron/heartbeat.go (CronHeartbeatPrefix) and internal/skills/commands.go (BuildSkillSlashCommandMessage)."
       ],
       "not_ready_when": [
         "The slice changes the `[SILENT]` token semantics, the skill body trimming, the cron prompt structure beyond the bracketed marker word, or the `Heartbeat [SYSTEM:] + [SILENT] delivery contract` row name in 2.D (that row name is a historical record; only the runtime constant + the byte-match tests change).",
@@ -606,27 +606,27 @@
         "The slice updates internal/progress/progress_test.go literal assertions for the 2.D row name (the row name in progress.json must stay as `Heartbeat [SYSTEM:] + [SILENT] delivery contract` for historical accuracy)."
       ],
       "acceptance": [
-        "internal/cron/heartbeat.go:CronHeartbeatPrefix starts with `[IMPORTANT:` (replacing `[SYSTEM:`) and the load-bearing phrases (`DELIVERY:`, `SILENT:`, `[SILENT]`) are byte-identical to the prior version.",
-        "internal/cron/heartbeat_test.go asserts `strings.HasPrefix(full, \"[IMPORTANT:\")` (not `[SYSTEM:`); the existing TestHeartbeatPrefix_ContainsLoadBearingPhrases load-bearing phrase set updates only its first member.",
+        "internal/automation/cron/heartbeat.go:CronHeartbeatPrefix starts with `[IMPORTANT:` (replacing `[SYSTEM:`) and the load-bearing phrases (`DELIVERY:`, `SILENT:`, `[SILENT]`) are byte-identical to the prior version.",
+        "internal/automation/cron/heartbeat_test.go asserts `strings.HasPrefix(full, \"[IMPORTANT:\")` (not `[SYSTEM:`); the existing TestHeartbeatPrefix_ContainsLoadBearingPhrases load-bearing phrase set updates only its first member.",
         "internal/skills/commands.go:BuildSkillSlashCommandMessage emits `[IMPORTANT: The user has invoked the \"<name>\" skill, ...` (replacing `[SYSTEM:`).",
         "internal/skills/preprocessing_commands_test.go updates its expected golden string to `[IMPORTANT:` for the affected fixtures.",
-        "DetectSilent semantics in internal/cron/heartbeat.go are unchanged (the `[SILENT]` token is independent of the leading marker)."
+        "DetectSilent semantics in internal/automation/cron/heartbeat.go are unchanged (the `[SILENT]` token is independent of the leading marker)."
       ],
-      "note": "Complete: cron heartbeat (CronHeartbeatPrefix) and skill-invocation prompt (BuildSkillSlashCommandMessage) now emit `[IMPORTANT:` instead of `[SYSTEM:`, mirroring Hermes commits d7a34682 + 20cb706e. The DELIVERY/SILENT/[SILENT] phrases in the cron prefix and the skill body trimming are byte-identical to the prior version. Tests in internal/cron/heartbeat_test.go and internal/skills/preprocessing_commands_test.go assert the new prefix and the absence of the legacy marker. The historical 2.D row name `Heartbeat [SYSTEM:] + [SILENT] delivery contract` was preserved per the not_ready_when guard. Code change landed previously via commit a8d25ba5; this slice closes the progress entry against the upstream pair.",
+      "note": "Complete: cron heartbeat (CronHeartbeatPrefix) and skill-invocation prompt (BuildSkillSlashCommandMessage) now emit `[IMPORTANT:` instead of `[SYSTEM:`, mirroring Hermes commits d7a34682 + 20cb706e. The DELIVERY/SILENT/[SILENT] phrases in the cron prefix and the skill body trimming are byte-identical to the prior version. Tests in internal/automation/cron/heartbeat_test.go and internal/skills/preprocessing_commands_test.go assert the new prefix and the absence of the legacy marker. The historical 2.D row name `Heartbeat [SYSTEM:] + [SILENT] delivery contract` was preserved per the not_ready_when guard. Code change landed previously via commit a8d25ba5; this slice closes the progress entry against the upstream pair.",
       "write_scope": [
-        "internal/cron/heartbeat.go",
-        "internal/cron/heartbeat_test.go",
+        "internal/automation/cron/heartbeat.go",
+        "internal/automation/cron/heartbeat_test.go",
         "internal/skills/commands.go",
         "internal/skills/preprocessing_commands_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron ./internal/skills -count=1",
+        "go test ./internal/automation/cron ./internal/skills -count=1",
         "go test ./internal/progress -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
-        "go test ./internal/cron and ./internal/skills both pass after the marker rename; `grep -rn '\\[SYSTEM:' internal/cron/ internal/skills/` returns no matches in production code; `grep -rn '\\[IMPORTANT:' internal/cron/ internal/skills/` returns at least 4 matches (constant + tests in both packages)."
+        "go test ./internal/automation/cron and ./internal/skills both pass after the marker rename; `grep -rn '\\[SYSTEM:' internal/automation/cron/ internal/skills/` returns no matches in production code; `grep -rn '\\[IMPORTANT:' internal/automation/cron/ internal/skills/` returns at least 4 matches (constant + tests in both packages)."
       ],
       "health": {
         "attempt_count": 1,
@@ -1864,7 +1864,7 @@
         "system"
       ],
       "degraded_mode": "If no standalone sender is registered for a target, existing live_adapter_unavailable plus fallback_sink_used evidence is preserved. If a standalone sender fails, cron records standalone_sender_failed and then falls back through DeliverySink so the run audit remains recoverable.",
-      "fixture": "internal/cron/delivery_plan_test.go::TestCronDeliveryPlan_StandaloneSenderFallback",
+      "fixture": "internal/automation/cron/delivery_plan_test.go::TestCronDeliveryPlan_StandaloneSenderFallback",
       "source_refs": [
         "./hermes-agent/gateway/platform_registry.py@93e25ceb1:PlatformEntry.standalone_sender_fn",
         "./hermes-agent/tools/send_message_tool.py@93e25ceb1:_send_via_adapter",
@@ -1872,8 +1872,8 @@
         "./hermes-agent/plugins/platforms/google_chat/adapter.py@93e25ceb1:standalone sender registration",
         "./hermes-agent/plugins/platforms/teams/adapter.py@93e25ceb1:standalone sender registration",
         "./hermes-agent/plugins/platforms/irc/adapter.py@93e25ceb1:standalone sender registration",
-        "internal/cron/delivery_plan.go",
-        "internal/cron/delivery_plan_test.go"
+        "internal/automation/cron/delivery_plan.go",
+        "internal/automation/cron/delivery_plan_test.go"
       ],
       "ready_when": [
         "Cron multi-target delivery + media/live-adapter fallback and deliver=all routing are complete.",
@@ -1893,13 +1893,13 @@
       ],
       "note": "Complete 2026-05-09: bounded all-topic weakness sweep refreshed Hermes to 93e25ceb1 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 18, below the 90-row cap. P1 publication/release rows remain operator- or release-infra-gated; existing Google Chat, Teams, Feishu, Kanban, provider/auth, browser, Goncho, install/runtime, docs/public, and release child rows are complete, blocked, or row-backed. The fresh source-backed gap is Hermes' optional `standalone_sender_fn` hook for plugin platforms so out-of-process cron delivery can send through IRC, Teams, or Google Chat without a live gateway runner. TDD added the generic Gormes cron delivery seam only: live adapters still win first, a fakeable StandaloneDeliveryAdapter can deliver non-local targets before DeliverySink fallback, standalone sender failures emit typed evidence and then recover through DeliverySink, and platform-specific live clients remain separate rows.",
       "write_scope": [
-        "internal/cron/delivery_plan.go",
-        "internal/cron/delivery_plan_test.go",
+        "internal/automation/cron/delivery_plan.go",
+        "internal/automation/cron/delivery_plan_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron -run '^TestCronDeliveryPlan_StandaloneSenderFallback' -count=1",
-        "go test ./internal/cron -run '^TestCronDeliveryPlan_' -count=1",
+        "go test ./internal/automation/cron -run '^TestCronDeliveryPlan_StandaloneSenderFallback' -count=1",
+        "go test ./internal/automation/cron -run '^TestCronDeliveryPlan_' -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -1912,19 +1912,19 @@
       },
       "evidence": {
         "implementation": [
-          "internal/cron/delivery_plan.go: adds DeliveryEvidenceStandaloneSenderUsed and DeliveryEvidenceStandaloneSenderFailed.",
-          "internal/cron/delivery_plan.go: adds StandaloneDeliveryAdapter plus DeliverCronDeliveryPlanWithStandalone while preserving the existing DeliverCronDeliveryPlan nil-standalone path.",
-          "internal/cron/delivery_plan.go: deliverCronTarget keeps live-adapter-first behavior, invokes standalone sender only after live adapter absence/failure, treats ErrStandaloneSenderUnavailable as no registered sender, and falls back through DeliverySink after failed standalone sends."
+          "internal/automation/cron/delivery_plan.go: adds DeliveryEvidenceStandaloneSenderUsed and DeliveryEvidenceStandaloneSenderFailed.",
+          "internal/automation/cron/delivery_plan.go: adds StandaloneDeliveryAdapter plus DeliverCronDeliveryPlanWithStandalone while preserving the existing DeliverCronDeliveryPlan nil-standalone path.",
+          "internal/automation/cron/delivery_plan.go: deliverCronTarget keeps live-adapter-first behavior, invokes standalone sender only after live adapter absence/failure, treats ErrStandaloneSenderUnavailable as no registered sender, and falls back through DeliverySink after failed standalone sends."
         ],
         "tests": [
-          "internal/cron/delivery_plan_test.go: TestCronDeliveryPlan_StandaloneSenderFallbackUsesRegisteredSender",
-          "internal/cron/delivery_plan_test.go: TestCronDeliveryPlan_StandaloneSenderFallbackPreservesLiveAdapterFirst",
-          "internal/cron/delivery_plan_test.go: TestCronDeliveryPlan_StandaloneSenderFallbackFailureFallsBack"
+          "internal/automation/cron/delivery_plan_test.go: TestCronDeliveryPlan_StandaloneSenderFallbackUsesRegisteredSender",
+          "internal/automation/cron/delivery_plan_test.go: TestCronDeliveryPlan_StandaloneSenderFallbackPreservesLiveAdapterFirst",
+          "internal/automation/cron/delivery_plan_test.go: TestCronDeliveryPlan_StandaloneSenderFallbackFailureFallsBack"
         ],
         "verification": [
-          "RED: go test ./internal/cron -run '^TestCronDeliveryPlan_StandaloneSenderFallback' -count=1 failed on undefined standalone API and evidence constants.",
-          "GREEN: go test ./internal/cron -run '^TestCronDeliveryPlan_StandaloneSenderFallback' -count=1 passed.",
-          "GREEN: go test ./internal/cron -run '^TestCronDeliveryPlan_' -count=1 passed."
+          "RED: go test ./internal/automation/cron -run '^TestCronDeliveryPlan_StandaloneSenderFallback' -count=1 failed on undefined standalone API and evidence constants.",
+          "GREEN: go test ./internal/automation/cron -run '^TestCronDeliveryPlan_StandaloneSenderFallback' -count=1 passed.",
+          "GREEN: go test ./internal/automation/cron -run '^TestCronDeliveryPlan_' -count=1 passed."
         ]
       }
     }
@@ -2020,13 +2020,13 @@
         "system"
       ],
       "degraded_mode": "Skill review status reports review_prompt_unavailable, overlap_detected, no_skill_to_save, or draft_requires_review instead of auto-promoting narrow one-off skills.",
-      "fixture": "internal/hermes/background_review_test.go::TestBackgroundReviewFork_SkillPromptRejectsTransientEnvironmentFailures",
+      "fixture": "internal/llm/background_review_test.go::TestBackgroundReviewFork_SkillPromptRejectsTransientEnvironmentFailures",
       "source_refs": [
         "./hermes-agent/run_agent.py@e5af1dd63:AIAgent._SKILL_REVIEW_PROMPT",
         "./hermes-agent/run_agent.py@e5af1dd63:AIAgent._COMBINED_REVIEW_PROMPT",
         "./hermes-agent/tests/run_agent/test_review_prompt_class_first.py@e5af1dd63",
-        "internal/hermes/background_review.go",
-        "internal/hermes/background_review_test.go",
+        "internal/llm/background_review.go",
+        "internal/llm/background_review_test.go",
         "internal/skills/store.go",
         "internal/skills/selector.go",
         "docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md"
@@ -2050,15 +2050,15 @@
         "Prompt fixtures positively reframe setup-state failures as fixes to record under existing setup/troubleshooting skills, never as standalone `tool does not work` rules.",
         "The no-op escape phrase `Nothing to save.` remains valid and produces no draft writes."
       ],
-      "note": "Planner refresh 2026-05-10: bounded all-topic weakness sweep refreshed Hermes to e5af1dd63 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Current upstream deltas after the last completed user-stories/docs sweep are complete, row-backed, or lower risk except this stale complete prompt contract: Hermes e5af1dd63 adds explicit anti-pattern guidance so background skill review does not persist transient environment failures or negative tool claims as durable constraints. Reopened as one P1 source-backed prompt fixture refresh; no live LLM, selector, skill install, or background worker lifecycle code is in scope. Complete 2026-05-10: TDD added background review prompt fixtures for skills-only, combined memory+skills, and memory-only prompts, then expanded the existing backgroundReviewPrompt seam so skill review forks survey skills_list/skill_view, prefer class-level updates, reject environment-dependent failures, negative tool claims, resolved transient errors, and one-off task narratives, and reframe setup failures as fixes under existing setup/troubleshooting skills. RED: `go test ./internal/hermes -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt)' -count=1` failed on the old one-line prompt. GREEN: `go test ./internal/hermes -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt|InheritsActiveRuntime|RestrictsTools)' -count=1` and `go test ./internal/hermes -count=1` passed.",
+      "note": "Planner refresh 2026-05-10: bounded all-topic weakness sweep refreshed Hermes to e5af1dd63 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Current upstream deltas after the last completed user-stories/docs sweep are complete, row-backed, or lower risk except this stale complete prompt contract: Hermes e5af1dd63 adds explicit anti-pattern guidance so background skill review does not persist transient environment failures or negative tool claims as durable constraints. Reopened as one P1 source-backed prompt fixture refresh; no live LLM, selector, skill install, or background worker lifecycle code is in scope. Complete 2026-05-10: TDD added background review prompt fixtures for skills-only, combined memory+skills, and memory-only prompts, then expanded the existing backgroundReviewPrompt seam so skill review forks survey skills_list/skill_view, prefer class-level updates, reject environment-dependent failures, negative tool claims, resolved transient errors, and one-off task narratives, and reframe setup failures as fixes under existing setup/troubleshooting skills. RED: `go test ./internal/llm -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt)' -count=1` failed on the old one-line prompt. GREEN: `go test ./internal/llm -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt|InheritsActiveRuntime|RestrictsTools)' -count=1` and `go test ./internal/llm -count=1` passed.",
       "write_scope": [
-        "internal/hermes/background_review.go",
-        "internal/hermes/background_review_test.go",
+        "internal/llm/background_review.go",
+        "internal/llm/background_review_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt|InheritsActiveRuntime|RestrictsTools)' -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt|InheritsActiveRuntime|RestrictsTools)' -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -2600,12 +2600,12 @@
       "note": "Gormes-owned, two-pass retrieval, and parent-scope chunks. Gormes should first define the tiny evidence contract a learning-loop selector can consume; a Go code indexer is a later decision.",
       "write_scope": [
         "internal/skills/",
-        "internal/insights/",
+        "internal/automation/insights/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/skills ./internal/insights -run 'Test.*Code.*Context|Test.*Call.*Edge|Test.*Parent.*Scope' -count=1",
-        "go test ./internal/skills ./internal/insights -count=1",
+        "go test ./internal/skills ./internal/automation/insights -run 'Test.*Code.*Context|Test.*Call.*Edge|Test.*Parent.*Scope' -count=1",
+        "go test ./internal/skills ./internal/automation/insights -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -2651,8 +2651,8 @@
         "internal/skills/curator_test.go",
         "internal/skills/usage.go",
         "internal/skills/store.go",
-        "internal/cron/store.go",
-        "internal/cron/curator_skill_rewrite_test.go"
+        "internal/automation/cron/store.go",
+        "internal/automation/cron/curator_skill_rewrite_test.go"
       ],
       "ready_when": [
         "Hermes background review fork lifecycle is builder-ready or validated so agent-created skills can be attributed to the review origin.",
@@ -2693,12 +2693,12 @@
         "internal/skills/curator_test.go",
         "internal/skills/usage.go",
         "internal/skills/store.go",
-        "internal/cron/store.go",
+        "internal/automation/cron/store.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/skills ./internal/cron -run 'TestCurator(State|Transitions|Run|Backup|Report|Classification|CronSkillRewrite)' -count=1",
-        "go test ./internal/skills ./internal/cron -count=1",
+        "go test ./internal/skills ./internal/automation/cron -run 'TestCurator(State|Transitions|Run|Backup|Report|Classification|CronSkillRewrite)' -count=1",
+        "go test ./internal/skills ./internal/automation/cron -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -2898,7 +2898,7 @@
         "system"
       ],
       "degraded_mode": "skill_manage returns skill_manage_unsupported_action, skill_manage_invalid_support_path, skill_manage_pinned_refusal, skill_manage_absorbed_target_missing, skill_manage_guard_blocked, or skill_manage_background_origin_unavailable instead of silently mutating the wrong file or bypassing curator intent.",
-      "fixture": "internal/tools/skill_manager_test.go + internal/skills/usage_test.go + internal/subagent/skill_provenance_test.go",
+      "fixture": "internal/tools/skill_manager_test.go + internal/skills/usage_test.go + internal/core/subagent/skill_provenance_test.go",
       "source_refs": [
         "./hermes-agent/tools/skill_manager_tool.py@b816fd4e2:_validate_file_path",
         "./hermes-agent/tools/skill_manager_tool.py@b816fd4e2:_resolve_skill_target",
@@ -2953,8 +2953,8 @@
         "internal/tools/skill_manager_test.go",
         "internal/skills/usage.go",
         "internal/skills/usage_test.go",
-        "internal/subagent/skill_provenance.go",
-        "internal/subagent/skill_provenance_test.go",
+        "internal/core/subagent/skill_provenance.go",
+        "internal/core/subagent/skill_provenance_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
@@ -2974,7 +2974,7 @@
         "implementation": [
           "internal/tools/skill_manager.go: skill_manage schema and handlers now cover write_file, remove_file, support-file patch targets, absorbed_into delete intent, pinned-skill refusal, usage updates, background-review-origin provenance, and optional guard rollback.",
           "internal/skills/usage.go: curator-facing .usage.json records now persist agent-created provenance, pinned state, patch counts, and usage-record deletion.",
-          "internal/subagent/skill_provenance.go: context helpers carry foreground vs background-review skill-write origin without requiring live subagent execution."
+          "internal/core/subagent/skill_provenance.go: context helpers carry foreground vs background-review skill-write origin without requiring live subagent execution."
         ],
         "tests": [
           "internal/tools/skill_manager_test.go:TestSkillManagerSchema_HermesActions",
@@ -2985,7 +2985,7 @@
           "internal/tools/skill_manager_test.go:TestSkillManagerAgentCreatedProvenance",
           "internal/tools/skill_manager_test.go:TestSkillManagerAgentCreatedGuard",
           "internal/skills/usage_test.go:TestSkillUsageAgentCreatedPinnedPatchAndForget",
-          "internal/subagent/skill_provenance_test.go:TestBackgroundReviewProvenance"
+          "internal/core/subagent/skill_provenance_test.go:TestBackgroundReviewProvenance"
         ],
         "verification": [
           "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/skills ./internal/subagent -run 'TestSkillManager(Schema|SupportFile|AbsorbedInto|PinnedGuard|AgentCreated|AgentCreatedGuard)|TestSkillUsage|TestBackgroundReviewProvenance' -count=1 -> ok",
@@ -3362,7 +3362,7 @@
         "system"
       ],
       "degraded_mode": "Invalid or missing external skill roots are skipped with `skills_external_dir_skipped` evidence; unreadable roots fail only the affected skills command or prompt build, not provider startup. Duplicate roots and the local active skills root are ignored so external directories cannot shadow local active skills unexpectedly.",
-      "fixture": "internal/config/config_test.go::TestSkillsExternalDirs; internal/skills/list_test.go::TestListInstalledSkillsExternalDirs; internal/hermes/skills_prompt_test.go::TestSkillsPromptExternalDirsOrderingAndStatusFiltering; internal/gateway/skills_command_test.go::TestHandleSkillsCommandExternalDirs",
+      "fixture": "internal/config/config_test.go::TestSkillsExternalDirs; internal/skills/list_test.go::TestListInstalledSkillsExternalDirs; internal/llm/skills_prompt_test.go::TestSkillsPromptExternalDirsOrderingAndStatusFiltering; internal/gateway/skills_command_test.go::TestHandleSkillsCommandExternalDirs",
       "source_refs": [
         "./hermes-agent/hermes_cli/config.py@43e566f77:DEFAULT_CONFIG skills.external_dirs",
         "./hermes-agent/agent/skill_utils.py@43e566f77:get_external_skills_dirs,get_all_skills_dirs",
@@ -3371,14 +3371,14 @@
         "./hermes-agent/website/docs/user-guide/features/skills.md@43e566f77:External Skill Directories",
         "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/docs/skills.md@0.75.5:Locations",
         "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/docs/packages.md@0.75.5:Package Structure and package-sourced skills",
-        "internal/hermes/skills_prompt.go:SkillsPromptOptions.ExternalDirs and BuildSkillsSystemPrompt",
+        "internal/llm/skills_prompt.go:SkillsPromptOptions.ExternalDirs and BuildSkillsSystemPrompt",
         "internal/config/config.go:SkillsCfg",
         "internal/skills/list.go:ListInstalledSkillsFromRoots",
         "internal/gateway/skills_command.go:SkillsCommandOptions",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt / Skill preprocessing and slash skills"
       ],
       "ready_when": [
-        "`internal/hermes.BuildSkillsSystemPrompt` already has an `ExternalDirs` seam and fixture coverage for prompt order/filtering; the missing work is config/list/gateway/TUI wiring plus typed evidence.",
+        "`internal/llm.BuildSkillsSystemPrompt` already has an `ExternalDirs` seam and fixture coverage for prompt order/filtering; the missing work is config/list/gateway/TUI wiring plus typed evidence.",
         "The completed skills list/view, TUI browsing, and direct URL installer rows keep active-skill storage and read-only channel behavior separated, so external roots can be introduced as additional read sources before mutation writes are enabled.",
         "The builder uses temp fixture roots only and treats Pi as a donor for discovery/location patterns, not as a runtime dependency or package format requirement."
       ],
@@ -3406,8 +3406,8 @@
         "internal/config/writer.go",
         "internal/skills/list.go",
         "internal/skills/list_test.go",
-        "internal/hermes/skills_prompt.go",
-        "internal/hermes/skills_prompt_test.go",
+        "internal/llm/skills_prompt.go",
+        "internal/llm/skills_prompt_test.go",
         "internal/gateway/skills_command.go",
         "internal/gateway/skills_command_test.go",
         "internal/tui/slash_dispatch.go",
@@ -3421,7 +3421,7 @@
       "test_commands": [
         "go test ./internal/config -run 'TestSkillsExternalDirs|TestConfigSetSkillsExternalDirs' -count=1",
         "go test ./internal/skills -run 'TestListInstalledSkillsExternalDirs' -count=1",
-        "go test ./internal/hermes -run 'TestSkillsPromptExternalDirsOrderingAndStatusFiltering' -count=1",
+        "go test ./internal/llm -run 'TestSkillsPromptExternalDirsOrderingAndStatusFiltering' -count=1",
         "go test ./internal/gateway -run 'TestHandleSkillsCommandExternalDirs' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"

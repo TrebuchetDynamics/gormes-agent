@@ -235,12 +235,12 @@ Hermes's Python `agent/prompt_builder.py` does heavy lifting — personality fil
 
 **M1 contract:**
 - `internal/agent` exposes `buildSystemPrompt(cfg Config) string` — pure function, no I/O.
-- Default body: a short built-in string (~120 tokens) that identifies the agent as Gormes and states it has no tools yet. Lives in `internal/agent/default_prompt.go` as a `const`.
+- Default body: a short built-in string (~120 tokens) that identifies the agent as Gormes and states it has no tools yet. Lives in `internal/core/agent/default_prompt.go` as a `const`.
 - Override via `[agent].system_prompt` in `config.toml` or `GORMES_SYSTEM_PROMPT` env var (overrides config file).
 - **No file-based personality loading in M1** — that's a Hermes feature (`personality/*.md`) deferred to M2 alongside skills.
 - The assembled system prompt is prepended to `Request.Messages` as `Message{Role: "system"}` on every turn.
 
-**M2+ growth path:** `internal/agent/prompt/` becomes a package with composable sections (identity, personality, tool-schema, memory-recall, self-nudges). M1 writes the seam, M2 fills it.
+**M2+ growth path:** `internal/core/agent/prompt/` becomes a package with composable sections (identity, personality, tool-schema, memory-recall, self-nudges). M1 writes the seam, M2 fills it.
 
 ---
 

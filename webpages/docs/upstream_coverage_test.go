@@ -71,7 +71,7 @@ func TestUpstreamCoverageLedgerMatchesSourceClasses(t *testing.T) {
 				"rl_cli.py":                      "`rl_cli.py`",
 				"run_agent.py":                   "`run_agent.py`",
 				"scripts":                        "`scripts/**`",
-				"setup-hermes.sh":                "`setup-hermes.sh`",
+				"setup-llm.sh":                "`setup-llm.sh`",
 				"skills":                         "`skills/**`",
 				"tests":                          "`tests/**`",
 				"tools":                          "`tools/*.py`",
@@ -397,9 +397,9 @@ func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 			name:           "Hermes OpenClaw migration script",
 			repo:           "Hermes",
 			root:           filepath.Join("..", "..", "..", "hermes-agent"),
-			path:           "optional-skills/migration/openclaw-migration/scripts/openclaw_to_hermes.py",
+			path:           "optional-skills/migration/openclaw-migration/scripts/openclaw_to_llm.py",
 			classification: "still row-backed",
-			evidence:       []string{"openclaw_to_hermes.py", "OpenClaw migration dry-run manifest", "Phase 5.O"},
+			evidence:       []string{"openclaw_to_llm.py", "OpenClaw migration dry-run manifest", "Phase 5.O"},
 		},
 		{
 			name:           "Hermes Nix flake",
@@ -914,7 +914,7 @@ func directoryHasCoverageSource(t *testing.T, root string) bool {
 func isCoverageSourceFile(name string) bool {
 	switch name {
 	case "Dockerfile", "docker-compose.yml", "docker-compose.yml.example",
-		"hermes", "setup-hermes.sh", "config.toml.example", "alembic.ini",
+		"hermes", "setup-llm.sh", "config.toml.example", "alembic.ini",
 		"cli-config.yaml.example", "constraints-termux.txt":
 		return true
 	}

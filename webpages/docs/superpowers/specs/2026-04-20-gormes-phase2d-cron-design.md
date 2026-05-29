@@ -43,7 +43,7 @@ Upstream divergences from the thin-slice MVP (acceptable for now):
 |---|---|
 | bbolt `cron_jobs` bucket (job definitions) | CLI subcommand for job CRUD |
 | SQLite `cron_runs` table (per-run audit) | Natural-language schedule parser |
-| `internal/cron` package with `robfig/cron/v3` scheduler | Per-job retries on error |
+| `internal/automation/cron` package with `robfig/cron/v3` scheduler | Per-job retries on error |
 | Kernel `PlatformEvent.SessionID` + `CronJobID` override fields | Multi-platform delivery |
 | Heartbeat `[SYSTEM: ...]` prefix + `[SILENT]` exact-match detection | `quiet_on_failure` flag |
 | `DeliverySink` interface (generic, not Telegram-specific) | Sub-minute scheduling precision |
@@ -92,7 +92,7 @@ Five components, all inside the `gormes telegram` subcommand process (where the 
                                                   (allowed_chat_id)
 ```
 
-### 5.1 Job Store (`internal/cron/store.go`)
+### 5.1 Job Store (`internal/automation/cron/store.go`)
 
 New bbolt bucket `cron_jobs` in the existing `session.db`. Key = job ID (ULID string). Value = JSON blob:
 
@@ -120,7 +120,7 @@ func (s *Store) Delete(id string) error
 
 All operations transactional (`bolt.Tx`). No CLI plumbing in this PR — operator inserts jobs by hand until 2.D.2 ships.
 
-### 5.2 Scheduler (`internal/cron/scheduler.go`)
+### 5.2 Scheduler (`internal/automation/cron/scheduler.go`)
 
 Wraps `robfig/cron/v3`. On startup: loads every `Paused=false` job from the store, registers an `AddFunc` per job. On job fire: the `AddFunc` closure calls `executor.Run(ctx, job)`.
 
@@ -129,7 +129,7 @@ Wraps `robfig/cron/v3`. On startup: loads every `Paused=false` job from the stor
 - Hot reload: MVP is load-once at startup. Job edits require a process restart. (2.D.2 will add live reload.)
 - Panic isolation: each `AddFunc` wrapped in `defer recover()` that logs and records the job as `status=error, error_msg=panic: ...`.
 
-### 5.3 Executor (`internal/cron/executor.go`)
+### 5.3 Executor (`internal/automation/cron/executor.go`)
 
 The bridge from scheduler tick → kernel → delivery decision → record. One method:
 
@@ -150,7 +150,7 @@ Steps (per-fire):
 9. **Update `cron_jobs.LastRunUnix + LastStatus`** in bbolt.
 10. **Deliver unless suppressed** — call `sink.Deliver(ctx, finalText)` or skip.
 
-### 5.4 Delivery Sink (`internal/cron/sink.go`)
+### 5.4 Delivery Sink (`internal/automation/cron/sink.go`)
 
 Generic interface — kernel + cron package know nothing about Telegram:
 
@@ -163,9 +163,9 @@ type DeliverySink interface {
 }
 ```
 
-Telegram implementation (in `cmd/gormes/telegram.go`): wraps the existing `telegram.Bot.SendToChat(chatID, text)` call. One implementation today; future Slack/Discord drop in without touching `internal/cron`.
+Telegram implementation (in `cmd/gormes/telegram.go`): wraps the existing `telegram.Bot.SendToChat(chatID, text)` call. One implementation today; future Slack/Discord drop in without touching `internal/automation/cron`.
 
-### 5.5 CRON.md Mirror (`internal/cron/mirror.go`)
+### 5.5 CRON.md Mirror (`internal/automation/cron/mirror.go`)
 
 Background goroutine mirroring the 3.D.5 USER.md pattern. Every 30s (configurable): read `cron_jobs` + last 50 `cron_runs`, render Markdown, write atomically to `~/.local/share/gormes/cron/CRON.md` (via temp-file + rename).
 
@@ -255,7 +255,7 @@ and nothing more.]
 <job.Prompt>
 ```
 
-Stored as a `const cronHeartbeatPrefix = "..."` in `internal/cron/executor.go`. Verbatim-match tested against upstream's exact bytes to catch drift on future Hermes bumps.
+Stored as a `const cronHeartbeatPrefix = "..."` in `internal/automation/cron/executor.go`. Verbatim-match tested against upstream's exact bytes to catch drift on future Hermes bumps.
 
 ### 7.2 `[SILENT]` detection (exact match)
 
@@ -298,9 +298,9 @@ type PlatformEvent struct {
 - `SessionID != ""` → the turn is processed against that session ID. **Does not mutate the kernel's resident sessionID** — per-event override only. Next non-cron event reverts to whatever the kernel had before.
 - `CronJobID != ""` → when the turn is persisted via `finalizeStore`, the store writes `cron=1, cron_job_id=<v>`. When empty, both columns default to `0`/`NULL`.
 
-**Kernel isolation invariant preserved:** the kernel still doesn't import anything from `internal/memory` or `internal/session`. The two new fields are opaque strings passed through to the store. Existing `TestKernelHasNoMemoryDep` / `TestKernelHasNoSessionDep` isolation tests still pass. New test: `TestKernel_SessionIDOverrideDoesNotLeakToNextTurn`.
+**Kernel isolation invariant preserved:** the kernel still doesn't import anything from `internal/memory` or `internal/persistence/session`. The two new fields are opaque strings passed through to the store. Existing `TestKernelHasNoMemoryDep` / `TestKernelHasNoSessionDep` isolation tests still pass. New test: `TestKernel_SessionIDOverrideDoesNotLeakToNextTurn`.
 
-**Store interface** (`internal/store/store.go`) gains two optional fields on the `Turn` struct (`Cron bool`, `CronJobID string`) with SQL writes gated on the struct's own Cron field. Zero change to existing turn writes from telegram/tui (they leave the fields zero).
+**Store interface** (`internal/persistence/store/store.go`) gains two optional fields on the `Turn` struct (`Cron bool`, `CronJobID string`) with SQL writes gated on the struct's own Cron field. Zero change to existing turn writes from telegram/tui (they leave the fields zero).
 
 ## 9. Timeout & Error Delivery Policy
 
@@ -419,7 +419,7 @@ Wired from `cmd/gormes/telegram.go` alongside the Extractor/Embedder/Mirror. `En
 - [x] CRON.md mirror separate from USER.md
 - [x] Session override that doesn't leak to next turn
 - [x] Overlap via kernel mailbox, not file lock
-- [x] No Telegram-specific code in kernel or `internal/cron`
+- [x] No Telegram-specific code in kernel or `internal/automation/cron`
 - [x] Generic `DeliverySink` interface for future Slack/Discord
 - [x] `[SILENT]` = exact match after TrimSpace
 - [x] `cron_runs` has explicit `status`/`delivered`/`suppression_reason`/`output_preview`

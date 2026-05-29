@@ -277,7 +277,7 @@ EOF
 		Model:     k.cfg.Model,
 		SessionID: k.sessionID,
 		Stream:    true,
-		Messages:  []hermes.Message{{Role: "user", Content: text}},
+		Messages:  []llm.Message{{Role: "user", Content: text}},
 	})
 	if err != nil {
 		// ... treat as fatal, transition to PhaseFailed, return
@@ -335,7 +335,7 @@ RECONNECT:
 		Model:     k.cfg.Model,
 		SessionID: k.sessionID,
 		Stream:    true,
-		Messages:  []hermes.Message{{Role: "user", Content: text}},
+		Messages:  []llm.Message{{Role: "user", Content: text}},
 	}
 
 	var (
@@ -592,7 +592,7 @@ func TestKernel_HandlesMidStreamNetworkDrop(t *testing.T) {
 	}, 10*time.Second)
 
 	// ASSERT 4: final history has exactly one assistant message == "yyyyyyyyyy".
-	var assistants []hermes.Message
+	var assistants []llm.Message
 	for _, m := range final.History {
 		if m.Role == "assistant" {
 			assistants = append(assistants, m)

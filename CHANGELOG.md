@@ -394,7 +394,7 @@ Date alias: `v2026.5.11`.
 - **Cross-channel message formatting** (`Phase 9.A`): Shared `FormatFinalMarkdown`
   renders headings, lists, code blocks, bold, italic, and links for Telegram
   (MarkdownV2), Discord (Discord markdown), and Slack (mrkdwn).
-- **Middleware chain framework** (`internal/agent/`): `Middleware` interface,
+- **Middleware chain framework** (`internal/core/agent/`): `Middleware` interface,
   `MiddlewareChain` with deterministic ordering, `RuntimeFeatures` with
   `FeatureFlag` toggle, 5 built-in middlewares, kernel integration.
 - **Cron in gateway mode**: Scheduler now starts in `gormes gateway` with
@@ -427,7 +427,7 @@ Date alias: `v2026.5.11`.
 
 ### Added
 
-- **Middleware chain framework** (`internal/agent/`): `Middleware` interface
+- **Middleware chain framework** (`internal/core/agent/`): `Middleware` interface
   with Before/After lifecycle hooks, `MiddlewareChain` with deterministic
   ordering and `Dump()` inspectability, `RuntimeFeatures` with
   `FeatureFlag` (Enabled/Disabled) and `CustomMiddleware` overrides.
@@ -507,7 +507,7 @@ precedent for back-to-back same-day releases).
 
 ### Fixed — OpenRouter (and other OpenAI-compatible) base URL with `/v1` no longer 404s
 
-- **`internal/hermes/http_client.go` `openAICompatibleURL`** now
+- **`internal/llm/http_client.go` `openAICompatibleURL`** now
   collapses a `/v1` prefix when both basePath and endpointPath carry
   it. Previously, `endpoint = "https://openrouter.ai/api/v1"` (the
   documented base URL) joined with `/v1/chat/completions` produced
@@ -672,7 +672,7 @@ releases).
 ### Multimodal vision passthrough
 
 - **Telegram photo → image_url content parts.** Channel attachments with
-  `Kind: "photo"` now materialize into `hermes.MessageContentPart{Type:
+  `Kind: "photo"` now materialize into `llm.MessageContentPart{Type:
   "image_url", ImageURL: "data:<mime>;base64,..."}` on the kernel turn
   message, so vision-capable providers (gpt-5.5 via openai-codex,
   Anthropic, OpenAI multipart) receive the image instead of just a text

@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax.
 
-**Goal:** Extend Gormes' existing sub-agent delegation system (`internal/subagent/`) with memory tiers, ACL-enforced scoping, parent-assembled context capsules, child memory proposals, and parent-reviewed durable memory commits — turning the sub-agent system from "blind children" into "scoped interns with proposal-based memory."
+**Goal:** Extend Gormes' existing sub-agent delegation system (`internal/core/subagent/`) with memory tiers, ACL-enforced scoping, parent-assembled context capsules, child memory proposals, and parent-reviewed durable memory commits — turning the sub-agent system from "blind children" into "scoped interns with proposal-based memory."
 
-**Architecture:** Five layers built sequentially on the existing `goncho_memory_items` table (already has `memory_id`, `scope`, `importance`, `active`, `tombstoned_at`, FTS5) and `internal/subagent/SubagentManager` (already has `Spawn/SpawnBatch/Interrupt/Collect`, `SubagentConfig` with tool allowlists, depth limits, timeouts, durable ledger). Each layer extends rather than rewrites.
+**Architecture:** Five layers built sequentially on the existing `goncho_memory_items` table (already has `memory_id`, `scope`, `importance`, `active`, `tombstoned_at`, FTS5) and `internal/core/subagent/SubagentManager` (already has `Spawn/SpawnBatch/Interrupt/Collect`, `SubagentConfig` with tool allowlists, depth limits, timeouts, durable ledger). Each layer extends rather than rewrites.
 
-**Tech Stack:** Go 1.22+, modernc.org/sqlite (pure Go SQLite), existing `internal/subagent/`, `internal/goncho/`, `internal/memory/schema.go` migration chain
+**Tech Stack:** Go 1.22+, modernc.org/sqlite (pure Go SQLite), existing `internal/core/subagent/`, `internal/goncho/`, `internal/memory/schema.go` migration chain
 
 ---
 
@@ -22,19 +22,19 @@
 | `internal/goncho/capsule_builder.go` | `CapsuleBuilder` struct: builds capsule from parent's workspace/observer/peer context. Uses FTS5 for relevant memory retrieval. Token-budget-aware truncation. | **Create** |
 | `internal/goncho/service.go` | Expose tier-aware search, capsule assembly, proposal management through existing Service facade | **Modify** |
 | `internal/goncho/memory_tools.go` | Add tier-aware `store_memory` (accepts optional `tier` field), tier-scoped `retrieve_memory` | **Modify** |
-| `internal/subagent/memory_scope.go` | `MemoryScope` struct embedded in `SubagentConfig`. Defines allowed read tiers, write tier, capsule assembly policy, proposal policy | **Create** |
-| `internal/subagent/types.go` | Add `MemoryScope *MemoryScopeConfig` to `SubagentConfig`. Add `Proposals []MemoryProposalRef` to `SubagentResult` | **Modify** |
-| `internal/subagent/manager.go` | At `Spawn()`: enforce ACL on child's allowed tiers. At `run()`: capture child memory proposals in result. Add `on_delegation` hook call | **Modify** |
-| `internal/subagent/delegate_tool.go` | Add `memory_tier` arg to tool schema. Parse `memory_tier` from args. Construct `MemoryScope` from args. Pass to `SubagentConfig`. Return proposals in result envelope | **Modify** |
-| `internal/subagent/subagent.go` | No structural changes — `SubagentResult` already has placeholder expansion room | **Modify** |
-| `internal/subagent/proposal_collector.go` | Per-subagent proposal buffer: intercepts `store_memory` tool calls from child, records as proposals instead of direct writes when tier != `workspace` | **Create** |
+| `internal/core/subagent/memory_scope.go` | `MemoryScope` struct embedded in `SubagentConfig`. Defines allowed read tiers, write tier, capsule assembly policy, proposal policy | **Create** |
+| `internal/core/subagent/types.go` | Add `MemoryScope *MemoryScopeConfig` to `SubagentConfig`. Add `Proposals []MemoryProposalRef` to `SubagentResult` | **Modify** |
+| `internal/core/subagent/manager.go` | At `Spawn()`: enforce ACL on child's allowed tiers. At `run()`: capture child memory proposals in result. Add `on_delegation` hook call | **Modify** |
+| `internal/core/subagent/delegate_tool.go` | Add `memory_tier` arg to tool schema. Parse `memory_tier` from args. Construct `MemoryScope` from args. Pass to `SubagentConfig`. Return proposals in result envelope | **Modify** |
+| `internal/core/subagent/subagent.go` | No structural changes — `SubagentResult` already has placeholder expansion room | **Modify** |
+| `internal/core/subagent/proposal_collector.go` | Per-subagent proposal buffer: intercepts `store_memory` tool calls from child, records as proposals instead of direct writes when tier != `workspace` | **Create** |
 | `internal/goncho/memory_tiers_test.go` | Tier constants, validator, defaulting | **Create** |
 | `internal/goncho/memory_acl_test.go` | ACL enforcement: allowed reads, denied writes, cross-agent isolation | **Create** |
 | `internal/goncho/memory_proposals_test.go` | Proposal CRUD lifecycle: insert→list→accept→verify committed→reject→verify tombstoned | **Create** |
 | `internal/goncho/memory_capsule_test.go` | Capsule assembly: token budget, relevance filtering, empty state | **Create** |
-| `internal/subagent/memory_scope_test.go` | MemoryScopeConfig defaults, validation, tier allowlist parsing | **Create** |
-| `internal/subagent/proposal_collector_test.go` | Intercept store_memory, buffer proposals, return in result | **Create** |
-| `internal/subagent/manager_memory_test.go` | End-to-end: spawn child with scoped memory, child writes proposals, parent reviews and commits | **Create** |
+| `internal/core/subagent/memory_scope_test.go` | MemoryScopeConfig defaults, validation, tier allowlist parsing | **Create** |
+| `internal/core/subagent/proposal_collector_test.go` | Intercept store_memory, buffer proposals, return in result | **Create** |
+| `internal/core/subagent/manager_memory_test.go` | End-to-end: spawn child with scoped memory, child writes proposals, parent reviews and commits | **Create** |
 | `internal/memory/schema_test.go` | Migration 3j→3k roundtrip, new tables exist, tier column present on existing rows | **Modify** |
 
 ---
@@ -1434,13 +1434,13 @@ git commit -m "feat: context capsule builder — parent-curated scoped memory fo
 ### Task 6: MemoryScopeConfig — Wire into SubagentConfig
 
 **Files:**
-- Create: `internal/subagent/memory_scope.go`
-- Modify: `internal/subagent/types.go` — add `MemoryScope *MemoryScopeConfig` to `SubagentConfig`
+- Create: `internal/core/subagent/memory_scope.go`
+- Modify: `internal/core/subagent/types.go` — add `MemoryScope *MemoryScopeConfig` to `SubagentConfig`
 
 - [ ] **Step 1: Write memory_scope.go**
 
 ```go
-// internal/subagent/memory_scope.go
+// internal/core/subagent/memory_scope.go
 package subagent
 
 import (
@@ -1559,7 +1559,7 @@ func (s *MemoryScopeConfig) IsProposalTier(tier goncho.MemoryTier) bool {
 }
 ```
 
-- [ ] **Step 2: Add MemoryScope to SubagentConfig** (modify `internal/subagent/types.go`)
+- [ ] **Step 2: Add MemoryScope to SubagentConfig** (modify `internal/core/subagent/types.go`)
 
 ```go
 // Insert after line 31 (the agentID field), add:
@@ -1568,7 +1568,7 @@ func (s *MemoryScopeConfig) IsProposalTier(tier goncho.MemoryTier) bool {
 
 - [ ] **Step 3: Write test**
 
-Create `internal/subagent/memory_scope_test.go`:
+Create `internal/core/subagent/memory_scope_test.go`:
 
 ```go
 package subagent
@@ -1647,7 +1647,7 @@ Expected: all PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/memory_scope.go internal/subagent/types.go internal/subagent/memory_scope_test.go
+git add internal/core/subagent/memory_scope.go internal/core/subagent/types.go internal/core/subagent/memory_scope_test.go
 git commit -m "feat: MemoryScopeConfig — scoped memory access for child sub-agents"
 ```
 
@@ -1656,9 +1656,9 @@ git commit -m "feat: MemoryScopeConfig — scoped memory access for child sub-ag
 ### Task 7: Manager — Enforce ACL at Spawn, Capture Proposals in Result
 
 **Files:**
-- Create: `internal/subagent/proposal_collector.go`
-- Modify: `internal/subagent/manager.go` — update `Spawn()`, `run()`, and `SubagentResult` type
-- Modify: `internal/subagent/types.go` — add `Proposals []goncho.ProposalRef` to `SubagentResult`
+- Create: `internal/core/subagent/proposal_collector.go`
+- Modify: `internal/core/subagent/manager.go` — update `Spawn()`, `run()`, and `SubagentResult` type
+- Modify: `internal/core/subagent/types.go` — add `Proposals []goncho.ProposalRef` to `SubagentResult`
 
 - [ ] **Step 1: Add Proposals field to SubagentResult** (modify `types.go`)
 
@@ -1670,7 +1670,7 @@ git commit -m "feat: MemoryScopeConfig — scoped memory access for child sub-ag
 - [ ] **Step 2: Write proposal_collector.go**
 
 ```go
-// internal/subagent/proposal_collector.go
+// internal/core/subagent/proposal_collector.go
 package subagent
 
 import (
@@ -1768,7 +1768,7 @@ Expected: all existing tests still PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/subagent/proposal_collector.go internal/subagent/manager.go internal/subagent/types.go
+git add internal/core/subagent/proposal_collector.go internal/core/subagent/manager.go internal/core/subagent/types.go
 git commit -m "feat: enforce MemoryScope at subagent spawn, capture proposals in result"
 ```
 
@@ -1777,7 +1777,7 @@ git commit -m "feat: enforce MemoryScope at subagent spawn, capture proposals in
 ### Task 8: DelegateTool — Parse Memory Args, Return Proposals
 
 **Files:**
-- Modify: `internal/subagent/delegate_tool.go` — add `memory_tier` to schema, parse memory args
+- Modify: `internal/core/subagent/delegate_tool.go` — add `memory_tier` to schema, parse memory args
 
 - [ ] **Step 1: Extend tool schema**
 
@@ -1846,7 +1846,7 @@ Expected: all PASS
 - [ ] **Step 7: Commit**
 
 ```bash
-git add internal/subagent/delegate_tool.go
+git add internal/core/subagent/delegate_tool.go
 git commit -m "feat: delegate_tool memory_tier arg, proposal output in result envelope"
 ```
 
@@ -1855,12 +1855,12 @@ git commit -m "feat: delegate_tool memory_tier arg, proposal output in result en
 ### Task 9: Integration Test — Full Parent→Child→Review Flow
 
 **Files:**
-- Create: `internal/subagent/manager_memory_test.go`
+- Create: `internal/core/subagent/manager_memory_test.go`
 
 - [ ] **Step 1: Write end-to-end integration test**
 
 ```go
-// internal/subagent/manager_memory_test.go
+// internal/core/subagent/manager_memory_test.go
 package subagent
 
 import (
@@ -1988,7 +1988,7 @@ Expected: all PASS
 - [ ] **Step 3: Commit**
 
 ```bash
-git add internal/subagent/manager_memory_test.go
+git add internal/core/subagent/manager_memory_test.go
 git commit -m "test: integration tests for sub-agent memory scope E2E flow"
 ```
 

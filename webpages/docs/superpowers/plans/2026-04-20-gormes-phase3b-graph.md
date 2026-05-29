@@ -1334,7 +1334,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // fakeLLM implements hermes.Client via settable response behavior.
@@ -1489,7 +1489,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // ExtractorConfig controls the Brain worker's polling + retry behavior.
@@ -1650,7 +1650,7 @@ Append to `internal/memory/extractor_test.go`:
 import (
 	"encoding/json"
 	// ... existing imports ...
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 )
 
 // seedTurns inserts N user turns via the store's fast path.
@@ -1778,7 +1778,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // Replace the stub loopOnce with:
@@ -1861,7 +1861,7 @@ func (e *Extractor) callLLM(ctx context.Context, batch []turnRow) ([]byte, error
 	req := hermes.ChatRequest{
 		Model:  e.cfg.Model,
 		Stream: true,
-		Messages: []hermes.Message{
+		Messages: []llm.Message{
 			{Role: "system", Content: extractorSystemPrompt},
 			{Role: "user", Content: formatBatchPrompt(batch)},
 		},

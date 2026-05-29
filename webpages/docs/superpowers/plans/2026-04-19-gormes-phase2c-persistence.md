@@ -4,7 +4,7 @@
 
 **Goal:** Persist `(platform, chat_id) → session_id` in pure-Go bbolt so `cmd/gormes` and `cmd/gormes-telegram` survive restarts without losing the user's Python-server session handle.
 
-**Architecture:** New `internal/session` package exposing a two-method `Map` interface with BoltMap (prod) + MemMap (test) implementations. Kernel gets one additive `Config.InitialSessionID` field. Adapters (Telegram bot, TUI) own the persistence loop — the kernel remains oblivious.
+**Architecture:** New `internal/persistence/session` package exposing a two-method `Map` interface with BoltMap (prod) + MemMap (test) implementations. Kernel gets one additive `Config.InitialSessionID` field. Adapters (Telegram bot, TUI) own the persistence loop — the kernel remains oblivious.
 
 **Tech Stack:** Go 1.22+, `go.etcd.io/bbolt` (pure Go, zero CGO), existing `pflag`/`cobra` flag stacks, XDG directory conventions.
 
@@ -18,11 +18,11 @@
 |---|---|---|
 | `gormes/go.mod` | Modify | Add `go.etcd.io/bbolt` dependency |
 | `gormes/go.sum` | Modify | Lockfile update |
-| `internal/session/session.go` | Create | Package doc, `Map` interface, sentinel errors, `TUIKey`/`TelegramKey` helpers |
-| `internal/session/mem.go` | Create | `MemMap` — in-memory impl for tests |
-| `internal/session/mem_test.go` | Create | MemMap unit tests |
-| `internal/session/bolt.go` | Create | `BoltMap` — bbolt-backed impl, `OpenBolt` constructor |
-| `internal/session/bolt_test.go` | Create | BoltMap tests (real disk via `t.TempDir()`) |
+| `internal/persistence/session/session.go` | Create | Package doc, `Map` interface, sentinel errors, `TUIKey`/`TelegramKey` helpers |
+| `internal/persistence/session/mem.go` | Create | `MemMap` — in-memory impl for tests |
+| `internal/persistence/session/mem_test.go` | Create | MemMap unit tests |
+| `internal/persistence/session/bolt.go` | Create | `BoltMap` — bbolt-backed impl, `OpenBolt` constructor |
+| `internal/persistence/session/bolt_test.go` | Create | BoltMap tests (real disk via `t.TempDir()`) |
 | `internal/kernel/kernel.go` | Modify | Add `Config.InitialSessionID`; copy into `k.sessionID` in `New()` |
 | `internal/kernel/initial_session_test.go` | Create | `TestKernel_InitialSessionIDPrimesFirstRequest` |
 | `internal/telegram/bot.go` | Modify | Add `Config.SessionMap`, `Config.SessionKey`, `lastSID` field, persistence hook in `runOutbound` |
@@ -91,16 +91,16 @@ EOF
 
 ---
 
-## Task 2: `internal/session` package — interface + MemMap
+## Task 2: `internal/persistence/session` package — interface + MemMap
 
 **Files:**
-- Create: `internal/session/session.go`
-- Create: `internal/session/mem.go`
-- Create: `internal/session/mem_test.go`
+- Create: `internal/persistence/session/session.go`
+- Create: `internal/persistence/session/mem.go`
+- Create: `internal/persistence/session/mem_test.go`
 
 - [ ] **Step 1: Write the failing test**
 
-Create `internal/session/mem_test.go`:
+Create `internal/persistence/session/mem_test.go`:
 
 ```go
 package session
@@ -202,14 +202,14 @@ func TestTelegramKey(t *testing.T) {
 
 ```bash
 cd gormes
-go test ./internal/session/... 2>&1 | head -5
+go test ./internal/persistence/session/... 2>&1 | head -5
 ```
 
-Expected: `no Go files in ...internal/session`.
+Expected: `no Go files in ...internal/persistence/session`.
 
 - [ ] **Step 3: Write `session.go` (interface + sentinels + key builders)**
 
-Create `internal/session/session.go`:
+Create `internal/persistence/session/session.go`:
 
 ```go
 // Package session persists (platform, chat_id) -> session_id mappings so
@@ -266,7 +266,7 @@ func TelegramKey(chatID int64) string {
 
 - [ ] **Step 4: Write `mem.go`**
 
-Create `internal/session/mem.go`:
+Create `internal/persistence/session/mem.go`:
 
 ```go
 package session
@@ -319,7 +319,7 @@ func (*MemMap) Close() error { return nil }
 
 ```bash
 cd gormes
-go test -race ./internal/session/... -v
+go test -race ./internal/persistence/session/... -v
 ```
 
 Expected: all 8 tests PASS.
@@ -328,13 +328,13 @@ Expected: all 8 tests PASS.
 
 ```bash
 cd ..
-git add internal/session/session.go \
-        internal/session/mem.go \
-        internal/session/mem_test.go
+git add internal/persistence/session/session.go \
+        internal/persistence/session/mem.go \
+        internal/persistence/session/mem_test.go
 git commit -m "$(cat <<'EOF'
 feat(gormes/session): Map interface + MemMap + key builders
 
-New internal/session package. Map is a two-method interface
+New internal/persistence/session package. Map is a two-method interface
 (Get/Put) with a Close. Get on missing key returns ("", nil) —
 no ErrNotFound, because "no prior session" is the expected
 startup state. Put(key, "") deletes.
@@ -359,12 +359,12 @@ EOF
 ## Task 3: `BoltMap` happy path — Open, Get, Put, Close
 
 **Files:**
-- Create: `internal/session/bolt.go`
-- Create: `internal/session/bolt_test.go`
+- Create: `internal/persistence/session/bolt.go`
+- Create: `internal/persistence/session/bolt_test.go`
 
 - [ ] **Step 1: Write the failing test**
 
-Create `internal/session/bolt_test.go`:
+Create `internal/persistence/session/bolt_test.go`:
 
 ```go
 package session
@@ -468,14 +468,14 @@ func TestBolt_ConcurrentPutGet(t *testing.T) {
 
 ```bash
 cd gormes
-go test ./internal/session/... 2>&1 | head -5
+go test ./internal/persistence/session/... 2>&1 | head -5
 ```
 
 Expected: `undefined: OpenBolt`.
 
 - [ ] **Step 3: Write `bolt.go`**
 
-Create `internal/session/bolt.go`:
+Create `internal/persistence/session/bolt.go`:
 
 ```go
 package session
@@ -653,7 +653,7 @@ func (m *BoltMap) Close() error {
 
 ```bash
 cd gormes
-go test -race ./internal/session/... -v
+go test -race ./internal/persistence/session/... -v
 ```
 
 Expected: all 5 new Bolt tests PASS plus the 8 MemMap tests still PASS.
@@ -662,7 +662,7 @@ Expected: all 5 new Bolt tests PASS plus the 8 MemMap tests still PASS.
 
 ```bash
 cd ..
-git add internal/session/bolt.go internal/session/bolt_test.go
+git add internal/persistence/session/bolt.go internal/persistence/session/bolt_test.go
 git commit -m "$(cat <<'EOF'
 feat(gormes/session): BoltMap — bbolt-backed Map (happy path)
 
@@ -688,11 +688,11 @@ EOF
 ## Task 4: `BoltMap` — `Put(key, "")` deletes
 
 **Files:**
-- Modify: `internal/session/bolt_test.go`
+- Modify: `internal/persistence/session/bolt_test.go`
 
 - [ ] **Step 1: Write the failing test (append to bolt_test.go)**
 
-Append to `internal/session/bolt_test.go`:
+Append to `internal/persistence/session/bolt_test.go`:
 
 ```go
 func TestBolt_PutEmptyDeletes(t *testing.T) {
@@ -736,7 +736,7 @@ The BoltMap.Put implementation from Task 3 already handles `sessionID == ""` via
 
 ```bash
 cd gormes
-go test -race ./internal/session/... -run TestBolt_PutEmpty -v
+go test -race ./internal/persistence/session/... -run TestBolt_PutEmpty -v
 ```
 
 Expected: both tests PASS.
@@ -745,7 +745,7 @@ Expected: both tests PASS.
 
 ```bash
 cd ..
-git add internal/session/bolt_test.go
+git add internal/persistence/session/bolt_test.go
 git commit -m "$(cat <<'EOF'
 test(gormes/session): verify Put(key, "") deletes + missing-key no-op
 
@@ -767,11 +767,11 @@ EOF
 ## Task 5: `BoltMap` — failure modes (lock, corrupt, permission)
 
 **Files:**
-- Modify: `internal/session/bolt_test.go`
+- Modify: `internal/persistence/session/bolt_test.go`
 
 - [ ] **Step 1: Write the failing tests (append to bolt_test.go)**
 
-Append to `internal/session/bolt_test.go`:
+Append to `internal/persistence/session/bolt_test.go`:
 
 ```go
 import "errors" // if not already imported; add to existing import block
@@ -848,7 +848,7 @@ Also add `"time"` to the existing import block if it's not already there.
 
 ```bash
 cd gormes
-go test -race ./internal/session/... -run TestBolt_(LockContention|CorruptFile|PermissionDenied) -v
+go test -race ./internal/persistence/session/... -run TestBolt_(LockContention|CorruptFile|PermissionDenied) -v
 ```
 
 Expected: all three PASS.
@@ -859,7 +859,7 @@ If `TestBolt_CorruptFile` fails because the garbage bytes happen to pass bbolt's
 
 ```bash
 cd ..
-git add internal/session/bolt_test.go
+git add internal/persistence/session/bolt_test.go
 git commit -m "$(cat <<'EOF'
 test(gormes/session): BoltMap failure modes
 
@@ -899,8 +899,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -981,7 +981,7 @@ func TestKernel_InitialSessionIDEmptyKeepsExistingBehavior(t *testing.T) {
 }
 ```
 
-If `hermes.MockClient` does not expose `Requests()` — read `internal/hermes/mock.go` and use whatever accessor does exist (e.g., `mc.LastRequest()`). Adjust the test line `reqs := mc.Requests()` accordingly. DO NOT add a new accessor unless one is strictly necessary; an existing record/observation field almost certainly exists.
+If `hermes.MockClient` does not expose `Requests()` — read `internal/llm/mock.go` and use whatever accessor does exist (e.g., `mc.LastRequest()`). Adjust the test line `reqs := mc.Requests()` accordingly. DO NOT add a new accessor unless one is strictly necessary; an existing record/observation field almost certainly exists.
 
 - [ ] **Step 2: Run — expect FAIL (InitialSessionID field does not exist)**
 
@@ -1005,7 +1005,7 @@ type Config struct {
 	MaxToolIterations int             // default 10 when zero
 	MaxToolDuration   time.Duration   // default 30s when zero
 	// InitialSessionID primes k.sessionID at New() — used by adapters that
-	// load a persisted session handle from internal/session before starting
+	// load a persisted session handle from internal/persistence/session before starting
 	// the kernel. Zero value preserves pre-Phase-2.C behavior (fresh session).
 	InitialSessionID string
 }
@@ -1079,7 +1079,7 @@ Append to `internal/telegram/bot_test.go`:
 
 ```go
 // Import block must include:
-//   "github.com/TrebuchetDynamics/gormes-agent/internal/session"
+//   "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 
 // TestBot_PersistsSessionIDToMap proves the bot's outbound goroutine
 // calls SessionMap.Put exactly when the kernel's RenderFrame.SessionID
@@ -1152,7 +1152,7 @@ In `internal/telegram/bot.go`, add the import and modify the struct:
 ```go
 import (
 	// ... existing imports ...
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 // Config drives the Bot adapter. AllowedChatID and FirstRunDiscovery follow
@@ -1344,7 +1344,7 @@ type Config struct {
 	Input    InputCfg    `toml:"input"`
 	Telegram TelegramCfg `toml:"telegram"`
 	// Resume is set only via the --resume CLI flag; intentionally not
-	// a TOML field. Empty means "use whatever internal/session had
+	// a TOML field. Empty means "use whatever internal/persistence/session had
 	// persisted for this binary's default key."
 	Resume string `toml:"-"`
 }
@@ -1432,7 +1432,7 @@ Replace the entire file with:
 
 ```go
 // Command gormes-telegram is the Phase-2.B.1 Telegram adapter binary.
-// Phase 2.C adds persistent session-id resume via internal/session.
+// Phase 2.C adds persistent session-id resume via internal/persistence/session.
 package main
 
 import (
@@ -1445,10 +1445,10 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
@@ -1593,7 +1593,7 @@ Expected: clean.
 cd ..
 git add gormes/cmd/gormes-telegram/main.go
 git commit -m "$(cat <<'EOF'
-feat(gormes/cmd/telegram): wire internal/session.BoltMap
+feat(gormes/cmd/telegram): wire internal/persistence/session.BoltMap
 
 cmd/gormes-telegram now opens the bbolt sessions map before
 constructing the kernel, loads the persisted session_id for
@@ -1725,7 +1725,7 @@ func runTUI(cmd *cobra.Command, _ []string) error {
 	// ... rest of runTUI unchanged (tea.Program, etc.) ...
 ```
 
-Add the import `"github.com/TrebuchetDynamics/gormes-agent/internal/session"` to the import block.
+Add the import `"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"` to the import block.
 
 Add the helper function near the bottom of `main.go`:
 
@@ -1791,7 +1791,7 @@ Expected: all green.
 cd ..
 git add gormes/cmd/gormes/main.go
 git commit -m "$(cat <<'EOF'
-feat(gormes/cmd/tui): wire internal/session.BoltMap
+feat(gormes/cmd/tui): wire internal/persistence/session.BoltMap
 
 cmd/gormes (TUI) now opens the shared sessions.db, honors a
 new --resume cobra flag, and primes kernel.InitialSessionID.
@@ -1969,7 +1969,7 @@ Append to `internal/buildisolation_test.go`:
 
 ```go
 // TestKernelHasNoSessionDep guards the Phase 2.C boundary: internal/kernel
-// must never transitively import internal/session or go.etcd.io/bbolt.
+// must never transitively import internal/persistence/session or go.etcd.io/bbolt.
 // If either appears in the kernel's dep graph, persistence has leaked into
 // the turn-loop and the single-owner isolation is compromised.
 func TestKernelHasNoSessionDep(t *testing.T) {
@@ -1984,7 +1984,7 @@ func TestKernelHasNoSessionDep(t *testing.T) {
 
 	for _, d := range strings.Split(out.String(), "\n") {
 		if strings.Contains(d, "go.etcd.io/bbolt") ||
-			strings.Contains(d, "/internal/session") {
+			strings.Contains(d, "/internal/persistence/session") {
 			t.Errorf("internal/kernel transitively depends on %q — Phase 2.C isolation violated", d)
 		}
 	}
@@ -2002,7 +2002,7 @@ Expected: PASS. The kernel does not import session or bbolt (Task 6 only added a
 
 - [ ] **Step 3: Sanity-break**
 
-Temporarily add `_ "github.com/TrebuchetDynamics/gormes-agent/internal/session"` to `internal/kernel/kernel.go`'s imports. Re-run the test. Expected: FAIL naming `session` AND `bbolt` (since session imports bbolt).
+Temporarily add `_ "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"` to `internal/kernel/kernel.go`'s imports. Re-run the test. Expected: FAIL naming `session` AND `bbolt` (since session imports bbolt).
 
 **Revert the import change** and re-run — PASS again.
 
@@ -2016,7 +2016,7 @@ test(gormes/internal): forbid session/bbolt in the kernel dep graph
 
 TestKernelHasNoSessionDep runs `go list -deps ./internal/kernel`
 and fails if any line contains `go.etcd.io/bbolt` or
-`/internal/session`. Locks in the Phase 2.C architectural
+`/internal/persistence/session`. Locks in the Phase 2.C architectural
 boundary — adapters own the disk, the kernel never sees it.
 
 Verified by temporarily adding a blank session import to
@@ -2064,7 +2064,7 @@ If either binary exceeds its budget, STOP and report sizes. Do NOT proceed.
 ```bash
 cd gormes
 (go list -deps ./cmd/gormes | grep -E "telegram-bot-api|internal/telegram") && echo "VIOLATION: TUI has telegram deps" || echo "OK: TUI clean"
-(go list -deps ./internal/kernel | grep -E "go.etcd.io/bbolt|internal/session") && echo "VIOLATION: kernel has persistence deps" || echo "OK: kernel clean"
+(go list -deps ./internal/kernel | grep -E "go.etcd.io/bbolt|internal/persistence/session") && echo "VIOLATION: kernel has persistence deps" || echo "OK: kernel clean"
 ```
 
 Expected: both lines print `OK`.
