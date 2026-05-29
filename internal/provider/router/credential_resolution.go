@@ -18,6 +18,7 @@ func resolveProviderCredential(route Route, lookupEnv func(string) (string, bool
 		APIKey:    route.apiKey,
 		APIKeyEnv: route.APIKeyEnv,
 		APIKeyRef: route.APIKeyRef,
+		Secrets:   route.Secrets,
 		Local:     route.Local,
 		Optional:  route.Optional,
 		LookupEnv: lookupEnv,

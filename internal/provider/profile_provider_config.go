@@ -95,10 +95,16 @@ func buildProfileProviderReadiness(profileID, providerID string, providerCfg con
 	if credential.SecretRef != nil {
 		report.SecretRef = redactedSecretRef(*credential.SecretRef)
 		if !opts.SkipSecretValidation {
-			if evidence, err := validateProfileProviderSecretRef(*credential.SecretRef, secrets, opts); err != nil {
+			resolution := config.ResolveProviderCredential(config.ProviderCredentialRequest{
+				Provider:  providerID,
+				APIKeyRef: credential.SecretRef,
+				Secrets:   secrets,
+				LookupEnv: profileProviderLookupEnv(opts.SecretEnv),
+			})
+			if resolution.Status != config.ProviderCredentialConfigured {
 				report.Status = ProfileProviderCredentialMissing
-				if strings.TrimSpace(evidence.Code) != "" {
-					report.Evidence = append(report.Evidence, evidence.Code)
+				if strings.TrimSpace(resolution.Evidence.Code) != "" {
+					report.Evidence = append(report.Evidence, resolution.Evidence.Code)
 				}
 				return report
 			}
@@ -121,10 +127,14 @@ func buildProfileProviderReadiness(profileID, providerID string, providerCfg con
 	return report
 }
 
-func validateProfileProviderSecretRef(ref config.SecretRef, secrets config.SecretsCfg, opts ProfileProviderReadinessOptions) (config.SecretRefEvidence, error) {
-	resolver := config.NewSecretResolver(config.SecretResolverConfig{Secrets: secrets, Env: opts.SecretEnv})
-	_, evidence, err := resolver.ResolveString(ref)
-	return evidence, err
+func profileProviderLookupEnv(env map[string]string) func(string) (string, bool) {
+	if env == nil {
+		return nil
+	}
+	return func(key string) (string, bool) {
+		value, ok := env[key]
+		return value, ok
+	}
 }
 
 func loadProviderModels(providerID string, allowed []string, opts ProfileProviderReadinessOptions) ([]string, error) {

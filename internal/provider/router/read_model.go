@@ -96,6 +96,7 @@ type Route struct {
 	// it must not reveal secret values or raw secret locations.
 	APIKeyEnv string            `json:"-"`
 	APIKeyRef *config.SecretRef `json:"-"`
+	Secrets   config.SecretsCfg `json:"-"`
 	apiKey    string
 }
 
@@ -290,6 +291,7 @@ func buildRoute(cfg config.Config, raw config.RouterRouteCfg, lookupEnv func(str
 		Status:    RouteStatusConfigured,
 		APIKeyEnv: strings.TrimSpace(raw.APIKeyEnv),
 		APIKeyRef: raw.APIKeyRef,
+		Secrets:   cfg.Secrets,
 	}
 	if route.Name == "primary-provider" && strings.TrimSpace(cfg.Hermes.APIKey) != "" {
 		route.apiKey = strings.TrimSpace(cfg.Hermes.APIKey)
