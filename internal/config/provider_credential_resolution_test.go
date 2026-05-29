@@ -71,6 +71,31 @@ func TestProviderCredentialResolutionReadsCredentialPoolWhenRequested(t *testing
 	}
 }
 
+func TestProviderCredentialResolutionPassesProfileFilterToPool(t *testing.T) {
+	home := t.TempDir()
+	if err := SaveCredentialPoolEntries(CredentialPoolOptions{HermesHome: home, Provider: "openrouter"}, []PooledCredential{
+		{ID: "beta", AuthType: CredentialAuthAPIKey, OwnerProfile: "beta", AccessToken: "beta-secret"},
+		{ID: "alpha", AuthType: CredentialAuthAPIKey, Priority: 1, OwnerProfile: "alpha", AccessToken: "alpha-secret"},
+	}); err != nil {
+		t.Fatalf("SaveCredentialPoolEntries: %v", err)
+	}
+
+	resolution := ResolveProviderCredential(ProviderCredentialRequest{
+		Provider:          "openrouter",
+		ProfileID:         "alpha",
+		CredentialHome:    home,
+		UseCredentialPool: true,
+		LookupEnv:         mapProviderCredentialLookup(nil),
+	})
+
+	if resolution.Status != ProviderCredentialConfigured || !resolution.Available || resolution.Value != "alpha-secret" {
+		t.Fatalf("resolution = %+v, want alpha-owned credential", resolution)
+	}
+	if resolution.PoolEvidence.Count != 2 || resolution.PoolEvidence.FilteredCount != 1 {
+		t.Fatalf("pool evidence = %+v, want profile-filtered evidence", resolution.PoolEvidence)
+	}
+}
+
 func TestProviderCredentialResolutionPreservesLocalOptionalNotRequired(t *testing.T) {
 	resolution := ResolveProviderCredential(ProviderCredentialRequest{Provider: "custom", Local: true, Optional: true})
 	if resolution.Status != ProviderCredentialNotRequired || !resolution.Available || resolution.Value != "" {

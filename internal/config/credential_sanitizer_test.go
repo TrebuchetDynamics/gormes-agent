@@ -7,7 +7,7 @@ import (
 )
 
 func resetCredentialSanitizerWarningsForTest() {
-	defaultCredentialSanitizer.resetWarnings()
+	resetCredentialSanitizerWarnings()
 }
 
 func TestCredentialSanitizerStripsUnicodeLookalikes(t *testing.T) {

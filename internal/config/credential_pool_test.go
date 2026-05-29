@@ -44,6 +44,104 @@ func TestCredentialPoolLoadRoundTrip(t *testing.T) {
 	}
 }
 
+func TestCredentialPoolLoadFiltersByOwnerProfile(t *testing.T) {
+	hermesHome := t.TempDir()
+	entries := []PooledCredential{
+		{ID: "main-provider", Label: "Main provider", AuthType: CredentialAuthAPIKey, Priority: 0, Source: "fixture", OwnerProfile: DefaultProfileID, AccessToken: "main-token"},
+		{ID: "alpha-provider", Label: "Alpha provider", AuthType: CredentialAuthAPIKey, Priority: 1, Source: "fixture", OwnerProfile: "alpha", AccessToken: "alpha-token"},
+		{ID: "beta-provider", Label: "Beta provider", AuthType: CredentialAuthAPIKey, Priority: 2, Source: "fixture", OwnerProfile: "beta", AccessToken: "beta-token"},
+		{ID: "legacy-provider", Label: "Legacy provider", AuthType: CredentialAuthAPIKey, Priority: 3, Source: "fixture", AccessToken: "legacy-token"},
+	}
+	if err := SaveCredentialPoolEntries(CredentialPoolOptions{HermesHome: hermesHome, Provider: "fixture-provider"}, entries); err != nil {
+		t.Fatal(err)
+	}
+
+	pool, evidence, err := LoadCredentialPool(CredentialPoolOptions{HermesHome: hermesHome, Provider: "fixture-provider", ProfileID: "alpha"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded := pool.Entries()
+	if evidence.Count != 4 || evidence.FilteredCount != 3 {
+		t.Fatalf("evidence = %#v, want count=4 filtered=3", evidence)
+	}
+	if ids := credentialEntryIDs(loaded); strings.Join(ids, ",") != "main-provider,alpha-provider,legacy-provider" {
+		t.Fatalf("alpha profile entries = %v, want shared main, alpha-owned, and legacy entries only", ids)
+	}
+	for _, entry := range loaded {
+		if entry.ID == "beta-provider" || strings.Contains(entry.AccessToken, "beta-token") {
+			t.Fatalf("profile-filtered pool leaked beta-owned credential: %#v", loaded)
+		}
+	}
+
+	unfiltered, evidence, err := LoadCredentialPool(CredentialPoolOptions{HermesHome: hermesHome, Provider: "fixture-provider"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(unfiltered.Entries()) != 4 || evidence.FilteredCount != 0 {
+		t.Fatalf("unfiltered entries=%v evidence=%#v, want all entries and no filtered count", credentialEntryIDs(unfiltered.Entries()), evidence)
+	}
+}
+
+func TestCredentialPoolProfileFilteredPersistPreservesOtherOwners(t *testing.T) {
+	hermesHome := t.TempDir()
+	entries := []PooledCredential{
+		{ID: "alpha", Label: "Alpha", AuthType: CredentialAuthAPIKey, Source: "fixture", OwnerProfile: "alpha", AccessToken: "alpha-token"},
+		{ID: "beta", Label: "Beta", AuthType: CredentialAuthAPIKey, Source: "fixture", OwnerProfile: "beta", AccessToken: "beta-token"},
+	}
+	if err := SaveCredentialPoolEntries(CredentialPoolOptions{HermesHome: hermesHome, Provider: "fixture-provider"}, entries); err != nil {
+		t.Fatal(err)
+	}
+	pool, _, err := LoadCredentialPool(CredentialPoolOptions{HermesHome: hermesHome, Provider: "fixture-provider", ProfileID: "alpha", Strategy: CredentialPoolStrategyLeastUsed})
+	if err != nil {
+		t.Fatal(err)
+	}
+	selected, _ := pool.Select()
+	if selected == nil || selected.ID != "alpha" {
+		t.Fatalf("selected = %#v, want alpha", selected)
+	}
+
+	unfiltered, _, err := LoadCredentialPool(CredentialPoolOptions{HermesHome: hermesHome, Provider: "fixture-provider"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded := unfiltered.Entries()
+	if ids := credentialEntryIDs(loaded); strings.Join(ids, ",") != "alpha,beta" {
+		t.Fatalf("entries after profile-filtered persist = %v, want alpha,beta", ids)
+	}
+	if beta := entryByID(loaded, "beta"); beta == nil || beta.AccessToken != "beta-token" || beta.OwnerProfile != "beta" {
+		t.Fatalf("beta entry was not preserved: %#v", loaded)
+	}
+	if alpha := entryByID(loaded, "alpha"); alpha == nil || alpha.RequestCount != 1 {
+		t.Fatalf("alpha request count not persisted: %#v", loaded)
+	}
+}
+
+func TestCredentialPoolStatusIncludesRedactedOwnerProfile(t *testing.T) {
+	hermesHome := t.TempDir()
+	entries := []PooledCredential{
+		{ID: "alpha", Label: "Alpha", AuthType: CredentialAuthAPIKey, Source: "fixture", OwnerProfile: "alpha", AccessToken: "alpha-token"},
+	}
+	if err := SaveCredentialPoolEntries(CredentialPoolOptions{HermesHome: hermesHome, Provider: "fixture-provider"}, entries); err != nil {
+		t.Fatal(err)
+	}
+
+	pool, _, err := LoadCredentialPool(CredentialPoolOptions{HermesHome: hermesHome, Provider: "fixture-provider", ProfileID: "alpha"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	status := pool.RedactedStatus()
+	if len(status.Entries) != 1 || status.Entries[0].OwnerProfile != "alpha" || !status.Entries[0].SecretsRedacted {
+		t.Fatalf("status = %#v, want redacted alpha owner evidence", status)
+	}
+	blob, err := json.Marshal(status)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(blob), "alpha-token") {
+		t.Fatalf("redacted status leaked token: %s", blob)
+	}
+}
+
 func TestCredentialPoolStatusSanitizesTokenFields(t *testing.T) {
 	resetCredentialSanitizerWarningsForTest()
 	hermesHome := t.TempDir()
@@ -222,6 +320,14 @@ func newFixtureCredentialPool(t *testing.T, entries []PooledCredential, strategy
 		t.Fatal(err)
 	}
 	return pool
+}
+
+func credentialEntryIDs(entries []PooledCredential) []string {
+	ids := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		ids = append(ids, entry.ID)
+	}
+	return ids
 }
 
 func entryByID(entries []PooledCredential, id string) *PooledCredential {

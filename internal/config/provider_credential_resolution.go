@@ -38,6 +38,7 @@ const (
 // and router read models can cross the same seam as production runtime code.
 type ProviderCredentialRequest struct {
 	Provider          string
+	ProfileID         string
 	APIKey            string
 	APIKeyEnv         string
 	APIKeyRef         *SecretRef
@@ -130,7 +131,7 @@ func ResolveProviderCredential(req ProviderCredentialRequest) ProviderCredential
 		}
 	}
 	if req.UseCredentialPool && strings.TrimSpace(req.Provider) != "" {
-		pool, evidence, err := LoadCredentialPool(CredentialPoolOptions{HermesHome: req.CredentialHome, Provider: strings.TrimSpace(req.Provider)})
+		pool, evidence, err := LoadCredentialPool(CredentialPoolOptions{HermesHome: req.CredentialHome, Provider: strings.TrimSpace(req.Provider), ProfileID: req.ProfileID})
 		if err == nil {
 			for _, entry := range pool.Entries() {
 				if providerCredentialAvailable(entry) {
