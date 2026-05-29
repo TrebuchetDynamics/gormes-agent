@@ -1,6 +1,7 @@
 package credentials
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -740,6 +741,22 @@ func credentialLabelFromJWT(accessToken, fallback string) string {
 	return fallback
 }
 
+func decodeJWTClaims(token string) (map[string]any, bool) {
+	parts := strings.Split(token, ".")
+	if len(parts) < 2 {
+		return nil, false
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil, false
+	}
+	var claims map[string]any
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return nil, false
+	}
+	return claims, true
+}
+
 func cloneCredentialEntries(entries []PooledCredential) []PooledCredential {
 	out := make([]PooledCredential, len(entries))
 	copy(out, entries)
@@ -844,13 +861,36 @@ func writeCredentialPoolAuthStore(hermesHome string, store credentialPoolAuthSto
 func credentialPoolHermesHome(input string) (string, error) {
 	home := strings.TrimSpace(input)
 	if home == "" {
-		home = GormesBaseHome()
+		home = gormesBaseHome()
 	}
 	absHome, err := filepath.Abs(home)
 	if err != nil {
 		return "", err
 	}
 	return absHome, nil
+}
+
+func gormesBaseHome() string {
+	return gormesBaseHomeFor(gormesHome())
+}
+
+func gormesHome() string {
+	if v := strings.TrimSpace(os.Getenv("GORMES_HOME")); v != "" {
+		return v
+	}
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".gormes")
+}
+
+func gormesBaseHomeFor(current string) string {
+	clean := filepath.Clean(strings.TrimSpace(current))
+	if clean == "." || clean == string(filepath.Separator) {
+		return current
+	}
+	if filepath.Base(filepath.Dir(clean)) == "profiles" {
+		return filepath.Dir(filepath.Dir(clean))
+	}
+	return current
 }
 
 func sanitizedEvidenceText(input string) string {
