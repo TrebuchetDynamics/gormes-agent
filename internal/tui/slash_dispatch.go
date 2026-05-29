@@ -12,6 +12,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/prompttemplates"
+	uislash "github.com/TrebuchetDynamics/gormes-agent/internal/tui/slash"
 )
 
 // SlashResult is the typed return value of a SlashHandler. It tells Update
@@ -148,7 +149,7 @@ func (r *SlashRegistry) Dispatch(input string, model *Model) SlashResult {
 }
 
 func normalizeSlashName(name string) string {
-	return strings.ToLower(strings.TrimPrefix(name, "/"))
+	return uislash.NormalizeName(name)
 }
 
 // NewDefaultSlashRegistry returns a registry pre-populated with the local
@@ -281,14 +282,7 @@ func dispatchSkillSlashMessage(model *Model, command skills.SkillSlashCommand, m
 }
 
 func slashInvocationArgs(input string) string {
-	trimmed := strings.TrimSpace(input)
-	for i, r := range trimmed {
-		switch r {
-		case ' ', '\t', '\r', '\n':
-			return strings.TrimSpace(trimmed[i:])
-		}
-	}
-	return ""
+	return uislash.InvocationArgs(input)
 }
 
 func slashFallbackResult(input string) SlashResult {
