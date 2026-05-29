@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 )

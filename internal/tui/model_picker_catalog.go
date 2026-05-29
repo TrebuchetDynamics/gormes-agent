@@ -1,6 +1,6 @@
 package tui
 
-import "github.com/TrebuchetDynamics/gormes-agent/internal/cli/modelcatalog"
+import "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/modelcatalog"
 
 // HermesModelPickerProviders adapts the shared Hermes-compatible provider
 // catalog into the TUI picker row shape.

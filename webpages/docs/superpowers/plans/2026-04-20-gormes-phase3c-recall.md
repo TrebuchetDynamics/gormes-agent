@@ -409,7 +409,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 // TestKernel_ChatKeyPropagatesToStorePayload proves that setting
@@ -2013,7 +2013,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 // mockRecall implements RecallProvider for kernel-level tests.

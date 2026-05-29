@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 

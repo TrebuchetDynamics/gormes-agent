@@ -13,8 +13,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/channels"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
 )
 
 type whatsappCommandOptions struct {

@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 )
 
 // runUpdateCommandWithReport synthesizes a cli.UpdateReport and runs the

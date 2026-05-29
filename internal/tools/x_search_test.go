@@ -71,9 +71,9 @@ func TestXSearchAuthStatus_APIKey(t *testing.T) {
 
 func TestXSearchAuthStatus_OAuth(t *testing.T) {
 	cfg := XSearchConfig{
-		AuthMode:     "oauth",
-		OAuthToken:   "oauth-token-abc",
-		OAuthExpiry:  time.Now().Add(24 * time.Hour),
+		AuthMode:    "oauth",
+		OAuthToken:  "oauth-token-abc",
+		OAuthExpiry: time.Now().Add(24 * time.Hour),
 	}
 	status := cfg.AuthStatus()
 

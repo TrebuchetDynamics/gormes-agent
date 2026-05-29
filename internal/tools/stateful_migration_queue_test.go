@@ -94,17 +94,23 @@ func TestStatefulToolMigrationQueueSerializedWrites(t *testing.T) {
 	secondDone := make(chan struct{})
 	go func() {
 		_ = q.Run(context.Background(), "write_file", func(context.Context) error {
-			mu.Lock(); order = append(order, "first-start"); mu.Unlock()
+			mu.Lock()
+			order = append(order, "first-start")
+			mu.Unlock()
 			close(firstStarted)
 			<-block
-			mu.Lock(); order = append(order, "first-done"); mu.Unlock()
+			mu.Lock()
+			order = append(order, "first-done")
+			mu.Unlock()
 			return nil
 		})
 	}()
 	<-firstStarted
 	go func() {
 		_ = q.Run(context.Background(), "write_file", func(context.Context) error {
-			mu.Lock(); order = append(order, "second"); mu.Unlock()
+			mu.Lock()
+			order = append(order, "second")
+			mu.Unlock()
 			return nil
 		})
 		close(secondDone)
@@ -121,7 +127,9 @@ func TestStatefulToolMigrationQueueSerializedWrites(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatalf("second write did not finish after first write released")
 	}
-	mu.Lock(); got := append([]string(nil), order...); mu.Unlock()
+	mu.Lock()
+	got := append([]string(nil), order...)
+	mu.Unlock()
 	want := []string{"first-start", "first-done", "second"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("write execution order = %#v, want %#v", got, want)

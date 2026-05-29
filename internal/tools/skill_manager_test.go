@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	skillspkg "github.com/TrebuchetDynamics/gormes-agent/internal/skills"
+	skillspkg "github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 )
 
 func TestSkillCreateWritesValidSKILLMD(t *testing.T) {

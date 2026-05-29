@@ -3,7 +3,7 @@ package tools
 import (
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
 )
 
 func TestRegistryRecordsDisabledPluginInventoryWithoutRegisteringTools(t *testing.T) {

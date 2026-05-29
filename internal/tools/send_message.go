@@ -14,8 +14,10 @@ func NewSendMessageTool(fn func(target, message string) error) *SendMessageTool 
 	return &SendMessageTool{sendFn: fn}
 }
 
-func (*SendMessageTool) Name() string        { return "send_message" }
-func (*SendMessageTool) Description() string { return "Send a message through configured gateway channels. Use to notify users on Telegram, Discord, Slack, etc." }
+func (*SendMessageTool) Name() string { return "send_message" }
+func (*SendMessageTool) Description() string {
+	return "Send a message through configured gateway channels. Use to notify users on Telegram, Discord, Slack, etc."
+}
 func (*SendMessageTool) Timeout() time.Duration { return 10 * time.Second }
 
 func (*SendMessageTool) Schema() json.RawMessage {

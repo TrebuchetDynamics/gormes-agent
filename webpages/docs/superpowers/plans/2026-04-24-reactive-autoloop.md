@@ -858,7 +858,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 func writeBaseProgress(t *testing.T, path string) {
@@ -1089,7 +1089,7 @@ package autoloop
 import (
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 type rowKey struct {
@@ -1740,7 +1740,7 @@ package autoloop
 import (
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 func itemWithHealth(name string, h *progress.RowHealth) progress.Item {
@@ -2316,7 +2316,7 @@ package architectureplanner
 import (
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 func docWithItem(item progress.Item) *progress.Progress {
@@ -2418,7 +2418,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 // validateHealthPreservation rejects planner regenerations that drop or
@@ -2670,7 +2670,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 // TestLifecycle_FailingRowQuarantinesThenPlannerRepairUnlocksIt walks one

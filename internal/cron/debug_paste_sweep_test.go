@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 )
 
 // fakePasteSweeper implements cron.Sweeper for test observation.
@@ -87,9 +87,9 @@ func TestPasteSweepRun_NoDeletedNoInfoLog(t *testing.T) {
 func TestPasteSweepCadenceTicks_HourlyAtDefault(t *testing.T) {
 	// PasteSweepEvery/PasteSweepTickInterval = 3600/60 = 60 ticks per hour.
 	tests := []struct {
-		tick  int
-		want  bool
-		desc  string
+		tick int
+		want bool
+		desc string
 	}{
 		{1, false, "first tick not a sweep"},
 		{59, false, "tick 59 not a sweep"},

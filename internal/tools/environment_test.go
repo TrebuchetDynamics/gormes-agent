@@ -197,12 +197,12 @@ func TestDockerConfigValidation(t *testing.T) {
 		{
 			name: "valid config with resources",
 			config: DockerConfig{
-				Image:     "python:3.11",
-				CWD:       "/workspace",
-				Timeout:   60,
-				CPU:       2.0,
-				MemoryMB:  4096,
-				DiskMB:    10240,
+				Image:    "python:3.11",
+				CWD:      "/workspace",
+				Timeout:  60,
+				CPU:      2.0,
+				MemoryMB: 4096,
+				DiskMB:   10240,
 			},
 			valid: true,
 		},
@@ -262,11 +262,11 @@ func TestSSHConfigValidation(t *testing.T) {
 		{
 			name: "valid config with key path",
 			config: SSHConfig{
-				Host:     "example.com",
-				User:     "ubuntu",
-				KeyPath:  "/path/to/key",
-				Timeout:  60,
-				Port:     22,
+				Host:    "example.com",
+				User:    "ubuntu",
+				KeyPath: "/path/to/key",
+				Timeout: 60,
+				Port:    22,
 			},
 			valid: true,
 		},
@@ -602,7 +602,7 @@ func TestDockerConfigNormalization(t *testing.T) {
 	cfg := DockerConfig{
 		Image: "python:3.11",
 		Env: map[string]string{
-			"VALID_VAR":  "value1",
+			"VALID_VAR":   "value1",
 			"123_INVALID": "value2",
 			"ALSO_VALID":  "value3",
 		},
@@ -693,11 +693,11 @@ func TestRandomID(t *testing.T) {
 func TestEnvironmentEvidenceError(t *testing.T) {
 	err := &EnvironmentEvidenceError{
 		Evidence: EnvironmentEvidence{
-			Code:    EnvironmentBackendUnavailable,
-			Status:  EnvironmentStatusUnavailable,
-			Backend: "docker",
+			Code:      EnvironmentBackendUnavailable,
+			Status:    EnvironmentStatusUnavailable,
+			Backend:   "docker",
 			Operation: "backend_unavailable",
-			Message: "docker not available",
+			Message:   "docker not available",
 		},
 	}
 
@@ -805,7 +805,7 @@ func TestSSHEnvironmentMapPath(t *testing.T) {
 func TestTempDirCreation(t *testing.T) {
 	// Test that the SSH control directory logic works
 	controlDir := filepath.Join(os.TempDir(), "gormes-ssh")
-	
+
 	// Just verify the path is sensible
 	if controlDir == "" {
 		t.Error("expected non-empty control dir path")

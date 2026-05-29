@@ -8,7 +8,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 )
 
 // TestHermesSlashCompletion_CommandPrefix proves typed slash prefixes resolve

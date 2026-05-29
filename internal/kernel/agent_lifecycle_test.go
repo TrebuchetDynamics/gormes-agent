@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
 )
 
 func TestAgentLifecycleHook_StartEndFiresOnSimpleTurn(t *testing.T) {

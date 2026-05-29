@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/events"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"

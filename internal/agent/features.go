@@ -29,11 +29,11 @@ type RuntimeFeatures struct {
 // AssembleFromFeatures builds an ordered MiddlewareChain from RuntimeFeatures.
 // Built-in ordering:
 //
-//	0. ThreadData (feature-gated)
-//	1. ToolError  (feature-gated)
-//	2. LoopDetect (feature-gated)
-//	3. Memory     (feature-gated)
-//	4. Subagent   (feature-gated, requires plan mode or separate flag)
+//  0. ThreadData (feature-gated)
+//  1. ToolError  (feature-gated)
+//  2. LoopDetect (feature-gated)
+//  3. Memory     (feature-gated)
+//  4. Subagent   (feature-gated, requires plan mode or separate flag)
 //
 // Disabled features are excluded entirely. Custom overrides replace built-ins.
 func AssembleFromFeatures(features RuntimeFeatures) *MiddlewareChain {

@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 )
 
 func maybeHandleRootFirstRun(cmd *cobra.Command, invocation tuiInvocation, runtime rootRuntime) (bool, error) {

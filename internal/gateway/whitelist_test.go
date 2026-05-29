@@ -98,7 +98,7 @@ func TestWhitelistFilter_StatusEvidence(t *testing.T) {
 	}
 
 	active := WhitelistStatus{
-		ActiveCount: 3,
+		ActiveCount:  3,
 		SkippedCount: 5,
 		ParseError:   "bad regex: [",
 	}

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/kanban"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/kanban"
 )
 
 type kanbanBoardListReportForTest struct {

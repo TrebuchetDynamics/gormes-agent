@@ -19,8 +19,8 @@ type BrowserResultCache struct {
 }
 
 type cachedBrowserResult struct {
-	Result    json.RawMessage
-	CachedAt  time.Time
+	Result     json.RawMessage
+	CachedAt   time.Time
 	ActionKind string
 	URL        string
 }

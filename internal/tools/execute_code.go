@@ -280,12 +280,13 @@ func (t *ExecuteCodeTool) Execute(ctx context.Context, args json.RawMessage) (js
 	}
 
 	if t.Mode == ExecuteCodeModeProject && t.WorkspaceScope != nil && t.WorkspaceScope.Configured() {
+		denial := profileWorkspaceExecuteDenied("project-mode execute_code")
 		return json.Marshal(CodeExecutionResult{
 			Status:   "blocked",
 			Language: language,
 			ExitCode: -1,
-			Error:    ProfileWorkspaceScopeViolation + ": project-mode execute_code cannot prove confinement for a non-empty profile workspace allow-list; fail closed before spawning",
-			Evidence: ProfileWorkspaceScopeViolation,
+			Error:    denial.Message,
+			Evidence: denial.Evidence,
 		})
 	}
 

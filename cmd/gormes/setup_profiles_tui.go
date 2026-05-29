@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
-	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/profiles"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/profiles"
 	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/provider"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 	"github.com/charmbracelet/bubbles/filepicker"

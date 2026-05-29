@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
 )
 
 type tuiStartupPreflightOptions struct {

@@ -962,7 +962,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 // TestLifecycle_DivergenceFullCycle walks one subphase through:

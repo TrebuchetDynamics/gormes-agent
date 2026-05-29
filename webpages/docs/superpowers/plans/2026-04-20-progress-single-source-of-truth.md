@@ -49,7 +49,7 @@
 
 ## Conventions
 
-- Module import path: `github.com/TrebuchetDynamics/gormes-agent/internal/progress`
+- Module import path: `github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress`
 - All tests run with `go test ./...` from `<repo>/gormes/`
 - Test style: plain `*testing.T`, `t.Fatalf`/`t.Errorf`, no external assertion libs
 - Commit messages: `feat(progress):`, `test(progress):`, `docs(progress):`, `build(progress):`
@@ -1632,7 +1632,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 func main() {
@@ -1866,7 +1866,7 @@ package site
 import (
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 func TestToneFor(t *testing.T) {
@@ -1930,7 +1930,7 @@ import (
 	"html/template"
 	"sort"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 //go:embed data/progress.json
@@ -2063,7 +2063,7 @@ import (
 	"html/template"
 	"sort"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 //go:embed data/progress.json

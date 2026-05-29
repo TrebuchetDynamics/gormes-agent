@@ -154,14 +154,14 @@ func TestPermissionOutcome_MapsACPKindToHermes(t *testing.T) {
 
 func TestToolKindFor_MapsHermesToolNames(t *testing.T) {
 	cases := map[string]ToolKind{
-		"read_file":     ToolKindRead,
-		"write_file":    ToolKindEdit,
-		"patch":         ToolKindEdit,
-		"search_files":  ToolKindSearch,
-		"terminal":      ToolKindExecute,
-		"web_search":    ToolKindFetch,
-		"_thinking":     ToolKindThink,
-		"unknown_tool":  ToolKindOther,
+		"read_file":    ToolKindRead,
+		"write_file":   ToolKindEdit,
+		"patch":        ToolKindEdit,
+		"search_files": ToolKindSearch,
+		"terminal":     ToolKindExecute,
+		"web_search":   ToolKindFetch,
+		"_thinking":    ToolKindThink,
+		"unknown_tool": ToolKindOther,
 	}
 	for tool, want := range cases {
 		got := ToolKindFor(tool)
@@ -173,8 +173,8 @@ func TestToolKindFor_MapsHermesToolNames(t *testing.T) {
 
 func TestSessionUpdate_FixtureShapeIsTyped(t *testing.T) {
 	start := SessionUpdate{
-		Kind:      SessionUpdateToolStart,
-		ToolCall:  &ToolCallStart{ID: "tc-abc", Name: "read_file", Kind: ToolKindRead},
+		Kind:     SessionUpdateToolStart,
+		ToolCall: &ToolCallStart{ID: "tc-abc", Name: "read_file", Kind: ToolKindRead},
 	}
 	if start.Kind != SessionUpdateToolStart {
 		t.Fatalf("kind = %q", start.Kind)

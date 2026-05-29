@@ -2995,10 +2995,10 @@
         "system"
       ],
       "degraded_mode": "The e2e harness uses only temp SQLite, temp GORMES_HOME, deterministic fake provider output, deterministic Goncho capture, and a golden JSON fixture. Missing recall context or negative-control leakage makes the fake provider return sentinel failure text and the test fails. No live provider, network, hosted Honcho, external vector DB, benchmark corpus, replay UI, or Hermes learning-loop dependency is required.",
-      "fixture": "internal/e2e/goncho_memory_turn_test.go",
+      "fixture": "internal/support/e2e/goncho_memory_turn_test.go",
       "source_refs": [
-        "internal/e2e/normal_turn_test.go",
-        "internal/e2e/golden_transcript_test.go",
+        "internal/support/e2e/normal_turn_test.go",
+        "internal/support/e2e/golden_transcript_test.go",
         "internal/goncho/service.go",
         "internal/goncho/recall_ir.go",
         "internal/goncho/recall_projector.go",
@@ -3029,10 +3029,10 @@
         "A negative-control memory in another workspace is rejected and never appears in the injected provider context.",
         "The test fails if context is missing, the negative control leaks, StableJSON is nondeterministic, projection bypasses RecallTrace, or the golden transcript drifts."
       ],
-      "note": "Complete 2026-05-18: added `TestGonchoGoldenTranscriptE2E` plus a byte-stable `internal/e2e/testdata/goncho_memory_turn/golden.json` fixture. The harness runs two real kernel turns with temp SQLite/temp GORMES_HOME, deterministic fake provider responses, deterministic Goncho capture, trace-only recall projection, operator diagnostics/replay summaries, and a negative-control leak check. It deliberately excludes learning-loop scope, benchmark corpus, CLI/UI work, public API changes, live providers, network, hosted Honcho, and external backends.",
+      "note": "Complete 2026-05-18: added `TestGonchoGoldenTranscriptE2E` plus a byte-stable `internal/support/e2e/testdata/goncho_memory_turn/golden.json` fixture. The harness runs two real kernel turns with temp SQLite/temp GORMES_HOME, deterministic fake provider responses, deterministic Goncho capture, trace-only recall projection, operator diagnostics/replay summaries, and a negative-control leak check. It deliberately excludes learning-loop scope, benchmark corpus, CLI/UI work, public API changes, live providers, network, hosted Honcho, and external backends.",
       "write_scope": [
-        "internal/e2e/goncho_memory_turn_test.go",
-        "internal/e2e/testdata/goncho_memory_turn/golden.json",
+        "internal/support/e2e/goncho_memory_turn_test.go",
+        "internal/support/e2e/testdata/goncho_memory_turn/golden.json",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
@@ -3075,7 +3075,7 @@
         "internal/goncho/recall_pipeline.go",
         "internal/goncho/recall_projector.go",
         "internal/goncho/testdata/recall_trace/stable_trace.golden.json",
-        "internal/e2e/testdata/goncho_memory_turn/golden.json",
+        "internal/support/e2e/testdata/goncho_memory_turn/golden.json",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
       ],
       "ready_when": [

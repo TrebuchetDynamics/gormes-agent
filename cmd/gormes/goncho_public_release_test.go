@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	gormesgoncho "github.com/TrebuchetDynamics/goncho/integration/gormes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/testutil/modassert"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/support/testutil/modassert"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 

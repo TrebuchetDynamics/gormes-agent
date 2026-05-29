@@ -14,8 +14,10 @@ func NewInterruptTool(fn func()) *InterruptTool {
 	return &InterruptTool{interruptFn: fn}
 }
 
-func (*InterruptTool) Name() string        { return "interrupt" }
-func (*InterruptTool) Description() string { return "Request interruption of the current agent turn. Use when the user asks to stop." }
+func (*InterruptTool) Name() string { return "interrupt" }
+func (*InterruptTool) Description() string {
+	return "Request interruption of the current agent turn. Use when the user asks to stop."
+}
 func (*InterruptTool) Timeout() time.Duration { return 2 * time.Second }
 
 func (*InterruptTool) Schema() json.RawMessage {

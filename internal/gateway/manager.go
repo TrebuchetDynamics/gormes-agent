@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -954,116 +954,11 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 		return nil
 	}
 
+	if handled, err := m.dispatchGatewayCommandEvent(ctx, ch, ev); handled {
+		return err
+	}
+
 	switch ev.Kind {
-	case EventStart:
-		if _, err := m.sendWithHooks(ctx, ch, ev.ChatID, startGreeting); err != nil {
-			m.log.Warn("send greeting", "platform", ev.Platform, "chat_id", ev.ChatID, "err", err)
-		}
-		return nil
-	case EventCancel:
-		m.markTurnCancelled()
-		if k := m.activeTurnKernel(); k != nil {
-			_ = k.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventCancel})
-		}
-		return nil
-	case EventReset:
-		if m.kernel == nil {
-			return nil
-		}
-		if err := m.kernel.ResetSession(); err != nil {
-			if errors.Is(err, kernel.ErrResetDuringTurn) {
-				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Cannot reset during active turn — send /stop first.")
-			} else {
-				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Session reset failed: "+err.Error())
-			}
-			return nil
-		}
-		key := m.sessionKeyForInbound(ev)
-		m.clearSessionBoundaryControlState(key)
-		if m.cfg.SessionMap != nil {
-			if err := m.cfg.SessionMap.Put(ctx, key, ""); err != nil {
-				m.log.Warn("clear session mapping", "key", key, "err", err)
-			}
-		}
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Session reset. Next message starts fresh.")
-		return nil
-	case EventRestart:
-		return m.handleRestartCommand(ctx, ch, ev)
-	case EventSteer:
-		m.handleSteerCommand(ctx, ch, ev)
-		return nil
-	case EventQueue:
-		m.handleQueueCommand(ctx, ch, ev)
-		return nil
-	case EventUsage:
-		m.handleUsageCommand(ctx, ch, ev)
-		return nil
-	case EventStatus:
-		m.handleStatusCommand(ctx, ch, ev)
-		return nil
-	case EventTitle:
-		m.handleTitleCommand(ctx, ch, ev)
-		return nil
-	case EventSkills:
-		m.handleSkillsCommand(ctx, ch, ev)
-		return nil
-	case EventCommands:
-		m.handleCommandsCommand(ctx, ch, ev)
-		return nil
-	case EventVerbose:
-		m.handleVerboseCommand(ctx, ch, ev)
-		return nil
-	case EventModel:
-		m.handleModelCommand(ctx, ch, ev)
-		return nil
-	case EventSessions:
-		m.handleSessionsCommand(ctx, ch, ev)
-		return nil
-	case EventProfile:
-		m.handleProfileCommand(ctx, ch, ev)
-		return nil
-	case EventGateway:
-		m.handlePlatformsCommand(ctx, ch, ev)
-		return nil
-	case EventPlatformControl:
-		m.handlePlatformControlCommand(ctx, ch, ev)
-		return nil
-	case EventReasoning:
-		m.handleReasoningCommand(ctx, ch, ev)
-		return nil
-	case EventBusy:
-		m.handleBusyCommand(ctx, ch, ev)
-		return nil
-	case EventTTS:
-		m.handleTTSCommand(ctx, ch, ev)
-		return nil
-	case EventGoal:
-		m.handleGoalCommand(ctx, ch, ev)
-		return nil
-	case EventTopic:
-		m.handleTelegramTopicCommand(ctx, ch, ev)
-		return nil
-	case EventKanban:
-		m.handleKanbanCommand(ctx, ch, ev)
-		return nil
-	case EventPersonality:
-		m.handlePersonalityCommand(ctx, ch, ev)
-		return nil
-	case EventSpawn:
-		m.handleSpawnCommand(ctx, ch, ev)
-		return nil
-	case EventReload:
-		m.handleReloadCommand(ctx, ch, ev)
-		return nil
-	case EventReloadSkills:
-		m.handleReloadSkillsCommand(ctx, ch, ev)
-		return nil
-	case EventRetry:
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/retry is coming soon — session retry is not yet implemented in the gateway")
-		return nil
-	case EventUndo:
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/undo is coming soon — message undo is not yet implemented in the gateway")
-		return nil
 	case EventSubmit:
 		m.handleSubmitEvent(ctx, ch, ev)
 		return nil
@@ -1080,120 +975,15 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 }
 
 func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev InboundEvent) bool {
-	switch ev.Kind {
-	case EventStart:
-		if _, err := m.sendWithHooks(ctx, ch, ev.ChatID, startGreeting); err != nil {
-			m.log.Warn("send greeting", "platform", ev.Platform, "chat_id", ev.ChatID, "err", err)
-		}
+	handled, _ := m.dispatchGatewayCommandEvent(ctx, ch, ev)
+	if handled {
 		return true
-	case EventCancel:
-		m.markTurnCancelled()
-		if k := m.activeTurnKernel(); k != nil {
-			_ = k.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventCancel})
-		}
-		return true
-	case EventReset:
-		if m.kernel == nil {
-			return true
-		}
-		if err := m.kernel.ResetSession(); err != nil {
-			if errors.Is(err, kernel.ErrResetDuringTurn) {
-				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Cannot reset during active turn — send /stop first.")
-			} else {
-				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Session reset failed: "+err.Error())
-			}
-			return true
-		}
-		key := m.sessionKeyForInbound(ev)
-		m.clearSessionBoundaryControlState(key)
-		if m.cfg.SessionMap != nil {
-			if err := m.cfg.SessionMap.Put(ctx, key, ""); err != nil {
-				m.log.Warn("clear session mapping", "key", key, "err", err)
-			}
-		}
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Session reset. Next message starts fresh.")
-		return true
-	case EventRestart:
-		_ = m.handleRestartCommand(ctx, ch, ev)
-		return true
-	case EventSteer:
-		m.handleSteerCommand(ctx, ch, ev)
-		return true
-	case EventQueue:
-		m.handleQueueCommand(ctx, ch, ev)
-		return true
-	case EventUsage:
-		m.handleUsageCommand(ctx, ch, ev)
-		return true
-	case EventStatus:
-		m.handleStatusCommand(ctx, ch, ev)
-		return true
-	case EventTitle:
-		m.handleTitleCommand(ctx, ch, ev)
-		return true
-	case EventSkills:
-		m.handleSkillsCommand(ctx, ch, ev)
-		return true
-	case EventCommands:
-		m.handleCommandsCommand(ctx, ch, ev)
-		return true
-	case EventVerbose:
-		m.handleVerboseCommand(ctx, ch, ev)
-		return true
-	case EventModel:
-		m.handleModelCommand(ctx, ch, ev)
-		return true
-	case EventSessions:
-		m.handleSessionsCommand(ctx, ch, ev)
-		return true
-	case EventProfile:
-		m.handleProfileCommand(ctx, ch, ev)
-		return true
-	case EventGateway:
-		m.handlePlatformsCommand(ctx, ch, ev)
-		return true
-	case EventPlatformControl:
-		m.handlePlatformControlCommand(ctx, ch, ev)
-		return true
-	case EventReasoning:
-		m.handleReasoningCommand(ctx, ch, ev)
-		return true
-	case EventUnknown:
+	}
+	if ev.Kind == EventUnknown {
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "unknown command")
 		return true
-	case EventTTS:
-		m.handleTTSCommand(ctx, ch, ev)
-		return true
-	case EventGoal:
-		m.handleGoalCommand(ctx, ch, ev)
-		return true
-	case EventTopic:
-		m.handleTelegramTopicCommand(ctx, ch, ev)
-		return true
-	case EventKanban:
-		m.handleKanbanCommand(ctx, ch, ev)
-		return true
-	case EventPersonality:
-		m.handlePersonalityCommand(ctx, ch, ev)
-		return true
-	case EventSpawn:
-		m.handleSpawnCommand(ctx, ch, ev)
-		return true
-	case EventReload:
-		m.handleReloadCommand(ctx, ch, ev)
-		return true
-	case EventReloadSkills:
-		m.handleReloadSkillsCommand(ctx, ch, ev)
-		return true
-	case EventRetry:
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/retry is coming soon — session retry is not yet implemented in the gateway")
-		return true
-	case EventUndo:
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/undo is coming soon — message undo is not yet implemented in the gateway")
-		return true
-	default:
-		return false
 	}
+	return false
 }
 
 func (m *Manager) handleReasoningCommand(ctx context.Context, ch Channel, ev InboundEvent) {

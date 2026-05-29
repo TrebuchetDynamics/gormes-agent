@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/redaction"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 // Browser action and evidence vocabulary stays provider-neutral: live browser

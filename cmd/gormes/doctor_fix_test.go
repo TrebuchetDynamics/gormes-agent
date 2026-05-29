@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
 )
 
 // `gormes doctor --fix` auto-remediates the config-version class: an

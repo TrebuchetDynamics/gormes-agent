@@ -292,4 +292,3 @@ func FormatFinalDiscord(f kernel.RenderFrame) string {
 func FormatFinalSlack(f kernel.RenderFrame) string {
 	return FormatFinalSlackText(FinalAssistantText(f))
 }
-

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
 )
 
 const defaultChromeCDPEndpoint = "http://127.0.0.1:9222"

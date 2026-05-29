@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/redaction"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 // Stable evidence codes returned by FormatToolResult so callers (gateway,

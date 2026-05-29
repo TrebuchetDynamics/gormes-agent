@@ -4,7 +4,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 // SessionUsage is the minimal per-session runtime envelope that the lightweight

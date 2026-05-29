@@ -14,10 +14,10 @@ type ACPSession struct {
 type ACPToolKind string
 
 const (
-	ACPToolKindRead     ACPToolKind = "read"
-	ACPToolKindEdit     ACPToolKind = "edit"
-	ACPToolKindSearch   ACPToolKind = "search"
-	ACPToolKindExecute  ACPToolKind = "execute"
-	ACPToolKindFetch    ACPToolKind = "fetch"
-	ACPToolKindThink    ACPToolKind = "think"
+	ACPToolKindRead    ACPToolKind = "read"
+	ACPToolKindEdit    ACPToolKind = "edit"
+	ACPToolKindSearch  ACPToolKind = "search"
+	ACPToolKindExecute ACPToolKind = "execute"
+	ACPToolKindFetch   ACPToolKind = "fetch"
+	ACPToolKindThink   ACPToolKind = "think"
 )

@@ -1260,7 +1260,7 @@ import (
     "fmt"
     "strings"
 
-    "github.com/TrebuchetDynamics/gormes-agent/internal/skills"
+    "github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 )
 
 type SkillsTools struct {
@@ -1488,7 +1488,7 @@ import (
     "strings"
     "text/template"
 
-    "github.com/TrebuchetDynamics/gormes-agent/internal/skills"
+    "github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 )
 
 type skillsPromptBuilder struct {
@@ -1652,7 +1652,7 @@ package cmd
 
 import (
     "fmt"
-    "github.com/TrebuchetDynamics/gormes-agent/internal/skills"
+    "github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 )
 
 type SkillsCLI struct {

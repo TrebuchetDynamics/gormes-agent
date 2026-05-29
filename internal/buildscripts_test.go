@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/repoctl"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/repoctl"
 )
 
 func TestMain(m *testing.M) {

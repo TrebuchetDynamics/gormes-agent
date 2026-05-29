@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 )
 
 func TestManagerReloadSkillsCommandRefreshesAdaptersAndDoesNotLeak(t *testing.T) {

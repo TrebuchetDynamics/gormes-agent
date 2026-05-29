@@ -17,29 +17,29 @@ import (
 
 // DockerConfig holds configuration for a Docker environment.
 type DockerConfig struct {
-	Image                    string
-	CWD                      string
-	Timeout                  int
-	CPU                      float64
-	MemoryMB                 int
-	DiskMB                   int
-	PersistentFilesystem     bool
-	TaskID                   string
-	Volumes                  []string
-	ForwardEnv               []string
-	Env                      map[string]string
-	Network                  bool
-	HostCWD                  string
-	AutoMountCWD             bool
-	RunAsHostUser            bool
-	DockerExecutable         string
+	Image                string
+	CWD                  string
+	Timeout              int
+	CPU                  float64
+	MemoryMB             int
+	DiskMB               int
+	PersistentFilesystem bool
+	TaskID               string
+	Volumes              []string
+	ForwardEnv           []string
+	Env                  map[string]string
+	Network              bool
+	HostCWD              string
+	AutoMountCWD         bool
+	RunAsHostUser        bool
+	DockerExecutable     string
 }
 
 // DockerEnvironment implements the Environment interface using Docker containers.
 type DockerEnvironment struct {
 	config       DockerConfig
 	containerID  string
-	dockerExe   string
+	dockerExe    string
 	workspaceDir string
 	homeDir      string
 }
@@ -87,20 +87,20 @@ func (e *DockerEnvironment) MapPath(hostPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	// If the path is under the workspace or home mount, map it
 	cleanPath := filepath.Clean(absPath)
-	
+
 	if e.workspaceDir != "" && strings.HasPrefix(cleanPath, e.workspaceDir) {
 		rel, _ := filepath.Rel(e.workspaceDir, cleanPath)
 		return filepath.Join("/workspace", rel), nil
 	}
-	
+
 	if e.homeDir != "" && strings.HasPrefix(cleanPath, e.homeDir) {
 		rel, _ := filepath.Rel(e.homeDir, cleanPath)
 		return filepath.Join("/root", rel), nil
 	}
-	
+
 	// Default: return the absolute path as-is
 	return cleanPath, nil
 }
@@ -118,7 +118,7 @@ func (e *DockerEnvironment) Upload(ctx context.Context, intent FileSyncIntent) (
 	cmd := exec.CommandContext(ctx, e.dockerExe, "cp", intent.HostPath, e.containerID+":"+intent.EnvironmentPath)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	
+
 	if err := cmd.Run(); err != nil {
 		return FileSyncResult{}, fmt.Errorf("docker cp failed: %s: %w", stderr.String(), err)
 	}
@@ -179,13 +179,11 @@ func (e *DockerEnvironment) Execute(ctx context.Context, command EnvironmentComm
 		return EnvironmentResult{}, err
 	}
 
-	if command.Timeout == 0 {
-		command.Timeout = time.Duration(e.config.Timeout) * time.Second
-	}
+	command = normalizeEnvironmentCommand(command, time.Duration(e.config.Timeout)*time.Second)
 
 	// Build docker exec command
 	args := []string{"exec", "-i"}
-	
+
 	if command.WorkingDir != "" {
 		args = append(args, "-w", command.WorkingDir)
 	} else if e.config.CWD != "" {
@@ -221,14 +219,7 @@ func (e *DockerEnvironment) Execute(ctx context.Context, command EnvironmentComm
 					Command:  command,
 					Output:   stdout.String() + "\n[Command timed out after " + command.Timeout.String() + "]",
 					ExitCode: 124,
-					Evidence: []EnvironmentEvidence{{
-						Code:      EnvironmentCommandRecorded,
-						Status:    EnvironmentStatusRecorded,
-						Backend:   "docker",
-						Operation: "execute",
-						Resource:  command.Command,
-						Message:   "command timed out",
-					}},
+					Evidence: []EnvironmentEvidence{recordedEnvironmentEvidence("docker", EnvironmentOperationExecute, command.Command, "command timed out")},
 				}, nil
 			}
 		}
@@ -247,14 +238,7 @@ func (e *DockerEnvironment) Execute(ctx context.Context, command EnvironmentComm
 			Command:  command,
 			Output:   stdout.String() + stderr.String(),
 			ExitCode: exitCode,
-			Evidence: []EnvironmentEvidence{{
-				Code:      EnvironmentCommandRecorded,
-				Status:    EnvironmentStatusRecorded,
-				Backend:   "docker",
-				Operation: "execute",
-				Resource:  command.Command,
-				Message:   "docker executed command",
-			}},
+			Evidence: []EnvironmentEvidence{recordedEnvironmentEvidence("docker", EnvironmentOperationExecute, command.Command, "docker executed command")},
 		}, nil
 	}
 }
@@ -283,14 +267,7 @@ func (e *DockerEnvironment) Cleanup(ctx context.Context) (EnvironmentCleanupResu
 		}
 	}
 
-	evidence = append(evidence, EnvironmentEvidence{
-		Code:      EnvironmentCleanupRecorded,
-		Status:    EnvironmentStatusRecorded,
-		Backend:   "docker",
-		Operation: "cleanup",
-		Resource:  e.containerID,
-		Message:   "docker container cleaned up",
-	})
+	evidence = append(evidence, recordedEnvironmentEvidence("docker", EnvironmentOperationCleanup, e.containerID, "docker container cleaned up"))
 
 	return EnvironmentCleanupResult{Evidence: evidence}, nil
 }
@@ -306,7 +283,7 @@ func (e *DockerEnvironment) createContainer(ctx context.Context) error {
 
 	// Security: drop all capabilities, no privilege escalation
 	args = append(args, "--cap-drop", "ALL")
-	args = append(args, "--cap-add", "DAC_OVERRIDE")  // Root can write to bind-mounted dirs
+	args = append(args, "--cap-add", "DAC_OVERRIDE") // Root can write to bind-mounted dirs
 	args = append(args, "--cap-add", "CHOWN")
 	args = append(args, "--cap-add", "FOWNER")
 	args = append(args, "--security-opt", "no-new-privileges")
@@ -357,10 +334,10 @@ func (e *DockerEnvironment) createContainer(ctx context.Context) error {
 		sandboxBase := os.ExpandEnv("$HOME/.gormes/sandboxes/docker/" + e.config.TaskID)
 		e.homeDir = filepath.Join(sandboxBase, "home")
 		e.workspaceDir = filepath.Join(sandboxBase, "workspace")
-		
+
 		os.MkdirAll(e.homeDir, 0755)
 		os.MkdirAll(e.workspaceDir, 0755)
-		
+
 		args = append(args, "-v", e.homeDir+":/root")
 		if !e.config.AutoMountCWD {
 			args = append(args, "-v", e.workspaceDir+":/workspace")

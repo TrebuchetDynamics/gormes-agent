@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 )
 
 // TestRestoreCommand_ListPrintsNewestFirst proves `gormes restore
@@ -583,12 +583,12 @@ func TestRestoreCommand_PathDryRunJSONEmitsStructuredPreview(t *testing.T) {
 			Version   string `json:"version"`
 			GitCommit string `json:"git_commit"`
 		} `json:"build"`
-		Action          string `json:"action"`
-		Path            string `json:"path"`
-		Dest            string `json:"dest"`
-		DryRun          bool   `json:"dry_run"`
-		WouldOverwrite  int    `json:"would_overwrite"`
-		WouldCreate     int    `json:"would_create"`
+		Action         string `json:"action"`
+		Path           string `json:"path"`
+		Dest           string `json:"dest"`
+		DryRun         bool   `json:"dry_run"`
+		WouldOverwrite int    `json:"would_overwrite"`
+		WouldCreate    int    `json:"would_create"`
 	}
 	if jsonErr := json.Unmarshal([]byte(stdout), &preview); jsonErr != nil {
 		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)

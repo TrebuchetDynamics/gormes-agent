@@ -336,7 +336,7 @@ func buildRoute(cfg config.Config, raw config.RouterRouteCfg, lookupEnv func(str
 	}
 
 	route.Local = isLocalRoute(route.Provider, route.BaseURL)
-	route.CredentialStatus = credentialStatus(cfg, raw, route, lookupEnv)
+	route.CredentialStatus = resolveProviderCredential(route, lookupEnv).Status
 	if route.CredentialStatus == CredentialMissing {
 		route.Status = RouteStatusMissingCredential
 		route.Evidence = append(route.Evidence, "credential_missing")
@@ -352,62 +352,6 @@ func buildRoute(cfg config.Config, raw config.RouterRouteCfg, lookupEnv func(str
 		return applyOptionalLocalProbe(route, opts)
 	}
 	return route
-}
-
-func credentialStatus(cfg config.Config, raw config.RouterRouteCfg, route Route, lookupEnv func(string) (string, bool)) CredentialStatus {
-	if route.Local && route.Optional && strings.TrimSpace(raw.APIKeyEnv) == "" && raw.APIKeyRef == nil {
-		return CredentialNotNeeded
-	}
-	if strings.TrimSpace(raw.APIKeyEnv) != "" {
-		if value, ok := lookupEnv(strings.TrimSpace(raw.APIKeyEnv)); ok && strings.TrimSpace(value) != "" {
-			return CredentialConfigured
-		}
-		return CredentialMissing
-	}
-	if raw.APIKeyRef != nil {
-		return secretRefCredentialStatus(*raw.APIKeyRef, lookupEnv)
-	}
-	if route.Name == "primary-provider" {
-		if strings.TrimSpace(cfg.Hermes.APIKey) != "" {
-			return CredentialConfigured
-		}
-		if cfg.Hermes.APIKeyRef != nil {
-			return secretRefCredentialStatus(*cfg.Hermes.APIKeyRef, lookupEnv)
-		}
-	}
-	if providerEnvConfigured(route.Provider, lookupEnv) {
-		return CredentialConfigured
-	}
-	return CredentialMissing
-}
-
-func secretRefCredentialStatus(ref config.SecretRef, lookupEnv func(string) (string, bool)) CredentialStatus {
-	if strings.EqualFold(string(ref.Source), string(config.SecretRefSourceEnv)) {
-		if value, ok := lookupEnv(strings.TrimSpace(ref.ID)); ok && strings.TrimSpace(value) != "" {
-			return CredentialConfigured
-		}
-		return CredentialMissing
-	}
-	// File and future secret providers are redacted handles. This read model does
-	// not open secret files or execute helpers; setup/status rows can resolve them
-	// under their own side-effect budget.
-	if strings.TrimSpace(ref.ID) != "" {
-		return CredentialConfigured
-	}
-	return CredentialMissing
-}
-
-func providerEnvConfigured(provider string, lookupEnv func(string) (string, bool)) bool {
-	entry, ok := hermes.ResolveProviderManifestEntry(provider)
-	if !ok {
-		return false
-	}
-	for _, env := range entry.EnvVars {
-		if value, ok := lookupEnv(env); ok && strings.TrimSpace(value) != "" {
-			return true
-		}
-	}
-	return false
 }
 
 func applyOptionalLocalProbe(route Route, opts Options) Route {

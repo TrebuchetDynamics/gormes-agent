@@ -23,7 +23,7 @@ func TestProviderSelection(t *testing.T) {
 
 	t.Run("selects edge when requested and available", func(t *testing.T) {
 		providers := map[string]TTSProvider{
-			"edge":    &fakeTTSProvider{available: true},
+			"edge":   &fakeTTSProvider{available: true},
 			"openai": &fakeTTSProvider{available: true},
 		}
 		runner := NewTTSRunner(TTSConfig{Provider: "edge"}, providers)
@@ -35,7 +35,7 @@ func TestProviderSelection(t *testing.T) {
 
 	t.Run("falls back when requested provider unavailable", func(t *testing.T) {
 		providers := map[string]TTSProvider{
-			"edge":    &fakeTTSProvider{available: false},
+			"edge":   &fakeTTSProvider{available: false},
 			"openai": &fakeTTSProvider{available: true},
 		}
 		runner := NewTTSRunner(TTSConfig{Provider: "edge"}, providers)
@@ -50,7 +50,7 @@ func TestProviderSelection(t *testing.T) {
 
 	t.Run("selects first available when provider is auto", func(t *testing.T) {
 		providers := map[string]TTSProvider{
-			"edge":    &fakeTTSProvider{available: false},
+			"edge":   &fakeTTSProvider{available: false},
 			"openai": &fakeTTSProvider{available: true},
 		}
 		runner := NewTTSRunner(TTSConfig{Provider: "auto"}, providers)
@@ -62,7 +62,7 @@ func TestProviderSelection(t *testing.T) {
 
 	t.Run("returns unavailable when no providers available", func(t *testing.T) {
 		providers := map[string]TTSProvider{
-			"edge":    &fakeTTSProvider{available: false},
+			"edge":   &fakeTTSProvider{available: false},
 			"openai": &fakeTTSProvider{available: false},
 		}
 		runner := NewTTSRunner(TTSConfig{}, providers)
@@ -77,7 +77,7 @@ func TestProviderSelection(t *testing.T) {
 
 	t.Run("case insensitive provider names", func(t *testing.T) {
 		providers := map[string]TTSProvider{
-			"EDGE":    &fakeTTSProvider{available: true},
+			"EDGE":   &fakeTTSProvider{available: true},
 			"OpenAI": &fakeTTSProvider{available: true},
 		}
 		runner := NewTTSRunner(TTSConfig{Provider: "EDGE"}, providers)
@@ -386,10 +386,10 @@ func TestTTSOpenAIProviderSynthesize(t *testing.T) {
 
 		output := filepath.Join(t.TempDir(), "test.mp3")
 		provider := NewTTSOpenAIProvider(TTSProviderConfig{
-			APIKey:      "sk-test-key",
-			Voice:       "alloy",
+			APIKey:        "sk-test-key",
+			Voice:         "alloy",
 			OpenAIBaseURL: server.URL,
-			Timeout:     10 * time.Second,
+			Timeout:       10 * time.Second,
 		})
 
 		result, err := provider.Synthesize(context.Background(), TTSProviderRequest{
@@ -429,9 +429,9 @@ func TestTTSOpenAIProviderSynthesize(t *testing.T) {
 
 		output := filepath.Join(t.TempDir(), "test.ogg")
 		provider := NewTTSOpenAIProvider(TTSProviderConfig{
-			APIKey:      "sk-test-key",
+			APIKey:        "sk-test-key",
 			OpenAIBaseURL: server.URL,
-			Timeout:     10 * time.Second,
+			Timeout:       10 * time.Second,
 		})
 
 		result, err := provider.Synthesize(context.Background(), TTSProviderRequest{
@@ -460,10 +460,10 @@ func TestTTSOpenAIProviderSynthesize(t *testing.T) {
 		defer server.Close()
 
 		provider := NewTTSOpenAIProvider(TTSProviderConfig{
-			APIKey:      "sk-test-key",
-			Speed:       10.0, // exceeds max of 4.0
+			APIKey:        "sk-test-key",
+			Speed:         10.0, // exceeds max of 4.0
 			OpenAIBaseURL: server.URL,
-			Timeout:     10 * time.Second,
+			Timeout:       10 * time.Second,
 		})
 
 		_, _ = provider.Synthesize(context.Background(), TTSProviderRequest{
@@ -486,9 +486,9 @@ func TestTTSOpenAIProviderSynthesize(t *testing.T) {
 		defer server.Close()
 
 		provider := NewTTSOpenAIProvider(TTSProviderConfig{
-			APIKey:      "bad-key",
+			APIKey:        "bad-key",
 			OpenAIBaseURL: server.URL,
-			Timeout:     10 * time.Second,
+			Timeout:       10 * time.Second,
 		})
 
 		_, err := provider.Synthesize(context.Background(), TTSProviderRequest{

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 func TestDailyRollupForDate_AggregatesRuntimeUsageByDay(t *testing.T) {

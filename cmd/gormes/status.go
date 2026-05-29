@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	toolspkg "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/spf13/cobra"
 )
@@ -24,12 +24,12 @@ import (
 // progress.Load failures as structured unavailable evidence (the
 // text surface already renders this gracefully — JSON now matches).
 type statusReportJSON struct {
-	Build              buildProvenanceJSON           `json:"build"`
-	Progress           *statusProgressJSON           `json:"progress,omitempty"`
-	Blockers           []cli.StatusBlocker           `json:"blockers"`
-	System             toolspkg.SystemEventsSnapshot `json:"system"`
-	AuditPath          string                        `json:"audit_path"`
-	OperatorRunReport  *operatorRunReportJSON        `json:"operator_run_report,omitempty"`
+	Build             buildProvenanceJSON           `json:"build"`
+	Progress          *statusProgressJSON           `json:"progress,omitempty"`
+	Blockers          []cli.StatusBlocker           `json:"blockers"`
+	System            toolspkg.SystemEventsSnapshot `json:"system"`
+	AuditPath         string                        `json:"audit_path"`
+	OperatorRunReport *operatorRunReportJSON        `json:"operator_run_report,omitempty"`
 }
 
 type operatorRunReportJSON struct {

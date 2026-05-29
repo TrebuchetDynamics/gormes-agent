@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 

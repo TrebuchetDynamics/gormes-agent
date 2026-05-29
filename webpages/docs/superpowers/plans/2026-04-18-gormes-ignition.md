@@ -1859,7 +1859,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/db"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/provider"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 func newAgentFixture(t *testing.T) (*Agent, *provider.MockProvider, *session.Session) {
@@ -1925,7 +1925,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/provider"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 // UIUpdate is what the TUI consumes from the agent.
@@ -2204,7 +2204,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/agent"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 const soulBufferSize = 10
@@ -2644,7 +2644,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/db"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/provider"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 

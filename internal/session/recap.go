@@ -12,14 +12,14 @@ type RecapConfig struct {
 }
 
 type RecapEntry struct {
-	SessionID  string
-	Title      string
-	Source     string
-	UserID     string
-	CreatedAt  int64
-	UpdatedAt  int64
-	TokensIn   int
-	TokensOut  int
+	SessionID string
+	Title     string
+	Source    string
+	UserID    string
+	CreatedAt int64
+	UpdatedAt int64
+	TokensIn  int
+	TokensOut int
 }
 
 type RecapEnvelope struct {

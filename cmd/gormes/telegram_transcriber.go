@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 

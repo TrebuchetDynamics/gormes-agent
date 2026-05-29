@@ -55,7 +55,7 @@ func (*MoATool) Execute(ctx context.Context, args json.RawMessage) (json.RawMess
 	result := map[string]any{
 		"success":            true,
 		"result":             fmt.Sprintf("MoA aggregation would combine %d model responses using '%s' aggregation", len(models), agg),
-		"models_requested":    len(models),
+		"models_requested":   len(models),
 		"models":             models,
 		"aggregation_method": agg,
 		"prompt":             req.Prompt,

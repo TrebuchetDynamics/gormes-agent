@@ -297,11 +297,11 @@ func dirSize(path string) (int64, error) {
 
 // PruneResult reports what prune deleted.
 type PruneResult struct {
-	Scanned        int
-	DeletedOrphan  int
-	DeletedStale   int
-	Errors         int
-	BytesFreed     int64
+	Scanned       int
+	DeletedOrphan int
+	DeletedStale  int
+	Errors        int
+	BytesFreed    int64
 }
 
 // PruneCheckpoints deletes orphan (workdir missing) and stale (last touch

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 )
 
 const (

@@ -23,12 +23,12 @@ const (
 )
 
 type VideoAnalyzeResult struct {
-	Success  bool                `json:"success"`
-	Analysis string              `json:"analysis,omitempty"`
-	Provider string              `json:"provider,omitempty"`
-	Evidence VideoAnalyzeStatus  `json:"evidence"`
-	Error    string              `json:"error,omitempty"`
-	Metadata *VideoAnalyzeMeta   `json:"metadata,omitempty"`
+	Success  bool               `json:"success"`
+	Analysis string             `json:"analysis,omitempty"`
+	Provider string             `json:"provider,omitempty"`
+	Evidence VideoAnalyzeStatus `json:"evidence"`
+	Error    string             `json:"error,omitempty"`
+	Metadata *VideoAnalyzeMeta  `json:"metadata,omitempty"`
 }
 
 type VideoAnalyzeMeta struct {

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
 	"github.com/spf13/cobra"
 )
 

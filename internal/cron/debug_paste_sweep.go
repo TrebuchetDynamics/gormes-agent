@@ -8,7 +8,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 )
 
 // PasteSweepEvery is the default number of seconds between paste sweeps.
@@ -82,11 +82,11 @@ func PasteSweepCadenceTicks(tickCount int) bool {
 //
 // Example integration with an external ticker:
 //
-//   for {
-//       tickCount++
-//       cron.RunPasteSweepTick(ctx, log, tickCount, sweeper)
-//       time.Sleep(PasteSweepTickInterval * time.Second)
-//   }
+//	for {
+//	    tickCount++
+//	    cron.RunPasteSweepTick(ctx, log, tickCount, sweeper)
+//	    time.Sleep(PasteSweepTickInterval * time.Second)
+//	}
 func RunPasteSweepTick(ctx context.Context, log *slog.Logger, tickCount int, sweeper Sweeper) {
 	if !PasteSweepCadenceTicks(tickCount) {
 		return

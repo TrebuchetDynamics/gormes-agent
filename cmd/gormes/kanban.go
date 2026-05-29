@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/kanban"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/kanban"
 )
 
 func newKanbanCommand() *cobra.Command {

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 func TestSelfMonitoringUsageFeedsExistingDailyRollupSchema(t *testing.T) {

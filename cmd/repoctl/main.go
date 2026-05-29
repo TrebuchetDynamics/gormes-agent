@@ -9,7 +9,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/repoctl"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/repoctl"
 )
 
 const usage = "usage: repoctl [--repo-root <path>] {benchmark record|readme update|progress seed <fleet|missing-all>|hermes-source-pairs validate|hermes-source-pairs sync-sha|hermes-source-pairs report|hermes-contract-inventory}"

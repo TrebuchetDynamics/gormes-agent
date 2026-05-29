@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 )
 
 func TestSetupComplexE2E_ResetThenProviderNonInteractivePreservesBreadcrumbAndScrubsSecrets(t *testing.T) {

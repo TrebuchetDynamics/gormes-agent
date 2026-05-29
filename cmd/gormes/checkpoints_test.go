@@ -121,12 +121,12 @@ func TestCheckpointsCLI_Status_JSONEmitsStructured(t *testing.T) {
 			Version   string `json:"version"`
 			GitCommit string `json:"git_commit"`
 		} `json:"build"`
-		Root             string `json:"root"`
-		TotalSizeBytes   int64  `json:"total_size_bytes"`
-		StoreSizeBytes   int64  `json:"store_size_bytes"`
-		LegacySizeBytes  int64  `json:"legacy_size_bytes"`
-		ProjectCount     int    `json:"project_count"`
-		Projects         []struct {
+		Root            string `json:"root"`
+		TotalSizeBytes  int64  `json:"total_size_bytes"`
+		StoreSizeBytes  int64  `json:"store_size_bytes"`
+		LegacySizeBytes int64  `json:"legacy_size_bytes"`
+		ProjectCount    int    `json:"project_count"`
+		Projects        []struct {
 			Name      string    `json:"name"`
 			Workdir   string    `json:"workdir"`
 			Commits   int       `json:"commits"`
@@ -578,9 +578,9 @@ func TestCheckpointsCLI_ClearLegacy_JSONEmitsStructuredOutcome(t *testing.T) {
 			Version   string `json:"version"`
 			GitCommit string `json:"git_commit"`
 		} `json:"build"`
-		Root            string `json:"root"`
-		Action          string `json:"action"`
-		ArchivesBefore  []struct {
+		Root           string `json:"root"`
+		Action         string `json:"action"`
+		ArchivesBefore []struct {
 			Name      string `json:"name"`
 			SizeBytes int64  `json:"size_bytes"`
 		} `json:"archives_before"`

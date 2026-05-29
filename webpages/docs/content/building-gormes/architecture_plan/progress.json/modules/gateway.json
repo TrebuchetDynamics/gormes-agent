@@ -1005,7 +1005,7 @@
       ],
       "write_scope": [
         "internal/hermes/guidance_constants.go",
-        "internal/e2e/testdata/normal_turn/memory_backed.json",
+        "internal/support/e2e/testdata/normal_turn/memory_backed.json",
         "docs/content/building-gormes/architecture_plan/progress.json",
         "docs/content/building-gormes/",
         "webpages/landing/src/data/progress.json",
@@ -1032,7 +1032,7 @@
         "implementation": [
           "internal/hermes/guidance_constants.go:MemoryGuidance now includes Hermes' PR/issue/SHA/7-day-stale artifact exclusion sentence byte-for-byte.",
           "internal/hermes/guidance_constants.go upstream pin updated to e612c3d6f00624868ce3f73bb6beaacfea36337f.",
-          "internal/e2e/testdata/normal_turn/memory_backed.json regenerates the provider-visible memory-backed system prompt with the refreshed guidance text.",
+          "internal/support/e2e/testdata/normal_turn/memory_backed.json regenerates the provider-visible memory-backed system prompt with the refreshed guidance text.",
           "hermes-agent submodule refreshed from e90aa7f28 to e612c3d6f."
         ],
         "tests": [

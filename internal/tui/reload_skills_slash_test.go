@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 )
 
 func TestReloadSkillsSlashRefreshesSkillSlashRegistry(t *testing.T) {

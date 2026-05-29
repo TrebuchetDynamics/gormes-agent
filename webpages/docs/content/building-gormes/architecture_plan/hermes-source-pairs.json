@@ -391,13 +391,13 @@
       "hermes_file": "tools/skill_manager_tool.py",
       "gormes_targets": [
         "internal/tools/skill_manager.go",
-        "internal/skills"
+        "internal/extensibility/skills"
       ],
       "status": "partial",
       "contract": "Hermes skill_manage support-file and curator intent actions, mutation safety, and user-visible skill-management results.",
       "tests": [
         "go test ./internal/tools -run TestSkillManager -count=1",
-        "go test ./internal/skills -count=1"
+        "go test ./internal/extensibility/skills -count=1"
       ],
       "progress_rows": [
         "Hermes skill_manage support-file and curator intent actions",
@@ -409,13 +409,13 @@
     {
       "hermes_file": "tools/skills_sync.py",
       "gormes_targets": [
-        "internal/skills/profile_sync.go",
+        "internal/extensibility/skills/profile_sync.go",
         "cmd/gormes/skills.go"
       ],
       "status": "partial",
       "contract": "Hermes bundled/user skill sync semantics, profile skill distribution, and update/sync user-visible behavior.",
       "tests": [
-        "go test ./internal/skills -run 'Test.*Sync|TestProfile' -count=1",
+        "go test ./internal/extensibility/skills -run 'Test.*Sync|TestProfile' -count=1",
         "go test ./cmd/gormes -run 'TestSkills' -count=1"
       ],
       "progress_rows": [
@@ -429,13 +429,13 @@
       "hermes_file": "tools/skills_tool.py",
       "gormes_targets": [
         "internal/tools/skills_tools.go",
-        "internal/skills"
+        "internal/extensibility/skills"
       ],
       "status": "partial",
       "contract": "Hermes skills list/view tool surface, skill metadata rendering, and prompt-visible skill lookup behavior.",
       "tests": [
         "go test ./internal/tools -run 'TestSkills' -count=1",
-        "go test ./internal/skills -count=1"
+        "go test ./internal/extensibility/skills -count=1"
       ],
       "progress_rows": [
         "Native skills list/view tool surface",
@@ -583,12 +583,12 @@
       "hermes_file": "ui-tui/package.json",
       "gormes_targets": [
         "internal/tui",
-        "internal/tuigateway"
+        "internal/adapters/tuigateway"
       ],
       "status": "partial",
       "contract": "Current Hermes ui-tui package, terminal interaction tests, gateway-client event tests, slash/action dispatch tests, viewport/history tests, clipboard/OSC52 tests, provider/model UI tests, approval-action tests, and state-isolation tests are classified as a Gormes native-TUI parity action matrix. Runtime coverage remains partial: mapped files are evidence for child rows, source-pair checks, owned divergence, or future TDD slices, not a full-fidelity runtime claim.",
       "tests": [
-        "go test ./internal/tui ./internal/tuigateway -count=1"
+        "go test ./internal/tui ./internal/adapters/tuigateway -count=1"
       ],
       "progress_rows": [
         "Hermes ui-tui strict-fidelity action matrix"

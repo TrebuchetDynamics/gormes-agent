@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 )
 
 func TestHandleSkillsCommandSearchAndBrowseHubReadModel(t *testing.T) {

@@ -138,10 +138,10 @@ func TestManager_ResumePendingNextSubmitPrependsOneReasonNoteAndClearsAfterAccep
 	}
 
 	m := NewManagerWithSubmitter(ManagerConfig{
-		AllowedChats: map[string]string{"telegram": "42"},
-		CoalesceMs:   10,
-		SessionMap:   smap,
-		Now:          func() time.Time { return now },
+		AllowedChats:   map[string]string{"telegram": "42"},
+		CoalesceMs:     10,
+		SessionMap:     smap,
+		Now:            func() time.Time { return now },
 		SkipAutoResume: true,
 	}, fk, slog.Default())
 	m.setRenderChan(frames)

@@ -15,14 +15,14 @@ type SessionModelOverride struct {
 func (o SessionModelOverride) IsZero() bool { return o.Model == "" && o.Provider == "" }
 
 type modelPickerState struct {
-	stage          string
-	messageID      int
-	pendingSlug    string
-	pendingModels  []string
+	stage         string
+	messageID     int
+	pendingSlug   string
+	pendingModels []string
 }
 
 type modelPickerManager struct {
-	mu   sync.Mutex
+	mu     sync.Mutex
 	byChat map[string]modelPickerState
 }
 

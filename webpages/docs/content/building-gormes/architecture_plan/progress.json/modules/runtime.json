@@ -18,7 +18,7 @@
         "system"
       ],
       "degraded_mode": "The e2e harness reports python_bridge_used, provider_step_missing, tool_loop_missing, goncho_step_missing, or audit_evidence_missing instead of passing a partial Go turn as complete.",
-      "fixture": "internal/e2e/normal_turn_test.go::TestPythonFreeNormalAgentTurn",
+      "fixture": "internal/support/e2e/normal_turn_test.go::TestPythonFreeNormalAgentTurn",
       "source_refs": [
         "../hermes-agent/run_agent.py",
         "../hermes-agent/agent/",
@@ -51,7 +51,7 @@
         "A degraded subtest disables Goncho and proves the turn reports explicit goncho_step_missing evidence while preserving transcript integrity."
       ],
       "write_scope": [
-        "internal/e2e/",
+        "internal/support/e2e/",
         "internal/kernel/",
         "internal/hermes/",
         "internal/goncho/",
@@ -278,7 +278,7 @@
         "internal/kernel/",
         "internal/runtime/",
         "internal/config/",
-        "internal/e2e/",
+        "internal/support/e2e/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "ready_when": [

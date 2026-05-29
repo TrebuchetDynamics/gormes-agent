@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/providers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
 )
 
 const topLevelLogoutAllowedProviders = providermodule.TopLevelLogoutAllowedProviders

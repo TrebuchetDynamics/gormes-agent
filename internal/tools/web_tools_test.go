@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/support/testutil/modassert"
 	"github.com/TrebuchetDynamics/goscrapling"
 	goscraplingbrowser "github.com/TrebuchetDynamics/goscrapling/engines/browser"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/testutil/modassert"
 )
 
 func TestGoscraplingDependencyUsesPublicV010Release(t *testing.T) {

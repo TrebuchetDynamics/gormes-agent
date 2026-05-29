@@ -1,6 +1,6 @@
 package main
 
-import "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
+import "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 
 func profileSeedSeamsFromProfileSeams(seams profileCommandSeams) gormescli.ProfileSeedSeams {
 	return gormescli.ProfileSeedSeams{

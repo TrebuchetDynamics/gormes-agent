@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 )
 
 type noSkillProvider struct{}

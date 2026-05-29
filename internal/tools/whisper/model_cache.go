@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/speech/artifact"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/speech/artifact"
 )
 
 const (

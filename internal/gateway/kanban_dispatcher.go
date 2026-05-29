@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/kanban"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/kanban"
 )
 
 type KanbanDispatcherRunner interface {

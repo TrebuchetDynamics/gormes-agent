@@ -190,6 +190,3 @@ func TestPersistentShellDeletedCWDResetsState(t *testing.T) {
 		t.Errorf("expected cwd-reset evidence on subsequent call too, got: %#v", result2.Evidence)
 	}
 }
-
-
-

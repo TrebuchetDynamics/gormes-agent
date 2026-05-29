@@ -55,11 +55,11 @@ func TestMoATool_Execute(t *testing.T) {
 		t.Fatalf("Execute: %v", err)
 	}
 	var out struct {
-		Success          bool     `json:"success"`
-		Result           string   `json:"result"`
-		ModelsRequested  int      `json:"models_requested"`
-		Aggregation      string   `json:"aggregation"`
-		Stub             bool     `json:"stub"`
+		Success         bool   `json:"success"`
+		Result          string `json:"result"`
+		ModelsRequested int    `json:"models_requested"`
+		Aggregation     string `json:"aggregation"`
+		Stub            bool   `json:"stub"`
 	}
 	if err := json.Unmarshal(result, &out); err != nil {
 		t.Fatalf("unmarshal: %v", err)

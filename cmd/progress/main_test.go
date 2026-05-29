@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 func TestRunNextWorkReportsPlanDecisionWhenQueueIsEmpty(t *testing.T) {

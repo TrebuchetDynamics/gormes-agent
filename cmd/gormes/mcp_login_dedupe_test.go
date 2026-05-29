@@ -13,8 +13,8 @@ import (
 // AND once on stderr as cobra's standard `Error: ...` rendering of
 // the returned error. Operators saw:
 //
-//   evidence=mcp_server_unknown server=missing unknown MCP server
-//   Error: evidence=mcp_server_unknown server=missing unknown MCP server
+//	evidence=mcp_server_unknown server=missing unknown MCP server
+//	Error: evidence=mcp_server_unknown server=missing unknown MCP server
 //
 // Two lines, same content. The fix is to suppress the redundant
 // stdout print on the error path; cobra's stderr rendering carries

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 )
 
 func TestSystemEventsEnqueueAuditAndHeartbeat(t *testing.T) {

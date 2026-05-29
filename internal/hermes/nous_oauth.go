@@ -191,11 +191,11 @@ func NousOAuthDeviceCodeLogin(ctx context.Context, opts NousOAuthLoginOptions) (
 	}
 
 	var deviceResp struct {
-		DeviceCode             string `json:"device_code"`
-		UserCode               string `json:"user_code"`
+		DeviceCode              string `json:"device_code"`
+		UserCode                string `json:"user_code"`
 		VerificationURIComplete string `json:"verification_uri_complete"`
-		ExpiresIn              int    `json:"expires_in"`
-		Interval              int    `json:"interval"`
+		ExpiresIn               int    `json:"expires_in"`
+		Interval                int    `json:"interval"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&deviceResp); err != nil {
 		return NousOAuthCredentials{}, fmt.Errorf("nous oauth: decode device code response: %w", err)
@@ -376,13 +376,13 @@ func RefreshNousAccessToken(ctx context.Context, opts NousOAuthRefreshOptions) (
 
 	now := time.Now().UTC()
 	return NousOAuthCredentials{
-		PortalBaseURL:    opts.PortalBaseURL,
-		AccessToken:      result.AccessToken,
-		RefreshToken:     result.RefreshToken,
-		TokenType:        result.TokenType,
-		ExpiresIn:        result.ExpiresIn,
-		ExpiresAt:        now.Add(time.Duration(result.ExpiresIn) * time.Second).Format(time.RFC3339),
-		ObtainedAt:       now.Format(time.RFC3339),
+		PortalBaseURL: opts.PortalBaseURL,
+		AccessToken:   result.AccessToken,
+		RefreshToken:  result.RefreshToken,
+		TokenType:     result.TokenType,
+		ExpiresIn:     result.ExpiresIn,
+		ExpiresAt:     now.Add(time.Duration(result.ExpiresIn) * time.Second).Format(time.RFC3339),
+		ObtainedAt:    now.Format(time.RFC3339),
 	}, nil
 }
 
@@ -442,7 +442,7 @@ func MintNousAgentKey(ctx context.Context, opts NousOAuthMintOptions) (NousOAuth
 
 	now := time.Now().UTC()
 	return NousOAuthCredentials{
-		PortalBaseURL:     opts.PortalBaseURL,
+		PortalBaseURL:      opts.PortalBaseURL,
 		AgentKey:           result.APIKey,
 		AgentKeyID:         result.KeyID,
 		AgentKeyExpiresAt:  result.ExpiresAt,

@@ -38,7 +38,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/testutil/ollama"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/support/testutil/ollama"
 )
 
 func TestRecall_Integration_Ollama_SecondTurnSeesFirstTurnEntities(t *testing.T) {

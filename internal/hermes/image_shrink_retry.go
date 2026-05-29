@@ -43,11 +43,11 @@ type ImageShrinkRequest struct {
 // provider-status vocabulary in the progress.json row so callers can
 // surface them in degraded-mode reports without reaching into the planner.
 const (
-	imageShrinkEvidencePlanned        = "image_shrink_planned"
-	imageShrinkEvidenceUnavailable    = "image_shrink_unavailable"
-	imageShrinkEvidenceNoImages       = "image_shrink_no_images"
-	imageShrinkEvidenceLimitReached   = "image_shrink_limit_reached"
-	imageShrinkEvidenceFailed         = "image_shrink_failed"
+	imageShrinkEvidencePlanned      = "image_shrink_planned"
+	imageShrinkEvidenceUnavailable  = "image_shrink_unavailable"
+	imageShrinkEvidenceNoImages     = "image_shrink_no_images"
+	imageShrinkEvidenceLimitReached = "image_shrink_limit_reached"
+	imageShrinkEvidenceFailed       = "image_shrink_failed"
 )
 
 // PlanImageShrinkRetry returns the bounded shrink-retry plan for a single

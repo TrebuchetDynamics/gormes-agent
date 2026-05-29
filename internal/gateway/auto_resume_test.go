@@ -25,14 +25,14 @@ func TestGatewayAutoResume_RecoversInterruptedSession(t *testing.T) {
 		t.Fatalf("Put session: %v", err)
 	}
 	if err := smap.PutMetadata(ctx, session.Metadata{
-		SessionID:     "sess-interrupted",
-		Source:        "telegram",
-		ChatID:        "42",
-		UserID:        "u-42",
-		ResumePending: true,
-		ResumeReason:  string(session.ResumeReasonRestartTimeout),
+		SessionID:      "sess-interrupted",
+		Source:         "telegram",
+		ChatID:         "42",
+		UserID:         "u-42",
+		ResumePending:  true,
+		ResumeReason:   string(session.ResumeReasonRestartTimeout),
 		ResumeMarkedAt: now.Add(-10 * time.Minute).Unix(),
-		UpdatedAt:     now.Add(-10 * time.Minute).Unix(),
+		UpdatedAt:      now.Add(-10 * time.Minute).Unix(),
 	}); err != nil {
 		t.Fatalf("PutMetadata: %v", err)
 	}

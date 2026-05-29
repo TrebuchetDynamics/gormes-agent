@@ -21,11 +21,11 @@ const (
 type ToolStateDomain string
 
 const (
-	ToolStateDomainReadOnly    ToolStateDomain = "read_only"
-	ToolStateDomainFile        ToolStateDomain = "file"
-	ToolStateDomainSession     ToolStateDomain = "session"
-	ToolStateDomainCheckpoint  ToolStateDomain = "checkpoint"
-	ToolStateDomainProcess     ToolStateDomain = "process"
+	ToolStateDomainReadOnly   ToolStateDomain = "read_only"
+	ToolStateDomainFile       ToolStateDomain = "file"
+	ToolStateDomainSession    ToolStateDomain = "session"
+	ToolStateDomainCheckpoint ToolStateDomain = "checkpoint"
+	ToolStateDomainProcess    ToolStateDomain = "process"
 )
 
 type ToolRootPolicy string
@@ -72,10 +72,10 @@ type StatefulToolQueueOptions struct {
 }
 
 type StatefulToolMigrationQueue struct {
-	mu       sync.RWMutex
-	plans    map[string]StatefulToolPlan
-	roots    []string
-	writeMu  sync.Mutex
+	mu      sync.RWMutex
+	plans   map[string]StatefulToolPlan
+	roots   []string
+	writeMu sync.Mutex
 }
 
 func NewStatefulToolMigrationQueue(opts StatefulToolQueueOptions) *StatefulToolMigrationQueue {

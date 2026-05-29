@@ -54,6 +54,24 @@ _Avoid_: write script, docs side effects
 A typed view over Progress Rows that exposes only the fields needed for one purpose, such as active handoff, shipped evidence, or row health, while preserving the Logical Backlog as the source.
 _Avoid_: separate store, shadow backlog
 
+### Kernel Runtime Contract
+
+**Kernel Turn Request Assembly**:
+The package-local kernel module that builds the provider-facing `hermes.ChatRequest` for one accepted turn from selected model/session identity, current user message, session and Goncho context, live-turn guidance, recall memory, skill blocks, prefill examples, reasoning effort, and available tool descriptors. It preserves message ordering and usage-recording side effects while keeping provider streaming, retry, persistence, and render-frame state in the Kernel state machine.
+_Avoid_: inline request construction, scattered guidance ordering, provider retry extraction, persisted prefill history
+
+### Tool Runtime Contract
+
+**Tool Environment Execution**:
+The shared tool-runtime module that normalizes command execution intent, working-directory fallback, timeout policy, backend evidence, and cleanup semantics for model-facing execution surfaces before concrete Adapters such as local subprocess, Docker, Singularity, fake, or unsupported environments run backend-specific mechanics. It keeps tool-visible output stable while preventing terminal, `execute_code`, and environment Adapters from each inventing degraded evidence or cwd/env policy.
+_Avoid_: per-tool execution policy, backend-specific evidence drift, hidden live-container dependency, broad tool output redesign
+
+### Provider Runtime Contract
+
+**Provider Credential Resolution**:
+The single provider/runtime module that derives credential availability, redacted status evidence, and runtime credential material from route config, primary provider config, secret references, and provider-manifest environment variables. It must keep read-model evidence and outbound runtime auth in the same source-ordering contract while preventing secrets from crossing status, logs, JSON, or degraded-mode surfaces.
+_Avoid_: duplicated env lookup order, status-only credential checks, runtime-only secret fallback, leaking provider tokens in evidence
+
 ### Gateway Runtime Contract
 
 **Gateway CLI Orchestrator**:
@@ -156,6 +174,10 @@ _Avoid_: stale compatibility support, silent protocol removal, unrelated compati
 The minimum fields that make a Navivox Capability Gate trustworthy: object identity, protocol version, auth contract, callable endpoints, and canonical stream. Missing identity fields make the document invalid; missing optional feature sections only disable that feature. `protocol_version` is the compatibility line until a breaking capability-document change requires a separate schema version.
 _Avoid_: best-effort identity parsing, fail-open optional features, premature schema version
 
+**Navivox Route Manifest**:
+The single server-owned list of Navivox HTTP and WebSocket surfaces that drives handler registration, Navivox Capability Gate endpoint advertisement, and route contract tests. It may record explicit exclusions for removed or intentionally unavailable surfaces, but it must not change handler behavior, auth policy, stream protocol semantics, or Navivox Runtime State.
+_Avoid_: duplicated endpoint lists, capability-only route facts, hidden handler registration, behavior-changing route refactor
+
 ## Example dialogue
 
 Developer: "Should we add a TODO file for the new work?"
@@ -223,6 +245,10 @@ _Avoid_: home-first priority, symlink-based context resolution, dual-source merg
 **Profile Workspace List**:
 A profile may declare multiple workspaces: a profile-local default (`$GORMES_HOME/workspace/`) plus zero or more external repo or directory paths. The profile-local workspace is the implicit first entry and never needs explicit configuration. External workspaces are listed in the profile config and may reference repository checkouts or project dirs. The gateway seeds agent context templates into the profile-local workspace; external workspaces are file-access boundaries, not template targets.
 _Avoid_: single-workspace assumption, workspace as config-only path, template seeding into external repos
+
+**Profile Workspace Tool Access**:
+The shared tool-access decision surface that applies a Profile Workspace List and Profile Data Boundary to model-facing tool operations such as file reads, file writes, terminal execution, `execute_code`, and coding-agent delegation. It returns a structured allow/deny decision for the requested access kind and keeps fail-closed evidence consistent across tool adapters without letting each adapter reinterpret profile-owned paths.
+_Avoid_: per-tool workspace policy, terminal-only profile blocking, duplicated profile path denial text, model access to profile runtime state
 
 **Profile Data Boundary**:
 The set of filesystem paths that are scoped per-profile: `memory/`, `sessions/`, `workspace/`, `cache/`, `runtime/`. These directories live under the profile's runnable home (`$GORMES_BASE_HOME/profiles/<name>/`) and are never shared between profiles.

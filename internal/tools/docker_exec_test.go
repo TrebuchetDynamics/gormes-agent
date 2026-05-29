@@ -75,7 +75,7 @@ func TestDockerExec_MountPolicyAllowlist(t *testing.T) {
 		}
 		hostPaths := []string{"/tmp/data", "/home/user"}
 		backend := NewDockerExecBackend(runner, DockerExecConfig{
-			WorkspacePath: "/tmp/data",
+			WorkspacePath:      "/tmp/data",
 			ContainerWorkspace: "/workspace",
 		}, hostPaths)
 
@@ -94,7 +94,7 @@ func TestDockerExec_MountPolicyAllowlist(t *testing.T) {
 		}
 		hostPaths := []string{"/tmp/data"}
 		backend := NewDockerExecBackend(runner, DockerExecConfig{
-			WorkspacePath: "/tmp/data",
+			WorkspacePath:      "/tmp/data",
 			ContainerWorkspace: "/workspace",
 		}, hostPaths)
 
@@ -116,7 +116,7 @@ func TestDockerExec_MountPolicyAllowlist(t *testing.T) {
 		}
 		hostPaths := []string{"/tmp/data", "/home/user"}
 		backend := NewDockerExecBackend(runner, DockerExecConfig{
-			WorkspacePath: "/tmp/data",
+			WorkspacePath:      "/tmp/data",
 			ContainerWorkspace: "/workspace",
 		}, hostPaths)
 

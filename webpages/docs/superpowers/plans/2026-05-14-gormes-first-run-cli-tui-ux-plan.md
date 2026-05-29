@@ -528,7 +528,7 @@ go test ./internal/cli -run 'TestBuildFirstRunPlan' -count=1
 Expected:
 
 ```text
-ok  	github.com/TrebuchetDynamics/gormes-agent/internal/cli
+ok  	github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli
 ```
 
 - [ ] **Step 5: Commit planner slice**
@@ -725,7 +725,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/spf13/cobra"
 )
@@ -1110,7 +1110,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/spf13/cobra"
 )
@@ -2028,7 +2028,7 @@ go test ./internal/cli ./cmd/gormes -count=1
 Expected:
 
 ```text
-ok  	github.com/TrebuchetDynamics/gormes-agent/internal/cli
+ok  	github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli
 ok  	github.com/TrebuchetDynamics/gormes-agent/cmd/gormes
 ```
 

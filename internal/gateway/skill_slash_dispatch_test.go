@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 )
 
 func TestManager_DynamicSkillSlashSubmitExpandsBeforeKernel(t *testing.T) {

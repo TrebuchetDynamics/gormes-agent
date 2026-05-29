@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
 )
 
 // Tool is the contract every Go-native tool satisfies. See spec §5.1.

@@ -105,8 +105,8 @@ func TestForkTranscript_RejectsEmptyOrSelfParent(t *testing.T) {
 	defer store.Close(context.Background())
 
 	cases := []struct {
-		name           string
-		parent, child  string
+		name          string
+		parent, child string
 	}{
 		{"empty parent", "", "child"},
 		{"empty child", "parent", ""},

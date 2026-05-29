@@ -17,11 +17,11 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/agent"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -639,78 +639,14 @@ func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []hermes
 	// we execute the tools in-process and issue a follow-up stream with the
 	// tool results appended to the message history. Capped at MaxToolIterations
 	// to prevent runaway agent loops.
-	msgs := []hermes.Message{userMsg}
-	systemMsgs := make([]hermes.Message, 0, 8)
-
-	if gonchoCtx := k.gonchoContext(ctx); gonchoCtx != "" {
-		systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: gonchoCtx})
-	}
-
-	if sessionContext != "" {
-		systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: sessionContext})
-	}
-	for _, guidance := range k.liveTurnGuidanceBlocks(model) {
-		systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: guidance})
-	}
-
-	if k.cfg.Recall != nil {
-		deadline := k.cfg.RecallDeadline
-		if deadline <= 0 {
-			deadline = 100 * time.Millisecond
-		}
-		recallCtx, recallCancel := context.WithTimeout(ctx, deadline)
-		ctxStr := k.cfg.Recall.GetContext(recallCtx, RecallParams{
-			UserMessage: text,
-			ChatKey:     k.cfg.ChatKey,
-			SessionID:   k.sessionID,
-		})
-		recallCancel()
-		if ctxStr != "" {
-			systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: hermes.MemoryGuidance + "\n\n" + ctxStr})
-		}
-	}
-	if k.cfg.Skills != nil {
-		block, skillNames, err := k.cfg.Skills.BuildSkillBlock(ctx, text)
-		if err != nil {
-			k.log.Warn("kernel: skill runtime failed; continuing without skills", "err", err)
-		} else if block != "" {
-			systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: hermes.SkillsGuidance})
-			systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: block})
-			if len(skillNames) > 0 && k.cfg.SkillUsage != nil {
-				if err := k.cfg.SkillUsage.RecordSkillUsage(ctx, skillNames); err != nil {
-					k.log.Warn("kernel: record skill usage failed", "err", err)
-				}
-			}
-		}
-	}
-	if len(k.cfg.PrefillMessages) > 0 {
-		msgs = append(cloneKernelMessages(k.cfg.PrefillMessages), msgs...)
-	}
-	if len(systemMsgs) > 0 {
-		msgs = append(systemMsgs, msgs...)
-	}
-
-	request := hermes.ChatRequest{
-		Model:     model,
-		SessionID: k.sessionID,
-		Stream:    true,
-		Messages:  msgs,
-	}
-	if reasoningEvidence.Forwarded {
-		effort := reasoningEvidence.Effort
-		request.ReasoningEffort = &effort
-	}
-	if k.cfg.Tools != nil {
-		descs := k.cfg.Tools.Descriptors()
-		wireDescs := make([]hermes.ToolDescriptor, len(descs))
-		for i, d := range descs {
-			wireDescs[i] = hermes.ToolDescriptor{Name: d.Name, Description: d.Description, Schema: d.Schema}
-		}
-		request.Tools = wireDescs
-	}
-	if k.cfg.ContextEngine != nil {
-		request.Tools = append(request.Tools, k.cfg.ContextEngine.ToolDescriptors()...)
-	}
+	request := k.buildTurnRequest(ctx, turnRequestAssemblyInput{
+		Model:          model,
+		SessionID:      k.sessionID,
+		UserText:       text,
+		UserMessage:    userMsg,
+		SessionContext: sessionContext,
+		Reasoning:      reasoningEvidence,
+	})
 	primaryClient := k.client
 	defer func() { k.client = primaryClient }()
 	fallbackRoutes := append([]hermes.ModelRoute(nil), k.cfg.Fallback.Routes...)

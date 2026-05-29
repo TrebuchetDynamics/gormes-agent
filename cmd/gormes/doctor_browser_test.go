@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
 )
 
 func TestDoctorBrowserRuntimeRecommendsChromeInstallWhenUnavailable(t *testing.T) {

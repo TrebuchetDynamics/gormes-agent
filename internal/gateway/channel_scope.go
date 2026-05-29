@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 )
 
 // ChannelSkillBinding mirrors Hermes channel_skill_bindings entries. Adapters

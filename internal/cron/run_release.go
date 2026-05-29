@@ -15,11 +15,11 @@ import (
 type ReleaseEvidenceCode string
 
 const (
-	ReleaseEvidenceSubprocessKilled    ReleaseEvidenceCode = "cron_release_subprocess_killed"
-	ReleaseEvidenceSessionDBClosed     ReleaseEvidenceCode = "cron_release_session_db_closed"
-	ReleaseEvidenceHTTPIdleClosed      ReleaseEvidenceCode = "cron_release_http_idle_closed"
+	ReleaseEvidenceSubprocessKilled     ReleaseEvidenceCode = "cron_release_subprocess_killed"
+	ReleaseEvidenceSessionDBClosed      ReleaseEvidenceCode = "cron_release_session_db_closed"
+	ReleaseEvidenceHTTPIdleClosed       ReleaseEvidenceCode = "cron_release_http_idle_closed"
 	ReleaseEvidenceHTTPIdleClosedFailed ReleaseEvidenceCode = "cron_release_http_idle_closed_failed"
-	ReleaseEvidenceSkippedNoResource   ReleaseEvidenceCode = "cron_release_skipped_no_resource"
+	ReleaseEvidenceSkippedNoResource    ReleaseEvidenceCode = "cron_release_skipped_no_resource"
 )
 
 // ReleaseEvidence is one entry in the per-run release log. Fields carries
@@ -54,10 +54,10 @@ type closerEntry struct {
 // turn, hit a provider, manage MCP stdio runtimes, or change the Scheduler
 // goroutine lifecycle — Executor binding is a dependent row.
 type RunReleaseLedger struct {
-	mu         sync.Mutex
-	closers    []closerEntry
-	pids       []int
-	released   bool
+	mu       sync.Mutex
+	closers  []closerEntry
+	pids     []int
+	released bool
 }
 
 // NewRunReleaseLedger constructs an empty ledger. Callers register

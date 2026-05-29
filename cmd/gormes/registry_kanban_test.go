@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/kanban"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/kanban"
 )
 
 func TestBuildDefaultRegistryKanbanHiddenByDefault(t *testing.T) {

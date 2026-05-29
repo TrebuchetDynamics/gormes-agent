@@ -14,9 +14,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 )
 
 const defaultHTTPUpstreamTimeout = 30 * time.Second
@@ -176,45 +173,11 @@ func (p *HTTPUpstreamProvider) applyRouteAuth(req *http.Request, route Route) bo
 }
 
 func (p *HTTPUpstreamProvider) routeAPIKey(route Route) (string, bool) {
-	if strings.TrimSpace(route.apiKey) != "" {
-		return strings.TrimSpace(route.apiKey), true
-	}
-	if env := strings.TrimSpace(route.APIKeyEnv); env != "" {
-		value, ok := p.lookupEnv(env)
-		return strings.TrimSpace(value), ok && strings.TrimSpace(value) != ""
-	}
-	if route.APIKeyRef != nil {
-		return p.secretRefValue(*route.APIKeyRef)
-	}
-	if value, ok := p.providerEnvValue(route.Provider); ok {
-		return value, true
-	}
-	if route.CredentialStatus == CredentialNotNeeded {
-		return "", true
-	}
-	return "", false
-}
-
-func (p *HTTPUpstreamProvider) secretRefValue(ref config.SecretRef) (string, bool) {
-	if strings.EqualFold(string(ref.Source), string(config.SecretRefSourceEnv)) {
-		value, ok := p.lookupEnv(strings.TrimSpace(ref.ID))
-		return strings.TrimSpace(value), ok && strings.TrimSpace(value) != ""
-	}
-	return "", false
-}
-
-func (p *HTTPUpstreamProvider) providerEnvValue(provider string) (string, bool) {
-	entry, ok := hermes.ResolveProviderManifestEntry(provider)
-	if !ok {
+	resolution := resolveProviderCredential(route, p.lookupEnv)
+	if !resolution.Available {
 		return "", false
 	}
-	for _, env := range entry.EnvVars {
-		value, ok := p.lookupEnv(env)
-		if ok && strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value), true
-		}
-	}
-	return "", false
+	return resolution.Value, true
 }
 
 func routeEndpoint(baseURL, suffix string) (string, error) {

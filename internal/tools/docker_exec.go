@@ -8,13 +8,13 @@ import (
 
 // DockerExecConfig holds configuration for executing commands in a Docker container.
 type DockerExecConfig struct {
-	Image           string
-	CWD             string
-	Timeout         time.Duration
-	Env             map[string]string
-	EnvAllowlist    []string
-	ContainerName   string
-	WorkspacePath   string
+	Image              string
+	CWD                string
+	Timeout            time.Duration
+	Env                map[string]string
+	EnvAllowlist       []string
+	ContainerName      string
+	WorkspacePath      string
 	ContainerWorkspace string
 }
 

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 )
 
 func TestUpdateReleaseAssetsCommandRunsAssetSkillSyncAfterBinaryUpdate(t *testing.T) {

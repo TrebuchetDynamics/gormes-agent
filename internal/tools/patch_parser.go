@@ -10,8 +10,10 @@ type PatchParserTool struct{}
 
 func NewPatchParserTool() *PatchParserTool { return &PatchParserTool{} }
 
-func (*PatchParserTool) Name() string        { return "patch_parser" }
-func (*PatchParserTool) Description() string { return "Parse and validate a unified diff patch. Returns structured patch information: files changed, hunks, additions, deletions." }
+func (*PatchParserTool) Name() string { return "patch_parser" }
+func (*PatchParserTool) Description() string {
+	return "Parse and validate a unified diff patch. Returns structured patch information: files changed, hunks, additions, deletions."
+}
 func (*PatchParserTool) Timeout() time.Duration { return 10 * time.Second }
 
 func (*PatchParserTool) Schema() json.RawMessage {

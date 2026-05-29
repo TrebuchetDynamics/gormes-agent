@@ -11,8 +11,8 @@ type GoogleCodeAssistTokenProvider interface {
 }
 
 type GoogleCodeAssistResolver struct {
-	project string
-	tier    string
+	project  string
+	tier     string
 	provider GoogleCodeAssistTokenProvider
 }
 

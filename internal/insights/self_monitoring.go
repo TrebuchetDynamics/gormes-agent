@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 type SessionUsageSink interface {

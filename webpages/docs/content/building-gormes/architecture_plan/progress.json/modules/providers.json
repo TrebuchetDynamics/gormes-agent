@@ -5858,13 +5858,13 @@
         "system"
       ],
       "degraded_mode": "Transcript replay reports fixture_missing, provider_part_mismatch, tool_continuation_mismatch, or memory_evidence_mismatch with the fixture name and field path.",
-      "fixture": "internal/e2e/testdata/normal_turn/*.json",
+      "fixture": "internal/support/e2e/testdata/normal_turn/*.json",
       "source_refs": [
         "../hermes-agent/tests/",
         "../hermes-agent/run_agent.py",
         "internal/hermes/testdata/",
         "internal/transcript/",
-        "internal/e2e/"
+        "internal/support/e2e/"
       ],
       "ready_when": [
         "Python-free normal agent turn e2e harness is validated.",
@@ -5882,10 +5882,10 @@
         "A memory turn fixture proves Goncho recall evidence before provider request and final message persistence after completion.",
         "Fixture diffs name the exact field path and never require live provider calls."
       ],
-      "note": "Complete: TDD added internal/e2e/golden_transcript_test.go, internal/transcript/golden.go, and stable JSON fixtures for text_only, tool_call, and memory_backed normal turns. The suite replays hermetic fake-provider turns with no credentials, captures provider request messages/tools, tool-call continuation and audit evidence, Goncho recall injection, persisted memory rows, final assistant text, and idle status. Transcript diffs classify fixture_missing, provider_part_mismatch, tool_continuation_mismatch, or memory_evidence_mismatch with the exact JSON field path.",
+      "note": "Complete: TDD added internal/support/e2e/golden_transcript_test.go, internal/transcript/golden.go, and stable JSON fixtures for text_only, tool_call, and memory_backed normal turns. The suite replays hermetic fake-provider turns with no credentials, captures provider request messages/tools, tool-call continuation and audit evidence, Goncho recall injection, persisted memory rows, final assistant text, and idle status. Transcript diffs classify fixture_missing, provider_part_mismatch, tool_continuation_mismatch, or memory_evidence_mismatch with the exact JSON field path.",
       "write_scope": [
-        "internal/e2e/",
-        "internal/e2e/testdata/",
+        "internal/support/e2e/",
+        "internal/support/e2e/testdata/",
         "internal/hermes/testdata/",
         "internal/transcript/",
         "docs/content/building-gormes/architecture_plan/progress.json"

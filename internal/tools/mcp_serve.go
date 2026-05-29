@@ -13,14 +13,19 @@ import (
 const mcpserverProtocolVersion = "2024-11-05"
 
 type MCPServer struct {
-	mu            sync.Mutex
-	stdin         *os.File
-	stdout        *os.File
-	tools         map[string]ToolDef
-	sessionStore  SessionLister
-	channelDir    ChannelDirectoryProvider
-	db            interface{ QueryContext(ctx context.Context, query string, args ...any) (interface{ Close(); Next() bool }, error) }
-	toolsMeta     map[string]ToolMeta
+	mu           sync.Mutex
+	stdin        *os.File
+	stdout       *os.File
+	tools        map[string]ToolDef
+	sessionStore SessionLister
+	channelDir   ChannelDirectoryProvider
+	db           interface {
+		QueryContext(ctx context.Context, query string, args ...any) (interface {
+			Close()
+			Next() bool
+		}, error)
+	}
+	toolsMeta map[string]ToolMeta
 }
 
 type ToolDef struct {
@@ -59,7 +64,7 @@ type mcpJSONRPCRequest struct {
 type mcpJSONRPCResponse struct {
 	JSONRPC string      `json:"jsonrpc"`
 	Result  interface{} `json:"result,omitempty"`
-	Error   *mcpErr    `json:"error,omitempty"`
+	Error   *mcpErr     `json:"error,omitempty"`
 	ID      interface{} `json:"id,omitempty"`
 }
 
@@ -110,12 +115,12 @@ func (s *MCPServer) serve(ctx context.Context, in io.Reader, out io.Writer) erro
 		if len(line) > 0 && line[len(line)-1] == '\n' {
 			line = line[:len(line)-1]
 		}
-		
+
 		var req mcpJSONRPCRequest
 		if err := json.Unmarshal(line, &req); err != nil {
 			continue
 		}
-		
+
 		s.handleRequest(ctx, req, out)
 	}
 }
@@ -174,7 +179,7 @@ func (s *MCPServer) handleInitialize(params json.RawMessage) (interface{}, error
 	}
 	result := map[string]interface{}{
 		"protocolVersion": mcpserverProtocolVersion,
-		"capabilities":   capabilities,
+		"capabilities":    capabilities,
 		"serverInfo": map[string]interface{}{
 			"name":    "gormes-mcp-server",
 			"version": "1.0.0",
@@ -237,10 +242,10 @@ type MCPToolContent struct {
 func toolDescription(name string) string {
 	descriptions := map[string]string{
 		"conversations_list": "List all conversations/sessions",
-		"messages_list":     "List messages in a session",
-		"messages_get":      "Get a specific message",
-		"tools_list":        "List all available tools",
-		"sessions_list":     "List all sessions",
+		"messages_list":      "List messages in a session",
+		"messages_get":       "Get a specific message",
+		"tools_list":         "List all available tools",
+		"sessions_list":      "List all sessions",
 	}
 	if d, ok := descriptions[name]; ok {
 		return d
@@ -400,7 +405,7 @@ func (s *MCPServer) messagesGetHandler(ctx context.Context, args map[string]inte
 		}
 	}
 	return map[string]interface{}{
-		"session_key":      sessionKey,
+		"session_key":     sessionKey,
 		"id":              m.ID,
 		"role":            m.Role,
 		"message_content": m.Content,
@@ -459,11 +464,11 @@ func (s *MCPServer) sessionsListHandler(ctx context.Context, args map[string]int
 		out = append(out, sess{
 			SessionKey: s.SessionKey,
 			Source:     s.Source,
-			ChatID:    s.ChatID,
-			Title:     s.Title,
-			UserID:    s.UserID,
-			CreatedAt: s.CreatedAt,
-			UpdatedAt: s.UpdatedAt,
+			ChatID:     s.ChatID,
+			Title:      s.Title,
+			UserID:     s.UserID,
+			CreatedAt:  s.CreatedAt,
+			UpdatedAt:  s.UpdatedAt,
 		})
 	}
 	return map[string]interface{}{
@@ -479,11 +484,21 @@ type MessageEntry struct {
 	Timestamp int64
 }
 
-func listMessages(ctx context.Context, db interface{ QueryContext(ctx context.Context, query string, args ...any) (interface{ Close(); Next() bool }, error) }, sessionKey string, limit int) ([]MessageEntry, error) {
+func listMessages(ctx context.Context, db interface {
+	QueryContext(ctx context.Context, query string, args ...any) (interface {
+		Close()
+		Next() bool
+	}, error)
+}, sessionKey string, limit int) ([]MessageEntry, error) {
 	return nil, nil
 }
 
-func getMessage(ctx context.Context, db interface{ QueryContext(ctx context.Context, query string, args ...any) (interface{ Close(); Next() bool }, error) }, sessionKey, messageID string) (MessageEntry, error) {
+func getMessage(ctx context.Context, db interface {
+	QueryContext(ctx context.Context, query string, args ...any) (interface {
+		Close()
+		Next() bool
+	}, error)
+}, sessionKey, messageID string) (MessageEntry, error) {
 	return MessageEntry{}, nil
 }
 

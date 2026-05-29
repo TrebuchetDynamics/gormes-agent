@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 )
 
 const (
@@ -88,11 +88,11 @@ type skillViewToolResult struct {
 	FileType      string               `json:"file_type,omitempty"`
 	IsBinary      bool                 `json:"is_binary,omitempty"`
 
-	ReadinessStatus    string              `json:"readiness_status,omitempty"`
-	AvailableSkills    []string            `json:"available_skills,omitempty"`
-	AvailableFiles     map[string][]string `json:"available_files,omitempty"`
-	Hint               string              `json:"hint,omitempty"`
-	Error              string              `json:"error,omitempty"`
+	ReadinessStatus string              `json:"readiness_status,omitempty"`
+	AvailableSkills []string            `json:"available_skills,omitempty"`
+	AvailableFiles  map[string][]string `json:"available_files,omitempty"`
+	Hint            string              `json:"hint,omitempty"`
+	Error           string              `json:"error,omitempty"`
 
 	RequiredEnvVars        []envVarInfo `json:"required_environment_variables,omitempty"`
 	RequiredCommands       []string     `json:"required_commands,omitempty"`

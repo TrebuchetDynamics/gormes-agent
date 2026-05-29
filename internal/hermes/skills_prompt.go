@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"gopkg.in/yaml.v3"
 )
 

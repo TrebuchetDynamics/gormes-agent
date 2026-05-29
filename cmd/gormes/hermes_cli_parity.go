@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 )
 
 type hermesCLIParityStatus string

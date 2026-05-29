@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	sessionsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/sessions"
+	sessionsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/sessions"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 

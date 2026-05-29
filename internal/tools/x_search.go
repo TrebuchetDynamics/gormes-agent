@@ -21,10 +21,10 @@ type XSearchConfig struct {
 }
 
 type XSearchAuthStatus struct {
-	Configured bool
-	AuthMode   string
+	Configured  bool
+	AuthMode    string
 	RedactedKey string
-	Expired    bool
+	Expired     bool
 }
 
 func (c XSearchConfig) AuthStatus() XSearchAuthStatus {
@@ -68,8 +68,10 @@ type XSearchTool struct {
 	cfg XSearchConfig
 }
 
-func (t *XSearchTool) Name() string        { return XSearchToolName }
-func (t *XSearchTool) Description() string { return "Search X (Twitter) for recent posts, users, and trends. Returns bounded result envelopes with post text, author info, and engagement metrics." }
+func (t *XSearchTool) Name() string { return XSearchToolName }
+func (t *XSearchTool) Description() string {
+	return "Search X (Twitter) for recent posts, users, and trends. Returns bounded result envelopes with post text, author info, and engagement metrics."
+}
 func (t *XSearchTool) Timeout() time.Duration { return 30 * time.Second }
 
 func (t *XSearchTool) Schema() json.RawMessage {
@@ -166,17 +168,17 @@ func (t *XSearchTool) fakeResults(req struct {
 }
 
 type XSearchResponse struct {
-	Query      string         `json:"query"`
-	ResultType string         `json:"result_type"`
-	Count      int            `json:"count"`
+	Query      string          `json:"query"`
+	ResultType string          `json:"result_type"`
+	Count      int             `json:"count"`
 	Results    []XSearchResult `json:"results"`
 }
 
 type XSearchResult struct {
-	ID        string       `json:"id"`
-	Text      string       `json:"text"`
-	Author    string       `json:"author"`
-	CreatedAt string       `json:"created_at"`
+	ID        string         `json:"id"`
+	Text      string         `json:"text"`
+	Author    string         `json:"author"`
+	CreatedAt string         `json:"created_at"`
 	Metrics   XSearchMetrics `json:"metrics"`
 }
 

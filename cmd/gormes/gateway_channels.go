@@ -9,12 +9,12 @@ import (
 	"strconv"
 	"strings"
 
-	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
-	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/channels"
+	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
 )
 
 type gatewayChannelFactory func(config.Config, *slog.Logger) (gateway.Channel, error)

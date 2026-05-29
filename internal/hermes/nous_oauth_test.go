@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-
 )
 
 func newFakeNousPortal(t *testing.T) *httptest.Server {
@@ -28,11 +26,11 @@ func newFakeNousPortal(t *testing.T) *httptest.Server {
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]any{
-			"device_code":              deviceCode,
-			"user_code":                userCode,
+			"device_code":               deviceCode,
+			"user_code":                 userCode,
 			"verification_uri_complete": "https://portal.nousresearch.com/activate?code=" + userCode,
-			"expires_in":               600,
-			"interval":                 5,
+			"expires_in":                600,
+			"interval":                  5,
 		})
 	})
 
@@ -87,11 +85,11 @@ func newFakeNousPortal(t *testing.T) *httptest.Server {
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]any{
-			"api_key":     agentKey,
-			"key_id":      "key-nous-001",
-			"expires_at":  "2026-05-09T12:00:00Z",
-			"expires_in":  86400,
-			"key_reused":  false,
+			"api_key":    agentKey,
+			"key_id":     "key-nous-001",
+			"expires_at": "2026-05-09T12:00:00Z",
+			"expires_in": 86400,
+			"key_reused": false,
 		})
 	})
 

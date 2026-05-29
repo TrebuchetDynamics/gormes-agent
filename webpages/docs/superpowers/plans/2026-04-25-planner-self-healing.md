@@ -1002,7 +1002,7 @@ package architectureplanner
 import (
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 func TestMatchKeywords_EmptyKeywordsMatchesAll(t *testing.T) {
@@ -1135,7 +1135,7 @@ package architectureplanner
 import (
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 // itemMatchesKeywords returns true if any keyword (case-insensitive
@@ -2246,7 +2246,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 func TestRetryFeedback_NamesAllDroppedRows(t *testing.T) {
@@ -2314,7 +2314,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 const DefaultMaxRetries = 2
@@ -2861,7 +2861,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 func TestStampVerdicts_IncrementsReshapeCount(t *testing.T) {
@@ -2986,7 +2986,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 const DefaultEscalationThreshold = 3
@@ -3288,7 +3288,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/autoloop"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 // TestLifecycle_PlannerSelfHealingFullLoop walks one row through the full

@@ -9,7 +9,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/ctl"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/ctl"
 )
 
 const usage = "usage: progress [--repo-root <path>] {validate [--format text|json]|write [--dry-run]|compact|split <dir>|emit|list --module <module>|next-work [--repo-only]}"

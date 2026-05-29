@@ -27,7 +27,7 @@ func TestTrustClass_ExecuteAllowed(t *testing.T) {
 func TestTrustClass_ExecuteDenied(t *testing.T) {
 	exec := NewTrustClassExecutor()
 	exec.Register(TrustClassTool{
-		Name:           "operator_tool",
+		Name: "operator_tool",
 	})
 
 	_, err := exec.Execute("operator_tool", TrustClassGateway, nil)
@@ -97,12 +97,12 @@ func TestTrustClass_SystemCanAccessAll(t *testing.T) {
 	exec := NewTrustClassExecutor()
 	exec.Register(TrustClassTool{
 		Name:           "system_tool",
-		Handler: func(args map[string]interface{}) (interface{}, error) { return "ok", nil },
+		Handler:        func(args map[string]interface{}) (interface{}, error) { return "ok", nil },
 		AllowedClasses: []TrustClass{TrustClassSystem},
 	})
 	exec.Register(TrustClassTool{
 		Name:           "operator_tool",
-		Handler: func(args map[string]interface{}) (interface{}, error) { return "ok", nil },
+		Handler:        func(args map[string]interface{}) (interface{}, error) { return "ok", nil },
 		AllowedClasses: []TrustClass{TrustClassOperator},
 	})
 

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/redaction"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/compact"
 )
 
@@ -84,14 +84,15 @@ func (t *TerminalTool) Execute(ctx context.Context, args json.RawMessage) (json.
 	}
 
 	if t.cfg.WorkspaceScope != nil && t.cfg.WorkspaceScope.Configured() {
+		denial := profileWorkspaceExecuteDenied("local terminal")
 		return marshalToolPayload(redactTerminalResult(terminalResult{
 			Status:   "blocked",
 			ExitCode: -1,
-			Error:    ProfileWorkspaceScopeViolation + ": local terminal cannot prove confinement for a non-empty profile workspace allow-list; fail closed before spawning",
+			Error:    denial.Message,
 			Command:  in.Command,
 			Evidence: map[string]string{
-				"code":   ProfileWorkspaceScopeViolation,
-				"reason": "local_terminal_no_profile_workspace_confinement",
+				"code":   denial.Evidence,
+				"reason": denial.Reason,
 			},
 		}))
 	}

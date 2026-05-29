@@ -79,10 +79,10 @@ func TestRecapEnvelope_KnownSession(t *testing.T) {
 	now := time.Now().Unix()
 
 	meta := Metadata{
-		SessionID:    "sess-known",
-		Title:        "Known session",
-		CreatedAt:    now - 7200,
-		UpdatedAt:    now,
+		SessionID:      "sess-known",
+		Title:          "Known session",
+		CreatedAt:      now - 7200,
+		UpdatedAt:      now,
 		TokensInTotal:  1500,
 		TokensOutTotal: 2300,
 	}
@@ -191,10 +191,10 @@ func TestRecapEnvelope_SessionRecapHumanOutput(t *testing.T) {
 	now := time.Now().Unix()
 
 	meta := Metadata{
-		SessionID:    "sess-detail",
-		Title:        "Detail test",
-		CreatedAt:    now - 7200,
-		UpdatedAt:    now,
+		SessionID:      "sess-detail",
+		Title:          "Detail test",
+		CreatedAt:      now - 7200,
+		UpdatedAt:      now,
 		TokensInTotal:  500,
 		TokensOutTotal: 800,
 	}

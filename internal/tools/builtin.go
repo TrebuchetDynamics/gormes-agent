@@ -12,8 +12,10 @@ import (
 // EchoTool round-trips its input. Proof-of-life for the Tool plumbing.
 type EchoTool struct{}
 
-func (*EchoTool) Name() string        { return "echo" }
-func (*EchoTool) Description() string { return "Echo the provided text back. Useful for testing tool-call plumbing." }
+func (*EchoTool) Name() string { return "echo" }
+func (*EchoTool) Description() string {
+	return "Echo the provided text back. Useful for testing tool-call plumbing."
+}
 func (*EchoTool) Schema() json.RawMessage {
 	return json.RawMessage(`{"type":"object","properties":{"text":{"type":"string","description":"text to echo"}},"required":["text"]}`)
 }
@@ -38,8 +40,10 @@ func (*EchoTool) Execute(ctx context.Context, args json.RawMessage) (json.RawMes
 // NowTool returns the current time in two formats.
 type NowTool struct{}
 
-func (*NowTool) Name() string        { return "now" }
-func (*NowTool) Description() string { return "Return the current server time as unix seconds and ISO-8601 UTC." }
+func (*NowTool) Name() string { return "now" }
+func (*NowTool) Description() string {
+	return "Return the current server time as unix seconds and ISO-8601 UTC."
+}
 func (*NowTool) Schema() json.RawMessage {
 	return json.RawMessage(`{"type":"object","properties":{},"required":[]}`)
 }

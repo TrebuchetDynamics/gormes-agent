@@ -3,7 +3,7 @@ package site
 import (
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 func TestToneFor(t *testing.T) {

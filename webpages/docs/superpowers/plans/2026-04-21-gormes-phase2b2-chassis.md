@@ -3378,15 +3378,15 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/discord"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -3548,8 +3548,8 @@ EOF
 Open `cmd/gormes/doctor.go`. Extend the import block with:
 
 ```go
-"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
-"github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
+"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/discord"
+"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram"
 ```
 
 Then, immediately after `fmt.Print(result.Format())`, append:

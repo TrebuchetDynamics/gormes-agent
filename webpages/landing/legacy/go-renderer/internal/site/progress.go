@@ -7,7 +7,7 @@ import (
 	"html/template"
 	"sort"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 //go:embed data/progress.json
