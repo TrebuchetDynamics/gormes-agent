@@ -1,4 +1,4 @@
-package gateway
+package rendering
 
 import (
 	"strings"
@@ -48,8 +48,8 @@ func TestFormatBrowserArtifactTelegramEscapesAndBoundsArtifactOutput(t *testing.
 			t.Fatalf("FormatBrowserArtifactTelegram leaked or left unescaped %q in:\n%s", forbidden, got)
 		}
 	}
-	if len([]rune(got)) > maxMessageLen {
-		t.Fatalf("FormatBrowserArtifactTelegram length = %d, want <= %d", len([]rune(got)), maxMessageLen)
+	if len([]rune(got)) > MaxMessageLen {
+		t.Fatalf("FormatBrowserArtifactTelegram length = %d, want <= %d", len([]rune(got)), MaxMessageLen)
 	}
 }
 

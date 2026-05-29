@@ -1,33 +1,27 @@
 package gateway
 
-import "strings"
+import gatewayplatforms "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/platforms"
 
 func normalizedPlatformName(platform string) string {
-	return strings.ToLower(strings.TrimSpace(platform))
+	return gatewayplatforms.NormalizePlatformID(platform)
 }
 
 func platformBaseName(platform string) string {
-	platform = normalizedPlatformName(platform)
-	if before, _, ok := strings.Cut(platform, ":"); ok {
-		return before
-	}
-	return platform
+	return gatewayplatforms.PlatformBaseName(platform)
 }
 
 func isPlatformName(platform, base string) bool {
-	platform = normalizedPlatformName(platform)
-	base = normalizedPlatformName(base)
-	return platform == base || strings.HasPrefix(platform, base+":")
+	return gatewayplatforms.IsPlatformName(platform, base)
 }
 
 func isTelegramPlatform(platform string) bool {
-	return isPlatformName(platform, "telegram")
+	return gatewayplatforms.IsTelegramPlatform(platform)
 }
 
 func isDiscordPlatform(platform string) bool {
-	return isPlatformName(platform, "discord")
+	return gatewayplatforms.IsDiscordPlatform(platform)
 }
 
 func isSlackPlatform(platform string) bool {
-	return isPlatformName(platform, "slack")
+	return gatewayplatforms.IsSlackPlatform(platform)
 }

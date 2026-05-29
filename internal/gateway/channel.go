@@ -1,6 +1,10 @@
 package gateway
 
-import "context"
+import (
+	"context"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/rendering"
+)
 
 // Channel is the minimum every adapter implements. Additional capabilities are
 // modeled as optional interfaces that the manager type-asserts at runtime.
@@ -93,24 +97,18 @@ type PlaceholderCapable interface {
 // ToolProgressStatus is the channel-neutral lifecycle state for structured
 // tool progress. Text-only channels can ignore it; first-party channels such
 // as Navivox can render it as native UI instead of assistant prose.
-type ToolProgressStatus string
+type ToolProgressStatus = rendering.ToolProgressStatus
 
 const (
-	ToolProgressStarted  ToolProgressStatus = "started"
-	ToolProgressUpdated  ToolProgressStatus = "updated"
-	ToolProgressFinished ToolProgressStatus = "finished"
-	ToolProgressFailed   ToolProgressStatus = "failed"
+	ToolProgressStarted  = rendering.ToolProgressStarted
+	ToolProgressUpdated  = rendering.ToolProgressUpdated
+	ToolProgressFinished = rendering.ToolProgressFinished
+	ToolProgressFailed   = rendering.ToolProgressFailed
 )
 
 // ToolProgressEvent carries redacted, bounded tool-progress evidence. It must
 // never include raw tool arguments, stdout, credentials, or full logs.
-type ToolProgressEvent struct {
-	ID       string
-	ToolName string
-	Status   ToolProgressStatus
-	Summary  string
-	Metadata map[string]any
-}
+type ToolProgressEvent = rendering.ToolProgressEvent
 
 // ToolProgressSender is implemented by channels that can render structured
 // tool progress as native UI objects instead of sending plain text logs.

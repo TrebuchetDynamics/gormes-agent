@@ -1,134 +1,52 @@
 package gateway
 
 import (
-	"context"
-	"strings"
+	gatewayapproval "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/approval"
+	gatewayhookpolicy "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/hookpolicy"
 )
 
-type hookAutoAcceptEvidence string
+type hookAutoAcceptEvidence = gatewayhookpolicy.AutoAcceptEvidence
 
 const (
-	hookAutoAcceptAcceptedByCLI    hookAutoAcceptEvidence = "accepted_by_cli"
-	hookAutoAcceptAcceptedByEnv    hookAutoAcceptEvidence = "accepted_by_env"
-	hookAutoAcceptAcceptedByConfig hookAutoAcceptEvidence = "accepted_by_config"
-	hookAutoAcceptRejectedDefault  hookAutoAcceptEvidence = "rejected_default"
-	hookAutoAcceptInvalid          hookAutoAcceptEvidence = "hook_auto_accept_invalid"
+	hookAutoAcceptAcceptedByCLI    hookAutoAcceptEvidence = gatewayhookpolicy.AutoAcceptAcceptedByCLI
+	hookAutoAcceptAcceptedByEnv    hookAutoAcceptEvidence = gatewayhookpolicy.AutoAcceptAcceptedByEnv
+	hookAutoAcceptAcceptedByConfig hookAutoAcceptEvidence = gatewayhookpolicy.AutoAcceptAcceptedByConfig
+	hookAutoAcceptRejectedDefault  hookAutoAcceptEvidence = gatewayhookpolicy.AutoAcceptRejectedDefault
+	hookAutoAcceptInvalid          hookAutoAcceptEvidence = gatewayhookpolicy.AutoAcceptInvalid
 )
 
-type hookAutoAcceptInputs struct {
-	CLIAccept   bool
-	EnvValue    *string
-	ConfigValue any
-}
+type hookAutoAcceptInputs = gatewayhookpolicy.AutoAcceptInputs
 
-type hookAutoAcceptDecision struct {
-	Accept   bool
-	Evidence hookAutoAcceptEvidence
-}
+type hookAutoAcceptDecision = gatewayhookpolicy.AutoAcceptDecision
 
 // ApprovalChoice is the bounded decision a messaging-platform approval button
 // may resolve for a pending gateway approval request.
-type ApprovalChoice string
+type ApprovalChoice = gatewayapproval.Choice
 
 const (
-	ApprovalChoiceOnce    ApprovalChoice = "once"
-	ApprovalChoiceSession ApprovalChoice = "session"
-	ApprovalChoiceAlways  ApprovalChoice = "always"
-	ApprovalChoiceDeny    ApprovalChoice = "deny"
+	ApprovalChoiceOnce    ApprovalChoice = gatewayapproval.ChoiceOnce
+	ApprovalChoiceSession ApprovalChoice = gatewayapproval.ChoiceSession
+	ApprovalChoiceAlways  ApprovalChoice = gatewayapproval.ChoiceAlways
+	ApprovalChoiceDeny    ApprovalChoice = gatewayapproval.ChoiceDeny
 )
 
 // ApprovalResolution is the redacted evidence passed from channel callbacks
 // into the gateway approval store/resolver.
-type ApprovalResolution struct {
-	SessionKey string
-	Choice     ApprovalChoice
-	Platform   string
-	ChatID     string
-	MessageID  string
-	ActorID    string
-	Evidence   map[string]string
-}
+type ApprovalResolution = gatewayapproval.Resolution
 
 // ApprovalResolver owns the gateway-side approval state for pending dangerous
 // operations. Channel implementations call it after a user chooses a bounded
 // approval action.
-type ApprovalResolver interface {
-	ResolveGatewayApproval(context.Context, ApprovalResolution) error
-}
+type ApprovalResolver = gatewayapproval.Resolver
 
 // ApprovalResolverFunc adapts a function to ApprovalResolver.
-type ApprovalResolverFunc func(context.Context, ApprovalResolution) error
-
-func (f ApprovalResolverFunc) ResolveGatewayApproval(ctx context.Context, res ApprovalResolution) error {
-	if f == nil {
-		return nil
-	}
-	return f(ctx, res)
-}
+type ApprovalResolverFunc = gatewayapproval.ResolverFunc
 
 // ParseApprovalChoice normalizes a gateway approval decision label.
 func ParseApprovalChoice(value string) (ApprovalChoice, bool) {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case string(ApprovalChoiceOnce):
-		return ApprovalChoiceOnce, true
-	case string(ApprovalChoiceSession):
-		return ApprovalChoiceSession, true
-	case string(ApprovalChoiceAlways):
-		return ApprovalChoiceAlways, true
-	case string(ApprovalChoiceDeny):
-		return ApprovalChoiceDeny, true
-	default:
-		return "", false
-	}
+	return gatewayapproval.ParseChoice(value)
 }
 
 func resolveHookAutoAccept(inputs hookAutoAcceptInputs) hookAutoAcceptDecision {
-	if inputs.CLIAccept {
-		return hookAutoAcceptDecision{
-			Accept:   true,
-			Evidence: hookAutoAcceptAcceptedByCLI,
-		}
-	}
-	if inputs.EnvValue != nil {
-		return hookAutoAcceptDecisionForValue(*inputs.EnvValue, hookAutoAcceptAcceptedByEnv)
-	}
-	return hookAutoAcceptDecisionForValue(inputs.ConfigValue, hookAutoAcceptAcceptedByConfig)
-}
-
-func hookAutoAcceptDecisionForValue(value any, acceptedEvidence hookAutoAcceptEvidence) hookAutoAcceptDecision {
-	accepted, valid := parseHookAutoAcceptValue(value)
-	if accepted {
-		return hookAutoAcceptDecision{
-			Accept:   true,
-			Evidence: acceptedEvidence,
-		}
-	}
-	if !valid {
-		return hookAutoAcceptDecision{
-			Accept:   false,
-			Evidence: hookAutoAcceptInvalid,
-		}
-	}
-	return hookAutoAcceptDecision{
-		Accept:   false,
-		Evidence: hookAutoAcceptRejectedDefault,
-	}
-}
-
-func parseHookAutoAcceptValue(value any) (accepted bool, valid bool) {
-	switch v := value.(type) {
-	case nil:
-		return false, true
-	case bool:
-		return v, true
-	case string:
-		switch strings.ToLower(strings.TrimSpace(v)) {
-		case "1", "true", "yes", "on":
-			return true, true
-		default:
-			return false, false
-		}
-	default:
-		return false, false
-	}
+	return gatewayhookpolicy.ResolveAutoAccept(inputs)
 }
