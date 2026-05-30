@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/builderloop"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/triggers"
 )
 
@@ -141,24 +140,9 @@ func TestLifecycle_PlannerSelfHealingFullLoop(t *testing.T) {
 
 	// ---- Run 3 (autoloop): stale-quarantine flagged; row-x fails again → quarantine re-set ----
 	r3Time := t0.Add(2 * time.Hour)
-	candidates, err := builderloop.NormalizeCandidates(progressPath, builderloop.CandidateOptions{ActiveFirst: true})
-	if err != nil {
-		t.Fatalf("Run 3: NormalizeCandidates: %v", err)
-	}
-	var rowXCandidate builderloop.Candidate
-	var foundStale bool
-	for _, c := range candidates {
-		if c.ItemName == "row-x" {
-			rowXCandidate = c
-			foundStale = true
-			break
-		}
-	}
-	if !foundStale {
-		t.Fatal("Run 3: row-x should re-enter selection after planner reshape (StaleQuarantine path)")
-	}
-	if !rowXCandidate.StaleQuarantine {
-		t.Fatal("Run 3: row-x should have StaleQuarantine=true after spec change")
+	candidates := activeHandoffsFromPath(t, progressPath)
+	if !activeHandoffContains(candidates, "row-x") {
+		t.Fatal("Run 3: row-x should re-enter selection after planner reshape")
 	}
 	// Apply stale-clear + 3 fresh failures to re-trigger quarantine.
 	clearAndFailRowX(t, progressPath, "R3", r3Time, threshold, 3, progress.FailureWorkerError)
@@ -246,21 +230,8 @@ func TestLifecycle_PlannerSelfHealingFullLoop(t *testing.T) {
 
 	// ---- Run 5 (autoloop): stale-cleared again; row-x fails 3x; quarantine re-set ----
 	r5Time := t0.Add(4 * time.Hour)
-	candidates, err = builderloop.NormalizeCandidates(progressPath, builderloop.CandidateOptions{ActiveFirst: true})
-	if err != nil {
-		t.Fatalf("Run 5: NormalizeCandidates: %v", err)
-	}
-	var sawStaleR5 bool
-	for _, c := range candidates {
-		if c.ItemName == "row-x" {
-			if !c.StaleQuarantine {
-				t.Fatal("Run 5: row-x should be StaleQuarantine after planner reshape v2")
-			}
-			sawStaleR5 = true
-			break
-		}
-	}
-	if !sawStaleR5 {
+	candidates = activeHandoffsFromPath(t, progressPath)
+	if !activeHandoffContains(candidates, "row-x") {
 		t.Fatal("Run 5: row-x should re-enter selection after planner reshape v2")
 	}
 
@@ -356,51 +327,14 @@ func TestLifecycle_PlannerSelfHealingFullLoop(t *testing.T) {
 	}
 
 	// ---- Run 7 (autoloop): selection EXCLUDES row-x because PlannerVerdict.NeedsHuman=true ----
-	candidates, err = builderloop.NormalizeCandidates(progressPath, builderloop.CandidateOptions{ActiveFirst: true})
-	if err != nil {
-		t.Fatalf("Run 7: NormalizeCandidates: %v", err)
-	}
-	for _, c := range candidates {
-		if c.ItemName == "row-x" {
-			t.Fatalf("Run 7: row-x must be excluded by NeedsHuman skip; got candidate=%+v", c)
-		}
+	candidates = activeHandoffsFromPath(t, progressPath)
+	if activeHandoffContains(candidates, "row-x") {
+		t.Fatalf("Run 7: row-x must be excluded by NeedsHuman skip; got candidates=%+v", candidates)
 	}
 	// Sanity: row-y (the companion row) must still be selectable so we know
 	// the filter is targeted, not a full-table block.
-	var sawRowY bool
-	for _, c := range candidates {
-		if c.ItemName == "row-y" {
-			sawRowY = true
-			break
-		}
-	}
-	if !sawRowY {
+	if !activeHandoffContains(candidates, "row-y") {
 		t.Fatalf("Run 7: row-y should remain selectable (NeedsHuman skip should only block row-x); got %d candidates", len(candidates))
-	}
-
-	// Sanity: the IncludeNeedsHuman override surfaces row-x with the flag set.
-	candidates, err = builderloop.NormalizeCandidates(progressPath, builderloop.CandidateOptions{
-		ActiveFirst:        true,
-		IncludeQuarantined: true,
-		IncludeNeedsHuman:  true,
-	})
-	if err != nil {
-		t.Fatalf("Run 7 override: NormalizeCandidates: %v", err)
-	}
-	var rowXOverride builderloop.Candidate
-	var foundOverride bool
-	for _, c := range candidates {
-		if c.ItemName == "row-x" {
-			rowXOverride = c
-			foundOverride = true
-			break
-		}
-	}
-	if !foundOverride {
-		t.Fatal("Run 7 override: row-x should surface when IncludeNeedsHuman=true")
-	}
-	if !rowXOverride.NeedsHumanFlag {
-		t.Fatal("Run 7 override: surfaced row-x should carry NeedsHumanFlag=true")
 	}
 }
 
@@ -595,8 +529,7 @@ func findOutcome(t *testing.T, outcomes []ReshapeOutcome, name string) ReshapeOu
 // writeAutoloopFailures appends `n` worker_failed events for one row to the
 // autoloop runs.jsonl. Each event is timestamped one second apart starting
 // at `base` so Evaluate's after-reshape filter sees them in append order.
-// Uses the same json shape autoloop's appendRunLedgerEvent writes (see
-// internal/progress/builderloop/ledger.go).
+// Uses the same json shape the removed autoloop ledger wrote.
 func writeAutoloopFailures(t *testing.T, path, runID string, base time.Time, itemName string, n int, status string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -609,7 +542,7 @@ func writeAutoloopFailures(t *testing.T, path, runID string, base time.Time, ite
 	defer f.Close()
 	enc := json.NewEncoder(f)
 	for i := 0; i < n; i++ {
-		ev := builderloop.LedgerEvent{
+		ev := AutoloopLedgerEvent{
 			TS:     base.Add(time.Duration(i) * time.Second),
 			RunID:  runID,
 			Event:  "worker_failed",
@@ -621,4 +554,22 @@ func writeAutoloopFailures(t *testing.T, path, runID string, base time.Time, ite
 			t.Fatalf("encode autoloop event: %v", err)
 		}
 	}
+}
+
+func activeHandoffsFromPath(t *testing.T, path string) []progress.ActiveHandoffProjection {
+	t.Helper()
+	prog, err := progress.Load(path)
+	if err != nil {
+		t.Fatalf("load progress for active handoffs: %v", err)
+	}
+	return progress.ProjectActiveHandoffs(prog, 0)
+}
+
+func activeHandoffContains(rows []progress.ActiveHandoffProjection, itemName string) bool {
+	for _, row := range rows {
+		if row.Identity.ItemName == itemName {
+			return true
+		}
+	}
+	return false
 }

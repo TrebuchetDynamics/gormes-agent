@@ -1,7 +1,7 @@
 // Package workitem classifies progress rows for handoff surfaces.
 // It deliberately does not import the parent progress package, so progress
-// renderers and builder-loop adapters can both cross this seam without an
-// import cycle.
+// renderers and command selectors can both cross this seam without an import
+// cycle.
 package workitem
 
 import (
@@ -37,8 +37,8 @@ type Options struct {
 }
 
 // RowInput is the small, package-independent row view needed to classify and
-// order progress work. Adapters in the parent progress package and builderloop
-// package convert their richer row structs into this shape.
+// order progress work. Adapters in the parent progress package convert richer
+// row structs into this shape.
 type RowInput struct {
 	PhaseID        string
 	PhaseName      string

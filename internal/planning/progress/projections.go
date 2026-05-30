@@ -32,9 +32,15 @@ type ActiveHandoffProjection struct {
 	Identity             RowIdentity
 	Order                int
 	Classification       workitem.Classification
+	Priority             string
+	Status               string
 	Contract             string
+	ContractStatus       string
+	SliceSize            string
+	ExecutionOwner       string
 	Fixture              string
 	Readiness            RowReadinessProjection
+	Unblocks             []string
 	WriteScope           []string
 	TestCommands         []string
 	NoTestRequiredReason string
@@ -103,12 +109,18 @@ func projectActiveHandoffsFromRows(rows []contractRow, limit int) []ActiveHandof
 			Identity:       identityFromContractRow(original),
 			Order:          i + 1,
 			Classification: row.Classification,
+			Priority:       it.Priority,
+			Status:         string(it.Status),
 			Contract:       it.Contract,
+			ContractStatus: string(it.ContractStatus),
+			SliceSize:      string(it.SliceSize),
+			ExecutionOwner: string(it.ExecutionOwner),
 			Fixture:        it.Fixture,
 			Readiness: RowReadinessProjection{
 				ReadyWhen:    cloneStringSlice(it.ReadyWhen),
 				NotReadyWhen: cloneStringSlice(it.NotReadyWhen),
 			},
+			Unblocks:             cloneStringSlice(it.Unblocks),
 			WriteScope:           cloneStringSlice(it.WriteScope),
 			TestCommands:         cloneStringSlice(it.TestCommands),
 			NoTestRequiredReason: strings.TrimSpace(it.NoTestRequiredReason),

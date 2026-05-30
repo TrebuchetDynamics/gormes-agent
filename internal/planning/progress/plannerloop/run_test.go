@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/builderloop"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/triggers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/runtime/cmdrunner"
 )
@@ -370,7 +369,7 @@ func TestRunOnceSkipsPRIntakeInsideEmptyBackoff(t *testing.T) {
 	cfg.MergeOpenPullRequests = true
 	cfg.PRIntakeEmptyBackoff = 5 * time.Minute
 	now := time.Date(2026, 4, 26, 14, 50, 0, 0, time.UTC)
-	if err := builderloop.AppendLedgerEvent(filepath.Join(cfg.RunRoot, "state", "runs.jsonl"), builderloop.LedgerEvent{
+	if err := appendAutoloopLedgerEvent(filepath.Join(cfg.RunRoot, "state", "runs.jsonl"), AutoloopLedgerEvent{
 		TS:     now.Add(-2 * time.Minute),
 		RunID:  "previous",
 		Event:  "pr_intake_completed",

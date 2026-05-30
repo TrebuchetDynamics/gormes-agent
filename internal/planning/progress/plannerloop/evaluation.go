@@ -104,7 +104,7 @@ func Evaluate(plannerLedgerPath, autoloopLedgerPath string, window time.Duration
 
 // autoloopEventLite is a local subset of autoloop's LedgerEvent decoded only
 // for evaluation. The lite struct keeps this package decoupled from
-// internal/progress/builderloop and tolerant of schema drift: encoding/json silently
+// the removed autoloop ledger and tolerant of schema drift: encoding/json silently
 // ignores unknown fields.
 type autoloopEventLite struct {
 	TS     string `json:"ts"`

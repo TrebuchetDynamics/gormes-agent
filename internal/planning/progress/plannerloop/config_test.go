@@ -6,8 +6,6 @@ import (
 	"reflect"
 	"testing"
 	"time"
-
-	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/builderloop"
 )
 
 func TestConfigFromEnvDefaultsToArchitecturePlannerPaths(t *testing.T) {
@@ -42,8 +40,8 @@ func TestConfigFromEnvDefaultsToArchitecturePlannerPaths(t *testing.T) {
 	if cfg.PRIntakeEmptyBackoff != 5*time.Minute {
 		t.Fatalf("PRIntakeEmptyBackoff = %s, want 5m", cfg.PRIntakeEmptyBackoff)
 	}
-	if cfg.PRConflictAction != builderloop.PRConflictActionClose {
-		t.Fatalf("PRConflictAction = %q, want %q", cfg.PRConflictAction, builderloop.PRConflictActionClose)
+	if cfg.PRConflictAction != PRConflictActionClose {
+		t.Fatalf("PRConflictAction = %q, want %q", cfg.PRConflictAction, PRConflictActionClose)
 	}
 	if cfg.BackendTimeout != 20*time.Minute {
 		t.Fatalf("BackendTimeout = %s, want 20m", cfg.BackendTimeout)
@@ -130,8 +128,8 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 	if cfg.PRIntakeEmptyBackoff != 150*time.Second {
 		t.Fatalf("PRIntakeEmptyBackoff = %s, want 2m30s", cfg.PRIntakeEmptyBackoff)
 	}
-	if cfg.PRConflictAction != builderloop.PRConflictActionSkip {
-		t.Fatalf("PRConflictAction = %q, want %q", cfg.PRConflictAction, builderloop.PRConflictActionSkip)
+	if cfg.PRConflictAction != PRConflictActionSkip {
+		t.Fatalf("PRConflictAction = %q, want %q", cfg.PRConflictAction, PRConflictActionSkip)
 	}
 	if !reflect.DeepEqual(cfg.GormesOriginalPaths, []string{"cmd/progress/", "internal/progress/"}) {
 		t.Fatalf("GormesOriginalPaths = %#v", cfg.GormesOriginalPaths)

@@ -1,4 +1,4 @@
-package builderloop
+package plannerloop
 
 import (
 	"context"
@@ -9,10 +9,12 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/runtime/cmdrunner"
 )
 
 type PullRequestIntakeOptions struct {
-	Runner         Runner
+	Runner         cmdrunner.Runner
 	RepoRoot       string
 	RunRoot        string
 	RunID          string
@@ -48,13 +50,13 @@ type pullRequestInfo struct {
 
 func MergeOpenPullRequests(ctx context.Context, opts PullRequestIntakeOptions) (PullRequestIntakeSummary, error) {
 	if opts.Runner == nil {
-		opts.Runner = ExecRunner{}
+		opts.Runner = cmdrunner.ExecRunner{}
 	}
 	if !repoHasGit(opts.RepoRoot) {
 		return PullRequestIntakeSummary{}, nil
 	}
 
-	if err := appendPRIntakeEvent(opts, LedgerEvent{
+	if err := appendPRIntakeEvent(opts, AutoloopLedgerEvent{
 		TS:     time.Now().UTC(),
 		RunID:  opts.RunID,
 		Event:  "pr_intake_started",
@@ -68,13 +70,13 @@ func MergeOpenPullRequests(ctx context.Context, opts PullRequestIntakeOptions) (
 		repo = detectGitHubRepo(ctx, opts)
 	}
 
-	list := opts.Runner.Run(ctx, Command{
+	list := opts.Runner.Run(ctx, cmdrunner.Command{
 		Name: "gh",
 		Args: prListArgs(repo),
 		Dir:  opts.RepoRoot,
 	})
 	if list.Err != nil {
-		_ = appendPRIntakeEvent(opts, LedgerEvent{
+		_ = appendPRIntakeEvent(opts, AutoloopLedgerEvent{
 			TS:     time.Now().UTC(),
 			RunID:  opts.RunID,
 			Event:  "pr_intake_failed",
@@ -86,7 +88,7 @@ func MergeOpenPullRequests(ctx context.Context, opts PullRequestIntakeOptions) (
 
 	var prs []pullRequestInfo
 	if err := json.Unmarshal([]byte(list.Stdout), &prs); err != nil {
-		_ = appendPRIntakeEvent(opts, LedgerEvent{
+		_ = appendPRIntakeEvent(opts, AutoloopLedgerEvent{
 			TS:     time.Now().UTC(),
 			RunID:  opts.RunID,
 			Event:  "pr_intake_failed",
@@ -104,7 +106,7 @@ func MergeOpenPullRequests(ctx context.Context, opts PullRequestIntakeOptions) (
 	for _, pr := range prs {
 		if pr.IsDraft {
 			summary.Skipped++
-			if err := appendPRIntakeEvent(opts, LedgerEvent{
+			if err := appendPRIntakeEvent(opts, AutoloopLedgerEvent{
 				TS:     time.Now().UTC(),
 				RunID:  opts.RunID,
 				Event:  "pr_intake_skipped",
@@ -118,14 +120,14 @@ func MergeOpenPullRequests(ctx context.Context, opts PullRequestIntakeOptions) (
 		if prIsDirty(pr) {
 			switch conflictAction {
 			case PRConflictActionClose:
-				closeResult := opts.Runner.Run(ctx, Command{
+				closeResult := opts.Runner.Run(ctx, cmdrunner.Command{
 					Name: "gh",
 					Args: prCloseArgs(pr.Number, repo),
 					Dir:  opts.RepoRoot,
 				})
 				if closeResult.Err != nil {
 					summary.Failed++
-					_ = appendPRIntakeEvent(opts, LedgerEvent{
+					_ = appendPRIntakeEvent(opts, AutoloopLedgerEvent{
 						TS:     time.Now().UTC(),
 						RunID:  opts.RunID,
 						Event:  "pr_intake_failed",
@@ -135,7 +137,7 @@ func MergeOpenPullRequests(ctx context.Context, opts PullRequestIntakeOptions) (
 					continue
 				}
 				summary.Closed++
-				if err := appendPRIntakeEvent(opts, LedgerEvent{
+				if err := appendPRIntakeEvent(opts, AutoloopLedgerEvent{
 					TS:     time.Now().UTC(),
 					RunID:  opts.RunID,
 					Event:  "pr_intake_closed",
@@ -146,7 +148,7 @@ func MergeOpenPullRequests(ctx context.Context, opts PullRequestIntakeOptions) (
 				}
 			case PRConflictActionSkip:
 				summary.Skipped++
-				if err := appendPRIntakeEvent(opts, LedgerEvent{
+				if err := appendPRIntakeEvent(opts, AutoloopLedgerEvent{
 					TS:     time.Now().UTC(),
 					RunID:  opts.RunID,
 					Event:  "pr_intake_skipped",
@@ -162,14 +164,14 @@ func MergeOpenPullRequests(ctx context.Context, opts PullRequestIntakeOptions) (
 	}
 
 	for _, pr := range ready {
-		merge := opts.Runner.Run(ctx, Command{
+		merge := opts.Runner.Run(ctx, cmdrunner.Command{
 			Name: "gh",
 			Args: prMergeArgs(pr.Number, repo),
 			Dir:  opts.RepoRoot,
 		})
 		if merge.Err != nil {
 			summary.Failed++
-			_ = appendPRIntakeEvent(opts, LedgerEvent{
+			_ = appendPRIntakeEvent(opts, AutoloopLedgerEvent{
 				TS:     time.Now().UTC(),
 				RunID:  opts.RunID,
 				Event:  "pr_intake_failed",
@@ -180,7 +182,7 @@ func MergeOpenPullRequests(ctx context.Context, opts PullRequestIntakeOptions) (
 		}
 
 		summary.Merged++
-		if err := appendPRIntakeEvent(opts, LedgerEvent{
+		if err := appendPRIntakeEvent(opts, AutoloopLedgerEvent{
 			TS:     time.Now().UTC(),
 			RunID:  opts.RunID,
 			Event:  "pr_intake_merged",
@@ -197,7 +199,7 @@ func MergeOpenPullRequests(ctx context.Context, opts PullRequestIntakeOptions) (
 		}
 	}
 
-	return summary, appendPRIntakeEvent(opts, LedgerEvent{
+	return summary, appendPRIntakeEvent(opts, AutoloopLedgerEvent{
 		TS:     time.Now().UTC(),
 		RunID:  opts.RunID,
 		Event:  "pr_intake_completed",
@@ -208,7 +210,7 @@ func MergeOpenPullRequests(ctx context.Context, opts PullRequestIntakeOptions) (
 
 func detectGitHubRepo(ctx context.Context, opts PullRequestIntakeOptions) string {
 	remote := prIntakeRemote(opts)
-	result := opts.Runner.Run(ctx, Command{
+	result := opts.Runner.Run(ctx, cmdrunner.Command{
 		Name: "git",
 		Args: []string{"remote", "get-url", remote},
 		Dir:  opts.RepoRoot,
@@ -298,13 +300,13 @@ func syncMergedPullRequests(ctx context.Context, opts PullRequestIntakeOptions, 
 	remote := prIntakeRemote(opts)
 	base := prIntakeBaseBranch(opts)
 
-	fetch := opts.Runner.Run(ctx, Command{
+	fetch := opts.Runner.Run(ctx, cmdrunner.Command{
 		Name: "git",
 		Args: []string{"fetch", remote, base},
 		Dir:  opts.RepoRoot,
 	})
 	if fetch.Err != nil {
-		_ = appendPRIntakeEvent(opts, LedgerEvent{
+		_ = appendPRIntakeEvent(opts, AutoloopLedgerEvent{
 			TS:     time.Now().UTC(),
 			RunID:  opts.RunID,
 			Event:  "pr_intake_failed",
@@ -314,13 +316,13 @@ func syncMergedPullRequests(ctx context.Context, opts PullRequestIntakeOptions, 
 		return fmt.Errorf("fetch after merging pull requests: %w: %s", fetch.Err, strings.TrimSpace(fetch.Stderr))
 	}
 
-	fastForward := opts.Runner.Run(ctx, Command{
+	fastForward := opts.Runner.Run(ctx, cmdrunner.Command{
 		Name: "git",
 		Args: []string{"merge", "--ff-only", "FETCH_HEAD"},
 		Dir:  opts.RepoRoot,
 	})
 	if fastForward.Err == nil {
-		return appendPRIntakeEvent(opts, LedgerEvent{
+		return appendPRIntakeEvent(opts, AutoloopLedgerEvent{
 			TS:     time.Now().UTC(),
 			RunID:  opts.RunID,
 			Event:  "pr_intake_synced",
@@ -329,13 +331,13 @@ func syncMergedPullRequests(ctx context.Context, opts PullRequestIntakeOptions, 
 		})
 	}
 
-	merge := opts.Runner.Run(ctx, Command{
+	merge := opts.Runner.Run(ctx, cmdrunner.Command{
 		Name: "git",
 		Args: []string{"merge", "--no-edit", "FETCH_HEAD"},
 		Dir:  opts.RepoRoot,
 	})
 	if merge.Err == nil {
-		return appendPRIntakeEvent(opts, LedgerEvent{
+		return appendPRIntakeEvent(opts, AutoloopLedgerEvent{
 			TS:     time.Now().UTC(),
 			RunID:  opts.RunID,
 			Event:  "pr_intake_synced",
@@ -344,12 +346,12 @@ func syncMergedPullRequests(ctx context.Context, opts PullRequestIntakeOptions, 
 		})
 	}
 
-	_ = opts.Runner.Run(ctx, Command{
+	_ = opts.Runner.Run(ctx, cmdrunner.Command{
 		Name: "git",
 		Args: []string{"merge", "--abort"},
 		Dir:  opts.RepoRoot,
 	})
-	_ = appendPRIntakeEvent(opts, LedgerEvent{
+	_ = appendPRIntakeEvent(opts, AutoloopLedgerEvent{
 		TS:     time.Now().UTC(),
 		RunID:  opts.RunID,
 		Event:  "pr_intake_failed",
@@ -373,7 +375,7 @@ func prIntakeBaseBranch(opts PullRequestIntakeOptions) string {
 	return "main"
 }
 
-func prSyncDetail(summary PullRequestIntakeSummary, result Result) string {
+func prSyncDetail(summary PullRequestIntakeSummary, result cmdrunner.Result) string {
 	detail := fmt.Sprintf("listed=%d merged=%d closed=%d failed=%d skipped=%d", summary.Listed, summary.Merged, summary.Closed, summary.Failed, summary.Skipped)
 	output := strings.TrimSpace(result.Stderr)
 	if output == "" {
@@ -385,11 +387,11 @@ func prSyncDetail(summary PullRequestIntakeSummary, result Result) string {
 	return detail + " " + output
 }
 
-func appendPRIntakeEvent(opts PullRequestIntakeOptions, event LedgerEvent) error {
+func appendPRIntakeEvent(opts PullRequestIntakeOptions, event AutoloopLedgerEvent) error {
 	if opts.RunRoot == "" {
 		return nil
 	}
-	return AppendLedgerEvent(filepath.Join(opts.RunRoot, "state", "runs.jsonl"), event)
+	return appendAutoloopLedgerEvent(filepath.Join(opts.RunRoot, "state", "runs.jsonl"), event)
 }
 
 func prDetail(pr pullRequestInfo) string {

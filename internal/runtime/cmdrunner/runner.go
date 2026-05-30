@@ -1,10 +1,7 @@
-// Package cmdrunner provides the small process-execution seam shared by the
-// builder-loop and planner-loop binaries. The types are deliberately minimal:
-// a Command/Result pair and a Runner interface that production code wires to
+// Package cmdrunner provides the small process-execution seam shared by
+// planning control-plane helpers. The types are deliberately minimal: a
+// Command/Result pair and a Runner interface that production code wires to
 // os/exec and tests wire to a deterministic FakeRunner.
-//
-// This package exists so plannerloop does not have to import builderloop
-// purely for plumbing.
 package cmdrunner
 
 import (

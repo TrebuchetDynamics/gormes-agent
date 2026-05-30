@@ -5,14 +5,12 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/builderloop"
 )
 
 func TestSummarizeAutoloopAuditAggregatesRecentLedger(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "runs.jsonl")
 	now := time.Date(2026, 4, 25, 12, 0, 0, 0, time.UTC)
-	events := []builderloop.LedgerEvent{
+	events := []AutoloopLedgerEvent{
 		{TS: now.Add(-2 * time.Hour), Event: "run_started", Status: "started"},
 		{TS: now.Add(-90 * time.Minute), Event: "worker_claimed", Task: "2/2.B.4/WhatsApp identity", Status: "claimed"},
 		{TS: now.Add(-80 * time.Minute), Event: "worker_failed", Task: "2/2.B.4/WhatsApp identity", Status: "worktree_dirty"},
@@ -22,7 +20,7 @@ func TestSummarizeAutoloopAuditAggregatesRecentLedger(t *testing.T) {
 		{TS: now.Add(-8 * 24 * time.Hour), Event: "worker_failed", Task: "2/2.B.3/Old", Status: "backend_failed"},
 	}
 	for _, event := range events {
-		if err := builderloop.AppendLedgerEvent(path, event); err != nil {
+		if err := appendAutoloopLedgerEvent(path, event); err != nil {
 			t.Fatalf("AppendLedgerEvent() error = %v", err)
 		}
 	}
@@ -89,13 +87,13 @@ func TestSubphaseFromTaskEmptyReturnsControlPlane(t *testing.T) {
 func TestSummarizeAutoloopAuditBlankBucket(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "runs.jsonl")
 	now := time.Date(2026, 4, 25, 12, 0, 0, 0, time.UTC)
-	events := []builderloop.LedgerEvent{
+	events := []AutoloopLedgerEvent{
 		{TS: now.Add(-3 * time.Hour), Event: "worker_failed", Task: "", Status: "backend_waiting_for_stdin"},
 		{TS: now.Add(-2 * time.Hour), Event: "worker_failed", Task: "", Status: "backend_killed"},
 		{TS: now.Add(-1 * time.Hour), Event: "worker_failed", Task: "", Status: "backend_no_progress"},
 	}
 	for _, event := range events {
-		if err := builderloop.AppendLedgerEvent(path, event); err != nil {
+		if err := appendAutoloopLedgerEvent(path, event); err != nil {
 			t.Fatalf("AppendLedgerEvent() error = %v", err)
 		}
 	}
@@ -152,7 +150,7 @@ func TestSummarizeAutoloopAuditIncludesRecentFailureDetail(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "runs.jsonl")
 	now := time.Date(2026, 4, 25, 12, 0, 0, 0, time.UTC)
 	longStderr := strings.Repeat("x", 4096)
-	events := []builderloop.LedgerEvent{
+	events := []AutoloopLedgerEvent{
 		{
 			TS:         now.Add(-3 * time.Hour),
 			Event:      "worker_failed",
@@ -176,7 +174,7 @@ func TestSummarizeAutoloopAuditIncludesRecentFailureDetail(t *testing.T) {
 		},
 	}
 	for _, event := range events {
-		if err := builderloop.AppendLedgerEvent(path, event); err != nil {
+		if err := appendAutoloopLedgerEvent(path, event); err != nil {
 			t.Fatalf("AppendLedgerEvent() error = %v", err)
 		}
 	}
@@ -226,13 +224,13 @@ func TestSummarizeAutoloopAuditIncludesRecentFailureDetail(t *testing.T) {
 func TestSummarizeAutoloopAuditPreservesNamedRows(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "runs.jsonl")
 	now := time.Date(2026, 4, 25, 12, 0, 0, 0, time.UTC)
-	events := []builderloop.LedgerEvent{
+	events := []AutoloopLedgerEvent{
 		{TS: now.Add(-4 * time.Hour), Event: "worker_claimed", Task: "5/5.J/Foo", Status: "claimed"},
 		{TS: now.Add(-3 * time.Hour), Event: "worker_failed", Task: "5/5.J/Foo", Status: "worktree_dirty"},
 		{TS: now.Add(-2 * time.Hour), Event: "worker_failed", Task: "", Status: "backend_killed"},
 	}
 	for _, event := range events {
-		if err := builderloop.AppendLedgerEvent(path, event); err != nil {
+		if err := appendAutoloopLedgerEvent(path, event); err != nil {
 			t.Fatalf("AppendLedgerEvent() error = %v", err)
 		}
 	}

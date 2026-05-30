@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/builderloop"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/triggers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/runtime/cmdrunner"
 )
@@ -134,7 +133,7 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 				Status: "empty_backoff",
 				Detail: detail,
 			})
-		} else if _, err := builderloop.MergeOpenPullRequests(ctx, builderloop.PullRequestIntakeOptions{
+		} else if _, err := MergeOpenPullRequests(ctx, PullRequestIntakeOptions{
 			Runner:         runner,
 			RepoRoot:       cfg.RepoRoot,
 			RunRoot:        cfg.RunRoot,
@@ -993,7 +992,7 @@ func plannerBackendCommand(backend, mode, rawReportPath, repoRoot string) ([]str
 		return nil, fmt.Errorf("invalid BACKEND %q: expected codexu or claudeu", backend)
 	}
 
-	argv, err := builderloop.BuildBackendCommandWithRepoRoot(backend, mode, repoRoot)
+	argv, err := buildBackendCommandWithRepoRoot(backend, mode, repoRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -1138,7 +1137,7 @@ func plannerFailureDetail(result cmdrunner.Result) string {
 }
 
 func plannerBackendFailure(result cmdrunner.Result) plannerBackendFailureClassification {
-	failure := builderloop.ClassifyBackendFailure(result.Err, result.Stdout, result.Stderr)
+	failure := classifyBackendFailure(result.Err, result.Stdout, result.Stderr)
 	event := ""
 	if failure.Status != "backend_failed" {
 		event = failure.Status

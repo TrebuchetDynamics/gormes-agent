@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/builderloop"
 )
 
 // defaultPlannerLoopRunRoot returns .codex/planner-loop/ unless only the
@@ -227,7 +225,7 @@ func ConfigFromEnv(repoRoot string, lookup EnvLookup) (Config, error) {
 		BackendTimeout:             20 * time.Minute,
 		MergeOpenPullRequests:      true,
 		PRIntakeEmptyBackoff:       5 * time.Minute,
-		PRConflictAction:           builderloop.PRConflictActionClose,
+		PRConflictAction:           PRConflictActionClose,
 		EvaluationWindow:           DefaultEvaluationWindow,
 		EscalationThreshold:        DefaultEscalationThreshold,
 		GormesOriginalPaths:        nil, // ScanImplementation falls back to DefaultGormesOriginalPaths
@@ -419,10 +417,10 @@ func parseBoolEnv(value string) (bool, error) {
 
 func parsePRConflictAction(value string) (string, error) {
 	switch strings.ToLower(strings.TrimSpace(value)) {
-	case builderloop.PRConflictActionClose:
-		return builderloop.PRConflictActionClose, nil
-	case builderloop.PRConflictActionSkip:
-		return builderloop.PRConflictActionSkip, nil
+	case PRConflictActionClose:
+		return PRConflictActionClose, nil
+	case PRConflictActionSkip:
+		return PRConflictActionSkip, nil
 	}
 	return "", fmt.Errorf("invalid action %q (want close or skip)", value)
 }

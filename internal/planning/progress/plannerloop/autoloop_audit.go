@@ -7,8 +7,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/builderloop"
 )
 
 // ControlPlaneSubphaseID is the sentinel subphase_id used by the autoloop audit
@@ -101,7 +99,7 @@ func SummarizeAutoloopAudit(ledgerPath string, window time.Duration, now time.Ti
 	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, 0, 1<<16), 1<<22)
 	for scanner.Scan() {
-		var event builderloop.LedgerEvent
+		var event AutoloopLedgerEvent
 		if err := json.Unmarshal(scanner.Bytes(), &event); err != nil {
 			continue
 		}
@@ -220,7 +218,7 @@ func subphaseFromTask(task string) string {
 	return ControlPlaneSubphaseID
 }
 
-func recentFailureDetail(event builderloop.LedgerEvent) string {
+func recentFailureDetail(event AutoloopLedgerEvent) string {
 	fields := []string{event.Detail, event.ExitError, event.StderrTail, event.StdoutTail}
 	parts := make([]string, 0, len(fields))
 	for _, field := range fields {

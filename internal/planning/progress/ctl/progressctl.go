@@ -17,7 +17,6 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/builderloop"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/workspace"
 )
 
@@ -101,21 +100,20 @@ func List(stdout io.Writer, root string, opts ListOptions) error {
 }
 
 // NextWork emits the single next action over the canonical backlog without
-// mutating it. It reuses builderloop.NormalizeCandidates so command users and
-// autonomous agents see the same ranking as the builder loop instead of
-// reimplementing selection policy from generated markdown.
+// mutating it. It uses the progress active-handoff projection so command users
+// and generated docs share one row classification and ordering seam.
 func NextWork(stdout io.Writer, root string) error {
 	return NextWorkWithOptions(stdout, root, NextWorkOptions{})
 }
 
 // NextWorkWithOptions emits the single next action over the canonical backlog
-// without mutating it. It reuses builderloop.NormalizeCandidates for ranking
-// and applies command-level filters only after the canonical ordering exists.
+// without mutating it. Command-level filters apply after canonical ordering.
 func NextWorkWithOptions(stdout io.Writer, root string, opts NextWorkOptions) error {
-	candidates, err := builderloop.NormalizeCandidates(canonicalSource(root), builderloop.CandidateOptions{ActiveFirst: true})
+	p, err := progress.Load(canonicalSource(root))
 	if err != nil {
 		return err
 	}
+	candidates := progress.ProjectActiveHandoffs(p, 0)
 	if opts.RepoOnly {
 		candidates, err = filterRepoScopedCandidates(root, candidates)
 		if err != nil {
@@ -150,10 +148,10 @@ func NextWorkWithOptions(stdout io.Writer, root string, opts NextWorkOptions) er
 		key   string
 		value string
 	}{
-		{key: "phase", value: top.PhaseID},
-		{key: "subphase", value: top.SubphaseID},
-		{key: "name", value: top.ItemName},
-		{key: "reason", value: top.SelectionReason()},
+		{key: "phase", value: top.Identity.PhaseID},
+		{key: "subphase", value: top.Identity.SubphaseID},
+		{key: "name", value: top.Identity.ItemName},
+		{key: "reason", value: selectionReason(top)},
 		{key: "priority", value: top.Priority},
 		{key: "status", value: top.Status},
 		{key: "contract_status", value: top.ContractStatus},
@@ -201,13 +199,32 @@ func printNoNextWork(stdout io.Writer, opts NextWorkOptions) error {
 	return nil
 }
 
-func filterRepoScopedCandidates(root string, candidates []builderloop.Candidate) ([]builderloop.Candidate, error) {
+func selectionReason(candidate progress.ActiveHandoffProjection) string {
+	switch {
+	case strings.EqualFold(strings.TrimSpace(candidate.Priority), "P0"):
+		return "P0 handoff"
+	case candidate.Status == string(progress.StatusInProgress):
+		return "already active"
+	case candidate.ContractStatus == string(progress.ContractStatusFixtureReady):
+		return "fixture ready"
+	case len(candidate.Unblocks) > 0:
+		return "unblocks downstream work"
+	case candidate.ContractStatus == string(progress.ContractStatusDraft):
+		return "draft contract"
+	case candidate.Status == string(progress.StatusPlanned):
+		return "planned row"
+	default:
+		return "planned row"
+	}
+}
+
+func filterRepoScopedCandidates(root string, candidates []progress.ActiveHandoffProjection) ([]progress.ActiveHandoffProjection, error) {
 	rootAbs, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
 	}
 	rootAbs = filepath.Clean(rootAbs)
-	out := make([]builderloop.Candidate, 0, len(candidates))
+	out := make([]progress.ActiveHandoffProjection, 0, len(candidates))
 	for _, candidate := range candidates {
 		if candidateWriteScopeWithinRoot(rootAbs, candidate.WriteScope) {
 			out = append(out, candidate)

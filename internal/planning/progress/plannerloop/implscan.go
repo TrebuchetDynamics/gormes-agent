@@ -28,7 +28,6 @@ type ImplInventory struct {
 var DefaultGormesOriginalPaths = []string{
 	"cmd/progress/",
 	"cmd/repoctl/",
-	"internal/progress/builderloop/",
 	"internal/progress/plannerloop/",
 	"internal/progress/triggers/",
 	"internal/progress/health.go",

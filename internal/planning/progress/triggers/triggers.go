@@ -1,13 +1,6 @@
-// Package plannertriggers is the shared bridge between the builderloop
-// package (which appends trigger events when row health state transitions
-// matter to the planner) and the plannerloop package (which consumes
-// those events on its next run via a persisted cursor).
-//
-// The package exists as a separate, lower-level package on purpose:
-// plannerloop already imports builderloop (for the LedgerEvent type and
-// the Runner/ExecRunner shapes), so builderloop cannot import plannerloop
-// without creating an import cycle. Both packages can safely depend on
-// plannertriggers, which depends on neither.
+// Package plannertriggers is the shared JSONL bridge between progress health
+// events and the plannerloop package, which consumes those events on its next
+// run via a persisted cursor.
 package plannertriggers
 
 import (
@@ -20,8 +13,8 @@ import (
 	"time"
 )
 
-// TriggerEvent is one event in the builder-loop->planner triggers.jsonl
-// ledger. The builder loop appends; the planner reads on its next run and
+// TriggerEvent is one event in the progress-health -> planner triggers.jsonl
+// ledger. Health writers append; the planner reads on its next run and
 // advances a TriggerCursor past the consumed IDs.
 type TriggerEvent struct {
 	ID            string `json:"id"`     // ULID-ish: timestamp + monotonic counter
