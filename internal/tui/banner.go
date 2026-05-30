@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/skin"
 )
 
 const (
@@ -35,16 +37,12 @@ const (
 	welcomeDefault = "Welcome to Gormes. Type your message or /help for commands."
 )
 
-func bannerLogoColors(skin HermesSkin) []string {
-	skin = NormalizeStyleSkin(skin)
-	c := skin.Colors
-	return []string{c.BannerBorder, c.BannerAccent, c.BannerTitle, c.BannerText, c.BannerTitle, c.BannerAccent}
+func bannerLogoColors(s HermesSkin) []string {
+	return skin.BannerLogoColors(s)
 }
 
-func bannerCaduceusColors(skin HermesSkin) []string {
-	skin = NormalizeStyleSkin(skin)
-	c := skin.Colors
-	return []string{c.BannerBorder, c.BannerAccent, c.BannerTitle, c.BannerTitle, c.BannerAccent, c.BannerDim}
+func bannerCaduceusColors(s HermesSkin) []string {
+	return skin.BannerCaduceusColors(s)
 }
 
 func bannerLogo(skin HermesSkin) string {
