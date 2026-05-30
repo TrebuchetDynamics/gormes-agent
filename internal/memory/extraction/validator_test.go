@@ -1,4 +1,4 @@
-package memory
+package extraction
 
 import (
 	"testing"

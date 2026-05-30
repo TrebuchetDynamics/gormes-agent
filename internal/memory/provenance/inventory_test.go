@@ -1,11 +1,14 @@
-package memory
+package provenance
 
 import (
 	"context"
+	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	_ "github.com/ncruces/go-sqlite3/driver"
 )
 
 func TestReadInventoryDistinguishesGonchoDurableLegacyContextAndSessions(t *testing.T) {
@@ -17,21 +20,26 @@ func TestReadInventoryDistinguishesGonchoDurableLegacyContextAndSessions(t *test
 	mustWriteInventoryTestFile(t, filepath.Join(root, "sessions", "index.yaml"), "sessions: {}\n")
 	mustWriteInventoryTestFile(t, filepath.Join(root, "sessions", "20260518", "turn.md"), "transcript\n")
 
-	store, err := OpenSqlite(filepath.Join(root, "memory.db"), 8, nil)
+	db, err := sql.Open("sqlite3", filepath.Join(root, "memory.db"))
 	if err != nil {
-		t.Fatalf("OpenSqlite: %v", err)
+		t.Fatalf("open sqlite fixture: %v", err)
 	}
-	defer store.Close(context.Background())
+	defer db.Close()
+	if _, err := db.Exec(`CREATE TABLE goncho_memory_items (memory_id TEXT PRIMARY KEY, active INTEGER, created_at INTEGER, updated_at INTEGER)`); err != nil {
+		t.Fatalf("create goncho_memory_items fixture: %v", err)
+	}
+	if _, err := db.Exec(`CREATE TABLE turns (id INTEGER PRIMARY KEY)`); err != nil {
+		t.Fatalf("create turns fixture: %v", err)
+	}
+	if _, err := db.Exec(`CREATE TABLE goncho_memory_eval_artifacts (id INTEGER PRIMARY KEY)`); err != nil {
+		t.Fatalf("create goncho_memory_eval_artifacts fixture: %v", err)
+	}
 
 	now := time.Date(2026, 5, 18, 22, 30, 0, 0, time.UTC).Unix()
-	_, err = store.DB().Exec(
-		`INSERT INTO goncho_memory_items(
-			memory_id, contract_version, agent_id, workspace_id, observer_peer_id,
-			peer_id, session_key, source_kind, content, revision, active, scope,
-			provenance_json, tags_json, importance, created_at, updated_at
-		) VALUES
-			('active', '1', 'gormes', 'default', 'gormes', 'user', 'sess', 'manual', 'active memory', 1, 1, 'private', '{}', '[]', 0.5, ?, ?),
-			('tombstoned', '1', 'gormes', 'default', 'gormes', 'user', 'sess', 'manual', 'old memory', 1, 0, 'private', '{}', '[]', 0.5, ?, ?)`,
+	_, err = db.Exec(
+		`INSERT INTO goncho_memory_items(memory_id, active, created_at, updated_at) VALUES
+			('active', 1, ?, ?),
+			('tombstoned', 0, ?, ?)`,
 		now, now, now, now,
 	)
 	if err != nil {
@@ -40,7 +48,7 @@ func TestReadInventoryDistinguishesGonchoDurableLegacyContextAndSessions(t *test
 
 	got, err := ReadInventory(context.Background(), InventoryOptions{
 		ProfileRoot: root,
-		DB:          store.DB(),
+		DB:          db,
 		CWD:         root,
 	})
 	if err != nil {

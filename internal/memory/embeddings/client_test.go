@@ -1,4 +1,4 @@
-package memory
+package embeddings
 
 import (
 	"context"
@@ -26,7 +26,7 @@ func TestEmbedClient_ParsesOpenAIResponse(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := newEmbedClient(ts.URL, "")
+	c := NewClient(ts.URL, "")
 	vec, err := c.Embed(context.Background(), "test-model", "hello world")
 	if err != nil {
 		t.Fatalf("Embed: %v", err)
@@ -53,13 +53,13 @@ func TestEmbedClient_ModelNotFoundError(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := newEmbedClient(ts.URL, "")
+	c := NewClient(ts.URL, "")
 	_, err := c.Embed(context.Background(), "nomic-embed-text", "hello")
 	if err == nil {
 		t.Fatal("expected error on 404")
 	}
-	if !errors.Is(err, errEmbedModelNotFound) {
-		t.Errorf("err = %v, want errors.Is(err, errEmbedModelNotFound)", err)
+	if !errors.Is(err, ErrModelNotFound) {
+		t.Errorf("err = %v, want errors.Is(err, ErrModelNotFound)", err)
 	}
 }
 
@@ -70,7 +70,7 @@ func TestEmbedClient_ServerError(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := newEmbedClient(ts.URL, "")
+	c := NewClient(ts.URL, "")
 	_, err := c.Embed(context.Background(), "any", "x")
 	if err == nil {
 		t.Fatal("expected error on 5xx")
@@ -87,7 +87,7 @@ func TestEmbedClient_CtxTimeout(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := newEmbedClient(ts.URL, "")
+	c := NewClient(ts.URL, "")
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	_, err := c.Embed(ctx, "any", "x")
@@ -109,7 +109,7 @@ func TestEmbedClient_AuthorizationHeader(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := newEmbedClient(ts.URL, "my-key")
+	c := NewClient(ts.URL, "my-key")
 	_, _ = c.Embed(context.Background(), "m", "x")
 	if gotAuth != "Bearer my-key" {
 		t.Errorf("Authorization = %q, want 'Bearer my-key'", gotAuth)

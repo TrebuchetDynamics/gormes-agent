@@ -1,20 +1,20 @@
-package memory
+package diagnostics
 
 import (
 	"context"
+	"database/sql"
+	"path/filepath"
 	"testing"
 	"time"
+
+	_ "github.com/ncruces/go-sqlite3/driver"
 )
 
 func TestReadExtractorStatus_SummarizesQueueAndDeadLetters(t *testing.T) {
-	store, err := OpenSqlite(t.TempDir()+"/memory.db", 8, nil)
-	if err != nil {
-		t.Fatalf("OpenSqlite: %v", err)
-	}
-	defer store.Close(context.Background())
+	db := openDiagnosticsStatusDB(t)
 
 	now := time.Date(2026, 4, 22, 15, 4, 5, 0, time.UTC).Unix()
-	_, err = store.DB().Exec(
+	_, err := db.Exec(
 		`INSERT INTO turns(session_id, role, content, ts_unix, chat_id, extracted, extraction_attempts, extraction_error, cron)
 		 VALUES
 		 ('sess-1', 'user', 'queued turn', ?, 'telegram:1', 0, 0, NULL, 0),
@@ -27,7 +27,7 @@ func TestReadExtractorStatus_SummarizesQueueAndDeadLetters(t *testing.T) {
 		t.Fatalf("seed turns: %v", err)
 	}
 
-	got, err := ReadExtractorStatus(context.Background(), store.DB(), 5)
+	got, err := ReadExtractorStatus(context.Background(), db, 5)
 	if err != nil {
 		t.Fatalf("ReadExtractorStatus: %v", err)
 	}
@@ -56,14 +56,10 @@ func TestReadExtractorStatus_SummarizesQueueAndDeadLetters(t *testing.T) {
 }
 
 func TestReadExtractorStatus_BuildsDeterministicDeadLetterErrorSummary(t *testing.T) {
-	store, err := OpenSqlite(t.TempDir()+"/memory.db", 8, nil)
-	if err != nil {
-		t.Fatalf("OpenSqlite: %v", err)
-	}
-	defer store.Close(context.Background())
+	db := openDiagnosticsStatusDB(t)
 
 	now := time.Date(2026, 4, 22, 16, 0, 0, 0, time.UTC).Unix()
-	_, err = store.DB().Exec(
+	_, err := db.Exec(
 		`INSERT INTO turns(session_id, role, content, ts_unix, chat_id, extracted, extraction_attempts, extraction_error, cron)
 		 VALUES
 		 ('sess-1', 'user', 'dead letter one', ?, 'telegram:1', 2, 3, 'malformed JSON', 0),
@@ -75,7 +71,7 @@ func TestReadExtractorStatus_BuildsDeterministicDeadLetterErrorSummary(t *testin
 		t.Fatalf("seed turns: %v", err)
 	}
 
-	got, err := ReadExtractorStatus(context.Background(), store.DB(), 5)
+	got, err := ReadExtractorStatus(context.Background(), db, 5)
 	if err != nil {
 		t.Fatalf("ReadExtractorStatus: %v", err)
 	}
@@ -89,4 +85,31 @@ func TestReadExtractorStatus_BuildsDeterministicDeadLetterErrorSummary(t *testin
 	if got.ErrorSummary[1].Error != "upstream timeout" || got.ErrorSummary[1].Count != 1 {
 		t.Fatalf("ErrorSummary[1] = %+v, want upstream timeout x1", got.ErrorSummary[1])
 	}
+}
+
+func openDiagnosticsStatusDB(t *testing.T) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("sqlite3", filepath.Join(t.TempDir(), "memory.db"))
+	if err != nil {
+		t.Fatalf("open sqlite fixture: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	_, err = db.Exec(`CREATE TABLE turns(
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		session_id TEXT,
+		role TEXT,
+		content TEXT,
+		ts_unix INTEGER,
+		chat_id TEXT,
+		extracted INTEGER,
+		extraction_attempts INTEGER,
+		extraction_error TEXT,
+		cron INTEGER,
+		memory_sync_status TEXT NOT NULL DEFAULT 'ready',
+		memory_sync_reason TEXT
+	)`)
+	if err != nil {
+		t.Fatalf("create turns fixture: %v", err)
+	}
+	return db
 }
