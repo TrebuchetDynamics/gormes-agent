@@ -2,17 +2,16 @@ package input
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 const (
 	defaultUserMessagePreviewFirstLines = 2
 	defaultUserMessagePreviewLastLines  = 2
 )
-
-var ansiControlSequencePattern = regexp.MustCompile(`\x1b\[[0-?]*[ -/]*[@-~]`)
 
 type UserMessagePreviewConfig struct {
 	FirstLines any
@@ -110,7 +109,7 @@ func parseUserMessagePreviewInt(raw any) (int, bool) {
 }
 
 func sanitizeUserMessagePreviewLine(line string) string {
-	line = ansiControlSequencePattern.ReplaceAllString(line, "")
+	line = redaction.StripANSI(line)
 	line = strings.Map(func(r rune) rune {
 		if r < 0x20 && r != '\t' {
 			return -1

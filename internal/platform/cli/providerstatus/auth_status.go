@@ -8,6 +8,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 const (
@@ -159,10 +160,5 @@ func displayAuthStatusSource(source string) string {
 }
 
 func firstAuthStatusNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
-	}
-	return ""
+	return textvalue.FirstNonEmptyTrimmed(values...)
 }

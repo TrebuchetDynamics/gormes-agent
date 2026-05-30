@@ -1,8 +1,9 @@
 package display
 
 import (
-	"sort"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 // DumpInput is the pure input model for a deterministic support-summary dump.
@@ -30,7 +31,7 @@ func RenderDumpSummary(in DumpInput) string {
 	writeDumpLine(&b, "arch", scalarOrUnknown(in.Arch))
 	writeDumpLine(&b, "profile", scalarOrUnknown(in.ProfileName))
 	writeDumpLine(&b, "toolsets", toolsetsValue(in.Toolsets))
-	return redactSecrets(b.String(), in.SecretsLikeKeys)
+	return redaction.RedactLiterals(b.String(), in.SecretsLikeKeys, "[redacted]")
 }
 
 func writeDumpLine(b *strings.Builder, key, value string) {
@@ -52,31 +53,4 @@ func toolsetsValue(toolsets []string) string {
 		return "(none)"
 	}
 	return strings.Join(toolsets, ", ")
-}
-
-// redactSecrets replaces every literal occurrence of each non-empty secret
-// with "[redacted]". Secrets are processed longest-first (then lexicographic)
-// so that overlapping secrets cannot leave a partial match. Empty secrets are
-// skipped because replacing the empty string would inject the marker between
-// every byte of the output.
-func redactSecrets(text string, secrets []string) string {
-	if len(secrets) == 0 {
-		return text
-	}
-	ordered := make([]string, 0, len(secrets))
-	for _, s := range secrets {
-		if s != "" {
-			ordered = append(ordered, s)
-		}
-	}
-	sort.SliceStable(ordered, func(i, j int) bool {
-		if len(ordered[i]) != len(ordered[j]) {
-			return len(ordered[i]) > len(ordered[j])
-		}
-		return ordered[i] < ordered[j]
-	})
-	for _, s := range ordered {
-		text = strings.ReplaceAll(text, s, "[redacted]")
-	}
-	return text
 }

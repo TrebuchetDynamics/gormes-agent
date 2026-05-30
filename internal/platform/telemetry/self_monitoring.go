@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 type DivergenceClassification string
@@ -482,12 +484,7 @@ func (b SelfMonitoringBridge) now() time.Time {
 }
 
 func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
-	}
-	return ""
+	return textvalue.FirstNonEmptyTrimmed(values...)
 }
 
 func stablePayloadString(value any) string {
