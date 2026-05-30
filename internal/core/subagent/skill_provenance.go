@@ -1,29 +1,24 @@
 package subagent
 
-import "context"
+import (
+	"context"
 
-const (
-	SkillWriteOriginForeground       = "foreground"
-	SkillWriteOriginBackgroundReview = "background_review"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/subagent/review"
 )
 
-type skillWriteOriginContextKey struct{}
+const (
+	SkillWriteOriginForeground       = review.SkillWriteOriginForeground
+	SkillWriteOriginBackgroundReview = review.SkillWriteOriginBackgroundReview
+)
 
 func WithSkillWriteOrigin(ctx context.Context, origin string) context.Context {
-	if origin == "" {
-		origin = SkillWriteOriginForeground
-	}
-	return context.WithValue(ctx, skillWriteOriginContextKey{}, origin)
+	return review.WithSkillWriteOrigin(ctx, origin)
 }
 
 func SkillWriteOrigin(ctx context.Context) string {
-	value, _ := ctx.Value(skillWriteOriginContextKey{}).(string)
-	if value == "" {
-		return SkillWriteOriginForeground
-	}
-	return value
+	return review.SkillWriteOrigin(ctx)
 }
 
 func IsBackgroundReviewSkillWrite(ctx context.Context) bool {
-	return SkillWriteOrigin(ctx) == SkillWriteOriginBackgroundReview
+	return review.IsBackgroundReviewSkillWrite(ctx)
 }

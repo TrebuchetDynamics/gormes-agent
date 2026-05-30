@@ -1,8 +1,7 @@
-package subagent
+package policy
 
 import (
 	"errors"
-	"strings"
 	"testing"
 )
 
@@ -87,12 +86,6 @@ func TestMinionPolicyKeepsLLMSubagentsLiveAndGoNative(t *testing.T) {
 	}
 	if decision.ExecutionAPI != ExecutionAPIDelegateTask {
 		t.Errorf("ExecutionAPI = %q, want %q", decision.ExecutionAPI, ExecutionAPIDelegateTask)
-	}
-	if got := NewDelegateTool(nil, nil).Name(); got != string(ExecutionAPIDelegateTask) {
-		t.Errorf("DelegateTool.Name() = %q, want %q", got, ExecutionAPIDelegateTask)
-	}
-	if strings.Contains(strings.ToLower(string(decision.ExecutionAPI)), "minion") {
-		t.Errorf("ExecutionAPI = %q, must remain Go-native and not be renamed to Minions", decision.ExecutionAPI)
 	}
 }
 

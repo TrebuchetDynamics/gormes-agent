@@ -1,176 +1,75 @@
 package subagent
 
-import (
-	"errors"
-	"fmt"
-)
+import "github.com/TrebuchetDynamics/gormes-agent/internal/core/subagent/policy"
 
 // ErrDurableRouteDenied is returned when an untrusted caller attempts to
 // submit privileged deterministic work through the durable-job route.
-var ErrDurableRouteDenied = errors.New("subagent: durable route denied")
+var ErrDurableRouteDenied = policy.ErrDurableRouteDenied
 
 // TrustClass identifies who is asking the orchestration policy to submit work.
-type TrustClass string
+type TrustClass = policy.TrustClass
 
 const (
-	TrustOperator   TrustClass = "operator"
-	TrustChildAgent TrustClass = "child-agent"
-	TrustSystem     TrustClass = "system"
+	TrustOperator   = policy.TrustOperator
+	TrustChildAgent = policy.TrustChildAgent
+	TrustSystem     = policy.TrustSystem
 )
 
 // WorkKind is the coarse class of work being routed.
-type WorkKind string
+type WorkKind = policy.WorkKind
 
 const (
-	WorkKindShellCommand WorkKind = "shell_command"
-	WorkKindCronJob      WorkKind = "cron_job"
-	WorkKindLLMSubagent  WorkKind = "llm_subagent"
+	WorkKindShellCommand = policy.WorkKindShellCommand
+	WorkKindCronJob      = policy.WorkKindCronJob
+	WorkKindLLMSubagent  = policy.WorkKindLLMSubagent
 )
 
 // OrchestrationRoute is the execution route chosen by the policy.
-type OrchestrationRoute string
+type OrchestrationRoute = policy.OrchestrationRoute
 
 const (
-	RouteDurableJob   OrchestrationRoute = "durable_job"
-	RouteLiveSubagent OrchestrationRoute = "live_subagent"
-	RouteDenied       OrchestrationRoute = "denied"
+	RouteDurableJob   = policy.RouteDurableJob
+	RouteLiveSubagent = policy.RouteLiveSubagent
+	RouteDenied       = policy.RouteDenied
 )
 
 // OrchestrationLane keeps deterministic restartable work distinct from live
 // LLM judgment loops while still reporting both through one control surface.
-type OrchestrationLane string
+type OrchestrationLane = policy.OrchestrationLane
 
 const (
-	LaneDeterministic OrchestrationLane = "deterministic"
-	LaneLLMSubagent   OrchestrationLane = "llm_subagent"
+	LaneDeterministic = policy.LaneDeterministic
+	LaneLLMSubagent   = policy.LaneLLMSubagent
 )
 
 // ExecutionAPI names the Gormes-native API the selected route should use.
-type ExecutionAPI string
+type ExecutionAPI = policy.ExecutionAPI
 
 const (
-	ExecutionAPIDurableJob   ExecutionAPI = "durable_job"
-	ExecutionAPIDelegateTask ExecutionAPI = "delegate_task"
+	ExecutionAPIDurableJob   = policy.ExecutionAPIDurableJob
+	ExecutionAPIDelegateTask = policy.ExecutionAPIDelegateTask
 )
 
 // ControlPlane names the operator-visible orchestration surface shared by
 // deterministic durable jobs and live subagent runs.
-type ControlPlane string
+type ControlPlane = policy.ControlPlane
 
 const (
-	ControlPlaneUnifiedOrchestrator ControlPlane = "unified_orchestrator"
+	ControlPlaneUnifiedOrchestrator = policy.ControlPlaneUnifiedOrchestrator
 )
 
 // MinionRoutingRequest is a pure policy input. It intentionally carries no
 // queue/executor handles; this slice only decides where work belongs.
-type MinionRoutingRequest struct {
-	Kind               WorkKind
-	Trust              TrustClass
-	Deterministic      bool
-	RestartSurvivable  bool
-	JudgmentHeavy      bool
-	NeedsObservability bool
-}
+type MinionRoutingRequest = policy.MinionRoutingRequest
 
 // MinionRoutingDecision describes the selected orchestration lane.
-type MinionRoutingDecision struct {
-	Route            OrchestrationRoute
-	Lane             OrchestrationLane
-	ExecutionAPI     ExecutionAPI
-	ControlPlane     ControlPlane
-	Durable          bool
-	PrivilegedSubmit bool
-	Allowed          bool
-	Reason           string
-}
+type MinionRoutingDecision = policy.MinionRoutingDecision
 
 // MinionRoutingPolicy holds the Gormes trust matrix for durable jobs and live
 // subagents while preserving Gormes-native delegate_task execution APIs.
-type MinionRoutingPolicy struct{}
+type MinionRoutingPolicy = policy.MinionRoutingPolicy
 
 // DefaultMinionRoutingPolicy returns the built-in routing policy.
 func DefaultMinionRoutingPolicy() MinionRoutingPolicy {
-	return MinionRoutingPolicy{}
-}
-
-// CanSubmit reports whether a caller may submit a work kind on its route.
-func (MinionRoutingPolicy) CanSubmit(trust TrustClass, kind WorkKind) bool {
-	switch kind {
-	case WorkKindShellCommand, WorkKindCronJob:
-		return trust == TrustOperator || trust == TrustSystem
-	case WorkKindLLMSubagent:
-		return trust == TrustOperator || trust == TrustSystem
-	default:
-		return false
-	}
-}
-
-// CanObserve reports whether a caller may read durable job state for a work
-// kind through get/list/progress-style surfaces.
-func (MinionRoutingPolicy) CanObserve(trust TrustClass, kind WorkKind) bool {
-	switch trust {
-	case TrustOperator, TrustSystem, TrustChildAgent:
-	default:
-		return false
-	}
-	switch kind {
-	case WorkKindShellCommand, WorkKindCronJob, WorkKindLLMSubagent:
-		return true
-	default:
-		return false
-	}
-}
-
-// Route classifies work into the smallest policy surface needed for this
-// phase: deterministic shell/cron-like work takes the durable-job lane, while
-// judgment-heavy LLM work remains a live Go-native delegate_task subagent.
-func (p MinionRoutingPolicy) Route(req MinionRoutingRequest) (MinionRoutingDecision, error) {
-	switch req.Kind {
-	case WorkKindShellCommand, WorkKindCronJob:
-		return p.routeDeterministic(req)
-	case WorkKindLLMSubagent:
-		return p.routeLLMSubagent(req)
-	default:
-		return MinionRoutingDecision{
-			Route:        RouteDenied,
-			ControlPlane: ControlPlaneUnifiedOrchestrator,
-			Allowed:      false,
-			Reason:       "unknown work kind",
-		}, fmt.Errorf("%w: unknown work kind %q", ErrDurableRouteDenied, req.Kind)
-	}
-}
-
-func (p MinionRoutingPolicy) routeDeterministic(req MinionRoutingRequest) (MinionRoutingDecision, error) {
-	decision := MinionRoutingDecision{
-		Route:            RouteDurableJob,
-		Lane:             LaneDeterministic,
-		ExecutionAPI:     ExecutionAPIDurableJob,
-		ControlPlane:     ControlPlaneUnifiedOrchestrator,
-		Durable:          true,
-		PrivilegedSubmit: true,
-		Allowed:          p.CanSubmit(req.Trust, req.Kind),
-		Reason:           "deterministic restart-survivable work uses durable orchestration",
-	}
-	if !decision.Allowed {
-		decision.Route = RouteDenied
-		return decision, fmt.Errorf("%w: %s cannot submit %s", ErrDurableRouteDenied, req.Trust, req.Kind)
-	}
-	return decision, nil
-}
-
-func (p MinionRoutingPolicy) routeLLMSubagent(req MinionRoutingRequest) (MinionRoutingDecision, error) {
-	decision := MinionRoutingDecision{
-		Route:        RouteLiveSubagent,
-		Lane:         LaneLLMSubagent,
-		ExecutionAPI: ExecutionAPIDelegateTask,
-		ControlPlane: ControlPlaneUnifiedOrchestrator,
-		Durable:      false,
-		Allowed:      p.CanSubmit(req.Trust, req.Kind),
-		Reason:       "judgment-heavy LLM work stays on the live Go-native subagent route",
-	}
-	if !decision.Allowed {
-		decision.Route = RouteDenied
-		return decision, fmt.Errorf("%w: %s cannot submit %s", ErrDurableRouteDenied, req.Trust, req.Kind)
-	}
-	return decision, nil
+	return policy.DefaultMinionRoutingPolicy()
 }

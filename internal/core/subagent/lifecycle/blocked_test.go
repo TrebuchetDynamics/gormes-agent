@@ -1,5 +1,5 @@
 // internal/core/subagent/blocked_test.go
-package subagent
+package lifecycle
 
 import "testing"
 

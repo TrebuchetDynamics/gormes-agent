@@ -1,5 +1,5 @@
 // internal/core/subagent/errors_test.go
-package subagent
+package lifecycle
 
 import (
 	"errors"
