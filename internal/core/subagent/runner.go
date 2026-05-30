@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/subagent/toolguard"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
@@ -396,32 +397,5 @@ func emitChildToolEvent(ctx context.Context, events chan<- SubagentEvent, info T
 }
 
 func guardChildDangerousCommand(ctx context.Context, cfg SubagentConfig, req tools.ToolRequest) tools.BlockedResult {
-	cmd := childToolCommand(req)
-	if cmd == "" {
-		return tools.BlockedResult{}
-	}
-	result := tools.GuardCommandWithApproval(ctx, req.ToolName, cmd, cfg.DangerousCommandApprovalMode)
-	if result.Description == "" || result.Approved {
-		return tools.BlockedResult{}
-	}
-	return result
-}
-
-func childToolCommand(req tools.ToolRequest) string {
-	switch req.ToolName {
-	case "terminal", "execute_code":
-	default:
-		return ""
-	}
-	var payload struct {
-		Command string `json:"command"`
-		Code    string `json:"code"`
-	}
-	if err := json.Unmarshal(req.Input, &payload); err != nil {
-		return ""
-	}
-	if payload.Command != "" {
-		return payload.Command
-	}
-	return payload.Code
+	return toolguard.GuardDangerousCommand(ctx, cfg.DangerousCommandApprovalMode, req)
 }
