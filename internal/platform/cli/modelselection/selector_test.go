@@ -1,4 +1,4 @@
-package cli
+package modelselection
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/profile"
 )
 
 // TestModelSelectorContract proves the public Go contract: the package
@@ -108,11 +110,11 @@ func TestProfileSelectorDefaultConsumesProfileHelpers(t *testing.T) {
 		},
 		ValidateProfileName: func(name string) error {
 			calls = append(calls, "validate:"+name)
-			return ValidateProfileName(name)
+			return profile.ValidateProfileName(name)
 		},
 		ResolveProfileRoot: func(name string) (string, error) {
 			calls = append(calls, "resolve:"+name)
-			return ResolveProfileRoot(name, filepath.Join("/tmp", "xdg"))
+			return profile.ResolveProfileRoot(name, filepath.Join("/tmp", "xdg"))
 		},
 	})
 
@@ -194,7 +196,7 @@ func TestSelectorReturnsTypedErrorOnNoMatch(t *testing.T) {
 	t.Run("profile_no_match", func(t *testing.T) {
 		sel := NewDefaultProfileSelector(DefaultProfileSelectorOptions{
 			ReadActiveProfileName: func() (string, error) {
-				return "", ErrActiveProfileUnset
+				return "", profile.ErrActiveProfileUnset
 			},
 		})
 		_, err := sel.Select(context.Background())

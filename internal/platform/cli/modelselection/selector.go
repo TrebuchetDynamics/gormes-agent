@@ -1,9 +1,11 @@
-package cli
+package modelselection
 
 import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/profile"
 )
 
 // SelectionKind identifies which dimension of the (provider, model, account)
@@ -82,7 +84,7 @@ var (
 	// ErrSelectorHelperUnavailable is returned when one of the upstream
 	// helper rows (config bridge, alias resolver, profile helpers) is not
 	// wired into the selector.
-	ErrSelectorHelperUnavailable = errors.New("selector_helper_unavailable")
+	ErrSelectorHelperUnavailable = profile.ErrSelectorHelperUnavailable
 	// ErrSelectorAliasResolutionFailed is returned when the alias resolver
 	// itself fails (network, fixture, or invariant). The original backend
 	// error is wrapped with %w so callers can inspect both.
@@ -116,7 +118,7 @@ type ResolveAccountFunc func(provider string) (string, error)
 
 // ReadActiveProfileNameFunc is the function-shaped seam over the CLI
 // active-profile store row.
-type ReadActiveProfileNameFunc func() (string, error)
+type ReadActiveProfileNameFunc = profile.ReadActiveProfileNameFunc
 
 // ValidateProfileNameFunc is the function-shaped seam over the CLI profile
 // name validator row.
@@ -213,7 +215,7 @@ func (s *defaultProfileSelector) Select(ctx context.Context) (Profile, error) {
 	}
 	name, err := s.opts.ReadActiveProfileName()
 	if err != nil {
-		if errors.Is(err, ErrActiveProfileUnset) {
+		if errors.Is(err, profile.ErrActiveProfileUnset) {
 			return Profile{}, fmt.Errorf("profile selector: active profile unset: %w", ErrSelectorNoMatch)
 		}
 		return Profile{}, fmt.Errorf("profile selector: read active profile: %w", err)
@@ -221,7 +223,7 @@ func (s *defaultProfileSelector) Select(ctx context.Context) (Profile, error) {
 
 	validate := s.opts.ValidateProfileName
 	if validate == nil {
-		validate = ValidateProfileName
+		validate = profile.ValidateProfileName
 	}
 	if err := validate(name); err != nil {
 		return Profile{}, fmt.Errorf("profile selector: validate %q: %w", name, err)

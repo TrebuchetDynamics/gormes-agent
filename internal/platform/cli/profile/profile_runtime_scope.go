@@ -1,4 +1,4 @@
-package cli
+package profile
 
 import (
 	"errors"
@@ -11,6 +11,10 @@ import (
 // is valid syntactically but absent from the known profile inventory supplied to
 // the resolver.
 var ErrProfileRuntimeScopeMissing = errors.New("profile runtime scope: profile is missing")
+
+// ErrSelectorHelperUnavailable is returned when profile runtime resolution is
+// invoked without a required injected helper seam.
+var ErrSelectorHelperUnavailable = errors.New("selector_helper_unavailable")
 
 // ProfileRuntimeScope is the resolved per-profile boundary for a Gormes
 // operation. It contains only identity and path data; applying environment
@@ -30,6 +34,8 @@ type ProfileRuntimeScope struct {
 // ProfileRuntimeScopeOptions carries the external state needed to resolve a
 // profile runtime scope without reading global process environment or touching
 // the filesystem.
+type ReadActiveProfileNameFunc func() (string, error)
+
 type ProfileRuntimeScopeOptions struct {
 	BaseHome          string
 	ExplicitProfile   string
