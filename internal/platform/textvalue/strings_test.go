@@ -2,6 +2,22 @@ package textvalue
 
 import "testing"
 
+func TestIsNonBlank(t *testing.T) {
+	if !IsNonBlank(" value ") {
+		t.Fatal("IsNonBlank(value) = false, want true")
+	}
+	if IsNonBlank(" \t\n ") {
+		t.Fatal("IsNonBlank(blank) = true, want false")
+	}
+}
+
+func TestFirstNonBlankPreservesSourceText(t *testing.T) {
+	got := FirstNonBlank("", " \t ", "  provider  ", "fallback")
+	if got != "  provider  " {
+		t.Fatalf("FirstNonBlank() = %q, want source text", got)
+	}
+}
+
 func TestFirstNonEmptyTrimmed(t *testing.T) {
 	got := FirstNonEmptyTrimmed("", " \t ", "  provider  ", "fallback")
 	if got != "provider" {

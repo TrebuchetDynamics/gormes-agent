@@ -12,6 +12,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 	"github.com/spf13/cobra"
 )
 
@@ -169,7 +170,7 @@ func (c AccountUsageHTTPClient) DoAccountUsageRequest(ctx context.Context, req l
 		return llm.AccountUsageHTTPResponse{}, err
 	}
 	for key, value := range req.Headers {
-		if strings.TrimSpace(value) != "" {
+		if textvalue.IsNonBlank(value) {
 			httpReq.Header.Set(key, value)
 		}
 	}
@@ -213,10 +214,5 @@ func InferUsageProvider(configuredProvider, model string) string {
 
 // FirstUsageString returns the first non-blank value.
 func FirstUsageString(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
+	return textvalue.FirstNonBlank(values...)
 }

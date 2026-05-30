@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 // TermuxRuntimeOptions contains injectable probes for the Termux doctor check.
@@ -158,7 +160,7 @@ func IsTermuxEnvironment(env map[string]string) bool {
 }
 
 func isTermuxEnv(env map[string]string) bool {
-	if strings.TrimSpace(env["TERMUX_VERSION"]) != "" {
+	if textvalue.IsNonBlank(env["TERMUX_VERSION"]) {
 		return true
 	}
 	for _, key := range []string{"PREFIX", "HOME"} {

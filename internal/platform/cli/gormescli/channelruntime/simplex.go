@@ -8,6 +8,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/simplex"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 type SimpleXEnvInfo struct {
@@ -32,9 +33,9 @@ func SimpleXEnv(lookup func(string) (string, bool)) SimpleXEnvInfo {
 func SimpleXStartupAllowlistConfigured(lookupEnv func(string) string) bool {
 	info := SimpleXEnv(func(key string) (string, bool) {
 		value := lookupEnv(key)
-		return value, strings.TrimSpace(value) != ""
+		return value, textvalue.IsNonBlank(value)
 	})
-	return info.Enabled && strings.TrimSpace(lookupEnv("SIMPLEX_ALLOWED_USERS")) != ""
+	return info.Enabled && textvalue.IsNonBlank(lookupEnv("SIMPLEX_ALLOWED_USERS"))
 }
 
 func NewSimpleXGatewayChannel(_ config.Config, log *slog.Logger) (gateway.Channel, error) {

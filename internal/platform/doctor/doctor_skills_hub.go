@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 // SkillsHubOptions contains the local filesystem and auth probe inputs for
@@ -114,7 +116,7 @@ func skillsHubGitHubItem(ctx context.Context, opts SkillsHubOptions) ItemInfo {
 }
 
 func skillsHubHasEnvToken(env map[string]string) bool {
-	return strings.TrimSpace(env["GITHUB_TOKEN"]) != "" || strings.TrimSpace(env["GH_TOKEN"]) != ""
+	return textvalue.IsNonBlank(env["GITHUB_TOKEN"]) || textvalue.IsNonBlank(env["GH_TOKEN"])
 }
 
 func worstDoctorStatus(current, next Status) Status {

@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 // Status enumerates the possible outcomes of a diagnostic check.
@@ -104,10 +106,10 @@ func CheckGitHubAuth(ctx context.Context, opts GitHubAuthOptions) CheckResult {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if strings.TrimSpace(opts.Env["GITHUB_TOKEN"]) != "" {
+	if textvalue.IsNonBlank(opts.Env["GITHUB_TOKEN"]) {
 		return githubAuthResult(StatusPass, "token configured", "github_token_env", "source=GITHUB_TOKEN")
 	}
-	if strings.TrimSpace(opts.Env["GH_TOKEN"]) != "" {
+	if textvalue.IsNonBlank(opts.Env["GH_TOKEN"]) {
 		return githubAuthResult(StatusPass, "token configured", "github_token_env", "source=GH_TOKEN")
 	}
 
