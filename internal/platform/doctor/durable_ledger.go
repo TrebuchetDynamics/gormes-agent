@@ -11,13 +11,14 @@ import (
 	"unsafe"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/core/subagent"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 func CheckDurableLedger(ctx context.Context, ledger *subagent.DurableLedger, runLogPath string) CheckResult {
 	result := CheckResult{Name: "Durable jobs"}
 	if ledger == nil {
 		result.Status = StatusWarn
-		if strings.TrimSpace(runLogPath) != "" {
+		if textvalue.IsNonBlank(runLogPath) {
 			result.Summary = "append-only run logs configured; durable restart/replay unavailable"
 			result.Items = []ItemInfo{
 				{Name: "run_log", Status: StatusPass, Note: runLogPath},
@@ -83,7 +84,7 @@ func CheckDurableLedger(ctx context.Context, ledger *subagent.DurableLedger, run
 		}
 	}
 	supervisorNote := string(status.Worker.Supervisor)
-	if strings.TrimSpace(status.Worker.SupervisorReason) != "" {
+	if textvalue.IsNonBlank(status.Worker.SupervisorReason) {
 		supervisorNote += ":" + status.Worker.SupervisorReason
 	}
 	restartReason := status.Worker.RestartIntent.Reason

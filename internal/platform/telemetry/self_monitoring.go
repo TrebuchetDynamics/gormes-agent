@@ -247,10 +247,10 @@ func NormalizeEvent(event Event, now time.Time) Event {
 		if event.UpstreamEvent == "" {
 			event.UpstreamEvent = entry.UpstreamEvent
 		}
-		if strings.TrimSpace(event.Source) == "" {
+		if !textvalue.IsNonBlank(event.Source) {
 			event.Source = entry.Source
 		}
-		if strings.TrimSpace(event.Category) == "" {
+		if !textvalue.IsNonBlank(event.Category) {
 			event.Category = entry.Category
 		}
 		if event.Divergence == nil && entry.Divergence.Classification != "" {

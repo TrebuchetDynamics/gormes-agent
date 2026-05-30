@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/pathguard"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 // ValidateRestoreZip opens the zip at zipPath and walks its entries
@@ -21,7 +22,7 @@ import (
 // preview so operators see corruption/traversal up-front instead of
 // after committing to --yes.
 func ValidateRestoreZip(zipPath string) error {
-	if strings.TrimSpace(zipPath) == "" {
+	if !textvalue.IsNonBlank(zipPath) {
 		return fmt.Errorf("restore: zip path is empty")
 	}
 	zr, err := zip.OpenReader(zipPath)
@@ -67,10 +68,10 @@ func ValidateRestoreZip(zipPath string) error {
 // partial extraction on disk — operators recover by re-running with
 // the same zip after fixing the cause (free disk, permissions).
 func RestoreFromZip(ctx context.Context, zipPath, destDir string) error {
-	if strings.TrimSpace(zipPath) == "" {
+	if !textvalue.IsNonBlank(zipPath) {
 		return fmt.Errorf("restore: zip path is empty")
 	}
-	if strings.TrimSpace(destDir) == "" {
+	if !textvalue.IsNonBlank(destDir) {
 		return fmt.Errorf("restore: dest dir is empty")
 	}
 	// Pre-validate the whole archive: openable + every entry passes
@@ -141,10 +142,10 @@ type RestoreZipImpact struct {
 // Returns a typed error when the archive is unreadable or contains a
 // path-traversal entry, so the dry-run still fails fast on unsafe zips.
 func SummarizeRestoreZipImpact(zipPath, destDir string) (RestoreZipImpact, error) {
-	if strings.TrimSpace(zipPath) == "" {
+	if !textvalue.IsNonBlank(zipPath) {
 		return RestoreZipImpact{}, fmt.Errorf("restore: zip path is empty")
 	}
-	if strings.TrimSpace(destDir) == "" {
+	if !textvalue.IsNonBlank(destDir) {
 		return RestoreZipImpact{}, fmt.Errorf("restore: dest dir is empty")
 	}
 	zr, err := zip.OpenReader(zipPath)

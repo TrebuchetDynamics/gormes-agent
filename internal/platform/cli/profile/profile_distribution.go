@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 	"gopkg.in/yaml.v3"
 )
 
@@ -35,7 +36,7 @@ type ProfileDistributionManifest struct {
 }
 
 func (m ProfileDistributionManifest) Summary() string {
-	if strings.TrimSpace(m.Name) == "" {
+	if !textvalue.IsNonBlank(m.Name) {
 		return ""
 	}
 	version := strings.TrimSpace(m.Version)

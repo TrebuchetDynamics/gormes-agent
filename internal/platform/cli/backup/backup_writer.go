@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 // backupFilenamePrefix matches the writer's destination naming
@@ -152,10 +154,10 @@ func PruneBackups(backupDir string, keep int) (removedCount int, freedBytes int6
 // partial .tmp file is removed and a non-nil error is returned.
 func WriteBackupZip(ctx context.Context, sourceDir, destPath string) (BackupResult, error) {
 	start := time.Now()
-	if strings.TrimSpace(sourceDir) == "" {
+	if !textvalue.IsNonBlank(sourceDir) {
 		return BackupResult{}, fmt.Errorf("backup: source dir is empty")
 	}
-	if strings.TrimSpace(destPath) == "" {
+	if !textvalue.IsNonBlank(destPath) {
 		return BackupResult{}, fmt.Errorf("backup: dest path is empty")
 	}
 	// Validate the source dir exists BEFORE opening any tmp file. Without

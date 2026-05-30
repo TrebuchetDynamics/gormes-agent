@@ -141,7 +141,7 @@ func newChannelSetupGuidanceCommand() *cobra.Command {
 		SilenceUsage: true,
 		Args:         cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) > 0 && strings.TrimSpace(args[0]) != "" {
+			if len(args) > 0 && textvalue.IsNonBlank(args[0]) {
 				return renderChannelSetupGuidance(cmd, args[0])
 			}
 			return renderAllChannelSetupGuidance(cmd)
@@ -210,10 +210,10 @@ func renderChannelSetupGuidance(cmd *cobra.Command, rawChannel string) error {
 		fmt.Fprintln(out, "  gormes config edit")
 	}
 	fmt.Fprintf(out, "  gormes channels %s\n", report.Channel)
-	if strings.TrimSpace(report.BacklogOwner) != "" {
+	if textvalue.IsNonBlank(report.BacklogOwner) {
 		fmt.Fprintf(out, "  Backlog: %s\n", report.BacklogOwner)
 	}
-	if strings.TrimSpace(report.Notes) != "" {
+	if textvalue.IsNonBlank(report.Notes) {
 		fmt.Fprintf(out, "  Note: %s\n", report.Notes)
 	}
 	return nil
@@ -298,7 +298,7 @@ func RenderCapabilitiesText(reports []channelcaps.CapabilityReport) string {
 
 func defaultConfiguredChannelDetails(cfg config.Config) map[string]string {
 	details := map[string]string{}
-	if strings.TrimSpace(cfg.Telegram.BotToken) != "" || cfg.Telegram.BotTokenRef != nil {
+	if textvalue.IsNonBlank(cfg.Telegram.BotToken) || cfg.Telegram.BotTokenRef != nil {
 		allowed := cfg.Telegram.AllowedChatIDs()
 		if len(allowed) > 0 {
 			details["telegram"] = "allowed_chat_ids=" + strconv.Itoa(len(allowed))

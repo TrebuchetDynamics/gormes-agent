@@ -3,6 +3,8 @@ package doctor
 import (
 	"fmt"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 // DoctorAdvisoryView is the small caller-facing seam the ◆ Security Advisories
@@ -43,7 +45,7 @@ type DoctorSecurityAdvisoryInventory struct {
 //     (mirrors Hermes' acked-but-installed check_warn that is NOT funneled).
 //   - no hits → clean PASS "No active security advisories".
 func CheckSecurityAdvisories(inv DoctorSecurityAdvisoryInventory) CheckResult {
-	if strings.TrimSpace(inv.ScanError) != "" {
+	if textvalue.IsNonBlank(inv.ScanError) {
 		return CheckResult{
 			Name:    "Security Advisories",
 			Status:  StatusWarn,

@@ -100,7 +100,7 @@ func BuildFirstRunPlan(input FirstRunPlanInput) FirstRunPlan {
 	target := normalizeSetupTarget(input.Target)
 	targets := buildFirstRunTargets(input, target)
 	selected := findFirstRunTarget(targets, target)
-	coreReady := strings.TrimSpace(input.Endpoint) != "" && strings.TrimSpace(input.Model) != "" && input.APIKeyPresent
+	coreReady := textvalue.IsNonBlank(input.Endpoint) && textvalue.IsNonBlank(input.Model) && input.APIKeyPresent
 	channelConfigured := !selected.Channel || firstRunChannelConfigured(input.Channels, target)
 
 	plan := FirstRunPlan{
@@ -117,7 +117,7 @@ func BuildFirstRunPlan(input FirstRunPlanInput) FirstRunPlan {
 	if setupCommand == "" {
 		setupCommand = defaultSetupCommand(target)
 	}
-	if strings.TrimSpace(input.Endpoint) == "" {
+	if !textvalue.IsNonBlank(input.Endpoint) {
 		plan.MissingSteps = append(plan.MissingSteps, FirstRunStep{
 			ID:      FirstRunStepProvider,
 			Label:   "Provider",
@@ -138,7 +138,7 @@ func BuildFirstRunPlan(input FirstRunPlanInput) FirstRunPlan {
 			Command: command,
 		})
 	}
-	if strings.TrimSpace(input.Model) == "" {
+	if !textvalue.IsNonBlank(input.Model) {
 		plan.MissingSteps = append(plan.MissingSteps, FirstRunStep{
 			ID:      FirstRunStepModel,
 			Label:   "Model",
@@ -208,7 +208,7 @@ func DefaultFirstRunChannels(overrides map[SetupTargetID]ChannelState) []Channel
 }
 
 func buildFirstRunTargets(input FirstRunPlanInput, selected SetupTargetID) []SetupTargetOption {
-	coreConfigured := strings.TrimSpace(input.Endpoint) != "" && strings.TrimSpace(input.Model) != "" && input.APIKeyPresent
+	coreConfigured := textvalue.IsNonBlank(input.Endpoint) && textvalue.IsNonBlank(input.Model) && input.APIKeyPresent
 	targets := []SetupTargetOption{{
 		ID:             SetupTargetTerminal,
 		Label:          "Terminal",

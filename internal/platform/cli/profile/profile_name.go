@@ -3,7 +3,8 @@ package profile
 import (
 	"errors"
 	"regexp"
-	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 // Sentinel errors returned by ValidateProfileName so callers can render uniform
@@ -34,7 +35,7 @@ var reservedProfileNames = map[string]struct{}{
 // reserved CLI subcommand names or the retired built-in profile name
 // "default".
 func ValidateProfileName(name string) error {
-	if strings.TrimSpace(name) == "" {
+	if !textvalue.IsNonBlank(name) {
 		return ErrProfileNameEmpty
 	}
 	if len(name) > 64 {

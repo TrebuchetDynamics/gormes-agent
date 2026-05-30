@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"unicode/utf8"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 var (
@@ -82,7 +83,7 @@ func sendMessageBodyFromBytes(data []byte, source, label string) (SendMessageBod
 	}
 	text := string(data)
 	cleaned, meta := StripLeakedTerminalResponsesWithMeta(text)
-	if strings.TrimSpace(cleaned) == "" {
+	if !textvalue.IsNonBlank(cleaned) {
 		return SendMessageBody{}, fmt.Errorf("%w: no message provided", ErrSendMessageMissingBody)
 	}
 	return SendMessageBody{Text: cleaned, Source: source, SanitizerMeta: meta}, nil

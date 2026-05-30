@@ -21,7 +21,7 @@ func NewProvidersCommand(_ Options) *cobra.Command {
 		SilenceUsage: true,
 		Args:         cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) > 0 && strings.TrimSpace(args[0]) != "" {
+			if len(args) > 0 && textvalue.IsNonBlank(args[0]) {
 				return renderProviderSetupGuidance(cmd, args[0])
 			}
 			return renderAllProviderSetupGuidance(cmd)
@@ -38,7 +38,7 @@ func newProviderSetupGuidanceCommand() *cobra.Command {
 		SilenceUsage: true,
 		Args:         cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) > 0 && strings.TrimSpace(args[0]) != "" {
+			if len(args) > 0 && textvalue.IsNonBlank(args[0]) {
 				return renderProviderSetupGuidance(cmd, args[0])
 			}
 			return renderAllProviderSetupGuidance(cmd)
@@ -160,7 +160,7 @@ func providerSupportsNonInteractiveSetup(entry llm.ProviderManifestEntry) bool {
 }
 
 func providerNeedsExplicitEndpoint(entry llm.ProviderManifestEntry) bool {
-	return strings.TrimSpace(entry.BaseURLOverride) == ""
+	return !textvalue.IsNonBlank(entry.BaseURLOverride)
 }
 
 func providerNeedsAPIKeyForSetup(entry llm.ProviderManifestEntry) bool {

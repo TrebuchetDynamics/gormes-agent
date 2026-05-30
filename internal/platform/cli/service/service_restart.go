@@ -376,7 +376,7 @@ func ParseServiceRestartDelay(source ServiceRestartDelaySource) ServiceRestartDe
 	}
 
 	property, raw, ok := systemdRestartDelayRaw(source.Output)
-	if !ok || strings.TrimSpace(raw) == "" {
+	if !ok || !textvalue.IsNonBlank(raw) {
 		return defaultRestartDelayReport(defaultDelay, ServiceRestartDelayEvidence{
 			Kind:     RestartDelayMissing,
 			Manager:  manager,

@@ -177,7 +177,7 @@ func Apply(seed string, opts ApplyOptions) (ApplyResult, error) {
 	if err := config.WriteTOMLValue(configPath, "hermes.provider", draft.ProviderModelState.Provider); err != nil {
 		return ApplyResult{}, err
 	}
-	if strings.TrimSpace(draft.ProviderModelState.Model) != "" {
+	if textvalue.IsNonBlank(draft.ProviderModelState.Model) {
 		if err := config.WriteTOMLValue(configPath, "hermes.model", draft.ProviderModelState.Model); err != nil {
 			return ApplyResult{}, err
 		}
@@ -237,7 +237,7 @@ func normalizeProviderDraft(draft *Draft, seed string) error {
 	if draft == nil {
 		return nil
 	}
-	if strings.TrimSpace(draft.ProfileID) == "" {
+	if !textvalue.IsNonBlank(draft.ProfileID) {
 		draft.ProfileID = profileIDFromSeed(seed)
 	} else {
 		draft.ProfileID = profileIDFromSeed(draft.ProfileID)
@@ -245,12 +245,12 @@ func normalizeProviderDraft(draft *Draft, seed string) error {
 	if err := cli.ValidateProfileName(draft.ProfileID); err != nil {
 		return fmt.Errorf("profile seed provider draft profile_id: %w", err)
 	}
-	if strings.TrimSpace(draft.DisplayName) == "" {
+	if !textvalue.IsNonBlank(draft.DisplayName) {
 		draft.DisplayName = displayNameFromProfileID(draft.ProfileID)
 	} else {
 		draft.DisplayName = safeEvidenceString(draft.DisplayName, 96)
 	}
-	if strings.TrimSpace(draft.Instructions) == "" {
+	if !textvalue.IsNonBlank(draft.Instructions) {
 		draft.Instructions = templateInstructions(draft.DisplayName, seed)
 	} else if secretLikeSeedPattern.MatchString(draft.Instructions) {
 		return fmt.Errorf("%w: provider instructions contain credential-like material", ErrUnsafeSeed)
@@ -405,7 +405,7 @@ func workspaceLabel(seed string) string {
 }
 
 func providerStatus(provider, model string) string {
-	if strings.TrimSpace(provider) != "" && strings.TrimSpace(model) != "" {
+	if textvalue.IsNonBlank(provider) && textvalue.IsNonBlank(model) {
 		return "configured"
 	}
 	return "unconfigured"

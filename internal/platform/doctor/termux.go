@@ -172,14 +172,14 @@ func isTermuxEnv(env map[string]string) bool {
 }
 
 func compactEnvPathNote(key, value string) string {
-	if strings.TrimSpace(value) == "" {
+	if !textvalue.IsNonBlank(value) {
 		return ""
 	}
 	return " " + key + "=" + value
 }
 
 func pathContainsDir(pathValue, want string) bool {
-	if strings.TrimSpace(want) == "" {
+	if !textvalue.IsNonBlank(want) {
 		return false
 	}
 	want = filepath.Clean(want)
