@@ -108,6 +108,26 @@ func UniqueStrings(values []string) []string {
 	return out
 }
 
+// ContainsString reports whether values contains want exactly.
+func ContainsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+// ContainsEqualFold reports whether values contains want using strings.EqualFold.
+func ContainsEqualFold(values []string, want string) bool {
+	for _, value := range values {
+		if strings.EqualFold(value, want) {
+			return true
+		}
+	}
+	return false
+}
+
 // FormatToolTrace joins SoulEntry texts and formats them as a tool trace block.
 // Behavior is identical to the duplicated function found in discord/legacy/render.go
 // and slack/render.go. Extracted to share across channel renderers.

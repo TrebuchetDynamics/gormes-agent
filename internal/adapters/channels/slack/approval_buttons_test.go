@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/adaptertest"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -72,30 +73,9 @@ func (m *approvalBlockClient) blockOutputs() []approvalBlockCall {
 	return out
 }
 
-type approvalRecorder struct {
-	mu    sync.Mutex
-	calls []gateway.ApprovalResolution
-	err   error
-}
-
-func (r *approvalRecorder) ResolveGatewayApproval(_ context.Context, res gateway.ApprovalResolution) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.calls = append(r.calls, res)
-	return r.err
-}
-
-func (r *approvalRecorder) snapshot() []gateway.ApprovalResolution {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	out := make([]gateway.ApprovalResolution, len(r.calls))
-	copy(out, r.calls)
-	return out
-}
-
 func TestSlackApprovalButtons_PostsBlockKitPrompt(t *testing.T) {
 	client := newApprovalBlockClient()
-	resolver := &approvalRecorder{}
+	resolver := &adaptertest.ApprovalRecorder{}
 	b := New(Config{
 		AllowedChannelID: "C123",
 		ApprovalResolver: resolver,
@@ -173,7 +153,7 @@ func TestSlackApprovalButtons_TruncatesLongCommandWithinSlackLimits(t *testing.T
 	client := newApprovalBlockClient()
 	b := New(Config{
 		AllowedChannelID: "C123",
-		ApprovalResolver: &approvalRecorder{},
+		ApprovalResolver: &adaptertest.ApprovalRecorder{},
 	}, client, newIdleSlackKernel(), nil)
 
 	_, err := b.SendExecApproval(context.Background(), ApprovalPrompt{
@@ -201,7 +181,7 @@ func TestSlackApprovalButtons_TruncatesLongCommandWithinSlackLimits(t *testing.T
 }
 
 func TestSlackApprovalButtons_UnavailableWhenSlackOrApprovalStorageMissing(t *testing.T) {
-	resolver := &approvalRecorder{}
+	resolver := &adaptertest.ApprovalRecorder{}
 	b := New(Config{AllowedChannelID: "C123", ApprovalResolver: resolver}, nil, newIdleSlackKernel(), nil)
 	_, err := b.SendExecApproval(context.Background(), ApprovalPrompt{
 		ChannelID:  "C123",
@@ -235,14 +215,14 @@ func TestSlackApprovalButtons_UnavailableWhenSlackOrApprovalStorageMissing(t *te
 	if outputs := client.blockOutputs(); len(outputs) != 0 {
 		t.Fatalf("block outputs = %+v, want no approval prompt when unavailable", outputs)
 	}
-	if calls := resolver.snapshot(); len(calls) != 0 {
+	if calls := resolver.Snapshot(); len(calls) != 0 {
 		t.Fatalf("resolver calls = %+v, want no command approval resolution on unavailable prompt", calls)
 	}
 }
 
 func TestSlackApprovalCallback_ResolvesOnceAndUpdatesMessage(t *testing.T) {
 	client := newApprovalBlockClient()
-	resolver := &approvalRecorder{}
+	resolver := &adaptertest.ApprovalRecorder{}
 	b := New(Config{
 		AllowedChannelID: "C123",
 		ApprovalResolver: resolver,
@@ -272,7 +252,7 @@ func TestSlackApprovalCallback_ResolvesOnceAndUpdatesMessage(t *testing.T) {
 	if ackIndex == -1 || updateIndex == -1 || ackIndex > updateIndex {
 		t.Fatalf("calls = %v, want ack before update", calls)
 	}
-	resolved := resolver.snapshot()
+	resolved := resolver.Snapshot()
 	if len(resolved) != 1 {
 		t.Fatalf("resolver calls = %+v, want one", resolved)
 	}
@@ -297,7 +277,7 @@ func TestSlackApprovalCallback_ResolvesOnceAndUpdatesMessage(t *testing.T) {
 
 func TestSlackApprovalCallback_DoubleClickAckedWithoutSecondResolution(t *testing.T) {
 	client := newApprovalBlockClient()
-	resolver := &approvalRecorder{}
+	resolver := &adaptertest.ApprovalRecorder{}
 	b := New(Config{
 		AllowedChannelID: "C123",
 		ApprovalResolver: resolver,
@@ -325,7 +305,7 @@ func TestSlackApprovalCallback_DoubleClickAckedWithoutSecondResolution(t *testin
 	if !client.wasAcked("callback-double-2") {
 		t.Fatal("second callback was not acked")
 	}
-	if got := len(resolver.snapshot()); got != 1 {
+	if got := len(resolver.Snapshot()); got != 1 {
 		t.Fatalf("resolver calls = %d, want 1", got)
 	}
 	updates := 0
@@ -341,7 +321,7 @@ func TestSlackApprovalCallback_DoubleClickAckedWithoutSecondResolution(t *testin
 
 func TestSlackApprovalCallback_DenyMapsToGatewayChoice(t *testing.T) {
 	client := newApprovalBlockClient()
-	resolver := &approvalRecorder{}
+	resolver := &adaptertest.ApprovalRecorder{}
 	b := New(Config{
 		AllowedChannelID: "C123",
 		ApprovalResolver: resolver,
@@ -362,7 +342,7 @@ func TestSlackApprovalCallback_DenyMapsToGatewayChoice(t *testing.T) {
 		},
 	})
 
-	resolved := resolver.snapshot()
+	resolved := resolver.Snapshot()
 	if len(resolved) != 1 {
 		t.Fatalf("resolver calls = %+v, want one deny", resolved)
 	}

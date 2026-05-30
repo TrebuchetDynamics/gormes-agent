@@ -5,38 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
-	"sync"
 	"testing"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/adaptertest"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
-type approvalRecorder struct {
-	mu    sync.Mutex
-	calls []gateway.ApprovalResolution
-	err   error
-}
-
-func (r *approvalRecorder) ResolveGatewayApproval(_ context.Context, res gateway.ApprovalResolution) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.calls = append(r.calls, res)
-	return r.err
-}
-
-func (r *approvalRecorder) snapshot() []gateway.ApprovalResolution {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	out := make([]gateway.ApprovalResolution, len(r.calls))
-	copy(out, r.calls)
-	return out
-}
-
 func TestTelegramApprovalButtons_SendInlineKeyboardPrompt(t *testing.T) {
 	client := newMockClient()
-	resolver := &approvalRecorder{}
+	resolver := &adaptertest.ApprovalRecorder{}
 	b := New(Config{
 		AllowedChatID:    42,
 		ApprovalResolver: resolver,
@@ -118,7 +97,7 @@ func TestTelegramApprovalButtons_ThreadMetadataAndTruncation(t *testing.T) {
 	client := newMockClient()
 	b := New(Config{
 		AllowedChatID:    42,
-		ApprovalResolver: &approvalRecorder{},
+		ApprovalResolver: &adaptertest.ApprovalRecorder{},
 	}, client, nil)
 
 	_, err := b.SendExecApproval(context.Background(), ApprovalPrompt{
@@ -163,7 +142,7 @@ func TestTelegramApprovalButtons_ThreadMetadataAndTruncation(t *testing.T) {
 }
 
 func TestTelegramApprovalButtons_UnavailableWhenStorageOrChannelMissing(t *testing.T) {
-	resolver := &approvalRecorder{}
+	resolver := &adaptertest.ApprovalRecorder{}
 	b := New(Config{AllowedChatID: 42, ApprovalResolver: resolver}, nil, nil)
 	_, err := b.SendExecApproval(context.Background(), ApprovalPrompt{
 		ChatID:     "42",
@@ -197,14 +176,14 @@ func TestTelegramApprovalButtons_UnavailableWhenStorageOrChannelMissing(t *testi
 	if sent := client.sentMessages(); len(sent) != 0 {
 		t.Fatalf("sent = %+v, want no prompt when unavailable", sent)
 	}
-	if calls := resolver.snapshot(); len(calls) != 0 {
+	if calls := resolver.Snapshot(); len(calls) != 0 {
 		t.Fatalf("resolver calls = %+v, want no resolution on unavailable prompt", calls)
 	}
 }
 
 func TestTelegramApprovalCallback_ResolvesOnceAndEditsPrompt(t *testing.T) {
 	client := newMockClient()
-	resolver := &approvalRecorder{}
+	resolver := &adaptertest.ApprovalRecorder{}
 	b := New(Config{
 		AllowedChatID:    42,
 		ApprovalResolver: resolver,
@@ -236,7 +215,7 @@ func TestTelegramApprovalCallback_ResolvesOnceAndEditsPrompt(t *testing.T) {
 		t.Fatalf("edit reply markup = %#v, want cleared inline keyboard", edits[0].ReplyMarkup)
 	}
 
-	resolved := resolver.snapshot()
+	resolved := resolver.Snapshot()
 	if len(resolved) != 1 {
 		t.Fatalf("resolver calls = %+v, want one", resolved)
 	}
@@ -250,7 +229,7 @@ func TestTelegramApprovalCallback_ResolvesOnceAndEditsPrompt(t *testing.T) {
 
 func TestTelegramApprovalCallback_AccountScopedPlatform(t *testing.T) {
 	client := newMockClient()
-	resolver := &approvalRecorder{}
+	resolver := &adaptertest.ApprovalRecorder{}
 	b := New(Config{
 		AllowedChatID:    42,
 		AccountID:        "ops",
@@ -268,7 +247,7 @@ func TestTelegramApprovalCallback_AccountScopedPlatform(t *testing.T) {
 		},
 	})
 
-	resolved := resolver.snapshot()
+	resolved := resolver.Snapshot()
 	if len(resolved) != 1 {
 		t.Fatalf("resolver calls = %+v, want one", resolved)
 	}
@@ -279,7 +258,7 @@ func TestTelegramApprovalCallback_AccountScopedPlatform(t *testing.T) {
 
 func TestTelegramApprovalCallback_DoubleClickAckedWithoutSecondResolution(t *testing.T) {
 	client := newMockClient()
-	resolver := &approvalRecorder{}
+	resolver := &adaptertest.ApprovalRecorder{}
 	b := New(Config{
 		AllowedChatID:    42,
 		ApprovalResolver: resolver,
@@ -300,7 +279,7 @@ func TestTelegramApprovalCallback_DoubleClickAckedWithoutSecondResolution(t *tes
 	click("callback-double-1")
 	click("callback-double-2")
 
-	if got := len(resolver.snapshot()); got != 1 {
+	if got := len(resolver.Snapshot()); got != 1 {
 		t.Fatalf("resolver calls = %d, want 1", got)
 	}
 	if edits := telegramApprovalEdits(client); len(edits) != 1 {
@@ -317,7 +296,7 @@ func TestTelegramApprovalCallback_DoubleClickAckedWithoutSecondResolution(t *tes
 
 func TestTelegramApprovalCallback_UnauthorizedUserLeavesApprovalPending(t *testing.T) {
 	client := newMockClient()
-	resolver := &approvalRecorder{}
+	resolver := &adaptertest.ApprovalRecorder{}
 	b := New(Config{
 		AllowedChatID:    42,
 		AllowedUserIDs:   []int64{111},
@@ -335,7 +314,7 @@ func TestTelegramApprovalCallback_UnauthorizedUserLeavesApprovalPending(t *testi
 		},
 	})
 
-	if got := len(resolver.snapshot()); got != 0 {
+	if got := len(resolver.Snapshot()); got != 0 {
 		t.Fatalf("resolver calls = %d, want 0", got)
 	}
 	if edits := telegramApprovalEdits(client); len(edits) != 0 {
@@ -355,7 +334,7 @@ func TestTelegramApprovalCallback_UnauthorizedUserLeavesApprovalPending(t *testi
 
 func TestTelegramApprovalCallback_DenyMapsToGatewayChoice(t *testing.T) {
 	client := newMockClient()
-	resolver := &approvalRecorder{}
+	resolver := &adaptertest.ApprovalRecorder{}
 	b := New(Config{
 		AllowedChatID:    42,
 		ApprovalResolver: resolver,
@@ -372,7 +351,7 @@ func TestTelegramApprovalCallback_DenyMapsToGatewayChoice(t *testing.T) {
 		},
 	})
 
-	resolved := resolver.snapshot()
+	resolved := resolver.Snapshot()
 	if len(resolved) != 1 {
 		t.Fatalf("resolver calls = %+v, want one", resolved)
 	}
@@ -386,7 +365,7 @@ func TestTelegramApprovalCallback_DenyMapsToGatewayChoice(t *testing.T) {
 
 func TestTelegramApprovalCallback_UnrelatedPrefixesDoNotResolveApproval(t *testing.T) {
 	client := newMockClient()
-	resolver := &approvalRecorder{}
+	resolver := &adaptertest.ApprovalRecorder{}
 	b := New(Config{
 		AllowedChatID:    42,
 		ApprovalResolver: resolver,
@@ -408,7 +387,7 @@ func TestTelegramApprovalCallback_UnrelatedPrefixesDoNotResolveApproval(t *testi
 		}
 	}
 
-	if got := len(resolver.snapshot()); got != 0 {
+	if got := len(resolver.Snapshot()); got != 0 {
 		t.Fatalf("resolver calls = %d, want 0", got)
 	}
 	approvalID, ok := b.approvalIDFromCallbackData(approvalData)

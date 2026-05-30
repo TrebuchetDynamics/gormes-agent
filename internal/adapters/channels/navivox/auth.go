@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
@@ -53,10 +54,8 @@ func (c *Channel) authenticateTailscaleIdentity(r *http.Request) (string, bool) 
 	if len(c.cfg.AllowedTailnetIdentities) == 0 {
 		return identity, true
 	}
-	for _, allowed := range c.cfg.AllowedTailnetIdentities {
-		if strings.EqualFold(identity, allowed) {
-			return identity, true
-		}
+	if channelutil.ContainsEqualFold(c.cfg.AllowedTailnetIdentities, identity) {
+		return identity, true
 	}
 	return "", false
 }
@@ -129,10 +128,5 @@ func (c *Channel) originAllowed(origin string) bool {
 	if origin == "" {
 		return true
 	}
-	for _, allowed := range c.cfg.AllowOrigins {
-		if allowed == "*" || strings.EqualFold(allowed, origin) {
-			return true
-		}
-	}
-	return false
+	return channelutil.ContainsString(c.cfg.AllowOrigins, "*") || channelutil.ContainsEqualFold(c.cfg.AllowOrigins, origin)
 }

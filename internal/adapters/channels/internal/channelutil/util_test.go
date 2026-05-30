@@ -118,6 +118,24 @@ func TestNormalizedPolicy(t *testing.T) {
 	})
 }
 
+func TestContainsString(t *testing.T) {
+	if !ContainsString([]string{"alpha", "Beta"}, "Beta") {
+		t.Fatal("ContainsString returned false for exact match")
+	}
+	if ContainsString([]string{"alpha", "Beta"}, "beta") {
+		t.Fatal("ContainsString returned true for case-different value")
+	}
+}
+
+func TestContainsEqualFold(t *testing.T) {
+	if !ContainsEqualFold([]string{"alpha", "Beta"}, "beta") {
+		t.Fatal("ContainsEqualFold returned false for case-insensitive match")
+	}
+	if ContainsEqualFold([]string{"alpha", "Beta"}, "gamma") {
+		t.Fatal("ContainsEqualFold returned true for missing value")
+	}
+}
+
 func TestAllowedByPolicy(t *testing.T) {
 	allowed := ToSet([]string{" user-1 "})
 

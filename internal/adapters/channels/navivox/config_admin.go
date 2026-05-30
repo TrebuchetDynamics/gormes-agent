@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
@@ -487,12 +488,7 @@ func parseConfigAdminCSV(value string) []string {
 }
 
 func containsConfigAdminAllowed(allowed []string, value string) bool {
-	for _, candidate := range allowed {
-		if value == candidate {
-			return true
-		}
-	}
-	return false
+	return channelutil.ContainsString(allowed, value)
 }
 
 func firstConfigAdminChangedKey(changes []configAdminChange, preferred string) string {
