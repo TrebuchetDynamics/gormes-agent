@@ -14,6 +14,7 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
+	telegramsend "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram/send"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -786,36 +787,15 @@ func (b *Bot) sendMediaWithThread(chatID int64, replyID int, media gateway.Outbo
 }
 
 func telegramThreadIDForTextSend(threadID string) (int, bool, error) {
-	threadID = strings.TrimSpace(threadID)
-	if threadID == "" || threadID == telegramGeneralTopicThreadID {
-		return 0, false, nil
-	}
-	thread, err := strconv.Atoi(threadID)
-	if err != nil {
-		return 0, false, fmt.Errorf("telegram: invalid thread ID %q: %w", threadID, err)
-	}
-	return thread, true, nil
+	return telegramsend.ThreadIDForTextSend(threadID, telegramGeneralTopicThreadID)
 }
 
 func telegramThreadIDForAction(threadID string) (int, bool, error) {
-	threadID = strings.TrimSpace(threadID)
-	if threadID == "" {
-		return 0, false, nil
-	}
-	thread, err := strconv.Atoi(threadID)
-	if err != nil {
-		return 0, false, fmt.Errorf("telegram: invalid thread ID %q: %w", threadID, err)
-	}
-	return thread, true, nil
+	return telegramsend.ThreadIDForAction(threadID)
 }
 
 func telegramSendMessageParams(chatID int64, replyID int, text, parseMode string) tgbotapi.Params {
-	params := tgbotapi.Params{}
-	params.AddNonZero64("chat_id", chatID)
-	params.AddNonZero("reply_to_message_id", replyID)
-	params.AddNonEmpty("text", text)
-	params.AddNonEmpty("parse_mode", parseMode)
-	return params
+	return telegramsend.MessageParams(chatID, replyID, text, parseMode)
 }
 
 func (b *Bot) sendRawMessageWithParseFallback(_ context.Context, params tgbotapi.Params) (tgbotapi.Message, error) {
@@ -837,13 +817,7 @@ func (b *Bot) sendRawMessageWithParseFallback(_ context.Context, params tgbotapi
 }
 
 func telegramMessageFromAPIResponse(resp *tgbotapi.APIResponse) (tgbotapi.Message, error) {
-	var msg tgbotapi.Message
-	if resp != nil && len(resp.Result) > 0 {
-		if err := json.Unmarshal(resp.Result, &msg); err != nil {
-			return tgbotapi.Message{}, err
-		}
-	}
-	return msg, nil
+	return telegramsend.MessageFromAPIResponse(resp)
 }
 
 func telegramMediaUploadEndpoint(media gateway.OutboundMedia) (endpoint, field string, err error) {
@@ -1029,40 +1003,19 @@ func (b *Bot) sendWithParseFallback(msgCfg tgbotapi.MessageConfig) (tgbotapi.Mes
 // message mentions "parse" or "markdown" is treated as a malformed-entity
 // rejection, not a transient network failure.
 func isMarkdownParseError(err error) bool {
-	if err == nil {
-		return false
-	}
-	lower := strings.ToLower(err.Error())
-	return strings.Contains(lower, "parse") || strings.Contains(lower, "markdown")
+	return telegramsend.IsMarkdownParseError(err)
 }
 
 func isThreadNotFoundError(err error) bool {
-	if err == nil {
-		return false
-	}
-	return strings.Contains(strings.ToLower(err.Error()), "thread not found")
+	return telegramsend.IsThreadNotFoundError(err)
 }
 
 func isTimedOutError(err error) bool {
-	if err == nil {
-		return false
-	}
-	lower := strings.ToLower(err.Error())
-	return strings.Contains(lower, "timedout") ||
-		strings.Contains(lower, "timed out") ||
-		strings.Contains(lower, "i/o timeout")
+	return telegramsend.IsTimedOutError(err)
 }
 
 func isTransientNetworkError(err error) bool {
-	if err == nil {
-		return false
-	}
-	lower := strings.ToLower(err.Error())
-	return strings.Contains(lower, "network") ||
-		strings.Contains(lower, "connection") ||
-		strings.Contains(lower, "eof") ||
-		strings.Contains(lower, "reset") ||
-		strings.Contains(lower, "broken pipe")
+	return telegramsend.IsTransientNetworkError(err)
 }
 
 // SendChatAction issues a Telegram sendChatAction request. action is one of

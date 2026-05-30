@@ -4,24 +4,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-
+	telegramstartup "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram/startup"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-type TelegramStartupCode string
+type TelegramStartupCode = telegramstartup.Code
 
 const (
-	telegramStartupCodeBotTokenLock         TelegramStartupCode = "telegram_bot_token_lock"
-	telegramStartupCodePollingConflict      TelegramStartupCode = "telegram_polling_conflict"
-	telegramStartupCodeConnectError         TelegramStartupCode = "telegram_connect_error"
-	telegramStartupCodeWebhookSecretMissing TelegramStartupCode = "telegram_webhook_secret_missing"
+	telegramStartupCodeBotTokenLock         TelegramStartupCode = telegramstartup.CodeBotTokenLock
+	telegramStartupCodePollingConflict      TelegramStartupCode = telegramstartup.CodePollingConflict
+	telegramStartupCodeConnectError         TelegramStartupCode = telegramstartup.CodeConnectError
+	telegramStartupCodeWebhookSecretMissing TelegramStartupCode = telegramstartup.CodeWebhookSecretMissing
 )
 
 const telegramPollingConflictMaxRetries = 3
@@ -29,29 +27,7 @@ const telegramPollingNetworkMaxRetries = 10
 
 // TelegramStartupError is the typed operator evidence returned when Telegram
 // startup must fail before message ingress begins.
-type TelegramStartupError struct {
-	Code      TelegramStartupCode
-	Message   string
-	Retryable bool
-	Err       error
-}
-
-func (e *TelegramStartupError) Error() string {
-	if e == nil {
-		return ""
-	}
-	if strings.TrimSpace(e.Message) == "" {
-		return string(e.Code)
-	}
-	return string(e.Code) + ": " + e.Message
-}
-
-func (e *TelegramStartupError) Unwrap() error {
-	if e == nil {
-		return nil
-	}
-	return e.Err
-}
+type TelegramStartupError = telegramstartup.Error
 
 type telegramTokenLock interface {
 	Release(context.Context) (gateway.TokenLockEvidence, error)
@@ -251,69 +227,21 @@ func (b *Bot) telegramPollingConflictRetryDelay() time.Duration {
 }
 
 func newTelegramStartupError(code TelegramStartupCode, message string, retryable bool, err error) *TelegramStartupError {
-	return &TelegramStartupError{
-		Code:      code,
-		Message:   sanitizeTelegramStartupText(message),
-		Retryable: retryable,
-		Err:       err,
-	}
+	return telegramstartup.NewError(code, message, retryable, err)
 }
 
 func telegramLooksLikePollingConflict(err error) bool {
-	text := strings.ToLower(err.Error())
-	return strings.Contains(text, "terminated by other getupdates request") ||
-		strings.Contains(text, "another bot instance is running") ||
-		strings.Contains(text, "conflict")
+	return telegramstartup.LooksLikePollingConflict(err)
 }
 
 func telegramLooksLikeNetworkError(err error) bool {
-	var netErr net.Error
-	if errors.As(err, &netErr) {
-		return true
-	}
-	var dnsErr *net.DNSError
-	if errors.As(err, &dnsErr) {
-		return true
-	}
-	text := strings.ToLower(err.Error())
-	for _, needle := range []string{
-		"temporary failure in name resolution",
-		"no such host",
-		"connection refused",
-		"connection reset",
-		"network is unreachable",
-		"i/o timeout",
-		"timeout",
-	} {
-		if strings.Contains(text, needle) {
-			return true
-		}
-	}
-	return false
+	return telegramstartup.LooksLikeNetworkError(err)
 }
 
 func sanitizeTelegramStartupError(err error) string {
-	if err == nil {
-		return ""
-	}
-	return sanitizeTelegramStartupText(err.Error())
+	return telegramstartup.SanitizeError(err)
 }
 
-var (
-	telegramBotTokenPattern = regexp.MustCompile(`\bbot\d{5,}:[A-Za-z0-9_-]{6,}\b`)
-	telegramTokenPattern    = regexp.MustCompile(`\b\d{5,}:[A-Za-z0-9_-]{6,}\b`)
-	telegramBearerPattern   = regexp.MustCompile(`(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+`)
-)
-
 func sanitizeTelegramStartupText(text string) string {
-	text = strings.TrimSpace(text)
-	text = telegramBotTokenPattern.ReplaceAllString(text, "bot<redacted-telegram-token>")
-	text = telegramTokenPattern.ReplaceAllString(text, "<redacted-telegram-token>")
-	text = telegramBearerPattern.ReplaceAllString(text, "Bearer <redacted>")
-	text = strings.ReplaceAll(text, "\n", " ")
-	text = strings.Join(strings.Fields(text), " ")
-	if len(text) > 500 {
-		return text[:500]
-	}
-	return text
+	return telegramstartup.SanitizeText(text)
 }

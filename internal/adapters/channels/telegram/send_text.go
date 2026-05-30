@@ -2,10 +2,10 @@ package telegram
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"strings"
 
+	telegramsend "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram/send"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -51,14 +51,7 @@ func (b *Bot) sendTelegramText(ctx context.Context, req telegramTextSendRequest)
 }
 
 func telegramTextReplyID(replyToMsgID string, required bool) (int, error) {
-	if !required && strings.TrimSpace(replyToMsgID) == "" {
-		return 0, nil
-	}
-	replyID, err := strconv.Atoi(replyToMsgID)
-	if err != nil {
-		return 0, fmt.Errorf("telegram: invalid reply msgID %q: %w", replyToMsgID, err)
-	}
-	return replyID, nil
+	return telegramsend.TextReplyID(replyToMsgID, required)
 }
 
 func (b *Bot) sendMessageConfig(msgCfg tgbotapi.MessageConfig) (tgbotapi.Message, error) {
