@@ -1,95 +1,34 @@
 package llm
 
 import (
-	"errors"
-	"strings"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/bedrock"
 )
 
 const (
-	BedrockStaleTransportStatus      = "bedrock_stale_transport"
-	BedrockNonRetryableRequestStatus = "bedrock_non_retryable_request_failure"
+	BedrockStaleTransportStatus      = bedrock.BedrockStaleTransportStatus
+	BedrockNonRetryableRequestStatus = bedrock.BedrockNonRetryableRequestStatus
 )
 
 var (
-	ErrBedrockConnectionClosed = errors.New("connection closed")
-	ErrBedrockProtocolError    = errors.New("protocol error")
-	ErrBedrockReadTimeout      = errors.New("read timeout")
-	ErrBedrockUnexpectedEOF    = errors.New("unexpected EOF")
+	ErrBedrockConnectionClosed = bedrock.ErrBedrockConnectionClosed
+	ErrBedrockProtocolError    = bedrock.ErrBedrockProtocolError
+	ErrBedrockReadTimeout      = bedrock.ErrBedrockReadTimeout
+	ErrBedrockUnexpectedEOF    = bedrock.ErrBedrockUnexpectedEOF
 )
 
-type BedrockRuntimeErrorKind string
+type BedrockRuntimeErrorKind = bedrock.BedrockRuntimeErrorKind
 
 const (
-	BedrockRuntimeErrorAssertion          BedrockRuntimeErrorKind = "assertion"
-	BedrockRuntimeErrorValidation         BedrockRuntimeErrorKind = "validation"
-	BedrockRuntimeErrorAuth               BedrockRuntimeErrorKind = "auth"
-	BedrockRuntimeErrorMissingCredentials BedrockRuntimeErrorKind = "missing_credentials"
-	BedrockRuntimeErrorMalformedRequest   BedrockRuntimeErrorKind = "malformed_request"
+	BedrockRuntimeErrorAssertion          = bedrock.BedrockRuntimeErrorAssertion
+	BedrockRuntimeErrorValidation         = bedrock.BedrockRuntimeErrorValidation
+	BedrockRuntimeErrorAuth               = bedrock.BedrockRuntimeErrorAuth
+	BedrockRuntimeErrorMissingCredentials = bedrock.BedrockRuntimeErrorMissingCredentials
+	BedrockRuntimeErrorMalformedRequest   = bedrock.BedrockRuntimeErrorMalformedRequest
 )
 
-type BedrockRuntimeError struct {
-	Kind          BedrockRuntimeErrorKind
-	Message       string
-	SourcePackage string
-}
-
-func (e BedrockRuntimeError) Error() string {
-	if e.Message != "" {
-		return e.Message
-	}
-	return string(e.Kind)
-}
-
-type BedrockStaleErrorClassification struct {
-	Stale  bool
-	Status string
-}
+type BedrockRuntimeError = bedrock.BedrockRuntimeError
+type BedrockStaleErrorClassification = bedrock.BedrockStaleErrorClassification
 
 func ClassifyBedrockStaleError(err error) BedrockStaleErrorClassification {
-	if err == nil {
-		return BedrockStaleErrorClassification{}
-	}
-	if errors.Is(err, ErrBedrockConnectionClosed) ||
-		errors.Is(err, ErrBedrockProtocolError) ||
-		errors.Is(err, ErrBedrockReadTimeout) ||
-		errors.Is(err, ErrBedrockUnexpectedEOF) {
-		return bedrockStaleTransportClassification()
-	}
-	var runtimeErr BedrockRuntimeError
-	if errors.As(err, &runtimeErr) &&
-		runtimeErr.Kind == BedrockRuntimeErrorAssertion &&
-		bedrockStaleLibrarySource(runtimeErr.SourcePackage) {
-		return bedrockStaleTransportClassification()
-	}
-	if errors.As(err, &runtimeErr) && bedrockNonRetryableRequestError(runtimeErr.Kind) {
-		return BedrockStaleErrorClassification{
-			Status: BedrockNonRetryableRequestStatus,
-		}
-	}
-	return BedrockStaleErrorClassification{}
-}
-
-func bedrockStaleTransportClassification() BedrockStaleErrorClassification {
-	return BedrockStaleErrorClassification{
-		Stale:  true,
-		Status: BedrockStaleTransportStatus,
-	}
-}
-
-func bedrockStaleLibrarySource(sourcePackage string) bool {
-	return strings.HasPrefix(sourcePackage, "urllib3.") ||
-		strings.HasPrefix(sourcePackage, "botocore.") ||
-		strings.HasPrefix(sourcePackage, "boto3.")
-}
-
-func bedrockNonRetryableRequestError(kind BedrockRuntimeErrorKind) bool {
-	switch kind {
-	case BedrockRuntimeErrorValidation,
-		BedrockRuntimeErrorAuth,
-		BedrockRuntimeErrorMissingCredentials,
-		BedrockRuntimeErrorMalformedRequest:
-		return true
-	default:
-		return false
-	}
+	return bedrock.ClassifyBedrockStaleError(err)
 }
