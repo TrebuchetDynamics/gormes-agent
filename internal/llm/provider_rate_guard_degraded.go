@@ -1,24 +1,13 @@
 package llm
 
-import "time"
+import (
+	"time"
 
-type GuardState struct {
-	LastKnownClass RateLimitClass
-	LastKnownAt    time.Time
-	Unavailable    bool
-}
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/routing"
+)
+
+type GuardState = routing.GuardState
 
 func ApplyClassification(state GuardState, now time.Time, class RateLimitClass) GuardState {
-	if class == RateLimitInsufficientEvidence || class == RateLimitClass("") {
-		return GuardState{
-			LastKnownClass: state.LastKnownClass,
-			LastKnownAt:    state.LastKnownAt,
-			Unavailable:    true,
-		}
-	}
-	return GuardState{
-		LastKnownClass: class,
-		LastKnownAt:    now,
-		Unavailable:    false,
-	}
+	return routing.ApplyClassification(state, now, class)
 }
