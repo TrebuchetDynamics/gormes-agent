@@ -1,38 +1,35 @@
 package gormescli
 
-import (
-	migratehermes "github.com/TrebuchetDynamics/gormes-agent/internal/platform/migrate/hermes"
-	openclawmigrate "github.com/TrebuchetDynamics/gormes-agent/internal/platform/migrate/openclaw"
-)
+import "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/migrationruntime"
 
-type MigrateHermesManifest = migratehermes.Manifest
-type MigrateHermesOptions = migratehermes.Options
-type MigrateHermesWriteRequest = migratehermes.WriteRequest
-type MigrateHermesWriteOutcome = migratehermes.WriteOutcome
+type MigrateHermesManifest = migrationruntime.MigrateHermesManifest
+type MigrateHermesOptions = migrationruntime.MigrateHermesOptions
+type MigrateHermesWriteRequest = migrationruntime.MigrateHermesWriteRequest
+type MigrateHermesWriteOutcome = migrationruntime.MigrateHermesWriteOutcome
 
 func BuildMigrateHermesManifest(opts MigrateHermesOptions) (*MigrateHermesManifest, error) {
-	return migratehermes.BuildManifest(opts)
+	return migrationruntime.BuildMigrateHermesManifest(opts)
 }
 
 func ApplyMigrateHermesManifest(req MigrateHermesWriteRequest) (MigrateHermesWriteOutcome, error) {
-	return migratehermes.ApplyManifest(req)
+	return migrationruntime.ApplyMigrateHermesManifest(req)
 }
 
-type MigrateOpenClawManifest = openclawmigrate.Manifest
-type MigrateOpenClawOptions = openclawmigrate.Options
-type MigrateOpenClawApplyRequest = openclawmigrate.ApplyRequest
-type MigrateOpenClawApplyOutcome = openclawmigrate.ApplyOutcome
-type MigrateOpenClawCleanupRequest = openclawmigrate.CleanupRequest
-type MigrateOpenClawCleanupOutcome = openclawmigrate.CleanupOutcome
+type MigrateOpenClawManifest = migrationruntime.MigrateOpenClawManifest
+type MigrateOpenClawOptions = migrationruntime.MigrateOpenClawOptions
+type MigrateOpenClawApplyRequest = migrationruntime.MigrateOpenClawApplyRequest
+type MigrateOpenClawApplyOutcome = migrationruntime.MigrateOpenClawApplyOutcome
+type MigrateOpenClawCleanupRequest = migrationruntime.MigrateOpenClawCleanupRequest
+type MigrateOpenClawCleanupOutcome = migrationruntime.MigrateOpenClawCleanupOutcome
 
 func BuildMigrateOpenClawManifest(opts MigrateOpenClawOptions) (*MigrateOpenClawManifest, error) {
-	return openclawmigrate.BuildManifest(opts)
+	return migrationruntime.BuildMigrateOpenClawManifest(opts)
 }
 
 func ApplyMigrateOpenClawManifest(req MigrateOpenClawApplyRequest) (MigrateOpenClawApplyOutcome, error) {
-	return openclawmigrate.ApplyManifest(req)
+	return migrationruntime.ApplyMigrateOpenClawManifest(req)
 }
 
 func PerformMigrateOpenClawCleanup(req MigrateOpenClawCleanupRequest) (MigrateOpenClawCleanupOutcome, error) {
-	return openclawmigrate.PerformCleanup(req)
+	return migrationruntime.PerformMigrateOpenClawCleanup(req)
 }
