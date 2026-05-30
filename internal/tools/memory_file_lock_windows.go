@@ -3,19 +3,11 @@
 package tools
 
 import (
-	"math"
 	"os"
 
-	"golang.org/x/sys/windows"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/filesystem"
 )
 
 func lockMemoryFile(file *os.File) (func() error, error) {
-	handle := windows.Handle(file.Fd())
-	overlapped := &windows.Overlapped{}
-	if err := windows.LockFileEx(handle, windows.LOCKFILE_EXCLUSIVE_LOCK, 0, math.MaxUint32, math.MaxUint32, overlapped); err != nil {
-		return nil, err
-	}
-	return func() error {
-		return windows.UnlockFileEx(handle, 0, math.MaxUint32, math.MaxUint32, overlapped)
-	}, nil
+	return filesystem.LockMemoryFile(file)
 }

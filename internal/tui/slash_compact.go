@@ -1,6 +1,6 @@
 package tui
 
-import "strings"
+import "github.com/TrebuchetDynamics/gormes-agent/internal/tui/compact"
 
 func compactSlashHandler(input string, model *Model) SlashResult {
 	if model == nil {
@@ -8,7 +8,7 @@ func compactSlashHandler(input string, model *Model) SlashResult {
 	}
 	next, ok := compactSlashNext(input, model.compactTranscript)
 	if !ok {
-		return SlashResult{Handled: true, StatusMessage: "usage: /compact [on|off|toggle]"}
+		return SlashResult{Handled: true, StatusMessage: compact.Usage}
 	}
 	model.compactTranscript = next
 	if next {
@@ -18,21 +18,5 @@ func compactSlashHandler(input string, model *Model) SlashResult {
 }
 
 func compactSlashNext(input string, current bool) (bool, bool) {
-	fields := strings.Fields(strings.TrimSpace(input))
-	if len(fields) <= 1 {
-		return !current, true
-	}
-	if len(fields) > 2 {
-		return current, false
-	}
-	switch strings.ToLower(fields[1]) {
-	case "on":
-		return true, true
-	case "off":
-		return false, true
-	case "toggle":
-		return !current, true
-	default:
-		return current, false
-	}
+	return compact.Next(input, current)
 }

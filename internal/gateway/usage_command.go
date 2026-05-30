@@ -2,9 +2,9 @@ package gateway
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/usagecmd"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
@@ -14,18 +14,15 @@ import (
 // Implementations must be fakeable and must not mutate provider/client state.
 type AccountUsageProvider func(context.Context, InboundEvent) (llm.AccountUsageSnapshot, error)
 
-type usageFrameSource string
+type usageFrameSource = usagecmd.FrameSource
 
 const (
-	usageFrameSourceNone    usageFrameSource = "unavailable"
-	usageFrameSourceRunning usageFrameSource = "running turn"
-	usageFrameSourceCached  usageFrameSource = "cached turn"
+	usageFrameSourceNone    usageFrameSource = usagecmd.FrameSourceNone
+	usageFrameSourceRunning usageFrameSource = usagecmd.FrameSourceRunning
+	usageFrameSourceCached  usageFrameSource = usagecmd.FrameSourceCached
 )
 
-type usageFrameSnapshot struct {
-	Frame  kernel.RenderFrame
-	Source usageFrameSource
-}
+type usageFrameSnapshot = usagecmd.FrameSnapshot
 
 func (m *Manager) handleUsageCommand(ctx context.Context, ch Channel, ev InboundEvent) {
 	lines := []string{"Usage"}
@@ -97,29 +94,5 @@ func (m *Manager) usageFrameForCommand() usageFrameSnapshot {
 }
 
 func renderUsageFrameLines(snapshot usageFrameSnapshot) []string {
-	lines := []string{"Usage source: " + string(snapshot.Source)}
-	if snapshot.Source == usageFrameSourceNone {
-		return append(lines, "Runtime usage unavailable: no running or cached turn telemetry")
-	}
-	frame := snapshot.Frame
-	model := strings.TrimSpace(frame.Model)
-	if model == "" {
-		model = "unknown"
-	}
-	sessionID := strings.TrimSpace(frame.SessionID)
-	if sessionID == "" {
-		sessionID = "unknown"
-	}
-	lines = append(lines,
-		"Model: "+model,
-		"Session: "+sessionID,
-		fmt.Sprintf("Tokens: %d in / %d out", frame.Telemetry.TokensInTotal, frame.Telemetry.TokensOutTotal),
-	)
-	if frame.Telemetry.LatencyMsLast > 0 {
-		lines = append(lines, fmt.Sprintf("Last latency: %d ms", frame.Telemetry.LatencyMsLast))
-	}
-	if frame.Telemetry.TokensPerSec > 0 {
-		lines = append(lines, fmt.Sprintf("Speed: %.2f tokens/sec", frame.Telemetry.TokensPerSec))
-	}
-	return lines
+	return usagecmd.RenderFrameLines(snapshot)
 }

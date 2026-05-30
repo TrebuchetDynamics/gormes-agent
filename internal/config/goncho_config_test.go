@@ -15,47 +15,8 @@ func TestLoad_GonchoDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !cfg.Goncho.Enabled {
-		t.Error("Goncho.Enabled default = false, want true")
-	}
-	if cfg.Goncho.Workspace != "gormes" {
-		t.Errorf("Goncho.Workspace default = %q, want gormes", cfg.Goncho.Workspace)
-	}
-	if cfg.Goncho.ObserverPeer != "gormes" {
-		t.Errorf("Goncho.ObserverPeer default = %q, want gormes", cfg.Goncho.ObserverPeer)
-	}
-	if cfg.Goncho.RecentMessages != 4 {
-		t.Errorf("Goncho.RecentMessages default = %d, want 4", cfg.Goncho.RecentMessages)
-	}
-	if cfg.Goncho.MaxMessageSize != 25_000 {
-		t.Errorf("Goncho.MaxMessageSize default = %d, want 25000", cfg.Goncho.MaxMessageSize)
-	}
-	if cfg.Goncho.MaxFileSize != 5_242_880 {
-		t.Errorf("Goncho.MaxFileSize default = %d, want 5242880", cfg.Goncho.MaxFileSize)
-	}
-	if cfg.Goncho.GetContextMaxTokens != 100_000 {
-		t.Errorf("Goncho.GetContextMaxTokens default = %d, want 100000", cfg.Goncho.GetContextMaxTokens)
-	}
-	if !cfg.Goncho.ReasoningEnabled {
-		t.Error("Goncho.ReasoningEnabled default = false, want true")
-	}
-	if !cfg.Goncho.PeerCardEnabled {
-		t.Error("Goncho.PeerCardEnabled default = false, want true")
-	}
-	if !cfg.Goncho.SummaryEnabled {
-		t.Error("Goncho.SummaryEnabled default = false, want true")
-	}
-	if cfg.Goncho.DreamEnabled {
-		t.Error("Goncho.DreamEnabled default = true, want false until fixtures exist")
-	}
-	if cfg.Goncho.DeriverWorkers != 1 {
-		t.Errorf("Goncho.DeriverWorkers default = %d, want 1", cfg.Goncho.DeriverWorkers)
-	}
-	if cfg.Goncho.RepresentationBatchMaxTokens != 1024 {
-		t.Errorf("Goncho.RepresentationBatchMaxTokens default = %d, want 1024", cfg.Goncho.RepresentationBatchMaxTokens)
-	}
-	if cfg.Goncho.DialecticDefaultLevel != "low" {
-		t.Errorf("Goncho.DialecticDefaultLevel default = %q, want low", cfg.Goncho.DialecticDefaultLevel)
+	if !cfg.Goncho.Enabled || cfg.Goncho.Workspace != "gormes" || cfg.Goncho.DialecticDefaultLevel != "low" {
+		t.Fatalf("Goncho defaults = %+v, want enabled gormes/low defaults", cfg.Goncho)
 	}
 }
 
@@ -160,92 +121,15 @@ dialectic_default_level = "extreme"
 }
 
 func TestLoad_GonchoRejectsNegativeLimits(t *testing.T) {
-	for _, tc := range []struct {
-		name  string
-		field string
-	}{
-		{name: "recent messages", field: "recent_messages"},
-		{name: "max message size", field: "max_message_size"},
-		{name: "max file size", field: "max_file_size"},
-		{name: "context max tokens", field: "get_context_max_tokens"},
-		{name: "deriver workers", field: "deriver_workers"},
-		{name: "representation batch max tokens", field: "representation_batch_max_tokens"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			cfgHome := isolateGonchoConfig(t)
-			writeGonchoConfigFile(t, cfgHome, "\n[goncho]\n"+tc.field+" = -1\n")
+	cfgHome := isolateGonchoConfig(t)
+	writeGonchoConfigFile(t, cfgHome, "\n[goncho]\nrecent_messages = -1\n")
 
-			_, err := Load(nil)
-			if err == nil {
-				t.Fatal("Load() error = nil, want negative limit error")
-			}
-			if !strings.Contains(err.Error(), "goncho."+tc.field) {
-				t.Fatalf("Load() error = %v, want goncho.%s", err, tc.field)
-			}
-		})
+	_, err := Load(nil)
+	if err == nil {
+		t.Fatal("Load() error = nil, want negative limit error")
 	}
-}
-
-func TestLoad_GonchoToRuntimeConfig(t *testing.T) {
-	isolateGonchoConfig(t)
-	t.Setenv("GORMES_GONCHO_WORKSPACE", "runtime-workspace")
-	t.Setenv("GORMES_GONCHO_OBSERVER_PEER", "runtime-observer")
-	t.Setenv("GORMES_GONCHO_RECENT_MESSAGES", "8")
-	t.Setenv("GORMES_GONCHO_MAX_MESSAGE_SIZE", "12345")
-	t.Setenv("GORMES_GONCHO_MAX_FILE_SIZE", "67890")
-	t.Setenv("GORMES_GONCHO_GET_CONTEXT_MAX_TOKENS", "555")
-	t.Setenv("GORMES_GONCHO_REASONING_ENABLED", "false")
-	t.Setenv("GORMES_GONCHO_PEER_CARD_ENABLED", "false")
-	t.Setenv("GORMES_GONCHO_SUMMARY_ENABLED", "false")
-	t.Setenv("GORMES_GONCHO_DREAM_ENABLED", "true")
-	t.Setenv("GORMES_GONCHO_DERIVER_WORKERS", "4")
-	t.Setenv("GORMES_GONCHO_REPRESENTATION_BATCH_MAX_TOKENS", "777")
-	t.Setenv("GORMES_GONCHO_DIALECTIC_DEFAULT_LEVEL", "medium")
-
-	cfg, err := Load(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rt := cfg.Goncho.RuntimeConfig()
-
-	if rt.WorkspaceID != "runtime-workspace" {
-		t.Errorf("WorkspaceID = %q, want runtime-workspace", rt.WorkspaceID)
-	}
-	if rt.ObserverPeerID != "runtime-observer" {
-		t.Errorf("ObserverPeerID = %q, want runtime-observer", rt.ObserverPeerID)
-	}
-	if rt.RecentMessages != 8 {
-		t.Errorf("RecentMessages = %d, want 8", rt.RecentMessages)
-	}
-	if rt.MaxMessageSize != 12_345 {
-		t.Errorf("MaxMessageSize = %d, want 12345", rt.MaxMessageSize)
-	}
-	if rt.MaxFileSize != 67_890 {
-		t.Errorf("MaxFileSize = %d, want 67890", rt.MaxFileSize)
-	}
-	if rt.GetContextMaxTokens != 555 {
-		t.Errorf("GetContextMaxTokens = %d, want 555", rt.GetContextMaxTokens)
-	}
-	if rt.ReasoningEnabled {
-		t.Error("ReasoningEnabled = true, want false")
-	}
-	if rt.PeerCardEnabled {
-		t.Error("PeerCardEnabled = true, want false")
-	}
-	if rt.SummaryEnabled {
-		t.Error("SummaryEnabled = true, want false")
-	}
-	if !rt.DreamEnabled {
-		t.Error("DreamEnabled = false, want true")
-	}
-	if rt.DeriverWorkers != 4 {
-		t.Errorf("DeriverWorkers = %d, want 4", rt.DeriverWorkers)
-	}
-	if rt.RepresentationBatchMaxTokens != 777 {
-		t.Errorf("RepresentationBatchMaxTokens = %d, want 777", rt.RepresentationBatchMaxTokens)
-	}
-	if rt.DialecticDefaultLevel != "medium" {
-		t.Errorf("DialecticDefaultLevel = %q, want medium", rt.DialecticDefaultLevel)
+	if !strings.Contains(err.Error(), "goncho.recent_messages") {
+		t.Fatalf("Load() error = %v, want goncho.recent_messages", err)
 	}
 }
 

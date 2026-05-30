@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/envmap"
 )
 
 type TerminalSetupFileOps struct {
@@ -47,18 +49,11 @@ type TerminalParityHint struct {
 }
 
 func envValue(env map[string]string, key string) string {
-	if env == nil {
-		return ""
-	}
-	return env[key]
+	return envmap.Value(env, key)
 }
 
 func envHas(env map[string]string, key string) bool {
-	if env == nil {
-		return false
-	}
-	_, ok := env[key]
-	return ok
+	return envmap.Has(env, key)
 }
 
 func DetectVSCodeLikeTerminal(env map[string]string) string {

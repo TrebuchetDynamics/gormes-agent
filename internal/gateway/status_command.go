@@ -9,6 +9,7 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/statuscmd"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
@@ -86,7 +87,14 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 		)
 	}
 	if kanbanStatus, ok := m.kanbanDispatcherStatus(ctx); ok {
-		lines = append(lines, formatKanbanDispatcherStatusLines(kanbanStatus, esc)...)
+		lines = append(lines, statuscmd.FormatKanbanDispatcherLines(statuscmd.KanbanDispatcherStatus{
+			State:       string(kanbanStatus.State),
+			LastTickAt:  kanbanStatus.LastTickAt,
+			LastError:   kanbanStatus.LastError,
+			Spawned:     kanbanStatus.Spawned,
+			SpawnFailed: kanbanStatus.SpawnFailed,
+			AutoBlocked: kanbanStatus.AutoBlocked,
+		}, esc)...)
 	}
 	lines = append(lines,
 		"",
@@ -117,28 +125,6 @@ func (m *Manager) kanbanDispatcherStatus(ctx context.Context) (KanbanDispatcherS
 		return KanbanDispatcherStatus{}, false
 	}
 	return kanbanStatus, true
-}
-
-func formatKanbanDispatcherStatusLines(status KanbanDispatcherStatus, esc func(string) string) []string {
-	state := strings.TrimSpace(string(status.State))
-	if state == "" {
-		state = "unknown"
-	}
-	lines := []string{
-		"**Kanban Dispatcher:** `" + state + "`",
-	}
-	if strings.TrimSpace(status.LastTickAt) != "" {
-		lines = append(lines, "**Kanban Last Tick:** `"+strings.TrimSpace(status.LastTickAt)+"`")
-	}
-	lines = append(lines,
-		fmt.Sprintf("**Kanban Spawned:** %d", status.Spawned),
-		fmt.Sprintf("**Kanban Spawn Failed:** %d", status.SpawnFailed),
-		fmt.Sprintf("**Kanban Auto Blocked:** %d", status.AutoBlocked),
-	)
-	if strings.TrimSpace(status.LastError) != "" {
-		lines = append(lines, "**Kanban Last Error:** "+esc(status.LastError))
-	}
-	return lines
 }
 
 func (m *Manager) resolveStatusSession(ctx context.Context, ev InboundEvent, frame kernel.RenderFrame) string {

@@ -1,6 +1,10 @@
 package composer
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/envmap"
+)
 
 // CanFastAppendShape mirrors Hermes' conservative fast-echo append gate. It
 // only allows one-line printable ASCII writes that cannot wrap the prompt.
@@ -40,14 +44,7 @@ func CanFastBackspaceShape(current string, cursor int, columns ...int) bool {
 }
 
 func SupportsFastEchoTerminal(env map[string]string) bool {
-	return envValue(env, "TERM_PROGRAM") != "Apple_Terminal"
-}
-
-func envValue(env map[string]string, key string) string {
-	if env == nil {
-		return ""
-	}
-	return env[key]
+	return envmap.Value(env, "TERM_PROGRAM") != "Apple_Terminal"
 }
 
 func isPrintableASCII(s string) bool {

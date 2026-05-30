@@ -1,6 +1,10 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+
+	configwriter "github.com/TrebuchetDynamics/gormes-agent/internal/config/configwriter"
+)
 
 // SetGormesDisplayPlatformToolProgress persists the Gormes-native gateway
 // display.platforms.<platform>.tool_progress override used by /verbose.
@@ -17,25 +21,5 @@ func SetGormesDisplayPlatformToolProgress(platform, mode string) error {
 }
 
 func setGormesDisplayPlatformToolProgressAt(path, platform, mode string) error {
-	if path == "" {
-		return fmt.Errorf("config: Gormes config path unavailable")
-	}
-	doc, err := readTOMLDoc(path)
-	if err != nil {
-		return err
-	}
-	display := ensureTOMLMap(doc, "display")
-	platforms := ensureTOMLMap(display, "platforms")
-	platformCfg := ensureTOMLMap(platforms, platform)
-	platformCfg["tool_progress"] = mode
-	return writeTOMLDoc(path, doc)
-}
-
-func ensureTOMLMap(parent map[string]any, key string) map[string]any {
-	if child, ok := parent[key].(map[string]any); ok {
-		return child
-	}
-	child := map[string]any{}
-	parent[key] = child
-	return child
+	return configwriter.SetDisplayPlatformToolProgress(path, platform, mode)
 }

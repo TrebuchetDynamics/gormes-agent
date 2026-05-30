@@ -12,39 +12,6 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 )
 
-func TestRenderCommandsCatalogPaginatesBuiltinsAndSkills(t *testing.T) {
-	builtins := make([]string, 0, 18)
-	for i := 1; i <= 18; i++ {
-		builtins = append(builtins, "`/cmd` -- command")
-	}
-	reply := RenderCommandsCatalog(CommandsCatalogRequest{
-		Platform:     "telegram",
-		RawArgs:      "2",
-		BuiltinLines: builtins,
-		SkillCommands: []PlatformCommand{
-			{Name: "review-skill", Description: "Review code"},
-			{Name: "ops-skill", Description: "Operate safely"},
-		},
-	})
-
-	for _, want := range []string{"Available commands", "page 2/2", "Skill commands", "`/ops-skill`", "`/review-skill`"} {
-		if !strings.Contains(reply, want) {
-			t.Fatalf("catalog missing %q:\n%s", want, reply)
-		}
-	}
-}
-
-func TestRenderCommandsCatalogUsageAndOutOfRange(t *testing.T) {
-	if got := RenderCommandsCatalog(CommandsCatalogRequest{RawArgs: "wat", BuiltinLines: []string{"`/help` -- Show available commands"}}); !strings.Contains(got, "Usage: /commands [page]") {
-		t.Fatalf("invalid args reply = %q, want usage", got)
-	}
-
-	got := RenderCommandsCatalog(CommandsCatalogRequest{RawArgs: "99", BuiltinLines: []string{"`/help` -- Show available commands"}})
-	if !strings.Contains(got, "page 1/1") || !strings.Contains(got, "requested page 99 out of range") {
-		t.Fatalf("out-of-range reply = %q, want clamped page notice", got)
-	}
-}
-
 func TestManagerCommandsCommandIncludesSkillsAndDoesNotLeakDuringActiveTurn(t *testing.T) {
 	root := writeCommandsCatalogSkill(t, "ops-skill", "Operate safely.")
 	ch := newFakeChannel("slack")

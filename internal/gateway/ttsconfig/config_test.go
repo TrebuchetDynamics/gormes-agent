@@ -1,0 +1,36 @@
+package ttsconfig
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestResolveSpeedAliases(t *testing.T) {
+	for _, raw := range []string{"very-fast", "veryfast", "very_fast", "very fast", " VERY FAST "} {
+		got, ok := ResolveSpeed(raw)
+		if !ok || got != SpeedVeryFast {
+			t.Fatalf("ResolveSpeed(%q) = %q, %v; want very-fast, true", raw, got, ok)
+		}
+	}
+	if _, ok := ResolveSpeed("warp"); ok {
+		t.Fatal("ResolveSpeed(warp) unexpectedly succeeded")
+	}
+}
+
+func TestDefaultVoiceForEngine(t *testing.T) {
+	if got := DefaultVoiceForEngine(EngineEdge); got != "en-US-AriaNeural" {
+		t.Fatalf("edge default voice = %q", got)
+	}
+	if got := DefaultVoiceForEngine(EngineLocal); got != "default" {
+		t.Fatalf("local default voice = %q", got)
+	}
+}
+
+func TestConfigString(t *testing.T) {
+	got := DefaultConfig.String()
+	for _, want := range []string{"TTS: enabled", "engine: edge", "voice: en-US-AriaNeural", "speed: normal", "language: auto"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("Config.String() missing %q in:\n%s", want, got)
+		}
+	}
+}

@@ -74,17 +74,6 @@ func (m *Manager) preprocessSlashSubmit(ctx context.Context, ch Channel, ev Inbo
 	return ev, m.dispatchCommandEvent(ctx, ch, commandEvent)
 }
 
-func slashCommandKindCarriesBody(kind EventKind) bool {
-	switch kind {
-	case EventSteer, EventQueue, EventTitle, EventSessions, EventProfile, EventSkills, EventCommands, EventReasoning,
-		EventBusy, EventTTS, EventReload, EventReloadSkills, EventRetry, EventGoal, EventTopic, EventKanban,
-		EventSpawn, EventPlatformControl:
-		return true
-	default:
-		return false
-	}
-}
-
 func (m *Manager) expandSkillSlashSubmit(ctx context.Context, ev InboundEvent, body string) (InboundEvent, bool) {
 	if m.cfg.SkillRuntime == nil {
 		return ev, false

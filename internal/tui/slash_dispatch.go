@@ -286,48 +286,19 @@ func slashInvocationArgs(input string) string {
 }
 
 func slashFallbackResult(input string) SlashResult {
-	resolved := cli.ResolveCommandAlias(input)
-	if resolved.RawCommand == "" {
+	fallback := uislash.FallbackForInput(input)
+	if !fallback.Handled {
 		return SlashResult{}
 	}
-	switch resolved.Kind {
-	case cli.CommandAliasExact, cli.CommandAliasAlias, cli.CommandAliasPrefix:
-		return SlashResult{Handled: true, StatusMessage: slashKnownUnhandledStatus(resolved.RawCommand, resolved.Policy)}
-	case cli.CommandAliasAmbiguous:
-		return SlashResult{Handled: true, StatusMessage: slashAmbiguousNameStatus(resolved.Matches)}
-	case cli.CommandAliasUnknown:
-		return SlashResult{
-			Handled:       true,
-			StatusMessage: fmt.Sprintf("unknown command /%s — no slash command by that name is available", resolved.RawCommand),
-		}
-	}
-	return SlashResult{}
+	return SlashResult{Handled: true, StatusMessage: fallback.Status}
 }
 
 func slashKnownUnhandledStatus(typed string, policy cli.CommandPolicy) string {
-	display := "/" + policy.Name
-	if typed != policy.Name {
-		display = fmt.Sprintf("/%s -> /%s", typed, policy.Name)
-	}
-	switch policy.Surface {
-	case cli.CommandSurfaceGateway:
-		return display + " is recognized but requires gateway support in the native TUI"
-	default:
-		return display + " is recognized but unavailable in the native TUI"
-	}
+	return uislash.KnownUnhandledStatus(typed, policy)
 }
 
 func slashAmbiguousNameStatus(matches []string) string {
-	limit := len(matches)
-	if limit > 6 {
-		limit = 6
-	}
-	names := append([]string(nil), matches[:limit]...)
-	suffix := ""
-	if len(matches) > limit {
-		suffix = ", ..."
-	}
-	return "ambiguous command: " + strings.Join(names, ", ") + suffix
+	return uislash.AmbiguousNameStatus(matches)
 }
 
 // mouseSlashHandler adapts the existing parseMouseTrackingSlash result into

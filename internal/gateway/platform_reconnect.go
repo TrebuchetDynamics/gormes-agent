@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,11 +13,11 @@ import (
 
 const (
 	defaultPlatformReconnectDelay   = 30 * time.Second
-	defaultChannelDisconnectTimeout = 5 * time.Second
+	defaultChannelDisconnectTimeout = gatewayplatforms.DefaultChannelDisconnectTimeout
 	// defaultPlatformPauseAfterFailures mirrors Hermes
 	// gateway/run.py _PAUSE_AFTER_FAILURES (PR #26600): pause a platform
 	// after this many consecutive retryable failures.
-	defaultPlatformPauseAfterFailures = 10
+	defaultPlatformPauseAfterFailures = gatewayplatforms.DefaultPlatformPauseAfterFailures
 )
 
 // RuntimeStatusWriterFunc adapts a function into RuntimeStatusWriter for
@@ -44,21 +42,7 @@ type PlatformStartupPlan struct {
 	Connect  PlatformConnector
 }
 
-// PlatformFailure records retry queue state for one failed platform.
-type PlatformFailure struct {
-	Platform  string
-	Attempts  int
-	NextRetry time.Time
-	LastError string
-	Retryable bool
-	// Paused is set by the per-platform circuit breaker after
-	// PauseAfterFailures consecutive retryable failures, or by a manual
-	// `/platform pause <name>`. A paused failure stays in the queue but the
-	// reconnect watcher skips it until ResumePausedPlatform clears it.
-	Paused bool
-	// PauseReason is the operator-facing reason recorded when Paused is set.
-	PauseReason string
-}
+type PlatformFailure = gatewayplatforms.PlatformFailure
 
 // PlatformLifecycleOptions controls clock, retry, and status side effects.
 type PlatformLifecycleOptions struct {
@@ -224,21 +208,7 @@ func connectPlatformWithTimeout(ctx context.Context, plan PlatformStartupPlan) (
 }
 
 func PlatformConnectTimeoutFromEnv(lookup func(string) string) time.Duration {
-	if lookup == nil {
-		lookup = func(string) string { return "" }
-	}
-	raw := strings.TrimSpace(lookup("HERMES_GATEWAY_PLATFORM_CONNECT_TIMEOUT"))
-	if raw == "" {
-		return 30 * time.Second
-	}
-	value, err := strconv.ParseFloat(raw, 64)
-	if err != nil {
-		return 30 * time.Second
-	}
-	if value < 0 {
-		value = 0
-	}
-	return time.Duration(value * float64(time.Second))
+	return gatewayplatforms.PlatformConnectTimeoutFromEnv(lookup)
 }
 
 func DefaultChannelDisconnectTimeoutFromEnv() time.Duration {
@@ -246,21 +216,7 @@ func DefaultChannelDisconnectTimeoutFromEnv() time.Duration {
 }
 
 func ChannelDisconnectTimeoutFromEnv(lookup func(string) string) time.Duration {
-	if lookup == nil {
-		lookup = func(string) string { return "" }
-	}
-	raw := strings.TrimSpace(lookup("HERMES_GATEWAY_ADAPTER_DISCONNECT_TIMEOUT"))
-	if raw == "" {
-		return defaultChannelDisconnectTimeout
-	}
-	value, err := strconv.ParseFloat(raw, 64)
-	if err != nil {
-		return defaultChannelDisconnectTimeout
-	}
-	if value < 0 {
-		value = 0
-	}
-	return time.Duration(value * float64(time.Second))
+	return gatewayplatforms.ChannelDisconnectTimeoutFromEnv(lookup)
 }
 
 func newPlatformFailure(platform string, err error, attempts int, opts PlatformLifecycleOptions) PlatformFailure {
@@ -338,21 +294,7 @@ func normalizePlatformID(value string) string {
 // parity), then GORMES_GATEWAY_PAUSE_AFTER_FAILURES, and falls back to the
 // Hermes default of 10 for empty, invalid, or non-positive values.
 func PlatformPauseThresholdFromEnv(lookup func(string) string) int {
-	if lookup == nil {
-		lookup = func(string) string { return "" }
-	}
-	for _, key := range []string{"HERMES_GATEWAY_PAUSE_AFTER_FAILURES", "GORMES_GATEWAY_PAUSE_AFTER_FAILURES"} {
-		raw := strings.TrimSpace(lookup(key))
-		if raw == "" {
-			continue
-		}
-		value, err := strconv.Atoi(raw)
-		if err != nil || value <= 0 {
-			return defaultPlatformPauseAfterFailures
-		}
-		return value
-	}
-	return defaultPlatformPauseAfterFailures
+	return gatewayplatforms.PlatformPauseThresholdFromEnv(lookup)
 }
 
 func resolvePlatformPauseThreshold(opts PlatformLifecycleOptions) int {
@@ -366,7 +308,7 @@ func resolvePlatformPauseThreshold(opts PlatformLifecycleOptions) int {
 // time far enough out that even a stale code path that misses the Paused flag
 // will not fire the watcher on a paused platform.
 func platformPausedNextRetry(now time.Time) time.Time {
-	return now.Add(100 * 365 * 24 * time.Hour)
+	return gatewayplatforms.PlatformPausedNextRetry(now)
 }
 
 func autoPauseGuidance(platform string, attempts int, reason string) string {
@@ -380,47 +322,15 @@ func autoPauseGuidance(platform string, attempts int, reason string) string {
 // is idempotent: pausing an already-paused queued platform returns true.
 // Pausing a platform that is not in the failed/retry set returns false.
 func PauseFailedPlatform(failures map[string]PlatformFailure, name, reason string) bool {
-	platform := normalizePlatformID(name)
-	if failures == nil || platform == "" {
-		return false
-	}
-	failure, ok := failures[platform]
-	if !ok {
-		return false
-	}
-	if failure.Paused {
-		return true
-	}
-	if strings.TrimSpace(reason) == "" {
-		reason = "paused via /platform pause"
-	}
-	failure.Paused = true
-	failure.PauseReason = reason
-	failure.NextRetry = platformPausedNextRetry(time.Now().UTC())
-	failures[platform] = failure
-	return true
+	return gatewayplatforms.PauseFailedPlatform(failures, name, reason)
 }
 
 // ResumePausedPlatform unpauses a platform, resets its attempt counter, and
 // schedules an immediate retry. Returns false when the platform is not queued
 // or was not paused.
 func ResumePausedPlatform(failures map[string]PlatformFailure, name string, opts PlatformLifecycleOptions) bool {
-	platform := normalizePlatformID(name)
-	if failures == nil || platform == "" {
-		return false
-	}
-	failure, ok := failures[platform]
-	if !ok || !failure.Paused {
-		return false
-	}
-	failure.Paused = false
-	failure.PauseReason = ""
-	failure.Attempts = 0
-	failure.NextRetry = platformLifecycleNow(opts)
-	failures[platform] = failure
-	return true
+	return gatewayplatforms.ResumePausedPlatform(failures, name, func() time.Time { return platformLifecycleNow(opts) })
 }
-
 func knownGatewayPlatformID(name string) (string, bool) {
 	want := normalizePlatformID(name)
 	if want == "" {
@@ -440,88 +350,9 @@ func knownGatewayPlatformID(name string) (string, bool) {
 // operator-facing reply text and mutates the supplied failed-platform set for
 // pause/resume, mirroring the upstream handler's effect on _failed_platforms.
 func HandlePlatformCommand(text string, connected map[string]Channel, failures map[string]PlatformFailure) string {
-	fields := strings.Fields(strings.TrimSpace(text))
-	if len(fields) > 0 && strings.HasPrefix(strings.ToLower(strings.TrimLeft(fields[0], "/")), "platform") {
-		fields = fields[1:]
+	connectedNames := make([]string, 0, len(connected))
+	for name := range connected {
+		connectedNames = append(connectedNames, name)
 	}
-	action := "list"
-	if len(fields) > 0 {
-		action = strings.ToLower(fields[0])
-	}
-	target := ""
-	if len(fields) > 1 {
-		target = strings.ToLower(fields[1])
-	}
-
-	switch action {
-	case "list":
-		var b strings.Builder
-		b.WriteString("**Gateway platforms**\n")
-		names := make([]string, 0, len(connected))
-		for name := range connected {
-			names = append(names, normalizePlatformID(name))
-		}
-		sort.Strings(names)
-		if len(names) > 0 {
-			b.WriteString("Connected: " + strings.Join(names, ", ") + "\n")
-		} else {
-			b.WriteString("Connected: (none)\n")
-		}
-		if len(failures) == 0 {
-			b.WriteString("Failed/paused: (none)")
-			return b.String()
-		}
-		failedNames := make([]string, 0, len(failures))
-		for name := range failures {
-			failedNames = append(failedNames, normalizePlatformID(name))
-		}
-		sort.Strings(failedNames)
-		for _, name := range failedNames {
-			info := failures[name]
-			if info.Paused {
-				reason := info.PauseReason
-				if reason == "" {
-					reason = "paused"
-				}
-				b.WriteString(fmt.Sprintf("  - %s - PAUSED (%s). Resume with `/platform resume %s`.\n", name, reason, name))
-				continue
-			}
-			b.WriteString(fmt.Sprintf("  - %s - retrying (attempt %d)\n", name, info.Attempts))
-		}
-		return strings.TrimRight(b.String(), "\n")
-
-	case "pause", "resume":
-		if target == "" {
-			return fmt.Sprintf("Usage: /platform %s <name>", action)
-		}
-		platform, ok := knownGatewayPlatformID(target)
-		if !ok {
-			return fmt.Sprintf("Unknown platform: %s", target)
-		}
-		_, queued := failures[platform]
-		if action == "pause" {
-			if !queued {
-				return fmt.Sprintf("%s is not in the retry queue (it's either connected or not enabled).", platform)
-			}
-			if failures[platform].Paused {
-				return fmt.Sprintf("%s is already paused.", platform)
-			}
-			PauseFailedPlatform(failures, platform, "paused via /platform pause")
-			return fmt.Sprintf("%s paused. Resume with `/platform resume %s` or restart the gateway to reset.", platform, platform)
-		}
-		if !queued {
-			return fmt.Sprintf("%s is not in the retry queue; nothing to resume.", platform)
-		}
-		if !failures[platform].Paused {
-			return fmt.Sprintf("%s is already retrying; no resume needed.", platform)
-		}
-		ResumePausedPlatform(failures, platform, PlatformLifecycleOptions{})
-		return fmt.Sprintf("%s resumed; retrying on next watcher tick.", platform)
-
-	default:
-		return "Usage: /platform <list|pause|resume> [name]\n" +
-			"  /platform list - show platform status\n" +
-			"  /platform pause <name> - stop retrying a failing platform\n" +
-			"  /platform resume <name> - re-queue a paused platform"
-	}
+	return gatewayplatforms.HandlePlatformCommand(text, connectedNames, failures)
 }

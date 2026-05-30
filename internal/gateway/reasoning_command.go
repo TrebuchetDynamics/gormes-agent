@@ -58,6 +58,14 @@ type SessionReasoningState = gatewayreasoning.SessionReasoningState
 // know about the session-vs-global distinction beyond the reply.
 type ReasoningReply = gatewayreasoning.ReasoningReply
 
+// ReasoningDispatcher owns per-session /reasoning command state.
+type ReasoningDispatcher = gatewayreasoning.Dispatcher
+
+// NewReasoningDispatcher returns a session-keyed /reasoning dispatcher.
+func NewReasoningDispatcher(persistGlobal func(ReasoningEffort) error) *ReasoningDispatcher {
+	return gatewayreasoning.NewDispatcher(persistGlobal)
+}
+
 // ApplyReasoningCommand mutates the supplied SessionReasoningState according
 // to a parsed ReasoningCommand. persistGlobal is invoked only for Set actions
 // with Global=true; on failure the slice falls back to a session-only override

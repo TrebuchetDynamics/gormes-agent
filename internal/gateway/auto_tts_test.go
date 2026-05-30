@@ -51,21 +51,6 @@ func (f *fakeGatewayTTSTool) Execute(_ context.Context, args json.RawMessage) (j
 	})
 }
 
-func TestInboundRequestsAudioReply(t *testing.T) {
-	if !inboundRequestsAudioReply(InboundEvent{Attachments: []Attachment{{Kind: "voice"}}}) {
-		t.Fatal("voice attachment did not request audio reply")
-	}
-	if !inboundRequestsAudioReply(InboundEvent{Text: "I cannot read right now, send audio too"}) {
-		t.Fatal("cannot-read text did not request audio reply")
-	}
-	if !inboundRequestsAudioReply(InboundEvent{Text: "Mandamelo en audio, por favor"}) {
-		t.Fatal("Spanish audio request did not request audio reply")
-	}
-	if inboundRequestsAudioReply(InboundEvent{Text: "plain written answer is fine"}) {
-		t.Fatal("plain text unexpectedly requested audio reply")
-	}
-}
-
 func TestManagerFinalDeliveryAddsTTSMediaForAudioRequestedTurn(t *testing.T) {
 	reg := tools.NewRegistry()
 	tts := &fakeGatewayTTSTool{}

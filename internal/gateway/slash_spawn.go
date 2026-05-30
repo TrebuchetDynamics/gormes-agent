@@ -2,10 +2,10 @@ package gateway
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
+	gatewayspawn "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/spawncmd"
 )
 
 type AgentSpawnEvidence string
@@ -23,7 +23,7 @@ const (
 	AgentSpawnAckFailed            AgentSpawnEvidence = "agent_spawn_ack_failed"
 )
 
-var errSpawnUsage = errors.New("usage: /spawn <name> [persona text...]")
+var errSpawnUsage = gatewayspawn.ErrUsage
 
 // SpawnAgentRegistry is the small part of Goncho's dynamic registry needed by
 // channel-native /spawn flows.
@@ -44,10 +44,7 @@ type DiscordThreadCreator interface {
 	CreateThread(ctx context.Context, channelID, name string) (threadID string, err error)
 }
 
-type SpawnSlashCommand struct {
-	Name    string
-	Persona string
-}
+type SpawnSlashCommand = gatewayspawn.Command
 
 type SlashSpawnRequest struct {
 	Event              InboundEvent
@@ -66,18 +63,7 @@ type SlashSpawnResult struct {
 }
 
 func ParseSpawnSlash(raw string) (SpawnSlashCommand, error) {
-	token, args := splitGatewayCommandLine(raw)
-	if slashCommandName(token) != "spawn" {
-		return SpawnSlashCommand{}, errSpawnUsage
-	}
-	fields := strings.Fields(args)
-	if len(fields) == 0 {
-		return SpawnSlashCommand{}, errSpawnUsage
-	}
-	return SpawnSlashCommand{
-		Name:    fields[0],
-		Persona: strings.TrimSpace(strings.TrimPrefix(args, fields[0])),
-	}, nil
+	return gatewayspawn.Parse(raw)
 }
 
 func HandleSlashSpawn(ctx context.Context, req SlashSpawnRequest) SlashSpawnResult {

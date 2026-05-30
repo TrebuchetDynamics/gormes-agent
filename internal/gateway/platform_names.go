@@ -25,3 +25,11 @@ func isDiscordPlatform(platform string) bool {
 func isSlackPlatform(platform string) bool {
 	return gatewayplatforms.IsSlackPlatform(platform)
 }
+
+func telegramDMTopicReplyFallbackLane(platform, chatID, threadID string) bool {
+	return gatewayplatforms.TelegramDMTopicReplyFallbackLane(platform, chatID, threadID)
+}
+
+func defaultToolProgressModeForPlatform(platform string) string {
+	return gatewayplatforms.DefaultToolProgressModeForPlatform(platform)
+}

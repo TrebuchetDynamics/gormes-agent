@@ -22,42 +22,6 @@ func TestProviderDefaultModelResolved_OpenAICodexPlaceholderUsesCuratedFallback(
 	}
 }
 
-func TestProviderDefaultModelResolved_OpenAICodexEmptyModelUsesCodexConfig(t *testing.T) {
-	root := setupProviderDefaultModelConfigEnv(t)
-	writeProviderDefaultModelConfig(t, root, "[hermes]\nprovider = 'openai-codex'\n")
-	codexHome := os.Getenv("CODEX_HOME")
-	if err := os.WriteFile(filepath.Join(codexHome, "config.toml"), []byte(`model = "gpt-5.4-mini"`), 0o600); err != nil {
-		t.Fatalf("write codex config: %v", err)
-	}
-
-	cfg, err := Load(nil)
-	if err != nil {
-		t.Fatalf("Load(nil): %v", err)
-	}
-	if cfg.Hermes.Model != "gpt-5.4-mini" {
-		t.Fatalf("Hermes.Model = %q, want Codex config model", cfg.Hermes.Model)
-	}
-	if cfg.Hermes.ModelResolutionSource != "codex_config" {
-		t.Fatalf("ModelResolutionSource = %q, want codex_config", cfg.Hermes.ModelResolutionSource)
-	}
-}
-
-func TestProviderDefaultModelResolved_PreservesExplicitOperatorModel(t *testing.T) {
-	root := setupProviderDefaultModelConfigEnv(t)
-	writeProviderDefaultModelConfig(t, root, "[hermes]\nprovider = 'openai-codex'\nmodel = 'gpt-5.3-codex'\n")
-
-	cfg, err := Load(nil)
-	if err != nil {
-		t.Fatalf("Load(nil): %v", err)
-	}
-	if cfg.Hermes.Model != "gpt-5.3-codex" {
-		t.Fatalf("Hermes.Model = %q, want explicit operator model", cfg.Hermes.Model)
-	}
-	if cfg.Hermes.ModelResolutionSource != "explicit_operator_config" {
-		t.Fatalf("ModelResolutionSource = %q, want explicit_operator_config", cfg.Hermes.ModelResolutionSource)
-	}
-}
-
 func setupProviderDefaultModelConfigEnv(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()

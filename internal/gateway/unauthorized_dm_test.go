@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestUnauthorizedDM_DenyModeSendsDeterministicDenialAndRecordsEvidence(t *testing.T) {
@@ -171,12 +170,27 @@ func TestUnauthorizedDM_GroupOrChannelMessagesStaySilent(t *testing.T) {
 	assertPairingFileNotCreated(t, store)
 }
 
+var unauthorizedDMTestStorePaths = map[*PairingStore]string{}
+
 func newUnauthorizedDMTestStore(t *testing.T) *PairingStore {
 	t.Helper()
-	store := NewPairingStore(filepath.Join(t.TempDir(), "pairing.json"))
-	now := time.Date(2026, 4, 26, 1, 0, 0, 0, time.UTC)
-	store.now = func() time.Time { return now }
+	path := filepath.Join(t.TempDir(), "pairing.json")
+	store := NewPairingStore(path)
+	unauthorizedDMTestStorePaths[store] = path
 	return store
+}
+
+func assertHermesPairingCode(t *testing.T, code string) {
+	t.Helper()
+	const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	if len(code) != 8 {
+		t.Fatalf("len(%q) = %d, want %d", code, len(code), 8)
+	}
+	for _, c := range code {
+		if !strings.ContainsRune(alphabet, c) {
+			t.Fatalf("code %q contains %q outside Hermes alphabet %q", code, c, alphabet)
+		}
+	}
 }
 
 func assertNoAuthorizedSessionLeak(t *testing.T, text string) {
@@ -207,7 +221,8 @@ func assertUnauthorizedDMEvidence(t *testing.T, store *PairingStore, reason Pair
 
 func assertPairingFileNotCreated(t *testing.T, store *PairingStore) {
 	t.Helper()
-	if _, err := os.Stat(store.path); !os.IsNotExist(err) {
+	path := unauthorizedDMTestStorePaths[store]
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Fatalf("pairing store file err = %v, want not created", err)
 	}
 }

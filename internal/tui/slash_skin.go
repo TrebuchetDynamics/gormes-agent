@@ -3,6 +3,8 @@ package tui
 import (
 	"fmt"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/skin"
 )
 
 func skinSlashHandler(input string, model *Model) SlashResult {
@@ -39,23 +41,11 @@ func skinSlashHandler(input string, model *Model) SlashResult {
 }
 
 func parseSkinSlashName(input string) string {
-	trimmed := strings.TrimSpace(input)
-	if trimmed == "" {
-		return ""
-	}
-	_, rest, ok := strings.Cut(trimmed, " ")
-	if !ok {
-		return ""
-	}
-	return strings.TrimSpace(rest)
+	return skin.SlashName(input)
 }
 
 func skinDisplayName(name string) string {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return "default"
-	}
-	return name
+	return skin.DisplayName(name)
 }
 
 func (m *Model) applySkinName(name string) (string, error) {

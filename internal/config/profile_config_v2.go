@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config/profilestorage"
 )
 
-const DefaultProfileID = "main"
+const DefaultProfileID = profilestorage.DefaultProfileID
 
 type ProfileCfg struct {
 	Enabled      bool                          `toml:"enabled" yaml:"enabled"`

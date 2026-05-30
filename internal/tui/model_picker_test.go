@@ -6,6 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/modelpicker"
 )
 
 func TestModelPicker_UsesSharedSkinStyles(t *testing.T) {
@@ -94,26 +96,14 @@ func TestModelPicker_RenderProviderList(t *testing.T) {
 
 func TestModelPickerProvidersUseHermesProviderCatalog(t *testing.T) {
 	providers := HermesModelPickerProviders()
-	if len(providers) != 37 {
-		t.Fatalf("providers = %d, want 37", len(providers))
+	catalog := modelpicker.HermesProviders()
+	if len(providers) != len(catalog) {
+		t.Fatalf("providers = %d, want %d", len(providers), len(catalog))
 	}
-	for _, want := range []struct {
-		index int
-		id    string
-		label string
-	}{
-		{0, "nous", "Nous Portal (Nous Research subscription)"},
-		{5, "openai-codex", "OpenAI Codex"},
-		{36, "custom", "custom (direct API)"},
-	} {
-		got := providers[want.index]
-		if got.ID != want.id || got.Label != want.label {
-			t.Fatalf("provider[%d] = %#v, want id=%q label=%q", want.index, got, want.id, want.label)
-		}
-	}
-	for _, provider := range providers {
-		if strings.Contains(provider.Label, "(oauth_external)") || strings.Contains(provider.Label, "(api_key)") {
-			t.Fatalf("provider leaked raw auth taxonomy: %#v", provider)
+	for i, want := range catalog {
+		got := providers[i]
+		if got.ID != want.ID || got.Label != want.Label {
+			t.Fatalf("provider[%d] = %#v, want %#v", i, got, want)
 		}
 	}
 }

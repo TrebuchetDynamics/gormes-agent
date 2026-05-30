@@ -28,7 +28,12 @@ gormes.log
 crash-*.log
 .pi/gormes-loop/*.jsonl
 .pi/development-goal/
+.pi/auto-folder-refactor-sessions/
+.pi/candidates-folder-refactor/
 **/.pi/development-goal/
+**/.pi/auto-folder-refactor-sessions/
+**/.pi/candidates-folder-refactor/
+**/.pi/folder-refactor/
 
 # ── Local environment backups (may contain credentials) ──
 .env.backup.*

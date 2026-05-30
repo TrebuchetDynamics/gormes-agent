@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/reactions"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
@@ -42,11 +43,5 @@ func (m *Manager) completeProcessingReaction(ctx context.Context, ch Channel, ou
 }
 
 func processingOutcomeForFrame(phase kernel.Phase, cancelled bool) ProcessingOutcome {
-	if cancelled || phase == kernel.PhaseCancelling {
-		return ProcessingOutcomeCancelled
-	}
-	if phase == kernel.PhaseFailed {
-		return ProcessingOutcomeFailure
-	}
-	return ProcessingOutcomeSuccess
+	return reactions.OutcomeForFrame(phase, cancelled)
 }

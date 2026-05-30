@@ -4,49 +4,12 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 )
-
-func TestChannelScopeResolveSkillsAndPrompts(t *testing.T) {
-	bindings := []ChannelSkillBinding{
-		{ID: "C-exact", Skills: []string{" research ", "review", "research", ""}},
-		{ID: "C-parent", Skill: "parent-skill"},
-	}
-	if got := ResolveChannelSkills(bindings, "C-exact", "C-parent"); !reflect.DeepEqual(got, []string{"research", "review"}) {
-		t.Fatalf("exact ResolveChannelSkills = %#v, want research/review", got)
-	}
-	if got := ResolveChannelSkills(bindings, "C-thread", "C-parent"); !reflect.DeepEqual(got, []string{"parent-skill"}) {
-		t.Fatalf("parent ResolveChannelSkills = %#v, want parent-skill", got)
-	}
-
-	mixed := []any{
-		"skip",
-		map[string]any{"id": "C-map", "skills": []any{"alpha", 7, "beta", "alpha"}},
-	}
-	if got := ResolveChannelSkills(mixed, "C-map", ""); !reflect.DeepEqual(got, []string{"alpha", "beta"}) {
-		t.Fatalf("map ResolveChannelSkills = %#v, want alpha/beta", got)
-	}
-
-	prompts := map[string]any{
-		"C-exact":  " Exact prompt ",
-		"C-parent": "Parent prompt",
-		"C-blank":  "   ",
-	}
-	if got := ResolveChannelPrompt(prompts, "C-exact", "C-parent"); got != "Exact prompt" {
-		t.Fatalf("exact ResolveChannelPrompt = %q, want Exact prompt", got)
-	}
-	if got := ResolveChannelPrompt(prompts, "C-thread", "C-parent"); got != "Parent prompt" {
-		t.Fatalf("parent ResolveChannelPrompt = %q, want Parent prompt", got)
-	}
-	if got := ResolveChannelPrompt(prompts, "C-blank", ""); got != "" {
-		t.Fatalf("blank ResolveChannelPrompt = %q, want empty", got)
-	}
-}
 
 func TestManager_ChannelScopeAutoSkillsAndPrompt(t *testing.T) {
 	root := t.TempDir()
@@ -98,7 +61,7 @@ func TestManager_ChannelScopeAutoSkillsAndPrompt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildSkillBlock: %v", err)
 	}
-	if !reflect.DeepEqual(names, []string{"research", "review"}) {
+	if strings.Join(names, ",") != "research,review" {
 		t.Fatalf("skill names = %#v, want research/review", names)
 	}
 	if !strings.Contains(block, "Research-only instructions.") || !strings.Contains(block, "Review-only instructions.") {

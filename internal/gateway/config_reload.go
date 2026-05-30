@@ -2,11 +2,12 @@ package gateway
 
 import (
 	"context"
-	"errors"
-	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/configreload"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/textvalue"
 )
 
-var ErrConfigReloadUnavailable = errors.New("gateway config reload unavailable")
+var ErrConfigReloadUnavailable = configreload.ErrUnavailable
 
 func (m *Manager) Reload(ctx context.Context) error {
 	reload := m.configReloader()
@@ -43,7 +44,7 @@ func (m *Manager) applyReloadableConfig(ctx context.Context, next ManagerConfig)
 	m.cfg.FreshFinalAfter = next.FreshFinalAfter
 	m.cfg.ToolProgressMode = next.ToolProgressMode
 	m.cfg.ToolProgressCommandEnabled = next.ToolProgressCommandEnabled
-	m.cfg.BusyInputMode = firstNonEmpty(next.BusyInputMode, "interrupt")
+	m.cfg.BusyInputMode = textvalue.FirstNonEmptyTrimmed(next.BusyInputMode, "interrupt")
 	m.cfg.ReplyMode = next.ReplyMode
 	m.cfg.ToolProgressModes = cloneStringMap(next.ToolProgressModes)
 	if next.PersistToolProgressMode != nil {
@@ -100,46 +101,14 @@ func (m *Manager) handleReloadCommand(ctx context.Context, ch Channel, ev Inboun
 	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Config reloaded. Reloadable gateway settings are active without a restart.")
 }
 
-func sanitizeConfigReloadError(err error) string {
-	if err == nil {
-		return ""
-	}
-	msg := strings.TrimSpace(err.Error())
-	if msg == "" {
-		return ""
-	}
-	lower := strings.ToLower(msg)
-	for _, hint := range []string{"api_key", "token", "authorization", "bearer ", "secret", "password"} {
-		if strings.Contains(lower, hint) {
-			return "[redacted]"
-		}
-	}
-	if len(msg) > 240 {
-		return msg[:240]
-	}
-	return msg
-}
+func sanitizeConfigReloadError(err error) string { return configreload.SanitizeError(err) }
 
 func cloneStringMap(input map[string]string) map[string]string {
-	out := make(map[string]string, len(input))
-	for k, v := range input {
-		out[k] = v
-	}
-	return out
+	return configreload.CloneStringMap(input)
 }
 
-func cloneBoolMap(input map[string]bool) map[string]bool {
-	out := make(map[string]bool, len(input))
-	for k, v := range input {
-		out[k] = v
-	}
-	return out
-}
+func cloneBoolMap(input map[string]bool) map[string]bool { return configreload.CloneBoolMap(input) }
 
 func cloneNestedBoolMap(input map[string]map[string]bool) map[string]map[string]bool {
-	out := make(map[string]map[string]bool, len(input))
-	for platform, users := range input {
-		out[platform] = cloneBoolMap(users)
-	}
-	return out
+	return configreload.CloneNestedBoolMap(input)
 }

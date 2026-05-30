@@ -1,11 +1,9 @@
 package gateway
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"log/slog"
-	"strings"
 	"sync"
 	"testing"
 
@@ -361,25 +359,5 @@ func TestAutoTitleWiring_NilTitleModelFuncRecordsEvidence(t *testing.T) {
 	// nil gen → AutoTitleCodeProviderFailed per auto_title.go:113
 	if got := evidences[0].Code; got != session.AutoTitleCodeProviderFailed {
 		t.Errorf("evidence code = %q, want %q", got, session.AutoTitleCodeProviderFailed)
-	}
-}
-
-func TestAutoTitleWiring_AuxiliarySinkPanicLogged(t *testing.T) {
-	ctx := context.Background()
-	var logs bytes.Buffer
-	oldLogger := slog.Default()
-	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
-	t.Cleanup(func() {
-		slog.SetDefault(oldLogger)
-	})
-
-	store := session.NewMetadataTitleStore(ctx, session.NewMemMap())
-	runAutoTitle(ctx, store, nil, "sess-autotitle-sink-panic", "hello", "hi there", func(context.Context, session.AutoTitleEvidence) {
-		panic("sink boom")
-	})
-
-	got := logs.String()
-	if !strings.Contains(got, "auto_title_sink_panic") {
-		t.Fatalf("auto-title sink panic log = %q, want typed panic evidence", got)
 	}
 }

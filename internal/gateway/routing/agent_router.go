@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/textvalue"
 )
 
 type AgentBindingTier string
@@ -93,7 +94,7 @@ func (r AgentRouter) Resolve(req AgentRouteRequest) AgentRouteDecision {
 		agent = config.AgentCfg{ID: agentID}
 	}
 	return AgentRouteDecision{
-		AgentID:      firstNonEmpty(agent.ID, agentID, config.DefaultAgentID),
+		AgentID:      textvalue.FirstNonEmptyTrimmed(agent.ID, agentID, config.DefaultAgentID),
 		Name:         agent.Name,
 		Workspace:    agent.Workspace,
 		AgentDir:     agent.AgentDir,
@@ -251,13 +252,4 @@ func cleanRouteStrings(values []string) []string {
 		}
 	}
 	return out
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if value = strings.TrimSpace(value); value != "" {
-			return value
-		}
-	}
-	return ""
 }

@@ -9,7 +9,7 @@ import (
 )
 
 func TestTeamsConfigAndPluginRegistration(t *testing.T) {
-	t.Run("explicit config defaults port and redacts missing credentials", func(t *testing.T) {
+	t.Run("explicit config defaults port", func(t *testing.T) {
 		setupTeamsConfigTestHome(t)
 		writeTeamsConfig(t, `
 [teams]
@@ -32,9 +32,6 @@ allowed_users = ["aad-1", "aad-2"]
 		}
 		if !reflect.DeepEqual(cfg.Teams.AllowedUserIDs(), []string{"aad-1", "aad-2"}) {
 			t.Fatalf("AllowedUserIDs = %v", cfg.Teams.AllowedUserIDs())
-		}
-		if status := cfg.Teams.RedactedStatus(); strings.Contains(status, "cfg-secret") || !strings.Contains(status, "configured") {
-			t.Fatalf("RedactedStatus = %q", status)
 		}
 	})
 

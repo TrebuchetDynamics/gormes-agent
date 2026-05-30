@@ -144,30 +144,13 @@ func treeRestoreSlash(args []string, model *Model) SlashResult {
 }
 
 func slashArgs(input string) []string {
-	fields := strings.Fields(strings.TrimSpace(input))
-	if len(fields) <= 1 {
-		return nil
-	}
-	return fields[1:]
+	return sessiontree.SlashArgs(input)
 }
 
 func treeSlashIsFilter(arg string) bool {
-	arg = strings.ToLower(strings.TrimSpace(arg))
-	return arg == "--filter" || strings.HasPrefix(arg, "--filter=") || arg == "filter"
+	return sessiontree.SlashIsFilter(arg)
 }
 
 func parseTreeSlashFilter(args []string) string {
-	if len(args) == 0 {
-		return "default"
-	}
-	first := strings.ToLower(strings.TrimSpace(args[0]))
-	switch {
-	case first == "--filter" || first == "filter":
-		if len(args) > 1 {
-			return sessiontree.NormalizeFilter(args[1])
-		}
-	case strings.HasPrefix(first, "--filter="):
-		return sessiontree.NormalizeFilter(strings.TrimPrefix(first, "--filter="))
-	}
-	return sessiontree.NormalizeFilter(first)
+	return sessiontree.ParseSlashFilter(args)
 }

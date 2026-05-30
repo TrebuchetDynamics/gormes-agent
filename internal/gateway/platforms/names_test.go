@@ -34,3 +34,24 @@ func TestAccountScopedPlatformNames(t *testing.T) {
 		}
 	}
 }
+
+func TestTelegramDMTopicReplyFallbackLaneIncludesAccounts(t *testing.T) {
+	if !TelegramDMTopicReplyFallbackLane("telegram:ops", "12345", "67890") {
+		t.Fatal("expected account-scoped Telegram platform to use DM topic reply fallback")
+	}
+	if TelegramDMTopicReplyFallbackLane("telegram:ops", "-10012345", "67890") {
+		t.Fatal("did not expect group chat IDs to use DM topic reply fallback")
+	}
+	if TelegramDMTopicReplyFallbackLane("discord", "12345", "67890") {
+		t.Fatal("did not expect non-Telegram platforms to use Telegram DM topic reply fallback")
+	}
+}
+
+func TestAccountScopedDefaultToolProgressModes(t *testing.T) {
+	if got := DefaultToolProgressModeForPlatform("discord:ops"); got != "all" {
+		t.Fatalf("discord account tool progress mode = %q, want all", got)
+	}
+	if got := DefaultToolProgressModeForPlatform("slack:team-a"); got != "off" {
+		t.Fatalf("slack account tool progress mode = %q, want off", got)
+	}
+}

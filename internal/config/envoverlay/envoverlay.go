@@ -1,0 +1,242 @@
+package envoverlay
+
+import (
+	"bufio"
+	"io"
+	"os"
+	"strings"
+
+	configwriter "github.com/TrebuchetDynamics/gormes-agent/internal/config/configwriter"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config/credentials"
+)
+
+// parseDotenv reads KEY=VALUE lines from r and returns the key→value
+// map. Supports:
+//   - Leading `export ` prefix (stripped)
+//   - `#` comment lines and blank lines (skipped)
+//   - Double-quoted values with `\n`, `\t`, `\"`, `\\` escape sequences
+//   - Single-quoted values (literal, no escape expansion)
+//   - Unquoted values with trailing whitespace stripped
+//
+// Malformed lines (no `=` or empty key) are silently skipped — a bad
+// dotenv shouldn't prevent a config load. Returns error only on I/O
+// failures from the Reader.
+func ParseDotenv(r io.Reader) (map[string]string, error) {
+	out := make(map[string]string)
+	sc := bufio.NewScanner(r)
+	for sc.Scan() {
+		line := strings.TrimLeft(sc.Text(), " \t")
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "export ") || strings.HasPrefix(line, "export\t") {
+			line = strings.TrimLeft(line[len("export"):], " \t")
+		}
+		eq := strings.IndexByte(line, '=')
+		if eq <= 0 {
+			// No `=` or empty key — malformed, skip.
+			continue
+		}
+		key := strings.TrimSpace(line[:eq])
+		val := line[eq+1:]
+		if key == "" {
+			continue
+		}
+		out[key] = unquoteDotenvValue(val)
+	}
+	if err := sc.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// unquoteDotenvValue handles the three quoting modes.
+func unquoteDotenvValue(raw string) string {
+	raw = strings.TrimLeft(raw, " \t")
+	if raw == "" {
+		return ""
+	}
+	switch raw[0] {
+	case '"':
+		// Find the matching closing quote, ignoring escaped `\"`.
+		end := findClosingQuote(raw, 1, '"')
+		if end < 0 {
+			// Unterminated — treat as literal minus the opening quote.
+			return raw[1:]
+		}
+		return expandDoubleQuotedEscapes(raw[1:end])
+	case '\'':
+		end := strings.IndexByte(raw[1:], '\'')
+		if end < 0 {
+			return raw[1:]
+		}
+		// Single quotes are literal — no escape expansion.
+		return raw[1 : 1+end]
+	default:
+		// Unquoted: strip trailing whitespace. Do not treat `#` as a
+		// comment-start here (dotenv convention: only leading-`#` is a
+		// comment line; trailing `#` is literal).
+		return strings.TrimRight(raw, " \t\r")
+	}
+}
+
+func findClosingQuote(s string, start int, q byte) int {
+	i := start
+	for i < len(s) {
+		c := s[i]
+		if c == '\\' && i+1 < len(s) {
+			// Skip escaped char (including escaped quote).
+			i += 2
+			continue
+		}
+		if c == q {
+			return i
+		}
+		i++
+	}
+	return -1
+}
+
+func expandDoubleQuotedEscapes(s string) string {
+	if !strings.ContainsRune(s, '\\') {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] != '\\' || i+1 >= len(s) {
+			b.WriteByte(s[i])
+			continue
+		}
+		switch s[i+1] {
+		case 'n':
+			b.WriteByte('\n')
+		case 't':
+			b.WriteByte('\t')
+		case 'r':
+			b.WriteByte('\r')
+		case '"':
+			b.WriteByte('"')
+		case '\\':
+			b.WriteByte('\\')
+		default:
+			// Unknown escape — preserve both chars literally.
+			b.WriteByte(s[i])
+			b.WriteByte(s[i+1])
+		}
+		i++ // consume the escaped char
+	}
+	return b.String()
+}
+
+// loadDotenvFiles reads the Gormes-native dotenv file and populates
+// os.Setenv for any key not already present in the ORIGINAL shell
+// environment. Precedence: shell env > Gormes `.env`. Silently no-ops
+// when the file is missing.
+//
+// Implementation note: we snapshot the shell env ONCE before applying
+// any files, then walk files low→high precedence. That way a later
+// (higher-precedence) file can overwrite an earlier file's value for a
+// key the shell didn't set, but no file can overwrite a shell value.
+func LoadDotenvFiles() {
+	shellHasKey := snapshotShellEnv()
+	for _, p := range dotenvCandidatePaths() {
+		applyDotenvFile(p, shellHasKey)
+	}
+}
+
+type OptionalEnvEvidence struct {
+	Names       []string
+	Available   bool
+	PresentName string
+	Evidence    string
+}
+
+func CheckOptionalEnvAny(names ...string) OptionalEnvEvidence {
+	LoadDotenvFiles()
+	return CheckOptionalEnvAnyWithLookup(os.LookupEnv, names...)
+}
+
+func CheckOptionalEnvAnyWithLookup(lookup func(string) (string, bool), names ...string) OptionalEnvEvidence {
+	normalized := normalizeOptionalEnvNames(names)
+	out := OptionalEnvEvidence{Names: normalized}
+	for _, name := range normalized {
+		value, ok := lookup(name)
+		if ok && strings.TrimSpace(value) != "" {
+			out.Available = true
+			out.PresentName = name
+			out.Evidence = "optional environment variable available: " + name + "=[redacted]"
+			return out
+		}
+	}
+	out.Evidence = "missing optional environment variable: " + joinEnvNames(normalized)
+	return out
+}
+
+func normalizeOptionalEnvNames(names []string) []string {
+	out := make([]string, 0, len(names))
+	seen := map[string]bool{}
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		out = append(out, name)
+	}
+	return out
+}
+
+func joinEnvNames(names []string) string {
+	switch len(names) {
+	case 0:
+		return ""
+	case 1:
+		return names[0]
+	case 2:
+		return names[0] + " or " + names[1]
+	default:
+		return strings.Join(names[:len(names)-1], ", ") + ", or " + names[len(names)-1]
+	}
+}
+
+func snapshotShellEnv() map[string]struct{} {
+	out := make(map[string]struct{}, len(os.Environ()))
+	for _, kv := range os.Environ() {
+		if i := strings.IndexByte(kv, '='); i > 0 {
+			out[kv[:i]] = struct{}{}
+		}
+	}
+	return out
+}
+
+// dotenvCandidatePaths returns the list of dotenv files to load, in increasing
+// precedence order (last write wins for unset keys). Cross-agent homes are
+// imported only through explicit migration commands, never normal startup.
+func dotenvCandidatePaths() []string {
+	return []string{configwriter.EnvPath()}
+}
+
+// applyDotenvFile opens path, parses it, and sets env vars for keys
+// not in the shell snapshot. Missing file = silent no-op. Parse errors
+// = silent skip (a bad dotenv shouldn't block startup). A key already
+// set by an earlier (lower-precedence) dotenv file CAN be overwritten
+// because it's not in shellHasKey.
+func applyDotenvFile(path string, shellHasKey map[string]struct{}) {
+	f, err := os.Open(path)
+	if err != nil {
+		return // file missing / unreadable — silent
+	}
+	defer f.Close()
+
+	pairs, err := ParseDotenv(f)
+	if err != nil {
+		return
+	}
+	for k, v := range pairs {
+		if _, fromShell := shellHasKey[k]; fromShell {
+			continue // shell env wins
+		}
+		_ = os.Setenv(k, credentials.SanitizeCredentialValue(k, v))
+	}
+}

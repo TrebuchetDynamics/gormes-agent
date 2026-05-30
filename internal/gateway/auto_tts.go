@@ -5,71 +5,22 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/audiodelivery"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
-const audioDeliveryGuidance = "## Audio Delivery\nGateway audio delivery is enabled for this turn. Answer normally in written text; the gateway will synthesize and attach the audio after your final answer. Do not claim that you generated audio yourself, and do not claim the TTS provider is unavailable."
-
-var audioIntentTextReplacer = strings.NewReplacer(
-	"á", "a",
-	"é", "e",
-	"í", "i",
-	"ó", "o",
-	"ú", "u",
-	"ü", "u",
-)
+const audioDeliveryGuidance = audiodelivery.Guidance
 
 func inboundRequestsAudioReply(ev InboundEvent) bool {
+	kinds := make([]string, 0, len(ev.Attachments))
 	for _, attachment := range ev.Attachments {
-		switch strings.ToLower(strings.TrimSpace(attachment.Kind)) {
-		case "voice", "audio", "voice_transcript":
-			return true
-		}
+		kinds = append(kinds, attachment.Kind)
 	}
-	text := audioIntentTextReplacer.Replace(strings.ToLower(strings.Join(strings.Fields(ev.Text), " ")))
-	if text == "" {
-		return false
-	}
-	for _, phrase := range []string{
-		"cannot read",
-		"can't read",
-		"cant read",
-		"audio version",
-		"send audio",
-		"voice reply",
-		"reply by voice",
-		"read it aloud",
-		"read out loud",
-		"mandame audio",
-		"mandamelo en audio",
-		"mandalo en audio",
-		"enviame audio",
-		"enviamelo en audio",
-		"envialo en audio",
-		"pasame audio",
-		"pasamelo en audio",
-		"por audio",
-		"para audio",
-		"audio por favor",
-		"leelo en voz alta",
-		"leemelo",
-		"voz alta",
-	} {
-		if strings.Contains(text, phrase) {
-			return true
-		}
-	}
-	return false
+	return audiodelivery.RequestsAudioReply(ev.Text, kinds)
 }
 
 func appendAudioDeliveryGuidance(sessionBlock string, enabled bool) string {
-	if !enabled {
-		return sessionBlock
-	}
-	if strings.TrimSpace(sessionBlock) == "" {
-		return audioDeliveryGuidance
-	}
-	return strings.TrimRight(sessionBlock, "\n") + "\n\n" + audioDeliveryGuidance
+	return audiodelivery.AppendGuidance(sessionBlock, enabled)
 }
 
 func (m *Manager) formatFinalDeliveryForTurn(ctx context.Context, platform string, f kernel.RenderFrame, sessionKey string, audioRequested bool) (string, []OutboundMedia) {

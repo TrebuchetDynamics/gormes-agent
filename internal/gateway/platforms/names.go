@@ -31,3 +31,37 @@ func IsDiscordPlatform(platform string) bool {
 func IsSlackPlatform(platform string) bool {
 	return IsPlatformName(platform, "slack")
 }
+
+func TelegramDMTopicReplyFallbackLane(platform, chatID, threadID string) bool {
+	if !IsTelegramPlatform(platform) {
+		return false
+	}
+	if strings.TrimSpace(threadID) == "" {
+		return false
+	}
+	chatID = strings.TrimSpace(chatID)
+	if chatID == "" {
+		return false
+	}
+	return !strings.HasPrefix(chatID, "-")
+}
+
+func DefaultToolProgressModeForPlatform(platform string) string {
+	if IsTelegramPlatform(platform) || IsDiscordPlatform(platform) {
+		return "all"
+	}
+	if IsSlackPlatform(platform) {
+		return "off"
+	}
+	switch PlatformBaseName(platform) {
+	case "api_server":
+		return "all"
+	case "mattermost", "matrix", "feishu", "whatsapp":
+		return "new"
+	case "signal", "bluebubbles", "weixin", "wecom", "wecom_callback", "dingtalk",
+		"email", "sms", "webhook", "homeassistant":
+		return "off"
+	default:
+		return "all"
+	}
+}

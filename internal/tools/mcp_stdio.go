@@ -18,15 +18,6 @@ import (
 // stdio. Hermes' donor pins the same version through its mcp client SDK.
 const stdioProtocolVersion = "2024-11-05"
 
-// MCPRawTool is the verbatim tool envelope returned by an MCP server's
-// tools/list response. InputSchema is preserved as raw JSON so downstream
-// schema normalization can run separately without lossy round-tripping.
-type MCPRawTool struct {
-	Name        string
-	Description string
-	InputSchema json.RawMessage
-}
-
 // StdioClientOpts injects the ReadWriteCloser-backed transport plus optional
 // observability hooks. Tests pass an in-process net.Pipe pair so no real
 // subprocess is spawned.

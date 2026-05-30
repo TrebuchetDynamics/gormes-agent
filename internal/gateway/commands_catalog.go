@@ -2,12 +2,11 @@ package gateway
 
 import (
 	"context"
-	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/commandcatalog"
 )
 
 type CommandsCatalogRequest struct {
@@ -18,81 +17,20 @@ type CommandsCatalogRequest struct {
 }
 
 func RenderCommandsCatalog(req CommandsCatalogRequest) string {
-	requestedPage := 1
-	if raw := strings.TrimSpace(req.RawArgs); raw != "" {
-		page, err := strconv.Atoi(raw)
-		if err != nil {
-			return "Usage: /commands [page]"
-		}
-		requestedPage = page
-	}
-
-	entries := append([]string(nil), req.BuiltinLines...)
-	skillCommands := sortedPlatformCommands(req.SkillCommands)
-	if len(skillCommands) > 0 {
-		entries = append(entries, "", "Skill commands:")
-		for _, cmd := range skillCommands {
-			name := strings.TrimSpace(cmd.Name)
-			if name == "" {
-				continue
-			}
-			if !strings.HasPrefix(name, "/") {
-				name = "/" + name
-			}
-			desc := strings.TrimSpace(cmd.Description)
-			if desc == "" {
-				desc = "Invoke skill"
-			}
-			entries = append(entries, fmt.Sprintf("`%s` -- %s", name, desc))
-		}
-	}
-	if len(entries) == 0 {
-		return "No commands are available."
-	}
-
-	pageSize := commandsCatalogPageSize(req.Platform)
-	totalPages := (len(entries) + pageSize - 1) / pageSize
-	if totalPages < 1 {
-		totalPages = 1
-	}
-	page := requestedPage
-	if page < 1 {
-		page = 1
-	}
-	if page > totalPages {
-		page = totalPages
-	}
-	start := (page - 1) * pageSize
-	end := start + pageSize
-	if end > len(entries) {
-		end = len(entries)
-	}
-
-	lines := []string{fmt.Sprintf("Available commands (%d total) — page %d/%d", len(entries), page, totalPages), ""}
-	lines = append(lines, entries[start:end]...)
-	if totalPages > 1 {
-		var nav []string
-		if page > 1 {
-			nav = append(nav, fmt.Sprintf("Prev: /commands %d", page-1))
-		}
-		if page < totalPages {
-			nav = append(nav, fmt.Sprintf("Next: /commands %d", page+1))
-		}
-		if len(nav) > 0 {
-			lines = append(lines, "", strings.Join(nav, " | "))
-		}
-	}
-	if page != requestedPage {
-		lines = append(lines, fmt.Sprintf("requested page %d out of range; showing page %d", requestedPage, page))
-	}
-	return strings.Join(lines, "\n")
+	return commandcatalog.Render(commandcatalog.Request{
+		Platform:      req.Platform,
+		RawArgs:       req.RawArgs,
+		BuiltinLines:  req.BuiltinLines,
+		SkillCommands: catalogCommandsFromPlatform(req.SkillCommands),
+	})
 }
 
-func commandsCatalogPageSize(platform string) int {
-	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(platform)), "telegram") {
-		return 15
+func catalogCommandsFromPlatform(commands []PlatformCommand) []commandcatalog.Command {
+	out := make([]commandcatalog.Command, 0, len(commands))
+	for _, command := range commands {
+		out = append(out, commandcatalog.Command{Name: command.Name, Description: command.Description})
 	}
-	return 20
+	return out
 }
 
 func (m *Manager) handleCommandsCommand(ctx context.Context, ch Channel, ev InboundEvent) {

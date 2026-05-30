@@ -2,10 +2,10 @@ package gateway
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/reloadskills"
 )
 
 type ReloadSkillsReplyRequest struct {
@@ -15,38 +15,24 @@ type ReloadSkillsReplyRequest struct {
 }
 
 func RenderReloadSkillsReply(req ReloadSkillsReplyRequest) string {
-	degraded := strings.TrimSpace(req.ScanError) != ""
+	return reloadskills.RenderReply(reloadSkillsReplyRequest(req))
+}
+
+func reloadSkillsReplyRequest(req ReloadSkillsReplyRequest) reloadskills.ReplyRequest {
+	refreshes := make([]reloadskills.RefreshResult, 0, len(req.Refreshes))
 	for _, refresh := range req.Refreshes {
-		if strings.TrimSpace(refresh.Error) != "" {
-			degraded = true
-			break
-		}
+		refreshes = append(refreshes, reloadskills.RefreshResult{
+			Channel: refresh.Channel,
+			Count:   refresh.Count,
+			Hidden:  refresh.Hidden,
+			Error:   refresh.Error,
+		})
 	}
-	header := "Skills Reloaded"
-	if degraded {
-		header = "Skills reload degraded"
+	return reloadskills.ReplyRequest{
+		SkillCount: req.SkillCount,
+		ScanError:  req.ScanError,
+		Refreshes:  refreshes,
 	}
-	lines := []string{header}
-	if req.ScanError != "" {
-		lines = append(lines, "skill scan: "+req.ScanError)
-	} else {
-		lines = append(lines, fmt.Sprintf("%d skill(s) available", req.SkillCount))
-	}
-	for _, refresh := range req.Refreshes {
-		channel := strings.TrimSpace(refresh.Channel)
-		if channel == "" {
-			channel = "unknown"
-		}
-		if strings.TrimSpace(refresh.Error) != "" {
-			lines = append(lines, fmt.Sprintf("%s: refresh error: %s", channel, refresh.Error))
-			continue
-		}
-		lines = append(lines, fmt.Sprintf("%s: refreshed %d command(s), %d hidden", channel, refresh.Count, refresh.Hidden))
-	}
-	if len(req.Refreshes) == 0 {
-		lines = append(lines, "adapter refresh: none")
-	}
-	return strings.Join(lines, "\n")
 }
 
 func (m *Manager) handleReloadSkillsCommand(ctx context.Context, ch Channel, ev InboundEvent) {

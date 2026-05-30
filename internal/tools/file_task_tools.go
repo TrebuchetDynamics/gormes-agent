@@ -19,6 +19,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/filesystem"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/lsp"
 	"github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
@@ -2156,37 +2157,7 @@ func resolveWorkspacePath(root, rawPath string) (string, string, error) {
 }
 
 func validateWorkspaceRealPath(root, abs string) error {
-	if realPath, err := filepath.EvalSymlinks(abs); err == nil {
-		if !pathWithinRoot(root, filepath.Clean(realPath)) {
-			return fmt.Errorf("path %q resolves outside workspace root %q", abs, root)
-		}
-		return nil
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("resolve symlink path: %w", err)
-	} else if info, lstatErr := os.Lstat(abs); lstatErr == nil && info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("path %q is a broken symlink", abs)
-	}
-
-	ancestor := filepath.Dir(abs)
-	for {
-		if ancestor == "" || ancestor == "." || ancestor == string(filepath.Separator) {
-			break
-		}
-		if realAncestor, err := filepath.EvalSymlinks(ancestor); err == nil {
-			if !pathWithinRoot(root, filepath.Clean(realAncestor)) {
-				return fmt.Errorf("path parent %q resolves outside workspace root %q", ancestor, root)
-			}
-			return nil
-		} else if !os.IsNotExist(err) {
-			return fmt.Errorf("resolve parent symlink path: %w", err)
-		}
-		next := filepath.Dir(ancestor)
-		if next == ancestor {
-			break
-		}
-		ancestor = next
-	}
-	return nil
+	return filesystem.ValidateWorkspaceRealPath(root, abs)
 }
 
 func expandUserPath(path string) (string, error) {
@@ -2239,14 +2210,7 @@ func evalExistingPath(path string) string {
 }
 
 func workspaceRel(root, path string) string {
-	rel, err := filepath.Rel(root, path)
-	if err != nil {
-		return filepath.ToSlash(filepath.Clean(path))
-	}
-	if rel == "." {
-		return "."
-	}
-	return filepath.ToSlash(rel)
+	return filesystem.WorkspaceRel(root, path)
 }
 
 func splitTextLines(s string) []string {

@@ -18,17 +18,8 @@ func TestCuratorAuxiliarySlot_DefaultConfig(t *testing.T) {
 	}
 
 	slot := cfg.Auxiliary.Curator
-	if slot.Provider != "auto" {
-		t.Fatalf("Auxiliary.Curator.Provider = %q, want auto", slot.Provider)
-	}
-	if slot.Model != "" || slot.BaseURL != "" || slot.APIKey != "" {
-		t.Fatalf("Auxiliary.Curator default route = model=%q base_url=%q api_key=%q, want empty", slot.Model, slot.BaseURL, slot.APIKey)
-	}
-	if slot.Timeout < 600 {
-		t.Fatalf("Auxiliary.Curator.Timeout = %d, want at least 600", slot.Timeout)
-	}
-	if slot.ExtraBody == nil {
-		t.Fatal("Auxiliary.Curator.ExtraBody = nil, want empty map")
+	if slot.Provider != "auto" || slot.Model != "" || slot.BaseURL != "" || slot.APIKey != "" || slot.Timeout < 600 || slot.ExtraBody == nil {
+		t.Fatalf("Auxiliary.Curator default route = %+v, want safe auto default", slot)
 	}
 }
 

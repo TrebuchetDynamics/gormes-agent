@@ -15,6 +15,9 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/prompttemplates"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/sessionspage"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/toolsview"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/voice"
 )
 
 // Submitter is the callback wired by main.go to enqueue a user turn on the
@@ -62,14 +65,7 @@ type SessionTitleFunc func(sessionID, title string) (SessionTitleResult, error)
 // SessionDirectoryEntry is the TUI read model for the local /sessions and
 // /resume picker page. Production callers map their durable session directory
 // into this small shape so internal/tui stays free of SQLite and config paths.
-type SessionDirectoryEntry struct {
-	ID           string
-	Title        string
-	Preview      string
-	Source       string
-	LastActiveAt int64
-	MessageCount int
-}
+type SessionDirectoryEntry = sessionspage.Entry
 
 // SessionDirectoryFunc returns recent sessions for the native TUI picker page.
 // The limit is caller-supplied and already clamped by the slash handler.
@@ -103,12 +99,7 @@ type ToolsConfigureRequest struct {
 
 // ToolsConfigureResult mirrors the Hermes ui-tui tools.configure response
 // fields that affect visible TUI output.
-type ToolsConfigureResult struct {
-	Changed        []string
-	Unknown        []string
-	MissingServers []string
-	Reset          bool
-}
+type ToolsConfigureResult = toolsview.Result
 
 // ToolsConfigureFunc updates the active TUI tool configuration for /tools.
 // It is injected so internal/tui never writes config files directly.
@@ -137,12 +128,7 @@ type VoiceToggleRequest struct {
 
 // VoiceToggleResult mirrors the Hermes ui-tui voice.toggle response fields
 // that affect visible output and frontend record-key state.
-type VoiceToggleResult struct {
-	Enabled   bool
-	TTS       bool
-	RecordKey string
-	Details   string
-}
+type VoiceToggleResult = voice.Result
 
 // VoiceToggleFunc updates or reads local voice mode state for /voice. It is
 // injected so internal/tui never starts live audio or writes config files.

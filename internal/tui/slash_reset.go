@@ -1,23 +1,18 @@
 package tui
 
-import (
-	"fmt"
-	"strings"
-)
+import "github.com/TrebuchetDynamics/gormes-agent/internal/tui/reset"
 
 func sessionResetSlashHandler(input string, model *Model) SlashResult {
-	kind := sessionResetSlashKind(input)
 	if model == nil {
-		return SlashResult{Handled: true, StatusMessage: kind + ": TUI unavailable"}
+		return SlashResult{Handled: true, StatusMessage: sessionResetSlashKind(input) + ": TUI unavailable"}
 	}
-	if model.inFlight || turnIsActive(model.frame.Phase) {
-		return SlashResult{Handled: true, StatusMessage: "interrupt the current turn before trying to switch sessions"}
+	var resetFn reset.Func
+	if model.sessionReset != nil {
+		resetFn = func() error { return model.sessionReset() }
 	}
-	if model.sessionReset == nil {
-		return SlashResult{Handled: true, StatusMessage: kind + ": reset unavailable"}
-	}
-	if err := model.sessionReset(); err != nil {
-		return SlashResult{Handled: true, StatusMessage: fmt.Sprintf("%s: reset failed: %v", kind, err)}
+	res := reset.HandleSlash(input, model.inFlight || turnIsActive(model.frame.Phase), resetFn)
+	if !res.Reset {
+		return SlashResult{Handled: true, StatusMessage: res.Status}
 	}
 
 	model.frame.History = nil
@@ -31,21 +26,9 @@ func sessionResetSlashHandler(input string, model *Model) SlashResult {
 	model.SecretState = nil
 	model.modelPicker = nil
 
-	if kind == "new" {
-		return SlashResult{Handled: true, StatusMessage: "new session started"}
-	}
-	return SlashResult{Handled: true, StatusMessage: "session cleared"}
+	return SlashResult{Handled: true, StatusMessage: res.Status}
 }
 
 func sessionResetSlashKind(input string) string {
-	fields := strings.Fields(strings.TrimSpace(input))
-	if len(fields) == 0 {
-		return "clear"
-	}
-	switch strings.ToLower(strings.TrimPrefix(fields[0], "/")) {
-	case "new":
-		return "new"
-	default:
-		return "clear"
-	}
+	return reset.Kind(input)
 }

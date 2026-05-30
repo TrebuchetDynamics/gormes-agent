@@ -2,63 +2,18 @@ package tools
 
 import (
 	"context"
-	"fmt"
-	"strings"
+
+	mcppkg "github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp"
 )
 
 // ChannelEntry represents one platform channel for MCP channels_list output.
-type ChannelEntry struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	ChatID  string `json:"chat_id"`
-	Enabled bool   `json:"enabled"`
-}
+type ChannelEntry = mcppkg.ChannelEntry
 
 // ChannelDirectoryProvider supplies platform channel data to MCP tools.
-type ChannelDirectoryProvider interface {
-	Platforms() (map[string][]ChannelEntry, error)
-}
+type ChannelDirectoryProvider = mcppkg.ChannelDirectoryProvider
 
-type channelOutput struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	ChatID   string `json:"chat_id"`
-	Enabled  bool   `json:"enabled"`
-	Platform string `json:"platform"`
-}
+type channelOutput = mcppkg.ChannelOutput
 
 func (s *MCPServer) channelsListHandler(ctx context.Context, args map[string]interface{}) (interface{}, error) {
-	if s.channelDir == nil {
-		return nil, fmt.Errorf("channel directory unavailable")
-	}
-	platforms, err := s.channelDir.Platforms()
-	if err != nil {
-		return nil, fmt.Errorf("channel directory unavailable: %w", err)
-	}
-
-	filterPlatform := ""
-	if pf, ok := args["platform"].(string); ok {
-		filterPlatform = strings.ToLower(strings.TrimSpace(pf))
-	}
-
-	channels := make([]channelOutput, 0)
-	for platform, entries := range platforms {
-		if filterPlatform != "" && strings.ToLower(platform) != filterPlatform {
-			continue
-		}
-		for _, entry := range entries {
-			channels = append(channels, channelOutput{
-				ID:       entry.ID,
-				Name:     entry.Name,
-				ChatID:   entry.ChatID,
-				Enabled:  entry.Enabled,
-				Platform: platform,
-			})
-		}
-	}
-
-	return map[string]interface{}{
-		"count":    len(channels),
-		"channels": channels,
-	}, nil
+	return mcppkg.ListChannels(ctx, s.channelDir, args)
 }

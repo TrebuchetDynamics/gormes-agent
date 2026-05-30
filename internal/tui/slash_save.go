@@ -1,21 +1,16 @@
 package tui
 
 import (
-	"context"
-	"errors"
-	"fmt"
 	"os"
-	"strings"
-	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/transcript"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/save"
 )
 
 // saveExportTimeout caps how long /save waits on the injected helper. The
 // helper writes a markdown file backed by a single SQLite read; thirty
 // seconds is generous, and exceeding it surfaces a status line instead of
 // blocking the editor on a stuck disk.
-const saveExportTimeout = 30 * time.Second
+const saveExportTimeout = save.ExportTimeout
 
 // SessionExportFunc is the injection point for the TUI /save command. The
 // implementation produced by cmd/gormes opens config.MemoryDBPath(), calls
@@ -27,7 +22,7 @@ const saveExportTimeout = 30 * time.Second
 // handler interprets that combination as "writer left a partial file
 // behind" and removes it via os.Remove before reporting the failure to the
 // user, so a half-written transcript is never visible to the operator.
-type SessionExportFunc func(ctx context.Context, sessionID string) (path string, err error)
+type SessionExportFunc = save.ExportFunc
 
 // saveSlashHandler implements /save. It MUST consume the input on every
 // branch (Handled=true) so the slash text never falls through to
@@ -38,31 +33,10 @@ func saveSlashHandler(input string, model *Model) SlashResult {
 	if model == nil {
 		return SlashResult{Handled: true, StatusMessage: "save: store unavailable"}
 	}
-	if len(model.frame.History) == 0 {
-		return SlashResult{Handled: true, StatusMessage: "save: no conversation"}
-	}
-	sessionID := strings.TrimSpace(model.frame.SessionID)
-	if sessionID == "" {
-		return SlashResult{Handled: true, StatusMessage: "save: no active session"}
-	}
-	if model.sessionExport == nil {
-		return SlashResult{Handled: true, StatusMessage: "save: store unavailable"}
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), saveExportTimeout)
-	defer cancel()
-	path, err := model.sessionExport(ctx, sessionID)
-	if err != nil {
-		if path != "" {
-			_ = os.Remove(path)
-		}
-		if errors.Is(err, transcript.ErrSessionNotFound) {
-			return SlashResult{Handled: true, StatusMessage: "save: store unavailable"}
-		}
-		return SlashResult{Handled: true, StatusMessage: fmt.Sprintf("save: write failed: %v", err)}
-	}
-	return SlashResult{
-		Handled:       true,
-		StatusMessage: fmt.Sprintf("save: wrote %s", path),
-	}
+	return SlashResult{Handled: true, StatusMessage: save.HandleSlash(
+		len(model.frame.History) > 0,
+		model.frame.SessionID,
+		model.sessionExport,
+		os.Remove,
+	)}
 }

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/jsonfile"
 )
 
 const (
@@ -238,34 +240,5 @@ func restartUpdateID(ev InboundEvent) string {
 }
 
 func writeRestartJSONAtomic(ctx context.Context, path string, payload any) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create restart marker dir: %w", err)
-	}
-	raw, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		return fmt.Errorf("encode restart marker: %w", err)
-	}
-	raw = append(raw, '\n')
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".restart-takeover-*.tmp")
-	if err != nil {
-		return fmt.Errorf("create restart marker temp file: %w", err)
-	}
-	tmpPath := tmp.Name()
-	defer func() {
-		_ = os.Remove(tmpPath)
-	}()
-	if _, err := tmp.Write(raw); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("write restart marker temp file: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("close restart marker temp file: %w", err)
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		return fmt.Errorf("replace restart marker: %w", err)
-	}
-	return nil
+	return jsonfile.WriteAtomic(ctx, path, payload, "restart marker")
 }

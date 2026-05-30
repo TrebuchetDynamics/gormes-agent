@@ -562,8 +562,8 @@
     {
       "hermes_file": "tools/x_search_tool.py",
       "gormes_targets": [
-        "internal/tools/x_search.go",
-        "internal/tools/x_search_test.go"
+        "internal/tools/xsearch/x_search.go",
+        "internal/tools/xsearch/x_search_test.go"
       ],
       "status": "partial",
       "contract": "Hermes X search auth modes, OAuth expiry/rate-limit degraded evidence, tool schema, bounded fake-mode fixtures, and redacted credential behavior.",

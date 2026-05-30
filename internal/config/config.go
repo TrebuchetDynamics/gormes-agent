@@ -3,7 +3,6 @@ package config
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config/paths"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config/prefill"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config/skillsconfig"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/pflag"
@@ -145,16 +147,11 @@ type SkillsCfg struct {
 }
 
 const (
-	SkillsExternalDirResolved = "skills_external_dir_resolved"
-	SkillsExternalDirSkipped  = "skills_external_dir_skipped"
+	SkillsExternalDirResolved = skillsconfig.ExternalDirResolved
+	SkillsExternalDirSkipped  = skillsconfig.ExternalDirSkipped
 )
 
-type SkillsExternalDirEvidence struct {
-	Code   string
-	Input  string
-	Path   string
-	Reason string
-}
+type SkillsExternalDirEvidence = skillsconfig.ExternalDirEvidence
 
 type HermesCfg struct {
 	Endpoint              string     `toml:"endpoint" yaml:"endpoint"`
@@ -1179,22 +1176,14 @@ func normalizeGatewayProxyURL(raw string) string {
 }
 
 func XDGConfigHome() string {
-	if v := os.Getenv("XDG_CONFIG_HOME"); v != "" {
-		return v
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config")
+	return paths.XDGConfigHome()
 }
 
 // GormesHome returns the native Gormes state/config root. GORMES_HOME wins;
 // otherwise Gormes uses ~/.gormes so it never needs to share Hermes runtime
 // state such as ~/.hermes/auth.json or ~/.hermes/gateway_state.json.
 func GormesHome() string {
-	if v := strings.TrimSpace(os.Getenv("GORMES_HOME")); v != "" {
-		return v
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".gormes")
+	return paths.GormesHome()
 }
 
 // GormesBaseHome returns the base Gormes home that owns profile roots. When a
@@ -1202,20 +1191,13 @@ func GormesHome() string {
 // profile-management commands still need the parent `.../.gormes` so they do
 // not create nested profile trees under the active profile.
 func GormesBaseHome() string {
-	return GormesBaseHomeFor(GormesHome())
+	return paths.GormesBaseHome()
 }
 
 // GormesBaseHomeFor returns the parent Gormes home for a named profile root,
 // otherwise it returns current unchanged.
 func GormesBaseHomeFor(current string) string {
-	clean := filepath.Clean(strings.TrimSpace(current))
-	if clean == "." || clean == string(filepath.Separator) {
-		return current
-	}
-	if filepath.Base(filepath.Dir(clean)) == "profiles" {
-		return filepath.Dir(filepath.Dir(clean))
-	}
-	return current
+	return paths.GormesBaseHomeFor(current)
 }
 
 // SubprocessHome returns the Hermes-compatible subprocess HOME for the active
@@ -1223,26 +1205,17 @@ func GormesBaseHomeFor(current string) string {
 // profiles from silently redirecting shell tools before profile creation or
 // migration has materialized the profile-local home tree.
 func SubprocessHome() (string, bool) {
-	return SubprocessHomeFor(GormesHome())
+	return paths.SubprocessHome()
 }
 
 // SubprocessHomeFor returns <gormesHome>/home when it exists as a directory.
 func SubprocessHomeFor(gormesHome string) (string, bool) {
-	gormesHome = strings.TrimSpace(gormesHome)
-	if gormesHome == "" {
-		return "", false
-	}
-	candidate := filepath.Join(gormesHome, "home")
-	info, err := os.Stat(candidate)
-	if err != nil || !info.IsDir() {
-		return "", false
-	}
-	return candidate, true
+	return paths.SubprocessHomeFor(gormesHome)
 }
 
 // ConfigPath returns the Gormes TOML config file path.
 func ConfigPath() string {
-	return filepath.Join(GormesHome(), "config.toml")
+	return paths.ConfigPath()
 }
 
 // LoadConfiguredPrefillMessages loads Hermes-compatible ephemeral few-shot
@@ -1258,51 +1231,24 @@ func LoadConfiguredPrefillMessages(cfg Config) ([]llm.Message, error) {
 // nonfatal behavior. Relative paths resolve from GormesHome, the Go-native
 // equivalent of Hermes resolving from ~/.hermes.
 func LoadPrefillMessages(filePath string) ([]llm.Message, error) {
-	filePath = strings.TrimSpace(filePath)
-	if filePath == "" {
-		return nil, nil
-	}
-	path := os.ExpandEnv(filePath)
-	if strings.HasPrefix(path, "~/") {
-		if home, err := os.UserHomeDir(); err == nil && home != "" {
-			path = filepath.Join(home, strings.TrimPrefix(path, "~/"))
-		}
-	}
-	if !filepath.IsAbs(path) {
-		path = filepath.Join(GormesHome(), path)
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, nil
-	}
-	var messages []llm.Message
-	if err := json.Unmarshal(data, &messages); err != nil {
-		return nil, nil
-	}
-	if messages == nil {
-		return nil, nil
-	}
-	return messages, nil
+	return prefill.Load(filePath, GormesHome())
 }
 
 // YAMLConfigPath returns the YAML variant of the Gormes config file path.
 // This is used as a fallback when config.toml doesn't exist, allowing Hermes
 // users to copy their config.yaml directly without converting to TOML.
 func YAMLConfigPath() string {
-	return filepath.Join(GormesHome(), "config.yaml")
+	return paths.YAMLConfigPath()
 }
 
 // LogPath returns the default path for the Gormes log file.
 func LogPath() string {
-	return filepath.Join(GormesHome(), "gormes.log")
+	return paths.LogPath()
 }
 
 // CrashLogDir returns the directory where TUI panic dumps are written.
 func CrashLogDir() string {
-	return GormesHome()
+	return paths.CrashLogDir()
 }
 
 // SessionDBPath returns the default location of the bbolt sessions map.
@@ -1315,7 +1261,7 @@ func SessionDBPath() string {
 // SessionIndexMirrorPath returns the default location of the read-only YAML
 // mirror for the bbolt session map.
 func SessionIndexMirrorPath() string {
-	return filepath.Join(GormesHome(), "sessions", "index.yaml")
+	return paths.SessionIndexMirrorPath()
 }
 
 // MemoryDBPath returns the default location of the Phase-3.A SQLite
@@ -1330,41 +1276,26 @@ func MemoryDBPath() string {
 // Gormes intentionally ignores Hermes runtime env vars here; Hermes state is
 // only read by explicit migrate commands.
 func KanbanDBPath() string {
-	if v := strings.TrimSpace(os.Getenv("GORMES_KANBAN_DB")); v != "" {
-		return v
-	}
-	if v := strings.TrimSpace(os.Getenv("GORMES_KANBAN_HOME")); v != "" {
-		return filepath.Join(v, "kanban.db")
-	}
-	return filepath.Join(GormesHome(), "kanban.db")
+	return paths.KanbanDBPath()
 }
 
 // KanbanHome returns the root directory for the Kanban board registry.
 // Named board databases live under <KanbanHome>/kanban/boards/<slug>/kanban.db
 // while the legacy default board lives at <KanbanHome>/kanban.db.
 func KanbanHome() string {
-	if v := strings.TrimSpace(os.Getenv("GORMES_KANBAN_HOME")); v != "" {
-		return v
-	}
-	return GormesHome()
+	return paths.KanbanHome()
 }
 
 // CronMirrorPath returns the resolved CRON.md path — either
 // cfg.Cron.MirrorPath (explicit override) or the Gormes home default.
 func (c Config) CronMirrorPath() string {
-	if c.Cron.MirrorPath != "" {
-		return c.Cron.MirrorPath
-	}
-	return filepath.Join(GormesHome(), "cron", "CRON.md")
+	return paths.CronMirrorPath(c.Cron.MirrorPath)
 }
 
 // SkillsRoot returns the root directory of the static skills runtime.
 // Explicit override wins; otherwise the Gormes home default is used.
 func (c Config) SkillsRoot() string {
-	if c.Skills.Root != "" {
-		return c.Skills.Root
-	}
-	return filepath.Join(GormesHome(), "skills")
+	return skillsconfig.Root(c.Skills.Root)
 }
 
 // ExternalSkillsDirs resolves Hermes-compatible skills.external_dirs entries.
@@ -1372,135 +1303,45 @@ func (c Config) SkillsRoot() string {
 // GormesHome rather than process cwd, and invalid/duplicate/local roots are
 // skipped with typed evidence instead of failing provider startup.
 func (c Config) ExternalSkillsDirs() ([]string, []SkillsExternalDirEvidence) {
-	localRoot := canonicalSkillsDirPath(c.SkillsRoot())
-	localActive := canonicalSkillsDirPath(filepath.Join(c.SkillsRoot(), "active"))
-	localRoots := map[string]bool{localRoot: true, localActive: true}
-	seen := map[string]bool{}
-	var out []string
-	var evidence []SkillsExternalDirEvidence
-	for _, entry := range c.Skills.ExternalDirs {
-		raw := strings.TrimSpace(entry)
-		if raw == "" {
-			evidence = append(evidence, SkillsExternalDirEvidence{Code: SkillsExternalDirSkipped, Input: entry, Reason: "empty"})
-			continue
-		}
-		resolved := resolveConfiguredSkillsDir(raw, GormesHome())
-		canonical := canonicalSkillsDirPath(resolved)
-		if localRoots[canonical] {
-			evidence = append(evidence, SkillsExternalDirEvidence{Code: SkillsExternalDirSkipped, Input: raw, Path: resolved, Reason: "local_root"})
-			continue
-		}
-		if seen[canonical] {
-			evidence = append(evidence, SkillsExternalDirEvidence{Code: SkillsExternalDirSkipped, Input: raw, Path: resolved, Reason: "duplicate"})
-			continue
-		}
-		info, err := os.Stat(resolved)
-		switch {
-		case os.IsNotExist(err):
-			evidence = append(evidence, SkillsExternalDirEvidence{Code: SkillsExternalDirSkipped, Input: raw, Path: resolved, Reason: "missing"})
-			continue
-		case err != nil:
-			evidence = append(evidence, SkillsExternalDirEvidence{Code: SkillsExternalDirSkipped, Input: raw, Path: resolved, Reason: "stat_failed"})
-			continue
-		case !info.IsDir():
-			evidence = append(evidence, SkillsExternalDirEvidence{Code: SkillsExternalDirSkipped, Input: raw, Path: resolved, Reason: "not_directory"})
-			continue
-		}
-		seen[canonical] = true
-		out = append(out, resolved)
-		evidence = append(evidence, SkillsExternalDirEvidence{Code: SkillsExternalDirResolved, Input: raw, Path: resolved})
-	}
-	return out, evidence
-}
-
-func resolveConfiguredSkillsDir(raw, gormesHome string) string {
-	expanded := expandLeadingTilde(os.ExpandEnv(strings.TrimSpace(raw)))
-	expanded = filepath.FromSlash(expanded)
-	if !filepath.IsAbs(expanded) {
-		expanded = filepath.Join(gormesHome, expanded)
-	}
-	if abs, err := filepath.Abs(expanded); err == nil {
-		expanded = abs
-	}
-	if real, err := filepath.EvalSymlinks(expanded); err == nil && real != "" {
-		expanded = real
-	}
-	return filepath.Clean(expanded)
-}
-
-func expandLeadingTilde(path string) string {
-	if path != "~" && !strings.HasPrefix(path, "~/") {
-		return path
-	}
-	home, err := os.UserHomeDir()
-	if err != nil || strings.TrimSpace(home) == "" {
-		return path
-	}
-	if path == "~" {
-		return home
-	}
-	return filepath.Join(home, strings.TrimPrefix(path, "~/"))
-}
-
-func canonicalSkillsDirPath(path string) string {
-	path = filepath.FromSlash(strings.TrimSpace(path))
-	if abs, err := filepath.Abs(path); err == nil {
-		path = abs
-	}
-	if real, err := filepath.EvalSymlinks(path); err == nil && real != "" {
-		path = real
-	}
-	return filepath.Clean(path)
+	return skillsconfig.ExternalDirs(c.SkillsRoot(), c.Skills.ExternalDirs)
 }
 
 // HooksRoot returns the root directory for gateway HOOK.yaml hook directories.
 func HooksRoot() string {
-	return filepath.Join(GormesHome(), "hooks")
+	return paths.HooksRoot()
 }
 
 // GatewayRuntimeStatusPath returns the shared gateway_state.json read-model
 // path for live gateway lifecycle status.
 func GatewayRuntimeStatusPath() string {
-	return filepath.Join(GormesHome(), "runtime", "gateway_state.json")
+	return paths.GatewayRuntimeStatusPath()
 }
 
 // GatewayLockDir returns the machine-local directory for token-scoped gateway
 // credential locks.
 func GatewayLockDir() string {
-	return filepath.Join(GormesHome(), "runtime", "gateway-locks")
+	return paths.GatewayLockDir()
 }
 
 // BootPath returns the BOOT.md path used by the built-in gateway startup hook.
 func BootPath() string {
-	return filepath.Join(GormesHome(), "BOOT.md")
+	return paths.BootPath()
 }
 
 // SkillsUsageLogPath returns the append-only JSONL path for skill usage.
 // Explicit override wins; otherwise it lives under the skills root.
 func (c Config) SkillsUsageLogPath() string {
-	if c.Skills.UsageLogPath != "" {
-		return c.Skills.UsageLogPath
-	}
-	return filepath.Join(c.SkillsRoot(), "usage.jsonl")
+	return skillsconfig.UsageLogPath(c.SkillsRoot(), c.Skills.UsageLogPath)
 }
 
 // ToolAuditLogPath returns the append-only JSONL path for tool execution
 // audit records.
 func ToolAuditLogPath() string {
-	return filepath.Join(GormesHome(), "tools", "audit.jsonl")
+	return paths.ToolAuditLogPath()
 }
 
 // ResolvedRunLogPath returns the JSONL path for append-only subagent run logs.
 // An explicit TOML override wins; otherwise Gormes writes under GormesHome.
 func (d DelegationCfg) ResolvedRunLogPath() string {
-	if d.RunLogPath != "" {
-		return d.RunLogPath
-	}
-	return filepath.Join(GormesHome(), "subagents", "runs.jsonl")
-}
-
-// isDirectory returns true when path exists and is a directory.
-func isDirectory(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && info.IsDir()
+	return paths.DelegationRunLogPath(d.RunLogPath)
 }

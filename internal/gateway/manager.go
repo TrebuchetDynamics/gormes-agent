@@ -276,9 +276,8 @@ type Manager struct {
 	followUps          []InboundEvent
 	lastUsageFrame     kernel.RenderFrame
 
-	reasoningMu    sync.Mutex
-	reasoningState map[string]SessionReasoningState
-	ttsConfigs     map[string]TTSConfig
+	reasoningDispatcher *ReasoningDispatcher
+	ttsConfigStore      *TTSConfigStore
 
 	inboundDedup *MessageDeduplicator
 
@@ -576,7 +575,8 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 		kernel:                      k,
 		log:                         log,
 		channels:                    map[string]Channel{},
-		reasoningState:              map[string]SessionReasoningState{},
+		reasoningDispatcher:         NewReasoningDispatcher(cfg.PersistReasoningGlobal),
+		ttsConfigStore:              NewTTSConfigStore(),
 		inboundDedup:                NewMessageDeduplicator(defaultInboundDedupMaxSize),
 		liveTurnPromptSeams:         seams,
 		agentRouter:                 NewAgentRouter(cfg.AgentRouting.Agents, cfg.AgentRouting.Bindings),
@@ -599,26 +599,10 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 // and the resulting reply.PersistFailed surfaces global-save errors without
 // changing other sessions' state.
 func (m *Manager) DispatchReasoning(sessionKey string, args []string) (ReasoningReply, error) {
-	cmd, err := ParseReasoningCommand(args)
-	if err != nil {
-		return ReasoningReply{}, err
+	if m.reasoningDispatcher == nil {
+		m.reasoningDispatcher = NewReasoningDispatcher(m.cfg.PersistReasoningGlobal)
 	}
-	persist := m.cfg.PersistReasoningGlobal
-	if persist == nil {
-		persist = func(ReasoningEffort) error {
-			return errors.New("gateway: PersistReasoningGlobal not configured")
-		}
-	}
-
-	m.reasoningMu.Lock()
-	defer m.reasoningMu.Unlock()
-	state, ok := m.reasoningState[sessionKey]
-	if !ok {
-		state = SessionReasoningState{Source: ReasoningSourceUnset}
-	}
-	newState, reply := ApplyReasoningCommand(state, cmd, persist)
-	m.reasoningState[sessionKey] = newState
-	return reply, nil
+	return m.reasoningDispatcher.Dispatch(sessionKey, args)
 }
 
 func (m *Manager) clearSessionBoundaryControlState(sessionKey string) {
@@ -1640,20 +1624,6 @@ func (m *Manager) sendWithHooksReplyThread(ctx context.Context, ch Channel, chat
 	return msgID, nil
 }
 
-func telegramDMTopicReplyFallbackLane(platform, chatID, threadID string) bool {
-	if !isTelegramPlatform(platform) {
-		return false
-	}
-	if strings.TrimSpace(threadID) == "" {
-		return false
-	}
-	chatID = strings.TrimSpace(chatID)
-	if chatID == "" {
-		return false
-	}
-	return !strings.HasPrefix(chatID, "-")
-}
-
 func (m *Manager) fireHook(ctx context.Context, ev HookEvent) {
 	if m.cfg.Hooks != nil {
 		m.cfg.Hooks.Fire(ctx, ev)
@@ -2176,26 +2146,6 @@ func (m *Manager) toolProgressMode(platform string) string {
 		return normalizeGatewayToolProgressMode(mode)
 	}
 	return defaultToolProgressModeForPlatform(key)
-}
-
-func defaultToolProgressModeForPlatform(platform string) string {
-	if isTelegramPlatform(platform) || isDiscordPlatform(platform) {
-		return "all"
-	}
-	if isSlackPlatform(platform) {
-		return "off"
-	}
-	switch platformBaseName(platform) {
-	case "api_server":
-		return "all"
-	case "mattermost", "matrix", "feishu", "whatsapp":
-		return "new"
-	case "signal", "bluebubbles", "weixin", "wecom", "wecom_callback", "dingtalk",
-		"email", "sms", "webhook", "homeassistant":
-		return "off"
-	default:
-		return "all"
-	}
 }
 
 func (m *Manager) deliverMedia(ctx context.Context, ch Channel, chatID, replyToMsgID, threadID string, media []OutboundMedia) {

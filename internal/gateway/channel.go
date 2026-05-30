@@ -3,6 +3,8 @@ package gateway
 import (
 	"context"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/delivery"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/reactions"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/rendering"
 )
 
@@ -40,23 +42,18 @@ type ThreadReplySender interface {
 }
 
 // OutboundMediaKind classifies local files for native platform send paths.
-type OutboundMediaKind string
+type OutboundMediaKind = delivery.MediaKind
 
 const (
-	OutboundMediaKindAudio    OutboundMediaKind = "audio"
-	OutboundMediaKindDocument OutboundMediaKind = "document"
-	OutboundMediaKindImage    OutboundMediaKind = "image"
-	OutboundMediaKindVideo    OutboundMediaKind = "video"
+	OutboundMediaKindAudio    = delivery.MediaKindAudio
+	OutboundMediaKindDocument = delivery.MediaKindDocument
+	OutboundMediaKindImage    = delivery.MediaKindImage
+	OutboundMediaKindVideo    = delivery.MediaKindVideo
 )
 
 // OutboundMedia is a local file that should be delivered through a platform's
 // native media path instead of being shown as a raw MEDIA tag in assistant text.
-type OutboundMedia struct {
-	Path     string
-	AsVoice  bool
-	Kind     OutboundMediaKind
-	ThreadID string
-}
+type OutboundMedia = delivery.Media
 
 // MediaSender is implemented by channels that can send local files as native
 // platform media. replyToMsgID is optional and preserves reply quoting when the
@@ -155,12 +152,12 @@ type ThreadTypingActionCapable interface {
 
 // ProcessingOutcome is the channel-neutral terminal state for best-effort
 // processing reactions.
-type ProcessingOutcome string
+type ProcessingOutcome = reactions.ProcessingOutcome
 
 const (
-	ProcessingOutcomeSuccess   ProcessingOutcome = "success"
-	ProcessingOutcomeFailure   ProcessingOutcome = "failure"
-	ProcessingOutcomeCancelled ProcessingOutcome = "cancelled"
+	ProcessingOutcomeSuccess   = reactions.ProcessingOutcomeSuccess
+	ProcessingOutcomeFailure   = reactions.ProcessingOutcomeFailure
+	ProcessingOutcomeCancelled = reactions.ProcessingOutcomeCancelled
 )
 
 // ReactionCapable is implemented by channels that can react to inbound
