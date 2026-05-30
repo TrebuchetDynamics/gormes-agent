@@ -5,6 +5,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -201,11 +202,4 @@ func normalizeNumber(raw string) string {
 	}
 }
 
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if value = strings.TrimSpace(value); value != "" {
-			return value
-		}
-	}
-	return ""
-}
+func firstNonEmpty(values ...string) string { return channelutil.FirstNonEmpty(values...) }

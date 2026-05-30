@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -71,8 +72,8 @@ func New(cfg Config, client Client, log *slog.Logger) *Bot {
 		cfg:            cfg,
 		client:         client,
 		log:            log,
-		allowedDMs:     toSet(cfg.AllowFrom),
-		allowedGroups:  toSet(cfg.GroupAllowFrom),
+		allowedDMs:     channelutil.ToSet(cfg.AllowFrom),
+		allowedGroups:  channelutil.ToSet(cfg.GroupAllowFrom),
 		chatTypes:      map[string]string{},
 		lastMessageIDs: map[string]string{},
 		sequences:      map[string]int{},
@@ -143,7 +144,7 @@ func (b *Bot) toInboundEvent(msg InboundMessage) (gateway.InboundEvent, bool) {
 		if !b.allowGroup(chatID) || !msg.Mentioned {
 			return gateway.InboundEvent{}, false
 		}
-		text = stripLeadingMentions(text)
+		text = channelutil.StripLeadingMentions(text)
 		if text == "" {
 			return gateway.InboundEvent{}, false
 		}
@@ -166,7 +167,7 @@ func (b *Bot) toInboundEvent(msg InboundMessage) (gateway.InboundEvent, bool) {
 }
 
 func (b *Bot) allowDirect(userID string) bool {
-	switch normalizedPolicy(b.cfg.DMPolicy) {
+	switch channelutil.NormalizedPolicy(b.cfg.DMPolicy) {
 	case "disabled":
 		return false
 	case "allowlist":
@@ -178,7 +179,7 @@ func (b *Bot) allowDirect(userID string) bool {
 }
 
 func (b *Bot) allowGroup(chatID string) bool {
-	switch normalizedPolicy(b.cfg.GroupPolicy) {
+	switch channelutil.NormalizedPolicy(b.cfg.GroupPolicy) {
 	case "disabled":
 		return false
 	case "allowlist":
@@ -213,33 +214,3 @@ func (b *Bot) nextSendOptions(chatID string) (SendOptions, string, error) {
 	}, chatType, nil
 }
 
-func normalizedPolicy(policy string) string {
-	if strings.TrimSpace(policy) == "" {
-		return "open"
-	}
-	return strings.ToLower(strings.TrimSpace(policy))
-}
-
-func toSet(items []string) map[string]struct{} {
-	out := make(map[string]struct{}, len(items))
-	for _, item := range items {
-		item = strings.TrimSpace(item)
-		if item == "" {
-			continue
-		}
-		out[item] = struct{}{}
-	}
-	return out
-}
-
-func stripLeadingMentions(text string) string {
-	fields := strings.Fields(strings.TrimSpace(text))
-	for len(fields) > 0 {
-		token := fields[0]
-		if !strings.HasPrefix(token, "@") {
-			break
-		}
-		fields = fields[1:]
-	}
-	return strings.TrimSpace(strings.Join(fields, " "))
-}

@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -352,14 +353,7 @@ type simplexMember struct {
 	LocalDisplayName string `json:"localDisplayName"`
 }
 
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
-			return trimmed
-		}
-	}
-	return ""
-}
+func firstNonEmpty(values ...string) string { return channelutil.FirstNonEmpty(values...) }
 
 func anyString(value string) string {
 	value = strings.TrimSpace(value)

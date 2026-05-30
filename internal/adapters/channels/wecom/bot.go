@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -69,8 +70,8 @@ func New(cfg Config, client Client, log *slog.Logger) *Bot {
 		cfg:           cfg,
 		client:        client,
 		log:           log,
-		allowedDMs:    toSet(cfg.AllowFrom),
-		allowedGroups: toSet(cfg.GroupAllowFrom),
+		allowedDMs:    channelutil.ToSet(cfg.AllowFrom),
+		allowedGroups: channelutil.ToSet(cfg.GroupAllowFrom),
 		routes:        map[string]route{},
 	}
 }
@@ -132,11 +133,11 @@ func (b *Bot) toInboundEvent(msg InboundMessage) (gateway.InboundEvent, bool) {
 
 	switch strings.TrimSpace(msg.ChatType) {
 	case ChatTypeDirect:
-		if !allowedByPolicy(b.cfg.DMPolicy, b.allowedDMs, userID) {
+		if !b.allowedByPolicy(b.cfg.DMPolicy, b.allowedDMs, userID) {
 			return gateway.InboundEvent{}, false
 		}
 	case ChatTypeGroup:
-		if !allowedByPolicy(b.cfg.GroupPolicy, b.allowedGroups, chatID) {
+		if !b.allowedByPolicy(b.cfg.GroupPolicy, b.allowedGroups, chatID) {
 			return gateway.InboundEvent{}, false
 		}
 	default:
@@ -175,8 +176,8 @@ func (b *Bot) lookupRoute(chatID string) (route, bool) {
 	return meta, ok
 }
 
-func allowedByPolicy(policy string, allowed map[string]struct{}, value string) bool {
-	switch normalizedPolicy(policy) {
+func (b *Bot) allowedByPolicy(policy string, allowed map[string]struct{}, value string) bool {
+	switch channelutil.NormalizedPolicy(policy) {
 	case "disabled":
 		return false
 	case "allowlist":
@@ -185,24 +186,4 @@ func allowedByPolicy(policy string, allowed map[string]struct{}, value string) b
 	default:
 		return true
 	}
-}
-
-func normalizedPolicy(policy string) string {
-	policy = strings.TrimSpace(strings.ToLower(policy))
-	if policy == "" {
-		return "open"
-	}
-	return policy
-}
-
-func toSet(values []string) map[string]struct{} {
-	out := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			continue
-		}
-		out[value] = struct{}{}
-	}
-	return out
 }

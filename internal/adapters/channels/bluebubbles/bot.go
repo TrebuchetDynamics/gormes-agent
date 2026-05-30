@@ -10,6 +10,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -277,14 +278,7 @@ func stripMarkdown(text string) string {
 	return trim(replacer.Replace(text))
 }
 
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if value = trim(value); value != "" {
-			return value
-		}
-	}
-	return ""
-}
+func firstNonEmpty(values ...string) string { return channelutil.FirstNonEmpty(values...) }
 
 func trim(value string) string {
 	return strings.TrimSpace(value)

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -147,7 +148,7 @@ func (b *Bot) toInboundEventContext(ctx context.Context, msg InboundMessage) (ga
 		if !msg.Mentioned {
 			return gateway.InboundEvent{}, false
 		}
-		text = stripLeadingMentions(text)
+		text = channelutil.StripLeadingMentions(text)
 	}
 
 	attachments := b.mediaAttachments(ctx, msg)
@@ -210,14 +211,3 @@ func (b *Bot) allowedSender(senderID string) bool {
 	return ok
 }
 
-func stripLeadingMentions(text string) string {
-	fields := strings.Fields(strings.TrimSpace(text))
-	for len(fields) > 0 {
-		token := fields[0]
-		if !strings.HasPrefix(token, "@") {
-			break
-		}
-		fields = fields[1:]
-	}
-	return strings.TrimSpace(strings.Join(fields, " "))
-}

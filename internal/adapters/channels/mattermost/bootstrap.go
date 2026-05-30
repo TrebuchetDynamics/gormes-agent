@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/threadtext"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
@@ -443,14 +444,7 @@ func stringSlice(raw any) []string {
 	}
 }
 
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
-}
+func firstNonEmpty(values ...string) string { return channelutil.FirstNonEmpty(values...) }
 
 func formatMessage(content string) string {
 	return strings.TrimSpace(content)

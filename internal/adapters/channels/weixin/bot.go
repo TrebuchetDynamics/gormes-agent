@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -68,8 +69,8 @@ func New(cfg Config, client Client, log *slog.Logger) *Bot {
 		cfg:           cfg,
 		client:        client,
 		log:           log,
-		allowedDMs:    toSet(cfg.AllowFrom),
-		allowedGroups: toSet(cfg.GroupAllowFrom),
+		allowedDMs:    channelutil.ToSet(cfg.AllowFrom),
+		allowedGroups: channelutil.ToSet(cfg.GroupAllowFrom),
 		contexts:      map[string]sendContext{},
 	}
 }
@@ -164,36 +165,17 @@ func (b *Bot) lookupContext(chatID string) (sendContext, bool) {
 }
 
 func allowedByPolicy(policy string, allowed map[string]struct{}, value string, isDM bool) bool {
-	switch normalizedPolicy(policy, isDM) {
-	case "disabled":
+	norm := channelutil.NormalizedPolicy(policy)
+	// weixin defaults: empty policy = open for DM, disabled for group
+	switch {
+	case norm == "open" && !isDM:
 		return false
-	case "allowlist":
+	case norm == "disabled":
+		return false
+	case norm == "allowlist":
 		_, ok := allowed[strings.TrimSpace(value)]
 		return ok
 	default:
 		return true
 	}
-}
-
-func normalizedPolicy(policy string, isDM bool) string {
-	policy = strings.TrimSpace(strings.ToLower(policy))
-	if policy != "" {
-		return policy
-	}
-	if isDM {
-		return "open"
-	}
-	return "disabled"
-}
-
-func toSet(values []string) map[string]struct{} {
-	out := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			continue
-		}
-		out[value] = struct{}{}
-	}
-	return out
 }

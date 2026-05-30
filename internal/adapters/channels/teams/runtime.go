@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -402,11 +403,4 @@ func bounded(value string, limit int) string {
 	return string(runes[:limit]) + "..."
 }
 
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
-			return trimmed
-		}
-	}
-	return ""
-}
+func firstNonEmpty(values ...string) string { return channelutil.FirstNonEmpty(values...) }

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -83,7 +84,7 @@ func New(cfg Config, client Client, log *slog.Logger) *Bot {
 		cfg:     cfg,
 		client:  client,
 		log:     log,
-		allowed: toSet(cfg.AllowedUserIDs),
+		allowed: channelutil.ToSet(cfg.AllowedUserIDs),
 		replies: map[string]replyTarget{},
 	}
 }
@@ -153,16 +154,16 @@ func (b *Bot) toInboundEvent(msg InboundMessage) (gateway.InboundEvent, bool) {
 
 	switch strings.TrimSpace(msg.ChatType) {
 	case ChatTypeGroup:
-		if normalizedPolicy(b.cfg.GroupPolicy) == "disabled" {
+		if channelutil.NormalizedPolicy(b.cfg.GroupPolicy) == "disabled" {
 			return gateway.InboundEvent{}, false
 		}
 		if !msg.Mentioned {
 			return gateway.InboundEvent{}, false
 		}
-		if normalizedPolicy(b.cfg.GroupPolicy) == "allowlist" && !b.allowedUser(userID) {
+		if channelutil.NormalizedPolicy(b.cfg.GroupPolicy) == "allowlist" && !b.allowedUser(userID) {
 			return gateway.InboundEvent{}, false
 		}
-		text = stripLeadingMentions(text)
+		text = channelutil.StripLeadingMentions(text)
 		if text == "" {
 			return gateway.InboundEvent{}, false
 		}
@@ -241,33 +242,3 @@ func normalizedMode(mode string) string {
 	return mode
 }
 
-func normalizedPolicy(policy string) string {
-	policy = strings.TrimSpace(strings.ToLower(policy))
-	if policy == "" {
-		return "open"
-	}
-	return policy
-}
-
-func stripLeadingMentions(text string) string {
-	fields := strings.Fields(strings.TrimSpace(text))
-	for len(fields) > 0 {
-		if !strings.HasPrefix(fields[0], "@") {
-			break
-		}
-		fields = fields[1:]
-	}
-	return strings.TrimSpace(strings.Join(fields, " "))
-}
-
-func toSet(values []string) map[string]struct{} {
-	out := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			continue
-		}
-		out[value] = struct{}{}
-	}
-	return out
-}

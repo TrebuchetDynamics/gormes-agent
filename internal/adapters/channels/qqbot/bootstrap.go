@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -187,9 +188,9 @@ func ResolveBootstrapConfig(opts BootstrapOptions) BootstrapConfig {
 		AppID:           firstNonEmpty(opts.AppID, getenv("QQ_APP_ID")),
 		ClientSecret:    firstNonEmpty(opts.ClientSecret, getenv("QQ_CLIENT_SECRET")),
 		MarkdownSupport: markdown,
-		DMPolicy:        normalizedPolicy(opts.DMPolicy),
+		DMPolicy:        channelutil.NormalizedPolicy(opts.DMPolicy),
 		AllowFrom:       CoerceList(opts.AllowFrom),
-		GroupPolicy:     normalizedPolicy(opts.GroupPolicy),
+		GroupPolicy:     channelutil.NormalizedPolicy(opts.GroupPolicy),
 		GroupAllowFrom:  CoerceList(opts.GroupAllowFrom),
 	}
 }
@@ -608,14 +609,7 @@ func splitList(value string) []string {
 	return out
 }
 
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if value = strings.TrimSpace(value); value != "" {
-			return value
-		}
-	}
-	return ""
-}
+func firstNonEmpty(values ...string) string { return channelutil.FirstNonEmpty(values...) }
 
 func nonEmpty(value, fallback string) string {
 	if strings.TrimSpace(value) != "" {

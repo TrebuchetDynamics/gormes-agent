@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -68,9 +69,9 @@ func New(cfg Config, client Client, log *slog.Logger) *Bot {
 		cfg:           cfg,
 		client:        client,
 		log:           log,
-		watchDomains:  toSet(cfg.WatchDomains),
-		watchEntities: toSet(cfg.WatchEntities),
-		ignore:        toSet(cfg.IgnoreEntities),
+		watchDomains:  channelutil.ToSet(cfg.WatchDomains),
+		watchEntities: channelutil.ToSet(cfg.WatchEntities),
+		ignore:        channelutil.ToSet(cfg.IgnoreEntities),
 		lastSeen:      map[string]time.Time{},
 		now:           time.Now,
 	}
@@ -219,17 +220,7 @@ func fallback(value, defaultValue string) string {
 	return value
 }
 
-func toSet(values []string) map[string]struct{} {
-	out := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		value = trim(value)
-		if value == "" {
-			continue
-		}
-		out[value] = struct{}{}
-	}
-	return out
-}
+
 
 func trim(value string) string {
 	return strings.TrimSpace(value)

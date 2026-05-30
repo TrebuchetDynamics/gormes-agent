@@ -3,6 +3,7 @@ package whatsapp
 import (
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -69,7 +70,7 @@ func NormalizeInboundWithIdentity(msg InboundMessage, identity IdentityContext) 
 		return InboundResult{Decision: InboundDecisionDrop, Status: status}
 	}
 	if msg.Mentioned {
-		text = stripLeadingMentions(text)
+		text = channelutil.StripLeadingMentions(text)
 		if text == "" {
 			return InboundResult{Decision: InboundDecisionDrop, Status: status}
 		}
@@ -202,13 +203,3 @@ func selfChatSuppression(msg InboundMessage, text string, ctx IdentityContext, i
 	return SelfChatSuppression{}, false
 }
 
-func stripLeadingMentions(text string) string {
-	fields := strings.Fields(strings.TrimSpace(text))
-	for len(fields) > 0 {
-		if !strings.HasPrefix(fields[0], "@") {
-			break
-		}
-		fields = fields[1:]
-	}
-	return strings.TrimSpace(strings.Join(fields, " "))
-}
