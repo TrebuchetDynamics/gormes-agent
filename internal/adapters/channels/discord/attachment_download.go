@@ -1,16 +1,13 @@
 package discord
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
-	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -24,7 +21,6 @@ import (
 
 const (
 	discordMaxAttachmentBytes        int64 = 32 * 1024 * 1024
-	discordInlineTextDocumentBytes   int64 = 100 * 1024
 	discordAttachmentHTTPTimeout           = 30 * time.Second
 	discordAttachmentUnavailableCode       = "discord_attachment_unavailable"
 	discordAttachmentBlockedSSRFCode       = "discord_attachment_blocked_ssrf"
@@ -36,46 +32,10 @@ var (
 	errDiscordAttachmentReadUnavailable = errors.New("discord attachment read unavailable")
 	errDiscordAttachmentBlockedSSRF     = errors.New("discord attachment blocked by SSRF guard")
 	errDiscordAttachmentTooLarge        = errors.New("discord attachment too large")
-	errDiscordAttachmentInvalidPayload  = errors.New("discord attachment invalid payload")
+	errDiscordAttachmentInvalidPayload  = attachments.ErrInvalidPayload
 )
 
-var discordSupportedDocumentExtensions = map[string]string{
-	".cfg":  "text/plain",
-	".csv":  "text/csv",
-	".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-	".ini":  "text/plain",
-	".json": "application/json",
-	".log":  "text/plain",
-	".md":   "text/markdown",
-	".pdf":  "application/pdf",
-	".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-	".toml": "application/toml",
-	".txt":  "text/plain",
-	".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-	".xml":  "application/xml",
-	".yaml": "application/yaml",
-	".yml":  "application/yaml",
-	".zip":  "application/zip",
-}
-
-var discordMIMEExtensionFallbacks = map[string]string{
-	"application/json": ".json",
-	"application/pdf":  ".pdf",
-	"application/toml": ".toml",
-	"application/xml":  ".xml",
-	"application/yaml": ".yaml",
-	"application/zip":  ".zip",
-	"text/csv":         ".csv",
-	"text/markdown":    ".md",
-	"text/plain":       ".txt",
-}
-
-type discordAttachmentClassification struct {
-	kind      string
-	mediaType string
-	ext       string
-	fileName  string
-}
+type discordAttachmentClassification = attachments.Classification
 
 func (b *Bot) discordInboundTextAndAttachments(ctx context.Context, m *discordgo.Message) (string, []gateway.Attachment) {
 	if m == nil {
@@ -150,22 +110,22 @@ func (b *Bot) discordAttachmentDescriptor(ctx context.Context, att *discordgo.Me
 		return "", nil, discordAttachmentEvidence(discordAttachmentUnavailableCode, att, discordAttachmentEvidenceReason(err))
 	}
 
-	path, err := b.cacheDiscordAttachmentBytes(classification.kind+"s", classification.fileName, data)
+	path, err := b.cacheDiscordAttachmentBytes(classification.Kind+"s", classification.FileName, data)
 	if err != nil {
 		return "", nil, discordAttachmentEvidence(discordAttachmentUnavailableCode, att, "cache write failed")
 	}
 	attachment := &gateway.Attachment{
-		Kind:      classification.kind,
+		Kind:      classification.Kind,
 		URL:       path,
-		MediaType: classification.mediaType,
-		FileName:  classification.fileName,
+		MediaType: classification.MediaType,
+		FileName:  classification.FileName,
 		SourceID:  discordAttachmentSourceID(att),
 		SizeBytes: int64(len(data)),
 	}
 
 	var prefix string
-	if classification.kind == "document" && discordShouldInlineDocument(classification.ext, int64(len(data))) && utf8.Valid(data) {
-		prefix = fmt.Sprintf("[Content of %s]:\n%s", classification.fileName, string(data))
+	if classification.Kind == "document" && discordShouldInlineDocument(classification.Ext, int64(len(data))) && utf8.Valid(data) {
+		prefix = fmt.Sprintf("[Content of %s]:\n%s", classification.FileName, string(data))
 	}
 	return prefix, attachment, ""
 }
@@ -229,105 +189,15 @@ func (b *Bot) discordAttachmentURLAllowed(rawURL string) bool {
 }
 
 func classifyDiscordAttachment(att *discordgo.MessageAttachment) (discordAttachmentClassification, bool) {
-	if att == nil {
-		return discordAttachmentClassification{}, false
-	}
-	mediaType := cleanDiscordMediaType(att.ContentType)
-	fileName := safeDiscordFileName(att.Filename)
-	ext := inferDiscordAttachmentExt(fileName, mediaType)
-	if mediaType == "" {
-		mediaType = mime.TypeByExtension(ext)
-		mediaType = cleanDiscordMediaType(mediaType)
-	}
-	switch {
-	case strings.HasPrefix(mediaType, "image/"):
-		if ext == "" {
-			ext = discordImageExt(mediaType)
-		}
-		if !discordImageExtSupported(ext) {
-			ext = ".jpg"
-		}
-		if fileName == "" {
-			fileName = "image" + ext
-		}
-		return discordAttachmentClassification{kind: "image", mediaType: mediaType, ext: ext, fileName: fileName}, true
-	case strings.HasPrefix(mediaType, "audio/"):
-		if ext == "" {
-			ext = discordAudioExt(mediaType)
-		}
-		if !discordAudioExtSupported(ext) {
-			ext = ".ogg"
-		}
-		if fileName == "" {
-			fileName = "audio" + ext
-		}
-		return discordAttachmentClassification{kind: "audio", mediaType: mediaType, ext: ext, fileName: fileName}, true
-	default:
-		if ext == "" {
-			return discordAttachmentClassification{}, false
-		}
-		docType, ok := discordSupportedDocumentExtensions[ext]
-		if !ok {
-			return discordAttachmentClassification{}, false
-		}
-		if mediaType == "" || mediaType == "application/octet-stream" {
-			mediaType = docType
-		}
-		if fileName == "" {
-			fileName = "document" + ext
-		}
-		return discordAttachmentClassification{kind: "document", mediaType: mediaType, ext: ext, fileName: fileName}, true
-	}
+	return attachments.Classify(att)
 }
 
 func inferDiscordAttachmentExt(fileName, mediaType string) string {
-	if ext := strings.ToLower(filepath.Ext(strings.TrimSpace(fileName))); ext != "" {
-		return ext
-	}
-	mediaType = cleanDiscordMediaType(mediaType)
-	if ext := discordMIMEExtensionFallbacks[mediaType]; ext != "" {
-		return ext
-	}
-	extensions, _ := mime.ExtensionsByType(mediaType)
-	sort.Strings(extensions)
-	for _, ext := range extensions {
-		ext = strings.ToLower(ext)
-		if _, ok := discordSupportedDocumentExtensions[ext]; ok || discordImageExtSupported(ext) || discordAudioExtSupported(ext) {
-			return ext
-		}
-	}
-	return ""
+	return attachments.InferExt(fileName, mediaType)
 }
 
 func validateDiscordAttachmentPayload(classification discordAttachmentClassification, data []byte) error {
-	if len(data) == 0 {
-		return errDiscordAttachmentInvalidPayload
-	}
-	if looksLikeDiscordHTMLPayload(data) {
-		return errDiscordAttachmentInvalidPayload
-	}
-	switch classification.kind {
-	case "image":
-		if !looksLikeDiscordImage(data) {
-			return errDiscordAttachmentInvalidPayload
-		}
-	case "audio":
-		if !looksLikeDiscordAudio(data) {
-			return errDiscordAttachmentInvalidPayload
-		}
-	case "document":
-		switch classification.ext {
-		case ".pdf":
-			if !bytes.HasPrefix(data, []byte("%PDF")) {
-				return errDiscordAttachmentInvalidPayload
-			}
-		case ".zip", ".docx", ".xlsx", ".pptx":
-			if !bytes.HasPrefix(data, []byte("PK")) {
-				return errDiscordAttachmentInvalidPayload
-			}
-		}
-	}
-	return nil
+	return attachments.ValidatePayload(classification, data)
 }
 
 func (b *Bot) cacheDiscordAttachmentBytes(category, fileName string, data []byte) (string, error) {
@@ -415,84 +285,33 @@ func discordAttachmentEvidenceReason(err error) string {
 }
 
 func discordShouldInlineDocument(ext string, size int64) bool {
-	if size <= 0 || size > discordInlineTextDocumentBytes {
-		return false
-	}
-	switch strings.ToLower(ext) {
-	case ".log", ".md", ".txt":
-		return true
-	default:
-		return false
-	}
+	return attachments.ShouldInlineDocument(ext, size)
 }
 
 func looksLikeDiscordHTMLPayload(data []byte) bool {
-	trimmed := bytes.TrimSpace(bytes.ToLower(data))
-	return bytes.HasPrefix(trimmed, []byte("<html")) ||
-		bytes.HasPrefix(trimmed, []byte("<!doctype html")) ||
-		bytes.Contains(trimmed[:min(len(trimmed), 256)], []byte("<title>forbidden"))
+	return attachments.LooksLikeHTMLPayload(data)
 }
 
 func looksLikeDiscordImage(data []byte) bool {
-	return bytes.HasPrefix(data, []byte("\x89PNG\r\n\x1a\n")) ||
-		bytes.HasPrefix(data, []byte("\xff\xd8\xff")) ||
-		bytes.HasPrefix(data, []byte("GIF87a")) ||
-		bytes.HasPrefix(data, []byte("GIF89a")) ||
-		bytes.HasPrefix(data, []byte("RIFF")) && len(data) >= 12 && string(data[8:12]) == "WEBP"
+	return attachments.LooksLikeImage(data)
 }
 
 func looksLikeDiscordAudio(data []byte) bool {
-	return bytes.HasPrefix(data, []byte("OggS")) ||
-		bytes.HasPrefix(data, []byte("ID3")) ||
-		bytes.HasPrefix(data, []byte("RIFF")) && len(data) >= 12 && string(data[8:12]) == "WAVE" ||
-		bytes.HasPrefix(data, []byte("fLaC")) ||
-		len(data) >= 2 && data[0] == 0xff && data[1]&0xe0 == 0xe0
+	return attachments.LooksLikeAudio(data)
 }
 
 func discordImageExt(mediaType string) string {
-	switch cleanDiscordMediaType(mediaType) {
-	case "image/gif":
-		return ".gif"
-	case "image/jpeg":
-		return ".jpg"
-	case "image/png":
-		return ".png"
-	case "image/webp":
-		return ".webp"
-	default:
-		return ".jpg"
-	}
+	return attachments.ImageExt(mediaType)
 }
 
 func discordImageExtSupported(ext string) bool {
-	switch strings.ToLower(strings.TrimSpace(ext)) {
-	case ".gif", ".jpeg", ".jpg", ".png", ".webp":
-		return true
-	default:
-		return false
-	}
+	return attachments.ImageExtSupported(ext)
 }
 
 func discordAudioExt(mediaType string) string {
-	switch cleanDiscordMediaType(mediaType) {
-	case "audio/mpeg":
-		return ".mp3"
-	case "audio/wav", "audio/wave", "audio/x-wav":
-		return ".wav"
-	case "audio/webm":
-		return ".webm"
-	case "audio/mp4", "audio/aac":
-		return ".m4a"
-	default:
-		return ".ogg"
-	}
+	return attachments.AudioExt(mediaType)
 }
 
 func discordAudioExtSupported(ext string) bool {
-	switch strings.ToLower(strings.TrimSpace(ext)) {
-	case ".aac", ".flac", ".m4a", ".mp3", ".ogg", ".opus", ".wav", ".webm":
-		return true
-	default:
-		return false
-	}
+	return attachments.AudioExtSupported(ext)
 }
