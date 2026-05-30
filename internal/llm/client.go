@@ -14,8 +14,9 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/routing"
 )
 
 // Client is the single outbound HTTP surface of Gormes.
@@ -86,168 +87,56 @@ type ChatRequest struct {
 	Tools            []ToolDescriptor // omitempty at wire time via the Marshal path in http_client
 }
 
-type RequestOverrides struct {
-	ServiceTier              string
-	Speed                    string
-	OpenRouterMinCodingScore string
-}
+type RequestOverrides = routing.RequestOverrides
 
-type ReasoningEffort string
+type ReasoningEffort = routing.ReasoningEffort
 
 const (
-	ReasoningEffortNone    ReasoningEffort = "none"
-	ReasoningEffortMinimal ReasoningEffort = "minimal"
-	ReasoningEffortLow     ReasoningEffort = "low"
-	ReasoningEffortMedium  ReasoningEffort = "medium"
-	ReasoningEffortHigh    ReasoningEffort = "high"
-	ReasoningEffortXHigh   ReasoningEffort = "xhigh"
+	ReasoningEffortNone    = routing.ReasoningEffortNone
+	ReasoningEffortMinimal = routing.ReasoningEffortMinimal
+	ReasoningEffortLow     = routing.ReasoningEffortLow
+	ReasoningEffortMedium  = routing.ReasoningEffortMedium
+	ReasoningEffortHigh    = routing.ReasoningEffortHigh
+	ReasoningEffortXHigh   = routing.ReasoningEffortXHigh
 )
 
-type ReasoningEffortSource string
+type ReasoningEffortSource = routing.ReasoningEffortSource
 
 const (
-	ReasoningEffortSourceConfigDefault ReasoningEffortSource = "config_default"
-	ReasoningEffortSourceTurnOverride  ReasoningEffortSource = "turn_override"
+	ReasoningEffortSourceConfigDefault = routing.ReasoningEffortSourceConfigDefault
+	ReasoningEffortSourceTurnOverride  = routing.ReasoningEffortSourceTurnOverride
 )
 
-type ReasoningEffortState string
+type ReasoningEffortState = routing.ReasoningEffortState
 
 const (
-	ReasoningEffortStateDefault     ReasoningEffortState = "default"
-	ReasoningEffortStateDisabled    ReasoningEffortState = "disabled"
-	ReasoningEffortStateOverride    ReasoningEffortState = "override"
-	ReasoningEffortStateInvalid     ReasoningEffortState = "invalid"
-	ReasoningEffortStateUnsupported ReasoningEffortState = "unsupported"
+	ReasoningEffortStateDefault     = routing.ReasoningEffortStateDefault
+	ReasoningEffortStateDisabled    = routing.ReasoningEffortStateDisabled
+	ReasoningEffortStateOverride    = routing.ReasoningEffortStateOverride
+	ReasoningEffortStateInvalid     = routing.ReasoningEffortStateInvalid
+	ReasoningEffortStateUnsupported = routing.ReasoningEffortStateUnsupported
 )
 
-type ReasoningEffortEvidence struct {
-	State     ReasoningEffortState
-	Source    ReasoningEffortSource
-	Requested string
-	Effort    ReasoningEffort
-	Supported bool
-	Forwarded bool
-	Reason    string
-}
+type ReasoningEffortEvidence = routing.ReasoningEffortEvidence
 
 func NormalizeReasoningEffort(effort ReasoningEffort) (ReasoningEffort, bool) {
-	normalized := ReasoningEffort(strings.ToLower(strings.TrimSpace(string(effort))))
-	switch normalized {
-	case ReasoningEffortNone,
-		ReasoningEffortMinimal,
-		ReasoningEffortLow,
-		ReasoningEffortMedium,
-		ReasoningEffortHigh,
-		ReasoningEffortXHigh:
-		return normalized, true
-	default:
-		return "", false
-	}
+	return routing.NormalizeReasoningEffort(effort)
 }
 
 func ResolveReasoningEffort(raw string, source ReasoningEffortSource, status ProviderStatus) ReasoningEffortEvidence {
-	if source == "" {
-		source = ReasoningEffortSourceConfigDefault
-	}
-	requested := strings.ToLower(strings.TrimSpace(raw))
-	supported := ProviderSupportsReasoningEffort(status)
-	if requested == "" {
-		return ReasoningEffortEvidence{
-			State:     ReasoningEffortStateDefault,
-			Source:    source,
-			Supported: supported,
-			Reason:    "no reasoning_effort supplied; provider default applies",
-		}
-	}
-
-	effort, ok := NormalizeReasoningEffort(ReasoningEffort(requested))
-	if !ok {
-		return ReasoningEffortEvidence{
-			State:     ReasoningEffortStateInvalid,
-			Source:    source,
-			Requested: requested,
-			Supported: supported,
-			Reason:    "invalid reasoning_effort " + requested + "; valid values are none, minimal, low, medium, high, xhigh",
-		}
-	}
-
-	state := ReasoningEffortStateOverride
-	reason := "reasoning_effort " + string(effort) + " will be sent on this request"
-	if effort == ReasoningEffortNone {
-		state = ReasoningEffortStateDisabled
-		reason = "reasoning disabled for this request"
-	}
-	if !supported {
-		normalized := normalizeProviderStatus(status)
-		return ReasoningEffortEvidence{
-			State:     ReasoningEffortStateUnsupported,
-			Source:    source,
-			Requested: requested,
-			Effort:    effort,
-			Supported: false,
-			Forwarded: false,
-			Reason:    "provider runtime " + normalized.Runtime + " does not serialize reasoning_effort",
-		}
-	}
-	return ReasoningEffortEvidence{
-		State:     state,
-		Source:    source,
-		Requested: requested,
-		Effort:    effort,
-		Supported: true,
-		Forwarded: true,
-		Reason:    reason,
-	}
+	return routing.ResolveReasoningEffort(raw, source, routing.ProviderStatus{Runtime: normalizeProviderStatus(status).Runtime})
 }
 
 func ProviderSupportsReasoningEffort(status ProviderStatus) bool {
-	normalized := normalizeProviderStatus(status)
-	return normalized.Runtime == "chat_completions"
+	return routing.ProviderSupportsReasoningEffort(routing.ProviderStatus{Runtime: normalizeProviderStatus(status).Runtime})
 }
 
 func ResolveFastModeRequestOverrides(model string) (RequestOverrides, bool) {
-	if modelSupportsAnthropicFastMode(model) {
-		return RequestOverrides{Speed: "fast"}, true
-	}
-	if modelSupportsOpenAIPriorityProcessing(model) {
-		return RequestOverrides{ServiceTier: "priority"}, true
-	}
-	return RequestOverrides{}, false
-}
-
-func modelSupportsOpenAIPriorityProcessing(model string) bool {
-	base := fastModeModelBase(model)
-	if base == "" || strings.Contains(base, "codex") {
-		return false
-	}
-	for _, prefix := range []string{"gpt-", "o1", "o3", "o4"} {
-		if strings.HasPrefix(base, prefix) {
-			return true
-		}
-	}
-	return false
+	return routing.ResolveFastModeRequestOverrides(model)
 }
 
 func modelSupportsAnthropicFastMode(model string) bool {
-	base := fastModeModelBase(model)
-	if !strings.HasPrefix(base, "claude-") {
-		return false
-	}
-	return strings.Contains(base, "opus-4-6") || strings.Contains(base, "opus-4.6")
-}
-
-func fastModeModelBase(model string) string {
-	raw := strings.ToLower(strings.TrimSpace(model))
-	if raw == "" {
-		return ""
-	}
-	if slash := strings.Index(raw, "/"); slash >= 0 {
-		raw = raw[slash+1:]
-	}
-	if colon := strings.Index(raw, ":"); colon >= 0 {
-		raw = raw[:colon]
-	}
-	return raw
+	return routing.ModelSupportsAnthropicFastMode(model)
 }
 
 // ToolDescriptor mirrors tools.ToolDescriptor so hermes stays
