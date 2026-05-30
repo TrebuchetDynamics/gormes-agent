@@ -1,4 +1,4 @@
-package memory
+package goncho_test
 
 import (
 	"context"
@@ -7,17 +7,20 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/memory/goncho"
 )
 
 func TestGonchoMarkdownStoreReloadExportAndConflictHandling(t *testing.T) {
 	ctx := context.Background()
-	store, err := OpenSqlite(filepath.Join(t.TempDir(), "memory.db"), 0, nil)
+	store, err := memory.OpenSqlite(filepath.Join(t.TempDir(), "memory.db"), 0, nil)
 	if err != nil {
 		t.Fatalf("OpenSqlite: %v", err)
 	}
 	defer store.Close(ctx)
 
-	fixture, err := os.ReadFile(filepath.Join("testdata", "goncho_v1", "memory.md"))
+	fixture, err := os.ReadFile(filepath.Join("..", "testdata", "goncho_v1", "memory.md"))
 	if err != nil {
 		t.Fatalf("read fixture: %v", err)
 	}
@@ -26,7 +29,7 @@ func TestGonchoMarkdownStoreReloadExportAndConflictHandling(t *testing.T) {
 		t.Fatalf("write markdown fixture: %v", err)
 	}
 
-	markdown := NewGonchoMarkdownStore(store.DB(), GonchoMarkdownStoreConfig{
+	markdown := goncho.NewGonchoMarkdownStore(store.DB(), goncho.GonchoMarkdownStoreConfig{
 		Path:                  markdownPath,
 		DefaultObserverPeerID: "agent-a",
 	})
@@ -56,7 +59,7 @@ func TestGonchoMarkdownStoreReloadExportAndConflictHandling(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read exported markdown: %v", err)
 	}
-	roundTrip, err := ParseGonchoMemoryV1Markdown(roundTripBody)
+	roundTrip, err := goncho.ParseGonchoMemoryV1Markdown(roundTripBody)
 	if err != nil {
 		t.Fatalf("parse exported markdown: %v\n%s", err, roundTripBody)
 	}
