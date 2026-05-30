@@ -1,13 +1,15 @@
 package llm
 
+import "github.com/TrebuchetDynamics/gormes-agent/internal/llm/providerdiagnostics"
+
 // ChainDecision tells the dispatcher what to do after a provider attempt.
-type ChainDecision string
+type ChainDecision = providerdiagnostics.ChainDecision
 
 const (
-	ChainDecisionRetry    ChainDecision = "retry"
-	ChainDecisionFallback ChainDecision = "fallback"
-	ChainDecisionAbort    ChainDecision = "abort"
-	ChainDecisionSuccess  ChainDecision = "success"
+	ChainDecisionRetry    = providerdiagnostics.ChainDecisionRetry
+	ChainDecisionFallback = providerdiagnostics.ChainDecisionFallback
+	ChainDecisionAbort    = providerdiagnostics.ChainDecisionAbort
+	ChainDecisionSuccess  = providerdiagnostics.ChainDecisionSuccess
 )
 
 // ChainErrorClassifier decides whether a failed provider attempt should retry,
@@ -30,35 +32,17 @@ func NewDefaultChainErrorClassifier() *DefaultChainErrorClassifier {
 }
 
 // Decide maps a provider error classification to a chain decision.
-//
-// Rules:
-//   - Fatal/auth errors → abort (no point trying other providers with same creds)
-//   - Context too large → abort (other providers will also reject)
-//   - Rate limit / timeout / retryable → retry up to MaxRetriesPerProvider, then fallback
-//   - Image too large → fallback (different provider may accept)
-//   - Non-retryable 4xx → fallback
-//   - Unknown → fallback
 func (c *DefaultChainErrorClassifier) Decide(classification ProviderErrorClassification, attemptNumber int) ChainDecision {
-	switch classification.Kind {
-	case ProviderErrorAuth:
-		return ChainDecisionAbort
-	case ProviderErrorContext:
-		return ChainDecisionAbort
-	case ProviderErrorRateLimit:
-		if attemptNumber < c.MaxRetriesPerProvider {
-			return ChainDecisionRetry
-		}
-		return ChainDecisionFallback
-	case ProviderErrorTimeout, ProviderErrorRetryable:
-		if attemptNumber < c.MaxRetriesPerProvider {
-			return ChainDecisionRetry
-		}
-		return ChainDecisionFallback
-	case ProviderErrorImageTooLarge:
-		return ChainDecisionFallback
-	case ProviderErrorNonRetryable:
-		return ChainDecisionFallback
-	default:
-		return ChainDecisionFallback
+	inner := providerdiagnostics.DefaultChainErrorClassifier{MaxRetriesPerProvider: c.MaxRetriesPerProvider}
+	return inner.Decide(providerDiagnosticClassification(classification), attemptNumber)
+}
+
+func providerDiagnosticClassification(classification ProviderErrorClassification) providerdiagnostics.Classification {
+	return providerdiagnostics.Classification{
+		Kind:      classification.Kind.String(),
+		Class:     classification.Class.String(),
+		Status:    classification.Status,
+		Message:   classification.Message,
+		Retryable: classification.Retryable,
 	}
 }
