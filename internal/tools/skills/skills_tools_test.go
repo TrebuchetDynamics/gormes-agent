@@ -1,4 +1,4 @@
-package tools
+package skilltools
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/toolkit"
 )
 
 func TestSkillsListToolListsAvailableSkillsAndCategories(t *testing.T) {
@@ -179,7 +181,7 @@ func writeToolSkillFile(t *testing.T, skillDir, rel, content string) {
 	}
 }
 
-func executeSkillsTool[T any](t *testing.T, tool Tool, args map[string]any) T {
+func executeSkillsTool[T any](t *testing.T, tool toolkit.Tool, args map[string]any) T {
 	t.Helper()
 	raw, err := json.Marshal(args)
 	if err != nil {

@@ -1,4 +1,4 @@
-package tools
+package memory
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/filesystem"
 )
 
 func TestMemoryToolMutatesDurableMemoryTargets(t *testing.T) {
@@ -240,7 +242,7 @@ func TestMemoryToolAddWaitsForHermesLockFile(t *testing.T) {
 		t.Fatalf("open lock file: %v", err)
 	}
 	defer lock.Close()
-	unlock, err := lockMemoryFile(lock)
+	unlock, err := filesystem.LockMemoryFile(lock)
 	if err != nil {
 		t.Fatalf("lock fixture: %v", err)
 	}

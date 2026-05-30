@@ -1,4 +1,4 @@
-package tools
+package skilltools
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	skillspkg "github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/toolkit"
 )
 
 func TestSkillCreateWritesValidSKILLMD(t *testing.T) {
@@ -796,7 +797,7 @@ func TestSkillManagerAgentCreatedGuard(t *testing.T) {
 // Helpers
 // =============================================================================
 
-func executeSkillManage(t *testing.T, tool Tool, args map[string]any) skillManageResult {
+func executeSkillManage(t *testing.T, tool toolkit.Tool, args map[string]any) skillManageResult {
 	t.Helper()
 	raw, err := json.Marshal(args)
 	if err != nil {
@@ -813,7 +814,7 @@ func executeSkillManage(t *testing.T, tool Tool, args map[string]any) skillManag
 	return result
 }
 
-func createSkillForManagerTest(t *testing.T, tool Tool, name string) {
+func createSkillForManagerTest(t *testing.T, tool toolkit.Tool, name string) {
 	t.Helper()
 	result := executeSkillManage(t, tool, map[string]any{
 		"action":  "create",
@@ -835,6 +836,15 @@ description: Test skill ` + name + `.
 
 Instructions.
 `
+}
+
+func stringSliceContains(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func readTextForManagerTest(t *testing.T, path string) string {

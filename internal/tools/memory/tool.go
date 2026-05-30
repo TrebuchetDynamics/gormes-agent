@@ -1,0 +1,587 @@
+package memory
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
+	"unicode/utf8"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/filesystem"
+)
+
+const (
+	MemoryToolName = "memory"
+
+	MemoryEvidenceInvalidArgs      = "memory_invalid_args"
+	MemoryEvidenceStoreUnavailable = "memory_store_unavailable"
+	MemoryEvidenceUnsafeContent    = "memory_unsafe_content"
+	MemoryEvidenceEntryNotFound    = "memory_entry_not_found"
+	MemoryEvidenceAmbiguousMatch   = "memory_ambiguous_match"
+	MemoryEvidenceLimitExceeded    = "memory_limit_exceeded"
+)
+
+const (
+	memoryEntryDelimiter   = "\n§\n"
+	memoryDefaultCharLimit = 20000
+	userDefaultCharLimit   = 12000
+)
+
+const memoryToolDescription = `Save durable information to persistent memory that survives across sessions. Memory is injected into future turns, so keep it compact and focused on facts that will still matter later.
+
+WHEN TO SAVE:
+- User corrects you or says "remember this" / "don't do that again"
+- User shares a stable preference, habit, or personal detail
+- You discover a durable environment fact, project convention, tool quirk, or workflow rule
+
+Do NOT save task progress, session outcomes, completed-work logs, or temporary TODO state to memory; use session_search to recall those from past transcripts.
+
+Targets: user stores facts about the user; memory stores assistant/environment notes.
+Actions: add, replace, remove, read (inspect current entries; does not mutate).`
+
+type MemoryToolConfig struct {
+	MemoryDir       string
+	MemoryCharLimit int
+	UserCharLimit   int
+}
+
+type MemoryTool struct {
+	cfg MemoryToolConfig
+	mu  sync.Mutex
+}
+
+type MemoryToolResult struct {
+	Success        bool                       `json:"success"`
+	Target         string                     `json:"target,omitempty"`
+	Entries        []string                   `json:"entries,omitempty"`
+	CurrentEntries []string                   `json:"current_entries,omitempty"`
+	Usage          string                     `json:"usage,omitempty"`
+	EntryCount     int                        `json:"entry_count"`
+	Message        string                     `json:"message,omitempty"`
+	Evidence       string                     `json:"evidence,omitempty"`
+	Error          string                     `json:"error,omitempty"`
+	Matches        []string                   `json:"matches,omitempty"`
+	Provenance     *MemoryInventoryProvenance `json:"provenance,omitempty"`
+}
+
+type MemoryInventoryProvenance struct {
+	SelectedSource string                  `json:"selected_source"`
+	Sources        []MemoryInventorySource `json:"sources"`
+}
+
+type MemoryInventorySource struct {
+	Source     string `json:"source"`
+	Kind       string `json:"kind,omitempty"`
+	Target     string `json:"target,omitempty"`
+	Included   bool   `json:"included"`
+	State      string `json:"state,omitempty"`
+	EntryCount int    `json:"entry_count"`
+	Usage      string `json:"usage,omitempty"`
+	ReadWith   string `json:"read_with,omitempty"`
+	Note       string `json:"note,omitempty"`
+}
+
+type memoryToolArgs struct {
+	Action     string `json:"action"`
+	Target     string `json:"target"`
+	Content    string `json:"content"`
+	OldText    string `json:"old_text"`
+	NewContent string `json:"new_content"`
+}
+
+func NewMemoryTool(cfg MemoryToolConfig) *MemoryTool { return &MemoryTool{cfg: cfg} }
+
+func (*MemoryTool) Name() string { return MemoryToolName }
+
+func (*MemoryTool) Description() string {
+	return memoryToolDescription
+}
+
+func (*MemoryTool) Schema() json.RawMessage {
+	return json.RawMessage(`{"type":"object","properties":{"action":{"type":"string","enum":["add","replace","remove","read"],"description":"Memory action to perform: add, replace, remove, or read current entries without mutation."},"target":{"type":"string","enum":["user","memory"],"description":"user stores facts about the user; memory stores assistant/environment notes."},"content":{"type":"string","description":"Content for add, and Hermes-compatible replacement content when new_content is omitted."},"old_text":{"type":"string","description":"Substring identifying the entry to replace or remove."},"new_content":{"type":"string","description":"Replacement content for replace; content is also accepted for Hermes compatibility."}},"required":["action","target"]}`)
+}
+
+func (*MemoryTool) Timeout() time.Duration { return 0 }
+
+func (t *MemoryTool) Execute(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
+	_ = ctx
+	if t == nil {
+		return json.Marshal(memoryError(MemoryEvidenceStoreUnavailable, "memory tool is not initialized"))
+	}
+	if len(strings.TrimSpace(string(args))) == 0 {
+		args = json.RawMessage(`{}`)
+	}
+	var in memoryToolArgs
+	if err := json.Unmarshal(args, &in); err != nil {
+		return json.Marshal(memoryError(MemoryEvidenceInvalidArgs, "invalid memory args: "+err.Error()))
+	}
+	result := t.execute(in)
+	return json.Marshal(result)
+}
+
+func (t *MemoryTool) execute(in memoryToolArgs) MemoryToolResult {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	target, ok := normalizeMemoryTarget(in.Target)
+	if !ok {
+		return memoryError(MemoryEvidenceInvalidArgs, "target must be user or memory")
+	}
+	path, err := t.pathFor(target)
+	if err != nil {
+		return memoryError(MemoryEvidenceStoreUnavailable, err.Error())
+	}
+
+	action := strings.ToLower(strings.TrimSpace(in.Action))
+	switch action {
+	case "read":
+		entries, err := readMemoryEntries(path)
+		if err != nil {
+			return memoryError(MemoryEvidenceStoreUnavailable, "read durable memory store")
+		}
+		return memoryReadSuccess(target, entries, t.limitFor(target), "Entries read.", t.inventoryProvenance(target, entries))
+	case "add", "replace", "remove":
+		return withMemoryFileLock(path, func() MemoryToolResult {
+			entries, err := readMemoryEntries(path)
+			if err != nil {
+				return memoryError(MemoryEvidenceStoreUnavailable, "read durable memory store")
+			}
+			switch action {
+			case "add":
+				return t.add(path, target, entries, in.Content)
+			case "replace":
+				return t.replace(path, target, entries, in.OldText, replacementContent(in))
+			default:
+				return t.remove(path, target, entries, in.OldText)
+			}
+		})
+	default:
+		return memoryError(MemoryEvidenceInvalidArgs, "action must be add, replace, remove, or read")
+	}
+}
+
+func replacementContent(in memoryToolArgs) string {
+	if strings.TrimSpace(in.NewContent) != "" {
+		return in.NewContent
+	}
+	return in.Content
+}
+
+func withMemoryFileLock(path string, fn func() MemoryToolResult) MemoryToolResult {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return memoryError(MemoryEvidenceStoreUnavailable, "prepare memory lock")
+	}
+	lock, err := os.OpenFile(path+".lock", os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return memoryError(MemoryEvidenceStoreUnavailable, "open memory lock")
+	}
+	defer lock.Close()
+	unlock, err := filesystem.LockMemoryFile(lock)
+	if err != nil {
+		return memoryError(MemoryEvidenceStoreUnavailable, "acquire memory lock")
+	}
+	defer func() { _ = unlock() }()
+	return fn()
+}
+
+func (t *MemoryTool) add(path, target string, entries []string, content string) MemoryToolResult {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return memoryError(MemoryEvidenceInvalidArgs, "content cannot be empty")
+	}
+	if evidence := scanMemoryContent(content); evidence != "" {
+		return memoryError(evidence, "memory content rejected by safety scan")
+	}
+	for _, entry := range entries {
+		if entry == content {
+			return memorySuccess(target, entries, t.limitFor(target), "Entry already exists (no duplicate added).")
+		}
+	}
+	updated := append(append([]string(nil), entries...), content)
+	if overLimit(updated, t.limitFor(target)) {
+		return memoryLimitError(entries, t.limitFor(target), "memory target would exceed character limit")
+	}
+	if err := writeMemoryEntries(path, updated); err != nil {
+		return memoryError(MemoryEvidenceStoreUnavailable, "write durable memory store")
+	}
+	return memorySuccess(target, updated, t.limitFor(target), "Entry added.")
+}
+
+func (t *MemoryTool) replace(path, target string, entries []string, oldText, newContent string) MemoryToolResult {
+	oldText = strings.TrimSpace(oldText)
+	newContent = strings.TrimSpace(newContent)
+	if oldText == "" {
+		return memoryError(MemoryEvidenceInvalidArgs, "old_text cannot be empty")
+	}
+	if newContent == "" {
+		return memoryError(MemoryEvidenceInvalidArgs, "new_content cannot be empty; use remove to delete entries")
+	}
+	if evidence := scanMemoryContent(newContent); evidence != "" {
+		return memoryError(evidence, "memory content rejected by safety scan")
+	}
+	idx, matches, evidence := findMemoryEntry(entries, oldText)
+	if evidence != "" {
+		res := memoryError(evidence, memoryMatchError(evidence, oldText))
+		res.Matches = matches
+		return res
+	}
+	updated := append([]string(nil), entries...)
+	updated[idx] = newContent
+	if overLimit(updated, t.limitFor(target)) {
+		return memoryError(MemoryEvidenceLimitExceeded, "replacement would exceed character limit")
+	}
+	if err := writeMemoryEntries(path, updated); err != nil {
+		return memoryError(MemoryEvidenceStoreUnavailable, "write durable memory store")
+	}
+	return memorySuccess(target, updated, t.limitFor(target), "Entry replaced.")
+}
+
+func (t *MemoryTool) remove(path, target string, entries []string, oldText string) MemoryToolResult {
+	oldText = strings.TrimSpace(oldText)
+	if oldText == "" {
+		return memoryError(MemoryEvidenceInvalidArgs, "old_text cannot be empty")
+	}
+	idx, matches, evidence := findMemoryEntry(entries, oldText)
+	if evidence != "" {
+		res := memoryError(evidence, memoryMatchError(evidence, oldText))
+		res.Matches = matches
+		return res
+	}
+	updated := append([]string(nil), entries[:idx]...)
+	updated = append(updated, entries[idx+1:]...)
+	if err := writeMemoryEntries(path, updated); err != nil {
+		return memoryError(MemoryEvidenceStoreUnavailable, "write durable memory store")
+	}
+	return memorySuccess(target, updated, t.limitFor(target), "Entry removed.")
+}
+
+func (t *MemoryTool) pathFor(target string) (string, error) {
+	dir := strings.TrimSpace(t.cfg.MemoryDir)
+	if dir == "" {
+		return "", errors.New("memory store is not initialized")
+	}
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return "", fmt.Errorf("resolve memory store: %w", err)
+	}
+	name := "MEMORY.md"
+	if target == "user" {
+		name = "USER.md"
+	}
+	return filepath.Join(abs, name), nil
+}
+
+func (t *MemoryTool) limitFor(target string) int {
+	if target == "user" {
+		if t.cfg.UserCharLimit > 0 {
+			return t.cfg.UserCharLimit
+		}
+		return userDefaultCharLimit
+	}
+	if t.cfg.MemoryCharLimit > 0 {
+		return t.cfg.MemoryCharLimit
+	}
+	return memoryDefaultCharLimit
+}
+
+func normalizeMemoryTarget(target string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(target)) {
+	case "user":
+		return "user", true
+	case "memory":
+		return "memory", true
+	default:
+		return "", false
+	}
+}
+
+func readMemoryEntries(path string) ([]string, error) {
+	raw, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	body := strings.TrimSpace(string(raw))
+	if body == "" {
+		return nil, nil
+	}
+	parts := strings.Split(body, memoryEntryDelimiter)
+	entries := make([]string, 0, len(parts))
+	seen := map[string]bool{}
+	for _, part := range parts {
+		entry := strings.TrimSpace(part)
+		if entry != "" && !seen[entry] {
+			entries = append(entries, entry)
+			seen[entry] = true
+		}
+	}
+	return entries, nil
+}
+
+func writeMemoryEntries(path string, entries []string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return err
+	}
+	body := strings.Join(entries, memoryEntryDelimiter)
+	if len(entries) > 0 {
+		body += "\n"
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".memory-*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer func() { _ = os.Remove(tmpName) }()
+	if _, err := tmp.WriteString(body); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmpName, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmpName, path)
+}
+
+func findMemoryEntry(entries []string, oldText string) (int, []string, string) {
+	matches := make([]int, 0, 1)
+	previews := make([]string, 0, 1)
+	unique := map[string]bool{}
+	for i, entry := range entries {
+		if strings.Contains(entry, oldText) {
+			matches = append(matches, i)
+			previews = append(previews, memoryPreview(entry))
+			unique[entry] = true
+		}
+	}
+	if len(matches) == 0 {
+		return -1, nil, MemoryEvidenceEntryNotFound
+	}
+	if len(matches) > 1 && len(unique) > 1 {
+		return -1, previews, MemoryEvidenceAmbiguousMatch
+	}
+	return matches[0], nil, ""
+}
+
+func memoryMatchError(evidence, oldText string) string {
+	if evidence == MemoryEvidenceAmbiguousMatch {
+		return "multiple memory entries matched old_text; be more specific"
+	}
+	return "no memory entry matched old_text"
+}
+
+func memoryPreview(entry string) string {
+	runes := []rune(strings.TrimSpace(entry))
+	if len(runes) <= 80 {
+		return string(runes)
+	}
+	return string(runes[:80]) + "..."
+}
+
+func overLimit(entries []string, limit int) bool {
+	return utf8.RuneCountInString(strings.Join(entries, memoryEntryDelimiter)) > limit
+}
+
+func memorySuccess(target string, entries []string, limit int, message string) MemoryToolResult {
+	entries = append([]string(nil), entries...)
+	return MemoryToolResult{
+		Success:    true,
+		Target:     target,
+		Entries:    entries,
+		Usage:      memoryUsage(entries, limit),
+		EntryCount: len(entries),
+		Message:    message,
+	}
+}
+
+func memoryReadSuccess(target string, entries []string, limit int, message string, provenance MemoryInventoryProvenance) MemoryToolResult {
+	result := memorySuccess(target, entries, limit, message)
+	result.Provenance = &provenance
+	return result
+}
+
+func (t *MemoryTool) inventoryProvenance(selectedTarget string, selectedEntries []string) MemoryInventoryProvenance {
+	selectedSource := memoryInventorySourceID(selectedTarget)
+	sources := make([]MemoryInventorySource, 0, 6)
+	for _, target := range []string{"memory", "user"} {
+		entries := selectedEntries
+		if target != selectedTarget {
+			if path, err := t.pathFor(target); err == nil {
+				if read, readErr := readMemoryEntries(path); readErr == nil {
+					entries = read
+				} else {
+					sources = append(sources, MemoryInventorySource{
+						Source:   memoryInventorySourceID(target),
+						Kind:     "durable_markdown_file",
+						Target:   target,
+						Included: false,
+						State:    "error",
+						ReadWith: memoryInventoryReadWith(target),
+						Note:     "read failed for this durable markdown target",
+					})
+					continue
+				}
+			}
+		}
+		included := target == selectedTarget
+		sources = append(sources, MemoryInventorySource{
+			Source:     memoryInventorySourceID(target),
+			Kind:       "durable_markdown_file",
+			Target:     target,
+			Included:   included,
+			State:      t.memoryFileState(target, entries),
+			EntryCount: len(entries),
+			Usage:      memoryUsage(entries, t.limitFor(target)),
+			ReadWith:   memoryInventoryReadWith(target),
+			Note:       memoryInventoryDurableNote(target, included),
+		})
+	}
+	sources = append(sources,
+		MemoryInventorySource{
+			Source:   "goncho_db_active_items",
+			Kind:     "sqlite_memory_items",
+			Included: false,
+			State:    "not_queried",
+			ReadWith: "retrieve_memory or summarize_memories",
+			Note:     "agent-controlled Goncho memory items live in SQLite and are not returned by the Hermes-compatible memory file read",
+		},
+		MemoryInventorySource{
+			Source:   "loaded_context_files",
+			Kind:     "prompt_context",
+			Included: false,
+			State:    "not_queried",
+			ReadWith: "live prompt context evidence",
+			Note:     "SOUL.md, AGENTS.md, HERMES.md, and related project context are prompt inputs, not durable memory entries",
+		},
+		MemoryInventorySource{
+			Source:   "profile_state",
+			Kind:     "profile_config",
+			Included: false,
+			State:    "not_queried",
+			ReadWith: "profile/config commands",
+			Note:     "profile identity, workspace, channel, and tool settings are configuration state, not memory entries",
+		},
+		MemoryInventorySource{
+			Source:   "session_transcripts",
+			Kind:     "session_history",
+			Included: false,
+			State:    "not_queried",
+			ReadWith: "session_search",
+			Note:     "past conversation facts and corrections live in transcript/session search unless explicitly saved to durable memory",
+		},
+	)
+	return MemoryInventoryProvenance{SelectedSource: selectedSource, Sources: sources}
+}
+
+func memoryInventorySourceID(target string) string {
+	if target == "user" {
+		return "durable_markdown_user"
+	}
+	return "durable_markdown_memory"
+}
+
+func memoryInventoryReadWith(target string) string {
+	return "memory action=read target=" + target
+}
+
+func memoryInventoryDurableNote(target string, included bool) string {
+	if included {
+		return "selected Hermes-compatible durable markdown target"
+	}
+	return "other Hermes-compatible durable markdown target; call memory read with this target to return its entries"
+}
+
+func (t *MemoryTool) memoryFileState(target string, entries []string) string {
+	if len(entries) > 0 {
+		return "available"
+	}
+	path, err := t.pathFor(target)
+	if err != nil {
+		return "unavailable"
+	}
+	info, err := os.Stat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return "missing"
+	}
+	if err != nil {
+		return "error"
+	}
+	if info.IsDir() {
+		return "error"
+	}
+	return "empty"
+}
+
+func memoryUsage(entries []string, limit int) string {
+	chars := utf8.RuneCountInString(strings.Join(entries, memoryEntryDelimiter))
+	pct := 0
+	if limit > 0 {
+		pct = min(100, int(float64(chars)/float64(limit)*100))
+	}
+	return fmt.Sprintf("%d%% — %d/%d chars", pct, chars, limit)
+}
+
+func memoryLimitError(currentEntries []string, limit int, message string) MemoryToolResult {
+	currentEntries = append([]string(nil), currentEntries...)
+	return MemoryToolResult{
+		Success:        false,
+		Entries:        []string{},
+		CurrentEntries: currentEntries,
+		Usage:          memoryUsage(currentEntries, limit),
+		EntryCount:     len(currentEntries),
+		Evidence:       MemoryEvidenceLimitExceeded,
+		Error:          message,
+	}
+}
+
+func memoryError(evidence string, message string) MemoryToolResult {
+	return MemoryToolResult{Success: false, Entries: []string{}, Evidence: evidence, Error: message}
+}
+
+var memoryThreatPatterns = []struct {
+	re *regexp.Regexp
+	id string
+}{
+	{regexp.MustCompile(`(?i)ignore\s+(previous|all|above|prior)\s+instructions`), "prompt_injection"},
+	{regexp.MustCompile(`(?i)you\s+are\s+now\s+`), "role_hijack"},
+	{regexp.MustCompile(`(?i)do\s+not\s+tell\s+the\s+user`), "deception_hide"},
+	{regexp.MustCompile(`(?i)system\s+prompt\s+override`), "sys_prompt_override"},
+	{regexp.MustCompile(`(?i)disregard\s+(your|all|any)\s+(instructions|rules|guidelines)`), "disregard_rules"},
+	{regexp.MustCompile(`(?i)act\s+as\s+(if|though)\s+you\s+(have\s+no|don't\s+have)\s+(restrictions|limits|rules)`), "bypass_restrictions"},
+	{regexp.MustCompile(`(?i)curl\s+[^\n]*\$\{?\w*(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|API)`), "exfil_curl"},
+	{regexp.MustCompile(`(?i)wget\s+[^\n]*\$\{?\w*(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|API)`), "exfil_wget"},
+	{regexp.MustCompile(`(?i)cat\s+[^\n]*(\.env|credentials|\.netrc|\.pgpass|\.npmrc|\.pypirc)`), "read_secrets"},
+	{regexp.MustCompile(`(?i)authorized_keys`), "ssh_backdoor"},
+	{regexp.MustCompile(`(?i)\$HOME/\.ssh|~/\.ssh`), "ssh_access"},
+	{regexp.MustCompile(`(?i)\$HOME/\.hermes/\.env|~/\.hermes/\.env`), "hermes_env"},
+}
+
+var memoryInvisibleChars = []rune{'\u200b', '\u200c', '\u200d', '\u2060', '\ufeff', '\u202a', '\u202b', '\u202c', '\u202d', '\u202e'}
+
+func scanMemoryContent(content string) string {
+	if redaction.UnsafePersistentMemoryContent(content) {
+		return MemoryEvidenceUnsafeContent
+	}
+	for _, char := range memoryInvisibleChars {
+		if strings.ContainsRune(content, char) {
+			return MemoryEvidenceUnsafeContent
+		}
+	}
+	for _, pattern := range memoryThreatPatterns {
+		if pattern.re.MatchString(content) {
+			return MemoryEvidenceUnsafeContent
+		}
+	}
+	return ""
+}
