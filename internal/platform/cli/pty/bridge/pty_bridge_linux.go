@@ -1,6 +1,6 @@
 //go:build linux
 
-package pty
+package bridge
 
 import (
 	"context"
