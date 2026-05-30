@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 // ModuleContract is the command/control-plane ownership declaration for one
@@ -239,7 +240,7 @@ func commandSpecOwns(spec CommandSpec, path string) bool {
 }
 
 func normalizePath(path string) string {
-	return strings.Join(strings.Fields(strings.TrimSpace(path)), " ")
+	return textvalue.CompactWhitespace(path)
 }
 
 func normalizeToken(value string) string {

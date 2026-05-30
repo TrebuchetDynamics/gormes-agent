@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/pathguard"
 )
 
 const (
@@ -283,17 +284,7 @@ func validateUpdateReleaseManifest(opts UpdateReleaseAssetSkillSyncOptions) erro
 }
 
 func cleanUpdateReleaseManifestPath(path string) (string, error) {
-	path = filepath.Clean(filepath.FromSlash(strings.TrimSpace(path)))
-	if path == "." || path == "" {
-		return "", fmt.Errorf("path is empty")
-	}
-	if filepath.IsAbs(path) {
-		return "", fmt.Errorf("absolute paths are not allowed")
-	}
-	if path == ".." || strings.HasPrefix(path, ".."+string(os.PathSeparator)) {
-		return "", fmt.Errorf("path traversal is not allowed")
-	}
-	return path, nil
+	return pathguard.CleanRelative(path)
 }
 
 type updateReleaseAssetSnapshot struct {
@@ -552,19 +543,7 @@ func updateReleaseTargetPath(root, rel string) (string, error) {
 }
 
 func updateReleasePathWithin(root, target string) bool {
-	rootAbs, err := filepath.Abs(root)
-	if err != nil {
-		return false
-	}
-	targetAbs, err := filepath.Abs(target)
-	if err != nil {
-		return false
-	}
-	rel, err := filepath.Rel(rootAbs, targetAbs)
-	if err != nil {
-		return false
-	}
-	return rel == "." || (rel != ".." && !filepath.IsAbs(rel) && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)))
+	return pathguard.Within(root, target)
 }
 
 func replaceReleaseDataFile(source, target string) error {

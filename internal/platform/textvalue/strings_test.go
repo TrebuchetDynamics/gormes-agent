@@ -14,3 +14,9 @@ func TestFirstNonEmptyTrimmedAllBlank(t *testing.T) {
 		t.Fatalf("FirstNonEmptyTrimmed blank = %q, want empty", got)
 	}
 }
+
+func TestCompactWhitespace(t *testing.T) {
+	if got := CompactWhitespace("  gormes\tprovider\nmodel   set  "); got != "gormes provider model set" {
+		t.Fatalf("CompactWhitespace() = %q", got)
+	}
+}

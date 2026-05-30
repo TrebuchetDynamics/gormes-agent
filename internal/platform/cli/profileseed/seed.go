@@ -13,6 +13,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 var (
@@ -314,7 +315,7 @@ func writeManifest(path string, payload manifest) error {
 }
 
 func normalizeSeed(seed string) string {
-	return strings.Join(strings.Fields(strings.TrimSpace(seed)), " ")
+	return textvalue.CompactWhitespace(seed)
 }
 
 func profileIDFromSeed(seed string) string {

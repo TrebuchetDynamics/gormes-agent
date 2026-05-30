@@ -13,3 +13,9 @@ func FirstNonEmptyTrimmed(values ...string) string {
 	}
 	return ""
 }
+
+// CompactWhitespace trims text and collapses all whitespace runs to one ASCII
+// space for command paths, seeds, and other operator-facing identifiers.
+func CompactWhitespace(value string) string {
+	return strings.Join(strings.Fields(strings.TrimSpace(value)), " ")
+}

@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/pathguard"
 )
 
 // ValidateRestoreZip opens the zip at zipPath and walks its entries
@@ -181,16 +183,15 @@ func safeJoinForRestore(absDest, name string) (string, error) {
 	if filepath.IsAbs(name) || strings.HasPrefix(name, "/") {
 		return "", fmt.Errorf("restore: zip entry %q has absolute path; rejected to prevent escape", name)
 	}
-	target := filepath.Join(absDest, filepath.FromSlash(name))
-	cleanTarget := filepath.Clean(target)
-	rel, err := filepath.Rel(absDest, cleanTarget)
+	clean, err := pathguard.CleanRelative(name)
 	if err != nil {
-		return "", fmt.Errorf("restore: zip entry %q: resolve rel: %w", name, err)
-	}
-	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return "", fmt.Errorf("restore: zip entry %q escapes dest via path traversal; rejected", name)
 	}
-	return cleanTarget, nil
+	cleanTarget := filepath.Join(absDest, clean)
+	if !pathguard.Within(absDest, cleanTarget) {
+		return "", fmt.Errorf("restore: zip entry %q escapes dest via path traversal; rejected", name)
+	}
+	return filepath.Clean(cleanTarget), nil
 }
 
 func writeRestoreEntry(f *zip.File, target string) error {
