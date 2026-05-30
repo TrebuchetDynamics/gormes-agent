@@ -3,8 +3,8 @@ package progress
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"sort"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/jsonfields"
 )
 
 var itemKnownJSONFields = map[string]bool{
@@ -83,11 +83,11 @@ func (it Item) MarshalJSON() ([]byte, error) {
 	alias := itemAlias(it)
 	alias.Extra = nil
 
-	body, err := marshalNoEscape(alias)
+	body, err := jsonfields.MarshalNoEscape(alias)
 	if err != nil {
 		return nil, err
 	}
-	return marshalObjectWithExtra(it.Name, body, it.Extra)
+	return jsonfields.MarshalObjectWithExtra(it.Name, body, it.Extra)
 }
 
 func (p *Provenance) UnmarshalJSON(data []byte) error {
@@ -96,7 +96,7 @@ func (p *Provenance) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
-	extra, err := unknownObjectFields(data, provenanceKnownJSONFields, nil)
+	extra, err := jsonfields.UnknownObjectFields(data, provenanceKnownJSONFields, nil)
 	if err != nil {
 		return err
 	}
@@ -112,11 +112,11 @@ func (p Provenance) MarshalJSON() ([]byte, error) {
 	alias := provenanceAlias(p)
 	alias.Extra = nil
 
-	body, err := marshalNoEscape(alias)
+	body, err := jsonfields.MarshalNoEscape(alias)
 	if err != nil {
 		return nil, err
 	}
-	return marshalObjectWithExtra("provenance", body, p.Extra)
+	return jsonfields.MarshalObjectWithExtra("provenance", body, p.Extra)
 }
 
 func (v *PlannerVerdict) UnmarshalJSON(data []byte) error {
@@ -125,7 +125,7 @@ func (v *PlannerVerdict) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
-	extra, err := unknownObjectFields(data, plannerVerdictKnownJSONFields, plannerVerdictPreserveKnownZeroValue)
+	extra, err := jsonfields.UnknownObjectFields(data, plannerVerdictKnownJSONFields, plannerVerdictPreserveKnownZeroValue)
 	if err != nil {
 		return err
 	}
@@ -141,11 +141,11 @@ func (v PlannerVerdict) MarshalJSON() ([]byte, error) {
 	alias := verdictAlias(v)
 	alias.Extra = nil
 
-	body, err := marshalNoEscape(alias)
+	body, err := jsonfields.MarshalNoEscape(alias)
 	if err != nil {
 		return nil, err
 	}
-	return marshalObjectWithExtra("planner_verdict", body, v.Extra)
+	return jsonfields.MarshalObjectWithExtra("planner_verdict", body, v.Extra)
 }
 
 func (h *RowHealth) UnmarshalJSON(data []byte) error {
@@ -154,7 +154,7 @@ func (h *RowHealth) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
-	extra, err := unknownObjectFields(data, rowHealthKnownJSONFields, nil)
+	extra, err := jsonfields.UnknownObjectFields(data, rowHealthKnownJSONFields, nil)
 	if err != nil {
 		return err
 	}
@@ -170,11 +170,11 @@ func (h RowHealth) MarshalJSON() ([]byte, error) {
 	alias := healthAlias(h)
 	alias.Extra = nil
 
-	body, err := marshalNoEscape(alias)
+	body, err := jsonfields.MarshalNoEscape(alias)
 	if err != nil {
 		return nil, err
 	}
-	return marshalObjectWithExtra("health", body, h.Extra)
+	return jsonfields.MarshalObjectWithExtra("health", body, h.Extra)
 }
 
 func (s *Subphase) UnmarshalJSON(data []byte) error {
@@ -183,7 +183,7 @@ func (s *Subphase) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
-	extra, err := unknownObjectFields(data, subphaseKnownJSONFields, nil)
+	extra, err := jsonfields.UnknownObjectFields(data, subphaseKnownJSONFields, nil)
 	if err != nil {
 		return err
 	}
@@ -199,81 +199,11 @@ func (s Subphase) MarshalJSON() ([]byte, error) {
 	alias := subphaseAlias(s)
 	alias.Extra = nil
 
-	body, err := marshalNoEscape(alias)
+	body, err := jsonfields.MarshalNoEscape(alias)
 	if err != nil {
 		return nil, err
 	}
-	return marshalObjectWithExtra("subphase", body, s.Extra)
-}
-
-func marshalObjectWithExtra(label string, body []byte, extra map[string]json.RawMessage) ([]byte, error) {
-	if len(extra) == 0 {
-		return body, nil
-	}
-	var known map[string]json.RawMessage
-	if err := json.Unmarshal(body, &known); err != nil {
-		return nil, err
-	}
-	keys := make([]string, 0, len(extra))
-	for key, value := range extra {
-		if _, exists := known[key]; exists {
-			continue
-		}
-		value = bytes.TrimSpace(value)
-		if len(value) == 0 {
-			continue
-		}
-		if !json.Valid(value) {
-			return nil, fmt.Errorf("progress %s extra field %q is not valid JSON", label, key)
-		}
-		keys = append(keys, key)
-	}
-	if len(keys) == 0 {
-		return body, nil
-	}
-	sort.Strings(keys)
-
-	trimmed := bytes.TrimSpace(body)
-	if !bytes.HasPrefix(trimmed, []byte("{")) || !bytes.HasSuffix(trimmed, []byte("}")) {
-		return nil, fmt.Errorf("progress %s marshaled to non-object JSON", label)
-	}
-	var out bytes.Buffer
-	out.Write(trimmed[:len(trimmed)-1])
-	needsComma := len(trimmed) > 2
-	for _, key := range keys {
-		if needsComma {
-			out.WriteByte(',')
-		}
-		needsComma = true
-		quoted, err := json.Marshal(key)
-		if err != nil {
-			return nil, err
-		}
-		out.Write(quoted)
-		out.WriteByte(':')
-		out.Write(bytes.TrimSpace(extra[key]))
-	}
-	out.WriteByte('}')
-	return out.Bytes(), nil
-}
-
-type preserveKnownZeroFunc func(string, json.RawMessage) bool
-
-func unknownObjectFields(data []byte, knownFields map[string]bool, preserveKnownZero preserveKnownZeroFunc) (map[string]json.RawMessage, error) {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, err
-	}
-	extra := map[string]json.RawMessage{}
-	for key, value := range raw {
-		if !knownFields[key] || (preserveKnownZero != nil && preserveKnownZero(key, value)) {
-			extra[key] = append(json.RawMessage(nil), value...)
-		}
-	}
-	if len(extra) == 0 {
-		return nil, nil
-	}
-	return extra, nil
+	return jsonfields.MarshalObjectWithExtra("subphase", body, s.Extra)
 }
 
 func itemPreserveKnownZeroValue(key string, value json.RawMessage) bool {

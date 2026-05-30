@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/jsonfields"
 )
 
 // MarshalJSON emits Progress with phase keys ordered by sortedMapKeys
@@ -23,7 +25,7 @@ func (p Progress) MarshalJSON() ([]byte, error) {
 		Meta:   p.Meta,
 		Phases: phases,
 	}
-	return marshalNoEscape(aux)
+	return jsonfields.MarshalNoEscape(aux)
 }
 
 // MarshalJSON emits Phase with subphase keys in natural-numeric order so
@@ -46,7 +48,7 @@ func (ph Phase) MarshalJSON() ([]byte, error) {
 		DependencyNote: ph.DependencyNote,
 		Subphases:      subphases,
 	}
-	return marshalNoEscape(aux)
+	return jsonfields.MarshalNoEscape(aux)
 }
 
 // marshalOrderedPhases emits a JSON object whose keys are the phase IDs of
@@ -69,7 +71,7 @@ func marshalOrderedPhases(m map[string]Phase) (json.RawMessage, error) {
 		buf.Write(k)
 		buf.WriteByte(':')
 		v := m[key]
-		body, err := marshalNoEscape(v)
+		body, err := jsonfields.MarshalNoEscape(v)
 		if err != nil {
 			return nil, fmt.Errorf("marshal phase %q: %w", key, err)
 		}
@@ -97,7 +99,7 @@ func marshalOrderedSubphases(m map[string]Subphase) (json.RawMessage, error) {
 		buf.Write(k)
 		buf.WriteByte(':')
 		v := m[key]
-		body, err := marshalNoEscape(v)
+		body, err := jsonfields.MarshalNoEscape(v)
 		if err != nil {
 			return nil, fmt.Errorf("marshal subphase %q: %w", key, err)
 		}
@@ -105,14 +107,4 @@ func marshalOrderedSubphases(m map[string]Subphase) (json.RawMessage, error) {
 	}
 	buf.WriteByte('}')
 	return buf.Bytes(), nil
-}
-
-func marshalNoEscape(v any) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(v); err != nil {
-		return nil, err
-	}
-	return bytes.TrimSuffix(buf.Bytes(), []byte("\n")), nil
 }
