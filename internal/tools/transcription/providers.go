@@ -1,6 +1,6 @@
 //go:build !slim
 
-package tools
+package transcription
 
 import (
 	"bytes"
@@ -25,9 +25,10 @@ const (
 	ProviderNameGroq    = "groq"
 	ProviderNameMistral = "mistral"
 	ProviderNameXAI     = "xai"
-	// ProviderNameOpenAI and DefaultOpenAIBaseURL are defined in tts_providers.go
+	ProviderNameOpenAI  = "openai"
 
 	// Default STT API endpoints
+	DefaultOpenAIBaseURL  = "https://api.openai.com/v1"
 	DefaultGroqBaseURL    = "https://api.groq.com/openai/v1"
 	DefaultMistralBaseURL = "https://api.mistral.ai/v1"
 	DefaultXAIBaseURL     = "https://api.x.ai/v1"

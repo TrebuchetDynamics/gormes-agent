@@ -1,6 +1,6 @@
 //go:build !gormes_lite && !slim
 
-package tools
+package transcription
 
 import (
 	"context"

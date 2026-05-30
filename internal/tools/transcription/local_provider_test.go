@@ -1,6 +1,6 @@
 //go:build !gormes_lite && !slim
 
-package tools
+package transcription
 
 import (
 	"context"
@@ -15,6 +15,10 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper"
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
 
 func TestLocalSTTProvider_Available(t *testing.T) {
 	p := NewLocalSTTProvider(t.TempDir())

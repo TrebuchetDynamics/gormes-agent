@@ -1,6 +1,6 @@
 //go:build !slim
 
-package tools
+package imagegen
 
 import (
 	"context"

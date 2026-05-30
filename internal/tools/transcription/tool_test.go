@@ -1,6 +1,6 @@
 //go:build !slim
 
-package tools
+package transcription
 
 import (
 	"context"

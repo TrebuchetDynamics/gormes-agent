@@ -1,6 +1,6 @@
 //go:build !slim
 
-package tools
+package tts
 
 import (
 	"bufio"
@@ -38,6 +38,8 @@ const (
 	ProviderNameOpenAI     = "openai"
 	ProviderNameElevenLabs = "elevenlabs"
 	ProviderNameMiniMax    = "minimax"
+	ProviderNameXAI        = "xai"
+	ProviderNameMistral    = "mistral"
 	ProviderNameGemini     = "gemini"
 	ProviderNameNeuTTS     = "neutts"
 	ProviderNameKittenTTS  = "kittentts"
