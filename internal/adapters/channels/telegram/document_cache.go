@@ -3,66 +3,23 @@ package telegram
 import (
 	"context"
 	"fmt"
-	"mime"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
+	telegrammedia "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram/media"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
 const (
-	telegramMaxDocumentBytes       int64 = 20 * 1024 * 1024
-	telegramInlineTextDocumentSize int64 = 100 * 1024
-	telegramDefaultMediaBatchDelay       = 300 * time.Millisecond
+	telegramMaxDocumentBytes       = telegrammedia.MaxDocumentBytes
+	telegramInlineTextDocumentSize = telegrammedia.InlineTextDocumentSize
+	telegramDefaultMediaBatchDelay = 300 * time.Millisecond
 )
-
-var telegramSupportedDocumentExtensions = map[string]string{
-	".cfg":  "text/plain",
-	".csv":  "text/csv",
-	".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-	".ini":  "text/plain",
-	".json": "application/json",
-	".log":  "text/plain",
-	".md":   "text/markdown",
-	".pdf":  "application/pdf",
-	".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-	".toml": "application/toml",
-	".txt":  "text/plain",
-	".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-	".xml":  "application/xml",
-	".yaml": "application/yaml",
-	".yml":  "application/yaml",
-	".zip":  "application/zip",
-}
-
-var telegramSupportedVideoExtensions = map[string]string{
-	".m4v":  "video/mp4",
-	".mov":  "video/quicktime",
-	".mp4":  "video/mp4",
-	".webm": "video/webm",
-}
-
-var telegramMIMEExtensionFallbacks = map[string]string{
-	"application/json":   ".json",
-	"application/pdf":    ".pdf",
-	"application/toml":   ".toml",
-	"application/xml":    ".xml",
-	"application/yaml":   ".yaml",
-	"application/zip":    ".zip",
-	"text/csv":           ".csv",
-	"text/markdown":      ".md",
-	"text/plain":         ".txt",
-	"video/mp4":          ".mp4",
-	"video/quicktime":    ".mov",
-	"video/webm":         ".webm",
-	"x-application/yaml": ".yaml",
-}
 
 type telegramPhotoBatchEntry struct {
 	event gateway.InboundEvent
@@ -83,12 +40,12 @@ func (b *Bot) telegramDocumentAttachment(ctx context.Context, doc *tgbotapi.Docu
 	}
 
 	kind := "document"
-	if inferred, ok := telegramSupportedVideoExtensions[ext]; ok {
+	if inferred, ok := telegrammedia.VideoMediaTypeForExtension(ext); ok {
 		kind = "video"
 		if mediaType == "" {
 			mediaType = inferred
 		}
-	} else if inferred, ok := telegramSupportedDocumentExtensions[ext]; ok {
+	} else if inferred, ok := telegrammedia.DocumentMediaTypeForExtension(ext); ok {
 		if mediaType == "" {
 			mediaType = inferred
 		}
@@ -131,7 +88,7 @@ func (b *Bot) telegramVideoMessageAttachment(ctx context.Context, video *tgbotap
 	if ext == "" {
 		ext = ".mp4"
 	}
-	if inferred, ok := telegramSupportedVideoExtensions[ext]; ok && mediaType == "" {
+	if inferred, ok := telegrammedia.VideoMediaTypeForExtension(ext); ok && mediaType == "" {
 		mediaType = inferred
 	}
 	if mediaType == "" {
@@ -256,231 +213,57 @@ func (b *Bot) cacheTelegramBytes(category, fileName string, data []byte) (string
 }
 
 func cleanTelegramMediaType(mediaType string) string {
-	if mediaType = strings.TrimSpace(mediaType); mediaType == "" {
-		return ""
-	}
-	if semi := strings.Index(mediaType, ";"); semi >= 0 {
-		mediaType = mediaType[:semi]
-	}
-	return strings.ToLower(strings.TrimSpace(mediaType))
+	return telegrammedia.CleanMediaType(mediaType)
 }
 
 func telegramInferExtension(fileName, mediaType string) string {
-	if ext := strings.ToLower(filepath.Ext(strings.TrimSpace(fileName))); ext != "" {
-		return ext
-	}
-	mediaType = cleanTelegramMediaType(mediaType)
-	if ext := telegramMIMEExtensionFallbacks[mediaType]; ext != "" {
-		return ext
-	}
-	extensions, _ := mime.ExtensionsByType(mediaType)
-	for _, ext := range extensions {
-		ext = strings.ToLower(ext)
-		if _, ok := telegramSupportedDocumentExtensions[ext]; ok {
-			return ext
-		}
-		if _, ok := telegramSupportedVideoExtensions[ext]; ok {
-			return ext
-		}
-	}
-	return ""
+	return telegrammedia.InferExtension(fileName, mediaType)
 }
 
 func telegramDisplayFileName(fileName, ext, fallbackBase string) string {
-	fileName = telegramSafeFileName(fileName)
-	if fileName != "" && fileName != fallbackBase {
-		return fileName
-	}
-	ext = strings.ToLower(strings.TrimSpace(ext))
-	if ext == "" {
-		return fallbackBase
-	}
-	return fallbackBase + ext
+	return telegrammedia.DisplayFileName(fileName, ext, fallbackBase)
 }
 
 func telegramSafeFileName(fileName string) string {
-	fileName = filepath.Base(strings.TrimSpace(fileName))
-	var out strings.Builder
-	for _, r := range fileName {
-		switch {
-		case r == 0 || r < 32 || r == 127:
-			out.WriteByte('_')
-		case r == '/' || r == '\\':
-			out.WriteByte('_')
-		default:
-			out.WriteRune(r)
-		}
-	}
-	cleaned := strings.Trim(out.String(), " .")
-	if cleaned == "" || cleaned == "." || cleaned == ".." {
-		return ""
-	}
-	if len(cleaned) <= 160 {
-		return cleaned
-	}
-	ext := filepath.Ext(cleaned)
-	stem := strings.TrimSuffix(cleaned, ext)
-	if len(ext) > 32 {
-		ext = ""
-	}
-	if len(stem) > 128 {
-		stem = stem[:128]
-	}
-	return stem + ext
+	return telegrammedia.SafeFileName(fileName)
 }
 
 func telegramSafeToken(s string) string {
-	s = strings.TrimSpace(s)
-	var out strings.Builder
-	for _, r := range s {
-		switch {
-		case r >= 'a' && r <= 'z':
-			out.WriteRune(r)
-		case r >= 'A' && r <= 'Z':
-			out.WriteRune(r)
-		case r >= '0' && r <= '9':
-			out.WriteRune(r)
-		case r == '-' || r == '_' || r == '.':
-			out.WriteRune(r)
-		default:
-			out.WriteByte('_')
-		}
-	}
-	cleaned := strings.Trim(out.String(), "._-")
-	if cleaned == "" {
-		return "telegram"
-	}
-	if len(cleaned) > 64 {
-		return cleaned[:64]
-	}
-	return cleaned
+	return telegrammedia.SafeToken(s)
 }
 
 func telegramShouldInlineTextDocument(ext string, size int64) bool {
-	if size <= 0 || size > telegramInlineTextDocumentSize {
-		return false
-	}
-	switch strings.ToLower(ext) {
-	case ".md", ".txt":
-		return true
-	default:
-		return false
-	}
+	return telegrammedia.ShouldInlineTextDocument(ext, size)
 }
 
 func telegramUnsupportedDocumentMarker(fileName, mediaType, reason string) string {
-	var parts []string
-	if fileName = strings.TrimSpace(fileName); fileName != "" {
-		parts = append(parts, "file="+telegramSafeFileName(fileName))
-	}
-	if mediaType = cleanTelegramMediaType(mediaType); mediaType != "" {
-		parts = append(parts, "mime="+mediaType)
-	}
-	if reason = strings.TrimSpace(reason); reason != "" {
-		parts = append(parts, reason)
-	}
-	parts = append(parts, "supported types: "+telegramSupportedTypesList())
-	return "[Unsupported Telegram document type: " + strings.Join(parts, "; ") + "]"
+	return telegrammedia.UnsupportedDocumentMarker(fileName, mediaType, reason)
 }
 
 func telegramDocumentSizeMarker(kind, fileName, mediaType string, size int64) string {
-	var parts []string
-	if fileName = telegramSafeFileName(fileName); fileName != "" {
-		parts = append(parts, "file="+fileName)
-	}
-	if mediaType = cleanTelegramMediaType(mediaType); mediaType != "" {
-		parts = append(parts, "mime="+mediaType)
-	}
-	if size <= 0 {
-		parts = append(parts, "size could not be verified")
-	} else {
-		parts = append(parts, fmt.Sprintf("too large: size=%d bytes", size))
-	}
-	parts = append(parts, "maximum=20 MB")
-	return fmt.Sprintf("[Telegram %s rejected: %s]", kind, strings.Join(parts, "; "))
+	return telegrammedia.DocumentSizeMarker(kind, fileName, mediaType, size)
 }
 
 func telegramCachedAttachmentMarker(kind, fileName, mediaType string, size int64) string {
-	var parts []string
-	if fileName = telegramSafeFileName(fileName); fileName != "" {
-		parts = append(parts, "file="+fileName)
-	}
-	if mediaType = cleanTelegramMediaType(mediaType); mediaType != "" {
-		parts = append(parts, "mime="+mediaType)
-	}
-	if size > 0 {
-		parts = append(parts, fmt.Sprintf("size=%d bytes", size))
-	}
-	if len(parts) == 0 {
-		return fmt.Sprintf("[Telegram %s message attached]", kind)
-	}
-	return fmt.Sprintf("[Telegram %s message attached: %s]", kind, strings.Join(parts, ", "))
+	return telegrammedia.CachedAttachmentMarker(kind, fileName, mediaType, size)
 }
 
 func telegramSupportedTypesList() string {
-	extensions := make([]string, 0, len(telegramSupportedDocumentExtensions)+len(telegramSupportedVideoExtensions))
-	for ext := range telegramSupportedDocumentExtensions {
-		extensions = append(extensions, ext)
-	}
-	for ext := range telegramSupportedVideoExtensions {
-		extensions = append(extensions, ext)
-	}
-	sort.Strings(extensions)
-	return strings.Join(extensions, ", ")
+	return telegrammedia.SupportedTypesList()
 }
 
 func telegramLargestPhoto(photos []tgbotapi.PhotoSize) (tgbotapi.PhotoSize, bool) {
-	if len(photos) == 0 {
-		return tgbotapi.PhotoSize{}, false
-	}
-	best := photos[0]
-	bestScore := telegramPhotoScore(best)
-	for _, photo := range photos[1:] {
-		score := telegramPhotoScore(photo)
-		if score > bestScore {
-			best = photo
-			bestScore = score
-		}
-	}
-	return best, true
+	return telegrammedia.LargestPhoto(photos)
 }
 
 func telegramPhotoScore(photo tgbotapi.PhotoSize) int {
-	score := photo.Width * photo.Height
-	if score == 0 {
-		score = photo.FileSize
-	}
-	return score
+	return telegrammedia.PhotoScore(photo)
 }
 
 func telegramPhotoExtension(filePath string) string {
-	switch strings.ToLower(filepath.Ext(filePath)) {
-	case ".gif":
-		return ".gif"
-	case ".jpeg":
-		return ".jpeg"
-	case ".jpg":
-		return ".jpg"
-	case ".png":
-		return ".png"
-	case ".webp":
-		return ".webp"
-	default:
-		return ".jpg"
-	}
+	return telegrammedia.PhotoExtension(filePath)
 }
 
 func telegramPhotoMediaType(ext string) string {
-	switch strings.ToLower(ext) {
-	case ".gif":
-		return "image/gif"
-	case ".jpeg", ".jpg":
-		return "image/jpeg"
-	case ".png":
-		return "image/png"
-	case ".webp":
-		return "image/webp"
-	default:
-		return "image/jpeg"
-	}
+	return telegrammedia.PhotoMediaType(ext)
 }
