@@ -4,13 +4,13 @@
 package openclaw
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/migrate/shared"
 	"gopkg.in/yaml.v3"
 )
 
@@ -179,11 +179,7 @@ func resolveCandidates(opts Options) []SourceCandidate {
 }
 
 func candidate(origin, path string) SourceCandidate {
-	c := SourceCandidate{Origin: origin, Path: path}
-	if info, err := os.Stat(path); err == nil && info.IsDir() {
-		c.Found = true
-	}
-	return c
+	return SourceCandidate{Origin: origin, Path: path, Found: shared.DirExists(path)}
 }
 
 func firstFoundCandidate(cs []SourceCandidate) (SourceCandidate, bool) {
@@ -208,12 +204,7 @@ func loadConfigYAML(m *Manifest, root string) {
 		m.Errors = append(m.Errors, ErrorEntry{Source: "config.yaml", Message: err.Error()})
 		return
 	}
-	keys := make([]string, 0, len(raw))
-	for k := range raw {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
+	for _, k := range shared.SortedStringAnyKeys(raw) {
 		m.Config = append(m.Config, classifyConfigKey(k))
 		collectSecretRefs(m, k, raw[k])
 	}
@@ -276,28 +267,14 @@ func loadDotenv(m *Manifest, root string, existing map[string]string) {
 		return
 	}
 	defer f.Close()
-	seen := make(map[string]bool)
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		eq := strings.IndexByte(line, '=')
-		if eq <= 0 {
-			continue
-		}
-		key := strings.TrimSpace(line[:eq])
-		if key == "" || seen[key] {
-			continue
-		}
-		seen[key] = true
+	keys, err := shared.ReadDotenvKeys(f)
+	if err != nil {
+		m.Errors = append(m.Errors, ErrorEntry{Source: ".env", Message: err.Error()})
+		return
+	}
+	for _, key := range keys {
 		m.Env = append(m.Env, classifyEnvKey(key, existing))
 	}
-	if err := scanner.Err(); err != nil {
-		m.Errors = append(m.Errors, ErrorEntry{Source: ".env", Message: err.Error()})
-	}
-	sort.SliceStable(m.Env, func(i, j int) bool { return m.Env[i].OpenClawKey < m.Env[j].OpenClawKey })
 }
 
 func classifyEnvKey(key string, existing map[string]string) EnvEntry {
