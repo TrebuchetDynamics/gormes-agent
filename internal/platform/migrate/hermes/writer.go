@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/migrate/shared"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 	"github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
@@ -133,10 +134,10 @@ func ApplyManifest(req WriteRequest) (WriteOutcome, error) {
 	}
 
 	if err := applyConfigEntries(&out, req); err != nil {
-		out.Errors = append(out.Errors, sanitizeError(err))
+		out.Errors = append(out.Errors, shared.SanitizeError(err))
 	}
 	if err := applyEnvEntries(&out, req); err != nil {
-		out.Errors = append(out.Errors, sanitizeError(err))
+		out.Errors = append(out.Errors, shared.SanitizeError(err))
 	}
 
 	finalizeCounts(&out)
@@ -188,7 +189,7 @@ func applyConfigEntries(out *WriteOutcome, req WriteRequest) error {
 				continue
 			}
 			if err := applyConfigValue(doc, section, entry.HermesKey, value); err != nil {
-				out.Errors = append(out.Errors, sanitizeError(fmt.Errorf("config %s: %w", entry.HermesKey, err)))
+				out.Errors = append(out.Errors, shared.SanitizeError(fmt.Errorf("config %s: %w", entry.HermesKey, err)))
 				out.ConfigWritten[entry.HermesKey] = DispositionError
 				continue
 			}
@@ -279,7 +280,7 @@ func applyEnvEntries(out *WriteOutcome, req WriteRequest) error {
 				continue
 			}
 			if err := writeEnvLine(req.DestEnvFile, target, value); err != nil {
-				out.Errors = append(out.Errors, sanitizeError(fmt.Errorf("env %s: %w", target, err)))
+				out.Errors = append(out.Errors, shared.SanitizeError(fmt.Errorf("env %s: %w", target, err)))
 				out.EnvWritten[target] = DispositionError
 				continue
 			}
@@ -295,7 +296,7 @@ func applyEnvEntries(out *WriteOutcome, req WriteRequest) error {
 				continue
 			}
 			if err := writeEnvLine(req.DestEnvFile, target, value); err != nil {
-				out.Errors = append(out.Errors, sanitizeError(fmt.Errorf("env %s: %w", target, err)))
+				out.Errors = append(out.Errors, shared.SanitizeError(fmt.Errorf("env %s: %w", target, err)))
 				out.EnvWritten[target] = DispositionError
 				continue
 			}
@@ -367,12 +368,12 @@ func applyEnvConfigEntries(out *WriteOutcome, req WriteRequest, envValues map[st
 			}
 			coerced, err := coerceEnvConfigValue(target, value)
 			if err != nil {
-				out.Errors = append(out.Errors, sanitizeError(fmt.Errorf("config %s: %w", target, err)))
+				out.Errors = append(out.Errors, shared.SanitizeError(fmt.Errorf("config %s: %w", target, err)))
 				out.ConfigWritten[target] = DispositionError
 				continue
 			}
 			if err := setTOMLDottedPath(doc, target, coerced); err != nil {
-				out.Errors = append(out.Errors, sanitizeError(fmt.Errorf("config %s: %w", target, err)))
+				out.Errors = append(out.Errors, shared.SanitizeError(fmt.Errorf("config %s: %w", target, err)))
 				out.ConfigWritten[target] = DispositionError
 				continue
 			}
@@ -390,12 +391,12 @@ func applyEnvConfigEntries(out *WriteOutcome, req WriteRequest, envValues map[st
 			}
 			coerced, err := coerceEnvConfigValue(target, value)
 			if err != nil {
-				out.Errors = append(out.Errors, sanitizeError(fmt.Errorf("config %s: %w", target, err)))
+				out.Errors = append(out.Errors, shared.SanitizeError(fmt.Errorf("config %s: %w", target, err)))
 				out.ConfigWritten[target] = DispositionError
 				continue
 			}
 			if err := setTOMLDottedPath(doc, target, coerced); err != nil {
-				out.Errors = append(out.Errors, sanitizeError(fmt.Errorf("config %s: %w", target, err)))
+				out.Errors = append(out.Errors, shared.SanitizeError(fmt.Errorf("config %s: %w", target, err)))
 				out.ConfigWritten[target] = DispositionError
 				continue
 			}
@@ -851,30 +852,6 @@ func writeAll(path string, body []byte) error {
 		return err
 	}
 	return f.Sync()
-}
-
-// sanitizeError strips known secret substrings before they can land in
-// the WriteOutcome.Errors slice. The hermes manifest already redacts
-// secret values; this is a defense-in-depth check covering filesystem
-// errors that might echo a path containing a secret-looking token.
-func sanitizeError(err error) string {
-	if err == nil {
-		return ""
-	}
-	msg := err.Error()
-	// Defensive: never echo back content that looks like an API key.
-	if idx := strings.Index(msg, "sk-"); idx >= 0 {
-		end := idx + 3
-		for end < len(msg) && (isAlphanum(msg[end]) || msg[end] == '-' || msg[end] == '_') {
-			end++
-		}
-		msg = msg[:idx] + "[REDACTED]" + msg[end:]
-	}
-	return msg
-}
-
-func isAlphanum(b byte) bool {
-	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
 }
 
 func finalizeCounts(out *WriteOutcome) {
