@@ -1,9 +1,8 @@
 package tui
 
 import (
-	"strings"
-
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/chrome"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/skin"
 )
 
 // HermesChromeInput is the pure input to RenderHermesChrome. The TUI renderer
@@ -38,5 +37,5 @@ func HermesChromeUseAltScreen() bool {
 // assistant output. It keeps Hermes' response-box shape while using Gormes'
 // product label.
 func HermesChromeAssistantLabel() string {
-	return strings.TrimSpace(DefaultHermesSkin().ResponseLabel)
+	return skin.DefaultResponseLabel()
 }

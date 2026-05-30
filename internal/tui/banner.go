@@ -130,12 +130,13 @@ type welcomePalette struct {
 	dim    string
 }
 
-func welcomePaletteFor(skin HermesSkin) welcomePalette {
+func welcomePaletteFor(s HermesSkin) welcomePalette {
+	palette := skin.WelcomePaletteFor(s)
 	return welcomePalette{
-		border: skin.Colors.BannerBorder,
-		title:  skin.Colors.BannerTitle,
-		accent: skin.Colors.BannerAccent,
-		dim:    skin.Colors.BannerDim,
+		border: palette.Border,
+		title:  palette.Title,
+		accent: palette.Accent,
+		dim:    palette.Dim,
 	}
 }
 

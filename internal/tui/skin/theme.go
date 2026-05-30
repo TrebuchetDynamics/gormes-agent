@@ -98,6 +98,12 @@ func DefaultHermesSkin() HermesSkin {
 	}
 }
 
+// DefaultResponseLabel returns the trimmed built-in response-region label for
+// Hermes-compatible chrome that does not carry an explicit skin value.
+func DefaultResponseLabel() string {
+	return strings.TrimSpace(DefaultHermesSkin().ResponseLabel)
+}
+
 // DefaultToolEmojis returns the per-tool emoji map matching Hermes' display.py
 // get_tool_emoji mappings. Skin overrides can replace individual entries.
 func DefaultToolEmojis() map[string]string {
