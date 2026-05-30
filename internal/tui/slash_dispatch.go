@@ -2,7 +2,6 @@ package tui
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"strings"
 
@@ -11,8 +10,10 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/composer"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/prompttemplates"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/queue"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/skillsslash"
 	uislash "github.com/TrebuchetDynamics/gormes-agent/internal/tui/slash"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal"
 )
@@ -322,36 +323,17 @@ func mouseSlashHandler(input string, model *Model) SlashResult {
 }
 
 func copySlashHandler(input string, model *Model) SlashResult {
-	if model.clipboardWrite == nil {
+	if model == nil {
 		return SlashResult{Handled: true, StatusMessage: "copy: clipboard unavailable"}
 	}
-	fields := strings.Fields(input)
-	arg := ""
-	if len(fields) > 1 {
-		arg = fields[1]
-	}
-	result := SelectComposerCopyText(model.frame.History, arg)
-	if !result.OK {
-		return SlashResult{Handled: true, StatusMessage: copyStatusForEvidence(result)}
+	result := composer.HandleCopySlash(input, model.frame.History, model.clipboardWrite != nil)
+	if !result.WriteClipboard {
+		return SlashResult{Handled: result.Handled, StatusMessage: result.Status}
 	}
 	if err := model.clipboardWrite(result.Text); err != nil {
 		return SlashResult{Handled: true, StatusMessage: "copy: clipboard failed: " + err.Error()}
 	}
-	return SlashResult{
-		Handled:       true,
-		StatusMessage: fmt.Sprintf("Copied assistant response #%d to clipboard", result.ResponseNumber),
-	}
-}
-
-func copyStatusForEvidence(result ComposerCopyResult) string {
-	switch result.Evidence {
-	case "tui_ingress_copy_invalid_index":
-		return "copy: invalid response number"
-	case "tui_ingress_copy_empty_response":
-		return fmt.Sprintf("copy: assistant response #%d has no visible text", result.ResponseNumber)
-	default:
-		return "copy: nothing to copy"
-	}
+	return SlashResult{Handled: true, StatusMessage: result.Status}
 }
 
 func skillsSlashHandler(input string, model *Model) SlashResult {
@@ -376,20 +358,19 @@ func queueSlashHandler(input string, model *Model) SlashResult {
 }
 
 func reloadSkillsSlashHandler(_ string, model *Model) SlashResult {
-	if model == nil || model.skillSlashReload == nil {
-		return SlashResult{Handled: true, StatusMessage: "reload-skills: skill runtime unavailable"}
+	var reload skillsslash.ReloadFunc
+	if model != nil && model.skillSlashReload != nil {
+		reload = func(ctx context.Context) (skillsslash.ReloadResult, error) {
+			result, err := model.skillSlashReload(ctx)
+			return skillsslash.ReloadResult{Commands: result.Commands, Output: result.Output}, err
+		}
 	}
-	result, err := model.skillSlashReload(context.Background())
-	if err != nil {
-		return SlashResult{Handled: true, StatusMessage: "reload-skills: " + err.Error()}
+	decision := skillsslash.HandleReload(context.Background(), reload)
+	if decision.Rebuild && model != nil {
+		model.skillSlashCommands = append([]skills.SkillSlashCommand(nil), decision.Commands...)
+		model.rebuildSlashRegistry()
 	}
-	model.skillSlashCommands = append([]skills.SkillSlashCommand(nil), result.Commands...)
-	model.rebuildSlashRegistry()
-	status := strings.TrimSpace(result.Output)
-	if status == "" {
-		status = fmt.Sprintf("Skills Reloaded\n%d skill(s) available", len(result.Commands))
-	}
-	return SlashResult{Handled: true, StatusMessage: status}
+	return SlashResult{Handled: decision.Handled, StatusMessage: decision.Status}
 }
 
 func quitSlashHandler(_ string, _ *Model) SlashResult {
