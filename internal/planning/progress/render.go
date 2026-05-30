@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/featuremodule"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/markdown"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/workitem"
 )
 
@@ -690,66 +692,21 @@ func umbrellaRows(p *Progress) []contractRow {
 }
 
 func joinOrDash(values []string) string {
-	if len(values) == 0 {
-		return "-"
-	}
-	return strings.Join(values, ", ")
+	return markdown.JoinOrDash(values)
 }
 
 func joinCodeOrDash(values []string) string {
-	if len(values) == 0 {
-		return "-"
-	}
-	quoted := make([]string, 0, len(values))
-	for _, value := range values {
-		quoted = append(quoted, "`"+value+"`")
-	}
-	return strings.Join(quoted, ", ")
+	return markdown.JoinCodeOrDash(values)
 }
 
 func formatPriorityCounts(counts map[string]int) string {
-	if len(counts) == 0 {
-		return "-"
-	}
-	var parts []string
-	for _, priority := range []string{"P0", "P1", "P2", "P3", "P4", "unset"} {
-		if n := counts[priority]; n > 0 {
-			parts = append(parts, fmt.Sprintf("`%s`: %d", priority, n))
-		}
-	}
-	for _, priority := range sortedMapKeys(counts) {
-		switch priority {
-		case "P0", "P1", "P2", "P3", "P4", "unset":
-			continue
-		}
-		parts = append(parts, fmt.Sprintf("`%s`: %d", priority, counts[priority]))
-	}
-	if len(parts) == 0 {
-		return "-"
-	}
-	return strings.Join(parts, " · ")
+	return markdown.FormatPriorityCounts(counts)
 }
 
 func moduleDisplayName(module string) string {
-	switch module {
-	case ModuleCLI, ModuleSTT, ModuleTTS, ModuleTUI:
-		return strings.ToUpper(module)
-	}
-	parts := strings.Split(module, "-")
-	for i, part := range parts {
-		if part == "" {
-			continue
-		}
-		parts[i] = strings.ToUpper(part[:1]) + part[1:]
-	}
-	return strings.Join(parts, " ")
+	return featuremodule.DisplayName(module)
 }
 
 func mdCell(s string) string {
-	s = strings.ReplaceAll(s, "\n", " ")
-	s = strings.ReplaceAll(s, "|", `\|`)
-	if s == "" {
-		return "-"
-	}
-	return s
+	return markdown.Cell(s)
 }

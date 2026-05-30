@@ -2,6 +2,8 @@
 // progress backlog split and validation surfaces.
 package featuremodule
 
+import "strings"
+
 // The grill-corrected module-split taxonomy (2026-05-16): module names are
 // feature homes for the physical split, while execution_owner remains work
 // ownership. Keep this list alphabetized so filenames, validation messages,
@@ -124,4 +126,20 @@ func ForExecutionOwner(owner string) string {
 	default:
 		return ""
 	}
+}
+
+// DisplayName renders a feature-module key as an operator-facing heading.
+func DisplayName(module string) string {
+	switch module {
+	case ModuleCLI, ModuleSTT, ModuleTTS, ModuleTUI:
+		return strings.ToUpper(module)
+	}
+	parts := strings.Split(module, "-")
+	for i, part := range parts {
+		if part == "" {
+			continue
+		}
+		parts[i] = strings.ToUpper(part[:1]) + part[1:]
+	}
+	return strings.Join(parts, " ")
 }
