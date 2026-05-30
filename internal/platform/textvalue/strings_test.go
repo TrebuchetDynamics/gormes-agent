@@ -11,6 +11,12 @@ func TestIsNonBlank(t *testing.T) {
 	}
 }
 
+func TestLowerTrim(t *testing.T) {
+	if got := LowerTrim("  OpenAI-Codex\t"); got != "openai-codex" {
+		t.Fatalf("LowerTrim() = %q, want openai-codex", got)
+	}
+}
+
 func TestFirstNonBlankPreservesSourceText(t *testing.T) {
 	got := FirstNonBlank("", " \t ", "  provider  ", "fallback")
 	if got != "  provider  " {

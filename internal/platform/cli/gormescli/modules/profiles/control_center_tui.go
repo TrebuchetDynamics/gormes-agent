@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 const (
@@ -246,7 +247,7 @@ func (d *ControlCenterDraft) SetProfileWorkspaces(profileID string, workspaces [
 
 func (d *ControlCenterDraft) AssignProviderCredential(profileID, providerID, credentialID string) error {
 	profileID = strings.TrimSpace(profileID)
-	providerID = strings.ToLower(strings.TrimSpace(providerID))
+	providerID = textvalue.LowerTrim(providerID)
 	credentialID = strings.TrimSpace(credentialID)
 	profile, ok := d.working.Profiles[profileID]
 	if profileID == "" || !ok {
@@ -268,7 +269,7 @@ func (d *ControlCenterDraft) AssignProviderCredential(profileID, providerID, cre
 
 func (d *ControlCenterDraft) SetProfileProviderModels(profileID, providerID, defaultModel string, allowedModels []string) error {
 	profileID = strings.TrimSpace(profileID)
-	providerID = strings.ToLower(strings.TrimSpace(providerID))
+	providerID = textvalue.LowerTrim(providerID)
 	profile, ok := d.working.Profiles[profileID]
 	if profileID == "" || !ok {
 		return fmt.Errorf("profile control center draft: profile %q not found", profileID)
@@ -290,7 +291,7 @@ func (d *ControlCenterDraft) SetProfileProviderModels(profileID, providerID, def
 
 func (d *ControlCenterDraft) AssignChannelCredential(profileID, channelID, credentialID string) error {
 	profileID = strings.TrimSpace(profileID)
-	channelID = strings.ToLower(strings.TrimSpace(channelID))
+	channelID = textvalue.LowerTrim(channelID)
 	credentialID = strings.TrimSpace(credentialID)
 	profile, ok := d.working.Profiles[profileID]
 	if profileID == "" || !ok {
@@ -312,7 +313,7 @@ func (d *ControlCenterDraft) AssignChannelCredential(profileID, channelID, crede
 
 func (d *ControlCenterDraft) SetProfileChannelPolicy(profileID, channelID string, allowedChats, allowedUsers []string, requireMention bool, toolProgress string) error {
 	profileID = strings.TrimSpace(profileID)
-	channelID = strings.ToLower(strings.TrimSpace(channelID))
+	channelID = textvalue.LowerTrim(channelID)
 	profile, ok := d.working.Profiles[profileID]
 	if profileID == "" || !ok {
 		return fmt.Errorf("profile control center draft: profile %q not found", profileID)
@@ -328,7 +329,7 @@ func (d *ControlCenterDraft) SetProfileChannelPolicy(profileID, channelID string
 	channel.AllowedChats = cleanControlCenterDraftStrings(allowedChats)
 	channel.AllowedUsers = cleanControlCenterDraftStrings(allowedUsers)
 	channel.RequireMention = requireMention
-	channel.ToolProgress = strings.ToLower(strings.TrimSpace(toolProgress))
+	channel.ToolProgress = textvalue.LowerTrim(toolProgress)
 	profile.Channels[channelID] = channel
 	d.working.Profiles[profileID] = profile
 	return nil
@@ -357,9 +358,9 @@ func (d *ControlCenterDraft) SetCredential(credentialID string, credential confi
 	if !controlCenterProfileIDPattern.MatchString(credentialID) {
 		return fmt.Errorf("profile control center draft: credential id %q is invalid", credentialID)
 	}
-	credential.Kind = strings.ToLower(strings.TrimSpace(credential.Kind))
-	credential.Provider = strings.ToLower(strings.TrimSpace(credential.Provider))
-	credential.Channel = strings.ToLower(strings.TrimSpace(credential.Channel))
+	credential.Kind = textvalue.LowerTrim(credential.Kind)
+	credential.Provider = textvalue.LowerTrim(credential.Provider)
+	credential.Channel = textvalue.LowerTrim(credential.Channel)
 	credential.OwnerProfile = strings.TrimSpace(credential.OwnerProfile)
 	if d.working.Credentials == nil {
 		d.working.Credentials = map[string]config.CredentialCfg{}

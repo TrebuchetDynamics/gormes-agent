@@ -12,6 +12,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/pathguard"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 const (
@@ -228,7 +229,7 @@ func validateUpdateReleaseManifest(opts UpdateReleaseAssetSkillSyncOptions) erro
 		if _, err := cleanUpdateReleaseManifestPath(asset.PayloadPath); err != nil {
 			return fmt.Errorf("asset payload_path %q: %w", asset.PayloadPath, err)
 		}
-		expected := strings.ToLower(strings.TrimSpace(asset.SHA256))
+		expected := textvalue.LowerTrim(asset.SHA256)
 		if expected == "" {
 			return fmt.Errorf("asset %q missing sha256", targetRel)
 		}
@@ -263,7 +264,7 @@ func validateUpdateReleaseManifest(opts UpdateReleaseAssetSkillSyncOptions) erro
 			if _, err := cleanUpdateReleaseManifestPath(skill.PayloadPath); err != nil {
 				return fmt.Errorf("skill payload_path %q: %w", skill.PayloadPath, err)
 			}
-			expected := strings.ToLower(strings.TrimSpace(skill.SHA256))
+			expected := textvalue.LowerTrim(skill.SHA256)
 			if expected == "" {
 				return fmt.Errorf("skill %q missing sha256", targetRel)
 			}
@@ -418,7 +419,7 @@ func releaseSkillEntryName(entry UpdateReleaseSkillManifestEntry, rel string) st
 }
 
 func shortReleaseDigest(value string) string {
-	value = strings.ToLower(strings.TrimSpace(value))
+	value = textvalue.LowerTrim(value)
 	if len(value) > 12 {
 		return value[:12]
 	}
@@ -494,7 +495,7 @@ func updateReleaseSnapshotFileEditedAfterUpdate(file updateReleaseAssetSnapshotF
 	if err != nil {
 		return true
 	}
-	return current != strings.ToLower(strings.TrimSpace(file.AfterSHA256))
+	return current != textvalue.LowerTrim(file.AfterSHA256)
 }
 
 func rollbackUpdateReleaseAssetSnapshotIntoReport(ctx context.Context, report *UpdateReleaseAssetSkillSyncReport, snapshotPath string) {

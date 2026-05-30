@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 const defaultSecretMarker = "[redacted]"
@@ -297,7 +299,7 @@ func blockSensitivePath(evidence, reason string) SensitivePathDecision {
 }
 
 func normalizeUntrustedSource(source string) string {
-	source = strings.ToLower(strings.TrimSpace(source))
+	source = textvalue.LowerTrim(source)
 	if source == "" {
 		return "external"
 	}

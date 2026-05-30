@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 const (
@@ -67,7 +68,7 @@ func NewJSONLWriter(path string) *JSONLWriter {
 
 func TrajectoryWriteAuditRecord(in TrajectoryWriteAuditInput) Record {
 	status := "completed"
-	if strings.Contains(strings.ToLower(strings.TrimSpace(in.Code)), "failed") || strings.TrimSpace(in.Error) != "" {
+	if strings.Contains(textvalue.LowerTrim(in.Code), "failed") || strings.TrimSpace(in.Error) != "" {
 		status = "failed"
 	}
 	args, err := json.Marshal(map[string]any{
@@ -217,7 +218,7 @@ func marshalAuditArgs(value any) json.RawMessage {
 }
 
 func sensitiveAuditField(key string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(key))
+	normalized := textvalue.LowerTrim(key)
 	normalized = strings.NewReplacer("_", "", "-", "", ".", "", " ", "").Replace(normalized)
 	if normalized == "" {
 		return false
@@ -239,7 +240,7 @@ func sensitiveAuditField(key string) bool {
 }
 
 func rightEdgeAuditField(key string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(key))
+	normalized := textvalue.LowerTrim(key)
 	normalized = strings.NewReplacer("_", "", "-", "", ".", "", " ", "").Replace(normalized)
 	switch {
 	case normalized == "url",

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 // CommandAliasKind classifies how a typed slash token resolves before command
@@ -174,7 +176,7 @@ func ResolveQuickCommandAlias(input string, quick map[string]QuickCommandAlias) 
 		visited[current] = struct{}{}
 		out.Chain = append(out.Chain, current)
 
-		if strings.ToLower(strings.TrimSpace(def.Type)) != "alias" {
+		if textvalue.LowerTrim(def.Type) != "alias" {
 			out.Kind = QuickCommandAliasUnsupportedType
 			out.Evidence = fmt.Sprintf("quick command '/%s' has unsupported type %q for alias rewrite", current, def.Type)
 			return out

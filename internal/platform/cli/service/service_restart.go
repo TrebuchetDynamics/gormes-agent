@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 const (
@@ -69,8 +71,7 @@ func splitPathList(path string) []string {
 }
 
 func isWSLInteropPath(path string) bool {
-	lower := strings.ToLower(strings.TrimSpace(path))
-	return strings.HasPrefix(lower, "/mnt/")
+	return strings.HasPrefix(textvalue.LowerTrim(path), "/mnt/")
 }
 
 type ServiceRestartDelayEvidenceKind string

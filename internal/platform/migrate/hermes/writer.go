@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 	"github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
 )
@@ -541,7 +542,7 @@ func applyDisplayConfigValue(doc map[string]any, value any) error {
 	platforms := asTable(display["platforms"])
 	if sourcePlatforms := asTable(source["platforms"]); len(sourcePlatforms) > 0 {
 		for platform, rawPlatform := range sourcePlatforms {
-			key := strings.ToLower(strings.TrimSpace(platform))
+			key := textvalue.LowerTrim(platform)
 			if key == "" {
 				continue
 			}
@@ -555,7 +556,7 @@ func applyDisplayConfigValue(doc map[string]any, value any) error {
 	}
 	if overrides := asTable(source["tool_progress_overrides"]); len(overrides) > 0 {
 		for platform, rawMode := range overrides {
-			key := strings.ToLower(strings.TrimSpace(platform))
+			key := textvalue.LowerTrim(platform)
 			if key == "" {
 				continue
 			}
@@ -660,7 +661,7 @@ func normalizeMigratedToolProgressMode(raw any) (string, bool) {
 		}
 		return "off", true
 	default:
-		mode := strings.ToLower(strings.TrimSpace(fmt.Sprint(v)))
+		mode := textvalue.LowerTrim(fmt.Sprint(v))
 		if mode == "" || mode == "<nil>" {
 			return "", false
 		}

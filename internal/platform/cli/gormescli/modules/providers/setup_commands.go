@@ -9,6 +9,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 // NewProvidersCommand creates an operator-facing provider setup guidance command.
@@ -58,7 +59,7 @@ func renderAllProviderSetupGuidance(cmd *cobra.Command) error {
 }
 
 func renderProviderSetupGuidance(cmd *cobra.Command, rawProvider string) error {
-	provider := strings.ToLower(strings.TrimSpace(rawProvider))
+	provider := textvalue.LowerTrim(rawProvider)
 	entry, ok := llm.ResolveProviderManifestEntry(provider)
 	if !ok {
 		return gormescli.NewExitCodeError(1, fmt.Errorf("unknown_provider: %s", provider))
@@ -106,7 +107,7 @@ func providerManifestIDs() []string {
 }
 
 func providerDisplayName(provider string) string {
-	switch strings.ToLower(strings.TrimSpace(provider)) {
+	switch textvalue.LowerTrim(provider) {
 	case "openai-codex":
 		return "OpenAI Codex"
 	case "openrouter":
@@ -241,7 +242,7 @@ func providerCredentialInferenceURL(entry llm.ProviderManifestEntry) string {
 }
 
 func providerOAuthAdapterReady(provider string) bool {
-	switch strings.ToLower(strings.TrimSpace(provider)) {
+	switch textvalue.LowerTrim(provider) {
 	case "anthropic", "nous", "openai-codex", "google-gemini-cli", "qwen-oauth":
 		return true
 	default:

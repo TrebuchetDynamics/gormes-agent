@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -526,7 +527,7 @@ func parseEnabledFlag(value any, fallback bool) bool {
 	case int64:
 		return typed != 0
 	case string:
-		switch strings.ToLower(strings.TrimSpace(typed)) {
+		switch textvalue.LowerTrim(typed) {
 		case "true", "1", "yes", "on":
 			return true
 		case "false", "0", "no", "off":

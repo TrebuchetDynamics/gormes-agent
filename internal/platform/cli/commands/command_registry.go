@@ -1,6 +1,10 @@
 package commands
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
+)
 
 // ActiveTurnPolicy classifies how a recognized slash command behaves when an
 // agent turn is already active. The set is closed: every entry in
@@ -205,7 +209,7 @@ func ResolveCommandPolicy(name string) (CommandPolicy, bool) {
 }
 
 func normalizeCommandToken(raw string) string {
-	key := strings.ToLower(strings.TrimSpace(raw))
+	key := textvalue.LowerTrim(raw)
 	key = strings.TrimPrefix(key, "/")
 	if i := strings.IndexAny(key, " \t\r\n"); i >= 0 {
 		key = key[:i]

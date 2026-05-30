@@ -3,6 +3,8 @@ package onboarding
 import (
 	"fmt"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 type SetupTargetID string
@@ -350,7 +352,7 @@ func mergeChannelState(base, override ChannelState) ChannelState {
 }
 
 func normalizeSetupTarget(id SetupTargetID) SetupTargetID {
-	switch SetupTargetID(strings.ToLower(strings.TrimSpace(string(id)))) {
+	switch SetupTargetID(textvalue.LowerTrim(string(id))) {
 	case "", SetupTargetTerminal, "chat", "tui":
 		return SetupTargetTerminal
 	case SetupTargetTelegram:

@@ -7,6 +7,12 @@ func IsNonBlank(value string) bool {
 	return strings.TrimSpace(value) != ""
 }
 
+// LowerTrim returns value with surrounding whitespace removed and letters folded
+// to lower case for command, provider, channel, and evidence keys.
+func LowerTrim(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
+}
+
 // FirstNonBlank returns the first value whose trimmed form is non-empty while
 // preserving the original value. Use FirstNonEmptyTrimmed when callers need the
 // normalized value instead of the source text.

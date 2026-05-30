@@ -192,7 +192,7 @@ func TelemetryEventMatrix() []EventMatrixEntry {
 }
 
 func LookupTelemetryEvent(upstream string) (EventMatrixEntry, bool) {
-	needle := strings.ToLower(strings.TrimSpace(upstream))
+	needle := textvalue.LowerTrim(upstream)
 	for _, entry := range selfMonitoringEventMatrix {
 		if strings.ToLower(entry.UpstreamEvent) == needle {
 			return entry, true
@@ -517,7 +517,7 @@ func complexPayload(value any) bool {
 }
 
 func sensitiveField(field string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(field))
+	normalized := textvalue.LowerTrim(field)
 	for _, marker := range []string{"authorization", "api_key", "apikey", "secret", "token", "password", "credential"} {
 		if strings.Contains(normalized, marker) {
 			return true
@@ -527,7 +527,7 @@ func sensitiveField(field string) bool {
 }
 
 func summarizeField(field string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(field))
+	normalized := textvalue.LowerTrim(field)
 	switch normalized {
 	case "prompt", "messages", "message", "input", "output", "response", "content", "thinking_content", "reasoning_content":
 		return true

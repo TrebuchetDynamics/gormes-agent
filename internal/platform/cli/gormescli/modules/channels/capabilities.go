@@ -12,6 +12,7 @@ import (
 	channelcaps "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 // Options carries binary-owned build metadata into importable channels
@@ -178,7 +179,7 @@ func renderAllChannelSetupGuidance(cmd *cobra.Command) error {
 }
 
 func renderChannelSetupGuidance(cmd *cobra.Command, rawChannel string) error {
-	channel := strings.ToLower(strings.TrimSpace(rawChannel))
+	channel := textvalue.LowerTrim(rawChannel)
 	if channel == "navivox" {
 		out := cmd.OutOrStdout()
 		fmt.Fprintln(out, "Channel setup commands for Navivox (navivox):")
@@ -219,7 +220,7 @@ func renderChannelSetupGuidance(cmd *cobra.Command, rawChannel string) error {
 }
 
 func isQuickSetupChannel(channel string) bool {
-	switch strings.ToLower(strings.TrimSpace(channel)) {
+	switch textvalue.LowerTrim(channel) {
 	case "telegram", "discord", "slack", "whatsapp", "navivox":
 		return true
 	default:

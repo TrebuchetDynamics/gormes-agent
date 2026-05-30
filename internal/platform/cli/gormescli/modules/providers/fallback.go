@@ -14,6 +14,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 type FallbackEntry struct {
@@ -259,7 +260,7 @@ func runFallbackClear(cmd *cobra.Command) error {
 		fmt.Fprintln(out, "  Cancelled.")
 		return nil
 	}
-	answer := strings.ToLower(strings.TrimSpace(line))
+	answer := textvalue.LowerTrim(line)
 	if answer != "y" && answer != "yes" {
 		fmt.Fprintln(out, "  Cancelled — no change.")
 		return nil

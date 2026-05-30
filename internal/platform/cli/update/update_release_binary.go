@@ -13,6 +13,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 const (
@@ -211,11 +213,11 @@ func rollbackReleaseSnapshotIntoReport(ctx context.Context, report *UpdateReleas
 }
 
 func verifyReleaseArtifactChecksum(artifact UpdateReleaseArtifact) error {
-	expected := strings.ToLower(strings.TrimSpace(artifact.ExpectedSHA256))
+	expected := textvalue.LowerTrim(artifact.ExpectedSHA256)
 	if expected == "" {
 		return fmt.Errorf("missing SHA-256 checksum")
 	}
-	actual := strings.ToLower(strings.TrimSpace(artifact.ActualSHA256))
+	actual := textvalue.LowerTrim(artifact.ActualSHA256)
 	if actual == "" {
 		var err error
 		actual, err = fileSHA256(artifact.StagedBinaryPath)

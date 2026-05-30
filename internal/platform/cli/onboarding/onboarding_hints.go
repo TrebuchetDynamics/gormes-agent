@@ -1,6 +1,6 @@
 package onboarding
 
-import "strings"
+import "github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 
 const (
 	// BusyInputPromptFlag is the stable onboarding.seen key for the one-time
@@ -45,7 +45,7 @@ func ToolProgressHint(surface string) string {
 }
 
 func normalizeOnboardingSurface(surface string) string {
-	switch strings.ToLower(strings.TrimSpace(surface)) {
+	switch textvalue.LowerTrim(surface) {
 	case "gateway", "channel", "telegram", "discord", "slack":
 		return "gateway"
 	default:
@@ -54,7 +54,7 @@ func normalizeOnboardingSurface(surface string) string {
 }
 
 func normalizeBusyInputMode(mode string) string {
-	switch strings.ToLower(strings.TrimSpace(mode)) {
+	switch textvalue.LowerTrim(mode) {
 	case "queue":
 		return "queue"
 	case "steer":

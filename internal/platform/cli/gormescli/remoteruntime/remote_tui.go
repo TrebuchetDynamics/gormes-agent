@@ -6,6 +6,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/tuigateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 type RemoteTUIClient interface {
@@ -27,6 +28,6 @@ func RedactRemoteTUIURL(raw string) string {
 }
 
 func IsWebSocketRemoteURL(raw string) bool {
-	raw = strings.ToLower(strings.TrimSpace(raw))
+	raw = textvalue.LowerTrim(raw)
 	return strings.HasPrefix(raw, "ws://") || strings.HasPrefix(raw, "wss://")
 }

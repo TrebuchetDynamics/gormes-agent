@@ -244,7 +244,7 @@ func normalizePath(path string) string {
 }
 
 func normalizeToken(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
+	return textvalue.LowerTrim(value)
 }
 
 func normalizeSlash(value string) string {
