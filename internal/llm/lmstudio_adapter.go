@@ -2,10 +2,10 @@ package llm
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/lmstudio"
 )
 
 const (
@@ -62,40 +62,14 @@ func (a *LMStudioAdapter) reachable() bool {
 }
 
 // ModelInfo describes one model exposed by the LM Studio server.
-type ModelInfo struct {
-	ID      string `json:"id"`
-	Object  string `json:"object"`
-	Created int64  `json:"created"`
-	OwnedBy string `json:"owned_by"`
-}
+type ModelInfo = lmstudio.ModelInfo
 
 // ModelsResponse is the envelope returned by LM Studio's /v1/models endpoint.
-type ModelsResponse struct {
-	Object string      `json:"object"`
-	Data   []ModelInfo `json:"data"`
-}
+type ModelsResponse = lmstudio.ModelsResponse
 
 // ListModels fetches the available local models from LM Studio.
 func (a *LMStudioAdapter) ListModels(ctx context.Context) ([]ModelInfo, error) {
-	client := &http.Client{Timeout: 5 * time.Second}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.baseURL+"/models", nil)
-	if err != nil {
-		return nil, fmt.Errorf("lmstudio list models: %w", err)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("lmstudio list models: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, newHTTPError(resp.StatusCode, "lmstudio list models failed", resp.Header)
-	}
-
-	var envelope ModelsResponse
-	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-		return nil, fmt.Errorf("lmstudio list models decode: %w", err)
-	}
-	return envelope.Data, nil
+	return lmstudio.ListModelsWithStatusError(ctx, a.baseURL, func(statusCode int, message string, header http.Header) error {
+		return newHTTPError(statusCode, message, header)
+	})
 }
