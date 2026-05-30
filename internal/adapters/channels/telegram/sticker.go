@@ -9,6 +9,7 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
+	telegrammedia "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram/media"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -36,7 +37,7 @@ func (b *Bot) telegramStickerMarker(ctx context.Context, sticker *tgbotapi.Stick
 	fileUniqueID := strings.TrimSpace(sticker.FileUniqueID)
 	if fileUniqueID != "" {
 		if cached, ok, err := gateway.GetCachedStickerDescription(b.telegramStickerCachePath(), fileUniqueID); err == nil && ok {
-			return gateway.BuildStickerInjection(cached.Description, firstNonEmpty(cached.Emoji, emoji), firstNonEmpty(cached.SetName, setName))
+			return gateway.BuildStickerInjection(cached.Description, telegrammedia.FirstNonEmpty(cached.Emoji, emoji), telegrammedia.FirstNonEmpty(cached.SetName, setName))
 		}
 	}
 	if b.cfg.StickerVisionAnalyzer == nil {
@@ -78,12 +79,7 @@ func (b *Bot) telegramStickerMarker(ctx context.Context, sticker *tgbotapi.Stick
 }
 
 func telegramStickerFileName(filePath, fileUniqueID, fileID string) string {
-	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(filePath)))
-	if ext == "" {
-		ext = ".webp"
-	}
-	base := firstNonEmpty(fileUniqueID, fileID, "sticker")
-	return "sticker_" + telegramSafeToken(base) + ext
+	return telegrammedia.StickerFileName(filePath, fileUniqueID, fileID)
 }
 
 func (b *Bot) telegramStickerFallback(emoji, setName string) string {
@@ -102,18 +98,5 @@ func (b *Bot) telegramStickerCachePath() string {
 }
 
 func telegramStickerFallbackDescription(emoji string) string {
-	emoji = strings.TrimSpace(emoji)
-	if emoji != "" {
-		return "a sticker with emoji " + emoji
-	}
-	return "a sticker"
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
-			return trimmed
-		}
-	}
-	return ""
+	return telegrammedia.StickerFallbackDescription(emoji)
 }

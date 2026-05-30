@@ -2,11 +2,11 @@ package telegram
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
+	telegrambatching "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram/batching"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -103,31 +103,13 @@ func (b *Bot) telegramMediaBatchDelay() time.Duration {
 }
 
 func telegramInboundEventHasPhoto(ev gateway.InboundEvent) bool {
-	for _, attachment := range ev.Attachments {
-		if strings.EqualFold(strings.TrimSpace(attachment.Kind), "photo") {
-			return true
-		}
-	}
-	return false
+	return telegrambatching.InboundEventHasPhoto(ev)
 }
 
 func telegramPhotoBatchKey(ev gateway.InboundEvent, mediaGroupID string) string {
-	chatID := strings.TrimSpace(ev.ChatID)
-	if chatID == "" {
-		chatID = "unknown-chat"
-	}
-	if mediaGroupID = strings.TrimSpace(mediaGroupID); mediaGroupID != "" {
-		return "album:" + chatID + ":" + mediaGroupID
-	}
-	userID := strings.TrimSpace(ev.UserID)
-	if userID == "" {
-		userID = "unknown-user"
-	}
-	return "burst:" + chatID + ":" + userID
+	return telegrambatching.PhotoBatchKey(ev, mediaGroupID)
 }
 
 func telegramMergePhotoBatch(first, next gateway.InboundEvent) gateway.InboundEvent {
-	first.Text = telegramMergeCaption(first.Text, next.Text)
-	first.Attachments = append(first.Attachments, next.Attachments...)
-	return first
+	return telegrambatching.MergePhotoBatch(first, next)
 }

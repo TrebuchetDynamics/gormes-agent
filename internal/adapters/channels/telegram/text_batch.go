@@ -2,9 +2,9 @@ package telegram
 
 import (
 	"context"
-	"strings"
 	"time"
 
+	telegrambatching "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram/batching"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -107,34 +107,13 @@ func (b *Bot) telegramTextBatchDelay() time.Duration {
 }
 
 func telegramInboundEventIsBatchableText(ev gateway.InboundEvent) bool {
-	return ev.Kind == gateway.EventSubmit && strings.TrimSpace(ev.Text) != "" && len(ev.Attachments) == 0
+	return telegrambatching.InboundEventIsBatchableText(ev)
 }
 
 func telegramTextBatchKey(ev gateway.InboundEvent) string {
-	parts := []string{
-		strings.TrimSpace(ev.Platform),
-		strings.TrimSpace(ev.ChatID),
-		strings.TrimSpace(ev.ChatType),
-		strings.TrimSpace(ev.ThreadID),
-		strings.TrimSpace(ev.UserID),
-	}
-	for i, part := range parts {
-		if part == "" {
-			parts[i] = "-"
-		}
-	}
-	return strings.Join(parts, ":")
+	return telegrambatching.TextBatchKey(ev)
 }
 
 func telegramMergeTextBatch(first, next gateway.InboundEvent) gateway.InboundEvent {
-	text := strings.TrimSpace(next.Text)
-	if text == "" {
-		return first
-	}
-	if strings.TrimSpace(first.Text) == "" {
-		first.Text = text
-	} else {
-		first.Text += "\n" + text
-	}
-	return first
+	return telegrambatching.MergeTextBatch(first, next)
 }
