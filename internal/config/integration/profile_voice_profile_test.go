@@ -1,6 +1,8 @@
-package config
+package integration_test
 
 import (
+	. "github.com/TrebuchetDynamics/gormes-agent/internal/config"
+
 	"encoding/json"
 	"os"
 	"path/filepath"
