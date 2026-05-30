@@ -1,4 +1,4 @@
-package llm
+package guidance
 
 import (
 	"go/parser"
@@ -141,9 +141,9 @@ func TestResearchQualityGuidanceRequiresWebSearchTool(t *testing.T) {
 
 func TestPromptGuidanceIsPure(t *testing.T) {
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "model_guidance.go", nil, parser.ImportsOnly)
+	file, err := parser.ParseFile(fset, "model.go", nil, parser.ImportsOnly)
 	if err != nil {
-		t.Fatalf("parse model_guidance.go: %v", err)
+		t.Fatalf("parse model.go: %v", err)
 	}
 	for _, imp := range file.Imports {
 		path, err := strconv.Unquote(imp.Path.Value)

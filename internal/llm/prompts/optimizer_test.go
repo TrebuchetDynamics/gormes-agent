@@ -1,4 +1,4 @@
-package llm
+package prompts
 
 import (
 	"context"
@@ -14,7 +14,7 @@ func TestPromptOptimizer_Mutate(t *testing.T) {
 		return []string{}, nil
 	})
 
-	variant := optimizer.mutate("hello world this is a test prompt")
+	variant := optimizer.Mutate("hello world this is a test prompt")
 	if variant.ID == "" {
 		t.Fatal("mutation should produce an ID")
 	}

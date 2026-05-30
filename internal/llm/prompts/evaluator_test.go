@@ -1,4 +1,4 @@
-package llm
+package prompts
 
 import (
 	"context"
@@ -189,7 +189,7 @@ func TestPromptEvaluator_DefaultCorpusRewardsResearchDepth(t *testing.T) {
 		t.Fatalf("ExpectedTools = %#v, want web_search", scenario.ExpectedTools)
 	}
 
-	shallow := scoreEvalTrace("candidate", scenario, EvalTrace{
+	shallow := ScoreEvalTrace("candidate", scenario, EvalTrace{
 		Tools:    []string{"web_search"},
 		Response: "Here are some Python-to-Go repos: py2many and pytago. Use tests.",
 	}, nil)
@@ -200,7 +200,7 @@ func TestPromptEvaluator_DefaultCorpusRewardsResearchDepth(t *testing.T) {
 		t.Fatalf("shallow response quality = %v, want below 4", shallow.ResponseQuality)
 	}
 
-	deep := scoreEvalTrace("candidate", scenario, EvalTrace{
+	deep := ScoreEvalTrace("candidate", scenario, EvalTrace{
 		Tools:    []string{"web_search"},
 		Response: "The strongest candidates are py2many and pytago, but a serious Scrapling migration still needs a Go-native rewrite for browser automation, lxml/parser behavior, async runtime differences, and curl_cffi/TLS impersonation. Evaluate maturity, license, maintenance activity, and compile success; use transpilers only for isolated algorithmic helpers, then preserve behavior with golden tests and a migration workflow.",
 	}, nil)
@@ -222,16 +222,16 @@ func TestPromptEvaluator_AggregateScore(t *testing.T) {
 }
 
 func TestComputeToolAccuracy(t *testing.T) {
-	if computeToolAccuracy([]string{"read_file"}, []string{"read_file"}) != 1.0 {
+	if ComputeToolAccuracy([]string{"read_file"}, []string{"read_file"}) != 1.0 {
 		t.Fatal("exact match should be 1.0")
 	}
-	if computeToolAccuracy([]string{"write_file"}, []string{"read_file"}) != 0.0 {
+	if ComputeToolAccuracy([]string{"write_file"}, []string{"read_file"}) != 0.0 {
 		t.Fatal("no match should be 0.0")
 	}
-	if computeToolAccuracy([]string{"read_file"}, []string{"read_file", "edit_file"}) != 0.5 {
+	if ComputeToolAccuracy([]string{"read_file"}, []string{"read_file", "edit_file"}) != 0.5 {
 		t.Fatal("partial match should be 0.5")
 	}
-	if computeToolAccuracy([]string{"read_file"}, []string{}) != 0.0 {
+	if ComputeToolAccuracy([]string{"read_file"}, []string{}) != 0.0 {
 		t.Fatal("unexpected tool for no-tool scenario should be 0.0")
 	}
 }

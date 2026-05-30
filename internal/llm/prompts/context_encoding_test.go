@@ -1,4 +1,4 @@
-package llm
+package prompts
 
 import (
 	"encoding/json"

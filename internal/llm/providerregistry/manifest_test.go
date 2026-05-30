@@ -1,4 +1,4 @@
-package llm
+package providerregistry
 
 import "testing"
 
@@ -443,4 +443,13 @@ func TestHermesProviderRegistryManifestRecordsRequiredMetadata(t *testing.T) {
 			}
 		})
 	}
+}
+
+func hasString(items []string, want string) bool {
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
 }

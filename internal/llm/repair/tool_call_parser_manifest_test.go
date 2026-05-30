@@ -1,4 +1,4 @@
-package llm
+package repair
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-const upstreamParsersRoot = "../../../hermes-agent/environments/tool_call_parsers"
+const upstreamParsersRoot = "../../../../hermes-agent/environments/tool_call_parsers"
 
 func TestToolCallParserManifestCoversEveryUpstreamFile(t *testing.T) {
 	manifest := ToolCallParserManifest()
@@ -141,7 +141,7 @@ func TestToolCallParserManifestGoldenFixturesExistAndCoverDegraded(t *testing.T)
 		}
 		hasDegraded := false
 		for _, fx := range entry.GoldenFixtures {
-			path := filepath.Join("testdata", "tool_call_parsers", fx)
+			path := filepath.Join("..", "testdata", "tool_call_parsers", fx)
 			data, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatalf("read fixture %s for %s: %v", path, entry.UpstreamFile, err)

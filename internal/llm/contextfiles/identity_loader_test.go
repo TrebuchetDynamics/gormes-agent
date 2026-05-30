@@ -1,10 +1,12 @@
-package llm
+package contextfiles
 
 import (
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/guidance"
 )
 
 func TestIdentityLoader_LoadsSoulMd(t *testing.T) {
@@ -44,7 +46,7 @@ func TestIdentityLoader_Fallback(t *testing.T) {
 	if result.Source != "default" {
 		t.Fatalf("expected source=default, got %s", result.Source)
 	}
-	if result.Identity != DefaultAgentIdentity {
+	if result.Identity != guidance.DefaultAgentIdentity {
 		t.Fatal("expected default identity")
 	}
 	if !result.Evidence.Missing {
@@ -69,7 +71,7 @@ func TestIdentityLoader_SkipSoul(t *testing.T) {
 	if result.Source != "default" {
 		t.Fatalf("expected source=default, got %s", result.Source)
 	}
-	if result.Identity != DefaultAgentIdentity {
+	if result.Identity != guidance.DefaultAgentIdentity {
 		t.Fatal("expected default identity when skipped")
 	}
 	if !result.Evidence.Skipped {

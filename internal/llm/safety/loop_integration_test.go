@@ -1,4 +1,4 @@
-package llm
+package safety
 
 import (
 	"context"

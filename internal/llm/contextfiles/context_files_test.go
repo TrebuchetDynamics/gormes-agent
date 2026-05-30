@@ -1,4 +1,4 @@
-package llm
+package contextfiles
 
 import (
 	"os"

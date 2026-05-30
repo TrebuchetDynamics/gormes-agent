@@ -1,4 +1,4 @@
-package llm
+package guidance
 
 import (
 	"go/ast"
@@ -29,8 +29,8 @@ func upstreamPromptBuilderPath(t *testing.T) (string, bool) {
 	t.Helper()
 	// internal/llm is two levels below the repo root.
 	candidates := []string{
-		filepath.Join("..", "..", "hermes-agent", "agent", "prompt_builder.py"),
 		filepath.Join("..", "..", "..", "hermes-agent", "agent", "prompt_builder.py"),
+		filepath.Join("..", "..", "..", "..", "hermes-agent", "agent", "prompt_builder.py"),
 		"/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/agent/prompt_builder.py",
 		"/home/xel/.hermes/hermes-agent/agent/prompt_builder.py",
 	}
@@ -458,7 +458,7 @@ func TestGuidanceConstants_WSLEnvironmentHint_ByteEquivalent(t *testing.T) {
 // internal/provider, and other live-turn subsystems. This static check must
 // always run; it does not depend on upstream availability.
 func TestGuidanceConstants_NoRuntimeImport(t *testing.T) {
-	const target = "guidance_constants.go"
+	const target = "constants.go"
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, target, nil, parser.ImportsOnly)
 	if err != nil {

@@ -1,4 +1,4 @@
-package llm
+package guidance
 
 import (
 	"os"
@@ -49,8 +49,8 @@ func TestDefaultSoulMDOwnsGormPersonaBoundary(t *testing.T) {
 func upstreamDefaultSoulPath(t *testing.T) (string, bool) {
 	t.Helper()
 	candidates := []string{
-		filepath.Join("..", "..", "hermes-agent", "hermes_cli", "default_soul.py"),
 		filepath.Join("..", "..", "..", "hermes-agent", "hermes_cli", "default_soul.py"),
+		filepath.Join("..", "..", "..", "..", "hermes-agent", "hermes_cli", "default_soul.py"),
 		"/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/hermes_cli/default_soul.py",
 		"/home/xel/.hermes/hermes-agent/hermes_cli/default_soul.py",
 	}
