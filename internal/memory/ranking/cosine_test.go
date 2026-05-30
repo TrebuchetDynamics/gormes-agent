@@ -1,4 +1,4 @@
-package memory
+package ranking
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 
 func TestL2Normalize_UnitMagnitude(t *testing.T) {
 	v := []float32{3, 4} // magnitude 5
-	l2Normalize(v)
+	NormalizeL2(v)
 	mag := math.Sqrt(float64(v[0]*v[0] + v[1]*v[1]))
 	if math.Abs(mag-1.0) > 1e-6 {
 		t.Errorf("magnitude = %v, want 1.0 ± 1e-6", mag)
@@ -18,7 +18,7 @@ func TestL2Normalize_UnitMagnitude(t *testing.T) {
 
 func TestL2Normalize_ZeroVector(t *testing.T) {
 	v := []float32{0, 0, 0}
-	l2Normalize(v) // must not divide by zero
+	NormalizeL2(v) // must not divide by zero
 	for i, x := range v {
 		if x != 0 {
 			t.Errorf("v[%d] = %v, want 0 (zero-vector stays zero)", i, x)
@@ -28,7 +28,7 @@ func TestL2Normalize_ZeroVector(t *testing.T) {
 
 func TestDotProduct_IdenticalNormalizedIsOne(t *testing.T) {
 	a := []float32{0.6, 0.8} // already unit
-	got := dotProduct(a, a)
+	got := DotProduct(a, a)
 	if math.Abs(float64(got)-1.0) > 1e-6 {
 		t.Errorf("a·a = %v, want 1.0", got)
 	}
@@ -37,7 +37,7 @@ func TestDotProduct_IdenticalNormalizedIsOne(t *testing.T) {
 func TestDotProduct_OrthogonalIsZero(t *testing.T) {
 	a := []float32{1, 0}
 	b := []float32{0, 1}
-	got := dotProduct(a, b)
+	got := DotProduct(a, b)
 	if got != 0 {
 		t.Errorf("orthogonal = %v, want 0", got)
 	}
@@ -46,7 +46,7 @@ func TestDotProduct_OrthogonalIsZero(t *testing.T) {
 func TestDotProduct_OppositeIsMinusOne(t *testing.T) {
 	a := []float32{1, 0}
 	b := []float32{-1, 0}
-	got := dotProduct(a, b)
+	got := DotProduct(a, b)
 	if got != -1.0 {
 		t.Errorf("opposite = %v, want -1.0", got)
 	}
@@ -55,20 +55,20 @@ func TestDotProduct_OppositeIsMinusOne(t *testing.T) {
 func TestDotProduct_DifferentLengthsReturnsZero(t *testing.T) {
 	a := []float32{1, 2, 3}
 	b := []float32{1, 2}
-	got := dotProduct(a, b)
+	got := DotProduct(a, b)
 	if got != 0 {
 		t.Errorf("mismatched dim = %v, want 0 (defensive)", got)
 	}
 }
 
 func TestTopK_ReturnsKHighest(t *testing.T) {
-	scored := []scoredID{
+	scored := []ScoredID{
 		{ID: 1, Score: 0.1},
 		{ID: 2, Score: 0.9},
 		{ID: 3, Score: 0.5},
 		{ID: 4, Score: 0.8},
 	}
-	got := topK(scored, 2)
+	got := TopK(scored, 2)
 	if len(got) != 2 {
 		t.Fatalf("len = %d, want 2", len(got))
 	}
@@ -79,16 +79,16 @@ func TestTopK_ReturnsKHighest(t *testing.T) {
 }
 
 func TestTopK_KLargerThanInput(t *testing.T) {
-	scored := []scoredID{{ID: 1, Score: 0.5}}
-	got := topK(scored, 10)
+	scored := []ScoredID{{ID: 1, Score: 0.5}}
+	got := TopK(scored, 10)
 	if len(got) != 1 {
 		t.Errorf("len = %d, want 1 (K > input)", len(got))
 	}
 }
 
 func TestTopK_KZeroReturnsEmpty(t *testing.T) {
-	scored := []scoredID{{ID: 1, Score: 0.5}}
-	got := topK(scored, 0)
+	scored := []ScoredID{{ID: 1, Score: 0.5}}
+	got := TopK(scored, 0)
 	if len(got) != 0 {
 		t.Errorf("len = %d, want 0 (K=0)", len(got))
 	}
@@ -96,11 +96,11 @@ func TestTopK_KZeroReturnsEmpty(t *testing.T) {
 
 func TestEncodeFloat32LE_RoundTrip(t *testing.T) {
 	in := []float32{0.1, -0.2, 3.14159, -42.5, 0}
-	encoded := encodeFloat32LE(in)
+	encoded := EncodeFloat32LE(in)
 	if len(encoded) != len(in)*4 {
 		t.Errorf("encoded len = %d, want %d", len(encoded), len(in)*4)
 	}
-	out, err := decodeFloat32LE(encoded)
+	out, err := DecodeFloat32LE(encoded)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestEncodeFloat32LE_RoundTrip(t *testing.T) {
 }
 
 func TestDecodeFloat32LE_OddByteLengthErrors(t *testing.T) {
-	_, err := decodeFloat32LE([]byte{1, 2, 3}) // not multiple of 4
+	_, err := DecodeFloat32LE([]byte{1, 2, 3}) // not multiple of 4
 	if err == nil {
 		t.Error("expected error for odd-length BLOB")
 	}
@@ -123,7 +123,7 @@ func TestDecodeFloat32LE_OddByteLengthErrors(t *testing.T) {
 
 func TestEncodeFloat32LE_LittleEndianOrder(t *testing.T) {
 	// 1.0 in float32 little-endian is 0x3f800000 = bytes [0x00,0x00,0x80,0x3f]
-	encoded := encodeFloat32LE([]float32{1.0})
+	encoded := EncodeFloat32LE([]float32{1.0})
 	want := []byte{0x00, 0x00, 0x80, 0x3f}
 	if !bytes.Equal(encoded, want) {
 		t.Errorf("encoded = %v, want %v", encoded, want)
@@ -137,15 +137,15 @@ func TestEncodeFloat32LE_LittleEndianOrder(t *testing.T) {
 }
 
 func TestTopK_EmptyInput(t *testing.T) {
-	got := topK([]scoredID{}, 3)
+	got := TopK([]ScoredID{}, 3)
 	if len(got) != 0 {
 		t.Errorf("len = %d, want 0 (empty input)", len(got))
 	}
 }
 
 func TestTopK_KNegativeReturnsEmpty(t *testing.T) {
-	scored := []scoredID{{ID: 1, Score: 0.5}}
-	got := topK(scored, -1)
+	scored := []ScoredID{{ID: 1, Score: 0.5}}
+	got := TopK(scored, -1)
 	if len(got) != 0 {
 		t.Errorf("len = %d, want 0 (K<0)", len(got))
 	}

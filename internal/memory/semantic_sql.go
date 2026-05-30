@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"database/sql"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/memory/ranking"
 	"sync"
 	"sync/atomic"
 )
@@ -51,7 +52,7 @@ func (c *semanticCache) bump() { c.graphVersion.Add(1) }
 // or wrong model). Takes the mutex for the duration of the SQL scan so that
 // concurrent callers block rather than issue duplicate queries.
 //
-// Defense-in-depth: corrupt BLOB rows (decodeFloat32LE error OR len(vec) != dim)
+// Defense-in-depth: corrupt BLOB rows (ranking.DecodeFloat32LE error OR len(vec) != dim)
 // are silently skipped. The embedder will re-populate them on the next run.
 // This means recall may miss a small number of entities but never crashes.
 func (c *semanticCache) ensureLoaded(ctx context.Context, db *sql.DB, model string) error {
@@ -78,7 +79,7 @@ func (c *semanticCache) ensureLoaded(ctx context.Context, db *sql.DB, model stri
 		if err := rows.Scan(&id, &dim, &blob); err != nil {
 			return err
 		}
-		vec, err := decodeFloat32LE(blob)
+		vec, err := ranking.DecodeFloat32LE(blob)
 		if err != nil || len(vec) != dim {
 			// Corrupt row: either BLOB length is not a multiple of 4, or
 			// the decoded length doesn't match the stored dim column. Skip
@@ -149,7 +150,7 @@ func semanticSeeds(
 		return nil, nil
 	}
 
-	scored := make([]scoredID, 0, len(snapshot))
+	scored := make([]ranking.ScoredID, 0, len(snapshot))
 	for _, e := range snapshot {
 		if len(e.vec) != len(queryVec) {
 			// Dim mismatch: the model may have changed between the cache
@@ -157,14 +158,14 @@ func semanticSeeds(
 			// Skip rather than returning a misleading score.
 			continue
 		}
-		sim := dotProduct(queryVec, e.vec)
+		sim := ranking.DotProduct(queryVec, e.vec)
 		if float64(sim) < minSimilarity {
 			continue
 		}
-		scored = append(scored, scoredID{ID: e.entityID, Score: sim})
+		scored = append(scored, ranking.ScoredID{ID: e.entityID, Score: sim})
 	}
 
-	top := topK(scored, topKCount)
+	top := ranking.TopK(scored, topKCount)
 	ids := make([]int64, len(top))
 	for i, s := range top {
 		ids[i] = s.ID

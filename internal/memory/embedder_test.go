@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"encoding/json"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/memory/ranking"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -112,7 +113,7 @@ func TestEmbedder_SkipsAlreadyEmbeddedForCurrentModel(t *testing.T) {
 	vec := []float32{1, 0, 0, 0}
 	_, _ = store.db.Exec(
 		`INSERT INTO entity_embeddings(entity_id, model, dim, vec, updated_at) VALUES(?, 'test-model', 4, ?, 1)`,
-		id, encodeFloat32LE(vec))
+		id, ranking.EncodeFloat32LE(vec))
 
 	e := NewEmbedder(store, newEmbedClient(ts.URL, ""), EmbedderConfig{
 		Model:        "test-model",
@@ -148,7 +149,7 @@ func TestEmbedder_ReplacesOnModelChange(t *testing.T) {
 	// Pre-populate with a different model's embedding.
 	_, _ = store.db.Exec(
 		`INSERT INTO entity_embeddings(entity_id, model, dim, vec, updated_at) VALUES(?, 'OLD-model', 4, ?, 1)`,
-		id, encodeFloat32LE([]float32{0, 0, 1, 0}))
+		id, ranking.EncodeFloat32LE([]float32{0, 0, 1, 0}))
 
 	e := NewEmbedder(store, newEmbedClient(ts.URL, ""), EmbedderConfig{
 		Model:        "test-model",
@@ -229,7 +230,7 @@ func TestEmbedder_NormalizesBeforeStorage(t *testing.T) {
 
 	var blob []byte
 	_ = store.db.QueryRow(`SELECT vec FROM entity_embeddings WHERE entity_id=?`, id).Scan(&blob)
-	stored, _ := decodeFloat32LE(blob)
+	stored, _ := ranking.DecodeFloat32LE(blob)
 	// Should be [0.6, 0.8, 0, 0] — (3, 4) / 5.
 	if len(stored) != 4 {
 		t.Fatalf("len = %d, want 4", len(stored))

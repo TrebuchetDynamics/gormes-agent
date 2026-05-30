@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/memory/ranking"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -371,7 +372,7 @@ func TestProvider_SemanticSeedsAreUnioned(t *testing.T) {
 	vec := []float32{1, 0, 0, 0}
 	_, _ = s.db.Exec(
 		`INSERT INTO entity_embeddings(entity_id, model, dim, vec, updated_at) VALUES(?, 'stub', 4, ?, 1)`,
-		id, encodeFloat32LE(vec))
+		id, ranking.EncodeFloat32LE(vec))
 
 	// Stub server returns the same vector so cosine(query, entity) == 1.
 	ts := stubEmbedServer(t, []float32{1, 0, 0, 0})

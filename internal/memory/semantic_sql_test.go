@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/memory/ranking"
 	"path/filepath"
 	"testing"
 	"time"
@@ -30,8 +31,8 @@ func seedEmbeddedGraph(t *testing.T, s *SqliteStore, model string, dim int, name
 
 		vec := make([]float32, dim)
 		vec[(id-1)%int64(dim)] = 1.0
-		l2Normalize(vec) // stays unit because only one nonzero
-		blob := encodeFloat32LE(vec)
+		ranking.NormalizeL2(vec) // stays unit because only one nonzero
+		blob := ranking.EncodeFloat32LE(vec)
 		_, err = s.db.Exec(
 			`INSERT INTO entity_embeddings(entity_id, model, dim, vec, updated_at)
 			 VALUES(?, ?, ?, ?, ?)`,
@@ -54,7 +55,7 @@ func TestSemanticSeeds_MatchesExactPosition(t *testing.T) {
 
 	// Query vector matches position 2: [0, 0, 1, 0]
 	query := []float32{0, 0, 1, 0}
-	l2Normalize(query)
+	ranking.NormalizeL2(query)
 
 	got, err := semanticSeeds(context.Background(), s.db, cache, "test-model", query, 1, 0.9)
 	if err != nil {
@@ -78,7 +79,7 @@ func TestSemanticSeeds_ThresholdFiltersLowScores(t *testing.T) {
 
 	// Query orthogonal to both seeded entities.
 	query := []float32{0, 0, 0, 1}
-	l2Normalize(query)
+	ranking.NormalizeL2(query)
 
 	got, _ := semanticSeeds(context.Background(), s.db, cache,
 		"test-model", query, 5, 0.5) // threshold 0.5
@@ -99,7 +100,7 @@ func TestSemanticSeeds_FiltersByModel(t *testing.T) {
 
 	// Query with model-A; should only see X, not Y (same vector).
 	query := []float32{1, 0, 0, 0}
-	l2Normalize(query)
+	ranking.NormalizeL2(query)
 	got, _ := semanticSeeds(context.Background(), s.db, cache,
 		"model-A", query, 5, 0.5)
 	for _, id := range got {
@@ -169,7 +170,7 @@ func TestSemanticSeeds_SkipsCorruptRows(t *testing.T) {
 	_, _ = s.db.Exec(
 		`INSERT INTO entity_embeddings(entity_id, model, dim, vec, updated_at)
 		 VALUES(?, 'm', 4, ?, 1)`,
-		goodID, encodeFloat32LE(goodVec))
+		goodID, ranking.EncodeFloat32LE(goodVec))
 
 	// Corrupt entity — dim says 4 but BLOB has 3 bytes. CHECK constraint
 	// on dim passes (4 > 0 and <= 4096), but decode should fail.

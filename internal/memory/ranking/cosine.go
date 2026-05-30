@@ -1,4 +1,4 @@
-package memory
+package ranking
 
 import (
 	"encoding/binary"
@@ -9,7 +9,7 @@ import (
 
 // scoredID is a (entity_id, similarity) pair — the output of the
 // similarity scan, consumable by topK.
-type scoredID struct {
+type ScoredID struct {
 	ID    int64
 	Score float32
 }
@@ -18,7 +18,7 @@ type scoredID struct {
 // stays zero (defensive — avoids NaN from 0/0). Callers must ensure
 // no element is NaN or ±Inf before calling; those values propagate
 // silently (no guard in this function).
-func l2Normalize(v []float32) {
+func NormalizeL2(v []float32) {
 	var sumSq float32
 	for _, x := range v {
 		sumSq += x * x
@@ -35,7 +35,7 @@ func l2Normalize(v []float32) {
 // dotProduct returns sum(a[i]*b[i]). For L2-normalized vectors this
 // IS the cosine similarity. Defensively returns 0 on mismatched dim
 // rather than panicking — corrupt rows shouldn't crash recall.
-func dotProduct(a, b []float32) float32 {
+func DotProduct(a, b []float32) float32 {
 	if len(a) != len(b) {
 		return 0
 	}
@@ -51,11 +51,11 @@ func dotProduct(a, b []float32) float32 {
 // Runs in O(n log n) via a simple sort — for Gormes scale (≤10k entities,
 // K=3), the dedicated min-heap optimization would save microseconds at
 // the cost of code complexity.
-func topK(scored []scoredID, k int) []scoredID {
+func TopK(scored []ScoredID, k int) []ScoredID {
 	if k <= 0 {
 		return nil
 	}
-	out := make([]scoredID, len(scored))
+	out := make([]ScoredID, len(scored))
 	copy(out, scored)
 	sort.Slice(out, func(i, j int) bool {
 		return out[i].Score > out[j].Score
@@ -68,7 +68,7 @@ func topK(scored []scoredID, k int) []scoredID {
 
 // encodeFloat32LE packs a float32 slice into a BLOB of little-endian
 // bytes (4 bytes per float). Used for entity_embeddings.vec storage.
-func encodeFloat32LE(v []float32) []byte {
+func EncodeFloat32LE(v []float32) []byte {
 	out := make([]byte, 4*len(v))
 	for i, f := range v {
 		bits := math.Float32bits(f)
@@ -79,7 +79,7 @@ func encodeFloat32LE(v []float32) []byte {
 
 // decodeFloat32LE is the inverse of encodeFloat32LE. Returns an error
 // if the input length isn't a multiple of 4.
-func decodeFloat32LE(b []byte) ([]float32, error) {
+func DecodeFloat32LE(b []byte) ([]float32, error) {
 	if len(b)%4 != 0 {
 		return nil, fmt.Errorf("memory: decodeFloat32LE: length %d not multiple of 4", len(b))
 	}

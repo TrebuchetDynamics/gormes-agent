@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/memory/ranking"
 	"log/slog"
 	"strings"
 	"sync"
@@ -184,7 +185,7 @@ func (p *Provider) GetContext(ctx context.Context, in RecallInput) string {
 				semErr = err
 				return
 			}
-			l2Normalize(qvec)
+			ranking.NormalizeL2(qvec)
 			semIDs, semErr = semanticSeeds(ctx, p.store.db, p.cache,
 				p.cfg.SemanticModel, qvec, p.cfg.SemanticTopK, p.cfg.SemanticMinSimilarity)
 			if semErr != nil {
@@ -204,7 +205,7 @@ func (p *Provider) GetContext(ctx context.Context, in RecallInput) string {
 			semIDs = nil
 		}
 
-		fused := RRFFuseIDs(ftsIDs, semIDs, p.cfg.RRFKFactor, p.cfg.RRFFTSWeight, p.cfg.RRFSemWeight)
+		fused := ranking.FuseIDs(ftsIDs, semIDs, p.cfg.RRFKFactor, p.cfg.RRFFTSWeight, p.cfg.RRFSemWeight)
 		if len(fused) > 0 {
 			seeds = fused
 		}
@@ -238,7 +239,7 @@ func (p *Provider) GetContext(ctx context.Context, in RecallInput) string {
 		if err != nil {
 			p.log.Warn("recall: query embed failed", "err", err)
 		} else {
-			l2Normalize(qvec)
+			ranking.NormalizeL2(qvec)
 			semIDs, err := semanticSeeds(ctx, p.store.db, p.cache,
 				p.cfg.SemanticModel, qvec, p.cfg.SemanticTopK, p.cfg.SemanticMinSimilarity)
 			if err != nil {
