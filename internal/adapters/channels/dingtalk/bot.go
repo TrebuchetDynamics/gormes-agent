@@ -57,14 +57,7 @@ func New(cfg Config, client Client, log *slog.Logger) *Bot {
 	if log == nil {
 		log = slog.Default()
 	}
-	allowed := make(map[string]struct{}, len(cfg.AllowedUserIDs))
-	for _, id := range cfg.AllowedUserIDs {
-		id = strings.TrimSpace(id)
-		if id == "" {
-			continue
-		}
-		allowed[id] = struct{}{}
-	}
+	allowed := channelutil.ToSet(cfg.AllowedUserIDs)
 	reactionClient, _ := client.(EmojiReactionClient)
 	return &Bot{
 		cfg:             cfg,
@@ -210,4 +203,3 @@ func (b *Bot) allowedSender(senderID string) bool {
 	_, ok := b.allowed[strings.TrimSpace(senderID)]
 	return ok
 }
-

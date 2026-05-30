@@ -177,13 +177,5 @@ func (b *Bot) lookupRoute(chatID string) (route, bool) {
 }
 
 func (b *Bot) allowedByPolicy(policy string, allowed map[string]struct{}, value string) bool {
-	switch channelutil.NormalizedPolicy(policy) {
-	case "disabled":
-		return false
-	case "allowlist":
-		_, ok := allowed[strings.TrimSpace(value)]
-		return ok
-	default:
-		return true
-	}
+	return channelutil.AllowedByPolicy(policy, allowed, value)
 }

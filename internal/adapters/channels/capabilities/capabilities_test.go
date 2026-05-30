@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/adaptertest"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -31,19 +32,19 @@ func TestCapabilitiesDeriveSupportFromGatewayManifest(t *testing.T) {
 		t.Fatalf("media support = %q, want manifest partial", got.Support.Media)
 	}
 	for _, want := range []string{"receive", "send", "native_commands", "media"} {
-		if !containsString(got.Intents, want) {
+		if !adaptertest.ContainsString(got.Intents, want) {
 			t.Fatalf("intents = %#v, missing %q", got.Intents, want)
 		}
 	}
 	for _, want := range []string{"channel:telegram", "kind:channel", "credentials:required"} {
-		if !containsString(got.Scopes, want) {
+		if !adaptertest.ContainsString(got.Scopes, want) {
 			t.Fatalf("scopes = %#v, missing %q", got.Scopes, want)
 		}
 	}
-	if !containsString(got.Features, "media=partial") {
+	if !adaptertest.ContainsString(got.Features, "media=partial") {
 		t.Fatalf("features = %#v, want manifest-derived media=partial", got.Features)
 	}
-	if !containsString(got.FormatLimitations, "media=partial") {
+	if !adaptertest.ContainsString(got.FormatLimitations, "media=partial") {
 		t.Fatalf("format limitations = %#v, want media=partial", got.FormatLimitations)
 	}
 }
@@ -68,7 +69,7 @@ func TestCapabilitiesListAllManifestChannelsWithUnconfiguredEvidence(t *testing.
 	if discord.Configured {
 		t.Fatalf("discord configured = true, want false")
 	}
-	if !containsString(discord.Degraded, "not_configured") {
+	if !adaptertest.ContainsString(discord.Degraded, "not_configured") {
 		t.Fatalf("discord degraded = %#v, want not_configured", discord.Degraded)
 	}
 }
@@ -105,13 +106,4 @@ func assertSortedCapabilities(t *testing.T, reports []CapabilityReport) {
 			t.Fatalf("reports not sorted at %d: %q > %q", i, reports[i-1].Channel, reports[i].Channel)
 		}
 	}
-}
-
-func containsString(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
 }

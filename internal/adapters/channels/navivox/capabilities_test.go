@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/adaptertest"
+
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
@@ -80,37 +82,37 @@ func TestNavivoxCapabilitiesEndpointAdvertisesStableContract(t *testing.T) {
 	if got.Object != "gormes.navivox.capabilities" || got.ProtocolVersion != navivoxWebSocketProtocol {
 		t.Fatalf("capability identity = object %q protocol %q", got.Object, got.ProtocolVersion)
 	}
-	if got.Auth.Mode != "pairing_token" || !containsNavivoxCapabilityString(got.Auth.Headers, "Authorization: Bearer <token>") {
+	if got.Auth.Mode != "pairing_token" || !adaptertest.ContainsString(got.Auth.Headers, "Authorization: Bearer <token>") {
 		t.Fatalf("auth = %+v, want pairing token bearer contract", got.Auth)
 	}
-	if !containsNavivoxCapabilityString(got.Capabilities, "profile_contacts") {
+	if !adaptertest.ContainsString(got.Capabilities, "profile_contacts") {
 		t.Fatalf("capabilities = %v, want API feature areas", got.Capabilities)
 	}
 	for _, forbidden := range []string{"setup_handoff", "capability_document"} {
-		if containsNavivoxCapabilityString(got.Capabilities, forbidden) {
+		if adaptertest.ContainsString(got.Capabilities, forbidden) {
 			t.Fatalf("capabilities = %v, %s is not a feature affordance", got.Capabilities, forbidden)
 		}
 	}
 	removedProtocol := "gormes." + navivoxWebSocketProtocol
-	if !containsNavivoxCapabilityString(got.Auth.WebSocketProtocols, navivoxWebSocketProtocol) || containsNavivoxCapabilityString(got.Auth.WebSocketProtocols, removedProtocol) {
+	if !adaptertest.ContainsString(got.Auth.WebSocketProtocols, navivoxWebSocketProtocol) || adaptertest.ContainsString(got.Auth.WebSocketProtocols, removedProtocol) {
 		t.Fatalf("websocket protocols = %v, want current protocol without removed fallback", got.Auth.WebSocketProtocols)
 	}
-	if !containsNavivoxCapabilityString(got.Health.Aliases, "/healthz") || !containsEndpoint(got.Endpoints, http.MethodGet, "/v1/navivox/status") || !containsEndpoint(got.Endpoints, http.MethodGet, "/v1/navivox/capabilities") || !containsEndpoint(got.Endpoints, "WS", "/v1/navivox/stream") {
+	if !adaptertest.ContainsString(got.Health.Aliases, "/healthz") || !containsEndpoint(got.Endpoints, http.MethodGet, "/v1/navivox/status") || !containsEndpoint(got.Endpoints, http.MethodGet, "/v1/navivox/capabilities") || !containsEndpoint(got.Endpoints, "WS", "/v1/navivox/stream") {
 		t.Fatalf("endpoints/health missing stable status/capabilities/stream contract: health=%+v endpoints=%+v", got.Health, got.Endpoints)
 	}
 	for _, event := range []string{"session_started", "assistant_delta", "assistant_message", "tool_call_started", "tool_call_updated", "tool_call_finished", "profile_contact_update", "error", "done"} {
-		if !containsNavivoxCapabilityString(got.Streams.EventKinds, event) {
+		if !adaptertest.ContainsString(got.Streams.EventKinds, event) {
 			t.Fatalf("event %q missing from stream event kinds=%v", event, got.Streams.EventKinds)
 		}
 	}
 	if got.ProfileManagement.ContactsEndpoint != "/v1/navivox/profile-contacts" || got.ProfileManagement.RoutingEndpoint != "/v1/navivox/profile-routing" || got.ProfileManagement.CreateFromSeedEndpoint != "/v1/navivox/profile-seed" {
 		t.Fatalf("profile management endpoints = %+v", got.ProfileManagement)
 	}
-	if got.ProfileManagement.DashboardAPIExposed || !containsNavivoxCapabilityString(got.ProfileManagement.SupportedActions, "contact_snapshot") || !containsNavivoxCapabilityString(got.ProfileManagement.SupportedActions, "create_from_seed") || !containsNavivoxCapabilityString(got.ProfileManagement.UnsupportedActions, "direct_dashboard_api_profiles") {
+	if got.ProfileManagement.DashboardAPIExposed || !adaptertest.ContainsString(got.ProfileManagement.SupportedActions, "contact_snapshot") || !adaptertest.ContainsString(got.ProfileManagement.SupportedActions, "create_from_seed") || !adaptertest.ContainsString(got.ProfileManagement.UnsupportedActions, "direct_dashboard_api_profiles") {
 		t.Fatalf("profile management support = %+v, want stable wrapper not raw dashboard profile API", got.ProfileManagement)
 	}
 	for _, part := range []string{"profile_contacts", "profile_routing", "voice_profiles"} {
-		if !containsNavivoxCapabilityString(got.ProfileManagement.ProfileContractParts, part) {
+		if !adaptertest.ContainsString(got.ProfileManagement.ProfileContractParts, part) {
 			t.Fatalf("profile contract parts = %v, want %q", got.ProfileManagement.ProfileContractParts, part)
 		}
 	}
@@ -177,17 +179,17 @@ func TestNavivoxCapabilitiesAuthContractFollowsActiveMode(t *testing.T) {
 			}
 			doc := ch.capabilityDocument()
 			for _, want := range tc.wantHeaders {
-				if !containsNavivoxCapabilityString(doc.Auth.Headers, want) {
+				if !adaptertest.ContainsString(doc.Auth.Headers, want) {
 					t.Fatalf("auth headers for %s = %v, want %q", tc.mode, doc.Auth.Headers, want)
 				}
 			}
 			for _, forbidden := range tc.forbiddenHeaders {
-				if containsNavivoxCapabilityString(doc.Auth.Headers, forbidden) {
+				if adaptertest.ContainsString(doc.Auth.Headers, forbidden) {
 					t.Fatalf("auth headers for %s = %v, must not include inactive credential %q", tc.mode, doc.Auth.Headers, forbidden)
 				}
 			}
 			tokenProtocol := navivoxWebSocketTokenProtocolPrefix + "<base64url-token>"
-			if got := containsNavivoxCapabilityString(doc.Auth.WebSocketProtocols, tokenProtocol); got != tc.wantTokenProtocol {
+			if got := adaptertest.ContainsString(doc.Auth.WebSocketProtocols, tokenProtocol); got != tc.wantTokenProtocol {
 				t.Fatalf("token websocket protocol for %s = %v, want %v in %v", tc.mode, got, tc.wantTokenProtocol, doc.Auth.WebSocketProtocols)
 			}
 		})
@@ -205,7 +207,7 @@ func TestNavivoxStatusLinksCapabilitiesDocument(t *testing.T) {
 		Capabilities    []string `json:"capabilities"`
 	}
 	httpc.JSON(http.MethodGet, "/v1/navivox/status", "", http.StatusOK, &payload)
-	if payload.CapabilitiesURL != "/v1/navivox/capabilities" || !containsNavivoxCapabilityString(payload.Capabilities, "profile_contacts") || containsNavivoxCapabilityString(payload.Capabilities, "capability_document") || containsNavivoxCapabilityString(payload.Capabilities, "setup_handoff") {
+	if payload.CapabilitiesURL != "/v1/navivox/capabilities" || !adaptertest.ContainsString(payload.Capabilities, "profile_contacts") || adaptertest.ContainsString(payload.Capabilities, "capability_document") || adaptertest.ContainsString(payload.Capabilities, "setup_handoff") {
 		t.Fatalf("status capabilities = url %q list %v, want capability link plus feature summary", payload.CapabilitiesURL, payload.Capabilities)
 	}
 }
@@ -244,15 +246,6 @@ func containsEndpoint(endpoints []struct {
 }, method, path string) bool {
 	for _, endpoint := range endpoints {
 		if endpoint.Method == method && endpoint.Path == path {
-			return true
-		}
-	}
-	return false
-}
-
-func containsNavivoxCapabilityString(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
 			return true
 		}
 	}

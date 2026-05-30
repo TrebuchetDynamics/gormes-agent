@@ -36,6 +36,21 @@ func NormalizedPolicy(policy string) string {
 	return policy
 }
 
+// AllowedByPolicy evaluates the shared open/disabled/allowlist channel policy.
+// Unknown policies stay permissive for compatibility with the local helpers it
+// replaces. Allowlist checks trim the candidate value before lookup.
+func AllowedByPolicy(policy string, allowed map[string]struct{}, value string) bool {
+	switch NormalizedPolicy(policy) {
+	case "disabled":
+		return false
+	case "allowlist":
+		_, ok := allowed[strings.TrimSpace(value)]
+		return ok
+	default:
+		return true
+	}
+}
+
 // StripLeadingMentions removes leading @-mention tokens from text. Used by
 // qqbot and feishu to normalize group mentions before parsing.
 func StripLeadingMentions(text string) string {

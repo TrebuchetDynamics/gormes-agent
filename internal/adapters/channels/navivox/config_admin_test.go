@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/adaptertest"
+
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
@@ -59,7 +61,7 @@ allow_origins = ["http://localhost:3000"]
 		t.Fatalf("schema payload = %+v, want config.schema with navivox.port", schema)
 	}
 	secretField := configAdminTestFieldByKey(schema.Fields, "navivox.token")
-	if !secretField.Secret || !containsString(secretField.Actions, "set") || !containsString(secretField.Actions, "delete") {
+	if !secretField.Secret || !adaptertest.ContainsString(secretField.Actions, "set") || !adaptertest.ContainsString(secretField.Actions, "delete") {
 		t.Fatalf("navivox.token schema = %+v, want secret set/delete actions", secretField)
 	}
 
@@ -321,13 +323,4 @@ func configAdminDiffByKey(values []configAdminDiffEntryTest, key string) configA
 		}
 	}
 	return configAdminDiffEntryTest{}
-}
-
-func containsString(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
 }

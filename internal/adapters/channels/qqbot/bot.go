@@ -167,27 +167,11 @@ func (b *Bot) toInboundEvent(msg InboundMessage) (gateway.InboundEvent, bool) {
 }
 
 func (b *Bot) allowDirect(userID string) bool {
-	switch channelutil.NormalizedPolicy(b.cfg.DMPolicy) {
-	case "disabled":
-		return false
-	case "allowlist":
-		_, ok := b.allowedDMs[userID]
-		return ok
-	default:
-		return true
-	}
+	return channelutil.AllowedByPolicy(b.cfg.DMPolicy, b.allowedDMs, userID)
 }
 
 func (b *Bot) allowGroup(chatID string) bool {
-	switch channelutil.NormalizedPolicy(b.cfg.GroupPolicy) {
-	case "disabled":
-		return false
-	case "allowlist":
-		_, ok := b.allowedGroups[chatID]
-		return ok
-	default:
-		return true
-	}
+	return channelutil.AllowedByPolicy(b.cfg.GroupPolicy, b.allowedGroups, chatID)
 }
 
 func (b *Bot) recordInbound(chatID, chatType, msgID string) {
@@ -213,4 +197,3 @@ func (b *Bot) nextSendOptions(chatID string) (SendOptions, string, error) {
 		Sequence:         b.sequences[chatID],
 	}, chatType, nil
 }
-

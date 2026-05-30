@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/adaptertest"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -83,7 +84,7 @@ tts_credential = "private-tts-ref"
 	if !got.Profiles[0].CredentialStatusRefs["stt"].Configured || !got.Profiles[0].CredentialStatusRefs["tts"].Configured {
 		t.Fatalf("credential status = %+v, want configured redacted refs", got.Profiles[0].CredentialStatusRefs)
 	}
-	if !stringListContains(got.ProviderMatrix.STT, "local") || !stringListContains(got.ProviderMatrix.TTS, "piper") {
+	if !adaptertest.ContainsString(got.ProviderMatrix.STT, "local") || !adaptertest.ContainsString(got.ProviderMatrix.TTS, "piper") {
 		t.Fatalf("provider matrix = %+v, want local STT and piper TTS", got.ProviderMatrix)
 	}
 	raw, err := json.Marshal(got)
@@ -179,13 +180,4 @@ fallback_voice = "text_only"
 	if got.Record.Voice.TTS.Provider != "text_only" || got.Record.Voice.TTS.Status != "fallback" || got.Record.Voice.TTS.VoiceID != "text_only" {
 		t.Fatalf("TTS evidence = %+v, want text_only fallback", got.Record.Voice.TTS)
 	}
-}
-
-func stringListContains(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
 }

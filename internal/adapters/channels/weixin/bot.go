@@ -165,17 +165,9 @@ func (b *Bot) lookupContext(chatID string) (sendContext, bool) {
 }
 
 func allowedByPolicy(policy string, allowed map[string]struct{}, value string, isDM bool) bool {
-	norm := channelutil.NormalizedPolicy(policy)
 	// weixin defaults: empty policy = open for DM, disabled for group
-	switch {
-	case norm == "open" && !isDM:
+	if channelutil.NormalizedPolicy(policy) == "open" && !isDM {
 		return false
-	case norm == "disabled":
-		return false
-	case norm == "allowlist":
-		_, ok := allowed[strings.TrimSpace(value)]
-		return ok
-	default:
-		return true
 	}
+	return channelutil.AllowedByPolicy(policy, allowed, value)
 }

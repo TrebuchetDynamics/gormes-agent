@@ -3,6 +3,8 @@ package tuigateway
 import (
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/adaptertest"
 )
 
 func TestTUIConfigHealthFlagsNullSections(t *testing.T) {
@@ -115,16 +117,7 @@ func TestTUISessionOptionsDoNotActivateDisplayPersonalityWithoutPrompt(t *testin
 	if !got.PersonalitySkipped {
 		t.Fatalf("PersonalitySkipped = false; want true until a concrete system prompt is supplied")
 	}
-	if !containsString(got.Evidence, "tui_personality_skipped") {
+	if !adaptertest.ContainsString(got.Evidence, "tui_personality_skipped") {
 		t.Fatalf("Evidence = %#v; want tui_personality_skipped", got.Evidence)
 	}
-}
-
-func containsString(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
 }

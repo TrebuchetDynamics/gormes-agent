@@ -118,6 +118,32 @@ func TestNormalizedPolicy(t *testing.T) {
 	})
 }
 
+func TestAllowedByPolicy(t *testing.T) {
+	allowed := ToSet([]string{" user-1 "})
+
+	cases := []struct {
+		name   string
+		policy string
+		value  string
+		want   bool
+	}{
+		{name: "open allows", policy: "open", value: "missing", want: true},
+		{name: "empty defaults open", policy: "", value: "missing", want: true},
+		{name: "unknown stays permissive", policy: "custom", value: "missing", want: true},
+		{name: "disabled rejects", policy: "disabled", value: "user-1", want: false},
+		{name: "allowlist accepts trimmed value", policy: "allowlist", value: " user-1 ", want: true},
+		{name: "allowlist rejects missing value", policy: "allowlist", value: "user-2", want: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := AllowedByPolicy(tc.policy, allowed, tc.value); got != tc.want {
+				t.Fatalf("AllowedByPolicy(%q, value %q) = %v, want %v", tc.policy, tc.value, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestFormatToolTrace(t *testing.T) {
 	t.Run("nil events", func(t *testing.T) {
 		result := FormatToolTrace(nil)
