@@ -40,6 +40,27 @@ func CompactWhitespace(value string) string {
 	return strings.Join(strings.Fields(strings.TrimSpace(value)), " ")
 }
 
+// TrimmedLines splits value on newlines and trims surrounding whitespace from
+// each line while preserving line count for callers that care about interior
+// blank lines.
+func TrimmedLines(value string) []string {
+	parts := strings.Split(value, "\n")
+	for i, part := range parts {
+		parts[i] = strings.TrimSpace(part)
+	}
+	return parts
+}
+
+// FirstNonBlankLine returns the first trimmed line with content.
+func FirstNonBlankLine(value string) string {
+	for _, line := range TrimmedLines(value) {
+		if IsNonBlank(line) {
+			return line
+		}
+	}
+	return ""
+}
+
 // CompactKeyToken lowercases, trims, and removes the separators commonly used
 // in JSON/log field names so policy checks can match api_key, api-key,
 // api.key, and api key with one contract.

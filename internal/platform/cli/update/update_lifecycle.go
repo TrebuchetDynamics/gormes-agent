@@ -801,7 +801,7 @@ func stashRecovery(stashRef string) string {
 }
 
 func resolveUpdateStashSelector(stashList, stashRef string) string {
-	for _, line := range strings.Split(stashList, "\n") {
+	for _, line := range textvalue.TrimmedLines(stashList) {
 		fields := strings.Fields(line)
 		if len(fields) >= 2 && fields[1] == stashRef {
 			return fields[0]

@@ -11,7 +11,8 @@ import (
 	"context"
 	"encoding/json"
 	"os/exec"
-	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 // Kind identifies the VPN transport an interface belongs to.
@@ -201,12 +202,7 @@ func mustRun(fn func(context.Context, ...string) ([]byte, error), ctx context.Co
 }
 
 func firstNonEmptyLine(b []byte) string {
-	for _, line := range strings.Split(string(b), "\n") {
-		if s := strings.TrimSpace(line); s != "" {
-			return s
-		}
-	}
-	return ""
+	return textvalue.FirstNonBlankLine(string(b))
 }
 
 func ifaceSet(hosts []Host) map[string]struct{} {

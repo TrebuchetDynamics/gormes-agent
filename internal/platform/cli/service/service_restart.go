@@ -462,8 +462,7 @@ func systemdRestartDelayRaw(output string) (property string, raw string, ok bool
 	}
 
 	hasAssignment := false
-	for _, line := range strings.Split(trimmed, "\n") {
-		line = strings.TrimSpace(line)
+	for _, line := range textvalue.TrimmedLines(trimmed) {
 		key, value, found := strings.Cut(line, "=")
 		if !found {
 			continue

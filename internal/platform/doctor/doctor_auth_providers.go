@@ -3,6 +3,8 @@ package doctor
 import (
 	"fmt"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 const (
@@ -146,5 +148,5 @@ func sanitizeAuthProviderReason(reason string) string {
 	if len(reason) > 160 {
 		return reason[:157] + "..."
 	}
-	return strings.Join(strings.Fields(reason), " ")
+	return textvalue.CompactWhitespace(reason)
 }

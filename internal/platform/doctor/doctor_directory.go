@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agenttemplate"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 // gormesHomeSubdirs is the Gormes-OWNED ~/.gormes runtime layout - NOT
@@ -113,8 +114,7 @@ func soulHasRealContent(content, defaultContent string, hasDefault bool) bool {
 	if hasDefault && normalized == normalizeTemplateText(defaultContent) {
 		return false
 	}
-	for _, line := range strings.Split(content, "\n") {
-		t := strings.TrimSpace(line)
+	for _, t := range textvalue.TrimmedLines(content) {
 		if t == "" || strings.HasPrefix(t, "<!--") || strings.HasPrefix(t, "-->") || strings.HasPrefix(t, "#") {
 			continue
 		}

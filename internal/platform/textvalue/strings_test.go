@@ -43,6 +43,28 @@ func TestCompactWhitespace(t *testing.T) {
 	}
 }
 
+func TestTrimmedLines(t *testing.T) {
+	got := TrimmedLines(" one \n\t \n two\r ")
+	want := []string{"one", "", "two"}
+	if len(got) != len(want) {
+		t.Fatalf("TrimmedLines len = %d, want %d: %#v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("TrimmedLines[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestFirstNonBlankLine(t *testing.T) {
+	if got := FirstNonBlankLine(" \n\t second \nthird"); got != "second" {
+		t.Fatalf("FirstNonBlankLine() = %q, want second", got)
+	}
+	if got := FirstNonBlankLine(" \n\t "); got != "" {
+		t.Fatalf("FirstNonBlankLine(blank) = %q, want empty", got)
+	}
+}
+
 func TestCompactKeyToken(t *testing.T) {
 	for _, in := range []string{" API_Key ", "api-key", "api.key", "api key"} {
 		if got := CompactKeyToken(in); got != "apikey" {
