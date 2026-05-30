@@ -20,7 +20,7 @@ type ContextCompressorAuxiliaryBudget struct {
 
 func NewContextCompressorAuxiliaryBudget(config ContextCompressorAuxiliaryBudgetConfig) ContextCompressorAuxiliaryBudget {
 	resolver := config.ContextResolver
-	if resolver.providerCaps == nil {
+	if resolver.IsZero() {
 		resolver = DefaultModelContextResolver()
 	}
 
