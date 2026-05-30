@@ -111,31 +111,3 @@ func gitChangedPaths(repoRoot, baseCommit, headCommit string) ([]string, error) 
 	}
 	return paths, nil
 }
-
-func sanitizeBranchSegment(value string) string {
-	var b strings.Builder
-	for _, r := range value {
-		switch {
-		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
-			b.WriteRune(r)
-		case r >= 'A' && r <= 'Z':
-			b.WriteRune(r + 32)
-		case r == '-' || r == '_' || r == '.':
-			b.WriteRune(r)
-		default:
-			b.WriteRune('-')
-		}
-	}
-	out := b.String()
-	for strings.Contains(out, "--") {
-		out = strings.ReplaceAll(out, "--", "-")
-	}
-	out = strings.Trim(out, "-_.")
-	if len(out) > 60 {
-		out = strings.TrimRight(out[:60], "-_.")
-	}
-	if out == "" {
-		return "task"
-	}
-	return out
-}

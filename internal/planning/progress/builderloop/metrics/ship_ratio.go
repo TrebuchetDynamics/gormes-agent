@@ -1,4 +1,4 @@
-package builderloop
+package metrics
 
 import (
 	"strings"

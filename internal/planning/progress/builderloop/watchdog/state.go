@@ -1,4 +1,4 @@
-package builderloop
+package watchdog
 
 import "time"
 

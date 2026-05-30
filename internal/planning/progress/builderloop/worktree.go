@@ -1,27 +1,22 @@
 package builderloop
 
-import (
-	"fmt"
-	"path/filepath"
-)
+import "github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/builderloop/worktree"
 
 func WorkerBranchName(runID string, workerID int, candidate Candidate) string {
-	slug := sanitizeBranchSegment(candidate.PhaseID + "-" + candidate.SubphaseID + "-" + candidate.ItemName)
-	return fmt.Sprintf("builder-loop/%s/w%d/%s", runID, workerID, slug)
+	return worktree.WorkerBranchName(runID, workerID, worktree.CandidateRef{
+		PhaseID:    candidate.PhaseID,
+		SubphaseID: candidate.SubphaseID,
+		ItemName:   candidate.ItemName,
+	})
 }
 
 func WorkerWorktreePath(cfg Config, runID string, workerID int) string {
-	runRoot := cfg.RunRoot
-	if runRoot == "" {
-		runRoot = filepath.Join(cfg.RepoRoot, ".codex", "builder-loop")
-	}
-	return filepath.Join(runRoot, "worktrees", runID, fmt.Sprintf("w%d", workerID))
+	return worktree.WorkerWorktreePath(worktree.ConfigRef{
+		RepoRoot: cfg.RepoRoot,
+		RunRoot:  cfg.RunRoot,
+	}, runID, workerID)
 }
 
 func WorkerRepoRoot(workerRoot string, repoSubdir string) string {
-	if repoSubdir == "" || repoSubdir == "." {
-		return workerRoot
-	}
-
-	return filepath.Join(workerRoot, repoSubdir)
+	return worktree.WorkerRepoRoot(workerRoot, repoSubdir)
 }
