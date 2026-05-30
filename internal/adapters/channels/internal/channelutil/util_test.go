@@ -46,6 +46,31 @@ func TestToSet(t *testing.T) {
 	})
 }
 
+func TestBoolSet(t *testing.T) {
+	got := BoolSet([]string{" a ", "", "b", "a", "  "})
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2: %#v", len(got), got)
+	}
+	if !got["a"] || !got["b"] {
+		t.Fatalf("missing expected members: %#v", got)
+	}
+	if got[""] {
+		t.Fatalf("empty member should not be present: %#v", got)
+	}
+}
+
+func TestBoolSetsIntersect(t *testing.T) {
+	if !BoolSetsIntersect(map[string]bool{"a": true}, map[string]bool{"a": true, "b": true}) {
+		t.Fatal("expected intersection")
+	}
+	if BoolSetsIntersect(map[string]bool{"a": true}, map[string]bool{"b": true}) {
+		t.Fatal("unexpected intersection")
+	}
+	if BoolSetsIntersect(nil, map[string]bool{"a": true}) {
+		t.Fatal("nil set should not intersect")
+	}
+}
+
 func TestStripLeadingMentions(t *testing.T) {
 	t.Run("no mentions", func(t *testing.T) {
 		got := StripLeadingMentions("hello world")
@@ -133,6 +158,35 @@ func TestContainsEqualFold(t *testing.T) {
 	}
 	if ContainsEqualFold([]string{"alpha", "Beta"}, "gamma") {
 		t.Fatal("ContainsEqualFold returned true for missing value")
+	}
+}
+
+func TestParseBoolDefault(t *testing.T) {
+	cases := []struct {
+		name string
+		raw  string
+		def  bool
+		want bool
+	}{
+		{name: "empty true default", raw: "", def: true, want: true},
+		{name: "empty false default", raw: "", def: false, want: false},
+		{name: "true word", raw: " true ", def: false, want: true},
+		{name: "one", raw: "1", def: false, want: true},
+		{name: "yes", raw: "YES", def: false, want: true},
+		{name: "on", raw: "on", def: false, want: true},
+		{name: "false word", raw: " false ", def: true, want: false},
+		{name: "zero", raw: "0", def: true, want: false},
+		{name: "no", raw: "NO", def: true, want: false},
+		{name: "off", raw: "off", def: true, want: false},
+		{name: "unknown uses default true", raw: "maybe", def: true, want: true},
+		{name: "unknown uses default false", raw: "maybe", def: false, want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := ParseBoolDefault(tc.raw, tc.def); got != tc.want {
+				t.Fatalf("ParseBoolDefault(%q, %v) = %v, want %v", tc.raw, tc.def, got, tc.want)
+			}
+		})
 	}
 }
 

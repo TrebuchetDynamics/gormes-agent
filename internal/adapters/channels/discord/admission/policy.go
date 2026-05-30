@@ -1,6 +1,10 @@
 package admission
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
+)
 
 const (
 	DiscordAdmissionAllowed        = "discord_admission_allowed"
@@ -116,28 +120,13 @@ func admissionChannelSet(ctx AdmissionContext) map[string]bool {
 	return out
 }
 
-func normalizeStringSet(values []string) map[string]bool {
-	out := make(map[string]bool, len(values))
-	for _, value := range values {
-		if v := trim(value); v != "" {
-			out[v] = true
-		}
-	}
-	return out
-}
+func normalizeStringSet(values []string) map[string]bool { return channelutil.BoolSet(values) }
 
 func containsWildcard(values map[string]bool) bool {
 	return values["*"]
 }
 
-func admissionSetsIntersect(a, b map[string]bool) bool {
-	for value := range a {
-		if b[value] {
-			return true
-		}
-	}
-	return false
-}
+func admissionSetsIntersect(a, b map[string]bool) bool { return channelutil.BoolSetsIntersect(a, b) }
 
 func trim(s string) string {
 	return strings.TrimSpace(s)

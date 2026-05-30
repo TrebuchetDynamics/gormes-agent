@@ -359,18 +359,7 @@ func trimMatrixHomeserver(raw string) string {
 	return strings.TrimRight(strings.TrimSpace(raw), "/")
 }
 
-func parseMatrixBool(raw string, def bool) bool {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "":
-		return def
-	case "true", "1", "yes", "on":
-		return true
-	case "false", "0", "no", "off":
-		return false
-	default:
-		return def
-	}
-}
+func parseMatrixBool(raw string, def bool) bool { return channelutil.ParseBoolDefault(raw, def) }
 
 func splitMatrixList(raw string) []string {
 	if strings.TrimSpace(raw) == "" {

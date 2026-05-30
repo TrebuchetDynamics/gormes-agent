@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -304,12 +305,4 @@ func normalizedAccountMode(mode AccountMode) AccountMode {
 	return AccountModeSelfChat
 }
 
-func recentMessageIDSet(ids []string) map[string]bool {
-	out := make(map[string]bool, len(ids))
-	for _, id := range ids {
-		if id = strings.TrimSpace(id); id != "" {
-			out[id] = true
-		}
-	}
-	return out
-}
+func recentMessageIDSet(ids []string) map[string]bool { return channelutil.BoolSet(ids) }

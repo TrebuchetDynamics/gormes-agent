@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -57,15 +58,7 @@ func (c Config) MissingConfig() []string {
 	return []string{"ws_url"}
 }
 
-func (c Config) AllowedUserSet() map[string]bool {
-	out := make(map[string]bool, len(c.AllowedUsers))
-	for _, user := range c.AllowedUsers {
-		if trimmed := strings.TrimSpace(user); trimmed != "" {
-			out[trimmed] = true
-		}
-	}
-	return out
-}
+func (c Config) AllowedUserSet() map[string]bool { return channelutil.BoolSet(c.AllowedUsers) }
 
 func (c Config) HomeDeliveryTarget() gateway.DeliveryTarget {
 	chatID := strings.TrimSpace(c.HomeChannel)

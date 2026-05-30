@@ -1,6 +1,10 @@
 package interactions
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
+)
 
 const (
 	DiscordInteractionAllowed        = "discord_interaction_allowed"
@@ -112,22 +116,6 @@ func interactionChannelSet(ctx DiscordInteractionContext) map[string]bool {
 	return stringSet(values)
 }
 
-func stringSet(values []string) map[string]bool {
-	set := make(map[string]bool, len(values))
-	for _, value := range values {
-		trimmed := strings.TrimSpace(value)
-		if trimmed != "" {
-			set[trimmed] = true
-		}
-	}
-	return set
-}
+func stringSet(values []string) map[string]bool { return channelutil.BoolSet(values) }
 
-func setsIntersect(a, b map[string]bool) bool {
-	for value := range a {
-		if b[value] {
-			return true
-		}
-	}
-	return false
-}
+func setsIntersect(a, b map[string]bool) bool { return channelutil.BoolSetsIntersect(a, b) }

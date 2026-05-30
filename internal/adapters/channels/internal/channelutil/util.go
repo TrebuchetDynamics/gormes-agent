@@ -25,6 +25,32 @@ func ToSet(values []string) map[string]struct{} {
 	return out
 }
 
+// BoolSet converts a string slice to a boolean membership set, trimming
+// whitespace and skipping empty entries. It is the bool-valued counterpart to
+// ToSet for channel policies that use map[string]bool.
+func BoolSet(values []string) map[string]bool {
+	out := make(map[string]bool, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		out[value] = true
+	}
+	return out
+}
+
+// BoolSetsIntersect reports whether two boolean membership sets share at least
+// one key.
+func BoolSetsIntersect(a, b map[string]bool) bool {
+	for value := range a {
+		if b[value] {
+			return true
+		}
+	}
+	return false
+}
+
 // NormalizedPolicy lowercases and trims a policy string. Returns "open" when
 // policy is empty. Behavior matches the duplicated local helper in wecom,
 // qqbot, and feishu.
@@ -126,6 +152,22 @@ func ContainsEqualFold(values []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// ParseBoolDefault parses common channel configuration booleans. Empty or
+// unrecognized values return def so env/config overlays can preserve their
+// existing default behavior.
+func ParseBoolDefault(raw string, def bool) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "":
+		return def
+	case "true", "1", "yes", "on":
+		return true
+	case "false", "0", "no", "off":
+		return false
+	default:
+		return def
+	}
 }
 
 // FormatToolTrace joins SoulEntry texts and formats them as a tool trace block.

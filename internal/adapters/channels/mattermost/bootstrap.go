@@ -366,18 +366,7 @@ func splitList(raw string) []string {
 
 func compactStrings(values []string) []string { return channelutil.CompactStrings(values) }
 
-func parseBoolDefault(raw string, def bool) bool {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "":
-		return def
-	case "false", "0", "no", "off":
-		return false
-	case "true", "1", "yes", "on":
-		return true
-	default:
-		return def
-	}
-}
+func parseBoolDefault(raw string, def bool) bool { return channelutil.ParseBoolDefault(raw, def) }
 
 func boolSet(values []string) map[string]bool {
 	if len(values) == 0 {
