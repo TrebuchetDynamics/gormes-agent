@@ -6,15 +6,11 @@ func compactSlashHandler(input string, model *Model) SlashResult {
 	if model == nil {
 		return SlashResult{Handled: true, StatusMessage: "compact: TUI unavailable"}
 	}
-	next, ok := compactSlashNext(input, model.compactTranscript)
-	if !ok {
-		return SlashResult{Handled: true, StatusMessage: compact.Usage}
+	result := compact.HandleSlash(input, model.compactTranscript)
+	if result.OK {
+		model.compactTranscript = result.Next
 	}
-	model.compactTranscript = next
-	if next {
-		return SlashResult{Handled: true, StatusMessage: "compact on"}
-	}
-	return SlashResult{Handled: true, StatusMessage: "compact off"}
+	return SlashResult{Handled: true, StatusMessage: result.StatusMessage}
 }
 
 func compactSlashNext(input string, current bool) (bool, bool) {

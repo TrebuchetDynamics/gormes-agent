@@ -7,11 +7,52 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
+type Request struct {
+	Action    string
+	SessionID string
+}
+
 type Result struct {
 	Enabled   bool
 	TTS       bool
 	RecordKey string
 	Details   string
+}
+
+type ToggleFunc func(Request) (Result, error)
+
+type SlashResult struct {
+	Action          string
+	Lines           []string
+	StatusMessage   string
+	RecordKey       string
+	UpdateRecordKey bool
+	Err             error
+}
+
+func HandleSlash(input string, sessionID string, toggle ToggleFunc) SlashResult {
+	action := Action(input)
+	result := Result{Enabled: false, TTS: false, RecordKey: tools.DefaultVoiceRecordKey, Details: "voice adapter unavailable"}
+	updateRecordKey := false
+	if toggle != nil {
+		got, err := toggle(Request{Action: action, SessionID: sessionID})
+		if err != nil {
+			return SlashResult{Action: action, Err: err, StatusMessage: "voice: " + err.Error()}
+		}
+		result = got
+		updateRecordKey = strings.TrimSpace(result.RecordKey) != ""
+	}
+	lines := Lines(action, result)
+	if len(lines) == 0 {
+		lines = []string{"voice: no status"}
+	}
+	return SlashResult{
+		Action:          action,
+		Lines:           lines,
+		StatusMessage:   firstNonEmptyString(lines...),
+		RecordKey:       result.RecordKey,
+		UpdateRecordKey: updateRecordKey,
+	}
 }
 
 func Action(input string) string {
@@ -77,4 +118,13 @@ func OnOff(value bool) string {
 		return "ON"
 	}
 	return "OFF"
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }

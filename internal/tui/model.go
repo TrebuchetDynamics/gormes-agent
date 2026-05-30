@@ -16,6 +16,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/prompttemplates"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/sessionspage"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/skin"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/toolsview"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/voice"
 )
@@ -121,10 +122,7 @@ type SkillSlashReloadFunc func(context.Context) (SkillSlashReloadResult, error)
 // VoiceToggleRequest is the TUI-local request shape for /voice status|on|off|tts.
 // Production callers own runtime voice state, setup checks, and config access;
 // internal/tui only parses slash input and renders adapter evidence.
-type VoiceToggleRequest struct {
-	Action    string
-	SessionID string
-}
+type VoiceToggleRequest = voice.Request
 
 // VoiceToggleResult mirrors the Hermes ui-tui voice.toggle response fields
 // that affect visible output and frontend record-key state.
@@ -136,16 +134,11 @@ type VoiceToggleFunc func(VoiceToggleRequest) (VoiceToggleResult, error)
 
 // SkinConfigRequest is the TUI-local request shape for /skin. Name is empty
 // for read-only status and non-empty for a requested skin switch.
-type SkinConfigRequest struct {
-	Name      string
-	SessionID string
-}
+type SkinConfigRequest = skin.Request
 
 // SkinConfigResult mirrors the Hermes config.get/config.set skin response
 // value that affects visible output and active native TUI skin state.
-type SkinConfigResult struct {
-	Name string
-}
+type SkinConfigResult = skin.Result
 
 // SkinConfigFunc gets or sets the active display skin for /skin. Production
 // callers own persistence so internal/tui never writes config files directly.

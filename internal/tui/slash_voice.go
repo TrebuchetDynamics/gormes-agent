@@ -11,29 +11,22 @@ func voiceSlashHandler(input string, model *Model) SlashResult {
 	if model == nil {
 		return SlashResult{Handled: true, StatusMessage: "voice: TUI unavailable"}
 	}
-	action := parseVoiceSlashAction(input)
-	result := VoiceToggleResult{Enabled: false, TTS: false, RecordKey: tools.DefaultVoiceRecordKey, Details: "voice adapter unavailable"}
-	updateRecordKey := false
+	var toggle voice.ToggleFunc
 	if model.voiceToggle != nil {
-		got, err := model.voiceToggle(VoiceToggleRequest{Action: action, SessionID: model.SessionID()})
-		if err != nil {
-			model.transientPage = nil
-			return SlashResult{Handled: true, StatusMessage: "voice: " + err.Error()}
-		}
-		result = got
-		updateRecordKey = strings.TrimSpace(result.RecordKey) != ""
+		toggle = voice.ToggleFunc(model.voiceToggle)
 	}
-	if updateRecordKey {
+	result := voice.HandleSlash(input, model.SessionID(), toggle)
+	if result.Err != nil {
+		model.transientPage = nil
+		return SlashResult{Handled: true, StatusMessage: result.StatusMessage}
+	}
+	if result.UpdateRecordKey {
 		binding := tools.ResolveVoiceRecordKey(result.RecordKey, tools.VoiceRecordKeyOptions{})
 		model.voiceRecordKey = binding.Raw
 	}
-	lines := renderVoiceToggleLines(action, result)
-	if len(lines) == 0 {
-		lines = []string{"voice: no status"}
-	}
-	body := strings.Join(lines, "\n")
+	body := strings.Join(result.Lines, "\n")
 	model.transientPage = &TransientPageState{Title: "Voice", Body: body}
-	return SlashResult{Handled: true, StatusMessage: firstNonEmptyString(lines...)}
+	return SlashResult{Handled: true, StatusMessage: result.StatusMessage}
 }
 
 func parseVoiceSlashAction(input string) string {

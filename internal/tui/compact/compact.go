@@ -4,6 +4,23 @@ import "strings"
 
 const Usage = "usage: /compact [on|off|toggle]"
 
+type SlashResult struct {
+	Next          bool
+	OK            bool
+	StatusMessage string
+}
+
+func HandleSlash(input string, current bool) SlashResult {
+	next, ok := Next(input, current)
+	if !ok {
+		return SlashResult{Next: current, OK: false, StatusMessage: Usage}
+	}
+	if next {
+		return SlashResult{Next: next, OK: true, StatusMessage: "compact on"}
+	}
+	return SlashResult{Next: next, OK: true, StatusMessage: "compact off"}
+}
+
 // Next resolves the compact-transcript state requested by a /compact command.
 // It returns ok=false when the invocation should display Usage.
 func Next(input string, current bool) (next bool, ok bool) {

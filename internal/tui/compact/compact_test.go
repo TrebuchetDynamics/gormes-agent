@@ -2,6 +2,17 @@ package compact
 
 import "testing"
 
+func TestHandleSlash(t *testing.T) {
+	got := HandleSlash("/compact", false)
+	if !got.OK || !got.Next || got.StatusMessage != "compact on" {
+		t.Fatalf("HandleSlash bare = %#v, want compact on", got)
+	}
+	got = HandleSlash("/compact nope", true)
+	if got.OK || !got.Next || got.StatusMessage != Usage {
+		t.Fatalf("HandleSlash invalid = %#v, want usage without changing current", got)
+	}
+}
+
 func TestNextParsesCompactSlashState(t *testing.T) {
 	tests := []struct {
 		name    string

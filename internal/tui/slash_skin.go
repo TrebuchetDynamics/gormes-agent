@@ -11,26 +11,20 @@ func skinSlashHandler(input string, model *Model) SlashResult {
 	if model == nil {
 		return SlashResult{Handled: true, StatusMessage: "skin: TUI unavailable"}
 	}
-	name := parseSkinSlashName(input)
-	if model.skinConfig == nil {
-		model.transientPage = nil
-		return SlashResult{Handled: true, StatusMessage: "skin: configuration unavailable"}
+	var configure skin.ConfigFunc
+	if model.skinConfig != nil {
+		configure = skin.ConfigFunc(model.skinConfig)
 	}
-	result, err := model.skinConfig(SkinConfigRequest{Name: name, SessionID: model.SessionID()})
-	if err != nil {
-		model.transientPage = nil
-		return SlashResult{Handled: true, StatusMessage: "skin: " + err.Error()}
+	result := skin.HandleSlash(input, model.SessionID(), configure)
+	if result.Err != nil || !result.Apply {
+		if result.Body != "" {
+			model.transientPage = &TransientPageState{Title: "Skin", Body: result.Body}
+		} else {
+			model.transientPage = nil
+		}
+		return SlashResult{Handled: true, StatusMessage: result.StatusMessage}
 	}
-	if name == "" {
-		line := "skin: " + skinDisplayName(result.Name)
-		model.transientPage = &TransientPageState{Title: "Skin", Body: line}
-		return SlashResult{Handled: true, StatusMessage: line}
-	}
-	accepted := strings.TrimSpace(result.Name)
-	if accepted == "" {
-		accepted = name
-	}
-	accepted, err = model.applySkinName(accepted)
+	accepted, err := model.applySkinName(result.AcceptedName)
 	if err != nil {
 		model.transientPage = nil
 		return SlashResult{Handled: true, StatusMessage: "skin: " + err.Error()}
