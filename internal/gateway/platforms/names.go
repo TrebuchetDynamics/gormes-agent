@@ -1,67 +1,35 @@
 package platforms
 
-import "strings"
+import "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/platforms/identity"
 
 func NormalizePlatformID(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
+	return identity.NormalizePlatformID(value)
 }
 
 func PlatformBaseName(platform string) string {
-	platform = NormalizePlatformID(platform)
-	if before, _, ok := strings.Cut(platform, ":"); ok {
-		return before
-	}
-	return platform
+	return identity.PlatformBaseName(platform)
 }
 
 func IsPlatformName(platform, base string) bool {
-	platform = NormalizePlatformID(platform)
-	base = NormalizePlatformID(base)
-	return platform == base || strings.HasPrefix(platform, base+":")
+	return identity.IsPlatformName(platform, base)
 }
 
 func IsTelegramPlatform(platform string) bool {
-	return IsPlatformName(platform, "telegram")
+	return identity.IsTelegramPlatform(platform)
 }
 
 func IsDiscordPlatform(platform string) bool {
-	return IsPlatformName(platform, "discord")
+	return identity.IsDiscordPlatform(platform)
 }
 
 func IsSlackPlatform(platform string) bool {
-	return IsPlatformName(platform, "slack")
+	return identity.IsSlackPlatform(platform)
 }
 
 func TelegramDMTopicReplyFallbackLane(platform, chatID, threadID string) bool {
-	if !IsTelegramPlatform(platform) {
-		return false
-	}
-	if strings.TrimSpace(threadID) == "" {
-		return false
-	}
-	chatID = strings.TrimSpace(chatID)
-	if chatID == "" {
-		return false
-	}
-	return !strings.HasPrefix(chatID, "-")
+	return identity.TelegramDMTopicReplyFallbackLane(platform, chatID, threadID)
 }
 
 func DefaultToolProgressModeForPlatform(platform string) string {
-	if IsTelegramPlatform(platform) || IsDiscordPlatform(platform) {
-		return "all"
-	}
-	if IsSlackPlatform(platform) {
-		return "off"
-	}
-	switch PlatformBaseName(platform) {
-	case "api_server":
-		return "all"
-	case "mattermost", "matrix", "feishu", "whatsapp":
-		return "new"
-	case "signal", "bluebubbles", "weixin", "wecom", "wecom_callback", "dingtalk",
-		"email", "sms", "webhook", "homeassistant":
-		return "off"
-	default:
-		return "all"
-	}
+	return identity.DefaultToolProgressModeForPlatform(platform)
 }
