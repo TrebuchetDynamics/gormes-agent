@@ -9,6 +9,27 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
+func TestHandleSlashOpensPageAndRequestsAccountFetch(t *testing.T) {
+	result := HandleSlash(kernel.RenderFrame{
+		SessionID: "frame-session",
+		Model:     "gpt-usage",
+		Telemetry: telemetry.Snapshot{TokensInTotal: 12, TokensOutTotal: 8},
+	}, "explicit-session", true)
+	if !result.OpenPage || !result.FetchAccount || result.Status != "usage opened" {
+		t.Fatalf("HandleSlash result = %+v, want open usage page with account fetch", result)
+	}
+	if !strings.Contains(result.Page.Body, AccountLoadingLine) {
+		t.Fatalf("usage page missing account loading marker:\n%s", result.Page.Body)
+	}
+}
+
+func TestHandleSlashRejectsMissingTelemetry(t *testing.T) {
+	result := HandleSlash(kernel.RenderFrame{}, "", true)
+	if result.OpenPage || result.FetchAccount || result.Status != "no API calls yet" {
+		t.Fatalf("HandleSlash result = %+v, want no page and no API calls status", result)
+	}
+}
+
 func TestBuildFormatsFrameEvidence(t *testing.T) {
 	page, ok := Build(kernel.RenderFrame{
 		SessionID: "frame-session",

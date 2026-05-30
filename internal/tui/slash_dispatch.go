@@ -12,7 +12,9 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/prompttemplates"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/queue"
 	uislash "github.com/TrebuchetDynamics/gormes-agent/internal/tui/slash"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal"
 )
 
 // SlashResult is the typed return value of a SlashHandler. It tells Update
@@ -307,25 +309,16 @@ func slashAmbiguousNameStatus(matches []string) string {
 // the current one, preserving the dedup behavior asserted by
 // TestMouseSlashUpdatesRuntimeWithoutSubmitting.
 func mouseSlashHandler(input string, model *Model) SlashResult {
-	parsed := parseMouseTrackingSlash(input, model.mouseTracking)
-	if !parsed.handled {
+	decision := terminal.HandleMouseSlash(input, model.mouseTracking)
+	if !decision.Handled {
 		return SlashResult{}
 	}
-	if !parsed.valid {
-		return SlashResult{Handled: true, StatusMessage: parsed.message}
-	}
-
-	statusMessage := "mouse tracking on"
-	if !parsed.next {
-		statusMessage = "mouse tracking off"
-	}
-
 	var cmd tea.Cmd
-	if parsed.next != model.mouseTracking {
-		model.mouseTracking = parsed.next
-		cmd = model.emitMouseModeCmd(parsed.next)
+	if decision.Apply {
+		model.mouseTracking = decision.Next
+		cmd = model.emitMouseModeCmd(decision.Next)
 	}
-	return SlashResult{Handled: true, StatusMessage: statusMessage, Cmd: cmd}
+	return SlashResult{Handled: true, StatusMessage: decision.Status, Cmd: cmd}
 }
 
 func copySlashHandler(input string, model *Model) SlashResult {
@@ -370,14 +363,15 @@ func skillsSlashHandler(input string, model *Model) SlashResult {
 }
 
 func queueSlashHandler(input string, model *Model) SlashResult {
-	if model == nil {
-		return SlashResult{Handled: true, StatusMessage: "0 queued message(s)"}
+	currentLen := 0
+	if model != nil {
+		currentLen = model.queuedMessages.Len()
 	}
-	text := strings.TrimSpace(slashInvocationArgs(input))
-	if text == "" {
-		return SlashResult{Handled: true, StatusMessage: fmt.Sprintf("%d queued message(s)", model.queuedMessages.Len())}
+	result := queue.HandleSlash(input, currentLen)
+	if !result.Enqueue || model == nil {
+		return SlashResult{Handled: true, StatusMessage: result.Status}
 	}
-	model.queueFollowUpDraft(text)
+	model.queueFollowUpDraft(result.Text)
 	return SlashResult{Handled: true}
 }
 

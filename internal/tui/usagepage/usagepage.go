@@ -12,6 +12,24 @@ import (
 
 const AccountLoadingLine = "Provider account usage: loading..."
 
+type SlashResult struct {
+	Page         transientpage.State
+	OpenPage     bool
+	Status       string
+	FetchAccount bool
+}
+
+func HandleSlash(frame kernel.RenderFrame, sessionID string, hasAccountUsage bool) SlashResult {
+	page, ok := Build(frame, sessionID)
+	if !ok {
+		return SlashResult{Status: "no API calls yet"}
+	}
+	if hasAccountUsage {
+		page.Body = AppendAccountLines(page.Body, []string{AccountLoadingLine})
+	}
+	return SlashResult{Page: page, OpenPage: true, Status: "usage opened", FetchAccount: hasAccountUsage}
+}
+
 // Build renders the read-only TUI usage page from local frame telemetry.
 func Build(frame kernel.RenderFrame, sessionID string) (transientpage.State, bool) {
 	if !TelemetryPresent(frame.Telemetry) {

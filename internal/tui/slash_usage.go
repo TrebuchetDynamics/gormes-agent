@@ -25,16 +25,17 @@ func usageSlashHandler(_ string, model *Model) SlashResult {
 	if model == nil {
 		return SlashResult{Handled: true, StatusMessage: "usage: TUI unavailable"}
 	}
-	page, ok := BuildUsagePage(model.frame, model.SessionID())
-	if !ok {
+	result := usagepage.HandleSlash(model.frame, model.SessionID(), model.accountUsage != nil)
+	if !result.OpenPage {
 		model.transientPage = nil
-		return SlashResult{Handled: true, StatusMessage: "no API calls yet"}
+		return SlashResult{Handled: true, StatusMessage: result.Status}
 	}
-	if model.accountUsage != nil {
-		page.Body = appendUsageAccountLines(page.Body, []string{usageAccountLoadingLine})
+	model.transientPage = &result.Page
+	var cmd tea.Cmd
+	if result.FetchAccount {
+		cmd = model.usageAccountCmd()
 	}
-	model.transientPage = &page
-	return SlashResult{Handled: true, StatusMessage: "usage opened", Cmd: model.usageAccountCmd()}
+	return SlashResult{Handled: true, StatusMessage: result.Status, Cmd: cmd}
 }
 
 func (m *Model) usageAccountCmd() tea.Cmd {

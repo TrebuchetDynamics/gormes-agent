@@ -1,8 +1,39 @@
 package queue
 
+import (
+	"fmt"
+	"strings"
+)
+
 // WindowSize is the number of queued messages rendered per frame. Tracks
 // hermes-agent/ui-tui/src/components/queuedMessages.tsx@ea1012f5 (QUEUE_WINDOW=3).
 const WindowSize = 3
+
+type SlashResult struct {
+	Text    string
+	Status  string
+	Enqueue bool
+}
+
+func HandleSlash(input string, currentLen int) SlashResult {
+	text := strings.TrimSpace(invocationArgs(input))
+	if text == "" {
+		return SlashResult{Status: fmt.Sprintf("%d queued message(s)", currentLen)}
+	}
+	return SlashResult{Text: text, Enqueue: true}
+}
+
+func invocationArgs(input string) string {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return ""
+	}
+	fields := strings.Fields(input)
+	if len(fields) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(input, fields[0]))
+}
 
 // Messages is a pure helper that owns the buffer of pending operator
 // turns plus the optional edit selection. It is deliberately isolated from

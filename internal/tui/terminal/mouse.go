@@ -15,6 +15,28 @@ type MouseSlashResult struct {
 	Message string
 }
 
+type MouseSlashDecision struct {
+	Handled bool
+	Apply   bool
+	Next    bool
+	Status  string
+}
+
+func HandleMouseSlash(input string, current bool) MouseSlashDecision {
+	parsed := ParseMouseTrackingSlash(input, current)
+	if !parsed.Handled {
+		return MouseSlashDecision{}
+	}
+	if !parsed.Valid {
+		return MouseSlashDecision{Handled: true, Status: parsed.Message}
+	}
+	status := "mouse tracking on"
+	if !parsed.Next {
+		status = "mouse tracking off"
+	}
+	return MouseSlashDecision{Handled: true, Apply: parsed.Next != current, Next: parsed.Next, Status: status}
+}
+
 func ParseMouseTrackingSlash(input string, current bool) MouseSlashResult {
 	fields := strings.Fields(strings.TrimSpace(input))
 	if len(fields) == 0 {

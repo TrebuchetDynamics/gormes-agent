@@ -14,6 +14,18 @@ const (
 	bubbleTeaDisableMouseSeq         = "\x1b[?1002l\x1b[?1003l\x1b[?1006l"
 )
 
+func TestHandleMouseSlash(t *testing.T) {
+	if got := HandleMouseSlash("/mouse on", false); got != (MouseSlashDecision{Handled: true, Apply: true, Next: true, Status: "mouse tracking on"}) {
+		t.Fatalf("HandleMouseSlash on = %#v", got)
+	}
+	if got := HandleMouseSlash("/mouse on", true); got != (MouseSlashDecision{Handled: true, Apply: false, Next: true, Status: "mouse tracking on"}) {
+		t.Fatalf("HandleMouseSlash duplicate on = %#v", got)
+	}
+	if got := HandleMouseSlash("/mouse sideways", true); got != (MouseSlashDecision{Handled: true, Status: MouseSlashUsage}) {
+		t.Fatalf("HandleMouseSlash invalid = %#v", got)
+	}
+}
+
 func TestParseMouseTrackingSlash(t *testing.T) {
 	tests := []struct {
 		name    string
