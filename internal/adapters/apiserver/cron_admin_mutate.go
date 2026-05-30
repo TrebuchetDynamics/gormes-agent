@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/apiserver/cronadmin"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
 )
 
@@ -36,21 +37,7 @@ var legacyAPIUpdateAllowedFields = map[string]struct{}{
 }
 
 // CronJobSpec is the operator-supplied shape used by create/update endpoints.
-// Field names mirror the existing native cron action envelope so future
-// callers can serialize the same body across the cronjob tool and HTTP admin.
-type CronJobSpec struct {
-	Name            string   `json:"name"`
-	Schedule        string   `json:"schedule"`
-	Prompt          string   `json:"prompt"`
-	Repeat          int      `json:"repeat,omitempty"`
-	Provider        string   `json:"provider,omitempty"`
-	Model           string   `json:"model,omitempty"`
-	Skills          []string `json:"skills,omitempty"`
-	EnabledToolsets []string `json:"enabled_toolsets,omitempty"`
-	Workdir         string   `json:"workdir,omitempty"`
-	Script          string   `json:"script,omitempty"`
-	ContextFrom     []string `json:"context_from,omitempty"`
-}
+type CronJobSpec = cronadmin.JobSpec
 
 // CronJobMutator is the narrow write facade the API server uses to mutate
 // cron jobs without depending on bbolt or the scheduler. Production
@@ -58,44 +45,22 @@ type CronJobSpec struct {
 //
 // The mutator MUST NOT start the scheduler, dispatch a delivery, or contact
 // providers. Read traffic continues to flow through CronJobReader.
-type CronJobMutator interface {
-	Create(ctx context.Context, spec CronJobSpec) (string, error)
-	Update(ctx context.Context, id string, spec CronJobSpec) error
-	Delete(ctx context.Context, id string) error
-	Pause(ctx context.Context, id string) error
-	Resume(ctx context.Context, id string) error
-}
+type CronJobMutator = cronadmin.JobMutator
 
 // CronTriggerHandler is the trigger seam the API server uses to launch a
 // one-shot run. A nil seam represents "delivery unavailable" and the trigger
 // endpoint records trigger_delivery_unavailable + 503.
-type CronTriggerHandler interface {
-	Trigger(ctx context.Context, id string) (TriggerResult, error)
-}
+type CronTriggerHandler = cronadmin.TriggerHandler
 
 // TriggerResult is the operator-visible shape returned by /trigger.
-// It deliberately avoids leaking provider/gateway internals.
-type TriggerResult struct {
-	RunID      string `json:"run_id,omitempty"`
-	Status     string `json:"status,omitempty"`
-	PromptHash string `json:"prompt_hash,omitempty"`
-}
+type TriggerResult = cronadmin.TriggerResult
 
 // CronAdminAuditEvent is the audit shape recorded for each cron mutation.
-// It is intentionally redacted: only stable identifiers and outcome are kept,
-// no prompt or script bodies are forwarded to the auditor.
-type CronAdminAuditEvent struct {
-	Action  string
-	JobID   string
-	Outcome string
-	Code    string
-}
+type CronAdminAuditEvent = cronadmin.AuditEvent
 
 // CronAdminAuditor is the audit seam wired into the apiserver Config. It is
 // optional; when nil, mutating endpoints still work but do not record events.
-type CronAdminAuditor interface {
-	RecordCronAdminEvent(ctx context.Context, event CronAdminAuditEvent)
-}
+type CronAdminAuditor = cronadmin.Auditor
 
 // ErrCronJobAlreadyPaused / ErrCronJobNotPaused are conflict signals returned
 // by the mutator when an operator pauses or resumes a job whose state already

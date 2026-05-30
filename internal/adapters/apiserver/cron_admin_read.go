@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/apiserver/cronadmin"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
 )
 
@@ -28,46 +28,9 @@ type CronRunReader interface {
 	LatestRuns(ctx context.Context, jobID string, limit int) ([]cron.Run, error)
 }
 
-const (
-	cronAdminDefaultRunLimit = 20
-	cronAdminMaxRunLimit     = 200
-)
+type cronAdminJobView = cronadmin.JobView
 
-// cronAdminJobView is the redacted shape returned by list/get. Prompt and
-// script bodies are intentionally omitted to keep secret payloads out of
-// admin listings.
-type cronAdminJobView struct {
-	ID              string   `json:"id"`
-	Name            string   `json:"name"`
-	Schedule        string   `json:"schedule"`
-	Enabled         bool     `json:"enabled"`
-	Paused          bool     `json:"paused"`
-	CreatedAt       int64    `json:"created_at"`
-	LastRunUnix     int64    `json:"last_run_unix"`
-	LastStatus      string   `json:"last_status"`
-	NextRunUnix     int64    `json:"next_run_unix"`
-	Target          string   `json:"target"`
-	Provider        string   `json:"provider,omitempty"`
-	Model           string   `json:"model,omitempty"`
-	Repeat          int      `json:"repeat,omitempty"`
-	RepeatCompleted int      `json:"repeat_completed,omitempty"`
-	Skills          []string `json:"skills,omitempty"`
-	EnabledToolsets []string `json:"enabled_toolsets,omitempty"`
-	HasScript       bool     `json:"has_script"`
-}
-
-// cronAdminRunView is the redacted shape returned by run-history. Prompt
-// hashes, output previews, and error messages are dropped because they may
-// contain user prompt content or secret values from upstream tool runs.
-type cronAdminRunView struct {
-	ID                int64  `json:"id"`
-	JobID             string `json:"job_id"`
-	StartedAt         int64  `json:"started_at"`
-	FinishedAt        int64  `json:"finished_at"`
-	Status            string `json:"status"`
-	Delivered         bool   `json:"delivered"`
-	SuppressionReason string `json:"suppression_reason,omitempty"`
-}
+type cronAdminRunView = cronadmin.RunView
 
 func (s *Server) handleCronAdminJobs(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
@@ -257,78 +220,21 @@ func parseCronAdminJobPath(path string) (jobID, sub string, ok bool) {
 }
 
 func cronAdminParseLimit(raw string) int {
-	if raw == "" {
-		return cronAdminDefaultRunLimit
-	}
-	n, err := strconv.Atoi(raw)
-	if err != nil || n <= 0 {
-		return cronAdminDefaultRunLimit
-	}
-	if n > cronAdminMaxRunLimit {
-		return cronAdminMaxRunLimit
-	}
-	return n
+	return cronadmin.ParseLimit(raw)
 }
 
 func cronAdminJobViewFor(job cron.Job, now time.Time) cronAdminJobView {
-	job = cron.NormalizeJobRecord(job, job.ID)
-	view := cronAdminJobView{
-		ID:              job.ID,
-		Name:            job.Name,
-		Schedule:        job.Schedule,
-		Enabled:         !job.Paused,
-		Paused:          job.Paused,
-		CreatedAt:       job.CreatedAt,
-		LastRunUnix:     job.LastRunUnix,
-		LastStatus:      job.LastStatus,
-		Provider:        job.Provider,
-		Model:           job.Model,
-		Repeat:          job.Repeat,
-		RepeatCompleted: job.RepeatCompleted,
-		Skills:          append([]string(nil), job.Skills...),
-		EnabledToolsets: append([]string(nil), job.EnabledToolsets...),
-		HasScript:       strings.TrimSpace(job.Script) != "",
-	}
-	view.Target = cronAdminTargetFor(job)
-	view.NextRunUnix = cronAdminNextRunUnix(job, now)
-	return view
+	return cronadmin.JobViewFor(job, now)
 }
 
-// cronAdminTargetFor mirrors what an operator would call the delivery target
-// for a job without leaking prompt or script bodies.
 func cronAdminTargetFor(job cron.Job) string {
-	if t := strings.TrimSpace(job.Provider); t != "" {
-		return t
-	}
-	return ""
+	return cronadmin.TargetFor(job)
 }
 
-// cronAdminNextRunUnix uses the existing pure schedule parser to compute the
-// projected next-run timestamp without starting any scheduler goroutines.
-// Returns 0 when the schedule cannot be parsed or is exhausted.
 func cronAdminNextRunUnix(job cron.Job, now time.Time) int64 {
-	if job.Paused {
-		return 0
-	}
-	parsed, err := cron.ParseCronSchedule(job.Schedule, now)
-	if err != nil {
-		return 0
-	}
-	decision := cron.CronNextRunDecision(parsed, job.LastRunUnix, job.RepeatCompleted, now)
-	if decision.NextRun.IsZero() {
-		return 0
-	}
-	return decision.NextRun.Unix()
+	return cronadmin.NextRunUnix(job, now)
 }
 
 func cronAdminRunViewFor(run cron.Run) cronAdminRunView {
-	return cronAdminRunView{
-		ID:                run.ID,
-		JobID:             run.JobID,
-		StartedAt:         run.StartedAt,
-		FinishedAt:        run.FinishedAt,
-		Status:            run.Status,
-		Delivered:         run.Delivered,
-		SuppressionReason: run.SuppressionReason,
-	}
+	return cronadmin.RunViewFor(run)
 }
