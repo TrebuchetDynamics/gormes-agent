@@ -1,25 +1,7 @@
 package telegram
 
-import "strings"
-
-const (
-	modelPickerCBProvider  = "mp"
-	modelPickerCBModel     = "mm"
-	modelPickerCBGroupPage = "mg"
-	modelPickerCBBack      = "mb"
-	modelPickerCBCancel    = "mx"
-)
+import telegramcallbacks "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram/callbacks"
 
 func parseModelPickerCallback(data string) (prefix, value string, ok bool) {
-	data = strings.TrimSpace(data)
-	idx := strings.IndexByte(data, ':')
-	if idx < 0 {
-		return "", "", false
-	}
-	prefix = data[:idx]
-	switch prefix {
-	case modelPickerCBProvider, modelPickerCBModel, modelPickerCBGroupPage, modelPickerCBBack, modelPickerCBCancel:
-		return prefix, data[idx+1:], true
-	}
-	return "", "", false
+	return telegramcallbacks.ParseModelPickerCallback(data)
 }

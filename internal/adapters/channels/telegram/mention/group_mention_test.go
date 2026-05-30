@@ -1,4 +1,4 @@
-package telegram
+package mention
 
 import (
 	"testing"
@@ -12,7 +12,7 @@ func TestTelegramGroupMentionGate_BotCommandWithMatchingSuffixAllowsCommand(t *t
 
 	for _, username := range []string{"gormes_bot", "@gormes_bot"} {
 		t.Run(username, func(t *testing.T) {
-			addressed := telegramGroupMentionGateAddressed(text, entities, username, true)
+			addressed := GroupMentionGateAddressed(text, entities, username, true)
 			if !addressed {
 				t.Fatalf("addressed = false, want true")
 			}
@@ -24,7 +24,7 @@ func TestTelegramGroupMentionGate_OtherBotSuffixRejected(t *testing.T) {
 	text := "/status@other_bot"
 	entities := []tgbotapi.MessageEntity{botCommandEntity(text)}
 
-	addressed := telegramGroupMentionGateAddressed(text, entities, "gormes_bot", true)
+	addressed := GroupMentionGateAddressed(text, entities, "gormes_bot", true)
 	if addressed {
 		t.Fatalf("addressed = true, want false")
 	}
@@ -34,10 +34,10 @@ func TestTelegramGroupMentionGate_BareCommandStillGated(t *testing.T) {
 	text := "/status"
 	entities := []tgbotapi.MessageEntity{botCommandEntity(text)}
 
-	if addressed := telegramGroupMentionGateAddressed(text, entities, "gormes_bot", true); addressed {
+	if addressed := GroupMentionGateAddressed(text, entities, "gormes_bot", true); addressed {
 		t.Fatalf("requireMention=true addressed = true, want false")
 	}
-	if addressed := telegramGroupMentionGateAddressed(text, entities, "gormes_bot", false); !addressed {
+	if addressed := GroupMentionGateAddressed(text, entities, "gormes_bot", false); !addressed {
 		t.Fatalf("requireMention=false addressed = false, want true")
 	}
 }
@@ -50,7 +50,7 @@ func TestTelegramGroupMentionGate_MentionEntityStillAllowsText(t *testing.T) {
 		Length: len("@gormes_bot"),
 	}}
 
-	addressed := telegramGroupMentionGateAddressed(text, entities, "gormes_bot", true)
+	addressed := GroupMentionGateAddressed(text, entities, "gormes_bot", true)
 	if !addressed {
 		t.Fatalf("addressed = false, want true")
 	}
@@ -67,9 +67,9 @@ func botCommandEntity(command string) tgbotapi.MessageEntity {
 func TestTelegramEntityText_OffsetZeroEntityInteriorToText(t *testing.T) {
 	text := "@gormes_bot hello"
 	entity := tgbotapi.MessageEntity{Type: "mention", Offset: 0, Length: len("@gormes_bot")}
-	got, ok := telegramEntityText(text, entity)
+	got, ok := EntityText(text, entity)
 	if !ok {
-		t.Fatal("telegramEntityText returned ok=false")
+		t.Fatal("EntityText returned ok=false")
 	}
 	if got != "@gormes_bot" {
 		t.Fatalf("got %q, want %q", got, "@gormes_bot")
