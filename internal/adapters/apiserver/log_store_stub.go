@@ -1,5 +1,7 @@
 package apiserver
 
-type LogStore struct{}
+import "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/apiserver/logs"
 
-func NewLogStore(retentionDays int) *LogStore { return &LogStore{} }
+type LogStore = logs.Store
+
+func NewLogStore(retentionDays int) *LogStore { return logs.NewStore(retentionDays) }
