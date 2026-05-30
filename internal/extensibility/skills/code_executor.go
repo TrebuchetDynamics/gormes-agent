@@ -1,82 +1,19 @@
 package skills
 
-import (
-	"context"
-	"fmt"
-	"time"
-)
+import "github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills/execution"
 
-type SkillCodeRequest struct {
-	SkillName   string
-	Code        string
-	Language    string
-	InputParams map[string]string
-	Timeout     time.Duration
-}
+type SkillCodeRequest = execution.SkillCodeRequest
 
-type SkillCodeResult struct {
-	Success  bool
-	Output   string
-	Error    string
-	Duration time.Duration
-}
+type SkillCodeResult = execution.SkillCodeResult
 
-type SkillCodeExecutionRequest struct {
-	Language string
-	Code     string
-	Timeout  time.Duration
-}
+type SkillCodeExecutionRequest = execution.SkillCodeExecutionRequest
 
-type SkillCodeExecutionResult struct {
-	ExitCode int
-	Stdout   string
-	Stderr   string
-}
+type SkillCodeExecutionResult = execution.SkillCodeExecutionResult
 
-type SkillCodeSandbox interface {
-	Execute(ctx context.Context, req SkillCodeExecutionRequest) (SkillCodeExecutionResult, error)
-}
+type SkillCodeSandbox = execution.SkillCodeSandbox
 
-type SkillCodeExecutor struct {
-	sandbox SkillCodeSandbox
-}
+type SkillCodeExecutor = execution.SkillCodeExecutor
 
 func NewSkillCodeExecutor(sandbox SkillCodeSandbox) *SkillCodeExecutor {
-	return &SkillCodeExecutor{sandbox: sandbox}
-}
-
-func (e *SkillCodeExecutor) Execute(ctx context.Context, req SkillCodeRequest) (SkillCodeResult, error) {
-	if req.Code == "" {
-		return SkillCodeResult{Success: false, Error: "no code to execute"}, nil
-	}
-	if req.Timeout <= 0 {
-		req.Timeout = 30 * time.Second
-	}
-
-	start := time.Now()
-	result, err := e.sandbox.Execute(ctx, SkillCodeExecutionRequest{
-		Language: req.Language,
-		Code:     req.Code,
-		Timeout:  req.Timeout,
-	})
-	duration := time.Since(start)
-
-	if err != nil {
-		return SkillCodeResult{Success: false, Error: err.Error(), Duration: duration}, nil
-	}
-
-	if result.ExitCode != 0 {
-		return SkillCodeResult{
-			Success:  false,
-			Output:   result.Stdout,
-			Error:    fmt.Sprintf("exit code %d: %s", result.ExitCode, result.Stderr),
-			Duration: duration,
-		}, nil
-	}
-
-	return SkillCodeResult{
-		Success:  true,
-		Output:   result.Stdout,
-		Duration: duration,
-	}, nil
+	return execution.NewSkillCodeExecutor(sandbox)
 }

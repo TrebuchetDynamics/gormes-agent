@@ -1,76 +1,13 @@
 package skills
 
-import (
-	"fmt"
-	"sort"
-)
+import "github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills/composition"
 
-type SkillDependency struct {
-	Name         string
-	Dependencies []string
-}
+type SkillDependency = composition.SkillDependency
 
-type DependencyGraph struct {
-	skills map[string]*SkillDependency
-}
+type DependencyGraph = composition.DependencyGraph
 
 func NewDependencyGraph() *DependencyGraph {
-	return &DependencyGraph{skills: make(map[string]*SkillDependency)}
-}
-
-func (dg *DependencyGraph) AddSkill(name string, deps []string) {
-	dg.skills[name] = &SkillDependency{
-		Name:         name,
-		Dependencies: deps,
-	}
-}
-
-func (dg *DependencyGraph) Resolve() ([]string, error) {
-	visited := make(map[string]bool)
-	resolved := make(map[string]bool)
-	var order []string
-
-	var visit func(name string) error
-	visit = func(name string) error {
-		if visited[name] {
-			if !resolved[name] {
-				return fmt.Errorf("circular dependency detected at %q", name)
-			}
-			return nil
-		}
-		visited[name] = true
-
-		skill, ok := dg.skills[name]
-		if !ok {
-			return fmt.Errorf("missing dependency: %q", name)
-		}
-
-		for _, dep := range skill.Dependencies {
-			if err := visit(dep); err != nil {
-				return err
-			}
-		}
-
-		resolved[name] = true
-		order = append(order, name)
-		return nil
-	}
-
-	names := make([]string, 0, len(dg.skills))
-	for n := range dg.skills {
-		names = append(names, n)
-	}
-	sort.Strings(names)
-
-	for _, name := range names {
-		if !resolved[name] {
-			if err := visit(name); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	return order, nil
+	return composition.NewDependencyGraph()
 }
 
 type SkillComposer struct {
@@ -97,23 +34,5 @@ func (sc *SkillComposer) Compose(skills []SkillDependency) ([]string, []string, 
 }
 
 func (sc *SkillComposer) ValidateChain(chain []string) error {
-	for i, name := range chain {
-		skill, ok := sc.graph.skills[name]
-		if !ok {
-			return fmt.Errorf("skill %q not found in graph", name)
-		}
-		for _, dep := range skill.Dependencies {
-			found := false
-			for j := 0; j < i; j++ {
-				if chain[j] == dep {
-					found = true
-					break
-				}
-			}
-			if !found {
-				return fmt.Errorf("skill %q depends on %q which is not before it in chain", name, dep)
-			}
-		}
-	}
-	return nil
+	return composition.ValidateChain(sc.graph, chain)
 }
