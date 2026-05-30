@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/profiles"
 	"github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
@@ -439,22 +440,7 @@ func appendBadge(badges []string, badge string) []string {
 	return append(badges, badge)
 }
 
-func compactProfileStrings(values []string) []string {
-	out := make([]string, 0, len(values))
-	seen := map[string]struct{}{}
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			continue
-		}
-		if _, ok := seen[value]; ok {
-			continue
-		}
-		seen[value] = struct{}{}
-		out = append(out, value)
-	}
-	return out
-}
+func compactProfileStrings(values []string) []string { return channelutil.UniqueStrings(values) }
 
 func dirExists(path string) bool {
 	info, err := os.Stat(path)

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 )
 
 const (
@@ -377,24 +379,9 @@ func splitMatrixList(raw string) []string {
 	return compactMatrixStrings(strings.Split(raw, ","))
 }
 
-func compactMatrixStrings(values []string) []string {
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
-			out = append(out, trimmed)
-		}
-	}
-	return out
-}
+func compactMatrixStrings(values []string) []string { return channelutil.CompactStrings(values) }
 
-func firstMatrixNonEmpty(values ...string) string {
-	for _, value := range values {
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
-			return trimmed
-		}
-	}
-	return ""
-}
+func firstMatrixNonEmpty(values ...string) string { return channelutil.FirstNonEmpty(values...) }
 
 func matrixPermanentAuthError(raw string) bool {
 	lower := strings.ToLower(strings.TrimSpace(raw))

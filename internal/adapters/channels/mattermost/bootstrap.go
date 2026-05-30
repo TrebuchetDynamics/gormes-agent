@@ -364,15 +364,7 @@ func splitList(raw string) []string {
 	return compactStrings(parts)
 }
 
-func compactStrings(values []string) []string {
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
-			out = append(out, trimmed)
-		}
-	}
-	return out
-}
+func compactStrings(values []string) []string { return channelutil.CompactStrings(values) }
 
 func parseBoolDefault(raw string, def bool) bool {
 	switch strings.ToLower(strings.TrimSpace(raw)) {

@@ -9,6 +9,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/discord/interactions"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -484,19 +485,7 @@ func discordCommandPayloadBytes(commands []*discordgo.ApplicationCommand) []byte
 	return interactions.CommandPayloadBytes(commands)
 }
 
-func compactStrings(values []string) []string {
-	out := make([]string, 0, len(values))
-	seen := map[string]bool{}
-	for _, value := range values {
-		trimmed := strings.TrimSpace(value)
-		if trimmed == "" || seen[trimmed] {
-			continue
-		}
-		seen[trimmed] = true
-		out = append(out, trimmed)
-	}
-	return out
-}
+func compactStrings(values []string) []string { return channelutil.UniqueStrings(values) }
 
 func sortedDiscordPlatformCommands(commands []gateway.PlatformCommand) []gateway.PlatformCommand {
 	out := append([]gateway.PlatformCommand(nil), commands...)

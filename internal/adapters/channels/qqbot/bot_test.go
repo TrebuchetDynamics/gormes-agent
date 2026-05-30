@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channeltest"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -35,7 +36,7 @@ func TestBot_Run_DirectAllowListBlocksUnknownUser(t *testing.T) {
 		Text:      "hello",
 	})
 
-	assertNoInbound(t, inbox)
+	channeltest.AssertNoInbound(t, inbox)
 }
 
 func TestBot_Run_GroupRequiresMention(t *testing.T) {
@@ -55,7 +56,7 @@ func TestBot_Run_GroupRequiresMention(t *testing.T) {
 		Text:      "@Hermes /help",
 		Mentioned: false,
 	})
-	assertNoInbound(t, inbox)
+	channeltest.AssertNoInbound(t, inbox)
 
 	mc.push(InboundMessage{
 		ChatType:  ChatTypeGroup,
@@ -100,7 +101,7 @@ func TestBot_Run_GroupAllowListBlocksUnknownGroup(t *testing.T) {
 		Mentioned: true,
 	})
 
-	assertNoInbound(t, inbox)
+	channeltest.AssertNoInbound(t, inbox)
 }
 
 func TestBot_Send_UsesPassiveReplyMetadataForGroup(t *testing.T) {
@@ -189,13 +190,4 @@ func (m *mockClient) groupSnapshot() []sentMessage {
 	out := make([]sentMessage, len(m.group))
 	copy(out, m.group)
 	return out
-}
-
-func assertNoInbound(t *testing.T, inbox <-chan gateway.InboundEvent) {
-	t.Helper()
-	select {
-	case ev := <-inbox:
-		t.Fatalf("expected no inbound event, got %+v", ev)
-	case <-time.After(50 * time.Millisecond):
-	}
 }

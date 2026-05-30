@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channeltest"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -33,7 +34,7 @@ func TestBot_Run_IgnoresDisallowedSender(t *testing.T) {
 		Mentioned:        true,
 	})
 
-	assertNoInbound(t, inbox)
+	channeltest.AssertNoInbound(t, inbox)
 }
 
 func TestBot_Run_GroupMentionRequiredAndCommandNormalized(t *testing.T) {
@@ -53,7 +54,7 @@ func TestBot_Run_GroupMentionRequiredAndCommandNormalized(t *testing.T) {
 		SessionWebhook:   "https://example.invalid/hook",
 		Mentioned:        false,
 	})
-	assertNoInbound(t, inbox)
+	channeltest.AssertNoInbound(t, inbox)
 
 	mc.push(InboundMessage{
 		MessageID:        "msg-1",
@@ -170,13 +171,4 @@ func (m *mockClient) sentSnapshot() []sentReply {
 	out := make([]sentReply, len(m.sent))
 	copy(out, m.sent)
 	return out
-}
-
-func assertNoInbound(t *testing.T, inbox <-chan gateway.InboundEvent) {
-	t.Helper()
-	select {
-	case ev := <-inbox:
-		t.Fatalf("expected no inbound event, got %+v", ev)
-	case <-time.After(50 * time.Millisecond):
-	}
 }

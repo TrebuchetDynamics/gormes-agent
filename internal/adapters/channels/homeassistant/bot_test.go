@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channeltest"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -25,7 +26,7 @@ func TestBot_Run_WatchesDomainsAndFormatsClimateEvents(t *testing.T) {
 		NewState:     "22",
 		Unit:         "°C",
 	})
-	assertNoInbound(t, inbox)
+	channeltest.AssertNoInbound(t, inbox)
 
 	mc.push(StateChangeEvent{
 		EntityID:           "climate.hallway",
@@ -98,7 +99,7 @@ func TestBot_Run_SuppressesEventsInsideCooldown(t *testing.T) {
 	}
 
 	mc.push(second)
-	assertNoInbound(t, inbox)
+	channeltest.AssertNoInbound(t, inbox)
 
 	advanceNow(31 * time.Second)
 	mc.push(first)
@@ -161,13 +162,4 @@ func (m *mockClient) Close() error { return nil }
 
 func (m *mockClient) push(ev StateChangeEvent) {
 	m.events <- ev
-}
-
-func assertNoInbound(t *testing.T, inbox <-chan gateway.InboundEvent) {
-	t.Helper()
-	select {
-	case ev := <-inbox:
-		t.Fatalf("expected no inbound event, got %+v", ev)
-	case <-time.After(50 * time.Millisecond):
-	}
 }

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channeltest"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -26,7 +27,7 @@ func TestBot_Run_RequiresWebhookAuthAndNormalizesCommands(t *testing.T) {
 		Sender:         "friend@example.com",
 		Text:           "/help",
 	})
-	assertNoInbound(t, inbox)
+	channeltest.AssertNoInbound(t, inbox)
 
 	mc.push(InboundMessage{
 		AuthToken:      "secret",
@@ -158,15 +159,6 @@ func (m *mockClient) Close() error { return nil }
 
 func (m *mockClient) push(msg InboundMessage) {
 	m.events <- msg
-}
-
-func assertNoInbound(t *testing.T, inbox <-chan gateway.InboundEvent) {
-	t.Helper()
-	select {
-	case ev := <-inbox:
-		t.Fatalf("expected no inbound event, got %+v", ev)
-	case <-time.After(50 * time.Millisecond):
-	}
 }
 
 func TestBot_Send_SplitsBlankLineParagraphsIntoSeparateBubbles(t *testing.T) {

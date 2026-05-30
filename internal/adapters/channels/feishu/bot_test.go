@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channeltest"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -38,7 +39,7 @@ func TestBot_Run_WebhookRequiresVerificationToken(t *testing.T) {
 		VerifyToken: "bad-token",
 	})
 
-	assertNoInbound(t, inbox)
+	channeltest.AssertNoInbound(t, inbox)
 }
 
 func TestBot_Run_GroupRequiresMentionAndAllowlist(t *testing.T) {
@@ -63,7 +64,7 @@ func TestBot_Run_GroupRequiresMentionAndAllowlist(t *testing.T) {
 		Text:      "@Hermes /help",
 		Mentioned: true,
 	})
-	assertNoInbound(t, inbox)
+	channeltest.AssertNoInbound(t, inbox)
 
 	mc.push(InboundMessage{
 		Source:    SourceWebsocket,
@@ -74,7 +75,7 @@ func TestBot_Run_GroupRequiresMentionAndAllowlist(t *testing.T) {
 		Text:      "@Hermes /help",
 		Mentioned: false,
 	})
-	assertNoInbound(t, inbox)
+	channeltest.AssertNoInbound(t, inbox)
 
 	mc.push(InboundMessage{
 		Source:       SourceWebsocket,
@@ -188,15 +189,6 @@ func (m *mockClient) Close() error { return nil }
 
 func (m *mockClient) push(msg InboundMessage) {
 	m.events <- msg
-}
-
-func assertNoInbound(t *testing.T, inbox <-chan gateway.InboundEvent) {
-	t.Helper()
-	select {
-	case ev := <-inbox:
-		t.Fatalf("expected no inbound event, got %+v", ev)
-	case <-time.After(50 * time.Millisecond):
-	}
 }
 
 var errSendFailed = errors.New("send failed")

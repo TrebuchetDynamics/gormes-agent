@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channeltest"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -33,7 +34,7 @@ func TestBot_Run_DefaultGroupPolicyIsDisabled(t *testing.T) {
 		ContextToken: "ctx-group",
 	})
 
-	assertNoInbound(t, inbox)
+	channeltest.AssertNoInbound(t, inbox)
 }
 
 func TestBot_Run_DMAllowlistBlocksUnknownUser(t *testing.T) {
@@ -57,7 +58,7 @@ func TestBot_Run_DMAllowlistBlocksUnknownUser(t *testing.T) {
 		ContextToken: "ctx-1",
 	})
 
-	assertNoInbound(t, inbox)
+	channeltest.AssertNoInbound(t, inbox)
 }
 
 func TestBot_Send_UsesStoredContextToken(t *testing.T) {
@@ -128,13 +129,4 @@ func (m *mockClient) Close() error { return nil }
 
 func (m *mockClient) push(msg InboundMessage) {
 	m.events <- msg
-}
-
-func assertNoInbound(t *testing.T, inbox <-chan gateway.InboundEvent) {
-	t.Helper()
-	select {
-	case ev := <-inbox:
-		t.Fatalf("expected no inbound event, got %+v", ev)
-	case <-time.After(50 * time.Millisecond):
-	}
 }

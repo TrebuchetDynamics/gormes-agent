@@ -61,6 +61,38 @@ func FirstNonEmpty(values ...string) string {
 	return ""
 }
 
+// CompactStrings trims values and returns non-empty entries in their original
+// order. It intentionally preserves duplicates for configuration lists where
+// later validation may care about repeated values.
+func CompactStrings(values []string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
+}
+
+// UniqueStrings trims values and returns the first occurrence of each non-empty
+// entry in original order.
+func UniqueStrings(values []string) []string {
+	out := make([]string, 0, len(values))
+	seen := map[string]struct{}{}
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		out = append(out, trimmed)
+	}
+	return out
+}
+
 // FormatToolTrace joins SoulEntry texts and formats them as a tool trace block.
 // Behavior is identical to the duplicated function found in discord/legacy/render.go
 // and slack/render.go. Extracted to share across channel renderers.

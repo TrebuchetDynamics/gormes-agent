@@ -3,6 +3,8 @@ package media
 import (
 	"path/filepath"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 )
 
 func StickerFileName(filePath, fileUniqueID, fileID string) string {
@@ -22,14 +24,7 @@ func StickerFallbackDescription(emoji string) string {
 	return "a sticker"
 }
 
-func FirstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
-			return trimmed
-		}
-	}
-	return ""
-}
+func FirstNonEmpty(values ...string) string { return channelutil.FirstNonEmpty(values...) }
 
 func SafeToken(s string) string {
 	s = strings.TrimSpace(s)
