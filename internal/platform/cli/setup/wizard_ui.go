@@ -8,7 +8,7 @@
 //   - GORMES_NO_CLEAR_SCREEN=1 suppresses the screen-clear escape only;
 //     color escapes still apply when the writer is a TTY. Useful for users
 //     who want pretty colors but don't want their scrollback wiped.
-package cli
+package setup
 
 import (
 	"fmt"
