@@ -1,4 +1,4 @@
-package gormescli
+package contractruntime
 
 import "github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 
