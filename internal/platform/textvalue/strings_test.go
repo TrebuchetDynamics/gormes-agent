@@ -42,3 +42,11 @@ func TestCompactWhitespace(t *testing.T) {
 		t.Fatalf("CompactWhitespace() = %q", got)
 	}
 }
+
+func TestCompactKeyToken(t *testing.T) {
+	for _, in := range []string{" API_Key ", "api-key", "api.key", "api key"} {
+		if got := CompactKeyToken(in); got != "apikey" {
+			t.Fatalf("CompactKeyToken(%q) = %q, want apikey", in, got)
+		}
+	}
+}

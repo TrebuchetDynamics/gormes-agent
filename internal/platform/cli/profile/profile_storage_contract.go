@@ -4,6 +4,8 @@ import (
 	"errors"
 	"path/filepath"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 // ErrProfileBaseHomeRequired is returned when the homogeneous profile storage
@@ -48,7 +50,7 @@ func (c ProfileStorageContract) ProfilesRoot() string {
 // ProfileRoot resolves name to BaseHome/profiles/<name> for any valid profile
 // name.
 func (c ProfileStorageContract) ProfileRoot(name string) (string, error) {
-	if strings.TrimSpace(c.baseHome) == "" {
+	if !textvalue.IsNonBlank(c.baseHome) {
 		return "", ErrProfileBaseHomeRequired
 	}
 	name = strings.TrimSpace(name)

@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 var (
@@ -77,7 +79,7 @@ func CreateProfile(options ProfileCreateOptions) (ProfileCreateResult, error) {
 
 	var targetRoot string
 	var err error
-	if strings.TrimSpace(options.TargetRoot) != "" {
+	if textvalue.IsNonBlank(options.TargetRoot) {
 		targetRoot = options.TargetRoot
 	} else {
 		xdgRoot := strings.TrimSpace(options.XDGConfigHome)
@@ -98,7 +100,7 @@ func CreateProfile(options ProfileCreateOptions) (ProfileCreateResult, error) {
 
 	if options.CloneAll {
 		var sourceRoot string
-		if strings.TrimSpace(options.SourceRoot) != "" {
+		if textvalue.IsNonBlank(options.SourceRoot) {
 			sourceRoot = options.SourceRoot
 		} else {
 			xdgRoot := strings.TrimSpace(options.XDGConfigHome)

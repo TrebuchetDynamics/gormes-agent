@@ -285,7 +285,7 @@ type updateReleaseSnapshot struct {
 }
 
 func createUpdateReleaseSnapshot(ctx context.Context, snapshotPath, managedBin, publishedBin string, plan UpdateReleasePlan) (updateReleaseSnapshot, error) {
-	if strings.TrimSpace(snapshotPath) == "" {
+	if !textvalue.IsNonBlank(snapshotPath) {
 		return updateReleaseSnapshot{}, fmt.Errorf("release snapshot path is empty")
 	}
 	id := filepath.Base(snapshotPath)
@@ -381,7 +381,7 @@ func restoreUpdateReleaseSnapshotPath(ctx context.Context, source, target string
 }
 
 func resolveUpdateReleaseSnapshotPath(opts UpdateReleaseRollbackOptions) (string, error) {
-	if strings.TrimSpace(opts.SnapshotPath) != "" {
+	if textvalue.IsNonBlank(opts.SnapshotPath) {
 		return opts.SnapshotPath, nil
 	}
 	id := strings.TrimSpace(opts.SnapshotID)
@@ -399,7 +399,7 @@ func resolveUpdateReleaseSnapshotPath(opts UpdateReleaseRollbackOptions) (string
 }
 
 func replaceBinaryAtomically(source, target string) error {
-	if strings.TrimSpace(source) == "" || strings.TrimSpace(target) == "" {
+	if !textvalue.IsNonBlank(source) || !textvalue.IsNonBlank(target) {
 		return fmt.Errorf("source and target are required")
 	}
 	if info, err := os.Stat(target); err == nil && info.IsDir() {

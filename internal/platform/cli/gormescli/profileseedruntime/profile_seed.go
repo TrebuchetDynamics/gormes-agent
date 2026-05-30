@@ -12,6 +12,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/commandruntime"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/profileseed"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 type ProfileSeedSeams struct {
@@ -149,7 +150,7 @@ func profileSeedBuildProvenance(seams ProfileSeedSeams) commandruntime.BuildProv
 }
 
 func redactProfileSeedPath(path string) string {
-	if strings.TrimSpace(path) == "" {
+	if !textvalue.IsNonBlank(path) {
 		return ""
 	}
 	return redaction.RedactPathTail(path)

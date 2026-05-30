@@ -310,7 +310,7 @@ type updateReleaseAssetSnapshotFile struct {
 }
 
 func createUpdateReleaseAssetSnapshot(ctx context.Context, snapshotPath string, opts UpdateReleaseAssetSkillSyncOptions) (updateReleaseAssetSnapshot, error) {
-	if strings.TrimSpace(snapshotPath) == "" {
+	if !textvalue.IsNonBlank(snapshotPath) {
 		return updateReleaseAssetSnapshot{}, fmt.Errorf("release asset snapshot path is empty")
 	}
 	if err := os.MkdirAll(snapshotPath, 0o755); err != nil {
@@ -378,7 +378,7 @@ func updateReleaseSnapshotTargetPaths(opts UpdateReleaseAssetSkillSyncOptions) [
 func updateReleaseSkillSnapshotTargets(opts UpdateReleaseAssetSkillSyncOptions) []string {
 	var out []string
 	for _, profile := range opts.SkillProfiles {
-		if strings.TrimSpace(profile.Root) == "" {
+		if !textvalue.IsNonBlank(profile.Root) {
 			continue
 		}
 		for _, entry := range opts.Manifest.Skills {
@@ -504,7 +504,7 @@ func rollbackUpdateReleaseAssetSnapshotIntoReport(ctx context.Context, report *U
 }
 
 func updateReleasePayloadPath(root, rel string) (string, error) {
-	if strings.TrimSpace(root) == "" {
+	if !textvalue.IsNonBlank(root) {
 		return "", fmt.Errorf("payload root is empty")
 	}
 	clean, err := cleanUpdateReleaseManifestPath(rel)
@@ -529,7 +529,7 @@ func updateReleasePayloadPath(root, rel string) (string, error) {
 }
 
 func updateReleaseTargetPath(root, rel string) (string, error) {
-	if strings.TrimSpace(root) == "" {
+	if !textvalue.IsNonBlank(root) {
 		return "", fmt.Errorf("target root is empty")
 	}
 	clean, err := cleanUpdateReleaseManifestPath(rel)
@@ -548,7 +548,7 @@ func updateReleasePathWithin(root, target string) bool {
 }
 
 func replaceReleaseDataFile(source, target string) error {
-	if strings.TrimSpace(source) == "" || strings.TrimSpace(target) == "" {
+	if !textvalue.IsNonBlank(source) || !textvalue.IsNonBlank(target) {
 		return fmt.Errorf("source and target are required")
 	}
 	if info, err := os.Stat(target); err == nil && info.IsDir() {

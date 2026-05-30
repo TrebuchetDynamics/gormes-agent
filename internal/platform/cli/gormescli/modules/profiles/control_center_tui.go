@@ -149,7 +149,7 @@ func writeControlCenterRowsForGroup(b *strings.Builder, rows []ControlCenterTUIR
 			wroteHeader = true
 		}
 		name := row.DisplayName
-		if strings.TrimSpace(name) == "" {
+		if !textvalue.IsNonBlank(name) {
 			name = "(unnamed)"
 		}
 		marker := ""

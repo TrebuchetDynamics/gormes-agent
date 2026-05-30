@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 type UpdateBinaryPublishOptions struct {
@@ -286,7 +288,7 @@ func copyFile(source, target string) error {
 }
 
 func samePath(a, b string) bool {
-	if strings.TrimSpace(a) == "" || strings.TrimSpace(b) == "" {
+	if !textvalue.IsNonBlank(a) || !textvalue.IsNonBlank(b) {
 		return false
 	}
 	aa, errA := filepath.Abs(a)

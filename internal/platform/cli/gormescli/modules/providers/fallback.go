@@ -198,7 +198,7 @@ func runFallbackRemove(cmd *cobra.Command) error {
 	fmt.Fprintf(out, "Choice [1-%d]: ", len(cfg.Chain)+1)
 	reader := bufio.NewReader(cmd.InOrStdin())
 	line, err := reader.ReadString('\n')
-	if err != nil && strings.TrimSpace(line) == "" {
+	if err != nil && !textvalue.IsNonBlank(line) {
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, "  Cancelled — no change.")
 		return nil
@@ -255,7 +255,7 @@ func runFallbackClear(cmd *cobra.Command) error {
 	fmt.Fprint(out, "  Clear all entries? [y/N]: ")
 	reader := bufio.NewReader(cmd.InOrStdin())
 	line, err := reader.ReadString('\n')
-	if err != nil && strings.TrimSpace(line) == "" {
+	if err != nil && !textvalue.IsNonBlank(line) {
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, "  Cancelled.")
 		return nil
@@ -295,7 +295,7 @@ func readFallbackTOML(path string) (map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fallback: read config: %w", err)
 	}
-	if strings.TrimSpace(string(body)) == "" {
+	if !textvalue.IsNonBlank(string(body)) {
 		return doc, nil
 	}
 	if err := toml.Unmarshal(body, &doc); err != nil {

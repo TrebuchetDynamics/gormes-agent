@@ -240,7 +240,7 @@ func (b SelfMonitoringBridge) RecordReasoningTrace(ctx context.Context, trace Re
 func NormalizeEvent(event Event, now time.Time) Event {
 	event.Name = strings.TrimSpace(event.Name)
 	event.UpstreamEvent = strings.TrimSpace(event.UpstreamEvent)
-	if entry, ok := LookupTelemetryEvent(firstNonEmpty(event.UpstreamEvent, event.Name)); ok {
+	if entry, ok := LookupTelemetryEvent(textvalue.FirstNonEmptyTrimmed(event.UpstreamEvent, event.Name)); ok {
 		if event.Name == "" {
 			event.Name = entry.LocalEvent
 		}
@@ -481,10 +481,6 @@ func (b SelfMonitoringBridge) now() time.Time {
 		return time.Now().UTC()
 	}
 	return b.Now().UTC()
-}
-
-func firstNonEmpty(values ...string) string {
-	return textvalue.FirstNonEmptyTrimmed(values...)
 }
 
 func stablePayloadString(value any) string {

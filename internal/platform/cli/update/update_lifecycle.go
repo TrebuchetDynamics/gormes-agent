@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 type UpdateEvidenceKind string
@@ -678,7 +680,7 @@ func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) (re
 	}
 
 	stashRef := ""
-	if status := options.Git.RunGit(ctx, checkoutDir, "status", "--porcelain"); strings.TrimSpace(status.Stdout) != "" {
+	if status := options.Git.RunGit(ctx, checkoutDir, "status", "--porcelain"); textvalue.IsNonBlank(status.Stdout) {
 		if result := options.Git.RunGit(ctx, checkoutDir, "stash", "push", "--include-untracked", "-m", "gormes-update-autostash"); result.Err != nil {
 			report.Failed = true
 			report.add(UpdateEvidenceAutostashPreserved, gitFailureDetail(result))
@@ -725,7 +727,7 @@ func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) (re
 			return report
 		}
 		conflicts := options.Git.RunGit(ctx, checkoutDir, "diff", "--name-only", "--diff-filter=U")
-		if strings.TrimSpace(conflicts.Stdout) != "" || conflicts.Err != nil {
+		if textvalue.IsNonBlank(conflicts.Stdout) || conflicts.Err != nil {
 			report.Failed = true
 			report.add(UpdateEvidenceAutostashPreserved, "restore produced conflicts; stash preserved")
 			report.OperatorRecovery = stashRecovery(stashRef)
@@ -827,10 +829,10 @@ func classifyUpdateGitFailure(result UpdateGitResult) UpdateEvidenceKind {
 }
 
 func gitFailureDetail(result UpdateGitResult) string {
-	if strings.TrimSpace(result.Stderr) != "" {
+	if textvalue.IsNonBlank(result.Stderr) {
 		return strings.TrimSpace(result.Stderr)
 	}
-	if strings.TrimSpace(result.Stdout) != "" {
+	if textvalue.IsNonBlank(result.Stdout) {
 		return strings.TrimSpace(result.Stdout)
 	}
 	if result.Err != nil {

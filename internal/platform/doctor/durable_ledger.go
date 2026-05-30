@@ -329,10 +329,10 @@ func parseDurableRSSWatchdogEvent(eventType, workerID, reason, payloadJSON strin
 		} `json:"evidence"`
 	}
 	if json.Unmarshal([]byte(payloadJSON), &payload) == nil {
-		if strings.TrimSpace(payload.WorkerID) != "" {
+		if textvalue.IsNonBlank(payload.WorkerID) {
 			event.WorkerID = strings.TrimSpace(payload.WorkerID)
 		}
-		if strings.TrimSpace(payload.Reason) != "" {
+		if textvalue.IsNonBlank(payload.Reason) {
 			event.Reason = strings.TrimSpace(payload.Reason)
 		}
 		event.JobID = strings.TrimSpace(payload.JobID)

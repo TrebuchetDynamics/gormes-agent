@@ -43,8 +43,8 @@ func RenderAuthStatus(ctx context.Context, out io.Writer, providerInput string, 
 	if out != nil {
 		fmt.Fprintf(out, "auth_status provider=%s status=%s auth_type=%s reason=%s credentials=%d redacted=%t\n", status.Provider, status.Status, status.AuthType, status.Reason, len(status.Credentials), status.Redacted)
 		for i, entry := range status.Credentials {
-			entryStatus := firstAuthStatusNonEmpty(entry.LastStatus, config.CredentialStatusOK)
-			reason := firstAuthStatusNonEmpty(entry.LastErrorReason, "-")
+			entryStatus := textvalue.FirstNonEmptyTrimmed(entry.LastStatus, config.CredentialStatusOK)
+			reason := textvalue.FirstNonEmptyTrimmed(entry.LastErrorReason, "-")
 			fmt.Fprintf(out, "  %d. id=%s label=%s auth_type=%s source=%s status=%s reason=%s redacted=%t\n", i+1, entry.ID, entry.Label, entry.AuthType, displayAuthStatusSource(entry.Source), entryStatus, reason, entry.SecretsRedacted)
 		}
 	}
@@ -86,10 +86,10 @@ func resolveCredentialPoolStatus(provider, authType string, opts AuthStatusOptio
 	}
 	poolStatus, evidence, err := loader(provider)
 	if err != nil {
-		return ProviderAuthStatus{Provider: provider, AuthType: authType, Status: AuthStatusError, Reason: firstAuthStatusNonEmpty(evidence.Code, config.CredentialPoolEvidenceCorrupt), Redacted: true}, err
+		return ProviderAuthStatus{Provider: provider, AuthType: authType, Status: AuthStatusError, Reason: textvalue.FirstNonEmptyTrimmed(evidence.Code, config.CredentialPoolEvidenceCorrupt), Redacted: true}, err
 	}
 	if poolStatus.Count == 0 {
-		return ProviderAuthStatus{Provider: provider, AuthType: authType, Status: AuthStatusLoggedOut, Reason: firstAuthStatusNonEmpty(evidence.Code, config.CredentialPoolEvidenceEmpty), Redacted: true}, nil
+		return ProviderAuthStatus{Provider: provider, AuthType: authType, Status: AuthStatusLoggedOut, Reason: textvalue.FirstNonEmptyTrimmed(evidence.Code, config.CredentialPoolEvidenceEmpty), Redacted: true}, nil
 	}
 	return ProviderAuthStatus{Provider: provider, AuthType: authType, Status: AuthStatusLoggedIn, Authenticated: true, Reason: config.CredentialPoolEvidenceLoaded, Redacted: true, Credentials: poolStatus.Entries}, nil
 }
@@ -102,9 +102,9 @@ func resolveCodexStatus(opts AuthStatusOptions) (ProviderAuthStatus, error) {
 	}
 	status, err := check()
 	if err != nil {
-		return ProviderAuthStatus{Provider: config.CodexOAuthProvider, AuthType: "oauth_external", Status: AuthStatusError, Reason: firstAuthStatusNonEmpty(status.Code, config.CodexOAuthStatusCorrupt), Redacted: true}, err
+		return ProviderAuthStatus{Provider: config.CodexOAuthProvider, AuthType: "oauth_external", Status: AuthStatusError, Reason: textvalue.FirstNonEmptyTrimmed(status.Code, config.CodexOAuthStatusCorrupt), Redacted: true}, err
 	}
-	out := ProviderAuthStatus{Provider: config.CodexOAuthProvider, AuthType: "oauth_external", Reason: firstAuthStatusNonEmpty(status.Code, status.Evidence), Redacted: true}
+	out := ProviderAuthStatus{Provider: config.CodexOAuthProvider, AuthType: "oauth_external", Reason: textvalue.FirstNonEmptyTrimmed(status.Code, status.Evidence), Redacted: true}
 	if status.Authenticated {
 		out.Status = AuthStatusLoggedIn
 		out.Authenticated = true
@@ -123,9 +123,9 @@ func resolveAnthropicStatus(ctx context.Context, opts AuthStatusOptions) (Provid
 	}
 	status, err := check(ctx)
 	if err != nil {
-		return ProviderAuthStatus{Provider: config.AnthropicProvider, AuthType: config.CredentialAuthOAuth, Status: AuthStatusError, Reason: firstAuthStatusNonEmpty(status.Code, config.AnthropicAuthStatusCorrupt), Redacted: true}, err
+		return ProviderAuthStatus{Provider: config.AnthropicProvider, AuthType: config.CredentialAuthOAuth, Status: AuthStatusError, Reason: textvalue.FirstNonEmptyTrimmed(status.Code, config.AnthropicAuthStatusCorrupt), Redacted: true}, err
 	}
-	out := ProviderAuthStatus{Provider: config.AnthropicProvider, AuthType: config.CredentialAuthOAuth, Reason: firstAuthStatusNonEmpty(status.Code, status.Evidence), Redacted: true}
+	out := ProviderAuthStatus{Provider: config.AnthropicProvider, AuthType: config.CredentialAuthOAuth, Reason: textvalue.FirstNonEmptyTrimmed(status.Code, status.Evidence), Redacted: true}
 	if status.Authenticated {
 		out.Status = AuthStatusLoggedIn
 		out.Authenticated = true
@@ -143,9 +143,9 @@ func resolveGoogleCLIStatus(opts AuthStatusOptions) (ProviderAuthStatus, error) 
 	}
 	status, err := check()
 	if err != nil {
-		return ProviderAuthStatus{Provider: "google-gemini-cli", AuthType: "oauth_external", Status: AuthStatusError, Reason: firstAuthStatusNonEmpty(status.Code, config.GoogleOAuthStatusCorrupt), Redacted: true}, err
+		return ProviderAuthStatus{Provider: "google-gemini-cli", AuthType: "oauth_external", Status: AuthStatusError, Reason: textvalue.FirstNonEmptyTrimmed(status.Code, config.GoogleOAuthStatusCorrupt), Redacted: true}, err
 	}
-	out := ProviderAuthStatus{Provider: "google-gemini-cli", AuthType: "oauth_external", Reason: firstAuthStatusNonEmpty(status.Code, status.Evidence), Redacted: true}
+	out := ProviderAuthStatus{Provider: "google-gemini-cli", AuthType: "oauth_external", Reason: textvalue.FirstNonEmptyTrimmed(status.Code, status.Evidence), Redacted: true}
 	if status.Authenticated {
 		out.Status = AuthStatusLoggedIn
 		out.Authenticated = true
@@ -157,8 +157,4 @@ func resolveGoogleCLIStatus(opts AuthStatusOptions) (ProviderAuthStatus, error) 
 
 func displayAuthStatusSource(source string) string {
 	return strings.TrimPrefix(strings.TrimSpace(source), "manual:")
-}
-
-func firstAuthStatusNonEmpty(values ...string) string {
-	return textvalue.FirstNonEmptyTrimmed(values...)
 }

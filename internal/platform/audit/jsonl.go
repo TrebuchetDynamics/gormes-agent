@@ -68,7 +68,7 @@ func NewJSONLWriter(path string) *JSONLWriter {
 
 func TrajectoryWriteAuditRecord(in TrajectoryWriteAuditInput) Record {
 	status := "completed"
-	if strings.Contains(textvalue.LowerTrim(in.Code), "failed") || strings.TrimSpace(in.Error) != "" {
+	if strings.Contains(textvalue.LowerTrim(in.Code), "failed") || textvalue.IsNonBlank(in.Error) {
 		status = "failed"
 	}
 	args, err := json.Marshal(map[string]any{
@@ -218,8 +218,7 @@ func marshalAuditArgs(value any) json.RawMessage {
 }
 
 func sensitiveAuditField(key string) bool {
-	normalized := textvalue.LowerTrim(key)
-	normalized = strings.NewReplacer("_", "", "-", "", ".", "", " ", "").Replace(normalized)
+	normalized := textvalue.CompactKeyToken(key)
 	if normalized == "" {
 		return false
 	}
@@ -240,8 +239,7 @@ func sensitiveAuditField(key string) bool {
 }
 
 func rightEdgeAuditField(key string) bool {
-	normalized := textvalue.LowerTrim(key)
-	normalized = strings.NewReplacer("_", "", "-", "", ".", "", " ", "").Replace(normalized)
+	normalized := textvalue.CompactKeyToken(key)
 	switch {
 	case normalized == "url",
 		normalized == "uri",

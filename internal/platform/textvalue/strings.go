@@ -2,6 +2,8 @@ package textvalue
 
 import "strings"
 
+var keyTokenReplacer = strings.NewReplacer("_", "", "-", "", ".", "", " ", "")
+
 // IsNonBlank reports whether value has any non-whitespace content.
 func IsNonBlank(value string) bool {
 	return strings.TrimSpace(value) != ""
@@ -36,4 +38,11 @@ func FirstNonEmptyTrimmed(values ...string) string {
 // space for command paths, seeds, and other operator-facing identifiers.
 func CompactWhitespace(value string) string {
 	return strings.Join(strings.Fields(strings.TrimSpace(value)), " ")
+}
+
+// CompactKeyToken lowercases, trims, and removes the separators commonly used
+// in JSON/log field names so policy checks can match api_key, api-key,
+// api.key, and api key with one contract.
+func CompactKeyToken(value string) string {
+	return keyTokenReplacer.Replace(LowerTrim(value))
 }

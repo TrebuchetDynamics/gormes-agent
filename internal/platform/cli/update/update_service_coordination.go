@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 const (
@@ -324,7 +326,7 @@ type fileUpdateLockHandle struct {
 }
 
 func (h fileUpdateLockHandle) Release() error {
-	if strings.TrimSpace(h.path) == "" {
+	if !textvalue.IsNonBlank(h.path) {
 		return nil
 	}
 	if err := os.Remove(h.path); err != nil && !errors.Is(err, os.ErrNotExist) {

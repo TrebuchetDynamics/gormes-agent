@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
@@ -423,7 +422,7 @@ func homeAssistantDefaultPlatform(platform string) bool {
 }
 
 func hasHomeAssistantToken() bool {
-	return strings.TrimSpace(os.Getenv(hassTokenEnv)) != ""
+	return textvalue.IsNonBlank(os.Getenv(hassTokenEnv))
 }
 
 func knownManifestToolsets(manifest tools.UpstreamToolParityManifest) map[string]struct{} {

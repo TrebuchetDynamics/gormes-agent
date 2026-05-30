@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 const (
@@ -229,7 +231,7 @@ func (a *PtyAdapter) requireSession() (PtySession, error) {
 }
 
 func normalizePtySpawnRequest(req PtySpawnRequest) (PtySpawnRequest, error) {
-	if len(req.Argv) == 0 || strings.TrimSpace(req.Argv[0]) == "" {
+	if len(req.Argv) == 0 || !textvalue.IsNonBlank(req.Argv[0]) {
 		return PtySpawnRequest{}, invalidPtyMessage("argv[0] is required")
 	}
 	if req.Cols == 0 {

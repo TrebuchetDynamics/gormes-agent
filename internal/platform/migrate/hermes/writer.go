@@ -561,7 +561,7 @@ func applyDisplayConfigValue(doc map[string]any, value any) error {
 				continue
 			}
 			entry := asTable(platforms[key])
-			if strings.TrimSpace(fmt.Sprint(entry["tool_progress"])) != "" && fmt.Sprint(entry["tool_progress"]) != "<nil>" {
+			if textvalue.IsNonBlank(fmt.Sprint(entry["tool_progress"])) && fmt.Sprint(entry["tool_progress"]) != "<nil>" {
 				continue
 			}
 			if mode, ok := normalizeMigratedToolProgressMode(rawMode); ok {

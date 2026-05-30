@@ -17,6 +17,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/provider"
 )
 
@@ -302,7 +303,7 @@ func runProfileChannelsCommand(cmd *cobra.Command, seams Seams, asJSON bool, opt
 func profileChannelEvidenceCodes(evidence []gateway.ProfileChannelReadinessEvidence) string {
 	codes := make([]string, 0, len(evidence))
 	for _, item := range evidence {
-		if strings.TrimSpace(item.Code) != "" {
+		if textvalue.IsNonBlank(item.Code) {
 			codes = append(codes, item.Code)
 		}
 	}
@@ -895,7 +896,7 @@ func manifestPointer(manifest cli.ProfileDistributionManifest, ok bool) *cli.Pro
 }
 
 func profileDistributionSummaryJSONFromManifest(manifest *cli.ProfileDistributionManifest) *profileDistributionSummaryJSON {
-	if manifest == nil || strings.TrimSpace(manifest.Name) == "" {
+	if manifest == nil || !textvalue.IsNonBlank(manifest.Name) {
 		return nil
 	}
 	return &profileDistributionSummaryJSON{

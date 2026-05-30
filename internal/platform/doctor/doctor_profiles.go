@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 // DoctorProfileInventory is the small caller-facing seam the ◆ Profiles
@@ -158,7 +160,7 @@ func doctorProfileItemStatus(name string, inv DoctorProfileInventory, defaultOnl
 				status = StatusWarn
 				parts = append(parts, "config missing")
 			}
-		case strings.TrimSpace(cfg.Provider) == "" || strings.TrimSpace(cfg.Model) == "":
+		case !textvalue.IsNonBlank(cfg.Provider) || !textvalue.IsNonBlank(cfg.Model):
 			if !defaultOnly {
 				status = StatusWarn
 			}

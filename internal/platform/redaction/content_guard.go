@@ -153,7 +153,7 @@ func CheckSensitivePath(path string) SensitivePathDecision {
 }
 
 func DetectPromptInjection(text string) []string {
-	if strings.TrimSpace(text) == "" {
+	if !textvalue.IsNonBlank(text) {
 		return nil
 	}
 	seen := map[string]struct{}{}
