@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/configreload"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/textvalue"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 var ErrConfigReloadUnavailable = configreload.ErrUnavailable
