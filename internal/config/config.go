@@ -12,6 +12,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config/paths"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config/prefill"
+	routerconfig "github.com/TrebuchetDynamics/gormes-agent/internal/config/router"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config/skillsconfig"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/pelletier/go-toml/v2"
@@ -138,13 +139,7 @@ type WebsiteBlocklistCfg struct {
 }
 
 // SkillsCfg configures the Phase 2.G0 static skills runtime.
-type SkillsCfg struct {
-	Root             string   `toml:"root" yaml:"root"`
-	SelectionCap     int      `toml:"selection_cap" yaml:"selection_cap"`
-	MaxDocumentBytes int      `toml:"max_document_bytes" yaml:"max_document_bytes"`
-	UsageLogPath     string   `toml:"usage_log_path" yaml:"usage_log_path"`
-	ExternalDirs     []string `toml:"external_dirs" yaml:"external_dirs"`
-}
+type SkillsCfg = skillsconfig.Config
 
 const (
 	SkillsExternalDirResolved = skillsconfig.ExternalDirResolved
@@ -162,35 +157,9 @@ type HermesCfg struct {
 	ModelResolutionSource string     `toml:"-" yaml:"-" json:"model_resolution_source,omitempty"`
 }
 
-type RouterCfg struct {
-	Enabled    bool                `toml:"enabled" yaml:"enabled"`
-	Listen     string              `toml:"listen" yaml:"listen"`
-	APIKeys    []string            `toml:"api_keys" yaml:"api_keys"`
-	APIKeyEnv  string              `toml:"api_key_env" yaml:"api_key_env"`
-	RedactLogs bool                `toml:"redact_logs" yaml:"redact_logs"`
-	SetupMode  string              `toml:"setup_mode" yaml:"setup_mode"`
-	Routes     []RouterRouteCfg    `toml:"routes" yaml:"routes"`
-	Fallback   []RouterFallbackCfg `toml:"fallback" yaml:"fallback"`
-}
-
-type RouterRouteCfg struct {
-	Name      string     `toml:"name" yaml:"name"`
-	Provider  string     `toml:"provider" yaml:"provider"`
-	Model     string     `toml:"model" yaml:"model"`
-	Alias     string     `toml:"alias" yaml:"alias"`
-	BaseURL   string     `toml:"base_url" yaml:"base_url"`
-	APIKeyEnv string     `toml:"api_key_env" yaml:"api_key_env"`
-	APIKeyRef *SecretRef `toml:"api_key_ref" yaml:"api_key_ref" json:"api_key_ref,omitempty"`
-	Transport string     `toml:"transport" yaml:"transport"`
-	Optional  bool       `toml:"optional" yaml:"optional"`
-	Weight    int        `toml:"weight" yaml:"weight"`
-}
-
-type RouterFallbackCfg struct {
-	From string   `toml:"from" yaml:"from"`
-	To   string   `toml:"to" yaml:"to"`
-	On   []string `toml:"on" yaml:"on"`
-}
+type RouterCfg = routerconfig.Config
+type RouterRouteCfg = routerconfig.RouteConfig
+type RouterFallbackCfg = routerconfig.Fallback
 
 type AgentRuntimeCfg struct {
 	ImageInputMode      string            `toml:"image_input_mode" yaml:"image_input_mode"`

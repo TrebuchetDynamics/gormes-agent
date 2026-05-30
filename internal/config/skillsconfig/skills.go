@@ -13,6 +13,14 @@ const (
 	ExternalDirSkipped  = "skills_external_dir_skipped"
 )
 
+type Config struct {
+	Root             string   `toml:"root" yaml:"root"`
+	SelectionCap     int      `toml:"selection_cap" yaml:"selection_cap"`
+	MaxDocumentBytes int      `toml:"max_document_bytes" yaml:"max_document_bytes"`
+	UsageLogPath     string   `toml:"usage_log_path" yaml:"usage_log_path"`
+	ExternalDirs     []string `toml:"external_dirs" yaml:"external_dirs"`
+}
+
 type ExternalDirEvidence struct {
 	Code   string
 	Input  string
