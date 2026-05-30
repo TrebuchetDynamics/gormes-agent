@@ -4,46 +4,29 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel/goncho"
 )
 
-var ErrGonchoUnavailable = errors.New("goncho not configured")
+var ErrGonchoUnavailable = goncho.ErrUnavailable
 
-type GonchoStore interface {
-	AppendTurn(ctx context.Context, peer, sessionKey, role, content string) error
-	GetContext(ctx context.Context, sessionKey string, maxTokens int) (string, error)
-	OnSessionEnd(ctx context.Context, sessionKey string, messages []llm.Message) error
-	Observe(ctx context.Context, obs GonchoObservation) error
-}
+type GonchoStore = goncho.Store
 
-type GonchoObservationKind string
+type GonchoObservationKind = goncho.ObservationKind
 
 const (
-	GonchoObservationSessionStart      GonchoObservationKind = "session_start"
-	GonchoObservationUserPrompt        GonchoObservationKind = "user_prompt"
-	GonchoObservationToolCall          GonchoObservationKind = "tool_call"
-	GonchoObservationToolResult        GonchoObservationKind = "tool_result"
-	GonchoObservationToolError         GonchoObservationKind = "tool_error"
-	GonchoObservationAssistantResponse GonchoObservationKind = "assistant_response"
-	GonchoObservationCompact           GonchoObservationKind = "compact"
-	GonchoObservationSessionEnd        GonchoObservationKind = "session_end"
-	GonchoObservationCustom            GonchoObservationKind = "custom"
+	GonchoObservationSessionStart      = goncho.ObservationSessionStart
+	GonchoObservationUserPrompt        = goncho.ObservationUserPrompt
+	GonchoObservationToolCall          = goncho.ObservationToolCall
+	GonchoObservationToolResult        = goncho.ObservationToolResult
+	GonchoObservationToolError         = goncho.ObservationToolError
+	GonchoObservationAssistantResponse = goncho.ObservationAssistantResponse
+	GonchoObservationCompact           = goncho.ObservationCompact
+	GonchoObservationSessionEnd        = goncho.ObservationSessionEnd
+	GonchoObservationCustom            = goncho.ObservationCustom
 )
 
-type GonchoObservation struct {
-	Kind       GonchoObservationKind
-	PeerID     string
-	SessionKey string
-	ContextID  string
-	Input      string
-	Output     string
-	Success    *bool
-	Metadata   map[string]string
-	ObservedAt time.Time
-	Reason     string
-}
+type GonchoObservation = goncho.Observation
 
 func (k *Kernel) writeGonchoUserTurn(ctx context.Context, text, turnKey string) {
 	if k.cfg.Goncho == nil {

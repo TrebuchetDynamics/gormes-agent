@@ -18,6 +18,9 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agent"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel/fallback"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel/lifecycle"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
@@ -34,7 +37,7 @@ var ErrEventMailboxFull = errors.New("kernel: event mailbox full")
 const DefaultMaxToolIterations = 90
 const defaultMaxEmptyResponseRetries = 3
 
-type FallbackClientFactory func(context.Context, llm.ModelRoute) (llm.Client, error)
+type FallbackClientFactory = fallback.ClientFactory
 
 type Config struct {
 	Model    string
@@ -107,35 +110,21 @@ type Config struct {
 	AgentMiddleware *agent.MiddlewareChain
 }
 
-// AgentLifecyclePoint identifies the lifecycle stage.
-type AgentLifecyclePoint string
+type AgentLifecyclePoint = lifecycle.Point
 
 const (
-	AgentLifecycleStart AgentLifecyclePoint = "agent:start"
-	AgentLifecycleStep  AgentLifecyclePoint = "agent:step"
-	AgentLifecycleEnd   AgentLifecyclePoint = "agent:end"
+	AgentLifecycleStart = lifecycle.Start
+	AgentLifecycleStep  = lifecycle.Step
+	AgentLifecycleEnd   = lifecycle.End
 )
 
-// AgentLifecycleEvent is passed to AgentLifecycleHook.
-type AgentLifecycleEvent struct {
-	Point     AgentLifecyclePoint
-	SessionID string
-	Iteration int
-	ToolNames []string
-	Err       error
-}
+type AgentLifecycleEvent = lifecycle.Event
 
-// AgentLifecycleHook is a callback for agent turn lifecycle events.
-// Nil means no lifecycle events are emitted.
-type AgentLifecycleHook func(ctx context.Context, ev AgentLifecycleEvent)
+type AgentLifecycleHook = lifecycle.Hook
 
-type SkillProvider interface {
-	BuildSkillBlock(ctx context.Context, userMessage string) (string, []string, error)
-}
+type SkillProvider = skills.Provider
 
-type SkillUsageRecorder interface {
-	RecordSkillUsage(ctx context.Context, skillNames []string) error
-}
+type SkillUsageRecorder = skills.UsageRecorder
 
 type memorySyncSkipper interface {
 	SkipMemorySync(ctx context.Context, turnKey, reason string) error
