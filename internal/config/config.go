@@ -197,36 +197,6 @@ type CodeExecutionCfg struct {
 	Mode string `toml:"mode" yaml:"mode"`
 }
 
-type GatewayCfg struct {
-	ProxyURL  string                        `toml:"proxy_url" yaml:"proxy_url"`
-	ProxyKey  string                        `toml:"proxy_key" yaml:"proxy_key"`
-	Platforms map[string]GatewayPlatformCfg `toml:"platforms" yaml:"platforms"`
-}
-
-type GatewayPlatformCfg struct {
-	GatewayRestartNotification *bool `toml:"gateway_restart_notification" yaml:"gateway_restart_notification"`
-}
-
-type DisplayCfg struct {
-	Language                 string                        `toml:"language" yaml:"language"`
-	Personality              string                        `toml:"personality" yaml:"personality"`
-	ToolProgress             string                        `toml:"tool_progress" yaml:"tool_progress"`
-	ToolProgressCommand      bool                          `toml:"tool_progress_command" yaml:"tool_progress_command"`
-	ShowReasoning            bool                          `toml:"show_reasoning" yaml:"show_reasoning"`
-	Streaming                bool                          `toml:"streaming" yaml:"streaming"`
-	BellOnComplete           bool                          `toml:"bell_on_complete" yaml:"bell_on_complete"`
-	Compact                  bool                          `toml:"compact" yaml:"compact"`
-	CleanupProgress          bool                          `toml:"cleanup_progress" yaml:"cleanup_progress"`
-	InterimAssistantMessages bool                          `toml:"interim_assistant_messages" yaml:"interim_assistant_messages"`
-	BackgroundProcessNotifs  string                        `toml:"background_process_notifications" yaml:"background_process_notifications"`
-	BusyInputMode            string                        `toml:"busy_input_mode" yaml:"busy_input_mode"`
-	Platforms                map[string]DisplayPlatformCfg `toml:"platforms" yaml:"platforms"`
-}
-
-type DisplayPlatformCfg struct {
-	ToolProgress string `toml:"tool_progress" yaml:"tool_progress"`
-}
-
 type TUICfg struct {
 	Theme         string `toml:"theme" yaml:"theme"`
 	MouseTracking bool   `toml:"mouse_tracking" yaml:"mouse_tracking"`
@@ -235,26 +205,6 @@ type TUICfg struct {
 type InputCfg struct {
 	MaxBytes int `toml:"max_bytes" yaml:"max_bytes"`
 	MaxLines int `toml:"max_lines" yaml:"max_lines"`
-}
-
-type STTCfg struct {
-	Enabled  bool           `toml:"enabled" yaml:"enabled"`
-	Provider string         `toml:"provider" yaml:"provider"`
-	Local    STTLocalCfg    `toml:"local" yaml:"local"`
-	OpenAI   STTProviderCfg `toml:"openai" yaml:"openai"`
-}
-
-type STTLocalCfg struct {
-	Model    string `toml:"model" yaml:"model"`
-	Language string `toml:"language" yaml:"language"`
-}
-
-type STTProviderCfg struct {
-	Model string `toml:"model" yaml:"model"`
-}
-
-type VoiceCfg struct {
-	RecordKey string `toml:"record_key" yaml:"record_key"`
 }
 
 // Load resolves configuration from (in precedence order) CLI flags, env vars,
@@ -463,99 +413,6 @@ func loadFile(cfg *Config) error {
 	}
 	normalizeDecodedConfigVersion(cfg)
 	return migrateConfig(cfg)
-}
-
-func normalizeDisplayPlatformKey(platform string) string {
-	return strings.ToLower(strings.TrimSpace(platform))
-}
-
-func normalizeGatewayPlatformKey(platform string) string {
-	return strings.ToLower(strings.TrimSpace(platform))
-}
-
-func normalizeGatewayPlatformMap(in map[string]GatewayPlatformCfg) map[string]GatewayPlatformCfg {
-	if len(in) == 0 {
-		return nil
-	}
-	out := make(map[string]GatewayPlatformCfg, len(in))
-	for platform, cfg := range in {
-		key := normalizeGatewayPlatformKey(platform)
-		if key == "" {
-			continue
-		}
-		out[key] = cfg
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
-}
-
-func (c Config) GatewayRestartNotificationEnabled(platform string) bool {
-	key := normalizeGatewayPlatformKey(platform)
-	if key == "" || len(c.Gateway.Platforms) == 0 {
-		return true
-	}
-	cfg, ok := c.Gateway.Platforms[key]
-	if !ok || cfg.GatewayRestartNotification == nil {
-		return true
-	}
-	return *cfg.GatewayRestartNotification
-}
-
-func (c Config) GatewayRestartNotifications() map[string]bool {
-	if len(c.Gateway.Platforms) == 0 {
-		return nil
-	}
-	out := make(map[string]bool)
-	for platform, cfg := range c.Gateway.Platforms {
-		if cfg.GatewayRestartNotification == nil {
-			continue
-		}
-		key := normalizeGatewayPlatformKey(platform)
-		if key == "" {
-			continue
-		}
-		out[key] = *cfg.GatewayRestartNotification
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
-}
-
-func normalizeHermesToolProgressMode(raw interface{}) (string, bool) {
-	switch v := raw.(type) {
-	case nil:
-		return "", false
-	case bool:
-		if v {
-			return "all", true
-		}
-		return "off", true
-	case string:
-		mode := strings.ToLower(strings.TrimSpace(v))
-		if mode == "" {
-			return "", false
-		}
-		switch mode {
-		case "off", "new", "all", "verbose":
-			return mode, true
-		default:
-			return "all", true
-		}
-	default:
-		mode := strings.ToLower(strings.TrimSpace(fmt.Sprint(v)))
-		if mode == "" {
-			return "", false
-		}
-		switch mode {
-		case "off", "new", "all", "verbose":
-			return mode, true
-		default:
-			return "all", true
-		}
-	}
 }
 
 func normalizeTelegramNotifications(raw string) string {
