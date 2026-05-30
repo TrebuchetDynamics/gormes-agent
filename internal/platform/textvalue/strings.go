@@ -1,6 +1,9 @@
 package textvalue
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
 var keyTokenReplacer = strings.NewReplacer("_", "", "-", "", ".", "", " ", "")
 
@@ -66,4 +69,16 @@ func FirstNonBlankLine(value string) string {
 // api.key, and api key with one contract.
 func CompactKeyToken(value string) string {
 	return keyTokenReplacer.Replace(LowerTrim(value))
+}
+
+// SortedKeys returns a deterministic copy of the keys in a string-keyed map.
+// It centralizes platform report/manifest ordering so callers do not each
+// reimplement the same map iteration and sort policy.
+func SortedKeys[V any](values map[string]V) []string {
+	out := make([]string, 0, len(values))
+	for value := range values {
+		out = append(out, value)
+	}
+	sort.Strings(out)
+	return out
 }

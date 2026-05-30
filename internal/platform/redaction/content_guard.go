@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
@@ -162,12 +161,7 @@ func DetectPromptInjection(text string) []string {
 			seen[pattern.id] = struct{}{}
 		}
 	}
-	matches := make([]string, 0, len(seen))
-	for id := range seen {
-		matches = append(matches, id)
-	}
-	sort.Strings(matches)
-	return matches
+	return textvalue.SortedKeys(seen)
 }
 
 func SanitizeUntrustedContent(source, text string) UntrustedContentResult {

@@ -2,10 +2,10 @@ package statusreport
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -112,9 +112,9 @@ func RenderStatusReport(opts StatusReportOptions) (string, error) {
 
 func collectStatusBlockers(prog *progress.Progress) []statusBlocker {
 	var blockers []statusBlocker
-	for _, phaseKey := range sortedStatusKeys(prog.Phases) {
+	for _, phaseKey := range textvalue.SortedKeys(prog.Phases) {
 		phase := prog.Phases[phaseKey]
-		for _, subphaseKey := range sortedStatusKeys(phase.Subphases) {
+		for _, subphaseKey := range textvalue.SortedKeys(phase.Subphases) {
 			subphase := phase.Subphases[subphaseKey]
 			for _, item := range subphase.Items {
 				if item.Blocker == nil {
@@ -154,11 +154,3 @@ func statusBlockerRecord(item progress.Item) tools.BlockerRecord {
 	}
 }
 
-func sortedStatusKeys[V any](m map[string]V) []string {
-	keys := make([]string, 0, len(m))
-	for key := range m {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}

@@ -3,7 +3,6 @@ package toolsets
 import (
 	"fmt"
 	"os"
-	"sort"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
@@ -240,7 +239,7 @@ func (cfg PlatformToolsetConfig) PlatformStatus(platform string) (PlatformToolse
 		}
 	}
 
-	report.RuntimeToolsets = sortedKeys(runtime)
+	report.RuntimeToolsets = textvalue.SortedKeys(runtime)
 	return report, nil
 }
 
@@ -355,7 +354,7 @@ func (cfg *PlatformToolsetConfig) SavePlatformSelection(platform string, selecte
 		persisted[existing] = struct{}{}
 	}
 
-	cfg.PlatformToolsets[platform] = sortedKeys(persisted)
+	cfg.PlatformToolsets[platform] = textvalue.SortedKeys(persisted)
 	report.PersistedToolsets = append([]string(nil), cfg.PlatformToolsets[platform]...)
 	return report, nil
 }
@@ -539,11 +538,3 @@ func parseEnabledFlag(value any, fallback bool) bool {
 	}
 }
 
-func sortedKeys(values map[string]struct{}) []string {
-	out := make([]string, 0, len(values))
-	for value := range values {
-		out = append(out, value)
-	}
-	sort.Strings(out)
-	return out
-}

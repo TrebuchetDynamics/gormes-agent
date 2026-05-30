@@ -72,3 +72,16 @@ func TestCompactKeyToken(t *testing.T) {
 		}
 	}
 }
+
+func TestSortedKeys(t *testing.T) {
+	got := SortedKeys(map[string]struct{}{"bravo": {}, "alpha": {}, "charlie": {}})
+	want := []string{"alpha", "bravo", "charlie"}
+	if len(got) != len(want) {
+		t.Fatalf("SortedKeys len = %d, want %d: %#v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("SortedKeys[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}

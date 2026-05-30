@@ -9,6 +9,8 @@ import (
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
 // DirExists reports whether path exists and is a directory.
@@ -19,12 +21,7 @@ func DirExists(path string) bool {
 
 // SortedStringAnyKeys returns sorted keys for deterministic manifest output.
 func SortedStringAnyKeys(m map[string]any) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
+	return textvalue.SortedKeys(m)
 }
 
 // ReadDotenvKeys reads unique dotenv keys in the same limited syntax used by
