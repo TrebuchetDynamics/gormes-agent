@@ -10,33 +10,19 @@ import (
 
 const sessionTreeTimeout = 5 * time.Second
 
-type SessionTreeFunc func(context.Context, SessionTreeRequest) (SessionTreeResult, error)
+type SessionTreeFunc = sessiontree.QueryFunc
 
-type SessionTreeLabelRequest struct {
-	SessionID string
-	Action    string
-	Label     string
-}
+type SessionTreeLabelRequest = sessiontree.LabelRequest
 
-type SessionTreeLabelResult struct {
-	SessionID string
-	Labels    []string
-}
+type SessionTreeLabelResult = sessiontree.LabelResult
 
-type SessionTreeLabelFunc func(context.Context, SessionTreeLabelRequest) (SessionTreeLabelResult, error)
+type SessionTreeLabelFunc = sessiontree.LabelFunc
 
-type SessionTreeRestoreRequest struct {
-	SessionID string
-	MessageID int64
-}
+type SessionTreeRestoreRequest = sessiontree.RestoreRequest
 
-type SessionTreeRestoreResult struct {
-	Text     string
-	Editable bool
-	Evidence string
-}
+type SessionTreeRestoreResult = sessiontree.RestoreResult
 
-type SessionTreeRestoreFunc func(context.Context, SessionTreeRestoreRequest) (SessionTreeRestoreResult, error)
+type SessionTreeRestoreFunc = sessiontree.RestoreFunc
 
 func treeSlashHandler(input string, model *Model) SlashResult {
 	if model == nil {
@@ -122,7 +108,7 @@ func treeRestoreSlash(args []string, model *Model) SlashResult {
 	if err != nil {
 		return SlashResult{Handled: true, StatusMessage: "tree: restore: " + err.Error()}
 	}
-	status, editable := sessiontree.FormatRestoreStatus(sessiontree.RestoreRequest{SessionID: req.SessionID, MessageID: req.MessageID}, sessiontree.RestoreResult{Editable: result.Editable, Evidence: result.Evidence})
+	status, editable := sessiontree.FormatRestoreStatus(req, result)
 	if !editable {
 		return SlashResult{Handled: true, StatusMessage: status}
 	}

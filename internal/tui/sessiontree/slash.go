@@ -1,6 +1,7 @@
 package sessiontree
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,27 +12,44 @@ const (
 	RestoreUsage = "tree: restore usage /tree restore <session> <turn_id>"
 )
 
+// QueryFunc fetches session lineage entries for /tree page rendering.
+type QueryFunc func(context.Context, SessionTreeRequest) (SessionTreeResult, error)
+
 // LabelRequest is the pure, UI-package-independent shape parsed from a
-// /tree label or /tree unlabel command.
+// /tree label or /tree unlabel command and sent to the injected label callback.
 type LabelRequest struct {
 	SessionID string
 	Action    string
 	Label     string
 }
 
+// LabelResult is the label callback response shape needed to format the
+// operator-facing status message after label mutation.
+type LabelResult struct {
+	SessionID string
+	Labels    []string
+}
+
+// LabelFunc mutates labels for a session tree entry.
+type LabelFunc func(context.Context, LabelRequest) (LabelResult, error)
+
 // RestoreRequest is the pure, UI-package-independent shape parsed from a
-// /tree restore command.
+// /tree restore command and sent to the injected restore callback.
 type RestoreRequest struct {
 	SessionID string
 	MessageID int64
 }
 
-// RestoreResult is the subset of restore callback evidence needed to shape
-// operator-facing /tree restore status text.
+// RestoreResult is the restore callback response shape needed to decide
+// whether an old prompt can be placed back into the editor.
 type RestoreResult struct {
+	Text     string
 	Editable bool
 	Evidence string
 }
+
+// RestoreFunc restores an editable prompt from a prior session-tree turn.
+type RestoreFunc func(context.Context, RestoreRequest) (RestoreResult, error)
 
 func SlashArgs(input string) []string {
 	fields := strings.Fields(strings.TrimSpace(input))
