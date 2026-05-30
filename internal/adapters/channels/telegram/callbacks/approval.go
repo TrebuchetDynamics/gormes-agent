@@ -8,6 +8,7 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -22,8 +23,8 @@ func ApprovalText(command, description string) string {
 	if desc == "" {
 		desc = "dangerous command"
 	}
-	desc = truncateApprovalRunes(desc, 500)
-	cmd = truncateApprovalRunes(cmd, 3800)
+	desc = channelutil.TruncateRunes(desc, 500)
+	cmd = channelutil.TruncateRunes(cmd, 3800)
 
 	for {
 		text := fmt.Sprintf(
@@ -35,10 +36,10 @@ func ApprovalText(command, description string) string {
 			return text
 		}
 		if len([]rune(desc)) > 120 {
-			desc = truncateApprovalRunes(desc, 120)
+			desc = channelutil.TruncateRunes(desc, 120)
 			continue
 		}
-		cmd = truncateApprovalRunes(cmd, len([]rune(cmd))-128)
+		cmd = channelutil.TruncateRunes(cmd, len([]rune(cmd))-128)
 	}
 }
 
@@ -97,18 +98,4 @@ func CallbackActor(query *tgbotapi.CallbackQuery) (string, string) {
 		name = strings.TrimSpace(query.From.UserName)
 	}
 	return actorID, name
-}
-
-func truncateApprovalRunes(value string, max int) string {
-	if max <= 0 {
-		return ""
-	}
-	runes := []rune(value)
-	if len(runes) <= max {
-		return value
-	}
-	if max <= 3 {
-		return string(runes[:max])
-	}
-	return string(runes[:max-3]) + "..."
 }

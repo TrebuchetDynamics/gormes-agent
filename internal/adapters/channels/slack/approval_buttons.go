@@ -184,8 +184,8 @@ func slackApprovalSectionText(command, description string) string {
 	if desc == "" {
 		desc = "dangerous command"
 	}
-	desc = truncateRunes(desc, 500)
-	cmd = truncateRunes(cmd, 2900)
+	desc = channelutil.TruncateRunes(desc, 500)
+	cmd = channelutil.TruncateRunes(cmd, 2900)
 
 	for {
 		text := formatSlackApprovalSection(cmd, desc)
@@ -195,14 +195,14 @@ func slackApprovalSectionText(command, description string) string {
 		overhead := runeLen(formatSlackApprovalSection("", desc))
 		maxCommand := slackApprovalSectionLimit - overhead
 		if maxCommand > 10 {
-			cmd = truncateRunes(cmd, maxCommand)
+			cmd = channelutil.TruncateRunes(cmd, maxCommand)
 			continue
 		}
 		if runeLen(desc) > 80 {
-			desc = truncateRunes(desc, 80)
+			desc = channelutil.TruncateRunes(desc, 80)
 			continue
 		}
-		return truncateRunes(text, slackApprovalSectionLimit)
+		return channelutil.TruncateRunes(text, slackApprovalSectionLimit)
 	}
 }
 
@@ -215,7 +215,7 @@ func slackApprovalFallbackText(command string) string {
 	if cmd == "" {
 		cmd = "(empty command)"
 	}
-	return "Command approval required: " + truncateRunes(cmd, 100)
+	return "Command approval required: " + channelutil.TruncateRunes(cmd, 100)
 }
 
 func slackApprovalChoice(actionID string) (gateway.ApprovalChoice, bool) {
@@ -349,20 +349,6 @@ func cloneSlackValue(value any) any {
 	default:
 		return typed
 	}
-}
-
-func truncateRunes(value string, max int) string {
-	if max <= 0 {
-		return ""
-	}
-	runes := []rune(value)
-	if len(runes) <= max {
-		return value
-	}
-	if max <= 3 {
-		return string(runes[:max])
-	}
-	return string(runes[:max-3]) + "..."
 }
 
 func runeLen(value string) int {

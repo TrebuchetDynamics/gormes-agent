@@ -3,7 +3,12 @@
 // are each duplicated in 3+ channel subpackages.
 package channelutil
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/trace"
+)
 
 // ToSet converts a string slice to a set map, trimming whitespace and
 // skipping empty entries. Behavior is identical to the duplicated helper
@@ -54,4 +59,33 @@ func FirstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+// FormatToolTrace joins SoulEntry texts and formats them as a tool trace block.
+// Behavior is identical to the duplicated function found in discord/legacy/render.go
+// and slack/render.go. Extracted to share across channel renderers.
+func FormatToolTrace(events []kernel.SoulEntry) string {
+	texts := make([]string, 0, len(events))
+	for _, event := range events {
+		texts = append(texts, event.Text)
+	}
+	return trace.FormatBlock(texts)
+}
+
+// TruncateRunes truncates a string to at most max runes and appends "..."
+// when truncation occurs. Returns empty when max is <= 0. Behavior is
+// identical to the duplicated function found in slack/approval_buttons.go
+// and telegram/callbacks/approval.go.
+func TruncateRunes(value string, max int) string {
+	if max <= 0 {
+		return ""
+	}
+	runes := []rune(value)
+	if len(runes) <= max {
+		return value
+	}
+	if max <= 3 {
+		return string(runes[:max])
+	}
+	return string(runes[:max-3]) + "..."
 }

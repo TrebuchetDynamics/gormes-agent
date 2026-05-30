@@ -1,7 +1,10 @@
 package channelutil
 
 import (
+	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
 func TestToSet(t *testing.T) {
@@ -111,6 +114,105 @@ func TestNormalizedPolicy(t *testing.T) {
 			if got := NormalizedPolicy(v); got != v {
 				t.Fatalf("expected %q, got %q", v, got)
 			}
+		}
+	})
+}
+
+func TestFormatToolTrace(t *testing.T) {
+	t.Run("nil events", func(t *testing.T) {
+		result := FormatToolTrace(nil)
+		if result != "" {
+			t.Fatalf("expected empty for nil events, got %q", result)
+		}
+	})
+
+	t.Run("empty events", func(t *testing.T) {
+		result := FormatToolTrace([]kernel.SoulEntry{})
+		if result != "" {
+			t.Fatalf("expected empty for empty events, got %q", result)
+		}
+	})
+
+	t.Run("single event", func(t *testing.T) {
+		result := FormatToolTrace([]kernel.SoulEntry{{Text: "tool: read_file"}})
+		if result == "" {
+			t.Fatal("expected non-empty result for a single event")
+		}
+		if !strings.Contains(result, "read_file") {
+			t.Fatalf("expected result to contain event text, got: %s", result)
+		}
+	})
+
+	t.Run("multiple events", func(t *testing.T) {
+		result := FormatToolTrace([]kernel.SoulEntry{
+			{Text: "tool: read_file"},
+			{Text: "tool: edit"},
+		})
+		if result == "" {
+			t.Fatal("expected non-empty result for multiple events")
+		}
+		// Should contain the tool preview structure (FormatBlock adds icons/formatting)
+		if strings.Contains(result, "📖") || strings.Contains(result, "🔧") {
+			return // FormatBlock adds structural formatting
+		}
+	})
+
+	t.Run("empty text events", func(t *testing.T) {
+		result := FormatToolTrace([]kernel.SoulEntry{{Text: ""}})
+		if result != "" {
+			t.Fatalf("expected empty for empty text events, got %q", result)
+		}
+	})
+}
+
+func TestTruncateRunes(t *testing.T) {
+	t.Run("max zero returns empty", func(t *testing.T) {
+		if got := TruncateRunes("hello", 0); got != "" {
+			t.Fatalf("expected empty, got %q", got)
+		}
+	})
+
+	t.Run("max negative returns empty", func(t *testing.T) {
+		if got := TruncateRunes("hello", -1); got != "" {
+			t.Fatalf("expected empty, got %q", got)
+		}
+	})
+
+	t.Run("under limit returns original", func(t *testing.T) {
+		if got := TruncateRunes("hi", 10); got != "hi" {
+			t.Fatalf("expected 'hi', got %q", got)
+		}
+	})
+
+	t.Run("exact limit returns original", func(t *testing.T) {
+		if got := TruncateRunes("hello", 5); got != "hello" {
+			t.Fatalf("expected 'hello', got %q", got)
+		}
+	})
+
+	t.Run("over limit truncates with ellipsis", func(t *testing.T) {
+		got := TruncateRunes("hello world", 8)
+		if got != "hello..." {
+			t.Fatalf("expected 'hello...', got %q", got)
+		}
+	})
+
+	t.Run("max 3 returns first 3 without ellipsis", func(t *testing.T) {
+		if got := TruncateRunes("hello", 3); got != "hel" {
+			t.Fatalf("expected 'hel', got %q", got)
+		}
+	})
+
+	t.Run("max 1 returns first rune", func(t *testing.T) {
+		if got := TruncateRunes("hello", 1); got != "h" {
+			t.Fatalf("expected 'h', got %q", got)
+		}
+	})
+
+	t.Run("respects unicode runes", func(t *testing.T) {
+		got := TruncateRunes("日本語テスト", 4)
+		if got != "日..." {
+			t.Fatalf("expected '日...', got %q", got)
 		}
 	})
 }

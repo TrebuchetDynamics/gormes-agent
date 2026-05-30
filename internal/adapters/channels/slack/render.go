@@ -3,8 +3,8 @@ package slack
 import (
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/trace"
 )
 
 const maxSlackText = 40000
@@ -18,7 +18,7 @@ func formatStream(f kernel.RenderFrame) string {
 	if text := strings.TrimSpace(f.DraftText); text != "" {
 		parts = append(parts, text)
 	}
-	if text := formatToolTrace(f.SoulEvents); text != "" {
+	if text := channelutil.FormatToolTrace(f.SoulEvents); text != "" {
 		parts = append(parts, text)
 	}
 	if f.Phase == kernel.PhaseReconnecting {
@@ -28,14 +28,6 @@ func formatStream(f kernel.RenderFrame) string {
 		return formatPending()
 	}
 	return truncateSlack(strings.Join(parts, "\n\n"))
-}
-
-func formatToolTrace(events []kernel.SoulEntry) string {
-	texts := make([]string, 0, len(events))
-	for _, event := range events {
-		texts = append(texts, event.Text)
-	}
-	return trace.FormatBlock(texts)
 }
 
 func formatFinal(f kernel.RenderFrame) string {
