@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-import { visitPage } from '../../../testing/playwright-helpers.mjs';
+import { visitPage } from '../../../shared/playwright/playwright-helpers.mjs';
 
 test('Starlight TOC scrollspy highlights the currently visible heading', async ({ page }) => {
   await visitPage(

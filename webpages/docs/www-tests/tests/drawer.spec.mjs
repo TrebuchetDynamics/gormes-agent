@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-import { visitPage } from '../../../testing/playwright-helpers.mjs';
+import { visitPage } from '../../../shared/playwright/playwright-helpers.mjs';
 
 test('Starlight mobile navigation exposes core docs links', async ({ page }) => {
   await visitPage(page, '/install/', { width: 360, height: 760 });

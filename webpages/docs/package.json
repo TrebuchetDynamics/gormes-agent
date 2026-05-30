@@ -7,11 +7,11 @@
     "test:content": "node --test ./scripts/starlight-content.test.mjs",
     "test:progress-artifact": "node --test ./scripts/progress-artifact.test.mjs",
     "predev": "npm run sync:content",
-    "dev": "node ../scripts/with-compatible-node.mjs astro dev",
+    "dev": "node ../shared/node/with-compatible-node.mjs astro dev",
     "prebuild": "npm run sync:content",
-    "build": "node ../scripts/with-compatible-node.mjs astro build",
+    "build": "node ../shared/node/with-compatible-node.mjs astro build",
     "postbuild": "node ./scripts/copy-progress-json.mjs",
-    "preview": "node ../scripts/with-compatible-node.mjs astro preview"
+    "preview": "node ../shared/node/with-compatible-node.mjs astro preview"
   },
   "dependencies": {
     "@astrojs/starlight": "latest",

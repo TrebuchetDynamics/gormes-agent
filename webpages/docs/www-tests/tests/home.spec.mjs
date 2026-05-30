@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-import { expectMainHeading, visitPage } from '../../../testing/playwright-helpers.mjs';
+import { expectMainHeading, visitPage } from '../../../shared/playwright/playwright-helpers.mjs';
 
 test('docs home renders through Starlight with operator-first content', async ({ page }) => {
   await visitPage(page, '/');

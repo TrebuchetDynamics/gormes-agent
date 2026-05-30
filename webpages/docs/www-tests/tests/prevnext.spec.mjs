@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-import { expectMainHeading, visitPage } from '../../../testing/playwright-helpers.mjs';
+import { expectMainHeading, visitPage } from '../../../shared/playwright/playwright-helpers.mjs';
 
 test('single page has Starlight prev/next links at bottom', async ({ page }) => {
   await visitPage(page, '/using-gormes/quickstart/');

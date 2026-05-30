@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-import { expectMainHeading, expectNoHorizontalOverflow, visitPage } from '../../../testing/playwright-helpers.mjs';
+import { expectMainHeading, expectNoHorizontalOverflow, visitPage } from '../../../shared/playwright/playwright-helpers.mjs';
 
 const VIEWPORTS = [
   { label: 'iPhone SE', width: 320, height: 568 },

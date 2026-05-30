@@ -6,7 +6,7 @@ const command = process.argv[2];
 const args = process.argv.slice(3);
 
 if (!command) {
-  console.error('usage: node ../scripts/with-compatible-node.mjs <command> [...args]');
+  console.error('usage: node ../shared/node/with-compatible-node.mjs <command> [...args]');
   process.exit(64);
 }
 

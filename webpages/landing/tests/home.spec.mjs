@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
-import { expectMainHeading, expectNoHorizontalOverflow, visitPage } from '../../testing/playwright-helpers.mjs';
+import { expectMainHeading, expectNoHorizontalOverflow, visitPage } from '../../shared/playwright/playwright-helpers.mjs';
 
 const landingBenchmarks = JSON.parse(readFileSync(new URL('../src/data/benchmarks.json', import.meta.url), 'utf8'));
 const rootBenchmarks = JSON.parse(readFileSync(new URL('../../../benchmarks.json', import.meta.url), 'utf8'));
