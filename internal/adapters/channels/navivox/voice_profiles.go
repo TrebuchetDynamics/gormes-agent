@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
@@ -110,21 +111,7 @@ func navivoxVoiceProviderMatrix() config.ProfileVoiceProviderMatrix {
 }
 
 func uniqueSortedVoiceProviders(values []string) []string {
-	seen := map[string]struct{}{}
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		value = strings.ToLower(strings.TrimSpace(value))
-		if value == "" {
-			continue
-		}
-		if _, ok := seen[value]; ok {
-			continue
-		}
-		seen[value] = struct{}{}
-		out = append(out, value)
-	}
-	sort.Strings(out)
-	return out
+	return channelutil.UniqueLowerSortedStrings(values)
 }
 
 func (c *Channel) voiceProfileMetadataForTurn(metadata map[string]any, profileID string) map[string]any {

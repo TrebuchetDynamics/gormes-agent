@@ -4,6 +4,7 @@
 package channelutil
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
@@ -115,6 +116,24 @@ func CompactStrings(values []string) []string {
 	return out
 }
 
+// SplitCommaList splits a comma-separated adapter configuration list, trims
+// entries, drops empty values, and preserves duplicate entries.
+func SplitCommaList(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	return CompactStrings(strings.Split(raw, ","))
+}
+
+// UniqueCommaList splits a comma-separated adapter configuration list, trims
+// entries, drops empty values, and keeps the first occurrence of each value.
+func UniqueCommaList(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	return UniqueStrings(strings.Split(raw, ","))
+}
+
 // UniqueStrings trims values and returns the first occurrence of each non-empty
 // entry in original order.
 func UniqueStrings(values []string) []string {
@@ -131,6 +150,34 @@ func UniqueStrings(values []string) []string {
 		seen[trimmed] = struct{}{}
 		out = append(out, trimmed)
 	}
+	return out
+}
+
+// UniqueSortedStrings trims, deduplicates, and sorts non-empty values.
+func UniqueSortedStrings(values []string) []string {
+	out := UniqueStrings(values)
+	sort.Strings(out)
+	return out
+}
+
+// UniqueLowerSortedStrings trims, lowercases, deduplicates, and sorts
+// non-empty values. It is useful for case-insensitive channel/provider lists
+// that need stable API output.
+func UniqueLowerSortedStrings(values []string) []string {
+	out := make([]string, 0, len(values))
+	seen := map[string]struct{}{}
+	for _, value := range values {
+		value = strings.ToLower(strings.TrimSpace(value))
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	sort.Strings(out)
 	return out
 }
 

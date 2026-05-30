@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 )
 
 const SlackMentionPolicyUnavailable = "slack_mention_policy_unavailable"
@@ -206,8 +208,8 @@ func itemWithoutDecimal(value any) any {
 }
 
 func addFreeResponseCSV(out map[string]struct{}, value string) {
-	for _, part := range strings.Split(value, ",") {
-		addFreeResponseChannel(out, part)
+	for _, part := range channelutil.SplitCommaList(value) {
+		out[part] = struct{}{}
 	}
 }
 

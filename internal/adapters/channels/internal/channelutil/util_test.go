@@ -365,9 +365,67 @@ func TestCompactStrings(t *testing.T) {
 	}
 }
 
+func TestSplitCommaList(t *testing.T) {
+	got := SplitCommaList(" a, ,b,a ")
+	want := []string{"a", "b", "a"}
+	if len(got) != len(want) {
+		t.Fatalf("len = %d, want %d: %#v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got[%d] = %q, want %q; all=%#v", i, got[i], want[i], got)
+		}
+	}
+	if got := SplitCommaList("  "); got != nil {
+		t.Fatalf("blank list = %#v, want nil", got)
+	}
+}
+
+func TestUniqueCommaList(t *testing.T) {
+	got := UniqueCommaList(" b, ,a,b ")
+	want := []string{"b", "a"}
+	if len(got) != len(want) {
+		t.Fatalf("len = %d, want %d: %#v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got[%d] = %q, want %q; all=%#v", i, got[i], want[i], got)
+		}
+	}
+	if got := UniqueCommaList("  "); got != nil {
+		t.Fatalf("blank list = %#v, want nil", got)
+	}
+}
+
 func TestUniqueStrings(t *testing.T) {
 	got := UniqueStrings([]string{" a ", "", "b", "a", " b ", "c"})
 	want := []string{"a", "b", "c"}
+	if len(got) != len(want) {
+		t.Fatalf("len = %d, want %d: %#v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got[%d] = %q, want %q; all=%#v", i, got[i], want[i], got)
+		}
+	}
+}
+
+func TestUniqueSortedStrings(t *testing.T) {
+	got := UniqueSortedStrings([]string{" b ", "", "a", "b", " c "})
+	want := []string{"a", "b", "c"}
+	if len(got) != len(want) {
+		t.Fatalf("len = %d, want %d: %#v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got[%d] = %q, want %q; all=%#v", i, got[i], want[i], got)
+		}
+	}
+}
+
+func TestUniqueLowerSortedStrings(t *testing.T) {
+	got := UniqueLowerSortedStrings([]string{" Beta ", "alpha", "BETA", "", " gamma "})
+	want := []string{"alpha", "beta", "gamma"}
 	if len(got) != len(want) {
 		t.Fatalf("len = %d, want %d: %#v", len(got), len(want), got)
 	}

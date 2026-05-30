@@ -359,10 +359,7 @@ func normalizeConfig(cfg Config) Config {
 	return cfg
 }
 
-func splitList(raw string) []string {
-	parts := strings.Split(raw, ",")
-	return compactStrings(parts)
-}
+func splitList(raw string) []string { return channelutil.SplitCommaList(raw) }
 
 func compactStrings(values []string) []string { return channelutil.CompactStrings(values) }
 

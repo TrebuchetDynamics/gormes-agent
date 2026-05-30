@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 )
 
 const (
@@ -77,18 +79,7 @@ func newTelegramFallbackTransportWithFactory(fallbackIPs []string, primary http.
 	return &TelegramFallbackTransport{primary: primary, fallbackIPs: ips, fallbacks: fallbacks}
 }
 
-func dedupeTelegramFallbackIPs(values []string) []string {
-	seen := make(map[string]bool, len(values))
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		if seen[value] {
-			continue
-		}
-		seen[value] = true
-		out = append(out, value)
-	}
-	return out
-}
+func dedupeTelegramFallbackIPs(values []string) []string { return channelutil.UniqueStrings(values) }
 
 func (t *TelegramFallbackTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if t == nil {

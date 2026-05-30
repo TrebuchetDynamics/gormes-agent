@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -216,17 +217,4 @@ func normalizeID(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
 }
 
-func uniqueSorted(values []string) []string {
-	seen := map[string]bool{}
-	out := []string{}
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value == "" || seen[value] {
-			continue
-		}
-		seen[value] = true
-		out = append(out, value)
-	}
-	sort.Strings(out)
-	return out
-}
+func uniqueSorted(values []string) []string { return channelutil.UniqueSortedStrings(values) }

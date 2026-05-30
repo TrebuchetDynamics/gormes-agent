@@ -115,26 +115,7 @@ func PluginMetadata() PluginInfo {
 	}
 }
 
-func parseCSV(value string) []string {
-	if strings.TrimSpace(value) == "" {
-		return nil
-	}
-	parts := strings.Split(value, ",")
-	out := make([]string, 0, len(parts))
-	seen := map[string]struct{}{}
-	for _, part := range parts {
-		trimmed := strings.TrimSpace(part)
-		if trimmed == "" {
-			continue
-		}
-		if _, ok := seen[trimmed]; ok {
-			continue
-		}
-		seen[trimmed] = struct{}{}
-		out = append(out, trimmed)
-	}
-	return out
-}
+func parseCSV(value string) []string { return channelutil.UniqueCommaList(value) }
 
 func parseBool(value string) bool {
 	switch strings.ToLower(strings.TrimSpace(value)) {

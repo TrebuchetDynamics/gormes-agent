@@ -361,12 +361,7 @@ func trimMatrixHomeserver(raw string) string {
 
 func parseMatrixBool(raw string, def bool) bool { return channelutil.ParseBoolDefault(raw, def) }
 
-func splitMatrixList(raw string) []string {
-	if strings.TrimSpace(raw) == "" {
-		return nil
-	}
-	return compactMatrixStrings(strings.Split(raw, ","))
-}
+func splitMatrixList(raw string) []string { return channelutil.SplitCommaList(raw) }
 
 func compactMatrixStrings(values []string) []string { return channelutil.CompactStrings(values) }
 

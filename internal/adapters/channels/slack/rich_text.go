@@ -3,6 +3,8 @@ package slack
 import (
 	"fmt"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 )
 
 const slackRichTextUnavailableCode = "slack_rich_text_unavailable"
@@ -22,7 +24,7 @@ func augmentInboundText(text string, blocks []SlackBlock, attachments []SlackAtt
 	evidence := []SlackRichTextEvidence{}
 
 	out := base
-	seen := lineSet(splitNonEmptyLines(base))
+	seen := channelutil.BoolSet(splitNonEmptyLines(base))
 	for _, line := range renderSlackRichTextBlocks(blocks, &evidence) {
 		normalized := strings.TrimSpace(line)
 		if normalized == "" || seen[normalized] {
@@ -298,16 +300,6 @@ func splitNonEmptyLines(text string) []string {
 		}
 	}
 	return lines
-}
-
-func lineSet(lines []string) map[string]bool {
-	seen := make(map[string]bool, len(lines))
-	for _, line := range lines {
-		if normalized := strings.TrimSpace(line); normalized != "" {
-			seen[normalized] = true
-		}
-	}
-	return seen
 }
 
 func blockElements(block SlackBlock, key, source string, evidence *[]SlackRichTextEvidence) ([]SlackBlock, bool) {
