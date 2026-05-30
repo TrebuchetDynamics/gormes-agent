@@ -1,22 +1,13 @@
 package guidance
 
-type MemoryGuidanceResult struct {
-	Guidance string
-	Injected bool
-	Evidence string
-}
+// MemoryGuidanceResult is the result of BuildMemoryGuidance.
+// Deprecated: use GuidanceSwitchResult. This type alias is preserved for
+// backward compatibility.
+type MemoryGuidanceResult = GuidanceSwitchResult
 
 func BuildMemoryGuidance(hasMemoryTool bool) MemoryGuidanceResult {
-	if !hasMemoryTool {
-		return MemoryGuidanceResult{
-			Guidance: "",
-			Injected: false,
-			Evidence: "memory_guidance_suppressed: no memory tool available",
-		}
-	}
-	return MemoryGuidanceResult{
-		Guidance: MemoryGuidance,
-		Injected: true,
-		Evidence: "memory_guidance_injected",
-	}
+	return buildGuidanceSwitch(MemoryGuidance, hasMemoryTool,
+		"memory_guidance_suppressed: no memory tool available",
+		"memory_guidance_injected",
+	)
 }

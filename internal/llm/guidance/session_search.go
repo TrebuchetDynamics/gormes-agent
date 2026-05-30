@@ -1,22 +1,13 @@
 package guidance
 
-type SessionSearchGuidanceResult struct {
-	Guidance string
-	Injected bool
-	Evidence string
-}
+// SessionSearchGuidanceResult is the result of BuildSessionSearchGuidance.
+// Deprecated: use GuidanceSwitchResult. This type alias is preserved for
+// backward compatibility.
+type SessionSearchGuidanceResult = GuidanceSwitchResult
 
 func BuildSessionSearchGuidance(enabled bool) SessionSearchGuidanceResult {
-	if !enabled {
-		return SessionSearchGuidanceResult{
-			Guidance: "",
-			Injected: false,
-			Evidence: "session_search_guidance_suppressed: session search disabled",
-		}
-	}
-	return SessionSearchGuidanceResult{
-		Guidance: SessionSearchGuidance,
-		Injected: true,
-		Evidence: "session_search_guidance_injected",
-	}
+	return buildGuidanceSwitch(SessionSearchGuidance, enabled,
+		"session_search_guidance_suppressed: session search disabled",
+		"session_search_guidance_injected",
+	)
 }
