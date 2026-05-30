@@ -3,6 +3,8 @@ package sidecar
 import (
 	"sync"
 	"sync/atomic"
+
+	ptyevent "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/pty/event"
 )
 
 // DefaultPtyChatSidecarQueueSize matches Hermes' upstream WsPublisherTransport
@@ -74,7 +76,7 @@ func (s *PtyChatSidecar) Publish(event map[string]any) bool {
 		return false
 	}
 	select {
-	case s.queue <- cloneSidecarEvent(event):
+	case s.queue <- ptyevent.Clone(event):
 		return true
 	default:
 		return false
@@ -122,15 +124,4 @@ func (s *PtyChatSidecar) drain() {
 			}
 		}
 	}
-}
-
-func cloneSidecarEvent(in map[string]any) map[string]any {
-	if in == nil {
-		return map[string]any{}
-	}
-	out := make(map[string]any, len(in))
-	for k, v := range in {
-		out[k] = v
-	}
-	return out
 }

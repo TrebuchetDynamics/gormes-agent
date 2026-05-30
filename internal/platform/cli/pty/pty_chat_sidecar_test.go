@@ -5,6 +5,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	ptyevent "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/pty/event"
 )
 
 // TestPtyChatSidecarPublishesStructuredEventsSeparately is the contract anchor:
@@ -184,11 +186,7 @@ func (s *recordingSidecarSink) Publish(event map[string]any) error {
 		return s.failure
 	}
 
-	clone := make(map[string]any, len(event))
-	for k, v := range event {
-		clone[k] = v
-	}
-	s.events = append(s.events, clone)
+	s.events = append(s.events, ptyevent.Clone(event))
 	s.cond.Broadcast()
 	return nil
 }
