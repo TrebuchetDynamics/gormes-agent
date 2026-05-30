@@ -2,8 +2,6 @@ package tui
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -92,24 +90,18 @@ func treeLabelSlash(args []string, model *Model, action string) SlashResult {
 	if model.sessionTreeLabel == nil {
 		return SlashResult{Handled: true, StatusMessage: "tree: labels unavailable"}
 	}
-	if len(args) < 1 || (action == "set" && len(args) < 2) {
-		return SlashResult{Handled: true, StatusMessage: "tree: label usage /tree label <session> <label>"}
+	parsed, status, ok := sessiontree.ParseLabelRequest(args, action)
+	if !ok {
+		return SlashResult{Handled: true, StatusMessage: status}
 	}
-	req := SessionTreeLabelRequest{SessionID: strings.TrimSpace(args[0]), Action: action}
-	if len(args) > 1 {
-		req.Label = strings.TrimSpace(strings.Join(args[1:], " "))
-	}
+	req := SessionTreeLabelRequest{SessionID: parsed.SessionID, Action: parsed.Action, Label: parsed.Label}
 	ctx, cancel := context.WithTimeout(context.Background(), sessionTreeTimeout)
 	defer cancel()
 	result, err := model.sessionTreeLabel(ctx, req)
 	if err != nil {
 		return SlashResult{Handled: true, StatusMessage: "tree: labels: " + err.Error()}
 	}
-	labels := "none"
-	if len(result.Labels) > 0 {
-		labels = strings.Join(result.Labels, ", ")
-	}
-	return SlashResult{Handled: true, StatusMessage: fmt.Sprintf("tree: labels for %s: %s", firstNonEmptyString(result.SessionID, req.SessionID), labels)}
+	return SlashResult{Handled: true, StatusMessage: sessiontree.FormatLabelStatus(result.SessionID, req.SessionID, result.Labels)}
 }
 
 func treeRestoreSlash(args []string, model *Model) SlashResult {
@@ -119,28 +111,22 @@ func treeRestoreSlash(args []string, model *Model) SlashResult {
 	if model.sessionTreeRestore == nil {
 		return SlashResult{Handled: true, StatusMessage: "tree: restore unavailable"}
 	}
-	if len(args) < 2 {
-		return SlashResult{Handled: true, StatusMessage: "tree: restore usage /tree restore <session> <turn_id>"}
+	parsed, status, ok := sessiontree.ParseRestoreRequest(args)
+	if !ok {
+		return SlashResult{Handled: true, StatusMessage: status}
 	}
-	turnID, err := strconv.ParseInt(args[1], 10, 64)
-	if err != nil || turnID <= 0 {
-		return SlashResult{Handled: true, StatusMessage: "tree: restore turn_id must be a positive integer"}
-	}
-	req := SessionTreeRestoreRequest{SessionID: strings.TrimSpace(args[0]), MessageID: turnID}
+	req := SessionTreeRestoreRequest{SessionID: parsed.SessionID, MessageID: parsed.MessageID}
 	ctx, cancel := context.WithTimeout(context.Background(), sessionTreeTimeout)
 	defer cancel()
 	result, err := model.sessionTreeRestore(ctx, req)
 	if err != nil {
 		return SlashResult{Handled: true, StatusMessage: "tree: restore: " + err.Error()}
 	}
-	if !result.Editable {
-		evidence := strings.TrimSpace(result.Evidence)
-		if evidence == "" {
-			evidence = "replay_unavailable"
-		}
-		return SlashResult{Handled: true, StatusMessage: "tree: replay unavailable: " + evidence}
+	status, editable := sessiontree.FormatRestoreStatus(sessiontree.RestoreRequest{SessionID: req.SessionID, MessageID: req.MessageID}, sessiontree.RestoreResult{Editable: result.Editable, Evidence: result.Evidence})
+	if !editable {
+		return SlashResult{Handled: true, StatusMessage: status}
 	}
-	return SlashResult{Handled: true, StatusMessage: fmt.Sprintf("tree: restored editable prompt from %s#%d", req.SessionID, req.MessageID), EditorText: result.Text}
+	return SlashResult{Handled: true, StatusMessage: status, EditorText: result.Text}
 }
 
 func slashArgs(input string) []string {
