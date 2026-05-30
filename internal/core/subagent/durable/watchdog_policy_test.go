@@ -1,4 +1,4 @@
-package subagent
+package durable
 
 import (
 	"errors"
@@ -6,10 +6,10 @@ import (
 	"time"
 )
 
-func TestDurableWorkerRSSWatchdog_RSSReadFailure(t *testing.T) {
+func TestRSSWatchdogPolicy_RSSReadFailure(t *testing.T) {
 	checkedAt := time.Date(2026, 4, 27, 5, 30, 0, 0, time.UTC)
 
-	decision := DurableWorkerRSSWatchdogPolicy{MaxRSSMB: 100}.Check(
+	decision := RSSWatchdogPolicy{MaxRSSMB: 100}.Check(
 		func() (uint64, error) {
 			return 0, errors.New("rss unavailable")
 		},
@@ -18,14 +18,14 @@ func TestDurableWorkerRSSWatchdog_RSSReadFailure(t *testing.T) {
 		},
 	)
 
-	if decision.Reason != DurableWorkerRSSWatchdogUnavailable {
-		t.Fatalf("Reason = %q, want %q", decision.Reason, DurableWorkerRSSWatchdogUnavailable)
+	if decision.Reason != RSSWatchdogUnavailable {
+		t.Fatalf("Reason = %q, want %q", decision.Reason, RSSWatchdogUnavailable)
 	}
 	if decision.RequestDrain {
 		t.Fatal("RequestDrain = true, want false when RSS read fails")
 	}
-	if decision.Evidence.Reason != DurableWorkerRSSWatchdogUnavailable {
-		t.Fatalf("Evidence.Reason = %q, want %q", decision.Evidence.Reason, DurableWorkerRSSWatchdogUnavailable)
+	if decision.Evidence.Reason != RSSWatchdogUnavailable {
+		t.Fatalf("Evidence.Reason = %q, want %q", decision.Evidence.Reason, RSSWatchdogUnavailable)
 	}
 	if decision.Evidence.ErrorText != "rss unavailable" {
 		t.Fatalf("Evidence.ErrorText = %q, want rss unavailable", decision.Evidence.ErrorText)
@@ -35,11 +35,11 @@ func TestDurableWorkerRSSWatchdog_RSSReadFailure(t *testing.T) {
 	}
 }
 
-func TestDurableWorkerWatchdogRestartPolicy_StableRunReset(t *testing.T) {
+func TestWatchdogRestartPolicy_StableRunReset(t *testing.T) {
 	startedAt := time.Date(2026, 4, 27, 6, 0, 0, 0, time.UTC)
 
-	decision := DurableWorkerWatchdogRestartPolicy{StableRunAfter: 5 * time.Minute}.Classify(
-		DurableWorkerWatchdogRestartInput{
+	decision := WatchdogRestartPolicy{StableRunAfter: 5 * time.Minute}.Classify(
+		WatchdogRestartInput{
 			StartedAt:          startedAt,
 			ExitedAt:           startedAt.Add(5 * time.Minute),
 			PreviousCrashCount: 4,
@@ -47,18 +47,18 @@ func TestDurableWorkerWatchdogRestartPolicy_StableRunReset(t *testing.T) {
 		},
 	)
 
-	if decision.Reason != DurableWorkerStableWatchdogRestart {
-		t.Fatalf("Reason = %q, want %q", decision.Reason, DurableWorkerStableWatchdogRestart)
+	if decision.Reason != StableWatchdogRestart {
+		t.Fatalf("Reason = %q, want %q", decision.Reason, StableWatchdogRestart)
 	}
 	if decision.CrashCount != 1 {
 		t.Fatalf("CrashCount = %d, want reset to 1 after a stable watchdog exit", decision.CrashCount)
 	}
 }
 
-func TestDurableWorkerRSSWatchdog_ThresholdExceeded(t *testing.T) {
+func TestRSSWatchdogPolicy_ThresholdExceeded(t *testing.T) {
 	checkedAt := time.Date(2026, 4, 27, 5, 15, 0, 0, time.UTC)
 
-	decision := DurableWorkerRSSWatchdogPolicy{MaxRSSMB: 100}.Check(
+	decision := RSSWatchdogPolicy{MaxRSSMB: 100}.Check(
 		func() (uint64, error) {
 			return 151 * 1024 * 1024, nil
 		},
@@ -67,14 +67,14 @@ func TestDurableWorkerRSSWatchdog_ThresholdExceeded(t *testing.T) {
 		},
 	)
 
-	if decision.Reason != DurableWorkerRSSThresholdExceeded {
-		t.Fatalf("Reason = %q, want %q", decision.Reason, DurableWorkerRSSThresholdExceeded)
+	if decision.Reason != RSSThresholdExceeded {
+		t.Fatalf("Reason = %q, want %q", decision.Reason, RSSThresholdExceeded)
 	}
 	if !decision.RequestDrain {
 		t.Fatal("RequestDrain = false, want true when RSS threshold is exceeded")
 	}
-	if decision.Evidence.Reason != DurableWorkerRSSThresholdExceeded {
-		t.Fatalf("Evidence.Reason = %q, want %q", decision.Evidence.Reason, DurableWorkerRSSThresholdExceeded)
+	if decision.Evidence.Reason != RSSThresholdExceeded {
+		t.Fatalf("Evidence.Reason = %q, want %q", decision.Evidence.Reason, RSSThresholdExceeded)
 	}
 	if decision.Evidence.ObservedMB != 151 {
 		t.Fatalf("Evidence.ObservedMB = %d, want 151", decision.Evidence.ObservedMB)
@@ -87,9 +87,9 @@ func TestDurableWorkerRSSWatchdog_ThresholdExceeded(t *testing.T) {
 	}
 }
 
-func TestDurableWorkerRSSWatchdog_DisabledAtZero(t *testing.T) {
+func TestRSSWatchdogPolicy_DisabledAtZero(t *testing.T) {
 	readCount := 0
-	decision := DurableWorkerRSSWatchdogPolicy{MaxRSSMB: 0}.Check(
+	decision := RSSWatchdogPolicy{MaxRSSMB: 0}.Check(
 		func() (uint64, error) {
 			readCount++
 			return 999 * 1024 * 1024, nil
@@ -102,13 +102,13 @@ func TestDurableWorkerRSSWatchdog_DisabledAtZero(t *testing.T) {
 	if readCount != 0 {
 		t.Fatalf("RSS read count = %d, want 0 when max_rss_mb=0", readCount)
 	}
-	if decision.Reason != DurableWorkerRSSWatchdogDisabled {
-		t.Fatalf("Reason = %q, want %q", decision.Reason, DurableWorkerRSSWatchdogDisabled)
+	if decision.Reason != RSSWatchdogDisabled {
+		t.Fatalf("Reason = %q, want %q", decision.Reason, RSSWatchdogDisabled)
 	}
 	if decision.RequestDrain {
 		t.Fatal("RequestDrain = true, want false when watchdog is disabled")
 	}
-	if decision.Evidence.Reason != DurableWorkerRSSWatchdogDisabled {
-		t.Fatalf("Evidence.Reason = %q, want %q", decision.Evidence.Reason, DurableWorkerRSSWatchdogDisabled)
+	if decision.Evidence.Reason != RSSWatchdogDisabled {
+		t.Fatalf("Evidence.Reason = %q, want %q", decision.Evidence.Reason, RSSWatchdogDisabled)
 	}
 }
