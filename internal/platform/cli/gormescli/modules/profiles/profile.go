@@ -16,6 +16,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/provider"
 )
 
@@ -71,8 +72,6 @@ var (
 	errActiveProfileCorrupt     = errors.New("active_profile_corrupt")
 	errProfileSetPartialFailure = errors.New("profile_set_partial_failure")
 )
-
-const profileShowEllipsis = "..."
 
 // NewCommand returns the production-wired `gormes profile` Cobra
 // command. The seams are constructed from the same helpers internal/cli
@@ -973,15 +972,7 @@ func writeProfileDistributionInfo(cmd *cobra.Command, manifest cli.ProfileDistri
 // path is never echoed because operator home directories can carry tokens or
 // usernames that the row's degraded_mode forbids printing.
 func redactProfileRootPath(root string) string {
-	cleaned := strings.TrimSpace(root)
-	if cleaned == "" {
-		return profileShowEllipsis
-	}
-	last := filepath.Base(filepath.Clean(cleaned))
-	if last == "" || last == "." || last == "/" {
-		return profileShowEllipsis
-	}
-	return profileShowEllipsis + "/" + last
+	return redaction.RedactPathTail(root)
 }
 
 // newProfileSelectorFromSeams adapts the command's seams into the canonical

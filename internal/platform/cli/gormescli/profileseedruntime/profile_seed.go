@@ -3,7 +3,6 @@ package profileseedruntime
 import (
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -12,6 +11,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/commandruntime"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/profileseed"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 type ProfileSeedSeams struct {
@@ -149,13 +149,8 @@ func profileSeedBuildProvenance(seams ProfileSeedSeams) commandruntime.BuildProv
 }
 
 func redactProfileSeedPath(path string) string {
-	path = strings.TrimSpace(path)
-	if path == "" {
+	if strings.TrimSpace(path) == "" {
 		return ""
 	}
-	base := filepath.Base(filepath.Clean(path))
-	if base == "." || base == string(filepath.Separator) || base == "" {
-		return "..."
-	}
-	return ".../" + base
+	return redaction.RedactPathTail(path)
 }
