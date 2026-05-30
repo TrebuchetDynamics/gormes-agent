@@ -3,18 +3,15 @@ package discord
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/discord/threads"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
-const discordThreadNameLimit = 80
-
-var discordMentionTokenRE = regexp.MustCompile(`<@[!&]?\d+>|<#\d+>`)
+const discordThreadNameLimit = threads.DiscordThreadNameLimit
 
 func (b *Bot) handleThreadCreateSlash(ctx context.Context, inbox chan<- gateway.InboundEvent, session discordSession, i *discordgo.InteractionCreate, data discordgo.ApplicationCommandInteractionData) {
 	if !b.authorizeInteractionOrRespond(session, i, "thread") {
@@ -108,26 +105,9 @@ func (b *Bot) createDiscordThread(session discordSession, channelID, name, messa
 }
 
 func sanitizeDiscordThreadName(name string) string {
-	name = discordMentionTokenRE.ReplaceAllString(strings.TrimSpace(name), "")
-	name = strings.Join(strings.Fields(name), " ")
-	if name == "" {
-		name = "Gormes"
-	}
-	if utf8.RuneCountInString(name) <= discordThreadNameLimit {
-		return name
-	}
-	runes := []rune(name)
-	if discordThreadNameLimit <= 3 {
-		return string(runes[:discordThreadNameLimit])
-	}
-	return strings.TrimSpace(string(runes[:discordThreadNameLimit-3])) + "..."
+	return threads.SanitizeDiscordThreadName(name)
 }
 
 func normalizeDiscordArchiveDuration(value int) int {
-	switch value {
-	case 60, 1440, 4320, 10080:
-		return value
-	default:
-		return 1440
-	}
+	return threads.NormalizeDiscordArchiveDuration(value)
 }
