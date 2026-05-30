@@ -1548,7 +1548,7 @@ func (k *Kernel) emitFrame(status string) {
 		Model:           k.displayModel(),
 		ReasoningEffort: k.displayReasoningEffort(providerStatus),
 		ProviderStatus:  providerStatus,
-		RetryStatus:     k.retryStatus.snapshot(),
+		RetryStatus:     k.retryStatus.Snapshot(),
 		LastError:       k.lastError,
 		SoulEvents:      append([]SoulEntry(nil), k.soul...),
 		ContextStatus:   contextStatus,
