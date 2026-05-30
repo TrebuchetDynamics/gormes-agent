@@ -1,9 +1,9 @@
 package progress
 
 import (
-	"encoding/json"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/jsonfields"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/workitem"
 )
 
@@ -251,7 +251,7 @@ func cloneRowHealth(in *RowHealth) *RowHealth {
 		out.LastFailure = &last
 	}
 	out.Quarantine = cloneQuarantine(in.Quarantine)
-	out.Extra = cloneRawMessageMap(in.Extra)
+	out.Extra = jsonfields.CloneRawMessageMap(in.Extra)
 	return &out
 }
 
@@ -268,7 +268,7 @@ func clonePlannerVerdict(in *PlannerVerdict) *PlannerVerdict {
 		return nil
 	}
 	out := *in
-	out.Extra = cloneRawMessageMap(in.Extra)
+	out.Extra = jsonfields.CloneRawMessageMap(in.Extra)
 	return &out
 }
 
@@ -278,7 +278,7 @@ func cloneProvenance(in *Provenance) *Provenance {
 	}
 	out := *in
 	out.UpstreamRefs = cloneStringSlice(in.UpstreamRefs)
-	out.Extra = cloneRawMessageMap(in.Extra)
+	out.Extra = jsonfields.CloneRawMessageMap(in.Extra)
 	return &out
 }
 
@@ -289,15 +289,4 @@ func cloneBlockerMetadata(in *BlockerMetadata) *BlockerMetadata {
 	out := *in
 	out.MissingFields = cloneStringSlice(in.MissingFields)
 	return &out
-}
-
-func cloneRawMessageMap(in map[string]json.RawMessage) map[string]json.RawMessage {
-	if len(in) == 0 {
-		return nil
-	}
-	out := make(map[string]json.RawMessage, len(in))
-	for key, value := range in {
-		out[key] = append(json.RawMessage(nil), value...)
-	}
-	return out
 }

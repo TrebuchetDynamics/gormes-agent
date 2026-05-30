@@ -12,6 +12,19 @@ import (
 // meaningful for round-tripping older progress files.
 type PreserveKnownZeroFunc func(string, json.RawMessage) bool
 
+// CloneRawMessageMap deep-copies a JSON object field map used for preserved
+// unknown fields and split-layout skeleton metadata.
+func CloneRawMessageMap(in map[string]json.RawMessage) map[string]json.RawMessage {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]json.RawMessage, len(in))
+	for key, value := range in {
+		out[key] = append(json.RawMessage(nil), value...)
+	}
+	return out
+}
+
 // MarshalNoEscape marshals v with HTML escaping disabled and no trailing
 // newline, matching the canonical progress JSON encoding helpers.
 func MarshalNoEscape(v any) ([]byte, error) {

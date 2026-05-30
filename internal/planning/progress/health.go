@@ -10,6 +10,9 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/fileio"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/splitlayout"
 )
 
 // RowHealth is execution-history metadata about one progress.json item.
@@ -234,7 +237,7 @@ func insertEmptyHealthBlock(path, itemName string) error {
 	next = append(next, body[:start]...)
 	next = append(next, replacement...)
 	next = append(next, body[end+1:]...)
-	return atomicWrite(path, next)
+	return fileio.AtomicWrite(path, next)
 }
 
 func matchingJSONBrace(body []byte, start int) (int, error) {
@@ -284,8 +287,7 @@ func matchingJSONBrace(body []byte, start int) (int, error) {
 // a path Load would read as a split layout round-trips back into that split
 // layout instead of collapsing it into a monolithic file.
 func isSplitLayout(path string) bool {
-	fi, err := os.Stat(path)
-	return err == nil && fi.IsDir()
+	return splitlayout.IsDir(path)
 }
 
 func splitLayoutKeyBy(path string) (string, error) {
@@ -297,14 +299,11 @@ func splitLayoutKeyBy(path string) (string, error) {
 	if err := json.Unmarshal(raw, &idx); err != nil {
 		return "", fmt.Errorf("%w: parse index: %v", ErrMalformedSplit, err)
 	}
-	switch idx.KeyBy {
-	case "", splitKeyByPhase:
-		return splitKeyByPhase, nil
-	case splitKeyByModule:
-		return splitKeyByModule, nil
-	default:
+	normalized, ok := splitlayout.NormalizeKeyBy(idx.KeyBy)
+	if !ok {
 		return "", fmt.Errorf("%w: unknown key_by %q", ErrMalformedSplit, idx.KeyBy)
 	}
+	return normalized, nil
 }
 
 func SaveProgress(path string, prog *Progress) error {
@@ -315,37 +314,11 @@ func SaveProgress(path string, prog *Progress) error {
 		}
 		return WriteSplitBy(path, prog, keyBy)
 	}
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(prog); err != nil {
+	body, err := fileio.EncodeStable(prog)
+	if err != nil {
 		return fmt.Errorf("marshal progress: %w", err)
 	}
-	body := buf.Bytes() // Encoder.Encode already appends a trailing newline.
-	return atomicWrite(path, body)
-}
-
-func atomicWrite(path string, body []byte) error {
-	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, ".progress-*.json")
-	if err != nil {
-		return fmt.Errorf("create temp: %w", err)
-	}
-	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath)
-
-	if _, err := tmp.Write(body); err != nil {
-		tmp.Close()
-		return fmt.Errorf("write temp: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("close temp: %w", err)
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		return fmt.Errorf("rename temp into place: %w", err)
-	}
-	return nil
+	return fileio.AtomicWrite(path, body)
 }
 
 // findItem returns a pointer to the Item inside prog identified by the IDs.

@@ -1,13 +1,16 @@
 package progress
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/fileio"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/jsonfields"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/splitlayout"
 )
 
 // ErrMalformedSplit is returned by Load when a path resolves to a split
@@ -19,22 +22,22 @@ var ErrMalformedSplit = errors.New("progress: malformed split layout")
 
 // splitIndexName is the manifest file at the root of a split layout. Its
 // presence is also how Load recognises a directory as a split backlog.
-const splitIndexName = "index.json"
+const splitIndexName = splitlayout.IndexName
 
 // splitPhasesDir holds one <phaseID>.json member file per top-level phase.
-const splitPhasesDir = "phases"
+const splitPhasesDir = splitlayout.PhasesDir
 
 // splitModulesDir holds one <module>.json member file per subsystem module
 // when the layout is module-keyed (C5b).
-const splitModulesDir = "modules"
+const splitModulesDir = splitlayout.ModulesDir
 
 // Split layout keying modes. Phase keying (C1) is the default and the empty
 // string is treated as "phase" for back-compat with indexes written before
 // C5b. Module keying groups item bodies by progress.Module while the index
 // carries the full structural skeleton so Merge reconstructs byte-identically.
 const (
-	splitKeyByPhase  = "phase"
-	splitKeyByModule = "module"
+	splitKeyByPhase  = splitlayout.KeyByPhase
+	splitKeyByModule = splitlayout.KeyByModule
 )
 
 // SplitPhase is one top-level phase plus the map key it lives under in the
@@ -148,13 +151,17 @@ func WriteSplitBy(dir string, p *Progress, keyBy string) error {
 	if err != nil {
 		return err
 	}
-	switch keyBy {
-	case "", splitKeyByPhase:
+	normalized, ok := splitlayout.NormalizeKeyBy(keyBy)
+	if !ok {
+		return fmt.Errorf("%w: unknown key_by %q", ErrMalformedSplit, keyBy)
+	}
+	switch normalized {
+	case splitKeyByPhase:
 		return writeSplitByPhase(dir, sl)
 	case splitKeyByModule:
 		return writeSplitByModule(dir, sl)
 	default:
-		return fmt.Errorf("%w: unknown key_by %q", ErrMalformedSplit, keyBy)
+		panic("unreachable split key")
 	}
 }
 
@@ -165,20 +172,20 @@ func writeSplitByPhase(dir string, sl *SplitLayout) error {
 	idx := splitIndex{Meta: sl.Meta}
 	for _, sp := range sl.Phases {
 		idx.Phases = append(idx.Phases, sp.ID)
-		body, err := encodeStable(sp.Phase)
+		body, err := fileio.EncodeStable(sp.Phase)
 		if err != nil {
 			return fmt.Errorf("progress: WriteSplit phase %q: %w", sp.ID, err)
 		}
 		member := filepath.Join(dir, splitPhasesDir, sp.ID+".json")
-		if err := atomicWrite(member, body); err != nil {
+		if err := fileio.AtomicWrite(member, body); err != nil {
 			return err
 		}
 	}
-	body, err := encodeStable(idx)
+	body, err := fileio.EncodeStable(idx)
 	if err != nil {
 		return fmt.Errorf("progress: WriteSplit index: %w", err)
 	}
-	return atomicWrite(filepath.Join(dir, splitIndexName), body)
+	return fileio.AtomicWrite(filepath.Join(dir, splitIndexName), body)
 }
 
 func writeSplitByModule(dir string, sl *SplitLayout) error {
@@ -197,7 +204,7 @@ func writeSplitByModule(dir string, sl *SplitLayout) error {
 			sks := skelSubphase{
 				ID: subID, Name: sub.Name, Priority: sub.Priority,
 				Status: sub.Status, DriftState: sub.DriftState,
-				ItemCount: len(sub.Items), Extra: cloneRawMap(sub.Extra),
+				ItemCount: len(sub.Items), Extra: jsonfields.CloneRawMessageMap(sub.Extra),
 			}
 			for pos, it := range sub.Items {
 				m := Module(it, sp.ID, subID)
@@ -217,19 +224,19 @@ func writeSplitByModule(dir string, sl *SplitLayout) error {
 	slices.Sort(mods)
 	for _, m := range mods {
 		idx.Modules = append(idx.Modules, m)
-		body, err := encodeStable(byModule[m])
+		body, err := fileio.EncodeStable(byModule[m])
 		if err != nil {
 			return fmt.Errorf("progress: WriteSplit module %q: %w", m, err)
 		}
-		if err := atomicWrite(filepath.Join(dir, splitModulesDir, m+".json"), body); err != nil {
+		if err := fileio.AtomicWrite(filepath.Join(dir, splitModulesDir, m+".json"), body); err != nil {
 			return err
 		}
 	}
-	body, err := encodeStable(idx)
+	body, err := fileio.EncodeStable(idx)
 	if err != nil {
 		return fmt.Errorf("progress: WriteSplit index: %w", err)
 	}
-	return atomicWrite(filepath.Join(dir, splitIndexName), body)
+	return fileio.AtomicWrite(filepath.Join(dir, splitIndexName), body)
 }
 
 // loadSplit reads a split layout rooted at dir back into a Progress. Any
@@ -246,13 +253,17 @@ func loadSplit(dir string) (*Progress, error) {
 		return nil, fmt.Errorf("%w: parse index: %v", ErrMalformedSplit, err)
 	}
 
-	switch idx.KeyBy {
-	case "", splitKeyByPhase:
+	normalized, ok := splitlayout.NormalizeKeyBy(idx.KeyBy)
+	if !ok {
+		return nil, fmt.Errorf("%w: unknown key_by %q", ErrMalformedSplit, idx.KeyBy)
+	}
+	switch normalized {
+	case splitKeyByPhase:
 		return loadSplitByPhase(dir, idx)
 	case splitKeyByModule:
 		return loadSplitByModule(dir, idx)
 	default:
-		return nil, fmt.Errorf("%w: unknown key_by %q", ErrMalformedSplit, idx.KeyBy)
+		panic("unreachable split key")
 	}
 }
 
@@ -312,7 +323,7 @@ func loadSplitByModule(dir string, idx splitIndex) (*Progress, error) {
 			sub := Subphase{
 				Name: sks.Name, Priority: sks.Priority,
 				Status: sks.Status, DriftState: sks.DriftState,
-				Extra: cloneRawMap(sks.Extra),
+				Extra: jsonfields.CloneRawMessageMap(sks.Extra),
 			}
 			if sks.ItemCount > 0 {
 				slot := bodies[coord{skp.ID, sks.ID}]
@@ -332,29 +343,4 @@ func loadSplitByModule(dir string, idx splitIndex) (*Progress, error) {
 		sl.Phases = append(sl.Phases, SplitPhase{ID: skp.ID, Phase: ph})
 	}
 	return Merge(sl)
-}
-
-func cloneRawMap(in map[string]json.RawMessage) map[string]json.RawMessage {
-	if len(in) == 0 {
-		return nil
-	}
-	out := make(map[string]json.RawMessage, len(in))
-	for key, value := range in {
-		out[key] = append(json.RawMessage(nil), value...)
-	}
-	return out
-}
-
-// encodeStable mirrors SaveProgress's encoder settings (no HTML escaping,
-// two-space indent, trailing newline) so split member files are byte-stable
-// across runs and diff-friendly.
-func encodeStable(v any) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(v); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }
