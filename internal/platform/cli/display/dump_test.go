@@ -1,4 +1,4 @@
-package cli
+package display
 
 import (
 	"strings"
