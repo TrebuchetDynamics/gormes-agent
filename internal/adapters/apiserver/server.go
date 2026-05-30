@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/apiserver/turns"
 	pluginmeta "github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/kanban"
@@ -160,63 +161,28 @@ type Server struct {
 }
 
 // ChatMessage is the normalized text shape passed from HTTP into gateway turns.
-type ChatMessage struct {
-	Role         string                   `json:"role"`
-	Content      string                   `json:"content"`
-	ContentParts []llm.MessageContentPart `json:"content_parts,omitempty"`
-	ToolCalls    []ToolCall               `json:"tool_calls,omitempty"`
-	ToolCallID   string                   `json:"tool_call_id,omitempty"`
-	Name         string                   `json:"name,omitempty"`
-}
+type ChatMessage = turns.ChatMessage
 
 // ToolCall is the OpenAI function-call metadata preserved in response chains.
-type ToolCall struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Arguments string `json:"arguments"`
-}
+type ToolCall = turns.ToolCall
 
 // TurnRequest is the chat-completions request after OpenAI message/content
 // normalization and session-handle resolution.
-type TurnRequest struct {
-	Model            string
-	UserMessage      string
-	UserContentParts []llm.MessageContentPart
-	History          []ChatMessage
-	SystemPrompt     string
-	SessionID        string
-}
+type TurnRequest = turns.Request
 
 // Usage is the OpenAI-compatible token accounting shape used by both normal
 // and streaming chat-completion responses.
-type Usage struct {
-	PromptTokens     int
-	CompletionTokens int
-	TotalTokens      int
-}
+type Usage = turns.Usage
 
 // TurnResult is the native turn-loop result consumed by HTTP response writers.
-type TurnResult struct {
-	Content      string
-	SessionID    string
-	Usage        Usage
-	FinishReason string
-	Messages     []ChatMessage
-}
+type TurnResult = turns.Result
 
 // StreamCallbacks receives token deltas from a streaming native turn.
-type StreamCallbacks struct {
-	OnToken        func(string) error
-	OnToolProgress func(ToolProgressEvent) error
-}
+type StreamCallbacks = turns.StreamCallbacks
 
 // ToolProgressEvent is the dashboard-facing progress item emitted by native
 // run streams for long-running tool activity.
-type ToolProgressEvent struct {
-	Name    string `json:"name,omitempty"`
-	Preview string `json:"preview,omitempty"`
-	Status  string `json:"status,omitempty"`
-}
+type ToolProgressEvent = turns.ToolProgressEvent
 
 // TurnLoop is the minimal adapter seam between HTTP and the native Gormes turn
 // loop. NewKernelTurnLoop provides the production implementation.

@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	responsemodels "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/apiserver/responses"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -30,37 +31,13 @@ type StoredResponse struct {
 }
 
 // ResponseObject is the OpenAI Responses-compatible response envelope.
-type ResponseObject struct {
-	ID        string               `json:"id"`
-	Object    string               `json:"object"`
-	Status    string               `json:"status"`
-	CreatedAt int64                `json:"created_at"`
-	Model     string               `json:"model"`
-	Output    []ResponseOutputItem `json:"output"`
-	Usage     ResponseUsage        `json:"usage"`
-}
+type ResponseObject = responsemodels.Object
 
-type ResponseOutputItem struct {
-	Type      string                `json:"type"`
-	ID        string                `json:"id,omitempty"`
-	Role      string                `json:"role,omitempty"`
-	Content   []ResponseContentPart `json:"content,omitempty"`
-	CallID    string                `json:"call_id,omitempty"`
-	Name      string                `json:"name,omitempty"`
-	Arguments string                `json:"arguments,omitempty"`
-	Output    string                `json:"output,omitempty"`
-}
+type ResponseOutputItem = responsemodels.OutputItem
 
-type ResponseContentPart struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
-}
+type ResponseContentPart = responsemodels.ContentPart
 
-type ResponseUsage struct {
-	InputTokens  int `json:"input_tokens"`
-	OutputTokens int `json:"output_tokens"`
-	TotalTokens  int `json:"total_tokens"`
-}
+type ResponseUsage = responsemodels.Usage
 
 type responseStoreRecord struct {
 	Data       StoredResponse `json:"data"`

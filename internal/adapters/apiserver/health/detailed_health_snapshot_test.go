@@ -1,4 +1,4 @@
-package apiserver
+package health
 
 import (
 	"encoding/json"

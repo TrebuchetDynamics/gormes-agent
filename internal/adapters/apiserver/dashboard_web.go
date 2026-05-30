@@ -1,15 +1,11 @@
 package apiserver
 
 import (
-	"embed"
-	"io/fs"
 	"net/http"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/apiserver/assets"
 )
 
-//go:embed static/*
-var staticFS embed.FS
-
 func staticHandler() http.Handler {
-	sub, _ := fs.Sub(staticFS, "static")
-	return http.StripPrefix("/static/", http.FileServer(http.FS(sub)))
+	return assets.StaticHandler()
 }
