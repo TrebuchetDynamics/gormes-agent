@@ -7,12 +7,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/discord/interactions"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/discord/messaging"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -301,30 +302,7 @@ func (b *Bot) SkillGroupCommands() []gateway.PlatformCommand {
 }
 
 func normalizeSkillGroupCommands(commands []gateway.PlatformCommand) ([]gateway.PlatformCommand, int) {
-	out := make([]gateway.PlatformCommand, 0, len(commands))
-	seen := map[string]struct{}{}
-	hidden := 0
-	for _, cmd := range commands {
-		name := strings.TrimSpace(cmd.Name)
-		if name == "" {
-			hidden++
-			continue
-		}
-		key := strings.ToLower(name)
-		if _, ok := seen[key]; ok {
-			hidden++
-			continue
-		}
-		seen[key] = struct{}{}
-		out = append(out, gateway.PlatformCommand{
-			Name:        name,
-			Description: strings.TrimSpace(cmd.Description),
-		})
-	}
-	sort.Slice(out, func(i, j int) bool {
-		return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name)
-	})
-	return out, hidden
+	return interactions.NormalizeSkillGroupCommands(commands)
 }
 
 func (b *Bot) acceptMessage(s *discordgo.Session, m *discordgo.Message) bool {
@@ -539,7 +517,7 @@ func (b *Bot) markReplyReferenceSent(chatID, replyToMsgID string) {
 }
 
 func replyReferenceKey(chatID, replyToMsgID string) string {
-	return strings.TrimSpace(chatID) + ":" + strings.TrimSpace(replyToMsgID)
+	return messaging.ReplyReferenceKey(chatID, replyToMsgID)
 }
 
 func (b *Bot) SendMedia(_ context.Context, chatID, replyToMsgID string, media gateway.OutboundMedia) (string, error) {
@@ -609,12 +587,7 @@ func (b *Bot) ReactToMessage(_ context.Context, chatID, msgID string) (func(), e
 }
 
 func discordReactionsEnabled() bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("DISCORD_REACTIONS"))) {
-	case "false", "0", "no":
-		return false
-	default:
-		return true
-	}
+	return messaging.ReactionsEnabledFromEnv()
 }
 
 func (b *Bot) OnProcessingStart(_ context.Context, chatID, msgID string) error {

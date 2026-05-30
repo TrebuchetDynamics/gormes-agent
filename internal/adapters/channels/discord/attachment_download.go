@@ -29,9 +29,9 @@ const (
 )
 
 var (
-	errDiscordAttachmentReadUnavailable = errors.New("discord attachment read unavailable")
-	errDiscordAttachmentBlockedSSRF     = errors.New("discord attachment blocked by SSRF guard")
-	errDiscordAttachmentTooLarge        = errors.New("discord attachment too large")
+	errDiscordAttachmentReadUnavailable = attachments.ErrReadUnavailable
+	errDiscordAttachmentBlockedSSRF     = attachments.ErrBlockedSSRF
+	errDiscordAttachmentTooLarge        = attachments.ErrTooLarge
 	errDiscordAttachmentInvalidPayload  = attachments.ErrInvalidPayload
 )
 
@@ -237,51 +237,15 @@ func safeDiscordToken(s string) string {
 }
 
 func discordAttachmentSourceID(att *discordgo.MessageAttachment) string {
-	if att == nil {
-		return ""
-	}
-	if id := strings.TrimSpace(att.ID); id != "" {
-		return id
-	}
-	return safeDiscordFileName(att.Filename)
+	return attachments.SourceID(att)
 }
 
 func discordAttachmentEvidence(code string, att *discordgo.MessageAttachment, reason string) string {
-	var parts []string
-	if code = strings.TrimSpace(code); code == "" {
-		code = discordAttachmentUnavailableCode
-	}
-	parts = append(parts, "code="+code)
-	if att != nil {
-		if fileName := safeDiscordFileName(att.Filename); fileName != "" {
-			parts = append(parts, "file="+fileName)
-		}
-		if mediaType := cleanDiscordMediaType(att.ContentType); mediaType != "" {
-			parts = append(parts, "mime="+mediaType)
-		}
-		if att.Size > 0 {
-			parts = append(parts, fmt.Sprintf("size=%d bytes", att.Size))
-		}
-	}
-	if reason = strings.TrimSpace(reason); reason != "" {
-		parts = append(parts, "reason="+reason)
-	}
-	return "[Discord attachment skipped: " + strings.Join(parts, "; ") + "]"
+	return attachments.Evidence(code, att, reason)
 }
 
 func discordAttachmentEvidenceReason(err error) string {
-	switch {
-	case err == nil:
-		return ""
-	case errors.Is(err, errDiscordAttachmentBlockedSSRF):
-		return "blocked by SSRF guard"
-	case errors.Is(err, errDiscordAttachmentTooLarge):
-		return "attachment exceeds 32 MB"
-	case errors.Is(err, errDiscordAttachmentInvalidPayload):
-		return "invalid or HTML/error payload"
-	default:
-		return "download unavailable"
-	}
+	return attachments.EvidenceReason(err)
 }
 
 func discordShouldInlineDocument(ext string, size int64) bool {
