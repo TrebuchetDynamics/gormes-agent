@@ -85,6 +85,19 @@ func TestPrepareMediaContentPreservesMixedMediaOrder(t *testing.T) {
 	}
 }
 
+func TestPrepareMediaContentExtractsBracketedPathWithSpaces(t *testing.T) {
+	dir := t.TempDir()
+	path := fileWithContent(t, dir, "voice memo.ogg", "audio")
+
+	content := PrepareMediaContent("Here is the audio.\n[[audio_as_voice]] [MEDIA:" + path + "]\nDone.")
+	if content.Text != "Here is the audio.\nDone." {
+		t.Fatalf("Text = %q, want bracketed media tag with spaces stripped", content.Text)
+	}
+	if len(content.Media) != 1 || content.Media[0].Path != path || !content.Media[0].AsVoice {
+		t.Fatalf("Media = %+v, want one voice attachment for %q", content.Media, path)
+	}
+}
+
 func TestPrepareMediaContentRejectsUnsafeMediaTags(t *testing.T) {
 	content := PrepareMediaContent("listen MEDIA:../plain.txt")
 	if len(content.Media) != 0 {

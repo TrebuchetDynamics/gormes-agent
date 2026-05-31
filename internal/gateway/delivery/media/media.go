@@ -41,7 +41,7 @@ type MediaContent struct {
 	Evidence []MediaEvidenceRecord
 }
 
-var mediaTagRE = regexp.MustCompile(`(?s)(?:\[\[audio_as_voice\]\]\s*)?(?:\[MEDIA:([^\]\s]+)\]|MEDIA:([^\s\]]+))`)
+var mediaTagRE = regexp.MustCompile(`(?:\[\[audio_as_voice\]\]\s*)?(?:\[MEDIA:([^\]\r\n]+)\]|MEDIA:([^\s\]]+))`)
 var mediaBlankGapRE = regexp.MustCompile(`\n{2,}`)
 
 // PrepareMediaContent extracts Hermes MEDIA tags from final assistant text so
@@ -50,12 +50,11 @@ var mediaBlankGapRE = regexp.MustCompile(`\n{2,}`)
 func PrepareMediaContent(finalText string) MediaContent {
 	var out MediaContent
 	cleaned := mediaTagRE.ReplaceAllStringFunc(finalText, func(tag string) string {
-		matches := mediaTagRE.FindStringSubmatch(tag)
-		if len(matches) != 3 {
+		candidate, ok := parseMediaTag(tag)
+		if !ok {
 			return tag
 		}
-		rawPath := firstNonEmpty(matches[1], matches[2])
-		mediaPath, ok := CleanMediaPath(rawPath)
+		mediaPath, ok := CleanMediaPath(candidate.RawPath)
 		if !ok {
 			out.Evidence = append(out.Evidence, MediaEvidenceRecord{
 				Code:   MediaEvidenceIgnored,
@@ -66,7 +65,7 @@ func PrepareMediaContent(finalText string) MediaContent {
 		}
 		out.Media = append(out.Media, Media{
 			Path:    mediaPath,
-			AsVoice: strings.Contains(tag, "[[audio_as_voice]]"),
+			AsVoice: candidate.AsVoice,
 			Kind:    MediaKindForPath(mediaPath),
 		})
 		out.Evidence = append(out.Evidence, MediaEvidenceRecord{
@@ -80,6 +79,23 @@ func PrepareMediaContent(finalText string) MediaContent {
 	}
 	out.Text = trimMediaText(cleaned)
 	return out
+}
+
+type mediaTagCandidate struct {
+	RawPath string
+	AsVoice bool
+}
+
+func parseMediaTag(tag string) (mediaTagCandidate, bool) {
+	matches := mediaTagRE.FindStringSubmatch(tag)
+	if len(matches) != 3 {
+		return mediaTagCandidate{}, false
+	}
+	rawPath := firstNonEmpty(matches[1], matches[2])
+	if strings.TrimSpace(rawPath) == "" {
+		return mediaTagCandidate{}, false
+	}
+	return mediaTagCandidate{RawPath: rawPath, AsVoice: strings.Contains(tag, "[[audio_as_voice]]")}, true
 }
 
 func CleanMediaPath(raw string) (string, bool) {
