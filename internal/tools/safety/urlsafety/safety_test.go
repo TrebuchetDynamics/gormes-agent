@@ -378,6 +378,24 @@ func TestURLSafetyChecker_CacheInvalidation(t *testing.T) {
 	}
 }
 
+func TestURLSafetyChecker_SetAllowPrivateURLsInvalidatesCache(t *testing.T) {
+	policy := DefaultURLSafetyPolicy()
+	policy.AllowPrivateURLs = false
+	checker := NewURLSafetyChecker(policy)
+
+	blocked := checker.CheckURL("http://127.0.0.1:3000/private")
+	if blocked.Safe {
+		t.Fatalf("initial CheckURL(loopback) = Safe=true, want cached private-address block")
+	}
+
+	checker.SetAllowPrivateURLs(true)
+
+	allowed := checker.CheckURL("http://127.0.0.1:3000/private")
+	if !allowed.Safe {
+		t.Fatalf("CheckURL(loopback) after SetAllowPrivateURLs(true) = Safe=false, want cache invalidated and private URL allowed; result=%+v", allowed)
+	}
+}
+
 func TestURLSafetyChecker_CacheReturnsSameResult(t *testing.T) {
 	policy := DefaultURLSafetyPolicy()
 	checker := NewURLSafetyChecker(policy)

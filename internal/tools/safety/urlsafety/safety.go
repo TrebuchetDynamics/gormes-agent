@@ -440,6 +440,10 @@ func NormalizeBlocklistRule(raw string) string {
 func (c *URLSafetyChecker) InvalidateCache() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.invalidateCacheLocked()
+}
+
+func (c *URLSafetyChecker) invalidateCacheLocked() {
 	c.cache = make(map[string]URLSafetyResult)
 	c.lastRefresh = time.Time{}
 }
@@ -449,6 +453,7 @@ func (c *URLSafetyChecker) SetAllowPrivateURLs(allow bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.policy.AllowPrivateURLs = allow
+	c.invalidateCacheLocked()
 }
 
 // AllowPrivateURLs returns the current AllowPrivateURLs setting.
@@ -471,7 +476,7 @@ func (c *URLSafetyChecker) AddBlocklistEntry(pattern string, category URLSafetyC
 		Category: category,
 		Source:   source,
 	})
-	c.cache = make(map[string]URLSafetyResult)
+	c.invalidateCacheLocked()
 }
 
 // AddAllowlistEntry adds an allowlist entry to the policy.
@@ -482,7 +487,7 @@ func (c *URLSafetyChecker) AddAllowlistEntry(pattern, source string) {
 		Pattern: pattern,
 		Source:  source,
 	})
-	c.cache = make(map[string]URLSafetyResult)
+	c.invalidateCacheLocked()
 }
 
 // LoadBlocklistFromLines parses a list of rules (one per line) into blocklist entries.
