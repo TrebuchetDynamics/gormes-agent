@@ -118,6 +118,25 @@ func TestSearchFilesContentContextIncludesNeighborLines(t *testing.T) {
 	}
 }
 
+func TestSearchFilesContentLimitDoesNotReturnOnlyContext(t *testing.T) {
+	root := t.TempDir()
+	writeSearchFixture(t, root, "dir/file.txt", "before context\nneedle line\nafter context\n")
+
+	tool := NewSearchFilesTool(FileTaskToolConfig{Root: root})
+	out := executeSearchFilesTool(t, tool, `{"pattern":"needle","target":"content","path":"dir","context":1,"limit":1}`)
+	matches, _ := out["matches"].([]any)
+	if len(matches) != 1 {
+		t.Fatalf("matches = %#v, want exactly one entry; output=%#v", matches, out)
+	}
+	row, _ := matches[0].(map[string]any)
+	if row["text"] != "needle line" || lineString(row["line"]) != "2" {
+		t.Fatalf("first limited content row = %#v, want the matched line rather than context-only output; output=%#v", row, out)
+	}
+	if out["truncated"] != true {
+		t.Fatalf("truncated = %#v, want true for omitted context rows; output=%#v", out["truncated"], out)
+	}
+}
+
 func TestSearchContextLineParserHyphenNumericFilename(t *testing.T) {
 	path, line, text, ok := parseSearchContextLine("dir/file-12-name.py-8-context here")
 	if !ok {

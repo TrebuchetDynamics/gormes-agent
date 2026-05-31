@@ -304,6 +304,21 @@ type SearchFilesTool struct {
 	cfg FileTaskToolConfig
 }
 
+type searchContentEntry struct {
+	path  string
+	line  int
+	text  string
+	match bool
+}
+
+func (e searchContentEntry) payload() map[string]any {
+	return map[string]any{
+		"path": e.path,
+		"line": e.line,
+		"text": e.text,
+	}
+}
+
 func NewSearchFilesTool(cfg FileTaskToolConfig) *SearchFilesTool {
 	return &SearchFilesTool{cfg: cfg}
 }
@@ -429,7 +444,7 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 	}
 	counts := map[string]int{}
 	filesSeen := map[string]bool{}
-	var results []map[string]any
+	var results []searchContentEntry
 	emittedContext := map[string]bool{}
 	contextLines := in.Context
 	if contextLines < 0 {
@@ -470,27 +485,18 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 			counts[rel]++
 			filesSeen[rel] = true
 			if outputMode == "content" {
-				start, end := i, i
-				if contextLines > 0 {
-					start = i - contextLines
-					if start < 0 {
-						start = 0
-					}
-					end = i + contextLines
-					if end >= len(lines) {
-						end = len(lines) - 1
-					}
-				}
+				start, end := searchContentContextRange(i, len(lines), contextLines)
 				for lineIndex := start; lineIndex <= end; lineIndex++ {
 					key := rel + "\x00" + strconv.Itoa(lineIndex)
 					if emittedContext[key] {
 						continue
 					}
 					emittedContext[key] = true
-					results = append(results, map[string]any{
-						"path": rel,
-						"line": lineIndex + 1,
-						"text": lines[lineIndex],
+					results = append(results, searchContentEntry{
+						path:  rel,
+						line:  lineIndex + 1,
+						text:  lines[lineIndex],
+						match: lineIndex == i,
 					})
 				}
 			}
@@ -529,13 +535,13 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 			"truncated": truncated,
 		})
 	case "content":
-		window, truncated := windowMatches(results, offset, limit)
+		window, truncated := windowSearchContentEntries(results, offset, limit)
 		return marshalToolPayload(map[string]any{
 			"pattern":   in.Pattern,
 			"target":    "content",
 			"path":      relBase,
 			"count":     len(results),
-			"matches":   window,
+			"matches":   searchContentEntryPayloads(window),
 			"truncated": truncated,
 		})
 	default:
@@ -2362,9 +2368,54 @@ func windowStrings(values []string, offset, limit int) ([]string, bool) {
 	return append([]string(nil), values[bounds.start:bounds.end]...), bounds.truncated
 }
 
-func windowMatches(values []map[string]any, offset, limit int) ([]map[string]any, bool) {
+func searchContentContextRange(matchIndex, lineCount, contextLines int) (int, int) {
+	start, end := matchIndex, matchIndex
+	if contextLines > 0 {
+		start = matchIndex - contextLines
+		if start < 0 {
+			start = 0
+		}
+		end = matchIndex + contextLines
+		if end >= lineCount {
+			end = lineCount - 1
+		}
+	}
+	return start, end
+}
+
+func windowSearchContentEntries(values []searchContentEntry, offset, limit int) ([]searchContentEntry, bool) {
 	bounds := computeSearchWindowBounds(len(values), offset, limit)
-	return append([]map[string]any(nil), values[bounds.start:bounds.end]...), bounds.truncated
+	if bounds.start < bounds.end && !searchContentWindowHasMatch(values[bounds.start:bounds.end]) {
+		for i := bounds.start; i < len(values); i++ {
+			if values[i].match {
+				bounds.start = i
+				bounds.end = i + 1
+				if bounds.start+limit < len(values) {
+					bounds.end = bounds.start + limit
+				}
+				bounds.truncated = bounds.start > 0 || bounds.end < len(values)
+				break
+			}
+		}
+	}
+	return append([]searchContentEntry(nil), values[bounds.start:bounds.end]...), bounds.truncated
+}
+
+func searchContentWindowHasMatch(values []searchContentEntry) bool {
+	for _, value := range values {
+		if value.match {
+			return true
+		}
+	}
+	return false
+}
+
+func searchContentEntryPayloads(entries []searchContentEntry) []map[string]any {
+	payloads := make([]map[string]any, 0, len(entries))
+	for _, entry := range entries {
+		payloads = append(payloads, entry.payload())
+	}
+	return payloads
 }
 
 func defaultJSONArgs(args json.RawMessage) json.RawMessage {
