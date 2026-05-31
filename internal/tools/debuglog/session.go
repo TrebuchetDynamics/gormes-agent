@@ -197,11 +197,9 @@ func sanitizeDebugValue(key string, v any) any {
 	case map[string]any:
 		return sanitizeDebugMap(value)
 	case map[string]string:
-		out := make(map[string]any, len(value))
-		for k, nested := range value {
-			out[k] = sanitizeDebugValue(k, nested)
-		}
-		return out
+		return sanitizeDebugStringMap(value)
+	case map[string][]string:
+		return sanitizeDebugStringSliceMap(value)
 	case []any:
 		out := make([]any, len(value))
 		for i, nested := range value {
@@ -211,6 +209,26 @@ func sanitizeDebugValue(key string, v any) any {
 	default:
 		return value
 	}
+}
+
+func sanitizeDebugStringMap(in map[string]string) map[string]any {
+	out := make(map[string]any, len(in))
+	for k, nested := range in {
+		out[k] = sanitizeDebugValue(k, nested)
+	}
+	return out
+}
+
+func sanitizeDebugStringSliceMap(in map[string][]string) map[string]any {
+	out := make(map[string]any, len(in))
+	for k, values := range in {
+		sanitized := make([]any, len(values))
+		for i, nested := range values {
+			sanitized[i] = sanitizeDebugValue(k, nested)
+		}
+		out[k] = sanitized
+	}
+	return out
 }
 
 func isSensitiveDebugKey(key string) bool {

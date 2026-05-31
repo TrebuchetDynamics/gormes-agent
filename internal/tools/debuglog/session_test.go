@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -103,6 +104,10 @@ func TestDebugSessionEnabledSavesRedactedJSON(t *testing.T) {
 			"Cookie": "session=plain-existing-token",
 			"Accept": "application/json",
 		},
+		"request_headers": map[string][]string{
+			"Authorization": {"Bearer plain-existing-token"},
+			"Accept":        {"application/json"},
+		},
 		"provider_response_body": "raw provider body that should not be stored",
 		"file_contents":          "local file contents that should not be stored",
 	})
@@ -143,6 +148,10 @@ func TestDebugSessionEnabledSavesRedactedJSON(t *testing.T) {
 	headers, ok := call["headers"].(map[string]any)
 	if !ok || headers["Cookie"] != "[redacted]" || headers["Accept"] != "application/json" {
 		t.Fatalf("nested headers not sanitized: %#v", call["headers"])
+	}
+	requestHeaders, ok := call["request_headers"].(map[string]any)
+	if !ok || requestHeaders["Authorization"] != "[redacted]" || !reflect.DeepEqual(requestHeaders["Accept"], []any{"application/json"}) {
+		t.Fatalf("string-slice headers not sanitized: %#v", call["request_headers"])
 	}
 	if call["provider_response_body"] != "[redacted]" || call["file_contents"] != "[redacted]" {
 		t.Fatalf("sensitive body/content fields not redacted: %+v", call)
