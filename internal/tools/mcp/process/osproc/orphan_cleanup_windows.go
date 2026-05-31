@@ -1,6 +1,6 @@
 //go:build windows
 
-package process
+package osproc
 
 import (
 	"errors"
@@ -8,7 +8,8 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-func defaultMCPStdioPIDAlive(pid int) bool {
+// Alive reports whether pid appears to reference a live process.
+func Alive(pid int) bool {
 	if pid <= 0 {
 		return false
 	}
@@ -20,7 +21,8 @@ func defaultMCPStdioPIDAlive(pid int) bool {
 	return errors.Is(err, windows.ERROR_ACCESS_DENIED)
 }
 
-func defaultMCPStdioKillPID(pid int) error {
+// Terminate sends the platform's normal termination signal to pid.
+func Terminate(pid int) error {
 	if pid <= 0 {
 		return nil
 	}

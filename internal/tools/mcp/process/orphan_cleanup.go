@@ -3,6 +3,8 @@ package process
 import (
 	"sort"
 	"sync"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/process/osproc"
 )
 
 // MCPStdioCleanupStatus is operator-visible evidence from MCP stdio cleanup.
@@ -51,11 +53,11 @@ var DefaultMCPStdioProcessTracker = NewMCPStdioProcessTracker(MCPStdioProcessTra
 func NewMCPStdioProcessTracker(opts MCPStdioProcessTrackerOptions) *MCPStdioProcessTracker {
 	alive := opts.Alive
 	if alive == nil {
-		alive = defaultMCPStdioPIDAlive
+		alive = osproc.Alive
 	}
 	kill := opts.Kill
 	if kill == nil {
-		kill = defaultMCPStdioKillPID
+		kill = osproc.Terminate
 	}
 	return &MCPStdioProcessTracker{
 		active:   make(map[int]string),

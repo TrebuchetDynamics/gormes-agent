@@ -1,0 +1,6 @@
+{"ts":"2026-05-30T23:04:21-06:00","candidate":"tools/goncho","reason":"no metric progress rollback","scope":"candidate","temporary":false}
+{"ts":"2026-05-30T23:08:01-06:00","candidate":"tools/whisper/audio","reason":"no metric progress rollback","scope":"candidate","temporary":false}
+{"ts":"2026-05-30T23:10:27-06:00","candidate":"tools/browser","reason":"no metric progress rollback","scope":"candidate","temporary":false}
+{"ts":"2026-05-30T23:13:19-06:00","candidate":"tools/tts","reason":"no metric progress rollback","scope":"candidate","temporary":false}
+{"ts":"2026-05-30T23:17:30-06:00","candidate":"tools/toolkit","reason":"no metric progress rollback","scope":"candidate","temporary":false}
+{"ts":"2026-05-30T23:19:41-06:00","candidate":"tools/approval","reason":"no metric progress rollback","scope":"candidate","temporary":false}
