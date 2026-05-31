@@ -29,7 +29,7 @@ func TestWhisperWASMLoadsAndExposesExports(t *testing.T) {
 	}
 
 	for _, want := range []string{"_initialize", "free"} {
-		if !contains(discovery.ExportedFunctions, want) {
+		if !hasExport(discovery.ExportedFunctions, want) {
 			t.Fatalf("missing export %q\nexports=%v", want, discovery.ExportedFunctions)
 		}
 	}
@@ -53,6 +53,15 @@ func TestWhisperWASMInstantiatesForDiscovery(t *testing.T) {
 	if discovery.Probe == "" {
 		t.Fatal("expected non-empty probe summary")
 	}
+}
+
+func hasExport(exports []string, want string) bool {
+	for _, export := range exports {
+		if export == want {
+			return true
+		}
+	}
+	return false
 }
 
 func readWhisperWASM(t *testing.T) []byte {
