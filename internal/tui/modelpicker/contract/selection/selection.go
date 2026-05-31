@@ -1,8 +1,7 @@
 package selection
 
 import (
-	"strings"
-
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/modelpicker/contract/identity"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/modelpicker/contract/schema"
 )
 
@@ -10,7 +9,7 @@ import (
 // Provider selection accepts case-insensitive IDs so slash-command input can
 // preserve the operator's typed casing while still matching catalog entries.
 func ProviderIDEqual(left, right string) bool {
-	return strings.EqualFold(left, right)
+	return identity.ProviderIDEqual(left, right)
 }
 
 // ModelListFocused reports whether keyboard navigation is currently inside
