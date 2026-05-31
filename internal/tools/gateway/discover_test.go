@@ -63,6 +63,25 @@ func TestGatewayEndpointNormalizationCanonicalizesHTTPAliases(t *testing.T) {
 	}
 }
 
+func TestNormalizeGatewayEndpointsDropsInvalidAndKeepsFirstDuplicateCandidate(t *testing.T) {
+	endpoints := normalizeGatewayEndpoints([]GatewayEndpoint{
+		{InstanceName: "manual", Address: "LOCALHOST", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceManual},
+		{InstanceName: "missing-address", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceManual},
+		{InstanceName: "bonjour-duplicate", Address: "localhost", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceBonjour},
+		{InstanceName: "secure", Address: "127.0.0.1", Port: 18789, Scheme: "https", Source: GatewayEndpointSourceBonjour},
+	})
+
+	if len(endpoints) != 2 {
+		t.Fatalf("endpoints = %+v, want 2 valid deduped candidates", endpoints)
+	}
+	if endpoints[0].InstanceName != "secure" || endpoints[0].Scheme != "wss" {
+		t.Fatalf("first endpoint = %+v, want sorted secure bonjour candidate", endpoints[0])
+	}
+	if endpoints[1].InstanceName != "manual" || endpoints[1].Address != "LOCALHOST" {
+		t.Fatalf("duplicate winner = %+v, want first candidate provenance preserved", endpoints[1])
+	}
+}
+
 func TestGatewayDiscoverReportsDegradedNoGateways(t *testing.T) {
 	result := DiscoverGateways(context.Background(), GatewayDiscoverRequest{
 		Discoverer: GatewayDiscovererFunc(func(context.Context) ([]GatewayEndpoint, error) {

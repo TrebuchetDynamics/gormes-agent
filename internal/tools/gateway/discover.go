@@ -241,10 +241,10 @@ func normalizeGatewayEndpoints(in []GatewayEndpoint) []GatewayEndpoint {
 	seen := map[string]bool{}
 	for _, endpoint := range in {
 		normalized := NormalizeGatewayEndpoint(endpoint)
-		if normalized.Address == "" || normalized.Port <= 0 {
+		key, ok := gatewayEndpointDedupeKey(normalized)
+		if !ok {
 			continue
 		}
-		key := normalized.Scheme + "://" + strings.ToLower(normalized.Address) + ":" + strconv.Itoa(normalized.Port)
 		if seen[key] {
 			continue
 		}
@@ -252,16 +252,26 @@ func normalizeGatewayEndpoints(in []GatewayEndpoint) []GatewayEndpoint {
 		out = append(out, normalized)
 	}
 	sort.Slice(out, func(i, j int) bool {
-		a, b := out[i], out[j]
-		if a.Source != b.Source {
-			return a.Source < b.Source
-		}
-		if a.Address != b.Address {
-			return a.Address < b.Address
-		}
-		return a.Port < b.Port
+		return lessGatewayEndpoint(out[i], out[j])
 	})
 	return out
+}
+
+func gatewayEndpointDedupeKey(endpoint GatewayEndpoint) (string, bool) {
+	if endpoint.Address == "" || endpoint.Port <= 0 {
+		return "", false
+	}
+	return endpoint.Scheme + "://" + strings.ToLower(endpoint.Address) + ":" + strconv.Itoa(endpoint.Port), true
+}
+
+func lessGatewayEndpoint(a, b GatewayEndpoint) bool {
+	if a.Source != b.Source {
+		return a.Source < b.Source
+	}
+	if a.Address != b.Address {
+		return a.Address < b.Address
+	}
+	return a.Port < b.Port
 }
 
 func cleanGatewayTXT(in map[string]string) map[string]string {
