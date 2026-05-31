@@ -1,4 +1,4 @@
-package prompts
+package contextencoding
 
 import (
 	"encoding/json"
