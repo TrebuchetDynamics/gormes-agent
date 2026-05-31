@@ -8,13 +8,13 @@ import (
 )
 
 func DetectVSCodeLikeTerminal(env map[string]string) string {
-	if envvars.Value(env, "CURSOR_TRACE_ID") != "" {
+	if envvars.Value(env, envvars.CursorTraceID) != "" {
 		return "cursor"
 	}
-	if strings.Contains(strings.ToLower(envvars.Value(env, "VSCODE_GIT_ASKPASS_MAIN")), "windsurf") {
+	if strings.Contains(strings.ToLower(envvars.Value(env, envvars.VSCodeGitAskpassMain)), "windsurf") {
 		return "windsurf"
 	}
-	if strings.EqualFold(envvars.Value(env, "TERM_PROGRAM"), "vscode") {
+	if strings.EqualFold(envvars.Value(env, envvars.TermProgram), "vscode") {
 		return "vscode"
 	}
 	return ""
@@ -25,7 +25,7 @@ func VSCodeStyleConfigDir(app, platform string, env map[string]string, home stri
 	case "darwin":
 		return filepath.Join(home, "Library", "Application Support", app, "User")
 	case "win32":
-		if appdata := envvars.Value(env, "APPDATA"); appdata != "" {
+		if appdata := envvars.Value(env, envvars.AppData); appdata != "" {
 			return filepath.ToSlash(filepath.Join(appdata, app, "User"))
 		}
 		return filepath.ToSlash(filepath.Join(home, "AppData", "Roaming", app, "User"))

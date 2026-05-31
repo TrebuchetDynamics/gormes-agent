@@ -102,10 +102,10 @@ func clipboardBackends(platform string, env map[string]string) []clipboardBacken
 		return []clipboardBackend{{name: "powershell", args: powershellArgs}}
 	case "linux":
 		var backends []clipboardBackend
-		if envvars.Value(env, "WSL_INTEROP") != "" {
+		if envvars.Value(env, envvars.WSLInterop) != "" {
 			backends = append(backends, clipboardBackend{name: "powershell.exe", args: powershellArgs})
 		}
-		if envvars.Value(env, "WAYLAND_DISPLAY") != "" {
+		if envvars.Value(env, envvars.WaylandDisplay) != "" {
 			backends = append(backends, clipboardBackend{name: "wl-paste", args: []string{"--type", "text"}})
 		}
 		backends = append(backends, clipboardBackend{name: "xclip", args: []string{"-selection", "clipboard", "-out"}})
@@ -160,7 +160,7 @@ func WriteClipboardText(req ClipboardWriteRequest) ClipboardWriteResult {
 }
 
 func BuildOSC52ClipboardQuery(env map[string]string) string {
-	if envvars.Value(env, "TMUX") == "" {
+	if envvars.Value(env, envvars.TMUX) == "" {
 		return OSC52ClipboardQuery
 	}
 	escaped := strings.ReplaceAll(OSC52ClipboardQuery, "\x1b", "\x1b\x1b")

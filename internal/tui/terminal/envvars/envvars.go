@@ -2,6 +2,22 @@ package envvars
 
 import "github.com/TrebuchetDynamics/gormes-agent/internal/tui/envmap"
 
+const (
+	AppData              = "APPDATA"
+	ColorTerm            = "COLORTERM"
+	CursorTraceID        = "CURSOR_TRACE_ID"
+	ForceColor           = "FORCE_COLOR"
+	HermesTUITruecolor   = "HERMES_TUI_TRUECOLOR"
+	NoColor              = "NO_COLOR"
+	SSHConnection        = "SSH_CONNECTION"
+	SSHTTY               = "SSH_TTY"
+	TermProgram          = "TERM_PROGRAM"
+	TMUX                 = "TMUX"
+	VSCodeGitAskpassMain = "VSCODE_GIT_ASKPASS_MAIN"
+	WaylandDisplay       = "WAYLAND_DISPLAY"
+	WSLInterop           = "WSL_INTEROP"
+)
+
 // Value returns the terminal environment value for key using the shared TUI
 // environment-map semantics.
 func Value(env map[string]string, key string) string {
@@ -18,5 +34,5 @@ func Has(env map[string]string, key string) bool {
 // setup policy uses this to avoid writing local keybinding files from a remote
 // shell.
 func IsRemote(env map[string]string) bool {
-	return Value(env, "SSH_CONNECTION") != "" || Value(env, "SSH_TTY") != ""
+	return Value(env, SSHConnection) != "" || Value(env, SSHTTY) != ""
 }
