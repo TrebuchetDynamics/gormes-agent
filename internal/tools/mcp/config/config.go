@@ -566,21 +566,23 @@ func lookupMCPValue(values map[string]any, name string) (any, bool) {
 
 func ambiguousCaseFoldedMCPField(values map[string]any, fields ...string) (string, []string, bool) {
 	for _, field := range fields {
-		if _, exact := values[field]; exact {
-			continue
-		}
-		variants := make([]string, 0, 2)
-		for key := range values {
-			if strings.EqualFold(key, field) {
-				variants = append(variants, key)
-			}
-		}
+		variants := caseFoldedMCPFieldVariants(values, field)
 		if len(variants) > 1 {
-			sort.Strings(variants)
 			return field, variants, true
 		}
 	}
 	return "", nil, false
+}
+
+func caseFoldedMCPFieldVariants(values map[string]any, field string) []string {
+	variants := make([]string, 0, 2)
+	for key := range values {
+		if strings.EqualFold(key, field) {
+			variants = append(variants, key)
+		}
+	}
+	sort.Strings(variants)
+	return variants
 }
 
 func mcpValue(values map[string]any, name string) any {

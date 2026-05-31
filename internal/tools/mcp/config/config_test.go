@@ -85,33 +85,54 @@ func TestResolveMCPConfigRejectsOverflowingSamplingInteger(t *testing.T) {
 }
 
 func TestResolveMCPConfigRejectsAmbiguousCaseFoldedServerFields(t *testing.T) {
-	resolved, err := ResolveMCPConfig(map[string]any{
-		"mcp_servers": map[string]any{
-			"ambiguous": map[string]any{
+	tests := []struct {
+		name   string
+		server map[string]any
+	}{
+		{
+			name: "case-only variants",
+			server: map[string]any{
 				"Command": "npx",
 				"COMMAND": "uvx",
 			},
 		},
-	}, MCPConfigOptions{LookupEnv: func(string) (string, bool) { return "", false }})
-	if err == nil {
-		t.Fatalf("ResolveMCPConfig succeeded for ambiguous case-folded command fields")
-	}
-	if !strings.Contains(err.Error(), "ambiguous command field variants") {
-		t.Fatalf("error = %q, want ambiguous command evidence", err.Error())
-	}
-	if strings.Contains(err.Error(), "npx") || strings.Contains(err.Error(), "uvx") {
-		t.Fatalf("error leaked ambiguous command values: %s", err.Error())
-	}
-	if len(resolved.Servers) != 0 {
-		t.Fatalf("resolved valid servers = %#v, want none", resolved.Servers)
+		{
+			name: "exact plus folded variant",
+			server: map[string]any{
+				"command": "npx",
+				"COMMAND": "uvx",
+			},
+		},
 	}
 
-	status, ok := resolved.Status("ambiguous")
-	if !ok {
-		t.Fatalf("missing invalid server status in %#v", resolved.Statuses)
-	}
-	if status.Status != MCPConfigStatusInvalidConfig {
-		t.Fatalf("status = %q, want %q (reason=%q)", status.Status, MCPConfigStatusInvalidConfig, status.Reason)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			resolved, err := ResolveMCPConfig(map[string]any{
+				"mcp_servers": map[string]any{
+					"ambiguous": tc.server,
+				},
+			}, MCPConfigOptions{LookupEnv: func(string) (string, bool) { return "", false }})
+			if err == nil {
+				t.Fatalf("ResolveMCPConfig succeeded for ambiguous case-folded command fields")
+			}
+			if !strings.Contains(err.Error(), "ambiguous command field variants") {
+				t.Fatalf("error = %q, want ambiguous command evidence", err.Error())
+			}
+			if strings.Contains(err.Error(), "npx") || strings.Contains(err.Error(), "uvx") {
+				t.Fatalf("error leaked ambiguous command values: %s", err.Error())
+			}
+			if len(resolved.Servers) != 0 {
+				t.Fatalf("resolved valid servers = %#v, want none", resolved.Servers)
+			}
+
+			status, ok := resolved.Status("ambiguous")
+			if !ok {
+				t.Fatalf("missing invalid server status in %#v", resolved.Statuses)
+			}
+			if status.Status != MCPConfigStatusInvalidConfig {
+				t.Fatalf("status = %q, want %q (reason=%q)", status.Status, MCPConfigStatusInvalidConfig, status.Reason)
+			}
+		})
 	}
 }
 
