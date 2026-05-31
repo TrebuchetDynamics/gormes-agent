@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 const (
@@ -459,10 +460,8 @@ func parseDNSSDResolveGateway(stdout string, instance string) []GatewayEndpoint 
 			}
 			continue
 		}
-		for _, token := range strings.Fields(line) {
-			if key, value, ok := strings.Cut(token, "="); ok {
-				txt[strings.TrimSpace(key)] = strings.Trim(strings.TrimSpace(value), `"`)
-			}
+		for key, value := range parseGatewayTXTLine(line) {
+			txt[key] = value
 		}
 	}
 	if address == "" || port == 0 {
@@ -492,6 +491,42 @@ func splitGatewayHostPort(raw string) (string, int, bool) {
 		return "", 0, false
 	}
 	return strings.TrimSuffix(raw[:idx], "."), port, true
+}
+
+func parseGatewayTXTLine(line string) map[string]string {
+	return parseGatewayTXTTokens(splitGatewayTXTFields(line))
+}
+
+func splitGatewayTXTFields(line string) []string {
+	var fields []string
+	var b strings.Builder
+	inQuote := false
+	escaped := false
+	flush := func() {
+		if b.Len() == 0 {
+			return
+		}
+		fields = append(fields, b.String())
+		b.Reset()
+	}
+	for _, r := range strings.TrimSpace(line) {
+		switch {
+		case escaped:
+			b.WriteRune(r)
+			escaped = false
+		case r == '\\' && inQuote:
+			b.WriteRune(r)
+			escaped = true
+		case r == '"':
+			inQuote = !inQuote
+		case unicode.IsSpace(r) && !inQuote:
+			flush()
+		default:
+			b.WriteRune(r)
+		}
+	}
+	flush()
+	return fields
 }
 
 func parseGatewayTXTTokens(tokens []string) map[string]string {

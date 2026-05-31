@@ -82,6 +82,25 @@ func TestNormalizeGatewayEndpointsDropsInvalidAndKeepsFirstDuplicateCandidate(t 
 	}
 }
 
+func TestParseDNSSDResolveGatewayKeepsQuotedTXTValuesWithSpaces(t *testing.T) {
+	stdout := `Lookup Gormes Gateway._openclaw-gw._tcp.local.
+Gormes Gateway._openclaw-gw._tcp.local. can be reached at workstation.local.:18789 (interface 4)
+ "gatewayTls=true" "displayName=Juan Gateway" "wsPath=/gateway socket"
+`
+
+	endpoints := parseDNSSDResolveGateway(stdout, "Gormes Gateway")
+	if len(endpoints) != 1 {
+		t.Fatalf("endpoints = %+v, want one resolved endpoint", endpoints)
+	}
+	got := endpoints[0].TXT
+	if got["gatewayTls"] != "true" || got["displayName"] != "Juan Gateway" || got["wsPath"] != "/gateway socket" {
+		t.Fatalf("TXT = %+v, want quoted values with spaces preserved", got)
+	}
+	if endpoints[0].Scheme != "wss" {
+		t.Fatalf("Scheme = %q, want gatewayTls TXT to normalize to wss", endpoints[0].Scheme)
+	}
+}
+
 func TestGatewayDiscoverReportsDegradedNoGateways(t *testing.T) {
 	result := DiscoverGateways(context.Background(), GatewayDiscoverRequest{
 		Discoverer: GatewayDiscovererFunc(func(context.Context) ([]GatewayEndpoint, error) {
