@@ -61,6 +61,36 @@ func TestSlashSpawn_RejectsNonOperatorTier(t *testing.T) {
 	}
 }
 
+func TestSlashSpawn_TelegramSpawnNormalizesForumChatID(t *testing.T) {
+	ch := &spawnFakeChannel{fakeChannel: newFakeChannel("telegram")}
+	reg := &spawnFakeRegistry{}
+
+	result := HandleSlashSpawn(context.Background(), SlashSpawnRequest{
+		Event: InboundEvent{
+			Platform: "telegram",
+			ChatID:   "  -100123  ",
+			ChatType: " supergroup ",
+			UserID:   "operator",
+			Text:     "/spawn Research literature reviewer",
+		},
+		Channel:            ch,
+		Registry:           reg,
+		OperatorAuthorized: true,
+	})
+	if result.Code != AgentSpawned {
+		t.Fatalf("result = %+v, want spawned", result)
+	}
+	if len(ch.createdTopics) != 1 || ch.createdTopics[0].ChatID != "-100123" {
+		t.Fatalf("created topics = %+v, want trimmed chat id", ch.createdTopics)
+	}
+	if len(reg.bound) != 1 || reg.bound[0].Match.PeerID != "-100123" {
+		t.Fatalf("bound matches = %+v, want trimmed peer id", reg.bound)
+	}
+	if len(ch.threadSends) != 1 || ch.threadSends[0].ChatID != "-100123" {
+		t.Fatalf("thread sends = %+v, want trimmed chat id", ch.threadSends)
+	}
+}
+
 func TestSlashSpawn_TelegramTopicFailureDoesNotCreateAgent(t *testing.T) {
 	ch := &spawnFakeChannel{
 		fakeChannel: newFakeChannel("telegram"),
@@ -88,6 +118,36 @@ func TestSlashSpawn_TelegramTopicFailureDoesNotCreateAgent(t *testing.T) {
 	}
 }
 
+func TestSlashSpawn_DiscordSpawnNormalizesGuildChannelID(t *testing.T) {
+	ch := &spawnFakeChannel{fakeChannel: newFakeChannel("discord")}
+	reg := &spawnFakeRegistry{}
+
+	result := HandleSlashSpawn(context.Background(), SlashSpawnRequest{
+		Event: InboundEvent{
+			Platform: "discord",
+			ChatID:   "  channel-1  ",
+			GuildID:  " guild-1 ",
+			UserID:   "operator",
+			Text:     "/spawn Research literature reviewer",
+		},
+		Channel:            ch,
+		Registry:           reg,
+		OperatorAuthorized: true,
+	})
+	if result.Code != AgentSpawned {
+		t.Fatalf("result = %+v, want spawned", result)
+	}
+	if len(ch.createdThreads) != 1 || ch.createdThreads[0].ChannelID != "channel-1" {
+		t.Fatalf("created threads = %+v, want trimmed channel id", ch.createdThreads)
+	}
+	if len(reg.bound) != 1 || reg.bound[0].Match.PeerID != "channel-1" {
+		t.Fatalf("bound matches = %+v, want trimmed peer id", reg.bound)
+	}
+	if len(ch.threadSends) != 1 || ch.threadSends[0].ChatID != "channel-1" {
+		t.Fatalf("thread sends = %+v, want trimmed channel id", ch.threadSends)
+	}
+}
+
 func TestSlashSpawn_DiscordRejectsDirectMessage(t *testing.T) {
 	result := HandleSlashSpawn(context.Background(), SlashSpawnRequest{
 		Event: InboundEvent{
@@ -107,15 +167,21 @@ func TestSlashSpawn_DiscordRejectsDirectMessage(t *testing.T) {
 
 type spawnFakeChannel struct {
 	*fakeChannel
-	createdTopics []spawnFakeTopic
-	threadSends   []spawnFakeThreadSend
-	createErr     error
-	nextThreadID  string
+	createdTopics  []spawnFakeTopic
+	createdThreads []spawnFakeThread
+	threadSends    []spawnFakeThreadSend
+	createErr      error
+	nextThreadID   string
 }
 
 type spawnFakeTopic struct {
 	ChatID string
 	Name   string
+}
+
+type spawnFakeThread struct {
+	ChannelID string
+	Name      string
 }
 
 type spawnFakeThreadSend struct {
@@ -126,6 +192,17 @@ type spawnFakeThreadSend struct {
 
 func (c *spawnFakeChannel) CreateForumTopic(_ context.Context, chatID, name string) (string, error) {
 	c.createdTopics = append(c.createdTopics, spawnFakeTopic{ChatID: chatID, Name: name})
+	if c.createErr != nil {
+		return "", c.createErr
+	}
+	if c.nextThreadID == "" {
+		c.nextThreadID = "777"
+	}
+	return c.nextThreadID, nil
+}
+
+func (c *spawnFakeChannel) CreateThread(_ context.Context, channelID, name string) (string, error) {
+	c.createdThreads = append(c.createdThreads, spawnFakeThread{ChannelID: channelID, Name: name})
 	if c.createErr != nil {
 		return "", c.createErr
 	}
