@@ -1,72 +1,140 @@
-package events
-
-import eventcommands "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/events/commands"
+package commands
 
 // EventKind is the normalized command kind on an inbound message.
-type EventKind = eventcommands.EventKind
+type EventKind int
 
 const (
 	// EventUnknown is an unrecognized slash command.
-	EventUnknown = eventcommands.EventUnknown
+	EventUnknown EventKind = iota
 	// EventSubmit carries user text for kernel.PlatformEventSubmit.
-	EventSubmit = eventcommands.EventSubmit
+	EventSubmit
 	// EventCancel maps to kernel.PlatformEventCancel.
-	EventCancel = eventcommands.EventCancel
+	EventCancel
 	// EventReset maps to kernel.PlatformEventResetSession.
-	EventReset = eventcommands.EventReset
+	EventReset
 	// EventStart is the help or welcome command.
-	EventStart = eventcommands.EventStart
+	EventStart
 	// EventRestart requests a graceful service-manager restart.
-	EventRestart = eventcommands.EventRestart
+	EventRestart
 	// EventSteer queues operator guidance for the active turn fallback path.
-	EventSteer = eventcommands.EventSteer
+	EventSteer
 	// EventQueue queues one full follow-up turn without interrupting the active run.
-	EventQueue = eventcommands.EventQueue
+	EventQueue
 	// EventUsage renders runtime and provider account-usage evidence.
-	EventUsage = eventcommands.EventUsage
+	EventUsage
 	// EventStatus renders Hermes-style gateway/session status directly in the channel.
-	EventStatus = eventcommands.EventStatus
+	EventStatus
 	// EventTitle sets or reads the current session title directly in the channel.
-	EventTitle = eventcommands.EventTitle
+	EventTitle
 	// EventVerbose cycles gateway tool-progress display for the calling platform.
-	EventVerbose = eventcommands.EventVerbose
-	EventModel   = eventcommands.EventModel
+	EventVerbose
+	EventModel
 	// EventGateway renders gateway status.
-	EventGateway = eventcommands.EventGateway
+	EventGateway
 	// EventThreadLifecycle carries normalized thread open/close/archive state.
-	EventThreadLifecycle = eventcommands.EventThreadLifecycle
+	EventThreadLifecycle
 	// EventSessions handles /sessions subcommands (list, show).
-	EventSessions = eventcommands.EventSessions
+	EventSessions
 	// EventProfile handles /profile subcommands (show, list).
-	EventProfile = eventcommands.EventProfile
+	EventProfile
 	// EventSkills handles /skills subcommands (list, inspect).
-	EventSkills = eventcommands.EventSkills
+	EventSkills
 	// EventCommands handles /commands [page] command and skill catalog.
-	EventCommands = eventcommands.EventCommands
+	EventCommands
 	// EventReasoning handles /reasoning subcommands (show, set, reset).
-	EventReasoning = eventcommands.EventReasoning
+	EventReasoning
 	// EventBusy handles /busy subcommands (queue, steer, interrupt, status).
-	EventBusy = eventcommands.EventBusy
+	EventBusy
 	// EventTTS handles /tts subcommands (on, off, speed, voice, engine, language).
-	EventTTS = eventcommands.EventTTS
+	EventTTS
 	// EventReload reloads gateway runtime config without restarting the process.
-	EventReload = eventcommands.EventReload
+	EventReload
 	// EventReloadSkills refreshes dynamic skill command catalogs without a model turn.
-	EventReloadSkills = eventcommands.EventReloadSkills
+	EventReloadSkills
 	// EventRetry handles /retry (retry the last message by resending to agent).
-	EventRetry = eventcommands.EventRetry
+	EventRetry
 	// EventUndo handles /undo (remove the last user/assistant exchange).
-	EventUndo = eventcommands.EventUndo
+	EventUndo
 	// EventGoal handles /goal state and continuation loop controls.
-	EventGoal = eventcommands.EventGoal
+	EventGoal
 	// EventTopic handles Telegram private-chat topic-mode controls.
-	EventTopic = eventcommands.EventTopic
+	EventTopic
 	// EventKanban handles /kanban subcommands.
-	EventKanban = eventcommands.EventKanban
+	EventKanban
 	// EventSpawn handles channel-native dynamic agent spawn UX.
-	EventSpawn = eventcommands.EventSpawn
+	EventSpawn
 	// EventPlatformControl handles `/platform <list|pause|resume> [name]`.
-	EventPlatformControl = eventcommands.EventPlatformControl
+	EventPlatformControl
 	// EventPersonality handles `/personality` subcommands (list, switch, none).
-	EventPersonality = eventcommands.EventPersonality
+	EventPersonality
 )
+
+// String returns the stable log/test representation of an EventKind.
+func (k EventKind) String() string {
+	switch k {
+	case EventSubmit:
+		return "submit"
+	case EventCancel:
+		return "cancel"
+	case EventReset:
+		return "reset"
+	case EventStart:
+		return "start"
+	case EventRestart:
+		return "restart"
+	case EventSteer:
+		return "steer"
+	case EventQueue:
+		return "queue"
+	case EventUsage:
+		return "usage"
+	case EventStatus:
+		return "status"
+	case EventTitle:
+		return "title"
+	case EventVerbose:
+		return "verbose"
+	case EventModel:
+		return "model"
+	case EventGateway:
+		return "gateway"
+	case EventThreadLifecycle:
+		return "thread_lifecycle"
+	case EventSessions:
+		return "sessions"
+	case EventProfile:
+		return "profile"
+	case EventSkills:
+		return "skills"
+	case EventCommands:
+		return "commands"
+	case EventReasoning:
+		return "reasoning"
+	case EventBusy:
+		return "busy"
+	case EventTTS:
+		return "tts"
+	case EventReload:
+		return "reload"
+	case EventReloadSkills:
+		return "reload_skills"
+	case EventRetry:
+		return "retry"
+	case EventUndo:
+		return "undo"
+	case EventGoal:
+		return "goal"
+	case EventTopic:
+		return "topic"
+	case EventKanban:
+		return "kanban"
+	case EventSpawn:
+		return "spawn"
+	case EventPlatformControl:
+		return "platform_control"
+	case EventPersonality:
+		return "personality"
+	default:
+		return "unknown"
+	}
+}

@@ -81,7 +81,6 @@ func TestEventBusCore_TopicIsolationAndUnsubscribe(t *testing.T) {
 
 func TestEventBusCore_BackpressureDoesNotBlockPublisher(t *testing.T) {
 	bus := NewInProcessEventBus()
-	bus.bufferSize = 1
 	defer bus.Close()
 
 	blocker := make(chan struct{})
