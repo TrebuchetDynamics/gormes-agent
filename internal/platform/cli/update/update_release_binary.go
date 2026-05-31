@@ -27,44 +27,16 @@ type UpdateReleaseProvenanceVerifier = releasebinary.UpdateReleaseProvenanceVeri
 type UpdateReleaseBinaryOptions = releasebinary.UpdateReleaseBinaryOptions
 type UpdateReleaseRollbackOptions = releasebinary.UpdateReleaseRollbackOptions
 
-type UpdateReleaseBinaryReport struct {
-	Failed           bool
-	SnapshotID       string
-	SnapshotPath     string
-	PreviousVersion  string
-	NewVersion       string
-	ManagedBinPath   string
-	PublishedBinPath string
-	Evidence         []UpdateEvidence
-	OperatorRecovery string
-}
+type UpdateReleaseBinaryReport = releasebinary.UpdateReleaseBinaryReport
 
-func (r *UpdateReleaseBinaryReport) add(kind UpdateEvidenceKind, detail string) {
+func addUpdateReleaseBinaryEvidence(r *UpdateReleaseBinaryReport, kind UpdateEvidenceKind, detail string) {
 	r.Evidence = append(r.Evidence, UpdateEvidence{Kind: kind, Detail: detail})
 }
 
 func RunUpdateReleaseBinaryUpdate(ctx context.Context, opts UpdateReleaseBinaryOptions) UpdateReleaseBinaryReport {
-	return fromReleaseBinaryReport(releasebinary.RunUpdateReleaseBinaryUpdate(ctx, opts))
+	return releasebinary.RunUpdateReleaseBinaryUpdate(ctx, opts)
 }
 
 func RunUpdateReleaseRollback(ctx context.Context, opts UpdateReleaseRollbackOptions) UpdateReleaseBinaryReport {
-	return fromReleaseBinaryReport(releasebinary.RunUpdateReleaseRollback(ctx, opts))
-}
-
-func fromReleaseBinaryReport(src releasebinary.UpdateReleaseBinaryReport) UpdateReleaseBinaryReport {
-	evidence := make([]UpdateEvidence, 0, len(src.Evidence))
-	for _, ev := range src.Evidence {
-		evidence = append(evidence, UpdateEvidence{Kind: UpdateEvidenceKind(ev.Kind), Detail: ev.Detail})
-	}
-	return UpdateReleaseBinaryReport{
-		Failed:           src.Failed,
-		SnapshotID:       src.SnapshotID,
-		SnapshotPath:     src.SnapshotPath,
-		PreviousVersion:  src.PreviousVersion,
-		NewVersion:       src.NewVersion,
-		ManagedBinPath:   src.ManagedBinPath,
-		PublishedBinPath: src.PublishedBinPath,
-		Evidence:         evidence,
-		OperatorRecovery: src.OperatorRecovery,
-	}
+	return releasebinary.RunUpdateReleaseRollback(ctx, opts)
 }

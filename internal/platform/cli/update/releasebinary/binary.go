@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/update/command"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/update/evidence"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/update/fileops"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/update/releaseplan"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
@@ -75,12 +76,9 @@ type UpdateReleaseBinaryReport struct {
 	OperatorRecovery string
 }
 
-type UpdateEvidenceKind string
+type UpdateEvidenceKind = evidence.Kind
 
-type UpdateEvidence struct {
-	Kind   UpdateEvidenceKind
-	Detail string
-}
+type UpdateEvidence = evidence.Item
 
 func (r *UpdateReleaseBinaryReport) add(kind UpdateEvidenceKind, detail string) {
 	r.Evidence = append(r.Evidence, UpdateEvidence{Kind: kind, Detail: detail})

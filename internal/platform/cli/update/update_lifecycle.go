@@ -2,17 +2,17 @@ package update
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
-	"os/exec"
 	"strconv"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/update/evidence"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/update/gitrunner"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
-type UpdateEvidenceKind string
+type UpdateEvidenceKind = evidence.Kind
 
 const (
 	UpdateEvidenceCheck                     UpdateEvidenceKind = "update_check"
@@ -171,10 +171,7 @@ type SkillSyncProfileResult struct {
 // and emits no evidence (silent default).
 type SkillSyncRunner func(ctx context.Context) (SkillSyncResult, error)
 
-type UpdateEvidence struct {
-	Kind   UpdateEvidenceKind
-	Detail string
-}
+type UpdateEvidence = evidence.Item
 
 type UpdateReport struct {
 	Branch           string
@@ -270,37 +267,11 @@ type UpdateGatewayRestartRequest struct {
 
 type UpdateGatewayRestartRunner func(context.Context, UpdateGatewayRestartRequest) UpdateReport
 
-type UpdateGitRunner interface {
-	RunGit(ctx context.Context, cwd string, args ...string) UpdateGitResult
-}
+type UpdateGitRunner = gitrunner.Runner
 
-type UpdateGitResult struct {
-	Stdout string
-	Stderr string
-	Err    error
-}
+type UpdateGitResult = gitrunner.Result
 
-type RealUpdateGitRunner struct {
-	Git string
-}
-
-func (r RealUpdateGitRunner) RunGit(ctx context.Context, cwd string, args ...string) UpdateGitResult {
-	git := r.Git
-	if git == "" {
-		git = "git"
-	}
-	cmd := exec.CommandContext(ctx, git, args...)
-	cmd.Dir = cwd
-	out, err := cmd.Output()
-	result := UpdateGitResult{Stdout: string(out), Err: err}
-	if err != nil {
-		var exit *exec.ExitError
-		if errors.As(err, &exit) {
-			result.Stderr = string(exit.Stderr)
-		}
-	}
-	return result
-}
+type RealUpdateGitRunner = gitrunner.RealRunner
 
 // emitSkillSync invokes the optional bundled-skill profile-sync seam after
 // a successful pull and emits one evidence record per profile (success

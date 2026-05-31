@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/update/evidence"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/update/fileops"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/update/releaseplan"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/pathguard"
@@ -75,12 +76,9 @@ type UpdateReleaseAssetSkillSyncReport struct {
 	SkillSummaries []skills.SkillProfileSyncSummary
 }
 
-type UpdateEvidenceKind string
+type UpdateEvidenceKind = evidence.Kind
 
-type UpdateEvidence struct {
-	Kind   UpdateEvidenceKind
-	Detail string
-}
+type UpdateEvidence = evidence.Item
 
 func (r *UpdateReleaseAssetSkillSyncReport) add(kind UpdateEvidenceKind, detail string) {
 	r.Evidence = append(r.Evidence, UpdateEvidence{Kind: kind, Detail: detail})
