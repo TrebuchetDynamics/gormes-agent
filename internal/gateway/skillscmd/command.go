@@ -226,9 +226,10 @@ func handleSkillsInspect(name string, opts SkillsCommandOptions) string {
 				if len(skill.RelatedSkills) > 0 {
 					b.WriteString(fmt.Sprintf("Related: %s\n", strings.Join(skill.RelatedSkills, ", ")))
 				}
-				b.WriteString(fmt.Sprintf("\n---\n%s\n", strings.TrimSpace(skill.Body[:min(len(skill.Body), 2000)])))
-				if len(skill.Body) > 2000 {
-					b.WriteString(fmt.Sprintf("\n... (%d more characters)", len(skill.Body)-2000))
+				preview := buildSkillBodyPreview(skill.Body, skillInspectBodyPreviewRunes)
+				b.WriteString(fmt.Sprintf("\n---\n%s\n", preview.Text))
+				if preview.MoreRunes > 0 {
+					b.WriteString(fmt.Sprintf("\n... (%d more characters)", preview.MoreRunes))
 				}
 			} else {
 				b.WriteString("Evidence: skills_external_dir_skipped reason=skill_parse_failed\n")
@@ -464,6 +465,32 @@ func skillsCommandMaxDescriptionRunes(opts SkillsCommandOptions) int {
 		return opts.MaxDescriptionRunes
 	}
 	return 160
+}
+
+const skillInspectBodyPreviewRunes = 2000
+
+type skillBodyPreview struct {
+	Text      string
+	MoreRunes int
+}
+
+func buildSkillBodyPreview(body string, limit int) skillBodyPreview {
+	trimmed := strings.TrimSpace(body)
+	if limit <= 0 {
+		return skillBodyPreview{MoreRunes: utf8RuneCount(trimmed)}
+	}
+	runes := []rune(trimmed)
+	if len(runes) <= limit {
+		return skillBodyPreview{Text: trimmed}
+	}
+	return skillBodyPreview{
+		Text:      string(runes[:limit]),
+		MoreRunes: len(runes) - limit,
+	}
+}
+
+func utf8RuneCount(s string) int {
+	return len([]rune(s))
 }
 
 func sanitizeSkillCommandText(text string, opts SkillsCommandOptions) string {
