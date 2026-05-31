@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -123,7 +122,7 @@ func (s *RestartTakeoverStore) Write(ctx context.Context, marker RestartTakeover
 	if marker.RequestedAt == "" {
 		marker.RequestedAt = s.currentTime().Format(time.RFC3339Nano)
 	}
-	return writeRestartJSONAtomic(ctx, s.path, marker)
+	return jsonfile.WriteAtomic(ctx, s.path, marker, "restart marker")
 }
 
 func (s *RestartTakeoverStore) Read(ctx context.Context) (RestartTakeoverMarker, bool, bool, error) {
@@ -133,19 +132,19 @@ func (s *RestartTakeoverStore) Read(ctx context.Context) (RestartTakeoverMarker,
 	if err := ctx.Err(); err != nil {
 		return RestartTakeoverMarker{}, false, false, err
 	}
-	raw, err := os.ReadFile(s.path)
-	if errors.Is(err, os.ErrNotExist) {
+	var marker RestartTakeoverMarker
+	exists, err := jsonfile.Read(ctx, s.path, &marker, "restart takeover marker")
+	if !exists {
 		return RestartTakeoverMarker{}, false, false, nil
 	}
-	if err != nil {
-		return RestartTakeoverMarker{}, false, false, fmt.Errorf("read restart takeover marker: %w", err)
-	}
-	if len(raw) == 0 {
+	if errors.Is(err, jsonfile.ErrEmpty) {
 		_ = s.Clear(context.Background())
 		return RestartTakeoverMarker{}, false, true, nil
 	}
-	var marker RestartTakeoverMarker
-	if err := json.Unmarshal(raw, &marker); err != nil {
+	if err != nil {
+		if jsonfile.IsReadError(err) {
+			return RestartTakeoverMarker{}, false, false, err
+		}
 		_ = s.Clear(context.Background())
 		return RestartTakeoverMarker{}, false, true, nil
 	}
@@ -237,8 +236,4 @@ func restartUpdateID(ev InboundEvent) string {
 		return id
 	}
 	return strings.TrimSpace(ev.MsgID)
-}
-
-func writeRestartJSONAtomic(ctx context.Context, path string, payload any) error {
-	return jsonfile.WriteAtomic(ctx, path, payload, "restart marker")
 }

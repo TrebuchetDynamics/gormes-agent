@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/jsonfile"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/plannedstop"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/runtimeproc"
 )
@@ -393,19 +393,15 @@ func (s *RuntimeStatusStore) ReadRuntimeStatusSnapshot(ctx context.Context) (Run
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	raw, err := os.ReadFile(s.path)
-	if errors.Is(err, os.ErrNotExist) {
+	var status RuntimeStatus
+	exists, err := jsonfile.Read(ctx, s.path, &status, "runtime status")
+	if !exists || errors.Is(err, jsonfile.ErrEmpty) {
 		return RuntimeStatusSnapshot{Missing: true}, nil
 	}
 	if err != nil {
-		return RuntimeStatusSnapshot{}, fmt.Errorf("read runtime status: %w", err)
-	}
-	if len(raw) == 0 {
-		return RuntimeStatusSnapshot{Missing: true}, nil
-	}
-
-	var status RuntimeStatus
-	if err := json.Unmarshal(raw, &status); err != nil {
+		if jsonfile.IsReadError(err) {
+			return RuntimeStatusSnapshot{}, err
+		}
 		return RuntimeStatusSnapshot{}, fmt.Errorf("decode runtime status: %w", err)
 	}
 	if status.Platforms == nil {
@@ -747,8 +743,9 @@ func applyRuntimeProcessValidation(status RuntimeStatus, validation RuntimeProce
 }
 
 func (s *RuntimeStatusStore) readLocked() (RuntimeStatus, error) {
-	raw, err := os.ReadFile(s.path)
-	if errors.Is(err, os.ErrNotExist) {
+	var status RuntimeStatus
+	exists, err := jsonfile.Read(context.Background(), s.path, &status, "runtime status")
+	if !exists {
 		pid := s.pid()
 		startTime, _ := s.startTime(pid)
 		argv := append([]string(nil), s.argv()...)
@@ -764,10 +761,7 @@ func (s *RuntimeStatusStore) readLocked() (RuntimeStatus, error) {
 			UpdatedAt:    s.now().Format(time.RFC3339Nano),
 		}, nil
 	}
-	if err != nil {
-		return RuntimeStatus{}, fmt.Errorf("read runtime status: %w", err)
-	}
-	if len(raw) == 0 {
+	if errors.Is(err, jsonfile.ErrEmpty) {
 		pid := s.pid()
 		startTime, _ := s.startTime(pid)
 		argv := append([]string(nil), s.argv()...)
@@ -782,9 +776,10 @@ func (s *RuntimeStatusStore) readLocked() (RuntimeStatus, error) {
 			UpdatedAt:  s.now().Format(time.RFC3339Nano),
 		}, nil
 	}
-
-	var status RuntimeStatus
-	if err := json.Unmarshal(raw, &status); err != nil {
+	if err != nil {
+		if jsonfile.IsReadError(err) {
+			return RuntimeStatus{}, err
+		}
 		return RuntimeStatus{}, fmt.Errorf("decode runtime status: %w", err)
 	}
 	if status.Platforms == nil {
@@ -820,50 +815,22 @@ func (s *RuntimeStatusStore) writeLocked(ctx context.Context, status RuntimeStat
 }
 
 func writeRuntimeStatusJSONAtomic(path string, status RuntimeStatus) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create runtime status dir: %w", err)
-	}
-	raw, err := json.MarshalIndent(status, "", "  ")
-	if err != nil {
-		return fmt.Errorf("encode runtime status: %w", err)
-	}
-	raw = append(raw, '\n')
-
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".gateway_state-*.tmp")
-	if err != nil {
-		return fmt.Errorf("create runtime status temp file: %w", err)
-	}
-	tmpPath := tmp.Name()
-	defer func() {
-		_ = os.Remove(tmpPath)
-	}()
-
-	if _, err := tmp.Write(raw); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("write runtime status temp file: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("close runtime status temp file: %w", err)
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		return fmt.Errorf("replace runtime status: %w", err)
-	}
-	return nil
+	return jsonfile.WriteAtomic(context.Background(), path, status, "runtime status")
 }
 
 func readRuntimeStatusRecord(path string) (RuntimeStatus, error) {
 	if path == "" {
 		return RuntimeStatus{}, os.ErrNotExist
 	}
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return RuntimeStatus{}, err
-	}
-	if len(raw) == 0 {
+	var status RuntimeStatus
+	exists, err := jsonfile.Read(context.Background(), path, &status, "runtime PID record")
+	if !exists || errors.Is(err, jsonfile.ErrEmpty) {
 		return RuntimeStatus{}, os.ErrNotExist
 	}
-	var status RuntimeStatus
-	if err := json.Unmarshal(raw, &status); err != nil {
+	if err != nil {
+		if jsonfile.IsReadError(err) {
+			return RuntimeStatus{}, err
+		}
 		return RuntimeStatus{}, fmt.Errorf("decode runtime PID record: %w", err)
 	}
 	return status, nil

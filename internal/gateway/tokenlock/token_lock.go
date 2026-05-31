@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/jsonfile"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/runtimeproc"
 )
 
@@ -403,15 +404,15 @@ func (s *TokenLockStore) remove(path string) error {
 }
 
 func readTokenLockRecord(path string) (tokenLockRecord, error) {
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return tokenLockRecord{}, err
-	}
-	if len(raw) == 0 {
+	var record tokenLockRecord
+	exists, err := jsonfile.Read(context.Background(), path, &record, "token lock record")
+	if !exists || errors.Is(err, jsonfile.ErrEmpty) {
 		return tokenLockRecord{}, os.ErrNotExist
 	}
-	var record tokenLockRecord
-	if err := json.Unmarshal(raw, &record); err != nil {
+	if err != nil {
+		if jsonfile.IsReadError(err) {
+			return tokenLockRecord{}, err
+		}
 		return tokenLockRecord{}, fmt.Errorf("decode token lock record: %w", err)
 	}
 	return record, nil

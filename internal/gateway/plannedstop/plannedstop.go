@@ -2,7 +2,6 @@ package plannedstop
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -100,20 +99,19 @@ func (s *Store) ConsumeForSelf(ctx context.Context) (ConsumeResult, error) {
 	if err := ctx.Err(); err != nil {
 		return ConsumeResult{}, err
 	}
-	raw, err := os.ReadFile(s.path)
-	if errors.Is(err, os.ErrNotExist) {
+	var marker Marker
+	exists, err := jsonfile.Read(ctx, s.path, &marker, "planned stop marker")
+	if !exists {
 		return ConsumeResult{Status: ConsumeMissing}, nil
 	}
-	if err != nil {
-		return ConsumeResult{}, fmt.Errorf("read planned stop marker: %w", err)
-	}
-	if len(raw) == 0 {
+	if errors.Is(err, jsonfile.ErrEmpty) {
 		_ = s.Clear(context.Background())
 		return ConsumeResult{Status: ConsumeInvalid, Reason: "empty marker"}, nil
 	}
-
-	var marker Marker
-	if err := json.Unmarshal(raw, &marker); err != nil {
+	if err != nil {
+		if jsonfile.IsReadError(err) {
+			return ConsumeResult{}, err
+		}
 		_ = s.Clear(context.Background())
 		return ConsumeResult{Status: ConsumeInvalid, Reason: "decode marker: " + err.Error()}, nil
 	}
