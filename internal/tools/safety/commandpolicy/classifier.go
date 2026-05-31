@@ -37,6 +37,11 @@ type CommandClassifierConfig struct {
 	BlockedPatterns []string
 }
 
+// recursiveRmPattern catches common destructive rm spellings. Keep this as a
+// named invariant so newly discovered flag order variants are testable without
+// reverse-engineering the classifier's regexp list.
+const recursiveRmPattern = `\brm\b[^\n;&|]*\s(?:-[^\s]*r[^\s]*|--recursive)(?:\s|$)`
+
 type CommandAuditEntry struct {
 	Command          string `json:"command"`
 	Classification   string `json:"classification"`
@@ -69,7 +74,7 @@ func NewCommandClassifierWithConfig(cfg CommandClassifierConfig) *CommandClassif
 			"python", "node", "make",
 		},
 		blockedPatterns: []*regexp.Regexp{
-			regexp.MustCompile(`rm\s+(-rf?|--recursive)`),
+			regexp.MustCompile(recursiveRmPattern),
 			regexp.MustCompile(`sudo`),
 			regexp.MustCompile(`mkfs`),
 			regexp.MustCompile(`dd\s+if=`),
