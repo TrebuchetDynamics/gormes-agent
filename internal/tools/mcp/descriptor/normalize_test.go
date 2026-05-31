@@ -80,3 +80,32 @@ func TestNormalizeToolsDoesNotReserveRejectedCandidateNames(t *testing.T) {
 		t.Fatalf("rejection = %+v, want invalid schema rejection for first candidate", got.Rejected[0])
 	}
 }
+
+func TestNormalizeInputSchemaReturnsIndependentDefaultSchemas(t *testing.T) {
+	first, ok := NormalizeInputSchema(nil)
+	if !ok {
+		t.Fatal("NormalizeInputSchema(nil) rejected default schema")
+	}
+	first[0] = '['
+
+	second, ok := NormalizeInputSchema(nil)
+	if !ok {
+		t.Fatal("NormalizeInputSchema(nil) rejected second default schema")
+	}
+	if string(second) != `{"type":"object","properties":{}}` {
+		t.Fatalf("second default schema = %q, want pristine default object schema", second)
+	}
+}
+
+func TestNormalizeInputSchemaCopiesAcceptedObjectSchema(t *testing.T) {
+	raw := json.RawMessage(`{"type":"object","properties":{"city":{"type":"string"}}}`)
+	got, ok := NormalizeInputSchema(raw)
+	if !ok {
+		t.Fatal("NormalizeInputSchema rejected object schema")
+	}
+	raw[0] = '['
+
+	if string(got) != `{"type":"object","properties":{"city":{"type":"string"}}}` {
+		t.Fatalf("normalized schema aliases caller buffer: %q", got)
+	}
+}

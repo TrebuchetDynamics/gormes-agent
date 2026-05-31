@@ -119,12 +119,14 @@ func normalizeToolCandidate(serverName string, t RawTool, seenNames map[string]b
 	if seenNames[name] {
 		return rejectedCandidate(serverName, t.Name, SchemaRejectionReasonDuplicateSanitizedName)
 	}
+	sourceRaw := t
+	sourceRaw.InputSchema = cloneRawMessage(t.InputSchema)
 	return acceptedCandidate(NormalizedTool{
 		Name:        name,
 		ServerName:  serverName,
 		Description: t.Description,
 		InputSchema: schema,
-		SourceRaw:   t,
+		SourceRaw:   sourceRaw,
 	})
 }
 
@@ -141,7 +143,7 @@ func SanitizeNameComponent(value string) string {
 func NormalizeInputSchema(raw json.RawMessage) (json.RawMessage, bool) {
 	trimmed := strings.TrimSpace(string(raw))
 	if trimmed == "" || trimmed == "null" {
-		return defaultInputSchema, true
+		return cloneRawMessage(defaultInputSchema), true
 	}
 	if !strings.HasPrefix(trimmed, "{") {
 		return nil, false
@@ -150,5 +152,12 @@ func NormalizeInputSchema(raw json.RawMessage) (json.RawMessage, bool) {
 	if err := json.Unmarshal(raw, &probe); err != nil {
 		return nil, false
 	}
-	return raw, true
+	return cloneRawMessage(raw), true
+}
+
+func cloneRawMessage(raw json.RawMessage) json.RawMessage {
+	if raw == nil {
+		return nil
+	}
+	return append(json.RawMessage(nil), raw...)
 }

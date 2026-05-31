@@ -43,12 +43,20 @@ func (b *tailBuffer) append(p []byte) {
 	}
 }
 
-func (b *tailBuffer) bytes() []byte {
-	return b.buf
+type tailSnapshot struct {
+	Bytes   []byte
+	Dropped int64
 }
 
-func (b *tailBuffer) dropped() int64 {
-	return b.total - int64(len(b.buf))
+func (b *tailBuffer) snapshot() tailSnapshot {
+	return tailSnapshot{
+		Bytes:   append([]byte(nil), b.buf...),
+		Dropped: b.total - int64(len(b.buf)),
+	}
+}
+
+func truncationMarker(dropped int64) string {
+	return fmt.Sprintf("[truncated %d bytes]\n", dropped)
 }
 
 // NewBoundedSink returns a Sink that buffers at most tailBytes of stderr in
@@ -87,12 +95,13 @@ func (s *boundedSink) Close() error {
 		return err
 	}
 	defer f.Close()
-	if dropped := s.buffer.dropped(); dropped > 0 {
-		if _, err := fmt.Fprintf(f, "[truncated %d bytes]\n", dropped); err != nil {
+	snapshot := s.buffer.snapshot()
+	if snapshot.Dropped > 0 {
+		if _, err := f.WriteString(truncationMarker(snapshot.Dropped)); err != nil {
 			return err
 		}
 	}
-	if _, err := f.Write(s.buffer.bytes()); err != nil {
+	if _, err := f.Write(snapshot.Bytes); err != nil {
 		return err
 	}
 	return nil

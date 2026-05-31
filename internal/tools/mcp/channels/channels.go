@@ -70,7 +70,7 @@ func contextErr(ctx context.Context) error {
 
 func platformFilter(args map[string]interface{}) string {
 	if pf, ok := args["platform"].(string); ok {
-		return normalizePlatform(pf)
+		return newPlatformKey(pf).Normalized
 	}
 	return ""
 }
@@ -92,22 +92,32 @@ func collectOutputs(platforms map[string][]Entry, filterPlatform string) []Outpu
 }
 
 type platformCandidate struct {
+	platformKey
+	Entries []Entry
+}
+
+type platformKey struct {
 	Raw        string
 	Normalized string
-	Entries    []Entry
+}
+
+func newPlatformKey(platform string) platformKey {
+	return platformKey{
+		Raw:        platform,
+		Normalized: strings.ToLower(strings.TrimSpace(platform)),
+	}
 }
 
 func platformCandidates(platforms map[string][]Entry, filterPlatform string) []platformCandidate {
 	candidates := make([]platformCandidate, 0, len(platforms))
 	for platform, entries := range platforms {
-		normalized := normalizePlatform(platform)
-		if filterPlatform != "" && normalized != filterPlatform {
+		key := newPlatformKey(platform)
+		if filterPlatform != "" && key.Normalized != filterPlatform {
 			continue
 		}
 		candidates = append(candidates, platformCandidate{
-			Raw:        platform,
-			Normalized: normalized,
-			Entries:    entries,
+			platformKey: key,
+			Entries:      entries,
 		})
 	}
 	sort.SliceStable(candidates, func(i, j int) bool {
@@ -117,8 +127,4 @@ func platformCandidates(platforms map[string][]Entry, filterPlatform string) []p
 		return candidates[i].Raw < candidates[j].Raw
 	})
 	return candidates
-}
-
-func normalizePlatform(platform string) string {
-	return strings.ToLower(strings.TrimSpace(platform))
 }

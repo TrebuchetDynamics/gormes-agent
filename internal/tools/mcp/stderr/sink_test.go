@@ -37,16 +37,35 @@ func TestBoundedSinkWriteAfterCloseReturnsErrorAndDoesNotMutateFile(t *testing.T
 	}
 }
 
-func TestTailBufferKeepsLastBytesAndCountsDroppedBytes(t *testing.T) {
+func TestTailBufferSnapshotKeepsLastBytesAndCountsDroppedBytes(t *testing.T) {
 	buf := tailBuffer{limit: 5}
 
 	buf.append([]byte("abc"))
 	buf.append([]byte("defgh"))
 
-	if got := string(buf.bytes()); got != "defgh" {
+	snapshot := buf.snapshot()
+	if got := string(snapshot.Bytes); got != "defgh" {
 		t.Fatalf("tail bytes = %q, want %q", got, "defgh")
 	}
-	if got := buf.dropped(); got != 3 {
-		t.Fatalf("dropped bytes = %d, want 3", got)
+	if snapshot.Dropped != 3 {
+		t.Fatalf("dropped bytes = %d, want 3", snapshot.Dropped)
+	}
+}
+
+func TestTailBufferSnapshotDoesNotExposeMutableBuffer(t *testing.T) {
+	buf := tailBuffer{limit: 5}
+	buf.append([]byte("abcde"))
+
+	snapshot := buf.snapshot()
+	snapshot.Bytes[0] = 'X'
+
+	if got := string(buf.snapshot().Bytes); got != "abcde" {
+		t.Fatalf("tail buffer mutated through snapshot = %q, want abcde", got)
+	}
+}
+
+func TestTruncationMarkerIncludesDroppedByteCount(t *testing.T) {
+	if got := truncationMarker(42); got != "[truncated 42 bytes]\n" {
+		t.Fatalf("truncation marker = %q", got)
 	}
 }

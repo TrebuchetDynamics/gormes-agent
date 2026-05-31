@@ -77,6 +77,29 @@ func TestListCanceledContextDoesNotReadDirectory(t *testing.T) {
 	}
 }
 
+func TestPlatformCandidatesKeepRawPlatformAsTieBreaker(t *testing.T) {
+	candidates := platformCandidates(map[string][]Entry{
+		" discord ": {{ID: "spaced"}},
+		"Discord":   {{ID: "title"}},
+		"discord":   {{ID: "lower"}},
+	}, "")
+
+	gotRaw := make([]string, 0, len(candidates))
+	gotIDs := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		if candidate.Normalized != "discord" {
+			t.Fatalf("candidate %#v normalized platform = %q, want discord", candidate, candidate.Normalized)
+		}
+		gotRaw = append(gotRaw, candidate.Raw)
+		gotIDs = append(gotIDs, candidate.Entries[0].ID)
+	}
+	wantRaw := []string{" discord ", "Discord", "discord"}
+	wantIDs := []string{"spaced", "title", "lower"}
+	if !reflect.DeepEqual(gotRaw, wantRaw) || !reflect.DeepEqual(gotIDs, wantIDs) {
+		t.Fatalf("candidate provenance/raw order = %v ids %v, want %v ids %v", gotRaw, gotIDs, wantRaw, wantIDs)
+	}
+}
+
 func platformOrder(channels []Output) []string {
 	platforms := make([]string, 0, len(channels))
 	for _, channel := range channels {
