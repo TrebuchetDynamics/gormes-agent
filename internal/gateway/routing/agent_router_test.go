@@ -38,6 +38,33 @@ func TestAgentRouter_MostSpecificBindingWins(t *testing.T) {
 	}
 }
 
+func TestAgentRouter_SnapshotsMutableInputs(t *testing.T) {
+	agents := config.AgentsCfg{List: []config.AgentCfg{
+		{ID: "main", Default: true, Skills: []string{"main-skill"}, Tools: config.AgentToolPolicy{Allow: []string{"echo"}}},
+		{ID: "alerts", Skills: []string{"alerts-skill"}},
+	}}
+	bindings := []config.AgentBindingCfg{{AgentID: "main", Match: config.AgentBindingMatchCfg{Channel: "telegram", Roles: []string{"admin"}}}}
+	router := NewAgentRouter(agents, bindings)
+
+	agents.List[0].ID = "mutated"
+	agents.List[0].Skills[0] = "mutated-skill"
+	agents.List[0].Tools.Allow[0] = "terminal"
+	bindings[0].AgentID = "alerts"
+	bindings[0].Match.Channel = "discord"
+	bindings[0].Match.Roles[0] = "guest"
+
+	decision := router.Resolve(AgentRouteRequest{Channel: "telegram", Roles: []string{"admin"}})
+	if decision.AgentID != "main" || decision.BindingIndex != 0 || decision.BindingTier != AgentBindingTierAccount {
+		t.Fatalf("decision = %+v, want original main telegram binding", decision)
+	}
+	if got := decision.Skills; len(got) != 1 || got[0] != "main-skill" {
+		t.Fatalf("decision.Skills = %#v, want snapshotted skills", got)
+	}
+	if got := decision.Tools.Allow; len(got) != 1 || got[0] != "echo" {
+		t.Fatalf("decision.Tools.Allow = %#v, want snapshotted tool policy", got)
+	}
+}
+
 func TestAgentRouter_DefaultAgentWhenNoBindingMatches(t *testing.T) {
 	router := NewAgentRouter(config.AgentsCfg{
 		List: []config.AgentCfg{

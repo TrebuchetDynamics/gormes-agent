@@ -65,7 +65,24 @@ type AgentRouter struct {
 }
 
 func NewAgentRouter(agents config.AgentsCfg, bindings []config.AgentBindingCfg) AgentRouter {
-	return AgentRouter{agents: agents, bindings: bindings}
+	return AgentRouter{agents: cloneAgentsCfg(agents), bindings: cloneAgentBindings(bindings)}
+}
+
+func cloneAgentsCfg(agents config.AgentsCfg) config.AgentsCfg {
+	agents.List = append([]config.AgentCfg(nil), agents.List...)
+	for i := range agents.List {
+		agents.List[i].Skills = append([]string(nil), agents.List[i].Skills...)
+		agents.List[i].Tools = cloneAgentToolPolicy(agents.List[i].Tools)
+	}
+	return agents
+}
+
+func cloneAgentBindings(bindings []config.AgentBindingCfg) []config.AgentBindingCfg {
+	out := append([]config.AgentBindingCfg(nil), bindings...)
+	for i := range out {
+		out[i].Match.Roles = append([]string(nil), out[i].Match.Roles...)
+	}
+	return out
 }
 
 func (r AgentRouter) Resolve(req AgentRouteRequest) AgentRouteDecision {
