@@ -97,6 +97,7 @@ func TestNormalizeGatewayEndpointsDropsInvalidAndKeepsFirstDuplicateCandidate(t 
 		{InstanceName: "manual", Address: "LOCALHOST", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceManual},
 		{InstanceName: "missing-address", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceManual},
 		{InstanceName: "unsupported-scheme", Address: "localhost", Port: 18800, Scheme: "ftp", Source: GatewayEndpointSourceManual},
+		{InstanceName: "invalid-high-port", Address: "localhost", Port: 70000, Scheme: "ws", Source: GatewayEndpointSourceManual},
 		{InstanceName: "bonjour-duplicate", Address: "localhost", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceBonjour},
 		{InstanceName: "secure", Address: "127.0.0.1", Port: 18789, Scheme: "https", Source: GatewayEndpointSourceBonjour},
 	})
@@ -105,8 +106,8 @@ func TestNormalizeGatewayEndpointsDropsInvalidAndKeepsFirstDuplicateCandidate(t 
 		t.Fatalf("endpoints = %+v, want 2 valid deduped candidates", endpoints)
 	}
 	for _, endpoint := range endpoints {
-		if endpoint.InstanceName == "unsupported-scheme" || endpoint.Scheme == "ftp" {
-			t.Fatalf("endpoints = %+v, want unsupported schemes dropped before discovery/probe output", endpoints)
+		if endpoint.InstanceName == "unsupported-scheme" || endpoint.Scheme == "ftp" || endpoint.Port > 65535 {
+			t.Fatalf("endpoints = %+v, want invalid candidates dropped before discovery/probe output", endpoints)
 		}
 	}
 	if endpoints[0].InstanceName != "secure" || endpoints[0].Scheme != "wss" {
@@ -114,6 +115,56 @@ func TestNormalizeGatewayEndpointsDropsInvalidAndKeepsFirstDuplicateCandidate(t 
 	}
 	if endpoints[1].InstanceName != "manual" || endpoints[1].Address != "LOCALHOST" {
 		t.Fatalf("duplicate winner = %+v, want first candidate provenance preserved", endpoints[1])
+	}
+}
+
+func TestGatewayEndpointCandidateClassificationExplainsDroppedCandidates(t *testing.T) {
+	seen := map[string]bool{
+		"ws://localhost:18789": true,
+	}
+	cases := []struct {
+		name          string
+		endpoint      GatewayEndpoint
+		wantAccepted  bool
+		wantRejection string
+	}{
+		{
+			name:          "missing address",
+			endpoint:      GatewayEndpoint{Port: 18789, Scheme: "ws"},
+			wantRejection: gatewayEndpointCandidateRejectedMissingAddress,
+		},
+		{
+			name:          "invalid port",
+			endpoint:      GatewayEndpoint{Address: "localhost", Scheme: "ws", Port: 70000},
+			wantRejection: gatewayEndpointCandidateRejectedInvalidPort,
+		},
+		{
+			name:          "unsupported scheme",
+			endpoint:      GatewayEndpoint{Address: "localhost", Scheme: "ftp", Port: 18789},
+			wantRejection: gatewayEndpointCandidateRejectedUnsupportedScheme,
+		},
+		{
+			name:          "duplicate endpoint",
+			endpoint:      GatewayEndpoint{Address: "LOCALHOST", Scheme: "ws", Port: 18789},
+			wantRejection: gatewayEndpointCandidateRejectedDuplicate,
+		},
+		{
+			name:         "accepted endpoint",
+			endpoint:     GatewayEndpoint{Address: "127.0.0.1", Scheme: "wss", Port: 18789},
+			wantAccepted: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := classifyGatewayEndpointCandidate(tc.endpoint, seen)
+			if got.Accepted != tc.wantAccepted || got.Rejection != tc.wantRejection {
+				t.Fatalf("candidate = %+v, want accepted=%v rejection=%q", got, tc.wantAccepted, tc.wantRejection)
+			}
+			if got.Accepted && got.Key == "" {
+				t.Fatalf("accepted candidate missing dedupe key: %+v", got)
+			}
+		})
 	}
 }
 

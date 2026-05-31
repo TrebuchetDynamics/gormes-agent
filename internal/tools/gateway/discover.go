@@ -66,6 +66,13 @@ const (
 	defaultGatewayPort             = 18789
 )
 
+const (
+	gatewayEndpointCandidateRejectedMissingAddress    = "missing_address"
+	gatewayEndpointCandidateRejectedInvalidPort       = "invalid_port"
+	gatewayEndpointCandidateRejectedUnsupportedScheme = "unsupported_scheme"
+	gatewayEndpointCandidateRejectedDuplicate         = "duplicate_endpoint"
+)
+
 // GatewayEndpoint is the stable gateway discovery beacon model surfaced by
 // gateway discover/probe. TXT values are retained as non-authoritative hints;
 // Address and Port always represent the resolved endpoint used for routing.
@@ -255,16 +262,12 @@ func normalizeGatewayEndpoints(in []GatewayEndpoint) []GatewayEndpoint {
 	out := make([]GatewayEndpoint, 0, len(in))
 	seen := map[string]bool{}
 	for _, endpoint := range in {
-		normalized := NormalizeGatewayEndpoint(endpoint)
-		key, ok := gatewayEndpointCandidateKey(normalized)
-		if !ok {
+		candidate := classifyGatewayEndpointCandidate(NormalizeGatewayEndpoint(endpoint), seen)
+		if !candidate.Accepted {
 			continue
 		}
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		out = append(out, normalized)
+		seen[candidate.Key] = true
+		out = append(out, candidate.Endpoint)
 	}
 	sort.Slice(out, func(i, j int) bool {
 		return lessGatewayEndpoint(out[i], out[j])
@@ -272,11 +275,35 @@ func normalizeGatewayEndpoints(in []GatewayEndpoint) []GatewayEndpoint {
 	return out
 }
 
-func gatewayEndpointCandidateKey(endpoint GatewayEndpoint) (string, bool) {
-	if endpoint.Address == "" || endpoint.Port <= 0 || !supportedGatewayEndpointScheme(endpoint.Scheme) {
-		return "", false
+type gatewayEndpointCandidate struct {
+	Endpoint  GatewayEndpoint
+	Key       string
+	Rejection string
+	Accepted  bool
+}
+
+func classifyGatewayEndpointCandidate(endpoint GatewayEndpoint, seen map[string]bool) gatewayEndpointCandidate {
+	key, rejection, ok := gatewayEndpointCandidateKey(endpoint)
+	if !ok {
+		return gatewayEndpointCandidate{Endpoint: endpoint, Rejection: rejection}
 	}
-	return endpoint.Scheme + "://" + strings.ToLower(endpoint.Address) + ":" + strconv.Itoa(endpoint.Port), true
+	if seen[key] {
+		return gatewayEndpointCandidate{Endpoint: endpoint, Key: key, Rejection: gatewayEndpointCandidateRejectedDuplicate}
+	}
+	return gatewayEndpointCandidate{Endpoint: endpoint, Key: key, Accepted: true}
+}
+
+func gatewayEndpointCandidateKey(endpoint GatewayEndpoint) (string, string, bool) {
+	if endpoint.Address == "" {
+		return "", gatewayEndpointCandidateRejectedMissingAddress, false
+	}
+	if endpoint.Port <= 0 || endpoint.Port > 65535 {
+		return "", gatewayEndpointCandidateRejectedInvalidPort, false
+	}
+	if !supportedGatewayEndpointScheme(endpoint.Scheme) {
+		return "", gatewayEndpointCandidateRejectedUnsupportedScheme, false
+	}
+	return endpoint.Scheme + "://" + strings.ToLower(endpoint.Address) + ":" + strconv.Itoa(endpoint.Port), "", true
 }
 
 func lessGatewayEndpoint(a, b GatewayEndpoint) bool {
