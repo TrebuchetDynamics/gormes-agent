@@ -2,20 +2,23 @@ package channels
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 )
 
 type fakeDirectory struct {
 	platforms map[string][]Entry
+	called    bool
 }
 
-func (f fakeDirectory) Platforms() (map[string][]Entry, error) {
+func (f *fakeDirectory) Platforms() (map[string][]Entry, error) {
+	f.called = true
 	return f.platforms, nil
 }
 
 func TestListReturnsPlatformsInStableOrder(t *testing.T) {
-	result, err := List(context.Background(), fakeDirectory{platforms: map[string][]Entry{
+	result, err := List(context.Background(), &fakeDirectory{platforms: map[string][]Entry{
 		"telegram": {{ID: "tg-1", Name: "Telegram"}},
 		"discord":  {{ID: "dc-1", Name: "Discord"}},
 		"gateway":  {{ID: "gw-1", Name: "Gateway"}},
@@ -33,7 +36,7 @@ func TestListReturnsPlatformsInStableOrder(t *testing.T) {
 }
 
 func TestListPlatformFilterIgnoresSurroundingWhitespaceAndCase(t *testing.T) {
-	result, err := List(context.Background(), fakeDirectory{platforms: map[string][]Entry{
+	result, err := List(context.Background(), &fakeDirectory{platforms: map[string][]Entry{
 		" Discord ": {{ID: "dc-1", Name: "Discord"}},
 		"telegram":  {{ID: "tg-1", Name: "Telegram"}},
 	}}, map[string]interface{}{"platform": "discord"})
@@ -51,6 +54,26 @@ func TestListPlatformFilterIgnoresSurroundingWhitespaceAndCase(t *testing.T) {
 	}
 	if channels[0].Platform != "discord" {
 		t.Fatalf("selected channel platform = %q, want normalized platform discord", channels[0].Platform)
+	}
+}
+
+func TestListCanceledContextDoesNotReadDirectory(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	dir := &fakeDirectory{platforms: map[string][]Entry{
+		"telegram": {{ID: "tg-1", Name: "Telegram"}},
+	}}
+
+	result, err := List(ctx, dir, nil)
+
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("List error = %v, want context.Canceled", err)
+	}
+	if result != nil {
+		t.Fatalf("result = %#v, want nil when context is already canceled", result)
+	}
+	if dir.called {
+		t.Fatalf("directory was read despite canceled context")
 	}
 }
 

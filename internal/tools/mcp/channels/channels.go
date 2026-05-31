@@ -31,13 +31,12 @@ type Output struct {
 
 // List returns the MCP channels_list payload for a directory provider.
 func List(ctx context.Context, dir DirectoryProvider, args map[string]interface{}) (interface{}, error) {
-	_ = ctx
 	if dir == nil {
 		return nil, fmt.Errorf("channel directory unavailable")
 	}
-	platforms, err := dir.Platforms()
+	platforms, err := loadPlatforms(ctx, dir)
 	if err != nil {
-		return nil, fmt.Errorf("channel directory unavailable: %w", err)
+		return nil, err
 	}
 
 	channels := collectOutputs(platforms, platformFilter(args))
@@ -46,6 +45,27 @@ func List(ctx context.Context, dir DirectoryProvider, args map[string]interface{
 		"count":    len(channels),
 		"channels": channels,
 	}, nil
+}
+
+func loadPlatforms(ctx context.Context, dir DirectoryProvider) (map[string][]Entry, error) {
+	if err := contextErr(ctx); err != nil {
+		return nil, err
+	}
+	platforms, err := dir.Platforms()
+	if err != nil {
+		return nil, fmt.Errorf("channel directory unavailable: %w", err)
+	}
+	if err := contextErr(ctx); err != nil {
+		return nil, err
+	}
+	return platforms, nil
+}
+
+func contextErr(ctx context.Context) error {
+	if ctx == nil {
+		return nil
+	}
+	return ctx.Err()
 }
 
 func platformFilter(args map[string]interface{}) string {
@@ -74,7 +94,7 @@ func collectOutputs(platforms map[string][]Entry, filterPlatform string) []Outpu
 type platformCandidate struct {
 	Raw        string
 	Normalized string
-	Entries     []Entry
+	Entries    []Entry
 }
 
 func platformCandidates(platforms map[string][]Entry, filterPlatform string) []platformCandidate {
@@ -87,7 +107,7 @@ func platformCandidates(platforms map[string][]Entry, filterPlatform string) []p
 		candidates = append(candidates, platformCandidate{
 			Raw:        platform,
 			Normalized: normalized,
-			Entries:     entries,
+			Entries:    entries,
 		})
 	}
 	sort.SliceStable(candidates, func(i, j int) bool {
