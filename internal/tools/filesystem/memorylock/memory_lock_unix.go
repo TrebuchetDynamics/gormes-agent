@@ -1,6 +1,6 @@
 //go:build !windows
 
-package filesystem
+package memorylock
 
 import (
 	"os"

@@ -1,22 +1,11 @@
 package filesystem
 
-import "fmt"
+import filescope "github.com/TrebuchetDynamics/gormes-agent/internal/tools/filesystem/scope"
 
-const ProfileWorkspaceToolAccessExecuteBlocked = "profile_workspace_tool_access_execute_blocked"
+const ProfileWorkspaceToolAccessExecuteBlocked = filescope.ProfileWorkspaceToolAccessExecuteBlocked
 
-type ProfileWorkspaceToolAccessDenial struct {
-	Evidence string
-	Reason   string
-	Message  string
-}
+type ProfileWorkspaceToolAccessDenial = filescope.ProfileWorkspaceToolAccessDenial
 
 func ProfileWorkspaceExecuteDenied(toolName string) ProfileWorkspaceToolAccessDenial {
-	if toolName == "" {
-		toolName = "tool"
-	}
-	return ProfileWorkspaceToolAccessDenial{
-		Evidence: ProfileWorkspaceScopeViolation,
-		Reason:   ProfileWorkspaceToolAccessExecuteBlocked,
-		Message:  fmt.Sprintf("%s: %s: %s cannot prove confinement for a non-empty profile workspace allow-list; fail closed before spawning", ProfileWorkspaceScopeViolation, ProfileWorkspaceToolAccessExecuteBlocked, toolName),
-	}
+	return filescope.ProfileWorkspaceExecuteDenied(toolName)
 }
