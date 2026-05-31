@@ -1,12 +1,13 @@
 package dispatch
 
 import (
-	eventbus "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/events/bus"
-
 	"encoding/json"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	eventbus "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/events/bus"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/events/eventtest"
 )
 
 func TestEventDispatcher_PublishMessageReceived(t *testing.T) {
@@ -23,11 +24,7 @@ func TestEventDispatcher_PublishMessageReceived(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(30 * time.Millisecond)
-
-	if received.Load() != 1 {
-		t.Fatalf("received %d events, want 1", received.Load())
-	}
+	eventtest.WaitUntil(t, time.Second, func() bool { return received.Load() == 1 })
 }
 
 func TestEventDispatcher_MessageEventPayloadRoundTrip(t *testing.T) {
@@ -130,11 +127,7 @@ func TestEventDispatcher_PublishMessageSent(t *testing.T) {
 
 	disp := NewEventDispatcher(bus)
 	disp.PublishMessageSent("discord", "trace-2", map[string]string{"text": "reply"})
-	time.Sleep(30 * time.Millisecond)
-
-	if received.Load() != 1 {
-		t.Fatalf("received %d events, want 1", received.Load())
-	}
+	eventtest.WaitUntil(t, time.Second, func() bool { return received.Load() == 1 })
 }
 
 func TestEventDispatcher_SessionLifecycle(t *testing.T) {
@@ -148,11 +141,7 @@ func TestEventDispatcher_SessionLifecycle(t *testing.T) {
 	disp := NewEventDispatcher(bus)
 	disp.PublishSessionStarted("slack", "trace-3", map[string]string{"user": "alice"})
 	disp.PublishSessionEnded("slack", "trace-3", map[string]string{"user": "alice"})
-	time.Sleep(30 * time.Millisecond)
-
-	if started.Load() != 1 || ended.Load() != 1 {
-		t.Fatalf("started=%d ended=%d, want 1 each", started.Load(), ended.Load())
-	}
+	eventtest.WaitUntil(t, time.Second, func() bool { return started.Load() == 1 && ended.Load() == 1 })
 }
 
 func TestEventDispatcher_SubscribeMessages(t *testing.T) {
@@ -167,10 +156,7 @@ func TestEventDispatcher_SubscribeMessages(t *testing.T) {
 	})
 
 	disp.PublishMessageReceived("telegram", "t1", map[string]string{"x": "y"})
-	time.Sleep(30 * time.Millisecond)
-	if count.Load() != 1 {
-		t.Fatal("subscriber did not receive event")
-	}
+	eventtest.WaitUntil(t, time.Second, func() bool { return count.Load() == 1 })
 
 	unsub()
 	disp.PublishMessageReceived("telegram", "t2", map[string]string{"x": "y"})

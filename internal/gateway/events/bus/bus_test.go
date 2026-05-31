@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/events/eventtest"
 )
 
 func TestPublishSubscribe(t *testing.T) {
@@ -20,12 +22,7 @@ func TestPublishSubscribe(t *testing.T) {
 
 	evt := NewEvent("test.type", "tests", json.RawMessage(`{"key":"val"}`), "trace-1")
 	bus.Publish("test", evt)
-
-	time.Sleep(50 * time.Millisecond)
-
-	if received.Load() != 1 {
-		t.Fatalf("received %d events, want 1", received.Load())
-	}
+	eventtest.WaitUntil(t, time.Second, func() bool { return received.Load() == 1 })
 }
 
 func TestEventBusCore_PubSubRoutingTypedEvent(t *testing.T) {
@@ -64,9 +61,9 @@ func TestEventBusCore_TopicIsolationAndUnsubscribe(t *testing.T) {
 	if err := bus.Publish("gateway.message", NewEvent("message", "gateway", nil, "trace-1")); err != nil {
 		t.Fatalf("Publish gateway.message: %v", err)
 	}
-	time.Sleep(30 * time.Millisecond)
-	if gotA.Load() != 1 || gotB.Load() != 0 {
-		t.Fatalf("topic counts before unsubscribe = gateway:%d agent:%d, want 1/0", gotA.Load(), gotB.Load())
+	eventtest.WaitUntil(t, time.Second, func() bool { return gotA.Load() == 1 })
+	if gotB.Load() != 0 {
+		t.Fatalf("agent count before unsubscribe = %d, want 0", gotB.Load())
 	}
 
 	unsub()
@@ -113,11 +110,7 @@ func TestMultipleSubscribers(t *testing.T) {
 	}
 
 	bus.Publish("topic", NewEvent("x", "tests", nil, "t1"))
-	time.Sleep(50 * time.Millisecond)
-
-	if count.Load() != 3 {
-		t.Fatalf("3 subscribers received %d events total, want 3", count.Load())
-	}
+	eventtest.WaitUntil(t, time.Second, func() bool { return count.Load() == 3 })
 }
 
 func TestTopicIsolation(t *testing.T) {
@@ -129,11 +122,7 @@ func TestTopicIsolation(t *testing.T) {
 	bus.Subscribe("B", func(e Event) { gotB.Add(1) })
 
 	bus.Publish("A", NewEvent("a", "tests", nil, "t1"))
-	time.Sleep(30 * time.Millisecond)
-
-	if gotA.Load() != 1 {
-		t.Fatalf("topic A subscriber received %d, want 1", gotA.Load())
-	}
+	eventtest.WaitUntil(t, time.Second, func() bool { return gotA.Load() == 1 })
 	if gotB.Load() != 0 {
 		t.Fatalf("topic B subscriber received %d, want 0 (topic isolation)", gotB.Load())
 	}
@@ -172,11 +161,7 @@ func TestBackpressure(t *testing.T) {
 	}
 
 	close(blocker)
-	time.Sleep(100 * time.Millisecond)
-
-	if handled.Load() == 0 {
-		t.Fatal("no events handled even after unblocking")
-	}
+	eventtest.WaitUntil(t, time.Second, func() bool { return handled.Load() > 0 })
 }
 
 func TestClose(t *testing.T) {
@@ -185,11 +170,7 @@ func TestClose(t *testing.T) {
 	var count atomic.Int32
 	bus.Subscribe("topic", func(e Event) { count.Add(1) })
 	bus.Publish("topic", NewEvent("x", "tests", nil, "t1"))
-	time.Sleep(30 * time.Millisecond)
-
-	if count.Load() != 1 {
-		t.Fatalf("before close: got %d, want 1", count.Load())
-	}
+	eventtest.WaitUntil(t, time.Second, func() bool { return count.Load() == 1 })
 
 	bus.Close()
 	bus.Publish("topic", NewEvent("x", "tests", nil, "t2"))
@@ -218,11 +199,7 @@ func TestConcurrentPublish(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	time.Sleep(100 * time.Millisecond)
-
-	if count.Load() == 0 {
-		t.Fatal("no events received from concurrent publishers")
-	}
+	eventtest.WaitUntil(t, time.Second, func() bool { return count.Load() > 0 })
 }
 
 func TestEventBusIntegration_MultipleProducersSubscribers(t *testing.T) {
@@ -235,11 +212,7 @@ func TestEventBusIntegration_MultipleProducersSubscribers(t *testing.T) {
 
 	bus.Publish("gateway.msg", NewEvent("msg", "telegram", nil, "t1"))
 	bus.Publish("agent.turn", NewEvent("turn", "agent", nil, "t1"))
-	time.Sleep(30 * time.Millisecond)
-
-	if count1.Load() != 1 || count2.Load() != 1 {
-		t.Fatalf("count1=%d count2=%d, want both=1", count1.Load(), count2.Load())
-	}
+	eventtest.WaitUntil(t, time.Second, func() bool { return count1.Load() == 1 && count2.Load() == 1 })
 }
 
 func TestEventBusIntegration_MessageLifecycle(t *testing.T) {
@@ -254,9 +227,7 @@ func TestEventBusIntegration_MessageLifecycle(t *testing.T) {
 	bus.Publish("gateway.message.received", NewEvent("msg", "telegram", nil, "t1"))
 	bus.Publish("agent.turn.complete", NewEvent("turn", "agent", nil, "t1"))
 	bus.Publish("gateway.message.sent", NewEvent("msg", "telegram", nil, "t1"))
-	time.Sleep(30 * time.Millisecond)
-
-	if received.Load() != 1 || sent.Load() != 1 || completed.Load() != 1 {
-		t.Fatalf("received=%d sent=%d completed=%d, want all=1", received.Load(), sent.Load(), completed.Load())
-	}
+	eventtest.WaitUntil(t, time.Second, func() bool {
+		return received.Load() == 1 && sent.Load() == 1 && completed.Load() == 1
+	})
 }
