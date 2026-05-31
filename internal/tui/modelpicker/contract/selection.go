@@ -45,3 +45,11 @@ func IsCurrentModel(state State, providerID, modelID string) bool {
 func ConfirmedResult(state State) (Result, bool) {
 	return selection.ConfirmedResult(state)
 }
+
+// NormalizeConfirmedSelection returns a catalog-valid provider/model pair from
+// a confirmed selection. Unknown models fall back to the first model for a
+// known provider; unknown providers and explicitly empty models are preserved
+// after trimming so callers can decide how to report or apply them.
+func NormalizeConfirmedSelection(catalog []CatalogProvider, provider, model string) (string, string) {
+	return selection.NormalizeConfirmed(catalog, provider, model)
+}

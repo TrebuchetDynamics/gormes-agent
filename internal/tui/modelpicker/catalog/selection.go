@@ -1,8 +1,6 @@
 package catalog
 
 import (
-	"strings"
-
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/modelpicker/contract"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
@@ -98,22 +96,5 @@ func ModelsForProviderIndex(catalog []CatalogProvider, idx int) []ModelEntry {
 }
 
 func NormalizeConfirmedSelection(catalog []CatalogProvider, provider, model string) (string, string) {
-	provider = strings.TrimSpace(provider)
-	model = strings.TrimSpace(model)
-	for _, entry := range catalog {
-		if !contract.ProviderIDEqual(entry.Provider.ID, provider) {
-			continue
-		}
-		if model != "" {
-			for _, candidate := range entry.Models {
-				if candidate.ID == model {
-					return provider, model
-				}
-			}
-		}
-		if len(entry.Models) > 0 {
-			return provider, entry.Models[0].ID
-		}
-	}
-	return provider, model
+	return contract.NormalizeConfirmedSelection(catalog, provider, model)
 }

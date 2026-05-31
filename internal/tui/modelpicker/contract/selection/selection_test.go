@@ -119,3 +119,27 @@ func TestConfirmedResultUsesFocusedModelOrCurrentFallback(t *testing.T) {
 		t.Fatalf("ConfirmedResult no provider = (%#v, %v), want zero false", result, ok)
 	}
 }
+
+func TestNormalizeConfirmedUsesCatalogPolicy(t *testing.T) {
+	catalog := []schema.CatalogProvider{
+		{
+			Provider: schema.ProviderEntry{ID: "openai"},
+			Models:   []schema.ModelEntry{{ID: "gpt-4.1"}, {ID: "o3"}},
+		},
+	}
+
+	provider, model := NormalizeConfirmed(catalog, " OPENAI ", " o3 ")
+	if provider != "OPENAI" || model != "o3" {
+		t.Fatalf("NormalizeConfirmed known model = (%q, %q), want OPENAI/o3", provider, model)
+	}
+
+	provider, model = NormalizeConfirmed(catalog, " OPENAI ", " missing ")
+	if provider != "OPENAI" || model != "gpt-4.1" {
+		t.Fatalf("NormalizeConfirmed fallback = (%q, %q), want OPENAI/gpt-4.1", provider, model)
+	}
+
+	provider, model = NormalizeConfirmed(catalog, " unknown ", " custom ")
+	if provider != "unknown" || model != "custom" {
+		t.Fatalf("NormalizeConfirmed unknown provider = (%q, %q), want unknown/custom", provider, model)
+	}
+}
