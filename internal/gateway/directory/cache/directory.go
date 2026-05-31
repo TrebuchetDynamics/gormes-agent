@@ -37,6 +37,28 @@ func NewDirectory(updatedAt string) Directory {
 	return Directory{UpdatedAt: strings.TrimSpace(updatedAt), Platforms: map[string][]model.Entry{}}
 }
 
+// UpsertEntries normalizes a platform bucket and merges complete target entries
+// into the directory. It is the shared merge contract for adapter inventory and
+// remembered-source refresh contributions.
+func (d *Directory) UpsertEntries(platform string, entries ...model.Entry) int {
+	if d.Platforms == nil {
+		d.Platforms = map[string][]model.Entry{}
+	}
+	platform = model.NormalizePlatform(platform)
+	if platform == "" {
+		return 0
+	}
+	merged := 0
+	for _, entry := range entries {
+		var ok bool
+		d.Platforms[platform], ok = model.UpsertValidEntry(d.Platforms[platform], entry)
+		if ok {
+			merged++
+		}
+	}
+	return merged
+}
+
 // Root returns the store root for fixture setup.
 func (s Store) Root() string { return s.root.String() }
 

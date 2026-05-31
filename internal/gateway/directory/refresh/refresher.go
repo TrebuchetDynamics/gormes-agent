@@ -50,23 +50,13 @@ func (r *Refresher) Refresh(ctx context.Context) (cache.Directory, model.Evidenc
 	}
 	dir := cache.NewDirectory(timestamp(r.Now))
 	for _, snapshot := range snapshots {
-		platform := model.NormalizePlatform(snapshot.Platform)
-		if platform == "" {
-			continue
-		}
-		for _, entry := range snapshot.Entries {
-			dir.Platforms[platform], _ = model.UpsertValidEntry(dir.Platforms[platform], entry)
-		}
+		dir.UpsertEntries(snapshot.Platform, snapshot.Entries...)
 	}
 	ledger, sourceEvidence := r.Sources.Load()
 	if sourceEvidence.Code == "" {
 		for platform, entries := range ledger.Platforms {
-			platform = model.NormalizePlatform(platform)
-			if platform == "" {
-				continue
-			}
 			for _, source := range entries {
-				dir.Platforms[platform], _ = model.UpsertValidEntry(dir.Platforms[platform], source.ChannelDirectoryEntry())
+				dir.UpsertEntries(platform, source.ChannelDirectoryEntry())
 			}
 		}
 	}
