@@ -914,6 +914,39 @@ func TestPatchToolV4AFuzzyHunkContextHintDisambiguatesNearbyWindow(t *testing.T)
 	assertFileContent(t, path, "section alpha\ntarget = old\n"+filler+"marker beta\ntarget = new\n")
 }
 
+func TestPatchToolV4AFuzzyHunkRejectsAmbiguousContextHint(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "src", "settings.txt")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	filler := strings.Repeat("filler line keeps duplicate hints apart\n", 90)
+	original := "marker\ntarget = old\n" + filler + "marker\ntarget = old\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write settings fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/settings.txt"}`)
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Update File: src/settings.txt",
+		"@@ marker @@",
+		"-target = old",
+		"+target = new",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "patch_validation_failed" {
+		t.Fatalf("status = %v, want patch_validation_failed: %#v", out["status"], out)
+	}
+	if !strings.Contains(asString(out["error"]), "context hint") || !strings.Contains(asString(out["error"]), "ambiguous") {
+		t.Fatalf("error = %v, want ambiguous context hint evidence", out["error"])
+	}
+	assertFileContent(t, path, original)
+}
+
 func TestPatchToolV4AFuzzyHunkAmbiguousNoMutation(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "src", "settings.txt")

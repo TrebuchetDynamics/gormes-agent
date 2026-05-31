@@ -1738,10 +1738,40 @@ func applyV4AFuzzyHunk(content, search, replacement, hint string) (string, error
 	if strings.TrimSpace(hint) == "" {
 		return "", err
 	}
-	hintPos := strings.Index(content, hint)
-	if hintPos < 0 {
+	hintPositions := v4AContextHintPositions(content, hint)
+	if len(hintPositions) == 0 {
 		return "", err
 	}
+	if len(hintPositions) > 1 {
+		return "", fmt.Errorf("context hint %q is ambiguous (%d occurrences)", hint, len(hintPositions))
+	}
+	windowStart, windowEnd := v4AContextHintWindow(content, hintPositions[0])
+	window := content[windowStart:windowEnd]
+	windowUpdated, _, windowErr := fuzzyPatchReplace(window, search, replacement, false)
+	if windowErr != nil {
+		return "", err
+	}
+	return content[:windowStart] + windowUpdated + content[windowEnd:], nil
+}
+
+func v4AContextHintPositions(content, hint string) []int {
+	if hint == "" {
+		return nil
+	}
+	var positions []int
+	for offset := 0; offset <= len(content); {
+		idx := strings.Index(content[offset:], hint)
+		if idx < 0 {
+			break
+		}
+		pos := offset + idx
+		positions = append(positions, pos)
+		offset = pos + len(hint)
+	}
+	return positions
+}
+
+func v4AContextHintWindow(content string, hintPos int) (int, int) {
 	windowStart := hintPos - v4aContextHintBefore
 	if windowStart < 0 {
 		windowStart = 0
@@ -1750,12 +1780,7 @@ func applyV4AFuzzyHunk(content, search, replacement, hint string) (string, error
 	if windowEnd > len(content) {
 		windowEnd = len(content)
 	}
-	window := content[windowStart:windowEnd]
-	windowUpdated, _, windowErr := fuzzyPatchReplace(window, search, replacement, false)
-	if windowErr != nil {
-		return "", err
-	}
-	return content[:windowStart] + windowUpdated + content[windowEnd:], nil
+	return windowStart, windowEnd
 }
 
 func applyV4AAdditionOnlyHunk(content, hint, insertText string) (string, error) {
