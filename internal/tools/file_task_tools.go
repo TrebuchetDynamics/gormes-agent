@@ -311,6 +311,41 @@ type searchContentEntry struct {
 	match bool
 }
 
+type searchContentAccumulator struct {
+	entries []searchContentEntry
+	indexes map[string]int
+}
+
+func (a *searchContentAccumulator) appendRange(rel string, lines []string, matchIndex, contextLines int) {
+	if matchIndex < 0 || matchIndex >= len(lines) {
+		return
+	}
+	if a.indexes == nil {
+		a.indexes = map[string]int{}
+	}
+	start, end := searchContentContextRange(matchIndex, len(lines), contextLines)
+	for lineIndex := start; lineIndex <= end; lineIndex++ {
+		key := searchContentEntryKey(rel, lineIndex)
+		if existing, ok := a.indexes[key]; ok {
+			if lineIndex == matchIndex {
+				a.entries[existing].match = true
+			}
+			continue
+		}
+		a.indexes[key] = len(a.entries)
+		a.entries = append(a.entries, searchContentEntry{
+			path:  rel,
+			line:  lineIndex + 1,
+			text:  lines[lineIndex],
+			match: lineIndex == matchIndex,
+		})
+	}
+}
+
+func searchContentEntryKey(rel string, lineIndex int) string {
+	return rel + "\x00" + strconv.Itoa(lineIndex)
+}
+
 func (e searchContentEntry) payload() map[string]any {
 	return map[string]any{
 		"path": e.path,
@@ -444,8 +479,7 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 	}
 	counts := map[string]int{}
 	filesSeen := map[string]bool{}
-	var results []searchContentEntry
-	emittedContext := map[string]bool{}
+	var results searchContentAccumulator
 	contextLines := in.Context
 	if contextLines < 0 {
 		contextLines = 0
@@ -485,20 +519,7 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 			counts[rel]++
 			filesSeen[rel] = true
 			if outputMode == "content" {
-				start, end := searchContentContextRange(i, len(lines), contextLines)
-				for lineIndex := start; lineIndex <= end; lineIndex++ {
-					key := rel + "\x00" + strconv.Itoa(lineIndex)
-					if emittedContext[key] {
-						continue
-					}
-					emittedContext[key] = true
-					results = append(results, searchContentEntry{
-						path:  rel,
-						line:  lineIndex + 1,
-						text:  lines[lineIndex],
-						match: lineIndex == i,
-					})
-				}
+				results.appendRange(rel, lines, i, contextLines)
 			}
 		}
 		return nil
@@ -535,12 +556,12 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 			"truncated": truncated,
 		})
 	case "content":
-		window, truncated := windowSearchContentEntries(results, offset, limit)
+		window, truncated := windowSearchContentEntries(results.entries, offset, limit)
 		return marshalToolPayload(map[string]any{
 			"pattern":   in.Pattern,
 			"target":    "content",
 			"path":      relBase,
-			"count":     len(results),
+			"count":     len(results.entries),
 			"matches":   searchContentEntryPayloads(window),
 			"truncated": truncated,
 		})

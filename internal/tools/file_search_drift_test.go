@@ -137,6 +137,25 @@ func TestSearchFilesContentLimitDoesNotReturnOnlyContext(t *testing.T) {
 	}
 }
 
+func TestSearchContentAccumulatorUpgradesContextRowWhenLineAlsoMatches(t *testing.T) {
+	var acc searchContentAccumulator
+	lines := []string{"first needle", "second needle"}
+
+	acc.appendRange("dir/file.txt", lines, 0, 1)
+	acc.appendRange("dir/file.txt", lines, 1, 1)
+
+	if len(acc.entries) != 2 {
+		t.Fatalf("entries = %#v, want each physical line once", acc.entries)
+	}
+	if !acc.entries[1].match {
+		t.Fatalf("second entry = %#v, want duplicate context row upgraded to match", acc.entries[1])
+	}
+	window, _ := windowSearchContentEntries(acc.entries, 1, 1)
+	if len(window) != 1 || !window[0].match || window[0].line != 2 {
+		t.Fatalf("window = %#v, want offset page to retain match provenance", window)
+	}
+}
+
 func TestSearchContextLineParserHyphenNumericFilename(t *testing.T) {
 	path, line, text, ok := parseSearchContextLine("dir/file-12-name.py-8-context here")
 	if !ok {
