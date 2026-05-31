@@ -437,6 +437,26 @@ func TestGatewayDiscoverUsageCostReportsUnavailableData(t *testing.T) {
 	}
 }
 
+func TestGatewayDiscoverUsageCostUnavailableUsesSameDurationWindowAcrossDST(t *testing.T) {
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatalf("load location: %v", err)
+	}
+	anchor := time.Date(2026, 3, 8, 12, 0, 0, 0, loc)
+	result := SummarizeGatewayUsageCost(context.Background(), GatewayUsageCostRequest{
+		Days: 1,
+		Now:  func() time.Time { return anchor },
+		Lister: GatewayUsageSessionListerFunc(func(context.Context) ([]GatewayUsageSession, error) {
+			return nil, errors.New("session db missing")
+		}),
+	})
+
+	wantSince := anchor.Add(-24 * time.Hour)
+	if !result.Since.Equal(wantSince) {
+		t.Fatalf("Since = %s, want exact 24h lookback %s", result.Since, wantSince)
+	}
+}
+
 func newGatewayProbeHTTPFixture(t *testing.T, secret string, capabilities http.HandlerFunc) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

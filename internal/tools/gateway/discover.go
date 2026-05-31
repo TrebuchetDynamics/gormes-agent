@@ -1097,18 +1097,19 @@ func SummarizeGatewayUsageCost(ctx context.Context, req GatewayUsageCostRequest)
 	}
 	pricing := normalizeGatewayUsagePricing(req.Pricing)
 	sessions := append([]GatewayUsageSession(nil), req.Sessions...)
+	anchor := now()
+	since := gatewayUsageSince(anchor, days)
 	if req.Lister != nil {
 		listed, err := req.Lister.ListGatewayUsageSessions(ctx)
 		if err != nil {
-			return gatewayUsageUnavailable(days, now().AddDate(0, 0, -days), pricing, sanitizeGatewayError(err))
+			return gatewayUsageUnavailable(days, since, pricing, sanitizeGatewayError(err))
 		}
 		sessions = append(sessions, listed...)
 	}
 	if err := ctx.Err(); err != nil {
-		return gatewayUsageUnavailable(days, now().AddDate(0, 0, -days), pricing, sanitizeGatewayError(err))
+		return gatewayUsageUnavailable(days, since, pricing, sanitizeGatewayError(err))
 	}
 
-	since := now().Add(-time.Duration(days) * 24 * time.Hour)
 	rows := make([]GatewayUsageCostSession, 0, len(sessions))
 	for _, session := range sessions {
 		session = normalizeGatewayUsageSession(session)
@@ -1162,6 +1163,10 @@ func SummarizeGatewayUsageCost(ctx context.Context, req GatewayUsageCostRequest)
 		result.Totals.Priced = result.Totals.Priced || row.Priced
 	}
 	return result
+}
+
+func gatewayUsageSince(anchor time.Time, days int) time.Time {
+	return anchor.Add(-time.Duration(days) * 24 * time.Hour)
 }
 
 func normalizeGatewayUsagePricing(pricing GatewayUsagePricing) GatewayUsagePricing {
