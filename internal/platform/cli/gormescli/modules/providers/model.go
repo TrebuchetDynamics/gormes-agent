@@ -5,21 +5,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 )
 
 func NewModelCommandWithSeams(seams ModelCommandSeams) *cobra.Command {
-	chooseModel := seams.ChooseModel
-	if chooseModel != nil {
-		chooseModel = func(provider string, current string) (string, error) {
-			model, err := seams.ChooseModel(provider, current)
-			if err != nil {
-				return "", err
-			}
-			return llm.NormalizeProviderModelID(provider, model), nil
-		}
-	}
+	chooseModel := normalizedModelChooser(seams)
 	cmd := &cobra.Command{
 		Use:          "model",
 		Short:        "Interactively select the active model/provider",

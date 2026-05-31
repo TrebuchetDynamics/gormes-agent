@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
@@ -27,15 +26,6 @@ type FallbackEntry struct {
 type FallbackConfig struct {
 	Primary FallbackEntry
 	Chain   []FallbackEntry
-}
-
-type ModelCommandSeams struct {
-	IsTTY            func() bool
-	LoadCurrent      func() (cli.ProviderModel, error)
-	ListProviders    func() ([]cli.ProviderMenuEntry, error)
-	ChooseProvider   func(entries []cli.ProviderMenuEntry, defaultIndex int) (int, error)
-	ChooseModel      func(provider string, current string) (string, error)
-	PersistSelection func(cli.Selection) error
 }
 
 func NewFallbackCommand(seams ModelCommandSeams) *cobra.Command {
@@ -127,16 +117,7 @@ func runFallbackList(cmd *cobra.Command) error {
 }
 
 func runFallbackAdd(cmd *cobra.Command, seams ModelCommandSeams) error {
-	chooseModel := seams.ChooseModel
-	if chooseModel != nil {
-		chooseModel = func(provider string, current string) (string, error) {
-			model, err := seams.ChooseModel(provider, current)
-			if err != nil {
-				return "", err
-			}
-			return llm.NormalizeProviderModelID(provider, model), nil
-		}
-	}
+	chooseModel := normalizedModelChooser(seams)
 	var selection cli.Selection
 	added := false
 	picker := cli.NewModelPicker(cli.ModelPickerOptions{

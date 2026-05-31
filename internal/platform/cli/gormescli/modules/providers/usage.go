@@ -16,19 +16,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Options carries binary-owned values into the provider module without making
-// importable command code depend on cmd/gormes.
-type Options struct {
-	BuildProvenance func() gormescli.BuildProvenance
-}
-
-func (o Options) buildProvenance() gormescli.BuildProvenance {
-	if o.BuildProvenance == nil {
-		return gormescli.BuildProvenance{}
-	}
-	return o.BuildProvenance()
-}
-
 // UsageSeams isolates config loading and provider account usage fetching for
 // hermetic command tests.
 type UsageSeams struct {
