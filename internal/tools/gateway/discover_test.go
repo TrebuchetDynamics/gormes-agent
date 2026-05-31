@@ -324,6 +324,29 @@ func TestGatewayProbeHTTPClassifiesAuthUnsupportedAndMalformedCapabilities(t *te
 		}
 	})
 
+	t.Run("endpoint missing method unsupported", func(t *testing.T) {
+		server := newGatewayProbeHTTPFixture(t, "", func(w http.ResponseWriter, _ *http.Request) {
+			payload := buildGatewayProbeCapabilitiesFixture(true)
+			payload["endpoints"].(map[string]any)["run_stop"] = map[string]string{"path": "/v1/runs/{run_id}/stop"}
+			writeJSONResponse(t, w, payload)
+		})
+		defer server.Close()
+		endpoint := mustParseGatewayProbeEndpoint(t, server.URL)
+
+		result := ProbeGateways(context.Background(), GatewayProbeRequest{
+			Endpoints: []GatewayEndpoint{endpoint},
+			Prober:    HTTPGatewayProber{Client: server.Client(), Auth: GatewayHTTPAuth{Source: "none"}},
+		})
+
+		if result.OK {
+			t.Fatalf("OK = true; result = %+v", result)
+		}
+		target := result.Targets[0]
+		if target.Health != GatewayHealthHTTPCapabilityUnsupported || target.Status != GatewayProbeStatusUnsupportedCapability {
+			t.Fatalf("target = %+v, want unsupported capability classification for endpoint missing method", target)
+		}
+	})
+
 	t.Run("malformed", func(t *testing.T) {
 		server := newGatewayProbeHTTPFixture(t, "", func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
@@ -485,19 +508,11 @@ func newGatewayProbeHTTPFixture(t *testing.T, secret string, capabilities http.H
 
 func writeGatewayProbeCapabilitiesFixture(t *testing.T, w http.ResponseWriter, supported bool) {
 	t.Helper()
-	features := map[string]any{
-		"chat_completions":           true,
-		"chat_completions_streaming": true,
-		"responses_api":              true,
-		"responses_streaming":        true,
-		"run_submission":             true,
-		"run_status":                 supported,
-		"run_events_sse":             supported,
-		"run_stop":                   true,
-		"tool_progress_events":       true,
-		"session_continuity_header":  "X-Hermes-Session-Id",
-	}
-	writeJSONResponse(t, w, map[string]any{
+	writeJSONResponse(t, w, buildGatewayProbeCapabilitiesFixture(supported))
+}
+
+func buildGatewayProbeCapabilitiesFixture(supported bool) map[string]any {
+	return map[string]any{
 		"object":   "hermes.api_server.capabilities",
 		"platform": "gormes-agent",
 		"model":    "gormes-agent",
@@ -505,7 +520,18 @@ func writeGatewayProbeCapabilitiesFixture(t *testing.T, w http.ResponseWriter, s
 			"type":     "bearer",
 			"required": true,
 		},
-		"features": features,
+		"features": map[string]any{
+			"chat_completions":           true,
+			"chat_completions_streaming": true,
+			"responses_api":              true,
+			"responses_streaming":        true,
+			"run_submission":             true,
+			"run_status":                 supported,
+			"run_events_sse":             supported,
+			"run_stop":                   true,
+			"tool_progress_events":       true,
+			"session_continuity_header":  "X-Hermes-Session-Id",
+		},
 		"endpoints": map[string]any{
 			"health":           map[string]string{"method": "GET", "path": "/health"},
 			"health_detailed":  map[string]string{"method": "GET", "path": "/health/detailed"},
@@ -515,7 +541,7 @@ func writeGatewayProbeCapabilitiesFixture(t *testing.T, w http.ResponseWriter, s
 			"run_events":       map[string]string{"method": "GET", "path": "/v1/runs/{run_id}/events"},
 			"run_stop":         map[string]string{"method": "POST", "path": "/v1/runs/{run_id}/stop"},
 		},
-	})
+	}
 }
 
 func writeJSONResponse(t *testing.T, w http.ResponseWriter, body any) {

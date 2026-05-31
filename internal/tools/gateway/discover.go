@@ -925,15 +925,12 @@ func gatewayHTTPBaseURL(endpoint GatewayEndpoint) string {
 }
 
 type gatewayCapabilitiesPayload struct {
-	Object    string         `json:"object"`
-	Platform  string         `json:"platform"`
-	Model     string         `json:"model"`
-	Auth      gatewayCapAuth `json:"auth"`
-	Features  map[string]any `json:"features"`
-	Endpoints map[string]struct {
-		Method string `json:"method"`
-		Path   string `json:"path"`
-	} `json:"endpoints"`
+	Object    string                               `json:"object"`
+	Platform  string                               `json:"platform"`
+	Model     string                               `json:"model"`
+	Auth      gatewayCapAuth                       `json:"auth"`
+	Features  map[string]any                       `json:"features"`
+	Endpoints map[string]gatewayCapabilityEndpoint `json:"endpoints"`
 }
 
 type gatewayCapAuth struct {
@@ -946,20 +943,8 @@ func summarizeGatewayCapabilities(body []byte, statusCode int, authSource string
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return &GatewayCapabilitiesSummary{StatusCode: statusCode, AuthSource: authSource}, err
 	}
-	features := make([]string, 0, len(payload.Features))
-	for name, value := range payload.Features {
-		if enabled, ok := value.(bool); ok && enabled {
-			features = append(features, name)
-		}
-	}
-	sort.Strings(features)
-	endpoints := make([]string, 0, len(payload.Endpoints))
-	for name, endpoint := range payload.Endpoints {
-		if endpoint.Path != "" {
-			endpoints = append(endpoints, name)
-		}
-	}
-	sort.Strings(endpoints)
+	features := enabledGatewayFeatureNames(payload.Features)
+	endpoints := routableGatewayEndpointNames(payload.Endpoints)
 	return &GatewayCapabilitiesSummary{
 		Object:       strings.TrimSpace(payload.Object),
 		Platform:     strings.TrimSpace(payload.Platform),
@@ -973,6 +958,33 @@ func summarizeGatewayCapabilities(body []byte, statusCode int, authSource string
 	}, nil
 }
 
+func enabledGatewayFeatureNames(features map[string]any) []string {
+	names := make([]string, 0, len(features))
+	for name, value := range features {
+		if enabled, ok := value.(bool); ok && enabled {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
+type gatewayCapabilityEndpoint struct {
+	Method string `json:"method"`
+	Path   string `json:"path"`
+}
+
+func routableGatewayEndpointNames(endpoints map[string]gatewayCapabilityEndpoint) []string {
+	names := make([]string, 0, len(endpoints))
+	for name, endpoint := range endpoints {
+		if strings.TrimSpace(endpoint.Method) != "" && strings.TrimSpace(endpoint.Path) != "" {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
 func gatewayCapabilitiesSupported(summary *GatewayCapabilitiesSummary) bool {
 	if summary == nil {
 		return false
@@ -983,7 +995,12 @@ func gatewayCapabilitiesSupported(summary *GatewayCapabilitiesSummary) bool {
 	if summary.AuthType != "bearer" {
 		return false
 	}
-	for _, feature := range []string{
+	return gatewayCapabilityNamesInclude(summary.Features, requiredGatewayCapabilityFeatures()) &&
+		gatewayCapabilityNamesInclude(summary.Endpoints, requiredGatewayCapabilityEndpoints())
+}
+
+func requiredGatewayCapabilityFeatures() []string {
+	return []string{
 		"chat_completions",
 		"responses_api",
 		"run_submission",
@@ -991,12 +1008,11 @@ func gatewayCapabilitiesSupported(summary *GatewayCapabilitiesSummary) bool {
 		"run_events_sse",
 		"run_stop",
 		"tool_progress_events",
-	} {
-		if !gatewayProbeStringSliceContains(summary.Features, feature) {
-			return false
-		}
 	}
-	for _, endpoint := range []string{
+}
+
+func requiredGatewayCapabilityEndpoints() []string {
+	return []string{
 		"health",
 		"health_detailed",
 		"chat_completions",
@@ -1004,8 +1020,12 @@ func gatewayCapabilitiesSupported(summary *GatewayCapabilitiesSummary) bool {
 		"run_status",
 		"run_events",
 		"run_stop",
-	} {
-		if !gatewayProbeStringSliceContains(summary.Endpoints, endpoint) {
+	}
+}
+
+func gatewayCapabilityNamesInclude(have []string, required []string) bool {
+	for _, name := range required {
+		if !gatewayProbeStringSliceContains(have, name) {
 			return false
 		}
 	}
