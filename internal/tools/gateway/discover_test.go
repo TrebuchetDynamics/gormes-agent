@@ -71,6 +71,22 @@ func TestGatewayEndpointNormalizationAppliesNonRoutingTXTHints(t *testing.T) {
 			t.Fatalf("DisplayName = %q, want explicit display name preserved", endpoint.DisplayName)
 		}
 	})
+	// TXT records are unauthenticated metadata; they must not override the
+	// resolved/manual routing port when the endpoint itself omits one.
+	// Otherwise a beacon can silently redirect probes away from the SRV/default
+	// endpoint while still looking like a normal discovery result.
+	// gatewayTls remains a capability hint because mDNS SRV does not encode TLS.
+	t.Run("gatewayPort TXT does not change routing port", func(t *testing.T) {
+		endpoint := NormalizeGatewayEndpoint(GatewayEndpoint{
+			Address: "127.0.0.1",
+			TXT: map[string]string{
+				"gatewayPort": "19999",
+			},
+		})
+		if endpoint.Port != defaultGatewayPort || endpoint.WSURL != "ws://127.0.0.1:18789" {
+			t.Fatalf("endpoint = %+v, want TXT gatewayPort ignored for routing", endpoint)
+		}
+	})
 }
 
 func TestGatewayEndpointNormalizationCanonicalizesHTTPAliases(t *testing.T) {
