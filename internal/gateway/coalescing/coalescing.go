@@ -71,6 +71,11 @@ type Coalescer struct {
 	now          func() time.Time
 	evidenceSink EvidenceSink
 
+	// deliveryMu serializes visible send/edit attempts. State snapshots are
+	// only valid for a delivery decision while this lock is held; otherwise a
+	// final flush can race an in-flight initial placeholder and create a second
+	// visible message for the same turn.
+	deliveryMu       sync.Mutex
 	mu               sync.Mutex
 	pendingText      string
 	pendingMsgID     string
@@ -134,12 +139,14 @@ func (c *Coalescer) FlushImmediate(ctx context.Context, text string) {
 }
 
 func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finalize bool) {
-	c.mu.Lock()
-	msgID := c.pendingMsgID
-	createdAt := c.messageCreatedAt
-	freshFinalAfter := c.freshFinalAfter
-	lastSentText := c.lastSentText
-	c.mu.Unlock()
+	c.deliveryMu.Lock()
+	defer c.deliveryMu.Unlock()
+
+	state := c.finalDeliverySnapshot()
+	msgID := state.msgID
+	createdAt := state.createdAt
+	freshFinalAfter := state.freshFinalAfter
+	lastSentText := state.lastSentText
 
 	now := c.now()
 	if shouldSendFreshFinal(finalize, msgID, createdAt, freshFinalAfter, now) {
@@ -262,13 +269,15 @@ func (c *Coalescer) Run(ctx context.Context) {
 }
 
 func (c *Coalescer) tryFlush(ctx context.Context) {
-	c.mu.Lock()
-	text := c.pendingText
-	msgID := c.pendingMsgID
-	last := c.lastSentText
-	lastAt := c.lastEditAt
-	retryAfter := c.retryAfter
-	c.mu.Unlock()
+	c.deliveryMu.Lock()
+	defer c.deliveryMu.Unlock()
+
+	state := c.pendingDeliverySnapshot()
+	text := state.text
+	msgID := state.msgID
+	last := state.lastSentText
+	lastAt := state.lastEditAt
+	retryAfter := state.retryAfter
 
 	if text == "" || text == last {
 		return
@@ -307,6 +316,44 @@ func (c *Coalescer) tryFlush(ctx context.Context) {
 	c.lastEditAt = now
 	c.clearPendingAfterDeliveryLocked(text, false)
 	c.mu.Unlock()
+}
+
+type finalDeliverySnapshot struct {
+	msgID           string
+	createdAt       time.Time
+	freshFinalAfter time.Duration
+	lastSentText    string
+}
+
+type pendingDeliverySnapshot struct {
+	text         string
+	msgID        string
+	lastSentText string
+	lastEditAt   time.Time
+	retryAfter   time.Time
+}
+
+func (c *Coalescer) finalDeliverySnapshot() finalDeliverySnapshot {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return finalDeliverySnapshot{
+		msgID:           c.pendingMsgID,
+		createdAt:       c.messageCreatedAt,
+		freshFinalAfter: c.freshFinalAfter,
+		lastSentText:    c.lastSentText,
+	}
+}
+
+func (c *Coalescer) pendingDeliverySnapshot() pendingDeliverySnapshot {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return pendingDeliverySnapshot{
+		text:         c.pendingText,
+		msgID:        c.pendingMsgID,
+		lastSentText: c.lastSentText,
+		lastEditAt:   c.lastEditAt,
+		retryAfter:   c.retryAfter,
+	}
 }
 
 func (c *Coalescer) sendInitialText(ctx context.Context, text string) (string, error, bool) {
