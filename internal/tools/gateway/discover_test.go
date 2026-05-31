@@ -729,6 +729,48 @@ func TestGatewayDiscoverUsageCostSummarizesSessionAndAggregateCosts(t *testing.T
 	}
 }
 
+func TestGatewayUsageCostCandidateFlowExplainsDroppedRows(t *testing.T) {
+	now := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
+	flow := evaluateGatewayUsageCostCandidates([]GatewayUsageSession{{
+		SessionID: "  ",
+		TokensIn:  10,
+	}, {
+		SessionID: "old",
+		UpdatedAt: now.Add(-48 * time.Hour),
+		TokensIn:  10,
+	}, {
+		SessionID: "empty",
+		UpdatedAt: now,
+	}, {
+		SessionID: " kept ",
+		UpdatedAt: now,
+		TokensOut: 3,
+	}}, now.Add(-24*time.Hour), GatewayUsagePricing{})
+
+	if got := len(flow.Accepted); got != 1 {
+		t.Fatalf("Accepted len = %d, want 1; flow=%+v", got, flow)
+	}
+	if flow.Accepted[0].SessionID != "kept" || flow.Accepted[0].TotalTokens != 3 {
+		t.Fatalf("Accepted[0] = %+v, want normalized usage row", flow.Accepted[0])
+	}
+	wantReasons := []string{
+		gatewayUsageCandidateRejectedMissingSessionID,
+		gatewayUsageCandidateRejectedOutsideWindow,
+		gatewayUsageCandidateRejectedNoUsage,
+	}
+	if got := len(flow.Rejected); got != len(wantReasons) {
+		t.Fatalf("Rejected len = %d, want %d; flow=%+v", got, len(wantReasons), flow)
+	}
+	for i, want := range wantReasons {
+		if flow.Rejected[i].Rejection != want {
+			t.Fatalf("Rejected[%d].Rejection = %q, want %q; flow=%+v", i, flow.Rejected[i].Rejection, want, flow)
+		}
+		if flow.Rejected[i].Accepted {
+			t.Fatalf("Rejected[%d] unexpectedly accepted: %+v", i, flow.Rejected[i])
+		}
+	}
+}
+
 func TestGatewayDiscoverUsageCostDeduplicatesSessionIDByNewestUsage(t *testing.T) {
 	now := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
 	result := SummarizeGatewayUsageCost(context.Background(), GatewayUsageCostRequest{

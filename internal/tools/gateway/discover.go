@@ -1299,20 +1299,8 @@ func gatewayUsageSince(anchor time.Time, days int) time.Time {
 }
 
 func buildGatewayUsageCostRows(sessions []GatewayUsageSession, since time.Time, pricing GatewayUsagePricing) []GatewayUsageCostSession {
-	bySessionID := make(map[string]GatewayUsageCostSession, len(sessions))
-	for _, session := range sessions {
-		row, ok := gatewayUsageCostRowCandidate(session, since, pricing)
-		if !ok {
-			continue
-		}
-		if current, exists := bySessionID[row.SessionID]; !exists || newerGatewayUsageCostRow(row, current) {
-			bySessionID[row.SessionID] = row
-		}
-	}
-	rows := make([]GatewayUsageCostSession, 0, len(bySessionID))
-	for _, row := range bySessionID {
-		rows = append(rows, row)
-	}
+	flow := evaluateGatewayUsageCostCandidates(sessions, since, pricing)
+	rows := append([]GatewayUsageCostSession(nil), flow.Accepted...)
 	sort.Slice(rows, func(i, j int) bool {
 		if !rows[i].UpdatedAt.Equal(rows[j].UpdatedAt) {
 			return rows[i].UpdatedAt.After(rows[j].UpdatedAt)
@@ -1322,31 +1310,70 @@ func buildGatewayUsageCostRows(sessions []GatewayUsageSession, since time.Time, 
 	return rows
 }
 
-func gatewayUsageCostRowCandidate(session GatewayUsageSession, since time.Time, pricing GatewayUsagePricing) (GatewayUsageCostSession, bool) {
-	session = normalizeGatewayUsageSession(session)
-	if session.SessionID == "" {
-		return GatewayUsageCostSession{}, false
+const (
+	gatewayUsageCandidateRejectedMissingSessionID = "missing_session_id"
+	gatewayUsageCandidateRejectedOutsideWindow    = "outside_window"
+	gatewayUsageCandidateRejectedNoUsage          = "no_usage"
+)
+
+type gatewayUsageCostCandidateFlow struct {
+	Accepted []GatewayUsageCostSession
+	Rejected []gatewayUsageCostCandidate
+}
+
+type gatewayUsageCostCandidate struct {
+	Session   GatewayUsageSession
+	Row       GatewayUsageCostSession
+	Rejection string
+	Accepted  bool
+}
+
+func evaluateGatewayUsageCostCandidates(sessions []GatewayUsageSession, since time.Time, pricing GatewayUsagePricing) gatewayUsageCostCandidateFlow {
+	bySessionID := make(map[string]GatewayUsageCostSession, len(sessions))
+	flow := gatewayUsageCostCandidateFlow{}
+	for _, session := range sessions {
+		candidate := classifyGatewayUsageCostCandidate(session, since, pricing)
+		if !candidate.Accepted {
+			flow.Rejected = append(flow.Rejected, candidate)
+			continue
+		}
+		if current, exists := bySessionID[candidate.Row.SessionID]; !exists || newerGatewayUsageCostRow(candidate.Row, current) {
+			bySessionID[candidate.Row.SessionID] = candidate.Row
+		}
 	}
-	if !session.UpdatedAt.IsZero() && session.UpdatedAt.Before(since) {
-		return GatewayUsageCostSession{}, false
+	flow.Accepted = make([]GatewayUsageCostSession, 0, len(bySessionID))
+	for _, row := range bySessionID {
+		flow.Accepted = append(flow.Accepted, row)
 	}
-	total, hasUsage := gatewayUsageTokenTotal(session.TokensIn, session.TokensOut)
+	return flow
+}
+
+func classifyGatewayUsageCostCandidate(session GatewayUsageSession, since time.Time, pricing GatewayUsagePricing) gatewayUsageCostCandidate {
+	normalized := normalizeGatewayUsageSession(session)
+	if normalized.SessionID == "" {
+		return gatewayUsageCostCandidate{Session: normalized, Rejection: gatewayUsageCandidateRejectedMissingSessionID}
+	}
+	if !normalized.UpdatedAt.IsZero() && normalized.UpdatedAt.Before(since) {
+		return gatewayUsageCostCandidate{Session: normalized, Rejection: gatewayUsageCandidateRejectedOutsideWindow}
+	}
+	total, hasUsage := gatewayUsageTokenTotal(normalized.TokensIn, normalized.TokensOut)
 	if !hasUsage {
-		return GatewayUsageCostSession{}, false
+		return gatewayUsageCostCandidate{Session: normalized, Rejection: gatewayUsageCandidateRejectedNoUsage}
 	}
-	cost, priced := estimateGatewayUsageCost(session.TokensIn, session.TokensOut, pricing)
-	return GatewayUsageCostSession{
-		SessionID:        session.SessionID,
-		Source:           session.Source,
-		ChatID:           session.ChatID,
-		Title:            session.Title,
-		UpdatedAt:        session.UpdatedAt,
-		TokensIn:         session.TokensIn,
-		TokensOut:        session.TokensOut,
+	cost, priced := estimateGatewayUsageCost(normalized.TokensIn, normalized.TokensOut, pricing)
+	row := GatewayUsageCostSession{
+		SessionID:        normalized.SessionID,
+		Source:           normalized.Source,
+		ChatID:           normalized.ChatID,
+		Title:            normalized.Title,
+		UpdatedAt:        normalized.UpdatedAt,
+		TokensIn:         normalized.TokensIn,
+		TokensOut:        normalized.TokensOut,
 		TotalTokens:      total,
 		EstimatedCostUSD: cost,
 		Priced:           priced,
-	}, true
+	}
+	return gatewayUsageCostCandidate{Session: normalized, Row: row, Accepted: true}
 }
 
 func newerGatewayUsageCostRow(candidate, current GatewayUsageCostSession) bool {
