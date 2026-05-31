@@ -106,6 +106,12 @@ func (c *Coalescer) emitEvidence(code, message string) {
 	}
 }
 
+func (c *Coalescer) clearPendingIfCurrentLocked(deliveredText string) {
+	if c.pendingText == deliveredText {
+		c.pendingText = ""
+	}
+}
+
 func (c *Coalescer) SetPending(text string) {
 	c.mu.Lock()
 	c.pendingText = text
@@ -143,7 +149,7 @@ func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finali
 			c.messageCreatedAt = now
 			c.lastSentText = text
 			c.lastEditAt = now
-			c.pendingText = ""
+			c.clearPendingIfCurrentLocked(text)
 			c.mu.Unlock()
 			return
 		}
@@ -174,7 +180,7 @@ func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finali
 			// preview already contains the completed answer. If the terminal
 			// edit fails here, a plain Send would duplicate the visible reply.
 			c.mu.Lock()
-			c.pendingText = ""
+			c.clearPendingIfCurrentLocked(text)
 			c.mu.Unlock()
 			return
 		}
@@ -207,7 +213,7 @@ func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finali
 		c.pendingMsgID = newMsgID
 		c.lastSentText = text
 		c.lastEditAt = c.now()
-		c.pendingText = ""
+		c.clearPendingIfCurrentLocked(text)
 		c.mu.Unlock()
 		return
 	}
@@ -219,7 +225,7 @@ func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finali
 	}
 	c.lastSentText = text
 	c.lastEditAt = c.now()
-	c.pendingText = ""
+	c.clearPendingIfCurrentLocked(text)
 	c.mu.Unlock()
 }
 
@@ -287,7 +293,7 @@ func (c *Coalescer) tryFlush(ctx context.Context) {
 		}
 		c.lastSentText = text
 		c.lastEditAt = now
-		c.pendingText = ""
+		c.clearPendingIfCurrentLocked(text)
 		c.mu.Unlock()
 		return
 	}
@@ -299,7 +305,7 @@ func (c *Coalescer) tryFlush(ctx context.Context) {
 	c.mu.Lock()
 	c.lastSentText = text
 	c.lastEditAt = now
-	c.pendingText = ""
+	c.clearPendingIfCurrentLocked(text)
 	c.mu.Unlock()
 }
 
