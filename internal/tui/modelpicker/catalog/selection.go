@@ -91,7 +91,7 @@ func NewState(catalog []CatalogProvider, currentProvider, currentModel string, w
 	selectedProvider := 0
 	for i, entry := range catalog {
 		providers = append(providers, entry.Provider)
-		if currentProvider != "" && strings.EqualFold(entry.Provider.ID, currentProvider) {
+		if currentProvider != "" && contract.ProviderIDEqual(entry.Provider.ID, currentProvider) {
 			selectedProvider = i
 		}
 	}
@@ -119,7 +119,7 @@ func NormalizeConfirmedSelection(catalog []CatalogProvider, provider, model stri
 	provider = strings.TrimSpace(provider)
 	model = strings.TrimSpace(model)
 	for _, entry := range catalog {
-		if !strings.EqualFold(entry.Provider.ID, provider) {
+		if !contract.ProviderIDEqual(entry.Provider.ID, provider) {
 			continue
 		}
 		if model != "" {

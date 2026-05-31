@@ -2,6 +2,15 @@ package contract
 
 import "testing"
 
+func TestProviderIDEqualIsCaseInsensitive(t *testing.T) {
+	if !ProviderIDEqual("OPENAI", "openai") {
+		t.Fatal("ProviderIDEqual should match provider IDs case-insensitively")
+	}
+	if ProviderIDEqual("openai", "anthropic") {
+		t.Fatal("ProviderIDEqual matched different provider IDs")
+	}
+}
+
 func TestModelListFocused(t *testing.T) {
 	if ModelListFocused(State{SelectedModelIndex: -1}) {
 		t.Fatal("ModelListFocused = true for provider focus")
