@@ -9,44 +9,9 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/envmap"
 )
-
-type TerminalSetupFileOps struct {
-	MkdirAll  func(path string, perm os.FileMode) error
-	ReadFile  func(path string) ([]byte, error)
-	WriteFile func(path string, data []byte, perm os.FileMode) error
-	CopyFile  func(src, dst string) error
-}
-
-type TerminalSetupOptions struct {
-	Env      map[string]string
-	HomeDir  string
-	Platform string
-	FileOps  TerminalSetupFileOps
-}
-
-type TerminalSetupResult struct {
-	Success         bool
-	RequiresRestart bool
-	Message         string
-	Evidence        string
-	Path            string
-}
-
-type TruecolorResult struct {
-	Force    bool
-	Set      map[string]string
-	Unset    []string
-	Evidence string
-}
-
-type TerminalParityHint struct {
-	Key     string
-	Message string
-}
 
 func envValue(env map[string]string, key string) string {
 	return envmap.Value(env, key)
@@ -419,89 +384,6 @@ func ShouldPromptForTerminalSetup(opts TerminalSetupOptions) bool {
 	return false
 }
 
-func TruecolorDecision(env map[string]string) TruecolorResult {
-	if envHas(env, "NO_COLOR") {
-		return TruecolorResult{Evidence: "tui_terminal_truecolor_disabled"}
-	}
-	switch strings.ToLower(strings.TrimSpace(envValue(env, "HERMES_TUI_TRUECOLOR"))) {
-	case "1", "true", "yes", "on":
-		set := map[string]string{"FORCE_COLOR": "3"}
-		if envValue(env, "COLORTERM") == "" {
-			set["COLORTERM"] = "truecolor"
-		}
-		return TruecolorResult{
-			Force: true,
-			Set:   set,
-		}
-	case "0", "false", "no", "off":
-		return TruecolorResult{Evidence: "tui_terminal_truecolor_disabled"}
-	default:
-		if shouldDowngradeAppleTerminalTruecolor(env) {
-			unset := []string{"COLORTERM"}
-			if envValue(env, "FORCE_COLOR") == "3" {
-				unset = append(unset, "FORCE_COLOR")
-			}
-			return TruecolorResult{Unset: unset, Evidence: "tui_terminal_truecolor_downgraded"}
-		}
-		return TruecolorResult{}
-	}
-}
-
-func shouldDowngradeAppleTerminalTruecolor(env map[string]string) bool {
-	return envValue(env, "TERM_PROGRAM") == "Apple_Terminal" && terminalAdvertisesTruecolor(env)
-}
-
-func terminalAdvertisesTruecolor(env map[string]string) bool {
-	switch strings.ToLower(envValue(env, "COLORTERM")) {
-	case "truecolor", "24bit":
-		return true
-	}
-	return envValue(env, "FORCE_COLOR") == "3"
-}
-
-func TerminalParityHints(env map[string]string, opts TerminalSetupOptions) []TerminalParityHint {
-	var hints []TerminalParityHint
-	if envValue(env, "TERM_PROGRAM") == "Apple_Terminal" {
-		hints = append(hints, TerminalParityHint{Key: "apple-terminal", Message: "Apple Terminal may need explicit truecolor configuration."})
-	}
-	if isRemoteTerminal(env) {
-		hints = append(hints, TerminalParityHint{Key: "remote", Message: "Remote terminals may not support local clipboard integration."})
-	}
-	if envValue(env, "TMUX") != "" {
-		hints = append(hints, TerminalParityHint{Key: "tmux", Message: "tmux requires OSC52 passthrough for clipboard queries."})
-	}
-	setupOpts := opts
-	setupOpts.Env = env
-	if ShouldPromptForTerminalSetup(setupOpts) {
-		hints = append(hints, TerminalParityHint{Key: "ide-setup", Message: "VS Code-family terminal keybindings are not configured."})
-	}
-	return hints
-}
-
-func (ops TerminalSetupFileOps) withDefaults() TerminalSetupFileOps {
-	if ops.MkdirAll == nil {
-		ops.MkdirAll = os.MkdirAll
-	}
-	if ops.ReadFile == nil {
-		ops.ReadFile = os.ReadFile
-	}
-	if ops.WriteFile == nil {
-		ops.WriteFile = os.WriteFile
-	}
-	if ops.CopyFile == nil {
-		ops.CopyFile = copyFile
-	}
-	return ops
-}
-
-func copyFile(src, dst string) error {
-	body, err := os.ReadFile(src)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(dst, body, 0o644)
-}
-
 func vscodeAppName(kind string) string {
 	switch kind {
 	case "cursor":
@@ -515,8 +397,4 @@ func vscodeAppName(kind string) string {
 
 func isRemoteTerminal(env map[string]string) bool {
 	return envValue(env, "SSH_CONNECTION") != "" || envValue(env, "SSH_TTY") != ""
-}
-
-func backupPath(path string) string {
-	return fmt.Sprintf("%s.gormes-backup-%d", path, time.Now().Unix())
 }
