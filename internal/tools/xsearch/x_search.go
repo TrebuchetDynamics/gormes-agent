@@ -98,34 +98,21 @@ func (t *XSearchTool) Schema() json.RawMessage {
 	}`)
 }
 
+type xSearchRequest struct {
+	Query      string `json:"query"`
+	Count      int    `json:"count"`
+	ResultType string `json:"result_type"`
+}
+
 func (t *XSearchTool) Execute(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
-	status := t.cfg.AuthStatus()
-	if !status.Configured {
-		return nil, fmt.Errorf("x_search: credentials not configured (auth_mode=%q). Set X_API_KEY or OAuth token.", t.cfg.AuthMode)
-	}
-	if status.Expired {
-		return nil, fmt.Errorf("x_search: OAuth token expired. Re-authenticate to continue.")
-	}
-	if t.cfg.RateLimit {
-		return nil, fmt.Errorf("x_search: rate limit exceeded. Retry after cooldown period.")
+	_ = ctx
+	if err := t.validateExecutionState(); err != nil {
+		return nil, err
 	}
 
-	var req struct {
-		Query      string `json:"query"`
-		Count      int    `json:"count"`
-		ResultType string `json:"result_type"`
-	}
-	if err := json.Unmarshal(args, &req); err != nil {
-		return nil, fmt.Errorf("x_search: invalid args: %w", err)
-	}
-	if req.Query == "" {
-		return nil, fmt.Errorf("x_search: query is required")
-	}
-	if req.Count <= 0 {
-		req.Count = 10
-	}
-	if req.Count > 50 {
-		req.Count = 50
+	req, err := normalizeXSearchRequest(args)
+	if err != nil {
+		return nil, err
 	}
 
 	if t.cfg.Fake {
@@ -135,11 +122,44 @@ func (t *XSearchTool) Execute(ctx context.Context, args json.RawMessage) (json.R
 	return nil, fmt.Errorf("x_search: live search not yet implemented (use fake mode for testing)")
 }
 
-func (t *XSearchTool) fakeResults(req struct {
-	Query      string `json:"query"`
-	Count      int    `json:"count"`
-	ResultType string `json:"result_type"`
-}) (json.RawMessage, error) {
+func (t *XSearchTool) validateExecutionState() error {
+	if t.cfg.Fake {
+		return nil
+	}
+	status := t.cfg.AuthStatus()
+	if !status.Configured {
+		return fmt.Errorf("x_search: credentials not configured (auth_mode=%q). Set X_API_KEY or OAuth token.", t.cfg.AuthMode)
+	}
+	if status.Expired {
+		return fmt.Errorf("x_search: OAuth token expired. Re-authenticate to continue.")
+	}
+	if t.cfg.RateLimit {
+		return fmt.Errorf("x_search: rate limit exceeded. Retry after cooldown period.")
+	}
+	return nil
+}
+
+func normalizeXSearchRequest(args json.RawMessage) (xSearchRequest, error) {
+	var req xSearchRequest
+	if err := json.Unmarshal(args, &req); err != nil {
+		return xSearchRequest{}, fmt.Errorf("x_search: invalid args: %w", err)
+	}
+	if req.Query == "" {
+		return xSearchRequest{}, fmt.Errorf("x_search: query is required")
+	}
+	if req.Count <= 0 {
+		req.Count = 10
+	}
+	if req.Count > 50 {
+		req.Count = 50
+	}
+	if req.ResultType == "" {
+		req.ResultType = "recent"
+	}
+	return req, nil
+}
+
+func (t *XSearchTool) fakeResults(req xSearchRequest) (json.RawMessage, error) {
 	resp := XSearchResponse{
 		Query:      req.Query,
 		ResultType: req.ResultType,

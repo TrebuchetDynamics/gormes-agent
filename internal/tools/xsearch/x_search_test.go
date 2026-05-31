@@ -132,6 +132,26 @@ func TestXSearchExecute_FakeResults(t *testing.T) {
 	if len(resp.Results) == 0 {
 		t.Error("expected fake results")
 	}
+	if resp.ResultType != "recent" {
+		t.Errorf("ResultType = %q, want schema default recent", resp.ResultType)
+	}
+}
+
+func TestXSearchExecute_FakeModeDoesNotRequireCredentials(t *testing.T) {
+	tool := &XSearchTool{cfg: XSearchConfig{Fake: true}}
+
+	result, err := tool.Execute(context.Background(), json.RawMessage(`{"query":"offline smoke","count":1}`))
+	if err != nil {
+		t.Fatalf("Execute fake without credentials returned error: %v", err)
+	}
+
+	var resp XSearchResponse
+	if err := json.Unmarshal(result, &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+	if resp.Count != 1 || len(resp.Results) != 1 {
+		t.Fatalf("fake response count/results = %d/%d, want 1/1", resp.Count, len(resp.Results))
+	}
 }
 
 func TestXSearchExecute_RateLimitDegraded(t *testing.T) {
