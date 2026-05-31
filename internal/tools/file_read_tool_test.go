@@ -362,6 +362,25 @@ func TestPatchToolFuzzyReplaceAmbiguousRequiresReplaceAll(t *testing.T) {
 	assertFileContent(t, path, "Step 1:\nDone.\nStep 2: Wait.\nStep 1:\nDone.\n")
 }
 
+func TestPatchToolFuzzyReplaceAllRejectsOverlappingFuzzyMatches(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "notes.txt")
+	original := "  Step\n\tStep\n    Step\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"notes.txt"}`)
+	args := `{"path":"notes.txt","old_string":"Step\nStep","new_string":"Pair","replace_all":true}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+
+	if !strings.Contains(asString(out["error"]), "overlapping fuzzy matches") {
+		t.Fatalf("patch result = %#v, want overlapping fuzzy match rejection", out)
+	}
+	assertFileContent(t, path, original)
+}
+
 func TestPatchToolFuzzyReplaceEscapeNormalizedAppliesUniqueMatch(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "notes.txt")

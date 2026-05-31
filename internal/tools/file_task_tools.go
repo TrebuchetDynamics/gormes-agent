@@ -786,7 +786,11 @@ func fuzzyPatchReplace(content, oldString, newString string, replaceAll bool) (s
 		if len(matches) > 1 && !replaceAll {
 			return content, 0, fmt.Errorf("old_string matched %d times; set replace_all=true or include more context", len(matches))
 		}
-		if !replaceAll {
+		if replaceAll {
+			if err := validatePatchMatchSet(content, matches); err != nil {
+				return content, 0, err
+			}
+		} else {
 			matches = matches[:1]
 		}
 		return applyPatchTextMatches(content, matches, newString), len(matches), nil
@@ -1094,6 +1098,31 @@ func uniquePatchMatches(matches []patchTextMatch) []patchTextMatch {
 		return unique[i].start < unique[j].start
 	})
 	return unique
+}
+
+func validatePatchMatchSet(content string, matches []patchTextMatch) error {
+	if len(matches) <= 1 {
+		return nil
+	}
+	sorted := make([]patchTextMatch, len(matches))
+	copy(sorted, matches)
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].start == sorted[j].start {
+			return sorted[i].end < sorted[j].end
+		}
+		return sorted[i].start < sorted[j].start
+	})
+	previousEnd := -1
+	for _, match := range sorted {
+		if match.start < 0 || match.end < match.start || match.end > len(content) {
+			return fmt.Errorf("invalid fuzzy match range %d:%d", match.start, match.end)
+		}
+		if previousEnd > match.start {
+			return errors.New("overlapping fuzzy matches; include more context so replace_all can choose non-overlapping regions")
+		}
+		previousEnd = match.end
+	}
+	return nil
 }
 
 func applyPatchTextMatches(content string, matches []patchTextMatch, replacement string) string {
