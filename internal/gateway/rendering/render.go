@@ -8,6 +8,8 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/rendering/browserartifacts"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/rendering/pagination"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/rendering/providererrors"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/rendering/telegramtext"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/rendering/textlimit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/rendering/toolprogress"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
@@ -101,23 +103,8 @@ func FormatErrorPlain(f kernel.RenderFrame) string {
 	return truncate(text)
 }
 
-// escapeTelegramMarkdownV2 escapes all 20 Telegram MarkdownV2 reserved
-// characters plus backslash. Unlike tgbotapi.EscapeText, this function
-// explicitly handles every reserved character per the Bot API spec:
-// _ * [ ] ( ) ~ ` > # + - = | { } . ! and \.
 func escapeTelegramMarkdownV2(text string) string {
-	var b strings.Builder
-	b.Grow(len(text) * 2) // worst case: every char escaped
-	for _, r := range text {
-		switch r {
-		case '_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!', '\\':
-			b.WriteByte('\\')
-			b.WriteRune(r)
-		default:
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
+	return telegramtext.EscapeMarkdownV2(text)
 }
 
 // FormatStreamTelegram renders a streaming frame using Telegram MarkdownV2.
@@ -208,18 +195,7 @@ func sanitizeProviderErrorText(s string) string {
 }
 
 func truncate(s string) string {
-	runes := []rune(s)
-	if len(runes) <= maxMessageLen {
-		return s
-	}
-	end := maxMessageLen - 1
-	// Avoid slicing through a MarkdownV2 escape sequence: if the cut lands
-	// on a backslash, back up so the trailing ellipsis is not interpreted
-	// as part of an incomplete escape.
-	for end > 0 && runes[end-1] == '\\' {
-		end--
-	}
-	return string(runes[:end]) + "…"
+	return textlimit.TruncateMarkdownV2Safe(s, maxMessageLen)
 }
 
 func PaginatePlainText(s string) []string {

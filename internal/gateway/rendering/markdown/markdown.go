@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/rendering/telegramtext"
 )
 
 // FormatTarget specifies the messaging platform for markdown rendering.
@@ -277,7 +277,7 @@ func escapeTelegramCode(s string) string {
 }
 
 func escapeTelegramMarkdown(text string) string {
-	return tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, text)
+	return telegramtext.EscapeMarkdownV2(text)
 }
 
 func esc(target FormatTarget, text string) string {

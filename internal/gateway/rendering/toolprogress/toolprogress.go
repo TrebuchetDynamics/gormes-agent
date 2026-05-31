@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/rendering/textlimit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/trace"
 )
@@ -204,13 +205,5 @@ func isKnownToolTraceName(name string) bool {
 }
 
 func truncate(s string) string {
-	runes := []rune(s)
-	if len(runes) <= 4000 {
-		return s
-	}
-	end := 3999
-	for end > 0 && runes[end-1] == '\\' {
-		end--
-	}
-	return string(runes[:end]) + "…"
+	return textlimit.TruncateMarkdownV2Safe(s, 4000)
 }

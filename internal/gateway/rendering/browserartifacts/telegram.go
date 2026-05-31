@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/rendering/pagination"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/rendering/telegramtext"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/rendering/textlimit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -50,7 +50,7 @@ func Telegram(envelope tools.BrowserResultEnvelope) string {
 }
 
 func escapeTelegramMarkdown(text string) string {
-	return tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, text)
+	return telegramtext.EscapeMarkdownV2(text)
 }
 
 func joinBrowserArtifactLines(lines []string, limit int) string {
@@ -79,13 +79,5 @@ func firstNonEmptyBrowserPreview(candidates ...string) string {
 }
 
 func truncate(s string) string {
-	runes := []rune(s)
-	if len(runes) <= pagination.MaxMessageLen {
-		return s
-	}
-	end := pagination.MaxMessageLen - 1
-	for end > 0 && runes[end-1] == '\\' {
-		end--
-	}
-	return string(runes[:end]) + "…"
+	return textlimit.TruncateMarkdownV2Safe(s, pagination.MaxMessageLen)
 }
