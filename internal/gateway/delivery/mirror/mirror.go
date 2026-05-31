@@ -121,23 +121,25 @@ func deliveryMirrorFilterByUser(items []session.Metadata, userID string) ([]sess
 		}
 		return exact, len(exact) > 0
 	}
-	if deliveryMirrorHasDistinctUsers(items) {
+	if deliveryMirrorHasAmbiguousUserProvenance(items) {
 		return nil, false
 	}
 	return items, true
 }
 
-func deliveryMirrorHasDistinctUsers(items []session.Metadata) bool {
-	seen := map[string]struct{}{}
+func deliveryMirrorHasAmbiguousUserProvenance(items []session.Metadata) bool {
+	knownUsers := map[string]struct{}{}
+	hasUnknownUser := false
 	for _, meta := range items {
 		userID := address.ID(meta.UserID)
 		if userID == "" {
+			hasUnknownUser = true
 			continue
 		}
-		seen[userID] = struct{}{}
-		if len(seen) > 1 {
+		knownUsers[userID] = struct{}{}
+		if len(knownUsers) > 1 {
 			return true
 		}
 	}
-	return false
+	return hasUnknownUser && len(knownUsers) > 0
 }

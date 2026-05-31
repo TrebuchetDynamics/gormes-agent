@@ -34,13 +34,32 @@ func TestSelectDeliveryMirrorSession_PrefersExactUserAndThread(t *testing.T) {
 }
 
 func TestSelectDeliveryMirrorSession_AmbiguousGroupWithoutUser(t *testing.T) {
-	candidates := []session.Metadata{
-		{SessionID: "sess-a", Source: "telegram", ChatID: "-100", UserID: "u1", UpdatedAt: 10},
-		{SessionID: "sess-b", Source: "telegram", ChatID: "-100", UserID: "u2", UpdatedAt: 20},
+	tests := []struct {
+		name       string
+		candidates []session.Metadata
+	}{
+		{
+			name: "distinct users",
+			candidates: []session.Metadata{
+				{SessionID: "sess-a", Source: "telegram", ChatID: "-100", UserID: "u1", UpdatedAt: 10},
+				{SessionID: "sess-b", Source: "telegram", ChatID: "-100", UserID: "u2", UpdatedAt: 20},
+			},
+		},
+		{
+			name: "known and unknown user provenance",
+			candidates: []session.Metadata{
+				{SessionID: "sess-known", Source: "telegram", ChatID: "-100", UserID: "u1", UpdatedAt: 10},
+				{SessionID: "sess-unknown", Source: "telegram", ChatID: "-100", UpdatedAt: 20},
+			},
+		},
 	}
 
-	if got, ok := SelectDeliveryMirrorSession(candidates, DeliveryMirrorTarget{Platform: "telegram", ChatID: "-100"}); ok {
-		t.Fatalf("SelectDeliveryMirrorSession = %+v, want no guess for ambiguous users", got)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got, ok := SelectDeliveryMirrorSession(tt.candidates, DeliveryMirrorTarget{Platform: "telegram", ChatID: "-100"}); ok {
+				t.Fatalf("SelectDeliveryMirrorSession = %+v, want no guess for ambiguous users", got)
+			}
+		})
 	}
 }
 
