@@ -16,13 +16,6 @@ type modelRow struct {
 	styles   Styles
 }
 
-func selectedProvider(state contract.State) (contract.ProviderEntry, bool) {
-	if state.SelectedProviderIndex < 0 || state.SelectedProviderIndex >= len(state.Providers) {
-		return contract.ProviderEntry{}, false
-	}
-	return state.Providers[state.SelectedProviderIndex], true
-}
-
 func renderModelRow(row modelRow) string {
 	prefix := "  "
 	style := row.styles.Normal

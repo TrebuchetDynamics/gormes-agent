@@ -51,8 +51,7 @@ func updateKey(msg tea.KeyMsg, state contract.State) (contract.State, contract.R
 		return state, contract.Result{}, false
 
 	case tea.KeyEnter:
-		if state.SelectedProviderIndex >= 0 {
-			selectedProv := state.Providers[state.SelectedProviderIndex]
+		if selectedProv, ok := contract.SelectedProvider(state); ok {
 			selectedModel := state.CurrentModel
 			if focusedModel, ok := contract.SelectedModel(state); ok {
 				selectedModel = focusedModel.ID

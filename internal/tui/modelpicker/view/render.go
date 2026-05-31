@@ -70,7 +70,7 @@ func renderWide(state contract.State, styles Styles) string {
 	}
 
 	// Model column when provider is selected
-	if selectedProv, ok := selectedProvider(state); ok {
+	if selectedProv, ok := contract.SelectedProvider(state); ok {
 		b.WriteString("\n")
 		b.WriteString(styles.Label.Render("  Model ("+selectedProv.Label+")") + "\n")
 
@@ -138,7 +138,7 @@ func renderNarrow(state contract.State, styles Styles) string {
 	}
 
 	// Model list when provider selected
-	if selectedProv, ok := selectedProvider(state); ok {
+	if selectedProv, ok := contract.SelectedProvider(state); ok {
 		b.WriteString("\n")
 		b.WriteString(styles.Label.Render("  Models for "+selectedProv.Label+":") + "\n")
 
