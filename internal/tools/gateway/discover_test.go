@@ -694,6 +694,27 @@ func TestGatewayDiscoverUsageCostSummarizesSessionAndAggregateCosts(t *testing.T
 	}
 }
 
+func TestGatewayDiscoverUsageCostDoesNotDropRowsWhenTokenSumOverflowsInt(t *testing.T) {
+	maxInt := int(^uint(0) >> 1)
+	result := SummarizeGatewayUsageCost(context.Background(), GatewayUsageCostRequest{
+		Sessions: []GatewayUsageSession{{
+			SessionID: "sess-huge",
+			TokensIn:  maxInt,
+			TokensOut: 1,
+		}},
+	})
+
+	if !result.OK {
+		t.Fatalf("OK = false; result = %+v", result)
+	}
+	if len(result.Sessions) != 1 || result.Sessions[0].SessionID != "sess-huge" {
+		t.Fatalf("Sessions = %+v, want overflow-prone row preserved", result.Sessions)
+	}
+	if result.Sessions[0].TotalTokens != maxInt || result.Totals.TotalTokens != maxInt {
+		t.Fatalf("TotalTokens session=%d totals=%d, want saturated max int %d", result.Sessions[0].TotalTokens, result.Totals.TotalTokens, maxInt)
+	}
+}
+
 func TestGatewayDiscoverUsageCostReportsUnavailableData(t *testing.T) {
 	result := SummarizeGatewayUsageCost(context.Background(), GatewayUsageCostRequest{
 		Lister: GatewayUsageSessionListerFunc(func(context.Context) ([]GatewayUsageSession, error) {

@@ -1247,8 +1247,8 @@ func SummarizeGatewayUsageCost(ctx context.Context, req GatewayUsageCostRequest)
 		if !session.UpdatedAt.IsZero() && session.UpdatedAt.Before(since) {
 			continue
 		}
-		total := session.TokensIn + session.TokensOut
-		if total <= 0 {
+		total, hasUsage := gatewayUsageTokenTotal(session.TokensIn, session.TokensOut)
+		if !hasUsage {
 			continue
 		}
 		cost, priced := estimateGatewayUsageCost(session.TokensIn, session.TokensOut, pricing)
@@ -1284,9 +1284,9 @@ func SummarizeGatewayUsageCost(ctx context.Context, req GatewayUsageCostRequest)
 	}
 	for _, row := range rows {
 		result.Totals.Sessions++
-		result.Totals.TokensIn += row.TokensIn
-		result.Totals.TokensOut += row.TokensOut
-		result.Totals.TotalTokens += row.TotalTokens
+		result.Totals.TokensIn = addGatewayUsageTokens(result.Totals.TokensIn, row.TokensIn)
+		result.Totals.TokensOut = addGatewayUsageTokens(result.Totals.TokensOut, row.TokensOut)
+		result.Totals.TotalTokens = addGatewayUsageTokens(result.Totals.TotalTokens, row.TotalTokens)
 		result.Totals.EstimatedCostUSD += row.EstimatedCostUSD
 		result.Totals.Priced = result.Totals.Priced || row.Priced
 	}
@@ -1323,6 +1323,25 @@ func normalizeGatewayUsageSession(session GatewayUsageSession) GatewayUsageSessi
 		session.TokensOut = 0
 	}
 	return session
+}
+
+func gatewayUsageTokenTotal(tokensIn, tokensOut int) (int, bool) {
+	total := addGatewayUsageTokens(tokensIn, tokensOut)
+	return total, total > 0
+}
+
+func addGatewayUsageTokens(a, b int) int {
+	if a < 0 {
+		a = 0
+	}
+	if b < 0 {
+		b = 0
+	}
+	maxInt := int(^uint(0) >> 1)
+	if a > maxInt-b {
+		return maxInt
+	}
+	return a + b
 }
 
 func estimateGatewayUsageCost(tokensIn, tokensOut int, pricing GatewayUsagePricing) (float64, bool) {
