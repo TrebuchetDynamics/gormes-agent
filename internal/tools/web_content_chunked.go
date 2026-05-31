@@ -194,7 +194,7 @@ func requireCompleteChunkSummaries(outcomes []chunkSummary, wantChunks int) ([]c
 	summaries := make([]chunkSummary, 0, len(outcomes))
 	failed := 0
 	for _, outcome := range outcomes {
-		if outcome.err != nil || outcome.summary == "" {
+		if !usableChunkSummary(outcome) {
 			failed++
 			continue
 		}
@@ -214,6 +214,10 @@ type chunkSummary struct {
 	index   int
 	summary string
 	err     error
+}
+
+func usableChunkSummary(summary chunkSummary) bool {
+	return summary.err == nil && strings.TrimSpace(summary.summary) != ""
 }
 
 func sortedChunkSummaries(summaries []chunkSummary) []chunkSummary {

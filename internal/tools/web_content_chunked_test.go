@@ -266,6 +266,48 @@ func TestChunkedWebContentProcessor_Process_PartialChunkSummaryFailureDoesNotSyn
 	}
 }
 
+func TestChunkedWebContentProcessor_Process_WhitespaceOnlyChunkSummaryDoesNotSynthesize(t *testing.T) {
+	mockClient := llm.NewMockClient()
+
+	mockClient.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "first chunk summary"},
+		{Kind: llm.EventDone},
+	}, "chunk-1")
+	mockClient.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: " \n\t "},
+		{Kind: llm.EventDone},
+	}, "chunk-2")
+	mockClient.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "invalid synthesis with blank chunk"},
+		{Kind: llm.EventDone},
+	}, "synthesis-should-not-run")
+
+	cfg := ChunkedWebContentProcessorConfig{
+		MaxContentSize: 2_000_000,
+		ChunkThreshold: 5,
+		ChunkSize:      10,
+		MaxOutputChars: 5000,
+		MaxParallelism: 1,
+		MinLength:      1,
+	}
+	processor := NewChunkedWebContentProcessor(mockClient, "test-model", cfg)
+
+	_, err := processor.ProcessWebContent(context.Background(), WebContentProcessRequest{
+		URL:     "https://example.com",
+		Title:   "Test",
+		Content: "abcdefghijabcdefghij",
+	})
+	if err == nil {
+		t.Fatal("expected error when a chunk summary is whitespace-only")
+	}
+	if !strings.Contains(err.Error(), "chunk summary failed") {
+		t.Fatalf("error = %v, want chunk summary failed", err)
+	}
+	if requests := mockClient.Requests(); len(requests) != 2 {
+		t.Fatalf("expected only chunk attempts and no synthesis request, got %d requests", len(requests))
+	}
+}
+
 func TestChunkedWebContentProcessor_Process_SynthesisFailureFallback(t *testing.T) {
 	mockClient := llm.NewMockClient()
 
