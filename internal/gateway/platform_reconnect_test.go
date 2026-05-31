@@ -99,32 +99,42 @@ func TestManager_ChannelDisconnectTimeoutFromEnv(t *testing.T) {
 
 func TestPlatformReconnectLifecycle_ReconnectSuccessClearsFailure(t *testing.T) {
 	now := time.Date(2026, 5, 7, 2, 0, 0, 0, time.UTC)
-	failures := map[string]PlatformFailure{
-		"telegram": {
-			Platform:  "telegram",
-			Attempts:  1,
-			Retryable: true,
-			NextRetry: now.Add(-time.Second),
-			LastError: "telegram connect timed out after 30s",
-		},
+	failure := PlatformFailure{
+		Platform:  "telegram",
+		Attempts:  1,
+		Retryable: true,
+		NextRetry: now.Add(-time.Second),
+		LastError: "telegram connect timed out after 30s",
 	}
-	connected := map[string]Channel{}
-
-	ReconnectFailedPlatforms(context.Background(), failures, connected, map[string]PlatformStartupPlan{
-		"telegram": {
-			Platform: "telegram",
-			Timeout:  time.Second,
-			Connect: func(context.Context) (Channel, error) {
-				return platformLifecycleTestChannel{name: "telegram"}, nil
-			},
-		},
-	}, PlatformLifecycleOptions{Now: func() time.Time { return now }, RetryDelay: time.Minute})
-
-	if _, ok := failures["telegram"]; ok {
-		t.Fatalf("failures = %+v, want telegram cleared after successful reconnect", failures)
+	tests := []struct {
+		name       string
+		failureKey string
+	}{
+		{name: "canonical queued key", failureKey: "telegram"},
+		{name: "noncanonical queued key", failureKey: " Telegram "},
 	}
-	if _, ok := connected["telegram"]; !ok {
-		t.Fatalf("connected = %+v, want telegram installed after reconnect", connected)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			failures := map[string]PlatformFailure{tt.failureKey: failure}
+			connected := map[string]Channel{}
+
+			ReconnectFailedPlatforms(context.Background(), failures, connected, map[string]PlatformStartupPlan{
+				"telegram": {
+					Platform: "telegram",
+					Timeout:  time.Second,
+					Connect: func(context.Context) (Channel, error) {
+						return platformLifecycleTestChannel{name: "telegram"}, nil
+					},
+				},
+			}, PlatformLifecycleOptions{Now: func() time.Time { return now }, RetryDelay: time.Minute})
+
+			if len(failures) != 0 {
+				t.Fatalf("failures = %+v, want cleared after successful reconnect", failures)
+			}
+			if _, ok := connected["telegram"]; !ok {
+				t.Fatalf("connected = %+v, want telegram installed after reconnect", connected)
+			}
+		})
 	}
 }
 

@@ -123,24 +123,26 @@ func ReconnectFailedPlatforms(ctx context.Context, failures map[string]PlatformF
 	}
 	now := platformLifecycleNow(opts)
 	threshold := resolvePlatformPauseThreshold(opts)
-	for platform, failure := range failures {
-		platform = normalizePlatformID(platform)
-		if platform == "" || failure.Paused {
+	for queueKey, failure := range failures {
+		candidate, ok := platformReconnectCandidateFor(queueKey, failure, plans)
+		if !ok || candidate.Failure.Paused {
 			// Circuit breaker open: keep the entry queued but do not
 			// hammer it. Resume is the only way back, matching Hermes
 			// _reconnect_watcher skipping paused platforms.
 			continue
 		}
+		platform := candidate.Platform
+		failure = candidate.Failure
 		if !failure.NextRetry.IsZero() && now.Before(failure.NextRetry) {
 			continue
 		}
-		plan, ok := plans[platform]
-		if !ok {
+		if !candidate.HasPlan {
 			failure.Retryable = false
 			failure.LastError = "platform reconnect plan missing"
-			failures[platform] = failure
+			recordQueuedPlatformFailure(failures, candidate, failure)
 			continue
 		}
+		plan := candidate.Plan
 		if plan.Platform == "" {
 			plan.Platform = platform
 		}
@@ -148,13 +150,13 @@ func ReconnectFailedPlatforms(ctx context.Context, failures map[string]PlatformF
 		ch, err := connectPlatformWithTimeout(ctx, plan)
 		if err == nil && ch != nil {
 			connected[platform] = ch
-			delete(failures, platform)
+			delete(failures, candidate.QueueKey)
 			writePlatformLifecycleStatus(ctx, opts.StatusSink, platform, PlatformStateRunning, "")
 			continue
 		}
 		next := newPlatformFailure(platform, firstNonNilError(err, errors.New("platform connector returned nil channel")), failure.Attempts+1, opts)
 		if !next.Retryable {
-			delete(failures, platform)
+			delete(failures, candidate.QueueKey)
 			writePlatformLifecycleStatus(ctx, opts.StatusSink, platform, PlatformStateFailed, next.LastError)
 			continue
 		}
@@ -165,13 +167,63 @@ func ReconnectFailedPlatforms(ctx context.Context, failures map[string]PlatformF
 				next.PauseReason = "auto-paused after repeated failures"
 			}
 			next.NextRetry = platformPausedNextRetry(now)
-			failures[platform] = next
+			recordQueuedPlatformFailure(failures, candidate, next)
 			writePlatformLifecycleStatus(ctx, opts.StatusSink, platform, PlatformStatePaused, autoPauseGuidance(platform, next.Attempts, next.PauseReason))
 			continue
 		}
-		failures[platform] = next
+		recordQueuedPlatformFailure(failures, candidate, next)
 		writePlatformLifecycleStatus(ctx, opts.StatusSink, platform, PlatformStateFailed, next.LastError)
 	}
+}
+
+type platformReconnectCandidate struct {
+	QueueKey string
+	Platform string
+	Failure  PlatformFailure
+	Plan     PlatformStartupPlan
+	HasPlan  bool
+}
+
+func platformReconnectCandidateFor(queueKey string, failure PlatformFailure, plans map[string]PlatformStartupPlan) (platformReconnectCandidate, bool) {
+	platform := normalizePlatformID(queueKey)
+	if platform == "" {
+		platform = normalizePlatformID(failure.Platform)
+	}
+	if platform == "" {
+		return platformReconnectCandidate{}, false
+	}
+	failure.Platform = platform
+	plan, ok := lookupPlatformStartupPlan(plans, platform)
+	return platformReconnectCandidate{
+		QueueKey: queueKey,
+		Platform: platform,
+		Failure:  failure,
+		Plan:     plan,
+		HasPlan:  ok,
+	}, true
+}
+
+func lookupPlatformStartupPlan(plans map[string]PlatformStartupPlan, platform string) (PlatformStartupPlan, bool) {
+	if plans == nil {
+		return PlatformStartupPlan{}, false
+	}
+	if plan, ok := plans[platform]; ok {
+		return plan, true
+	}
+	for key, plan := range plans {
+		if normalizePlatformID(key) == platform {
+			return plan, true
+		}
+	}
+	return PlatformStartupPlan{}, false
+}
+
+func recordQueuedPlatformFailure(failures map[string]PlatformFailure, candidate platformReconnectCandidate, failure PlatformFailure) {
+	failure.Platform = candidate.Platform
+	if candidate.QueueKey != candidate.Platform {
+		delete(failures, candidate.QueueKey)
+	}
+	failures[candidate.Platform] = failure
 }
 
 func connectPlatformWithTimeout(ctx context.Context, plan PlatformStartupPlan) (Channel, error) {
