@@ -16,6 +16,6 @@ func VSCodeStyleConfigDir(app, platform string, env map[string]string, home stri
 	return vscodeconfig.VSCodeStyleConfigDir(app, platform, env, home)
 }
 
-func vscodeAppName(kind string) string {
-	return vscodeconfig.AppName(kind)
+func vscodeKeybindingsPath(kind, platform string, env map[string]string, home string) string {
+	return vscodeconfig.KeybindingsPath(kind, platform, env, home)
 }

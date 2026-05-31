@@ -40,6 +40,10 @@ func VSCodeStyleConfigDir(app, platform string, env map[string]string, home stri
 	}
 }
 
+func KeybindingsPath(kind, platform string, env map[string]string, home string) string {
+	return filepath.Join(VSCodeStyleConfigDir(AppName(kind), platform, env, home), "keybindings.json")
+}
+
 func AppName(kind string) string {
 	switch kind {
 	case KindCursor:

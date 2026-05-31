@@ -33,3 +33,10 @@ func TestVSCodeStyleConfigDir(t *testing.T) {
 		t.Fatalf("win32 config dir = %q", got)
 	}
 }
+
+func TestKeybindingsPathUsesDetectedAppName(t *testing.T) {
+	got := KeybindingsPath(KindCursor, "linux", nil, "/home/me")
+	if got != "/home/me/.config/Cursor/User/keybindings.json" {
+		t.Fatalf("cursor keybindings path = %q", got)
+	}
+}

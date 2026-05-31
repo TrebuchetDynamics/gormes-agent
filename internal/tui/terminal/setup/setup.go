@@ -35,8 +35,8 @@ func ConfigureTerminalKeybindings(kind string, opts TerminalSetupOptions) Termin
 	if home == "" {
 		home = "."
 	}
-	configDir := VSCodeStyleConfigDir(vscodeAppName(kind), platform, opts.Env, home)
-	path := filepath.Join(configDir, "keybindings.json")
+	path := vscodeKeybindingsPath(kind, platform, opts.Env, home)
+	configDir := filepath.Dir(path)
 
 	body, err := ops.ReadFile(path)
 	existed := err == nil
@@ -113,8 +113,8 @@ func ShouldPromptForTerminalSetup(opts TerminalSetupOptions) bool {
 	if platform == "" {
 		platform = "darwin"
 	}
-	configDir := VSCodeStyleConfigDir(vscodeAppName(kind), platform, opts.Env, opts.HomeDir)
-	body, err := ops.ReadFile(filepath.Join(configDir, "keybindings.json"))
+	path := vscodeKeybindingsPath(kind, platform, opts.Env, opts.HomeDir)
+	body, err := ops.ReadFile(path)
 	if err != nil {
 		return errors.Is(err, os.ErrNotExist)
 	}
