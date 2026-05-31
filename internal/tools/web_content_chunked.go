@@ -97,11 +97,25 @@ func (p *ChunkedWebContentProcessor) ProcessWebContent(ctx context.Context, req 
 
 	// Single-pass processing if content fits within threshold
 	if contentLen <= p.cfg.ChunkThreshold {
-		return p.singlePassProcess(ctx, req)
+		result, err := p.singlePassProcess(ctx, req)
+		return limitWebProcessedOutput(result, p.cfg.MaxOutputChars), err
 	}
 
 	// Chunked processing for large content
-	return p.chunkedProcess(ctx, req)
+	result, err := p.chunkedProcess(ctx, req)
+	return limitWebProcessedOutput(result, p.cfg.MaxOutputChars), err
+}
+
+// limitWebProcessedOutput enforces MaxOutputChars on processed LLM output.
+func limitWebProcessedOutput(output string, maxChars int) string {
+	if maxChars <= 0 {
+		return output
+	}
+	runes := []rune(output)
+	if len(runes) <= maxChars {
+		return output
+	}
+	return string(runes[:maxChars])
 }
 
 // singlePassProcess handles content below the chunk threshold.

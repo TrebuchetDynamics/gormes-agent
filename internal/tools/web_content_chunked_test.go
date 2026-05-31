@@ -228,6 +228,36 @@ func TestChunkedWebContentProcessor_Process_SynthesisFailureFallback(t *testing.
 	}
 }
 
+func TestChunkedWebContentProcessor_Process_EnforcesMaxOutputChars(t *testing.T) {
+	mockClient := llm.NewMockClient()
+	mockClient.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "1234567890"},
+		{Kind: llm.EventDone},
+	}, "session")
+
+	cfg := ChunkedWebContentProcessorConfig{
+		MaxContentSize: 2_000_000,
+		ChunkThreshold: 500_000,
+		ChunkSize:      100_000,
+		MaxOutputChars: 5,
+		MaxParallelism: 3,
+		MinLength:      10,
+	}
+	processor := NewChunkedWebContentProcessor(mockClient, "test-model", cfg)
+
+	result, err := processor.ProcessWebContent(context.Background(), WebContentProcessRequest{
+		URL:     "https://example.com",
+		Title:   "Test",
+		Content: strings.Repeat("x", 1000),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != "12345" {
+		t.Errorf("result = %q, want max-output truncated %q", result, "12345")
+	}
+}
+
 func TestChunkedWebContentProcessor_Process_EmptyContent(t *testing.T) {
 	mockClient := llm.NewMockClient()
 	cfg := DefaultChunkedWebContentProcessorConfig()
@@ -556,6 +586,27 @@ func TestChunkedWebContentProcessor_ChunkSplitting(t *testing.T) {
 		if len(chunk) > cfg.ChunkSize+2000 { // Allow some overflow for natural split points
 			t.Errorf("chunk %d length %d exceeds ChunkSize %d by too much", i, len(chunk), cfg.ChunkSize)
 		}
+	}
+}
+
+func TestChunkedWebContentProcessor_LimitWebProcessedOutput(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		max  int
+		want string
+	}{
+		{name: "within limit", in: "abc", max: 3, want: "abc"},
+		{name: "over limit", in: "abcdef", max: 3, want: "abc"},
+		{name: "disabled", in: "abcdef", max: 0, want: "abcdef"},
+		{name: "unicode chars", in: "åß∂ƒ", max: 2, want: "åß"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := limitWebProcessedOutput(tt.in, tt.max); got != tt.want {
+				t.Fatalf("limitWebProcessedOutput(%q, %d) = %q, want %q", tt.in, tt.max, got, tt.want)
+			}
+		})
 	}
 }
 
