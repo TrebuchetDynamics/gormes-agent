@@ -55,9 +55,7 @@ func splitOutboundText(s string, limit int) []string {
 		if split <= 0 || split > len(remaining) {
 			split = limit
 		}
-		for split > 1 && remaining[split-1] == '\\' {
-			split--
-		}
+		split = markdownSafeSplitIndex(remaining, split)
 		chunks = append(chunks, string(remaining[:split]))
 		remaining = remaining[split:]
 	}
@@ -79,6 +77,21 @@ func outboundSplitIndex(runes []rune, limit int) int {
 		return idx + 1
 	}
 	return limit
+}
+
+func markdownSafeSplitIndex(runes []rune, split int) int {
+	if split <= 1 || split > len(runes) || trailingBackslashCount(runes[:split])%2 == 0 {
+		return split
+	}
+	return split - 1
+}
+
+func trailingBackslashCount(runes []rune) int {
+	count := 0
+	for i := len(runes) - 1; i >= 0 && runes[i] == '\\'; i-- {
+		count++
+	}
+	return count
 }
 
 func lastRuneIndex(runes []rune, needle rune) int {
