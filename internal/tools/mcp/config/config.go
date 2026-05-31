@@ -273,7 +273,10 @@ func resolveMCPServer(name string, raw any, lookupEnv func(string) (string, bool
 		return MCPServerDefinition{}, invalidMCPStatus(baseStatus, MCPConfigStatusInvalidConfig, reason), &mcpConfigIssue{server: name, status: MCPConfigStatusInvalidConfig, message: reason}
 	}
 
-	enabled := parseMCPBool(mcpValue(server, "enabled"), true)
+	enabled, err := parseMCPBoolField(mcpValue(server, "enabled"), true, "enabled")
+	if err != nil {
+		return MCPServerDefinition{}, invalidMCPStatus(baseStatus, MCPConfigStatusInvalidConfig, err.Error()), &mcpConfigIssue{server: name, status: MCPConfigStatusInvalidConfig, message: err.Error()}
+	}
 	baseStatus.Enabled = enabled
 	if !enabled {
 		return disabledMCPServer(name, baseStatus)
@@ -497,7 +500,11 @@ func mcpSamplingConfig(raw any, lookupEnv func(string) (string, bool)) (MCPSampl
 		return cfg, fmt.Errorf("ambiguous sampling.%s field variants: %s", field, strings.Join(variants, ", "))
 	}
 	if rawEnabled, ok := lookupMCPValue(values, "enabled"); ok {
-		cfg.Enabled = parseMCPBool(rawEnabled, cfg.Enabled)
+		parsed, err := parseMCPBoolField(rawEnabled, cfg.Enabled, "sampling.enabled")
+		if err != nil {
+			return cfg, err
+		}
+		cfg.Enabled = parsed
 	}
 	if rawModel, ok := lookupMCPValue(values, "model"); ok {
 		model, err := mcpStringValue(rawModel, "sampling.model", lookupEnv)
@@ -748,39 +755,50 @@ func mcpEnvReferenceName(match string) (string, error) {
 }
 
 func parseMCPBool(value any, fallback bool) bool {
+	parsed, err := parseMCPBoolField(value, fallback, "boolean")
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
+
+func parseMCPBoolField(value any, fallback bool, field string) (bool, error) {
 	switch typed := value.(type) {
 	case nil:
-		return fallback
+		return fallback, nil
 	case bool:
-		return typed
+		return typed, nil
 	case string:
 		switch strings.ToLower(strings.TrimSpace(typed)) {
 		case "true", "1", "yes", "on":
-			return true
+			return true, nil
 		case "false", "0", "no", "off":
-			return false
+			return false, nil
 		default:
-			return fallback
+			return fallback, fmt.Errorf("%s must be a boolean", field)
 		}
 	case int:
-		return typed != 0
+		return typed != 0, nil
 	case int64:
-		return typed != 0
+		return typed != 0, nil
 	case float64:
-		return typed != 0
+		if math.IsNaN(typed) || math.IsInf(typed, 0) {
+			return fallback, fmt.Errorf("%s must be a boolean", field)
+		}
+		return typed != 0, nil
 	case json.Number:
-		return mcpJSONNumberBool(typed, fallback)
+		return mcpJSONNumberBool(typed, fallback, field)
 	default:
-		return fallback
+		return fallback, fmt.Errorf("%s must be a boolean", field)
 	}
 }
 
-func mcpJSONNumberBool(value json.Number, fallback bool) bool {
+func mcpJSONNumberBool(value json.Number, fallback bool, field string) (bool, error) {
 	parsed, err := value.Float64()
 	if err != nil || math.IsNaN(parsed) || math.IsInf(parsed, 0) {
-		return fallback
+		return fallback, fmt.Errorf("%s must be a boolean", field)
 	}
-	return parsed != 0
+	return parsed != 0, nil
 }
 
 func mcpDuration(value any, fallback time.Duration, field string) (time.Duration, error) {

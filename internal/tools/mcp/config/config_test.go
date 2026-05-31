@@ -55,6 +55,64 @@ func TestResolveMCPConfigRejectsAmbiguousTopLevelServerBlocks(t *testing.T) {
 	}
 }
 
+func TestResolveMCPConfigRejectsInvalidEnabledBoolean(t *testing.T) {
+	resolved, err := ResolveMCPConfig(map[string]any{
+		"mcp_servers": map[string]any{
+			"typo": map[string]any{
+				"enabled": "flase",
+				"command": "npx",
+			},
+		},
+	}, MCPConfigOptions{LookupEnv: func(string) (string, bool) { return "", false }})
+	if err == nil {
+		t.Fatalf("ResolveMCPConfig succeeded for invalid enabled boolean")
+	}
+	if !strings.Contains(err.Error(), "enabled must be a boolean") {
+		t.Fatalf("error = %q, want invalid enabled boolean evidence", err.Error())
+	}
+	if len(resolved.Servers) != 0 {
+		t.Fatalf("resolved valid servers = %#v, want none", resolved.Servers)
+	}
+
+	status, ok := resolved.Status("typo")
+	if !ok {
+		t.Fatalf("missing invalid server status in %#v", resolved.Statuses)
+	}
+	if status.Status != MCPConfigStatusInvalidConfig {
+		t.Fatalf("status = %q, want %q (reason=%q)", status.Status, MCPConfigStatusInvalidConfig, status.Reason)
+	}
+}
+
+func TestResolveMCPConfigRejectsInvalidSamplingEnabledBoolean(t *testing.T) {
+	resolved, err := ResolveMCPConfig(map[string]any{
+		"mcp_servers": map[string]any{
+			"sampler": map[string]any{
+				"command": "npx",
+				"sampling": map[string]any{
+					"enabled": "nah",
+				},
+			},
+		},
+	}, MCPConfigOptions{LookupEnv: func(string) (string, bool) { return "", false }})
+	if err == nil {
+		t.Fatalf("ResolveMCPConfig succeeded for invalid sampling.enabled boolean")
+	}
+	if !strings.Contains(err.Error(), "sampling.enabled must be a boolean") {
+		t.Fatalf("error = %q, want invalid sampling.enabled evidence", err.Error())
+	}
+	if len(resolved.Servers) != 0 {
+		t.Fatalf("resolved valid servers = %#v, want none", resolved.Servers)
+	}
+
+	status, ok := resolved.Status("sampler")
+	if !ok {
+		t.Fatalf("missing invalid server status in %#v", resolved.Statuses)
+	}
+	if status.Status != MCPConfigStatusInvalidConfig {
+		t.Fatalf("status = %q, want %q (reason=%q)", status.Status, MCPConfigStatusInvalidConfig, status.Reason)
+	}
+}
+
 func TestResolveMCPConfigEnabledServerStillRequiresTransport(t *testing.T) {
 	resolved, err := ResolveMCPConfig(map[string]any{
 		"mcp_servers": map[string]any{
