@@ -722,7 +722,14 @@ func secondsDuration(seconds float64, field string) (time.Duration, error) {
 	if math.IsNaN(seconds) || math.IsInf(seconds, 0) || seconds <= 0 {
 		return 0, fmt.Errorf("%s must be positive", field)
 	}
+	if seconds > maxMCPDurationSeconds() {
+		return 0, fmt.Errorf("%s is too large", field)
+	}
 	return time.Duration(seconds * float64(time.Second)), nil
+}
+
+func maxMCPDurationSeconds() float64 {
+	return float64(time.Duration(1<<63-1)) / float64(time.Second)
 }
 
 func mcpInt(value any, fallback int, field string, minimum int) (int, error) {
