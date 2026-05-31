@@ -3,6 +3,7 @@ package channels
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -39,17 +40,28 @@ func List(ctx context.Context, dir DirectoryProvider, args map[string]interface{
 		return nil, fmt.Errorf("channel directory unavailable: %w", err)
 	}
 
-	filterPlatform := ""
-	if pf, ok := args["platform"].(string); ok {
-		filterPlatform = strings.ToLower(strings.TrimSpace(pf))
-	}
+	channels := collectOutputs(platforms, platformFilter(args))
 
+	return map[string]interface{}{
+		"count":    len(channels),
+		"channels": channels,
+	}, nil
+}
+
+func platformFilter(args map[string]interface{}) string {
+	if pf, ok := args["platform"].(string); ok {
+		return normalizePlatform(pf)
+	}
+	return ""
+}
+
+func collectOutputs(platforms map[string][]Entry, filterPlatform string) []Output {
 	channels := make([]Output, 0)
-	for platform, entries := range platforms {
-		if filterPlatform != "" && strings.ToLower(platform) != filterPlatform {
+	for _, platform := range sortedPlatformNames(platforms) {
+		if filterPlatform != "" && normalizePlatform(platform) != filterPlatform {
 			continue
 		}
-		for _, entry := range entries {
+		for _, entry := range platforms[platform] {
 			channels = append(channels, Output{
 				ID:       entry.ID,
 				Name:     entry.Name,
@@ -59,9 +71,24 @@ func List(ctx context.Context, dir DirectoryProvider, args map[string]interface{
 			})
 		}
 	}
+	return channels
+}
 
-	return map[string]interface{}{
-		"count":    len(channels),
-		"channels": channels,
-	}, nil
+func sortedPlatformNames(platforms map[string][]Entry) []string {
+	names := make([]string, 0, len(platforms))
+	for platform := range platforms {
+		names = append(names, platform)
+	}
+	sort.SliceStable(names, func(i, j int) bool {
+		left, right := normalizePlatform(names[i]), normalizePlatform(names[j])
+		if left != right {
+			return left < right
+		}
+		return names[i] < names[j]
+	})
+	return names
+}
+
+func normalizePlatform(platform string) string {
+	return strings.ToLower(strings.TrimSpace(platform))
 }
