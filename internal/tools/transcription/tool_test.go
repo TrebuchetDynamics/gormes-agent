@@ -58,7 +58,7 @@ func TestTranscriptionValidateAudioInput(t *testing.T) {
 
 func TestTranscriptionProviderSelection(t *testing.T) {
 	ctx := context.Background()
-	audio := writeTestAudio(t, "clip.ogg", []byte("fake audio"))
+	audio := writeTestAudioFile(t, "clip.ogg", []byte("fake audio"))
 	providers := map[string]TranscriptionProvider{
 		"local":         &fakeTranscriptionProvider{available: false},
 		"local_command": &fakeTranscriptionProvider{available: false},
@@ -84,7 +84,7 @@ func TestTranscriptionProviderSelection(t *testing.T) {
 
 func TestTranscriptionModelNormalization(t *testing.T) {
 	ctx := context.Background()
-	audio := writeTestAudio(t, "clip.ogg", []byte("fake audio"))
+	audio := writeTestAudioFile(t, "clip.ogg", []byte("fake audio"))
 
 	cases := []struct {
 		name     string
@@ -115,7 +115,7 @@ func TestTranscriptionModelNormalization(t *testing.T) {
 
 func TestTranscriptionResultEnvelope(t *testing.T) {
 	ctx := context.Background()
-	audio := writeTestAudio(t, "clip.ogg", []byte("fake audio"))
+	audio := writeTestAudioFile(t, "clip.ogg", []byte("fake audio"))
 	success := NewTranscriptionRunner(TranscriptionConfig{Provider: "openai"}, map[string]TranscriptionProvider{
 		"openai": &fakeTranscriptionProvider{available: true, result: TranscriptionProviderResult{
 			Transcript: "Juan asked for repo status",
@@ -181,13 +181,4 @@ func (f *fakeTranscriptionProvider) Transcribe(_ context.Context, req Transcript
 		f.result.Model = req.Model
 	}
 	return f.result, f.err
-}
-
-func writeTestAudio(t *testing.T, name string, content []byte) string {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), name)
-	if err := os.WriteFile(path, content, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	return path
 }

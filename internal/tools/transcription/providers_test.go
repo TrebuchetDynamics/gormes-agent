@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -698,13 +697,4 @@ func mapKeysTranscription(m map[string]TranscriptionProvider) []string {
 		keys = append(keys, k)
 	}
 	return keys
-}
-
-func writeTestAudioFile(t *testing.T, name string, content []byte) string {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), name)
-	if err := os.WriteFile(path, content, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	return path
 }
