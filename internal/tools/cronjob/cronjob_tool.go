@@ -397,11 +397,11 @@ func (t *CronjobTool) update(store *reflectedCronStore, in cronjobArgs) json.Raw
 		entry.record.ContextFrom = contextFrom
 		changed = true
 	}
-	if entry.record.NoAgent && strings.TrimSpace(entry.record.Script) == "" {
-		return cronjobError("no_agent=True requires a script")
-	}
 	if !changed {
 		return cronjobError("no updates provided")
+	}
+	if errRaw := enforceCronjobAgentMode(&entry); errRaw != nil {
+		return errRaw
 	}
 	if err := store.Update(entry.value); err != nil {
 		return cronjobError(err.Error())
@@ -496,6 +496,23 @@ func getCronjobEntry(store *reflectedCronStore, id string) (cronjobEntry, json.R
 		return cronjobEntry{}, cronjobError(fmt.Sprintf("job with ID %q not found", id))
 	}
 	return entry, nil
+}
+
+func enforceCronjobAgentMode(entry *cronjobEntry) json.RawMessage {
+	if entry.record.NoAgent {
+		if strings.TrimSpace(entry.record.Script) == "" {
+			return cronjobError("no_agent=True requires a script")
+		}
+		if entry.record.Prompt != "" {
+			setStringField(entry.value, "Prompt", "")
+			entry.record.Prompt = ""
+		}
+		return nil
+	}
+	if strings.TrimSpace(entry.record.Prompt) == "" {
+		return cronjobError("prompt is required when no_agent is false")
+	}
+	return nil
 }
 
 func validateCronjobContextFrom(store *reflectedCronStore, arg *cronjobStringListArg) ([]string, json.RawMessage) {

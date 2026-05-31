@@ -56,6 +56,31 @@ func TestCronjobToolNoAgent_CreateRequiresScriptButNotPrompt(t *testing.T) {
 	}
 }
 
+func TestCronjobToolNoAgent_UpdateRequiresPromptWhenReEnablingAgent(t *testing.T) {
+	store, done := newCronjobToolTestStore(t)
+	defer done()
+
+	tool := toolcron.NewCronjobTool(toolcron.CronjobToolConfig{
+		Store:       store,
+		ScriptsRoot: t.TempDir(),
+		Now:         fixedCronjobToolNow,
+	})
+
+	created := execCronjobTool[cronjobCreateResult](t, tool, map[string]any{
+		"action":   "create",
+		"name":     "script-only",
+		"schedule": "every 30m",
+		"script":   "watchdog.sh",
+		"no_agent": true,
+	})
+
+	assertCronjobToolError(t, tool, map[string]any{
+		"action":   "update",
+		"job_id":   created.JobID,
+		"no_agent": false,
+	}, "prompt is required")
+}
+
 func TestCronjobToolNoAgent_UpdateTogglesWithScriptGuard(t *testing.T) {
 	store, done := newCronjobToolTestStore(t)
 	defer done()
@@ -100,8 +125,8 @@ func TestCronjobToolNoAgent_UpdateTogglesWithScriptGuard(t *testing.T) {
 	if err != nil {
 		t.Fatalf("store.Get(updated) = %v", err)
 	}
-	if !stored.NoAgent || stored.Script != "watchdog.sh" {
-		t.Fatalf("stored updated job = %+v, want no_agent script", stored)
+	if !stored.NoAgent || stored.Script != "watchdog.sh" || stored.Prompt != "" {
+		t.Fatalf("stored updated job = %+v, want no_agent script-only job with cleared prompt", stored)
 	}
 
 	var off struct {
