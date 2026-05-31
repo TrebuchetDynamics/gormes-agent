@@ -3,9 +3,12 @@ package configreload
 import (
 	"errors"
 	"strings"
+	"unicode/utf8"
 )
 
 var ErrUnavailable = errors.New("gateway config reload unavailable")
+
+const sanitizedErrorMaxBytes = 240
 
 // SanitizeError returns bounded, redacted operator-facing reload failure text.
 func SanitizeError(err error) string {
@@ -22,10 +25,22 @@ func SanitizeError(err error) string {
 			return "[redacted]"
 		}
 	}
-	if len(msg) > 240 {
-		return msg[:240]
+	return truncateUTF8ByBytes(msg, sanitizedErrorMaxBytes)
+}
+
+func truncateUTF8ByBytes(msg string, maxBytes int) string {
+	if maxBytes <= 0 {
+		return ""
 	}
-	return msg
+	if len(msg) <= maxBytes {
+		return msg
+	}
+	for end := maxBytes; end > 0; end-- {
+		if utf8.ValidString(msg[:end]) {
+			return msg[:end]
+		}
+	}
+	return ""
 }
 
 func CloneStringMap(input map[string]string) map[string]string {

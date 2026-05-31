@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestSanitizeErrorRedactsSecretsAndBoundsOutput(t *testing.T) {
@@ -16,6 +17,17 @@ func TestSanitizeErrorRedactsSecretsAndBoundsOutput(t *testing.T) {
 	}
 	if got := SanitizeError(errors.New(" temporary config missing ")); got != "temporary config missing" {
 		t.Fatalf("sanitized normal error = %q", got)
+	}
+}
+
+func TestSanitizeErrorBoundsOutputWithoutSplittingUTF8(t *testing.T) {
+	long := strings.Repeat("x", 239) + "é" + strings.Repeat("y", 20)
+	got := SanitizeError(errors.New(long))
+	if len(got) > 240 {
+		t.Fatalf("bounded UTF-8 length = %d, want <= 240", len(got))
+	}
+	if !utf8.ValidString(got) {
+		t.Fatalf("bounded UTF-8 output is invalid: %q", got)
 	}
 }
 
