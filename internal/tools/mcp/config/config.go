@@ -246,6 +246,9 @@ func resolveMCPServer(name string, raw any, lookupEnv func(string) (string, bool
 
 	enabled := parseMCPBool(mcpValue(server, "enabled"), true)
 	baseStatus.Enabled = enabled
+	if !enabled {
+		return disabledMCPServer(name, baseStatus)
+	}
 
 	command, err := mcpOptionalString(server, "command", lookupEnv)
 	if err != nil {
@@ -315,6 +318,18 @@ func resolveMCPServer(name string, raw any, lookupEnv func(string) (string, bool
 		status.Status = MCPConfigStatusDisabled
 		status.Reason = "server disabled by config"
 	}
+	return def, status, nil
+}
+
+func disabledMCPServer(name string, baseStatus MCPServerStatus) (MCPServerDefinition, MCPServerStatus, *mcpConfigIssue) {
+	def := MCPServerDefinition{
+		Name:           name,
+		Enabled:        false,
+		Timeout:        baseStatus.Timeout,
+		ConnectTimeout: baseStatus.ConnectTimeout,
+		Sampling:       baseStatus.Sampling,
+	}
+	status := redactedMCPStatus(def, MCPConfigStatusDisabled, "server disabled by config")
 	return def, status, nil
 }
 

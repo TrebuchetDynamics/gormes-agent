@@ -1,0 +1,56 @@
+package config
+
+import "testing"
+
+func TestResolveMCPConfigEnabledServerStillRequiresTransport(t *testing.T) {
+	resolved, err := ResolveMCPConfig(map[string]any{
+		"mcp_servers": map[string]any{
+			"broken": map[string]any{
+				"enabled": true,
+			},
+		},
+	}, MCPConfigOptions{LookupEnv: func(string) (string, bool) { return "", false }})
+	if err == nil {
+		t.Fatalf("ResolveMCPConfig succeeded for enabled server without transport")
+	}
+
+	status, ok := resolved.Status("broken")
+	if !ok {
+		t.Fatalf("missing invalid server status in %#v", resolved.Statuses)
+	}
+	if status.Status != MCPConfigStatusInvalidTransport {
+		t.Fatalf("status = %q, want %q (reason=%q)", status.Status, MCPConfigStatusInvalidTransport, status.Reason)
+	}
+}
+
+func TestResolveMCPConfigDisabledServerDoesNotRequireTransport(t *testing.T) {
+	resolved, err := ResolveMCPConfig(map[string]any{
+		"mcp_servers": map[string]any{
+			"parked": map[string]any{
+				"enabled": false,
+			},
+		},
+	}, MCPConfigOptions{LookupEnv: func(string) (string, bool) { return "", false }})
+	if err != nil {
+		t.Fatalf("ResolveMCPConfig returned error for disabled server without transport: %v", err)
+	}
+
+	status, ok := resolved.Status("parked")
+	if !ok {
+		t.Fatalf("missing disabled server status in %#v", resolved.Statuses)
+	}
+	if status.Status != MCPConfigStatusDisabled {
+		t.Fatalf("status = %q, want %q (reason=%q)", status.Status, MCPConfigStatusDisabled, status.Reason)
+	}
+	if status.Enabled {
+		t.Fatalf("status.Enabled = true, want false")
+	}
+
+	server, ok := resolved.Server("parked")
+	if !ok {
+		t.Fatalf("missing disabled server definition in %#v", resolved.Servers)
+	}
+	if server.Enabled {
+		t.Fatalf("server.Enabled = true, want false")
+	}
+}
