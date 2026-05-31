@@ -26,16 +26,18 @@ func MoveSelection(index, delta, count int) int {
 
 // SelectedProvider returns the provider currently focused by the user.
 func SelectedProvider(state State) (ProviderEntry, bool) {
-	if state.SelectedProviderIndex < 0 || state.SelectedProviderIndex >= len(state.Providers) {
-		return ProviderEntry{}, false
-	}
-	return state.Providers[state.SelectedProviderIndex], true
+	return selectedValue(state.Providers, state.SelectedProviderIndex)
 }
 
 // SelectedModel returns the model currently focused by the user.
 func SelectedModel(state State) (ModelEntry, bool) {
-	if state.SelectedModelIndex < 0 || state.SelectedModelIndex >= len(state.Models) {
-		return ModelEntry{}, false
+	return selectedValue(state.Models, state.SelectedModelIndex)
+}
+
+func selectedValue[T any](values []T, index int) (T, bool) {
+	if index < 0 || index >= len(values) {
+		var zero T
+		return zero, false
 	}
-	return state.Models[state.SelectedModelIndex], true
+	return values[index], true
 }
