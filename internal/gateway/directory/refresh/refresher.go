@@ -55,11 +55,7 @@ func (r *Refresher) Refresh(ctx context.Context) (cache.Directory, model.Evidenc
 			continue
 		}
 		for _, entry := range snapshot.Entries {
-			entry = model.NormalizeEntry(entry)
-			if entry.ID == "" || entry.Name == "" {
-				continue
-			}
-			dir.Platforms[platform] = model.UpsertEntry(dir.Platforms[platform], entry)
+			dir.Platforms[platform], _ = model.UpsertValidEntry(dir.Platforms[platform], entry)
 		}
 	}
 	ledger, sourceEvidence := r.Sources.Load()
@@ -70,11 +66,7 @@ func (r *Refresher) Refresh(ctx context.Context) (cache.Directory, model.Evidenc
 				continue
 			}
 			for _, source := range entries {
-				entry := model.NormalizeEntry(source.ChannelDirectoryEntry())
-				if entry.ID == "" || entry.Name == "" {
-					continue
-				}
-				dir.Platforms[platform] = model.UpsertEntry(dir.Platforms[platform], entry)
+				dir.Platforms[platform], _ = model.UpsertValidEntry(dir.Platforms[platform], source.ChannelDirectoryEntry())
 			}
 		}
 	}

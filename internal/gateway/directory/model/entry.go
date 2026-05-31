@@ -51,14 +51,25 @@ func NormalizeQuery(value string) string {
 // UpsertEntry replaces an existing entry with the same normalized ID or appends
 // it when no cached target exists yet.
 func UpsertEntry(entries []Entry, entry Entry) []Entry {
+	entries, _ = UpsertValidEntry(entries, entry)
+	return entries
+}
+
+// UpsertValidEntry normalizes and upserts a complete directory entry. It returns
+// false without changing entries when the entry lacks the minimum cached-target
+// contract used by refresh merges.
+func UpsertValidEntry(entries []Entry, entry Entry) ([]Entry, bool) {
 	entry = NormalizeEntry(entry)
+	if entry.ID == "" || entry.Name == "" {
+		return entries, false
+	}
 	for i, existing := range entries {
 		if strings.TrimSpace(existing.ID) == entry.ID {
 			entries[i] = entry
-			return entries
+			return entries, true
 		}
 	}
-	return append(entries, entry)
+	return append(entries, entry), true
 }
 
 // DeliveryTarget converts a directory entry into the gateway delivery target contract.
