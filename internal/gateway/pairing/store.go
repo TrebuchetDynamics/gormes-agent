@@ -835,36 +835,12 @@ func emptyPairingStatus(path string, degraded []PairingDegradedEvidence) Pairing
 }
 
 func atomicWritePairingFile(path string, raw []byte, mode os.FileMode) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create pairing state dir: %w", err)
-	}
-
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".pairing-*.tmp")
-	if err != nil {
-		return fmt.Errorf("create pairing temp file: %w", err)
-	}
-	tmpPath := tmp.Name()
-	defer func() {
-		_ = os.Remove(tmpPath)
-	}()
-
-	_ = tmp.Chmod(mode)
-	if _, err := tmp.Write(raw); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("write pairing temp file: %w", err)
-	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("sync pairing temp file: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("close pairing temp file: %w", err)
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		return fmt.Errorf("atomic rename pairing state: %w", err)
-	}
-	_ = os.Chmod(path, mode)
-	return nil
+	return jsonfile.WriteRawAtomicWithOptions(context.Background(), path, raw, "pairing state", jsonfile.WriteOptions{
+		DirMode:    0o755,
+		FileMode:   mode,
+		TmpPattern: ".pairing-*.tmp",
+		Sync:       true,
+	})
 }
 
 func xdgDataHomeForPairing() string {

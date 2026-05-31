@@ -78,6 +78,7 @@ type WriteOptions struct {
 	FileMode   os.FileMode
 	TmpPattern string
 	Writer     Writer
+	Sync       bool
 }
 
 // MarshalIndentNewline marshals payload as indented JSON and appends the
@@ -100,6 +101,21 @@ func WriteAtomic(ctx context.Context, path string, payload any, label string) er
 // the historical gateway marker behavior: 0755 directories, CreateTemp's file
 // mode, and the .json-atomic-*.tmp prefix.
 func WriteAtomicWithOptions(ctx context.Context, path string, payload any, label string, opts WriteOptions) error {
+	raw, err := MarshalIndentNewline(payload)
+	if err != nil {
+		if label == "" {
+			label = "json file"
+		}
+		return fmt.Errorf("encode %s: %w", label, err)
+	}
+	return WriteRawAtomicWithOptions(ctx, path, raw, label, opts)
+}
+
+// WriteRawAtomicWithOptions atomically replaces path with pre-encoded JSON
+// bytes using the supplied filesystem policy. It is for stores that already
+// own their encode/defaulting pipeline but should share the gateway JSON-file
+// write/rename contract.
+func WriteRawAtomicWithOptions(ctx context.Context, path string, raw []byte, label string, opts WriteOptions) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -116,10 +132,6 @@ func WriteAtomicWithOptions(ctx context.Context, path string, payload any, label
 	}
 	if err := os.MkdirAll(filepath.Dir(path), dirMode); err != nil {
 		return fmt.Errorf("create %s dir: %w", label, err)
-	}
-	raw, err := MarshalIndentNewline(payload)
-	if err != nil {
-		return fmt.Errorf("encode %s: %w", label, err)
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(path), tmpPattern)
 	if err != nil {
@@ -145,6 +157,12 @@ func WriteAtomicWithOptions(ctx context.Context, path string, payload any, label
 			_ = tmp.Close()
 			return fmt.Errorf("write %s temp file: %w", label, err)
 		}
+		if opts.Sync {
+			if err := tmp.Sync(); err != nil {
+				_ = tmp.Close()
+				return fmt.Errorf("sync %s temp file: %w", label, err)
+			}
+		}
 		if err := tmp.Close(); err != nil {
 			return fmt.Errorf("close %s temp file: %w", label, err)
 		}
@@ -156,6 +174,11 @@ func WriteAtomicWithOptions(ctx context.Context, path string, payload any, label
 	}
 	if err := os.Rename(tmpPath, path); err != nil {
 		return fmt.Errorf("replace %s: %w", label, err)
+	}
+	if opts.FileMode != 0 {
+		if err := os.Chmod(path, opts.FileMode); err != nil {
+			return fmt.Errorf("chmod %s: %w", label, err)
+		}
 	}
 	return nil
 }

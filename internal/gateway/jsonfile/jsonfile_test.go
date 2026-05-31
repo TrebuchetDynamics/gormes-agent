@@ -48,6 +48,27 @@ func TestWriteAtomicWithOptionsUsesFilesystemPolicy(t *testing.T) {
 	}
 }
 
+func TestWriteRawAtomicWithOptionsWritesPreEncodedPayload(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "record.json")
+
+	if err := WriteRawAtomicWithOptions(ctx, path, []byte("{\"name\":\"raw\"}\n"), "raw record", WriteOptions{
+		FileMode:   0o600,
+		TmpPattern: ".raw-*.tmp",
+		Sync:       true,
+	}); err != nil {
+		t.Fatalf("WriteRawAtomicWithOptions: %v", err)
+	}
+
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read record: %v", err)
+	}
+	if string(raw) != "{\"name\":\"raw\"}\n" {
+		t.Fatalf("record = %q, want pre-encoded payload", string(raw))
+	}
+}
+
 func TestWriteAtomicWithOptionsUsesInjectedWriterBeforeRename(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()

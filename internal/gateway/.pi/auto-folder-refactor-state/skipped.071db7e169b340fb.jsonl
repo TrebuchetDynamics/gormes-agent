@@ -38,3 +38,7 @@
 {"ts":"2026-05-31T00:24:39-06:00","candidate":"events","reason":"sub-candidates exhausted this run","scope":"parent","temporary":true}
 {"ts":"2026-05-31T00:24:40-06:00","candidate":"directory","reason":"sub-candidates exhausted this run","scope":"parent","temporary":true}
 {"ts":"2026-05-31T00:24:41-06:00","candidate":"delivery","reason":"sub-candidates exhausted this run","scope":"parent","temporary":true}
+{"ts":"2026-05-31T00:29:17-06:00","candidate":"admission","reason":"no metric progress rollback","scope":"candidate","temporary":false}
+{"ts":"2026-05-31T00:29:18-06:00","candidate":"events","reason":"sub-candidates exhausted this run","scope":"parent","temporary":true}
+{"ts":"2026-05-31T00:29:19-06:00","candidate":"directory","reason":"sub-candidates exhausted this run","scope":"parent","temporary":true}
+{"ts":"2026-05-31T00:29:20-06:00","candidate":"delivery","reason":"sub-candidates exhausted this run","scope":"parent","temporary":true}
