@@ -192,6 +192,25 @@ Gormes Gateway._openclaw-gw._tcp.local. can be reached at workstation.local.:187
 	}
 }
 
+func TestParseDNSSDResolveGatewayDecodesEscapedTXTSpaces(t *testing.T) {
+	stdout := `Lookup Gormes\032Gateway._openclaw-gw._tcp.local.
+Gormes\032Gateway._openclaw-gw._tcp.local. can be reached at workstation.local.:18789 (interface 4)
+ "displayName=Juan\032Gateway" "wsPath=/gateway\032socket"
+`
+
+	endpoints := parseDNSSDResolveGateway(stdout, `Gormes\032Gateway`)
+	if len(endpoints) != 1 {
+		t.Fatalf("endpoints = %+v, want one resolved endpoint", endpoints)
+	}
+	got := endpoints[0]
+	if got.InstanceName != "Gormes Gateway" {
+		t.Fatalf("InstanceName = %q, want escaped DNS-SD space decoded", got.InstanceName)
+	}
+	if got.TXT["displayName"] != "Juan Gateway" || got.TXT["wsPath"] != "/gateway socket" {
+		t.Fatalf("TXT = %+v, want escaped DNS-SD TXT spaces decoded", got.TXT)
+	}
+}
+
 func TestParseDNSSDResolveGatewayDropsAmbiguousUnbracketedIPv6HostPort(t *testing.T) {
 	stdout := `Lookup Gormes Gateway._openclaw-gw._tcp.local.
 Gormes Gateway._openclaw-gw._tcp.local. can be reached at fe80::1:18789 (interface 4)

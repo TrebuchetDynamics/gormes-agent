@@ -477,6 +477,7 @@ func parseDNSSDBrowseInstances(stdout string) []string {
 			}
 			instance = fields[len(fields)-1]
 		}
+		instance = decodeDNSSDText(instance)
 		if instance == "" || seen[instance] {
 			continue
 		}
@@ -514,7 +515,7 @@ func parseDNSSDResolveGateway(stdout string, instance string) []GatewayEndpoint 
 		return nil
 	}
 	return []GatewayEndpoint{NormalizeGatewayEndpoint(GatewayEndpoint{
-		InstanceName: strings.TrimSpace(instance),
+		InstanceName: decodeDNSSDText(instance),
 		Address:      address,
 		Port:         port,
 		Source:       GatewayEndpointSourceBonjour,
@@ -587,9 +588,9 @@ func parseGatewayTXTTokens(tokens []string) map[string]string {
 			continue
 		}
 		if key, value, ok := strings.Cut(cleaned, "="); ok {
-			key = strings.TrimSpace(key)
+			key = decodeDNSSDText(key)
 			if key != "" {
-				txt[key] = strings.TrimSpace(value)
+				txt[key] = decodeDNSSDText(value)
 			}
 		}
 	}
@@ -600,7 +601,32 @@ func parseGatewayTXTTokens(tokens []string) map[string]string {
 }
 
 func unescapeAvahiField(value string) string {
-	return strings.ReplaceAll(strings.TrimSpace(value), `\032`, " ")
+	return decodeDNSSDText(value)
+}
+
+func decodeDNSSDText(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if !strings.Contains(trimmed, `\`) {
+		return trimmed
+	}
+	var b strings.Builder
+	for i := 0; i < len(trimmed); {
+		if trimmed[i] == '\\' && i+3 < len(trimmed) && isDNSSDDecimalDigit(trimmed[i+1]) && isDNSSDDecimalDigit(trimmed[i+2]) && isDNSSDDecimalDigit(trimmed[i+3]) {
+			decoded, err := strconv.ParseUint(trimmed[i+1:i+4], 10, 8)
+			if err == nil {
+				b.WriteByte(byte(decoded))
+				i += 4
+				continue
+			}
+		}
+		b.WriteByte(trimmed[i])
+		i++
+	}
+	return b.String()
+}
+
+func isDNSSDDecimalDigit(b byte) bool {
+	return b >= '0' && b <= '9'
 }
 
 type GatewayRuntimeSummary struct {
