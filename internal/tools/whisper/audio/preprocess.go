@@ -8,15 +8,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/pathredact"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/wavpcm"
 )
 
 const AudioPreprocessUnavailable = "audio_preprocess_unavailable"
 
-type PCM struct {
-	Samples    []int16
-	SampleRate int
-}
+type PCM = wavpcm.PCM
 
 type PreprocessError struct {
 	Code string
@@ -78,7 +76,7 @@ func Preprocess(ctx context.Context, audioBytes []byte, mediaType string, opts P
 		if errors.As(err, &preprocessErr) {
 			return PCM{}, preprocessErr
 		}
-		return PCM{}, &PreprocessError{Code: AudioPreprocessUnavailable, Path: filepath.Base(inputPath), Err: redactPathError(err, inputPath, outputPath)}
+		return PCM{}, &PreprocessError{Code: AudioPreprocessUnavailable, Path: filepath.Base(inputPath), Err: pathredact.Error(err, inputPath, outputPath)}
 	}
 	raw, err := os.ReadFile(outputPath)
 	if err != nil {
@@ -92,7 +90,7 @@ func decodePCM16Mono16kWAV(raw []byte, label string) (PCM, error) {
 	if err != nil {
 		return PCM{}, &PreprocessError{Code: AudioPreprocessUnavailable, Path: label, Err: err}
 	}
-	return PCM{Samples: pcm.Samples, SampleRate: pcm.SampleRate}, nil
+	return pcm, nil
 }
 
 func audioExtension(mediaType, fileName string) string {
@@ -127,22 +125,4 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
-}
-
-func redactPathError(err error, paths ...string) error {
-	if err == nil {
-		return nil
-	}
-	return errors.New(redactPathText(err.Error(), paths...))
-}
-
-func redactPathText(text string, paths ...string) string {
-	redacted := text
-	for _, path := range paths {
-		if path == "" {
-			continue
-		}
-		redacted = strings.ReplaceAll(redacted, path, filepath.Base(path))
-	}
-	return redacted
 }

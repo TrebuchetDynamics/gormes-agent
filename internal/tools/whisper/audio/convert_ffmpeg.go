@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/pathredact"
 )
 
 // ConvertWithFFmpeg converts audio at inputPath to a PCM16 mono 16kHz WAV at outputPath.
@@ -33,6 +35,6 @@ func ConvertWithFFmpeg(ctx context.Context, inputPath, outputPath string) error 
 	if len(detail) > 300 {
 		detail = detail[:300] + "...(truncated)"
 	}
-	detail = redactPathText(detail, inputPath, outputPath)
+	detail = pathredact.Text(detail, inputPath, outputPath)
 	return &PreprocessError{Code: AudioPreprocessUnavailable, Path: filepath.Base(inputPath), Err: fmt.Errorf("ffmpeg failed: %s", detail)}
 }

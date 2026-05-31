@@ -12,6 +12,7 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/pathredact"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/wasienv"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/wavpcm"
 	embind "github.com/jerbob92/wazero-emscripten-embind"
@@ -161,7 +162,7 @@ func (t *Transcriber) TranscribeWAV(ctx context.Context, path string) (string, e
 		}
 	}
 	if ret != 0 {
-		return "", &TranscriberError{Code: TranscriberWASIInference, Path: filepath.Base(path), Err: fmt.Errorf("whisper full_default returned %d: %s", ret, redactedOutput(output, path, t.modelPath))}
+		return "", &TranscriberError{Code: TranscriberWASIInference, Path: filepath.Base(path), Err: fmt.Errorf("whisper full_default returned %d: %s", ret, pathredact.Text(output, path, t.modelPath))}
 	}
 	if strings.TrimSpace(output) == "" {
 		return "", &TranscriberError{Code: TranscriberWASIInference, Path: filepath.Base(path), Err: fmt.Errorf("empty whisper transcript")}
@@ -371,18 +372,7 @@ func redactTranscriberError(err error, paths ...string) error {
 	if err == nil {
 		return nil
 	}
-	return fmt.Errorf("%s", redactedOutput(err.Error(), paths...))
-}
-
-func redactedOutput(output string, paths ...string) string {
-	redacted := output
-	for _, path := range paths {
-		if path == "" {
-			continue
-		}
-		redacted = strings.ReplaceAll(redacted, path, filepath.Base(path))
-	}
-	return redacted
+	return fmt.Errorf("%s", pathredact.Text(err.Error(), paths...))
 }
 
 func errorsJoin(errs []error) error {
