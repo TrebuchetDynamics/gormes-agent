@@ -184,9 +184,16 @@ func ResolveMCPConfig(raw any, opts MCPConfigOptions) (MCPConfigResolution, erro
 	if root == nil {
 		return MCPConfigResolution{}, nil
 	}
-	serversRaw, ok := lookupMCPValue(root, "mcp_servers")
-	if !ok {
-		serversRaw, ok = lookupMCPValue(root, "mcpServers")
+	serversRaw, ok, variants := lookupMCPServersBlock(root)
+	if len(variants) > 1 {
+		reason := fmt.Sprintf("ambiguous mcp server block fields: %s", strings.Join(variants, ", "))
+		status := MCPServerStatus{
+			Name:   "mcp_servers",
+			Status: MCPConfigStatusInvalidConfig,
+			Reason: redaction.String(reason),
+		}
+		issue := mcpConfigIssue{server: "mcp_servers", status: MCPConfigStatusInvalidConfig, message: reason}
+		return MCPConfigResolution{Statuses: []MCPServerStatus{status}}, &MCPConfigError{Issues: []mcpConfigIssue{issue}}
 	}
 	if !ok {
 		return MCPConfigResolution{}, nil
@@ -560,6 +567,23 @@ func mcpMap(value any) map[string]any {
 	default:
 		return nil
 	}
+}
+
+func lookupMCPServersBlock(root map[string]any) (any, bool, []string) {
+	variants := make([]string, 0, 2)
+	for key := range root {
+		if strings.EqualFold(key, "mcp_servers") || strings.EqualFold(key, "mcpServers") {
+			variants = append(variants, key)
+		}
+	}
+	sort.Strings(variants)
+	if len(variants) == 0 {
+		return nil, false, nil
+	}
+	if len(variants) > 1 {
+		return nil, false, variants
+	}
+	return root[variants[0]], true, nil
 }
 
 func sortedMCPKeys(values map[string]any) []string {

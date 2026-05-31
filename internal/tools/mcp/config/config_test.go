@@ -28,6 +28,33 @@ func TestParseMCPBoolTreatsJSONNumbersLikeDecodedFloats(t *testing.T) {
 	}
 }
 
+func TestResolveMCPConfigRejectsAmbiguousTopLevelServerBlocks(t *testing.T) {
+	resolved, err := ResolveMCPConfig(map[string]any{
+		"mcp_servers": map[string]any{
+			"stdio": map[string]any{"command": "npx"},
+		},
+		"mcpServers": map[string]any{
+			"remote": map[string]any{"url": "https://mcp.example.test/sse"},
+		},
+	}, MCPConfigOptions{LookupEnv: func(string) (string, bool) { return "", false }})
+	if err == nil {
+		t.Fatalf("ResolveMCPConfig succeeded with ambiguous top-level MCP server blocks")
+	}
+	if !strings.Contains(err.Error(), "ambiguous mcp server block fields") {
+		t.Fatalf("error = %q, want ambiguous top-level block evidence", err.Error())
+	}
+	if len(resolved.Servers) != 0 {
+		t.Fatalf("resolved valid servers = %#v, want none", resolved.Servers)
+	}
+	status, ok := resolved.Status("mcp_servers")
+	if !ok {
+		t.Fatalf("missing invalid top-level status in %#v", resolved.Statuses)
+	}
+	if status.Status != MCPConfigStatusInvalidConfig {
+		t.Fatalf("status = %q, want %q (reason=%q)", status.Status, MCPConfigStatusInvalidConfig, status.Reason)
+	}
+}
+
 func TestResolveMCPConfigEnabledServerStillRequiresTransport(t *testing.T) {
 	resolved, err := ResolveMCPConfig(map[string]any{
 		"mcp_servers": map[string]any{
