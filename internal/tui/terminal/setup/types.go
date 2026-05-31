@@ -1,6 +1,10 @@
 package setup
 
-import "os"
+import (
+	"os"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal/setup/truecolor"
+)
 
 type TerminalSetupFileOps struct {
 	MkdirAll  func(path string, perm os.FileMode) error
@@ -24,12 +28,7 @@ type TerminalSetupResult struct {
 	Path            string
 }
 
-type TruecolorResult struct {
-	Force    bool
-	Set      map[string]string
-	Unset    []string
-	Evidence string
-}
+type TruecolorResult = truecolor.Result
 
 type TerminalParityHint struct {
 	Key     string

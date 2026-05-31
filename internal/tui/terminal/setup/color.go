@@ -1,49 +1,12 @@
 package setup
 
 import (
-	"strings"
-
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal/envvars"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal/setup/truecolor"
 )
 
 func TruecolorDecision(env map[string]string) TruecolorResult {
-	if envvars.Has(env, envvars.NoColor) {
-		return TruecolorResult{Evidence: "tui_terminal_truecolor_disabled"}
-	}
-	switch strings.ToLower(strings.TrimSpace(envvars.Value(env, envvars.HermesTUITruecolor))) {
-	case "1", "true", "yes", "on":
-		set := map[string]string{envvars.ForceColor: envvars.ForceColorTruecolor}
-		if envvars.Value(env, envvars.ColorTerm) == "" {
-			set[envvars.ColorTerm] = envvars.Truecolor
-		}
-		return TruecolorResult{
-			Force: true,
-			Set:   set,
-		}
-	case "0", "false", "no", "off":
-		return TruecolorResult{Evidence: "tui_terminal_truecolor_disabled"}
-	default:
-		if shouldDowngradeAppleTerminalTruecolor(env) {
-			unset := []string{envvars.ColorTerm}
-			if envvars.Value(env, envvars.ForceColor) == envvars.ForceColorTruecolor {
-				unset = append(unset, envvars.ForceColor)
-			}
-			return TruecolorResult{Unset: unset, Evidence: "tui_terminal_truecolor_downgraded"}
-		}
-		return TruecolorResult{}
-	}
-}
-
-func shouldDowngradeAppleTerminalTruecolor(env map[string]string) bool {
-	return envvars.Value(env, envvars.TermProgram) == envvars.AppleTerminalProgram && terminalAdvertisesTruecolor(env)
-}
-
-func terminalAdvertisesTruecolor(env map[string]string) bool {
-	switch strings.ToLower(envvars.Value(env, envvars.ColorTerm)) {
-	case envvars.Truecolor, envvars.Truecolor24Bit:
-		return true
-	}
-	return envvars.Value(env, envvars.ForceColor) == envvars.ForceColorTruecolor
+	return truecolor.Decision(env)
 }
 
 func TerminalParityHints(env map[string]string, opts TerminalSetupOptions) []TerminalParityHint {
