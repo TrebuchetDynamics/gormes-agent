@@ -380,6 +380,7 @@ func TestResolveMCPConfigRejectsInvalidHTTPURLs(t *testing.T) {
 	}{
 		{name: "unsupported scheme", url: "ftp://mcp.example.test/mcp", want: "url scheme must be http or https"},
 		{name: "missing host", url: "https:///mcp", want: "url must include a host"},
+		{name: "port without hostname", url: "https://:443/mcp", want: "url must include a host"},
 		{name: "malformed", url: "://mcp.example.test", want: "url is invalid"},
 	}
 

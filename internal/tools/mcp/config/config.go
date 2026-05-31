@@ -370,10 +370,14 @@ func validateMCPHTTPURL(raw string) error {
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
 		return fmt.Errorf("url scheme must be http or https")
 	}
-	if parsed.Host == "" {
+	if !hasMCPHTTPHostname(parsed) {
 		return fmt.Errorf("url must include a host")
 	}
 	return nil
+}
+
+func hasMCPHTTPHostname(parsed *url.URL) bool {
+	return parsed != nil && strings.TrimSpace(parsed.Hostname()) != ""
 }
 
 func disabledMCPServer(name string, baseStatus MCPServerStatus) (MCPServerDefinition, MCPServerStatus, *mcpConfigIssue) {
