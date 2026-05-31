@@ -15,23 +15,53 @@ type InboundEventKeyParts struct {
 	MessageID string
 }
 
+// InboundMessageIDSource names the inbound event field that supplied the
+// deduplication candidate. It keeps fallback provenance explicit when adapters
+// do not expose a platform-native MessageID.
+type InboundMessageIDSource string
+
+const (
+	InboundMessageIDSourceMessageID InboundMessageIDSource = "message_id"
+	InboundMessageIDSourceMsgID     InboundMessageIDSource = "msg_id"
+)
+
+// InboundMessageIdentity is the normalized inbound message candidate used for
+// deduplication before it is scoped by platform/chat/thread.
+type InboundMessageIdentity struct {
+	ID     string
+	Source InboundMessageIDSource
+}
+
 // InboundDedupKeyResult reports the bounded-deduplicator tracking key or why
 // one cannot be derived for an inbound event.
 type InboundDedupKeyResult struct {
 	Key      string
 	Evidence MessageDeduplicatorEvidence
+	Identity InboundMessageIdentity
+}
+
+// ResolveInboundMessageIdentity chooses the stable platform message identifier
+// used for inbound deduplication, preferring MessageID and falling back to MsgID.
+func ResolveInboundMessageIdentity(ev InboundEventKeyParts) InboundMessageIdentity {
+	if messageID := strings.TrimSpace(ev.MessageID); messageID != "" {
+		return InboundMessageIdentity{ID: messageID, Source: InboundMessageIDSourceMessageID}
+	}
+	if msgID := strings.TrimSpace(ev.MsgID); msgID != "" {
+		return InboundMessageIdentity{ID: msgID, Source: InboundMessageIDSourceMsgID}
+	}
+	return InboundMessageIdentity{}
 }
 
 // InboundDedupKey derives the key used to track inbound platform message IDs.
 func InboundDedupKey(ev InboundEventKeyParts) InboundDedupKeyResult {
-	messageID := strings.TrimSpace(ev.MessageID)
-	if messageID == "" {
-		messageID = strings.TrimSpace(ev.MsgID)
-	}
-	if messageID == "" {
+	identity := ResolveInboundMessageIdentity(ev)
+	if identity.ID == "" {
 		return InboundDedupKeyResult{Evidence: EvidenceMissingMessageID}
 	}
-	return InboundDedupKeyResult{Key: inboundDedupKeyParts(ev.Platform, ev.ChatID, ev.ThreadID, messageID)}
+	return InboundDedupKeyResult{
+		Key:      inboundDedupKeyParts(ev.Platform, ev.ChatID, ev.ThreadID, identity.ID),
+		Identity: identity,
+	}
 }
 
 func inboundDedupKeyParts(parts ...string) string {

@@ -2,6 +2,28 @@ package dedup
 
 import "testing"
 
+func TestResolveInboundMessageIdentity_PrefersMessageIDAndTrims(t *testing.T) {
+	identity := ResolveInboundMessageIdentity(InboundEventKeyParts{
+		MsgID:     "gateway-msg-1",
+		MessageID: " platform-msg-1 ",
+	})
+
+	if identity.ID != "platform-msg-1" || identity.Source != InboundMessageIDSourceMessageID {
+		t.Fatalf("ResolveInboundMessageIdentity = %+v, want trimmed MessageID provenance", identity)
+	}
+}
+
+func TestResolveInboundMessageIdentity_FallsBackToMsgID(t *testing.T) {
+	identity := ResolveInboundMessageIdentity(InboundEventKeyParts{
+		MsgID:     " gateway-msg-1 ",
+		MessageID: " ",
+	})
+
+	if identity.ID != "gateway-msg-1" || identity.Source != InboundMessageIDSourceMsgID {
+		t.Fatalf("ResolveInboundMessageIdentity = %+v, want trimmed MsgID fallback provenance", identity)
+	}
+}
+
 func TestInboundDedupKey_UsesMsgIDFallbackWhenMessageIDMissing(t *testing.T) {
 	result := InboundDedupKey(InboundEventKeyParts{
 		Platform:  "telegram",
@@ -16,6 +38,9 @@ func TestInboundDedupKey_UsesMsgIDFallbackWhenMessageIDMissing(t *testing.T) {
 	}
 	if result.Key == "" {
 		t.Fatal("InboundDedupKey MsgID fallback key is empty")
+	}
+	if result.Identity.ID != "gateway-msg-1" || result.Identity.Source != InboundMessageIDSourceMsgID {
+		t.Fatalf("InboundDedupKey identity = %+v, want MsgID fallback provenance", result.Identity)
 	}
 }
 
