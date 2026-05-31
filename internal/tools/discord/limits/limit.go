@@ -35,7 +35,7 @@ type Normalization struct {
 // NormalizeDiscordLimit coerces the model-provided limit argument for Discord
 // actions that expose bounded result limits.
 func Normalize(action string, arguments map[string]any) Normalization {
-	defaultLimit := discordDefaultLimit(action)
+	defaultLimit := discordDefaultLimit(normalizeDiscordLimitAction(action))
 	raw, ok := arguments["limit"]
 	if !ok || raw == nil {
 		return Normalization{Limit: defaultLimit, Evidence: EvidenceDefaulted}
@@ -52,6 +52,10 @@ func Normalize(action string, arguments map[string]any) Normalization {
 		return Normalization{Limit: LimitMaximum, Evidence: EvidenceClamped}
 	}
 	return Normalization{Limit: limit, Evidence: EvidenceProvided}
+}
+
+func normalizeDiscordLimitAction(action string) string {
+	return strings.ToLower(strings.TrimSpace(action))
 }
 
 func discordDefaultLimit(action string) int {

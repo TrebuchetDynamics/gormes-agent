@@ -29,6 +29,16 @@ func TestDiscordLimitCoercion_SearchMembersDefault(t *testing.T) {
 	}
 }
 
+func TestDiscordLimitCoercion_NormalizesActionBeforeDefaultSelection(t *testing.T) {
+	got := Normalize(" Search_Members ", map[string]any{})
+	if got.Limit != SearchMembersDefaultLimit {
+		t.Fatalf("Limit = %d, want search_members default %d", got.Limit, SearchMembersDefaultLimit)
+	}
+	if got.Evidence != EvidenceDefaulted {
+		t.Fatalf("Evidence = %q, want %q", got.Evidence, EvidenceDefaulted)
+	}
+}
+
 func TestDiscordLimitCoercion_FetchMessagesDefault(t *testing.T) {
 	for _, tc := range []struct {
 		name string
