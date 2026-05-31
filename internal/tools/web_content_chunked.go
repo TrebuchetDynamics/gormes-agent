@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
@@ -270,6 +271,10 @@ func (p *ChunkedWebContentProcessor) splitIntoChunks(content string) []string {
 // that are close to targetSize. It searches forward from targetSize, then
 // backward if no good point is found forward.
 func findGoodSplitPoint(content string, targetSize int) int {
+	return utf8SafeSplitPoint(content, rawGoodSplitPoint(content, targetSize))
+}
+
+func rawGoodSplitPoint(content string, targetSize int) int {
 	contentLen := len(content)
 	if contentLen <= targetSize {
 		return contentLen
@@ -328,6 +333,23 @@ func findGoodSplitPoint(content string, targetSize int) int {
 		return targetSize
 	}
 	return contentLen
+}
+
+func utf8SafeSplitPoint(content string, splitAt int) int {
+	if splitAt <= 0 || splitAt >= len(content) || utf8.RuneStart(content[splitAt]) {
+		return splitAt
+	}
+	for i := splitAt - 1; i > 0; i-- {
+		if utf8.RuneStart(content[i]) {
+			return i
+		}
+	}
+	for i := splitAt + 1; i < len(content); i++ {
+		if utf8.RuneStart(content[i]) {
+			return i
+		}
+	}
+	return len(content)
 }
 
 // summarizeChunks processes chunks in parallel and returns every chunk outcome.

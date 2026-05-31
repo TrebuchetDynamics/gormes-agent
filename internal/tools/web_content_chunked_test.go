@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
@@ -688,6 +689,26 @@ func TestChunkedWebContentProcessor_ChunkSplitting(t *testing.T) {
 		if len(chunk) > cfg.ChunkSize+2000 { // Allow some overflow for natural split points
 			t.Errorf("chunk %d length %d exceeds ChunkSize %d by too much", i, len(chunk), cfg.ChunkSize)
 		}
+	}
+}
+
+func TestChunkedWebContentProcessor_ChunkSplittingKeepsValidUTF8(t *testing.T) {
+	cfg := ChunkedWebContentProcessorConfig{
+		ChunkSize: 1,
+	}
+	processor := &ChunkedWebContentProcessor{cfg: cfg}
+
+	chunks := processor.splitIntoChunks("🙂🙂")
+	if len(chunks) != 2 {
+		t.Fatalf("got %d chunks, want 2", len(chunks))
+	}
+	for i, chunk := range chunks {
+		if !utf8.ValidString(chunk) {
+			t.Fatalf("chunk %d is not valid UTF-8: %q", i, chunk)
+		}
+	}
+	if got := strings.Join(chunks, ""); got != "🙂🙂" {
+		t.Fatalf("joined chunks = %q, want original content", got)
 	}
 }
 
