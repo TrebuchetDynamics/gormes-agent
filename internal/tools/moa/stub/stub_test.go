@@ -1,13 +1,15 @@
-package moa
+package stub
 
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/moa/contract"
 )
 
 func TestMoATool_Name(t *testing.T) {
 	tool := &MoATool{}
-	if tool.Name() != "mixture_of_agents" {
+	if tool.Name() != contract.ToolName {
 		t.Fatalf("Name() = %q", tool.Name())
 	}
 }
