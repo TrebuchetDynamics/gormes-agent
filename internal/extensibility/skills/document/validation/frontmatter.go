@@ -82,7 +82,7 @@ func ValidateSkillFrontmatter(raw []byte, opts FrontmatterValidateOptions) []Ski
 		})
 		return errs
 	}
-	if strings.TrimSpace(lines[firstNonEmpty]) != "---" {
+	if !structure.IsFrontmatterDelimiter(lines[firstNonEmpty]) {
 		errs = append(errs, SkillValidationError{
 			Code:    SkillValidationMissingOpen,
 			Message: "frontmatter must start with --- on the first non-empty line",
@@ -95,7 +95,7 @@ func ValidateSkillFrontmatter(raw []byte, opts FrontmatterValidateOptions) []Ski
 	headingBeforeClose := -1
 	for i := firstNonEmpty + 1; i < len(lines); i++ {
 		trimmed := strings.TrimSpace(lines[i])
-		if trimmed == "---" {
+		if structure.IsFrontmatterDelimiter(trimmed) {
 			closeLine = i
 			break
 		}

@@ -18,13 +18,13 @@ func Parse(raw []byte, maxBytes int) (model.Skill, error) {
 	}
 
 	lines := structure.SplitLines(doc)
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+	if len(lines) == 0 || !structure.IsFrontmatterDelimiter(lines[0]) {
 		return model.Skill{}, fmt.Errorf("skill frontmatter must start with ---")
 	}
 
 	end := -1
 	for i := 1; i < len(lines); i++ {
-		if strings.TrimSpace(lines[i]) == "---" {
+		if structure.IsFrontmatterDelimiter(lines[i]) {
 			end = i
 			break
 		}

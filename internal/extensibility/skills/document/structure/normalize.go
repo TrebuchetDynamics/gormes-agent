@@ -15,3 +15,9 @@ func NormalizeBytes(raw []byte) string {
 func SplitLines(content string) []string {
 	return strings.Split(content, "\n")
 }
+
+// IsFrontmatterDelimiter applies the shared SKILL.md delimiter policy used by
+// parsers and validators before they inspect document sections.
+func IsFrontmatterDelimiter(line string) bool {
+	return strings.TrimSpace(line) == "---"
+}
