@@ -187,6 +187,17 @@ Gormes Gateway._openclaw-gw._tcp.local. can be reached at workstation.local.:187
 	}
 }
 
+func TestParseDNSSDResolveGatewayDropsAmbiguousUnbracketedIPv6HostPort(t *testing.T) {
+	stdout := `Lookup Gormes Gateway._openclaw-gw._tcp.local.
+Gormes Gateway._openclaw-gw._tcp.local. can be reached at fe80::1:18789 (interface 4)
+ "displayName=Juan Gateway"
+`
+
+	if got := parseDNSSDResolveGateway(stdout, "Gormes Gateway"); len(got) != 0 {
+		t.Fatalf("endpoints = %+v, want ambiguous unbracketed IPv6 literal dropped", got)
+	}
+}
+
 func TestGatewayDiscoverReportsDegradedNoGateways(t *testing.T) {
 	result := DiscoverGateways(context.Background(), GatewayDiscoverRequest{
 		Discoverer: GatewayDiscovererFunc(func(context.Context) ([]GatewayEndpoint, error) {

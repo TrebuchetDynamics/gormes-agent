@@ -523,8 +523,12 @@ func splitGatewayHostPort(raw string) (string, int, bool) {
 		port := parseGatewayPort(portRaw)
 		return strings.TrimSuffix(host, "."), port, port > 0
 	}
+	return splitGatewayHostPortFallback(raw)
+}
+
+func splitGatewayHostPortFallback(raw string) (string, int, bool) {
 	idx := strings.LastIndex(raw, ":")
-	if idx <= 0 || idx == len(raw)-1 {
+	if idx <= 0 || idx == len(raw)-1 || strings.Count(raw, ":") != 1 {
 		return "", 0, false
 	}
 	port := parseGatewayPort(raw[idx+1:])
