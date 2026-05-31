@@ -8,8 +8,7 @@ import (
 
 func StripJSONComments(input string) string {
 	var out strings.Builder
-	inString := false
-	escaped := false
+	var quote jsonStringState
 	lineComment := false
 	blockComment := false
 	for i := 0; i < len(input); i++ {
@@ -33,24 +32,14 @@ func StripJSONComments(input string) string {
 			}
 			continue
 		}
-		if inString {
+		if quote.InString() {
 			out.WriteByte(ch)
-			if escaped {
-				escaped = false
-				continue
-			}
-			if ch == '\\' {
-				escaped = true
-				continue
-			}
-			if ch == '"' {
-				inString = false
-			}
+			quote.Consume(ch)
 			continue
 		}
 
 		if ch == '"' {
-			inString = true
+			quote.Consume(ch)
 			out.WriteByte(ch)
 			continue
 		}
@@ -71,27 +60,16 @@ func StripJSONComments(input string) string {
 
 func removeTrailingJSONCommas(input string) string {
 	var out strings.Builder
-	inString := false
-	escaped := false
+	var quote jsonStringState
 	for i := 0; i < len(input); i++ {
 		ch := input[i]
-		if inString {
+		if quote.InString() {
 			out.WriteByte(ch)
-			if escaped {
-				escaped = false
-				continue
-			}
-			if ch == '\\' {
-				escaped = true
-				continue
-			}
-			if ch == '"' {
-				inString = false
-			}
+			quote.Consume(ch)
 			continue
 		}
 		if ch == '"' {
-			inString = true
+			quote.Consume(ch)
 			out.WriteByte(ch)
 			continue
 		}
