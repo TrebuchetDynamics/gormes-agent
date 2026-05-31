@@ -8,10 +8,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/wasienv"
 	embind "github.com/jerbob92/wazero-emscripten-embind"
 	"github.com/tetratelabs/wazero"
-	"github.com/tetratelabs/wazero/imports/emscripten"
-	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 )
 
 const (
@@ -98,8 +97,8 @@ func InstantiateForDiscovery(ctx context.Context, wasm []byte) (Discovery, error
 	runtime := wazero.NewRuntime(ctx)
 	defer runtime.Close(ctx)
 
-	if _, err := wasi_snapshot_preview1.Instantiate(ctx, runtime); err != nil {
-		return Discovery{}, fmt.Errorf("instantiate wasi imports: %w", err)
+	if err := wasienv.InstantiateWASI(ctx, runtime); err != nil {
+		return Discovery{}, err
 	}
 	compiled, err := runtime.CompileModule(ctx, wasm)
 	if err != nil {
@@ -108,16 +107,9 @@ func InstantiateForDiscovery(ctx context.Context, wasm []byte) (Discovery, error
 	defer compiled.Close(ctx)
 
 	builder := runtime.NewHostModuleBuilder("env")
-	emscriptenExporter, err := emscripten.NewFunctionExporterForModule(compiled)
-	if err != nil {
-		return Discovery{}, fmt.Errorf("prepare emscripten imports: %w", err)
-	}
-	emscriptenExporter.ExportFunctions(builder)
-
 	engine := embind.CreateEngine(embind.NewConfig())
-	embindExporter := engine.NewFunctionExporterForModule(compiled)
-	if err := embindExporter.ExportFunctions(builder); err != nil {
-		return Discovery{}, fmt.Errorf("prepare embind imports: %w", err)
+	if err := wasienv.ExportEmscriptenEmbind(builder, compiled, engine); err != nil {
+		return Discovery{}, err
 	}
 	if _, err := builder.Instantiate(ctx); err != nil {
 		return Discovery{}, fmt.Errorf("instantiate emscripten embind imports: %w", err)

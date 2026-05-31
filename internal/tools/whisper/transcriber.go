@@ -12,12 +12,11 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/wasienv"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/wavpcm"
 	embind "github.com/jerbob92/wazero-emscripten-embind"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
-	"github.com/tetratelabs/wazero/imports/emscripten"
-	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 )
 
 const (
@@ -86,8 +85,8 @@ func NewTranscriber(ctx context.Context, modelPath string) (*Transcriber, error)
 
 func (t *Transcriber) open(ctx context.Context) error {
 	t.runtime = wazero.NewRuntime(ctx)
-	if _, err := wasi_snapshot_preview1.Instantiate(ctx, t.runtime); err != nil {
-		return &TranscriberError{Code: TranscriberWASIInference, Err: fmt.Errorf("instantiate wasi imports: %w", err)}
+	if err := wasienv.InstantiateWASI(ctx, t.runtime); err != nil {
+		return &TranscriberError{Code: TranscriberWASIInference, Err: err}
 	}
 	compiled, err := t.runtime.CompileModule(ctx, whisperWASM)
 	if err != nil {
@@ -96,16 +95,9 @@ func (t *Transcriber) open(ctx context.Context) error {
 	t.compiled = compiled
 
 	builder := t.runtime.NewHostModuleBuilder("env")
-	emscriptenExporter, err := emscripten.NewFunctionExporterForModule(compiled)
-	if err != nil {
-		return &TranscriberError{Code: TranscriberWASIInference, Err: fmt.Errorf("prepare emscripten imports: %w", err)}
-	}
-	emscriptenExporter.ExportFunctions(builder)
-
 	t.engine = embind.CreateEngine(embind.NewConfig())
-	embindExporter := t.engine.NewFunctionExporterForModule(compiled)
-	if err := embindExporter.ExportFunctions(builder); err != nil {
-		return &TranscriberError{Code: TranscriberWASIInference, Err: fmt.Errorf("prepare embind imports: %w", err)}
+	if err := wasienv.ExportEmscriptenEmbind(builder, compiled, t.engine); err != nil {
+		return &TranscriberError{Code: TranscriberWASIInference, Err: err}
 	}
 	builder.NewFunctionBuilder().
 		WithName("_emval_get_module_property").
