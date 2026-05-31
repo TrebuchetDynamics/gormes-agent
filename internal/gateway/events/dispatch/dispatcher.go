@@ -3,7 +3,7 @@ package dispatch
 import (
 	"encoding/json"
 
-	eventbus "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/events/bus"
+	eventcontract "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/events/contract"
 )
 
 const (
@@ -36,10 +36,10 @@ type MessageEventPayload struct {
 }
 
 type EventDispatcher struct {
-	bus eventbus.EventBus
+	bus eventcontract.EventBus
 }
 
-func NewEventDispatcher(bus eventbus.EventBus) *EventDispatcher {
+func NewEventDispatcher(bus eventcontract.EventBus) *EventDispatcher {
 	return &EventDispatcher{bus: bus}
 }
 
@@ -63,7 +63,7 @@ func (d *EventDispatcher) PublishSessionEnded(source string, traceID string, pay
 	return d.publish(TopicSessionEnded, source, traceID, payload)
 }
 
-func (d *EventDispatcher) SubscribeMessages(handler eventbus.EventHandler) func() {
+func (d *EventDispatcher) SubscribeMessages(handler eventcontract.EventHandler) func() {
 	return d.bus.Subscribe(TopicMessageReceived, handler)
 }
 
@@ -72,6 +72,6 @@ func (d *EventDispatcher) publish(topic string, source string, traceID string, p
 	if err != nil {
 		return err
 	}
-	evt := eventbus.NewEvent(topic, source, raw, traceID)
+	evt := eventcontract.NewEvent(topic, source, raw, traceID)
 	return d.bus.Publish(topic, evt)
 }

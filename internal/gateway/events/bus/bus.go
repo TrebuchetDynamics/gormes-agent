@@ -3,24 +3,15 @@ package bus
 import (
 	"log/slog"
 	"sync"
+
+	eventcontract "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/events/contract"
 )
 
 const defaultSubscriberBufferSize = 64
 
 // EventBus decouples publishers from subscribers via topic-based routing.
 // Implementations must be safe for concurrent use.
-type EventBus interface {
-	// Publish sends an event to all subscribers of topic. Non-blocking —
-	// slow consumers may drop events rather than block the publisher.
-	Publish(topic string, event Event) error
-
-	// Subscribe registers a handler for topic. Returns a function that
-	// unsubscribes the handler.
-	Subscribe(topic string, handler EventHandler) (unsubscribe func())
-
-	// Close stops all subscriber goroutines and clears subscriptions.
-	Close() error
-}
+type EventBus = eventcontract.EventBus
 
 type subscriber struct {
 	handler EventHandler
