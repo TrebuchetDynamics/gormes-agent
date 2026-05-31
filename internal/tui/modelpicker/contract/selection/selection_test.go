@@ -1,6 +1,10 @@
-package contract
+package selection
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/modelpicker/contract/schema"
+)
 
 func TestProviderIDEqualIsCaseInsensitive(t *testing.T) {
 	if !ProviderIDEqual("OPENAI", "openai") {
@@ -12,10 +16,10 @@ func TestProviderIDEqualIsCaseInsensitive(t *testing.T) {
 }
 
 func TestModelListFocused(t *testing.T) {
-	if ModelListFocused(State{SelectedModelIndex: -1}) {
+	if ModelListFocused(schema.State{SelectedModelIndex: -1}) {
 		t.Fatal("ModelListFocused = true for provider focus")
 	}
-	if !ModelListFocused(State{SelectedModelIndex: 0}) {
+	if !ModelListFocused(schema.State{SelectedModelIndex: 0}) {
 		t.Fatal("ModelListFocused = false for model focus")
 	}
 }
@@ -36,7 +40,7 @@ func TestMoveSelectionClampsWithoutWrapping(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := MoveSelection(tt.index, tt.delta, tt.count); got != tt.want {
+			if got := MoveIndex(tt.index, tt.delta, tt.count); got != tt.want {
 				t.Fatalf("MoveSelection(%d, %d, %d) = %d, want %d", tt.index, tt.delta, tt.count, got, tt.want)
 			}
 		})
@@ -44,41 +48,41 @@ func TestMoveSelectionClampsWithoutWrapping(t *testing.T) {
 }
 
 func TestSelectedProvider(t *testing.T) {
-	state := State{
-		Providers:             []ProviderEntry{{ID: "anthropic", Label: "Anthropic"}},
+	state := schema.State{
+		Providers:             []schema.ProviderEntry{{ID: "anthropic", Label: "Anthropic"}},
 		SelectedProviderIndex: 0,
 	}
-	provider, ok := SelectedProvider(state)
+	provider, ok := Provider(state)
 	if !ok || provider.ID != "anthropic" {
 		t.Fatalf("SelectedProvider = (%#v, %v), want anthropic true", provider, ok)
 	}
 
 	state.SelectedProviderIndex = 1
-	provider, ok = SelectedProvider(state)
+	provider, ok = Provider(state)
 	if ok || provider.ID != "" {
 		t.Fatalf("SelectedProvider out of range = (%#v, %v), want zero false", provider, ok)
 	}
 }
 
 func TestSelectedModel(t *testing.T) {
-	state := State{
-		Models:             []ModelEntry{{ID: "claude", Label: "Claude"}},
+	state := schema.State{
+		Models:             []schema.ModelEntry{{ID: "claude", Label: "Claude"}},
 		SelectedModelIndex: 0,
 	}
-	model, ok := SelectedModel(state)
+	model, ok := Model(state)
 	if !ok || model.ID != "claude" {
 		t.Fatalf("SelectedModel = (%#v, %v), want claude true", model, ok)
 	}
 
 	state.SelectedModelIndex = -1
-	model, ok = SelectedModel(state)
+	model, ok = Model(state)
 	if ok || model.ID != "" {
 		t.Fatalf("SelectedModel out of range = (%#v, %v), want zero false", model, ok)
 	}
 }
 
 func TestIsCurrentModelUsesProviderIdentityPolicy(t *testing.T) {
-	state := State{CurrentProvider: "OPENAI", CurrentModel: "gpt-4.1"}
+	state := schema.State{CurrentProvider: "OPENAI", CurrentModel: "gpt-4.1"}
 	if !IsCurrentModel(state, "openai", "gpt-4.1") {
 		t.Fatal("IsCurrentModel should use provider ID identity policy")
 	}
@@ -91,9 +95,9 @@ func TestIsCurrentModelUsesProviderIdentityPolicy(t *testing.T) {
 }
 
 func TestConfirmedResultUsesFocusedModelOrCurrentFallback(t *testing.T) {
-	state := State{
-		Providers:             []ProviderEntry{{ID: "anthropic", Label: "Anthropic"}},
-		Models:                []ModelEntry{{ID: "claude", Label: "Claude"}},
+	state := schema.State{
+		Providers:             []schema.ProviderEntry{{ID: "anthropic", Label: "Anthropic"}},
+		Models:                []schema.ModelEntry{{ID: "claude", Label: "Claude"}},
 		SelectedProviderIndex: 0,
 		SelectedModelIndex:    0,
 		CurrentModel:          "fallback",

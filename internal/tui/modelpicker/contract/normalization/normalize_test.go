@@ -1,31 +1,35 @@
-package contract
+package normalization
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/modelpicker/contract/schema"
+)
 
 func TestNormalizeProviderEntry(t *testing.T) {
-	provider, ok := NormalizeProviderEntry(ProviderEntry{ID: " openai ", Label: " "})
+	provider, ok := ProviderEntry(schema.ProviderEntry{ID: " openai ", Label: " "})
 	if !ok || provider.ID != "openai" || provider.Label != "openai" {
 		t.Fatalf("NormalizeProviderEntry = (%#v, %v), want openai/openai true", provider, ok)
 	}
-	provider, ok = NormalizeProviderEntry(ProviderEntry{ID: " ", Label: "skip"})
+	provider, ok = ProviderEntry(schema.ProviderEntry{ID: " ", Label: "skip"})
 	if ok || provider.ID != "" || provider.Label != "" {
 		t.Fatalf("NormalizeProviderEntry blank = (%#v, %v), want zero false", provider, ok)
 	}
 }
 
 func TestNormalizeModelEntry(t *testing.T) {
-	model, ok := NormalizeModelEntry(ModelEntry{ID: " gpt-4.1 ", Label: " GPT 4.1 "})
+	model, ok := ModelEntry(schema.ModelEntry{ID: " gpt-4.1 ", Label: " GPT 4.1 "})
 	if !ok || model.ID != "gpt-4.1" || model.Label != "GPT 4.1" {
 		t.Fatalf("NormalizeModelEntry = (%#v, %v), want gpt-4.1/GPT 4.1 true", model, ok)
 	}
-	model, ok = NormalizeModelEntry(ModelEntry{ID: "", Label: "skip"})
+	model, ok = ModelEntry(schema.ModelEntry{ID: "", Label: "skip"})
 	if ok || model.ID != "" || model.Label != "" {
 		t.Fatalf("NormalizeModelEntry blank = (%#v, %v), want zero false", model, ok)
 	}
 }
 
 func TestNormalizeModelEntries(t *testing.T) {
-	models := NormalizeModelEntries([]ModelEntry{
+	models := ModelEntries([]schema.ModelEntry{
 		{ID: " gpt-4.1 ", Label: " GPT 4.1 "},
 		{ID: " ", Label: "skip"},
 		{ID: "claude", Label: " "},
@@ -33,10 +37,10 @@ func TestNormalizeModelEntries(t *testing.T) {
 	if len(models) != 2 {
 		t.Fatalf("NormalizeModelEntries len = %d, want 2", len(models))
 	}
-	if models[0] != (ModelEntry{ID: "gpt-4.1", Label: "GPT 4.1"}) {
+	if models[0] != (schema.ModelEntry{ID: "gpt-4.1", Label: "GPT 4.1"}) {
 		t.Fatalf("NormalizeModelEntries first = %#v", models[0])
 	}
-	if models[1] != (ModelEntry{ID: "claude", Label: "claude"}) {
+	if models[1] != (schema.ModelEntry{ID: "claude", Label: "claude"}) {
 		t.Fatalf("NormalizeModelEntries second = %#v", models[1])
 	}
 }
