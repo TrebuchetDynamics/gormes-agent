@@ -112,6 +112,30 @@ func TestXSearchExecute_MissingAuth(t *testing.T) {
 	}
 }
 
+func TestXSearchExecute_RejectsInvalidResultType(t *testing.T) {
+	tool := &XSearchTool{cfg: XSearchConfig{Fake: true}}
+
+	_, err := tool.Execute(context.Background(), json.RawMessage(`{"query":"golang","result_type":"latest"}`))
+	if err == nil {
+		t.Fatal("expected invalid result_type to be rejected")
+	}
+	if !strings.Contains(err.Error(), "result_type") {
+		t.Fatalf("error = %v, want result_type validation", err)
+	}
+}
+
+func TestXSearchExecute_RejectsBlankQueryAfterTrim(t *testing.T) {
+	tool := &XSearchTool{cfg: XSearchConfig{Fake: true}}
+
+	_, err := tool.Execute(context.Background(), json.RawMessage(`{"query":"   "}`))
+	if err == nil {
+		t.Fatal("expected blank query to be rejected")
+	}
+	if !strings.Contains(err.Error(), "query") {
+		t.Fatalf("error = %v, want query validation", err)
+	}
+}
+
 func TestXSearchExecute_FakeResults(t *testing.T) {
 	tool := &XSearchTool{
 		cfg: XSearchConfig{

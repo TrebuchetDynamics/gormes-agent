@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/toolkit"
@@ -144,6 +145,7 @@ func normalizeXSearchRequest(args json.RawMessage) (xSearchRequest, error) {
 	if err := json.Unmarshal(args, &req); err != nil {
 		return xSearchRequest{}, fmt.Errorf("x_search: invalid args: %w", err)
 	}
+	req.Query = strings.TrimSpace(req.Query)
 	if req.Query == "" {
 		return xSearchRequest{}, fmt.Errorf("x_search: query is required")
 	}
@@ -153,10 +155,25 @@ func normalizeXSearchRequest(args json.RawMessage) (xSearchRequest, error) {
 	if req.Count > 50 {
 		req.Count = 50
 	}
-	if req.ResultType == "" {
-		req.ResultType = "recent"
+	resultType, err := normalizeXSearchResultType(req.ResultType)
+	if err != nil {
+		return xSearchRequest{}, err
 	}
+	req.ResultType = resultType
 	return req, nil
+}
+
+func normalizeXSearchResultType(raw string) (string, error) {
+	resultType := strings.ToLower(strings.TrimSpace(raw))
+	if resultType == "" {
+		return "recent", nil
+	}
+	switch resultType {
+	case "recent", "popular", "mixed":
+		return resultType, nil
+	default:
+		return "", fmt.Errorf("x_search: invalid result_type %q", raw)
+	}
 }
 
 func (t *XSearchTool) fakeResults(req xSearchRequest) (json.RawMessage, error) {
