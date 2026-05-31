@@ -1,3 +1,0 @@
-goncho
-mcp
-safety/commandpolicy

@@ -745,10 +745,11 @@ func mcpInt(value any, fallback int, field string, minimum int) (int, error) {
 	case int32:
 		parsed = int64(typed)
 	case float64:
-		if math.Trunc(typed) != typed {
-			return 0, fmt.Errorf("%s must be an integer", field)
+		var err error
+		parsed, err = mcpFloatInt(typed, field)
+		if err != nil {
+			return 0, err
 		}
-		parsed = int64(typed)
 	case json.Number:
 		var err error
 		parsed, err = typed.Int64()
@@ -771,7 +772,34 @@ func mcpInt(value any, fallback int, field string, minimum int) (int, error) {
 	if parsed < int64(minimum) {
 		return 0, fmt.Errorf("%s must be at least %d", field, minimum)
 	}
+	if parsed > maxMCPIntValue() {
+		return 0, fmt.Errorf("%s is too large", field)
+	}
 	return int(parsed), nil
+}
+
+func mcpFloatInt(value float64, field string) (int64, error) {
+	if math.IsNaN(value) || math.IsInf(value, 0) {
+		return 0, fmt.Errorf("%s must be an integer", field)
+	}
+	if math.Trunc(value) != value {
+		return 0, fmt.Errorf("%s must be an integer", field)
+	}
+	if value < float64(minMCPIntValue()) {
+		return 0, fmt.Errorf("%s is too small", field)
+	}
+	if value >= float64(maxMCPIntValue()) {
+		return 0, fmt.Errorf("%s is too large", field)
+	}
+	return int64(value), nil
+}
+
+func maxMCPIntValue() int64 {
+	return int64(int(^uint(0) >> 1))
+}
+
+func minMCPIntValue() int64 {
+	return -maxMCPIntValue() - 1
 }
 
 // RedactString redacts token-shaped values for compatibility facades.

@@ -76,48 +76,56 @@ func NormalizeTools(serverName string, raw []RawTool) NormalizeResult {
 	out := NormalizeResult{}
 	seenNames := map[string]bool{}
 	for _, t := range raw {
-		tool, rejection, ok := normalizeToolCandidate(serverName, t, seenNames)
-		if !ok {
-			out.Rejected = append(out.Rejected, rejection)
+		candidate := normalizeToolCandidate(serverName, t, seenNames)
+		if !candidate.Accepted {
+			out.Rejected = append(out.Rejected, candidate.Rejection)
 			continue
 		}
-		seenNames[tool.Name] = true
-		out.Tools = append(out.Tools, tool)
+		seenNames[candidate.Tool.Name] = true
+		out.Tools = append(out.Tools, candidate.Tool)
 	}
 	return out
 }
 
-func normalizeToolCandidate(serverName string, t RawTool, seenNames map[string]bool) (NormalizedTool, SchemaRejection, bool) {
+type normalizedToolCandidate struct {
+	Tool      NormalizedTool
+	Rejection SchemaRejection
+	Accepted  bool
+}
+
+func acceptedCandidate(tool NormalizedTool) normalizedToolCandidate {
+	return normalizedToolCandidate{Tool: tool, Accepted: true}
+}
+
+func rejectedCandidate(serverName, toolName, reason string) normalizedToolCandidate {
+	return normalizedToolCandidate{
+		Rejection: SchemaRejection{
+			ServerName: serverName,
+			ToolName:   toolName,
+			Reason:     reason,
+		},
+	}
+}
+
+func normalizeToolCandidate(serverName string, t RawTool, seenNames map[string]bool) normalizedToolCandidate {
 	schema, ok := NormalizeInputSchema(t.InputSchema)
 	if !ok {
-		return NormalizedTool{}, SchemaRejection{
-			ServerName: serverName,
-			ToolName:   t.Name,
-			Reason:     SchemaRejectionReasonInputSchemaNotObject,
-		}, false
+		return rejectedCandidate(serverName, t.Name, SchemaRejectionReasonInputSchemaNotObject)
 	}
 	name := SanitizeNameComponent(t.Name)
 	if name == "" {
-		return NormalizedTool{}, SchemaRejection{
-			ServerName: serverName,
-			ToolName:   t.Name,
-			Reason:     SchemaRejectionReasonEmptySanitizedName,
-		}, false
+		return rejectedCandidate(serverName, t.Name, SchemaRejectionReasonEmptySanitizedName)
 	}
 	if seenNames[name] {
-		return NormalizedTool{}, SchemaRejection{
-			ServerName: serverName,
-			ToolName:   t.Name,
-			Reason:     SchemaRejectionReasonDuplicateSanitizedName,
-		}, false
+		return rejectedCandidate(serverName, t.Name, SchemaRejectionReasonDuplicateSanitizedName)
 	}
-	return NormalizedTool{
+	return acceptedCandidate(NormalizedTool{
 		Name:        name,
 		ServerName:  serverName,
 		Description: t.Description,
 		InputSchema: schema,
 		SourceRaw:   t,
-	}, SchemaRejection{}, true
+	})
 }
 
 // SanitizeNameComponent mirrors hermes' upstream helper: characters not in

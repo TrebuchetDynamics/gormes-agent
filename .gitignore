@@ -32,6 +32,7 @@ crash-*.log
 .pi/candidates-folder-refactor/
 **/.pi/development-goal/
 **/.pi/auto-folder-refactor-sessions/
+**/.pi/auto-folder-refactor-state/
 **/.pi/candidates-folder-refactor/
 **/.pi/folder-refactor/
 
