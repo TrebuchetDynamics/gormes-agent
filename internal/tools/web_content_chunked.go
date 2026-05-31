@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sort"
 	"strings"
 	"sync"
 
@@ -55,29 +56,35 @@ func NewChunkedWebContentProcessor(client llm.Client, model string, cfg ChunkedW
 	if client == nil {
 		return nil
 	}
-	if cfg.MaxContentSize <= 0 {
-		cfg.MaxContentSize = 2_000_000
-	}
-	if cfg.ChunkThreshold <= 0 {
-		cfg.ChunkThreshold = 500_000
-	}
-	if cfg.ChunkSize <= 0 {
-		cfg.ChunkSize = 100_000
-	}
-	if cfg.MaxOutputChars <= 0 {
-		cfg.MaxOutputChars = 5000
-	}
-	if cfg.MaxParallelism <= 0 {
-		cfg.MaxParallelism = 3
-	}
-	if cfg.MinLength <= 0 {
-		cfg.MinLength = 5000
-	}
+	cfg = normalizeChunkedWebContentProcessorConfig(cfg)
 	return &ChunkedWebContentProcessor{
 		client: client,
 		model:  model,
 		cfg:    cfg,
 	}
+}
+
+func normalizeChunkedWebContentProcessorConfig(cfg ChunkedWebContentProcessorConfig) ChunkedWebContentProcessorConfig {
+	defaults := DefaultChunkedWebContentProcessorConfig()
+	if cfg.MaxContentSize <= 0 {
+		cfg.MaxContentSize = defaults.MaxContentSize
+	}
+	if cfg.ChunkThreshold <= 0 {
+		cfg.ChunkThreshold = defaults.ChunkThreshold
+	}
+	if cfg.ChunkSize <= 0 {
+		cfg.ChunkSize = defaults.ChunkSize
+	}
+	if cfg.MaxOutputChars <= 0 {
+		cfg.MaxOutputChars = defaults.MaxOutputChars
+	}
+	if cfg.MaxParallelism <= 0 {
+		cfg.MaxParallelism = defaults.MaxParallelism
+	}
+	if cfg.MinLength <= 0 {
+		cfg.MinLength = defaults.MinLength
+	}
+	return cfg
 }
 
 // ProcessWebContent implements WebContentProcessor.
@@ -184,6 +191,24 @@ type chunkSummary struct {
 	index   int
 	summary string
 	err     error
+}
+
+func sortedChunkSummaries(summaries []chunkSummary) []chunkSummary {
+	sorted := make([]chunkSummary, len(summaries))
+	copy(sorted, summaries)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return sorted[i].index < sorted[j].index
+	})
+	return sorted
+}
+
+func joinChunkSummaries(summaries []chunkSummary) string {
+	sorted := sortedChunkSummaries(summaries)
+	parts := make([]string, 0, len(sorted))
+	for _, s := range sorted {
+		parts = append(parts, s.summary)
+	}
+	return strings.Join(parts, "\n\n---\n\n")
 }
 
 // splitIntoChunks splits content into chunks of approximately ChunkSize.
@@ -350,23 +375,7 @@ func (p *ChunkedWebContentProcessor) summarizeChunk(ctx context.Context, req Web
 
 // synthesizeSummaries combines multiple chunk summaries into one cohesive summary.
 func (p *ChunkedWebContentProcessor) synthesizeSummaries(ctx context.Context, req WebContentProcessRequest, summaries []chunkSummary) (string, error) {
-	// Build the combined summaries text, sorted by chunk index
-	sorted := make([]chunkSummary, len(summaries))
-	copy(sorted, summaries)
-	for i := 0; i < len(sorted)-1; i++ {
-		for j := i + 1; j < len(sorted); j++ {
-			if sorted[j].index < sorted[i].index {
-				sorted[i], sorted[j] = sorted[j], sorted[i]
-			}
-		}
-	}
-
-	var summaryTexts []string
-	for _, s := range sorted {
-		summaryTexts = append(summaryTexts, s.summary)
-	}
-
-	combined := strings.Join(summaryTexts, "\n\n---\n\n")
+	combined := joinChunkSummaries(summaries)
 
 	stream, err := p.client.OpenStream(ctx, llm.ChatRequest{
 		Model:  p.model,
@@ -405,25 +414,7 @@ func (p *ChunkedWebContentProcessor) fallbackSummaries(summaries []chunkSummary)
 		return "", errors.New("no summaries available")
 	}
 
-	// Sort by original chunk index
-	sorted := make([]chunkSummary, len(summaries))
-	copy(sorted, summaries)
-	for i := 0; i < len(sorted)-1; i++ {
-		for j := i + 1; j < len(sorted); j++ {
-			if sorted[j].index < sorted[i].index {
-				sorted[i], sorted[j] = sorted[j], sorted[i]
-			}
-		}
-	}
-
-	var b strings.Builder
-	for i, s := range sorted {
-		if i > 0 {
-			b.WriteString("\n\n---\n\n")
-		}
-		b.WriteString(s.summary)
-	}
-	return b.String(), nil
+	return joinChunkSummaries(summaries), nil
 }
 
 // readStreamToString reads all tokens from a stream and returns them as a string.

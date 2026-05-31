@@ -367,6 +367,33 @@ func TestChunkedWebContentProcessor_ConfigZeros(t *testing.T) {
 	}
 }
 
+func TestChunkedWebContentProcessor_NormalizeConfigUsesSharedDefaults(t *testing.T) {
+	cfg := normalizeChunkedWebContentProcessorConfig(ChunkedWebContentProcessorConfig{
+		MaxContentSize: 42,
+		ChunkSize:      17,
+	})
+	defaults := DefaultChunkedWebContentProcessorConfig()
+
+	if cfg.MaxContentSize != 42 {
+		t.Fatalf("MaxContentSize = %d, want explicit override 42", cfg.MaxContentSize)
+	}
+	if cfg.ChunkSize != 17 {
+		t.Fatalf("ChunkSize = %d, want explicit override 17", cfg.ChunkSize)
+	}
+	if cfg.ChunkThreshold != defaults.ChunkThreshold {
+		t.Fatalf("ChunkThreshold = %d, want default %d", cfg.ChunkThreshold, defaults.ChunkThreshold)
+	}
+	if cfg.MaxOutputChars != defaults.MaxOutputChars {
+		t.Fatalf("MaxOutputChars = %d, want default %d", cfg.MaxOutputChars, defaults.MaxOutputChars)
+	}
+	if cfg.MaxParallelism != defaults.MaxParallelism {
+		t.Fatalf("MaxParallelism = %d, want default %d", cfg.MaxParallelism, defaults.MaxParallelism)
+	}
+	if cfg.MinLength != defaults.MinLength {
+		t.Fatalf("MinLength = %d, want default %d", cfg.MinLength, defaults.MinLength)
+	}
+}
+
 func TestChunkedWebContentProcessor_ParallelismLimit(t *testing.T) {
 	mockClient := llm.NewMockClient()
 
@@ -667,6 +694,23 @@ func TestChunkedWebContentProcessor_FallbackSorting(t *testing.T) {
 	expected := "First\n\n---\n\nSecond\n\n---\n\nThird"
 	if result != expected {
 		t.Errorf("result = %q, want %q", result, expected)
+	}
+}
+
+func TestChunkedWebContentProcessor_JoinChunkSummariesSortsWithoutMutating(t *testing.T) {
+	summaries := []chunkSummary{
+		{index: 2, summary: "Third"},
+		{index: 0, summary: "First"},
+		{index: 1, summary: "Second"},
+	}
+
+	result := joinChunkSummaries(summaries)
+	want := "First\n\n---\n\nSecond\n\n---\n\nThird"
+	if result != want {
+		t.Fatalf("joinChunkSummaries() = %q, want %q", result, want)
+	}
+	if summaries[0].summary != "Third" || summaries[1].summary != "First" || summaries[2].summary != "Second" {
+		t.Fatalf("joinChunkSummaries mutated input order: %#v", summaries)
 	}
 }
 
