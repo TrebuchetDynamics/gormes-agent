@@ -1,7 +1,6 @@
 package directory
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	gatewaydelivery "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/delivery"
@@ -52,15 +51,10 @@ func (s ChannelDirectoryStore) path() string {
 // Load reads the directory. Missing or invalid files return empty directories
 // plus structured degraded evidence.
 func (s ChannelDirectoryStore) Load() (ChannelDirectory, ChannelDirectoryEvidence) {
-	body, err := os.ReadFile(s.path())
-	if errors.Is(err, os.ErrNotExist) {
-		return emptyChannelDirectory(), ChannelDirectoryEvidence{Code: "channel_directory_missing"}
-	}
-	if err != nil {
-		return emptyChannelDirectory(), ChannelDirectoryEvidence{Code: "channel_directory_invalid"}
-	}
 	var dir ChannelDirectory
-	if err := json.Unmarshal(body, &dir); err != nil {
+	if err := storage.ReadJSON(s.path(), &dir); errors.Is(err, os.ErrNotExist) {
+		return emptyChannelDirectory(), ChannelDirectoryEvidence{Code: "channel_directory_missing"}
+	} else if err != nil {
 		return emptyChannelDirectory(), ChannelDirectoryEvidence{Code: "channel_directory_invalid"}
 	}
 	if dir.Platforms == nil {

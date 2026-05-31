@@ -10,6 +10,15 @@ import (
 // atomic-write failure tests.
 type Writer func(string, []byte, os.FileMode) error
 
+// ReadJSON reads path into value using the stores' shared JSON decoding seam.
+func ReadJSON(path string, value any) error {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(body, value)
+}
+
 // WriteAtomicJSON marshals value as indented JSON and atomically replaces name
 // under root. The temporary file is created in root so rename stays atomic on
 // normal local filesystems.
