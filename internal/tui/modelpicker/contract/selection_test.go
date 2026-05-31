@@ -76,3 +76,42 @@ func TestSelectedModel(t *testing.T) {
 		t.Fatalf("SelectedModel out of range = (%#v, %v), want zero false", model, ok)
 	}
 }
+
+func TestIsCurrentModelUsesProviderIdentityPolicy(t *testing.T) {
+	state := State{CurrentProvider: "OPENAI", CurrentModel: "gpt-4.1"}
+	if !IsCurrentModel(state, "openai", "gpt-4.1") {
+		t.Fatal("IsCurrentModel should use provider ID identity policy")
+	}
+	if IsCurrentModel(state, "openai", "gpt-4o") {
+		t.Fatal("IsCurrentModel matched a different model")
+	}
+	if IsCurrentModel(state, "anthropic", "gpt-4.1") {
+		t.Fatal("IsCurrentModel matched a different provider")
+	}
+}
+
+func TestConfirmedResultUsesFocusedModelOrCurrentFallback(t *testing.T) {
+	state := State{
+		Providers:             []ProviderEntry{{ID: "anthropic", Label: "Anthropic"}},
+		Models:                []ModelEntry{{ID: "claude", Label: "Claude"}},
+		SelectedProviderIndex: 0,
+		SelectedModelIndex:    0,
+		CurrentModel:          "fallback",
+	}
+	result, ok := ConfirmedResult(state)
+	if !ok || result.Provider != "anthropic" || result.Model != "claude" {
+		t.Fatalf("ConfirmedResult focused = (%#v, %v), want anthropic/claude true", result, ok)
+	}
+
+	state.SelectedModelIndex = -1
+	result, ok = ConfirmedResult(state)
+	if !ok || result.Provider != "anthropic" || result.Model != "fallback" {
+		t.Fatalf("ConfirmedResult fallback = (%#v, %v), want anthropic/fallback true", result, ok)
+	}
+
+	state.SelectedProviderIndex = -1
+	result, ok = ConfirmedResult(state)
+	if ok || result.Provider != "" || result.Model != "" {
+		t.Fatalf("ConfirmedResult no provider = (%#v, %v), want zero false", result, ok)
+	}
+}

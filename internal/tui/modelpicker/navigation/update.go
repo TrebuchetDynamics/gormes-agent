@@ -47,12 +47,8 @@ func updateKey(msg tea.KeyMsg, state contract.State) (contract.State, contract.R
 		return state, contract.Result{}, false
 
 	case tea.KeyEnter:
-		if selectedProv, ok := contract.SelectedProvider(state); ok {
-			selectedModel := state.CurrentModel
-			if focusedModel, ok := contract.SelectedModel(state); ok {
-				selectedModel = focusedModel.ID
-			}
-			return state, contract.Result{Provider: selectedProv.ID, Model: selectedModel}, true
+		if result, ok := contract.ConfirmedResult(state); ok {
+			return state, result, true
 		}
 		return state, contract.Result{}, false
 

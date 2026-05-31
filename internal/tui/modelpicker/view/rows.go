@@ -24,7 +24,7 @@ func renderModelRow(row modelRow) string {
 		prefix, style = selectionAffordance(true, row.styles.Selected, row.styles.Normal)
 	}
 
-	if row.entry.ID == row.state.CurrentModel && row.provider.ID == row.state.CurrentProvider {
+	if contract.IsCurrentModel(row.state, row.provider.ID, row.entry.ID) {
 		marker = "* "
 		style = row.styles.Good
 	}

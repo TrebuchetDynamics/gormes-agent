@@ -43,6 +43,27 @@ func SelectedModel(state State) (ModelEntry, bool) {
 	return selectedValue(state.Models, state.SelectedModelIndex)
 }
 
+// IsCurrentModel reports whether a provider/model row represents the current
+// runtime selection shown by the picker.
+func IsCurrentModel(state State, providerID, modelID string) bool {
+	return state.CurrentModel == modelID && ProviderIDEqual(state.CurrentProvider, providerID)
+}
+
+// ConfirmedResult returns the provider/model pair emitted when the operator
+// confirms the current focus. If no model row is focused, the active model is
+// kept as the fallback for the selected provider.
+func ConfirmedResult(state State) (Result, bool) {
+	selectedProv, ok := SelectedProvider(state)
+	if !ok {
+		return Result{}, false
+	}
+	selectedModel := state.CurrentModel
+	if focusedModel, ok := SelectedModel(state); ok {
+		selectedModel = focusedModel.ID
+	}
+	return Result{Provider: selectedProv.ID, Model: selectedModel}, true
+}
+
 func selectedValue[T any](values []T, index int) (T, bool) {
 	if index < 0 || index >= len(values) {
 		var zero T
