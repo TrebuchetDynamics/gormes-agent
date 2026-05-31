@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/delivery/address"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
@@ -54,7 +55,7 @@ func (t Target) String() string {
 	if t.IsOrigin {
 		return "origin"
 	}
-	platform := strings.ToLower(strings.TrimSpace(t.Platform))
+	platform := address.Platform(t.Platform)
 	if platform == "local" || platform == "" {
 		return "local"
 	}
@@ -86,26 +87,26 @@ func ResolveHomeTarget(target Target, homes HomeTargets) (Target, bool) {
 // resolved, configured home_channel wins, discovery-owned source follows only
 // when enabled, and missing homes return MissingHomeError.
 func ResolveHomeTargetWithFallback(target Target, homes HomeTargets, fallback HomeDiscoveryFallback) (Target, error) {
-	if target.IsOrigin || target.IsExplicit || strings.EqualFold(target.Platform, "local") || strings.TrimSpace(target.ChatID) != "" {
+	if target.IsOrigin || target.IsExplicit || strings.EqualFold(target.Platform, "local") || address.ID(target.ChatID) != "" {
 		return target, nil
 	}
-	platform := strings.ToLower(strings.TrimSpace(target.Platform))
+	platform := address.Platform(target.Platform)
 	if platform == "" {
 		return target, MissingHomeError{}
 	}
 	if homes != nil {
-		if home, ok := homes[platform]; ok && strings.TrimSpace(home.ChatID) != "" {
-			home.Platform = strings.ToLower(textvalue.FirstNonEmptyTrimmed(home.Platform, platform))
-			home.ChatID = strings.TrimSpace(home.ChatID)
-			home.ThreadID = strings.TrimSpace(home.ThreadID)
+		if home, ok := homes[platform]; ok && address.ID(home.ChatID) != "" {
+			home.Platform = address.Platform(textvalue.FirstNonEmptyTrimmed(home.Platform, platform))
+			home.ChatID = address.ID(home.ChatID)
+			home.ThreadID = address.ID(home.ThreadID)
 			return home, nil
 		}
 	}
-	if fallback.DiscoveryEnabled && strings.EqualFold(fallback.Source.Platform, platform) && strings.TrimSpace(fallback.Source.ChatID) != "" {
+	if fallback.DiscoveryEnabled && address.Platform(fallback.Source.Platform) == platform && address.ID(fallback.Source.ChatID) != "" {
 		return Target{
 			Platform: platform,
-			ChatID:   strings.TrimSpace(fallback.Source.ChatID),
-			ThreadID: strings.TrimSpace(fallback.Source.ThreadID),
+			ChatID:   address.ID(fallback.Source.ChatID),
+			ThreadID: address.ID(fallback.Source.ThreadID),
 		}, nil
 	}
 	return target, MissingHomeError{Platform: platform}
@@ -115,7 +116,7 @@ func ResolveHomeTargetWithFallback(target Target, homes HomeTargets, fallback Ho
 // syntax-only; runtime availability checks happen later when a router binds
 // targets to concrete platform channels.
 func ParseTarget(raw string, origin *OriginSource) (Target, error) {
-	trimmed := strings.TrimSpace(raw)
+	trimmed := address.ID(raw)
 	if trimmed == "" {
 		return Target{}, errors.New("gateway: empty delivery target")
 	}
@@ -124,9 +125,9 @@ func ParseTarget(raw string, origin *OriginSource) (Target, error) {
 			return Target{Platform: "local", IsOrigin: true}, nil
 		}
 		return Target{
-			Platform: strings.ToLower(strings.TrimSpace(origin.Platform)),
-			ChatID:   strings.TrimSpace(origin.ChatID),
-			ThreadID: strings.TrimSpace(origin.ThreadID),
+			Platform: address.Platform(origin.Platform),
+			ChatID:   address.ID(origin.ChatID),
+			ThreadID: address.ID(origin.ThreadID),
 			IsOrigin: true,
 		}, nil
 	}
@@ -137,22 +138,22 @@ func ParseTarget(raw string, origin *OriginSource) (Target, error) {
 	parts := strings.Split(trimmed, ":")
 	switch len(parts) {
 	case 1:
-		platform := strings.ToLower(strings.TrimSpace(parts[0]))
+		platform := address.Platform(parts[0])
 		if platform == "" {
 			return Target{}, errors.New("gateway: empty delivery platform")
 		}
 		return Target{Platform: platform}, nil
 	case 2:
-		platform := strings.ToLower(strings.TrimSpace(parts[0]))
-		chatID := strings.TrimSpace(parts[1])
+		platform := address.Platform(parts[0])
+		chatID := address.ID(parts[1])
 		if platform == "" || chatID == "" {
 			return Target{}, errors.New("gateway: invalid explicit delivery target")
 		}
 		return Target{Platform: platform, ChatID: chatID, IsExplicit: true}, nil
 	case 3:
-		platform := strings.ToLower(strings.TrimSpace(parts[0]))
-		chatID := strings.TrimSpace(parts[1])
-		threadID := strings.TrimSpace(parts[2])
+		platform := address.Platform(parts[0])
+		chatID := address.ID(parts[1])
+		threadID := address.ID(parts[2])
 		if platform == "" || chatID == "" || threadID == "" {
 			return Target{}, errors.New("gateway: invalid threaded delivery target")
 		}

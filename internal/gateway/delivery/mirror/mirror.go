@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/delivery/address"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 )
@@ -32,20 +32,20 @@ type DeliveryMirrorResult struct {
 }
 
 func SelectDeliveryMirrorSession(candidates []session.Metadata, target DeliveryMirrorTarget) (session.Metadata, bool) {
-	platform := strings.ToLower(strings.TrimSpace(target.Platform))
-	chatID := strings.TrimSpace(target.ChatID)
-	threadID := strings.TrimSpace(target.ThreadID)
-	userID := strings.TrimSpace(target.UserID)
+	platform := address.Platform(target.Platform)
+	chatID := address.ID(target.ChatID)
+	threadID := address.ID(target.ThreadID)
+	userID := address.ID(target.UserID)
 	if platform == "" || chatID == "" {
 		return session.Metadata{}, false
 	}
 
 	matches := make([]session.Metadata, 0, len(candidates))
 	for _, meta := range candidates {
-		if !strings.EqualFold(strings.TrimSpace(meta.Source), platform) {
+		if address.Platform(meta.Source) != platform {
 			continue
 		}
-		if !deliveryMirrorChatMatches(strings.TrimSpace(meta.ChatID), chatID, threadID) {
+		if !address.ChatMatches(meta.ChatID, chatID, threadID) {
 			continue
 		}
 		matches = append(matches, meta)
@@ -57,7 +57,7 @@ func SelectDeliveryMirrorSession(candidates []session.Metadata, target DeliveryM
 	if userID != "" {
 		exact := matches[:0]
 		for _, meta := range matches {
-			if strings.TrimSpace(meta.UserID) == userID {
+			if address.ID(meta.UserID) == userID {
 				exact = append(exact, meta)
 			}
 		}
@@ -87,11 +87,11 @@ func MirrorDeliveryToSession(ctx context.Context, st store.Store, candidates []s
 	if !ok {
 		return DeliveryMirrorResult{Evidence: DeliveryMirrorSessionMissing}, nil
 	}
-	content := strings.TrimSpace(target.MessageText)
+	content := address.ID(target.MessageText)
 	if content == "" {
 		return DeliveryMirrorResult{Evidence: DeliveryMirrorSessionMissing}, nil
 	}
-	source := strings.TrimSpace(target.SourceLabel)
+	source := address.ID(target.SourceLabel)
 	if source == "" {
 		source = "gormes"
 	}
@@ -121,17 +121,10 @@ func MirrorDeliveryToSession(ctx context.Context, st store.Store, candidates []s
 	return DeliveryMirrorResult{Mirrored: true, SessionID: selected.SessionID}, nil
 }
 
-func deliveryMirrorChatMatches(candidate, chatID, threadID string) bool {
-	if threadID == "" {
-		return candidate == chatID
-	}
-	return candidate == chatID+":"+threadID
-}
-
 func deliveryMirrorHasDistinctUsers(items []session.Metadata) bool {
 	seen := map[string]struct{}{}
 	for _, meta := range items {
-		userID := strings.TrimSpace(meta.UserID)
+		userID := address.ID(meta.UserID)
 		if userID == "" {
 			continue
 		}
