@@ -1,4 +1,4 @@
-package discord
+package limits
 
 import (
 	"encoding/json"
@@ -18,12 +18,12 @@ func TestDiscordLimitCoercion_SearchMembersDefault(t *testing.T) {
 		{name: "nan", args: map[string]any{"limit": math.NaN()}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := NormalizeDiscordLimit("search_members", tc.args)
+			got := Normalize("search_members", tc.args)
 			if got.Limit != 20 {
 				t.Fatalf("Limit = %d, want 20", got.Limit)
 			}
-			if got.Evidence != DiscordLimitEvidenceDefaulted {
-				t.Fatalf("Evidence = %q, want %q", got.Evidence, DiscordLimitEvidenceDefaulted)
+			if got.Evidence != EvidenceDefaulted {
+				t.Fatalf("Evidence = %q, want %q", got.Evidence, EvidenceDefaulted)
 			}
 		})
 	}
@@ -41,12 +41,12 @@ func TestDiscordLimitCoercion_FetchMessagesDefault(t *testing.T) {
 		{name: "nan", args: map[string]any{"limit": math.NaN()}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := NormalizeDiscordLimit("fetch_messages", tc.args)
+			got := Normalize("fetch_messages", tc.args)
 			if got.Limit != 50 {
 				t.Fatalf("Limit = %d, want 50", got.Limit)
 			}
-			if got.Evidence != DiscordLimitEvidenceDefaulted {
-				t.Fatalf("Evidence = %q, want %q", got.Evidence, DiscordLimitEvidenceDefaulted)
+			if got.Evidence != EvidenceDefaulted {
+				t.Fatalf("Evidence = %q, want %q", got.Evidence, EvidenceDefaulted)
 			}
 		})
 	}
@@ -70,12 +70,12 @@ func TestDiscordLimitCoercion_ParsesStringAndFloatIntegers(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, action := range []string{"search_members", "fetch_messages"} {
-				got := NormalizeDiscordLimit(action, map[string]any{"limit": tc.raw})
+				got := Normalize(action, map[string]any{"limit": tc.raw})
 				if got.Limit != 7 {
 					t.Fatalf("%s Limit = %d, want 7", action, got.Limit)
 				}
-				if got.Evidence != DiscordLimitEvidenceProvided {
-					t.Fatalf("%s Evidence = %q, want %q", action, got.Evidence, DiscordLimitEvidenceProvided)
+				if got.Evidence != EvidenceProvided {
+					t.Fatalf("%s Evidence = %q, want %q", action, got.Evidence, EvidenceProvided)
 				}
 			}
 		})
@@ -101,12 +101,12 @@ func TestDiscordLimitCoercion_ClampsToSchemaBounds(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, action := range []string{"search_members", "fetch_messages"} {
-				got := NormalizeDiscordLimit(action, map[string]any{"limit": tc.raw})
+				got := Normalize(action, map[string]any{"limit": tc.raw})
 				if got.Limit != tc.want {
 					t.Fatalf("%s Limit = %d, want %d", action, got.Limit, tc.want)
 				}
-				if got.Evidence != DiscordLimitEvidenceClamped {
-					t.Fatalf("%s Evidence = %q, want %q", action, got.Evidence, DiscordLimitEvidenceClamped)
+				if got.Evidence != EvidenceClamped {
+					t.Fatalf("%s Evidence = %q, want %q", action, got.Evidence, EvidenceClamped)
 				}
 			}
 		})
