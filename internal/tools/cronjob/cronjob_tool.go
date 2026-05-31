@@ -291,11 +291,14 @@ func (t *CronjobTool) update(store *reflectedCronStore, in cronjobArgs) json.Raw
 		return errRaw
 	}
 	changed := false
+	targetNoAgent := cronjobTargetNoAgent(entry.record.NoAgent, in.NoAgent)
 
 	if in.Prompt != nil {
 		prompt := *in.Prompt
-		if finding, blocked := scanCronjobPrompt(prompt); blocked {
-			return cronjobError(finding)
+		if !targetNoAgent {
+			if finding, blocked := scanCronjobPrompt(prompt); blocked {
+				return cronjobError(finding)
+			}
 		}
 		setStringField(entry.value, "Prompt", prompt)
 		entry.record.Prompt = prompt
@@ -492,6 +495,13 @@ func getCronjobEntry(store *reflectedCronStore, id string) (cronjobEntry, json.R
 		return cronjobEntry{}, cronjobError(fmt.Sprintf("job with ID %q not found", id))
 	}
 	return entry, nil
+}
+
+func cronjobTargetNoAgent(current bool, update *bool) bool {
+	if update == nil {
+		return current
+	}
+	return *update
 }
 
 func enforceCronjobAgentMode(entry *cronjobEntry) json.RawMessage {
