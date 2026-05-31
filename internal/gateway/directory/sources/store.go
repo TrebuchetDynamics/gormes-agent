@@ -21,23 +21,30 @@ type RememberedStore interface {
 // Store persists a remembered-source ledger under a caller-owned root. It is
 // distinct from channel_directory.json on purpose.
 type Store struct {
-	root storage.Root
+	file storage.File
 	now  func() time.Time
 }
 
 func NewStore(root string) Store {
-	return Store{root: storage.NewRoot(root), now: time.Now}
+	return Store{file: storage.NewFile(root, channelDirectorySourcesFileName, ".channel_directory_sources-*.tmp", "channel directory source"), now: time.Now}
+}
+
+func (s Store) jsonFile() storage.File {
+	if s.file.Name == "" {
+		return storage.NewFile(s.file.Root.String(), channelDirectorySourcesFileName, ".channel_directory_sources-*.tmp", "channel directory source")
+	}
+	return s.file
 }
 
 func (s Store) path() string {
-	return s.root.Path(channelDirectorySourcesFileName)
+	return s.jsonFile().Path()
 }
 
 // Load reads the remembered-source ledger. Missing ledgers are not failures;
 // they simply contribute no session-discovered entries during refresh.
 func (s Store) Load() (model.RememberedSourceLedger, model.Evidence) {
 	ledger := model.EmptyRememberedSourceLedger()
-	if err := storage.ReadJSON(s.path(), &ledger); err != nil {
+	if err := s.jsonFile().Read(&ledger); err != nil {
 		if os.IsNotExist(err) {
 			return model.EmptyRememberedSourceLedger(), model.Evidence{}
 		}
@@ -47,7 +54,7 @@ func (s Store) Load() (model.RememberedSourceLedger, model.Evidence) {
 }
 
 func (s Store) RememberSource(_ context.Context, entry model.RememberedSourceEntry) error {
-	if err := s.root.Require("channel directory source"); err != nil {
+	if err := s.jsonFile().Require(); err != nil {
 		return err
 	}
 	entry = model.NormalizeRememberedSourceEntry(entry)
@@ -55,7 +62,7 @@ func (s Store) RememberSource(_ context.Context, entry model.RememberedSourceEnt
 		return nil
 	}
 	ledger := model.EmptyRememberedSourceLedger()
-	_ = storage.ReadJSON(s.path(), &ledger)
+	_ = s.jsonFile().Read(&ledger)
 	ledger = model.EnsureRememberedSourceLedger(ledger)
 	if s.now == nil {
 		s.now = time.Now
@@ -68,5 +75,5 @@ func (s Store) RememberSource(_ context.Context, entry model.RememberedSourceEnt
 }
 
 func (s Store) save(ledger model.RememberedSourceLedger) error {
-	return storage.WriteAtomicJSON(s.root.String(), channelDirectorySourcesFileName, ".channel_directory_sources-*.tmp", ledger, nil)
+	return s.jsonFile().WriteAtomic(ledger, nil)
 }

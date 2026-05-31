@@ -33,6 +33,45 @@ func (r Root) Require(label string) error {
 	return nil
 }
 
+// File is the shared persisted-JSON file contract for directory stores. It
+// keeps path construction, root validation, and atomic-write metadata together
+// so cache and source stores do not each rebuild that policy.
+type File struct {
+	Root       Root
+	Name       string
+	TmpPattern string
+	Label      string
+}
+
+// NewFile returns a persisted JSON file rooted at root.
+func NewFile(root, name, tmpPattern, label string) File {
+	return File{Root: NewRoot(root), Name: name, TmpPattern: tmpPattern, Label: label}
+}
+
+// Path returns the persisted file path.
+func (f File) Path() string {
+	return f.Root.Path(f.Name)
+}
+
+// Require validates the file root with the store-specific label.
+func (f File) Require() error {
+	return f.Root.Require(f.Label)
+}
+
+// Read decodes the persisted JSON file into value.
+func (f File) Read(value any) error {
+	return ReadJSON(f.Path(), value)
+}
+
+// WriteAtomic marshals value as indented JSON and atomically replaces the
+// persisted file.
+func (f File) WriteAtomic(value any, writer Writer) error {
+	if err := f.Require(); err != nil {
+		return err
+	}
+	return WriteAtomicJSON(f.Root.String(), f.Name, f.TmpPattern, value, writer)
+}
+
 // Writer is the injectable write seam used by stores that need deterministic
 // atomic-write failure tests.
 type Writer func(string, []byte, os.FileMode) error

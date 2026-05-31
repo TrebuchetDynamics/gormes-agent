@@ -24,12 +24,12 @@ type Directory struct {
 // Store persists channel_directory.json under a caller-owned Gormes state/home
 // root. Tests pass temp roots; no live operator home is read.
 type Store struct {
-	root storage.Root
+	file storage.File
 }
 
 // NewStore returns a store rooted at root.
 func NewStore(root string) Store {
-	return Store{root: storage.NewRoot(root)}
+	return Store{file: storage.NewFile(root, channelDirectoryFileName, ".channel_directory-*.tmp", "channel directory")}
 }
 
 // NewDirectory returns a directory with initialized platform buckets.
@@ -60,17 +60,24 @@ func (d *Directory) UpsertEntries(platform string, entries ...model.Entry) int {
 }
 
 // Root returns the store root for fixture setup.
-func (s Store) Root() string { return s.root.String() }
+func (s Store) Root() string { return s.jsonFile().Root.String() }
+
+func (s Store) jsonFile() storage.File {
+	if s.file.Name == "" {
+		return storage.NewFile(s.file.Root.String(), channelDirectoryFileName, ".channel_directory-*.tmp", "channel directory")
+	}
+	return s.file
+}
 
 func (s Store) path() string {
-	return s.root.Path(channelDirectoryFileName)
+	return s.jsonFile().Path()
 }
 
 // Load reads the directory. Missing or invalid files return empty directories
 // plus structured degraded evidence.
 func (s Store) Load() (Directory, model.Evidence) {
 	var dir Directory
-	if err := storage.ReadJSON(s.path(), &dir); errors.Is(err, os.ErrNotExist) {
+	if err := s.jsonFile().Read(&dir); errors.Is(err, os.ErrNotExist) {
 		return emptyDirectory(), model.Evidence{Code: "channel_directory_missing"}
 	} else if err != nil {
 		return emptyDirectory(), model.Evidence{Code: "channel_directory_invalid"}
@@ -90,16 +97,13 @@ func (s Store) Save(dir Directory) error {
 // a temp file, then renames only after the writer succeeds, so old complete JSON
 // remains visible after an injected partial-write failure.
 func (s Store) SaveWithWriter(dir Directory, writer func(string, []byte, os.FileMode) error) error {
-	if err := s.root.Require("channel directory"); err != nil {
-		return err
-	}
 	if writer == nil {
 		writer = os.WriteFile
 	}
 	if dir.Platforms == nil {
 		dir.Platforms = map[string][]model.Entry{}
 	}
-	return storage.WriteAtomicJSON(s.root.String(), channelDirectoryFileName, ".channel_directory-*.tmp", dir, storage.Writer(writer))
+	return s.jsonFile().WriteAtomic(dir, storage.Writer(writer))
 }
 
 func emptyDirectory() Directory {
