@@ -96,12 +96,18 @@ func TestNormalizeGatewayEndpointsDropsInvalidAndKeepsFirstDuplicateCandidate(t 
 	endpoints := normalizeGatewayEndpoints([]GatewayEndpoint{
 		{InstanceName: "manual", Address: "LOCALHOST", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceManual},
 		{InstanceName: "missing-address", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceManual},
+		{InstanceName: "unsupported-scheme", Address: "localhost", Port: 18800, Scheme: "ftp", Source: GatewayEndpointSourceManual},
 		{InstanceName: "bonjour-duplicate", Address: "localhost", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceBonjour},
 		{InstanceName: "secure", Address: "127.0.0.1", Port: 18789, Scheme: "https", Source: GatewayEndpointSourceBonjour},
 	})
 
 	if len(endpoints) != 2 {
 		t.Fatalf("endpoints = %+v, want 2 valid deduped candidates", endpoints)
+	}
+	for _, endpoint := range endpoints {
+		if endpoint.InstanceName == "unsupported-scheme" || endpoint.Scheme == "ftp" {
+			t.Fatalf("endpoints = %+v, want unsupported schemes dropped before discovery/probe output", endpoints)
+		}
 	}
 	if endpoints[0].InstanceName != "secure" || endpoints[0].Scheme != "wss" {
 		t.Fatalf("first endpoint = %+v, want sorted secure bonjour candidate", endpoints[0])

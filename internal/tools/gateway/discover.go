@@ -241,12 +241,14 @@ func normalizeGatewaySchemeAlias(raw string) string {
 
 func parseGatewayEndpointScheme(raw string) (string, error) {
 	scheme := normalizeGatewaySchemeAlias(raw)
-	switch scheme {
-	case "ws", "wss":
+	if supportedGatewayEndpointScheme(scheme) {
 		return scheme, nil
-	default:
-		return "", fmt.Errorf("unsupported gateway endpoint scheme %q", raw)
 	}
+	return "", fmt.Errorf("unsupported gateway endpoint scheme %q", raw)
+}
+
+func supportedGatewayEndpointScheme(scheme string) bool {
+	return scheme == "ws" || scheme == "wss"
 }
 
 func normalizeGatewayEndpoints(in []GatewayEndpoint) []GatewayEndpoint {
@@ -254,7 +256,7 @@ func normalizeGatewayEndpoints(in []GatewayEndpoint) []GatewayEndpoint {
 	seen := map[string]bool{}
 	for _, endpoint := range in {
 		normalized := NormalizeGatewayEndpoint(endpoint)
-		key, ok := gatewayEndpointDedupeKey(normalized)
+		key, ok := gatewayEndpointCandidateKey(normalized)
 		if !ok {
 			continue
 		}
@@ -270,8 +272,8 @@ func normalizeGatewayEndpoints(in []GatewayEndpoint) []GatewayEndpoint {
 	return out
 }
 
-func gatewayEndpointDedupeKey(endpoint GatewayEndpoint) (string, bool) {
-	if endpoint.Address == "" || endpoint.Port <= 0 {
+func gatewayEndpointCandidateKey(endpoint GatewayEndpoint) (string, bool) {
+	if endpoint.Address == "" || endpoint.Port <= 0 || !supportedGatewayEndpointScheme(endpoint.Scheme) {
 		return "", false
 	}
 	return endpoint.Scheme + "://" + strings.ToLower(endpoint.Address) + ":" + strconv.Itoa(endpoint.Port), true
