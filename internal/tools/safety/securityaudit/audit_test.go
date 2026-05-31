@@ -1,4 +1,4 @@
-package safety
+package securityaudit
 
 import (
 	"encoding/json"

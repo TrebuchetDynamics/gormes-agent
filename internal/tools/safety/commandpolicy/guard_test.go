@@ -1,4 +1,4 @@
-package safety
+package commandpolicy
 
 import (
 	"os"
@@ -164,13 +164,13 @@ func TestBlockedResultEvidenceFields(t *testing.T) {
 }
 
 func TestGuardCommandPure(t *testing.T) {
-	src, err := os.ReadFile("command_guard.go")
+	src, err := os.ReadFile("guard.go")
 	if err != nil {
-		t.Fatalf("read command_guard.go: %v", err)
+		t.Fatalf("read guard.go: %v", err)
 	}
 	for _, forbidden := range []string{"os/exec", "net/http", "os.Open"} {
 		if strings.Contains(string(src), forbidden) {
-			t.Fatalf("command_guard.go contains side-effect API %q", forbidden)
+			t.Fatalf("guard.go contains side-effect API %q", forbidden)
 		}
 	}
 }

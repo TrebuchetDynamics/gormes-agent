@@ -1,4 +1,4 @@
-package safety
+package urlsafety
 
 import (
 	"net"

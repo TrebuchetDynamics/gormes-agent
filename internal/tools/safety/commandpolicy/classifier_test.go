@@ -1,4 +1,4 @@
-package safety
+package commandpolicy
 
 import (
 	"testing"

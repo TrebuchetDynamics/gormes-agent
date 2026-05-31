@@ -1,8 +1,6 @@
-package safety
+package shellblocklist
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestShellBlocklist_TotalCount(t *testing.T) {
 	total := GetBlocklistTotal()
