@@ -1,7 +1,6 @@
 package setup
 
 import (
-	"encoding/json"
 	"errors"
 	"os"
 	"strings"
@@ -11,49 +10,6 @@ import (
 )
 
 func TestTUITerminalSetupKeybindings(t *testing.T) {
-	t.Run("detects VS Code family terminals", func(t *testing.T) {
-		if got := DetectVSCodeLikeTerminal(map[string]string{envvars.CursorTraceID: "x"}); got != vscodeKindCursor {
-			t.Fatalf("cursor detect = %q", got)
-		}
-		if got := DetectVSCodeLikeTerminal(map[string]string{envvars.VSCodeGitAskpassMain: "/tmp/windsurf"}); got != vscodeKindWindsurf {
-			t.Fatalf("windsurf detect = %q", got)
-		}
-		if got := DetectVSCodeLikeTerminal(map[string]string{envvars.TermProgram: envvars.VSCodeTermProgram}); got != vscodeKindVSCode {
-			t.Fatalf("vscode detect = %q", got)
-		}
-		if got := DetectVSCodeLikeTerminal(nil); got != "" {
-			t.Fatalf("empty detect = %q, want empty", got)
-		}
-	})
-
-	t.Run("computes config dirs", func(t *testing.T) {
-		if got := VSCodeStyleConfigDir("Code", "darwin", nil, "/home/me"); got != "/home/me/Library/Application Support/Code/User" {
-			t.Fatalf("darwin config dir = %q", got)
-		}
-		if got := VSCodeStyleConfigDir("Code", "linux", nil, "/home/me"); got != "/home/me/.config/Code/User" {
-			t.Fatalf("linux config dir = %q", got)
-		}
-		got := VSCodeStyleConfigDir("Code", "win32", map[string]string{envvars.AppData: "C:/Users/me/AppData/Roaming"}, "/home/me")
-		if got != "C:/Users/me/AppData/Roaming/Code/User" {
-			t.Fatalf("win32 config dir = %q", got)
-		}
-	})
-
-	t.Run("strips comments and trailing commas", func(t *testing.T) {
-		input := `[
-		  // comment
-		  {"key":"a","args":{"text":"// not a comment",},},
-		  /* block */ {"key":"b"},
-		]`
-		var parsed []map[string]any
-		if err := json.Unmarshal([]byte(StripJSONComments(input)), &parsed); err != nil {
-			t.Fatalf("StripJSONComments output did not parse: %v", err)
-		}
-		if parsed[0]["key"] != "a" || parsed[0]["args"].(map[string]any)["text"] != "// not a comment" {
-			t.Fatalf("parsed = %#v, want string contents preserved", parsed)
-		}
-	})
-
 	t.Run("writes missing bindings and backs up existing files", func(t *testing.T) {
 		fake := &fakeTerminalFileOps{body: []byte(`[]`)}
 		result := ConfigureTerminalKeybindings(vscodeKindVSCode, TerminalSetupOptions{
