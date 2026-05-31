@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -12,6 +13,18 @@ func TestParseMCPConfigJSONRejectsTrailingDocuments(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "trailing content") {
 		t.Fatalf("error = %q, want trailing content evidence", err.Error())
+	}
+}
+
+func TestParseMCPBoolTreatsJSONNumbersLikeDecodedFloats(t *testing.T) {
+	if got := parseMCPBool(json.Number("0.5"), false); !got {
+		t.Fatalf("parseMCPBool(json.Number(0.5), false) = false, want true to match decoded float64 truthiness")
+	}
+	if got := parseMCPBool(json.Number("0"), true); got {
+		t.Fatalf("parseMCPBool(json.Number(0), true) = true, want false")
+	}
+	if got := parseMCPBool(json.Number("not-a-number"), true); !got {
+		t.Fatalf("parseMCPBool(invalid json.Number, true) = false, want fallback true")
 	}
 }
 

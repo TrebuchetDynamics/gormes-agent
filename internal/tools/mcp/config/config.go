@@ -742,11 +742,18 @@ func parseMCPBool(value any, fallback bool) bool {
 	case float64:
 		return typed != 0
 	case json.Number:
-		i, err := typed.Int64()
-		return err == nil && i != 0
+		return mcpJSONNumberBool(typed, fallback)
 	default:
 		return fallback
 	}
+}
+
+func mcpJSONNumberBool(value json.Number, fallback bool) bool {
+	parsed, err := value.Float64()
+	if err != nil || math.IsNaN(parsed) || math.IsInf(parsed, 0) {
+		return fallback
+	}
+	return parsed != 0
 }
 
 func mcpDuration(value any, fallback time.Duration, field string) (time.Duration, error) {
