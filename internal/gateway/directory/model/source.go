@@ -1,7 +1,5 @@
 package model
 
-import "strings"
-
 // Source is the minimal session-origin-shaped source needed to remember
 // channel directory entries without depending on gateway runtime types.
 type Source struct {
@@ -59,14 +57,14 @@ func RememberedSourceEntryFromSource(source Source) RememberedSourceEntry {
 	entry := RememberedSourceEntry{
 		Platform:     NormalizePlatform(source.Platform),
 		Type:         normalizedSourceChatType(source),
-		ChatID:       strings.TrimSpace(source.ChatID),
-		ChatName:     strings.TrimSpace(source.ChatName),
-		UserID:       strings.TrimSpace(source.UserID),
-		UserName:     strings.TrimSpace(source.UserName),
-		ThreadID:     strings.TrimSpace(source.ThreadID),
-		GuildID:      strings.TrimSpace(source.GuildID),
-		ParentChatID: strings.TrimSpace(source.ParentChatID),
-		MessageID:    strings.TrimSpace(source.MessageID),
+		ChatID:       trimText(source.ChatID),
+		ChatName:     trimText(source.ChatName),
+		UserID:       trimText(source.UserID),
+		UserName:     trimText(source.UserName),
+		ThreadID:     trimText(source.ThreadID),
+		GuildID:      trimText(source.GuildID),
+		ParentChatID: trimText(source.ParentChatID),
+		MessageID:    trimText(source.MessageID),
 	}
 	entry.ID = rememberedSourceID(entry)
 	entry.Name = rememberedSourceName(entry)
@@ -87,19 +85,19 @@ func (e RememberedSourceEntry) ChannelDirectoryEntry() Entry {
 
 func NormalizeRememberedSourceEntry(entry RememberedSourceEntry) RememberedSourceEntry {
 	entry.Platform = NormalizePlatform(entry.Platform)
-	entry.ID = strings.TrimSpace(entry.ID)
-	entry.Name = strings.TrimSpace(entry.Name)
-	entry.Type = strings.TrimSpace(entry.Type)
-	entry.ChatID = strings.TrimSpace(entry.ChatID)
-	entry.ChatName = strings.TrimSpace(entry.ChatName)
-	entry.UserID = strings.TrimSpace(entry.UserID)
-	entry.UserName = strings.TrimSpace(entry.UserName)
-	entry.ThreadID = strings.TrimSpace(entry.ThreadID)
-	entry.ChatTopic = strings.TrimSpace(entry.ChatTopic)
-	entry.GuildID = strings.TrimSpace(entry.GuildID)
-	entry.ParentChatID = strings.TrimSpace(entry.ParentChatID)
-	entry.MessageID = strings.TrimSpace(entry.MessageID)
-	entry.UpdatedAt = strings.TrimSpace(entry.UpdatedAt)
+	entry.ID = trimText(entry.ID)
+	entry.Name = trimText(entry.Name)
+	entry.Type = trimText(entry.Type)
+	entry.ChatID = trimText(entry.ChatID)
+	entry.ChatName = trimText(entry.ChatName)
+	entry.UserID = trimText(entry.UserID)
+	entry.UserName = trimText(entry.UserName)
+	entry.ThreadID = trimText(entry.ThreadID)
+	entry.ChatTopic = trimText(entry.ChatTopic)
+	entry.GuildID = trimText(entry.GuildID)
+	entry.ParentChatID = trimText(entry.ParentChatID)
+	entry.MessageID = trimText(entry.MessageID)
+	entry.UpdatedAt = trimText(entry.UpdatedAt)
 	if entry.ID == "" {
 		entry.ID = rememberedSourceID(entry)
 	}
@@ -119,43 +117,4 @@ func UpsertRememberedSourceEntry(entries []RememberedSourceEntry, entry Remember
 	}, func(entry RememberedSourceEntry) bool {
 		return entry.Platform != "" && entry.ID != ""
 	})
-}
-
-func rememberedSourceID(entry RememberedSourceEntry) string {
-	chatID := strings.TrimSpace(entry.ChatID)
-	if chatID == "" {
-		return ""
-	}
-	if threadID := strings.TrimSpace(entry.ThreadID); threadID != "" {
-		return chatID + ":" + threadID
-	}
-	return chatID
-}
-
-func rememberedSourceName(entry RememberedSourceEntry) string {
-	base := strings.TrimSpace(entry.ChatName)
-	if base == "" {
-		base = strings.TrimSpace(entry.UserName)
-	}
-	if base == "" {
-		base = strings.TrimSpace(entry.ChatID)
-	}
-	if threadID := strings.TrimSpace(entry.ThreadID); threadID != "" {
-		topic := strings.TrimSpace(entry.ChatTopic)
-		if topic == "" {
-			topic = "topic " + threadID
-		}
-		return base + " / " + topic
-	}
-	return base
-}
-
-func normalizedSourceChatType(source Source) string {
-	if chatType := strings.TrimSpace(source.ChatType); chatType != "" {
-		return chatType
-	}
-	if strings.TrimSpace(source.ThreadID) != "" {
-		return "thread"
-	}
-	return "dm"
 }

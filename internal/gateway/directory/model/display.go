@@ -1,18 +1,16 @@
 package model
 
-import "strings"
-
 // TargetDisplayName returns the user-facing selector text for a directory entry.
 // It is shared by target resolution and model/tool display rendering so both
 // surfaces keep the same platform-specific naming policy.
 func TargetDisplayName(platform string, entry Entry) string {
 	platform = NormalizePlatform(platform)
-	name := strings.TrimSpace(entry.Name)
-	if platform == "discord" && strings.TrimSpace(entry.Guild) != "" {
+	name := trimText(entry.Name)
+	if platform == "discord" && trimText(entry.Guild) != "" {
 		return "#" + name
 	}
-	if platform != "discord" && strings.TrimSpace(entry.Type) != "" {
-		return name + " (" + strings.TrimSpace(entry.Type) + ")"
+	if entryType := trimText(entry.Type); platform != "discord" && entryType != "" {
+		return name + " (" + entryType + ")"
 	}
 	return name
 }

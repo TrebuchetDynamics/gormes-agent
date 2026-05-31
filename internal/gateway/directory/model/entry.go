@@ -24,24 +24,24 @@ type Evidence struct {
 // NormalizePlatform returns the canonical platform key used by directory stores,
 // refresh merges, and channel lookups.
 func NormalizePlatform(platform string) string {
-	return strings.ToLower(strings.TrimSpace(platform))
+	return strings.ToLower(trimText(platform))
 }
 
 // NormalizeEntry trims persisted target fields before merge and lookup.
 func NormalizeEntry(entry Entry) Entry {
-	entry.ID = strings.TrimSpace(entry.ID)
-	entry.Name = strings.TrimSpace(entry.Name)
-	entry.Type = strings.TrimSpace(entry.Type)
-	entry.Guild = strings.TrimSpace(entry.Guild)
-	entry.ChatID = strings.TrimSpace(entry.ChatID)
-	entry.ThreadID = strings.TrimSpace(entry.ThreadID)
-	entry.ChatTopic = strings.TrimSpace(entry.ChatTopic)
+	entry.ID = trimText(entry.ID)
+	entry.Name = trimText(entry.Name)
+	entry.Type = trimText(entry.Type)
+	entry.Guild = trimText(entry.Guild)
+	entry.ChatID = trimText(entry.ChatID)
+	entry.ThreadID = trimText(entry.ThreadID)
+	entry.ChatTopic = trimText(entry.ChatTopic)
 	return entry
 }
 
 // NormalizeQuery returns the canonical form used for human channel lookups.
 func NormalizeQuery(value string) string {
-	return strings.ToLower(strings.TrimSpace(strings.TrimLeft(value, "#")))
+	return strings.ToLower(trimText(strings.TrimLeft(value, "#")))
 }
 
 // UpsertEntry replaces an existing entry with the same normalized ID or appends

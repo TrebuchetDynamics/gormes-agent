@@ -10,10 +10,10 @@ import (
 // contract. Keeping this adapter separate from Entry normalization lets the
 // core directory value contract stay independent from gateway delivery types.
 func DeliveryTarget(platform string, entry Entry) gatewaydelivery.Target {
-	chatID := strings.TrimSpace(entry.ChatID)
-	threadID := strings.TrimSpace(entry.ThreadID)
+	chatID := trimText(entry.ChatID)
+	threadID := trimText(entry.ThreadID)
 	if chatID == "" {
-		parts := strings.SplitN(strings.TrimSpace(entry.ID), ":", 2)
+		parts := strings.SplitN(trimText(entry.ID), ":", 2)
 		chatID = parts[0]
 		if len(parts) == 2 && threadID == "" {
 			threadID = parts[1]

@@ -1,7 +1,5 @@
 package model
 
-import "strings"
-
 // upsertByNormalizedID is the shared replacement policy for directory entries
 // and remembered source entries. Callers keep their own normalization and
 // minimum-validity contracts while reusing the identical ID replacement rule.
@@ -12,7 +10,7 @@ func upsertByNormalizedID[T any](entries []T, entry T, normalize func(T) T, id f
 	}
 	entryID := id(entry)
 	for i, existing := range entries {
-		if strings.TrimSpace(id(existing)) == entryID {
+		if trimText(id(existing)) == entryID {
 			entries[i] = entry
 			return entries, true
 		}
