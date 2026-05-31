@@ -94,6 +94,26 @@ func knownGatewayPlatformID(name string) (string, bool) {
 	return "", false
 }
 
+func resolvePlatformCommandTarget(name string, failures map[string]PlatformFailure) (string, bool) {
+	target := identity.NormalizePlatformID(name)
+	if target == "" {
+		return "", false
+	}
+	if _, queued := failures[target]; queued {
+		return target, true
+	}
+	if _, ok := knownGatewayPlatformID(target); ok {
+		return target, true
+	}
+	base := identity.PlatformBaseName(target)
+	if base != target {
+		if _, ok := knownGatewayPlatformID(base); ok {
+			return target, true
+		}
+	}
+	return "", false
+}
+
 // HandlePlatformCommand is the Go port of Hermes
 // gateway/run.py:_handle_platform_command (PR #26600): the in-chat operator
 // slash handler for `/platform <list|pause|resume> [name]`. It returns the
@@ -156,7 +176,7 @@ func HandlePlatformCommand(text string, connectedNames []string, failures map[st
 		if target == "" {
 			return fmt.Sprintf("Usage: /platform %s <name>", action)
 		}
-		platform, ok := knownGatewayPlatformID(target)
+		platform, ok := resolvePlatformCommandTarget(target, failures)
 		if !ok {
 			return fmt.Sprintf("Unknown platform: %s", target)
 		}

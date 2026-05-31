@@ -60,6 +60,9 @@ func TestPlatformCommandListPauseResumeUsage(t *testing.T) {
 	if out := HandlePlatformCommand("/platform pause notarealplatform", []string{"telegram"}, nil); !strings.Contains(out, "Unknown platform") {
 		t.Fatalf("/platform pause on an unknown platform must reject, got: %s", out)
 	}
+	if out := HandlePlatformCommand("/platform pause telegram:ops", []string{"telegram"}, nil); !strings.Contains(out, "not in the retry queue") {
+		t.Fatalf("/platform pause on an unqueued account-scoped platform must recognize the base platform, got: %s", out)
+	}
 
 	queued := map[string]PlatformFailure{
 		"whatsapp": {Platform: "whatsapp", Attempts: 2, Retryable: true},
@@ -75,6 +78,22 @@ func TestPlatformCommandListPauseResumeUsage(t *testing.T) {
 	}
 	if queued["whatsapp"].Paused {
 		t.Fatalf("/platform resume must unpause the platform")
+	}
+
+	accountQueued := map[string]PlatformFailure{
+		"telegram:ops": {Platform: "telegram:ops", Attempts: 2, Retryable: true},
+	}
+	if out := HandlePlatformCommand("/platform pause telegram:ops", []string{"telegram"}, accountQueued); !strings.Contains(strings.ToLower(out), "paused") {
+		t.Fatalf("/platform pause must support account-scoped queued platforms, got: %s", out)
+	}
+	if !accountQueued["telegram:ops"].Paused {
+		t.Fatalf("/platform pause must pause account-scoped queued platforms")
+	}
+	if out := HandlePlatformCommand("/platform resume telegram:ops", []string{"telegram"}, accountQueued); !strings.Contains(strings.ToLower(out), "resumed") {
+		t.Fatalf("/platform resume must support account-scoped queued platforms, got: %s", out)
+	}
+	if accountQueued["telegram:ops"].Paused {
+		t.Fatalf("/platform resume must unpause account-scoped queued platforms")
 	}
 
 	if out := HandlePlatformCommand("/platform bogusaction", []string{"telegram"}, nil); !strings.Contains(out, "Usage:") {
