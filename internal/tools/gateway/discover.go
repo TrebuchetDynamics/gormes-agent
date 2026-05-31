@@ -194,6 +194,9 @@ func ParseGatewayEndpoint(raw string, source string) (GatewayEndpoint, error) {
 	if err != nil {
 		return GatewayEndpoint{}, fmt.Errorf("parse gateway endpoint: %w", err)
 	}
+	if gatewayEndpointURLHasRemainder(u) {
+		return GatewayEndpoint{}, errors.New("gateway endpoint URL must not include path, query, or fragment")
+	}
 	address := strings.TrimSpace(u.Hostname())
 	if address == "" {
 		return GatewayEndpoint{}, errors.New("gateway endpoint host is empty")
@@ -216,6 +219,14 @@ func ParseGatewayEndpoint(raw string, source string) (GatewayEndpoint, error) {
 		Scheme:  scheme,
 		Source:  strings.TrimSpace(source),
 	}), nil
+}
+
+func gatewayEndpointURLHasRemainder(u *url.URL) bool {
+	if u == nil {
+		return false
+	}
+	path := strings.TrimSpace(u.EscapedPath())
+	return (path != "" && path != "/") || u.RawQuery != "" || u.Fragment != ""
 }
 
 func applyGatewayTXTMetadataHints(endpoint GatewayEndpoint) GatewayEndpoint {

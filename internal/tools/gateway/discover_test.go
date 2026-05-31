@@ -147,6 +147,20 @@ func TestGatewayEndpointNormalizationCanonicalizesHTTPAliases(t *testing.T) {
 	}
 }
 
+func TestParseGatewayEndpointRejectsURLRemainderInsteadOfTruncating(t *testing.T) {
+	for _, raw := range []string{
+		"ws://127.0.0.1:18789/gateway",
+		"ws://127.0.0.1:18789?token=abc",
+		"ws://127.0.0.1:18789#frag",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			if endpoint, err := ParseGatewayEndpoint(raw, GatewayEndpointSourceManual); err == nil {
+				t.Fatalf("ParseGatewayEndpoint(%q) = %+v, nil; want URL remainder rejected rather than silently dropped", raw, endpoint)
+			}
+		})
+	}
+}
+
 func TestNormalizeGatewayEndpointsDropsInvalidAndKeepsFirstDuplicateCandidate(t *testing.T) {
 	endpoints := normalizeGatewayEndpoints([]GatewayEndpoint{
 		{InstanceName: "manual", Address: "LOCALHOST", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceManual},
