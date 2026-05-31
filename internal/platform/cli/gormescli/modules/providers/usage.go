@@ -12,6 +12,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers/usagepolicy"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 	"github.com/spf13/cobra"
 )
@@ -176,30 +177,10 @@ func (c AccountUsageHTTPClient) DoAccountUsageRequest(ctx context.Context, req l
 // InferUsageProvider infers the provider from configured provider/model
 // settings when `gormes usage --provider` is not passed.
 func InferUsageProvider(configuredProvider, model string) string {
-	provider := strings.TrimSpace(configuredProvider)
-	if provider != "" {
-		return provider
-	}
-	model = strings.TrimSpace(model)
-	if model == "" {
-		return ""
-	}
-	for _, candidate := range []string{"openai-codex", "anthropic", "openai", "openrouter"} {
-		if metadata := llm.LookupModelMetadata(llm.ModelRegistryQuery{Provider: candidate, Model: model}); metadata.Found {
-			return metadata.Provider
-		}
-	}
-	lower := strings.ToLower(model)
-	if strings.HasPrefix(lower, "gpt-") || strings.HasPrefix(lower, "o1") || strings.HasPrefix(lower, "o3") || strings.HasPrefix(lower, "o4") {
-		return "openai-codex"
-	}
-	if strings.Contains(lower, "claude") {
-		return "anthropic"
-	}
-	return ""
+	return usagepolicy.InferProvider(configuredProvider, model)
 }
 
 // FirstUsageString returns the first non-blank value.
 func FirstUsageString(values ...string) string {
-	return textvalue.FirstNonBlank(values...)
+	return usagepolicy.FirstNonBlank(values...)
 }

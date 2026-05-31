@@ -9,6 +9,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers/provideridentity"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
@@ -107,32 +108,7 @@ func providerManifestIDs() []string {
 }
 
 func providerDisplayName(provider string) string {
-	switch textvalue.LowerTrim(provider) {
-	case "openai-codex":
-		return "OpenAI Codex"
-	case "openrouter":
-		return "OpenRouter"
-	case "xai":
-		return "xAI"
-	case "gmi":
-		return "GMI"
-	case "lmstudio":
-		return "LM Studio"
-	case "qwen-oauth":
-		return "Qwen OAuth"
-	case "google-gemini-cli":
-		return "Google Gemini CLI"
-	case "ai-gateway", "vercel":
-		return "Vercel AI Gateway"
-	}
-	parts := strings.Fields(strings.ReplaceAll(provider, "-", " "))
-	for i, part := range parts {
-		if part == "" {
-			continue
-		}
-		parts[i] = strings.ToUpper(part[:1]) + part[1:]
-	}
-	return strings.Join(parts, " ")
+	return provideridentity.DisplayName(provider)
 }
 
 func providerNonInteractiveSetupCommand(entry llm.ProviderManifestEntry) string {

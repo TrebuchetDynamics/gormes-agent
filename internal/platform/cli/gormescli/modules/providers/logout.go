@@ -8,7 +8,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers/provideridentity"
 )
 
 const TopLevelLogoutAllowedProviders = "nous|openai-codex|spotify"
@@ -145,15 +145,5 @@ func writeTopLevelLogoutDefaultAbsent(cmd *cobra.Command, opts Options) error {
 }
 
 func normalizeLogoutProvider(provider string) string {
-	normalized := strings.ReplaceAll(textvalue.LowerTrim(provider), "_", "-")
-	switch normalized {
-	case "or", "open-router":
-		return "openrouter"
-	case "novita-ai", "novitaai":
-		return "novita"
-	case "minimax-global", "minimax-portal", "minimax-oauth":
-		return "minimax-oauth"
-	default:
-		return normalized
-	}
+	return provideridentity.NormalizeAuthProvider(provider)
 }
