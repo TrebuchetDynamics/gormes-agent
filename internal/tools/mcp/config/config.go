@@ -381,12 +381,16 @@ func redactedMCPStatus(def MCPServerDefinition, status MCPConfigStatus, reason s
 		Command:        def.Command,
 		Args:           append([]string(nil), def.Args...),
 		Env:            redaction.Map(def.Env),
-		URL:            def.URL,
+		URL:            redactedMCPURL(def.URL),
 		Headers:        redaction.Map(def.Headers),
 		Timeout:        def.Timeout,
 		ConnectTimeout: def.ConnectTimeout,
 		Sampling:       def.Sampling,
 	}
+}
+
+func redactedMCPURL(raw string) string {
+	return redaction.String(raw)
 }
 
 // Server returns the resolved server definition by name.
@@ -427,7 +431,7 @@ func (r MCPConfigResolution) RedactedStatusText() string {
 			fields = append(fields, "command="+row.Command)
 		}
 		if row.URL != "" {
-			fields = append(fields, "url="+row.URL)
+			fields = append(fields, "url="+redactedMCPURL(row.URL))
 		}
 		if len(row.Headers) > 0 {
 			fields = append(fields, "headers="+redaction.FormatStringMap(row.Headers))

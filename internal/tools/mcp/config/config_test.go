@@ -170,6 +170,38 @@ func TestResolveMCPConfigRejectsAmbiguousCaseFoldedSamplingFields(t *testing.T) 
 	}
 }
 
+func TestResolveMCPConfigRedactsHTTPURLCredentialsInStatus(t *testing.T) {
+	resolved, err := ResolveMCPConfig(map[string]any{
+		"mcp_servers": map[string]any{
+			"remote": map[string]any{
+				"url": "https://mcp.example.test/sse?token=super-secret-token&safe=1",
+			},
+		},
+	}, MCPConfigOptions{LookupEnv: func(string) (string, bool) { return "", false }})
+	if err != nil {
+		t.Fatalf("ResolveMCPConfig returned error: %v", err)
+	}
+
+	status, ok := resolved.Status("remote")
+	if !ok {
+		t.Fatalf("missing remote status in %#v", resolved.Statuses)
+	}
+	if strings.Contains(status.URL, "super-secret-token") {
+		t.Fatalf("status URL leaked credential: %q", status.URL)
+	}
+	if !strings.Contains(status.URL, RedactedMCPConfigValue) {
+		t.Fatalf("status URL = %q, want redaction marker", status.URL)
+	}
+
+	text := resolved.RedactedStatusText()
+	if strings.Contains(text, "super-secret-token") {
+		t.Fatalf("status text leaked credential: %s", text)
+	}
+	if !strings.Contains(text, "url=https://mcp.example.test/sse?"+RedactedMCPConfigValue+"&safe=1") {
+		t.Fatalf("status text = %q, want redacted URL credential", text)
+	}
+}
+
 func TestResolveMCPConfigRejectsInvalidHTTPURLs(t *testing.T) {
 	tests := []struct {
 		name string
