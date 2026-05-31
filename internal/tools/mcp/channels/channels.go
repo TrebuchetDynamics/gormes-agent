@@ -57,36 +57,46 @@ func platformFilter(args map[string]interface{}) string {
 
 func collectOutputs(platforms map[string][]Entry, filterPlatform string) []Output {
 	channels := make([]Output, 0)
-	for _, platform := range sortedPlatformNames(platforms) {
-		if filterPlatform != "" && normalizePlatform(platform) != filterPlatform {
-			continue
-		}
-		for _, entry := range platforms[platform] {
+	for _, candidate := range platformCandidates(platforms, filterPlatform) {
+		for _, entry := range candidate.Entries {
 			channels = append(channels, Output{
 				ID:       entry.ID,
 				Name:     entry.Name,
 				ChatID:   entry.ChatID,
 				Enabled:  entry.Enabled,
-				Platform: platform,
+				Platform: candidate.Normalized,
 			})
 		}
 	}
 	return channels
 }
 
-func sortedPlatformNames(platforms map[string][]Entry) []string {
-	names := make([]string, 0, len(platforms))
-	for platform := range platforms {
-		names = append(names, platform)
-	}
-	sort.SliceStable(names, func(i, j int) bool {
-		left, right := normalizePlatform(names[i]), normalizePlatform(names[j])
-		if left != right {
-			return left < right
+type platformCandidate struct {
+	Raw        string
+	Normalized string
+	Entries     []Entry
+}
+
+func platformCandidates(platforms map[string][]Entry, filterPlatform string) []platformCandidate {
+	candidates := make([]platformCandidate, 0, len(platforms))
+	for platform, entries := range platforms {
+		normalized := normalizePlatform(platform)
+		if filterPlatform != "" && normalized != filterPlatform {
+			continue
 		}
-		return names[i] < names[j]
+		candidates = append(candidates, platformCandidate{
+			Raw:        platform,
+			Normalized: normalized,
+			Entries:     entries,
+		})
+	}
+	sort.SliceStable(candidates, func(i, j int) bool {
+		if candidates[i].Normalized != candidates[j].Normalized {
+			return candidates[i].Normalized < candidates[j].Normalized
+		}
+		return candidates[i].Raw < candidates[j].Raw
 	})
-	return names
+	return candidates
 }
 
 func normalizePlatform(platform string) string {

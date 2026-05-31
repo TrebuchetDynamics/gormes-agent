@@ -49,6 +49,9 @@ func TestListPlatformFilterIgnoresSurroundingWhitespaceAndCase(t *testing.T) {
 	if channels[0].ID != "dc-1" {
 		t.Fatalf("selected channel ID = %q, want dc-1", channels[0].ID)
 	}
+	if channels[0].Platform != "discord" {
+		t.Fatalf("selected channel platform = %q, want normalized platform discord", channels[0].Platform)
+	}
 }
 
 func platformOrder(channels []Output) []string {
