@@ -1,8 +1,6 @@
 package directory
 
 import (
-	"context"
-
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/model"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/sources"
 )
@@ -19,12 +17,9 @@ type RememberedSourceEntry = model.RememberedSourceEntry
 // the shared remembered-source ledger value contract.
 type RememberedSourceLedger = model.RememberedSourceLedger
 
-// RememberedSourceStore is the fakeable ledger seam used by Manager to persist
-// allowed inbound channel sources without mutating channel_directory.json. A
-// later refresh slice can merge this ledger into the directory read model.
-type RememberedSourceStore interface {
-	RememberSource(context.Context, RememberedSourceEntry) error
-}
+// RememberedSourceStore is kept as the package-level compatibility name for
+// the remembered-source persistence contract.
+type RememberedSourceStore = sources.RememberedStore
 
 // ChannelDirectorySourceStore persists a remembered-source ledger under a
 // caller-owned root. It is distinct from channel_directory.json on purpose.
