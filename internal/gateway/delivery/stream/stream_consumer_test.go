@@ -1,10 +1,11 @@
-package delivery
+package stream
 
 import (
 	"context"
 	"errors"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/delivery/routing"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
@@ -14,11 +15,11 @@ type recordingStreamSink struct {
 }
 
 type streamDeliveryCall struct {
-	target Target
+	target routing.Target
 	frame  kernel.RenderFrame
 }
 
-func (s *recordingStreamSink) DeliverFrame(_ context.Context, target Target, frame kernel.RenderFrame) error {
+func (s *recordingStreamSink) DeliverFrame(_ context.Context, target routing.Target, frame kernel.RenderFrame) error {
 	s.calls = append(s.calls, streamDeliveryCall{target: target, frame: frame})
 	if s.errs != nil {
 		return s.errs[target.String()]
@@ -30,7 +31,7 @@ func TestStreamConsumer_FanOutsToMultipleTargets(t *testing.T) {
 	sink := &recordingStreamSink{}
 	consumer := NewStreamConsumer(sink)
 	frame := kernel.RenderFrame{Phase: kernel.PhaseStreaming, DraftText: "partial", SessionID: "sess-1"}
-	targets := []Target{
+	targets := []routing.Target{
 		{Platform: "telegram", ChatID: "42", IsExplicit: true},
 		{Platform: "discord", ChatID: "99", IsExplicit: true},
 	}
@@ -62,7 +63,7 @@ func TestStreamConsumer_FanOutContinuesAfterError(t *testing.T) {
 	}
 	consumer := NewStreamConsumer(sink)
 	frame := kernel.RenderFrame{Phase: kernel.PhaseIdle, SessionID: "sess-2"}
-	targets := []Target{
+	targets := []routing.Target{
 		{Platform: "telegram", ChatID: "42", IsExplicit: true},
 		{Platform: "discord", ChatID: "99", IsExplicit: true},
 	}

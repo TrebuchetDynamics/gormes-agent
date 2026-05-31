@@ -1,4 +1,4 @@
-package delivery
+package stickers
 
 import (
 	"os"
