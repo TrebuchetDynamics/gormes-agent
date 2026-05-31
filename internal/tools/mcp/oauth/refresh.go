@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/redaction"
 )
 
 // ErrSessionExpired marks a 401-equivalent refresh failure that means the
@@ -41,6 +43,22 @@ func mergeRefreshedToken(previous, refreshed Token) Token {
 	return refreshed
 }
 
+type redactedRefreshError struct {
+	err error
+}
+
+func (e redactedRefreshError) Error() string {
+	return redaction.String(e.err.Error())
+}
+
+func (e redactedRefreshError) Unwrap() error {
+	return e.err
+}
+
+func safeRefreshError(server string, err error) error {
+	return fmt.Errorf("mcp oauth refresh %q: %w", server, redactedRefreshError{err: err})
+}
+
 // Refresh refreshes an expired OAuth token for server using refresher.
 func Refresh(ctx context.Context, store *Store, server string, refresher Refresher, now time.Time) (RefreshResult, error) {
 	result := RefreshResult{Server: server}
@@ -71,7 +89,7 @@ func Refresh(ctx context.Context, store *Store, server string, refresher Refresh
 			return result, nil
 		}
 		result.Outcome = RefreshOutcomeRefresherUnavailable
-		return result, fmt.Errorf("mcp oauth refresh %q: %w", server, err)
+		return result, safeRefreshError(server, err)
 	}
 	mergedToken := mergeRefreshedToken(tok, newToken)
 	if err := store.Set(server, mergedToken); err != nil {
