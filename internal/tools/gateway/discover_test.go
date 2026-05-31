@@ -114,6 +114,7 @@ func TestNormalizeGatewayEndpointsDropsInvalidAndKeepsFirstDuplicateCandidate(t 
 		{InstanceName: "missing-address", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceManual},
 		{InstanceName: "unsupported-scheme", Address: "localhost", Port: 18800, Scheme: "ftp", Source: GatewayEndpointSourceManual},
 		{InstanceName: "invalid-high-port", Address: "localhost", Port: 70000, Scheme: "ws", Source: GatewayEndpointSourceManual},
+		{InstanceName: "invalid-negative-port", Address: "negative.local", Port: -1, Scheme: "ws", Source: GatewayEndpointSourceManual},
 		{InstanceName: "bonjour-duplicate", Address: "localhost", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceBonjour},
 		{InstanceName: "secure", Address: "127.0.0.1", Port: 18789, Scheme: "https", Source: GatewayEndpointSourceBonjour},
 	})
@@ -122,7 +123,7 @@ func TestNormalizeGatewayEndpointsDropsInvalidAndKeepsFirstDuplicateCandidate(t 
 		t.Fatalf("endpoints = %+v, want 2 valid deduped candidates", endpoints)
 	}
 	for _, endpoint := range endpoints {
-		if endpoint.InstanceName == "unsupported-scheme" || endpoint.Scheme == "ftp" || endpoint.Port > 65535 {
+		if endpoint.InstanceName == "unsupported-scheme" || endpoint.InstanceName == "invalid-negative-port" || endpoint.Scheme == "ftp" || endpoint.Port <= 0 || endpoint.Port > 65535 {
 			t.Fatalf("endpoints = %+v, want invalid candidates dropped before discovery/probe output", endpoints)
 		}
 	}
