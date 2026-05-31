@@ -89,6 +89,45 @@ func TestGatewayEndpointNormalizationAppliesNonRoutingTXTHints(t *testing.T) {
 	})
 }
 
+func TestGatewayEndpointNormalizationClearsStaleWSURL(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		endpoint GatewayEndpoint
+	}{
+		{
+			name: "missing address",
+			endpoint: GatewayEndpoint{
+				Port:  18789,
+				WSURL: "ws://stale.local:18789",
+			},
+		},
+		{
+			name: "invalid port",
+			endpoint: GatewayEndpoint{
+				Address: "localhost",
+				Port:    70000,
+				WSURL:   "ws://stale.local:18789",
+			},
+		},
+		{
+			name: "unsupported scheme",
+			endpoint: GatewayEndpoint{
+				Address: "localhost",
+				Port:    18789,
+				Scheme:  "ftp",
+				WSURL:   "ws://stale.local:18789",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := NormalizeGatewayEndpoint(tc.endpoint)
+			if got.WSURL != "" {
+				t.Fatalf("WSURL = %q, want stale URL cleared for unroutable endpoint %+v", got.WSURL, got)
+			}
+		})
+	}
+}
+
 func TestGatewayEndpointNormalizationCanonicalizesHTTPAliases(t *testing.T) {
 	for _, tc := range []struct {
 		name       string

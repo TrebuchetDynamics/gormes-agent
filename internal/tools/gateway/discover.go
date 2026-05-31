@@ -175,8 +175,9 @@ func NormalizeGatewayEndpoint(endpoint GatewayEndpoint) GatewayEndpoint {
 	if endpoint.Port == 0 {
 		endpoint.Port = defaultGatewayPort
 	}
-	if endpoint.Address != "" && validGatewayEndpointPort(endpoint.Port) {
-		endpoint.WSURL = endpoint.Scheme + "://" + net.JoinHostPort(endpoint.Address, strconv.Itoa(endpoint.Port))
+	endpoint.WSURL = ""
+	if wsURL, ok := gatewayEndpointWSURL(endpoint); ok {
+		endpoint.WSURL = wsURL
 	}
 	return endpoint
 }
@@ -258,6 +259,14 @@ func parseGatewayEndpointScheme(raw string) (string, error) {
 
 func supportedGatewayEndpointScheme(scheme string) bool {
 	return scheme == "ws" || scheme == "wss"
+}
+
+func gatewayEndpointWSURL(endpoint GatewayEndpoint) (string, bool) {
+	address := strings.TrimSpace(endpoint.Address)
+	if address == "" || !validGatewayEndpointPort(endpoint.Port) || !supportedGatewayEndpointScheme(endpoint.Scheme) {
+		return "", false
+	}
+	return endpoint.Scheme + "://" + net.JoinHostPort(address, strconv.Itoa(endpoint.Port)), true
 }
 
 func normalizeGatewayEndpoints(in []GatewayEndpoint) []GatewayEndpoint {
