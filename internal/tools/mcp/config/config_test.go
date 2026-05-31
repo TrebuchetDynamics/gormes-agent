@@ -5,6 +5,16 @@ import (
 	"testing"
 )
 
+func TestParseMCPConfigJSONRejectsTrailingDocuments(t *testing.T) {
+	_, err := ParseMCPConfigJSON([]byte(`{"mcp_servers": {}} {"mcp_servers": {}}`), MCPConfigOptions{})
+	if err == nil {
+		t.Fatalf("ParseMCPConfigJSON succeeded for concatenated JSON documents")
+	}
+	if !strings.Contains(err.Error(), "trailing content") {
+		t.Fatalf("error = %q, want trailing content evidence", err.Error())
+	}
+}
+
 func TestResolveMCPConfigEnabledServerStillRequiresTransport(t *testing.T) {
 	resolved, err := ResolveMCPConfig(map[string]any{
 		"mcp_servers": map[string]any{

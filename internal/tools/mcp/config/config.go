@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"net/url"
 	"os"
@@ -146,13 +147,28 @@ func ParseMCPConfigYAML(data []byte, opts MCPConfigOptions) (MCPConfigResolution
 // ParseMCPConfigJSON parses a Hermes-compatible JSON document with a
 // top-level mcp_servers section.
 func ParseMCPConfigJSON(data []byte, opts MCPConfigOptions) (MCPConfigResolution, error) {
+	raw, err := decodeMCPConfigJSONDocument(data)
+	if err != nil {
+		return MCPConfigResolution{}, err
+	}
+	return ResolveMCPConfig(raw, opts)
+}
+
+func decodeMCPConfigJSONDocument(data []byte) (any, error) {
 	var raw any
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.UseNumber()
 	if err := dec.Decode(&raw); err != nil {
-		return MCPConfigResolution{}, fmt.Errorf("mcp config json: %w", err)
+		return nil, fmt.Errorf("mcp config json: %w", err)
 	}
-	return ResolveMCPConfig(raw, opts)
+	var extra any
+	if err := dec.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return nil, fmt.Errorf("mcp config json: trailing content after first document")
+		}
+		return nil, fmt.Errorf("mcp config json: trailing content after first document: %w", err)
+	}
+	return raw, nil
 }
 
 // ResolveMCPConfig turns an in-memory config document into safe server
