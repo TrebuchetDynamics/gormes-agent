@@ -1,17 +1,18 @@
-package toolkit
+package execution
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"strings"
+	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/builtins"
-	"testing"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/toolkit/core"
 )
 
 func TestInProcessExecutorEchoTool(t *testing.T) {
-	reg := NewRegistry()
+	reg := core.NewRegistry()
 	if err := reg.Register(&builtins.EchoTool{}); err != nil {
 		t.Fatalf("Register: %v", err)
 	}
@@ -41,20 +42,20 @@ func TestInProcessExecutorEchoTool(t *testing.T) {
 }
 
 func TestInProcessExecutorUnknownTool(t *testing.T) {
-	reg := NewRegistry()
+	reg := core.NewRegistry()
 	exec := NewInProcessToolExecutor(reg)
 
 	_, err := exec.Execute(context.Background(), ToolRequest{ToolName: "nope"})
 	if err == nil {
 		t.Fatal("Execute: want error, got nil")
 	}
-	if !errors.Is(err, ErrUnknownTool) {
+	if !errors.Is(err, core.ErrUnknownTool) {
 		t.Errorf("err: want ErrUnknownTool, got %v", err)
 	}
 }
 
 func TestInProcessExecutorToolErrorEmitsFailed(t *testing.T) {
-	reg := NewRegistry()
+	reg := core.NewRegistry()
 	if err := reg.Register(&builtins.EchoTool{}); err != nil {
 		t.Fatalf("Register: %v", err)
 	}

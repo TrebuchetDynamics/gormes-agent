@@ -1,4 +1,4 @@
-package toolkit
+package eventstream
 
 import (
 	"context"
@@ -10,6 +10,8 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/events"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/builtins"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/toolkit/core"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/toolkit/execution"
 )
 
 func TestToolEvents_WrappedExecutorPublishesLifecycle(t *testing.T) {
@@ -17,13 +19,13 @@ func TestToolEvents_WrappedExecutorPublishesLifecycle(t *testing.T) {
 	defer bus.Close()
 	eventCh := subscribeToolEventTopics(bus)
 
-	reg := NewRegistry()
+	reg := core.NewRegistry()
 	if err := reg.Register(&builtins.EchoTool{}); err != nil {
 		t.Fatalf("Register: %v", err)
 	}
-	exec := NewEventingToolExecutor(NewInProcessToolExecutor(reg), bus, "gateway")
+	exec := NewEventingToolExecutor(execution.NewInProcessToolExecutor(reg), bus, "gateway")
 
-	stream, err := exec.Execute(context.Background(), ToolRequest{
+	stream, err := exec.Execute(context.Background(), execution.ToolRequest{
 		AgentID:  "agent-main",
 		ToolName: "echo",
 		Input:    json.RawMessage(`{"text":"hi"}`),
@@ -65,18 +67,18 @@ func TestToolEvents_WrappedExecutorPublishesErrors(t *testing.T) {
 	defer bus.Close()
 	eventCh := subscribeToolEventTopics(bus)
 
-	reg := NewRegistry()
+	reg := core.NewRegistry()
 	if err := reg.Register(&builtins.EchoTool{}); err != nil {
 		t.Fatalf("Register: %v", err)
 	}
-	exec := NewEventingToolExecutor(NewInProcessToolExecutor(reg), bus, "gateway")
+	exec := NewEventingToolExecutor(execution.NewInProcessToolExecutor(reg), bus, "gateway")
 
-	_, err := exec.Execute(context.Background(), ToolRequest{
+	_, err := exec.Execute(context.Background(), execution.ToolRequest{
 		AgentID:  "agent-main",
 		ToolName: "missing",
 		Metadata: map[string]string{"tool_call_id": "call-missing"},
 	})
-	if !errors.Is(err, ErrUnknownTool) {
+	if !errors.Is(err, core.ErrUnknownTool) {
 		t.Fatalf("Execute missing: got %v, want ErrUnknownTool", err)
 	}
 
@@ -84,7 +86,7 @@ func TestToolEvents_WrappedExecutorPublishesErrors(t *testing.T) {
 	byType := toolEventsByType(got)
 	assertToolBusEvent(t, byType[TopicToolError], TopicToolError, "gateway", "call-missing", "agent-main", "missing", "unknown tool")
 
-	stream, err := exec.Execute(context.Background(), ToolRequest{
+	stream, err := exec.Execute(context.Background(), execution.ToolRequest{
 		AgentID:  "agent-main",
 		ToolName: "echo",
 		Input:    json.RawMessage(`{}`),
@@ -118,7 +120,7 @@ func subscribeToolEventTopics(bus events.EventBus) <-chan events.Event {
 	return ch
 }
 
-func drainToolEvents(stream <-chan ToolEvent) {
+func drainToolEvents(stream <-chan execution.ToolEvent) {
 	for range stream {
 	}
 }
