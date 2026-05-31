@@ -261,6 +261,27 @@ func TestGatewayEndpointCandidateClassificationExplainsDroppedCandidates(t *test
 	}
 }
 
+func TestParseDNSSDBrowseInstancesExtractsInstanceAfterDomainAndServiceColumns(t *testing.T) {
+	stdout := `Browsing for _openclaw-gw._tcp.local.
+DATE: ---Sun 31 May 2026---
+Timestamp     A/R    Flags  if Domain               Service Type         Instance Name
+20:41:02.123  Add        3   4 local.               _openclaw-gw._tcp.   Gormes Gateway
+20:41:03.456  Add        3   4 local.               _openclaw-gw._tcp.   Other\032Gateway
+20:41:04.789  Add        3   4 local.               _openclaw-gw._tcp.local.   Fully Qualified Gateway
+`
+
+	got := parseDNSSDBrowseInstances(stdout)
+	want := []string{"Fully Qualified Gateway", "Gormes Gateway", "Other Gateway"}
+	if len(got) != len(want) {
+		t.Fatalf("instances = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("instances = %#v, want %#v", got, want)
+		}
+	}
+}
+
 func TestParseDNSSDResolveGatewayKeepsQuotedTXTValuesWithSpaces(t *testing.T) {
 	stdout := `Lookup Gormes Gateway._openclaw-gw._tcp.local.
 Gormes Gateway._openclaw-gw._tcp.local. can be reached at workstation.local.:18789 (interface 4)

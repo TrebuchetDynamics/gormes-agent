@@ -488,26 +488,8 @@ func parseDNSSDBrowseInstances(stdout string) []string {
 	seen := map[string]bool{}
 	var instances []string
 	for _, raw := range strings.Split(stdout, "\n") {
-		line := strings.TrimSpace(raw)
-		if line == "" || strings.Contains(line, "DATE:") || strings.Contains(line, "Browsing for") {
-			continue
-		}
-		if !strings.Contains(line, GatewayBonjourServiceType) {
-			continue
-		}
-		idx := strings.Index(line, GatewayBonjourServiceType)
-		instance := strings.TrimSpace(line[idx+len(GatewayBonjourServiceType):])
-		instance = strings.TrimPrefix(instance, ".")
-		instance = strings.TrimSpace(instance)
-		if instance == "" {
-			fields := strings.Fields(line)
-			if len(fields) == 0 {
-				continue
-			}
-			instance = fields[len(fields)-1]
-		}
-		instance = decodeDNSSDText(instance)
-		if instance == "" || seen[instance] {
+		instance, ok := parseDNSSDBrowseInstanceLine(raw)
+		if !ok || seen[instance] {
 			continue
 		}
 		seen[instance] = true
@@ -515,6 +497,46 @@ func parseDNSSDBrowseInstances(stdout string) []string {
 	}
 	sort.Strings(instances)
 	return instances
+}
+
+func parseDNSSDBrowseInstanceLine(raw string) (string, bool) {
+	line := strings.TrimSpace(raw)
+	if line == "" || strings.Contains(line, "DATE:") || strings.Contains(line, "Browsing for") {
+		return "", false
+	}
+	if !strings.Contains(line, GatewayBonjourServiceType) {
+		return "", false
+	}
+	idx := strings.Index(line, GatewayBonjourServiceType)
+	afterService := line[idx+len(GatewayBonjourServiceType):]
+	instance := strings.TrimSpace(afterService)
+	instance = strings.TrimPrefix(instance, ".")
+	instance = strings.TrimSpace(instance)
+	if hasDNSSDBrowseServiceDomainSuffix(afterService) {
+		instance = trimDNSSDBrowseServiceDomain(instance)
+	}
+	if instance == "" {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			return "", false
+		}
+		instance = fields[len(fields)-1]
+	}
+	instance = decodeDNSSDText(instance)
+	return instance, instance != ""
+}
+
+func hasDNSSDBrowseServiceDomainSuffix(afterService string) bool {
+	return strings.HasPrefix(afterService, ".local.") || strings.HasPrefix(afterService, ".local ")
+}
+
+func trimDNSSDBrowseServiceDomain(instance string) string {
+	for _, prefix := range []string{"local.", "local"} {
+		if after, ok := strings.CutPrefix(instance, prefix); ok {
+			return strings.TrimSpace(after)
+		}
+	}
+	return instance
 }
 
 func parseDNSSDResolveGateway(stdout string, instance string) []GatewayEndpoint {
