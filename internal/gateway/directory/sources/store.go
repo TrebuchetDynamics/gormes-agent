@@ -35,10 +35,22 @@ func (s Store) jsonFile() storage.File {
 	return channelDirectorySourcesFileSpec.Apply(s.file)
 }
 
+func (s Store) loadFile() (storage.File, bool) {
+	file := s.jsonFile()
+	if file.Require() != nil {
+		return storage.File{}, false
+	}
+	return file, true
+}
+
 // Load reads the remembered-source ledger. Missing ledgers are not failures;
 // they simply contribute no session-discovered entries during refresh.
 func (s Store) Load() (model.RememberedSourceLedger, model.Evidence) {
-	ledger, err := storage.LoadValue(s.jsonFile(), model.EmptyRememberedSourceLedger, model.EnsureRememberedSourceLedger)
+	file, ok := s.loadFile()
+	if !ok {
+		return model.EmptyRememberedSourceLedger(), model.Evidence{}
+	}
+	ledger, err := storage.LoadValue(file, model.EmptyRememberedSourceLedger, model.EnsureRememberedSourceLedger)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return model.EmptyRememberedSourceLedger(), model.Evidence{}
