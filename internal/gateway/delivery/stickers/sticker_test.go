@@ -46,6 +46,21 @@ func TestStickerCache_StoreLookupAndOverwrite(t *testing.T) {
 	}
 }
 
+func TestStickerCache_EmptyUniqueIDIsIgnored(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sticker_cache.json")
+	now := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
+
+	if err := CacheStickerDescription(path, "  ", "stale sticker", "ghost", "Ghosts", now); err != nil {
+		t.Fatalf("CacheStickerDescription empty key: %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("empty unique ID created cache file err=%v, want no cache write", err)
+	}
+	if got, ok, err := GetCachedStickerDescription(path, "\t"); err != nil || ok || got.Description != "" {
+		t.Fatalf("empty unique ID lookup = %+v ok=%v err=%v, want miss without error", got, ok, err)
+	}
+}
+
 func TestBuildStickerInjection(t *testing.T) {
 	tests := []struct {
 		name        string

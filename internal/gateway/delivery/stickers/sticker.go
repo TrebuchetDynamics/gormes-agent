@@ -17,26 +17,39 @@ type StickerDescription struct {
 }
 
 func GetCachedStickerDescription(path, fileUniqueID string) (StickerDescription, bool, error) {
+	key, ok := stickerCacheKey(fileUniqueID)
+	if !ok {
+		return StickerDescription{}, false, nil
+	}
 	cache, err := loadStickerCache(path)
 	if err != nil {
 		return StickerDescription{}, false, err
 	}
-	entry, ok := cache[strings.TrimSpace(fileUniqueID)]
+	entry, ok := cache[key]
 	return entry, ok, nil
 }
 
 func CacheStickerDescription(path, fileUniqueID, description, emoji, setName string, now time.Time) error {
+	key, ok := stickerCacheKey(fileUniqueID)
+	if !ok {
+		return nil
+	}
 	cache, err := loadStickerCache(path)
 	if err != nil {
 		return err
 	}
-	cache[strings.TrimSpace(fileUniqueID)] = StickerDescription{
+	cache[key] = StickerDescription{
 		Description: strings.TrimSpace(description),
 		Emoji:       strings.TrimSpace(emoji),
 		SetName:     strings.TrimSpace(setName),
 		CachedAt:    now.Unix(),
 	}
 	return saveStickerCache(path, cache)
+}
+
+func stickerCacheKey(fileUniqueID string) (string, bool) {
+	key := strings.TrimSpace(fileUniqueID)
+	return key, key != ""
 }
 
 func BuildStickerInjection(description, emoji, setName string) string {
