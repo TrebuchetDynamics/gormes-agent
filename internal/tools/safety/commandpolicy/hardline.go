@@ -1,0 +1,126 @@
+package commandpolicy
+
+import (
+	"sync"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/safety/commandpatterns"
+)
+
+// HardlinePattern is a single entry in the unconditional hardline blocklist.
+//
+// Hardline rules describe commands so catastrophic that no approval mode
+// (yolo, mode=off, cron approve) may bypass them. Ported from Hermes
+// HARDLINE_PATTERNS at tools/approval.py@eb28145f.
+type HardlinePattern = commandpatterns.Entry
+
+const PythonRuntimeDisabledMessage = "Python runtime execution is disabled in Gormes"
+
+// cmdPos matches the start of a shell command position so that the
+// shutdown/reboot patterns do not fire on "echo reboot" or
+// "grep 'shutdown' logs". Mirrors Hermes _CMDPOS.
+const cmdPos = `(?:^|[;&|\n` + "`" + `]|\$\()` +
+	`\s*` +
+	`(?:sudo\s+(?:-[^\s]+\s+)*)?` +
+	`(?:env\s+(?:\w+=\S*\s+)*)?` +
+	`(?:(?:exec|nohup|setsid|time)\s+)*` +
+	`\s*`
+
+const FindRootWalkCommand = cmdPos + `find\b(?:\s+(?:--|-[^\s]+|[^\s;|&]+))*\s+/{1,2}(?:\s|$)`
+
+// HardlinePatterns is the unconditional hardline blocklist, ported from
+// Hermes HARDLINE_PATTERNS (tools/approval.py@eb28145f). Each entry pairs
+// a regex with a short human-readable description suitable for an audit
+// log line. Patterns are matched case-insensitively.
+var HardlinePatterns = []HardlinePattern{
+	{
+		Regex:       cmdPos + `(?:[\w./-]*/)?(?:python(?:[23](?:\.\d+)?)?|pypy3?)(?:\s|$)`,
+		Description: PythonRuntimeDisabledMessage,
+	},
+	{
+		Regex:       cmdPos + `uv\s+run(?:\s+[^\s]+)*\s+(?:[\w./-]*/)?(?:python(?:[23](?:\.\d+)?)?|pypy3?)(?:\s|$)`,
+		Description: PythonRuntimeDisabledMessage,
+	},
+	{
+		Regex:       `\brm\s+(-[^\s]*\s+)*(/|/\*|/ \*)(\s|$)`,
+		Description: "recursive delete of root filesystem",
+	},
+	{
+		Regex:       `\brm\s+(-[^\s]*\s+)*(/home|/home/\*|/root|/root/\*|/etc|/etc/\*|/usr|/usr/\*|/var|/var/\*|/bin|/bin/\*|/sbin|/sbin/\*|/boot|/boot/\*|/lib|/lib/\*)(\s|$)`,
+		Description: "recursive delete of system directory",
+	},
+	{
+		Regex:       `\brm\s+(-[^\s]*\s+)*(~|\$HOME)(/?|/\*)?(\s|$)`,
+		Description: "recursive delete of home directory",
+	},
+	{
+		Regex:       `\bmkfs(\.[a-z0-9]+)?\b`,
+		Description: "format filesystem (mkfs)",
+	},
+	{
+		Regex:       `\bdd\b[^\n]*\bof=/dev/(sd|nvme|hd|mmcblk|vd|xvd)[a-z0-9]*`,
+		Description: "dd to raw block device",
+	},
+	{
+		Regex:       `>\s*/dev/(sd|nvme|hd|mmcblk|vd|xvd)[a-z0-9]*\b`,
+		Description: "redirect to raw block device",
+	},
+	{
+		Regex:       `:\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:`,
+		Description: "fork bomb",
+	},
+	{
+		Regex:       `\bkill\s+(-[^\s]+\s+)*-1\b`,
+		Description: "kill all processes",
+	},
+	{
+		Regex:       FindRootWalkCommand,
+		Description: "root filesystem enumeration",
+	},
+	{
+		Regex:       cmdPos + `(shutdown|reboot|halt|poweroff)\b`,
+		Description: "system shutdown/reboot",
+	},
+	{
+		Regex:       cmdPos + `init\s+[06]\b`,
+		Description: "init 0/6 (shutdown/reboot)",
+	},
+	{
+		Regex:       cmdPos + `systemctl\s+(poweroff|reboot|halt|kexec)\b`,
+		Description: "systemctl poweroff/reboot",
+	},
+	{
+		Regex:       cmdPos + `telinit\s+[06]\b`,
+		Description: "telinit 0/6 (shutdown/reboot)",
+	},
+}
+
+var (
+	hardlineCompileOnce sync.Once
+	hardlineCompiled    []commandpatterns.Compiled
+)
+
+func compileHardlinePatterns() {
+	hardlineCompiled = commandpatterns.Compile(`(?i)`, HardlinePatterns)
+}
+
+func init() {
+	commandpatterns.MustValidate("HardlinePattern", `(?i)`, HardlinePatterns)
+}
+
+// DetectHardline reports whether cmd matches any unconditional hardline rule.
+// On match it returns (true, description) where description names the rule
+// that fired; otherwise it returns (false, ""). DetectHardline is pure: no
+// I/O, no globals beyond the lazily-compiled pattern list. Patterns are
+// compiled exactly once via sync.Once on first call.
+func DetectHardline(cmd string) (bool, string) {
+	if cmd == "" {
+		return false, ""
+	}
+	hardlineCompileOnce.Do(compileHardlinePatterns)
+	for _, c := range hardlineCompiled {
+		if c.Regex.MatchString(cmd) {
+			return true, c.Description
+		}
+	}
+	return false, ""
+}
