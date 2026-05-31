@@ -47,19 +47,8 @@ func (r *Refresher) Refresh(ctx context.Context) (cache.Directory, model.Evidenc
 	if err != nil {
 		return lastGood, model.Evidence{Code: model.EvidenceChannelDirectoryRefreshFailed}
 	}
-	dir := cache.NewDirectory(timestamp(r.Now))
-	for _, snapshot := range snapshots {
-		dir.UpsertEntries(snapshot.Platform, snapshot.Entries...)
-	}
 	ledger, sourceEvidence := r.Sources.Load()
-	if sourceEvidence.Code == "" {
-		for platform, entries := range ledger.Platforms {
-			for _, source := range entries {
-				dir.UpsertEntries(platform, source.ChannelDirectoryEntry())
-			}
-		}
-	}
-	sortDirectory(dir)
+	dir := buildDirectory(timestamp(r.Now), snapshots, ledger, sourceEvidence.Code == "")
 	if err := r.Directory.Save(dir); err != nil {
 		return lastGood, model.Evidence{Code: model.EvidenceChannelDirectoryRefreshFailed}
 	}
@@ -71,11 +60,4 @@ func timestamp(now func() time.Time) string {
 		now = time.Now
 	}
 	return now().UTC().Format(time.RFC3339)
-}
-
-func sortDirectory(dir cache.Directory) {
-	for platform, entries := range dir.Platforms {
-		model.SortEntriesByNameID(entries)
-		dir.Platforms[platform] = entries
-	}
 }
