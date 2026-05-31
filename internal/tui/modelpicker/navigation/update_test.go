@@ -1,15 +1,16 @@
-package modelpicker
+package navigation
 
 import (
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/modelpicker/contract"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestUpdateNavigatesProvidersAndModels(t *testing.T) {
-	state := State{
-		Providers:             []ProviderEntry{{ID: "anthropic", Label: "Anthropic"}, {ID: "openai", Label: "OpenAI"}},
-		Models:                []ModelEntry{{ID: "claude", Label: "Claude"}, {ID: "gpt", Label: "GPT"}},
+	state := contract.State{
+		Providers:             []contract.ProviderEntry{{ID: "anthropic", Label: "Anthropic"}, {ID: "openai", Label: "OpenAI"}},
+		Models:                []contract.ModelEntry{{ID: "claude", Label: "Claude"}, {ID: "gpt", Label: "GPT"}},
 		SelectedProviderIndex: 1,
 		SelectedModelIndex:    -1,
 	}
@@ -32,9 +33,9 @@ func TestUpdateNavigatesProvidersAndModels(t *testing.T) {
 }
 
 func TestUpdateEmitsConfirmAndCancelResults(t *testing.T) {
-	state := State{
-		Providers:             []ProviderEntry{{ID: "anthropic", Label: "Anthropic"}},
-		Models:                []ModelEntry{{ID: "claude", Label: "Claude"}},
+	state := contract.State{
+		Providers:             []contract.ProviderEntry{{ID: "anthropic", Label: "Anthropic"}},
+		Models:                []contract.ModelEntry{{ID: "claude", Label: "Claude"}},
 		SelectedProviderIndex: 0,
 		SelectedModelIndex:    0,
 		CurrentModel:          "fallback",

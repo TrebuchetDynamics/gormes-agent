@@ -1,4 +1,4 @@
-package modelpicker
+package catalog
 
 import (
 	"strings"
