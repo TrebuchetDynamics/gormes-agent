@@ -2,6 +2,18 @@ package model
 
 import "testing"
 
+func TestNormalizeQueryTrimsBeforeChannelMarker(t *testing.T) {
+	for raw, want := range map[string]string{
+		"#General":   "general",
+		" #General ": "general",
+		"General":    "general",
+	} {
+		if got := NormalizeQuery(raw); got != want {
+			t.Fatalf("NormalizeQuery(%q) = %q, want %q", raw, got, want)
+		}
+	}
+}
+
 func TestUpsertValidEntryNormalizesAndSkipsIncompleteEntries(t *testing.T) {
 	entries, ok := UpsertValidEntry(nil, Entry{ID: " 123 ", Name: " Ops ", Type: " group "})
 	if !ok {

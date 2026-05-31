@@ -41,7 +41,11 @@ func NormalizeEntry(entry Entry) Entry {
 
 // NormalizeQuery returns the canonical form used for human channel lookups.
 func NormalizeQuery(value string) string {
-	return strings.ToLower(trimText(strings.TrimLeft(value, "#")))
+	return strings.ToLower(trimLeadingChannelMarker(trimText(value)))
+}
+
+func trimLeadingChannelMarker(value string) string {
+	return trimText(strings.TrimLeft(value, "#"))
 }
 
 // UpsertEntry replaces an existing entry with the same normalized ID or appends
