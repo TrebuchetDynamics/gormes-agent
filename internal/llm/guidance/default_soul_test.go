@@ -2,7 +2,6 @@ package guidance
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -44,20 +43,4 @@ func TestDefaultSoulMDOwnsGormPersonaBoundary(t *testing.T) {
 	if DefaultAgentIdentity != DefaultSoulMD {
 		t.Fatalf("DefaultAgentIdentity must reuse DefaultSoulMD")
 	}
-}
-
-func upstreamDefaultSoulPath(t *testing.T) (string, bool) {
-	t.Helper()
-	candidates := []string{
-		filepath.Join("..", "..", "..", "hermes-agent", "hermes_cli", "default_soul.py"),
-		filepath.Join("..", "..", "..", "..", "hermes-agent", "hermes_cli", "default_soul.py"),
-		"/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/hermes_cli/default_soul.py",
-		"/home/xel/.hermes/hermes-agent/hermes_cli/default_soul.py",
-	}
-	for _, path := range candidates {
-		if info, err := os.Stat(path); err == nil && !info.IsDir() {
-			return path, true
-		}
-	}
-	return "", false
 }
