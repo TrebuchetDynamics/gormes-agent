@@ -26,10 +26,7 @@ func (d Directory) Resolve(platform, query string) (gatewaydelivery.Target, mode
 	if target, evidence, ok := resolveDirectoryMatches(platform, raw, exactNameMatches(platform, entries, normalized)); ok {
 		return target, evidence
 	}
-	if strings.Contains(normalized, "/") {
-		parts := strings.Split(normalized, "/")
-		guildPart := strings.Join(parts[:len(parts)-1], "/")
-		channelPart := parts[len(parts)-1]
+	if guildPart, channelPart, ok := guildQualifiedQueryParts(raw); ok {
 		if target, evidence, ok := resolveDirectoryMatches(platform, raw, guildQualifiedMatches(entries, guildPart, channelPart)); ok {
 			return target, evidence
 		}
@@ -48,6 +45,16 @@ func exactNameMatches(platform string, entries []model.Entry, normalized string)
 		}
 	}
 	return matches
+}
+
+func guildQualifiedQueryParts(raw string) (guildPart, channelPart string, ok bool) {
+	parts := strings.Split(strings.TrimSpace(raw), "/")
+	if len(parts) < 2 {
+		return "", "", false
+	}
+	guildPart = model.NormalizeGuildQuery(strings.Join(parts[:len(parts)-1], "/"))
+	channelPart = model.NormalizeQuery(parts[len(parts)-1])
+	return guildPart, channelPart, guildPart != "" && channelPart != ""
 }
 
 func guildQualifiedMatches(entries []model.Entry, guildPart, channelPart string) []model.Entry {

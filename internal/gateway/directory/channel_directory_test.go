@@ -63,7 +63,7 @@ func TestChannelDirectoryResolveDiscordGuildQualifiedName(t *testing.T) {
 			{ID: "222", Name: "general", Guild: "ServerB", Type: "channel"},
 		},
 	}}
-	for raw, wantID := range map[string]string{"ServerA/general": "111", "ServerB/general": "222"} {
+	for raw, wantID := range map[string]string{"ServerA/general": "111", "ServerA/#general": "111", "ServerB/general": "222"} {
 		got, evidence := dir.Resolve("discord", raw)
 		if evidence.Code != "" {
 			t.Fatalf("Resolve(%q) evidence = %+v", raw, evidence)
