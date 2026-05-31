@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/update/fileops"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/pathguard"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
@@ -548,29 +549,7 @@ func updateReleasePathWithin(root, target string) bool {
 }
 
 func replaceReleaseDataFile(source, target string) error {
-	if !textvalue.IsNonBlank(source) || !textvalue.IsNonBlank(target) {
-		return fmt.Errorf("source and target are required")
-	}
-	if info, err := os.Stat(target); err == nil && info.IsDir() {
-		return fmt.Errorf("cannot replace directory %s", target)
-	}
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-		return err
-	}
-	tmp := fmt.Sprintf("%s.tmp.%d", target, os.Getpid())
-	_ = os.Remove(tmp)
-	if err := copyFile(source, tmp); err != nil {
-		return err
-	}
-	if err := os.Chmod(tmp, 0o644); err != nil {
-		_ = os.Remove(tmp)
-		return err
-	}
-	if err := os.Rename(tmp, target); err != nil {
-		_ = os.Remove(tmp)
-		return err
-	}
-	return nil
+	return fileops.ReplaceFileAtomically(source, target, 0o644)
 }
 
 func updateReleaseSkillEntriesForSkillsPackage(entries []UpdateReleaseSkillManifestEntry) []skills.BundledSkillManifestEntry {

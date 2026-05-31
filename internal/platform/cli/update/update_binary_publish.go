@@ -2,17 +2,14 @@ package update
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/update/fileops"
 )
 
 type UpdateBinaryPublishOptions struct {
@@ -270,35 +267,11 @@ func restorePublishRollback(report *UpdateReport, backup, target string, existed
 }
 
 func copyFile(source, target string) error {
-	in, err := os.Open(source)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
-	if err != nil {
-		return err
-	}
-	_, copyErr := io.Copy(out, in)
-	closeErr := out.Close()
-	if copyErr != nil {
-		return copyErr
-	}
-	return closeErr
+	return fileops.CopyFile(source, target, 0o755)
 }
 
 func samePath(a, b string) bool {
-	if !textvalue.IsNonBlank(a) || !textvalue.IsNonBlank(b) {
-		return false
-	}
-	aa, errA := filepath.Abs(a)
-	bb, errB := filepath.Abs(b)
-	if errA == nil && errB == nil && aa == bb {
-		return true
-	}
-	ea, errA := filepath.EvalSymlinks(a)
-	eb, errB := filepath.EvalSymlinks(b)
-	return errA == nil && errB == nil && ea == eb
+	return fileops.SamePath(a, b)
 }
 
 func sameBinary(a, b string) bool {
@@ -319,16 +292,7 @@ func sameBinary(a, b string) bool {
 }
 
 func fileSHA256(path string) (string, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(hash.Sum(nil)), nil
+	return fileops.SHA256(path)
 }
 
 func commandFailureDetail(result UpdateCommandResult) string {
