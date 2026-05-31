@@ -8,7 +8,10 @@ import (
 	mcpstderr "github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/stderr"
 )
 
-const SchemaRejectionReasonInputSchemaNotObject = descriptor.SchemaRejectionReasonInputSchemaNotObject
+const (
+	SchemaRejectionReasonInputSchemaNotObject   = descriptor.SchemaRejectionReasonInputSchemaNotObject
+	SchemaRejectionReasonDuplicateSanitizedName = descriptor.SchemaRejectionReasonDuplicateSanitizedName
+)
 
 type NormalizedTool = descriptor.NormalizedTool
 

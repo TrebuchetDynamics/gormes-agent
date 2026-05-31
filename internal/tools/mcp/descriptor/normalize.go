@@ -11,6 +11,12 @@ import (
 // (e.g. a literal `true`, an array, or a scalar).
 const SchemaRejectionReasonInputSchemaNotObject = "input_schema_must_be_object"
 
+// SchemaRejectionReasonDuplicateSanitizedName is emitted when two advertised
+// tools collapse to the same provider-visible name after sanitization. Keeping
+// both would make later dispatch/registration order-dependent, so the first
+// candidate wins and later collisions are reported as rejected inventory.
+const SchemaRejectionReasonDuplicateSanitizedName = "duplicate_sanitized_name"
+
 // defaultInputSchema is the JSON-Schema fragment substituted when an MCP tool
 // advertises no InputSchema or an explicit JSON `null`. Hermes' upstream
 // _normalize_mcp_input_schema applies the same fallback so providers that
@@ -63,25 +69,43 @@ type NormalizeResult struct {
 // with their names sanitized for provider compatibility.
 func NormalizeTools(serverName string, raw []RawTool) NormalizeResult {
 	out := NormalizeResult{}
+	seenNames := map[string]bool{}
 	for _, t := range raw {
-		schema, ok := NormalizeInputSchema(t.InputSchema)
+		tool, rejection, ok := normalizeToolCandidate(serverName, t, seenNames)
 		if !ok {
-			out.Rejected = append(out.Rejected, SchemaRejection{
-				ServerName: serverName,
-				ToolName:   t.Name,
-				Reason:     SchemaRejectionReasonInputSchemaNotObject,
-			})
+			out.Rejected = append(out.Rejected, rejection)
 			continue
 		}
-		out.Tools = append(out.Tools, NormalizedTool{
-			Name:        SanitizeNameComponent(t.Name),
-			ServerName:  serverName,
-			Description: t.Description,
-			InputSchema: schema,
-			SourceRaw:   t,
-		})
+		seenNames[tool.Name] = true
+		out.Tools = append(out.Tools, tool)
 	}
 	return out
+}
+
+func normalizeToolCandidate(serverName string, t RawTool, seenNames map[string]bool) (NormalizedTool, SchemaRejection, bool) {
+	schema, ok := NormalizeInputSchema(t.InputSchema)
+	if !ok {
+		return NormalizedTool{}, SchemaRejection{
+			ServerName: serverName,
+			ToolName:   t.Name,
+			Reason:     SchemaRejectionReasonInputSchemaNotObject,
+		}, false
+	}
+	name := SanitizeNameComponent(t.Name)
+	if seenNames[name] {
+		return NormalizedTool{}, SchemaRejection{
+			ServerName: serverName,
+			ToolName:   t.Name,
+			Reason:     SchemaRejectionReasonDuplicateSanitizedName,
+		}, false
+	}
+	return NormalizedTool{
+		Name:        name,
+		ServerName:  serverName,
+		Description: t.Description,
+		InputSchema: schema,
+		SourceRaw:   t,
+	}, SchemaRejection{}, true
 }
 
 // SanitizeNameComponent mirrors hermes' upstream helper: characters not in
