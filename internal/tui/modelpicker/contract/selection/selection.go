@@ -7,13 +7,6 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/modelpicker/contract/schema"
 )
 
-// ProviderIDEqual reports whether two provider IDs identify the same provider.
-// Provider selection accepts case-insensitive IDs so slash-command input can
-// preserve the operator's typed casing while still matching catalog entries.
-func ProviderIDEqual(left, right string) bool {
-	return identity.ProviderIDEqual(left, right)
-}
-
 // ModelListFocused reports whether keyboard navigation is currently inside
 // the model list instead of the provider list.
 func ModelListFocused(state schema.State) bool {
@@ -51,7 +44,7 @@ func Model(state schema.State) (schema.ModelEntry, bool) {
 // IsCurrentModel reports whether a provider/model row represents the current
 // runtime selection shown by the picker.
 func IsCurrentModel(state schema.State, providerID, modelID string) bool {
-	return state.CurrentModel == modelID && ProviderIDEqual(state.CurrentProvider, providerID)
+	return state.CurrentModel == modelID && identity.ProviderIDEqual(state.CurrentProvider, providerID)
 }
 
 // ConfirmedResult returns the provider/model pair emitted when the operator
@@ -77,7 +70,7 @@ func NormalizeConfirmed(catalog []schema.CatalogProvider, provider, model string
 	provider = strings.TrimSpace(provider)
 	model = strings.TrimSpace(model)
 	for _, entry := range catalog {
-		if !ProviderIDEqual(entry.Provider.ID, provider) {
+		if !identity.ProviderIDEqual(entry.Provider.ID, provider) {
 			continue
 		}
 		if model != "" {
