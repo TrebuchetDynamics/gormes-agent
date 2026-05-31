@@ -144,7 +144,15 @@ func RunFiltered(
 	args map[string]any,
 	redactArgs bool,
 ) Result {
-	declared := ToolDeclaration{ServerName: server, ToolName: tool}
+	declared, err := declarationForInvocation(ctx, host, server, tool)
+	if err != nil {
+		res := Result{
+			Status: ResultStatusError,
+			Reason: fmt.Sprintf("list tools failed: %s", err.Error()),
+		}
+		recordAudit(auditor, server, tool, redactArgs, res)
+		return res
+	}
 	if !filter.Allows(declared) {
 		// Filter exclusion is recorded as an error result; the boundary never
 		// reveals argument values regardless of redactArgs.
@@ -174,6 +182,23 @@ func RunFiltered(
 	}
 	recordAudit(auditor, server, tool, redactArgs, res)
 	return res
+}
+
+func declarationForInvocation(ctx context.Context, host Host, server, tool string) (ToolDeclaration, error) {
+	fallback := ToolDeclaration{ServerName: server, ToolName: tool}
+	if host == nil {
+		return fallback, nil
+	}
+	decls, err := host.List(ctx)
+	if err != nil {
+		return ToolDeclaration{}, err
+	}
+	for _, decl := range decls {
+		if decl.ServerName == server && decl.ToolName == tool {
+			return decl, nil
+		}
+	}
+	return fallback, nil
 }
 
 func recordAudit(auditor Auditor, server, tool string, redacted bool, res Result) {

@@ -160,6 +160,47 @@ func TestToolFilter_ChannelTrustToolsetRestriction(t *testing.T) {
 	}
 }
 
+// TestRunFiltered_EnforcesDeclaredToolScopeBeforeInvoke proves that the host
+// boundary filters against the tool declaration returned by List, not an
+// unscoped placeholder assembled from the requested server/tool names.
+func TestRunFiltered_EnforcesDeclaredToolScopeBeforeInvoke(t *testing.T) {
+	t.Parallel()
+
+	host := newFakeMCPHost()
+	host.tools["slack_only"] = fakeMCPTool{
+		decl: ToolDeclaration{
+			ServerName: "honcho",
+			ToolName:   "slack_only",
+			Channels:   []string{"slack"},
+		},
+		result: Result{Status: ResultStatusOK, Body: []byte(`{"ok":true}`)},
+	}
+	auditor := &fakeMCPAuditor{}
+	filter := ToolFilter{Channel: "discord", TrustClass: access.TrustClassOperator}
+
+	res := RunFiltered(context.Background(), host, filter, auditor,
+		"honcho", "slack_only",
+		map[string]any{"peer": "alice"},
+		true,
+	)
+
+	if res.Status != ResultStatusError {
+		t.Fatalf("status = %q, want %q", res.Status, ResultStatusError)
+	}
+	if !strings.Contains(res.Reason, "not allowed by filter") {
+		t.Fatalf("reason = %q, want filter denial evidence", res.Reason)
+	}
+	if host.invoked {
+		t.Fatal("RunFiltered invoked host despite declaration filter denial")
+	}
+	if len(auditor.events) != 1 {
+		t.Fatalf("audit events = %d, want 1", len(auditor.events))
+	}
+	if auditor.events[0].Status != ResultStatusError {
+		t.Fatalf("audit status = %q, want %q", auditor.events[0].Status, ResultStatusError)
+	}
+}
+
 // TestMCPHostAudit_RecordsServerToolNameAndRedactionStatus proves that audit
 // events emitted by the host wrapper carry server name, tool name,
 // args-redaction status, and result status (ok / unavailable / error).
@@ -288,7 +329,8 @@ func TestMCPHostAudit_UnavailableEvidence(t *testing.T) {
 
 // fakeMCPHost is an in-memory MCPHost used only by these tests.
 type fakeMCPHost struct {
-	tools map[string]fakeMCPTool
+	tools   map[string]fakeMCPTool
+	invoked bool
 }
 
 func newFakeMCPHost() *fakeMCPHost {
@@ -309,6 +351,7 @@ func (f *fakeMCPHost) List(_ context.Context) ([]ToolDeclaration, error) {
 }
 
 func (f *fakeMCPHost) Invoke(_ context.Context, server, tool string, _ map[string]any) (Result, error) {
+	f.invoked = true
 	t, ok := f.tools[tool]
 	if !ok {
 		return Result{Status: ResultStatusUnavailable, Reason: "no such tool"}, nil
