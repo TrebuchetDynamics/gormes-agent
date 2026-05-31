@@ -64,6 +64,32 @@ func TestToolResultBudget_TruncatesTextAndPersistsArtifact(t *testing.T) {
 	}
 }
 
+func TestToolResultBudget_UnderBudgetTextReturnsFullOutputNotPreview(t *testing.T) {
+	raw := []byte("0123456789")
+	cfg := ToolResultBudgetConfig{
+		OutputDir:       t.TempDir(),
+		TextBudgetBytes: 16,
+		PreviewBytes:    4,
+	}
+
+	text, evidence, err := FormatToolResult(cfg, raw, "text/plain")
+	if err != nil {
+		t.Fatalf("FormatToolResult: %v", err)
+	}
+	if text != string(raw) {
+		t.Fatalf("under-budget text = %q, want full output %q", text, string(raw))
+	}
+	if evidence.Code != ToolResultEvidenceUnderBudget {
+		t.Fatalf("evidence.Code = %q, want %q", evidence.Code, ToolResultEvidenceUnderBudget)
+	}
+	if evidence.Preview != string(raw) {
+		t.Fatalf("evidence.Preview = %q, want full under-budget output %q", evidence.Preview, string(raw))
+	}
+	if evidence.Artifact != "" {
+		t.Fatalf("evidence.Artifact = %q, want empty for under-budget output", evidence.Artifact)
+	}
+}
+
 func TestToolResultBudget_StripsANSIFromTextBeforeModelOrArtifact(t *testing.T) {
 	dir := t.TempDir()
 	raw := []byte("ok\x1b[31mred\x1b[0m" + strings.Repeat("x", 512))

@@ -81,9 +81,10 @@ func FormatToolResult(cfg ToolResultBudgetConfig, raw []byte, mediaType string) 
 	preview := safePreview(raw, cfg.PreviewBytes)
 
 	if !cfg.shouldPersist(raw, mediaType) {
-		return preview, ToolResultEvidence{
+		inline := inlineUnderBudgetText(raw)
+		return inline, ToolResultEvidence{
 			Code:    ToolResultEvidenceUnderBudget,
-			Preview: preview,
+			Preview: inline,
 			Bytes:   bytes,
 		}, nil
 	}
@@ -139,6 +140,13 @@ func (cfg ToolResultBudgetConfig) shouldPersist(raw []byte, mediaType string) bo
 		return true
 	}
 	return len(raw) > cfg.TextBudgetBytes
+}
+
+// inlineUnderBudgetText is the no-loss path for text that already fits the
+// configured budget. The preview limit must not apply here; otherwise a
+// payload can be reported as under budget while silently dropping bytes.
+func inlineUnderBudgetText(raw []byte) string {
+	return string(raw)
 }
 
 func isTextMedia(mediaType string) bool {
