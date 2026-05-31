@@ -74,6 +74,24 @@ func TestSearchFilesHiddenRootStillRootConfined(t *testing.T) {
 	}
 }
 
+func TestSearchFilesOffsetWindowReportsTruncatedWhenEarlierCandidatesWereSkipped(t *testing.T) {
+	root := t.TempDir()
+	for _, rel := range []string{"a.txt", "b.txt", "c.txt"} {
+		writeSearchFixture(t, root, rel, "needle\n")
+	}
+
+	tool := NewSearchFilesTool(FileTaskToolConfig{Root: root})
+	out := executeSearchFilesTool(t, tool, `{"pattern":"needle","target":"content","output_mode":"files_only","offset":2,"limit":1}`)
+	got := searchFileList(out)
+	want := []string{"c.txt"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("files = %#v, want %#v; output=%#v", got, want, out)
+	}
+	if out["truncated"] != true {
+		t.Fatalf("truncated = %#v, want true when offset skips earlier matches; output=%#v", out["truncated"], out)
+	}
+}
+
 func TestSearchFilesContentContextIncludesNeighborLines(t *testing.T) {
 	root := t.TempDir()
 	writeSearchFixture(t, root, "dir/file-12-name.py", "before context\nneedle line\nafter context\n")

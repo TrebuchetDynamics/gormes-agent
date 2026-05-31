@@ -2304,26 +2304,38 @@ func clampInt(value, fallback, max int) int {
 	return value
 }
 
-func windowStrings(values []string, offset, limit int) ([]string, bool) {
-	if offset > len(values) {
-		offset = len(values)
+type searchWindowBounds struct {
+	start     int
+	end       int
+	truncated bool
+}
+
+func computeSearchWindowBounds(total, offset, limit int) searchWindowBounds {
+	if offset < 0 {
+		offset = 0
+	}
+	if offset > total {
+		offset = total
 	}
 	end := offset + limit
-	if end > len(values) {
-		end = len(values)
+	if end > total {
+		end = total
 	}
-	return append([]string(nil), values[offset:end]...), end < len(values)
+	return searchWindowBounds{
+		start:     offset,
+		end:       end,
+		truncated: offset > 0 || end < total,
+	}
+}
+
+func windowStrings(values []string, offset, limit int) ([]string, bool) {
+	bounds := computeSearchWindowBounds(len(values), offset, limit)
+	return append([]string(nil), values[bounds.start:bounds.end]...), bounds.truncated
 }
 
 func windowMatches(values []map[string]any, offset, limit int) ([]map[string]any, bool) {
-	if offset > len(values) {
-		offset = len(values)
-	}
-	end := offset + limit
-	if end > len(values) {
-		end = len(values)
-	}
-	return append([]map[string]any(nil), values[offset:end]...), end < len(values)
+	bounds := computeSearchWindowBounds(len(values), offset, limit)
+	return append([]map[string]any(nil), values[bounds.start:bounds.end]...), bounds.truncated
 }
 
 func defaultJSONArgs(args json.RawMessage) json.RawMessage {
