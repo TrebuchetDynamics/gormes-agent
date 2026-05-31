@@ -297,11 +297,21 @@ func toolInputSchema(name string) map[string]interface{} {
 	}
 }
 
-func (s *MCPServer) conversationsListHandler(ctx context.Context, args map[string]interface{}) (interface{}, error) {
-	limit := 50
+const defaultMCPListLimit = 50
+
+func normalizeMCPListLimit(args map[string]interface{}) int {
+	limit := defaultMCPListLimit
 	if l, ok := args["limit"].(float64); ok {
 		limit = int(l)
 	}
+	if limit <= 0 {
+		return defaultMCPListLimit
+	}
+	return limit
+}
+
+func (s *MCPServer) conversationsListHandler(ctx context.Context, args map[string]interface{}) (interface{}, error) {
+	limit := normalizeMCPListLimit(args)
 	var sessions []SessionEntry
 	var err error
 	if s.sessionStore != nil {
@@ -345,13 +355,7 @@ func (s *MCPServer) messagesListHandler(ctx context.Context, args map[string]int
 	if !ok || sessionKey == "" {
 		return nil, fmt.Errorf("session_key is required")
 	}
-	limit := 50
-	if l, ok := args["limit"].(float64); ok {
-		limit = int(l)
-	}
-	if limit <= 0 {
-		limit = 50
-	}
+	limit := normalizeMCPListLimit(args)
 	var messages []MessageEntry
 	var err error
 	if s.db != nil {
@@ -430,13 +434,7 @@ func (s *MCPServer) toolsListHandler(ctx context.Context, args map[string]interf
 }
 
 func (s *MCPServer) sessionsListHandler(ctx context.Context, args map[string]interface{}) (interface{}, error) {
-	limit := 50
-	if l, ok := args["limit"].(float64); ok {
-		limit = int(l)
-	}
-	if limit <= 0 {
-		limit = 50
-	}
+	limit := normalizeMCPListLimit(args)
 	var sessions []SessionEntry
 	var err error
 	if s.sessionStore != nil {
