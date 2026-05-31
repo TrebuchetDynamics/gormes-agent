@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/navigation"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -166,8 +167,8 @@ func (s *CommandsScreen) View() string {
 		fmt.Fprintf(&b, "No commands match %q.\n", s.query)
 		return b.String()
 	}
-	selected := clampedSelected(s.selected, len(visible))
-	start, end := commandWindow(selected, len(visible), 12)
+	selected := navigation.ClampIndex(s.selected, len(visible))
+	start, end := navigation.Window(selected, len(visible), 12)
 	for i := start; i < end; i++ {
 		entry := visible[i]
 		marker := " "
@@ -296,36 +297,15 @@ func (s *CommandsScreen) removeQueryRune() {
 }
 
 func (s *CommandsScreen) moveSelected(delta int) {
-	visible := s.visibleEntries()
-	if len(visible) == 0 {
-		s.selected = 0
-		return
-	}
-	s.selected += delta
-	s.clampSelected(len(visible))
+	s.selected = navigation.MoveIndex(s.selected, len(s.visibleEntries()), delta)
 }
 
 func (s *CommandsScreen) selectEnd() {
-	visible := s.visibleEntries()
-	if len(visible) == 0 {
-		s.selected = 0
-		return
-	}
-	s.selected = len(visible) - 1
+	s.selected = navigation.ClampIndex(len(s.visibleEntries())-1, len(s.visibleEntries()))
 }
 
 func (s *CommandsScreen) clampSelected(total int) {
-	s.selected = clampedSelected(s.selected, total)
-}
-
-func clampedSelected(selected, total int) int {
-	if total <= 0 || selected < 0 {
-		return 0
-	}
-	if selected >= total {
-		return total - 1
-	}
-	return selected
+	s.selected = navigation.ClampIndex(s.selected, total)
 }
 
 func commandRunLabel(entry CommandEntry) string {
@@ -336,20 +316,6 @@ func commandRunLabel(entry CommandEntry) string {
 		return entry.Use
 	}
 	return "gormes " + entry.Path
-}
-
-func commandWindow(selected, total, size int) (int, int) {
-	if total <= size {
-		return 0, total
-	}
-	start := selected - size/2
-	if start < 0 {
-		start = 0
-	}
-	if start+size > total {
-		start = total - size
-	}
-	return start, start + size
 }
 
 func cloneCommandEntries(entries []CommandEntry) []CommandEntry {

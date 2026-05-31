@@ -1,5 +1,6 @@
 gateway
 gateway/directory
+llm
 llm/guidance
 tools
 tools/goncho

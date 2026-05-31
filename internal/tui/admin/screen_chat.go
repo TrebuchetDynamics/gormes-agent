@@ -13,6 +13,7 @@ import (
 	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/navigation"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -230,13 +231,9 @@ func (s *ChatScreen) updateAgentPicker(msg tea.KeyMsg) (Screen, tea.Cmd) {
 	case "esc":
 		s.pickerOpen = false
 	case "up", "k":
-		if s.pickerCursor > 0 {
-			s.pickerCursor--
-		}
+		s.pickerCursor = navigation.MoveIndex(s.pickerCursor, len(s.pickerAgents), -1)
 	case "down", "j":
-		if s.pickerCursor < len(s.pickerAgents)-1 {
-			s.pickerCursor++
-		}
+		s.pickerCursor = navigation.MoveIndex(s.pickerCursor, len(s.pickerAgents), 1)
 	case "enter":
 		if len(s.pickerAgents) > 0 {
 			s.activeAgent = s.pickerAgents[s.pickerCursor].ID

@@ -12,6 +12,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agenttemplate"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/navigation"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -139,13 +140,9 @@ func (s *SetupHealthScreen) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		case "r", "R":
 			return s, s.refreshCmd()
 		case "up", "k":
-			if s.selected > 0 {
-				s.selected--
-			}
+			s.selected = navigation.MoveIndex(s.selected, len(s.items), -1)
 		case "down", "j":
-			if s.selected < len(s.items)-1 {
-				s.selected++
-			}
+			s.selected = navigation.MoveIndex(s.selected, len(s.items), 1)
 		case "enter":
 			if item, ok := s.selectedItem(); ok && item.Fixable {
 				cfg, _ := config.Load(nil)
@@ -383,12 +380,7 @@ func (s *SetupHealthScreen) refreshCmd() tea.Cmd {
 func (s *SetupHealthScreen) applyHealth(items []HealthItem, err error) {
 	s.items = append([]HealthItem(nil), items...)
 	s.err = err
-	if s.selected >= len(s.items) {
-		s.selected = len(s.items) - 1
-	}
-	if s.selected < 0 {
-		s.selected = 0
-	}
+	s.selected = navigation.ClampIndex(s.selected, len(s.items))
 }
 
 type healthCheckedMsg struct {
@@ -471,13 +463,9 @@ func (f *providerFixState) Update(msg tea.KeyMsg) (bool, error) {
 	case wizard.KindPick:
 		switch msg.String() {
 		case "up", "k":
-			if f.pickCursor > 0 {
-				f.pickCursor--
-			}
+			f.pickCursor = navigation.MoveIndex(f.pickCursor, len(step.Choices), -1)
 		case "down", "j":
-			if f.pickCursor < len(step.Choices)-1 {
-				f.pickCursor++
-			}
+			f.pickCursor = navigation.MoveIndex(f.pickCursor, len(step.Choices), 1)
 		case "enter":
 			if len(step.Choices) == 0 {
 				return false, fmt.Errorf("provider choices missing")

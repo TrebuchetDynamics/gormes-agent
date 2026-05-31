@@ -8,6 +8,7 @@ import (
 	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/navigation"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -65,12 +66,7 @@ func (s *AgentsScreen) Update(msg tea.Msg) (Screen, tea.Cmd) {
 	case agentsLoadedMsg:
 		s.records = append([]goncho.AgentRecord(nil), msg.records...)
 		s.err = msg.err
-		if s.selected >= len(s.records) {
-			s.selected = len(s.records) - 1
-		}
-		if s.selected < 0 {
-			s.selected = 0
-		}
+		s.selected = navigation.ClampIndex(s.selected, len(s.records))
 	case agentCreatedMsg:
 		if msg.err != nil {
 			s.message = "spawn failed: " + msg.err.Error()
@@ -339,13 +335,9 @@ func (w *agentsWizardState) Update(msg tea.KeyMsg) (bool, error) {
 	case wizard.KindPick:
 		switch msg.String() {
 		case "up", "k":
-			if w.pickCursor > 0 {
-				w.pickCursor--
-			}
+			w.pickCursor = navigation.MoveIndex(w.pickCursor, len(step.Choices), -1)
 		case "down", "j":
-			if w.pickCursor < len(step.Choices)-1 {
-				w.pickCursor++
-			}
+			w.pickCursor = navigation.MoveIndex(w.pickCursor, len(step.Choices), 1)
 		case "enter":
 			if len(step.Choices) == 0 {
 				return false, fmt.Errorf("wizard step %q has no choices", step.ID)
