@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	gatewaydelivery "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/delivery"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/model"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/storage"
 	"os"
 	"path/filepath"
@@ -22,25 +23,13 @@ type ChannelDirectory struct {
 	Platforms map[string][]ChannelDirectoryEntry `json:"platforms"`
 }
 
-// ChannelDirectoryEntry describes one platform target that can be selected by
-// exact ID, human display name, guild-qualified name, or type/display lookup.
-type ChannelDirectoryEntry struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Type      string `json:"type,omitempty"`
-	Guild     string `json:"guild,omitempty"`
-	ChatID    string `json:"chat_id,omitempty"`
-	ThreadID  string `json:"thread_id,omitempty"`
-	ChatTopic string `json:"chat_topic,omitempty"`
-}
+// ChannelDirectoryEntry is kept as the package-level compatibility name for
+// the shared directory target value contract.
+type ChannelDirectoryEntry = model.Entry
 
-// ChannelDirectoryEvidence carries user-safe degraded-mode evidence without
-// leaking local state paths.
-type ChannelDirectoryEvidence struct {
-	Code     string
-	Platform string
-	Query    string
-}
+// ChannelDirectoryEvidence is kept as the package-level compatibility name for
+// shared user-safe degraded-mode evidence.
+type ChannelDirectoryEvidence = model.Evidence
 
 // ChannelDirectoryStore persists channel_directory.json under a caller-owned
 // Gormes state/home root. Tests pass temp roots; no live operator home is read.
@@ -117,13 +106,13 @@ func (d ChannelDirectory) Resolve(platform, query string) (gatewaydelivery.Targe
 	}
 	for _, entry := range entries {
 		if entry.ID == raw {
-			return entry.deliveryTarget(platform), ChannelDirectoryEvidence{}
+			return model.DeliveryTarget(platform, entry), ChannelDirectoryEvidence{}
 		}
 	}
-	normalized := normalizeChannelQuery(raw)
+	normalized := model.NormalizeQuery(raw)
 	for _, entry := range entries {
-		if normalizeChannelQuery(entry.Name) == normalized || normalizeChannelQuery(channelTargetName(platform, entry)) == normalized {
-			return entry.deliveryTarget(platform), ChannelDirectoryEvidence{}
+		if model.NormalizeQuery(entry.Name) == normalized || model.NormalizeQuery(channelTargetName(platform, entry)) == normalized {
+			return model.DeliveryTarget(platform, entry), ChannelDirectoryEvidence{}
 		}
 	}
 	if strings.Contains(normalized, "/") {
@@ -131,20 +120,20 @@ func (d ChannelDirectory) Resolve(platform, query string) (gatewaydelivery.Targe
 		guildPart := strings.Join(parts[:len(parts)-1], "/")
 		channelPart := parts[len(parts)-1]
 		for _, entry := range entries {
-			if strings.ToLower(strings.TrimSpace(entry.Guild)) == guildPart && normalizeChannelQuery(entry.Name) == channelPart {
-				return entry.deliveryTarget(platform), ChannelDirectoryEvidence{}
+			if strings.ToLower(strings.TrimSpace(entry.Guild)) == guildPart && model.NormalizeQuery(entry.Name) == channelPart {
+				return model.DeliveryTarget(platform, entry), ChannelDirectoryEvidence{}
 			}
 		}
 	}
 	matches := make([]ChannelDirectoryEntry, 0, 1)
 	for _, entry := range entries {
-		if strings.HasPrefix(normalizeChannelQuery(entry.Name), normalized) {
+		if strings.HasPrefix(model.NormalizeQuery(entry.Name), normalized) {
 			matches = append(matches, entry)
 		}
 	}
 	switch len(matches) {
 	case 1:
-		return matches[0].deliveryTarget(platform), ChannelDirectoryEvidence{}
+		return model.DeliveryTarget(platform, matches[0]), ChannelDirectoryEvidence{}
 	case 0:
 		return gatewaydelivery.Target{}, ChannelDirectoryEvidence{Code: "channel_directory_missing", Platform: platform, Query: raw}
 	default:
@@ -166,7 +155,7 @@ func (d ChannelDirectory) ValidateDeliveryTarget(target gatewaydelivery.Target) 
 		return target, ChannelDirectoryEvidence{}
 	}
 	for _, entry := range entries {
-		candidate := entry.deliveryTarget(platform)
+		candidate := model.DeliveryTarget(platform, entry)
 		if candidate.ChatID == strings.TrimSpace(target.ChatID) && candidate.ThreadID == strings.TrimSpace(target.ThreadID) {
 			return target, ChannelDirectoryEvidence{}
 		}
@@ -250,23 +239,6 @@ func (d ChannelDirectory) hasEntries() bool {
 		}
 	}
 	return false
-}
-
-func (e ChannelDirectoryEntry) deliveryTarget(platform string) gatewaydelivery.Target {
-	chatID := strings.TrimSpace(e.ChatID)
-	threadID := strings.TrimSpace(e.ThreadID)
-	if chatID == "" {
-		parts := strings.SplitN(strings.TrimSpace(e.ID), ":", 2)
-		chatID = parts[0]
-		if len(parts) == 2 && threadID == "" {
-			threadID = parts[1]
-		}
-	}
-	return gatewaydelivery.Target{Platform: platform, ChatID: chatID, ThreadID: threadID, IsExplicit: true}
-}
-
-func normalizeChannelQuery(value string) string {
-	return strings.ToLower(strings.TrimSpace(strings.TrimLeft(value, "#")))
 }
 
 func channelTargetName(platform string, entry ChannelDirectoryEntry) string {

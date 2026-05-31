@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/model"
 )
 
 // ChannelDirectoryAdapterSnapshot is an already-enumerated, fixture-friendly
@@ -52,7 +54,7 @@ func (r *ChannelDirectoryRefresher) Refresh(ctx context.Context) (ChannelDirecto
 			continue
 		}
 		for _, entry := range snapshot.Entries {
-			entry = normalizeChannelDirectoryEntry(entry)
+			entry = model.NormalizeEntry(entry)
 			if entry.ID == "" || entry.Name == "" {
 				continue
 			}
@@ -67,8 +69,7 @@ func (r *ChannelDirectoryRefresher) Refresh(ctx context.Context) (ChannelDirecto
 				continue
 			}
 			for _, source := range entries {
-				entry := source.ChannelDirectoryEntry()
-				entry = normalizeChannelDirectoryEntry(entry)
+				entry := model.NormalizeEntry(source.ChannelDirectoryEntry())
 				if entry.ID == "" || entry.Name == "" {
 					continue
 				}
@@ -88,17 +89,6 @@ func refreshTimestamp(now func() time.Time) string {
 		now = time.Now
 	}
 	return now().UTC().Format(time.RFC3339)
-}
-
-func normalizeChannelDirectoryEntry(entry ChannelDirectoryEntry) ChannelDirectoryEntry {
-	entry.ID = strings.TrimSpace(entry.ID)
-	entry.Name = strings.TrimSpace(entry.Name)
-	entry.Type = strings.TrimSpace(entry.Type)
-	entry.Guild = strings.TrimSpace(entry.Guild)
-	entry.ChatID = strings.TrimSpace(entry.ChatID)
-	entry.ThreadID = strings.TrimSpace(entry.ThreadID)
-	entry.ChatTopic = strings.TrimSpace(entry.ChatTopic)
-	return entry
 }
 
 func upsertChannelDirectoryEntry(entries []ChannelDirectoryEntry, entry ChannelDirectoryEntry) []ChannelDirectoryEntry {
