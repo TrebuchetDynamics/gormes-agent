@@ -323,7 +323,12 @@ func (c *URLSafetyChecker) checkURLImpl(rawURL string) URLSafetyResult {
 		}
 	}
 
-	// Check allowlist first.
+	if result, blocked := checkAbsoluteURLBlock(host); blocked {
+		return result
+	}
+
+	// Check allowlist before ordinary blocklists/private IP policy, but after
+	// absolute metadata denies that must never be bypassed by configuration.
 	c.mu.RLock()
 	for _, entry := range c.policy.Allowlist {
 		if matchHostAgainstRule(host, entry.Pattern) {
@@ -354,16 +359,6 @@ func (c *URLSafetyChecker) checkURLImpl(rawURL string) URLSafetyResult {
 
 	// SSRF check: resolve hostname and check IP.
 	scheme := getScheme(rawURL)
-
-	// Always block known internal hostnames.
-	if blockedHostnames[strings.ToLower(host)] {
-		return URLSafetyResult{
-			Safe:     false,
-			Category: URLSafetyCategorySSRF,
-			Reason:   "blocked internal hostname: " + host,
-			Host:     host,
-		}
-	}
 
 	// Check if private IP resolution is allowed for this hostname.
 	allowPrivateIP := allowsPrivateIPResolution(host, scheme)
@@ -406,6 +401,26 @@ func (c *URLSafetyChecker) checkURLImpl(rawURL string) URLSafetyResult {
 		Reason: "URL passed all safety checks",
 		Host:   host,
 	}
+}
+
+func checkAbsoluteURLBlock(host string) (URLSafetyResult, bool) {
+	if blockedHostnames[strings.ToLower(host)] {
+		return URLSafetyResult{
+			Safe:     false,
+			Category: URLSafetyCategorySSRF,
+			Reason:   "blocked internal hostname: " + host,
+			Host:     host,
+		}, true
+	}
+	if ip := net.ParseIP(host); ip != nil && isAlwaysBlockedIP(ip) {
+		return URLSafetyResult{
+			Safe:     false,
+			Category: URLSafetyCategorySSRF,
+			Reason:   "blocked cloud metadata address: " + ip.String(),
+			Host:     host,
+		}, true
+	}
+	return URLSafetyResult{}, false
 }
 
 // getScheme extracts the scheme from a URL string.

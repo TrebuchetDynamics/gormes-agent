@@ -330,6 +330,31 @@ func TestURLSafetyChecker_CloudMetadataAlwaysBlocked(t *testing.T) {
 	}
 }
 
+func TestURLSafetyChecker_AllowlistCannotBypassCloudMetadataBlocks(t *testing.T) {
+	policy := DefaultURLSafetyPolicy()
+	policy.AllowPrivateURLs = true
+	policy.Allowlist = append(policy.Allowlist,
+		URLSafetyAllowlistEntry{Pattern: "169.254.169.254", Source: "test"},
+		URLSafetyAllowlistEntry{Pattern: "metadata.google.internal", Source: "test"},
+	)
+	checker := NewURLSafetyChecker(policy)
+
+	for _, rawURL := range []string{
+		"http://169.254.169.254/latest/meta-data/",
+		"https://metadata.google.internal/computeMetadata/v1/",
+	} {
+		t.Run(rawURL, func(t *testing.T) {
+			result := checker.CheckURL(rawURL)
+			if result.Safe {
+				t.Fatalf("CheckURL(%q) with explicit allowlist = Safe=true, want metadata block; result=%+v", rawURL, result)
+			}
+			if result.Category != URLSafetyCategorySSRF {
+				t.Fatalf("Category = %v, want URLSafetyCategorySSRF", result.Category)
+			}
+		})
+	}
+}
+
 // --------------------------------------------------------------------------
 // LoadBlocklistFromLines
 // --------------------------------------------------------------------------
