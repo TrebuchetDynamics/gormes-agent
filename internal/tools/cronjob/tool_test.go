@@ -97,6 +97,34 @@ func TestCronjobTool_CreateListAndRedact(t *testing.T) {
 	}
 }
 
+func TestCronjobTool_CreateRejectsDuplicateNamesBeforeStoreCreate(t *testing.T) {
+	store := newPermissiveCronjobToolTestStore()
+	tool := toolcron.NewCronjobTool(toolcron.CronjobToolConfig{
+		Store:       store,
+		ScriptsRoot: t.TempDir(),
+		Now:         fixedCronjobToolNow,
+	})
+
+	created := execCronjobTool[cronjobCreateResult](t, tool, map[string]any{
+		"action":   "create",
+		"name":     "duplicate",
+		"schedule": "every 30m",
+		"prompt":   "First job.",
+	})
+	if !created.Success {
+		t.Fatalf("first create success = false, error = %q", created.Error)
+	}
+	assertCronjobToolError(t, tool, map[string]any{
+		"action":   "create",
+		"name":     "duplicate",
+		"schedule": "every 1h",
+		"prompt":   "Second job.",
+	}, "job name already taken")
+	if got := len(store.jobs); got != 1 {
+		t.Fatalf("permissive store job count = %d, want duplicate rejected before Store.Create", got)
+	}
+}
+
 func TestCronjobTool_CreateNormalizesCommaSeparatedDeliverString(t *testing.T) {
 	store, done := newCronjobToolTestStore(t)
 	defer done()
@@ -568,4 +596,71 @@ func fixedCronjobToolNow() time.Time {
 func testCronPromptHash(prompt string) string {
 	h := sha256.Sum256([]byte(prompt))
 	return hex.EncodeToString(h[:8])
+}
+
+type permissiveCronjobToolTestStore struct {
+	jobs map[string]permissiveCronjobToolTestJob
+}
+
+type permissiveCronjobToolTestJob struct {
+	ID              string
+	Name            string
+	Schedule        string
+	Prompt          string
+	Deliver         string
+	Paused          bool
+	CreatedAt       int64
+	LastRunUnix     int64
+	LastStatus      string
+	Repeat          int
+	RepeatCompleted int
+	Model           string
+	Provider        string
+	Skills          []string
+	EnabledToolsets []string
+	Workdir         string
+	Script          string
+	NoAgent         bool
+	ContextFrom     []string
+}
+
+func newPermissiveCronjobToolTestStore() *permissiveCronjobToolTestStore {
+	return &permissiveCronjobToolTestStore{jobs: map[string]permissiveCronjobToolTestJob{}}
+}
+
+func (s *permissiveCronjobToolTestStore) Create(job permissiveCronjobToolTestJob) error {
+	s.jobs[job.ID] = job
+	return nil
+}
+
+func (s *permissiveCronjobToolTestStore) Get(id string) (permissiveCronjobToolTestJob, error) {
+	job, ok := s.jobs[id]
+	if !ok {
+		return permissiveCronjobToolTestJob{}, cron.ErrJobNotFound
+	}
+	return job, nil
+}
+
+func (s *permissiveCronjobToolTestStore) List() ([]permissiveCronjobToolTestJob, error) {
+	jobs := make([]permissiveCronjobToolTestJob, 0, len(s.jobs))
+	for _, job := range s.jobs {
+		jobs = append(jobs, job)
+	}
+	return jobs, nil
+}
+
+func (s *permissiveCronjobToolTestStore) Update(job permissiveCronjobToolTestJob) error {
+	if _, ok := s.jobs[job.ID]; !ok {
+		return cron.ErrJobNotFound
+	}
+	s.jobs[job.ID] = job
+	return nil
+}
+
+func (s *permissiveCronjobToolTestStore) Delete(id string) error {
+	if _, ok := s.jobs[id]; !ok {
+		return cron.ErrJobNotFound
+	}
+	delete(s.jobs, id)
+	return nil
 }

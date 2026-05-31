@@ -225,6 +225,9 @@ func (t *CronjobTool) create(store *reflectedCronStore, in cronjobArgs) json.Raw
 	if name == "" {
 		name = "cron " + id[:8]
 	}
+	if err := ensureCronjobNameAvailable(store, "", name); err != nil {
+		return cronjobError(err.Error())
+	}
 
 	rec := cronjobRecord{
 		ID:              id,
