@@ -2,6 +2,7 @@ package setup
 
 import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal/setup/fileops"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal/setup/hints"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal/setup/truecolor"
 )
 
@@ -24,7 +25,4 @@ type TerminalSetupResult struct {
 
 type TruecolorResult = truecolor.Result
 
-type TerminalParityHint struct {
-	Key     string
-	Message string
-}
+type TerminalParityHint = hints.Hint
