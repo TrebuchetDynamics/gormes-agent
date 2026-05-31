@@ -2,9 +2,7 @@ package cache
 
 import (
 	"errors"
-	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -26,12 +24,12 @@ type Directory struct {
 // Store persists channel_directory.json under a caller-owned Gormes state/home
 // root. Tests pass temp roots; no live operator home is read.
 type Store struct {
-	root string
+	root storage.Root
 }
 
 // NewStore returns a store rooted at root.
 func NewStore(root string) Store {
-	return Store{root: strings.TrimSpace(root)}
+	return Store{root: storage.NewRoot(root)}
 }
 
 // NewDirectory returns a directory with initialized platform buckets.
@@ -40,10 +38,10 @@ func NewDirectory(updatedAt string) Directory {
 }
 
 // Root returns the store root for fixture setup.
-func (s Store) Root() string { return s.root }
+func (s Store) Root() string { return s.root.String() }
 
 func (s Store) path() string {
-	return filepath.Join(s.root, channelDirectoryFileName)
+	return s.root.Path(channelDirectoryFileName)
 }
 
 // Load reads the directory. Missing or invalid files return empty directories
@@ -70,8 +68,8 @@ func (s Store) Save(dir Directory) error {
 // a temp file, then renames only after the writer succeeds, so old complete JSON
 // remains visible after an injected partial-write failure.
 func (s Store) SaveWithWriter(dir Directory, writer func(string, []byte, os.FileMode) error) error {
-	if strings.TrimSpace(s.root) == "" {
-		return fmt.Errorf("channel directory root is empty")
+	if err := s.root.Require("channel directory"); err != nil {
+		return err
 	}
 	if writer == nil {
 		writer = os.WriteFile
@@ -79,7 +77,7 @@ func (s Store) SaveWithWriter(dir Directory, writer func(string, []byte, os.File
 	if dir.Platforms == nil {
 		dir.Platforms = map[string][]model.Entry{}
 	}
-	return storage.WriteAtomicJSON(s.root, channelDirectoryFileName, ".channel_directory-*.tmp", dir, storage.Writer(writer))
+	return storage.WriteAtomicJSON(s.root.String(), channelDirectoryFileName, ".channel_directory-*.tmp", dir, storage.Writer(writer))
 }
 
 func emptyDirectory() Directory {

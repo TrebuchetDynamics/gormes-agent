@@ -2,9 +2,36 @@ package storage
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
+
+// Root is the shared caller-owned persistence root contract for directory
+// stores. It centralizes root normalization, file path construction, and empty
+// root validation across cache and remembered-source stores.
+type Root string
+
+// NewRoot returns a normalized caller-owned persistence root.
+func NewRoot(root string) Root {
+	return Root(strings.TrimSpace(root))
+}
+
+func (r Root) String() string { return string(r) }
+
+// Path returns the path to name under the normalized root.
+func (r Root) Path(name string) string {
+	return filepath.Join(string(r), name)
+}
+
+// Require returns a store-specific empty-root error when the root is not set.
+func (r Root) Require(label string) error {
+	if strings.TrimSpace(string(r)) == "" {
+		return fmt.Errorf("%s root is empty", label)
+	}
+	return nil
+}
 
 // Writer is the injectable write seam used by stores that need deterministic
 // atomic-write failure tests.

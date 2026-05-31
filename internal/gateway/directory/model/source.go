@@ -111,6 +111,24 @@ func NormalizeRememberedSourceEntry(entry RememberedSourceEntry) RememberedSourc
 	return entry
 }
 
+// UpsertRememberedSourceEntry replaces an existing remembered source with the
+// same normalized ID or appends it when the session-discovered target is new.
+// It returns false without changing entries when the source lacks the minimum
+// remembered-source contract needed for refresh merges.
+func UpsertRememberedSourceEntry(entries []RememberedSourceEntry, entry RememberedSourceEntry) ([]RememberedSourceEntry, bool) {
+	entry = NormalizeRememberedSourceEntry(entry)
+	if entry.Platform == "" || entry.ID == "" {
+		return entries, false
+	}
+	for i, existing := range entries {
+		if strings.TrimSpace(existing.ID) == entry.ID {
+			entries[i] = entry
+			return entries, true
+		}
+	}
+	return append(entries, entry), true
+}
+
 func rememberedSourceID(entry RememberedSourceEntry) string {
 	chatID := strings.TrimSpace(entry.ChatID)
 	if chatID == "" {
