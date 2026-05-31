@@ -116,17 +116,11 @@ func NormalizeRememberedSourceEntry(entry RememberedSourceEntry) RememberedSourc
 // It returns false without changing entries when the source lacks the minimum
 // remembered-source contract needed for refresh merges.
 func UpsertRememberedSourceEntry(entries []RememberedSourceEntry, entry RememberedSourceEntry) ([]RememberedSourceEntry, bool) {
-	entry = NormalizeRememberedSourceEntry(entry)
-	if entry.Platform == "" || entry.ID == "" {
-		return entries, false
-	}
-	for i, existing := range entries {
-		if strings.TrimSpace(existing.ID) == entry.ID {
-			entries[i] = entry
-			return entries, true
-		}
-	}
-	return append(entries, entry), true
+	return upsertByNormalizedID(entries, entry, NormalizeRememberedSourceEntry, func(entry RememberedSourceEntry) string {
+		return entry.ID
+	}, func(entry RememberedSourceEntry) bool {
+		return entry.Platform != "" && entry.ID != ""
+	})
 }
 
 func rememberedSourceID(entry RememberedSourceEntry) string {

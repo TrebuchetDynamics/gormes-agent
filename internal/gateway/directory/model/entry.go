@@ -59,17 +59,11 @@ func UpsertEntry(entries []Entry, entry Entry) []Entry {
 // false without changing entries when the entry lacks the minimum cached-target
 // contract used by refresh merges.
 func UpsertValidEntry(entries []Entry, entry Entry) ([]Entry, bool) {
-	entry = NormalizeEntry(entry)
-	if entry.ID == "" || entry.Name == "" {
-		return entries, false
-	}
-	for i, existing := range entries {
-		if strings.TrimSpace(existing.ID) == entry.ID {
-			entries[i] = entry
-			return entries, true
-		}
-	}
-	return append(entries, entry), true
+	return upsertByNormalizedID(entries, entry, NormalizeEntry, func(entry Entry) string {
+		return entry.ID
+	}, func(entry Entry) bool {
+		return entry.ID != "" && entry.Name != ""
+	})
 }
 
 // DeliveryTarget converts a directory entry into the gateway delivery target contract.
