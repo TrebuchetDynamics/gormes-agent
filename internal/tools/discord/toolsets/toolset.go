@@ -167,22 +167,43 @@ func DiscordToolsetStatuses(opts DiscordToolsetOptions) []DiscordToolsetStatus {
 }
 
 func availableDiscordActions(class discordActionClass, opts DiscordToolsetOptions) []string {
+	plan := discordActionAvailabilityPlan(class, opts)
+	actions := make([]string, 0, len(plan))
+	for _, candidate := range plan {
+		if candidate.Available {
+			actions = append(actions, candidate.Name)
+		}
+	}
+	return actions
+}
+
+type discordActionAvailability struct {
+	Name               string
+	Available          bool
+	DroppedByIntent    bool
+	DroppedByAllowlist bool
+}
+
+func discordActionAvailabilityPlan(class discordActionClass, opts DiscordToolsetOptions) []discordActionAvailability {
 	caps := normalizedDiscordCapabilities(opts.Capabilities)
 	allowlist := normalizedStringSet(opts.AllowedActions)
-	actions := make([]string, 0, len(discordActionManifest))
+	candidates := make([]discordActionAvailability, 0, len(discordActionManifest))
 	for _, action := range discordActionManifest {
 		if action.Class != class {
 			continue
 		}
+		candidate := discordActionAvailability{Name: action.Name, Available: true}
 		if action.RequiresMembersIntent && !caps.HasGuildMembersIntent {
-			continue
+			candidate.Available = false
+			candidate.DroppedByIntent = true
 		}
 		if opts.ActionAllowlistSet && !allowlist[action.Name] {
-			continue
+			candidate.Available = false
+			candidate.DroppedByAllowlist = true
 		}
-		actions = append(actions, action.Name)
+		candidates = append(candidates, candidate)
 	}
-	return actions
+	return candidates
 }
 
 func normalizedDiscordCapabilities(caps DiscordApplicationCapabilities) DiscordApplicationCapabilities {

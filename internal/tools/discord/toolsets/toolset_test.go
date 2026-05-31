@@ -177,6 +177,42 @@ func TestDiscordToolsetDropsSchemasForMissingTokenIntentsAndAllowlist(t *testing
 	assertStatus(t, DiscordToolsetStatuses(emptyAllowlist), DiscordAdminToolName, DiscordToolStatusNoActions)
 }
 
+func TestDiscordActionAvailabilityPlanExposesIndependentFilters(t *testing.T) {
+	opts := DiscordToolsetOptions{
+		Capabilities: DiscordApplicationCapabilities{
+			Detected:                true,
+			HasGuildMembersIntent:   false,
+			HasMessageContentIntent: true,
+		},
+		ActionAllowlistSet: true,
+		AllowedActions:     []string{"search_members", "create_thread"},
+	}
+
+	plan := discordActionAvailabilityPlan(discordActionCore, opts)
+	byName := map[string]discordActionAvailability{}
+	for _, candidate := range plan {
+		byName[candidate.Name] = candidate
+	}
+
+	search := byName["search_members"]
+	if search.Available || !search.DroppedByIntent || search.DroppedByAllowlist {
+		t.Fatalf("search_members candidate = %+v, want dropped only by missing members intent", search)
+	}
+	fetch := byName["fetch_messages"]
+	if fetch.Available || fetch.DroppedByIntent || !fetch.DroppedByAllowlist {
+		t.Fatalf("fetch_messages candidate = %+v, want dropped only by allowlist", fetch)
+	}
+	thread := byName["create_thread"]
+	if !thread.Available || thread.DroppedByIntent || thread.DroppedByAllowlist {
+		t.Fatalf("create_thread candidate = %+v, want available", thread)
+	}
+
+	got := availableDiscordActions(discordActionCore, opts)
+	if !reflect.DeepEqual(got, []string{"create_thread"}) {
+		t.Fatalf("availableDiscordActions = %v, want only create_thread", got)
+	}
+}
+
 func descriptorNames(descriptors []ToolDescriptor) []string {
 	names := make([]string, len(descriptors))
 	for i, descriptor := range descriptors {
