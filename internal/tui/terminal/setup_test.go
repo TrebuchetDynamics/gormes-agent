@@ -279,12 +279,16 @@ func sameStringSet(got []string, want []string) bool {
 
 func defaultCompleteKeybindingsJSON(t *testing.T) string {
 	t.Helper()
-	bindings := defaultTerminalKeybindings("darwin")
-	body, err := json.Marshal(bindings)
-	if err != nil {
-		t.Fatalf("marshal complete bindings: %v", err)
+	fake := &fakeTerminalFileOps{readErr: os.ErrNotExist}
+	result := ConfigureTerminalKeybindings("vscode", TerminalSetupOptions{
+		HomeDir:  "/Users/me",
+		Platform: "darwin",
+		FileOps:  fake.ops(),
+	})
+	if !result.Success || len(fake.writes) != 1 {
+		t.Fatalf("build complete bindings result=%+v writes=%d, want one successful write", result, len(fake.writes))
 	}
-	return string(body)
+	return fake.writes[0]
 }
 
 func TestTUITerminalSetupReadFailure(t *testing.T) {

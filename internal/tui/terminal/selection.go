@@ -1,16 +1,9 @@
 package terminal
 
-// NativeSelectionHelp documents Gormes' selection-and-copy stance: the native
-// Bubble Tea TUI relies on the host terminal's own selection mechanic and does
-// not reproduce the upstream ui-tui custom selection-copy keybindings. A future
-// Go-native copy mode, if it ships, must replace this constant rather than
-// extend it; until then the wording deliberately promises no in-app shortcut so
-// users do not chase a feature that does not exist.
-const NativeSelectionHelp = "Selection: use your terminal's native selection (Shift-drag in most terminals; iTerm Cmd-drag, tmux copy-mode). Gormes does not advertise an in-app copy hotkey."
+import selectionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal/selection"
 
-// SelectionHelpLine returns NativeSelectionHelp. Callers that want the help
-// string should route through this helper so a future Go-native copy-mode
-// helper can swap the implementation in one place.
+const NativeSelectionHelp = selectionpkg.NativeSelectionHelp
+
 func SelectionHelpLine() string {
-	return NativeSelectionHelp
+	return selectionpkg.SelectionHelpLine()
 }
