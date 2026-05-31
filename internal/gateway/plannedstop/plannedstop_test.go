@@ -70,6 +70,31 @@ func TestMarkerStaleOrMismatchedNeverMatches(t *testing.T) {
 		}
 	})
 
+	t.Run("future marker beyond ttl", func(t *testing.T) {
+		store := NewStore(filepath.Join(t.TempDir(), ".gateway-planned-stop.json"))
+		store.now = func() time.Time { return now }
+		store.pid = func() int { return 4242 }
+		store.startTime = func(int) (int64, bool) { return 987654, true }
+		if err := store.Write(ctx, Marker{
+			TargetPID:       4242,
+			TargetStartTime: 987654,
+			WrittenAt:       now.Add(2 * MarkerTTL).Format(time.RFC3339Nano),
+		}); err != nil {
+			t.Fatalf("Write: %v", err)
+		}
+
+		result, err := store.ConsumeForSelf(ctx)
+		if err != nil {
+			t.Fatalf("ConsumeForSelf future: %v", err)
+		}
+		if result.Matched || result.Status != ConsumeStale {
+			t.Fatalf("result = %+v, want future marker rejected as stale", result)
+		}
+		if _, err := os.Stat(store.path); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("future marker stat = %v, want removed", err)
+		}
+	})
+
 	t.Run("start time mismatch", func(t *testing.T) {
 		store := NewStore(filepath.Join(t.TempDir(), ".gateway-planned-stop.json"))
 		store.now = func() time.Time { return now }

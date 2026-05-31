@@ -173,7 +173,15 @@ func (s *Store) markerStale(marker Marker) bool {
 	if err != nil {
 		return true
 	}
-	return s.currentTime().Sub(writtenAt) > s.markerTTL()
+	return markerOutsideTTLWindow(s.currentTime(), writtenAt, s.markerTTL())
+}
+
+func markerOutsideTTLWindow(now, writtenAt time.Time, ttl time.Duration) bool {
+	if ttl <= 0 {
+		ttl = MarkerTTL
+	}
+	age := now.Sub(writtenAt)
+	return age > ttl || age < -ttl
 }
 
 func (s *Store) markerMatchesSelf(marker Marker) bool {
