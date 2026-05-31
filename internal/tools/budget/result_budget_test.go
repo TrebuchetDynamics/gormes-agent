@@ -142,6 +142,24 @@ func TestToolResultBudget_PersistsJSONNonText(t *testing.T) {
 	}
 }
 
+func TestToolResultBudget_PersistsParameterizedJSONAsJSONArtifact(t *testing.T) {
+	dir := t.TempDir()
+	raw := []byte(`{"ok":true}`)
+	cfg := ToolResultBudgetConfig{
+		OutputDir:       dir,
+		TextBudgetBytes: 128,
+		PreviewBytes:    16,
+	}
+
+	_, evidence, err := FormatToolResult(cfg, raw, "application/json; charset=utf-8")
+	if err != nil {
+		t.Fatalf("FormatToolResult: %v", err)
+	}
+	if !strings.HasSuffix(evidence.Artifact, ".json") {
+		t.Fatalf("evidence.Artifact = %q; want .json for parameterized JSON media type", evidence.Artifact)
+	}
+}
+
 // TestToolResultBudget_TruncatedEvidence proves the evidence code marks
 // truncation when the raw output exceeds the text budget.
 func TestToolResultBudget_TruncatedEvidence(t *testing.T) {

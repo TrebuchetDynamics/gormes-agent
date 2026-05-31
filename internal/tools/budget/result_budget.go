@@ -142,14 +142,22 @@ func (cfg ToolResultBudgetConfig) shouldPersist(raw []byte, mediaType string) bo
 }
 
 func isTextMedia(mediaType string) bool {
-	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
-	if mediaType == "" {
+	base := baseMediaType(mediaType)
+	if base == "" {
 		return true
 	}
-	if strings.HasPrefix(mediaType, "text/") {
+	if strings.HasPrefix(base, "text/") {
 		return true
 	}
 	return false
+}
+
+func baseMediaType(mediaType string) string {
+	mt := strings.ToLower(strings.TrimSpace(mediaType))
+	if base, _, ok := strings.Cut(mt, ";"); ok {
+		mt = strings.TrimSpace(base)
+	}
+	return mt
 }
 
 // persistArtifact writes raw to a sanitized relative path under outputDir.
@@ -192,7 +200,7 @@ func persistArtifact(outputDir string, raw []byte, mediaType string) (string, er
 // keep this conservative; unknown media types land as .bin so we never invent
 // an executable suffix.
 func extensionFor(mediaType string) string {
-	mt := strings.ToLower(strings.TrimSpace(mediaType))
+	mt := baseMediaType(mediaType)
 	switch {
 	case mt == "" || strings.HasPrefix(mt, "text/"):
 		return ".txt"
