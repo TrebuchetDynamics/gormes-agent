@@ -4,16 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers/usagehttp"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers/usagepolicy"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 	"github.com/spf13/cobra"
 )
 
@@ -98,7 +96,7 @@ type UsageInvocation struct {
 // UsageHTTPClient bounds the provider account-usage fetch so an unresponsive
 // provider cannot hang the operator's terminal. http.DefaultClient has no
 // timeout.
-var UsageHTTPClient = &http.Client{Timeout: 30 * time.Second}
+var UsageHTTPClient = usagehttp.DefaultClient
 
 // RunUsageCommand executes the usage command with production seams.
 func RunUsageCommand(cmd *cobra.Command, invocation UsageInvocation, opts Options) error {
@@ -146,33 +144,7 @@ func runUsageCommand(cmd *cobra.Command, invocation UsageInvocation, seams Usage
 }
 
 // AccountUsageHTTPClient adapts net/http to llm.AccountUsageHTTPClient.
-type AccountUsageHTTPClient struct{ Client *http.Client }
-
-func (c AccountUsageHTTPClient) DoAccountUsageRequest(ctx context.Context, req llm.AccountUsageHTTPRequest) (llm.AccountUsageHTTPResponse, error) {
-	client := c.Client
-	if client == nil {
-		client = http.DefaultClient
-	}
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, req.URL, nil)
-	if err != nil {
-		return llm.AccountUsageHTTPResponse{}, err
-	}
-	for key, value := range req.Headers {
-		if textvalue.IsNonBlank(value) {
-			httpReq.Header.Set(key, value)
-		}
-	}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return llm.AccountUsageHTTPResponse{}, err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return llm.AccountUsageHTTPResponse{}, err
-	}
-	return llm.AccountUsageHTTPResponse{StatusCode: resp.StatusCode, Body: body}, nil
-}
+type AccountUsageHTTPClient = usagehttp.Client
 
 // InferUsageProvider infers the provider from configured provider/model
 // settings when `gormes usage --provider` is not passed.

@@ -3,30 +3,20 @@ package providers
 import (
 	"bufio"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
-	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers/fallbackconfig"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
-type FallbackEntry struct {
-	Provider string
-	Model    string
-	BaseURL  string
-	APIMode  string
-}
+type FallbackEntry = fallbackconfig.Entry
 
-type FallbackConfig struct {
-	Primary FallbackEntry
-	Chain   []FallbackEntry
-}
+type FallbackConfig = fallbackconfig.Config
 
 func NewFallbackCommand(seams ModelCommandSeams) *cobra.Command {
 	return NewFallbackCommandWithSeams(seams)
@@ -256,33 +246,11 @@ func runFallbackClear(cmd *cobra.Command) error {
 }
 
 func LoadFallbackConfig(path string) (FallbackConfig, error) {
-	doc, err := readFallbackTOML(path)
-	if err != nil {
-		return FallbackConfig{}, err
-	}
-	return fallbackConfigFromDocument(doc), nil
+	return fallbackconfig.Load(path)
 }
 
 func loadFallbackConfig(path string) (FallbackConfig, error) {
 	return LoadFallbackConfig(path)
-}
-
-func readFallbackTOML(path string) (map[string]any, error) {
-	doc := map[string]any{}
-	body, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return doc, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("fallback: read config: %w", err)
-	}
-	if !textvalue.IsNonBlank(string(body)) {
-		return doc, nil
-	}
-	if err := toml.Unmarshal(body, &doc); err != nil {
-		return nil, fmt.Errorf("fallback: parse config: %w", err)
-	}
-	return doc, nil
 }
 
 func AppendFallbackSelection(path string, selection cli.Selection) (bool, error) {
@@ -293,143 +261,11 @@ func AppendFallbackSelection(path string, selection cli.Selection) (bool, error)
 	if entry.Provider == "" || entry.Model == "" {
 		return false, cli.ErrSelectorNoMatch
 	}
-	doc, err := readFallbackTOML(path)
-	if err != nil {
-		return false, err
-	}
-	cfg := fallbackConfigFromDocument(doc)
-	for _, existing := range cfg.Chain {
-		if sameFallbackEntry(existing, entry) {
-			return false, nil
-		}
-	}
-	cfg.Chain = append(cfg.Chain, entry)
-	return true, writeFallbackChainInDocument(path, doc, cfg.Chain)
-}
-
-func sameFallbackEntry(a, b FallbackEntry) bool {
-	return a.Provider == b.Provider && a.Model == b.Model
+	return fallbackconfig.Append(path, entry)
 }
 
 func WriteFallbackChain(path string, chain []FallbackEntry) error {
-	doc, err := readFallbackTOML(path)
-	if err != nil {
-		return err
-	}
-	return writeFallbackChainInDocument(path, doc, chain)
-}
-
-func writeFallbackChainInDocument(path string, doc map[string]any, chain []FallbackEntry) error {
-	doc["fallback_providers"] = fallbackEntriesToConfigValue(chain)
-	delete(doc, "fallback_model")
-	return writeFallbackTOML(path, doc)
-}
-
-func fallbackEntriesToConfigValue(entries []FallbackEntry) []map[string]any {
-	out := make([]map[string]any, 0, len(entries))
-	for _, entry := range entries {
-		item := map[string]any{
-			"provider": entry.Provider,
-			"model":    entry.Model,
-		}
-		if entry.BaseURL != "" {
-			item["base_url"] = entry.BaseURL
-		}
-		if entry.APIMode != "" {
-			item["api_mode"] = entry.APIMode
-		}
-		out = append(out, item)
-	}
-	return out
-}
-
-func writeFallbackTOML(path string, doc map[string]any) error {
-	body, err := toml.Marshal(doc)
-	if err != nil {
-		return fmt.Errorf("fallback: encode config: %w", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("fallback: create config dir: %w", err)
-	}
-	if err := os.WriteFile(path, body, 0o600); err != nil {
-		return fmt.Errorf("fallback: write config: %w", err)
-	}
-	return nil
-}
-
-func fallbackConfigFromDocument(doc map[string]any) FallbackConfig {
-	var cfg FallbackConfig
-	if hermesSection, ok := doc["hermes"].(map[string]any); ok {
-		cfg.Primary = FallbackEntry{
-			Provider: stringFromConfigValue(hermesSection["provider"]),
-			Model:    stringFromConfigValue(hermesSection["model"]),
-		}
-	}
-	cfg.Chain = fallbackEntriesFromConfigValue(doc["fallback_providers"])
-	if len(cfg.Chain) == 0 {
-		cfg.Chain = fallbackEntriesFromConfigValue(doc["fallback_model"])
-	}
-	return cfg
-}
-
-func fallbackEntriesFromConfigValue(value any) []FallbackEntry {
-	switch v := value.(type) {
-	case nil:
-		return nil
-	case []any:
-		entries := make([]FallbackEntry, 0, len(v))
-		for _, item := range v {
-			if entry, ok := fallbackEntryFromConfigValue(item); ok {
-				entries = append(entries, entry)
-			}
-		}
-		return entries
-	case []map[string]any:
-		entries := make([]FallbackEntry, 0, len(v))
-		for _, item := range v {
-			if entry, ok := fallbackEntryFromConfigMap(item); ok {
-				entries = append(entries, entry)
-			}
-		}
-		return entries
-	case map[string]any:
-		if entry, ok := fallbackEntryFromConfigMap(v); ok {
-			return []FallbackEntry{entry}
-		}
-		return nil
-	default:
-		if entry, ok := fallbackEntryFromConfigValue(v); ok {
-			return []FallbackEntry{entry}
-		}
-		return nil
-	}
-}
-
-func fallbackEntryFromConfigValue(value any) (FallbackEntry, bool) {
-	if item, ok := value.(map[string]any); ok {
-		return fallbackEntryFromConfigMap(item)
-	}
-	return FallbackEntry{}, false
-}
-
-func fallbackEntryFromConfigMap(item map[string]any) (FallbackEntry, bool) {
-	entry := FallbackEntry{
-		Provider: stringFromConfigValue(item["provider"]),
-		Model:    stringFromConfigValue(item["model"]),
-		BaseURL:  stringFromConfigValue(item["base_url"]),
-		APIMode:  stringFromConfigValue(item["api_mode"]),
-	}
-	if entry.Provider == "" || entry.Model == "" {
-		return FallbackEntry{}, false
-	}
-	return entry, true
-}
-
-func stringFromConfigValue(value any) string {
-	if s, ok := value.(string); ok {
-		return strings.TrimSpace(s)
-	}
-	return ""
+	return fallbackconfig.WriteChain(path, chain)
 }
 
 func formatFallbackEntry(entry FallbackEntry) string {
