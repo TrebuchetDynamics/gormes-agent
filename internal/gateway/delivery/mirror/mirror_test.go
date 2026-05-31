@@ -44,6 +44,16 @@ func TestSelectDeliveryMirrorSession_AmbiguousGroupWithoutUser(t *testing.T) {
 	}
 }
 
+func TestSelectDeliveryMirrorSession_ExplicitUserMustMatchSingleCandidate(t *testing.T) {
+	candidates := []session.Metadata{
+		{SessionID: "sess-wrong-user", Source: "telegram", ChatID: "-100", UserID: "u1", UpdatedAt: 10},
+	}
+
+	if got, ok := SelectDeliveryMirrorSession(candidates, DeliveryMirrorTarget{Platform: "telegram", ChatID: "-100", UserID: "u2"}); ok {
+		t.Fatalf("SelectDeliveryMirrorSession = %+v, want no mirror to different explicit user", got)
+	}
+}
+
 func TestMirrorDeliveryToSession_WritesAssistantMirrorPayload(t *testing.T) {
 	rec := store.NewRecording()
 	now := time.Date(2026, 5, 1, 12, 30, 0, 0, time.UTC)

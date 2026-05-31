@@ -54,19 +54,9 @@ func SelectDeliveryMirrorSession(candidates []session.Metadata, target DeliveryM
 		return session.Metadata{}, false
 	}
 
-	if userID != "" {
-		exact := matches[:0]
-		for _, meta := range matches {
-			if address.ID(meta.UserID) == userID {
-				exact = append(exact, meta)
-			}
-		}
-		if len(exact) > 0 {
-			matches = exact
-		} else if len(matches) > 1 {
-			return session.Metadata{}, false
-		}
-	} else if deliveryMirrorHasDistinctUsers(matches) {
+	var ok bool
+	matches, ok = deliveryMirrorFilterByUser(matches, userID)
+	if !ok {
 		return session.Metadata{}, false
 	}
 
@@ -119,6 +109,22 @@ func MirrorDeliveryToSession(ctx context.Context, st store.Store, candidates []s
 		return DeliveryMirrorResult{}, err
 	}
 	return DeliveryMirrorResult{Mirrored: true, SessionID: selected.SessionID}, nil
+}
+
+func deliveryMirrorFilterByUser(items []session.Metadata, userID string) ([]session.Metadata, bool) {
+	if userID != "" {
+		exact := items[:0]
+		for _, meta := range items {
+			if address.ID(meta.UserID) == userID {
+				exact = append(exact, meta)
+			}
+		}
+		return exact, len(exact) > 0
+	}
+	if deliveryMirrorHasDistinctUsers(items) {
+		return nil, false
+	}
+	return items, true
 }
 
 func deliveryMirrorHasDistinctUsers(items []session.Metadata) bool {
