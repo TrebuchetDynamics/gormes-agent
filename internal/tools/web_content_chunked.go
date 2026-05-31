@@ -159,6 +159,10 @@ func (p *ChunkedWebContentProcessor) chunkedProcess(ctx context.Context, req Web
 		return "", err
 	}
 
+	if err := requireSuccessfulChunkSummaries(summaries); err != nil {
+		return "", err
+	}
+
 	// If only one chunk succeeded, return it directly
 	if len(summaries) == 1 {
 		return summaries[0].summary, nil
@@ -166,6 +170,13 @@ func (p *ChunkedWebContentProcessor) chunkedProcess(ctx context.Context, req Web
 
 	// If multiple chunks, synthesize them
 	return p.synthesizeSummaries(ctx, req, summaries)
+}
+
+func requireSuccessfulChunkSummaries(summaries []chunkSummary) error {
+	if len(summaries) == 0 {
+		return errors.New("no summaries available")
+	}
+	return nil
 }
 
 // chunkSummary holds the result of summarizing one chunk.

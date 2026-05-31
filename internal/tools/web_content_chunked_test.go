@@ -188,6 +188,44 @@ func TestChunkedWebContentProcessor_Process_SingleChunkSuccess(t *testing.T) {
 	}
 }
 
+func TestChunkedWebContentProcessor_Process_AllChunkSummariesFailDoesNotSynthesize(t *testing.T) {
+	mockClient := llm.NewMockClient()
+
+	// Both chunk summarization streams fail. A later success would hide the bug if
+	// the processor tries to synthesize with an empty summary set.
+	mockClient.Script([]llm.Event{}, "chunk-1")
+	mockClient.Script([]llm.Event{}, "chunk-2")
+	mockClient.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "invalid synthesis without summaries"},
+		{Kind: llm.EventDone},
+	}, "synthesis-should-not-run")
+
+	cfg := ChunkedWebContentProcessorConfig{
+		MaxContentSize: 2_000_000,
+		ChunkThreshold: 5,
+		ChunkSize:      10,
+		MaxOutputChars: 5000,
+		MaxParallelism: 1,
+		MinLength:      1,
+	}
+	processor := NewChunkedWebContentProcessor(mockClient, "test-model", cfg)
+
+	_, err := processor.ProcessWebContent(context.Background(), WebContentProcessRequest{
+		URL:     "https://example.com",
+		Title:   "Test",
+		Content: "abcdefghijabcdefghij",
+	})
+	if err == nil {
+		t.Fatal("expected error when all chunk summaries fail")
+	}
+	if !strings.Contains(err.Error(), "no summaries available") {
+		t.Fatalf("error = %v, want no summaries available", err)
+	}
+	if requests := mockClient.Requests(); len(requests) != 2 {
+		t.Fatalf("expected only chunk attempts and no synthesis request, got %d requests", len(requests))
+	}
+}
+
 func TestChunkedWebContentProcessor_Process_SynthesisFailureFallback(t *testing.T) {
 	mockClient := llm.NewMockClient()
 
