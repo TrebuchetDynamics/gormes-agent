@@ -11,9 +11,21 @@ func TruncateMarkdownV2Safe(s string, max int) string {
 	if len(runes) <= max {
 		return s
 	}
-	end := max - 1
-	for end > 0 && runes[end-1] == '\\' {
-		end--
-	}
+	end := markdownSafeTruncateEnd(runes, max-1)
 	return string(runes[:end]) + "…"
+}
+
+func markdownSafeTruncateEnd(runes []rune, end int) int {
+	if end <= 0 || end > len(runes) || trailingBackslashCount(runes[:end])%2 == 0 {
+		return end
+	}
+	return end - 1
+}
+
+func trailingBackslashCount(runes []rune) int {
+	count := 0
+	for i := len(runes) - 1; i >= 0 && runes[i] == '\\'; i-- {
+		count++
+	}
+	return count
 }
