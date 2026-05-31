@@ -4,7 +4,7 @@ import "testing"
 
 func TestResolveHomeTarget_ChannelNeutralPlatformHome(t *testing.T) {
 	homes := HomeTargets{
-		"discord": {Platform: "discord", ChatID: "D-home"},
+		"Discord": {Platform: " DISCORD ", ChatID: "D-home"},
 		"slack":   {Platform: "slack", ChatID: "C-home"},
 	}
 

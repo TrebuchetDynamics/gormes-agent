@@ -3,6 +3,7 @@ package routing
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/delivery/address"
@@ -94,13 +95,8 @@ func ResolveHomeTargetWithFallback(target Target, homes HomeTargets, fallback Ho
 	if platform == "" {
 		return target, MissingHomeError{}
 	}
-	if homes != nil {
-		if home, ok := homes[platform]; ok && address.ID(home.ChatID) != "" {
-			home.Platform = address.Platform(textvalue.FirstNonEmptyTrimmed(home.Platform, platform))
-			home.ChatID = address.ID(home.ChatID)
-			home.ThreadID = address.ID(home.ThreadID)
-			return home, nil
-		}
+	if home, ok := configuredHomeTarget(platform, homes); ok {
+		return home, nil
 	}
 	if fallback.DiscoveryEnabled && address.Platform(fallback.Source.Platform) == platform && address.ID(fallback.Source.ChatID) != "" {
 		return Target{
@@ -110,6 +106,39 @@ func ResolveHomeTargetWithFallback(target Target, homes HomeTargets, fallback Ho
 		}, nil
 	}
 	return target, MissingHomeError{Platform: platform}
+}
+
+func configuredHomeTarget(platform string, homes HomeTargets) (Target, bool) {
+	if homes == nil {
+		return Target{}, false
+	}
+	if home, ok := normalizeConfiguredHomeTarget(platform, homes[platform]); ok {
+		return home, true
+	}
+	keys := make([]string, 0, len(homes))
+	for key := range homes {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if address.Platform(key) != platform {
+			continue
+		}
+		if home, ok := normalizeConfiguredHomeTarget(platform, homes[key]); ok {
+			return home, true
+		}
+	}
+	return Target{}, false
+}
+
+func normalizeConfiguredHomeTarget(platform string, home Target) (Target, bool) {
+	if address.ID(home.ChatID) == "" {
+		return Target{}, false
+	}
+	home.Platform = address.Platform(textvalue.FirstNonEmptyTrimmed(home.Platform, platform))
+	home.ChatID = address.ID(home.ChatID)
+	home.ThreadID = address.ID(home.ThreadID)
+	return home, true
 }
 
 // ParseTarget converts a single --deliver token into a typed target. Parsing is
