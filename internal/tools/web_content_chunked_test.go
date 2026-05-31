@@ -105,23 +105,7 @@ func TestChunkedWebContentProcessor_Process_NilClient(t *testing.T) {
 func TestChunkedWebContentProcessor_Process_ChunkedFlow(t *testing.T) {
 	mockClient := llm.NewMockClient()
 
-	// Content that creates exactly 3 chunks with ChunkSize=50 and threshold=100
-	// Each "Word. " is 5 chars. 15 * 5 = 75 chars per sentence.
-	// We need enough content to create 3 chunks.
-	// With targetSize=50, we should get chunks at sentence boundaries.
-	// Let's use 3 sentences which should create 3 chunks.
-	// "Word. Word. Word. Word. Word. " = 30 chars - this won't split into 3 chunks
-	// Let's use a larger content that definitely creates multiple chunks
-	content := strings.Repeat("This is a test. ", 20) // 240 chars, ~4-5 chunks with ChunkSize=50
-
-	// Provide enough mock streams (5 chunks + 1 synthesis)
-	for i := 0; i < 6; i++ {
-		mockClient.Script([]llm.Event{
-			{Kind: llm.EventToken, Token: "Summary"},
-			{Kind: llm.EventDone},
-		}, "session")
-	}
-
+	content := strings.Repeat("This is a test. ", 20)
 	cfg := ChunkedWebContentProcessorConfig{
 		MaxContentSize: 2_000_000,
 		ChunkThreshold: 50, // Low threshold to force chunking
@@ -130,6 +114,15 @@ func TestChunkedWebContentProcessor_Process_ChunkedFlow(t *testing.T) {
 		MaxParallelism: 3,
 		MinLength:      10,
 	}
+	chunkCount := len(splitWebContentIntoChunks(content, cfg.ChunkSize))
+	// Provide one mock stream per chunk plus one synthesis stream.
+	for i := 0; i < chunkCount+1; i++ {
+		mockClient.Script([]llm.Event{
+			{Kind: llm.EventToken, Token: "Summary"},
+			{Kind: llm.EventDone},
+		}, "session")
+	}
+
 	processor := NewChunkedWebContentProcessor(mockClient, "test-model", cfg)
 	if processor == nil {
 		t.Fatal("expected non-nil processor")
@@ -148,10 +141,9 @@ func TestChunkedWebContentProcessor_Process_ChunkedFlow(t *testing.T) {
 		t.Errorf("result = %q, want %q", result, "Summary")
 	}
 
-	// Should have 6 LLM calls (5 chunks + 1 synthesis)
 	requests := mockClient.Requests()
-	if len(requests) != 6 {
-		t.Errorf("expected 6 LLM calls, got %d", len(requests))
+	if len(requests) != chunkCount+1 {
+		t.Errorf("expected %d LLM calls, got %d", chunkCount+1, len(requests))
 	}
 }
 
@@ -731,6 +723,19 @@ func TestChunkedWebContentProcessor_ChunkSplitting(t *testing.T) {
 		if len(chunk) > cfg.ChunkSize+2000 { // Allow some overflow for natural split points
 			t.Errorf("chunk %d length %d exceeds ChunkSize %d by too much", i, len(chunk), cfg.ChunkSize)
 		}
+	}
+}
+
+func TestChunkedWebContentProcessor_ChunkSplittingPreservesBoundaryWhitespace(t *testing.T) {
+	processor := &ChunkedWebContentProcessor{cfg: ChunkedWebContentProcessorConfig{ChunkSize: 10}}
+	content := "abcdefghij   klmnopqrstuvwxyz"
+
+	chunks := processor.splitIntoChunks(content)
+	if len(chunks) < 2 {
+		t.Fatalf("got %d chunks, want split content", len(chunks))
+	}
+	if got := strings.Join(chunks, ""); got != content {
+		t.Fatalf("joined chunks = %q, want original content %q", got, content)
 	}
 }
 

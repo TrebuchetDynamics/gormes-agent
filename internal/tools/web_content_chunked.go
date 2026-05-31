@@ -241,28 +241,27 @@ func joinChunkSummaries(summaries []chunkSummary) string {
 // splitIntoChunks splits content into chunks of approximately ChunkSize.
 // It tries to split at sentence boundaries for natural chunking.
 func (p *ChunkedWebContentProcessor) splitIntoChunks(content string) []string {
-	if len(content) <= p.cfg.ChunkSize {
+	return splitWebContentIntoChunks(content, p.cfg.ChunkSize)
+}
+
+func splitWebContentIntoChunks(content string, chunkSize int) []string {
+	if len(content) <= chunkSize {
 		return []string{content}
 	}
 
 	var chunks []string
 	remaining := content
 
-	for len(remaining) > p.cfg.ChunkSize {
-		// Find the actual split point
-		splitAt := findGoodSplitPoint(remaining, p.cfg.ChunkSize)
+	for len(remaining) > chunkSize {
+		splitAt := findGoodSplitPoint(remaining, chunkSize)
+		if splitAt <= 0 || splitAt >= len(remaining) {
+			splitAt = len(remaining)
+		}
 
-		// Take the chunk
 		chunks = append(chunks, remaining[:splitAt])
-
-		// Move to remaining
 		remaining = remaining[splitAt:]
-
-		// Skip leading whitespace for next chunk to avoid orphaned whitespace
-		remaining = strings.TrimLeft(remaining, " \n\t\r")
 	}
 
-	// Don't forget the last chunk
 	if len(remaining) > 0 {
 		chunks = append(chunks, remaining)
 	}
