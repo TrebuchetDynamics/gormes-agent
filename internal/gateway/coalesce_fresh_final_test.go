@@ -65,6 +65,30 @@ func TestCoalescerFreshFinal_YoungPreviewEditsInPlace(t *testing.T) {
 	}
 }
 
+func TestCoalescerFreshFinal_OldPreviewWithSameTextEditsInPlace(t *testing.T) {
+	ch := newFakeChannel("test")
+	now := time.Date(2026, 4, 27, 1, 0, 0, 0, time.UTC)
+	c := newCoalescer(ch, time.Second, "chat1",
+		coalescerFreshFinalAfter(time.Minute),
+		coalescerNow(func() time.Time { return now }),
+	)
+
+	c.flushImmediate(context.Background(), "complete answer")
+	now = now.Add(2 * time.Minute)
+	c.flushImmediateFinal(context.Background(), "complete answer", true)
+
+	if got := ch.sentSnapshot(); len(got) != 1 {
+		t.Fatalf("Send calls = %d, want only initial preview when final text already visible; sent=%#v", len(got), got)
+	}
+	edits := ch.editsSnapshot()
+	if len(edits) != 2 {
+		t.Fatalf("EditMessageFinal calls = %d, want preview plus terminal in-place edit; edits=%#v", len(edits), edits)
+	}
+	if edits[1].Text != "complete answer" {
+		t.Fatalf("terminal edit text = %q, want unchanged final text", edits[1].Text)
+	}
+}
+
 func TestCoalescerFreshFinal_OldPreviewSendsFreshAndDeletesOld(t *testing.T) {
 	ch := &freshFinalFakeChannel{fakeChannel: newFakeChannel("test")}
 	now := time.Date(2026, 4, 27, 1, 0, 0, 0, time.UTC)

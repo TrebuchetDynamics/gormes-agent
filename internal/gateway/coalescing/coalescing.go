@@ -149,7 +149,7 @@ func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finali
 	lastSentText := state.lastSentText
 
 	now := c.now()
-	if shouldSendFreshFinal(finalize, msgID, createdAt, freshFinalAfter, now) {
+	if shouldSendFreshFinal(finalize, msgID, createdAt, freshFinalAfter, now, lastSentText, text) {
 		if sentID, ok := c.tryFreshFinal(ctx, msgID, text); ok {
 			c.mu.Lock()
 			c.pendingMsgID = sentID
@@ -365,8 +365,14 @@ func (c *Coalescer) sendInitialText(ctx context.Context, text string) (string, e
 	return msgID, err, true
 }
 
-func shouldSendFreshFinal(finalize bool, msgID string, createdAt time.Time, threshold time.Duration, now time.Time) bool {
+func shouldSendFreshFinal(finalize bool, msgID string, createdAt time.Time, threshold time.Duration, now time.Time, lastSentText, finalText string) bool {
 	if !finalize || threshold <= 0 || msgID == "" || createdAt.IsZero() {
+		return false
+	}
+	// Fresh finals are for replacing an old visible preview with newer terminal
+	// content. If the terminal text is already visible, sending a new message can
+	// duplicate the answer on channels that cannot delete the old preview.
+	if finalText != "" && finalText == lastSentText {
 		return false
 	}
 	return now.Sub(createdAt) >= threshold
