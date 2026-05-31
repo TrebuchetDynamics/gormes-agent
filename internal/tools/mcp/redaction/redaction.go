@@ -10,7 +10,7 @@ import (
 // contains credentials or token-shaped values.
 const Value = "[REDACTED]"
 
-var credentialPattern = regexp.MustCompile(`(?i)(ghp_[A-Za-z0-9_]{1,255}|sk-[A-Za-z0-9_]{1,255}|Bearer\s+\S+|token=[^\s&,;"']{1,255}|key=[^\s&,;"']{1,255}|API_KEY=[^\s&,;"']{1,255}|password=[^\s&,;"']{1,255}|secret=[^\s&,;"']{1,255})`)
+var credentialPattern = regexp.MustCompile(`(?i)(ghp_[A-Za-z0-9_-]{1,255}|sk-[A-Za-z0-9_-]{1,255}|Bearer\s+\S+|token=[^\s&,;"']{1,255}|key=[^\s&,;"']{1,255}|API_KEY=[^\s&,;"']{1,255}|password=[^\s&,;"']{1,255}|secret=[^\s&,;"']{1,255})`)
 
 // Map returns a copy of values with secret-looking keys and token-shaped values
 // redacted for operator-visible MCP status surfaces.
@@ -20,13 +20,17 @@ func Map(values map[string]string) map[string]string {
 	}
 	out := make(map[string]string, len(values))
 	for key, value := range values {
-		if IsSecretKey(key) || IsSecretValue(value) {
-			out[key] = Value
-			continue
-		}
-		out[key] = String(value)
+		out[key] = MapValue(key, value)
 	}
 	return out
+}
+
+// MapValue returns the operator-visible form for one key/value pair.
+func MapValue(key, value string) string {
+	if IsSecretKey(key) || IsSecretValue(value) {
+		return Value
+	}
+	return String(value)
 }
 
 // IsSecretKey reports whether key names credential-like material.
@@ -71,7 +75,7 @@ func FormatStringMap(values map[string]string) string {
 	sort.Strings(keys)
 	parts := make([]string, 0, len(keys))
 	for _, key := range keys {
-		parts = append(parts, key+"="+String(values[key]))
+		parts = append(parts, key+"="+MapValue(key, values[key]))
 	}
 	return "{" + strings.Join(parts, ",") + "}"
 }
