@@ -2,6 +2,7 @@ package urlsafety
 
 import (
 	"net"
+	"strings"
 	"testing"
 )
 
@@ -115,6 +116,8 @@ func TestExtractHostFromURL(t *testing.T) {
 		{"192.168.1.1:3000", "192.168.1.1"},
 		{"[::1]:8080", "::1"},
 		{"[2001:db8::1]:8080", "2001:db8::1"},
+		{"2001:db8::1", "2001:db8::1"},
+		{"fd00:ec2::254", "fd00:ec2::254"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
@@ -327,6 +330,23 @@ func TestURLSafetyChecker_CloudMetadataAlwaysBlocked(t *testing.T) {
 				t.Fatalf("Category = %v, want URLSafetyCategorySSRF", result.Category)
 			}
 		})
+	}
+}
+
+func TestURLSafetyChecker_BareIPv6CloudMetadataIsClassifiedBeforeDNS(t *testing.T) {
+	policy := DefaultURLSafetyPolicy()
+	policy.AllowPrivateURLs = true
+	checker := NewURLSafetyChecker(policy)
+
+	result := checker.CheckURL("fd00:ec2::254")
+	if result.Safe {
+		t.Fatalf("CheckURL(bare IPv6 metadata) = Safe=true, want metadata block; result=%+v", result)
+	}
+	if result.Host != "fd00:ec2::254" {
+		t.Fatalf("Host = %q, want normalized bare IPv6 literal", result.Host)
+	}
+	if result.Category != URLSafetyCategorySSRF || !strings.Contains(result.Reason, "cloud metadata") {
+		t.Fatalf("result = %+v, want SSRF cloud metadata classification before DNS", result)
 	}
 }
 

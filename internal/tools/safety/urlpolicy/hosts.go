@@ -25,40 +25,45 @@ func MatchHostAgainstRule(host, pattern string) bool {
 
 // ExtractHostFromURL extracts and normalizes the host from a URL-like string.
 func ExtractHostFromURL(rawURL string) string {
+	rawURL = strings.TrimSpace(rawURL)
 	parsed, err := url.Parse(rawURL)
 	if err == nil && parsed.Hostname() != "" {
 		return NormalizeHost(parsed.Hostname())
 	}
 
 	if idx := strings.Index(rawURL, "://"); idx == -1 {
-		parsed, err = url.Parse("://" + rawURL)
+		parsed, err = url.Parse("//" + rawURL)
 		if err == nil && parsed.Hostname() != "" {
-			return NormalizeHost(parsed.Hostname())
-		}
-		if parsed != nil {
 			return NormalizeHost(parsed.Hostname())
 		}
 	}
 
-	host := StripPort(rawURL)
+	host := stripURLTail(rawURL)
+	host = StripPort(host)
 	return NormalizeHost(host)
+}
+
+func stripURLTail(raw string) string {
+	if idx := strings.IndexAny(raw, "/?#"); idx >= 0 {
+		return raw[:idx]
+	}
+	return raw
 }
 
 // StripPort strips the port from a host string, handling IPv6 correctly.
 func StripPort(host string) string {
+	host = strings.TrimSpace(host)
 	if strings.HasPrefix(host, "[") {
 		if closeBracket := strings.Index(host, "]"); closeBracket >= 0 {
-			if closeBracket+1 < len(host) && host[closeBracket+1] == ':' {
-				return host[:closeBracket+1]
-			}
-			return host
+			return host[:closeBracket+1]
 		}
 	}
 
+	if strings.Count(host, ":") > 1 {
+		return host
+	}
+
 	if colonIdx := strings.LastIndex(host, ":"); colonIdx > 0 {
-		if slashIdx := strings.Index(host, "/"); slashIdx >= 0 && colonIdx > slashIdx {
-			return host
-		}
 		return host[:colonIdx]
 	}
 	return host
