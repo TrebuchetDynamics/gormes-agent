@@ -17,6 +17,11 @@ const SchemaRejectionReasonInputSchemaNotObject = "input_schema_must_be_object"
 // candidate wins and later collisions are reported as rejected inventory.
 const SchemaRejectionReasonDuplicateSanitizedName = "duplicate_sanitized_name"
 
+// SchemaRejectionReasonEmptySanitizedName is emitted when a tool advertises an
+// empty name. Registering it would create an invalid provider-visible tool
+// name and make source-name dispatch ambiguous.
+const SchemaRejectionReasonEmptySanitizedName = "empty_sanitized_name"
+
 // defaultInputSchema is the JSON-Schema fragment substituted when an MCP tool
 // advertises no InputSchema or an explicit JSON `null`. Hermes' upstream
 // _normalize_mcp_input_schema applies the same fallback so providers that
@@ -92,6 +97,13 @@ func normalizeToolCandidate(serverName string, t RawTool, seenNames map[string]b
 		}, false
 	}
 	name := SanitizeNameComponent(t.Name)
+	if name == "" {
+		return NormalizedTool{}, SchemaRejection{
+			ServerName: serverName,
+			ToolName:   t.Name,
+			Reason:     SchemaRejectionReasonEmptySanitizedName,
+		}, false
+	}
 	if seenNames[name] {
 		return NormalizedTool{}, SchemaRejection{
 			ServerName: serverName,

@@ -5,6 +5,7 @@ import mcptools "github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp"
 const (
 	SchemaRejectionReasonInputSchemaNotObject   = mcptools.SchemaRejectionReasonInputSchemaNotObject
 	SchemaRejectionReasonDuplicateSanitizedName = mcptools.SchemaRejectionReasonDuplicateSanitizedName
+	SchemaRejectionReasonEmptySanitizedName     = mcptools.SchemaRejectionReasonEmptySanitizedName
 )
 
 type NormalizedTool = mcptools.NormalizedTool

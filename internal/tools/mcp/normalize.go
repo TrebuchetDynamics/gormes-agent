@@ -11,6 +11,7 @@ import (
 const (
 	SchemaRejectionReasonInputSchemaNotObject   = descriptor.SchemaRejectionReasonInputSchemaNotObject
 	SchemaRejectionReasonDuplicateSanitizedName = descriptor.SchemaRejectionReasonDuplicateSanitizedName
+	SchemaRejectionReasonEmptySanitizedName     = descriptor.SchemaRejectionReasonEmptySanitizedName
 )
 
 type NormalizedTool = descriptor.NormalizedTool
