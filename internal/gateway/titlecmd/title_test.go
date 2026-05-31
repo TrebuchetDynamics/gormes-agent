@@ -9,6 +9,9 @@ func TestParseArgHandlesSlashAndRawTitle(t *testing.T) {
 	if got, ok := ParseArg("/title   Friendly Greeting  "); !ok || got != "Friendly Greeting" {
 		t.Fatalf("ParseArg slash = %q, %v; want Friendly Greeting,true", got, ok)
 	}
+	if got, ok := ParseArg("/title@GormesBot   Friendly Greeting  "); !ok || got != "Friendly Greeting" {
+		t.Fatalf("ParseArg bot mention = %q, %v; want Friendly Greeting,true", got, ok)
+	}
 	if got, ok := ParseArg("Friendly Greeting"); !ok || got != "Friendly Greeting" {
 		t.Fatalf("ParseArg raw = %q, %v; want Friendly Greeting,true", got, ok)
 	}

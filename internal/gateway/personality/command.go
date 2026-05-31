@@ -16,15 +16,10 @@ func ParseArg(text string) string {
 	if body == "" {
 		return ""
 	}
-	fields := strings.Fields(body)
-	if len(fields) == 0 || commandline.Name(fields[0]) != "personality" {
-		return body
+	if payload, ok := commandline.PayloadIfCommand(body, "personality"); ok {
+		return payload
 	}
-	idx := strings.Index(body, fields[0])
-	if idx < 0 {
-		return ""
-	}
-	return strings.TrimSpace(body[idx+len(fields[0]):])
+	return body
 }
 
 // TruncateDesc shortens a personality prompt description by rune count.

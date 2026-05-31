@@ -37,3 +37,26 @@ func TestSplitSeparatesTokenAndTrimmedArgs(t *testing.T) {
 		}
 	}
 }
+
+func TestPayloadIfCommandExposesCommandPayloadContract(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		raw         string
+		commandName string
+		wantPayload string
+		wantOK      bool
+	}{
+		{name: "plain slash", raw: "/title Friendly Greeting", commandName: "title", wantPayload: "Friendly Greeting", wantOK: true},
+		{name: "bot mention", raw: "/title@GormesBot Friendly Greeting", commandName: "/title", wantPayload: "Friendly Greeting", wantOK: true},
+		{name: "unicode whitespace", raw: "/title\u00a0Friendly Greeting", commandName: "title", wantPayload: "Friendly Greeting", wantOK: true},
+		{name: "bare command", raw: "/title", commandName: "title", wantPayload: "", wantOK: true},
+		{name: "non matching payload", raw: "Friendly Greeting", commandName: "title", wantPayload: "", wantOK: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			gotPayload, gotOK := PayloadIfCommand(tc.raw, tc.commandName)
+			if gotPayload != tc.wantPayload || gotOK != tc.wantOK {
+				t.Fatalf("PayloadIfCommand(%q, %q) = (%q, %v), want (%q, %v)", tc.raw, tc.commandName, gotPayload, gotOK, tc.wantPayload, tc.wantOK)
+			}
+		})
+	}
+}

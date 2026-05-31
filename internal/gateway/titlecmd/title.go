@@ -15,16 +15,10 @@ func ParseArg(text string) (string, bool) {
 	if body == "" {
 		return "", false
 	}
-	fields := strings.Fields(body)
-	if len(fields) == 0 || commandline.Name(fields[0]) != "title" {
-		return body, true
+	if arg, ok := commandline.PayloadIfCommand(body, "title"); ok {
+		return arg, arg != ""
 	}
-	idx := strings.Index(body, fields[0])
-	if idx < 0 {
-		return "", false
-	}
-	arg := strings.TrimSpace(body[idx+len(fields[0]):])
-	return arg, arg != ""
+	return body, true
 }
 
 func Sanitize(title string) (string, error) {

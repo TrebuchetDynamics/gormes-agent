@@ -33,6 +33,18 @@ func Split(input string) (token, args string) {
 	return trimmed, ""
 }
 
+// PayloadIfCommand returns the trimmed argument payload when input starts with
+// the named slash command. Bot mention suffixes on the command token are
+// ignored. Non-command payloads return ok=false so callers can preserve their
+// existing already-split payload behavior explicitly.
+func PayloadIfCommand(input, command string) (payload string, ok bool) {
+	token, args := Split(input)
+	if token == "" || Name(token) != Name(command) {
+		return "", false
+	}
+	return args, true
+}
+
 func isCommandSpace(r rune) bool {
 	return unicode.IsSpace(r)
 }
