@@ -63,6 +63,12 @@ func TestPlatformExposureDeterministicAndSafe(t *testing.T) {
 	if got := NormalizeTelegramCommandName("/Planner.Pro_[SAFE]!"); got != "planner_pro_safe" {
 		t.Fatalf("NormalizeTelegramCommandName = %q, want planner_pro_safe", got)
 	}
+	if got := NormalizeSlackCommandName("/Planner.Pro_[SAFE]! now"); got != "planner-pro-safe-now" {
+		t.Fatalf("NormalizeSlackCommandName = %q, want planner-pro-safe-now", got)
+	}
+	if got := NormalizeSlackCommandName("!!!"); got != "" {
+		t.Fatalf("NormalizeSlackCommandName punctuation = %q, want empty", got)
+	}
 
 	slack1 := SlackSubcommandMap()
 	slack2 := SlackSubcommandMap()
@@ -73,5 +79,16 @@ func TestPlatformExposureDeterministicAndSafe(t *testing.T) {
 		if _, ok := slack1[want]; !ok {
 			t.Fatalf("SlackSubcommandMap missing %q", want)
 		}
+	}
+
+	dynamicSlack := SlackSubcommandMapWith([]PlatformCommand{
+		{Name: "/Planner.Pro_[SAFE]! now", Description: "dynamic skill"},
+		{Name: "!!!", Description: "empty after normalization"},
+	})
+	if got := dynamicSlack["planner-pro-safe-now"]; got != "/planner-pro-safe-now" {
+		t.Fatalf("SlackSubcommandMapWith sanitized dynamic command = %q, want /planner-pro-safe-now", got)
+	}
+	if _, ok := dynamicSlack["!!!"]; ok {
+		t.Fatalf("SlackSubcommandMapWith exposed punctuation-only command: %#v", dynamicSlack)
 	}
 }

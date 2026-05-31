@@ -468,13 +468,21 @@ func sortedPlatformCommands(commands []PlatformCommand) []PlatformCommand {
 
 func NormalizeTelegramCommandName(name string) string {
 	const maxTelegramCommandNameLen = 32
+	return normalizePlatformCommandName(name, '_', maxTelegramCommandNameLen)
+}
+
+func NormalizeSlackCommandName(name string) string {
+	return normalizePlatformCommandName(name, '-', 0)
+}
+
+func normalizePlatformCommandName(name string, separator byte, maxLen int) string {
 	name = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(name)), "/")
 	var b strings.Builder
 	lastSeparator := false
 	for _, r := range name {
 		valid := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
 		if valid {
-			if b.Len() >= maxTelegramCommandNameLen {
+			if maxLen > 0 && b.Len() >= maxLen {
 				break
 			}
 			b.WriteRune(r)
@@ -484,19 +492,13 @@ func NormalizeTelegramCommandName(name string) string {
 		if b.Len() == 0 || lastSeparator {
 			continue
 		}
-		if b.Len() >= maxTelegramCommandNameLen {
+		if maxLen > 0 && b.Len() >= maxLen {
 			break
 		}
-		b.WriteByte('_')
+		b.WriteByte(separator)
 		lastSeparator = true
 	}
-	return strings.Trim(b.String(), "_")
-}
-
-func NormalizeSlackCommandName(name string) string {
-	name = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(name)), "/")
-	name = strings.ReplaceAll(name, "_", "-")
-	return strings.Trim(name, "-")
+	return strings.Trim(b.String(), string(separator))
 }
 
 func SplitGatewayCommandLine(input string) (token, args string) {
