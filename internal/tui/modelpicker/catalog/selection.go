@@ -17,27 +17,27 @@ func DefaultCatalog() ([]CatalogProvider, error) {
 	providers := llm.ListPickerProviders()
 	out := make([]CatalogProvider, 0, len(providers))
 	for _, provider := range providers {
-		id := strings.TrimSpace(provider.Slug)
-		if id == "" {
+		providerEntry, ok := contract.NormalizeProviderEntry(ProviderEntry{ID: provider.Slug, Label: provider.Label})
+		if !ok {
 			continue
 		}
 		modelIDs := provider.Models
 		if len(modelIDs) == 0 {
-			modelIDs = llm.ProviderModelCatalogSuggestions(id, nil)
+			modelIDs = llm.ProviderModelCatalogSuggestions(providerEntry.ID, nil)
 		}
 		models := make([]ModelEntry, 0, len(modelIDs))
 		for _, modelID := range modelIDs {
-			modelID = strings.TrimSpace(modelID)
-			if modelID == "" {
+			model, ok := contract.NormalizeModelEntry(ModelEntry{ID: modelID, Label: modelID})
+			if !ok {
 				continue
 			}
-			models = append(models, ModelEntry{ID: modelID, Label: modelID})
+			models = append(models, model)
 		}
 		if len(models) == 0 {
 			continue
 		}
 		out = append(out, CatalogProvider{
-			Provider: ProviderEntry{ID: id, Label: firstNonEmptyString(strings.TrimSpace(provider.Label), id)},
+			Provider: providerEntry,
 			Models:   models,
 		})
 	}
@@ -63,27 +63,23 @@ func SlashArgument(input string) string {
 func NormalizeCatalog(catalog []CatalogProvider) []CatalogProvider {
 	out := make([]CatalogProvider, 0, len(catalog))
 	for _, entry := range catalog {
-		providerID := strings.TrimSpace(entry.Provider.ID)
-		if providerID == "" {
+		provider, ok := contract.NormalizeProviderEntry(entry.Provider)
+		if !ok {
 			continue
 		}
-		label := firstNonEmptyString(strings.TrimSpace(entry.Provider.Label), providerID)
 		models := make([]ModelEntry, 0, len(entry.Models))
-		for _, model := range entry.Models {
-			modelID := strings.TrimSpace(model.ID)
-			if modelID == "" {
+		for _, entryModel := range entry.Models {
+			model, ok := contract.NormalizeModelEntry(entryModel)
+			if !ok {
 				continue
 			}
-			models = append(models, ModelEntry{
-				ID:    modelID,
-				Label: firstNonEmptyString(strings.TrimSpace(model.Label), modelID),
-			})
+			models = append(models, model)
 		}
 		if len(models) == 0 {
 			continue
 		}
 		out = append(out, CatalogProvider{
-			Provider: ProviderEntry{ID: providerID, Label: label},
+			Provider: provider,
 			Models:   models,
 		})
 	}
@@ -138,13 +134,4 @@ func NormalizeConfirmedSelection(catalog []CatalogProvider, provider, model stri
 		}
 	}
 	return provider, model
-}
-
-func firstNonEmptyString(values ...string) string {
-	for _, value := range values {
-		if value != "" {
-			return value
-		}
-	}
-	return ""
 }
