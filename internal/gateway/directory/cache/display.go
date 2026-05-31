@@ -26,7 +26,7 @@ func (d Directory) FormatForDisplay() string {
 			guilds := map[string][]model.Entry{}
 			dms := []model.Entry{}
 			for _, entry := range entries {
-				if guild := strings.TrimSpace(entry.Guild); guild != "" {
+				if guild := model.EntryGuild(entry); guild != "" {
 					guilds[guild] = append(guilds[guild], entry)
 				} else {
 					dms = append(dms, entry)

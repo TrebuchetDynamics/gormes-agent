@@ -33,7 +33,7 @@ func (d Directory) Resolve(platform, query string) (gatewaydelivery.Target, mode
 		guildPart := strings.Join(parts[:len(parts)-1], "/")
 		channelPart := parts[len(parts)-1]
 		for _, entry := range entries {
-			if strings.ToLower(strings.TrimSpace(entry.Guild)) == guildPart && model.NormalizeQuery(entry.Name) == channelPart {
+			if model.NormalizeGuildQuery(model.EntryGuild(entry)) == guildPart && model.NormalizeQuery(entry.Name) == channelPart {
 				return model.DeliveryTarget(platform, entry), model.Evidence{}
 			}
 		}

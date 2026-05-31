@@ -6,7 +6,7 @@ package model
 func TargetDisplayName(platform string, entry Entry) string {
 	platform = NormalizePlatform(platform)
 	name := trimText(entry.Name)
-	if platform == "discord" && trimText(entry.Guild) != "" {
+	if platform == "discord" && EntryGuild(entry) != "" {
 		return "#" + name
 	}
 	if entryType := trimText(entry.Type); platform != "discord" && entryType != "" {
