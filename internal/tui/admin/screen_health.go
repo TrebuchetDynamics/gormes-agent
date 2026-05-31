@@ -461,24 +461,21 @@ func (f *providerFixState) Update(msg tea.KeyMsg) (bool, error) {
 	case wizard.KindPick:
 		switch msg.String() {
 		case "up", "k":
-			f.pickCursor = navigation.MoveIndex(f.pickCursor, len(step.Choices), -1)
+			f.pickCursor = wizardflow.MovePickCursor(f.pickCursor, step, -1)
 		case "down", "j":
-			f.pickCursor = navigation.MoveIndex(f.pickCursor, len(step.Choices), 1)
+			f.pickCursor = wizardflow.MovePickCursor(f.pickCursor, step, 1)
 		case "enter":
-			if len(step.Choices) == 0 {
+			answer, ok := wizardflow.PickAnswer(step, f.pickCursor)
+			if !ok {
 				return false, fmt.Errorf("provider choices missing")
 			}
-			return f.finishStep(wizard.Answer{Kind: step.Kind, ChoiceID: step.Choices[f.pickCursor].ID})
+			return f.finishStep(answer)
 		}
 	case wizard.KindText, wizard.KindPassword:
 		if msg.Type == tea.KeyEnter {
 			return f.finishStep(wizard.Answer{Kind: step.Kind, Text: strings.TrimSpace(f.input.Value())})
 		}
-		var cmd tea.Cmd
-		f.input, cmd = f.input.Update(msg)
-		if cmd != nil {
-			_ = cmd()
-		}
+		f.input = wizardflow.UpdateInput(f.input, msg)
 	default:
 		return false, fmt.Errorf("unsupported provider fix step %q", step.Kind)
 	}
@@ -634,19 +631,11 @@ func (f *providerFixState) prepareInput() {
 	if !ok {
 		return
 	}
-	input := textinput.New()
-	input.Focus()
-	input.Prompt = "> "
-	input.Width = setupHealthInputWidth(f.viewWidth())
-	switch step.Kind {
-	case wizard.KindPassword:
-		input.EchoMode = textinput.EchoPassword
-		input.EchoCharacter = '*'
-	case wizard.KindText:
-		input.SetValue(f.defaultTextValue(step.ID))
-		input.CursorEnd()
-	}
-	f.input = input
+	f.input = wizardflow.NewInput(wizardflow.InputOptions{
+		Width:    setupHealthInputWidth(f.viewWidth()),
+		Value:    f.defaultTextValue(step.ID),
+		Password: step.Kind == wizard.KindPassword,
+	})
 }
 
 func (f *providerFixState) defaultTextValue(stepID string) string {

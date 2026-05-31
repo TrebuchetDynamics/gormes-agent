@@ -332,24 +332,21 @@ func (w *agentsWizardState) Update(msg tea.KeyMsg) (bool, error) {
 	case wizard.KindPick:
 		switch msg.String() {
 		case "up", "k":
-			w.pickCursor = navigation.MoveIndex(w.pickCursor, len(step.Choices), -1)
+			w.pickCursor = wizardflow.MovePickCursor(w.pickCursor, step, -1)
 		case "down", "j":
-			w.pickCursor = navigation.MoveIndex(w.pickCursor, len(step.Choices), 1)
+			w.pickCursor = wizardflow.MovePickCursor(w.pickCursor, step, 1)
 		case "enter":
-			if len(step.Choices) == 0 {
+			answer, ok := wizardflow.PickAnswer(step, w.pickCursor)
+			if !ok {
 				return false, fmt.Errorf("wizard step %q has no choices", step.ID)
 			}
-			return w.finishStep(wizard.Answer{Kind: step.Kind, ChoiceID: step.Choices[w.pickCursor].ID})
+			return w.finishStep(answer)
 		}
 	case wizard.KindText, wizard.KindMultiLine:
 		if msg.Type == tea.KeyEnter {
 			return w.finishStep(wizard.Answer{Kind: step.Kind, Text: strings.TrimSpace(w.input.Value())})
 		}
-		var cmd tea.Cmd
-		w.input, cmd = w.input.Update(msg)
-		if cmd != nil {
-			_ = cmd()
-		}
+		w.input = wizardflow.UpdateInput(w.input, msg)
 	case wizard.KindConfirm:
 		switch msg.String() {
 		case "y", "Y":
@@ -414,10 +411,7 @@ func (w *agentsWizardState) prepareInput() {
 	if !ok {
 		return
 	}
-	input := textinput.New()
-	input.Prompt = "> "
-	input.Focus()
-	w.input = input
+	w.input = wizardflow.NewInput(wizardflow.InputOptions{})
 }
 
 func (w *agentsWizardState) spawnOptions() (goncho.CreateAgentOptions, error) {

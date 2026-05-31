@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestFlowAdvancesAndStoresTypedAnswers(t *testing.T) {
@@ -54,5 +55,55 @@ func TestFlowCopiesStepSlice(t *testing.T) {
 	step, ok := flow.ActiveStep()
 	if !ok || step.ID != "one" {
 		t.Fatalf("active step after caller mutation = (%q, %v), want one", step.ID, ok)
+	}
+}
+
+func TestNewInputConfiguresSharedWizardTextEntry(t *testing.T) {
+	input := NewInput(InputOptions{Width: 12, Value: "default", Password: true})
+	if got := input.Prompt; got != "> " {
+		t.Fatalf("prompt = %q, want default", got)
+	}
+	if got := input.Width; got != 12 {
+		t.Fatalf("width = %d, want 12", got)
+	}
+	if got := input.Value(); got != "default" {
+		t.Fatalf("value = %q, want default", got)
+	}
+	if got := input.View(); got == "" || got == "default" {
+		t.Fatalf("password input view exposed value or was empty: %q", got)
+	}
+}
+
+func TestUpdateInputAppliesKeyWithoutCallerCommandPlumbing(t *testing.T) {
+	input := NewInput(InputOptions{})
+	input = UpdateInput(input, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'o', 'k'}})
+	if got := input.Value(); got != "ok" {
+		t.Fatalf("input value = %q, want ok", got)
+	}
+}
+
+func TestPickHelpersClampMovementAndBuildAnswer(t *testing.T) {
+	step := wizard.Pick("provider", "Provider", []wizard.Choice{
+		{ID: "openai", Label: "OpenAI"},
+		{ID: "anthropic", Label: "Anthropic"},
+	})
+	if got := MovePickCursor(0, step, -1); got != 0 {
+		t.Fatalf("move above first = %d, want 0", got)
+	}
+	cursor := MovePickCursor(0, step, 5)
+	if cursor != 1 {
+		t.Fatalf("move past end = %d, want 1", cursor)
+	}
+	answer, ok := PickAnswer(step, 99)
+	if !ok {
+		t.Fatal("pick answer unavailable")
+	}
+	if answer.Kind != wizard.KindPick || answer.ChoiceID != "anthropic" {
+		t.Fatalf("answer = (%q, %q), want pick anthropic", answer.Kind, answer.ChoiceID)
+	}
+
+	_, ok = PickAnswer(wizard.Pick("empty", "Empty", nil), 0)
+	if ok {
+		t.Fatal("empty pick unexpectedly returned answer")
 	}
 }
