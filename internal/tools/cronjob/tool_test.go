@@ -97,6 +97,36 @@ func TestCronjobTool_CreateListAndRedact(t *testing.T) {
 	}
 }
 
+func TestCronjobTool_CreateNormalizesCommaSeparatedDeliverString(t *testing.T) {
+	store, done := newCronjobToolTestStore(t)
+	defer done()
+
+	tool := toolcron.NewCronjobTool(toolcron.CronjobToolConfig{
+		Store:       store,
+		ScriptsRoot: t.TempDir(),
+		Now:         fixedCronjobToolNow,
+	})
+
+	created := execCronjobTool[cronjobCreateResult](t, tool, map[string]any{
+		"action":   "create",
+		"name":     "comma deliver",
+		"schedule": "every 30m",
+		"prompt":   "Send the daily summary.",
+		"deliver":  "telegram, discord:ops, telegram",
+	})
+	if !created.Success {
+		t.Fatalf("create success = false, error = %q", created.Error)
+	}
+
+	stored, err := store.Get(created.JobID)
+	if err != nil {
+		t.Fatalf("store.Get(created) = %v", err)
+	}
+	if stored.Deliver != "telegram,discord:ops" {
+		t.Fatalf("stored deliver = %q, want comma string split, trimmed, and deduped", stored.Deliver)
+	}
+}
+
 func TestCronjobTool_ListHandlesPartialLegacyJobRecords(t *testing.T) {
 	store, done := newCronjobToolTestStore(t)
 	defer done()

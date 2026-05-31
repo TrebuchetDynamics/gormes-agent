@@ -140,11 +140,7 @@ type cronjobStringListArg struct {
 func (a *cronjobStringListArg) UnmarshalJSON(raw []byte) error {
 	var text string
 	if err := json.Unmarshal(raw, &text); err == nil {
-		if strings.TrimSpace(text) == "" {
-			a.Values = nil
-			return nil
-		}
-		a.Values = []string{strings.TrimSpace(text)}
+		a.Values = normalizeCronjobCommaSeparatedString(text)
 		return nil
 	}
 	var values []string
@@ -755,6 +751,13 @@ func normalizeCronjobStrings(values []string) []string {
 		out = append(out, text)
 	}
 	return out
+}
+
+func normalizeCronjobCommaSeparatedString(value string) []string {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return normalizeCronjobStrings(strings.Split(value, ","))
 }
 
 func normalizeCronjobRepeat(value int) int {
