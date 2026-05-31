@@ -1,4 +1,5 @@
 approval
+dedup
 delivery/routing
 directory/cache
 directory/model
@@ -6,6 +7,7 @@ directory/model/policy
 directory/refresh
 directory/storage
 events/bus
+pairing
 platforms
 rendering
 ttsconfig

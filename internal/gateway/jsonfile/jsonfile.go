@@ -52,13 +52,32 @@ func Read(ctx context.Context, path string, out any, label string) (bool, error)
 	return true, nil
 }
 
+// ReadRequired decodes a JSON file that must exist. Missing files return
+// os.ErrNotExist so callers with degraded-state machines can distinguish
+// absent state from malformed JSON while sharing the decode contract.
+func ReadRequired(ctx context.Context, path string, out any, label string) error {
+	exists, err := Read(ctx, path, out, label)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return os.ErrNotExist
+	}
+	return nil
+}
+
+// Writer is an injectable file-write seam used by stores that need
+// deterministic atomic-write failure tests.
+type Writer func(string, []byte, os.FileMode) error
+
 // WriteOptions carries filesystem policy for JSON marker stores that need
-// stricter permissions or stable temp-file prefixes while sharing the same
-// encode/write/rename contract.
+// stricter permissions, stable temp-file prefixes, or injected write seams
+// while sharing the same encode/write/rename contract.
 type WriteOptions struct {
 	DirMode    os.FileMode
 	FileMode   os.FileMode
 	TmpPattern string
+	Writer     Writer
 }
 
 // MarshalIndentNewline marshals payload as indented JSON and appends the
@@ -110,12 +129,25 @@ func WriteAtomicWithOptions(ctx context.Context, path string, payload any, label
 	defer func() {
 		_ = os.Remove(tmpPath)
 	}()
-	if _, err := tmp.Write(raw); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("write %s temp file: %w", label, err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("close %s temp file: %w", label, err)
+	if opts.Writer != nil {
+		if err := tmp.Close(); err != nil {
+			return fmt.Errorf("close %s temp file: %w", label, err)
+		}
+		mode := opts.FileMode
+		if mode == 0 {
+			mode = 0o600
+		}
+		if err := opts.Writer(tmpPath, raw, mode); err != nil {
+			return fmt.Errorf("write %s temp file: %w", label, err)
+		}
+	} else {
+		if _, err := tmp.Write(raw); err != nil {
+			_ = tmp.Close()
+			return fmt.Errorf("write %s temp file: %w", label, err)
+		}
+		if err := tmp.Close(); err != nil {
+			return fmt.Errorf("close %s temp file: %w", label, err)
+		}
 	}
 	if opts.FileMode != 0 {
 		if err := os.Chmod(tmpPath, opts.FileMode); err != nil {

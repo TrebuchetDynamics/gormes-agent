@@ -48,6 +48,49 @@ func TestWriteAtomicWithOptionsUsesFilesystemPolicy(t *testing.T) {
 	}
 }
 
+func TestWriteAtomicWithOptionsUsesInjectedWriterBeforeRename(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	path := filepath.Join(root, "record.json")
+	if err := os.WriteFile(path, []byte("old\n"), 0o600); err != nil {
+		t.Fatalf("write old record: %v", err)
+	}
+
+	if err := WriteAtomicWithOptions(ctx, path, map[string]string{"name": "new"}, "test record", WriteOptions{
+		FileMode:   0o600,
+		TmpPattern: ".custom-*.tmp",
+		Writer: func(tmpPath string, data []byte, perm os.FileMode) error {
+			if perm != 0o600 {
+				t.Fatalf("writer perm = %v, want 0600", perm)
+			}
+			if !strings.Contains(string(data), `"name": "new"`) {
+				t.Fatalf("writer data = %q, want marshaled payload", string(data))
+			}
+			if err := os.WriteFile(tmpPath, []byte(`{"name":`), perm); err != nil {
+				return err
+			}
+			return os.ErrInvalid
+		},
+	}); err == nil {
+		t.Fatal("WriteAtomicWithOptions error = nil, want injected failure")
+	}
+
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read record: %v", err)
+	}
+	if string(raw) != "old\n" {
+		t.Fatalf("record = %q, want old record preserved", string(raw))
+	}
+}
+
+func TestReadRequiredReturnsNotExistForMissingFile(t *testing.T) {
+	var out struct{}
+	if err := ReadRequired(context.Background(), filepath.Join(t.TempDir(), "missing.json"), &out, "test record"); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("ReadRequired error = %v, want os.ErrNotExist", err)
+	}
+}
+
 func TestReadDistinguishesMissingEmptyAndDecodedJSON(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "record.json")
