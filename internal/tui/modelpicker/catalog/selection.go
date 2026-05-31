@@ -48,22 +48,7 @@ func SlashArgument(input string) string {
 }
 
 func NormalizeCatalog(catalog []CatalogProvider) []CatalogProvider {
-	out := make([]CatalogProvider, 0, len(catalog))
-	for _, entry := range catalog {
-		provider, ok := contract.NormalizeProviderEntry(entry.Provider)
-		if !ok {
-			continue
-		}
-		models := contract.NormalizeModelEntries(entry.Models)
-		if len(models) == 0 {
-			continue
-		}
-		out = append(out, CatalogProvider{
-			Provider: provider,
-			Models:   models,
-		})
-	}
-	return out
+	return contract.NormalizeCatalog(catalog)
 }
 
 func NewState(catalog []CatalogProvider, currentProvider, currentModel string, width, height int) State {

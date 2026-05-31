@@ -40,6 +40,27 @@ func ModelEntries(entries []schema.ModelEntry) []schema.ModelEntry {
 	return out
 }
 
+// Catalog trims catalog entries, drops providers without stable IDs, drops
+// models without stable IDs, and drops providers left without models.
+func Catalog(catalog []schema.CatalogProvider) []schema.CatalogProvider {
+	out := make([]schema.CatalogProvider, 0, len(catalog))
+	for _, entry := range catalog {
+		provider, ok := ProviderEntry(entry.Provider)
+		if !ok {
+			continue
+		}
+		models := ModelEntries(entry.Models)
+		if len(models) == 0 {
+			continue
+		}
+		out = append(out, schema.CatalogProvider{
+			Provider: provider,
+			Models:   models,
+		})
+	}
+	return out
+}
+
 func normalizeIDLabel(rawID, rawLabel string) (string, string, bool) {
 	id := strings.TrimSpace(rawID)
 	if id == "" {

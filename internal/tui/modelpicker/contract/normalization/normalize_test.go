@@ -44,3 +44,20 @@ func TestNormalizeModelEntries(t *testing.T) {
 		t.Fatalf("NormalizeModelEntries second = %#v", models[1])
 	}
 }
+
+func TestNormalizeCatalog(t *testing.T) {
+	catalog := Catalog([]schema.CatalogProvider{
+		{Provider: schema.ProviderEntry{ID: " ", Label: "skip"}, Models: []schema.ModelEntry{{ID: "x"}}},
+		{Provider: schema.ProviderEntry{ID: " openai ", Label: " "}, Models: []schema.ModelEntry{{ID: " gpt-4.1 ", Label: " "}, {ID: ""}}},
+		{Provider: schema.ProviderEntry{ID: "empty"}},
+	})
+	if len(catalog) != 1 {
+		t.Fatalf("NormalizeCatalog len = %d, want 1", len(catalog))
+	}
+	if catalog[0].Provider != (schema.ProviderEntry{ID: "openai", Label: "openai"}) {
+		t.Fatalf("NormalizeCatalog provider = %#v", catalog[0].Provider)
+	}
+	if len(catalog[0].Models) != 1 || catalog[0].Models[0] != (schema.ModelEntry{ID: "gpt-4.1", Label: "gpt-4.1"}) {
+		t.Fatalf("NormalizeCatalog models = %#v", catalog[0].Models)
+	}
+}

@@ -19,3 +19,9 @@ func NormalizeModelEntry(entry ModelEntry) (ModelEntry, bool) {
 func NormalizeModelEntries(entries []ModelEntry) []ModelEntry {
 	return normalization.ModelEntries(entries)
 }
+
+// NormalizeCatalog trims catalog entries, drops providers without stable IDs,
+// drops models without stable IDs, and drops providers left without models.
+func NormalizeCatalog(catalog []CatalogProvider) []CatalogProvider {
+	return normalization.Catalog(catalog)
+}
