@@ -33,6 +33,29 @@ func (r Root) Require(label string) error {
 	return nil
 }
 
+// Spec names one persisted JSON file used by a directory store. It centralizes
+// file names, temp-file patterns, and root-validation labels so stores can
+// share persistence metadata without each rebuilding the same contract.
+type Spec struct {
+	Name       string
+	TmpPattern string
+	Label      string
+}
+
+// File returns a persisted JSON file for root using the spec metadata.
+func (s Spec) File(root string) File {
+	return File{Root: NewRoot(root), Name: s.Name, TmpPattern: s.TmpPattern, Label: s.Label}
+}
+
+// Apply returns f when it is already configured, otherwise it builds the spec's
+// default persisted JSON file while preserving any root carried by f.
+func (s Spec) Apply(f File) File {
+	if f.Name != "" {
+		return f
+	}
+	return s.File(f.Root.String())
+}
+
 // File is the shared persisted-JSON file contract for directory stores. It
 // keeps path construction, root validation, and atomic-write metadata together
 // so cache and source stores do not each rebuild that policy.
@@ -45,16 +68,13 @@ type File struct {
 
 // NewFile returns a persisted JSON file rooted at root.
 func NewFile(root, name, tmpPattern, label string) File {
-	return File{Root: NewRoot(root), Name: name, TmpPattern: tmpPattern, Label: label}
+	return Spec{Name: name, TmpPattern: tmpPattern, Label: label}.File(root)
 }
 
 // WithDefaults returns f when it is already configured, otherwise it builds the
 // store's default persisted JSON file while preserving any root carried by f.
 func (f File) WithDefaults(name, tmpPattern, label string) File {
-	if f.Name != "" {
-		return f
-	}
-	return NewFile(f.Root.String(), name, tmpPattern, label)
+	return Spec{Name: name, TmpPattern: tmpPattern, Label: label}.Apply(f)
 }
 
 // Path returns the persisted file path.
@@ -70,6 +90,28 @@ func (f File) Require() error {
 // Read decodes the persisted JSON file into value.
 func (f File) Read(value any) error {
 	return ReadJSON(f.Path(), value)
+}
+
+// LoadValue reads a persisted JSON value using a caller-supplied empty value
+// and post-decode normalization hook. Directory stores use this to share the
+// same decode lifecycle while keeping their own missing/invalid evidence policy.
+func LoadValue[T any](file File, empty func() T, ensure func(T) T) (T, error) {
+	value := zeroOrEmpty(empty)
+	if err := file.Read(&value); err != nil {
+		return zeroOrEmpty(empty), err
+	}
+	if ensure != nil {
+		value = ensure(value)
+	}
+	return value, nil
+}
+
+func zeroOrEmpty[T any](empty func() T) T {
+	if empty != nil {
+		return empty()
+	}
+	var value T
+	return value
 }
 
 // WriteAtomic marshals value as indented JSON and atomically replaces the

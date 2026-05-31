@@ -11,6 +11,8 @@ import (
 
 const channelDirectorySourcesFileName = "channel_directory_sources.json"
 
+var channelDirectorySourcesFileSpec = storage.Spec{Name: channelDirectorySourcesFileName, TmpPattern: ".channel_directory_sources-*.tmp", Label: "channel directory source"}
+
 // RememberedStore is the fakeable ledger seam used by Manager to persist
 // allowed inbound channel sources without mutating channel_directory.json. A
 // later refresh slice can merge this ledger into the directory read model.
@@ -26,24 +28,24 @@ type Store struct {
 }
 
 func NewStore(root string) Store {
-	return Store{file: storage.NewFile(root, channelDirectorySourcesFileName, ".channel_directory_sources-*.tmp", "channel directory source"), now: time.Now}
+	return Store{file: channelDirectorySourcesFileSpec.File(root), now: time.Now}
 }
 
 func (s Store) jsonFile() storage.File {
-	return s.file.WithDefaults(channelDirectorySourcesFileName, ".channel_directory_sources-*.tmp", "channel directory source")
+	return channelDirectorySourcesFileSpec.Apply(s.file)
 }
 
 // Load reads the remembered-source ledger. Missing ledgers are not failures;
 // they simply contribute no session-discovered entries during refresh.
 func (s Store) Load() (model.RememberedSourceLedger, model.Evidence) {
-	ledger := model.EmptyRememberedSourceLedger()
-	if err := s.jsonFile().Read(&ledger); err != nil {
+	ledger, err := storage.LoadValue(s.jsonFile(), model.EmptyRememberedSourceLedger, model.EnsureRememberedSourceLedger)
+	if err != nil {
 		if os.IsNotExist(err) {
 			return model.EmptyRememberedSourceLedger(), model.Evidence{}
 		}
 		return model.EmptyRememberedSourceLedger(), model.Evidence{Code: model.EvidenceChannelDirectorySourcesInvalid}
 	}
-	return model.EnsureRememberedSourceLedger(ledger), model.Evidence{}
+	return ledger, model.Evidence{}
 }
 
 func (s Store) RememberSource(_ context.Context, entry model.RememberedSourceEntry) error {

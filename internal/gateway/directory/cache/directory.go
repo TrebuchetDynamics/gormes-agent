@@ -11,6 +11,8 @@ import (
 
 const channelDirectoryFileName = "channel_directory.json"
 
+var channelDirectoryFileSpec = storage.Spec{Name: channelDirectoryFileName, TmpPattern: ".channel_directory-*.tmp", Label: "channel directory"}
+
 // Directory is the channel-neutral cached read model for reachable messaging
 // targets. It mirrors Hermes' channel_directory.json shape while keeping Gormes
 // runtime behavior native Go and fixture-driven.
@@ -27,7 +29,7 @@ type Store struct {
 
 // NewStore returns a store rooted at root.
 func NewStore(root string) Store {
-	return Store{file: storage.NewFile(root, channelDirectoryFileName, ".channel_directory-*.tmp", "channel directory")}
+	return Store{file: channelDirectoryFileSpec.File(root)}
 }
 
 // NewDirectory returns a directory with initialized platform buckets.
@@ -59,19 +61,18 @@ func (d *Directory) UpsertEntries(platform string, entries ...model.Entry) int {
 func (s Store) Root() string { return s.jsonFile().Root.String() }
 
 func (s Store) jsonFile() storage.File {
-	return s.file.WithDefaults(channelDirectoryFileName, ".channel_directory-*.tmp", "channel directory")
+	return channelDirectoryFileSpec.Apply(s.file)
 }
 
 // Load reads the directory. Missing or invalid files return empty directories
 // plus structured degraded evidence.
 func (s Store) Load() (Directory, model.Evidence) {
-	var dir Directory
-	if err := s.jsonFile().Read(&dir); errors.Is(err, os.ErrNotExist) {
+	dir, err := storage.LoadValue(s.jsonFile(), emptyDirectory, ensureDirectory)
+	if errors.Is(err, os.ErrNotExist) {
 		return emptyDirectory(), model.Evidence{Code: model.EvidenceChannelDirectoryMissing}
 	} else if err != nil {
 		return emptyDirectory(), model.Evidence{Code: model.EvidenceChannelDirectoryInvalid}
 	}
-	dir.Platforms = model.EnsurePlatformBuckets(dir.Platforms)
 	return dir, model.Evidence{}
 }
 
@@ -93,4 +94,9 @@ func (s Store) SaveWithWriter(dir Directory, writer func(string, []byte, os.File
 
 func emptyDirectory() Directory {
 	return NewDirectory("")
+}
+
+func ensureDirectory(dir Directory) Directory {
+	dir.Platforms = model.EnsurePlatformBuckets(dir.Platforms)
+	return dir
 }
