@@ -1,69 +1,15 @@
 package document
 
-import (
-	"fmt"
-	"strings"
-)
+import "github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills/document/model"
 
 const (
-	DefaultMaxDocumentBytes = 128 * 1024
-	DefaultSelectionCap     = 3
+	DefaultMaxDocumentBytes = model.DefaultMaxDocumentBytes
+	DefaultSelectionCap     = model.DefaultSelectionCap
 )
 
 // Skill is the typed in-memory representation of one SKILL.md artifact.
-type Skill struct {
-	Name        string
-	Description string
-	Body        string
-	Path        string
-	RawBytes    int
+type Skill = model.Skill
 
-	Version        string
-	Author         string
-	License        string
-	HermesTags     []string
-	HermesCategory string
-	HermesHomepage string
-	RelatedSkills  []string
+type CredentialGroup = model.CredentialGroup
 
-	Platforms        []string
-	RequiredEnvVars  []string
-	CredentialGroups []CredentialGroup
-	Triggers         []string
-	Exclusions       []string
-	ReviewState      string
-	Conditions       SkillConditions
-}
-
-type CredentialGroup struct {
-	AnyOf []string
-}
-
-type SkillConditions struct {
-	FallbackForTools    []string
-	FallbackForToolsets []string
-	RequiresTools       []string
-	RequiresToolsets    []string
-}
-
-// Validate enforces the minimal Phase 2.G0 contract for a parsed skill.
-func (s Skill) Validate(maxBytes int) error {
-	if strings.TrimSpace(s.Name) == "" {
-		return fmt.Errorf("skill name is required")
-	}
-	if strings.TrimSpace(s.Description) == "" {
-		return fmt.Errorf("skill description is required")
-	}
-	if strings.TrimSpace(s.Body) == "" {
-		return fmt.Errorf("skill body is required")
-	}
-
-	size := s.RawBytes
-	if size == 0 {
-		size = len(s.Name) + len(s.Description) + len(s.Body)
-	}
-	if maxBytes > 0 && size > maxBytes {
-		return fmt.Errorf("skill document too large: %d > %d bytes", size, maxBytes)
-	}
-	return nil
-}
+type SkillConditions = model.SkillConditions
