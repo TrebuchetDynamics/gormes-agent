@@ -720,30 +720,32 @@ func mcpStringMap(value any, field string, validateKeys bool, lookupEnv func(str
 	return out, nil
 }
 
-var mcpEnvRefRE = regexp.MustCompile(`\$\{([^}]*)\}`)
-
 func interpolateMCPEnv(value string, lookupEnv func(string) (string, bool)) (string, error) {
-	var firstErr error
-	resolved := mcpEnvRefRE.ReplaceAllStringFunc(value, func(match string) string {
-		if firstErr != nil {
-			return match
+	var resolved strings.Builder
+	for i := 0; i < len(value); {
+		if value[i] != '$' || i+1 >= len(value) || value[i+1] != '{' {
+			resolved.WriteByte(value[i])
+			i++
+			continue
 		}
+
+		end := strings.IndexByte(value[i+2:], '}')
+		if end < 0 {
+			return "", fmt.Errorf("unterminated environment variable reference")
+		}
+		match := value[i : i+2+end+1]
 		name, err := mcpEnvReferenceName(match)
 		if err != nil {
-			firstErr = err
-			return match
+			return "", err
 		}
-		value, ok := lookupEnv(name)
+		envValue, ok := lookupEnv(name)
 		if !ok {
-			firstErr = fmt.Errorf("missing environment variable %s", name)
-			return match
+			return "", fmt.Errorf("missing environment variable %s", name)
 		}
-		return value
-	})
-	if firstErr != nil {
-		return "", firstErr
+		resolved.WriteString(envValue)
+		i += len(match)
 	}
-	return resolved, nil
+	return resolved.String(), nil
 }
 
 func mcpEnvReferenceName(match string) (string, error) {
