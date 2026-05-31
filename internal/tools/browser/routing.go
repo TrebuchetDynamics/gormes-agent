@@ -22,22 +22,44 @@ type BrowserRoute struct {
 // IsPrivateBrowserHost reports whether host is a local, private, or LAN-style
 // browser target that should stay off a cloud browser provider.
 func IsPrivateBrowserHost(host string) bool {
-	hostname := normalizeBrowserHost(host)
-	if hostname == "" {
+	candidate := classifyBrowserHost(host)
+	if candidate.localName {
+		return true
+	}
+	if !candidate.hasAddr {
 		return false
+	}
+	return isPrivateBrowserAddr(candidate.addr)
+}
+
+type browserHostCandidate struct {
+	hostname  string
+	localName bool
+	addr      netip.Addr
+	hasAddr   bool
+}
+
+func classifyBrowserHost(host string) browserHostCandidate {
+	hostname := normalizeBrowserHost(host)
+	candidate := browserHostCandidate{hostname: hostname}
+	if hostname == "" {
+		return candidate
 	}
 	if hostname == "localhost" ||
 		strings.HasSuffix(hostname, ".local") ||
 		strings.HasSuffix(hostname, ".lan") ||
 		strings.HasSuffix(hostname, ".internal") {
-		return true
+		candidate.localName = true
+		return candidate
 	}
 
 	addr, err := netip.ParseAddr(hostname)
 	if err != nil {
-		return false
+		return candidate
 	}
-	return isPrivateBrowserAddr(addr)
+	candidate.addr = addr
+	candidate.hasAddr = true
+	return candidate
 }
 
 func isPrivateBrowserAddr(addr netip.Addr) bool {

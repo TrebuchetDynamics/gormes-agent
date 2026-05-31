@@ -19,6 +19,7 @@ func TestIsPrivateBrowserHost(t *testing.T) {
 		{name: "ipv6_loopback", host: "::1", want: true},
 		{name: "ipv6_unique_local", host: "fd12:3456:789a::1", want: true},
 		{name: "ipv6_link_local", host: "fe80::1", want: true},
+		{name: "ipv6_link_local_with_zone", host: "fe80::1%25en0", want: true},
 		{name: "mdns_local_suffix", host: "raspberrypi.local", want: true},
 		{name: "lan_suffix", host: "printer.lan", want: true},
 		{name: "internal_suffix", host: "db.internal", want: true},
@@ -34,6 +35,24 @@ func TestIsPrivateBrowserHost(t *testing.T) {
 				t.Fatalf("IsPrivateBrowserHost(%q) = %v, want %v", tt.host, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestClassifyBrowserHost_ExposesDecisionInputs(t *testing.T) {
+	private := classifyBrowserHost("[fe80::1%25en0]")
+	if private.hostname != "fe80::1%25en0" {
+		t.Fatalf("hostname = %q, want zone-preserving IPv6 literal", private.hostname)
+	}
+	if private.localName {
+		t.Fatalf("localName = true, want address classification for IPv6 literal")
+	}
+	if !private.hasAddr || !isPrivateBrowserAddr(private.addr) {
+		t.Fatalf("candidate = %#v, want parsed private address", private)
+	}
+
+	public := classifyBrowserHost("github.com")
+	if public.hostname != "github.com" || public.localName || public.hasAddr {
+		t.Fatalf("public candidate = %#v, want DNS name without local/private classification", public)
 	}
 }
 
@@ -54,6 +73,7 @@ func TestRouteBrowserNavigation_PrivateHostsUseLocalSidecar(t *testing.T) {
 		{name: "ipv6_loopback", taskID: "task-1", rawURL: "http://[::1]:3000/", wantKey: "task-1::local"},
 		{name: "ipv6_unique_local", taskID: "task-1", rawURL: "http://[fd12:3456:789a::1]/", wantKey: "task-1::local"},
 		{name: "ipv6_link_local", taskID: "task-1", rawURL: "http://[fe80::1]/", wantKey: "task-1::local"},
+		{name: "ipv6_link_local_with_zone", taskID: "task-1", rawURL: "http://[fe80::1%25en0]/", wantKey: "task-1::local"},
 		{name: "local_suffix", taskID: "task-1", rawURL: "http://raspberrypi.local/", wantKey: "task-1::local"},
 		{name: "lan_suffix", taskID: "task-1", rawURL: "http://printer.lan/", wantKey: "task-1::local"},
 		{name: "internal_suffix", taskID: "task-1", rawURL: "http://db.internal/", wantKey: "task-1::local"},
