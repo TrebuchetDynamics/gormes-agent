@@ -40,3 +40,22 @@ func TestResolveSkillsAndPrompts(t *testing.T) {
 		t.Fatalf("blank ResolvePrompt = %q, want empty", got)
 	}
 }
+
+func TestMapConfigNilValuesAreAbsent(t *testing.T) {
+	bindings := []map[string]any{
+		{"skill": "missing-id"},
+		{"id": nil, "skill": "nil-id"},
+		{"id": "C-good", "skill": nil, "skills": []any{"alpha"}},
+	}
+	if got := NormalizeSkillBindings(bindings); !reflect.DeepEqual(got, []SkillBinding{{ID: "C-good", Skills: []string{"alpha"}}}) {
+		t.Fatalf("NormalizeSkillBindings nil/missing id = %#v", got)
+	}
+
+	prompts := map[string]any{
+		"C-exact":  nil,
+		"C-parent": " Parent prompt ",
+	}
+	if got := ResolvePrompt(prompts, "C-exact", "C-parent"); got != "Parent prompt" {
+		t.Fatalf("nil exact prompt should be absent and fall back to parent, got %q", got)
+	}
+}

@@ -85,12 +85,12 @@ func NormalizeSkillBindings(raw any) []SkillBinding {
 }
 
 func skillBindingFromMap(item map[string]any) (SkillBinding, bool) {
-	id := strings.TrimSpace(fmt.Sprint(item["id"]))
-	if id == "" {
+	id, ok := configScalarString(item["id"])
+	if !ok {
 		return SkillBinding{}, false
 	}
 	entry := SkillBinding{ID: id}
-	if skill := strings.TrimSpace(fmt.Sprint(item["skill"])); skill != "" && skill != "<nil>" {
+	if skill, ok := configScalarString(item["skill"]); ok {
 		entry.Skill = skill
 	}
 	entry.Skills = skillsFromAny(item["skills"])
@@ -160,14 +160,27 @@ func promptForChannelID(prompts any, id string) string {
 		return strings.TrimSpace(v[id])
 	case map[string]any:
 		if raw, ok := v[id]; ok {
-			return strings.TrimSpace(fmt.Sprint(raw))
+			prompt, _ := configScalarString(raw)
+			return prompt
 		}
 	case map[any]any:
 		if raw, ok := v[id]; ok {
-			return strings.TrimSpace(fmt.Sprint(raw))
+			prompt, _ := configScalarString(raw)
+			return prompt
 		}
 	}
 	return ""
+}
+
+func configScalarString(raw any) (string, bool) {
+	if raw == nil {
+		return "", false
+	}
+	value := strings.TrimSpace(fmt.Sprint(raw))
+	if value == "" {
+		return "", false
+	}
+	return value, true
 }
 
 func ChannelPromptBlock(prompt string) string {
