@@ -135,6 +135,7 @@ func TestParseInboundText(t *testing.T) {
 		{name: "undo unavailable", text: "/undo", wantKind: EventSubmit, wantBody: "/undo"},
 		{name: "goal", text: "/goal status", wantKind: EventGoal, wantBody: "/goal status"},
 		{name: "status", text: "/status", wantKind: EventStatus, wantBody: ""},
+		{name: "personality", text: "/personality pirate", wantKind: EventPersonality, wantBody: "/personality pirate"},
 		{name: "verbose", text: "/verbose", wantKind: EventVerbose, wantBody: ""},
 		{name: "unknown slash", text: "/wat", wantKind: EventUnknown, wantBody: ""},
 		{name: "submit", text: "hello there", wantKind: EventSubmit, wantBody: "hello there"},

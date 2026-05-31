@@ -279,16 +279,32 @@ func ParseInboundText(text string) (EventKind, string) {
 	return cmd.Kind, ""
 }
 
+var slashCommandKindsCarryingBody = map[EventKind]struct{}{
+	EventSteer:           {},
+	EventQueue:           {},
+	EventTitle:           {},
+	EventSessions:        {},
+	EventProfile:         {},
+	EventSkills:          {},
+	EventCommands:        {},
+	EventReasoning:       {},
+	EventBusy:            {},
+	EventTTS:             {},
+	EventReload:          {},
+	EventReloadSkills:    {},
+	EventRetry:           {},
+	EventGoal:            {},
+	EventTopic:           {},
+	EventKanban:          {},
+	EventSpawn:           {},
+	EventPlatformControl: {},
+	EventPersonality:     {},
+}
+
 // SlashCommandKindCarriesBody reports whether a command kind keeps its raw slash body.
 func SlashCommandKindCarriesBody(kind EventKind) bool {
-	switch kind {
-	case EventSteer, EventQueue, EventTitle, EventSessions, EventProfile, EventSkills, EventCommands, EventReasoning,
-		EventBusy, EventTTS, EventReload, EventReloadSkills, EventRetry, EventGoal, EventTopic, EventKanban,
-		EventSpawn, EventPlatformControl:
-		return true
-	default:
-		return false
-	}
+	_, ok := slashCommandKindsCarryingBody[kind]
+	return ok
 }
 
 // ResolveGatewayCommandDispatch maps a typed gateway slash command or alias to
