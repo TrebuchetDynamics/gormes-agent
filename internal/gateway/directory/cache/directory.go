@@ -120,7 +120,7 @@ func (d Directory) Resolve(platform, query string) (gatewaydelivery.Target, mode
 	}
 	normalized := model.NormalizeQuery(raw)
 	for _, entry := range entries {
-		if model.NormalizeQuery(entry.Name) == normalized || model.NormalizeQuery(channelTargetName(platform, entry)) == normalized {
+		if model.NormalizeQuery(entry.Name) == normalized || model.NormalizeQuery(model.TargetDisplayName(platform, entry)) == normalized {
 			return model.DeliveryTarget(platform, entry), model.Evidence{}
 		}
 	}
@@ -216,15 +216,15 @@ func (d Directory) FormatForDisplay() string {
 			sort.Strings(guildNames)
 			for _, guild := range guildNames {
 				lines = append(lines, "Discord ("+guild+"):")
-				sort.Slice(guilds[guild], func(i, j int) bool { return guilds[guild][i].Name < guilds[guild][j].Name })
+				model.SortEntriesByNameID(guilds[guild])
 				for _, entry := range guilds[guild] {
-					lines = append(lines, "  discord:"+channelTargetName(platform, entry))
+					lines = append(lines, "  discord:"+model.TargetDisplayName(platform, entry))
 				}
 			}
 			if len(dms) > 0 {
 				lines = append(lines, "Discord (DMs):")
 				for _, entry := range dms {
-					lines = append(lines, "  discord:"+channelTargetName(platform, entry))
+					lines = append(lines, "  discord:"+model.TargetDisplayName(platform, entry))
 				}
 			}
 			lines = append(lines, "")
@@ -232,7 +232,7 @@ func (d Directory) FormatForDisplay() string {
 		}
 		lines = append(lines, strings.Title(platform)+":")
 		for _, entry := range entries {
-			lines = append(lines, "  "+platform+":"+channelTargetName(platform, entry))
+			lines = append(lines, "  "+platform+":"+model.TargetDisplayName(platform, entry))
 		}
 		lines = append(lines, "")
 	}
@@ -248,15 +248,4 @@ func (d Directory) hasEntries() bool {
 		}
 	}
 	return false
-}
-
-func channelTargetName(platform string, entry model.Entry) string {
-	name := strings.TrimSpace(entry.Name)
-	if platform == "discord" && strings.TrimSpace(entry.Guild) != "" {
-		return "#" + name
-	}
-	if platform != "discord" && strings.TrimSpace(entry.Type) != "" {
-		return name + " (" + strings.TrimSpace(entry.Type) + ")"
-	}
-	return name
 }

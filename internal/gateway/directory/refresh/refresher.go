@@ -2,7 +2,6 @@ package refresh
 
 import (
 	"context"
-	"sort"
 	"sync"
 	"time"
 
@@ -76,12 +75,7 @@ func timestamp(now func() time.Time) string {
 
 func sortDirectory(dir cache.Directory) {
 	for platform, entries := range dir.Platforms {
-		sort.SliceStable(entries, func(i, j int) bool {
-			if entries[i].Name != entries[j].Name {
-				return entries[i].Name < entries[j].Name
-			}
-			return entries[i].ID < entries[j].ID
-		})
+		model.SortEntriesByNameID(entries)
 		dir.Platforms[platform] = entries
 	}
 }
