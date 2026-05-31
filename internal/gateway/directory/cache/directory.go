@@ -34,16 +34,14 @@ func NewStore(root string) Store {
 
 // NewDirectory returns a directory with initialized platform buckets.
 func NewDirectory(updatedAt string) Directory {
-	return Directory{UpdatedAt: strings.TrimSpace(updatedAt), Platforms: map[string][]model.Entry{}}
+	return Directory{UpdatedAt: strings.TrimSpace(updatedAt), Platforms: model.EmptyPlatformBuckets[model.Entry]()}
 }
 
 // UpsertEntries normalizes a platform bucket and merges complete target entries
 // into the directory. It is the shared merge contract for adapter inventory and
 // remembered-source refresh contributions.
 func (d *Directory) UpsertEntries(platform string, entries ...model.Entry) int {
-	if d.Platforms == nil {
-		d.Platforms = map[string][]model.Entry{}
-	}
+	d.Platforms = model.EnsurePlatformBuckets(d.Platforms)
 	platform = model.NormalizePlatform(platform)
 	if platform == "" {
 		return 0
@@ -75,9 +73,7 @@ func (s Store) Load() (Directory, model.Evidence) {
 	} else if err != nil {
 		return emptyDirectory(), model.Evidence{Code: model.EvidenceChannelDirectoryInvalid}
 	}
-	if dir.Platforms == nil {
-		dir.Platforms = map[string][]model.Entry{}
-	}
+	dir.Platforms = model.EnsurePlatformBuckets(dir.Platforms)
 	return dir, model.Evidence{}
 }
 
@@ -93,9 +89,7 @@ func (s Store) SaveWithWriter(dir Directory, writer func(string, []byte, os.File
 	if writer == nil {
 		writer = os.WriteFile
 	}
-	if dir.Platforms == nil {
-		dir.Platforms = map[string][]model.Entry{}
-	}
+	dir.Platforms = model.EnsurePlatformBuckets(dir.Platforms)
 	return s.jsonFile().WriteAtomic(dir, storage.Writer(writer))
 }
 

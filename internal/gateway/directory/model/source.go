@@ -46,14 +46,12 @@ type RememberedSourceLedger struct {
 
 // EmptyRememberedSourceLedger returns a ledger with initialized platform buckets.
 func EmptyRememberedSourceLedger() RememberedSourceLedger {
-	return RememberedSourceLedger{Platforms: map[string][]RememberedSourceEntry{}}
+	return RememberedSourceLedger{Platforms: EmptyPlatformBuckets[RememberedSourceEntry]()}
 }
 
 // EnsureRememberedSourceLedger initializes the platform buckets after JSON decode.
 func EnsureRememberedSourceLedger(ledger RememberedSourceLedger) RememberedSourceLedger {
-	if ledger.Platforms == nil {
-		ledger.Platforms = map[string][]RememberedSourceEntry{}
-	}
+	ledger.Platforms = EnsurePlatformBuckets(ledger.Platforms)
 	return ledger
 }
 
