@@ -25,6 +25,12 @@ type Evidence struct {
 	Query    string
 }
 
+// NormalizePlatform returns the canonical platform key used by directory stores,
+// refresh merges, and channel lookups.
+func NormalizePlatform(platform string) string {
+	return strings.ToLower(strings.TrimSpace(platform))
+}
+
 // NormalizeEntry trims persisted target fields before merge and lookup.
 func NormalizeEntry(entry Entry) Entry {
 	entry.ID = strings.TrimSpace(entry.ID)
@@ -40,6 +46,19 @@ func NormalizeEntry(entry Entry) Entry {
 // NormalizeQuery returns the canonical form used for human channel lookups.
 func NormalizeQuery(value string) string {
 	return strings.ToLower(strings.TrimSpace(strings.TrimLeft(value, "#")))
+}
+
+// UpsertEntry replaces an existing entry with the same normalized ID or appends
+// it when no cached target exists yet.
+func UpsertEntry(entries []Entry, entry Entry) []Entry {
+	entry = NormalizeEntry(entry)
+	for i, existing := range entries {
+		if strings.TrimSpace(existing.ID) == entry.ID {
+			entries[i] = entry
+			return entries
+		}
+	}
+	return append(entries, entry)
 }
 
 // DeliveryTarget converts a directory entry into the gateway delivery target contract.

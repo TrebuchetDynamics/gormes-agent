@@ -2,17 +2,10 @@ package directory
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/model"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/storage"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/sources"
 )
-
-const channelDirectorySourcesFileName = "channel_directory_sources.json"
 
 // Source is kept as the package-level compatibility name for the shared
 // session-origin-shaped source value contract.
@@ -35,68 +28,10 @@ type RememberedSourceStore interface {
 
 // ChannelDirectorySourceStore persists a remembered-source ledger under a
 // caller-owned root. It is distinct from channel_directory.json on purpose.
-type ChannelDirectorySourceStore struct {
-	root string
-	now  func() time.Time
-}
+type ChannelDirectorySourceStore = sources.Store
 
 func NewChannelDirectorySourceStore(root string) ChannelDirectorySourceStore {
-	return ChannelDirectorySourceStore{root: strings.TrimSpace(root), now: time.Now}
-}
-
-func (s ChannelDirectorySourceStore) path() string {
-	return filepath.Join(s.root, channelDirectorySourcesFileName)
-}
-
-// Load reads the remembered-source ledger. Missing ledgers are not failures;
-// they simply contribute no session-discovered entries during refresh.
-func (s ChannelDirectorySourceStore) Load() (RememberedSourceLedger, ChannelDirectoryEvidence) {
-	ledger := RememberedSourceLedger{Platforms: map[string][]RememberedSourceEntry{}}
-	if err := storage.ReadJSON(s.path(), &ledger); err != nil {
-		if os.IsNotExist(err) {
-			return RememberedSourceLedger{Platforms: map[string][]RememberedSourceEntry{}}, ChannelDirectoryEvidence{}
-		}
-		return RememberedSourceLedger{Platforms: map[string][]RememberedSourceEntry{}}, ChannelDirectoryEvidence{Code: "channel_directory_sources_invalid"}
-	}
-	if ledger.Platforms == nil {
-		ledger.Platforms = map[string][]RememberedSourceEntry{}
-	}
-	return ledger, ChannelDirectoryEvidence{}
-}
-
-func (s ChannelDirectorySourceStore) RememberSource(_ context.Context, entry RememberedSourceEntry) error {
-	if strings.TrimSpace(s.root) == "" {
-		return fmt.Errorf("channel directory source root is empty")
-	}
-	entry = model.NormalizeRememberedSourceEntry(entry)
-	if entry.Platform == "" || entry.ID == "" {
-		return nil
-	}
-	ledger := RememberedSourceLedger{Platforms: map[string][]RememberedSourceEntry{}}
-	_ = storage.ReadJSON(s.path(), &ledger)
-	if ledger.Platforms == nil {
-		ledger.Platforms = map[string][]RememberedSourceEntry{}
-	}
-	if s.now == nil {
-		s.now = time.Now
-	}
-	now := s.now().UTC().Format(time.RFC3339Nano)
-	entry.UpdatedAt = now
-	ledger.UpdatedAt = now
-	entries := ledger.Platforms[entry.Platform]
-	for i, existing := range entries {
-		if strings.TrimSpace(existing.ID) == entry.ID {
-			entries[i] = entry
-			ledger.Platforms[entry.Platform] = entries
-			return s.save(ledger)
-		}
-	}
-	ledger.Platforms[entry.Platform] = append(entries, entry)
-	return s.save(ledger)
-}
-
-func (s ChannelDirectorySourceStore) save(ledger RememberedSourceLedger) error {
-	return storage.WriteAtomicJSON(s.root, channelDirectorySourcesFileName, ".channel_directory_sources-*.tmp", ledger, nil)
+	return sources.NewStore(root)
 }
 
 func RememberedSourceEntryFromSource(source Source) RememberedSourceEntry {
