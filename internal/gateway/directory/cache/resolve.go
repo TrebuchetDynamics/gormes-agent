@@ -23,34 +23,61 @@ func (d Directory) Resolve(platform, query string) (gatewaydelivery.Target, mode
 		}
 	}
 	normalized := model.NormalizeQuery(raw)
-	for _, entry := range entries {
-		if model.NormalizeQuery(entry.Name) == normalized || model.NormalizeQuery(model.TargetDisplayName(platform, entry)) == normalized {
-			return model.DeliveryTarget(platform, entry), model.Evidence{}
-		}
+	if target, evidence, ok := resolveDirectoryMatches(platform, raw, exactNameMatches(platform, entries, normalized)); ok {
+		return target, evidence
 	}
 	if strings.Contains(normalized, "/") {
 		parts := strings.Split(normalized, "/")
 		guildPart := strings.Join(parts[:len(parts)-1], "/")
 		channelPart := parts[len(parts)-1]
-		for _, entry := range entries {
-			if model.NormalizeGuildQuery(model.EntryGuild(entry)) == guildPart && model.NormalizeQuery(entry.Name) == channelPart {
-				return model.DeliveryTarget(platform, entry), model.Evidence{}
-			}
+		if target, evidence, ok := resolveDirectoryMatches(platform, raw, guildQualifiedMatches(entries, guildPart, channelPart)); ok {
+			return target, evidence
 		}
 	}
+	if target, evidence, ok := resolveDirectoryMatches(platform, raw, prefixNameMatches(entries, normalized)); ok {
+		return target, evidence
+	}
+	return gatewaydelivery.Target{}, model.Evidence{Code: model.EvidenceChannelDirectoryMissing, Platform: platform, Query: raw}
+}
+
+func exactNameMatches(platform string, entries []model.Entry, normalized string) []model.Entry {
+	matches := make([]model.Entry, 0, 1)
+	for _, entry := range entries {
+		if model.NormalizeQuery(entry.Name) == normalized || model.NormalizeQuery(model.TargetDisplayName(platform, entry)) == normalized {
+			matches = append(matches, entry)
+		}
+	}
+	return matches
+}
+
+func guildQualifiedMatches(entries []model.Entry, guildPart, channelPart string) []model.Entry {
+	matches := make([]model.Entry, 0, 1)
+	for _, entry := range entries {
+		if model.NormalizeGuildQuery(model.EntryGuild(entry)) == guildPart && model.NormalizeQuery(entry.Name) == channelPart {
+			matches = append(matches, entry)
+		}
+	}
+	return matches
+}
+
+func prefixNameMatches(entries []model.Entry, normalized string) []model.Entry {
 	matches := make([]model.Entry, 0, 1)
 	for _, entry := range entries {
 		if strings.HasPrefix(model.NormalizeQuery(entry.Name), normalized) {
 			matches = append(matches, entry)
 		}
 	}
+	return matches
+}
+
+func resolveDirectoryMatches(platform, raw string, matches []model.Entry) (gatewaydelivery.Target, model.Evidence, bool) {
 	switch len(matches) {
-	case 1:
-		return model.DeliveryTarget(platform, matches[0]), model.Evidence{}
 	case 0:
-		return gatewaydelivery.Target{}, model.Evidence{Code: model.EvidenceChannelDirectoryMissing, Platform: platform, Query: raw}
+		return gatewaydelivery.Target{}, model.Evidence{}, false
+	case 1:
+		return model.DeliveryTarget(platform, matches[0]), model.Evidence{}, true
 	default:
-		return gatewaydelivery.Target{}, model.Evidence{Code: model.EvidenceChannelTargetAmbiguous, Platform: platform, Query: raw}
+		return gatewaydelivery.Target{}, model.Evidence{Code: model.EvidenceChannelTargetAmbiguous, Platform: platform, Query: raw}, true
 	}
 }
 

@@ -74,6 +74,24 @@ func TestChannelDirectoryResolveDiscordGuildQualifiedName(t *testing.T) {
 	}
 }
 
+func TestChannelDirectoryResolveDuplicateExactNamesAreAmbiguous(t *testing.T) {
+	dir := ChannelDirectory{Platforms: map[string][]ChannelDirectoryEntry{
+		"discord": {
+			{ID: "111", Name: "general", Guild: "ServerA", Type: "channel"},
+			{ID: "222", Name: "general", Guild: "ServerB", Type: "channel"},
+		},
+	}}
+	for _, raw := range []string{"general", "#general"} {
+		got, evidence := dir.Resolve("discord", raw)
+		if got.ChatID != "" {
+			t.Fatalf("Resolve(%q) = %+v, want empty ambiguous target", raw, got)
+		}
+		if evidence.Code != model.EvidenceChannelTargetAmbiguous {
+			t.Fatalf("Resolve(%q) evidence = %+v, want %s", raw, evidence, model.EvidenceChannelTargetAmbiguous)
+		}
+	}
+}
+
 func TestChannelDirectoryResolveAmbiguousPrefixReturnsMissing(t *testing.T) {
 	dir := ChannelDirectory{Platforms: map[string][]ChannelDirectoryEntry{
 		"slack": {
