@@ -223,7 +223,13 @@ func safePreview(raw []byte, n int) string {
 // in degraded mode; this ensures the channel/provider still receives a
 // bounded payload even when we could not persist the artifact.
 func truncatePointer(s string) string {
-	const max = defaultToolPreviewBytes
+	return truncateUTF8Bytes(s, defaultToolPreviewBytes)
+}
+
+func truncateUTF8Bytes(s string, max int) string {
+	if max <= 0 {
+		return ""
+	}
 	if len(s) <= max {
 		return s
 	}
@@ -240,9 +246,7 @@ func truncatePointer(s string) string {
 func buildPointer(relArtifact, preview, mediaType string, totalBytes int) string {
 	header := fmt.Sprintf("[tool_output_artifact path=%s media=%s bytes=%d]",
 		relArtifact, normalizeMedia(mediaType), totalBytes)
-	if len(header) > maxToolPointerHeader {
-		header = header[:maxToolPointerHeader]
-	}
+	header = truncateUTF8Bytes(header, maxToolPointerHeader)
 	if preview == "" {
 		return header
 	}

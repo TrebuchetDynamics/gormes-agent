@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // TestToolResultBudget_TruncatesTextAndPersistsArtifact proves text output
@@ -230,6 +231,30 @@ func TestToolResultBudget_PersistenceFailedEvidence(t *testing.T) {
 		if strings.Contains(pointer, secret) {
 			t.Fatalf("pointer leaks secret token %q", secret)
 		}
+	}
+}
+
+// TestToolResultBudget_PointerHeaderTruncatesAtUTF8Boundary proves pointer
+// headers stay transcript-safe when long media types force byte truncation.
+func TestToolResultBudget_PointerHeaderTruncatesAtUTF8Boundary(t *testing.T) {
+	dir := t.TempDir()
+	raw := []byte(strings.Repeat("m", 512))
+	mediaType := "application/x;" + strings.Repeat("界", 90)
+	cfg := ToolResultBudgetConfig{
+		OutputDir:       dir,
+		TextBudgetBytes: 128,
+		PreviewBytes:    0,
+	}
+
+	pointer, evidence, err := FormatToolResult(cfg, raw, mediaType)
+	if err != nil {
+		t.Fatalf("FormatToolResult: %v", err)
+	}
+	if evidence.Artifact == "" {
+		t.Fatalf("evidence.Artifact empty; want persisted non-text artifact")
+	}
+	if !utf8.ValidString(pointer) {
+		t.Fatalf("pointer is not valid UTF-8 after header truncation: %q", pointer)
 	}
 }
 
