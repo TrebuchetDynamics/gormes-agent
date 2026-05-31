@@ -226,6 +226,45 @@ func TestChunkedWebContentProcessor_Process_AllChunkSummariesFailDoesNotSynthesi
 	}
 }
 
+func TestChunkedWebContentProcessor_Process_PartialChunkSummaryFailureDoesNotSynthesize(t *testing.T) {
+	mockClient := llm.NewMockClient()
+
+	mockClient.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "first chunk summary"},
+		{Kind: llm.EventDone},
+	}, "chunk-1")
+	mockClient.Script([]llm.Event{}, "chunk-2")
+	mockClient.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "invalid synthesis with missing chunk"},
+		{Kind: llm.EventDone},
+	}, "synthesis-should-not-run")
+
+	cfg := ChunkedWebContentProcessorConfig{
+		MaxContentSize: 2_000_000,
+		ChunkThreshold: 5,
+		ChunkSize:      10,
+		MaxOutputChars: 5000,
+		MaxParallelism: 1,
+		MinLength:      1,
+	}
+	processor := NewChunkedWebContentProcessor(mockClient, "test-model", cfg)
+
+	_, err := processor.ProcessWebContent(context.Background(), WebContentProcessRequest{
+		URL:     "https://example.com",
+		Title:   "Test",
+		Content: "abcdefghijabcdefghij",
+	})
+	if err == nil {
+		t.Fatal("expected error when any chunk summary fails")
+	}
+	if !strings.Contains(err.Error(), "chunk summary failed") {
+		t.Fatalf("error = %v, want chunk summary failed", err)
+	}
+	if requests := mockClient.Requests(); len(requests) != 2 {
+		t.Fatalf("expected only chunk attempts and no synthesis request, got %d requests", len(requests))
+	}
+}
+
 func TestChunkedWebContentProcessor_Process_SynthesisFailureFallback(t *testing.T) {
 	mockClient := llm.NewMockClient()
 
@@ -243,15 +282,15 @@ func TestChunkedWebContentProcessor_Process_SynthesisFailureFallback(t *testing.
 
 	cfg := ChunkedWebContentProcessorConfig{
 		MaxContentSize: 2_000_000,
-		ChunkThreshold: 50,
+		ChunkThreshold: 5,
 		ChunkSize:      20,
 		MaxOutputChars: 5000,
-		MaxParallelism: 3,
+		MaxParallelism: 1,
 		MinLength:      10,
 	}
 	processor := NewChunkedWebContentProcessor(mockClient, "test-model", cfg)
 
-	content := strings.Repeat("Testing. ", 30) // ~210 chars
+	content := "abcdefghijabcdefghijabcdefghijabcdefghij"
 	result, err := processor.ProcessWebContent(context.Background(), WebContentProcessRequest{
 		URL:     "https://example.com",
 		Title:   "Test",
@@ -421,7 +460,7 @@ func TestChunkedWebContentProcessor_ParallelismLimit(t *testing.T) {
 	processor := NewChunkedWebContentProcessor(mockClient, "test-model", cfg)
 
 	// Content that creates 10 chunks
-	content := strings.Repeat("Word. ", 50)
+	content := strings.Repeat("abcdefghij", 10)
 	_, err := processor.ProcessWebContent(context.Background(), WebContentProcessRequest{
 		URL:     "https://example.com",
 		Title:   "Test",
@@ -498,18 +537,16 @@ func TestChunkedWebContentProcessor_ChunkSystemPrompt(t *testing.T) {
 	}
 	processor := NewChunkedWebContentProcessor(mockClient, "test-model", cfg)
 
-	// Provide 2 chunk streams
-	mockClient.Script([]llm.Event{
-		{Kind: llm.EventToken, Token: "Summary"},
-		{Kind: llm.EventDone},
-	}, "session-1")
-	mockClient.Script([]llm.Event{
-		{Kind: llm.EventToken, Token: "Summary"},
-		{Kind: llm.EventDone},
-	}, "session-2")
+	// Provide 3 chunk streams plus synthesis.
+	for i := 0; i < 4; i++ {
+		mockClient.Script([]llm.Event{
+			{Kind: llm.EventToken, Token: "Summary"},
+			{Kind: llm.EventDone},
+		}, "session")
+	}
 
 	// Need content that splits into multiple chunks
-	content := strings.Repeat("Word. ", 30) // ~150 chars, ~7-8 chunks with ChunkSize=20
+	content := strings.Repeat("abcdefghij", 6)
 	_, err := processor.ProcessWebContent(context.Background(), WebContentProcessRequest{
 		URL:     "https://example.com",
 		Title:   "Test",

@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"sort"
 	"strings"
@@ -160,13 +161,15 @@ func (p *ChunkedWebContentProcessor) chunkedProcess(ctx context.Context, req Web
 		return req.Content, nil
 	}
 
-	// Summarize chunks in parallel
-	summaries, err := p.summarizeChunks(ctx, req, chunks)
+	// Summarize chunks in parallel. Keep every candidate outcome so failed or
+	// empty chunks cannot be silently dropped before synthesis.
+	summaryOutcomes, err := p.summarizeChunks(ctx, req, chunks)
 	if err != nil {
 		return "", err
 	}
 
-	if err := requireSuccessfulChunkSummaries(summaries); err != nil {
+	summaries, err := requireCompleteChunkSummaries(summaryOutcomes, len(chunks))
+	if err != nil {
 		return "", err
 	}
 
@@ -179,11 +182,30 @@ func (p *ChunkedWebContentProcessor) chunkedProcess(ctx context.Context, req Web
 	return p.synthesizeSummaries(ctx, req, summaries)
 }
 
-func requireSuccessfulChunkSummaries(summaries []chunkSummary) error {
-	if len(summaries) == 0 {
-		return errors.New("no summaries available")
+func requireCompleteChunkSummaries(outcomes []chunkSummary, wantChunks int) ([]chunkSummary, error) {
+	if len(outcomes) == 0 {
+		return nil, errors.New("no summaries available")
 	}
-	return nil
+	if len(outcomes) != wantChunks {
+		return nil, fmt.Errorf("chunk summary failed: received %d of %d chunk outcomes", len(outcomes), wantChunks)
+	}
+
+	summaries := make([]chunkSummary, 0, len(outcomes))
+	failed := 0
+	for _, outcome := range outcomes {
+		if outcome.err != nil || outcome.summary == "" {
+			failed++
+			continue
+		}
+		summaries = append(summaries, outcome)
+	}
+	if len(summaries) == 0 {
+		return nil, errors.New("no summaries available")
+	}
+	if failed > 0 {
+		return nil, fmt.Errorf("chunk summary failed for %d of %d chunks", failed, wantChunks)
+	}
+	return sortedChunkSummaries(summaries), nil
 }
 
 // chunkSummary holds the result of summarizing one chunk.
@@ -308,7 +330,7 @@ func findGoodSplitPoint(content string, targetSize int) int {
 	return contentLen
 }
 
-// summarizeChunks processes chunks in parallel and returns successful summaries.
+// summarizeChunks processes chunks in parallel and returns every chunk outcome.
 func (p *ChunkedWebContentProcessor) summarizeChunks(ctx context.Context, req WebContentProcessRequest, chunks []string) ([]chunkSummary, error) {
 	results := make(chan chunkSummary, len(chunks))
 	var wg sync.WaitGroup
@@ -338,9 +360,7 @@ func (p *ChunkedWebContentProcessor) summarizeChunks(ctx context.Context, req We
 
 	var summaries []chunkSummary
 	for r := range results {
-		if r.err == nil && r.summary != "" {
-			summaries = append(summaries, r)
-		}
+		summaries = append(summaries, r)
 	}
 
 	return summaries, nil
