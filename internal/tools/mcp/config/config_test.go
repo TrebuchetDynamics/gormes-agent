@@ -84,6 +84,71 @@ func TestResolveMCPConfigRejectsOverflowingSamplingInteger(t *testing.T) {
 	}
 }
 
+func TestResolveMCPConfigRejectsAmbiguousCaseFoldedServerFields(t *testing.T) {
+	resolved, err := ResolveMCPConfig(map[string]any{
+		"mcp_servers": map[string]any{
+			"ambiguous": map[string]any{
+				"Command": "npx",
+				"COMMAND": "uvx",
+			},
+		},
+	}, MCPConfigOptions{LookupEnv: func(string) (string, bool) { return "", false }})
+	if err == nil {
+		t.Fatalf("ResolveMCPConfig succeeded for ambiguous case-folded command fields")
+	}
+	if !strings.Contains(err.Error(), "ambiguous command field variants") {
+		t.Fatalf("error = %q, want ambiguous command evidence", err.Error())
+	}
+	if strings.Contains(err.Error(), "npx") || strings.Contains(err.Error(), "uvx") {
+		t.Fatalf("error leaked ambiguous command values: %s", err.Error())
+	}
+	if len(resolved.Servers) != 0 {
+		t.Fatalf("resolved valid servers = %#v, want none", resolved.Servers)
+	}
+
+	status, ok := resolved.Status("ambiguous")
+	if !ok {
+		t.Fatalf("missing invalid server status in %#v", resolved.Statuses)
+	}
+	if status.Status != MCPConfigStatusInvalidConfig {
+		t.Fatalf("status = %q, want %q (reason=%q)", status.Status, MCPConfigStatusInvalidConfig, status.Reason)
+	}
+}
+
+func TestResolveMCPConfigRejectsAmbiguousCaseFoldedSamplingFields(t *testing.T) {
+	resolved, err := ResolveMCPConfig(map[string]any{
+		"mcp_servers": map[string]any{
+			"ambiguous": map[string]any{
+				"command": "npx",
+				"sampling": map[string]any{
+					"Max_RPM": "8",
+					"MAX_RPM": "9",
+				},
+			},
+		},
+	}, MCPConfigOptions{LookupEnv: func(string) (string, bool) { return "", false }})
+	if err == nil {
+		t.Fatalf("ResolveMCPConfig succeeded for ambiguous case-folded sampling fields")
+	}
+	if !strings.Contains(err.Error(), "ambiguous sampling.max_rpm field variants") {
+		t.Fatalf("error = %q, want ambiguous sampling field evidence", err.Error())
+	}
+	if strings.Contains(err.Error(), "8") || strings.Contains(err.Error(), "9") {
+		t.Fatalf("error leaked ambiguous sampling values: %s", err.Error())
+	}
+	if len(resolved.Servers) != 0 {
+		t.Fatalf("resolved valid servers = %#v, want none", resolved.Servers)
+	}
+
+	status, ok := resolved.Status("ambiguous")
+	if !ok {
+		t.Fatalf("missing invalid server status in %#v", resolved.Statuses)
+	}
+	if status.Status != MCPConfigStatusInvalidConfig {
+		t.Fatalf("status = %q, want %q (reason=%q)", status.Status, MCPConfigStatusInvalidConfig, status.Reason)
+	}
+}
+
 func TestResolveMCPConfigRejectsEmptyEnvInterpolationReference(t *testing.T) {
 	resolved, err := ResolveMCPConfig(map[string]any{
 		"mcp_servers": map[string]any{

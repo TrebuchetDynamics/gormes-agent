@@ -244,6 +244,11 @@ func resolveMCPServer(name string, raw any, lookupEnv func(string) (string, bool
 		}
 	}
 
+	if field, variants, ok := ambiguousCaseFoldedMCPField(server, "enabled", "command", "url", "args", "env", "headers", "timeout", "connect_timeout", "sampling"); ok {
+		reason := fmt.Sprintf("ambiguous %s field variants: %s", field, strings.Join(variants, ", "))
+		return MCPServerDefinition{}, invalidMCPStatus(baseStatus, MCPConfigStatusInvalidConfig, reason), &mcpConfigIssue{server: name, status: MCPConfigStatusInvalidConfig, message: reason}
+	}
+
 	enabled := parseMCPBool(mcpValue(server, "enabled"), true)
 	baseStatus.Enabled = enabled
 	if !enabled {
@@ -437,6 +442,9 @@ func mcpSamplingConfig(raw any, lookupEnv func(string) (string, bool)) (MCPSampl
 	if values == nil {
 		return cfg, fmt.Errorf("sampling must be a map")
 	}
+	if field, variants, ok := ambiguousCaseFoldedMCPField(values, "enabled", "model", "max_tokens_cap", "timeout", "max_rpm", "allowed_models", "max_tool_rounds", "log_level"); ok {
+		return cfg, fmt.Errorf("ambiguous sampling.%s field variants: %s", field, strings.Join(variants, ", "))
+	}
 	if rawEnabled, ok := lookupMCPValue(values, "enabled"); ok {
 		cfg.Enabled = parseMCPBool(rawEnabled, cfg.Enabled)
 	}
@@ -533,6 +541,25 @@ func lookupMCPValue(values map[string]any, name string) (any, bool) {
 		}
 	}
 	return nil, false
+}
+
+func ambiguousCaseFoldedMCPField(values map[string]any, fields ...string) (string, []string, bool) {
+	for _, field := range fields {
+		if _, exact := values[field]; exact {
+			continue
+		}
+		variants := make([]string, 0, 2)
+		for key := range values {
+			if strings.EqualFold(key, field) {
+				variants = append(variants, key)
+			}
+		}
+		if len(variants) > 1 {
+			sort.Strings(variants)
+			return field, variants, true
+		}
+	}
+	return "", nil, false
 }
 
 func mcpValue(values map[string]any, name string) any {
