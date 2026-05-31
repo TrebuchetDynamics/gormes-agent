@@ -61,6 +61,44 @@ func TestInboundDedupKey_MissingBothMessageIDsDegrades(t *testing.T) {
 	}
 }
 
+func TestInboundDedupKey_ReportsScopeEvenWhenMessageIDMissing(t *testing.T) {
+	result := InboundDedupKey(InboundEventKeyParts{
+		Platform: "telegram",
+		ChatID:   "chat-1",
+		ThreadID: "thread-1",
+	})
+
+	if result.Scope.Platform != "telegram" || result.Scope.ChatID != "chat-1" || result.Scope.ThreadID != "thread-1" {
+		t.Fatalf("missing-ID scope = %+v, want original platform/chat/thread", result.Scope)
+	}
+	if result.Key != "" {
+		t.Fatalf("missing-ID key = %q, want empty", result.Key)
+	}
+}
+
+func TestInboundDedupScopeTrackingKey_LengthPrefixesDelimiterBearingParts(t *testing.T) {
+	identity := InboundMessageIdentity{ID: "msg|1", Source: InboundMessageIDSourceMessageID}
+	left := InboundDedupScope{Platform: "tele", ChatID: "gram|chat", ThreadID: "thread"}.TrackingKey(identity)
+	right := InboundDedupScope{Platform: "tele|gram", ChatID: "chat", ThreadID: "thread"}.TrackingKey(identity)
+
+	if left == "" || right == "" {
+		t.Fatalf("TrackingKey returned empty keys: left=%q right=%q", left, right)
+	}
+	if left == right {
+		t.Fatalf("TrackingKey collision for delimiter-bearing scope parts: %q", left)
+	}
+}
+
+func TestInboundDedupScopeTrackingKey_PreservesByteExactScope(t *testing.T) {
+	identity := InboundMessageIdentity{ID: "msg-1", Source: InboundMessageIDSourceMessageID}
+	trimmed := InboundDedupScope{Platform: "telegram", ChatID: "chat-1", ThreadID: "thread-1"}.TrackingKey(identity)
+	spaced := InboundDedupScope{Platform: " telegram ", ChatID: "chat-1", ThreadID: "thread-1"}.TrackingKey(identity)
+
+	if trimmed == spaced {
+		t.Fatalf("TrackingKey normalized scope unexpectedly: %q", trimmed)
+	}
+}
+
 func TestInboundDedupKey_StableForSameEvent(t *testing.T) {
 	ev := InboundEventKeyParts{
 		Platform:  "telegram",
