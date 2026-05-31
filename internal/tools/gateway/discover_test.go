@@ -238,6 +238,56 @@ Gormes Gateway._openclaw-gw._tcp.local. can be reached at fe80::1:18789 (interfa
 	}
 }
 
+func TestParseDNSSDReachedAtEndpointDocumentsHostPortAssumptions(t *testing.T) {
+	cases := []struct {
+		name        string
+		line        string
+		wantAddress string
+		wantPort    int
+		wantOK      bool
+	}{
+		{
+			name:        "dns sd fqdn host",
+			line:        "Gormes Gateway._openclaw-gw._tcp.local. can be reached at workstation.local.:18789 (interface 4)",
+			wantAddress: "workstation.local",
+			wantPort:    18789,
+			wantOK:      true,
+		},
+		{
+			name:        "bracketed ipv6",
+			line:        "Gormes Gateway._openclaw-gw._tcp.local. can be reached at [fe80::1]:18789 (interface 4)",
+			wantAddress: "fe80::1",
+			wantPort:    18789,
+			wantOK:      true,
+		},
+		{
+			name:   "ambiguous unbracketed ipv6",
+			line:   "Gormes Gateway._openclaw-gw._tcp.local. can be reached at fe80::1:18789 (interface 4)",
+			wantOK: false,
+		},
+		{
+			name:   "missing port",
+			line:   "Gormes Gateway._openclaw-gw._tcp.local. can be reached at workstation.local. (interface 4)",
+			wantOK: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := parseDNSSDReachedAtEndpoint(tc.line)
+			if ok != tc.wantOK {
+				t.Fatalf("ok = %v, want %v; endpoint = %+v", ok, tc.wantOK, got)
+			}
+			if !ok {
+				return
+			}
+			if got.Address != tc.wantAddress || got.Port != tc.wantPort {
+				t.Fatalf("endpoint = %+v, want address=%q port=%d", got, tc.wantAddress, tc.wantPort)
+			}
+		})
+	}
+}
+
 func TestGatewayDiscoverReportsDegradedNoGateways(t *testing.T) {
 	result := DiscoverGateways(context.Background(), GatewayDiscoverRequest{
 		Discoverer: GatewayDiscovererFunc(func(context.Context) ([]GatewayEndpoint, error) {

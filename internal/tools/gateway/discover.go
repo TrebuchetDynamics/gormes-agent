@@ -66,6 +66,8 @@ const (
 	defaultGatewayPort             = 18789
 )
 
+const dnsSDReachedAtMarker = " can be reached at "
+
 const (
 	gatewayEndpointCandidateRejectedMissingAddress    = "missing_address"
 	gatewayEndpointCandidateRejectedInvalidPort       = "invalid_port"
@@ -496,15 +498,8 @@ func parseDNSSDResolveGateway(stdout string, instance string) []GatewayEndpoint 
 	)
 	for _, raw := range strings.Split(stdout, "\n") {
 		line := strings.TrimSpace(raw)
-		if strings.Contains(line, " can be reached at ") {
-			after := line[strings.Index(line, " can be reached at ")+len(" can be reached at "):]
-			fields := strings.Fields(after)
-			if len(fields) > 0 {
-				hostPort := strings.TrimSuffix(strings.TrimSpace(fields[0]), ".")
-				if h, p, ok := splitGatewayHostPort(hostPort); ok {
-					address, port = h, p
-				}
-			}
+		if endpoint, ok := parseDNSSDReachedAtEndpoint(line); ok {
+			address, port = endpoint.Address, endpoint.Port
 			continue
 		}
 		for key, value := range parseGatewayTXTLine(line) {
@@ -522,6 +517,24 @@ func parseDNSSDResolveGateway(stdout string, instance string) []GatewayEndpoint 
 		Domain:       "local.",
 		TXT:          txt,
 	})}
+}
+
+func parseDNSSDReachedAtEndpoint(line string) (GatewayEndpoint, bool) {
+	idx := strings.Index(line, dnsSDReachedAtMarker)
+	if idx < 0 {
+		return GatewayEndpoint{}, false
+	}
+	after := line[idx+len(dnsSDReachedAtMarker):]
+	fields := strings.Fields(after)
+	if len(fields) == 0 {
+		return GatewayEndpoint{}, false
+	}
+	hostPort := strings.TrimSuffix(strings.TrimSpace(fields[0]), ".")
+	host, port, ok := splitGatewayHostPort(hostPort)
+	if !ok {
+		return GatewayEndpoint{}, false
+	}
+	return GatewayEndpoint{Address: host, Port: port}, true
 }
 
 func splitGatewayHostPort(raw string) (string, int, bool) {
