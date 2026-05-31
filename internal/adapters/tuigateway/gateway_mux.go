@@ -10,6 +10,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/httpjson"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/httpstream"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
@@ -72,8 +74,7 @@ func (g *GatewayMux) handleEvents(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusInternalServerError, -32603, "streaming unsupported")
 		return
 	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
+	httpstream.SetSSEHeaders(w)
 	w.Header().Set("Connection", "keep-alive")
 	w.WriteHeader(http.StatusOK)
 	flusher.Flush()
@@ -87,11 +88,7 @@ func (g *GatewayMux) handleEvents(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				return
 			}
-			payload, err := json.Marshal(f)
-			if err != nil {
-				continue
-			}
-			if _, err := fmt.Fprintf(w, "event: frame\ndata: %s\n\n", payload); err != nil {
+			if err := httpstream.WriteEvent(w, "frame", f); err != nil {
 				return
 			}
 			flusher.Flush()
@@ -247,15 +244,11 @@ func readBodyOnce(r *http.Request) ([]byte, error) {
 }
 
 func writeJSONOK(w http.ResponseWriter, payload any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(payload)
+	httpjson.Write(w, http.StatusOK, payload)
 }
 
 func writeJSONError(w http.ResponseWriter, status, code int, msg string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	httpjson.Write(w, status, map[string]any{
 		"code":    code,
 		"message": msg,
 	})

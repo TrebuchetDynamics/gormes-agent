@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/httpstream"
 )
 
 const defaultRunStreamTTL = 5 * time.Minute
@@ -692,8 +694,7 @@ func (s *Server) streamRunEvents(w http.ResponseWriter, r *http.Request, runID s
 		writeOpenAIError(w, http.StatusNotFound, "Run not found: "+runID, "invalid_request_error", "", "run_not_found")
 		return
 	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
+	httpstream.SetSSEHeaders(w)
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 	if snap, ok := s.runs.snapshot(runID); ok {
@@ -758,6 +759,5 @@ func (s *Server) runHealthStatus() map[string]any {
 }
 
 func writeSSEComment(w http.ResponseWriter, text string) error {
-	_, err := w.Write([]byte(": " + text + "\n\n"))
-	return err
+	return httpstream.WriteComment(w, text)
 }

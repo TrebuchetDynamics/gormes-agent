@@ -2,7 +2,6 @@ package bridge
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -11,6 +10,8 @@ import (
 	"os/exec"
 	"sync"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/httpjson"
 )
 
 const (
@@ -84,9 +85,7 @@ func New(cfg Config) *Server {
 	mux.Handle("/sse/", corsMiddleware(panicRecoveryMiddleware(apiHandler)))
 
 	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{
+		httpjson.Write(w, http.StatusNotFound, map[string]string{
 			"error": "not found",
 			"path":  r.URL.Path,
 		})
@@ -125,22 +124,19 @@ func (s *Server) Stop(ctx context.Context) error {
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	httpjson.Write(w, http.StatusOK, map[string]interface{}{
 		"status":    "ok",
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	gatewayStatus := "stopped"
 	if s.probeGateway(r.Context()) {
 		gatewayStatus = "running"
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	httpjson.Write(w, http.StatusOK, map[string]interface{}{
 		"bridge":       "running",
 		"gateway":      gatewayStatus,
 		"gateway_addr": s.cfg.GatewayAddr(),
@@ -209,9 +205,7 @@ func newGatewayProxy(cfg Config) *httputil.ReverseProxy {
 
 	originalErrorHandler := proxy.ErrorHandler
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadGateway)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		httpjson.Write(w, http.StatusBadGateway, map[string]interface{}{
 			"error":  "gateway unreachable",
 			"detail": err.Error(),
 		})
@@ -241,9 +235,7 @@ func panicRecoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]string{
+				httpjson.Write(w, http.StatusInternalServerError, map[string]string{
 					"error": "internal server error",
 				})
 			}

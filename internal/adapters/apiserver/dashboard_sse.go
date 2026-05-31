@@ -5,11 +5,12 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/httpstream"
 )
 
 func (s *Server) handleDashboardSSE(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
+	httpstream.SetSSEHeaders(w)
 	w.Header().Set("Connection", "keep-alive")
 	flusher, ok := w.(http.Flusher)
 	if !ok {

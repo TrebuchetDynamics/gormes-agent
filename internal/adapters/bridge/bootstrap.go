@@ -8,6 +8,9 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/httpjson"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/httpstream"
 )
 
 type bootstrapStep struct {
@@ -30,9 +33,7 @@ type bootstrapStepDef struct {
 
 func (s *Server) handleBootstrapTermux(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(map[string]string{
+		httpjson.Write(w, http.StatusMethodNotAllowed, map[string]string{
 			"error": "method not allowed, use POST",
 		})
 		return
@@ -42,9 +43,7 @@ func (s *Server) handleBootstrapTermux(w http.ResponseWriter, r *http.Request) {
 		DryRun bool `json:"dry_run"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{
+		httpjson.Write(w, http.StatusBadRequest, map[string]string{
 			"error": "invalid JSON body",
 		})
 		return
@@ -58,13 +57,11 @@ func (s *Server) handleBootstrapTermux(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result := RunBootstrapTermux(r.Context(), s.cfg, req.DryRun)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	httpjson.Write(w, http.StatusOK, result)
 }
 
 func (s *Server) handleBootstrapTermuxSSE(w http.ResponseWriter, r *http.Request, dryRun bool) {
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
+	httpstream.SetSSEHeaders(w)
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
@@ -78,8 +75,7 @@ func (s *Server) handleBootstrapTermuxSSE(w http.ResponseWriter, r *http.Request
 	for _, stepDef := range steps {
 		step := stepDef.fn(r.Context(), s.cfg, dryRun)
 
-		eventData, _ := json.Marshal(step)
-		fmt.Fprintf(w, "event: step\ndata: %s\n\n", eventData)
+		_ = httpstream.WriteEvent(w, "step", step)
 		flusher.Flush()
 
 		if step.Status == "error" && !dryRun {
@@ -92,11 +88,10 @@ func (s *Server) handleBootstrapTermuxSSE(w http.ResponseWriter, r *http.Request
 		finalStatus = "dry_run_complete"
 	}
 
-	finalData, _ := json.Marshal(map[string]interface{}{
+	_ = httpstream.WriteEvent(w, "complete", map[string]interface{}{
 		"status":  finalStatus,
 		"dry_run": dryRun,
 	})
-	fmt.Fprintf(w, "event: complete\ndata: %s\n\n", finalData)
 	flusher.Flush()
 }
 

@@ -17,6 +17,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/apiserver/turns"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/httpjson"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/httpstream"
 	pluginmeta "github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/kanban"
@@ -613,8 +614,7 @@ func (s *Server) writeStreamingChatCompletion(w http.ResponseWriter, r *http.Req
 	if sessionID != "" {
 		w.Header().Set("X-Hermes-Session-Id", sessionID)
 	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
+	httpstream.SetSSEHeaders(w)
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 
@@ -1108,20 +1108,15 @@ func nullableString(s string) any {
 func stringPtr(s string) *string { return &s }
 
 func writeSSEData(w http.ResponseWriter, body any) error {
-	raw, _ := json.Marshal(body)
-	_, err := fmt.Fprintf(w, "data: %s\n\n", raw)
-	return err
+	return httpstream.WriteData(w, body)
 }
 
 func writeSSEEvent(w http.ResponseWriter, event string, body any) error {
-	raw, _ := json.Marshal(body)
-	_, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, raw)
-	return err
+	return httpstream.WriteEvent(w, event, body)
 }
 
 func writeSSEDone(w http.ResponseWriter) error {
-	_, err := io.WriteString(w, "data: [DONE]\n\n")
-	return err
+	return httpstream.WriteDone(w)
 }
 
 func flush(w http.ResponseWriter) {

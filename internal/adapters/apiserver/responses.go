@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/httpstream"
 )
 
 func (s *Server) handleResponses(w http.ResponseWriter, r *http.Request) {
@@ -89,8 +91,7 @@ func (s *Server) writeStreamingResponse(w http.ResponseWriter, r *http.Request, 
 	if sessionID != "" {
 		w.Header().Set("X-Hermes-Session-Id", sessionID)
 	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
+	httpstream.SetSSEHeaders(w)
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 
