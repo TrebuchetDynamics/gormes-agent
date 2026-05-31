@@ -616,7 +616,7 @@ func mcpStringMap(value any, field string, validateKeys bool, lookupEnv func(str
 	return out, nil
 }
 
-var mcpEnvRefRE = regexp.MustCompile(`\$\{([^}]+)\}`)
+var mcpEnvRefRE = regexp.MustCompile(`\$\{([^}]*)\}`)
 
 func interpolateMCPEnv(value string, lookupEnv func(string) (string, bool)) (string, error) {
 	var firstErr error
@@ -624,9 +624,9 @@ func interpolateMCPEnv(value string, lookupEnv func(string) (string, bool)) (str
 		if firstErr != nil {
 			return match
 		}
-		name := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(match, "${"), "}"))
-		if !mcpEnvNameRE.MatchString(name) {
-			firstErr = fmt.Errorf("invalid env variable name %q", name)
+		name, err := mcpEnvReferenceName(match)
+		if err != nil {
+			firstErr = err
 			return match
 		}
 		value, ok := lookupEnv(name)
@@ -640,6 +640,14 @@ func interpolateMCPEnv(value string, lookupEnv func(string) (string, bool)) (str
 		return "", firstErr
 	}
 	return resolved, nil
+}
+
+func mcpEnvReferenceName(match string) (string, error) {
+	name := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(match, "${"), "}"))
+	if !mcpEnvNameRE.MatchString(name) {
+		return "", fmt.Errorf("invalid env variable name %q", name)
+	}
+	return name, nil
 }
 
 func parseMCPBool(value any, fallback bool) bool {

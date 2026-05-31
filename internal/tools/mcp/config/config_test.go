@@ -84,6 +84,36 @@ func TestResolveMCPConfigRejectsOverflowingSamplingInteger(t *testing.T) {
 	}
 }
 
+func TestResolveMCPConfigRejectsEmptyEnvInterpolationReference(t *testing.T) {
+	resolved, err := ResolveMCPConfig(map[string]any{
+		"mcp_servers": map[string]any{
+			"broken": map[string]any{
+				"command": "npx",
+				"env": map[string]any{
+					"API_KEY": "${}",
+				},
+			},
+		},
+	}, MCPConfigOptions{LookupEnv: func(string) (string, bool) { return "", false }})
+	if err == nil {
+		t.Fatalf("ResolveMCPConfig succeeded for empty env interpolation reference")
+	}
+	if !strings.Contains(err.Error(), "invalid env variable name") {
+		t.Fatalf("error = %q, want invalid env variable evidence", err.Error())
+	}
+	if len(resolved.Servers) != 0 {
+		t.Fatalf("resolved valid servers = %#v, want none", resolved.Servers)
+	}
+
+	status, ok := resolved.Status("broken")
+	if !ok {
+		t.Fatalf("missing invalid server status in %#v", resolved.Statuses)
+	}
+	if status.Status != MCPConfigStatusInvalidEnv {
+		t.Fatalf("status = %q, want %q (reason=%q)", status.Status, MCPConfigStatusInvalidEnv, status.Reason)
+	}
+}
+
 func TestResolveMCPConfigDisabledServerDoesNotRequireTransport(t *testing.T) {
 	resolved, err := ResolveMCPConfig(map[string]any{
 		"mcp_servers": map[string]any{
