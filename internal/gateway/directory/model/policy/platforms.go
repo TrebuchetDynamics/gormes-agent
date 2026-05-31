@@ -1,4 +1,4 @@
-package model
+package policy
 
 // EmptyPlatformBuckets returns an initialized platform-indexed bucket map for
 // directory read models and remembered-source ledgers.

@@ -1,6 +1,13 @@
 tools/approval
 tools/browser
+tools/filesystem
+tools/filesystem/readguard
+tools/filesystem/scope
 tools/goncho
+tools/mcp
+tools/safety
+tools/safety/commandpolicy
 tools/toolkit
 tools/tts
+tools/whisper
 tools/whisper/audio
