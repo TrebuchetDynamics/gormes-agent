@@ -11,6 +11,10 @@ func containsString(values []string, want string) bool {
 	return false
 }
 
+func stringSliceContains(values []string, want string) bool {
+	return containsString(values, want)
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }

@@ -1,4 +1,4 @@
-package tools
+package parity
 
 import (
 	"encoding/json"
