@@ -6,6 +6,26 @@ import (
 	"time"
 )
 
+func TestCoalescer_FinalDeliveryClearsStalePendingPreview(t *testing.T) {
+	ch := newFakeChannel("test")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	c := newCoalescer(ch, 5*time.Millisecond, "chat1")
+	c.flushImmediate(ctx, "preview")
+	c.setPending("stale preview")
+	c.flushImmediateFinal(ctx, "final", true)
+	go c.run(ctx)
+
+	time.Sleep(30 * time.Millisecond)
+	edits := ch.editsSnapshot()
+	for _, edit := range edits {
+		if edit.Text == "stale preview" {
+			t.Fatalf("stale pending preview edited after final delivery; edits=%#v", edits)
+		}
+	}
+}
+
 func TestCoalescer_DoesNotDropPendingTextSetDuringEdit(t *testing.T) {
 	ch := &blockingEditChannel{fakeChannel: newFakeChannel("test")}
 	ctx, cancel := context.WithCancel(context.Background())

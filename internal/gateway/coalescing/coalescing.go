@@ -106,8 +106,8 @@ func (c *Coalescer) emitEvidence(code, message string) {
 	}
 }
 
-func (c *Coalescer) clearPendingIfCurrentLocked(deliveredText string) {
-	if c.pendingText == deliveredText {
+func (c *Coalescer) clearPendingAfterDeliveryLocked(deliveredText string, terminal bool) {
+	if terminal || c.pendingText == deliveredText {
 		c.pendingText = ""
 	}
 }
@@ -149,7 +149,7 @@ func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finali
 			c.messageCreatedAt = now
 			c.lastSentText = text
 			c.lastEditAt = now
-			c.clearPendingIfCurrentLocked(text)
+			c.clearPendingAfterDeliveryLocked(text, finalize)
 			c.mu.Unlock()
 			return
 		}
@@ -180,7 +180,7 @@ func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finali
 			// preview already contains the completed answer. If the terminal
 			// edit fails here, a plain Send would duplicate the visible reply.
 			c.mu.Lock()
-			c.clearPendingIfCurrentLocked(text)
+			c.clearPendingAfterDeliveryLocked(text, finalize)
 			c.mu.Unlock()
 			return
 		}
@@ -213,7 +213,7 @@ func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finali
 		c.pendingMsgID = newMsgID
 		c.lastSentText = text
 		c.lastEditAt = c.now()
-		c.clearPendingIfCurrentLocked(text)
+		c.clearPendingAfterDeliveryLocked(text, finalize)
 		c.mu.Unlock()
 		return
 	}
@@ -225,7 +225,7 @@ func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finali
 	}
 	c.lastSentText = text
 	c.lastEditAt = c.now()
-	c.clearPendingIfCurrentLocked(text)
+	c.clearPendingAfterDeliveryLocked(text, finalize)
 	c.mu.Unlock()
 }
 
@@ -293,7 +293,7 @@ func (c *Coalescer) tryFlush(ctx context.Context) {
 		}
 		c.lastSentText = text
 		c.lastEditAt = now
-		c.clearPendingIfCurrentLocked(text)
+		c.clearPendingAfterDeliveryLocked(text, false)
 		c.mu.Unlock()
 		return
 	}
@@ -305,7 +305,7 @@ func (c *Coalescer) tryFlush(ctx context.Context) {
 	c.mu.Lock()
 	c.lastSentText = text
 	c.lastEditAt = now
-	c.clearPendingIfCurrentLocked(text)
+	c.clearPendingAfterDeliveryLocked(text, false)
 	c.mu.Unlock()
 }
 
