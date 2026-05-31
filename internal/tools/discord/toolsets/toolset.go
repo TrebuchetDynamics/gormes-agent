@@ -72,23 +72,24 @@ type discordActionSpec struct {
 	Description           string
 	Class                 discordActionClass
 	RequiresMembersIntent bool
+	SchemaProperties      []string
 }
 
 var discordActionManifest = []discordActionSpec{
 	{Name: "list_guilds", Signature: "()", Description: "list servers the bot is in", Class: discordActionAdmin},
-	{Name: "server_info", Signature: "(guild_id)", Description: "server details + member counts", Class: discordActionAdmin},
-	{Name: "list_channels", Signature: "(guild_id)", Description: "all channels grouped by category", Class: discordActionAdmin},
-	{Name: "channel_info", Signature: "(channel_id)", Description: "single channel details", Class: discordActionAdmin},
-	{Name: "list_roles", Signature: "(guild_id)", Description: "roles sorted by position", Class: discordActionAdmin},
-	{Name: "member_info", Signature: "(guild_id, user_id)", Description: "lookup a specific member", Class: discordActionAdmin, RequiresMembersIntent: true},
-	{Name: "search_members", Signature: "(guild_id, query)", Description: "find members by name prefix", Class: discordActionCore, RequiresMembersIntent: true},
-	{Name: "fetch_messages", Signature: "(channel_id)", Description: "recent messages; optional before/after snowflakes", Class: discordActionCore},
-	{Name: "list_pins", Signature: "(channel_id)", Description: "pinned messages in a channel", Class: discordActionAdmin},
-	{Name: "pin_message", Signature: "(channel_id, message_id)", Description: "pin a message", Class: discordActionAdmin},
-	{Name: "unpin_message", Signature: "(channel_id, message_id)", Description: "unpin a message", Class: discordActionAdmin},
-	{Name: "create_thread", Signature: "(channel_id, name)", Description: "create a public thread; optional message_id anchor", Class: discordActionCore},
-	{Name: "add_role", Signature: "(guild_id, user_id, role_id)", Description: "assign a role", Class: discordActionAdmin},
-	{Name: "remove_role", Signature: "(guild_id, user_id, role_id)", Description: "remove a role", Class: discordActionAdmin},
+	{Name: "server_info", Signature: "(guild_id)", Description: "server details + member counts", Class: discordActionAdmin, SchemaProperties: []string{"guild_id"}},
+	{Name: "list_channels", Signature: "(guild_id)", Description: "all channels grouped by category", Class: discordActionAdmin, SchemaProperties: []string{"guild_id"}},
+	{Name: "channel_info", Signature: "(channel_id)", Description: "single channel details", Class: discordActionAdmin, SchemaProperties: []string{"channel_id"}},
+	{Name: "list_roles", Signature: "(guild_id)", Description: "roles sorted by position", Class: discordActionAdmin, SchemaProperties: []string{"guild_id"}},
+	{Name: "member_info", Signature: "(guild_id, user_id)", Description: "lookup a specific member", Class: discordActionAdmin, RequiresMembersIntent: true, SchemaProperties: []string{"guild_id", "user_id"}},
+	{Name: "search_members", Signature: "(guild_id, query)", Description: "find members by name prefix", Class: discordActionCore, RequiresMembersIntent: true, SchemaProperties: []string{"guild_id", "query", "limit"}},
+	{Name: "fetch_messages", Signature: "(channel_id)", Description: "recent messages; optional before/after snowflakes", Class: discordActionCore, SchemaProperties: []string{"channel_id", "limit", "before", "after"}},
+	{Name: "list_pins", Signature: "(channel_id)", Description: "pinned messages in a channel", Class: discordActionAdmin, SchemaProperties: []string{"channel_id"}},
+	{Name: "pin_message", Signature: "(channel_id, message_id)", Description: "pin a message", Class: discordActionAdmin, SchemaProperties: []string{"channel_id", "message_id"}},
+	{Name: "unpin_message", Signature: "(channel_id, message_id)", Description: "unpin a message", Class: discordActionAdmin, SchemaProperties: []string{"channel_id", "message_id"}},
+	{Name: "create_thread", Signature: "(channel_id, name)", Description: "create a public thread; optional message_id anchor", Class: discordActionCore, SchemaProperties: []string{"channel_id", "message_id", "name", "auto_archive_duration"}},
+	{Name: "add_role", Signature: "(guild_id, user_id, role_id)", Description: "assign a role", Class: discordActionAdmin, SchemaProperties: []string{"guild_id", "user_id", "role_id"}},
+	{Name: "remove_role", Signature: "(guild_id, user_id, role_id)", Description: "remove a role", Class: discordActionAdmin, SchemaProperties: []string{"guild_id", "user_id", "role_id"}},
 }
 
 // DiscordToolsetAllowedForPlatform reports whether a Discord toolset may be
@@ -213,54 +214,57 @@ func discordSchemaProperties(actions []string) map[string]any {
 			"enum": actions,
 		},
 	}
-	if hasAnyDiscordAction(actions, "server_info", "list_channels", "list_roles", "member_info", "search_members", "add_role", "remove_role") {
+	schemaProperties := discordSchemaPropertySet(actions)
+	if schemaProperties["guild_id"] {
 		properties["guild_id"] = map[string]any{
 			"type":        "string",
 			"description": "Discord server (guild) ID.",
 		}
 	}
-	if hasAnyDiscordAction(actions, "channel_info", "fetch_messages", "list_pins", "pin_message", "unpin_message", "create_thread") {
+	if schemaProperties["channel_id"] {
 		properties["channel_id"] = map[string]any{
 			"type":        "string",
 			"description": "Discord channel ID.",
 		}
 	}
-	if hasAnyDiscordAction(actions, "member_info", "add_role", "remove_role") {
+	if schemaProperties["user_id"] {
 		properties["user_id"] = map[string]any{
 			"type":        "string",
 			"description": "Discord user ID.",
 		}
 	}
-	if hasAnyDiscordAction(actions, "add_role", "remove_role") {
+	if schemaProperties["role_id"] {
 		properties["role_id"] = map[string]any{
 			"type":        "string",
 			"description": "Discord role ID.",
 		}
 	}
-	if hasAnyDiscordAction(actions, "pin_message", "unpin_message", "create_thread") {
+	if schemaProperties["message_id"] {
 		properties["message_id"] = map[string]any{
 			"type":        "string",
 			"description": "Discord message ID.",
 		}
 	}
-	if hasAnyDiscordAction(actions, "search_members") {
+	if schemaProperties["query"] {
 		properties["query"] = map[string]any{
 			"type":        "string",
 			"description": "Member name prefix to search for.",
 		}
 	}
-	if hasAnyDiscordAction(actions, "create_thread") {
+	if schemaProperties["name"] {
 		properties["name"] = map[string]any{
 			"type":        "string",
 			"description": "New thread name.",
 		}
+	}
+	if schemaProperties["auto_archive_duration"] {
 		properties["auto_archive_duration"] = map[string]any{
 			"type":        "integer",
 			"enum":        []int{60, 1440, 4320, 10080},
 			"description": "Thread archive duration in minutes.",
 		}
 	}
-	if hasAnyDiscordAction(actions, "fetch_messages", "search_members") {
+	if schemaProperties["limit"] {
 		properties["limit"] = map[string]any{
 			"type":        "integer",
 			"minimum":     limits.LimitMinimum,
@@ -268,17 +272,33 @@ func discordSchemaProperties(actions []string) map[string]any {
 			"description": "Max results to return.",
 		}
 	}
-	if hasAnyDiscordAction(actions, "fetch_messages") {
+	if schemaProperties["before"] {
 		properties["before"] = map[string]any{
 			"type":        "string",
 			"description": "Snowflake ID for reverse pagination.",
 		}
+	}
+	if schemaProperties["after"] {
 		properties["after"] = map[string]any{
 			"type":        "string",
 			"description": "Snowflake ID for forward pagination.",
 		}
 	}
 	return properties
+}
+
+func discordSchemaPropertySet(actions []string) map[string]bool {
+	selected := normalizedStringSet(actions)
+	out := map[string]bool{}
+	for _, action := range discordActionManifest {
+		if !selected[action.Name] {
+			continue
+		}
+		for _, property := range action.SchemaProperties {
+			out[property] = true
+		}
+	}
+	return out
 }
 
 func buildDiscordDescription(name string, class discordActionClass, actions []string, caps DiscordApplicationCapabilities) string {

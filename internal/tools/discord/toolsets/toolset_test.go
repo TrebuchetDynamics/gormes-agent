@@ -76,6 +76,33 @@ func TestDiscordToolsetSplitDescriptorsAndPlatformScope(t *testing.T) {
 	}
 }
 
+func TestDiscordActionManifestSchemaPropertiesCoverSignatures(t *testing.T) {
+	knownSchemaProperties := map[string]bool{
+		"action": true, "guild_id": true, "channel_id": true, "user_id": true,
+		"role_id": true, "message_id": true, "query": true, "name": true,
+		"auto_archive_duration": true, "limit": true, "before": true, "after": true,
+	}
+
+	for _, action := range discordActionManifest {
+		t.Run(action.Name, func(t *testing.T) {
+			properties := discordSchemaProperties([]string{action.Name})
+			for _, arg := range signatureArgumentNames(action.Signature) {
+				if _, ok := properties[arg]; !ok {
+					t.Fatalf("signature %s requires %q but schema properties are %v", action.Signature, arg, propertyNamesAny(properties))
+				}
+			}
+			for _, property := range action.SchemaProperties {
+				if !knownSchemaProperties[property] {
+					t.Fatalf("unknown schema property %q in action contract", property)
+				}
+				if _, ok := properties[property]; !ok {
+					t.Fatalf("contract property %q missing from generated schema properties %v", property, propertyNamesAny(properties))
+				}
+			}
+		})
+	}
+}
+
 func TestDiscordToolsetDropsSchemasForMissingTokenIntentsAndAllowlist(t *testing.T) {
 	fullCaps := DiscordApplicationCapabilities{
 		Detected:                true,
@@ -230,6 +257,31 @@ func propertyNames(properties map[string]json.RawMessage) []string {
 		names = append(names, name)
 	}
 	return names
+}
+
+func propertyNamesAny(properties map[string]any) []string {
+	names := make([]string, 0, len(properties))
+	for name := range properties {
+		names = append(names, name)
+	}
+	return names
+}
+
+func signatureArgumentNames(signature string) []string {
+	trimmed := strings.TrimSpace(signature)
+	trimmed = strings.TrimPrefix(trimmed, "(")
+	trimmed = strings.TrimSuffix(trimmed, ")")
+	if strings.TrimSpace(trimmed) == "" {
+		return nil
+	}
+	parts := strings.Split(trimmed, ",")
+	args := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if arg := strings.TrimSpace(part); arg != "" {
+			args = append(args, arg)
+		}
+	}
+	return args
 }
 
 func assertStatus(t *testing.T, statuses []DiscordToolsetStatus, name string, want DiscordToolStatus) {
