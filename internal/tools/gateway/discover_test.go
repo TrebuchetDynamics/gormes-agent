@@ -174,6 +174,38 @@ func TestNormalizeGatewayEndpointsDropsInvalidAndKeepsFirstDuplicateCandidate(t 
 	}
 }
 
+func TestGatewayEndpointCandidateFlowSeparatesAcceptedAndRejectedCandidates(t *testing.T) {
+	flow := evaluateGatewayEndpointCandidates([]GatewayEndpoint{
+		{InstanceName: "manual", Address: "localhost", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceManual},
+		{InstanceName: "duplicate", Address: "LOCALHOST.", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceBonjour},
+		{InstanceName: "bad-port", Address: "localhost", Port: 70000, Scheme: "ws", Source: GatewayEndpointSourceManual},
+		{InstanceName: "bad-scheme", Address: "localhost", Port: 18800, Scheme: "ftp", Source: GatewayEndpointSourceManual},
+	})
+
+	if got := len(flow.Accepted); got != 1 {
+		t.Fatalf("Accepted len = %d, want 1; flow=%+v", got, flow)
+	}
+	if flow.Accepted[0].InstanceName != "manual" || flow.Accepted[0].WSURL != "ws://localhost:18789" {
+		t.Fatalf("Accepted[0] = %+v, want normalized first valid candidate", flow.Accepted[0])
+	}
+	if got := len(flow.Rejected); got != 3 {
+		t.Fatalf("Rejected len = %d, want 3; flow=%+v", got, flow)
+	}
+	wantReasons := []string{
+		gatewayEndpointCandidateRejectedDuplicate,
+		gatewayEndpointCandidateRejectedInvalidPort,
+		gatewayEndpointCandidateRejectedUnsupportedScheme,
+	}
+	for i, want := range wantReasons {
+		if flow.Rejected[i].Rejection != want {
+			t.Fatalf("Rejected[%d].Rejection = %q, want %q; flow=%+v", i, flow.Rejected[i].Rejection, want, flow)
+		}
+		if flow.Rejected[i].Accepted {
+			t.Fatalf("Rejected[%d] unexpectedly accepted: %+v", i, flow.Rejected[i])
+		}
+	}
+}
+
 func TestGatewayEndpointCandidateClassificationExplainsDroppedCandidates(t *testing.T) {
 	seen := map[string]bool{
 		"ws://localhost:18789": true,

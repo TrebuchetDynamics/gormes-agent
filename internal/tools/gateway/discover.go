@@ -270,20 +270,34 @@ func gatewayEndpointWSURL(endpoint GatewayEndpoint) (string, bool) {
 }
 
 func normalizeGatewayEndpoints(in []GatewayEndpoint) []GatewayEndpoint {
-	out := make([]GatewayEndpoint, 0, len(in))
-	seen := map[string]bool{}
-	for _, endpoint := range in {
-		candidate := classifyGatewayEndpointCandidate(NormalizeGatewayEndpoint(endpoint), seen)
-		if !candidate.Accepted {
-			continue
-		}
-		seen[candidate.Key] = true
-		out = append(out, candidate.Endpoint)
-	}
+	flow := evaluateGatewayEndpointCandidates(in)
+	out := append([]GatewayEndpoint(nil), flow.Accepted...)
 	sort.Slice(out, func(i, j int) bool {
 		return lessGatewayEndpoint(out[i], out[j])
 	})
 	return out
+}
+
+type gatewayEndpointCandidateFlow struct {
+	Accepted []GatewayEndpoint
+	Rejected []gatewayEndpointCandidate
+}
+
+func evaluateGatewayEndpointCandidates(in []GatewayEndpoint) gatewayEndpointCandidateFlow {
+	flow := gatewayEndpointCandidateFlow{
+		Accepted: make([]GatewayEndpoint, 0, len(in)),
+	}
+	seen := map[string]bool{}
+	for _, endpoint := range in {
+		candidate := classifyGatewayEndpointCandidate(NormalizeGatewayEndpoint(endpoint), seen)
+		if !candidate.Accepted {
+			flow.Rejected = append(flow.Rejected, candidate)
+			continue
+		}
+		seen[candidate.Key] = true
+		flow.Accepted = append(flow.Accepted, candidate.Endpoint)
+	}
+	return flow
 }
 
 type gatewayEndpointCandidate struct {
