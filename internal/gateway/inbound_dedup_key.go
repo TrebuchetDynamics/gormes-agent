@@ -34,6 +34,7 @@ func ResolveInboundMessageIdentity(ev InboundEvent) InboundMessageIdentity {
 func InboundDedupKey(ev InboundEvent) InboundDedupKeyResult {
 	return gatewaydedup.InboundDedupKey(gatewaydedup.InboundEventKeyParts{
 		Platform:  ev.Platform,
+		AccountID: ev.AccountID,
 		ChatID:    ev.ChatID,
 		ThreadID:  ev.ThreadID,
 		MsgID:     ev.MsgID,

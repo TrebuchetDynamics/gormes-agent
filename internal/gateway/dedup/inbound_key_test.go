@@ -121,6 +121,27 @@ func TestInboundDedupKey_StableForSameEvent(t *testing.T) {
 	}
 }
 
+func TestInboundDedupKey_ScopesByAccountPlatformChatThreadMessageID(t *testing.T) {
+	base := InboundEventKeyParts{
+		Platform:  "telegram",
+		AccountID: "alerts",
+		ChatID:    "chat-1",
+		ThreadID:  "thread-1",
+		MessageID: "msg-1",
+	}
+	for name, ev := range map[string]InboundEventKeyParts{
+		"account":  {Platform: "telegram", AccountID: "support", ChatID: "chat-1", ThreadID: "thread-1", MessageID: "msg-1"},
+		"platform": {Platform: "discord", AccountID: "alerts", ChatID: "chat-1", ThreadID: "thread-1", MessageID: "msg-1"},
+		"chat":     {Platform: "telegram", AccountID: "alerts", ChatID: "chat-2", ThreadID: "thread-1", MessageID: "msg-1"},
+		"thread":   {Platform: "telegram", AccountID: "alerts", ChatID: "chat-1", ThreadID: "thread-2", MessageID: "msg-1"},
+		"message":  {Platform: "telegram", AccountID: "alerts", ChatID: "chat-1", ThreadID: "thread-1", MessageID: "msg-2"},
+	} {
+		if got, want := InboundDedupKey(ev).Key, InboundDedupKey(base).Key; got == want {
+			t.Fatalf("%s variant key = base key %q, want account/platform/chat/thread/message isolation", name, got)
+		}
+	}
+}
+
 func TestInboundDedupKey_ScopesByPlatformChatThreadMessageID(t *testing.T) {
 	events := map[string]InboundEventKeyParts{
 		"base": {

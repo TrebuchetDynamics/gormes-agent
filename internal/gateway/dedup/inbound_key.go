@@ -9,6 +9,7 @@ const EvidenceMissingMessageID MessageDeduplicatorEvidence = "dedup_unavailable_
 
 type InboundEventKeyParts struct {
 	Platform  string
+	AccountID string
 	ChatID    string
 	ThreadID  string
 	MsgID     string
@@ -35,9 +36,10 @@ type InboundMessageIdentity struct {
 // InboundDedupScope names the platform surface that must stay isolated when
 // two chats or threads reuse the same platform-native message identifier.
 type InboundDedupScope struct {
-	Platform string
-	ChatID   string
-	ThreadID string
+	Platform  string
+	AccountID string
+	ChatID    string
+	ThreadID  string
 }
 
 // InboundDedupKeyResult reports the bounded-deduplicator tracking key or why
@@ -64,7 +66,7 @@ func ResolveInboundMessageIdentity(ev InboundEventKeyParts) InboundMessageIdenti
 // InboundDedupKey derives the key used to track inbound platform message IDs.
 func InboundDedupKey(ev InboundEventKeyParts) InboundDedupKeyResult {
 	identity := ResolveInboundMessageIdentity(ev)
-	scope := InboundDedupScope{Platform: ev.Platform, ChatID: ev.ChatID, ThreadID: ev.ThreadID}
+	scope := InboundDedupScope{Platform: ev.Platform, AccountID: ev.AccountID, ChatID: ev.ChatID, ThreadID: ev.ThreadID}
 	if identity.ID == "" {
 		return InboundDedupKeyResult{Evidence: EvidenceMissingMessageID, Scope: scope}
 	}
@@ -76,13 +78,15 @@ func InboundDedupKey(ev InboundEventKeyParts) InboundDedupKeyResult {
 }
 
 // TrackingKey returns the length-prefixed key used by the bounded deduplicator.
+// AccountID is part of the scope so multiple configured accounts on the same
+// platform cannot suppress each other's coincident chat/thread message IDs.
 // Scope components are intentionally byte-exact: admission and platform
 // adapters own their own normalization before this point.
 func (s InboundDedupScope) TrackingKey(identity InboundMessageIdentity) string {
 	if identity.ID == "" {
 		return ""
 	}
-	return inboundDedupKeyParts(s.Platform, s.ChatID, s.ThreadID, identity.ID)
+	return inboundDedupKeyParts(s.Platform, s.AccountID, s.ChatID, s.ThreadID, identity.ID)
 }
 
 func inboundDedupKeyParts(parts ...string) string {

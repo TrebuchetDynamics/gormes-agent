@@ -2,6 +2,17 @@ package gateway
 
 import "testing"
 
+func TestInboundDedupKeyCompatibilityWrapperIncludesAccountID(t *testing.T) {
+	alerts := InboundDedupKey(InboundEvent{Platform: "telegram", AccountID: "alerts", ChatID: "chat", ThreadID: "thread", MessageID: "msg"})
+	support := InboundDedupKey(InboundEvent{Platform: "telegram", AccountID: "support", ChatID: "chat", ThreadID: "thread", MessageID: "msg"})
+	if alerts.Key == "" || support.Key == "" || alerts.Key == support.Key {
+		t.Fatalf("account-scoped wrapper keys = %q and %q, want non-empty distinct keys", alerts.Key, support.Key)
+	}
+	if alerts.Scope.AccountID != "alerts" || support.Scope.AccountID != "support" {
+		t.Fatalf("wrapper scopes = %+v and %+v, want account provenance", alerts.Scope, support.Scope)
+	}
+}
+
 func TestInboundDedupKeyCompatibilityWrapper(t *testing.T) {
 	result := InboundDedupKey(InboundEvent{Platform: "telegram", ChatID: "chat", ThreadID: "thread", MessageID: "msg"})
 	if result.Key == "" || result.Evidence != "" {
