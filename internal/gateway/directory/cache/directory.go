@@ -71,9 +71,9 @@ func (s Store) jsonFile() storage.File {
 func (s Store) Load() (Directory, model.Evidence) {
 	var dir Directory
 	if err := s.jsonFile().Read(&dir); errors.Is(err, os.ErrNotExist) {
-		return emptyDirectory(), model.Evidence{Code: "channel_directory_missing"}
+		return emptyDirectory(), model.Evidence{Code: model.EvidenceChannelDirectoryMissing}
 	} else if err != nil {
-		return emptyDirectory(), model.Evidence{Code: "channel_directory_invalid"}
+		return emptyDirectory(), model.Evidence{Code: model.EvidenceChannelDirectoryInvalid}
 	}
 	if dir.Platforms == nil {
 		dir.Platforms = map[string][]model.Entry{}
@@ -111,7 +111,7 @@ func (d Directory) Resolve(platform, query string) (gatewaydelivery.Target, mode
 	raw := strings.TrimSpace(query)
 	entries := d.Platforms[platform]
 	if platform == "" || raw == "" || len(entries) == 0 {
-		return gatewaydelivery.Target{}, model.Evidence{Code: "channel_directory_missing", Platform: platform, Query: raw}
+		return gatewaydelivery.Target{}, model.Evidence{Code: model.EvidenceChannelDirectoryMissing, Platform: platform, Query: raw}
 	}
 	for _, entry := range entries {
 		if entry.ID == raw {
@@ -144,9 +144,9 @@ func (d Directory) Resolve(platform, query string) (gatewaydelivery.Target, mode
 	case 1:
 		return model.DeliveryTarget(platform, matches[0]), model.Evidence{}
 	case 0:
-		return gatewaydelivery.Target{}, model.Evidence{Code: "channel_directory_missing", Platform: platform, Query: raw}
+		return gatewaydelivery.Target{}, model.Evidence{Code: model.EvidenceChannelDirectoryMissing, Platform: platform, Query: raw}
 	default:
-		return gatewaydelivery.Target{}, model.Evidence{Code: "channel_target_ambiguous", Platform: platform, Query: raw}
+		return gatewaydelivery.Target{}, model.Evidence{Code: model.EvidenceChannelTargetAmbiguous, Platform: platform, Query: raw}
 	}
 }
 
@@ -169,7 +169,7 @@ func (d Directory) ValidateDeliveryTarget(target gatewaydelivery.Target) (gatewa
 			return target, model.Evidence{}
 		}
 	}
-	return gatewaydelivery.Target{}, model.Evidence{Code: "channel_target_stale", Platform: platform, Query: target.String()}
+	return gatewaydelivery.Target{}, model.Evidence{Code: model.EvidenceChannelTargetStale, Platform: platform, Query: target.String()}
 }
 
 // LookupType returns the cached channel type for a platform target ID.

@@ -41,7 +41,7 @@ func (s Store) Load() (model.RememberedSourceLedger, model.Evidence) {
 		if os.IsNotExist(err) {
 			return model.EmptyRememberedSourceLedger(), model.Evidence{}
 		}
-		return model.EmptyRememberedSourceLedger(), model.Evidence{Code: "channel_directory_sources_invalid"}
+		return model.EmptyRememberedSourceLedger(), model.Evidence{Code: model.EvidenceChannelDirectorySourcesInvalid}
 	}
 	return model.EnsureRememberedSourceLedger(ledger), model.Evidence{}
 }

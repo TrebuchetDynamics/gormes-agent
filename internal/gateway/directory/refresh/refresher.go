@@ -41,11 +41,11 @@ func (r *Refresher) Refresh(ctx context.Context) (cache.Directory, model.Evidenc
 
 	lastGood, _ := r.Directory.Load()
 	if r.Inventory == nil {
-		return lastGood, model.Evidence{Code: "channel_directory_refresh_failed"}
+		return lastGood, model.Evidence{Code: model.EvidenceChannelDirectoryRefreshFailed}
 	}
 	snapshots, err := r.Inventory(ctx)
 	if err != nil {
-		return lastGood, model.Evidence{Code: "channel_directory_refresh_failed"}
+		return lastGood, model.Evidence{Code: model.EvidenceChannelDirectoryRefreshFailed}
 	}
 	dir := cache.NewDirectory(timestamp(r.Now))
 	for _, snapshot := range snapshots {
@@ -61,7 +61,7 @@ func (r *Refresher) Refresh(ctx context.Context) (cache.Directory, model.Evidenc
 	}
 	sortDirectory(dir)
 	if err := r.Directory.Save(dir); err != nil {
-		return lastGood, model.Evidence{Code: "channel_directory_refresh_failed"}
+		return lastGood, model.Evidence{Code: model.EvidenceChannelDirectoryRefreshFailed}
 	}
 	return dir, model.Evidence{}
 }

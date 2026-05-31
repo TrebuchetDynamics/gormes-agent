@@ -1,11 +1,13 @@
 package directory
 
 import (
-	gatewaydelivery "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/delivery"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	gatewaydelivery "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/delivery"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/model"
 )
 
 func TestChannelDirectoryAtomicWriteAndLoad(t *testing.T) {
@@ -83,8 +85,8 @@ func TestChannelDirectoryResolveAmbiguousPrefixReturnsMissing(t *testing.T) {
 	if got.ChatID != "" {
 		t.Fatalf("Resolve ambiguous target = %+v, want empty", got)
 	}
-	if evidence.Code != "channel_target_ambiguous" {
-		t.Fatalf("Resolve ambiguous evidence = %+v, want channel_target_ambiguous", evidence)
+	if evidence.Code != model.EvidenceChannelTargetAmbiguous {
+		t.Fatalf("Resolve ambiguous evidence = %+v, want %s", evidence, model.EvidenceChannelTargetAmbiguous)
 	}
 }
 
@@ -116,14 +118,14 @@ func TestChannelDirectoryLookupTypeAndDisplay(t *testing.T) {
 func TestChannelDirectoryLoadMissingAndInvalidEvidence(t *testing.T) {
 	store := NewChannelDirectoryStore(t.TempDir())
 	_, evidence := store.Load()
-	if evidence.Code != "channel_directory_missing" {
+	if evidence.Code != model.EvidenceChannelDirectoryMissing {
 		t.Fatalf("missing evidence = %+v", evidence)
 	}
 	if err := os.WriteFile(filepath.Join(store.Root(), "channel_directory.json"), []byte(`{bad json`), 0o600); err != nil {
 		t.Fatalf("write invalid fixture: %v", err)
 	}
 	_, evidence = store.Load()
-	if evidence.Code != "channel_directory_invalid" {
+	if evidence.Code != model.EvidenceChannelDirectoryInvalid {
 		t.Fatalf("invalid evidence = %+v", evidence)
 	}
 }

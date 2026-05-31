@@ -2,11 +2,13 @@ package directory
 
 import (
 	"context"
-	gatewaydelivery "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/delivery"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	gatewaydelivery "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/delivery"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/model"
 )
 
 func TestChannelDirectoryRefreshMergesAdapterInventory(t *testing.T) {
@@ -58,8 +60,8 @@ func TestChannelDirectoryRefreshFailurePreservesLastGood(t *testing.T) {
 		},
 	}
 	got, evidence := refresher.Refresh(context.Background())
-	if evidence.Code != "channel_directory_refresh_failed" {
-		t.Fatalf("Refresh evidence = %+v, want channel_directory_refresh_failed", evidence)
+	if evidence.Code != model.EvidenceChannelDirectoryRefreshFailed {
+		t.Fatalf("Refresh evidence = %+v, want %s", evidence, model.EvidenceChannelDirectoryRefreshFailed)
 	}
 	if got.Platforms["slack"][0].ID != "C01" {
 		t.Fatalf("got = %+v, want last good preserved", got)
@@ -73,8 +75,8 @@ func TestChannelDirectoryRefreshFailurePreservesLastGood(t *testing.T) {
 func TestChannelDirectoryStaleTargetInvalidation(t *testing.T) {
 	dir := ChannelDirectory{Platforms: map[string][]ChannelDirectoryEntry{"discord": {{ID: "fresh", Name: "general"}}}}
 	_, evidence := dir.ValidateDeliveryTarget(gatewaydelivery.Target{Platform: "discord", ChatID: "old", IsExplicit: true})
-	if evidence.Code != "channel_target_stale" {
-		t.Fatalf("Validate stale evidence = %+v, want channel_target_stale", evidence)
+	if evidence.Code != model.EvidenceChannelTargetStale {
+		t.Fatalf("Validate stale evidence = %+v, want %s", evidence, model.EvidenceChannelTargetStale)
 	}
 	fresh, evidence := dir.ValidateDeliveryTarget(gatewaydelivery.Target{Platform: "discord", ChatID: "fresh", IsExplicit: true})
 	if evidence.Code != "" || fresh.ChatID != "fresh" {
