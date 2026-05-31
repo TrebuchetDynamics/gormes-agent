@@ -427,6 +427,28 @@ func TestGatewayProbeHTTPVerifiesHealthDetailedHealthCapabilities(t *testing.T) 
 	}
 }
 
+func TestGatewayProbeHTTPTreatsCapabilityAuthSchemeCaseInsensitively(t *testing.T) {
+	server := newGatewayProbeHTTPFixture(t, "", func(w http.ResponseWriter, _ *http.Request) {
+		payload := buildGatewayProbeCapabilitiesFixture(true)
+		payload["auth"].(map[string]any)["type"] = "Bearer"
+		writeJSONResponse(t, w, payload)
+	})
+	defer server.Close()
+	endpoint := mustParseGatewayProbeEndpoint(t, server.URL)
+
+	result := ProbeGateways(context.Background(), GatewayProbeRequest{
+		Endpoints: []GatewayEndpoint{endpoint},
+		Prober:    HTTPGatewayProber{Client: server.Client(), Auth: GatewayHTTPAuth{Source: "none"}},
+	})
+
+	if !result.OK {
+		t.Fatalf("OK = false; result = %+v", result)
+	}
+	if got := result.Targets[0]; got.Health != GatewayHealthHTTPHealthy || got.Status != GatewayProbeStatusCapabilityReady {
+		t.Fatalf("target = %+v, want uppercase Bearer capability auth accepted", got)
+	}
+}
+
 func TestGatewayProbeHTTPClassifiesAuthUnsupportedAndMalformedCapabilities(t *testing.T) {
 	const secret = "sk-gateway-secret"
 	t.Run("unauthorized", func(t *testing.T) {

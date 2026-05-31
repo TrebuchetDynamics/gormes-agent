@@ -1028,7 +1028,7 @@ func summarizeGatewayCapabilities(body []byte, statusCode int, authSource string
 		Object:       strings.TrimSpace(payload.Object),
 		Platform:     strings.TrimSpace(payload.Platform),
 		Model:        strings.TrimSpace(payload.Model),
-		AuthType:     strings.TrimSpace(payload.Auth.Type),
+		AuthType:     normalizeGatewayCapabilityAuthType(payload.Auth.Type),
 		AuthRequired: payload.Auth.Required,
 		AuthSource:   authSource,
 		StatusCode:   statusCode,
@@ -1071,11 +1071,15 @@ func gatewayCapabilitiesSupported(summary *GatewayCapabilitiesSummary) bool {
 	if summary.Object != "hermes.api_server.capabilities" {
 		return false
 	}
-	if summary.AuthType != "bearer" {
+	if normalizeGatewayCapabilityAuthType(summary.AuthType) != "bearer" {
 		return false
 	}
 	return gatewayCapabilityNamesInclude(summary.Features, requiredGatewayCapabilityFeatures()) &&
 		gatewayCapabilityNamesInclude(summary.Endpoints, requiredGatewayCapabilityEndpoints())
+}
+
+func normalizeGatewayCapabilityAuthType(raw string) string {
+	return strings.ToLower(strings.TrimSpace(raw))
 }
 
 func requiredGatewayCapabilityFeatures() []string {
