@@ -3,6 +3,7 @@ package sessionsearch
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"slices"
 	"testing"
 
@@ -197,6 +198,50 @@ func TestSessionSearchToolExecution_RecentModeExcludesCurrentLineageRoot(t *test
 	}
 	if got := sessionSearchResultIDs(payload.Results); !slices.Equal(got, []string{"sess-other"}) {
 		t.Fatalf("results session IDs = %v, want current lineage excluded", got)
+	}
+	if !sessionSearchHasEvidence(payload.Evidence, "lineage_root_excluded") {
+		t.Fatalf("evidence = %+v, want lineage_root_excluded", payload.Evidence)
+	}
+}
+
+func TestSessionSearchToolExecution_RecentModeDoesNotDropOlderCandidatesBehindCurrentLineage(t *testing.T) {
+	ctx := context.Background()
+	store, dir := newSessionSearchFixture(t)
+	metas := []session.Metadata{
+		{SessionID: "sess-root", Source: "telegram", ChatID: "42", UserID: "user-juan", UpdatedAt: 100},
+		{SessionID: "sess-older", Source: "telegram", ChatID: "42", UserID: "user-juan", UpdatedAt: 1},
+	}
+	turns := []sessionSearchTurn{
+		{sessionID: "sess-root", chatID: "telegram:42", content: "root conversation", ts: 1000},
+		{sessionID: "sess-older", chatID: "telegram:42", content: "older conversation", ts: 1},
+	}
+	for i := 0; i < 10; i++ {
+		sessionID := fmt.Sprintf("sess-child-%02d", i)
+		metas = append(metas, session.Metadata{
+			SessionID:       sessionID,
+			Source:          "telegram",
+			ChatID:          "42",
+			UserID:          "user-juan",
+			ParentSessionID: "sess-root",
+			LineageKind:     session.LineageKindCompression,
+			UpdatedAt:       int64(90 + i),
+		})
+		turns = append(turns, sessionSearchTurn{sessionID: sessionID, chatID: "telegram:42", content: "compressed child conversation", ts: int64(900 + i)})
+	}
+	seedSessionSearchMetadata(t, ctx, dir, metas...)
+	seedSessionSearchTurns(t, ctx, store, turns...)
+
+	tool := NewSessionSearchTool(SessionSearchToolConfig{
+		DB:       store.DB(),
+		Sessions: dir,
+	})
+	payload := executeSessionSearchTool(t, tool, `{"mode":"recent","current_session_id":"sess-child-09","limit":5}`)
+
+	if !payload.Success {
+		t.Fatalf("Success = false, evidence = %+v", payload.Evidence)
+	}
+	if got := sessionSearchResultIDs(payload.Results); !slices.Equal(got, []string{"sess-older"}) {
+		t.Fatalf("results session IDs = %v, want older non-lineage candidate not hidden behind excluded lineage", got)
 	}
 	if !sessionSearchHasEvidence(payload.Evidence, "lineage_root_excluded") {
 		t.Fatalf("evidence = %+v, want lineage_root_excluded", payload.Evidence)

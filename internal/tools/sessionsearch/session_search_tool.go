@@ -215,7 +215,8 @@ func (t *SessionSearchTool) Execute(ctx context.Context, args json.RawMessage) (
 
 func (t *SessionSearchTool) executeSessionSearch(ctx context.Context, args SessionSearchArgs, mode string, metas []session.Metadata, filter memory.SearchFilter, scopeEvidence *memory.CrossChatRecallEvidence, limit int) (json.RawMessage, error) {
 	if mode == "recent" {
-		searchLimit := limit + sessionSearchMaxLimit
+		recentMetas, lineageEvidence := recentSessionSearchCandidateMetadata(metas, args.CurrentSessionID)
+		searchLimit := limit + sessionSearchMaxLimit + len(metas) - len(recentMetas)
 		sessions, err := memory.SearchSessions(ctx, t.db, metas, filter, searchLimit)
 		if err != nil {
 			return nil, err
@@ -225,10 +226,13 @@ func (t *SessionSearchTool) executeSessionSearch(ctx context.Context, args Sessi
 			results = append(results, sessionSearchHitFromSession(hit))
 		}
 		var evidence []SessionSearchEvidence
-		var lineageEvidence *SessionSearchEvidence
-		results, lineageEvidence = excludeCurrentLineageFromRecent(results, metas, args.CurrentSessionID)
 		if lineageEvidence != nil {
 			evidence = append(evidence, *lineageEvidence)
+		}
+		var safetyEvidence *SessionSearchEvidence
+		results, safetyEvidence = excludeCurrentLineageFromRecent(results, metas, args.CurrentSessionID)
+		if safetyEvidence != nil && lineageEvidence == nil {
+			evidence = append(evidence, *safetyEvidence)
 		}
 		if len(results) > limit {
 			results = results[:limit]
@@ -283,6 +287,36 @@ func sourceFilterDeniedEvidence(reason string) SessionSearchEvidence {
 	}
 }
 
+func recentSessionSearchCandidateMetadata(metas []session.Metadata, currentSessionID string) ([]session.Metadata, *SessionSearchEvidence) {
+	currentRoot, ok := sessionSearchLineageRoot(metas, currentSessionID)
+	if !ok || currentRoot == "" {
+		return metas, nil
+	}
+	currentSessionID = strings.TrimSpace(currentSessionID)
+	out := make([]session.Metadata, 0, len(metas))
+	excluded := false
+	for _, meta := range metas {
+		sessionID := strings.TrimSpace(meta.SessionID)
+		if sessionID == "" {
+			out = append(out, meta)
+			continue
+		}
+		if sessionID == currentSessionID || sessionID == currentRoot {
+			excluded = true
+			continue
+		}
+		if resultRoot, ok := sessionSearchLineageRoot(metas, sessionID); ok && resultRoot == currentRoot {
+			excluded = true
+			continue
+		}
+		out = append(out, meta)
+	}
+	if !excluded {
+		return metas, nil
+	}
+	return out, recentSessionSearchLineageExcludedEvidence(currentRoot)
+}
+
 func excludeCurrentLineageFromRecent(results []SessionSearchHit, metas []session.Metadata, currentSessionID string) ([]SessionSearchHit, *SessionSearchEvidence) {
 	currentRoot, ok := sessionSearchLineageRoot(metas, currentSessionID)
 	if !ok || currentRoot == "" {
@@ -304,7 +338,11 @@ func excludeCurrentLineageFromRecent(results []SessionSearchHit, metas []session
 	if !excluded {
 		return out, nil
 	}
-	return out, &SessionSearchEvidence{
+	return out, recentSessionSearchLineageExcludedEvidence(currentRoot)
+}
+
+func recentSessionSearchLineageExcludedEvidence(currentRoot string) *SessionSearchEvidence {
+	return &SessionSearchEvidence{
 		Status:    "lineage_root_excluded",
 		SessionID: currentRoot,
 		Reason:    "recent mode excluded the current session lineage root",
