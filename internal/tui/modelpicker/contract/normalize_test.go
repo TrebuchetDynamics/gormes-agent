@@ -23,3 +23,20 @@ func TestNormalizeModelEntry(t *testing.T) {
 		t.Fatalf("NormalizeModelEntry blank = (%#v, %v), want zero false", model, ok)
 	}
 }
+
+func TestNormalizeModelEntries(t *testing.T) {
+	models := NormalizeModelEntries([]ModelEntry{
+		{ID: " gpt-4.1 ", Label: " GPT 4.1 "},
+		{ID: " ", Label: "skip"},
+		{ID: "claude", Label: " "},
+	})
+	if len(models) != 2 {
+		t.Fatalf("NormalizeModelEntries len = %d, want 2", len(models))
+	}
+	if models[0] != (ModelEntry{ID: "gpt-4.1", Label: "GPT 4.1"}) {
+		t.Fatalf("NormalizeModelEntries first = %#v", models[0])
+	}
+	if models[1] != (ModelEntry{ID: "claude", Label: "claude"}) {
+		t.Fatalf("NormalizeModelEntries second = %#v", models[1])
+	}
+}

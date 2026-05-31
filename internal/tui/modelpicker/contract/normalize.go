@@ -22,6 +22,20 @@ func NormalizeModelEntry(entry ModelEntry) (ModelEntry, bool) {
 	return ModelEntry{ID: id, Label: firstNonEmptyString(strings.TrimSpace(entry.Label), id)}, true
 }
 
+// NormalizeModelEntries trims model entries, drops entries without stable IDs,
+// and fills empty labels from model IDs.
+func NormalizeModelEntries(entries []ModelEntry) []ModelEntry {
+	out := make([]ModelEntry, 0, len(entries))
+	for _, entry := range entries {
+		model, ok := NormalizeModelEntry(entry)
+		if !ok {
+			continue
+		}
+		out = append(out, model)
+	}
+	return out
+}
+
 func firstNonEmptyString(values ...string) string {
 	for _, value := range values {
 		if value != "" {

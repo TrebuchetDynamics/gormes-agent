@@ -25,14 +25,7 @@ func DefaultCatalog() ([]CatalogProvider, error) {
 		if len(modelIDs) == 0 {
 			modelIDs = llm.ProviderModelCatalogSuggestions(providerEntry.ID, nil)
 		}
-		models := make([]ModelEntry, 0, len(modelIDs))
-		for _, modelID := range modelIDs {
-			model, ok := contract.NormalizeModelEntry(ModelEntry{ID: modelID, Label: modelID})
-			if !ok {
-				continue
-			}
-			models = append(models, model)
-		}
+		models := contract.NormalizeModelEntries(modelEntriesFromIDs(modelIDs))
 		if len(models) == 0 {
 			continue
 		}
@@ -42,6 +35,14 @@ func DefaultCatalog() ([]CatalogProvider, error) {
 		})
 	}
 	return out, nil
+}
+
+func modelEntriesFromIDs(modelIDs []string) []ModelEntry {
+	entries := make([]ModelEntry, 0, len(modelIDs))
+	for _, modelID := range modelIDs {
+		entries = append(entries, ModelEntry{ID: modelID, Label: modelID})
+	}
+	return entries
 }
 
 func SlashArgument(input string) string {
@@ -67,14 +68,7 @@ func NormalizeCatalog(catalog []CatalogProvider) []CatalogProvider {
 		if !ok {
 			continue
 		}
-		models := make([]ModelEntry, 0, len(entry.Models))
-		for _, entryModel := range entry.Models {
-			model, ok := contract.NormalizeModelEntry(entryModel)
-			if !ok {
-				continue
-			}
-			models = append(models, model)
-		}
+		models := contract.NormalizeModelEntries(entry.Models)
 		if len(models) == 0 {
 			continue
 		}
