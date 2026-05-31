@@ -176,6 +176,55 @@ func TestMCPLoginBrowserTokenExchangeFailureTypedEvidence(t *testing.T) {
 	}
 }
 
+func TestMCPLoginBrowserDuplicateCallbackDoesNotBlockExchange(t *testing.T) {
+	issuer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/token":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"access_token": "plain-access-token",
+				"expires_in":   3600,
+			})
+		default:
+			t.Fatalf("unexpected request path %s", r.URL.Path)
+		}
+	}))
+	defer issuer.Close()
+
+	flow := NewBrowserMCPLoginFlow(MCPBrowserLoginOptions{
+		CallbackTimeout: 2 * time.Second,
+		BrowserOpen: func(ctx context.Context, launchURL string) error {
+			parsed, err := url.Parse(launchURL)
+			if err != nil {
+				return err
+			}
+			callbackURL := parsed.Query().Get("redirect_uri") + "?code=plain-code&state=" + url.QueryEscape(parsed.Query().Get("state"))
+			client := &http.Client{Timeout: 200 * time.Millisecond}
+			for i := 0; i < 2; i++ {
+				req, err := http.NewRequestWithContext(ctx, http.MethodGet, callbackURL, nil)
+				if err != nil {
+					return err
+				}
+				resp, err := client.Do(req)
+				if err != nil {
+					return err
+				}
+				_ = resp.Body.Close()
+			}
+			return nil
+		},
+		HTTPClient: issuer.Client(),
+	})
+	server := oauthServer("acme")
+	server.URL = issuer.URL
+	result, err := RunMCPLogin(context.Background(), MCPConfigResolution{Servers: []MCPServerDefinition{server}}, NewMCPOAuthStore(), flow, "acme")
+	if err != nil {
+		t.Fatalf("RunMCPLogin returned error: %v", err)
+	}
+	if result.Evidence != MCPLoginEvidenceSaved {
+		t.Fatalf("evidence = %q, want saved; message=%q", result.Evidence, result.Message)
+	}
+}
+
 func TestMCPLoginBrowserPortCollisionTypedEvidence(t *testing.T) {
 	flow := NewBrowserMCPLoginFlow(MCPBrowserLoginOptions{
 		Listen: func(ctx context.Context) (net.Listener, error) {

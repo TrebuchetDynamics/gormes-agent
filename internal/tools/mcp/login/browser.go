@@ -35,6 +35,11 @@ type BrowserFlow struct {
 	opts BrowserOptions
 }
 
+type callbackResult struct {
+	code string
+	err  error
+}
+
 func NewBrowserFlow(opts BrowserOptions) *BrowserFlow {
 	return &BrowserFlow{opts: opts}
 }
@@ -63,31 +68,39 @@ func (f *BrowserFlow) Login(ctx context.Context, server config.MCPServerDefiniti
 		return nil, Result{Server: server.Name, Evidence: EvidenceFlowFailed, Message: sanitizeText(err.Error())}
 	}
 	state := mustQueryValue(launchURL, "state")
-	type callbackResult struct {
-		code string
-		err  error
-	}
 	callbacks := make(chan callbackResult, 1)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 		if got := q.Get("state"); got != state {
-			callbacks <- callbackResult{err: Result{Server: server.Name, Evidence: EvidenceFlowFailed, Message: "OAuth state mismatch"}}
+			if !deliverCallbackResult(callbacks, callbackResult{err: Result{Server: server.Name, Evidence: EvidenceFlowFailed, Message: "OAuth state mismatch"}}) {
+				w.WriteHeader(http.StatusConflict)
+				return
+			}
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		if got := strings.TrimSpace(q.Get("redirect_uri")); got != "" && got != redirectURI {
-			callbacks <- callbackResult{err: Result{Server: server.Name, Evidence: EvidenceRedirectURIMismatch, Message: "callback redirect_uri did not match launched redirect_uri"}}
+			if !deliverCallbackResult(callbacks, callbackResult{err: Result{Server: server.Name, Evidence: EvidenceRedirectURIMismatch, Message: "callback redirect_uri did not match launched redirect_uri"}}) {
+				w.WriteHeader(http.StatusConflict)
+				return
+			}
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		code := strings.TrimSpace(q.Get("code"))
 		if code == "" {
-			callbacks <- callbackResult{err: Result{Server: server.Name, Evidence: EvidenceFlowFailed, Message: "OAuth callback missing code"}}
+			if !deliverCallbackResult(callbacks, callbackResult{err: Result{Server: server.Name, Evidence: EvidenceFlowFailed, Message: "OAuth callback missing code"}}) {
+				w.WriteHeader(http.StatusConflict)
+				return
+			}
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		callbacks <- callbackResult{code: code}
+		if !deliverCallbackResult(callbacks, callbackResult{code: code}) {
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
 		_, _ = w.Write([]byte("Gormes MCP login received. You can close this window."))
 	})
 	srv := &http.Server{Handler: mux}
@@ -127,6 +140,15 @@ func (f *BrowserFlow) Login(ctx context.Context, server config.MCPServerDefiniti
 		return nil, Result{Server: server.Name, Evidence: EvidenceCallbackTimeout, Message: "timed out waiting for OAuth callback"}
 	case <-ctx.Done():
 		return nil, Result{Server: server.Name, Evidence: EvidenceCallbackTimeout, Message: sanitizeText(ctx.Err().Error())}
+	}
+}
+
+func deliverCallbackResult(callbacks chan<- callbackResult, result callbackResult) bool {
+	select {
+	case callbacks <- result:
+		return true
+	default:
+		return false
 	}
 }
 
