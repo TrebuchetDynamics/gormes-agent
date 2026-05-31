@@ -1,4 +1,5 @@
 approval
+commandregistry
 dedup
 delivery/routing
 directory/cache

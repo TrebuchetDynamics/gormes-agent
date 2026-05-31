@@ -1,4 +1,4 @@
-package hookpolicy
+package autoaccept
 
 import "testing"
 

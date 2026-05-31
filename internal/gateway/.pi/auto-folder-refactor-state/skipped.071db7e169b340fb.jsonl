@@ -34,3 +34,7 @@
 {"ts":"2026-05-31T00:22:10-06:00","candidate":"events","reason":"sub-candidates exhausted this run","scope":"parent","temporary":true}
 {"ts":"2026-05-31T00:22:10-06:00","candidate":"directory","reason":"sub-candidates exhausted this run","scope":"parent","temporary":true}
 {"ts":"2026-05-31T00:22:11-06:00","candidate":"delivery","reason":"sub-candidates exhausted this run","scope":"parent","temporary":true}
+{"ts":"2026-05-31T00:24:38-06:00","candidate":"commandregistry","reason":"no metric progress rollback","scope":"candidate","temporary":false}
+{"ts":"2026-05-31T00:24:39-06:00","candidate":"events","reason":"sub-candidates exhausted this run","scope":"parent","temporary":true}
+{"ts":"2026-05-31T00:24:40-06:00","candidate":"directory","reason":"sub-candidates exhausted this run","scope":"parent","temporary":true}
+{"ts":"2026-05-31T00:24:41-06:00","candidate":"delivery","reason":"sub-candidates exhausted this run","scope":"parent","temporary":true}
