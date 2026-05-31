@@ -133,6 +133,29 @@ func TestChannelDirectoryLookupTypeAndDisplay(t *testing.T) {
 	}
 }
 
+func TestChannelDirectoryLoadNormalizesDecodedPlatformAndEntries(t *testing.T) {
+	store := NewChannelDirectoryStore(t.TempDir())
+	if err := os.WriteFile(filepath.Join(store.Root(), "channel_directory.json"), []byte(`{"updated_at":" now ","platforms":{" Telegram ":[{"id":" -100:7 ","name":" Ops / topic 7 ","type":" group ","chat_id":" -100 ","thread_id":" 7 "}]}}`), 0o600); err != nil {
+		t.Fatalf("write padded fixture: %v", err)
+	}
+
+	dir, evidence := store.Load()
+	if evidence.Code != "" {
+		t.Fatalf("Load evidence = %+v, want none", evidence)
+	}
+	if _, ok := dir.Platforms[" Telegram "]; ok {
+		t.Fatalf("loaded platforms = %+v, want raw platform key normalized away", dir.Platforms)
+	}
+	entry := dir.Platforms["telegram"][0]
+	if dir.UpdatedAt != "now" || entry.ID != "-100:7" || entry.Name != "Ops / topic 7" || entry.Type != "group" || entry.ChatID != "-100" || entry.ThreadID != "7" {
+		t.Fatalf("loaded directory = %+v, want normalized decoded fields", dir)
+	}
+	resolved, resolveEvidence := dir.Resolve("telegram", "-100:7")
+	if resolveEvidence.Code != "" || resolved.ChatID != "-100" || resolved.ThreadID != "7" {
+		t.Fatalf("Resolve normalized loaded entry = %+v evidence=%+v", resolved, resolveEvidence)
+	}
+}
+
 func TestChannelDirectoryLoadMissingAndInvalidEvidence(t *testing.T) {
 	store := NewChannelDirectoryStore(t.TempDir())
 	_, evidence := store.Load()

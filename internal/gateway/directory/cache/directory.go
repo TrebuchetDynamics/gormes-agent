@@ -97,6 +97,25 @@ func emptyDirectory() Directory {
 }
 
 func ensureDirectory(dir Directory) Directory {
-	dir.Platforms = model.EnsurePlatformBuckets(dir.Platforms)
+	return normalizeDecodedDirectory(dir)
+}
+
+// normalizeDecodedDirectory is the load-time value contract for persisted
+// directory JSON. Adapter refreshes already upsert normalized entries; decoded
+// operator-edited or older cache files need the same platform/field trimming so
+// lookup, display, and stale-target validation all see one canonical shape.
+func normalizeDecodedDirectory(dir Directory) Directory {
+	dir.UpdatedAt = strings.TrimSpace(dir.UpdatedAt)
+	platforms := model.EmptyPlatformBuckets[model.Entry]()
+	for platform, entries := range model.EnsurePlatformBuckets(dir.Platforms) {
+		platform = model.NormalizePlatform(platform)
+		if platform == "" {
+			continue
+		}
+		for _, entry := range entries {
+			platforms[platform] = append(platforms[platform], model.NormalizeEntry(entry))
+		}
+	}
+	dir.Platforms = platforms
 	return dir
 }
