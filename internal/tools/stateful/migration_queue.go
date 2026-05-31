@@ -128,11 +128,10 @@ func (q *StatefulToolMigrationQueue) AuthorizePath(toolName, candidate string) S
 	if plan.RootPolicy != ToolRootPolicyInjectedXDG && plan.RootPolicy != ToolRootPolicyGormesData {
 		return StatefulToolEvidence{Code: ToolPathDenied, Tool: toolName, Message: "tool has no injected root policy"}
 	}
-	candidateAbs, err := filepath.Abs(candidate)
-	if err != nil {
+	candidateAbs, ok := normalizeStatefulCandidatePath(candidate)
+	if !ok {
 		return StatefulToolEvidence{Code: ToolPathDenied, Tool: toolName, Message: "path cannot be normalized"}
 	}
-	candidateAbs = filepath.Clean(candidateAbs)
 	for _, root := range q.roots {
 		rel, err := filepath.Rel(root, candidateAbs)
 		if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
@@ -202,4 +201,12 @@ func normalizeStatefulMutationRoot(root string) (string, bool) {
 		return "", false
 	}
 	return filepath.Clean(abs), true
+}
+
+func normalizeStatefulCandidatePath(candidate string) (string, bool) {
+	candidate = strings.TrimSpace(candidate)
+	if candidate == "" || !filepath.IsAbs(candidate) {
+		return "", false
+	}
+	return filepath.Clean(candidate), true
 }

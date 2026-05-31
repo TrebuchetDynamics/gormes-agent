@@ -78,6 +78,19 @@ func TestStatefulToolMigrationQueuePathIsolation(t *testing.T) {
 	}
 }
 
+func TestStatefulToolMigrationQueueRejectsRelativeCandidateWithoutCWDDependence(t *testing.T) {
+	root := t.TempDir()
+	q := NewStatefulToolMigrationQueue(StatefulToolQueueOptions{MutationRoots: []string{root}})
+	if ev := q.Register(StatefulToolPlan{Name: "write_file", Domain: ToolStateDomainFile, RootPolicy: ToolRootPolicyInjectedXDG, RollbackPolicy: ToolRollbackPolicyCheckpoint, ConcurrencyPolicy: ToolConcurrencySerializedWrites, OwnerRow: "File write/patch tool port"}); ev.Code != ToolStateContractRegistered {
+		t.Fatalf("register evidence: %#v", ev)
+	}
+	t.Chdir(root)
+
+	if ev := q.AuthorizePath("write_file", "nested/file.txt"); ev.Code != ToolPathDenied {
+		t.Fatalf("relative candidate evidence = %#v, want %q without consulting process cwd", ev, ToolPathDenied)
+	}
+}
+
 func TestStatefulToolMigrationQueueSerializedWrites(t *testing.T) {
 	q := NewStatefulToolMigrationQueue(StatefulToolQueueOptions{MutationRoots: []string{t.TempDir()}})
 	if ev := q.Register(StatefulToolPlan{Name: "write_file", Domain: ToolStateDomainFile, RootPolicy: ToolRootPolicyInjectedXDG, RollbackPolicy: ToolRollbackPolicyCheckpoint, ConcurrencyPolicy: ToolConcurrencySerializedWrites, OwnerRow: "File write/patch tool port"}); ev.Code != ToolStateContractRegistered {
