@@ -1,10 +1,9 @@
 package selection
 
 import (
-	"strings"
-
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/modelpicker/contract/identity"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/modelpicker/contract/schema"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/modelpicker/contract/textinput"
 )
 
 // ModelListFocused reports whether keyboard navigation is currently inside
@@ -67,8 +66,8 @@ func ConfirmedResult(state schema.State) (schema.Result, bool) {
 // provider; unknown providers and explicitly empty models are preserved after
 // trimming so callers can decide how to report or apply them.
 func NormalizeConfirmed(catalog []schema.CatalogProvider, provider, model string) (string, string) {
-	provider = strings.TrimSpace(provider)
-	model = strings.TrimSpace(model)
+	provider = textinput.TrimBoundary(provider)
+	model = textinput.TrimBoundary(model)
 	for _, entry := range catalog {
 		if !identity.ProviderIDEqual(entry.Provider.ID, provider) {
 			continue

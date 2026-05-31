@@ -1,9 +1,8 @@
 package normalization
 
 import (
-	"strings"
-
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/modelpicker/contract/schema"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/modelpicker/contract/textinput"
 )
 
 // ProviderEntry trims a provider entry and fills an empty label from the
@@ -62,18 +61,9 @@ func Catalog(catalog []schema.CatalogProvider) []schema.CatalogProvider {
 }
 
 func normalizeIDLabel(rawID, rawLabel string) (string, string, bool) {
-	id := strings.TrimSpace(rawID)
+	id := textinput.TrimBoundary(rawID)
 	if id == "" {
 		return "", "", false
 	}
-	return id, firstNonEmptyString(strings.TrimSpace(rawLabel), id), true
-}
-
-func firstNonEmptyString(values ...string) string {
-	for _, value := range values {
-		if value != "" {
-			return value
-		}
-	}
-	return ""
+	return id, textinput.FirstNonEmpty(textinput.TrimBoundary(rawLabel), id), true
 }

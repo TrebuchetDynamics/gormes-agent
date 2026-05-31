@@ -1,10 +1,14 @@
 package slash
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/modelpicker/contract/textinput"
+)
 
 // Argument returns the free-form model argument after the slash command.
 func Argument(input string) string {
-	trimmed := strings.TrimSpace(input)
+	trimmed := textinput.TrimBoundary(input)
 	if trimmed == "" {
 		return ""
 	}
@@ -16,5 +20,5 @@ func Argument(input string) string {
 	if idx < 0 {
 		return strings.Join(fields[1:], " ")
 	}
-	return strings.TrimSpace(trimmed[idx:])
+	return textinput.TrimBoundary(trimmed[idx:])
 }
