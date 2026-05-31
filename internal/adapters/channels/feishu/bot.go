@@ -92,29 +92,7 @@ func New(cfg Config, client Client, log *slog.Logger) *Bot {
 func (b *Bot) Name() string { return "feishu" }
 
 func (b *Bot) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error {
-	events := b.client.Events()
-	for {
-		select {
-		case <-ctx.Done():
-			_ = b.client.Close()
-			return nil
-		case msg, ok := <-events:
-			if !ok {
-				_ = b.client.Close()
-				return nil
-			}
-			ev, ok := b.toInboundEvent(msg)
-			if !ok {
-				continue
-			}
-			select {
-			case inbox <- ev:
-			case <-ctx.Done():
-				_ = b.client.Close()
-				return nil
-			}
-		}
-	}
+	return channelutil.RunInboundLoop(ctx, b.client, inbox, b.toInboundEvent)
 }
 
 func (b *Bot) Send(ctx context.Context, chatID, text string) (string, error) {
@@ -241,4 +219,3 @@ func normalizedMode(mode string) string {
 	}
 	return mode
 }
-

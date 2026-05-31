@@ -4,13 +4,50 @@
 package channelutil
 
 import (
+	"context"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/trace"
 )
+
+// EventClient is the minimal inbound polling contract shared by simple channel
+// adapters that expose a typed event channel and close hook.
+type EventClient[T any] interface {
+	Events() <-chan T
+	Close() error
+}
+
+// RunInboundLoop forwards converted client events into the shared gateway
+// inbox until the context is cancelled or the client event channel closes.
+func RunInboundLoop[T any](ctx context.Context, client EventClient[T], inbox chan<- gateway.InboundEvent, convert func(T) (gateway.InboundEvent, bool)) error {
+	events := client.Events()
+	for {
+		select {
+		case <-ctx.Done():
+			_ = client.Close()
+			return nil
+		case msg, ok := <-events:
+			if !ok {
+				_ = client.Close()
+				return nil
+			}
+			ev, ok := convert(msg)
+			if !ok {
+				continue
+			}
+			select {
+			case inbox <- ev:
+			case <-ctx.Done():
+				_ = client.Close()
+				return nil
+			}
+		}
+	}
+}
 
 // ToSet converts a string slice to a set map, trimming whitespace and
 // skipping empty entries. Behavior is identical to the duplicated helper
@@ -397,6 +434,71 @@ func FormatToolTrace(events []kernel.SoulEntry) string {
 		texts = append(texts, event.Text)
 	}
 	return trace.FormatBlock(texts)
+}
+
+// FormatRenderStream renders an in-flight assistant frame for chat channels.
+// It preserves the shared Slack/Discord stream policy: draft text, formatted
+// tool trace, reconnecting marker, pending placeholder, then channel-specific
+// rune limit with a single-glyph ellipsis.
+func FormatRenderStream(f kernel.RenderFrame, maxRunes int, pending string) string {
+	parts := make([]string, 0, 3)
+	if text := strings.TrimSpace(f.DraftText); text != "" {
+		parts = append(parts, text)
+	}
+	if text := FormatToolTrace(f.SoulEvents); text != "" {
+		parts = append(parts, text)
+	}
+	if f.Phase == kernel.PhaseReconnecting {
+		parts = append(parts, "reconnecting...")
+	}
+	if len(parts) == 0 {
+		return pending
+	}
+	return TruncateRunesWithSuffix(strings.Join(parts, "\n\n"), maxRunes, "…")
+}
+
+// FormatRenderFinal returns the most recent assistant message from a completed
+// frame, bounded by the channel-specific text limit.
+func FormatRenderFinal(f kernel.RenderFrame, maxRunes int, emptyReply string) string {
+	for i := len(f.History) - 1; i >= 0; i-- {
+		if f.History[i].Role == "assistant" {
+			return TruncateRunesWithSuffix(f.History[i].Content, maxRunes, "…")
+		}
+	}
+	return emptyReply
+}
+
+// FormatRenderError renders a cancelled/error frame with channel-specific
+// whitespace policy and rune limit.
+func FormatRenderError(f kernel.RenderFrame, maxRunes int, trimError bool) string {
+	text := f.LastError
+	if trimError {
+		text = strings.TrimSpace(text)
+	}
+	if strings.TrimSpace(text) == "" {
+		text = "cancelled"
+	}
+	return TruncateRunesWithSuffix("❌ "+text, maxRunes, "…")
+}
+
+// TruncateRunesWithSuffix truncates a string to at most max runes and appends
+// suffix when truncation occurs.
+func TruncateRunesWithSuffix(value string, max int, suffix string) string {
+	if max <= 0 {
+		return ""
+	}
+	runes := []rune(value)
+	if len(runes) <= max {
+		return value
+	}
+	if suffix == "" {
+		return string(runes[:max])
+	}
+	suffixRunes := []rune(suffix)
+	if len(suffixRunes) >= max {
+		return string(runes[:max])
+	}
+	return string(runes[:max-len(suffixRunes)]) + suffix
 }
 
 // TruncateRunes truncates a string to at most max runes and appends "..."

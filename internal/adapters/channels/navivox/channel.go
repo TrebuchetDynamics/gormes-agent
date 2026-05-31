@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/httpjson"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
@@ -612,9 +613,7 @@ func safeNavivoxError(err error) string {
 }
 
 func writeNavivoxJSON(w http.ResponseWriter, status int, body any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(body)
+	httpjson.Write(w, status, body)
 }
 
 func writeNavivoxError(w http.ResponseWriter, status int, requestID, code, message string) {

@@ -1,11 +1,55 @@
 package channelutil
 
 import (
+	"context"
 	"strings"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
+
+type testEventClient struct {
+	events chan string
+	closed bool
+}
+
+func (c *testEventClient) Events() <-chan string { return c.events }
+func (c *testEventClient) Close() error {
+	c.closed = true
+	return nil
+}
+
+func TestRunInboundLoopForwardsConvertedEventsAndCloses(t *testing.T) {
+	client := &testEventClient{events: make(chan string, 2)}
+	client.events <- " keep "
+	client.events <- ""
+	close(client.events)
+	inbox := make(chan gateway.InboundEvent, 1)
+
+	err := RunInboundLoop(context.Background(), client, inbox, func(raw string) (gateway.InboundEvent, bool) {
+		text := strings.TrimSpace(raw)
+		if text == "" {
+			return gateway.InboundEvent{}, false
+		}
+		return gateway.InboundEvent{Text: text}, true
+	})
+	if err != nil {
+		t.Fatalf("RunInboundLoop returned error: %v", err)
+	}
+	if !client.closed {
+		t.Fatal("RunInboundLoop did not close client")
+	}
+	select {
+	case ev := <-inbox:
+		if ev.Text != "keep" {
+			t.Fatalf("forwarded event text = %q", ev.Text)
+		}
+	default:
+		t.Fatal("RunInboundLoop did not forward converted event")
+	}
+}
 
 func TestToSet(t *testing.T) {
 	t.Run("empty input", func(t *testing.T) {
@@ -352,6 +396,63 @@ func TestFormatToolTrace(t *testing.T) {
 			t.Fatalf("expected empty for empty text events, got %q", result)
 		}
 	})
+}
+
+func TestRenderFrameFormattingSharesChannelPolicy(t *testing.T) {
+	frame := kernel.RenderFrame{
+		DraftText:  " draft ",
+		SoulEvents: []kernel.SoulEntry{{Text: `tool: search_files: chrono|cron`}},
+		Phase:      kernel.PhaseReconnecting,
+	}
+
+	got := FormatRenderStream(frame, 200, "pending")
+	for _, want := range []string{"draft", `🔎 search_files: "chrono|cron"`, "reconnecting..."} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("FormatRenderStream missing %q in %q", want, got)
+		}
+	}
+	if got := FormatRenderStream(kernel.RenderFrame{}, 200, "pending"); got != "pending" {
+		t.Fatalf("FormatRenderStream empty frame = %q, want pending", got)
+	}
+}
+
+func TestRenderFrameFormattingPreservesChannelErrorWhitespacePolicy(t *testing.T) {
+	frame := kernel.RenderFrame{LastError: " boom "}
+	if got := FormatRenderError(frame, 200, true); got != "❌ boom" {
+		t.Fatalf("trimmed FormatRenderError = %q", got)
+	}
+	if got := FormatRenderError(frame, 200, false); got != "❌  boom " {
+		t.Fatalf("untrimmed FormatRenderError = %q", got)
+	}
+	if got := FormatRenderError(kernel.RenderFrame{LastError: " \t"}, 200, false); got != "❌ cancelled" {
+		t.Fatalf("blank FormatRenderError = %q", got)
+	}
+}
+
+func TestRenderFrameFormattingReturnsLatestAssistantFinal(t *testing.T) {
+	frame := kernel.RenderFrame{History: []llm.Message{
+		{Role: "assistant", Content: "first"},
+		{Role: "user", Content: "question"},
+		{Role: "assistant", Content: "second"},
+	}}
+	if got := FormatRenderFinal(frame, 200, "empty"); got != "second" {
+		t.Fatalf("FormatRenderFinal = %q", got)
+	}
+	if got := FormatRenderFinal(kernel.RenderFrame{}, 200, "empty"); got != "empty" {
+		t.Fatalf("empty FormatRenderFinal = %q", got)
+	}
+}
+
+func TestTruncateRunesWithSuffix(t *testing.T) {
+	if got := TruncateRunesWithSuffix("hello", 4, "…"); got != "hel…" {
+		t.Fatalf("TruncateRunesWithSuffix = %q", got)
+	}
+	if got := TruncateRunesWithSuffix("hello", 10, "…"); got != "hello" {
+		t.Fatalf("untruncated TruncateRunesWithSuffix = %q", got)
+	}
+	if got := TruncateRunesWithSuffix("hello", 0, "…"); got != "" {
+		t.Fatalf("zero max TruncateRunesWithSuffix = %q", got)
+	}
 }
 
 func TestTruncateRunes(t *testing.T) {

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/apiserver/turns"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/httpjson"
 	pluginmeta "github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/kanban"
@@ -1079,9 +1080,7 @@ func usagePayload(u Usage) map[string]int {
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(body)
+	httpjson.Write(w, status, body)
 }
 
 func writeOpenAIError(w http.ResponseWriter, status int, message, errType, param, code string) {
