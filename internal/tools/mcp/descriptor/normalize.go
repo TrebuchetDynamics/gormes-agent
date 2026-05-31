@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"regexp"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/jsonvalue"
 )
 
 // SchemaRejectionReasonInputSchemaNotObject is the SchemaRejection.Reason
@@ -120,7 +122,7 @@ func normalizeToolCandidate(serverName string, t RawTool, seenNames map[string]b
 		return rejectedCandidate(serverName, t.Name, SchemaRejectionReasonDuplicateSanitizedName)
 	}
 	sourceRaw := t
-	sourceRaw.InputSchema = cloneRawMessage(t.InputSchema)
+	sourceRaw.InputSchema = jsonvalue.CloneRaw(t.InputSchema)
 	return acceptedCandidate(NormalizedTool{
 		Name:        name,
 		ServerName:  serverName,
@@ -142,8 +144,8 @@ func SanitizeNameComponent(value string) string {
 // else (true/false/number/string/array) is rejected.
 func NormalizeInputSchema(raw json.RawMessage) (json.RawMessage, bool) {
 	trimmed := strings.TrimSpace(string(raw))
-	if trimmed == "" || trimmed == "null" {
-		return cloneRawMessage(defaultInputSchema), true
+	if jsonvalue.NullishRaw(raw) {
+		return jsonvalue.CloneRaw(defaultInputSchema), true
 	}
 	if !strings.HasPrefix(trimmed, "{") {
 		return nil, false
@@ -152,12 +154,5 @@ func NormalizeInputSchema(raw json.RawMessage) (json.RawMessage, bool) {
 	if err := json.Unmarshal(raw, &probe); err != nil {
 		return nil, false
 	}
-	return cloneRawMessage(raw), true
-}
-
-func cloneRawMessage(raw json.RawMessage) json.RawMessage {
-	if raw == nil {
-		return nil
-	}
-	return append(json.RawMessage(nil), raw...)
+	return jsonvalue.CloneRaw(raw), true
 }

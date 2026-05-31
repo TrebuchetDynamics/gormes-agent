@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/access"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/jsonvalue"
 )
 
 // HostUnavailableEvidence is the audit/reason marker emitted whenever an MCP
@@ -57,7 +58,7 @@ func (d ToolDeclaration) ProviderSchema() map[string]any {
 	return map[string]any{
 		"name":        d.ToolName,
 		"description": d.Description,
-		"parameters":  copyJSONMap(d.InputSchema),
+		"parameters":  jsonvalue.CloneMap(d.InputSchema),
 	}
 }
 
@@ -68,7 +69,7 @@ func (d ToolDeclaration) MCPMetadata() ToolMetadata {
 		ServerName:  d.ServerName,
 		Name:        d.ToolName,
 		Description: d.Description,
-		InputSchema: copyJSONMap(d.InputSchema),
+		InputSchema: jsonvalue.CloneMap(d.InputSchema),
 	}
 }
 
@@ -213,32 +214,6 @@ func recordAudit(auditor Auditor, server, tool string, redacted bool, res Result
 		Reason:       res.Reason,
 		Unavailable:  res.Status == ResultStatusUnavailable,
 	})
-}
-
-func copyJSONMap(in map[string]any) map[string]any {
-	if in == nil {
-		return nil
-	}
-	out := make(map[string]any, len(in))
-	for k, v := range in {
-		out[k] = copyJSONValue(v)
-	}
-	return out
-}
-
-func copyJSONValue(v any) any {
-	switch typed := v.(type) {
-	case map[string]any:
-		return copyJSONMap(typed)
-	case []any:
-		out := make([]any, len(typed))
-		for i, item := range typed {
-			out[i] = copyJSONValue(item)
-		}
-		return out
-	default:
-		return typed
-	}
 }
 
 func containsString(haystack []string, needle string) bool {

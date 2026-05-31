@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 )
@@ -84,5 +85,44 @@ func TestMCPProbeSkipsDisabledAndCleansUp(t *testing.T) {
 	}
 	if !broken.closed {
 		t.Fatal("failed probe session was not closed")
+	}
+}
+
+func TestMCPProbeKeepsFirstDuplicateServerProvenance(t *testing.T) {
+	var connected []string
+
+	result := ProbeServerTools(context.Background(), []MCPServerDefinition{
+		{Name: "github", Enabled: true, Command: "first"},
+		{Name: "github", Enabled: true, Command: "second"},
+	}, func(_ context.Context, def MCPServerDefinition) (ProbeSession, error) {
+		connected = append(connected, def.Command)
+		return &fakeProbeSession{tools: []RawTool{{Name: def.Command}}}, nil
+	})
+
+	if len(connected) != 1 || connected[0] != "first" {
+		t.Fatalf("connected = %+v, want only first duplicate server definition", connected)
+	}
+	tools := result["github"]
+	if len(tools) != 1 || tools[0].Name != "first" {
+		t.Fatalf("github tools = %+v, want first duplicate provenance", tools)
+	}
+}
+
+func TestMCPProbeCopiesRawToolSchemas(t *testing.T) {
+	schema := json.RawMessage(`{"type":"object"}`)
+	session := &fakeProbeSession{tools: []RawTool{{Name: "ok", InputSchema: schema}}}
+
+	result := ProbeServerTools(context.Background(), []MCPServerDefinition{{Name: "github", Enabled: true}}, func(context.Context, MCPServerDefinition) (ProbeSession, error) {
+		return session, nil
+	})
+	schema[0] = '['
+	session.tools[0].InputSchema[1] = 'X'
+
+	tools := result["github"]
+	if len(tools) != 1 {
+		t.Fatalf("github tools len = %d, want 1", len(tools))
+	}
+	if string(tools[0].InputSchema) != `{"type":"object"}` {
+		t.Fatalf("probe result schema aliases session buffer: %s", tools[0].InputSchema)
 	}
 }

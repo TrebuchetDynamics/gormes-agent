@@ -1,6 +1,7 @@
 package callresult
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 )
@@ -39,11 +40,39 @@ func TestParsePreservesStructuredContentEnvelope(t *testing.T) {
 }
 
 func TestParseIgnoresNullStructuredContent(t *testing.T) {
-	got, err := Parse(json.RawMessage(`{"content":[],"structuredContent":null}`))
+	for _, raw := range []json.RawMessage{
+		nil,
+		json.RawMessage(`null`),
+		json.RawMessage(`   null  `),
+		json.RawMessage(`{"content":[],"structuredContent":null}`),
+	} {
+		got, err := Parse(raw)
+		if err != nil {
+			t.Fatalf("Parse(%q) returned error: %v", raw, err)
+		}
+		if got.StructuredContent != nil {
+			t.Fatalf("StructuredContent = %s, want nil for explicit nullish input %q", got.StructuredContent, raw)
+		}
+	}
+}
+
+func TestParseCopiesStructuredContentEnvelope(t *testing.T) {
+	raw := json.RawMessage(`{"structuredContent":{"items":[{"id":"a1"}]}}`)
+
+	got, err := Parse(raw)
 	if err != nil {
 		t.Fatalf("Parse returned error: %v", err)
 	}
-	if got.StructuredContent != nil {
-		t.Fatalf("StructuredContent = %s, want nil for explicit null", got.StructuredContent)
+	if len(got.StructuredContent) == 0 {
+		t.Fatal("StructuredContent was dropped")
+	}
+	idx := bytes.Index(raw, []byte(`a1`))
+	if idx < 0 {
+		t.Fatalf("test fixture missing mutable token: %s", raw)
+	}
+	raw[idx+1] = '2'
+
+	if string(got.StructuredContent) != `{"items":[{"id":"a1"}]}` {
+		t.Fatalf("StructuredContent aliases caller buffer: %s", got.StructuredContent)
 	}
 }

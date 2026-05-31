@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/content"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/jsonvalue"
 )
 
 // Result is the normalized envelope produced by an MCP `tools/call` response.
@@ -74,10 +75,10 @@ func Parse(raw json.RawMessage) (Result, error) {
 // it, and resource blocks merge their nested `resource.uri` into the top-level
 // URI field that content.Render inspects.
 func normalizeStructuredContent(raw json.RawMessage) json.RawMessage {
-	if len(raw) == 0 || string(raw) == "null" {
+	if jsonvalue.NullishRaw(raw) {
 		return nil
 	}
-	return raw
+	return jsonvalue.CloneRaw(raw)
 }
 
 func normalizeContent(block rawToolCallContent) content.Structured {

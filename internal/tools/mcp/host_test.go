@@ -90,6 +90,38 @@ func TestToolDeclaration_RendersProviderSchemaAndMCPMetadata(t *testing.T) {
 	}
 }
 
+func TestToolDeclaration_RendersIndependentNestedSchemaCopies(t *testing.T) {
+	t.Parallel()
+
+	decl := ToolDeclaration{
+		ServerName: "honcho",
+		ToolName:   "honcho_chat",
+		InputSchema: map[string]any{
+			"properties": map[string]any{
+				"peer": map[string]any{"type": "string"},
+			},
+			"oneOf": []map[string]any{{"required": []any{"peer"}}},
+		},
+	}
+
+	providerParams := decl.ProviderSchema()["parameters"].(map[string]any)
+	providerProps := providerParams["properties"].(map[string]any)
+	providerProps["peer"].(map[string]any)["type"] = "number"
+	providerParams["oneOf"].([]map[string]any)[0]["required"].([]any)[0] = "tampered"
+
+	meta := decl.MCPMetadata()
+	meta.InputSchema["properties"].(map[string]any)["peer"].(map[string]any)["type"] = "boolean"
+
+	originalPeer := decl.InputSchema["properties"].(map[string]any)["peer"].(map[string]any)["type"]
+	if originalPeer != "string" {
+		t.Fatalf("declaration peer type = %v, want independent original string", originalPeer)
+	}
+	originalRequired := decl.InputSchema["oneOf"].([]map[string]any)[0]["required"].([]any)[0]
+	if originalRequired != "peer" {
+		t.Fatalf("declaration oneOf required = %v, want independent original peer", originalRequired)
+	}
+}
+
 // TestToolFilter_ChannelTrustToolsetRestriction proves that include/exclude
 // filters restrict tools by channel, trust class, and configured toolset.
 func TestToolFilter_ChannelTrustToolsetRestriction(t *testing.T) {
