@@ -8,22 +8,26 @@ import (
 )
 
 // Result is the normalized envelope produced by an MCP `tools/call` response.
-// Content captures the structured body in the same content.Structured shape
-// used by descriptor normalization/rendering so call sites do not need
-// transport-specific decoders. IsError mirrors the protocol's `isError`
-// boolean: a true value means the tool reported a failure inside an otherwise
-// successful JSON-RPC response (transport-level errors stay separate).
+// Content captures the model-facing content blocks in the same content.Structured
+// shape used by descriptor normalization/rendering so call sites do not need
+// transport-specific decoders. StructuredContent preserves the optional
+// protocol envelope as replayable JSON; callers can inspect it without relying
+// on lossy text rendering. IsError mirrors the protocol's `isError` boolean: a
+// true value means the tool reported a failure inside an otherwise successful
+// JSON-RPC response (transport-level errors stay separate).
 type Result struct {
-	Content []content.Structured
-	IsError bool
+	Content           []content.Structured
+	StructuredContent json.RawMessage
+	IsError           bool
 }
 
 // rawToolCallResult mirrors the on-the-wire shape of an MCP tools/call
 // response. Content blocks are decoded into a representation-agnostic
 // content.Structured slice via Parse.
 type rawToolCallResult struct {
-	Content []rawToolCallContent `json:"content"`
-	IsError bool                 `json:"isError"`
+	Content           []rawToolCallContent `json:"content"`
+	StructuredContent json.RawMessage      `json:"structuredContent"`
+	IsError           bool                 `json:"isError"`
 }
 
 // rawToolCallContent captures the fields the structured content renderer needs
@@ -51,7 +55,10 @@ func Parse(raw json.RawMessage) (Result, error) {
 	if err := json.Unmarshal(raw, &decoded); err != nil {
 		return Result{}, fmt.Errorf("mcp call: parse result: %w", err)
 	}
-	out := Result{IsError: decoded.IsError}
+	out := Result{
+		StructuredContent: normalizeStructuredContent(decoded.StructuredContent),
+		IsError:           decoded.IsError,
+	}
 	if len(decoded.Content) == 0 {
 		return out, nil
 	}
@@ -66,6 +73,13 @@ func Parse(raw json.RawMessage) (Result, error) {
 // content shape. Unknown kinds keep their type label so callers can branch on
 // it, and resource blocks merge their nested `resource.uri` into the top-level
 // URI field that content.Render inspects.
+func normalizeStructuredContent(raw json.RawMessage) json.RawMessage {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil
+	}
+	return raw
+}
+
 func normalizeContent(block rawToolCallContent) content.Structured {
 	out := content.Structured{
 		Kind:     block.Type,
