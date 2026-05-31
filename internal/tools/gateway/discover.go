@@ -162,15 +162,7 @@ func NormalizeGatewayEndpoint(endpoint GatewayEndpoint) GatewayEndpoint {
 	if endpoint.Scheme == "" {
 		endpoint.Scheme = "ws"
 	}
-	if endpoint.TXT != nil {
-		endpoint.TXT = cleanGatewayTXT(endpoint.TXT)
-		if endpoint.Scheme == "ws" && truthyGatewayTXT(endpoint.TXT["gatewayTls"]) {
-			endpoint.Scheme = "wss"
-		}
-		if endpoint.Port <= 0 {
-			endpoint.Port = parseGatewayPort(endpoint.TXT["gatewayPort"])
-		}
-	}
+	endpoint = applyGatewayTXTHints(endpoint)
 	if endpoint.Port <= 0 {
 		endpoint.Port = defaultGatewayPort
 	}
@@ -214,6 +206,26 @@ func ParseGatewayEndpoint(raw string, source string) (GatewayEndpoint, error) {
 		Scheme:  scheme,
 		Source:  strings.TrimSpace(source),
 	}), nil
+}
+
+func applyGatewayTXTHints(endpoint GatewayEndpoint) GatewayEndpoint {
+	if endpoint.TXT == nil {
+		return endpoint
+	}
+	endpoint.TXT = cleanGatewayTXT(endpoint.TXT)
+	if endpoint.TXT == nil {
+		return endpoint
+	}
+	if endpoint.DisplayName == "" {
+		endpoint.DisplayName = strings.TrimSpace(endpoint.TXT["displayName"])
+	}
+	if endpoint.Scheme == "ws" && truthyGatewayTXT(endpoint.TXT["gatewayTls"]) {
+		endpoint.Scheme = "wss"
+	}
+	if endpoint.Port <= 0 {
+		endpoint.Port = parseGatewayPort(endpoint.TXT["gatewayPort"])
+	}
+	return endpoint
 }
 
 func normalizeGatewaySchemeAlias(raw string) string {

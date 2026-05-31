@@ -44,6 +44,35 @@ func TestGatewayDiscoverListsLocalGateways(t *testing.T) {
 	}
 }
 
+func TestGatewayEndpointNormalizationAppliesNonRoutingTXTHints(t *testing.T) {
+	t.Run("display name", func(t *testing.T) {
+		endpoint := NormalizeGatewayEndpoint(GatewayEndpoint{
+			InstanceName: "gormes-gateway",
+			Address:      "127.0.0.1",
+			Port:         18789,
+			TXT: map[string]string{
+				"displayName": " Juan Gateway ",
+			},
+		})
+		if endpoint.DisplayName != "Juan Gateway" {
+			t.Fatalf("DisplayName = %q, want TXT displayName hint", endpoint.DisplayName)
+		}
+	})
+	t.Run("explicit display name wins", func(t *testing.T) {
+		endpoint := NormalizeGatewayEndpoint(GatewayEndpoint{
+			DisplayName: "Config Name",
+			Address:     "127.0.0.1",
+			Port:        18789,
+			TXT: map[string]string{
+				"displayName": "TXT Name",
+			},
+		})
+		if endpoint.DisplayName != "Config Name" {
+			t.Fatalf("DisplayName = %q, want explicit display name preserved", endpoint.DisplayName)
+		}
+	})
+}
+
 func TestGatewayEndpointNormalizationCanonicalizesHTTPAliases(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
