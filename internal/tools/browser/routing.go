@@ -37,11 +37,12 @@ func IsPrivateBrowserHost(host string) bool {
 	if err != nil {
 		return false
 	}
+	return isPrivateBrowserAddr(addr)
+}
+
+func isPrivateBrowserAddr(addr netip.Addr) bool {
 	addr = addr.Unmap()
-	if addr.IsLoopback() {
-		return true
-	}
-	return addr.Is4() && (addr.IsPrivate() || addr.IsLinkLocalUnicast())
+	return addr.IsLoopback() || addr.IsPrivate() || addr.IsLinkLocalUnicast()
 }
 
 // RouteBrowserNavigation selects the session key for an initial browser
