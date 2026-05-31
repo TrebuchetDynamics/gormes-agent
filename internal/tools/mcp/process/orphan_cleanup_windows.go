@@ -1,6 +1,6 @@
 //go:build windows
 
-package mcp
+package process
 
 import (
 	"errors"
