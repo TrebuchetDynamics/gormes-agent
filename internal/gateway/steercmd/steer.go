@@ -2,8 +2,9 @@ package steercmd
 
 import (
 	"strings"
-	"unicode"
 	"unicode/utf8"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/commandline"
 )
 
 // Evidence strings are stable degraded-mode reasons surfaced before any
@@ -22,7 +23,7 @@ const (
 const (
 	PreviewMaxRunes = 80
 
-	commandName             = "/steer"
+	commandName             = "steer"
 	previewTruncationMarker = "..."
 )
 
@@ -77,8 +78,8 @@ func commandGuidance(raw string) (string, bool) {
 		return "", false
 	}
 
-	command, rest := splitCommandToken(body)
-	if !strings.EqualFold(command, commandName) {
+	command, rest := commandline.Split(body)
+	if commandline.Name(command) != commandName {
 		return "", false
 	}
 
@@ -87,15 +88,6 @@ func commandGuidance(raw string) (string, bool) {
 		return "", false
 	}
 	return guidance, true
-}
-
-func splitCommandToken(body string) (string, string) {
-	for i, r := range body {
-		if unicode.IsSpace(r) {
-			return body[:i], body[i:]
-		}
-	}
-	return body, ""
 }
 
 func truncateRunes(s string, limit int) string {

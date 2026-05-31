@@ -73,6 +73,17 @@ func TestParse_TrimsText(t *testing.T) {
 	}
 }
 
+func TestParse_AcceptsBotMentionCommandToken(t *testing.T) {
+	got := Parse("/steer@GormesBot keep investigating", PayloadMetadata{})
+
+	if got.Evidence != "" {
+		t.Fatalf("Evidence = %q, want empty", got.Evidence)
+	}
+	if got.Guidance != "keep investigating" {
+		t.Fatalf("Guidance = %q, want parsed guidance", got.Guidance)
+	}
+}
+
 func TestPreview_TruncatesLongGuidance(t *testing.T) {
 	longGuidance := strings.Repeat("0123456789", 9)
 
