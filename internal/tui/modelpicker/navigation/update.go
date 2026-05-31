@@ -19,33 +19,29 @@ func Update(msg tea.Msg, state contract.State) (contract.State, contract.Result,
 func updateKey(msg tea.KeyMsg, state contract.State) (contract.State, contract.Result, bool) {
 	switch msg.Type {
 	case tea.KeyUp:
-		if state.SelectedModelIndex >= 0 {
-			if state.SelectedModelIndex > 0 {
-				state.SelectedModelIndex--
-			}
-		} else if state.SelectedProviderIndex > 0 {
-			state.SelectedProviderIndex--
+		if contract.ModelListFocused(state) {
+			state.SelectedModelIndex = contract.MoveSelection(state.SelectedModelIndex, -1, len(state.Models))
+		} else {
+			state.SelectedProviderIndex = contract.MoveSelection(state.SelectedProviderIndex, -1, len(state.Providers))
 		}
 		return state, contract.Result{}, false
 
 	case tea.KeyDown:
-		if state.SelectedModelIndex >= 0 {
-			if state.SelectedModelIndex < len(state.Models)-1 {
-				state.SelectedModelIndex++
-			}
-		} else if state.SelectedProviderIndex < len(state.Providers)-1 {
-			state.SelectedProviderIndex++
+		if contract.ModelListFocused(state) {
+			state.SelectedModelIndex = contract.MoveSelection(state.SelectedModelIndex, 1, len(state.Models))
+		} else {
+			state.SelectedProviderIndex = contract.MoveSelection(state.SelectedProviderIndex, 1, len(state.Providers))
 		}
 		return state, contract.Result{}, false
 
 	case tea.KeyLeft:
-		if state.SelectedModelIndex >= 0 {
+		if contract.ModelListFocused(state) {
 			state.SelectedModelIndex = -1
 		}
 		return state, contract.Result{}, false
 
 	case tea.KeyRight:
-		if state.SelectedProviderIndex >= 0 && state.SelectedModelIndex < 0 && len(state.Models) > 0 {
+		if state.SelectedProviderIndex >= 0 && !contract.ModelListFocused(state) && len(state.Models) > 0 {
 			state.SelectedModelIndex = 0
 		}
 		return state, contract.Result{}, false

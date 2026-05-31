@@ -2,6 +2,38 @@ package contract
 
 import "testing"
 
+func TestModelListFocused(t *testing.T) {
+	if ModelListFocused(State{SelectedModelIndex: -1}) {
+		t.Fatal("ModelListFocused = true for provider focus")
+	}
+	if !ModelListFocused(State{SelectedModelIndex: 0}) {
+		t.Fatal("ModelListFocused = false for model focus")
+	}
+}
+
+func TestMoveSelectionClampsWithoutWrapping(t *testing.T) {
+	tests := []struct {
+		name  string
+		index int
+		delta int
+		count int
+		want  int
+	}{
+		{name: "up clamps at first", index: 0, delta: -1, count: 3, want: 0},
+		{name: "down clamps at last", index: 2, delta: 1, count: 3, want: 2},
+		{name: "moves inside range", index: 1, delta: -1, count: 3, want: 0},
+		{name: "negative starts at first before moving", index: -1, delta: 1, count: 3, want: 1},
+		{name: "empty list stays unfocused", index: 0, delta: 1, count: 0, want: -1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := MoveSelection(tt.index, tt.delta, tt.count); got != tt.want {
+				t.Fatalf("MoveSelection(%d, %d, %d) = %d, want %d", tt.index, tt.delta, tt.count, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestSelectedProvider(t *testing.T) {
 	state := State{
 		Providers:             []ProviderEntry{{ID: "anthropic", Label: "Anthropic"}},
