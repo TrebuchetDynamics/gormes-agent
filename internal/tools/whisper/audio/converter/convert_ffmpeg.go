@@ -1,6 +1,6 @@
 //go:build !noffmpeg
 
-package audio
+package converter
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/audio/contract"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/pathredact"
 )
 
@@ -18,7 +19,7 @@ import (
 func ConvertWithFFmpeg(ctx context.Context, inputPath, outputPath string) error {
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
-		return &PreprocessError{Code: AudioPreprocessUnavailable, Path: filepath.Base(inputPath), Err: errors.New("ffmpeg not found")}
+		return &contract.PreprocessError{Code: contract.AudioPreprocessUnavailable, Path: filepath.Base(inputPath), Err: errors.New("ffmpeg not found")}
 	}
 	cmd := exec.CommandContext(ctx, ffmpeg, "-y", "-i", inputPath, "-ar", "16000", "-ac", "1", outputPath)
 	out, err := cmd.CombinedOutput()
@@ -26,7 +27,7 @@ func ConvertWithFFmpeg(ctx context.Context, inputPath, outputPath string) error 
 		return nil
 	}
 	if ctx.Err() != nil {
-		return &PreprocessError{Code: AudioPreprocessUnavailable, Path: filepath.Base(inputPath), Err: ctx.Err()}
+		return &contract.PreprocessError{Code: contract.AudioPreprocessUnavailable, Path: filepath.Base(inputPath), Err: ctx.Err()}
 	}
 	detail := strings.TrimSpace(string(out))
 	if detail == "" {
@@ -36,5 +37,5 @@ func ConvertWithFFmpeg(ctx context.Context, inputPath, outputPath string) error 
 		detail = detail[:300] + "...(truncated)"
 	}
 	detail = pathredact.Text(detail, inputPath, outputPath)
-	return &PreprocessError{Code: AudioPreprocessUnavailable, Path: filepath.Base(inputPath), Err: fmt.Errorf("ffmpeg failed: %s", detail)}
+	return &contract.PreprocessError{Code: contract.AudioPreprocessUnavailable, Path: filepath.Base(inputPath), Err: fmt.Errorf("ffmpeg failed: %s", detail)}
 }
