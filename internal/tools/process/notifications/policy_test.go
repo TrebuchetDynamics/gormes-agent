@@ -1,8 +1,10 @@
 package notifications
 
 import (
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 type fakeProcessNotificationClock struct {
@@ -154,6 +156,19 @@ func TestProcessNotificationThreeStrikePromotion(t *testing.T) {
 	events := policy.CheckWatchPatterns(&session, "E still noisy\n")
 	if len(events) != 0 {
 		t.Fatalf("post-disable events = %#v, want no duplicate summaries", events)
+	}
+}
+
+func TestProcessNotificationWatchOutputTruncationKeepsUTF8Valid(t *testing.T) {
+	line := strings.Repeat("界", 700)
+
+	got := formatProcessWatchOutput([]string{line})
+
+	if !strings.Contains(got, "...(truncated)") {
+		t.Fatalf("formatted output = %q, want truncation marker", got)
+	}
+	if !utf8.ValidString(got) {
+		t.Fatalf("formatted output is not valid UTF-8 after truncation: %q", got)
 	}
 }
 

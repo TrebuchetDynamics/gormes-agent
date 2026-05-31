@@ -192,15 +192,46 @@ func matchProcessWatchPatterns(patterns []string, text string) (string, []string
 	return matchedPattern, matchedLines
 }
 
+type processWatchOutputLimits struct {
+	MaxLines int
+	MaxBytes int
+}
+
+var defaultProcessWatchOutputLimits = processWatchOutputLimits{
+	MaxLines: 20,
+	MaxBytes: 2000,
+}
+
 func formatProcessWatchOutput(lines []string) string {
-	if len(lines) > 20 {
-		lines = lines[:20]
+	return formatProcessWatchOutputWithLimits(lines, defaultProcessWatchOutputLimits)
+}
+
+func formatProcessWatchOutputWithLimits(lines []string, limits processWatchOutputLimits) string {
+	if limits.MaxLines > 0 && len(lines) > limits.MaxLines {
+		lines = lines[:limits.MaxLines]
 	}
 	out := strings.Join(lines, "\n")
-	if len(out) > 2000 {
-		out = out[:2000] + "\n...(truncated)"
+	if truncated, ok := truncateUTF8Bytes(out, limits.MaxBytes); ok {
+		return truncated + "\n...(truncated)"
 	}
 	return out
+}
+
+func truncateUTF8Bytes(value string, maxBytes int) (string, bool) {
+	if maxBytes < 0 {
+		maxBytes = 0
+	}
+	if len(value) <= maxBytes {
+		return value, false
+	}
+	cut := 0
+	for idx := range value {
+		if idx > maxBytes {
+			break
+		}
+		cut = idx
+	}
+	return value[:cut], true
 }
 
 func (p *ProcessNotificationPolicy) globalAdmit(now time.Time) (bool, []ProcessNotificationEvent) {
