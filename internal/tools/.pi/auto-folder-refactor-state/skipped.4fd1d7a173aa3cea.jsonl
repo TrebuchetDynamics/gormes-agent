@@ -4,3 +4,4 @@
 {"ts":"2026-05-31T02:29:23-06:00","candidate":"goncho","reason":"no metric progress rollback","scope":"candidate","temporary":false}
 {"ts":"2026-05-31T02:29:24-06:00","candidate":"safety","reason":"sub-candidates exhausted this run","scope":"parent","temporary":true}
 {"ts":"2026-05-31T02:32:36-06:00","candidate":"mcp","reason":"no metric progress rollback","scope":"candidate","temporary":false}
+{"ts":"2026-05-31T02:38:17-06:00","candidate":"goncho","reason":"no metric progress rollback","scope":"candidate","temporary":false}

@@ -8,42 +8,17 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/audio/contract"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/pathredact"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/wavpcm"
 )
 
-const AudioPreprocessUnavailable = "audio_preprocess_unavailable"
+const AudioPreprocessUnavailable = contract.AudioPreprocessUnavailable
 
-type PCM = wavpcm.PCM
-
-type PreprocessError struct {
-	Code string
-	Path string
-	Err  error
-}
-
-func (e *PreprocessError) Error() string {
-	var parts []string
-	parts = append(parts, e.Code)
-	if e.Path != "" {
-		parts = append(parts, "path="+filepath.Base(e.Path))
-	}
-	if e.Err != nil {
-		parts = append(parts, e.Err.Error())
-	}
-	return strings.Join(parts, ": ")
-}
-
-func (e *PreprocessError) Unwrap() error {
-	return e.Err
-}
-
-type Converter func(context.Context, string, string) error
-
-type PreprocessOptions struct {
-	FileName  string
-	Converter Converter
-}
+type PCM = contract.PCM
+type PreprocessError = contract.PreprocessError
+type Converter = contract.Converter
+type PreprocessOptions = contract.PreprocessOptions
 
 func Preprocess(ctx context.Context, audioBytes []byte, mediaType string, opts PreprocessOptions) (PCM, error) {
 	if len(audioBytes) == 0 {
