@@ -21,32 +21,54 @@ type Sink interface {
 type boundedSink struct {
 	mu     sync.Mutex
 	path   string
-	tail   int
-	buffer []byte
-	total  int64
+	buffer tailBuffer
 	closed bool
+}
+
+type tailBuffer struct {
+	limit int
+	buf   []byte
+	total int64
+}
+
+func (b *tailBuffer) append(p []byte) {
+	b.total += int64(len(p))
+	if b.limit <= 0 {
+		return
+	}
+	b.buf = append(b.buf, p...)
+	if len(b.buf) > b.limit {
+		drop := len(b.buf) - b.limit
+		b.buf = append(b.buf[:0], b.buf[drop:]...)
+	}
+}
+
+func (b *tailBuffer) bytes() []byte {
+	return b.buf
+}
+
+func (b *tailBuffer) dropped() int64 {
+	return b.total - int64(len(b.buf))
 }
 
 // NewBoundedSink returns a Sink that buffers at most tailBytes of stderr in
 // memory. With path == "" the sink runs in discard mode: Write reports success
 // without retaining bytes and Close never creates a file.
 func NewBoundedSink(path string, tailBytes int) Sink {
-	return &boundedSink{path: path, tail: tailBytes}
+	return &boundedSink{path: path, buffer: tailBuffer{limit: tailBytes}}
 }
 
 func (s *boundedSink) Write(p []byte) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.closed {
+		return 0, os.ErrClosed
+	}
 	n := len(p)
-	s.total += int64(n)
-	if s.path == "" || s.tail <= 0 {
+	if s.path == "" {
 		return n, nil
 	}
-	s.buffer = append(s.buffer, p...)
-	if len(s.buffer) > s.tail {
-		drop := len(s.buffer) - s.tail
-		s.buffer = append(s.buffer[:0], s.buffer[drop:]...)
-	}
+	s.buffer.append(p)
 	return n, nil
 }
 
@@ -65,13 +87,12 @@ func (s *boundedSink) Close() error {
 		return err
 	}
 	defer f.Close()
-	if int64(len(s.buffer)) < s.total {
-		dropped := s.total - int64(len(s.buffer))
+	if dropped := s.buffer.dropped(); dropped > 0 {
 		if _, err := fmt.Fprintf(f, "[truncated %d bytes]\n", dropped); err != nil {
 			return err
 		}
 	}
-	if _, err := f.Write(s.buffer); err != nil {
+	if _, err := f.Write(s.buffer.bytes()); err != nil {
 		return err
 	}
 	return nil
