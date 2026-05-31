@@ -8,3 +8,4 @@ directory/storage
 events/bus
 platforms
 rendering
+ttsconfig

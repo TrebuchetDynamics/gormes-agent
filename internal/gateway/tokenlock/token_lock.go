@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -276,11 +275,10 @@ func (s *TokenLockStore) createLock(ctx context.Context, path string, record tok
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, s.evidence(record, path, TokenLockStatusHeld, validation, err.Error()), err
 	}
-	raw, err := json.MarshalIndent(record, "", "  ")
+	raw, err := jsonfile.MarshalIndentNewline(record)
 	if err != nil {
 		return nil, s.evidence(record, path, TokenLockStatusHeld, validation, err.Error()), err
 	}
-	raw = append(raw, '\n')
 
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
@@ -419,31 +417,10 @@ func readTokenLockRecord(path string) (tokenLockRecord, error) {
 }
 
 func writeTokenLockRecordAtomic(path string, record tokenLockRecord) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	raw, err := json.MarshalIndent(record, "", "  ")
-	if err != nil {
-		return err
-	}
-	raw = append(raw, '\n')
-
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".token-lock-*.tmp")
-	if err != nil {
-		return err
-	}
-	tmpPath := tmp.Name()
-	defer func() {
-		_ = os.Remove(tmpPath)
-	}()
-	if _, err := tmp.Write(raw); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tmpPath, path)
+	return jsonfile.WriteAtomicWithOptions(context.Background(), path, record, "token lock record", jsonfile.WriteOptions{
+		DirMode:    0o755,
+		TmpPattern: ".token-lock-*.tmp",
+	})
 }
 
 func sanitizeTokenLockPlatform(platform string) string {

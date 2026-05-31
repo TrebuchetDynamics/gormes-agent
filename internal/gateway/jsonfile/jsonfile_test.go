@@ -5,8 +5,48 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 )
+
+func TestWriteAtomicWithOptionsUsesFilesystemPolicy(t *testing.T) {
+	ctx := context.Background()
+	root := filepath.Join(t.TempDir(), "state")
+	path := filepath.Join(root, "record.json")
+
+	if err := WriteAtomicWithOptions(ctx, path, map[string]string{"name": "gort"}, "test record", WriteOptions{
+		DirMode:    0o700,
+		FileMode:   0o600,
+		TmpPattern: ".custom-*.tmp",
+	}); err != nil {
+		t.Fatalf("WriteAtomicWithOptions: %v", err)
+	}
+
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read record: %v", err)
+	}
+	if !strings.HasSuffix(string(raw), "\n") {
+		t.Fatalf("record %q missing trailing newline", string(raw))
+	}
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(root)
+		if err != nil {
+			t.Fatalf("stat root: %v", err)
+		}
+		if info.Mode().Perm() != 0o700 {
+			t.Fatalf("root mode = %v, want 0700", info.Mode().Perm())
+		}
+		info, err = os.Stat(path)
+		if err != nil {
+			t.Fatalf("stat file: %v", err)
+		}
+		if info.Mode().Perm() != 0o600 {
+			t.Fatalf("file mode = %v, want 0600", info.Mode().Perm())
+		}
+	}
+}
 
 func TestReadDistinguishesMissingEmptyAndDecodedJSON(t *testing.T) {
 	ctx := context.Background()

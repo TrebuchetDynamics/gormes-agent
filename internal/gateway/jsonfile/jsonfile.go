@@ -52,23 +52,57 @@ func Read(ctx context.Context, path string, out any, label string) (bool, error)
 	return true, nil
 }
 
+// WriteOptions carries filesystem policy for JSON marker stores that need
+// stricter permissions or stable temp-file prefixes while sharing the same
+// encode/write/rename contract.
+type WriteOptions struct {
+	DirMode    os.FileMode
+	FileMode   os.FileMode
+	TmpPattern string
+}
+
+// MarshalIndentNewline marshals payload as indented JSON and appends the
+// trailing newline used by gateway JSON marker files.
+func MarshalIndentNewline(payload any) ([]byte, error) {
+	raw, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(raw, '\n'), nil
+}
+
 // WriteAtomic marshals payload as indented JSON and atomically replaces path.
 func WriteAtomic(ctx context.Context, path string, payload any, label string) error {
+	return WriteAtomicWithOptions(ctx, path, payload, label, WriteOptions{})
+}
+
+// WriteAtomicWithOptions marshals payload as indented JSON and atomically
+// replaces path using the supplied filesystem policy. Zero-valued options keep
+// the historical gateway marker behavior: 0755 directories, CreateTemp's file
+// mode, and the .json-atomic-*.tmp prefix.
+func WriteAtomicWithOptions(ctx context.Context, path string, payload any, label string, opts WriteOptions) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	if label == "" {
 		label = "json file"
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	dirMode := opts.DirMode
+	if dirMode == 0 {
+		dirMode = 0o755
+	}
+	tmpPattern := opts.TmpPattern
+	if tmpPattern == "" {
+		tmpPattern = ".json-atomic-*.tmp"
+	}
+	if err := os.MkdirAll(filepath.Dir(path), dirMode); err != nil {
 		return fmt.Errorf("create %s dir: %w", label, err)
 	}
-	raw, err := json.MarshalIndent(payload, "", "  ")
+	raw, err := MarshalIndentNewline(payload)
 	if err != nil {
 		return fmt.Errorf("encode %s: %w", label, err)
 	}
-	raw = append(raw, '\n')
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".json-atomic-*.tmp")
+	tmp, err := os.CreateTemp(filepath.Dir(path), tmpPattern)
 	if err != nil {
 		return fmt.Errorf("create %s temp file: %w", label, err)
 	}
@@ -82,6 +116,11 @@ func WriteAtomic(ctx context.Context, path string, payload any, label string) er
 	}
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("close %s temp file: %w", label, err)
+	}
+	if opts.FileMode != 0 {
+		if err := os.Chmod(tmpPath, opts.FileMode); err != nil {
+			return fmt.Errorf("chmod %s temp file: %w", label, err)
+		}
 	}
 	if err := os.Rename(tmpPath, path); err != nil {
 		return fmt.Errorf("replace %s: %w", label, err)

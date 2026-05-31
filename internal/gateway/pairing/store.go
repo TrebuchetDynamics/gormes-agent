@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/jsonfile"
 )
 
 const pairingStatusKind = "gormes-gateway-pairing"
@@ -764,11 +766,10 @@ func (s *PairingStore) writeStateLocked(ctx context.Context, state pairingFile) 
 	if state.Platforms == nil {
 		state.Platforms = map[string]pairingPlatformFile{}
 	}
-	raw, err := json.MarshalIndent(state, "", "  ")
+	raw, err := jsonfile.MarshalIndentNewline(state)
 	if err != nil {
 		return fmt.Errorf("encode pairing state: %w", err)
 	}
-	raw = append(raw, '\n')
 	if err := s.writeFile(s.path, raw, 0o600); err != nil {
 		return fmt.Errorf("replace pairing state: %w", err)
 	}

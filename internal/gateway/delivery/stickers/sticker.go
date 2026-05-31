@@ -1,11 +1,12 @@
 package stickers
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
+	"context"
+	"errors"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/jsonfile"
 )
 
 type StickerDescription struct {
@@ -60,43 +61,24 @@ func BuildAnimatedStickerInjection(emoji string) string {
 }
 
 func loadStickerCache(path string) (map[string]StickerDescription, error) {
-	raw, err := os.ReadFile(path)
+	var cache map[string]StickerDescription
+	exists, err := jsonfile.Read(context.Background(), path, &cache, "sticker cache")
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, jsonfile.ErrEmpty) || !jsonfile.IsReadError(err) {
 			return map[string]StickerDescription{}, nil
 		}
 		return nil, err
 	}
-	var cache map[string]StickerDescription
-	if err := json.Unmarshal(raw, &cache); err != nil || cache == nil {
+	if !exists || cache == nil {
 		return map[string]StickerDescription{}, nil
 	}
 	return cache, nil
 }
 
 func saveStickerCache(path string, cache map[string]StickerDescription) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
-	raw, err := json.MarshalIndent(cache, "", "  ")
-	if err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".sticker-cache-*.tmp")
-	if err != nil {
-		return err
-	}
-	tmpName := tmp.Name()
-	defer func() { _ = os.Remove(tmpName) }()
-	if _, err := tmp.Write(raw); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	if err := os.Chmod(tmpName, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmpName, path)
+	return jsonfile.WriteAtomicWithOptions(context.Background(), path, cache, "sticker cache", jsonfile.WriteOptions{
+		DirMode:    0o700,
+		FileMode:   0o600,
+		TmpPattern: ".sticker-cache-*.tmp",
+	})
 }

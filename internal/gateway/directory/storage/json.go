@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/jsonfile"
 )
 
 // Root is the shared caller-owned persistence root contract for directory
@@ -140,11 +142,10 @@ func ReadJSON(path string, value any) error {
 // under root. The temporary file is created in root so rename stays atomic on
 // normal local filesystems.
 func WriteAtomicJSON(root, name, tmpPattern string, value any, writer Writer) error {
-	body, err := json.MarshalIndent(value, "", "  ")
+	body, err := jsonfile.MarshalIndentNewline(value)
 	if err != nil {
 		return err
 	}
-	body = append(body, '\n')
 	if err := os.MkdirAll(root, 0o700); err != nil {
 		return err
 	}
