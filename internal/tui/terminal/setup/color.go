@@ -12,9 +12,9 @@ func TruecolorDecision(env map[string]string) TruecolorResult {
 	}
 	switch strings.ToLower(strings.TrimSpace(envvars.Value(env, envvars.HermesTUITruecolor))) {
 	case "1", "true", "yes", "on":
-		set := map[string]string{envvars.ForceColor: "3"}
+		set := map[string]string{envvars.ForceColor: envvars.ForceColorTruecolor}
 		if envvars.Value(env, envvars.ColorTerm) == "" {
-			set[envvars.ColorTerm] = "truecolor"
+			set[envvars.ColorTerm] = envvars.Truecolor
 		}
 		return TruecolorResult{
 			Force: true,
@@ -25,7 +25,7 @@ func TruecolorDecision(env map[string]string) TruecolorResult {
 	default:
 		if shouldDowngradeAppleTerminalTruecolor(env) {
 			unset := []string{envvars.ColorTerm}
-			if envvars.Value(env, envvars.ForceColor) == "3" {
+			if envvars.Value(env, envvars.ForceColor) == envvars.ForceColorTruecolor {
 				unset = append(unset, envvars.ForceColor)
 			}
 			return TruecolorResult{Unset: unset, Evidence: "tui_terminal_truecolor_downgraded"}
@@ -35,20 +35,20 @@ func TruecolorDecision(env map[string]string) TruecolorResult {
 }
 
 func shouldDowngradeAppleTerminalTruecolor(env map[string]string) bool {
-	return envvars.Value(env, envvars.TermProgram) == "Apple_Terminal" && terminalAdvertisesTruecolor(env)
+	return envvars.Value(env, envvars.TermProgram) == envvars.AppleTerminalProgram && terminalAdvertisesTruecolor(env)
 }
 
 func terminalAdvertisesTruecolor(env map[string]string) bool {
 	switch strings.ToLower(envvars.Value(env, envvars.ColorTerm)) {
-	case "truecolor", "24bit":
+	case envvars.Truecolor, envvars.Truecolor24Bit:
 		return true
 	}
-	return envvars.Value(env, envvars.ForceColor) == "3"
+	return envvars.Value(env, envvars.ForceColor) == envvars.ForceColorTruecolor
 }
 
 func TerminalParityHints(env map[string]string, opts TerminalSetupOptions) []TerminalParityHint {
 	var hints []TerminalParityHint
-	if envvars.Value(env, envvars.TermProgram) == "Apple_Terminal" {
+	if envvars.Value(env, envvars.TermProgram) == envvars.AppleTerminalProgram {
 		hints = append(hints, TerminalParityHint{Key: "apple-terminal", Message: "Apple Terminal may need explicit truecolor configuration."})
 	}
 	if envvars.IsRemote(env) {

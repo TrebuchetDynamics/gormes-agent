@@ -39,7 +39,7 @@ func (f *fakeTerminalFileOps) ops() TerminalSetupFileOps {
 func defaultCompleteKeybindingsJSON(t *testing.T) string {
 	t.Helper()
 	fake := &fakeTerminalFileOps{readErr: os.ErrNotExist}
-	result := ConfigureTerminalKeybindings("vscode", TerminalSetupOptions{
+	result := ConfigureTerminalKeybindings(vscodeKindVSCode, TerminalSetupOptions{
 		HomeDir:  "/Users/me",
 		Platform: "darwin",
 		FileOps:  fake.ops(),

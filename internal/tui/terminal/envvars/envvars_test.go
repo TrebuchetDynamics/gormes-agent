@@ -4,11 +4,11 @@ import "testing"
 
 func TestValueHasAndRemoteUseTerminalEnvSemantics(t *testing.T) {
 	env := map[string]string{
-		TermProgram:   "vscode",
+		TermProgram:   VSCodeTermProgram,
 		SSHConnection: "local remote",
 	}
 
-	if got := Value(env, TermProgram); got != "vscode" {
+	if got := Value(env, TermProgram); got != VSCodeTermProgram {
 		t.Fatalf("Value() = %q; want vscode", got)
 	}
 	if !Has(env, TermProgram) {

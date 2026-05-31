@@ -7,15 +7,21 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal/envvars"
 )
 
+const (
+	vscodeKindCursor   = "cursor"
+	vscodeKindVSCode   = envvars.VSCodeTermProgram
+	vscodeKindWindsurf = "windsurf"
+)
+
 func DetectVSCodeLikeTerminal(env map[string]string) string {
 	if envvars.Value(env, envvars.CursorTraceID) != "" {
-		return "cursor"
+		return vscodeKindCursor
 	}
-	if strings.Contains(strings.ToLower(envvars.Value(env, envvars.VSCodeGitAskpassMain)), "windsurf") {
-		return "windsurf"
+	if strings.Contains(strings.ToLower(envvars.Value(env, envvars.VSCodeGitAskpassMain)), vscodeKindWindsurf) {
+		return vscodeKindWindsurf
 	}
-	if strings.EqualFold(envvars.Value(env, envvars.TermProgram), "vscode") {
-		return "vscode"
+	if strings.EqualFold(envvars.Value(env, envvars.TermProgram), envvars.VSCodeTermProgram) {
+		return vscodeKindVSCode
 	}
 	return ""
 }
@@ -36,9 +42,9 @@ func VSCodeStyleConfigDir(app, platform string, env map[string]string, home stri
 
 func vscodeAppName(kind string) string {
 	switch kind {
-	case "cursor":
+	case vscodeKindCursor:
 		return "Cursor"
-	case "windsurf":
+	case vscodeKindWindsurf:
 		return "Windsurf"
 	default:
 		return "Code"

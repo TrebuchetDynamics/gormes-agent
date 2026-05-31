@@ -18,6 +18,14 @@ const (
 	WSLInterop           = "WSL_INTEROP"
 )
 
+const (
+	AppleTerminalProgram = "Apple_Terminal"
+	VSCodeTermProgram    = "vscode"
+	Truecolor            = "truecolor"
+	Truecolor24Bit       = "24bit"
+	ForceColorTruecolor  = "3"
+)
+
 // Value returns the terminal environment value for key using the shared TUI
 // environment-map semantics.
 func Value(env map[string]string, key string) string {

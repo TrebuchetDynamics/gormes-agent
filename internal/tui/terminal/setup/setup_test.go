@@ -6,17 +6,19 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal/envvars"
 )
 
 func TestTUITerminalSetupKeybindings(t *testing.T) {
 	t.Run("detects VS Code family terminals", func(t *testing.T) {
-		if got := DetectVSCodeLikeTerminal(map[string]string{"CURSOR_TRACE_ID": "x"}); got != "cursor" {
+		if got := DetectVSCodeLikeTerminal(map[string]string{envvars.CursorTraceID: "x"}); got != vscodeKindCursor {
 			t.Fatalf("cursor detect = %q", got)
 		}
-		if got := DetectVSCodeLikeTerminal(map[string]string{"VSCODE_GIT_ASKPASS_MAIN": "/tmp/windsurf"}); got != "windsurf" {
+		if got := DetectVSCodeLikeTerminal(map[string]string{envvars.VSCodeGitAskpassMain: "/tmp/windsurf"}); got != vscodeKindWindsurf {
 			t.Fatalf("windsurf detect = %q", got)
 		}
-		if got := DetectVSCodeLikeTerminal(map[string]string{"TERM_PROGRAM": "vscode"}); got != "vscode" {
+		if got := DetectVSCodeLikeTerminal(map[string]string{envvars.TermProgram: envvars.VSCodeTermProgram}); got != vscodeKindVSCode {
 			t.Fatalf("vscode detect = %q", got)
 		}
 		if got := DetectVSCodeLikeTerminal(nil); got != "" {
@@ -31,7 +33,7 @@ func TestTUITerminalSetupKeybindings(t *testing.T) {
 		if got := VSCodeStyleConfigDir("Code", "linux", nil, "/home/me"); got != "/home/me/.config/Code/User" {
 			t.Fatalf("linux config dir = %q", got)
 		}
-		got := VSCodeStyleConfigDir("Code", "win32", map[string]string{"APPDATA": "C:/Users/me/AppData/Roaming"}, "/home/me")
+		got := VSCodeStyleConfigDir("Code", "win32", map[string]string{envvars.AppData: "C:/Users/me/AppData/Roaming"}, "/home/me")
 		if got != "C:/Users/me/AppData/Roaming/Code/User" {
 			t.Fatalf("win32 config dir = %q", got)
 		}
@@ -54,7 +56,7 @@ func TestTUITerminalSetupKeybindings(t *testing.T) {
 
 	t.Run("writes missing bindings and backs up existing files", func(t *testing.T) {
 		fake := &fakeTerminalFileOps{body: []byte(`[]`)}
-		result := ConfigureTerminalKeybindings("vscode", TerminalSetupOptions{
+		result := ConfigureTerminalKeybindings(vscodeKindVSCode, TerminalSetupOptions{
 			HomeDir:  "/Users/me",
 			Platform: "darwin",
 			FileOps:  fake.ops(),
@@ -75,7 +77,7 @@ func TestTUITerminalSetupKeybindings(t *testing.T) {
 
 	t.Run("does not add mac copy binding on linux", func(t *testing.T) {
 		fake := &fakeTerminalFileOps{readErr: os.ErrNotExist}
-		result := ConfigureTerminalKeybindings("vscode", TerminalSetupOptions{
+		result := ConfigureTerminalKeybindings(vscodeKindVSCode, TerminalSetupOptions{
 			HomeDir:  "/home/me",
 			Platform: "linux",
 			FileOps:  fake.ops(),
@@ -90,7 +92,7 @@ func TestTUITerminalSetupKeybindings(t *testing.T) {
 
 	t.Run("reports overlapping conflicts without writing", func(t *testing.T) {
 		fake := &fakeTerminalFileOps{body: []byte(`[{"key":"cmd+c","command":"workbench.action.terminal.copySelection","when":"terminalFocus"}]`)}
-		result := ConfigureTerminalKeybindings("cursor", TerminalSetupOptions{
+		result := ConfigureTerminalKeybindings(vscodeKindCursor, TerminalSetupOptions{
 			HomeDir:  "/Users/me",
 			Platform: "darwin",
 			FileOps:  fake.ops(),
@@ -105,7 +107,7 @@ func TestTUITerminalSetupKeybindings(t *testing.T) {
 
 	t.Run("ignores disjoint terminal selection conflicts", func(t *testing.T) {
 		fake := &fakeTerminalFileOps{body: []byte(`[{"key":"cmd+c","command":"workbench.action.terminal.sendSequence","when":"terminalFocus && !terminalTextSelected","args":{"text":"\u0003"}}]`)}
-		result := ConfigureTerminalKeybindings("vscode", TerminalSetupOptions{
+		result := ConfigureTerminalKeybindings(vscodeKindVSCode, TerminalSetupOptions{
 			HomeDir:  "/Users/me",
 			Platform: "darwin",
 			FileOps:  fake.ops(),
@@ -117,7 +119,7 @@ func TestTUITerminalSetupKeybindings(t *testing.T) {
 
 	t.Run("refuses detected setup from ssh", func(t *testing.T) {
 		result := ConfigureDetectedTerminalKeybindings(TerminalSetupOptions{
-			Env:      map[string]string{"SSH_CONNECTION": "1 2 3 4", "TERM_PROGRAM": "vscode"},
+			Env:      map[string]string{envvars.SSHConnection: "1 2 3 4", envvars.TermProgram: envvars.VSCodeTermProgram},
 			HomeDir:  "/Users/me",
 			Platform: "darwin",
 		})
@@ -129,7 +131,7 @@ func TestTUITerminalSetupKeybindings(t *testing.T) {
 	t.Run("prompt decision sees missing and complete bindings", func(t *testing.T) {
 		missing := &fakeTerminalFileOps{readErr: os.ErrNotExist}
 		if !ShouldPromptForTerminalSetup(TerminalSetupOptions{
-			Env:     map[string]string{"TERM_PROGRAM": "vscode"},
+			Env:     map[string]string{envvars.TermProgram: envvars.VSCodeTermProgram},
 			HomeDir: "/tmp/fake-home",
 			FileOps: missing.ops(),
 		}) {
@@ -138,7 +140,7 @@ func TestTUITerminalSetupKeybindings(t *testing.T) {
 
 		completeFile := &fakeTerminalFileOps{body: []byte(defaultCompleteKeybindingsJSON(t))}
 		if ShouldPromptForTerminalSetup(TerminalSetupOptions{
-			Env:     map[string]string{"TERM_PROGRAM": "vscode"},
+			Env:     map[string]string{envvars.TermProgram: envvars.VSCodeTermProgram},
 			HomeDir: "/tmp/fake-home",
 			FileOps: completeFile.ops(),
 		}) {
@@ -149,7 +151,7 @@ func TestTUITerminalSetupKeybindings(t *testing.T) {
 
 func TestTUITerminalSetupReadFailure(t *testing.T) {
 	fake := &fakeTerminalFileOps{readErr: errors.New("permission denied")}
-	result := ConfigureTerminalKeybindings("vscode", TerminalSetupOptions{
+	result := ConfigureTerminalKeybindings(vscodeKindVSCode, TerminalSetupOptions{
 		HomeDir:  "/Users/me",
 		Platform: "darwin",
 		FileOps:  fake.ops(),
