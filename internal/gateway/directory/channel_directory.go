@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	gatewaydelivery "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/delivery"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/storage"
 	"os"
 	"path/filepath"
 	"sort"
@@ -97,32 +98,7 @@ func (s ChannelDirectoryStore) SaveWithWriter(dir ChannelDirectory, writer func(
 	if dir.Platforms == nil {
 		dir.Platforms = map[string][]ChannelDirectoryEntry{}
 	}
-	body, err := json.MarshalIndent(dir, "", "  ")
-	if err != nil {
-		return err
-	}
-	body = append(body, '\n')
-	if err := os.MkdirAll(s.root, 0o700); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(s.root, ".channel_directory-*.tmp")
-	if err != nil {
-		return err
-	}
-	tmpPath := tmp.Name()
-	if err := tmp.Close(); err != nil {
-		_ = os.Remove(tmpPath)
-		return err
-	}
-	if err := writer(tmpPath, body, 0o600); err != nil {
-		_ = os.Remove(tmpPath)
-		return err
-	}
-	if err := os.Rename(tmpPath, s.path()); err != nil {
-		_ = os.Remove(tmpPath)
-		return err
-	}
-	return nil
+	return storage.WriteAtomicJSON(s.root, channelDirectoryFileName, ".channel_directory-*.tmp", dir, storage.Writer(writer))
 }
 
 func emptyChannelDirectory() ChannelDirectory {

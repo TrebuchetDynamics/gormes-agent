@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/storage"
 	"os"
 	"path/filepath"
 	"strings"
@@ -130,37 +131,7 @@ func (s ChannelDirectorySourceStore) RememberSource(_ context.Context, entry Rem
 }
 
 func (s ChannelDirectorySourceStore) save(ledger RememberedSourceLedger) error {
-	if err := os.MkdirAll(s.root, 0o700); err != nil {
-		return err
-	}
-	body, err := json.MarshalIndent(ledger, "", "  ")
-	if err != nil {
-		return err
-	}
-	body = append(body, '\n')
-	tmp, err := os.CreateTemp(s.root, ".channel_directory_sources-*.tmp")
-	if err != nil {
-		return err
-	}
-	tmpPath := tmp.Name()
-	if _, err := tmp.Write(body); err != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmpPath)
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		_ = os.Remove(tmpPath)
-		return err
-	}
-	if err := os.Chmod(tmpPath, 0o600); err != nil {
-		_ = os.Remove(tmpPath)
-		return err
-	}
-	if err := os.Rename(tmpPath, s.path()); err != nil {
-		_ = os.Remove(tmpPath)
-		return err
-	}
-	return nil
+	return storage.WriteAtomicJSON(s.root, channelDirectorySourcesFileName, ".channel_directory_sources-*.tmp", ledger, nil)
 }
 
 func RememberedSourceEntryFromSource(source Source) RememberedSourceEntry {
