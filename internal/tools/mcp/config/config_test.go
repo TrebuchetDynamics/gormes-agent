@@ -149,6 +149,50 @@ func TestResolveMCPConfigRejectsAmbiguousCaseFoldedSamplingFields(t *testing.T) 
 	}
 }
 
+func TestResolveMCPConfigRejectsInvalidHTTPURLs(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		want string
+	}{
+		{name: "unsupported scheme", url: "ftp://mcp.example.test/mcp", want: "url scheme must be http or https"},
+		{name: "missing host", url: "https:///mcp", want: "url must include a host"},
+		{name: "malformed", url: "://mcp.example.test", want: "url is invalid"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			resolved, err := ResolveMCPConfig(map[string]any{
+				"mcp_servers": map[string]any{
+					"remote": map[string]any{
+						"url": tc.url,
+					},
+				},
+			}, MCPConfigOptions{LookupEnv: func(string) (string, bool) { return "", false }})
+			if err == nil {
+				t.Fatalf("ResolveMCPConfig succeeded for invalid HTTP URL %q", tc.url)
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error = %q, want %q", err.Error(), tc.want)
+			}
+			if strings.Contains(err.Error(), tc.url) {
+				t.Fatalf("error leaked raw invalid URL: %s", err.Error())
+			}
+			if len(resolved.Servers) != 0 {
+				t.Fatalf("resolved valid servers = %#v, want none", resolved.Servers)
+			}
+
+			status, ok := resolved.Status("remote")
+			if !ok {
+				t.Fatalf("missing invalid server status in %#v", resolved.Statuses)
+			}
+			if status.Status != MCPConfigStatusInvalidTransport {
+				t.Fatalf("status = %q, want %q (reason=%q)", status.Status, MCPConfigStatusInvalidTransport, status.Reason)
+			}
+		})
+	}
+}
+
 func TestResolveMCPConfigRejectsEmptyEnvInterpolationReference(t *testing.T) {
 	resolved, err := ResolveMCPConfig(map[string]any{
 		"mcp_servers": map[string]any{

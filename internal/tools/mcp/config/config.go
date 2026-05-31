@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/url"
 	"os"
 	"regexp"
 	"sort"
@@ -275,6 +276,12 @@ func resolveMCPServer(name string, raw any, lookupEnv func(string) (string, bool
 		reason := "server requires command or url"
 		return MCPServerDefinition{}, invalidMCPStatus(baseStatus, MCPConfigStatusInvalidTransport, reason), &mcpConfigIssue{server: name, status: MCPConfigStatusInvalidTransport, message: reason}
 	}
+	if hasURL {
+		if err := validateMCPHTTPURL(url); err != nil {
+			reason := err.Error()
+			return MCPServerDefinition{}, invalidMCPStatus(baseStatus, MCPConfigStatusInvalidTransport, reason), &mcpConfigIssue{server: name, status: MCPConfigStatusInvalidTransport, message: reason}
+		}
+	}
 
 	args, err := mcpStringList(mcpValue(server, "args"), "args", lookupEnv)
 	if err != nil {
@@ -324,6 +331,20 @@ func resolveMCPServer(name string, raw any, lookupEnv func(string) (string, bool
 		status.Reason = "server disabled by config"
 	}
 	return def, status, nil
+}
+
+func validateMCPHTTPURL(raw string) error {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("url is invalid")
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("url scheme must be http or https")
+	}
+	if parsed.Host == "" {
+		return fmt.Errorf("url must include a host")
+	}
+	return nil
 }
 
 func disabledMCPServer(name string, baseStatus MCPServerStatus) (MCPServerDefinition, MCPServerStatus, *mcpConfigIssue) {
