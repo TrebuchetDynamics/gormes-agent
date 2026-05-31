@@ -154,7 +154,7 @@ func NormalizeGatewayEndpoint(endpoint GatewayEndpoint) GatewayEndpoint {
 	endpoint.Address = strings.TrimSpace(endpoint.Address)
 	endpoint.Source = strings.TrimSpace(endpoint.Source)
 	endpoint.Domain = strings.TrimSpace(endpoint.Domain)
-	endpoint.Scheme = strings.ToLower(strings.TrimSpace(endpoint.Scheme))
+	endpoint.Scheme = normalizeGatewaySchemeAlias(endpoint.Scheme)
 	if endpoint.Source == "" {
 		endpoint.Source = GatewayEndpointSourceBonjour
 	}
@@ -195,18 +195,9 @@ func ParseGatewayEndpoint(raw string, source string) (GatewayEndpoint, error) {
 	if address == "" {
 		return GatewayEndpoint{}, errors.New("gateway endpoint host is empty")
 	}
-	scheme := strings.ToLower(strings.TrimSpace(u.Scheme))
-	switch scheme {
-	case "", "ws":
-		scheme = "ws"
-	case "wss":
-		scheme = "wss"
-	case "http":
-		scheme = "ws"
-	case "https":
-		scheme = "wss"
-	default:
-		return GatewayEndpoint{}, fmt.Errorf("unsupported gateway endpoint scheme %q", u.Scheme)
+	scheme, err := parseGatewayEndpointScheme(u.Scheme)
+	if err != nil {
+		return GatewayEndpoint{}, err
 	}
 	port := defaultGatewayPort
 	if rawPort := strings.TrimSpace(u.Port()); rawPort != "" {
@@ -222,6 +213,27 @@ func ParseGatewayEndpoint(raw string, source string) (GatewayEndpoint, error) {
 		Scheme:  scheme,
 		Source:  strings.TrimSpace(source),
 	}), nil
+}
+
+func normalizeGatewaySchemeAlias(raw string) string {
+	switch scheme := strings.ToLower(strings.TrimSpace(raw)); scheme {
+	case "", "ws", "http":
+		return "ws"
+	case "wss", "https":
+		return "wss"
+	default:
+		return scheme
+	}
+}
+
+func parseGatewayEndpointScheme(raw string) (string, error) {
+	scheme := normalizeGatewaySchemeAlias(raw)
+	switch scheme {
+	case "ws", "wss":
+		return scheme, nil
+	default:
+		return "", fmt.Errorf("unsupported gateway endpoint scheme %q", raw)
+	}
 }
 
 func normalizeGatewayEndpoints(in []GatewayEndpoint) []GatewayEndpoint {

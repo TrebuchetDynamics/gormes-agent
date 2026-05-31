@@ -44,6 +44,25 @@ func TestGatewayDiscoverListsLocalGateways(t *testing.T) {
 	}
 }
 
+func TestGatewayEndpointNormalizationCanonicalizesHTTPAliases(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		scheme     string
+		wantScheme string
+		wantURL    string
+	}{
+		{name: "http", scheme: "http", wantScheme: "ws", wantURL: "ws://127.0.0.1:18789"},
+		{name: "https", scheme: "https", wantScheme: "wss", wantURL: "wss://127.0.0.1:18789"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			endpoint := NormalizeGatewayEndpoint(GatewayEndpoint{Address: "127.0.0.1", Port: 18789, Scheme: tc.scheme})
+			if endpoint.Scheme != tc.wantScheme || endpoint.WSURL != tc.wantURL {
+				t.Fatalf("normalized endpoint = %+v, want scheme %q URL %q", endpoint, tc.wantScheme, tc.wantURL)
+			}
+		})
+	}
+}
+
 func TestGatewayDiscoverReportsDegradedNoGateways(t *testing.T) {
 	result := DiscoverGateways(context.Background(), GatewayDiscoverRequest{
 		Discoverer: GatewayDiscovererFunc(func(context.Context) ([]GatewayEndpoint, error) {
