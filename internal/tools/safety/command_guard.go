@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"sync"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/safety/commandpatterns"
 )
 
 const (
@@ -90,34 +92,18 @@ type BlockedResult struct {
 	Evidence         map[string]string
 }
 
-type compiledDangerous struct {
-	regex       *regexp.Regexp
-	description string
-}
-
 var (
 	dangerousCompileOnce sync.Once
-	dangerousCompiled    []compiledDangerous
+	dangerousCompiled    []commandpatterns.Compiled
 	deleteWherePattern   = regexp.MustCompile(`(?is)\bWHERE\b`)
 )
 
 func compileDangerousPatterns() {
-	dangerousCompiled = make([]compiledDangerous, 0, len(DangerousPatterns))
-	for _, p := range DangerousPatterns {
-		re, err := regexp.Compile(`(?is)` + p.Regex)
-		if err != nil {
-			continue
-		}
-		dangerousCompiled = append(dangerousCompiled, compiledDangerous{regex: re, description: p.Description})
-	}
+	dangerousCompiled = commandpatterns.Compile(`(?is)`, DangerousPatterns)
 }
 
 func init() {
-	for _, p := range DangerousPatterns {
-		if _, err := regexp.Compile(`(?is)` + p.Regex); err != nil {
-			panic(fmt.Sprintf("tools: invalid DangerousPattern %q: %v", p.Regex, err))
-		}
-	}
+	commandpatterns.MustValidate("DangerousPattern", `(?is)`, DangerousPatterns)
 }
 
 // DetectDangerous reports whether cmd matches any recoverable dangerous rule.
@@ -128,13 +114,13 @@ func DetectDangerous(cmd string) (bool, string) {
 	}
 	dangerousCompileOnce.Do(compileDangerousPatterns)
 	for _, c := range dangerousCompiled {
-		if !c.regex.MatchString(cmd) {
+		if !c.Regex.MatchString(cmd) {
 			continue
 		}
-		if c.description == "SQL DELETE without WHERE" && deleteWherePattern.MatchString(cmd) {
+		if c.Description == "SQL DELETE without WHERE" && deleteWherePattern.MatchString(cmd) {
 			continue
 		}
-		return true, c.description
+		return true, c.Description
 	}
 	return false, ""
 }

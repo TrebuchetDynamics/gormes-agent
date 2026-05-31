@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/safety/urlpolicy"
 )
 
 // URLSafetyCategory classifies the type of blocked content.
@@ -254,92 +256,22 @@ func allowsPrivateIPResolution(hostname, scheme string) bool {
 // matchHostAgainstRule matches a host against a pattern.
 // Supports exact match, suffix match (e.g., ".example.com"), and wildcard (e.g., "*.example.com").
 func matchHostAgainstRule(host, pattern string) bool {
-	if host == "" || pattern == "" {
-		return false
-	}
-	hostLower := strings.ToLower(host)
-	patternLower := strings.ToLower(pattern)
-
-	// Wildcard suffix: *.example.com matches sub.example.com but NOT example.com itself.
-	if strings.HasPrefix(patternLower, "*.") {
-		suffix := patternLower[2:] // Remove "*."
-		// Must have proper subdomain structure: ends with .suffix and is not exactly suffix.
-		if strings.HasSuffix(hostLower, "."+suffix) && hostLower != suffix {
-			return true
-		}
-		return false
-	}
-
-	// Exact or subdomain match: example.com matches sub.example.com.
-	if strings.HasSuffix(hostLower, "."+patternLower) || hostLower == patternLower {
-		return true
-	}
-	return false
+	return urlpolicy.MatchHostAgainstRule(host, pattern)
 }
 
 // extractHostFromURL extracts and normalizes the host from a URL-like string.
 func extractHostFromURL(rawURL string) string {
-	// Try parsing as full URL first.
-	parsed, err := url.Parse(rawURL)
-	if err == nil && parsed.Hostname() != "" {
-		return normalizeHost(parsed.Hostname())
-	}
-
-	// Try as host:port or just host.
-	if idx := strings.Index(rawURL, "://"); idx == -1 {
-		// No scheme; try prepending a dummy scheme for url.Parse.
-		parsed, err = url.Parse("://" + rawURL)
-		if err == nil && parsed.Hostname() != "" {
-			return normalizeHost(parsed.Hostname())
-		}
-		if parsed != nil {
-			return normalizeHost(parsed.Hostname())
-		}
-	}
-
-	// Fallback: strip port and normalize.
-	host := rawURL
-	host = stripPort(host)
-	return normalizeHost(host)
+	return urlpolicy.ExtractHostFromURL(rawURL)
 }
 
 // stripPort strips the port from a host string, handling IPv6 correctly.
 func stripPort(host string) string {
-	// Handle IPv6 addresses in brackets: [::1]:8080
-	if strings.HasPrefix(host, "[") {
-		if closeBracket := strings.Index(host, "]"); closeBracket >= 0 {
-			// Check if there's a port after the bracket.
-			if closeBracket+1 < len(host) && host[closeBracket+1] == ':' {
-				return host[:closeBracket+1]
-			}
-			return host
-		}
-	}
-
-	// Handle regular host:port
-	if colonIdx := strings.LastIndex(host, ":"); colonIdx > 0 {
-		// Make sure it's not a colon in the path (after /)
-		if slashIdx := strings.Index(host, "/"); slashIdx >= 0 && colonIdx > slashIdx {
-			return host
-		}
-		return host[:colonIdx]
-	}
-	return host
+	return urlpolicy.StripPort(host)
 }
 
 // normalizeHost normalizes a hostname for comparison.
 func normalizeHost(host string) string {
-	host = strings.TrimSpace(host)
-	host = strings.ToLower(host)
-	host = strings.TrimSuffix(host, ".")
-	// Strip brackets from IPv6 for normalization.
-	host = strings.TrimPrefix(host, "[")
-	host = strings.TrimSuffix(host, "]")
-	// Strip www. prefix for normalization.
-	if strings.HasPrefix(host, "www.") {
-		host = host[4:]
-	}
-	return host
+	return urlpolicy.NormalizeHost(host)
 }
 
 // --------------------------------------------------------------------------
@@ -497,27 +429,7 @@ func CheckURLStatic(rawURL string) URLSafetyResult {
 
 // NormalizeBlocklistRule normalizes a raw blocklist rule string.
 func NormalizeBlocklistRule(raw string) string {
-	raw = strings.TrimSpace(raw)
-	if raw == "" || strings.HasPrefix(raw, "#") {
-		return ""
-	}
-	// If it contains a scheme, strip it.
-	if idx := strings.Index(raw, "://"); idx != -1 {
-		parsed, err := url.Parse(raw)
-		if err == nil && parsed.Hostname() != "" {
-			raw = parsed.Hostname()
-		}
-	}
-	// Split on first "/" to get just host part.
-	if slashIdx := strings.Index(raw, "/"); slashIdx != -1 {
-		raw = raw[:slashIdx]
-	}
-	raw = strings.ToLower(raw)
-	raw = strings.TrimSuffix(raw, ".")
-	if strings.HasPrefix(raw, "www.") {
-		raw = raw[4:]
-	}
-	return raw
+	return urlpolicy.NormalizeBlocklistRule(raw)
 }
 
 // --------------------------------------------------------------------------

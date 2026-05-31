@@ -1,9 +1,9 @@
 package safety
 
 import (
-	"fmt"
-	"regexp"
 	"sync"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/safety/commandpatterns"
 )
 
 // HardlinePattern is a single entry in the unconditional hardline blocklist.
@@ -11,10 +11,7 @@ import (
 // Hardline rules describe commands so catastrophic that no approval mode
 // (yolo, mode=off, cron approve) may bypass them. Ported from Hermes
 // HARDLINE_PATTERNS at tools/approval.py@eb28145f.
-type HardlinePattern struct {
-	Regex       string
-	Description string
-}
+type HardlinePattern = commandpatterns.Entry
 
 const PythonRuntimeDisabledMessage = "Python runtime execution is disabled in Gormes"
 
@@ -97,33 +94,17 @@ var HardlinePatterns = []HardlinePattern{
 	},
 }
 
-type compiledHardline struct {
-	regex       *regexp.Regexp
-	description string
-}
-
 var (
 	hardlineCompileOnce sync.Once
-	hardlineCompiled    []compiledHardline
+	hardlineCompiled    []commandpatterns.Compiled
 )
 
 func compileHardlinePatterns() {
-	hardlineCompiled = make([]compiledHardline, 0, len(HardlinePatterns))
-	for _, p := range HardlinePatterns {
-		re, err := regexp.Compile(`(?i)` + p.Regex)
-		if err != nil {
-			continue
-		}
-		hardlineCompiled = append(hardlineCompiled, compiledHardline{regex: re, description: p.Description})
-	}
+	hardlineCompiled = commandpatterns.Compile(`(?i)`, HardlinePatterns)
 }
 
 func init() {
-	for _, p := range HardlinePatterns {
-		if _, err := regexp.Compile(`(?i)` + p.Regex); err != nil {
-			panic(fmt.Sprintf("tools: invalid HardlinePattern %q: %v", p.Regex, err))
-		}
-	}
+	commandpatterns.MustValidate("HardlinePattern", `(?i)`, HardlinePatterns)
 }
 
 // DetectHardline reports whether cmd matches any unconditional hardline rule.
@@ -137,8 +118,8 @@ func DetectHardline(cmd string) (bool, string) {
 	}
 	hardlineCompileOnce.Do(compileHardlinePatterns)
 	for _, c := range hardlineCompiled {
-		if c.regex.MatchString(cmd) {
-			return true, c.description
+		if c.Regex.MatchString(cmd) {
+			return true, c.Description
 		}
 	}
 	return false, ""
