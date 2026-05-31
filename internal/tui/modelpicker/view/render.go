@@ -128,12 +128,7 @@ func renderNarrow(state contract.State, styles Styles) string {
 
 	// Single column providers
 	for i, entry := range state.Providers {
-		prefix := "  "
-		style := normalStyle
-		if i == state.SelectedProviderIndex {
-			prefix = "❯ "
-			style = selectedStyle
-		}
+		prefix, style := selectionAffordance(i == state.SelectedProviderIndex, selectedStyle, normalStyle)
 		b.WriteString(prefix + style.Render(entry.Label) + "\n")
 	}
 
