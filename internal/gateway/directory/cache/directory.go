@@ -63,14 +63,7 @@ func (d *Directory) UpsertEntries(platform string, entries ...model.Entry) int {
 func (s Store) Root() string { return s.jsonFile().Root.String() }
 
 func (s Store) jsonFile() storage.File {
-	if s.file.Name == "" {
-		return storage.NewFile(s.file.Root.String(), channelDirectoryFileName, ".channel_directory-*.tmp", "channel directory")
-	}
-	return s.file
-}
-
-func (s Store) path() string {
-	return s.jsonFile().Path()
+	return s.file.WithDefaults(channelDirectoryFileName, ".channel_directory-*.tmp", "channel directory")
 }
 
 // Load reads the directory. Missing or invalid files return empty directories

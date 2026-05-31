@@ -48,6 +48,15 @@ func NewFile(root, name, tmpPattern, label string) File {
 	return File{Root: NewRoot(root), Name: name, TmpPattern: tmpPattern, Label: label}
 }
 
+// WithDefaults returns f when it is already configured, otherwise it builds the
+// store's default persisted JSON file while preserving any root carried by f.
+func (f File) WithDefaults(name, tmpPattern, label string) File {
+	if f.Name != "" {
+		return f
+	}
+	return NewFile(f.Root.String(), name, tmpPattern, label)
+}
+
 // Path returns the persisted file path.
 func (f File) Path() string {
 	return f.Root.Path(f.Name)

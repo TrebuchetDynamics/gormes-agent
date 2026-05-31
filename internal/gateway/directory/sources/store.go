@@ -30,14 +30,7 @@ func NewStore(root string) Store {
 }
 
 func (s Store) jsonFile() storage.File {
-	if s.file.Name == "" {
-		return storage.NewFile(s.file.Root.String(), channelDirectorySourcesFileName, ".channel_directory_sources-*.tmp", "channel directory source")
-	}
-	return s.file
-}
-
-func (s Store) path() string {
-	return s.jsonFile().Path()
+	return s.file.WithDefaults(channelDirectorySourcesFileName, ".channel_directory_sources-*.tmp", "channel directory source")
 }
 
 // Load reads the remembered-source ledger. Missing ledgers are not failures;
