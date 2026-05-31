@@ -2,7 +2,6 @@ package whisper
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -85,24 +84,7 @@ func benchmarkWhisperWASITinyEn(b *testing.B, ctx context.Context) {
 
 func benchmarkTinyEnModelPath(tb testing.TB, ctx context.Context) string {
 	tb.Helper()
-	if path := strings.TrimSpace(os.Getenv("GORMES_WASI_WHISPER_MODEL")); path != "" {
-		if err := verifyModelFile(path, TinyEnModelArtifact); err != nil {
-			tb.Fatalf("verify %s: %v", path, err)
-		}
-		return path
-	}
-
-	cacheDir := strings.TrimSpace(os.Getenv("GORMES_WASI_WHISPER_MODEL_CACHE"))
-	if cacheDir == "" {
-		userCache, err := os.UserCacheDir()
-		if err != nil {
-			tb.Fatalf("resolve user cache dir: %v", err)
-		}
-		cacheDir = filepath.Join(userCache, "gormes", "wasi-whisper")
-	}
-	path, err := EnsureModel(ctx, TinyEnModelArtifact, cacheDir, nil)
-	if err != nil {
+	return tinyEnModelPath(tb, ctx, func(tb testing.TB, _ string, err error) {
 		tb.Skipf("WASI Whisper tiny.en model unavailable: %v", err)
-	}
-	return path
+	})
 }

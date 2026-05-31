@@ -2,12 +2,13 @@ package audio
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/wavpcm"
 )
 
 const AudioPreprocessUnavailable = "audio_preprocess_unavailable"
@@ -87,59 +88,11 @@ func Preprocess(ctx context.Context, audioBytes []byte, mediaType string, opts P
 }
 
 func decodePCM16Mono16kWAV(raw []byte, label string) (PCM, error) {
-	if len(raw) < 12 || string(raw[0:4]) != "RIFF" || string(raw[8:12]) != "WAVE" {
-		return PCM{}, &PreprocessError{Code: AudioPreprocessUnavailable, Path: label, Err: errors.New("not a RIFF/WAVE file")}
+	pcm, err := wavpcm.DecodePCM16Mono16kWAV(raw)
+	if err != nil {
+		return PCM{}, &PreprocessError{Code: AudioPreprocessUnavailable, Path: label, Err: err}
 	}
-
-	var (
-		haveFormat    bool
-		audioFormat   uint16
-		numChannels   uint16
-		sampleRate    uint32
-		bitsPerSample uint16
-		data          []byte
-	)
-	for offset := 12; offset+8 <= len(raw); {
-		chunkID := string(raw[offset : offset+4])
-		chunkSize := int(binary.LittleEndian.Uint32(raw[offset+4 : offset+8]))
-		chunkStart := offset + 8
-		chunkEnd := chunkStart + chunkSize
-		if chunkSize < 0 || chunkEnd > len(raw) {
-			return PCM{}, &PreprocessError{Code: AudioPreprocessUnavailable, Path: label, Err: fmt.Errorf("truncated %s chunk", chunkID)}
-		}
-		switch chunkID {
-		case "fmt ":
-			if chunkSize < 16 {
-				return PCM{}, &PreprocessError{Code: AudioPreprocessUnavailable, Path: label, Err: errors.New("short fmt chunk")}
-			}
-			haveFormat = true
-			audioFormat = binary.LittleEndian.Uint16(raw[chunkStart : chunkStart+2])
-			numChannels = binary.LittleEndian.Uint16(raw[chunkStart+2 : chunkStart+4])
-			sampleRate = binary.LittleEndian.Uint32(raw[chunkStart+4 : chunkStart+8])
-			bitsPerSample = binary.LittleEndian.Uint16(raw[chunkStart+14 : chunkStart+16])
-		case "data":
-			data = raw[chunkStart:chunkEnd]
-		}
-		offset = chunkEnd
-		if offset%2 == 1 {
-			offset++
-		}
-	}
-	if !haveFormat || len(data) == 0 {
-		return PCM{}, &PreprocessError{Code: AudioPreprocessUnavailable, Path: label, Err: errors.New("missing fmt or data chunk")}
-	}
-	if audioFormat != 1 || numChannels != 1 || sampleRate != 16000 || bitsPerSample != 16 {
-		return PCM{}, &PreprocessError{Code: AudioPreprocessUnavailable, Path: label, Err: fmt.Errorf("want PCM16 mono 16000Hz, got format=%d channels=%d sample_rate=%d bits=%d", audioFormat, numChannels, sampleRate, bitsPerSample)}
-	}
-	if len(data)%2 != 0 {
-		return PCM{}, &PreprocessError{Code: AudioPreprocessUnavailable, Path: label, Err: errors.New("odd PCM byte length")}
-	}
-
-	samples := make([]int16, len(data)/2)
-	for i := range samples {
-		samples[i] = int16(binary.LittleEndian.Uint16(data[i*2 : i*2+2]))
-	}
-	return PCM{Samples: samples, SampleRate: int(sampleRate)}, nil
+	return PCM{Samples: pcm.Samples, SampleRate: pcm.SampleRate}, nil
 }
 
 func audioExtension(mediaType, fileName string) string {

@@ -58,26 +58,9 @@ func TestTranscriberTranscribesFixtureWAV(t *testing.T) {
 
 func testTinyEnModelPath(t *testing.T, ctx context.Context) string {
 	t.Helper()
-	if path := os.Getenv("GORMES_WASI_WHISPER_MODEL"); path != "" {
-		if err := verifyModelFile(path, TinyEnModelArtifact); err != nil {
-			t.Fatalf("verify %s: %v", path, err)
-		}
-		return path
-	}
-
-	cacheDir := os.Getenv("GORMES_WASI_WHISPER_MODEL_CACHE")
-	if cacheDir == "" {
-		userCache, err := os.UserCacheDir()
-		if err != nil {
-			t.Fatalf("resolve user cache dir: %v", err)
-		}
-		cacheDir = filepath.Join(userCache, "gormes", "wasi-whisper")
-	}
-	path, err := EnsureModel(ctx, TinyEnModelArtifact, cacheDir, nil)
-	if err != nil {
-		t.Fatalf("EnsureModel(%s): %v", cacheDir, err)
-	}
-	return path
+	return tinyEnModelPath(t, ctx, func(tb testing.TB, cacheDir string, err error) {
+		tb.Fatalf("EnsureModel(%s): %v", cacheDir, err)
+	})
 }
 
 func transcriberErrorCodeIs(err error, code string) bool {
