@@ -192,7 +192,7 @@ func (t *ReadFileTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		})
 	}
 	if t.duplicateWindow(rel, offset, limit, info) {
-		state, _ := t.fileStateRegistry().record(root, t.cfg.TaskID, cwd, rel, resolved)
+		state, _ := t.fileStateRegistry().Record(root, t.cfg.TaskID, cwd, rel, resolved)
 		status := FileReadResult{
 			Path:        rel,
 			DedupStatus: FileReadDedupStatusUnchanged,
@@ -208,7 +208,7 @@ func (t *ReadFileTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		return marshalReadFileStatus(rel, status, state)
 	}
 
-	state, _ := t.fileStateRegistry().record(root, t.cfg.TaskID, cwd, rel, resolved)
+	state, _ := t.fileStateRegistry().Record(root, t.cfg.TaskID, cwd, rel, resolved)
 	truncated := offset > 1 || endIdx < total
 	payload := map[string]any{
 		"path":             rel,
@@ -590,7 +590,7 @@ func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json
 
 func (t *WriteFileTool) executeResolvedWrite(ctx context.Context, resolved, rel, root, cwd, content string) (json.RawMessage, error) {
 	registry := fileTaskStateRegistry(t.cfg)
-	if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
+	if check := registry.Check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
 		return marshalToolPayload(fileStateErrorPayload(rel, check))
 	}
 	if isFileReadGuardStatusText([]byte(content)) {
@@ -609,7 +609,7 @@ func (t *WriteFileTool) executeResolvedWrite(ctx context.Context, resolved, rel,
 	if err := AtomicWrite(resolved, []byte(content)); err != nil {
 		return marshalToolPayload(map[string]any{"path": rel, "error": "write file: " + err.Error()})
 	}
-	state, _ := registry.record(root, t.cfg.TaskID, cwd, rel, resolved)
+	state, _ := registry.Record(root, t.cfg.TaskID, cwd, rel, resolved)
 	payload := map[string]any{
 		"path":          rel,
 		"bytes_written": len([]byte(content)),
@@ -694,7 +694,7 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 
 func (t *PatchTool) executeResolvedReplace(ctx context.Context, resolved, rel, root, cwd, oldString, newString string, replaceAll bool) (json.RawMessage, error) {
 	registry := fileTaskStateRegistry(t.cfg)
-	if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
+	if check := registry.Check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
 		return marshalToolPayload(fileStateErrorPayload(rel, check))
 	}
 	raw, err := fileTaskReadFile(resolved)
@@ -732,7 +732,7 @@ func (t *PatchTool) executeResolvedReplace(ctx context.Context, resolved, rel, r
 			"error": fmt.Sprintf("post-write verification failed for %s: did not persist intended content", rel),
 		})
 	}
-	state, _ := registry.record(root, t.cfg.TaskID, cwd, rel, resolved)
+	state, _ := registry.Record(root, t.cfg.TaskID, cwd, rel, resolved)
 	payload := map[string]any{
 		"path":         rel,
 		"replacements": replacements,
@@ -1328,9 +1328,9 @@ func (t *PatchTool) executeV4APatchLocked(ops []v4aPatchOperation) (json.RawMess
 	for _, action := range actions {
 		switch action.kind {
 		case v4aOperationAdd, v4aOperationUpdate:
-			_, _ = registry.record(action.root, t.cfg.TaskID, action.cwd, action.rel, action.abs)
+			_, _ = registry.Record(action.root, t.cfg.TaskID, action.cwd, action.rel, action.abs)
 		case v4aOperationMove:
-			_, _ = registry.record(action.newRoot, t.cfg.TaskID, action.newCWD, action.newRel, action.newAbs)
+			_, _ = registry.Record(action.newRoot, t.cfg.TaskID, action.newCWD, action.newRel, action.newAbs)
 		}
 	}
 	payload := map[string]any{
@@ -1406,7 +1406,7 @@ func (t *PatchTool) validateV4AOperation(op v4aPatchOperation) (v4aPatchAction, 
 		}
 		action.content = v4aAddContent(op)
 	case v4aOperationUpdate:
-		if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
+		if check := registry.Check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
 			return action, check, nil
 		}
 		raw, err := os.ReadFile(resolved)
@@ -1424,7 +1424,7 @@ func (t *PatchTool) validateV4AOperation(op v4aPatchOperation) (v4aPatchAction, 
 		action.preContent = &pre
 		action.content = updated
 	case v4aOperationDelete:
-		if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
+		if check := registry.Check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
 			return action, check, nil
 		}
 		info, err := os.Stat(resolved)
@@ -1438,7 +1438,7 @@ func (t *PatchTool) validateV4AOperation(op v4aPatchOperation) (v4aPatchAction, 
 		if strings.TrimSpace(op.newPath) == "" {
 			return action, nil, fmt.Errorf("move file %s: destination path is required", rel)
 		}
-		if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
+		if check := registry.Check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
 			return action, check, nil
 		}
 		info, err := os.Stat(resolved)

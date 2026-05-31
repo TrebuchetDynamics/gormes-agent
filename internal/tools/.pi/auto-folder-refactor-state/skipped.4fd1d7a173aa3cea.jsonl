@@ -10,3 +10,6 @@
 {"ts":"2026-05-31T02:46:40-06:00","candidate":"whisper/audio","reason":"no metric progress rollback","scope":"candidate","temporary":false}
 {"ts":"2026-05-31T02:48:59-06:00","candidate":"browser","reason":"no metric progress rollback","scope":"candidate","temporary":false}
 {"ts":"2026-05-31T02:52:16-06:00","candidate":"approval","reason":"no metric progress rollback","scope":"candidate","temporary":false}
+{"ts":"2026-05-31T02:55:40-06:00","candidate":"whisper","reason":"sub-candidates exhausted this run","scope":"parent","temporary":true}
+{"ts":"2026-05-31T02:58:15-06:00","candidate":"tts","reason":"no metric progress rollback","scope":"candidate","temporary":false}
+{"ts":"2026-05-31T03:01:43-06:00","candidate":"filesystem","reason":"no metric progress rollback","scope":"candidate","temporary":false}
