@@ -289,21 +289,10 @@ func resolveMCPServer(name string, raw any, lookupEnv func(string) (string, bool
 	}
 	command = strings.TrimSpace(command)
 	url = strings.TrimSpace(url)
-	hasCommand := command != ""
-	hasURL := url != ""
-	switch {
-	case hasCommand && hasURL:
-		reason := "server has both command and url; choose exactly one transport"
+	transport, err := resolveMCPTransport(command, url)
+	if err != nil {
+		reason := err.Error()
 		return MCPServerDefinition{}, invalidMCPStatus(baseStatus, MCPConfigStatusInvalidTransport, reason), &mcpConfigIssue{server: name, status: MCPConfigStatusInvalidTransport, message: reason}
-	case !hasCommand && !hasURL:
-		reason := "server requires command or url"
-		return MCPServerDefinition{}, invalidMCPStatus(baseStatus, MCPConfigStatusInvalidTransport, reason), &mcpConfigIssue{server: name, status: MCPConfigStatusInvalidTransport, message: reason}
-	}
-	if hasURL {
-		if err := validateMCPHTTPURL(url); err != nil {
-			reason := err.Error()
-			return MCPServerDefinition{}, invalidMCPStatus(baseStatus, MCPConfigStatusInvalidTransport, reason), &mcpConfigIssue{server: name, status: MCPConfigStatusInvalidTransport, message: reason}
-		}
 	}
 
 	args, err := mcpStringList(mcpValue(server, "args"), "args", lookupEnv)
@@ -331,10 +320,6 @@ func resolveMCPServer(name string, raw any, lookupEnv func(string) (string, bool
 		return MCPServerDefinition{}, invalidMCPStatus(baseStatus, MCPConfigStatusInvalidConfig, err.Error()), &mcpConfigIssue{server: name, status: MCPConfigStatusInvalidConfig, message: err.Error()}
 	}
 
-	transport := MCPTransportStdio
-	if hasURL {
-		transport = MCPTransportHTTP
-	}
 	def := MCPServerDefinition{
 		Name:           name,
 		Enabled:        enabled,
@@ -354,6 +339,24 @@ func resolveMCPServer(name string, raw any, lookupEnv func(string) (string, bool
 		status.Reason = "server disabled by config"
 	}
 	return def, status, nil
+}
+
+func resolveMCPTransport(command, rawURL string) (MCPTransport, error) {
+	hasCommand := command != ""
+	hasURL := rawURL != ""
+	switch {
+	case hasCommand && hasURL:
+		return "", fmt.Errorf("server has both command and url; choose exactly one transport")
+	case !hasCommand && !hasURL:
+		return "", fmt.Errorf("server requires command or url")
+	case hasURL:
+		if err := validateMCPHTTPURL(rawURL); err != nil {
+			return "", err
+		}
+		return MCPTransportHTTP, nil
+	default:
+		return MCPTransportStdio, nil
+	}
 }
 
 func validateMCPHTTPURL(raw string) error {

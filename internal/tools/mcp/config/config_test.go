@@ -252,6 +252,40 @@ func TestResolveMCPConfigRedactsHTTPURLCredentialsInStatus(t *testing.T) {
 	}
 }
 
+func TestResolveMCPTransportClassifiesExactlyOneTransport(t *testing.T) {
+	tests := []struct {
+		name          string
+		command       string
+		url           string
+		wantTransport MCPTransport
+		wantError     string
+	}{
+		{name: "stdio command", command: "npx", wantTransport: MCPTransportStdio},
+		{name: "http url", url: "https://mcp.example.test/mcp", wantTransport: MCPTransportHTTP},
+		{name: "both command and url", command: "npx", url: "https://mcp.example.test/mcp", wantError: "both command and url"},
+		{name: "neither command nor url", wantError: "requires command or url"},
+		{name: "invalid url", url: "ftp://mcp.example.test/mcp", wantError: "url scheme must be http or https"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := resolveMCPTransport(tc.command, tc.url)
+			if tc.wantError != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantError) {
+					t.Fatalf("resolveMCPTransport error = %v, want %q", err, tc.wantError)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("resolveMCPTransport returned error: %v", err)
+			}
+			if got != tc.wantTransport {
+				t.Fatalf("transport = %q, want %q", got, tc.wantTransport)
+			}
+		})
+	}
+}
+
 func TestResolveMCPConfigRejectsInvalidHTTPURLs(t *testing.T) {
 	tests := []struct {
 		name string
