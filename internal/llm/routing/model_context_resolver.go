@@ -3,6 +3,8 @@ package routing
 import (
 	"sort"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/routing/identity"
 )
 
 type ModelContextSource string
@@ -163,24 +165,11 @@ var defaultModelContextCaps = StaticModelContextCaps{
 }
 
 func normalizeModelContextProvider(provider string) string {
-	switch normalizeModelContextText(provider) {
-	case "codex", "openai-codex":
-		return "openai-codex"
-	case "copilot", "copilot-acp", "github", "github-copilot", "github-models":
-		return "copilot"
-	case "google", "google-ai-studio", "google-gemini":
-		return "gemini"
-	case "open-router", "openrouter-free", "or":
-		return "openrouter"
-	case "ollama_cloud", "ollama-cloud":
-		return "ollama-cloud"
-	default:
-		return normalizeModelContextText(provider)
-	}
+	return identity.Provider(provider)
 }
 
 func normalizeModelContextText(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
+	return identity.Text(value)
 }
 
 func NormalizeModelContextProvider(provider string) string {

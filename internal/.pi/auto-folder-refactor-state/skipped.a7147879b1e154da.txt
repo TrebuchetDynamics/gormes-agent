@@ -1,2 +1,4 @@
+gateway
+gateway/directory
 tools
 tools/goncho

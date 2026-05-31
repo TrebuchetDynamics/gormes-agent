@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/routing/identity"
 )
 
 type ProviderDefaultModelSource string
@@ -186,18 +188,5 @@ func readCodexCachedDefaultModel(codexHome string) string {
 }
 
 func normalizeProviderDefaultModelProvider(provider string) string {
-	switch strings.ToLower(strings.TrimSpace(provider)) {
-	case "codex", "openai-codex":
-		return "openai-codex"
-	case "copilot", "copilot-acp", "github", "github-copilot", "github-models":
-		return "copilot"
-	case "google", "google-ai-studio", "google-gemini":
-		return "gemini"
-	case "open-router", "openrouter-free", "or":
-		return "openrouter"
-	case "ollama_cloud", "ollama-cloud":
-		return "ollama-cloud"
-	default:
-		return strings.ToLower(strings.TrimSpace(provider))
-	}
+	return identity.Provider(provider)
 }
