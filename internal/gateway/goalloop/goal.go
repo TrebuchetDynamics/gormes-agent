@@ -51,21 +51,7 @@ func ParseJudgeResponse(raw string) JudgeVerdict {
 	if strings.TrimSpace(raw) == "" {
 		return JudgeVerdict{Verdict: JudgeVerdictContinue, Reason: "judge returned empty response"}
 	}
-	text := strings.TrimSpace(raw)
-	if strings.HasPrefix(text, "```") {
-		text = strings.Trim(text, "`")
-		if i := strings.IndexByte(text, '\n'); i >= 0 {
-			text = text[i+1:]
-		}
-		text = strings.TrimSpace(text)
-	}
-	if !strings.HasPrefix(text, "{") {
-		if start := strings.IndexByte(text, '{'); start >= 0 {
-			if end := strings.LastIndexByte(text, '}'); end >= start {
-				text = text[start : end+1]
-			}
-		}
-	}
+	text := judgeResponseJSONCandidate(raw)
 
 	var data struct {
 		Done   any    `json:"done"`
@@ -82,6 +68,34 @@ func ParseJudgeResponse(raw string) JudgeVerdict {
 		return JudgeVerdict{Verdict: JudgeVerdictDone, Reason: reason}
 	}
 	return JudgeVerdict{Verdict: JudgeVerdictContinue, Reason: reason}
+}
+
+func judgeResponseJSONCandidate(raw string) string {
+	text := strings.TrimSpace(raw)
+	if body, ok := fencedJudgeResponseBody(text); ok {
+		text = body
+	}
+	if start := strings.IndexByte(text, '{'); start >= 0 {
+		if end := strings.LastIndexByte(text, '}'); end >= start {
+			return strings.TrimSpace(text[start : end+1])
+		}
+	}
+	return text
+}
+
+func fencedJudgeResponseBody(text string) (string, bool) {
+	if !strings.HasPrefix(text, "```") {
+		return "", false
+	}
+	firstLineEnd := strings.IndexByte(text, '\n')
+	if firstLineEnd < 0 {
+		return "", false
+	}
+	body := text[firstLineEnd+1:]
+	if fence := strings.Index(body, "```"); fence >= 0 {
+		body = body[:fence]
+	}
+	return strings.TrimSpace(body), true
 }
 
 func judgeDone(value any) bool {

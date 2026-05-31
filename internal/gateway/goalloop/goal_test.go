@@ -41,6 +41,13 @@ func TestEvaluateJudgeFailOpen(t *testing.T) {
 	}
 }
 
+func TestParseJudgeResponseAcceptsFencedJSONWithTrailingText(t *testing.T) {
+	got := ParseJudgeResponse("```json\n{\"done\": true, \"reason\": \"all checks passed\"}\n```\nI can provide more detail if needed.")
+	if got.Verdict != JudgeVerdictDone || got.Reason != "all checks passed" {
+		t.Fatalf("ParseJudgeResponse fenced JSON with trailing text = %+v, want done/all checks passed", got)
+	}
+}
+
 func TestCommandArgs(t *testing.T) {
 	cases := map[string]string{
 		"":                 "",
