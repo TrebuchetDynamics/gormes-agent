@@ -729,6 +729,38 @@ func TestGatewayDiscoverUsageCostSummarizesSessionAndAggregateCosts(t *testing.T
 	}
 }
 
+func TestGatewayDiscoverUsageCostDeduplicatesSessionIDByNewestUsage(t *testing.T) {
+	now := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
+	result := SummarizeGatewayUsageCost(context.Background(), GatewayUsageCostRequest{
+		Now: func() time.Time { return now },
+		Sessions: []GatewayUsageSession{{
+			SessionID: " sess-dup ",
+			UpdatedAt: now.Add(-2 * time.Hour),
+			TokensIn:  100,
+			TokensOut: 10,
+		}, {
+			SessionID: "sess-dup",
+			UpdatedAt: now.Add(-time.Hour),
+			TokensIn:  200,
+			TokensOut: 20,
+		}},
+	})
+
+	if !result.OK {
+		t.Fatalf("OK = false; result = %+v", result)
+	}
+	if got := len(result.Sessions); got != 1 {
+		t.Fatalf("Sessions = %+v, want one deduplicated session row", result.Sessions)
+	}
+	row := result.Sessions[0]
+	if row.SessionID != "sess-dup" || row.TokensIn != 200 || row.TokensOut != 20 || row.TotalTokens != 220 {
+		t.Fatalf("row = %+v, want newest duplicate usage only", row)
+	}
+	if result.Totals.Sessions != 1 || result.Totals.TokensIn != 200 || result.Totals.TokensOut != 20 || result.Totals.TotalTokens != 220 {
+		t.Fatalf("Totals = %+v, want newest duplicate counted once", result.Totals)
+	}
+}
+
 func TestGatewayDiscoverUsageCostDoesNotDropRowsWhenTokenSumOverflowsInt(t *testing.T) {
 	maxInt := int(^uint(0) >> 1)
 	result := SummarizeGatewayUsageCost(context.Background(), GatewayUsageCostRequest{

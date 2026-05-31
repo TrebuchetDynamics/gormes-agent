@@ -1271,39 +1271,7 @@ func SummarizeGatewayUsageCost(ctx context.Context, req GatewayUsageCostRequest)
 		return gatewayUsageUnavailable(days, since, pricing, sanitizeGatewayError(err))
 	}
 
-	rows := make([]GatewayUsageCostSession, 0, len(sessions))
-	for _, session := range sessions {
-		session = normalizeGatewayUsageSession(session)
-		if session.SessionID == "" {
-			continue
-		}
-		if !session.UpdatedAt.IsZero() && session.UpdatedAt.Before(since) {
-			continue
-		}
-		total, hasUsage := gatewayUsageTokenTotal(session.TokensIn, session.TokensOut)
-		if !hasUsage {
-			continue
-		}
-		cost, priced := estimateGatewayUsageCost(session.TokensIn, session.TokensOut, pricing)
-		rows = append(rows, GatewayUsageCostSession{
-			SessionID:        session.SessionID,
-			Source:           session.Source,
-			ChatID:           session.ChatID,
-			Title:            session.Title,
-			UpdatedAt:        session.UpdatedAt,
-			TokensIn:         session.TokensIn,
-			TokensOut:        session.TokensOut,
-			TotalTokens:      total,
-			EstimatedCostUSD: cost,
-			Priced:           priced,
-		})
-	}
-	sort.Slice(rows, func(i, j int) bool {
-		if !rows[i].UpdatedAt.Equal(rows[j].UpdatedAt) {
-			return rows[i].UpdatedAt.After(rows[j].UpdatedAt)
-		}
-		return rows[i].SessionID < rows[j].SessionID
-	})
+	rows := buildGatewayUsageCostRows(sessions, since, pricing)
 	if len(rows) == 0 {
 		return gatewayUsageUnavailable(days, since, pricing, "no usage-bearing session metadata found")
 	}
@@ -1328,6 +1296,67 @@ func SummarizeGatewayUsageCost(ctx context.Context, req GatewayUsageCostRequest)
 
 func gatewayUsageSince(anchor time.Time, days int) time.Time {
 	return anchor.Add(-time.Duration(days) * 24 * time.Hour)
+}
+
+func buildGatewayUsageCostRows(sessions []GatewayUsageSession, since time.Time, pricing GatewayUsagePricing) []GatewayUsageCostSession {
+	bySessionID := make(map[string]GatewayUsageCostSession, len(sessions))
+	for _, session := range sessions {
+		row, ok := gatewayUsageCostRowCandidate(session, since, pricing)
+		if !ok {
+			continue
+		}
+		if current, exists := bySessionID[row.SessionID]; !exists || newerGatewayUsageCostRow(row, current) {
+			bySessionID[row.SessionID] = row
+		}
+	}
+	rows := make([]GatewayUsageCostSession, 0, len(bySessionID))
+	for _, row := range bySessionID {
+		rows = append(rows, row)
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if !rows[i].UpdatedAt.Equal(rows[j].UpdatedAt) {
+			return rows[i].UpdatedAt.After(rows[j].UpdatedAt)
+		}
+		return rows[i].SessionID < rows[j].SessionID
+	})
+	return rows
+}
+
+func gatewayUsageCostRowCandidate(session GatewayUsageSession, since time.Time, pricing GatewayUsagePricing) (GatewayUsageCostSession, bool) {
+	session = normalizeGatewayUsageSession(session)
+	if session.SessionID == "" {
+		return GatewayUsageCostSession{}, false
+	}
+	if !session.UpdatedAt.IsZero() && session.UpdatedAt.Before(since) {
+		return GatewayUsageCostSession{}, false
+	}
+	total, hasUsage := gatewayUsageTokenTotal(session.TokensIn, session.TokensOut)
+	if !hasUsage {
+		return GatewayUsageCostSession{}, false
+	}
+	cost, priced := estimateGatewayUsageCost(session.TokensIn, session.TokensOut, pricing)
+	return GatewayUsageCostSession{
+		SessionID:        session.SessionID,
+		Source:           session.Source,
+		ChatID:           session.ChatID,
+		Title:            session.Title,
+		UpdatedAt:        session.UpdatedAt,
+		TokensIn:         session.TokensIn,
+		TokensOut:        session.TokensOut,
+		TotalTokens:      total,
+		EstimatedCostUSD: cost,
+		Priced:           priced,
+	}, true
+}
+
+func newerGatewayUsageCostRow(candidate, current GatewayUsageCostSession) bool {
+	if candidate.UpdatedAt.IsZero() {
+		return false
+	}
+	if current.UpdatedAt.IsZero() {
+		return true
+	}
+	return candidate.UpdatedAt.After(current.UpdatedAt)
 }
 
 func normalizeGatewayUsagePricing(pricing GatewayUsagePricing) GatewayUsagePricing {
