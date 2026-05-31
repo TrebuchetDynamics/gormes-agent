@@ -1,17 +1,11 @@
 package setup
 
 import (
-	"os"
-
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal/setup/fileops"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal/setup/truecolor"
 )
 
-type TerminalSetupFileOps struct {
-	MkdirAll  func(path string, perm os.FileMode) error
-	ReadFile  func(path string) ([]byte, error)
-	WriteFile func(path string, data []byte, perm os.FileMode) error
-	CopyFile  func(src, dst string) error
-}
+type TerminalSetupFileOps = fileops.Ops
 
 type TerminalSetupOptions struct {
 	Env      map[string]string

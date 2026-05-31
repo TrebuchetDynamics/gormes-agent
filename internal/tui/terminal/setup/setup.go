@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal/envvars"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal/setup/fileops"
 )
 
 func ConfigureDetectedTerminalKeybindings(opts TerminalSetupOptions) TerminalSetupResult {
@@ -25,7 +26,7 @@ func ConfigureTerminalKeybindings(kind string, opts TerminalSetupOptions) Termin
 	if kind == "" {
 		return TerminalSetupResult{Evidence: "tui_terminal_setup_unsupported", Message: "No supported VS Code-family terminal detected."}
 	}
-	ops := opts.FileOps.withDefaults()
+	ops := fileops.WithDefaults(opts.FileOps)
 	platform := opts.Platform
 	if platform == "" {
 		platform = "linux"
@@ -83,7 +84,7 @@ func ConfigureTerminalKeybindings(kind string, opts TerminalSetupOptions) Termin
 		return TerminalSetupResult{Evidence: "tui_terminal_keybindings_write_failed", Message: "Failed to create terminal keybindings directory.", Path: path}
 	}
 	if existed {
-		if err := ops.CopyFile(path, backupPath(path)); err != nil {
+		if err := ops.CopyFile(path, fileops.BackupPath(path)); err != nil {
 			return TerminalSetupResult{Evidence: "tui_terminal_keybindings_backup_failed", Message: "Failed to back up terminal keybindings.", Path: path}
 		}
 	}
@@ -107,7 +108,7 @@ func ShouldPromptForTerminalSetup(opts TerminalSetupOptions) bool {
 	if kind == "" {
 		return false
 	}
-	ops := opts.FileOps.withDefaults()
+	ops := fileops.WithDefaults(opts.FileOps)
 	platform := opts.Platform
 	if platform == "" {
 		platform = "darwin"

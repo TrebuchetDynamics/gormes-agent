@@ -49,19 +49,3 @@ func defaultCompleteKeybindingsJSON(t *testing.T) string {
 	}
 	return fake.writes[0]
 }
-
-func sameStringSet(got []string, want []string) bool {
-	if len(got) != len(want) {
-		return false
-	}
-	seen := make(map[string]bool, len(got))
-	for _, item := range got {
-		seen[item] = true
-	}
-	for _, item := range want {
-		if !seen[item] {
-			return false
-		}
-	}
-	return true
-}
