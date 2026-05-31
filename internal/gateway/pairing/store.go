@@ -320,7 +320,7 @@ func (s *PairingStore) ApprovePairingCode(ctx context.Context, platformName, cod
 		return PairingApprovalResult{}, err
 	}
 	platformName = strings.TrimSpace(platformName)
-	code = strings.ToUpper(strings.TrimSpace(code))
+	code = normalizePairingCode(code)
 	if platformName == "" {
 		return PairingApprovalResult{}, fmt.Errorf("approve pairing code: platform is required")
 	}
@@ -389,7 +389,7 @@ func (s *PairingStore) RecordPendingPairing(ctx context.Context, record PairingP
 		return err
 	}
 	record.Platform = strings.TrimSpace(record.Platform)
-	record.Code = strings.TrimSpace(record.Code)
+	record.Code = normalizePairingCode(record.Code)
 	record.UserID = strings.TrimSpace(record.UserID)
 	if record.Platform == "" || record.Code == "" || record.UserID == "" {
 		return fmt.Errorf("record pending pairing: platform, code, and user_id are required")
@@ -891,6 +891,10 @@ type pairingEvidenceFileRecord struct {
 
 func pairingRateLimitKey(platformName, userID string) string {
 	return platformName + ":" + userID
+}
+
+func normalizePairingCode(code string) string {
+	return strings.ToUpper(strings.TrimSpace(code))
 }
 
 func generatePairingCode() (string, error) {

@@ -68,6 +68,33 @@ func TestPairingApproval_GeneratesHermesCompatibleCodesAndApprovesValidCode(t *t
 	}
 }
 
+func TestPairingApproval_ApprovesCallerSuppliedPendingCodesCaseInsensitively(t *testing.T) {
+	store := newPairingApprovalTestStore(t)
+	now := time.Date(2026, 4, 25, 21, 30, 0, 0, time.UTC)
+	store.now = func() time.Time { return now }
+
+	if err := store.RecordPendingPairing(context.Background(), PairingPendingRecord{
+		Platform:  "telegram",
+		Code:      "  abc123xy  ",
+		UserID:    "ada",
+		UserName:  "Ada",
+		CreatedAt: now,
+	}); err != nil {
+		t.Fatalf("RecordPendingPairing: %v", err)
+	}
+
+	approved, err := store.ApprovePairingCode(context.Background(), "telegram", "abc123xy")
+	if err != nil {
+		t.Fatalf("ApprovePairingCode: %v", err)
+	}
+	if approved.Status != PairingApprovalApproved {
+		t.Fatalf("approval status = %q, want %q", approved.Status, PairingApprovalApproved)
+	}
+	if approved.UserID != "ada" || approved.UserName != "Ada" {
+		t.Fatalf("approved identity = %#v, want ada/Ada", approved)
+	}
+}
+
 func TestPairingApproval_EnforcesPendingLimitAndExpiry(t *testing.T) {
 	store := newPairingApprovalTestStore(t)
 	now := time.Date(2026, 4, 25, 22, 0, 0, 0, time.UTC)
