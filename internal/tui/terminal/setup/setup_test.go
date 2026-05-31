@@ -1,4 +1,4 @@
-package terminal
+package setup
 
 import (
 	"encoding/json"
