@@ -1,6 +1,8 @@
-package events
+package dispatch
 
 import (
+	eventbus "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/events/bus"
+
 	"encoding/json"
 	"sync/atomic"
 	"testing"
@@ -8,11 +10,11 @@ import (
 )
 
 func TestEventDispatcher_PublishMessageReceived(t *testing.T) {
-	bus := NewInProcessEventBus()
+	bus := eventbus.NewInProcessEventBus()
 	defer bus.Close()
 
 	var received atomic.Int32
-	bus.Subscribe(TopicMessageReceived, func(e Event) {
+	bus.Subscribe(TopicMessageReceived, func(e eventbus.Event) {
 		received.Add(1)
 	})
 
@@ -29,11 +31,11 @@ func TestEventDispatcher_PublishMessageReceived(t *testing.T) {
 }
 
 func TestEventDispatcher_MessageEventPayloadRoundTrip(t *testing.T) {
-	bus := NewInProcessEventBus()
+	bus := eventbus.NewInProcessEventBus()
 	defer bus.Close()
 
-	delivered := make(chan Event, 1)
-	bus.Subscribe(TopicMessageReceived, func(e Event) {
+	delivered := make(chan eventbus.Event, 1)
+	bus.Subscribe(TopicMessageReceived, func(e eventbus.Event) {
 		delivered <- e
 	})
 
@@ -74,11 +76,11 @@ func TestEventDispatcher_MessageEventPayloadRoundTrip(t *testing.T) {
 }
 
 func TestEventDispatcher_MessageEventPayloadRoundTripThreadProvenance(t *testing.T) {
-	bus := NewInProcessEventBus()
+	bus := eventbus.NewInProcessEventBus()
 	defer bus.Close()
 
-	delivered := make(chan Event, 1)
-	bus.Subscribe(TopicMessageReceived, func(e Event) {
+	delivered := make(chan eventbus.Event, 1)
+	bus.Subscribe(TopicMessageReceived, func(e eventbus.Event) {
 		delivered <- e
 	})
 
@@ -118,11 +120,11 @@ func TestEventDispatcher_MessageEventPayloadRoundTripThreadProvenance(t *testing
 }
 
 func TestEventDispatcher_PublishMessageSent(t *testing.T) {
-	bus := NewInProcessEventBus()
+	bus := eventbus.NewInProcessEventBus()
 	defer bus.Close()
 
 	var received atomic.Int32
-	bus.Subscribe(TopicMessageSent, func(e Event) {
+	bus.Subscribe(TopicMessageSent, func(e eventbus.Event) {
 		received.Add(1)
 	})
 
@@ -136,12 +138,12 @@ func TestEventDispatcher_PublishMessageSent(t *testing.T) {
 }
 
 func TestEventDispatcher_SessionLifecycle(t *testing.T) {
-	bus := NewInProcessEventBus()
+	bus := eventbus.NewInProcessEventBus()
 	defer bus.Close()
 
 	var started, ended atomic.Int32
-	bus.Subscribe(TopicSessionStarted, func(e Event) { started.Add(1) })
-	bus.Subscribe(TopicSessionEnded, func(e Event) { ended.Add(1) })
+	bus.Subscribe(TopicSessionStarted, func(e eventbus.Event) { started.Add(1) })
+	bus.Subscribe(TopicSessionEnded, func(e eventbus.Event) { ended.Add(1) })
 
 	disp := NewEventDispatcher(bus)
 	disp.PublishSessionStarted("slack", "trace-3", map[string]string{"user": "alice"})
@@ -154,13 +156,13 @@ func TestEventDispatcher_SessionLifecycle(t *testing.T) {
 }
 
 func TestEventDispatcher_SubscribeMessages(t *testing.T) {
-	bus := NewInProcessEventBus()
+	bus := eventbus.NewInProcessEventBus()
 	defer bus.Close()
 
 	disp := NewEventDispatcher(bus)
 
 	var count atomic.Int32
-	unsub := disp.SubscribeMessages(func(e Event) {
+	unsub := disp.SubscribeMessages(func(e eventbus.Event) {
 		count.Add(1)
 	})
 
