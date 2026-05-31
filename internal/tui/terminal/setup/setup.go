@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal/envvars"
 )
 
 func ConfigureDetectedTerminalKeybindings(opts TerminalSetupOptions) TerminalSetupResult {
-	if isRemoteTerminal(opts.Env) {
+	if envvars.IsRemote(opts.Env) {
 		return TerminalSetupResult{
 			Evidence: "tui_terminal_setup_remote_refused",
 			Message:  "Configure terminal keybindings on the local machine, not inside an SSH session.",
@@ -98,7 +100,7 @@ func ConfigureTerminalKeybindings(kind string, opts TerminalSetupOptions) Termin
 }
 
 func ShouldPromptForTerminalSetup(opts TerminalSetupOptions) bool {
-	if isRemoteTerminal(opts.Env) {
+	if envvars.IsRemote(opts.Env) {
 		return false
 	}
 	kind := DetectVSCodeLikeTerminal(opts.Env)
