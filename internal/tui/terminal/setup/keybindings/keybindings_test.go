@@ -20,6 +20,23 @@ func TestStateClassifiesEquivalentConflictAndMissing(t *testing.T) {
 	}
 }
 
+func TestAnalyzeTerminalKeybindingsReportsMissingCompleteAndConflict(t *testing.T) {
+	missing := AnalyzeTerminalKeybindings(nil, "linux")
+	if missing.Complete() || len(missing.Missing) == 0 || missing.ConflictKey != "" {
+		t.Fatalf("AnalyzeTerminalKeybindings(missing) = %+v, want missing entries and no conflict", missing)
+	}
+
+	complete := AnalyzeTerminalKeybindings(DefaultTerminalKeybindings("linux"), "linux")
+	if !complete.Complete() {
+		t.Fatalf("AnalyzeTerminalKeybindings(complete) = %+v, want complete", complete)
+	}
+
+	conflict := AnalyzeTerminalKeybindings([]map[string]any{{"key": "cmd+z", "command": "workbench.action.terminal.undo", "when": "terminalFocus"}}, "linux")
+	if conflict.ConflictKey != "cmd+z" {
+		t.Fatalf("AnalyzeTerminalKeybindings(conflict) = %+v, want cmd+z conflict", conflict)
+	}
+}
+
 func TestDefaultTerminalKeybindingsAddsDarwinCopyBindingOnly(t *testing.T) {
 	if !hasKey(DefaultTerminalKeybindings("darwin"), "cmd+c") {
 		t.Fatal("DefaultTerminalKeybindings(darwin) missing cmd+c")

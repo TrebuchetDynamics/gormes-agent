@@ -59,24 +59,15 @@ func ConfigureTerminalKeybindings(kind string, opts TerminalSetupOptions) Termin
 		}
 	}
 
-	desired := defaultTerminalKeybindings(platform)
-	var toAdd []map[string]any
-	for _, want := range desired {
-		state, conflictKey := keybindingState(bindings, want)
-		switch state {
-		case keybindingEquivalent:
-			continue
-		case keybindingConflict:
-			return TerminalSetupResult{
-				Evidence: "tui_terminal_keybinding_conflict",
-				Message:  fmt.Sprintf("Keybinding conflict for %s.", conflictKey),
-				Path:     path,
-			}
-		default:
-			toAdd = append(toAdd, want)
+	analysis := analyzeTerminalKeybindings(bindings, platform)
+	if analysis.ConflictKey != "" {
+		return TerminalSetupResult{
+			Evidence: "tui_terminal_keybinding_conflict",
+			Message:  fmt.Sprintf("Keybinding conflict for %s.", analysis.ConflictKey),
+			Path:     path,
 		}
 	}
-	if len(toAdd) == 0 {
+	if len(analysis.Missing) == 0 {
 		return TerminalSetupResult{Success: true, Path: path}
 	}
 
@@ -88,7 +79,7 @@ func ConfigureTerminalKeybindings(kind string, opts TerminalSetupOptions) Termin
 			return TerminalSetupResult{Evidence: "tui_terminal_keybindings_backup_failed", Message: "Failed to back up terminal keybindings.", Path: path}
 		}
 	}
-	bindings = append(bindings, toAdd...)
+	bindings = append(bindings, analysis.Missing...)
 	rendered, err := json.MarshalIndent(bindings, "", "  ")
 	if err != nil {
 		return TerminalSetupResult{Evidence: "tui_terminal_keybindings_write_failed", Message: "Failed to render terminal keybindings.", Path: path}
@@ -122,11 +113,5 @@ func ShouldPromptForTerminalSetup(opts TerminalSetupOptions) bool {
 	if err != nil {
 		return true
 	}
-	for _, want := range defaultTerminalKeybindings(platform) {
-		state, _ := keybindingState(bindings, want)
-		if state != keybindingEquivalent {
-			return true
-		}
-	}
-	return false
+	return !analyzeTerminalKeybindings(bindings, platform).Complete()
 }

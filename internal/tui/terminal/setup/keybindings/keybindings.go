@@ -13,6 +13,32 @@ const (
 	Conflict
 )
 
+type TerminalAnalysis struct {
+	Missing     []map[string]any
+	ConflictKey string
+}
+
+func (a TerminalAnalysis) Complete() bool {
+	return len(a.Missing) == 0 && a.ConflictKey == ""
+}
+
+func AnalyzeTerminalKeybindings(existing []map[string]any, platform string) TerminalAnalysis {
+	var analysis TerminalAnalysis
+	for _, desired := range DefaultTerminalKeybindings(platform) {
+		state, conflictKey := State(existing, desired)
+		switch state {
+		case Equivalent:
+			continue
+		case Conflict:
+			analysis.ConflictKey = conflictKey
+			return analysis
+		default:
+			analysis.Missing = append(analysis.Missing, desired)
+		}
+	}
+	return analysis
+}
+
 func State(existing []map[string]any, desired map[string]any) (MatchState, string) {
 	desiredKey := stringField(desired, "key")
 	for _, current := range existing {
