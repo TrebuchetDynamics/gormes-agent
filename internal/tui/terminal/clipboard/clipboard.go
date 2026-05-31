@@ -1,16 +1,14 @@
 package clipboard
 
 import (
-	"encoding/base64"
-	"strings"
-	"unicode/utf8"
-
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal/cliptext"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal/envvars"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal/osc52"
 )
 
 const clipboardMaxBuffer = 4 * 1024 * 1024
 
-const OSC52ClipboardQuery = "\x1b]52;c;?\x07"
+const OSC52ClipboardQuery = osc52.ClipboardQuery
 
 // ClipboardCommandOptions records the process options Hermes uses for
 // clipboard helper commands. Tests inspect it through injected runners; the
@@ -34,12 +32,7 @@ type ClipboardReadRequest struct {
 	Run      ClipboardRunFunc
 }
 
-type ClipboardTextResult struct {
-	Text     string
-	OK       bool
-	Evidence string
-	Attempts []string
-}
+type ClipboardTextResult = cliptext.Result
 
 type ClipboardStartFunc func(name string, args []string, opts ClipboardCommandOptions, input string) error
 
@@ -54,13 +47,9 @@ type ClipboardWriteResult struct {
 	Evidence string
 }
 
-type OSC52Response struct {
-	Code int
-	Type string
-	Data string
-}
+type OSC52Response = osc52.Response
 
-type OSC52SendFunc func(query string) (OSC52Response, error)
+type OSC52SendFunc = osc52.SendFunc
 
 type clipboardBackend struct {
 	name string
@@ -125,21 +114,7 @@ func clipboardReadOptions() ClipboardCommandOptions {
 
 // IsUsableClipboardText rejects empty or binary-looking clipboard payloads.
 func IsUsableClipboardText(text string) bool {
-	if strings.TrimSpace(text) == "" || !utf8.ValidString(text) {
-		return false
-	}
-	for _, r := range text {
-		switch r {
-		case '\t', '\n', '\r':
-			continue
-		case '\uFFFD':
-			return false
-		}
-		if r < 0x20 {
-			return false
-		}
-	}
-	return true
+	return cliptext.IsUsable(text)
 }
 
 func WriteClipboardText(req ClipboardWriteRequest) ClipboardWriteResult {
@@ -160,45 +135,13 @@ func WriteClipboardText(req ClipboardWriteRequest) ClipboardWriteResult {
 }
 
 func BuildOSC52ClipboardQuery(env map[string]string) string {
-	if envvars.Value(env, envvars.TMUX) == "" {
-		return OSC52ClipboardQuery
-	}
-	escaped := strings.ReplaceAll(OSC52ClipboardQuery, "\x1b", "\x1b\x1b")
-	return "\x1bPtmux;" + escaped + "\x1b\\"
+	return osc52.BuildClipboardQuery(env)
 }
 
 func ParseOSC52ClipboardData(data string) (string, bool) {
-	_, encoded, ok := strings.Cut(data, ";")
-	if !ok || encoded == "" || encoded == "?" {
-		return "", false
-	}
-	decoded, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil {
-		return "", false
-	}
-	text := string(decoded)
-	if !IsUsableClipboardText(text) {
-		return "", false
-	}
-	return text, true
+	return osc52.ParseClipboardData(data)
 }
 
 func ReadOSC52Clipboard(env map[string]string, send OSC52SendFunc, flush func() error) ClipboardTextResult {
-	if send == nil {
-		return ClipboardTextResult{Evidence: "tui_terminal_osc52_unavailable"}
-	}
-	if flush != nil {
-		if err := flush(); err != nil {
-			return ClipboardTextResult{Evidence: "tui_terminal_osc52_unavailable"}
-		}
-	}
-	response, err := send(BuildOSC52ClipboardQuery(env))
-	if err != nil || response.Code != 52 || response.Type != "osc" {
-		return ClipboardTextResult{Evidence: "tui_terminal_osc52_unavailable"}
-	}
-	text, ok := ParseOSC52ClipboardData(response.Data)
-	if !ok {
-		return ClipboardTextResult{Evidence: "tui_terminal_osc52_unavailable"}
-	}
-	return ClipboardTextResult{Text: text, OK: true}
+	return osc52.ReadClipboard(env, send, flush)
 }
