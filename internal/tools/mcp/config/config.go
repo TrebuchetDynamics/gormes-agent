@@ -855,7 +855,11 @@ func secondsDuration(seconds float64, field string) (time.Duration, error) {
 	if seconds > maxMCPDurationSeconds() {
 		return 0, fmt.Errorf("%s is too large", field)
 	}
-	return time.Duration(seconds * float64(time.Second)), nil
+	duration := time.Duration(seconds * float64(time.Second))
+	if duration <= 0 {
+		return 0, fmt.Errorf("%s must be at least 1ns", field)
+	}
+	return duration, nil
 }
 
 func maxMCPDurationSeconds() float64 {
