@@ -26,29 +26,4 @@ func StickerFallbackDescription(emoji string) string {
 
 func FirstNonEmpty(values ...string) string { return channelutil.FirstNonEmpty(values...) }
 
-func SafeToken(s string) string {
-	s = strings.TrimSpace(s)
-	var out strings.Builder
-	for _, r := range s {
-		switch {
-		case r >= 'a' && r <= 'z':
-			out.WriteRune(r)
-		case r >= 'A' && r <= 'Z':
-			out.WriteRune(r)
-		case r >= '0' && r <= '9':
-			out.WriteRune(r)
-		case r == '-' || r == '_' || r == '.':
-			out.WriteRune(r)
-		default:
-			out.WriteByte('_')
-		}
-	}
-	cleaned := strings.Trim(out.String(), "._-")
-	if cleaned == "" {
-		return "telegram"
-	}
-	if len(cleaned) > 64 {
-		return cleaned[:64]
-	}
-	return cleaned
-}
+func SafeToken(s string) string { return channelutil.SafeTokenDefault(s, "telegram") }

@@ -8,31 +8,14 @@ import (
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 )
 
 const (
 	MaxDocumentBytes       int64 = 20 * 1024 * 1024
 	InlineTextDocumentSize int64 = 100 * 1024
 )
-
-var supportedDocumentExtensions = map[string]string{
-	".cfg":  "text/plain",
-	".csv":  "text/csv",
-	".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-	".ini":  "text/plain",
-	".json": "application/json",
-	".log":  "text/plain",
-	".md":   "text/markdown",
-	".pdf":  "application/pdf",
-	".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-	".toml": "application/toml",
-	".txt":  "text/plain",
-	".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-	".xml":  "application/xml",
-	".yaml": "application/yaml",
-	".yml":  "application/yaml",
-	".zip":  "application/zip",
-}
 
 var supportedVideoExtensions = map[string]string{
 	".m4v":  "video/mp4",
@@ -41,25 +24,14 @@ var supportedVideoExtensions = map[string]string{
 	".webm": "video/webm",
 }
 
-var mimeExtensionFallbacks = map[string]string{
-	"application/json":   ".json",
-	"application/pdf":    ".pdf",
-	"application/toml":   ".toml",
-	"application/xml":    ".xml",
-	"application/yaml":   ".yaml",
-	"application/zip":    ".zip",
-	"text/csv":           ".csv",
-	"text/markdown":      ".md",
-	"text/plain":         ".txt",
-	"video/mp4":          ".mp4",
-	"video/quicktime":    ".mov",
-	"video/webm":         ".webm",
-	"x-application/yaml": ".yaml",
+var videoMIMEExtensionFallbacks = map[string]string{
+	"video/mp4":       ".mp4",
+	"video/quicktime": ".mov",
+	"video/webm":      ".webm",
 }
 
 func DocumentMediaTypeForExtension(ext string) (string, bool) {
-	mediaType, ok := supportedDocumentExtensions[strings.ToLower(strings.TrimSpace(ext))]
-	return mediaType, ok
+	return channelutil.DocumentMediaTypeForExtension(ext)
 }
 
 func VideoMediaTypeForExtension(ext string) (string, bool) {
@@ -67,28 +39,23 @@ func VideoMediaTypeForExtension(ext string) (string, bool) {
 	return mediaType, ok
 }
 
-func CleanMediaType(mediaType string) string {
-	if mediaType = strings.TrimSpace(mediaType); mediaType == "" {
-		return ""
-	}
-	if semi := strings.Index(mediaType, ";"); semi >= 0 {
-		mediaType = mediaType[:semi]
-	}
-	return strings.ToLower(strings.TrimSpace(mediaType))
-}
+func CleanMediaType(mediaType string) string { return channelutil.CleanMediaType(mediaType) }
 
 func InferExtension(fileName, mediaType string) string {
 	if ext := strings.ToLower(filepath.Ext(strings.TrimSpace(fileName))); ext != "" {
 		return ext
 	}
 	mediaType = CleanMediaType(mediaType)
-	if ext := mimeExtensionFallbacks[mediaType]; ext != "" {
+	if ext := channelutil.MIMEExtensionFallback(mediaType); ext != "" {
+		return ext
+	}
+	if ext := videoMIMEExtensionFallbacks[mediaType]; ext != "" {
 		return ext
 	}
 	extensions, _ := mime.ExtensionsByType(mediaType)
 	for _, ext := range extensions {
 		ext = strings.ToLower(ext)
-		if _, ok := supportedDocumentExtensions[ext]; ok {
+		if _, ok := channelutil.DocumentMediaTypeForExtension(ext); ok {
 			return ext
 		}
 		if _, ok := supportedVideoExtensions[ext]; ok {
@@ -110,36 +77,7 @@ func DisplayFileName(fileName, ext, fallbackBase string) string {
 	return fallbackBase + ext
 }
 
-func SafeFileName(fileName string) string {
-	fileName = filepath.Base(strings.TrimSpace(fileName))
-	var out strings.Builder
-	for _, r := range fileName {
-		switch {
-		case r == 0 || r < 32 || r == 127:
-			out.WriteByte('_')
-		case r == '/' || r == '\\':
-			out.WriteByte('_')
-		default:
-			out.WriteRune(r)
-		}
-	}
-	cleaned := strings.Trim(out.String(), " .")
-	if cleaned == "" || cleaned == "." || cleaned == ".." {
-		return ""
-	}
-	if len(cleaned) <= 160 {
-		return cleaned
-	}
-	ext := filepath.Ext(cleaned)
-	stem := strings.TrimSuffix(cleaned, ext)
-	if len(ext) > 32 {
-		ext = ""
-	}
-	if len(stem) > 128 {
-		stem = stem[:128]
-	}
-	return stem + ext
-}
+func SafeFileName(fileName string) string { return channelutil.SafeFileName(fileName) }
 
 func ShouldInlineTextDocument(ext string, size int64) bool {
 	if size <= 0 || size > InlineTextDocumentSize {
@@ -203,10 +141,7 @@ func CachedAttachmentMarker(kind, fileName, mediaType string, size int64) string
 }
 
 func SupportedTypesList() string {
-	extensions := make([]string, 0, len(supportedDocumentExtensions)+len(supportedVideoExtensions))
-	for ext := range supportedDocumentExtensions {
-		extensions = append(extensions, ext)
-	}
+	extensions := channelutil.DocumentExtensions()
 	for ext := range supportedVideoExtensions {
 		extensions = append(extensions, ext)
 	}
@@ -239,33 +174,10 @@ func PhotoScore(photo tgbotapi.PhotoSize) int {
 }
 
 func PhotoExtension(filePath string) string {
-	switch strings.ToLower(filepath.Ext(filePath)) {
-	case ".gif":
-		return ".gif"
-	case ".jpeg":
-		return ".jpeg"
-	case ".jpg":
-		return ".jpg"
-	case ".png":
-		return ".png"
-	case ".webp":
-		return ".webp"
-	default:
-		return ".jpg"
+	if ext := strings.ToLower(filepath.Ext(filePath)); channelutil.ImageExtensionSupported(ext) {
+		return ext
 	}
+	return ".jpg"
 }
 
-func PhotoMediaType(ext string) string {
-	switch strings.ToLower(ext) {
-	case ".gif":
-		return "image/gif"
-	case ".jpeg", ".jpg":
-		return "image/jpeg"
-	case ".png":
-		return "image/png"
-	case ".webp":
-		return "image/webp"
-	default:
-		return "image/jpeg"
-	}
-}
+func PhotoMediaType(ext string) string { return channelutil.ImageMediaTypeForExtension(ext) }

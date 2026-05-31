@@ -4,6 +4,7 @@
 package channelutil
 
 import (
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -215,6 +216,176 @@ func ParseBoolDefault(raw string, def bool) bool {
 	default:
 		return def
 	}
+}
+
+var commonDocumentMediaTypes = map[string]string{
+	".cfg":  "text/plain",
+	".csv":  "text/csv",
+	".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	".ini":  "text/plain",
+	".json": "application/json",
+	".log":  "text/plain",
+	".md":   "text/markdown",
+	".pdf":  "application/pdf",
+	".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+	".toml": "application/toml",
+	".txt":  "text/plain",
+	".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	".xml":  "application/xml",
+	".yaml": "application/yaml",
+	".yml":  "application/yaml",
+	".zip":  "application/zip",
+}
+
+var commonMIMEExtensionFallbacks = map[string]string{
+	"application/json":   ".json",
+	"application/pdf":    ".pdf",
+	"application/toml":   ".toml",
+	"application/xml":    ".xml",
+	"application/yaml":   ".yaml",
+	"application/zip":    ".zip",
+	"text/csv":           ".csv",
+	"text/markdown":      ".md",
+	"text/plain":         ".txt",
+	"x-application/yaml": ".yaml",
+}
+
+// DocumentMediaTypeForExtension returns the shared channel document media type
+// for a normalized extension set used by Telegram and Discord attachments.
+func DocumentMediaTypeForExtension(ext string) (string, bool) {
+	mediaType, ok := commonDocumentMediaTypes[strings.ToLower(strings.TrimSpace(ext))]
+	return mediaType, ok
+}
+
+// DocumentExtensions returns the sorted shared channel document extensions.
+func DocumentExtensions() []string {
+	extensions := make([]string, 0, len(commonDocumentMediaTypes))
+	for ext := range commonDocumentMediaTypes {
+		extensions = append(extensions, ext)
+	}
+	sort.Strings(extensions)
+	return extensions
+}
+
+// MIMEExtensionFallback returns the shared extension fallback for mediaType.
+func MIMEExtensionFallback(mediaType string) string {
+	return commonMIMEExtensionFallbacks[CleanMediaType(mediaType)]
+}
+
+// CleanMediaType strips MIME parameters and normalizes a media type.
+func CleanMediaType(mediaType string) string {
+	if mediaType = strings.TrimSpace(mediaType); mediaType == "" {
+		return ""
+	}
+	if semi := strings.Index(mediaType, ";"); semi >= 0 {
+		mediaType = mediaType[:semi]
+	}
+	return strings.ToLower(strings.TrimSpace(mediaType))
+}
+
+// ImageExtensionForMediaType returns the preferred image file extension for a
+// normalized media type, defaulting to .jpg for unknown image payloads.
+func ImageExtensionForMediaType(mediaType string) string {
+	switch CleanMediaType(mediaType) {
+	case "image/gif":
+		return ".gif"
+	case "image/jpeg":
+		return ".jpg"
+	case "image/png":
+		return ".png"
+	case "image/webp":
+		return ".webp"
+	default:
+		return ".jpg"
+	}
+}
+
+// ImageMediaTypeForExtension returns the preferred media type for supported
+// channel image extensions, defaulting to image/jpeg.
+func ImageMediaTypeForExtension(ext string) string {
+	switch strings.ToLower(strings.TrimSpace(ext)) {
+	case ".gif":
+		return "image/gif"
+	case ".jpeg", ".jpg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	case ".webp":
+		return "image/webp"
+	default:
+		return "image/jpeg"
+	}
+}
+
+// ImageExtensionSupported reports whether ext is a supported channel image
+// extension.
+func ImageExtensionSupported(ext string) bool {
+	switch strings.ToLower(strings.TrimSpace(ext)) {
+	case ".gif", ".jpeg", ".jpg", ".png", ".webp":
+		return true
+	default:
+		return false
+	}
+}
+
+// SafeFileName returns a bounded basename safe for local cache paths and
+// evidence text.
+func SafeFileName(fileName string) string {
+	fileName = filepath.Base(strings.TrimSpace(fileName))
+	var out strings.Builder
+	for _, r := range fileName {
+		switch {
+		case r == 0 || r < 32 || r == 127 || r == '/' || r == '\\':
+			out.WriteByte('_')
+		default:
+			out.WriteRune(r)
+		}
+	}
+	cleaned := strings.Trim(out.String(), " .")
+	if cleaned == "" || cleaned == "." || cleaned == ".." {
+		return ""
+	}
+	if len(cleaned) <= 160 {
+		return cleaned
+	}
+	ext := filepath.Ext(cleaned)
+	stem := strings.TrimSuffix(cleaned, ext)
+	if len(ext) > 32 {
+		ext = ""
+	}
+	if len(stem) > 128 {
+		stem = stem[:128]
+	}
+	return stem + ext
+}
+
+// SafeTokenDefault returns a bounded token safe for local cache directory and
+// generated file names, using fallback when all characters are removed.
+func SafeTokenDefault(s, fallback string) string {
+	s = strings.TrimSpace(s)
+	var out strings.Builder
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z':
+			out.WriteRune(r)
+		case r >= 'A' && r <= 'Z':
+			out.WriteRune(r)
+		case r >= '0' && r <= '9':
+			out.WriteRune(r)
+		case r == '-' || r == '_' || r == '.':
+			out.WriteRune(r)
+		default:
+			out.WriteByte('_')
+		}
+	}
+	cleaned := strings.Trim(out.String(), "._-")
+	if cleaned == "" {
+		return fallback
+	}
+	if len(cleaned) > 64 {
+		return cleaned[:64]
+	}
+	return cleaned
 }
 
 // FormatToolTrace joins SoulEntry texts and formats them as a tool trace block.

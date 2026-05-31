@@ -9,42 +9,13 @@ import (
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
 )
 
 const inlineTextDocumentBytes int64 = 100 * 1024
 
 var ErrInvalidPayload = errors.New("discord attachment invalid payload")
-
-var supportedDocumentExtensions = map[string]string{
-	".cfg":  "text/plain",
-	".csv":  "text/csv",
-	".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-	".ini":  "text/plain",
-	".json": "application/json",
-	".log":  "text/plain",
-	".md":   "text/markdown",
-	".pdf":  "application/pdf",
-	".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-	".toml": "application/toml",
-	".txt":  "text/plain",
-	".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-	".xml":  "application/xml",
-	".yaml": "application/yaml",
-	".yml":  "application/yaml",
-	".zip":  "application/zip",
-}
-
-var mimeExtensionFallbacks = map[string]string{
-	"application/json": ".json",
-	"application/pdf":  ".pdf",
-	"application/toml": ".toml",
-	"application/xml":  ".xml",
-	"application/yaml": ".yaml",
-	"application/zip":  ".zip",
-	"text/csv":         ".csv",
-	"text/markdown":    ".md",
-	"text/plain":       ".txt",
-}
 
 // Classification is the gateway-facing classification for a Discord attachment.
 type Classification struct {
@@ -93,7 +64,7 @@ func Classify(att *discordgo.MessageAttachment) (Classification, bool) {
 		if ext == "" {
 			return Classification{}, false
 		}
-		docType, ok := supportedDocumentExtensions[ext]
+		docType, ok := channelutil.DocumentMediaTypeForExtension(ext)
 		if !ok {
 			return Classification{}, false
 		}
@@ -113,14 +84,14 @@ func InferExt(fileName, mediaType string) string {
 		return ext
 	}
 	mediaType = CleanMediaType(mediaType)
-	if ext := mimeExtensionFallbacks[mediaType]; ext != "" {
+	if ext := channelutil.MIMEExtensionFallback(mediaType); ext != "" {
 		return ext
 	}
 	extensions, _ := mime.ExtensionsByType(mediaType)
 	sort.Strings(extensions)
 	for _, ext := range extensions {
 		ext = strings.ToLower(ext)
-		if _, ok := supportedDocumentExtensions[ext]; ok || ImageExtSupported(ext) || AudioExtSupported(ext) {
+		if _, ok := channelutil.DocumentMediaTypeForExtension(ext); ok || ImageExtSupported(ext) || AudioExtSupported(ext) {
 			return ext
 		}
 	}
@@ -195,29 +166,9 @@ func LooksLikeAudio(data []byte) bool {
 		len(data) >= 2 && data[0] == 0xff && data[1]&0xe0 == 0xe0
 }
 
-func ImageExt(mediaType string) string {
-	switch CleanMediaType(mediaType) {
-	case "image/gif":
-		return ".gif"
-	case "image/jpeg":
-		return ".jpg"
-	case "image/png":
-		return ".png"
-	case "image/webp":
-		return ".webp"
-	default:
-		return ".jpg"
-	}
-}
+func ImageExt(mediaType string) string { return channelutil.ImageExtensionForMediaType(mediaType) }
 
-func ImageExtSupported(ext string) bool {
-	switch strings.ToLower(strings.TrimSpace(ext)) {
-	case ".gif", ".jpeg", ".jpg", ".png", ".webp":
-		return true
-	default:
-		return false
-	}
-}
+func ImageExtSupported(ext string) bool { return channelutil.ImageExtensionSupported(ext) }
 
 func AudioExt(mediaType string) string {
 	switch CleanMediaType(mediaType) {

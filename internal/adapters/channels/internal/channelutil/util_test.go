@@ -190,6 +190,97 @@ func TestParseBoolDefault(t *testing.T) {
 	}
 }
 
+func TestDocumentMediaTypeForExtension(t *testing.T) {
+	if got, ok := DocumentMediaTypeForExtension(" .MD "); !ok || got != "text/markdown" {
+		t.Fatalf("DocumentMediaTypeForExtension = %q, %v", got, ok)
+	}
+	if _, ok := DocumentMediaTypeForExtension(".exe"); ok {
+		t.Fatal("unexpected document media type for .exe")
+	}
+}
+
+func TestDocumentExtensions(t *testing.T) {
+	got := DocumentExtensions()
+	if !ContainsString(got, ".md") || !ContainsString(got, ".pdf") {
+		t.Fatalf("DocumentExtensions missing expected entries: %#v", got)
+	}
+	for i := 1; i < len(got); i++ {
+		if got[i-1] > got[i] {
+			t.Fatalf("DocumentExtensions not sorted: %#v", got)
+		}
+	}
+}
+
+func TestMIMEExtensionFallback(t *testing.T) {
+	if got := MIMEExtensionFallback(" text/plain; charset=utf-8 "); got != ".txt" {
+		t.Fatalf("MIMEExtensionFallback text = %q", got)
+	}
+	if got := MIMEExtensionFallback("application/unknown"); got != "" {
+		t.Fatalf("MIMEExtensionFallback unknown = %q", got)
+	}
+}
+
+func TestCleanMediaType(t *testing.T) {
+	cases := map[string]string{
+		"":                            "",
+		" text/plain; charset=utf-8 ": "text/plain",
+		"IMAGE/PNG":                   "image/png",
+	}
+	for raw, want := range cases {
+		if got := CleanMediaType(raw); got != want {
+			t.Fatalf("CleanMediaType(%q) = %q, want %q", raw, got, want)
+		}
+	}
+}
+
+func TestImageExtensionAndMediaType(t *testing.T) {
+	if got := ImageExtensionForMediaType(" image/png; charset=binary "); got != ".png" {
+		t.Fatalf("ImageExtensionForMediaType png = %q", got)
+	}
+	if got := ImageExtensionForMediaType("image/unknown"); got != ".jpg" {
+		t.Fatalf("ImageExtensionForMediaType default = %q", got)
+	}
+	if !ImageExtensionSupported(" .WEBP ") || ImageExtensionSupported(".bmp") {
+		t.Fatalf("ImageExtensionSupported returned unexpected result")
+	}
+	if got := ImageMediaTypeForExtension(".jpeg"); got != "image/jpeg" {
+		t.Fatalf("ImageMediaTypeForExtension jpeg = %q", got)
+	}
+	if got := ImageMediaTypeForExtension(".unknown"); got != "image/jpeg" {
+		t.Fatalf("ImageMediaTypeForExtension default = %q", got)
+	}
+}
+
+func TestSafeFileName(t *testing.T) {
+	if got := SafeFileName(" ../unsafe/name.txt "); got != "name.txt" {
+		t.Fatalf("SafeFileName path = %q", got)
+	}
+	if got := SafeFileName("bad\x00name.txt"); got != "bad_name.txt" {
+		t.Fatalf("SafeFileName control = %q", got)
+	}
+	if got := SafeFileName(" . "); got != "" {
+		t.Fatalf("SafeFileName blank = %q", got)
+	}
+	long := strings.Repeat("a", 180) + ".txt"
+	got := SafeFileName(long)
+	if len(got) > 160 || !strings.HasSuffix(got, ".txt") {
+		t.Fatalf("SafeFileName long = len %d value %q", len(got), got)
+	}
+}
+
+func TestSafeTokenDefault(t *testing.T) {
+	if got := SafeTokenDefault(" user/id:42 ", "fallback"); got != "user_id_42" {
+		t.Fatalf("SafeTokenDefault = %q", got)
+	}
+	if got := SafeTokenDefault("___", "fallback"); got != "fallback" {
+		t.Fatalf("SafeTokenDefault fallback = %q", got)
+	}
+	long := strings.Repeat("a", 80)
+	if got := SafeTokenDefault(long, "fallback"); len(got) != 64 {
+		t.Fatalf("SafeTokenDefault long len = %d", len(got))
+	}
+}
+
 func TestAllowedByPolicy(t *testing.T) {
 	allowed := ToSet([]string{" user-1 "})
 
