@@ -44,9 +44,22 @@ type RememberedSourceLedger struct {
 	Platforms map[string][]RememberedSourceEntry `json:"platforms"`
 }
 
+// EmptyRememberedSourceLedger returns a ledger with initialized platform buckets.
+func EmptyRememberedSourceLedger() RememberedSourceLedger {
+	return RememberedSourceLedger{Platforms: map[string][]RememberedSourceEntry{}}
+}
+
+// EnsureRememberedSourceLedger initializes the platform buckets after JSON decode.
+func EnsureRememberedSourceLedger(ledger RememberedSourceLedger) RememberedSourceLedger {
+	if ledger.Platforms == nil {
+		ledger.Platforms = map[string][]RememberedSourceEntry{}
+	}
+	return ledger
+}
+
 func RememberedSourceEntryFromSource(source Source) RememberedSourceEntry {
 	entry := RememberedSourceEntry{
-		Platform:     strings.ToLower(strings.TrimSpace(source.Platform)),
+		Platform:     NormalizePlatform(source.Platform),
 		Type:         normalizedSourceChatType(source),
 		ChatID:       strings.TrimSpace(source.ChatID),
 		ChatName:     strings.TrimSpace(source.ChatName),
@@ -75,7 +88,7 @@ func (e RememberedSourceEntry) ChannelDirectoryEntry() Entry {
 }
 
 func NormalizeRememberedSourceEntry(entry RememberedSourceEntry) RememberedSourceEntry {
-	entry.Platform = strings.ToLower(strings.TrimSpace(entry.Platform))
+	entry.Platform = NormalizePlatform(entry.Platform)
 	entry.ID = strings.TrimSpace(entry.ID)
 	entry.Name = strings.TrimSpace(entry.Name)
 	entry.Type = strings.TrimSpace(entry.Type)

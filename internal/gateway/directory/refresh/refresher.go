@@ -48,7 +48,7 @@ func (r *Refresher) Refresh(ctx context.Context) (cache.Directory, model.Evidenc
 	if err != nil {
 		return lastGood, model.Evidence{Code: "channel_directory_refresh_failed"}
 	}
-	dir := cache.Directory{UpdatedAt: timestamp(r.Now), Platforms: map[string][]model.Entry{}}
+	dir := cache.NewDirectory(timestamp(r.Now))
 	for _, snapshot := range snapshots {
 		platform := model.NormalizePlatform(snapshot.Platform)
 		if platform == "" {

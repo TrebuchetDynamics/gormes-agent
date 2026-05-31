@@ -34,6 +34,11 @@ func NewStore(root string) Store {
 	return Store{root: strings.TrimSpace(root)}
 }
 
+// NewDirectory returns a directory with initialized platform buckets.
+func NewDirectory(updatedAt string) Directory {
+	return Directory{UpdatedAt: strings.TrimSpace(updatedAt), Platforms: map[string][]model.Entry{}}
+}
+
 // Root returns the store root for fixture setup.
 func (s Store) Root() string { return s.root }
 
@@ -78,7 +83,7 @@ func (s Store) SaveWithWriter(dir Directory, writer func(string, []byte, os.File
 }
 
 func emptyDirectory() Directory {
-	return Directory{Platforms: map[string][]model.Entry{}}
+	return NewDirectory("")
 }
 
 // Resolve resolves a human-friendly channel target for platform into a concrete

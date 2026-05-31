@@ -39,17 +39,14 @@ func (s Store) path() string {
 // Load reads the remembered-source ledger. Missing ledgers are not failures;
 // they simply contribute no session-discovered entries during refresh.
 func (s Store) Load() (model.RememberedSourceLedger, model.Evidence) {
-	ledger := model.RememberedSourceLedger{Platforms: map[string][]model.RememberedSourceEntry{}}
+	ledger := model.EmptyRememberedSourceLedger()
 	if err := storage.ReadJSON(s.path(), &ledger); err != nil {
 		if os.IsNotExist(err) {
-			return model.RememberedSourceLedger{Platforms: map[string][]model.RememberedSourceEntry{}}, model.Evidence{}
+			return model.EmptyRememberedSourceLedger(), model.Evidence{}
 		}
-		return model.RememberedSourceLedger{Platforms: map[string][]model.RememberedSourceEntry{}}, model.Evidence{Code: "channel_directory_sources_invalid"}
+		return model.EmptyRememberedSourceLedger(), model.Evidence{Code: "channel_directory_sources_invalid"}
 	}
-	if ledger.Platforms == nil {
-		ledger.Platforms = map[string][]model.RememberedSourceEntry{}
-	}
-	return ledger, model.Evidence{}
+	return model.EnsureRememberedSourceLedger(ledger), model.Evidence{}
 }
 
 func (s Store) RememberSource(_ context.Context, entry model.RememberedSourceEntry) error {
@@ -60,11 +57,9 @@ func (s Store) RememberSource(_ context.Context, entry model.RememberedSourceEnt
 	if entry.Platform == "" || entry.ID == "" {
 		return nil
 	}
-	ledger := model.RememberedSourceLedger{Platforms: map[string][]model.RememberedSourceEntry{}}
+	ledger := model.EmptyRememberedSourceLedger()
 	_ = storage.ReadJSON(s.path(), &ledger)
-	if ledger.Platforms == nil {
-		ledger.Platforms = map[string][]model.RememberedSourceEntry{}
-	}
+	ledger = model.EnsureRememberedSourceLedger(ledger)
 	if s.now == nil {
 		s.now = time.Now
 	}
