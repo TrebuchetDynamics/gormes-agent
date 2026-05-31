@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/redaction"
 	"gopkg.in/yaml.v3"
 )
 
@@ -22,7 +23,7 @@ const (
 
 	// RedactedMCPConfigValue is the public placeholder used in MCP status
 	// surfaces when config contains credentials or token-shaped values.
-	RedactedMCPConfigValue = "[REDACTED]"
+	RedactedMCPConfigValue = redaction.Value
 )
 
 // MCPTransport identifies the transport a resolved MCP server would use.
@@ -126,7 +127,7 @@ func (e *MCPConfigError) Error() string {
 	}
 	parts := make([]string, 0, len(e.Issues))
 	for _, issue := range e.Issues {
-		parts = append(parts, fmt.Sprintf("%s: %s", issue.server, redactMCPString(issue.message)))
+		parts = append(parts, fmt.Sprintf("%s: %s", issue.server, redaction.String(issue.message)))
 	}
 	return "mcp config: " + strings.Join(parts, "; ")
 }
@@ -212,7 +213,7 @@ func ResolveMCPConfig(raw any, opts MCPConfigOptions) (MCPConfigResolution, erro
 				continue
 			}
 			statuses[i].Status = MCPConfigStatusMissingSDK
-			statuses[i].Reason = redactMCPString(reason)
+			statuses[i].Reason = redaction.String(reason)
 			runtimeIssues = append(runtimeIssues, mcpConfigIssue{
 				server:  statuses[i].Name,
 				status:  MCPConfigStatusMissingSDK,
@@ -319,7 +320,7 @@ func resolveMCPServer(name string, raw any, lookupEnv func(string) (string, bool
 
 func invalidMCPStatus(status MCPServerStatus, kind MCPConfigStatus, reason string) MCPServerStatus {
 	status.Status = kind
-	status.Reason = redactMCPString(reason)
+	status.Reason = redaction.String(reason)
 	if status.Env == nil {
 		status.Env = map[string]string{}
 	}
@@ -334,13 +335,13 @@ func redactedMCPStatus(def MCPServerDefinition, status MCPConfigStatus, reason s
 		Name:           def.Name,
 		Enabled:        def.Enabled,
 		Status:         status,
-		Reason:         redactMCPString(reason),
+		Reason:         redaction.String(reason),
 		Transport:      def.Transport,
 		Command:        def.Command,
 		Args:           append([]string(nil), def.Args...),
-		Env:            redactMCPMap(def.Env),
+		Env:            redaction.Map(def.Env),
 		URL:            def.URL,
-		Headers:        redactMCPMap(def.Headers),
+		Headers:        redaction.Map(def.Headers),
 		Timeout:        def.Timeout,
 		ConnectTimeout: def.ConnectTimeout,
 		Sampling:       def.Sampling,
@@ -388,13 +389,13 @@ func (r MCPConfigResolution) RedactedStatusText() string {
 			fields = append(fields, "url="+row.URL)
 		}
 		if len(row.Headers) > 0 {
-			fields = append(fields, "headers="+formatMCPStringMap(row.Headers))
+			fields = append(fields, "headers="+redaction.FormatStringMap(row.Headers))
 		}
 		if len(row.Env) > 0 {
-			fields = append(fields, "env="+formatMCPStringMap(row.Env))
+			fields = append(fields, "env="+redaction.FormatStringMap(row.Env))
 		}
 		if row.Reason != "" {
-			fields = append(fields, "reason="+redactMCPString(row.Reason))
+			fields = append(fields, "reason="+redaction.String(row.Reason))
 		}
 		parts = append(parts, strings.Join(fields, " "))
 	}
@@ -751,64 +752,5 @@ func mcpInt(value any, fallback int, field string, minimum int) (int, error) {
 	return int(parsed), nil
 }
 
-func redactMCPMap(values map[string]string) map[string]string {
-	if values == nil {
-		return map[string]string{}
-	}
-	out := make(map[string]string, len(values))
-	for key, value := range values {
-		if isMCPSecretKey(key) || isMCPSecretValue(value) {
-			out[key] = RedactedMCPConfigValue
-			continue
-		}
-		out[key] = redactMCPString(value)
-	}
-	return out
-}
-
-func isMCPSecretKey(key string) bool {
-	lower := strings.ToLower(key)
-	secretFragments := []string{
-		"authorization",
-		"auth_header",
-		"api_key",
-		"access_token",
-		"refresh_token",
-		"personal_access_token",
-		"token",
-		"secret",
-		"password",
-	}
-	for _, fragment := range secretFragments {
-		if strings.Contains(lower, fragment) {
-			return true
-		}
-	}
-	return false
-}
-
-var mcpCredentialPattern = regexp.MustCompile(`(?i)(ghp_[A-Za-z0-9_]{1,255}|sk-[A-Za-z0-9_]{1,255}|Bearer\s+\S+|token=[^\s&,;"']{1,255}|key=[^\s&,;"']{1,255}|API_KEY=[^\s&,;"']{1,255}|password=[^\s&,;"']{1,255}|secret=[^\s&,;"']{1,255})`)
-
-func isMCPSecretValue(value string) bool {
-	return mcpCredentialPattern.MatchString(value)
-}
-
-func redactMCPString(value string) string {
-	return mcpCredentialPattern.ReplaceAllString(value, RedactedMCPConfigValue)
-}
-
-func formatMCPStringMap(values map[string]string) string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	parts := make([]string, 0, len(keys))
-	for _, key := range keys {
-		parts = append(parts, key+"="+redactMCPString(values[key]))
-	}
-	return "{" + strings.Join(parts, ",") + "}"
-}
-
 // RedactString redacts token-shaped values for compatibility facades.
-func RedactString(value string) string { return redactMCPString(value) }
+func RedactString(value string) string { return redaction.String(value) }
