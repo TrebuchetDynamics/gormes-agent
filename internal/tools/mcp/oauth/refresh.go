@@ -34,6 +34,13 @@ type RefreshResult struct {
 	Outcome RefreshOutcome
 }
 
+func mergeRefreshedToken(previous, refreshed Token) Token {
+	if refreshed.RefreshToken == "" {
+		refreshed.RefreshToken = previous.RefreshToken
+	}
+	return refreshed
+}
+
 // Refresh refreshes an expired OAuth token for server using refresher.
 func Refresh(ctx context.Context, store *Store, server string, refresher Refresher, now time.Time) (RefreshResult, error) {
 	result := RefreshResult{Server: server}
@@ -66,7 +73,8 @@ func Refresh(ctx context.Context, store *Store, server string, refresher Refresh
 		result.Outcome = RefreshOutcomeRefresherUnavailable
 		return result, fmt.Errorf("mcp oauth refresh %q: %w", server, err)
 	}
-	if err := store.Set(server, newToken); err != nil {
+	mergedToken := mergeRefreshedToken(tok, newToken)
+	if err := store.Set(server, mergedToken); err != nil {
 		return result, err
 	}
 	result.Outcome = RefreshOutcomeRefreshed
