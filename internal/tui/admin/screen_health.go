@@ -13,6 +13,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agenttemplate"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/navigation"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/wizardflow"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -396,10 +397,8 @@ type providerSetupResult struct {
 }
 
 type providerFixState struct {
-	steps      []wizard.Step
-	answers    map[string]wizard.Answer
+	flow       *wizardflow.Flow
 	defaults   providerSetupResult
-	index      int
 	input      textinput.Model
 	pickCursor int
 	width      int
@@ -429,7 +428,7 @@ var adminProviderModels = map[string]string{
 func newProviderFixState(cfg config.Config) *providerFixState {
 	defaults := providerSetupDefaults(cfg)
 	f := &providerFixState{
-		steps: []wizard.Step{
+		flow: wizardflow.New([]wizard.Step{
 			wizard.Pick("provider", "Provider", []wizard.Choice{
 				{ID: "openai", Label: "OpenAI"},
 				{ID: "anthropic", Label: "Anthropic"},
@@ -443,8 +442,7 @@ func newProviderFixState(cfg config.Config) *providerFixState {
 			wizard.Text("endpoint", "Endpoint URL"),
 			wizard.Password("api_key", "API key"),
 			wizard.Text("model", "Model"),
-		},
-		answers:    map[string]wizard.Answer{},
+		}),
 		defaults:   defaults,
 		pickCursor: providerChoiceIndex(defaults.Provider),
 		width:      80,
@@ -455,7 +453,7 @@ func newProviderFixState(cfg config.Config) *providerFixState {
 }
 
 func (f *providerFixState) Update(msg tea.KeyMsg) (bool, error) {
-	step, ok := f.activeStep()
+	step, ok := f.flow.ActiveStep()
 	if !ok {
 		return true, nil
 	}
@@ -488,7 +486,7 @@ func (f *providerFixState) Update(msg tea.KeyMsg) (bool, error) {
 }
 
 func (f *providerFixState) View() string {
-	step, ok := f.activeStep()
+	step, ok := f.flow.ActiveStep()
 	if !ok {
 		return ""
 	}
@@ -496,7 +494,7 @@ func (f *providerFixState) View() string {
 		return f.compactView(step)
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "Provider setup %d/%d\n\n", f.index+1, len(f.steps))
+	fmt.Fprintf(&b, "Provider setup %d/%d\n\n", f.flow.Index()+1, f.flow.Len())
 	fmt.Fprintf(&b, "%s\n\n", step.Prompt)
 	switch step.Kind {
 	case wizard.KindPick:
@@ -515,7 +513,7 @@ func (f *providerFixState) View() string {
 
 func (f *providerFixState) compactView(step wizard.Step) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Provider setup %d/%d\n", f.index+1, len(f.steps))
+	fmt.Fprintf(&b, "Provider setup %d/%d\n", f.flow.Index()+1, f.flow.Len())
 	fmt.Fprintf(&b, "%s\n", step.Prompt)
 	switch step.Kind {
 	case wizard.KindPick:
@@ -596,16 +594,16 @@ func setupHealthInputWidth(terminalWidth int) int {
 }
 
 func (f *providerFixState) Result() (providerSetupResult, error) {
-	provider := strings.TrimSpace(f.answers["provider"].ChoiceID)
+	provider := strings.TrimSpace(f.flow.Choice("provider"))
 	if provider == "" {
 		provider = "openai"
 	}
-	endpoint := strings.TrimSpace(f.answers["endpoint"].Text)
+	endpoint := strings.TrimSpace(f.flow.Text("endpoint"))
 	if endpoint == "" {
 		endpoint = adminProviderEndpoints[provider]
 	}
-	apiKey := strings.TrimSpace(f.answers["api_key"].Text)
-	model := strings.TrimSpace(f.answers["model"].Text)
+	apiKey := strings.TrimSpace(f.flow.Text("api_key"))
+	model := strings.TrimSpace(f.flow.Text("model"))
 	if model == "" {
 		model = adminProviderModels[provider]
 	}
@@ -623,21 +621,8 @@ func (f *providerFixState) Result() (providerSetupResult, error) {
 	}, nil
 }
 
-func (f *providerFixState) activeStep() (wizard.Step, bool) {
-	if f == nil || f.index < 0 || f.index >= len(f.steps) {
-		return wizard.Step{}, false
-	}
-	return f.steps[f.index], true
-}
-
 func (f *providerFixState) finishStep(answer wizard.Answer) (bool, error) {
-	step, ok := f.activeStep()
-	if !ok {
-		return true, nil
-	}
-	f.answers[step.ID] = answer
-	f.index++
-	if f.index >= len(f.steps) {
+	if f.flow.Finish(answer) {
 		return true, nil
 	}
 	f.prepareInput()
@@ -645,7 +630,7 @@ func (f *providerFixState) finishStep(answer wizard.Answer) (bool, error) {
 }
 
 func (f *providerFixState) prepareInput() {
-	step, ok := f.activeStep()
+	step, ok := f.flow.ActiveStep()
 	if !ok {
 		return
 	}
@@ -683,7 +668,7 @@ func (f *providerFixState) defaultTextValue(stepID string) string {
 }
 
 func (f *providerFixState) selectedProvider() string {
-	provider := strings.TrimSpace(f.answers["provider"].ChoiceID)
+	provider := strings.TrimSpace(f.flow.Choice("provider"))
 	if provider != "" {
 		return provider
 	}

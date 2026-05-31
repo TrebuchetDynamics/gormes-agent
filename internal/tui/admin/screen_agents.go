@@ -9,6 +9,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/navigation"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/wizardflow"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -279,9 +280,7 @@ const (
 type agentsWizardState struct {
 	kind       agentsWizardKind
 	title      string
-	steps      []wizard.Step
-	answers    map[string]wizard.Answer
-	index      int
+	flow       *wizardflow.Flow
 	input      textinput.Model
 	pickCursor int
 	confirmYes bool
@@ -291,12 +290,11 @@ func newSpawnAgentWizard() *agentsWizardState {
 	w := &agentsWizardState{
 		kind:  agentsWizardSpawn,
 		title: "Spawn agent",
-		steps: []wizard.Step{
+		flow: wizardflow.New([]wizard.Step{
 			wizard.Text("name", "Agent name"),
 			wizard.MultiLine("persona", "Persona"),
 			wizard.Confirm("confirm", "Create agent?"),
-		},
-		answers:    map[string]wizard.Answer{},
+		}),
 		confirmYes: true,
 	}
 	w.prepareInput()
@@ -311,15 +309,14 @@ func newBindAgentWizard(records []goncho.AgentRecord) *agentsWizardState {
 	w := &agentsWizardState{
 		kind:  agentsWizardBind,
 		title: "Bind agent",
-		steps: []wizard.Step{
+		flow: wizardflow.New([]wizard.Step{
 			wizard.Pick("agent", "Agent", choices),
 			wizard.Pick("channel", "Channel", []wizard.Choice{{ID: "telegram", Label: "Telegram"}, {ID: "discord", Label: "Discord"}, {ID: "slack", Label: "Slack"}}),
 			wizard.Pick("peer_kind", "Peer kind", []wizard.Choice{{ID: "user", Label: "User"}, {ID: "group", Label: "Group"}, {ID: "channel", Label: "Channel"}, {ID: "thread", Label: "Thread"}}),
 			wizard.Text("peer_id", "Peer ID"),
 			wizard.Text("thread_id", "Thread ID (optional)"),
 			wizard.Confirm("confirm", "Bind agent?"),
-		},
-		answers:    map[string]wizard.Answer{},
+		}),
 		confirmYes: true,
 	}
 	w.prepareInput()
@@ -327,7 +324,7 @@ func newBindAgentWizard(records []goncho.AgentRecord) *agentsWizardState {
 }
 
 func (w *agentsWizardState) Update(msg tea.KeyMsg) (bool, error) {
-	step, ok := w.activeStep()
+	step, ok := w.flow.ActiveStep()
 	if !ok {
 		return true, nil
 	}
@@ -373,12 +370,12 @@ func (w *agentsWizardState) Update(msg tea.KeyMsg) (bool, error) {
 }
 
 func (w *agentsWizardState) View() string {
-	step, ok := w.activeStep()
+	step, ok := w.flow.ActiveStep()
 	if !ok {
 		return ""
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s %d/%d\n\n%s\n\n", w.title, w.index+1, len(w.steps), step.Prompt)
+	fmt.Fprintf(&b, "%s %d/%d\n\n%s\n\n", w.title, w.flow.Index()+1, w.flow.Len(), step.Prompt)
 	switch step.Kind {
 	case wizard.KindPick:
 		for i, choice := range step.Choices {
@@ -402,22 +399,10 @@ func (w *agentsWizardState) View() string {
 	return b.String()
 }
 
-func (w *agentsWizardState) activeStep() (wizard.Step, bool) {
-	if w == nil || w.index < 0 || w.index >= len(w.steps) {
-		return wizard.Step{}, false
-	}
-	return w.steps[w.index], true
-}
-
 func (w *agentsWizardState) finishStep(answer wizard.Answer) (bool, error) {
-	step, ok := w.activeStep()
-	if !ok {
-		return true, nil
-	}
-	w.answers[step.ID] = answer
-	w.index++
+	done := w.flow.Finish(answer)
 	w.pickCursor = 0
-	if w.index >= len(w.steps) {
+	if done {
 		return true, nil
 	}
 	w.prepareInput()
@@ -425,7 +410,7 @@ func (w *agentsWizardState) finishStep(answer wizard.Answer) (bool, error) {
 }
 
 func (w *agentsWizardState) prepareInput() {
-	_, ok := w.activeStep()
+	_, ok := w.flow.ActiveStep()
 	if !ok {
 		return
 	}
@@ -436,26 +421,26 @@ func (w *agentsWizardState) prepareInput() {
 }
 
 func (w *agentsWizardState) spawnOptions() (goncho.CreateAgentOptions, error) {
-	if !w.answers["confirm"].Confirmed {
+	if !w.flow.Bool("confirm") {
 		return goncho.CreateAgentOptions{}, fmt.Errorf("spawn cancelled")
 	}
-	name := strings.TrimSpace(w.answers["name"].Text)
+	name := strings.TrimSpace(w.flow.Text("name"))
 	if name == "" {
 		return goncho.CreateAgentOptions{}, fmt.Errorf("agent name is required")
 	}
-	return goncho.CreateAgentOptions{Name: name, Persona: strings.TrimSpace(w.answers["persona"].Text)}, nil
+	return goncho.CreateAgentOptions{Name: name, Persona: strings.TrimSpace(w.flow.Text("persona"))}, nil
 }
 
 func (w *agentsWizardState) bindOptions() (string, goncho.BindingMatch, error) {
-	if !w.answers["confirm"].Confirmed {
+	if !w.flow.Bool("confirm") {
 		return "", goncho.BindingMatch{}, fmt.Errorf("bind cancelled")
 	}
-	agentID := strings.TrimSpace(w.answers["agent"].ChoiceID)
+	agentID := strings.TrimSpace(w.flow.Choice("agent"))
 	match := goncho.BindingMatch{
-		Channel:  strings.TrimSpace(w.answers["channel"].ChoiceID),
-		PeerKind: strings.TrimSpace(w.answers["peer_kind"].ChoiceID),
-		PeerID:   strings.TrimSpace(w.answers["peer_id"].Text),
-		ThreadID: strings.TrimSpace(w.answers["thread_id"].Text),
+		Channel:  strings.TrimSpace(w.flow.Choice("channel")),
+		PeerKind: strings.TrimSpace(w.flow.Choice("peer_kind")),
+		PeerID:   strings.TrimSpace(w.flow.Text("peer_id")),
+		ThreadID: strings.TrimSpace(w.flow.Text("thread_id")),
 	}
 	if agentID == "" {
 		return "", goncho.BindingMatch{}, fmt.Errorf("agent is required")
