@@ -1,9 +1,6 @@
 package azurefoundry
 
-import (
-	"net/url"
-	"strings"
-)
+import "github.com/TrebuchetDynamics/gormes-agent/internal/llm/azurefoundry/pathsniff"
 
 // ClassifyAzurePath inspects rawURL and returns AzureTransportAnthropic when
 // the URL's path equals "/anthropic", ends with "/anthropic", or contains a
@@ -15,13 +12,5 @@ import (
 // inspection: never opens HTTP, reads env or config, writes files, or starts
 // goroutines.
 func ClassifyAzurePath(rawURL string) AzureTransport {
-	parsed, err := url.Parse(rawURL)
-	if err != nil || parsed == nil || parsed.Path == "" {
-		return AzureTransportUnknown
-	}
-	path := strings.TrimRight(strings.ToLower(parsed.Path), "/")
-	if path == "/anthropic" || strings.HasSuffix(path, "/anthropic") || strings.Contains(path, "/anthropic/") {
-		return AzureTransportAnthropic
-	}
-	return AzureTransportUnknown
+	return pathsniff.Classify(rawURL)
 }
