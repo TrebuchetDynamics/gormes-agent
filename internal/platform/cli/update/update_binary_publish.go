@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/update/command"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/update/fileops"
 )
 
@@ -22,31 +22,9 @@ type UpdateBinaryPublishOptions struct {
 	Git               UpdateGitRunner
 }
 
-type UpdateCommandRunner interface {
-	RunCommand(ctx context.Context, cwd string, env []string, name string, args ...string) UpdateCommandResult
-}
-
-type UpdateCommandResult struct {
-	Stdout string
-	Stderr string
-	Err    error
-}
-
-type RealUpdateCommandRunner struct{}
-
-func (RealUpdateCommandRunner) RunCommand(ctx context.Context, cwd string, env []string, name string, args ...string) UpdateCommandResult {
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Dir = cwd
-	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
-	}
-	out, err := cmd.CombinedOutput()
-	result := UpdateCommandResult{Stdout: string(out), Err: err}
-	if err != nil {
-		result.Stderr = string(out)
-	}
-	return result
-}
+type UpdateCommandRunner = command.Runner
+type UpdateCommandResult = command.Result
+type RealUpdateCommandRunner = command.RealRunner
 
 func RunUpdateBinaryPublish(ctx context.Context, options UpdateBinaryPublishOptions) UpdateReport {
 	report := UpdateReport{}
@@ -296,19 +274,7 @@ func fileSHA256(path string) (string, error) {
 }
 
 func commandFailureDetail(result UpdateCommandResult) string {
-	parts := []string{}
-	if result.Err != nil {
-		parts = append(parts, result.Err.Error())
-	}
-	if stderr := strings.TrimSpace(result.Stderr); stderr != "" {
-		parts = append(parts, stderr)
-	} else if stdout := strings.TrimSpace(result.Stdout); stdout != "" {
-		parts = append(parts, stdout)
-	}
-	if len(parts) == 0 {
-		return "command failed"
-	}
-	return strings.Join(parts, ": ")
+	return command.FailureDetail(result)
 }
 
 func summarizeUpdateEvidence(evidence []UpdateEvidence) string {
