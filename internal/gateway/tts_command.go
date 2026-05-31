@@ -3,7 +3,6 @@ package gateway
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/ttsconfig"
@@ -91,12 +90,11 @@ func (m *Manager) handleTTSCommand(ctx context.Context, ch Channel, ev InboundEv
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("TTS speed set to: %s", s))
 	case "voice":
 		if len(args) < 3 {
-			voices := ttsVoices[cfg.Engine]
+			voices := ttsconfig.VoicesForEngineSorted(cfg.Engine)
 			selected := cfg.Voice
 			if len(voices) == 0 {
 				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("TTS voice: %s\nEngine %s does not support voice listing.", selected, cfg.Engine))
 			} else {
-				sort.Strings(voices)
 				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("TTS voice: %s\nAvailable voices for %s: %s", selected, cfg.Engine, strings.Join(voices, ", ")))
 			}
 			return

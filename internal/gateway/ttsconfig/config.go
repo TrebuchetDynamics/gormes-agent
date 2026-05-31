@@ -2,6 +2,7 @@ package ttsconfig
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -81,6 +82,12 @@ func EngineNames() []string {
 		n[i] = string(e)
 	}
 	return n
+}
+
+func VoicesForEngineSorted(e Engine) []string {
+	voices := append([]string(nil), Voices[e]...)
+	sort.Strings(voices)
+	return voices
 }
 
 func DefaultVoiceForEngine(e Engine) string {

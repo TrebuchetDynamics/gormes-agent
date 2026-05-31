@@ -26,6 +26,18 @@ func TestDefaultVoiceForEngine(t *testing.T) {
 	}
 }
 
+func TestSortedVoiceListingDoesNotChangeDefaultVoice(t *testing.T) {
+	before := DefaultVoiceForEngine(EngineElevenLabs)
+	voices := VoicesForEngineSorted(EngineElevenLabs)
+	if len(voices) == 0 {
+		t.Fatal("expected listed elevenlabs voices")
+	}
+	voices[0] = "mutated-test-voice"
+	if got := DefaultVoiceForEngine(EngineElevenLabs); got != before {
+		t.Fatalf("default elevenlabs voice changed after sorted listing: got %q want %q", got, before)
+	}
+}
+
 func TestConfigString(t *testing.T) {
 	got := DefaultConfig.String()
 	for _, want := range []string{"TTS: enabled", "engine: edge", "voice: en-US-AriaNeural", "speed: normal", "language: auto"} {
