@@ -149,6 +149,11 @@ func TestGatewayEndpointCandidateClassificationExplainsDroppedCandidates(t *test
 			wantRejection: gatewayEndpointCandidateRejectedDuplicate,
 		},
 		{
+			name:          "duplicate fqdn endpoint",
+			endpoint:      GatewayEndpoint{Address: "localhost.", Scheme: "ws", Port: 18789},
+			wantRejection: gatewayEndpointCandidateRejectedDuplicate,
+		},
+		{
 			name:         "accepted endpoint",
 			endpoint:     GatewayEndpoint{Address: "127.0.0.1", Scheme: "wss", Port: 18789},
 			wantAccepted: true,

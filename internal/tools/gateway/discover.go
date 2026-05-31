@@ -294,7 +294,8 @@ func classifyGatewayEndpointCandidate(endpoint GatewayEndpoint, seen map[string]
 }
 
 func gatewayEndpointCandidateKey(endpoint GatewayEndpoint) (string, string, bool) {
-	if endpoint.Address == "" {
+	address := canonicalGatewayEndpointKeyAddress(endpoint.Address)
+	if address == "" {
 		return "", gatewayEndpointCandidateRejectedMissingAddress, false
 	}
 	if endpoint.Port <= 0 || endpoint.Port > 65535 {
@@ -303,7 +304,11 @@ func gatewayEndpointCandidateKey(endpoint GatewayEndpoint) (string, string, bool
 	if !supportedGatewayEndpointScheme(endpoint.Scheme) {
 		return "", gatewayEndpointCandidateRejectedUnsupportedScheme, false
 	}
-	return endpoint.Scheme + "://" + strings.ToLower(endpoint.Address) + ":" + strconv.Itoa(endpoint.Port), "", true
+	return endpoint.Scheme + "://" + address + ":" + strconv.Itoa(endpoint.Port), "", true
+}
+
+func canonicalGatewayEndpointKeyAddress(address string) string {
+	return strings.ToLower(strings.TrimSuffix(strings.TrimSpace(address), "."))
 }
 
 func lessGatewayEndpoint(a, b GatewayEndpoint) bool {
