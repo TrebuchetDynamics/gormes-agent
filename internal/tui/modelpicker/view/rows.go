@@ -23,19 +23,12 @@ func selectedProvider(state contract.State) (contract.ProviderEntry, bool) {
 	return state.Providers[state.SelectedProviderIndex], true
 }
 
-func selectedModelID(state contract.State) (string, bool) {
-	if state.SelectedModelIndex < 0 || state.SelectedModelIndex >= len(state.Models) {
-		return "", false
-	}
-	return state.Models[state.SelectedModelIndex].ID, true
-}
-
 func renderModelRow(row modelRow) string {
 	prefix := "  "
 	style := row.styles.Normal
 	marker := "  "
 
-	if selectedID, ok := selectedModelID(row.state); ok && selectedID == row.entry.ID {
+	if selectedModel, ok := contract.SelectedModel(row.state); ok && selectedModel.ID == row.entry.ID {
 		prefix = "❯ "
 		style = row.styles.Selected
 	}
