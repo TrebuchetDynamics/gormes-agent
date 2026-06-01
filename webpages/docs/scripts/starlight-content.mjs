@@ -39,23 +39,74 @@ export function sourceRel(sourceDir, sourceFile) {
   return toPosixPath(path.relative(sourceDir, sourceFile));
 }
 
-export function targetPathForContentFile(sourceDir, targetDir, sourceFile) {
-  const rel = sourceRel(sourceDir, sourceFile);
-  const parts = rel.split('/');
-  const last = parts.at(-1);
-  if (last === '_index.md') {
-    parts[parts.length - 1] = 'index.md';
+const upstreamHermesFeatureGroups = new Map(Object.entries({
+  tools: [
+    'acp',
+    'browser',
+    'code-execution',
+    'computer-use',
+    'delegation',
+    'image-generation',
+    'lsp',
+    'mcp',
+    'spotify',
+    'tool-gateway',
+    'tools',
+    'tts',
+    'vision',
+    'web-search',
+    'x-search',
+  ],
+  providers: ['credential-pools', 'fallback-providers', 'provider-routing', 'subscription-proxy'],
+  context: ['context-files', 'context-references', 'curator', 'honcho', 'memory', 'memory-providers', 'personality', 'skills'],
+  automation: ['batch-processing', 'cron', 'goals', 'kanban', 'kanban-tutorial', 'kanban-worker-lanes'],
+  platform: ['api-server', 'codex-app-server-runtime', 'extending-the-dashboard', 'skins', 'voice-mode', 'web-dashboard'],
+  plugins: ['built-in-plugins', 'hooks', 'plugins'],
+}));
+
+const upstreamHermesFeatureIndexSlugs = new Set(['plugins', 'tools']);
+
+function organizedUpstreamHermesFeatureRel(rel) {
+  const match = rel.match(/^upstream-hermes\/user-guide\/features\/([^/]+)\.md$/);
+  if (!match) return rel;
+
+  const slug = match[1];
+  for (const [group, slugs] of upstreamHermesFeatureGroups) {
+    if (!slugs.includes(slug)) continue;
+    const fileName = upstreamHermesFeatureIndexSlugs.has(slug) ? 'index.md' : `${slug}.md`;
+    return `upstream-hermes/user-guide/features/${group}/${fileName}`;
   }
-  return path.join(targetDir, ...parts);
+  return rel;
 }
 
-export function routeForContentFile(contentDir, file) {
-  const rel = sourceRel(contentDir, file);
+function indexRelForTarget(rel) {
+  const parts = rel.split('/');
+  if (parts.at(-1) === '_index.md') parts[parts.length - 1] = 'index.md';
+  return parts.join('/');
+}
+
+export function targetPathForContentFile(sourceDir, targetDir, sourceFile) {
+  const rel = organizedUpstreamHermesFeatureRel(sourceRel(sourceDir, sourceFile));
+  return path.join(targetDir, ...indexRelForTarget(rel).split('/'));
+}
+
+function routeForRel(rel) {
   if (rel === '_index.md') return '/';
   if (rel.endsWith('/_index.md')) {
     return `/${rel.slice(0, -'_index.md'.length)}`;
   }
+  if (rel.endsWith('/index.md')) {
+    return `/${rel.slice(0, -'index.md'.length)}`;
+  }
   return `/${rel.replace(/\.md$/, '/')}`;
+}
+
+export function routeForContentFile(contentDir, file) {
+  return routeForRel(organizedUpstreamHermesFeatureRel(sourceRel(contentDir, file)));
+}
+
+function sourceRouteForContentFile(contentDir, file) {
+  return routeForRel(sourceRel(contentDir, file));
 }
 
 export function frontmatterFor(raw) {
@@ -78,6 +129,8 @@ export function redirectsForContentDir(contentDir) {
   for (const file of walkMarkdownFiles(contentDir)) {
     const raw = fs.readFileSync(file, 'utf8');
     const destination = routeForContentFile(contentDir, file);
+    const sourceRoute = sourceRouteForContentFile(contentDir, file);
+    if (sourceRoute !== destination) redirects[sourceRoute] = destination;
     for (const alias of aliasesFor(frontmatterFor(raw))) {
       redirects[alias] = destination;
     }

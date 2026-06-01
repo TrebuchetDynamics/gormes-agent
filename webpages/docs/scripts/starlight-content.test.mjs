@@ -39,6 +39,25 @@ test('content targets map Hugo-style indexes into Starlight indexes', () => {
   );
 });
 
+// The upstream mirror stays path-compatible with Hermes for coverage checks,
+// while the generated Starlight tree groups the noisy features folder by
+// responsibility. Category landing pages keep their public route as index.md.
+// Leaves that move deeper get automatic redirects from their old URLs.
+
+test('upstream Hermes feature docs target responsibility subfolders', () => {
+  const sourceDir = path.join('repo', 'webpages', 'docs', 'content');
+  const targetDir = path.join('repo', 'webpages', 'docs', 'src', 'content', 'docs');
+
+  assert.equal(
+    targetPathForContentFile(sourceDir, targetDir, path.join(sourceDir, 'upstream-hermes', 'user-guide', 'features', 'tools.md')),
+    path.join(targetDir, 'upstream-hermes', 'user-guide', 'features', 'tools', 'index.md'),
+  );
+  assert.equal(
+    targetPathForContentFile(sourceDir, targetDir, path.join(sourceDir, 'upstream-hermes', 'user-guide', 'features', 'api-server.md')),
+    path.join(targetDir, 'upstream-hermes', 'user-guide', 'features', 'platform', 'api-server.md'),
+  );
+});
+
 test('frontmatter aliases feed redirects without quotes', () => {
   const raw = `---\ntitle: Troubleshoot\naliases:\n  - /diagnose/\n  - '/doctor/'\n  - \"/logs/\"\n---\n\n# Troubleshoot\n`;
 
@@ -58,6 +77,18 @@ test('content aliases produce Starlight redirect map', async () => {
   assert.deepEqual(redirectsForContentDir(contentDir), {
     '/setup/': '/install/linux-macos/',
     '/install.sh/': '/install/linux-macos/',
+  });
+});
+
+test('organized upstream Hermes feature docs redirect old public routes', async () => {
+  const contentDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gormes-doc-content-'));
+  const featuresDir = path.join(contentDir, 'upstream-hermes', 'user-guide', 'features');
+  await fs.mkdir(featuresDir, { recursive: true });
+  await fs.writeFile(path.join(featuresDir, 'api-server.md'), `---\ntitle: API Server\n---\n\n# API Server\n`);
+  await fs.writeFile(path.join(featuresDir, 'tools.md'), `---\ntitle: Tools\n---\n\n# Tools\n`);
+
+  assert.deepEqual(redirectsForContentDir(contentDir), {
+    '/upstream-hermes/user-guide/features/api-server/': '/upstream-hermes/user-guide/features/platform/api-server/',
   });
 });
 
