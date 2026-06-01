@@ -78,13 +78,7 @@ func NormalizeTools(serverName string, raw []RawTool) NormalizeResult {
 	out := NormalizeResult{}
 	seenNames := map[string]bool{}
 	for _, t := range raw {
-		candidate := normalizeToolCandidate(serverName, t, seenNames)
-		if !candidate.Accepted {
-			out.Rejected = append(out.Rejected, candidate.Rejection)
-			continue
-		}
-		seenNames[candidate.Tool.Name] = true
-		out.Tools = append(out.Tools, candidate.Tool)
+		appendNormalizedCandidate(&out, seenNames, normalizeToolCandidate(serverName, t, seenNames))
 	}
 	return out
 }
@@ -107,6 +101,15 @@ func rejectedCandidate(serverName, toolName, reason string) normalizedToolCandid
 			Reason:     reason,
 		},
 	}
+}
+
+func appendNormalizedCandidate(out *NormalizeResult, seenNames map[string]bool, candidate normalizedToolCandidate) {
+	if !candidate.Accepted {
+		out.Rejected = append(out.Rejected, candidate.Rejection)
+		return
+	}
+	seenNames[candidate.Tool.Name] = true
+	out.Tools = append(out.Tools, candidate.Tool)
 }
 
 func normalizeToolCandidate(serverName string, t RawTool, seenNames map[string]bool) normalizedToolCandidate {

@@ -101,6 +101,27 @@ func TestNormalizeToolsDoesNotReserveRejectedCandidateNames(t *testing.T) {
 	}
 }
 
+func TestNormalizeToolsCopiesSourceRawInputSchema(t *testing.T) {
+	rawSchema := json.RawMessage(`{"type":"object","properties":{"q":{"type":"string"}}}`)
+	raw := []RawTool{{
+		Name:        "search",
+		Description: "keeps replayable source provenance",
+		InputSchema: rawSchema,
+	}}
+
+	got := NormalizeTools("srv1", raw)
+	if len(got.Tools) != 1 {
+		t.Fatalf("Tools len = %d, want 1; rejected=%+v", len(got.Tools), got.Rejected)
+	}
+	rawSchema[0] = '['
+	if string(got.Tools[0].SourceRaw.InputSchema) != `{"type":"object","properties":{"q":{"type":"string"}}}` {
+		t.Fatalf("SourceRaw.InputSchema aliases caller buffer: %q", got.Tools[0].SourceRaw.InputSchema)
+	}
+	if string(got.Tools[0].InputSchema) != `{"type":"object","properties":{"q":{"type":"string"}}}` {
+		t.Fatalf("InputSchema aliases caller buffer: %q", got.Tools[0].InputSchema)
+	}
+}
+
 func TestNormalizeInputSchemaReturnsIndependentDefaultSchemas(t *testing.T) {
 	first, ok := NormalizeInputSchema(nil)
 	if !ok {
