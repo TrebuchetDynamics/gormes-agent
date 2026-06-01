@@ -274,21 +274,97 @@ func RenderModuleRoadmapIndex(p *Progress) string {
 	b.WriteString("---\n\n")
 	b.WriteString("# Module Roadmaps\n\n")
 	b.WriteString("Generated from the single logical backlog. These pages are scoped review views; `progress.json` remains canonical.\n\n")
-	b.WriteString("| Module | Rows | Complete | In progress | Planned | Priorities |\n")
-	b.WriteString("|---|---:|---:|---:|---:|---|\n")
-	for _, module := range AllowedModules() {
-		counts := countModuleRows(moduleRoadmapRows(p, module))
-		fmt.Fprintf(&b, "| [%s](%s/) | %d | %d | %d | %d | %s |\n",
-			moduleDisplayName(module),
-			module,
-			counts.Total,
-			counts.Status[StatusComplete],
-			counts.Status[StatusInProgress],
-			counts.Status[StatusPlanned],
-			formatPriorityCounts(counts.Priority),
-		)
+	for _, group := range ModuleRoadmapGroups() {
+		fmt.Fprintf(&b, "## %s\n\n", group.DisplayName)
+		fmt.Fprintf(&b, "%s\n\n", group.Description)
+		b.WriteString("| Module | Rows | Complete | In progress | Planned | Priorities |\n")
+		b.WriteString("|---|---:|---:|---:|---:|---|\n")
+		for _, module := range group.Modules {
+			counts := countModuleRows(moduleRoadmapRows(p, module))
+			fmt.Fprintf(&b, "| [%s](%s) | %d | %d | %d | %d | %s |\n",
+				moduleDisplayName(module),
+				moduleRoadmapLink(module),
+				counts.Total,
+				counts.Status[StatusComplete],
+				counts.Status[StatusInProgress],
+				counts.Status[StatusPlanned],
+				formatPriorityCounts(counts.Priority),
+			)
+		}
+		b.WriteString("\n")
 	}
-	return b.String()
+	return strings.TrimRight(b.String(), "\n") + "\n"
+}
+
+// ModuleRoadmapGroup owns one generated-docs responsibility boundary for the
+// module roadmap pages. It groups review pages by change reason without
+// changing the stable module taxonomy used by progress validation.
+type ModuleRoadmapGroup struct {
+	Key         string
+	DisplayName string
+	Description string
+	Modules     []string
+}
+
+// ModuleRoadmapGroups returns the generated-docs topology for module roadmap
+// pages. These groups are documentation navigation only; progress.json remains
+// the canonical backlog and featuremodule.Allowed remains the validation list.
+func ModuleRoadmapGroups() []ModuleRoadmapGroup {
+	return []ModuleRoadmapGroup{
+		{
+			Key:         "agent-runtime",
+			DisplayName: "Agent Runtime",
+			Description: "Core agent execution, local state, tools, and terminal/browser interaction surfaces.",
+			Modules:     []string{ModuleBrowser, ModuleLearningLoop, ModuleMemory, ModuleRuntime, ModuleSessions, ModuleTools, ModuleTUI},
+		},
+		{
+			Key:         "channel-gateway",
+			DisplayName: "Channel Gateway",
+			Description: "External channel adapters, gateway orchestration, fleet operation, and Navivox integration.",
+			Modules:     []string{ModuleChannels, ModuleFleet, ModuleGateway, ModuleNavivox},
+		},
+		{
+			Key:         "delivery-control-plane",
+			DisplayName: "Delivery Control Plane",
+			Description: "Planner, builder, skill, documentation, kanban, and progress-control surfaces that steer Gormes delivery.",
+			Modules:     []string{ModuleBuilder, ModuleCrossCutting, ModuleDocs, ModuleKanban, ModulePlanner, ModuleProgress, ModuleSkills},
+		},
+		{
+			Key:         "operator-setup",
+			DisplayName: "Operator Setup",
+			Description: "CLI, installation, configuration, diagnostics, profiles, and release lifecycle pages for operators.",
+			Modules:     []string{ModuleCLI, ModuleConfig, ModuleDoctor, ModuleInstall, ModuleProfiles, ModuleRelease},
+		},
+		{
+			Key:         "provider-models",
+			DisplayName: "Provider Models",
+			Description: "Model-provider contracts plus Goncho/Honcho memory parity surfaces.",
+			Modules:     []string{ModuleGoncho, ModuleProviders},
+		},
+		{
+			Key:         "voice-and-web",
+			DisplayName: "Voice And Web",
+			Description: "Public web presence and speech input/output surfaces.",
+			Modules:     []string{ModuleLanding, ModuleSTT, ModuleTTS},
+		},
+	}
+}
+
+// ModuleRoadmapRelPath returns the generated roadmap path relative to the
+// module-roadmaps directory for a stable module key.
+func ModuleRoadmapRelPath(module string) string {
+	for _, group := range ModuleRoadmapGroups() {
+		for _, candidate := range group.Modules {
+			if candidate == module {
+				return group.Key + "/" + module + ".md"
+			}
+		}
+	}
+	return module + ".md"
+}
+
+func moduleRoadmapLink(module string) string {
+	return strings.TrimSuffix(ModuleRoadmapRelPath(module), ".md") + "/"
 }
 
 // RenderModuleRoadmapPage returns one generated module page grouped by the
@@ -302,9 +378,11 @@ func RenderModuleRoadmapPage(p *Progress, module string) string {
 	var b strings.Builder
 	b.WriteString("---\n")
 	fmt.Fprintf(&b, "title: %q\n", display+" Module Roadmap")
+	fmt.Fprintf(&b, "aliases:\n  - /building-gormes/modules/%s/\n", module)
 	b.WriteString("---\n\n")
 	fmt.Fprintf(&b, "# %s Module Roadmap\n\n", display)
 	b.WriteString("Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.\n\n")
+	fmt.Fprintf(&b, "**Module group:** %s\n", moduleRoadmapGroupDisplayName(module))
 	fmt.Fprintf(&b, "**Module:** `%s`\n", module)
 	fmt.Fprintf(&b, "**Rows:** %d\n", counts.Total)
 	fmt.Fprintf(&b, "**Status counts:** `complete`: %d · `in_progress`: %d · `planned`: %d\n",
@@ -705,6 +783,17 @@ func formatPriorityCounts(counts map[string]int) string {
 
 func moduleDisplayName(module string) string {
 	return featuremodule.DisplayName(module)
+}
+
+func moduleRoadmapGroupDisplayName(module string) string {
+	for _, group := range ModuleRoadmapGroups() {
+		for _, candidate := range group.Modules {
+			if candidate == module {
+				return group.DisplayName
+			}
+		}
+	}
+	return "Ungrouped"
 }
 
 func mdCell(s string) string {

@@ -770,8 +770,8 @@ func TestWriteRendersModuleRoadmapPagesFromMonolithAndModuleSplit(t *testing.T) 
 		t.Fatalf("Write split: %v", err)
 	}
 
-	monoProviders := mustReadFile(t, filepath.Join(progressPaths(monoRoot).moduleRoadmapsDir, progress.ModuleProviders+".md"))
-	splitProviders := mustReadFile(t, filepath.Join(progressPaths(splitRoot).moduleRoadmapsDir, progress.ModuleProviders+".md"))
+	monoProviders := mustReadFile(t, filepath.Join(progressPaths(monoRoot).moduleRoadmapsDir, progress.ModuleRoadmapRelPath(progress.ModuleProviders)))
+	splitProviders := mustReadFile(t, filepath.Join(progressPaths(splitRoot).moduleRoadmapsDir, progress.ModuleRoadmapRelPath(progress.ModuleProviders)))
 	if monoProviders != splitProviders {
 		t.Fatalf("module page must be identical for monolith and module split:\nmono=%s\nsplit=%s", monoProviders, splitProviders)
 	}
@@ -789,7 +789,7 @@ func TestWriteRendersModuleRoadmapPagesFromMonolithAndModuleSplit(t *testing.T) 
 	}
 
 	index := mustReadFile(t, filepath.Join(progressPaths(monoRoot).moduleRoadmapsDir, "_index.md"))
-	if !strings.Contains(index, "| [Providers](providers/) | 1 | 0 | 0 | 1 | `P1`: 1 |") {
+	if !strings.Contains(index, "| [Providers](provider-models/providers/) | 1 | 0 | 0 | 1 | `P1`: 1 |") || !strings.Contains(index, "## Provider Models") {
 		t.Fatalf("module index missing provider counts:\n%s", index)
 	}
 }

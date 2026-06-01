@@ -22,7 +22,7 @@ func TestPlanArtifactsListsStableGeneratedOutputs(t *testing.T) {
 		{kind: "marker:docs-full-checklist", path: paths.docsIndex},
 		{kind: "marker:progress-schema", path: paths.progressSchema},
 		{kind: "module-roadmap:index", path: filepath.Join(paths.moduleRoadmapsDir, "_index.md")},
-		{kind: "module-roadmap:providers", path: filepath.Join(paths.moduleRoadmapsDir, progress.ModuleProviders+".md")},
+		{kind: "module-roadmap:providers", path: filepath.Join(paths.moduleRoadmapsDir, progress.ModuleRoadmapRelPath(progress.ModuleProviders))},
 		{kind: "site-progress-slim", path: paths.siteProgressSlim},
 	} {
 		if !artifactPlanContains(artifacts, want.kind, want.path) {
@@ -49,7 +49,7 @@ func TestWriteDryRunListsArtifactsAndDoesNotWrite(t *testing.T) {
 		"marker:docs-full-checklist",
 		paths.docsIndex,
 		"module-roadmap:providers",
-		filepath.Join(paths.moduleRoadmapsDir, progress.ModuleProviders+".md"),
+		filepath.Join(paths.moduleRoadmapsDir, progress.ModuleRoadmapRelPath(progress.ModuleProviders)),
 		"site-progress-slim",
 	} {
 		if !strings.Contains(got, want) {
@@ -73,7 +73,7 @@ func TestWriteExecutesArtifactPlanAndReportsArtifactFailures(t *testing.T) {
 	if err := Write(&bytes.Buffer{}, root); err != nil {
 		t.Fatalf("Write: %v", err)
 	}
-	providers := mustReadFile(t, filepath.Join(paths.moduleRoadmapsDir, progress.ModuleProviders+".md"))
+	providers := mustReadFile(t, filepath.Join(paths.moduleRoadmapsDir, progress.ModuleRoadmapRelPath(progress.ModuleProviders)))
 	if !strings.Contains(providers, "# Providers Module Roadmap") {
 		t.Fatalf("providers module roadmap not written from artifact plan:\n%s", providers)
 	}

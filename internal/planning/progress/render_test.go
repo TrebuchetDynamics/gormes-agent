@@ -499,8 +499,10 @@ func TestRenderModuleRoadmapPageGroupsRowsAndCounts(t *testing.T) {
 	got := RenderModuleRoadmapPage(p, ModuleProviders)
 	for _, want := range []string{
 		`title: "Providers Module Roadmap"`,
+		"aliases:\n  - /building-gormes/modules/providers/",
 		"# Providers Module Roadmap",
 		"single logical backlog",
+		"**Module group:** Provider Models",
 		"**Module:** `providers`",
 		"**Rows:** 2",
 		"**Status counts:** `complete`: 1 · `in_progress`: 0 · `planned`: 1",
@@ -536,9 +538,11 @@ func TestRenderModuleRoadmapIndexListsModulesAndCounts(t *testing.T) {
 	for _, want := range []string{
 		`title: "Module Roadmaps"`,
 		"# Module Roadmaps",
+		"## Provider Models",
+		"## Voice And Web",
 		"| Module | Rows | Complete | In progress | Planned | Priorities |",
-		"| [Providers](providers/) | 1 | 1 | 0 | 0 | `P1`: 1 |",
-		"| [TTS](tts/) | 1 | 0 | 0 | 1 | `unset`: 1 |",
+		"| [Providers](provider-models/providers/) | 1 | 1 | 0 | 0 | `P1`: 1 |",
+		"| [TTS](voice-and-web/tts/) | 1 | 0 | 0 | 1 | `unset`: 1 |",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("module index missing %q:\n%s", want, got)

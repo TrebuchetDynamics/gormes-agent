@@ -1,0 +1,35 @@
+---
+title: "Release Module Roadmap"
+aliases:
+  - /building-gormes/modules/release/
+---
+
+# Release Module Roadmap
+
+Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
+
+**Module group:** Operator Setup
+**Module:** `release`
+**Rows:** 13
+**Status counts:** `complete`: 13 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P0`: 3 · `P1`: 10
+
+## Phase 8 — Reputation & Publication
+
+### 8.D — Sharp v1.0
+
+| Status | Priority | Module | Row |
+|---|---|---|---|
+| `complete` | `P0` | `release` | Sharp v1.0 differentiator decision |
+| `complete` | `P1` | `release` | Single-binary cross-platform release pipeline |
+| `complete` | `P1` | `release` | Release binary version/provenance smoke guard |
+| `complete` | `P1` | `release` | Release prep guide target matrix sync |
+| `complete` | `P1` | `release` | Release build-date provenance injection |
+| `complete` | `P1` | `release` | GitHub release title date-alias binding |
+| `complete` | `P1` | `release` | Release notes artifact size table |
+| `complete` | `P1` | `release` | Release SBOM attestation binding |
+| `complete` | `P1` | `release` | Release build provenance attest action contract |
+| `complete` | `P1` | `release` | Release notes SBOM attestation wording |
+| `complete` | `P1` | `release` | Release archive 30 MB size gate |
+| `complete` | `P0` | `release` | Termux latest-installer follow-up release publication |
+| `complete` | `P0` | `release` | Removal of public v0.2.20 Termux latest-install caveats from README, landing, install docs, and troubleshooting docs |

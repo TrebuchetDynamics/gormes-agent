@@ -61,7 +61,7 @@ func planArtifacts(p *progress.Progress, paths pathSet) []artifact {
 	})
 	for _, module := range progress.AllowedModules() {
 		module := module
-		path := filepath.Join(paths.moduleRoadmapsDir, module+".md")
+		path := filepath.Join(paths.moduleRoadmapsDir, progress.ModuleRoadmapRelPath(module))
 		artifacts = append(artifacts, artifact{
 			Kind:  "module-roadmap:" + module,
 			Path:  path,
