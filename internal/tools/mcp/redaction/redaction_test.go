@@ -32,3 +32,26 @@ func TestFormatStringMapRedactsSecretKeyValues(t *testing.T) {
 		t.Fatalf("FormatStringMap = %q, want secret key redacted and non-secret preserved", got)
 	}
 }
+
+func TestFormatStringMapRedactsSeparatorAndCamelCaseSecretKeys(t *testing.T) {
+	values := map[string]string{
+		"apiKey":    "camel-secret",
+		"X-API-Key": "header-secret",
+		"PAT":       "short-secret",
+		"PATH":      "/usr/bin",
+		"X-Trace":   "trace-1",
+	}
+
+	got := FormatStringMap(values)
+
+	for _, leaked := range []string{"camel-secret", "header-secret", "short-secret"} {
+		if strings.Contains(got, leaked) {
+			t.Fatalf("FormatStringMap leaked secret-key value %q: %q", leaked, got)
+		}
+	}
+	for _, want := range []string{"apiKey=" + Value, "X-API-Key=" + Value, "PAT=" + Value, "PATH=/usr/bin", "X-Trace=trace-1"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("FormatStringMap = %q, missing %q", got, want)
+		}
+	}
+}

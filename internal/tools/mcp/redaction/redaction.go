@@ -33,26 +33,54 @@ func MapValue(key, value string) string {
 	return String(value)
 }
 
-// IsSecretKey reports whether key names credential-like material.
+var exactSecretKeyNames = []string{
+	"pat",
+}
+
+var secretKeyFragments = []string{
+	"authorization",
+	"authheader",
+	"apikey",
+	"accesstoken",
+	"refreshtoken",
+	"personalaccesstoken",
+	"token",
+	"secret",
+	"password",
+}
+
+// IsSecretKey reports whether key names credential-like material. It compares
+// a separator-free lowercase key so common config spellings such as apiKey,
+// api_key, X-API-Key, and auth-header share the same classification path.
 func IsSecretKey(key string) bool {
-	lower := strings.ToLower(key)
-	secretFragments := []string{
-		"authorization",
-		"auth_header",
-		"api_key",
-		"access_token",
-		"refresh_token",
-		"personal_access_token",
-		"token",
-		"secret",
-		"password",
+	normalized := normalizeKeyName(key)
+	for _, exact := range exactSecretKeyNames {
+		if normalized == exact {
+			return true
+		}
 	}
-	for _, fragment := range secretFragments {
-		if strings.Contains(lower, fragment) {
+	for _, fragment := range secretKeyFragments {
+		if strings.Contains(normalized, fragment) {
 			return true
 		}
 	}
 	return false
+}
+
+func normalizeKeyName(key string) string {
+	var b strings.Builder
+	b.Grow(len(key))
+	for _, r := range key {
+		switch {
+		case r >= 'A' && r <= 'Z':
+			b.WriteRune(r + ('a' - 'A'))
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // IsSecretValue reports whether value contains a token-shaped credential.
