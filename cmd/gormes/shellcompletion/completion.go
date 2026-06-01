@@ -1,4 +1,4 @@
-package main
+package shellcompletion
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newCompletionCommand() *cobra.Command {
+func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "completion {bash|zsh|fish|powershell}",
 		Short:        "Generate shell completion script",

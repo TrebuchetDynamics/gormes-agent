@@ -1,4 +1,4 @@
-package main
+package titlewiring
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
-// buildTitleModelFunc wraps a llm.Client as a llm.TitleModelFunc. It
+// BuildTitleModelFunc wraps a llm.Client as a llm.TitleModelFunc. It
 // opens an SSE stream, collects EventToken fragments until EventDone, and
 // returns the concatenated text. The call is bounded by ctx; provider errors
 // surface as non-nil errors so PerformAutoTitle records provider_failed
@@ -16,7 +16,7 @@ import (
 //
 // model is used as the ChatRequest model when non-empty; an empty model falls
 // back to the server-configured default.
-func buildTitleModelFunc(client llm.Client, model string) llm.TitleModelFunc {
+func BuildTitleModelFunc(client llm.Client, model string) llm.TitleModelFunc {
 	return func(ctx context.Context, req llm.TitleModelRequest) (string, error) {
 		msgs := make([]llm.Message, 0, len(req.Messages))
 		for _, m := range req.Messages {
@@ -49,16 +49,16 @@ func buildTitleModelFunc(client llm.Client, model string) llm.TitleModelFunc {
 	}
 }
 
-// buildGatewayTitleSeam extracts a SessionTitleStore and TitleModelFunc from
+// BuildGatewayTitleSeam extracts a SessionTitleStore and TitleModelFunc from
 // the live session.Map and provider client. The store is nil when smap is not
 // a *session.BoltMap (e.g., MemMap in tests); in that case auto-title
 // silently skips via the nil-store short-circuit in maybeRunAutoTitle.
-func buildGatewayTitleSeam(ctx context.Context, smap session.Map, client llm.Client, model string) (session.SessionTitleStore, llm.TitleModelFunc) {
+func BuildGatewayTitleSeam(ctx context.Context, smap session.Map, client llm.Client, model string) (session.SessionTitleStore, llm.TitleModelFunc) {
 	boltMap, ok := smap.(*session.BoltMap)
 	if !ok {
 		return nil, nil
 	}
 	store := session.NewMetadataTitleStore(ctx, boltMap)
-	titleModel := buildTitleModelFunc(client, model)
+	titleModel := BuildTitleModelFunc(client, model)
 	return store, titleModel
 }

@@ -19,6 +19,8 @@ import (
 	"github.com/spf13/cobra"
 	"go.etcd.io/bbolt"
 
+	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/titlewiring"
+
 	dynamicagents "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	gormesgoncho "github.com/TrebuchetDynamics/goncho/integration/gormes"
 	"github.com/TrebuchetDynamics/goncho/service"
@@ -593,7 +595,7 @@ func gatewayFreshFinalAfter(cfg config.Config) time.Duration {
 }
 
 func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, allowedWhitelists map[string]gateway.WhitelistConfig, smap session.Map, hc llm.Client, hooks *gateway.Hooks, runtimeStatus gateway.RuntimeStatusWriter, restart gateway.RestartConfig) gateway.ManagerConfig {
-	titleStore, titleModel := buildGatewayTitleSeam(context.Background(), smap, hc, cfg.Hermes.Model)
+	titleStore, titleModel := titlewiring.BuildGatewayTitleSeam(context.Background(), smap, hc, cfg.Hermes.Model)
 	return gateway.ManagerConfig{
 		AllowedChats:               allowedChats,
 		AllowedUsers:               gatewayAllowedUsers(cfg),

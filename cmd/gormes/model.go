@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
+	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/modelchoice"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
@@ -346,60 +347,22 @@ func modelPickerChoices(models []string) []tuiPickChoice {
 }
 
 func defaultModelChoiceID(models []string, current string) string {
-	current = strings.TrimSpace(current)
-	if current == "" {
-		return ""
-	}
-	for _, model := range models {
-		if strings.EqualFold(strings.TrimSpace(model), current) {
-			return strings.TrimSpace(model)
-		}
-	}
-	return ""
+	return modelchoice.DefaultChoiceID(models, current)
 }
 
 func indexModelChoice(models []string, current string) int {
-	current = strings.TrimSpace(current)
-	if current == "" {
-		return -1
-	}
-	for i, model := range models {
-		if strings.EqualFold(strings.TrimSpace(model), current) {
-			return i
-		}
-	}
-	return -1
+	return modelchoice.IndexChoice(models, current)
 }
 
 func modelCatalogSuggestionsForPrompt(suggestions []string, max int) []string {
 	if max == modelChoiceSuggestionLimitUnlimited {
-		max = len(suggestions)
+		max = modelchoice.UnlimitedSuggestions
 	}
-	return boundedModelCatalogSuggestions(suggestions, max)
+	return modelchoice.SuggestionsForPrompt(suggestions, max)
 }
 
 func boundedModelCatalogSuggestions(suggestions []string, max int) []string {
-	if max <= 0 {
-		return nil
-	}
-	out := make([]string, 0, min(len(suggestions), max))
-	seen := map[string]struct{}{}
-	for _, suggestion := range suggestions {
-		suggestion = strings.TrimSpace(suggestion)
-		key := strings.ToLower(suggestion)
-		if key == "" {
-			continue
-		}
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		out = append(out, suggestion)
-		if len(out) == max {
-			return out
-		}
-	}
-	return out
+	return modelchoice.BoundedSuggestions(suggestions, max)
 }
 
 func persistModelSelectionToConfig(selection cli.Selection) error {
