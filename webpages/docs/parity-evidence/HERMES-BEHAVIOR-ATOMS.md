@@ -395,6 +395,7 @@ file+line ref or explicit `missing`, and a classification.
 | Skill install/list/inspect | `hermes_cli/skills_hub.py` | `cmd/gormes/skills.go` | covered | Skill CLI commands. |
 | Skill slash commands | `agent/skill_commands.py` | `internal/tui/slash_skills.go` | covered | Dynamic slash command registration. |
 | Skill prompt snapshot | `skill_preprocessing.py` | `internal/kernel/kernel.go` | partial | Skill blocks injected; ordering differs. |
+| Claude Design HTML artifact skill | `skills/creative/claude-design/SKILL.md` | → `missing` | missing | Hermes bundles a CLI/API artifact workflow that requires a complete local HTML file, exact on-disk path, file-existence/static verification, and no hosted `/projects/<id>` or `window.claude.complete()` publish assumptions. Gormes has no equivalent built-in skill/guard, so generated HTML artifacts can drift between requested repo paths, local artifact paths, and publish claims. |
 | Skill sync | `tools/skills_sync.py` | → `missing` | missing | Not ported. |
 
 ---
