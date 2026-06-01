@@ -122,8 +122,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 		}
 		if got, ok := resolveVoiceRecordTeaKey(msg, m.voiceRecordKey); ok && got.Action == HermesActionToggleVoiceRecording {
-			key := tools.ResolveVoiceRecordKey(m.voiceRecordKey, tools.VoiceRecordKeyOptions{})
-			m.statusMessage = "voice recording toggle unavailable in native TUI (" + string(key.Evidence) + "; key " + key.Display + ")"
+			if m.voiceToggle == nil {
+				key := tools.ResolveVoiceRecordKey(m.voiceRecordKey, tools.VoiceRecordKeyOptions{})
+				m.statusMessage = "voice recording toggle unavailable in native TUI (" + string(key.Evidence) + "; key " + key.Display + ")"
+				return m, tea.Batch(cmds...)
+			}
+			result, err := m.voiceToggle(VoiceToggleRequest{Action: "record", SessionID: m.SessionID()})
+			if err != nil {
+				m.transientPage = nil
+				m.statusMessage = "voice: " + err.Error()
+				return m, tea.Batch(cmds...)
+			}
+			if strings.TrimSpace(result.RecordKey) != "" {
+				binding := tools.ResolveVoiceRecordKey(result.RecordKey, tools.VoiceRecordKeyOptions{})
+				m.voiceRecordKey = binding.Raw
+			}
+			lines := renderVoiceToggleLines("status", result)
+			m.transientPage = &TransientPageState{Title: "Voice", Body: strings.Join(lines, "\n")}
+			if len(lines) > 0 {
+				m.statusMessage = lines[0]
+			} else {
+				m.statusMessage = "voice: no status"
+			}
 			return m, tea.Batch(cmds...)
 		}
 		if msg.Type == tea.KeyUp || msg.Type == tea.KeyDown {

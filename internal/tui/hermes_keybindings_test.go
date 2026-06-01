@@ -327,6 +327,60 @@ func TestHermesKeybindings_VoiceRecordTeaKeyUsesConfiguredKey(t *testing.T) {
 	}
 }
 
+func TestHermesKeybindings_VoiceRecordTeaKeyUsesVoiceToggleAdapter(t *testing.T) {
+	sub := &nopSubmitter{}
+	frames := make(chan kernel.RenderFrame, 1)
+	frames <- kernel.RenderFrame{Phase: kernel.PhaseIdle, Seq: 1, SessionID: "sess-voice-key"}
+	var calls int
+	var gotReq VoiceToggleRequest
+	m := NewModelWithOptions(frames, sub.submit, func() {}, Options{
+		VoiceRecordKey: "ctrl+o",
+		VoiceToggle: func(req VoiceToggleRequest) (VoiceToggleResult, error) {
+			calls++
+			gotReq = req
+			return VoiceToggleResult{
+				Enabled:   true,
+				TTS:       false,
+				RecordKey: "ctrl+o",
+				Details:   "Audio: unavailable in native TUI\nSTT: not configured",
+			}, nil
+		},
+	})
+	m.frame.SessionID = "sess-voice-key"
+	m.editor.SetValue("draft must stay local")
+
+	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlO})
+	updated, ok := next.(Model)
+	if !ok {
+		t.Fatalf("Update returned %T, want tui.Model", next)
+	}
+	runTestCmd(t, cmd)
+
+	if calls != 1 {
+		t.Fatalf("VoiceToggle calls = %d, want 1", calls)
+	}
+	if gotReq != (VoiceToggleRequest{Action: "record", SessionID: "sess-voice-key"}) {
+		t.Fatalf("VoiceToggle request = %#v, want record action for current session", gotReq)
+	}
+	if sub.calls != 0 {
+		t.Fatalf("voice record key reached Submitter %d time(s), want 0", sub.calls)
+	}
+	if got := updated.editor.Value(); got != "draft must stay local" {
+		t.Fatalf("editor value = %q, want draft preserved", got)
+	}
+	if updated.transientPage == nil || updated.transientPage.Title != "Voice" {
+		t.Fatalf("transient voice page = %+v, want Voice details", updated.transientPage)
+	}
+	for _, want := range []string{"Voice Mode Status", "Record key: Ctrl+O", "Audio: unavailable in native TUI", "STT: not configured"} {
+		if !strings.Contains(updated.transientPage.Body, want) {
+			t.Fatalf("voice details missing %q:\n%s", want, updated.transientPage.Body)
+		}
+	}
+	if !strings.Contains(updated.statusMessage, "Voice Mode Status") {
+		t.Fatalf("statusMessage = %q, want adapter-rendered voice status", updated.statusMessage)
+	}
+}
+
 // TestHermesKeybindings_HistoryUpDownOnlyAtLineBoundaries proves history
 // browsing fires only when the cursor is on the first/last line of the draft
 // (Hermes's auto_up / auto_down semantics).  When the draft is multi-line and

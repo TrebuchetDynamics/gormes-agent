@@ -264,7 +264,7 @@ file+line ref or explicit `missing`, and a classification.
 | Ctrl+D deletes char / exits | `ui-tui/src/app/useInputHandlers.ts` | `internal/tui/update.go` | covered | Delete char when draft non-empty. |
 | Ctrl+L repaints | `ui-tui/src/app/useInputHandlers.ts` | `internal/tui/update.go` | covered | Force redraw. |
 | Paste/image handling | `ui-tui/src/app/useInputHandlers.ts` | `internal/tui/composer_ingress.go` | covered | Clipboard paste and image attachment. |
-| Voice recording key | `ui-tui/src/app/useInputHandlers.ts` | `internal/tui/` | partial | Voice key configurable, TTS not wired. |
+| Voice recording key | `ui-tui/src/app/useInputHandlers.ts`; `hermes_cli/voice.py` | `internal/tui/update.go`; `internal/tui/hermes_keybindings_test.go`; `cmd/gormes/tui_voice_slash.go` | partial | Configurable `voice.record_key` now routes through the same injected voice adapter as `/voice`, shows typed unavailable audio/STT details, and never submits keypress text to the model; live microphone capture/STT/TTS playback remains a separate voice-mode gap. |
 
 ---
 

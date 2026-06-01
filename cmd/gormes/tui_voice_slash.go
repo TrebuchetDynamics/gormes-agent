@@ -28,8 +28,8 @@ type tuiVoiceToggleState struct {
 
 func (s *tuiVoiceToggleState) toggle(req tui.VoiceToggleRequest) (tui.VoiceToggleResult, error) {
 	switch strings.ToLower(strings.TrimSpace(req.Action)) {
-	case "", "status":
-		// Read-only.
+	case "", "status", "record":
+		// Read-only in the native TUI: live microphone capture is not wired here yet.
 	case "on":
 		s.enabled = true
 	case "off":

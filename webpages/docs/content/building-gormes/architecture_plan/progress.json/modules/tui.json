@@ -4821,6 +4821,96 @@
     }
   },
   {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 81,
+    "item": {
+      "name": "Native TUI voice record key uses voice toggle adapter",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Close the remaining native-TUI voice-key routing gap without claiming live microphone parity: when the configured Hermes-compatible `voice.record_key` is pressed, the Bubble Tea model must invoke the same injected `VoiceToggleFunc` used by `/voice on|off|tts|status`, update visible status/detail rows from that adapter, and never submit the keypress text to the model. If no adapter is wired or the adapter reports unavailable audio, the UI must show typed unavailable evidence instead of the current hard-coded key-only message. This slice does not start microphone capture, STT streaming, or TTS playback.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Native TUI voice capture remains degraded until a speech runtime row wires mic/STT/TTS. The record key should still route through the voice adapter so status, record-key display, and unavailable-audio details are one source of truth rather than a separate hard-coded `voice recording toggle unavailable` path.",
+      "fixture": "internal/tui/hermes_keybindings_test.go::TestHermesKeybindings_VoiceRecordTeaKeyUsesVoiceToggleAdapter",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/app/useInputHandlers.ts:voice.record_key handling",
+        "hermes-agent/hermes_cli/voice.py:voice_record_key_from_config",
+        "hermes-agent/hermes_cli/voice.py:format_voice_record_key_for_status",
+        "internal/tui/update.go:HermesActionToggleVoiceRecording branch",
+        "internal/tui/slash_voice.go",
+        "internal/tui/voice/slash.go",
+        "cmd/gormes/tui_voice_slash.go",
+        "internal/tui/hermes_keybindings_test.go:TestHermesKeybindings_VoiceRecordTeaKeyUsesConfiguredKey",
+        "internal/tui/slash_voice_test.go:TestVoiceSlashStatusUpdatesRecordKey",
+        "docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md:Voice recording key",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:TUI gateway and interactive UI"
+      ],
+      "ready_when": [
+        "The TUI already resolves configurable voice.record_key values and `/voice` already uses an injected adapter, but the raw key branch currently emits a hard-coded unavailable message and bypasses that adapter.",
+        "The slice can be proven with Bubble Tea model fixtures and a recording fake VoiceToggleFunc; no audio devices, providers, gateway, or Python Hermes runtime are required.",
+        "The row is limited to native TUI input routing and evidence display; live speech runtime parity remains a separate tools/voice row."
+      ],
+      "not_ready_when": [
+        "The implementation opens microphone devices, starts STT/TTS playback, imports speech provider code into internal/tui, or changes cmd/gormes production voice runtime beyond adapter wiring already present.",
+        "The keypress submits a prompt, mutates the draft, bypasses modal/slash-completion precedence, or claims `/voice` full parity in docs.",
+        "The test only checks the old hard-coded `voice_record_key_ok` status rather than proving the injected adapter was called and visible unavailable details came from it."
+      ],
+      "acceptance": [
+        "Pressing the configured record key on an idle model with a fake VoiceToggleFunc calls the adapter exactly once with the current session ID and a start/toggle action, clears no transcript content, and does not call the submitter.",
+        "The resulting status/transient voice detail uses the adapter result, including record-key display and unavailable-audio/setup details when returned by the adapter.",
+        "With no VoiceToggleFunc, the existing safe unavailable behavior remains visible and deterministic; reserved/malformed record-key fallback tests stay green.",
+        "Parity evidence for `Voice recording key` is updated from generic partial wording to name this adapter-routed degraded behavior while preserving live microphone/TTS gaps."
+      ],
+      "note": "Complete: TDD routed the native TUI voice.record_key branch through the injected VoiceToggleFunc instead of the hard-coded unavailable status. The key now requests the current session with action=record, renders the same Voice detail page/status shape as /voice from adapter results, preserves the draft, avoids Submitter calls, keeps nil-adapter safe unavailable evidence, and leaves live microphone/STT/TTS runtime parity as a separate gap.",
+      "write_scope": [
+        "internal/tui/update.go",
+        "internal/tui/hermes_keybindings_test.go",
+        "docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestHermesKeybindings_VoiceRecord(TeaKeyUsesVoiceToggleAdapter|KeyResolverUsesConfiguredKey|KeyMalformedAndReservedFallback)' -count=1",
+        "go test ./internal/tui ./cmd/gormes -run 'TestVoiceSlash|TestTUIVoiceSlash' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Native TUI voice.record_key dispatch is adapter-backed and test-proven, shows unavailable speech-runtime evidence from the voice adapter, does not submit prompt text, and does not overclaim live microphone/TTS parity."
+      ],
+      "provenance": {
+        "origin_type": "hermes",
+        "upstream_ref": "Hermes ui-tui voice.record_key handling and hermes_cli/voice.py status/key formatting",
+        "note": "Adapter routing only; live audio capture remains future work."
+      },
+      "completed_artifacts": [
+        "internal/tui/update.go",
+        "internal/tui/hermes_keybindings_test.go",
+        "cmd/gormes/tui_voice_slash.go",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md"
+      ],
+      "completion_evidence": {
+        "implementation": "internal/tui/update.go dispatches the configured voice record key to VoiceToggleFunc with action=record and renders adapter-backed Voice details.",
+        "tests": "internal/tui/hermes_keybindings_test.go proves the adapter call, session ID, no Submitter call, draft preservation, and unavailable-audio details.",
+        "docs": "Voice recording key parity evidence is partial with adapter-routed degraded behavior and live audio gaps preserved."
+      },
+      "validation": [
+        "go test ./internal/tui -run 'TestHermesKeybindings_VoiceRecord(TeaKeyUsesVoiceToggleAdapter|KeyResolverUsesConfiguredKey|KeyMalformedAndReservedFallback)' -count=1",
+        "go test ./internal/tui ./cmd/gormes -run 'TestVoiceSlash|TestTUIVoiceSlash|TestHermesKeybindings_VoiceRecord' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ]
+    }
+  },
+  {
     "phase": "8",
     "subphase": "8.D",
     "pos": 16,
