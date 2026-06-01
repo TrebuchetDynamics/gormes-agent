@@ -21,41 +21,41 @@ select and execute eligible work. The old loop command binaries are gone; the
 roadmap is still the machine-readable queue for developing the full
 `gormes-agent`.
 
-**Completion doctrine:** [Gormes Completion Plan](./completion-plan/) defines
+**Completion doctrine:** [Gormes Completion Plan](./governance/completion-plan/) defines
 the non-negotiable finish line: Gormes is complete only when it is Hermes in Go,
 with Goncho as the Honcho-compatible Go port inside Gormes.
 
-**Operating model:** [Completion Lane Roadmap](./lane-roadmap/) maps phases to
-finish lanes and gates; [Agent Operating Model](./agent-operating-model/) tells
+**Operating model:** [Completion Lane Roadmap](./governance/lane-roadmap/) maps phases to
+finish lanes and gates; [Agent Operating Model](./governance/agent-operating-model/) tells
 agents how to run bounded parity, planner, builder, TDD, and interface-design
 passes.
 
-**Feature map:** [Hermes And Honcho Feature Map](./hermes-honcho-feature-map/)
+**Feature map:** [Hermes And Honcho Feature Map](./parity/hermes-honcho-feature-map/)
 maps upstream Hermes and Honcho feature families to Go packages, implementation
 strategy, proof gates, and `progress.json` anchors.
 
-**Contract pairings:** [Hermes/Gormes Contract Pairings](./hermes-gormes-contract-pairings/)
+**Contract pairings:** [Hermes/Gormes Contract Pairings](./parity/hermes-gormes-contract-pairings/)
 defines the shared vocabulary for pairing upstream Hermes symbols with their
 Go-native Gormes adapters before rows are renamed or split.
 
-**Messaging setup contract:** [Messaging Platform Setup Fidelity](./messaging-platform-setup-fidelity/)
+**Messaging setup contract:** [Messaging Platform Setup Fidelity](./runtime/messaging-platform-setup-fidelity/)
 records the Hermes-fidelity rules for `gormes setup gateway`, channel config,
 Telegram-first setup, env compatibility, and migration boundaries.
 
-**CLI parity matrix:** [Hermes Command Surface Parity Matrix](./hermes-command-surface-parity/)
+**CLI parity matrix:** [Hermes Command Surface Parity Matrix](./parity/hermes-command-surface-parity/)
 records the operator-visible Hermes command tree, current Gormes state, and the
 `progress.json` rows that own remaining command/auth gaps.
 
-**Runtime plan:** [Hermes/Honcho To Gormes Go Runtime Plan](./hermes-honcho-go-runtime-plan/)
+**Runtime plan:** [Hermes/Honcho To Gormes Go Runtime Plan](./parity/hermes-honcho-go-runtime-plan/)
 reconciles the feature map, source-class ledger, swarm audit, nested coverage
 matrix, and progress rows into one implementation-ready subsystem plan.
 
-**Completeness audit:** [Upstream Coverage Ledger](./upstream-coverage-ledger/)
+**Completeness audit:** [Upstream Coverage Ledger](./parity/upstream-coverage-ledger/)
 lists the upstream source classes that must be represented in the feature map,
 so a planner pass can tell whether Hermes/Honcho mapping is complete or has
 drifted.
 
-**Feature-level swarm audit:** [Swarm Feature Parity Audit](./swarm-feature-parity-audit/)
+**Feature-level swarm audit:** [Swarm Feature Parity Audit](./parity/swarm-feature-parity-audit/)
 records the raw sub-agent parity findings that feed the runtime plan's
 classification and row-backed implementation queue.
 
@@ -63,20 +63,20 @@ classification and row-backed implementation queue.
 
 - The generated checklist below is rebuilt from `progress.json`; do not hand-edit
   content between `PROGRESS` markers.
-- Start with the [Completion Plan](./completion-plan/) when deciding what to
-  build next; then use the [Completion Lane Roadmap](./lane-roadmap/) for lane
-  gates and the [Agent Operating Model](./agent-operating-model/) for the
+- Start with the [Completion Plan](./governance/completion-plan/) when deciding what to
+  build next; then use the [Completion Lane Roadmap](./governance/lane-roadmap/) for lane
+  gates and the [Agent Operating Model](./governance/agent-operating-model/) for the
   exact pass workflow.
-- Use [Hermes And Honcho Feature Map](./hermes-honcho-feature-map/) when
+- Use [Hermes And Honcho Feature Map](./parity/hermes-honcho-feature-map/) when
   mapping upstream capabilities or deciding where a feature belongs in Go.
-- Use [Hermes/Gormes Contract Pairings](./hermes-gormes-contract-pairings/)
+- Use [Hermes/Gormes Contract Pairings](./parity/hermes-gormes-contract-pairings/)
   when a Gormes file name hides the upstream Hermes contract it adapts.
-- Use [Hermes/Honcho To Gormes Go Runtime Plan](./hermes-honcho-go-runtime-plan/)
+- Use [Hermes/Honcho To Gormes Go Runtime Plan](./parity/hermes-honcho-go-runtime-plan/)
   when turning mapped upstream capabilities into Go package targets,
   classifications, dependency order, and builder-ready row splits.
-- Use [Upstream Coverage Ledger](./upstream-coverage-ledger/) to verify that no
+- Use [Upstream Coverage Ledger](./parity/upstream-coverage-ledger/) to verify that no
   feature-bearing Hermes/Honcho source class is unmapped.
-- Use [Swarm Feature Parity Audit](./swarm-feature-parity-audit/) to find broad
+- Use [Swarm Feature Parity Audit](./parity/swarm-feature-parity-audit/) to find broad
   source classes that still hide missing or vague feature-level rows.
 - Use the phase pages for design intent and boundaries, then use
   [Contract Readiness](../contract-readiness/) and [Agent Queue](../builder-loop/agent-queue/)
@@ -1668,7 +1668,7 @@ Execution is now sequenced in `docs/superpowers/plans/2026-04-22-gormes-phase3-i
 
 ## Phase 4 Entry Gate
 
-Before any Phase 4 coding starts, the [Pre-Phase-4 E2E Gate](./phase-3-memory/) must be green. Freeze the Hermes-backed hybrid baseline for delivery envelopes, `<memory-context>` fences, and transcript/export artifacts first, then follow the entry rule in [Phase 4 — The Brain Transplant](./phase-4-brain-transplant/).
+Before any Phase 4 coding starts, the [Pre-Phase-4 E2E Gate](./phases/phase-3-memory/) must be green. Freeze the Hermes-backed hybrid baseline for delivery envelopes, `<memory-context>` fences, and transcript/export artifacts first, then follow the entry rule in [Phase 4 — The Brain Transplant](./phases/phase-4-brain-transplant/).
 
 ---
 
