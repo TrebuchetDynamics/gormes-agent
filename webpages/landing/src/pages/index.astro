@@ -113,36 +113,8 @@ const organizationSchema = {
                 </span>
               ))}
             </div>
-            <p class="hero-status mt-5 max-w-2xl rounded-2xl border border-[#73cedd]/20 bg-[#73cedd]/[0.08] px-4 py-3 text-sm leading-6 text-[#d7f7ff]/[0.78]">
-              {page.heroStatus}
-            </p>
           </div>
 
-          <aside class="hero-panel glass-card min-w-0 rounded-3xl border border-white/[0.12] bg-[#0f1622]/[0.72] p-5 shadow-[0_30px_120px_rgba(0,0,0,0.34)] backdrop-blur-xl sm:p-6" aria-label="Gormes operator quick path">
-            <p class="kicker text-xs font-bold uppercase tracking-[0.18em] text-[#73cedd]">{page.heroPanelEyebrow}</p>
-            <h2 class="mt-3 text-2xl font-bold leading-tight text-white">{page.heroPanelTitle}</h2>
-            <ol class="mt-5 space-y-3" aria-label="Quick start commands">
-              {page.heroPanelSteps.map((step, index) => (
-                <li class="grid grid-cols-[2.25rem_minmax(0,1fr)] items-start gap-3 rounded-2xl border border-white/[0.08] bg-black/20 p-3">
-                  <span class="rounded-full bg-[#f0c84b]/12 px-2 py-1 text-center font-mono text-xs font-bold text-[#f0c84b]">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-                  <div class="min-w-0">
-                    <code class="break-words font-mono text-sm leading-6 text-[#eeece5]/85">{step.command}</code>
-                    <p class="mt-1 text-xs leading-5 text-[#eeece5]/55">{step.note}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-            <dl class="hero-panel-metrics mt-5 grid gap-2 sm:grid-cols-3">
-              {page.heroMetrics.map((item) => (
-                <div class="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-3">
-                  <dt class="text-xs font-bold uppercase tracking-[0.08em] text-[#eeece5]/[0.52]">{item.label}</dt>
-                  <dd class="mt-1 font-mono text-lg font-black text-[#73cedd]">{item.value}</dd>
-                </div>
-              ))}
-            </dl>
-          </aside>
         </div>
       </section>
 
@@ -192,85 +164,6 @@ const organizationSchema = {
         </div>
       </section>
 
-      <section id="runtime" class={`runtime border-b border-white/10 bg-[#10141b] ${sectionPad}`}>
-        <div class={`${sectionShell} runtime-inner`}>
-          <div class="mb-6 max-w-2xl">
-            <h2 class="section-title text-2xl font-bold text-[#eeece5]">{page.runtimeVisualHeadline}</h2>
-            <p class="mt-3 text-base leading-7 text-[#eeece5]/70">{page.runtimeVisualIntro}</p>
-          </div>
-          <div class="grid gap-4">
-            {page.runtimeVisuals.map((visual) => (
-              <figure class={`${cardShell} overflow-hidden p-0`}>
-                <img
-                  class="h-auto w-full rounded-t-2xl border-b border-white/10 bg-[#05070a]"
-                  src={visual.image}
-                  alt={visual.alt}
-                  width={visual.width}
-                  height={visual.height}
-                  loading="lazy"
-                  decoding="async"
-                />
-                <figcaption class="p-5">
-                  <h3 class="text-base font-bold text-[#eeece5]">{visual.title}</h3>
-                  <p class="mt-2 text-sm leading-6 text-[#eeece5]/65">{visual.body}</p>
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="use-cases" class={`use-cases border-b border-white/10 ${sectionPad}`}>
-        <div class={`${sectionShell} use-cases-inner`}>
-          <h2 class="section-title mb-4 text-2xl font-bold text-[#eeece5]">{page.useCasesHeadline}</h2>
-          <p class="max-w-2xl text-base leading-7 text-[#eeece5]/70">{page.useCasesIntro}</p>
-          <div class="mt-8 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
-            {page.useCases.map((item) => (
-              <article class={`${cardShell} use-case-card min-w-0`}>
-                <h3 class="text-base font-bold text-[#eeece5]">{item.title}</h3>
-                <p class="mt-3 text-sm leading-6 text-[#eeece5]/70">{item.body}</p>
-                {item.href && item.linkLabel && (
-                  <a class="mt-4 inline-flex min-h-11 items-center rounded-full border border-[#73cedd]/30 px-4 py-2 text-sm font-bold text-[#f0c84b] hover:border-[#f0c84b]/70 hover:text-[#ffd968]" href={item.href}>
-                    {item.linkLabel}
-                  </a>
-                )}
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="proof" class={`proof border-b border-white/10 ${sectionPad}`}>
-        <div class={`${sectionShell} proof-inner`}>
-          <h2 class="section-title mb-4 text-2xl font-bold text-[#eeece5]">{page.proofHeadline}</h2>
-          <p class="max-w-2xl text-base leading-7 text-[#eeece5]/70">{page.proofIntro}</p>
-          <div class="proof-grid mt-8 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-4">
-            {page.proofItems.map((item) => (
-              <article class={`${cardShell} proof-card`}>
-                <p class="font-mono text-2xl font-black text-[#73cedd]">{item.value}</p>
-                <h3 class="mt-2 text-sm font-bold text-[#eeece5]">{item.label}</h3>
-                <p class="mt-2 text-xs leading-5 text-[#eeece5]/65">{item.detail}</p>
-              </article>
-            ))}
-          </div>
-          <nav class="mt-6 flex flex-wrap gap-2" aria-label="Trust evidence">
-            {page.proofLinks.map((link) => (
-              <a class="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-sm font-bold text-[#f0c84b] hover:border-[#f0c84b]/60 hover:text-[#ffd968]" href={link.href}>{link.label}</a>
-            ))}
-          </nav>
-        </div>
-      </section>
-
-      <section id="final-cta" class={`final-cta ${sectionPad}`}>
-        <div class={`${sectionShell} final-cta-inner`}>
-          <h2 class="section-title max-w-2xl text-3xl font-bold text-white">{page.finalCtaHeadline}</h2>
-          <p class="final-cta-body mt-4 max-w-2xl text-base leading-7 text-[#eeece5]/70">{page.finalCtaBody}</p>
-          <div class="final-cta-actions mt-7 flex flex-col gap-3 sm:flex-row">
-            <a class={buttonPrimary} href={page.finalPrimaryCta.href}>{page.finalPrimaryCta.label}</a>
-            <a class={buttonSecondary} href={page.finalSecondaryCta.href}>{page.finalSecondaryCta.label}</a>
-          </div>
-        </div>
-      </section>
     </main>
 
     <footer class="footer border-t border-white/10 bg-[#05070a]">
