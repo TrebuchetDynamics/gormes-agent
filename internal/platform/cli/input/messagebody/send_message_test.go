@@ -1,9 +1,11 @@
-package input
+package messagebody
 
 import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/input/sanitization"
 )
 
 func TestResolveSendMessageBodyPreservesSources(t *testing.T) {
@@ -90,7 +92,7 @@ func TestResolveSendMessageBodyStripsTerminalResponses(t *testing.T) {
 	if got.Text != "helloworld" {
 		t.Fatalf("Text = %q, want terminal response stripped", got.Text)
 	}
-	if !got.SanitizerMeta.Stripped || got.SanitizerMeta.Evidence != TerminalResponseStrippedEvidence {
+	if !got.SanitizerMeta.Stripped || got.SanitizerMeta.Evidence != sanitization.TerminalResponseStrippedEvidence {
 		t.Fatalf("SanitizerMeta = %+v, want stripped evidence", got.SanitizerMeta)
 	}
 }
