@@ -73,49 +73,62 @@ type ToolResultEvidence struct {
 // performs network I/O.
 func FormatToolResult(cfg ToolResultBudgetConfig, raw []byte, mediaType string) (string, ToolResultEvidence, error) {
 	cfg = cfg.withDefaults()
-	if isTextMedia(mediaType) {
-		raw = []byte(redaction.StripANSI(string(raw)))
-	}
+	payload := prepareToolResultPayload(cfg, raw, mediaType)
 
-	bytes := len(raw)
-	preview := safePreview(raw, cfg.PreviewBytes)
-
-	if !cfg.shouldPersist(raw, mediaType) {
-		inline := inlineUnderBudgetText(raw)
+	if !cfg.shouldPersist(payload.SafeBytes, mediaType) {
+		inline := inlineUnderBudgetText(payload.SafeBytes)
 		return inline, ToolResultEvidence{
 			Code:    ToolResultEvidenceUnderBudget,
 			Preview: inline,
-			Bytes:   bytes,
+			Bytes:   payload.OriginalBytes,
 		}, nil
 	}
 
-	rel, err := persistArtifact(cfg.OutputDir, raw, mediaType)
+	rel, err := persistArtifact(cfg.OutputDir, payload.SafeBytes, mediaType)
 	if err != nil {
 		// Degraded mode: do not error out. Return bounded inline preview so
 		// the channel/provider still gets *something* without flooding, and
 		// surface persistence_failed evidence for operator triage.
-		degraded := truncatePointer(preview)
+		degraded := truncatePointer(payload.Preview)
 		return degraded, ToolResultEvidence{
 			Code:    ToolResultEvidencePersistenceFailed,
 			Preview: degraded,
-			Bytes:   bytes,
+			Bytes:   payload.OriginalBytes,
 		}, nil
 	}
 
-	pointer := buildPointer(rel, preview, mediaType, bytes)
+	pointer := buildPointer(rel, payload.Preview, mediaType, payload.OriginalBytes)
 	code := ToolResultEvidenceTruncated
 	// JSON/non-text payloads under the text budget still get persisted but
 	// they were not "truncated" in the textual sense; they were promoted to
 	// an artifact pointer. Report persisted in that case.
-	if !isTextMedia(mediaType) || bytes <= cfg.TextBudgetBytes {
+	if !isTextMedia(mediaType) || len(payload.SafeBytes) <= cfg.TextBudgetBytes {
 		code = ToolResultEvidencePersisted
 	}
 	return pointer, ToolResultEvidence{
 		Code:     code,
 		Artifact: rel,
-		Preview:  preview,
-		Bytes:    bytes,
+		Preview:  payload.Preview,
+		Bytes:    payload.OriginalBytes,
 	}, nil
+}
+
+type toolResultPayload struct {
+	SafeBytes     []byte
+	OriginalBytes int
+	Preview       string
+}
+
+func prepareToolResultPayload(cfg ToolResultBudgetConfig, raw []byte, mediaType string) toolResultPayload {
+	safe := raw
+	if isTextMedia(mediaType) {
+		safe = []byte(redaction.StripANSI(string(raw)))
+	}
+	return toolResultPayload{
+		SafeBytes:     safe,
+		OriginalBytes: len(raw),
+		Preview:       safePreview(safe, cfg.PreviewBytes),
+	}
 }
 
 func (cfg ToolResultBudgetConfig) withDefaults() ToolResultBudgetConfig {

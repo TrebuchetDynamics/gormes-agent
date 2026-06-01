@@ -118,6 +118,24 @@ func TestToolResultBudget_StripsANSIFromTextBeforeModelOrArtifact(t *testing.T) 
 	}
 }
 
+func TestToolResultBudget_BytesReportsOriginalRawOutput(t *testing.T) {
+	dir := t.TempDir()
+	raw := []byte("ok\x1b[31mred\x1b[0m" + strings.Repeat("x", 512))
+	cfg := ToolResultBudgetConfig{
+		OutputDir:       dir,
+		TextBudgetBytes: 32,
+		PreviewBytes:    16,
+	}
+
+	_, evidence, err := FormatToolResult(cfg, raw, "text/plain")
+	if err != nil {
+		t.Fatalf("FormatToolResult: %v", err)
+	}
+	if evidence.Bytes != len(raw) {
+		t.Fatalf("evidence.Bytes = %d, want original raw byte length %d", evidence.Bytes, len(raw))
+	}
+}
+
 // TestToolResultBudget_PersistsJSONNonText proves non-text/JSON output is
 // persisted as a JSON file and the pointer is short (no embedded JSON body).
 func TestToolResultBudget_PersistsJSONNonText(t *testing.T) {
