@@ -1,4 +1,4 @@
-package audio
+package preprocessor
 
 import (
 	"context"
@@ -9,12 +9,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/audio/codec"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/audio/contract"
 )
 
 func TestPreprocess_ReturnsWAVPCMDirectly(t *testing.T) {
 	input := testWAVPCM16Mono16k(t, []int16{0, 1024, -1024, 32767, -32768})
 
-	got, err := Preprocess(context.Background(), input, "audio/wav", PreprocessOptions{
+	got, err := Preprocess(context.Background(), input, "audio/wav", contract.PreprocessOptions{
 		FileName: "voice.wav",
 		Converter: func(context.Context, string, string) error {
 			t.Fatal("converter should not run for compatible WAV input")
@@ -39,7 +42,7 @@ func TestPreprocess_ConvertsOGGToPCMWhenConverterAvailable(t *testing.T) {
 	var convertedFrom string
 	var convertedBytes []byte
 
-	got, err := Preprocess(context.Background(), wantInput, "audio/ogg", PreprocessOptions{
+	got, err := Preprocess(context.Background(), wantInput, "audio/ogg", contract.PreprocessOptions{
 		FileName: "voice.oga",
 		Converter: func(_ context.Context, inputPath, outputPath string) error {
 			convertedFrom = inputPath
@@ -71,16 +74,16 @@ func TestPreprocess_ConvertsOGGToPCMWhenConverterAvailable(t *testing.T) {
 func TestPreprocess_ReturnsDegradedWhenFFmpegMissing(t *testing.T) {
 	t.Setenv("PATH", filepath.Join(t.TempDir(), "missing-bin"))
 
-	_, err := Preprocess(context.Background(), []byte("OggS"), "audio/ogg", PreprocessOptions{FileName: "voice.ogg"})
+	_, err := Preprocess(context.Background(), []byte("OggS"), "audio/ogg", contract.PreprocessOptions{FileName: "voice.ogg"})
 	if err == nil {
 		t.Fatal("Preprocess returned nil error without ffmpeg")
 	}
-	var preprocessErr *PreprocessError
+	var preprocessErr *contract.PreprocessError
 	if !errors.As(err, &preprocessErr) {
 		t.Fatalf("error = %T %[1]v, want *PreprocessError", err)
 	}
-	if preprocessErr.Code != AudioPreprocessUnavailable {
-		t.Fatalf("Code = %q, want %q", preprocessErr.Code, AudioPreprocessUnavailable)
+	if preprocessErr.Code != contract.AudioPreprocessUnavailable {
+		t.Fatalf("Code = %q, want %q", preprocessErr.Code, contract.AudioPreprocessUnavailable)
 	}
 	if strings.Contains(err.Error(), string(os.PathSeparator)+"voice.ogg") {
 		t.Fatalf("error leaked full temp path: %v", err)
@@ -88,7 +91,7 @@ func TestPreprocess_ReturnsDegradedWhenFFmpegMissing(t *testing.T) {
 }
 
 func TestPreprocess_RedactsConverterTempPaths(t *testing.T) {
-	_, err := Preprocess(context.Background(), []byte("OggS"), "audio/ogg", PreprocessOptions{
+	_, err := Preprocess(context.Background(), []byte("OggS"), "audio/ogg", contract.PreprocessOptions{
 		FileName: "voice.ogg",
 		Converter: func(_ context.Context, inputPath, outputPath string) error {
 			return fmt.Errorf("converter failed for %s -> %s", inputPath, outputPath)
@@ -109,13 +112,13 @@ func TestPreprocess_RedactsConverterTempPaths(t *testing.T) {
 }
 
 func TestEncodePCM16MonoWAVRoundTripsThroughPreprocess(t *testing.T) {
-	want := PCM{SampleRate: 16000, Samples: []int16{0, 1, -1, 2048, -2048}}
-	raw, err := EncodePCM16MonoWAV(want)
+	want := contract.PCM{SampleRate: 16000, Samples: []int16{0, 1, -1, 2048, -2048}}
+	raw, err := codec.EncodePCM16MonoWAV(want)
 	if err != nil {
 		t.Fatalf("EncodePCM16MonoWAV: %v", err)
 	}
 
-	got, err := Preprocess(context.Background(), raw, "audio/wav", PreprocessOptions{
+	got, err := Preprocess(context.Background(), raw, "audio/wav", contract.PreprocessOptions{
 		FileName: "chunk.wav",
 		Converter: func(context.Context, string, string) error {
 			t.Fatal("converter should not run for encoded WAV input")

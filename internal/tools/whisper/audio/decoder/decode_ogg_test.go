@@ -1,6 +1,6 @@
 //go:build !slim
 
-package audio
+package decoder
 
 import (
 	"context"

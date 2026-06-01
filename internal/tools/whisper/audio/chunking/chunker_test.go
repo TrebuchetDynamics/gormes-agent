@@ -1,6 +1,7 @@
-package audio
+package chunking
 
 import (
+	"slices"
 	"testing"
 	"time"
 )
@@ -14,7 +15,7 @@ func TestChunkPCMFixedWindowEdges(t *testing.T) {
 
 	t.Run("single short chunk", func(t *testing.T) {
 		got := ChunkPCM([]int16{1, 2, 3}, 10, time.Second)
-		if len(got) != 1 || !equalInt16(got[0], []int16{1, 2, 3}) {
+		if len(got) != 1 || !slices.Equal(got[0], []int16{1, 2, 3}) {
 			t.Fatalf("ChunkPCM short = %v", got)
 		}
 	})
@@ -26,7 +27,7 @@ func TestChunkPCMFixedWindowEdges(t *testing.T) {
 			t.Fatalf("chunk count = %d, want %d: %v", len(got), len(want), got)
 		}
 		for i := range want {
-			if !equalInt16(got[i], want[i]) {
+			if !slices.Equal(got[i], want[i]) {
 				t.Fatalf("chunk %d = %v, want %v", i, got[i], want[i])
 			}
 		}
@@ -38,7 +39,7 @@ func TestChunkPCMFixedWindowEdges(t *testing.T) {
 			t.Fatalf("silent chunk count = %d, want 4: %v", len(got), got)
 		}
 		for i, chunk := range got {
-			if !equalInt16(chunk, []int16{0}) {
+			if !slices.Equal(chunk, []int16{0}) {
 				t.Fatalf("silent chunk %d = %v, want one zero", i, chunk)
 			}
 		}
