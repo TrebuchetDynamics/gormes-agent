@@ -76,8 +76,7 @@ func RouteBrowserNavigation(taskID, rawURL string, cloudConfigured, autoLocalFor
 		return route
 	}
 
-	hostname, ok := browserNavigationHostname(rawURL)
-	if !ok || !IsPrivateBrowserHost(hostname) {
+	if !isPrivateBrowserNavigationTarget(rawURL) {
 		return route
 	}
 
@@ -104,6 +103,11 @@ func browserNavigationHostname(rawURL string) (string, bool) {
 		return "", false
 	}
 	return parsed.Hostname(), true
+}
+
+func isPrivateBrowserNavigationTarget(rawURL string) bool {
+	hostname, ok := browserNavigationHostname(rawURL)
+	return ok && IsPrivateBrowserHost(hostname)
 }
 
 func normalizeBrowserTaskID(taskID string) string {

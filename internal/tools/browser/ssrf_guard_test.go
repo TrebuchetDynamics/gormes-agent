@@ -37,6 +37,7 @@ func TestBrowserSSRFGuard_PrivateURLBlockedWhenCloudWouldReceiveIt(t *testing.T)
 		rawURL string
 	}{
 		{name: "localhost", rawURL: "http://localhost:3000/dashboard"},
+		{name: "schemeless_localhost_with_port", rawURL: "localhost:3000/dashboard"},
 		{name: "rfc1918", rawURL: "http://192.168.1.10/admin"},
 	}
 

@@ -1,9 +1,6 @@
 package browser
 
-import (
-	"net/url"
-	"strings"
-)
+import "strings"
 
 const (
 	browserSSRFGuardConfigInvalid = "ssrf_guard_config_invalid"
@@ -90,8 +87,7 @@ func CheckBrowserSSRFGuard(taskID, rawURL string, opts BrowserSSRFGuardOptions) 
 		return decision
 	}
 
-	parsed, err := url.Parse(rawURL)
-	if err == nil && IsPrivateBrowserHost(parsed.Hostname()) {
+	if isPrivateBrowserNavigationTarget(rawURL) {
 		decision.Allowed = false
 		decision.Evidence = browserSSRFPrivateURLBlocked
 	}
