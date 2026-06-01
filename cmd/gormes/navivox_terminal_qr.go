@@ -46,17 +46,38 @@ func renderNavivoxPairTerminalQR(out io.Writer, cfg config.NavivoxCfg, baseURL, 
 }
 
 func navivoxPairOpenQRCommand(qrPath string) string {
-	if navivoxAndroidEnvironment() {
-		return "termux-open " + qrPath
+	return navivoxPairOpenQRCommandForPlatform(qrPath, runtime.GOOS, navivoxAndroidEnvironment())
+}
+
+func navivoxPairOpenQRCommandForPlatform(qrPath, goos string, android bool) string {
+	pathArg := navivoxPairOpenQRPathArg(qrPath, goos)
+	if android {
+		return "termux-open " + pathArg
 	}
-	switch runtime.GOOS {
+	switch goos {
 	case "darwin":
-		return "open " + qrPath
+		return "open " + pathArg
 	case "windows":
-		return "start " + qrPath
+		return "start " + pathArg
 	default:
-		return "xdg-open " + qrPath
+		return "xdg-open " + pathArg
 	}
+}
+
+func navivoxPairOpenQRPathArg(qrPath, goos string) string {
+	if qrPath == "" {
+		if goos == "windows" {
+			return `""`
+		}
+		return `''`
+	}
+	if !strings.ContainsAny(qrPath, " \t\n\r'\"\\$`;&|<>*?[]{}()!") {
+		return qrPath
+	}
+	if goos == "windows" {
+		return `"` + strings.ReplaceAll(qrPath, `"`, `\"`) + `"`
+	}
+	return `'` + strings.ReplaceAll(qrPath, `'`, `'\''`) + `'`
 }
 
 func navivoxCompactPairDescriptor(cfg config.NavivoxCfg, baseURL, wsURL string) string {

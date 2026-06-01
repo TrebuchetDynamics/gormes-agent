@@ -315,6 +315,49 @@ func TestNavivoxPairNarrowTermuxFallsBackToPNGQRCode(t *testing.T) {
 	}
 }
 
+func TestNavivoxPairOpenQRCommandKeepsPlainPathsStable(t *testing.T) {
+	path := "/tmp/gormes/cache/navivox/pairing.png"
+	cases := []struct {
+		name    string
+		goos    string
+		android bool
+		want    string
+	}{
+		{name: "linux", goos: "linux", want: "xdg-open " + path},
+		{name: "darwin", goos: "darwin", want: "open " + path},
+		{name: "windows", goos: "windows", want: "start " + path},
+		{name: "termux", goos: "linux", android: true, want: "termux-open " + path},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := navivoxPairOpenQRCommandForPlatform(path, tc.goos, tc.android); got != tc.want {
+				t.Fatalf("open command = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestNavivoxPairOpenQRCommandQuotesPathsWithShellSeparators(t *testing.T) {
+	cases := []struct {
+		name    string
+		path    string
+		goos    string
+		android bool
+		want    string
+	}{
+		{name: "linux spaces", path: "/tmp/gormes home/cache/navivox/pairing.png", goos: "linux", want: "xdg-open '/tmp/gormes home/cache/navivox/pairing.png'"},
+		{name: "termux apostrophe", path: "/tmp/user's home/pairing.png", goos: "linux", android: true, want: "termux-open '/tmp/user'\\''s home/pairing.png'"},
+		{name: "windows spaces", path: `C:\\Users\\Gormes Home\\pairing.png`, goos: "windows", want: `start "C:\\Users\\Gormes Home\\pairing.png"`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := navivoxPairOpenQRCommandForPlatform(tc.path, tc.goos, tc.android); got != tc.want {
+				t.Fatalf("open command = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestNavivoxPairNarrowDesktopSuggestsDesktopOpenCommand(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
