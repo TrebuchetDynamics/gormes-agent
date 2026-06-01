@@ -194,8 +194,12 @@ type webSearchResponse struct {
 	Data    struct {
 		Web []webSearchResult `json:"web"`
 	} `json:"data"`
-	Error    string      `json:"error,omitempty"`
-	Evidence WebEvidence `json:"evidence,omitempty"`
+	Error          string      `json:"error,omitempty"`
+	Evidence       WebEvidence `json:"evidence,omitempty"`
+	Backend        WebBackend  `json:"backend,omitempty"`
+	Source         string      `json:"source,omitempty"`
+	Degraded       bool        `json:"degraded,omitempty"`
+	DegradedReason string      `json:"degraded_reason,omitempty"`
 }
 
 type webExtractResponse struct {
@@ -606,7 +610,14 @@ func (t *webTool) executeSearch(ctx context.Context, args json.RawMessage) (json
 	if err != nil {
 		return webSearchFailure("Error searching web: "+redactWebError(err.Error(), t.cfg.Resolution.APIKey), WebEvidenceRequestFailed)
 	}
-	return json.Marshal(normalizeWebSearch(raw))
+	response := normalizeWebSearch(raw)
+	response.Backend = t.cfg.Resolution.Backend
+	response.Source = t.cfg.Resolution.Source
+	if t.cfg.Resolution.Backend == WebBackendPerplexity && webSearchResponseHasNoSourceURLs(response) {
+		response.Degraded = true
+		response.DegradedReason = "no citations returned; answer may be model-synthesized"
+	}
+	return json.Marshal(response)
 }
 
 func (t *webTool) executeSearchBackend(ctx context.Context, query string, limit int) (map[string]any, error) {
@@ -1665,6 +1676,18 @@ func normalizeWebSearch(raw map[string]any) webSearchResponse {
 		out.Evidence = WebEvidenceRequestFailed
 	}
 	return out
+}
+
+func webSearchResponseHasNoSourceURLs(response webSearchResponse) bool {
+	if !response.Success || len(response.Data.Web) == 0 {
+		return false
+	}
+	for _, result := range response.Data.Web {
+		if strings.TrimSpace(result.URL) != "" {
+			return false
+		}
+	}
+	return true
 }
 
 func normalizePerplexitySearch(raw map[string]any) map[string]any {

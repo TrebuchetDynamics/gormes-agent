@@ -1427,6 +1427,44 @@ func TestWebSearchToolCallsPerplexityBackend(t *testing.T) {
 	}
 }
 
+func TestWebSearchToolPerplexityWithoutCitationsMarksDegraded(t *testing.T) {
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusOK,
+		body:   `{"choices":[{"message":{"content":"Unsourced model answer"}}],"citations":[]}`,
+	}}}
+	tool := NewWebSearchTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendPerplexity,
+			BaseURL:   "https://api.perplexity.test",
+			APIKey:    "perplexity-secret",
+			Available: true,
+			Source:    "config",
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"query":"current market research"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	var payload webSearchResponse
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if !payload.Success || len(payload.Data.Web) != 1 {
+		t.Fatalf("payload = %+v, want one synthesized answer row", payload)
+	}
+	if !payload.Degraded || !strings.Contains(payload.DegradedReason, "no citations") {
+		t.Fatalf("degraded fields = %v %q, want unsourced research warning", payload.Degraded, payload.DegradedReason)
+	}
+	if payload.Backend != WebBackendPerplexity || payload.Source != "config" {
+		t.Fatalf("provenance backend/source = %q/%q", payload.Backend, payload.Source)
+	}
+	if payload.Data.Web[0].URL != "" {
+		t.Fatalf("unexpected citation URL on degraded answer: %+v", payload.Data.Web[0])
+	}
+}
+
 func TestWebExtractToolCallsFirecrawlAndBlocksPrivateURLs(t *testing.T) {
 	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
 		status: http.StatusOK,

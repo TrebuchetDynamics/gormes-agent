@@ -335,7 +335,13 @@ file+line ref or explicit `missing`, and a classification.
 | `memory` tool (Hermes-compatible) | `tools/memory_tool.py` | → `missing` | missing | Goncho tools exist but no Hermes-compatible `memory` tool in default registry. |
 | `session_search` tool | `tools/session_search_tool.py` | `internal/tools/sessionsearch/` | covered | Session search. |
 
-### 6.3 Browser tools
+### 6.3 Web tools
+
+| Atom | HERMES | GORMES | Status | Notes |
+|---|---|---|---|---|
+| `web_search` / `web_extract` / `web_crawl` | `tools/web_tools.py`; `tools/x_search_tool.py` degraded citation handling | `internal/tools/web_tools.go` | partial | Native web tools cover multiple backends and now mark Perplexity search answers without citations as degraded with backend/source provenance, reducing fabricated-research ambiguity. Remaining gaps: dedicated root web research environment and provider-specific source/citation contracts across every backend. |
+
+### 6.4 Browser tools
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
@@ -344,7 +350,7 @@ file+line ref or explicit `missing`, and a classification.
 | Screenshot artifacts | `tools/browser_tool.py` | `internal/tools/browser_contract.go` | covered | Envelope fields. |
 | SSRF guard | `tools/browser_tool.py` | `internal/tools/browser_ssrf_guard.go` | covered | Private URL guard. |
 
-### 6.4 TTS / voice
+### 6.5 TTS / voice
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
@@ -812,7 +818,7 @@ file+line ref or explicit `missing`, and a classification.
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
 | Agentic OPD environment | `environments/agentic_opd_env.py` | → `missing` | missing | Not ported. |
-| Web research environment | `environments/web_research_env.py` | → `missing` | missing | Not ported. |
+| Web research environment | `environments/web_research_env.py`; `tools/web_tools.py`; `tools/x_search_tool.py` degraded citation handling | `internal/tools/web_tools.go` | partial | Root environment not ported, but native web_search now emits backend/source provenance and marks Perplexity no-citation answers as degraded so research flows can distinguish source-backed results from model-synthesized answers. |
 | Hermes base environment | `environments/hermes_base_env.py` | → `missing` | missing | Not ported. |
 | DeepSeek tool-call parser | `environments/tool_call_parsers/deepseek_parser.py` | → `missing` | missing | Not ported. |
 | Qwen tool-call parser | `environments/tool_call_parsers/qwen_parser.py` | → `missing` | missing | Not ported. (duplicate of section 17 — noted in both for completeness) |
