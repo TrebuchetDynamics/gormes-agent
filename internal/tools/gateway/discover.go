@@ -693,14 +693,14 @@ func splitGatewayTXTFields(line string) []string {
 func parseGatewayTXTTokens(tokens []string) map[string]string {
 	txt := map[string]string{}
 	for _, token := range tokens {
-		cleaned := strings.Trim(strings.TrimSpace(token), `"`)
+		cleaned := trimGatewayTXTTokenQuotes(token)
 		if cleaned == "" {
 			continue
 		}
 		if key, value, ok := strings.Cut(cleaned, "="); ok {
-			key = decodeDNSSDText(key)
+			key = decodeDNSSDTXTToken(key)
 			if key != "" {
-				txt[key] = decodeDNSSDText(value)
+				txt[key] = decodeDNSSDTXTToken(value)
 			}
 		}
 	}
@@ -708,6 +708,37 @@ func parseGatewayTXTTokens(tokens []string) map[string]string {
 		return nil
 	}
 	return txt
+}
+
+func trimGatewayTXTTokenQuotes(token string) string {
+	cleaned := strings.TrimSpace(token)
+	if len(cleaned) >= 2 && cleaned[0] == '"' && cleaned[len(cleaned)-1] == '"' {
+		return cleaned[1 : len(cleaned)-1]
+	}
+	return cleaned
+}
+
+func decodeDNSSDTXTToken(value string) string {
+	return unescapeDNSSDQuotedText(decodeDNSSDText(value))
+}
+
+func unescapeDNSSDQuotedText(value string) string {
+	if !strings.Contains(value, "\\") {
+		return value
+	}
+	var b strings.Builder
+	for i := 0; i < len(value); i++ {
+		if value[i] == '\\' && i+1 < len(value) {
+			switch value[i+1] {
+			case '\\', '"':
+				b.WriteByte(value[i+1])
+				i++
+				continue
+			}
+		}
+		b.WriteByte(value[i])
+	}
+	return b.String()
 }
 
 func unescapeAvahiField(value string) string {

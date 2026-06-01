@@ -355,6 +355,22 @@ Gormes Gateway._openclaw-gw._tcp.local. can be reached at workstation.local.:187
 	}
 }
 
+func TestParseDNSSDResolveGatewayUnescapesQuotedTXTDelimiters(t *testing.T) {
+	stdout := `Lookup Gormes Gateway._openclaw-gw._tcp.local.
+Gormes Gateway._openclaw-gw._tcp.local. can be reached at workstation.local.:18789 (interface 4)
+ "displayName=Juan \"Gateway\"" "note=path \\ host"
+`
+
+	endpoints := parseDNSSDResolveGateway(stdout, "Gormes Gateway")
+	if len(endpoints) != 1 {
+		t.Fatalf("endpoints = %+v, want one resolved endpoint", endpoints)
+	}
+	got := endpoints[0].TXT
+	if got["displayName"] != `Juan "Gateway"` || got["note"] != `path \ host` {
+		t.Fatalf("TXT = %+v, want DNS-SD quoted TXT delimiters unescaped", got)
+	}
+}
+
 func TestParseDNSSDResolveGatewayDecodesEscapedTXTSpaces(t *testing.T) {
 	stdout := `Lookup Gormes\032Gateway._openclaw-gw._tcp.local.
 Gormes\032Gateway._openclaw-gw._tcp.local. can be reached at workstation.local.:18789 (interface 4)
