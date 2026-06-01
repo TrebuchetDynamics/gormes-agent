@@ -1,4 +1,4 @@
-package platformconfig
+package engine
 
 import "testing"
 
