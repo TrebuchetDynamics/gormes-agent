@@ -1,4 +1,4 @@
-package jsonc
+package parser
 
 type jsonStringState struct {
 	inString bool
