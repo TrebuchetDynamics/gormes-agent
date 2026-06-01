@@ -568,7 +568,7 @@ file+line ref or explicit `missing`, and a classification.
 | OSV supply-chain check | `tools/osv_check.py` | → `missing` | missing | Not ported. |
 | Todo tool | `tools/todo_tool.py` | `internal/tools/` | covered | Todo state management. |
 | Clarify tool | `tools/clarify_tool.py` | `internal/tools/` | covered | Clarify prompts. |
-| Send-message tool | `tools/send_message_tool.py` | → `missing` | missing | Not ported. |
+| Send-message tool | `tools/send_message_tool.py` | `internal/tools/sendmessage/send_message.go`; planned row `Hermes send_message tool list and target contract` | partial | Minimal Go `send_message` tool exists, but Hermes `action=list`, optional schema, target-resolution guidance, and fail-closed no-backend evidence are not yet ported. Builder-ready row narrows this to a hermetic list/send contract before live platform/media delivery. |
 | Debug helpers tool | `tools/debug_helpers.py` | → `missing` | missing | Not ported. |
 | Interrupt tool | `tools/interrupt.py` | `internal/kernel/` | covered | Turn cancellation via context. |
 | Code execution tool | `tools/code_execution_tool.py` | `internal/tools/` + `internal/cmdrunner/` | partial | Guarded local execution; process registry not proven. |

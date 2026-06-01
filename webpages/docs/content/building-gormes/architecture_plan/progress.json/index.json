@@ -617,7 +617,7 @@
             "last_upstream_check": "2026-05-06T15:30:05Z",
             "origin_decision": "The 2026-05-06 all-topic parity sweep checked CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public, and release/operator rows against Hermes b816fd4e2 plus Honcho e659b6b. CLI/setup, provider/auth, gateway live-turn, tool-loop, memory/Goncho, install/runtime, browser, docs, and release surfaces have either complete rows or lower-priority planned slices. The strongest builder-ready weakness remains cron execution: Gormes has native cron store/scheduler/action rows, but Hermes b816fd4e2 tests still cover unshipped script execution, workdir/TERMINAL_CWD binding, inactivity timeout, Codex 401 refresh, and owner-only cron file modes. Promote `Cron script/workdir/inactivity execution binding` to P0 before no-agent script-only watchdog mode."
           },
-          "item_count": 63
+          "item_count": 64
         },
         {
           "id": "5.O",
@@ -699,7 +699,7 @@
             "last_upstream_check": "2026-05-09T00:00:00Z",
             "origin_decision": "Current Hermes Ink (`ui-tui/src/components`, `ui-tui/src/app`, `ui-tui/packages/hermes-ink`, and `ui-tui/src/__tests__`) remains the TUI source of truth. The 2026-05-09 all-topic weakness sweep refreshed Hermes to a7e7921db and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Provider/auth, gateway/channel, tools, memory/Goncho, browser, docs/public, and release/operator gaps stayed complete, owned, blocked, or row-backed; the newly refreshed active Ink change was markdown/prose wrap-trim behavior, now tracked by `Native TUI markdown soft-wrap boundary trim`. Gormes keeps the Go-native Bubble Tea/kernel/API boundary and splits TUI drift into narrow renderer rows rather than reopening completed chat-completions, cron-admin, keybinding, slash, or websocket rows."
           },
-          "item_count": 81
+          "item_count": 82
         },
         {
           "id": "5.R",

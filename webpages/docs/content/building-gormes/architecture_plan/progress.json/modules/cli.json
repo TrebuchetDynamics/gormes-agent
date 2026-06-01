@@ -25,7 +25,7 @@
         "Gateway, platform, webhook, and cron management CLI",
         "Diagnostics, backup, logs, and status CLI"
       ],
-      "note": "Closed 2026-05-08T03:56:15Z: all child rows are complete (84/84 shipped). Umbrella is inert \u2014 no remaining work.",
+      "note": "Closed 2026-05-08T03:56:15Z: all child rows are complete (84/84 shipped). Umbrella is inert — no remaining work.",
       "completed_at": "2026-05-08T03:56:15Z",
       "no_test_required": "",
       "test_commands": []
@@ -411,7 +411,7 @@
       ],
       "not_ready_when": [
         "The slice imports math/rand without an injected seed, reads files, registers commands, or copies upstream tip text verbatim (which would couple Gormes to Hermes string churn).",
-        "The slice spans dump.py or webhook.py \u2014 those land in their own rows."
+        "The slice spans dump.py or webhook.py — those land in their own rows."
       ],
       "blocked_by": [
         "CLI banner/output formatting helpers"
@@ -427,7 +427,7 @@
         "TestTipFor_HandlesZeroSeed: TipFor(0) == Tips[0].",
         "TestTipFor_DistributesAcrossCorpus: calling TipFor(int64(i)) for i in [0, len(Tips)) returns each Tips entry exactly once."
       ],
-      "note": "Reshape of the prior quarantined 5.O row. The previous contract bundled tips + dump + webhook in one slice with a 'tips_dump_webhook_test.go' fixture name \u2014 three concept layers that workers couldn't land atomically. This row narrows scope to one file with one corpus + one selector and five named tests. Dump and webhook are tracked as separate sibling rows below. Gormes owns the tip text; we do not port the Hermes corpus verbatim because tip strings reference hermes-specific commands (/save, /personality, hermes -c) that do not all exist in Gormes yet. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
+      "note": "Reshape of the prior quarantined 5.O row. The previous contract bundled tips + dump + webhook in one slice with a 'tips_dump_webhook_test.go' fixture name — three concept layers that workers couldn't land atomically. This row narrows scope to one file with one corpus + one selector and five named tests. Dump and webhook are tracked as separate sibling rows below. Gormes owns the tip text; we do not port the Hermes corpus verbatim because tip strings reference hermes-specific commands (/save, /personality, hermes -c) that do not all exist in Gormes yet. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
       "write_scope": [
         "internal/cli/tips.go",
         "internal/cli/tips_test.go",
@@ -906,7 +906,7 @@
         "Gateway-safe commands remain invokable during active turns while mutating/long-running commands return busy evidence.",
         "Unknown commands share the existing gateway unknown-command behavior and do not enter the model prompt as command text."
       ],
-      "note": "Complete: TDD landed the CLI policy table in `internal/cli/command_registry.go` with closed enum `ActiveTurnPolicy{bypass,queue,busy_reject,unavailable}`, `CommandPolicy` entries (name/description/aliases/surface/active-turn policy/ported flag) for every shared and CLI-only slash command from upstream `hermes_cli/commands.py@edc78e25`, plus `ResolveCommandPolicy`, `EvaluateActiveTurnVerdict`, and `SlashLeaksToModelPrompt`. The fixture `internal/cli/command_registry_policy_test.go` proves every entry declares one of the closed policies, names round-trip through the slash/alias normalizer, busy verdicts surface explicit busy/queue/unavailable evidence, idle dispatch is allowed for every ported command, unknown slash text resolves to `ActiveTurnPolicyUnavailable` with operator-facing evidence (so it cannot leak into the model prompt), and gateway parity holds: every entry in `internal/gateway/CommandRegistry` exists in the CLI registry with the corresponding policy mapping (Immediate/Drain \u2192 bypass, Reject \u2192 busy_reject), aliases included. `internal/gateway/commands_test.go` adds `TestSlashCommandPolicyParityWithCLIRegistry`, `TestSlashCommandBusyVerdictRejectsKnownMutators`, and `TestSlashCommandUnknownDoesNotEnterModelPrompt` to lock the parity from the gateway side. No handler, config, auth, or setup wiring landed \u2014 those remain on the unblocked rows.",
+      "note": "Complete: TDD landed the CLI policy table in `internal/cli/command_registry.go` with closed enum `ActiveTurnPolicy{bypass,queue,busy_reject,unavailable}`, `CommandPolicy` entries (name/description/aliases/surface/active-turn policy/ported flag) for every shared and CLI-only slash command from upstream `hermes_cli/commands.py@edc78e25`, plus `ResolveCommandPolicy`, `EvaluateActiveTurnVerdict`, and `SlashLeaksToModelPrompt`. The fixture `internal/cli/command_registry_policy_test.go` proves every entry declares one of the closed policies, names round-trip through the slash/alias normalizer, busy verdicts surface explicit busy/queue/unavailable evidence, idle dispatch is allowed for every ported command, unknown slash text resolves to `ActiveTurnPolicyUnavailable` with operator-facing evidence (so it cannot leak into the model prompt), and gateway parity holds: every entry in `internal/gateway/CommandRegistry` exists in the CLI registry with the corresponding policy mapping (Immediate/Drain → bypass, Reject → busy_reject), aliases included. `internal/gateway/commands_test.go` adds `TestSlashCommandPolicyParityWithCLIRegistry`, `TestSlashCommandBusyVerdictRejectsKnownMutators`, and `TestSlashCommandUnknownDoesNotEnterModelPrompt` to lock the parity from the gateway side. No handler, config, auth, or setup wiring landed — those remain on the unblocked rows.",
       "write_scope": [
         "internal/cli/",
         "internal/gateway/commands.go",
@@ -1556,7 +1556,7 @@
       "unblocks": [
         "CLI log snapshot reader"
       ],
-      "note": "Closed 2026-05-08T03:56:15Z: all child rows are complete (84/84 shipped). Umbrella is inert \u2014 no remaining work.",
+      "note": "Closed 2026-05-08T03:56:15Z: all child rows are complete (84/84 shipped). Umbrella is inert — no remaining work.",
       "completed_at": "2026-05-08T03:56:15Z"
     }
   },
@@ -1838,7 +1838,7 @@
       ],
       "ready_when": [
         "internal/cli already compiles; this row adds a sibling log_redact.go + _test.go.",
-        "Tests use fixed []byte literals \u2014 no file I/O."
+        "Tests use fixed []byte literals — no file I/O."
       ],
       "not_ready_when": [
         "The slice reads files, walks XDG paths, or uploads anywhere.",
@@ -1906,11 +1906,11 @@
       ],
       "ready_when": [
         "CLI log redactor for known secret shapes is fixture_ready or validated so this slice can import RedactLine.",
-        "Tests use t.TempDir() and inject LogSnapshotRoots \u2014 no XDG resolution inside this helper."
+        "Tests use t.TempDir() and inject LogSnapshotRoots — no XDG resolution inside this helper."
       ],
       "not_ready_when": [
         "The slice resolves XDG paths or reads config.LogPath() inside the helper.",
-        "The slice adds gateway/error log file constants \u2014 those rows land once those files start being written.",
+        "The slice adds gateway/error log file constants — those rows land once those files start being written.",
         "The slice uploads to paste.rs/dpaste, creates archives, or changes doctor exit codes."
       ],
       "blocked_by": [
@@ -1925,7 +1925,7 @@
         "TestSnapshotLogs_BothFilesMissingReturnsTwoSections: empty LogSnapshotRoots paths produce a Snapshot with len(Sections)==2 in the order [LogClassMain, LogClassToolAudit], both with Missing=true.",
         "TestSnapshotLogs_DefaultOptsAppliedWhenZero: SnapshotOpts{} results in HeadBytes=64*1024 and TailBytes=16*1024 being applied internally; covered by writing a 200 KiB file and asserting Truncated=true with len(Head)==64*1024 and len(Tail)==16*1024."
       ],
-      "note": "Reader slice. Imports RedactLine from the redactor row. Caller resolves config.LogPath() and config.ToolAuditLogPath() and passes them in \u2014 keeps the helper testable with t.TempDir() only. Reshape 2026-04-26T19:00:00Z: spelled out the Truncated decision rule, default-opts behavior, byte-line redaction loop, and added named subtests so the autoloop's row evaluation matches the contract.",
+      "note": "Reader slice. Imports RedactLine from the redactor row. Caller resolves config.LogPath() and config.ToolAuditLogPath() and passes them in — keeps the helper testable with t.TempDir() only. Reshape 2026-04-26T19:00:00Z: spelled out the Truncated decision rule, default-opts behavior, byte-line redaction loop, and added named subtests so the autoloop's row evaluation matches the contract.",
       "write_scope": [
         "internal/cli/log_snapshot.go",
         "internal/cli/log_snapshot_test.go",
@@ -2513,18 +2513,18 @@
         "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
       ],
+      "completion_evidence": {
+        "implementation": "cmd/gormes/hermes_rowbacked_commands.go now registers live tools list/enable/disable commands instead of row-backed unavailable stubs.",
+        "tests": "cmd/gormes/tools_command_test.go proves list output and enable/disable persistence with isolated GORMES_HOME fixtures.",
+        "docs": "Parity evidence marks /tools partial with root CLI/TUI coverage and gateway/channel gap preserved."
+      },
       "validation": [
         "go test ./cmd/gormes -run 'TestToolsCommand|TestTUIToolsSlashBinding' -count=1",
         "go test ./webpages/docs -count=1",
         "go run ./cmd/progress validate",
         "git diff --check",
         "go test ./... -count=1"
-      ],
-      "completion_evidence": {
-        "implementation": "cmd/gormes/hermes_rowbacked_commands.go now registers live tools list/enable/disable commands instead of row-backed unavailable stubs.",
-        "tests": "cmd/gormes/tools_command_test.go proves list output and enable/disable persistence with isolated GORMES_HOME fixtures.",
-        "docs": "Parity evidence marks /tools partial with root CLI/TUI coverage and gateway/channel gap preserved."
-      }
+      ]
     }
   },
   {

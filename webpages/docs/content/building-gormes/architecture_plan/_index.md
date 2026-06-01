@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 107/111 subphases shipped · 4 in progress · 0 planned
+**Overall:** 106/111 subphases shipped · 5 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -99,7 +99,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 4/7 subphases |
@@ -1002,7 +1002,7 @@ classification and row-backed implementation queue.
 - [x] `kanban` Kanban worker heartbeat, reclaim, and zombie detection
 - [x] `kanban` Hermes Kanban specify triage parity
 
-### 5.N — Misc Operator Tools ✅
+### 5.N — Misc Operator Tools 🔨
 
 - [x] `tools` Todo
 - [x] `tools` Clarify
@@ -1067,6 +1067,7 @@ classification and row-backed implementation queue.
 - [x] `providers` Provider/auth readiness preflight for unattended jobs
 - [x] `goncho` Goncho golden transcript e2e harness
 - [x] `goncho` Goncho retrieval benchmark corpus
+- [ ] `tools` Hermes send_message tool list and target contract
 
 ### 5.O — Hermes CLI Parity ✅
 
@@ -1312,6 +1313,7 @@ classification and row-backed implementation queue.
 - [x] `tui` Native TUI /voice status and toggle binding
 - [x] `tui` Native TUI /skin get-set binding
 - [x] `gateway` Gormes JSONL RPC mode over agent runtime events
+- [x] `tui` Native TUI voice record key uses voice toggle adapter
 
 ### 5.R — Code Execution Mode Policy ✅
 

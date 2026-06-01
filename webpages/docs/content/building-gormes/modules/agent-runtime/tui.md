@@ -10,9 +10,9 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module group:** Agent Runtime
 **Module:** `tui`
-**Rows:** 71
-**Status counts:** `complete`: 71 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 3 · `P1`: 14 · `P2`: 43 · `P3`: 1 · `unset`: 10
+**Rows:** 72
+**Status counts:** `complete`: 72 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P0`: 3 · `P1`: 15 · `P2`: 43 · `P3`: 1 · `unset`: 10
 
 ## Phase 1 — The Dashboard
 
@@ -100,6 +100,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P2` | `tui` | Native TUI /tools enable-disable binding |
 | `complete` | `P2` | `tui` | Native TUI /voice status and toggle binding |
 | `complete` | `P2` | `tui` | Native TUI /skin get-set binding |
+| `complete` | `P1` | `tui` | Native TUI voice record key uses voice toggle adapter |
 
 ## Phase 8 — Reputation & Publication
 
