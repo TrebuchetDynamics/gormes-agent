@@ -522,7 +522,7 @@
             "last_upstream_check": "2026-04-29T00:00:00Z",
             "origin_decision": "Hermes 42c076d3 added browser cloud/local hybrid routing for private URLs, 7317d69f tightened quoted-false handling in SSRF guard config, and the 2026-04-29 upstream refresh added Browser Use/CDP/browser-connect evidence that should be paired with the local ../go-browser-harness runtime target plus the legacy ../browser-harness reference checkout. Gormes still lacks live native browser runtime wiring, so Phase 5.C stays upstream-led and now carries pure route-key, SSRF-config, Browserbase/Firecrawl, Browser Use/go-browser-harness rows, and a builder-ready go-browser-harness Chromedp backend row before browser action runtime work is complete."
           },
-          "item_count": 23
+          "item_count": 24
         },
         {
           "id": "5.D",

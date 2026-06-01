@@ -13,7 +13,7 @@ Core agent execution, local state, tools, and terminal/browser interaction surfa
 
 | Module | Rows | Complete | In progress | Planned | Priorities |
 |---|---:|---:|---:|---:|---|
-| [Browser](agent-runtime/browser/) | 25 | 24 | 0 | 1 | `P1`: 14 · `P2`: 7 · `P3`: 1 · `unset`: 3 |
+| [Browser](agent-runtime/browser/) | 26 | 25 | 0 | 1 | `P1`: 15 · `P2`: 7 · `P3`: 1 · `unset`: 3 |
 | [Learning Loop](agent-runtime/learning-loop/) | 6 | 6 | 0 | 0 | `P1`: 3 · `P2`: 2 · `P3`: 1 |
 | [Memory](agent-runtime/memory/) | 29 | 29 | 0 | 0 | `P1`: 1 · `P2`: 3 · `P3`: 1 · `unset`: 24 |
 | [Runtime](agent-runtime/runtime/) | 18 | 18 | 0 | 0 | `P0`: 2 · `P1`: 10 · `P2`: 6 |

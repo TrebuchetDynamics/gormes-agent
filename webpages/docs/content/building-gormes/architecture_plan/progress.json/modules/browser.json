@@ -1976,6 +1976,81 @@
   },
   {
     "phase": "5",
+    "subphase": "5.C",
+    "pos": 23,
+    "item": {
+      "name": "web_crawl explicit local-crawler unavailable evidence",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Add the repo-local compatibility gate for operators who explicitly select the future local goscrapling crawler backend for `web_crawl` before the crawler dependency row is unblocked. The resolver should recognize local crawler spellings such as `goscrapling_crawler` / `goscrapling-crawler` as a crawl-intent backend, keep it unavailable unless a later adapter is registered, and make `web_crawl` return typed redacted unavailable evidence without falling through to Firecrawl/Tavily, making live HTTP calls, changing the model-visible schema, or implementing goscrapling spider primitives inside Gormes.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "When `web.backend` explicitly names the local crawler before the parent goscrapling crawler dependency is released, `web_crawl` returns `success:false` with `evidence:web_provider_unavailable` (or an equally typed unavailable code), `backend:goscrapling_crawler`, and a redacted operator-actionable message. Auto backend selection keeps existing Firecrawl/Tavily behavior; unsupported local crawler selection must not silently fall through to any remote provider.",
+      "fixture": "internal/tools/web_tools_test.go::TestWebCrawlExplicitGoscraplingCrawlerUnavailableDoesNotFallback",
+      "source_refs": [
+        "hermes-agent/tools/web_tools.py:_get_backend",
+        "hermes-agent/tools/web_tools.py:web_crawl_tool",
+        "hermes-agent/tests/tools/test_web_providers.py:test_unconfigured_crawl_emits_top_level_error",
+        "hermes-agent/tests/tools/test_website_policy.py:test_web_crawl_short_circuits_blocked_url",
+        "internal/tools/web_tools.go:ResolveWebBackendWithConfig",
+        "internal/tools/web_tools.go:executeCrawl",
+        "internal/tools/web_tools_test.go:TestWebCrawlToolCallsFirecrawlAndNormalizesPages",
+        "internal/tools/web_tools_test.go:TestWebCrawlToolCallsTavilyWithInstructions",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Browser and web research",
+        "docs/content/building-gormes/architecture_plan/progress.json/modules/browser.json:Goscrapling local crawler adapter gate for web_crawl"
+      ],
+      "ready_when": [
+        "The parent `Goscrapling local crawler adapter gate for web_crawl` remains blocked on robots/cache/checkpoint/session-adapter primitives; this row only adds explicit-selection degraded evidence and resolver spelling, not the crawler adapter.",
+        "Existing Firecrawl and Tavily `web_crawl` fixtures are already green and continue to define active crawl behavior.",
+        "A hermetic fake HTTP client can prove no outbound provider request happens when the local crawler backend is explicitly selected but unavailable."
+      ],
+      "not_ready_when": [
+        "The change imports new goscrapling crawler/spider packages, adds a local replace, touches go.mod/go.sum for an unreleased API, or implements crawler scheduling/robots/cache/checkpoint logic inside Gormes.",
+        "The public `web_crawl` schema changes, a goscrapling-specific model-visible tool is registered, or auto backend selection starts preferring the unavailable local crawler over configured Firecrawl/Tavily credentials.",
+        "The unavailable path returns a free-form string without machine-readable evidence/backend fields or leaks credential/config values in the error."
+      ],
+      "unblocks": [
+        "Goscrapling local crawler adapter gate for web_crawl",
+        "Local no-provider research crawls"
+      ],
+      "acceptance": [
+        "`ResolveWebBackendWithConfig(nil, WebBackendConfig{Backend: \"goscrapling_crawler\"})` and hyphen/alias spellings resolve to a stable local crawler backend identity with `Available:false` and provider-unavailable evidence.",
+        "`web_crawl` with explicit local crawler selection returns a typed JSON failure that includes backend/evidence/degraded detail and does not call the injected HTTP client or fall back to Firecrawl/Tavily.",
+        "Auto selection and existing configured Firecrawl/Tavily crawl tests remain unchanged and green.",
+        "The public `web_crawl` descriptor/schema remains exactly the existing URL/instructions/depth contract; local crawler remains a config/backend choice only."
+      ],
+      "note": "Complete: added WebBackendGoscraplingCrawler as an explicit config-only backend identity, resolver aliases for goscrapling_crawler/goscrapling-crawler/crawler_goscrapling, and web_crawl typed unavailable JSON with backend/evidence/degraded_reason. The hermetic crawl fixture proves no injected HTTP client request happens and Firecrawl/Tavily do not receive fallback traffic; existing Firecrawl/Tavily crawl tests remain green. No goscrapling spider packages, go.mod changes, schema changes, or crawler primitives were added.",
+      "write_scope": [
+        "internal/tools/web_tools.go",
+        "internal/tools/web_tools_test.go",
+        "docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/browser.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'Test(WebCrawlExplicitGoscraplingCrawlerUnavailableDoesNotFallback|ResolveWebBackend|WebCrawlToolCallsFirecrawl|WebCrawlToolCallsTavily)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "An operator can explicitly configure the future local goscrapling crawler backend and receive typed unavailable evidence from `web_crawl` with no remote-provider fallback, no live HTTP request, no schema drift, and no in-repo crawler primitive implementation."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes `web_crawl_tool` provider-unavailable contract plus Gormes-owned local goscrapling crawler backend decision",
+        "note": "This is a degraded-evidence compatibility slice extracted from the blocked local crawler parent; it does not claim crawler parity."
+      }
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.O",
     "pos": 51,
     "item": {

@@ -806,6 +806,7 @@ classification and row-backed implementation queue.
 - [x] `browser` Browser session inactivity cleanup thread
 - [x] `browser` Goscrapling browser-backed extraction gate for web_extract
 - [ ] `browser` Goscrapling local crawler adapter gate for web_crawl
+- [x] `browser` web_crawl explicit local-crawler unavailable evidence
 
 ### 5.D — Vision + Image Generation ✅
 

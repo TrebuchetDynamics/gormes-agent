@@ -184,6 +184,18 @@ func TestResolveWebBackendSupportsCDPExtractFallback(t *testing.T) {
 	}
 }
 
+func TestResolveWebBackendSupportsGoscraplingCrawlerUnavailableGate(t *testing.T) {
+	for _, backend := range []string{"goscrapling_crawler", "goscrapling-crawler", "crawler_goscrapling"} {
+		resolved := ResolveWebBackendWithConfig(map[string]string{
+			"FIRECRAWL_API_KEY": "fire-secret",
+			"TAVILY_API_KEY":    "tavily-secret",
+		}, WebBackendConfig{Backend: backend})
+		if resolved.Backend != WebBackendGoscraplingCrawler || resolved.Available || resolved.Evidence != WebEvidenceProviderUnavailable || resolved.Source != "config" {
+			t.Fatalf("resolved[%s] = %+v, want unavailable explicit local crawler gate", backend, resolved)
+		}
+	}
+}
+
 func TestResolveWebBackendSupportsGoscraplingBrowserExtractBackend(t *testing.T) {
 	resolved := ResolveWebBackendWithConfig(nil, WebBackendConfig{Backend: "goscrapling_browser"})
 	if !resolved.Available || resolved.Backend != WebBackendGoscraplingBrowser || resolved.Source != "config" {
@@ -1719,6 +1731,44 @@ func TestWebExtractToolProcessesLongContentWithProcessor(t *testing.T) {
 	}
 	if got := payload.Results[0].Content; got != "processed summary" {
 		t.Fatalf("content = %q, want processed summary", got)
+	}
+}
+
+func TestWebCrawlExplicitGoscraplingCrawlerUnavailableDoesNotFallback(t *testing.T) {
+	client := &recordingWebHTTPClient{}
+	tool := NewWebCrawlTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendGoscraplingCrawler,
+			Available: false,
+			Evidence:  WebEvidenceProviderUnavailable,
+			Source:    "config",
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"url":"https://example.test/docs"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 0 {
+		t.Fatalf("requests = %d, want no remote provider fallback", len(client.requests))
+	}
+	var payload struct {
+		Success        bool        `json:"success"`
+		Backend        WebBackend  `json:"backend"`
+		Evidence       WebEvidence `json:"evidence"`
+		Degraded       bool        `json:"degraded"`
+		DegradedReason string      `json:"degraded_reason"`
+		Error          string      `json:"error"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if payload.Success || payload.Backend != WebBackendGoscraplingCrawler || payload.Evidence != WebEvidenceProviderUnavailable || !payload.Degraded {
+		t.Fatalf("payload = %+v, want typed unavailable local crawler failure", payload)
+	}
+	if !strings.Contains(payload.Error, "local goscrapling crawler") || !strings.Contains(payload.DegradedReason, "not yet available") {
+		t.Fatalf("payload = %+v, want operator-actionable unavailable message", payload)
 	}
 }
 

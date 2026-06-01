@@ -339,7 +339,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| `web_search` / `web_extract` / `web_crawl` | `tools/web_tools.py`; `tools/x_search_tool.py` degraded citation handling | `internal/tools/web_tools.go` | partial | Native web tools cover multiple backends and now mark Perplexity search answers without citations as degraded with backend/source provenance, reducing fabricated-research ambiguity. Remaining gaps: dedicated root web research environment and provider-specific source/citation contracts across every backend. |
+| `web_search` / `web_extract` / `web_crawl` | `tools/web_tools.py`; `tools/x_search_tool.py` degraded citation handling | `internal/tools/web_tools.go` | partial | Native web tools cover multiple backends, mark Perplexity search answers without citations as degraded with backend/source provenance, and return typed unavailable evidence when the future `goscrapling_crawler` local backend is explicitly selected before the crawler adapter ships. Remaining gaps: dedicated root web research environment, full dependency-gated goscrapling crawler adapter, and provider-specific source/citation contracts across every backend. |
 
 ### 6.4 Browser tools
 

@@ -59,6 +59,7 @@ const (
 	WebBackendPerplexity         WebBackend = "perplexity"
 	WebBackendDuckDuckGo         WebBackend = "duckduckgo"
 	WebBackendGoscraplingBrowser WebBackend = "goscrapling_browser"
+	WebBackendGoscraplingCrawler WebBackend = "goscrapling_crawler"
 )
 
 type WebEvidence string
@@ -227,8 +228,12 @@ type webExtraction struct {
 }
 
 type webErrorResponse struct {
-	Success bool   `json:"success"`
-	Error   string `json:"error"`
+	Success        bool        `json:"success"`
+	Error          string      `json:"error"`
+	Evidence       WebEvidence `json:"evidence,omitempty"`
+	Backend        WebBackend  `json:"backend,omitempty"`
+	Degraded       bool        `json:"degraded,omitempty"`
+	DegradedReason string      `json:"degraded_reason,omitempty"`
 }
 
 // ResolveWebBackend resolves the currently usable web backend from a provided
@@ -375,6 +380,8 @@ func resolveConfiguredWebBackend(backend WebBackend, cfg WebBackendConfig, read 
 		return resolveCDPBackend(read)
 	case WebBackendGoscraplingBrowser:
 		return resolveGoscraplingBrowserBackend(explicit)
+	case WebBackendGoscraplingCrawler:
+		return resolveGoscraplingCrawlerBackend(explicit)
 	case WebBackendDuckDuckGo:
 		return duckDuckGoBackendResolution(read)
 	default:
@@ -418,6 +425,19 @@ func resolveGoscraplingBrowserBackend(explicit bool) WebBackendResolution {
 		Evidence:  WebEvidenceOK,
 		Source:    "config",
 		Note:      "extract only — goscrapling browser renderer selected by web.backend",
+	}
+}
+
+func resolveGoscraplingCrawlerBackend(explicit bool) WebBackendResolution {
+	if !explicit {
+		return unavailableWebBackend(WebBackendGoscraplingCrawler, "")
+	}
+	return WebBackendResolution{
+		Backend:   WebBackendGoscraplingCrawler,
+		Available: false,
+		Evidence:  WebEvidenceProviderUnavailable,
+		Source:    "config",
+		Note:      "local goscrapling crawler is not yet available; use Firecrawl or Tavily until the crawler adapter gate is complete",
 	}
 }
 
@@ -505,6 +525,8 @@ func normalizeWebBackend(raw string) WebBackend {
 		return WebBackendExa
 	case string(WebBackendGoscraplingBrowser), "goscrapling-browser", "browser_goscrapling":
 		return WebBackendGoscraplingBrowser
+	case string(WebBackendGoscraplingCrawler), "goscrapling-crawler", "crawler_goscrapling", "local_crawler", "local-crawler":
+		return WebBackendGoscraplingCrawler
 	case string(WebBackendCDP), "browser", "browser_cdp", "chrome":
 		return WebBackendCDP
 	case string(WebBackendBrave), "brave_search":
@@ -1394,10 +1416,23 @@ func (t *webTool) executeCrawl(ctx context.Context, args json.RawMessage) (json.
 		return t.executeTavilyCrawl(ctx, crawlURL, in.Instructions, in.Depth)
 	}
 
+	if t.cfg.Resolution.Backend == WebBackendGoscraplingCrawler {
+		return json.Marshal(webErrorResponse{
+			Success:        false,
+			Error:          "local goscrapling crawler backend is not yet available. Use Firecrawl or Tavily for web_crawl until the local crawler adapter gate is complete.",
+			Evidence:       WebEvidenceProviderUnavailable,
+			Backend:        WebBackendGoscraplingCrawler,
+			Degraded:       true,
+			DegradedReason: "local goscrapling crawler adapter not yet available",
+		})
+	}
+
 	if t.cfg.Resolution.Backend != WebBackendFirecrawl || !t.cfg.Resolution.Available {
 		return json.Marshal(webErrorResponse{
-			Success: false,
-			Error:   "web_crawl requires Firecrawl or Tavily. Set FIRECRAWL_API_KEY, FIRECRAWL_API_URL, TAVILY_API_KEY, or use web_search + web_extract instead.",
+			Success:  false,
+			Error:    "web_crawl requires Firecrawl or Tavily. Set FIRECRAWL_API_KEY, FIRECRAWL_API_URL, TAVILY_API_KEY, or use web_search + web_extract instead.",
+			Evidence: WebEvidenceProviderUnavailable,
+			Backend:  t.cfg.Resolution.Backend,
 		})
 	}
 
@@ -2623,6 +2658,9 @@ func webRequiresEnv(includeManaged bool) []string {
 func webBackendToolNames(backend WebBackend) []string {
 	if backend == WebBackendCDP || backend == WebBackendGoscraplingBrowser {
 		return []string{WebToolExtract}
+	}
+	if backend == WebBackendGoscraplingCrawler {
+		return []string{WebToolCrawl}
 	}
 	if backend == WebBackendDuckDuckGo {
 		return []string{WebToolSearch, WebToolExtract}
