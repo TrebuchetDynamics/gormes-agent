@@ -1,27 +1,27 @@
-package display
+package dump
 
 import (
 	"strings"
 	"testing"
 )
 
-func TestRenderDumpSummary_StableOrder(t *testing.T) {
-	in := DumpInput{
+func TestRenderSummary_StableOrder(t *testing.T) {
+	in := Input{
 		Version:     "0.1.0",
 		OS:          "linux",
 		Arch:        "amd64",
 		ProfileName: "main",
 		Toolsets:    []string{"core", "web"},
 	}
-	got := RenderDumpSummary(in)
+	got := RenderSummary(in)
 	want := "version: 0.1.0\nos: linux\narch: amd64\nprofile: main\ntoolsets: core, web\n"
 	if got != want {
-		t.Fatalf("RenderDumpSummary stable order:\n got=%q\nwant=%q", got, want)
+		t.Fatalf("RenderSummary stable order:\n got=%q\nwant=%q", got, want)
 	}
 }
 
-func TestRenderDumpSummary_RedactsSecrets(t *testing.T) {
-	in := DumpInput{
+func TestRenderSummary_RedactsSecrets(t *testing.T) {
+	in := Input{
 		Version:         "v1.0-sk-abcdef",
 		OS:              "linux",
 		Arch:            "amd64",
@@ -29,7 +29,7 @@ func TestRenderDumpSummary_RedactsSecrets(t *testing.T) {
 		Toolsets:        []string{"core"},
 		SecretsLikeKeys: []string{"sk-abcdef"},
 	}
-	got := RenderDumpSummary(in)
+	got := RenderSummary(in)
 	if strings.Contains(got, "sk-abcdef") {
 		t.Fatalf("expected secret 'sk-abcdef' to be redacted, got: %q", got)
 	}
@@ -41,16 +41,16 @@ func TestRenderDumpSummary_RedactsSecrets(t *testing.T) {
 	}
 }
 
-func TestRenderDumpSummary_HandlesMissingFields(t *testing.T) {
-	got := RenderDumpSummary(DumpInput{})
+func TestRenderSummary_HandlesMissingFields(t *testing.T) {
+	got := RenderSummary(Input{})
 	want := "version: unknown\nos: unknown\narch: unknown\nprofile: unknown\ntoolsets: (none)\n"
 	if got != want {
-		t.Fatalf("RenderDumpSummary missing fields:\n got=%q\nwant=%q", got, want)
+		t.Fatalf("RenderSummary missing fields:\n got=%q\nwant=%q", got, want)
 	}
 }
 
-func TestRenderDumpSummary_DeterministicAcrossCalls(t *testing.T) {
-	in := DumpInput{
+func TestRenderSummary_DeterministicAcrossCalls(t *testing.T) {
+	in := Input{
 		Version:         "0.2.0",
 		OS:              "darwin",
 		Arch:            "arm64",
@@ -58,30 +58,22 @@ func TestRenderDumpSummary_DeterministicAcrossCalls(t *testing.T) {
 		Toolsets:        []string{"core", "web"},
 		SecretsLikeKeys: []string{"sk-zzzz"},
 	}
-	first := RenderDumpSummary(in)
-	second := RenderDumpSummary(in)
+	first := RenderSummary(in)
+	second := RenderSummary(in)
 	if first != second {
-		t.Fatalf("RenderDumpSummary not deterministic across calls:\n first=%q\nsecond=%q", first, second)
+		t.Fatalf("RenderSummary not deterministic across calls:\n first=%q\nsecond=%q", first, second)
 	}
 }
 
-func TestStripANSIUsesSharedECMA48Redaction(t *testing.T) {
-	input := "plain\x1b[31mred\x1b[0m \x1b]0;title\x07done \u009b32mgreen\x1b[0m"
-	got := StripANSI(input)
-	if got != "plainred done green" {
-		t.Fatalf("StripANSI() = %q", got)
-	}
-}
-
-func TestRenderDumpSummary_NoTrailingWhitespace(t *testing.T) {
-	in := DumpInput{
+func TestRenderSummary_NoTrailingWhitespace(t *testing.T) {
+	in := Input{
 		Version:     "0.1.0",
 		OS:          "linux",
 		Arch:        "amd64",
 		ProfileName: "main",
 		Toolsets:    []string{"core", "web"},
 	}
-	got := RenderDumpSummary(in)
+	got := RenderSummary(in)
 	if !strings.HasSuffix(got, "\n") {
 		t.Fatalf("expected output to end in single '\\n', got: %q", got)
 	}

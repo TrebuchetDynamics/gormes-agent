@@ -1,84 +1,43 @@
 package display
 
 import (
-	"fmt"
 	"io"
-	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/display/formatting"
 )
 
-func FormatInfo(text string) string {
-	return fmt.Sprintf("  %s\n", text)
-}
+func FormatInfo(text string) string { return formatting.FormatInfo(text) }
 
-func FormatSuccess(text string) string {
-	return fmt.Sprintf("✓ %s\n", text)
-}
+func FormatSuccess(text string) string { return formatting.FormatSuccess(text) }
 
-func FormatWarning(text string) string {
-	return fmt.Sprintf("⚠ %s\n", text)
-}
+func FormatWarning(text string) string { return formatting.FormatWarning(text) }
 
-func FormatError(text string) string {
-	return fmt.Sprintf("✗ %s\n", text)
-}
+func FormatError(text string) string { return formatting.FormatError(text) }
 
-func FormatHeader(text string) string {
-	return fmt.Sprintf("\n  %s\n", text)
-}
+func FormatHeader(text string) string { return formatting.FormatHeader(text) }
 
-func WriteInfo(w io.Writer, text string) error {
-	_, err := io.WriteString(w, FormatInfo(text))
-	return err
-}
+func WriteInfo(w io.Writer, text string) error { return formatting.WriteInfo(w, text) }
 
-func WriteSuccess(w io.Writer, text string) error {
-	_, err := io.WriteString(w, FormatSuccess(text))
-	return err
-}
+func WriteSuccess(w io.Writer, text string) error { return formatting.WriteSuccess(w, text) }
 
-func WriteWarning(w io.Writer, text string) error {
-	_, err := io.WriteString(w, FormatWarning(text))
-	return err
-}
+func WriteWarning(w io.Writer, text string) error { return formatting.WriteWarning(w, text) }
 
-func WriteError(w io.Writer, text string) error {
-	_, err := io.WriteString(w, FormatError(text))
-	return err
-}
+func WriteError(w io.Writer, text string) error { return formatting.WriteError(w, text) }
 
-func WriteHeader(w io.Writer, text string) error {
-	_, err := io.WriteString(w, FormatHeader(text))
-	return err
-}
+func WriteHeader(w io.Writer, text string) error { return formatting.WriteHeader(w, text) }
 
 func FormatPrompt(question string, defaultValue string) string {
-	suffix := ""
-	if defaultValue != "" {
-		suffix = fmt.Sprintf(" [%s]", defaultValue)
-	}
-	return fmt.Sprintf("  %s%s: ", question, suffix)
+	return formatting.FormatPrompt(question, defaultValue)
 }
 
 func ResolvePromptInput(input string, defaultValue string) string {
-	value := strings.TrimSpace(input)
-	if value == "" {
-		return defaultValue
-	}
-	return value
+	return formatting.ResolvePromptInput(input, defaultValue)
 }
 
 func FormatYesNoPrompt(question string, defaultAnswer bool) string {
-	hint := "y/N"
-	if defaultAnswer {
-		hint = "Y/n"
-	}
-	return FormatPrompt(fmt.Sprintf("%s (%s)", question, hint), "")
+	return formatting.FormatYesNoPrompt(question, defaultAnswer)
 }
 
 func ResolveYesNoAnswer(answer string, defaultAnswer bool) bool {
-	value := ResolvePromptInput(answer, "")
-	if value == "" {
-		return defaultAnswer
-	}
-	return strings.HasPrefix(strings.ToLower(value), "y")
+	return formatting.ResolveYesNoAnswer(answer, defaultAnswer)
 }
