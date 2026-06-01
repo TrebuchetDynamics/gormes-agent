@@ -1,7 +1,9 @@
-package ui
+package pages
 
-templ SessionsPage() {
-	@layout("Sessions") {
+import "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/apiserver/ui/shell"
+
+templ Sessions() {
+	@shell.Layout("Sessions") {
 		<h1>📋 Sessions</h1>
 		<div id="session-list" hx-get="/api/sessions" hx-trigger="load" hx-swap="innerHTML">
 			<div style="color:var(--dim)">Loading sessions…</div>
@@ -9,8 +11,8 @@ templ SessionsPage() {
 	}
 }
 
-templ ConfigPage() {
-	@layout("Config") {
+templ Config() {
+	@shell.Layout("Config") {
 		<h1>⚙️ Configuration</h1>
 		<div id="config-view" hx-get="/api/config" hx-trigger="load" hx-swap="innerHTML">
 			<div style="color:var(--dim)">Loading configuration…</div>
@@ -18,8 +20,8 @@ templ ConfigPage() {
 	}
 }
 
-templ SkillsPage() {
-	@layout("Skills") {
+templ Skills() {
+	@shell.Layout("Skills") {
 		<h1>📦 Skills</h1>
 		<div id="skills-view" hx-get="/api/skills" hx-trigger="load" hx-swap="innerHTML">
 			<div style="color:var(--dim)">Loading skills…</div>
@@ -27,8 +29,8 @@ templ SkillsPage() {
 	}
 }
 
-templ CronPage() {
-	@layout("Cron") {
+templ Cron() {
+	@shell.Layout("Cron") {
 		<h1>⏰ Cron Jobs</h1>
 		<div id="cron-list" hx-get="/v1/admin/cron/jobs" hx-trigger="load" hx-swap="innerHTML">
 			<div style="color:var(--dim)">Loading cron jobs…</div>

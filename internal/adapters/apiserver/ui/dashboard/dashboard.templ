@@ -1,7 +1,9 @@
-package ui
+package dashboard
 
-templ Dashboard() {
-	@layout("Dashboard") {
+import "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/apiserver/ui/shell"
+
+templ Page() {
+	@shell.Layout("Dashboard") {
 		<div class="status-grid" id="status-bar" hx-get="/dashboard/status" hx-trigger="load, every 5s" hx-swap="innerHTML">
 			<div class="status-box"><div class="val">—</div><div class="lbl">Phase</div></div>
 			<div class="status-box"><div class="val">—</div><div class="lbl">Model</div></div>

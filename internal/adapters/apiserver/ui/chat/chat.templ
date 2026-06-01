@@ -1,7 +1,9 @@
-package ui
+package chat
 
-templ ChatPage() {
-	@layout("Chat") {
+import "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/apiserver/ui/shell"
+
+templ Page() {
+	@shell.Layout("Chat") {
 		<div class="card">
 			<h2>💬 Interactive Chat</h2>
 			<div class="terminal-box" id="chat-feed"
