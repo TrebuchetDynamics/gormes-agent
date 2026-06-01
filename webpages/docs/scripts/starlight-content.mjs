@@ -118,6 +118,12 @@ function legacyUpstreamHermesFeatureRoute(rel) {
   return `/upstream-hermes/user-guide/features/${leafMatch[1]}/`;
 }
 
+function legacyCliCommandRoute(rel) {
+  const match = rel.match(/^cli\/[^/]+\/([^/]+)\.md$/);
+  if (!match || !cliCommandToGroup.has(match[1])) return '';
+  return `/cli/${match[1]}/`;
+}
+
 function organizedRel(rel) {
   return organizedCliRel(organizedUpstreamHermesFeatureRel(rel));
 }
@@ -175,6 +181,8 @@ export function redirectsForContentDir(contentDir) {
     const destination = routeForContentFile(contentDir, file);
     const legacyFeatureRoute = legacyUpstreamHermesFeatureRoute(rel);
     if (legacyFeatureRoute && legacyFeatureRoute !== destination) redirects[legacyFeatureRoute] = destination;
+    const legacyCliRoute = legacyCliCommandRoute(rel);
+    if (legacyCliRoute && legacyCliRoute !== destination) redirects[legacyCliRoute] = destination;
     const sourceRoute = sourceRouteForContentFile(contentDir, file);
     if (sourceRoute !== destination) redirects[sourceRoute] = destination;
     for (const alias of aliasesFor(frontmatterFor(raw))) {
@@ -191,6 +199,12 @@ function editUrlForSourceRel(sourceRel) {
 function routePathForRel(rel) {
   const route = routeForRel(rel);
   return route.endsWith('/') ? route : `${route}/`;
+}
+
+function linkResolutionRel(rel) {
+  const match = rel.match(/^cli\/[^/]+\/([^/]+)\.md$/);
+  if (!match || !cliCommandToGroup.has(match[1])) return rel;
+  return `cli/${match[1]}.md`;
 }
 
 function organizedRouteForPath(routePath) {
@@ -212,7 +226,7 @@ function relativeRoute(fromRoute, toRoute) {
 }
 
 function rewriteRelativeLinks(markdown, sourceRel) {
-  const sourceRoute = routePathForRel(sourceRel);
+  const sourceRoute = routePathForRel(linkResolutionRel(sourceRel));
   const organizedSourceRoute = routePathForRel(organizedRel(sourceRel));
 
   return markdown.replace(/\]\(([^)]+)\)/g, (match, href) => {

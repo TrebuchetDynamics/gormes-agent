@@ -71,6 +71,10 @@ test('CLI command docs target responsibility subfolders while preserving the CLI
     path.join(targetDir, 'cli', 'setup', 'auth.md'),
   );
   assert.equal(
+    targetPathForContentFile(sourceDir, targetDir, path.join(sourceDir, 'cli', 'setup', 'auth.md')),
+    path.join(targetDir, 'cli', 'setup', 'auth.md'),
+  );
+  assert.equal(
     targetPathForContentFile(sourceDir, targetDir, path.join(sourceDir, 'cli', 'telegram.md')),
     path.join(targetDir, 'cli', 'channels', 'telegram.md'),
   );
@@ -120,8 +124,10 @@ test('organized CLI command docs redirect old public routes', async () => {
   const contentDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gormes-doc-content-'));
   const cliDir = path.join(contentDir, 'cli');
   await fs.mkdir(cliDir, { recursive: true });
-  await fs.writeFile(path.join(cliDir, 'auth.md'), `---\ntitle: Auth\n---\n\n# Auth\n`);
-  await fs.writeFile(path.join(cliDir, 'telegram.md'), `---\ntitle: Telegram\n---\n\n# Telegram\n`);
+  await fs.mkdir(path.join(cliDir, 'setup'), { recursive: true });
+  await fs.mkdir(path.join(cliDir, 'channels'), { recursive: true });
+  await fs.writeFile(path.join(cliDir, 'setup', 'auth.md'), `---\ntitle: Auth\n---\n\n# Auth\n`);
+  await fs.writeFile(path.join(cliDir, 'channels', 'telegram.md'), `---\ntitle: Telegram\n---\n\n# Telegram\n`);
 
   assert.deepEqual(redirectsForContentDir(contentDir), {
     '/cli/auth/': '/cli/setup/auth/',
@@ -157,4 +163,13 @@ test('markdown transform rewrites relative links when CLI docs move into subfold
   assert.equal(transformed.includes('[CLI](../../)'), true);
   assert.equal(transformed.includes('[gateway](../../runtime/gateway/)'), true);
   assert.equal(transformed.includes('[telegram guide](../../../configure/telegram/)'), true);
+});
+
+test('markdown transform keeps legacy CLI link intent after source docs are organized', () => {
+  const raw = `---\ntitle: Auth\n---\n\n[CLI](../) [setup](../setup/) [environment](../../configure/environment/)\n`;
+  const transformed = transformMarkdown(raw, 'cli/setup/auth.md');
+
+  assert.equal(transformed.includes('[CLI](../../)'), true);
+  assert.equal(transformed.includes('[setup](../setup/)'), true);
+  assert.equal(transformed.includes('[environment](../../../configure/environment/)'), true);
 });
