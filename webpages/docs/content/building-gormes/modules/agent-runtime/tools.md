@@ -11,7 +11,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 **Module group:** Agent Runtime
 **Module:** `tools`
 **Rows:** 149
-**Status counts:** `complete`: 148 · `in_progress`: 0 · `planned`: 1
+**Status counts:** `complete`: 149 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P0`: 23 · `P1`: 55 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26
 
 ## Phase 3 — The Black Box (Memory)
@@ -222,7 +222,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `tools` | Cron dashboard partial-record page |
 | `complete` | `P1` | `tools` | Hermes x_search tool and auth surface |
 | `complete` | `P1` | `tools` | Hermes send_message tool list and target contract |
-| `planned` | `P1` | `tools` | Image generation managed-gateway provider binding |
+| `complete` | `P1` | `tools` | Image generation managed-gateway provider binding |
 
 ### 5.O — Hermes CLI Parity
 
