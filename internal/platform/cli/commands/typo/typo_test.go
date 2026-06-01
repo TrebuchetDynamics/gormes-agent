@@ -1,4 +1,4 @@
-package commands
+package typo
 
 import (
 	"strings"

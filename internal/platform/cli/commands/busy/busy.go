@@ -3,7 +3,6 @@ package busy
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/commands/registry"
@@ -137,9 +136,8 @@ func (g *BusyCommandGuard) EvaluateInput(input string) BusyInputVerdict {
 	if active == nil {
 		return BusyInputVerdict{}
 	}
-	trimmed := strings.TrimSpace(input)
-	if strings.HasPrefix(trimmed, "/") {
-		if cmd, ok := registry.ResolveCommandPolicy(trimmed); ok && cmd.ActiveTurnPolicy == registry.ActiveTurnPolicyBypass {
+	if registry.IsSlashCommandText(input) {
+		if cmd, ok := registry.ResolveCommandPolicy(input); ok && cmd.ActiveTurnPolicy == registry.ActiveTurnPolicyBypass {
 			return BusyInputVerdict{}
 		}
 	}

@@ -1,4 +1,4 @@
-package commands
+package registry
 
 import (
 	"strings"
