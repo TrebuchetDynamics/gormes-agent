@@ -295,8 +295,8 @@ file+line ref or explicit `missing`, and a classification.
 | WhatsApp | `gateway/platforms/whatsapp.py` | `internal/channels/whatsapp/` | covered | WhatsApp bridge/adapter. |
 | Signal | `gateway/platforms/signal.py` | `internal/channels/signal/` | covered | Signal adapter. |
 | Matrix | `gateway/platforms/matrix.py` | `internal/channels/matrix/` | covered | Matrix adapter. |
-| Mattermost | no Gormes channel | → `missing` | missing | Not ported. |
-| Google Chat | no Gormes channel | → `missing` | missing | Not ported. |
+| Mattermost | `gateway/platforms/mattermost.py`; plugin config bridge | `internal/adapters/channels/mattermost/{seam,bootstrap}.go`; `internal/adapters/channels/threadtext` | partial | Implemented fakeable Mattermost seam: posted-event normalization, self/system/duplicate drops, mention/allowed-channel gating, thread reply modes, processing hooks, config/auth bootstrap evidence, sanitized REST helpers, reconnect policy, upload/edit/send request shaping. Remaining gaps: live gateway registration/operation and full plugin lifecycle parity. |
+| Google Chat | `plugins/platforms/google_chat/`; `gateway/config.py` Google Chat bridge | `internal/adapters/channels/googlechat/{runtime,standalone}.go` | partial | Implemented fakeable Google Chat channel seam: platform metadata, Pub/Sub event normalization, send/send-thread adapter contract, markdown/platform hint, no-transport degraded errors, and standalone text delivery request shaping with token/poster interfaces. Remaining gaps: live Pub/Sub/OAuth setup and attachment/rich-card delivery. |
 | BlueBubbles | no Gormes channel | `internal/channels/bluebubbles/` | covered | BlueBubbles iMessage bridge. |
 | Feishu | `gateway/platforms/feishu.py` | `internal/channels/feishu/` | covered | Feishu adapter. |
 | DingTalk | `gateway/platforms/dingtalk.py` | `internal/channels/dingtalk/` | covered | DingTalk adapter. |
@@ -332,7 +332,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| `memory` tool (Hermes-compatible) | `tools/memory_tool.py` | → `missing` | missing | Goncho tools exist but no Hermes-compatible `memory` tool in default registry. |
+| `memory` tool (Hermes-compatible) | `tools/memory_tool.py` | `internal/tools/memory/tool.go`; `internal/tools/memory/tool_test.go`; `cmd/gormes/registry.go`; `cmd/gormes/registry_test.go` | covered | Default registry includes a Hermes-compatible `memory` tool with add/replace/remove/read actions, `user` and `memory` targets, Hermes delimiter parsing/writing, file locking, char-limit evidence, and prompt-injection/secret rejection tests. |
 | `session_search` tool | `tools/session_search_tool.py` | `internal/tools/sessionsearch/` | covered | Session search. |
 
 ### 6.3 Web tools
@@ -375,15 +375,15 @@ file+line ref or explicit `missing`, and a classification.
 | Cron tool | `tools/cronjob_tools.py` | `internal/tools/` | covered | Cron management tool. |
 | Schedule parser | `cron/jobs.py` `parse_schedule` | `internal/automation/cron/` | covered | Natural language schedule parsing. |
 | Compute next run | `cron/jobs.py` `compute_next_run` | `internal/automation/cron/` | covered | Next execution time calculation. |
-| Grace seconds | `cron/jobs.py` `_compute_grace_seconds` | → `missing` | missing | Grace window after missed schedule. |
-| Delivery target resolution | `cron/scheduler.py` `_resolve_delivery_targets` | → `missing` | missing | Multi-platform delivery routing. |
-| Multi-target delivery | `cron/scheduler.py` `_deliver_result` | → `missing` | missing | Send results to multiple channels. |
+| Grace seconds | `cron/jobs.py` `_compute_grace_seconds` | `internal/automation/cron/schedule_parser.go`; `internal/automation/cron/schedule_parser_test.go` | covered | `CronNextRunDecision` covers late one-shot grace windows, finite repeat exhaustion, and recurring fast-forward behavior. |
+| Delivery target resolution | `cron/scheduler.py` `_resolve_delivery_targets` | `internal/automation/cron/delivery_plan.go`; `internal/gateway/delivery.go` | covered | Explicit platform/chat/thread targets, origin delivery, `all` routing intent, home-channel expansion, dedupe, invalid-target evidence, and directory-missing evidence are fixture-covered. |
+| Multi-target delivery | `cron/scheduler.py` `_deliver_result` | `internal/automation/cron/delivery_plan.go`; `internal/automation/cron/delivery_plan_test.go` | covered | Delivery plans fan out to multiple targets, prefer live adapters, fall back to standalone senders and the legacy delivery sink with per-target evidence. |
 | Script execution | `cron/scheduler.py` `_run_job_script` | `internal/automation/cron/` | covered | Run shell scripts as job actions. |
-| Context_from chaining | `cron/jobs.py` | → `missing` | missing | Chain prompts from previous job output. |
-| Resource release | `cron/jobs.py` | → `missing` | missing | Cleanup after job completion. |
-| Job lock files | `cron/scheduler.py` `_get_lock_paths` | → `missing` | missing | PID-based job locking. |
-| Cron prompt guard | `cron/scheduler.py` `CronPromptInjectionBlocked` | → `missing` | missing | Prevent cron prompt injection. |
-| Recovery from missed schedule | `cron/jobs.py` `_recoverable_oneshot_run_at` | → `missing` | missing | Recover missed one-shot jobs. |
+| Context_from chaining | `cron/jobs.py` | `internal/automation/cron/context_from.go`; `internal/automation/cron/context_from_test.go` | covered | Previous completed cron outputs are injected before the prompt, capped per source, and missing/invalid/unreadable sources are skipped with evidence. |
+| Resource release | `cron/jobs.py`; `cron/scheduler.py` cleanup path | `internal/automation/cron/run_release.go`; `internal/automation/cron/release_binding_test.go` | covered | Per-run release ledger closes session DBs, HTTP idle connections, and subprocess resources at run end, including kernel-error/cancel paths and idempotent no-resource evidence. |
+| Job lock files | `cron/scheduler.py` `_get_lock_paths` | → `missing` | missing | Cross-process PID/file locking for scheduler ticks is not ported; Gormes has in-process run-state/concurrency guards only. |
+| Cron prompt guard | `cron/scheduler.py` `CronPromptInjectionBlocked` | `internal/automation/cron/prompt_script_safety.go`; `internal/automation/cron/*safety*_test.go` | partial | Cron create/update preflight scans prompts/scripts for critical injection and exfiltration patterns before persistence; exact runtime `CronPromptInjectionBlocked` delivery document parity remains unproven. |
+| Recovery from missed schedule | `cron/jobs.py` `_recoverable_oneshot_run_at` | `internal/automation/cron/schedule_parser.go`; `internal/automation/cron/run_completion.go` | covered | Missed one-shot recovery and terminal one-shot completion are fixture-covered by schedule decision and run-completion tests. |
 
 ---
 
@@ -563,12 +563,12 @@ file+line ref or explicit `missing`, and a classification.
 | Subagent delegate tool | `tools/delegate_tool.py` | `internal/core/subagent/` + `internal/tools/` | covered | Deterministic delegate runtime. |
 | Approval tool | `tools/approval.py` | `internal/tools/approval/` | covered | Approval mode guards. |
 | Path security tool | `tools/path_security.py` | `internal/tools/safety/` | covered | Workspace path guard. |
-| URL safety tool | `tools/url_safety.py` | → `missing` | missing | Not ported. |
-| Website policy tool | `tools/website_policy.py` | → `missing` | missing | Not ported. |
+| URL safety tool | `tools/url_safety.py` | `internal/tools/url_safety.go`; `internal/tools/safety/urlsafety/safety.go`; `internal/tools/web_tools.go` | covered | Implemented: default URL safety policy, static checker, SSRF/private/cloud-metadata blocking, allow/block rules, cache invalidation, env-controlled private-URL policy, and web-tool prefetch blocking are covered by `internal/tools/safety/urlsafety` and `internal/tools` tests. |
+| Website policy tool | `tools/website_policy.py` | `internal/tools/web_tools.go` `WebWebsitePolicy`; `internal/tools/web_tools_test.go` | covered | Implemented for web tools: Hermes-style domain blocklist policy is applied before web_extract/web_crawl fetches, returns `website_policy_blocked` evidence, and is fixture-covered for Firecrawl/Tavily/goscrapling paths. |
 | OSV supply-chain check | `tools/osv_check.py` | → `missing` | missing | Not ported. |
 | Todo tool | `tools/todo_tool.py` | `internal/tools/` | covered | Todo state management. |
 | Clarify tool | `tools/clarify_tool.py` | `internal/tools/` | covered | Clarify prompts. |
-| Send-message tool | `tools/send_message_tool.py` | `internal/tools/sendmessage/send_message.go`; planned row `Hermes send_message tool list and target contract` | partial | Minimal Go `send_message` tool exists, but Hermes `action=list`, optional schema, target-resolution guidance, and fail-closed no-backend evidence are not yet ported. Builder-ready row narrows this to a hermetic list/send contract before live platform/media delivery. |
+| Send-message tool | `tools/send_message_tool.py` | `internal/tools/sendmessage/send_message.go`; completed row `Hermes send_message tool list and target contract` | partial | Implemented the hermetic Hermes list/send contract: schema exposes optional `action` enum (`send`, `list`), injected directory listing/resolution returns deterministic targets or typed unavailable evidence, `send` validates target/message, parses `platform[:chat[:thread]]` through shared gateway routing, and fails closed when no sender is configured. Remaining gaps: live platform adapters, home-channel config binding, media delivery, and gateway session mirroring. |
 | Debug helpers tool | `tools/debug_helpers.py` | → `missing` | missing | Not ported. |
 | Interrupt tool | `tools/interrupt.py` | `internal/kernel/` | covered | Turn cancellation via context. |
 | Code execution tool | `tools/code_execution_tool.py` | `internal/tools/` + `internal/cmdrunner/` | partial | Guarded local execution; process registry not proven. |
@@ -699,14 +699,14 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Voice mode (TTS/STT toggle) | `tools/voice_mode.py` | → `missing` | missing | Voice toggle not proven. |
-| Voice recording | `hermes_cli/voice.py` | → `missing` | missing | Not ported. |
+| Voice mode (TTS/STT toggle) | `tools/voice_mode.py` | `internal/tools/voice_mode.go`; `internal/tools/voice_mode_test.go`; `cmd/gormes/tui_voice_slash.go` | partial | Tool/runner seam persists per-chat `off`/`voice_only`/`all`, exposes requirement checks, gates playback by mode, and exercises STT/TTS/audio fake providers; live microphone/audio provider wiring remains incomplete. |
+| Voice recording | `hermes_cli/voice.py` | `internal/tools/voice_mode.go`; `internal/tools/voice_mode_test.go`; `internal/tui/update.go`; `internal/tui/hermes_keybindings_test.go` | partial | Recording/transcription seam and configurable TUI voice key routing exist with typed unavailable evidence; live capture/silence detection/playback parity is not proven. |
 | PTY bridge (terminal emulation) | `hermes_cli/pty_bridge.py` | → `missing` | missing | Not ported. |
 | Push-to-talk keybinding | `cli.py` voice.record_key | `internal/tui/` `voiceRecordKey` | covered | Configurable voice key in TUI. |
 | TTS result envelope | `tools/tts_tool.py` | `internal/tools/tts/tool.go`; `internal/tools/tts/tool_test.go`; `internal/tools/tts/go_native_provider_test.go` | covered | Returns success/file_path/MEDIA evidence, voice-compatible audio tags, and typed failure evidence. |
 | WASI Whisper STT | `tools/transcription_tools.py` | `internal/tools/whisper/` | covered | Local STT via WASM. |
 | Go-owned local TTS backend | N/A (Gormes-owned) | `internal/speech/tts/fixture.go`; `internal/tools/tts/go_native_provider.go` | owned | Pure-Go local fixture/formant WAV provider behind TTSProvider seam; deliberately not neural Piper parity. |
-| Voice mode state machine | `tools/voice_mode.py` | → `missing` | missing | Idle/recording/processing states. |
+| Voice mode state machine | `tools/voice_mode.py` | `internal/tools/voice_mode.go`; `internal/tools/voice_mode_test.go` | partial | Chat-level mode state, requirement checks, record/transcribe, playback, and provider failure transitions are fixture-covered; Hermes-style explicit idle/recording/processing lifecycle and cancellation state are not yet proven. |
 | TTS provider abstraction | `tools/tts_tool.py`; `agent/tts_provider.py` | `internal/tools/tts/tool.go`; `internal/tools/tts/command_provider.go`; `internal/tools/tts/go_native_provider.go` | covered | Cloud/command/local provider seam with explicit provider selection, no built-in shadowing, and Go-owned local runtime adapter. |
 
 ---
@@ -887,9 +887,9 @@ file+line ref or explicit `missing`, and a classification.
 | Cron schedule parser | `cron/scheduler.py` | `internal/automation/cron/` | covered | Schedule parsing. |
 | Cron job store | `cron/jobs.py` | `internal/automation/cron/` | covered | Job CRUD. |
 | Cron job execution | `cron/scheduler.py` | `internal/automation/cron/` | covered | Scheduled execution. |
-| Cron context_from chaining | `cron/jobs.py` | → `missing` | missing | Not ported. |
-| Cron multi-target delivery | `cron/scheduler.py` | → `missing` | missing | Not ported. |
-| Cron resource release | `cron/scheduler.py` | → `missing` | missing | Not ported. |
+| Cron context_from chaining | `cron/jobs.py` | `internal/automation/cron/context_from.go`; `internal/automation/cron/context_from_test.go` | covered | Injects prior completed outputs, truncates each source, and skips unavailable sources with evidence. |
+| Cron multi-target delivery | `cron/scheduler.py` | `internal/automation/cron/delivery_plan.go`; `internal/automation/cron/delivery_plan_test.go` | covered | Multi-target delivery routing, `all` expansion, live/standalone/fallback paths, and per-target reports are implemented. |
+| Cron resource release | `cron/scheduler.py` | `internal/automation/cron/run_release.go`; `internal/automation/cron/release_binding_test.go` | covered | Registered cron resources are released at run end across success, kernel-error, cancel, and release-error paths. |
 | Cron tool (gateway) | `tools/cronjob_tools.py` | `internal/tools/` | covered | Cron management tool. |
 
 ---
@@ -929,13 +929,13 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Send text message CLI | `hermes_cli/send_cmd.py` `cmd_send` | → `missing` | missing | Send message to a channel. |
+| Send text message CLI | `hermes_cli/send_cmd.py` `cmd_send` | `cmd/gormes/send.go`; `cmd/gormes/send_command_test.go` | partial | Top-level `gormes send` is registered and covers positional/file/stdin payloads, `--to`, `--subject`, `--list`, `--quiet`, `--json`, `--dry-run`, no-TUI startup, sanitized errors, and typed `send_backend_unavailable`; live standalone platform delivery remains a backend gap. |
 | Oneshot chat (-q) | `hermes_cli/oneshot.py` | `cmd/gormes/chat.go` `-q` | covered | One-shot message to default provider. |
-| Target resolution | `send_cmd.py` `_resolve_target` | → `missing` | missing | Resolve `--to platform:chat` targets. |
-| Platform-aware target listing | `send_cmd.py` `_list_targets` | → `missing` | missing | List available send targets. |
-| Message body reading | `send_cmd.py` `_read_message_body` | → `missing` | missing | Read message body from stdin/file/stdin. |
-| Result formatting | `send_cmd.py` `_emit_result` | → `missing` | missing | Display send result. |
-| Send subcommand registration | `send_cmd.py` `register_send_subparser` | → `missing` | missing | Register `gormes send` subcommand. |
+| Target resolution | `send_cmd.py` `_resolve_target` | `cmd/gormes/send.go`; `internal/gateway/delivery.go`; `internal/automation/cron/delivery_plan.go` | partial | CLI accepts and sanitizes `--to PLATFORM[:channel[:thread]]` and shares gateway/cron target parsing, but root `gormes send` still delegates final friendly-name resolution to future standalone delivery backends. |
+| Platform-aware target listing | `send_cmd.py` `_list_targets` | `cmd/gormes/send.go` `runSendListCommand`; `internal/gateway/channel_directory*` | covered | `gormes send --list [platform]` reads the channel directory, filters by platform, emits text/JSON, and reports missing targets with configured-platform evidence. |
+| Message body reading | `send_cmd.py` `_read_message_body` | `internal/platform/cli/input/messagebody/send_message.go`; `cmd/gormes/send_command_test.go` | covered | Positional, file, `--file -`, and piped stdin bodies preserve newlines, reject invalid UTF-8/NUL bytes, strip terminal response leaks, and report missing body errors. |
+| Result formatting | `send_cmd.py` `_emit_result` | `cmd/gormes/send.go` `emitSendCommandResult`; `cmd/gormes/send_command_test.go` | covered | Human, quiet, JSON, dry-run, backend-unavailable, and backend-error outputs are deterministic and sanitized, with nonzero exit codes on errors. |
+| Send subcommand registration | `send_cmd.py` `register_send_subparser` | `cmd/gormes/main.go`; `cmd/gormes/send.go`; `cmd/gormes/hermes_cli_parity.go` | covered | `gormes send` is part of the Cobra root and Hermes CLI parity manifest. |
 
 ---
 

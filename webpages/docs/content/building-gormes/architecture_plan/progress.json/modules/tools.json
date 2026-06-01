@@ -9298,9 +9298,9 @@
     "item": {
       "name": "Hermes send_message tool list and target contract",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Bring Gormes' existing `send_message` tool descriptor/handler up to the narrow Hermes contract that can be proven without live channel sends: the schema must expose `action` with `send|list`, optional `target`, and optional `message`; `action=list` must return a typed list/unavailable envelope from an injected channel-directory provider; `action=send` must reject missing target/message with Hermes-style tool-error JSON, parse `platform[:chat[:thread]]` targets through the shared gateway delivery-target parser, and call an injected sender only after validation. This row must not start gateway services, contact Telegram/Discord/Slack, or implement media delivery.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
       "module": "tools",
@@ -9364,7 +9364,11 @@
         "origin_type": "hermes",
         "upstream_ref": "Hermes `tools/send_message_tool.py` schema, list path, send path, and target parsing",
         "note": "Live platform sends and media delivery remain future channel/runtime work."
-      }
+      },
+      "completed_note": "Implemented hermetic send_message action=list/send contract: optional schema, injected directory list/resolve, shared delivery-target parser, fail-closed no-directory/no-sender evidence, and fixture-proven sender validation. Live platform adapters and media delivery remain future parity work tracked by the atom.",
+      "validation": [
+        "go test ./internal/tools/sendmessage -run 'TestSendMessageTool' -count=1"
+      ]
     }
   },
   {
