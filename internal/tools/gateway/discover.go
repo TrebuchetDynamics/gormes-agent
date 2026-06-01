@@ -1063,8 +1063,9 @@ func (p HTTPGatewayProber) ProbeGatewayEndpoint(ctx context.Context, endpoint Ga
 	if err != nil {
 		return p.httpTarget(endpoint, true, GatewayHealthHTTPCapabilityMalformed, GatewayProbeStatusMalformedCapabilities, now().Sub(started).Milliseconds(), capStatus, "capabilities malformed: "+p.redact(err.Error()), summary)
 	}
-	if !gatewayCapabilitiesSupported(summary) {
-		return p.httpTarget(endpoint, true, GatewayHealthHTTPCapabilityUnsupported, GatewayProbeStatusUnsupportedCapability, now().Sub(started).Milliseconds(), capStatus, "capabilities missing required Hermes API-server features", summary)
+	supportReport := classifyGatewayCapabilitiesSupport(summary)
+	if !gatewayCapabilitiesSupportReportOK(supportReport) {
+		return p.httpTarget(endpoint, true, GatewayHealthHTTPCapabilityUnsupported, GatewayProbeStatusUnsupportedCapability, now().Sub(started).Milliseconds(), capStatus, gatewayCapabilitiesUnsupportedMessage(supportReport), summary)
 	}
 	return p.httpTarget(endpoint, true, GatewayHealthHTTPHealthy, GatewayProbeStatusCapabilityReady, now().Sub(started).Milliseconds(), capStatus, "", summary)
 }
@@ -1196,8 +1197,28 @@ type gatewayCapabilitiesSupportReport struct {
 }
 
 func gatewayCapabilitiesSupported(summary *GatewayCapabilitiesSummary) bool {
-	report := classifyGatewayCapabilitiesSupport(summary)
+	return gatewayCapabilitiesSupportReportOK(classifyGatewayCapabilitiesSupport(summary))
+}
+
+func gatewayCapabilitiesSupportReportOK(report gatewayCapabilitiesSupportReport) bool {
 	return report.ObjectOK && report.BearerAuthOK && len(report.MissingFeatures) == 0 && len(report.MissingEndpoints) == 0
+}
+
+func gatewayCapabilitiesUnsupportedMessage(report gatewayCapabilitiesSupportReport) string {
+	return fmt.Sprintf(
+		"capabilities missing required Hermes API-server support object_ok=%t bearer_auth_ok=%t missing_features=%s missing_endpoints=%s",
+		report.ObjectOK,
+		report.BearerAuthOK,
+		formatGatewayCapabilityMissingNames(report.MissingFeatures),
+		formatGatewayCapabilityMissingNames(report.MissingEndpoints),
+	)
+}
+
+func formatGatewayCapabilityMissingNames(names []string) string {
+	if len(names) == 0 {
+		return "none"
+	}
+	return strings.Join(names, ",")
 }
 
 func classifyGatewayCapabilitiesSupport(summary *GatewayCapabilitiesSummary) gatewayCapabilitiesSupportReport {

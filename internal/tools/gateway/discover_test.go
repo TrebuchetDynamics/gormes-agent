@@ -695,6 +695,11 @@ func TestGatewayProbeHTTPClassifiesAuthUnsupportedAndMalformedCapabilities(t *te
 		if target.Health != GatewayHealthHTTPCapabilityUnsupported || target.Status != GatewayProbeStatusUnsupportedCapability {
 			t.Fatalf("target = %+v, want unsupported capability classification", target)
 		}
+		for _, want := range []string{"missing_features=run_status,run_events_sse", "missing_endpoints=none"} {
+			if !strings.Contains(target.Error, want) {
+				t.Fatalf("error = %q, want diagnostic %q", target.Error, want)
+			}
+		}
 	})
 
 	t.Run("endpoint missing method unsupported", func(t *testing.T) {
@@ -717,6 +722,11 @@ func TestGatewayProbeHTTPClassifiesAuthUnsupportedAndMalformedCapabilities(t *te
 		target := result.Targets[0]
 		if target.Health != GatewayHealthHTTPCapabilityUnsupported || target.Status != GatewayProbeStatusUnsupportedCapability {
 			t.Fatalf("target = %+v, want unsupported capability classification for endpoint missing method", target)
+		}
+		for _, want := range []string{"missing_features=none", "missing_endpoints=run_stop"} {
+			if !strings.Contains(target.Error, want) {
+				t.Fatalf("error = %q, want diagnostic %q", target.Error, want)
+			}
 		}
 	})
 
