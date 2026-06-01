@@ -77,12 +77,42 @@ func TestListCanceledContextDoesNotReadDirectory(t *testing.T) {
 	}
 }
 
+func TestListWhitespaceOnlyPlatformFilterIsTreatedAsAbsent(t *testing.T) {
+	result, err := List(context.Background(), &fakeDirectory{platforms: map[string][]Entry{
+		"discord":  {{ID: "dc-1", Name: "Discord"}},
+		"telegram": {{ID: "tg-1", Name: "Telegram"}},
+	}}, map[string]interface{}{"platform": " \t "})
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+
+	payload := result.(map[string]interface{})
+	got := platformOrder(payload["channels"].([]Output))
+	want := []string{"discord", "telegram"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("platform order = %v, want whitespace-only filter to be absent and return %v", got, want)
+	}
+}
+
+func TestPlatformSelectionMatchesOnlyNormalizedFilterWhenPresent(t *testing.T) {
+	selection := newPlatformSelection(map[string]interface{}{"platform": " Discord "})
+	if !selection.HasFilter {
+		t.Fatalf("selection.HasFilter = false, want true")
+	}
+	if !selection.matches(newPlatformKey("discord")) {
+		t.Fatalf("selection did not match normalized platform")
+	}
+	if selection.matches(newPlatformKey("telegram")) {
+		t.Fatalf("selection matched unrelated platform")
+	}
+}
+
 func TestPlatformCandidatesKeepRawPlatformAsTieBreaker(t *testing.T) {
 	candidates := platformCandidates(map[string][]Entry{
 		" discord ": {{ID: "spaced"}},
 		"Discord":   {{ID: "title"}},
 		"discord":   {{ID: "lower"}},
-	}, "")
+	}, platformSelection{})
 
 	gotRaw := make([]string, 0, len(candidates))
 	gotIDs := make([]string, 0, len(candidates))

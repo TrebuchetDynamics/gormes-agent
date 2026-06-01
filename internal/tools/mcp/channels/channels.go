@@ -39,7 +39,7 @@ func List(ctx context.Context, dir DirectoryProvider, args map[string]interface{
 		return nil, err
 	}
 
-	channels := collectOutputs(platforms, platformFilter(args))
+	channels := collectOutputs(platforms, newPlatformSelection(args))
 
 	return map[string]interface{}{
 		"count":    len(channels),
@@ -68,16 +68,26 @@ func contextErr(ctx context.Context) error {
 	return ctx.Err()
 }
 
-func platformFilter(args map[string]interface{}) string {
-	if pf, ok := args["platform"].(string); ok {
-		return newPlatformKey(pf).Normalized
-	}
-	return ""
+type platformSelection struct {
+	Filter    platformKey
+	HasFilter bool
 }
 
-func collectOutputs(platforms map[string][]Entry, filterPlatform string) []Output {
+func newPlatformSelection(args map[string]interface{}) platformSelection {
+	if pf, ok := args["platform"].(string); ok {
+		key := newPlatformKey(pf)
+		return platformSelection{Filter: key, HasFilter: key.Normalized != ""}
+	}
+	return platformSelection{}
+}
+
+func (s platformSelection) matches(key platformKey) bool {
+	return !s.HasFilter || key.Normalized == s.Filter.Normalized
+}
+
+func collectOutputs(platforms map[string][]Entry, selection platformSelection) []Output {
 	channels := make([]Output, 0)
-	for _, candidate := range platformCandidates(platforms, filterPlatform) {
+	for _, candidate := range platformCandidates(platforms, selection) {
 		for _, entry := range candidate.Entries {
 			channels = append(channels, Output{
 				ID:       entry.ID,
@@ -108,16 +118,16 @@ func newPlatformKey(platform string) platformKey {
 	}
 }
 
-func platformCandidates(platforms map[string][]Entry, filterPlatform string) []platformCandidate {
+func platformCandidates(platforms map[string][]Entry, selection platformSelection) []platformCandidate {
 	candidates := make([]platformCandidate, 0, len(platforms))
 	for platform, entries := range platforms {
 		key := newPlatformKey(platform)
-		if filterPlatform != "" && key.Normalized != filterPlatform {
+		if !selection.matches(key) {
 			continue
 		}
 		candidates = append(candidates, platformCandidate{
 			platformKey: key,
-			Entries:      entries,
+			Entries:     entries,
 		})
 	}
 	sort.SliceStable(candidates, func(i, j int) bool {
