@@ -1,9 +1,11 @@
-package bedrock
+package runtime
 
 import (
 	"context"
 	"fmt"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/bedrock/stale"
 )
 
 type fakeBedrockRuntimeClient struct {
@@ -57,10 +59,10 @@ func TestBedrockRuntimeCache_DoesNotEvictValidationOrAuthFailures(t *testing.T) 
 		name string
 		err  error
 	}{
-		{name: "validation", err: BedrockRuntimeError{Kind: BedrockRuntimeErrorValidation, Message: "ValidationException: bad request"}},
-		{name: "auth", err: BedrockRuntimeError{Kind: BedrockRuntimeErrorAuth, Message: "AccessDeniedException: forbidden"}},
-		{name: "missing_credentials", err: BedrockRuntimeError{Kind: BedrockRuntimeErrorMissingCredentials, Message: "bedrock credentials missing"}},
-		{name: "malformed_request", err: BedrockRuntimeError{Kind: BedrockRuntimeErrorMalformedRequest, Message: "malformed request: unexpected EOF in JSON"}},
+		{name: "validation", err: stale.BedrockRuntimeError{Kind: stale.BedrockRuntimeErrorValidation, Message: "ValidationException: bad request"}},
+		{name: "auth", err: stale.BedrockRuntimeError{Kind: stale.BedrockRuntimeErrorAuth, Message: "AccessDeniedException: forbidden"}},
+		{name: "missing_credentials", err: stale.BedrockRuntimeError{Kind: stale.BedrockRuntimeErrorMissingCredentials, Message: "bedrock credentials missing"}},
+		{name: "malformed_request", err: stale.BedrockRuntimeError{Kind: stale.BedrockRuntimeErrorMalformedRequest, Message: "malformed request: unexpected EOF in JSON"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -78,12 +80,12 @@ func TestBedrockRuntimeCache_DoesNotEvictValidationOrAuthFailures(t *testing.T) 
 			if got != client {
 				t.Fatalf("cached client = %p, want %p", got, client)
 			}
-			classification := ClassifyBedrockStaleError(tt.err)
+			classification := stale.ClassifyBedrockStaleError(tt.err)
 			if classification.Stale {
 				t.Fatalf("ClassifyBedrockStaleError(%s).Stale = true, want false", tt.name)
 			}
-			if classification.Status != BedrockNonRetryableRequestStatus {
-				t.Fatalf("Status = %q, want %q", classification.Status, BedrockNonRetryableRequestStatus)
+			if classification.Status != stale.BedrockNonRetryableRequestStatus {
+				t.Fatalf("Status = %q, want %q", classification.Status, stale.BedrockNonRetryableRequestStatus)
 			}
 		})
 	}
@@ -98,7 +100,7 @@ func TestBedrockRuntimeCache_EvictsOnConverseAndConverseStreamStaleFailures(t *t
 	}{
 		{
 			name:     "converse",
-			staleErr: fmt.Errorf("converse failed: %w", ErrBedrockConnectionClosed),
+			staleErr: fmt.Errorf("converse failed: %w", stale.ErrBedrockConnectionClosed),
 			call: func(ctx context.Context, cache *BedrockRuntimeCache, region string, req BedrockRuntimeRequest) error {
 				_, err := cache.Converse(ctx, region, req)
 				return err
@@ -107,7 +109,7 @@ func TestBedrockRuntimeCache_EvictsOnConverseAndConverseStreamStaleFailures(t *t
 		},
 		{
 			name:     "converse_stream",
-			staleErr: fmt.Errorf("converse stream failed: %w", ErrBedrockReadTimeout),
+			staleErr: fmt.Errorf("converse stream failed: %w", stale.ErrBedrockReadTimeout),
 			call: func(ctx context.Context, cache *BedrockRuntimeCache, region string, req BedrockRuntimeRequest) error {
 				_, err := cache.ConverseStream(ctx, region, req)
 				return err

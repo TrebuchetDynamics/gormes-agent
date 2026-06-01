@@ -1,9 +1,11 @@
-package bedrock
+package runtime
 
 import (
 	"context"
 	"errors"
 	"sync"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/bedrock/stale"
 )
 
 var ErrBedrockRuntimeClientMissing = errors.New("bedrock runtime client missing")
@@ -58,7 +60,7 @@ func (c *BedrockRuntimeCache) InvalidateRuntimeClient(region string) bool {
 }
 
 func (c *BedrockRuntimeCache) EvictOnStaleError(region string, err error) bool {
-	if !ClassifyBedrockStaleError(err).Stale {
+	if !stale.ClassifyBedrockStaleError(err).Stale {
 		return false
 	}
 	return c.InvalidateRuntimeClient(region)
