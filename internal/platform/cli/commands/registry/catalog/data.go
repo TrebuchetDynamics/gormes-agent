@@ -1,4 +1,4 @@
-package registry
+package catalog
 
 // CommandRegistry is the single source of truth for the active-turn behavior
 // of every slash command Gormes recognizes. Entries that are intentionally not

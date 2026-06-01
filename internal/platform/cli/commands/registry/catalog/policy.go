@@ -1,4 +1,4 @@
-package registry
+package catalog
 
 // ActiveTurnPolicy classifies how a recognized slash command behaves when an
 // agent turn is already active. The set is closed: every entry in
