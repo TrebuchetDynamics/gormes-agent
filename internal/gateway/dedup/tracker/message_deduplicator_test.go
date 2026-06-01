@@ -1,6 +1,10 @@
-package dedup
+package tracker
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/dedup/evidence"
+)
 
 func TestMessageDeduplicator_MaxSizeEvictsOldest(t *testing.T) {
 	dedup := NewMessageDeduplicator(3)
@@ -15,13 +19,13 @@ func TestMessageDeduplicator_MaxSizeEvictsOldest(t *testing.T) {
 	if result.Duplicate {
 		t.Fatalf("Track(msg-4) duplicate = true, want false")
 	}
-	if result.Evidence != MessageDeduplicatorEvidenceEvicted || result.EvictedID != "msg-1" {
+	if result.Evidence != evidence.Evicted || result.EvictedID != "msg-1" {
 		t.Fatalf("Track(msg-4) = %+v, want evicted evidence for msg-1", result)
 	}
 
 	for _, id := range []string{"msg-3", "msg-4"} {
 		result := dedup.Track(id)
-		if !result.Duplicate || result.Evidence != MessageDeduplicatorEvidenceDuplicate {
+		if !result.Duplicate || result.Evidence != evidence.Duplicate {
 			t.Fatalf("Track(%q) = %+v, want duplicate evidence", id, result)
 		}
 	}
@@ -43,7 +47,7 @@ func TestMessageDeduplicator_DuplicateReturnsSeen(t *testing.T) {
 	if !result.Duplicate {
 		t.Fatalf("second Track(msg-1) duplicate = false, want true")
 	}
-	if result.Evidence != MessageDeduplicatorEvidenceDuplicate || result.EvictedID != "" {
+	if result.Evidence != evidence.Duplicate || result.EvictedID != "" {
 		t.Fatalf("second Track(msg-1) = %+v, want duplicate evidence without eviction", result)
 	}
 }
@@ -56,8 +60,8 @@ func TestMessageDeduplicator_ZeroMaxSizeDisabled(t *testing.T) {
 		if result.Duplicate {
 			t.Fatalf("Track(msg-1) attempt %d duplicate = true, want disabled deduplicator to allow", i+1)
 		}
-		if result.Evidence != MessageDeduplicatorEvidenceDisabled {
-			t.Fatalf("Track(msg-1) attempt %d evidence = %q, want %q", i+1, result.Evidence, MessageDeduplicatorEvidenceDisabled)
+		if result.Evidence != evidence.Disabled {
+			t.Fatalf("Track(msg-1) attempt %d evidence = %q, want %q", i+1, result.Evidence, evidence.Disabled)
 		}
 	}
 
