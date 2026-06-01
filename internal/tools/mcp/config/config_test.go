@@ -450,6 +450,43 @@ func TestResolveMCPConfigRejectsInvalidHTTPURLs(t *testing.T) {
 	}
 }
 
+func TestResolveMCPConfigInterpolatesAdjacentEnvReferencesAndLiteralDollars(t *testing.T) {
+	resolved, err := ResolveMCPConfig(map[string]any{
+		"mcp_servers": map[string]any{
+			"stdio": map[string]any{
+				"command": "npx",
+				"env": map[string]any{
+					"TOKEN": "prefix-${FIRST}${SECOND}-$TAIL",
+				},
+			},
+		},
+	}, MCPConfigOptions{LookupEnv: func(name string) (string, bool) {
+		env := map[string]string{"FIRST": "one", "SECOND": "two"}
+		value, ok := env[name]
+		return value, ok
+	}})
+	if err != nil {
+		t.Fatalf("ResolveMCPConfig returned error: %v", err)
+	}
+	server, ok := resolved.Server("stdio")
+	if !ok {
+		t.Fatalf("missing resolved stdio server in %#v", resolved.Servers)
+	}
+	if got := server.Env["TOKEN"]; got != "prefix-onetwo-$TAIL" {
+		t.Fatalf("interpolated TOKEN = %q, want adjacent refs resolved and literal dollar preserved", got)
+	}
+}
+
+func TestParseMCPEnvReferenceAtReportsNameAndEndOffset(t *testing.T) {
+	ref, err := parseMCPEnvReferenceAt("x-${ API_KEY }-tail", 2)
+	if err != nil {
+		t.Fatalf("parseMCPEnvReferenceAt returned error: %v", err)
+	}
+	if ref.Name != "API_KEY" || ref.End != len("x-${ API_KEY }") {
+		t.Fatalf("reference = %#v, want trimmed name API_KEY and end offset after closing brace", ref)
+	}
+}
+
 func TestResolveMCPConfigRejectsInvalidEnvInterpolationReference(t *testing.T) {
 	tests := []struct {
 		name  string

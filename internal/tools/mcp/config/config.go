@@ -756,29 +756,46 @@ func mcpStringMap(value any, field string, validateKeys bool, lookupEnv func(str
 func interpolateMCPEnv(value string, lookupEnv func(string) (string, bool)) (string, error) {
 	var resolved strings.Builder
 	for i := 0; i < len(value); {
-		if value[i] != '$' || i+1 >= len(value) || value[i+1] != '{' {
+		if !startsMCPEnvReference(value, i) {
 			resolved.WriteByte(value[i])
 			i++
 			continue
 		}
 
-		end := strings.IndexByte(value[i+2:], '}')
-		if end < 0 {
-			return "", fmt.Errorf("unterminated environment variable reference")
-		}
-		match := value[i : i+2+end+1]
-		name, err := mcpEnvReferenceName(match)
+		ref, err := parseMCPEnvReferenceAt(value, i)
 		if err != nil {
 			return "", err
 		}
-		envValue, ok := lookupEnv(name)
+		envValue, ok := lookupEnv(ref.Name)
 		if !ok {
-			return "", fmt.Errorf("missing environment variable %s", name)
+			return "", fmt.Errorf("missing environment variable %s", ref.Name)
 		}
 		resolved.WriteString(envValue)
-		i += len(match)
+		i = ref.End
 	}
 	return resolved.String(), nil
+}
+
+type mcpEnvReference struct {
+	Name string
+	End  int
+}
+
+func startsMCPEnvReference(value string, offset int) bool {
+	return offset+1 < len(value) && value[offset] == '$' && value[offset+1] == '{'
+}
+
+func parseMCPEnvReferenceAt(value string, offset int) (mcpEnvReference, error) {
+	end := strings.IndexByte(value[offset+2:], '}')
+	if end < 0 {
+		return mcpEnvReference{}, fmt.Errorf("unterminated environment variable reference")
+	}
+	matchEnd := offset + 2 + end + 1
+	name, err := mcpEnvReferenceName(value[offset:matchEnd])
+	if err != nil {
+		return mcpEnvReference{}, err
+	}
+	return mcpEnvReference{Name: name, End: matchEnd}, nil
 }
 
 func mcpEnvReferenceName(match string) (string, error) {
