@@ -351,6 +351,37 @@ func TestBuildEdgeTTSSSML(t *testing.T) {
 // TTSOpenAIProvider
 // ---------------------------------------------------------------------------
 
+func TestOpenAITTSSpeechURL(t *testing.T) {
+	tests := []struct {
+		name string
+		base string
+		want string
+	}{
+		{
+			name: "api root",
+			base: "https://api.openai.com",
+			want: "https://api.openai.com/v1/audio/speech",
+		},
+		{
+			name: "versioned base",
+			base: DefaultOpenAIBaseURL,
+			want: "https://api.openai.com/v1/audio/speech",
+		},
+		{
+			name: "versioned base with slash",
+			base: "https://api.openai.com/v1/",
+			want: "https://api.openai.com/v1/audio/speech",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := openAITTSSpeechURL(tt.base); got != tt.want {
+				t.Fatalf("openAITTSSpeechURL(%q) = %q, want %q", tt.base, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestTTSOpenAIProviderAvailable(t *testing.T) {
 	orig := os.Getenv("GORMES_TTS_OPENAI_KEY")
 	defer os.Setenv("GORMES_TTS_OPENAI_KEY", orig)

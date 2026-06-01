@@ -454,8 +454,7 @@ func (p *TTSOpenAIProvider) Synthesize(ctx context.Context, req TTSProviderReque
 		return TTSProviderResult{}, fmt.Errorf("OpenAI TTS payload: %w", err)
 	}
 
-	baseURL := strings.TrimSuffix(p.config.OpenAIBaseURL, "/")
-	url := baseURL + "/v1/audio/speech"
+	url := openAITTSSpeechURL(p.config.OpenAIBaseURL)
 
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
@@ -490,6 +489,14 @@ func (p *TTSOpenAIProvider) Synthesize(ctx context.Context, req TTSProviderReque
 		Provider:        ProviderNameOpenAI,
 		VoiceCompatible: format == "opus",
 	}, nil
+}
+
+func openAITTSSpeechURL(baseURL string) string {
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if strings.HasSuffix(baseURL, "/v1") {
+		return baseURL + "/audio/speech"
+	}
+	return baseURL + "/v1/audio/speech"
 }
 
 type miniMaxTTSSettings struct {
