@@ -195,6 +195,24 @@ func TestXSearchExecute_FakeModeDoesNotRequireCredentials(t *testing.T) {
 	}
 }
 
+func TestXSearchExecute_ExpiredOAuthReportsExpired(t *testing.T) {
+	tool := &XSearchTool{
+		cfg: XSearchConfig{
+			AuthMode:    "oauth",
+			OAuthToken:  "expired-token",
+			OAuthExpiry: time.Now().Add(-1 * time.Hour),
+		},
+	}
+
+	_, err := tool.Execute(context.Background(), json.RawMessage(`{"query":"test"}`))
+	if err == nil {
+		t.Fatal("expected expired OAuth error")
+	}
+	if !strings.Contains(strings.ToLower(err.Error()), "expired") {
+		t.Fatalf("error = %v, want expired-token guidance", err)
+	}
+}
+
 func TestXSearchExecute_RateLimitDegraded(t *testing.T) {
 	tool := &XSearchTool{
 		cfg: XSearchConfig{

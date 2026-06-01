@@ -132,17 +132,20 @@ func (t *XSearchTool) Execute(ctx context.Context, args json.RawMessage) (json.R
 }
 
 func (t *XSearchTool) validateExecutionState() error {
-	if t.cfg.Fake {
+	return xSearchExecutionReadinessError(t.cfg.AuthStatus(), t.cfg.AuthMode, t.cfg.Fake, t.cfg.RateLimit)
+}
+
+func xSearchExecutionReadinessError(status XSearchAuthStatus, authMode string, fake, rateLimit bool) error {
+	if fake {
 		return nil
-	}
-	status := t.cfg.AuthStatus()
-	if !status.Configured {
-		return fmt.Errorf("x_search: credentials not configured (auth_mode=%q). Set X_API_KEY or OAuth token.", t.cfg.AuthMode)
 	}
 	if status.Expired {
 		return fmt.Errorf("x_search: OAuth token expired. Re-authenticate to continue.")
 	}
-	if t.cfg.RateLimit {
+	if !status.Configured {
+		return fmt.Errorf("x_search: credentials not configured (auth_mode=%q). Set X_API_KEY or OAuth token.", authMode)
+	}
+	if rateLimit {
 		return fmt.Errorf("x_search: rate limit exceeded. Retry after cooldown period.")
 	}
 	return nil
