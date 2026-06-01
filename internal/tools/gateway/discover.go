@@ -205,13 +205,9 @@ func ParseGatewayEndpoint(raw string, source string) (GatewayEndpoint, error) {
 	if err != nil {
 		return GatewayEndpoint{}, err
 	}
-	port := defaultGatewayPort
-	if rawPort := strings.TrimSpace(u.Port()); rawPort != "" {
-		parsed, err := strconv.Atoi(rawPort)
-		if err != nil || parsed <= 0 || parsed > 65535 {
-			return GatewayEndpoint{}, fmt.Errorf("invalid gateway endpoint port %q", rawPort)
-		}
-		port = parsed
+	port, err := parseGatewayEndpointURLPort(u)
+	if err != nil {
+		return GatewayEndpoint{}, err
 	}
 	return NormalizeGatewayEndpoint(GatewayEndpoint{
 		Address: address,
@@ -227,6 +223,24 @@ func gatewayEndpointURLHasRemainder(u *url.URL) bool {
 	}
 	path := strings.TrimSpace(u.EscapedPath())
 	return (path != "" && path != "/") || u.RawQuery != "" || u.Fragment != ""
+}
+
+func parseGatewayEndpointURLPort(u *url.URL) (int, error) {
+	if u == nil {
+		return 0, errors.New("gateway endpoint URL is nil")
+	}
+	rawPort := strings.TrimSpace(u.Port())
+	if rawPort == "" {
+		if strings.HasSuffix(strings.TrimSpace(u.Host), ":") {
+			return 0, errors.New("gateway endpoint port is empty")
+		}
+		return defaultGatewayPort, nil
+	}
+	parsed, err := strconv.Atoi(rawPort)
+	if err != nil || !validGatewayEndpointPort(parsed) {
+		return 0, fmt.Errorf("invalid gateway endpoint port %q", rawPort)
+	}
+	return parsed, nil
 }
 
 func applyGatewayTXTMetadataHints(endpoint GatewayEndpoint) GatewayEndpoint {

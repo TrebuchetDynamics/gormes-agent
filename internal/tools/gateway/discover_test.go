@@ -161,6 +161,19 @@ func TestParseGatewayEndpointRejectsURLRemainderInsteadOfTruncating(t *testing.T
 	}
 }
 
+func TestParseGatewayEndpointRejectsExplicitEmptyPort(t *testing.T) {
+	for _, raw := range []string{
+		"ws://127.0.0.1:",
+		"wss://[::1]:",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			if endpoint, err := ParseGatewayEndpoint(raw, GatewayEndpointSourceManual); err == nil {
+				t.Fatalf("ParseGatewayEndpoint(%q) = %+v, nil; want explicit empty port rejected", raw, endpoint)
+			}
+		})
+	}
+}
+
 func TestNormalizeGatewayEndpointsDropsInvalidAndKeepsFirstDuplicateCandidate(t *testing.T) {
 	endpoints := normalizeGatewayEndpoints([]GatewayEndpoint{
 		{InstanceName: "manual", Address: "LOCALHOST", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceManual},
