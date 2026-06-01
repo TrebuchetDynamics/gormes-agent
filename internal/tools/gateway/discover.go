@@ -1440,7 +1440,7 @@ func evaluateGatewayUsageCostCandidates(sessions []GatewayUsageSession, since ti
 			flow.Rejected = append(flow.Rejected, candidate)
 			continue
 		}
-		if current, exists := bySessionID[candidate.Row.SessionID]; !exists || newerGatewayUsageCostRow(candidate.Row, current) {
+		if current, exists := bySessionID[candidate.Row.SessionID]; chooseGatewayUsageCostDedupRow(candidate.Row, current, exists) {
 			bySessionID[candidate.Row.SessionID] = candidate.Row
 		}
 	}
@@ -1477,6 +1477,13 @@ func classifyGatewayUsageCostCandidate(session GatewayUsageSession, since time.T
 		Priced:           priced,
 	}
 	return gatewayUsageCostCandidate{Session: normalized, Row: row, Accepted: true}
+}
+
+func chooseGatewayUsageCostDedupRow(candidate, current GatewayUsageCostSession, exists bool) bool {
+	if !exists {
+		return true
+	}
+	return newerGatewayUsageCostRow(candidate, current)
 }
 
 func newerGatewayUsageCostRow(candidate, current GatewayUsageCostSession) bool {
