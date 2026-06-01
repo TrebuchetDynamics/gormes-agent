@@ -1,4 +1,4 @@
-package session
+package autotitle
 
 import (
 	"context"
@@ -48,10 +48,10 @@ type countingGenerator struct {
 	calls  int
 	title  string
 	err    error
-	custom func(ctx context.Context, transcript []TitleTurn) (string, error)
+	custom func(ctx context.Context, transcript []Turn) (string, error)
 }
 
-func (c *countingGenerator) generate(ctx context.Context, transcript []TitleTurn) (string, error) {
+func (c *countingGenerator) generate(ctx context.Context, transcript []Turn) (string, error) {
 	c.calls++
 	if c.custom != nil {
 		return c.custom(ctx, transcript)
@@ -64,12 +64,12 @@ func TestAutoTitleSession_WritesOnceForUntitledSession(t *testing.T) {
 
 	store := &fakeTitleStore{exists: false}
 	gen := &countingGenerator{title: "Bounded Prompt Title"}
-	transcript := []TitleTurn{
+	transcript := []Turn{
 		{Role: "user", Content: "first user turn"},
 		{Role: "assistant", Content: "first assistant reply"},
 	}
 
-	evidence := PerformAutoTitle(context.Background(), store, gen.generate, "session-id", transcript)
+	evidence := Perform(context.Background(), store, gen.generate, "session-id", transcript)
 
 	if evidence.Code != "auto_title_complete" {
 		t.Fatalf("evidence.Code = %q; want %q", evidence.Code, "auto_title_complete")
@@ -100,12 +100,12 @@ func TestAutoTitleSession_ManualTitlePreserved(t *testing.T) {
 		exists:  true,
 	}
 	gen := &countingGenerator{title: "auto override should never appear"}
-	transcript := []TitleTurn{
+	transcript := []Turn{
 		{Role: "user", Content: "hi"},
 		{Role: "assistant", Content: "hello"},
 	}
 
-	evidence := PerformAutoTitle(context.Background(), store, gen.generate, "session-id", transcript)
+	evidence := Perform(context.Background(), store, gen.generate, "session-id", transcript)
 
 	if evidence.Code != "auto_title_skipped_manual" {
 		t.Fatalf("evidence.Code = %q; want %q", evidence.Code, "auto_title_skipped_manual")
@@ -127,12 +127,12 @@ func TestAutoTitleSession_FailureEvidenceNoRetryStorm(t *testing.T) {
 	providerErr := errors.New("openrouter 402: credits exhausted")
 	store := &fakeTitleStore{exists: false}
 	gen := &countingGenerator{err: providerErr}
-	transcript := []TitleTurn{
+	transcript := []Turn{
 		{Role: "user", Content: "any prompt"},
 		{Role: "assistant", Content: "any reply"},
 	}
 
-	evidence := PerformAutoTitle(context.Background(), store, gen.generate, "session-id", transcript)
+	evidence := Perform(context.Background(), store, gen.generate, "session-id", transcript)
 
 	if evidence.Code != "title_provider_failed" {
 		t.Fatalf("evidence.Code = %q; want %q", evidence.Code, "title_provider_failed")
@@ -157,23 +157,23 @@ func TestAutoTitleSession_DoesNotMutateTranscript(t *testing.T) {
 	store := &fakeTitleStore{exists: false}
 	gen := &countingGenerator{title: "Transcript Safety Check"}
 
-	transcript := []TitleTurn{
+	transcript := []Turn{
 		{Role: "user", Content: "first user turn"},
 		{Role: "assistant", Content: "first assistant reply"},
 	}
-	before := append([]TitleTurn(nil), transcript...)
+	before := append([]Turn(nil), transcript...)
 	beforeBytes := make([][]byte, len(transcript))
 	for i, turn := range transcript {
 		beforeBytes[i] = []byte(turn.Content)
 	}
 
-	gen.custom = func(ctx context.Context, ts []TitleTurn) (string, error) {
+	gen.custom = func(ctx context.Context, ts []Turn) (string, error) {
 		// Generator must not mutate any caller-owned transcript bytes.
 		// Tests treat the transcript as read-only input.
 		return "Transcript Safety Check", nil
 	}
 
-	evidence := PerformAutoTitle(context.Background(), store, gen.generate, "session-id", transcript)
+	evidence := Perform(context.Background(), store, gen.generate, "session-id", transcript)
 
 	if evidence.Code != "auto_title_complete" {
 		t.Fatalf("evidence.Code = %q; want %q", evidence.Code, "auto_title_complete")

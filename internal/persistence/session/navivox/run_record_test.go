@@ -1,4 +1,4 @@
-package session
+package navivox
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 
 func TestNavivoxRunRecordVoiceTurnPreservesEvidenceAndUnknownUsage(t *testing.T) {
 	now := time.Unix(1_700_100_000, 0).UTC()
-	record := NewNavivoxRunRecord("req-voice", "s-voice", "transcribed voice command", map[string]any{
+	record := NewRunRecord("req-voice", "s-voice", "transcribed voice command", map[string]any{
 		"input_kind":          "voice",
 		"audio_duration_ms":   2300,
 		"audio_codec":         "audio/opus",
@@ -24,7 +24,7 @@ func TestNavivoxRunRecordVoiceTurnPreservesEvidenceAndUnknownUsage(t *testing.T)
 		"audio_path":          "/private/raw.wav",
 	}, now)
 
-	if record.RunID != "req-voice" || record.SessionID != "s-voice" || record.Status != NavivoxRunStatusInProgress {
+	if record.RunID != "req-voice" || record.SessionID != "s-voice" || record.Status != RunStatusInProgress {
 		t.Fatalf("identity/status = %+v", record)
 	}
 	if len(record.Transcript) != 1 || record.Transcript[0].Role != "user" || record.Transcript[0].Text != "transcribed voice command" {
@@ -42,7 +42,7 @@ func TestNavivoxRunRecordVoiceTurnPreservesEvidenceAndUnknownUsage(t *testing.T)
 	if record.Voice.Audio.RawAudioStored || record.Voice.Audio.Retention != "not_stored" {
 		t.Fatalf("raw audio retention = %+v, want not_stored without raw persistence", record.Voice.Audio)
 	}
-	if record.ProviderUsage.Status != NavivoxEvidenceUnknown || record.ProviderCost.Status != NavivoxEvidenceUnknown {
+	if record.ProviderUsage.Status != EvidenceUnknown || record.ProviderCost.Status != EvidenceUnknown {
 		t.Fatalf("usage/cost = %+v/%+v, want explicit unknown evidence", record.ProviderUsage, record.ProviderCost)
 	}
 
@@ -59,7 +59,7 @@ func TestNavivoxRunRecordVoiceTurnPreservesEvidenceAndUnknownUsage(t *testing.T)
 
 func TestNavivoxRunRecordToolTimelineAndCompletion(t *testing.T) {
 	now := time.Unix(1_700_100_100, 0).UTC()
-	record := NewNavivoxRunRecord("req-text", "s-text", "inspect workspace", map[string]any{}, now)
+	record := NewRunRecord("req-text", "s-text", "inspect workspace", map[string]any{}, now)
 	record.AppendToolEvent("tool-1", "read_file", "finished", "Read README", map[string]any{
 		"artifact_ref": "artifact://readme-summary",
 		"secret_token": "must-not-persist",
@@ -67,7 +67,7 @@ func TestNavivoxRunRecordToolTimelineAndCompletion(t *testing.T) {
 	record.AppendAssistant("workspace inspected", now.Add(2*time.Second))
 	record.Complete(now.Add(3 * time.Second))
 
-	if record.Status != NavivoxRunStatusCompleted {
+	if record.Status != RunStatusCompleted {
 		t.Fatalf("status = %q, want completed", record.Status)
 	}
 	if record.CompletedAt == nil || !record.CompletedAt.Equal(now.Add(3*time.Second)) {
