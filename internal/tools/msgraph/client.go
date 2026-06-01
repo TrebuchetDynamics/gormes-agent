@@ -288,22 +288,51 @@ func (c *MicrosoftGraphClient) do(ctx context.Context, method, path string, para
 }
 
 func (c *MicrosoftGraphClient) resolveURL(path string, params map[string]string) (string, error) {
+	return resolveMicrosoftGraphURL(c.baseURL, path, params)
+}
+
+func resolveMicrosoftGraphURL(baseURL, path string, params map[string]string) (string, error) {
 	raw := strings.TrimSpace(path)
 	if raw == "" {
 		return "", fmt.Errorf("empty path")
+	}
+	base, err := url.Parse(strings.TrimRight(strings.TrimSpace(baseURL), "/"))
+	if err != nil {
+		return "", err
 	}
 	if strings.HasPrefix(raw, "http://") || strings.HasPrefix(raw, "https://") {
 		u, err := url.Parse(raw)
 		if err != nil {
 			return "", err
 		}
+		if err := validateMicrosoftGraphAbsoluteURL(base, u); err != nil {
+			return "", err
+		}
 		return appendMicrosoftGraphParams(u, params), nil
 	}
-	u, err := url.Parse(c.baseURL + "/" + strings.TrimLeft(raw, "/"))
+	u, err := url.Parse(base.String() + "/" + strings.TrimLeft(raw, "/"))
 	if err != nil {
 		return "", err
 	}
 	return appendMicrosoftGraphParams(u, params), nil
+}
+
+func validateMicrosoftGraphAbsoluteURL(base, candidate *url.URL) error {
+	if base == nil || candidate == nil {
+		return fmt.Errorf("missing URL")
+	}
+	if !strings.EqualFold(candidate.Scheme, base.Scheme) || !strings.EqualFold(candidate.Host, base.Host) {
+		return fmt.Errorf("absolute URL %s is outside configured Microsoft Graph endpoint %s", candidate.Redacted(), base.Redacted())
+	}
+	basePath := strings.TrimRight(base.EscapedPath(), "/")
+	if basePath == "" {
+		return nil
+	}
+	candidatePath := candidate.EscapedPath()
+	if candidatePath == basePath || strings.HasPrefix(candidatePath, basePath+"/") {
+		return nil
+	}
+	return fmt.Errorf("absolute URL %s is outside configured Microsoft Graph path %s", candidate.Redacted(), basePath)
 }
 
 func appendMicrosoftGraphParams(u *url.URL, params map[string]string) string {

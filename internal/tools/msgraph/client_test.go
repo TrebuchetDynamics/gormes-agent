@@ -98,6 +98,42 @@ func TestMicrosoftGraphClientCollectPaginatedFollowsNextLink(t *testing.T) {
 	}
 }
 
+func TestMicrosoftGraphClientCollectPaginatedRejectsNextLinkOutsideBaseURL(t *testing.T) {
+	var seen []string
+	client := NewMicrosoftGraphClient(testMicrosoftGraphTokenProvider(t), MicrosoftGraphClientOptions{
+		BaseURL: "https://graph.local/v1.0",
+		HTTPClient: msgraphRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+			seen = append(seen, req.URL.String())
+			if len(seen) > 1 {
+				t.Fatalf("unexpected request to nextLink URL: %s", req.URL.String())
+			}
+			return msgraphStringResponse(http.StatusOK, `{"value":[{"id":"1"}],"@odata.nextLink":"https://evil.local/v1.0/items?page=2"}`), nil
+		}),
+	})
+
+	_, err := client.CollectPaginated(context.Background(), "/items", nil)
+	if err == nil {
+		t.Fatal("CollectPaginated returned nil error for nextLink outside configured Graph endpoint")
+	}
+	if !strings.Contains(err.Error(), "outside configured Microsoft Graph endpoint") {
+		t.Fatalf("error = %v, want outside-endpoint evidence", err)
+	}
+	wantSeen := []string{"https://graph.local/v1.0/items"}
+	if !reflect.DeepEqual(seen, wantSeen) {
+		t.Fatalf("seen URLs = %#v, want %#v", seen, wantSeen)
+	}
+}
+
+func TestResolveMicrosoftGraphURLRejectsAbsoluteURLOutsideBasePath(t *testing.T) {
+	_, err := resolveMicrosoftGraphURL("https://graph.local/v1.0", "https://graph.local/beta/items", nil)
+	if err == nil {
+		t.Fatal("resolveMicrosoftGraphURL returned nil error for absolute URL outside base path")
+	}
+	if !strings.Contains(err.Error(), "outside configured Microsoft Graph path") {
+		t.Fatalf("error = %v, want outside-path evidence", err)
+	}
+}
+
 func TestMicrosoftGraphClientDownloadToFileStreamsAndReplacesAtomically(t *testing.T) {
 	body := &recordingReadCloser{reader: bytes.NewReader([]byte("meeting-recording"))}
 	client := NewMicrosoftGraphClient(testMicrosoftGraphTokenProvider(t), MicrosoftGraphClientOptions{
