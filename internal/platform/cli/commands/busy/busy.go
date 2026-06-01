@@ -1,10 +1,12 @@
-package commands
+package busy
 
 import (
 	"errors"
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/commands/registry"
 )
 
 // ErrBusyCommandActive is returned by BusyCommandGuard.Run when another long-
@@ -137,7 +139,7 @@ func (g *BusyCommandGuard) EvaluateInput(input string) BusyInputVerdict {
 	}
 	trimmed := strings.TrimSpace(input)
 	if strings.HasPrefix(trimmed, "/") {
-		if cmd, ok := ResolveCommandPolicy(trimmed); ok && cmd.ActiveTurnPolicy == ActiveTurnPolicyBypass {
+		if cmd, ok := registry.ResolveCommandPolicy(trimmed); ok && cmd.ActiveTurnPolicy == registry.ActiveTurnPolicyBypass {
 			return BusyInputVerdict{}
 		}
 	}

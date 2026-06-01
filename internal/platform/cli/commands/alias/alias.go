@@ -1,10 +1,11 @@
-package commands
+package alias
 
 import (
 	"fmt"
 	"sort"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/commands/registry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
 
@@ -31,7 +32,7 @@ type CommandAliasResolution struct {
 	Canonical  string
 	Rewrite    string
 	Matches    []string
-	Policy     CommandPolicy
+	Policy     registry.CommandPolicy
 }
 
 // ResolveCommandAlias resolves a slash command token using Hermes-visible
@@ -40,7 +41,7 @@ type CommandAliasResolution struct {
 // prefixes stay explicit guidance states.
 func ResolveCommandAlias(input string) CommandAliasResolution {
 	token, args := splitCommandLine(input)
-	rawCommand := normalizeCommandToken(token)
+	rawCommand := registry.NormalizeCommandToken(token)
 	out := CommandAliasResolution{
 		Kind:       CommandAliasUnknown,
 		RawCommand: rawCommand,
@@ -50,7 +51,7 @@ func ResolveCommandAlias(input string) CommandAliasResolution {
 		return out
 	}
 
-	if policy, ok := ResolveCommandPolicy(rawCommand); ok {
+	if policy, ok := registry.ResolveCommandPolicy(rawCommand); ok {
 		out.Policy = policy
 		out.Canonical = policy.Name
 		out.Rewrite = joinSlashCommand(policy.Name, args)
@@ -85,12 +86,12 @@ func ResolveCommandAlias(input string) CommandAliasResolution {
 
 type commandAliasMatch struct {
 	name   string
-	policy CommandPolicy
+	policy registry.CommandPolicy
 }
 
 func commandAliasPrefixMatches(prefix string) []commandAliasMatch {
-	seen := make(map[string]CommandPolicy)
-	for _, cmd := range CommandRegistry {
+	seen := make(map[string]registry.CommandPolicy)
+	for _, cmd := range registry.CommandRegistry {
 		if strings.HasPrefix(cmd.Name, prefix) {
 			seen[cmd.Name] = cmd
 		}
@@ -151,7 +152,7 @@ type QuickCommandAliasResolution struct {
 // real slash command.
 func ResolveQuickCommandAlias(input string, quick map[string]QuickCommandAlias) QuickCommandAliasResolution {
 	token, args := splitCommandLine(input)
-	start := normalizeCommandToken(token)
+	start := registry.NormalizeCommandToken(token)
 	out := QuickCommandAliasResolution{
 		Kind:       QuickCommandAliasUnknown,
 		RawCommand: start,
@@ -191,7 +192,7 @@ func ResolveQuickCommandAlias(input string, quick map[string]QuickCommandAlias) 
 			target = "/" + target
 		}
 		targetToken, targetArgs := splitCommandLine(target)
-		targetName := normalizeCommandToken(targetToken)
+		targetName := registry.NormalizeCommandToken(targetToken)
 		if targetName == "" {
 			out.Kind = QuickCommandAliasUnsupportedTarget
 			out.Evidence = fmt.Sprintf("quick command '/%s' has unsupported alias target %q", current, def.Target)

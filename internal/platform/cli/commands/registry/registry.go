@@ -1,4 +1,4 @@
-package commands
+package registry
 
 import (
 	"strings"
@@ -200,7 +200,7 @@ func buildCommandPolicyLookup() map[string]CommandPolicy {
 // matching CommandPolicy. The second return is false when the token does not
 // resolve to a recognized command.
 func ResolveCommandPolicy(name string) (CommandPolicy, bool) {
-	key := normalizeCommandToken(name)
+	key := NormalizeCommandToken(name)
 	if key == "" {
 		return CommandPolicy{}, false
 	}
@@ -208,7 +208,7 @@ func ResolveCommandPolicy(name string) (CommandPolicy, bool) {
 	return cmd, ok
 }
 
-func normalizeCommandToken(raw string) string {
+func NormalizeCommandToken(raw string) string {
 	key := textvalue.LowerTrim(raw)
 	key = strings.TrimPrefix(key, "/")
 	if i := strings.IndexAny(key, " \t\r\n"); i >= 0 {
@@ -237,7 +237,7 @@ func EvaluateActiveTurnVerdict(name string, busy bool) ActiveTurnVerdict {
 	cmd, ok := ResolveCommandPolicy(name)
 	if !ok {
 		return ActiveTurnVerdict{
-			Name:     normalizeCommandToken(name),
+			Name:     NormalizeCommandToken(name),
 			Policy:   ActiveTurnPolicyUnavailable,
 			Known:    false,
 			Allowed:  false,
