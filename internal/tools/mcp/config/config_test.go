@@ -524,3 +524,31 @@ func TestResolveMCPConfigDisabledServerDoesNotRequireTransport(t *testing.T) {
 		t.Fatalf("server.Enabled = true, want false")
 	}
 }
+
+func TestResolveMCPConfigDisabledServerIgnoresInactiveFieldAmbiguity(t *testing.T) {
+	resolved, err := ResolveMCPConfig(map[string]any{
+		"mcp_servers": map[string]any{
+			"parked": map[string]any{
+				"enabled": false,
+				"command": "npx",
+				"COMMAND": "uvx",
+				"url":     "https://mcp.example.test/sse",
+				"URL":     "https://other.example.test/sse",
+			},
+		},
+	}, MCPConfigOptions{LookupEnv: func(string) (string, bool) { return "", false }})
+	if err != nil {
+		t.Fatalf("ResolveMCPConfig returned error for inactive disabled fields: %v", err)
+	}
+
+	status, ok := resolved.Status("parked")
+	if !ok {
+		t.Fatalf("missing disabled server status in %#v", resolved.Statuses)
+	}
+	if status.Status != MCPConfigStatusDisabled {
+		t.Fatalf("status = %q, want disabled despite inactive field ambiguity", status.Status)
+	}
+	if status.Command != "" || status.URL != "" {
+		t.Fatalf("disabled status exposed inactive transport fields: command=%q url=%q", status.Command, status.URL)
+	}
+}

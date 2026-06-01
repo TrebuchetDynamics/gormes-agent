@@ -268,18 +268,18 @@ func resolveMCPServer(name string, raw any, lookupEnv func(string) (string, bool
 		}
 	}
 
-	if field, variants, ok := ambiguousCaseFoldedMCPField(server, "enabled", "command", "url", "args", "env", "headers", "timeout", "connect_timeout", "sampling"); ok {
-		reason := fmt.Sprintf("ambiguous %s field variants: %s", field, strings.Join(variants, ", "))
-		return MCPServerDefinition{}, invalidMCPStatus(baseStatus, MCPConfigStatusInvalidConfig, reason), &mcpConfigIssue{server: name, status: MCPConfigStatusInvalidConfig, message: reason}
-	}
-
-	enabled, err := parseMCPBoolField(mcpValue(server, "enabled"), true, "enabled")
-	if err != nil {
-		return MCPServerDefinition{}, invalidMCPStatus(baseStatus, MCPConfigStatusInvalidConfig, err.Error()), &mcpConfigIssue{server: name, status: MCPConfigStatusInvalidConfig, message: err.Error()}
+	enabled, issue := resolveMCPEnabled(name, server, baseStatus)
+	if issue != nil {
+		return MCPServerDefinition{}, invalidMCPStatus(baseStatus, issue.status, issue.message), issue
 	}
 	baseStatus.Enabled = enabled
 	if !enabled {
 		return disabledMCPServer(name, baseStatus)
+	}
+
+	if field, variants, ok := ambiguousActiveMCPServerField(server); ok {
+		reason := fmt.Sprintf("ambiguous %s field variants: %s", field, strings.Join(variants, ", "))
+		return MCPServerDefinition{}, invalidMCPStatus(baseStatus, MCPConfigStatusInvalidConfig, reason), &mcpConfigIssue{server: name, status: MCPConfigStatusInvalidConfig, message: reason}
 	}
 
 	command, err := mcpOptionalString(server, "command", lookupEnv)
@@ -342,6 +342,22 @@ func resolveMCPServer(name string, raw any, lookupEnv func(string) (string, bool
 		status.Reason = "server disabled by config"
 	}
 	return def, status, nil
+}
+
+func resolveMCPEnabled(name string, server map[string]any, baseStatus MCPServerStatus) (bool, *mcpConfigIssue) {
+	if field, variants, ok := ambiguousCaseFoldedMCPField(server, "enabled"); ok {
+		reason := fmt.Sprintf("ambiguous %s field variants: %s", field, strings.Join(variants, ", "))
+		return false, &mcpConfigIssue{server: name, status: MCPConfigStatusInvalidConfig, message: reason}
+	}
+	enabled, err := parseMCPBoolField(mcpValue(server, "enabled"), baseStatus.Enabled, "enabled")
+	if err != nil {
+		return false, &mcpConfigIssue{server: name, status: MCPConfigStatusInvalidConfig, message: err.Error()}
+	}
+	return enabled, nil
+}
+
+func ambiguousActiveMCPServerField(server map[string]any) (string, []string, bool) {
+	return ambiguousCaseFoldedMCPField(server, "command", "url", "args", "env", "headers", "timeout", "connect_timeout", "sampling")
 }
 
 func resolveMCPTransport(command, rawURL string) (MCPTransport, error) {
