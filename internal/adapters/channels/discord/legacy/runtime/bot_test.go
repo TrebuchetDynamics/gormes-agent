@@ -1,4 +1,4 @@
-package legacy
+package runtime
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/discord/legacy/protocol"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
@@ -58,7 +59,7 @@ func TestBot_SubmitsMentionedGuildMessage(t *testing.T) {
 	<-k.Render()
 	go func() { _ = b.Run(ctx) }()
 
-	mc.pushMessage(InboundMessage{
+	mc.pushMessage(protocol.InboundMessage{
 		ChannelID:    "chan-1",
 		GuildID:      "guild-1",
 		AuthorID:     "user-1",
@@ -151,7 +152,7 @@ func TestBot_RejectsGuildMessageWithoutMention(t *testing.T) {
 	<-k.Render()
 	go func() { _ = b.Run(ctx) }()
 
-	mc.pushMessage(InboundMessage{
+	mc.pushMessage(protocol.InboundMessage{
 		ChannelID:    "chan-1",
 		GuildID:      "guild-1",
 		AuthorID:     "user-1",
@@ -182,7 +183,7 @@ func TestBot_AcceptsDMDiscoveryAndPersistsSession(t *testing.T) {
 	<-k.Render()
 	go func() { _ = b.Run(ctx) }()
 
-	mc.pushMessage(InboundMessage{
+	mc.pushMessage(protocol.InboundMessage{
 		ChannelID: "dm-42",
 		AuthorID:  "user-1",
 		Content:   "hello in dm",
@@ -197,7 +198,7 @@ func TestBot_AcceptsDMDiscoveryAndPersistsSession(t *testing.T) {
 		time.Sleep(25 * time.Millisecond)
 	}
 
-	gotSID, err := smap.Get(context.Background(), SessionKey("dm-42"))
+	gotSID, err := smap.Get(context.Background(), protocol.SessionKey("dm-42"))
 	if err != nil {
 		t.Fatalf("Get persisted session: %v", err)
 	}
@@ -232,10 +233,10 @@ func TestBot_PersistIfChanged_UsesTurnOwnedChannel(t *testing.T) {
 	}
 
 	b.persistIfChanged(context.Background(), "chan-a", kernel.RenderFrame{SessionID: "sess-a"})
-	if got, err := smap.Get(context.Background(), SessionKey("chan-a")); err != nil || got != "sess-a" {
+	if got, err := smap.Get(context.Background(), protocol.SessionKey("chan-a")); err != nil || got != "sess-a" {
 		t.Fatalf("SessionMap[chan-a] = %q, %v, want sess-a, nil", got, err)
 	}
-	if got, _ := smap.Get(context.Background(), SessionKey("chan-b")); got != "" {
+	if got, _ := smap.Get(context.Background(), protocol.SessionKey("chan-b")); got != "" {
 		t.Fatalf("SessionMap[chan-b] = %q, want empty before second turn", got)
 	}
 
@@ -246,10 +247,10 @@ func TestBot_PersistIfChanged_UsesTurnOwnedChannel(t *testing.T) {
 	}
 	b.persistIfChanged(context.Background(), "chan-b", kernel.RenderFrame{SessionID: "sess-b"})
 
-	if got, _ := smap.Get(context.Background(), SessionKey("chan-a")); got != "sess-a" {
+	if got, _ := smap.Get(context.Background(), protocol.SessionKey("chan-a")); got != "sess-a" {
 		t.Fatalf("SessionMap[chan-a] = %q, want sess-a", got)
 	}
-	if got, _ := smap.Get(context.Background(), SessionKey("chan-b")); got != "sess-b" {
+	if got, _ := smap.Get(context.Background(), protocol.SessionKey("chan-b")); got != "sess-b" {
 		t.Fatalf("SessionMap[chan-b] = %q, want sess-b", got)
 	}
 }
@@ -258,7 +259,7 @@ func TestBot_NewCommandResetsSessionAndClearsMap(t *testing.T) {
 	mc := newMockClient("bot-1")
 	k := newIdleKernel()
 	smap := session.NewMemMap()
-	if err := smap.Put(context.Background(), SessionKey("chan-1"), "sess-old"); err != nil {
+	if err := smap.Put(context.Background(), protocol.SessionKey("chan-1"), "sess-old"); err != nil {
 		t.Fatalf("seed SessionMap: %v", err)
 	}
 
@@ -275,7 +276,7 @@ func TestBot_NewCommandResetsSessionAndClearsMap(t *testing.T) {
 	<-k.Render()
 	go func() { _ = b.Run(ctx) }()
 
-	mc.pushMessage(InboundMessage{
+	mc.pushMessage(protocol.InboundMessage{
 		ChannelID:    "chan-1",
 		GuildID:      "guild-1",
 		AuthorID:     "user-1",
@@ -287,7 +288,7 @@ func TestBot_NewCommandResetsSessionAndClearsMap(t *testing.T) {
 	if !strings.Contains(mc.lastSentText(), "Session reset") {
 		t.Fatalf("last sent text = %q, want Session reset reply", mc.lastSentText())
 	}
-	if got, _ := smap.Get(context.Background(), SessionKey("chan-1")); got != "" {
+	if got, _ := smap.Get(context.Background(), protocol.SessionKey("chan-1")); got != "" {
 		t.Fatalf("SessionMap[chan-1] = %q, want cleared entry", got)
 	}
 }
@@ -307,7 +308,7 @@ func TestBot_StopCommandDoesNotEmitBusy(t *testing.T) {
 	<-k.Render()
 	go func() { _ = b.Run(ctx) }()
 
-	mc.pushMessage(InboundMessage{
+	mc.pushMessage(protocol.InboundMessage{
 		ChannelID:    "chan-1",
 		GuildID:      "guild-1",
 		AuthorID:     "user-1",
@@ -336,7 +337,7 @@ func TestBot_UnsupportedSlashRepliesUnknownCommand(t *testing.T) {
 	<-k.Render()
 	go func() { _ = b.Run(ctx) }()
 
-	mc.pushMessage(InboundMessage{
+	mc.pushMessage(protocol.InboundMessage{
 		ChannelID:    "chan-1",
 		GuildID:      "guild-1",
 		AuthorID:     "user-1",
@@ -347,24 +348,5 @@ func TestBot_UnsupportedSlashRepliesUnknownCommand(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	if !strings.Contains(mc.lastSentText(), "unknown command") {
 		t.Fatalf("last sent text = %q, want unknown command reply", mc.lastSentText())
-	}
-}
-
-func TestCoalescer_FlushImmediate_EditFailureFallsBackToSend(t *testing.T) {
-	mc := newMockClient("bot-1")
-	mc.EditErr = errEditFailed()
-
-	c := newCoalescer(mc, time.Second, "chan-1")
-	c.flushImmediate("⏳")
-	c.flushImmediate("final")
-
-	if got := len(mc.sendCalls()); got != 2 {
-		t.Fatalf("send calls = %d, want 2 with fallback send", got)
-	}
-	if got := len(mc.editCalls()); got != 1 {
-		t.Fatalf("edit calls = %d, want 1", got)
-	}
-	if got := mc.lastSentText(); got != "final" {
-		t.Fatalf("last sent text = %q, want final", got)
 	}
 }

@@ -1,25 +1,9 @@
 package legacy
 
-type InboundMessage struct {
-	ID           string
-	ChannelID    string
-	GuildID      string
-	AuthorID     string
-	Content      string
-	IsDM         bool
-	MentionedBot bool
-}
+import "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/discord/legacy/protocol"
 
-type Client interface {
-	Open() error
-	Close() error
-	SelfID() string
-	SetMessageHandler(func(InboundMessage))
-	Send(channelID, text string) (string, error)
-	Edit(channelID, messageID, text string) error
-	Typing(channelID string) error
-}
+type InboundMessage = protocol.InboundMessage
 
-func SessionKey(channelID string) string {
-	return "discord:" + channelID
-}
+type Client = protocol.Client
+
+func SessionKey(channelID string) string { return protocol.SessionKey(channelID) }

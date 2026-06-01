@@ -1,4 +1,4 @@
-package legacy
+package formatting
 
 import (
 	"strings"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestFormatStream_RendersHermesToolProgressBlock(t *testing.T) {
-	got := formatStream(kernel.RenderFrame{
+	got := FormatStream(kernel.RenderFrame{
 		SoulEvents: []kernel.SoulEntry{
 			{At: time.Now(), Text: `tool: skill_view: plan`},
 			{At: time.Now(), Text: `tool: search_files: chrono|cron`},

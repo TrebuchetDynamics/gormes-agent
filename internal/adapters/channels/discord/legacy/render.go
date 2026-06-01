@@ -1,41 +1,18 @@
 package legacy
 
 import (
-	"strings"
-
-	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/discord/legacy/formatting"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
-const maxDiscordText = 2000
+func formatStream(f kernel.RenderFrame) string { return formatting.FormatStream(f) }
 
-func formatStream(f kernel.RenderFrame) string {
-	return channelutil.FormatRenderStream(f, maxDiscordText, "⏳")
-}
+func formatFinal(f kernel.RenderFrame) string { return formatting.FormatFinal(f) }
 
-func formatFinal(f kernel.RenderFrame) string {
-	return channelutil.FormatRenderFinal(f, maxDiscordText, "(empty reply)")
-}
+func formatError(f kernel.RenderFrame) string { return formatting.FormatError(f) }
 
-func formatError(f kernel.RenderFrame) string {
-	return channelutil.FormatRenderError(f, maxDiscordText, false)
-}
+func truncateDiscord(s string) string { return formatting.TruncateDiscord(s) }
 
-func truncateDiscord(s string) string {
-	return channelutil.TruncateRunesWithSuffix(s, maxDiscordText, "…")
-}
+func stripSelfMention(text, selfID string) string { return formatting.StripSelfMention(text, selfID) }
 
-func stripSelfMention(text, selfID string) string {
-	if selfID == "" {
-		return strings.TrimSpace(text)
-	}
-	replacer := strings.NewReplacer("<@"+selfID+">", "", "<@!"+selfID+">", "")
-	return strings.TrimSpace(replacer.Replace(text))
-}
-
-func hasSelfMention(text, selfID string) bool {
-	if selfID == "" {
-		return false
-	}
-	return strings.Contains(text, "<@"+selfID+">") || strings.Contains(text, "<@!"+selfID+">")
-}
+func hasSelfMention(text, selfID string) bool { return formatting.HasSelfMention(text, selfID) }

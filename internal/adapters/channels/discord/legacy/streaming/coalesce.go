@@ -1,4 +1,4 @@
-package legacy
+package streaming
 
 import (
 	"context"
@@ -6,10 +6,12 @@ import (
 	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/discord/legacy/protocol"
 )
 
-type coalescer struct {
-	client    Client
+type Coalescer struct {
+	client    protocol.Client
 	channelID string
 	window    time.Duration
 	log       *slog.Logger
@@ -22,11 +24,11 @@ type coalescer struct {
 	wakeupCh     chan struct{}
 }
 
-func newCoalescer(client Client, window time.Duration, channelID string) *coalescer {
+func NewCoalescer(client protocol.Client, window time.Duration, channelID string) *Coalescer {
 	if window <= 0 {
 		window = time.Second
 	}
-	return &coalescer{
+	return &Coalescer{
 		client:    client,
 		channelID: channelID,
 		window:    window,
@@ -35,7 +37,7 @@ func newCoalescer(client Client, window time.Duration, channelID string) *coales
 	}
 }
 
-func (c *coalescer) submit(text string) {
+func (c *Coalescer) Submit(text string) {
 	c.mu.Lock()
 	c.pendingText = text
 	c.mu.Unlock()
@@ -46,7 +48,7 @@ func (c *coalescer) submit(text string) {
 	}
 }
 
-func (c *coalescer) flushImmediate(text string) error {
+func (c *Coalescer) FlushImmediate(text string) error {
 	c.mu.Lock()
 	msgID := c.messageID
 	c.mu.Unlock()
@@ -90,7 +92,7 @@ func (c *coalescer) flushImmediate(text string) error {
 	return nil
 }
 
-func (c *coalescer) run(ctx context.Context) {
+func (c *Coalescer) Run(ctx context.Context) {
 	ticker := time.NewTicker(c.window)
 	defer ticker.Stop()
 
@@ -106,7 +108,7 @@ func (c *coalescer) run(ctx context.Context) {
 	}
 }
 
-func (c *coalescer) tryFlush() {
+func (c *Coalescer) tryFlush() {
 	c.mu.Lock()
 	text := c.pendingText
 	msgID := c.messageID
@@ -145,7 +147,7 @@ func (c *coalescer) tryFlush() {
 	c.mu.Unlock()
 }
 
-func runTypingLoop(ctx context.Context, client Client, channelID string) {
+func RunTypingLoop(ctx context.Context, client protocol.Client, channelID string) {
 	if channelID == "" {
 		return
 	}

@@ -1,10 +1,11 @@
-package legacy
+package runtime
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/discord/legacy/protocol"
 )
 
 type sendCall struct {
@@ -21,7 +22,7 @@ type editCall struct {
 type mockClient struct {
 	mu          sync.Mutex
 	selfID      string
-	handler     func(InboundMessage)
+	handler     func(protocol.InboundMessage)
 	nextMessage int
 	texts       []string
 	sends       []sendCall
@@ -37,7 +38,7 @@ type mockClient struct {
 	EditFn func(channelID, messageID, text string) error
 }
 
-var _ Client = (*mockClient)(nil)
+var _ protocol.Client = (*mockClient)(nil)
 
 func newMockClient(selfID string) *mockClient {
 	return &mockClient{
@@ -64,7 +65,7 @@ func (m *mockClient) SelfID() string {
 	return m.selfID
 }
 
-func (m *mockClient) SetMessageHandler(handler func(InboundMessage)) {
+func (m *mockClient) SetMessageHandler(handler func(protocol.InboundMessage)) {
 	m.mu.Lock()
 	m.handler = handler
 	m.mu.Unlock()
@@ -112,7 +113,7 @@ func (m *mockClient) Typing(_ string) error {
 	return nil
 }
 
-func (m *mockClient) pushMessage(msg InboundMessage) {
+func (m *mockClient) pushMessage(msg protocol.InboundMessage) {
 	deadline := time.Now().Add(200 * time.Millisecond)
 	for {
 		m.mu.Lock()
@@ -160,8 +161,4 @@ func (m *mockClient) editCalls() []editCall {
 	out := make([]editCall, len(m.edits))
 	copy(out, m.edits)
 	return out
-}
-
-func errEditFailed() error {
-	return errors.New("edit failed")
 }
