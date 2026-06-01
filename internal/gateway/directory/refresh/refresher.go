@@ -7,16 +7,14 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/cache"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/model"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/refresh/assembly"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/sources"
 )
 
 // AdapterSnapshot is an already-enumerated, fixture-friendly view of one
 // adapter's reachable targets. Live adapter enumeration remains at the caller
 // boundary so refresh logic stays hermetic and testable.
-type AdapterSnapshot struct {
-	Platform string
-	Entries  []model.Entry
-}
+type AdapterSnapshot = assembly.AdapterSnapshot
 
 // Inventory lists current adapter-owned targets for a refresh.
 type Inventory func(context.Context) ([]AdapterSnapshot, error)
@@ -48,7 +46,7 @@ func (r *Refresher) Refresh(ctx context.Context) (cache.Directory, model.Evidenc
 		return lastGood, model.Evidence{Code: model.EvidenceChannelDirectoryRefreshFailed}
 	}
 	ledger, sourceEvidence := r.Sources.Load()
-	dir := buildDirectory(timestamp(r.Now), snapshots, ledger, sourceEvidence.Code == "")
+	dir := assembly.Directory(timestamp(r.Now), snapshots, ledger, sourceEvidence.Code == "")
 	if err := r.Directory.Save(dir); err != nil {
 		return lastGood, model.Evidence{Code: model.EvidenceChannelDirectoryRefreshFailed}
 	}

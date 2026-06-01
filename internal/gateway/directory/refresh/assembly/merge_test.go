@@ -1,4 +1,4 @@
-package refresh
+package assembly
 
 import (
 	"testing"
@@ -6,11 +6,11 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/model"
 )
 
-func TestBuildDirectoryMergesSnapshotsAndRememberedSources(t *testing.T) {
+func TestDirectoryMergesSnapshotsAndRememberedSources(t *testing.T) {
 	ledger := model.RememberedSourceLedger{Platforms: map[string][]model.RememberedSourceEntry{
 		"telegram": {{Platform: "telegram", ID: "-100:7", Name: "Ops / topic 7", Type: "thread", ChatID: "-100", ThreadID: "7"}},
 	}}
-	dir := buildDirectory("now", []AdapterSnapshot{
+	dir := Directory("now", []AdapterSnapshot{
 		{Platform: " slack ", Entries: []model.Entry{{ID: "C02", Name: "zeta"}, {ID: "C01", Name: "alpha"}}},
 	}, ledger, true)
 
@@ -25,11 +25,11 @@ func TestBuildDirectoryMergesSnapshotsAndRememberedSources(t *testing.T) {
 	}
 }
 
-func TestBuildDirectorySkipsRememberedSourcesWhenLedgerInvalid(t *testing.T) {
+func TestDirectorySkipsRememberedSourcesWhenLedgerInvalid(t *testing.T) {
 	ledger := model.RememberedSourceLedger{Platforms: map[string][]model.RememberedSourceEntry{
 		"telegram": {{Platform: "telegram", ID: "-100", Name: "Ops"}},
 	}}
-	dir := buildDirectory("now", []AdapterSnapshot{
+	dir := Directory("now", []AdapterSnapshot{
 		{Platform: "slack", Entries: []model.Entry{{ID: "C01", Name: "alpha"}}},
 	}, ledger, false)
 
