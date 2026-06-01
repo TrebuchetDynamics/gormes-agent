@@ -893,17 +893,91 @@ func newReflectedCronStore(store any) (*reflectedCronStore, error) {
 	if value.Kind() == reflect.Pointer && value.IsNil() {
 		return nil, errors.New("cron store disabled")
 	}
-	create := value.MethodByName("Create")
-	if !create.IsValid() || create.Type().NumIn() != 1 {
-		return nil, errors.New("cron store disabled: missing Create")
-	}
-	jobType := create.Type().In(0)
-	for _, method := range []string{"Get", "List", "Update", "Delete"} {
-		if !value.MethodByName(method).IsValid() {
-			return nil, fmt.Errorf("cron store disabled: missing %s", method)
-		}
+	jobType, err := validateReflectedCronStoreContract(value)
+	if err != nil {
+		return nil, err
 	}
 	return &reflectedCronStore{value: value, jobType: jobType}, nil
+}
+
+var cronjobErrorType = reflect.TypeOf((*error)(nil)).Elem()
+
+func validateReflectedCronStoreContract(value reflect.Value) (reflect.Type, error) {
+	create := value.MethodByName("Create")
+	if !create.IsValid() {
+		return nil, errors.New("cron store disabled: missing Create")
+	}
+	createType := create.Type()
+	if createType.NumIn() != 1 || !cronjobMethodReturnsOnlyOptionalError(createType) {
+		return nil, errors.New("cron store disabled: invalid Create signature")
+	}
+	jobType := createType.In(0)
+
+	if err := validateReflectedCronGet(value, jobType); err != nil {
+		return nil, err
+	}
+	if err := validateReflectedCronList(value, jobType); err != nil {
+		return nil, err
+	}
+	if err := validateReflectedCronUpdate(value, jobType); err != nil {
+		return nil, err
+	}
+	if err := validateReflectedCronDelete(value); err != nil {
+		return nil, err
+	}
+	return jobType, nil
+}
+
+func cronjobMethodReturnsOnlyOptionalError(method reflect.Type) bool {
+	return method.NumOut() == 0 || method.NumOut() == 1 && method.Out(0).Implements(cronjobErrorType)
+}
+
+func validateReflectedCronGet(value reflect.Value, jobType reflect.Type) error {
+	method := value.MethodByName("Get")
+	if !method.IsValid() {
+		return errors.New("cron store disabled: missing Get")
+	}
+	methodType := method.Type()
+	if methodType.NumIn() != 1 || methodType.In(0).Kind() != reflect.String || methodType.NumOut() != 2 || !methodType.Out(0).AssignableTo(jobType) || !methodType.Out(1).Implements(cronjobErrorType) {
+		return errors.New("cron store disabled: invalid Get signature")
+	}
+	return nil
+}
+
+func validateReflectedCronList(value reflect.Value, jobType reflect.Type) error {
+	method := value.MethodByName("List")
+	if !method.IsValid() {
+		return errors.New("cron store disabled: missing List")
+	}
+	methodType := method.Type()
+	if methodType.NumIn() != 0 || methodType.NumOut() != 2 || methodType.Out(0).Kind() != reflect.Slice || !methodType.Out(0).Elem().AssignableTo(jobType) || !methodType.Out(1).Implements(cronjobErrorType) {
+		return errors.New("cron store disabled: invalid List signature")
+	}
+	return nil
+}
+
+func validateReflectedCronUpdate(value reflect.Value, jobType reflect.Type) error {
+	method := value.MethodByName("Update")
+	if !method.IsValid() {
+		return errors.New("cron store disabled: missing Update")
+	}
+	methodType := method.Type()
+	if methodType.NumIn() != 1 || !jobType.AssignableTo(methodType.In(0)) || !cronjobMethodReturnsOnlyOptionalError(methodType) {
+		return errors.New("cron store disabled: invalid Update signature")
+	}
+	return nil
+}
+
+func validateReflectedCronDelete(value reflect.Value) error {
+	method := value.MethodByName("Delete")
+	if !method.IsValid() {
+		return errors.New("cron store disabled: missing Delete")
+	}
+	methodType := method.Type()
+	if methodType.NumIn() != 1 || methodType.In(0).Kind() != reflect.String || !cronjobMethodReturnsOnlyOptionalError(methodType) {
+		return errors.New("cron store disabled: invalid Delete signature")
+	}
+	return nil
 }
 
 func (s *reflectedCronStore) Create(rec cronjobRecord) error {
