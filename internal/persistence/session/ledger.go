@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session/chatid"
 )
 
 const (
@@ -194,7 +196,7 @@ func ledgerMessageFromTurn(turn ledgerTurn, sessionMeta Metadata) (SessionLedger
 		Content:        turn.Content,
 		CreatedAtUnix:  turn.TSUnix,
 		ChatID:         strings.TrimSpace(turn.ChatID),
-		Source:         sourceFromDirectoryChatID(turn.ChatID),
+		Source:         chatid.SourceFromTranscriptChatID(turn.ChatID),
 		CreatedAtKnown: turn.TSUnix > 0,
 	}
 	if !msg.CreatedAtKnown {

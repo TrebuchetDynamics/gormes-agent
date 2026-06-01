@@ -1,4 +1,4 @@
-package session
+package directory
 
 import (
 	"context"
@@ -19,9 +19,9 @@ func TestSessionDirectoryMRUResolvesMostRecentlyActiveBeyondNewestStartedRows(t 
 	seedSessionDirectoryTurn(t, db, "old-start-recently-active", "user", "old start", 100, "")
 	seedSessionDirectoryTurn(t, db, "old-start-recently-active", "assistant", "recent activity", 20_000, "")
 
-	got, err := ResolveMostRecentSession(context.Background(), db, "cli")
+	got, err := ResolveMostRecent(context.Background(), db, "cli")
 	if err != nil {
-		t.Fatalf("ResolveMostRecentSession: %v", err)
+		t.Fatalf("ResolveMostRecent: %v", err)
 	}
 	if got != "old-start-recently-active" {
 		t.Fatalf("most recent session = %q, want old-start-recently-active", got)
@@ -33,9 +33,9 @@ func TestSessionDirectoryMRUFallsBackToStartedAtForLegacyRows(t *testing.T) {
 	seedSessionDirectoryTurn(t, db, "older", "user", "older", 100, "")
 	seedSessionDirectoryTurn(t, db, "newer", "user", "newer", 200, "")
 
-	got, err := ResolveMostRecentSession(context.Background(), db, "cli")
+	got, err := ResolveMostRecent(context.Background(), db, "cli")
 	if err != nil {
-		t.Fatalf("ResolveMostRecentSession: %v", err)
+		t.Fatalf("ResolveMostRecent: %v", err)
 	}
 	if got != "newer" {
 		t.Fatalf("most recent session = %q, want newer", got)
@@ -48,18 +48,18 @@ func TestSessionDirectoryResolvePrefix(t *testing.T) {
 	seedSessionDirectoryTurn(t, db, "20260315_092500_other", "user", "other", 200, "")
 	seedSessionDirectoryTurn(t, db, "20260315_092437_c9ffff", "user", "ambiguous", 300, "")
 
-	got, err := ResolveSessionIDPrefix(context.Background(), db, "20260315_092437_c9a6")
+	got, err := ResolvePrefix(context.Background(), db, "20260315_092437_c9a6")
 	if err != nil {
-		t.Fatalf("ResolveSessionIDPrefix unique: %v", err)
+		t.Fatalf("ResolvePrefix unique: %v", err)
 	}
 	if got != "20260315_092437_c9a6ff" {
 		t.Fatalf("resolved id = %q, want full target id", got)
 	}
 
-	if _, err := ResolveSessionIDPrefix(context.Background(), db, "missing"); !errors.Is(err, ErrSessionNotFound) {
+	if _, err := ResolvePrefix(context.Background(), db, "missing"); !errors.Is(err, ErrSessionNotFound) {
 		t.Fatalf("missing prefix err = %v, want ErrSessionNotFound", err)
 	}
-	if _, err := ResolveSessionIDPrefix(context.Background(), db, "20260315_092437_c9"); !errors.Is(err, ErrSessionPrefixAmbiguous) {
+	if _, err := ResolvePrefix(context.Background(), db, "20260315_092437_c9"); !errors.Is(err, ErrSessionPrefixAmbiguous) {
 		t.Fatalf("ambiguous prefix err = %v, want ErrSessionPrefixAmbiguous", err)
 	}
 }

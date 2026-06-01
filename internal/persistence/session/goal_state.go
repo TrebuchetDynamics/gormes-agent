@@ -3,34 +3,24 @@ package session
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
+
+	goalpkg "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session/goal"
 )
 
-const DefaultGoalMaxTurns = 20
+const DefaultGoalMaxTurns = goalpkg.DefaultMaxTurns
 
-type GoalStatus string
+type GoalStatus = goalpkg.Status
 
 const (
-	GoalStatusActive  GoalStatus = "active"
-	GoalStatusPaused  GoalStatus = "paused"
-	GoalStatusDone    GoalStatus = "done"
-	GoalStatusCleared GoalStatus = "cleared"
+	GoalStatusActive  = goalpkg.StatusActive
+	GoalStatusPaused  = goalpkg.StatusPaused
+	GoalStatusDone    = goalpkg.StatusDone
+	GoalStatusCleared = goalpkg.StatusCleared
 )
 
-type GoalState struct {
-	Goal         string     `json:"goal"`
-	Status       GoalStatus `json:"status"`
-	TurnsUsed    int        `json:"turns_used"`
-	MaxTurns     int        `json:"max_turns"`
-	CreatedAt    int64      `json:"created_at,omitempty"`
-	LastTurnAt   int64      `json:"last_turn_at,omitempty"`
-	LastVerdict  string     `json:"last_verdict,omitempty"`
-	LastReason   string     `json:"last_reason,omitempty"`
-	PausedReason string     `json:"paused_reason,omitempty"`
-	Subgoals     []string   `json:"subgoals,omitempty"`
-}
+type GoalState = goalpkg.State
 
 type GoalMetadataStore interface {
 	GetMetadata(context.Context, string) (Metadata, bool, error)
@@ -38,47 +28,15 @@ type GoalMetadataStore interface {
 }
 
 func ContinuationPrompt(goal string, subgoals []string) string {
-	prompt := "[Continuing toward your standing goal]\n" +
-		"Goal: " + strings.TrimSpace(goal)
-	if len(subgoals) > 0 {
-		prompt += "\n\nSubgoals:\n"
-		for i, sg := range subgoals {
-			prompt += fmt.Sprintf("%d. %s\n", i+1, sg)
-		}
-	}
-	prompt += "\n\n"
-	prompt += "Continue working toward this goal. Take the next concrete step. "
-	prompt += "If you believe the goal is complete, state so explicitly and stop. "
-	prompt += "If you are blocked and need input from the user, say so clearly and stop."
-	return prompt
+	return goalpkg.ContinuationPrompt(goal, subgoals)
 }
 
 func NormalizeGoalState(state GoalState) GoalState {
-	state.Goal = strings.TrimSpace(state.Goal)
-	state.Status = GoalStatus(strings.ToLower(strings.TrimSpace(string(state.Status))))
-	switch state.Status {
-	case GoalStatusActive, GoalStatusPaused, GoalStatusDone, GoalStatusCleared:
-	default:
-		state.Status = GoalStatusActive
-	}
-	if state.TurnsUsed < 0 {
-		state.TurnsUsed = 0
-	}
-	if state.MaxTurns <= 0 {
-		state.MaxTurns = DefaultGoalMaxTurns
-	}
-	state.LastVerdict = strings.ToLower(strings.TrimSpace(state.LastVerdict))
-	state.LastReason = strings.TrimSpace(state.LastReason)
-	state.PausedReason = strings.TrimSpace(state.PausedReason)
-	return state
+	return goalpkg.NormalizeState(state)
 }
 
 func CloneGoalState(state *GoalState) *GoalState {
-	if state == nil {
-		return nil
-	}
-	cloned := NormalizeGoalState(*state)
-	return &cloned
+	return goalpkg.CloneState(state)
 }
 
 func LoadGoal(ctx context.Context, store GoalMetadataStore, sessionID string) (*GoalState, bool, error) {
@@ -197,5 +155,5 @@ func ClearGoal(ctx context.Context, store GoalMetadataStore, sessionID string, n
 }
 
 func GoalIsActive(state *GoalState) bool {
-	return state != nil && NormalizeGoalState(*state).Status == GoalStatusActive && strings.TrimSpace(state.Goal) != ""
+	return goalpkg.IsActive(state)
 }
