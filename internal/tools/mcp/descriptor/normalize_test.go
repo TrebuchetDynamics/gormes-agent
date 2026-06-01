@@ -26,6 +26,26 @@ func TestNormalizeToolsRejectsEmptySanitizedNames(t *testing.T) {
 	}
 }
 
+func TestNormalizeToolsRejectsInvalidSchemaBeforeNameValidation(t *testing.T) {
+	raw := []RawTool{{
+		Name:        "",
+		Description: "schema validation happens before name reservation",
+		InputSchema: json.RawMessage(`true`),
+	}}
+
+	got := NormalizeTools("srv1", raw)
+
+	if len(got.Tools) != 0 {
+		t.Fatalf("Tools len = %d, want 0; tools=%+v", len(got.Tools), got.Tools)
+	}
+	if len(got.Rejected) != 1 {
+		t.Fatalf("Rejected len = %d, want 1; %+v", len(got.Rejected), got.Rejected)
+	}
+	if got.Rejected[0].Reason != SchemaRejectionReasonInputSchemaNotObject {
+		t.Fatalf("rejection = %+v, want schema rejection before empty-name validation", got.Rejected[0])
+	}
+}
+
 func TestNormalizeToolsRejectsDuplicateSanitizedNames(t *testing.T) {
 	raw := []RawTool{{
 		Name:        "web/search",

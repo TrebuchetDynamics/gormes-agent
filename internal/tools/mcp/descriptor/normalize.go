@@ -110,16 +110,13 @@ func rejectedCandidate(serverName, toolName, reason string) normalizedToolCandid
 }
 
 func normalizeToolCandidate(serverName string, t RawTool, seenNames map[string]bool) normalizedToolCandidate {
-	schema, ok := NormalizeInputSchema(t.InputSchema)
-	if !ok {
-		return rejectedCandidate(serverName, t.Name, SchemaRejectionReasonInputSchemaNotObject)
+	schema, schemaRejection := normalizeCandidateSchema(serverName, t)
+	if schemaRejection != nil {
+		return *schemaRejection
 	}
-	name := SanitizeNameComponent(t.Name)
-	if name == "" {
-		return rejectedCandidate(serverName, t.Name, SchemaRejectionReasonEmptySanitizedName)
-	}
-	if seenNames[name] {
-		return rejectedCandidate(serverName, t.Name, SchemaRejectionReasonDuplicateSanitizedName)
+	name, nameRejection := normalizeCandidateName(serverName, t, seenNames)
+	if nameRejection != nil {
+		return *nameRejection
 	}
 	sourceRaw := t
 	sourceRaw.InputSchema = jsonvalue.CloneRaw(t.InputSchema)
@@ -130,6 +127,28 @@ func normalizeToolCandidate(serverName string, t RawTool, seenNames map[string]b
 		InputSchema: schema,
 		SourceRaw:   sourceRaw,
 	})
+}
+
+func normalizeCandidateSchema(serverName string, t RawTool) (json.RawMessage, *normalizedToolCandidate) {
+	schema, ok := NormalizeInputSchema(t.InputSchema)
+	if !ok {
+		rejected := rejectedCandidate(serverName, t.Name, SchemaRejectionReasonInputSchemaNotObject)
+		return nil, &rejected
+	}
+	return schema, nil
+}
+
+func normalizeCandidateName(serverName string, t RawTool, seenNames map[string]bool) (string, *normalizedToolCandidate) {
+	name := SanitizeNameComponent(t.Name)
+	if name == "" {
+		rejected := rejectedCandidate(serverName, t.Name, SchemaRejectionReasonEmptySanitizedName)
+		return "", &rejected
+	}
+	if seenNames[name] {
+		rejected := rejectedCandidate(serverName, t.Name, SchemaRejectionReasonDuplicateSanitizedName)
+		return "", &rejected
+	}
+	return name, nil
 }
 
 // SanitizeNameComponent mirrors hermes' upstream helper: characters not in
