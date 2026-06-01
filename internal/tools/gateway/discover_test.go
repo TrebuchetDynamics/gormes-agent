@@ -542,6 +542,30 @@ func TestGatewayDiscoverProbeReportsPerEndpointFailureReason(t *testing.T) {
 	}
 }
 
+func TestGatewayProbeFallsBackWhenProberReturnsUnroutableEndpoint(t *testing.T) {
+	endpoint := GatewayEndpoint{Address: "127.0.0.1", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceManual}
+	result := ProbeGateways(context.Background(), GatewayProbeRequest{
+		Endpoints: []GatewayEndpoint{endpoint},
+		Prober: GatewayEndpointProberFunc(func(context.Context, GatewayEndpoint) GatewayProbeTarget {
+			return GatewayProbeTarget{
+				Endpoint:  GatewayEndpoint{Address: "stale.local", Port: 70000, Scheme: "ws"},
+				Reachable: true,
+			}
+		}),
+	})
+
+	if !result.OK {
+		t.Fatalf("OK = false; result = %+v", result)
+	}
+	got := result.Targets[0].Endpoint
+	if got.Address != "127.0.0.1" || got.Port != 18789 || got.WSURL != "ws://127.0.0.1:18789" {
+		t.Fatalf("target endpoint = %+v, want fallback routable probe endpoint", got)
+	}
+	if result.Targets[0].Health != GatewayHealthTCPReachable || result.Targets[0].Status != "runtime_unknown" {
+		t.Fatalf("target = %+v, want normalized default health/status", result.Targets[0])
+	}
+}
+
 func TestGatewayProbeHTTPVerifiesHealthDetailedHealthCapabilities(t *testing.T) {
 	const secret = "sk-gateway-secret"
 	server := newGatewayProbeHTTPFixture(t, secret, func(w http.ResponseWriter, _ *http.Request) {

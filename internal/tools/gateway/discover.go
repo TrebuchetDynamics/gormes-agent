@@ -871,21 +871,7 @@ func ProbeGateways(ctx context.Context, req GatewayProbeRequest) GatewayProbeRes
 	targets := make([]GatewayProbeTarget, 0, len(endpoints))
 	reachable := false
 	for _, endpoint := range endpoints {
-		target := prober.ProbeGatewayEndpoint(ctx, endpoint)
-		target.Endpoint = NormalizeGatewayEndpoint(target.Endpoint)
-		if target.Endpoint.Address == "" {
-			target.Endpoint = endpoint
-		}
-		if target.Health == "" {
-			if target.Reachable {
-				target.Health = GatewayHealthTCPReachable
-			} else {
-				target.Health = GatewayHealthUnreachable
-			}
-		}
-		if target.Status == "" {
-			target.Status = gatewayProbeStatusFromRuntime(target.Reachable, req.Runtime)
-		}
+		target := normalizeGatewayProbeTarget(prober.ProbeGatewayEndpoint(ctx, endpoint), endpoint, req.Runtime)
 		if gatewayProbeTargetOK(target) {
 			reachable = true
 		} else if target.Error != "" {
@@ -917,6 +903,25 @@ func ProbeGateways(ctx context.Context, req GatewayProbeRequest) GatewayProbeRes
 		Warnings:  warnings,
 		Degraded:  len(warnings) > 0,
 	}
+}
+
+func normalizeGatewayProbeTarget(target GatewayProbeTarget, fallback GatewayEndpoint, runtime GatewayRuntimeSummary) GatewayProbeTarget {
+	endpoint := NormalizeGatewayEndpoint(target.Endpoint)
+	if _, _, ok := gatewayEndpointCandidateKey(endpoint); !ok {
+		endpoint = fallback
+	}
+	target.Endpoint = endpoint
+	if target.Health == "" {
+		if target.Reachable {
+			target.Health = GatewayHealthTCPReachable
+		} else {
+			target.Health = GatewayHealthUnreachable
+		}
+	}
+	if target.Status == "" {
+		target.Status = gatewayProbeStatusFromRuntime(target.Reachable, runtime)
+	}
+	return target
 }
 
 func gatewayProbeTargetOK(target GatewayProbeTarget) bool {
