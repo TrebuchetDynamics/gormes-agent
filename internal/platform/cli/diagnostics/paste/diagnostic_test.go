@@ -1,4 +1,4 @@
-package diagnostics
+package paste
 
 import (
 	"strings"
