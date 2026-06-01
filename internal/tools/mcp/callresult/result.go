@@ -49,7 +49,7 @@ type rawToolCallContent struct {
 // bodies are valid: tools that report success without content come back with
 // IsError=false and zero Content blocks so callers can render them as a no-op.
 func Parse(raw json.RawMessage) (Result, error) {
-	if len(raw) == 0 || string(raw) == "null" {
+	if emptyResultRaw(raw) {
 		return Result{}, nil
 	}
 	var decoded rawToolCallResult
@@ -74,6 +74,10 @@ func Parse(raw json.RawMessage) (Result, error) {
 // content shape. Unknown kinds keep their type label so callers can branch on
 // it, and resource blocks merge their nested `resource.uri` into the top-level
 // URI field that content.Render inspects.
+func emptyResultRaw(raw json.RawMessage) bool {
+	return jsonvalue.NullishRaw(raw)
+}
+
 func normalizeStructuredContent(raw json.RawMessage) json.RawMessage {
 	if jsonvalue.NullishRaw(raw) {
 		return nil

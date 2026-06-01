@@ -56,6 +56,16 @@ func TestParseIgnoresNullStructuredContent(t *testing.T) {
 	}
 }
 
+func TestParseIgnoresWhitespaceOnlyResult(t *testing.T) {
+	got, err := Parse(json.RawMessage(" \n\t "))
+	if err != nil {
+		t.Fatalf("Parse returned error for whitespace-only result: %v", err)
+	}
+	if len(got.Content) != 0 || got.StructuredContent != nil || got.IsError {
+		t.Fatalf("Parse whitespace-only result = %#v, want empty success result", got)
+	}
+}
+
 func TestParseCopiesStructuredContentEnvelope(t *testing.T) {
 	raw := json.RawMessage(`{"structuredContent":{"items":[{"id":"a1"}]}}`)
 
