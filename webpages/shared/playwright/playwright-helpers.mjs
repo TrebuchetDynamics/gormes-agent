@@ -7,7 +7,8 @@ export async function visitPage(page, path, viewport) {
       height: viewport.height,
     });
   }
-  await page.goto(path);
+  await page.goto(path, { waitUntil: 'domcontentloaded' });
+  await page.waitForLoadState('networkidle');
 }
 
 export async function expectMainHeading(page, name, options = {}) {

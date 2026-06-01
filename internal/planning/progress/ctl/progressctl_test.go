@@ -80,24 +80,15 @@ func repoRootForTest(t *testing.T) string {
 	}
 }
 
-// Backlog-efficiency #1 (2026-05-16): the dead webpages/landing/src/data
-// mirror is no longer generated (nothing consumes it), and the go:embed
-// legacy mirror is written SLIM (status/name only) instead of a verbatim
-// 5.2 MB copy, so progress edits stop producing multi-MB triple diffs.
-func TestProgressPathsDropDeadSrcMirrorAndSlimLegacyEmbed(t *testing.T) {
+// Backlog-efficiency #1 (2026-05-16) removed the dead Astro src/data
+// progress mirror. The retired Go renderer no longer receives a generated
+// go:embed mirror either, so progress edits stay out of the landing package.
+func TestProgressPathsDropLandingProgressMirrors(t *testing.T) {
 	root := t.TempDir()
 	paths := progressPaths(root)
 
-	deadSrc := filepath.Join(root, "webpages", "landing", "src", "data", "progress.json")
-	for _, path := range paths.siteProgress {
-		if path == deadSrc {
-			t.Fatalf("the dead src mirror %q must no longer be a generated site-progress target", deadSrc)
-		}
-	}
-
-	wantSlim := filepath.Join(root, "webpages", "landing", "legacy", "go-renderer", "internal", "site", "data", "progress.json")
-	if paths.siteProgressSlim != wantSlim {
-		t.Fatalf("siteProgressSlim = %q, want the legacy go:embed mirror %q", paths.siteProgressSlim, wantSlim)
+	if len(paths.siteProgress) != 0 {
+		t.Fatalf("landing site progress mirrors must stay empty, got %#v", paths.siteProgress)
 	}
 }
 

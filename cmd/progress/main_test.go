@@ -93,7 +93,7 @@ func TestRunWriteDryRunListsArtifactsAndDoesNotRequireMarkerFiles(t *testing.T) 
 		t.Fatalf("run write --dry-run: %v\nstderr=%s", err, stderr.String())
 	}
 	got := stdout.String()
-	for _, want := range []string{"progress: dry-run", "marker:docs-full-checklist", "module-roadmap:progress", "site-progress-slim"} {
+	for _, want := range []string{"progress: dry-run", "marker:docs-full-checklist", "module-roadmap:progress"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("dry-run output missing %q:\n%s", want, got)
 		}

@@ -1,7 +1,6 @@
 package docs_test
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
@@ -42,20 +41,6 @@ func TestPhase5DocsTrackExecuteCodeCloseout(t *testing.T) {
 	} {
 		if !strings.Contains(string(docsProgress), want) {
 			t.Fatalf("canonical progress.json is missing %q", want)
-		}
-	}
-
-	siteProgress, err := os.ReadFile("../landing/legacy/go-renderer/internal/site/data/progress.json")
-	if err != nil {
-		t.Fatalf("read slim legacy site progress copy: %v", err)
-	}
-	for _, want := range []string{
-		`"5.K": {`,
-		`"name": "Code Execution"`,
-		`"status": "complete"`,
-	} {
-		if !strings.Contains(string(siteProgress), want) {
-			t.Fatalf("slim legacy site progress copy is missing %q", want)
 		}
 	}
 }

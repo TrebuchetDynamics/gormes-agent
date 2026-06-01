@@ -126,7 +126,6 @@ func TestPublicInstallSurfacesLeadWithReleaseInstaller(t *testing.T) {
 		"webpages/landing/README.md",
 		"webpages/landing/scripts/sync-assets.mjs",
 		"webpages/landing/tests/home.spec.mjs",
-		"webpages/landing/legacy/go-renderer/internal/site/content.go",
 	} {
 		body := readFileFromRoot(t, root, rel)
 		if strings.Contains(body, oldGitHubInstall) {

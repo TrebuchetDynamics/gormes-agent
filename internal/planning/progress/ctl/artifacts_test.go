@@ -23,7 +23,6 @@ func TestPlanArtifactsListsStableGeneratedOutputs(t *testing.T) {
 		{kind: "marker:progress-schema", path: paths.progressSchema},
 		{kind: "module-roadmap:index", path: filepath.Join(paths.moduleRoadmapsDir, "_index.md")},
 		{kind: "module-roadmap:providers", path: filepath.Join(paths.moduleRoadmapsDir, progress.ModuleRoadmapRelPath(progress.ModuleProviders))},
-		{kind: "site-progress-slim", path: paths.siteProgressSlim},
 	} {
 		if !artifactPlanContains(artifacts, want.kind, want.path) {
 			t.Fatalf("artifact plan missing kind=%q path=%q\nplan=%s", want.kind, want.path, artifactPlanDebug(artifacts))
@@ -50,7 +49,6 @@ func TestWriteDryRunListsArtifactsAndDoesNotWrite(t *testing.T) {
 		paths.docsIndex,
 		"module-roadmap:providers",
 		filepath.Join(paths.moduleRoadmapsDir, progress.ModuleRoadmapRelPath(progress.ModuleProviders)),
-		"site-progress-slim",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("dry-run output missing %q:\n%s", want, got)

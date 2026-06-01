@@ -15,7 +15,7 @@ test('createLandingAssetCopyPlan keeps the public installer and static mirror co
   const plan = createLandingAssetCopyPlan({ repoRoot, siteRoot });
   const labels = plan.copies.map((copy) => copy.label);
 
-  assert.equal(plan.copies.length, 15);
+  assert.equal(plan.copies.length, 5);
   assert.equal(new Set(labels).size, labels.length, 'copy labels must stay unique');
   assert.equal(new Set(plan.copies.map((copy) => copy.target)).size, plan.copies.length, 'copy targets must stay unique');
 
@@ -29,10 +29,10 @@ test('createLandingAssetCopyPlan keeps the public installer and static mirror co
     source: join(repoRoot, 'scripts/install.ps1'),
     target: join(siteRoot, 'public/install.ps1'),
   });
-  assert.deepEqual(byLabel(plan, 'legacy install.cmd'), {
-    label: 'legacy install.cmd',
+  assert.deepEqual(byLabel(plan, 'install.cmd'), {
+    label: 'install.cmd',
     source: join(repoRoot, 'scripts/install.cmd'),
-    target: join(siteRoot, 'legacy/go-renderer/internal/site/installers/install.cmd'),
+    target: join(siteRoot, 'public/install.cmd'),
   });
   assert.deepEqual(byLabel(plan, 'benchmarks.json'), {
     label: 'benchmarks.json',
@@ -45,10 +45,9 @@ test('createLandingAssetCopyPlan keeps the public installer and static mirror co
     target: join(siteRoot, 'public/static/gormes-agent-logo-blue.svg'),
   });
 
-  for (const label of ['favicon.ico', 'social-card.png', 'go-gopher-bear-lowpoly.png']) {
-    const copy = byLabel(plan, label);
-    assert.ok(copy.source.startsWith(join(siteRoot, 'legacy/go-renderer/internal/site/static')));
-    assert.ok(copy.target.startsWith(join(siteRoot, 'public/static')));
+  for (const copy of plan.copies) {
+    assert.ok(!copy.source.includes('/legacy/go-renderer/'), `${copy.label} still reads from legacy renderer`);
+    assert.ok(!copy.target.includes('/legacy/go-renderer/'), `${copy.label} still writes to legacy renderer`);
   }
 });
 

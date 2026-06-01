@@ -457,7 +457,6 @@ type pathSet struct {
 	progressSchema     string
 	moduleRoadmapsDir  string
 	siteProgress       []string
-	siteProgressSlim   string
 }
 
 func progressPaths(root string) pathSet {
@@ -475,7 +474,6 @@ func progressPaths(root string) pathSet {
 		progressSchema:     paths.ProgressSchema,
 		moduleRoadmapsDir:  paths.ModuleRoadmapsDir,
 		siteProgress:       paths.SiteProgress,
-		siteProgressSlim:   paths.SiteProgressSlim,
 	}
 }
 

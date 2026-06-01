@@ -27,7 +27,6 @@ type Paths struct {
 	ProgressSchema     string
 	ModuleRoadmapsDir  string
 	SiteProgress       []string
-	SiteProgressSlim   string
 }
 
 // Workspace is the caller-facing filesystem interface for progress tooling.
@@ -57,15 +56,10 @@ func PathsForRoot(root string) Paths {
 		UmbrellaCleanup:    filepath.Join(builderLoopDir, "umbrella-cleanup.md"),
 		ProgressSchema:     filepath.Join(builderLoopDir, "progress-schema.md"),
 		ModuleRoadmapsDir:  filepath.Join(buildingGormes, "modules"),
-		// Verbatim site mirrors: now empty. The dead
-		// webpages/landing/src/data/progress.json mirror had no consumer
-		// (nothing in the Astro site imports it) and is no longer
-		// generated or tracked.
+		// Site mirrors: now empty. The active Astro landing page has no
+		// progress.json consumer, and the retired Go renderer no longer
+		// receives generated progress mirrors.
 		SiteProgress: nil,
-		// The legacy go-renderer go:embed mirror MUST exist at build time
-		// (//go:embed data/progress.json). It is regenerated slim by
-		// progressctl.Write.
-		SiteProgressSlim: filepath.Join(root, "webpages", "landing", "legacy", "go-renderer", "internal", "site", "data", "progress.json"),
 	}
 }
 

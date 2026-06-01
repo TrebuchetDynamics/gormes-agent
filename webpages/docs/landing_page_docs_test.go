@@ -12,8 +12,8 @@ var staleGormesIORefPattern = regexp.MustCompile(`(?i)(?:https?://)?(?:www\.)?go
 
 func TestTargetsIncludeLandingPageDocs(t *testing.T) {
 	want := map[string]bool{
-		"superpowers/specs/2026-04-19-gormes-landing-page-design.md": false,
-		"superpowers/plans/web-docs/2026-04-19-gormes-landing-page.md":        false,
+		"superpowers/specs/2026-04-19-gormes-landing-page-design.md":   false,
+		"superpowers/plans/web-docs/2026-04-19-gormes-landing-page.md": false,
 	}
 
 	for _, target := range targets {
@@ -31,8 +31,8 @@ func TestTargetsIncludeLandingPageDocs(t *testing.T) {
 
 func TestTargetsIncludeAICutoverDocs(t *testing.T) {
 	want := map[string]bool{
-		"superpowers/specs/2026-04-19-gormes-ai-cutover-design.md": false,
-		"superpowers/plans/foundations/2026-04-19-gormes-ai-cutover.md":        false,
+		"superpowers/specs/2026-04-19-gormes-ai-cutover-design.md":      false,
+		"superpowers/plans/foundations/2026-04-19-gormes-ai-cutover.md": false,
 	}
 
 	for _, target := range targets {
@@ -50,8 +50,8 @@ func TestTargetsIncludeAICutoverDocs(t *testing.T) {
 
 func TestTargetsIncludeManifestoSyncDocs(t *testing.T) {
 	want := map[string]bool{
-		"superpowers/specs/2026-04-19-gormes-doc-sync-manifesto-design.md": false,
-		"superpowers/plans/web-docs/2026-04-19-gormes-doc-sync-manifesto.md":        false,
+		"superpowers/specs/2026-04-19-gormes-doc-sync-manifesto-design.md":   false,
+		"superpowers/plans/web-docs/2026-04-19-gormes-doc-sync-manifesto.md": false,
 	}
 
 	for _, target := range targets {
@@ -69,8 +69,8 @@ func TestTargetsIncludeManifestoSyncDocs(t *testing.T) {
 
 func TestTargetsIncludePhase2CPersistenceDocs(t *testing.T) {
 	want := map[string]bool{
-		"superpowers/specs/2026-04-19-gormes-phase2c-persistence-design.md": false,
-		"superpowers/plans/runtime-channels/2026-04-19-gormes-phase2c-persistence.md":        false,
+		"superpowers/specs/2026-04-19-gormes-phase2c-persistence-design.md":           false,
+		"superpowers/plans/runtime-channels/2026-04-19-gormes-phase2c-persistence.md": false,
 	}
 
 	for _, target := range targets {
@@ -416,7 +416,6 @@ func TestLandingPagePlanDocDocumentsCurrentAICutoverImplementation(t *testing.T)
 		"webpages/landing/src/data/landing.js",
 		"webpages/landing/src/styles/global.css",
 		"webpages/landing/scripts/sync-assets.mjs",
-		"webpages/landing/legacy/go-renderer/",
 		"webpages/landing/README.md",
 		"webpages/landing/tests/home.spec.mjs",
 		"go test ./webpages/docs",
@@ -437,9 +436,8 @@ func TestLandingPagePlanDocDocumentsCurrentAICutoverImplementation(t *testing.T)
 		"../landing/src/data/landing.js",
 		"../landing/src/pages/index.astro",
 		"../landing/src/styles/global.css",
-		"../landing/legacy/go-renderer/internal/site/data/progress.json",
-		"../landing/legacy/go-renderer/internal/site/content.go",
-		"../landing/legacy/go-renderer/internal/site/assets.go",
+		"../landing/public/install.sh",
+		"../landing/public/install.ps1",
 		"../landing/tests/home.spec.mjs",
 	} {
 		if _, err := os.Stat(filepath.Join(".", rel)); err != nil {

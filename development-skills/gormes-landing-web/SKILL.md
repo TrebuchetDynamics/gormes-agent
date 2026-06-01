@@ -30,10 +30,9 @@ roadmap invention.
 - `webpages/landing/scripts/sync-assets.mjs` - canonical installer/static
   asset mirror used before dev/build.
 - `webpages/landing/tests/home.spec.mjs` - Playwright homepage expectations.
-- `webpages/landing/legacy/go-renderer/internal/site/data/progress.json` - slim
-  generated roadmap mirror used by the legacy Go renderer embed.
 - `webpages/landing/legacy/go-renderer/` - deprecated former Go-rendered site;
-  still owns the slim progress embed until that renderer is removed.
+  retained for reference/rollback only and excluded from active Astro builds,
+  asset sync, and progress mirror generation.
 - `benchmarks.json` and `webpages/docs/content/building-gormes/architecture_plan/progress.json` - canonical proof inputs.
 
 ## Workflow
@@ -80,7 +79,8 @@ Prefer direct edits to the active Astro + Tailwind site:
 
 Keep the page fast, static-exportable, and readable without client-side
 JavaScript except the existing bounded install-copy behavior. Do not add new
-work to `legacy/go-renderer/` unless the old renderer is explicitly restored.
+work to `legacy/go-renderer/`, and do not wire build/sync/progress generation
+back into it, unless the old renderer is explicitly restored.
 
 ### 5. Validate
 Run focused checks:

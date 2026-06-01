@@ -12,7 +12,8 @@ Astro owns the public homepage at `/`, static assets at `/static/*`, and
 Windows installer aliases at `/install.ps1` and `/install.cmd`.
 Tailwind is wired through the Tailwind v4 Vite plugin in `astro.config.mjs`.
 The former Go-rendered site is deprecated and preserved under
-`legacy/go-renderer/` for reference only.
+`legacy/go-renderer/` for reference only; active builds no longer sync assets or
+progress data into it.
 
 ## Layout
 
@@ -33,7 +34,7 @@ The former Go-rendered site is deprecated and preserved under
 - `scripts/sync-assets.mjs` - copies canonical installers, benchmark, and
   static assets before dev/build.
 - `tests/home.spec.mjs` - Playwright smoke test for the homepage.
-- `legacy/go-renderer/` - deprecated Go renderer retained for rollback only.
+- `legacy/go-renderer/` - deprecated Go renderer retained for rollback/reference only; not part of the active Astro build or asset-sync path.
 
 ## Installer Surface
 

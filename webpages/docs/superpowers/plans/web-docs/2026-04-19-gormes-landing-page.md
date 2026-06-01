@@ -19,14 +19,14 @@ site. The former Go-rendered implementation is deprecated and retained under
 - `webpages/landing/src/styles/global.css` imports Tailwind and defines shared
   theme/base states.
 - `webpages/landing/scripts/sync-assets.mjs` mirrors canonical installers,
-  benchmark data, progress data, and static image assets before dev/build.
+  benchmark data, and generated release metadata before dev/build.
 - `webpages/landing/public/static/*` serves favicons, social card, and visual
   assets.
 - `webpages/landing/tests/home.spec.mjs` provides browser smoke and mobile
   overflow coverage.
-- `webpages/landing/legacy/go-renderer/` preserves the old Go renderer; do not add
-  new landing-page work there unless the old renderer is intentionally
-  restored.
+- `webpages/landing/legacy/go-renderer/` preserves the old Go renderer for
+  reference only; active builds, asset sync, and progress generation should not
+  read from or write to it unless the old renderer is intentionally restored.
 
 ## Work Items
 
@@ -35,8 +35,9 @@ site. The former Go-rendered implementation is deprecated and retained under
 - [ ] Document the active Astro + Tailwind layout in `webpages/landing/README.md`.
 - [ ] Keep the installer aliases sourced from canonical root scripts through
   `scripts/sync-assets.mjs`.
-- [ ] Keep progress and benchmark mirrors generated from the repo source of
-  truth.
+- [ ] Keep benchmark and release mirrors generated from the repo source of
+  truth; do not reintroduce landing progress mirrors without an active
+  consumer.
 - [ ] Keep public copy conservative: no production-readiness, release, or parity
   claims without matching repository evidence.
 

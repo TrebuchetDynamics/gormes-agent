@@ -85,16 +85,6 @@ func planArtifacts(p *progress.Progress, paths pathSet) []artifact {
 			},
 		})
 	}
-	if paths.siteProgressSlim != "" {
-		dst := paths.siteProgressSlim
-		artifacts = append(artifacts, artifact{
-			Kind:  "site-progress-slim",
-			Path:  dst,
-			Group: "site-progress",
-			Write: func() error { return writeSlimProgress(p, dst) },
-		})
-	}
-
 	return artifacts
 }
 
