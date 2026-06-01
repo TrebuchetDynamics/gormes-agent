@@ -1,4 +1,4 @@
-package modelselection
+package catalog
 
 import "testing"
 
