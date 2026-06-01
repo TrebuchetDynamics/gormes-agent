@@ -2,22 +2,22 @@ package admin
 
 import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/commands"
-	commandcontracts "github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/contracts/commands"
+	admincontracts "github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/contracts"
 )
 
 // CommandEntry is one command surfaced in the unified admin TUI command
 // catalog. Root aliases preserve the original admin package API while the
 // focused contracts package lets command catalog producers avoid depending on
 // concrete admin screen implementations.
-type CommandEntry = commandcontracts.Entry
+type CommandEntry = admincontracts.CommandEntry
 
 // CommandRunner executes one safe, read-only command selected from the command
 // catalog. cmd/gormes injects the production runner so this package stays
 // independent of Cobra.
-type CommandRunner = commandcontracts.Runner
+type CommandRunner = admincontracts.CommandRunner
 
 // CommandRunResult is the inline output rendered after a safe command run.
-type CommandRunResult = commandcontracts.RunResult
+type CommandRunResult = admincontracts.CommandRunResult
 
 // CommandsScreen lists the Gormes CLI command tree inside the admin TUI.
 type CommandsScreen = commands.Screen

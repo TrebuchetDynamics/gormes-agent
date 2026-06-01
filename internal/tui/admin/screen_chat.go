@@ -4,21 +4,21 @@ import (
 	"context"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/chat"
-	chatcontracts "github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/contracts/chat"
+	admincontracts "github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/contracts"
 )
 
 // ChatRequest is the slim admin Chat tab request passed through the responder
 // seam. Root aliases preserve the original admin package API while the focused
 // contracts package lets responders/listers avoid depending on the concrete
 // chat screen implementation.
-type ChatRequest = chatcontracts.Request
+type ChatRequest = admincontracts.ChatRequest
 
 // ChatResponder handles one submitted chat turn.
-type ChatResponder = chatcontracts.Responder
+type ChatResponder = admincontracts.ChatResponder
 
 // AgentLister returns runtime-spawned agents available for the Chat tab's
 // active-agent picker.
-type AgentLister = chatcontracts.AgentLister
+type AgentLister = admincontracts.AgentLister
 
 // ChatScreen is a slim in-admin chat surface.
 type ChatScreen = chat.Screen

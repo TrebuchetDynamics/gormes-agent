@@ -5,15 +5,14 @@ import (
 	"sort"
 	"strings"
 
-	commandcontracts "github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/contracts/commands"
-	shellcontracts "github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/contracts/shell"
+	admincontracts "github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/contracts"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/navigation"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type CommandEntry = commandcontracts.Entry
-type CommandRunner = commandcontracts.Runner
-type CommandRunResult = commandcontracts.RunResult
+type CommandEntry = admincontracts.CommandEntry
+type CommandRunner = admincontracts.CommandRunner
+type CommandRunResult = admincontracts.CommandRunResult
 
 type commandRunFinishedMsg struct {
 	result CommandRunResult
@@ -69,7 +68,7 @@ func (s *Screen) CapturesKey(msg tea.KeyMsg) bool {
 	}
 }
 
-func (s *Screen) Update(msg tea.Msg) (shellcontracts.Screen, tea.Cmd) {
+func (s *Screen) Update(msg tea.Msg) (admincontracts.Screen, tea.Cmd) {
 	switch msg := msg.(type) {
 	case commandRunFinishedMsg:
 		result := msg.result
@@ -105,7 +104,7 @@ func (s *Screen) Update(msg tea.Msg) (shellcontracts.Screen, tea.Cmd) {
 	return s, nil
 }
 
-func (s *Screen) updateSearchKey(msg tea.KeyMsg) (shellcontracts.Screen, tea.Cmd) {
+func (s *Screen) updateSearchKey(msg tea.KeyMsg) (admincontracts.Screen, tea.Cmd) {
 	switch msg.Type {
 	case tea.KeyEscape:
 		s.searching = false
@@ -194,8 +193,8 @@ func (s *Screen) View() string {
 	return b.String()
 }
 
-func (s *Screen) ShortHelp() []shellcontracts.KeyHelp {
-	return []shellcontracts.KeyHelp{
+func (s *Screen) ShortHelp() []admincontracts.KeyHelp {
+	return []admincontracts.KeyHelp{
 		{Keys: []string{"enter"}, Description: "run safe command"},
 		{Keys: []string{"/"}, Description: "search commands"},
 		{Keys: []string{"esc"}, Description: "clear search"},
