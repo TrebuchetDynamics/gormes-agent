@@ -10,9 +10,9 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module group:** Operator Setup
 **Module:** `cli`
-**Rows:** 34
-**Status counts:** `complete`: 34 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P1`: 13 · `P2`: 8 · `P3`: 3 · `unset`: 10
+**Rows:** 35
+**Status counts:** `complete`: 35 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P1`: 14 · `P2`: 8 · `P3`: 3 · `unset`: 10
 
 ## Phase 5 — The Final Purge
 
@@ -53,6 +53,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `cli` | cmd/gormes profile command package extraction |
 | `complete` | `P1` | `cli` | cmd/gormes setup section registry extraction |
 | `complete` | `P1` | `cli` | cmd/gormes root command assembly extraction |
+| `complete` | `P1` | `cli` | Root tools command config-backed toolset toggles |
 
 ## Phase 8 — Reputation & Publication
 

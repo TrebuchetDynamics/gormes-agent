@@ -201,7 +201,7 @@ file+line ref or explicit `missing`, and a classification.
 | `/session` | `hermes_cli/main.py` | `internal/tui/slash_sessions.go` | covered | Session browser. |
 | `/reasoning` | `gateway/run.py` `_handle_reasoning_command` | `internal/gateway/reasoning_command.go` + `manager.go` | covered | Reasoning effort management with --global support. |
 | `/voice` | `hermes_cli/voice.py` | → advertised unavailable | missing | Recognized, no handler. |
-| `/tools` | `hermes_cli/commands.py` | → advertised unavailable | missing | Recognized, no handler. |
+| `/tools` | `hermes_cli/commands.py` | `internal/tui/slash_tools.go`; `cmd/gormes/hermes_rowbacked_commands.go`; `cmd/gormes/tools_command_test.go` | partial | TUI `/tools enable|disable` is config-backed and the root `gormes tools list|enable|disable` command now persists CLI `platform_toolsets` instead of returning row-backed unavailable evidence; gateway/channel command registry still marks `/tools` unavailable. |
 | `/skills` | `hermes_cli/commands.py` | `internal/tui/slash_skills.go` | covered | Skill install/inspect. |
 | `/goal` | `hermes_cli/goals.py` | `internal/tui/slash_goal.go` | covered | Standing goal. |
 | `/profile` | `hermes_cli/profiles.py` | `internal/tui/slash_profile.go` | covered | Profile info. |

@@ -193,7 +193,6 @@ func TestHermesCLIParityRowBackedCommandsEmitStructuredUnavailableJSON(t *testin
 	cases := [][]string{
 		{"webhook", "subscribe", "--json"},
 		{"hooks", "revoke", "--json"},
-		{"tools", "list", "--json"},
 		{"mcp", "list", "--json"},
 		{"skills", "tap", "add", "--json"},
 		{"memory", "reset", "--json"},

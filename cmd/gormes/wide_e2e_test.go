@@ -180,7 +180,7 @@ func TestWideE2E_UserBootstrapJourneyKeepsSecretsRedactedAndCoreFeaturesUsable(t
 		{name: "gateway_status", args: []string{"gateway", "status", "--json"}, want: []string{"channels", "build"}},
 		{name: "gateway_probe", args: []string{"gateway", "probe", "--json"}, exitCode: 1, want: []string{"gateway_probe_unreachable", "build"}},
 		{name: "channels_capabilities", args: []string{"channels", "capabilities", "--json"}, want: []string{"channels", "telegram", "slack"}},
-		{name: "tools_inventory", args: []string{"tools", "list"}, exitCode: 2, want: []string{"row-backed in Gormes"}},
+		{name: "tools_inventory", args: []string{"tools", "list"}, want: []string{"Tools for CLI", "terminal"}},
 		{name: "skills_inventory", args: []string{"skills", "list"}, want: []string{"builtin"}},
 		{name: "learning_loop_status", args: []string{"curator", "status", "--json"}, want: []string{"state", "skills"}},
 		{name: "learning_loop_dry_run", args: []string{"curator", "run", "--dry-run", "--sync", "--json"}, want: []string{"dry_run", "curator skipped"}},

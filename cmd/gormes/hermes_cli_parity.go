@@ -69,7 +69,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 		hermesImplementedCommand("skills", "hermes_cli/main.py:skills", "cmd/gormes skills-compatible registry rows"),
 		hermesCommandSet("plugins", "hermes_cli/plugins_cmd.py", "plugin manager command handlers are manifest-only until plugin runtime rows land", "Plugin SDK"),
 		hermesImplementedCommand("memory", "plugins/memory/__init__.py:discover_plugin_cli_commands", "cmd/gormes memory"),
-		hermesRowCommand("tools", "hermes_cli/main.py:tools", "Tool/runtime/security rows", "tool inventory and doctor commands remain row-backed"),
+		hermesImplementedCommand("tools", "hermes_cli/commands.py:CommandDef(\"tools\")", "cmd/gormes tools"),
 		hermesRowCommand("mcp", "hermes_cli/main.py:mcp", "ACP server side", "MCP management commands remain row-backed"),
 		hermesImplementedCommand("sessions", "hermes_cli/main.py:sessions", "cmd/gormes session"),
 		hermesRowCommand("insights", "hermes_cli/main.py:insights", "Self-monitoring telemetry", "insights rollup command remains row-backed"),
@@ -138,7 +138,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 		hermesNestedAlias("plugins", "ls", "list", "hermes_cli/main.py:plugins_subparsers:list aliases", "Plugin SDK"),
 	)
 	entries = append(entries, hermesNestedCommands("memory", "hermes_cli/main.py:memory_sub", "Goncho memory integration into normal agent turn", []string{"setup", "status", "off", "reset"})...)
-	entries = append(entries, hermesNestedCommands("tools", "hermes_cli/main.py:tools_sub", "Tool/runtime/security rows", []string{"list", "disable", "enable"})...)
+	entries = append(entries, hermesToolsCommands()...)
 	entries = append(entries, hermesNestedCommands("mcp", "hermes_cli/main.py:mcp_sub", "ACP server side", []string{"serve", "add", "remove", "list", "test", "configure", "login"})...)
 	entries = append(entries,
 		hermesNestedAlias("mcp", "rm", "remove", "hermes_cli/main.py:mcp_sub:remove aliases", "ACP server side"),
@@ -221,6 +221,14 @@ func hermesNestedCommands(group, sourceRef, row string, commands []string) []her
 		out = append(out, entry)
 	}
 	return out
+}
+
+func hermesToolsCommands() []hermesCLIParityEntry {
+	return []hermesCLIParityEntry{
+		hermesImplementedPath([]string{"tools", "list"}, hermesCLICommand, "hermes_cli/commands.py:CommandDef(\"tools\")", "cmd/gormes tools list", "lists CLI platform toolsets from Gormes config without row-backed unavailable evidence"),
+		hermesImplementedPath([]string{"tools", "disable"}, hermesCLICommand, "hermes_cli/commands.py:CommandDef(\"tools\")", "cmd/gormes tools disable", "disables named CLI platform toolsets through the shared config-backed adapter"),
+		hermesImplementedPath([]string{"tools", "enable"}, hermesCLICommand, "hermes_cli/commands.py:CommandDef(\"tools\")", "cmd/gormes tools enable", "enables named CLI platform toolsets through the shared config-backed adapter"),
+	}
 }
 
 func hermesFallbackCommands() []hermesCLIParityEntry {

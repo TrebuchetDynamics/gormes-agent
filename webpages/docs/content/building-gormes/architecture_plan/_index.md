@@ -1210,6 +1210,7 @@ classification and row-backed implementation queue.
 - [x] `providers` Per-profile provider credential readiness
 - [x] `channels` Per-profile channel credential readiness and allow-lists
 - [x] `providers` Gormes setup providers plural alias
+- [x] `cli` Root tools command config-backed toolset toggles
 
 ### 5.P — Docker / Packaging ✅
 

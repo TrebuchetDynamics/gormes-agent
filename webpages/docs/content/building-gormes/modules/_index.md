@@ -52,7 +52,7 @@ CLI, installation, configuration, diagnostics, profiles, and release lifecycle p
 
 | Module | Rows | Complete | In progress | Planned | Priorities |
 |---|---:|---:|---:|---:|---|
-| [CLI](operator-setup/cli/) | 34 | 34 | 0 | 0 | `P1`: 13 · `P2`: 8 · `P3`: 3 · `unset`: 10 |
+| [CLI](operator-setup/cli/) | 35 | 35 | 0 | 0 | `P1`: 14 · `P2`: 8 · `P3`: 3 · `unset`: 10 |
 | [Config](operator-setup/config/) | 31 | 31 | 0 | 0 | `P0`: 3 · `P1`: 8 · `P2`: 7 · `P3`: 1 · `unset`: 12 |
 | [Doctor](operator-setup/doctor/) | 16 | 16 | 0 | 0 | `P1`: 5 · `P2`: 7 · `P3`: 2 · `unset`: 2 |
 | [Install](operator-setup/install/) | 30 | 30 | 0 | 0 | `P0`: 2 · `P1`: 17 · `P2`: 4 · `P3`: 3 · `unset`: 4 |
