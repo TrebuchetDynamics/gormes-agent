@@ -611,6 +611,42 @@ func TestGatewayProbeHTTPTreatsCapabilityAuthSchemeCaseInsensitively(t *testing.
 	}
 }
 
+func TestGatewayCapabilitiesSupportReportShowsMissingRequirements(t *testing.T) {
+	summary := &GatewayCapabilitiesSummary{
+		Object:     "hermes.api_server.capabilities",
+		AuthType:   "Bearer",
+		Features:   []string{"chat_completions", "responses_api"},
+		Endpoints:  []string{"health", "health_detailed"},
+		StatusCode: http.StatusOK,
+	}
+
+	report := classifyGatewayCapabilitiesSupport(summary)
+
+	if !report.ObjectOK || !report.BearerAuthOK {
+		t.Fatalf("support report object/auth = %+v, want object and bearer auth accepted", report)
+	}
+	if got, want := report.MissingFeatures[0], "run_submission"; got != want {
+		t.Fatalf("first missing feature = %q, want %q; report=%+v", got, want, report)
+	}
+	if got, want := report.MissingEndpoints[0], "chat_completions"; got != want {
+		t.Fatalf("first missing endpoint = %q, want %q; report=%+v", got, want, report)
+	}
+	if gatewayCapabilitiesSupported(summary) {
+		t.Fatalf("gatewayCapabilitiesSupported = true; report=%+v", report)
+	}
+}
+
+func TestGatewayCapabilitiesSupportReportClassifiesNilAsUnsupported(t *testing.T) {
+	report := classifyGatewayCapabilitiesSupport(nil)
+
+	if report.ObjectOK || report.BearerAuthOK {
+		t.Fatalf("nil support report = %+v, want object/auth false", report)
+	}
+	if len(report.MissingFeatures) != len(requiredGatewayCapabilityFeatures()) || len(report.MissingEndpoints) != len(requiredGatewayCapabilityEndpoints()) {
+		t.Fatalf("nil support report = %+v, want all requirements missing", report)
+	}
+}
+
 func TestGatewayProbeHTTPClassifiesAuthUnsupportedAndMalformedCapabilities(t *testing.T) {
 	const secret = "sk-gateway-secret"
 	t.Run("unauthorized", func(t *testing.T) {

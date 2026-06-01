@@ -1188,18 +1188,31 @@ func routableGatewayEndpointNames(endpoints map[string]gatewayCapabilityEndpoint
 	return names
 }
 
+type gatewayCapabilitiesSupportReport struct {
+	ObjectOK         bool
+	BearerAuthOK     bool
+	MissingFeatures  []string
+	MissingEndpoints []string
+}
+
 func gatewayCapabilitiesSupported(summary *GatewayCapabilitiesSummary) bool {
+	report := classifyGatewayCapabilitiesSupport(summary)
+	return report.ObjectOK && report.BearerAuthOK && len(report.MissingFeatures) == 0 && len(report.MissingEndpoints) == 0
+}
+
+func classifyGatewayCapabilitiesSupport(summary *GatewayCapabilitiesSummary) gatewayCapabilitiesSupportReport {
 	if summary == nil {
-		return false
+		return gatewayCapabilitiesSupportReport{
+			MissingFeatures:  requiredGatewayCapabilityFeatures(),
+			MissingEndpoints: requiredGatewayCapabilityEndpoints(),
+		}
 	}
-	if summary.Object != "hermes.api_server.capabilities" {
-		return false
+	return gatewayCapabilitiesSupportReport{
+		ObjectOK:         summary.Object == "hermes.api_server.capabilities",
+		BearerAuthOK:     normalizeGatewayCapabilityAuthType(summary.AuthType) == "bearer",
+		MissingFeatures:  missingGatewayCapabilityNames(summary.Features, requiredGatewayCapabilityFeatures()),
+		MissingEndpoints: missingGatewayCapabilityNames(summary.Endpoints, requiredGatewayCapabilityEndpoints()),
 	}
-	if normalizeGatewayCapabilityAuthType(summary.AuthType) != "bearer" {
-		return false
-	}
-	return gatewayCapabilityNamesInclude(summary.Features, requiredGatewayCapabilityFeatures()) &&
-		gatewayCapabilityNamesInclude(summary.Endpoints, requiredGatewayCapabilityEndpoints())
 }
 
 func normalizeGatewayCapabilityAuthType(raw string) string {
@@ -1230,13 +1243,14 @@ func requiredGatewayCapabilityEndpoints() []string {
 	}
 }
 
-func gatewayCapabilityNamesInclude(have []string, required []string) bool {
+func missingGatewayCapabilityNames(have []string, required []string) []string {
+	missing := make([]string, 0, len(required))
 	for _, name := range required {
 		if !gatewayProbeStringSliceContains(have, name) {
-			return false
+			missing = append(missing, name)
 		}
 	}
-	return true
+	return missing
 }
 
 func gatewayProbeStringSliceContains(items []string, want string) bool {
