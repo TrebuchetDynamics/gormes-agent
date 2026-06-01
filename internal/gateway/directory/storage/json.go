@@ -1,146 +1,51 @@
 package storage
 
 import (
-	"context"
-	"fmt"
-	"path/filepath"
-	"strings"
-
-	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/jsonfile"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/storage/codec"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/storage/decode"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/storage/persisted"
 )
 
 // Root is the shared caller-owned persistence root contract for directory
 // stores. It centralizes root normalization, file path construction, and empty
 // root validation across cache and remembered-source stores.
-type Root string
+type Root = persisted.Root
 
 // NewRoot returns a normalized caller-owned persistence root.
-func NewRoot(root string) Root {
-	return Root(strings.TrimSpace(root))
-}
-
-func (r Root) String() string { return string(r) }
-
-// Path returns the path to name under the normalized root.
-func (r Root) Path(name string) string {
-	return filepath.Join(string(r), name)
-}
-
-// Require returns a store-specific empty-root error when the root is not set.
-func (r Root) Require(label string) error {
-	if strings.TrimSpace(string(r)) == "" {
-		return fmt.Errorf("%s root is empty", label)
-	}
-	return nil
-}
+func NewRoot(root string) Root { return persisted.NewRoot(root) }
 
 // Spec names one persisted JSON file used by a directory store. It centralizes
 // file names, temp-file patterns, and root-validation labels so stores can
 // share persistence metadata without each rebuilding the same contract.
-type Spec struct {
-	Name       string
-	TmpPattern string
-	Label      string
-}
-
-// File returns a persisted JSON file for root using the spec metadata.
-func (s Spec) File(root string) File {
-	return File{Root: NewRoot(root), Name: s.Name, TmpPattern: s.TmpPattern, Label: s.Label}
-}
-
-// Apply returns f when it is already configured, otherwise it builds the spec's
-// default persisted JSON file while preserving any root carried by f.
-func (s Spec) Apply(f File) File {
-	if f.Name != "" {
-		return f
-	}
-	return s.File(f.Root.String())
-}
+type Spec = persisted.Spec
 
 // File is the shared persisted-JSON file contract for directory stores. It
 // keeps path construction, root validation, and atomic-write metadata together
 // so cache and source stores do not each rebuild that policy.
-type File struct {
-	Root       Root
-	Name       string
-	TmpPattern string
-	Label      string
-}
+type File = persisted.File
 
 // NewFile returns a persisted JSON file rooted at root.
 func NewFile(root, name, tmpPattern, label string) File {
-	return Spec{Name: name, TmpPattern: tmpPattern, Label: label}.File(root)
-}
-
-// WithDefaults returns f when it is already configured, otherwise it builds the
-// store's default persisted JSON file while preserving any root carried by f.
-func (f File) WithDefaults(name, tmpPattern, label string) File {
-	return Spec{Name: name, TmpPattern: tmpPattern, Label: label}.Apply(f)
-}
-
-// Path returns the persisted file path.
-func (f File) Path() string {
-	return f.Root.Path(f.Name)
-}
-
-// Require validates the file root with the store-specific label.
-func (f File) Require() error {
-	return f.Root.Require(f.Label)
-}
-
-// Read decodes the persisted JSON file into value.
-func (f File) Read(value any) error {
-	return ReadJSON(f.Path(), value)
+	return persisted.NewFile(root, name, tmpPattern, label)
 }
 
 // LoadValue reads a persisted JSON value using a caller-supplied empty value
 // and post-decode normalization hook. Directory stores use this to share the
 // same decode lifecycle while keeping their own missing/invalid evidence policy.
 func LoadValue[T any](file File, empty func() T, ensure func(T) T) (T, error) {
-	value := zeroOrEmpty(empty)
-	if err := file.Read(&value); err != nil {
-		return zeroOrEmpty(empty), err
-	}
-	if ensure != nil {
-		value = ensure(value)
-	}
-	return value, nil
-}
-
-func zeroOrEmpty[T any](empty func() T) T {
-	if empty != nil {
-		return empty()
-	}
-	var value T
-	return value
-}
-
-// WriteAtomic marshals value as indented JSON and atomically replaces the
-// persisted file.
-func (f File) WriteAtomic(value any, writer Writer) error {
-	if err := f.Require(); err != nil {
-		return err
-	}
-	return WriteAtomicJSON(f.Root.String(), f.Name, f.TmpPattern, value, writer)
+	return decode.LoadValue(file, empty, ensure)
 }
 
 // Writer is the injectable write seam used by stores that need deterministic
 // atomic-write failure tests.
-type Writer = jsonfile.Writer
+type Writer = codec.Writer
 
 // ReadJSON reads path into value using the stores' shared JSON decoding seam.
-func ReadJSON(path string, value any) error {
-	return jsonfile.ReadRequired(context.Background(), path, value, "directory json")
-}
+func ReadJSON(path string, value any) error { return codec.ReadJSON(path, value) }
 
 // WriteAtomicJSON marshals value as indented JSON and atomically replaces name
 // under root. The temporary file is created in root so rename stays atomic on
 // normal local filesystems.
 func WriteAtomicJSON(root, name, tmpPattern string, value any, writer Writer) error {
-	return jsonfile.WriteAtomicWithOptions(context.Background(), filepath.Join(root, name), value, name, jsonfile.WriteOptions{
-		DirMode:    0o700,
-		FileMode:   0o600,
-		TmpPattern: tmpPattern,
-		Writer:     writer,
-	})
+	return codec.WriteAtomicJSON(root, name, tmpPattern, value, writer)
 }
