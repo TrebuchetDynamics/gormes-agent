@@ -38,9 +38,13 @@ var (
 )
 
 var upstreamHermesSupplementPages = map[string]struct{}{
-	"upstream-hermes/good-and-bad.md":     {},
-	"upstream-hermes/gormes-takeaways.md": {},
-	"upstream-hermes/source-study.md":     {},
+	"upstream-hermes/good-and-bad.md":                          {},
+	"upstream-hermes/gormes-takeaways.md":                      {},
+	"upstream-hermes/source-study.md":                          {},
+	"upstream-hermes/user-guide/features/automation/_index.md": {},
+	"upstream-hermes/user-guide/features/context/_index.md":    {},
+	"upstream-hermes/user-guide/features/platform/_index.md":   {},
+	"upstream-hermes/user-guide/features/providers/_index.md":  {},
 }
 
 var (
@@ -754,10 +758,47 @@ func mapSourceToContent(rel string) string {
 	if strings.HasSuffix(rel, "/_category_.json") {
 		return mirrorPrefix + strings.TrimSuffix(rel, "_category_.json") + "_index.md"
 	}
+	if organized := organizedUpstreamHermesFeatureContentRel(rel); organized != "" {
+		return mirrorPrefix + organized
+	}
 	if strings.HasSuffix(rel, ".mdx") {
 		return mirrorPrefix + strings.TrimSuffix(rel, ".mdx") + ".md"
 	}
 	return mirrorPrefix + rel
+}
+
+func organizedUpstreamHermesFeatureContentRel(rel string) string {
+	const prefix = "user-guide/features/"
+	if !strings.HasPrefix(rel, prefix) || !strings.HasSuffix(rel, ".md") {
+		return ""
+	}
+
+	slug := strings.TrimSuffix(strings.TrimPrefix(rel, prefix), ".md")
+	groups := map[string][]string{
+		"tools": {
+			"acp", "browser", "code-execution", "computer-use", "delegation", "image-generation",
+			"lsp", "mcp", "spotify", "tool-gateway", "tools", "tts", "vision", "web-search", "x-search",
+		},
+		"providers":  {"credential-pools", "fallback-providers", "provider-routing", "subscription-proxy"},
+		"context":    {"context-files", "context-references", "curator", "honcho", "memory", "memory-providers", "personality", "skills"},
+		"automation": {"batch-processing", "cron", "goals", "kanban", "kanban-tutorial", "kanban-worker-lanes"},
+		"platform":   {"api-server", "codex-app-server-runtime", "extending-the-dashboard", "skins", "voice-mode", "web-dashboard"},
+		"plugins":    {"built-in-plugins", "hooks", "plugins"},
+	}
+	indexSlugs := map[string]struct{}{"plugins": {}, "tools": {}}
+
+	for group, slugs := range groups {
+		for _, candidate := range slugs {
+			if candidate != slug {
+				continue
+			}
+			if _, ok := indexSlugs[slug]; ok {
+				return prefix + group + "/_index.md"
+			}
+			return prefix + group + "/" + slug + ".md"
+		}
+	}
+	return ""
 }
 
 func snippetAfter(t *testing.T, name, raw, marker string) string {

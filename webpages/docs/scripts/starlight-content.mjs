@@ -67,6 +67,12 @@ const upstreamHermesFeatureGroups = new Map(Object.entries({
 const upstreamHermesFeatureIndexSlugs = new Set(['plugins', 'tools']);
 
 function organizedUpstreamHermesFeatureRel(rel) {
+  const organizedMatch = rel.match(/^upstream-hermes\/user-guide\/features\/([^/]+)\/_index\.md$/);
+  if (organizedMatch && upstreamHermesFeatureIndexSlugs.has(organizedMatch[1])) {
+    return rel.replace(/\/_index\.md$/, '/index.md');
+  }
+  if (rel.match(/^upstream-hermes\/user-guide\/features\/[^/]+\/[^/]+\.md$/)) return rel;
+
   const match = rel.match(/^upstream-hermes\/user-guide\/features\/([^/]+)\.md$/);
   if (!match) return rel;
 
@@ -77,6 +83,17 @@ function organizedUpstreamHermesFeatureRel(rel) {
     return `upstream-hermes/user-guide/features/${group}/${fileName}`;
   }
   return rel;
+}
+
+function legacyUpstreamHermesFeatureRoute(rel) {
+  const indexMatch = rel.match(/^upstream-hermes\/user-guide\/features\/([^/]+)\/_index\.md$/);
+  if (indexMatch && upstreamHermesFeatureIndexSlugs.has(indexMatch[1])) {
+    return `/upstream-hermes/user-guide/features/${indexMatch[1]}/`;
+  }
+
+  const leafMatch = rel.match(/^upstream-hermes\/user-guide\/features\/[^/]+\/([^/]+)\.md$/);
+  if (!leafMatch) return '';
+  return `/upstream-hermes/user-guide/features/${leafMatch[1]}/`;
 }
 
 function indexRelForTarget(rel) {
@@ -128,7 +145,10 @@ export function redirectsForContentDir(contentDir) {
   const redirects = {};
   for (const file of walkMarkdownFiles(contentDir)) {
     const raw = fs.readFileSync(file, 'utf8');
+    const rel = sourceRel(contentDir, file);
     const destination = routeForContentFile(contentDir, file);
+    const legacyFeatureRoute = legacyUpstreamHermesFeatureRoute(rel);
+    if (legacyFeatureRoute && legacyFeatureRoute !== destination) redirects[legacyFeatureRoute] = destination;
     const sourceRoute = sourceRouteForContentFile(contentDir, file);
     if (sourceRoute !== destination) redirects[sourceRoute] = destination;
     for (const alias of aliasesFor(frontmatterFor(raw))) {

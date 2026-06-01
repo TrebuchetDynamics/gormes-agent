@@ -49,11 +49,11 @@ test('upstream Hermes feature docs target responsibility subfolders', () => {
   const targetDir = path.join('repo', 'webpages', 'docs', 'src', 'content', 'docs');
 
   assert.equal(
-    targetPathForContentFile(sourceDir, targetDir, path.join(sourceDir, 'upstream-hermes', 'user-guide', 'features', 'tools.md')),
+    targetPathForContentFile(sourceDir, targetDir, path.join(sourceDir, 'upstream-hermes', 'user-guide', 'features', 'tools', '_index.md')),
     path.join(targetDir, 'upstream-hermes', 'user-guide', 'features', 'tools', 'index.md'),
   );
   assert.equal(
-    targetPathForContentFile(sourceDir, targetDir, path.join(sourceDir, 'upstream-hermes', 'user-guide', 'features', 'api-server.md')),
+    targetPathForContentFile(sourceDir, targetDir, path.join(sourceDir, 'upstream-hermes', 'user-guide', 'features', 'platform', 'api-server.md')),
     path.join(targetDir, 'upstream-hermes', 'user-guide', 'features', 'platform', 'api-server.md'),
   );
 });
@@ -84,8 +84,10 @@ test('organized upstream Hermes feature docs redirect old public routes', async 
   const contentDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gormes-doc-content-'));
   const featuresDir = path.join(contentDir, 'upstream-hermes', 'user-guide', 'features');
   await fs.mkdir(featuresDir, { recursive: true });
-  await fs.writeFile(path.join(featuresDir, 'api-server.md'), `---\ntitle: API Server\n---\n\n# API Server\n`);
-  await fs.writeFile(path.join(featuresDir, 'tools.md'), `---\ntitle: Tools\n---\n\n# Tools\n`);
+  await fs.mkdir(path.join(featuresDir, 'platform'), { recursive: true });
+  await fs.mkdir(path.join(featuresDir, 'tools'), { recursive: true });
+  await fs.writeFile(path.join(featuresDir, 'platform', 'api-server.md'), `---\ntitle: API Server\n---\n\n# API Server\n`);
+  await fs.writeFile(path.join(featuresDir, 'tools', '_index.md'), `---\ntitle: Tools\n---\n\n# Tools\n`);
 
   assert.deepEqual(redirectsForContentDir(contentDir), {
     '/upstream-hermes/user-guide/features/api-server/': '/upstream-hermes/user-guide/features/platform/api-server/',
