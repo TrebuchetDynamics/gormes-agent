@@ -1,4 +1,4 @@
-package profiles
+package command
 
 import (
 	"bytes"

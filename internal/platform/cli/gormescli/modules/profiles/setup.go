@@ -1,17 +1,13 @@
 package profiles
 
 import (
-	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	profilesetup "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/profiles/setup"
 )
 
 // SetupSections returns the Gormes-owned setup section metadata contributed by
-// the profiles module. cmd/gormes still owns the dispatcher/chrome until the
-// setup registry extraction is fully complete.
+// the profiles module. The setup package owns the section registration data;
+// this facade keeps the profiles module as the public CLI boundary.
 func SetupSections() []gormescli.SetupSection {
-	return []gormescli.SetupSection{{
-		Name:   "profiles",
-		Label:  "Profiles",
-		Module: progress.ModuleProfiles,
-	}}
+	return profilesetup.Sections()
 }
