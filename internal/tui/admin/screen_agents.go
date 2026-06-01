@@ -2,14 +2,14 @@ package admin
 
 import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/agents"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/contracts"
+	agentcontracts "github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/contracts/agents"
 )
 
 // AgentsRegistry is the dynamic-agent registry seam used by the admin Agents
 // screen. Root aliases preserve the original admin package API while the
 // focused contracts package lets registry providers avoid depending on the
 // concrete screen implementation.
-type AgentsRegistry = contracts.AgentsRegistry
+type AgentsRegistry = agentcontracts.Registry
 
 // AgentsScreen renders dynamic-agent spawn, bind, inspect, and unbind flows.
 type AgentsScreen = agents.Screen

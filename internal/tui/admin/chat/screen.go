@@ -13,15 +13,16 @@ import (
 	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/contracts"
+	chatcontracts "github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/contracts/chat"
+	shellcontracts "github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/contracts/shell"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/navigation"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type ChatRequest = contracts.ChatRequest
-type ChatResponder = contracts.ChatResponder
-type AgentLister = contracts.AgentLister
+type ChatRequest = chatcontracts.Request
+type ChatResponder = chatcontracts.Responder
+type AgentLister = chatcontracts.AgentLister
 
 type chatLine struct {
 	role string
@@ -89,7 +90,7 @@ func (s *Screen) Title() string { return "Chat" }
 
 func (s *Screen) Init() tea.Cmd { return textinput.Blink }
 
-func (s *Screen) Update(msg tea.Msg) (contracts.Screen, tea.Cmd) {
+func (s *Screen) Update(msg tea.Msg) (shellcontracts.Screen, tea.Cmd) {
 	switch msg := msg.(type) {
 	case chatResponseMsg:
 		s.sending = false
@@ -158,15 +159,15 @@ func (s *Screen) View() string {
 	return b.String()
 }
 
-func (s *Screen) ShortHelp() []contracts.KeyHelp {
-	return []contracts.KeyHelp{
+func (s *Screen) ShortHelp() []shellcontracts.KeyHelp {
+	return []shellcontracts.KeyHelp{
 		{Keys: []string{"enter"}, Description: "send message"},
 		{Keys: []string{"a"}, Description: "choose agent"},
 		{Keys: []string{"esc"}, Description: "return to previous screen"},
 	}
 }
 
-func (s *Screen) submit() (contracts.Screen, tea.Cmd) {
+func (s *Screen) submit() (shellcontracts.Screen, tea.Cmd) {
 	prompt := strings.TrimSpace(s.input.Value())
 	if prompt == "" || s.sending {
 		return s, nil
@@ -205,7 +206,7 @@ func (s *Screen) loadAgentsCmd() tea.Cmd {
 	}
 }
 
-func (s *Screen) updateAgentPicker(msg tea.KeyMsg) (contracts.Screen, tea.Cmd) {
+func (s *Screen) updateAgentPicker(msg tea.KeyMsg) (shellcontracts.Screen, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
 		s.pickerOpen = false

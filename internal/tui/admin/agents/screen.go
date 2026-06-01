@@ -8,7 +8,8 @@ import (
 	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/contracts"
+	agentcontracts "github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/contracts/agents"
+	shellcontracts "github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/contracts/shell"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/navigation"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin/wizardflow"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
@@ -16,7 +17,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type Registry = contracts.AgentsRegistry
+type Registry = agentcontracts.Registry
 
 type Screen struct {
 	registry Registry
@@ -54,7 +55,7 @@ func (s *Screen) Title() string { return "Agents" }
 
 func (s *Screen) Init() tea.Cmd { return s.refreshCmd() }
 
-func (s *Screen) Update(msg tea.Msg) (contracts.Screen, tea.Cmd) {
+func (s *Screen) Update(msg tea.Msg) (shellcontracts.Screen, tea.Cmd) {
 	if s.wizard != nil {
 		return s.updateWizard(msg)
 	}
@@ -163,8 +164,8 @@ func (s *Screen) View() string {
 	return b.String()
 }
 
-func (s *Screen) ShortHelp() []contracts.KeyHelp {
-	return []contracts.KeyHelp{
+func (s *Screen) ShortHelp() []shellcontracts.KeyHelp {
+	return []shellcontracts.KeyHelp{
 		{Keys: []string{"n"}, Description: "spawn agent"},
 		{Keys: []string{"b"}, Description: "bind agent"},
 		{Keys: []string{"u"}, Description: "unbind last binding"},
@@ -181,7 +182,7 @@ func (s *Screen) refreshCmd() tea.Cmd {
 	}
 }
 
-func (s *Screen) updateWizard(msg tea.Msg) (contracts.Screen, tea.Cmd) {
+func (s *Screen) updateWizard(msg tea.Msg) (shellcontracts.Screen, tea.Cmd) {
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return s, nil
