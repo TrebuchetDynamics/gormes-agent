@@ -66,6 +66,28 @@ const upstreamHermesFeatureGroups = new Map(Object.entries({
 
 const upstreamHermesFeatureIndexSlugs = new Set(['plugins', 'tools']);
 
+const cliCommandGroups = new Map(Object.entries({
+  core: ['chat', 'completion', 'doctor', 'logs', 'status', 'version'],
+  setup: ['auth', 'config', 'fallback', 'logout', 'model', 'profile', 'providers', 'secrets', 'security', 'setup'],
+  runtime: ['agent', 'checkpoints', 'cron', 'dashboard', 'gateway', 'goncho', 'kanban', 'memory', 'restore', 'session', 'system', 'uninstall', 'update', 'usage'],
+  channels: ['channels', 'navivox', 'slack', 'telegram', 'whatsapp'],
+  extensions: ['acp', 'claw', 'curator', 'mcp', 'migrate', 'plugins', 'skills'],
+}));
+
+const cliCommandToGroup = new Map(
+  [...cliCommandGroups].flatMap(([group, commands]) => commands.map((command) => [command, group])),
+);
+
+function organizedCliRel(rel) {
+  if (rel === 'cli/_index.md') return rel;
+  const match = rel.match(/^cli\/([^/]+)\.md$/);
+  if (!match) return rel;
+
+  const group = cliCommandToGroup.get(match[1]);
+  if (!group) return rel;
+  return `cli/${group}/${match[1]}.md`;
+}
+
 function organizedUpstreamHermesFeatureRel(rel) {
   const organizedMatch = rel.match(/^upstream-hermes\/user-guide\/features\/([^/]+)\/_index\.md$/);
   if (organizedMatch && upstreamHermesFeatureIndexSlugs.has(organizedMatch[1])) {
@@ -96,6 +118,10 @@ function legacyUpstreamHermesFeatureRoute(rel) {
   return `/upstream-hermes/user-guide/features/${leafMatch[1]}/`;
 }
 
+function organizedRel(rel) {
+  return organizedCliRel(organizedUpstreamHermesFeatureRel(rel));
+}
+
 function indexRelForTarget(rel) {
   const parts = rel.split('/');
   if (parts.at(-1) === '_index.md') parts[parts.length - 1] = 'index.md';
@@ -103,7 +129,7 @@ function indexRelForTarget(rel) {
 }
 
 export function targetPathForContentFile(sourceDir, targetDir, sourceFile) {
-  const rel = organizedUpstreamHermesFeatureRel(sourceRel(sourceDir, sourceFile));
+  const rel = organizedRel(sourceRel(sourceDir, sourceFile));
   return path.join(targetDir, ...indexRelForTarget(rel).split('/'));
 }
 
@@ -119,7 +145,7 @@ function routeForRel(rel) {
 }
 
 export function routeForContentFile(contentDir, file) {
-  return routeForRel(organizedUpstreamHermesFeatureRel(sourceRel(contentDir, file)));
+  return routeForRel(organizedRel(sourceRel(contentDir, file)));
 }
 
 function sourceRouteForContentFile(contentDir, file) {
@@ -162,6 +188,55 @@ function editUrlForSourceRel(sourceRel) {
   return `${editBaseUrl}${toPosixPath(sourceRel)}`;
 }
 
+function routePathForRel(rel) {
+  const route = routeForRel(rel);
+  return route.endsWith('/') ? route : `${route}/`;
+}
+
+function organizedRouteForPath(routePath) {
+  const cliMatch = routePath.match(/^\/cli\/([^/]+)\/?$/);
+  if (cliMatch) {
+    const group = cliCommandToGroup.get(cliMatch[1]);
+    if (group) return `/cli/${group}/${cliMatch[1]}/`;
+  }
+  return routePath;
+}
+
+function relativeRoute(fromRoute, toRoute) {
+  const from = fromRoute.replace(/^\//, '').replace(/\/$/, '');
+  const to = toRoute.replace(/^\//, '').replace(/\/$/, '');
+  const rel = path.posix.relative(from || '.', to || '.');
+  if (!rel) return './';
+  const normalized = rel.startsWith('.') ? rel : `./${rel}`;
+  return `${normalized}/`;
+}
+
+function rewriteRelativeLinks(markdown, sourceRel) {
+  const sourceRoute = routePathForRel(sourceRel);
+  const organizedSourceRoute = routePathForRel(organizedRel(sourceRel));
+
+  return markdown.replace(/\]\(([^)]+)\)/g, (match, href) => {
+    if (
+      href.startsWith('#') ||
+      href.startsWith('/') ||
+      href.includes('://') ||
+      href.startsWith('mailto:') ||
+      href.startsWith('tel:')
+    ) {
+      return match;
+    }
+
+    const [pathPart, suffix = ''] = href.split(/(?=[?#])/, 2);
+    if (!pathPart || pathPart.startsWith('#')) return match;
+
+    const resolved = new URL(pathPart, `https://docs.gormes.ai${sourceRoute}`).pathname;
+    const organizedTarget = organizedRouteForPath(resolved);
+    if (organizedTarget === resolved && organizedSourceRoute === sourceRoute) return match;
+
+    return `](${relativeRoute(organizedSourceRoute, organizedTarget)}${suffix})`;
+  });
+}
+
 function transformFrontmatter(frontmatter, sourceRel) {
   const lines = frontmatter.split(/\r?\n/);
   const out = [];
@@ -196,11 +271,11 @@ export function transformMarkdown(raw, sourceRel) {
   const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---(\r?\n[\s\S]*)$/);
   if (!match) {
     const title = titleFromMarkdown(raw, sourceRel);
-    return `---\ntitle: ${JSON.stringify(title)}\neditUrl: ${editUrlForSourceRel(sourceRel)}\n---\n\n${raw}`;
+    return `---\ntitle: ${JSON.stringify(title)}\neditUrl: ${editUrlForSourceRel(sourceRel)}\n---\n\n${rewriteRelativeLinks(raw, sourceRel)}`;
   }
 
   const frontmatter = transformFrontmatter(match[1], sourceRel);
-  return `---\n${frontmatter}\n---${match[2]}`;
+  return `---\n${frontmatter}\n---${rewriteRelativeLinks(match[2], sourceRel)}`;
 }
 
 function titleFromMarkdown(raw, sourceRel) {

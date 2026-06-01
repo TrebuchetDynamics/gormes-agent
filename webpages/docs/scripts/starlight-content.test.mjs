@@ -58,6 +58,28 @@ test('upstream Hermes feature docs target responsibility subfolders', () => {
   );
 });
 
+test('CLI command docs target responsibility subfolders while preserving the CLI index', () => {
+  const sourceDir = path.join('repo', 'webpages', 'docs', 'content');
+  const targetDir = path.join('repo', 'webpages', 'docs', 'src', 'content', 'docs');
+
+  assert.equal(
+    targetPathForContentFile(sourceDir, targetDir, path.join(sourceDir, 'cli', '_index.md')),
+    path.join(targetDir, 'cli', 'index.md'),
+  );
+  assert.equal(
+    targetPathForContentFile(sourceDir, targetDir, path.join(sourceDir, 'cli', 'auth.md')),
+    path.join(targetDir, 'cli', 'setup', 'auth.md'),
+  );
+  assert.equal(
+    targetPathForContentFile(sourceDir, targetDir, path.join(sourceDir, 'cli', 'telegram.md')),
+    path.join(targetDir, 'cli', 'channels', 'telegram.md'),
+  );
+  assert.equal(
+    targetPathForContentFile(sourceDir, targetDir, path.join(sourceDir, 'cli', 'mcp.md')),
+    path.join(targetDir, 'cli', 'extensions', 'mcp.md'),
+  );
+});
+
 test('frontmatter aliases feed redirects without quotes', () => {
   const raw = `---\ntitle: Troubleshoot\naliases:\n  - /diagnose/\n  - '/doctor/'\n  - \"/logs/\"\n---\n\n# Troubleshoot\n`;
 
@@ -94,6 +116,19 @@ test('organized upstream Hermes feature docs redirect old public routes', async 
   });
 });
 
+test('organized CLI command docs redirect old public routes', async () => {
+  const contentDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gormes-doc-content-'));
+  const cliDir = path.join(contentDir, 'cli');
+  await fs.mkdir(cliDir, { recursive: true });
+  await fs.writeFile(path.join(cliDir, 'auth.md'), `---\ntitle: Auth\n---\n\n# Auth\n`);
+  await fs.writeFile(path.join(cliDir, 'telegram.md'), `---\ntitle: Telegram\n---\n\n# Telegram\n`);
+
+  assert.deepEqual(redirectsForContentDir(contentDir), {
+    '/cli/auth/': '/cli/setup/auth/',
+    '/cli/telegram/': '/cli/channels/telegram/',
+  });
+});
+
 test('markdown transform adds Starlight edit URLs and sidebar order', () => {
   const transformed = transformMarkdown(`---\ntitle: Install\nweight: 20\n---\n\n# Install\n`, 'install/_index.md');
 
@@ -113,4 +148,13 @@ test('markdown transform creates frontmatter for plain markdown', () => {
     transformed.includes('editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/operate/first-chat.md'),
     true,
   );
+});
+
+test('markdown transform rewrites relative links when CLI docs move into subfolders', () => {
+  const raw = `---\ntitle: Channels\n---\n\n[CLI](../) [gateway](../gateway/) [telegram guide](../../configure/telegram/)\n`;
+  const transformed = transformMarkdown(raw, 'cli/channels.md');
+
+  assert.equal(transformed.includes('[CLI](../../)'), true);
+  assert.equal(transformed.includes('[gateway](../../runtime/gateway/)'), true);
+  assert.equal(transformed.includes('[telegram guide](../../../configure/telegram/)'), true);
 });
