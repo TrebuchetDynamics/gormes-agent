@@ -398,7 +398,7 @@ file+line ref or explicit `missing`, and a classification.
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
 | MCP server | `mcp_serve.py` | `internal/mcpserver/` | covered | MCP stdio/HTTP server. |
-| MCP tool | `tools/mcp_tool.py` | `internal/tools/` | partial | Tool registration; sessions not proven. |
+| MCP tool | `tools/mcp_tool.py` | `internal/tools/mcp/boundary` | partial | Tool registration/audit has `mcp_host_unavailable` redacted evidence, but authenticated client-session preflight is not yet proven. Operator report 2026-06-01: Figma MCP burned tokens before reporting unauthenticated; next slice should fail closed before agent/tool budget when auth/session is missing. |
 | Plugin registry | `plugins/registry.py` | `internal/plugins/` | covered | Plugin manifest loader. |
 | ACP adapter | `acp_adapter/` | → `missing` | missing | Not ported. |
 
@@ -786,8 +786,8 @@ file+line ref or explicit `missing`, and a classification.
 |---|---|---|---|---|
 | MCP server stdio | `mcp_serve.py` | `internal/mcpserver/` | covered | MCP stdio server. |
 | MCP server HTTP | `mcp_serve.py` | `internal/mcpserver/` | covered | MCP HTTP transport. |
-| MCP tool (client-side) | `tools/mcp_tool.py` | `internal/tools/` | partial | Tool registration exists; sessions not proven. |
-| MCP OAuth flow | `tools/mcp_oauth*.py` | → `missing` | missing | Not ported. |
+| MCP tool (client-side) | `tools/mcp_tool.py` | `internal/tools/mcp/boundary` | partial | Tool registration and unavailable evidence exist; authenticated client sessions and token-burn prevention are not proven. |
+| MCP OAuth flow | `tools/mcp_oauth*.py`; `hermes_cli/mcp_config.py` `_oauth_tokens_present` | `internal/tools/mcp/login` | partial | Browser callback/token-exchange flow exists with redacted persistence tests, but parity still needs authenticated-session preflight/status wiring for tool execution. |
 | MCP managed gateway | `tools/managed_tool_gateway.py` | → `missing` | missing | Not ported. |
 | MCP config helpers | `hermes_cli/mcp_config.py` | `cmd/gormes/mcp.go` | covered | MCP config and login. |
 
