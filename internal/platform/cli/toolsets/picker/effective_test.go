@@ -1,4 +1,4 @@
-package toolsets
+package picker
 
 import (
 	"os"
@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/toolsets/platformconfig"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -124,7 +125,7 @@ def _handle_ambient_play(args):
 		t.Fatalf("plugin toolset was not appended after built-in rows: %v", keys)
 	}
 
-	cfg := PlatformToolsetConfig{PlatformToolsets: map[string][]string{
+	cfg := platformconfig.PlatformToolsetConfig{PlatformToolsets: map[string][]string{
 		"cli": {"spotify", "spotify", "ambient_audio"},
 	}}
 	status, err := cfg.PlatformStatus("cli")
@@ -213,7 +214,7 @@ func countString(values []string, want string) int {
 	return count
 }
 
-func assertEffectiveToolsetIssue(t *testing.T, issues []PlatformToolsetIssue, kind PlatformToolsetIssueKind, toolset string) {
+func assertEffectiveToolsetIssue(t *testing.T, issues []platformconfig.PlatformToolsetIssue, kind platformconfig.PlatformToolsetIssueKind, toolset string) {
 	t.Helper()
 	for _, issue := range issues {
 		if issue.Kind == kind && issue.Toolset == toolset {

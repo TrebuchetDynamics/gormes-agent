@@ -1,4 +1,4 @@
-package toolsets
+package platformconfig
 
 import (
 	"reflect"

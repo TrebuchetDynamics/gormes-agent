@@ -1,4 +1,4 @@
-package toolsets
+package platformconfig
 
 import (
 	"reflect"
@@ -339,4 +339,14 @@ func assertNotContains(t *testing.T, values []string, unwanted string) {
 			t.Fatalf("%v unexpectedly contains %q", values, unwanted)
 		}
 	}
+}
+
+func countString(values []string, want string) int {
+	count := 0
+	for _, value := range values {
+		if value == want {
+			count++
+		}
+	}
+	return count
 }
