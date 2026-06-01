@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/plannerloop/ledgerlog"
 )
 
 // DefaultMaxRetries is the default number of follow-up LLM calls the planner
@@ -17,12 +18,7 @@ const DefaultMaxRetries = 2
 // retryAttempt records one LLM call's lifecycle for ledger forensics. Stored
 // on LedgerEvent.Attempts so operators can see exactly which attempt failed
 // and which rows were dropped at each step without having to grep raw logs.
-type retryAttempt struct {
-	Index       int      `json:"index"`
-	Status      string   `json:"status"` // "ok" | "validation_rejected" | "backend_failed"
-	Detail      string   `json:"detail,omitempty"`
-	DroppedRows []string `json:"dropped_rows,omitempty"`
-}
+type retryAttempt = ledgerlog.RetryAttempt
 
 // RetryFeedback formats a one-paragraph correction prompt for the LLM after
 // validateHealthPreservation rejects a regen. Names the dropped rows

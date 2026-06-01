@@ -1,7 +1,8 @@
-package plannerloop
+package reshapeforensics
 
 import (
 	"encoding/json"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/plannerloop/ledgerlog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,9 +18,9 @@ func TestEvaluate_UnstuckRowDetected(t *testing.T) {
 	reshapeTS := now.Add(-2 * time.Hour)
 
 	// Planner reshaped row.
-	if err := AppendLedgerEvent(plannerLedger, LedgerEvent{
+	if err := ledgerlog.AppendLedgerEvent(plannerLedger, ledgerlog.LedgerEvent{
 		TS: reshapeTS.Format(time.RFC3339), RunID: "planner-1", Status: "ok",
-		RowsChanged: []RowChange{{PhaseID: "2", SubphaseID: "2.B", ItemName: "row-1", Kind: "spec_changed"}},
+		RowsChanged: []ledgerlog.RowChange{{PhaseID: "2", SubphaseID: "2.B", ItemName: "row-1", Kind: "spec_changed"}},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -56,9 +57,9 @@ func TestEvaluate_IgnoresBuilderJobTelemetryFields(t *testing.T) {
 	now := time.Date(2026, 4, 25, 12, 0, 0, 0, time.UTC)
 	reshapeTS := now.Add(-2 * time.Hour)
 
-	if err := AppendLedgerEvent(plannerLedger, LedgerEvent{
+	if err := ledgerlog.AppendLedgerEvent(plannerLedger, ledgerlog.LedgerEvent{
 		TS: reshapeTS.Format(time.RFC3339), RunID: "planner-1", Status: "ok",
-		RowsChanged: []RowChange{{PhaseID: "2", SubphaseID: "2.B", ItemName: "row-1", Kind: "spec_changed"}},
+		RowsChanged: []ledgerlog.RowChange{{PhaseID: "2", SubphaseID: "2.B", ItemName: "row-1", Kind: "spec_changed"}},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -99,9 +100,9 @@ func TestEvaluate_StillFailingDetected(t *testing.T) {
 	now := time.Date(2026, 4, 25, 12, 0, 0, 0, time.UTC)
 	reshapeTS := now.Add(-2 * time.Hour)
 
-	if err := AppendLedgerEvent(plannerLedger, LedgerEvent{
+	if err := ledgerlog.AppendLedgerEvent(plannerLedger, ledgerlog.LedgerEvent{
 		TS: reshapeTS.Format(time.RFC3339), RunID: "planner-1", Status: "ok",
-		RowsChanged: []RowChange{{PhaseID: "2", SubphaseID: "2.B", ItemName: "row-1", Kind: "spec_changed"}},
+		RowsChanged: []ledgerlog.RowChange{{PhaseID: "2", SubphaseID: "2.B", ItemName: "row-1", Kind: "spec_changed"}},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -139,9 +140,9 @@ func TestEvaluate_NoAttemptsYet(t *testing.T) {
 	autoloopLedger := filepath.Join(dir, "autoloop.jsonl")
 	now := time.Now().UTC()
 
-	if err := AppendLedgerEvent(plannerLedger, LedgerEvent{
+	if err := ledgerlog.AppendLedgerEvent(plannerLedger, ledgerlog.LedgerEvent{
 		TS: now.Add(-time.Hour).Format(time.RFC3339), RunID: "planner-1", Status: "ok",
-		RowsChanged: []RowChange{{PhaseID: "2", SubphaseID: "2.B", ItemName: "row-1", Kind: "spec_changed"}},
+		RowsChanged: []ledgerlog.RowChange{{PhaseID: "2", SubphaseID: "2.B", ItemName: "row-1", Kind: "spec_changed"}},
 	}); err != nil {
 		t.Fatal(err)
 	}

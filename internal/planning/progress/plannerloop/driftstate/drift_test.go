@@ -1,4 +1,4 @@
-package plannerloop
+package driftstate
 
 import (
 	"testing"
@@ -18,7 +18,7 @@ func TestDiffSubphaseStates_RecordsForwardTransitions(t *testing.T) {
 	after.Phases["1"].Subphases["2.B"].DriftState.OriginDecision = "matches upstream"
 	after.Phases["1"].Subphases["5.O"].DriftState.OriginDecision = "Gormes-owned planner surface"
 
-	got := diffSubphaseStates(before, after)
+	got := DiffSubphaseStates(before, after)
 	if len(got) != 2 {
 		t.Fatalf("diffSubphaseStates() len = %d, want 2: %+v", len(got), got)
 	}
@@ -40,7 +40,7 @@ func TestDiffSubphaseStates_IgnoresBackwardOrUnchangedTransitions(t *testing.T) 
 		"5.O": "converged",
 	})
 
-	if got := diffSubphaseStates(before, after); len(got) != 0 {
+	if got := DiffSubphaseStates(before, after); len(got) != 0 {
 		t.Fatalf("diffSubphaseStates() = %+v, want no promotions", got)
 	}
 }

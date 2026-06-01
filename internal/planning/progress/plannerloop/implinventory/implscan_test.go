@@ -1,4 +1,4 @@
-package plannerloop
+package implinventory
 
 import (
 	"os"
@@ -132,7 +132,7 @@ func TestComputeOwnedSubphases_AllWriteScopesUnderOriginalPrefixes(t *testing.T)
 		},
 	}
 
-	got := computeOwnedSubphases(prog, []string{"internal/progress/plannerloop/", "cmd/progress/"})
+	got := ComputeOwnedSubphases(prog, []string{"internal/progress/plannerloop/", "cmd/progress/"})
 	if len(got) != 1 || got[0] != "5.O" {
 		t.Fatalf("computeOwnedSubphases() = %v, want [5.O]", got)
 	}

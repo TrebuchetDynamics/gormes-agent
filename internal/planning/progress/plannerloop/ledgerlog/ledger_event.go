@@ -1,4 +1,4 @@
-package plannerloop
+package ledgerlog
 
 import (
 	"encoding/json"
@@ -32,7 +32,7 @@ type AutoloopLedgerEvent struct {
 	StderrBytes int    `json:"stderr_bytes,omitempty"`
 }
 
-func appendAutoloopLedgerEvent(path string, event AutoloopLedgerEvent) error {
+func AppendAutoloopLedgerEvent(path string, event AutoloopLedgerEvent) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
