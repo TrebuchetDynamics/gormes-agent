@@ -1,4 +1,4 @@
-package backup
+package restore
 
 import (
 	"archive/zip"
@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/backup/archive"
 )
 
 // TestRestoreFromZip_ExtractsAllEntries proves the rollback path: a
@@ -21,7 +23,7 @@ func TestRestoreFromZip_ExtractsAllEntries(t *testing.T) {
 	mustWrite(t, filepath.Join(srcDir, "memory/USER.md"), "user memory\n")
 
 	zipPath := filepath.Join(t.TempDir(), "pre-update-x.zip")
-	if _, err := WriteBackupZip(context.Background(), srcDir, zipPath); err != nil {
+	if _, err := archive.WriteBackupZip(context.Background(), srcDir, zipPath); err != nil {
 		t.Fatalf("WriteBackupZip: %v", err)
 	}
 
@@ -58,7 +60,7 @@ func TestRestoreFromZip_OverwritesExistingFiles(t *testing.T) {
 	mustWrite(t, filepath.Join(srcDir, "config.toml"), "[hermes]\nmodel = \"good\"\n")
 
 	zipPath := filepath.Join(t.TempDir(), "pre-update-x.zip")
-	if _, err := WriteBackupZip(context.Background(), srcDir, zipPath); err != nil {
+	if _, err := archive.WriteBackupZip(context.Background(), srcDir, zipPath); err != nil {
 		t.Fatalf("WriteBackupZip: %v", err)
 	}
 
@@ -176,7 +178,7 @@ func TestValidateRestoreZip_AcceptsRealBackup(t *testing.T) {
 	srcDir := t.TempDir()
 	mustWrite(t, filepath.Join(srcDir, "config.toml"), "x")
 	zipPath := filepath.Join(t.TempDir(), "pre-update-x.zip")
-	if _, err := WriteBackupZip(context.Background(), srcDir, zipPath); err != nil {
+	if _, err := archive.WriteBackupZip(context.Background(), srcDir, zipPath); err != nil {
 		t.Fatalf("WriteBackupZip: %v", err)
 	}
 	if err := ValidateRestoreZip(zipPath); err != nil {
@@ -295,7 +297,7 @@ func TestSummarizeRestoreZipImpact_ClassifiesEntries(t *testing.T) {
 	mustWrite(t, filepath.Join(srcDir, "memory/USER.md"), "user memory\n")
 
 	zipPath := filepath.Join(t.TempDir(), "pre-update-x.zip")
-	if _, err := WriteBackupZip(context.Background(), srcDir, zipPath); err != nil {
+	if _, err := archive.WriteBackupZip(context.Background(), srcDir, zipPath); err != nil {
 		t.Fatalf("WriteBackupZip: %v", err)
 	}
 
@@ -364,7 +366,7 @@ func TestWriteBackupZip_PopulatesFileCount(t *testing.T) {
 	}
 
 	zipPath := filepath.Join(t.TempDir(), "pre-update-x.zip")
-	res, err := WriteBackupZip(context.Background(), srcDir, zipPath)
+	res, err := archive.WriteBackupZip(context.Background(), srcDir, zipPath)
 	if err != nil {
 		t.Fatalf("WriteBackupZip: %v", err)
 	}
