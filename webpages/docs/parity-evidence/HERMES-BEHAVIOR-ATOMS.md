@@ -75,7 +75,7 @@ file+line ref or explicit `missing`, and a classification.
 | Timestamp/model/provider metadata | `run_agent.py` `:3770-3779` | `internal/llm/turn_metadata.go` | covered | Block assembly exists. |
 | Platform/session context | `gateway/run.py` `BuildSessionContextPrompt` | `internal/gateway/` | covered | Session context built. |
 | Developer role swap (GPT-5/Codex) | upstream provider tests | `internal/llm/model_guidance.go` | partial | Helper exists; no API-boundary test. |
-| Tool-use enforcement guidance | `agent/system_prompt.py` `build_system_prompt_parts` | `internal/gateway/live_turn_prompt.go` `buildToolUseEnforcementBlock` | covered | Wired into assembleLiveTurnPrompt; injects when model substring matches ToolUseEnforcementModels (gpt, codex, gemini, gemma, grok, glm). |
+| Tool-use enforcement guidance | `agent/prompt_builder.py` `TOOL_USE_ENFORCEMENT_MODELS`; `agent/system_prompt.py` `build_system_prompt_parts` | `internal/llm/guidance/text/constants.go`; `internal/gateway/liveprompt/liveprompt.go` `buildToolUseEnforcementBlock` | covered | Constants match upstream and live prompt injection uses substring matches for ToolUseEnforcementModels (gpt, codex, gemini, gemma, grok, glm, qwen, deepseek). |
 | Memory guidance | `agent/prompt_builder.py` `MEMORY_GUIDANCE` | `internal/llm/guidance_constants.go` | covered | Byte-equivalent constant ported. |
 | Skills guidance constant | `agent/prompt_builder.py` `SKILLS_GUIDANCE` | `internal/llm/guidance_constants.go` | covered | Byte-equivalent constant ported. |
 

@@ -49,7 +49,7 @@ test:
 	go test ./... -count=1
 
 test-integration:
-	go test ./internal/provider/router ./internal/support/testutil/... ./internal/persistence/session ./internal/memory ./internal/gateway ./internal/adapters/channels/... -run 'Test.*(Contract|Integration|Fake|Fixture|SQLite|Gateway|Webhook|Migration|Dashboard|Navivox)' -count=1
+	go test ./internal/provider/router ./internal/support/testutil/... ./internal/persistence/session ./internal/memory ./internal/gateway ./internal/adapters/channels/... ./internal/tools/... ./internal/llm/learning -run 'Test.*(Contract|Integration|Fake|Fixture|SQLite|Gateway|Webhook|Migration|Dashboard|Navivox|Tool|Schema|Learning)' -count=1
 
 test-e2e:
 	go test ./cmd/gormes ./internal/support/e2e ./internal/tui -run 'Test.*(E2E|EndToEnd|WideE2E|MultiTurn)' -count=1

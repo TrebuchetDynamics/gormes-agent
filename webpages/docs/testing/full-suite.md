@@ -45,6 +45,24 @@ Real OpenAI/Anthropic/Nous/OpenRouter/Ollama credentials are manual-only. A test
 that needs one must be behind an explicit live/manual gate and skipped by
 default.
 
+## Coverage topics
+
+Every Hermes feature family should have at least one fast contract/integration
+check before it gets a broad E2E journey:
+
+| Topic | Fast layer | Wide/user layer |
+|---|---|---|
+| Providers/chat | Fake OpenAI-compatible provider contract and router tests. | Setup fake key/model, then fake-provider chat or in-process LLM E2E. |
+| Gateway | Command registry, fake webhook, status/reload/logs contracts. | Gateway status/probe/logs journey with no live platform tokens. |
+| Channels | Per-adapter formatting/capability tests with fake transports. | Channel capability matrix and selected fake webhook delivery. |
+| Tools | Tool descriptor/schema validation and execution fixtures. | Chat/tool-loop E2E with mock tool calls and clean final output. |
+| Skills | Registry/sync tests and fixture skill roots. | Bootstrap journey verifies skill inventory and forced-skill chat behavior. |
+| Memory/sessions | SQLite persistence and recall ranking tests. | Restart-style E2E proves sessions/memory survive reopening. |
+| Learning loop/curator | Learning signal and curator state tests. | Curator status/dry-run in the fresh-user bootstrap journey. |
+| Navivox | Descriptor/token contract tests. | Pairing command emits QR/token/URL-safe connection details. |
+| Dashboard/API | HTTP handler auth/health contracts. | Dashboard health/status smoke with ephemeral token. |
+| Installer/release | Installer plan/output and asset/checksum contracts. | Sandbox install/uninstall dry-run only; no production state writes. |
+
 ## Required E2E scenarios
 
 | ID | Scenario | CI shape |
