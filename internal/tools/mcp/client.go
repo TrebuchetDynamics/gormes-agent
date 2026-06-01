@@ -3,7 +3,6 @@ package mcp
 import (
 	"context"
 	"encoding/json"
-	"errors"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/callresult"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/circuit"
@@ -38,24 +37,10 @@ func NewCircuitBreaker(opts CircuitBreakerOptions) *CircuitBreaker {
 	return circuit.NewBreaker(opts)
 }
 
-type ToolCallFunc func(context.Context) (CallResult, error)
+type ToolCallFunc = circuit.ToolCallFunc
 
 func CallWithCircuitBreaker(ctx context.Context, breaker *CircuitBreaker, server string, call ToolCallFunc) (CallResult, CircuitEvidence, error) {
-	if call == nil {
-		err := errors.New("mcp call: nil tool call")
-		return CallResult{}, CircuitEvidenceServerUnreachable, err
-	}
-	if allow, evidence := breaker.BeforeCall(server); !allow {
-		return CallResult{}, evidence, ErrBreakerOpen
-	}
-	result, err := call(ctx)
-	if err != nil {
-		return result, breaker.RecordFailure(server, err), err
-	}
-	if result.IsError {
-		return result, breaker.RecordFailure(server, errors.New("mcp tool reported isError")), nil
-	}
-	return result, breaker.RecordSuccess(server), nil
+	return circuit.CallWithBreaker(ctx, breaker, server, call)
 }
 
 type LifecycleEvent = lifecycle.Event

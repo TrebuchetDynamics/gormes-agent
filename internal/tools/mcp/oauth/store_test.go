@@ -1,4 +1,4 @@
-package mcp
+package oauth
 
 import (
 	"errors"
@@ -7,22 +7,22 @@ import (
 	"time"
 )
 
-func TestMCPOAuthStore_AbsentByDefault(t *testing.T) {
-	store := NewMCPOAuthStore()
+func TestStoreAbsentByDefault(t *testing.T) {
+	store := NewStore()
 	t0 := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
 
 	got := store.StatusFor("srv", t0)
 
-	want := MCPOAuthStatus{Server: "srv", State: "absent", Evidence: "no_token"}
+	want := Status{Server: "srv", State: "absent", Evidence: "no_token"}
 	if got != want {
 		t.Fatalf("StatusFor(absent) = %+v, want %+v", got, want)
 	}
 }
 
-func TestMCPOAuthStore_SetGetRoundTrip(t *testing.T) {
-	store := NewMCPOAuthStore()
+func TestStoreSetGetRoundTrip(t *testing.T) {
+	store := NewStore()
 	t0 := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
-	tok := MCPOAuthToken{
+	tok := Token{
 		AccessToken:  "access-1",
 		RefreshToken: "refresh-1",
 		Scope:        "read",
@@ -50,10 +50,10 @@ func TestMCPOAuthStore_SetGetRoundTrip(t *testing.T) {
 	}
 }
 
-func TestMCPOAuthStore_ExpiredWhenPastExpiresAt(t *testing.T) {
-	store := NewMCPOAuthStore()
+func TestStoreExpiredWhenPastExpiresAt(t *testing.T) {
+	store := NewStore()
 	t0 := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
-	if err := store.Set("srv", MCPOAuthToken{
+	if err := store.Set("srv", Token{
 		AccessToken: "access-1",
 		ExpiresAt:   t0.Add(-time.Minute),
 	}); err != nil {
@@ -70,10 +70,10 @@ func TestMCPOAuthStore_ExpiredWhenPastExpiresAt(t *testing.T) {
 	}
 }
 
-func TestMCPOAuthStore_ValidWhenFutureExpiresAt(t *testing.T) {
-	store := NewMCPOAuthStore()
+func TestStoreValidWhenFutureExpiresAt(t *testing.T) {
+	store := NewStore()
 	t0 := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
-	if err := store.Set("srv", MCPOAuthToken{
+	if err := store.Set("srv", Token{
 		AccessToken: "access-1",
 		ExpiresAt:   t0.Add(time.Hour),
 	}); err != nil {
@@ -90,12 +90,12 @@ func TestMCPOAuthStore_ValidWhenFutureExpiresAt(t *testing.T) {
 	}
 }
 
-func TestMCPOAuthStore_StatusRedactsSecrets(t *testing.T) {
-	store := NewMCPOAuthStore()
+func TestStoreStatusRedactsSecrets(t *testing.T) {
+	store := NewStore()
 	t0 := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
 	const accessSecret = "sk-abc-secret"
 	const refreshSecret = "rt-xyz-secret"
-	if err := store.Set("srv", MCPOAuthToken{
+	if err := store.Set("srv", Token{
 		AccessToken:  accessSecret,
 		RefreshToken: refreshSecret,
 		ExpiresAt:    t0.Add(time.Hour),
@@ -120,16 +120,15 @@ func TestMCPOAuthStore_StatusRedactsSecrets(t *testing.T) {
 	}
 }
 
-func TestMCPOAuthStore_NoninteractiveErrorClass(t *testing.T) {
-	if ErrMCPOAuthNoninteractiveRequired == nil {
-		t.Fatalf("ErrMCPOAuthNoninteractiveRequired must be a non-nil exported error")
+func TestStoreNoninteractiveErrorClass(t *testing.T) {
+	if ErrNoninteractiveRequired == nil {
+		t.Fatalf("ErrNoninteractiveRequired must be a non-nil exported error")
 	}
-	// Sanity: it should also satisfy errors.Is against itself.
-	if !errors.Is(ErrMCPOAuthNoninteractiveRequired, ErrMCPOAuthNoninteractiveRequired) {
-		t.Fatalf("ErrMCPOAuthNoninteractiveRequired should match itself via errors.Is")
+	if !errors.Is(ErrNoninteractiveRequired, ErrNoninteractiveRequired) {
+		t.Fatalf("ErrNoninteractiveRequired should match itself via errors.Is")
 	}
 
-	store := NewMCPOAuthStore().WithNoninteractive(true)
+	store := NewStore().WithNoninteractive(true)
 	t0 := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
 
 	got := store.StatusFor("srv", t0)

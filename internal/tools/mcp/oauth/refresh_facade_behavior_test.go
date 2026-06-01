@@ -1,4 +1,4 @@
-package mcp
+package oauth
 
 import (
 	"context"
@@ -7,35 +7,35 @@ import (
 	"time"
 )
 
-type fakeMCPRefresher struct {
+type recordingRefresher struct {
 	calls        int
 	refreshToken string
-	nextToken    MCPOAuthToken
+	nextToken    Token
 	err          error
 }
 
-func (f *fakeMCPRefresher) Refresh(ctx context.Context, refreshToken string) (MCPOAuthToken, error) {
+func (f *recordingRefresher) Refresh(ctx context.Context, refreshToken string) (Token, error) {
 	f.calls++
 	f.refreshToken = refreshToken
 	return f.nextToken, f.err
 }
 
-func TestRefreshMCPOAuth_StillValidNoOp(t *testing.T) {
+func TestRefreshStillValidNoOp(t *testing.T) {
 	now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
-	store := NewMCPOAuthStore()
-	if err := store.Set("srv", MCPOAuthToken{
+	store := NewStore()
+	if err := store.Set("srv", Token{
 		AccessToken:  "access-1",
 		RefreshToken: "refresh-1",
 		ExpiresAt:    now.Add(time.Hour),
 	}); err != nil {
 		t.Fatalf("Set returned error: %v", err)
 	}
-	refresher := &fakeMCPRefresher{}
+	refresher := &recordingRefresher{}
 
-	got, err := RefreshMCPOAuth(context.Background(), store, "srv", refresher, now)
+	got, err := Refresh(context.Background(), store, "srv", refresher, now)
 
 	if err != nil {
-		t.Fatalf("RefreshMCPOAuth returned error: %v", err)
+		t.Fatalf("Refresh returned error: %v", err)
 	}
 	if got.Outcome != "still_valid" {
 		t.Fatalf("Outcome = %q, want %q", got.Outcome, "still_valid")
@@ -45,10 +45,10 @@ func TestRefreshMCPOAuth_StillValidNoOp(t *testing.T) {
 	}
 }
 
-func TestRefreshMCPOAuth_RefreshesWhenExpired(t *testing.T) {
+func TestRefreshRefreshesWhenExpired(t *testing.T) {
 	now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
-	store := NewMCPOAuthStore()
-	if err := store.Set("srv", MCPOAuthToken{
+	store := NewStore()
+	if err := store.Set("srv", Token{
 		AccessToken:  "access-1",
 		RefreshToken: "refresh-1",
 		Scope:        "old-scope",
@@ -57,19 +57,19 @@ func TestRefreshMCPOAuth_RefreshesWhenExpired(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Set returned error: %v", err)
 	}
-	wantToken := MCPOAuthToken{
+	wantToken := Token{
 		AccessToken:  "access-2",
 		RefreshToken: "refresh-2",
 		Scope:        "new-scope",
 		Issuer:       "https://new.example.test",
 		ExpiresAt:    now.Add(time.Hour),
 	}
-	refresher := &fakeMCPRefresher{nextToken: wantToken}
+	refresher := &recordingRefresher{nextToken: wantToken}
 
-	got, err := RefreshMCPOAuth(context.Background(), store, "srv", refresher, now)
+	got, err := Refresh(context.Background(), store, "srv", refresher, now)
 
 	if err != nil {
-		t.Fatalf("RefreshMCPOAuth returned error: %v", err)
+		t.Fatalf("Refresh returned error: %v", err)
 	}
 	if got.Outcome != "refreshed" {
 		t.Fatalf("Outcome = %q, want %q", got.Outcome, "refreshed")
@@ -89,22 +89,22 @@ func TestRefreshMCPOAuth_RefreshesWhenExpired(t *testing.T) {
 	}
 }
 
-func TestRefreshMCPOAuth_ClearsOnRefresherError(t *testing.T) {
+func TestRefreshClearsOnRefresherError(t *testing.T) {
 	now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
-	store := NewMCPOAuthStore()
-	if err := store.Set("srv", MCPOAuthToken{
+	store := NewStore()
+	if err := store.Set("srv", Token{
 		AccessToken:  "access-1",
 		RefreshToken: "refresh-1",
 		ExpiresAt:    now.Add(-time.Minute),
 	}); err != nil {
 		t.Fatalf("Set returned error: %v", err)
 	}
-	refresher := &fakeMCPRefresher{err: ErrMCPOAuthSessionExpired}
+	refresher := &recordingRefresher{err: ErrSessionExpired}
 
-	got, err := RefreshMCPOAuth(context.Background(), store, "srv", refresher, now)
+	got, err := Refresh(context.Background(), store, "srv", refresher, now)
 
 	if err != nil {
-		t.Fatalf("RefreshMCPOAuth returned error: %v", err)
+		t.Fatalf("Refresh returned error: %v", err)
 	}
 	if got.Outcome != "token_cleared" {
 		t.Fatalf("Outcome = %q, want %q", got.Outcome, "token_cleared")
@@ -114,21 +114,21 @@ func TestRefreshMCPOAuth_ClearsOnRefresherError(t *testing.T) {
 	}
 }
 
-func TestRefreshMCPOAuth_NoninteractiveWhenNoRefreshToken(t *testing.T) {
+func TestRefreshNoninteractiveWhenNoRefreshToken(t *testing.T) {
 	now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
-	store := NewMCPOAuthStore().WithNoninteractive(true)
-	if err := store.Set("srv", MCPOAuthToken{
+	store := NewStore().WithNoninteractive(true)
+	if err := store.Set("srv", Token{
 		AccessToken: "access-1",
 		ExpiresAt:   now.Add(-time.Minute),
 	}); err != nil {
 		t.Fatalf("Set returned error: %v", err)
 	}
-	refresher := &fakeMCPRefresher{}
+	refresher := &recordingRefresher{}
 
-	got, err := RefreshMCPOAuth(context.Background(), store, "srv", refresher, now)
+	got, err := Refresh(context.Background(), store, "srv", refresher, now)
 
-	if !errors.Is(err, ErrMCPOAuthNoninteractiveRequired) {
-		t.Fatalf("RefreshMCPOAuth error = %v, want errors.Is ErrMCPOAuthNoninteractiveRequired", err)
+	if !errors.Is(err, ErrNoninteractiveRequired) {
+		t.Fatalf("Refresh error = %v, want errors.Is ErrNoninteractiveRequired", err)
 	}
 	if got.Outcome != "noninteractive_required" {
 		t.Fatalf("Outcome = %q, want %q", got.Outcome, "noninteractive_required")
@@ -138,10 +138,10 @@ func TestRefreshMCPOAuth_NoninteractiveWhenNoRefreshToken(t *testing.T) {
 	}
 }
 
-func TestRefreshMCPOAuth_RefresherUnavailable(t *testing.T) {
+func TestRefreshRefresherUnavailable(t *testing.T) {
 	now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
-	store := NewMCPOAuthStore()
-	wantToken := MCPOAuthToken{
+	store := NewStore()
+	wantToken := Token{
 		AccessToken:  "access-1",
 		RefreshToken: "refresh-1",
 		Scope:        "read",
@@ -152,10 +152,10 @@ func TestRefreshMCPOAuth_RefresherUnavailable(t *testing.T) {
 		t.Fatalf("Set returned error: %v", err)
 	}
 
-	got, err := RefreshMCPOAuth(context.Background(), store, "srv", nil, now)
+	got, err := Refresh(context.Background(), store, "srv", nil, now)
 
 	if err != nil {
-		t.Fatalf("RefreshMCPOAuth returned error: %v", err)
+		t.Fatalf("Refresh returned error: %v", err)
 	}
 	if got.Outcome != "refresher_unavailable" {
 		t.Fatalf("Outcome = %q, want %q", got.Outcome, "refresher_unavailable")

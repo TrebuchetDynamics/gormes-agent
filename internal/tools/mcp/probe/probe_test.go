@@ -1,61 +1,43 @@
-package mcp
+package probe
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/descriptor"
 )
 
-func TestServerLifecycleEventShutdownWins(t *testing.T) {
-	lifecycle := NewServerLifecycle()
-	lifecycle.SignalReconnect()
-
-	if got := lifecycle.NextEvent(); got != LifecycleEventReconnect {
-		t.Fatalf("NextEvent = %q, want %q", got, LifecycleEventReconnect)
-	}
-	if lifecycle.ReconnectPending() {
-		t.Fatal("ReconnectPending = true after reconnect event was consumed")
-	}
-
-	lifecycle.SignalReconnect()
-	lifecycle.SignalShutdown()
-	if got := lifecycle.NextEvent(); got != LifecycleEventShutdown {
-		t.Fatalf("NextEvent with both events = %q, want %q", got, LifecycleEventShutdown)
-	}
-	if lifecycle.ReconnectPending() {
-		t.Fatal("ReconnectPending = true after shutdown won over reconnect")
-	}
-}
-
-type fakeProbeSession struct {
-	tools  []RawTool
+type fakeSession struct {
+	tools  []descriptor.RawTool
 	err    error
 	closed bool
 }
 
-func (s *fakeProbeSession) ListTools(context.Context) ([]RawTool, error) {
+func (s *fakeSession) ListTools(context.Context) ([]descriptor.RawTool, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
 	return s.tools, nil
 }
 
-func (s *fakeProbeSession) Close() error {
+func (s *fakeSession) Close() error {
 	s.closed = true
 	return nil
 }
 
-func TestMCPProbeSkipsDisabledAndCleansUp(t *testing.T) {
-	good := &fakeProbeSession{tools: []RawTool{{Name: "ok", Description: "works"}}}
-	broken := &fakeProbeSession{err: errors.New("boom")}
+func TestServerToolsSkipsDisabledAndCleansUp(t *testing.T) {
+	good := &fakeSession{tools: []descriptor.RawTool{{Name: "ok", Description: "works"}}}
+	broken := &fakeSession{err: errors.New("boom")}
 	var connected []string
 
-	result := ProbeServerTools(context.Background(), []MCPServerDefinition{
+	result := ServerTools(context.Background(), []config.MCPServerDefinition{
 		{Name: "github", Enabled: true},
 		{Name: "disabled", Enabled: false},
 		{Name: "broken", Enabled: true},
-	}, func(_ context.Context, def MCPServerDefinition) (ProbeSession, error) {
+	}, func(_ context.Context, def config.MCPServerDefinition) (Session, error) {
 		connected = append(connected, def.Name)
 		switch def.Name {
 		case "github":
@@ -88,15 +70,15 @@ func TestMCPProbeSkipsDisabledAndCleansUp(t *testing.T) {
 	}
 }
 
-func TestMCPProbeKeepsFirstDuplicateServerProvenance(t *testing.T) {
+func TestServerToolsKeepsFirstDuplicateServerProvenance(t *testing.T) {
 	var connected []string
 
-	result := ProbeServerTools(context.Background(), []MCPServerDefinition{
+	result := ServerTools(context.Background(), []config.MCPServerDefinition{
 		{Name: "github", Enabled: true, Command: "first"},
 		{Name: "github", Enabled: true, Command: "second"},
-	}, func(_ context.Context, def MCPServerDefinition) (ProbeSession, error) {
+	}, func(_ context.Context, def config.MCPServerDefinition) (Session, error) {
 		connected = append(connected, def.Command)
-		return &fakeProbeSession{tools: []RawTool{{Name: def.Command}}}, nil
+		return &fakeSession{tools: []descriptor.RawTool{{Name: def.Command}}}, nil
 	})
 
 	if len(connected) != 1 || connected[0] != "first" {
@@ -108,11 +90,11 @@ func TestMCPProbeKeepsFirstDuplicateServerProvenance(t *testing.T) {
 	}
 }
 
-func TestMCPProbeCopiesRawToolSchemas(t *testing.T) {
+func TestServerToolsCopiesRawToolSchemas(t *testing.T) {
 	schema := json.RawMessage(`{"type":"object"}`)
-	session := &fakeProbeSession{tools: []RawTool{{Name: "ok", InputSchema: schema}}}
+	session := &fakeSession{tools: []descriptor.RawTool{{Name: "ok", InputSchema: schema}}}
 
-	result := ProbeServerTools(context.Background(), []MCPServerDefinition{{Name: "github", Enabled: true}}, func(context.Context, MCPServerDefinition) (ProbeSession, error) {
+	result := ServerTools(context.Background(), []config.MCPServerDefinition{{Name: "github", Enabled: true}}, func(context.Context, config.MCPServerDefinition) (Session, error) {
 		return session, nil
 	})
 	schema[0] = '['

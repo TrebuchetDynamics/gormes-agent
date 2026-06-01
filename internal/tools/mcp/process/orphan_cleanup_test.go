@@ -1,11 +1,11 @@
-package mcp
+package process
 
 import (
 	"slices"
 	"testing"
 )
 
-func TestMCPOrphanCleanup_ReapsOnlyOrphansAfterCronTick(t *testing.T) {
+func TestOrphanCleanupReapsOnlyOrphansAfterCronTick(t *testing.T) {
 	const (
 		activePID = 101
 		orphanPID = 202
@@ -34,11 +34,11 @@ func TestMCPOrphanCleanup_ReapsOnlyOrphansAfterCronTick(t *testing.T) {
 	if _, ok := snap.Orphaned[orphanPID]; ok {
 		t.Fatalf("orphan pid %d still tracked after reap: %#v", orphanPID, snap.Orphaned)
 	}
-	assertMCPProcessEvent(t, events, MCPOrphanReaped, orphanPID)
-	assertMCPProcessEvent(t, events, MCPActivePIDPreserved, activePID)
+	assertProcessEvent(t, events, MCPOrphanReaped, orphanPID)
+	assertProcessEvent(t, events, MCPActivePIDPreserved, activePID)
 }
 
-func TestMCPOrphanCleanup_ShutdownIncludesActive(t *testing.T) {
+func TestOrphanCleanupShutdownIncludesActive(t *testing.T) {
 	const (
 		activePID = 303
 		orphanPID = 404
@@ -68,11 +68,11 @@ func TestMCPOrphanCleanup_ShutdownIncludesActive(t *testing.T) {
 	if len(snap.Orphaned) != 0 {
 		t.Fatalf("orphaned after shutdown = %#v; want empty", snap.Orphaned)
 	}
-	assertMCPProcessEvent(t, events, MCPOrphanReaped, activePID)
-	assertMCPProcessEvent(t, events, MCPOrphanReaped, orphanPID)
+	assertProcessEvent(t, events, MCPOrphanReaped, activePID)
+	assertProcessEvent(t, events, MCPOrphanReaped, orphanPID)
 }
 
-func assertMCPProcessEvent(t *testing.T, events []MCPStdioCleanupEvent, status MCPStdioCleanupStatus, pid int) {
+func assertProcessEvent(t *testing.T, events []MCPStdioCleanupEvent, status MCPStdioCleanupStatus, pid int) {
 	t.Helper()
 	for _, event := range events {
 		if event.Status == status && event.PID == pid {
