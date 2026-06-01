@@ -3,6 +3,7 @@ package config
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config/externalsecrets"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
@@ -79,6 +81,7 @@ func Load(args []string) (Config, error) {
 	if err := loadFile(&cfg); err != nil {
 		return cfg, err
 	}
+	applyExternalSecretSources(cfg)
 	if err := loadEnv(&cfg); err != nil {
 		return cfg, err
 	}
@@ -90,6 +93,19 @@ func Load(args []string) (Config, error) {
 	}
 	resolveProviderDefaultModel(&cfg)
 	return cfg, nil
+}
+
+func applyExternalSecretSources(cfg Config) {
+	bw := cfg.Secrets.Bitwarden
+	_ = externalsecrets.ApplyBitwarden(context.Background(), externalsecrets.BitwardenConfig{
+		Enabled:          bw.Enabled,
+		AccessTokenEnv:   bw.AccessTokenEnv,
+		ProjectID:        bw.ProjectID,
+		CacheTTLSeconds:  bw.CacheTTLSeconds,
+		OverrideExisting: bw.OverrideExisting,
+		AutoInstall:      bw.AutoInstall,
+		ServerURL:        bw.ServerURL,
+	}, externalsecrets.BitwardenOptions{HomeDir: GormesHome()})
 }
 
 func defaultPersonalities() map[string]string {
@@ -209,6 +225,12 @@ func defaults() Config {
 		},
 		Secrets: SecretsCfg{
 			Defaults: SecretProviderDefaults{Env: DefaultSecretProviderAlias},
+			Bitwarden: BitwardenSecretSourceCfg{
+				AccessTokenEnv:   externalsecrets.DefaultBitwardenAccessTokenEnv,
+				CacheTTLSeconds:  externalsecrets.DefaultBitwardenCacheTTLSeconds,
+				OverrideExisting: true,
+				AutoInstall:      true,
+			},
 		},
 		Cron: CronCfg{
 			Enabled:        false,

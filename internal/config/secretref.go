@@ -27,6 +27,7 @@ type SecretRef = credentials.SecretRef
 type SecretsCfg = credentials.SecretsCfg
 type SecretProviderDefaults = credentials.SecretProviderDefaults
 type SecretProviderCfg = credentials.SecretProviderCfg
+type BitwardenSecretSourceCfg = credentials.BitwardenSecretSourceCfg
 type SecretResolverConfig = credentials.SecretResolverConfig
 type SecretRefEvidence = credentials.SecretRefEvidence
 type SecretResolver = credentials.SecretResolver

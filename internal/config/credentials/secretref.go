@@ -47,6 +47,17 @@ type SecretRef struct {
 type SecretsCfg struct {
 	Defaults  SecretProviderDefaults       `toml:"defaults" yaml:"defaults"`
 	Providers map[string]SecretProviderCfg `toml:"providers" yaml:"providers"`
+	Bitwarden BitwardenSecretSourceCfg     `toml:"bitwarden" yaml:"bitwarden"`
+}
+
+type BitwardenSecretSourceCfg struct {
+	Enabled          bool   `toml:"enabled" yaml:"enabled"`
+	AccessTokenEnv   string `toml:"access_token_env" yaml:"access_token_env"`
+	ProjectID        string `toml:"project_id" yaml:"project_id"`
+	CacheTTLSeconds  int    `toml:"cache_ttl_seconds" yaml:"cache_ttl_seconds"`
+	OverrideExisting bool   `toml:"override_existing" yaml:"override_existing"`
+	AutoInstall      bool   `toml:"auto_install" yaml:"auto_install"`
+	ServerURL        string `toml:"server_url" yaml:"server_url"`
 }
 
 type SecretProviderDefaults struct {

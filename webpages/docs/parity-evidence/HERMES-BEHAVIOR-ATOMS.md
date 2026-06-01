@@ -115,7 +115,8 @@ file+line ref or explicit `missing`, and a classification.
 |---|---|---|---|---|
 | Credential pool | `agent/credential_pool.py` | `internal/config/` + `internal/cli/` | partial | Gormes has credential command surface; pool semantics differ. |
 | OAuth device code | `hermes_cli/auth.py` `_login_openai_codex` | `cmd/gormes/auth.go` | partial | Codex OAuth path exists but paused/Hermes drift unclear. |
-| Token vault | `agent/credential_sources.py` | → `missing` | missing | Not ported. |
+| Credential file token vault | `tools/credential_files.py`; `tools/path_security.py`; `agent/credential_sources.py` source-removal registry | `internal/config/token_vault.go` | covered | Gormes row 4.G covers safe relative credential-file resolution, unsafe-path rejection, dedupe, clear semantics, and redacted evidence. |
+| Bitwarden Secrets Manager source | `agent/secret_sources/bitwarden.py`; `hermes_cli/env_loader.py` `_apply_external_secret_sources`; `hermes_cli/secrets_cli.py` | `internal/config/externalsecrets/bitwarden.go`; `internal/config/config.go` | partial | Gormes now loads `[secrets.bitwarden]` during config startup, invokes `bws secret list`, injects env vars before env config resolution, labels applied keys as Bitwarden, preserves the bootstrap token, and degrades without blocking startup. Missing Hermes parity: CLI `secrets bitwarden` setup/status/sync/install/disable, managed pinned `bws` auto-install/checksum verification, disk cache, and credential-pool borrowed-source persistence. |
 | Auth commands (add/list/remove/reset/status/logout/spotify) | `hermes_cli/auth_commands.py` | `cmd/gormes/auth.go` | partial | Most commands exist; Spotify and top-level logout planned. |
 | Secret ref validation | `hermes_cli/config.py` | `internal/provider/profile_provider_config.go` | covered | SecretRef env resolution and missing-ref evidence. |
 
