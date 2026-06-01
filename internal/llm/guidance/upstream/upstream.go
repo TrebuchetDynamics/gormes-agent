@@ -1,15 +1,14 @@
-package guidance
+package upstream
 
 import (
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"testing"
 )
 
-func upstreamHermesFilePath(t *testing.T, repoRelativePath string) (string, bool) {
-	t.Helper()
+// HermesFilePath returns a readable upstream Hermes file path for a repository-relative path.
+func HermesFilePath(repoRelativePath string) (string, bool) {
 	candidates := []string{
 		filepath.Join("..", "..", "..", "hermes-agent", repoRelativePath),
 		filepath.Join("..", "..", "..", "..", "hermes-agent", repoRelativePath),
@@ -24,24 +23,36 @@ func upstreamHermesFilePath(t *testing.T, repoRelativePath string) (string, bool
 	return "", false
 }
 
-// upstreamPromptBuilderPath returns the path to the upstream Hermes
-// prompt_builder.py used as the byte-equivalence source-of-truth.
-func upstreamPromptBuilderPath(t *testing.T) (string, bool) {
-	t.Helper()
-	return upstreamHermesFilePath(t, filepath.Join("agent", "prompt_builder.py"))
+// PromptBuilderPath returns the path to the upstream Hermes prompt_builder.py
+// used as the byte-equivalence source-of-truth.
+func PromptBuilderPath() (string, bool) {
+	return HermesFilePath(filepath.Join("agent", "prompt_builder.py"))
 }
 
-func upstreamDefaultSoulPath(t *testing.T) (string, bool) {
-	t.Helper()
-	return upstreamHermesFilePath(t, filepath.Join("hermes_cli", "default_soul.py"))
+// DefaultSoulPath returns the path to upstream Hermes default_soul.py.
+func DefaultSoulPath() (string, bool) {
+	return HermesFilePath(filepath.Join("hermes_cli", "default_soul.py"))
 }
 
-// extractPythonStringConstant locates `NAME = ( "..." "..." ... )` (or
+// ReadPromptBuilder reads the upstream Hermes prompt_builder.py source.
+func ReadPromptBuilder() (string, string, bool, error) {
+	p, ok := PromptBuilderPath()
+	if !ok {
+		return "", "", false, nil
+	}
+	data, err := os.ReadFile(p)
+	if err != nil {
+		return p, "", false, err
+	}
+	return p, string(data), true, nil
+}
+
+// ExtractPythonStringConstant locates `NAME = ( "..." "..." ... )` (or
 // `NAME = "..."`) in src and returns the concatenated Python string literal
 // value. Adjacent string literals separated only by whitespace inside the
 // parentheses are concatenated, mirroring CPython's literal-concatenation
 // behavior. Returns ok=false if the constant cannot be parsed.
-func extractPythonStringConstant(src, name string) (string, bool) {
+func ExtractPythonStringConstant(src, name string) (string, bool) {
 	idx := indexAssignmentStart(src, name)
 	if idx < 0 {
 		return "", false
@@ -75,10 +86,10 @@ func extractPythonStringConstant(src, name string) (string, bool) {
 	return strings.Join(parts, ""), true
 }
 
-// extractPythonTupleOfStrings parses `NAME = ("a", "b", ...)` into a []string
+// ExtractPythonTupleOfStrings parses `NAME = ("a", "b", ...)` into a []string
 // preserving the upstream tuple order. Returns ok=false if NAME is missing or
 // not a tuple of string literals.
-func extractPythonTupleOfStrings(src, name string) ([]string, bool) {
+func ExtractPythonTupleOfStrings(src, name string) ([]string, bool) {
 	idx := indexAssignmentStart(src, name)
 	if idx < 0 {
 		return nil, false
@@ -229,9 +240,9 @@ func findMatchingParen(s string) int {
 }
 
 // parsePythonAdjacentStrings collects every string literal in body, in order,
-// returning their decoded values. Whitespace and comments between literals
-// are ignored. Concatenation of these values reproduces CPython's adjacent
-// string literal joining.
+// returning their decoded values. Whitespace and comments between literals are
+// ignored. Concatenation of these values reproduces CPython's adjacent string
+// literal joining.
 func parsePythonAdjacentStrings(body string) ([]string, bool) {
 	var parts []string
 	i := 0
@@ -331,18 +342,4 @@ func normalizeQuotes(lit string) string {
 	}
 	b.WriteByte('"')
 	return b.String()
-}
-
-func readUpstreamPromptBuilder(t *testing.T) (string, bool) {
-	t.Helper()
-	p, ok := upstreamPromptBuilderPath(t)
-	if !ok {
-		return "", false
-	}
-	data, err := os.ReadFile(p)
-	if err != nil {
-		t.Logf("upstream prompt_builder.py at %s unreadable: %v", p, err)
-		return "", false
-	}
-	return string(data), true
 }

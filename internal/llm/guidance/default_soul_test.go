@@ -4,10 +4,12 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/guidance/upstream"
 )
 
 func TestDefaultSoulMDPortsUpstreamDefaultSoulWithGormPersona(t *testing.T) {
-	path, ok := upstreamDefaultSoulPath(t)
+	path, ok := upstream.DefaultSoulPath()
 	if !ok {
 		t.Skip("upstream default_soul.py not available; skipping default SOUL drift check")
 	}
@@ -15,11 +17,11 @@ func TestDefaultSoulMDPortsUpstreamDefaultSoulWithGormPersona(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read upstream default_soul.py: %v", err)
 	}
-	upstream, ok := extractPythonStringConstant(string(data), "DEFAULT_SOUL_MD")
+	upstreamSoul, ok := upstream.ExtractPythonStringConstant(string(data), "DEFAULT_SOUL_MD")
 	if !ok {
 		t.Fatalf("could not extract DEFAULT_SOUL_MD from %s", path)
 	}
-	want := strings.Replace(upstream,
+	want := strings.Replace(upstreamSoul,
 		"Hermes Agent, an intelligent AI assistant created by Nous Research",
 		"Gorm, an AI assistant run by gormes, a Go-native Hermes-compatible agent runtime",
 		1,

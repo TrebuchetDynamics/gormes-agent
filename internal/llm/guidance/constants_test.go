@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/guidance/upstream"
 )
 
 func TestGuidanceConstants_MemoryGuidance_ByteEquivalent(t *testing.T) {
@@ -15,7 +17,7 @@ func TestGuidanceConstants_MemoryGuidance_ByteEquivalent(t *testing.T) {
 	if !ok {
 		t.Skip("upstream prompt_builder.py not available; skipping byte-equivalence check (drift will surface elsewhere)")
 	}
-	want, ok := extractPythonStringConstant(src, "MEMORY_GUIDANCE")
+	want, ok := upstream.ExtractPythonStringConstant(src, "MEMORY_GUIDANCE")
 	if !ok {
 		t.Fatalf("could not extract MEMORY_GUIDANCE from upstream")
 	}
@@ -30,7 +32,7 @@ func TestGuidanceConstants_SessionSearchGuidance_ByteEquivalent(t *testing.T) {
 	if !ok {
 		t.Skip("upstream prompt_builder.py not available; skipping byte-equivalence check")
 	}
-	want, ok := extractPythonStringConstant(src, "SESSION_SEARCH_GUIDANCE")
+	want, ok := upstream.ExtractPythonStringConstant(src, "SESSION_SEARCH_GUIDANCE")
 	if !ok {
 		t.Fatalf("could not extract SESSION_SEARCH_GUIDANCE from upstream")
 	}
@@ -44,7 +46,7 @@ func TestGuidanceConstants_SkillsGuidance_ByteEquivalent(t *testing.T) {
 	if !ok {
 		t.Skip("upstream prompt_builder.py not available; skipping byte-equivalence check")
 	}
-	want, ok := extractPythonStringConstant(src, "SKILLS_GUIDANCE")
+	want, ok := upstream.ExtractPythonStringConstant(src, "SKILLS_GUIDANCE")
 	if !ok {
 		t.Fatalf("could not extract SKILLS_GUIDANCE from upstream")
 	}
@@ -58,7 +60,7 @@ func TestGuidanceConstants_ToolUseEnforcementGuidance_ByteEquivalent(t *testing.
 	if !ok {
 		t.Skip("upstream prompt_builder.py not available; skipping byte-equivalence check")
 	}
-	want, ok := extractPythonStringConstant(src, "TOOL_USE_ENFORCEMENT_GUIDANCE")
+	want, ok := upstream.ExtractPythonStringConstant(src, "TOOL_USE_ENFORCEMENT_GUIDANCE")
 	if !ok {
 		t.Fatalf("could not extract TOOL_USE_ENFORCEMENT_GUIDANCE from upstream")
 	}
@@ -72,7 +74,7 @@ func TestGuidanceConstants_ToolUseEnforcementModels_MatchesUpstream(t *testing.T
 	if !ok {
 		t.Skip("upstream prompt_builder.py not available; skipping match check")
 	}
-	want, ok := extractPythonTupleOfStrings(src, "TOOL_USE_ENFORCEMENT_MODELS")
+	want, ok := upstream.ExtractPythonTupleOfStrings(src, "TOOL_USE_ENFORCEMENT_MODELS")
 	if !ok {
 		t.Fatalf("could not extract TOOL_USE_ENFORCEMENT_MODELS from upstream")
 	}
@@ -86,7 +88,7 @@ func TestGuidanceConstants_DeveloperRoleModels_MatchesUpstream(t *testing.T) {
 	if !ok {
 		t.Skip("upstream prompt_builder.py not available; skipping match check")
 	}
-	want, ok := extractPythonTupleOfStrings(src, "DEVELOPER_ROLE_MODELS")
+	want, ok := upstream.ExtractPythonTupleOfStrings(src, "DEVELOPER_ROLE_MODELS")
 	if !ok {
 		t.Fatalf("could not extract DEVELOPER_ROLE_MODELS from upstream")
 	}
@@ -100,7 +102,7 @@ func TestGuidanceConstants_WSLEnvironmentHint_ByteEquivalent(t *testing.T) {
 	if !ok {
 		t.Skip("upstream prompt_builder.py not available; skipping byte-equivalence check")
 	}
-	want, ok := extractPythonStringConstant(src, "WSL_ENVIRONMENT_HINT")
+	want, ok := upstream.ExtractPythonStringConstant(src, "WSL_ENVIRONMENT_HINT")
 	if !ok {
 		t.Fatalf("could not extract WSL_ENVIRONMENT_HINT from upstream")
 	}
@@ -152,4 +154,14 @@ func TestGuidanceConstants_NoRuntimeImport(t *testing.T) {
 		// importsOnly result only as the import oracle.
 		_ = ast.Print
 	}
+}
+
+func readUpstreamPromptBuilder(t *testing.T) (string, bool) {
+	t.Helper()
+	path, src, ok, err := upstream.ReadPromptBuilder()
+	if err != nil {
+		t.Logf("upstream prompt_builder.py at %s unreadable: %v", path, err)
+		return "", false
+	}
+	return src, ok
 }
