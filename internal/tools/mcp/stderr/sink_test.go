@@ -64,6 +64,18 @@ func TestTailBufferSnapshotDoesNotExposeMutableBuffer(t *testing.T) {
 	}
 }
 
+func TestTailBufferLargeWriteDoesNotRetainDroppedPrefixCapacity(t *testing.T) {
+	buf := tailBuffer{limit: 5}
+	buf.append(bytes.Repeat([]byte("x"), 1024))
+
+	if got := string(buf.snapshot().Bytes); got != "xxxxx" {
+		t.Fatalf("tail bytes = %q, want last five bytes", got)
+	}
+	if cap(buf.buf) > buf.limit {
+		t.Fatalf("tail buffer capacity = %d, want <= limit %d so dropped prefixes are not retained", cap(buf.buf), buf.limit)
+	}
+}
+
 func TestTruncationMarkerIncludesDroppedByteCount(t *testing.T) {
 	if got := truncationMarker(42); got != "[truncated 42 bytes]\n" {
 		t.Fatalf("truncation marker = %q", got)

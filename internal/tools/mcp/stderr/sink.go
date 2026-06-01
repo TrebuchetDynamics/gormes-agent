@@ -36,11 +36,14 @@ func (b *tailBuffer) append(p []byte) {
 	if b.limit <= 0 {
 		return
 	}
-	b.buf = append(b.buf, p...)
-	if len(b.buf) > b.limit {
-		drop := len(b.buf) - b.limit
-		b.buf = append(b.buf[:0], b.buf[drop:]...)
+	if len(p) >= b.limit {
+		b.buf = append(make([]byte, 0, b.limit), p[len(p)-b.limit:]...)
+		return
 	}
+	if overflow := len(b.buf) + len(p) - b.limit; overflow > 0 {
+		b.buf = append(make([]byte, 0, b.limit), b.buf[overflow:]...)
+	}
+	b.buf = append(b.buf, p...)
 }
 
 type tailSnapshot struct {
