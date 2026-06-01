@@ -174,6 +174,20 @@ func TestParseGatewayEndpointRejectsExplicitEmptyPort(t *testing.T) {
 	}
 }
 
+func TestParseGatewayEndpointRejectsMalformedPortInsteadOfDefaulting(t *testing.T) {
+	for _, raw := range []string{
+		"ws://127.0.0.1:abc",
+		"ws://127.0.0.1:+18789",
+		"wss://[::1]:port",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			if endpoint, err := ParseGatewayEndpoint(raw, GatewayEndpointSourceManual); err == nil {
+				t.Fatalf("ParseGatewayEndpoint(%q) = %+v, nil; want malformed explicit port rejected rather than defaulted", raw, endpoint)
+			}
+		})
+	}
+}
+
 func TestNormalizeGatewayEndpointsDropsInvalidAndKeepsFirstDuplicateCandidate(t *testing.T) {
 	endpoints := normalizeGatewayEndpoints([]GatewayEndpoint{
 		{InstanceName: "manual", Address: "LOCALHOST", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceManual},

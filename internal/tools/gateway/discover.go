@@ -226,21 +226,37 @@ func gatewayEndpointURLHasRemainder(u *url.URL) bool {
 }
 
 func parseGatewayEndpointURLPort(u *url.URL) (int, error) {
-	if u == nil {
-		return 0, errors.New("gateway endpoint URL is nil")
+	rawPort, explicit, err := gatewayEndpointURLPortToken(u)
+	if err != nil {
+		return 0, err
 	}
-	rawPort := strings.TrimSpace(u.Port())
-	if rawPort == "" {
-		if strings.HasSuffix(strings.TrimSpace(u.Host), ":") {
-			return 0, errors.New("gateway endpoint port is empty")
-		}
+	if !explicit {
 		return defaultGatewayPort, nil
+	}
+	if rawPort == "" {
+		return 0, errors.New("gateway endpoint port is empty")
 	}
 	parsed, err := strconv.Atoi(rawPort)
 	if err != nil || !validGatewayEndpointPort(parsed) {
 		return 0, fmt.Errorf("invalid gateway endpoint port %q", rawPort)
 	}
 	return parsed, nil
+}
+
+func gatewayEndpointURLPortToken(u *url.URL) (rawPort string, explicit bool, err error) {
+	if u == nil {
+		return "", false, errors.New("gateway endpoint URL is nil")
+	}
+	rawPort = strings.TrimSpace(u.Port())
+	if rawPort != "" {
+		return rawPort, true, nil
+	}
+	// url.Parse rejects malformed numeric ports for URLs with schemes, so an
+	// empty parsed port is ambiguous only between omitted and explicitly empty.
+	if strings.HasSuffix(strings.TrimSpace(u.Host), ":") {
+		return "", true, nil
+	}
+	return "", false, nil
 }
 
 func applyGatewayTXTMetadataHints(endpoint GatewayEndpoint) GatewayEndpoint {
