@@ -147,6 +147,19 @@ func TestGatewayEndpointNormalizationCanonicalizesHTTPAliases(t *testing.T) {
 	}
 }
 
+func TestParseGatewayEndpointRejectsUserinfoInsteadOfDroppingCredentials(t *testing.T) {
+	for _, raw := range []string{
+		"ws://user@127.0.0.1:18789",
+		"wss://token:secret@gateway.local:18789",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			if endpoint, err := ParseGatewayEndpoint(raw, GatewayEndpointSourceManual); err == nil {
+				t.Fatalf("ParseGatewayEndpoint(%q) = %+v, nil; want URL userinfo rejected rather than silently dropped", raw, endpoint)
+			}
+		})
+	}
+}
+
 func TestParseGatewayEndpointRejectsURLRemainderInsteadOfTruncating(t *testing.T) {
 	for _, raw := range []string{
 		"ws://127.0.0.1:18789/gateway",

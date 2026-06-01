@@ -194,6 +194,9 @@ func ParseGatewayEndpoint(raw string, source string) (GatewayEndpoint, error) {
 	if err != nil {
 		return GatewayEndpoint{}, fmt.Errorf("parse gateway endpoint: %w", err)
 	}
+	if gatewayEndpointURLHasUserinfo(u) {
+		return GatewayEndpoint{}, errors.New("gateway endpoint URL must not include userinfo")
+	}
 	if gatewayEndpointURLHasRemainder(u) {
 		return GatewayEndpoint{}, errors.New("gateway endpoint URL must not include path, query, or fragment")
 	}
@@ -215,6 +218,10 @@ func ParseGatewayEndpoint(raw string, source string) (GatewayEndpoint, error) {
 		Scheme:  scheme,
 		Source:  strings.TrimSpace(source),
 	}), nil
+}
+
+func gatewayEndpointURLHasUserinfo(u *url.URL) bool {
+	return u != nil && u.User != nil
 }
 
 func gatewayEndpointURLHasRemainder(u *url.URL) bool {
