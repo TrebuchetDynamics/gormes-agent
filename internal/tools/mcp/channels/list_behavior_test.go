@@ -1,4 +1,4 @@
-package mcp
+package channels
 
 import (
 	"context"
@@ -6,13 +6,13 @@ import (
 	"testing"
 )
 
-// fakeChannelDir implements ChannelDirectoryProvider for tests.
+// fakeChannelDir implements DirectoryProvider for tests.
 type fakeChannelDir struct {
-	platforms map[string][]ChannelEntry
+	platforms map[string][]Entry
 	err       error
 }
 
-func (f fakeChannelDir) Platforms() (map[string][]ChannelEntry, error) {
+func (f fakeChannelDir) Platforms() (map[string][]Entry, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -21,7 +21,7 @@ func (f fakeChannelDir) Platforms() (map[string][]ChannelEntry, error) {
 
 func TestMCPChannelsList_ReturnsPerPlatformChannels(t *testing.T) {
 	dir := fakeChannelDir{
-		platforms: map[string][]ChannelEntry{
+		platforms: map[string][]Entry{
 			"telegram": {
 				{ID: "tg-1", Name: "General", ChatID: "123", Enabled: true},
 				{ID: "tg-2", Name: "Dev", ChatID: "456", Enabled: true},
@@ -31,7 +31,7 @@ func TestMCPChannelsList_ReturnsPerPlatformChannels(t *testing.T) {
 			},
 		},
 	}
-	result, err := ListChannels(context.Background(), dir, map[string]interface{}{})
+	result, err := List(context.Background(), dir, map[string]interface{}{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -39,7 +39,7 @@ func TestMCPChannelsList_ReturnsPerPlatformChannels(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected map result, got %T", result)
 	}
-	channels, ok := r["channels"].([]ChannelOutput)
+	channels, ok := r["channels"].([]Output)
 	if !ok {
 		t.Fatalf("expected channels array, got %T", r["channels"])
 	}
@@ -60,7 +60,7 @@ func TestMCPChannelsList_ReturnsPerPlatformChannels(t *testing.T) {
 
 func TestMCPChannelsList_PlatformFilter(t *testing.T) {
 	dir := fakeChannelDir{
-		platforms: map[string][]ChannelEntry{
+		platforms: map[string][]Entry{
 			"telegram": {
 				{ID: "tg-1", Name: "General", ChatID: "123", Enabled: true},
 			},
@@ -69,14 +69,14 @@ func TestMCPChannelsList_PlatformFilter(t *testing.T) {
 			},
 		},
 	}
-	result, err := ListChannels(context.Background(), dir, map[string]interface{}{
+	result, err := List(context.Background(), dir, map[string]interface{}{
 		"platform": "telegram",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	r := result.(map[string]interface{})
-	channels := r["channels"].([]ChannelOutput)
+	channels := r["channels"].([]Output)
 	if len(channels) != 1 {
 		t.Fatalf("expected 1 channel after filtering, got %d", len(channels))
 	}
@@ -87,14 +87,14 @@ func TestMCPChannelsList_PlatformFilter(t *testing.T) {
 
 func TestMCPChannelsList_EmptyDirectory(t *testing.T) {
 	dir := fakeChannelDir{
-		platforms: map[string][]ChannelEntry{},
+		platforms: map[string][]Entry{},
 	}
-	result, err := ListChannels(context.Background(), dir, map[string]interface{}{})
+	result, err := List(context.Background(), dir, map[string]interface{}{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	r := result.(map[string]interface{})
-	channels := r["channels"].([]ChannelOutput)
+	channels := r["channels"].([]Output)
 	if len(channels) != 0 {
 		t.Fatalf("expected 0 channels for empty directory, got %d", len(channels))
 	}
@@ -105,7 +105,7 @@ func TestMCPChannelsList_EmptyDirectory(t *testing.T) {
 
 func TestMCPChannelsList_DirectoryUnavailable(t *testing.T) {
 	dir := fakeChannelDir{err: fmt.Errorf("directory store unavailable")}
-	_, err := ListChannels(context.Background(), dir, map[string]interface{}{})
+	_, err := List(context.Background(), dir, map[string]interface{}{})
 	if err == nil {
 		t.Fatal("expected error for unavailable directory, got nil")
 	}
@@ -113,18 +113,18 @@ func TestMCPChannelsList_DirectoryUnavailable(t *testing.T) {
 
 func TestMCPChannelsList_ChannelFields(t *testing.T) {
 	dir := fakeChannelDir{
-		platforms: map[string][]ChannelEntry{
+		platforms: map[string][]Entry{
 			"telegram": {
 				{ID: "tg-1", Name: "General Chat", ChatID: "12345", Enabled: true},
 			},
 		},
 	}
-	result, err := ListChannels(context.Background(), dir, map[string]interface{}{})
+	result, err := List(context.Background(), dir, map[string]interface{}{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	r := result.(map[string]interface{})
-	channels := r["channels"].([]ChannelOutput)
+	channels := r["channels"].([]Output)
 	ch := channels[0]
 	if ch.ID != "tg-1" {
 		t.Errorf("expected id='tg-1', got %v", ch.ID)

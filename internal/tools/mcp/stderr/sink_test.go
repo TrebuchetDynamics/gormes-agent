@@ -8,6 +8,77 @@ import (
 	"testing"
 )
 
+func TestBoundedSinkTruncatesAtTailBytes(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "stderr.log")
+
+	const tail = 8 * 1024
+	const total = 32 * 1024
+	sink := NewBoundedSink(path, tail)
+
+	payload := bytes.Repeat([]byte("x"), total)
+	n, err := sink.Write(payload)
+	if err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if n != len(payload) {
+		t.Errorf("Write returned %d, want %d", n, len(payload))
+	}
+	if err := sink.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	const dropped = total - tail
+	wantPrefix := "[truncated 24576 bytes]"
+	if !bytes.HasPrefix(contents, []byte(wantPrefix)) {
+		head := contents
+		if len(head) > 64 {
+			head = head[:64]
+		}
+		t.Errorf("missing truncation marker prefix; first bytes = %q", head)
+	}
+	if !bytes.HasSuffix(contents, bytes.Repeat([]byte("x"), tail)) {
+		t.Errorf("file does not end with last %d 'x' bytes", tail)
+	}
+	if bytes.Count(contents, []byte("x")) != tail {
+		t.Errorf("preserved 'x' count = %d, want %d (dropped=%d)",
+			bytes.Count(contents, []byte("x")), tail, dropped)
+	}
+}
+
+func TestBoundedSinkDiscardModeNoFileWrite(t *testing.T) {
+	dir := t.TempDir()
+	sink := NewBoundedSink("", 8*1024)
+
+	payload := []byte("some stderr output")
+	n, err := sink.Write(payload)
+	if err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if n != len(payload) {
+		t.Errorf("Write returned %d, want %d", n, len(payload))
+	}
+	if err := sink.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("ReadDir: %v", err)
+	}
+	if len(entries) != 0 {
+		names := make([]string, 0, len(entries))
+		for _, e := range entries {
+			names = append(names, e.Name())
+		}
+		t.Errorf("discard sink wrote files: %v", names)
+	}
+}
+
 func TestBoundedSinkWriteAfterCloseReturnsErrorAndDoesNotMutateFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "stderr.log")

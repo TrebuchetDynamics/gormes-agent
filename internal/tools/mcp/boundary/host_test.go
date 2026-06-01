@@ -1,4 +1,4 @@
-package mcp
+package boundary
 
 import (
 	"context"
