@@ -64,6 +64,7 @@ func TestRouteBrowserNavigation_PrivateHostsUseLocalSidecar(t *testing.T) {
 		wantKey string
 	}{
 		{name: "localhost_default_task", rawURL: "http://localhost:3000/", wantKey: "default::local"},
+		{name: "schemeless_localhost_with_port", rawURL: "localhost:3000", wantKey: "default::local"},
 		{name: "loopback_ipv4", taskID: "task-1", rawURL: "http://127.0.0.1:8080/", wantKey: "task-1::local"},
 		{name: "rfc1918_10", taskID: "task-1", rawURL: "http://10.2.3.4/", wantKey: "task-1::local"},
 		{name: "rfc1918_172_lower_bound", taskID: "task-1", rawURL: "http://172.16.0.10/", wantKey: "task-1::local"},

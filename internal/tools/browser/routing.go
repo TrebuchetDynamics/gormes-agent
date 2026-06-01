@@ -76,8 +76,8 @@ func RouteBrowserNavigation(taskID, rawURL string, cloudConfigured, autoLocalFor
 		return route
 	}
 
-	parsed, err := url.Parse(rawURL)
-	if err != nil || !IsPrivateBrowserHost(parsed.Hostname()) {
+	hostname, ok := browserNavigationHostname(rawURL)
+	if !ok || !IsPrivateBrowserHost(hostname) {
 		return route
 	}
 
@@ -86,6 +86,24 @@ func RouteBrowserNavigation(taskID, rawURL string, cloudConfigured, autoLocalFor
 		ForceLocal: true,
 		Reason:     privateBrowserSidecarReason,
 	}
+}
+
+func browserNavigationHostname(rawURL string) (string, bool) {
+	trimmed := strings.TrimSpace(rawURL)
+	if trimmed == "" {
+		return "", false
+	}
+	if parsed, err := url.Parse(trimmed); err == nil && parsed.Hostname() != "" {
+		return parsed.Hostname(), true
+	}
+	if strings.Contains(trimmed, "://") || strings.HasPrefix(trimmed, "/") {
+		return "", false
+	}
+	parsed, err := url.Parse("//" + trimmed)
+	if err != nil || parsed.Hostname() == "" {
+		return "", false
+	}
+	return parsed.Hostname(), true
 }
 
 func normalizeBrowserTaskID(taskID string) string {
