@@ -29,6 +29,10 @@ type XSearchAuthStatus struct {
 }
 
 func (c XSearchConfig) AuthStatus() XSearchAuthStatus {
+	return c.authStatusAt(time.Now())
+}
+
+func (c XSearchConfig) authStatusAt(now time.Time) XSearchAuthStatus {
 	switch c.AuthMode {
 	case "api_key":
 		if c.APIKey == "" {
@@ -43,7 +47,7 @@ func (c XSearchConfig) AuthStatus() XSearchAuthStatus {
 		if c.OAuthToken == "" {
 			return XSearchAuthStatus{AuthMode: "oauth"}
 		}
-		if c.OAuthExpiry.Before(time.Now()) {
+		if oauthExpired(c.OAuthExpiry, now) {
 			return XSearchAuthStatus{
 				AuthMode: "oauth",
 				Expired:  true,
@@ -56,6 +60,10 @@ func (c XSearchConfig) AuthStatus() XSearchAuthStatus {
 	default:
 		return XSearchAuthStatus{}
 	}
+}
+
+func oauthExpired(expiry, now time.Time) bool {
+	return !expiry.After(now)
 }
 
 func redactKey(key string) string {

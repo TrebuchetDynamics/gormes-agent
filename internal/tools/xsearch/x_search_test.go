@@ -101,6 +101,23 @@ func TestXSearchAuthStatus_OAuthExpired(t *testing.T) {
 	}
 }
 
+func TestXSearchAuthStatus_OAuthExpiresAtNow(t *testing.T) {
+	now := time.Date(2026, 5, 31, 12, 0, 0, 0, time.UTC)
+	cfg := XSearchConfig{
+		AuthMode:    "oauth",
+		OAuthToken:  "boundary-token",
+		OAuthExpiry: now,
+	}
+	status := cfg.authStatusAt(now)
+
+	if status.Configured {
+		t.Error("expected Configured=false when OAuth expiry equals current time")
+	}
+	if !status.Expired {
+		t.Error("expected Expired=true when OAuth expiry equals current time")
+	}
+}
+
 func TestXSearchExecute_MissingAuth(t *testing.T) {
 	tool := &XSearchTool{cfg: XSearchConfig{}}
 	_, err := tool.Execute(context.Background(), json.RawMessage(`{"query":"test"}`))
