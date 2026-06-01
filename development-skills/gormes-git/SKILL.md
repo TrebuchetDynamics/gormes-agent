@@ -108,7 +108,7 @@ Use the public-surface gates when `README.md`, `docs/`, `webpages/landing/`, `be
 Run skill validation when a skill changed:
 
 ```sh
-python3 /home/xel/.codex/skills/.system/skill-creator/scripts/quick_validate.py docs/development-skills/<skill-name>
+python3 /home/xel/.codex/skills/.system/skill-creator/scripts/quick_validate.py development-skills/<skill-name>
 find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -name SKILL.md -print | sort
 ```
 

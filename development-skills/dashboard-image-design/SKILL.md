@@ -58,15 +58,15 @@ acceptance checks:
 Run from the Gormes repo root after creating, editing, or routing this skill:
 
 ```sh
-python3 /home/xel/.codex/skills/.system/skill-creator/scripts/quick_validate.py docs/development-skills/dashboard-image-design
+python3 /home/xel/.codex/skills/.system/skill-creator/scripts/quick_validate.py development-skills/dashboard-image-design
 find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -path '*/dashboard-image-design/SKILL.md' -print | sort
 python3 - <<'PY'
 from pathlib import Path
 required = {
     'AGENTS.md': ['dashboard-image-design', 'dashboard screenshots'],
-    'docs/development-skills/gormes-skill-manager/SKILL.md': ['dashboard-image-design', 'dashboard screenshot'],
+    'development-skills/gormes-skill-manager/SKILL.md': ['dashboard-image-design', 'dashboard screenshot'],
     'references/skill-routing.md': ['dashboard-image-design'],
-    'docs/development-skills/gormes-skill-manager/references/skill-routing.md': ['dashboard-image-design'],
+    'development-skills/gormes-skill-manager/references/skill-routing.md': ['dashboard-image-design'],
 }
 missing = []
 for path, needles in required.items():

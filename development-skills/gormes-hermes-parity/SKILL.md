@@ -47,6 +47,29 @@ runtime-home validation with sanitized fixtures.
 A behavior-fidelity pair is one upstream Hermes/Honcho behavior family plus
 the closest Gormes surface or missing row that should preserve it.
 
+## Pass Types
+
+Pick one pass type before collecting evidence. Do not mix pass types unless the
+first pass explicitly hands off to a smaller subskill.
+
+| Pass type | Use when | Output |
+|---|---|---|
+| `survey` | The surface is unfamiliar or upstream moved. | Bounded atom map, source refs, classifications, next three passes. |
+| `row-shaping` | A gap is real but the backlog row is vague/missing. | Behavior-atom update plus one progress-row-ready task packet. |
+| `stale-upstream-check` | Existing evidence cites old Hermes/Honcho refs. | Refreshed refs and `covered`/`stale-upstream`/`missing` reclassification. |
+| `handoff` | Runtime implementation is clearly next. | One builder/TDD task packet; no runtime edits. |
+
+Auto-selection priority when no topic is supplied:
+
+1. Recent user-visible setup, provider, channel, install, or auth failures.
+2. Stale upstream evidence on high-priority or in-progress rows.
+3. Vague umbrella rows blocking builder work.
+4. Missing Hermes behavior with a narrow Gormes surface and obvious tests.
+5. Taxonomy/docs cleanup that prevents accurate parity reporting.
+
+Stop after one coherent behavior family. Record adjacent gaps as next candidates
+instead of expanding the current pass.
+
 ## Hard And Soft Dependencies
 
 Hard dependencies block claims of parity:
@@ -217,6 +240,33 @@ Load only the reference needed for the current pass:
 | Owned/excluded divergence, ADR guidance, taxonomy refactors | `references/taxonomy-and-owned-divergence.md` |
 | Feedback loops, vertical slices, validation gates, report shape | `references/validation-and-feedback-loops.md` |
 
+## Quick Path
+
+For a normal small sweep, follow this scannable loop:
+
+1. Baseline: branch, dirty worktree, progress validation, upstream shas.
+2. Pick pass type and one bounded behavior-fidelity pair.
+3. Read the active upstream contract and closest Gormes surface.
+4. Classify atoms with exact source refs.
+5. Update behavior atoms and/or emit one task packet.
+6. Run the narrow validation tier for the files changed.
+7. Finish with either the minimal report or the full report.
+
+Minimal report for small passes:
+
+```text
+scope:
+pass_type:
+source_shas:
+upstream_refs:
+gormes_refs:
+classifications:
+rows_changed:
+validation:
+next_builder_row_or_task:
+blockers:
+```
+
 ## Workflow
 
 1. Establish baseline. Refresh the in-repo `hermes-agent` submodule to upstream
@@ -262,10 +312,25 @@ on its own without parity evidence; record the upstream sha in
 8. Choose the feedback loop before claiming coverage or handing off.
 9. Route to the smallest subskill chain. One behavior atom should become one
    vertical implementation slice.
-10. Record implementation intent only in `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` — the canonical
-    backlog, accessed via `internal/progress.Load`/`cmd/progress` (monolithic
-    file or split/per-module layout, transparently; never hand-parse members).
+10. Keep the two canonical surfaces distinct:
+    - parity classifications and behavior evidence live in
+      `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`.
+    - implementation backlog rows live in progress data, accessed only through
+      `internal/progress.Load`/`cmd/progress` (monolithic file or split layout,
+      transparently; never hand-parse members).
     Do not create side queues.
+
+## Done Checklist
+
+A parity pass is done when:
+
+- the active upstream contract is named with exact file refs;
+- the closest Gormes surface, test, doc, or missing row is named;
+- each in-scope atom is classified;
+- adjacent gaps are listed as next candidates, not silently absorbed;
+- changed behavior atoms or progress rows are validated; and
+- runtime implementation is either untouched or explicitly delegated to the
+  builder/TDD/provider/browser/dev-runtime skill chain.
 
 ## Guardrails
 
@@ -283,12 +348,63 @@ on its own without parity evidence; record the upstream sha in
 - Preserve dirty user work. If HEAD advances during a run, re-audit before
   committing or pushing.
 
+Anti-patterns to call out in reports:
+
+- Marking an umbrella feature `covered` because one command or happy path
+  exists.
+- Treating docs-only statements as source behavior when current source differs.
+- Updating progress rows without exact upstream refs.
+- Conflating Hermes parity with OpenClaw inspiration.
+- Using live private homes as evidence for ordinary parity claims.
+
+## Examples
+
+### Provider auth setup pass
+
+```text
+pass_type: stale-upstream-check
+scope: Codex auth import/status visibility
+read: references/active-upstream-contracts.md
+route: gormes-provider-parity -> gormes-tdd-slice if implementation is needed
+validation: isolated CODEX_HOME/GORMES_HOME fixture; no real credentials
+```
+
+### Browser connect pass
+
+```text
+pass_type: row-shaping
+scope: Hermes /browser connect CDP behavior
+read: references/behavior-atoms.md
+route: gormes-browser-harness for implementation planning
+validation: source refs plus proposed CDP harness test
+```
+
+### TUI command surface pass
+
+```text
+pass_type: survey
+scope: current Hermes Ink TUI command/menu behavior
+read: references/active-upstream-contracts.md
+route: gormes-planner if rows are vague; do not rely on old prompt-toolkit refs
+validation: source-only classifications and progress validation
+```
+
 ## Validation
+
+Validation tiers:
+
+- Source-only parity report: `go run ./cmd/progress validate` and
+  `git diff --check`.
+- Skill/reference-only edit: run the skill validation block below.
+- Progress/docs row edit: also run progress write, progress tests, and docs
+  tests.
+- Runtime handoff: include the proposed failing or smoke test command, but do
+  not implement it in this broad parity pass.
 
 If only this skill or references changed:
 
 ```sh
-python3 /home/xel/.codex/skills/.system/skill-creator/scripts/quick_validate.py docs/development-skills/gormes-hermes-parity
+python3 /home/xel/.codex/skills/.system/skill-creator/scripts/quick_validate.py development-skills/gormes-hermes-parity
 find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -name SKILL.md -print | sort
 go run ./cmd/progress validate
 git diff --check

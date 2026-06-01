@@ -36,7 +36,7 @@ umbrella rows to builders when a thinner row can prove the path end to end.
 For skill-only edits:
 
 ```sh
-python3 /home/xel/.codex/skills/.system/skill-creator/scripts/quick_validate.py docs/development-skills/gormes-hermes-parity
+python3 /home/xel/.codex/skills/.system/skill-creator/scripts/quick_validate.py development-skills/gormes-hermes-parity
 find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -name SKILL.md -print | sort
 go run ./cmd/progress validate
 git diff --check

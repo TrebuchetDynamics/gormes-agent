@@ -230,7 +230,7 @@ Gormes is ported against Hermes behavior in small, test-backed slices. This proc
 - Strategy: [Gormes Success Plan](docs/content/building-gormes/strategy/success-plan.md)
 - Engineering blog: [TrebuchetDynamics Engineering](https://engineering.trebuchetdynamics.com/) ([RSS](https://engineering.trebuchetdynamics.com/feed.xml))
 - Differentiator: [v1.0 differentiator](docs/content/building-gormes/strategy/v1-differentiator.md)
-- Development workflow: [repo-local development skills](docs/development-skills/) track the planner, builder, and TDD-slice process.
+- Development workflow: [repo-local development skills](development-skills/) track the planner, builder, and TDD-slice process.
 - Future toolkit extraction (`agentic-porting-kit`): tracked as a Phase 8 row.
 
 Hermes-Agent, with upstream Git history preserved for attribution, remains the behavior reference.

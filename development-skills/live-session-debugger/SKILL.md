@@ -14,7 +14,7 @@ pwd
 git rev-parse --show-toplevel
 git rev-parse --abbrev-ref HEAD
 git status --short
-GORMES_HOME=${GORMES_HOME:-$HOME/.gormes} python3 docs/development-skills/live-session-debugger/scripts/live_session_audit.py "$GORMES_HOME"
+GORMES_HOME=${GORMES_HOME:-$HOME/.gormes} python3 development-skills/live-session-debugger/scripts/live_session_audit.py "$GORMES_HOME"
 ```
 
 Then run focused Gormes commands through the named home, never by assuming the

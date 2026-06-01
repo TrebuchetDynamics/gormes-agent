@@ -37,7 +37,7 @@ If the task might instead be parity audit, implementation, TDD, interface design
 2. Treat `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` as the canonical evidence-first classification of Hermes behavior atoms. Every atom has an upstream source ref (file+line), a Gormes target, and a status (covered/partial/missing/owned). Use `grep` to discover atoms by subsystem, status, or name. This is the source of truth for what remains to be built.
 3. Treat `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` as the canonical Hermes/Honcho-to-Go map for subsystem context.
 4. Treat `docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md` as the completeness check for whether all feature-bearing Hermes/Honcho source classes are mapped.
-5. Treat `docs/development-skills/<name>/SKILL.md` as the canonical skill source; `.agents/skills/`, `.claude/skills/`, and `.codex/skills/` are symlink loader views.
+5. Treat `development-skills/<name>/SKILL.md` as the canonical skill source; `.agents/skills/`, `.claude/skills/`, and `.codex/skills/` are symlink loader views.
 6. Use in-repo upstream references when present, otherwise sibling checkouts:
    - `$HERMES_SRC`: `./hermes-agent`, then `../hermes-agent`
    - `$HONCHO_SRC`: `./honcho`, then `../honcho`

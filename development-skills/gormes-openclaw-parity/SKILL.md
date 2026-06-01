@@ -184,7 +184,7 @@ blockers:
 If editing only this skill or routing docs:
 
 ```sh
-python3 /home/xel/.codex/skills/.system/skill-creator/scripts/quick_validate.py docs/development-skills/gormes-openclaw-parity
+python3 /home/xel/.codex/skills/.system/skill-creator/scripts/quick_validate.py development-skills/gormes-openclaw-parity
 find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -name SKILL.md -print | sort
 git diff --check
 ```

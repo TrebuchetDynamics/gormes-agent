@@ -9,7 +9,7 @@ import (
 )
 
 func TestDevelopmentGoalSkillContractIsRoutable(t *testing.T) {
-	goal := readRepoText(t, "docs/development-skills/gormes-goal/SKILL.md")
+	goal := readRepoText(t, "development-skills/gormes-goal/SKILL.md")
 	for _, want := range []string{
 		"DEV_GOAL_REPORT:",
 		"DEV_GOAL_VALIDATED:",
@@ -31,7 +31,7 @@ func TestDevelopmentGoalSkillContractIsRoutable(t *testing.T) {
 		t.Fatalf("development-goal marker order mismatch: report=%d validated=%d decision=%d", report, validated, decision)
 	}
 
-	manager := readRepoText(t, "docs/development-skills/gormes-skill-manager/SKILL.md")
+	manager := readRepoText(t, "development-skills/gormes-skill-manager/SKILL.md")
 	for _, want := range []string{
 		"development-goal iteration",
 		"DEV_GOAL markers",
@@ -45,7 +45,7 @@ func TestDevelopmentGoalSkillContractIsRoutable(t *testing.T) {
 }
 
 func TestSkillManagerRoutesSkillMaintenanceThroughWritingSkills(t *testing.T) {
-	manager := readRepoText(t, "docs/development-skills/gormes-skill-manager/SKILL.md")
+	manager := readRepoText(t, "development-skills/gormes-skill-manager/SKILL.md")
 	for _, want := range []string{
 		"Create or improve skills",
 		"`writing-skills`",
@@ -60,7 +60,11 @@ func TestSkillManagerRoutesSkillMaintenanceThroughWritingSkills(t *testing.T) {
 
 func TestDevelopmentSkillLoaderViewsResolveToCanonicalSource(t *testing.T) {
 	repoRoot := findRepoRoot(t)
-	canonicalRoot := filepath.Join(repoRoot, "docs", "development-skills")
+	canonicalRoot := filepath.Join(repoRoot, "development-skills")
+	docsAlias := filepath.Join(repoRoot, "docs", "development-skills")
+	if got, err := filepath.EvalSymlinks(docsAlias); err != nil || got != canonicalRoot {
+		t.Fatalf("docs/development-skills alias resolves to %q, %v; want %q", got, err, canonicalRoot)
+	}
 	skills := canonicalDevelopmentSkills(t, canonicalRoot)
 	if len(skills) == 0 {
 		t.Fatalf("no canonical development skills found under %s", canonicalRoot)

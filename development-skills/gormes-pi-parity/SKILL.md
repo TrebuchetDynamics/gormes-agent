@@ -163,7 +163,7 @@ blockers:
 For skill-only or routing edits:
 
 ```sh
-python3 /home/xel/.codex/skills/.system/skill-creator/scripts/quick_validate.py docs/development-skills/gormes-pi-parity
+python3 /home/xel/.codex/skills/.system/skill-creator/scripts/quick_validate.py development-skills/gormes-pi-parity
 find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -path '*/gormes-pi-parity/SKILL.md' -print | sort
 git diff --check
 ```

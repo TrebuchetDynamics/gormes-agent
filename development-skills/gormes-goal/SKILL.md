@@ -10,7 +10,7 @@ Persistent local goal state and development-goal runner discipline for long-runn
 ## Run Helper First
 
 ```bash
-python3 docs/development-skills/gormes-goal/scripts/gormes_goal.py invoke "$ARGUMENTS"
+python3 development-skills/gormes-goal/scripts/gormes_goal.py invoke "$ARGUMENTS"
 ```
 
 If this harness does not provide `$ARGUMENTS`, pass the user text after `/goal` as a quoted string.
@@ -93,7 +93,7 @@ Before `/goal complete`:
 5. Only if all criteria pass, run:
 
 ```bash
-python3 docs/development-skills/gormes-goal/scripts/gormes_goal.py complete
+python3 development-skills/gormes-goal/scripts/gormes_goal.py complete
 ```
 
 Then report elapsed time, soft budget state, changed files, verification commands, blockers, commit hashes, and push status if applicable.
@@ -101,11 +101,11 @@ Then report elapsed time, soft budget state, changed files, verification command
 ## Direct Helper Commands
 
 ```bash
-python3 docs/development-skills/gormes-goal/scripts/gormes_goal.py status
-python3 docs/development-skills/gormes-goal/scripts/gormes_goal.py pause
-python3 docs/development-skills/gormes-goal/scripts/gormes_goal.py resume
-python3 docs/development-skills/gormes-goal/scripts/gormes_goal.py clear
-python3 docs/development-skills/gormes-goal/scripts/gormes_goal.py json
+python3 development-skills/gormes-goal/scripts/gormes_goal.py status
+python3 development-skills/gormes-goal/scripts/gormes_goal.py pause
+python3 development-skills/gormes-goal/scripts/gormes_goal.py resume
+python3 development-skills/gormes-goal/scripts/gormes_goal.py clear
+python3 development-skills/gormes-goal/scripts/gormes_goal.py json
 ```
 
 ## Common Mistakes

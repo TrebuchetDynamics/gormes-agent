@@ -34,7 +34,7 @@ agent in this workspace, including workspace-mineru / workspace-mimeru agents.
 
 Before doing any substantive work in this repository, every agent must select
 and use at least one repo-local skill. The canonical skill source is
-`docs/development-skills/<name>/SKILL.md`; `.agents/skills/`,
+`development-skills/<name>/SKILL.md`; `.agents/skills/`,
 `.claude/skills/`, and `.codex/skills/` are symlink loader views for different
 agents. If the right skill is not obvious, start with `gormes-skill-manager`
 and let it route the task. Do not proceed "skill-less" on planning, building,
@@ -75,7 +75,7 @@ rules in this `AGENTS.md` and load `gormes-skill-manager` alongside global
 
 If none of these skills fits repeated Gormes work, use
 `gormes-skill-manager` plus the system `skill-creator` workflow to create or
-refine a repo-local skill under `docs/development-skills/`. Keep the new skill
+refine a repo-local skill under `development-skills/`. Keep the new skill
 bounded, validate it, and do not use skill creation as a substitute for
 shipping Gormes. Recreate symlinks into `.agents/skills/`, `.claude/skills/`,
 and `.codex/skills/` instead of copying skill files.
@@ -144,24 +144,24 @@ All planner and builder skills talk through these files. **Do not bypass them.**
 
 | If you're … | Read this first |
 |---|---|
-| Unsure which workflow applies | `docs/development-skills/gormes-skill-manager/SKILL.md` |
-| Running a recurring Hermes/Gormes parity sweep or checking periodic parity progress | `docs/development-skills/gormes-hermes-parity/SKILL.md` |
-| Discovering useful OpenClaw-only behavior that Hermes lacks | `docs/development-skills/gormes-openclaw-parity/SKILL.md` |
-| Learning reusable Pi harness techniques without conflicting with Hermes/OpenClaw parity | `docs/development-skills/gormes-pi-parity/SKILL.md` |
-| Planning phases, dependencies, or roadmap rows | `docs/development-skills/gormes-planner/SKILL.md` |
-| Fixing provider/auth/client/model-routing/usage/rate-limit parity bugs | `docs/development-skills/gormes-provider-parity/SKILL.md` |
-| Browser automation parity, Browser Use, browser-harness, CDP, or `/browser connect` work | `docs/development-skills/gormes-browser-harness/SKILL.md` |
-| Local run/install/runtime work, binary refresh, gateway ownership, or session DB locks | `docs/development-skills/gormes-dev-runtime/SKILL.md` |
-| Stuck on a Go implementation shape and want a donor file before writing code | `docs/development-skills/gormes-references/SKILL.md` |
-| External library/framework/upstream source context before planning or implementation | `docs/development-skills/gormes-context-sourcing/SKILL.md` |
-| Repeated runtime mechanics or service-layer cleanup after a feature works | `docs/development-skills/gormes-service-layer-refactor/SKILL.md` |
-| PR feedback, CI failures, or bounded review-to-green iteration | `docs/development-skills/gormes-review-loop/SKILL.md` |
-| Refreshing README.md or public repository claims from current evidence | `docs/development-skills/gormes-readme/SKILL.md` |
-| Improving the public landing page content or UI | `docs/development-skills/gormes-landing-web/SKILL.md` |
-| Committing all dirty work, making `development` green, and pushing it | `docs/development-skills/gormes-git/SKILL.md` |
-| Preparing, PR-merging, tagging, and verifying a Gormes release | `docs/development-skills/gormes-release/SKILL.md` |
-| Implementing one row | `docs/development-skills/gormes-builder/SKILL.md` |
-| Driving red-green-refactor | `docs/development-skills/gormes-tdd-slice/SKILL.md` |
+| Unsure which workflow applies | `development-skills/gormes-skill-manager/SKILL.md` |
+| Running a recurring Hermes/Gormes parity sweep or checking periodic parity progress | `development-skills/gormes-hermes-parity/SKILL.md` |
+| Discovering useful OpenClaw-only behavior that Hermes lacks | `development-skills/gormes-openclaw-parity/SKILL.md` |
+| Learning reusable Pi harness techniques without conflicting with Hermes/OpenClaw parity | `development-skills/gormes-pi-parity/SKILL.md` |
+| Planning phases, dependencies, or roadmap rows | `development-skills/gormes-planner/SKILL.md` |
+| Fixing provider/auth/client/model-routing/usage/rate-limit parity bugs | `development-skills/gormes-provider-parity/SKILL.md` |
+| Browser automation parity, Browser Use, browser-harness, CDP, or `/browser connect` work | `development-skills/gormes-browser-harness/SKILL.md` |
+| Local run/install/runtime work, binary refresh, gateway ownership, or session DB locks | `development-skills/gormes-dev-runtime/SKILL.md` |
+| Stuck on a Go implementation shape and want a donor file before writing code | `development-skills/gormes-references/SKILL.md` |
+| External library/framework/upstream source context before planning or implementation | `development-skills/gormes-context-sourcing/SKILL.md` |
+| Repeated runtime mechanics or service-layer cleanup after a feature works | `development-skills/gormes-service-layer-refactor/SKILL.md` |
+| PR feedback, CI failures, or bounded review-to-green iteration | `development-skills/gormes-review-loop/SKILL.md` |
+| Refreshing README.md or public repository claims from current evidence | `development-skills/gormes-readme/SKILL.md` |
+| Improving the public landing page content or UI | `development-skills/gormes-landing-web/SKILL.md` |
+| Committing all dirty work, making `development` green, and pushing it | `development-skills/gormes-git/SKILL.md` |
+| Preparing, PR-merging, tagging, and verifying a Gormes release | `development-skills/gormes-release/SKILL.md` |
+| Implementing one row | `development-skills/gormes-builder/SKILL.md` |
+| Driving red-green-refactor | `development-skills/gormes-tdd-slice/SKILL.md` |
 | Changing the row schema or rendered docs | `internal/progress/` and the schema doc rendered at `docs/content/building-gormes/builder-loop/progress-schema.md` |
 | Onboarding to the architecture with no prior context | this file, then `docs/content/building-gormes/_index.md` |
 

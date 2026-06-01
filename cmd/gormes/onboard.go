@@ -246,7 +246,7 @@ func printOnboardStatus(cmd *cobra.Command, cfg config.Config) {
 	fmt.Fprintln(out)
 
 	fmt.Fprintln(out, "Runtime skills are loaded from the skills root above plus bundled skills.")
-	fmt.Fprintln(out, "Repo development skills under docs/development-skills are for agents building Gormes; they are not normal user/runtime skills unless you explicitly point GORMES_SKILLS_ROOT there.")
+	fmt.Fprintln(out, "Repo development skills under development-skills are for agents building Gormes; they are not normal user/runtime skills unless you explicitly point GORMES_SKILLS_ROOT there.")
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "Learning loop: manual/prompted skill capture works through skill_manage, and delegated runs can draft candidate skills. Fully automatic distill/promote/maintain is still partial.")
 	fmt.Fprintln(out)

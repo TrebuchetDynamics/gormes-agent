@@ -77,7 +77,7 @@ func TestOnboardExplainsRuntimeSkillsAndLearningState(t *testing.T) {
 		"Gormes onboarding",
 		filepath.Join(home, "skills"),
 		"Runtime skills",
-		"docs/development-skills",
+		"development-skills",
 		"manual/prompted",
 		"gormes skills list",
 	} {

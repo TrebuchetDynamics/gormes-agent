@@ -261,7 +261,7 @@ This skill stops at find + document. Route fixes via:
 After updating this skill or its references:
 
 ```sh
-python3 /home/xel/.codex/skills/.system/skill-creator/scripts/quick_validate.py docs/development-skills/gormes-install
+python3 /home/xel/.codex/skills/.system/skill-creator/scripts/quick_validate.py development-skills/gormes-install
 find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -name SKILL.md -print | sort | grep gormes-install
 go run ./cmd/progress validate
 git diff --check

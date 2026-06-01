@@ -6,7 +6,7 @@ Start from `docs/content/building-gormes/architecture_plan/hermes-honcho-feature
 Every non-trivial task should name the map area and the matching
 `progress.json` row before picking a skill.
 
-Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
+Skill files are edited in `development-skills/<name>/`; `.agents/skills/`,
 `.claude/skills/`, and `.codex/skills/` should remain symlink views.
 
 ## Existing Gormes Skills

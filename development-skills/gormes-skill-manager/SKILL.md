@@ -21,7 +21,7 @@ repository, prefer the in-repo reference checkout at `./hermes-agent`; fall
 back to `../hermes-agent` only when the in-repo checkout is absent. Treat it as
 behavior evidence, not as a Gormes runtime dependency.
 
-Canonical skill source lives under `docs/development-skills/<name>/SKILL.md`.
+Canonical skill source lives under `development-skills/<name>/SKILL.md`.
 The `.agents/skills/`, `.claude/skills/`, and `.codex/skills/` directories are
 symlink loader views.
 
@@ -265,7 +265,7 @@ choosing the builder skill.
 Before creating a new skill, inspect current repo-local skills:
 
 ```sh
-find docs/development-skills -maxdepth 2 -name SKILL.md -print | sort
+find development-skills -maxdepth 2 -name SKILL.md -print | sort
 find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -name SKILL.md -print | sort
 ```
 
@@ -312,12 +312,12 @@ Each new skill must have:
 - validation commands;
 - no duplicate doctrine already present in `gormes-planner` or `gormes-builder`.
 
-Create the skill under `docs/development-skills/<name>/`. Then add symlinks:
+Create the skill under `development-skills/<name>/`. Then add symlinks:
 
 ```sh
-ln -s ../../docs/development-skills/<name> .agents/skills/<name>
-ln -s ../../docs/development-skills/<name> .claude/skills/<name>
-ln -s ../../docs/development-skills/<name> .codex/skills/<name>
+ln -s ../../development-skills/<name> .agents/skills/<name>
+ln -s ../../development-skills/<name> .claude/skills/<name>
+ln -s ../../development-skills/<name> .codex/skills/<name>
 ```
 
 ### 5. Report The Routing Decision
