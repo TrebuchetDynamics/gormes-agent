@@ -31,5 +31,5 @@ gormes fallback [command]
 
 ## See also
 
-- [CLI reference](../)
-- [Providers](../../configure/providers/)
+- [CLI reference](../../)
+- [Providers](../../../configure/providers/)

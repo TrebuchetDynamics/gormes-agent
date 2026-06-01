@@ -22,4 +22,4 @@ gormes version [flags]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)

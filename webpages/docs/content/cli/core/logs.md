@@ -22,6 +22,6 @@ gormes logs [flags]
 
 ## See also
 
-- [CLI reference](../)
-- [`gormes gateway`](../gateway/)
-- [Paths and logs](../../configure/paths/)
+- [CLI reference](../../)
+- [`gormes gateway`](../../runtime/gateway/)
+- [Paths and logs](../../../configure/paths/)

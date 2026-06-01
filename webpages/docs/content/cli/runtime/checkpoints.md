@@ -36,4 +36,4 @@ gormes checkpoints [command]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)

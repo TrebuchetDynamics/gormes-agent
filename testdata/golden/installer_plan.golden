@@ -1,0 +1,11 @@
+install plan
+  branch: <branch>
+  install_method: <binary-fetch|source-build>
+  install_home: <sandbox-or-user-home>
+  managed_binary: <install-home>/bin/gormes
+  published_binary: <bin-dir>/gormes
+  update_active_path_command: <planned|skipped>
+  edit_shell_rc_files: <planned|skipped>
+  install_system_service: <planned|skipped>
+  restart_gateway: <always|when-running|never>
+  setup_wizard: <planned|skipped>

@@ -6,8 +6,8 @@ import (
 )
 
 func TestProfileDocsDisambiguateGormesRuntimeAndUpstreamHermes(t *testing.T) {
-	cli := readDoc(t, "content/cli/profile.md")
-	assertContainsAll(t, "content/cli/profile.md", cli, []string{
+	cli := readDoc(t, "content/cli/setup/profile.md")
+	assertContainsAll(t, "content/cli/setup/profile.md", cli, []string{
 		"## Profile model",
 		"A Gormes profile is a Gormes home root.",
 		"Profile selection alone is state separation, not a blanket filesystem sandbox.",
@@ -71,8 +71,8 @@ func TestProfileDocsDisambiguateGormesRuntimeAndUpstreamHermes(t *testing.T) {
 }
 
 func TestSetupAndConfigDocsDescribeProfileWorkspaceListPolicy(t *testing.T) {
-	setup := readDoc(t, "content/cli/setup.md")
-	assertContainsAll(t, "content/cli/setup.md", setup, []string{
+	setup := readDoc(t, "content/cli/setup/setup.md")
+	assertContainsAll(t, "content/cli/setup/setup.md", setup, []string{
 		"| `profiles` | Manage profiles and persist per-profile workspace/channel lists |",
 		"`gormes setup profiles` writes `agents.defaults.workspaces`",
 		"An empty list means the operator home is the\ndefault project workspace",

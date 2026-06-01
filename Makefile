@@ -1,4 +1,4 @@
-.PHONY: build build-slim run test test-live lint fmt clean update-readme validate-progress generate-progress orchestrator-test orchestrator-test-all orchestrator-lint
+.PHONY: build build-slim run test test-integration test-e2e test-release test-live lint fmt clean update-readme validate-progress generate-progress orchestrator-test orchestrator-test-all orchestrator-lint
 
 VERSION ?= $(shell sed -nE 's/^[[:space:]]*(var[[:space:]]+)?Version[[:space:]]*=[[:space:]]*"([^"]+)".*/\2/p' cmd/gormes/version.go | head -n1)
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -46,7 +46,18 @@ run: build
 	./bin/gormes
 
 test:
-	go test ./...
+	go test ./... -count=1
+
+test-integration:
+	go test ./internal/provider/router ./internal/support/testutil/... ./internal/persistence/session ./internal/memory ./internal/gateway ./internal/adapters/channels/... -run 'Test.*(Contract|Integration|Fake|Fixture|SQLite|Gateway|Webhook|Migration|Dashboard|Navivox)' -count=1
+
+test-e2e:
+	go test ./cmd/gormes ./internal/support/e2e ./internal/tui -run 'Test.*(E2E|EndToEnd|WideE2E|MultiTurn)' -count=1
+
+test-release: validate-progress
+	go test ./internal/platform/installtest ./webpages/docs/install ./cmd/gormes -run 'Test.*(Release|Install|Version|Checksum|Uninstall|PublicInstall)' -count=1
+	CGO_ENABLED=0 go build $(BUILD_FLAGS) -o $(BINARY_PATH) ./cmd/gormes
+	./$(BINARY_PATH) version --json >/tmp/gormes-version.json
 
 test-live:
 	go test -tags=live ./...

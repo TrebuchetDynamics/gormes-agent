@@ -34,6 +34,6 @@ gormes auth [command]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)
 - [`gormes logout`](../logout/)
 - [`gormes setup`](../setup/)

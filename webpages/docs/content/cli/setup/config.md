@@ -35,6 +35,6 @@ gormes config [command]
 
 ## See also
 
-- [CLI reference](../)
-- [Config schema](../../configure/config-file/)
-- [Environment variables](../../configure/environment/)
+- [CLI reference](../../)
+- [Config schema](../../../configure/config-file/)
+- [Environment variables](../../../configure/environment/)

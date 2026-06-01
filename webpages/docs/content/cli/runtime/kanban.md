@@ -47,4 +47,4 @@ gormes kanban [command]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)

@@ -46,6 +46,6 @@ trusting a skill as durable behavior.
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)
 - [`gormes skills`](../skills/)
-- [Learning loop proof](../../building-gormes/core-systems/learning-loop/)
+- [Learning loop proof](../../../building-gormes/core-systems/learning-loop/)

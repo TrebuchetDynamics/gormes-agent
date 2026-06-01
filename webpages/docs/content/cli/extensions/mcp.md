@@ -29,5 +29,5 @@ gormes mcp [command]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)
 - [`gormes plugins`](../plugins/)

@@ -33,6 +33,6 @@ gormes plugins [command]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)
 - [`gormes mcp`](../mcp/)
 - [`gormes skills`](../skills/)

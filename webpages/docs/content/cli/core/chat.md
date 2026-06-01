@@ -22,5 +22,5 @@ gormes chat [prompt...] [flags]
 
 ## See also
 
-- [CLI reference](../)
-- Top-level `gormes chat -q "prompt"` (see [CLI reference](../))
+- [CLI reference](../../)
+- Top-level `gormes chat -q "prompt"` (see [CLI reference](../../))

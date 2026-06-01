@@ -36,7 +36,7 @@ surface instead of staying buried in one chat transcript.
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)
 - [`gormes curator`](../curator/)
 - [`gormes plugins`](../plugins/)
-- [Learning loop proof](../../building-gormes/core-systems/learning-loop/)
+- [Learning loop proof](../../../building-gormes/core-systems/learning-loop/)

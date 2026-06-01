@@ -92,4 +92,4 @@ not shipped in Gormes yet. With `--json`, each returns
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)

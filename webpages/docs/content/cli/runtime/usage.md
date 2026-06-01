@@ -26,6 +26,6 @@ gormes usage [flags]
 
 ## See also
 
-- [CLI reference](../)
-- [Providers](../../configure/providers/)
-- [`gormes gateway`](../gateway/) (see `gateway usage-cost`)
+- [CLI reference](../../)
+- [Providers](../../../configure/providers/)
+- [`gormes gateway`](../../runtime/gateway/) (see `gateway usage-cost`)

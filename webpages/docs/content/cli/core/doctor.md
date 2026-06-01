@@ -23,6 +23,6 @@ gormes doctor [flags]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)
 - [`gormes status`](../status/)
-- [`gormes setup`](../setup/)
+- [`gormes setup`](../../setup/setup/)

@@ -34,7 +34,7 @@ an assistant statement like "I will remember that" as durable memory.
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)
 - [`gormes goncho`](../goncho/)
 - [`gormes session`](../session/)
-- [Learning loop proof](../../building-gormes/core-systems/learning-loop/)
+- [Learning loop proof](../../../building-gormes/core-systems/learning-loop/)

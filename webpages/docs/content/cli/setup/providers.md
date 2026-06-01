@@ -38,8 +38,8 @@ print setup intent plus backlog guidance instead of failing as unknown.
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)
 - [`gormes auth`](../auth/)
 - [`gormes model`](../model/)
 - [`gormes setup`](../setup/)
-- [Provider configuration](../../configure/providers/)
+- [Provider configuration](../../../configure/providers/)

@@ -60,6 +60,6 @@ gormes setup [section] [flags]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)
 - [`gormes model`](../model/)
-- [Provider setup](../../configure/providers/)
+- [Provider setup](../../../configure/providers/)

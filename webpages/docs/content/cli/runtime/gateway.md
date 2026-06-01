@@ -52,9 +52,9 @@ validation failures are not killed.
 
 ## See also
 
-- [CLI reference](../)
-- [`gormes channels`](../channels/)
-- [`gormes logs`](../logs/)
-- [`gormes telegram`](../telegram/)
-- [`gormes whatsapp`](../whatsapp/)
-- [Gateway operations](../../operate/multi-channel-gateway/)
+- [CLI reference](../../)
+- [`gormes channels`](../../channels/channels/)
+- [`gormes logs`](../../core/logs/)
+- [`gormes telegram`](../../channels/telegram/)
+- [`gormes whatsapp`](../../channels/whatsapp/)
+- [Gateway operations](../../../operate/multi-channel-gateway/)

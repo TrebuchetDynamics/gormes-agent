@@ -493,7 +493,7 @@ func TestCommonErrorsDocumentsTermuxV022Recovery(t *testing.T) {
 }
 
 func TestChannelCapabilityMatrixDocs(t *testing.T) {
-	channels := readDoc(t, "content/cli/channels.md")
+	channels := readDoc(t, "content/cli/channels/channels.md")
 	for _, want := range []string{
 		"## Capability Matrix",
 		"Runtime-ready",
@@ -501,8 +501,8 @@ func TestChannelCapabilityMatrixDocs(t *testing.T) {
 		"Planned",
 		"gormes channels capabilities",
 		"gormes gateway status --json",
-		"[Telegram](../../operate/telegram-bot/)",
-		"[Discord](../gateway/)",
+		"[Telegram](../../../operate/telegram-bot/)",
+		"[Discord](../../runtime/gateway/)",
 		"[Slack](../slack/)",
 		"WhatsApp",
 	} {
@@ -603,9 +603,9 @@ func TestLearningLoopOperatorProofDocs(t *testing.T) {
 	}
 
 	for _, page := range []string{
-		"content/cli/curator.md",
-		"content/cli/skills.md",
-		"content/cli/memory.md",
+		"content/cli/extensions/curator.md",
+		"content/cli/extensions/skills.md",
+		"content/cli/runtime/memory.md",
 	} {
 		raw := readDoc(t, page)
 		for _, want := range []string{"learning loop", "building-gormes/core-systems/learning-loop/"} {
@@ -749,7 +749,7 @@ func mapSourceToContent(rel string) string {
 	rel = filepath.ToSlash(rel)
 	// Upstream docs mirror lives under content/upstream-hermes/.
 	const mirrorPrefix = "upstream-hermes/"
-	if rel == "index.md" {
+	if rel == "index.md" || rel == "index.mdx" {
 		return mirrorPrefix + "_index.md"
 	}
 	if strings.HasSuffix(rel, "/index.md") {

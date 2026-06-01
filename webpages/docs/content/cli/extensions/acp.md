@@ -29,4 +29,4 @@ gormes acp [command]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)

@@ -30,4 +30,4 @@ gormes system [command]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)

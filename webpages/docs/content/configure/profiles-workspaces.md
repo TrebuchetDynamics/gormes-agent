@@ -30,4 +30,4 @@ default project workspace. A non-empty list is the model-facing project
 read/write allow-list.
 
 Use [Profiles for client work](../../operate/profiles-client-work/) for the operator workflow
-and [CLI reference: profile](../../cli/profile/) for exact commands and flags.
+and [CLI reference: profile](../../cli/setup/profile/) for exact commands and flags.

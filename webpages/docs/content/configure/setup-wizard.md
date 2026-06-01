@@ -30,7 +30,7 @@ gormes setup terminal
 Use the exact command reference for flags such as `--quick`,
 `--non-interactive`, `--reconfigure`, and `--reset`:
 
-- [CLI reference: setup](../../cli/setup/)
+- [CLI reference: setup](../../cli/setup/setup/)
 
 ## Verify
 

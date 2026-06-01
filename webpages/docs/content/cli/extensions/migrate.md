@@ -29,5 +29,5 @@ gormes migrate [command]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)
 - [`gormes claw`](../claw/)

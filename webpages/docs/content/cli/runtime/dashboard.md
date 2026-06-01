@@ -24,4 +24,4 @@ gormes dashboard [flags]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)

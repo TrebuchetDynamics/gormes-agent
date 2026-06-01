@@ -28,5 +28,5 @@ gormes agent [command]
 
 ## See also
 
-- [CLI reference](../)
-- [`gormes setup`](../setup/)
+- [CLI reference](../../)
+- [`gormes setup`](../../setup/setup/)

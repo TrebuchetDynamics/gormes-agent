@@ -1,0 +1,15 @@
+navivox://connect?
+  base_url=<http-url>
+  websocket_url=<ws-url>/v1/navivox/stream
+  status_url=<http-url>/v1/navivox/status
+  capabilities_url=<http-url>/v1/navivox/capabilities
+  setup_handoff=true
+  setup_mutation_policy=read_only_handoff
+  setup_sections=provider,model,workspace,channels
+  setup_entry_screen=setup.provider
+  bridge_keepalive_required=true
+  bridge_lifecycle=termux_pair_command
+  recommended_path=navivox
+  pairing_token_temporary=true
+  pairing_token_expires_when=bridge_stops
+  pairing_device_limit=1

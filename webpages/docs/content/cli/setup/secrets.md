@@ -31,6 +31,6 @@ gormes secrets [command]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)
 - [`gormes security`](../security/)
 - [`gormes config`](../config/)

@@ -21,6 +21,6 @@ gormes model [flags]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)
 - [`gormes setup`](../setup/)
 - [`gormes fallback`](../fallback/)

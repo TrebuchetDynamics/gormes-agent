@@ -85,4 +85,4 @@ Supported runtime endpoints:
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)

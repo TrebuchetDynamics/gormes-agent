@@ -23,5 +23,5 @@ gormes logout [--provider <provider>] [flags]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)
 - [`gormes auth`](../auth/)

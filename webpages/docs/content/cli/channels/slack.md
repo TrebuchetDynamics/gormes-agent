@@ -28,5 +28,5 @@ gormes slack [command]
 
 ## See also
 
-- [CLI reference](../)
-- [`gormes gateway`](../gateway/)
+- [CLI reference](../../)
+- [`gormes gateway`](../../runtime/gateway/)

@@ -26,5 +26,5 @@ gormes restore [flags]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)
 - [`gormes update`](../update/)

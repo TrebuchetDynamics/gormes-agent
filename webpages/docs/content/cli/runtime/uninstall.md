@@ -27,4 +27,4 @@ gormes uninstall [flags]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)

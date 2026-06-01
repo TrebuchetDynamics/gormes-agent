@@ -29,48 +29,48 @@ gormes <command> --help
 
 | Command | Purpose |
 |---|---|
-| [`gormes acp`](acp/) | Run ACP bridge tools |
-| [`gormes agent`](agent/) | Manage Gormes agent context templates |
-| [`gormes auth`](auth/) | Manage Hermes-compatible provider credentials |
-| [`gormes channels`](channels/) | Inspect channel capability metadata |
-| [`gormes chat`](chat/) | Open chat or send a single query |
-| [`gormes checkpoints`](checkpoints/) | Inspect and manage Gormes file-operation rollback state |
-| [`gormes claw`](claw/) | Hermes-compatible OpenClaw migration tools |
-| [`gormes completion`](completion/) | Generate shell completion script |
-| [`gormes config`](config/) | Inspect or update the Gormes configuration files |
-| [`gormes cron`](cron/) | Manage scheduled cron jobs |
-| [`gormes curator`](curator/) | Manage Hermes-compatible background skill curation |
-| [`gormes dashboard`](dashboard/) | Start the Gormes web dashboard |
-| [`gormes doctor`](doctor/) | Verify Gormes runtime: provider readiness + built-in tools |
-| [`gormes fallback`](fallback/) | Manage fallback providers |
-| [`gormes gateway`](gateway/) | Run Gormes as a multi-channel messaging gateway |
-| [`gormes goncho`](goncho/) | Inspect local Goncho memory diagnostics |
-| [`gormes kanban`](kanban/) | Manage the durable local multi-agent Kanban board |
-| [`gormes logout`](logout/) | Clear stored authentication for a Hermes-compatible provider |
-| [`gormes logs`](logs/) | Show recent Gormes gateway logs |
-| [`gormes mcp`](mcp/) | Manage Hermes-compatible MCP servers |
-| [`gormes memory`](memory/) | Inspect persisted memory and extractor state |
-| [`gormes migrate`](migrate/) | Migrate state from upstream agents into Gormes (dry-run only in this slice) |
-| [`gormes model`](model/) | Interactively select the active model/provider |
-| [`gormes navivox`](navivox/) | Navivox HTTP channel utilities |
-| [`gormes plugins`](plugins/) | Manage Hermes-compatible plugins |
-| [`gormes providers`](providers/) | Show provider setup commands |
-| [`gormes profile`](profile/) | Inspect and switch the active Gormes profile |
-| [`gormes restore`](restore/) | Discover and restore from a pre-update backup zip |
-| [`gormes secrets`](secrets/) | Apply, audit, configure, and reload SecretRef-backed runtime secrets |
-| [`gormes security`](security/) | Audit gateway, channel, tool, filesystem, and credential security |
-| [`gormes session`](session/) | Inspect and export persisted sessions |
-| [`gormes setup`](setup/) | Guided interactive setup — provider, model, and more |
-| [`gormes skills`](skills/) | Manage skills |
-| [`gormes slack`](slack/) | Slack integration helpers |
-| [`gormes status`](status/) | Show Gormes runtime and progress blockers |
-| [`gormes system`](system/) | Enqueue system events and inspect heartbeat or presence state |
-| [`gormes telegram`](telegram/) | Run Gormes as a Telegram bot adapter |
-| [`gormes uninstall`](uninstall/) | Remove Gormes artifacts from this system |
-| [`gormes update`](update/) | Update a managed Gormes source checkout |
-| [`gormes usage`](usage/) | Show runtime/provider account usage |
-| [`gormes version`](version/) | Print gormes version |
-| [`gormes whatsapp`](whatsapp/) | Set up WhatsApp pairing through the Hermes-compatible Baileys bridge |
+| [`gormes acp`](extensions/acp/) | Run ACP bridge tools |
+| [`gormes agent`](runtime/agent/) | Manage Gormes agent context templates |
+| [`gormes auth`](setup/auth/) | Manage Hermes-compatible provider credentials |
+| [`gormes channels`](channels/channels/) | Inspect channel capability metadata |
+| [`gormes chat`](core/chat/) | Open chat or send a single query |
+| [`gormes checkpoints`](runtime/checkpoints/) | Inspect and manage Gormes file-operation rollback state |
+| [`gormes claw`](extensions/claw/) | Hermes-compatible OpenClaw migration tools |
+| [`gormes completion`](core/completion/) | Generate shell completion script |
+| [`gormes config`](setup/config/) | Inspect or update the Gormes configuration files |
+| [`gormes cron`](runtime/cron/) | Manage scheduled cron jobs |
+| [`gormes curator`](extensions/curator/) | Manage Hermes-compatible background skill curation |
+| [`gormes dashboard`](runtime/dashboard/) | Start the Gormes web dashboard |
+| [`gormes doctor`](core/doctor/) | Verify Gormes runtime: provider readiness + built-in tools |
+| [`gormes fallback`](setup/fallback/) | Manage fallback providers |
+| [`gormes gateway`](runtime/gateway/) | Run Gormes as a multi-channel messaging gateway |
+| [`gormes goncho`](runtime/goncho/) | Inspect local Goncho memory diagnostics |
+| [`gormes kanban`](runtime/kanban/) | Manage the durable local multi-agent Kanban board |
+| [`gormes logout`](setup/logout/) | Clear stored authentication for a Hermes-compatible provider |
+| [`gormes logs`](core/logs/) | Show recent Gormes gateway logs |
+| [`gormes mcp`](extensions/mcp/) | Manage Hermes-compatible MCP servers |
+| [`gormes memory`](runtime/memory/) | Inspect persisted memory and extractor state |
+| [`gormes migrate`](extensions/migrate/) | Migrate state from upstream agents into Gormes (dry-run only in this slice) |
+| [`gormes model`](setup/model/) | Interactively select the active model/provider |
+| [`gormes navivox`](channels/navivox/) | Navivox HTTP channel utilities |
+| [`gormes plugins`](extensions/plugins/) | Manage Hermes-compatible plugins |
+| [`gormes providers`](setup/providers/) | Show provider setup commands |
+| [`gormes profile`](setup/profile/) | Inspect and switch the active Gormes profile |
+| [`gormes restore`](runtime/restore/) | Discover and restore from a pre-update backup zip |
+| [`gormes secrets`](setup/secrets/) | Apply, audit, configure, and reload SecretRef-backed runtime secrets |
+| [`gormes security`](setup/security/) | Audit gateway, channel, tool, filesystem, and credential security |
+| [`gormes session`](runtime/session/) | Inspect and export persisted sessions |
+| [`gormes setup`](setup/setup/) | Guided interactive setup — provider, model, and more |
+| [`gormes skills`](extensions/skills/) | Manage skills |
+| [`gormes slack`](channels/slack/) | Slack integration helpers |
+| [`gormes status`](core/status/) | Show Gormes runtime and progress blockers |
+| [`gormes system`](runtime/system/) | Enqueue system events and inspect heartbeat or presence state |
+| [`gormes telegram`](channels/telegram/) | Run Gormes as a Telegram bot adapter |
+| [`gormes uninstall`](runtime/uninstall/) | Remove Gormes artifacts from this system |
+| [`gormes update`](runtime/update/) | Update a managed Gormes source checkout |
+| [`gormes usage`](runtime/usage/) | Show runtime/provider account usage |
+| [`gormes version`](core/version/) | Print gormes version |
+| [`gormes whatsapp`](channels/whatsapp/) | Set up WhatsApp pairing through the Hermes-compatible Baileys bridge |
 
 ## Global flags
 

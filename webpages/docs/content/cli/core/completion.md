@@ -21,4 +21,4 @@ gormes completion {bash|zsh|fish|powershell} [flags]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)

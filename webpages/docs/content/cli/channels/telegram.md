@@ -22,6 +22,6 @@ gormes telegram [flags]
 
 ## See also
 
-- [CLI reference](../)
-- [`gormes gateway`](../gateway/)
-- [Telegram bot](../../configure/telegram/)
+- [CLI reference](../../)
+- [`gormes gateway`](../../runtime/gateway/)
+- [Telegram bot](../../../operate/telegram-bot/)

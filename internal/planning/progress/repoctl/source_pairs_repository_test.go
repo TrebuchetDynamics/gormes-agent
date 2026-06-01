@@ -23,10 +23,10 @@ func TestRepositorySourcePairsClassifyHermesToolTail(t *testing.T) {
 		{hermesFile: "tools/web_tools.py", status: "partial"},
 		{hermesFile: "tools/x_search_tool.py", status: "partial"},
 		{hermesFile: "tools/tts_tool.py", status: "partial"},
-		{hermesFile: "tools/transcription_tools.py", status: "covered"},
+		{hermesFile: "tools/transcription_tools.py", status: "partial"},
 		{hermesFile: "tools/image_generation_tool.py", status: "partial"},
-		{hermesFile: "tools/url_safety.py", status: "covered"},
-		{hermesFile: "tools/website_policy.py", status: "covered"},
+		{hermesFile: "tools/url_safety.py", status: "partial"},
+		{hermesFile: "tools/website_policy.py", status: "partial"},
 	} {
 		pair, ok := pairs[tc.hermesFile]
 		if !ok {
@@ -57,7 +57,7 @@ func TestRepositorySourcePairsClassifyHermesAgentRuntimeTail(t *testing.T) {
 	}{
 		{hermesFile: "agent/conversation_loop.py", status: "partial"},
 		{hermesFile: "agent/tool_executor.py", status: "partial"},
-		{hermesFile: "agent/context_engine.py", status: "covered"},
+		{hermesFile: "agent/context_engine.py", status: "partial"},
 		{hermesFile: "agent/transports/codex.py", status: "partial"},
 		{hermesFile: "agent/transports/chat_completions.py", status: "partial"},
 		{hermesFile: "agent/lsp/manager.py", status: "partial"},

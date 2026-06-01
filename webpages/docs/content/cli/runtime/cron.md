@@ -42,4 +42,4 @@ gormes cron remove <job-id>   # remove a cron job
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)

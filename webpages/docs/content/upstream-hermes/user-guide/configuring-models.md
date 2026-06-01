@@ -20,7 +20,7 @@ Open the dashboard and click **Models** in the sidebar. You get two sections:
 1. **Model Settings** — the top panel, where you assign models to slots.
 2. **Usage analytics** — ranked cards showing every model that ran a session in the selected period, with token counts, cost, and capability badges.
 
-![Models page overview](/img/docs/dashboard-models/overview.png)
+![Models page overview](https://hermesagent.ai/img/docs/dashboard-models/overview.png)
 
 The top card is the **Model Settings** panel. The main row always shows what the agent will spin up for new sessions. Click **Change** to open the picker.
 
@@ -28,7 +28,7 @@ The top card is the **Model Settings** panel. The main row always shows what the
 
 Click **Change** on the Main model row:
 
-![Model picker dialog](/img/docs/dashboard-models/picker-dialog.png)
+![Model picker dialog](https://hermesagent.ai/img/docs/dashboard-models/picker-dialog.png)
 
 The picker has two columns:
 
@@ -43,7 +43,7 @@ Pick a model, hit **Switch**, and Hermes writes it to `~/.hermes/config.yaml` un
 
 Click **Show auxiliary** to reveal the eight task slots:
 
-![Auxiliary panel expanded](/img/docs/dashboard-models/auxiliary-expanded.png)
+![Auxiliary panel expanded](https://hermesagent.ai/img/docs/dashboard-models/auxiliary-expanded.png)
 
 Every auxiliary task defaults to `auto` — meaning Hermes uses your main model for that job too. Override a specific task when you want a cheaper or faster model for a side-job.
 
@@ -72,7 +72,7 @@ If you've over-tuned and want to start over, click **Reset all to auto** at the 
 
 Every model card on the page has a **Use as** dropdown. This is the fast path — pick a model you see in your analytics, click **Use as**, and assign it to the main slot or any specific auxiliary task in one click:
 
-![Use as dropdown](/img/docs/dashboard-models/use-as-dropdown.png)
+![Use as dropdown](https://hermesagent.ai/img/docs/dashboard-models/use-as-dropdown.png)
 
 The dropdown has:
 

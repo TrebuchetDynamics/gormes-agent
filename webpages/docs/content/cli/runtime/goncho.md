@@ -28,5 +28,5 @@ gormes goncho [command]
 
 ## See also
 
-- [CLI reference](../)
+- [CLI reference](../../)
 - [`gormes memory`](../memory/)
