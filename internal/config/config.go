@@ -381,6 +381,21 @@ func loadEnv(cfg *Config) error {
 	if v := strings.TrimSpace(os.Getenv("GORMES_VOICE_RECORD_KEY")); v != "" {
 		cfg.Voice.RecordKey = v
 	}
+	if strings.TrimSpace(cfg.Display.ToolProgress) == "" {
+		if v := strings.TrimSpace(os.Getenv("HERMES_TOOL_PROGRESS")); v != "" {
+			parsed, err := parseEnvBool("HERMES_TOOL_PROGRESS", v)
+			if err != nil {
+				return err
+			}
+			if parsed {
+				cfg.Display.ToolProgress = "all"
+			} else {
+				cfg.Display.ToolProgress = "off"
+			}
+		} else if mode, ok := normalizeHermesToolProgressMode(os.Getenv("HERMES_TOOL_PROGRESS_MODE")); ok {
+			cfg.Display.ToolProgress = mode
+		}
+	}
 	if v := strings.TrimSpace(firstNonEmpty(os.Getenv("GORMES_PREFILL_MESSAGES_FILE"), os.Getenv("HERMES_PREFILL_MESSAGES_FILE"))); v != "" {
 		cfg.Agent.PrefillMessagesFile = v
 	}

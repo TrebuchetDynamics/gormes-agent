@@ -252,7 +252,7 @@ file+line ref or explicit `missing`, and a classification.
 | Unknown-tool degradation | `agent/display.py` | `internal/tooltrace/` | covered | Unknown tools display as generic ⚡. |
 | Tool result error display | `gateway/run.py` `:14716` | `internal/gateway/render.go` | covered | Error tool results rendered distinctly. |
 | Tool progress override per-platform | `gateway/run.py` `display.platforms.<name>.tool_progress` | `internal/config/` | partial | Config exists; per-platform override not proven. |
-| Tool progress env var override | `gateway/run.py` `HERMES_TOOL_PROGRESS` | → `missing` | missing | Hermes env var for tool progress mode. |
+| Tool progress env var fallback | `hermes_cli/config.py` `HERMES_TOOL_PROGRESS`, `HERMES_TOOL_PROGRESS_MODE`; `gateway/run.py` env fallback when config absent | `internal/config/config.go`; `internal/config/tool_progress_env_test.go` | covered | Deprecated Hermes env vars are honored only when `display.tool_progress` is not configured: `HERMES_TOOL_PROGRESS=false` maps to `off`, `HERMES_TOOL_PROGRESS=true` maps to `all`, and `HERMES_TOOL_PROGRESS_MODE` maps to normalized mode. Config file values win. |
 
 ### 4.3 Composer behavior
 
