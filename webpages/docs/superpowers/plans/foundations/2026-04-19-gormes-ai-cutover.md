@@ -25,9 +25,9 @@ Work from a clean dedicated worktree. The current main worktree already has unre
 - Modify: `docs/docs_test.go`
 - Modify: `docs/landing_page_docs_test.go`
 - Modify: `docs/superpowers/specs/2026-04-19-gormes-landing-page-design.md`
-- Modify: `docs/superpowers/plans/2026-04-19-gormes-landing-page.md`
+- Modify: `docs/superpowers/plans/web-docs/2026-04-19-gormes-landing-page.md`
 - Reference only: `docs/superpowers/specs/2026-04-19-gormes-ai-cutover-design.md`
-- Reference only: `docs/superpowers/plans/2026-04-19-gormes-ai-cutover.md`
+- Reference only: `docs/superpowers/plans/foundations/2026-04-19-gormes-ai-cutover.md`
 
 The rename stays scoped to the website module and the active landing-page validation docs. Do not do a repository-wide `.io` rewrite of older historical documents.
 
@@ -99,7 +99,7 @@ Update `docs/landing_page_docs_test.go` so the active docs surface expects the `
 func TestTargetsIncludeAICutoverDocs(t *testing.T) {
 	want := map[string]bool{
 		"superpowers/specs/2026-04-19-gormes-ai-cutover-design.md": false,
-		"superpowers/plans/2026-04-19-gormes-ai-cutover.md":        false,
+		"superpowers/plans/foundations/2026-04-19-gormes-ai-cutover.md":        false,
 	}
 
 	for _, target := range targets {
@@ -116,7 +116,7 @@ func TestTargetsIncludeAICutoverDocs(t *testing.T) {
 }
 
 func TestLandingPagePlanDocReferencesRealImplementationFilesAndCommands(t *testing.T) {
-	raw := readDoc(t, "superpowers/plans/2026-04-19-gormes-landing-page.md")
+	raw := readDoc(t, "superpowers/plans/web-docs/2026-04-19-gormes-landing-page.md")
 	wants := []string{
 		"www.gormes.ai/internal/site/assets.go",
 		"www.gormes.ai/internal/site/content.go",
@@ -371,7 +371,7 @@ git commit -m "refactor(gormes-www): rename website module to gormes.ai"
 - Modify: `docs/docs_test.go`
 - Modify: `docs/landing_page_docs_test.go`
 - Modify: `docs/superpowers/specs/2026-04-19-gormes-landing-page-design.md`
-- Modify: `docs/superpowers/plans/2026-04-19-gormes-landing-page.md`
+- Modify: `docs/superpowers/plans/web-docs/2026-04-19-gormes-landing-page.md`
 
 - [ ] **Step 1: Add the cutover spec and plan to Goldmark coverage**
 
@@ -382,11 +382,11 @@ var targets = []string{
 	"ARCH_PLAN.md",
 	"THEORETICAL_ADVANTAGES_GORMES_HERMES.md",
 	"superpowers/specs/2026-04-18-gormes-frontend-adapter-design.md",
-	"superpowers/plans/2026-04-18-gormes-phase1-frontend-adapter.md",
+	"superpowers/plans/foundations/2026-04-18-gormes-phase1-frontend-adapter.md",
 	"superpowers/specs/2026-04-19-gormes-landing-page-design.md",
-	"superpowers/plans/2026-04-19-gormes-landing-page.md",
+	"superpowers/plans/web-docs/2026-04-19-gormes-landing-page.md",
 	"superpowers/specs/2026-04-19-gormes-ai-cutover-design.md",
-	"superpowers/plans/2026-04-19-gormes-ai-cutover.md",
+	"superpowers/plans/foundations/2026-04-19-gormes-ai-cutover.md",
 }
 ```
 
@@ -398,7 +398,7 @@ Keep the `landing_page_docs_test.go` changes from Task 1 and add a second target
 func TestTargetsIncludeLandingPageDocs(t *testing.T) {
 	want := map[string]bool{
 		"superpowers/specs/2026-04-19-gormes-landing-page-design.md": false,
-		"superpowers/plans/2026-04-19-gormes-landing-page.md":        false,
+		"superpowers/plans/web-docs/2026-04-19-gormes-landing-page.md":        false,
 	}
 
 	for _, target := range targets {
@@ -433,7 +433,7 @@ And:
 `www.gormes.ai` must explain Gormes in one screenful to the right audience:
 ```
 
-In `docs/superpowers/plans/2026-04-19-gormes-landing-page.md`, replace the website-module references with `.ai`:
+In `docs/superpowers/plans/web-docs/2026-04-19-gormes-landing-page.md`, replace the website-module references with `.ai`:
 
 ```md
 # Gormes.ai Landing Page Implementation Plan
@@ -465,7 +465,7 @@ Expected: PASS
 - [ ] **Step 5: Commit the docs cutover**
 
 ```bash
-git add docs/docs_test.go docs/landing_page_docs_test.go docs/superpowers/specs/2026-04-19-gormes-landing-page-design.md docs/superpowers/plans/2026-04-19-gormes-landing-page.md
+git add docs/docs_test.go docs/landing_page_docs_test.go docs/superpowers/specs/2026-04-19-gormes-landing-page-design.md docs/superpowers/plans/web-docs/2026-04-19-gormes-landing-page.md
 git commit -m "docs(gormes): rename landing page docs to gormes.ai"
 ```
 
@@ -489,8 +489,8 @@ rg -n "www\\.gormes\\.io|gormes\\.io" \
   docs/docs_test.go \
   docs/superpowers/specs/2026-04-19-gormes-landing-page-design.md \
   docs/superpowers/specs/2026-04-19-gormes-ai-cutover-design.md \
-  docs/superpowers/plans/2026-04-19-gormes-landing-page.md \
-  docs/superpowers/plans/2026-04-19-gormes-ai-cutover.md
+  docs/superpowers/plans/web-docs/2026-04-19-gormes-landing-page.md \
+  docs/superpowers/plans/foundations/2026-04-19-gormes-ai-cutover.md
 ```
 
 Expected:

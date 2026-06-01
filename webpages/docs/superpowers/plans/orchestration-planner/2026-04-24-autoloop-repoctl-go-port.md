@@ -90,7 +90,7 @@ scripts/orchestrator/disable-legacy-timers.sh
 scripts/orchestrator/systemd/gormes-orchestrator.service.in
 scripts/orchestrator/systemd/gormes-orchestrator-audit.service.in
 docs/superpowers/specs/2026-04-24-autoloop-repoctl-go-port-design.md
-docs/superpowers/plans/2026-04-24-autoloop-repoctl-go-port.md
+docs/superpowers/plans/orchestration-planner/2026-04-24-autoloop-repoctl-go-port.md
 ```
 
 Move these files during the parity-harness task:
@@ -3144,7 +3144,7 @@ language-shape scan, and whitespace checks.
 
 **Files:**
 - Modify: `docs/superpowers/specs/2026-04-24-autoloop-repoctl-go-port-design.md`
-- Modify: `docs/superpowers/plans/2026-04-24-autoloop-repoctl-go-port.md`
+- Modify: `docs/superpowers/plans/orchestration-planner/2026-04-24-autoloop-repoctl-go-port.md`
 - Modify: `scripts/orchestrator/README.md`
 - Modify: `scripts/orchestrator/FROZEN.md`
 
@@ -3200,7 +3200,7 @@ Expected: all commands pass.
 Run:
 
 ```bash
-git add docs/superpowers/specs/2026-04-24-autoloop-repoctl-go-port-design.md docs/superpowers/plans/2026-04-24-autoloop-repoctl-go-port.md scripts/orchestrator/README.md scripts/orchestrator/FROZEN.md
+git add docs/superpowers/specs/2026-04-24-autoloop-repoctl-go-port-design.md docs/superpowers/plans/orchestration-planner/2026-04-24-autoloop-repoctl-go-port.md scripts/orchestrator/README.md scripts/orchestrator/FROZEN.md
 git commit -m "docs(autoloop): document Go automation cutover"
 ```
 

@@ -14,7 +14,7 @@
 
 **Files:**
 - Create: `docs/superpowers/specs/2026-04-21-goncho-architecture-design.md`
-- Create: `docs/superpowers/plans/2026-04-21-goncho-immediate-slice.md`
+- Create: `docs/superpowers/plans/goncho-honcho/2026-04-21-goncho-immediate-slice.md`
 
 - [ ] **Step 1: Save the approved architecture decisions**
 
@@ -46,7 +46,7 @@ Write the plan with the same task decomposition used below so implementation can
 
 - [ ] **Step 3: Verify docs exist**
 
-Run: `test -f <repo>/docs/superpowers/specs/2026-04-21-goncho-architecture-design.md && test -f <repo>/docs/superpowers/plans/2026-04-21-goncho-immediate-slice.md`
+Run: `test -f <repo>/docs/superpowers/specs/2026-04-21-goncho-architecture-design.md && test -f <repo>/docs/superpowers/plans/goncho-honcho/2026-04-21-goncho-immediate-slice.md`
 
 Expected: exit code `0`
 
@@ -431,7 +431,7 @@ Capture stdout and stderr exactly for the final report.
 
 ```bash
 git add docs/superpowers/specs/2026-04-21-goncho-architecture-design.md \
-        docs/superpowers/plans/2026-04-21-goncho-immediate-slice.md \
+        docs/superpowers/plans/goncho-honcho/2026-04-21-goncho-immediate-slice.md \
         internal/goncho \
         internal/tools/honcho_tools.go \
         internal/tools/honcho_tools_test.go \

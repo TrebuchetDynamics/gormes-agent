@@ -733,8 +733,8 @@ All are 5s-timeout-gated, JSON-marshaled, with hardcoded schemas. `honcho_search
 ### 12.7 Pre-existing design docs (read these before editing)
 
 - `docs/superpowers/specs/2026-04-21-goncho-architecture-design.md` — full design spec for Goncho.
-- `docs/superpowers/plans/2026-04-21-goncho-immediate-slice.md` — minimum first slice.
-- `docs/superpowers/plans/2026-04-21-gormes-goncho-momentum-sprint.md` — sprint plan.
+- `docs/superpowers/plans/goncho-honcho/2026-04-21-goncho-immediate-slice.md` — minimum first slice.
+- `docs/superpowers/plans/goncho-honcho/2026-04-21-gormes-goncho-momentum-sprint.md` — sprint plan.
 - `docs/content/building-gormes/architecture_plan/phase-3-memory.md` — Phase 3 ledger and GONCHO-to-Gormes mapping table.
 - `docs/content/building-gormes/porting-a-subsystem.md` — generic porting guidance.
 
@@ -947,5 +947,5 @@ This file is intentionally incomplete. When you pick it up:
 - Memory substrate: `internal/memory/` (full Phase 3 inventory in §12.1).
 - Design spec: `docs/superpowers/specs/2026-04-21-goncho-architecture-design.md`.
 - Phase 3 ledger: `docs/content/building-gormes/architecture_plan/phase-3-memory.md`.
-- Sprint plan: `docs/superpowers/plans/2026-04-21-gormes-goncho-momentum-sprint.md`.
+- Sprint plan: `docs/superpowers/plans/goncho-honcho/2026-04-21-gormes-goncho-momentum-sprint.md`.
 - Porting guide: `docs/content/building-gormes/porting-a-subsystem.md`.

@@ -55,7 +55,7 @@ Add the following tests to `docs/landing_page_docs_test.go`:
 func TestTargetsIncludeManifestoSyncDocs(t *testing.T) {
 	want := map[string]bool{
 		"superpowers/specs/2026-04-19-gormes-doc-sync-manifesto-design.md": false,
-		"superpowers/plans/2026-04-19-gormes-doc-sync-manifesto.md":        false,
+		"superpowers/plans/web-docs/2026-04-19-gormes-doc-sync-manifesto.md":        false,
 	}
 
 	for _, target := range targets {
@@ -104,13 +104,13 @@ var targets = []string{
 	"ARCH_PLAN.md",
 	"THEORETICAL_ADVANTAGES_GORMES_HERMES.md",
 	"superpowers/specs/2026-04-18-gormes-frontend-adapter-design.md",
-	"superpowers/plans/2026-04-18-gormes-phase1-frontend-adapter.md",
+	"superpowers/plans/foundations/2026-04-18-gormes-phase1-frontend-adapter.md",
 	"superpowers/specs/2026-04-19-gormes-landing-page-design.md",
-	"superpowers/plans/2026-04-19-gormes-landing-page.md",
+	"superpowers/plans/web-docs/2026-04-19-gormes-landing-page.md",
 	"superpowers/specs/2026-04-19-gormes-ai-cutover-design.md",
-	"superpowers/plans/2026-04-19-gormes-ai-cutover.md",
+	"superpowers/plans/foundations/2026-04-19-gormes-ai-cutover.md",
 	"superpowers/specs/2026-04-19-gormes-doc-sync-manifesto-design.md",
-	"superpowers/plans/2026-04-19-gormes-doc-sync-manifesto.md",
+	"superpowers/plans/web-docs/2026-04-19-gormes-doc-sync-manifesto.md",
 }
 
 var nativeHugoPages = map[string]struct{}{
@@ -653,7 +653,7 @@ git commit -m "docs(gormes): index phase 2 proof docs"
 ### Task 5: Final verification sweep
 
 **Files:**
-- Modify: `docs/superpowers/plans/2026-04-19-gormes-doc-sync-manifesto.md` (check boxes only if you track progress in-file)
+- Modify: `docs/superpowers/plans/web-docs/2026-04-19-gormes-doc-sync-manifesto.md` (check boxes only if you track progress in-file)
 - Test: `gormes/docs`
 
 - [ ] **Step 1: Run the full docs verification one more time**

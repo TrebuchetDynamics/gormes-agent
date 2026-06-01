@@ -2202,7 +2202,7 @@ This task runs only verifications; nothing to commit. If any check fails, STOP a
 
 ## Execution Handoff
 
-Plan complete and saved to `docs/superpowers/plans/2026-04-19-gormes-phase2b-telegram.md`. Two execution options:
+Plan complete and saved to `docs/superpowers/plans/runtime-channels/2026-04-19-gormes-phase2b-telegram.md`. Two execution options:
 
 **1. Subagent-Driven (recommended)** — I dispatch a fresh subagent per task via `superpowers:subagent-driven-development` using the dependency order above. Halt checkpoints after T7 (kernel change) and T8 (binary builds) for your sanity-check.
 

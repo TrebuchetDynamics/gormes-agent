@@ -2557,7 +2557,7 @@ git commit -m "docs(progress): regenerate rollup after Phase 2.E lifecycle core"
 
 ---
 
-**Plan complete and saved to `docs/superpowers/plans/2026-04-20-gormes-phase2e-subagent.md`. Two execution options:**
+**Plan complete and saved to `docs/superpowers/plans/runtime-channels/2026-04-20-gormes-phase2e-subagent.md`. Two execution options:**
 
 **1. Subagent-Driven (recommended)** — I dispatch a fresh subagent per task (16 tasks total), review between tasks, fast iteration, isolation from current chat context.
 

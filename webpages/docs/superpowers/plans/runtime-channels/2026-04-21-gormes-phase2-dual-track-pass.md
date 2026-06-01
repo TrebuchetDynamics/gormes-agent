@@ -15,8 +15,8 @@
 ## File Structure
 
 **Detailed execution plans used by this pass:**
-- `docs/superpowers/plans/2026-04-21-gormes-phase2e-runtime-closeout.md`
-- `docs/superpowers/plans/2026-04-21-gormes-phase2b2-chassis.md`
+- `docs/superpowers/plans/runtime-channels/2026-04-21-gormes-phase2e-runtime-closeout.md`
+- `docs/superpowers/plans/runtime-channels/2026-04-21-gormes-phase2b2-chassis.md`
 
 **Final pass-level verification and docs touchpoints:**
 - `docs/content/building-gormes/architecture_plan/phase-2-gateway.md`
@@ -28,14 +28,14 @@
 ## Task 1: Execute Track A first — subagent runtime closeout
 
 **Files:**
-- Follow: `docs/superpowers/plans/2026-04-21-gormes-phase2e-runtime-closeout.md`
+- Follow: `docs/superpowers/plans/runtime-channels/2026-04-21-gormes-phase2e-runtime-closeout.md`
 
 - [ ] **Step 1: Read the Track A plan**
 
 Run:
 
 ```bash
-sed -n '1,260p' docs/superpowers/plans/2026-04-21-gormes-phase2e-runtime-closeout.md
+sed -n '1,260p' docs/superpowers/plans/runtime-channels/2026-04-21-gormes-phase2e-runtime-closeout.md
 ```
 
 Expected: clear closeout steps for comments, binary wiring proof, docs status, and focused verification.
@@ -45,7 +45,7 @@ Expected: clear closeout steps for comments, binary wiring proof, docs status, a
 Run the steps from:
 
 ```text
-docs/superpowers/plans/2026-04-21-gormes-phase2e-runtime-closeout.md
+docs/superpowers/plans/runtime-channels/2026-04-21-gormes-phase2e-runtime-closeout.md
 ```
 
 Expected: Track A leaves `internal/subagent`, config wiring, and Phase 2 docs in a consistent state before gateway churn begins.
@@ -65,14 +65,14 @@ Expected: all three packages pass before Track B starts.
 ## Task 2: Execute Track B second — gateway chassis + Discord
 
 **Files:**
-- Follow: `docs/superpowers/plans/2026-04-21-gormes-phase2b2-chassis.md`
+- Follow: `docs/superpowers/plans/runtime-channels/2026-04-21-gormes-phase2b2-chassis.md`
 
 - [ ] **Step 1: Read the Track B plan**
 
 Run:
 
 ```bash
-sed -n '1,260p' docs/superpowers/plans/2026-04-21-gormes-phase2b2-chassis.md
+sed -n '1,260p' docs/superpowers/plans/runtime-channels/2026-04-21-gormes-phase2b2-chassis.md
 ```
 
 Expected: detailed chassis, Telegram migration, Discord adapter, config, CLI, doctor, and test tasks.
@@ -82,7 +82,7 @@ Expected: detailed chassis, Telegram migration, Discord adapter, config, CLI, do
 Run the steps from:
 
 ```text
-docs/superpowers/plans/2026-04-21-gormes-phase2b2-chassis.md
+docs/superpowers/plans/runtime-channels/2026-04-21-gormes-phase2b2-chassis.md
 ```
 
 Expected: `internal/gateway/` lands, Telegram is migrated onto it, and Discord works end-to-end on the shared manager.

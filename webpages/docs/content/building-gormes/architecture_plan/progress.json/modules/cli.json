@@ -1031,7 +1031,7 @@
         "internal/core/agenttemplate/template_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json",
         "docs/superpowers/specs/2026-04-30-agent-template-reset-design.md",
-        "docs/superpowers/plans/2026-04-30-agent-template-reset.md"
+        "docs/superpowers/plans/platform-install/2026-04-30-agent-template-reset.md"
       ],
       "test_commands": [
         "go test ./internal/agenttemplate -count=1",

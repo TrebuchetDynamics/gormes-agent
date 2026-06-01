@@ -33,8 +33,8 @@ Persistent, searchable state that outlives the process. Structured enough for gr
 - **Recall fence** — same-chat by default; opt-in cross-chat only when a canonical `user_id` resolves.
 - **Tool boundary** — `honcho_search` and `honcho_context` preserve the external Honcho-compatible tool names and now advertise `scope` / `sources` while the implementation stays in the internal `goncho` package.
 - **Lineage rule** — `parent_session_id` is append-only metadata on descendants, not a rewrite of ancestor history.
-- **Implementation plan** — `docs/superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-plan.md`.
-- **Execution plan** — `docs/superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md`; the identity and lineage sequence it described has now landed. Future memory work should add new small 3.F or Phase 6 rows rather than reopening the shipped cross-chat spine.
+- **Implementation plan** — `docs/superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-plan.md`.
+- **Execution plan** — `docs/superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md`; the identity and lineage sequence it described has now landed. Future memory work should add new small 3.F or Phase 6 rows rather than reopening the shipped cross-chat spine.
 
 ## Why this is not just "chat logs"
 

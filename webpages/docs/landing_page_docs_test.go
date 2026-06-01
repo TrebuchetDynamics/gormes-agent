@@ -13,7 +13,7 @@ var staleGormesIORefPattern = regexp.MustCompile(`(?i)(?:https?://)?(?:www\.)?go
 func TestTargetsIncludeLandingPageDocs(t *testing.T) {
 	want := map[string]bool{
 		"superpowers/specs/2026-04-19-gormes-landing-page-design.md": false,
-		"superpowers/plans/2026-04-19-gormes-landing-page.md":        false,
+		"superpowers/plans/web-docs/2026-04-19-gormes-landing-page.md":        false,
 	}
 
 	for _, target := range targets {
@@ -32,7 +32,7 @@ func TestTargetsIncludeLandingPageDocs(t *testing.T) {
 func TestTargetsIncludeAICutoverDocs(t *testing.T) {
 	want := map[string]bool{
 		"superpowers/specs/2026-04-19-gormes-ai-cutover-design.md": false,
-		"superpowers/plans/2026-04-19-gormes-ai-cutover.md":        false,
+		"superpowers/plans/foundations/2026-04-19-gormes-ai-cutover.md":        false,
 	}
 
 	for _, target := range targets {
@@ -51,7 +51,7 @@ func TestTargetsIncludeAICutoverDocs(t *testing.T) {
 func TestTargetsIncludeManifestoSyncDocs(t *testing.T) {
 	want := map[string]bool{
 		"superpowers/specs/2026-04-19-gormes-doc-sync-manifesto-design.md": false,
-		"superpowers/plans/2026-04-19-gormes-doc-sync-manifesto.md":        false,
+		"superpowers/plans/web-docs/2026-04-19-gormes-doc-sync-manifesto.md":        false,
 	}
 
 	for _, target := range targets {
@@ -70,7 +70,7 @@ func TestTargetsIncludeManifestoSyncDocs(t *testing.T) {
 func TestTargetsIncludePhase2CPersistenceDocs(t *testing.T) {
 	want := map[string]bool{
 		"superpowers/specs/2026-04-19-gormes-phase2c-persistence-design.md": false,
-		"superpowers/plans/2026-04-19-gormes-phase2c-persistence.md":        false,
+		"superpowers/plans/runtime-channels/2026-04-19-gormes-phase2c-persistence.md":        false,
 	}
 
 	for _, target := range targets {
@@ -306,7 +306,7 @@ func TestAICutoverDocsExistAndCarryExpectedTitles(t *testing.T) {
 		t.Fatalf("cutover spec missing its title")
 	}
 
-	plan := readDoc(t, "superpowers/plans/2026-04-19-gormes-ai-cutover.md")
+	plan := readDoc(t, "superpowers/plans/foundations/2026-04-19-gormes-ai-cutover.md")
 	if !strings.Contains(plan, "Gormes.ai Hard Cutover Implementation Plan") {
 		t.Fatalf("cutover plan missing its title")
 	}
@@ -409,7 +409,7 @@ func TestLandingPageDesignDocDescribesCurrentGormesAIModule(t *testing.T) {
 }
 
 func TestLandingPagePlanDocDocumentsCurrentAICutoverImplementation(t *testing.T) {
-	raw := readDoc(t, "superpowers/plans/2026-04-19-gormes-landing-page.md")
+	raw := readDoc(t, "superpowers/plans/web-docs/2026-04-19-gormes-landing-page.md")
 	wants := []string{
 		"# Gormes.ai Landing Page Implementation Plan",
 		"webpages/landing/src/pages/index.astro",
@@ -580,7 +580,7 @@ func TestSubsystemInventoryReflectsShippedPhase2AndPhase3Reality(t *testing.T) {
 }
 
 func TestPhase3IdentityLineagePlanIsLinkedAndContractsAreDocumented(t *testing.T) {
-	plan := readDoc(t, "superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-plan.md")
+	plan := readDoc(t, "superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-plan.md")
 	for _, want := range []string{
 		"# Phase 3 Identity + Lineage Implementation Plan",
 		"user_id > chat_id > session_id",
@@ -624,7 +624,7 @@ func TestPhase3IdentityLineagePlanIsLinkedAndContractsAreDocumented(t *testing.T
 }
 
 func TestPhase3IdentityLineageExecutionPlanIsLinkedAndSequenced(t *testing.T) {
-	plan := readDoc(t, "superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md")
+	plan := readDoc(t, "superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md")
 	for _, want := range []string{
 		"# Phase 3 Identity + Lineage Execution Plan",
 		"Relationship last_seen tracking",

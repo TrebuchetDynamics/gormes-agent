@@ -81,4 +81,4 @@ Run: `go test ./internal -run 'TestArchitecturePlannerAgent|TestArchitectureTask
 
 - [ ] **Step 3: Commit**
 
-Run: `git add gormes/scripts/gormes-architecture-planner-tasks-manager.sh gormes/scripts/gormes-architecture-task-manager.sh gormes/scripts/architectureplanneragent.sh internal/architectureplanneragent_test.go docs/superpowers/plans/2026-04-23-gormes-architecture-task-manager-script.md && git commit -m "feat(gormes): rename architecture planner tasks manager script"`.
+Run: `git add gormes/scripts/gormes-architecture-planner-tasks-manager.sh gormes/scripts/gormes-architecture-task-manager.sh gormes/scripts/architectureplanneragent.sh internal/architectureplanneragent_test.go docs/superpowers/plans/orchestration-planner/2026-04-23-gormes-architecture-task-manager-script.md && git commit -m "feat(gormes): rename architecture planner tasks manager script"`.

@@ -2075,7 +2075,7 @@ Tasks 3+4, 5+6 are parallelizable pairs. Tasks 7-8 are sequential on 5+6.
 
 ## Execution Options
 
-**Plan complete and saved to `docs/superpowers/plans/2026-05-18-subagent-memory-scoping.md`.**
+**Plan complete and saved to `docs/superpowers/plans/memory-identity/2026-05-18-subagent-memory-scoping.md`.**
 
 Two execution options:
 

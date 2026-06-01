@@ -34,7 +34,7 @@ func TestValidate_AcceptsCompleteBuilderLoopMeta(t *testing.T) {
 			Version: "2.0",
 			BuilderLoop: BuilderLoopMeta{
 				Entrypoint:      "scripts/gormes-auto-codexu-orchestrator.sh",
-				Plan:            "docs/superpowers/plans/2026-04-24-autoloop-repoctl-go-port.md",
+				Plan:            "docs/superpowers/plans/orchestration-planner/2026-04-24-autoloop-repoctl-go-port.md",
 				AgentQueue:      "docs/content/building-gormes/autoloop/agent-queue.md",
 				ProgressSchema:  "docs/content/building-gormes/autoloop/progress-schema.md",
 				CandidateSource: "docs/content/building-gormes/architecture_plan/progress.json",

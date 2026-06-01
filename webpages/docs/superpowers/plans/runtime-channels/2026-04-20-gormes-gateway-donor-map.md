@@ -634,7 +634,7 @@ Run:
 ```bash
 git add docs/content/building-gormes \
   docs/superpowers/specs/2026-04-20-gormes-gateway-donor-map-design.md \
-  docs/superpowers/plans/2026-04-20-gormes-gateway-donor-map.md
+  docs/superpowers/plans/runtime-channels/2026-04-20-gormes-gateway-donor-map.md
 git commit -m "docs(gormes): add picoclaw gateway donor map"
 ```
 

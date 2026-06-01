@@ -291,7 +291,7 @@ var bannedPatterns = []struct {
 var targets = []string{
 	"ARCH_PLAN.md",
 	"superpowers/specs/2026-04-18-gormes-frontend-adapter-design.md",
-	"superpowers/plans/2026-04-18-gormes-phase1-frontend-adapter.md",
+	"superpowers/plans/foundations/2026-04-18-gormes-phase1-frontend-adapter.md",
 }
 
 func TestMarkdownRendersCleanViaGoldmark(t *testing.T) {

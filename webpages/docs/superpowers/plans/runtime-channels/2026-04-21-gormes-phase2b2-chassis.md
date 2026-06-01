@@ -31,7 +31,7 @@
 - `internal/channels/discord/bot_test.go` — Discord adapter tests
 - `internal/channels/discord/mock_test.go` — fake discordSession
 - `cmd/gormes/gateway.go` — new `gormes gateway` cobra subcommand
-- `docs/superpowers/plans/2026-04-21-gormes-phase2b2-chassis.md` — this file
+- `docs/superpowers/plans/runtime-channels/2026-04-21-gormes-phase2b2-chassis.md` — this file
 
 **Moved (package rename `internal/telegram/` → `internal/channels/telegram/`):**
 - `internal/telegram/bot.go` → `internal/channels/telegram/bot.go` (refactored to implement `gateway.Channel`)
@@ -3717,7 +3717,7 @@ No drift found. Plan is ready for execution.
 
 ## Execution Handoff
 
-Plan complete and saved to `docs/superpowers/plans/2026-04-21-gormes-phase2b2-chassis.md`. Two execution options:
+Plan complete and saved to `docs/superpowers/plans/runtime-channels/2026-04-21-gormes-phase2b2-chassis.md`. Two execution options:
 
 **1. Subagent-Driven (recommended)** — I dispatch a fresh subagent per task, review between tasks, fast iteration.
 

@@ -19,7 +19,7 @@
       "degraded_mode": "Planner callers using the old wrapper names continue to exec the renamed planner-tasks manager instead of failing before a run can start.",
       "fixture": "internal/plannerloopagent_test.go",
       "source_refs": [
-        "docs/superpowers/plans/2026-04-23-gormes-architecture-task-manager-script.md",
+        "docs/superpowers/plans/orchestration-planner/2026-04-23-gormes-architecture-task-manager-script.md",
         "scripts/gormes-architecture-planner-tasks-manager.sh",
         "scripts/gormes-architecture-task-manager.sh",
         "scripts/architectureplanneragent.sh"

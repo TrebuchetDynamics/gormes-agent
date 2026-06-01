@@ -2271,4 +2271,4 @@ EOF
 
 ## Execution Handoff
 
-Plan complete and saved to `docs/superpowers/plans/2026-04-19-gormes-phase2-tools.md`. Per user directive, proceeding immediately with Task 1 + Task 2 (in-process tool registry + built-in Echo/Now/RandInt) via fresh subagent dispatches. Halt for user review after Task 2 lands.
+Plan complete and saved to `docs/superpowers/plans/runtime-channels/2026-04-19-gormes-phase2-tools.md`. Per user directive, proceeding immediately with Task 1 + Task 2 (in-process tool registry + built-in Echo/Now/RandInt) via fresh subagent dispatches. Halt for user review after Task 2 lands.

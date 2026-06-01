@@ -302,7 +302,7 @@ var banned = []struct {
 var targets = []string{
 	"ARCH_PLAN.md",
 	"superpowers/specs/2026-04-18-gormes-ignition-design.md",
-	"superpowers/plans/2026-04-18-gormes-ignition.md",
+	"superpowers/plans/foundations/2026-04-18-gormes-ignition.md",
 }
 
 func TestMarkdownIsSSGPortable(t *testing.T) {

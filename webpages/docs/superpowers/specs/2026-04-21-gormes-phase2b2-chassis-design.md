@@ -364,5 +364,5 @@ This spec succeeds when:
 After this spec is approved by review:
 
 - Invoke the writing-plans skill against this spec.
-- Plan document target: `docs/superpowers/plans/2026-04-21-gormes-phase2b2-chassis.md`.
+- Plan document target: `docs/superpowers/plans/runtime-channels/2026-04-21-gormes-phase2b2-chassis.md`.
 - Plan must preserve the task ordering in §7 and the out-of-scope boundary in §8.
