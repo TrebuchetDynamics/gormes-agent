@@ -338,6 +338,39 @@ func TestResolveMCPConfigRedactsHTTPURLCredentialsInStatus(t *testing.T) {
 	}
 }
 
+func TestResolveMCPConfigRedactsHTTPURLUserinfoCredentialsInStatus(t *testing.T) {
+	resolved, err := ResolveMCPConfig(map[string]any{
+		"mcp_servers": map[string]any{
+			"remote": map[string]any{
+				"url": "https://alice:super-secret-password@mcp.example.test/sse",
+			},
+		},
+	}, MCPConfigOptions{LookupEnv: func(string) (string, bool) { return "", false }})
+	if err != nil {
+		t.Fatalf("ResolveMCPConfig returned error: %v", err)
+	}
+
+	status, ok := resolved.Status("remote")
+	if !ok {
+		t.Fatalf("missing remote status in %#v", resolved.Statuses)
+	}
+	for _, leaked := range []string{"alice", "super-secret-password"} {
+		if strings.Contains(status.URL, leaked) {
+			t.Fatalf("status URL leaked userinfo credential %q: %q", leaked, status.URL)
+		}
+	}
+	if !strings.Contains(status.URL, RedactedMCPConfigValue) {
+		t.Fatalf("status URL = %q, want redaction marker", status.URL)
+	}
+
+	text := resolved.RedactedStatusText()
+	for _, leaked := range []string{"alice", "super-secret-password"} {
+		if strings.Contains(text, leaked) {
+			t.Fatalf("status text leaked userinfo credential %q: %s", leaked, text)
+		}
+	}
+}
+
 func TestResolveMCPTransportClassifiesExactlyOneTransport(t *testing.T) {
 	tests := []struct {
 		name          string

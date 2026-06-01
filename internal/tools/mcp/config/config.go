@@ -423,7 +423,20 @@ func redactedMCPStatus(def MCPServerDefinition, status MCPConfigStatus, reason s
 }
 
 func redactedMCPURL(raw string) string {
-	return redaction.String(raw)
+	return redaction.String(redactMCPURLUserinfo(raw))
+}
+
+func redactMCPURLUserinfo(raw string) string {
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.User == nil {
+		return raw
+	}
+	normalized := parsed.String()
+	userinfo := parsed.User.String()
+	if userinfo == "" {
+		return raw
+	}
+	return strings.Replace(normalized, "//"+userinfo+"@", "//"+RedactedMCPConfigValue+"@", 1)
 }
 
 // Server returns the resolved server definition by name.
