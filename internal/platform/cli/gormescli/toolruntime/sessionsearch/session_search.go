@@ -1,4 +1,4 @@
-package toolruntime
+package sessionsearch
 
 import (
 	"database/sql"

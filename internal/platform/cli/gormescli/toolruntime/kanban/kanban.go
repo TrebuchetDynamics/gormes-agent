@@ -1,4 +1,4 @@
-package toolruntime
+package kanban
 
 import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
