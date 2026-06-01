@@ -34,16 +34,18 @@ const (
 	DefaultMiniMaxTTSBaseURL  = "https://api.minimax.chat/v1/text_to_speech"
 
 	// Provider names (normalized)
-	ProviderNameEdge       = "edge"
-	ProviderNameOpenAI     = "openai"
-	ProviderNameElevenLabs = "elevenlabs"
-	ProviderNameMiniMax    = "minimax"
-	ProviderNameXAI        = "xai"
-	ProviderNameMistral    = "mistral"
-	ProviderNameGemini     = "gemini"
-	ProviderNameNeuTTS     = "neutts"
-	ProviderNameKittenTTS  = "kittentts"
-	ProviderNamePiper      = "piper"
+	ProviderNameEdge         = "edge"
+	ProviderNameOpenAI       = "openai"
+	ProviderNameElevenLabs   = "elevenlabs"
+	ProviderNameMiniMax      = "minimax"
+	ProviderNameXAI          = "xai"
+	ProviderNameMistral      = "mistral"
+	ProviderNameGemini       = "gemini"
+	ProviderNameLocalGo      = "local_go"
+	ProviderNameLocalFixture = "local_fixture"
+	ProviderNameNeuTTS       = "neutts"
+	ProviderNameKittenTTS    = "kittentts"
+	ProviderNamePiper        = "piper"
 
 	// Max text lengths per provider
 	MaxTextLengthEdge       = 5000
@@ -53,6 +55,7 @@ const (
 	MaxTextLengthMistral    = 4000
 	MaxTextLengthGemini     = 5000
 	MaxTextLengthElevenLabs = 10000
+	MaxTextLengthLocalGo    = 2000
 	MaxTextLengthNeuTTS     = 2000
 	MaxTextLengthKittenTTS  = 2000
 	MaxTextLengthPiper      = 5000
@@ -77,6 +80,8 @@ var builtinTTSProviderOrder = []string{
 	ProviderNameXAI,
 	ProviderNameMistral,
 	ProviderNameGemini,
+	ProviderNameLocalGo,
+	ProviderNameLocalFixture,
 	ProviderNameNeuTTS,
 	ProviderNameKittenTTS,
 	ProviderNamePiper,
@@ -658,6 +663,10 @@ func parseMiniMaxTTSLegacyAudio(data []byte) ([]byte, bool, error) {
 // RegisterTTSProviders registers the built-in HTTP TTS providers into a provider
 // map. It skips nil providers (when API keys are absent).
 func RegisterTTSProviders(into map[string]TTSProvider, cfg TTSProviderConfig) {
+	localGo := NewGoNativeTTSProvider(GoNativeTTSProviderConfig{})
+	into[ProviderNameLocalGo] = localGo
+	into[ProviderNameLocalFixture] = localGo
+
 	edge := NewTTSEdgeProvider(cfg)
 	if edge.Available(context.Background()) {
 		into[ProviderNameEdge] = edge
@@ -702,7 +711,7 @@ func ValidateTTSProviderConfig(provider string, cfg TTSProviderConfig) error {
 		}
 		return nil
 
-	case ProviderNameNeuTTS, ProviderNameKittenTTS, ProviderNamePiper, "local":
+	case ProviderNameLocalGo, ProviderNameLocalFixture, ProviderNameNeuTTS, ProviderNameKittenTTS, ProviderNamePiper, "local":
 		return nil
 
 	case "auto", "":
@@ -762,6 +771,8 @@ func TTSProviderMaxTextLengthForConfig(provider string, ttsConfig map[string]any
 		return MaxTextLengthMistral
 	case ProviderNameGemini:
 		return MaxTextLengthGemini
+	case ProviderNameLocalGo, ProviderNameLocalFixture:
+		return MaxTextLengthLocalGo
 	case ProviderNameNeuTTS:
 		return MaxTextLengthNeuTTS
 	case ProviderNameKittenTTS:

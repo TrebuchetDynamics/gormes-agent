@@ -29,14 +29,16 @@ const (
 	DefaultMiniMaxTTSVoiceID  = tts.DefaultMiniMaxTTSVoiceID
 	DefaultMiniMaxTTSBaseURL  = tts.DefaultMiniMaxTTSBaseURL
 
-	ProviderNameEdge       = tts.ProviderNameEdge
-	ProviderNameOpenAI     = tts.ProviderNameOpenAI
-	ProviderNameElevenLabs = tts.ProviderNameElevenLabs
-	ProviderNameMiniMax    = tts.ProviderNameMiniMax
-	ProviderNameGemini     = tts.ProviderNameGemini
-	ProviderNameNeuTTS     = tts.ProviderNameNeuTTS
-	ProviderNameKittenTTS  = tts.ProviderNameKittenTTS
-	ProviderNamePiper      = tts.ProviderNamePiper
+	ProviderNameEdge         = tts.ProviderNameEdge
+	ProviderNameOpenAI       = tts.ProviderNameOpenAI
+	ProviderNameElevenLabs   = tts.ProviderNameElevenLabs
+	ProviderNameMiniMax      = tts.ProviderNameMiniMax
+	ProviderNameGemini       = tts.ProviderNameGemini
+	ProviderNameLocalGo      = tts.ProviderNameLocalGo
+	ProviderNameLocalFixture = tts.ProviderNameLocalFixture
+	ProviderNameNeuTTS       = tts.ProviderNameNeuTTS
+	ProviderNameKittenTTS    = tts.ProviderNameKittenTTS
+	ProviderNamePiper        = tts.ProviderNamePiper
 
 	MaxTextLengthEdge       = tts.MaxTextLengthEdge
 	MaxTextLengthOpenAI     = tts.MaxTextLengthOpenAI
@@ -45,6 +47,7 @@ const (
 	MaxTextLengthMistral    = tts.MaxTextLengthMistral
 	MaxTextLengthGemini     = tts.MaxTextLengthGemini
 	MaxTextLengthElevenLabs = tts.MaxTextLengthElevenLabs
+	MaxTextLengthLocalGo    = tts.MaxTextLengthLocalGo
 	MaxTextLengthNeuTTS     = tts.MaxTextLengthNeuTTS
 	MaxTextLengthKittenTTS  = tts.MaxTextLengthKittenTTS
 	MaxTextLengthPiper      = tts.MaxTextLengthPiper
@@ -66,6 +69,8 @@ type TTSOpenAIProvider = tts.TTSOpenAIProvider
 type TTSMiniMaxProvider = tts.TTSMiniMaxProvider
 type TTSProviderStatus = tts.TTSProviderStatus
 type LazyLocalTTSProvider = tts.LazyLocalTTSProvider
+type GoNativeTTSProviderConfig = tts.GoNativeTTSProviderConfig
+type GoNativeTTSProvider = tts.GoNativeTTSProvider
 type TTSCommandProviderConfig = tts.TTSCommandProviderConfig
 type TTSCommandExecution = tts.TTSCommandExecution
 type TTSCommandRunner = tts.TTSCommandRunner
@@ -122,6 +127,10 @@ func OpenAITTSSpeed(speed float64) float64 { return tts.OpenAITTSSpeed(speed) }
 
 func NewLazyLocalTTSProvider(provider string, probe func(context.Context) error) *LazyLocalTTSProvider {
 	return tts.NewLazyLocalTTSProvider(provider, probe)
+}
+
+func NewGoNativeTTSProvider(config GoNativeTTSProviderConfig) *GoNativeTTSProvider {
+	return tts.NewGoNativeTTSProvider(config)
 }
 
 func NewTTSCommandProvider(name string, cfg TTSCommandProviderConfig, runner TTSCommandRunner) TTSProvider {

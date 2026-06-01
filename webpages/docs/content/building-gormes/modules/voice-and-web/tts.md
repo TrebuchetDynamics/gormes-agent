@@ -11,7 +11,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 **Module group:** Voice And Web
 **Module:** `tts`
 **Rows:** 25
-**Status counts:** `complete`: 24 · `in_progress`: 0 · `planned`: 1
+**Status counts:** `complete`: 25 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P0`: 2 · `P1`: 12 · `P2`: 4 · `P3`: 6 · `unset`: 1
 
 ## Phase 5 — The Final Purge
@@ -43,7 +43,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P3` | `tts` | Go-native OGG/Opus decoder implementation |
 | `complete` | `P3` | `tts` | Pure-Go TTS decision research |
 | `complete` | `P1` | `tts` | Shared speech artifact cache for Go-owned TTS |
-| `planned` | `P1` | `tts` | Go-owned local TTS runtime seam + fixture fallback |
+| `complete` | `P1` | `tts` | Go-owned local TTS runtime seam + fixture fallback |
 
 ### 5.O — Hermes CLI Parity
 

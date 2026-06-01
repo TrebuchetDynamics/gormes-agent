@@ -184,7 +184,7 @@ func (c TTSConfig) maxTextLength(providerName string, provider TTSProvider) int 
 func (r *TTSRunner) selectProvider(ctx context.Context, requested string) (string, TTSProvider, TTSEvidence) {
 	explicit := normalizeTTSProviderName(firstNonEmptyTTS(requested, r.cfg.Provider, defaultTTSProvider))
 	if explicit == "local" {
-		return r.selectAvailableProvider(ctx, []string{"neutts", "kittentts", "piper"})
+		return r.selectAvailableProvider(ctx, []string{ProviderNameLocalGo, ProviderNameLocalFixture, "neutts", "kittentts", "piper"})
 	}
 	if explicit != "" && explicit != "auto" {
 		provider := r.providers[explicit]
@@ -193,7 +193,7 @@ func (r *TTSRunner) selectProvider(ctx context.Context, requested string) (strin
 		}
 		return explicit, provider, ""
 	}
-	for _, name := range []string{"edge", "openai", "elevenlabs", "minimax", "mistral", "xai", "gemini", "neutts", "kittentts", "piper"} {
+	for _, name := range []string{"edge", "openai", "elevenlabs", "minimax", "mistral", "xai", "gemini", ProviderNameLocalGo, ProviderNameLocalFixture, "neutts", "kittentts", "piper"} {
 		provider := r.providers[name]
 		if provider != nil && provider.Available(ctx) {
 			return name, provider, ""

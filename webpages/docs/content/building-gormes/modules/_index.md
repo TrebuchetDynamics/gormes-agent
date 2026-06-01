@@ -76,4 +76,4 @@ Public web presence and speech input/output surfaces.
 |---|---:|---:|---:|---:|---|
 | [Landing](voice-and-web/landing/) | 4 | 4 | 0 | 0 | `P1`: 2 · `P2`: 2 |
 | [STT](voice-and-web/stt/) | 4 | 4 | 0 | 0 | `P0`: 1 · `P1`: 3 |
-| [TTS](voice-and-web/tts/) | 25 | 24 | 0 | 1 | `P0`: 2 · `P1`: 12 · `P2`: 4 · `P3`: 6 · `unset`: 1 |
+| [TTS](voice-and-web/tts/) | 25 | 25 | 0 | 0 | `P0`: 2 · `P1`: 12 · `P2`: 4 · `P3`: 6 · `unset`: 1 |

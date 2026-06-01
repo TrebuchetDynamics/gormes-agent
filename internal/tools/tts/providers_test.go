@@ -612,8 +612,17 @@ func TestRegisterTTSProviders(t *testing.T) {
 		into := make(map[string]TTSProvider)
 		RegisterTTSProviders(into, TTSProviderConfig{})
 
-		if len(into) != 0 {
-			t.Fatalf("expected no providers registered without keys, got: %v", mapKeys(into))
+		if _, ok := into[ProviderNameLocalGo]; !ok {
+			t.Fatalf("expected Go-owned local provider to be registered without keys, got: %v", mapKeys(into))
+		}
+		if _, ok := into[ProviderNameLocalFixture]; !ok {
+			t.Fatalf("expected fixture alias to be registered without keys, got: %v", mapKeys(into))
+		}
+		if _, ok := into["edge"]; ok {
+			t.Fatalf("edge should not be registered without keys, got: %v", mapKeys(into))
+		}
+		if _, ok := into["openai"]; ok {
+			t.Fatalf("openai should not be registered without keys, got: %v", mapKeys(into))
 		}
 	})
 

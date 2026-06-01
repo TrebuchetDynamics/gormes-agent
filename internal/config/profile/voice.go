@@ -79,7 +79,7 @@ func voiceProviderRequiresCredential(kind, provider string) bool {
 		}
 	}
 	switch provider {
-	case "piper", "neutts", "kittentts", "local", "text_only":
+	case "local_go", "local_fixture", "piper", "neutts", "kittentts", "local", "text_only":
 		return false
 	default:
 		return true

@@ -354,7 +354,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| TTS tool | `tools/tts_tool.py` | → `missing` | missing | Not ported. |
+| TTS tool | `tools/tts_tool.py` | `internal/tools/tts/tool.go`; `internal/tools/tts/go_native_provider.go`; `internal/speech/tts/fixture.go` | partial | Tool descriptor, result envelope, command/cloud provider seam, and Go-owned local fixture WAV provider are ported; remaining parity gaps are provider-specific Hermes built-ins beyond shipped adapters. |
 | Transcription tool | `tools/transcription_tools.py` | `internal/tools/whisper/` | covered | WASI Whisper STT. |
 
 ### 6.5 Kanban
@@ -703,11 +703,11 @@ file+line ref or explicit `missing`, and a classification.
 | Voice recording | `hermes_cli/voice.py` | → `missing` | missing | Not ported. |
 | PTY bridge (terminal emulation) | `hermes_cli/pty_bridge.py` | → `missing` | missing | Not ported. |
 | Push-to-talk keybinding | `cli.py` voice.record_key | `internal/tui/` `voiceRecordKey` | covered | Configurable voice key in TUI. |
-| TTS result envelope | `tools/tts_tool.py` | → `missing` | missing | Hermes TTS tool result format. |
+| TTS result envelope | `tools/tts_tool.py` | `internal/tools/tts/tool.go`; `internal/tools/tts/tool_test.go`; `internal/tools/tts/go_native_provider_test.go` | covered | Returns success/file_path/MEDIA evidence, voice-compatible audio tags, and typed failure evidence. |
 | WASI Whisper STT | `tools/transcription_tools.py` | `internal/tools/whisper/` | covered | Local STT via WASM. |
-| Piper TTS backend | N/A (Gormes-owned) | → `missing` | owned | Gormes-owned TTS backend; not Hermes parity. |
+| Go-owned local TTS backend | N/A (Gormes-owned) | `internal/speech/tts/fixture.go`; `internal/tools/tts/go_native_provider.go` | owned | Pure-Go local fixture/formant WAV provider behind TTSProvider seam; deliberately not neural Piper parity. |
 | Voice mode state machine | `tools/voice_mode.py` | → `missing` | missing | Idle/recording/processing states. |
-| TTS provider abstraction | `tools/tts_tool.py` | → `missing` | missing | Cloud/command/local TTS seam. |
+| TTS provider abstraction | `tools/tts_tool.py`; `agent/tts_provider.py` | `internal/tools/tts/tool.go`; `internal/tools/tts/command_provider.go`; `internal/tools/tts/go_native_provider.go` | covered | Cloud/command/local provider seam with explicit provider selection, no built-in shadowing, and Go-owned local runtime adapter. |
 
 ---
 
