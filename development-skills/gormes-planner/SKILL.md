@@ -101,6 +101,14 @@ find cmd internal -maxdepth 2 -type f -name '*.go' | sort
 
 Use `rg` against upstream and Gormes rather than guessing. Compare contracts, command names, interfaces, fixtures, and tests.
 
+For "actually implemented features" or stale-`missing` sweeps, treat the pass as evidence reconciliation before row creation:
+
+- Start from atoms marked `missing` or broad `partial` in the requested surface.
+- Search `cmd/` and `internal/` by atom name, upstream symbol, command/tool name, channel name, and likely package nouns.
+- If checked-in code plus focused tests prove the behavior already exists, update only the parity evidence doc to `covered` or `partial` with exact Go files/tests and remaining gaps.
+- Do not create a builder row for already implemented behavior. Create/refine a row only for the unimplemented remainder after the evidence doc is corrected.
+- If the reconciliation reveals a concrete remaining runtime gap, leave the atom `partial` and make the builder-facing gap explicit enough for `gormes-builder` to select only that remainder.
+
 Before changing rows, zoom out one level: name the relevant modules, callers, public contracts, tests, and upstream files. If this map is unclear, do more discovery instead of planning from vibes.
 
 ### 3. Map Upstream To Gormes
@@ -115,7 +123,7 @@ For each subsystem in scope:
 6. Add or update the upstream coverage ledger when a new source class, SDK surface, endpoint family, or public document changes the map.
 7. Prefer exact file paths, type names, command names, fixtures, and test commands.
 
-Do not mark an atom covered unless repository evidence proves the behavior exists and tests cover it.
+Do not mark an atom covered unless repository evidence proves the behavior exists and tests cover it. Do not leave an atom `missing` when repository evidence proves a narrower `partial`; stale `missing` atoms cause `gormes-builder` to duplicate already-shipped code.
 
 For large areas, design vertical slices. Each row should deliver one narrow behavior through all required layers rather than one horizontal layer of a future system.
 

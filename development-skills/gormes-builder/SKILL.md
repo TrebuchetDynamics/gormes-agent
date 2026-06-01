@@ -55,7 +55,16 @@ loop implementation.
 
 ## Atom Selection
 
-If the user names a specific behavior, find its atom in the parity evidence doc. Otherwise choose the highest-value atom that is actually buildable:
+If the user names a specific behavior, find its atom in the parity evidence doc. Otherwise choose the highest-value atom that is actually buildable.
+
+Before selecting implementation work, run a stale-classification preflight for the candidate cluster. This prevents duplicate builds when Gormes already implements behavior but the evidence doc still says `missing`:
+
+- Search the likely Go packages and tests named by the atom, subsystem, command, tool name, gateway channel, or upstream symbol.
+- If repository code plus focused tests already prove the behavior, do not implement it again. Update `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` from `missing` to `covered`/`partial` with exact Go files and validation, or route to `gormes-planner` when the correction touches broader taxonomy.
+- If implementation is present but incomplete, keep the atom `partial`, narrow the remaining gap in the Notes column, and build only that remaining gap.
+- If the atom is truly absent, proceed with TDD implementation.
+
+A buildable atom has these properties:
 
 - status is `missing` or `partial` in the parity evidence doc.
 - the upstream source file named in the `HERMES` column exists and is readable.
@@ -65,6 +74,8 @@ If the user names a specific behavior, find its atom in the parity evidence doc.
 Prefer atoms that unblock the widest cluster of other missing atoms. Consult the `Notes` column in the evidence doc for dependency hints.
 
 Do not implement broad umbrella atoms that cover multiple subsystems. If the best atom is too large, split it into smaller atoms and update the parity evidence doc first.
+
+For repeated "actually implemented features" sweeps, builder should not be the first skill. Route to `gormes-hermes-parity` + `gormes-planner` to reconcile stale classifications, then return here only when a corrected `missing`/`partial` atom has a concrete remaining runtime gap.
 
 Useful discovery:
 

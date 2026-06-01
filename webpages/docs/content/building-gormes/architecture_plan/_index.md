@@ -781,7 +781,7 @@ classification and row-backed implementation queue.
 - [x] `tools` Singularity command/preflight contract
 - [x] `tools` Sandbox Policy Explain
 
-### 5.C — Browser Automation 🔨
+### 5.C — Browser Automation ✅
 
 - [x] `browser` Browser action contract + event transcript
 - [x] `browser` go-browser-harness Chromedp action backend
@@ -805,7 +805,7 @@ classification and row-backed implementation queue.
 - [x] `browser` Go browser harness binary repo + integration lane (placeholder)
 - [x] `browser` Browser session inactivity cleanup thread
 - [x] `browser` Goscrapling browser-backed extraction gate for web_extract
-- [ ] `browser` Goscrapling local crawler adapter gate for web_crawl
+- [x] `browser` Goscrapling local crawler fixture adapter seam for web_crawl
 - [x] `browser` web_crawl explicit local-crawler unavailable evidence
 
 ### 5.D — Vision + Image Generation ✅
@@ -1002,7 +1002,7 @@ classification and row-backed implementation queue.
 - [x] `kanban` Kanban worker heartbeat, reclaim, and zombie detection
 - [x] `kanban` Hermes Kanban specify triage parity
 
-### 5.N — Misc Operator Tools ✅
+### 5.N — Misc Operator Tools 🔨
 
 - [x] `tools` Todo
 - [x] `tools` Clarify
@@ -1068,6 +1068,7 @@ classification and row-backed implementation queue.
 - [x] `goncho` Goncho golden transcript e2e harness
 - [x] `goncho` Goncho retrieval benchmark corpus
 - [x] `tools` Hermes send_message tool list and target contract
+- [ ] `tools` Image generation managed-gateway provider binding
 
 ### 5.O — Hermes CLI Parity ✅
 

@@ -1772,6 +1772,149 @@ func TestWebCrawlExplicitGoscraplingCrawlerUnavailableDoesNotFallback(t *testing
 	}
 }
 
+func TestWebCrawlToolUsesGoscraplingLocalCrawlerFixtureAdapter(t *testing.T) {
+	client := &recordingWebHTTPClient{}
+	crawler := &recordingGoscraplingCrawler{
+		result: GoscraplingCrawlResult{
+			Pages: []GoscraplingCrawlPage{
+				{URL: "https://example.test/docs", FinalURL: "https://example.test/docs", Title: "Docs", Content: "# Docs", StatusCode: http.StatusOK, ContentType: "text/html"},
+				{URL: "https://example.test/docs/dup", Duplicate: true},
+				{URL: "https://offsite.test/", Offsite: true},
+			},
+			Stats: GoscraplingCrawlStats{Visited: 1, Duplicates: 1, Offsite: 1, MaxPages: 2},
+		},
+	}
+	tool := NewWebCrawlTool(WebToolsConfig{
+		Client:             client,
+		Resolution:         WebBackendResolution{Backend: WebBackendGoscraplingCrawler, Available: true, Source: "config"},
+		GoscraplingCrawler: GoscraplingCrawlerConfig{Crawler: crawler, MaxPages: 2},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"url":"https://example.test/docs","instructions":"summarize","depth":"deep"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 0 {
+		t.Fatalf("provider requests = %d, want no Firecrawl/Tavily fallback", len(client.requests))
+	}
+	if len(crawler.requests) != 1 {
+		t.Fatalf("crawler requests = %d, want 1", len(crawler.requests))
+	}
+	if got := crawler.requests[0]; got.URL != "https://example.test/docs" || got.Instructions != "summarize" || got.Depth != "deep" || got.MaxPages != 2 {
+		t.Fatalf("crawler request = %+v", got)
+	}
+	var payload struct {
+		Results []struct {
+			URL        string `json:"url"`
+			Title      string `json:"title"`
+			Content    string `json:"content"`
+			Extraction struct {
+				Engine     string `json:"engine"`
+				Mode       string `json:"mode"`
+				FinalURL   string `json:"final_url"`
+				StatusCode int    `json:"status_code"`
+				Crawl      struct {
+					Visited    int `json:"visited"`
+					Duplicates int `json:"duplicates"`
+					Offsite    int `json:"offsite"`
+					MaxPages   int `json:"max_pages"`
+				} `json:"crawl"`
+			} `json:"extraction"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if len(payload.Results) != 1 {
+		t.Fatalf("results = %+v, want one normalized page after duplicate/offsite drops", payload.Results)
+	}
+	got := payload.Results[0]
+	if got.URL != "https://example.test/docs" || got.Title != "Docs" || got.Content != "# Docs" {
+		t.Fatalf("result = %+v", got)
+	}
+	if got.Extraction.Engine != "goscrapling" || got.Extraction.Mode != "crawler" || got.Extraction.FinalURL != "https://example.test/docs" || got.Extraction.StatusCode != http.StatusOK {
+		t.Fatalf("extraction = %+v", got.Extraction)
+	}
+	if got.Extraction.Crawl.Visited != 1 || got.Extraction.Crawl.Duplicates != 1 || got.Extraction.Crawl.Offsite != 1 || got.Extraction.Crawl.MaxPages != 2 {
+		t.Fatalf("crawl stats = %+v", got.Extraction.Crawl)
+	}
+}
+
+func TestWebCrawlGoscraplingCrawlerPolicyBlocksBeforeAdapter(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		args     string
+		policy   WebWebsitePolicy
+		wantCode WebEvidence
+	}{
+		{
+			name:     "private url",
+			args:     `{"url":"http://127.0.0.1/admin"}`,
+			wantCode: WebEvidencePrivateURLBlocked,
+		},
+		{
+			name:     "website policy",
+			args:     `{"url":"https://blocked.test/docs"}`,
+			policy:   WebWebsitePolicy{Enabled: true, Domains: []string{"blocked.test"}},
+			wantCode: WebEvidenceWebsitePolicy,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			crawler := &recordingGoscraplingCrawler{}
+			tool := NewWebCrawlTool(WebToolsConfig{
+				Resolution:         WebBackendResolution{Backend: WebBackendGoscraplingCrawler, Available: true, Source: "config"},
+				GoscraplingCrawler: GoscraplingCrawlerConfig{Crawler: crawler},
+				Policy:             tc.policy,
+			})
+			out, err := tool.Execute(context.Background(), json.RawMessage(tc.args))
+			if err != nil {
+				t.Fatalf("Execute: %v", err)
+			}
+			if len(crawler.requests) != 0 {
+				t.Fatalf("crawler requests = %d, want policy block before crawler", len(crawler.requests))
+			}
+			var payload struct {
+				Results []struct {
+					Evidence WebEvidence `json:"evidence"`
+					Error    string      `json:"error"`
+				} `json:"results"`
+			}
+			if err := json.Unmarshal(out, &payload); err != nil {
+				t.Fatalf("decode output %s: %v", out, err)
+			}
+			if len(payload.Results) != 1 || payload.Results[0].Evidence != tc.wantCode || payload.Results[0].Error == "" {
+				t.Fatalf("payload = %+v, want %s block", payload, tc.wantCode)
+			}
+		})
+	}
+}
+
+func TestWebCrawlGoscraplingCrawlerRuntimeErrorIsDegraded(t *testing.T) {
+	crawler := &recordingGoscraplingCrawler{err: context.Canceled}
+	tool := NewWebCrawlTool(WebToolsConfig{
+		Resolution:         WebBackendResolution{Backend: WebBackendGoscraplingCrawler, Available: true, Source: "config"},
+		GoscraplingCrawler: GoscraplingCrawlerConfig{Crawler: crawler},
+	})
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"url":"https://example.test/docs"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	var payload struct {
+		Success        bool        `json:"success"`
+		Backend        WebBackend  `json:"backend"`
+		Evidence       WebEvidence `json:"evidence"`
+		Degraded       bool        `json:"degraded"`
+		DegradedReason string      `json:"degraded_reason"`
+		Error          string      `json:"error"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if payload.Success || payload.Backend != WebBackendGoscraplingCrawler || payload.Evidence != WebEvidenceRequestFailed || !payload.Degraded || !strings.Contains(payload.Error, "context canceled") {
+		t.Fatalf("payload = %+v, want degraded crawler runtime error", payload)
+	}
+}
+
 func TestWebCrawlToolCallsFirecrawlAndNormalizesPages(t *testing.T) {
 	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
 		status: http.StatusOK,
@@ -2560,6 +2703,17 @@ type recordingWebContentProcessor struct {
 func (p *recordingWebContentProcessor) ProcessWebContent(_ context.Context, req WebContentProcessRequest) (string, error) {
 	p.requests = append(p.requests, req)
 	return p.summary, nil
+}
+
+type recordingGoscraplingCrawler struct {
+	requests []GoscraplingCrawlRequest
+	result   GoscraplingCrawlResult
+	err      error
+}
+
+func (c *recordingGoscraplingCrawler) Crawl(_ context.Context, req GoscraplingCrawlRequest) (GoscraplingCrawlResult, error) {
+	c.requests = append(c.requests, req)
+	return c.result, c.err
 }
 
 type recordedWebResponse struct {

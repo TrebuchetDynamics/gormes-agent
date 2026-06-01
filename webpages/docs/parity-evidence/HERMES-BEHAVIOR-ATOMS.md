@@ -339,7 +339,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| `web_search` / `web_extract` / `web_crawl` | `tools/web_tools.py`; `tools/x_search_tool.py` degraded citation handling | `internal/tools/web_tools.go` | partial | Native web tools cover multiple backends, mark Perplexity search answers without citations as degraded with backend/source provenance, and return typed unavailable evidence when the future `goscrapling_crawler` local backend is explicitly selected before the crawler adapter ships. Remaining gaps: dedicated root web research environment, full dependency-gated goscrapling crawler adapter, and provider-specific source/citation contracts across every backend. |
+| `web_search` / `web_extract` / `web_crawl` | `tools/web_tools.py`; `tools/x_search_tool.py` degraded citation handling | `internal/tools/web_tools.go`; `internal/tools/web_tools_test.go` | partial | Native web tools cover multiple backends, mark Perplexity search answers without citations as degraded with backend/source provenance, return typed unavailable evidence when `goscrapling_crawler` is selected without an injected adapter, and now fixture-prove an explicit goscrapling crawler seam with normalized result/evidence output, policy/private/secret URL gates, duplicate/offsite accounting, max-page stats, and degraded runtime errors. Remaining gaps: dedicated root web research environment, full dependency-gated goscrapling crawler runtime binding to public robots/cache/checkpoint/session-adapter APIs, and provider-specific source/citation contracts across every backend. |
 
 ### 6.4 Browser tools
 
@@ -573,13 +573,13 @@ file+line ref or explicit `missing`, and a classification.
 | Interrupt tool | `tools/interrupt.py` | `internal/kernel/` | covered | Turn cancellation via context. |
 | Code execution tool | `tools/code_execution_tool.py` | `internal/tools/` + `internal/cmdrunner/` | partial | Guarded local execution; process registry not proven. |
 | Background process tool | `tools/code_execution_tool.py` background | `internal/tools/` | partial | Background mode not proven. |
-| File operations checkpoint | `tools/checkpoint_manager.py` | → `missing` | missing | Not ported. |
-| Image generation tool | `tools/image_generation_tool.py` | → `missing` | missing | Not ported. |
+| File operations checkpoint | `tools/checkpoint_manager.py` | `internal/tools/checkpoint_manager.go`; `internal/tools/checkpoint/manager.go`; `internal/tools/checkpoint/manager_test.go` | partial | Checkpoint store status, startup GC, orphan/stale shadow cleanup, prune/dry-run, clear, legacy clear, and redacted evidence are implemented; pre-operation snapshot creation/restore integration remains separate checkpoint CLI/TUI parity. |
+| Image generation tool | `tools/image_generation_tool.py` | `internal/tools/imagegen/generation.go`; `internal/tools/imagegen/provider.go`; `internal/tools/imagegen/*_test.go`; `internal/tools/image_generation_provider.go` | partial | Go image generation tool exists with schema, runner/provider registry, plugin discovery refresh, configured-provider routing, artifact envelope writing, aspect-ratio/model normalization, disabled/unavailable/provider-error evidence, timeout handling, and prompt/secret redaction tests; full Hermes provider matrix/live gateway parity remains unproven. |
 | Image routing by model | `agent/image_routing.py` | → `missing` | missing | Not ported. |
-| Sandbox: Docker | `tools/environments/docker.py` | → `missing` | missing | Not ported. |
+| Sandbox: Docker | `tools/environments/docker.py` | `internal/tools/environment_docker.go`; `internal/tools/docker/exec.go`; `internal/tools/docker/*_test.go`; `internal/tools/environment_test.go` | partial | Docker environment and exec seams cover config parsing, image selection, mount policy, env passthrough, stdout/stderr capture, timeout cleanup, reusable container keys, and unavailable evidence; full Hermes sandbox lifecycle parity and live integration remain unproven. |
 | Sandbox: Modal | `tools/environments/modal.py` | → `missing` | missing | Not ported. |
-| Sandbox: SSH | `tools/environments/ssh.py` | → `missing` | missing | Not ported. |
-| Sandbox: Singularity | `tools/environments/singularity.py` | → `missing` | missing | Not ported. |
+| Sandbox: SSH | `tools/environments/ssh.py` | `internal/tools/environment_ssh.go`; `internal/tools/environment_test.go` | partial | SSH environment seam covers config parsing, path mapping, upload/download/execute/cleanup evidence, control socket shape, remote home detection, and bulk tar upload; live credential/session parity and full Hermes lifecycle remain unproven. |
+| Sandbox: Singularity | `tools/environments/singularity.py` | `internal/tools/singularity_env.go`; `internal/tools/singularity_env_test.go` | partial | Apptainer/Singularity executable resolution, version preflight, hardened instance start planning, overlay binding, exec, login shell, cleanup planning, timeout/error evidence, and redacted bounded output are fixture-covered; live runtime execution lifecycle remains unproven. |
 | Sandbox: local | `tools/environments/local.py` | `internal/cmdrunner/` | partial | Guarded local execution. |
 | Raw tool-call parser: DeepSeek | `environments/tool_call_parsers/deepseek_parser.py` | → `missing` | missing | Not ported. |
 | Raw tool-call parser: Qwen | `environments/tool_call_parsers/qwen_parser.py` | → `missing` | missing | Not ported. |
@@ -728,13 +728,13 @@ file+line ref or explicit `missing`, and a classification.
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
 | Kanban create/list/show/claim/complete/block/unblock | `tools/kanban_tool.py` + `hermes_cli/kanban.py` | `internal/tools/kanban/` + `internal/tui/slash_kanban.go` + `internal/gateway/` | covered | CRUD operations in tools, TUI, and gateway. |
-| Kanban link/unlink | `tools/kanban_tool.py` | → `missing` | missing | Not ported. |
-| Kanban comment | `tools/kanban_tool.py` | → `missing` | missing | Not ported. |
-| Kanban heartbeat/reclaim/zombie | `tools/kanban_tool.py` | → `missing` | missing | Not ported. |
+| Kanban link/unlink | `tools/kanban_tool.py`; `hermes_cli/kanban.py` | `internal/tools/kanban/kanban_tools.go`; `internal/tools/kanban/kanban_tools_test.go`; `cmd/gormes/kanban.go`; `cmd/gormes/hermes_cli_parity.go` | partial | `kanban_link` and CLI `kanban link`/`unlink` surfaces exist with dependency-aware readiness recomputation; exact Hermes model-tool unlink coverage is not proven. |
+| Kanban comment | `tools/kanban_tool.py` | `internal/tools/kanban/kanban_tools.go`; `internal/tools/kanban/kanban_tools_test.go` | covered | `kanban_comment` stores durable task comments, rejects caller-supplied author overrides, supports scoped and cross-task handoff comments, and exposes comments through `kanban_show`. |
+| Kanban heartbeat/reclaim/zombie | `tools/kanban_tool.py`; `hermes_cli/kanban.py` | `internal/tools/kanban/kanban_tools.go`; `internal/tools/kanban/kanban_tools_test.go`; `cmd/gormes/kanban.go`; `cmd/gormes/kanban_command_test.go` | partial | Worker `kanban_heartbeat` and CLI heartbeat/GC evidence exist; Hermes-style reclaim/zombie worker takeover semantics are not proven. |
 | Kanban init | `tools/kanban_tool.py` | `internal/tools/kanban/` | covered | Board initialization. |
 | Kanban dispatch to subagent | `tools/kanban_tool.py` | `internal/tools/kanban/` | covered | Dispatch route. |
-| Kanban archiving | `tools/kanban_tool.py` | → `missing` | missing | Not ported. |
-| Kanban link/tail diagnostics | `hermes_cli/kanban_diagnostics.py` | → `missing` | missing | Not ported. |
+| Kanban archiving | `tools/kanban_tool.py`; `hermes_cli/kanban.py` | `cmd/gormes/kanban.go`; `cmd/gormes/kanban_command_test.go`; `internal/tools/kanban/kanban_tools_test.go` | partial | CLI archive and archived-task list filtering are implemented with tests; model-tool archive parity is not exposed as a normal Kanban tool. |
+| Kanban link/tail diagnostics | `hermes_cli/kanban_diagnostics.py` | `cmd/gormes/kanban_tail_test.go`; `cmd/gormes/kanban_log_test.go`; `cmd/gormes/kanban.go` | partial | Tail/log diagnostics stream task events and print bounded logs; full Hermes diagnostic command parity remains unproven. |
 | Kanban decompose | `hermes_cli/kanban_decompose.py` | → `missing` | missing | Not ported. |
 
 ---
@@ -795,7 +795,7 @@ file+line ref or explicit `missing`, and a classification.
 | MCP server HTTP | `mcp_serve.py` | `internal/mcpserver/` | covered | MCP HTTP transport. |
 | MCP tool (client-side) | `tools/mcp_tool.py` | `internal/tools/mcp/boundary` | partial | Tool registration and unavailable evidence exist; authenticated client sessions and token-burn prevention are not proven. |
 | MCP OAuth flow | `tools/mcp_oauth*.py`; `hermes_cli/mcp_config.py` `_oauth_tokens_present` | `internal/tools/mcp/login` | partial | Browser callback/token-exchange flow exists with redacted persistence tests, but parity still needs authenticated-session preflight/status wiring for tool execution. |
-| MCP managed gateway | `tools/managed_tool_gateway.py` | → `missing` | missing | Not ported. |
+| MCP managed gateway | `tools/managed_tool_gateway.py` | `internal/tools/managed_tool_gateway.go`; `internal/tools/managed_tool_gateway_test.go`; `internal/tools/mcp_circuit_breaker_test.go`; `internal/tools/web_tools.go` | partial | Managed gateway bridge initializes HTTP MCP sessions, applies bearer/override headers, discovers tools through shared normalization, rejects bad schemas, passes through tool calls/arguments/cancellation, classifies auth/unavailable/tool-call/circuit-breaker evidence, and is consumed by managed web/tool routes; full Hermes managed gateway lifecycle/config surface remains unproven. |
 | MCP config helpers | `hermes_cli/mcp_config.py` | `cmd/gormes/mcp.go` | covered | MCP config and login. |
 
 ---
@@ -905,8 +905,8 @@ file+line ref or explicit `missing`, and a classification.
 | Quick snapshot list | `hermes_cli/checkpoints.py` `list_quick_snapshots` | → `missing` | missing | List available snapshots. |
 | Checkpoint TUI | `hermes_cli/checkpoints.py` | `internal/tui/slash_checkpoint.go` | partial | Checkpoint via TUI slash command. |
 | Rollback TUI | `hermes_cli/checkpoints.py` | `internal/tui/slash_rollback.go` | partial | Rollback via TUI slash command. |
-| Snapshot prune | `hermes_cli/checkpoints.py` `cmd_prune` | → `missing` | missing | Remove old snapshots. |
-| Snapshot clear (legacy) | `hermes_cli/checkpoints.py` `cmd_clear_legacy` | → `missing` | missing | Clear legacy checkpoint format. |
+| Snapshot prune | `hermes_cli/checkpoints.py` `cmd_prune` | `cmd/gormes/checkpoints.go`; `cmd/gormes/checkpoints_test.go`; `internal/tools/checkpoint/manager.go` | covered | `gormes checkpoints prune` supports retention, max-size, keep-orphans, dry-run, JSON outcome, and deletion of orphan/stale checkpoint stores. |
+| Snapshot clear (legacy) | `hermes_cli/checkpoints.py` `cmd_clear_legacy` | `cmd/gormes/checkpoints.go`; `cmd/gormes/checkpoints_test.go`; `internal/tools/checkpoint/manager.go` | covered | `gormes checkpoints clear-legacy` reports legacy archives, requires force for destructive clear, emits JSON/noop shapes, and removes legacy checkpoint archives. |
 
 ---
 
@@ -977,13 +977,13 @@ file+line ref or explicit `missing`, and a classification.
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
 | Credential files registration | `tools/credential_files.py` `register_credential_file` | → `missing` | missing | Register files for credential passthrough. |
-| Credential file mounts | `tools/credential_files.py` `get_credential_file_mounts` | → `missing` | missing | Resolve credential mounts for sandbox. |
+| Credential file mounts | `tools/credential_files.py` `get_credential_file_mounts` | `internal/tools/docker/mount_policy.go`; `internal/tools/docker/exec.go`; `internal/tools/docker/exec_test.go` | partial | Docker exec resolves configured host-path mounts, blocks dangerous system paths and Docker socket access, maps workspace read-write, and mounts other allowlisted paths read-only; Hermes-style credential-file registration and cross-sandbox mount registry remain missing. |
 | Skills directory mount | `tools/credential_files.py` `get_skills_directory_mount` | → `missing` | missing | Mount skills dir read-only. |
 | Skills files iterator | `tools/credential_files.py` `iter_skills_files` | → `missing` | missing | Iterate skill files for sandbox. |
-| Env passthrough registration | `tools/env_passthrough.py` `register_env_passthrough` | → `missing` | missing | Allowlist env vars for sandbox passthrough. |
-| Env passthrough check | `tools/env_passthrough.py` `is_env_passthrough` | → `missing` | missing | Check if a var is allowed through. |
-| Config passthrough load | `tools/env_passthrough.py` `_load_config_passthrough` | → `missing` | missing | Load passthrough allowlist from config. |
-| Env passthrough clear | `tools/env_passthrough.py` `clear_env_passthrough` | → `missing` | missing | Reset passthrough state. |
+| Env passthrough registration | `tools/env_passthrough.py` `register_env_passthrough` | `internal/tools/docker/exec.go`; `internal/tools/docker/exec_test.go` | partial | Docker exec accepts an injected `EnvAllowlist` and passes only allowed keys to the runner; Hermes global runtime registration API is not ported. |
+| Env passthrough check | `tools/env_passthrough.py` `is_env_passthrough` | `internal/tools/docker/exec.go`; `internal/tools/docker/exec_test.go` | partial | Allowlist filtering proves pass/block behavior for Docker exec env maps; standalone query/check API is not ported. |
+| Config passthrough load | `tools/env_passthrough.py` `_load_config_passthrough` | `internal/tools/docker/exec.go` | partial | Sandbox execution consumes configured allowlist values when injected by callers; Hermes config-file passthrough loader parity is not proven. |
+| Env passthrough clear | `tools/env_passthrough.py` `clear_env_passthrough` | → `missing` | missing | Reset passthrough state is not ported; Gormes currently uses per-exec injected allowlists rather than a mutable global passthrough registry. |
 
 ---
 

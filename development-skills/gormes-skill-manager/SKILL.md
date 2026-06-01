@@ -48,12 +48,13 @@ Use this order when several skills could apply:
    `gormes-review-scorecard`, `gormes-dev-runtime`, or `gormes-install` before
    planning feature work.
 2. **Evidence-gathering intent** — "what is missing", "compare", "audit",
-   "map parity", "why does Hermes do X", "source refs", external API docs,
-   or a freshly tagged external dependency/release. Route to
-   `gormes-hermes-parity`, `gormes-parity-auditor`,
-   `gormes-openclaw-parity`, `gormes-pi-parity`,
+   "map parity", "actually implemented", "already implemented", "why does
+   Hermes do X", "source refs", external API docs, or a freshly tagged external
+   dependency/release. Route to `gormes-hermes-parity`,
+   `gormes-parity-auditor`, `gormes-openclaw-parity`, `gormes-pi-parity`,
    `gormes-context-sourcing`, or `gormes-architecture-zoomout` before builder
-   work.
+   work. For "actually implemented" sweeps, use `gormes-hermes-parity` plus
+   `gormes-planner` to correct stale `missing` atoms before builder selection.
 3. **Backlog-shaping intent** — plan, split, rows, roadmap, progress,
    acceptance, PRD, review finding becomes work. Route to
    `gormes-progress-slicer` or `gormes-planner`.
@@ -88,6 +89,7 @@ Use this order when several skills could apply:
 | browser, CDP, Browser Use, `/browser connect` | browser parity | `gormes-browser-harness` |
 | Navivox, Telegram-like, Flutter chat/contact | mobile UI | `navivox-telegram-ui` |
 | what is missing, compare Hermes/Honcho | parity discovery | `gormes-parity-auditor` or `gormes-hermes-parity` |
+| actually implemented, already implemented, stale missing atoms | evidence reconciliation before build | `gormes-hermes-parity` then `gormes-planner` |
 | OpenClaw-only behavior | owned enhancement triage | `gormes-openclaw-parity` |
 | Pi, pi.dev, pi-coding-agent, extension API, SDK/RPC harness, TUI components | harness technique donor triage | `gormes-pi-parity` |
 | external API/library docs | source context | `gormes-context-sourcing` |

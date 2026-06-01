@@ -11,8 +11,8 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 **Module group:** Agent Runtime
 **Module:** `browser`
 **Rows:** 26
-**Status counts:** `complete`: 25 · `in_progress`: 0 · `planned`: 1
-**Priority counts:** `P1`: 15 · `P2`: 7 · `P3`: 1 · `unset`: 3
+**Status counts:** `complete`: 26 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P1`: 16 · `P2`: 6 · `P3`: 1 · `unset`: 3
 
 ## Phase 5 — The Final Purge
 
@@ -42,7 +42,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P2` | `browser` | Go browser harness binary repo + integration lane (placeholder) |
 | `complete` | `P2` | `browser` | Browser session inactivity cleanup thread |
 | `complete` | `P2` | `browser` | Goscrapling browser-backed extraction gate for web_extract |
-| `planned` | `P2` | `browser` | Goscrapling local crawler adapter gate for web_crawl |
+| `complete` | `P1` | `browser` | Goscrapling local crawler fixture adapter seam for web_crawl |
 | `complete` | `P1` | `browser` | web_crawl explicit local-crawler unavailable evidence |
 
 ### 5.O — Hermes CLI Parity

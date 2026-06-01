@@ -43,6 +43,7 @@ runtime-home validation with sanitized fixtures.
 |---|---|
 | `gormes-hermes-parity` | Auto-select one behavior-fidelity pair from progress risk, stale refs, unmapped upstream classes, recent user-visible regressions, or narrow builder-ready gaps. |
 | `gormes-hermes-parity <topic>` | Treat `<topic>` as a discovery seed, expand to adjacent behavior atoms, then pick the smallest coherent parity surface. |
+| `gormes-hermes-parity actually implemented <topic>` | Run an implemented-feature reconciliation pass: look for atoms still marked `missing` even though checked-in Gormes code/tests prove `covered` or `partial`, then update evidence instead of handing duplicate work to builders. |
 
 A behavior-fidelity pair is one upstream Hermes/Honcho behavior family plus
 the closest Gormes surface or missing row that should preserve it.
@@ -57,15 +58,17 @@ first pass explicitly hands off to a smaller subskill.
 | `survey` | The surface is unfamiliar or upstream moved. | Bounded atom map, source refs, classifications, next three passes. |
 | `row-shaping` | A gap is real but the backlog row is vague/missing. | Behavior-atom update plus one progress-row-ready task packet. |
 | `stale-upstream-check` | Existing evidence cites old Hermes/Honcho refs. | Refreshed refs and `covered`/`stale-upstream`/`missing` reclassification. |
+| `implemented-feature-reconciliation` | The user asks for "actually implemented" features, or builder would otherwise select a `missing` atom that may already exist in Go. | Evidence-doc corrections from `missing` to `covered`/`partial`, with exact Go files/tests and remaining gap notes; no runtime edits. |
 | `handoff` | Runtime implementation is clearly next. | One builder/TDD task packet; no runtime edits. |
 
 Auto-selection priority when no topic is supplied:
 
 1. Recent user-visible setup, provider, channel, install, or auth failures.
-2. Stale upstream evidence on high-priority or in-progress rows.
-3. Vague umbrella rows blocking builder work.
-4. Missing Hermes behavior with a narrow Gormes surface and obvious tests.
-5. Taxonomy/docs cleanup that prevents accurate parity reporting.
+2. Explicit implemented-feature reconciliation requests, especially around gateway, channels, tools, CLI, or TUI atoms marked `missing`.
+3. Stale upstream evidence on high-priority or in-progress rows.
+4. Vague umbrella rows blocking builder work.
+5. Missing Hermes behavior with a narrow Gormes surface and obvious tests.
+6. Taxonomy/docs cleanup that prevents accurate parity reporting.
 
 Stop after one coherent behavior family. Record adjacent gaps as next candidates
 instead of expanding the current pass.
@@ -306,6 +309,14 @@ on its own without parity evidence; record the upstream sha in
 4. Load only the reference file needed for the chosen surface.
 5. Inventory upstream behavior as behavior atoms, then identify the closest
    Gormes code, tests, docs, or progress row.
+   - For `implemented-feature-reconciliation`, start from atoms currently marked
+     `missing` in the requested surface and run `rg` by atom name, upstream
+     symbol, command/tool name, channel name, and likely package nouns under
+     `cmd/` and `internal/`. If Go code and focused tests prove behavior, edit
+     only the parity evidence doc: set `covered` when complete, `partial` when
+     a live adapter/provider/runtime piece remains, and name the remaining gap
+     explicitly. Do not create a progress row or invoke builder for behavior
+     already present.
 6. Pick the active upstream contract before comparing historical refs.
 7. Classify each atom as `covered`, `planned`, `vague`, `missing`,
    `stale-upstream`, `blocked`, `owned`, or `excluded`.

@@ -92,6 +92,47 @@ type GoscraplingBrowserConfig struct {
 	Wait    time.Duration
 }
 
+type GoscraplingCrawler interface {
+	Crawl(context.Context, GoscraplingCrawlRequest) (GoscraplingCrawlResult, error)
+}
+
+type GoscraplingCrawlerConfig struct {
+	Crawler  GoscraplingCrawler
+	MaxPages int
+}
+
+type GoscraplingCrawlRequest struct {
+	URL          string
+	Instructions string
+	Depth        string
+	MaxPages     int
+}
+
+type GoscraplingCrawlResult struct {
+	Pages []GoscraplingCrawlPage
+	Stats GoscraplingCrawlStats
+}
+
+type GoscraplingCrawlPage struct {
+	URL         string
+	FinalURL    string
+	Title       string
+	Content     string
+	StatusCode  int
+	ContentType string
+	Error       string
+	Evidence    WebEvidence
+	Duplicate   bool
+	Offsite     bool
+}
+
+type GoscraplingCrawlStats struct {
+	Visited    int `json:"visited,omitempty"`
+	Duplicates int `json:"duplicates,omitempty"`
+	Offsite    int `json:"offsite,omitempty"`
+	MaxPages   int `json:"max_pages,omitempty"`
+}
+
 // WebBackendResolution is the credential/provider state used by web tools.
 // Secret values stay in memory only long enough to attach request headers.
 type WebBackendResolution struct {
@@ -140,6 +181,7 @@ type WebToolsConfig struct {
 	Browser            BrowserHarnessToolsConfig
 	Backend            WebBackendConfig
 	GoscraplingBrowser GoscraplingBrowserConfig
+	GoscraplingCrawler GoscraplingCrawlerConfig
 	Policy             WebWebsitePolicy
 	Processing         WebContentProcessingConfig
 	ContentProcessor   WebContentProcessor
@@ -218,13 +260,14 @@ type webExtractResult struct {
 }
 
 type webExtraction struct {
-	Engine       string `json:"engine,omitempty"`
-	Mode         string `json:"mode,omitempty"`
-	StatusCode   int    `json:"status_code,omitempty"`
-	ContentType  string `json:"content_type,omitempty"`
-	CSSSelector  string `json:"css_selector,omitempty"`
-	FinalURL     string `json:"final_url,omitempty"`
-	WaitEvidence string `json:"wait_evidence,omitempty"`
+	Engine       string                 `json:"engine,omitempty"`
+	Mode         string                 `json:"mode,omitempty"`
+	StatusCode   int                    `json:"status_code,omitempty"`
+	ContentType  string                 `json:"content_type,omitempty"`
+	CSSSelector  string                 `json:"css_selector,omitempty"`
+	FinalURL     string                 `json:"final_url,omitempty"`
+	WaitEvidence string                 `json:"wait_evidence,omitempty"`
+	Crawl        *GoscraplingCrawlStats `json:"crawl,omitempty"`
 }
 
 type webErrorResponse struct {
@@ -1417,14 +1460,7 @@ func (t *webTool) executeCrawl(ctx context.Context, args json.RawMessage) (json.
 	}
 
 	if t.cfg.Resolution.Backend == WebBackendGoscraplingCrawler {
-		return json.Marshal(webErrorResponse{
-			Success:        false,
-			Error:          "local goscrapling crawler backend is not yet available. Use Firecrawl or Tavily for web_crawl until the local crawler adapter gate is complete.",
-			Evidence:       WebEvidenceProviderUnavailable,
-			Backend:        WebBackendGoscraplingCrawler,
-			Degraded:       true,
-			DegradedReason: "local goscrapling crawler adapter not yet available",
-		})
+		return t.executeGoscraplingCrawlerCrawl(ctx, crawlURL, in.Instructions, in.Depth)
 	}
 
 	if t.cfg.Resolution.Backend != WebBackendFirecrawl || !t.cfg.Resolution.Available {
@@ -1454,6 +1490,80 @@ func (t *webTool) executeCrawl(ctx context.Context, args json.RawMessage) (json.
 		})
 	}
 	return t.marshalProcessedCrawlResults(ctx, normalizeWebCrawlDocuments(crawlURL, raw))
+}
+
+func (t *webTool) executeGoscraplingCrawlerCrawl(ctx context.Context, crawlURL, instructions, depth string) (json.RawMessage, error) {
+	if errResult, blocked := t.blockedWebExtractRequestResult(crawlURL); blocked {
+		return marshalWebExtractResponse(webExtractResponse{Results: []webExtractResult{errResult}})
+	}
+	crawler := t.cfg.GoscraplingCrawler.Crawler
+	if crawler == nil {
+		return json.Marshal(goscraplingCrawlerUnavailableResponse("local goscrapling crawler adapter not yet available"))
+	}
+	maxPages := t.cfg.GoscraplingCrawler.MaxPages
+	if maxPages <= 0 {
+		maxPages = defaultWebCrawlLimit
+	}
+	result, err := crawler.Crawl(ctx, GoscraplingCrawlRequest{URL: crawlURL, Instructions: strings.TrimSpace(instructions), Depth: strings.TrimSpace(depth), MaxPages: maxPages})
+	if err != nil {
+		return json.Marshal(webErrorResponse{
+			Success:        false,
+			Error:          "Error crawling website with local goscrapling crawler: " + redactWebError(err.Error(), t.cfg.Resolution.APIKey),
+			Evidence:       WebEvidenceRequestFailed,
+			Backend:        WebBackendGoscraplingCrawler,
+			Degraded:       true,
+			DegradedReason: "local goscrapling crawler adapter failed",
+		})
+	}
+	return t.marshalProcessedCrawlResults(ctx, normalizeGoscraplingCrawlPages(crawlURL, result, maxPages))
+}
+
+func goscraplingCrawlerUnavailableResponse(reason string) webErrorResponse {
+	return webErrorResponse{
+		Success:        false,
+		Error:          "local goscrapling crawler backend is not yet available. Use Firecrawl or Tavily for web_crawl until the local crawler adapter gate is complete.",
+		Evidence:       WebEvidenceProviderUnavailable,
+		Backend:        WebBackendGoscraplingCrawler,
+		Degraded:       true,
+		DegradedReason: reason,
+	}
+}
+
+func normalizeGoscraplingCrawlPages(requestedURL string, result GoscraplingCrawlResult, maxPages int) []webExtractResult {
+	stats := result.Stats
+	if stats.MaxPages == 0 {
+		stats.MaxPages = maxPages
+	}
+	out := make([]webExtractResult, 0, len(result.Pages))
+	for _, page := range result.Pages {
+		if page.Duplicate || page.Offsite {
+			continue
+		}
+		pageURL := firstNonEmpty(page.URL, page.FinalURL, requestedURL)
+		finalURL := firstNonEmpty(page.FinalURL, pageURL)
+		item := webExtractResult{
+			URL:     pageURL,
+			Title:   page.Title,
+			Content: page.Content,
+			Extraction: &webExtraction{
+				Engine:      "goscrapling",
+				Mode:        "crawler",
+				StatusCode:  page.StatusCode,
+				ContentType: page.ContentType,
+				FinalURL:    finalURL,
+				Crawl:       &stats,
+			},
+		}
+		if strings.TrimSpace(page.Error) != "" {
+			item.Error = page.Error
+			item.Evidence = page.Evidence
+			if item.Evidence == "" {
+				item.Evidence = WebEvidenceRequestFailed
+			}
+		}
+		out = append(out, item)
+	}
+	return out
 }
 
 func (t *webTool) executeTavilyCrawl(ctx context.Context, crawlURL, instructions, depth string) (json.RawMessage, error) {
