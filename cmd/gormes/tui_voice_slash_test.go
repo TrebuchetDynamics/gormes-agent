@@ -88,6 +88,24 @@ func TestTUIVoiceSlashBindingLocalModelReceivesVoiceToggle(t *testing.T) {
 	}
 }
 
+func TestTUIVoiceRequirementsDetailsShowsConfiguredSTT(t *testing.T) {
+	details := tuiVoiceRequirementsDetails(config.Config{
+		Runtime: config.RuntimeCfg{TTSProvider: "edge"},
+		STT: config.STTCfg{
+			Provider: "local",
+			Local:    config.STTLocalCfg{Model: "tiny.en", Language: "en"},
+		},
+	})
+	for _, want := range []string{"STT: configured (local)", "model tiny.en", "language en", "TTS: configured (edge)"} {
+		if !strings.Contains(details, want) {
+			t.Fatalf("details missing %q:\n%s", want, details)
+		}
+	}
+	if strings.Contains(details, "STT: not configured") {
+		t.Fatalf("details should not report configured STT as absent:\n%s", details)
+	}
+}
+
 func TestTUIVoiceSlashBindingRemoteTUIUnchanged(t *testing.T) {
 	model := tui.NewModelWithOptions(make(chan kernel.RenderFrame), func(string) {}, func() {}, tui.Options{})
 	if toggle := capturedTUIVoiceToggle(t, model); toggle != nil {

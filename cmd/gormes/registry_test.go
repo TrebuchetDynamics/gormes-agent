@@ -25,6 +25,17 @@ func TestBuildDefaultRegistryIncludesSessionSearch(t *testing.T) {
 	}
 }
 
+func TestRegistryIncludesImageGeneration(t *testing.T) {
+	reg := buildDefaultRegistry(context.Background(), config.Config{}, nil, "")
+	tool, ok := reg.Get("image_generate")
+	if !ok {
+		t.Fatal("image_generate not registered")
+	}
+	if !strings.Contains(tool.Description(), "Generate") {
+		t.Fatalf("image_generate description = %q", tool.Description())
+	}
+}
+
 func TestBuildDefaultRegistryDelegationDisabled(t *testing.T) {
 	reg := buildDefaultRegistry(context.Background(), config.Config{}, nil, "")
 	if _, ok := reg.Get("delegate_task"); ok {
@@ -69,6 +80,36 @@ func TestBuildDefaultRegistryDelegationDisabled(t *testing.T) {
 		if _, ok := reg.Get(name); !ok {
 			t.Fatalf("%s not registered", name)
 		}
+	}
+}
+
+func TestRegisterAudioToolsAppliesSTTConfig(t *testing.T) {
+	cfg := config.Config{
+		STT: config.STTCfg{
+			Provider: " openai ",
+			Local: config.STTLocalCfg{
+				Model:    "tiny.en",
+				Language: "es",
+			},
+			OpenAI: config.STTProviderCfg{Model: "gpt-4o-transcribe"},
+		},
+	}
+
+	got := configuredTranscriptionConfig(cfg)
+	if got.Provider != "openai" {
+		t.Fatalf("Provider = %q, want openai", got.Provider)
+	}
+	if got.LocalModel != "tiny.en" {
+		t.Fatalf("LocalModel = %q, want tiny.en", got.LocalModel)
+	}
+	if got.OpenAIModel != "gpt-4o-transcribe" {
+		t.Fatalf("OpenAIModel = %q, want gpt-4o-transcribe", got.OpenAIModel)
+	}
+	if got.Language != "es" {
+		t.Fatalf("Language = %q, want es", got.Language)
+	}
+	if got.Disabled {
+		t.Fatal("Disabled = true, want false because zero-value stt.enabled is not a runtime disable flag")
 	}
 }
 

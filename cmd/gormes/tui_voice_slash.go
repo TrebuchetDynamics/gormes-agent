@@ -55,7 +55,22 @@ func tuiVoiceRequirementsDetails(cfg config.Config) string {
 	}
 	return strings.Join([]string{
 		"Audio: unavailable in native TUI (live microphone capture is not started by /voice slash)",
-		"STT: not configured",
+		configuredSTTStatusLine(cfg),
 		tts,
 	}, "\n")
+}
+
+func configuredSTTStatusLine(cfg config.Config) string {
+	provider := strings.ToLower(strings.TrimSpace(cfg.STT.Provider))
+	if provider == "" {
+		return "STT: not configured"
+	}
+	parts := []string{"STT: configured (" + provider + ")"}
+	if model := strings.TrimSpace(cfg.STT.Local.Model); model != "" && (provider == "local" || provider == "local_command") {
+		parts = append(parts, "model "+model)
+	}
+	if language := strings.TrimSpace(cfg.STT.Local.Language); language != "" {
+		parts = append(parts, "language "+language)
+	}
+	return strings.Join(parts, ", ")
 }

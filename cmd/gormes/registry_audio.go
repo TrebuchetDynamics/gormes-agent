@@ -36,9 +36,17 @@ func registerAudioTools(reg *tools.Registry, cfg config.Config) {
 		BaseURL: os.Getenv("GORMES_STT_OPENAI_BASE_URL"),
 		Model:   "",
 	})
-	reg.MustRegister(tools.NewTranscriptionTool(tools.NewTranscriptionRunner(tools.TranscriptionConfig{
-		Disabled: false,
-	}, sttProviders)))
+	reg.MustRegister(tools.NewTranscriptionTool(tools.NewTranscriptionRunner(configuredTranscriptionConfig(cfg), sttProviders)))
+}
+
+func configuredTranscriptionConfig(cfg config.Config) tools.TranscriptionConfig {
+	return tools.TranscriptionConfig{
+		Disabled:    false,
+		Provider:    strings.ToLower(strings.TrimSpace(cfg.STT.Provider)),
+		LocalModel:  strings.TrimSpace(cfg.STT.Local.Model),
+		OpenAIModel: strings.TrimSpace(cfg.STT.OpenAI.Model),
+		Language:    strings.TrimSpace(cfg.STT.Local.Language),
+	}
 }
 
 func audioToolsEnabled() bool { return true }

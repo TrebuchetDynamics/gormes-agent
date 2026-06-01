@@ -345,13 +345,14 @@ type ImageProviderRequest struct {
 
 // ImageProviderResult is the provider-specific response.
 type ImageProviderResult struct {
-	ImageURL  string
-	Width     int
-	Height    int
-	Provider  string
-	Model     string
-	MediaType string
-	Upscaled  bool
+	ImageURL   string
+	ImageBytes []byte
+	Width      int
+	Height     int
+	Provider   string
+	Model      string
+	MediaType  string
+	Upscaled   bool
 }
 
 // ImageGenerator is implemented by real or fake image generation backends.
@@ -472,7 +473,7 @@ func (r *ImageGenRunner) Generate(ctx context.Context, req ImageGenRequest) Imag
 		resultProvider = providerName
 	}
 
-	return ImageGenResult{
+	result := ImageGenResult{
 		Success:     true,
 		ImageURL:    providerResult.ImageURL,
 		Provider:    resultProvider,
@@ -480,6 +481,26 @@ func (r *ImageGenRunner) Generate(ctx context.Context, req ImageGenRequest) Imag
 		AspectRatio: aspectRatio,
 		Evidence:    ImageGenerationStatusOK,
 	}
+	if len(providerResult.ImageBytes) > 0 && req.OutputDir != "" {
+		mediaType := providerResult.MediaType
+		if mediaType == "" {
+			mediaType = "image/png"
+		}
+		envelope, err := BuildImageGenerationEnvelope(ImageGenerationRequest{
+			Provider:  resultProvider,
+			Model:     resultModel,
+			Prompt:    req.Prompt,
+			OutputDir: req.OutputDir,
+			Bytes:     providerResult.ImageBytes,
+			MediaType: mediaType,
+		})
+		if err != nil {
+			return imageGenFailure(providerName, imageGenEvidenceAPIError, redactImageGenErrorForPrompt(err.Error(), req.Prompt))
+		}
+		result.FilePath = envelope.Artifact
+		result.ImageURL = ""
+	}
+	return result
 }
 
 func (r *ImageGenRunner) selectProvider(ctx context.Context) (string, ImageGenerator, imageGenEvidence) {
