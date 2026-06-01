@@ -21,22 +21,22 @@ Use this page with:
 
 - [Completion Lane Roadmap](../lane-roadmap/) for phase-to-lane ownership and
   lane-specific gates.
-- [Hermes And Honcho Feature Map](../hermes-honcho-feature-map/) for the
+- [Hermes And Honcho Feature Map](../../parity/hermes-honcho-feature-map/) for the
   upstream feature-to-Go package map.
-- [Hermes/Honcho To Gormes Go Runtime Plan](../hermes-honcho-go-runtime-plan/)
+- [Hermes/Honcho To Gormes Go Runtime Plan](../../parity/hermes-honcho-go-runtime-plan/)
   for the reconciled implementation plan, subsystem classification, nested
   coverage matrix, and Go package dependency order.
-- [Upstream Coverage Ledger](../upstream-coverage-ledger/) for the audit rule
+- [Upstream Coverage Ledger](../../parity/upstream-coverage-ledger/) for the audit rule
   that tells us whether every feature-bearing Hermes/Honcho source class has
   been mapped.
-- [Swarm Feature Parity Audit](../swarm-feature-parity-audit/) for the
+- [Swarm Feature Parity Audit](../../parity/swarm-feature-parity-audit/) for the
   feature-level gap register found by parallel sub-agent parity audits.
 - [Agent Operating Model](../agent-operating-model/) for exactly how Codex,
   Claude, claudeu, and codexu should run planner, builder, parity, TDD, and
   interface-design passes.
 - [Contract Readiness](../../contract-readiness/) for the row-level handoff
   fields that make a slice builder-executable.
-- [Go Donor Reference Map](../go-donor-reference-map/) for the implementation
+- [Go Donor Reference Map](../../reference/go-donor-reference-map/) for the implementation
   pattern lookup that should back rows whose Go shape is unclear.
 
 ## Non-Negotiables
@@ -168,14 +168,14 @@ Definition of done for this lane:
 |---|---|
 | Overall finish line | This page |
 | Phase-to-lane ownership and gates | [Completion Lane Roadmap](../lane-roadmap/) |
-| Upstream feature-to-Go package map | [Hermes And Honcho Feature Map](../hermes-honcho-feature-map/) |
-| Reconciled Go implementation plan | [Hermes/Honcho To Gormes Go Runtime Plan](../hermes-honcho-go-runtime-plan/) |
-| Completeness audit for upstream mapping | [Upstream Coverage Ledger](../upstream-coverage-ledger/) |
-| Feature-level swarm gap register | [Swarm Feature Parity Audit](../swarm-feature-parity-audit/) |
+| Upstream feature-to-Go package map | [Hermes And Honcho Feature Map](../../parity/hermes-honcho-feature-map/) |
+| Reconciled Go implementation plan | [Hermes/Honcho To Gormes Go Runtime Plan](../../parity/hermes-honcho-go-runtime-plan/) |
+| Completeness audit for upstream mapping | [Upstream Coverage Ledger](../../parity/upstream-coverage-ledger/) |
+| Feature-level swarm gap register | [Swarm Feature Parity Audit](../../parity/swarm-feature-parity-audit/) |
 | How agents should run each pass | [Agent Operating Model](../agent-operating-model/) |
 | Current generated roadmap | [Architecture Plan](../) |
 | Upstream feature inventory | [Subsystem Inventory](../subsystem-inventory/) |
-| Go implementation pattern lookup | [Go Donor Reference Map](../go-donor-reference-map/) |
+| Go implementation pattern lookup | [Go Donor Reference Map](../../reference/go-donor-reference-map/) |
 | Row handoff requirements | [Contract Readiness](../../contract-readiness/) |
 | Skill-builder queue and selection | [Skill Builder Handoff](../../builder-loop/builder-loop-handoff/) |
 | Test expectations | [Testing](../../testing/) |
