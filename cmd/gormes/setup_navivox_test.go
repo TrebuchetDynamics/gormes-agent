@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"testing"
 
+	navivoxapp "github.com/TrebuchetDynamics/gormes-agent/internal/app/navivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/network/vpnhost"
 )
 
 func TestNavivoxSetupPairingURIIncludesRESTTokenAndURLs(t *testing.T) {
@@ -49,10 +49,10 @@ func TestNavivoxSetupPairingURIIncludesRESTTokenAndURLs(t *testing.T) {
 func TestNavivoxSetupBindDefault_TailscaleExposure_PicksDetectedVPNIPv4(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })
-	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
-		return []vpnhost.Host{
-			{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"},
-			{Iface: "wg0", Kind: vpnhost.KindWireGuard, IPv4: "10.0.0.1"},
+	vpnhostList = func(context.Context) ([]navivoxapp.VPNHost, error) {
+		return []navivoxapp.VPNHost{
+			{Iface: "tailscale0", Kind: navivoxapp.VPNHostKindTailscale, IPv4: "100.64.1.2"},
+			{Iface: "wg0", Kind: navivoxapp.VPNHostKindWireGuard, IPv4: "10.0.0.1"},
 		}, nil
 	}
 
@@ -65,7 +65,7 @@ func TestNavivoxSetupBindDefault_TailscaleExposure_PicksDetectedVPNIPv4(t *testi
 func TestNavivoxSetupBindDefault_TailscaleExposure_FallsBackToDefaultWhenNoVPN(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })
-	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
+	vpnhostList = func(context.Context) ([]navivoxapp.VPNHost, error) {
 		return nil, nil
 	}
 
@@ -78,9 +78,9 @@ func TestNavivoxSetupBindDefault_TailscaleExposure_FallsBackToDefaultWhenNoVPN(t
 func TestNavivoxSetupBindDefault_TailscaleExposure_SkipsTailscaleEntryWithoutIPv4(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })
-	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
-		return []vpnhost.Host{
-			{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv6: "fd7a:115c:a1e0::1"},
+	vpnhostList = func(context.Context) ([]navivoxapp.VPNHost, error) {
+		return []navivoxapp.VPNHost{
+			{Iface: "tailscale0", Kind: navivoxapp.VPNHostKindTailscale, IPv6: "fd7a:115c:a1e0::1"},
 		}, nil
 	}
 
@@ -93,10 +93,10 @@ func TestNavivoxSetupBindDefault_TailscaleExposure_SkipsTailscaleEntryWithoutIPv
 func TestNavivoxSetupBindDefault_WireGuardExposure_PicksDetectedWireGuardIPv4(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })
-	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
-		return []vpnhost.Host{
-			{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"},
-			{Iface: "wg0", Kind: vpnhost.KindWireGuard, IPv4: "10.0.0.1"},
+	vpnhostList = func(context.Context) ([]navivoxapp.VPNHost, error) {
+		return []navivoxapp.VPNHost{
+			{Iface: "tailscale0", Kind: navivoxapp.VPNHostKindTailscale, IPv4: "100.64.1.2"},
+			{Iface: "wg0", Kind: navivoxapp.VPNHostKindWireGuard, IPv4: "10.0.0.1"},
 		}, nil
 	}
 
@@ -109,10 +109,10 @@ func TestNavivoxSetupBindDefault_WireGuardExposure_PicksDetectedWireGuardIPv4(t 
 func TestNavivoxSetupBindDefault_VPNExposure_PicksFirstDetectedVPNIP(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })
-	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
-		return []vpnhost.Host{
-			{Iface: "tun0", Kind: vpnhost.KindTunOther, IPv4: "10.8.0.5"},
-			{Iface: "wg0", Kind: vpnhost.KindWireGuard, IPv4: "10.0.0.1"},
+	vpnhostList = func(context.Context) ([]navivoxapp.VPNHost, error) {
+		return []navivoxapp.VPNHost{
+			{Iface: "tun0", Kind: navivoxapp.VPNHostKindTunOther, IPv4: "10.8.0.5"},
+			{Iface: "wg0", Kind: navivoxapp.VPNHostKindWireGuard, IPv4: "10.0.0.1"},
 		}, nil
 	}
 

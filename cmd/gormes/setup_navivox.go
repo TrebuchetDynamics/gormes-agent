@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,13 +13,13 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/setupchoice"
 	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/setupnavivox"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/app/navivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/network/vpnhost"
 )
 
 // vpnhostList is the seam test code can override to inject deterministic
 // VPN host enumeration; production callers go through the real CLIs.
-var vpnhostList = vpnhost.List
+var vpnhostList = navivox.DefaultVPNHostList
 
 var navivoxExposureSetupChoices = []setupOptionChoice{
 	{ID: config.NavivoxExposureLocal, Label: "Local loopback only", Aliases: []string{"loopback"}},
@@ -334,14 +332,6 @@ func navivoxSetupPairingURI(cfg config.NavivoxCfg) (string, error) {
 func navivoxSetupBindDefault(ctx context.Context, current, exposureMode string) string {
 	hosts, _ := vpnhostList(ctx)
 	return setupnavivox.BindDefault(current, exposureMode, hosts)
-}
-
-func generateNavivoxSetupToken() (string, error) {
-	var raw [32]byte
-	if _, err := rand.Read(raw[:]); err != nil {
-		return "", fmt.Errorf("setup navivox: generate token: %w", err)
-	}
-	return "nvbx_" + base64.RawURLEncoding.EncodeToString(raw[:]), nil
 }
 
 func parseSetupYesNo(value string, defaultValue bool) (bool, bool) {

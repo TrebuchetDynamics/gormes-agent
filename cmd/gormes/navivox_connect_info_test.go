@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	navivoxapp "github.com/TrebuchetDynamics/gormes-agent/internal/app/navivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/network/vpnhost"
 )
 
 func newConnectInfoTestCommand(t *testing.T) (*cobra.Command, *bytes.Buffer) {
@@ -69,9 +69,9 @@ func TestNavivoxConnectInfo_Disabled_ReturnsTypedError(t *testing.T) {
 func TestNavivoxConnectInfo_LocalMode_PrintsLoopbackOnly_JSON(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })
-	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
-		return []vpnhost.Host{
-			{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"},
+	vpnhostList = func(context.Context) ([]navivoxapp.VPNHost, error) {
+		return []navivoxapp.VPNHost{
+			{Iface: "tailscale0", Kind: navivoxapp.VPNHostKindTailscale, IPv4: "100.64.1.2"},
 		}, nil
 	}
 
@@ -171,9 +171,9 @@ func TestNavivoxConnectInfoJSONIncludesServerScopedRouting(t *testing.T) {
 func TestNavivoxConnectInfo_TextOutputDoesNotDuplicatePairQRCode(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })
-	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
-		return []vpnhost.Host{
-			{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"},
+	vpnhostList = func(context.Context) ([]navivoxapp.VPNHost, error) {
+		return []navivoxapp.VPNHost{
+			{Iface: "tailscale0", Kind: navivoxapp.VPNHostKindTailscale, IPv4: "100.64.1.2"},
 		}, nil
 	}
 
@@ -213,9 +213,9 @@ func TestNavivoxConnectInfo_TextOutputDoesNotDuplicatePairQRCode(t *testing.T) {
 func TestNavivoxConnectInfo_NeverLeaksTokenValue(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })
-	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
-		return []vpnhost.Host{
-			{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"},
+	vpnhostList = func(context.Context) ([]navivoxapp.VPNHost, error) {
+		return []navivoxapp.VPNHost{
+			{Iface: "tailscale0", Kind: navivoxapp.VPNHostKindTailscale, IPv4: "100.64.1.2"},
 		}, nil
 	}
 
@@ -243,8 +243,8 @@ func TestNavivoxConnectInfo_NeverLeaksTokenValue(t *testing.T) {
 func TestNavivoxConnectInfo_LayeredAuthRequiresToken(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })
-	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
-		return []vpnhost.Host{{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"}}, nil
+	vpnhostList = func(context.Context) ([]navivoxapp.VPNHost, error) {
+		return []navivoxapp.VPNHost{{Iface: "tailscale0", Kind: navivoxapp.VPNHostKindTailscale, IPv4: "100.64.1.2"}}, nil
 	}
 
 	cmd, buf := newConnectInfoTestCommand(t)
@@ -277,9 +277,9 @@ func TestNavivoxConnectInfo_LayeredAuthRequiresToken(t *testing.T) {
 func TestNavivoxConnectInfo_JSONIncludesWebSocketURLAndBracketsIPv6(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })
-	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
-		return []vpnhost.Host{
-			{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv6: "fd7a:115c:a1e0::1"},
+	vpnhostList = func(context.Context) ([]navivoxapp.VPNHost, error) {
+		return []navivoxapp.VPNHost{
+			{Iface: "tailscale0", Kind: navivoxapp.VPNHostKindTailscale, IPv6: "fd7a:115c:a1e0::1"},
 		}, nil
 	}
 
@@ -319,9 +319,9 @@ func TestNavivoxConnectInfo_JSONIncludesWebSocketURLAndBracketsIPv6(t *testing.T
 func TestNavivoxConnectInfo_TailscaleMode_JSONShowsVPNEntries(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })
-	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
-		return []vpnhost.Host{
-			{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2", IPv6: "fd7a::1"},
+	vpnhostList = func(context.Context) ([]navivoxapp.VPNHost, error) {
+		return []navivoxapp.VPNHost{
+			{Iface: "tailscale0", Kind: navivoxapp.VPNHostKindTailscale, IPv4: "100.64.1.2", IPv6: "fd7a::1"},
 		}, nil
 	}
 
@@ -358,11 +358,11 @@ func TestNavivoxConnectInfo_TailscaleMode_JSONShowsVPNEntries(t *testing.T) {
 func TestNavivoxConnectInfo_VPNMode_ListsAllDetectedKinds(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })
-	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
-		return []vpnhost.Host{
-			{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"},
-			{Iface: "wg0", Kind: vpnhost.KindWireGuard, IPv4: "10.0.0.1"},
-			{Iface: "tun0", Kind: vpnhost.KindTunOther, IPv4: "10.8.0.5"},
+	vpnhostList = func(context.Context) ([]navivoxapp.VPNHost, error) {
+		return []navivoxapp.VPNHost{
+			{Iface: "tailscale0", Kind: navivoxapp.VPNHostKindTailscale, IPv4: "100.64.1.2"},
+			{Iface: "wg0", Kind: navivoxapp.VPNHostKindWireGuard, IPv4: "10.0.0.1"},
+			{Iface: "tun0", Kind: navivoxapp.VPNHostKindTunOther, IPv4: "10.8.0.5"},
 		}, nil
 	}
 
@@ -396,9 +396,9 @@ func TestNavivoxConnectInfo_VPNMode_ListsAllDetectedKinds(t *testing.T) {
 func TestNavivoxConnectInfo_TextOutputShowsKindLabel(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })
-	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
-		return []vpnhost.Host{
-			{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"},
+	vpnhostList = func(context.Context) ([]navivoxapp.VPNHost, error) {
+		return []navivoxapp.VPNHost{
+			{Iface: "tailscale0", Kind: navivoxapp.VPNHostKindTailscale, IPv4: "100.64.1.2"},
 		}, nil
 	}
 

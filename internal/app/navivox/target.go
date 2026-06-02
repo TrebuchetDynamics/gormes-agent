@@ -10,6 +10,18 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/network/vpnhost"
 )
 
+type VPNHost = vpnhost.Host
+
+type VPNHostKind = vpnhost.Kind
+
+const (
+	VPNHostKindTailscale = vpnhost.KindTailscale
+	VPNHostKindWireGuard = vpnhost.KindWireGuard
+	VPNHostKindTunOther  = vpnhost.KindTunOther
+)
+
+var DefaultVPNHostList = vpnhost.List
+
 // Target describes the network endpoint chosen for a temporary Navivox pair bridge.
 type Target struct {
 	Host            string

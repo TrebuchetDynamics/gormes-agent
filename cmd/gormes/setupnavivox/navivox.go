@@ -7,7 +7,6 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/app/navivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/network/vpnhost"
 )
 
 // PairingURI builds the Navivox setup pairing descriptor for the configured endpoint.
@@ -41,7 +40,7 @@ func TokenRequired(authMode string) bool {
 }
 
 // BindDefault chooses a setup bind host from current config, exposure mode, and VPN hosts.
-func BindDefault(current, exposureMode string, hosts []vpnhost.Host) string {
+func BindDefault(current, exposureMode string, hosts []navivox.VPNHost) string {
 	current = strings.TrimSpace(current)
 	if current != "" {
 		return current
@@ -52,17 +51,17 @@ func BindDefault(current, exposureMode string, hosts []vpnhost.Host) string {
 	case config.NavivoxExposurePublic:
 		return "0.0.0.0"
 	case config.NavivoxExposureTailscale:
-		return vpnBindDefault(hosts, func(h vpnhost.Host) bool { return h.Kind == vpnhost.KindTailscale })
+		return vpnBindDefault(hosts, func(h navivox.VPNHost) bool { return h.Kind == navivox.VPNHostKindTailscale })
 	case config.NavivoxExposureWireGuard:
-		return vpnBindDefault(hosts, func(h vpnhost.Host) bool { return h.Kind == vpnhost.KindWireGuard })
+		return vpnBindDefault(hosts, func(h navivox.VPNHost) bool { return h.Kind == navivox.VPNHostKindWireGuard })
 	case config.NavivoxExposureVPN:
-		return vpnBindDefault(hosts, func(vpnhost.Host) bool { return true })
+		return vpnBindDefault(hosts, func(navivox.VPNHost) bool { return true })
 	default:
 		return config.NavivoxDefaultBindHost
 	}
 }
 
-func vpnBindDefault(hosts []vpnhost.Host, match func(vpnhost.Host) bool) string {
+func vpnBindDefault(hosts []navivox.VPNHost, match func(navivox.VPNHost) bool) string {
 	for _, h := range hosts {
 		if !match(h) {
 			continue

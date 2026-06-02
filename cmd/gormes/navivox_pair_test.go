@@ -20,9 +20,9 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/spf13/cobra"
 
+	navivoxapp "github.com/TrebuchetDynamics/gormes-agent/internal/app/navivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/network/vpnhost"
 )
 
 func TestNavivoxPairHelpExplainsOneTerminalFlow(t *testing.T) {
@@ -106,10 +106,10 @@ func TestGenerateNavivoxSetupTokenUsesRedactablePrefix(t *testing.T) {
 func TestNavivoxPairAutoTargetPrefersTailscaleNetworkIP(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })
-	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
-		return []vpnhost.Host{
-			{Iface: "wg0", Kind: vpnhost.KindWireGuard, IPv4: "10.0.0.4"},
-			{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"},
+	vpnhostList = func(context.Context) ([]navivoxapp.VPNHost, error) {
+		return []navivoxapp.VPNHost{
+			{Iface: "wg0", Kind: navivoxapp.VPNHostKindWireGuard, IPv4: "10.0.0.4"},
+			{Iface: "tailscale0", Kind: navivoxapp.VPNHostKindTailscale, IPv4: "100.64.1.2"},
 		}, nil
 	}
 

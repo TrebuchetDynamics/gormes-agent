@@ -13,7 +13,6 @@ import (
 
 const AndroidPackage = "com.trebuchetdynamics.navivox"
 
-// DefaultOpenAndroid reports whether this environment can launch Navivox with Android's activity manager.
 func DefaultOpenAndroid() bool {
 	if !AndroidEnvironment() {
 		return false
@@ -22,7 +21,6 @@ func DefaultOpenAndroid() bool {
 	return err == nil
 }
 
-// AndroidEnvironment reports whether the process appears to run on Android or Termux.
 func AndroidEnvironment() bool {
 	if runtime.GOOS == "android" {
 		return true
@@ -36,7 +34,6 @@ func AndroidEnvironment() bool {
 	return strings.TrimSpace(os.Getenv("ANDROID_ROOT")) != "" && strings.TrimSpace(os.Getenv("ANDROID_DATA")) != ""
 }
 
-// OpenAndroid hands a Navivox descriptor to the Android app by deep link, with a share fallback.
 func OpenAndroid(ctx context.Context, descriptor, pkg string) error {
 	if ctx == nil {
 		ctx = context.Background()
@@ -94,7 +91,22 @@ func formatAndroidStartFailure(label string, err error, stderr string) string {
 	return fmt.Sprintf("%s: %v: %s", label, err, redacted)
 }
 
-// ShouldOpenAndroid applies the positive/negative CLI flags for Android handoff.
 func ShouldOpenAndroid(open, noOpen bool) bool {
 	return open && !noOpen
 }
+
+const navivoxAndroidPackage = AndroidPackage
+
+func defaultOpenNavivoxAndroid() bool { return DefaultOpenAndroid() }
+
+func navivoxAndroidEnvironment() bool { return AndroidEnvironment() }
+
+func openNavivoxAndroid(ctx context.Context, descriptor, pkg string) error {
+	return OpenAndroid(ctx, descriptor, pkg)
+}
+
+func navivoxDescriptorSharePayload(descriptor string) string { return SharePayload(descriptor) }
+
+func redactNavivoxDescriptor(text string) string { return Redact(text) }
+
+func shouldOpenNavivoxAndroid(open, noOpen bool) bool { return ShouldOpenAndroid(open, noOpen) }
