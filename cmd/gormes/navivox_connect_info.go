@@ -9,8 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/navivoxconnect"
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/navivoxhandoff"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/app/navivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/network/vpnhost"
 )
@@ -167,11 +166,11 @@ func buildNavivoxConnectInfoEntriesForConfig(cmd *cobra.Command, cfg config.Conf
 }
 
 func navivoxServerBindHostPort(bind string, cfg config.NavivoxCfg) (string, int) {
-	return navivoxconnect.ServerBindHostPort(bind, cfg.BindHost, cfg.Port)
+	return navivox.ServerBindHostPort(bind, cfg.BindHost, cfg.Port)
 }
 
 func navivoxConnectInfoURLs(host string, port int) (baseURL, webSocketURL string) {
-	return navivoxconnect.URLs(host, port)
+	return navivox.URLs(host, port)
 }
 
 func writeNavivoxConnectInfoJSON(out io.Writer, entries []navivoxConnectInfoEntry) error {
@@ -259,7 +258,7 @@ func navivoxConnectInfoProfileSummary(profiles []config.NavivoxProfileRoute) str
 }
 
 func navivoxConnectInfoDescriptor(cfg config.NavivoxCfg, entry navivoxConnectInfoEntry) (string, error) {
-	return navivoxhandoff.ConnectDescriptor(
+	return navivox.ConnectDescriptor(
 		entry.BaseURL,
 		entry.WebSocketURL,
 		entry.CapabilitiesURL,

@@ -15,9 +15,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/navivoxhandoff"
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/navivoxqr"
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/navivoxtarget"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/app/navivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
@@ -217,22 +215,22 @@ func ensureNoLiveGatewayForNavivoxPair(ctx context.Context) error {
 	return nil
 }
 
-type navivoxPairTarget = navivoxtarget.Target
+type navivoxPairTarget = navivox.Target
 
 func resolveNavivoxPairTarget(ctx context.Context, requestedHost string) (navivoxPairTarget, error) {
-	return navivoxtarget.Resolve(ctx, requestedHost, vpnhostList)
+	return navivox.Resolve(ctx, requestedHost, vpnhostList)
 }
 
 func navivoxPairExposureForHost(host string) string {
-	return navivoxtarget.ExposureForHost(host)
+	return navivox.ExposureForHost(host)
 }
 
 func navivoxPairLoopbackHost(host string) bool {
-	return navivoxtarget.LoopbackHost(host)
+	return navivox.LoopbackHost(host)
 }
 
 func navivoxPairLANIPv4() string {
-	return navivoxtarget.LANIPv4()
+	return navivox.LANIPv4()
 }
 
 func startNavivoxPairBridge(ctx context.Context, cfg config.NavivoxCfg, autoPort bool) (config.NavivoxCfg, context.CancelFunc, <-chan error, error) {
@@ -325,9 +323,9 @@ func stopNavivoxPairBridge(stop context.CancelFunc, done <-chan error) error {
 }
 
 func navivoxPairDescriptor(cfg config.NavivoxCfg, baseURL, wsURL string) string {
-	return navivoxhandoff.PairDescriptor(cfg.AuthMode, cfg.ExposureMode, cfg.Token, baseURL, wsURL)
+	return navivox.PairDescriptor(cfg.AuthMode, cfg.ExposureMode, cfg.Token, baseURL, wsURL)
 }
 
 func writeNavivoxPairQR(path, descriptor string) error {
-	return navivoxqr.WritePNG(path, descriptor)
+	return navivox.WritePNG(path, descriptor)
 }

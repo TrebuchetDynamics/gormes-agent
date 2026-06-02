@@ -7,11 +7,11 @@ import (
 
 	"github.com/skip2/go-qrcode"
 
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/navivoxqr"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/app/navivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
-type navivoxPairTerminalQR = navivoxqr.TerminalQR
+type navivoxPairTerminalQR = navivox.TerminalQR
 
 func renderNavivoxPairTerminalQR(out io.Writer, cfg config.NavivoxCfg, baseURL, wsURL, qrPath string) error {
 	descriptor := navivoxCompactPairDescriptor(cfg, baseURL, wsURL)
@@ -35,33 +35,33 @@ func renderNavivoxPairTerminalQR(out io.Writer, cfg config.NavivoxCfg, baseURL, 
 }
 
 func navivoxPairOpenQRCommand(qrPath string) string {
-	return navivoxqr.OpenCommand(qrPath, navivoxAndroidEnvironment())
+	return navivox.OpenCommand(qrPath, navivoxAndroidEnvironment())
 }
 
 func navivoxPairOpenQRCommandForPlatform(qrPath, goos string, android bool) string {
-	return navivoxqr.OpenCommandForPlatform(qrPath, goos, android)
+	return navivox.OpenCommandForPlatform(qrPath, goos, android)
 }
 
 func navivoxPairOpenQRPathArg(qrPath, goos string) string {
-	return navivoxqr.OpenPathArg(qrPath, goos)
+	return navivox.OpenPathArg(qrPath, goos)
 }
 
 func navivoxCompactPairDescriptor(cfg config.NavivoxCfg, baseURL, wsURL string) string {
-	return navivoxqr.CompactPairDescriptor(cfg.AuthMode, cfg.ExposureMode, cfg.Token, baseURL, wsURL)
+	return navivox.CompactPairDescriptor(cfg.AuthMode, cfg.ExposureMode, cfg.Token, baseURL, wsURL)
 }
 
 func navivoxPairTerminalQRForColumns(descriptor string, columns int) (navivoxPairTerminalQR, error) {
-	return navivoxqr.ForColumns(descriptor, columns)
+	return navivox.ForColumns(descriptor, columns)
 }
 
 func navivoxTerminalQRString(descriptor string, level qrcode.RecoveryLevel) (string, int, error) {
-	return navivoxqr.String(descriptor, level)
+	return navivox.String(descriptor, level)
 }
 
 func navivoxTerminalQRWidth(text string) int {
-	return navivoxqr.Width(text)
+	return navivox.Width(text)
 }
 
 func navivoxTerminalColumns(out io.Writer) int {
-	return navivoxqr.Columns(out)
+	return navivox.Columns(out)
 }

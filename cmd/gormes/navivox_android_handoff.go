@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/navivoxhandoff"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/app/navivox"
 )
 
 const navivoxAndroidPackage = "com.trebuchetdynamics.navivox"
@@ -94,11 +94,11 @@ func formatNavivoxAndroidStartFailure(label string, err error, stderr string) st
 }
 
 func navivoxDescriptorSharePayload(descriptor string) string {
-	return navivoxhandoff.SharePayload(descriptor)
+	return navivox.SharePayload(descriptor)
 }
 
 func redactNavivoxDescriptor(text string) string {
-	return navivoxhandoff.Redact(text)
+	return navivox.Redact(text)
 }
 
 func shouldOpenNavivoxAndroid(open, noOpen bool) bool {

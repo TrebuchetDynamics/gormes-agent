@@ -5,14 +5,14 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/navivoxconnect"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/app/navivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/network/vpnhost"
 )
 
 // PairingURI builds the Navivox setup pairing descriptor for the configured endpoint.
 func PairingURI(cfg config.NavivoxCfg) (string, error) {
-	baseURL, webSocketURL := navivoxconnect.URLs(cfg.BindHost, cfg.Port)
+	baseURL, webSocketURL := navivox.URLs(cfg.BindHost, cfg.Port)
 	values := url.Values{}
 	values.Set("base_url", baseURL)
 	values.Set("websocket_url", webSocketURL)

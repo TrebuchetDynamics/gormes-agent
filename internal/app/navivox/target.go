@@ -1,4 +1,4 @@
-package navivoxtarget
+package navivox
 
 import (
 	"context"

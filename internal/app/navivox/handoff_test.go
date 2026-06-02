@@ -1,4 +1,4 @@
-package navivoxhandoff
+package navivox
 
 import (
 	"encoding/json"

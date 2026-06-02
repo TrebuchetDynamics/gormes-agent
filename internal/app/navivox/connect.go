@@ -1,4 +1,4 @@
-package navivoxconnect
+package navivox
 
 import (
 	"fmt"
