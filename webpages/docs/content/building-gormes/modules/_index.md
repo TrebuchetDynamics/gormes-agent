@@ -18,7 +18,7 @@ Core agent execution, local state, tools, and terminal/browser interaction surfa
 | [Memory](agent-runtime/memory/) | 29 | 29 | 0 | 0 | `P1`: 1 · `P2`: 3 · `P3`: 1 · `unset`: 24 |
 | [Runtime](agent-runtime/runtime/) | 18 | 18 | 0 | 0 | `P0`: 2 · `P1`: 10 · `P2`: 6 |
 | [Sessions](agent-runtime/sessions/) | 29 | 29 | 0 | 0 | `P1`: 9 · `P2`: 5 · `P3`: 1 · `unset`: 14 |
-| [Tools](agent-runtime/tools/) | 149 | 149 | 0 | 0 | `P0`: 23 · `P1`: 55 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26 |
+| [Tools](agent-runtime/tools/) | 151 | 150 | 0 | 1 | `P0`: 23 · `P1`: 57 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26 |
 | [TUI](agent-runtime/tui/) | 72 | 72 | 0 | 0 | `P0`: 3 · `P1`: 15 · `P2`: 43 · `P3`: 1 · `unset`: 10 |
 
 ## Channel Gateway

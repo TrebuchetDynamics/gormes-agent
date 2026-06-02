@@ -565,11 +565,11 @@ file+line ref or explicit `missing`, and a classification.
 | Path security tool | `tools/path_security.py` | `internal/tools/safety/` | covered | Workspace path guard. |
 | URL safety tool | `tools/url_safety.py` | `internal/tools/url_safety.go`; `internal/tools/safety/urlsafety/safety.go`; `internal/tools/web_tools.go` | covered | Implemented: default URL safety policy, static checker, SSRF/private/cloud-metadata blocking, allow/block rules, cache invalidation, env-controlled private-URL policy, and web-tool prefetch blocking are covered by `internal/tools/safety/urlsafety` and `internal/tools` tests. |
 | Website policy tool | `tools/website_policy.py` | `internal/tools/web_tools.go` `WebWebsitePolicy`; `internal/tools/web_tools_test.go` | covered | Implemented for web tools: Hermes-style domain blocklist policy is applied before web_extract/web_crawl fetches, returns `website_policy_blocked` evidence, and is fixture-covered for Firecrawl/Tavily/goscrapling paths. |
-| OSV supply-chain check | `tools/osv_check.py` | → `missing` | missing | Not ported. |
+| OSV supply-chain check | `tools/osv_check.py` | `internal/tools/mcp/osv_malware_check.go`; `internal/tools/mcp/osv_malware_check_test.go`; `internal/tools/mcp_client.go`; `internal/tools/mcp_osv_test.go`; `internal/tools/mcp_stdio.go`; `internal/tools/mcp_stdio_test.go` | covered | Ported Hermes MCP package malware check: npx/uvx/pipx package launches infer npm/PyPI package/version payloads, block only OSV `MAL-*` advisories, ignore ordinary CVEs, redact advisory summaries, and fail open on unknown commands, missing args, and OSV/network errors through an injectable client with no live network in tests. |
 | Todo tool | `tools/todo_tool.py` | `internal/tools/` | covered | Todo state management. |
 | Clarify tool | `tools/clarify_tool.py` | `internal/tools/` | covered | Clarify prompts. |
 | Send-message tool | `tools/send_message_tool.py` | `internal/tools/sendmessage/send_message.go`; completed row `Hermes send_message tool list and target contract` | partial | Implemented the hermetic Hermes list/send contract: schema exposes optional `action` enum (`send`, `list`), injected directory listing/resolution returns deterministic targets or typed unavailable evidence, `send` validates target/message, parses `platform[:chat[:thread]]` through shared gateway routing, and fails closed when no sender is configured. Remaining gaps: live platform adapters, home-channel config binding, media delivery, and gateway session mirroring. |
-| Debug helpers tool | `tools/debug_helpers.py` | → `missing` | missing | Not ported. |
+| Debug helpers tool | `tools/debug_helpers.py` | `internal/tools/debuglog/session.go`; `internal/tools/debuglog/session_test.go`; `internal/tools/debug_helpers.go` | covered | Existing Go debug session helper matches Hermes' optional per-tool debug session seam with env-gated no-op behavior, session info, JSON log persistence, total-call accounting, and stronger secret/content redaction; no builder row needed. |
 | Interrupt tool | `tools/interrupt.py` | `internal/kernel/` | covered | Turn cancellation via context. |
 | Code execution tool | `tools/code_execution_tool.py` | `internal/tools/` + `internal/cmdrunner/` | partial | Guarded local execution; process registry not proven. |
 | Background process tool | `tools/code_execution_tool.py` background | `internal/tools/` | partial | Background mode not proven. |
@@ -597,7 +597,7 @@ file+line ref or explicit `missing`, and a classification.
 | Tool registry | `tools/registry.py` | `internal/tools/` | covered | Descriptor-driven registry. |
 | Toolsets | `toolsets.py` | `cmd/gormes/registry.go` | covered | Toolset enable/disable. |
 | Model tools (model selectors) | `model_tools.py` | `internal/cli/` + `internal/llm/` | partial | Model routing; Hermes model_tools abstractions not fully ported. |
-| Toolset distributions | `toolset_distributions.py` | → `missing` | missing | Not ported. |
+| Toolset distributions | `toolset_distributions.py` | → `missing`; planned row `Hermes toolset distribution manifest and deterministic sampler` | missing | Not ported. Next fixture-ready slice should preserve the named distribution manifest and deterministic sampler semantics without live batch/datagen execution. |
 
 ---
 

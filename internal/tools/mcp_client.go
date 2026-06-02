@@ -61,6 +61,31 @@ func ProbeMCPServerTools(ctx context.Context, servers []MCPServerDefinition, con
 
 type MCPCallResult = mcptools.CallResult
 
+type OSVEvidence = mcptools.OSVEvidence
+
+type OSVPackageQuery = mcptools.OSVPackageQuery
+
+type OSVVulnerability = mcptools.OSVVulnerability
+
+type OSVClient = mcptools.OSVClient
+
+type OSVCheckResult = mcptools.OSVCheckResult
+
+const (
+	OSVEvidenceAllowed      = mcptools.OSVEvidenceAllowed
+	OSVEvidenceSkipped      = mcptools.OSVEvidenceSkipped
+	OSVEvidenceFailOpen     = mcptools.OSVEvidenceFailOpen
+	OSVEvidenceMalwareFound = mcptools.OSVEvidenceMalwareFound
+)
+
+func CheckMCPServerPackageLaunch(ctx context.Context, server MCPServerDefinition, client OSVClient) OSVCheckResult {
+	return mcptools.CheckMCPServerPackageLaunch(ctx, server, client)
+}
+
+func CheckPackageLaunchForMalware(ctx context.Context, command string, args []string, client OSVClient) OSVCheckResult {
+	return mcptools.CheckPackageLaunchForMalware(ctx, command, args, client)
+}
+
 func parseMCPCallResult(raw json.RawMessage) (MCPCallResult, error) {
 	return mcptools.ParseCallResult(raw)
 }

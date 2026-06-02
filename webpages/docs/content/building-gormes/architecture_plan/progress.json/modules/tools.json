@@ -9443,6 +9443,147 @@
   },
   {
     "phase": "5",
+    "subphase": "5.N",
+    "pos": 65,
+    "item": {
+      "name": "OSV malware advisory check for MCP package launch",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Port Hermes' tools/osv_check.py behavior into a hermetic Go safety helper used before MCP extension package launch: infer npm/PyPI package names from npx/uvx/pipx commands, query an injected OSV client for MAL-* advisories only, block confirmed malware with redacted operator evidence, and fail open on network/parse/unrecognized-command errors without live OSV access in tests.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "tools",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Known MAL-* advisories return a typed blocked/degraded evidence envelope; non-malware CVEs, unknown commands, malformed args, OSV network errors, and parse failures allow launch with explicit fail-open evidence and no package token leakage beyond the inferred package name.",
+      "fixture": "internal/tools/mcp/osv_malware_check_test.go with fake OSV responses for npm scoped packages, npm version parsing, PyPI extras/version parsing, MAL-only filtering, network fail-open, and non-npx/uvx skip cases",
+      "source_refs": [
+        "hermes-agent/tools/osv_check.py:check_package_for_malware",
+        "hermes-agent/tools/osv_check.py:_infer_ecosystem",
+        "hermes-agent/tools/osv_check.py:_parse_package_from_args",
+        "hermes-agent/tools/osv_check.py:_query_osv",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md: OSV supply-chain check",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md: Tools, Sandboxes, And Security / Approval and security policy",
+        "internal/tools/mcp/"
+      ],
+      "ready_when": [
+        "The builder can use an injected fake OSV client; no live api.osv.dev network call or credentials are required.",
+        "MCP config/process package launch code already has command+args seams where the helper can be called before npx/uvx/pipx launch.",
+        "The row only ports malware-advisory gating; broad supply-chain auditing and package-manager install flows remain out of scope."
+      ],
+      "not_ready_when": [
+        "The implementation tries to block all CVEs instead of Hermes' MAL-* advisory subset.",
+        "Tests require real network access to OSV or a real npm/PyPI package install.",
+        "The slice rewrites MCP lifecycle/config parsing instead of adding a pre-launch safety check seam."
+      ],
+      "acceptance": [
+        "npx package tokens, including scoped @scope/name@version forms, are parsed into npm package/version query payloads and only MAL-* advisories block launch.",
+        "uvx and pipx package tokens, including extras and ==version, are parsed into PyPI package/version query payloads and only MAL-* advisories block launch.",
+        "Unrecognized commands, missing package args, non-malware CVEs, OSV network errors, timeouts, and malformed response bodies fail open with stable evidence rather than panicking or blocking.",
+        "The MCP package launch path calls the helper before starting npx/uvx/pipx and returns a redacted blocked result when malware is found; existing MCP stdio/http tests continue to pass."
+      ],
+      "note": "Planner 2026-06-01 Hermes tools pass: selected the stale missing `OSV supply-chain check` atom as a small repo-local fixture slice. Hermes explicitly checks only MAL-* advisories for npx/uvx/pipx MCP extension package launches and fails open on network errors; this row preserves that narrow contract instead of inventing a broad vulnerability scanner.",
+      "write_scope": [
+        "internal/tools/mcp/",
+        "internal/tools/mcp_client.go",
+        "internal/tools/mcp_process*.go",
+        "internal/tools/managed_tool_gateway.go",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tools.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools/mcp -run 'TestOSVMalwareCheck|TestMCPPackageLaunchOSV' -count=1",
+        "go test ./internal/tools -run 'TestMCP.*OSV|TestManagedGateway' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Hermetic tests prove MCP npx/uvx/pipx launch checks block MAL-* packages, ignore ordinary CVEs, and fail open on OSV/network errors without live package-manager or OSV calls."
+      ],
+      "completed_note": "Complete 2026-06-01: added a hermetic OSV malware guard for MCP package-backed launches. The helper infers npm/PyPI packages from npx/uvx/pipx, parses scoped npm and PyPI extras/version forms, queries an injectable OSV client, blocks only MAL-* advisories with redacted evidence, fails open on OSV/network errors, and gates stdio client construction when an OSV client is supplied. No live OSV, npm, or PyPI access is required by tests.",
+      "validation": [
+        "go test ./internal/tools/mcp -run 'TestOSVMalwareCheck|TestMCPPackageLaunchOSV' -count=1",
+        "go test ./internal/tools -run 'TestMCP.*OSV|TestManagedGateway|TestStdioClient_OSV' -count=1"
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.N",
+    "pos": 66,
+    "item": {
+      "name": "Hermes toolset distribution manifest and deterministic sampler",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Port Hermes' toolset_distributions.py contract as a hermetic Go manifest and deterministic sampler: expose the named distribution definitions, descriptions, and percentage weights; validate referenced toolsets through the existing Gormes toolset catalog; sample each toolset independently from an injectable RNG; and guarantee the highest-probability valid toolset is selected when all rolls miss. This row does not run batch/datagen jobs or change operator toolset config persistence.",
+      "contract_status": "fixture_ready",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "tools",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Unknown distributions return typed unavailable/error evidence; invalid distribution entries are skipped with validation evidence; if every random roll misses, the sampler chooses the highest-probability valid toolset so callers never receive an empty enabled-toolset set when a distribution has valid entries.",
+      "fixture": "internal/platform/cli/toolsets/distribution_test.go with deterministic RNG fixtures for default, image_gen, safe, terminal_only, unknown distribution, invalid toolset skip, and highest-probability fallback cases",
+      "source_refs": [
+        "hermes-agent/toolset_distributions.py:DISTRIBUTIONS",
+        "hermes-agent/toolset_distributions.py:get_distribution",
+        "hermes-agent/toolset_distributions.py:list_distributions",
+        "hermes-agent/toolset_distributions.py:sample_toolsets_from_distribution",
+        "hermes-agent/toolset_distributions.py:validate_distribution",
+        "hermes-agent/toolsets.py:validate_toolset",
+        "cmd/gormes/main.go:toolsetsForToolName",
+        "internal/platform/cli/toolsets/",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md: Toolset distributions",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md: Tools, Sandboxes, And Security / Tool registry and toolsets"
+      ],
+      "ready_when": [
+        "The upstream contract is pure data plus sampling helpers; it can be tested without model calls, provider credentials, batch jobs, or live tools.",
+        "Gormes already has toolset catalog/config seams under cmd/gormes and internal/platform/cli/toolsets that can validate whether a Hermes distribution names a supported toolset.",
+        "The parity atom remains missing after stale debug-helper reconciliation, so this row gives the next builder a concrete Hermes tools slice instead of a broad umbrella."
+      ],
+      "not_ready_when": [
+        "The builder changes platform_toolsets persistence, TUI /tools behavior, gateway command registry, batch runner execution, or datagen scheduling in this slice.",
+        "Tests depend on random nondeterminism, live registry discovery, provider credentials, or external package/network access.",
+        "The implementation silently returns an empty selection for a valid distribution whose rolls all miss, or accepts unknown distributions as success."
+      ],
+      "acceptance": [
+        "List/Get helpers expose the Hermes distribution names and descriptions, including default, image_gen, research, science, development, safe, balanced, minimal, terminal_only, terminal_web, creative, reasoning, browser_use, browser_only, browser_tasks, terminal_tasks, and mixed_tasks.",
+        "Deterministic RNG tests prove independent percentage sampling, validate-toolset filtering, and highest-probability fallback behavior match Hermes semantics.",
+        "Unknown distributions and invalid toolset references produce stable typed evidence without panics or live side effects.",
+        "The parity atom can move from missing to covered with exact Go files/tests; broad batch/datagen runner integration remains out of scope."
+      ],
+      "note": "Planner 2026-06-01 Hermes tools pass: after reconciling the stale Debug helpers atom to covered, selected toolset_distributions.py as the next small repo-local fixture slice. It preserves Hermes' pure distribution manifest/sampler contract without taking on batch/datagen execution.",
+      "write_scope": [
+        "internal/platform/cli/toolsets/",
+        "internal/tools/parity/",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tools.json",
+        "docs/content/building-gormes/architecture_plan/progress.json/modules/tools.json"
+      ],
+      "test_commands": [
+        "go test ./internal/platform/cli/toolsets -run 'TestHermesToolsetDistribution|TestToolsetDistribution' -count=1",
+        "go test ./internal/tools/parity -run 'TestHermesToolsetDistribution|TestToolsetDistribution' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermetic tests prove Gormes exposes Hermes toolset distribution names/weights and deterministic sampler behavior with validation/fallback evidence and no live batch/datagen execution."
+      ],
+      "provenance": {
+        "origin_type": "hermes",
+        "upstream_ref": "Hermes toolset_distributions.py distribution manifest and sampler helpers",
+        "note": "Batch/datagen consumers remain separate research-mode rows; this slice is data/sampler parity only."
+      }
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.O",
     "pos": 15,
     "item": {

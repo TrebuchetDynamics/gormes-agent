@@ -71,7 +71,7 @@ Use this page with:
 
 ## Current Finish Ledger
 
-As of the 2026-05-26 `cmd/progress emit` scan, the split canonical backlog contains 1,183 row objects: 1,180 complete and 3 planned. The repo-local `web_crawl explicit local-crawler unavailable evidence`, `Root tools command config-backed toolset toggles`, `Native TUI voice record key uses voice toggle adapter`, `Hermes send_message tool list and target contract`, `Goscrapling local crawler fixture adapter seam for web_crawl`, and `Image generation managed-gateway provider binding` slices are complete. Treat old phase-open counts as historical context only; current implementation intent comes from the row objects and generated queue pages.
+As of the 2026-05-26 `cmd/progress emit` scan, the split canonical backlog contains 1,185 row objects: 1,181 complete and 4 planned. The repo-local `web_crawl explicit local-crawler unavailable evidence`, `Root tools command config-backed toolset toggles`, `Native TUI voice record key uses voice toggle adapter`, `Hermes send_message tool list and target contract`, `Goscrapling local crawler fixture adapter seam for web_crawl`, `Image generation managed-gateway provider binding`, and `OSV malware advisory check for MCP package launch` slices are complete; `Hermes toolset distribution manifest and deterministic sampler` is now the current fixture-ready Hermes tools builder slice. Treat old phase-open counts as historical context only; current implementation intent comes from the row objects and generated queue pages.
 
 | Phase | Non-complete rows | Planner meaning |
 |---|---:|---|
@@ -79,7 +79,7 @@ As of the 2026-05-26 `cmd/progress emit` scan, the split canonical backlog conta
 | Phase 2 — Gateway | 0 | Gateway, channel, slash/skill/tool exposure, and operator-control rows are currently closed in the active backlog. New Hermes/Pi findings must become fresh rows before builder work. |
 | Phase 3 — Memory | 0 | Current Goncho/Honcho memory closure rows are complete; future memory work must be sourced from a new parity or product row. |
 | Phase 4 — Brain Transplant | 0 | Native-turn/provider/context rows in the active backlog are closed; regressions still need row-backed parity evidence before implementation. |
-| Phase 5 — Final Purge | 0 | Final-purge rows in the active backlog are complete; full goscrapling runtime binding remains deferred until public robots/cache/checkpoint/session-adapter APIs are ready. |
+| Phase 5 — Final Purge | 1 | `Hermes toolset distribution manifest and deterministic sampler` is the current fixture-ready Hermes tools row; full goscrapling runtime binding remains deferred until public robots/cache/checkpoint/session-adapter APIs are ready. |
 | Phase 6 — Learning Loop | 0 | Skill extraction, retrieval, scoring, and operator surfaces are closed in the active backlog; new learning-loop work starts with planner evidence. |
 | Phase 7 — Paused Channels | 0 | The paused channel backlog has no active non-complete rows. Do not expand channels without a fixture-ready progress row. |
 | Phase 8 — Reputation & Publication | 3 | Public-social, engineering-writeup, and agentic-porting-kit rows remain planned but operator/external-access gated. |
@@ -87,12 +87,13 @@ As of the 2026-05-26 `cmd/progress emit` scan, the split canonical backlog conta
 
 Structured blocker receipts remain attached to planned rows (three active
 blocker records plus one resolved release receipt), but blocker metadata is not
-builder-ready work. The current queue has no unblocked repo-local builder-ready
-slice; planner work is next: choose one planned row, either satisfy/remove its
-blocker or sharpen the contract, then validate progress before assigning it to a
-builder. The current best follow-up planner candidates are the WASI TTS runtime
-source selection, the full Goscrapling runtime binding release gate, or
-publication rows after operator input.
+builder-ready work. The current queue has one unblocked repo-local builder-ready
+slice: `Hermes toolset distribution manifest and deterministic sampler`. After
+that builder slice closes, planner work should choose one planned row, either
+satisfy/remove its blocker or sharpen the contract, then validate progress before
+assigning it to a builder. The current best follow-up planner candidates are the
+WASI TTS runtime source selection, the full Goscrapling runtime binding release
+gate, or publication rows after operator input.
 
 The first closure target is not "all green"; it is a **Python-free normal
 agent turn** with local Goncho memory and tested tool-call continuation. That is

@@ -27,6 +27,7 @@ type StdioClientOpts struct {
 	Now            func() time.Time
 	ProcessPID     int
 	ProcessTracker *MCPStdioProcessTracker
+	OSVClient      OSVClient
 }
 
 // StdioClient speaks JSON-RPC over a stdio.ReadWriteCloser. It is the minimal
@@ -67,8 +68,17 @@ var ErrInitializeFailed = errors.New("mcp stdio: initialize failed")
 // cannot be parsed as JSON-RPC 2.0.
 var ErrInvalidJSONRPCResponse = errors.New("mcp stdio: invalid jsonrpc response")
 
+// ErrMCPPackageMalwareBlocked is returned when the optional OSV malware guard
+// finds a MAL-* advisory for a package-backed stdio server command.
+var ErrMCPPackageMalwareBlocked = errors.New("mcp stdio: package malware advisory blocked launch")
+
 // NewStdioClient constructs a StdioClient over the supplied connection.
 func NewStdioClient(def MCPServerDefinition, opts StdioClientOpts) (*StdioClient, error) {
+	if opts.OSVClient != nil {
+		if res := CheckMCPServerPackageLaunch(context.Background(), def, opts.OSVClient); res.Blocked {
+			return nil, fmt.Errorf("%w: %s", ErrMCPPackageMalwareBlocked, res.Message)
+		}
+	}
 	if opts.Conn == nil {
 		return nil, errors.New("mcp stdio: nil conn")
 	}
