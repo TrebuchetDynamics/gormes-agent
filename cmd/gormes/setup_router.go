@@ -4,12 +4,11 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"net/url"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/setuprouter"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
@@ -19,8 +18,6 @@ import (
 const (
 	setupRouterAPIKeyEnvDefault = "GORMES_ROUTER_API_KEY"
 )
-
-var setupRouterAliasSanitizer = regexp.MustCompile(`[^a-z0-9-]+`)
 
 func runSetupRouterSection(cmd *cobra.Command, _ setupCommandSeams, _ bool) error {
 	cfg, err := config.Load(nil)
@@ -203,32 +200,7 @@ func appendSetupRouterRoute(routes []config.RouterRouteCfg, route config.RouterR
 }
 
 func setupRouterFallbackRules(routes []config.RouterRouteCfg) []config.RouterFallbackCfg {
-	if len(routes) < 2 {
-		return nil
-	}
-	primary := ""
-	for _, route := range routes {
-		if strings.EqualFold(strings.TrimSpace(route.Alias), "primary-chat") {
-			primary = "primary-chat"
-			break
-		}
-	}
-	if primary == "" {
-		return nil
-	}
-	rules := make([]config.RouterFallbackCfg, 0, len(routes)-1)
-	for _, route := range routes {
-		alias := strings.TrimSpace(route.Alias)
-		if alias == "" || alias == primary {
-			continue
-		}
-		rules = append(rules, config.RouterFallbackCfg{
-			From: primary,
-			To:   alias,
-			On:   []string{"rate_limit", "server_error", "timeout", "connection_failure"},
-		})
-	}
-	return rules
+	return setuprouter.FallbackRules(routes)
 }
 
 func writeSetupRouterReceipt(cmd *cobra.Command, cfg config.RouterCfg, auth setupRouterAuthEvidence) {
@@ -270,45 +242,15 @@ func writeSetupRouterReceipt(cmd *cobra.Command, cfg config.RouterCfg, auth setu
 }
 
 func setupRouterRouteLabels(route config.RouterRouteCfg) []string {
-	labels := []string{}
-	text := strings.ToLower(strings.Join([]string{route.Name, route.Alias, route.Provider, route.Model}, " "))
-	if strings.Contains(text, ":free") || strings.Contains(text, "free-tier") || strings.Contains(text, "free_tier") {
-		labels = append(labels, "requires your provider account/API key; quotas are provider-controlled")
-	}
-	if route.Optional {
-		labels = append(labels, "optional; only enabled if already installed and healthy")
-	}
-	return labels
+	return setuprouter.RouteLabels(route)
 }
 
 func setupRouterOpenAIBaseURL(listen string) string {
-	listen = strings.TrimSpace(listen)
-	if listen == "" {
-		listen = providermodule.RouterDefaultListen
-	}
-	if !strings.Contains(listen, "://") {
-		listen = "http://" + listen
-	}
-	parsed, err := url.Parse(listen)
-	if err != nil || parsed.Host == "" {
-		return strings.TrimRight(listen, "/") + "/v1"
-	}
-	parsed.Path = strings.TrimRight(parsed.Path, "/") + "/v1"
-	parsed.RawQuery = ""
-	parsed.Fragment = ""
-	parsed.User = nil
-	return parsed.String()
+	return setuprouter.OpenAIBaseURL(listen, providermodule.RouterDefaultListen)
 }
 
 func setupRouterSlug(value string) string {
-	value = strings.ToLower(strings.TrimSpace(value))
-	value = strings.ReplaceAll(value, "_", "-")
-	value = setupRouterAliasSanitizer.ReplaceAllString(value, "-")
-	value = strings.Trim(value, "-")
-	if value == "" {
-		return "route"
-	}
-	return value
+	return setuprouter.Slug(value)
 }
 
 func generateSetupRouterAPIKey() (string, error) {

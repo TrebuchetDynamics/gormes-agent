@@ -6,13 +6,13 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
+	clitui "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/tui"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
@@ -107,30 +107,5 @@ func runRemoteTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, runti
 }
 
 func dialRemoteTUI(ctx context.Context, remoteURL string) (gormescli.RemoteTUIClient, error) {
-	return gormescli.DialRemoteTUI(ctx, remoteURL, resolveRemoteTUISidecarURL())
-}
-
-func resolveRemoteTUIURL(flagValue string) string {
-	if raw := strings.TrimSpace(flagValue); raw != "" {
-		return raw
-	}
-	for _, key := range []string{"GORMES_TUI_GATEWAY_URL", "HERMES_TUI_GATEWAY_URL"} {
-		if raw := strings.TrimSpace(os.Getenv(key)); raw != "" {
-			return raw
-		}
-	}
-	return ""
-}
-
-func resolveRemoteTUISidecarURL() string {
-	for _, key := range []string{"GORMES_TUI_SIDECAR_URL", "HERMES_TUI_SIDECAR_URL"} {
-		if raw := strings.TrimSpace(os.Getenv(key)); raw != "" {
-			return raw
-		}
-	}
-	return ""
-}
-
-func isWebSocketRemoteURL(raw string) bool {
-	return gormescli.IsWebSocketRemoteURL(raw)
+	return gormescli.DialRemoteTUI(ctx, remoteURL, clitui.ResolveRemoteSidecarURL())
 }

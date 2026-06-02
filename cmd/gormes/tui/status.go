@@ -1,4 +1,4 @@
-package main
+package tui
 
 import (
 	"context"
@@ -7,20 +7,20 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
 )
 
-type tuiStartupPreflightOptions struct {
+type StartupPreflightOptions struct {
 	WorkDir string
 }
 
-func runNativeTUIStartupPreflight(_ context.Context, opts tuiStartupPreflightOptions) doctor.CheckResult {
+func RunNativeStartupPreflight(_ context.Context, opts StartupPreflightOptions) doctor.CheckResult {
 	if opts.WorkDir == "" {
 		if wd, err := os.Getwd(); err == nil {
 			opts.WorkDir = wd
 		}
 	}
-	return doctorTUIStatus()
+	return DoctorStatus()
 }
 
-func doctorTUIStatus() doctor.CheckResult {
+func DoctorStatus() doctor.CheckResult {
 	return doctor.CheckResult{
 		Name:    "Native TUI",
 		Status:  doctor.StatusPass,

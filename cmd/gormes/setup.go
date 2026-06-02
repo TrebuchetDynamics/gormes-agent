@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/setupchoice"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
@@ -822,35 +823,7 @@ func promptSetupActionText(cmd *cobra.Command, options []setupMenuOption, defaul
 }
 
 func stripSetupInputNoise(answer string) string {
-	var b strings.Builder
-	for i := 0; i < len(answer); {
-		ch := answer[i]
-		if ch == 0x1b {
-			i++
-			if i < len(answer) && answer[i] == '[' {
-				i++
-				for i < len(answer) {
-					final := answer[i]
-					i++
-					if final >= 0x40 && final <= 0x7e {
-						break
-					}
-				}
-				continue
-			}
-			if i < len(answer) {
-				i++
-			}
-			continue
-		}
-		if ch < 0x20 || ch == 0x7f {
-			i++
-			continue
-		}
-		b.WriteByte(ch)
-		i++
-	}
-	return b.String()
+	return setupchoice.StripInputNoise(answer)
 }
 
 func runSetupFullWizard(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
@@ -3761,13 +3734,7 @@ func ttsProviderLabel(value string) string {
 }
 
 func normalizeSetupChoice(value string) string {
-	value = strings.ToLower(strings.TrimSpace(value))
-	value = strings.ReplaceAll(value, " ", "_")
-	value = strings.ReplaceAll(value, "-", "_")
-	if value == "apptainer" {
-		return "singularity"
-	}
-	return value
+	return setupchoice.NormalizeValue(value)
 }
 
 func parsePositiveInt(value string) (int, bool) {

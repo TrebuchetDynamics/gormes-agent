@@ -4,14 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
-	"net/url"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/navivoxconnect"
+	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/navivoxhandoff"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/network/vpnhost"
 )
@@ -168,25 +167,11 @@ func buildNavivoxConnectInfoEntriesForConfig(cmd *cobra.Command, cfg config.Conf
 }
 
 func navivoxServerBindHostPort(bind string, cfg config.NavivoxCfg) (string, int) {
-	bind = strings.TrimSpace(bind)
-	if bind == "" {
-		return cfg.BindHost, cfg.Port
-	}
-	if host, portText, err := net.SplitHostPort(bind); err == nil {
-		if port, parseErr := strconv.Atoi(portText); parseErr == nil && port > 0 {
-			return host, port
-		}
-		return host, cfg.Port
-	}
-	return strings.Trim(bind, "[]"), cfg.Port
+	return navivoxconnect.ServerBindHostPort(bind, cfg.BindHost, cfg.Port)
 }
 
 func navivoxConnectInfoURLs(host string, port int) (baseURL, webSocketURL string) {
-	host = strings.Trim(strings.TrimSpace(host), "[]")
-	hostPort := net.JoinHostPort(host, fmt.Sprintf("%d", port))
-	baseURL = "http://" + hostPort
-	webSocketURL = "ws://" + hostPort + "/v1/navivox/stream"
-	return baseURL, webSocketURL
+	return navivoxconnect.URLs(host, port)
 }
 
 func writeNavivoxConnectInfoJSON(out io.Writer, entries []navivoxConnectInfoEntry) error {
@@ -274,19 +259,13 @@ func navivoxConnectInfoProfileSummary(profiles []config.NavivoxProfileRoute) str
 }
 
 func navivoxConnectInfoDescriptor(cfg config.NavivoxCfg, entry navivoxConnectInfoEntry) (string, error) {
-	values := url.Values{}
-	values.Set("base_url", entry.BaseURL)
-	values.Set("websocket_url", entry.WebSocketURL)
-	values.Set("capabilities_url", entry.CapabilitiesURL)
-	values.Set("auth_mode", strings.TrimSpace(cfg.AuthMode))
-	values.Set("exposure_mode", strings.TrimSpace(cfg.ExposureMode))
-	values.Set("token_required", strconv.FormatBool(entry.TokenRequired))
-	if entry.TokenRequired {
-		token := strings.TrimSpace(cfg.Token)
-		if token == "" {
-			return "", fmt.Errorf("navivox connect: token auth selected but token is empty")
-		}
-		values.Set("rest_token", token)
-	}
-	return (&url.URL{Scheme: "navivox", Host: "connect", RawQuery: values.Encode()}).String(), nil
+	return navivoxhandoff.ConnectDescriptor(
+		entry.BaseURL,
+		entry.WebSocketURL,
+		entry.CapabilitiesURL,
+		cfg.AuthMode,
+		cfg.ExposureMode,
+		cfg.Token,
+		entry.TokenRequired,
+	)
 }

@@ -15,6 +15,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	clitui "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/tui"
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
@@ -292,7 +293,7 @@ func buildDoctorCmd() *cobra.Command {
 				reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusSkip, Summary: "skipped (--offline)"})
 			}
 
-			reporter.Add(doctorTUIStatus())
+			reporter.Add(clitui.DoctorStatus())
 			// Pure local FS inspection of the Gormes-owned home layout -
 			// no network, identical under --offline. Auto-groups under the
 			// ◆ Directory Structure header via sectionForCheck.

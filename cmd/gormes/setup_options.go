@@ -3,18 +3,14 @@ package main
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/setupchoice"
 	setupwizard "github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 	"github.com/spf13/cobra"
 )
 
-type setupOptionChoice struct {
-	ID      string
-	Label   string
-	Aliases []string
-}
+type setupOptionChoice = setupchoice.Choice
 
 func promptSetupOptionChoice(cmd *cobra.Command, title, linePrompt, defaultID string, choices []setupOptionChoice) (string, error) {
 	defaultID = normalizeSetupOptionChoice(defaultID, choices, defaultID)
@@ -90,23 +86,5 @@ func setupOptionPickerChoices(options []setupOptionChoice) []tuiPickChoice {
 }
 
 func normalizeSetupOptionChoice(answer string, options []setupOptionChoice, defaultID string) string {
-	answer = strings.TrimSpace(stripSetupInputNoise(answer))
-	if answer == "" {
-		return strings.TrimSpace(defaultID)
-	}
-	if idx, err := strconv.Atoi(answer); err == nil && idx >= 1 && idx <= len(options) {
-		return options[idx-1].ID
-	}
-	normalized := normalizeSetupChoice(answer)
-	for _, option := range options {
-		if normalized == normalizeSetupChoice(option.ID) || normalized == normalizeSetupChoice(option.Label) {
-			return option.ID
-		}
-		for _, alias := range option.Aliases {
-			if normalized == normalizeSetupChoice(alias) {
-				return option.ID
-			}
-		}
-	}
-	return normalized
+	return setupchoice.NormalizeAnswer(answer, options, defaultID)
 }

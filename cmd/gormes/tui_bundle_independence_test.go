@@ -10,6 +10,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
+
+	clitui "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/tui"
 )
 
 func TestTUIBundleIndependence_StartupPreflightIgnoresHermesInkBundle(t *testing.T) {
@@ -41,7 +43,7 @@ func TestTUIBundleIndependence_StartupPreflightIgnoresHermesInkBundle(t *testing
 }
 
 func TestDoctorTUIStatusReportsNativeGoBubbleTeaAvailability(t *testing.T) {
-	got := doctorTUIStatus().Format()
+	got := clitui.DoctorStatus().Format()
 	for _, want := range []string{
 		"Native TUI",
 		"Go-native Bubble Tea",

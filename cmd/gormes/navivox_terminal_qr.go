@@ -3,26 +3,15 @@ package main
 import (
 	"fmt"
 	"io"
-	"net/url"
-	"os"
-	"runtime"
-	"strconv"
 	"strings"
 
 	"github.com/skip2/go-qrcode"
-	"golang.org/x/term"
 
+	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/navivoxqr"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
-type navivoxPairTerminalQR struct {
-	Text          string
-	Width         int
-	Columns       int
-	LevelName     string
-	TooNarrow     bool
-	RequiredWidth int
-}
+type navivoxPairTerminalQR = navivoxqr.TerminalQR
 
 func renderNavivoxPairTerminalQR(out io.Writer, cfg config.NavivoxCfg, baseURL, wsURL, qrPath string) error {
 	descriptor := navivoxCompactPairDescriptor(cfg, baseURL, wsURL)
@@ -46,112 +35,33 @@ func renderNavivoxPairTerminalQR(out io.Writer, cfg config.NavivoxCfg, baseURL, 
 }
 
 func navivoxPairOpenQRCommand(qrPath string) string {
-	return navivoxPairOpenQRCommandForPlatform(qrPath, runtime.GOOS, navivoxAndroidEnvironment())
+	return navivoxqr.OpenCommand(qrPath, navivoxAndroidEnvironment())
 }
 
 func navivoxPairOpenQRCommandForPlatform(qrPath, goos string, android bool) string {
-	pathArg := navivoxPairOpenQRPathArg(qrPath, goos)
-	if android {
-		return "termux-open " + pathArg
-	}
-	switch goos {
-	case "darwin":
-		return "open " + pathArg
-	case "windows":
-		return "start " + pathArg
-	default:
-		return "xdg-open " + pathArg
-	}
+	return navivoxqr.OpenCommandForPlatform(qrPath, goos, android)
 }
 
 func navivoxPairOpenQRPathArg(qrPath, goos string) string {
-	if qrPath == "" {
-		if goos == "windows" {
-			return `""`
-		}
-		return `''`
-	}
-	if !strings.ContainsAny(qrPath, " \t\n\r'\"\\$`;&|<>*?[]{}()!") {
-		return qrPath
-	}
-	if goos == "windows" {
-		return `"` + strings.ReplaceAll(qrPath, `"`, `\"`) + `"`
-	}
-	return `'` + strings.ReplaceAll(qrPath, `'`, `'\''`) + `'`
+	return navivoxqr.OpenPathArg(qrPath, goos)
 }
 
 func navivoxCompactPairDescriptor(cfg config.NavivoxCfg, baseURL, wsURL string) string {
-	values := url.Values{}
-	values.Set("base_url", baseURL)
-	values.Set("websocket_url", wsURL)
-	values.Set("capabilities_url", strings.TrimRight(baseURL, "/")+"/v1/navivox/capabilities")
-	values.Set("auth_mode", cfg.AuthMode)
-	values.Set("exposure_mode", cfg.ExposureMode)
-	values.Set("token_required", "true")
-	values.Set("rest_token", cfg.Token)
-	return (&url.URL{Scheme: "navivox", Host: "connect", RawQuery: values.Encode()}).String()
+	return navivoxqr.CompactPairDescriptor(cfg.AuthMode, cfg.ExposureMode, cfg.Token, baseURL, wsURL)
 }
 
 func navivoxPairTerminalQRForColumns(descriptor string, columns int) (navivoxPairTerminalQR, error) {
-	if strings.TrimSpace(descriptor) == "" {
-		return navivoxPairTerminalQR{}, fmt.Errorf("navivox pair: pairing descriptor is empty")
-	}
-	candidates := []struct {
-		name  string
-		level qrcode.RecoveryLevel
-	}{
-		{name: "medium", level: qrcode.Medium},
-		{name: "low", level: qrcode.Low},
-	}
-	var narrow navivoxPairTerminalQR
-	for _, candidate := range candidates {
-		text, width, err := navivoxTerminalQRString(descriptor, candidate.level)
-		if err != nil {
-			return navivoxPairTerminalQR{}, err
-		}
-		result := navivoxPairTerminalQR{Text: text, Width: width, Columns: columns, LevelName: candidate.name, RequiredWidth: width}
-		if columns <= 0 || width <= columns {
-			return result, nil
-		}
-		narrow = result
-	}
-	narrow.Text = ""
-	narrow.TooNarrow = true
-	return narrow, nil
+	return navivoxqr.ForColumns(descriptor, columns)
 }
 
 func navivoxTerminalQRString(descriptor string, level qrcode.RecoveryLevel) (string, int, error) {
-	qr, err := qrcode.New(descriptor, level)
-	if err != nil {
-		return "", 0, fmt.Errorf("navivox pair: encode terminal QR: %w", err)
-	}
-	text := qr.ToSmallString(false)
-	return text, navivoxTerminalQRWidth(text), nil
+	return navivoxqr.String(descriptor, level)
 }
 
 func navivoxTerminalQRWidth(text string) int {
-	maxWidth := 0
-	for _, line := range strings.Split(strings.TrimRight(text, "\n"), "\n") {
-		if width := len([]rune(line)); width > maxWidth {
-			maxWidth = width
-		}
-	}
-	return maxWidth
+	return navivoxqr.Width(text)
 }
 
 func navivoxTerminalColumns(out io.Writer) int {
-	if raw := strings.TrimSpace(os.Getenv("COLUMNS")); raw != "" {
-		if width, err := strconv.Atoi(raw); err == nil && width > 0 {
-			return width
-		}
-	}
-	file, ok := out.(*os.File)
-	if !ok || file == nil {
-		return 0
-	}
-	width, _, err := term.GetSize(int(file.Fd()))
-	if err != nil || width <= 0 {
-		return 0
-	}
-	return width
+	return navivoxqr.Columns(out)
 }

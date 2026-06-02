@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -14,6 +13,8 @@ import (
 	"github.com/skip2/go-qrcode"
 	"github.com/spf13/cobra"
 
+	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/setupchoice"
+	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/setupnavivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/network/vpnhost"
 )
@@ -327,62 +328,12 @@ func navivoxProviderSetupCommand(cfg config.Config) string {
 }
 
 func navivoxSetupPairingURI(cfg config.NavivoxCfg) (string, error) {
-	baseURL, webSocketURL := navivoxConnectInfoURLs(cfg.BindHost, cfg.Port)
-	values := url.Values{}
-	values.Set("base_url", baseURL)
-	values.Set("websocket_url", webSocketURL)
-	values.Set("capabilities_url", baseURL+"/v1/navivox/capabilities")
-	values.Set("auth_mode", strings.TrimSpace(cfg.AuthMode))
-	values.Set("exposure_mode", strings.TrimSpace(cfg.ExposureMode))
-	tokenRequired := cfg.AuthMode == config.NavivoxAuthPairingToken ||
-		cfg.AuthMode == config.NavivoxAuthStaticToken ||
-		cfg.AuthMode == config.NavivoxAuthTokenAndTailscaleIdentity
-	values.Set("token_required", strconv.FormatBool(tokenRequired))
-	if tokenRequired {
-		if strings.TrimSpace(cfg.Token) == "" {
-			return "", fmt.Errorf("setup navivox: token auth selected but token is empty")
-		}
-		values.Set("rest_token", cfg.Token)
-	}
-	return (&url.URL{Scheme: "navivox", Host: "connect", RawQuery: values.Encode()}).String(), nil
+	return setupnavivox.PairingURI(cfg)
 }
 
 func navivoxSetupBindDefault(ctx context.Context, current, exposureMode string) string {
-	current = strings.TrimSpace(current)
-	if current != "" {
-		return current
-	}
-	switch exposureMode {
-	case config.NavivoxExposureLocal:
-		return config.NavivoxDefaultBindHost
-	case config.NavivoxExposurePublic:
-		return "0.0.0.0"
-	case config.NavivoxExposureTailscale:
-		return navivoxSetupVPNBindDefault(ctx, func(h vpnhost.Host) bool {
-			return h.Kind == vpnhost.KindTailscale
-		})
-	case config.NavivoxExposureWireGuard:
-		return navivoxSetupVPNBindDefault(ctx, func(h vpnhost.Host) bool {
-			return h.Kind == vpnhost.KindWireGuard
-		})
-	case config.NavivoxExposureVPN:
-		return navivoxSetupVPNBindDefault(ctx, func(vpnhost.Host) bool { return true })
-	default:
-		return config.NavivoxDefaultBindHost
-	}
-}
-
-func navivoxSetupVPNBindDefault(ctx context.Context, match func(vpnhost.Host) bool) string {
 	hosts, _ := vpnhostList(ctx)
-	for _, h := range hosts {
-		if !match(h) {
-			continue
-		}
-		if h.IPv4 != "" {
-			return h.IPv4
-		}
-	}
-	return config.NavivoxDefaultBindHost
+	return setupnavivox.BindDefault(current, exposureMode, hosts)
 }
 
 func generateNavivoxSetupToken() (string, error) {
@@ -394,28 +345,9 @@ func generateNavivoxSetupToken() (string, error) {
 }
 
 func parseSetupYesNo(value string, defaultValue bool) (bool, bool) {
-	value = normalizeSetupChoice(value)
-	if value == "" {
-		return defaultValue, true
-	}
-	switch value {
-	case "y", "yes", "true", "1", "on":
-		return true, true
-	case "n", "no", "false", "0", "off":
-		return false, true
-	default:
-		return false, false
-	}
+	return setupchoice.YesNo(value, defaultValue)
 }
 
 func parseSetupCSV(value string) []string {
-	parts := strings.Split(value, ",")
-	out := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part != "" {
-			out = append(out, part)
-		}
-	}
-	return out
+	return setupnavivox.CSV(value)
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/shellcompletion"
+	clitui "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/tui"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/tuiadapter"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
@@ -821,7 +822,7 @@ func resolveTUIInvocation(cmd *cobra.Command) (tuiInvocation, error) {
 	providerFlag := commandStringFlag(cmd, "provider")
 	endpointFlag := commandStringFlag(cmd, "endpoint")
 	apiKeyFlag := commandStringFlag(cmd, "api-key")
-	remoteFlag := resolveRemoteTUIURL(commandStringFlag(cmd, "remote"))
+	remoteFlag := clitui.ResolveRemoteURL(commandStringFlag(cmd, "remote"))
 
 	cfg, err := config.Load(nil)
 	if err != nil {
@@ -1301,7 +1302,7 @@ func toolsetsForToolName(name string) []string {
 }
 
 func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, runtime rootRuntime) error {
-	runNativeTUIStartupPreflight(context.Background(), tuiStartupPreflightOptions{})
+	clitui.RunNativeStartupPreflight(context.Background(), clitui.StartupPreflightOptions{})
 	if runtime.tuiProgramFactory == nil {
 		runtime.tuiProgramFactory = defaultTUIProgramFactory
 	}

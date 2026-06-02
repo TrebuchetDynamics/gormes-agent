@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/spf13/cobra"
 
+	clitui "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/tui"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
@@ -174,7 +175,7 @@ func TestRemoteTUI_EnvGatewayURLSelectsWebSocketAttach(t *testing.T) {
 // reports remote streaming unavailable while local Bubble Tea continues
 // to work.
 func TestRemoteTUI_DoctorTUIStatusReportsRemoteDegradedMode(t *testing.T) {
-	got := doctorTUIStatus().Format()
+	got := clitui.DoctorStatus().Format()
 	lower := strings.ToLower(got)
 	for _, want := range []string{"native tui", "go-native bubble tea", "remote", "websocket"} {
 		if !strings.Contains(lower, want) {

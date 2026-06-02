@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
 
+	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/setupprofile"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
@@ -28,24 +28,15 @@ type setupGatewayProfileChannelOptions struct {
 }
 
 func setupGatewayProfileID() string {
-	home := filepath.Clean(strings.TrimSpace(config.GormesHome()))
-	if home != "" && filepath.Base(filepath.Dir(home)) == "profiles" {
-		if name := strings.ToLower(strings.TrimSpace(filepath.Base(home))); name != "" {
-			return name
-		}
-	}
-	return config.DefaultProfileID
+	return setupprofile.ProfileID(config.GormesHome(), config.DefaultProfileID)
 }
 
 func setupGatewayProfileRegistryPath() string {
-	return filepath.Join(config.GormesBaseHome(), "config.toml")
+	return setupprofile.RegistryPath(config.GormesBaseHome())
 }
 
 func setupGatewayProfileCredentialID(profileID, channelID string) string {
-	profileID = strings.ToLower(strings.TrimSpace(profileID))
-	channelID = strings.ToLower(strings.TrimSpace(channelID))
-	channelID = strings.NewReplacer(".", "_", "/", "_", " ", "_").Replace(channelID)
-	return profileID + "-" + channelID
+	return setupprofile.CredentialID(profileID, channelID)
 }
 
 func setupGatewayProfileChannelPreview(channelID string) setupGatewayProfileChannelBinding {
@@ -186,26 +177,9 @@ func writeSetupGatewayRuntimeSecretRef(key, envName string) error {
 }
 
 func compactSetupProfileStrings(values []string) []string {
-	out := make([]string, 0, len(values))
-	seen := map[string]struct{}{}
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			continue
-		}
-		if _, ok := seen[value]; ok {
-			continue
-		}
-		seen[value] = struct{}{}
-		out = append(out, value)
-	}
-	return out
+	return setupprofile.CompactStrings(values)
 }
 
 func setupInt64Strings(values []int64) []string {
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		out = append(out, fmt.Sprintf("%d", value))
-	}
-	return out
+	return setupprofile.Int64Strings(values)
 }

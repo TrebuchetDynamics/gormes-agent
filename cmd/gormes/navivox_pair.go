@@ -7,21 +7,20 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/skip2/go-qrcode"
 	"github.com/spf13/cobra"
 
+	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/navivoxhandoff"
+	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/navivoxqr"
+	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/navivoxtarget"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/network/vpnhost"
 )
 
 type navivoxPairOptions struct {
@@ -218,99 +217,22 @@ func ensureNoLiveGatewayForNavivoxPair(ctx context.Context) error {
 	return nil
 }
 
-type navivoxPairTarget struct {
-	Host            string
-	ExposureMode    string
-	PublicConfirmed bool
-	Source          string
-}
+type navivoxPairTarget = navivoxtarget.Target
 
 func resolveNavivoxPairTarget(ctx context.Context, requestedHost string) (navivoxPairTarget, error) {
-	requestedHost = strings.TrimSpace(requestedHost)
-	if requestedHost != "" {
-		return navivoxPairTarget{
-			Host:            requestedHost,
-			ExposureMode:    navivoxPairExposureForHost(requestedHost),
-			PublicConfirmed: !navivoxPairLoopbackHost(requestedHost),
-			Source:          "operator override",
-		}, nil
-	}
-
-	hosts, _ := vpnhostList(ctx)
-	for _, h := range hosts {
-		if h.Kind != vpnhost.KindTailscale || strings.TrimSpace(h.IPv4) == "" {
-			continue
-		}
-		return navivoxPairTarget{Host: h.IPv4, ExposureMode: config.NavivoxExposureTailscale, Source: "tailscale auto-detected"}, nil
-	}
-	for _, h := range hosts {
-		if strings.TrimSpace(h.IPv4) == "" {
-			continue
-		}
-		switch h.Kind {
-		case vpnhost.KindWireGuard:
-			return navivoxPairTarget{Host: h.IPv4, ExposureMode: config.NavivoxExposureWireGuard, Source: "wireguard auto-detected"}, nil
-		case vpnhost.KindTunOther:
-			return navivoxPairTarget{Host: h.IPv4, ExposureMode: config.NavivoxExposureVPN, Source: "vpn auto-detected"}, nil
-		}
-	}
-	if host := navivoxPairLANIPv4(); host != "" {
-		return navivoxPairTarget{Host: host, ExposureMode: config.NavivoxExposurePublic, PublicConfirmed: true, Source: "lan auto-detected"}, nil
-	}
-	return navivoxPairTarget{}, fmt.Errorf("navivox pair: no network IP detected; connect to Tailscale/Wi-Fi or pass --host <network-ip>")
+	return navivoxtarget.Resolve(ctx, requestedHost, vpnhostList)
 }
 
 func navivoxPairExposureForHost(host string) string {
-	if navivoxPairLoopbackHost(host) {
-		return config.NavivoxExposureLocal
-	}
-	return config.NavivoxExposurePublic
+	return navivoxtarget.ExposureForHost(host)
 }
 
 func navivoxPairLoopbackHost(host string) bool {
-	clean := strings.Trim(strings.TrimSpace(host), "[]")
-	if clean == "localhost" {
-		return true
-	}
-	if ip := net.ParseIP(clean); ip != nil && ip.IsLoopback() {
-		return true
-	}
-	return false
+	return navivoxtarget.LoopbackHost(host)
 }
 
 func navivoxPairLANIPv4() string {
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return ""
-	}
-	for _, iface := range ifaces {
-		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
-			continue
-		}
-		name := strings.ToLower(iface.Name)
-		if strings.HasPrefix(name, "docker") || strings.HasPrefix(name, "br-") || strings.HasPrefix(name, "veth") || strings.HasPrefix(name, "virbr") || strings.HasPrefix(name, "podman") {
-			continue
-		}
-		addrs, err := iface.Addrs()
-		if err != nil {
-			continue
-		}
-		for _, addr := range addrs {
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
-			ip = ip.To4()
-			if ip == nil || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
-				continue
-			}
-			return ip.String()
-		}
-	}
-	return ""
+	return navivoxtarget.LANIPv4()
 }
 
 func startNavivoxPairBridge(ctx context.Context, cfg config.NavivoxCfg, autoPort bool) (config.NavivoxCfg, context.CancelFunc, <-chan error, error) {
@@ -403,44 +325,9 @@ func stopNavivoxPairBridge(stop context.CancelFunc, done <-chan error) error {
 }
 
 func navivoxPairDescriptor(cfg config.NavivoxCfg, baseURL, wsURL string) string {
-	values := url.Values{}
-	values.Set("base_url", baseURL)
-	values.Set("websocket_url", wsURL)
-	values.Set("status_url", strings.TrimRight(baseURL, "/")+"/v1/navivox/status")
-	values.Set("capabilities_url", strings.TrimRight(baseURL, "/")+"/v1/navivox/capabilities")
-	values.Set("setup_handoff", "true")
-	values.Set("setup_mutation_policy", "read_only_handoff")
-	values.Set("setup_sections", "provider,model,workspace,channels")
-	values.Set("setup_entry_screen", "setup.provider")
-	values.Set("bridge_keepalive_required", "true")
-	values.Set("bridge_lifecycle", "termux_pair_command")
-	values.Set("recommended_path", "navivox")
-	values.Set("pairing_token_temporary", "true")
-	values.Set("pairing_token_expires_when", "bridge_stops")
-	values.Set("pairing_device_limit", "1")
-	values.Set("auth_mode", cfg.AuthMode)
-	values.Set("exposure_mode", cfg.ExposureMode)
-	values.Set("token_required", "true")
-	values.Set("rest_token", cfg.Token)
-	return (&url.URL{Scheme: "navivox", Host: "connect", RawQuery: values.Encode()}).String()
+	return navivoxhandoff.PairDescriptor(cfg.AuthMode, cfg.ExposureMode, cfg.Token, baseURL, wsURL)
 }
 
 func writeNavivoxPairQR(path, descriptor string) error {
-	if strings.TrimSpace(descriptor) == "" {
-		return fmt.Errorf("navivox pair: pairing descriptor is empty")
-	}
-	pngBytes, err := qrcode.Encode(descriptor, qrcode.Medium, 512)
-	if err != nil {
-		return fmt.Errorf("navivox pair: encode pairing QR: %w", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("navivox pair: create QR directory: %w", err)
-	}
-	if err := os.WriteFile(path, pngBytes, 0o600); err != nil {
-		return fmt.Errorf("navivox pair: write pairing QR: %w", err)
-	}
-	if err := os.Chmod(path, 0o600); err != nil {
-		return fmt.Errorf("navivox pair: secure pairing QR: %w", err)
-	}
-	return nil
+	return navivoxqr.WritePNG(path, descriptor)
 }

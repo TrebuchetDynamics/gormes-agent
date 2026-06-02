@@ -3,24 +3,17 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 	"os/exec"
-	"regexp"
 	"runtime"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/navivoxhandoff"
 )
 
 const navivoxAndroidPackage = "com.trebuchetdynamics.navivox"
-
-var (
-	navivoxDescriptorSecretParamPattern = regexp.MustCompile(`(?i)(^|[?&\s;])(?:rest_token|token|pairing_token)=[^\s&;]+`)
-	navivoxDescriptorSecretJSONPattern  = regexp.MustCompile(`(?i)("(?:rest_token|token|pairing_token)"\s*:\s*")[^"]*(")`)
-	navivoxTokenValuePattern            = regexp.MustCompile(`nvbx_[A-Za-z0-9._~+\-/%=]*`)
-)
 
 func defaultOpenNavivoxAndroid() bool {
 	if !navivoxAndroidEnvironment() {
@@ -101,50 +94,11 @@ func formatNavivoxAndroidStartFailure(label string, err error, stderr string) st
 }
 
 func navivoxDescriptorSharePayload(descriptor string) string {
-	parsed, err := url.Parse(descriptor)
-	if err != nil {
-		return descriptor
-	}
-	values := parsed.Query()
-	if len(values) == 0 {
-		return descriptor
-	}
-	payload := make(map[string]any, len(values))
-	for key, vals := range values {
-		if len(vals) == 0 {
-			continue
-		}
-		value := vals[0]
-		if navivoxDescriptorShareBoolKey(key) {
-			payload[key] = strings.EqualFold(value, "true")
-			continue
-		}
-		payload[key] = value
-	}
-	raw, err := json.Marshal(payload)
-	if err != nil {
-		return descriptor
-	}
-	return string(raw)
-}
-
-func navivoxDescriptorShareBoolKey(key string) bool {
-	switch strings.ToLower(strings.TrimSpace(key)) {
-	case "bridge_keepalive_required", "setup_handoff", "token_required":
-		return true
-	default:
-		return false
-	}
+	return navivoxhandoff.SharePayload(descriptor)
 }
 
 func redactNavivoxDescriptor(text string) string {
-	if text == "" {
-		return ""
-	}
-	redacted := navivoxDescriptorSecretParamPattern.ReplaceAllString(text, "${1}[redacted]")
-	redacted = navivoxDescriptorSecretJSONPattern.ReplaceAllString(redacted, "${1}[redacted]${2}")
-	redacted = navivoxTokenValuePattern.ReplaceAllString(redacted, "[redacted]")
-	return redacted
+	return navivoxhandoff.Redact(text)
 }
 
 func shouldOpenNavivoxAndroid(open, noOpen bool) bool {
