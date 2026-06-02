@@ -101,7 +101,7 @@ func knownTUIToolsets() (map[string]bool, error) {
 	}
 	known := make(map[string]bool, len(options))
 	for _, option := range options {
-		known[normalizeSetupChoice(option.key)] = true
+		known[normalizeSetupChoice(option.Key)] = true
 	}
 	return known, nil
 }

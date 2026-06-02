@@ -18,7 +18,6 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/setupchoice"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
@@ -3259,10 +3258,10 @@ func runSetupToolsSection(cmd *cobra.Command, nonInteractive bool) error {
 	fmt.Fprintln(out)
 	for i, option := range options {
 		marker := "[ ]"
-		if selected[option.key] {
+		if selected[option.Key] {
 			marker = "[x]"
 		}
-		fmt.Fprintf(out, "  %2d. %s %-28s %-16s %s\n", i+1, marker, option.label, option.key, option.description)
+		fmt.Fprintf(out, "  %2d. %s %-28s %-16s %s\n", i+1, marker, option.Label, option.Key, option.Description)
 	}
 	if nonInteractive {
 		fmt.Fprintln(out, "\nSkipped (keeping current tool selection).")
@@ -3294,11 +3293,11 @@ func promptSetupToolsChecklist(cmd *cobra.Command, stdin *os.File, options []set
 func setupToolChecklistChoices(options []setupToolOption) []tuiPickChoice {
 	choices := make([]tuiPickChoice, len(options))
 	for i, option := range options {
-		label := option.label
-		if option.description != "" {
-			label = fmt.Sprintf("%s  (%s)", label, option.description)
+		label := option.Label
+		if option.Description != "" {
+			label = fmt.Sprintf("%s  (%s)", label, option.Description)
 		}
-		choices[i] = tuiPickChoice{ID: option.key, Label: label}
+		choices[i] = tuiPickChoice{ID: option.Key, Label: label}
 	}
 	return choices
 }
@@ -3527,106 +3526,28 @@ func terminalBackendOptions() []setupChoice {
 	}
 }
 
-type setupToolOption struct {
-	key         string
-	label       string
-	description string
-}
+type setupToolOption = gormescli.SetupToolOption
 
 func setupToolOptions() ([]setupToolOption, error) {
-	report, err := cli.EffectiveToolsetPickerOptions(plugins.Inventory{})
-	if err != nil {
-		return nil, err
-	}
-	out := make([]setupToolOption, 0, len(report.Options))
-	for _, option := range report.Options {
-		out = append(out, setupToolOption{
-			key:         option.Key,
-			label:       option.Label,
-			description: option.Description,
-		})
-	}
-	return out, nil
+	return gormescli.SetupToolOptions()
 }
 
 func loadSetupToolsConfig(path string) (map[string]any, cli.PlatformToolsetConfig, error) {
-	doc := map[string]any{}
-	body, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			cfg, _ := cli.ParsePlatformToolsetConfig(doc)
-			return doc, cfg, nil
-		}
-		return nil, cli.PlatformToolsetConfig{}, fmt.Errorf("setup tools: read %s: %w", path, err)
-	}
-	if err := toml.Unmarshal(body, &doc); err != nil {
-		return nil, cli.PlatformToolsetConfig{}, fmt.Errorf("setup tools: parse %s: %w", path, err)
-	}
-	cfg, _ := cli.ParsePlatformToolsetConfig(doc)
-	return doc, cfg, nil
+	return gormescli.LoadSetupToolsConfig(path)
 }
 
 func writeSetupToolsConfig(path string, doc map[string]any) error {
-	body, err := toml.Marshal(doc)
-	if err != nil {
-		return fmt.Errorf("setup tools: marshal config: %w", err)
-	}
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("setup tools: mkdir %s: %w", dir, err)
-	}
-	tmp, err := os.CreateTemp(dir, ".config.toml.*")
-	if err != nil {
-		return fmt.Errorf("setup tools: tempfile: %w", err)
-	}
-	tmpName := tmp.Name()
-	defer os.Remove(tmpName)
-	if _, err := tmp.Write(body); err != nil {
-		tmp.Close()
-		return fmt.Errorf("setup tools: write temp: %w", err)
-	}
-	if err := tmp.Chmod(0o600); err != nil {
-		tmp.Close()
-		return fmt.Errorf("setup tools: chmod temp: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("setup tools: close temp: %w", err)
-	}
-	if _, err := toolspkg.AtomicReplace(tmpName, path, toolspkg.AtomicReplaceOptions{FirstWriteMode: 0o600}); err != nil {
-		return fmt.Errorf("setup tools: rename config: %w", err)
-	}
-	return nil
+	return gormescli.WriteSetupToolsConfig(path, doc)
 }
 
 func parseSetupToolSelection(input string, options []setupToolOption, current []string) ([]string, error) {
-	input = strings.TrimSpace(input)
-	if input == "" {
-		return append([]string(nil), current...), nil
-	}
-	byKey := make(map[string]setupToolOption, len(options))
-	for _, option := range options {
-		byKey[option.key] = option
-	}
-	var selected []string
-	for _, token := range strings.FieldsFunc(input, setupSelectionSeparator) {
-		token = strings.TrimSpace(token)
-		if token == "" {
-			continue
+	selected, err := gormescli.ParseSetupToolSelection(input, options, current)
+	if err != nil {
+		var invalid gormescli.SetupInvalidToolSelectionError
+		if errors.As(err, &invalid) {
+			return nil, newExitCodeError(2, err)
 		}
-		if index, err := strconv.Atoi(token); err == nil {
-			if index < 1 || index > len(options) {
-				return nil, newExitCodeError(2, fmt.Errorf("setup_tools_invalid_selection: %s", token))
-			}
-			selected = append(selected, options[index-1].key)
-			continue
-		}
-		key := normalizeSetupChoice(token)
-		key = strings.ReplaceAll(key, "-", "_")
-		if option, ok := byKey[key]; ok {
-			selected = append(selected, option.key)
-			continue
-		}
-		selected = append(selected, token)
+		return nil, err
 	}
 	return selected, nil
 }
@@ -3643,59 +3564,16 @@ func stringSet(values []string) map[string]bool {
 	return out
 }
 
-type setupToolsProviderRow struct {
-	Toolset string
-	Kind    string
-	Label   string
-}
-
-var setupToolsProviderRows = map[string][]setupToolsProviderRow{
-	"web": {
-		{Toolset: "web", Kind: "web", Label: "Web search and extraction"},
-	},
-	"browser": {
-		{Toolset: "browser", Kind: "browser", Label: "Browser backend"},
-	},
-	"image_gen": {
-		{Toolset: "image_gen", Kind: "image_gen", Label: "Image generation provider"},
-	},
-	"rl": {
-		{Toolset: "rl", Kind: "rl", Label: "RL training provider"},
-	},
-	"tts": {
-		{Toolset: "tts", Kind: "tts", Label: "Voice/TTS provider"},
-	},
-	"skills": {
-		{Toolset: "skills", Kind: "github_skills_hub", Label: "GitHub Skills Hub"},
-	},
-	"memory": {
-		{Toolset: "memory", Kind: "honcho", Label: "Honcho/Goncho memory provider"},
-	},
-	"homeassistant": {
-		{Toolset: "homeassistant", Kind: "homeassistant", Label: "Home Assistant credentials"},
-	},
-}
-
 func renderSetupToolsProviderRows(out io.Writer, selected []string) {
-	selectedSet := stringSet(selected)
-	printedHeader := false
-	for _, option := range providerRowToolsetOrder() {
-		if !selectedSet[option] {
-			continue
-		}
-		for _, row := range setupToolsProviderRows[option] {
-			if !printedHeader {
-				fmt.Fprintln(out)
-				fmt.Fprintln(out, "Provider/API key setup")
-				printedHeader = true
-			}
-			fmt.Fprintf(out, "  setup_tools_provider_row_backed: toolset=%s provider=%s label=%s\n", row.Toolset, row.Kind, row.Label)
-		}
+	rows := gormescli.SetupToolsProviderRows(selected)
+	if len(rows) == 0 {
+		return
 	}
-}
-
-func providerRowToolsetOrder() []string {
-	return []string{"web", "browser", "image_gen", "rl", "tts", "skills", "memory", "homeassistant"}
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Provider/API key setup")
+	for _, row := range rows {
+		fmt.Fprintf(out, "  setup_tools_provider_row_backed: toolset=%s provider=%s label=%s\n", row.Toolset, row.Kind, row.Label)
+	}
 }
 
 func terminalBackendLabel(value string) string {

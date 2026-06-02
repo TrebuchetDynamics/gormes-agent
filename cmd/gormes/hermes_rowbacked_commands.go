@@ -114,10 +114,10 @@ func runToolsListCommand(cmd *cobra.Command) error {
 	fmt.Fprintln(cmd.OutOrStdout(), "Tools for CLI")
 	for _, option := range options {
 		state := "disabled"
-		if enabled[normalizeSetupChoice(option.key)] {
+		if enabled[normalizeSetupChoice(option.Key)] {
 			state = "enabled"
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "%-18s %s  %s\n", option.key, state, option.label)
+		fmt.Fprintf(cmd.OutOrStdout(), "%-18s %s  %s\n", option.Key, state, option.Label)
 	}
 	return nil
 }
