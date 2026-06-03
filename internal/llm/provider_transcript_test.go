@@ -343,8 +343,9 @@ data: [DONE]
 	})
 
 	stream, err := client.OpenStream(context.Background(), ChatRequest{
-		Model:    "gpt-5.5",
-		Messages: []Message{{Role: "user", Content: "hello"}},
+		Model:     "gpt-5.5",
+		SessionID: "session-codex-cache",
+		Messages:  []Message{{Role: "user", Content: "hello"}},
 	})
 	if err != nil {
 		t.Fatalf("OpenStream error = %v", err)
@@ -366,14 +367,24 @@ data: [DONE]
 	if got := captured.Header["ChatGPT-Account-Id"]; len(got) != 0 {
 		t.Fatalf("ChatGPT-Account-Id = %#v, want canonical ChatGPT-Account-ID only", got)
 	}
+	if got := captured.Header.Get("session_id"); got != "session-codex-cache" {
+		t.Fatalf("session_id = %q, want stable prompt cache scope", got)
+	}
+	if got := captured.Header.Get("x-client-request-id"); got != "session-codex-cache" {
+		t.Fatalf("x-client-request-id = %q, want stable prompt cache scope", got)
+	}
 	var body struct {
-		Stream bool `json:"stream"`
+		Stream         bool   `json:"stream"`
+		PromptCacheKey string `json:"prompt_cache_key"`
 	}
 	if err := json.Unmarshal(captured.Body, &body); err != nil {
 		t.Fatalf("decode request body: %v\n%s", err, captured.Body)
 	}
 	if !body.Stream {
 		t.Fatalf("stream = false, want true for ChatGPT Codex backend")
+	}
+	if body.PromptCacheKey != "session-codex-cache" {
+		t.Fatalf("prompt_cache_key = %q, want stable session prompt cache key", body.PromptCacheKey)
 	}
 	assertTranscriptEvents(t, []eventSnapshot{
 		{Kind: EventToken, Token: "ok"},

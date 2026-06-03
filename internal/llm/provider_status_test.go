@@ -67,11 +67,11 @@ func TestCodexProviderStatusReportsResponsesRuntime(t *testing.T) {
 	if got.Runtime != "codex_responses" {
 		t.Fatalf("Runtime = %q, want codex_responses", got.Runtime)
 	}
-	if got.Capabilities.PromptCache.Available {
-		t.Fatal("PromptCache.Available = true, want unavailable until Codex cache_control mapping lands")
+	if !got.Capabilities.PromptCache.Available {
+		t.Fatal("PromptCache.Available = false, want Codex Responses prompt_cache_key support")
 	}
-	if !strings.Contains(got.Capabilities.PromptCache.Reason, "cache_control not serialized") {
-		t.Fatalf("PromptCache.Reason = %q, want cache_control mapping degradation", got.Capabilities.PromptCache.Reason)
+	if !strings.Contains(got.Capabilities.PromptCache.Reason, "prompt_cache_key") {
+		t.Fatalf("PromptCache.Reason = %q, want prompt_cache_key evidence", got.Capabilities.PromptCache.Reason)
 	}
 	assertUnavailableCapability(t, "RateGuard", got.Capabilities.RateGuard)
 	assertUnavailableCapability(t, "BudgetTelemetry", got.Capabilities.BudgetTelemetry)

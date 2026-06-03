@@ -18,6 +18,7 @@ var codexResponsesToolCallLeakPattern = regexp.MustCompile(`(?i)(?:^|[\s>|])to=f
 type codexResponsesPayload struct {
 	Model             string               `json:"model"`
 	Instructions      string               `json:"instructions"`
+	PromptCacheKey    string               `json:"prompt_cache_key,omitempty"`
 	Input             []any                `json:"input"`
 	Tools             []codexResponsesTool `json:"tools,omitempty"`
 	Store             bool                 `json:"store"`
@@ -170,6 +171,7 @@ func buildCodexResponsesPayload(req ChatRequest) (codexResponsesPayload, error) 
 	payload := codexResponsesPayload{
 		Model:             req.Model,
 		Instructions:      instructions,
+		PromptCacheKey:    codexResponsesPromptCacheKey(req.SessionID),
 		Input:             input,
 		Tools:             codexResponsesTools(req.Tools),
 		Store:             false,
@@ -413,6 +415,10 @@ func codexResponsesOutputArguments(item codexResponsesOutputItem) string {
 		}
 	}
 	return args
+}
+
+func codexResponsesPromptCacheKey(sessionID string) string {
+	return strings.TrimSpace(sessionID)
 }
 
 func deterministicCodexResponsesCallID(name, arguments string, index int) string {

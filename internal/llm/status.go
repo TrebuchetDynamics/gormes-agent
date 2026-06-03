@@ -97,7 +97,7 @@ func codexResponsesProviderStatus() ProviderStatus {
 		Provider: "openai-codex",
 		Runtime:  "codex_responses",
 		Capabilities: ProviderCapabilities{
-			PromptCache:     unavailableCapability("cache_control not serialized by Codex Responses request mapping"),
+			PromptCache:     CapabilityStatus{Available: true, Reason: "prompt_cache_key serialized from the stable Gormes session id for Codex Responses cache routing"},
 			ReasoningEcho:   unavailableCapability("reasoning_content echo padding is not required by Codex Responses request mapping"),
 			RateGuard:       unavailableCapability("Codex provider rate guard not implemented"),
 			BudgetTelemetry: unavailableCapability("Codex budget telemetry not implemented"),

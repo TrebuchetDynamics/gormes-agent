@@ -191,8 +191,27 @@ func (b *ManagedGatewayBridge) Discover(ctx context.Context) (ManagedGatewayDisc
 	}
 	raw, err := b.client.ListTools(ctx)
 	if err != nil {
+		if errors.Is(err, ErrMCPSessionExpired) {
+			return b.retryDiscoverAfterSessionReconnect(ctx)
+		}
 		return ManagedGatewayDiscovery{Evidence: classifyDiscoverError(err)}, err
 	}
+	return b.discoveryFromRawTools(raw), nil
+}
+
+func (b *ManagedGatewayBridge) retryDiscoverAfterSessionReconnect(ctx context.Context) (ManagedGatewayDiscovery, error) {
+	b.initialed = false
+	if err := b.Initialize(ctx); err != nil {
+		return ManagedGatewayDiscovery{Evidence: classifyDiscoverError(err)}, err
+	}
+	raw, err := b.client.ListTools(ctx)
+	if err != nil {
+		return ManagedGatewayDiscovery{Evidence: classifyDiscoverError(err)}, err
+	}
+	return b.discoveryFromRawTools(raw), nil
+}
+
+func (b *ManagedGatewayBridge) discoveryFromRawTools(raw []MCPRawTool) ManagedGatewayDiscovery {
 	norm := NormalizeTools(b.def.Vendor, raw)
 	evidence := ManagedGatewayEvidenceOK
 	if len(norm.Rejected) > 0 {
@@ -202,7 +221,7 @@ func (b *ManagedGatewayBridge) Discover(ctx context.Context) (ManagedGatewayDisc
 		Tools:    norm.Tools,
 		Rejected: norm.Rejected,
 		Evidence: evidence,
-	}, nil
+	}
 }
 
 // CallTool invokes the named tool on the gateway, passing through arguments,
@@ -214,9 +233,33 @@ func (b *ManagedGatewayBridge) CallTool(ctx context.Context, name string, argume
 	if b == nil {
 		return MCPCallResult{}, ManagedGatewayEvidenceUnavailable, errors.New("managed gateway: nil bridge")
 	}
-	res, circuitEvidence, err := CallMCPWithCircuitBreaker(ctx, b.breaker, b.def.Vendor, func(ctx context.Context) (MCPCallResult, error) {
+	if err := b.Initialize(ctx); err != nil {
+		return MCPCallResult{}, classifyCallToolError(err), err
+	}
+	call := func(ctx context.Context) (MCPCallResult, error) {
 		return b.client.CallTool(ctx, name, arguments)
-	})
+	}
+	res, circuitEvidence, err := CallMCPWithCircuitBreaker(ctx, b.breaker, b.def.Vendor, call)
+	if err != nil {
+		if errors.Is(err, ErrMCPSessionExpired) {
+			return b.retryCallToolAfterSessionReconnect(ctx, call)
+		}
+		return res, managedEvidenceFromMCPCircuit(circuitEvidence, classifyCallToolError(err)), err
+	}
+	if res.IsError {
+		return res, managedEvidenceFromMCPCircuit(circuitEvidence, ManagedGatewayEvidenceToolCallFailed), nil
+	}
+	return res, ManagedGatewayEvidenceOK, nil
+}
+
+func (b *ManagedGatewayBridge) retryCallToolAfterSessionReconnect(ctx context.Context, call func(context.Context) (MCPCallResult, error)) (MCPCallResult, ManagedGatewayEvidence, error) {
+	b.initialed = false
+	if err := b.Initialize(ctx); err != nil {
+		return MCPCallResult{}, classifyCallToolError(err), err
+	}
+	b.breaker.ResetAfterReconnect(b.def.Vendor)
+
+	res, circuitEvidence, err := CallMCPWithCircuitBreaker(ctx, b.breaker, b.def.Vendor, call)
 	if err != nil {
 		return res, managedEvidenceFromMCPCircuit(circuitEvidence, classifyCallToolError(err)), err
 	}

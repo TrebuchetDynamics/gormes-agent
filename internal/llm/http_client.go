@@ -431,6 +431,10 @@ func (c *httpClient) doProviderPost(ctx context.Context, sessionID, model, endpo
 	ApplyOpenRouterAttributionHeaders(httpReq, c.provider, c.baseURL)
 	ApplyOpenRouterGrokPromptCacheAffinityHeader(httpReq, c.provider, c.baseURL, model, sessionID)
 	c.applyCodexCloudflareHeaders(httpReq)
+	if cacheScopeID := codexResponsesPromptCacheKey(sessionID); cacheScopeID != "" && c.usesCodexResponsesTransport() && codexChatGPTBackendBaseURL(c.baseURL) {
+		httpReq.Header.Set("session_id", cacheScopeID)
+		httpReq.Header.Set("x-client-request-id", cacheScopeID)
+	}
 	if sessionID != "" {
 		httpReq.Header.Set("X-Hermes-Session-Id", sessionID)
 	}

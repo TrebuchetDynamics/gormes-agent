@@ -3,6 +3,7 @@ package llm
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -107,6 +108,42 @@ func TestBuildCodexResponsesPayload_ConvertsChatInputToolsAndCallIDs(t *testing.
 `)
 	if !bytes.Equal(got, want) {
 		t.Fatalf("Codex Responses payload mismatch\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+}
+
+func TestBuildCodexResponsesPayload_SerializesPromptCacheKeyFromSession(t *testing.T) {
+	base := ChatRequest{
+		Model:     "gpt-5-codex",
+		SessionID: "session-cache-key-123",
+		Messages: []Message{
+			{Role: "system", Content: "Stable system instructions."},
+			{Role: "user", Content: "First prompt."},
+		},
+	}
+	first, err := buildCodexResponsesPayload(base)
+	if err != nil {
+		t.Fatalf("buildCodexResponsesPayload(first) error = %v", err)
+	}
+	if first.PromptCacheKey != "session-cache-key-123" {
+		t.Fatalf("PromptCacheKey = %q, want stable session id", first.PromptCacheKey)
+	}
+
+	base.Messages[1].Content = "Different current prompt."
+	second, err := buildCodexResponsesPayload(base)
+	if err != nil {
+		t.Fatalf("buildCodexResponsesPayload(second) error = %v", err)
+	}
+	if second.PromptCacheKey != first.PromptCacheKey {
+		t.Fatalf("PromptCacheKey changed across current prompt: %q vs %q", second.PromptCacheKey, first.PromptCacheKey)
+	}
+
+	base.SessionID = ""
+	withoutSession, err := buildCodexResponsesPayload(base)
+	if err != nil {
+		t.Fatalf("buildCodexResponsesPayload(without session) error = %v", err)
+	}
+	if strings.TrimSpace(withoutSession.PromptCacheKey) != "" {
+		t.Fatalf("PromptCacheKey = %q without session id, want omitted", withoutSession.PromptCacheKey)
 	}
 }
 
