@@ -37,13 +37,15 @@ If the task might instead be parity audit, implementation, TDD, interface design
 2. Treat `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` as the canonical evidence-first classification of Hermes behavior atoms. Every atom has an upstream source ref (file+line), a Gormes target, and a status (covered/partial/missing/owned). Use `grep` to discover atoms by subsystem, status, or name. This is the source of truth for what remains to be built.
 3. Treat `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` as the canonical Hermes/Honcho-to-Go map for subsystem context.
 4. Treat `docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md` as the completeness check for whether all feature-bearing Hermes/Honcho source classes are mapped.
-5. Treat `development-skills/<name>/SKILL.md` as the canonical skill source; `.agents/skills/`, `.claude/skills/`, and `.codex/skills/` are symlink loader views.
-6. Use in-repo upstream references when present, otherwise sibling checkouts:
+5. Treat `docs/hermes-releases/FEATURE-MATRIX.md` as a release-note study aid for choosing high-signal improvement lanes; it is not an executable queue and never replaces source refs or behavior atoms.
+6. Use `./hermes-knowledge-graph.json` or `$HERMES_SRC/.understand-anything/knowledge-graph.json` as topology/routing accelerators before broad source searches; graph nodes and layers are navigation hints, not coverage proof.
+7. Treat `development-skills/<name>/SKILL.md` as the canonical skill source; `.agents/skills/`, `.claude/skills/`, and `.codex/skills/` are symlink loader views.
+8. Use in-repo upstream references when present, otherwise sibling checkouts:
    - `$HERMES_SRC`: `./hermes-agent`, then `../hermes-agent`
    - `$HONCHO_SRC`: `./honcho`, then `../honcho`
-7. Use existing Gormes code under `cmd/`, `internal/`, `docs/`, and `www.gormes.ai` as implementation evidence.
-8. Read `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` before splitting or creating new atoms.
-9. For CLI/config/migration parity, inspect `$HERMES_SRC/hermes_cli/main.py`,
+9. Use existing Gormes code under `cmd/`, `internal/`, `docs/`, and `www.gormes.ai` as implementation evidence.
+10. Read `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` before splitting or creating new atoms.
+11. For CLI/config/migration parity, inspect `$HERMES_SRC/hermes_cli/main.py`,
     `$HERMES_SRC/hermes_cli/commands.py`,
     `$HERMES_SRC/hermes_cli/config.py`, `$HERMES_SRC/hermes_cli/claw.py`,
     `$HERMES_SRC/gateway/run.py`, and the matching Gormes `cmd/gormes`
@@ -72,7 +74,10 @@ Keep passes small enough to finish. A planner pass should produce builder-ready 
 
 For full-map requests, update the feature map first, then reshape
 the parity evidence doc. The docs map explains the destination; the atoms are the only
-executable queue.
+executable queue. If the request is seeded by `docs/hermes-releases/FEATURE-MATRIX.md`
+or `hermes-knowledge-graph.json`, use those artifacts to choose the smallest
+release family or source topology to inspect, then prove the active contract in
+`$HERMES_SRC` before editing atoms or rows.
 
 To answer "is everything mapped?", update or audit the upstream coverage ledger.
 No planner pass should claim full Hermes/Honcho coverage unless the ledger has
@@ -99,7 +104,10 @@ grep -A2 'provider' docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md | grep 'missin
 find cmd internal -maxdepth 2 -type f -name '*.go' | sort
 ```
 
-Use `rg` against upstream and Gormes rather than guessing. Compare contracts, command names, interfaces, fixtures, and tests.
+Use `rg` against upstream and Gormes rather than guessing. When
+`hermes-knowledge-graph.json` exists, query its layers or tour before broad
+`rg` sweeps to pick likely upstream files, then read those files directly.
+Compare contracts, command names, interfaces, fixtures, and tests.
 
 For "actually implemented features" or stale-`missing` sweeps, treat the pass as evidence reconciliation before row creation:
 

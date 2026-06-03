@@ -97,7 +97,7 @@ file+line ref or explicit `missing`, and a classification.
 | Chat Completions transport | `agent/transports/chat_completions.py` | `internal/llm/http_client.go` | covered | Transport request building and fixture replay. |
 | Anthropic Messages transport | `agent/anthropic_adapter.py` | `internal/llm/` | covered | Adapter shipped. |
 | Bedrock Converse transport | `agent/bedrock_adapter.py` | `internal/llm/` | partial | Stream events; SigV4 pending. |
-| Codex Responses transport | `agent/codex_responses_adapter.py` | `internal/llm/` | covered | Responses conversion shipped. |
+| Codex Responses transport | `agent/codex_responses_adapter.py`; `agent/transports/codex.py` | `internal/llm/` | covered | Responses conversion shipped, including stable session `prompt_cache_key` body routing and ChatGPT Codex backend cache-scope headers. |
 | Gemini transport | `agent/gemini_native_adapter.py` | → `missing` | missing | Not ported. |
 | Google Code Assist | `agent/gemini_cloudcode_adapter.py` | → `missing` | missing | Not ported. |
 | OpenRouter | `tools/openrouter_client.py` | `internal/llm/` | partial | Uses OpenAI-compatible path; attribution headers not proven. |
@@ -405,7 +405,7 @@ file+line ref or explicit `missing`, and a classification.
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
 | MCP server | `mcp_serve.py` | `internal/mcpserver/` | covered | MCP stdio/HTTP server. |
-| MCP tool | `tools/mcp_tool.py` | `internal/tools/mcp/boundary` | partial | Tool registration/audit has `mcp_host_unavailable` redacted evidence, but authenticated client-session preflight is not yet proven. Operator report 2026-06-01: Figma MCP burned tokens before reporting unauthenticated; next slice should fail closed before agent/tool budget when auth/session is missing. |
+| MCP tool | `tools/mcp_tool.py` | `internal/tools/mcp/boundary` | partial | Tool registration/audit has `mcp_host_unavailable` redacted evidence, and managed MCP gateway discovery/tool calls now preflight `initialize`, capture `Mcp-Session-Id`, fail with typed auth evidence before tool budget when auth/session negotiation is missing, and reinitialize/retry once when a streamable HTTP transport session expires during `tools/list` or `tools/call` (`internal/tools/managed_tool_gateway_test.go`). Remaining gaps: generic MCP host status wiring and full OAuth/session lifecycle parity outside the managed gateway bridge. |
 | Plugin registry | `plugins/registry.py` | `internal/plugins/` | covered | Plugin manifest loader. |
 | ACP adapter | `acp_adapter/` | → `missing` | missing | Not ported. |
 
@@ -793,7 +793,7 @@ file+line ref or explicit `missing`, and a classification.
 |---|---|---|---|---|
 | MCP server stdio | `mcp_serve.py` | `internal/mcpserver/` | covered | MCP stdio server. |
 | MCP server HTTP | `mcp_serve.py` | `internal/mcpserver/` | covered | MCP HTTP transport. |
-| MCP tool (client-side) | `tools/mcp_tool.py` | `internal/tools/mcp/boundary` | partial | Tool registration and unavailable evidence exist; authenticated client sessions and token-burn prevention are not proven. |
+| MCP tool (client-side) | `tools/mcp_tool.py` | `internal/tools/mcp/boundary` | partial | Tool registration and unavailable evidence exist; managed gateway client discovery and calls now initialize before `tools/list`/`tools/call`, reuse `Mcp-Session-Id`, classify initialize/auth failures before tool budget, and recover expired streamable HTTP transport sessions by reinitializing and retrying once (`internal/tools/managed_tool_gateway.go`, `internal/tools/managed_tool_gateway_test.go`). Remaining gaps: generic MCP host status wiring and broader OAuth/session lifecycle parity. |
 | MCP OAuth flow | `tools/mcp_oauth*.py`; `hermes_cli/mcp_config.py` `_oauth_tokens_present` | `internal/tools/mcp/login` | partial | Browser callback/token-exchange flow exists with redacted persistence tests, but parity still needs authenticated-session preflight/status wiring for tool execution. |
 | MCP managed gateway | `tools/managed_tool_gateway.py` | `internal/tools/managed_tool_gateway.go`; `internal/tools/managed_tool_gateway_test.go`; `internal/tools/mcp_circuit_breaker_test.go`; `internal/tools/web_tools.go`; `internal/tools/image_generation_provider.go` | partial | Managed gateway bridge initializes HTTP MCP sessions, applies bearer/override headers, discovers tools through shared normalization, rejects bad schemas, passes through tool calls/arguments/cancellation, classifies auth/unavailable/tool-call/circuit-breaker evidence, and is consumed by managed web/tool/image-generation routes; full Hermes managed gateway lifecycle/config surface remains unproven. |
 | MCP config helpers | `hermes_cli/mcp_config.py` | `cmd/gormes/mcp.go` | covered | MCP config and login. |

@@ -49,12 +49,14 @@ Use this order when several skills could apply:
    planning feature work.
 2. **Evidence-gathering intent** — "what is missing", "compare", "audit",
    "map parity", "actually implemented", "already implemented", "why does
-   Hermes do X", "source refs", external API docs, or a freshly tagged external
-   dependency/release. Route to `gormes-hermes-parity`,
-   `gormes-parity-auditor`, `gormes-openclaw-parity`, `gormes-pi-parity`,
-   `gormes-context-sourcing`, or `gormes-architecture-zoomout` before builder
-   work. For "actually implemented" sweeps, use `gormes-hermes-parity` plus
-   `gormes-planner` to correct stale `missing` atoms before builder selection.
+   Hermes do X", "source refs", Hermes release notes, `docs/hermes-releases/`,
+   `docs/hermes-releases/FEATURE-MATRIX.md`, `hermes-knowledge-graph.json`,
+   external API docs, or a freshly tagged external dependency/release. Route to
+   `gormes-hermes-parity`, `gormes-parity-auditor`, `gormes-openclaw-parity`,
+   `gormes-pi-parity`, `gormes-context-sourcing`, or
+   `gormes-architecture-zoomout` before builder work. For "actually
+   implemented" sweeps, use `gormes-hermes-parity` plus `gormes-planner` to
+   correct stale `missing` atoms before builder selection.
 3. **Backlog-shaping intent** — plan, split, rows, roadmap, progress,
    acceptance, PRD, review finding becomes work. Route to
    `gormes-progress-slicer` or `gormes-planner`.
@@ -64,9 +66,9 @@ Use this order when several skills could apply:
    `gormes-browser-harness`, or `navivox-telegram-ui` only when they supply the
    needed contract.
 5. **Design/refactor intent** — interface, package boundary, repeated logic,
-   module shape, cleanup after working behavior. Route to
-   `gormes-interface-designer`, `gormes-service-layer-refactor`, or
-   `gormes-prototype-spike`.
+   `cmd/gormes` domain extraction, module shape, cleanup after working behavior.
+   Route to `gormes-interface-designer`, `cmd-internal-refactor`,
+   `gormes-service-layer-refactor`, or `gormes-prototype-spike`.
 6. **Communication/content intent** — README, landing page, dashboard screenshot,
    image-based dashboard asset, public claims, handoff-like status, or
    user-facing messaging. Route dashboard visuals to `dashboard-image-design`;
@@ -89,6 +91,7 @@ Use this order when several skills could apply:
 | browser, CDP, Browser Use, `/browser connect` | browser parity | `gormes-browser-harness` |
 | Navivox, Telegram-like, Flutter chat/contact | mobile UI | `navivox-telegram-ui` |
 | what is missing, compare Hermes/Honcho | parity discovery | `gormes-parity-auditor` or `gormes-hermes-parity` |
+| Hermes release notes, `docs/hermes-releases/FEATURE-MATRIX.md`, or `hermes-knowledge-graph.json` | release/topology-seeded parity routing | `gormes-hermes-parity` then `gormes-planner` only if atoms/rows need edits |
 | actually implemented, already implemented, stale missing atoms | evidence reconciliation before build | `gormes-hermes-parity` then `gormes-planner` |
 | OpenClaw-only behavior | owned enhancement triage | `gormes-openclaw-parity` |
 | Pi, pi.dev, pi-coding-agent, extension API, SDK/RPC harness, TUI components | harness technique donor triage | `gormes-pi-parity` |
@@ -103,6 +106,7 @@ Use this order when several skills could apply:
 | unfamiliar package, crosses modules | architecture map | `gormes-architecture-zoomout` |
 | improve architecture, deep modules, reduce coupling, AI-navigable | architecture candidates | `gormes-architecture-zoomout` |
 | interface, API boundary | design boundary | `gormes-interface-designer` |
+| cmd-internal refactor, thin cmd/gormes, move command behavior to internal/app | bounded command-domain extraction | `cmd-internal-refactor` |
 | duplicate mechanics, cleanup | refactor mechanics | `gormes-service-layer-refactor` |
 | try designs, prototype | throwaway experiment | `gormes-prototype-spike` |
 | README | public repo messaging | `gormes-readme` |
@@ -189,6 +193,7 @@ Pick the primary intent:
 - **Local 1-5 production-readiness score when Greptile is unavailable**: use `gormes-review-scorecard`; it cannot replace CI or fetched Greptile evidence.
 - **PR feedback, CI failures, review comments, or bounded review-to-green iteration**: use `gormes-review-loop`; route code behavior fixes through `gormes-tdd-slice`.
 - **Design a Go interface/package boundary**: use `gormes-interface-designer`.
+- **Refactor one `cmd/gormes` command domain into `internal/app/<domain>` without behavior changes**: use `cmd-internal-refactor`; keep CLI compatibility characterized and do not mix domains.
 - **Implement one row**: use `gormes-builder`, then `gormes-tdd-slice` for the red-green loop.
 - **Fix a failing row/test**: use `gormes-tdd-slice`; escalate to `gormes-builder` if progress/docs need updates.
 - **Audit README or public repo messaging**: use `gormes-readme`.
@@ -241,9 +246,14 @@ Use these composition rules:
   emit the next skill packet.
 
 Feature-map gaps route to `gormes-parity-auditor` then `gormes-planner`.
-Builder-ready rows route to `gormes-builder` and, when tests are required,
-`gormes-tdd-slice`. Vague rows route back to `gormes-planner`. Unclear package
-boundaries route to `gormes-interface-designer` before implementation.
+Hermes release notes, `docs/hermes-releases/FEATURE-MATRIX.md`, and
+`hermes-knowledge-graph.json` route to `gormes-hermes-parity` first because
+they are study/navigation aids, not executable queues; hand off to
+`gormes-planner` only after the active upstream source contract and matching
+behavior atom are identified. Builder-ready rows route to `gormes-builder` and,
+when tests are required, `gormes-tdd-slice`. Vague rows route back to
+`gormes-planner`. Unclear package boundaries route to
+`gormes-interface-designer` before implementation.
 
 When `gormes-hermes-parity` emits a follow-up task packet, treat its
 `scope`, `feature_map_area`, `progress_row`, `source_refs`, `write_scope`, and

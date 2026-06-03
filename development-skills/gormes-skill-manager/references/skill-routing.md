@@ -15,6 +15,7 @@ Skill files are edited in `development-skills/<name>/`; `.agents/skills/`,
 |---|---|---|
 | User wants to stress-test direction or make a hard decision | global `grill-me` | `gormes-planner` after decision |
 | User wants a recurring/periodic Hermes-in-Go parity sweep or to record current parity progress | `gormes-hermes-parity` | Let it load the needed reference and route to the smallest subskill chain |
+| User points at Hermes release notes, `docs/hermes-releases/FEATURE-MATRIX.md`, or `hermes-knowledge-graph.json` to decide what to improve | `gormes-hermes-parity` | Use the release matrix/graph only as study or topology routing aids, then `gormes-planner` if atoms/rows need source-backed edits |
 | User wants useful OpenClaw-only behavior that Hermes lacks considered for Gormes | `gormes-openclaw-parity` | `gormes-planner` for adopt/adapt rows, then `gormes-builder` and `gormes-tdd-slice` |
 | Need to safely rename or restructure parity taxonomy, feature-map groupings, or progress row categories | `gormes-hermes-parity` | `gormes-planner` for progress/docs edits, then `gormes-builder` only if runtime compatibility code is needed |
 | Need to compare Hermes/Honcho against Gormes | `gormes-parity-auditor` | `gormes-planner` to update rows |
@@ -37,6 +38,7 @@ Skill files are edited in `development-skills/<name>/`; `.agents/skills/`,
 
 | Input state | Primary skill | Follow-up |
 |---|---|---|
+| Release notes or `hermes-knowledge-graph.json` suggest a high-signal behavior family | `gormes-hermes-parity` | Verify current upstream source refs, then `gormes-planner` updates atoms/rows only if needed |
 | Upstream behavior exists but the feature map lacks it | `gormes-parity-auditor` | `gormes-planner` updates map and row |
 | Feature map is correct but no row exists | `gormes-planner` | `gormes-builder` after row is ready |
 | Row exists but is broad, vague, blocked, or lacks tests | `gormes-planner` | `gormes-interface-designer` if API shape is unclear |

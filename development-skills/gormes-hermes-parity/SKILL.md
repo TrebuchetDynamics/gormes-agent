@@ -29,8 +29,9 @@ parity sweep.
 
 Allowed evidence: upstream source checkouts (`./hermes-agent`, `./honcho`,
 falling back to siblings or `references/`), checked-in Gormes files, tests,
-docs, generated progress data, temp fixtures, temp `GORMES_HOME`, and
-sanitized user-provided transcripts.
+docs, generated progress data, Hermes release-note mirrors, generated Hermes
+knowledge graphs, temp fixtures, temp `GORMES_HOME`, and sanitized
+user-provided transcripts.
 
 Do not read live private config, memory, credentials, session stores, or home
 directories such as `~/.hermes`, `~/.openclaw`, `~/.gormes`, `~/.claude`,
@@ -66,9 +67,12 @@ Auto-selection priority when no topic is supplied:
 1. Recent user-visible setup, provider, channel, install, or auth failures.
 2. Explicit implemented-feature reconciliation requests, especially around gateway, channels, tools, CLI, or TUI atoms marked `missing`.
 3. Stale upstream evidence on high-priority or in-progress rows.
-4. Vague umbrella rows blocking builder work.
-5. Missing Hermes behavior with a narrow Gormes surface and obvious tests.
-6. Taxonomy/docs cleanup that prevents accurate parity reporting.
+4. High-signal release families from `docs/hermes-releases/FEATURE-MATRIX.md`
+   or topology hints from `hermes-knowledge-graph.json`, used only to choose a
+   bounded pass before source verification.
+5. Vague umbrella rows blocking builder work.
+6. Missing Hermes behavior with a narrow Gormes surface and obvious tests.
+7. Taxonomy/docs cleanup that prevents accurate parity reporting.
 
 Stop after one coherent behavior family. Record adjacent gaps as next candidates
 instead of expanding the current pass.
@@ -94,36 +98,44 @@ Soft dependencies sharpen output but do not always block:
 - OpenClaw checkout when the behavior exists in Hermes. OpenClaw-only ideas
   route to `gormes-openclaw-parity`.
 - `./honcho` when the selected scope is unrelated to Goncho.
-- Understand Anything graphs when present under
-  `$HERMES_SRC/.understand-anything/knowledge-graph.json`; these accelerate
+- Hermes release matrix evidence in `docs/hermes-releases/FEATURE-MATRIX.md`
+  when choosing a release-era feature family; it is a routing/study aid, not a
+  parity classification source.
+- Understand Anything graphs when present at `./hermes-knowledge-graph.json`
+  or `$HERMES_SRC/.understand-anything/knowledge-graph.json`; these accelerate
   source navigation but never replace exact upstream source refs.
 
 ## Understand Graph Accelerator
 
 When a scoped Hermes graph exists, use it before broad `rg` sweeps to choose
-entry files, layers, and tour anchors. Treat graph output as an index, not as a
-parity oracle: every `covered`, `missing`, `stale-upstream`, `owned`, or
-`excluded` claim still needs file/line source refs from `$HERMES_SRC`.
+entry files, layers, and tour anchors. Resolve the graph in this order:
+`./hermes-knowledge-graph.json`, then
+`$HERMES_SRC/.understand-anything/knowledge-graph.json`. Treat graph output as
+an index, not as a parity oracle: every `covered`, `missing`,
+`stale-upstream`, `owned`, or `excluded` claim still needs file/line source
+refs from `$HERMES_SRC`.
 
-Current useful Hermes graph anchors, when available:
+Current useful Hermes graph anchors, when available. Graph schemas differ;
+match by layer ID, layer name, tour title, or file-path search rather than
+requiring one exact ID.
 
 | Parity topic | Graph layer or tour anchor | Source files to verify |
 |---|---|---|
-| CLI command surface | `layer:cli-and-entrypoints`, tour "CLI Command Surface" | `hermes_cli/_parser.py`, `hermes_cli/commands.py`, `hermes_cli/plugins.py` |
-| Agent runtime / skills | `layer:agent-runtime`, tour "Agent Runtime Core" | `agent/`, `skills/`, `agent/plugin_loader.py` |
-| Provider/model behavior | `layer:providers-and-models`, tour "Provider and Model Integration" | `providers/`, `plugins/model-providers/**/plugin.yaml` |
-| Gateway/channels | `layer:gateway-and-channels`, tour "Gateway and Messaging" | `gateway/`, `gateway/platforms/`, channel docs |
-| TUI/web UI | `layer:tui-and-web-ui`, tour "TUI and Frontend Surfaces" | `ui-tui/src/app.tsx`, `web/src/`, `hermes_cli/` TUI files |
-| Browser automation | `layer:browser-automation` | `plugins/browser/`, browser docs, browser tests |
-| Plugins / ACP | `layer:plugins-acp-and-extensions`, tour "ACP Integration" | `plugins/registry.py`, `acp_adapter/`, `acp_registry/` |
-| Cron/background work | `layer:cron-and-background-jobs`, tour "Cron and Background Work" | `cron/manager.py`, `cron/scheduler.py` |
-| Validation evidence | `layer:tests-and-evaluation`, tour "Validation and Tests" | `tests/`, evaluation and benchmark files |
+| CLI command surface | `layer:classic-cli-and-tui`, `layer:cli-and-entrypoints`, tour "Interactive CLI Surface" or "CLI Command Surface" | `hermes_cli/_parser.py`, `hermes_cli/commands.py`, `hermes_cli/plugins.py` |
+| Agent runtime / skills | `layer:agent-core`, `layer:agent-runtime`, tour "Agent Core and Tool Loop" or "Agent Runtime Core" | `agent/`, `skills/`, `agent/plugin_loader.py` |
+| Provider/model behavior | `layer:agent-core`, `layer:tools-skills-and-plugins`, `layer:providers-and-models`, tour "Plugin and Provider Extensibility" | `providers/`, `plugins/model-providers/**/plugin.yaml` |
+| Gateway/channels | `layer:gateway-and-platforms`, `layer:gateway-and-channels`, tour "Gateway and Messaging" | `gateway/`, `gateway/platforms/`, channel docs |
+| TUI/web UI | `layer:classic-cli-and-tui`, `layer:applications-and-dashboard`, `layer:tui-and-web-ui`, tour "TUI and Dashboard Chat Path" | `ui-tui/src/app.tsx`, `web/src/`, `hermes_cli/` TUI files |
+| Browser automation | `layer:tools-skills-and-plugins`, `layer:browser-automation`, file-path search `browser` | `plugins/browser/`, browser docs, browser tests |
+| Plugins / ACP | `layer:tools-skills-and-plugins`, `layer:plugins-acp-and-extensions`, tour "Plugin and Provider Extensibility" | `plugins/registry.py`, `acp_adapter/`, `acp_registry/` |
+| Cron/background work | `layer:agent-core`, `layer:tools-skills-and-plugins`, `layer:cron-and-background-jobs`, file-path search `cron` | `cron/manager.py`, `cron/scheduler.py` |
+| Validation evidence | `layer:tests-and-quality`, `layer:tests-and-evaluation`, tour "Testing and Quality Guardrails" | `tests/`, evaluation and benchmark files |
 
 Graph query recipe:
 
 ```sh
-GRAPH="$HERMES_SRC/.understand-anything/knowledge-graph.json"
-test -f "$GRAPH" && node - "$GRAPH" <<'NODE'
+GRAPH="$(for p in ./hermes-knowledge-graph.json "$HERMES_SRC/.understand-anything/knowledge-graph.json"; do test -f "$p" && { printf '%s\n' "$p"; break; }; done)"
+test -n "$GRAPH" && node - "$GRAPH" <<'NODE'
 const fs = require('fs');
 const graph = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 console.log('graph_commit=' + (graph.project?.gitCommitHash || 'unknown'));
@@ -240,6 +252,7 @@ Load only the reference needed for the current pass:
 | Behavior atom matrix, inventory searches, source buckets | `references/behavior-atoms.md` |
 | Which upstream file is authoritative for a surface | `references/active-upstream-contracts.md` |
 | Live transcripts, repeated operator failures, channel-visible artifacts | `references/operator-evidence.md` |
+| Release-era feature routing and improvement priority hints | `docs/hermes-releases/FEATURE-MATRIX.md` |
 | Owned/excluded divergence, ADR guidance, taxonomy refactors | `references/taxonomy-and-owned-divergence.md` |
 | Feedback loops, vertical slices, validation gates, report shape | `references/validation-and-feedback-loops.md` |
 
@@ -303,9 +316,12 @@ on its own without parity evidence; record the upstream sha in
 
 2. Choose one bounded surface. If the user asks for everything, produce a
    subsystem map and the next three concrete passes.
-3. If `$HERMES_SRC/.understand-anything/knowledge-graph.json` exists, query its
+3. If `./hermes-knowledge-graph.json` or
+   `$HERMES_SRC/.understand-anything/knowledge-graph.json` exists, query its
    layers/tour first to pick likely source files; then read those files before
-   making parity claims.
+   making parity claims. If the pass was seeded by
+   `docs/hermes-releases/FEATURE-MATRIX.md`, use the graph only to choose
+   source files for the selected release family.
 4. Load only the reference file needed for the chosen surface.
 5. Inventory upstream behavior as behavior atoms, then identify the closest
    Gormes code, tests, docs, or progress row.

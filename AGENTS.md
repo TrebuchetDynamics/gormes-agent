@@ -57,6 +57,7 @@ Use these skills as the default routing surface:
 | Implementing one `progress.json` row | `gormes-builder` |
 | Red-green-refactor delivery of one behavior | `gormes-tdd-slice` |
 | Designing Go package/API boundaries before implementation | `gormes-interface-designer` |
+| Refactoring one `cmd/gormes` command domain into `internal/app/<domain>` without behavior changes | `cmd-internal-refactor` |
 | Stuck on a Go implementation shape; want a donor file from `references/go-agent-os/` before writing code | `gormes-references` |
 | External library/framework/upstream source context before planning or implementation | `gormes-context-sourcing` |
 | Repeated runtime mechanics or service-layer cleanup after a feature works | `gormes-service-layer-refactor` |
@@ -162,12 +163,13 @@ All planner and builder skills talk through these files. **Do not bypass them.**
 | Preparing, PR-merging, tagging, and verifying a Gormes release | `development-skills/gormes-release/SKILL.md` |
 | Implementing one row | `development-skills/gormes-builder/SKILL.md` |
 | Driving red-green-refactor | `development-skills/gormes-tdd-slice/SKILL.md` |
+| Refactoring one `cmd/gormes` command domain into `internal/app/<domain>` | `development-skills/cmd-internal-refactor/SKILL.md` |
 | Changing the row schema or rendered docs | `internal/progress/` and the schema doc rendered at `docs/content/building-gormes/builder-loop/progress-schema.md` |
 | Onboarding to the architecture with no prior context | this file, then `docs/content/building-gormes/_index.md` |
 
 ## Repository Map
 
-A full codemap is available at `codemap.md` in the project root.
+A root codemap is available at `codemap.md`.
 
 Before working on any task, read `codemap.md` to understand:
 - Project architecture and entry points

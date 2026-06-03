@@ -1,5 +1,6 @@
 # ── Generated codemap files (clog builder context) ────
 codemap.md
+hermes-knowledge-graph.json
 
 # ── Build outputs (Makefile writes to bin/) ──────────
 bin/
