@@ -10,7 +10,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/protocols/acp"
+	acp "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 // TestACPClientCommand_JSONIncludesBuildProvenance proves
@@ -100,11 +100,11 @@ func TestACPClientCommandConnectsWithSessionAndJSON(t *testing.T) {
 		t.Fatalf("Execute() error = %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
 	}
 
-	var result acp.ClientResult
+	var result acp.ACPClientResult
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("decode JSON: %v\nstdout=%s", err, stdout)
 	}
-	if !result.OK || result.Code != acp.ClientEvidenceConnected {
+	if !result.OK || result.Code != acp.ACPClientEvidenceConnected {
 		t.Fatalf("result = %+v, want connected", result)
 	}
 	if result.SessionKey != "agent:main:main" || result.SessionID != "sess-main" {
@@ -137,11 +137,11 @@ func TestACPClientCommandRequireExistingMissingSessionExits1WithEvidence(t *test
 		t.Fatalf("exit code = %d, want 1 (err=%v)\nstderr=%s", code, err, stderr)
 	}
 
-	var result acp.ClientResult
+	var result acp.ACPClientResult
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("decode JSON: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
-	if result.OK || result.Evidence.Code != acp.ClientEvidenceRowBacked || result.Evidence.Reason != "session_key_not_found" {
+	if result.OK || result.Evidence.Code != acp.ACPClientEvidenceRowBacked || result.Evidence.Reason != "session_key_not_found" {
 		t.Fatalf("result = %+v, want row-backed missing session evidence", result)
 	}
 }

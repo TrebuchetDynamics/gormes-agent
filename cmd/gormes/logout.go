@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
 )
 
@@ -37,22 +36,11 @@ func topLevelLogoutDefaultProvider() (string, error) {
 }
 
 func topLevelLogoutConfiguredProvider() (string, error) {
-	cfg, err := config.Load(nil)
-	if err != nil {
-		return "", err
-	}
-	return normalizeAuthProvider(cfg.Hermes.Provider), nil
+	return providermodule.TopLevelLogoutConfiguredProviderWithNormalizer(normalizeAuthProvider)
 }
 
 func resetTopLevelLogoutProviderIfMatching(provider string) error {
-	configured, err := topLevelLogoutConfiguredProvider()
-	if err != nil {
-		return err
-	}
-	if configured != provider {
-		return nil
-	}
-	return config.WriteTOMLValue(config.ConfigPath(), "hermes.provider", "auto")
+	return providermodule.ResetTopLevelLogoutProviderIfMatchingWithNormalizer(provider, normalizeAuthProvider)
 }
 
 func writeTopLevelLogoutDefaultAbsent(cmd *cobra.Command) error {

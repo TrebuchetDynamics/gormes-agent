@@ -3,21 +3,20 @@ package providers
 import (
 	"io"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers/routercmd"
-	routerpkg "github.com/TrebuchetDynamics/gormes-agent/internal/provider/router"
+	approuter "github.com/TrebuchetDynamics/gormes-agent/internal/app/router"
 	"github.com/spf13/cobra"
 )
 
-type RouterCommandOptions = routercmd.Options
+type RouterCommandOptions = approuter.CommandOptions
 
 func NewRouterCommand(opts RouterCommandOptions) *cobra.Command {
-	return routercmd.New(opts)
+	return approuter.NewCommand(opts)
 }
 
-func printRouterDryRun(out io.Writer, model routerpkg.ReadModel) {
-	routercmd.PrintDryRun(out, model)
+func printRouterDryRun(out io.Writer, model approuter.ReadModel) {
+	approuter.PrintDryRun(out, model)
 }
 
 func routerOpenAIBaseURL(listen string) string {
-	return routercmd.OpenAIBaseURL(listen)
+	return approuter.OpenAIBaseURL(listen)
 }

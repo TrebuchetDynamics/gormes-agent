@@ -7,12 +7,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 func newUninstallCommand() *cobra.Command {
@@ -74,10 +74,7 @@ type uninstallGroupJSON struct {
 	Paths []string `json:"paths"`
 }
 
-type artifactGroup struct {
-	Name  string
-	Paths []string
-}
+type artifactGroup = gormescli.UninstallArtifactGroup
 
 func runUninstall(cmd *cobra.Command, opts uninstallOptions) error {
 	home := config.GormesHome()
@@ -221,55 +218,11 @@ func collectArtifacts(home string) []artifactGroup {
 // gormes home are returned. A real binary at the same path (built from
 // source, package-managed, manually placed) is never touched.
 func collectPublishedBinaryPaths(home string) []string {
-	if home == "" {
-		return nil
-	}
-	candidates := publishedBinaryCandidates()
-	homeAbs, _ := filepath.Abs(home)
-	out := make([]string, 0, len(candidates))
-	seen := make(map[string]bool)
-	for _, path := range candidates {
-		if path == "" || seen[path] {
-			continue
-		}
-		seen[path] = true
-		info, err := os.Lstat(path)
-		if err != nil || info.Mode()&os.ModeSymlink == 0 {
-			continue
-		}
-		target, err := os.Readlink(path)
-		if err != nil {
-			continue
-		}
-		if !filepath.IsAbs(target) {
-			target = filepath.Join(filepath.Dir(path), target)
-		}
-		targetAbs, err := filepath.Abs(target)
-		if err != nil {
-			continue
-		}
-		if homeAbs != "" && (targetAbs == homeAbs || strings.HasPrefix(targetAbs, homeAbs+string(os.PathSeparator))) {
-			out = append(out, path)
-		}
-	}
-	sort.Strings(out)
-	return out
+	return gormescli.CollectPublishedBinaryPaths(home)
 }
 
 func publishedBinaryCandidates() []string {
-	const exe = "gormes"
-	candidates := make([]string, 0, 4)
-	if dir := strings.TrimSpace(os.Getenv("GORMES_BIN_DIR")); dir != "" {
-		candidates = append(candidates, filepath.Join(dir, exe))
-	}
-	if prefix := strings.TrimSpace(os.Getenv("GORMES_PREFIX")); prefix != "" {
-		candidates = append(candidates, filepath.Join(prefix, "bin", exe))
-	}
-	if userHome, err := os.UserHomeDir(); err == nil && userHome != "" {
-		candidates = append(candidates, filepath.Join(userHome, ".local", "bin", exe))
-	}
-	candidates = append(candidates, filepath.Join("/usr", "local", "bin", exe))
-	return candidates
+	return gormescli.PublishedBinaryCandidates()
 }
 
 // legacyXDGGormesDir returns the pre-Apr-29 runtime-state directory
@@ -299,35 +252,11 @@ func legacyXDGGormesDir() string {
 }
 
 func sortedExisting(paths ...string) []string {
-	existing := make([]string, 0, len(paths))
-	seen := make(map[string]bool)
-	for _, p := range paths {
-		if p == "" || seen[p] {
-			continue
-		}
-		seen[p] = true
-		info, err := os.Stat(p)
-		if err != nil {
-			continue
-		}
-		entry := p
-		if info.IsDir() {
-			entry += "/"
-		}
-		existing = append(existing, entry)
-	}
-	sort.Strings(existing)
-	return existing
+	return gormescli.SortedExisting(paths...)
 }
 
 func removeGroup(groups []artifactGroup, name string) []artifactGroup {
-	out := make([]artifactGroup, 0, len(groups))
-	for _, g := range groups {
-		if g.Name != name {
-			out = append(out, g)
-		}
-	}
-	return out
+	return gormescli.RemoveUninstallGroup(groups, name)
 }
 
 func printDryRun(out io.Writer, groups []artifactGroup) error {

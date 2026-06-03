@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	sessionsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/sessions"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
@@ -411,46 +412,14 @@ func statCheckpointRoot(root string) bool {
 
 // formatBytes mirrors Hermes' _fmt_bytes helper.
 func formatBytes(n int64) string {
-	units := []string{"B", "KB", "MB", "GB", "TB"}
-	size := float64(n)
-	if n < 0 {
-		size = 0
-	}
-	for _, unit := range units {
-		if size < 1024 || unit == units[len(units)-1] {
-			if unit == "B" {
-				return fmt.Sprintf("%d B", int64(size))
-			}
-			return fmt.Sprintf("%.1f %s", size, unit)
-		}
-		size /= 1024
-	}
-	return fmt.Sprintf("%.1f TB", size)
+	return gormescli.FormatCheckpointBytes(n)
 }
 
 func ago(now, t time.Time) time.Duration {
-	if t.IsZero() {
-		return -1
-	}
-	return now.Sub(t)
+	return gormescli.CheckpointAgo(now, t)
 }
 
 // formatAge mirrors Hermes' _fmt_age helper: Xs/m/h/d ago, "now", or "—".
 func formatAge(d time.Duration) string {
-	if d < 0 {
-		return "—"
-	}
-	if d < time.Second {
-		return "now"
-	}
-	if d < time.Minute {
-		return fmt.Sprintf("%ds ago", int(d.Seconds()))
-	}
-	if d < time.Hour {
-		return fmt.Sprintf("%dm ago", int(d.Minutes()))
-	}
-	if d < 24*time.Hour {
-		return fmt.Sprintf("%dh ago", int(d.Hours()))
-	}
-	return fmt.Sprintf("%dd ago", int(d.Hours()/24))
+	return gormescli.FormatCheckpointAge(d)
 }

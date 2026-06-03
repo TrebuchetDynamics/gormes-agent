@@ -14,7 +14,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
-	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/profiles"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/profileapp"
 	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/provider"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 	"github.com/charmbracelet/bubbles/filepicker"
@@ -207,7 +207,7 @@ func maybeRunSetupProfilesTUI(cmd *cobra.Command, pseams profileCommandSeams, kn
 }
 
 func buildSetupProfilesControlCenterTUIState(cfg config.Config) setupProfilesTUIState {
-	model := profilemodule.BuildControlCenterModel(cfg, profilemodule.ControlCenterModelOptions{})
+	model := profileapp.BuildControlCenterModel(cfg, profileapp.ControlCenterModelOptions{})
 	providerViews := setupProfilesProviderViews(cfg)
 	channelViews := setupProfilesChannelViews(cfg)
 	profiles := make([]setupProfileView, 0, len(model.Profiles))
@@ -317,7 +317,7 @@ func buildSetupProfilesMigrationTUIState() (setupProfilesTUIState, bool) {
 	return setupProfilesTUIState{ControlCenter: true, MigrationAvailable: true, MigrationPreviewLines: append([]string(nil), plan.PreviewLines...), Profiles: profiles}, true
 }
 
-func controlCenterSetupWorkspacePaths(workspaces []profilemodule.ControlCenterWorkspace) []string {
+func controlCenterSetupWorkspacePaths(workspaces []profileapp.ControlCenterWorkspace) []string {
 	out := make([]string, 0, len(workspaces))
 	for _, workspace := range workspaces {
 		out = append(out, workspace.Path)
@@ -351,7 +351,7 @@ func applySetupProfilesControlCenterTUIResult(cmd *cobra.Command, cfg config.Con
 	if result.MigrateLegacyConfig {
 		return applySetupProfilesLegacyMigration(out)
 	}
-	draft := profilemodule.NewControlCenterDraft(cfg)
+	draft := profileapp.NewControlCenterDraft(cfg)
 	createName := strings.TrimSpace(result.CreateName)
 	if createName != "" {
 		name := strings.TrimSpace(result.DisplayName)
@@ -415,7 +415,7 @@ func applySetupProfilesControlCenterTUIResult(cmd *cobra.Command, cfg config.Con
 	}
 	changes := draft.Preview()
 	fmt.Fprintln(out, "Setup profiles draft:")
-	for _, line := range profilemodule.RenderControlCenterDraftPreview(changes) {
+	for _, line := range profileapp.RenderControlCenterDraftPreview(changes) {
 		fmt.Fprintf(out, "  - %s\n", line)
 	}
 	if len(changes) == 0 {

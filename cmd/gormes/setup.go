@@ -22,8 +22,8 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
-	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/profiles"
 	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/profileapp"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
 	toolspkg "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	setupwizard "github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
@@ -53,7 +53,7 @@ func defaultSetupSections() []gormescli.SetupSection {
 		{Name: "workspace", Label: "Workspace", Module: gormescli.SetupModuleGateway},
 	}
 	sections = append(providermodule.SetupSections(), sections...)
-	sections = append(sections, profilemodule.SetupSections()...)
+	sections = append(sections, profileapp.SetupSections()...)
 	sections = append(sections,
 		gormescli.SetupSection{Name: "bindings", Label: "Channel Bindings", Module: gormescli.SetupModuleGateway},
 		gormescli.SetupSection{Name: "tts", Label: "Text-to-Speech", Module: gormescli.SetupModuleTTS},
@@ -68,27 +68,15 @@ func defaultSetupSections() []gormescli.SetupSection {
 }
 
 func setupCanonicalSection(section string) string {
-	section = normalizeSetupChoice(section)
-	switch section {
-	case "providers":
-		return "provider"
-	case "channel", "channels", "messaging", "messaging_platform", "messaging_platforms", "discord", "slack", "whatsapp":
-		return "gateway"
-	default:
-		return section
-	}
+	return setupRegistry.CanonicalSection(section)
 }
 
 func setupKnownSection(section string) bool {
-	_, ok := setupSectionLabels[section]
-	return ok
+	return setupRegistry.KnownSection(section)
 }
 
 func setupSectionLabel(section string) string {
-	if label, ok := setupSectionLabels[section]; ok {
-		return label
-	}
-	return section
+	return setupRegistry.SectionLabel(section)
 }
 
 const (
@@ -950,16 +938,7 @@ func printSetupReconfigureBlock(cmd *cobra.Command) {
 }
 
 func setupSectionPipeList(start, end int) string {
-	if start < 0 {
-		start = 0
-	}
-	if end > len(setupSections) {
-		end = len(setupSections)
-	}
-	if start >= end {
-		return ""
-	}
-	return strings.Join(setupSections[start:end], "|")
+	return setupRegistry.SectionPipeList(start, end)
 }
 
 func printSetupConfigurationLocation(cmd *cobra.Command) {
@@ -2428,7 +2407,7 @@ func runSetupTTSSection(cmd *cobra.Command, nonInteractive bool) error {
 func isSetupTTSProviderChoice(value string) bool {
 	value = normalizeSetupChoice(value)
 	for _, option := range ttsProviderOptions() {
-		if option.value == value && value != "keep" {
+		if option.Value == value && value != "keep" {
 			return true
 		}
 	}
@@ -2475,10 +2454,10 @@ func printSetupChoiceList(out io.Writer, options []setupChoice, selectedValue st
 	selectedValue = normalizeSetupChoice(selectedValue)
 	for _, option := range options {
 		selected := "○"
-		if normalizeSetupChoice(option.value) == selectedValue {
+		if normalizeSetupChoice(option.Value) == selectedValue {
 			selected = "●"
 		}
-		fmt.Fprintf(out, "  (%s) %s\n", selected, option.label)
+		fmt.Fprintf(out, "  (%s) %s\n", selected, option.Label)
 	}
 }
 
@@ -3397,13 +3376,7 @@ func setupToolProgressPickerChoices() []tuiPickChoice {
 }
 
 func indexSetupToolProgressMode(current string) int {
-	current = normalizeSetupChoice(current)
-	for i, mode := range setupToolProgressModes {
-		if mode == current {
-			return i
-		}
-	}
-	return -1
+	return gormescli.SetupToolProgressModeIndex(current)
 }
 
 func runSetupAgentSettingsSection(cmd *cobra.Command, nonInteractive bool) error {
@@ -3495,35 +3468,14 @@ func runSetupAgentSettingsSection(cmd *cobra.Command, nonInteractive bool) error
 	return nil
 }
 
-type setupChoice struct {
-	value string
-	label string
-}
+type setupChoice = gormescli.SetupChoice
 
 func ttsProviderOptions() []setupChoice {
-	return []setupChoice{
-		{"edge", "Edge TTS (free, cloud-based, no setup needed)"},
-		{"elevenlabs", "ElevenLabs (premium quality, needs API key)"},
-		{"openai", "OpenAI TTS (good quality, needs API key)"},
-		{"xai", "xAI TTS (Grok voices, needs API key)"},
-		{"minimax", "MiniMax TTS (high quality with voice cloning, needs API key)"},
-		{"mistral", "Mistral Voxtral TTS (multilingual, native Opus, needs API key)"},
-		{"gemini", "Google Gemini TTS (30 prebuilt voices, prompt-controllable, needs API key)"},
-		{"neutts", "NeuTTS (local on-device, free, model download)"},
-		{"keep", "Keep current"},
-	}
+	return gormescli.SetupTTSProviderOptions()
 }
 
 func terminalBackendOptions() []setupChoice {
-	return []setupChoice{
-		{"local", "Local - run directly on this machine (default)"},
-		{"docker", "Docker - isolated container with configurable resources"},
-		{"modal", "Modal - serverless cloud sandbox"},
-		{"ssh", "SSH - run on a remote machine"},
-		{"daytona", "Daytona - persistent cloud development environment"},
-		{"singularity", "Singularity/Apptainer - HPC-friendly container"},
-		{"keep", "Keep current"},
-	}
+	return gormescli.SetupTerminalBackendOptions()
 }
 
 type setupToolOption = gormescli.SetupToolOption
@@ -3577,38 +3529,11 @@ func renderSetupToolsProviderRows(out io.Writer, selected []string) {
 }
 
 func terminalBackendLabel(value string) string {
-	switch normalizeSetupChoice(value) {
-	case "local":
-		return "Local"
-	case "docker":
-		return "Docker"
-	case "modal":
-		return "Modal"
-	case "ssh":
-		return "SSH"
-	case "daytona":
-		return "Daytona"
-	case "singularity", "apptainer":
-		return "Singularity/Apptainer"
-	default:
-		return value
-	}
+	return gormescli.SetupTerminalBackendLabel(value)
 }
 
 func ttsProviderLabel(value string) string {
-	switch normalizeSetupChoice(value) {
-	case "edge":
-		return "Edge TTS"
-	case "openai":
-		return "OpenAI TTS"
-	default:
-		for _, option := range ttsProviderOptions() {
-			if option.value == normalizeSetupChoice(value) {
-				return strings.Split(option.label, " (")[0]
-			}
-		}
-		return value
-	}
+	return gormescli.SetupTTSProviderLabel(value)
 }
 
 func normalizeSetupChoice(value string) string {
@@ -3616,37 +3541,19 @@ func normalizeSetupChoice(value string) string {
 }
 
 func parsePositiveInt(value string) (int, bool) {
-	parsed, err := strconv.Atoi(strings.TrimSpace(value))
-	if err != nil || parsed <= 0 {
-		return 0, false
-	}
-	return parsed, true
+	return gormescli.SetupParsePositiveInt(value)
 }
 
 func parseThreshold(value string) (float64, bool) {
-	parsed, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
-	if err != nil || parsed < 0.5 || parsed > 0.95 {
-		return 0, false
-	}
-	return parsed, true
+	return gormescli.SetupParseCompressionThreshold(value)
 }
 
 func isKnownToolProgressMode(value string) bool {
-	for _, mode := range setupToolProgressModes {
-		if value == mode {
-			return true
-		}
-	}
-	return false
+	return gormescli.SetupIsKnownToolProgressMode(value)
 }
 
 func isKnownSessionResetPolicy(value string) bool {
-	switch value {
-	case "inactivity", "daily", "manual", "off", "none":
-		return true
-	default:
-		return false
-	}
+	return gormescli.SetupIsKnownSessionResetPolicy(value)
 }
 
 func firstNonEmptySetup(values ...string) string {
@@ -3666,16 +3573,9 @@ func setupSectionUnsupported(cmd *cobra.Command, section string) error {
 }
 
 func setupSectionList() string {
-	return strings.Join(setupSections, "|")
+	return setupRegistry.SectionList()
 }
 
 func setupSectionOwnership(section string) string {
-	switch normalizeSetupChoice(section) {
-	case "model", "tts", "terminal", "gateway", "telegram", "tools", "agent":
-		return "hermes_owned"
-	case "provider", "workspace", "bindings", "navivox", "router":
-		return "gormes_owned_extension"
-	default:
-		return "unknown"
-	}
+	return gormescli.SetupSectionOwnership(section)
 }

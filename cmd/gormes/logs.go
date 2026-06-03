@@ -3,14 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 // logsHTTPClient bounds the gateway-logs fetch so a hung gateway can't
@@ -18,7 +16,7 @@ import (
 // timeout — an accept-but-don't-respond gateway would block forever.
 // 5s is well above any healthy gateway's response time and well below
 // what an operator will tolerate before Ctrl-C.
-var logsHTTPClient = &http.Client{Timeout: 5 * time.Second}
+var logsHTTPClient = gormescli.NewLogsHTTPClient(5 * time.Second)
 
 // logsEndpointURL is the gateway logs endpoint. Test seam: tests point
 // this at httptest servers (or dead URLs) to drive the live-gateway
@@ -48,18 +46,9 @@ type logsReportJSON struct {
 	Content string              `json:"content,omitempty"`
 }
 
-type logsEntryJSON struct {
-	Time    string `json:"time"`
-	Level   string `json:"level"`
-	Message string `json:"message"`
-}
+type logsEntryJSON = gormescli.LogsEntry
 
-type logsContent struct {
-	Source  string
-	Entries []logsEntryJSON
-	Path    string
-	Content string
-}
+type logsContent = gormescli.LogsContent
 
 func runLogs(cmd *cobra.Command, _ []string) error {
 	out := cmd.OutOrStdout()
@@ -94,31 +83,14 @@ func runLogs(cmd *cobra.Command, _ []string) error {
 		fmt.Fprintln(out, "No log entries.")
 		return nil
 	}
-	for _, line := range formatLogsEntries(content.Entries) {
+	for _, line := range gormescli.FormatLogsEntries(content.Entries) {
 		fmt.Fprintln(out, line)
 	}
 	return nil
 }
 
 func readLogsContent() (logsContent, error) {
-	resp, err := logsHTTPClient.Get(logsEndpointURL)
-	if err != nil {
-		path := config.LogPath()
-		data, fileErr := os.ReadFile(path)
-		if fileErr != nil {
-			return logsContent{}, fileErr
-		}
-		return logsContent{Source: "file", Path: path, Content: string(data)}, nil
-	}
-	defer resp.Body.Close()
-
-	var result struct {
-		Entries []logsEntryJSON `json:"entries"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return logsContent{}, fmt.Errorf("failed to read logs: %w", err)
-	}
-	return logsContent{Source: "gateway", Entries: result.Entries}, nil
+	return gormescli.ReadLogsContent(logsHTTPClient, logsEndpointURL, config.LogPath())
 }
 
 func readLogsTail(limit int) (string, error) {
@@ -126,38 +98,5 @@ func readLogsTail(limit int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	var lines []string
-	if content.Source == "gateway" {
-		lines = formatLogsEntries(content.Entries)
-	} else {
-		lines = splitLogLines(content.Content)
-	}
-	lines = tailLogLines(lines, limit)
-	return strings.Join(lines, "\n"), nil
-}
-
-func formatLogsEntries(entries []logsEntryJSON) []string {
-	lines := make([]string, 0, len(entries))
-	for _, e := range entries {
-		lines = append(lines, fmt.Sprintf("[%s] %s: %s", e.Time, e.Level, e.Message))
-	}
-	return lines
-}
-
-func splitLogLines(content string) []string {
-	content = strings.TrimRight(content, "\n")
-	if content == "" {
-		return nil
-	}
-	return strings.Split(content, "\n")
-}
-
-func tailLogLines(lines []string, limit int) []string {
-	if limit <= 0 {
-		limit = 20
-	}
-	if len(lines) <= limit {
-		return lines
-	}
-	return lines[len(lines)-limit:]
+	return gormescli.ReadLogsTail(content, limit), nil
 }

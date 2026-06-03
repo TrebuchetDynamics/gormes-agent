@@ -132,7 +132,7 @@ func cliSecurityAuditStateFiles() []toolspkg.SecurityAuditStateFile {
 		config.GatewayRuntimeStatusPath(),
 		config.SessionDBPath(),
 		config.MemoryDBPath(),
-		secretsSnapshotPath(),
+		filepath.Join(config.GormesHome(), "secrets-runtime.json"),
 	}
 	files := make([]toolspkg.SecurityAuditStateFile, 0, len(paths))
 	seen := map[string]struct{}{}
@@ -368,7 +368,7 @@ func cliSecurityAuditFixCandidates() []toolspkg.SecurityAuditFixCandidate {
 	paths := []string{
 		config.ConfigPath(),
 		config.EnvPath(),
-		secretsSnapshotPath(),
+		filepath.Join(config.GormesHome(), "secrets-runtime.json"),
 	}
 	var fixes []toolspkg.SecurityAuditFixCandidate
 	for _, path := range paths {

@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"runtime"
 	"runtime/debug"
-	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 // Version marks the current operator-facing release line.
@@ -81,11 +82,7 @@ func newBuildProvenance() buildProvenanceJSON {
 // "true" (case-insensitive) and "1" mean dirty; everything else is
 // clean. Robust to ldflags injection variants.
 func parseGitDirty(value string) bool {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "true", "1", "yes", "y":
-		return true
-	}
-	return false
+	return gormescli.ParseGitDirty(value)
 }
 
 // resolveGitCommit returns the source SHA the binary was built from,
@@ -102,18 +99,7 @@ func resolveGitCommit() string {
 }
 
 func resolveGitCommitFrom(injected string, settings []debug.BuildSetting) string {
-	if injected != "" && injected != "unknown" {
-		return injected
-	}
-	for _, s := range settings {
-		if s.Key == "vcs.revision" && s.Value != "" {
-			if len(s.Value) >= 9 {
-				return s.Value[:9]
-			}
-			return s.Value
-		}
-	}
-	return "unknown"
+	return gormescli.ResolveGitCommitFrom(injected, settings)
 }
 
 // resolveGitDirty returns the build-time dirty flag, preferring the
@@ -124,15 +110,7 @@ func resolveGitDirty() bool {
 }
 
 func resolveGitDirtyFrom(injected string, settings []debug.BuildSetting) bool {
-	if parseGitDirty(injected) {
-		return true
-	}
-	for _, s := range settings {
-		if s.Key == "vcs.modified" {
-			return strings.EqualFold(s.Value, "true")
-		}
-	}
-	return false
+	return gormescli.ResolveGitDirtyFrom(injected, settings)
 }
 
 // resolveBuildDate returns the UTC timestamp the binary was built at,
@@ -142,15 +120,7 @@ func resolveBuildDate() string {
 }
 
 func resolveBuildDateFrom(injected string, settings []debug.BuildSetting) string {
-	if injected != "" && injected != "unknown" {
-		return injected
-	}
-	for _, s := range settings {
-		if s.Key == "vcs.time" && s.Value != "" {
-			return s.Value
-		}
-	}
-	return "unknown"
+	return gormescli.ResolveBuildDateFrom(injected, settings)
 }
 
 // buildInfoSettings is a thin wrapper around debug.ReadBuildInfo so the

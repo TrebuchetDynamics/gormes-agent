@@ -68,7 +68,7 @@ func promptSetupChoice(cmd *cobra.Command, title, linePrompt, defaultValue strin
 func setupChoicesToOptions(choices []setupChoice) []setupOptionChoice {
 	options := make([]setupOptionChoice, len(choices))
 	for i, choice := range choices {
-		options[i] = setupOptionChoice{ID: choice.value, Label: choice.label}
+		options[i] = setupOptionChoice{ID: choice.Value, Label: choice.Label}
 	}
 	return options
 }

@@ -1,10 +1,6 @@
 package main
 
 import (
-	"os"
-	"strconv"
-	"strings"
-
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -36,39 +32,9 @@ func channelsCommandOptions() channelsmodule.Options {
 }
 
 func configuredChannelCapabilityDetails(cfg config.Config) map[string]string {
-	details := map[string]string{}
-	if cfg.Telegram.BotToken != "" {
-		details["telegram"] = configuredTelegramGatewayStatusDetail(cfg.Telegram)
-	}
-	if cfg.Discord.Enabled() {
-		detail := "first_run_discovery=" + strconv.FormatBool(cfg.Discord.FirstRunDiscovery)
-		if cfg.Discord.AllowedChannelID != "" {
-			detail = "allowed_channel_id=" + cfg.Discord.AllowedChannelID
-		}
-		details["discord"] = detail
-	}
-	if detail := configuredWhatsAppGatewayStatusDetail(); detail != "" {
-		details["whatsapp"] = detail
-	}
-	if cfg.Slack.Enabled {
-		details["slack"] = configuredSlackGatewayStatusDetail(cfg.Slack)
-	}
-	if cfg.Teams.Enabled {
-		details["teams"] = configuredTeamsGatewayStatusDetail(cfg.Teams)
-	}
-	if cfg.Yuanbao.Enabled {
-		details["yuanbao"] = cfg.Yuanbao.RedactedStatus()
-	}
-	return details
+	return gormescli.ConfiguredChannelCapabilityDetails(cfg)
 }
 
 func configuredWhatsAppGatewayStatusDetail() string {
-	if !strings.EqualFold(strings.TrimSpace(os.Getenv("WHATSAPP_ENABLED")), "true") {
-		return ""
-	}
-	mode := strings.TrimSpace(os.Getenv("WHATSAPP_MODE"))
-	if mode == "" {
-		return "enabled=true"
-	}
-	return "mode=" + mode
+	return gormescli.ConfiguredWhatsAppGatewayStatusDetail()
 }

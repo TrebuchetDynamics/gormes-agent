@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	toolspkg "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -151,14 +152,7 @@ func cliSystemEventsManager() toolspkg.SystemEventsManager {
 }
 
 func parseSystemEventMode(raw string) (toolspkg.SystemEventMode, error) {
-	switch toolspkg.SystemEventMode(strings.TrimSpace(raw)) {
-	case "", toolspkg.SystemEventModeNextHeartbeat:
-		return toolspkg.SystemEventModeNextHeartbeat, nil
-	case toolspkg.SystemEventModeNow:
-		return toolspkg.SystemEventModeNow, nil
-	default:
-		return "", fmt.Errorf("system event: --mode must be now or next-heartbeat")
-	}
+	return gormescli.ParseSystemEventMode(raw)
 }
 
 // systemEventReportJSON, systemPresenceReportJSON, and
@@ -251,15 +245,5 @@ func writeSystemPresenceSnapshot(cmd *cobra.Command, snapshot toolspkg.SystemEve
 }
 
 func firstSystemDegradedMessage(items []toolspkg.SystemDegradedStatus) string {
-	if len(items) == 0 {
-		return "system_unavailable"
-	}
-	item := items[0]
-	if item.Message != "" {
-		return item.Message
-	}
-	if item.Reason != "" {
-		return item.Reason
-	}
-	return item.Code
+	return gormescli.FirstSystemDegradedMessage(items)
 }

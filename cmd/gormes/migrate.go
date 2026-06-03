@@ -1,16 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
@@ -125,31 +120,13 @@ func newMigrateHermesCommand() *cobra.Command {
 // version that emitted it. Existing manifest fields stay top-level via
 // struct embedding — callers parsing the old shape continue to work
 // because Go's JSON decoder ignores the unknown `build` field.
-type migrateHermesDryRunReportJSON struct {
-	Build buildProvenanceJSON `json:"build"`
-	*gormescli.MigrateHermesManifest
-}
+type migrateHermesDryRunReportJSON = gormescli.MigrateHermesDryRunReportJSON
 
 // runMigrateHermesDryRun preserves the existing JSON manifest output for
 // `gormes migrate hermes --dry-run` so dry-run callers see the same
 // fixture-validated payload after the writer slice lands.
 func runMigrateHermesDryRun(cmd *cobra.Command, source string) error {
-	m, err := gormescli.BuildMigrateHermesManifest(gormescli.MigrateHermesOptions{
-		Source:            strings.TrimSpace(source),
-		ExistingGormesEnv: collectGormesEnvSnapshot(),
-	})
-	if err != nil {
-		return newExitCodeError(2, fmt.Errorf("gormes migrate hermes: %w", err))
-	}
-	enc := json.NewEncoder(cmd.OutOrStdout())
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(migrateHermesDryRunReportJSON{
-		Build:                 newBuildProvenance(),
-		MigrateHermesManifest: m,
-	}); err != nil {
-		return fmt.Errorf("gormes migrate hermes: encode manifest: %w", err)
-	}
-	return nil
+	return migrateExitError(gormescli.RunMigrateHermesDryRun(cmd.OutOrStdout(), source, migrateBuildProvenance()))
 }
 
 // runMigrateHermesApply binds the manifest builder to the writer. The
@@ -158,66 +135,19 @@ func runMigrateHermesDryRun(cmd *cobra.Command, source string) error {
 // Source discovery is delegated to BuildManifest so apply and dry-run
 // use the same explicit --source > $HERMES_HOME > ~/.hermes chain.
 func runMigrateHermesApply(cmd *cobra.Command, source, dest string, overwrite bool) error {
-	existingEnv := collectGormesEnvSnapshot()
-	manifest, err := gormescli.BuildMigrateHermesManifest(gormescli.MigrateHermesOptions{
-		Source:            strings.TrimSpace(source),
-		ExistingGormesEnv: existingEnv,
-	})
-	if err != nil {
-		return newExitCodeError(2, fmt.Errorf("gormes migrate hermes: %w", err))
-	}
-	if manifest.Source.SelectedPath == "" {
-		return newExitCodeError(2, fmt.Errorf("gormes migrate hermes: no Hermes source found; pass --source /path/to/hermes-home or set HERMES_HOME"))
-	}
-	sourcePath := manifest.Source.SelectedPath
-	cfgBody, _ := os.ReadFile(filepath.Join(sourcePath, "config.yaml"))
-	envBody, _ := os.ReadFile(filepath.Join(sourcePath, ".env"))
-
-	destDir := strings.TrimSpace(dest)
-	if destDir == "" {
-		destDir = filepath.Dir(gormesConfigPath())
-	}
-	destEnv := filepath.Join(destDir, ".env")
-
-	out, err := gormescli.ApplyMigrateHermesManifest(gormescli.MigrateHermesWriteRequest{
-		Manifest:          *manifest,
-		DestConfigDir:     destDir,
-		DestEnvFile:       destEnv,
-		ExistingGormesEnv: existingEnv,
-		Overwrite:         overwrite,
-		Yes:               true,
-		SourceConfigBytes: map[string][]byte{
-			"config.yaml": cfgBody,
-			".env":        envBody,
-		},
-	})
-	if err != nil {
-		return newExitCodeError(2, fmt.Errorf("gormes migrate hermes: %w", err))
-	}
-	enc := json.NewEncoder(cmd.OutOrStdout())
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(migrateHermesApplyReportJSON{
-		Build:                     newBuildProvenance(),
-		MigrateHermesWriteOutcome: out,
-	}); err != nil {
-		return fmt.Errorf("gormes migrate hermes: encode outcome: %w", err)
-	}
-	return nil
+	return migrateExitError(gormescli.RunMigrateHermesApply(cmd.OutOrStdout(), source, dest, overwrite, migrateBuildProvenance()))
 }
 
 // migrateHermesApplyReportJSON wraps gormescli.MigrateHermesWriteOutcome with
 // build provenance so fleet automation orchestrating
 // Hermes-to-Gormes migration across machines can attribute each apply
 // outcome to the binary version that emitted it.
-type migrateHermesApplyReportJSON struct {
-	Build buildProvenanceJSON `json:"build"`
-	gormescli.MigrateHermesWriteOutcome
-}
+type migrateHermesApplyReportJSON = gormescli.MigrateHermesApplyReportJSON
 
 // gormesConfigPath returns the destination config.toml path used when
 // `--dest` is not set.
 func gormesConfigPath() string {
-	return config.ConfigPath()
+	return gormescli.GormesMigrationConfigPath()
 }
 
 func newMigrateOpenClawCommand() *cobra.Command {
@@ -261,99 +191,23 @@ func newMigrateOpenClawCommand() *cobra.Command {
 // OpenClaw-to-Gormes migration across machines can attribute each
 // manifest to the binary version that emitted it. Existing manifest
 // fields stay top-level via struct embedding.
-type migrateOpenClawDryRunReportJSON struct {
-	Build buildProvenanceJSON `json:"build"`
-	*gormescli.MigrateOpenClawManifest
-}
+type migrateOpenClawDryRunReportJSON = gormescli.MigrateOpenClawDryRunReportJSON
 
 func runMigrateOpenClawDryRun(cmd *cobra.Command, source string) error {
-	m, err := gormescli.BuildMigrateOpenClawManifest(gormescli.MigrateOpenClawOptions{
-		Source:            strings.TrimSpace(source),
-		ExistingGormesEnv: collectMigrationEnvSnapshot(),
-	})
-	if err != nil {
-		return newExitCodeError(2, fmt.Errorf("gormes migrate openclaw: %w", err))
-	}
-	enc := json.NewEncoder(cmd.OutOrStdout())
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(migrateOpenClawDryRunReportJSON{
-		Build:                   newBuildProvenance(),
-		MigrateOpenClawManifest: m,
-	}); err != nil {
-		return fmt.Errorf("gormes migrate openclaw: encode manifest: %w", err)
-	}
-	return nil
+	return migrateExitError(gormescli.RunMigrateOpenClawDryRun(cmd.OutOrStdout(), source, migrateBuildProvenance()))
 }
 
 func runMigrateOpenClawApply(cmd *cobra.Command, source, dest string, overwrite, secrets bool) error {
-	source = strings.TrimSpace(source)
-	if source == "" {
-		return newExitCodeError(2, errors.New("gormes migrate openclaw --yes: --source is required"))
-	}
-	existingEnv := collectMigrationEnvSnapshot()
-	manifest, err := gormescli.BuildMigrateOpenClawManifest(gormescli.MigrateOpenClawOptions{
-		Source:            source,
-		ExistingGormesEnv: existingEnv,
-	})
-	if err != nil {
-		return newExitCodeError(2, fmt.Errorf("gormes migrate openclaw: %w", err))
-	}
-	cfgBody, _ := os.ReadFile(filepath.Join(source, "config.yaml"))
-	envBody, _ := os.ReadFile(filepath.Join(source, ".env"))
-
-	destDir := strings.TrimSpace(dest)
-	if destDir == "" {
-		destDir = filepath.Dir(gormesConfigPath())
-	}
-	destEnv := filepath.Join(destDir, ".env")
-	skillsDir := gormesSkillsDir()
-	memoryDir := gormesMemoryDir()
-	reportRoot := gormesMigrationReportRoot()
-
-	out, err := gormescli.ApplyMigrateOpenClawManifest(gormescli.MigrateOpenClawApplyRequest{
-		Manifest:          *manifest,
-		DestConfigDir:     destDir,
-		DestEnvFile:       destEnv,
-		DestSkillsDir:     skillsDir,
-		DestMemoryDir:     memoryDir,
-		ReportRootDir:     reportRoot,
-		ExistingGormesEnv: existingEnv,
-		SourceConfigBytes: map[string][]byte{
-			"config.yaml": cfgBody,
-			".env":        envBody,
-		},
-		SourceRoot:     source,
-		Overwrite:      overwrite,
-		Yes:            true,
-		SecretsEnabled: secrets,
-	})
-	if err != nil {
-		return newExitCodeError(2, fmt.Errorf("gormes migrate openclaw: %w", err))
-	}
-	enc := json.NewEncoder(cmd.OutOrStdout())
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(migrateOpenClawApplyReportJSON{
-		Build:                       newBuildProvenance(),
-		MigrateOpenClawApplyOutcome: out,
-	}); err != nil {
-		return fmt.Errorf("gormes migrate openclaw: encode outcome: %w", err)
-	}
-	return nil
+	return migrateExitError(gormescli.RunMigrateOpenClawApply(cmd.OutOrStdout(), source, dest, overwrite, secrets, migrateBuildProvenance()))
 }
 
 // migrateOpenClawApplyReportJSON wraps gormescli.MigrateOpenClawApplyOutcome
 // with build provenance.
-type migrateOpenClawApplyReportJSON struct {
-	Build buildProvenanceJSON `json:"build"`
-	gormescli.MigrateOpenClawApplyOutcome
-}
+type migrateOpenClawApplyReportJSON = gormescli.MigrateOpenClawApplyReportJSON
 
 // migrateOpenClawCleanupReportJSON wraps gormescli.MigrateOpenClawCleanupOutcome
 // with build provenance.
-type migrateOpenClawCleanupReportJSON struct {
-	Build buildProvenanceJSON `json:"build"`
-	gormescli.MigrateOpenClawCleanupOutcome
-}
+type migrateOpenClawCleanupReportJSON = gormescli.MigrateOpenClawCleanupReportJSON
 
 func newMigrateOpenClawCleanupCommand() *cobra.Command {
 	return newOpenClawCleanupCommand("gormes migrate openclaw cleanup", nil)
@@ -376,23 +230,7 @@ func newOpenClawCleanupCommand(commandLabel string, aliases []string) *cobra.Com
 			if !dryRun && !yes {
 				return newExitCodeError(2, fmt.Errorf("%s: use --yes to apply or --dry-run to inspect", commandLabel))
 			}
-			home, _ := os.UserHomeDir()
-			out, err := gormescli.PerformMigrateOpenClawCleanup(gormescli.MigrateOpenClawCleanupRequest{
-				HomeDir: home,
-				DryRun:  dryRun,
-			})
-			if err != nil {
-				return newExitCodeError(2, fmt.Errorf("%s: %w", commandLabel, err))
-			}
-			enc := json.NewEncoder(cmd.OutOrStdout())
-			enc.SetIndent("", "  ")
-			if err := enc.Encode(migrateOpenClawCleanupReportJSON{
-				Build:                         newBuildProvenance(),
-				MigrateOpenClawCleanupOutcome: out,
-			}); err != nil {
-				return fmt.Errorf("%s: encode outcome: %w", commandLabel, err)
-			}
-			return nil
+			return migrateExitError(gormescli.RunMigrateOpenClawCleanup(cmd.OutOrStdout(), commandLabel, dryRun, migrateBuildProvenance()))
 		},
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "preview the renames without modifying disk")
@@ -402,44 +240,31 @@ func newOpenClawCleanupCommand(commandLabel string, aliases []string) *cobra.Com
 
 // gormesSkillsDir returns the destination skills directory path used
 // when migrating OpenClaw skills.
-func gormesSkillsDir() string {
-	return filepath.Join(config.GormesHome(), "skills")
-}
+func gormesSkillsDir() string { return gormescli.GormesMigrationSkillsDir() }
 
-func gormesMemoryDir() string {
-	return filepath.Join(config.GormesHome(), "memory")
-}
+func gormesMemoryDir() string { return gormescli.GormesMigrationMemoryDir() }
 
-func gormesMigrationReportRoot() string {
-	return filepath.Join(config.GormesHome(), "migrations", "openclaw")
-}
+func gormesMigrationReportRoot() string { return gormescli.GormesMigrationReportRoot() }
 
 // collectGormesEnvSnapshot returns the GORMES_* env keys currently set
 // on the running process, so the manifest can mark Hermes .env keys
 // that would overwrite already-set Gormes values as conflict. Only
 // names are looked up; raw secret bytes never reach the manifest.
-func collectGormesEnvSnapshot() map[string]string {
-	out := make(map[string]string)
-	for _, kv := range os.Environ() {
-		eq := strings.IndexByte(kv, '=')
-		if eq <= 0 {
-			continue
-		}
-		k := kv[:eq]
-		if !strings.HasPrefix(k, "GORMES_") {
-			continue
-		}
-		out[k] = kv[eq+1:]
-	}
-	return out
+func collectGormesEnvSnapshot() map[string]string { return gormescli.CollectGormesEnvSnapshot() }
+
+func collectMigrationEnvSnapshot() map[string]string { return gormescli.CollectMigrationEnvSnapshot() }
+
+func migrateBuildProvenance() gormescli.BuildProvenance {
+	build := newBuildProvenance()
+	return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
 }
 
-func collectMigrationEnvSnapshot() map[string]string {
-	out := collectGormesEnvSnapshot()
-	for _, key := range []string{"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "OPENROUTER_API_KEY"} {
-		if value, ok := os.LookupEnv(key); ok {
-			out[key] = value
-		}
+func migrateExitError(err error) error {
+	if err == nil {
+		return nil
 	}
-	return out
+	if code := gormescli.MigrateExitCode(err); code != 0 {
+		return newExitCodeError(code, err)
+	}
+	return err
 }

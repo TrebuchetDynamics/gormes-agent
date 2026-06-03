@@ -4,40 +4,32 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
-	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/profiles"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/profileapp"
 )
 
-type profileCommandSeams = profilemodule.Seams
+type profileCommandSeams = profileapp.CommandSeams
 
 func newProfileCommand() *cobra.Command {
-	seams := defaultProfileCommandSeams()
-	cmd := profilemodule.NewCommandWithSeams(seams, profileCommandOptions())
-	cmd.AddCommand(gormescli.NewProfileSeedCommand(profileSeedSeamsFromProfileSeams(seams)))
-	return cmd
+	return profileapp.NewCommand(profileBuildProvenance)
 }
 
 func newProfileCommandWithSeams(seams profileCommandSeams) *cobra.Command {
-	cmd := profilemodule.NewCommandWithSeams(seams, profileCommandOptions())
-	cmd.AddCommand(gormescli.NewProfileSeedCommand(profileSeedSeamsFromProfileSeams(seams)))
-	return cmd
+	return profileapp.NewCommandWithSeams(seams, profileCommandOptions())
 }
 
 func defaultProfileCommandSeams() profileCommandSeams {
-	return profilemodule.DefaultSeams()
+	return profileapp.DefaultSeams()
 }
 
 func defaultListKnownProfiles() ([]string, error) {
-	return profilemodule.DefaultListKnownProfiles()
+	return profileapp.DefaultListKnownProfiles()
 }
 
-func profileCommandOptions() profilemodule.Options {
-	return profilemodule.Options{
-		BuildProvenance: func() gormescli.BuildProvenance {
-			build := newBuildProvenance()
-			return gormescli.BuildProvenance{
-				Version:   build.Version,
-				GitCommit: build.GitCommit,
-			}
-		},
-	}
+func profileCommandOptions() profileapp.CommandOptions {
+	return profileapp.CommandOptions{BuildProvenance: profileBuildProvenance}
+}
+
+func profileBuildProvenance() gormescli.BuildProvenance {
+	build := newBuildProvenance()
+	return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
 }
