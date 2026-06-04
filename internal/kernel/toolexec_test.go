@@ -3,6 +3,8 @@ package kernel
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -101,6 +103,78 @@ func TestExecuteToolCalls_TodoMergePreviewUsesUpdatingWording(t *testing.T) {
 
 	if got := soulTexts(k.soul); !containsString(got, "tool: todo: updating 2 task(s)") {
 		t.Fatalf("soul events = %#v, want Hermes todo merge preview", got)
+	}
+}
+
+func TestExecuteToolCalls_AppendsSubdirectoryHintsToToolResults(t *testing.T) {
+	root := t.TempDir()
+	backend := filepath.Join(root, "backend")
+	if err := os.MkdirAll(backend, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("root startup context"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(backend, "AGENTS.md"), []byte("Backend-specific instructions"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	reg := tools.NewRegistry()
+	reg.MustRegister(&tools.MockTool{NameStr: "read_file"})
+	k := newKernelWithRegistry(t, reg)
+	k.cfg.SubdirectoryHints = llm.NewSubdirectoryHintTracker(llm.SubdirectoryHintOptions{WorkingDir: root})
+
+	results := k.executeToolCalls(context.Background(), []llm.ToolCall{
+		{ID: "c1", Name: "read_file", Arguments: json.RawMessage(`{"path":"backend/main.go"}`)},
+		{ID: "c2", Name: "read_file", Arguments: json.RawMessage(`{"path":"backend/other.go"}`)},
+	})
+
+	if len(results) != 2 {
+		t.Fatalf("results len = %d, want 2", len(results))
+	}
+	if !strings.Contains(results[0].Content, "[Subdirectory context discovered: backend/AGENTS.md]") || !strings.Contains(results[0].Content, "Backend-specific instructions") {
+		t.Fatalf("first result missing subdirectory hint:\n%s", results[0].Content)
+	}
+	if strings.Contains(results[1].Content, "Backend-specific instructions") {
+		t.Fatalf("second result duplicated subdirectory hint:\n%s", results[1].Content)
+	}
+}
+
+func TestExecuteToolCalls_AppendsSubdirectoryHintsToMultimodalTextPart(t *testing.T) {
+	root := t.TempDir()
+	frontend := filepath.Join(root, "frontend")
+	if err := os.MkdirAll(frontend, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(frontend, "CLAUDE.md"), []byte("Frontend rules"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	reg := tools.NewRegistry()
+	reg.MustRegister(&tools.MockTool{
+		NameStr: "browser_vision",
+		ExecuteFn: func(_ context.Context, _ json.RawMessage) (json.RawMessage, error) {
+			return json.RawMessage(`{"_multimodal":true,"text_summary":"screenshot","content":[{"type":"text","text":"screenshot"},{"type":"image_url","image_url":{"url":"data:image/png;base64,AAA"}}]}`), nil
+		},
+	})
+	k := newKernelWithRegistry(t, reg)
+	k.cfg.SubdirectoryHints = llm.NewSubdirectoryHintTracker(llm.SubdirectoryHintOptions{WorkingDir: root})
+
+	results := k.executeToolCalls(context.Background(), []llm.ToolCall{
+		{ID: "c1", Name: "browser_vision", Arguments: json.RawMessage(`{"path":"frontend/screen.png"}`)},
+	})
+
+	if got := results[0].Content; !strings.Contains(got, "screenshot") || !strings.Contains(got, "Frontend rules") {
+		t.Fatalf("content summary missing appended hint: %q", got)
+	}
+	if len(results[0].ContentParts) != 2 {
+		t.Fatalf("ContentParts len = %d, want 2: %+v", len(results[0].ContentParts), results[0].ContentParts)
+	}
+	if got := results[0].ContentParts[0].Text; !strings.Contains(got, "screenshot") || !strings.Contains(got, "Frontend rules") {
+		t.Fatalf("text part missing appended hint: %q", got)
+	}
+	if results[0].ContentParts[1].ImageURL != "data:image/png;base64,AAA" {
+		t.Fatalf("image part was not preserved: %+v", results[0].ContentParts[1])
 	}
 }
 

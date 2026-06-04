@@ -18,9 +18,9 @@ type GoNativeTTSProviderConfig struct {
 }
 
 // GoNativeTTSProvider adapts Gormes' Go-owned local TTS runtime to the existing
-// Hermes-compatible TTSProvider contract. The default runtime is intentionally a
-// fixture-quality pure-Go WAV synthesizer; neural Piper/WASI engines can replace
-// the Runtime later without changing the text_to_speech envelope.
+// Hermes-compatible TTSProvider contract. The default runtime prefers a real
+// local Piper neural synthesizer when GORMES_TTS_PIPER_MODEL is configured, then
+// falls back to the deterministic fixture runtime for offline tests.
 type GoNativeTTSProvider struct {
 	runtime       speechtts.Runtime
 	disabled      bool
@@ -30,6 +30,11 @@ type GoNativeTTSProvider struct {
 
 func NewGoNativeTTSProvider(cfg GoNativeTTSProviderConfig) *GoNativeTTSProvider {
 	runtime := cfg.Runtime
+	if runtime == nil {
+		if piper := speechtts.NewPiperSynthesizerFromEnv(); piper != nil {
+			runtime = piper
+		}
+	}
 	if runtime == nil {
 		runtime = speechtts.NewFixtureSynthesizer()
 	}

@@ -92,7 +92,8 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Phase 3.A — open the SQLite memory store; worker starts immediately.
-	mstore, err := memory.OpenSqlite(config.MemoryDBPath(), cfg.Telegram.MemoryQueueCap, slog.Default())
+	memorySettings := channelMemorySettingsFromConfig(cfg)
+	mstore, err := memory.OpenSqlite(config.MemoryDBPath(), memorySettings.QueueCap, slog.Default())
 	if err != nil {
 		return fmt.Errorf("memory store: %w", err)
 	}
@@ -106,9 +107,9 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 
 	// Phase 3.D.5 — start the Memory Mirror for operator auditability.
 	mstore.StartMirror(memory.MirrorConfig{
-		Enabled:  cfg.Telegram.MirrorEnabled,
-		Path:     cfg.Telegram.MirrorPath,
-		Interval: cfg.Telegram.MirrorInterval,
+		Enabled:  memorySettings.MirrorEnabled,
+		Path:     memorySettings.MirrorPath,
+		Interval: memorySettings.MirrorInterval,
 		Logger:   slog.Default(),
 	})
 
@@ -130,18 +131,17 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	tm := telemetry.New()
 	toolAudit := audit.NewJSONLWriter(config.ToolAuditLogPath())
 
-	var recallProv kernel.RecallProvider
+	legacyRecallActive := memorySettings.legacyRecallActive(cfg.Telegram.AllowedChatID != 0)
 
-	recallActive := cfg.Telegram.RecallEnabled && cfg.Telegram.AllowedChatID != 0
-
-	// Phase 3.D — semantic fusion wiring. Activated only when recall is
-	// active AND the feature flag is set AND an embedding model is named.
+	// Phase 3.D — semantic fusion wiring for the legacy recall fallback.
+	// Activated only when Goncho is disabled, Telegram recall is active,
+	// the feature flag is set, and an embedding model is named.
 	// Falls back to Hermes.Endpoint when SemanticEndpoint is empty
 	// (Ollama often hosts both /v1/chat/completions and /v1/embeddings).
 	var semCache *memory.SemanticCache
 	var ec *memory.EmbedClient
-	if recallActive && cfg.Telegram.SemanticEnabled && cfg.Telegram.SemanticModel != "" {
-		endpoint := cfg.Telegram.SemanticEndpoint
+	if memorySettings.semanticFusionActive(legacyRecallActive) {
+		endpoint := memorySettings.SemanticEndpoint
 		if endpoint == "" {
 			endpoint = cfg.Hermes.Endpoint
 		}
@@ -149,22 +149,19 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		semCache = memory.NewSemanticCache()
 	}
 
-	if recallActive {
-		memProv := memory.NewRecall(mstore, memory.RecallConfig{
-			WeightThreshold:       cfg.Telegram.RecallWeightThreshold,
-			MaxFacts:              cfg.Telegram.RecallMaxFacts,
-			Depth:                 cfg.Telegram.RecallDepth,
-			DecayHorizonDays:      cfg.Telegram.RecallDecayHorizonDays,
-			SemanticModel:         cfg.Telegram.SemanticModel,
-			SemanticTopK:          cfg.Telegram.SemanticTopK,
-			SemanticMinSimilarity: cfg.Telegram.SemanticMinSimilarity,
-			QueryEmbedTimeout:     cfg.Telegram.QueryEmbedTimeout,
-		}, slog.Default())
-		if ec != nil {
-			memProv = memProv.WithEmbedClient(ec, semCache)
-		}
-		recallProv = &recallAdapter{p: memProv}
-	}
+	gonchoStore, recallProv := channelMemoryProviders(channelMemoryOptions{
+		GonchoEnabled:       cfg.Goncho.Enabled,
+		GonchoService:       svc,
+		PeerID:              key,
+		LegacyRecallEnabled: legacyRecallActive,
+		LegacyRecall: func() kernel.RecallProvider {
+			memProv := memory.NewRecall(mstore, memorySettings.Recall, slog.Default())
+			if ec != nil {
+				memProv = memProv.WithEmbedClient(ec, semCache)
+			}
+			return &recallAdapter{p: memProv}
+		},
+	})
 
 	k := kernel.New(kernel.Config{
 		Model:             cfg.Hermes.Model,
@@ -176,6 +173,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		InitialSessionID:  initialSID,
 		Recall:            recallProv,
 		ChatKey:           key,
+		Goncho:            gonchoStore,
 		ToolAudit:         toolAudit,
 		PrefillMessages:   configuredPrefillMessages(cfg),
 	}, hc, mstore, tm, slog.Default())
@@ -185,8 +183,8 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	// decoupled from the kernel's hot path.
 	ext := memory.NewExtractor(mstore, hc, memory.ExtractorConfig{
 		Model:        cfg.Hermes.Model,
-		BatchSize:    cfg.Telegram.ExtractorBatchSize,
-		PollInterval: cfg.Telegram.ExtractorPollInterval,
+		BatchSize:    memorySettings.ExtractorBatchSize,
+		PollInterval: memorySettings.ExtractorPollInterval,
 	}, slog.Default())
 	defer func() {
 		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), kernel.ShutdownBudget)
@@ -219,10 +217,10 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	// Phase 3.D — Embedder worker bounded to rootCtx. No-op when ec is nil.
 	if ec != nil {
 		embedder := memory.NewEmbedder(mstore, ec, memory.EmbedderConfig{
-			Model:        cfg.Telegram.SemanticModel,
-			PollInterval: cfg.Telegram.EmbedderPollInterval,
-			BatchSize:    cfg.Telegram.EmbedderBatchSize,
-			CallTimeout:  cfg.Telegram.EmbedderCallTimeout,
+			Model:        memorySettings.SemanticModel,
+			PollInterval: memorySettings.EmbedderPollInterval,
+			BatchSize:    memorySettings.EmbedderBatchSize,
+			CallTimeout:  memorySettings.EmbedderCallTimeout,
 		}, slog.Default(), semCache)
 		go embedder.Run(rootCtx)
 		defer func() {
@@ -297,10 +295,10 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		"discovery", cfg.Telegram.FirstRunDiscovery,
 		"sessions_db", config.SessionDBPath(),
 		"memory_db", config.MemoryDBPath(),
-		"extractor_batch_size", cfg.Telegram.ExtractorBatchSize,
-		"extractor_poll_interval", cfg.Telegram.ExtractorPollInterval,
-		"semantic_enabled", cfg.Telegram.SemanticEnabled,
-		"semantic_model", cfg.Telegram.SemanticModel)
+		"extractor_batch_size", memorySettings.ExtractorBatchSize,
+		"extractor_poll_interval", memorySettings.ExtractorPollInterval,
+		"semantic_enabled", memorySettings.SemanticEnabled,
+		"semantic_model", memorySettings.SemanticModel)
 
 	mgr := gateway.NewManager(telegramManagerConfig(cfg, smap), k, slog.Default())
 	if err := mgr.Register(bot); err != nil {

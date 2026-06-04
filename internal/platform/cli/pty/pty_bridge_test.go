@@ -32,6 +32,55 @@ func TestPtyAdapterRejectsUnavailablePlatformBeforeSpawn(t *testing.T) {
 	}
 }
 
+func TestPtyAdapterSpawnBackfillsDefaultTERM(t *testing.T) {
+	callerEnv := map[string]string{"CUSTOM": "value"}
+	var captured PtySpawnRequest
+
+	bridge, err := NewPtyAdapter(context.Background(), PtySpawnRequest{
+		Argv: []string{"/bin/sh"},
+		Env:  callerEnv,
+	}, PtyAdapterConfig{
+		RuntimeGOOS: "linux",
+		Spawn: func(_ context.Context, req PtySpawnRequest) (PtySession, error) {
+			captured = req
+			return &recordingPtySession{}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewPtyAdapter err = %v", err)
+	}
+	if bridge == nil {
+		t.Fatal("NewPtyAdapter returned nil bridge")
+	}
+	if got := captured.Env["TERM"]; got != "xterm-256color" {
+		t.Fatalf("captured TERM = %q, want xterm-256color", got)
+	}
+	if got := captured.Env["CUSTOM"]; got != "value" {
+		t.Fatalf("captured CUSTOM = %q, want value", got)
+	}
+	if _, ok := callerEnv["TERM"]; ok {
+		t.Fatalf("caller env was mutated with TERM: %+v", callerEnv)
+	}
+
+	captured = PtySpawnRequest{}
+	_, err = NewPtyAdapter(context.Background(), PtySpawnRequest{
+		Argv: []string{"/bin/sh"},
+		Env:  map[string]string{"TERM": "", "CUSTOM": "value"},
+	}, PtyAdapterConfig{
+		RuntimeGOOS: "linux",
+		Spawn: func(_ context.Context, req PtySpawnRequest) (PtySession, error) {
+			captured = req
+			return &recordingPtySession{}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewPtyAdapter blank TERM err = %v", err)
+	}
+	if got := captured.Env["TERM"]; got != "xterm-256color" {
+		t.Fatalf("blank TERM normalized to %q, want xterm-256color", got)
+	}
+}
+
 func TestPtyAdapterReadBoundsTimeout(t *testing.T) {
 	bridge := startTestPTY(t, PtySpawnRequest{
 		Argv: []string{"/bin/sh", "-c", "sleep 0.2; printf late"},

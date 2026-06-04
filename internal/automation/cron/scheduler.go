@@ -16,6 +16,10 @@ type SchedulerConfig struct {
 	Store            *Store // bbolt job persistence
 	Executor         Runner // interface — real *Executor or a test fake
 	MCPOrphanCleanup func()
+	// LockPath points at the cross-process scheduler tick lock. Empty disables
+	// locking for direct unit-test runTick calls; Start fills the Hermes-compatible
+	// default <GORMES_HOME>/cron/.tick.lock.
+	LockPath string
 }
 
 // Scheduler owns a robfig *cron.Cron instance and the mapping of
@@ -26,6 +30,7 @@ type Scheduler struct {
 	cron    *rc.Cron
 	log     *slog.Logger
 	mu      sync.Mutex
+	tickMu  sync.Mutex
 	entries map[string]rc.EntryID // jobID -> EntryID (for future Remove)
 }
 
@@ -55,6 +60,9 @@ func NewScheduler(cfg SchedulerConfig, log *slog.Logger) *Scheduler {
 // Non-blocking: the cron ticker runs on its own goroutine. Stop must be
 // called to tear down.
 func (s *Scheduler) Start(ctx context.Context) error {
+	if strings.TrimSpace(s.cfg.LockPath) == "" {
+		s.cfg.LockPath = defaultCronTickLockPath()
+	}
 	jobs, err := s.cfg.Store.List()
 	if err != nil {
 		return fmt.Errorf("scheduler: list jobs: %w", err)
@@ -95,6 +103,22 @@ func (s *Scheduler) Start(ctx context.Context) error {
 }
 
 func (s *Scheduler) runTick(ctx context.Context, jobs []Job) {
+	if strings.TrimSpace(s.cfg.LockPath) != "" {
+		s.tickMu.Lock()
+		defer s.tickMu.Unlock()
+
+		lock, acquired, err := acquireCronTickLock(s.cfg.LockPath)
+		if err != nil {
+			s.log.Debug("cron: tick skipped; lock unavailable", "lock_path", s.cfg.LockPath, "err", err)
+			return
+		}
+		if !acquired {
+			s.log.Debug("cron: tick skipped; another scheduler holds the lock", "lock_path", s.cfg.LockPath)
+			return
+		}
+		defer lock.Release()
+	}
+
 	var parallel []Job
 	for _, job := range jobs {
 		jobCopy := job

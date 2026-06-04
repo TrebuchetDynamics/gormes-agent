@@ -696,6 +696,17 @@ func TestSetupGatewayNavivoxLocalModeWritesSafeConfig(t *testing.T) {
 	if cfg.Navivox.Token == "" {
 		t.Fatal("Navivox token was not generated into the environment")
 	}
+	if cfg.Navivox.GatewayID == "" || !strings.HasPrefix(cfg.Navivox.GatewayID, "gw_") || len(cfg.Navivox.GatewayID) != len("gw_0123456789abcdef0123456789abcdef") {
+		t.Fatalf("Navivox gateway_id = %q, want generated opaque public gw_ identity", cfg.Navivox.GatewayID)
+	}
+	if cfg.Navivox.GatewayLabel != "Gormes gateway" {
+		t.Fatalf("Navivox gateway_label = %q, want bland default display label", cfg.Navivox.GatewayLabel)
+	}
+	for _, forbidden := range []string{cfg.Navivox.Token, cfg.Navivox.BindHost} {
+		if strings.Contains(cfg.Navivox.GatewayID, forbidden) {
+			t.Fatalf("gateway_id %q contains endpoint/secret-derived material %q", cfg.Navivox.GatewayID, forbidden)
+		}
+	}
 	if strings.Contains(stdout, cfg.Navivox.Token) {
 		t.Fatal("setup output leaked generated Navivox token")
 	}

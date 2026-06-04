@@ -2,10 +2,12 @@ package boundary
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/access"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/jsonvalue"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/oauth"
 )
 
 // HostUnavailableEvidence is the audit/reason marker emitted whenever an MCP
@@ -13,12 +15,17 @@ import (
 // logs and audit feeds for this string to count degraded-mode events.
 const HostUnavailableEvidence = "mcp_host_unavailable"
 
+// HostAuthRequiredEvidence is the audit/reason marker emitted when an MCP host
+// reports that OAuth credentials cannot be recovered noninteractively.
+const HostAuthRequiredEvidence = "mcp_auth_required"
+
 // ResultStatus identifies the outcome of one MCP tool invocation through the
 // boundary. The status set is intentionally small and audit-friendly.
 const (
-	ResultStatusOK          = "ok"
-	ResultStatusUnavailable = "unavailable"
-	ResultStatusError       = "error"
+	ResultStatusOK           = "ok"
+	ResultStatusUnavailable  = "unavailable"
+	ResultStatusAuthRequired = "auth_required"
+	ResultStatusError        = "error"
 )
 
 // ToolDeclaration is the single source of truth for one MCP/tool host entry.
@@ -116,6 +123,7 @@ type AuditEvent struct {
 	Status       string
 	Reason       string
 	Unavailable  bool
+	AuthRequired bool
 }
 
 // Auditor records one audit event per invocation.
@@ -134,8 +142,10 @@ type Host interface {
 // RunFiltered wraps a host invocation with filter enforcement and audit
 // emission. When redactArgs is true, the boundary never logs argument values;
 // only the redaction flag is recorded. When the host returns an unavailable
-// status, the rendered Reason includes HostUnavailableEvidence so operators can
-// scan for degraded-mode counts without seeing argument substrings.
+// status, when host discovery fails before invocation, or when invocation
+// returns a transport error, the rendered Reason includes HostUnavailableEvidence
+// so operators can scan for degraded-mode counts without seeing argument or
+// transport substrings.
 func RunFiltered(
 	ctx context.Context,
 	host Host,
@@ -147,10 +157,7 @@ func RunFiltered(
 ) Result {
 	declared, err := declarationForInvocation(ctx, host, server, tool)
 	if err != nil {
-		res := Result{
-			Status: ResultStatusError,
-			Reason: fmt.Sprintf("list tools failed: %s", err.Error()),
-		}
+		res := resultForHostError(server, tool, err)
 		recordAudit(auditor, server, tool, redactArgs, res)
 		return res
 	}
@@ -167,22 +174,43 @@ func RunFiltered(
 
 	res, err := host.Invoke(ctx, server, tool, args)
 	if err != nil {
-		safe := Result{
-			Status: ResultStatusError,
-			Reason: fmt.Sprintf("invoke failed: %s", err.Error()),
-		}
-		recordAudit(auditor, server, tool, redactArgs, safe)
-		return safe
+		res := resultForHostError(server, tool, err)
+		recordAudit(auditor, server, tool, redactArgs, res)
+		return res
 	}
 
-	// Decorate unavailable results with the public evidence marker. Strip any
+	// Decorate degraded results with public evidence markers. Strip any
 	// caller-supplied Reason that might risk leaking argument values: callers
 	// cannot promise argument-free Reasons through the boundary.
 	if res.Status == ResultStatusUnavailable {
-		res.Reason = fmt.Sprintf("%s: server=%s tool=%s", HostUnavailableEvidence, server, tool)
+		res = unavailableResult(server, tool)
+	}
+	if res.Status == ResultStatusAuthRequired {
+		res = authRequiredResult(server, tool)
 	}
 	recordAudit(auditor, server, tool, redactArgs, res)
 	return res
+}
+
+func resultForHostError(server, tool string, err error) Result {
+	if errors.Is(err, oauth.ErrNoninteractiveRequired) {
+		return authRequiredResult(server, tool)
+	}
+	return unavailableResult(server, tool)
+}
+
+func unavailableResult(server, tool string) Result {
+	return Result{
+		Status: ResultStatusUnavailable,
+		Reason: fmt.Sprintf("%s: server=%s tool=%s", HostUnavailableEvidence, server, tool),
+	}
+}
+
+func authRequiredResult(server, tool string) Result {
+	return Result{
+		Status: ResultStatusAuthRequired,
+		Reason: fmt.Sprintf("%s: server=%s tool=%s", HostAuthRequiredEvidence, server, tool),
+	}
 }
 
 func declarationForInvocation(ctx context.Context, host Host, server, tool string) (ToolDeclaration, error) {
@@ -213,6 +241,7 @@ func recordAudit(auditor Auditor, server, tool string, redacted bool, res Result
 		Status:       res.Status,
 		Reason:       res.Reason,
 		Unavailable:  res.Status == ResultStatusUnavailable,
+		AuthRequired: res.Status == ResultStatusAuthRequired,
 	})
 }
 

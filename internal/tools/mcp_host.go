@@ -7,11 +7,13 @@ import (
 )
 
 const MCPHostUnavailableEvidence = mcp.HostUnavailableEvidence
+const MCPHostAuthRequiredEvidence = mcp.HostAuthRequiredEvidence
 
 const (
-	MCPResultStatusOK          = mcp.ResultStatusOK
-	MCPResultStatusUnavailable = mcp.ResultStatusUnavailable
-	MCPResultStatusError       = mcp.ResultStatusError
+	MCPResultStatusOK           = mcp.ResultStatusOK
+	MCPResultStatusUnavailable  = mcp.ResultStatusUnavailable
+	MCPResultStatusAuthRequired = mcp.ResultStatusAuthRequired
+	MCPResultStatusError        = mcp.ResultStatusError
 )
 
 type ToolDeclaration = mcp.ToolDeclaration

@@ -1,6 +1,8 @@
 package channels
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"regexp"
@@ -8,8 +10,9 @@ import (
 )
 
 const (
-	NavivoxDefaultBindHost = "127.0.0.1"
-	NavivoxDefaultPort     = 8765
+	NavivoxDefaultBindHost     = "127.0.0.1"
+	NavivoxDefaultPort         = 8765
+	NavivoxDefaultGatewayLabel = "Gormes gateway"
 
 	NavivoxExposureLocal     = "local"
 	NavivoxExposureTailscale = "tailscale"
@@ -23,12 +26,28 @@ const (
 	NavivoxAuthTokenAndTailscaleIdentity = "token_and_tailscale_identity"
 )
 
-var navivoxIDPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,63}$`)
+var (
+	navivoxIDPattern        = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,63}$`)
+	navivoxGatewayIDPattern = regexp.MustCompile(`^gw_[a-f0-9]{32}$`)
+)
+
+// NewNavivoxGatewayID creates the opaque public Gormes Gateway identity used
+// by Navivox pairing/reconnect metadata. It is intentionally random and never
+// derived from tokens, URLs, machine names, usernames, or paths.
+func NewNavivoxGatewayID() (string, error) {
+	var raw [16]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return "", fmt.Errorf("config: generate navivox.gateway_id: %w", err)
+	}
+	return "gw_" + hex.EncodeToString(raw[:]), nil
+}
 
 // NavivoxCfg configures the native gateway-owned HTTP/WebSocket channel used
 // by the Flutter Navivox app. The disabled zero value is intentionally safe.
 type NavivoxCfg struct {
 	Enabled                  bool                        `toml:"enabled" yaml:"enabled"`
+	GatewayID                string                      `toml:"gateway_id" yaml:"gateway_id"`
+	GatewayLabel             string                      `toml:"gateway_label" yaml:"gateway_label"`
 	BindHost                 string                      `toml:"bind_host" yaml:"bind_host"`
 	Port                     int                         `toml:"port" yaml:"port"`
 	ExposureMode             string                      `toml:"exposure_mode" yaml:"exposure_mode"`
@@ -49,6 +68,11 @@ type NavivoxServerCfg struct {
 }
 
 func NormalizeNavivoxConfig(cfg *NavivoxCfg) error {
+	cfg.GatewayID = strings.TrimSpace(cfg.GatewayID)
+	cfg.GatewayLabel = strings.TrimSpace(cfg.GatewayLabel)
+	if cfg.GatewayLabel == "" {
+		cfg.GatewayLabel = NavivoxDefaultGatewayLabel
+	}
 	cfg.BindHost = strings.TrimSpace(cfg.BindHost)
 	if cfg.BindHost == "" {
 		cfg.BindHost = NavivoxDefaultBindHost
@@ -71,6 +95,9 @@ func NormalizeNavivoxConfig(cfg *NavivoxCfg) error {
 		return err
 	}
 
+	if cfg.GatewayID != "" && !navivoxGatewayIDPattern.MatchString(cfg.GatewayID) {
+		return fmt.Errorf("config: navivox.gateway_id must be a generated gw_ identity")
+	}
 	if cfg.Port < 1 || cfg.Port > 65535 {
 		return fmt.Errorf("config: navivox.port must be between 1 and 65535, got %d", cfg.Port)
 	}
@@ -94,6 +121,12 @@ func NormalizeNavivoxConfig(cfg *NavivoxCfg) error {
 	}
 	if !cfg.Enabled {
 		return nil
+	}
+	if cfg.AuthMode == NavivoxAuthTailscaleIdentity {
+		return fmt.Errorf("config: navivox.auth_mode=tailscale_identity is not allowed as standalone Navivox auth; use token auth or token_and_tailscale_identity")
+	}
+	if cfg.ExposureMode != NavivoxExposureLocal && navivoxWildcardOrigin(cfg.AllowOrigins) {
+		return fmt.Errorf("config: navivox.allow_origins must not include * when exposure_mode=%s; list trusted Navivox browser origins explicitly", cfg.ExposureMode)
 	}
 	if navivoxWildcardHost(cfg.BindHost) && cfg.ExposureMode != NavivoxExposurePublic {
 		return fmt.Errorf("config: navivox.bind_host %q requires navivox.exposure_mode=public and explicit confirmation", cfg.BindHost)
@@ -235,6 +268,15 @@ func navivoxLoopbackHost(host string) bool {
 func navivoxWildcardHost(host string) bool {
 	host = navivoxHostOnly(host)
 	return host == "" || host == "0.0.0.0" || host == "::" || host == "[::]"
+}
+
+func navivoxWildcardOrigin(origins []string) bool {
+	for _, origin := range origins {
+		if strings.TrimSpace(origin) == "*" {
+			return true
+		}
+	}
+	return false
 }
 
 func navivoxHostOnly(raw string) string {

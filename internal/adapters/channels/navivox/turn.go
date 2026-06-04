@@ -3,6 +3,7 @@ package navivox
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -53,7 +54,12 @@ func (c *Channel) handleTurn(inbox chan<- gateway.InboundEvent) func(http.Respon
 			return
 		}
 		var req turnRequest
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, navivoxMaxTurnRequestBytes)).Decode(&req); err != nil {
+			var maxBytesErr *http.MaxBytesError
+			if errors.As(err, &maxBytesErr) {
+				writeNavivoxError(w, http.StatusRequestEntityTooLarge, req.RequestID, "request_too_large", "Request is too large")
+				return
+			}
 			writeNavivoxError(w, http.StatusBadRequest, "", "bad_request", "Invalid JSON")
 			return
 		}

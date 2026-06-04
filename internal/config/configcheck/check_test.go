@@ -195,3 +195,50 @@ model = "test-model"
 		t.Fatalf(".env mutated by Check:\n%s", gotEnv)
 	}
 }
+
+func TestConfigCheck_FlagsUnknownAndMisplacedTopLevelKeys(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
+	t.Setenv("GORMES_HOME", filepath.Join(root, "config", "gormes"))
+
+	configDir := filepath.Join(root, "config", "gormes")
+	if err := os.MkdirAll(configDir, 0o700); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	body := []byte(`config_version = 2
+base_url = "https://misplaced.example/v1"
+
+[hermes]
+endpoint = "https://example.invalid/v1"
+model = "test-model"
+
+[custom_provider]
+api_key = "sk-must-not-leak"
+`)
+	if err := os.WriteFile(filepath.Join(configDir, "config.toml"), body, 0o600); err != nil {
+		t.Fatalf("write toml: %v", err)
+	}
+
+	report, err := Check()
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+
+	assertConfigCheckIssue(t, report.Issues, "base_url", "misplaced")
+	assertConfigCheckIssue(t, report.Issues, "custom_provider", "unknown top-level")
+	for _, issue := range report.Issues {
+		if strings.Contains(issue.Message, "sk-must-not-leak") {
+			t.Fatalf("config issue leaked secret: %+v", issue)
+		}
+	}
+}
+
+func assertConfigCheckIssue(t *testing.T, issues []Issue, field, messagePart string) {
+	t.Helper()
+	for _, issue := range issues {
+		if issue.Field == field && strings.Contains(strings.ToLower(issue.Message), strings.ToLower(messagePart)) {
+			return
+		}
+	}
+	t.Fatalf("missing issue field=%q message containing %q in %+v", field, messagePart, issues)
+}

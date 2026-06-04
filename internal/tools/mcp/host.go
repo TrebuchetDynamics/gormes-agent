@@ -7,11 +7,13 @@ import (
 )
 
 const HostUnavailableEvidence = boundary.HostUnavailableEvidence
+const HostAuthRequiredEvidence = boundary.HostAuthRequiredEvidence
 
 const (
-	ResultStatusOK          = boundary.ResultStatusOK
-	ResultStatusUnavailable = boundary.ResultStatusUnavailable
-	ResultStatusError       = boundary.ResultStatusError
+	ResultStatusOK           = boundary.ResultStatusOK
+	ResultStatusUnavailable  = boundary.ResultStatusUnavailable
+	ResultStatusAuthRequired = boundary.ResultStatusAuthRequired
+	ResultStatusError        = boundary.ResultStatusError
 )
 
 type ToolDeclaration = boundary.ToolDeclaration

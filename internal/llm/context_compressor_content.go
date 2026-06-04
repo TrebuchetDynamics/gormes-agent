@@ -93,3 +93,23 @@ func compressionContentBudgetBlockLength(block map[string]any) int {
 	}
 	return 0
 }
+
+func messageCompressionContentBudgetLength(msg Message) int {
+	if len(msg.ContentParts) == 0 {
+		return utf8.RuneCountInString(msg.Content)
+	}
+	total := 0
+	for _, part := range msg.ContentParts {
+		total += messageContentPartBudgetLength(part)
+	}
+	return total
+}
+
+func messageContentPartBudgetLength(part MessageContentPart) int {
+	switch part.Type {
+	case "image_url", "input_image", "image":
+		return imageCharEquivalent
+	default:
+		return utf8.RuneCountInString(part.Text)
+	}
+}

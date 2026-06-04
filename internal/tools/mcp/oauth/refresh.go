@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/redaction"
@@ -12,6 +13,10 @@ import (
 // ErrSessionExpired marks a 401-equivalent refresh failure that means the
 // stored OAuth token can no longer recover the MCP session.
 var ErrSessionExpired = errors.New("mcp oauth: session expired")
+
+// ErrInvalidRefreshToken marks a refresh response that does not contain a
+// usable access token.
+var ErrInvalidRefreshToken = errors.New("mcp oauth: refreshed token missing access token")
 
 // Refresher refreshes an MCP OAuth token without opening an interactive login
 // flow.
@@ -37,8 +42,11 @@ type RefreshResult struct {
 }
 
 func mergeRefreshedToken(previous, refreshed Token) Token {
-	if refreshed.RefreshToken == "" {
+	refreshToken := strings.TrimSpace(refreshed.RefreshToken)
+	if refreshToken == "" {
 		refreshed.RefreshToken = previous.RefreshToken
+	} else {
+		refreshed.RefreshToken = refreshToken
 	}
 	return refreshed
 }
@@ -68,20 +76,22 @@ func Refresh(ctx context.Context, store *Store, server string, refresher Refresh
 		result.Outcome = RefreshOutcomeNoninteractiveRequired
 		return result, ErrNoninteractiveRequired
 	}
-	if tok.ExpiresAt.IsZero() || now.Before(tok.ExpiresAt) {
+	if strings.TrimSpace(tok.AccessToken) != "" && (tok.ExpiresAt.IsZero() || now.Before(tok.ExpiresAt)) {
 		result.Outcome = RefreshOutcomeStillValid
 		return result, nil
 	}
-	if tok.RefreshToken == "" {
+	refreshToken := strings.TrimSpace(tok.RefreshToken)
+	if refreshToken == "" {
 		result.Outcome = RefreshOutcomeNoninteractiveRequired
 		return result, ErrNoninteractiveRequired
 	}
+	tok.RefreshToken = refreshToken
 	if refresher == nil {
 		result.Outcome = RefreshOutcomeRefresherUnavailable
 		return result, nil
 	}
 
-	newToken, err := refresher.Refresh(ctx, tok.RefreshToken)
+	newToken, err := refresher.Refresh(ctx, refreshToken)
 	if err != nil {
 		if errors.Is(err, ErrSessionExpired) {
 			store.Clear(server)
@@ -92,6 +102,10 @@ func Refresh(ctx context.Context, store *Store, server string, refresher Refresh
 		return result, safeRefreshError(server, err)
 	}
 	mergedToken := mergeRefreshedToken(tok, newToken)
+	if strings.TrimSpace(mergedToken.AccessToken) == "" {
+		result.Outcome = RefreshOutcomeRefresherUnavailable
+		return result, safeRefreshError(server, ErrInvalidRefreshToken)
+	}
 	if err := store.Set(server, mergedToken); err != nil {
 		return result, err
 	}

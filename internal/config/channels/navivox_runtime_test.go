@@ -37,6 +37,80 @@ func TestNavivoxExposureRequiresVPN(t *testing.T) {
 	}
 }
 
+func TestValidateNavivoxForRuntimeRejectsStandaloneTailscaleIdentityAuth(t *testing.T) {
+	for _, tc := range []struct {
+		mode string
+		bind string
+		pub  bool
+	}{
+		{mode: NavivoxExposureLocal, bind: "127.0.0.1"},
+		{mode: NavivoxExposureTailscale, bind: "100.64.1.2"},
+		{mode: NavivoxExposureWireGuard, bind: "10.0.0.1"},
+		{mode: NavivoxExposureVPN, bind: "10.8.0.5"},
+		{mode: NavivoxExposurePublic, bind: "0.0.0.0", pub: true},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			cfg := &NavivoxCfg{
+				Enabled:         true,
+				BindHost:        tc.bind,
+				Port:            NavivoxDefaultPort,
+				ExposureMode:    tc.mode,
+				AuthMode:        NavivoxAuthTailscaleIdentity,
+				PublicConfirmed: tc.pub,
+			}
+			err := ValidateNavivoxForRuntime(cfg)
+			if err == nil {
+				t.Fatal("ValidateNavivoxForRuntime error = nil, want identity-only auth rejection")
+			}
+			if !strings.Contains(err.Error(), "auth_mode=tailscale_identity") {
+				t.Fatalf("error = %q, want standalone identity auth rejection", err)
+			}
+		})
+	}
+}
+
+func TestValidateNavivoxForRuntimeRejectsWildcardBrowserOriginsOutsideLocalMode(t *testing.T) {
+	for _, mode := range []string{NavivoxExposureTailscale, NavivoxExposureWireGuard, NavivoxExposureVPN, NavivoxExposurePublic} {
+		t.Run(mode, func(t *testing.T) {
+			cfg := &NavivoxCfg{
+				Enabled:         true,
+				BindHost:        "100.64.1.2",
+				Port:            NavivoxDefaultPort,
+				ExposureMode:    mode,
+				AuthMode:        NavivoxAuthStaticToken,
+				Token:           "nvbx_test_token",
+				AllowOrigins:    []string{"*"},
+				PublicConfirmed: mode == NavivoxExposurePublic,
+			}
+			if mode == NavivoxExposurePublic {
+				cfg.BindHost = "0.0.0.0"
+			}
+			err := ValidateNavivoxForRuntime(cfg)
+			if err == nil {
+				t.Fatal("ValidateNavivoxForRuntime error = nil, want wildcard browser origin rejection")
+			}
+			if !strings.Contains(err.Error(), "allow_origins") || !strings.Contains(err.Error(), "*") {
+				t.Fatalf("error = %q, want allow_origins wildcard rejection", err)
+			}
+		})
+	}
+}
+
+func TestValidateNavivoxForRuntimeAllowsWildcardBrowserOriginsForLocalLoopback(t *testing.T) {
+	cfg := &NavivoxCfg{
+		Enabled:      true,
+		BindHost:     "127.0.0.1",
+		Port:         NavivoxDefaultPort,
+		ExposureMode: NavivoxExposureLocal,
+		AuthMode:     NavivoxAuthStaticToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}
+	if err := ValidateNavivoxForRuntime(cfg); err != nil {
+		t.Fatalf("ValidateNavivoxForRuntime local wildcard error = %v, want nil", err)
+	}
+}
+
 func TestValidateNavivoxBindAgainstVPN_NilOrDisabled_ReturnsNil(t *testing.T) {
 	if err := ValidateNavivoxBindAgainstVPN(nil, nil); err != nil {
 		t.Fatalf("nil cfg error = %v, want nil", err)

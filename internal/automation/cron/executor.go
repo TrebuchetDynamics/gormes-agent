@@ -223,10 +223,34 @@ func (e *Executor) runOneTurn(ctx context.Context, job Job) error {
 		}
 	}()
 
+	// Build and scan the fully assembled runtime prompt before Submit. This
+	// mirrors Hermes' CronPromptInjectionBlocked branch: create/update-time scans
+	// do not cover runtime context_from or pre-run script output.
+	promptText := e.buildPromptForJob(ctx, runtimeJob)
+	if finding, blocked := ScanPromptForCronThreat(promptText); blocked {
+		blockErr := cronPromptInjectionBlockedError(finding)
+		blockedDoc := cronPromptBlockedDocument(runtimeJob, startedAt, finding)
+		blockedNotice := cronPromptBlockedDelivery(runtimeJob, finding)
+		_ = e.cfg.Sink.Deliver(context.Background(), blockedNotice)
+		run := Run{
+			JobID:         job.ID,
+			StartedAt:     startedAt,
+			FinishedAt:    time.Now().Unix(),
+			PromptHash:    promptHash,
+			Status:        "error",
+			Delivered:     true,
+			OutputPreview: truncate(blockedDoc, 200),
+			ErrorMsg:      blockErr.Error(),
+		}
+		e.failDurableCronRun(sessionID, durableWorker, durableActive, run.ErrorMsg)
+		e.recordAndUpdateJob(ctx, runtimeJob, run, operatorReportContext{SessionID: sessionID})
+		return blockErr
+	}
+
 	// Submit.
 	event := kernel.PlatformEvent{
 		Kind:             kernel.PlatformEventSubmit,
-		Text:             e.buildPromptForJob(ctx, runtimeJob),
+		Text:             promptText,
 		SessionID:        sessionID,
 		Model:            runtimeJob.Model,
 		CronJobID:        job.ID,
@@ -367,6 +391,50 @@ completed:
 	e.completeDurableCronRun(sessionID, durableWorker, durableActive, run)
 	e.recordAndUpdateJob(ctx, runtimeJob, run, operatorReportContext{SessionID: sessionID, DeliveryPlan: deliveryPlan, DeliveryOutcome: outcome})
 	return nil
+}
+
+const CronPromptInjectionBlockedCode = "cron_prompt_injection_blocked"
+
+func cronPromptInjectionBlockedError(finding CronSafetyFinding) error {
+	return fmt.Errorf("%s: %s", CronPromptInjectionBlockedCode, cronPromptScannerResult(finding))
+}
+
+func cronPromptBlockedDocument(job Job, startedAt int64, finding CronSafetyFinding) string {
+	return fmt.Sprintf(
+		"# Cron Job: %s\n\n"+
+			"**Job ID:** %s\n"+
+			"**Run Time:** %s\n"+
+			"**Status:** BLOCKED\n\n"+
+			"The assembled prompt (job prompt + runtime context) tripped the cron injection scanner and the agent was NOT run.\n\n"+
+			"**Scanner result:** %s\n\n"+
+			"Audit the job prompt, pre-run script output, context_from source jobs, and attached skill content for prompt-injection payloads or invisible-unicode markers.",
+		job.Name,
+		job.ID,
+		time.Unix(startedAt, 0).Format("2006-01-02 15:04:05"),
+		cronPromptScannerResult(finding),
+	)
+}
+
+func cronPromptBlockedDelivery(job Job, finding CronSafetyFinding) string {
+	return fmt.Sprintf(
+		"⚠️ Cron job %q failed:\n%s\n\n**Status:** BLOCKED\nThe assembled prompt tripped the cron injection scanner and the agent was NOT run.\n\n**Scanner result:** %s",
+		job.Name,
+		CronPromptInjectionBlockedCode,
+		cronPromptScannerResult(finding),
+	)
+}
+
+func cronPromptScannerResult(finding CronSafetyFinding) string {
+	if finding.Code == "invisible_unicode" && strings.TrimSpace(finding.Evidence) != "" {
+		return fmt.Sprintf("Blocked: prompt contains invisible unicode %s (possible injection).", finding.Evidence)
+	}
+	if strings.TrimSpace(finding.ID) != "" {
+		return fmt.Sprintf("Blocked: prompt matches threat pattern '%s'. Cron prompts must not contain injection or exfiltration payloads.", finding.ID)
+	}
+	if strings.TrimSpace(finding.Message) != "" {
+		return "Blocked: " + finding.Message
+	}
+	return "Blocked: prompt failed cron safety scan."
 }
 
 func (e *Executor) runNoAgentJob(ctx context.Context, job Job, startedAt int64, promptHash string) error {

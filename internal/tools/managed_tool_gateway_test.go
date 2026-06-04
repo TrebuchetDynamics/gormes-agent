@@ -555,9 +555,82 @@ func TestManagedGatewayBridge_AuthRequiredReusesEvidence(t *testing.T) {
 	}
 }
 
+func TestManagedGatewayBridge_OAuthNoninteractiveMapsToAuthRequiredEvidence(t *testing.T) {
+	if got := classifyDiscoverError(ErrMCPOAuthNoninteractiveRequired); got != ManagedGatewayEvidenceAuthRequired {
+		t.Fatalf("classifyDiscoverError = %q, want %q", got, ManagedGatewayEvidenceAuthRequired)
+	}
+	if got := classifyCallToolError(ErrMCPOAuthNoninteractiveRequired); got != ManagedGatewayEvidenceAuthRequired {
+		t.Fatalf("classifyCallToolError = %q, want %q", got, ManagedGatewayEvidenceAuthRequired)
+	}
+}
+
 // TestManagedGatewayBridge_GatewayUnavailableReportsDegradedEvidence covers
 // acceptance #3 (the unavailable half): non-auth transport failures surface
 // as gateway_unavailable without registering tools.
+func TestManagedGatewayBridge_SessionRequiredMapsToAuthRequiredEvidence(t *testing.T) {
+	var mu sync.Mutex
+	var methods []string
+	srv := newFakeManagedGatewayServer(t, func(t *testing.T, w http.ResponseWriter, r *http.Request, req fakeManagedGatewayRequest) {
+		if r.Method == http.MethodDelete {
+			return
+		}
+		mu.Lock()
+		methods = append(methods, req.Method)
+		mu.Unlock()
+
+		switch req.Method {
+		case "initialize":
+			writeManagedJSONResult(w, req.ID, `{"protocolVersion":"2024-11-05","capabilities":{}}`)
+		case "tools/list", "tools/call":
+			if got := r.Header.Get("Mcp-Session-Id"); got != "" {
+				t.Fatalf("%s Mcp-Session-Id = %q, want empty when no session was negotiated", req.Method, got)
+			}
+			http.Error(w, "missing session", http.StatusBadRequest)
+		default:
+			t.Errorf("unexpected method %q", req.Method)
+			http.Error(w, "unexpected", http.StatusBadRequest)
+		}
+	})
+
+	bridge := newTestManagedGatewayBridge(t, "figma", srv, "oauth-token")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	disc, err := bridge.Discover(ctx)
+	if err == nil {
+		t.Fatal("Discover err = nil, want ErrMCPSessionRequired")
+	}
+	if !errors.Is(err, ErrMCPSessionRequired) {
+		t.Fatalf("Discover err = %v, want errors.Is ErrMCPSessionRequired", err)
+	}
+	if disc.Evidence != ManagedGatewayEvidenceAuthRequired {
+		t.Fatalf("Discover Evidence = %q, want %q", disc.Evidence, ManagedGatewayEvidenceAuthRequired)
+	}
+	if len(disc.Tools) != 0 {
+		t.Fatalf("Discover Tools = %+v, want empty", disc.Tools)
+	}
+
+	_, callEvidence, callErr := bridge.CallTool(ctx, "figma_get_file", map[string]any{"file_key": "abc"})
+	if callErr == nil {
+		t.Fatal("CallTool err = nil, want ErrMCPSessionRequired")
+	}
+	if !errors.Is(callErr, ErrMCPSessionRequired) {
+		t.Fatalf("CallTool err = %v, want errors.Is ErrMCPSessionRequired", callErr)
+	}
+	if callEvidence != ManagedGatewayEvidenceAuthRequired {
+		t.Fatalf("CallTool Evidence = %q, want %q", callEvidence, ManagedGatewayEvidenceAuthRequired)
+	}
+
+	mu.Lock()
+	gotMethods := append([]string(nil), methods...)
+	mu.Unlock()
+	wantMethods := []string{"initialize", "tools/list", "tools/call"}
+	if !reflect.DeepEqual(gotMethods, wantMethods) {
+		t.Fatalf("request methods = %v, want %v", gotMethods, wantMethods)
+	}
+}
+
 func TestManagedGatewayBridge_GatewayUnavailableReportsDegradedEvidence(t *testing.T) {
 	srv := newFakeManagedGatewayServer(t, func(t *testing.T, w http.ResponseWriter, r *http.Request, req fakeManagedGatewayRequest) {
 		http.Error(w, "down for maintenance", http.StatusServiceUnavailable)

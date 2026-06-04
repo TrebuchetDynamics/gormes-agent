@@ -134,7 +134,24 @@ func (s *Store) StatusFor(server string, now time.Time) Status {
 		}
 		return status
 	}
+	if strings.TrimSpace(tok.AccessToken) == "" {
+		if strings.TrimSpace(tok.RefreshToken) == "" {
+			if noninteractive {
+				status.State = StateNoninteractiveRequired
+				status.Evidence = evidenceNoninteractiveRequired
+			}
+			return status
+		}
+		status.State = StateExpired
+		status.Evidence = evidenceTokenExpired
+		return status
+	}
 	if !tok.ExpiresAt.IsZero() && !now.Before(tok.ExpiresAt) {
+		if strings.TrimSpace(tok.RefreshToken) == "" && noninteractive {
+			status.State = StateNoninteractiveRequired
+			status.Evidence = evidenceNoninteractiveRequired
+			return status
+		}
 		status.State = StateExpired
 		status.Evidence = evidenceTokenExpired
 		return status

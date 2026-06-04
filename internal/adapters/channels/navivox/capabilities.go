@@ -64,6 +64,15 @@ type capabilityStreams struct {
 	OpenAIRunsBridge  bool     `json:"openai_runs_bridge"`
 }
 
+type capabilityDurableReconnect struct {
+	Supported         bool     `json:"supported"`
+	IssueEndpoint     string   `json:"issue_endpoint"`
+	AuthMethods       []string `json:"auth_methods"`
+	Platforms         []string `json:"platforms"`
+	EffectiveSecurity string   `json:"effective_security"`
+	BlockedReason     string   `json:"blocked_reason"`
+}
+
 type capabilityDocument struct {
 	Object            string                      `json:"object"`
 	ProtocolVersion   string                      `json:"protocol_version"`
@@ -75,6 +84,7 @@ type capabilityDocument struct {
 	Attachments       capabilityAttachments       `json:"attachments"`
 	Voice             capabilityVoice             `json:"voice"`
 	Streams           capabilityStreams           `json:"streams"`
+	DurableReconnect  capabilityDurableReconnect  `json:"durable_reconnect"`
 }
 
 func (c *Channel) handleCapabilities(w http.ResponseWriter, r *http.Request, _ string) {
@@ -82,10 +92,14 @@ func (c *Channel) handleCapabilities(w http.ResponseWriter, r *http.Request, _ s
 		writeNavivoxError(w, http.StatusMethodNotAllowed, "", "bad_request", "Method not allowed")
 		return
 	}
-	writeNavivoxJSON(w, http.StatusOK, c.capabilityDocument())
+	writeNavivoxJSON(w, http.StatusOK, c.capabilityDocumentForRequest(r))
 }
 
 func (c *Channel) capabilityDocument() capabilityDocument {
+	return c.capabilityDocumentForRequest(nil)
+}
+
+func (c *Channel) capabilityDocumentForRequest(r *http.Request) capabilityDocument {
 	matrix := navivoxVoiceProviderMatrix()
 	events := navivoxEventKinds()
 	authMode := strings.TrimSpace(c.cfg.AuthMode)
@@ -135,6 +149,19 @@ func (c *Channel) capabilityDocument() capabilityDocument {
 			EventKinds:        events,
 			OpenAIRunsBridge:  false,
 		},
+		DurableReconnect: navivoxDurableReconnectCapability(r, c.cfg),
+	}
+}
+
+func navivoxDurableReconnectCapability(r *http.Request, cfg config.NavivoxCfg) capabilityDurableReconnect {
+	transportSecurity := navivoxTransportSecurityStatusForRequest(r, cfg)
+	return capabilityDurableReconnect{
+		Supported:         false,
+		IssueEndpoint:     "",
+		AuthMethods:       []string{},
+		Platforms:         []string{"android"},
+		EffectiveSecurity: transportSecurity.EffectiveSecurity,
+		BlockedReason:     "Durable credential issuance is not implemented yet.",
 	}
 }
 

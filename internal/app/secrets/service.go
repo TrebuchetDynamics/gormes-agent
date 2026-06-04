@@ -1,14 +1,14 @@
 package secrets
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	toolspkg "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
@@ -32,156 +32,84 @@ func (o Options) buildProvenance() BuildProvenance {
 	return BuildProvenance{}
 }
 
-// NewCommand builds the secrets command tree.
-func NewCommand(options Options) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:          "secrets",
-		Short:        "Apply, audit, configure, and reload SecretRef-backed runtime secrets",
-		SilenceUsage: true,
-		Args:         cobra.NoArgs,
+func Apply(ctx context.Context, out io.Writer, planPath string, jsonOut bool, options Options) error {
+	planFile, err := LoadPlanFile(planPath)
+	if err != nil {
+		return err
 	}
-	cmd.AddCommand(newApplyCommand(options))
-	cmd.AddCommand(newAuditCommand(options))
-	cmd.AddCommand(newConfigureCommand(options))
-	cmd.AddCommand(newReloadCommand(options))
-	return cmd
+	controller, err := NewRuntimeController(planFile)
+	if err != nil {
+		return err
+	}
+	result, err := controller.Apply(ctx, planFile.Plan())
+	if err == nil {
+		err = WriteSnapshotFile(result.Snapshot)
+	}
+	writeApplyResult(out, result, jsonOut, options)
+	return err
 }
 
-func newApplyCommand(options Options) *cobra.Command {
-	var planPath string
-	var jsonOut bool
-	cmd := &cobra.Command{
-		Use:   "apply --plan <file>",
-		Short: "Resolve a generated SecretRef plan into the runtime snapshot",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			planFile, err := LoadPlanFile(planPath)
-			if err != nil {
-				return err
-			}
-			controller, err := NewRuntimeController(planFile)
-			if err != nil {
-				return err
-			}
-			result, err := controller.Apply(cmd.Context(), planFile.Plan())
-			if err == nil {
-				err = WriteSnapshotFile(result.Snapshot)
-			}
-			writeApplyResult(cmd, result, jsonOut, options)
-			return err
-		},
+func Audit(ctx context.Context, out io.Writer, planPath string, jsonOut bool, options Options) error {
+	if strings.TrimSpace(planPath) == "" {
+		const msg = `secrets audit: required flag "--plan <file>" not set`
+		if jsonOut {
+			return emitJSONInputError(out, "missing_flag", msg, options)
+		}
+		return fmt.Errorf("%s", msg)
 	}
-	cmd.Flags().StringVar(&planPath, "plan", "", "JSON plan containing SecretRef targets")
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "print machine-readable JSON")
-	_ = cmd.MarkFlagRequired("plan")
-	return cmd
+	planFile, err := LoadPlanFile(planPath)
+	if err != nil {
+		return err
+	}
+	previous, err := ReadSnapshotFile()
+	if err != nil {
+		return err
+	}
+	result := toolspkg.AuditSecrets(ctx, toolspkg.SecretsAuditRequest{
+		Resolver:         NewConfigSecretResolver(planFile.Secrets),
+		Plan:             planFile.Plan(),
+		PreviousSnapshot: &previous,
+	})
+	writeAuditResult(out, result, jsonOut, options)
+	if !result.OK {
+		return newExitCodeError(1, errors.New("secrets audit found findings"))
+	}
+	return nil
 }
 
-func newAuditCommand(options Options) *cobra.Command {
-	var planPath string
-	var jsonOut bool
-	cmd := &cobra.Command{
-		Use:   "audit --plan <file>",
-		Short: "Audit plaintext secrets, unresolved refs, and snapshot precedence drift",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			if strings.TrimSpace(planPath) == "" {
-				const msg = `secrets audit: required flag "--plan <file>" not set`
-				if jsonOut {
-					return emitJSONInputError(cmd, "missing_flag", msg, options)
-				}
-				return fmt.Errorf("%s", msg)
-			}
-			planFile, err := LoadPlanFile(planPath)
-			if err != nil {
-				return err
-			}
-			previous, err := ReadSnapshotFile()
-			if err != nil {
-				return err
-			}
-			result := toolspkg.AuditSecrets(cmd.Context(), toolspkg.SecretsAuditRequest{
-				Resolver:         NewConfigSecretResolver(planFile.Secrets),
-				Plan:             planFile.Plan(),
-				PreviousSnapshot: &previous,
-			})
-			writeAuditResult(cmd, result, jsonOut, options)
-			if !result.OK {
-				return newExitCodeError(1, errors.New("secrets audit found findings"))
-			}
-			return nil
-		},
+func Configure(ctx context.Context, out io.Writer, path, source, provider, id string, optional, jsonOut bool, options Options) error {
+	if provider == "" {
+		provider = config.DefaultSecretProviderAlias
 	}
-	cmd.Flags().StringVar(&planPath, "plan", "", "JSON plan containing SecretRef targets")
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "print machine-readable JSON")
-	return cmd
+	result, err := toolspkg.ConfigureSecretRef(ctx, toolspkg.SecretsConfigureRequest{
+		Resolver: NewConfigSecretResolver(config.SecretsCfg{}),
+		Path:     path,
+		Required: !optional,
+		Ref: toolspkg.SecretRef{
+			Source:   source,
+			Provider: provider,
+			ID:       id,
+		},
+	})
+	writeConfigureResult(out, result, jsonOut, options)
+	return err
 }
 
-func newConfigureCommand(options Options) *cobra.Command {
-	var source string
-	var provider string
-	var id string
-	var optional bool
-	var jsonOut bool
-	cmd := &cobra.Command{
-		Use:   "configure <path>",
-		Short: "Build and preflight a typed SecretRef mapping for one config path",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if provider == "" {
-				provider = config.DefaultSecretProviderAlias
-			}
-			result, err := toolspkg.ConfigureSecretRef(cmd.Context(), toolspkg.SecretsConfigureRequest{
-				Resolver: NewConfigSecretResolver(config.SecretsCfg{}),
-				Path:     args[0],
-				Required: !optional,
-				Ref: toolspkg.SecretRef{
-					Source:   source,
-					Provider: provider,
-					ID:       id,
-				},
-			})
-			writeConfigureResult(cmd, result, jsonOut, options)
-			return err
-		},
+func Reload(ctx context.Context, out io.Writer, planPath string, jsonOut bool, options Options) error {
+	planFile, err := LoadPlanFile(planPath)
+	if err != nil {
+		return err
 	}
-	cmd.Flags().StringVar(&source, "source", "env", "SecretRef source: env or file")
-	cmd.Flags().StringVar(&provider, "provider", config.DefaultSecretProviderAlias, "SecretRef provider alias")
-	cmd.Flags().StringVar(&id, "id", "", "SecretRef id, such as an environment variable name")
-	cmd.Flags().BoolVar(&optional, "optional", false, "allow preflight failure for optional refs")
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "print machine-readable JSON")
-	_ = cmd.MarkFlagRequired("id")
-	return cmd
-}
-
-func newReloadCommand(options Options) *cobra.Command {
-	var planPath string
-	var jsonOut bool
-	cmd := &cobra.Command{
-		Use:   "reload --plan <file>",
-		Short: "Atomically re-resolve SecretRefs and keep the last-good snapshot on failure",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			planFile, err := LoadPlanFile(planPath)
-			if err != nil {
-				return err
-			}
-			controller, err := NewRuntimeController(planFile)
-			if err != nil {
-				return err
-			}
-			result, err := controller.Reload(cmd.Context(), planFile.Plan())
-			if err == nil {
-				err = WriteSnapshotFile(result.Snapshot)
-			}
-			writeApplyResult(cmd, result, jsonOut, options)
-			return err
-		},
+	controller, err := NewRuntimeController(planFile)
+	if err != nil {
+		return err
 	}
-	cmd.Flags().StringVar(&planPath, "plan", "", "JSON plan containing SecretRef targets")
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "print machine-readable JSON")
-	_ = cmd.MarkFlagRequired("plan")
-	return cmd
+	result, err := controller.Reload(ctx, planFile.Plan())
+	if err == nil {
+		err = WriteSnapshotFile(result.Snapshot)
+	}
+	writeApplyResult(out, result, jsonOut, options)
+	return err
 }
 
 // PlanFile is the JSON plan consumed by secrets commands.
@@ -305,37 +233,37 @@ func SnapshotPath() string {
 	return filepath.Join(config.GormesHome(), "secrets-runtime.json")
 }
 
-func writeApplyResult(cmd *cobra.Command, result toolspkg.SecretsApplyResult, jsonOut bool, options Options) {
+func writeApplyResult(out io.Writer, result toolspkg.SecretsApplyResult, jsonOut bool, options Options) {
 	if jsonOut {
-		writeJSON(cmd, result, options)
+		writeJSON(out, result, options)
 		return
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "%s generation=%d entries=%d redacted=%t\n", result.Code, result.Snapshot.Generation, len(result.Snapshot.Entries), result.Redacted)
+	fmt.Fprintf(out, "%s generation=%d entries=%d redacted=%t\n", result.Code, result.Snapshot.Generation, len(result.Snapshot.Entries), result.Redacted)
 	for _, finding := range result.Findings {
-		fmt.Fprintf(cmd.OutOrStdout(), "%s path=%s severity=%s evidence=%s redacted=%t\n", finding.Code, finding.Path, finding.Severity, finding.Evidence.Code, finding.Redacted)
+		fmt.Fprintf(out, "%s path=%s severity=%s evidence=%s redacted=%t\n", finding.Code, finding.Path, finding.Severity, finding.Evidence.Code, finding.Redacted)
 	}
 }
 
-func writeAuditResult(cmd *cobra.Command, result toolspkg.SecretsAuditResult, jsonOut bool, options Options) {
+func writeAuditResult(out io.Writer, result toolspkg.SecretsAuditResult, jsonOut bool, options Options) {
 	if jsonOut {
-		writeJSON(cmd, result, options)
+		writeJSON(out, result, options)
 		return
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "%s ok=%t findings=%d redacted=%t\n", result.Code, result.OK, len(result.Findings), result.Redacted)
+	fmt.Fprintf(out, "%s ok=%t findings=%d redacted=%t\n", result.Code, result.OK, len(result.Findings), result.Redacted)
 	for _, finding := range result.Findings {
-		fmt.Fprintf(cmd.OutOrStdout(), "%s path=%s severity=%s evidence=%s redacted=%t\n", finding.Code, finding.Path, finding.Severity, finding.Evidence.Code, finding.Redacted)
+		fmt.Fprintf(out, "%s path=%s severity=%s evidence=%s redacted=%t\n", finding.Code, finding.Path, finding.Severity, finding.Evidence.Code, finding.Redacted)
 	}
 }
 
-func writeConfigureResult(cmd *cobra.Command, result toolspkg.SecretsConfigureResult, jsonOut bool, options Options) {
+func writeConfigureResult(out io.Writer, result toolspkg.SecretsConfigureResult, jsonOut bool, options Options) {
 	if jsonOut {
-		writeJSON(cmd, result, options)
+		writeJSON(out, result, options)
 		return
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "%s path=%s source=%s provider=%s id=%s preflight_ok=%t redacted=%t\n", result.Code, result.Target.Path, result.Target.Ref.Source, result.Target.Ref.Provider, result.Target.Ref.ID, result.PreflightOK, result.Redacted)
+	fmt.Fprintf(out, "%s path=%s source=%s provider=%s id=%s preflight_ok=%t redacted=%t\n", result.Code, result.Target.Path, result.Target.Ref.Source, result.Target.Ref.Provider, result.Target.Ref.ID, result.PreflightOK, result.Redacted)
 }
 
-func writeJSON(cmd *cobra.Command, value any, options Options) {
+func writeJSON(out io.Writer, value any, options Options) {
 	bodyBytes, err := json.Marshal(value)
 	if err != nil {
 		return
@@ -349,7 +277,7 @@ func writeJSON(cmd *cobra.Command, value any, options Options) {
 		return
 	}
 	merged["build"] = buildBytes
-	enc := json.NewEncoder(cmd.OutOrStdout())
+	enc := json.NewEncoder(out)
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(merged)
 }
@@ -360,8 +288,8 @@ type jsonInputErrorReport struct {
 	Error  string          `json:"error"`
 }
 
-func emitJSONInputError(cmd *cobra.Command, action, errMsg string, options Options) error {
-	encoder := json.NewEncoder(cmd.OutOrStdout())
+func emitJSONInputError(out io.Writer, action, errMsg string, options Options) error {
+	encoder := json.NewEncoder(out)
 	encoder.SetIndent("", "  ")
 	_ = encoder.Encode(jsonInputErrorReport{
 		Build:  options.buildProvenance(),

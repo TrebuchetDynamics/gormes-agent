@@ -105,8 +105,8 @@ type ModelRegistryEntry struct {
 const OllamaCloudProviderID = "ollama-cloud"
 
 func NormalizeProviderModelID(provider, model string) string {
-	model = strings.TrimSpace(model)
-	if normalizeModelRegistryProvider(provider) == OllamaCloudProviderID {
+	model = NormalizeModelForProvider(model, provider)
+	if normalizeModelProviderAlias(provider) == OllamaCloudProviderID {
 		return NormalizeOllamaCloudModelID(model)
 	}
 	return model

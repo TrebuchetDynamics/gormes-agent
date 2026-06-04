@@ -27,9 +27,9 @@ const (
 	ManagedGatewayEvidenceUnavailable ManagedGatewayEvidence = "gateway_unavailable"
 
 	// ManagedGatewayEvidenceAuthRequired signals the gateway rejected the
-	// supplied bearer token. Callers should drive recovery through the
-	// shared MCP OAuth refresh path; no tools are registered until the
-	// bridge re-discovers successfully.
+	// supplied bearer token or could not negotiate a required MCP session.
+	// Callers should drive recovery through the shared MCP OAuth refresh path;
+	// no tools are registered until the bridge re-discovers successfully.
 	ManagedGatewayEvidenceAuthRequired ManagedGatewayEvidence = "auth_required"
 
 	// ManagedGatewayEvidenceSchemaRejected signals discovery succeeded but
@@ -285,31 +285,30 @@ func (b *ManagedGatewayBridge) Close() error {
 }
 
 // classifyDiscoverError maps an Initialize/ListTools failure onto the
-// operator-visible evidence enum. Auth failures are routed through the
-// shared MCP OAuth recovery path; everything else (connectivity, 5xx,
-// timeouts) is indistinguishable to the caller and surfaces as
+// operator-visible evidence enum. Auth/session-negotiation failures are routed
+// through the shared MCP OAuth recovery path; everything else (connectivity,
+// 5xx, timeouts) is indistinguishable to the caller and surfaces as
 // gateway_unavailable so degraded-mode reporting stays consistent.
 func classifyDiscoverError(err error) ManagedGatewayEvidence {
 	if err == nil {
 		return ManagedGatewayEvidenceOK
 	}
-	if errors.Is(err, ErrAuthRequired) {
+	if errors.Is(err, ErrAuthRequired) || errors.Is(err, ErrMCPSessionRequired) || errors.Is(err, ErrMCPOAuthNoninteractiveRequired) {
 		return ManagedGatewayEvidenceAuthRequired
 	}
 	return ManagedGatewayEvidenceUnavailable
 }
 
 // classifyCallToolError maps a tools/call transport failure onto the
-// evidence enum. Auth failures route to auth_required so the caller can
-// drive recovery via the MCP OAuth refresh contract; every other transport
-// failure (timeouts, JSON-RPC errors, body decode errors) surfaces as
-// tool_call_failed because the call itself never produced a structured
-// result.
+// evidence enum. Auth/session-negotiation failures route to auth_required so
+// the caller can drive recovery via the MCP OAuth refresh contract; every other
+// transport failure (timeouts, JSON-RPC errors, body decode errors) surfaces as
+// tool_call_failed because the call itself never produced a structured result.
 func classifyCallToolError(err error) ManagedGatewayEvidence {
 	if err == nil {
 		return ManagedGatewayEvidenceOK
 	}
-	if errors.Is(err, ErrAuthRequired) {
+	if errors.Is(err, ErrAuthRequired) || errors.Is(err, ErrMCPSessionRequired) || errors.Is(err, ErrMCPOAuthNoninteractiveRequired) {
 		return ManagedGatewayEvidenceAuthRequired
 	}
 	return ManagedGatewayEvidenceToolCallFailed

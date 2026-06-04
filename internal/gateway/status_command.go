@@ -57,7 +57,7 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 	}
 	agentRunning := "No"
 	if m.hasActiveTurn() {
-		agentRunning = "Yes"
+		agentRunning = "Yes ⚡"
 	}
 	platforms := m.connectedPlatforms()
 	if len(platforms) == 0 && strings.TrimSpace(ev.Platform) != "" {
@@ -77,8 +77,11 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 		"**Title:** " + esc(title),
 		"**Created:** " + esc(created),
 		"**Last Activity:** " + esc(lastActivity),
-		fmt.Sprintf("**Tokens:** %d", tokens),
+		fmt.Sprintf("**Cumulative API tokens (re-sent each call):** %s", formatStatusTokenTotal(tokens)),
 		"**Agent Running:** " + agentRunning,
+	}
+	if queueDepth := m.followUpQueueDepth(); queueDepth > 0 {
+		lines = append(lines, fmt.Sprintf("**Queued follow-ups:** %d", queueDepth))
 	}
 	if route.Enabled {
 		lines = append(lines,
@@ -179,6 +182,33 @@ func statusCreatedAt(sessionID string) string {
 
 func formatStatusTime(t time.Time) string {
 	return t.Local().Format("2006-01-02 15:04")
+}
+
+func formatStatusTokenTotal(tokens int) string {
+	raw := fmt.Sprintf("%d", tokens)
+	negative := strings.HasPrefix(raw, "-")
+	digits := raw
+	if negative {
+		digits = strings.TrimPrefix(raw, "-")
+	}
+	if len(digits) <= 3 {
+		return raw
+	}
+	leading := len(digits) % 3
+	if leading == 0 {
+		leading = 3
+	}
+	var out strings.Builder
+	out.Grow(len(raw) + len(digits)/3)
+	if negative {
+		out.WriteByte('-')
+	}
+	out.WriteString(digits[:leading])
+	for i := leading; i < len(digits); i += 3 {
+		out.WriteByte(',')
+		out.WriteString(digits[i : i+3])
+	}
+	return out.String()
 }
 
 func (m *Manager) persistStatusSession(ctx context.Context, sessionKey, sessionID string) {

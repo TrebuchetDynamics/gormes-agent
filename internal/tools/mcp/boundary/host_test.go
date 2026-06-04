@@ -3,11 +3,13 @@ package boundary
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/access"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/oauth"
 )
 
 // TestToolDeclaration_RendersProviderSchemaAndMCPMetadata proves that a single
@@ -302,6 +304,206 @@ func TestMCPHostAudit_RecordsServerToolNameAndRedactionStatus(t *testing.T) {
 	}
 }
 
+func TestMCPHostAudit_ListFailureUsesUnavailableEvidence(t *testing.T) {
+	t.Parallel()
+
+	secretValue := "supersecretvalue9876"
+	host := newFakeMCPHost()
+	host.listErr = errors.New("dial failed with token " + secretValue)
+	auditor := &fakeMCPAuditor{}
+	filter := ToolFilter{Channel: "slack", TrustClass: access.TrustClassOperator}
+
+	res := RunFiltered(context.Background(), host, filter, auditor,
+		"honcho", "honcho_chat",
+		map[string]any{"token": secretValue, "peer": "alice"},
+		true,
+	)
+	if res.Status != ResultStatusUnavailable {
+		t.Fatalf("status = %q, want %q", res.Status, ResultStatusUnavailable)
+	}
+	if !strings.Contains(res.Reason, HostUnavailableEvidence) {
+		t.Fatalf("reason = %q, want unavailable evidence %q", res.Reason, HostUnavailableEvidence)
+	}
+	if strings.Contains(res.Reason, secretValue) || strings.Contains(res.Reason, "alice") {
+		t.Fatalf("reason leaked argument or transport detail: %q", res.Reason)
+	}
+	if host.invoked {
+		t.Fatal("RunFiltered invoked host despite List failure")
+	}
+
+	if len(auditor.events) != 1 {
+		t.Fatalf("audit events = %d, want 1", len(auditor.events))
+	}
+	ev := auditor.events[0]
+	if ev.Status != ResultStatusUnavailable {
+		t.Fatalf("audit status = %q, want %q", ev.Status, ResultStatusUnavailable)
+	}
+	if !ev.Unavailable {
+		t.Fatal("audit event must be marked Unavailable")
+	}
+	if !strings.Contains(ev.Reason, HostUnavailableEvidence) {
+		t.Fatalf("audit reason = %q, want unavailable evidence", ev.Reason)
+	}
+	if strings.Contains(ev.Reason, secretValue) || strings.Contains(ev.Reason, "alice") {
+		t.Fatalf("audit reason leaked argument or transport detail: %q", ev.Reason)
+	}
+}
+
+func TestMCPHostAudit_InvokeAuthRequiredUsesAuthRequiredEvidence(t *testing.T) {
+	t.Parallel()
+
+	secretValue := "supersecretvalue9876"
+	host := newFakeMCPHost()
+	host.tools["honcho_chat"] = fakeMCPTool{
+		decl: ToolDeclaration{
+			ServerName: "honcho",
+			ToolName:   "honcho_chat",
+		},
+		result: Result{Status: ResultStatusOK, Body: []byte(`{"ok":true}`)},
+	}
+	host.invokeErr = oauth.ErrNoninteractiveRequired
+	auditor := &fakeMCPAuditor{}
+	filter := ToolFilter{Channel: "slack", TrustClass: access.TrustClassOperator}
+
+	res := RunFiltered(context.Background(), host, filter, auditor,
+		"honcho", "honcho_chat",
+		map[string]any{"token": secretValue, "peer": "alice"},
+		true,
+	)
+	if res.Status != ResultStatusAuthRequired {
+		t.Fatalf("status = %q, want %q", res.Status, ResultStatusAuthRequired)
+	}
+	if !strings.Contains(res.Reason, HostAuthRequiredEvidence) {
+		t.Fatalf("reason = %q, want auth-required evidence %q", res.Reason, HostAuthRequiredEvidence)
+	}
+	if strings.Contains(res.Reason, secretValue) || strings.Contains(res.Reason, "alice") {
+		t.Fatalf("reason leaked argument detail: %q", res.Reason)
+	}
+	if !host.invoked {
+		t.Fatal("RunFiltered did not call host Invoke before reporting auth-required error")
+	}
+
+	if len(auditor.events) != 1 {
+		t.Fatalf("audit events = %d, want 1", len(auditor.events))
+	}
+	ev := auditor.events[0]
+	if ev.Status != ResultStatusAuthRequired {
+		t.Fatalf("audit status = %q, want %q", ev.Status, ResultStatusAuthRequired)
+	}
+	if ev.Unavailable {
+		t.Fatal("auth-required audit event must not be marked unavailable")
+	}
+	if !ev.AuthRequired {
+		t.Fatal("auth-required audit event must set AuthRequired=true")
+	}
+	if !strings.Contains(ev.Reason, HostAuthRequiredEvidence) {
+		t.Fatalf("audit reason = %q, want auth-required evidence", ev.Reason)
+	}
+	if strings.Contains(ev.Reason, secretValue) || strings.Contains(ev.Reason, "alice") {
+		t.Fatalf("audit reason leaked argument detail: %q", ev.Reason)
+	}
+}
+
+func TestMCPHostAudit_InvokeErrorUsesUnavailableEvidence(t *testing.T) {
+	t.Parallel()
+
+	secretValue := "supersecretvalue9876"
+	host := newFakeMCPHost()
+	host.tools["honcho_chat"] = fakeMCPTool{
+		decl: ToolDeclaration{
+			ServerName: "honcho",
+			ToolName:   "honcho_chat",
+		},
+		result: Result{Status: ResultStatusOK, Body: []byte(`{"ok":true}`)},
+	}
+	host.invokeErr = errors.New("write failed with token " + secretValue)
+	auditor := &fakeMCPAuditor{}
+	filter := ToolFilter{Channel: "slack", TrustClass: access.TrustClassOperator}
+
+	res := RunFiltered(context.Background(), host, filter, auditor,
+		"honcho", "honcho_chat",
+		map[string]any{"token": secretValue, "peer": "alice"},
+		true,
+	)
+	if res.Status != ResultStatusUnavailable {
+		t.Fatalf("status = %q, want %q", res.Status, ResultStatusUnavailable)
+	}
+	if !strings.Contains(res.Reason, HostUnavailableEvidence) {
+		t.Fatalf("reason = %q, want unavailable evidence %q", res.Reason, HostUnavailableEvidence)
+	}
+	if strings.Contains(res.Reason, secretValue) || strings.Contains(res.Reason, "alice") {
+		t.Fatalf("reason leaked argument or transport detail: %q", res.Reason)
+	}
+	if !host.invoked {
+		t.Fatal("RunFiltered did not call host Invoke before reporting invoke error")
+	}
+
+	if len(auditor.events) != 1 {
+		t.Fatalf("audit events = %d, want 1", len(auditor.events))
+	}
+	ev := auditor.events[0]
+	if ev.Status != ResultStatusUnavailable {
+		t.Fatalf("audit status = %q, want %q", ev.Status, ResultStatusUnavailable)
+	}
+	if !ev.Unavailable {
+		t.Fatal("audit event must be marked Unavailable")
+	}
+	if !strings.Contains(ev.Reason, HostUnavailableEvidence) {
+		t.Fatalf("audit reason = %q, want unavailable evidence", ev.Reason)
+	}
+	if strings.Contains(ev.Reason, secretValue) || strings.Contains(ev.Reason, "alice") {
+		t.Fatalf("audit reason leaked argument or transport detail: %q", ev.Reason)
+	}
+}
+
+func TestMCPHostAudit_AuthRequiredResultUsesRedactedEvidence(t *testing.T) {
+	t.Parallel()
+
+	secretValue := "supersecretvalue9876"
+	host := newFakeMCPHost()
+	host.tools["auth_tool"] = fakeMCPTool{
+		decl: ToolDeclaration{
+			ServerName: "honcho",
+			ToolName:   "auth_tool",
+		},
+		result: Result{
+			Status: ResultStatusAuthRequired,
+			Reason: "oauth failed with token " + secretValue,
+		},
+	}
+	auditor := &fakeMCPAuditor{}
+	filter := ToolFilter{Channel: "slack", TrustClass: access.TrustClassOperator}
+
+	res := RunFiltered(context.Background(), host, filter, auditor,
+		"honcho", "auth_tool",
+		map[string]any{"token": secretValue, "peer": "alice"},
+		true,
+	)
+	if res.Status != ResultStatusAuthRequired {
+		t.Fatalf("status = %q, want %q", res.Status, ResultStatusAuthRequired)
+	}
+	if !strings.Contains(res.Reason, HostAuthRequiredEvidence) {
+		t.Fatalf("reason = %q, want auth-required evidence %q", res.Reason, HostAuthRequiredEvidence)
+	}
+	if strings.Contains(res.Reason, secretValue) || strings.Contains(res.Reason, "alice") {
+		t.Fatalf("reason leaked argument or auth detail: %q", res.Reason)
+	}
+
+	if len(auditor.events) != 1 {
+		t.Fatalf("audit events = %d, want 1", len(auditor.events))
+	}
+	ev := auditor.events[0]
+	if ev.Status != ResultStatusAuthRequired {
+		t.Fatalf("audit status = %q, want %q", ev.Status, ResultStatusAuthRequired)
+	}
+	if !strings.Contains(ev.Reason, HostAuthRequiredEvidence) {
+		t.Fatalf("audit reason = %q, want auth-required evidence", ev.Reason)
+	}
+	if strings.Contains(ev.Reason, secretValue) || strings.Contains(ev.Reason, "alice") {
+		t.Fatalf("audit reason leaked argument or auth detail: %q", ev.Reason)
+	}
+}
+
 // TestMCPHostAudit_UnavailableEvidence proves that unavailable MCP servers
 // produce mcp_host_unavailable evidence in the audit event and do not leak
 // secret/argument substrings into the rendered Reason.
@@ -361,8 +563,10 @@ func TestMCPHostAudit_UnavailableEvidence(t *testing.T) {
 
 // fakeMCPHost is an in-memory MCPHost used only by these tests.
 type fakeMCPHost struct {
-	tools   map[string]fakeMCPTool
-	invoked bool
+	tools     map[string]fakeMCPTool
+	listErr   error
+	invokeErr error
+	invoked   bool
 }
 
 func newFakeMCPHost() *fakeMCPHost {
@@ -375,6 +579,9 @@ type fakeMCPTool struct {
 }
 
 func (f *fakeMCPHost) List(_ context.Context) ([]ToolDeclaration, error) {
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
 	out := make([]ToolDeclaration, 0, len(f.tools))
 	for _, t := range f.tools {
 		out = append(out, t.decl)
@@ -384,6 +591,9 @@ func (f *fakeMCPHost) List(_ context.Context) ([]ToolDeclaration, error) {
 
 func (f *fakeMCPHost) Invoke(_ context.Context, server, tool string, _ map[string]any) (Result, error) {
 	f.invoked = true
+	if f.invokeErr != nil {
+		return Result{}, f.invokeErr
+	}
 	t, ok := f.tools[tool]
 	if !ok {
 		return Result{Status: ResultStatusUnavailable, Reason: "no such tool"}, nil

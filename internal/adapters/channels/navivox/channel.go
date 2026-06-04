@@ -29,8 +29,10 @@ const PlatformName = "navivox"
 var vpnHostLister = vpnhost.List
 
 type Channel struct {
-	cfg config.NavivoxCfg
-	log *slog.Logger
+	cfg          config.NavivoxCfg
+	log          *slog.Logger
+	gatewayID    string
+	gatewayLabel string
 
 	now   func() time.Time
 	newID func() string
@@ -73,6 +75,18 @@ func NewChannel(cfg config.NavivoxCfg, log *slog.Logger, opts ...ChannelOption) 
 	if err := config.ValidateNavivoxForRuntime(&cfg); err != nil {
 		return nil, err
 	}
+	gatewayID := strings.TrimSpace(cfg.GatewayID)
+	if gatewayID == "" {
+		generated, err := config.NewNavivoxGatewayID()
+		if err != nil {
+			return nil, err
+		}
+		gatewayID = generated
+	}
+	gatewayLabel := strings.TrimSpace(cfg.GatewayLabel)
+	if gatewayLabel == "" {
+		gatewayLabel = config.NavivoxDefaultGatewayLabel
+	}
 	if cfg.Enabled && config.NavivoxExposureRequiresVPN(cfg.ExposureMode) {
 		hosts, _ := vpnHostLister(context.Background())
 		ips := make([]string, 0, len(hosts)*2)
@@ -91,6 +105,8 @@ func NewChannel(cfg config.NavivoxCfg, log *slog.Logger, opts ...ChannelOption) 
 	ch := &Channel{
 		cfg:                cfg,
 		log:                log,
+		gatewayID:          gatewayID,
+		gatewayLabel:       gatewayLabel,
 		now:                func() time.Time { return time.Now().UTC() },
 		newID:              randomID,
 		sessions:           map[string]*sessionState{},
@@ -384,10 +400,13 @@ func (c *Channel) handleStatus(w http.ResponseWriter, r *http.Request, _ string)
 	c.mu.Unlock()
 	writeNavivoxJSON(w, http.StatusOK, map[string]any{
 		"enabled":             c.cfg.Enabled,
+		"gateway_id":          c.gatewayID,
+		"gateway_label":       c.gatewayLabel,
 		"bind_host":           c.cfg.BindHost,
 		"port":                c.cfg.Port,
 		"exposure_mode":       c.cfg.ExposureMode,
 		"auth_mode":           c.cfg.AuthMode,
+		"transport_security":  navivoxTransportSecurityStatusForRequest(r, c.cfg),
 		"profile_routing":     c.profileRouting,
 		"protocol_version":    navivoxWebSocketProtocol,
 		"websocket_protocols": []string{navivoxWebSocketProtocol},
@@ -413,6 +432,39 @@ func (c *Channel) handleStatus(w http.ResponseWriter, r *http.Request, _ string)
 		"sessions":       sessionCount,
 		"ws_connections": clientCount,
 	})
+}
+
+type navivoxTransportSecurityStatus struct {
+	EffectiveSecurity         string `json:"effective_security"`
+	ExposureMode              string `json:"exposure_mode"`
+	TLS                       bool   `json:"tls"`
+	PrivateNetwork            bool   `json:"private_network"`
+	DurableCredentialsAllowed bool   `json:"durable_credentials_allowed"`
+}
+
+func navivoxTransportSecurityStatusForRequest(r *http.Request, cfg config.NavivoxCfg) navivoxTransportSecurityStatus {
+	tls := r != nil && r.TLS != nil
+	privateNetwork := config.NavivoxExposureRequiresVPN(cfg.ExposureMode)
+	return navivoxTransportSecurityStatus{
+		EffectiveSecurity:         navivoxEffectiveTransportSecurity(tls, privateNetwork, cfg.ExposureMode),
+		ExposureMode:              cfg.ExposureMode,
+		TLS:                       tls,
+		PrivateNetwork:            privateNetwork,
+		DurableCredentialsAllowed: false,
+	}
+}
+
+func navivoxEffectiveTransportSecurity(tls, privateNetwork bool, exposureMode string) string {
+	if tls {
+		return "tls"
+	}
+	if privateNetwork {
+		return "private_network"
+	}
+	if exposureMode == config.NavivoxExposureLocal {
+		return "loopback"
+	}
+	return "insecure"
 }
 
 func (c *Channel) handleProfileContacts(w http.ResponseWriter, r *http.Request, _ string) {
@@ -597,6 +649,8 @@ func statusForNavivoxError(err error) int {
 		return http.StatusUnauthorized
 	case "not_found":
 		return http.StatusNotFound
+	case "request_too_large":
+		return http.StatusRequestEntityTooLarge
 	case "timeout":
 		return http.StatusGatewayTimeout
 	default:

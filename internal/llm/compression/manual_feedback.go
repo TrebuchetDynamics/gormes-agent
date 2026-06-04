@@ -37,13 +37,13 @@ func SummarizeManualCompression[T any](before, after []T, beforeTokens, afterTok
 		if afterTokens == beforeTokens {
 			out.TokenLine = "Approx request size: ~" + commaInt(beforeTokens) + " tokens (unchanged)"
 		} else {
-			out.TokenLine = "Approx request size: ~" + commaInt(beforeTokens) + " -> ~" + commaInt(afterTokens) + " tokens"
+			out.TokenLine = "Approx request size: ~" + commaInt(beforeTokens) + " → ~" + commaInt(afterTokens) + " tokens"
 		}
 		return out
 	}
 
-	out.Headline = "Compressed: " + strconv.Itoa(beforeCount) + " -> " + strconv.Itoa(afterCount) + " messages"
-	out.TokenLine = "Approx request size: ~" + commaInt(beforeTokens) + " -> ~" + commaInt(afterTokens) + " tokens"
+	out.Headline = "Compressed: " + strconv.Itoa(beforeCount) + " → " + strconv.Itoa(afterCount) + " messages"
+	out.TokenLine = "Approx request size: ~" + commaInt(beforeTokens) + " → ~" + commaInt(afterTokens) + " tokens"
 	if afterCount < beforeCount && afterTokens > beforeTokens {
 		out.Note = "Note: fewer messages can still raise this estimate when compression rewrites the transcript into denser summaries."
 	}

@@ -1,9 +1,40 @@
 package version
 
 import (
+	"bytes"
+	"encoding/json"
 	"runtime/debug"
+	"strings"
 	"testing"
 )
+
+func TestRunHumanFormatMarksDirtyBuild(t *testing.T) {
+	var out bytes.Buffer
+	if err := Run(&out, Info{Version: "1.2.3", GitDirty: "true"}, false); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if got, want := strings.TrimSpace(out.String()), "gormes 1.2.3 (dirty)"; got != want {
+		t.Fatalf("human output = %q, want %q", got, want)
+	}
+}
+
+func TestRunJSONIncludesBinaryIdentity(t *testing.T) {
+	var out bytes.Buffer
+	info := Info{Version: "1.2.3", DateAlias: "v2026.1.2", GitCommit: "abcdef123", GitDirty: "false", BuildDate: "2026-01-02T03:04:05Z"}
+	if err := Run(&out, info, true); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	var got ReportJSON
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, out.String())
+	}
+	if got.Version != info.Version || got.DateAlias != info.DateAlias || got.GitCommit != info.GitCommit || got.BuildDate != info.BuildDate {
+		t.Fatalf("report = %+v, want identity from %+v", got, info)
+	}
+	if got.GoVersion == "" || got.OS == "" || got.Arch == "" {
+		t.Fatalf("platform fields missing: %+v", got)
+	}
+}
 
 func TestResolveGitCommitFrom(t *testing.T) {
 	if got := ResolveGitCommitFrom("a07b1d50c", []debug.BuildSetting{{Key: "vcs.revision", Value: "deadbeefdeadbeef"}}); got != "a07b1d50c" {

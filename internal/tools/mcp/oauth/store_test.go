@@ -90,6 +90,47 @@ func TestStoreValidWhenFutureExpiresAt(t *testing.T) {
 	}
 }
 
+func TestStoreMissingAccessTokenIsExpiredEvenWithFutureExpiry(t *testing.T) {
+	store := NewStore()
+	t0 := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
+	if err := store.Set("srv", Token{
+		RefreshToken: "refresh-1",
+		ExpiresAt:    t0.Add(time.Hour),
+	}); err != nil {
+		t.Fatalf("Set returned error: %v", err)
+	}
+
+	got := store.StatusFor("srv", t0)
+
+	if got.State != StateExpired {
+		t.Fatalf("State = %q, want %q", got.State, StateExpired)
+	}
+	if got.Evidence != "token_expired" {
+		t.Fatalf("Evidence = %q, want token_expired", got.Evidence)
+	}
+}
+
+func TestStoreNoninteractiveExpiredWithoutRefreshTokenRequiresAuth(t *testing.T) {
+	store := NewStore().WithNoninteractive(true)
+	t0 := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
+	if err := store.Set("srv", Token{
+		AccessToken:  "access-1",
+		RefreshToken: " \t\n ",
+		ExpiresAt:    t0.Add(-time.Minute),
+	}); err != nil {
+		t.Fatalf("Set returned error: %v", err)
+	}
+
+	got := store.StatusFor("srv", t0)
+
+	if got.State != StateNoninteractiveRequired {
+		t.Fatalf("State = %q, want %q", got.State, StateNoninteractiveRequired)
+	}
+	if got.Evidence != "noninteractive_auth_unavailable" {
+		t.Fatalf("Evidence = %q, want noninteractive_auth_unavailable", got.Evidence)
+	}
+}
+
 func TestStoreStatusRedactsSecrets(t *testing.T) {
 	store := NewStore()
 	t0 := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)

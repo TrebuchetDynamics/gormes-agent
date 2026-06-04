@@ -121,6 +121,12 @@ func (k *Kernel) executeToolCallsInterruptible(runCtx context.Context, calls []l
 		}
 	}
 
+	if k.cfg.SubdirectoryHints != nil {
+		for i, call := range calls {
+			results[i] = k.appendSubdirectoryHint(call, results[i])
+		}
+	}
+
 	for _, rec := range auditRecords {
 		k.recordToolAudit(rec)
 	}
@@ -509,6 +515,36 @@ func newToolResult(call llm.ToolCall, payload json.RawMessage) toolResult {
 		result.ContentParts = parts
 	}
 	return result
+}
+
+func (k *Kernel) appendSubdirectoryHint(call llm.ToolCall, result toolResult) toolResult {
+	if k == nil || k.cfg.SubdirectoryHints == nil {
+		return result
+	}
+	var args map[string]any
+	if len(call.Arguments) == 0 || json.Unmarshal(call.Arguments, &args) != nil || len(args) == 0 {
+		return result
+	}
+	hint := k.cfg.SubdirectoryHints.CheckToolCall(call.Name, args).Text
+	if strings.TrimSpace(hint) == "" {
+		return result
+	}
+	result.Content += hint
+	if len(result.ContentParts) > 0 {
+		result.ContentParts = appendSubdirectoryHintToContentParts(result.ContentParts, hint)
+	}
+	return result
+}
+
+func appendSubdirectoryHintToContentParts(parts []llm.MessageContentPart, hint string) []llm.MessageContentPart {
+	out := cloneMessageContentParts(parts)
+	for i := range out {
+		if strings.EqualFold(out[i].Type, "text") {
+			out[i].Text += hint
+			return out
+		}
+	}
+	return append([]llm.MessageContentPart{{Type: "text", Text: hint}}, out...)
 }
 
 func multimodalToolResult(payload json.RawMessage) (string, []llm.MessageContentPart, bool) {

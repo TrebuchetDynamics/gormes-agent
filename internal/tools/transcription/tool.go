@@ -126,35 +126,59 @@ func (r *TranscriptionRunner) Transcribe(ctx context.Context, req TranscriptionR
 	if validation := validateTranscriptionAudio(audioPath, cfg.maxBytes()); validation.Evidence != "" {
 		return validation
 	}
-	providerName, provider, evidence := r.selectProvider(ctx, req.Provider)
+	candidates, explicit, evidence := r.selectProviderCandidates(ctx, req.Provider)
 	if evidence != "" {
 		requested := firstNonEmptyTranscription(req.Provider, cfg.Provider, "auto")
 		return transcriptionFailure(requested, "", firstNonEmptyTranscription(req.Language, cfg.Language), evidence, "no STT provider available")
 	}
-	model := normalizeTranscriptionModel(providerName, firstNonEmptyTranscription(req.Model, cfg.modelFor(providerName)))
 	language := firstNonEmptyTranscription(req.Language, cfg.Language)
-	providerResult, err := provider.Transcribe(ctx, TranscriptionProviderRequest{
-		AudioPath: audioPath,
-		Provider:  providerName,
-		Model:     model,
-		Language:  language,
-		Format:    strings.TrimSpace(req.Format),
-	})
-	if err != nil {
-		return transcriptionFailure(providerName, model, language, TranscriptionEvidenceAPIError, redactTranscriptionText(err.Error()))
+	var lastFailure TranscriptionResult
+	for _, candidate := range candidates {
+		providerName := candidate.name
+		provider := candidate.provider
+		model := normalizeTranscriptionModel(providerName, firstNonEmptyTranscription(req.Model, cfg.modelFor(providerName)))
+		providerResult, err := provider.Transcribe(ctx, TranscriptionProviderRequest{
+			AudioPath: audioPath,
+			Provider:  providerName,
+			Model:     model,
+			Language:  language,
+			Format:    strings.TrimSpace(req.Format),
+		})
+		if err != nil {
+			lastFailure = transcriptionFailure(providerName, model, language, TranscriptionEvidenceAPIError, redactTranscriptionText(err.Error()))
+			if !explicit && isLocalTranscriptionProvider(providerName) {
+				continue
+			}
+			return lastFailure
+		}
+		transcript := strings.TrimSpace(providerResult.Transcript)
+		if isBadLocalTranscript(providerName, transcript) {
+			lastFailure = transcriptionFailure(providerName, model, language, TranscriptionEvidenceAPIError, "provider returned a low-confidence transcript")
+			if !explicit {
+				continue
+			}
+			return lastFailure
+		}
+		if transcript == "" {
+			lastFailure = transcriptionFailure(providerName, model, language, TranscriptionEvidenceAPIError, "provider returned an empty transcript")
+			if !explicit {
+				continue
+			}
+			return lastFailure
+		}
+		return TranscriptionResult{
+			Success:    true,
+			Transcript: transcript,
+			Provider:   firstNonEmptyTranscription(providerResult.Provider, providerName),
+			Model:      firstNonEmptyTranscription(providerResult.Model, model),
+			Language:   firstNonEmptyTranscription(providerResult.Language, language),
+			Evidence:   TranscriptionEvidenceOK,
+		}
 	}
-	transcript := strings.TrimSpace(providerResult.Transcript)
-	if transcript == "" {
-		return transcriptionFailure(providerName, model, language, TranscriptionEvidenceAPIError, "provider returned an empty transcript")
+	if lastFailure.Evidence != "" {
+		return lastFailure
 	}
-	return TranscriptionResult{
-		Success:    true,
-		Transcript: transcript,
-		Provider:   firstNonEmptyTranscription(providerResult.Provider, providerName),
-		Model:      firstNonEmptyTranscription(providerResult.Model, model),
-		Language:   firstNonEmptyTranscription(providerResult.Language, language),
-		Evidence:   TranscriptionEvidenceOK,
-	}
+	return transcriptionFailure(firstNonEmptyTranscription(req.Provider, cfg.Provider, "auto"), "", language, TranscriptionEvidenceProviderUnavailable, "no STT provider available")
 }
 
 func (c TranscriptionConfig) maxBytes() int64 {
@@ -181,22 +205,39 @@ func (c TranscriptionConfig) modelFor(provider string) string {
 	}
 }
 
+type transcriptionProviderCandidate struct {
+	name     string
+	provider TranscriptionProvider
+}
+
 func (r *TranscriptionRunner) selectProvider(ctx context.Context, requested string) (string, TranscriptionProvider, TranscriptionEvidence) {
+	candidates, _, evidence := r.selectProviderCandidates(ctx, requested)
+	if evidence != "" || len(candidates) == 0 {
+		return "", nil, evidence
+	}
+	return candidates[0].name, candidates[0].provider, ""
+}
+
+func (r *TranscriptionRunner) selectProviderCandidates(ctx context.Context, requested string) ([]transcriptionProviderCandidate, bool, TranscriptionEvidence) {
 	explicit := normalizeTranscriptionProviderName(firstNonEmptyTranscription(requested, r.cfg.Provider))
 	if explicit != "" && explicit != "auto" {
 		provider := r.providers[explicit]
 		if provider == nil || !provider.Available(ctx) {
-			return "", nil, TranscriptionEvidenceProviderUnavailable
+			return nil, true, TranscriptionEvidenceProviderUnavailable
 		}
-		return explicit, provider, ""
+		return []transcriptionProviderCandidate{{name: explicit, provider: provider}}, true, ""
 	}
+	var candidates []transcriptionProviderCandidate
 	for _, name := range []string{"local", "local_command", "groq", "openai", "mistral", "xai"} {
 		provider := r.providers[name]
 		if provider != nil && provider.Available(ctx) {
-			return name, provider, ""
+			candidates = append(candidates, transcriptionProviderCandidate{name: name, provider: provider})
 		}
 	}
-	return "", nil, TranscriptionEvidenceProviderUnavailable
+	if len(candidates) == 0 {
+		return nil, false, TranscriptionEvidenceProviderUnavailable
+	}
+	return candidates, false, ""
 }
 
 func validateTranscriptionAudio(path string, maxBytes int64) TranscriptionResult {
@@ -220,6 +261,41 @@ func validateTranscriptionAudio(path string, maxBytes int64) TranscriptionResult
 		return transcriptionFailure("", "", "", TranscriptionEvidenceAudioTooLarge, fmt.Sprintf("audio file exceeds max bytes (%d)", maxBytes))
 	}
 	return TranscriptionResult{}
+}
+
+func isLocalTranscriptionProvider(provider string) bool {
+	switch normalizeTranscriptionProviderName(provider) {
+	case "local", "local_command":
+		return true
+	default:
+		return false
+	}
+}
+
+func isBadLocalTranscript(provider, transcript string) bool {
+	if !isLocalTranscriptionProvider(provider) {
+		return false
+	}
+	trimmed := strings.TrimSpace(transcript)
+	if trimmed == "" {
+		return true
+	}
+	content := strings.Trim(strings.ToLower(trimmed), " .,…!?;:-_\t\n\r")
+	if content == "" {
+		return true
+	}
+	switch content {
+	case "blank_audio", "blank audio", "silence", "no speech", "music", "noise", "inaudible":
+		return true
+	}
+	if strings.HasPrefix(content, "[") && strings.HasSuffix(content, "]") {
+		marker := strings.Trim(content, "[] ")
+		switch marker {
+		case "blank_audio", "blank audio", "silence", "no speech", "music", "noise", "inaudible":
+			return true
+		}
+	}
+	return false
 }
 
 func supportedTranscriptionExt(ext string) bool {

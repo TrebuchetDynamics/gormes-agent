@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -24,26 +22,10 @@ var logsHTTPClient = gormescli.NewLogsHTTPClient(5 * time.Second)
 var logsEndpointURL = "http://127.0.0.1:43827/api/logs"
 
 func newLogsCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "logs",
-		Short: "Show recent Gormes gateway logs",
-		RunE:  runLogs,
-	}
-	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, source: 'gateway'|'file', entries|content, path}")
-	return cmd
-}
-
-// logsReportJSON is the wire shape for `logs --json`. Fleet log
-// aggregation pipelines parse this to ingest entries directly.
-// `source: "gateway"` means a live gateway responded; `source: "file"`
-// means we fell back to the on-disk log file (raw content). `entries`
-// is populated only on the gateway path; `content`/`path` only on file.
-type logsReportJSON struct {
-	Build   buildProvenanceJSON `json:"build"`
-	Source  string              `json:"source"`
-	Entries []logsEntryJSON     `json:"entries,omitempty"`
-	Path    string              `json:"path,omitempty"`
-	Content string              `json:"content,omitempty"`
+	return gormescli.NewLogsCommand(func() gormescli.BuildProvenance {
+		provenance := newBuildProvenance()
+		return gormescli.BuildProvenance{Version: provenance.Version, GitCommit: provenance.GitCommit}
+	}, logsCommandOptions())
 }
 
 type logsEntryJSON = gormescli.LogsEntry
@@ -51,42 +33,7 @@ type logsEntryJSON = gormescli.LogsEntry
 type logsContent = gormescli.LogsContent
 
 func runLogs(cmd *cobra.Command, _ []string) error {
-	out := cmd.OutOrStdout()
-	asJSON, _ := cmd.Flags().GetBool("json")
-	content, err := readLogsContent()
-	if err != nil {
-		msg := fmt.Sprintf("no gateway running and no log file found: %v", err)
-		if asJSON {
-			return emitJSONInputError(cmd, "no_logs", msg)
-		}
-		return fmt.Errorf("%s", msg)
-	}
-	if asJSON {
-		body, marshalErr := json.MarshalIndent(logsReportJSON{
-			Build:   newBuildProvenance(),
-			Source:  content.Source,
-			Entries: content.Entries,
-			Path:    content.Path,
-			Content: content.Content,
-		}, "", "  ")
-		if marshalErr != nil {
-			return marshalErr
-		}
-		fmt.Fprintln(out, string(body))
-		return nil
-	}
-	if content.Source == "file" {
-		fmt.Fprint(out, content.Content)
-		return nil
-	}
-	if len(content.Entries) == 0 {
-		fmt.Fprintln(out, "No log entries.")
-		return nil
-	}
-	for _, line := range gormescli.FormatLogsEntries(content.Entries) {
-		fmt.Fprintln(out, line)
-	}
-	return nil
+	return gormescli.RunLogs(cmd, logsCommandOptions())
 }
 
 func readLogsContent() (logsContent, error) {
@@ -99,4 +46,12 @@ func readLogsTail(limit int) (string, error) {
 		return "", err
 	}
 	return gormescli.ReadLogsTail(content, limit), nil
+}
+
+func logsCommandOptions() gormescli.LogsCommandOptions {
+	return gormescli.LogsCommandOptions{
+		Client:      logsHTTPClient,
+		EndpointURL: logsEndpointURL,
+		LogPath:     config.LogPath(),
+	}
 }

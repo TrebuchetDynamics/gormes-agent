@@ -30,14 +30,17 @@ func TestOllamaCloudSuffixNormalization(t *testing.T) {
 	}
 }
 
-func TestNormalizeProviderModelIDStripsOnlyOllamaCloudSuffixes(t *testing.T) {
+func TestNormalizeProviderModelIDAppliesHermesProviderRulesAndOllamaCloudSuffixes(t *testing.T) {
 	t.Parallel()
 
 	if got := NormalizeProviderModelID("ollama-cloud", "kimi-k2.6:cloud"); got != "kimi-k2.6" {
 		t.Fatalf("ollama-cloud normalized model = %q, want kimi-k2.6", got)
 	}
-	if got := NormalizeProviderModelID("anthropic", "kimi-k2.6:cloud"); got != "kimi-k2.6:cloud" {
-		t.Fatalf("non-Ollama model = %q, want suffix preserved", got)
+	if got := NormalizeProviderModelID("anthropic", "claude-sonnet-4.6"); got != "claude-sonnet-4-6" {
+		t.Fatalf("anthropic model = %q, want claude-sonnet-4-6", got)
+	}
+	if got := NormalizeProviderModelID("opencode-go", "minimax/minimax-m2.7"); got != "minimax-m2.7" {
+		t.Fatalf("opencode-go model = %q, want minimax-m2.7", got)
 	}
 	if got := NormalizeProviderModelID("ollama_cloud", "qwen3-coder:480b-cloud"); got != "qwen3-coder:480b" {
 		t.Fatalf("ollama_cloud alias normalized model = %q, want qwen3-coder:480b", got)

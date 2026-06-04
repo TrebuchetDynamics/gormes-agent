@@ -45,6 +45,7 @@ type ProviderStatus struct {
 	Capabilities              ProviderCapabilities
 	TemperatureRetry          ProviderTemperatureRetryStatus
 	UnsupportedParameterRetry ProviderUnsupportedParameterRetryStatus
+	RateLimit                 RateLimitState
 }
 
 type providerStatusReporter interface {

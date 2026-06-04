@@ -1,15 +1,9 @@
 package main
 
 import (
-	"fmt"
-	"io"
-
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	cronapp "github.com/TrebuchetDynamics/gormes-agent/internal/app/cron"
 )
 
 func newCronCommand() *cobra.Command {
@@ -35,12 +29,12 @@ Examples:
 		Use:   "list",
 		Short: "List all cron jobs with status and last run time",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			store, smap, err := openCronStore(*dbFlag)
+			store, smap, err := cronapp.OpenStore(*dbFlag)
 			if err != nil {
 				return err
 			}
 			defer smap.Close()
-			return runCronList(cmd.OutOrStdout(), store)
+			return cronapp.ListJobs(cmd.OutOrStdout(), store)
 		},
 	}
 
@@ -50,12 +44,12 @@ Examples:
 		Short:   "Remove a cron job by ID (prefix matching supported)",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			store, smap, err := openCronStore(*dbFlag)
+			store, smap, err := cronapp.OpenStore(*dbFlag)
 			if err != nil {
 				return err
 			}
 			defer smap.Close()
-			return runCronRemove(cmd.OutOrStdout(), store, args[0])
+			return cronapp.RemoveJob(cmd.OutOrStdout(), store, args[0])
 		},
 	}
 
@@ -64,14 +58,14 @@ Examples:
 		Short: "Show detailed job info and recent run history",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			store, runStore, smap, err := openCronStoreWithRuns(*dbFlag)
+			store, runStore, smap, err := cronapp.OpenStoreWithRuns(*dbFlag)
 			if err != nil {
 				return err
 			}
 			if smap != nil {
 				defer smap.Close()
 			}
-			return runCronStatus(cmd.OutOrStdout(), store, runStore, args[0])
+			return cronapp.StatusJob(cmd.OutOrStdout(), store, runStore, args[0])
 		},
 	}
 
@@ -112,52 +106,4 @@ Examples:
 		}),
 	)
 	return cmd
-}
-
-func openCronStore(dbPath string) (*cron.Store, *session.BoltMap, error) {
-	if dbPath == "" {
-		dbPath = config.SessionDBPath()
-	}
-	smap, err := session.OpenBolt(dbPath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("open session DB %s: %w", dbPath, err)
-	}
-	store, err := cron.NewStore(smap.DB())
-	if err != nil {
-		smap.Close()
-		return nil, nil, fmt.Errorf("open cron store: %w", err)
-	}
-	return store, smap, nil
-}
-
-func openCronStoreWithRuns(dbPath string) (*cron.Store, *cron.RunStore, *session.BoltMap, error) {
-	if dbPath == "" {
-		dbPath = config.SessionDBPath()
-	}
-	smap, err := session.OpenBolt(dbPath)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("open session DB %s: %w", dbPath, err)
-	}
-	store, err := cron.NewStore(smap.DB())
-	if err != nil {
-		smap.Close()
-		return nil, nil, nil, fmt.Errorf("open cron store: %w", err)
-	}
-	return store, nil, smap, nil // RunStore needs sql.DB; not wired here yet
-}
-
-func runCronList(out io.Writer, store *cron.Store) error {
-	return gormescli.RunCronList(out, store)
-}
-
-func runCronRemove(out io.Writer, store *cron.Store, jobID string) error {
-	return gormescli.RunCronRemove(out, store, jobID)
-}
-
-func runCronStatus(out io.Writer, store *cron.Store, runStore *cron.RunStore, jobID string) error {
-	return gormescli.RunCronStatus(out, store, runStore, jobID)
-}
-
-func findJob(store *cron.Store, id string) *cron.Job {
-	return gormescli.FindCronJob(store, id)
 }

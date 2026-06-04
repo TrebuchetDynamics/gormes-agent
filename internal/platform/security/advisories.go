@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Security advisory subsystem for Gormes.
@@ -157,6 +158,181 @@ func FullRemediationText(hit AdvisoryHit) []string {
 		lines = append(lines, "  "+strconv.Itoa(i+1)+". "+step)
 	}
 	return lines
+}
+
+// RenderDoctorSection renders the security advisory section for `gormes doctor`.
+// It mirrors Hermes' render_doctor_section helper: no unacked hits is a clean
+// section, while each active hit expands to the full remediation block.
+func RenderDoctorSection(hits []AdvisoryHit, acked map[string]struct{}) (bool, []string) {
+	fresh := FilterUnacked(hits, acked)
+	if len(fresh) == 0 {
+		return false, []string{"No active security advisories.  ✓"}
+	}
+	lines := make([]string, 0, len(fresh)*10)
+	for i, hit := range fresh {
+		if i > 0 {
+			lines = append(lines, "")
+		}
+		lines = append(lines, FullRemediationText(hit)...)
+	}
+	return true, lines
+}
+
+const (
+	advisoryBannerCacheFile = "advisory_banner_seen"
+	AdvisoryBannerRepeat    = 24 * time.Hour
+)
+
+// ShortBannerLines returns the compact operator-facing warning used by startup
+// surfaces. It mirrors Hermes' short_banner_lines while naming `gormes doctor`
+// as the remediation surface for this runtime.
+func ShortBannerLines(hits []AdvisoryHit) []string {
+	if len(hits) == 0 {
+		return nil
+	}
+	primary := hits[0]
+	lines := []string{
+		"SECURITY ADVISORY [" + primary.Advisory.ID + "]: " + primary.Advisory.Title,
+		"  Detected: " + primary.Package + "==" + primary.InstalledVersion,
+		"  Run 'gormes doctor' for remediation steps.",
+	}
+	if len(hits) > 1 {
+		noun := "advisory"
+		if len(hits) > 2 {
+			noun = "advisories"
+		}
+		lines = append(lines[:1], append([]string{"  (" + strconv.Itoa(len(hits)-1) + " additional " + noun + " also active.)"}, lines[1:]...)...)
+	}
+	return lines
+}
+
+// BannerCache stores the advisory IDs whose startup warning was recently shown.
+// The file format intentionally follows Hermes' simple `<id> <unix-seconds>`
+// cache so the helper can fail open: unreadable/corrupt rows are ignored and
+// never hide an active advisory.
+type BannerCache struct {
+	dir string
+}
+
+// NewBannerCache returns the startup-banner cache rooted at the injected Gormes
+// home dir. It writes under `<home>/cache/advisory_banner_seen`.
+func NewBannerCache(gormesHome string) *BannerCache {
+	return &BannerCache{dir: filepath.Join(gormesHome, "cache")}
+}
+
+func (c *BannerCache) path() string {
+	return filepath.Join(c.dir, advisoryBannerCacheFile)
+}
+
+// StartupBanner returns the plain-text startup advisory banner, or an empty
+// string when all hits are acked/recently shown. Calling it stamps the cache for
+// any advisory it is about to show, matching Hermes' once-per-repeat-window
+// startup behavior without wiring CLI startup in this package.
+func StartupBanner(hits []AdvisoryHit, acked map[string]struct{}, cache *BannerCache, now time.Time) string {
+	due := HitsDueForBanner(hits, acked, cache, AdvisoryBannerRepeat, now)
+	if len(due) == 0 {
+		return ""
+	}
+	return strings.Join(ShortBannerLines(due), "\n")
+}
+
+// HitsDueForBanner filters active hits to those whose startup banner is due.
+// It stamps due hits in the cache as a side effect. A nil cache disables repeat
+// suppression and returns unacked hits.
+func HitsDueForBanner(hits []AdvisoryHit, acked map[string]struct{}, cache *BannerCache, repeat time.Duration, now time.Time) []AdvisoryHit {
+	fresh := FilterUnacked(hits, acked)
+	if len(fresh) == 0 {
+		return nil
+	}
+	if cache == nil {
+		return fresh
+	}
+	if repeat <= 0 {
+		repeat = AdvisoryBannerRepeat
+	}
+	if now.IsZero() {
+		now = time.Now()
+	}
+	seen := cache.read()
+	cutoff := now.Add(-repeat)
+	due := make([]AdvisoryHit, 0, len(fresh))
+	for _, hit := range fresh {
+		last, ok := seen[hit.Advisory.ID]
+		if !ok || last.Before(cutoff) {
+			due = append(due, hit)
+			seen[hit.Advisory.ID] = now
+		}
+	}
+	if len(due) > 0 {
+		cache.write(seen)
+	}
+	return due
+}
+
+func (c *BannerCache) read() map[string]time.Time {
+	seen := map[string]time.Time{}
+	if c == nil {
+		return seen
+	}
+	raw, err := os.ReadFile(c.path())
+	if err != nil {
+		return seen
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			continue
+		}
+		sec, err := strconv.ParseFloat(fields[1], 64)
+		if err != nil {
+			continue
+		}
+		whole := int64(sec)
+		seen[fields[0]] = time.Unix(whole, int64((sec-float64(whole))*1e9)).UTC()
+	}
+	return seen
+}
+
+func (c *BannerCache) write(seen map[string]time.Time) {
+	if c == nil {
+		return
+	}
+	if err := os.MkdirAll(c.dir, 0o700); err != nil {
+		return
+	}
+	ids := make([]string, 0, len(seen))
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	lines := make([]string, 0, len(ids))
+	for _, id := range ids {
+		lines = append(lines, id+" "+strconv.FormatFloat(float64(seen[id].Unix()), 'f', -1, 64))
+	}
+	_ = os.WriteFile(c.path(), []byte(strings.Join(lines, "\n")+"\n"), 0o600)
+}
+
+// GatewayLogMessage returns the one-line operator log entry for active
+// advisories. It mirrors Hermes' gateway_log_message helper while pointing the
+// operator at `gormes doctor` for the Go runtime.
+func GatewayLogMessage(hits []AdvisoryHit, acked map[string]struct{}) string {
+	fresh := FilterUnacked(hits, acked)
+	if len(fresh) == 0 {
+		return ""
+	}
+	if len(fresh) == 1 {
+		h := fresh[0]
+		return "Security advisory [" + h.Advisory.ID + "] active: " +
+			h.Package + "==" + h.InstalledVersion + " matches " + h.Advisory.Title + ". " +
+			"See " + h.Advisory.URL
+	}
+	ids := make([]string, 0, len(fresh))
+	for _, h := range fresh {
+		ids = append(ids, h.Advisory.ID)
+	}
+	return strconv.Itoa(len(fresh)) + " security advisories active " +
+		"(IDs: " + strings.Join(ids, ", ") + "). " +
+		"Run `gormes doctor` on the gateway host for details."
 }
 
 // AckStore persists dismissed advisory IDs under the Gormes-owned home

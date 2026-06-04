@@ -1,12 +1,14 @@
 package admin
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	tuiadmin "github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin"
 )
 
 func TestCommandEntriesSkipsHelpAndSorts(t *testing.T) {
@@ -65,5 +67,36 @@ func TestCommandRunArgs(t *testing.T) {
 	_, _, err = CommandRunArgs("auth add", nil)
 	if err == nil || !strings.Contains(err.Error(), "not runnable inside gormes admin") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCommandRunnerRejectsMutatingCommandWithoutExecuting(t *testing.T) {
+	executed := false
+	runner := CommandRunner(RunnerOptions{ExecuteCommand: func(args []string) (string, string, error) {
+		executed = true
+		return "", "", nil
+	}})
+	result := runner(tuiadmin.CommandEntry{Path: "auth add"})
+	if result.Error == "" {
+		t.Fatalf("result error empty: %#v", result)
+	}
+	if executed {
+		t.Fatal("mutating command should not execute")
+	}
+}
+
+func TestCommandRunnerCapturesOutputAndExitCode(t *testing.T) {
+	runner := CommandRunner(RunnerOptions{
+		ExecuteCommand: func(args []string) (string, string, error) {
+			return "out\n", "err\n", errors.New("boom")
+		},
+		ExitCode: func(error) int { return 7 },
+	})
+	result := runner(tuiadmin.CommandEntry{Path: "kanban list"})
+	if result.Output != "out\nerr" {
+		t.Fatalf("output = %q", result.Output)
+	}
+	if result.Error != "boom" || result.ExitCode != 7 {
+		t.Fatalf("result = %#v", result)
 	}
 }

@@ -1,30 +1,25 @@
 package gormescli
 
 import (
-	"github.com/spf13/cobra"
+	"context"
+	"io"
 
 	apprestore "github.com/TrebuchetDynamics/gormes-agent/internal/app/restore"
 )
 
+type RestoreBuildProvenance = apprestore.BuildProvenance
 type RestoreCommandSeams = apprestore.Seams
+type RestoreOptions = apprestore.Options
+type RestoreRequest = apprestore.Request
 
-func NewRestoreCommand(build func() BuildProvenance, jsonInputError func(*cobra.Command, string, string) error) *cobra.Command {
-	return apprestore.NewCommand(restoreOptions(build, jsonInputError))
+func RunRestore(ctx context.Context, out io.Writer, seams RestoreCommandSeams, request RestoreRequest, options RestoreOptions) error {
+	return apprestore.Run(ctx, out, seams, request, options)
 }
 
-func NewRestoreCommandWithSeams(seams RestoreCommandSeams, build func() BuildProvenance, jsonInputError func(*cobra.Command, string, string) error) *cobra.Command {
-	return apprestore.NewCommandWithSeams(seams, restoreOptions(build, jsonInputError))
+func DefaultRestoreBackupsDir() string {
+	return apprestore.DefaultBackupsDir()
 }
 
-func restoreOptions(build func() BuildProvenance, jsonInputError func(*cobra.Command, string, string) error) apprestore.Options {
-	return apprestore.Options{
-		BuildProvenance: func() apprestore.BuildProvenance {
-			if build == nil {
-				return apprestore.BuildProvenance{}
-			}
-			provenance := build()
-			return apprestore.BuildProvenance{Version: provenance.Version, GitCommit: provenance.GitCommit}
-		},
-		JSONInputError: jsonInputError,
-	}
+func DefaultRestoreHomeDir() string {
+	return apprestore.DefaultHomeDir()
 }

@@ -209,6 +209,7 @@ func defaults() Config {
 		},
 		Navivox: NavivoxCfg{
 			Enabled:      false,
+			GatewayLabel: NavivoxDefaultGatewayLabel,
 			BindHost:     NavivoxDefaultBindHost,
 			Port:         NavivoxDefaultPort,
 			ExposureMode: NavivoxExposureLocal,

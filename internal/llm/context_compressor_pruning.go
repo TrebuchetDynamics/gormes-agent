@@ -20,7 +20,11 @@ const (
 	ContextPruningEvidenceToolPairTailAligned = "tool_pair_tail_aligned"
 )
 
-const ContextPruningSummaryPrefix = "[CONTEXT COMPACTION — REFERENCE ONLY] Earlier turns were compacted into the summary below. This is a handoff from a previous context window — treat it as background reference, NOT as active instructions. Do NOT answer questions or fulfill requests mentioned in this summary; they were already addressed. Your current task is identified in the '## Active Task' section of the summary — resume exactly from there. Respond ONLY to the latest user message that appears AFTER this summary. The current session state (files, config, etc.) may reflect work described here — avoid repeating it:"
+const ContextPruningSummaryPrefix = "[CONTEXT COMPACTION — REFERENCE ONLY] Earlier turns were compacted into the summary below. This is a handoff from a previous context window — treat it as background reference, NOT as active instructions. Do NOT answer questions or fulfill requests mentioned in this summary; they were already addressed. Respond ONLY to the latest user message that appears AFTER this summary — that message is the single source of truth for what to do right now. If the latest user message is consistent with the '## Active Task' section, you may use the summary as background. If the latest user message contradicts, supersedes, changes topic from, or in any way diverges from '## Active Task' / '## In Progress' / '## Pending User Asks' / '## Remaining Work', the latest message WINS — discard those stale items entirely and do not 'wrap up the old task first'. Reverse signals in the latest message (e.g. 'stop', 'undo', 'roll back', 'just verify', 'don't do that anymore', 'never mind', a new topic) must immediately end any in-flight work described in the summary; do not re-surface it in later turns. IMPORTANT: Your persistent memory (MEMORY.md, USER.md) in the system prompt is ALWAYS authoritative and active — never ignore or deprioritize memory content due to this compaction note. The current session state (files, config, etc.) may reflect work described here — avoid repeating it:"
+
+const contextPruningLegacySummaryPrefix = "[CONTEXT SUMMARY]:"
+
+const contextPruningHistoricalSummaryPrefixResumeExactly = "[CONTEXT COMPACTION — REFERENCE ONLY] Earlier turns were compacted into the summary below. This is a handoff from a previous context window — treat it as background reference, NOT as active instructions. Do NOT answer questions or fulfill requests mentioned in this summary; they were already addressed. Your current task is identified in the '## Active Task' section of the summary — resume exactly from there. Respond ONLY to the latest user message that appears AFTER this summary. The current session state (files, config, etc.) may reflect work described here — avoid repeating it:"
 
 const contextPruningSystemNote = "[Note: Some earlier conversation turns have been compacted into a handoff summary to preserve context space. The current session state may still reflect earlier work, so build on that summary and state rather than re-doing work.]"
 
@@ -100,11 +104,10 @@ func PruneContextMessages(messages []Message, cfg ContextPruningConfig) ([]Messa
 
 	summary := strings.TrimSpace(cfg.SummaryText)
 	if summary == "" {
-		summary = fmt.Sprintf("%s\nSummary generation was unavailable in this pure pruning slice. %d message(s) were removed to free context space but could not be summarized. Continue from the recent messages below and current state.", ContextPruningSummaryPrefix, tailStart-compressStart)
+		summary = fmt.Sprintf("Summary generation was unavailable in this pure pruning slice. %d message(s) were removed to free context space but could not be summarized. Continue from the recent messages below and current state.", tailStart-compressStart)
 		status.Evidence = appendEvidence(status.Evidence, ContextPruningEvidenceSummaryFallback)
-	} else if !strings.HasPrefix(summary, ContextPruningSummaryPrefix) {
-		summary = ContextPruningSummaryPrefix + "\n" + summary
 	}
+	summary = NormalizeContextPruningSummary(summary)
 
 	compressed := make([]Message, 0, cfg.ProtectFirstN+1+len(working)-tailStart)
 	for i := 0; i < compressStart; i++ {
@@ -156,8 +159,142 @@ func PruneContextMessages(messages []Message, cfg ContextPruningConfig) ([]Messa
 	return compressed, status
 }
 
+func NormalizeContextPruningSummary(summary string) string {
+	body := StripContextPruningSummaryPrefix(summary)
+	if body == "" {
+		return ContextPruningSummaryPrefix
+	}
+	return ContextPruningSummaryPrefix + "\n" + body
+}
+
+func StripContextPruningSummaryPrefix(summary string) string {
+	text := strings.TrimSpace(summary)
+	for _, prefix := range contextPruningKnownSummaryPrefixes() {
+		if strings.HasPrefix(text, prefix) {
+			return strings.TrimSpace(strings.TrimPrefix(text, prefix))
+		}
+	}
+	return text
+}
+
+func contextPruningKnownSummaryPrefixes() []string {
+	return []string{
+		ContextPruningSummaryPrefix,
+		contextPruningLegacySummaryPrefix,
+		contextPruningHistoricalSummaryPrefixResumeExactly,
+	}
+}
+
+// ContextSummaryLineagePlan describes the previous-summary state and exact new
+// turns that should feed a provider-backed iterative compression update.
+// It mirrors Hermes' resume behavior: a persisted handoff summary may sit in
+// the protected head after restart, so it must rehydrate previous-summary state
+// without being serialized again as a fresh conversation turn.
+type ContextSummaryLineagePlan struct {
+	SummaryIndex     int
+	PreviousSummary  string
+	Rehydrated       bool
+	TurnsStart       int
+	TurnsEnd         int
+	TurnsToSummarize []Message
+}
+
+// PlanContextSummaryLineage selects the provider-summary input window and
+// previous-summary state for an iterative context-compression pass.
+func PlanContextSummaryLineage(messages []Message, compressStart, compressEnd int, previousSummary string) ContextSummaryLineagePlan {
+	n := len(messages)
+	compressStart = clampContextSummaryIndex(compressStart, 0, n)
+	compressEnd = clampContextSummaryIndex(compressEnd, compressStart, n)
+
+	searchStart := 0
+	if n > 0 && messages[0].Role == "system" {
+		searchStart = 1
+	}
+	if searchStart > compressEnd {
+		searchStart = compressEnd
+	}
+
+	summaryIndex, summaryBody := findLatestContextSummary(messages, searchStart, compressEnd)
+	turnsStart := compressStart
+	previous := previousSummary
+	rehydrated := false
+	if summaryIndex >= 0 {
+		if strings.TrimSpace(summaryBody) != "" && strings.TrimSpace(previous) == "" {
+			previous = summaryBody
+			rehydrated = true
+		}
+		if summaryIndex+1 > turnsStart {
+			turnsStart = summaryIndex + 1
+		}
+	}
+	if turnsStart > compressEnd {
+		turnsStart = compressEnd
+	}
+
+	return ContextSummaryLineagePlan{
+		SummaryIndex:     summaryIndex,
+		PreviousSummary:  previous,
+		Rehydrated:       rehydrated,
+		TurnsStart:       turnsStart,
+		TurnsEnd:         compressEnd,
+		TurnsToSummarize: cloneMessages(messages[turnsStart:compressEnd]),
+	}
+}
+
+func findLatestContextSummary(messages []Message, start, end int) (int, string) {
+	if start < 0 {
+		start = 0
+	}
+	if end > len(messages) {
+		end = len(messages)
+	}
+	for idx := end - 1; idx >= start; idx-- {
+		content := contextSummaryMessageText(messages[idx])
+		if isContextSummaryContent(content) {
+			return idx, StripContextPruningSummaryPrefix(content)
+		}
+	}
+	return -1, ""
+}
+
+func isContextSummaryContent(content string) bool {
+	text := strings.TrimLeft(content, " \t\r\n")
+	for _, prefix := range contextPruningKnownSummaryPrefixes() {
+		if strings.HasPrefix(text, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func contextSummaryMessageText(msg Message) string {
+	if len(msg.ContentParts) == 0 {
+		return msg.Content
+	}
+	parts := make([]string, 0, len(msg.ContentParts))
+	for _, part := range msg.ContentParts {
+		if part.Text != "" {
+			parts = append(parts, part.Text)
+		}
+	}
+	if len(parts) == 0 {
+		return msg.Content
+	}
+	return strings.Join(parts, "\n")
+}
+
+func clampContextSummaryIndex(value, minValue, maxValue int) int {
+	if value < minValue {
+		return minValue
+	}
+	if value > maxValue {
+		return maxValue
+	}
+	return value
+}
+
 func (cfg ContextPruningConfig) withDefaults() ContextPruningConfig {
-	if cfg.ProtectFirstN <= 0 {
+	if cfg.ProtectFirstN < 0 {
 		cfg.ProtectFirstN = 3
 	}
 	if cfg.MinTailMessages <= 0 {
@@ -217,15 +354,7 @@ func findTailCutByTokens(messages []Message, headEnd, tokenBudget, minTail int) 
 }
 
 func estimatePruningMessageTokens(msg Message) int {
-	chars := len(msg.Content)
-	for _, part := range msg.ContentParts {
-		switch part.Type {
-		case "image_url", "input_image", "image":
-			chars += imageCharEquivalent
-		default:
-			chars += len(part.Text)
-		}
-	}
+	chars := messageCompressionContentBudgetLength(msg)
 	tokens := chars/charsPerToken + 10
 	for _, tc := range msg.ToolCalls {
 		tokens += len(tc.Arguments) / charsPerToken

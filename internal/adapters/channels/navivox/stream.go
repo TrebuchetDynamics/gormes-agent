@@ -96,6 +96,10 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			writeNavivoxError(w, http.StatusUnauthorized, "", "unauthorized", "Unauthorized")
 			return
 		}
+		if !navivoxWebSocketProtocolOffered(r) {
+			writeNavivoxError(w, http.StatusBadRequest, "", "protocol_required", "Navivox WebSocket protocol is required")
+			return
+		}
 		releasePairingStream, ok := c.reservePairingStream()
 		if !ok {
 			writeNavivoxError(w, http.StatusConflict, "", "pairing_token_consumed", "Pairing token already claimed")
@@ -122,6 +126,7 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			events:   make(chan ServerEvent, navivoxEventBufferCap),
 			done:     make(chan struct{}, 1),
 		}
+		conn.SetReadLimit(navivoxMaxTurnRequestBytes + 4096)
 		go cl.eventPump()
 		c.addClient(cl)
 		defer c.removeClient(cl)
@@ -130,6 +135,19 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			_, payload, err := conn.ReadMessage()
 			if err != nil {
 				return
+			}
+			if len(payload) > navivoxMaxTurnRequestBytes {
+				var envelope struct {
+					RequestID string `json:"request_id"`
+				}
+				_ = json.Unmarshal(payload, &envelope)
+				_ = cl.write(ServerEvent{
+					Type:      "error",
+					RequestID: strings.TrimSpace(envelope.RequestID),
+					Code:      "request_too_large",
+					Message:   "Request is too large",
+				})
+				continue
 			}
 			var msg ClientMessage
 			if err := json.Unmarshal(payload, &msg); err != nil {
@@ -150,6 +168,15 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			}
 		}
 	}
+}
+
+func navivoxWebSocketProtocolOffered(r *http.Request) bool {
+	for _, protocol := range websocket.Subprotocols(r) {
+		if protocol == navivoxWebSocketProtocol {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Channel) reservePairingStream() (func(bool), bool) {

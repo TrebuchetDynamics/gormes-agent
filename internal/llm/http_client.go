@@ -27,6 +27,8 @@ type httpClient struct {
 	visionUnsupportedSessions map[string]bool
 	rateGuardMu               sync.Mutex
 	rateGuard                 GuardState
+	rateLimitMu               sync.Mutex
+	rateLimit                 RateLimitState
 	onCredentialExhausted     func(statusCode int, reason string, headers http.Header)
 }
 
@@ -83,6 +85,9 @@ func (c *httpClient) ProviderStatus() ProviderStatus {
 	status.TemperatureRetry = c.temperatureRetry
 	status.UnsupportedParameterRetry = c.parameterRetry
 	c.mu.Unlock()
+	c.rateLimitMu.Lock()
+	status.RateLimit = c.rateLimit
+	c.rateLimitMu.Unlock()
 	c.rateGuardMu.Lock()
 	rg := c.rateGuard
 	c.rateGuardMu.Unlock()
@@ -178,6 +183,7 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 	if err != nil {
 		return nil, err
 	}
+	c.updateRateLimitFromHeaders(resp.Header)
 	if resp.StatusCode >= 300 {
 		raw, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
@@ -197,6 +203,7 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 			if err != nil {
 				return nil, err
 			}
+			c.updateRateLimitFromHeaders(retryResp.Header)
 			if retryResp.StatusCode >= 300 {
 				retryRaw, _ := io.ReadAll(retryResp.Body)
 				_ = retryResp.Body.Close()
@@ -216,6 +223,7 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 			if err != nil {
 				return nil, err
 			}
+			c.updateRateLimitFromHeaders(retryResp.Header)
 			if retryResp.StatusCode >= 300 {
 				retryRaw, _ := io.ReadAll(retryResp.Body)
 				_ = retryResp.Body.Close()
@@ -233,6 +241,7 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 			if err != nil {
 				return nil, err
 			}
+			c.updateRateLimitFromHeaders(retryResp.Header)
 			if retryResp.StatusCode >= 300 {
 				retryRaw, _ := io.ReadAll(retryResp.Body)
 				_ = retryResp.Body.Close()
@@ -329,6 +338,7 @@ func (c *httpClient) openCodexResponsesStream(ctx context.Context, req ChatReque
 	if err != nil {
 		return nil, err
 	}
+	c.updateRateLimitFromHeaders(resp.Header)
 	if resp.StatusCode >= 300 {
 		raw, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
@@ -354,6 +364,7 @@ func (c *httpClient) openCodexResponsesStream(ctx context.Context, req ChatReque
 			if err != nil {
 				return nil, err
 			}
+			c.updateRateLimitFromHeaders(retryResp.Header)
 			if retryResp.StatusCode >= 300 {
 				retryRaw, _ := io.ReadAll(retryResp.Body)
 				_ = retryResp.Body.Close()
@@ -756,6 +767,16 @@ func (c *httpClient) updateRateGuardFrom429(headers http.Header) {
 	if c.onCredentialExhausted != nil && c.rateGuard.LastKnownClass != RateLimitInsufficientEvidence {
 		c.onCredentialExhausted(http.StatusTooManyRequests, classification, headers)
 	}
+}
+
+func (c *httpClient) updateRateLimitFromHeaders(headers http.Header) {
+	state, ok := ParseRateLimitHeaders(headers, c.provider, time.Now())
+	if !ok {
+		return
+	}
+	c.rateLimitMu.Lock()
+	c.rateLimit = state
+	c.rateLimitMu.Unlock()
 }
 
 func (c *httpClient) handleUnauthorized(headers http.Header) {

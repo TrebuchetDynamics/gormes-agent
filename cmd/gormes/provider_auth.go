@@ -1,18 +1,14 @@
 package main
 
-import "github.com/TrebuchetDynamics/gormes-agent/internal/config"
+import (
+	providerauthcmd "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/providerauth"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+)
 
 func configuredProviderAuthPresent(cfg config.Config) bool {
-	return config.ConfiguredProviderAuthPresent(cfg)
+	return providerauthcmd.ConfiguredProviderAuthPresent(cfg)
 }
 
 func configuredProviderAPIKeyRefPresent(cfg config.Config) bool {
-	if cfg.Hermes.APIKeyRef == nil {
-		return false
-	}
-	return config.ResolveProviderCredential(config.ProviderCredentialRequest{
-		Provider:  cfg.Hermes.Provider,
-		APIKeyRef: cfg.Hermes.APIKeyRef,
-		Secrets:   cfg.Secrets,
-	}).Available
+	return providerauthcmd.ConfiguredProviderAPIKeyRefPresent(cfg)
 }

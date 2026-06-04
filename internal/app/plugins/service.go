@@ -4,12 +4,11 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	pluginspkg "github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
@@ -33,11 +32,7 @@ func (o Options) buildProvenance() BuildProvenance {
 	return BuildProvenance{}
 }
 
-func NewCommand(options Options) *cobra.Command {
-	return NewCommandWithManager(defaultLifecycleManager(), options)
-}
-
-func defaultLifecycleManager() *pluginspkg.LifecycleManager {
+func DefaultLifecycleManager() *pluginspkg.LifecycleManager {
 	cwd, _ := os.Getwd()
 	return pluginspkg.NewLifecycleManager(pluginspkg.LifecycleOptions{
 		UserRoot:             filepath.Join(config.GormesHome(), "plugins"),
@@ -50,71 +45,32 @@ func defaultLifecycleManager() *pluginspkg.LifecycleManager {
 	})
 }
 
-func NewCommandWithManager(manager *pluginspkg.LifecycleManager, options Options) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:          "plugins",
-		Short:        "Manage Hermes-compatible plugins",
-		SilenceUsage: true,
-		// NoArgs rejects positional args at the parent level. Without
-		// it, a typo like `gormes plugins listt` silently fell through
-		// to the parent's RunE and printed "No plugins installed." as
-		// if the typo had succeeded; cobra was unable to surface its
-		// typo suggestion because the parent had a RunE.
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runList(cmd, manager, options)
-		},
+func Install(out io.Writer, manager *pluginspkg.LifecycleManager, identifier string, force, enable, asJSON bool, options Options) error {
+	result, err := manager.Install(identifier, pluginspkg.InstallOptions{Force: force, Enable: enable})
+	if err != nil {
+		return err
 	}
-	cmd.AddCommand(newInstallCommand(manager, options))
-	cmd.AddCommand(newListCommand(manager, options))
-	cmd.AddCommand(newUpdateCommand(manager, options))
-	cmd.AddCommand(newRemoveCommand(manager, options))
-	cmd.AddCommand(newEnableCommand(manager, options))
-	cmd.AddCommand(newDisableCommand(manager, options))
-	return cmd
-}
-
-func newInstallCommand(manager *pluginspkg.LifecycleManager, options Options) *cobra.Command {
-	var force bool
-	var enable bool
-	var asJSON bool
-	cmd := &cobra.Command{
-		Use:          "install <identifier>",
-		Short:        "Install a plugin from a Git URL or owner/repo shorthand",
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			result, err := manager.Install(args[0], pluginspkg.InstallOptions{Force: force, Enable: enable})
-			if err != nil {
-				return err
-			}
-			if asJSON {
-				body, marshalErr := json.MarshalIndent(installReportJSON{
-					Build:   options.buildProvenance(),
-					Action:  "installed",
-					Name:    result.Name,
-					Path:    result.Path,
-					Enabled: enable,
-				}, "", "  ")
-				if marshalErr != nil {
-					return marshalErr
-				}
-				fmt.Fprintln(cmd.OutOrStdout(), string(body))
-				return nil
-			}
-			fmt.Fprintf(cmd.OutOrStdout(), "installed %s\n", result.Name)
-			if enable {
-				fmt.Fprintf(cmd.OutOrStdout(), "enabled %s\n", result.Name)
-			} else {
-				fmt.Fprintf(cmd.OutOrStdout(), "not_enabled %s\n", result.Name)
-			}
-			return nil
-		},
+	if asJSON {
+		body, marshalErr := json.MarshalIndent(installReportJSON{
+			Build:   options.buildProvenance(),
+			Action:  "installed",
+			Name:    result.Name,
+			Path:    result.Path,
+			Enabled: enable,
+		}, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		fmt.Fprintln(out, string(body))
+		return nil
 	}
-	cmd.Flags().BoolVar(&force, "force", false, "replace an existing plugin directory inside the plugin root")
-	cmd.Flags().BoolVar(&enable, "enable", false, "enable the plugin after install")
-	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: {build, action: 'installed', name, path, enabled}")
-	return cmd
+	fmt.Fprintf(out, "installed %s\n", result.Name)
+	if enable {
+		fmt.Fprintf(out, "enabled %s\n", result.Name)
+	} else {
+		fmt.Fprintf(out, "not_enabled %s\n", result.Name)
+	}
+	return nil
 }
 
 type installReportJSON struct {
@@ -125,119 +81,11 @@ type installReportJSON struct {
 	Enabled bool            `json:"enabled"`
 }
 
-func newListCommand(manager *pluginspkg.LifecycleManager, options Options) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:          "list",
-		Aliases:      []string{"ls"},
-		Short:        "List installed plugins",
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runList(cmd, manager, options)
-		},
-	}
-	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, plugins: [{name, version, status, source, path, description}]}`")
-	return cmd
-}
-
-func newUpdateCommand(manager *pluginspkg.LifecycleManager, options Options) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:          "update <name>",
-		Short:        "Update a git-installed plugin",
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if _, err := manager.Update(args[0]); err != nil {
-				return err
-			}
-			return writeLifecycleResult(cmd, "updated", args[0], options)
-		},
-	}
-	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, action: 'updated', name}")
-	return cmd
-}
-
-func newRemoveCommand(manager *pluginspkg.LifecycleManager, options Options) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:          "remove <name>",
-		Aliases:      []string{"rm", "uninstall"},
-		Short:        "Remove an installed plugin",
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := manager.Remove(args[0]); err != nil {
-				return err
-			}
-			return writeLifecycleResult(cmd, "removed", args[0], options)
-		},
-	}
-	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, action: 'removed', name}")
-	return cmd
-}
-
-func newEnableCommand(manager *pluginspkg.LifecycleManager, options Options) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:          "enable <name>",
-		Short:        "Enable an installed plugin",
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := manager.Enable(args[0]); err != nil {
-				return err
-			}
-			return writeLifecycleResult(cmd, "enabled", args[0], options)
-		},
-	}
-	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, action: 'enabled', name}")
-	return cmd
-}
-
-func newDisableCommand(manager *pluginspkg.LifecycleManager, options Options) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:          "disable <name>",
-		Short:        "Disable an installed plugin",
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := manager.Disable(args[0]); err != nil {
-				return err
-			}
-			return writeLifecycleResult(cmd, "disabled", args[0], options)
-		},
-	}
-	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, action: 'disabled', name}")
-	return cmd
-}
-
-type lifecycleReportJSON struct {
-	Build  BuildProvenance `json:"build"`
-	Action string          `json:"action"`
-	Name   string          `json:"name"`
-}
-
-func writeLifecycleResult(cmd *cobra.Command, action, name string, options Options) error {
-	asJSON, _ := cmd.Flags().GetBool("json")
-	if asJSON {
-		body, err := json.MarshalIndent(lifecycleReportJSON{
-			Build:  options.buildProvenance(),
-			Action: action,
-			Name:   name,
-		}, "", "  ")
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(cmd.OutOrStdout(), string(body))
-		return nil
-	}
-	fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n", action, name)
-	return nil
-}
-
-func runList(cmd *cobra.Command, manager *pluginspkg.LifecycleManager, options Options) error {
+func List(out io.Writer, manager *pluginspkg.LifecycleManager, asJSON bool, options Options) error {
 	entries, err := manager.List()
 	if err != nil {
 		return err
 	}
-	asJSON, _ := cmd.Flags().GetBool("json")
 	if asJSON {
 		report := listReportJSON{
 			Build:   options.buildProvenance(),
@@ -257,12 +105,12 @@ func runList(cmd *cobra.Command, manager *pluginspkg.LifecycleManager, options O
 		if marshalErr != nil {
 			return marshalErr
 		}
-		fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		fmt.Fprintln(out, string(body))
 		return nil
 	}
 	if len(entries) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No plugins installed.")
-		fmt.Fprintln(cmd.OutOrStdout(), "Install with: gormes plugins install owner/repo")
+		fmt.Fprintln(out, "No plugins installed.")
+		fmt.Fprintln(out, "Install with: gormes plugins install owner/repo")
 		return nil
 	}
 	for _, entry := range entries {
@@ -270,8 +118,59 @@ func runList(cmd *cobra.Command, manager *pluginspkg.LifecycleManager, options O
 		if version == "" {
 			version = "-"
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\t%s\n", entry.Name, entry.Status, version, entry.Source)
+		fmt.Fprintf(out, "%s\t%s\t%s\t%s\n", entry.Name, entry.Status, version, entry.Source)
 	}
+	return nil
+}
+
+func Update(out io.Writer, manager *pluginspkg.LifecycleManager, name string, asJSON bool, options Options) error {
+	if _, err := manager.Update(name); err != nil {
+		return err
+	}
+	return writeLifecycleResult(out, "updated", name, asJSON, options)
+}
+
+func Remove(out io.Writer, manager *pluginspkg.LifecycleManager, name string, asJSON bool, options Options) error {
+	if err := manager.Remove(name); err != nil {
+		return err
+	}
+	return writeLifecycleResult(out, "removed", name, asJSON, options)
+}
+
+func Enable(out io.Writer, manager *pluginspkg.LifecycleManager, name string, asJSON bool, options Options) error {
+	if err := manager.Enable(name); err != nil {
+		return err
+	}
+	return writeLifecycleResult(out, "enabled", name, asJSON, options)
+}
+
+func Disable(out io.Writer, manager *pluginspkg.LifecycleManager, name string, asJSON bool, options Options) error {
+	if err := manager.Disable(name); err != nil {
+		return err
+	}
+	return writeLifecycleResult(out, "disabled", name, asJSON, options)
+}
+
+type lifecycleReportJSON struct {
+	Build  BuildProvenance `json:"build"`
+	Action string          `json:"action"`
+	Name   string          `json:"name"`
+}
+
+func writeLifecycleResult(out io.Writer, action, name string, asJSON bool, options Options) error {
+	if asJSON {
+		body, err := json.MarshalIndent(lifecycleReportJSON{
+			Build:  options.buildProvenance(),
+			Action: action,
+			Name:   name,
+		}, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(out, string(body))
+		return nil
+	}
+	fmt.Fprintf(out, "%s %s\n", action, name)
 	return nil
 }
 

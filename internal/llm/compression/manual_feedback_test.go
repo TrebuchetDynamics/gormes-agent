@@ -37,6 +37,22 @@ func TestManualCompressionFeedbackNoop(t *testing.T) {
 	}
 }
 
+func TestManualCompressionFeedbackNoopTokenDelta(t *testing.T) {
+	history := []testMessage{
+		{Role: "user", Content: "one"},
+		{Role: "assistant", Content: "two"},
+	}
+
+	got := SummarizeManualCompression(history, append([]testMessage(nil), history...), 1200, 900)
+
+	if !got.Noop {
+		t.Fatalf("Noop = false, want true")
+	}
+	if got.TokenLine != "Approx request size: ~1,200 → ~900 tokens" {
+		t.Fatalf("TokenLine = %q", got.TokenLine)
+	}
+}
+
 func TestManualCompressionFeedbackCompressedTokenDelta(t *testing.T) {
 	before := []testMessage{
 		{Role: "user", Content: "one"},
@@ -55,10 +71,10 @@ func TestManualCompressionFeedbackCompressedTokenDelta(t *testing.T) {
 	if got.Noop {
 		t.Fatalf("Noop = true, want false")
 	}
-	if got.Headline != "Compressed: 4 -> 3 messages" {
+	if got.Headline != "Compressed: 4 → 3 messages" {
 		t.Fatalf("Headline = %q", got.Headline)
 	}
-	if got.TokenLine != "Approx request size: ~1,234 -> ~678 tokens" {
+	if got.TokenLine != "Approx request size: ~1,234 → ~678 tokens" {
 		t.Fatalf("TokenLine = %q", got.TokenLine)
 	}
 }

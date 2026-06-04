@@ -1,13 +1,13 @@
 package restore
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
@@ -20,7 +20,6 @@ type BuildProvenance struct {
 
 type Options struct {
 	BuildProvenance func() BuildProvenance
-	JSONInputError  func(*cobra.Command, string, string) error
 }
 
 func (o Options) buildProvenance() BuildProvenance {
@@ -30,123 +29,103 @@ func (o Options) buildProvenance() BuildProvenance {
 	return BuildProvenance{}
 }
 
-func (o Options) emitJSONInputError(cmd *cobra.Command, action, msg string) error {
-	if o.JSONInputError != nil {
-		return o.JSONInputError(cmd, action, msg)
-	}
-	return fmt.Errorf("%s", msg)
-}
-
 type Seams struct {
 	BackupsDir func() string
 	HomeDir    func() string
 }
 
-func NewCommand(options Options) *cobra.Command {
-	return NewCommandWithSeams(Seams{}, options)
+type Request struct {
+	List   bool
+	Latest bool
+	Path   string
+	Yes    bool
+	JSON   bool
 }
 
-func NewCommandWithSeams(seams Seams, options Options) *cobra.Command {
+func Run(ctx context.Context, out io.Writer, seams Seams, request Request, options Options) error {
+	seams = normalizeSeams(seams)
+	if request.List {
+		return RunList(out, seams.BackupsDir(), request.JSON, options)
+	}
+	resolvedPath := request.Path
+	if request.Latest {
+		resolved, err := ResolveLatestBackup(seams.BackupsDir())
+		if err != nil {
+			return err
+		}
+		resolvedPath = resolved
+	}
+	if resolvedPath == "" {
+		return fmt.Errorf("restore: pass --list to enumerate backups, --latest for the newest, or --path <zip> for a specific one")
+	}
+	home := seams.HomeDir()
+	if home == "" {
+		return fmt.Errorf("restore: GORMES_HOME is unset; cannot resolve restore root")
+	}
+	if !request.Yes {
+		if validateErr := cli.ValidateRestoreZip(resolvedPath); validateErr != nil {
+			return validateErr
+		}
+		if request.JSON {
+			impact, _ := cli.SummarizeRestoreZipImpact(resolvedPath, home)
+			body, marshalErr := json.MarshalIndent(PreviewJSON{
+				Build:          options.buildProvenance(),
+				Action:         "preview",
+				Path:           resolvedPath,
+				Dest:           home,
+				DryRun:         true,
+				WouldOverwrite: impact.Overwrite,
+				WouldCreate:    impact.Create,
+			}, "", "  ")
+			if marshalErr != nil {
+				return marshalErr
+			}
+			fmt.Fprintln(out, string(body))
+			return nil
+		}
+		fmt.Fprintf(out, "DRY RUN — would extract %s", resolvedPath)
+		if info, statErr := os.Stat(resolvedPath); statErr == nil {
+			fmt.Fprintf(out, " (%s, %s)", FormatSize(info.Size()), FormatAge(time.Since(info.ModTime())))
+		}
+		fmt.Fprintf(out, " into %s\n", home)
+		if impact, impactErr := cli.SummarizeRestoreZipImpact(resolvedPath, home); impactErr == nil {
+			fmt.Fprintf(out, "would overwrite %d existing file(s), create %d new\n", impact.Overwrite, impact.Create)
+		}
+		fmt.Fprintln(out, "Re-run with --yes to actually restore (existing files will be overwritten).")
+		return nil
+	}
+	impact, _ := cli.SummarizeRestoreZipImpact(resolvedPath, home)
+	if err := cli.RestoreFromZip(ctx, resolvedPath, home); err != nil {
+		return err
+	}
+	if request.JSON {
+		body, err := json.MarshalIndent(OutcomeJSON{
+			Build:     options.buildProvenance(),
+			Action:    "restored",
+			Path:      resolvedPath,
+			Dest:      home,
+			FileCount: impact.Overwrite + impact.Create,
+			Overwrote: impact.Overwrite,
+			Created:   impact.Create,
+		}, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(out, string(body))
+		return nil
+	}
+	fmt.Fprintf(out, "restored %s into %s\n", filepath.Base(resolvedPath), home)
+	return nil
+}
+
+func normalizeSeams(seams Seams) Seams {
 	if seams.BackupsDir == nil {
 		seams.BackupsDir = DefaultBackupsDir
 	}
 	if seams.HomeDir == nil {
-		seams.HomeDir = config.GormesHome
+		seams.HomeDir = DefaultHomeDir
 	}
-	var list bool
-	var latest bool
-	var path string
-	var yes bool
-	var asJSON bool
-	cmd := &cobra.Command{
-		Use:   "restore",
-		Short: "Discover and restore from a pre-update backup zip",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			out := cmd.OutOrStdout()
-			if list {
-				return RunList(cmd, seams, asJSON, options)
-			}
-			resolvedPath := path
-			if latest {
-				resolved, err := ResolveLatestBackup(seams.BackupsDir())
-				if err != nil {
-					return err
-				}
-				resolvedPath = resolved
-			}
-			if resolvedPath == "" {
-				const msg = "restore: pass --list to enumerate backups, --latest for the newest, or --path <zip> for a specific one"
-				if asJSON {
-					return options.emitJSONInputError(cmd, "missing_argument", msg)
-				}
-				return fmt.Errorf("%s", msg)
-			}
-			home := seams.HomeDir()
-			if home == "" {
-				return fmt.Errorf("restore: GORMES_HOME is unset; cannot resolve restore root")
-			}
-			if !yes {
-				if validateErr := cli.ValidateRestoreZip(resolvedPath); validateErr != nil {
-					return validateErr
-				}
-				if asJSON {
-					impact, _ := cli.SummarizeRestoreZipImpact(resolvedPath, home)
-					body, marshalErr := json.MarshalIndent(PreviewJSON{
-						Build:          options.buildProvenance(),
-						Action:         "preview",
-						Path:           resolvedPath,
-						Dest:           home,
-						DryRun:         true,
-						WouldOverwrite: impact.Overwrite,
-						WouldCreate:    impact.Create,
-					}, "", "  ")
-					if marshalErr != nil {
-						return marshalErr
-					}
-					fmt.Fprintln(out, string(body))
-					return nil
-				}
-				fmt.Fprintf(out, "DRY RUN — would extract %s", resolvedPath)
-				if info, statErr := os.Stat(resolvedPath); statErr == nil {
-					fmt.Fprintf(out, " (%s, %s)", FormatSize(info.Size()), FormatAge(time.Since(info.ModTime())))
-				}
-				fmt.Fprintf(out, " into %s\n", home)
-				if impact, impactErr := cli.SummarizeRestoreZipImpact(resolvedPath, home); impactErr == nil {
-					fmt.Fprintf(out, "would overwrite %d existing file(s), create %d new\n", impact.Overwrite, impact.Create)
-				}
-				fmt.Fprintln(out, "Re-run with --yes to actually restore (existing files will be overwritten).")
-				return nil
-			}
-			impact, _ := cli.SummarizeRestoreZipImpact(resolvedPath, home)
-			if err := cli.RestoreFromZip(cmd.Context(), resolvedPath, home); err != nil {
-				return err
-			}
-			if asJSON {
-				body, err := json.MarshalIndent(OutcomeJSON{
-					Build:     options.buildProvenance(),
-					Action:    "restored",
-					Path:      resolvedPath,
-					Dest:      home,
-					FileCount: impact.Overwrite + impact.Create,
-					Overwrote: impact.Overwrite,
-					Created:   impact.Create,
-				}, "", "  ")
-				if err != nil {
-					return err
-				}
-				fmt.Fprintln(out, string(body))
-				return nil
-			}
-			fmt.Fprintf(out, "restored %s into %s\n", filepath.Base(resolvedPath), home)
-			return nil
-		},
-	}
-	cmd.Flags().BoolVar(&list, "list", false, "list available pre-update backup zips, newest first")
-	cmd.Flags().BoolVar(&latest, "latest", false, "restore the newest pre-update backup (resolved by mtime)")
-	cmd.Flags().StringVar(&path, "path", "", "path to a pre-update-*.zip to restore (overwrites files in GORMES_HOME)")
-	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "confirm the destructive restore (without --yes the command runs as a dry-run preview)")
-	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: `--list` returns `{build, backups: [...]}`; dry-run returns `{build, action: 'preview', path, dest, dry_run, would_overwrite, would_create}`; `--yes` returns `{build, action: 'restored', path, dest, file_count, overwrote, created}`")
-	return cmd
+	return seams
 }
 
 type ListReportJSON struct {
@@ -191,10 +170,8 @@ func ResolveLatestBackup(backupsDir string) (string, error) {
 	return entries[0].Path, nil
 }
 
-func RunList(cmd *cobra.Command, seams Seams, asJSON bool, options Options) error {
-	out := cmd.OutOrStdout()
-	dir := seams.BackupsDir()
-	entries, err := cli.ListBackups(dir)
+func RunList(out io.Writer, backupsDir string, asJSON bool, options Options) error {
+	entries, err := cli.ListBackups(backupsDir)
 	if err != nil {
 		return err
 	}
@@ -211,10 +188,10 @@ func RunList(cmd *cobra.Command, seams Seams, asJSON bool, options Options) erro
 		return nil
 	}
 	if len(entries) == 0 {
-		fmt.Fprintln(out, "no backups found in "+dir)
+		fmt.Fprintln(out, "no backups found in "+backupsDir)
 		return nil
 	}
-	fmt.Fprintf(out, "Backups in %s (newest first):\n", dir)
+	fmt.Fprintf(out, "Backups in %s (newest first):\n", backupsDir)
 	now := time.Now()
 	for _, e := range entries {
 		fmt.Fprintf(out, "  %s  %s  %s\n", filepath.Base(e.Path), FormatSize(e.SizeBytes), FormatAge(now.Sub(e.ModTime)))
@@ -224,6 +201,10 @@ func RunList(cmd *cobra.Command, seams Seams, asJSON bool, options Options) erro
 
 func DefaultBackupsDir() string {
 	return filepath.Join(config.GormesHome(), "lifecycle", "backups")
+}
+
+func DefaultHomeDir() string {
+	return config.GormesHome()
 }
 
 func FormatSize(bytes int64) string {

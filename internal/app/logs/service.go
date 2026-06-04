@@ -7,7 +7,25 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/spf13/cobra"
 )
+
+type BuildProvenance struct {
+	Version   string `json:"version"`
+	GitCommit string `json:"git_commit"`
+}
+
+var BuildProvenanceFunc = func() BuildProvenance { return BuildProvenance{} }
+
+type exitCodeError struct {
+	code int
+	err  error
+}
+
+func (e exitCodeError) Error() string { return e.err.Error() }
+func (e exitCodeError) Unwrap() error { return e.err }
+func (e exitCodeError) ExitCode() int { return e.code }
 
 // Entry is one structured gateway log entry returned by the live gateway logs endpoint.
 type Entry struct {
@@ -23,6 +41,93 @@ type Content struct {
 	Entries []Entry
 	Path    string
 	Content string
+}
+
+type CommandOptions struct {
+	Client      *http.Client
+	EndpointURL string
+	LogPath     string
+}
+
+// logsReportJSON is the wire shape for `logs --json`. Fleet log
+// aggregation pipelines parse this to ingest entries directly.
+// `source: "gateway"` means a live gateway responded; `source: "file"`
+// means we fell back to the on-disk log file (raw content). `entries`
+// is populated only on the gateway path; `content`/`path` only on file.
+type reportJSON struct {
+	Build   BuildProvenance `json:"build"`
+	Source  string          `json:"source"`
+	Entries []Entry         `json:"entries,omitempty"`
+	Path    string          `json:"path,omitempty"`
+	Content string          `json:"content,omitempty"`
+}
+
+type inputErrorReportJSON struct {
+	Build  BuildProvenance `json:"build"`
+	Action string          `json:"action"`
+	Error  string          `json:"error"`
+}
+
+func NewCommand(opts CommandOptions) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "logs",
+		Short: "Show recent Gormes gateway logs",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return Run(cmd, opts)
+		},
+	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, source: 'gateway'|'file', entries|content, path}")
+	return cmd
+}
+
+func Run(cmd *cobra.Command, opts CommandOptions) error {
+	out := cmd.OutOrStdout()
+	asJSON, _ := cmd.Flags().GetBool("json")
+	content, err := ReadContent(opts.Client, opts.EndpointURL, opts.LogPath)
+	if err != nil {
+		msg := fmt.Sprintf("no gateway running and no log file found: %v", err)
+		if asJSON {
+			return emitInputError(cmd, "no_logs", msg)
+		}
+		return fmt.Errorf("%s", msg)
+	}
+	if asJSON {
+		body, marshalErr := json.MarshalIndent(reportJSON{
+			Build:   BuildProvenanceFunc(),
+			Source:  content.Source,
+			Entries: content.Entries,
+			Path:    content.Path,
+			Content: content.Content,
+		}, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		fmt.Fprintln(out, string(body))
+		return nil
+	}
+	if content.Source == "file" {
+		fmt.Fprint(out, content.Content)
+		return nil
+	}
+	if len(content.Entries) == 0 {
+		fmt.Fprintln(out, "No log entries.")
+		return nil
+	}
+	for _, line := range FormatEntries(content.Entries) {
+		fmt.Fprintln(out, line)
+	}
+	return nil
+}
+
+func emitInputError(cmd *cobra.Command, action, errMsg string) error {
+	encoder := json.NewEncoder(cmd.OutOrStdout())
+	encoder.SetIndent("", "  ")
+	_ = encoder.Encode(inputErrorReportJSON{
+		Build:  BuildProvenanceFunc(),
+		Action: action,
+		Error:  errMsg,
+	})
+	return exitCodeError{code: 1, err: fmt.Errorf("%s", errMsg)}
 }
 
 // NewHTTPClient returns the bounded gateway logs HTTP client used by the CLI.

@@ -35,6 +35,7 @@ var RootCommandOrder = []string{
 	"agent",
 	"navivox",
 	"usage",
+	"tts",
 	"status",
 	"auth",
 	"providers",

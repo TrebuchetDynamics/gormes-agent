@@ -152,12 +152,6 @@ func TestNavivoxCapabilitiesAuthContractFollowsActiveMode(t *testing.T) {
 			wantTokenProtocol: true,
 		},
 		{
-			mode:              config.NavivoxAuthTailscaleIdentity,
-			wantHeaders:       tailscaleHeaders,
-			forbiddenHeaders:  tokenHeaders,
-			wantTokenProtocol: false,
-		},
-		{
 			mode:              config.NavivoxAuthTokenAndTailscaleIdentity,
 			wantHeaders:       append(append([]string{}, tokenHeaders...), tailscaleHeaders...),
 			wantTokenProtocol: true,

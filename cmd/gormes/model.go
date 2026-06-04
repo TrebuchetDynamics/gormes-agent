@@ -53,6 +53,17 @@ func newModelCommandWithSeams(seams modelCommandSeams) *cobra.Command {
 	return providermodule.NewModelCommandWithSeams(providerModelCommandSeams(seams))
 }
 
+func providerModelCommandSeams(seams modelCommandSeams) providermodule.ModelCommandSeams {
+	return providermodule.ModelCommandSeams{
+		IsTTY:            seams.IsTTY,
+		LoadCurrent:      seams.LoadCurrent,
+		ListProviders:    seams.ListProviders,
+		ChooseProvider:   seams.ChooseProvider,
+		ChooseModel:      seams.ChooseModel,
+		PersistSelection: seams.PersistSelection,
+	}
+}
+
 func defaultModelCommandSeams() modelCommandSeams {
 	return modelCommandSeams{
 		IsTTY: isStdinTTY,

@@ -13,6 +13,35 @@ import (
 	"testing"
 )
 
+func TestResolveModelArtifactSupportsHermesLocalModelTiers(t *testing.T) {
+	cases := []struct {
+		model    string
+		wantName string
+		wantFile string
+	}{
+		{"", "base", "ggml-base.bin"},
+		{"auto", "base", "ggml-base.bin"},
+		{"tiny.en", "tiny.en", "ggml-tiny.en.bin"},
+		{"ggml-tiny.bin", "tiny", "ggml-tiny.bin"},
+		{"base.en", "base.en", "ggml-base.en.bin"},
+		{"base", "base", "ggml-base.bin"},
+		{"small.en", "small.en", "ggml-small.en.bin"},
+		{"small", "small", "ggml-small.bin"},
+		{"unknown", "base", "ggml-base.bin"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.model, func(t *testing.T) {
+			gotName, artifact := ResolveModelArtifact(tc.model, "")
+			if gotName != tc.wantName || artifact.Filename != tc.wantFile {
+				t.Fatalf("ResolveModelArtifact(%q) = (%q, %q), want (%q, %q)", tc.model, gotName, artifact.Filename, tc.wantName, tc.wantFile)
+			}
+			if artifact.URL == "" || artifact.SizeBytes <= 0 || artifact.SHA256 == "" {
+				t.Fatalf("artifact metadata incomplete: %+v", artifact)
+			}
+		})
+	}
+}
+
 func TestModelArtifactTinyEnPinned(t *testing.T) {
 	artifact := TinyEnModelArtifact
 	if artifact.Filename != "ggml-tiny.en.bin" {

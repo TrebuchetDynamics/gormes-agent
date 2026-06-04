@@ -53,6 +53,14 @@ func NormalizeProviderModelID(provider, model string) string {
 	return routing.NormalizeProviderModelID(provider, model)
 }
 
+func NormalizeModelForProvider(model, provider string) string {
+	return routing.NormalizeModelForProvider(model, provider)
+}
+
+func DetectModelVendor(model string) string {
+	return routing.DetectModelVendor(model)
+}
+
 func NormalizeOllamaCloudModelID(modelID string) string {
 	return routing.NormalizeOllamaCloudModelID(modelID)
 }

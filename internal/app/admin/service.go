@@ -1,7 +1,9 @@
 package admin
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -12,6 +14,46 @@ import (
 )
 
 type ConfigLoader func() (config.Config, error)
+
+type Options struct {
+	Runner tuiadmin.CommandRunner
+}
+
+type RunnerOptions struct {
+	ExecuteCommand func(args []string) (stdout, stderr string, err error)
+	ExitCode       func(error) int
+}
+
+type exitCodeError struct {
+	code int
+	err  error
+}
+
+func (e exitCodeError) Error() string { return e.err.Error() }
+func (e exitCodeError) Unwrap() error { return e.err }
+func (e exitCodeError) ExitCode() int { return e.code }
+
+func Run(cmd *cobra.Command, opts Options) error {
+	in, ok := cmd.InOrStdin().(*os.File)
+	if !ok {
+		fmt.Fprintln(cmd.ErrOrStderr(), "admin_tui_requires_tty: run `gormes admin` from an interactive terminal")
+		return exitCodeError{code: 2, err: tuiadmin.ErrRequiresTTY}
+	}
+	runner := opts.Runner
+	if runner == nil {
+		runner = CommandRunner(RunnerOptions{})
+	}
+	screens := tuiadmin.NewDefaultScreens(
+		tuiadmin.WithCommandEntries(CommandEntries(cmd.Root())),
+		tuiadmin.WithCommandCatalogRunner(runner),
+	)
+	err := tuiadmin.Run(in, cmd.OutOrStdout(), screens...)
+	if errors.Is(err, tuiadmin.ErrRequiresTTY) {
+		fmt.Fprintln(cmd.ErrOrStderr(), "admin_tui_requires_tty: run `gormes admin` from an interactive terminal")
+		return exitCodeError{code: 2, err: err}
+	}
+	return err
+}
 
 func CommandEntries(root *cobra.Command) []tuiadmin.CommandEntry {
 	if root == nil {
@@ -102,5 +144,29 @@ func CommandRunArgs(path string, load ConfigLoader) ([]string, string, error) {
 		return []string{"kanban", "list"}, "gormes kanban list", nil
 	default:
 		return nil, "gormes " + path, fmt.Errorf("command is not runnable inside gormes admin")
+	}
+}
+
+func CommandRunner(opts RunnerOptions) tuiadmin.CommandRunner {
+	return func(entry tuiadmin.CommandEntry) tuiadmin.CommandRunResult {
+		args, label, err := CommandRunArgs(entry.Path, nil)
+		result := tuiadmin.CommandRunResult{RunLabel: label}
+		if err != nil {
+			result.Error = err.Error()
+			return result
+		}
+		if opts.ExecuteCommand == nil {
+			result.Error = "admin command runner is not configured"
+			return result
+		}
+		stdout, stderr, err := opts.ExecuteCommand(args)
+		result.Output = strings.TrimRight(stdout+stderr, "\n")
+		if err != nil {
+			result.Error = err.Error()
+			if opts.ExitCode != nil {
+				result.ExitCode = opts.ExitCode(err)
+			}
+		}
+		return result
 	}
 }

@@ -3,21 +3,24 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	pluginspkg "github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	plugincmd "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/plugins"
 )
 
 func newPluginsCommand() *cobra.Command {
-	return gormescli.NewPluginsCommand(pluginBuildProvenance)
+	return plugincmd.NewCommand(pluginCommandOptions())
 }
 
-func newPluginsCommandWithManager(manager *pluginspkg.LifecycleManager) *cobra.Command {
-	return gormescli.NewPluginsCommandWithManager(manager, pluginBuildProvenance)
+func newPluginsCommandWithManager(manager any) *cobra.Command {
+	return plugincmd.NewCommandWithManager(manager, pluginCommandOptions())
 }
 
-func pluginBuildProvenance() gormescli.BuildProvenance {
+func pluginCommandOptions() plugincmd.Options {
+	return plugincmd.Options{BuildProvenance: pluginBuildProvenance}
+}
+
+func pluginBuildProvenance() plugincmd.BuildProvenance {
 	build := newBuildProvenance()
-	return gormescli.BuildProvenance{
+	return plugincmd.BuildProvenance{
 		Version:   build.Version,
 		GitCommit: build.GitCommit,
 	}

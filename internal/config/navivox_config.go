@@ -3,8 +3,9 @@ package config
 import "github.com/TrebuchetDynamics/gormes-agent/internal/config/channels"
 
 const (
-	NavivoxDefaultBindHost = channels.NavivoxDefaultBindHost
-	NavivoxDefaultPort     = channels.NavivoxDefaultPort
+	NavivoxDefaultBindHost     = channels.NavivoxDefaultBindHost
+	NavivoxDefaultPort         = channels.NavivoxDefaultPort
+	NavivoxDefaultGatewayLabel = channels.NavivoxDefaultGatewayLabel
 
 	NavivoxExposureLocal     = channels.NavivoxExposureLocal
 	NavivoxExposureTailscale = channels.NavivoxExposureTailscale
@@ -20,6 +21,10 @@ const (
 
 type NavivoxCfg = channels.NavivoxCfg
 type NavivoxServerCfg = channels.NavivoxServerCfg
+
+func NewNavivoxGatewayID() (string, error) {
+	return channels.NewNavivoxGatewayID()
+}
 
 func normalizeNavivoxConfig(cfg *NavivoxCfg) error {
 	return channels.NormalizeNavivoxConfig(cfg)

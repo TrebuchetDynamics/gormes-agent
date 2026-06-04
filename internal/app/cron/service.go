@@ -9,6 +9,8 @@ import (
 	"time"
 
 	autocron "github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 type JobStore interface {
@@ -18,6 +20,38 @@ type JobStore interface {
 
 type RunReader interface {
 	LatestRuns(ctx context.Context, jobID string, limit int) ([]autocron.Run, error)
+}
+
+func OpenStore(dbPath string) (*autocron.Store, *session.BoltMap, error) {
+	if dbPath == "" {
+		dbPath = config.SessionDBPath()
+	}
+	smap, err := session.OpenBolt(dbPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("open session DB %s: %w", dbPath, err)
+	}
+	store, err := autocron.NewStore(smap.DB())
+	if err != nil {
+		smap.Close()
+		return nil, nil, fmt.Errorf("open cron store: %w", err)
+	}
+	return store, smap, nil
+}
+
+func OpenStoreWithRuns(dbPath string) (*autocron.Store, *autocron.RunStore, *session.BoltMap, error) {
+	if dbPath == "" {
+		dbPath = config.SessionDBPath()
+	}
+	smap, err := session.OpenBolt(dbPath)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("open session DB %s: %w", dbPath, err)
+	}
+	store, err := autocron.NewStore(smap.DB())
+	if err != nil {
+		smap.Close()
+		return nil, nil, nil, fmt.Errorf("open cron store: %w", err)
+	}
+	return store, nil, smap, nil // RunStore needs sql.DB; not wired here yet
 }
 
 func ListJobs(out io.Writer, store JobStore) error {

@@ -13,6 +13,7 @@ import (
 )
 
 func TestGoNativeTTSProviderSynthesizesFixtureWAV(t *testing.T) {
+	restoreEnv(t, "GORMES_TTS_PIPER_MODEL", "GORMES_TTS_PIPER_MODEL_CACHE", "GORMES_TTS_PIPER_CACHE_DIR", "GORMES_TTS_PIPER_VOICE", "GORMES_TTS_PIPER_BIN")
 	output := filepath.Join(t.TempDir(), "local.wav")
 	provider := NewGoNativeTTSProvider(GoNativeTTSProviderConfig{})
 
@@ -33,6 +34,35 @@ func TestGoNativeTTSProviderSynthesizesFixtureWAV(t *testing.T) {
 	}
 	if result.MediaTag != "MEDIA:"+output {
 		t.Fatalf("media tag = %q, want MEDIA path", result.MediaTag)
+	}
+}
+
+func TestGoNativeTTSProviderUsesConfiguredPiperRuntime(t *testing.T) {
+	restoreEnv(t, "GORMES_TTS_PIPER_MODEL", "GORMES_TTS_PIPER_MODEL_CACHE", "GORMES_TTS_PIPER_CACHE_DIR", "GORMES_TTS_PIPER_VOICE", "GORMES_TTS_PIPER_BIN")
+	os.Setenv("GORMES_TTS_PIPER_MODEL", filepath.Join(t.TempDir(), "voice.onnx"))
+	os.Setenv("GORMES_TTS_PIPER_BIN", "piper-test")
+
+	provider := NewGoNativeTTSProvider(GoNativeTTSProviderConfig{})
+	if _, ok := provider.runtime.(*speechtts.PiperSynthesizer); !ok {
+		t.Fatalf("runtime = %T, want PiperSynthesizer when model env is configured", provider.runtime)
+	}
+}
+
+func TestGoNativeTTSProviderUsesCachedPiperRuntime(t *testing.T) {
+	restoreEnv(t, "GORMES_TTS_PIPER_MODEL", "GORMES_TTS_PIPER_MODEL_CACHE", "GORMES_TTS_PIPER_CACHE_DIR", "GORMES_TTS_PIPER_VOICE", "GORMES_TTS_PIPER_BIN")
+	cache := t.TempDir()
+	model := filepath.Join(cache, "en_US-lessac-medium.onnx")
+	if err := os.WriteFile(model, []byte(strings.Repeat("m", 2048)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(model+".json", []byte(`{"audio":{"sample_rate":22050}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	os.Setenv("GORMES_TTS_PIPER_MODEL_CACHE", cache)
+
+	provider := NewGoNativeTTSProvider(GoNativeTTSProviderConfig{})
+	if _, ok := provider.runtime.(*speechtts.PiperSynthesizer); !ok {
+		t.Fatalf("runtime = %T, want cached PiperSynthesizer", provider.runtime)
 	}
 }
 

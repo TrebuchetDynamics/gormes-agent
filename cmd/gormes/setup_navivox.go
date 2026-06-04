@@ -146,6 +146,19 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 		}
 	}
 
+	gatewayID := strings.TrimSpace(cfg.Navivox.GatewayID)
+	if gatewayID == "" {
+		generated, err := config.NewNavivoxGatewayID()
+		if err != nil {
+			return err
+		}
+		gatewayID = generated
+	}
+	gatewayLabel := strings.TrimSpace(cfg.Navivox.GatewayLabel)
+	if gatewayLabel == "" {
+		gatewayLabel = config.NavivoxDefaultGatewayLabel
+	}
+
 	var allowedIdentities string
 	if authMode == config.NavivoxAuthTailscaleIdentity || authMode == config.NavivoxAuthTokenAndTailscaleIdentity {
 		allowedInput, err := promptString(cmd, "Allowed Tailscale identities (comma-separated, blank to allow Tailscale-authenticated clients): ", strings.Join(cfg.Navivox.AllowedTailnetIdentities, ","))
@@ -165,6 +178,8 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 
 	runtimeCfg := config.NavivoxCfg{
 		Enabled:                  true,
+		GatewayID:                gatewayID,
+		GatewayLabel:             gatewayLabel,
 		BindHost:                 bindHost,
 		Port:                     port,
 		ExposureMode:             exposureMode,
@@ -182,6 +197,8 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 		value string
 	}{
 		{"navivox.enabled", "true"},
+		{"navivox.gateway_id", runtimeCfg.GatewayID},
+		{"navivox.gateway_label", runtimeCfg.GatewayLabel},
 		{"navivox.bind_host", runtimeCfg.BindHost},
 		{"navivox.port", strconv.Itoa(runtimeCfg.Port)},
 		{"navivox.exposure_mode", runtimeCfg.ExposureMode},

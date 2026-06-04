@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Owned divergence (parity intent hermes_cli/security_advisories.py@55c9f3206):
@@ -141,5 +142,139 @@ func TestFullRemediationTextRendersAdvisoryContent(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToLower(joined), "remediation") {
 		t.Fatalf("remediation block must include the steps header:\n%s", joined)
+	}
+}
+
+func TestRenderDoctorSectionReportsUnackedSecurityAdvisories(t *testing.T) {
+	hits := DetectCompromised(DefaultCatalog(), func(pkg string) string {
+		if pkg == "mistralai" {
+			return "2.4.6"
+		}
+		return ""
+	})
+	if len(hits) != 1 {
+		t.Fatalf("setup: want 1 hit, got %d", len(hits))
+	}
+
+	hasProblems, lines := RenderDoctorSection(hits, map[string]struct{}{})
+	if !hasProblems {
+		t.Fatal("active advisory should mark doctor section as problematic")
+	}
+	joined := strings.Join(lines, "\n")
+	for _, want := range []string{
+		"=== Mini Shai-Hulud worm",
+		"ID:        shai-hulud-2026-05",
+		"Detected:  mistralai==2.4.6",
+		"Remediation:",
+		"Run: pip uninstall -y mistralai",
+		"After cleanup: gormes doctor --ack shai-hulud-2026-05",
+	} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("doctor section missing %q:\n%s", want, joined)
+		}
+	}
+
+	ackedProblems, ackedLines := RenderDoctorSection(hits, map[string]struct{}{"shai-hulud-2026-05": {}})
+	if ackedProblems {
+		t.Fatalf("acked advisory should not mark doctor section as problematic: %v", ackedLines)
+	}
+	if got := strings.Join(ackedLines, "\n"); !strings.Contains(got, "No active security advisories.  ✓") {
+		t.Fatalf("acked/clean doctor section should render no-active message, got:\n%s", got)
+	}
+
+	second := hits[0]
+	second.Advisory.ID = "secondary-2026-05"
+	second.Advisory.Title = "Secondary compromised package"
+	second.Package = "secondarypkg"
+	second.InstalledVersion = "0.1.0"
+	_, multiLines := RenderDoctorSection([]AdvisoryHit{hits[0], second}, map[string]struct{}{})
+	multi := strings.Join(multiLines, "\n")
+	if !strings.Contains(multi, "\n\n=== Secondary compromised package ===") {
+		t.Fatalf("multiple doctor advisories should be separated by a blank line:\n%s", multi)
+	}
+}
+
+func TestStartupBannerShowsUnackedHitsOncePerRepeatWindow(t *testing.T) {
+	hits := DetectCompromised(DefaultCatalog(), func(pkg string) string {
+		if pkg == "mistralai" {
+			return "2.4.6"
+		}
+		return ""
+	})
+	if len(hits) != 1 {
+		t.Fatalf("setup: want 1 hit, got %d", len(hits))
+	}
+
+	cache := NewBannerCache(t.TempDir())
+	now := time.Date(2026, 5, 13, 10, 0, 0, 0, time.UTC)
+	banner := StartupBanner(hits, map[string]struct{}{}, cache, now)
+	if banner == "" {
+		t.Fatal("first active advisory should render a startup banner")
+	}
+	for _, want := range []string{
+		"SECURITY ADVISORY [shai-hulud-2026-05]",
+		"mistralai==2.4.6",
+		"Run 'gormes doctor' for remediation steps.",
+	} {
+		if !strings.Contains(banner, want) {
+			t.Fatalf("startup banner missing %q:\n%s", want, banner)
+		}
+	}
+
+	if got := StartupBanner(hits, map[string]struct{}{}, cache, now.Add(time.Hour)); got != "" {
+		t.Fatalf("recently shown advisory should be suppressed, got:\n%s", got)
+	}
+	if got := StartupBanner(hits, map[string]struct{}{"shai-hulud-2026-05": {}}, cache, now.Add(48*time.Hour)); got != "" {
+		t.Fatalf("acked advisory should not banner, got:\n%s", got)
+	}
+	if got := StartupBanner(hits, map[string]struct{}{}, cache, now.Add(25*time.Hour)); got == "" {
+		t.Fatal("unacked advisory should banner again after repeat window")
+	}
+}
+
+func TestGatewayLogMessageSummarizesUnackedSecurityAdvisories(t *testing.T) {
+	hits := DetectCompromised(DefaultCatalog(), func(pkg string) string {
+		if pkg == "mistralai" {
+			return "2.4.6"
+		}
+		return ""
+	})
+	if len(hits) != 1 {
+		t.Fatalf("setup: want 1 hit, got %d", len(hits))
+	}
+
+	msg := GatewayLogMessage(hits, map[string]struct{}{})
+	for _, want := range []string{
+		"Security advisory [shai-hulud-2026-05] active",
+		"mistralai==2.4.6",
+		"Mini Shai-Hulud worm",
+		"https://socket.dev/blog/mini-shai-hulud-worm-pypi",
+	} {
+		if !strings.Contains(msg, want) {
+			t.Fatalf("gateway log message missing %q:\n%s", want, msg)
+		}
+	}
+	if strings.Contains(msg, "hermes doctor") {
+		t.Fatalf("Gormes gateway log message must not point operators at hermes doctor:\n%s", msg)
+	}
+
+	if got := GatewayLogMessage(hits, map[string]struct{}{"shai-hulud-2026-05": {}}); got != "" {
+		t.Fatalf("acked advisory should not produce a gateway log message, got:\n%s", got)
+	}
+
+	second := hits[0]
+	second.Advisory.ID = "secondary-2026-05"
+	second.Advisory.Title = "Secondary compromised package"
+	second.Package = "secondarypkg"
+	second.InstalledVersion = "0.1.0"
+	multi := GatewayLogMessage([]AdvisoryHit{hits[0], second}, map[string]struct{}{})
+	for _, want := range []string{
+		"2 security advisories active",
+		"shai-hulud-2026-05, secondary-2026-05",
+		"Run `gormes doctor` on the gateway host for details.",
+	} {
+		if !strings.Contains(multi, want) {
+			t.Fatalf("multi-advisory gateway log message missing %q:\n%s", want, multi)
+		}
 	}
 }

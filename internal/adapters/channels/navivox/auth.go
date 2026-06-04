@@ -61,40 +61,58 @@ func (c *Channel) authenticateTailscaleIdentity(r *http.Request) (string, bool) 
 }
 
 func (c *Channel) authenticateToken(r *http.Request) bool {
-	token := bearerToken(r)
-	if token == "" {
-		token = strings.TrimSpace(r.Header.Get("X-Gormes-Navivox-Token"))
-	}
-	if token == "" {
-		token = webSocketProtocolToken(r)
-	}
-	if token == "" || c.cfg.Token == "" {
+	token, ok := navivoxSingleTokenCredential(r)
+	if !ok || token == "" || c.cfg.Token == "" {
 		return false
 	}
 	return hmac.Equal([]byte(token), []byte(c.cfg.Token))
 }
 
-func bearerToken(r *http.Request) string {
-	auth := strings.TrimSpace(r.Header.Get("Authorization"))
-	if !strings.HasPrefix(auth, "Bearer ") {
-		return ""
+func navivoxSingleTokenCredential(r *http.Request) (string, bool) {
+	var tokens []string
+	if strings.TrimSpace(r.Header.Get("Authorization")) != "" {
+		tokens = append(tokens, bearerToken(r))
 	}
-	return strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
+	if token := strings.TrimSpace(r.Header.Get("X-Gormes-Navivox-Token")); token != "" {
+		tokens = append(tokens, token)
+	}
+	if token, present := webSocketProtocolToken(r); present {
+		tokens = append(tokens, token)
+	}
+	if len(tokens) != 1 || strings.TrimSpace(tokens[0]) == "" {
+		return "", false
+	}
+	return tokens[0], true
 }
 
-func webSocketProtocolToken(r *http.Request) string {
+func bearerToken(r *http.Request) string {
+	auth := strings.TrimSpace(r.Header.Get("Authorization"))
+	separator := strings.IndexByte(auth, ' ')
+	if separator <= 0 || !strings.EqualFold(auth[:separator], "Bearer") {
+		return ""
+	}
+	return strings.TrimSpace(auth[separator+1:])
+}
+
+func webSocketProtocolToken(r *http.Request) (string, bool) {
+	found := false
+	var token string
 	for _, protocol := range websocket.Subprotocols(r) {
 		if !strings.HasPrefix(protocol, navivoxWebSocketTokenProtocolPrefix) {
 			continue
 		}
+		if found {
+			return "", true
+		}
+		found = true
 		encoded := strings.TrimPrefix(protocol, navivoxWebSocketTokenProtocolPrefix)
 		decoded, err := base64.RawURLEncoding.DecodeString(encoded)
 		if err != nil {
-			return ""
+			return "", true
 		}
-		return string(decoded)
+		token = string(decoded)
 	}
-	return ""
+	return token, found
 }
 
 func firstHeader(r *http.Request, names ...string) string {
@@ -109,7 +127,11 @@ func firstHeader(r *http.Request, names ...string) string {
 func (c *Channel) cors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := strings.TrimSpace(r.Header.Get("Origin"))
-		if origin != "" && c.originAllowed(origin) {
+		if origin != "" {
+			if !c.originAllowed(origin) {
+				writeNavivoxError(w, http.StatusForbidden, "", "forbidden_origin", "Origin is not allowed")
+				return
+			}
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
 			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Gormes-Navivox-Token")

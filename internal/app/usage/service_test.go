@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -84,6 +86,61 @@ func TestUsageCommandUsesInjectedSeamsAndBuildProvenance(t *testing.T) {
 	}
 	if len(got.Windows) != 1 || got.Windows[0].Label != "Session" || got.Windows[0].UsedPercent == nil || *got.Windows[0].UsedPercent != 25 {
 		t.Fatalf("windows = %+v, want Session 25%% used", got.Windows)
+	}
+}
+
+func TestUsageHTTPClientHasBoundedTimeout(t *testing.T) {
+	if UsageHTTPClient == nil {
+		t.Fatal("UsageHTTPClient must be configured at package init")
+	}
+	if UsageHTTPClient.Timeout <= 0 {
+		t.Fatalf("UsageHTTPClient.Timeout = %s, want a positive bound", UsageHTTPClient.Timeout)
+	}
+	if UsageHTTPClient.Timeout > 60*time.Second {
+		t.Fatalf("UsageHTTPClient.Timeout = %s, want <= 60s for operator responsiveness", UsageHTTPClient.Timeout)
+	}
+}
+
+func TestAccountUsageHTTPClientSendsHeadersAndReturnsBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("method = %q, want GET", r.Method)
+		}
+		if r.URL.Path != "/usage" {
+			t.Fatalf("path = %q, want /usage", r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer fixture-token" {
+			t.Fatalf("Authorization = %q, want fixture token", got)
+		}
+		if got := r.Header.Get("Blank"); got != "" {
+			t.Fatalf("blank header propagated as %q", got)
+		}
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	resp, err := (AccountUsageHTTPClient{Client: server.Client()}).DoAccountUsageRequest(context.Background(), llm.AccountUsageHTTPRequest{
+		URL: server.URL + "/usage",
+		Headers: map[string]string{
+			"Authorization": "Bearer fixture-token",
+			"Blank":         " ",
+		},
+	})
+	if err != nil {
+		t.Fatalf("DoAccountUsageRequest: %v", err)
+	}
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusAccepted)
+	}
+	if string(resp.Body) != `{"ok":true}` {
+		t.Fatalf("body = %q", resp.Body)
+	}
+}
+
+func TestFirstUsageStringSkipsBlankValues(t *testing.T) {
+	if got := FirstUsageString("", "  ", "model"); got != "model" {
+		t.Fatalf("FirstUsageString() = %q, want model", got)
 	}
 }
 

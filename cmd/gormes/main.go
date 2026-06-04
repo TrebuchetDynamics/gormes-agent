@@ -351,6 +351,7 @@ func rootCommandFactories(runtime rootRuntime) gormescli.CommandFactories {
 		"agent":     newAgentCommand,
 		"navivox":   newNavivoxCommand,
 		"usage":     newUsageCommand,
+		"tts":       newTTSCommand,
 		"status":    newStatusCommand,
 		"auth":      newAuthCommand,
 		"providers": newProvidersCommand,

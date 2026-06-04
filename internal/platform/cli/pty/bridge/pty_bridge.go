@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -245,15 +246,30 @@ func normalizePtySpawnRequest(req PtySpawnRequest) (PtySpawnRequest, error) {
 	}
 
 	req.Argv = append([]string(nil), req.Argv...)
-	if req.Env != nil {
-		env := make(map[string]string, len(req.Env))
-		for k, v := range req.Env {
-			env[k] = v
-		}
-		req.Env = env
-	}
+	req.Env = normalizePtySpawnEnv(req.Env)
 
 	return req, nil
+}
+
+func normalizePtySpawnEnv(input map[string]string) map[string]string {
+	env := make(map[string]string, len(input)+1)
+	if input == nil {
+		for _, kv := range os.Environ() {
+			key, value, ok := strings.Cut(kv, "=")
+			if !ok || key == "" {
+				continue
+			}
+			env[key] = value
+		}
+	} else {
+		for k, v := range input {
+			env[k] = v
+		}
+	}
+	if strings.TrimSpace(env["TERM"]) == "" {
+		env["TERM"] = "xterm-256color"
+	}
+	return env
 }
 
 func parsePtyResizeMessage(raw []byte) (cols, rows int, resize bool, err error) {

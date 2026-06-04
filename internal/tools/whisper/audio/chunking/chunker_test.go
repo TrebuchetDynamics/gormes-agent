@@ -6,6 +6,32 @@ import (
 	"time"
 )
 
+func TestChunkPCMWithOverlap(t *testing.T) {
+	got := ChunkPCMWithOverlap([]int16{0, 1, 2, 3, 4, 5}, 4, time.Second, 500*time.Millisecond)
+	want := [][]int16{{0, 1, 2, 3}, {2, 3, 4, 5}}
+	if len(got) != len(want) {
+		t.Fatalf("chunk count = %d, want %d: %v", len(got), len(want), got)
+	}
+	for i := range want {
+		if !slices.Equal(got[i], want[i]) {
+			t.Fatalf("chunk %d = %v, want %v", i, got[i], want[i])
+		}
+	}
+}
+
+func TestChunkPCMWithOverlapClampsOversizedOverlap(t *testing.T) {
+	got := ChunkPCMWithOverlap([]int16{0, 1, 2, 3}, 2, time.Second, 2*time.Second)
+	want := [][]int16{{0, 1}, {1, 2}, {2, 3}}
+	if len(got) != len(want) {
+		t.Fatalf("chunk count = %d, want %d: %v", len(got), len(want), got)
+	}
+	for i := range want {
+		if !slices.Equal(got[i], want[i]) {
+			t.Fatalf("chunk %d = %v, want %v", i, got[i], want[i])
+		}
+	}
+}
+
 func TestChunkPCMFixedWindowEdges(t *testing.T) {
 	t.Run("empty input", func(t *testing.T) {
 		if got := ChunkPCM(nil, 16000, time.Second); len(got) != 0 {

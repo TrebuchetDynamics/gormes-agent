@@ -2,15 +2,13 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	bridgecmd "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/bridgecmd"
 )
 
 func newBridgeCommand() *cobra.Command {
@@ -42,34 +40,17 @@ at 127.0.0.1:8766. This is the control plane for the Navivox Flutter app.`,
 }
 
 func runBridgeCommand(cmd *cobra.Command, bindHost string, bindPort int, gatewayHost string, gatewayPort int) error {
-	cfg := gormescli.BridgeConfig{
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	return bridgecmd.Run(ctx, bridgecmd.Options{
 		BindHost:    bindHost,
 		BindPort:    bindPort,
 		GatewayHost: gatewayHost,
 		GatewayPort: gatewayPort,
 		GormesBin:   resolveGormesBinPath(),
-	}
-
-	srv := gormescli.NewBridgeServer(cfg)
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	fmt.Fprintf(cmd.ErrOrStderr(), "Navivox bridge starting on %s\n", cfg.BindAddr())
-	fmt.Fprintf(cmd.ErrOrStderr(), "Proxying to gateway at %s\n", cfg.GatewayAddr())
-	fmt.Fprintf(cmd.ErrOrStderr(), "Health: http://%s/health\n", cfg.BindAddr())
-	fmt.Fprintf(cmd.ErrOrStderr(), "Bootstrap: POST http://%s/bootstrap/termux\n", cfg.BindAddr())
-
-	if err := srv.Start(ctx); err != nil {
-		return fmt.Errorf("bridge: %w", err)
-	}
-
-	<-ctx.Done()
-	slog.Info("bridge shutting down")
-
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5000000000)
-	defer cancel()
-	return srv.Stop(shutdownCtx)
+		Out:         cmd.ErrOrStderr(),
+	})
 }
 
 func resolveGormesBinPath() string {

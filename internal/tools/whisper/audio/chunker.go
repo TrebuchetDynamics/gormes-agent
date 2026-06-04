@@ -9,3 +9,7 @@ import (
 func ChunkPCM(samples []int16, sampleRate int, maxChunk time.Duration) [][]int16 {
 	return chunking.ChunkPCM(samples, sampleRate, maxChunk)
 }
+
+func ChunkPCMWithOverlap(samples []int16, sampleRate int, maxChunk, overlap time.Duration) [][]int16 {
+	return chunking.ChunkPCMWithOverlap(samples, sampleRate, maxChunk, overlap)
+}

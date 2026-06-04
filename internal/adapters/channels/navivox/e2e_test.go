@@ -1,0 +1,474 @@
+package navivox
+
+import (
+	"context"
+	"encoding/base64"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/gorilla/websocket"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+)
+
+func TestNavivoxE2ETokenAuthRequiresHeaderOrWebSocketProtocolNeverURLQuery(t *testing.T) {
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		GatewayID:    "gw_0123456789abcdef0123456789abcdef",
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
+	defer server.Close()
+
+	queryOnly, err := http.Get(server.URL + "/v1/navivox/status?token=nvbx_test_token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer queryOnly.Body.Close()
+	if queryOnly.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("query token status = %d, want 401", queryOnly.StatusCode)
+	}
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "bearer nvbx_test_token")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("lowercase bearer status = %d, want 200", resp.StatusCode)
+	}
+}
+
+func TestNavivoxE2ERejectsDuplicateTokenCredentialSources(t *testing.T) {
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		GatewayID:    "gw_0123456789abcdef0123456789abcdef",
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	req.Header.Set("X-Gormes-Navivox-Token", "nvbx_test_token")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("duplicate token source status = %d, want 401", resp.StatusCode)
+	}
+}
+
+func TestNavivoxE2ERejectsAuthenticatedWebSocketWithoutNavivoxProtocol(t *testing.T) {
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		GatewayID:    "gw_0123456789abcdef0123456789abcdef",
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
+	defer server.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/v1/navivox/stream"
+	dialer := websocket.Dialer{}
+	conn, resp, err := dialer.Dial(wsURL, http.Header{"Authorization": []string{"Bearer nvbx_test_token"}})
+	if err == nil {
+		_ = conn.Close()
+		t.Fatal("websocket dial without navivox.v1 subprotocol succeeded, want rejection")
+	}
+	if resp == nil || resp.StatusCode != http.StatusBadRequest {
+		status := 0
+		if resp != nil {
+			status = resp.StatusCode
+		}
+		t.Fatalf("websocket missing protocol status = %d err=%v, want 400", status, err)
+	}
+}
+
+func TestNavivoxE2ERejectsOversizedHTTPTurnWithTyped413(t *testing.T) {
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		GatewayID:    "gw_0123456789abcdef0123456789abcdef",
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+	httpc := newNavivoxHTTPContract(t, server.URL)
+
+	var event ServerEvent
+	body := `{"request_id":"req-http-too-big","text":"` + strings.Repeat("x", navivoxMaxTurnRequestBytes+1) + `"}`
+	httpc.JSON(http.MethodPost, "/v1/navivox/turn", body, http.StatusRequestEntityTooLarge, &event)
+	if event.Type != "error" || event.Code != "request_too_large" {
+		t.Fatalf("oversized HTTP turn event = %+v, want request_too_large", event)
+	}
+	select {
+	case ev := <-inbox:
+		t.Fatalf("oversized HTTP turn enqueued gateway event: %+v", ev)
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+func TestNavivoxE2ERejectsOversizedWebSocketTurnBeforeGatewayEnqueue(t *testing.T) {
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		GatewayID:    "gw_0123456789abcdef0123456789abcdef",
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/v1/navivox/stream"
+	dialer := websocket.Dialer{Subprotocols: []string{
+		navivoxWebSocketProtocol,
+		navivoxWebSocketTokenProtocolPrefix + base64.RawURLEncoding.EncodeToString([]byte("nvbx_test_token")),
+	}}
+	conn, resp, err := dialer.Dial(wsURL, nil)
+	if err != nil {
+		if resp != nil {
+			t.Fatalf("websocket dial status=%d err=%v", resp.StatusCode, err)
+		}
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	payload := `{"type":"start_turn","request_id":"req-too-big","text":"` + strings.Repeat("x", navivoxMaxTurnRequestBytes+1) + `"}`
+	if err := conn.WriteMessage(websocket.TextMessage, []byte(payload)); err != nil {
+		t.Fatal(err)
+	}
+	var event ServerEvent
+	if err := conn.ReadJSON(&event); err != nil {
+		t.Fatal(err)
+	}
+	if event.Type != "error" || event.Code != "request_too_large" || event.RequestID != "req-too-big" {
+		t.Fatalf("oversized websocket event = %+v, want request_too_large error", event)
+	}
+	select {
+	case ev := <-inbox:
+		t.Fatalf("oversized websocket turn enqueued gateway event: %+v", ev)
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+func TestNavivoxE2ERejectsUntrustedBrowserOriginEvenWithValidToken(t *testing.T) {
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		GatewayID:    "gw_0123456789abcdef0123456789abcdef",
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"https://navivox.example"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	req.Header.Set("Origin", "https://evil.example")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("untrusted origin status = %d, want 403", resp.StatusCode)
+	}
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/v1/navivox/stream"
+	dialer := websocket.Dialer{Subprotocols: []string{
+		navivoxWebSocketProtocol,
+		navivoxWebSocketTokenProtocolPrefix + base64.RawURLEncoding.EncodeToString([]byte("nvbx_test_token")),
+	}}
+	_, wsResp, err := dialer.Dial(wsURL, http.Header{"Origin": []string{"https://evil.example"}})
+	if err == nil {
+		t.Fatal("websocket dial from untrusted origin succeeded, want rejection")
+	}
+	if wsResp == nil || wsResp.StatusCode != http.StatusForbidden {
+		status := 0
+		if wsResp != nil {
+			status = wsResp.StatusCode
+		}
+		t.Fatalf("websocket untrusted origin status = %d err=%v, want 403", status, err)
+	}
+}
+
+func TestNavivoxE2EPublicHTTPStatusAdvertisesInsecureTransport(t *testing.T) {
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:         true,
+		GatewayID:       "gw_0123456789abcdef0123456789abcdef",
+		BindHost:        "0.0.0.0",
+		Port:            config.NavivoxDefaultPort,
+		ExposureMode:    config.NavivoxExposurePublic,
+		AuthMode:        config.NavivoxAuthPairingToken,
+		Token:           "nvbx_test_token",
+		PublicConfirmed: true,
+		AllowOrigins:    []string{"https://navivox.example"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
+	defer server.Close()
+	httpc := newNavivoxHTTPContract(t, server.URL)
+
+	var status struct {
+		TransportSecurity struct {
+			EffectiveSecurity         string `json:"effective_security"`
+			ExposureMode              string `json:"exposure_mode"`
+			DurableCredentialsAllowed bool   `json:"durable_credentials_allowed"`
+		} `json:"transport_security"`
+	}
+	httpc.JSON(http.MethodGet, "/v1/navivox/status", "", http.StatusOK, &status)
+	if status.TransportSecurity.EffectiveSecurity != "insecure" || status.TransportSecurity.ExposureMode != config.NavivoxExposurePublic || status.TransportSecurity.DurableCredentialsAllowed {
+		t.Fatalf("public transport security = %+v, want insecure session-only status", status.TransportSecurity)
+	}
+}
+
+func TestNavivoxE2ECapabilitiesAdvertiseDurableReconnectFailClosed(t *testing.T) {
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		GatewayID:    "gw_0123456789abcdef0123456789abcdef",
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
+	defer server.Close()
+	httpc := newNavivoxHTTPContract(t, server.URL)
+
+	var caps struct {
+		DurableReconnect struct {
+			Supported         bool     `json:"supported"`
+			IssueEndpoint     string   `json:"issue_endpoint"`
+			AuthMethods       []string `json:"auth_methods"`
+			Platforms         []string `json:"platforms"`
+			EffectiveSecurity string   `json:"effective_security"`
+			BlockedReason     string   `json:"blocked_reason"`
+		} `json:"durable_reconnect"`
+	}
+	httpc.JSON(http.MethodGet, "/v1/navivox/capabilities", "", http.StatusOK, &caps)
+	if caps.DurableReconnect.Supported {
+		t.Fatalf("durable_reconnect.supported = true, want fail-closed until credential issuance exists: %+v", caps.DurableReconnect)
+	}
+	if caps.DurableReconnect.IssueEndpoint != "" || len(caps.DurableReconnect.AuthMethods) != 0 {
+		t.Fatalf("durable reconnect issue contract = endpoint=%q auth=%v, want empty while unsupported", caps.DurableReconnect.IssueEndpoint, caps.DurableReconnect.AuthMethods)
+	}
+	if caps.DurableReconnect.EffectiveSecurity != "loopback" {
+		t.Fatalf("durable_reconnect.effective_security = %q, want loopback", caps.DurableReconnect.EffectiveSecurity)
+	}
+	if !strings.Contains(strings.ToLower(caps.DurableReconnect.BlockedReason), "not implemented") {
+		t.Fatalf("durable_reconnect.blocked_reason = %q, want implementation blocker", caps.DurableReconnect.BlockedReason)
+	}
+}
+
+func TestNavivoxE2EAuthenticatedClientSeesGatewayIdentityAndRunsScopedTurn(t *testing.T) {
+	const gatewayID = "gw_0123456789abcdef0123456789abcdef"
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		GatewayID:    gatewayID,
+		GatewayLabel: "Kitchen Gormes",
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch.loadContacts = func(context.Context) ([]ProfileContact, error) {
+		return []ProfileContact{{
+			ServerID:           "local-gormes",
+			ProfileID:          "mineru",
+			DisplayName:        "Mineru Builder",
+			ServerLabel:        "Kitchen Gormes",
+			LatestPreview:      "Ready for E2E",
+			LatestPreviewKind:  "status",
+			Health:             ProfileContactHealthOnline,
+			WorkspaceRootCount: 1,
+			WorkspaceRootsOK:   true,
+			MicAvailable:       true,
+			ActiveTurnState:    ProfileContactTurnIdle,
+		}}, nil
+	}
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+	httpc := newNavivoxHTTPContract(t, server.URL)
+
+	var status struct {
+		GatewayID         string `json:"gateway_id"`
+		GatewayLabel      string `json:"gateway_label"`
+		TransportSecurity struct {
+			EffectiveSecurity         string `json:"effective_security"`
+			ExposureMode              string `json:"exposure_mode"`
+			TLS                       bool   `json:"tls"`
+			PrivateNetwork            bool   `json:"private_network"`
+			DurableCredentialsAllowed bool   `json:"durable_credentials_allowed"`
+		} `json:"transport_security"`
+	}
+	httpc.JSON(http.MethodGet, "/v1/navivox/status", "", http.StatusOK, &status)
+	if status.GatewayID != gatewayID || status.GatewayLabel != "Kitchen Gormes" {
+		t.Fatalf("status identity = %+v, want authenticated gateway identity and label", status)
+	}
+	if status.TransportSecurity.EffectiveSecurity != "loopback" || status.TransportSecurity.ExposureMode != config.NavivoxExposureLocal || status.TransportSecurity.TLS || status.TransportSecurity.PrivateNetwork || status.TransportSecurity.DurableCredentialsAllowed {
+		t.Fatalf("transport security = %+v, want loopback session-only status", status.TransportSecurity)
+	}
+
+	var contacts profileContactSnapshot
+	httpc.JSON(http.MethodGet, "/v1/navivox/profile-contacts", "", http.StatusOK, &contacts)
+	if len(contacts.Contacts) != 1 || contacts.Contacts[0].ServerID != "local-gormes" || contacts.Contacts[0].ServerLabel != "Kitchen Gormes" {
+		t.Fatalf("profile contacts = %+v, want server-scoped contact with gateway display label", contacts.Contacts)
+	}
+	if contacts.Contacts[0].ServerID == status.GatewayID {
+		t.Fatalf("profile contact server_id %q must stay distinct from gateway_id %q", contacts.Contacts[0].ServerID, status.GatewayID)
+	}
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/v1/navivox/stream"
+	dialer := websocket.Dialer{Subprotocols: []string{
+		navivoxWebSocketProtocol,
+		navivoxWebSocketTokenProtocolPrefix + base64.RawURLEncoding.EncodeToString([]byte("nvbx_test_token")),
+	}}
+	conn, resp, err := dialer.Dial(wsURL, nil)
+	if err != nil {
+		if resp != nil {
+			t.Fatalf("websocket dial status=%d err=%v", resp.StatusCode, err)
+		}
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	if err := conn.WriteJSON(ClientMessage{
+		Type:      "start_turn",
+		RequestID: "req-e2e",
+		Text:      "hello e2e gateway",
+		Metadata:  map[string]any{"server_id": "local-gormes", "profile_id": "mineru"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	started := readNavivoxE2EEvent(t, conn)
+	if started.Type != "session_started" || started.RequestID != "req-e2e" || started.SessionID == "" {
+		t.Fatalf("session_started = %+v", started)
+	}
+
+	select {
+	case ev := <-inbox:
+		if ev.Platform != PlatformName || ev.Kind != gateway.EventSubmit || ev.ChatID != started.SessionID || ev.MsgID != "req-e2e" || ev.Text != "hello e2e gateway" {
+			t.Fatalf("gateway event = %+v, want scoped Navivox submit", ev)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for gateway turn")
+	}
+
+	if _, err := ch.Send(context.Background(), started.SessionID, "hello from kitchen gateway"); err != nil {
+		t.Fatal(err)
+	}
+	seenAssistant := false
+	seenDone := false
+	deadline := time.After(time.Second)
+	for !(seenAssistant && seenDone) {
+		select {
+		case <-deadline:
+			t.Fatalf("timed out waiting for assistant/done events; assistant=%v done=%v", seenAssistant, seenDone)
+		default:
+		}
+		event := readNavivoxE2EEvent(t, conn)
+		switch event.Type {
+		case "profile_contact_update":
+			if event.Contact == nil || event.Contact.ServerID != "local-gormes" || event.Contact.ProfileID != "mineru" {
+				t.Fatalf("profile contact update = %+v", event.Contact)
+			}
+		case "assistant_message":
+			if event.Text != "hello from kitchen gateway" || event.SessionID != started.SessionID {
+				t.Fatalf("assistant event = %+v", event)
+			}
+			seenAssistant = true
+		case "done":
+			if event.SessionID != started.SessionID {
+				t.Fatalf("done event = %+v", event)
+			}
+			seenDone = true
+		}
+	}
+}
+
+func readNavivoxE2EEvent(t *testing.T, conn *websocket.Conn) ServerEvent {
+	t.Helper()
+	if err := conn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	var event ServerEvent
+	if err := conn.ReadJSON(&event); err != nil {
+		t.Fatal(err)
+	}
+	return event
+}

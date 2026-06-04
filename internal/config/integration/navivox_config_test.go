@@ -141,6 +141,31 @@ token = "nvbx_test_token"
 	}
 }
 
+func TestLoadNavivoxRejectsPublicWildcardBrowserOrigins(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	clearNavivoxEnv(t)
+	writeNavivoxConfig(t, home, `
+[navivox]
+enabled = true
+bind_host = "0.0.0.0"
+port = 8765
+exposure_mode = "public"
+auth_mode = "pairing_token"
+token = "nvbx_test_token"
+public_confirmed = true
+allow_origins = ["*"]
+`)
+
+	_, err := Load(nil)
+	if err == nil {
+		t.Fatal("Load() error = nil, want public wildcard origin rejection")
+	}
+	if !strings.Contains(err.Error(), "allow_origins") || !strings.Contains(err.Error(), "*") {
+		t.Fatalf("error = %q, want allow_origins wildcard rejection", err)
+	}
+}
+
 func TestLoadNavivoxAllowsExplicitPublicMode(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)

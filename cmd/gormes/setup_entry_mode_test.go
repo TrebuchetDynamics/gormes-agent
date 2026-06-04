@@ -289,7 +289,8 @@ enabled = true
 bind_host = "127.0.0.1"
 port = 8765
 exposure_mode = "local"
-auth_mode = "tailscale_identity"
+auth_mode = "token_and_tailscale_identity"
+token = "nvbx_test_token"
 `)
 
 	var events []string

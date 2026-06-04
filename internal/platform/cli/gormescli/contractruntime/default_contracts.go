@@ -216,6 +216,7 @@ func DefaultContracts() []ModuleContract {
 		},
 		{
 			Module:        progress.ModuleTTS,
+			Commands:      commands("tts"),
 			SetupSections: setupSections("tts"),
 			SlashCommands: slashCommands("tts", "voice"),
 		},

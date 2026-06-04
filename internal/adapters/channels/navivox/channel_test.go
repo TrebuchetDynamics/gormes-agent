@@ -62,6 +62,57 @@ func TestNavivoxStatusRequiresAuthAndHealthzIsPublic(t *testing.T) {
 	}
 }
 
+func TestNavivoxStatusIncludesStableGatewayIdentityDistinctFromProfileServers(t *testing.T) {
+	const gatewayID = "gw_0123456789abcdef0123456789abcdef"
+	routing := config.NavivoxProfileRoutingReport{Servers: []config.NavivoxServerRoute{{
+		ServerID: "navivox-gateway",
+		Profiles: []config.NavivoxProfileRoute{{
+			ProfileID:   "main",
+			DisplayName: "Main Desk",
+		}},
+	}}}
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		GatewayID:    gatewayID,
+		GatewayLabel: "  Gormes gateway  ",
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil, WithProfileRouting(routing))
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
+	defer server.Close()
+	httpc := newNavivoxHTTPContract(t, server.URL)
+
+	var payload struct {
+		GatewayID      string `json:"gateway_id"`
+		GatewayLabel   string `json:"gateway_label"`
+		ProfileRouting struct {
+			Servers []struct {
+				ServerID string `json:"server_id"`
+			} `json:"servers"`
+		} `json:"profile_routing"`
+	}
+	httpc.JSON(http.MethodGet, "/v1/navivox/status", "", http.StatusOK, &payload)
+	if payload.GatewayID != gatewayID {
+		t.Fatalf("gateway_id = %q, want %q", payload.GatewayID, gatewayID)
+	}
+	if payload.GatewayLabel != "Gormes gateway" {
+		t.Fatalf("gateway_label = %q, want bland display label", payload.GatewayLabel)
+	}
+	if len(payload.ProfileRouting.Servers) == 0 || payload.ProfileRouting.Servers[0].ServerID != "navivox-gateway" {
+		t.Fatalf("profile routing servers = %+v, want profile-scoped server id", payload.ProfileRouting.Servers)
+	}
+	if payload.ProfileRouting.Servers[0].ServerID == payload.GatewayID {
+		t.Fatalf("gateway_id must be distinct from profile contact server_id: %+v", payload)
+	}
+}
+
 func TestNavivoxProfileSeedEndpointCreatesDraftAndApplyShowsContact(t *testing.T) {
 	home := filepath.Join(t.TempDir(), "gormes")
 	t.Setenv("GORMES_HOME", home)
@@ -444,7 +495,7 @@ func TestNavivoxLayeredAuthRequiresTokenAndAllowedTailscaleIdentity(t *testing.T
 		AuthMode:                 config.NavivoxAuthTokenAndTailscaleIdentity,
 		Token:                    "nvbx_test_token",
 		AllowedTailnetIdentities: []string{"juan@example.com"},
-		AllowOrigins:             []string{"*"},
+		AllowOrigins:             []string{"https://navivox.example"},
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -1027,7 +1078,8 @@ func dialTestWebSocket(t *testing.T, httpURL string) *websocket.Conn {
 	wsURL := "ws" + strings.TrimPrefix(httpURL, "http") + "/v1/navivox/stream"
 	header := http.Header{}
 	header.Set("Authorization", "Bearer nvbx_test_token")
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, header)
+	dialer := websocket.Dialer{Subprotocols: []string{navivoxWebSocketProtocol}}
+	conn, resp, err := dialer.Dial(wsURL, header)
 	if err != nil {
 		if resp != nil {
 			t.Fatalf("websocket dial status=%d err=%v", resp.StatusCode, err)

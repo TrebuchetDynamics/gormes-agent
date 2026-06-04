@@ -1,27 +1,18 @@
 package main
 
 import (
-	"context"
-	"net/http"
-
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
 )
 
 type usageInvocation = providermodule.UsageInvocation
-
-type accountUsageHTTPClient struct{ client *http.Client }
+type accountUsageHTTPClient = providermodule.AccountUsageHTTPClient
 
 var usageHTTPClient = providermodule.UsageHTTPClient
 var inferUsageProvider = providermodule.InferUsageProvider
 var firstUsageString = providermodule.FirstUsageString
-
-func (c accountUsageHTTPClient) DoAccountUsageRequest(ctx context.Context, req llm.AccountUsageHTTPRequest) (llm.AccountUsageHTTPResponse, error) {
-	return providermodule.AccountUsageHTTPClient{Client: c.client}.DoAccountUsageRequest(ctx, req)
-}
 
 func newUsageCommand() *cobra.Command {
 	return providermodule.NewUsageCommand(providerCommandOptions())

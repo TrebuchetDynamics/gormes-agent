@@ -66,15 +66,15 @@ func TestLocalSTTProvider_Transcribe_ConvertsOggBeforeWASITranscribe(t *testing.
 	var convertedFrom string
 	var transcribedPath string
 	p := NewLocalSTTProvider(dir)
-	p.ensureModel = func(context.Context) (string, error) {
-		return filepath.Join(dir, "ggml-tiny.en.bin"), nil
+	p.ensureModel = func(_ context.Context, _ whisper.ModelArtifact) (string, error) {
+		return filepath.Join(dir, "ggml-base.bin"), nil
 	}
 	p.convertToWAV = func(_ context.Context, inputPath, outputPath string) error {
 		convertedFrom = inputPath
 		return os.WriteFile(outputPath, testLocalSTTWAVPCM16Mono16k(t, []int16{1, 2, 3}), 0o600)
 	}
 	p.newTranscriber = func(context.Context, string) (localSTTWhisperTranscriber, error) {
-		return fakeLocalSTTWhisperTranscriber{
+		return &fakeLocalSTTWhisperTranscriber{
 			transcript: "hola mundo",
 			onTranscribe: func(path string) {
 				transcribedPath = path
@@ -103,16 +103,107 @@ func TestLocalSTTProvider_Transcribe_ConvertsOggBeforeWASITranscribe(t *testing.
 	}
 }
 
+func TestLocalSTTProvider_Transcribe_ReusesWarmTranscriberForSameModel(t *testing.T) {
+	dir := t.TempDir()
+	audioPath := filepath.Join(dir, "voice.wav")
+	if err := os.WriteFile(audioPath, testLocalSTTWAVPCM16Mono16k(t, []int16{1, 2, 3}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var constructed int
+	fake := &fakeLocalSTTWhisperTranscriber{transcript: "warm"}
+	p := NewLocalSTTProvider(dir)
+	p.ensureModel = func(_ context.Context, artifact whisper.ModelArtifact) (string, error) {
+		return filepath.Join(dir, artifact.Filename), nil
+	}
+	p.newTranscriber = func(context.Context, string) (localSTTWhisperTranscriber, error) {
+		constructed++
+		return fake, nil
+	}
+
+	for i := 0; i < 2; i++ {
+		result, err := p.Transcribe(context.Background(), TranscriptionProviderRequest{AudioPath: audioPath, Model: "base"})
+		if err != nil {
+			t.Fatalf("Transcribe #%d returned error: %v", i+1, err)
+		}
+		if result.Transcript != "warm" {
+			t.Fatalf("Transcript #%d = %q, want warm", i+1, result.Transcript)
+		}
+	}
+	if constructed != 1 {
+		t.Fatalf("transcriber constructed %d times, want 1", constructed)
+	}
+	if fake.closed != 0 {
+		t.Fatalf("warm transcriber closed during reuse %d times, want 0", fake.closed)
+	}
+	if err := p.Close(context.Background()); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if fake.closed != 1 {
+		t.Fatalf("warm transcriber closed %d times after provider close, want 1", fake.closed)
+	}
+}
+
+func TestLocalSTTProvider_Transcribe_UsesRequestedModelTier(t *testing.T) {
+	dir := t.TempDir()
+	audioPath := filepath.Join(dir, "voice.wav")
+	if err := os.WriteFile(audioPath, testLocalSTTWAVPCM16Mono16k(t, []int16{1, 2, 3}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var requestedArtifact whisper.ModelArtifact
+	p := NewLocalSTTProvider(dir)
+	p.ensureModel = func(_ context.Context, artifact whisper.ModelArtifact) (string, error) {
+		requestedArtifact = artifact
+		return filepath.Join(dir, artifact.Filename), nil
+	}
+	p.newTranscriber = func(context.Context, string) (localSTTWhisperTranscriber, error) {
+		return &fakeLocalSTTWhisperTranscriber{transcript: "bonjour"}, nil
+	}
+
+	result, err := p.Transcribe(context.Background(), TranscriptionProviderRequest{AudioPath: audioPath, Model: "small", Language: "fr"})
+	if err != nil {
+		t.Fatalf("Transcribe returned error: %v", err)
+	}
+	if result.Model != "small" {
+		t.Fatalf("model = %q, want small", result.Model)
+	}
+	if requestedArtifact.Filename != "ggml-small.bin" {
+		t.Fatalf("artifact = %+v, want ggml-small.bin", requestedArtifact)
+	}
+}
+
+func TestStitchChunkTranscriptsRemovesBoundaryOverlap(t *testing.T) {
+	got := stitchChunkTranscripts([]string{
+		"ask not what your country",
+		"your country can do for you",
+		"for you ask what you can do",
+	})
+	want := "ask not what your country can do for you ask what you can do"
+	if got != want {
+		t.Fatalf("stitched transcript = %q, want %q", got, want)
+	}
+}
+
+func TestStitchChunkTranscriptsKeepsDistinctChunksOnNewLines(t *testing.T) {
+	got := stitchChunkTranscripts([]string{"first sentence", "second sentence"})
+	want := "first sentence\nsecond sentence"
+	if got != want {
+		t.Fatalf("stitched transcript = %q, want %q", got, want)
+	}
+}
+
 func TestLocalSTTProvider_Transcribe_JFKFixture(t *testing.T) {
 	jfkPath := filepath.Join("..", "wasi", "whisper", "testdata", "jfk.wav")
 	if _, err := os.Stat(jfkPath); err != nil {
 		t.Skip("jfk.wav test fixture not available:", err)
 	}
 	cacheDir := localSTTFixtureModelCacheDir(t)
-	modelPath := filepath.Join(cacheDir, whisper.TinyEnModelArtifact.Filename)
+	_, defaultArtifact := whisper.ResolveModelArtifact("", "")
+	modelPath := filepath.Join(cacheDir, defaultArtifact.Filename)
 	if _, err := os.Stat(modelPath); err != nil {
 		if os.IsNotExist(err) {
-			t.Skipf("WASI Whisper tiny.en model is not cached at %s; run internal/tools/whisper integration tests or set GORMES_WASI_WHISPER_MODEL_CACHE", modelPath)
+			t.Skipf("WASI Whisper default model is not cached at %s; run internal/tools/whisper integration tests or set GORMES_WASI_WHISPER_MODEL_CACHE", modelPath)
 		}
 		t.Fatalf("stat cached model: %v", err)
 	}
@@ -137,8 +228,8 @@ func TestLocalSTTProvider_Transcribe_JFKFixture(t *testing.T) {
 	if result.Provider != "local" {
 		t.Fatalf("provider = %q, want local", result.Provider)
 	}
-	if result.Model != "tiny.en" {
-		t.Fatalf("model = %q, want tiny.en", result.Model)
+	if result.Model != "base" {
+		t.Fatalf("model = %q, want base", result.Model)
 	}
 
 	normalized := strings.ToLower(result.Transcript)
@@ -169,6 +260,7 @@ func modelDownloadUnavailable(err error) bool {
 type fakeLocalSTTWhisperTranscriber struct {
 	transcript   string
 	onTranscribe func(string)
+	closed       int
 }
 
 func (f fakeLocalSTTWhisperTranscriber) TranscribeWAV(_ context.Context, path string) (string, error) {
@@ -178,7 +270,8 @@ func (f fakeLocalSTTWhisperTranscriber) TranscribeWAV(_ context.Context, path st
 	return f.transcript, nil
 }
 
-func (f fakeLocalSTTWhisperTranscriber) Close(context.Context) error {
+func (f *fakeLocalSTTWhisperTranscriber) Close(context.Context) error {
+	f.closed++
 	return nil
 }
 

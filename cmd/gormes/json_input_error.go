@@ -1,11 +1,9 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"strings"
-
 	"github.com/spf13/cobra"
+
+	jsoninput "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/jsoninput"
 )
 
 // jsonInputErrorReportJSON is the wire shape for `--json` invalid-input
@@ -15,15 +13,7 @@ import (
 // this conformance fence so fleet automation parses one type and
 // distinguishes "user mistake" from "command crashed" by reading
 // `action`.
-//
-// `error` carries the human-readable message that would have been
-// rendered to stderr by cobra's default error path. Callers should not
-// include secrets in `error`; it goes onto stdout in the JSON document.
-type jsonInputErrorReportJSON struct {
-	Build  buildProvenanceJSON `json:"build"`
-	Action string              `json:"action"`
-	Error  string              `json:"error"`
-}
+type jsonInputErrorReportJSON = jsoninput.ErrorReportJSON
 
 // emitJSONInputError writes a structured invalid-input report to cmd's
 // stdout and returns a non-zero exit-code error so the cobra runner
@@ -38,22 +28,10 @@ type jsonInputErrorReportJSON struct {
 //   - "no_logs"            — no log file/state exists yet
 //   - "no_data"            — generic "lookup target absent" (rare)
 func emitJSONInputError(cmd *cobra.Command, action, errMsg string) error {
-	encoder := json.NewEncoder(cmd.OutOrStdout())
-	encoder.SetIndent("", "  ")
-	_ = encoder.Encode(jsonInputErrorReportJSON{
-		Build:  newBuildProvenance(),
-		Action: action,
-		Error:  errMsg,
-	})
-	return newExitCodeError(1, fmt.Errorf("%s", errMsg))
+	err := jsoninput.Emit(cmd, action, errMsg, jsoninput.BuildProvenance(newBuildProvenance()))
+	return newExitCodeError(1, err)
 }
 
 func argsIncludeJSONFlag(args []string) bool {
-	for _, arg := range args {
-		arg = strings.TrimSpace(arg)
-		if arg == "--json" || strings.HasPrefix(arg, "--json=") {
-			return true
-		}
-	}
-	return false
+	return jsoninput.ArgsIncludeJSONFlag(args)
 }

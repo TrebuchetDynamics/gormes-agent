@@ -82,6 +82,42 @@ func TestTranscriptionProviderSelection(t *testing.T) {
 	}
 }
 
+func TestTranscriptionAutoFallsBackFromBadLocalTranscriptToCloud(t *testing.T) {
+	ctx := context.Background()
+	audio := writeTestAudioFile(t, "clip.ogg", []byte("fake audio"))
+	local := &fakeTranscriptionProvider{available: true, result: TranscriptionProviderResult{Transcript: "[BLANK_AUDIO]"}}
+	cloud := &fakeTranscriptionProvider{available: true, result: TranscriptionProviderResult{Transcript: "cloud transcript"}}
+
+	result := NewTranscriptionRunner(TranscriptionConfig{}, map[string]TranscriptionProvider{
+		"local": local,
+		"groq":  cloud,
+	}).Transcribe(ctx, TranscriptionRequest{AudioPath: audio})
+	if !result.Success || result.Provider != "groq" || result.Transcript != "cloud transcript" {
+		t.Fatalf("result = %+v, want cloud fallback success", result)
+	}
+	if local.calls != 1 || cloud.calls != 1 {
+		t.Fatalf("calls local=%d cloud=%d, want both once", local.calls, cloud.calls)
+	}
+}
+
+func TestTranscriptionExplicitLocalDoesNotFallbackFromBadTranscript(t *testing.T) {
+	ctx := context.Background()
+	audio := writeTestAudioFile(t, "clip.ogg", []byte("fake audio"))
+	local := &fakeTranscriptionProvider{available: true, result: TranscriptionProviderResult{Transcript: "..."}}
+	cloud := &fakeTranscriptionProvider{available: true, result: TranscriptionProviderResult{Transcript: "cloud transcript"}}
+
+	result := NewTranscriptionRunner(TranscriptionConfig{Provider: "local"}, map[string]TranscriptionProvider{
+		"local": local,
+		"groq":  cloud,
+	}).Transcribe(ctx, TranscriptionRequest{AudioPath: audio})
+	if result.Success || result.Evidence != TranscriptionEvidenceAPIError || result.Provider != "local" {
+		t.Fatalf("result = %+v, want explicit local failure", result)
+	}
+	if local.calls != 1 || cloud.calls != 0 {
+		t.Fatalf("calls local=%d cloud=%d, want local only", local.calls, cloud.calls)
+	}
+}
+
 func TestTranscriptionModelNormalization(t *testing.T) {
 	ctx := context.Background()
 	audio := writeTestAudioFile(t, "clip.ogg", []byte("fake audio"))

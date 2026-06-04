@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -46,11 +47,17 @@ type Config struct {
 	// ReasoningEffort, when non-empty, is the resident request default sent
 	// on each supported provider request. Empty leaves reasoning to the
 	// provider default and emits explicit default evidence in RenderFrame.
-	ReasoningEffort   string
-	Admission         Admission
-	Tools             *tools.Registry // nil → tool_calls are treated as fatal
-	MaxToolIterations int             // default DefaultMaxToolIterations when zero
-	MaxToolDuration   time.Duration   // default 30s when zero
+	ReasoningEffort string
+	Admission       Admission
+	Tools           *tools.Registry // nil → tool_calls are treated as fatal
+	// SubdirectoryHints lazily discovers nested AGENTS.md/CLAUDE.md/.cursorrules
+	// files from tool-call path arguments and appends them to tool results. Nil
+	// defaults to a Hermes-compatible tracker for tool-capable kernels; set
+	// DisableSubdirectoryHints to true to opt out in specialized tests/runtimes.
+	SubdirectoryHints        *llm.SubdirectoryHintTracker
+	DisableSubdirectoryHints bool
+	MaxToolIterations        int           // default DefaultMaxToolIterations when zero
+	MaxToolDuration          time.Duration // default 30s when zero
 	// InitialSessionID primes k.sessionID at New() — used by adapters that
 	// load a persisted session handle from internal/persistence/session before starting
 	// the kernel. Zero value preserves pre-Phase-2.C behavior (fresh session).
@@ -169,6 +176,9 @@ type Kernel struct {
 func New(cfg Config, c llm.Client, s store.Store, tm telemetry.Telemetry, log *slog.Logger) *Kernel {
 	if log == nil {
 		log = slog.Default()
+	}
+	if cfg.Tools != nil && cfg.SubdirectoryHints == nil && !cfg.DisableSubdirectoryHints {
+		cfg.SubdirectoryHints = llm.NewSubdirectoryHintTracker(llm.SubdirectoryHintOptions{WorkingDir: os.Getenv("TERMINAL_CWD")})
 	}
 	tm.SetModel(cfg.Model)
 	if cfg.ContextEngine != nil {

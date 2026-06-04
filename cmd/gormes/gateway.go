@@ -256,7 +256,8 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	sessionMirror := startSessionIndexMirror(smap, slog.Default())
 	defer sessionMirror.Stop()
 
-	mstore, err := memory.OpenSqlite(config.MemoryDBPath(), cfg.Telegram.MemoryQueueCap, slog.Default())
+	memorySettings := channelMemorySettingsFromConfig(cfg)
+	mstore, err := memory.OpenSqlite(config.MemoryDBPath(), memorySettings.QueueCap, slog.Default())
 	if err != nil {
 		return fmt.Errorf("memory store: %w", err)
 	}
@@ -643,7 +644,7 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 			if provider == "" {
 				provider = "openai-codex"
 			}
-			fetcher := llm.NewAccountUsageFetcher(accountUsageHTTPClient{client: usageHTTPClient}, func() time.Time { return time.Now().UTC() })
+			fetcher := llm.NewAccountUsageFetcher(accountUsageHTTPClient{Client: usageHTTPClient}, func() time.Time { return time.Now().UTC() })
 			return fetcher.Fetch(ctx, llm.AccountUsageFetchRequest{Provider: provider, BaseURL: cfg.Hermes.Endpoint, APIKey: cfg.Hermes.APIKey})
 		},
 	}

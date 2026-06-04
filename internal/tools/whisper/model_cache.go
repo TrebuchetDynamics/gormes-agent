@@ -22,6 +22,10 @@ type ModelCacheError = modelcache.ModelCacheError
 
 var TinyEnModelArtifact = modelcache.TinyEnModelArtifact
 
+func ResolveModelArtifact(model, language string) (string, ModelArtifact) {
+	return modelcache.ResolveModelArtifact(model, language)
+}
+
 func EnsureModel(ctx context.Context, model ModelArtifact, cacheDir string, client *http.Client) (string, error) {
 	return modelcache.Ensure(ctx, model, cacheDir, client)
 }

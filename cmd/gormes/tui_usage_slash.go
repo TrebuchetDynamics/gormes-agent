@@ -16,7 +16,7 @@ func newTUIAccountUsageFunc(cfg config.Config) tui.AccountUsageFunc {
 		if provider == "" {
 			provider = "openai-codex"
 		}
-		fetcher := llm.NewAccountUsageFetcher(accountUsageHTTPClient{client: usageHTTPClient}, func() time.Time { return time.Now().UTC() })
+		fetcher := llm.NewAccountUsageFetcher(accountUsageHTTPClient{Client: usageHTTPClient}, func() time.Time { return time.Now().UTC() })
 		return fetcher.Fetch(ctx, llm.AccountUsageFetchRequest{
 			Provider: provider,
 			BaseURL:  cfg.Hermes.Endpoint,

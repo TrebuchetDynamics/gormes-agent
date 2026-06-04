@@ -8,31 +8,37 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
-func TestCatalogDiscoversHomeProjectAndExplicitPaths(t *testing.T) {
+func TestCatalogDiscoversHomeProjectAndExplicitPromptTemplates(t *testing.T) {
 	home := t.TempDir()
 	cwd := t.TempDir()
-	extra := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
-	writePromptTemplateFixture(t, filepath.Join(home, "prompts", "review.md"), "---\ndescription: Review\n---\nReview $1\n")
-	writePromptTemplateFixture(t, filepath.Join(cwd, ".gormes", "prompts", "component.md"), "---\ndescription: Component\n---\nComponent $1\n")
-	writePromptTemplateFixture(t, filepath.Join(extra, "adhoc.md"), "---\ndescription: Adhoc\n---\nAdhoc $1\n")
+	writePromptTemplateFixture(t, filepath.Join(home, "prompts", "review.md"), "---\ndescription: Review from home\nargument-hint: '<scope>'\n---\nReview $1\n")
+	writePromptTemplateFixture(t, filepath.Join(cwd, ".gormes", "prompts", "component.md"), "---\ndescription: Build component\n---\nBuild $1\n")
 	writePromptTemplateFixture(t, filepath.Join(home, "prompts", "skills.md"), "shadow built-in\n")
+	dir := t.TempDir()
+	file := filepath.Join(t.TempDir(), "adhoc.md")
+	writePromptTemplateFixture(t, filepath.Join(dir, "from-dir.md"), "---\ndescription: From dir\n---\nDir $1\n")
+	writePromptTemplateFixture(t, file, "---\ndescription: From file\n---\nFile $1\n")
 
-	catalog := Catalog(config.Config{}, cwd, CatalogOptions{Paths: []string{extra}})
-	for _, name := range []string{"review", "component", "adhoc"} {
+	catalog := Catalog(config.Config{}, cwd, CatalogOptions{Paths: []string{dir, file}})
+	for _, name := range []string{"review", "component", "from-dir", "adhoc"} {
 		if _, ok := catalog.Lookup(name); !ok {
 			t.Fatalf("template %q missing: %+v", name, catalog.Templates)
 		}
 	}
 	if _, ok := catalog.Lookup("skills"); ok {
-		t.Fatalf("built-in collision should be skipped: %+v", catalog.Templates)
+		t.Fatalf("built-in /skills collision must be skipped: %+v", catalog.Templates)
 	}
 }
 
-func TestCatalogDisabled(t *testing.T) {
-	catalog := Catalog(config.Config{}, t.TempDir(), CatalogOptions{Disabled: true, Paths: []string{t.TempDir()}})
+func TestCatalogDisabledReturnsEmptyCatalog(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	writePromptTemplateFixture(t, filepath.Join(home, "prompts", "review.md"), "---\ndescription: Review\n---\nReview $1\n")
+
+	catalog := Catalog(config.Config{}, t.TempDir(), CatalogOptions{Disabled: true})
 	if len(catalog.Templates) != 0 {
-		t.Fatalf("disabled catalog templates = %+v", catalog.Templates)
+		t.Fatalf("disabled catalog templates = %+v, want none", catalog.Templates)
 	}
 }
 

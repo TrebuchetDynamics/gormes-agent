@@ -81,7 +81,50 @@ func Check() (Report, error) {
 	}
 
 	report.Issues = append(report.Issues, hermesProviderIssues(raw)...)
+	report.Issues = append(report.Issues, configStructureIssues(raw)...)
 	return report, nil
+}
+
+var customProviderLikeRootFields = map[string]struct{}{
+	"api_key":          {},
+	"api_mode":         {},
+	"base_url":         {},
+	"rate_limit_delay": {},
+}
+
+// configStructureIssues mirrors Hermes' validate_config_structure startup
+// diagnostics for common manual-edit mistakes. The check is intentionally
+// read-only and reports operator-targeted field names without echoing values,
+// so misplaced API keys or provider URLs do not leak into command output.
+func configStructureIssues(raw map[string]any) []Issue {
+	issues := make([]Issue, 0)
+	for key, value := range raw {
+		field := strings.TrimSpace(key)
+		if field == "" || field == "config_version" || field == "_config_version" || strings.HasPrefix(field, "_") {
+			continue
+		}
+		if _, ok := customProviderLikeRootFields[field]; ok {
+			issues = append(issues, Issue{
+				Severity: "warning",
+				Field:    field,
+				Message:  fmt.Sprintf("root-level key %q looks misplaced; move it under the appropriate provider/model section", field),
+			})
+			continue
+		}
+		if configschema.AllowsSection(field) {
+			continue
+		}
+		kind := "field"
+		if _, ok := value.(map[string]any); ok {
+			kind = "section"
+		}
+		issues = append(issues, Issue{
+			Severity: "warning",
+			Field:    field,
+			Message:  fmt.Sprintf("unknown top-level config %s %q; check spelling or migrate it to a supported section", kind, field),
+		})
+	}
+	return issues
 }
 
 // hermesProviderIssues classifies the [hermes] table for missing or
