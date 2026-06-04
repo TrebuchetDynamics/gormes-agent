@@ -6,6 +6,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
+	tuilocal "github.com/TrebuchetDynamics/gormes-agent/internal/tui/local"
 	"github.com/spf13/cobra"
 )
 
@@ -123,7 +124,7 @@ func runToolsListCommand(cmd *cobra.Command) error {
 }
 
 func runToolsConfigureCommand(cmd *cobra.Command, action string, names []string) error {
-	result, err := configureTUITools(tui.ToolsConfigureRequest{Action: action, Names: names, SessionID: "cli-tools-command"})
+	result, err := tuilocal.ConfigureTools(tui.ToolsConfigureRequest{Action: action, Names: names, SessionID: "cli-tools-command"})
 	if err != nil {
 		return err
 	}

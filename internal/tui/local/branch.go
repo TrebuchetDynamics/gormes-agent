@@ -1,4 +1,4 @@
-package main
+package local
 
 import (
 	"context"
@@ -8,20 +8,21 @@ import (
 
 	"github.com/google/uuid"
 
+	appsession "github.com/TrebuchetDynamics/gormes-agent/internal/app/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/transcript"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
-type tuiBranchIDFunc func() string
+type BranchIDFunc func() string
 
-func newTUIBranchFunc(rootCtx context.Context, metadata sessionpkg.MetadataWriter, resume func(string, []llm.Message) error) tui.SessionBranchFunc {
-	return newTUIBranchFuncWithID(rootCtx, metadata, resume, newTUIBranchSessionID)
+func NewSessionBranchFunc(rootCtx context.Context, metadata sessionpkg.MetadataWriter, resume func(string, []llm.Message) error) tui.SessionBranchFunc {
+	return NewSessionBranchFuncWithID(rootCtx, metadata, resume, NewSessionBranchID)
 }
 
-func newTUIBranchFuncWithID(rootCtx context.Context, metadata sessionpkg.MetadataWriter, resume func(string, []llm.Message) error, newID tuiBranchIDFunc) tui.SessionBranchFunc {
-	switcher := newTUIResidentSessionSwitcher(rootCtx, resume)
+func NewSessionBranchFuncWithID(rootCtx context.Context, metadata sessionpkg.MetadataWriter, resume func(string, []llm.Message) error, newID BranchIDFunc) tui.SessionBranchFunc {
+	switcher := newResidentSessionSwitcher(rootCtx, resume)
 	return func(ctx context.Context, req tui.BranchRequest) (tui.BranchResult, error) {
 		ctx = switcher.context(ctx)
 		if err := switcher.requireResume(); err != nil {
@@ -34,7 +35,7 @@ func newTUIBranchFuncWithID(rootCtx context.Context, metadata sessionpkg.Metadat
 		if childID == "" {
 			return tui.BranchResult{}, fmt.Errorf("child session id unavailable")
 		}
-		db, err := openSessionDirectoryDB()
+		db, err := appsession.OpenSessionDirectoryDB()
 		if err != nil {
 			return tui.BranchResult{}, err
 		}
@@ -70,6 +71,6 @@ func (c transcriptTurnCopier) CopyTurns(ctx context.Context, parentSessionID, ch
 	return transcript.ForkTurns(ctx, c.db, parentSessionID, childSessionID)
 }
 
-func newTUIBranchSessionID() string {
+func NewSessionBranchID() string {
 	return "branch-" + strings.ReplaceAll(uuid.NewString(), "-", "")
 }

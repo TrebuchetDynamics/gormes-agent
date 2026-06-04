@@ -1,4 +1,4 @@
-package main
+package local
 
 import (
 	"fmt"
@@ -8,13 +8,13 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
-func newTUISkinConfigFunc(cfg config.Config) tui.SkinConfigFunc {
-	current := normalizeTUISkinName(cfg.TUI.Theme)
+func NewSkinConfigFunc(cfg config.Config) tui.SkinConfigFunc {
+	current := NormalizeSkinName(cfg.TUI.Theme)
 	return func(req tui.SkinConfigRequest) (tui.SkinConfigResult, error) {
 		requested := strings.TrimSpace(req.Name)
 		if requested == "" {
 			if loaded, err := config.Load(nil); err == nil {
-				current = normalizeTUISkinName(loaded.TUI.Theme)
+				current = NormalizeSkinName(loaded.TUI.Theme)
 			}
 			return tui.SkinConfigResult{Name: current}, nil
 		}
@@ -30,7 +30,7 @@ func newTUISkinConfigFunc(cfg config.Config) tui.SkinConfigFunc {
 	}
 }
 
-func normalizeTUISkinName(name string) string {
+func NormalizeSkinName(name string) string {
 	if skin, ok := tui.ResolveBuiltinSkin(name); ok {
 		return skin.Name
 	}

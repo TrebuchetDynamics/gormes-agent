@@ -12,10 +12,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
-	clitui "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/tui"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
+	tuilocal "github.com/TrebuchetDynamics/gormes-agent/internal/tui/local"
 )
 
 // runRemoteTUIWithRuntime is the --remote <url> startup path. It does not
@@ -107,5 +107,5 @@ func runRemoteTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, runti
 }
 
 func dialRemoteTUI(ctx context.Context, remoteURL string) (gormescli.RemoteTUIClient, error) {
-	return gormescli.DialRemoteTUI(ctx, remoteURL, clitui.ResolveRemoteSidecarURL())
+	return gormescli.DialRemoteTUI(ctx, remoteURL, tuilocal.ResolveRemoteSidecarURL())
 }

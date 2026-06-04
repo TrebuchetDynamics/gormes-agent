@@ -1,4 +1,4 @@
-package main
+package local
 
 import (
 	"context"
@@ -9,23 +9,23 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/transcript"
 )
 
-type tuiResidentSessionSwitcher struct {
+type residentSessionSwitcher struct {
 	rootCtx context.Context
 	resume  func(string, []llm.Message) error
 }
 
-func newTUIResidentSessionSwitcher(rootCtx context.Context, resume func(string, []llm.Message) error) tuiResidentSessionSwitcher {
-	return tuiResidentSessionSwitcher{rootCtx: rootCtx, resume: resume}
+func newResidentSessionSwitcher(rootCtx context.Context, resume func(string, []llm.Message) error) residentSessionSwitcher {
+	return residentSessionSwitcher{rootCtx: rootCtx, resume: resume}
 }
 
-func (s tuiResidentSessionSwitcher) requireResume() error {
+func (s residentSessionSwitcher) requireResume() error {
 	if s.resume == nil {
 		return fmt.Errorf("kernel resume unavailable")
 	}
 	return nil
 }
 
-func (s tuiResidentSessionSwitcher) context(ctx context.Context) context.Context {
+func (s residentSessionSwitcher) context(ctx context.Context) context.Context {
 	if ctx != nil {
 		return ctx
 	}
@@ -35,7 +35,7 @@ func (s tuiResidentSessionSwitcher) context(ctx context.Context) context.Context
 	return context.Background()
 }
 
-func (s tuiResidentSessionSwitcher) switchWithTranscriptDB(ctx context.Context, db *sql.DB, sessionID string, history []llm.Message) ([]llm.Message, error) {
+func (s residentSessionSwitcher) switchWithTranscriptDB(ctx context.Context, db *sql.DB, sessionID string, history []llm.Message) ([]llm.Message, error) {
 	if err := s.requireResume(); err != nil {
 		return nil, err
 	}

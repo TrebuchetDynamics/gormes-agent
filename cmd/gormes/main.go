@@ -21,7 +21,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
-	clitui "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/tui"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/tuiadapter"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
@@ -37,6 +36,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
+	tuilocal "github.com/TrebuchetDynamics/gormes-agent/internal/tui/local"
 )
 
 func main() {
@@ -822,7 +822,7 @@ func resolveTUIInvocation(cmd *cobra.Command) (tuiInvocation, error) {
 	providerFlag := commandStringFlag(cmd, "provider")
 	endpointFlag := commandStringFlag(cmd, "endpoint")
 	apiKeyFlag := commandStringFlag(cmd, "api-key")
-	remoteFlag := clitui.ResolveRemoteURL(commandStringFlag(cmd, "remote"))
+	remoteFlag := tuilocal.ResolveRemoteURL(commandStringFlag(cmd, "remote"))
 
 	cfg, err := config.Load(nil)
 	if err != nil {
@@ -1302,7 +1302,7 @@ func toolsetsForToolName(name string) []string {
 }
 
 func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, runtime rootRuntime) error {
-	clitui.RunNativeStartupPreflight(context.Background(), clitui.StartupPreflightOptions{})
+	tuilocal.RunNativeStartupPreflight(context.Background(), tuilocal.StartupPreflightOptions{})
 	if runtime.tuiProgramFactory == nil {
 		runtime.tuiProgramFactory = defaultTUIProgramFactory
 	}
@@ -1430,7 +1430,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		KanbanSlash:      func(input string) (string, error) { return runTUIKanbanSlashCommand(rootCtx, input) },
 		PromptTemplates:  tuiPromptTemplateCatalog(cfg, "", promptTemplateCatalogOptions{Paths: invocation.PromptTemplatePaths, Disabled: invocation.NoPromptTemplates}),
 		GatewayLogTail:   readLogsTail,
-		AccountUsage:     newTUIAccountUsageFunc(cfg),
+		AccountUsage:     tuilocal.NewAccountUsageFunc(cfg),
 		OfflineSmoke:     offline,
 		StartupNotice:    startupNotice,
 		BusyInputMode:    tui.HermesBusyInputMode(cfg.Display.BusyInputMode),
@@ -1442,9 +1442,9 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	tuiadapter.RuntimeBundle{
 		Presentation: tuiadapter.PresentationBundle{
 			VoiceRecordKey: cfg.Voice.RecordKey,
-			VoiceToggle:    newTUIVoiceToggleFunc(cfg),
+			VoiceToggle:    tuilocal.NewVoiceToggleFunc(cfg),
 			SkinName:       cfg.TUI.Theme,
-			SkinConfig:     newTUISkinConfigFunc(cfg),
+			SkinConfig:     tuilocal.NewSkinConfigFunc(cfg),
 		},
 		Model: tuiadapter.ModelBundle{
 			SetSessionModel: k.SetSessionModel,
@@ -1453,7 +1453,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 			Name:            modelName,
 		},
 		ToolSkill: tuiadapter.ToolSkillBundle{
-			ToolsConfigure: newTUIToolsConfigureFunc(),
+			ToolsConfigure: tuilocal.NewToolsConfigureFunc(),
 			SkillsCommand: func(input string) string {
 				return gateway.HandleSkillsCommandWithOptions(rootCtx, input, skillsCommandOptionsForConfig(cfg))
 			},
@@ -1462,13 +1462,13 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		},
 		Session: tuiadapter.SessionBundle{
 			Export:      newTUISaveExportFunc(),
-			Branch:      newTUIBranchFunc(rootCtx, boltMap, k.ResumeSession),
-			Title:       newTUITitleFunc(rootCtx, boltMap),
-			Directory:   newTUISessionDirectoryFunc(rootCtx),
-			Resume:      newTUIResumeSessionFunc(rootCtx, k.ResumeSession),
-			Tree:        newTUISessionTreeFunc(rootCtx, boltMap),
-			TreeLabel:   newTUISessionTreeLabelFunc(rootCtx, boltMap),
-			TreeRestore: newTUISessionTreeRestoreFunc(rootCtx),
+			Branch:      tuilocal.NewSessionBranchFunc(rootCtx, boltMap, k.ResumeSession),
+			Title:       tuilocal.NewSessionTitleFunc(rootCtx, boltMap),
+			Directory:   tuilocal.NewSessionDirectoryFunc(rootCtx),
+			Resume:      tuilocal.NewSessionResumeFunc(rootCtx, k.ResumeSession),
+			Tree:        tuilocal.NewSessionTreeFunc(rootCtx, boltMap),
+			TreeLabel:   tuilocal.NewSessionTreeLabelFunc(rootCtx, boltMap),
+			TreeRestore: tuilocal.NewSessionTreeRestoreFunc(rootCtx),
 			Reset:       k.ResetSession,
 		},
 	}.Apply(&tuiOptions)

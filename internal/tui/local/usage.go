@@ -1,4 +1,4 @@
-package main
+package local
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
-func newTUIAccountUsageFunc(cfg config.Config) tui.AccountUsageFunc {
+func NewAccountUsageFunc(cfg config.Config) tui.AccountUsageFunc {
 	return func(ctx context.Context) (llm.AccountUsageSnapshot, error) {
 		resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes TUI /usage"})
 		provider := providermodule.InferUsageProvider(resolution.Provider, providermodule.FirstUsageString(resolution.Model, cfg.Hermes.Model))

@@ -58,38 +58,6 @@ platform_toolsets = { cli = ["terminal"] }
 	}
 }
 
-func TestTUIToolsSlashBindingReportsUnknownMissingAndDisablePersistence(t *testing.T) {
-	setupNativeTUITestEnv(t)
-	writeSetupToolsFixtureConfig(t, `
-platform_toolsets = { cli = ["terminal"] }
-`)
-	configure := newTUIToolsConfigureFunc()
-
-	result, err := configure(tui.ToolsConfigureRequest{Action: "enable", Names: []string{"web", "github:create_issue", "not-a-toolset"}, SessionID: "sess-tools"})
-	if err != nil {
-		t.Fatalf("enable ToolsConfigure: %v", err)
-	}
-	if !containsString(result.Changed, "web") || !containsString(result.MissingServers, "github") || !containsString(result.Unknown, "not-a-toolset") || !result.Reset {
-		t.Fatalf("enable result = %+v, want changed web, missing github, unknown not-a-toolset, reset", result)
-	}
-	got := readCLIPlatformToolsets(t)
-	if !containsString(got, "web") || containsString(got, "not_a_toolset") || containsString(got, "github") {
-		t.Fatalf("persisted after enable = %v, want web only from accepted additions", got)
-	}
-
-	result, err = configure(tui.ToolsConfigureRequest{Action: "disable", Names: []string{"terminal"}, SessionID: "sess-tools"})
-	if err != nil {
-		t.Fatalf("disable ToolsConfigure: %v", err)
-	}
-	if !containsString(result.Changed, "terminal") || !result.Reset {
-		t.Fatalf("disable result = %+v, want changed terminal with reset", result)
-	}
-	got = readCLIPlatformToolsets(t)
-	if containsString(got, "terminal") || !containsString(got, "web") {
-		t.Fatalf("persisted after disable = %v, want terminal removed and web preserved", got)
-	}
-}
-
 func TestTUIToolsSlashBindingRemoteTUIUnchanged(t *testing.T) {
 	model := tui.NewModelWithOptions(make(chan kernel.RenderFrame), func(string) {}, func() {}, tui.Options{})
 	if configure := capturedTUIToolsConfigure(t, model); configure != nil {

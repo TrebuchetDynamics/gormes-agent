@@ -1,4 +1,4 @@
-package main
+package local
 
 import (
 	"context"
@@ -6,16 +6,17 @@ import (
 	"strings"
 	"time"
 
+	appsession "github.com/TrebuchetDynamics/gormes-agent/internal/app/session"
 	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
-const tuiSessionTreeLimit = 200
+const sessionTreeLimit = 200
 
-func newTUISessionTreeFunc(rootCtx context.Context, metadata *sessionpkg.BoltMap) tui.SessionTreeFunc {
+func NewSessionTreeFunc(rootCtx context.Context, metadata *sessionpkg.BoltMap) tui.SessionTreeFunc {
 	return func(ctx context.Context, req tui.SessionTreeRequest) (tui.SessionTreeResult, error) {
 		ctx = contextWithRootFallback(rootCtx, ctx)
-		db, err := openSessionDirectoryDB()
+		db, err := appsession.OpenSessionDirectoryDB()
 		if err != nil {
 			if strings.Contains(err.Error(), "memory database not found") {
 				return tui.SessionTreeResult{}, nil
@@ -35,7 +36,7 @@ func newTUISessionTreeFunc(rootCtx context.Context, metadata *sessionpkg.BoltMap
 		}
 		seen := map[string]struct{}{}
 		ledgers := map[string]sessionpkg.SessionLedger{}
-		directory, err := sessionpkg.ListDirectorySessions(ctx, db, sessionpkg.DirectoryFilter{Limit: tuiSessionTreeLimit})
+		directory, err := sessionpkg.ListDirectorySessions(ctx, db, sessionpkg.DirectoryFilter{Limit: sessionTreeLimit})
 		if err != nil {
 			return tui.SessionTreeResult{}, err
 		}
@@ -66,11 +67,11 @@ func newTUISessionTreeFunc(rootCtx context.Context, metadata *sessionpkg.BoltMap
 		}
 
 		tree := sessionpkg.BuildSessionTree(metas, ledgers, sessionpkg.TreeOptions{ActiveSessionID: req.ActiveSessionID, Filter: sessionpkg.TreeFilter(req.Filter)})
-		return tuiSessionTreeResult(tree), nil
+		return sessionTreeResult(tree), nil
 	}
 }
 
-func newTUISessionTreeLabelFunc(rootCtx context.Context, metadata *sessionpkg.BoltMap) tui.SessionTreeLabelFunc {
+func NewSessionTreeLabelFunc(rootCtx context.Context, metadata *sessionpkg.BoltMap) tui.SessionTreeLabelFunc {
 	if metadata == nil {
 		return nil
 	}
@@ -103,10 +104,10 @@ func newTUISessionTreeLabelFunc(rootCtx context.Context, metadata *sessionpkg.Bo
 	}
 }
 
-func newTUISessionTreeRestoreFunc(rootCtx context.Context) tui.SessionTreeRestoreFunc {
+func NewSessionTreeRestoreFunc(rootCtx context.Context) tui.SessionTreeRestoreFunc {
 	return func(ctx context.Context, req tui.SessionTreeRestoreRequest) (tui.SessionTreeRestoreResult, error) {
 		ctx = contextWithRootFallback(rootCtx, ctx)
-		db, err := openSessionDirectoryDB()
+		db, err := appsession.OpenSessionDirectoryDB()
 		if err != nil {
 			return tui.SessionTreeRestoreResult{}, err
 		}
@@ -120,7 +121,7 @@ func newTUISessionTreeRestoreFunc(rootCtx context.Context) tui.SessionTreeRestor
 	}
 }
 
-func tuiSessionTreeResult(tree sessionpkg.SessionTree) tui.SessionTreeResult {
+func sessionTreeResult(tree sessionpkg.SessionTree) tui.SessionTreeResult {
 	out := tui.SessionTreeResult{Filter: string(tree.Filter), ActiveSessionID: tree.ActiveSessionID}
 	out.Entries = make([]tui.SessionTreeEntry, 0, len(tree.Entries))
 	for _, entry := range tree.Entries {

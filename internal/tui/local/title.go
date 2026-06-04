@@ -1,4 +1,4 @@
-package main
+package local
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
-func newTUITitleFunc(ctx context.Context, smap *session.BoltMap) tui.SessionTitleFunc {
+func NewSessionTitleFunc(ctx context.Context, smap *session.BoltMap) tui.SessionTitleFunc {
 	if smap == nil {
 		return nil
 	}

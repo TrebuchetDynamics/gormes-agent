@@ -1,4 +1,4 @@
-package main
+package local
 
 import (
 	"context"
@@ -6,18 +6,19 @@ import (
 	"fmt"
 	"strings"
 
+	appsession "github.com/TrebuchetDynamics/gormes-agent/internal/app/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
-func newTUISessionDirectoryFunc(ctx context.Context) tui.SessionDirectoryFunc {
+func NewSessionDirectoryFunc(ctx context.Context) tui.SessionDirectoryFunc {
 	return func(limit int) ([]tui.SessionDirectoryEntry, error) {
 		if limit <= 0 {
 			limit = 20
 		}
-		db, err := openSessionDirectoryDB()
+		db, err := appsession.OpenSessionDirectoryDB()
 		if err != nil {
 			if strings.Contains(err.Error(), "memory database not found") {
 				return nil, nil
@@ -30,7 +31,7 @@ func newTUISessionDirectoryFunc(ctx context.Context) tui.SessionDirectoryFunc {
 		if err != nil {
 			return nil, err
 		}
-		sessions = applySessionMirrorSources(sessions, config.SessionIndexMirrorPath())
+		sessions = appsession.ApplySessionMirrorSources(sessions, config.SessionIndexMirrorPath())
 		out := make([]tui.SessionDirectoryEntry, 0, len(sessions))
 		for _, item := range sessions {
 			out = append(out, tui.SessionDirectoryEntry{
@@ -46,8 +47,8 @@ func newTUISessionDirectoryFunc(ctx context.Context) tui.SessionDirectoryFunc {
 	}
 }
 
-func newTUIResumeSessionFunc(rootCtx context.Context, resume func(string, []llm.Message) error) tui.SessionResumeFunc {
-	switcher := newTUIResidentSessionSwitcher(rootCtx, resume)
+func NewSessionResumeFunc(rootCtx context.Context, resume func(string, []llm.Message) error) tui.SessionResumeFunc {
+	switcher := newResidentSessionSwitcher(rootCtx, resume)
 	return func(ctx context.Context, query string) (tui.SessionResumeResult, error) {
 		ctx = switcher.context(ctx)
 		query = strings.TrimSpace(query)
@@ -57,7 +58,7 @@ func newTUIResumeSessionFunc(rootCtx context.Context, resume func(string, []llm.
 		if err := switcher.requireResume(); err != nil {
 			return tui.SessionResumeResult{}, err
 		}
-		db, err := openSessionDirectoryDB()
+		db, err := appsession.OpenSessionDirectoryDB()
 		if err != nil {
 			return tui.SessionResumeResult{}, err
 		}

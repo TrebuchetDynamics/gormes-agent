@@ -1,4 +1,4 @@
-package main
+package local
 
 import (
 	"fmt"
@@ -8,10 +8,10 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
-func newTUIVoiceToggleFunc(cfg config.Config) tui.VoiceToggleFunc {
-	state := &tuiVoiceToggleState{
+func NewVoiceToggleFunc(cfg config.Config) tui.VoiceToggleFunc {
+	state := &voiceToggleState{
 		recordKey: strings.TrimSpace(cfg.Voice.RecordKey),
-		details:   tuiVoiceRequirementsDetails(cfg),
+		details:   VoiceRequirementsDetails(cfg),
 	}
 	if state.recordKey == "" {
 		state.recordKey = "ctrl+b"
@@ -19,14 +19,14 @@ func newTUIVoiceToggleFunc(cfg config.Config) tui.VoiceToggleFunc {
 	return state.toggle
 }
 
-type tuiVoiceToggleState struct {
+type voiceToggleState struct {
 	enabled   bool
 	tts       bool
 	recordKey string
 	details   string
 }
 
-func (s *tuiVoiceToggleState) toggle(req tui.VoiceToggleRequest) (tui.VoiceToggleResult, error) {
+func (s *voiceToggleState) toggle(req tui.VoiceToggleRequest) (tui.VoiceToggleResult, error) {
 	switch strings.ToLower(strings.TrimSpace(req.Action)) {
 	case "", "status", "record":
 		// Read-only in the native TUI: live microphone capture is not wired here yet.
@@ -48,7 +48,7 @@ func (s *tuiVoiceToggleState) toggle(req tui.VoiceToggleRequest) (tui.VoiceToggl
 	}, nil
 }
 
-func tuiVoiceRequirementsDetails(cfg config.Config) string {
+func VoiceRequirementsDetails(cfg config.Config) string {
 	tts := "TTS: not configured"
 	if provider := strings.TrimSpace(configuredTTSProvider(cfg)); provider != "" {
 		tts = "TTS: configured (" + provider + ")"
@@ -58,6 +58,14 @@ func tuiVoiceRequirementsDetails(cfg config.Config) string {
 		configuredSTTStatusLine(cfg),
 		tts,
 	}, "\n")
+}
+
+func configuredTTSProvider(cfg config.Config) string {
+	provider := strings.ToLower(strings.TrimSpace(cfg.Runtime.TTSProvider))
+	if provider == "" {
+		return "edge"
+	}
+	return provider
 }
 
 func configuredSTTStatusLine(cfg config.Config) string {
