@@ -3,14 +3,14 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	skillscmd "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/skillscmd"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	skillruntime "github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
-type skillsProfileSyncSeams = skillscmd.ProfileSyncSeams
+type skillsProfileSyncSeams = gormescli.SkillsProfileSyncSeams
 
 func newSkillsCommand() *cobra.Command {
 	return newSkillsCommandWithProfileSync(skillsProfileSyncSeams{})
@@ -18,9 +18,9 @@ func newSkillsCommand() *cobra.Command {
 
 func newSkillsCommandWithProfileSync(syncSeams skillsProfileSyncSeams) *cobra.Command {
 	cmd := cli.NewSkillsCommand(cli.SkillsCommandDeps{
-		ListInstalledSkills: skillscmd.ListInstalledSkills,
+		ListInstalledSkills: gormescli.ListInstalledSkills,
 		DisabledSkills:      func(string) map[string]struct{} { return nil },
-		URLInstall:          skillscmd.URLInstallDeps(),
+		URLInstall:          gormescli.SkillsURLInstallDeps(),
 		BuildProvenance:     func() any { return newBuildProvenance() },
 	})
 	cmd.AddCommand(newSkillsSyncCommand(syncSeams))
@@ -131,7 +131,7 @@ func newSkillsSyncCommand(seams skillsProfileSyncSeams) *cobra.Command {
 		Short: "Sync bundled skills into all configured profiles",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return skillscmd.RunProfileSync(cmd.Context(), cmd.OutOrStdout(), seams, skillscmd.SyncOptions{
+			return gormescli.RunSkillsProfileSync(cmd.Context(), cmd.OutOrStdout(), seams, gormescli.SkillsSyncOptions{
 				JSON:  jsonOut,
 				Build: skillsBuildProvenance(),
 			})
@@ -142,14 +142,14 @@ func newSkillsSyncCommand(seams skillsProfileSyncSeams) *cobra.Command {
 }
 
 func skillsCommandOptionsForConfig(cfg config.Config) gateway.SkillsCommandOptions {
-	return skillscmd.CommandOptionsForConfig(cfg)
+	return gormescli.SkillsCommandOptionsForConfig(cfg)
 }
 
 func defaultSkillSyncProfiles() ([]skillruntime.SkillProfileRoot, error) {
-	return skillscmd.DefaultProfileRoots()
+	return gormescli.DefaultSkillProfileRoots()
 }
 
-func skillsBuildProvenance() skillscmd.BuildProvenance {
+func skillsBuildProvenance() gormescli.SkillsBuildProvenance {
 	build := newBuildProvenance()
-	return skillscmd.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+	return gormescli.SkillsBuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
 }

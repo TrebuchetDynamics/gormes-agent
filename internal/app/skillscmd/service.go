@@ -15,8 +15,8 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	skillruntime "github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/profileapp"
+	profilecli "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/profile"
+	skillcmdruntime "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/skillscmd"
 )
 
 type BuildProvenance struct {
@@ -62,8 +62,8 @@ func ListInstalledSkills(opts skillruntime.ListOptions, disabled map[string]stru
 	return skillruntime.ListInstalledSkillsFromRoots(cfg.SkillsRoot(), skillruntime.BundledRoot(), opts, disabled)
 }
 
-func URLInstallDeps() cli.SkillsURLInstallDeps {
-	return cli.SkillsURLInstallDeps{
+func URLInstallDeps() skillcmdruntime.SkillsURLInstallDeps {
+	return skillcmdruntime.SkillsURLInstallDeps{
 		Fetcher: httpSkillFetcher{client: &http.Client{Timeout: 30 * time.Second}},
 		Store:   configSkillStore{},
 	}
@@ -143,15 +143,12 @@ func withDefaultProfileSyncSeams(seams ProfileSyncSeams) ProfileSyncSeams {
 }
 
 func DefaultProfileRoots() ([]skillruntime.SkillProfileRoot, error) {
-	names, err := profileapp.DefaultListKnownProfiles()
-	if err != nil {
-		return nil, err
-	}
 	baseHome := config.GormesBaseHome()
+	names := listKnownProfileNames(baseHome)
 	activePath := filepath.Join(baseHome, "active_profile")
-	if active, err := cli.ReadActiveProfile(activePath); err == nil {
+	if active, err := profilecli.ReadActiveProfile(activePath); err == nil {
 		names = append(names, strings.TrimSpace(active))
-	} else if !errors.Is(err, cli.ErrActiveProfileUnset) {
+	} else if !errors.Is(err, profilecli.ErrActiveProfileUnset) {
 		return nil, err
 	}
 
@@ -164,13 +161,46 @@ func DefaultProfileRoots() ([]skillruntime.SkillProfileRoot, error) {
 		}
 		seen[name] = true
 
-		root, err := cli.ResolveProfileRuntimeRoot(baseHome, name)
+		root, err := profilecli.ResolveProfileRuntimeRoot(baseHome, name)
 		if err != nil {
 			return nil, err
 		}
 		out = append(out, skillruntime.SkillProfileRoot{Name: name, Root: root})
 	}
 	return out, nil
+}
+
+func listKnownProfileNames(baseHome string) []string {
+	known := []string{config.DefaultProfileID}
+	seen := map[string]struct{}{config.DefaultProfileID: {}}
+	addName := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return
+		}
+		if _, dup := seen[name]; dup {
+			return
+		}
+		if err := profilecli.ValidateProfileName(name); err != nil {
+			return
+		}
+		seen[name] = struct{}{}
+		known = append(known, name)
+	}
+	if cfg, err := config.Load(nil); err == nil {
+		for name := range cfg.Profiles {
+			addName(name)
+		}
+	}
+	entries, err := os.ReadDir(filepath.Join(baseHome, "profiles"))
+	if err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				addName(entry.Name())
+			}
+		}
+	}
+	return known
 }
 
 type httpSkillFetcher struct {
