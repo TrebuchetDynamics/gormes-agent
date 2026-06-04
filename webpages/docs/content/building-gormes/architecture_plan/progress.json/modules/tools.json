@@ -9517,9 +9517,9 @@
     "item": {
       "name": "Hermes toolset distribution manifest and deterministic sampler",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Port Hermes' toolset_distributions.py contract as a hermetic Go manifest and deterministic sampler: expose the named distribution definitions, descriptions, and percentage weights; validate referenced toolsets through the existing Gormes toolset catalog; sample each toolset independently from an injectable RNG; and guarantee the highest-probability valid toolset is selected when all rolls miss. This row does not run batch/datagen jobs or change operator toolset config persistence.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
       "module": "tools",
@@ -9579,7 +9579,16 @@
         "origin_type": "hermes",
         "upstream_ref": "Hermes toolset_distributions.py distribution manifest and sampler helpers",
         "note": "Batch/datagen consumers remain separate research-mode rows; this slice is data/sampler parity only."
-      }
+      },
+      "completed_note": "Complete 2026-06-02: added the source-backed Hermes toolset distribution manifest plus deterministic sampler in internal/tools/parity, exposed through internal/tools and internal/platform/cli/toolsets facades. Hermetic tests prove 17 named distributions, descriptions/weights, injected-RNG independent sampling, unknown-distribution error evidence, invalid-toolset skip evidence, and highest-probability valid fallback behavior without batch/datagen execution or toolset config persistence changes.",
+      "validation": [
+        "RED: go test ./internal/tools/parity -run 'TestHermesToolsetDistribution|TestToolsetDistribution' -count=1 failed on missing API",
+        "RED: go test ./internal/platform/cli/toolsets -run 'TestHermesToolsetDistribution|TestToolsetDistribution' -count=1 failed on missing facade API",
+        "go test ./internal/tools/parity -run 'TestHermesToolsetDistribution|TestToolsetDistribution' -count=1 -> ok",
+        "go test ./internal/platform/cli/toolsets -run 'TestHermesToolsetDistribution|TestToolsetDistribution' -count=1 -> ok",
+        "go test ./internal/tools/parity -count=1 -> ok",
+        "go test ./internal/platform/cli/toolsets -count=1 -> ok"
+      ]
     }
   },
   {

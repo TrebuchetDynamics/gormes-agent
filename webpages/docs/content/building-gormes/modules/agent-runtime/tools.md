@@ -11,7 +11,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 **Module group:** Agent Runtime
 **Module:** `tools`
 **Rows:** 151
-**Status counts:** `complete`: 150 · `in_progress`: 0 · `planned`: 1
+**Status counts:** `complete`: 151 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P0`: 23 · `P1`: 57 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26
 
 ## Phase 3 — The Black Box (Memory)
@@ -224,7 +224,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `tools` | Hermes send_message tool list and target contract |
 | `complete` | `P1` | `tools` | Image generation managed-gateway provider binding |
 | `complete` | `P1` | `tools` | OSV malware advisory check for MCP package launch |
-| `planned` | `P1` | `tools` | Hermes toolset distribution manifest and deterministic sampler |
+| `complete` | `P1` | `tools` | Hermes toolset distribution manifest and deterministic sampler |
 
 ### 5.O — Hermes CLI Parity
 

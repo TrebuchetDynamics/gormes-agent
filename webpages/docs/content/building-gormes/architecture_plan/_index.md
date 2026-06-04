@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 107/111 subphases shipped · 4 in progress · 0 planned
+**Overall:** 108/111 subphases shipped · 3 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -99,7 +99,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
+| Phase 5 — The Final Purge | ✅ | 23/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 4/7 subphases |
@@ -744,7 +744,7 @@ classification and row-backed implementation queue.
 - [x] `providers` P95 latency-aware failover
 - [x] `providers` Capability-based model tier routing
 
-## Phase 5 — The Final Purge 🔨
+## Phase 5 — The Final Purge ✅
 
 *Python tool scripts ported to Go or WASM*
 
@@ -1002,7 +1002,7 @@ classification and row-backed implementation queue.
 - [x] `kanban` Kanban worker heartbeat, reclaim, and zombie detection
 - [x] `kanban` Hermes Kanban specify triage parity
 
-### 5.N — Misc Operator Tools 🔨
+### 5.N — Misc Operator Tools ✅
 
 - [x] `tools` Todo
 - [x] `tools` Clarify
@@ -1070,7 +1070,7 @@ classification and row-backed implementation queue.
 - [x] `tools` Hermes send_message tool list and target contract
 - [x] `tools` Image generation managed-gateway provider binding
 - [x] `tools` OSV malware advisory check for MCP package launch
-- [ ] `tools` Hermes toolset distribution manifest and deterministic sampler
+- [x] `tools` Hermes toolset distribution manifest and deterministic sampler
 
 ### 5.O — Hermes CLI Parity ✅
 

@@ -32,7 +32,7 @@ Skill files are edited in `development-skills/<name>/`; `.agents/skills/`,
 | Stuck on a Go implementation shape and want a donor file to read before writing code | `gormes-references` | `gormes-tdd-slice` once the donor pattern is identified |
 | Provider/auth/streaming/quota/retry problem specifically | `gormes-provider-parity` | `gormes-tdd-slice` once the parity target + donor file are pinned |
 | Need to run, install, rebuild, or validate local Gormes binaries, managed source clones, PATH command refresh, gateway ownership, or sessions.db locks | `gormes-dev-runtime` | `gormes-tdd-slice` only if runtime code changes are needed |
-| Need to create or improve a skill | `gormes-skill-manager` + system `skill-creator` | validate all affected skills |
+| Need to create or improve a skill | `gormes-skill-manager` + global `write-a-skill` | validate all affected skills; use system `skill-creator` only when available |
 
 ## Feature-Map-First Routing
 
@@ -45,7 +45,7 @@ Skill files are edited in `development-skills/<name>/`; `.agents/skills/`,
 | Row is builder-ready and package boundary is known | `gormes-builder` | `gormes-tdd-slice` for red-green cycles |
 | Row is builder-ready but public interface is unclear | `gormes-interface-designer` | `gormes-planner` records the contract |
 | Tests fail for an existing slice | `gormes-tdd-slice` | `gormes-builder` updates progress evidence |
-| Repeated work lacks a stable skill path | `gormes-skill-manager` + system `skill-creator` | `gormes-planner` adds/updates a skill row |
+| Repeated work lacks a stable skill path | `gormes-skill-manager` + global `write-a-skill` | validate the skill update, then `gormes-planner` only if a progress row is needed |
 
 ## Completion Lane Coverage
 
@@ -54,7 +54,7 @@ Skill files are edited in `development-skills/<name>/`; `.agents/skills/`,
 | Whole-program recurring parity progress | `gormes-hermes-parity` orchestrates references and subskills | Covered by the periodic parity sweep workflow. |
 | OpenClaw-only enhancement discovery | `gormes-openclaw-parity` -> `gormes-planner` -> `gormes-builder` -> `gormes-tdd-slice` | Covered for source-backed Gormes-owned features that are useful but not required Hermes parity. |
 | Implementation lookup (any subsystem) | `gormes-references` -> `gormes-tdd-slice` | Covered. Use this whenever a worker is about to invent a Go shape that probably exists in a donor. |
-| 1.D skill control plane | `gormes-skill-manager` -> `skill-creator` -> `gormes-planner` | Covered by this routing table. |
+| 1.D skill control plane | `gormes-skill-manager` -> global `write-a-skill` -> optional `gormes-planner` | Covered by this routing table. |
 | 3.G Goncho/Honcho compatibility | `gormes-parity-auditor` -> `gormes-planner` -> `gormes-builder` -> `gormes-tdd-slice` | Add `gormes-goncho-compat` only after SDK-style fixtures repeat across multiple rows. |
 | 4.I normal-turn e2e | `gormes-builder` -> `gormes-tdd-slice` | Add `gormes-e2e-operator` when service orchestration or Playwright-style harnesses repeat. |
 | Provider transcript parity | `gormes-parity-auditor` -> `gormes-builder` -> `gormes-tdd-slice` | Add `gormes-provider-parity` when transcript fixtures span multiple providers. |

@@ -1,6 +1,6 @@
 ---
 name: gormes-skill-manager
-description: Use when starting any substantial Gormes planning or building task, when unsure whether to use gormes-planner, gormes-builder, gormes-parity-auditor, gormes-tdd-slice, or gormes-interface-designer, or when repeated Gormes work suggests creating or improving a repo-local skill.
+description: Route Gormes work to the smallest repo-local skill chain. Use before substantial planning/building/refactor work, when unsure which Gormes skill applies, or when creating/improving repo-local skills.
 ---
 
 # Gormes Skill Manager
@@ -106,13 +106,13 @@ Use this order when several skills could apply:
 | unfamiliar package, crosses modules | architecture map | `gormes-architecture-zoomout` |
 | improve architecture, deep modules, reduce coupling, AI-navigable | architecture candidates | `gormes-architecture-zoomout` |
 | interface, API boundary | design boundary | `gormes-interface-designer` |
-| cmd-internal refactor, thin cmd/gormes, move command behavior to internal/app | bounded command-domain extraction | `cmd-internal-refactor` |
+| cmd-internal refactor, thin cmd/gormes root files, move command behavior into internal/app/<domain> | bounded command-domain extraction | `cmd-internal-refactor` |
 | duplicate mechanics, cleanup | refactor mechanics | `gormes-service-layer-refactor` |
 | try designs, prototype | throwaway experiment | `gormes-prototype-spike` |
 | README | public repo messaging | `gormes-readme` |
 | landing, homepage, www.gormes.ai | website copy/UI | `gormes-landing-web` |
 | dashboard screenshot, hero image, social card, image-based dashboard | visual asset design | `dashboard-image-design` |
-| create/update skills | skill management | `gormes-skill-manager` |
+| create/update skills, improve a skill, write a skill | skill maintenance | `gormes-skill-manager` + global `write-a-skill` |
 
 Pick the primary intent:
 
@@ -204,11 +204,11 @@ Pick the primary intent:
   It may route dirty-worktree commit/push work through `gormes-git`, but it
   owns release intent, version/tag checks, artifact verification, and recovery
   stop conditions.
-- **Create or improve skills**: use global `writing-skills` for the skill-doc
-  red/green loop, use system `skill-creator` validation when available, plus
-  this manager for Gormes routing. Fold repeated mistakes into existing
-  class-level skills before creating a new one, and keep the update as
-  process guidance rather than a session diary.
+- **Create or improve skills**: use global `write-a-skill` for the skill-doc
+  drafting/review loop, use system `skill-creator` validation only when the
+  harness exposes it, plus this manager for Gormes routing and branch rules.
+  Fold repeated mistakes into existing class-level skills before creating a new
+  one, and keep the update as process guidance rather than a session diary.
 - **Learn from past Gormes tasks**: improve the existing skill that should have
   prevented the mistake. Installer, PATH, `go run`, `bin/gormes`,
   `GORMES_HOME`, `workspace-gormes`, or `sessions.db` lessons belong in
@@ -283,6 +283,12 @@ find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -name SKILL.md -
 
 Read `references/skill-routing.md` for the routing table. Reuse or improve an existing skill when the task is only a variant of an existing workflow.
 
+For skill maintenance, also load the global `write-a-skill` workflow and the
+exact target `development-skills/<name>/SKILL.md` before editing. Edit the
+canonical file under `development-skills/`; verify `.agents/skills/`,
+`.claude/skills/`, and `.codex/skills/` remain loader symlink views rather than
+independent copies.
+
 ### 3. Decide Whether A New Skill Is Needed
 
 Create or propose a new skill only when at least two are true:
@@ -316,21 +322,26 @@ Use names like:
 - `gormes-e2e-operator`
 - `gormes-release-packager`
 
-Each new skill must have:
+Each new or substantially changed skill must have:
 
-- clear trigger description;
-- one bounded workflow;
-- references only when needed;
-- validation commands;
+- a concise trigger description with concrete user words/artifacts;
+- one bounded workflow and explicit red lines;
+- topology/ownership checks when files, packages, or state move;
+- references only when details do not need to be always loaded;
+- validation commands or a clear reason validation is doc-only;
 - no duplicate doctrine already present in `gormes-planner` or `gormes-builder`.
 
-Create the skill under `development-skills/<name>/`. Then add symlinks:
+Create the skill under `development-skills/<name>/`. Then add or refresh
+loader symlinks without copying skill files:
 
 ```sh
 ln -s ../../development-skills/<name> .agents/skills/<name>
 ln -s ../../development-skills/<name> .claude/skills/<name>
 ln -s ../../development-skills/<name> .codex/skills/<name>
 ```
+
+When improving an existing skill, confirm `realpath` for each loader view points
+back to the canonical `development-skills/<name>` directory.
 
 ### 5. Report The Routing Decision
 

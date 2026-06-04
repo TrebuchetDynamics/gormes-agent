@@ -44,11 +44,11 @@ func TestDevelopmentGoalSkillContractIsRoutable(t *testing.T) {
 	}
 }
 
-func TestSkillManagerRoutesSkillMaintenanceThroughWritingSkills(t *testing.T) {
+func TestSkillManagerRoutesSkillMaintenanceThroughWriteASkill(t *testing.T) {
 	manager := readRepoText(t, "development-skills/gormes-skill-manager/SKILL.md")
 	for _, want := range []string{
 		"Create or improve skills",
-		"`writing-skills`",
+		"`write-a-skill`",
 		"`skill-creator`",
 		"process guidance rather than a session diary",
 	} {

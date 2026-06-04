@@ -75,11 +75,12 @@ rules in this `AGENTS.md` and load `gormes-skill-manager` alongside global
 `grill-me` when needed.
 
 If none of these skills fits repeated Gormes work, use
-`gormes-skill-manager` plus the system `skill-creator` workflow to create or
-refine a repo-local skill under `development-skills/`. Keep the new skill
-bounded, validate it, and do not use skill creation as a substitute for
-shipping Gormes. Recreate symlinks into `.agents/skills/`, `.claude/skills/`,
-and `.codex/skills/` instead of copying skill files.
+`gormes-skill-manager` plus global `write-a-skill` (and system
+`skill-creator` only when the harness exposes it) to create or refine a
+repo-local skill under `development-skills/`. Keep the new skill bounded,
+validate it, and do not use skill creation as a substitute for shipping Gormes.
+Recreate symlinks into `.agents/skills/`, `.claude/skills/`, and
+`.codex/skills/` instead of copying skill files.
 
 `gormes-planner` and `gormes-builder` are skill-routed workflows. Delivery
 orchestrators are allowed when explicitly requested by Juan, but they must be
