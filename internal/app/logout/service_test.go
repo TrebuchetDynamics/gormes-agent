@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/commandruntime"
 )
 
 func TestRunTopLevelLogoutCommandUsesInjectedAuthSeamsAndBuildProvenance(t *testing.T) {
@@ -28,7 +28,7 @@ func TestRunTopLevelLogoutCommandUsesInjectedAuthSeamsAndBuildProvenance(t *test
 		RunAuthLogout: func(cmd *cobra.Command, provider string) error {
 			loggedOut = append(loggedOut, provider)
 			return WriteAuthLifecycleJSON(cmd.OutOrStdout(), AuthLifecycleReportJSON{
-				Build:    gormescli.BuildProvenance{Version: "auth-version", GitCommit: "auth-sha"},
+				Build:    commandruntime.BuildProvenance{Version: "auth-version", GitCommit: "auth-sha"},
 				Action:   "logged_out",
 				Provider: provider,
 				Redacted: true,
@@ -39,8 +39,8 @@ func TestRunTopLevelLogoutCommandUsesInjectedAuthSeamsAndBuildProvenance(t *test
 			return nil
 		},
 	}, Options{
-		BuildProvenance: func() gormescli.BuildProvenance {
-			return gormescli.BuildProvenance{Version: "test-version", GitCommit: "test-sha"}
+		BuildProvenance: func() commandruntime.BuildProvenance {
+			return commandruntime.BuildProvenance{Version: "test-version", GitCommit: "test-sha"}
 		},
 	})
 	if err != nil {
@@ -81,8 +81,8 @@ func TestRunTopLevelLogoutCommandMissingDefaultWritesInjectedAbsentReport(t *tes
 			return nil
 		},
 	}, Options{
-		BuildProvenance: func() gormescli.BuildProvenance {
-			return gormescli.BuildProvenance{Version: "test-version", GitCommit: "test-sha"}
+		BuildProvenance: func() commandruntime.BuildProvenance {
+			return commandruntime.BuildProvenance{Version: "test-version", GitCommit: "test-sha"}
 		},
 	})
 	if err != nil {

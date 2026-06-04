@@ -1,14 +1,14 @@
 package main
 
 import (
-	providerauthcmd "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/providerauth"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 func configuredProviderAuthPresent(cfg config.Config) bool {
-	return providerauthcmd.ConfiguredProviderAuthPresent(cfg)
+	return gormescli.ConfiguredProviderAuthPresent(cfg)
 }
 
 func configuredProviderAPIKeyRefPresent(cfg config.Config) bool {
-	return providerauthcmd.ConfiguredProviderAPIKeyRefPresent(cfg)
+	return gormescli.ConfiguredProviderAPIKeyRefPresent(cfg)
 }

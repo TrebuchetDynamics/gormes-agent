@@ -1,4 +1,4 @@
-package plugins
+package gormescli
 
 import (
 	"fmt"
@@ -9,15 +9,15 @@ import (
 	pluginspkg "github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
 )
 
-type BuildProvenance struct{ Version, GitCommit string }
+type PluginsBuildProvenance struct{ Version, GitCommit string }
 
-type Options struct{ BuildProvenance func() BuildProvenance }
+type PluginsOptions struct{ BuildProvenance func() PluginsBuildProvenance }
 
-func NewCommand(options Options) *cobra.Command {
-	return NewCommandWithManager(pluginsapp.DefaultLifecycleManager(), options)
+func NewPluginsCommand(options PluginsOptions) *cobra.Command {
+	return NewPluginsCommandWithManager(pluginsapp.DefaultLifecycleManager(), options)
 }
 
-func NewCommandWithManager(manager any, options Options) *cobra.Command {
+func NewPluginsCommandWithManager(manager any, options PluginsOptions) *cobra.Command {
 	m, ok := manager.(*pluginspkg.LifecycleManager)
 	if !ok {
 		panic(fmt.Sprintf("plugins command manager must be *plugins.LifecycleManager, got %T", manager))
@@ -29,18 +29,18 @@ func NewCommandWithManager(manager any, options Options) *cobra.Command {
 		build := options.BuildProvenance()
 		return pluginsapp.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
 	}}
-	return newCommandWithManagerOptions(m, appOptions)
+	return newPluginsCommandWithManagerOptions(m, appOptions)
 }
 
-func newCommandWithManagerOptions(manager *pluginspkg.LifecycleManager, options pluginsapp.Options) *cobra.Command {
+func newPluginsCommandWithManagerOptions(manager *pluginspkg.LifecycleManager, options pluginsapp.Options) *cobra.Command {
 	cmd := &cobra.Command{Use: "plugins", Short: "Manage Hermes-compatible plugins", SilenceUsage: true, Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		return pluginsapp.List(cmd.OutOrStdout(), manager, false, options)
 	}}
-	cmd.AddCommand(newInstallCommand(manager, options), newListCommand(manager, options), newUpdateCommand(manager, options), newRemoveCommand(manager, options), newEnableCommand(manager, options), newDisableCommand(manager, options))
+	cmd.AddCommand(newPluginsInstallCommand(manager, options), newPluginsListCommand(manager, options), newPluginsUpdateCommand(manager, options), newPluginsRemoveCommand(manager, options), newPluginsEnableCommand(manager, options), newPluginsDisableCommand(manager, options))
 	return cmd
 }
 
-func newInstallCommand(manager *pluginspkg.LifecycleManager, options pluginsapp.Options) *cobra.Command {
+func newPluginsInstallCommand(manager *pluginspkg.LifecycleManager, options pluginsapp.Options) *cobra.Command {
 	var force, enable, asJSON bool
 	cmd := &cobra.Command{Use: "install <identifier>", Short: "Install a plugin from a Git URL or owner/repo shorthand", Args: cobra.ExactArgs(1), SilenceUsage: true, RunE: func(cmd *cobra.Command, args []string) error {
 		return pluginsapp.Install(cmd.OutOrStdout(), manager, args[0], force, enable, asJSON, options)
@@ -51,7 +51,7 @@ func newInstallCommand(manager *pluginspkg.LifecycleManager, options pluginsapp.
 	return cmd
 }
 
-func newListCommand(manager *pluginspkg.LifecycleManager, options pluginsapp.Options) *cobra.Command {
+func newPluginsListCommand(manager *pluginspkg.LifecycleManager, options pluginsapp.Options) *cobra.Command {
 	var asJSON bool
 	cmd := &cobra.Command{Use: "list", Aliases: []string{"ls"}, Short: "List installed plugins", SilenceUsage: true, RunE: func(cmd *cobra.Command, args []string) error {
 		return pluginsapp.List(cmd.OutOrStdout(), manager, asJSON, options)
@@ -60,7 +60,7 @@ func newListCommand(manager *pluginspkg.LifecycleManager, options pluginsapp.Opt
 	return cmd
 }
 
-func newUpdateCommand(manager *pluginspkg.LifecycleManager, options pluginsapp.Options) *cobra.Command {
+func newPluginsUpdateCommand(manager *pluginspkg.LifecycleManager, options pluginsapp.Options) *cobra.Command {
 	var asJSON bool
 	cmd := &cobra.Command{Use: "update <name>", Short: "Update a git-installed plugin", Args: cobra.ExactArgs(1), SilenceUsage: true, RunE: func(cmd *cobra.Command, args []string) error {
 		return pluginsapp.Update(cmd.OutOrStdout(), manager, args[0], asJSON, options)
@@ -69,7 +69,7 @@ func newUpdateCommand(manager *pluginspkg.LifecycleManager, options pluginsapp.O
 	return cmd
 }
 
-func newRemoveCommand(manager *pluginspkg.LifecycleManager, options pluginsapp.Options) *cobra.Command {
+func newPluginsRemoveCommand(manager *pluginspkg.LifecycleManager, options pluginsapp.Options) *cobra.Command {
 	var asJSON bool
 	cmd := &cobra.Command{Use: "remove <name>", Aliases: []string{"rm", "uninstall"}, Short: "Remove an installed plugin", Args: cobra.ExactArgs(1), SilenceUsage: true, RunE: func(cmd *cobra.Command, args []string) error {
 		return pluginsapp.Remove(cmd.OutOrStdout(), manager, args[0], asJSON, options)
@@ -78,7 +78,7 @@ func newRemoveCommand(manager *pluginspkg.LifecycleManager, options pluginsapp.O
 	return cmd
 }
 
-func newEnableCommand(manager *pluginspkg.LifecycleManager, options pluginsapp.Options) *cobra.Command {
+func newPluginsEnableCommand(manager *pluginspkg.LifecycleManager, options pluginsapp.Options) *cobra.Command {
 	var asJSON bool
 	cmd := &cobra.Command{Use: "enable <name>", Short: "Enable an installed plugin", Args: cobra.ExactArgs(1), SilenceUsage: true, RunE: func(cmd *cobra.Command, args []string) error {
 		return pluginsapp.Enable(cmd.OutOrStdout(), manager, args[0], asJSON, options)
@@ -87,7 +87,7 @@ func newEnableCommand(manager *pluginspkg.LifecycleManager, options pluginsapp.O
 	return cmd
 }
 
-func newDisableCommand(manager *pluginspkg.LifecycleManager, options pluginsapp.Options) *cobra.Command {
+func newPluginsDisableCommand(manager *pluginspkg.LifecycleManager, options pluginsapp.Options) *cobra.Command {
 	var asJSON bool
 	cmd := &cobra.Command{Use: "disable <name>", Short: "Disable an installed plugin", Args: cobra.ExactArgs(1), SilenceUsage: true, RunE: func(cmd *cobra.Command, args []string) error {
 		return pluginsapp.Disable(cmd.OutOrStdout(), manager, args[0], asJSON, options)

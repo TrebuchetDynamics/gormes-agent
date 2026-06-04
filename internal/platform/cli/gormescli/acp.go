@@ -26,6 +26,10 @@ const (
 	ACPClientEvidenceRowBacked = acp.ClientEvidenceRowBacked
 )
 
+func ACPDefaultClientOptions() ACPClientOptions {
+	return ACPClientOptions{ServerCommand: "gormes"}
+}
+
 func ACPParseProvenanceMode(raw string) (ACPProvenanceMode, error) {
 	return acp.ParseProvenanceMode(raw)
 }

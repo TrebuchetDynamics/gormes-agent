@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	bridgecmd "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/bridgecmd"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 func newBridgeCommand() *cobra.Command {
@@ -43,7 +43,7 @@ func runBridgeCommand(cmd *cobra.Command, bindHost string, bindPort int, gateway
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	return bridgecmd.Run(ctx, bridgecmd.Options{
+	return gormescli.RunBridgeCommand(ctx, gormescli.BridgeCommandOptions{
 		BindHost:    bindHost,
 		BindPort:    bindPort,
 		GatewayHost: gatewayHost,

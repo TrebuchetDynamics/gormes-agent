@@ -1,4 +1,4 @@
-package channels
+package gormescli
 
 import (
 	"strings"
@@ -19,13 +19,5 @@ func TestConfiguredChannelCapabilityDetailsRedactsTelegramToken(t *testing.T) {
 	}
 	if strings.Contains(got, "secret-token") {
 		t.Fatalf("telegram detail leaked token: %q", got)
-	}
-}
-
-func TestOptionsUsesInjectedBuildProvenance(t *testing.T) {
-	opts := Options(func() BuildProvenance { return BuildProvenance{Version: "v", GitCommit: "g"} })
-	got := opts.BuildProvenance()
-	if got.Version != "v" || got.GitCommit != "g" {
-		t.Fatalf("BuildProvenance = %+v", got)
 	}
 }

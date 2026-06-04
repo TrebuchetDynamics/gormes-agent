@@ -7,8 +7,8 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/setupprofile"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 type setupGatewayProfileChannelBinding struct {
@@ -28,15 +28,15 @@ type setupGatewayProfileChannelOptions struct {
 }
 
 func setupGatewayProfileID() string {
-	return setupprofile.ProfileID(config.GormesHome(), config.DefaultProfileID)
+	return gormescli.SetupProfileID(config.GormesHome(), config.DefaultProfileID)
 }
 
 func setupGatewayProfileRegistryPath() string {
-	return setupprofile.RegistryPath(config.GormesBaseHome())
+	return gormescli.SetupProfileRegistryPath(config.GormesBaseHome())
 }
 
 func setupGatewayProfileCredentialID(profileID, channelID string) string {
-	return setupprofile.CredentialID(profileID, channelID)
+	return gormescli.SetupProfileCredentialID(profileID, channelID)
 }
 
 func setupGatewayProfileChannelPreview(channelID string) setupGatewayProfileChannelBinding {
@@ -177,9 +177,9 @@ func writeSetupGatewayRuntimeSecretRef(key, envName string) error {
 }
 
 func compactSetupProfileStrings(values []string) []string {
-	return setupprofile.CompactStrings(values)
+	return gormescli.CompactSetupProfileStrings(values)
 }
 
 func setupInt64Strings(values []int64) []string {
-	return setupprofile.Int64Strings(values)
+	return gormescli.SetupInt64Strings(values)
 }

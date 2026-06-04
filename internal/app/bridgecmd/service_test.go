@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/bridgeruntime"
 )
 
 type fakeServer struct {
@@ -34,7 +34,7 @@ func TestRunPrintsBridgeEndpointsAndStopsAfterContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	started := make(chan struct{}, 1)
 	stopped := make(chan struct{}, 1)
-	var gotCfg gormescli.BridgeConfig
+	var gotCfg bridgeruntime.BridgeConfig
 	var out bytes.Buffer
 
 	errCh := make(chan error, 1)
@@ -46,7 +46,7 @@ func TestRunPrintsBridgeEndpointsAndStopsAfterContextCancel(t *testing.T) {
 			GatewayPort: 5678,
 			GormesBin:   "/tmp/gormes",
 			Out:         &out,
-			ServerFactory: func(cfg gormescli.BridgeConfig) Server {
+			ServerFactory: func(cfg bridgeruntime.BridgeConfig) Server {
 				gotCfg = cfg
 				return fakeServer{
 					start: func(context.Context) error {
@@ -95,7 +95,7 @@ func TestRunPrintsBridgeEndpointsAndStopsAfterContextCancel(t *testing.T) {
 func TestRunWrapsStartError(t *testing.T) {
 	startErr := errors.New("listen failed")
 	err := Run(context.Background(), Options{
-		ServerFactory: func(gormescli.BridgeConfig) Server {
+		ServerFactory: func(bridgeruntime.BridgeConfig) Server {
 			return fakeServer{start: func(context.Context) error { return startErr }}
 		},
 	})

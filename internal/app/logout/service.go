@@ -1,13 +1,13 @@
 package logout
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers/authreport"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/commandruntime"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers/provideridentity"
 )
 
@@ -16,22 +16,39 @@ const TopLevelLogoutAllowedProviders = "nous|openai-codex|spotify"
 // Options carries binary-owned values into the logout command domain without
 // making command-domain behavior depend on root cmd/gormes.
 type Options struct {
-	BuildProvenance func() gormescli.BuildProvenance
+	BuildProvenance func() commandruntime.BuildProvenance
 }
 
-func (o Options) buildProvenance() gormescli.BuildProvenance {
+func (o Options) buildProvenance() commandruntime.BuildProvenance {
 	if o.BuildProvenance == nil {
-		return gormescli.BuildProvenance{}
+		return commandruntime.BuildProvenance{}
 	}
 	return o.BuildProvenance()
 }
 
 // AuthLifecycleReportJSON is the shared lifecycle wire shape for provider auth
 // add/remove/reset/logout reports.
-type AuthLifecycleReportJSON = authreport.LifecycleReportJSON
+type AuthLifecycleReportJSON struct {
+	Build    commandruntime.BuildProvenance `json:"build"`
+	Action   string                         `json:"action"`
+	Provider string                         `json:"provider"`
+	Count    int                            `json:"count,omitempty"`
+	Removed  *RemovedJSON                   `json:"removed,omitempty"`
+	Redacted bool                           `json:"redacted"`
+}
+
+type RemovedJSON struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+}
 
 func WriteAuthLifecycleJSON(out interface{ Write(p []byte) (int, error) }, report AuthLifecycleReportJSON) error {
-	return authreport.WriteLifecycleJSON(out, report)
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(out, string(body))
+	return nil
 }
 
 // LogoutSeams isolates top-level logout from the larger auth command
@@ -89,7 +106,7 @@ func RunTopLevelLogoutCommand(cmd *cobra.Command, providerInput string, seams Lo
 		}
 	}
 	if !TopLevelLogoutProviderAllowed(provider) {
-		return gormescli.NewExitCodeError(2, fmt.Errorf("gormes logout: auth_logout_provider_unsupported provider=%s allowed=%s", provider, TopLevelLogoutAllowedProviders))
+		return commandruntime.NewExitCodeError(2, fmt.Errorf("gormes logout: auth_logout_provider_unsupported provider=%s allowed=%s", provider, TopLevelLogoutAllowedProviders))
 	}
 	if err := seams.RunAuthLogout(cmd, provider); err != nil {
 		return err

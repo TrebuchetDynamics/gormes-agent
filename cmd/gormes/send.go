@@ -5,16 +5,16 @@ import (
 
 	"github.com/spf13/cobra"
 
-	sendcmd "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/send"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
-const sendBackendUnavailableEvidence = sendcmd.BackendUnavailableEvidence
+const sendBackendUnavailableEvidence = gormescli.SendBackendUnavailableEvidence
 
-type sendCommandDeliveryFunc = sendcmd.DeliveryFunc
-type sendCommandResult = sendcmd.Result
+type sendCommandDeliveryFunc = gormescli.SendDeliveryFunc
+type sendCommandResult = gormescli.SendResult
 
 func newSendCommand(runtime rootRuntime) *cobra.Command {
-	return sendcmd.NewCommand(sendcmd.Options{
+	return gormescli.NewSendCommand(gormescli.SendOptions{
 		Deliver:    runtime.sendMessage,
 		IsStdinTTY: sendCommandIsTTY(runtime),
 	})
@@ -28,5 +28,5 @@ func sendCommandIsTTY(runtime rootRuntime) func() bool {
 }
 
 func defaultSendCommandBackend(ctx context.Context, target, message string) (sendCommandResult, error) {
-	return sendcmd.DefaultBackend(ctx, target, message)
+	return gormescli.DefaultSendBackend(ctx, target, message)
 }

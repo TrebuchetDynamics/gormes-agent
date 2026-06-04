@@ -3,13 +3,12 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	logoutcmd "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/logout"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
-const topLevelLogoutAllowedProviders = logoutcmd.TopLevelLogoutAllowedProviders
+const topLevelLogoutAllowedProviders = gormescli.TopLevelLogoutAllowedProviders
 
-type logoutCommandSeams = logoutcmd.LogoutSeams
+type logoutCommandSeams = gormescli.LogoutSeams
 
 func newLogoutCommand() *cobra.Command {
 	var provider string
@@ -27,7 +26,7 @@ func newLogoutCommand() *cobra.Command {
 }
 
 func runTopLevelLogoutCommand(cmd *cobra.Command, providerInput string) error {
-	return logoutcmd.RunTopLevelLogoutCommand(cmd, providerInput, defaultLogoutCommandSeams(), logoutCommandOptions())
+	return gormescli.RunTopLevelLogoutCommand(cmd, providerInput, defaultLogoutCommandSeams(), logoutCommandOptions())
 }
 
 func defaultLogoutCommandSeams() logoutCommandSeams {
@@ -40,31 +39,31 @@ func defaultLogoutCommandSeams() logoutCommandSeams {
 }
 
 func topLevelLogoutProviderAllowed(provider string) bool {
-	return logoutcmd.TopLevelLogoutProviderAllowed(provider)
+	return gormescli.TopLevelLogoutProviderAllowed(provider)
 }
 
 func topLevelLogoutDefaultProvider() (string, error) {
-	return logoutcmd.TopLevelLogoutDefaultProvider(defaultLogoutCommandSeams())
+	return gormescli.TopLevelLogoutDefaultProvider(defaultLogoutCommandSeams())
 }
 
 func topLevelLogoutConfiguredProvider() (string, error) {
-	return logoutcmd.ConfiguredProvider(normalizeAuthProvider)
+	return gormescli.ConfiguredLogoutProvider(normalizeAuthProvider)
 }
 
 func resetTopLevelLogoutProviderIfMatching(provider string) error {
-	return logoutcmd.ResetProviderIfMatching(provider, normalizeAuthProvider)
+	return gormescli.ResetLogoutProviderIfMatching(provider, normalizeAuthProvider)
 }
 
 func writeTopLevelLogoutDefaultAbsent(cmd *cobra.Command) error {
-	return logoutcmd.RunTopLevelLogoutCommand(cmd, "", logoutCommandSeams{
+	return gormescli.RunTopLevelLogoutCommand(cmd, "", logoutCommandSeams{
 		NormalizeAuthProvider: func(string) string { return "" },
 		ConfiguredProvider:    func() (string, error) { return "", nil },
 		RunAuthLogout:         func(*cobra.Command, string) error { return nil },
 	}, logoutCommandOptions())
 }
 
-func logoutCommandOptions() logoutcmd.Options {
-	return logoutcmd.Options{
+func logoutCommandOptions() gormescli.LogoutOptions {
+	return gormescli.LogoutOptions{
 		BuildProvenance: func() gormescli.BuildProvenance {
 			build := newBuildProvenance()
 			return gormescli.BuildProvenance{

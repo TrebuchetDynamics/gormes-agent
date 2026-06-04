@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	mcplogincmd "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/mcplogin"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -107,27 +107,27 @@ func newMCPLoginCommand(runtime mcpLoginRuntime) *cobra.Command {
 
 func runMCPLoginCommand(cmd *cobra.Command, runtime mcpLoginRuntime, serverName string) error {
 	asJSON, _ := cmd.Flags().GetBool("json")
-	err := mcplogincmd.Run(cmd.Context(), mcplogincmd.Runtime{
+	err := gormescli.RunMCPLogin(cmd.Context(), gormescli.MCPLoginRuntime{
 		LoadConfig: runtime.loadConfig,
 		Store:      runtime.store,
 		Flow:       runtime.flow,
-	}, mcplogincmd.Options{
+	}, gormescli.MCPLoginOptions{
 		ServerName: serverName,
 		JSON:       asJSON,
 		Stdout:     cmd.OutOrStdout(),
 		Build:      mcpLoginBuildProvenance(),
 	})
 	if err != nil {
-		return newExitCodeError(mcplogincmd.ExitCodeForError(err), err)
+		return newExitCodeError(gormescli.MCPLoginExitCodeForError(err), err)
 	}
 	return nil
 }
 
 func loadDefaultMCPConfig() (tools.MCPConfigResolution, error) {
-	return mcplogincmd.LoadDefaultMCPConfig()
+	return gormescli.LoadDefaultMCPConfig()
 }
 
-func mcpLoginBuildProvenance() mcplogincmd.BuildProvenance {
+func mcpLoginBuildProvenance() gormescli.MCPLoginBuildProvenance {
 	build := newBuildProvenance()
-	return mcplogincmd.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+	return gormescli.MCPLoginBuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
 }

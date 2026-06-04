@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	channelscmd "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/channels"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
 )
 
@@ -13,23 +13,26 @@ func newChannelsCommand() *cobra.Command {
 }
 
 func channelsCommandSeams() channelsmodule.Seams {
-	return channelscmd.Seams()
+	return channelsmodule.Seams{
+		LoadConfig:        func() (config.Config, error) { return config.Load(nil) },
+		ConfiguredDetails: configuredChannelCapabilityDetails,
+	}
 }
 
 func channelsCommandOptions() channelsmodule.Options {
-	return channelscmd.Options(func() channelscmd.BuildProvenance {
+	return channelsmodule.Options{BuildProvenance: func() gormescli.BuildProvenance {
 		build := newBuildProvenance()
-		return channelscmd.BuildProvenance{
+		return gormescli.BuildProvenance{
 			Version:   build.Version,
 			GitCommit: build.GitCommit,
 		}
-	})
+	}}
 }
 
 func configuredChannelCapabilityDetails(cfg config.Config) map[string]string {
-	return channelscmd.ConfiguredChannelCapabilityDetails(cfg)
+	return gormescli.ConfiguredChannelCapabilityDetails(cfg)
 }
 
 func configuredWhatsAppGatewayStatusDetail() string {
-	return channelscmd.ConfiguredWhatsAppGatewayStatusDetail()
+	return gormescli.ConfiguredWhatsAppGatewayStatusDetail()
 }

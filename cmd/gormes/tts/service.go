@@ -1,9 +1,0 @@
-package tts
-
-import (
-	"github.com/spf13/cobra"
-
-	apptts "github.com/TrebuchetDynamics/gormes-agent/internal/app/tts"
-)
-
-func NewCommand() *cobra.Command { return apptts.NewCommand() }

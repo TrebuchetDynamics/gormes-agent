@@ -3,7 +3,7 @@ package providerclient
 import (
 	"net/http"
 
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/providercredentials"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/app/providercredentials"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/provider"

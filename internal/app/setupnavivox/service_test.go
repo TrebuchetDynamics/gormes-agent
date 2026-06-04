@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	navivoxapp "github.com/TrebuchetDynamics/gormes-agent/internal/app/navivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/network/vpnhost"
 )
 
 func TestPairingURIIncludesTokenWhenRequired(t *testing.T) {
@@ -33,9 +33,9 @@ func TestPairingURIIncludesTokenWhenRequired(t *testing.T) {
 }
 
 func TestBindDefaultPrefersCurrentThenVPNKind(t *testing.T) {
-	hosts := []navivoxapp.VPNHost{
-		{Kind: navivoxapp.VPNHostKindWireGuard, IPv4: "10.0.0.2"},
-		{Kind: navivoxapp.VPNHostKindTailscale, IPv4: "100.64.1.2"},
+	hosts := []vpnhost.Host{
+		{Kind: vpnhost.KindWireGuard, IPv4: "10.0.0.2"},
+		{Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"},
 	}
 	if got := BindDefault("192.168.5.5", config.NavivoxExposureTailscale, hosts); got != "192.168.5.5" {
 		t.Fatalf("current BindDefault = %q", got)

@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	securitycmd "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/security"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 func newSecurityCommand() *cobra.Command {
@@ -20,13 +20,13 @@ func newSecurityCommand() *cobra.Command {
 }
 
 func newSecurityAuditCommand() *cobra.Command {
-	var opts securitycmd.AuditOptions
+	var opts gormescli.SecurityAuditOptions
 	cmd := &cobra.Command{
 		Use:   "audit",
 		Short: "Run a redacted security audit with optional deep probes and safe fixes",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			result, err := securitycmd.RunAudit(cmd.Context(), cmd.OutOrStdout(), opts, securityBuildProvenance())
+			result, err := gormescli.RunSecurityAudit(cmd.Context(), cmd.OutOrStdout(), opts, securityBuildProvenance())
 			if err != nil {
 				return err
 			}
@@ -42,7 +42,7 @@ func newSecurityAuditCommand() *cobra.Command {
 	return cmd
 }
 
-func securityBuildProvenance() securitycmd.BuildProvenance {
+func securityBuildProvenance() gormescli.SecurityBuildProvenance {
 	build := newBuildProvenance()
-	return securitycmd.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+	return gormescli.SecurityBuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
 }

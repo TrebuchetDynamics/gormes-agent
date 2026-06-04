@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/bridgeruntime"
 )
 
 type Server interface {
@@ -22,12 +22,12 @@ type Options struct {
 	GatewayPort     int
 	GormesBin       string
 	Out             io.Writer
-	ServerFactory   func(gormescli.BridgeConfig) Server
+	ServerFactory   func(bridgeruntime.BridgeConfig) Server
 	ShutdownTimeout time.Duration
 }
 
 func Run(ctx context.Context, opts Options) error {
-	cfg := gormescli.BridgeConfig{
+	cfg := bridgeruntime.BridgeConfig{
 		BindHost:    opts.BindHost,
 		BindPort:    opts.BindPort,
 		GatewayHost: opts.GatewayHost,
@@ -36,7 +36,7 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	factory := opts.ServerFactory
 	if factory == nil {
-		factory = func(cfg gormescli.BridgeConfig) Server { return gormescli.NewBridgeServer(cfg) }
+		factory = func(cfg bridgeruntime.BridgeConfig) Server { return bridgeruntime.NewBridgeServer(cfg) }
 	}
 	out := opts.Out
 	if out == nil {

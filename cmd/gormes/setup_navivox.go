@@ -11,10 +11,9 @@ import (
 	"github.com/skip2/go-qrcode"
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/setupchoice"
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/setupnavivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/app/navivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 // vpnhostList is the seam test code can override to inject deterministic
@@ -343,18 +342,18 @@ func navivoxProviderSetupCommand(cfg config.Config) string {
 }
 
 func navivoxSetupPairingURI(cfg config.NavivoxCfg) (string, error) {
-	return setupnavivox.PairingURI(cfg)
+	return gormescli.SetupNavivoxPairingURI(cfg)
 }
 
 func navivoxSetupBindDefault(ctx context.Context, current, exposureMode string) string {
 	hosts, _ := vpnhostList(ctx)
-	return setupnavivox.BindDefault(current, exposureMode, hosts)
+	return gormescli.SetupNavivoxBindDefault(current, exposureMode, hosts)
 }
 
 func parseSetupYesNo(value string, defaultValue bool) (bool, bool) {
-	return setupchoice.YesNo(value, defaultValue)
+	return gormescli.ParseSetupYesNo(value, defaultValue)
 }
 
 func parseSetupCSV(value string) []string {
-	return setupnavivox.CSV(value)
+	return gormescli.ParseSetupCSV(value)
 }

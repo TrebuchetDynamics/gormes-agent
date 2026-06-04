@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/setupchoice"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
@@ -810,7 +809,7 @@ func promptSetupActionText(cmd *cobra.Command, options []setupMenuOption, defaul
 }
 
 func stripSetupInputNoise(answer string) string {
-	return setupchoice.StripInputNoise(answer)
+	return gormescli.StripSetupInputNoise(answer)
 }
 
 func runSetupFullWizard(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
@@ -3537,7 +3536,7 @@ func ttsProviderLabel(value string) string {
 }
 
 func normalizeSetupChoice(value string) string {
-	return setupchoice.NormalizeValue(value)
+	return gormescli.NormalizeSetupValue(value)
 }
 
 func parsePositiveInt(value string) (int, bool) {

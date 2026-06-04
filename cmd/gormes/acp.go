@@ -3,14 +3,14 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	acpcmd "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/acp"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 func newACPCommand() *cobra.Command {
 	var (
 		setupBrowser bool
 		jsonOut      bool
-		opts         acpcmd.BrowserBootstrapOptions
+		opts         gormescli.ACPBrowserBootstrapOptions
 	)
 	cmd := &cobra.Command{
 		Use:   "acp",
@@ -33,8 +33,8 @@ func newACPCommand() *cobra.Command {
 	return cmd
 }
 
-func runACPSetupBrowserCommand(cmd *cobra.Command, opts acpcmd.BrowserBootstrapOptions, jsonOut bool) error {
-	return acpExitError(acpcmd.RunSetupBrowser(cmd.Context(), cmd.OutOrStdout(), opts, jsonOut, acpBuildProvenance()))
+func runACPSetupBrowserCommand(cmd *cobra.Command, opts gormescli.ACPBrowserBootstrapOptions, jsonOut bool) error {
+	return acpExitError(gormescli.ACPRunSetupBrowser(cmd.Context(), cmd.OutOrStdout(), opts, jsonOut, acpBuildProvenance()))
 }
 
 func newACPServeCommand() *cobra.Command {
@@ -48,12 +48,12 @@ func newACPServeCommand() *cobra.Command {
 }
 
 func runACPServeCommand(cmd *cobra.Command) error {
-	return acpExitError(acpcmd.RunServe(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout(), cmd.ErrOrStderr()))
+	return acpExitError(gormescli.ACPRunServe(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout(), cmd.ErrOrStderr()))
 }
 
 func newACPClientCommand() *cobra.Command {
 	var (
-		opts          = acpcmd.DefaultClientOptions()
+		opts          = gormescli.ACPDefaultClientOptions()
 		provenanceRaw string
 		jsonOut       bool
 	)
@@ -62,7 +62,7 @@ func newACPClientCommand() *cobra.Command {
 		Use:   "client",
 		Short: "Connect a debug ACP client to the Go-native ACP server",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			mode, err := acpcmd.ParseProvenanceMode(provenanceRaw)
+			mode, err := gormescli.ACPParseProvenanceMode(provenanceRaw)
 			if err != nil {
 				return newExitCodeError(2, err)
 			}
@@ -75,7 +75,7 @@ func newACPClientCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.RequireExisting, "require-existing", false, "fail when the resolved session key does not already exist")
 	cmd.Flags().BoolVar(&opts.ResetSession, "reset-session", false, "clear and reinitialize the resolved session key before connecting")
 	cmd.Flags().BoolVar(&opts.NoPrefixCWD, "no-prefix-cwd", false, "do not prepend working-directory provenance to bridged prompts")
-	cmd.Flags().StringVar(&provenanceRaw, "provenance", string(acpcmd.ProvenanceOff), "provenance mode: off, meta, or meta+receipt")
+	cmd.Flags().StringVar(&provenanceRaw, "provenance", string(gormescli.ACPProvenanceOff), "provenance mode: off, meta, or meta+receipt")
 	cmd.Flags().StringVar(&opts.CWD, "cwd", "", "working directory to expose to the ACP bridge")
 	cmd.Flags().StringVar(&opts.ServerCommand, "server", opts.ServerCommand, "ACP server command label")
 	cmd.Flags().StringArrayVar(&opts.ServerArgs, "server-args", nil, "additional ACP server argument, repeatable")
@@ -85,21 +85,21 @@ func newACPClientCommand() *cobra.Command {
 	return cmd
 }
 
-func runACPClientCommand(cmd *cobra.Command, opts acpcmd.ClientOptions, jsonOut bool) error {
-	return acpExitError(acpcmd.RunClient(cmd.Context(), cmd.OutOrStdout(), opts, jsonOut, acpBuildProvenance()))
+func runACPClientCommand(cmd *cobra.Command, opts gormescli.ACPClientOptions, jsonOut bool) error {
+	return acpExitError(gormescli.ACPRunClient(cmd.Context(), cmd.OutOrStdout(), opts, jsonOut, acpBuildProvenance()))
 }
 
 func acpExitError(err error) error {
 	if err == nil {
 		return nil
 	}
-	if code := acpcmd.ExitCode(err); code != 0 {
+	if code := gormescli.ACPExitCode(err); code != 0 {
 		return newExitCodeError(code, err)
 	}
 	return err
 }
 
-func acpBuildProvenance() acpcmd.BuildProvenance {
+func acpBuildProvenance() gormescli.BuildProvenance {
 	build := newBuildProvenance()
-	return acpcmd.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+	return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
 }

@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/setuprouter"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
 	"github.com/spf13/cobra"
 )
@@ -200,7 +200,7 @@ func appendSetupRouterRoute(routes []config.RouterRouteCfg, route config.RouterR
 }
 
 func setupRouterFallbackRules(routes []config.RouterRouteCfg) []config.RouterFallbackCfg {
-	return setuprouter.FallbackRules(routes)
+	return gormescli.SetupRouterFallbackRules(routes)
 }
 
 func writeSetupRouterReceipt(cmd *cobra.Command, cfg config.RouterCfg, auth setupRouterAuthEvidence) {
@@ -242,15 +242,15 @@ func writeSetupRouterReceipt(cmd *cobra.Command, cfg config.RouterCfg, auth setu
 }
 
 func setupRouterRouteLabels(route config.RouterRouteCfg) []string {
-	return setuprouter.RouteLabels(route)
+	return gormescli.SetupRouterRouteLabels(route)
 }
 
 func setupRouterOpenAIBaseURL(listen string) string {
-	return setuprouter.OpenAIBaseURL(listen, providermodule.RouterDefaultListen)
+	return gormescli.SetupRouterOpenAIBaseURL(listen, providermodule.RouterDefaultListen)
 }
 
 func setupRouterSlug(value string) string {
-	return setuprouter.Slug(value)
+	return gormescli.SetupRouterSlug(value)
 }
 
 func generateSetupRouterAPIKey() (string, error) {

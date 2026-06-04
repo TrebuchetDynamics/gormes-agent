@@ -3,9 +3,9 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	dashboardcmd "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/dashboard"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 func newDashboardCommand() *cobra.Command {
-	return dashboardcmd.NewCommand(dashboardcmd.DefaultCommandOptions(Version, resolveGitCommit(), resolveGitDirty()))
+	return gormescli.NewDashboardCommand(gormescli.DefaultDashboardCommandOptions(Version, resolveGitCommit(), resolveGitDirty()))
 }

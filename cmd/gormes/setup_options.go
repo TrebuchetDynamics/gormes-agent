@@ -5,12 +5,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/setupchoice"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	setupwizard "github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 	"github.com/spf13/cobra"
 )
 
-type setupOptionChoice = setupchoice.Choice
+type setupOptionChoice = gormescli.SetupOptionChoice
 
 func promptSetupOptionChoice(cmd *cobra.Command, title, linePrompt, defaultID string, choices []setupOptionChoice) (string, error) {
 	defaultID = normalizeSetupOptionChoice(defaultID, choices, defaultID)
@@ -86,5 +86,5 @@ func setupOptionPickerChoices(options []setupOptionChoice) []tuiPickChoice {
 }
 
 func normalizeSetupOptionChoice(answer string, options []setupOptionChoice, defaultID string) string {
-	return setupchoice.NormalizeAnswer(answer, options, defaultID)
+	return gormescli.NormalizeSetupAnswer(answer, options, defaultID)
 }
