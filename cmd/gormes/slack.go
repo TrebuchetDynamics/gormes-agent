@@ -5,42 +5,41 @@ import (
 
 	"github.com/spf13/cobra"
 
-	slackcmd "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/slack"
-	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 func newSlackCommand() *cobra.Command {
-	return slackcmd.NewCommand()
+	return gormescli.NewSlackCommand()
 }
 
-func runSlackManifestCommand(cmd *cobra.Command, opts channelsmodule.SlackManifestOptions) error {
-	return slackcmd.RunManifestCommand(cmd, opts)
+func runSlackManifestCommand(cmd *cobra.Command, opts gormescli.SlackManifestOptions) error {
+	return gormescli.RunSlackManifestCommand(cmd, opts)
 }
 
 func slackManifestPayload(botName, description string, slashesOnly bool) (any, error) {
-	return slackcmd.ManifestPayload(botName, description, slashesOnly)
+	return gormescli.SlackManifestPayload(botName, description, slashesOnly)
 }
 
 func slackManifestSlashCommands(requestURL string) []map[string]any {
-	return slackcmd.ManifestSlashCommands(requestURL)
+	return gormescli.SlackManifestSlashCommands(requestURL)
 }
 
 func sanitizeSlackManifestName(name string) string {
-	return slackcmd.SanitizeManifestName(name)
+	return gormescli.SanitizeSlackManifestName(name)
 }
 
 func clampString(s string, max int) string {
-	return slackcmd.ClampString(s, max)
+	return gormescli.ClampSlackString(s, max)
 }
 
 func nonEmpty(value, fallback string) string {
-	return slackcmd.NonEmpty(value, fallback)
+	return gormescli.NonEmptySlackValue(value, fallback)
 }
 
 func expandUserPath(path string) string {
-	return slackcmd.ExpandUserPath(path)
+	return gormescli.ExpandSlackUserPath(path)
 }
 
 func writeFileAtomic(path string, body []byte, perm os.FileMode) error {
-	return slackcmd.WriteFileAtomic(path, body, perm)
+	return gormescli.WriteSlackFileAtomic(path, body, perm)
 }

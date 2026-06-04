@@ -6,7 +6,7 @@ import (
 	goncho "github.com/TrebuchetDynamics/goncho/service"
 	"github.com/spf13/cobra"
 
-	memorycmd "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/memory"
+	memoryapp "github.com/TrebuchetDynamics/gormes-agent/internal/app/memory"
 )
 
 // newMemoryCommand returns a fresh memory command tree (parent + status
@@ -48,23 +48,23 @@ func newMemoryStatusCommand() *cobra.Command {
 		Short: "Show extractor queue depth and dead letters",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return memorycmd.RunStatus(cmd.Context(), cmd.OutOrStdout(), asJSON, memoryCommandOptions())
+			return memoryapp.RunStatus(cmd.Context(), cmd.OutOrStdout(), asJSON, memoryCommandOptions())
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a `{build, inventory, extractor, goncho_queue}` JSON document (suitable for SRE alerting on memory backlog)")
 	return cmd
 }
 
-func memoryCommandOptions() memorycmd.Options {
-	return memorycmd.Options{
+func memoryCommandOptions() memoryapp.Options {
+	return memoryapp.Options{
 		BuildProvenance: memoryBuildProvenance,
 		OpenDB:          memoryOpenDB,
 	}
 }
 
-func memoryBuildProvenance() memorycmd.BuildProvenance {
+func memoryBuildProvenance() memoryapp.BuildProvenance {
 	build := newBuildProvenance()
-	return memorycmd.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+	return memoryapp.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
 }
 
 func memoryOpenDB(path string) (*sql.DB, error) {
@@ -72,5 +72,5 @@ func memoryOpenDB(path string) (*sql.DB, error) {
 }
 
 func formatDreamQueueEvidence(status goncho.DreamQueueStatus) string {
-	return memorycmd.FormatDreamQueueEvidence(status)
+	return memoryapp.FormatDreamQueueEvidence(status)
 }

@@ -1,12 +1,12 @@
 package main
 
 import (
-	channelgoncho "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/channelgoncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
-type HermesDialecticCaller = channelgoncho.HermesDialecticCaller
+type HermesDialecticCaller = gormescli.HermesDialecticCaller
 
 func NewHermesDialecticCaller(client llm.Client, model string) *HermesDialecticCaller {
-	return channelgoncho.NewHermesDialecticCaller(client, model)
+	return gormescli.NewHermesDialecticCaller(client, model)
 }
