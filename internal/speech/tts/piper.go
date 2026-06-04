@@ -276,6 +276,39 @@ func RemoveUnusablePiperModels() ([]string, error) {
 	return removed, nil
 }
 
+func RepairPiperSidecars(ctx context.Context) ([]string, error) {
+	statuses := CachedPiperModelStatuses()
+	voiceByFile := map[string]PiperVoice{}
+	for _, voice := range builtinPiperVoices {
+		voiceByFile[strings.ToLower(voice.FileName)] = voice
+	}
+	var repaired []string
+	var errs []string
+	for _, status := range statuses {
+		if status.Usable || !strings.Contains(strings.ToLower(status.Reason), "sidecar") {
+			continue
+		}
+		voice, ok := voiceByFile[strings.ToLower(filepath.Base(status.Path))]
+		if !ok || verifyPiperModelFile(status.Path, 1, "") != nil {
+			continue
+		}
+		spec := resolvePiperInstallSpec(voice.Name)
+		if spec.SidecarSource == "" {
+			continue
+		}
+		sidecarPath := status.Path + ".json"
+		if err := downloadPiperSidecar(ctx, spec.SidecarSource, sidecarPath); err != nil {
+			errs = append(errs, fmt.Sprintf("%s: %v", sidecarPath, err))
+			continue
+		}
+		repaired = append(repaired, sidecarPath)
+	}
+	if len(errs) > 0 {
+		return repaired, errors.New(strings.Join(errs, "; "))
+	}
+	return repaired, nil
+}
+
 func piperModelFileName(source string) (string, error) {
 	name := filepath.Base(source)
 	if piperSourceIsURL(source) {

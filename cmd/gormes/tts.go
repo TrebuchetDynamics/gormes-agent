@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	ttscmd "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/tts"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
-func newTTSCommand() *cobra.Command { return ttscmd.NewCommand() }
+func newTTSCommand() *cobra.Command { return gormescli.NewTTSCommand() }

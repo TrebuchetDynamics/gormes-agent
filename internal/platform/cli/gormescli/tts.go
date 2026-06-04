@@ -1,4 +1,4 @@
-package tts
+package gormescli
 
 import (
 	"github.com/spf13/cobra"
@@ -6,4 +6,4 @@ import (
 	apptts "github.com/TrebuchetDynamics/gormes-agent/internal/app/tts"
 )
 
-func NewCommand() *cobra.Command { return apptts.NewCommand() }
+func NewTTSCommand() *cobra.Command { return apptts.NewCommand() }

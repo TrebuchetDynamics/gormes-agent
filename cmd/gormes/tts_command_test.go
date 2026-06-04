@@ -107,6 +107,36 @@ func TestTTSPiperCleanRequiresUnusableFlag(t *testing.T) {
 	}
 }
 
+func TestTTSPiperRepairFetchesMissingKnownVoiceSidecar(t *testing.T) {
+	restoreTTSPiperCommandEnv(t)
+	cache := t.TempDir()
+	model := filepath.Join(cache, "en_US-lessac-medium.onnx")
+	if err := os.WriteFile(model, []byte(strings.Repeat("m", 2048)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json") {
+			t.Fatalf("unexpected repair path %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"audio":{"sample_rate":22050}}`))
+	}))
+	defer server.Close()
+	t.Setenv("GORMES_TTS_PIPER_MODEL_CACHE", cache)
+	t.Setenv("GORMES_TTS_PIPER_REGISTRY_BASE_URL", server.URL)
+
+	stdout, stderr, err := executeRootCommandForTest(newRootCommand(), "tts", "piper", "repair")
+	if err != nil {
+		t.Fatalf("tts piper repair: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	want := model + ".json"
+	if !strings.Contains(stdout, "Repaired Piper sidecar: "+want) {
+		t.Fatalf("stdout missing repaired sidecar %q:\n%s", want, stdout)
+	}
+	if _, err := os.Stat(want); err != nil {
+		t.Fatalf("sidecar missing after repair: %v", err)
+	}
+}
+
 func TestTTSPiperInstallNamedVoiceDownloadsIntoCache(t *testing.T) {
 	restoreTTSPiperCommandEnv(t)
 	cache := t.TempDir()

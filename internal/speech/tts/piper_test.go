@@ -261,6 +261,67 @@ func TestRemoveUnusablePiperModelsDeletesOnlyBrokenFiles(t *testing.T) {
 	}
 }
 
+func TestRepairPiperSidecarsFetchesMissingKnownVoiceSidecar(t *testing.T) {
+	restorePiperEnv(t)
+	cache := t.TempDir()
+	model := filepath.Join(cache, "en_US-lessac-medium.onnx")
+	if err := os.WriteFile(model, bytesOfSize(2048), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json") {
+			t.Fatalf("unexpected repair path %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"audio":{"sample_rate":22050}}`))
+	}))
+	defer server.Close()
+	os.Setenv("GORMES_TTS_PIPER_MODEL_CACHE", cache)
+	os.Setenv("GORMES_TTS_PIPER_REGISTRY_BASE_URL", server.URL)
+
+	repaired, err := RepairPiperSidecars(context.Background())
+	if err != nil {
+		t.Fatalf("RepairPiperSidecars: %v", err)
+	}
+	want := model + ".json"
+	if len(repaired) != 1 || repaired[0] != want {
+		t.Fatalf("repaired = %#v, want %q", repaired, want)
+	}
+	data, err := os.ReadFile(model)
+	if err != nil {
+		t.Fatalf("read repaired model: %v", err)
+	}
+	if string(data) != string(bytesOfSize(2048)) {
+		t.Fatalf("repair changed model bytes")
+	}
+	if !IsPiperModelUsable(model) {
+		t.Fatalf("model should be usable after sidecar repair")
+	}
+}
+
+func TestRepairPiperSidecarsNoopsWhenSidecarsArePresent(t *testing.T) {
+	restorePiperEnv(t)
+	cache := t.TempDir()
+	model := filepath.Join(cache, "en_US-lessac-medium.onnx")
+	if err := os.WriteFile(model, bytesOfSize(2048), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	writePiperSidecar(t, model)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("unexpected repair request %s", r.URL.Path)
+	}))
+	defer server.Close()
+	os.Setenv("GORMES_TTS_PIPER_MODEL_CACHE", cache)
+	os.Setenv("GORMES_TTS_PIPER_REGISTRY_BASE_URL", server.URL)
+
+	repaired, err := RepairPiperSidecars(context.Background())
+	if err != nil {
+		t.Fatalf("RepairPiperSidecars: %v", err)
+	}
+	if len(repaired) != 0 {
+		t.Fatalf("repaired = %#v, want no-op", repaired)
+	}
+}
+
 func TestInstallPiperModelRejectsNonONNX(t *testing.T) {
 	restorePiperEnv(t)
 	os.Setenv("GORMES_TTS_PIPER_MODEL_CACHE", t.TempDir())
