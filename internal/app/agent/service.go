@@ -8,11 +8,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/spf13/cobra"
-
 	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agenttemplate"
-	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway"
 )
 
 type BuildProvenance struct {
@@ -50,30 +47,23 @@ func (e exitCodeError) Error() string { return e.err.Error() }
 func (e exitCodeError) Unwrap() error { return e.err }
 func (e exitCodeError) ExitCode() int { return e.code }
 
-func NewCommand(opts Options) *cobra.Command {
-	if opts.BuildProvenance == nil {
-		opts.BuildProvenance = func() BuildProvenance { return BuildProvenance{} }
-	}
-	return gatewaymodule.NewAgentCommandWithSeams(gatewaymodule.AgentCommandSeams{
-		Reset: func(cmd *cobra.Command, reset gatewaymodule.AgentResetOptions) error {
-			return RunReset(cmd.OutOrStdout(), reset, opts.BuildProvenance())
-		},
-		Spawn: func(cmd *cobra.Command, name string, spawn gatewaymodule.AgentSpawnOptions) error {
-			return RunSpawn(cmd.Context(), cmd.OutOrStdout(), name, spawn, opts)
-		},
-		List: func(cmd *cobra.Command, asJSON bool) error {
-			return RunList(cmd.Context(), cmd.OutOrStdout(), asJSON, opts)
-		},
-		Bind: func(cmd *cobra.Command, agentID string, match gatewaymodule.AgentBindingMatch, asJSON bool) error {
-			return RunBind(cmd.Context(), cmd.OutOrStdout(), agentID, match, asJSON, opts)
-		},
-		Unbind: func(cmd *cobra.Command, match gatewaymodule.AgentBindingMatch, asJSON bool) error {
-			return RunUnbind(cmd.Context(), cmd.OutOrStdout(), match, asJSON, opts)
-		},
-		Inspect: func(cmd *cobra.Command, match gatewaymodule.AgentBindingMatch, asJSON bool) error {
-			return RunInspect(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), match, asJSON, opts)
-		},
-	}, gatewaymodule.AgentCommandOptions{DefaultResetTarget: opts.DefaultResetTarget})
+type ResetOptions struct {
+	Target string
+	Force  bool
+	DryRun bool
+	JSON   bool
+}
+
+type SpawnOptions struct {
+	Persona string
+	JSON    bool
+}
+
+type BindingMatch struct {
+	Channel  string
+	PeerKind string
+	PeerID   string
+	ThreadID string
 }
 
 type resetReportJSON struct {
@@ -120,7 +110,7 @@ type listReportJSON struct {
 	Agents []recordJSON    `json:"agents"`
 }
 
-func RunBind(ctx context.Context, out io.Writer, agentID string, match gatewaymodule.AgentBindingMatch, asJSON bool, opts Options) error {
+func RunBind(ctx context.Context, out io.Writer, agentID string, match BindingMatch, asJSON bool, opts Options) error {
 	reg, cleanup, err := openRegistry(opts)
 	if err != nil {
 		return err
@@ -138,7 +128,7 @@ func RunBind(ctx context.Context, out io.Writer, agentID string, match gatewaymo
 	return nil
 }
 
-func RunUnbind(ctx context.Context, out io.Writer, match gatewaymodule.AgentBindingMatch, asJSON bool, opts Options) error {
+func RunUnbind(ctx context.Context, out io.Writer, match BindingMatch, asJSON bool, opts Options) error {
 	reg, cleanup, err := openRegistry(opts)
 	if err != nil {
 		return err
@@ -157,7 +147,7 @@ func RunUnbind(ctx context.Context, out io.Writer, match gatewaymodule.AgentBind
 	return nil
 }
 
-func RunInspect(ctx context.Context, out, errOut io.Writer, match gatewaymodule.AgentBindingMatch, asJSON bool, opts Options) error {
+func RunInspect(ctx context.Context, out, errOut io.Writer, match BindingMatch, asJSON bool, opts Options) error {
 	reg, cleanup, err := openRegistry(opts)
 	if err != nil {
 		return err
@@ -185,7 +175,7 @@ func RunInspect(ctx context.Context, out, errOut io.Writer, match gatewaymodule.
 	return nil
 }
 
-func RunSpawn(ctx context.Context, out io.Writer, name string, spawn gatewaymodule.AgentSpawnOptions, opts Options) error {
+func RunSpawn(ctx context.Context, out io.Writer, name string, spawn SpawnOptions, opts Options) error {
 	reg, cleanup, err := openRegistry(opts)
 	if err != nil {
 		return err
@@ -234,7 +224,7 @@ func RunList(ctx context.Context, out io.Writer, asJSON bool, opts Options) erro
 	return nil
 }
 
-func RunReset(out io.Writer, opts gatewaymodule.AgentResetOptions, build BuildProvenance) error {
+func RunReset(out io.Writer, opts ResetOptions, build BuildProvenance) error {
 	result, err := agenttemplate.ApplyDefaultTemplates(agenttemplate.WriteOptions{TargetDir: opts.Target, Force: opts.Force, DryRun: opts.DryRun})
 	if err != nil {
 		return fmt.Errorf("gormes agent reset: %w", err)
@@ -253,7 +243,7 @@ func RunReset(out io.Writer, opts gatewaymodule.AgentResetOptions, build BuildPr
 	return nil
 }
 
-func BindingMatchToGoncho(f gatewaymodule.AgentBindingMatch) goncho.BindingMatch {
+func BindingMatchToGoncho(f BindingMatch) goncho.BindingMatch {
 	return goncho.BindingMatch{Channel: f.Channel, PeerKind: f.PeerKind, PeerID: f.PeerID, ThreadID: f.ThreadID}
 }
 

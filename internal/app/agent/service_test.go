@@ -10,7 +10,6 @@ import (
 	"time"
 
 	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
-	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway"
 )
 
 type fakeRegistry struct {
@@ -46,7 +45,7 @@ func (f *fakeRegistry) List(context.Context) ([]goncho.AgentRecord, error) { ret
 func TestRunSpawnWritesJSONWithBuildProvenance(t *testing.T) {
 	reg := &fakeRegistry{}
 	var out bytes.Buffer
-	err := RunSpawn(context.Background(), &out, "Research Bot", gatewaymodule.AgentSpawnOptions{Persona: "literature review", JSON: true}, testOptions(reg))
+	err := RunSpawn(context.Background(), &out, "Research Bot", SpawnOptions{Persona: "literature review", JSON: true}, testOptions(reg))
 	if err != nil {
 		t.Fatalf("RunSpawn: %v", err)
 	}
@@ -69,7 +68,7 @@ func TestRunSpawnWritesJSONWithBuildProvenance(t *testing.T) {
 func TestRunInspectUnboundTextReturnsExitCode(t *testing.T) {
 	reg := &fakeRegistry{bound: map[goncho.BindingMatch]string{}}
 	var stdout, stderr bytes.Buffer
-	err := RunInspect(context.Background(), &stdout, &stderr, gatewaymodule.AgentBindingMatch{Channel: "telegram", PeerKind: "group", PeerID: "-100"}, false, testOptions(reg))
+	err := RunInspect(context.Background(), &stdout, &stderr, BindingMatch{Channel: "telegram", PeerKind: "group", PeerID: "-100"}, false, testOptions(reg))
 	if err == nil {
 		t.Fatal("RunInspect error = nil")
 	}
@@ -84,7 +83,7 @@ func TestRunInspectUnboundTextReturnsExitCode(t *testing.T) {
 
 func TestRunSpawnInvalidNameReturnsExitCode2(t *testing.T) {
 	var out bytes.Buffer
-	err := RunSpawn(context.Background(), &out, "!!!", gatewaymodule.AgentSpawnOptions{}, testOptions(&fakeRegistry{}))
+	err := RunSpawn(context.Background(), &out, "!!!", SpawnOptions{}, testOptions(&fakeRegistry{}))
 	if err == nil || !errors.Is(err, goncho.ErrAgentIDInvalid) && !strings.Contains(err.Error(), "agent_id_invalid") {
 		t.Fatalf("err = %v, want agent_id_invalid", err)
 	}

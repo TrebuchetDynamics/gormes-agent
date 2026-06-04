@@ -8,20 +8,20 @@ import (
 	"github.com/spf13/cobra"
 
 	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
-	agentcmd "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/agent"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 func newAgentCommand() *cobra.Command {
-	return agentcmd.NewCommand(agentCommandOptions())
+	return gormescli.NewAgentCommand(agentCommandOptions())
 }
 
-func agentCommandOptions() agentcmd.Options {
-	return agentcmd.Options{
+func agentCommandOptions() gormescli.AgentOptions {
+	return gormescli.AgentOptions{
 		DefaultResetTarget: config.GormesHome(),
-		BuildProvenance: func() agentcmd.BuildProvenance {
+		BuildProvenance: func() gormescli.AgentBuildProvenance {
 			build := newBuildProvenance()
-			return agentcmd.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+			return gormescli.AgentBuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
 		},
 		OpenRegistry: openDynamicAgentRegistry,
 	}
@@ -32,7 +32,7 @@ func agentCommandOptions() agentcmd.Options {
 // underlying *sql.DB. The DB lives under $GORMES_HOME/memory.db, the same
 // location the gateway uses for Goncho, and the open routes through
 // sqlOpenGoncho so busy_timeout and WAL mode match the gateway's path.
-func openDynamicAgentRegistry() (agentcmd.Registry, func(), error) {
+func openDynamicAgentRegistry() (gormescli.AgentRegistry, func(), error) {
 	path := config.MemoryDBPath()
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, func() {}, fmt.Errorf("gormes agent: create memory dir: %w", err)
