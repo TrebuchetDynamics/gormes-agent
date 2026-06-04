@@ -56,6 +56,56 @@ func TestNavivoxE2ETokenAuthRequiresHeaderOrWebSocketProtocolNeverURLQuery(t *te
 	}
 }
 
+func TestNavivoxE2ERejectsURLCredentialEvenWithValidTokenAuth(t *testing.T) {
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		GatewayID:    "gw_0123456789abcdef0123456789abcdef",
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status?token=nvbx_test_token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("status query token with valid header = %d, want 401", resp.StatusCode)
+	}
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/v1/navivox/stream?token=nvbx_test_token"
+	dialer := websocket.Dialer{Subprotocols: []string{
+		navivoxWebSocketProtocol,
+		navivoxWebSocketTokenProtocolPrefix + base64.RawURLEncoding.EncodeToString([]byte("nvbx_test_token")),
+	}}
+	conn, wsResp, err := dialer.Dial(wsURL, nil)
+	if err == nil {
+		_ = conn.Close()
+		t.Fatal("websocket query token with valid subprotocol auth succeeded, want rejection")
+	}
+	if wsResp == nil || wsResp.StatusCode != http.StatusUnauthorized {
+		status := 0
+		if wsResp != nil {
+			status = wsResp.StatusCode
+		}
+		t.Fatalf("websocket query token status = %d err=%v, want 401", status, err)
+	}
+}
+
 func TestNavivoxE2ERejectsDuplicateTokenCredentialSources(t *testing.T) {
 	ch, err := NewChannel(config.NavivoxCfg{
 		Enabled:      true,

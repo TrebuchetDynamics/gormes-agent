@@ -91,6 +91,10 @@ type ApprovalEvent struct {
 
 func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if navivoxRequestHasURLCredential(r) {
+			writeNavivoxError(w, http.StatusUnauthorized, "", "url_credentials_rejected", "URL credentials are not accepted")
+			return
+		}
 		identity, ok := c.authenticate(r)
 		if !ok {
 			writeNavivoxError(w, http.StatusUnauthorized, "", "unauthorized", "Unauthorized")

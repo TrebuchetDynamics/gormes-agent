@@ -16,6 +16,10 @@ type authenticatedHandler func(http.ResponseWriter, *http.Request, string)
 
 func (c *Channel) withAuth(next authenticatedHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if navivoxRequestHasURLCredential(r) {
+			writeNavivoxError(w, http.StatusUnauthorized, "", "url_credentials_rejected", "URL credentials are not accepted")
+			return
+		}
 		identity, ok := c.authenticate(r)
 		if !ok {
 			writeNavivoxError(w, http.StatusUnauthorized, "", "unauthorized", "Unauthorized")
@@ -83,6 +87,20 @@ func navivoxSingleTokenCredential(r *http.Request) (string, bool) {
 		return "", false
 	}
 	return tokens[0], true
+}
+
+func navivoxRequestHasURLCredential(r *http.Request) bool {
+	if r == nil || r.URL == nil {
+		return false
+	}
+	for name := range r.URL.Query() {
+		normalized := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(name)), "-", "_")
+		switch normalized {
+		case "token", "access_token", "auth_token", "rest_token", "navivox_token", "gormes_navivox_token":
+			return true
+		}
+	}
+	return false
 }
 
 func bearerToken(r *http.Request) string {
