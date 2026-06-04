@@ -3,24 +3,24 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	whatsappcmd "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/whatsapp"
+	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
 )
 
-type whatsappCommandSeams = whatsappcmd.Seams
-type whatsappPairingPlan = whatsappcmd.PairingPlan
+type whatsappCommandSeams = channelsmodule.WhatsAppAppSeams
+type whatsappPairingPlan = channelsmodule.WhatsAppPairingPlan
 
 func newWhatsAppCommand() *cobra.Command {
-	return whatsappcmd.NewCommand(whatsappCommandOptions())
+	return channelsmodule.NewWhatsAppAppCommand(whatsappCommandOptions())
 }
 
 func newWhatsAppCommandWithSeams(seams whatsappCommandSeams) *cobra.Command {
-	return whatsappcmd.NewCommandWithSeams(seams, whatsappCommandOptions())
+	return channelsmodule.NewWhatsAppAppCommandWithSeams(seams, whatsappCommandOptions())
 }
 
-func whatsappCommandOptions() whatsappcmd.Options {
-	return whatsappcmd.Options{BuildProvenance: func() whatsappcmd.BuildProvenance {
+func whatsappCommandOptions() channelsmodule.WhatsAppAppOptions {
+	return channelsmodule.WhatsAppAppOptions{BuildProvenance: func() channelsmodule.WhatsAppBuildProvenance {
 		build := newBuildProvenance()
-		return whatsappcmd.BuildProvenance{
+		return channelsmodule.WhatsAppBuildProvenance{
 			Version:   build.Version,
 			GitCommit: build.GitCommit,
 		}

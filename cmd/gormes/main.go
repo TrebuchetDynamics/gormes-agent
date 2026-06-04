@@ -21,7 +21,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/shellcompletion"
 	clitui "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/tui"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/tuiadapter"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -383,7 +382,7 @@ func rootCommandFactories(runtime rootRuntime) gormescli.CommandFactories {
 		"uninstall":   newUninstallCommand,
 		"logs":        newLogsCommand,
 		"checkpoints": newCheckpointsCommand,
-		"completion":  shellcompletion.NewCommand,
+		"completion":  gormescli.NewShellCompletionCommand,
 		"cron":        newCronCommand,
 		"webhook":     newWebhookCommand,
 		"hooks":       newHooksCommand,

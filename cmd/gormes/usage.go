@@ -8,11 +8,6 @@ import (
 )
 
 type usageInvocation = providermodule.UsageInvocation
-type accountUsageHTTPClient = providermodule.AccountUsageHTTPClient
-
-var usageHTTPClient = providermodule.UsageHTTPClient
-var inferUsageProvider = providermodule.InferUsageProvider
-var firstUsageString = providermodule.FirstUsageString
 
 func newUsageCommand() *cobra.Command {
 	return providermodule.NewUsageCommand(providerCommandOptions())

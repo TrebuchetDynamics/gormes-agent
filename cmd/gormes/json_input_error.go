@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	jsoninput "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/jsoninput"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 // jsonInputErrorReportJSON is the wire shape for `--json` invalid-input
@@ -13,7 +13,7 @@ import (
 // this conformance fence so fleet automation parses one type and
 // distinguishes "user mistake" from "command crashed" by reading
 // `action`.
-type jsonInputErrorReportJSON = jsoninput.ErrorReportJSON
+type jsonInputErrorReportJSON = gormescli.JSONInputErrorReport
 
 // emitJSONInputError writes a structured invalid-input report to cmd's
 // stdout and returns a non-zero exit-code error so the cobra runner
@@ -28,10 +28,10 @@ type jsonInputErrorReportJSON = jsoninput.ErrorReportJSON
 //   - "no_logs"            — no log file/state exists yet
 //   - "no_data"            — generic "lookup target absent" (rare)
 func emitJSONInputError(cmd *cobra.Command, action, errMsg string) error {
-	err := jsoninput.Emit(cmd, action, errMsg, jsoninput.BuildProvenance(newBuildProvenance()))
+	err := gormescli.EmitJSONInputError(cmd, action, errMsg, gormescli.BuildProvenance(newBuildProvenance()))
 	return newExitCodeError(1, err)
 }
 
 func argsIncludeJSONFlag(args []string) bool {
-	return jsoninput.ArgsIncludeJSONFlag(args)
+	return gormescli.ArgsIncludeJSONFlag(args)
 }

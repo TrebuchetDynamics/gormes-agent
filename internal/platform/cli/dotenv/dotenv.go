@@ -1,11 +1,11 @@
-package main
+package dotenv
 
 import (
 	"os"
 	"strings"
 )
 
-func readDotenvValues(path string) map[string]string {
+func ReadValues(path string) map[string]string {
 	values := map[string]string{}
 	data, err := os.ReadFile(path)
 	if err != nil {

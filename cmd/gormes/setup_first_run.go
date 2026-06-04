@@ -416,7 +416,7 @@ func redactedSetupQuickLiveTestError(err error) error {
 		secrets = append(secrets, cfg.Hermes.APIKey)
 	}
 	secrets = append(secrets, os.Getenv("GORMES_API_KEY"))
-	if dotenv := readDotenvValues(config.EnvPath()); dotenv != nil {
+	if dotenv := cli.ReadDotenvValues(config.EnvPath()); dotenv != nil {
 		secrets = append(secrets, dotenv["GORMES_API_KEY"])
 	}
 	return fmt.Errorf("%s", redactRuntimeSecretText(message, secrets...))

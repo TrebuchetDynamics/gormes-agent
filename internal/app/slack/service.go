@@ -1,11 +1,27 @@
 package slack
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
+
+const ManifestDefaultWrite = "__gormes_default_slack_manifest_path__"
+
+type ManifestOptions struct {
+	BotName      string
+	Description  string
+	SlashesOnly  bool
+	WriteChanged bool
+	WriteTarget  string
+}
 
 var manifestInvalidChars = regexp.MustCompile(`[^a-z0-9_-]`)
 
@@ -29,6 +45,39 @@ var manifestReservedCommands = map[string]struct{}{
 	"status":    {},
 	"topic":     {},
 	"who":       {},
+}
+
+func RunManifest(out, errOut io.Writer, opts ManifestOptions) error {
+	payload, err := ManifestPayload(opts.BotName, opts.Description, opts.SlashesOnly)
+	if err != nil {
+		return err
+	}
+	body, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode slack manifest: %w", err)
+	}
+	body = append(body, '\n')
+
+	if !opts.WriteChanged {
+		_, err = out.Write(body)
+		return err
+	}
+
+	target := opts.WriteTarget
+	if target == "" || target == ManifestDefaultWrite {
+		target = filepath.Join(config.GormesHome(), "slack-manifest.json")
+	}
+	target = ExpandUserPath(target)
+	if err := WriteFileAtomic(target, body, 0o600); err != nil {
+		return fmt.Errorf("write slack manifest: %w", err)
+	}
+	fmt.Fprintf(errOut, "Slack manifest written to: %s\n\n", target)
+	fmt.Fprintln(errOut, "Next steps:")
+	fmt.Fprintln(errOut, "  1. Open https://api.slack.com/apps and pick your Gormes app.")
+	fmt.Fprintf(errOut, "  2. Features -> App Manifest -> paste the contents of\n     %s\n", target)
+	fmt.Fprintln(errOut, "  3. Save; Slack will prompt to reinstall the app if scopes or slash commands changed.")
+	fmt.Fprintln(errOut, "  4. Make sure Socket Mode is enabled and bot/app tokens are configured with `gormes setup gateway`.")
+	return nil
 }
 
 func ManifestPayload(botName, description string, slashesOnly bool) (any, error) {
@@ -175,4 +224,42 @@ func NonEmpty(value, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func ExpandUserPath(path string) string {
+	if path == "~" {
+		if home, err := os.UserHomeDir(); err == nil && home != "" {
+			return home
+		}
+	}
+	if strings.HasPrefix(path, "~/") {
+		if home, err := os.UserHomeDir(); err == nil && home != "" {
+			return filepath.Join(home, strings.TrimPrefix(path, "~/"))
+		}
+	}
+	return path
+}
+
+func WriteFileAtomic(path string, body []byte, perm os.FileMode) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if _, err := tmp.Write(body); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Chmod(perm); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, path)
 }

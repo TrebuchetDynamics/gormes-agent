@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/acpreport"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/app/acpreport"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/protocols/acp"

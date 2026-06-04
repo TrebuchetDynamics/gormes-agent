@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
 )
 
 // TestUsageCommand_HTTPClientHasBoundedTimeout proves the package-level
@@ -15,16 +17,16 @@ import (
 // logsHTTPClient (slice 40); without it, http.DefaultClient's lack of
 // timeout leaks through to operator terminals.
 func TestUsageCommand_HTTPClientHasBoundedTimeout(t *testing.T) {
-	if usageHTTPClient == nil {
-		t.Fatal("usageHTTPClient must be configured at package init")
+	if providermodule.UsageHTTPClient == nil {
+		t.Fatal("UsageHTTPClient must be configured at package init")
 	}
-	if usageHTTPClient.Timeout <= 0 {
-		t.Fatalf("usageHTTPClient.Timeout = %s, want a positive bound", usageHTTPClient.Timeout)
+	if providermodule.UsageHTTPClient.Timeout <= 0 {
+		t.Fatalf("UsageHTTPClient.Timeout = %s, want a positive bound", providermodule.UsageHTTPClient.Timeout)
 	}
 	// Sanity bound: must be tighter than what an operator will tolerate.
 	// 60s is generous but bounded; >60s defeats the point.
-	if usageHTTPClient.Timeout > 60*time.Second {
-		t.Fatalf("usageHTTPClient.Timeout = %s, want <= 60s for operator responsiveness", usageHTTPClient.Timeout)
+	if providermodule.UsageHTTPClient.Timeout > 60*time.Second {
+		t.Fatalf("UsageHTTPClient.Timeout = %s, want <= 60s for operator responsiveness", providermodule.UsageHTTPClient.Timeout)
 	}
 }
 

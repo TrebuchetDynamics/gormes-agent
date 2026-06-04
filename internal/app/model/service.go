@@ -14,7 +14,7 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/modelchoice"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/app/modelchoice"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"

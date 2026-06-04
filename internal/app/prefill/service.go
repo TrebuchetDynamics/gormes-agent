@@ -1,4 +1,4 @@
-package prefillcmd
+package prefill
 
 import (
 	"log/slog"

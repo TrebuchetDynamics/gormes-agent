@@ -19,8 +19,6 @@ import (
 	"github.com/spf13/cobra"
 	"go.etcd.io/bbolt"
 
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/titlewiring"
-
 	dynamicagents "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	gormesgoncho "github.com/TrebuchetDynamics/goncho/integration/gormes"
 	"github.com/TrebuchetDynamics/goncho/service"
@@ -36,6 +34,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway"
+	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	gormesruntime "github.com/TrebuchetDynamics/gormes-agent/internal/runtime"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
@@ -545,7 +544,7 @@ func newGatewayHermesClient(cfg config.Config) (llm.Client, error) {
 func newGatewayAgentRuntimeFactory(rootCtx context.Context, cfg config.Config, mstore *memory.SqliteStore, gonchoStore kernel.GonchoStore) gateway.AgentRuntimeFactory {
 	return func(_ context.Context, req gateway.AgentRuntimeRequest) (gateway.KernelSubmitter, error) {
 		agentCfg := cfg
-		model := firstUsageString(req.Model, cfg.Hermes.Model)
+		model := providermodule.FirstUsageString(req.Model, cfg.Hermes.Model)
 		agentCfg.Hermes.Model = model
 		hc, err := newProviderHTTPClientWithCredentialHome(agentCfg, agentCfg.Hermes.Provider, req.AuthHome)
 		if err != nil {
@@ -596,7 +595,7 @@ func gatewayFreshFinalAfter(cfg config.Config) time.Duration {
 }
 
 func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, allowedWhitelists map[string]gateway.WhitelistConfig, smap session.Map, hc llm.Client, hooks *gateway.Hooks, runtimeStatus gateway.RuntimeStatusWriter, restart gateway.RestartConfig) gateway.ManagerConfig {
-	titleStore, titleModel := titlewiring.BuildGatewayTitleSeam(context.Background(), smap, hc, cfg.Hermes.Model)
+	titleStore, titleModel := gormescli.BuildGatewayTitleSeam(context.Background(), smap, hc, cfg.Hermes.Model)
 	return gateway.ManagerConfig{
 		AllowedChats:               allowedChats,
 		AllowedUsers:               gatewayAllowedUsers(cfg),
@@ -623,11 +622,11 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 		LiveTurnNow:                func() time.Time { return time.Now() },
 		LiveTurnActiveModel: func() string {
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway live-turn metadata"})
-			return firstUsageString(resolution.Model, cfg.Hermes.Model)
+			return providermodule.FirstUsageString(resolution.Model, cfg.Hermes.Model)
 		},
 		LiveTurnActiveProvider: func() string {
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway live-turn metadata"})
-			return firstUsageString(resolution.Provider, cfg.Hermes.Provider)
+			return providermodule.FirstUsageString(resolution.Provider, cfg.Hermes.Provider)
 		},
 		ImageInputMode: llm.ImageInputMode(cfg.Agent.ImageInputMode),
 		AuxiliaryVision: llm.AuxiliaryVisionConfig{
@@ -640,11 +639,11 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 		SessionResetDailyHour:   cfg.Runtime.SessionResetDailyHour,
 		AccountUsage: func(ctx context.Context, ev gateway.InboundEvent) (llm.AccountUsageSnapshot, error) {
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway /usage"})
-			provider := inferUsageProvider(resolution.Provider, firstUsageString(resolution.Model, cfg.Hermes.Model))
+			provider := providermodule.InferUsageProvider(resolution.Provider, providermodule.FirstUsageString(resolution.Model, cfg.Hermes.Model))
 			if provider == "" {
 				provider = "openai-codex"
 			}
-			fetcher := llm.NewAccountUsageFetcher(accountUsageHTTPClient{Client: usageHTTPClient}, func() time.Time { return time.Now().UTC() })
+			fetcher := llm.NewAccountUsageFetcher(providermodule.AccountUsageHTTPClient{Client: providermodule.UsageHTTPClient}, func() time.Time { return time.Now().UTC() })
 			return fetcher.Fetch(ctx, llm.AccountUsageFetchRequest{Provider: provider, BaseURL: cfg.Hermes.Endpoint, APIKey: cfg.Hermes.APIKey})
 		},
 	}

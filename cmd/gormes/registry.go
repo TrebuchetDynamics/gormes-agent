@@ -93,7 +93,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 		Processing: tools.WebContentProcessingConfig{
 			Enabled: childClient != nil,
 		},
-		ContentProcessor: newHermesWebContentProcessor(childClient, childModel),
+		ContentProcessor: gormescli.NewWebContentProcessor(childClient, childModel),
 	}) {
 		reg.MustRegister(tool)
 	}
