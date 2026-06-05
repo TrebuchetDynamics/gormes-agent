@@ -1,4 +1,4 @@
-package main
+package status
 
 import (
 	"context"
@@ -12,23 +12,25 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	toolspkg "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
-func newStatusCommand() *cobra.Command {
-	return gormescli.NewStatusCommand(gormescli.StatusCommandOptions{
-		BuildProvenance: func() gormescli.BuildProvenance {
-			build := newBuildProvenance()
-			return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+func newOperatorReportStatusCommand(t *testing.T) *cobra.Command {
+	t.Helper()
+	auditPath := filepath.Join(t.TempDir(), "audit.log")
+	return NewCommand(Options{
+		BuildProvenance: func() BuildProvenance {
+			return BuildProvenance{Version: "test-version", GitCommit: "test-sha"}
 		},
-		SystemSnapshot: func(ctx context.Context) (toolspkg.SystemEventsSnapshot, error) {
-			return gormescli.DefaultSystemEventsManager().Snapshot(ctx)
+		SystemSnapshot: func(context.Context) (toolspkg.SystemEventsSnapshot, error) {
+			return toolspkg.SystemEventsSnapshot{}, nil
 		},
+		AuditPath: func() string { return auditPath },
 	})
 }
 
 func TestStatusRendersLatestOperatorRunReport(t *testing.T) {
+	progressPath := writeOperatorReportProgressFixture(t)
 	tmp := t.TempDir()
 	reportDir := filepath.Join(tmp, "operator-runs", "test-job")
 	if err := os.MkdirAll(reportDir, 0o755); err != nil {
@@ -50,8 +52,8 @@ func TestStatusRendersLatestOperatorRunReport(t *testing.T) {
 		t.Fatalf("write report: %v", err)
 	}
 
-	cmd := newStatusCommand()
-	cmd.SetArgs([]string{"--operator-report-dir", tmp})
+	cmd := newOperatorReportStatusCommand(t)
+	cmd.SetArgs([]string{"--progress", progressPath, "--operator-report-dir", tmp})
 	var out strings.Builder
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -73,6 +75,7 @@ func TestStatusRendersLatestOperatorRunReport(t *testing.T) {
 }
 
 func TestStatusJSONIncludesOperatorRunReport(t *testing.T) {
+	progressPath := writeOperatorReportProgressFixture(t)
 	tmp := t.TempDir()
 	reportDir := filepath.Join(tmp, "operator-runs", "json-job")
 	if err := os.MkdirAll(reportDir, 0o755); err != nil {
@@ -94,8 +97,8 @@ func TestStatusJSONIncludesOperatorRunReport(t *testing.T) {
 		t.Fatalf("write report: %v", err)
 	}
 
-	cmd := newStatusCommand()
-	cmd.SetArgs([]string{"--json", "--operator-report-dir", tmp})
+	cmd := newOperatorReportStatusCommand(t)
+	cmd.SetArgs([]string{"--json", "--progress", progressPath, "--operator-report-dir", tmp})
 	var out strings.Builder
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -122,10 +125,11 @@ func TestStatusJSONIncludesOperatorRunReport(t *testing.T) {
 }
 
 func TestStatusMissingOperatorRunReport(t *testing.T) {
+	progressPath := writeOperatorReportProgressFixture(t)
 	tmp := t.TempDir()
 
-	cmd := newStatusCommand()
-	cmd.SetArgs([]string{"--operator-report-dir", tmp})
+	cmd := newOperatorReportStatusCommand(t)
+	cmd.SetArgs([]string{"--progress", progressPath, "--operator-report-dir", tmp})
 	var out strings.Builder
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -141,6 +145,7 @@ func TestStatusMissingOperatorRunReport(t *testing.T) {
 }
 
 func TestStatusMalformedOperatorRunReport(t *testing.T) {
+	progressPath := writeOperatorReportProgressFixture(t)
 	tmp := t.TempDir()
 	reportDir := filepath.Join(tmp, "operator-runs", "bad-job")
 	if err := os.MkdirAll(reportDir, 0o755); err != nil {
@@ -151,8 +156,8 @@ func TestStatusMalformedOperatorRunReport(t *testing.T) {
 		t.Fatalf("write bad report: %v", err)
 	}
 
-	cmd := newStatusCommand()
-	cmd.SetArgs([]string{"--operator-report-dir", tmp})
+	cmd := newOperatorReportStatusCommand(t)
+	cmd.SetArgs([]string{"--progress", progressPath, "--operator-report-dir", tmp})
 	var out strings.Builder
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -165,4 +170,17 @@ func TestStatusMalformedOperatorRunReport(t *testing.T) {
 	if !strings.Contains(output, "operator_report_unavailable") {
 		t.Errorf("status output should indicate unavailable report for malformed data: %s", output)
 	}
+}
+
+func writeOperatorReportProgressFixture(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "progress.json")
+	body := `{
+  "meta": {"version": "2.0", "links": {"github_readme": "", "landing_page": "", "docs_site": "", "source_code": ""}},
+  "phases": {}
+}`
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatalf("write progress fixture: %v", err)
+	}
+	return path
 }
