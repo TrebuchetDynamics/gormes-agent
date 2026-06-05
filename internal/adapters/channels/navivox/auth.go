@@ -3,8 +3,10 @@ package navivox
 import (
 	"crypto/hmac"
 	"encoding/base64"
+	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 
@@ -12,21 +14,110 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
+const (
+	navivoxAuthFailureLimit  = 5
+	navivoxAuthFailureWindow = time.Minute
+)
+
 type authenticatedHandler func(http.ResponseWriter, *http.Request, string)
+
+type navivoxAuthFailureState struct {
+	Count       int
+	FirstAt     time.Time
+	LockedUntil time.Time
+}
 
 func (c *Channel) withAuth(next authenticatedHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if navivoxRequestHasURLCredential(r) {
+			c.recordAuthFailure(r)
 			writeNavivoxError(w, http.StatusUnauthorized, "", "url_credentials_rejected", "URL credentials are not accepted")
+			return
+		}
+		if c.authRateLimited(r) {
+			writeNavivoxError(w, http.StatusTooManyRequests, "", "auth_rate_limited", "Authentication attempts are temporarily rate limited")
 			return
 		}
 		identity, ok := c.authenticate(r)
 		if !ok {
+			c.recordAuthFailure(r)
 			writeNavivoxError(w, http.StatusUnauthorized, "", "unauthorized", "Unauthorized")
 			return
 		}
+		c.clearAuthFailures(r)
 		next(w, r, identity)
 	}
+}
+
+func (c *Channel) authRateLimited(r *http.Request) bool {
+	key := navivoxAuthFailureKey(r)
+	if key == "" {
+		return false
+	}
+	now := c.now()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	state, ok := c.authFailures[key]
+	if !ok {
+		return false
+	}
+	if !state.LockedUntil.IsZero() {
+		if now.Before(state.LockedUntil) {
+			return true
+		}
+		delete(c.authFailures, key)
+		return false
+	}
+	if !state.FirstAt.IsZero() && now.Sub(state.FirstAt) >= navivoxAuthFailureWindow {
+		delete(c.authFailures, key)
+	}
+	return false
+}
+
+func (c *Channel) recordAuthFailure(r *http.Request) {
+	key := navivoxAuthFailureKey(r)
+	if key == "" {
+		return
+	}
+	now := c.now()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.authFailures == nil {
+		c.authFailures = map[string]navivoxAuthFailureState{}
+	}
+	state := c.authFailures[key]
+	if state.FirstAt.IsZero() || now.Sub(state.FirstAt) >= navivoxAuthFailureWindow || (!state.LockedUntil.IsZero() && !now.Before(state.LockedUntil)) {
+		state = navivoxAuthFailureState{FirstAt: now}
+	}
+	state.Count++
+	if state.Count >= navivoxAuthFailureLimit {
+		state.LockedUntil = now.Add(navivoxAuthFailureWindow)
+	}
+	c.authFailures[key] = state
+}
+
+func (c *Channel) clearAuthFailures(r *http.Request) {
+	key := navivoxAuthFailureKey(r)
+	if key == "" {
+		return
+	}
+	c.mu.Lock()
+	delete(c.authFailures, key)
+	c.mu.Unlock()
+}
+
+func navivoxAuthFailureKey(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	remote := strings.TrimSpace(r.RemoteAddr)
+	if remote == "" {
+		return "unknown"
+	}
+	if host, _, err := net.SplitHostPort(remote); err == nil && strings.TrimSpace(host) != "" {
+		return strings.TrimSpace(host)
+	}
+	return remote
 }
 
 func (c *Channel) authenticate(r *http.Request) (string, bool) {
@@ -74,11 +165,19 @@ func (c *Channel) authenticateToken(r *http.Request) bool {
 
 func navivoxSingleTokenCredential(r *http.Request) (string, bool) {
 	var tokens []string
-	if strings.TrimSpace(r.Header.Get("Authorization")) != "" {
-		tokens = append(tokens, bearerToken(r))
+	authorizationValues := nonEmptyHeaderValues(r.Header, "Authorization")
+	if len(authorizationValues) > 1 {
+		return "", false
 	}
-	if token := strings.TrimSpace(r.Header.Get("X-Gormes-Navivox-Token")); token != "" {
-		tokens = append(tokens, token)
+	if len(authorizationValues) == 1 {
+		tokens = append(tokens, bearerTokenValue(authorizationValues[0]))
+	}
+	navivoxTokenValues := nonEmptyHeaderValues(r.Header, "X-Gormes-Navivox-Token")
+	if len(navivoxTokenValues) > 1 {
+		return "", false
+	}
+	if len(navivoxTokenValues) == 1 {
+		tokens = append(tokens, navivoxTokenValues[0])
 	}
 	if token, present := webSocketProtocolToken(r); present {
 		tokens = append(tokens, token)
@@ -87,6 +186,16 @@ func navivoxSingleTokenCredential(r *http.Request) (string, bool) {
 		return "", false
 	}
 	return tokens[0], true
+}
+
+func nonEmptyHeaderValues(header http.Header, name string) []string {
+	var values []string
+	for _, value := range header.Values(name) {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			values = append(values, trimmed)
+		}
+	}
+	return values
 }
 
 func navivoxRequestHasURLCredential(r *http.Request) bool {
@@ -104,7 +213,15 @@ func navivoxRequestHasURLCredential(r *http.Request) bool {
 }
 
 func bearerToken(r *http.Request) string {
-	auth := strings.TrimSpace(r.Header.Get("Authorization"))
+	values := nonEmptyHeaderValues(r.Header, "Authorization")
+	if len(values) != 1 {
+		return ""
+	}
+	return bearerTokenValue(values[0])
+}
+
+func bearerTokenValue(value string) string {
+	auth := strings.TrimSpace(value)
 	separator := strings.IndexByte(auth, ' ')
 	if separator <= 0 || !strings.EqualFold(auth[:separator], "Bearer") {
 		return ""

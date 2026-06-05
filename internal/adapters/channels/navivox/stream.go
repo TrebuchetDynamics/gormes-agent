@@ -92,14 +92,21 @@ type ApprovalEvent struct {
 func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if navivoxRequestHasURLCredential(r) {
+			c.recordAuthFailure(r)
 			writeNavivoxError(w, http.StatusUnauthorized, "", "url_credentials_rejected", "URL credentials are not accepted")
+			return
+		}
+		if c.authRateLimited(r) {
+			writeNavivoxError(w, http.StatusTooManyRequests, "", "auth_rate_limited", "Authentication attempts are temporarily rate limited")
 			return
 		}
 		identity, ok := c.authenticate(r)
 		if !ok {
+			c.recordAuthFailure(r)
 			writeNavivoxError(w, http.StatusUnauthorized, "", "unauthorized", "Unauthorized")
 			return
 		}
+		c.clearAuthFailures(r)
 		if !navivoxWebSocketProtocolOffered(r) {
 			writeNavivoxError(w, http.StatusBadRequest, "", "protocol_required", "Navivox WebSocket protocol is required")
 			return

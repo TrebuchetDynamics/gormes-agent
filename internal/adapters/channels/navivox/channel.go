@@ -44,6 +44,7 @@ type Channel struct {
 	singleUsePairingStream bool
 	pairingStreamReserved  bool
 	pairingStreamConsumed  bool
+	authFailures           map[string]navivoxAuthFailureState
 
 	profileContacts    map[string]ProfileContact
 	loadContacts       func(context.Context) ([]ProfileContact, error)
@@ -111,6 +112,7 @@ func NewChannel(cfg config.NavivoxCfg, log *slog.Logger, opts ...ChannelOption) 
 		newID:              randomID,
 		sessions:           map[string]*sessionState{},
 		clients:            map[*client]struct{}{},
+		authFailures:       map[string]navivoxAuthFailureState{},
 		profileContacts:    map[string]ProfileContact{},
 		configAdmin:        defaultConfigAdminBackend(),
 		voiceProfiles:      defaultVoiceProfileBackend(),

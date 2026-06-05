@@ -56,6 +56,71 @@ func TestNavivoxE2ETokenAuthRequiresHeaderOrWebSocketProtocolNeverURLQuery(t *te
 	}
 }
 
+func TestNavivoxE2EAuthFailuresRateLimitRemoteHost(t *testing.T) {
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		GatewayID:    "gw_0123456789abcdef0123456789abcdef",
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 6, 3, 12, 0, 0, 0, time.UTC)
+	ch.now = func() time.Time { return now }
+	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
+	defer server.Close()
+
+	for i := 0; i < navivoxAuthFailureLimit; i++ {
+		req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Authorization", "Bearer wrong-token")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("bad token attempt %d status = %d, want 401", i+1, resp.StatusCode)
+		}
+	}
+
+	validReq, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	validReq.Header.Set("Authorization", "Bearer nvbx_test_token")
+	limited, err := http.DefaultClient.Do(validReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer limited.Body.Close()
+	if limited.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("valid token during auth lockout status = %d, want 429", limited.StatusCode)
+	}
+
+	now = now.Add(navivoxAuthFailureWindow + time.Second)
+	validReq2, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	validReq2.Header.Set("Authorization", "Bearer nvbx_test_token")
+	okResp, err := http.DefaultClient.Do(validReq2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer okResp.Body.Close()
+	if okResp.StatusCode != http.StatusOK {
+		t.Fatalf("valid token after auth lockout status = %d, want 200", okResp.StatusCode)
+	}
+}
+
 func TestNavivoxE2ERejectsURLCredentialEvenWithValidTokenAuth(t *testing.T) {
 	ch, err := NewChannel(config.NavivoxCfg{
 		Enabled:      true,
@@ -136,6 +201,39 @@ func TestNavivoxE2ERejectsDuplicateTokenCredentialSources(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("duplicate token source status = %d, want 401", resp.StatusCode)
+	}
+}
+
+func TestNavivoxE2ERejectsDuplicateAuthorizationHeaders(t *testing.T) {
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		GatewayID:    "gw_0123456789abcdef0123456789abcdef",
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Add("Authorization", "Bearer nvbx_test_token")
+	req.Header.Add("Authorization", "Bearer nvbx_test_token")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("duplicate Authorization status = %d, want 401", resp.StatusCode)
 	}
 }
 
