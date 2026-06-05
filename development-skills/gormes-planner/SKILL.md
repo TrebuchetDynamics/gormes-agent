@@ -1,6 +1,6 @@
 ---
 name: gormes-planner
-description: Use when an agent must inspect upstream hermes-agent, honcho, docs, or parity evidence; map Hermes/Honcho features into Go phases; refine or split behavior atoms; plan Goncho as the Honcho-compatible Go port inside Gormes; or update planning/docs/evidence surfaces without implementing runtime feature code.
+description: Plan Gormes roadmap/progress rows from Hermes/Honcho evidence. Use for phase updates, row splitting, feature maps, docs, or Goncho parity planning without runtime code.
 ---
 
 # Gormes Planner
@@ -24,17 +24,17 @@ dependency.
 
 This skill is for bounded planner passes by Codex, Claude, or another agent.
 If Juan explicitly asks for a planner-loop style subsystem, plan it as a
-first-class Gormes feature with clear interfaces, evidence atoms, validation
+first-class Gormes feature with clear interfaces, progress rows, validation
 gates, and operator controls. Otherwise inspect the repository, upstream
-sources, docs, ledgers, and parity evidence doc directly. Repository evidence is
-the source of truth.
+sources, docs, ledgers, progress rows, and parity evidence directly. Repository
+evidence is the source of truth.
 
 If the task might instead be parity audit, implementation, TDD, interface design, or skill creation, route through `gormes-skill-manager` first.
 
 ## Source Order
 
 1. Read `AGENTS.md` and preserve the skill-driven evidence contract.
-2. Treat `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` as the canonical evidence-first classification of Hermes behavior atoms. Every atom has an upstream source ref (file+line), a Gormes target, and a status (covered/partial/missing/owned). Use `grep` to discover atoms by subsystem, status, or name. This is the source of truth for what remains to be built.
+2. Treat the logical progress backlog as canonical for implementation intent. Use `cmd/progress` and `internal/planning/progress` (`Load`/`SaveProgress`) for progress data; never hand-parse split-layout members or create side queues.
 3. Treat `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` as the canonical Hermes/Honcho-to-Go map for subsystem context.
 4. Treat `docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md` as the completeness check for whether all feature-bearing Hermes/Honcho source classes are mapped.
 5. Treat `docs/hermes-releases/FEATURE-MATRIX.md` as a release-note study aid for choosing high-signal improvement lanes; it is not an executable queue and never replaces source refs or behavior atoms.
@@ -44,19 +44,19 @@ If the task might instead be parity audit, implementation, TDD, interface design
    - `$HERMES_SRC`: `./hermes-agent`, then `../hermes-agent`
    - `$HONCHO_SRC`: `./honcho`, then `../honcho`
 9. Use existing Gormes code under `cmd/`, `internal/`, `docs/`, and `www.gormes.ai` as implementation evidence.
-10. Read `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` before splitting or creating new atoms.
+10. Read existing parity evidence docs before creating or reshaping progress rows; they are source-backed classification evidence, not the backlog itself.
 11. For CLI/config/migration parity, inspect `$HERMES_SRC/hermes_cli/main.py`,
     `$HERMES_SRC/hermes_cli/commands.py`,
     `$HERMES_SRC/hermes_cli/config.py`, `$HERMES_SRC/hermes_cli/claw.py`,
     `$HERMES_SRC/gateway/run.py`, and the matching Gormes `cmd/gormes`
-    and `internal/cli` surfaces before changing atoms.
+    and `internal/platform/cli` surfaces before changing rows/evidence.
 
 For TUI and channel UX parity, choose the active upstream implementation
 explicitly. `$HERMES_SRC/ui-tui` is authoritative for the current
 full-screen terminal app; `$HERMES_SRC/cli.py` remains evidence
 for legacy prompt-toolkit behavior and command semantics. If a parity evidence
-atom points only at stale upstream files, refine the atom before handing it to a
-builder.
+evidence entry points only at stale upstream files, refine the row/evidence
+before handing it to a builder.
 
 ## Workflow
 
@@ -73,11 +73,11 @@ Reject vague expansion. If the user says "finish Gormes", choose one subsystem p
 Keep passes small enough to finish. A planner pass should produce builder-ready tracer-bullet rows, not a grand essay.
 
 For full-map requests, update the feature map first, then reshape
-the parity evidence doc. The docs map explains the destination; the atoms are the only
+the progress rows. The docs map explains the destination; the logical progress backlog is the
 executable queue. If the request is seeded by `docs/hermes-releases/FEATURE-MATRIX.md`
 or `hermes-knowledge-graph.json`, use those artifacts to choose the smallest
 release family or source topology to inspect, then prove the active contract in
-`$HERMES_SRC` before editing atoms or rows.
+`$HERMES_SRC` before editing rows or evidence.
 
 To answer "is everything mapped?", update or audit the upstream coverage ledger.
 No planner pass should claim full Hermes/Honcho coverage unless the ledger has
@@ -90,15 +90,12 @@ passes when sibling upstream checkouts are available.
 Run lightweight discovery first:
 
 ```sh
-# Count missing vs covered atoms
-grep -c '| missing |' docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md
-grep -c '| covered |' docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md
+# Inspect the canonical logical backlog
+go run ./cmd/progress next-work
+go run ./cmd/progress list --module <module>
 
-# Find atoms by subsystem
-grep '^## [[:digit:]]' docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md
-
-# Find missing atoms in a specific area
-grep -A2 'provider' docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md | grep 'missing'
+# Consult parity evidence as source-backed classification, not as the queue
+rg -n "missing|partial|covered|<topic>" docs/parity-evidence docs/content/building-gormes
 
 # Discover Gormes code surface
 find cmd internal -maxdepth 2 -type f -name '*.go' | sort
@@ -111,11 +108,11 @@ Compare contracts, command names, interfaces, fixtures, and tests.
 
 For "actually implemented features" or stale-`missing` sweeps, treat the pass as evidence reconciliation before row creation:
 
-- Start from atoms marked `missing` or broad `partial` in the requested surface.
-- Search `cmd/` and `internal/` by atom name, upstream symbol, command/tool name, channel name, and likely package nouns.
-- If checked-in code plus focused tests prove the behavior already exists, update only the parity evidence doc to `covered` or `partial` with exact Go files/tests and remaining gaps.
-- Do not create a builder row for already implemented behavior. Create/refine a row only for the unimplemented remainder after the evidence doc is corrected.
-- If the reconciliation reveals a concrete remaining runtime gap, leave the atom `partial` and make the builder-facing gap explicit enough for `gormes-builder` to select only that remainder.
+- Start from progress rows or evidence entries marked `missing` or broad `partial` in the requested surface.
+- Search `cmd/` and `internal/` by row/evidence name, upstream symbol, command/tool name, channel name, and likely package nouns.
+- If checked-in code plus focused tests prove the behavior already exists, update the progress row and/or parity evidence to `covered` or `partial` with exact Go files/tests and remaining gaps.
+- Do not create a builder row for already implemented behavior. Create/refine a row only for the unimplemented remainder after evidence is corrected.
+- If the reconciliation reveals a concrete remaining runtime gap, leave the row/evidence entry `partial` and make the builder-facing gap explicit enough for `gormes-builder` to select only that remainder.
 
 Before changing rows, zoom out one level: name the relevant modules, callers, public contracts, tests, and upstream files. If this map is unclear, do more discovery instead of planning from vibes.
 
@@ -131,7 +128,7 @@ For each subsystem in scope:
 6. Add or update the upstream coverage ledger when a new source class, SDK surface, endpoint family, or public document changes the map.
 7. Prefer exact file paths, type names, command names, fixtures, and test commands.
 
-Do not mark an atom covered unless repository evidence proves the behavior exists and tests cover it. Do not leave an atom `missing` when repository evidence proves a narrower `partial`; stale `missing` atoms cause `gormes-builder` to duplicate already-shipped code.
+Do not mark a row or evidence entry covered unless repository evidence proves the behavior exists and tests cover it. Do not leave it `missing` when repository evidence proves a narrower `partial`; stale `missing` classifications cause `gormes-builder` to duplicate already-shipped code.
 
 For large areas, design vertical slices. Each row should deliver one narrow behavior through all required layers rather than one horizontal layer of a future system.
 
@@ -216,7 +213,7 @@ Use this workflow:
    vertical slice with exact review evidence in `source_refs`, `fixture`, or a
    provenance note.
 5. **Reject side queues.** Do not create TODO files, issue lists, private
-   review ledgers, or prompt-only task lists outside the parity evidence doc.
+   review ledgers, or prompt-only task lists outside the progress control plane.
 6. **Hand implementation back to builders.** If a finding is already
    builder-ready and does not need row shaping, route back to
    `gormes-review-loop` plus `gormes-tdd-slice` instead of editing planning
@@ -250,8 +247,8 @@ Apply the deep-module test when planning Go interfaces: a good Gormes module sho
 
 Planner passes may edit planning surfaces:
 
-- `progress.json` (legacy — prefer parity evidence doc for new work)
-- `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`
+- logical progress data under `docs/content/building-gormes/architecture_plan/progress.json` or its split layout, through `cmd/progress` / `internal/planning/progress`
+- parity evidence docs when source-backed classifications change
 - generated building-gormes docs
 - upstream study docs
 - public progress/web copy when roadmap messaging changes
@@ -277,7 +274,7 @@ When an interface shape is uncertain, create an interface-design task or use the
 After evidence/edit updates, run only non-loop validation:
 
 ```sh
-go test ./internal/progress -count=1 2>/dev/null || true
+go test ./internal/planning/progress -count=1
 go test ./webpages/docs -count=1
 ```
 

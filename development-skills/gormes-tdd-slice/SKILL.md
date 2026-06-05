@@ -1,6 +1,6 @@
 ---
 name: gormes-tdd-slice
-description: Use when building or fixing a Gormes feature with tests, when a parity evidence atom needs implementation, when the user asks for TDD or red-green-refactor, or when implementing Goncho/Hermes parity behavior one vertical slice at a time.
+description: Build or fix one Gormes behavior with tests. Use for TDD, red-green-refactor, progress-row implementation, or Goncho/Hermes parity slices.
 ---
 
 # Gormes TDD Slice
@@ -29,16 +29,16 @@ when absent. Resolve it as `$HERMES_SRC` before writing parity tests.
 
 ### 1. Select One Behavior
 
-Use the selected atom from `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` or choose one that is `missing` or `partial`. State:
+Use the selected logical progress row or route to `gormes-planner` to create/refine one. State:
 
 - public interface under test;
 - feature-map target or upstream concept;
 - behavior to prove;
-- Hermes source ref (`HERMES` column in the atom);
-- Gormes target package (`GORMES` column in the atom);
+- Hermes source refs from the row or evidence docs;
+- Gormes target package;
 - allowed write scope.
 
-If the atom is too broad, split it and update the parity evidence doc before coding.
+If the row is too broad, split it through planner/progress tooling before coding.
 
 For UI/TUI/channel parity, identify the active upstream implementation before
 writing the test. Current full-screen TUI UX comes from
@@ -139,4 +139,4 @@ gate, report them separately with file paths and failure commands.
 
 ## Final Report
 
-Report red-green cycles, feature-map target, behavior shipped, tests run, the parity status before/after, and the `HERMES` source ref used to verify the behavior.
+Report red-green cycles, feature-map target, behavior shipped, tests run, progress/parity status before/after, and the Hermes source refs used to verify the behavior.

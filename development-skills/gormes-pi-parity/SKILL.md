@@ -1,6 +1,6 @@
 ---
 name: gormes-pi-parity
-description: Use when discovering or applying reusable harness ideas from Pi for Gormes, including extensions, tool middleware, SDK/RPC embedding, TUI components, session trees, compaction, packages, prompt templates, safety gates, or provider hooks, while keeping Hermes parity and OpenClaw-owned enhancements separate.
+description: Learn reusable Pi harness ideas for Gormes without making Pi a parity target. Use for extensions, tools, SDK/RPC, TUI, sessions, prompts, packages, and provider hooks.
 ---
 
 # Gormes Pi Parity
@@ -134,7 +134,7 @@ test -n "$PI_SRC" && node -p "require('$PI_SRC/package.json').version"
 - Do not import Pi packages into Gormes runtime without an explicit dependency
   decision and Go-native design. Prefer patterns over code copy.
 - Do not create side backlogs. Implementation intent belongs in
-  `progress.json` through `cmd/progress` or `internal/progress`.
+  logical progress rows through `cmd/progress` or `internal/planning/progress`.
 - Do not weaken Hermes CLI/config/channel compatibility to match Pi's UX.
 - Do not treat Pi's lack of built-in subagents, plan mode, MCP, or permission
   popups as a Gormes requirement; those are extensibility lessons.
@@ -173,5 +173,5 @@ If progress rows change, also run:
 ```sh
 go run ./cmd/progress write
 go run ./cmd/progress validate
-go test ./internal/progress -count=1
+go test ./internal/planning/progress -count=1
 ```

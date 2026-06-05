@@ -21,10 +21,10 @@ go test ./... -count=1
 ## Focused Examples
 
 ```sh
-go test ./internal/goncho ./internal/gonchotools ./internal/memory ./internal/persistence/session -count=1
+go test ./internal/tools/goncho ./internal/memory ./internal/persistence/session -count=1
 go test ./internal/gateway ./internal/tools ./internal/llm -count=1
-go test ./cmd/gormes ./internal/cli ./internal/doctor -count=1
-go test ./internal/progress -count=1
+go test ./cmd/gormes ./internal/platform/cli ./internal/platform/doctor -count=1
+go test ./internal/planning/progress -count=1
 ```
 
 ## Parity-Focused Gates

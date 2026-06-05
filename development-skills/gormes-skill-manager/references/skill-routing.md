@@ -32,7 +32,7 @@ Skill files are edited in `development-skills/<name>/`; `.agents/skills/`,
 | Stuck on a Go implementation shape and want a donor file to read before writing code | `gormes-references` | `gormes-tdd-slice` once the donor pattern is identified |
 | Provider/auth/streaming/quota/retry problem specifically | `gormes-provider-parity` | `gormes-tdd-slice` once the parity target + donor file are pinned |
 | Need to run, install, rebuild, or validate local Gormes binaries, managed source clones, PATH command refresh, gateway ownership, or sessions.db locks | `gormes-dev-runtime` | `gormes-tdd-slice` only if runtime code changes are needed |
-| Need to create or improve a skill | `gormes-skill-manager` + global `write-a-skill` | validate all affected skills; use system `skill-creator` only when available |
+| Need to create or improve a skill | `gormes-skill-manager` + global `write-a-skill` | run `python3 development-skills/scripts/audit_local_skills.py`; use system `skill-creator` only when available |
 
 ## Feature-Map-First Routing
 

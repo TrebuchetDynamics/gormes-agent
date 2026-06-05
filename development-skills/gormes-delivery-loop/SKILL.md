@@ -1,6 +1,6 @@
 ---
 name: gormes-delivery-loop
-description: Use when the user asks to repeatedly improve Gormes by chaining architecture review, planner row shaping, Hermes parity evidence, and builder/TDD implementation in a bounded loop. Triggers include "improve-codebase-architecture gormes-planner gormes-hermes-parity gormes-builder", "run the Gormes delivery loop", "architecture to planner to parity to builder loop", or requests for an extension that keeps cycling those skills.
+description: Run bounded architecture → planner → Hermes parity → builder/TDD cycles. Use when asked for the Gormes delivery loop or to repeat that skill chain with validation controls.
 ---
 
 # Gormes Delivery Loop
@@ -66,8 +66,8 @@ Use `gormes-planner` when the packet changes backlog shape or lacks a builder-re
 
 Rules:
 
-- `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` is the canonical parity inventory.
-- Use `cmd/progress` / `internal/progress`; do not hand-create side queues.
+- Use parity evidence docs for source-backed classification, not as a backlog.
+- Use `cmd/progress` / `internal/planning/progress` for logical backlog rows; do not hand-create side queues.
 - Update existing rows before adding new rows.
 - A row must have concrete `write_scope`, `test_commands`, `ready_when`, and `not_ready_when` before builder work.
 

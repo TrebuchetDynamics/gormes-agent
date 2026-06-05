@@ -1,6 +1,6 @@
 ---
 name: gormes-builder
-description: Use when an agent must select a missing or partial Hermes behavior atom from the parity evidence inventory, implement Go runtime/docs/web changes, run TDD and e2e verification, build Goncho inside Gormes, or continue Gormes delivery.
+description: Implement one builder-ready Gormes progress row with tests. Use for Go runtime/docs/web changes, Goncho/Hermes parity slices, TDD/e2e verification, or delivery continuation.
 ---
 
 # Gormes Builder
@@ -16,7 +16,7 @@ blocker.
 
 Build Gormes until it is Hermes in Go, with Goncho as the in-repo Honcho-compatible Go port. No smaller "MVP" is the final goal. Each builder pass still works as one bounded, test-proven slice.
 
-This skill runs bounded builder passes: read the parity evidence atom inventory at `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`, pick one `missing` or `partial` behavior atom, implement it with tests, and report evidence. If Juan explicitly asks for a builder-loop style subsystem, plan it as a first-class Gormes feature with clear interfaces, parity coverage, validation gates, and operator controls.
+This skill runs bounded builder passes: read one builder-ready logical progress row, confirm the source-backed parity or owned-Gormes contract, implement it with tests, and report evidence. If Juan explicitly asks for a builder-loop style subsystem, plan it as a first-class Gormes feature with clear interfaces, parity coverage, validation gates, and operator controls.
 
 If the task might be planning, parity audit, interface design, or skill creation instead of implementation, route through `gormes-skill-manager` first.
 
@@ -28,9 +28,9 @@ source refs. Do not depend on the Python runtime from Gormes code.
 ## Source Order
 
 1. Read `AGENTS.md`.
-2. Read the selected atom in `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` — the evidence-first classification of every Hermes behavior atom. Every atom has an upstream Hermes file+line ref, a Gormes file+line ref or explicit `missing`, and a status (covered/partial/missing/owned). Use `grep` to find atoms by subsystem, status, or name.
+2. Read the selected logical progress row through `cmd/progress` / `internal/planning/progress`. Use parity evidence docs only as source-backed classification evidence, not as the executable backlog.
 3. Read the relevant section of `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` for subsystem context.
-4. Read exact upstream Hermes/Honcho files named in the atom's `HERMES` column and current Gormes code in the `GORMES` column before editing.
+4. Read exact upstream Hermes/Honcho source refs named by the row or evidence doc and current Gormes target files before editing.
 5. Read `references/delivery-gates.md` before final verification.
 
 For Hermes UX parity rows, confirm the active upstream contract before
@@ -53,60 +53,59 @@ fixtures pass, a live report like raw `tool iteration limit exceeded (10)` is
 likely stale binary/runtime validation or channel rendering, not a new kernel
 loop implementation.
 
-## Atom Selection
+## Row Selection
 
-If the user names a specific behavior, find its atom in the parity evidence doc. Otherwise choose the highest-value atom that is actually buildable.
+If the user names a specific behavior, find the matching logical progress row or route to `gormes-planner` to create/refine one. Otherwise choose the highest-value builder-ready row that is actually buildable.
 
 Before selecting implementation work, run a stale-classification preflight for the candidate cluster. This prevents duplicate builds when Gormes already implements behavior but the evidence doc still says `missing`:
 
-- Search the likely Go packages and tests named by the atom, subsystem, command, tool name, gateway channel, or upstream symbol.
-- If repository code plus focused tests already prove the behavior, do not implement it again. Update `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` from `missing` to `covered`/`partial` with exact Go files and validation, or route to `gormes-planner` when the correction touches broader taxonomy.
-- If implementation is present but incomplete, keep the atom `partial`, narrow the remaining gap in the Notes column, and build only that remaining gap.
-- If the atom is truly absent, proceed with TDD implementation.
+- Search the likely Go packages and tests named by the row/evidence entry, subsystem, command, tool name, gateway channel, or upstream symbol.
+- If repository code plus focused tests already prove the behavior, do not implement it again. Update the progress row or parity evidence from `missing` to `covered`/`partial` with exact Go files and validation, or route to `gormes-planner` when the correction touches broader taxonomy.
+- If implementation is present but incomplete, keep the row/atom `partial`, narrow the remaining gap, and build only that remaining gap.
+- If the behavior is truly absent and the row is builder-ready, proceed with TDD implementation.
 
-A buildable atom has these properties:
+A buildable row has these properties:
 
-- status is `missing` or `partial` in the parity evidence doc.
-- the upstream source file named in the `HERMES` column exists and is readable.
-- the Gormes target package named in the `GORMES` column exists (or is a new file in an existing package).
-- the atom is not blocked by a prerequisite that is also `missing`.
+- it is missing or partial and not an umbrella;
+- upstream source refs exist and are readable when parity is claimed;
+- the Gormes target package exists or the row names the new package;
+- `write_scope`, `test_commands`, acceptance, degraded mode, and done signal are concrete;
+- it is not blocked by a missing prerequisite.
 
-Prefer atoms that unblock the widest cluster of other missing atoms. Consult the `Notes` column in the evidence doc for dependency hints.
+Prefer rows that unblock the widest cluster of other missing work. Do not implement broad umbrella rows that cover multiple subsystems; route them to `gormes-planner` for splitting first.
 
-Do not implement broad umbrella atoms that cover multiple subsystems. If the best atom is too large, split it into smaller atoms and update the parity evidence doc first.
-
-For repeated "actually implemented features" sweeps, builder should not be the first skill. Route to `gormes-hermes-parity` + `gormes-planner` to reconcile stale classifications, then return here only when a corrected `missing`/`partial` atom has a concrete remaining runtime gap.
+For repeated "actually implemented features" sweeps, builder should not be the first skill. Route to `gormes-hermes-parity` + `gormes-planner` to reconcile stale classifications, then return here only when a corrected missing/partial progress row has a concrete remaining runtime gap.
 
 Useful discovery:
 
 ```sh
-grep "| missing |" docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md | wc -l
-grep -A2 "partial" docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md | grep -E "^\|" | head -30
-grep "provider" docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md | grep "missing" -i
+go run ./cmd/progress next-work
+go run ./cmd/progress list --module <module>
+rg -n "missing|partial|provider|<topic>" docs/content/building-gormes docs/parity-evidence
 ```
 
 ## Build Workflow
 
-### 1. Understand The Atom
+### 1. Understand The Row
 
-Summarize the selected atom in your own words:
+Summarize the selected row in your own words:
 
 - behavior to ship
 - feature-map area or upstream concept;
 - target Go package and public interface;
 - exact write scope
-- upstream behavior being ported (from `HERMES` column)
+- upstream behavior being ported (from row source refs or evidence docs)
 - active upstream file+line and why it is the right contract
 - expected tests
 - done signal
 
-If any of these are missing, stop and refine the atom entry in the parity evidence doc before implementing.
+If any of these are missing, stop and refine the progress row or route to `gormes-planner` before implementing.
 
 Start with a zoomed-out map of the relevant public interface and callers. Do not edit until you know which behavior the user, CLI, API, channel, tool, memory, or provider boundary must expose.
 
 Before editing, build a short builder packet:
 
-- selected atom name and status;
+- selected row/behavior name and status;
 - feature-map section;
 - upstream refs;
 - Go target package/interface;
@@ -167,11 +166,11 @@ implemented, do not silently build against them. Patch the row or hand it to
 
 ### 5. Update Surfaces
 
-If implementation changes public behavior, update the matching docs, generated data, or website content. If the atom is fully implemented, update its status in the parity evidence doc from `missing` → `covered` or `partial` → `covered`, and add a brief note with the commit hash or behavior proven.
+If implementation changes public behavior, update the matching docs, generated data, or website content. If the behavior is fully implemented, update the progress row and any parity evidence status from missing/partial to covered with exact files and validation.
 
-Never create a parallel backlog. Missing follow-up work goes into the parity evidence doc as new atoms or status updates.
+Never create a parallel backlog. Missing follow-up work goes into logical progress rows; parity evidence docs may carry source-backed classification details.
 
-For complex atoms, use `gormes-tdd-slice` for the red-green loop. For uncertain API/package shape, use `gormes-interface-designer` before coding. For missing upstream coverage, send the work back through `gormes-parity-auditor` or `gormes-planner`.
+For complex rows, use `gormes-tdd-slice` for the red-green loop. For uncertain API/package shape, use `gormes-interface-designer` before coding. For missing upstream coverage, send the work back through `gormes-parity-auditor` or `gormes-planner`.
 
 ## Goncho Builder Rules
 
@@ -183,21 +182,21 @@ For complex atoms, use `gormes-tdd-slice` for the red-green loop. For uncertain 
 
 ## Failure Handling
 
-If tests fail from your own changes, fix them before reporting done. If the selected atom is unbuildable because the parity classification is wrong, update the evidence doc or report the exact blocker.
+If tests fail from your own changes, fix them before reporting done. If the selected row is unbuildable because the parity classification is wrong, update the progress/evidence surface or report the exact blocker.
 
 If the working tree is dirty before you start, preserve existing changes. Do not revert user or previous-agent work. Work with the current `development` checkout and mention any verification limits caused by unrelated changes.
 
-If `git push origin development` is rejected because another worker advanced the branch, fetch and inspect the upstream commit before rebasing. Keep your code/tests, update the parity evidence doc if your atom was already covered by the upstream commit, and commit only the remaining coherent delta.
+Do not push from this skill unless the user explicitly routed through `gormes-git`. If upstream advanced, fetch and inspect before any integration action; preserve your code/tests and route commit/push recovery to `gormes-git`.
 
 ## Final Report
 
 Report:
 
-1. Atom name and parity status before/after
+1. Progress row / behavior and status before/after
 2. Behavior shipped
 3. Files changed
 4. Tests/e2e run
-5. Feature-map/evidence doc consistency
-6. Parity evidence doc updates
-7. Remaining blockers or next atom to build
+5. Feature-map/progress/evidence consistency
+6. Progress or parity evidence updates
+7. Remaining blockers or next row to build
 8. Hermes source refs used to verify behavior

@@ -1,6 +1,6 @@
 ---
 name: live-session-debugger
-description: Audit live Gormes agent sessions under ~/.gormes, including sessions.db locks, memory.db transcripts, gateway state, profile mirrors, permissions, logs, and repair planning. Use when the user asks to audit or debug local live sessions, agent sessions, ~/.gormes state, session duplication, stale gateways, or session repair.
+description: Audit live ~/.gormes session state. Use for sessions.db locks, memory.db transcripts, gateway state, profiles, permissions, logs, session duplication, and repair planning.
 ---
 
 # Live Session Debugger

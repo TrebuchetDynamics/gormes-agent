@@ -31,8 +31,9 @@ symlink loader views.
 
 Start by locating the work in
 `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md`
-and, when implementation intent exists, the matching row in
-`docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`.
+and, when implementation intent exists, the matching logical progress row via
+`cmd/progress` / `internal/planning/progress`. Parity evidence docs can supply
+source-backed classifications, but they are not the backlog.
 
 Before picking a skill, detect the user's intent from verbs, artifacts, and
 risk. Do not route only by subsystem name.
@@ -284,8 +285,9 @@ find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -name SKILL.md -
 Read `references/skill-routing.md` for the routing table. Reuse or improve an existing skill when the task is only a variant of an existing workflow.
 
 For skill maintenance, also load the global `write-a-skill` workflow and the
-exact target `development-skills/<name>/SKILL.md` before editing. Edit the
-canonical file under `development-skills/`; verify `.agents/skills/`,
+exact target `development-skills/<name>/SKILL.md` before editing. For broad
+skill audits, run `python3 development-skills/scripts/audit_local_skills.py`.
+Edit the canonical file under `development-skills/`; verify `.agents/skills/`,
 `.claude/skills/`, and `.codex/skills/` remain loader symlink views rather than
 independent copies.
 
@@ -377,7 +379,7 @@ new_skill_needed:
 ## Guardrails
 
 - Do not let skill management replace delivery.
-- Do not create side backlogs. Implementation intent goes into `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`, the single canonical parity inventory. Update it by editing the file directly (atoms are plain markdown, not a JSON schema).
+- Do not create side backlogs. Implementation intent goes into the logical progress backlog via `cmd/progress` / `internal/planning/progress`; parity evidence docs are source-backed classification evidence, not a private queue.
 - Loop/orchestrator commands require explicit user intent, progress-row-backed scope, validation gates, and operator controls; otherwise prefer bounded skill-driven passes.
 - Use Context7 for external library/framework/API docs when required by repo instructions.
 - Preserve dirty user work.

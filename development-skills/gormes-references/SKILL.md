@@ -1,6 +1,6 @@
 ---
 name: gormes-references
-description: Use when stuck implementing a Go feature for Gormes, looking for donor files under references/go-agent-os, shaping Hermes parity in idiomatic Go, checking GoClaw provenance, or comparing Go donors such as goclaw, nanobot, plandex, engram, trpc-agent-go, adk-go, or axe.
+description: Find Go donor/reference implementations for Gormes. Use when stuck on implementation shape, checking donor provenance, or comparing Go agent donors.
 ---
 
 # Gormes References
@@ -22,7 +22,7 @@ Trigger this skill when:
 - a Gormes test or production failure surfaces a behavior gap and the implementation shape is unclear;
 - the implementation seam needs OAuth / token-pool / provider-error / retry / streaming / tool-runtime / memory-store / await-user-reply / artifact-tracking;
 - you are tempted to invent a new abstraction and there is probably already a working version in a donor;
-- the failure mode looks like one of the **Recurring Pitfalls** in `references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md`.
+- the failure mode looks like one of the **Recurring Pitfalls** in an available `GORMES-PROVIDER-PATTERN-REFERENCES.md` donor note.
 
 Skip this skill when:
 
@@ -68,7 +68,7 @@ Convert types and imports to Gormes-native names; never let donor symbol names l
 
 Pick exactly one and continue:
 
-- **Provider / auth / streaming / quota / retry** → use `gormes-provider-parity` (focused superset). The provider table in `references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md` already maps the donor files.
+- **Provider / auth / streaming / quota / retry** → use `gormes-provider-parity` (focused superset). If an available donor note maps provider files, use it after resolving the donor root.
 - **MCP / tool host / runtime wiring / tool-result truncation** → see "Runtime & tools" donor map below.
 - **Memory / Goncho / SQLite + FTS5 / write-queue / relations** → see "Memory & Goncho" donor map.
 - **Channels / await-user-reply / callbacks / workflow primitives** → see "Channels & workflow" donor map.
@@ -113,7 +113,7 @@ After lookup, hand off to:
 
 ## Donor Maps By Subsystem
 
-The provider/auth/streaming map already lives in `references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md`. The maps below cover everything else.
+When present, a provider/auth/streaming donor note named `GORMES-PROVIDER-PATTERN-REFERENCES.md` is the focused lookup surface. Resolve the donor root first; the maps below cover everything else.
 
 ### Runtime & tools
 
@@ -153,18 +153,21 @@ The provider/auth/streaming map already lives in `references/go-agent-os/GORMES-
 
 ### Provider / auth / streaming
 
-The full table lives in `references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md` ("Quick Lookup: Problem → Donor File"). Always consult that note for OAuth, token refresh, error classification, retry/backoff, drift, and stream-error mapping.
+If a resolved donor root includes `GORMES-PROVIDER-PATTERN-REFERENCES.md` ("Quick Lookup: Problem → Donor File"), consult it for OAuth, token refresh, error classification, retry/backoff, drift, and stream-error mapping.
 
 ## Fallback Grep
 
 When the table doesn't list the problem:
 
 ```sh
-# Substring-search every donor implementation. Adjust the pattern to match
+# Resolve an available donor root before searching. Adjust the pattern to match
 # your problem (function name, header, error code, struct field).
-grep -rn "<symbol-or-concept>" \
-  /home/xel/git/sages-openclaw/workspace-mineru/references/go-agent-os/{goclaw,nanobot,plandex,engram,trpc-agent-go,adk-go,axe} \
-  2>/dev/null | head -20
+DONOR_ROOT="$(for p in ./references/go-agent-os ../references/go-agent-os "$GORMES_GO_AGENT_OS_REFS"; do [ -n "$p" ] && [ -d "$p" ] && { printf '%s\n' "$p"; break; }; done)"
+if [ -z "$DONOR_ROOT" ]; then
+  echo "no go-agent-os donor root found; route to gormes-skill-manager or gormes-context-sourcing"
+else
+  grep -rn "<symbol-or-concept>" "$DONOR_ROOT"/{goclaw,nanobot,plandex,engram,trpc-agent-go,adk-go,axe} 2>/dev/null | head -20
+fi
 ```
 
 If the grep returns nothing useful, escalate to `gormes-skill-manager` to decide whether the missing donor is a real gap (file a new reference clone request) or whether Gormes needs a from-scratch interface (route to `gormes-interface-designer`).

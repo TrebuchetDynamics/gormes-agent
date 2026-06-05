@@ -1,13 +1,13 @@
 ---
 name: gormes-progress-slicer
-description: Use when turning a Gormes plan, PRD, parity gap, review finding, or user objective into parity evidence doc atoms.
+description: Turn broad Gormes plans, PRDs, parity gaps, review findings, or user objectives into thin, verifiable progress-row slices.
 ---
 
 # Gormes Progress Slicer
 
 Use this to convert broad work into thin, verifiable Gormes backlog rows without creating side queues.
 
-Inspired by `mattpocock/skills` `to-issues` and `triage`; adapted so the parity evidence doc captures what remains to be built.
+Inspired by `mattpocock/skills` `to-issues` and `triage`; adapted so the progress control plane captures what remains to be built.
 
 ## Inputs
 
@@ -22,15 +22,15 @@ Each slice must be:
 - **Verifiable:** has concrete test, command, fixture, or manual smoke evidence.
 - **Small:** suitable for one `gormes-builder`/`gormes-tdd-slice` pass.
 - **Ordered:** dependencies are explicit.
-- **Backlog-safe:** represented in `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` only; never as private TODO lists.
+- **Backlog-safe:** represented as logical progress rows; never as private TODO lists or parity-doc-only work.
 
 ## Workflow
 
 1. **Name the parent objective.** Include source refs and why the work matters.
 2. **Draft slices.** For each: title, behavior, validation, blockers, HITL/AFK.
-3. **Check overlap.** Search the existing parity evidence doc by `grep -i <topic> docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`; update/merge instead of duplicating.
+3. **Check overlap.** Search existing progress rows with `go run ./cmd/progress list --module <module>` or targeted `rg` over progress docs; consult parity evidence docs only for source-backed classifications.
 4. **Ask if ambiguity changes scope.** Especially for public contracts, persistence, security, or release promises.
-5. **Write rows through canonical tooling.** Use `gormes-planner` if schema or priorities need edits.
+5. **Write rows through canonical tooling.** Use `gormes-planner` and `cmd/progress` / `internal/planning/progress` when schema, priorities, or generated docs need edits.
 
 ## Output Shape
 

@@ -22,10 +22,10 @@ go test ./... -count=1
 ## Package-Focused Gates
 
 - Gateway/provider/tooling: `go test ./internal/gateway ./internal/tools ./internal/llm -count=1`
-- Goncho/memory/session: `go test ./internal/goncho ./internal/gonchotools ./internal/memory ./internal/persistence/session ./internal/persistence/store -count=1`
-- CLI/doctor/config: `go test ./cmd/gormes ./internal/cli ./internal/doctor ./internal/config -count=1`
-- Progress schema/docs: `go test ./internal/progress -count=1`
-- TUI/API/server: `go test ./internal/tui ./internal/tuigateway ./internal/apiserver -count=1`
+- Goncho/memory/session: `go test ./internal/goncho ./internal/tools/goncho ./internal/memory ./internal/persistence/session ./internal/persistence/store -count=1`
+- CLI/doctor/config: `go test ./cmd/gormes ./internal/platform/cli ./internal/platform/doctor ./internal/config -count=1`
+- Progress schema/docs: `go test ./internal/planning/progress -count=1`
+- TUI/API/server: `go test ./internal/tui ./internal/adapters/tuigateway ./internal/adapters/apiserver -count=1`
 
 Adjust package lists to the actual touched files.
 

@@ -1,6 +1,6 @@
 ---
 name: gormes-browser-harness
-description: Use when planning, auditing, or implementing Gormes browser automation parity that involves Browser Use, go-browser-harness, legacy browser-harness, Hermes /browser connect, CDP sessions, Browserbase/Firecrawl/Camofox provider routing, browser tool descriptors, or browser interaction skills.
+description: Plan or implement browser automation parity. Use for Browser Use, go-browser-harness, CDP, /browser connect, browser providers, tool descriptors, and browser interaction skills.
 ---
 
 # Gormes Browser Harness
@@ -150,7 +150,7 @@ For planning or skill-only edits:
 ```sh
 go run ./cmd/progress write
 go run ./cmd/progress validate
-go test ./internal/progress -count=1
+go test ./internal/planning/progress -count=1
 go test ./webpages/docs -count=1
 find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -path '*/gormes-browser-harness/SKILL.md' -print
 ```

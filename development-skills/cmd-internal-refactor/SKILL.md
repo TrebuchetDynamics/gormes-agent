@@ -1,6 +1,6 @@
 ---
 name: cmd-internal-refactor
-description: Move one bounded cmd/gormes command domain from root files into internal/app/domain. Use when asked to thin cmd/gormes, split many domain_*.go files, or run cmd-internal refactor without CLI behavior changes.
+description: Move one bounded cmd/gormes command domain out of root files toward root main.go only. Use when asked to thin cmd/gormes, burn down loose root files, split domain_*.go files, or run cmd-internal refactor without CLI behavior changes.
 ---
 
 # cmd/gormes Domain Folder Refactor
@@ -11,19 +11,21 @@ Gormes is the Go port of Hermes. This skill is not a generic `cmd/` cleanup
 workflow: every extraction must keep Gormes moving toward source-backed Hermes
 behavior while making the root `cmd/gormes` package thinner and more testable.
 
-The target topology is `internal/app/<domain>`, not `cmd/gormes/<domain>`.
-Root `cmd/gormes` files keep Cobra wiring and CLI contract tests; the internal
-app package owns command-local behavior and behavior tests. Existing
-`cmd/gormes/<domain>` packages created by earlier passes should be treated as
-migration candidates, not the desired endpoint.
+The target topology is root `cmd/gormes/main.go` only. Cobra command
+construction, flags, args, help text, command registration, and CLI/golden tests
+move to `internal/platform/cli/gormescli`; command-domain behavior and behavior
+tests move to `internal/app/<domain>`; reusable runtime behavior stays in deeper
+`internal/<runtime-domain>` packages. Existing `cmd/gormes/<domain>` packages
+created by earlier passes are migration candidates, not the desired endpoint.
 
 ## Quick start
 
 Select exactly one bounded command domain from the request and repository
 evidence. First study `hermes-knowledge-graph.json` for the matching Hermes
 command/domain contract. Then read the topology reference, characterize the
-local CLI boundary, classify every related root file, and move only
-command-local behavior into `internal/app/<domain>`.
+local CLI boundary, classify every related root file, record the root-file
+burn-down count, move Cobra/CLI contract code into `internal/platform/cli/gormescli`,
+and move command-local behavior into `internal/app/<domain>`.
 
 ## Entry protocol
 
@@ -49,13 +51,17 @@ command-local behavior into `internal/app/<domain>`.
 Read [domain-folder-topology.md](references/domain-folder-topology.md) after
 selecting the domain. Enforce these core rules:
 
-- root `cmd/gormes` owns Cobra command construction, flags, args, help text,
-  command registration, exit-code wiring, and CLI/golden tests;
+- root `cmd/gormes` owns only `main.go`, the executable shim needed for
+  `go run ./cmd/gormes`; no other loose root files are accepted as the final
+  topology;
+- `internal/platform/cli/gormescli` owns Cobra command construction, flags,
+  args, help text, command registration, exit-code wiring, CLI/golden tests,
+  and root-command test helpers;
 - `internal/app/<domain>` owns command-domain options/results, orchestration,
   command-local formatting/path/env helpers, and behavior tests;
 - deeper `internal/` packages keep reusable gateway/channel/provider/session/
   persistence/TUI/tool runtime behavior;
-- the app subpackage must not import root `cmd/gormes`;
+- app and platform subpackages must not import root `cmd/gormes`;
 - do not bulk-move files like `uninstall_*.go` by filename; classify each file
   by ownership first.
 
@@ -63,8 +69,11 @@ selecting the domain. Enforce these core rules:
 
 ```text
 cmd/gormes/
-  <domain>.go          thin Cobra command wiring only
-  <domain>_test.go    CLI contract/golden tests only
+  main.go             executable shim only; delegates to gormescli
+
+internal/platform/cli/gormescli/
+  <domain>.go         Cobra command wiring, flags, args, help text
+  <domain>_test.go   CLI contract/golden tests and command helpers
 
 internal/app/<domain>/
   service.go          command-domain behavior/orchestration
@@ -106,13 +115,17 @@ decision.
 4. Identify the preserved CLI boundary: flags/args, env vars/config paths,
    stdout/stderr and JSON shapes, exit codes, help text, and error wording.
 5. Add or find golden/contract tests before moving behavior.
-6. Create or reuse `internal/app/<domain>` and move command-local behavior there.
-7. Leave root `cmd/gormes` files as wrapper/Cobra wiring only.
-8. Move behavior tests beside `internal/app/<domain>`.
-9. Keep CLI compatibility tests in root `cmd/gormes`.
+6. Create or reuse `internal/platform/cli/gormescli` and move Cobra/CLI tests there.
+7. Create or reuse `internal/app/<domain>` and move command-local behavior there.
+8. Delete the moved root `cmd/gormes` files; do not leave wrapper files behind
+   unless the selected slice is `main.go` itself.
+9. Move behavior tests beside `internal/app/<domain>` and CLI contract tests
+   beside `internal/platform/cli/gormescli`.
 10. Run focused validation first, then broaden.
-11. If committing, keep the commit scoped to this one domain and route final git
-    delivery through `gormes-git` when appropriate.
+11. Re-scan `cmd/gormes`, update root-file burn-down evidence, and stop after
+    reporting next safe candidates. A new domain requires a new pass.
+12. If committing, keep the commit scoped to this one topology/refactor slice
+    and route final git delivery through `gormes-git` when appropriate.
 
 ## Verification gate
 
@@ -140,10 +153,13 @@ make validation/commit scope unsafe.
 ## Output contract
 
 Final response must include the selected domain, folder created/reused and moved
-files, Hermes graph refs studied, preserved CLI boundary evidence, files left in
-root/deeper packages, tests added or moved, validation results, skipped
-validation with reasons, and confirmation that root `cmd/gormes` is thinner
-while `internal/app/<domain>` owns command-domain behavior.
+files, Hermes graph refs studied, preserved CLI boundary evidence, root-file
+burn-down before/after counts, files left in root/deeper packages, tests added
+or moved, validation results, skipped validation with reasons, and confirmation
+whether root `cmd/gormes` is complete (`main.go` only) or still incomplete.
+Before claiming completion, run `folder_refactor_audit` when available and
+classify every remaining root basename as the `main.go` facade, intentionally
+out of scope, or a next move/extraction candidate.
 
 ## References
 

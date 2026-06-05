@@ -42,24 +42,17 @@ External Go projects are implementation references, not the product contract.
 
 ## Mandatory Source Order
 
-1. Read the active Gormes row in `docs/content/building-gormes/architecture_plan/progress.json` when one exists.
+1. Read the active logical progress row when one exists. Use `cmd/progress` / `internal/planning/progress`; do not hand-parse split progress layouts.
 2. Read Hermes Python for the expected user/operator behavior. Useful anchors:
    - `$HERMES_SRC/AGENTS.md`
    - provider/credential/runtime code under `$HERMES_SRC/agent/`
    - gateway/platform behavior under `$HERMES_SRC/gateway/`
-3. Read the provider reference note:
-   - `/home/xel/git/sages-openclaw/workspace-mineru/references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md`
-4. Inspect local Go donor implementations for the specific problem:
-   - GoClaw OAuth/provider/error classification:
-     - `/home/xel/git/sages-openclaw/workspace-mineru/references/go-agent-os/goclaw/internal/oauth/openai.go`
-     - `/home/xel/git/sages-openclaw/workspace-mineru/references/go-agent-os/goclaw/internal/oauth/openai_quota_transport.go`
-     - `/home/xel/git/sages-openclaw/workspace-mineru/references/go-agent-os/goclaw/internal/providers/`
-   - Plandex provider retry/drift/rate-limit patterns:
-     - `/home/xel/git/sages-openclaw/workspace-mineru/references/go-agent-os/plandex`
-   - Nanobot/trpc-agent-go/ADK-Go runtime boundaries:
-     - `/home/xel/git/sages-openclaw/workspace-mineru/references/go-agent-os/nanobot`
-     - `/home/xel/git/sages-openclaw/workspace-mineru/references/go-agent-os/trpc-agent-go`
-     - `/home/xel/git/sages-openclaw/workspace-mineru/references/go-agent-os/adk-go`
+3. Resolve an optional Go donor root before reading donor files:
+   ```sh
+   DONOR_ROOT="$(for p in ./references/go-agent-os ../references/go-agent-os "$GORMES_GO_AGENT_OS_REFS"; do [ -n "$p" ] && [ -d "$p" ] && { printf '%s\n' "$p"; break; }; done)"
+   ```
+   If no donor root exists, continue from Hermes + local Gormes code or route to `gormes-references`/`gormes-context-sourcing`; do not assume a stale absolute path.
+4. When `DONOR_ROOT` exists, inspect the smallest relevant donor files: GoClaw OAuth/provider/error classification, Plandex retry/rate-limit patterns, or Nanobot/trpc-agent-go/ADK-Go runtime boundaries.
 5. Only then write or update Gormes code/tests.
 
 ### GoClaw porting recipe (2026-04-29 permission update)
@@ -78,7 +71,7 @@ Juan granted Gormes explicit permission to use GoClaw code, not just patterns. T
 4. Add Gormes tests covering the ported behavior (do not rely on the donor's tests as proof).
 5. Verify `go doc ./<package> | grep -iE "(goclaw|nextlevelbuilder)"` returns nothing before merging.
 
-Other reference repos (`nanobot`, `plandex`, `engram`, `trpc-agent-go`, `adk-go`, `axe`, `agentcontrolplane`, `uzi`) stay patterns-only unless individually authorized — see `references/go-agent-os/README.md` for the per-donor permission map. When in doubt about whether a donor file is a pattern source or a code source, consult the `gormes-references` skill before porting.
+Other reference repos (`nanobot`, `plandex`, `engram`, `trpc-agent-go`, `adk-go`, `axe`, `agentcontrolplane`, `uzi`) stay patterns-only unless individually authorized — see the donor root README when present for the per-donor permission map. When in doubt about whether a donor file is a pattern source or a code source, consult the `gormes-references` skill before porting.
 
 ## Workflow
 

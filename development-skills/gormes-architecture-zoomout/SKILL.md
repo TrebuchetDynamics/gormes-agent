@@ -30,7 +30,7 @@ Default to zoom-out map for vague debugging. Use architecture review when the us
 ## Workflow
 
 1. **Protect the worktree first.** Run `git status --short --branch --untracked-files=all`. If unrelated dirty work exists, name it in the report, avoid broad formatters/regenerators, and stage only explicit architecture-skill files.
-2. **Read local maps first.** Start with `/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent/codemap.md`; read folder `codemap.md` when present.
+2. **Read local maps first.** Start with the current repository root's `codemap.md` (`git rev-parse --show-toplevel`); read folder `codemap.md` when present.
 3. **Choose one subsystem.** Do not review the whole repository at once. Good first cuts are `cmd/gormes` setup/CLI, `internal/tools`, `internal/gateway`, `internal/channels/<name>`, `internal/goncho`, `internal/memory`, `internal/tui`, or `internal/provider`.
 4. **Run targeted discovery.** Use commands like these, scoped to the subsystem:
 
@@ -178,7 +178,7 @@ Match the proposed next slice to the smallest proof:
 |---|---|---|
 | Package-local helper extraction | Characterization test through existing public caller | focused package test + `git diff --check` |
 | New seam or adapter | Interface test with fake and production adapter evidence | focused package test + affected caller test |
-| Progress-row refactor plan | `go run ./cmd/progress validate` before and after row edit | `go test ./internal/progress ./webpages/docs -count=1` |
+| Progress-row refactor plan | `go run ./cmd/progress validate` before and after row edit | `go test ./internal/planning/progress ./webpages/docs -count=1` |
 | CLI/tool behavior-preserving refactor | CLI/tool golden or fixture test before moving code | focused command/tool test + full Go gate when feasible |
 | Channel/gateway refactor | transcript/status fixture proving no duplicate/leaked output | channel/gateway focused test + progress validate |
 | Persistence/config refactor | temp-home/temp-db fixture proving ordering, redaction, and atomicity | package test plus migration/config focused tests |

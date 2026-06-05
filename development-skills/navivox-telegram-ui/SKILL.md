@@ -1,6 +1,6 @@
 ---
 name: navivox-telegram-ui
-description: Use when planning, implementing, or reviewing Flutter Navivox chat/contact UI that should feel closer to Telegram, including chat-thread chrome, bottom navigation removal, bubbles, composer, profile contacts, action sheets, voice affordances, or Telegram/Flutter clone reference research.
+description: Plan or review Flutter Navivox Telegram-like UI. Use for chat thread chrome, bubbles, composer, contacts, action sheets, voice affordances, or Telegram clone references.
 ---
 
 # Navivox Telegram UI

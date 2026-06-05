@@ -1,6 +1,6 @@
 ---
 name: gormes-interface-designer
-description: Use when shaping Gormes provider, gateway, tool, session, memory, Goncho, plugin, API, or TUI package boundaries; when a progress row's write_scope or contract is unclear; or when the user asks to compare API/interface designs before implementation.
+description: Design Gormes package/API boundaries. Use for provider, gateway, tool, session, memory, Goncho, plugin, API, or TUI seams, unclear write_scope, or design comparison.
 ---
 
 # Gormes Interface Designer

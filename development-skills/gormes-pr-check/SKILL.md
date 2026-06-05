@@ -11,7 +11,7 @@ Use this before `gormes-greptile-loop`, before asking for human review, or when 
 
 ## Preconditions
 
-- Stay in `/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent`.
+- Stay in the current Gormes checkout (`git rev-parse --show-toplevel`).
 - Stay on `development`; do not create/switch feature branches.
 - Use GitHub CLI `gh` if PR metadata is needed.
 

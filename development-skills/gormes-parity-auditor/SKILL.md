@@ -1,6 +1,6 @@
 ---
 name: gormes-parity-auditor
-description: Use when the user asks what is missing for full Hermes-in-Go parity, wants upstream Hermes or Honcho feature mapping, wants Goncho/Honcho compatibility gaps, or needs evidence-classified parity atoms before builder work.
+description: Map missing Hermes-in-Go parity. Use for upstream Hermes/Honcho feature audits, Goncho compatibility gaps, and source-backed progress-row evidence before builder work.
 ---
 
 # Gormes Parity Auditor
@@ -131,7 +131,7 @@ For every `vague` or `missing` item, propose a tracer-bullet row:
 - acceptance and done signal;
 - dependencies.
 
-Do not edit runtime code. Edit `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` only when the user asked for the audit to apply changes.
+Do not edit runtime code. Edit progress rows or parity evidence only when the user asked for the audit to apply changes; progress rows remain the backlog.
 
 When the audit discovers stale refs on a row that is otherwise complete, update
 the row's source refs, acceptance, and note instead of opening a duplicate row.
@@ -154,7 +154,7 @@ If editing progress:
 ```sh
 go run ./cmd/progress write
 go run ./cmd/progress validate
-go test ./internal/progress -count=1
+go test ./internal/planning/progress -count=1
 ```
 
 ## Final Report

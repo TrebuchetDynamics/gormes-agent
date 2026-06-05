@@ -1,6 +1,6 @@
 ---
 name: gormes-hermes-parity
-description: Use when checking Gormes-vs-Hermes/Honcho parity, automatically discovering behavioral fidelity gaps across user-visible surfaces, handling stale upstream evidence, restructuring parity taxonomy, or turning drift reports into source-backed progress rows.
+description: Check Gormes vs Hermes/Honcho parity. Use for behavior sweeps, stale upstream evidence, taxonomy changes, user-visible drift, and source-backed progress-row handoffs.
 ---
 
 # Gormes Hermes Parity
@@ -343,8 +343,8 @@ on its own without parity evidence; record the upstream sha in
     - parity classifications and behavior evidence live in
       `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`.
     - implementation backlog rows live in progress data, accessed only through
-      `internal/progress.Load`/`cmd/progress` (monolithic file or split layout,
-      transparently; never hand-parse members).
+      `internal/planning/progress.Load`/`cmd/progress` (monolithic file or
+      split layout, transparently; never hand-parse members).
     Do not create side queues.
 
 ## Done Checklist
@@ -442,7 +442,7 @@ If progress/docs rows changed, also run:
 ```sh
 go run ./cmd/progress write
 go run ./cmd/progress validate
-go test ./internal/progress -count=1
+go test ./internal/planning/progress -count=1
 go test ./webpages/docs -count=1
 git diff --check
 ```

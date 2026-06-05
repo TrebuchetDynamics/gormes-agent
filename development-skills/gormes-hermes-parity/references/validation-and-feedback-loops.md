@@ -47,7 +47,7 @@ For progress/docs edits:
 ```sh
 go run ./cmd/progress write
 go run ./cmd/progress validate
-go test ./internal/progress -count=1
+go test ./internal/planning/progress -count=1
 go test ./webpages/docs -count=1
 git diff --check
 ```

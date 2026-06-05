@@ -9,7 +9,7 @@ Adapted from `github.com/greptileai/skills` `greploop` for the Gormes repository
 
 ## Preconditions
 
-- Current repo is `/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent`.
+- Current repo is the Gormes checkout reported by `git rev-parse --show-toplevel`.
 - Branch is the existing `development` branch. Do not create branches or worktrees.
 - `gh` is installed and authenticated.
 - A GitHub PR exists for `development` or the user supplied a PR number.

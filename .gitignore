@@ -23,6 +23,8 @@ coverage.out
 coverage.html
 *.prof
 *.pprof
+__pycache__/
+*.pyc
 
 # ── Runtime logs and crash dumps ─────────────────────
 gormes.log

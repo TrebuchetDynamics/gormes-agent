@@ -87,7 +87,7 @@ Skip benchmark updates when no trusted local binary exists; do not invent sizes.
 Run focused validation for touched surfaces:
 ```sh
 go test ./webpages/docs -count=1
-go test ./internal/progress -count=1
+go test ./internal/planning/progress -count=1
 go test ./internal/repoctl -count=1
 ```
 Broaden tests when README changes depend on runtime behavior, installer

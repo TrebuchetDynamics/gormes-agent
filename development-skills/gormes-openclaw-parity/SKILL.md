@@ -1,6 +1,6 @@
 ---
 name: gormes-openclaw-parity
-description: Use when discovering useful OpenClaw behavior that Hermes lacks, deciding whether Gormes should adopt it as an owned enhancement, or turning OpenClaw-only feature evidence into parity evidence doc atoms without treating OpenClaw as the primary Hermes parity contract.
+description: Discover useful OpenClaw-only behavior absent from Hermes. Use when classifying owned enhancements, adoption risk, or source-backed progress tasks.
 ---
 
 # Gormes OpenClaw Parity
@@ -194,6 +194,6 @@ If editing progress rows:
 ```sh
 go run ./cmd/progress write
 go run ./cmd/progress validate
-go test ./internal/progress -count=1
+go test ./internal/planning/progress -count=1
 git diff --check
 ```
