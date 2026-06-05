@@ -15,6 +15,28 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
+func TestNavivoxE2ERejectsWeakPublicTokenBeforeListen(t *testing.T) {
+	_, err := NewChannel(config.NavivoxCfg{
+		Enabled:         true,
+		GatewayID:       "gw_0123456789abcdef0123456789abcdef",
+		BindHost:        "0.0.0.0",
+		Port:            config.NavivoxDefaultPort,
+		ExposureMode:    config.NavivoxExposurePublic,
+		AuthMode:        config.NavivoxAuthPairingToken,
+		Token:           "nvbx_test_token",
+		PublicConfirmed: true,
+		AllowOrigins:    []string{"https://navivox.example"},
+	}, nil)
+	if err == nil {
+		t.Fatal("NewChannel error = nil, want weak public token rejection")
+	}
+	for _, want := range []string{"navivox.token", "public", "at least"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error = %q, missing %q", err, want)
+		}
+	}
+}
+
 func TestNavivoxE2ETokenAuthRequiresHeaderOrWebSocketProtocolNeverURLQuery(t *testing.T) {
 	ch, err := NewChannel(config.NavivoxCfg{
 		Enabled:      true,
@@ -410,7 +432,7 @@ func TestNavivoxE2EPublicHTTPStatusAdvertisesInsecureTransport(t *testing.T) {
 		Port:            config.NavivoxDefaultPort,
 		ExposureMode:    config.NavivoxExposurePublic,
 		AuthMode:        config.NavivoxAuthPairingToken,
-		Token:           "nvbx_test_token",
+		Token:           strongNavivoxTokenForTests,
 		PublicConfirmed: true,
 		AllowOrigins:    []string{"https://navivox.example"},
 	}, nil)
@@ -419,7 +441,7 @@ func TestNavivoxE2EPublicHTTPStatusAdvertisesInsecureTransport(t *testing.T) {
 	}
 	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
 	defer server.Close()
-	httpc := newNavivoxHTTPContract(t, server.URL)
+	httpc := newNavivoxHTTPContractWithToken(t, server.URL, strongNavivoxTokenForTests)
 
 	var status struct {
 		TransportSecurity struct {

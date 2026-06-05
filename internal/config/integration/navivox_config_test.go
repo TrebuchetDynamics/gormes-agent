@@ -121,7 +121,7 @@ bind_host = "0.0.0.0"
 port = 8765
 exposure_mode = "public"
 auth_mode = "pairing_token"
-token = "nvbx_test_token"
+token = "nvbx_0123456789abcdef0123456789abcdef"
 `,
 	} {
 		t.Run("", func(t *testing.T) {
@@ -152,7 +152,7 @@ bind_host = "0.0.0.0"
 port = 8765
 exposure_mode = "public"
 auth_mode = "pairing_token"
-token = "nvbx_test_token"
+token = "nvbx_0123456789abcdef0123456789abcdef"
 public_confirmed = true
 allow_origins = ["*"]
 `)
@@ -177,7 +177,7 @@ bind_host = "0.0.0.0"
 port = 8765
 exposure_mode = "public"
 auth_mode = "pairing_token"
-token = "nvbx_test_token"
+token = "nvbx_0123456789abcdef0123456789abcdef"
 public_confirmed = true
 `)
 

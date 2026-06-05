@@ -24,6 +24,9 @@ const (
 	NavivoxAuthStaticToken               = "static_token"
 	NavivoxAuthTailscaleIdentity         = "tailscale_identity"
 	NavivoxAuthTokenAndTailscaleIdentity = "token_and_tailscale_identity"
+
+	NavivoxMinExposedTokenLength        = 32
+	NavivoxMinExposedTokenDistinctChars = 16
 )
 
 var (
@@ -124,6 +127,9 @@ func NormalizeNavivoxConfig(cfg *NavivoxCfg) error {
 	}
 	if cfg.AuthMode == NavivoxAuthTailscaleIdentity {
 		return fmt.Errorf("config: navivox.auth_mode=tailscale_identity is not allowed as standalone Navivox auth; use token auth or token_and_tailscale_identity")
+	}
+	if err := navivoxValidateExposedToken(cfg); err != nil {
+		return err
 	}
 	if cfg.ExposureMode != NavivoxExposureLocal && navivoxWildcardOrigin(cfg.AllowOrigins) {
 		return fmt.Errorf("config: navivox.allow_origins must not include * when exposure_mode=%s; list trusted Navivox browser origins explicitly", cfg.ExposureMode)
@@ -254,6 +260,39 @@ func ValidateNavivoxBindAgainstVPN(cfg *NavivoxCfg, vpnIPs []string) error {
 		return fmt.Errorf("config: navivox.exposure_mode=%s but no active VPN interface was detected; bind_host %q cannot be validated", cfg.ExposureMode, cfg.BindHost)
 	}
 	return fmt.Errorf("config: navivox.bind_host %q does not match any active VPN interface IP (%v); exposure_mode=%s requires a VPN bind", cfg.BindHost, vpnIPs, cfg.ExposureMode)
+}
+
+func navivoxValidateExposedToken(cfg *NavivoxCfg) error {
+	if !navivoxExposureRequiresStrongToken(cfg) {
+		return nil
+	}
+	if len(cfg.Token) < NavivoxMinExposedTokenLength {
+		return fmt.Errorf("config: navivox.token must be at least %d characters when navivox.exposure_mode=%s", NavivoxMinExposedTokenLength, cfg.ExposureMode)
+	}
+	if !navivoxExposedTokenLooksRandom(cfg.Token) {
+		return fmt.Errorf("config: navivox.token must include enough entropy for navivox.exposure_mode=%s; use a generated setup token", cfg.ExposureMode)
+	}
+	return nil
+}
+
+func navivoxExposedTokenLooksRandom(token string) bool {
+	seen := map[rune]struct{}{}
+	for _, r := range token {
+		seen[r] = struct{}{}
+	}
+	return len(seen) >= NavivoxMinExposedTokenDistinctChars
+}
+
+func navivoxExposureRequiresStrongToken(cfg *NavivoxCfg) bool {
+	if cfg == nil || cfg.ExposureMode == NavivoxExposureLocal {
+		return false
+	}
+	switch cfg.AuthMode {
+	case NavivoxAuthPairingToken, NavivoxAuthStaticToken, NavivoxAuthTokenAndTailscaleIdentity:
+		return true
+	default:
+		return false
+	}
 }
 
 func navivoxLoopbackHost(host string) bool {

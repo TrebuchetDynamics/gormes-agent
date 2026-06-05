@@ -22,6 +22,8 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/network/vpnhost"
 )
 
+const strongNavivoxTokenForTests = "nvbx_0123456789abcdef0123456789abcdef"
+
 func TestNavivoxStatusRequiresAuthAndHealthzIsPublic(t *testing.T) {
 	ch := newTestChannel(t)
 	inbox := make(chan gateway.InboundEvent, 1)
@@ -493,7 +495,7 @@ func TestNavivoxLayeredAuthRequiresTokenAndAllowedTailscaleIdentity(t *testing.T
 		Port:                     config.NavivoxDefaultPort,
 		ExposureMode:             config.NavivoxExposureTailscale,
 		AuthMode:                 config.NavivoxAuthTokenAndTailscaleIdentity,
-		Token:                    "nvbx_test_token",
+		Token:                    strongNavivoxTokenForTests,
 		AllowedTailnetIdentities: []string{"juan@example.com"},
 		AllowOrigins:             []string{"https://navivox.example"},
 	}, nil)
@@ -506,13 +508,13 @@ func TestNavivoxLayeredAuthRequiresTokenAndAllowedTailscaleIdentity(t *testing.T
 
 	for name, headers := range map[string]map[string]string{
 		"token-only": {
-			"Authorization": "Bearer nvbx_test_token",
+			"Authorization": "Bearer " + strongNavivoxTokenForTests,
 		},
 		"identity-only": {
 			"Tailscale-User-Login": "juan@example.com",
 		},
 		"wrong-identity": {
-			"Authorization":        "Bearer nvbx_test_token",
+			"Authorization":        "Bearer " + strongNavivoxTokenForTests,
 			"Tailscale-User-Login": "intruder@example.com",
 		},
 	} {
@@ -539,7 +541,7 @@ func TestNavivoxLayeredAuthRequiresTokenAndAllowedTailscaleIdentity(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	req.Header.Set("Authorization", "Bearer "+strongNavivoxTokenForTests)
 	req.Header.Set("Tailscale-User-Login", "juan@example.com")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -1149,7 +1151,7 @@ func TestNewChannel_TailscaleExposureWithLoopbackBind_FailsClosed(t *testing.T) 
 		Port:         config.NavivoxDefaultPort,
 		ExposureMode: config.NavivoxExposureTailscale,
 		AuthMode:     config.NavivoxAuthStaticToken,
-		Token:        "x",
+		Token:        strongNavivoxTokenForTests,
 	}, nil)
 	if err == nil {
 		t.Fatal("NewChannel err = nil, want VPN bind mismatch error")
@@ -1176,7 +1178,7 @@ func TestNewChannel_TailscaleExposureWithMatchingVPNBind_Succeeds(t *testing.T) 
 		Port:         config.NavivoxDefaultPort,
 		ExposureMode: config.NavivoxExposureTailscale,
 		AuthMode:     config.NavivoxAuthStaticToken,
-		Token:        "x",
+		Token:        strongNavivoxTokenForTests,
 	}, nil)
 	if err != nil {
 		t.Fatalf("NewChannel err = %v, want nil for matching VPN bind", err)

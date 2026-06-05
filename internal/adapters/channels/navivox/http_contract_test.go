@@ -17,11 +17,17 @@ import (
 type navivoxHTTPContract struct {
 	t       *testing.T
 	baseURL string
+	token   string
 }
 
 func newNavivoxHTTPContract(t *testing.T, baseURL string) navivoxHTTPContract {
 	t.Helper()
-	return navivoxHTTPContract{t: t, baseURL: strings.TrimRight(baseURL, "/")}
+	return newNavivoxHTTPContractWithToken(t, baseURL, "nvbx_test_token")
+}
+
+func newNavivoxHTTPContractWithToken(t *testing.T, baseURL, token string) navivoxHTTPContract {
+	t.Helper()
+	return navivoxHTTPContract{t: t, baseURL: strings.TrimRight(baseURL, "/"), token: token}
 }
 
 func (c navivoxHTTPContract) JSON(method, path, body string, wantStatus int, out any) {
@@ -60,7 +66,7 @@ func (c navivoxHTTPContract) response(method, path, body string) *http.Response 
 	if err != nil {
 		c.t.Fatalf("%s %s build request: %v", method, path, err)
 	}
-	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	req.Header.Set("Authorization", "Bearer "+c.token)
 	if body != "" {
 		req.Header.Set("Content-Type", "application/json")
 	}

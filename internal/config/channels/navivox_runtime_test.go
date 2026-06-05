@@ -5,6 +5,8 @@ import (
 	"testing"
 )
 
+const strongNavivoxTokenForTests = "nvbx_0123456789abcdef0123456789abcdef"
+
 func TestNavivoxExposureWireGuardAndVPNAreAccepted(t *testing.T) {
 	for _, mode := range []string{NavivoxExposureWireGuard, NavivoxExposureVPN} {
 		cfg := &NavivoxCfg{
@@ -13,7 +15,7 @@ func TestNavivoxExposureWireGuardAndVPNAreAccepted(t *testing.T) {
 			Port:         NavivoxDefaultPort,
 			ExposureMode: mode,
 			AuthMode:     NavivoxAuthStaticToken,
-			Token:        "x",
+			Token:        strongNavivoxTokenForTests,
 		}
 		if err := ValidateNavivoxForRuntime(cfg); err != nil {
 			t.Errorf("ValidateNavivoxForRuntime(mode=%s) error = %v, want nil", mode, err)
@@ -34,6 +36,25 @@ func TestNavivoxExposureRequiresVPN(t *testing.T) {
 		if got := NavivoxExposureRequiresVPN(mode); got != want {
 			t.Errorf("NavivoxExposureRequiresVPN(%q) = %v, want %v", mode, got, want)
 		}
+	}
+}
+
+func TestValidateNavivoxForRuntimeRejectsLowEntropyExposedToken(t *testing.T) {
+	cfg := &NavivoxCfg{
+		Enabled:         true,
+		BindHost:        "0.0.0.0",
+		Port:            NavivoxDefaultPort,
+		ExposureMode:    NavivoxExposurePublic,
+		AuthMode:        NavivoxAuthPairingToken,
+		Token:           strings.Repeat("a", NavivoxMinExposedTokenLength+8),
+		PublicConfirmed: true,
+	}
+	err := ValidateNavivoxForRuntime(cfg)
+	if err == nil {
+		t.Fatal("ValidateNavivoxForRuntime error = nil, want low-entropy token rejection")
+	}
+	if !strings.Contains(err.Error(), "navivox.token") || !strings.Contains(err.Error(), "entropy") {
+		t.Fatalf("error = %q, want token entropy rejection", err)
 	}
 }
 
@@ -78,7 +99,7 @@ func TestValidateNavivoxForRuntimeRejectsWildcardBrowserOriginsOutsideLocalMode(
 				Port:            NavivoxDefaultPort,
 				ExposureMode:    mode,
 				AuthMode:        NavivoxAuthStaticToken,
-				Token:           "nvbx_test_token",
+				Token:           strongNavivoxTokenForTests,
 				AllowOrigins:    []string{"*"},
 				PublicConfirmed: mode == NavivoxExposurePublic,
 			}
