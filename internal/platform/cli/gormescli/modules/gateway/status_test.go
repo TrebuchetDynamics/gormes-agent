@@ -23,7 +23,11 @@ func testGatewayOptions() Options {
 		BuildProvenance: func() gormescli.BuildProvenance {
 			return gormescli.BuildProvenance{Version: testGatewayVersion, GitCommit: "test-git"}
 		},
-		ExitError: gormescli.NewExitCodeError,
+		ExitError:                    gormescli.NewExitCodeError,
+		TermuxDetected:               TermuxDetected,
+		TermuxLifecycleGuidanceLine:  TermuxLifecycleGuidanceLine,
+		TermuxLifecycleGuidanceError: TermuxLifecycleGuidanceError,
+		TermuxNotificationStatus:     TermuxNotificationStatusLine,
 	}
 }
 

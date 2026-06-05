@@ -193,8 +193,8 @@
         "internal/gateway",
         "cmd/gormes/gateway.go",
         "internal/platform/cli/gormescli/modules/gateway/status.go",
-        "cmd/gormes/gateway_reload.go",
-        "cmd/gormes/gateway_stop.go"
+        "internal/platform/cli/gormescli/modules/gateway/reload.go",
+        "internal/platform/cli/gormescli/modules/gateway/stop.go"
       ],
       "status": "partial",
       "contract": "Gateway process lifecycle, channel dispatch, visible tool-progress/status artifacts, reload/stop/status commands, and platform message routing.",

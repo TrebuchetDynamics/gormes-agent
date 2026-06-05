@@ -1,4 +1,4 @@
-package main
+package gateway
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ termux-wake-lock
 exec tmux new-session -d -s gormes-gateway "gormes gateway"
 `
 
-func newGatewayBootInstallCommand() *cobra.Command {
+func NewBootInstallCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:          "boot-install",
 		Short:        "Install Termux:Boot script for gateway auto-start",
@@ -27,7 +27,7 @@ func newGatewayBootInstallCommand() *cobra.Command {
 	}
 }
 
-func newGatewayBootUninstallCommand() *cobra.Command {
+func NewBootUninstallCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:          "boot-uninstall",
 		Short:        "Remove Termux:Boot script for gateway auto-start",
@@ -37,7 +37,7 @@ func newGatewayBootUninstallCommand() *cobra.Command {
 }
 
 func runGatewayBootInstall(cmd *cobra.Command, _ []string) error {
-	if !gatewayTermuxDetected() {
+	if !TermuxDetected() {
 		return fmt.Errorf("gateway boot-install is only available on Termux")
 	}
 	home := os.Getenv("HOME")
@@ -58,7 +58,7 @@ func runGatewayBootInstall(cmd *cobra.Command, _ []string) error {
 }
 
 func runGatewayBootUninstall(cmd *cobra.Command, _ []string) error {
-	if !gatewayTermuxDetected() {
+	if !TermuxDetected() {
 		return fmt.Errorf("gateway boot-uninstall is only available on Termux")
 	}
 	home := os.Getenv("HOME")

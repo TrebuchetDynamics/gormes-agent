@@ -27,6 +27,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
+	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -55,7 +56,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	if os.Getenv("GORMES_TELEGRAM_BOT_TOKEN") == "" && os.Getenv("GORMES_TELEGRAM_TOKEN") == "" && os.Getenv("TELEGRAM_BOT_TOKEN") == "" && os.Getenv("TELEGRAM_TOKEN") == "" {
 		slog.Warn("bot_token read from config.toml; prefer GORMES_TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN env var for secrets")
 	}
-	if _, err := ensureGatewayAgentTemplates(cfg, slog.Default()); err != nil {
+	if _, err := gatewaymodule.EnsureAgentTemplates(cfg, slog.Default()); err != nil {
 		return err
 	}
 

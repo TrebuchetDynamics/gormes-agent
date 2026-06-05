@@ -1,4 +1,4 @@
-package main
+package gateway
 
 import (
 	"os"
@@ -8,14 +8,14 @@ import (
 )
 
 func TestGatewayBootInstall_Uninstall_Termux(t *testing.T) {
-	if !gatewayTermuxDetected() {
+	if !TermuxDetected() {
 		t.Skip("not on Termux")
 	}
 	tmpHome := t.TempDir()
 	t.Setenv("HOME", tmpHome)
 	t.Setenv("TERMUX_VERSION", "0.119.0")
 
-	cmd := newGatewayBootInstallCommand()
+	cmd := NewBootInstallCommand()
 	var out strings.Builder
 	cmd.SetOut(&out)
 	if err := cmd.Execute(); err != nil {
@@ -34,7 +34,7 @@ func TestGatewayBootInstall_Uninstall_Termux(t *testing.T) {
 	}
 
 	out.Reset()
-	cmd = newGatewayBootUninstallCommand()
+	cmd = NewBootUninstallCommand()
 	cmd.SetOut(&out)
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("boot-uninstall: %v", err)
@@ -48,7 +48,7 @@ func TestGatewayBootInstall_RequiresTermux(t *testing.T) {
 	t.Setenv("TERMUX_VERSION", "")
 	t.Setenv("PREFIX", "")
 	t.Setenv("HOME", "/tmp")
-	cmd := newGatewayBootInstallCommand()
+	cmd := NewBootInstallCommand()
 	if err := cmd.Execute(); err == nil {
 		t.Fatal("expected error on non-Termux host")
 	}
@@ -59,7 +59,7 @@ func TestGatewayBootUninstall_Idempotent(t *testing.T) {
 	t.Setenv("HOME", tmpHome)
 	t.Setenv("TERMUX_VERSION", "0.119.0")
 
-	cmd := newGatewayBootUninstallCommand()
+	cmd := NewBootUninstallCommand()
 	var out strings.Builder
 	cmd.SetOut(&out)
 	if err := cmd.Execute(); err != nil {

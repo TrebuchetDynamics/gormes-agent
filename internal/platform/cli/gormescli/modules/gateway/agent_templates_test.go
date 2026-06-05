@@ -1,4 +1,4 @@
-package main
+package gateway
 
 import (
 	"io"
@@ -20,7 +20,7 @@ func TestGatewayAgentTemplateTargetPrefersConfiguredTerminalWorkspace(t *testing
 	gormesHome := filepath.Join(root, "home")
 	t.Setenv("GORMES_HOME", gormesHome)
 
-	got := gatewayAgentTemplateTarget(config.Config{
+	got := AgentTemplateTarget(config.Config{
 		Terminal: config.TerminalCfg{CWD: workspace},
 		Agents: config.AgentsCfg{List: []config.AgentCfg{{
 			ID:        config.DefaultAgentID,
@@ -29,7 +29,7 @@ func TestGatewayAgentTemplateTargetPrefersConfiguredTerminalWorkspace(t *testing
 		}}},
 	})
 	if got != workspace {
-		t.Fatalf("gatewayAgentTemplateTarget = %q, want terminal cwd %q", got, workspace)
+		t.Fatalf("AgentTemplateTarget = %q, want terminal cwd %q", got, workspace)
 	}
 }
 
@@ -38,7 +38,7 @@ func TestGatewayAgentTemplateTargetFallsBackToDefaultAgentWorkspace(t *testing.T
 	workspace := filepath.Join(root, "workspace-main")
 	t.Setenv("GORMES_HOME", filepath.Join(root, "home"))
 
-	got := gatewayAgentTemplateTarget(config.Config{
+	got := AgentTemplateTarget(config.Config{
 		Agents: config.AgentsCfg{List: []config.AgentCfg{{
 			ID:        config.DefaultAgentID,
 			Workspace: workspace,
@@ -46,7 +46,7 @@ func TestGatewayAgentTemplateTargetFallsBackToDefaultAgentWorkspace(t *testing.T
 		}}},
 	})
 	if got != workspace {
-		t.Fatalf("gatewayAgentTemplateTarget = %q, want default agent workspace %q", got, workspace)
+		t.Fatalf("AgentTemplateTarget = %q, want default agent workspace %q", got, workspace)
 	}
 }
 
@@ -56,11 +56,11 @@ func TestEnsureGatewayAgentTemplatesCreatesMissingRuntimeContextAndPromptLoadsIt
 	gormesHome := filepath.Join(root, "gormes-home")
 	t.Setenv("GORMES_HOME", gormesHome)
 
-	result, err := ensureGatewayAgentTemplates(config.Config{
+	result, err := EnsureAgentTemplates(config.Config{
 		Terminal: config.TerminalCfg{CWD: workspace},
 	}, discardLogger())
 	if err != nil {
-		t.Fatalf("ensureGatewayAgentTemplates: %v", err)
+		t.Fatalf("EnsureAgentTemplates: %v", err)
 	}
 	actions := gatewayTemplateActionsByPath(result)
 	for _, path := range []string{
@@ -112,11 +112,11 @@ func TestEnsureGatewayAgentTemplatesPreservesExistingFiles(t *testing.T) {
 		t.Fatalf("seed custom SOUL.md: %v", err)
 	}
 
-	result, err := ensureGatewayAgentTemplates(config.Config{
+	result, err := EnsureAgentTemplates(config.Config{
 		Terminal: config.TerminalCfg{CWD: workspace},
 	}, discardLogger())
 	if err != nil {
-		t.Fatalf("ensureGatewayAgentTemplates: %v", err)
+		t.Fatalf("EnsureAgentTemplates: %v", err)
 	}
 	if got := gatewayTemplateActionsByPath(result)["SOUL.md"]; got != agenttemplate.ActionSkip {
 		t.Fatalf("SOUL.md action = %q, want skip", got)

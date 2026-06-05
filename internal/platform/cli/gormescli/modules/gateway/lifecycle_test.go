@@ -1,4 +1,4 @@
-package main
+package gateway
 
 import (
 	"bytes"
@@ -9,12 +9,11 @@ import (
 	"strings"
 	"syscall"
 	"testing"
-	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
+	"github.com/spf13/cobra"
 )
 
 func TestGatewayMutatingSubcommandsAreUnavailable(t *testing.T) {
@@ -455,56 +454,6 @@ func TestGatewayWindowsScheduledTaskCommandLineMarksDetached(t *testing.T) {
 	}
 }
 
-func TestGatewayWindowsDetachedCtrlCSignalPlan(t *testing.T) {
-	t.Run("foreground windows keeps interrupt subscribed", func(t *testing.T) {
-		restoreGOOS := gatewayRuntimeGOOSForTest(t, "windows")
-		defer restoreGOOS()
-		t.Setenv("GORMES_GATEWAY_DETACHED", "0")
-
-		signals, absorbInterrupt := gatewayShutdownSignalPlan()
-
-		if absorbInterrupt {
-			t.Fatal("foreground Windows gateway must not absorb Ctrl+C")
-		}
-		if !hasGatewaySignal(signals, os.Interrupt) {
-			t.Fatalf("foreground Windows signals = %v, want os.Interrupt", signals)
-		}
-	})
-
-	t.Run("detached windows absorbs interrupt", func(t *testing.T) {
-		restoreGOOS := gatewayRuntimeGOOSForTest(t, "windows")
-		defer restoreGOOS()
-		t.Setenv("GORMES_GATEWAY_DETACHED", "1")
-
-		signals, absorbInterrupt := gatewayShutdownSignalPlan()
-
-		if !absorbInterrupt {
-			t.Fatal("detached Windows gateway must absorb Ctrl+C broadcasts")
-		}
-		if hasGatewaySignal(signals, os.Interrupt) {
-			t.Fatalf("detached Windows signals = %v, must omit os.Interrupt", signals)
-		}
-		if !hasGatewaySignal(signals, syscall.SIGTERM) || !hasGatewaySignal(signals, syscall.SIGHUP) {
-			t.Fatalf("detached Windows signals = %v, want SIGTERM and SIGHUP", signals)
-		}
-	})
-
-	t.Run("non-windows keeps interrupt even with detached env", func(t *testing.T) {
-		restoreGOOS := gatewayRuntimeGOOSForTest(t, "linux")
-		defer restoreGOOS()
-		t.Setenv("GORMES_GATEWAY_DETACHED", "1")
-
-		signals, absorbInterrupt := gatewayShutdownSignalPlan()
-
-		if absorbInterrupt {
-			t.Fatal("non-Windows gateway must not use the Windows detached interrupt absorber")
-		}
-		if !hasGatewaySignal(signals, os.Interrupt) {
-			t.Fatalf("non-Windows signals = %v, want os.Interrupt", signals)
-		}
-	})
-}
-
 func TestGatewayStopSignalsValidatedLiveRuntime(t *testing.T) {
 	setupGatewayStatusTestEnv(t)
 	store := &fakeGatewayStopRuntimeStore{
@@ -636,57 +585,6 @@ func TestGatewayStopPlannedMarkerWrittenBeforeSignal(t *testing.T) {
 		t.Fatalf("stdout missing planned marker evidence:\n%s", stdout)
 	}
 	assertGatewayStopDidNotOpenDurableStores(t)
-}
-
-func TestGatewayStopSignalLoopConsumesPlannedMarker(t *testing.T) {
-	rootCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	sigCh := make(chan os.Signal, 1)
-	mgr := &fakeShutdownManager{
-		called:  make(chan struct{}),
-		release: make(chan struct{}),
-	}
-	consumed := false
-	restoreConsumer := gatewayPlannedStopConsumerForTest(t, func(context.Context) (gateway.PlannedStopConsumeResult, error) {
-		consumed = true
-		return gateway.PlannedStopConsumeResult{Status: gateway.PlannedStopConsumeMatched, Matched: true}, nil
-	})
-	defer restoreConsumer()
-
-	done := make(chan struct{})
-	forceExit := make(chan int, 1)
-	go func() {
-		defer close(done)
-		runGatewaySignalLoop(sigCh, 200*time.Millisecond, mgr, cancel, nil, func(code int) {
-			forceExit <- code
-		}, tools.TermuxWakeLockManager{})
-	}()
-
-	sigCh <- syscall.SIGTERM
-	select {
-	case <-mgr.called:
-	case <-time.After(200 * time.Millisecond):
-		t.Fatal("Shutdown was not called after planned SIGTERM")
-	}
-	close(mgr.release)
-	select {
-	case <-rootCtx.Done():
-	case <-time.After(200 * time.Millisecond):
-		t.Fatal("root context not canceled after planned shutdown")
-	}
-	select {
-	case <-done:
-	case <-time.After(200 * time.Millisecond):
-		t.Fatal("signal loop did not return")
-	}
-	if !consumed {
-		t.Fatal("planned stop marker consumer was not called for SIGTERM")
-	}
-	select {
-	case code := <-forceExit:
-		t.Fatalf("planned stop forced exit code %d", code)
-	default:
-	}
 }
 
 func TestGatewayStopRefusesActiveAgents(t *testing.T) {
@@ -917,8 +815,8 @@ func TestGatewayStop_JSONEmitsStructuredOutcome(t *testing.T) {
 	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
 		t.Fatalf("gateway stop --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
 	}
-	if got.Build.Version != Version {
-		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	if got.Build.Version != testGatewayVersion {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, testGatewayVersion)
 	}
 	if got.Action != "stopped" {
 		t.Errorf("action = %q, want %q", got.Action, "stopped")
@@ -1036,8 +934,8 @@ func TestGatewayReload_JSONEmitsStructuredOutcome(t *testing.T) {
 	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
 		t.Fatalf("gateway reload --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
 	}
-	if got.Build.Version != Version {
-		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	if got.Build.Version != testGatewayVersion {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, testGatewayVersion)
 	}
 	if got.Action != "reloaded" {
 		t.Errorf("action = %q, want %q", got.Action, "reloaded")
@@ -1146,13 +1044,47 @@ func TestGatewayMutatingDoesNotShadowGatewayStatus(t *testing.T) {
 func executeGatewayMutatingCommand(t *testing.T, sub string, args ...string) (string, string, error) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	cmd := newRootCommand()
+	stub := func(name string) func() *cobra.Command {
+		return func() *cobra.Command {
+			return &cobra.Command{Use: name, RunE: func(*cobra.Command, []string) error { return nil }}
+		}
+	}
+	cmd := NewGatewayCommandWithSeams(GatewayCommandSeams{
+		Run:            func(*cobra.Command, []string) error { return nil },
+		StopCommand:    func() *cobra.Command { return NewStopCommand(testGatewayOptions()) },
+		RestartCommand: func() *cobra.Command { return NewRestartCommand(testGatewayOptions()) },
+		ReloadCommand:  func() *cobra.Command { return NewReloadCommand(testGatewayOptions()) },
+		StatusCommand:  func() *cobra.Command { return NewStatusCommand(testGatewayOptions()) },
+		FleetCommand:   stub("fleet"),
+		DiscoverCommand: func() *cobra.Command {
+			return NewDiscoverCommand(testGatewayOptions())
+		},
+		ProbeCommand: func() *cobra.Command { return NewProbeCommand(testGatewayOptions()) },
+		UsageCostCommand: func() *cobra.Command {
+			return NewUsageCostCommand(testGatewayOptions())
+		},
+		MutatingUnavailableCommand: func(name string) *cobra.Command {
+			return NewMutatingUnavailableCommand(name, testGatewayOptions())
+		},
+		BootInstallCommand:   stub("boot-install"),
+		BootUninstallCommand: stub("boot-uninstall"),
+	}, testGatewayOptions())
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)
-	cmdArgs := append([]string{"gateway", sub}, args...)
-	cmd.SetArgs(cmdArgs)
+	cmd.SetArgs(append([]string{sub}, args...))
 	err := cmd.Execute()
 	return stdout.String(), stderr.String(), err
+}
+
+func exitCodeFromError(err error) int {
+	if err == nil {
+		return 0
+	}
+	var coded interface{ ExitCode() int }
+	if errors.As(err, &coded) {
+		return coded.ExitCode()
+	}
+	return 1
 }
 
 func assertGatewayStopDidNotOpenDurableStores(t *testing.T) {
@@ -1245,24 +1177,6 @@ func gatewayReloadSignalForTest(t *testing.T, signal func(int, os.Signal) error)
 	return func() {
 		signalGatewayReloadProcess = previous
 	}
-}
-
-func gatewayPlannedStopConsumerForTest(t *testing.T, consume func(context.Context) (gateway.PlannedStopConsumeResult, error)) func() {
-	t.Helper()
-	previous := consumeGatewayPlannedStopMarkerForSelf
-	consumeGatewayPlannedStopMarkerForSelf = consume
-	return func() {
-		consumeGatewayPlannedStopMarkerForSelf = previous
-	}
-}
-
-func hasGatewaySignal(signals []os.Signal, want os.Signal) bool {
-	for _, sig := range signals {
-		if sig == want {
-			return true
-		}
-	}
-	return false
 }
 
 func gatewayRuntimeGOOSForTest(t *testing.T, goos string) func() {

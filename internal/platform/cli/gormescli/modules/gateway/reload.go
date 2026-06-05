@@ -1,4 +1,4 @@
-package main
+package gateway
 
 import (
 	"context"
@@ -10,7 +10,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	runtimegateway "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 // gatewayReloadReportJSON is the wire shape for `gateway reload --json`.
@@ -19,22 +20,22 @@ import (
 // distinguishes a real reload from `action: "noop"` when no live runtime
 // exists.
 type gatewayReloadReportJSON struct {
-	Build   buildProvenanceJSON `json:"build"`
-	Action  string              `json:"action"`
-	Live    bool                `json:"live"`
-	PID     int                 `json:"pid,omitempty"`
-	Signal  string              `json:"signal,omitempty"`
-	Status  string              `json:"status,omitempty"`
-	Message string              `json:"message,omitempty"`
+	Build   gormescli.BuildProvenance `json:"build"`
+	Action  string                    `json:"action"`
+	Live    bool                      `json:"live"`
+	PID     int                       `json:"pid,omitempty"`
+	Signal  string                    `json:"signal,omitempty"`
+	Status  string                    `json:"status,omitempty"`
+	Message string                    `json:"message,omitempty"`
 }
 
 type gatewayReloadRuntimeStore interface {
-	ReadValidatedRuntimeStatusSnapshot(context.Context) (gateway.RuntimeStatusSnapshot, error)
+	ReadValidatedRuntimeStatusSnapshot(context.Context) (runtimegateway.RuntimeStatusSnapshot, error)
 }
 
 var (
 	newGatewayReloadRuntimeStore = func(path string) gatewayReloadRuntimeStore {
-		return gateway.NewRuntimeStatusStore(path)
+		return runtimegateway.NewRuntimeStatusStore(path)
 	}
 	signalGatewayReloadProcess = func(pid int, signal os.Signal) error {
 		if pid <= 0 {
@@ -48,18 +49,18 @@ var (
 	}
 )
 
-func newGatewayReloadCommand() *cobra.Command {
+func NewReloadCommand(opts Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "reload",
 		Short:        "Reload live Gormes gateway config without restarting",
 		SilenceUsage: true,
-		RunE:         runGatewayReload,
+		RunE:         func(cmd *cobra.Command, args []string) error { return runGatewayReload(cmd, args, opts) },
 	}
 	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action: 'reloaded'|'noop', live, pid, signal: 'SIGHUP', status, message}`")
 	return cmd
 }
 
-func runGatewayReload(cmd *cobra.Command, _ []string) error {
+func runGatewayReload(cmd *cobra.Command, _ []string, opts Options) error {
 	ctx := cmd.Context()
 	if ctx == nil {
 		ctx = context.Background()
@@ -76,7 +77,7 @@ func runGatewayReload(cmd *cobra.Command, _ []string) error {
 	if !validation.Live {
 		if asJSON {
 			return writeGatewayReloadJSON(cmd.OutOrStdout(), gatewayReloadReportJSON{
-				Build:   newBuildProvenance(),
+				Build:   gatewayBuildProvenance(opts),
 				Action:  "noop",
 				Live:    false,
 				PID:     pid,
@@ -102,7 +103,7 @@ func runGatewayReload(cmd *cobra.Command, _ []string) error {
 	}
 	if asJSON {
 		return writeGatewayReloadJSON(cmd.OutOrStdout(), gatewayReloadReportJSON{
-			Build:  newBuildProvenance(),
+			Build:  gatewayBuildProvenance(opts),
 			Action: "reloaded",
 			Live:   true,
 			PID:    pid,
@@ -123,7 +124,7 @@ func writeGatewayReloadJSON(out interface{ Write(p []byte) (int, error) }, repor
 	return nil
 }
 
-func gatewayReloadPID(snapshot gateway.RuntimeStatusSnapshot) int {
+func gatewayReloadPID(snapshot runtimegateway.RuntimeStatusSnapshot) int {
 	if snapshot.Validation.PID > 0 {
 		return snapshot.Validation.PID
 	}

@@ -1,35 +1,36 @@
-package main
+package gateway
 
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agenttemplate"
 )
 
-func ensureGatewayAgentTemplates(cfg config.Config, log *slog.Logger) (agenttemplate.WriteResult, error) {
+func EnsureAgentTemplates(cfg config.Config, log *slog.Logger) (agenttemplate.WriteResult, error) {
 	result, err := agenttemplate.ApplyDefaultTemplates(agenttemplate.WriteOptions{
-		TargetDir: gatewayAgentTemplateTarget(cfg),
+		TargetDir: AgentTemplateTarget(cfg),
 	})
 	if err != nil {
 		return result, fmt.Errorf("gateway agent templates: %w", err)
 	}
 	if log != nil {
-		created, skipped, overwritten := countGatewayAgentTemplateActions(result)
+		created, skipped, overwritten := CountAgentTemplateActions(result)
 		log.Info("gateway agent templates ready", "target", result.TargetDir, "created", created, "skipped", skipped, "overwritten", overwritten)
 	}
 	return result, nil
 }
 
-func gatewayAgentTemplateTarget(cfg config.Config) string {
-	if target := gatewayContextFilesCWD(cfg); target != "" {
+func AgentTemplateTarget(cfg config.Config) string {
+	if target := ContextFilesCWD(cfg); target != "" {
 		return target
 	}
 	return config.GormesHome()
 }
 
-func countGatewayAgentTemplateActions(result agenttemplate.WriteResult) (created, skipped, overwritten int) {
+func CountAgentTemplateActions(result agenttemplate.WriteResult) (created, skipped, overwritten int) {
 	for _, file := range result.Files {
 		switch file.Action {
 		case agenttemplate.ActionCreate:
@@ -41,4 +42,14 @@ func countGatewayAgentTemplateActions(result agenttemplate.WriteResult) (created
 		}
 	}
 	return created, skipped, overwritten
+}
+
+func ContextFilesCWD(cfg config.Config) string {
+	if cwd := strings.TrimSpace(cfg.Terminal.CWD); cwd != "" && cwd != "." {
+		return cwd
+	}
+	if agent, ok := cfg.Agents.AgentByID(cfg.Agents.DefaultAgentID()); ok {
+		return strings.TrimSpace(agent.Workspace)
+	}
+	return ""
 }

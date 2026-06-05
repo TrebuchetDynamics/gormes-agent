@@ -14,9 +14,10 @@ type Options struct {
 	BuildProvenance func() gormescli.BuildProvenance
 	ExitError       func(code int, err error) error
 
-	TermuxDetected              func() bool
-	TermuxLifecycleGuidanceLine string
-	TermuxNotificationStatus    func() string
+	TermuxDetected               func() bool
+	TermuxLifecycleGuidanceLine  string
+	TermuxLifecycleGuidanceError func(action string) error
+	TermuxNotificationStatus     func() string
 }
 
 func rowBackedOptions(opts Options) gormescli.RowBackedCommandOptions {

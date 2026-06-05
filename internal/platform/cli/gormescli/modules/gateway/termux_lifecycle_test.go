@@ -1,4 +1,4 @@
-package main
+package gateway
 
 import (
 	"encoding/json"
@@ -39,7 +39,7 @@ func TestTermuxGatewayStatusTextIncludesForegroundLifecycleGuidance(t *testing.T
 func TestTermuxGatewayStartGuidesToForegroundTmuxWithoutServiceAssumptions(t *testing.T) {
 	setupTermuxGatewayLifecycleTestEnv(t)
 
-	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "gateway", "start")
+	stdout, stderr, err := executeGatewayMutatingCommand(t, "start")
 	if err == nil {
 		t.Fatalf("gateway start under Termux should be guidance-only; stdout=%s stderr=%s", stdout, stderr)
 	}
@@ -89,7 +89,7 @@ func TestTermuxGatewayStatusJSONKeepsDesktopContract(t *testing.T) {
 func TestTermuxGatewayStopJSONKeepsDesktopContract(t *testing.T) {
 	setupTermuxGatewayLifecycleTestEnv(t)
 
-	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "gateway", "stop", "--json", "--timeout=0")
+	stdout, stderr, err := executeGatewayMutatingCommand(t, "stop", "--json", "--timeout=0")
 	if err != nil {
 		t.Fatalf("gateway stop --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}

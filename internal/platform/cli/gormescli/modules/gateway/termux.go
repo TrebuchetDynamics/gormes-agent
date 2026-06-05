@@ -1,4 +1,4 @@
-package main
+package gateway
 
 import (
 	"context"
@@ -8,18 +8,18 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
-const gatewayTermuxLifecycleGuidanceLine = "Termux gateway: foreground/tmux lifecycle; run `gormes gateway` inside tmux; termux-wake-lock and Android battery settings are best-effort only, and Android may still stop background processes."
+const TermuxLifecycleGuidanceLine = "Termux gateway: foreground/tmux lifecycle; run `gormes gateway` inside tmux; termux-wake-lock and Android battery settings are best-effort only, and Android may still stop background processes."
 
-func gatewayTermuxDetected() bool {
+func TermuxDetected() bool {
 	return doctor.IsTermuxEnvironment(nil)
 }
 
-func gatewayTermuxLifecycleGuidanceError(action string) error {
+func TermuxLifecycleGuidanceError(action string) error {
 	return fmt.Errorf("gateway: %s uses the Termux foreground/tmux lifecycle; run `gormes gateway` inside tmux; termux-wake-lock and Android battery settings are best-effort only, and Android may still stop background processes; use `gormes gateway status` and `gormes gateway stop` for runtime control", action)
 }
 
-func gatewayTermuxNotificationStatusLine() string {
-	if !gatewayTermuxDetected() {
+func TermuxNotificationStatusLine() string {
+	if !TermuxDetected() {
 		return ""
 	}
 	result := tools.TermuxNotificationSender{}.Status(context.Background())

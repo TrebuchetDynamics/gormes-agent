@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -15,8 +16,13 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
+
+func discardLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
 
 func TestTelegramStartupFallsBackWhenSessionDBLocked(t *testing.T) {
 	t.Setenv("GORMES_HOME", t.TempDir())
@@ -269,7 +275,7 @@ func TestTelegramProductionProviderPayloadUsesRuntimeSeededAgentTemplates(t *tes
 		Telegram: config.TelegramCfg{AllowedChatID: 42},
 		Terminal: config.TerminalCfg{CWD: workspace},
 	}
-	if _, err := ensureGatewayAgentTemplates(cfg, discardLogger()); err != nil {
+	if _, err := gatewaymodule.EnsureAgentTemplates(cfg, discardLogger()); err != nil {
 		t.Fatalf("ensureGatewayAgentTemplates: %v", err)
 	}
 
