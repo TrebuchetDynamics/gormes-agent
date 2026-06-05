@@ -59,7 +59,7 @@ func TestTranscriberTranscribesFixtureWAV(t *testing.T) {
 func testTinyEnModelPath(t *testing.T, ctx context.Context) string {
 	t.Helper()
 	return tinyEnModelPath(t, ctx, func(tb testing.TB, cacheDir string, err error) {
-		tb.Fatalf("EnsureModel(%s): %v", cacheDir, err)
+		tb.Skipf("WASI Whisper tiny.en model unavailable in %s: %v", cacheDir, err)
 	})
 }
 
