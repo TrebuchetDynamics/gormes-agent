@@ -1,9 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func TestHermesCommandAliasFidelity_RootUnknownAndTypoSuggestions(t *testing.T) {
@@ -88,4 +93,64 @@ func TestHermesCommandAliasFidelity_ClawMigrateDryRunDelegatesToOpenClawMigratio
 	if strings.Contains(stdout, "plain-telegram-token") {
 		t.Fatalf("stdout leaked raw secret: %s", stdout)
 	}
+}
+
+func setupMigrateOpenClawEnv(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
+	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "data"))
+	t.Setenv("XDG_STATE_HOME", filepath.Join(root, "state"))
+	t.Setenv("HOME", filepath.Join(root, "fake-home"))
+	t.Setenv("GORMES_TELEGRAM_BOT_TOKEN", "")
+	t.Setenv("GORMES_DISCORD_BOT_TOKEN", "")
+	return root
+}
+
+func writeOpenClawCLIFixture(t *testing.T, dir string) {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", dir, err)
+	}
+	cfg := `model: gpt-4.1-mini
+providers:
+  openrouter:
+    api_key:
+      source: env
+      id: OPENROUTER_API_KEY
+channels:
+  telegram:
+    bot_token:
+      source: env
+      id: TELEGRAM_BOT_TOKEN
+mcp:
+  servers:
+    - name: notes
+ui:
+  theme: dark
+unknown_top_level_section:
+  ignored: true
+`
+	envBody := `TELEGRAM_BOT_TOKEN=plain-telegram-token
+RANDOM_USER_VAR=plainvalue
+`
+	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(cfg), 0o600); err != nil {
+		t.Fatalf("write config.yaml: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte(envBody), 0o600); err != nil {
+		t.Fatalf("write .env: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "MEMORY.md"), []byte("# memory\n"), 0o600); err != nil {
+		t.Fatalf("write memory: %v", err)
+	}
+}
+
+func executeMigrateOpenClaw(args ...string) (*cobra.Command, string, string, error) {
+	cmd := newMigrateCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs(args)
+	err := cmd.Execute()
+	return cmd, stdout.String(), stderr.String(), err
 }

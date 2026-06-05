@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // recordingBranchFunc captures the BranchRequest it receives and returns
@@ -39,7 +39,7 @@ type nopSubmitter struct {
 
 func (s *nopSubmitter) submit(string) { s.calls++ }
 
-func newBranchTestModel(t *testing.T, history []hermes.Message, frameSessionID string, fn SessionBranchFunc, sub Submitter) Model {
+func newBranchTestModel(t *testing.T, history []llm.Message, frameSessionID string, fn SessionBranchFunc, sub Submitter) Model {
 	t.Helper()
 	frames := make(chan kernel.RenderFrame, 1)
 	if sub == nil {
@@ -79,7 +79,7 @@ func TestSlashBranch_EmptyHistoryReturnsStatus(t *testing.T) {
 }
 
 func TestSlashBranch_HappyPathSwitchesSessionIDAndDoesNotSubmit(t *testing.T) {
-	history := []hermes.Message{
+	history := []llm.Message{
 		{Role: "user", Content: "first"},
 		{Role: "assistant", Content: "ack"},
 	}
@@ -128,7 +128,7 @@ func TestSlashBranch_HappyPathSwitchesSessionIDAndDoesNotSubmit(t *testing.T) {
 }
 
 func TestSlashBranch_CustomNamePreserved(t *testing.T) {
-	history := []hermes.Message{{Role: "user", Content: "hi"}}
+	history := []llm.Message{{Role: "user", Content: "hi"}}
 	rec := &recordingBranchFunc{result: BranchResult{SessionID: "sess-child", ParentSessionID: "sess-parent"}}
 	m := newBranchTestModel(t, history, "sess-parent", rec.call, nil)
 
@@ -143,7 +143,7 @@ func TestSlashBranch_CustomNamePreserved(t *testing.T) {
 }
 
 func TestSlashBranch_NoActiveSessionReturnsStatus(t *testing.T) {
-	history := []hermes.Message{{Role: "user", Content: "hi"}}
+	history := []llm.Message{{Role: "user", Content: "hi"}}
 	rec := &recordingBranchFunc{}
 	m := newBranchTestModel(t, history, "", rec.call, nil)
 
@@ -161,7 +161,7 @@ func TestSlashBranch_NoActiveSessionReturnsStatus(t *testing.T) {
 }
 
 func TestSlashBranch_StoreUnavailableWhenFuncMissing(t *testing.T) {
-	history := []hermes.Message{{Role: "user", Content: "hi"}}
+	history := []llm.Message{{Role: "user", Content: "hi"}}
 	m := newBranchTestModel(t, history, "sess-parent", nil, nil)
 
 	res := branchSlashHandler("/branch", &m)
@@ -178,7 +178,7 @@ func TestSlashBranch_StoreUnavailableWhenFuncMissing(t *testing.T) {
 }
 
 func TestSlashBranch_ForkErrorLeavesParentActive(t *testing.T) {
-	history := []hermes.Message{{Role: "user", Content: "hi"}}
+	history := []llm.Message{{Role: "user", Content: "hi"}}
 	rec := &recordingBranchFunc{err: errors.New("disk full")}
 	m := newBranchTestModel(t, history, "sess-parent", rec.call, nil)
 
@@ -203,7 +203,7 @@ func TestSlashBranch_RegisteredOnDefaultRegistry(t *testing.T) {
 		MouseTracking: true,
 		SessionBranch: rec.call,
 	})
-	m.frame.History = []hermes.Message{{Role: "user", Content: "hi"}}
+	m.frame.History = []llm.Message{{Role: "user", Content: "hi"}}
 	m.frame.SessionID = "sess-parent"
 
 	res := m.slashRegistry.Dispatch("/branch", &m)

@@ -2,25 +2,37 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
-	"net/url"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
-	"github.com/skip2/go-qrcode"
 	"github.com/spf13/cobra"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/app/navivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/network/vpnhost"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 // vpnhostList is the seam test code can override to inject deterministic
 // VPN host enumeration; production callers go through the real CLIs.
-var vpnhostList = vpnhost.List
+var vpnhostList = navivox.DefaultVPNHostList
+
+var navivoxExposureSetupChoices = []setupOptionChoice{
+	{ID: config.NavivoxExposureLocal, Label: "Local loopback only", Aliases: []string{"loopback"}},
+	{ID: config.NavivoxExposureTailscale, Label: "Tailscale VPN"},
+	{ID: config.NavivoxExposureWireGuard, Label: "WireGuard VPN", Aliases: []string{"wireguard", "wire_guard"}},
+	{ID: config.NavivoxExposureVPN, Label: "Other VPN"},
+	{ID: config.NavivoxExposurePublic, Label: "Public internet (requires typed confirmation)"},
+}
+
+var navivoxAuthSetupChoices = []setupOptionChoice{
+	{ID: config.NavivoxAuthPairingToken, Label: "Pairing token"},
+	{ID: config.NavivoxAuthStaticToken, Label: "Static token"},
+	{ID: config.NavivoxAuthTailscaleIdentity, Label: "Tailscale identity"},
+	{ID: config.NavivoxAuthTokenAndTailscaleIdentity, Label: "Token and Tailscale identity"},
+}
+
+const navivoxAppSourceURL = "https://github.com/TrebuchetDynamics/navivox-app"
 
 func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 	out := cmd.OutOrStdout()
@@ -28,11 +40,10 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 	fmt.Fprintln(out, "Navivox Gateway Channel")
 	fmt.Fprintln(out, "Native HTTP/WebSocket channel owned by `gormes gateway`; SSH remains break-glass only.")
 
-	enabledInput, err := promptString(cmd, "Enable Navivox Gateway Channel? [Y/n]: ", "yes")
+	enabled, ok, err := promptSetupYesNoOption(cmd, "Enable Navivox Gateway Channel?", "Enable Navivox Gateway Channel? [Y/n]: ", true)
 	if err != nil {
 		return err
 	}
-	enabled, ok := parseSetupYesNo(enabledInput, true)
 	if !ok {
 		return fmt.Errorf("setup navivox: answer yes or no")
 	}
@@ -46,7 +57,7 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 	}
 
 	exposureDefault := firstNonEmptySetup(cfg.Navivox.ExposureMode, config.NavivoxExposureLocal)
-	exposureInput, err := promptString(cmd, "Exposure mode (local/tailscale/wireguard/vpn/public) [local]: ", exposureDefault)
+	exposureInput, err := promptSetupOptionChoice(cmd, "Exposure mode", "Exposure mode (local/tailscale/wireguard/vpn/public) [local]: ", exposureDefault, navivoxExposureSetupChoices)
 	if err != nil {
 		return err
 	}
@@ -80,7 +91,11 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 	if cfg.Navivox.Enabled {
 		currentBind = cfg.Navivox.BindHost
 	}
-	bindDefault := navivoxSetupBindDefault(cmd.Context(), currentBind, exposureMode)
+	ctx := cmd.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	bindDefault := navivoxSetupBindDefault(ctx, currentBind, exposureMode)
 	bindHost, err := promptString(cmd, fmt.Sprintf("Bind host [%s]: ", bindDefault), bindDefault)
 	if err != nil {
 		return err
@@ -101,7 +116,7 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 	}
 
 	authDefault := firstNonEmptySetup(cfg.Navivox.AuthMode, config.NavivoxAuthPairingToken)
-	authInput, err := promptString(cmd, "Auth mode (pairing_token/static_token/tailscale_identity/token_and_tailscale_identity) [pairing_token]: ", authDefault)
+	authInput, err := promptSetupOptionChoice(cmd, "Auth mode", "Auth mode (pairing_token/static_token/tailscale_identity/token_and_tailscale_identity) [pairing_token]: ", authDefault, navivoxAuthSetupChoices)
 	if err != nil {
 		return err
 	}
@@ -119,12 +134,25 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 	if authMode == config.NavivoxAuthPairingToken || authMode == config.NavivoxAuthStaticToken || authMode == config.NavivoxAuthTokenAndTailscaleIdentity {
 		token = strings.TrimSpace(cfg.Navivox.Token)
 		if token == "" {
-			generated, err := generateNavivoxSetupToken()
+			generated, err := navivox.GenerateSetupToken()
 			if err != nil {
 				return err
 			}
 			token = generated
 		}
+	}
+
+	gatewayID := strings.TrimSpace(cfg.Navivox.GatewayID)
+	if gatewayID == "" {
+		generated, err := config.NewNavivoxGatewayID()
+		if err != nil {
+			return err
+		}
+		gatewayID = generated
+	}
+	gatewayLabel := strings.TrimSpace(cfg.Navivox.GatewayLabel)
+	if gatewayLabel == "" {
+		gatewayLabel = config.NavivoxDefaultGatewayLabel
 	}
 
 	var allowedIdentities string
@@ -136,17 +164,18 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 		allowedIdentities = allowedInput
 	}
 
-	firewallInput, err := promptString(cmd, "Open firewall rule for this port now? [n]: ", "no")
+	firewallRequested, ok, err := promptSetupYesNoOption(cmd, "Record manual firewall-open intent?", "Record manual firewall-open intent? [n]: ", false)
 	if err != nil {
 		return err
 	}
-	firewallRequested, ok := parseSetupYesNo(firewallInput, false)
 	if !ok {
 		return fmt.Errorf("setup navivox: answer yes or no for firewall")
 	}
 
 	runtimeCfg := config.NavivoxCfg{
 		Enabled:                  true,
+		GatewayID:                gatewayID,
+		GatewayLabel:             gatewayLabel,
 		BindHost:                 bindHost,
 		Port:                     port,
 		ExposureMode:             exposureMode,
@@ -164,6 +193,8 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 		value string
 	}{
 		{"navivox.enabled", "true"},
+		{"navivox.gateway_id", runtimeCfg.GatewayID},
+		{"navivox.gateway_label", runtimeCfg.GatewayLabel},
 		{"navivox.bind_host", runtimeCfg.BindHost},
 		{"navivox.port", strconv.Itoa(runtimeCfg.Port)},
 		{"navivox.exposure_mode", runtimeCfg.ExposureMode},
@@ -178,13 +209,17 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 	if err := config.WriteTOMLValue(config.ConfigPath(), "navivox.allowed_tailnet_identities", allowedIdentities); err != nil {
 		return err
 	}
+	profileBinding, err := writeSetupGatewayProfileChannelBinding(setupGatewayProfileChannelOptions{ChannelID: "navivox"})
+	if err != nil {
+		return fmt.Errorf("setup navivox: write profile channel binding: %w", err)
+	}
 	if token != "" {
-		if err := config.WriteEnvValue(config.EnvPath(), "GORMES_NAVIVOX_TOKEN", token); err != nil {
+		if err := writeSetupGatewayTokenEnv(profileBinding, "GORMES_NAVIVOX_TOKEN", token); err != nil {
 			return err
 		}
 	}
 
-	baseURL, wsURL := navivoxConnectInfoURLs(runtimeCfg.BindHost, runtimeCfg.Port)
+	baseURL, wsURL := navivox.NavivoxConnectInfoURLs(runtimeCfg.BindHost, runtimeCfg.Port)
 	pairingURI, err := navivoxSetupPairingURI(runtimeCfg)
 	if err != nil {
 		return err
@@ -195,142 +230,98 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 	}
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "Navivox gateway channel configured.")
-	fmt.Fprintf(out, "HTTP base URL: %s\n", baseURL)
-	fmt.Fprintf(out, "WebSocket URL: %s\n", wsURL)
-	fmt.Fprintf(out, "Config: %s\n", config.ConfigPath())
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Connection")
+	fmt.Fprintf(out, "  HTTP: %s\n", baseURL)
+	fmt.Fprintf(out, "  WebSocket: %s\n", wsURL)
+	fmt.Fprintln(out, "  Config:")
+	fmt.Fprintf(out, "  %s\n", config.ConfigPath())
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Pairing")
 	if token != "" {
-		fmt.Fprintf(out, "Pairing token: generated and stored in %s as GORMES_NAVIVOX_TOKEN.\n", config.EnvPath())
+		fmt.Fprintln(out, "  Token: generated and stored as GORMES_NAVIVOX_TOKEN in:")
+		fmt.Fprintf(out, "  %s\n", config.EnvPath())
+		fmt.Fprintf(out, "  Profile token: %s\n", profileBinding.SecretEnvName)
 	}
-	fmt.Fprintf(out, "Pairing QR image: %s\n", qrPath)
-	fmt.Fprintln(out, "REST/WebSocket auth rules:")
+	fmt.Fprintf(out, "  Profile channel: profiles.%s.channels.navivox\n", profileBinding.ProfileID)
+	fmt.Fprintln(out, "  Pairing QR image:")
+	fmt.Fprintf(out, "  %s\n", qrPath)
+	fmt.Fprintln(out, "  Scan this QR from Navivox:")
+	terminalQR, err := navivoxSetupTerminalQR(pairingURI)
+	if err != nil {
+		return err
+	}
+	for _, line := range strings.Split(strings.TrimRight(terminalQR, "\n"), "\n") {
+		fmt.Fprintf(out, "  %s\n", line)
+	}
+	fmt.Fprintln(out, "  QR payload includes the token when required; the raw token is not printed.")
 	if token != "" {
-		fmt.Fprintln(out, "  - REST: send Authorization: Bearer <Navivox token> on /v1/navivox/* requests.")
-		fmt.Fprintln(out, "  - WebSocket: use the Navivox token subprotocol, or an Authorization header when the client supports headers.")
-		fmt.Fprintln(out, "  - Treat the QR image as secret; it embeds the base URL and Navivox token.")
+		fmt.Fprintln(out, "  Secret: the QR image embeds the base URL and Navivox token.")
+	}
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Auth rules")
+	if token != "" {
+		fmt.Fprintln(out, "  REST: Authorization: Bearer <Navivox token>")
+		fmt.Fprintln(out, "  WebSocket: Navivox token subprotocol, or Authorization header if supported.")
 	} else {
-		fmt.Fprintln(out, "  - Token auth is disabled for this mode; Tailscale identity headers authorize requests.")
+		fmt.Fprintln(out, "  Token auth is disabled for this mode; Tailscale identity headers authorize requests.")
 	}
-	fmt.Fprintln(out, "Firewall: no rules were changed.")
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Firewall")
+	fmt.Fprintln(out, "  Status: no rules were changed by Gormes.")
 	if firewallRequested {
-		fmt.Fprintf(out, "Firewall request recorded as operator intent only; open %s:%d manually and keep rollback documented.\n", runtimeCfg.BindHost, runtimeCfg.Port)
+		fmt.Fprintf(out, "  Operator request: recorded only; open %s:%d manually if needed.\n", runtimeCfg.BindHost, runtimeCfg.Port)
+		fmt.Fprintln(out, "  Rollback: close that manual rule after testing.")
+	} else {
+		fmt.Fprintln(out, "  Operator request: none.")
 	}
-	fmt.Fprintln(out, "Start gateway: gormes gateway")
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Get Navivox")
+	fmt.Fprintf(out, "  Android app source: %s\n", navivoxAppSourceURL)
+	fmt.Fprintf(out, "  Build/run from source: git clone %s && cd navivox-app && flutter run\n", navivoxAppSourceURL)
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Next steps")
+	fmt.Fprintln(out, "  1. Install or open Navivox on Android.")
+	fmt.Fprintln(out, "  2. Scan the QR above, or open the QR image from:")
+	fmt.Fprintf(out, "  %s\n", qrPath)
+	if command := navivoxProviderSetupCommand(cfg); command != "" {
+		fmt.Fprintf(out, "  3. Configure provider before starting gateway: %s\n", command)
+		fmt.Fprintln(out, "  4. Then start gateway: gormes gateway")
+	} else {
+		fmt.Fprintln(out, "  3. Start gateway: gormes gateway")
+	}
 	return nil
 }
 
 func navivoxSetupPairingQRPath() string {
-	return filepath.Join(config.GormesHome(), "navivox", "pairing.png")
+	return gormescli.SetupNavivoxPairingQRPath(config.GormesHome())
 }
 
 func writeNavivoxSetupPairingQR(path, descriptor string) error {
-	if strings.TrimSpace(descriptor) == "" {
-		return fmt.Errorf("setup navivox: pairing descriptor is empty")
-	}
-	pngBytes, err := qrcode.Encode(descriptor, qrcode.Medium, 512)
-	if err != nil {
-		return fmt.Errorf("setup navivox: encode pairing QR: %w", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("setup navivox: create QR directory: %w", err)
-	}
-	if err := os.WriteFile(path, pngBytes, 0o600); err != nil {
-		return fmt.Errorf("setup navivox: write pairing QR: %w", err)
-	}
-	if err := os.Chmod(path, 0o600); err != nil {
-		return fmt.Errorf("setup navivox: secure pairing QR: %w", err)
-	}
-	return nil
+	return gormescli.WriteSetupNavivoxPairingQR(path, descriptor)
+}
+
+func navivoxSetupTerminalQR(descriptor string) (string, error) {
+	return gormescli.SetupNavivoxTerminalQR(descriptor)
+}
+
+func navivoxProviderSetupCommand(cfg config.Config) string {
+	return gormescli.SetupNavivoxProviderSetupCommand(cfg, gormescli.ConfiguredProviderAuthPresent(cfg))
 }
 
 func navivoxSetupPairingURI(cfg config.NavivoxCfg) (string, error) {
-	baseURL, webSocketURL := navivoxConnectInfoURLs(cfg.BindHost, cfg.Port)
-	values := url.Values{}
-	values.Set("base_url", baseURL)
-	values.Set("websocket_url", webSocketURL)
-	values.Set("auth_mode", strings.TrimSpace(cfg.AuthMode))
-	values.Set("exposure_mode", strings.TrimSpace(cfg.ExposureMode))
-	tokenRequired := cfg.AuthMode == config.NavivoxAuthPairingToken ||
-		cfg.AuthMode == config.NavivoxAuthStaticToken ||
-		cfg.AuthMode == config.NavivoxAuthTokenAndTailscaleIdentity
-	values.Set("token_required", strconv.FormatBool(tokenRequired))
-	if tokenRequired {
-		if strings.TrimSpace(cfg.Token) == "" {
-			return "", fmt.Errorf("setup navivox: token auth selected but token is empty")
-		}
-		values.Set("rest_token", cfg.Token)
-	}
-	return (&url.URL{Scheme: "navivox", Host: "connect", RawQuery: values.Encode()}).String(), nil
+	return gormescli.SetupNavivoxPairingURI(cfg)
 }
 
 func navivoxSetupBindDefault(ctx context.Context, current, exposureMode string) string {
-	current = strings.TrimSpace(current)
-	if current != "" {
-		return current
-	}
-	switch exposureMode {
-	case config.NavivoxExposureLocal:
-		return config.NavivoxDefaultBindHost
-	case config.NavivoxExposurePublic:
-		return "0.0.0.0"
-	case config.NavivoxExposureTailscale:
-		return navivoxSetupVPNBindDefault(ctx, func(h vpnhost.Host) bool {
-			return h.Kind == vpnhost.KindTailscale
-		})
-	case config.NavivoxExposureWireGuard:
-		return navivoxSetupVPNBindDefault(ctx, func(h vpnhost.Host) bool {
-			return h.Kind == vpnhost.KindWireGuard
-		})
-	case config.NavivoxExposureVPN:
-		return navivoxSetupVPNBindDefault(ctx, func(vpnhost.Host) bool { return true })
-	default:
-		return config.NavivoxDefaultBindHost
-	}
-}
-
-func navivoxSetupVPNBindDefault(ctx context.Context, match func(vpnhost.Host) bool) string {
 	hosts, _ := vpnhostList(ctx)
-	for _, h := range hosts {
-		if !match(h) {
-			continue
-		}
-		if h.IPv4 != "" {
-			return h.IPv4
-		}
-	}
-	return config.NavivoxDefaultBindHost
-}
-
-func generateNavivoxSetupToken() (string, error) {
-	var raw [32]byte
-	if _, err := rand.Read(raw[:]); err != nil {
-		return "", fmt.Errorf("setup navivox: generate token: %w", err)
-	}
-	return base64.RawURLEncoding.EncodeToString(raw[:]), nil
+	return gormescli.SetupNavivoxBindDefault(current, exposureMode, hosts)
 }
 
 func parseSetupYesNo(value string, defaultValue bool) (bool, bool) {
-	value = normalizeSetupChoice(value)
-	if value == "" {
-		return defaultValue, true
-	}
-	switch value {
-	case "y", "yes", "true", "1", "on":
-		return true, true
-	case "n", "no", "false", "0", "off":
-		return false, true
-	default:
-		return false, false
-	}
+	return gormescli.ParseSetupYesNo(value, defaultValue)
 }
 
 func parseSetupCSV(value string) []string {
-	parts := strings.Split(value, ",")
-	out := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part != "" {
-			out = append(out, part)
-		}
-	}
-	return out
+	return gormescli.ParseSetupCSV(value)
 }

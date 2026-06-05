@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -101,6 +101,10 @@ type ManagerConfig struct {
 	// SkillRuntime is the full process skills runtime. Agent-routed turns
 	// receive an allowlist wrapper when agents.list[].skills is set.
 	SkillRuntime *skills.Runtime
+	// SkillsCommandOptions carries local /skills command dependencies such as
+	// configured roots and direct-URL install seams. Nil/zero dependencies keep
+	// unavailable evidence instead of submitting /skills text to the model.
+	SkillsCommandOptions SkillsCommandOptions
 	// AgentRuntimeFactory optionally returns an independent kernel/runtime for
 	// the routed agent session. When nil, Manager falls back to the legacy
 	// singleton kernel with per-turn policy overrides.
@@ -156,16 +160,16 @@ type ManagerConfig struct {
 	LiveTurnActiveProvider func() string
 	// ImageInputMode honors agent.image_input_mode for channel-attached images.
 	// Empty is Hermes auto mode.
-	ImageInputMode hermes.ImageInputMode
+	ImageInputMode llm.ImageInputMode
 	// AuxiliaryVision mirrors auxiliary.vision. Any explicit provider/model/base
 	// URL routes auto image input mode through text fallback instead of native
 	// image content parts.
-	AuxiliaryVision hermes.AuxiliaryVisionConfig
+	AuxiliaryVision llm.AuxiliaryVisionConfig
 	// TitleModel is the provider boundary for auto-title generation. It is
 	// called at most once per PhaseIdle frame for sessions without an existing
 	// title. Nil disables the LLM call; PerformAutoTitle surfaces
 	// AutoTitleCodeProviderFailed evidence through AuxiliaryFailureSink.
-	TitleModel hermes.TitleModelFunc
+	TitleModel llm.TitleModelFunc
 	// TitleStore is the persistence boundary for auto-title generation. When
 	// non-nil it is used directly; when nil and SessionMap is non-nil the
 	// production wiring constructs a MetadataTitleStore at startup and injects
@@ -272,16 +276,12 @@ type Manager struct {
 	followUps          []InboundEvent
 	lastUsageFrame     kernel.RenderFrame
 
-	reasoningMu    sync.Mutex
-	reasoningState map[string]SessionReasoningState
-	ttsConfigs     map[string]TTSConfig
+	reasoningDispatcher *ReasoningDispatcher
+	ttsConfigStore      *TTSConfigStore
 
 	inboundDedup *MessageDeduplicator
 
 	renderChan <-chan kernel.RenderFrame
-
-	typingStop func()
-	typingKey  string
 
 	liveTurnPromptSeams liveTurnPromptSeams
 	agentRouter         AgentRouter
@@ -302,6 +302,9 @@ type Manager struct {
 
 	verboseHintMu   sync.Mutex
 	verboseHintSent map[string]bool
+
+	personalityPrompts    map[string]string
+	activePersonalityName string
 
 	kanbanDispatcherMu      sync.Mutex
 	kanbanDispatcherRunning bool
@@ -572,7 +575,8 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 		kernel:                      k,
 		log:                         log,
 		channels:                    map[string]Channel{},
-		reasoningState:              map[string]SessionReasoningState{},
+		reasoningDispatcher:         NewReasoningDispatcher(cfg.PersistReasoningGlobal),
+		ttsConfigStore:              NewTTSConfigStore(),
 		inboundDedup:                NewMessageDeduplicator(defaultInboundDedupMaxSize),
 		liveTurnPromptSeams:         seams,
 		agentRouter:                 NewAgentRouter(cfg.AgentRouting.Agents, cfg.AgentRouting.Bindings),
@@ -595,26 +599,10 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 // and the resulting reply.PersistFailed surfaces global-save errors without
 // changing other sessions' state.
 func (m *Manager) DispatchReasoning(sessionKey string, args []string) (ReasoningReply, error) {
-	cmd, err := ParseReasoningCommand(args)
-	if err != nil {
-		return ReasoningReply{}, err
+	if m.reasoningDispatcher == nil {
+		m.reasoningDispatcher = NewReasoningDispatcher(m.cfg.PersistReasoningGlobal)
 	}
-	persist := m.cfg.PersistReasoningGlobal
-	if persist == nil {
-		persist = func(ReasoningEffort) error {
-			return errors.New("gateway: PersistReasoningGlobal not configured")
-		}
-	}
-
-	m.reasoningMu.Lock()
-	defer m.reasoningMu.Unlock()
-	state, ok := m.reasoningState[sessionKey]
-	if !ok {
-		state = SessionReasoningState{Source: ReasoningSourceUnset}
-	}
-	newState, reply := ApplyReasoningCommand(state, cmd, persist)
-	m.reasoningState[sessionKey] = newState
-	return reply, nil
+	return m.reasoningDispatcher.Dispatch(sessionKey, args)
 }
 
 func (m *Manager) clearSessionBoundaryControlState(sessionKey string) {
@@ -950,269 +938,36 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 		return nil
 	}
 
+	if handled, err := m.dispatchGatewayCommandEvent(ctx, ch, ev); handled {
+		return err
+	}
+
 	switch ev.Kind {
-	case EventStart:
-		if _, err := m.sendWithHooks(ctx, ch, ev.ChatID, startGreeting); err != nil {
-			m.log.Warn("send greeting", "platform", ev.Platform, "chat_id", ev.ChatID, "err", err)
-		}
-		return nil
-	case EventCancel:
-		m.markTurnCancelled()
-		if k := m.activeTurnKernel(); k != nil {
-			_ = k.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventCancel})
-		}
-		return nil
-	case EventReset:
-		if m.kernel == nil {
-			return nil
-		}
-		if err := m.kernel.ResetSession(); err != nil {
-			if errors.Is(err, kernel.ErrResetDuringTurn) {
-				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Cannot reset during active turn — send /stop first.")
-			} else {
-				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Session reset failed: "+err.Error())
-			}
-			return nil
-		}
-		key := m.sessionKeyForInbound(ev)
-		m.clearSessionBoundaryControlState(key)
-		if m.cfg.SessionMap != nil {
-			if err := m.cfg.SessionMap.Put(ctx, key, ""); err != nil {
-				m.log.Warn("clear session mapping", "key", key, "err", err)
-			}
-		}
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Session reset. Next message starts fresh.")
-		return nil
-	case EventRestart:
-		return m.handleRestartCommand(ctx, ch, ev)
-	case EventSteer:
-		m.handleSteerCommand(ctx, ch, ev)
-		return nil
-	case EventUsage:
-		m.handleUsageCommand(ctx, ch, ev)
-		return nil
-	case EventStatus:
-		m.handleStatusCommand(ctx, ch, ev)
-		return nil
-	case EventTitle:
-		m.handleTitleCommand(ctx, ch, ev)
-		return nil
-	case EventSkills:
-		m.handleSkillsCommand(ctx, ch, ev)
-		return nil
-	case EventVerbose:
-		m.handleVerboseCommand(ctx, ch, ev)
-		return nil
-	case EventModel:
-		m.handleModelCommand(ctx, ch, ev)
-		return nil
-	case EventSessions:
-		m.handleSessionsCommand(ctx, ch, ev)
-		return nil
-	case EventProfile:
-		m.handleProfileCommand(ctx, ch, ev)
-		return nil
-	case EventGateway:
-		m.handlePlatformsCommand(ctx, ch, ev)
-		return nil
-	case EventPlatformControl:
-		m.handlePlatformControlCommand(ctx, ch, ev)
-		return nil
-	case EventReasoning:
-		m.handleReasoningCommand(ctx, ch, ev)
-		return nil
-	case EventBusy:
-		m.handleBusyCommand(ctx, ch, ev)
-		return nil
-	case EventTTS:
-		m.handleTTSCommand(ctx, ch, ev)
-		return nil
-	case EventGoal:
-		m.handleGoalCommand(ctx, ch, ev)
-		return nil
-	case EventTopic:
-		m.handleTelegramTopicCommand(ctx, ch, ev)
-		return nil
-	case EventKanban:
-		m.handleKanbanCommand(ctx, ch, ev)
-		return nil
-	case EventSpawn:
-		m.handleSpawnCommand(ctx, ch, ev)
-		return nil
-	case EventReload:
-		m.handleReloadCommand(ctx, ch, ev)
-		return nil
-	case EventRetry:
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/retry is coming soon — session retry is not yet implemented in the gateway")
-		return nil
-	case EventUndo:
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/undo is coming soon — message undo is not yet implemented in the gateway")
-		return nil
 	case EventSubmit:
-		if m.handleSlashSubmitCommand(ctx, ch, ev) {
-			return nil
-		}
-		if m.kernel == nil && m.cfg.AgentRuntimeFactory == nil {
-			return nil
-		}
-		if m.dropDuplicateInboundSubmit(ev) {
-			return nil
-		}
-		queued, full := m.queueFollowUpIfActive(ev)
-		if queued {
-			return nil
-		}
-		if full {
-			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, followUpQueueFullNotice)
-			return nil
-		}
-		m.pinTurn(ev.Platform, ev.ChatID, ev.MsgID)
-		m.submitPinned(ctx, ch, ev)
+		m.handleSubmitEvent(ctx, ch, ev)
 		return nil
 	case EventUnknown:
+		if strings.HasPrefix(strings.TrimSpace(ev.Text), "/") {
+			ev.Kind = EventSubmit
+			m.handleSubmitEvent(ctx, ch, ev)
+			return nil
+		}
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "unknown command")
 		return nil
 	}
 	return nil
 }
 
-func (m *Manager) handleSlashSubmitCommand(ctx context.Context, ch Channel, ev InboundEvent) bool {
-	body := strings.TrimSpace(ev.Text)
-	if !strings.HasPrefix(body, "/") {
-		return false
-	}
-
-	cmd, ok := ResolveCommand(body)
-	if !ok {
-		name := slashCommandName(body)
-		if isRecognizedUnavailableSlashCommand(name) {
-			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/"+name+" is recognized but unavailable in this build")
-		} else {
-			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, UnknownSlashCommandGuidance(name))
-		}
-		return true
-	}
-	if m.hasActiveTurn() && cmd.ActiveTurnPolicy == CommandActiveTurnPolicyReject {
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Gormes is busy — finish the current turn or send /stop before /"+cmd.Name)
-		return true
-	}
-	if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/"+cmd.Name+" is recognized but unavailable in this build")
-		return true
-	}
-	commandEvent := ev
-	commandEvent.Kind = cmd.Kind
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventReasoning || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic || cmd.Kind == EventKanban || cmd.Kind == EventSpawn {
-		commandEvent.Text = body
-	} else {
-		commandEvent.Text = ""
-	}
-	return m.dispatchCommandEvent(ctx, ch, commandEvent)
-}
-
 func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev InboundEvent) bool {
-	switch ev.Kind {
-	case EventStart:
-		if _, err := m.sendWithHooks(ctx, ch, ev.ChatID, startGreeting); err != nil {
-			m.log.Warn("send greeting", "platform", ev.Platform, "chat_id", ev.ChatID, "err", err)
-		}
+	handled, _ := m.dispatchGatewayCommandEvent(ctx, ch, ev)
+	if handled {
 		return true
-	case EventCancel:
-		m.markTurnCancelled()
-		if k := m.activeTurnKernel(); k != nil {
-			_ = k.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventCancel})
-		}
-		return true
-	case EventReset:
-		if m.kernel == nil {
-			return true
-		}
-		if err := m.kernel.ResetSession(); err != nil {
-			if errors.Is(err, kernel.ErrResetDuringTurn) {
-				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Cannot reset during active turn — send /stop first.")
-			} else {
-				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Session reset failed: "+err.Error())
-			}
-			return true
-		}
-		key := m.sessionKeyForInbound(ev)
-		m.clearSessionBoundaryControlState(key)
-		if m.cfg.SessionMap != nil {
-			if err := m.cfg.SessionMap.Put(ctx, key, ""); err != nil {
-				m.log.Warn("clear session mapping", "key", key, "err", err)
-			}
-		}
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Session reset. Next message starts fresh.")
-		return true
-	case EventRestart:
-		_ = m.handleRestartCommand(ctx, ch, ev)
-		return true
-	case EventSteer:
-		m.handleSteerCommand(ctx, ch, ev)
-		return true
-	case EventUsage:
-		m.handleUsageCommand(ctx, ch, ev)
-		return true
-	case EventStatus:
-		m.handleStatusCommand(ctx, ch, ev)
-		return true
-	case EventTitle:
-		m.handleTitleCommand(ctx, ch, ev)
-		return true
-	case EventSkills:
-		m.handleSkillsCommand(ctx, ch, ev)
-		return true
-	case EventVerbose:
-		m.handleVerboseCommand(ctx, ch, ev)
-		return true
-	case EventModel:
-		m.handleModelCommand(ctx, ch, ev)
-		return true
-	case EventSessions:
-		m.handleSessionsCommand(ctx, ch, ev)
-		return true
-	case EventProfile:
-		m.handleProfileCommand(ctx, ch, ev)
-		return true
-	case EventGateway:
-		m.handlePlatformsCommand(ctx, ch, ev)
-		return true
-	case EventPlatformControl:
-		m.handlePlatformControlCommand(ctx, ch, ev)
-		return true
-	case EventReasoning:
-		m.handleReasoningCommand(ctx, ch, ev)
-		return true
-	case EventUnknown:
+	}
+	if ev.Kind == EventUnknown {
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "unknown command")
 		return true
-	case EventTTS:
-		m.handleTTSCommand(ctx, ch, ev)
-		return true
-	case EventGoal:
-		m.handleGoalCommand(ctx, ch, ev)
-		return true
-	case EventTopic:
-		m.handleTelegramTopicCommand(ctx, ch, ev)
-		return true
-	case EventKanban:
-		m.handleKanbanCommand(ctx, ch, ev)
-		return true
-	case EventSpawn:
-		m.handleSpawnCommand(ctx, ch, ev)
-		return true
-	case EventReload:
-		m.handleReloadCommand(ctx, ch, ev)
-		return true
-	case EventRetry:
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/retry is coming soon — session retry is not yet implemented in the gateway")
-		return true
-	case EventUndo:
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/undo is coming soon — message undo is not yet implemented in the gateway")
-		return true
-	default:
-		return false
 	}
+	return false
 }
 
 func (m *Manager) handleReasoningCommand(ctx context.Context, ch Channel, ev InboundEvent) {
@@ -1453,6 +1208,33 @@ func (m *Manager) handleSteerCommand(ctx context.Context, ch Channel, ev Inbound
 		return
 	}
 	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, string(SteerEvidenceUnavailable)+": no active turn; "+string(SteerEvidencePreview)+": "+parsed.Preview)
+}
+
+func (m *Manager) handleQueueCommand(ctx context.Context, ch Channel, ev InboundEvent) {
+	text := strings.TrimSpace(strings.Join(commandArgs(ev.Text), " "))
+	if text == "" {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Usage: /queue <prompt>")
+		return
+	}
+	followUp := ev
+	followUp.Kind = EventSubmit
+	followUp.Text = text
+	followUp.Attachments = nil
+	queued, full := m.queueFollowUpIfActive(followUp)
+	if full {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, followUpQueueFullNotice)
+		return
+	}
+	if !queued {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "queue_unavailable: no active turn; send the prompt without /queue to run it now")
+		return
+	}
+	depth := m.followUpQueueDepth()
+	if depth <= 1 {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Queued for the next turn.")
+		return
+	}
+	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("Queued for the next turn. (%d queued)", depth))
 }
 
 func steerPayloadMetadataFromInbound(ev InboundEvent) SteerPayloadMetadata {
@@ -1842,20 +1624,6 @@ func (m *Manager) sendWithHooksReplyThread(ctx context.Context, ch Channel, chat
 	return msgID, nil
 }
 
-func telegramDMTopicReplyFallbackLane(platform, chatID, threadID string) bool {
-	if !strings.EqualFold(strings.TrimSpace(platform), "telegram") {
-		return false
-	}
-	if strings.TrimSpace(threadID) == "" {
-		return false
-	}
-	chatID = strings.TrimSpace(chatID)
-	if chatID == "" {
-		return false
-	}
-	return !strings.HasPrefix(chatID, "-")
-}
-
 func (m *Manager) fireHook(ctx context.Context, ev HookEvent) {
 	if m.cfg.Hooks != nil {
 		m.cfg.Hooks.Fire(ctx, ev)
@@ -2123,21 +1891,26 @@ func (m *Manager) ConsumeRestartTakeoverMarker(ctx context.Context) error {
 }
 
 func (m *Manager) restartNotificationEnabled(platform string) bool {
-	key := strings.ToLower(strings.TrimSpace(platform))
+	key := normalizedPlatformName(platform)
 	if key == "" || len(m.cfg.RestartNotifications) == 0 {
 		return true
 	}
-	enabled, ok := m.cfg.RestartNotifications[key]
-	if !ok {
-		return true
+	if enabled, ok := m.cfg.RestartNotifications[key]; ok {
+		return enabled
 	}
-	return enabled
+	base := platformBaseName(key)
+	if base != key {
+		if enabled, ok := m.cfg.RestartNotifications[base]; ok {
+			return enabled
+		}
+	}
+	return true
 }
 
 func (m *Manager) allowed(ev InboundEvent) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if ev.Platform == "telegram" && ev.AllowlistBypassReason == AllowlistBypassTelegramGuestMention {
+	if isTelegramPlatform(ev.Platform) && ev.AllowlistBypassReason == AllowlistBypassTelegramGuestMention {
 		if _, ok := m.cfg.AllowedChatWhitelists[ev.Platform]; ok {
 			return true
 		}
@@ -2279,7 +2052,7 @@ func (m *Manager) activeTurnSnapshot() (activeTurnSnapshot, bool) {
 }
 
 func (m *Manager) formatStream(platform string, f kernel.RenderFrame) string {
-	if platform == "telegram" {
+	if isTelegramPlatform(platform) {
 		return FormatStreamTelegram(f)
 	}
 	return FormatStreamPlain(f)
@@ -2287,7 +2060,7 @@ func (m *Manager) formatStream(platform string, f kernel.RenderFrame) string {
 
 func (m *Manager) formatToolProgress(platform string, f kernel.RenderFrame) string {
 	mode := m.toolProgressMode(platform)
-	if platform == "telegram" {
+	if isTelegramPlatform(platform) {
 		return FormatToolProgressTelegramMode(f, mode)
 	}
 	return FormatToolProgressPlainMode(f, mode)
@@ -2357,57 +2130,22 @@ func toolMaxDuration(events []kernel.SoulEntry) time.Duration {
 }
 
 func (m *Manager) toolProgressMode(platform string) string {
-	key := strings.ToLower(strings.TrimSpace(platform))
+	key := normalizedPlatformName(platform)
 	if key != "" && len(m.cfg.ToolProgressModes) > 0 {
 		if mode := strings.TrimSpace(m.cfg.ToolProgressModes[key]); mode != "" {
 			return normalizeGatewayToolProgressMode(mode)
+		}
+		base := platformBaseName(key)
+		if base != key {
+			if mode := strings.TrimSpace(m.cfg.ToolProgressModes[base]); mode != "" {
+				return normalizeGatewayToolProgressMode(mode)
+			}
 		}
 	}
 	if mode := strings.TrimSpace(m.cfg.ToolProgressMode); mode != "" {
 		return normalizeGatewayToolProgressMode(mode)
 	}
 	return defaultToolProgressModeForPlatform(key)
-}
-
-func defaultToolProgressModeForPlatform(platform string) string {
-	switch strings.ToLower(strings.TrimSpace(platform)) {
-	case "telegram", "discord", "api_server":
-		return "all"
-	case "mattermost", "matrix", "feishu", "whatsapp":
-		return "new"
-	case "slack", "signal", "bluebubbles", "weixin", "wecom", "wecom_callback", "dingtalk",
-		"email", "sms", "webhook", "homeassistant":
-		return "off"
-	default:
-		return "all"
-	}
-}
-
-func (m *Manager) formatFinal(platform string, f kernel.RenderFrame) string {
-	if platform == "telegram" {
-		return FormatFinalTelegram(f)
-	}
-	return FormatFinalPlain(f)
-}
-
-func (m *Manager) formatFinalDelivery(platform string, f kernel.RenderFrame) (string, []OutboundMedia) {
-	content := PrepareMediaDeliveryContent(FinalAssistantText(f))
-	text := content.Text
-	if strings.TrimSpace(text) == "" && len(content.Media) > 0 {
-		text = "Media attached."
-	}
-	if platform == "telegram" {
-		return FormatFinalTelegramText(text), content.Media
-	}
-	return FormatFinalPlainText(text), content.Media
-}
-
-func (m *Manager) formatFinalDeliveryPages(platform string, f kernel.RenderFrame) ([]string, []OutboundMedia) {
-	text, media := m.formatFinalDelivery(platform, f)
-	if platform == "telegram" {
-		return paginateTelegramText(text), media
-	}
-	return paginatePlainText(text), media
 }
 
 func (m *Manager) deliverMedia(ctx context.Context, ch Channel, chatID, replyToMsgID, threadID string, media []OutboundMedia) {
@@ -2443,7 +2181,7 @@ func (m *Manager) deliverMedia(ctx context.Context, ch Channel, chatID, replyToM
 }
 
 func (m *Manager) formatError(platform string, f kernel.RenderFrame) string {
-	if platform == "telegram" {
+	if isTelegramPlatform(platform) {
 		return FormatErrorTelegram(f)
 	}
 	return FormatErrorPlain(f)
@@ -2489,6 +2227,12 @@ func (m *Manager) queueFollowUpIfActive(ev InboundEvent) (queued bool, full bool
 	}
 	m.followUps = append(m.followUps, ev)
 	return true, false
+}
+
+func (m *Manager) followUpQueueDepth() int {
+	m.turnMu.Lock()
+	defer m.turnMu.Unlock()
+	return len(m.followUps)
 }
 
 func (m *Manager) drainNextFollowUp(ctx context.Context) {
@@ -2877,12 +2621,15 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		NonResumableReason:    resolved.NonResumableReason,
 		ConnectedPlatforms:    m.connectedPlatforms(),
 	})
-	sessionBlock = appendAudioDeliveryGuidance(sessionBlock, audioRequested || m.getTTSConfig(sessionKey).Enabled)
+	sessionBlock = appendAudioDeliveryGuidance(sessionBlock, audioRequested)
 	sessionBlock = prependChannelPromptBlock(sessionBlock, ev.ChannelPrompt)
 	seams := m.liveTurnPromptSeamsForAgent(route)
 	sessionContext, _, _ := assembleLiveTurnPrompt(seams, submitText, resolved.SessionID, sessionBlock)
 	snapshot := m.agentRuntimeSnapshot(route)
 	snapshot = m.applyChannelAutoSkills(route, snapshot, ev.AutoSkills)
+	if ev.SkillSlashExpanded {
+		snapshot.Skills = noSkillProvider{}
+	}
 	submitter := KernelSubmitter(m.kernel)
 	if m.cfg.AgentRuntimeFactory != nil && route.Enabled {
 		runtime, err := m.agentRuntimeForRoute(ctx, route, snapshot)
@@ -2947,7 +2694,7 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 	return true
 }
 
-func (m *Manager) imageModeSubmitPayload(userText, submitText string, attachments []Attachment, route agentRuntimeRoute) (string, []hermes.MessageContentPart) {
+func (m *Manager) imageModeSubmitPayload(userText, submitText string, attachments []Attachment, route agentRuntimeRoute) (string, []llm.MessageContentPart) {
 	model := strings.TrimSpace(route.Decision.Model)
 	if model == "" && m.cfg.LiveTurnActiveModel != nil {
 		model = strings.TrimSpace(m.cfg.LiveTurnActiveModel())

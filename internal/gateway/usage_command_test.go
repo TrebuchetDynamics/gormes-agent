@@ -7,25 +7,25 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 func TestGatewayUsageCommand_RendersRunningFrameBeforeCachedFrameAndAccountLimits(t *testing.T) {
 	ch := newFakeChannel("telegram")
-	account := hermes.AccountUsageSnapshot{
+	account := llm.AccountUsageSnapshot{
 		Provider:  "openai-codex",
 		Plan:      "Pro",
 		FetchedAt: time.Date(2026, 4, 28, 18, 0, 0, 0, time.UTC),
-		Windows: []hermes.AccountUsageWindow{{
+		Windows: []llm.AccountUsageWindow{{
 			Label:       "Session",
 			UsedPercent: floatPtr(15),
 		}},
 	}
 	m := NewManagerWithSubmitter(ManagerConfig{
 		AllowedChats: map[string]string{"telegram": "42"},
-		AccountUsage: func(context.Context, InboundEvent) (hermes.AccountUsageSnapshot, error) {
+		AccountUsage: func(context.Context, InboundEvent) (llm.AccountUsageSnapshot, error) {
 			return account, nil
 		},
 	}, &fakeKernel{}, slog.Default())

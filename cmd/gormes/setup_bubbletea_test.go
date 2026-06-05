@@ -6,7 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	setupwizard "github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 )
 
 func TestSetupInteractiveMenusUseBubbleTeaPicker(t *testing.T) {
@@ -25,34 +26,42 @@ func TestSetupInteractiveMenusUseBubbleTeaPicker(t *testing.T) {
 	}
 }
 
-func TestSetupProviderChoiceUsesBubbleTeaPickerForTTY(t *testing.T) {
+func TestSetupProviderChoiceUsesSearchableBubbleTeaPickerForTTY(t *testing.T) {
 	raw, err := os.ReadFile("setup.go")
 	if err != nil {
 		t.Fatalf("read setup.go: %v", err)
 	}
 	text := string(raw)
+	start := strings.Index(text, "func promptSetupProviderChoice")
+	end := strings.Index(text, "func setupProviderPickerChoices")
+	if start < 0 || end <= start {
+		t.Fatalf("setup.go missing promptSetupProviderChoice function block")
+	}
+	providerChoice := text[start:end]
 	for _, want := range []string{
 		"setupProviderPickerChoices(entries)",
-		"runBubbleTeaPick(",
+		"runBubbleTeaPickWithOptions(",
+		"setupwizard.WithSearchChoices()",
 		"promptSetupProviderChoiceText(cmd, entries, defaultIndex)",
 	} {
-		if !strings.Contains(text, want) {
-			t.Fatalf("setup provider choice missing Bubble Tea routing marker %q", want)
+		if !strings.Contains(providerChoice, want) {
+			t.Fatalf("setup provider choice missing searchable Bubble Tea routing marker %q", want)
 		}
 	}
 }
 
 func TestModelChoiceUsesBubbleTeaPickerForTTY(t *testing.T) {
-	raw, err := os.ReadFile("model.go")
+	raw, err := os.ReadFile("../../internal/platform/cli/gormescli/model.go")
 	if err != nil {
-		t.Fatalf("read model.go: %v", err)
+		t.Fatalf("read internal model.go: %v", err)
 	}
 	text := string(raw)
 	for _, want := range []string{
-		"runBubbleTeaPick(ctx, stdin, out, \"Select model for \"+provider",
-		"modelPickerChoices(models)",
-		"defaultModelChoiceID(models, current)",
-		"promptModelChoiceText(in, out, provider, current, models)",
+		"RunTUIPickWithOptions(ctx, stdin, out, \"Select model for \"+provider",
+		"ModelPickerChoices(allModels)",
+		"DefaultModelChoiceID(allModels, current)",
+		"setupwizard.WithSearchChoices()",
+		"PromptModelChoiceText(in, out, provider, current, models)",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("model choice missing Bubble Tea routing marker %q", want)
@@ -73,6 +82,37 @@ func TestSetupProviderPickerChoicesUseStableIndices(t *testing.T) {
 	}
 	if choices[1] != (tuiPickChoice{ID: "1", Label: "OpenAI Codex"}) {
 		t.Fatalf("choice[1] = %#v", choices[1])
+	}
+}
+
+func TestSetupProviderPickerCodexFilterKeepsProviderLabelsSeparate(t *testing.T) {
+	entries, _ := cli.HermesProviderCatalogMenu("")
+	byID := make(map[string]string, len(entries))
+	choices := setupProviderPickerChoices(entries)
+	wizardChoices := make([]setupwizard.Choice, len(choices))
+	for i, entry := range entries {
+		byID[entry.ID] = entry.Label
+		wizardChoices[i] = setupwizard.Choice{ID: entry.ID, Label: choices[i].Label}
+		for _, forbidden := range []string{"Codex" + "laude", "OpenAI Codex" + "laude", "OpenAI Codex" + "100+"} {
+			if strings.Contains(entry.Label, forbidden) || strings.Contains(choices[i].Label, forbidden) {
+				t.Fatalf("provider label for %s contains concatenated stale text %q: entry=%q choice=%q", entry.ID, forbidden, entry.Label, choices[i].Label)
+			}
+		}
+	}
+
+	if got := byID["openai-codex"]; got != "OpenAI Codex" || strings.Contains(got, "Claude") || strings.Contains(got, "100+ models") {
+		t.Fatalf("openai-codex label = %q, want clean Codex-only label", got)
+	}
+	if got := byID["openrouter"]; !strings.HasPrefix(got, "OpenRouter (100+ models") {
+		t.Fatalf("openrouter label = %q, want separate OpenRouter row", got)
+	}
+	if got := byID["anthropic"]; !strings.Contains(got, "Claude Code") {
+		t.Fatalf("anthropic label = %q, want Claude Code mentioned only on Anthropic row", got)
+	}
+
+	filtered, _ := setupwizard.FilterChoices(wizardChoices, "codex")
+	if len(filtered) != 1 || filtered[0].ID != "openai-codex" || filtered[0].Label != "OpenAI Codex" {
+		t.Fatalf("codex filter = %#v, want only clean OpenAI Codex row", filtered)
 	}
 }
 

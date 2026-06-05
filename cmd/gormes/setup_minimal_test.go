@@ -9,8 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/spf13/cobra"
 )
 
@@ -35,6 +36,7 @@ type setupCommandFakeSeams struct {
 	runFullWizard                  func(*cobra.Command, bool) error
 	runSetupGateway                func(*cobra.Command, bool) error
 	runGatewaySetupWizard          func(*cobra.Command, config.Config) (setupGatewayWizardResult, error)
+	runTelegramGatewayWizard       func(*cobra.Command, config.TelegramCfg) (setupTelegramGatewayAnswers, error)
 	runGatewayPlatform             func(*cobra.Command, string) error
 	runWhatsAppSetup               func(*cobra.Command) error
 	providerAuthStatus             cli.ProviderAuthStatus
@@ -89,6 +91,7 @@ func (f *setupCommandFakeSeams) seams() setupCommandSeams {
 		RunFullWizard:                  f.runFullWizard,
 		RunSetupGateway:                f.runSetupGateway,
 		RunGatewaySetupWizard:          firstSetupGatewayWizardSeam(f.runGatewaySetupWizard),
+		RunTelegramGatewayWizard:       f.runTelegramGatewayWizard,
 		RunGatewayPlatform:             f.runGatewayPlatform,
 		RunWhatsAppSetup:               f.runWhatsAppSetup,
 		LoadProviderAuthStatus: func(_ string) (cli.ProviderAuthStatus, error) {
@@ -152,6 +155,22 @@ func firstSetupGatewayWizardSeam(fn func(*cobra.Command, config.Config) (setupGa
 	}
 }
 
+func TestDefaultSetupHasExistingInstallDetectsOpenRouterEnv(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_API_KEY", "")
+	t.Setenv("OPENROUTER_API_KEY", "sk-existing-openrouter-env")
+	t.Setenv("OPENAI_API_KEY", "")
+
+	got, err := defaultSetupHasExistingInstall()
+	if err != nil {
+		t.Fatalf("defaultSetupHasExistingInstall error = %v", err)
+	}
+	if !got {
+		t.Fatalf("defaultSetupHasExistingInstall = false, want true when OpenRouter env credentials are configured")
+	}
+}
+
 func TestSetupProviderChoiceTextIgnoresArrowEscapeNoise(t *testing.T) {
 	cmd := &cobra.Command{}
 	var stdout bytes.Buffer
@@ -176,7 +195,24 @@ func TestSetupNoSectionNonTTYPrintsSectionList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	for _, want := range []string{"Available setup sections:", "provider", "model", "agent", "workspace", "bindings", "tts", "terminal", "gateway", "tools", "gormes setup provider"} {
+	for _, want := range []string{
+		"Available setup sections:",
+		"provider", "Provider",
+		"model", "Model",
+		"workspace", "Workspace",
+		"profiles", "Profiles",
+		"bindings", "Channel Bindings",
+		"tts", "Text-to-Speech",
+		"terminal", "Terminal Backend",
+		"gateway", "Messaging Gateway",
+		"telegram", "Telegram",
+		"navivox", "Navivox",
+		"tools", "Tools",
+		"Interactive menu: gormes setup",
+		"Terminal/TUI quick setup: gormes setup --quick --target tui",
+		"Provider setup: gormes setup provider",
+		"Telegram setup: gormes setup telegram",
+	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
@@ -228,6 +264,19 @@ func TestSetupNoSectionFreshInstallShowsQuickFullChoice(t *testing.T) {
 	}
 	if fake.modelPickerCalls != 0 || fake.loadedCurrent != 0 {
 		t.Fatalf("exit-only setup invoked work: picker=%d loadCurrent=%d", fake.modelPickerCalls, fake.loadedCurrent)
+	}
+}
+
+func TestSetupReconfigureTipListsEverySection(t *testing.T) {
+	cmd := newSetupCommandWithSeams((&setupCommandFakeSeams{isTTY: true}).seams())
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+	printSetupReconfigureBlock(cmd)
+	out := stdout.String()
+	for _, want := range []string{"provider", "model", "fallback", "profiles", "agent", "workspace", "bindings", "tts", "terminal", "gateway", "telegram", "navivox", "tools"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("reconfigure tip missing setup section %q:\n%s", want, out)
+		}
 	}
 }
 
@@ -295,7 +344,7 @@ func TestSetupFullWizardOffersGormesLaunchPromptAfterSummary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	for _, want := range []string{"Setup Complete", "🚀 Ready to go!", "Launch gormes chat now? [Y/n]: "} {
+	for _, want := range []string{"Setup Complete", "🚀 Ready to go!", "gormes setup telegram Configure Telegram", "Launch gormes chat now? [Y/n]: "} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
@@ -325,7 +374,9 @@ func TestSetupFullWizardPrintsReconfigureAndProviderPrelude(t *testing.T) {
 		"◆ Reconfigure",
 		"✓ You already have Gormes configured.",
 		"Running the full wizard - each prompt shows your current value.",
-		"Tip: jump straight to a section with 'gormes setup model|fallback|",
+		"Tip: jump straight to any focused setup section:",
+		"gormes setup provider|model|fallback|agent|workspace|profiles",
+		"bindings|tts|terminal|gateway|telegram|navivox|tools",
 		"◆ Configuration Location",
 		"Config file:  " + config.ConfigPath(),
 		"Secrets file: " + config.EnvPath(),
@@ -576,14 +627,33 @@ func TestSetupProviderNonInteractiveWritesConfigAndDotenv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	for _, want := range []string{"Gormes Setup — Provider", "Provider configured.", config.ConfigPath(), config.EnvPath(), "provider-fixture-model", "API key:  stored (redacted)", "Test it:  gormes chat"} {
+	for _, want := range []string{
+		"Gormes Setup — Provider",
+		"Provider configured.",
+		"Connection",
+		"  Provider: custom endpoint",
+		"  Endpoint: https://provider.example/v1",
+		"  Model:    provider-fixture-model",
+		"  Config:",
+		"  " + config.ConfigPath(),
+		"  Secrets:",
+		"  " + config.EnvPath(),
+		"Authentication",
+		"  Method: API key",
+		"  API key:  stored (redacted)",
+		"Next steps",
+		"  1. Verify: gormes config check",
+		"  2. Check:  gormes doctor --offline",
+		"  3. Test it:  gormes chat",
+		"provider-fixture-model",
+	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
-	for _, leaked := range []string{secret, "sk-t***7890", "sk-t", "7890"} {
-		if strings.Contains(stdout+stderr, leaked) {
-			t.Fatalf("setup output leaked API key material %q:\nstdout=%s\nstderr=%s", leaked, stdout, stderr)
+	for _, forbidden := range []string{secret, "sk-t***7890", "sk-t", "7890", "Provider configuration complete!"} {
+		if strings.Contains(stdout+stderr, forbidden) {
+			t.Fatalf("setup output leaked or duplicated forbidden material %q:\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
 		}
 	}
 	configBody, err := os.ReadFile(config.ConfigPath())
@@ -607,6 +677,528 @@ func TestSetupProviderNonInteractiveWritesConfigAndDotenv(t *testing.T) {
 	}
 }
 
+func TestSetupProviderNonInteractiveOpenAICodexUsesOAuthDefaultsWithoutAPIKey(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_INFERENCE_PROVIDER", "openai-codex")
+	t.Setenv("GORMES_MODEL", "gpt-5.2-codex")
+
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "provider", "--non-interactive")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"Gormes Setup — Provider",
+		"OpenAI Codex configured.",
+		"Connection",
+		"  Provider: OpenAI Codex",
+		"  Endpoint: https://chatgpt.com/backend-api/codex",
+		"  Model:    gpt-5.2-codex",
+		"Authentication",
+		"  Method: OAuth credential pool",
+		"  API key: not required or stored",
+		"Next steps",
+		"  1. Sign in: gormes auth add openai-codex --type oauth",
+		"  2. Verify:  gormes auth status openai-codex",
+		"  3. Check:   gormes doctor --offline",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, forbidden := range []string{"GORMES_API_KEY", "API key:  stored", "sk-", "plain-codex", "Provider configuration complete!"} {
+		if strings.Contains(stdout+stderr, forbidden) {
+			t.Fatalf("OAuth setup output leaked/asked for/duplicated forbidden %q:\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
+		}
+	}
+
+	configBody, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	for _, want := range []string{`provider = 'openai-codex'`, `endpoint = 'https://chatgpt.com/backend-api/codex'`, `model = 'gpt-5.2-codex'`} {
+		if !strings.Contains(string(configBody), want) {
+			t.Fatalf("config missing %q:\n%s", want, string(configBody))
+		}
+	}
+	if strings.Contains(string(configBody), "api_key") {
+		t.Fatalf("OAuth setup wrote API-key config material:\n%s", string(configBody))
+	}
+	if _, err := os.Stat(config.EnvPath()); !os.IsNotExist(err) {
+		t.Fatalf("OAuth setup should not write GORMES_API_KEY env path %s: %v", config.EnvPath(), err)
+	}
+}
+
+func TestSetupProvidersNonInteractiveKnownAPIProviderUsesCatalogDefaults(t *testing.T) {
+	home := t.TempDir()
+	secret := "sk-openrouter-default-secret-12345"
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_INFERENCE_PROVIDER", "openrouter")
+	t.Setenv("GORMES_API_KEY", secret)
+	t.Setenv("GORMES_ENDPOINT", "")
+	t.Setenv("GORMES_MODEL", "")
+	t.Setenv("GORMES_INFERENCE_MODEL", "")
+
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "providers", "--non-interactive")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"Gormes Setup — Provider",
+		"Provider configured.",
+		"Connection",
+		"  Provider: OpenRouter",
+		"  Endpoint: https://openrouter.ai/api/v1",
+		"  Model:    deepseek/deepseek-chat-v3-0324:free",
+		"Authentication",
+		"  Method: API key",
+		"  API key:  stored (redacted)",
+		"Next steps",
+		"  1. Verify: gormes config check",
+		"  2. Check:  gormes doctor --offline",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, forbidden := range []string{secret, "sk-openrouter", "12345", "Provider configuration complete!"} {
+		if strings.Contains(stdout+stderr, forbidden) {
+			t.Fatalf("setup providers output leaked or duplicated forbidden material %q:\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
+		}
+	}
+
+	configBody, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	for _, want := range []string{`provider = 'openrouter'`, `endpoint = 'https://openrouter.ai/api/v1'`, `model = 'deepseek/deepseek-chat-v3-0324:free'`} {
+		if !strings.Contains(string(configBody), want) {
+			t.Fatalf("config missing %q:\n%s", want, string(configBody))
+		}
+	}
+	if strings.Contains(string(configBody), secret) || strings.Contains(string(configBody), "api_key") {
+		t.Fatalf("config.toml leaked secret material:\n%s", string(configBody))
+	}
+	envBody, err := os.ReadFile(config.EnvPath())
+	if err != nil {
+		t.Fatalf("read env: %v", err)
+	}
+	if !strings.Contains(string(envBody), "GORMES_API_KEY="+secret) {
+		t.Fatalf(".env missing API key entry:\n%s", string(envBody))
+	}
+
+	configStdout, configStderr, err := executeOneshotFlagCommand(newRootCommandWithRuntime(rootRuntime{}), "config", "check", "--json")
+	if err != nil {
+		t.Fatalf("config check --json: %v\nstdout=%s\nstderr=%s", err, configStdout, configStderr)
+	}
+	if !strings.Contains(configStdout, `"ok": true`) || strings.Contains(configStdout+configStderr, secret) {
+		t.Fatalf("config check must pass and redact setup secret:\nstdout=%s\nstderr=%s", configStdout, configStderr)
+	}
+	doctorStdout, doctorStderr, err := executeOneshotFlagCommand(newRootCommandWithRuntime(rootRuntime{}), "doctor", "--offline", "--json")
+	if err != nil {
+		t.Fatalf("doctor --offline --json: %v\nstdout=%s\nstderr=%s", err, doctorStdout, doctorStderr)
+	}
+	if !strings.Contains(doctorStdout, "openrouter") || strings.Contains(doctorStdout+doctorStderr, secret) {
+		t.Fatalf("doctor output must include OpenRouter readiness evidence and redact setup secret:\nstdout=%s\nstderr=%s", doctorStdout, doctorStderr)
+	}
+}
+
+func TestSetupProvidersNonInteractiveKnownAPIProviderAcceptsProviderKeyEnv(t *testing.T) {
+	home := t.TempDir()
+	secret := "sk-openrouter-env-secret-67890"
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_INFERENCE_PROVIDER", "openrouter")
+	t.Setenv("GORMES_API_KEY", "")
+	t.Setenv("OPENROUTER_API_KEY", secret)
+	t.Setenv("GORMES_ENDPOINT", "")
+	t.Setenv("GORMES_MODEL", "")
+	t.Setenv("GORMES_INFERENCE_MODEL", "")
+
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "providers", "--non-interactive")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"Gormes Setup — Provider",
+		"Provider configured.",
+		"  Provider: OpenRouter",
+		"  Endpoint: https://openrouter.ai/api/v1",
+		"  Model:    deepseek/deepseek-chat-v3-0324:free",
+		"Authentication",
+		"  Method: API key",
+		"  API key:  stored (redacted)",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, forbidden := range []string{secret, "sk-openrouter-env", "67890", "OPENROUTER_API_KEY=", "Provider configuration complete!"} {
+		if strings.Contains(stdout+stderr, forbidden) {
+			t.Fatalf("setup providers output leaked or duplicated forbidden material %q:\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
+		}
+	}
+	envBody, err := os.ReadFile(config.EnvPath())
+	if err != nil {
+		t.Fatalf("read env: %v", err)
+	}
+	if !strings.Contains(string(envBody), "GORMES_API_KEY="+secret) {
+		t.Fatalf("provider-specific API key should persist through the Gormes canonical secret path:\n%s", string(envBody))
+	}
+	if strings.Contains(string(envBody), "OPENROUTER_API_KEY=") {
+		t.Fatalf("setup should not duplicate provider-specific API key env names in .env:\n%s", string(envBody))
+	}
+
+	configStdout, configStderr, err := executeOneshotFlagCommand(newRootCommandWithRuntime(rootRuntime{}), "config", "check", "--json")
+	if err != nil {
+		t.Fatalf("config check --json: %v\nstdout=%s\nstderr=%s", err, configStdout, configStderr)
+	}
+	if !strings.Contains(configStdout, `"ok": true`) || strings.Contains(configStdout+configStderr, secret) {
+		t.Fatalf("config check must pass and redact provider-specific setup secret:\nstdout=%s\nstderr=%s", configStdout, configStderr)
+	}
+}
+
+func TestSetupProvidersNonInteractiveAutoDetectsOpenRouterFromProviderKeyEnv(t *testing.T) {
+	home := t.TempDir()
+	secret := "sk-openrouter-autodetect-secret-11223"
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_INFERENCE_PROVIDER", "")
+	t.Setenv("GORMES_API_KEY", "")
+	t.Setenv("OPENROUTER_API_KEY", secret)
+	t.Setenv("OPENAI_API_KEY", "")
+	t.Setenv("GORMES_ENDPOINT", "")
+	t.Setenv("GORMES_MODEL", "")
+	t.Setenv("GORMES_INFERENCE_MODEL", "")
+
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "providers", "--non-interactive")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"Gormes Setup — Provider",
+		"Provider configured.",
+		"  Provider: OpenRouter",
+		"  Endpoint: https://openrouter.ai/api/v1",
+		"  Model:    deepseek/deepseek-chat-v3-0324:free",
+		"Authentication",
+		"  Method: API key",
+		"  API key:  stored (redacted)",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, forbidden := range []string{secret, "sk-openrouter-autodetect", "11223", "OPENROUTER_API_KEY=", "Provider configuration complete!"} {
+		if strings.Contains(stdout+stderr, forbidden) {
+			t.Fatalf("auto-detected setup providers output leaked or duplicated forbidden material %q:\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
+		}
+	}
+
+	configBody, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	for _, want := range []string{`provider = 'openrouter'`, `endpoint = 'https://openrouter.ai/api/v1'`, `model = 'deepseek/deepseek-chat-v3-0324:free'`} {
+		if !strings.Contains(string(configBody), want) {
+			t.Fatalf("config missing %q:\n%s", want, string(configBody))
+		}
+	}
+	if strings.Contains(string(configBody), secret) || strings.Contains(string(configBody), "api_key") {
+		t.Fatalf("config.toml leaked secret material:\n%s", string(configBody))
+	}
+	envBody, err := os.ReadFile(config.EnvPath())
+	if err != nil {
+		t.Fatalf("read env: %v", err)
+	}
+	if !strings.Contains(string(envBody), "GORMES_API_KEY="+secret) {
+		t.Fatalf("auto-detected provider key should persist through the Gormes canonical secret path:\n%s", string(envBody))
+	}
+	if strings.Contains(string(envBody), "OPENROUTER_API_KEY=") {
+		t.Fatalf("setup should not duplicate provider-specific API key env names in .env:\n%s", string(envBody))
+	}
+}
+
+func TestSetupProvidersNonInteractiveAutoDetectsAnthropicAPIKeyEnv(t *testing.T) {
+	home := t.TempDir()
+	secret := "sk-ant-autodetect-secret-24680"
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_INFERENCE_PROVIDER", "")
+	t.Setenv("GORMES_API_KEY", "")
+	t.Setenv("ANTHROPIC_API_KEY", secret)
+	t.Setenv("ANTHROPIC_TOKEN", "")
+	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
+	t.Setenv("OPENROUTER_API_KEY", "")
+	t.Setenv("OPENAI_API_KEY", "")
+	t.Setenv("GORMES_ENDPOINT", "")
+	t.Setenv("ANTHROPIC_BASE_URL", "")
+	t.Setenv("GORMES_MODEL", "")
+	t.Setenv("GORMES_INFERENCE_MODEL", "")
+
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "providers", "--non-interactive")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"Gormes Setup — Provider",
+		"Provider configured.",
+		"  Provider: Anthropic",
+		"  Endpoint: https://api.anthropic.com",
+		"Authentication",
+		"  Method: API key",
+		"  API key:  stored (redacted)",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, forbidden := range []string{secret, "sk-ant-autodetect", "24680", "OAuth credential pool", "not required or stored", "ANTHROPIC_API_KEY=", "CLAUDE_CODE_OAUTH_TOKEN", "Provider configuration complete!"} {
+		if strings.Contains(stdout+stderr, forbidden) {
+			t.Fatalf("anthropic setup output leaked or misclassified forbidden material %q:\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
+		}
+	}
+
+	configBody, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	for _, want := range []string{`provider = 'anthropic'`, `endpoint = 'https://api.anthropic.com'`} {
+		if !strings.Contains(string(configBody), want) {
+			t.Fatalf("config missing %q:\n%s", want, string(configBody))
+		}
+	}
+	if strings.Contains(string(configBody), secret) || strings.Contains(string(configBody), "api_key") {
+		t.Fatalf("config.toml leaked secret material:\n%s", string(configBody))
+	}
+	envBody, err := os.ReadFile(config.EnvPath())
+	if err != nil {
+		t.Fatalf("read env: %v", err)
+	}
+	if !strings.Contains(string(envBody), "GORMES_API_KEY="+secret) {
+		t.Fatalf("auto-detected Anthropic API key should persist through the Gormes canonical secret path:\n%s", string(envBody))
+	}
+	if strings.Contains(string(envBody), "ANTHROPIC_API_KEY=") {
+		t.Fatalf("setup should not duplicate provider-specific API key env names in .env:\n%s", string(envBody))
+	}
+}
+
+func TestSetupProvidersNonInteractiveKnownAPIProviderUsesProviderBaseURLEnv(t *testing.T) {
+	home := t.TempDir()
+	secret := "sk-openrouter-base-url-secret-13579"
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_INFERENCE_PROVIDER", "openrouter")
+	t.Setenv("GORMES_API_KEY", "")
+	t.Setenv("OPENROUTER_API_KEY", secret)
+	t.Setenv("GORMES_ENDPOINT", "")
+	t.Setenv("OPENROUTER_BASE_URL", "https://openrouter-proxy.example/api/v1/")
+	t.Setenv("GORMES_MODEL", "")
+	t.Setenv("GORMES_INFERENCE_MODEL", "")
+
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "providers", "--non-interactive")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"Gormes Setup — Provider",
+		"Provider configured.",
+		"  Provider: OpenRouter",
+		"  Endpoint: https://openrouter-proxy.example/api/v1",
+		"  Model:    deepseek/deepseek-chat-v3-0324:free",
+		"Authentication",
+		"  Method: API key",
+		"  API key:  stored (redacted)",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, forbidden := range []string{secret, "sk-openrouter-base", "13579", "OPENROUTER_API_KEY=", "Provider configuration complete!"} {
+		if strings.Contains(stdout+stderr, forbidden) {
+			t.Fatalf("setup providers output leaked or duplicated forbidden material %q:\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
+		}
+	}
+	configBody, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	for _, want := range []string{`provider = 'openrouter'`, `endpoint = 'https://openrouter-proxy.example/api/v1'`, `model = 'deepseek/deepseek-chat-v3-0324:free'`} {
+		if !strings.Contains(string(configBody), want) {
+			t.Fatalf("config missing %q:\n%s", want, string(configBody))
+		}
+	}
+	if strings.Contains(string(configBody), secret) || strings.Contains(string(configBody), "api_key") {
+		t.Fatalf("config.toml leaked secret material:\n%s", string(configBody))
+	}
+	configStdout, configStderr, err := executeOneshotFlagCommand(newRootCommandWithRuntime(rootRuntime{}), "config", "check", "--json")
+	if err != nil {
+		t.Fatalf("config check --json: %v\nstdout=%s\nstderr=%s", err, configStdout, configStderr)
+	}
+	if !strings.Contains(configStdout, `"ok": true`) || strings.Contains(configStdout+configStderr, secret) {
+		t.Fatalf("config check must pass and redact provider-specific setup secret:\nstdout=%s\nstderr=%s", configStdout, configStderr)
+	}
+}
+
+func TestSetupProvidersNonInteractiveProviderEndpointEnvWorksWithoutCatalogDefault(t *testing.T) {
+	home := t.TempDir()
+	secret := "az-foundry-secret-24680"
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_INFERENCE_PROVIDER", "azure-foundry")
+	t.Setenv("GORMES_API_KEY", "")
+	t.Setenv("AZURE_FOUNDRY_API_KEY", secret)
+	t.Setenv("GORMES_ENDPOINT", "")
+	t.Setenv("AZURE_FOUNDRY_BASE_URL", "https://foundry.example/openai/v1/")
+	t.Setenv("GORMES_MODEL", "gpt-4.1-foundry")
+	t.Setenv("GORMES_INFERENCE_MODEL", "")
+
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "providers", "--non-interactive")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"Gormes Setup — Provider",
+		"Provider configured.",
+		"  Provider: Azure Foundry",
+		"  Endpoint: https://foundry.example/openai/v1",
+		"  Model:    gpt-4.1-foundry",
+		"Authentication",
+		"  Method: API key",
+		"  API key:  stored (redacted)",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, forbidden := range []string{secret, "az-foundry-secret", "24680", "AZURE_FOUNDRY_API_KEY=", "Provider configuration complete!"} {
+		if strings.Contains(stdout+stderr, forbidden) {
+			t.Fatalf("setup providers output leaked or duplicated forbidden material %q:\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
+		}
+	}
+	configBody, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	for _, want := range []string{`provider = 'azure-foundry'`, `endpoint = 'https://foundry.example/openai/v1'`, `model = 'gpt-4.1-foundry'`} {
+		if !strings.Contains(string(configBody), want) {
+			t.Fatalf("config missing %q:\n%s", want, string(configBody))
+		}
+	}
+	if strings.Contains(string(configBody), secret) || strings.Contains(string(configBody), "api_key") {
+		t.Fatalf("config.toml leaked secret material:\n%s", string(configBody))
+	}
+}
+
+func TestSetupProvidersNonInteractiveExplicitEndpointWinsOverProviderBaseURLEnv(t *testing.T) {
+	home := t.TempDir()
+	secret := "sk-openrouter-explicit-secret-97531"
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_INFERENCE_PROVIDER", "openrouter")
+	t.Setenv("OPENROUTER_API_KEY", secret)
+	t.Setenv("GORMES_ENDPOINT", "https://explicit-openrouter.example/v1/")
+	t.Setenv("OPENROUTER_BASE_URL", "https://ignored-openrouter.example/v1")
+	t.Setenv("GORMES_MODEL", "")
+	t.Setenv("GORMES_INFERENCE_MODEL", "")
+
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "providers", "--non-interactive")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "  Endpoint: https://explicit-openrouter.example/v1") {
+		t.Fatalf("stdout missing explicit endpoint:\n%s", stdout)
+	}
+	if strings.Contains(stdout+stderr, "ignored-openrouter") || strings.Contains(stdout+stderr, secret) {
+		t.Fatalf("setup providers output used ignored endpoint or leaked secret:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	configBody, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if !strings.Contains(string(configBody), `endpoint = 'https://explicit-openrouter.example/v1'`) || strings.Contains(string(configBody), "ignored-openrouter") {
+		t.Fatalf("config should preserve explicit GORMES_ENDPOINT precedence:\n%s", string(configBody))
+	}
+}
+
+func TestSetupProvidersNonInteractiveProviderMissingEndpointNamesProviderEnv(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_INFERENCE_PROVIDER", "azure-foundry")
+	t.Setenv("GORMES_API_KEY", "")
+	t.Setenv("AZURE_FOUNDRY_API_KEY", "az-foundry-missing-endpoint-secret")
+	t.Setenv("GORMES_ENDPOINT", "")
+	t.Setenv("AZURE_FOUNDRY_BASE_URL", "")
+	t.Setenv("GORMES_MODEL", "gpt-4.1-foundry")
+
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "providers", "--non-interactive")
+	if err == nil {
+		t.Fatalf("Execute() unexpectedly succeeded stdout=%s stderr=%s", stdout, stderr)
+	}
+	for _, want := range []string{"endpoint", "GORMES_ENDPOINT", "AZURE_FOUNDRY_BASE_URL"} {
+		if !strings.Contains(err.Error()+stdout+stderr, want) {
+			t.Fatalf("missing-endpoint guidance missing %q:\nerr=%v\nstdout=%s\nstderr=%s", want, err, stdout, stderr)
+		}
+	}
+	for _, forbidden := range []string{"az-foundry-missing-endpoint-secret", "GORMES_ENDPOINT must be set"} {
+		if strings.Contains(err.Error()+stdout+stderr, forbidden) {
+			t.Fatalf("missing-endpoint guidance leaked secret or used stale generic text %q:\nerr=%v\nstdout=%s\nstderr=%s", forbidden, err, stdout, stderr)
+		}
+	}
+}
+
+func TestSetupProvidersNonInteractiveProviderMissingEndpointAndKeyNamesProviderEnv(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_INFERENCE_PROVIDER", "azure-foundry")
+	t.Setenv("GORMES_API_KEY", "")
+	t.Setenv("AZURE_FOUNDRY_API_KEY", "")
+	t.Setenv("GORMES_ENDPOINT", "")
+	t.Setenv("AZURE_FOUNDRY_BASE_URL", "")
+	t.Setenv("GORMES_MODEL", "")
+
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "providers", "--non-interactive")
+	if err == nil {
+		t.Fatalf("Execute() unexpectedly succeeded stdout=%s stderr=%s", stdout, stderr)
+	}
+	for _, want := range []string{"endpoint", "GORMES_ENDPOINT", "AZURE_FOUNDRY_BASE_URL", "API key", "GORMES_API_KEY", "AZURE_FOUNDRY_API_KEY"} {
+		if !strings.Contains(err.Error()+stdout+stderr, want) {
+			t.Fatalf("missing endpoint/key guidance missing %q:\nerr=%v\nstdout=%s\nstderr=%s", want, err, stdout, stderr)
+		}
+	}
+	if strings.Contains(err.Error()+stdout+stderr, "GORMES_ENDPOINT and GORMES_API_KEY") {
+		t.Fatalf("missing endpoint/key guidance should name provider-specific env vars:\nerr=%v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+}
+
+func TestSetupProvidersNonInteractiveKnownAPIProviderMissingKeyNamesProviderEnv(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_INFERENCE_PROVIDER", "openrouter")
+	t.Setenv("GORMES_API_KEY", "")
+	t.Setenv("OPENROUTER_API_KEY", "")
+	t.Setenv("OPENAI_API_KEY", "")
+	t.Setenv("GORMES_ENDPOINT", "")
+
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "providers", "--non-interactive")
+	if err == nil {
+		t.Fatalf("Execute() unexpectedly succeeded stdout=%s stderr=%s", stdout, stderr)
+	}
+	for _, want := range []string{"API key", "GORMES_API_KEY", "OPENROUTER_API_KEY", "OPENAI_API_KEY"} {
+		if !strings.Contains(err.Error()+stdout+stderr, want) {
+			t.Fatalf("missing-key guidance missing %q:\nerr=%v\nstdout=%s\nstderr=%s", want, err, stdout, stderr)
+		}
+	}
+	if strings.Contains(err.Error()+stdout+stderr, "GORMES_ENDPOINT and GORMES_API_KEY") {
+		t.Fatalf("known provider missing-key guidance should not ask for endpoint after catalog default resolution:\nerr=%v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+}
+
 func TestSetupProvidersAliasRunsProviderSection(t *testing.T) {
 	home := t.TempDir()
 	secret := "sk-provider-alias-secret-123"
@@ -625,9 +1217,9 @@ func TestSetupProvidersAliasRunsProviderSection(t *testing.T) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
-	for _, leaked := range []string{secret, "sk-p", "123"} {
-		if strings.Contains(stdout+stderr, leaked) {
-			t.Fatalf("setup providers output leaked API key material %q:\nstdout=%s\nstderr=%s", leaked, stdout, stderr)
+	for _, forbidden := range []string{secret, "sk-p", "provider-alias-secret", "Provider configuration complete!"} {
+		if strings.Contains(stdout+stderr, forbidden) {
+			t.Fatalf("setup providers output leaked or duplicated forbidden material %q:\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
 		}
 	}
 	configBody, err := os.ReadFile(config.ConfigPath())
@@ -666,7 +1258,7 @@ func TestSetupProviderInteractiveWritesSelectedProvider(t *testing.T) {
 		"4. qwen/qwen3-235b-a22b:free",
 		"8. moonshotai/kimi-k2.6",
 		"35. inclusionai/ring-2.6-1t:free",
-		"Provider: openrouter",
+		"Provider: OpenRouter",
 		"Endpoint: https://openrouter.ai/api/v1",
 		"Model:    moonshotai/kimi-k2.6",
 		"API key:  stored (redacted)",
@@ -903,8 +1495,150 @@ func TestSetupProviderRequiresTTYWithoutNonInteractive(t *testing.T) {
 	if !strings.Contains(stderr+err.Error(), "setup_requires_tty") || !strings.Contains(stderr, "gormes setup provider --non-interactive") {
 		t.Fatalf("missing provider TTY guidance stdout=%s stderr=%s err=%v", stdout, stderr, err)
 	}
+	if !strings.Contains(stderr, "GORMES_ENDPOINT") || !strings.Contains(stderr, "GORMES_API_KEY") {
+		t.Fatalf("missing default noninteractive env guidance stdout=%s stderr=%s err=%v", stdout, stderr, err)
+	}
 	if fake.modelPickerCalls != 0 || fake.loadedCurrent != 0 {
 		t.Fatalf("non-tty setup invoked work: picker=%d loadCurrent=%d", fake.modelPickerCalls, fake.loadedCurrent)
+	}
+}
+
+func TestSetupProviderRequiresTTYUsesProviderSpecificEnvGuidance(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_INFERENCE_PROVIDER", "azure-foundry")
+	t.Setenv("AZURE_FOUNDRY_API_KEY", "az-foundry-tty-secret")
+
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "provider")
+	if !errors.Is(err, errSetupRequiresTTY) {
+		t.Fatalf("Execute() error = %v, want errSetupRequiresTTY stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"setup_requires_tty",
+		"gormes setup provider --non-interactive",
+		"GORMES_ENDPOINT or AZURE_FOUNDRY_BASE_URL",
+		"GORMES_API_KEY or AZURE_FOUNDRY_API_KEY",
+	} {
+		if !strings.Contains(stderr+err.Error(), want) {
+			t.Fatalf("provider TTY guidance missing %q stdout=%s stderr=%s err=%v", want, stdout, stderr, err)
+		}
+	}
+	if strings.Contains(stderr+stdout+err.Error(), "az-foundry-tty-secret") {
+		t.Fatalf("provider TTY guidance leaked secret stdout=%s stderr=%s err=%v", stdout, stderr, err)
+	}
+	if fake.modelPickerCalls != 0 || fake.loadedCurrent != 0 {
+		t.Fatalf("non-tty setup invoked work: picker=%d loadCurrent=%d", fake.modelPickerCalls, fake.loadedCurrent)
+	}
+}
+
+func TestSetupProviderRequiresTTYUsesAPIKeyGuidanceForAnthropicEnv(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_INFERENCE_PROVIDER", "")
+	t.Setenv("GORMES_API_KEY", "")
+	t.Setenv("ANTHROPIC_API_KEY", "sk-ant-tty-secret")
+	t.Setenv("ANTHROPIC_TOKEN", "")
+	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
+	t.Setenv("OPENROUTER_API_KEY", "")
+	t.Setenv("OPENAI_API_KEY", "")
+
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "provider")
+	if !errors.Is(err, errSetupRequiresTTY) {
+		t.Fatalf("Execute() error = %v, want errSetupRequiresTTY stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"setup_requires_tty",
+		"gormes setup provider --non-interactive",
+		"GORMES_ENDPOINT or ANTHROPIC_BASE_URL",
+		"GORMES_API_KEY, ANTHROPIC_API_KEY, or ANTHROPIC_TOKEN",
+	} {
+		if !strings.Contains(stderr+err.Error(), want) {
+			t.Fatalf("Anthropic API-key provider TTY guidance missing %q stdout=%s stderr=%s err=%v", want, stdout, stderr, err)
+		}
+	}
+	for _, forbidden := range []string{
+		"Anthropic uses OAuth",
+		"gormes auth add anthropic --type oauth",
+		"CLAUDE_CODE_OAUTH_TOKEN",
+		"sk-ant-tty-secret",
+	} {
+		if strings.Contains(stderr+stdout+err.Error(), forbidden) {
+			t.Fatalf("Anthropic API-key provider TTY guidance included forbidden %q stdout=%s stderr=%s err=%v", forbidden, stdout, stderr, err)
+		}
+	}
+	if fake.modelPickerCalls != 0 || fake.loadedCurrent != 0 {
+		t.Fatalf("non-tty setup invoked work: picker=%d loadCurrent=%d", fake.modelPickerCalls, fake.loadedCurrent)
+	}
+}
+
+func TestSetupProviderRequiresTTYUsesOAuthGuidance(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_INFERENCE_PROVIDER", "openai-codex")
+	t.Setenv("GORMES_API_KEY", "sk-oauth-tty-secret")
+
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "provider")
+	if !errors.Is(err, errSetupRequiresTTY) {
+		t.Fatalf("Execute() error = %v, want errSetupRequiresTTY stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"setup_requires_tty",
+		"OpenAI Codex uses OAuth",
+		"gormes setup provider --non-interactive",
+		"gormes auth add openai-codex --type oauth",
+	} {
+		if !strings.Contains(stderr+err.Error(), want) {
+			t.Fatalf("OAuth provider TTY guidance missing %q stdout=%s stderr=%s err=%v", want, stdout, stderr, err)
+		}
+	}
+	for _, forbidden := range []string{
+		"GORMES_API_KEY",
+		"GORMES_ENDPOINT plus",
+		"sk-oauth-tty-secret",
+	} {
+		if strings.Contains(stderr+stdout+err.Error(), forbidden) {
+			t.Fatalf("OAuth provider TTY guidance included forbidden %q stdout=%s stderr=%s err=%v", forbidden, stdout, stderr, err)
+		}
+	}
+	if fake.modelPickerCalls != 0 || fake.loadedCurrent != 0 {
+		t.Fatalf("non-tty setup invoked work: picker=%d loadCurrent=%d", fake.modelPickerCalls, fake.loadedCurrent)
+	}
+}
+
+func TestSetupChannelAliasesRouteToGatewaySection(t *testing.T) {
+	for _, section := range []string{"channel", "channels"} {
+		t.Run(section, func(t *testing.T) {
+			calledGateway := false
+			fake := &setupCommandFakeSeams{
+				isTTY: false,
+				runSetupGateway: func(cmd *cobra.Command, nonInteractive bool) error {
+					calledGateway = true
+					if !nonInteractive {
+						t.Fatalf("gateway alias should be non-interactive when --non-interactive is set")
+					}
+					fmt.Fprintln(cmd.OutOrStdout(), "gateway alias ran")
+					return nil
+				},
+			}
+			stdout, stderr, err := runSetupTestCommand(t, fake.seams(), section, "--non-interactive")
+			if err != nil {
+				t.Fatalf("gormes setup %s: %v stdout=%s stderr=%s", section, err, stdout, stderr)
+			}
+			if !calledGateway {
+				t.Fatalf("gormes setup %s did not route to gateway", section)
+			}
+			for _, want := range []string{"Gormes Setup — Messaging Gateway", "gateway alias ran"} {
+				if !strings.Contains(stdout, want) {
+					t.Fatalf("stdout missing %q:\n%s", want, stdout)
+				}
+			}
+			if strings.Contains(stdout+stderr, "setup_section_unsupported") {
+				t.Fatalf("channel alias returned unsupported evidence:\nstdout=%s\nstderr=%s", stdout, stderr)
+			}
+		})
 	}
 }
 
@@ -939,7 +1673,7 @@ func TestSetupHermesParitySectionsAreImplementedNonInteractive(t *testing.T) {
 		section string
 		want    []string
 	}{
-		{section: "tts", want: []string{"Text-to-Speech Provider", "Edge TTS", "OpenAI TTS", "Keep current"}},
+		{section: "tts", want: []string{"Text-to-Speech Provider", "Default provider: Edge TTS", "Default voice/model", "Built-in/default TTS: Edge TTS", "test a voice", "OpenAI TTS", "Keep current"}},
 		{section: "terminal", want: []string{"Terminal Backend", "Local", "Docker", "Modal", "SSH", "Daytona", "Singularity/Apptainer", "Keep current"}},
 		{section: "gateway", want: []string{"Messaging Platforms", "Telegram", "Discord", "Slack", "gormes gateway"}},
 		{section: "tools", want: []string{"Tools for CLI", "Web Search & Scraping", "Browser Automation", "Terminal & Processes", "File Operations"}},
@@ -960,6 +1694,25 @@ func TestSetupHermesParitySectionsAreImplementedNonInteractive(t *testing.T) {
 				t.Fatalf("implemented section returned unsupported evidence:\nstdout=%s\nstderr=%s", stdout, stderr)
 			}
 		})
+	}
+}
+
+func TestSetupTTSInteractivePersistsListedProvidersWithoutRowBackedError(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	fake := &setupCommandFakeSeams{isTTY: true}
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "minimax\nn\n", "tts")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{"Default provider: Edge TTS", "Built-in/default TTS: Edge TTS", "Selected provider: MiniMax TTS", "TTS provider set to: MiniMax TTS"} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	if strings.Contains(stdout+stderr, "setup_tts_provider_row_backed") || strings.Contains(stdout+stderr, "Robot") {
+		t.Fatalf("TTS setup leaked confusing row-backed/Robot error:\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
 }
 
@@ -1004,7 +1757,7 @@ func TestSetupAgentSettingsInteractivePersistsRuntimeConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
-	if got := configuredMaxToolIterations(cfg); got != 200 {
+	if got := gormescli.ConfiguredMaxToolIterations(cfg); got != 200 {
 		t.Fatalf("configuredMaxToolIterations = %d, want 200", got)
 	}
 }

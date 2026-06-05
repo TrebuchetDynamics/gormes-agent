@@ -6,7 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 )
 
 // TestHermesSlashCompletion_CommandPrefix proves typed slash prefixes resolve
@@ -169,6 +171,33 @@ func TestRenderSlashCompletionMenu_Subcommands(t *testing.T) {
 	got := renderSlashCompletionMenu("/browser ", 72)
 	if !strings.Contains(got, "status") || !strings.Contains(got, "connect") {
 		t.Fatalf("renderSlashCompletionMenu(/browser ) missing static subcommands:\n%s", got)
+	}
+}
+
+func TestRenderSlashCompletionMenu_SearchListChrome(t *testing.T) {
+	got := renderSlashCompletionMenuWithSkin("/sta", 52, BuiltinSkins()["poseidon"])
+	for _, want := range []string{"Search /sta", "❯", "/status", "↑/↓ select", "Enter complete"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("search completion menu missing %q:\n%s", want, got)
+		}
+	}
+	for _, line := range strings.Split(got, "\n") {
+		if w := lipgloss.Width(line); w > 52 {
+			t.Fatalf("search completion line width %d exceeds 52:\n%q\n\n%s", w, line, got)
+		}
+	}
+}
+
+func TestRenderSlashCompletionMenu_NarrowWidthKeepsChromeCompact(t *testing.T) {
+	got := renderSlashCompletionMenu("/", 36)
+	lines := strings.Split(got, "\n")
+	if len(lines) > 6 {
+		t.Fatalf("narrow slash completion menu rendered %d lines, want at most 6 to avoid swallowing the chat UI:\n%s", len(lines), got)
+	}
+	for _, line := range lines {
+		if w := lipgloss.Width(line); w > 36 {
+			t.Fatalf("narrow completion line width %d exceeds 36:\n%q\n\n%s", w, line, got)
+		}
 	}
 }
 

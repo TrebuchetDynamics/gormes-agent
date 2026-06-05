@@ -129,6 +129,50 @@ func TestHermesStatusBar_TrimsToWidth(t *testing.T) {
 	}
 }
 
+func TestHermesStatusBarWithSkinUsesSharedStatusStyle(t *testing.T) {
+	forceLipglossTrueColor(t)
+	skin := BuiltinSkins()["poseidon"]
+	shared := SkinStylesFor(skin)
+
+	got := RenderHermesStatusBarWithSkin(newWideStatusModel(), 80, skin)
+	plain := StripANSIForTUI(got)
+	if !strings.Contains(plain, "─ ready") || !strings.Contains(plain, "sonnet 4 20250514") {
+		t.Fatalf("styled status bar lost status/model text:\n%s", got)
+	}
+	if !strings.Contains(got, "\x1b[") {
+		t.Fatalf("styled status bar should include ANSI style from active skin:\n%s", got)
+	}
+	if fg := shared.Status.GetForeground(); fg != lipgloss.Color(skin.Colors.StatusBarText) {
+		t.Fatalf("shared status foreground = %v, want %v", fg, lipgloss.Color(skin.Colors.StatusBarText))
+	}
+	if bg := shared.Status.GetBackground(); bg != lipgloss.Color(skin.Colors.StatusBarBackground) {
+		t.Fatalf("shared status background = %v, want %v", bg, lipgloss.Color(skin.Colors.StatusBarBackground))
+	}
+	if w := lipgloss.Width(got); w > 80 {
+		t.Fatalf("styled status width = %d, want <= 80: %q", w, got)
+	}
+}
+
+func TestHermesStatusBarWithSkinStylesContextSeverity(t *testing.T) {
+	forceLipglossTrueColor(t)
+	skin := BuiltinSkins()["poseidon"]
+	shared := SkinStylesFor(skin)
+	model := newWideStatusModel()
+	model.ContextTokens = 90
+	model.ContextLength = 100
+
+	got := RenderHermesStatusBarWithSkin(model, 120, skin)
+	segment := "[█████████░] 90%"
+	if !strings.Contains(StripANSIForTUI(got), segment) {
+		t.Fatalf("styled status bar missing context segment %q:\n%s", segment, got)
+	}
+	pct := 90
+	wantStyled := hermesStatusContextStyle(shared, &pct).Render(segment)
+	if !strings.Contains(got, wantStyled) {
+		t.Fatalf("styled status bar did not use severity style for context segment\nwant segment: %q\ngot: %s", wantStyled, got)
+	}
+}
+
 func TestHermesStatusBar_ContextThresholdStyles(t *testing.T) {
 	for _, tc := range []struct {
 		percent int

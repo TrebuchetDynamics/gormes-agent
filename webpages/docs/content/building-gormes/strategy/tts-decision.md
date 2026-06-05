@@ -1,61 +1,86 @@
 # Pure-Go TTS Decision
 
 Date: 2026-05-10
-Status: decided
-Decided: keep command-provider pattern with edge-tts/piper shell-out
+Updated: 2026-05-24
+Status: superseded by Go-native speech direction
 
 ## Context
 
 Gormes ships TTS via `internal/tools/tts_tool.go` using cloud providers (Edge,
-OpenAI, MiniMax, etc.) and local command providers (edge-tts, piper). For
-platforms without easy Python/node installation (Termux, Windows-sans-tooling,
-locked-down corp Linux), users may not have `edge-tts` on PATH. We could ship
-a pure-Go TTS engine to eliminate the external dependency.
+OpenAI, MiniMax, etc.) and local command providers (`edge-tts`, `piper`,
+`say`, or user-declared `tts.providers.<name>.command`). That bridge is useful
+compatibility, but it does not satisfy the newer product goal: Gormes should
+own a Go-native speech path where feasible and avoid making Python, Node,
+shell tools, or cloud credentials the only practical local TTS answer.
 
-## Options
+See `go-native-speech-options.md` for the current STT/TTS architecture target.
+
+## Original Options
 
 ### A: Pure-Go TTS library
-Use a Go speech synthesis library (e.g. go-tts via espeak-ng bindings).
-- Binary size: +15–30 MB (espeak-ng data files)
-- Voice quality: robotic, English-only
-- Platform: works everywhere Go compiles
-- Maintenance: bindings need upkeep as espeak-ng evolves
 
-### B: Embed WASM TTS engine
-Embed a small WASM TTS engine (e.g. piper compiled to WASM) via wazero.
-- Binary size: +10–25 MB (model + WASM binary)
-- Voice quality: good (neural, multi-language via piper voices)
-- Platform: WASM runtime works on Linux/macOS/Windows/Termux
-- Maintenance: model files need periodic updates, WASM binary needs recompile
+Use a Go speech synthesis library or small speech engine.
 
-### C: Keep command-provider pattern (current)
-Users install `edge-tts` or `piper` via their package manager.
-- Binary size: +0
-- Voice quality: best (native piper/edge-tts)
-- Platform: requires package manager access
-- Maintenance: zero — providers update independently
+- Binary size: depends on language data and voice assets.
+- Voice quality: likely robotic unless paired with neural model artifacts.
+- Platform: works everywhere Go compiles if it avoids CGO.
+- Maintenance: library and voice-data upkeep stay with Gormes.
 
-## Decision
+### B: Go-owned WASM neural TTS engine
 
-**Option C — keep command-provider pattern.** 
+Run a small neural TTS engine artifact through wazero, mirroring the shipped
+WASI Whisper STT architecture.
+
+- Binary size: runtime code stays in Go; model/voice artifacts are external
+  cache files, not git-tracked or embedded by default.
+- Voice quality: potentially good with Piper-style voices.
+- Platform: preserves `CGO_ENABLED=0` and Termux/Windows/locked-down Linux
+  deployment constraints.
+- Maintenance: requires model artifact pinning, cache helpers, benchmark
+  budgets, and occasional engine rebuilds.
+
+### C: Keep command-provider pattern
+
+Users install `edge-tts`, `piper`, or another command via their package manager.
+
+- Binary size: +0.
+- Voice quality: good when dependencies are present.
+- Platform: depends on package-manager and shell availability.
+- Maintenance: low for Gormes, but failures happen outside Gormes control.
+
+## Superseded Decision
+
+The 2026-05-10 decision chose **Option C — keep command-provider pattern**.
+That remains a compatibility fallback, but it is no longer the target local TTS
+architecture.
+
+## Current Decision
+
+Choose **Option B as the target architecture**: add a Go-owned WASM neural TTS
+backend behind the existing `TTSProvider` interface, while retaining cloud and
+command providers as fallback adapters.
 
 Rationale:
-- Gormes' static-binary promise is mostly about the agent runtime, not TTS
-  voices. The command-provider path already works on all major platforms
-  where users can install dependencies.
-- For Termux/Android, piper-termux is available via pkg.
-- For Windows, edge-tts works natively.
-- Adding 15–30 MB of voice data to every Gormes binary would slow
-  cold-start and inflate the binary for a feature most users don't need.
-- A future follow-up could implement Option B (piper WASM) as a
-  Gormes-owned TTS backend when the wazero embedding story matures.
+
+- Gormes already proved the WASI/wazero deployment model for local STT through
+  `internal/wasi/whisper`.
+- The existing `TTSRunner` interface can absorb a Go-owned provider without
+  changing the model-facing `text_to_speech` schema or gateway media delivery.
+- Model/voice artifacts can follow the STT cache pattern: checksum verified,
+  operator-visible, and excluded from git.
+- The new provider can be opt-in until benchmarks prove load time, synthesis
+  latency, memory, and binary-size impact are acceptable.
+- `go-native-tts-source-study.md` records the current engine-source evidence:
+  native Piper/sherpa bindings are not the default path because they bring
+  GPL/CGO/native-library/Python concerns; the shared speech artifact cache is
+  the safe first Go-owned building block.
 
 ## Consequences
 
-- Gormes continues to shell out to `edge-tts` / `piper` / `say` for local TTS.
-- Cloud TTS providers (Edge API, OpenAI, MiniMax) remain available as
-  the primary TTS path.
-- The `tts_command_provider.go` placeholder rendering stays as the local
-  bridge.
-- A future row can add piper WASM embedding without changing the TTSRunner
-  interface.
+- `tts_command_provider.go` stays for compatibility and user-declared bridges.
+- Cloud TTS providers stay available.
+- A new progress row owns source selection and implementation of the Go-owned
+  TTS backend; no runtime code should be faked before the engine/model artifact
+  choice is sourced.
+- Slim/lite builds must continue to exclude or gracefully degrade speech
+  helpers.

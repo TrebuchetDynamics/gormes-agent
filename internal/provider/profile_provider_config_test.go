@@ -67,6 +67,11 @@ func TestProfileProviderReadinessSeparatesCredentialsAndCatalogs(t *testing.T) {
 	}
 
 	reports := BuildProfileProviderReadiness(cfg, ProfileProviderReadinessOptions{
+		SecretEnv: map[string]string{
+			"GORMES_MAIN_OPENROUTER_API_KEY":  "sk-main-openrouter",
+			"GORMES_TULIN_OPENROUTER_API_KEY": "sk-tulin-openrouter",
+			"GORMES_SHARED_ANTHROPIC_API_KEY": "sk-shared-anthropic",
+		},
 		Catalogs: map[string]ProviderModelCatalogFunc{
 			"openrouter": func() ([]string, error) {
 				return []string{"zai/glm-4.6", "openai/gpt-5.2", "anthropic/claude-sonnet-4.5", "meta-llama/llama-4"}, nil
@@ -113,6 +118,38 @@ func TestProfileProviderReadinessSeparatesCredentialsAndCatalogs(t *testing.T) {
 	}
 	if containsString(missing.Evidence, "GORMES_SHARED_ANTHROPIC_API_KEY") {
 		t.Fatalf("missing evidence leaked unrelated secret ref: %#v", missing.Evidence)
+	}
+}
+
+func TestProfileProviderReadinessMarksMissingSecretRefEnvAsCredentialMissing(t *testing.T) {
+	cfg := config.Config{
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled: true,
+				Providers: map[string]config.ProfileProviderCfg{
+					"openrouter": {Enabled: true, Credential: "main-openrouter", DefaultModel: "openai/gpt-5.2"},
+				},
+			},
+		},
+		Credentials: map[string]config.CredentialCfg{
+			"main-openrouter": {
+				Kind:      "provider",
+				Provider:  "openrouter",
+				SecretRef: &config.SecretRef{Source: config.SecretRefSourceEnv, ID: "GORMES_MAIN_OPENROUTER_API_KEY"},
+			},
+		},
+	}
+
+	reports := BuildProfileProviderReadiness(cfg, ProfileProviderReadinessOptions{SecretEnv: map[string]string{}})
+	got := findProfileProviderReadiness(t, reports, "main", "openrouter")
+	if got.Status != ProfileProviderCredentialMissing {
+		t.Fatalf("openrouter status = %q, want credential missing when SecretRef env is empty: %+v", got.Status, got)
+	}
+	if got.SecretRef != "env:GORMES_MAIN_OPENROUTER_API_KEY" {
+		t.Fatalf("secret ref = %q, want redacted env ref", got.SecretRef)
+	}
+	if !containsString(got.Evidence, config.SecretRefEvidenceMissing) {
+		t.Fatalf("evidence = %#v, want %s", got.Evidence, config.SecretRefEvidenceMissing)
 	}
 }
 

@@ -17,7 +17,7 @@ import (
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 )
 
 // defaultQueueCap is used when OpenSqlite receives queueCap <= 0.

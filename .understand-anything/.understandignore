@@ -1,0 +1,74 @@
+# .understandignore — patterns for files/dirs to exclude from analysis
+# Syntax: same as .gitignore (globs, # comments, ! negation, trailing / for dirs)
+# Lines below are suggestions — uncomment to activate.
+# Use ! prefix to force-include something excluded by defaults.
+#
+# Built-in defaults (always excluded unless negated):
+#   node_modules/, .git/, dist/, build/, obj/, *.lock, *.min.js, etc.
+#
+# Exclude Understand-Anything generated outputs from the graph.
+.understand-anything/
+
+# --- From .gitignore (uncomment to exclude) ---
+
+# codemap.md
+# bin/
+# /gormes
+# /builder-loop
+# /planner-loop
+# /progress
+# *.exe
+# *.dll
+# *.so
+# *.dylib
+# *.a
+# *.test
+# *.out
+# coverage.out
+# coverage.html
+# *.prof
+# *.pprof
+# gormes.log
+# crash-*.log
+# .pi/gormes-loop/*.jsonl
+# .pi/development-goal/
+# **/.pi/development-goal/
+# .env.backup.*
+# .env
+# .gormes/
+# .hermes/
+# .codex/
+# .wrangler/
+# .superpowers/
+# .worktrees/
+# openclaw/
+# scripts/.swarm/
+# .claude/worktrees/
+# .claude/scheduled_tasks.lock
+# **/.claude/scheduled_tasks.lock
+# /IDENTITY.md
+# /SOUL.md
+# /TOOLS.md
+# /memory/
+# deer-flow/
+# /@pi2many-hermes
+# /@py2many-hermes
+# docs/www-tests/node_modules/
+# docs/www-tests/test-results/
+# webpages/docs/www-tests/test-results/
+# scripts/whatsapp-bridge/node_modules/
+# .claude-flow/
+# .swarm/
+
+# --- Detected directories (uncomment to exclude) ---
+
+# tests/
+# testdata/
+# docs/
+# scripts/
+
+# --- Test file patterns (uncomment to exclude) ---
+
+# *.test.*
+# *.spec.*
+# *.snap

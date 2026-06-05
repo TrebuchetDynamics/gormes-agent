@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 // TestHermesPanels_ToolSpinnerShowsElapsed proves that tool.started style
@@ -180,6 +182,34 @@ func TestHermesPanels_ApprovalPanelPreservesCommandAndChoices(t *testing.T) {
 	}
 	if strings.Contains(expandedRender, "Show full command") {
 		t.Fatalf("ViewExpanded approval panel must drop the 'view' choice; got %q", expandedRender)
+	}
+}
+
+func TestHermesPanels_WithSkinUseSharedChromeStyles(t *testing.T) {
+	forceLipglossTrueColor(t)
+	skin := BuiltinSkins()["poseidon"]
+	state := ApprovalPanelState{
+		Description: "Review shell command before running it.",
+		Command:     "rm -rf /tmp/example",
+		Choices:     []ApprovalChoice{ApprovalOnce, ApprovalDeny},
+		Selected:    ApprovalDeny,
+		Width:       54,
+		Height:      12,
+	}
+
+	got := RenderApprovalPanelWithSkin(state, skin)
+	for _, want := range []string{"Dangerous Command", "rm -rf", "Deny", "❯"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("styled approval panel missing %q:\n%s", want, got)
+		}
+	}
+	if !strings.Contains(got, "\x1b[") {
+		t.Fatalf("styled approval panel should use shared skin styles; got no ANSI styling:\n%s", got)
+	}
+	for _, line := range strings.Split(got, "\n") {
+		if w := lipgloss.Width(line); w > 54 {
+			t.Fatalf("styled approval panel line width %d exceeds 54: %q\n\n%s", w, line, got)
+		}
 	}
 }
 

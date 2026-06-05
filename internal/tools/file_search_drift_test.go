@@ -74,6 +74,24 @@ func TestSearchFilesHiddenRootStillRootConfined(t *testing.T) {
 	}
 }
 
+func TestSearchFilesOffsetWindowReportsTruncatedWhenEarlierCandidatesWereSkipped(t *testing.T) {
+	root := t.TempDir()
+	for _, rel := range []string{"a.txt", "b.txt", "c.txt"} {
+		writeSearchFixture(t, root, rel, "needle\n")
+	}
+
+	tool := NewSearchFilesTool(FileTaskToolConfig{Root: root})
+	out := executeSearchFilesTool(t, tool, `{"pattern":"needle","target":"content","output_mode":"files_only","offset":2,"limit":1}`)
+	got := searchFileList(out)
+	want := []string{"c.txt"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("files = %#v, want %#v; output=%#v", got, want, out)
+	}
+	if out["truncated"] != true {
+		t.Fatalf("truncated = %#v, want true when offset skips earlier matches; output=%#v", out["truncated"], out)
+	}
+}
+
 func TestSearchFilesContentContextIncludesNeighborLines(t *testing.T) {
 	root := t.TempDir()
 	writeSearchFixture(t, root, "dir/file-12-name.py", "before context\nneedle line\nafter context\n")
@@ -97,6 +115,44 @@ func TestSearchFilesContentContextIncludesNeighborLines(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("context matches = %#v, want %#v", got, want)
+	}
+}
+
+func TestSearchFilesContentLimitDoesNotReturnOnlyContext(t *testing.T) {
+	root := t.TempDir()
+	writeSearchFixture(t, root, "dir/file.txt", "before context\nneedle line\nafter context\n")
+
+	tool := NewSearchFilesTool(FileTaskToolConfig{Root: root})
+	out := executeSearchFilesTool(t, tool, `{"pattern":"needle","target":"content","path":"dir","context":1,"limit":1}`)
+	matches, _ := out["matches"].([]any)
+	if len(matches) != 1 {
+		t.Fatalf("matches = %#v, want exactly one entry; output=%#v", matches, out)
+	}
+	row, _ := matches[0].(map[string]any)
+	if row["text"] != "needle line" || lineString(row["line"]) != "2" {
+		t.Fatalf("first limited content row = %#v, want the matched line rather than context-only output; output=%#v", row, out)
+	}
+	if out["truncated"] != true {
+		t.Fatalf("truncated = %#v, want true for omitted context rows; output=%#v", out["truncated"], out)
+	}
+}
+
+func TestSearchContentAccumulatorUpgradesContextRowWhenLineAlsoMatches(t *testing.T) {
+	var acc searchContentAccumulator
+	lines := []string{"first needle", "second needle"}
+
+	acc.appendRange("dir/file.txt", lines, 0, 1)
+	acc.appendRange("dir/file.txt", lines, 1, 1)
+
+	if len(acc.entries) != 2 {
+		t.Fatalf("entries = %#v, want each physical line once", acc.entries)
+	}
+	if !acc.entries[1].match {
+		t.Fatalf("second entry = %#v, want duplicate context row upgraded to match", acc.entries[1])
+	}
+	window, _ := windowSearchContentEntries(acc.entries, 1, 1)
+	if len(window) != 1 || !window[0].match || window[0].line != 2 {
+		t.Fatalf("window = %#v, want offset page to retain match provenance", window)
 	}
 }
 

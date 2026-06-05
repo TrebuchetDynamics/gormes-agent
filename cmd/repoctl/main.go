@@ -1,4 +1,4 @@
-// Command repoctl wraps the existing internal/repoctl package as a standalone
+// Command repoctl wraps the existing internal/progress/repoctl package as a standalone
 // binary so operators and CI can update repo metadata without any autonomous
 // loop executable.
 package main
@@ -9,7 +9,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/repoctl"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/repoctl"
 )
 
 const usage = "usage: repoctl [--repo-root <path>] {benchmark record|readme update|progress seed <fleet|missing-all>|hermes-source-pairs validate|hermes-source-pairs sync-sha|hermes-source-pairs report|hermes-contract-inventory}"

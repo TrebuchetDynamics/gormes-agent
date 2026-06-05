@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 func TestManager_ImageModeAutoVisionModelKeepsNativeContentParts(t *testing.T) {
@@ -31,7 +31,7 @@ func TestManager_ImageModeAutoVisionModelKeepsNativeContentParts(t *testing.T) {
 
 func TestManager_ImageModeTextSuppressesImageURLAndMarksDegraded(t *testing.T) {
 	ev := submitManagerImageModeTurn(t, ManagerConfig{
-		ImageInputMode:         hermes.ImageInputModeText,
+		ImageInputMode:         llm.ImageInputModeText,
 		LiveTurnActiveProvider: func() string { return "openai" },
 		LiveTurnActiveModel:    func() string { return "gpt-4o-mini" },
 	})
@@ -63,7 +63,7 @@ func TestManager_ImageModeAutoUnknownModelSuppressesImageURLAndMarksDegraded(t *
 
 func TestManager_ImageModeAuxiliaryVisionForcesText(t *testing.T) {
 	ev := submitManagerImageModeTurn(t, ManagerConfig{
-		AuxiliaryVision: hermes.AuxiliaryVisionConfig{
+		AuxiliaryVision: llm.AuxiliaryVisionConfig{
 			Provider: "openai",
 			Model:    "gpt-4o-mini",
 		},
@@ -124,7 +124,7 @@ func submitManagerImageModeTurn(t *testing.T, cfg ManagerConfig) kernel.Platform
 	return submits[0]
 }
 
-func hasImageURLContentPart(parts []hermes.MessageContentPart) bool {
+func hasImageURLContentPart(parts []llm.MessageContentPart) bool {
 	for _, part := range parts {
 		if part.Type == "image_url" {
 			return true

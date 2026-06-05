@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/support/testutil/modassert"
 	"github.com/TrebuchetDynamics/goscrapling"
 	goscraplingbrowser "github.com/TrebuchetDynamics/goscrapling/engines/browser"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/testutil/modassert"
 )
 
 func TestGoscraplingDependencyUsesPublicV010Release(t *testing.T) {
@@ -181,6 +181,18 @@ func TestResolveWebBackendSupportsCDPExtractFallback(t *testing.T) {
 	}, WebBackendConfig{Backend: "cdp"})
 	if !browserAlias.Available || browserAlias.Backend != WebBackendCDP || browserAlias.BaseURL != "http://127.0.0.1:9223" {
 		t.Fatalf("browserAlias = %+v, want explicit CDP backend from BROWSER_CDP_URL", browserAlias)
+	}
+}
+
+func TestResolveWebBackendSupportsGoscraplingCrawlerUnavailableGate(t *testing.T) {
+	for _, backend := range []string{"goscrapling_crawler", "goscrapling-crawler", "crawler_goscrapling"} {
+		resolved := ResolveWebBackendWithConfig(map[string]string{
+			"FIRECRAWL_API_KEY": "fire-secret",
+			"TAVILY_API_KEY":    "tavily-secret",
+		}, WebBackendConfig{Backend: backend})
+		if resolved.Backend != WebBackendGoscraplingCrawler || resolved.Available || resolved.Evidence != WebEvidenceProviderUnavailable || resolved.Source != "config" {
+			t.Fatalf("resolved[%s] = %+v, want unavailable explicit local crawler gate", backend, resolved)
+		}
 	}
 }
 
@@ -1427,6 +1439,44 @@ func TestWebSearchToolCallsPerplexityBackend(t *testing.T) {
 	}
 }
 
+func TestWebSearchToolPerplexityWithoutCitationsMarksDegraded(t *testing.T) {
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusOK,
+		body:   `{"choices":[{"message":{"content":"Unsourced model answer"}}],"citations":[]}`,
+	}}}
+	tool := NewWebSearchTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendPerplexity,
+			BaseURL:   "https://api.perplexity.test",
+			APIKey:    "perplexity-secret",
+			Available: true,
+			Source:    "config",
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"query":"current market research"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	var payload webSearchResponse
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if !payload.Success || len(payload.Data.Web) != 1 {
+		t.Fatalf("payload = %+v, want one synthesized answer row", payload)
+	}
+	if !payload.Degraded || !strings.Contains(payload.DegradedReason, "no citations") {
+		t.Fatalf("degraded fields = %v %q, want unsourced research warning", payload.Degraded, payload.DegradedReason)
+	}
+	if payload.Backend != WebBackendPerplexity || payload.Source != "config" {
+		t.Fatalf("provenance backend/source = %q/%q", payload.Backend, payload.Source)
+	}
+	if payload.Data.Web[0].URL != "" {
+		t.Fatalf("unexpected citation URL on degraded answer: %+v", payload.Data.Web[0])
+	}
+}
+
 func TestWebExtractToolCallsFirecrawlAndBlocksPrivateURLs(t *testing.T) {
 	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
 		status: http.StatusOK,
@@ -1681,6 +1731,187 @@ func TestWebExtractToolProcessesLongContentWithProcessor(t *testing.T) {
 	}
 	if got := payload.Results[0].Content; got != "processed summary" {
 		t.Fatalf("content = %q, want processed summary", got)
+	}
+}
+
+func TestWebCrawlExplicitGoscraplingCrawlerUnavailableDoesNotFallback(t *testing.T) {
+	client := &recordingWebHTTPClient{}
+	tool := NewWebCrawlTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendGoscraplingCrawler,
+			Available: false,
+			Evidence:  WebEvidenceProviderUnavailable,
+			Source:    "config",
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"url":"https://example.test/docs"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 0 {
+		t.Fatalf("requests = %d, want no remote provider fallback", len(client.requests))
+	}
+	var payload struct {
+		Success        bool        `json:"success"`
+		Backend        WebBackend  `json:"backend"`
+		Evidence       WebEvidence `json:"evidence"`
+		Degraded       bool        `json:"degraded"`
+		DegradedReason string      `json:"degraded_reason"`
+		Error          string      `json:"error"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if payload.Success || payload.Backend != WebBackendGoscraplingCrawler || payload.Evidence != WebEvidenceProviderUnavailable || !payload.Degraded {
+		t.Fatalf("payload = %+v, want typed unavailable local crawler failure", payload)
+	}
+	if !strings.Contains(payload.Error, "local goscrapling crawler") || !strings.Contains(payload.DegradedReason, "not yet available") {
+		t.Fatalf("payload = %+v, want operator-actionable unavailable message", payload)
+	}
+}
+
+func TestWebCrawlToolUsesGoscraplingLocalCrawlerFixtureAdapter(t *testing.T) {
+	client := &recordingWebHTTPClient{}
+	crawler := &recordingGoscraplingCrawler{
+		result: GoscraplingCrawlResult{
+			Pages: []GoscraplingCrawlPage{
+				{URL: "https://example.test/docs", FinalURL: "https://example.test/docs", Title: "Docs", Content: "# Docs", StatusCode: http.StatusOK, ContentType: "text/html"},
+				{URL: "https://example.test/docs/dup", Duplicate: true},
+				{URL: "https://offsite.test/", Offsite: true},
+			},
+			Stats: GoscraplingCrawlStats{Visited: 1, Duplicates: 1, Offsite: 1, MaxPages: 2},
+		},
+	}
+	tool := NewWebCrawlTool(WebToolsConfig{
+		Client:             client,
+		Resolution:         WebBackendResolution{Backend: WebBackendGoscraplingCrawler, Available: true, Source: "config"},
+		GoscraplingCrawler: GoscraplingCrawlerConfig{Crawler: crawler, MaxPages: 2},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"url":"https://example.test/docs","instructions":"summarize","depth":"deep"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 0 {
+		t.Fatalf("provider requests = %d, want no Firecrawl/Tavily fallback", len(client.requests))
+	}
+	if len(crawler.requests) != 1 {
+		t.Fatalf("crawler requests = %d, want 1", len(crawler.requests))
+	}
+	if got := crawler.requests[0]; got.URL != "https://example.test/docs" || got.Instructions != "summarize" || got.Depth != "deep" || got.MaxPages != 2 {
+		t.Fatalf("crawler request = %+v", got)
+	}
+	var payload struct {
+		Results []struct {
+			URL        string `json:"url"`
+			Title      string `json:"title"`
+			Content    string `json:"content"`
+			Extraction struct {
+				Engine     string `json:"engine"`
+				Mode       string `json:"mode"`
+				FinalURL   string `json:"final_url"`
+				StatusCode int    `json:"status_code"`
+				Crawl      struct {
+					Visited    int `json:"visited"`
+					Duplicates int `json:"duplicates"`
+					Offsite    int `json:"offsite"`
+					MaxPages   int `json:"max_pages"`
+				} `json:"crawl"`
+			} `json:"extraction"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if len(payload.Results) != 1 {
+		t.Fatalf("results = %+v, want one normalized page after duplicate/offsite drops", payload.Results)
+	}
+	got := payload.Results[0]
+	if got.URL != "https://example.test/docs" || got.Title != "Docs" || got.Content != "# Docs" {
+		t.Fatalf("result = %+v", got)
+	}
+	if got.Extraction.Engine != "goscrapling" || got.Extraction.Mode != "crawler" || got.Extraction.FinalURL != "https://example.test/docs" || got.Extraction.StatusCode != http.StatusOK {
+		t.Fatalf("extraction = %+v", got.Extraction)
+	}
+	if got.Extraction.Crawl.Visited != 1 || got.Extraction.Crawl.Duplicates != 1 || got.Extraction.Crawl.Offsite != 1 || got.Extraction.Crawl.MaxPages != 2 {
+		t.Fatalf("crawl stats = %+v", got.Extraction.Crawl)
+	}
+}
+
+func TestWebCrawlGoscraplingCrawlerPolicyBlocksBeforeAdapter(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		args     string
+		policy   WebWebsitePolicy
+		wantCode WebEvidence
+	}{
+		{
+			name:     "private url",
+			args:     `{"url":"http://127.0.0.1/admin"}`,
+			wantCode: WebEvidencePrivateURLBlocked,
+		},
+		{
+			name:     "website policy",
+			args:     `{"url":"https://blocked.test/docs"}`,
+			policy:   WebWebsitePolicy{Enabled: true, Domains: []string{"blocked.test"}},
+			wantCode: WebEvidenceWebsitePolicy,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			crawler := &recordingGoscraplingCrawler{}
+			tool := NewWebCrawlTool(WebToolsConfig{
+				Resolution:         WebBackendResolution{Backend: WebBackendGoscraplingCrawler, Available: true, Source: "config"},
+				GoscraplingCrawler: GoscraplingCrawlerConfig{Crawler: crawler},
+				Policy:             tc.policy,
+			})
+			out, err := tool.Execute(context.Background(), json.RawMessage(tc.args))
+			if err != nil {
+				t.Fatalf("Execute: %v", err)
+			}
+			if len(crawler.requests) != 0 {
+				t.Fatalf("crawler requests = %d, want policy block before crawler", len(crawler.requests))
+			}
+			var payload struct {
+				Results []struct {
+					Evidence WebEvidence `json:"evidence"`
+					Error    string      `json:"error"`
+				} `json:"results"`
+			}
+			if err := json.Unmarshal(out, &payload); err != nil {
+				t.Fatalf("decode output %s: %v", out, err)
+			}
+			if len(payload.Results) != 1 || payload.Results[0].Evidence != tc.wantCode || payload.Results[0].Error == "" {
+				t.Fatalf("payload = %+v, want %s block", payload, tc.wantCode)
+			}
+		})
+	}
+}
+
+func TestWebCrawlGoscraplingCrawlerRuntimeErrorIsDegraded(t *testing.T) {
+	crawler := &recordingGoscraplingCrawler{err: context.Canceled}
+	tool := NewWebCrawlTool(WebToolsConfig{
+		Resolution:         WebBackendResolution{Backend: WebBackendGoscraplingCrawler, Available: true, Source: "config"},
+		GoscraplingCrawler: GoscraplingCrawlerConfig{Crawler: crawler},
+	})
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"url":"https://example.test/docs"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	var payload struct {
+		Success        bool        `json:"success"`
+		Backend        WebBackend  `json:"backend"`
+		Evidence       WebEvidence `json:"evidence"`
+		Degraded       bool        `json:"degraded"`
+		DegradedReason string      `json:"degraded_reason"`
+		Error          string      `json:"error"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if payload.Success || payload.Backend != WebBackendGoscraplingCrawler || payload.Evidence != WebEvidenceRequestFailed || !payload.Degraded || !strings.Contains(payload.Error, "context canceled") {
+		t.Fatalf("payload = %+v, want degraded crawler runtime error", payload)
 	}
 }
 
@@ -2472,6 +2703,17 @@ type recordingWebContentProcessor struct {
 func (p *recordingWebContentProcessor) ProcessWebContent(_ context.Context, req WebContentProcessRequest) (string, error) {
 	p.requests = append(p.requests, req)
 	return p.summary, nil
+}
+
+type recordingGoscraplingCrawler struct {
+	requests []GoscraplingCrawlRequest
+	result   GoscraplingCrawlResult
+	err      error
+}
+
+func (c *recordingGoscraplingCrawler) Crawl(_ context.Context, req GoscraplingCrawlRequest) (GoscraplingCrawlResult, error) {
+	c.requests = append(c.requests, req)
+	return c.result, c.err
 }
 
 type recordedWebResponse struct {

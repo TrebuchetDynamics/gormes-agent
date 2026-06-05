@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 func TestStatusSlashRendersCurrentFramePageWithoutSubmitting(t *testing.T) {
@@ -16,11 +16,11 @@ func TestStatusSlashRendersCurrentFramePageWithoutSubmitting(t *testing.T) {
 		Phase:     kernel.PhaseStreaming,
 		SessionID: "sess-status-123456",
 		Model:     "openai/gpt-5.3-codex",
-		ProviderStatus: hermes.ProviderStatus{
+		ProviderStatus: llm.ProviderStatus{
 			Provider: "openai-codex",
 			Runtime:  "responses",
 		},
-		ReasoningEffort: hermes.ReasoningEffortEvidence{
+		ReasoningEffort: llm.ReasoningEffortEvidence{
 			Requested: "high",
 			Forwarded: true,
 		},
@@ -30,18 +30,18 @@ func TestStatusSlashRendersCurrentFramePageWithoutSubmitting(t *testing.T) {
 			LatencyMsLast:  987,
 			TokensPerSec:   12.5,
 		},
-		ContextStatus: &hermes.ContextStatus{
+		ContextStatus: &llm.ContextStatus{
 			Engine:          "native-context",
 			ContextLength:   200000,
 			LastTotalTokens: 1234,
 			UsagePercent:    0.617,
-			Budget: hermes.ContextBudgetStatus{
+			Budget: llm.ContextBudgetStatus{
 				State:           "ok",
 				RemainingTokens: 198766,
 			},
 		},
 		LastError: "recoverable provider warning",
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "hello"},
 			{Role: "assistant", Content: "hi"},
 		},

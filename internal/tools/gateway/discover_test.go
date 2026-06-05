@@ -1,0 +1,1115 @@
+package gateway
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"math"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestGatewayDiscoverListsLocalGateways(t *testing.T) {
+	ctx := context.Background()
+	result := DiscoverGateways(ctx, GatewayDiscoverRequest{
+		Discoverer: GatewayDiscovererFunc(func(context.Context) ([]GatewayEndpoint, error) {
+			return []GatewayEndpoint{{
+				InstanceName: "workstation",
+				DisplayName:  "Workstation",
+				Address:      "127.0.0.1",
+				Port:         18789,
+				Source:       GatewayEndpointSourceBonjour,
+			}}, nil
+		}),
+	})
+
+	if !result.OK {
+		t.Fatalf("OK = false; result = %+v", result)
+	}
+	if result.Code != GatewayDiscoverCodeCompleted {
+		t.Fatalf("Code = %q, want %q", result.Code, GatewayDiscoverCodeCompleted)
+	}
+	if len(result.Beacons) != 1 {
+		t.Fatalf("Beacons = %d, want 1", len(result.Beacons))
+	}
+	beacon := result.Beacons[0]
+	if beacon.Address != "127.0.0.1" || beacon.Port != 18789 {
+		t.Fatalf("beacon address/port = %s/%d, want 127.0.0.1/18789", beacon.Address, beacon.Port)
+	}
+	if beacon.WSURL != "ws://127.0.0.1:18789" {
+		t.Fatalf("WSURL = %q, want ws://127.0.0.1:18789", beacon.WSURL)
+	}
+}
+
+func TestGatewayEndpointNormalizationAppliesNonRoutingTXTHints(t *testing.T) {
+	t.Run("display name", func(t *testing.T) {
+		endpoint := NormalizeGatewayEndpoint(GatewayEndpoint{
+			InstanceName: "gormes-gateway",
+			Address:      "127.0.0.1",
+			Port:         18789,
+			TXT: map[string]string{
+				"displayName": " Juan Gateway ",
+			},
+		})
+		if endpoint.DisplayName != "Juan Gateway" {
+			t.Fatalf("DisplayName = %q, want TXT displayName hint", endpoint.DisplayName)
+		}
+	})
+	t.Run("explicit display name wins", func(t *testing.T) {
+		endpoint := NormalizeGatewayEndpoint(GatewayEndpoint{
+			DisplayName: "Config Name",
+			Address:     "127.0.0.1",
+			Port:        18789,
+			TXT: map[string]string{
+				"displayName": "TXT Name",
+			},
+		})
+		if endpoint.DisplayName != "Config Name" {
+			t.Fatalf("DisplayName = %q, want explicit display name preserved", endpoint.DisplayName)
+		}
+	})
+	// TXT records are unauthenticated metadata; they must not override the
+	// resolved/manual routing port when the endpoint itself omits one.
+	// Otherwise a beacon can silently redirect probes away from the SRV/default
+	// endpoint while still looking like a normal discovery result.
+	// gatewayTls remains a capability hint because mDNS SRV does not encode TLS.
+	t.Run("gatewayPort TXT does not change routing port", func(t *testing.T) {
+		endpoint := NormalizeGatewayEndpoint(GatewayEndpoint{
+			Address: "127.0.0.1",
+			TXT: map[string]string{
+				"gatewayPort": "19999",
+			},
+		})
+		if endpoint.Port != defaultGatewayPort || endpoint.WSURL != "ws://127.0.0.1:18789" {
+			t.Fatalf("endpoint = %+v, want TXT gatewayPort ignored for routing", endpoint)
+		}
+	})
+}
+
+func TestGatewayEndpointNormalizationClearsStaleWSURL(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		endpoint GatewayEndpoint
+	}{
+		{
+			name: "missing address",
+			endpoint: GatewayEndpoint{
+				Port:  18789,
+				WSURL: "ws://stale.local:18789",
+			},
+		},
+		{
+			name: "invalid port",
+			endpoint: GatewayEndpoint{
+				Address: "localhost",
+				Port:    70000,
+				WSURL:   "ws://stale.local:18789",
+			},
+		},
+		{
+			name: "unsupported scheme",
+			endpoint: GatewayEndpoint{
+				Address: "localhost",
+				Port:    18789,
+				Scheme:  "ftp",
+				WSURL:   "ws://stale.local:18789",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := NormalizeGatewayEndpoint(tc.endpoint)
+			if got.WSURL != "" {
+				t.Fatalf("WSURL = %q, want stale URL cleared for unroutable endpoint %+v", got.WSURL, got)
+			}
+		})
+	}
+}
+
+func TestGatewayEndpointNormalizationCanonicalizesHTTPAliases(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		scheme     string
+		wantScheme string
+		wantURL    string
+	}{
+		{name: "http", scheme: "http", wantScheme: "ws", wantURL: "ws://127.0.0.1:18789"},
+		{name: "https", scheme: "https", wantScheme: "wss", wantURL: "wss://127.0.0.1:18789"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			endpoint := NormalizeGatewayEndpoint(GatewayEndpoint{Address: "127.0.0.1", Port: 18789, Scheme: tc.scheme})
+			if endpoint.Scheme != tc.wantScheme || endpoint.WSURL != tc.wantURL {
+				t.Fatalf("normalized endpoint = %+v, want scheme %q URL %q", endpoint, tc.wantScheme, tc.wantURL)
+			}
+		})
+	}
+}
+
+func TestParseGatewayEndpointRejectsUserinfoInsteadOfDroppingCredentials(t *testing.T) {
+	for _, raw := range []string{
+		"ws://user@127.0.0.1:18789",
+		"wss://token:secret@gateway.local:18789",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			if endpoint, err := ParseGatewayEndpoint(raw, GatewayEndpointSourceManual); err == nil {
+				t.Fatalf("ParseGatewayEndpoint(%q) = %+v, nil; want URL userinfo rejected rather than silently dropped", raw, endpoint)
+			}
+		})
+	}
+}
+
+func TestParseGatewayEndpointRejectsURLRemainderInsteadOfTruncating(t *testing.T) {
+	for _, raw := range []string{
+		"ws://127.0.0.1:18789/gateway",
+		"ws://127.0.0.1:18789?token=abc",
+		"ws://127.0.0.1:18789#frag",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			if endpoint, err := ParseGatewayEndpoint(raw, GatewayEndpointSourceManual); err == nil {
+				t.Fatalf("ParseGatewayEndpoint(%q) = %+v, nil; want URL remainder rejected rather than silently dropped", raw, endpoint)
+			}
+		})
+	}
+}
+
+func TestParseGatewayEndpointRejectsExplicitEmptyPort(t *testing.T) {
+	for _, raw := range []string{
+		"ws://127.0.0.1:",
+		"wss://[::1]:",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			if endpoint, err := ParseGatewayEndpoint(raw, GatewayEndpointSourceManual); err == nil {
+				t.Fatalf("ParseGatewayEndpoint(%q) = %+v, nil; want explicit empty port rejected", raw, endpoint)
+			}
+		})
+	}
+}
+
+func TestParseGatewayEndpointRejectsMalformedPortInsteadOfDefaulting(t *testing.T) {
+	for _, raw := range []string{
+		"ws://127.0.0.1:abc",
+		"ws://127.0.0.1:+18789",
+		"wss://[::1]:port",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			if endpoint, err := ParseGatewayEndpoint(raw, GatewayEndpointSourceManual); err == nil {
+				t.Fatalf("ParseGatewayEndpoint(%q) = %+v, nil; want malformed explicit port rejected rather than defaulted", raw, endpoint)
+			}
+		})
+	}
+}
+
+func TestNormalizeGatewayEndpointsDropsInvalidAndKeepsFirstDuplicateCandidate(t *testing.T) {
+	endpoints := normalizeGatewayEndpoints([]GatewayEndpoint{
+		{InstanceName: "manual", Address: "LOCALHOST", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceManual},
+		{InstanceName: "missing-address", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceManual},
+		{InstanceName: "unsupported-scheme", Address: "localhost", Port: 18800, Scheme: "ftp", Source: GatewayEndpointSourceManual},
+		{InstanceName: "invalid-high-port", Address: "localhost", Port: 70000, Scheme: "ws", Source: GatewayEndpointSourceManual},
+		{InstanceName: "invalid-negative-port", Address: "negative.local", Port: -1, Scheme: "ws", Source: GatewayEndpointSourceManual},
+		{InstanceName: "bonjour-duplicate", Address: "localhost", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceBonjour},
+		{InstanceName: "secure", Address: "127.0.0.1", Port: 18789, Scheme: "https", Source: GatewayEndpointSourceBonjour},
+	})
+
+	if len(endpoints) != 2 {
+		t.Fatalf("endpoints = %+v, want 2 valid deduped candidates", endpoints)
+	}
+	for _, endpoint := range endpoints {
+		if endpoint.InstanceName == "unsupported-scheme" || endpoint.InstanceName == "invalid-negative-port" || endpoint.Scheme == "ftp" || endpoint.Port <= 0 || endpoint.Port > 65535 {
+			t.Fatalf("endpoints = %+v, want invalid candidates dropped before discovery/probe output", endpoints)
+		}
+	}
+	if endpoints[0].InstanceName != "secure" || endpoints[0].Scheme != "wss" {
+		t.Fatalf("first endpoint = %+v, want sorted secure bonjour candidate", endpoints[0])
+	}
+	if endpoints[1].InstanceName != "manual" || endpoints[1].Address != "LOCALHOST" {
+		t.Fatalf("duplicate winner = %+v, want first candidate provenance preserved", endpoints[1])
+	}
+}
+
+func TestGatewayEndpointCandidateFlowSeparatesAcceptedAndRejectedCandidates(t *testing.T) {
+	flow := evaluateGatewayEndpointCandidates([]GatewayEndpoint{
+		{InstanceName: "manual", Address: "localhost", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceManual},
+		{InstanceName: "duplicate", Address: "LOCALHOST.", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceBonjour},
+		{InstanceName: "bad-port", Address: "localhost", Port: 70000, Scheme: "ws", Source: GatewayEndpointSourceManual},
+		{InstanceName: "bad-scheme", Address: "localhost", Port: 18800, Scheme: "ftp", Source: GatewayEndpointSourceManual},
+	})
+
+	if got := len(flow.Accepted); got != 1 {
+		t.Fatalf("Accepted len = %d, want 1; flow=%+v", got, flow)
+	}
+	if flow.Accepted[0].InstanceName != "manual" || flow.Accepted[0].WSURL != "ws://localhost:18789" {
+		t.Fatalf("Accepted[0] = %+v, want normalized first valid candidate", flow.Accepted[0])
+	}
+	if got := len(flow.Rejected); got != 3 {
+		t.Fatalf("Rejected len = %d, want 3; flow=%+v", got, flow)
+	}
+	wantReasons := []string{
+		gatewayEndpointCandidateRejectedDuplicate,
+		gatewayEndpointCandidateRejectedInvalidPort,
+		gatewayEndpointCandidateRejectedUnsupportedScheme,
+	}
+	for i, want := range wantReasons {
+		if flow.Rejected[i].Rejection != want {
+			t.Fatalf("Rejected[%d].Rejection = %q, want %q; flow=%+v", i, flow.Rejected[i].Rejection, want, flow)
+		}
+		if flow.Rejected[i].Accepted {
+			t.Fatalf("Rejected[%d] unexpectedly accepted: %+v", i, flow.Rejected[i])
+		}
+	}
+}
+
+func TestGatewayEndpointCandidateClassificationExplainsDroppedCandidates(t *testing.T) {
+	seen := map[string]bool{
+		"ws://localhost:18789": true,
+	}
+	cases := []struct {
+		name          string
+		endpoint      GatewayEndpoint
+		wantAccepted  bool
+		wantRejection string
+	}{
+		{
+			name:          "missing address",
+			endpoint:      GatewayEndpoint{Port: 18789, Scheme: "ws"},
+			wantRejection: gatewayEndpointCandidateRejectedMissingAddress,
+		},
+		{
+			name:          "invalid port",
+			endpoint:      GatewayEndpoint{Address: "localhost", Scheme: "ws", Port: 70000},
+			wantRejection: gatewayEndpointCandidateRejectedInvalidPort,
+		},
+		{
+			name:          "unsupported scheme",
+			endpoint:      GatewayEndpoint{Address: "localhost", Scheme: "ftp", Port: 18789},
+			wantRejection: gatewayEndpointCandidateRejectedUnsupportedScheme,
+		},
+		{
+			name:          "duplicate endpoint",
+			endpoint:      GatewayEndpoint{Address: "LOCALHOST", Scheme: "ws", Port: 18789},
+			wantRejection: gatewayEndpointCandidateRejectedDuplicate,
+		},
+		{
+			name:          "duplicate fqdn endpoint",
+			endpoint:      GatewayEndpoint{Address: "localhost.", Scheme: "ws", Port: 18789},
+			wantRejection: gatewayEndpointCandidateRejectedDuplicate,
+		},
+		{
+			name:         "accepted endpoint",
+			endpoint:     GatewayEndpoint{Address: "127.0.0.1", Scheme: "wss", Port: 18789},
+			wantAccepted: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := classifyGatewayEndpointCandidate(tc.endpoint, seen)
+			if got.Accepted != tc.wantAccepted || got.Rejection != tc.wantRejection {
+				t.Fatalf("candidate = %+v, want accepted=%v rejection=%q", got, tc.wantAccepted, tc.wantRejection)
+			}
+			if got.Accepted && got.Key == "" {
+				t.Fatalf("accepted candidate missing dedupe key: %+v", got)
+			}
+		})
+	}
+}
+
+func TestParseDNSSDBrowseInstancesExtractsInstanceAfterDomainAndServiceColumns(t *testing.T) {
+	stdout := `Browsing for _openclaw-gw._tcp.local.
+DATE: ---Sun 31 May 2026---
+Timestamp     A/R    Flags  if Domain               Service Type         Instance Name
+20:41:02.123  Add        3   4 local.               _openclaw-gw._tcp.   Gormes Gateway
+20:41:03.456  Add        3   4 local.               _openclaw-gw._tcp.   Other\032Gateway
+20:41:04.789  Add        3   4 local.               _openclaw-gw._tcp.local.   Fully Qualified Gateway
+`
+
+	got := parseDNSSDBrowseInstances(stdout)
+	want := []string{"Fully Qualified Gateway", "Gormes Gateway", "Other Gateway"}
+	if len(got) != len(want) {
+		t.Fatalf("instances = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("instances = %#v, want %#v", got, want)
+		}
+	}
+}
+
+func TestParseDNSSDResolveGatewayKeepsQuotedTXTValuesWithSpaces(t *testing.T) {
+	stdout := `Lookup Gormes Gateway._openclaw-gw._tcp.local.
+Gormes Gateway._openclaw-gw._tcp.local. can be reached at workstation.local.:18789 (interface 4)
+ "gatewayTls=true" "displayName=Juan Gateway" "wsPath=/gateway socket"
+`
+
+	endpoints := parseDNSSDResolveGateway(stdout, "Gormes Gateway")
+	if len(endpoints) != 1 {
+		t.Fatalf("endpoints = %+v, want one resolved endpoint", endpoints)
+	}
+	got := endpoints[0].TXT
+	if got["gatewayTls"] != "true" || got["displayName"] != "Juan Gateway" || got["wsPath"] != "/gateway socket" {
+		t.Fatalf("TXT = %+v, want quoted values with spaces preserved", got)
+	}
+	if endpoints[0].Scheme != "wss" {
+		t.Fatalf("Scheme = %q, want gatewayTls TXT to normalize to wss", endpoints[0].Scheme)
+	}
+}
+
+func TestParseDNSSDResolveGatewayUnescapesQuotedTXTDelimiters(t *testing.T) {
+	stdout := `Lookup Gormes Gateway._openclaw-gw._tcp.local.
+Gormes Gateway._openclaw-gw._tcp.local. can be reached at workstation.local.:18789 (interface 4)
+ "displayName=Juan \"Gateway\"" "note=path \\ host"
+`
+
+	endpoints := parseDNSSDResolveGateway(stdout, "Gormes Gateway")
+	if len(endpoints) != 1 {
+		t.Fatalf("endpoints = %+v, want one resolved endpoint", endpoints)
+	}
+	got := endpoints[0].TXT
+	if got["displayName"] != `Juan "Gateway"` || got["note"] != `path \ host` {
+		t.Fatalf("TXT = %+v, want DNS-SD quoted TXT delimiters unescaped", got)
+	}
+}
+
+func TestParseDNSSDResolveGatewayDecodesEscapedTXTSpaces(t *testing.T) {
+	stdout := `Lookup Gormes\032Gateway._openclaw-gw._tcp.local.
+Gormes\032Gateway._openclaw-gw._tcp.local. can be reached at workstation.local.:18789 (interface 4)
+ "displayName=Juan\032Gateway" "wsPath=/gateway\032socket"
+`
+
+	endpoints := parseDNSSDResolveGateway(stdout, `Gormes\032Gateway`)
+	if len(endpoints) != 1 {
+		t.Fatalf("endpoints = %+v, want one resolved endpoint", endpoints)
+	}
+	got := endpoints[0]
+	if got.InstanceName != "Gormes Gateway" {
+		t.Fatalf("InstanceName = %q, want escaped DNS-SD space decoded", got.InstanceName)
+	}
+	if got.TXT["displayName"] != "Juan Gateway" || got.TXT["wsPath"] != "/gateway socket" {
+		t.Fatalf("TXT = %+v, want escaped DNS-SD TXT spaces decoded", got.TXT)
+	}
+}
+
+func TestParseDNSSDResolveGatewayDropsAmbiguousUnbracketedIPv6HostPort(t *testing.T) {
+	stdout := `Lookup Gormes Gateway._openclaw-gw._tcp.local.
+Gormes Gateway._openclaw-gw._tcp.local. can be reached at fe80::1:18789 (interface 4)
+ "displayName=Juan Gateway"
+`
+
+	if got := parseDNSSDResolveGateway(stdout, "Gormes Gateway"); len(got) != 0 {
+		t.Fatalf("endpoints = %+v, want ambiguous unbracketed IPv6 literal dropped", got)
+	}
+}
+
+func TestParseDNSSDReachedAtEndpointDocumentsHostPortAssumptions(t *testing.T) {
+	cases := []struct {
+		name        string
+		line        string
+		wantAddress string
+		wantPort    int
+		wantOK      bool
+	}{
+		{
+			name:        "dns sd fqdn host",
+			line:        "Gormes Gateway._openclaw-gw._tcp.local. can be reached at workstation.local.:18789 (interface 4)",
+			wantAddress: "workstation.local",
+			wantPort:    18789,
+			wantOK:      true,
+		},
+		{
+			name:        "bracketed ipv6",
+			line:        "Gormes Gateway._openclaw-gw._tcp.local. can be reached at [fe80::1]:18789 (interface 4)",
+			wantAddress: "fe80::1",
+			wantPort:    18789,
+			wantOK:      true,
+		},
+		{
+			name:   "ambiguous unbracketed ipv6",
+			line:   "Gormes Gateway._openclaw-gw._tcp.local. can be reached at fe80::1:18789 (interface 4)",
+			wantOK: false,
+		},
+		{
+			name:   "missing port",
+			line:   "Gormes Gateway._openclaw-gw._tcp.local. can be reached at workstation.local. (interface 4)",
+			wantOK: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := parseDNSSDReachedAtEndpoint(tc.line)
+			if ok != tc.wantOK {
+				t.Fatalf("ok = %v, want %v; endpoint = %+v", ok, tc.wantOK, got)
+			}
+			if !ok {
+				return
+			}
+			if got.Address != tc.wantAddress || got.Port != tc.wantPort {
+				t.Fatalf("endpoint = %+v, want address=%q port=%d", got, tc.wantAddress, tc.wantPort)
+			}
+		})
+	}
+}
+
+func TestGatewayDiscoverReportsDegradedNoGateways(t *testing.T) {
+	result := DiscoverGateways(context.Background(), GatewayDiscoverRequest{
+		Discoverer: GatewayDiscovererFunc(func(context.Context) ([]GatewayEndpoint, error) {
+			return nil, nil
+		}),
+	})
+
+	if result.OK {
+		t.Fatalf("OK = true; result = %+v", result)
+	}
+	if result.Code != GatewayDiscoverCodeNoGateways {
+		t.Fatalf("Code = %q, want %q", result.Code, GatewayDiscoverCodeNoGateways)
+	}
+	if len(result.Degraded) != 1 || result.Degraded[0].Reason != GatewayDegradedNoGateways {
+		t.Fatalf("Degraded = %+v, want no_gateways_discovered", result.Degraded)
+	}
+}
+
+func TestGatewayDiscoverProbeShowsReachabilityDiscoveryHealthAndStatus(t *testing.T) {
+	endpoint := GatewayEndpoint{
+		InstanceName: "dev-gateway",
+		Address:      "127.0.0.1",
+		Port:         18789,
+		Source:       GatewayEndpointSourceBonjour,
+	}
+	result := ProbeGateways(context.Background(), GatewayProbeRequest{
+		Discoverer: GatewayDiscovererFunc(func(context.Context) ([]GatewayEndpoint, error) {
+			return []GatewayEndpoint{endpoint}, nil
+		}),
+		Prober: GatewayEndpointProberFunc(func(context.Context, GatewayEndpoint) GatewayProbeTarget {
+			return GatewayProbeTarget{
+				Endpoint:  NormalizeGatewayEndpoint(endpoint),
+				Reachable: true,
+				Health:    GatewayHealthTCPReachable,
+				Status:    GatewayProbeStatusRuntimeRunning,
+				LatencyMs: 12,
+			}
+		}),
+		Runtime: GatewayRuntimeSummary{
+			State:          "running",
+			Validation:     "live",
+			ValidationLive: true,
+			ActiveAgents:   2,
+			Platforms: map[string]string{
+				"telegram": "running",
+			},
+		},
+	})
+
+	if !result.OK {
+		t.Fatalf("OK = false; result = %+v", result)
+	}
+	if result.Code != GatewayProbeCodeCompleted {
+		t.Fatalf("Code = %q, want %q", result.Code, GatewayProbeCodeCompleted)
+	}
+	if result.Discovery.Count != 1 {
+		t.Fatalf("Discovery.Count = %d, want 1", result.Discovery.Count)
+	}
+	if got := result.Targets[0]; !got.Reachable || got.Health != GatewayHealthTCPReachable || got.Status != GatewayProbeStatusRuntimeRunning {
+		t.Fatalf("target = %+v, want reachable tcp health and running status", got)
+	}
+	if result.Runtime.State != "running" || result.Runtime.Platforms["telegram"] != "running" {
+		t.Fatalf("Runtime = %+v, want running telegram status", result.Runtime)
+	}
+}
+
+func TestGatewayDiscoverProbeReportsPerEndpointFailureReason(t *testing.T) {
+	endpoint := GatewayEndpoint{Address: "127.0.0.1", Port: 19999, Source: GatewayEndpointSourceManual}
+	result := ProbeGateways(context.Background(), GatewayProbeRequest{
+		Endpoints: []GatewayEndpoint{endpoint},
+		Prober: GatewayEndpointProberFunc(func(context.Context, GatewayEndpoint) GatewayProbeTarget {
+			return GatewayProbeTarget{
+				Endpoint: NormalizeGatewayEndpoint(endpoint),
+				Health:   GatewayHealthUnreachable,
+				Status:   GatewayProbeStatusUnavailable,
+				Error:    "connect: connection refused",
+			}
+		}),
+	})
+
+	if result.OK {
+		t.Fatalf("OK = true; result = %+v", result)
+	}
+	if result.Code != GatewayProbeCodeUnreachable {
+		t.Fatalf("Code = %q, want %q", result.Code, GatewayProbeCodeUnreachable)
+	}
+	if len(result.Targets) != 1 || result.Targets[0].Error == "" {
+		t.Fatalf("Targets = %+v, want per-endpoint error", result.Targets)
+	}
+}
+
+func TestGatewayProbeFallsBackWhenProberReturnsUnroutableEndpoint(t *testing.T) {
+	endpoint := GatewayEndpoint{Address: "127.0.0.1", Port: 18789, Scheme: "ws", Source: GatewayEndpointSourceManual}
+	result := ProbeGateways(context.Background(), GatewayProbeRequest{
+		Endpoints: []GatewayEndpoint{endpoint},
+		Prober: GatewayEndpointProberFunc(func(context.Context, GatewayEndpoint) GatewayProbeTarget {
+			return GatewayProbeTarget{
+				Endpoint:  GatewayEndpoint{Address: "stale.local", Port: 70000, Scheme: "ws"},
+				Reachable: true,
+			}
+		}),
+	})
+
+	if !result.OK {
+		t.Fatalf("OK = false; result = %+v", result)
+	}
+	got := result.Targets[0].Endpoint
+	if got.Address != "127.0.0.1" || got.Port != 18789 || got.WSURL != "ws://127.0.0.1:18789" {
+		t.Fatalf("target endpoint = %+v, want fallback routable probe endpoint", got)
+	}
+	if result.Targets[0].Health != GatewayHealthTCPReachable || result.Targets[0].Status != "runtime_unknown" {
+		t.Fatalf("target = %+v, want normalized default health/status", result.Targets[0])
+	}
+}
+
+func TestGatewayProbeHTTPVerifiesHealthDetailedHealthCapabilities(t *testing.T) {
+	const secret = "sk-gateway-secret"
+	server := newGatewayProbeHTTPFixture(t, secret, func(w http.ResponseWriter, _ *http.Request) {
+		writeGatewayProbeCapabilitiesFixture(t, w, true)
+	})
+	defer server.Close()
+	endpoint := mustParseGatewayProbeEndpoint(t, server.URL)
+
+	result := ProbeGateways(context.Background(), GatewayProbeRequest{
+		Endpoints: []GatewayEndpoint{endpoint},
+		Prober: HTTPGatewayProber{
+			Client: server.Client(),
+			Auth: GatewayHTTPAuth{
+				Token:  secret,
+				Source: "env:GATEWAY_PROXY_KEY",
+			},
+		},
+	})
+
+	if !result.OK {
+		t.Fatalf("OK = false; result = %+v", result)
+	}
+	if len(result.Targets) != 1 {
+		t.Fatalf("Targets = %d, want 1", len(result.Targets))
+	}
+	target := result.Targets[0]
+	if !target.Reachable || target.Health != GatewayHealthHTTPHealthy || target.Status != GatewayProbeStatusCapabilityReady {
+		t.Fatalf("target = %+v, want healthy HTTP capability target", target)
+	}
+	if target.Capabilities == nil {
+		t.Fatalf("Capabilities = nil; target = %+v", target)
+	}
+	if target.Capabilities.Object != "hermes.api_server.capabilities" || target.Capabilities.Platform != "gormes-agent" {
+		t.Fatalf("Capabilities = %+v, want Hermes-compatible object and Gormes platform", target.Capabilities)
+	}
+	if target.Capabilities.AuthSource != "env:GATEWAY_PROXY_KEY" || !target.Capabilities.AuthRequired {
+		t.Fatalf("Capabilities auth = %+v, want env source and required auth", target.Capabilities)
+	}
+	raw, err := json.Marshal(result)
+	if err != nil {
+		t.Fatalf("marshal result: %v", err)
+	}
+	if strings.Contains(string(raw), secret) {
+		t.Fatalf("probe JSON leaked auth token: %s", raw)
+	}
+}
+
+func TestGatewayProbeHTTPTreatsCapabilityAuthSchemeCaseInsensitively(t *testing.T) {
+	server := newGatewayProbeHTTPFixture(t, "", func(w http.ResponseWriter, _ *http.Request) {
+		payload := buildGatewayProbeCapabilitiesFixture(true)
+		payload["auth"].(map[string]any)["type"] = "Bearer"
+		writeJSONResponse(t, w, payload)
+	})
+	defer server.Close()
+	endpoint := mustParseGatewayProbeEndpoint(t, server.URL)
+
+	result := ProbeGateways(context.Background(), GatewayProbeRequest{
+		Endpoints: []GatewayEndpoint{endpoint},
+		Prober:    HTTPGatewayProber{Client: server.Client(), Auth: GatewayHTTPAuth{Source: "none"}},
+	})
+
+	if !result.OK {
+		t.Fatalf("OK = false; result = %+v", result)
+	}
+	if got := result.Targets[0]; got.Health != GatewayHealthHTTPHealthy || got.Status != GatewayProbeStatusCapabilityReady {
+		t.Fatalf("target = %+v, want uppercase Bearer capability auth accepted", got)
+	}
+}
+
+func TestGatewayCapabilitiesSupportReportShowsMissingRequirements(t *testing.T) {
+	summary := &GatewayCapabilitiesSummary{
+		Object:     "hermes.api_server.capabilities",
+		AuthType:   "Bearer",
+		Features:   []string{"chat_completions", "responses_api"},
+		Endpoints:  []string{"health", "health_detailed"},
+		StatusCode: http.StatusOK,
+	}
+
+	report := classifyGatewayCapabilitiesSupport(summary)
+
+	if !report.ObjectOK || !report.BearerAuthOK {
+		t.Fatalf("support report object/auth = %+v, want object and bearer auth accepted", report)
+	}
+	if got, want := report.MissingFeatures[0], "run_submission"; got != want {
+		t.Fatalf("first missing feature = %q, want %q; report=%+v", got, want, report)
+	}
+	if got, want := report.MissingEndpoints[0], "chat_completions"; got != want {
+		t.Fatalf("first missing endpoint = %q, want %q; report=%+v", got, want, report)
+	}
+	if gatewayCapabilitiesSupported(summary) {
+		t.Fatalf("gatewayCapabilitiesSupported = true; report=%+v", report)
+	}
+}
+
+func TestGatewayCapabilitiesSupportReportClassifiesNilAsUnsupported(t *testing.T) {
+	report := classifyGatewayCapabilitiesSupport(nil)
+
+	if report.ObjectOK || report.BearerAuthOK {
+		t.Fatalf("nil support report = %+v, want object/auth false", report)
+	}
+	if len(report.MissingFeatures) != len(requiredGatewayCapabilityFeatures()) || len(report.MissingEndpoints) != len(requiredGatewayCapabilityEndpoints()) {
+		t.Fatalf("nil support report = %+v, want all requirements missing", report)
+	}
+}
+
+func TestGatewayProbeHTTPClassifiesAuthUnsupportedAndMalformedCapabilities(t *testing.T) {
+	const secret = "sk-gateway-secret"
+	t.Run("unauthorized", func(t *testing.T) {
+		server := newGatewayProbeHTTPFixture(t, secret, func(w http.ResponseWriter, _ *http.Request) {
+			writeGatewayProbeCapabilitiesFixture(t, w, true)
+		})
+		defer server.Close()
+		endpoint := mustParseGatewayProbeEndpoint(t, server.URL)
+
+		result := ProbeGateways(context.Background(), GatewayProbeRequest{
+			Endpoints: []GatewayEndpoint{endpoint},
+			Prober: HTTPGatewayProber{
+				Client: server.Client(),
+				Auth:   GatewayHTTPAuth{Source: "none"},
+			},
+		})
+
+		if result.OK {
+			t.Fatalf("OK = true; result = %+v", result)
+		}
+		target := result.Targets[0]
+		if target.Health != GatewayHealthHTTPUnauthorized || target.Status != GatewayProbeStatusUnauthorized {
+			t.Fatalf("target = %+v, want unauthorized classification", target)
+		}
+		if !strings.Contains(target.Error, "auth_source=none") {
+			t.Fatalf("error = %q, want auth source classification", target.Error)
+		}
+	})
+
+	t.Run("unsupported", func(t *testing.T) {
+		server := newGatewayProbeHTTPFixture(t, "", func(w http.ResponseWriter, _ *http.Request) {
+			writeGatewayProbeCapabilitiesFixture(t, w, false)
+		})
+		defer server.Close()
+		endpoint := mustParseGatewayProbeEndpoint(t, server.URL)
+
+		result := ProbeGateways(context.Background(), GatewayProbeRequest{
+			Endpoints: []GatewayEndpoint{endpoint},
+			Prober:    HTTPGatewayProber{Client: server.Client(), Auth: GatewayHTTPAuth{Source: "none"}},
+		})
+
+		if result.OK {
+			t.Fatalf("OK = true; result = %+v", result)
+		}
+		target := result.Targets[0]
+		if target.Health != GatewayHealthHTTPCapabilityUnsupported || target.Status != GatewayProbeStatusUnsupportedCapability {
+			t.Fatalf("target = %+v, want unsupported capability classification", target)
+		}
+		for _, want := range []string{"missing_features=run_status,run_events_sse", "missing_endpoints=none"} {
+			if !strings.Contains(target.Error, want) {
+				t.Fatalf("error = %q, want diagnostic %q", target.Error, want)
+			}
+		}
+	})
+
+	t.Run("endpoint missing method unsupported", func(t *testing.T) {
+		server := newGatewayProbeHTTPFixture(t, "", func(w http.ResponseWriter, _ *http.Request) {
+			payload := buildGatewayProbeCapabilitiesFixture(true)
+			payload["endpoints"].(map[string]any)["run_stop"] = map[string]string{"path": "/v1/runs/{run_id}/stop"}
+			writeJSONResponse(t, w, payload)
+		})
+		defer server.Close()
+		endpoint := mustParseGatewayProbeEndpoint(t, server.URL)
+
+		result := ProbeGateways(context.Background(), GatewayProbeRequest{
+			Endpoints: []GatewayEndpoint{endpoint},
+			Prober:    HTTPGatewayProber{Client: server.Client(), Auth: GatewayHTTPAuth{Source: "none"}},
+		})
+
+		if result.OK {
+			t.Fatalf("OK = true; result = %+v", result)
+		}
+		target := result.Targets[0]
+		if target.Health != GatewayHealthHTTPCapabilityUnsupported || target.Status != GatewayProbeStatusUnsupportedCapability {
+			t.Fatalf("target = %+v, want unsupported capability classification for endpoint missing method", target)
+		}
+		for _, want := range []string{"missing_features=none", "missing_endpoints=run_stop"} {
+			if !strings.Contains(target.Error, want) {
+				t.Fatalf("error = %q, want diagnostic %q", target.Error, want)
+			}
+		}
+	})
+
+	t.Run("malformed", func(t *testing.T) {
+		server := newGatewayProbeHTTPFixture(t, "", func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"object":`))
+		})
+		defer server.Close()
+		endpoint := mustParseGatewayProbeEndpoint(t, server.URL)
+
+		result := ProbeGateways(context.Background(), GatewayProbeRequest{
+			Endpoints: []GatewayEndpoint{endpoint},
+			Prober:    HTTPGatewayProber{Client: server.Client(), Auth: GatewayHTTPAuth{Source: "none"}},
+		})
+
+		if result.OK {
+			t.Fatalf("OK = true; result = %+v", result)
+		}
+		target := result.Targets[0]
+		if target.Health != GatewayHealthHTTPCapabilityMalformed || target.Status != GatewayProbeStatusMalformedCapabilities {
+			t.Fatalf("target = %+v, want malformed capability classification", target)
+		}
+	})
+}
+
+func TestGatewayProbeHTTPUnavailableRedactsAuthMaterial(t *testing.T) {
+	const secret = "sk-gateway-secret"
+	endpoint := GatewayEndpoint{Address: "127.0.0.1", Port: 9, Scheme: "ws", Source: GatewayEndpointSourceManual}
+	result := ProbeGateways(context.Background(), GatewayProbeRequest{
+		Endpoints: []GatewayEndpoint{endpoint},
+		Prober: HTTPGatewayProber{
+			Client: &http.Client{Transport: gatewayProbeRoundTripFunc(func(*http.Request) (*http.Response, error) {
+				return nil, errors.New("dial failed with Bearer " + secret + " token=" + secret + " password=plain-gateway-password")
+			})},
+			Auth: GatewayHTTPAuth{Token: secret, Source: "env:GATEWAY_PROXY_KEY"},
+		},
+	})
+
+	if result.OK {
+		t.Fatalf("OK = true; result = %+v", result)
+	}
+	raw, err := json.Marshal(result)
+	if err != nil {
+		t.Fatalf("marshal result: %v", err)
+	}
+	body := string(raw)
+	for _, leaked := range []string{secret, "plain-gateway-password"} {
+		if strings.Contains(body, leaked) {
+			t.Fatalf("probe result leaked %q: %s", leaked, body)
+		}
+	}
+	if !strings.Contains(body, "[redacted]") {
+		t.Fatalf("probe result = %s, want redacted marker", body)
+	}
+}
+
+func TestGatewayDiscoverUsageCostSummarizesSessionAndAggregateCosts(t *testing.T) {
+	now := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
+	result := SummarizeGatewayUsageCost(context.Background(), GatewayUsageCostRequest{
+		Days: 7,
+		Now:  func() time.Time { return now },
+		Sessions: []GatewayUsageSession{{
+			SessionID: "sess-active",
+			Source:    "telegram",
+			ChatID:    "42",
+			Title:     "active work",
+			UpdatedAt: now.Add(-time.Hour),
+			TokensIn:  1200,
+			TokensOut: 300,
+		}, {
+			SessionID: "sess-old",
+			UpdatedAt: now.Add(-30 * 24 * time.Hour),
+			TokensIn:  999,
+			TokensOut: 999,
+		}},
+		Pricing: GatewayUsagePricing{
+			Source:             "test",
+			InputCostPer1KUSD:  0.002,
+			OutputCostPer1KUSD: 0.006,
+		},
+	})
+
+	if !result.OK {
+		t.Fatalf("OK = false; result = %+v", result)
+	}
+	if result.Code != GatewayUsageCostCodeCompleted {
+		t.Fatalf("Code = %q, want %q", result.Code, GatewayUsageCostCodeCompleted)
+	}
+	if len(result.Sessions) != 1 || result.Sessions[0].SessionID != "sess-active" {
+		t.Fatalf("Sessions = %+v, want only recent active session", result.Sessions)
+	}
+	if result.Totals.TokensIn != 1200 || result.Totals.TokensOut != 300 || result.Totals.TotalTokens != 1500 {
+		t.Fatalf("Totals = %+v, want 1200/300/1500 tokens", result.Totals)
+	}
+	wantCost := 1200*0.002/1000 + 300*0.006/1000
+	if math.Abs(result.Totals.EstimatedCostUSD-wantCost) > 0.0000001 {
+		t.Fatalf("EstimatedCostUSD = %.9f, want %.9f", result.Totals.EstimatedCostUSD, wantCost)
+	}
+	if !result.Sessions[0].Priced {
+		t.Fatalf("session Priced = false, want true")
+	}
+}
+
+func TestGatewayUsageCostCandidateFlowExplainsDroppedRows(t *testing.T) {
+	now := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
+	flow := evaluateGatewayUsageCostCandidates([]GatewayUsageSession{{
+		SessionID: "  ",
+		TokensIn:  10,
+	}, {
+		SessionID: "old",
+		UpdatedAt: now.Add(-48 * time.Hour),
+		TokensIn:  10,
+	}, {
+		SessionID: "empty",
+		UpdatedAt: now,
+	}, {
+		SessionID: " kept ",
+		UpdatedAt: now,
+		TokensOut: 3,
+	}}, now.Add(-24*time.Hour), GatewayUsagePricing{})
+
+	if got := len(flow.Accepted); got != 1 {
+		t.Fatalf("Accepted len = %d, want 1; flow=%+v", got, flow)
+	}
+	if flow.Accepted[0].SessionID != "kept" || flow.Accepted[0].TotalTokens != 3 {
+		t.Fatalf("Accepted[0] = %+v, want normalized usage row", flow.Accepted[0])
+	}
+	wantReasons := []string{
+		gatewayUsageCandidateRejectedMissingSessionID,
+		gatewayUsageCandidateRejectedOutsideWindow,
+		gatewayUsageCandidateRejectedNoUsage,
+	}
+	if got := len(flow.Rejected); got != len(wantReasons) {
+		t.Fatalf("Rejected len = %d, want %d; flow=%+v", got, len(wantReasons), flow)
+	}
+	for i, want := range wantReasons {
+		if flow.Rejected[i].Rejection != want {
+			t.Fatalf("Rejected[%d].Rejection = %q, want %q; flow=%+v", i, flow.Rejected[i].Rejection, want, flow)
+		}
+		if flow.Rejected[i].Accepted {
+			t.Fatalf("Rejected[%d] unexpectedly accepted: %+v", i, flow.Rejected[i])
+		}
+	}
+}
+
+func TestGatewayDiscoverUsageCostDeduplicatesSessionIDByNewestUsage(t *testing.T) {
+	now := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
+	result := SummarizeGatewayUsageCost(context.Background(), GatewayUsageCostRequest{
+		Now: func() time.Time { return now },
+		Sessions: []GatewayUsageSession{{
+			SessionID: " sess-dup ",
+			UpdatedAt: now.Add(-2 * time.Hour),
+			TokensIn:  100,
+			TokensOut: 10,
+		}, {
+			SessionID: "sess-dup",
+			UpdatedAt: now.Add(-time.Hour),
+			TokensIn:  200,
+			TokensOut: 20,
+		}},
+	})
+
+	if !result.OK {
+		t.Fatalf("OK = false; result = %+v", result)
+	}
+	if got := len(result.Sessions); got != 1 {
+		t.Fatalf("Sessions = %+v, want one deduplicated session row", result.Sessions)
+	}
+	row := result.Sessions[0]
+	if row.SessionID != "sess-dup" || row.TokensIn != 200 || row.TokensOut != 20 || row.TotalTokens != 220 {
+		t.Fatalf("row = %+v, want newest duplicate usage only", row)
+	}
+	if result.Totals.Sessions != 1 || result.Totals.TokensIn != 200 || result.Totals.TokensOut != 20 || result.Totals.TotalTokens != 220 {
+		t.Fatalf("Totals = %+v, want newest duplicate counted once", result.Totals)
+	}
+}
+
+func TestGatewayUsageCostDedupKeepsFirstRowWhenTimestampsTie(t *testing.T) {
+	now := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
+	flow := evaluateGatewayUsageCostCandidates([]GatewayUsageSession{{
+		SessionID: "sess-tie",
+		UpdatedAt: now,
+		TokensIn:  100,
+	}, {
+		SessionID: "sess-tie",
+		UpdatedAt: now,
+		TokensIn:  200,
+	}}, now.Add(-24*time.Hour), GatewayUsagePricing{})
+
+	if got := len(flow.Accepted); got != 1 {
+		t.Fatalf("Accepted len = %d, want 1; flow=%+v", got, flow)
+	}
+	if flow.Accepted[0].TokensIn != 100 {
+		t.Fatalf("Accepted[0] = %+v, want first same-timestamp row preserved", flow.Accepted[0])
+	}
+}
+
+func TestGatewayUsageCostDedupPrefersDatedRowOverUndatedRow(t *testing.T) {
+	now := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
+	flow := evaluateGatewayUsageCostCandidates([]GatewayUsageSession{{
+		SessionID: "sess-date",
+		TokensIn:  100,
+	}, {
+		SessionID: "sess-date",
+		UpdatedAt: now,
+		TokensIn:  200,
+	}}, now.Add(-24*time.Hour), GatewayUsagePricing{})
+
+	if got := len(flow.Accepted); got != 1 {
+		t.Fatalf("Accepted len = %d, want 1; flow=%+v", got, flow)
+	}
+	if flow.Accepted[0].TokensIn != 200 || !flow.Accepted[0].UpdatedAt.Equal(now) {
+		t.Fatalf("Accepted[0] = %+v, want dated row to replace undated duplicate", flow.Accepted[0])
+	}
+}
+
+func TestGatewayDiscoverUsageCostDoesNotDropRowsWhenTokenSumOverflowsInt(t *testing.T) {
+	maxInt := int(^uint(0) >> 1)
+	result := SummarizeGatewayUsageCost(context.Background(), GatewayUsageCostRequest{
+		Sessions: []GatewayUsageSession{{
+			SessionID: "sess-huge",
+			TokensIn:  maxInt,
+			TokensOut: 1,
+		}},
+	})
+
+	if !result.OK {
+		t.Fatalf("OK = false; result = %+v", result)
+	}
+	if len(result.Sessions) != 1 || result.Sessions[0].SessionID != "sess-huge" {
+		t.Fatalf("Sessions = %+v, want overflow-prone row preserved", result.Sessions)
+	}
+	if result.Sessions[0].TotalTokens != maxInt || result.Totals.TotalTokens != maxInt {
+		t.Fatalf("TotalTokens session=%d totals=%d, want saturated max int %d", result.Sessions[0].TotalTokens, result.Totals.TotalTokens, maxInt)
+	}
+}
+
+func TestGatewayDiscoverUsageCostReportsUnavailableData(t *testing.T) {
+	result := SummarizeGatewayUsageCost(context.Background(), GatewayUsageCostRequest{
+		Lister: GatewayUsageSessionListerFunc(func(context.Context) ([]GatewayUsageSession, error) {
+			return nil, errors.New("session db missing")
+		}),
+	})
+
+	if result.OK {
+		t.Fatalf("OK = true; result = %+v", result)
+	}
+	if result.Code != GatewayUsageCostCodeUnavailable {
+		t.Fatalf("Code = %q, want %q", result.Code, GatewayUsageCostCodeUnavailable)
+	}
+	if len(result.Degraded) != 1 || result.Degraded[0].Reason != GatewayDegradedUsageDataUnavailable {
+		t.Fatalf("Degraded = %+v, want usage_data_unavailable", result.Degraded)
+	}
+}
+
+func TestGatewayDiscoverUsageCostUnavailableUsesSameDurationWindowAcrossDST(t *testing.T) {
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatalf("load location: %v", err)
+	}
+	anchor := time.Date(2026, 3, 8, 12, 0, 0, 0, loc)
+	result := SummarizeGatewayUsageCost(context.Background(), GatewayUsageCostRequest{
+		Days: 1,
+		Now:  func() time.Time { return anchor },
+		Lister: GatewayUsageSessionListerFunc(func(context.Context) ([]GatewayUsageSession, error) {
+			return nil, errors.New("session db missing")
+		}),
+	})
+
+	wantSince := anchor.Add(-24 * time.Hour)
+	if !result.Since.Equal(wantSince) {
+		t.Fatalf("Since = %s, want exact 24h lookback %s", result.Since, wantSince)
+	}
+}
+
+func newGatewayProbeHTTPFixture(t *testing.T, secret string, capabilities http.HandlerFunc) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/health":
+			writeJSONResponse(t, w, map[string]any{"status": "ok", "platform": "gormes-agent"})
+		case "/health/detailed":
+			writeJSONResponse(t, w, map[string]any{"status": "ok", "platform": "gormes-agent"})
+		case "/v1/capabilities":
+			if secret != "" && r.Header.Get("Authorization") != "Bearer "+secret {
+				writeJSONResponseStatus(t, w, http.StatusUnauthorized, map[string]any{"error": map[string]any{"code": "invalid_api_key"}})
+				return
+			}
+			capabilities(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+}
+
+func writeGatewayProbeCapabilitiesFixture(t *testing.T, w http.ResponseWriter, supported bool) {
+	t.Helper()
+	writeJSONResponse(t, w, buildGatewayProbeCapabilitiesFixture(supported))
+}
+
+func buildGatewayProbeCapabilitiesFixture(supported bool) map[string]any {
+	return map[string]any{
+		"object":   "hermes.api_server.capabilities",
+		"platform": "gormes-agent",
+		"model":    "gormes-agent",
+		"auth": map[string]any{
+			"type":     "bearer",
+			"required": true,
+		},
+		"features": map[string]any{
+			"chat_completions":           true,
+			"chat_completions_streaming": true,
+			"responses_api":              true,
+			"responses_streaming":        true,
+			"run_submission":             true,
+			"run_status":                 supported,
+			"run_events_sse":             supported,
+			"run_stop":                   true,
+			"tool_progress_events":       true,
+			"session_continuity_header":  "X-Hermes-Session-Id",
+		},
+		"endpoints": map[string]any{
+			"health":           map[string]string{"method": "GET", "path": "/health"},
+			"health_detailed":  map[string]string{"method": "GET", "path": "/health/detailed"},
+			"chat_completions": map[string]string{"method": "POST", "path": "/v1/chat/completions"},
+			"runs":             map[string]string{"method": "POST", "path": "/v1/runs"},
+			"run_status":       map[string]string{"method": "GET", "path": "/v1/runs/{run_id}"},
+			"run_events":       map[string]string{"method": "GET", "path": "/v1/runs/{run_id}/events"},
+			"run_stop":         map[string]string{"method": "POST", "path": "/v1/runs/{run_id}/stop"},
+		},
+	}
+}
+
+func writeJSONResponse(t *testing.T, w http.ResponseWriter, body any) {
+	t.Helper()
+	writeJSONResponseStatus(t, w, http.StatusOK, body)
+}
+
+func writeJSONResponseStatus(t *testing.T, w http.ResponseWriter, status int, body any) {
+	t.Helper()
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(body); err != nil {
+		t.Fatalf("encode fixture response: %v", err)
+	}
+}
+
+func mustParseGatewayProbeEndpoint(t *testing.T, raw string) GatewayEndpoint {
+	t.Helper()
+	endpoint, err := ParseGatewayEndpoint(raw, GatewayEndpointSourceManual)
+	if err != nil {
+		t.Fatalf("ParseGatewayEndpoint(%q): %v", raw, err)
+	}
+	return endpoint
+}
+
+type gatewayProbeRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f gatewayProbeRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}

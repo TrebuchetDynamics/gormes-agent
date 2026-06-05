@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 func TestManager_RegisterChannel(t *testing.T) {
@@ -724,7 +724,7 @@ func TestManager_Outbound_ToolProgressPersistsAsSeparateMessage(t *testing.T) {
 	}
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "summarize this reddit post"},
 			{Role: "assistant", Content: "I read the Reddit post via Reddit's embed endpoint."},
 		},
@@ -776,7 +776,7 @@ func TestManager_Outbound_ToolProgressOffSuppressesSeparateMessage(t *testing.T)
 	}
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "summarize this reddit post"},
 			{Role: "assistant", Content: "I read the Reddit post via Reddit's embed endpoint."},
 		},
@@ -820,7 +820,7 @@ func TestManager_Outbound_LongFinalAnswerPaginates(t *testing.T) {
 	longAnswer := "Extracted documentation:\n" + strings.Repeat("A", maxMessageLen) + "\n" + tail
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "extract all documentation"},
 			{Role: "assistant", Content: longAnswer},
 		},
@@ -898,7 +898,7 @@ func TestManager_Outbound_FreshFinalAfterSendsFreshFinal(t *testing.T) {
 	advanceNow(time.Minute)
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "hi"},
 			{Role: "assistant", Content: "done"},
 		},
@@ -1068,7 +1068,7 @@ func TestManager_Outbound_NonEditableChannelUsesPlainSendForInterimAndFinal(t *t
 	}
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "hi"},
 			{Role: "assistant", Content: "done"},
 		},
@@ -1120,7 +1120,7 @@ func TestManager_Outbound_FinalFrameClearsTurn(t *testing.T) {
 	frames <- kernel.RenderFrame{Phase: kernel.PhaseStreaming, DraftText: "p1"}
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "hi"},
 			{Role: "assistant", Content: "hello back"},
 		},
@@ -1173,7 +1173,7 @@ func TestManager_ActiveTurnQueuesFollowUpUntilTerminalFrame(t *testing.T) {
 
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "first"},
 			{Role: "assistant", Content: "first answer"},
 		},
@@ -1229,7 +1229,7 @@ func TestManager_LateArrivalDuringFollowUpDrainQueuesBehindDrainedTurn(t *testin
 
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "first"},
 			{Role: "assistant", Content: "first answer"},
 		},
@@ -1249,7 +1249,7 @@ func TestManager_LateArrivalDuringFollowUpDrainQueuesBehindDrainedTurn(t *testin
 
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "second"},
 			{Role: "assistant", Content: "second answer"},
 		},

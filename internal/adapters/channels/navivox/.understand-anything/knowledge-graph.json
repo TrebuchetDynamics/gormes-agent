@@ -1,0 +1,4741 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "navivox",
+    "languages": [
+      "go",
+      "markdown"
+    ],
+    "frameworks": [],
+    "description": "First-party HTTP/WebSocket gateway channel for the Flutter Navivox app, exposing trusted operator health, turn intake, streaming, profile-contact, memory, capability, and voice-profile surfaces inside Gormes.",
+    "analyzedAt": "2026-05-26T20:06:22.105Z",
+    "gitCommitHash": "4155335cc4916178a016327af28983fbb0925ee1"
+  },
+  "nodes": [
+    {
+      "id": "file:auth.go",
+      "type": "file",
+      "name": "auth.go",
+      "filePath": "auth.go",
+      "summary": "Implements Navivox bearer-token, browser WebSocket subprotocol, Tailscale identity, and CORS authentication gates before HTTP or stream handlers can reach the gateway.",
+      "tags": [
+        "auth",
+        "security",
+        "cors",
+        "tested"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:capabilities_test.go",
+      "type": "file",
+      "name": "capabilities_test.go",
+      "filePath": "capabilities_test.go",
+      "summary": "Characterizes the Navivox capabilities and status-link contracts, including auth-mode reflection, endpoint stability, and secret/path redaction.",
+      "tags": [
+        "test",
+        "capabilities",
+        "contract"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:capabilities.go",
+      "type": "file",
+      "name": "capabilities.go",
+      "filePath": "capabilities.go",
+      "summary": "Builds the stable Navivox capability document advertised to the Flutter app, including auth mode, health aliases, endpoint contracts, profile management, attachments, voice, and stream event support.",
+      "tags": [
+        "capabilities",
+        "contract",
+        "metadata",
+        "tested"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:channel_test.go",
+      "type": "file",
+      "name": "channel_test.go",
+      "filePath": "channel_test.go",
+      "summary": "Broad integration-style test suite for Navivox HTTP and WebSocket behavior, covering auth, status, turns, streaming events, session lifecycle, CORS, VPN bind safety, and run records.",
+      "tags": [
+        "test",
+        "http-api",
+        "websocket"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:channel.go",
+      "type": "file",
+      "name": "channel.go",
+      "filePath": "channel.go",
+      "summary": "Owns the Navivox gateway.Channel implementation, HTTP route registration, channel send/edit methods, run-record tracking, health/status/session handlers, and JSON error shaping.",
+      "tags": [
+        "gateway-channel",
+        "http-api",
+        "runtime",
+        "tested"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "document:codemap.md",
+      "type": "document",
+      "name": "codemap.md",
+      "filePath": "codemap.md",
+      "summary": "Subsystem codemap documenting Navivox responsibilities, module seams, request/event flows, integration points, and package test surfaces.",
+      "tags": [
+        "documentation",
+        "architecture",
+        "codemap"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:config_admin_test.go",
+      "type": "file",
+      "name": "config_admin_test.go",
+      "filePath": "config_admin_test.go",
+      "summary": "Tests the Navivox config-admin API contract for auth, schema redaction, validation failure safety, diff reporting, reload evidence, and safe secret writes.",
+      "tags": [
+        "test",
+        "configuration",
+        "admin"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:config_admin.go",
+      "type": "file",
+      "name": "config_admin.go",
+      "filePath": "config_admin.go",
+      "summary": "Provides the Navivox configuration-admin endpoint for schema, read, validation, diff, and safe apply flows with redaction and reload reporting.",
+      "tags": [
+        "configuration",
+        "admin",
+        "redaction",
+        "tested"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:memory_overview_test.go",
+      "type": "file",
+      "name": "memory_overview_test.go",
+      "filePath": "memory_overview_test.go",
+      "summary": "Verifies the memory overview endpoint requires auth and returns safe workspace, count, health, and redacted database-label information.",
+      "tags": [
+        "test",
+        "memory",
+        "redaction"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:memory_overview.go",
+      "type": "file",
+      "name": "memory_overview.go",
+      "filePath": "memory_overview.go",
+      "summary": "Exposes a safe memory overview endpoint that reads Goncho SQLite counts and degrades with redacted database labels instead of leaking paths.",
+      "tags": [
+        "memory",
+        "overview",
+        "redaction",
+        "tested"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:profile_contacts_test.go",
+      "type": "file",
+      "name": "profile_contacts_test.go",
+      "filePath": "profile_contacts_test.go",
+      "summary": "Tests auth-bounded profile-contact snapshots and sanitized WebSocket profile-contact update events.",
+      "tags": [
+        "test",
+        "profile-contact",
+        "redaction"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:profile_contacts.go",
+      "type": "file",
+      "name": "profile_contacts.go",
+      "filePath": "profile_contacts.go",
+      "summary": "Builds and maintains redacted Navivox profile-contact snapshots from known profiles, workspace config, runtime session updates, and profile metadata.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "snapshot",
+        "tested"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:stream.go",
+      "type": "file",
+      "name": "stream.go",
+      "filePath": "stream.go",
+      "summary": "Implements the Navivox WebSocket stream protocol, client/session lifecycle, turn-control messages, event fanout, tool metadata redaction, and subscriber cleanup.",
+      "tags": [
+        "websocket",
+        "streaming",
+        "events",
+        "tested"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:tool_events_test.go",
+      "type": "file",
+      "name": "tool_events_test.go",
+      "filePath": "tool_events_test.go",
+      "summary": "Covers structured tool-progress update streaming from the Navivox channel into subscribed WebSocket clients.",
+      "tags": [
+        "test",
+        "tool-events",
+        "websocket"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:turn.go",
+      "type": "file",
+      "name": "turn.go",
+      "filePath": "turn.go",
+      "summary": "Normalizes HTTP and WebSocket Navivox turn requests into gateway inbound events with session IDs, request IDs, text validation, and profile-scope metadata.",
+      "tags": [
+        "turn-intake",
+        "gateway",
+        "validation",
+        "tested"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:voice_profiles_test.go",
+      "type": "file",
+      "name": "voice_profiles_test.go",
+      "filePath": "voice_profiles_test.go",
+      "summary": "Tests voice-profile redaction, provider validation, and voice-turn metadata fallback evidence used by Navivox.",
+      "tags": [
+        "test",
+        "voice-profile",
+        "metadata"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:voice_profiles.go",
+      "type": "file",
+      "name": "voice_profiles.go",
+      "filePath": "voice_profiles.go",
+      "summary": "Reads and validates profile-scoped Navivox voice-profile configuration, provider matrices, credential status references, and turn metadata fallbacks.",
+      "tags": [
+        "voice-profile",
+        "provider-matrix",
+        "metadata",
+        "tested"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:auth.go:withAuth",
+      "type": "function",
+      "name": "withAuth",
+      "filePath": "auth.go",
+      "lineRange": [
+        16,
+        25
+      ],
+      "summary": "Applies Navivox authentication, identity, or CORS policy before requests reach handlers.",
+      "tags": [
+        "auth",
+        "security",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:auth.go:authenticate",
+      "type": "function",
+      "name": "authenticate",
+      "filePath": "auth.go",
+      "lineRange": [
+        27,
+        46
+      ],
+      "summary": "Applies Navivox authentication, identity, or CORS policy before requests reach handlers.",
+      "tags": [
+        "auth",
+        "security",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:auth.go:authenticateTailscaleIdentity",
+      "type": "function",
+      "name": "authenticateTailscaleIdentity",
+      "filePath": "auth.go",
+      "lineRange": [
+        48,
+        62
+      ],
+      "summary": "Applies Navivox authentication, identity, or CORS policy before requests reach handlers.",
+      "tags": [
+        "auth",
+        "security",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:auth.go:authenticateToken",
+      "type": "function",
+      "name": "authenticateToken",
+      "filePath": "auth.go",
+      "lineRange": [
+        64,
+        76
+      ],
+      "summary": "Applies Navivox authentication, identity, or CORS policy before requests reach handlers.",
+      "tags": [
+        "auth",
+        "security",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:auth.go:webSocketProtocolToken",
+      "type": "function",
+      "name": "webSocketProtocolToken",
+      "filePath": "auth.go",
+      "lineRange": [
+        86,
+        99
+      ],
+      "summary": "Implements webSocketProtocolToken behavior within the Navivox channel package.",
+      "tags": [
+        "auth",
+        "security",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:auth.go:cors",
+      "type": "function",
+      "name": "cors",
+      "filePath": "auth.go",
+      "lineRange": [
+        110,
+        125
+      ],
+      "summary": "Applies Navivox authentication, identity, or CORS policy before requests reach handlers.",
+      "tags": [
+        "auth",
+        "security",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:auth.go:originAllowed",
+      "type": "function",
+      "name": "originAllowed",
+      "filePath": "auth.go",
+      "lineRange": [
+        127,
+        138
+      ],
+      "summary": "Applies Navivox authentication, identity, or CORS policy before requests reach handlers.",
+      "tags": [
+        "auth",
+        "security",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:capabilities_test.go:TestNavivoxCapabilitiesEndpointAdvertisesStableContract",
+      "type": "function",
+      "name": "TestNavivoxCapabilitiesEndpointAdvertisesStableContract",
+      "filePath": "capabilities_test.go",
+      "lineRange": [
+        14,
+        144
+      ],
+      "summary": "Exercises the Navivox Navivox Capabilities Endpoint Advertises Stable Contract contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:capabilities_test.go:TestNavivoxCapabilitiesAuthContractFollowsActiveMode",
+      "type": "function",
+      "name": "TestNavivoxCapabilitiesAuthContractFollowsActiveMode",
+      "filePath": "capabilities_test.go",
+      "lineRange": [
+        146,
+        210
+      ],
+      "summary": "Exercises the Navivox Navivox Capabilities Auth Contract Follows Active Mode contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:capabilities_test.go:TestNavivoxStatusLinksCapabilitiesDocument",
+      "type": "function",
+      "name": "TestNavivoxStatusLinksCapabilitiesDocument",
+      "filePath": "capabilities_test.go",
+      "lineRange": [
+        212,
+        240
+      ],
+      "summary": "Exercises the Navivox Navivox Status Links Capabilities Document contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:capabilities_test.go:TestNavivoxCapabilitiesRedactsSecretsAndLocalPaths",
+      "type": "function",
+      "name": "TestNavivoxCapabilitiesRedactsSecretsAndLocalPaths",
+      "filePath": "capabilities_test.go",
+      "lineRange": [
+        242,
+        276
+      ],
+      "summary": "Exercises the Navivox Navivox Capabilities Redacts Secrets And Local Paths contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:capabilities_test.go:containsEndpoint",
+      "type": "function",
+      "name": "containsEndpoint",
+      "filePath": "capabilities_test.go",
+      "lineRange": [
+        278,
+        291
+      ],
+      "summary": "Implements containsEndpoint behavior within the Navivox channel package.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:capabilities.go:capabilityDocument",
+      "type": "class",
+      "name": "capabilityDocument",
+      "filePath": "capabilities.go",
+      "lineRange": [
+        67,
+        78
+      ],
+      "summary": "Defines capabilityDocument fields in the Navivox client capability document.",
+      "tags": [
+        "capabilities",
+        "data-model",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:capabilities.go:capabilityDocument",
+      "type": "function",
+      "name": "capabilityDocument",
+      "filePath": "capabilities.go",
+      "lineRange": [
+        88,
+        139
+      ],
+      "summary": "Assembles stable Navivox capability metadata for client feature discovery.",
+      "tags": [
+        "capabilities",
+        "contract",
+        "navivox"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:capabilities.go:navivoxCapabilityAuthHeaders",
+      "type": "function",
+      "name": "navivoxCapabilityAuthHeaders",
+      "filePath": "capabilities.go",
+      "lineRange": [
+        141,
+        150
+      ],
+      "summary": "Applies Navivox authentication, identity, or CORS policy before requests reach handlers.",
+      "tags": [
+        "auth",
+        "security",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:capabilities.go:navivoxCapabilityNames",
+      "type": "function",
+      "name": "navivoxCapabilityNames",
+      "filePath": "capabilities.go",
+      "lineRange": [
+        178,
+        193
+      ],
+      "summary": "Assembles stable Navivox capability metadata for client feature discovery.",
+      "tags": [
+        "capabilities",
+        "contract",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:capabilities.go:navivoxEventKinds",
+      "type": "function",
+      "name": "navivoxEventKinds",
+      "filePath": "capabilities.go",
+      "lineRange": [
+        195,
+        210
+      ],
+      "summary": "Implements navivoxEventKinds behavior within the Navivox channel package.",
+      "tags": [
+        "capabilities",
+        "contract",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:capabilities.go:navivoxCapabilityEndpoints",
+      "type": "function",
+      "name": "navivoxCapabilityEndpoints",
+      "filePath": "capabilities.go",
+      "lineRange": [
+        212,
+        234
+      ],
+      "summary": "Assembles stable Navivox capability metadata for client feature discovery.",
+      "tags": [
+        "capabilities",
+        "contract",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxStatusRequiresAuthAndHealthzIsPublic",
+      "type": "function",
+      "name": "TestNavivoxStatusRequiresAuthAndHealthzIsPublic",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        26,
+        78
+      ],
+      "summary": "Exercises the Navivox Navivox Status Requires Auth And Healthz Is Public contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxProfileSeedEndpointCreatesDraftAndApplyShowsContact",
+      "type": "function",
+      "name": "TestNavivoxProfileSeedEndpointCreatesDraftAndApplyShowsContact",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        80,
+        186
+      ],
+      "summary": "Exercises the Navivox Navivox Profile Seed Endpoint Creates Draft And Apply Shows Contact contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxProfileRoutingEndpointIsAuthBoundedAndSecretFree",
+      "type": "function",
+      "name": "TestNavivoxProfileRoutingEndpointIsAuthBoundedAndSecretFree",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        188,
+        263
+      ],
+      "summary": "Exercises the Navivox Navivox Profile Routing Endpoint Is Auth Bounded And Secret Free contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxStatusIncludesServerScopedProfileRoutingWithoutDefaultProfile",
+      "type": "function",
+      "name": "TestNavivoxStatusIncludesServerScopedProfileRoutingWithoutDefaultProfile",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        265,
+        325
+      ],
+      "summary": "Exercises the Navivox Navivox Status Includes Server Scoped Profile Routing Without Default Profile contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxStatusIncludesSetupHandoffForAppContinuation",
+      "type": "function",
+      "name": "TestNavivoxStatusIncludesSetupHandoffForAppContinuation",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        327,
+        408
+      ],
+      "summary": "Exercises the Navivox Navivox Status Includes Setup Handoff For App Continuation contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxHTTPStartTurnRequiresAuthAndEnqueuesTypedGatewayEvent",
+      "type": "function",
+      "name": "TestNavivoxHTTPStartTurnRequiresAuthAndEnqueuesTypedGatewayEvent",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        410,
+        451
+      ],
+      "summary": "Exercises the Navivox Navivox H T T P Start Turn Requires Auth And Enqueues Typed Gateway Event contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxWebSocketAuthAcceptsBrowserSubprotocolToken",
+      "type": "function",
+      "name": "TestNavivoxWebSocketAuthAcceptsBrowserSubprotocolToken",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        453,
+        488
+      ],
+      "summary": "Exercises the Navivox Navivox Web Socket Auth Accepts Browser Subprotocol Token contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxLayeredAuthRequiresTokenAndAllowedTailscaleIdentity",
+      "type": "function",
+      "name": "TestNavivoxLayeredAuthRequiresTokenAndAllowedTailscaleIdentity",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        490,
+        559
+      ],
+      "summary": "Exercises the Navivox Navivox Layered Auth Requires Token And Allowed Tailscale Identity contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxWebSocketAuthRejectsBadBrowserSubprotocolToken",
+      "type": "function",
+      "name": "TestNavivoxWebSocketAuthRejectsBadBrowserSubprotocolToken",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        561,
+        585
+      ],
+      "summary": "Exercises the Navivox Navivox Web Socket Auth Rejects Bad Browser Subprotocol Token contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel_test.go:TestWebSocketPingAndMalformedJSONReturnTypedEvents",
+      "type": "function",
+      "name": "TestWebSocketPingAndMalformedJSONReturnTypedEvents",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        587,
+        616
+      ],
+      "summary": "Exercises the Navivox Web Socket Ping And Malformed J S O N Return Typed Events contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxWebSocketStartTurnStreamsGatewayResponses",
+      "type": "function",
+      "name": "TestNavivoxWebSocketStartTurnStreamsGatewayResponses",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        618,
+        676
+      ],
+      "summary": "Exercises the Navivox Navivox Web Socket Start Turn Streams Gateway Responses contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxVoiceMarkedStreamTurnEnqueuesTranscriptOnlyGatewayEvent",
+      "type": "function",
+      "name": "TestNavivoxVoiceMarkedStreamTurnEnqueuesTranscriptOnlyGatewayEvent",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        678,
+        718
+      ],
+      "summary": "Exercises the Navivox Navivox Voice Marked Stream Turn Enqueues Transcript Only Gateway Event contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxRunRecordEndpointReturnsRedactedVoiceAndToolTimeline",
+      "type": "function",
+      "name": "TestNavivoxRunRecordEndpointReturnsRedactedVoiceAndToolTimeline",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        720,
+        846
+      ],
+      "summary": "Exercises the Navivox Navivox Run Record Endpoint Returns Redacted Voice And Tool Timeline contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxHTTPStartTurnStreamsToSubscribedWebSocket",
+      "type": "function",
+      "name": "TestNavivoxHTTPStartTurnStreamsToSubscribedWebSocket",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        848,
+        914
+      ],
+      "summary": "Exercises the Navivox Navivox H T T P Start Turn Streams To Subscribed Web Socket contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxWebSocketStopTurnEnqueuesCancel",
+      "type": "function",
+      "name": "TestNavivoxWebSocketStopTurnEnqueuesCancel",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        916,
+        944
+      ],
+      "summary": "Exercises the Navivox Navivox Web Socket Stop Turn Enqueues Cancel contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxSafetyEventsStreamAsTypedEvents",
+      "type": "function",
+      "name": "TestNavivoxSafetyEventsStreamAsTypedEvents",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        946,
+        1007
+      ],
+      "summary": "Exercises the Navivox Navivox Safety Events Stream As Typed Events contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxSendToolProgressStreamsStructuredToolEvent",
+      "type": "function",
+      "name": "TestNavivoxSendToolProgressStreamsStructuredToolEvent",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        1009,
+        1054
+      ],
+      "summary": "Exercises the Navivox Navivox Send Tool Progress Streams Structured Tool Event contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel_test.go:newTestChannel",
+      "type": "function",
+      "name": "newTestChannel",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        1065,
+        1081
+      ],
+      "summary": "Implements newTestChannel behavior within the Navivox channel package.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel_test.go:dialTestWebSocket",
+      "type": "function",
+      "name": "dialTestWebSocket",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        1083,
+        1096
+      ],
+      "summary": "Implements dialTestWebSocket behavior within the Navivox channel package.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel_test.go:readNonProfileContactEvent",
+      "type": "function",
+      "name": "readNonProfileContactEvent",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        1098,
+        1111
+      ],
+      "summary": "Builds or updates redacted Navivox profile-contact state for app display and routing.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel_test.go:TestNewChannel_TailscaleExposureWithLoopbackBind_FailsClosed",
+      "type": "function",
+      "name": "TestNewChannel_TailscaleExposureWithLoopbackBind_FailsClosed",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        1113,
+        1138
+      ],
+      "summary": "Exercises the Navivox New Channel_ Tailscale Exposure With Loopback Bind_ Fails Closed contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel_test.go:TestNewChannel_TailscaleExposureWithMatchingVPNBind_Succeeds",
+      "type": "function",
+      "name": "TestNewChannel_TailscaleExposureWithMatchingVPNBind_Succeeds",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        1140,
+        1163
+      ],
+      "summary": "Exercises the Navivox New Channel_ Tailscale Exposure With Matching V P N Bind_ Succeeds contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel_test.go:TestNewChannel_LocalExposureUnaffectedByVPNCheck",
+      "type": "function",
+      "name": "TestNewChannel_LocalExposureUnaffectedByVPNCheck",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        1165,
+        1186
+      ],
+      "summary": "Exercises the Navivox New Channel_ Local Exposure Unaffected By V P N Check contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel_test.go:TestMergeProfileContact_PreservesLoaderHealth",
+      "type": "function",
+      "name": "TestMergeProfileContact_PreservesLoaderHealth",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        1188,
+        1215
+      ],
+      "summary": "Exercises the Navivox Merge Profile Contact_ Preserves Loader Health contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxCORSPreflightAndActualRequest",
+      "type": "function",
+      "name": "TestNavivoxCORSPreflightAndActualRequest",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        1217,
+        1257
+      ],
+      "summary": "Exercises the Navivox Navivox C O R S Preflight And Actual Request contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxWebSocketCancelTurnEnqueuesCancel",
+      "type": "function",
+      "name": "TestNavivoxWebSocketCancelTurnEnqueuesCancel",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        1259,
+        1287
+      ],
+      "summary": "Exercises the Navivox Navivox Web Socket Cancel Turn Enqueues Cancel contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxSubscriberLifecycleAndBroadcast",
+      "type": "function",
+      "name": "TestNavivoxSubscriberLifecycleAndBroadcast",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        1289,
+        1346
+      ],
+      "summary": "Exercises the Navivox Navivox Subscriber Lifecycle And Broadcast contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:channel_test.go:TestNavivoxSessionSweepEvictsOldSessions",
+      "type": "function",
+      "name": "TestNavivoxSessionSweepEvictsOldSessions",
+      "filePath": "channel_test.go",
+      "lineRange": [
+        1348,
+        1375
+      ],
+      "summary": "Exercises the Navivox Navivox Session Sweep Evicts Old Sessions contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:channel.go:Channel",
+      "type": "class",
+      "name": "Channel",
+      "filePath": "channel.go",
+      "lineRange": [
+        30,
+        48
+      ],
+      "summary": "Holds Navivox channel runtime state, route dependencies, sessions, clients, profile contacts, run records, and gateway-facing send methods.",
+      "tags": [
+        "navivox",
+        "data-model",
+        "runtime"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:channel.go:profileSeedResponse",
+      "type": "class",
+      "name": "profileSeedResponse",
+      "filePath": "channel.go",
+      "lineRange": [
+        438,
+        447
+      ],
+      "summary": "Defines profileSeedResponse data exchanged for redacted Navivox profile-contact state.",
+      "tags": [
+        "profile-contact",
+        "data-model",
+        "redaction"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:WithProfileRouting",
+      "type": "function",
+      "name": "WithProfileRouting",
+      "filePath": "channel.go",
+      "lineRange": [
+        52,
+        56
+      ],
+      "summary": "Builds or updates redacted Navivox profile-contact state for app display and routing.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:NewChannel",
+      "type": "function",
+      "name": "NewChannel",
+      "filePath": "channel.go",
+      "lineRange": [
+        58,
+        99
+      ],
+      "summary": "Implements NewChannel behavior within the Navivox channel package.",
+      "tags": [
+        "navivox",
+        "runtime",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:Name",
+      "type": "function",
+      "name": "Name",
+      "filePath": "channel.go",
+      "lineRange": [
+        101,
+        101
+      ],
+      "summary": "Implements Name behavior within the Navivox channel package.",
+      "tags": [
+        "navivox",
+        "runtime",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:Run",
+      "type": "function",
+      "name": "Run",
+      "filePath": "channel.go",
+      "lineRange": [
+        103,
+        132
+      ],
+      "summary": "Implements Run behavior within the Navivox channel package.",
+      "tags": [
+        "navivox",
+        "runtime",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:Handler",
+      "type": "function",
+      "name": "Handler",
+      "filePath": "channel.go",
+      "lineRange": [
+        134,
+        153
+      ],
+      "summary": "Implements Handler behavior within the Navivox channel package.",
+      "tags": [
+        "navivox",
+        "runtime",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:Send",
+      "type": "function",
+      "name": "Send",
+      "filePath": "channel.go",
+      "lineRange": [
+        155,
+        166
+      ],
+      "summary": "Implements Send behavior within the Navivox channel package.",
+      "tags": [
+        "navivox",
+        "runtime",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:SendPlaceholder",
+      "type": "function",
+      "name": "SendPlaceholder",
+      "filePath": "channel.go",
+      "lineRange": [
+        168,
+        174
+      ],
+      "summary": "Implements SendPlaceholder behavior within the Navivox channel package.",
+      "tags": [
+        "navivox",
+        "runtime",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:SendToolProgress",
+      "type": "function",
+      "name": "SendToolProgress",
+      "filePath": "channel.go",
+      "lineRange": [
+        176,
+        204
+      ],
+      "summary": "Shapes Navivox assistant, tool, safety, or approval events for subscribed clients.",
+      "tags": [
+        "event-stream",
+        "tool-events",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:SendSafetyWarning",
+      "type": "function",
+      "name": "SendSafetyWarning",
+      "filePath": "channel.go",
+      "lineRange": [
+        206,
+        225
+      ],
+      "summary": "Shapes Navivox assistant, tool, safety, or approval events for subscribed clients.",
+      "tags": [
+        "event-stream",
+        "tool-events",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:SendApprovalRequired",
+      "type": "function",
+      "name": "SendApprovalRequired",
+      "filePath": "channel.go",
+      "lineRange": [
+        227,
+        242
+      ],
+      "summary": "Shapes Navivox assistant, tool, safety, or approval events for subscribed clients.",
+      "tags": [
+        "event-stream",
+        "tool-events",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:EditMessage",
+      "type": "function",
+      "name": "EditMessage",
+      "filePath": "channel.go",
+      "lineRange": [
+        244,
+        246
+      ],
+      "summary": "Implements EditMessage behavior within the Navivox channel package.",
+      "tags": [
+        "navivox",
+        "runtime",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:EditMessageFinal",
+      "type": "function",
+      "name": "EditMessageFinal",
+      "filePath": "channel.go",
+      "lineRange": [
+        248,
+        250
+      ],
+      "summary": "Implements EditMessageFinal behavior within the Navivox channel package.",
+      "tags": [
+        "navivox",
+        "runtime",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:edit",
+      "type": "function",
+      "name": "edit",
+      "filePath": "channel.go",
+      "lineRange": [
+        252,
+        290
+      ],
+      "summary": "Implements edit behavior within the Navivox channel package.",
+      "tags": [
+        "navivox",
+        "runtime",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:recordRunStartLocked",
+      "type": "function",
+      "name": "recordRunStartLocked",
+      "filePath": "channel.go",
+      "lineRange": [
+        292,
+        302
+      ],
+      "summary": "Implements recordRunStartLocked behavior within the Navivox channel package.",
+      "tags": [
+        "navivox",
+        "runtime",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:recordAssistantAndComplete",
+      "type": "function",
+      "name": "recordAssistantAndComplete",
+      "filePath": "channel.go",
+      "lineRange": [
+        314,
+        324
+      ],
+      "summary": "Implements recordAssistantAndComplete behavior within the Navivox channel package.",
+      "tags": [
+        "navivox",
+        "runtime",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:latestRunRecordLocked",
+      "type": "function",
+      "name": "latestRunRecordLocked",
+      "filePath": "channel.go",
+      "lineRange": [
+        326,
+        335
+      ],
+      "summary": "Implements latestRunRecordLocked behavior within the Navivox channel package.",
+      "tags": [
+        "navivox",
+        "runtime",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:lookupRunRecord",
+      "type": "function",
+      "name": "lookupRunRecord",
+      "filePath": "channel.go",
+      "lineRange": [
+        337,
+        352
+      ],
+      "summary": "Implements lookupRunRecord behavior within the Navivox channel package.",
+      "tags": [
+        "navivox",
+        "runtime",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:handleHealthz",
+      "type": "function",
+      "name": "handleHealthz",
+      "filePath": "channel.go",
+      "lineRange": [
+        354,
+        363
+      ],
+      "summary": "Handles Navivox healthz requests and writes typed HTTP or WebSocket responses.",
+      "tags": [
+        "handler",
+        "http-api",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:handleStatus",
+      "type": "function",
+      "name": "handleStatus",
+      "filePath": "channel.go",
+      "lineRange": [
+        365,
+        405
+      ],
+      "summary": "Handles Navivox status requests and writes typed HTTP or WebSocket responses.",
+      "tags": [
+        "handler",
+        "http-api",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:handleProfileContacts",
+      "type": "function",
+      "name": "handleProfileContacts",
+      "filePath": "channel.go",
+      "lineRange": [
+        407,
+        418
+      ],
+      "summary": "Handles Navivox profile contacts requests and writes typed HTTP or WebSocket responses.",
+      "tags": [
+        "handler",
+        "http-api",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:handleProfileSeed",
+      "type": "function",
+      "name": "handleProfileSeed",
+      "filePath": "channel.go",
+      "lineRange": [
+        449,
+        494
+      ],
+      "summary": "Handles Navivox profile seed requests and writes typed HTTP or WebSocket responses.",
+      "tags": [
+        "handler",
+        "http-api",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:redactNavivoxPathTail",
+      "type": "function",
+      "name": "redactNavivoxPathTail",
+      "filePath": "channel.go",
+      "lineRange": [
+        496,
+        506
+      ],
+      "summary": "Redacts or normalizes Navivox data for safe app-facing output in channel.go.",
+      "tags": [
+        "navivox",
+        "runtime",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:handleRunRecord",
+      "type": "function",
+      "name": "handleRunRecord",
+      "filePath": "channel.go",
+      "lineRange": [
+        508,
+        525
+      ],
+      "summary": "Handles Navivox run record requests and writes typed HTTP or WebSocket responses.",
+      "tags": [
+        "handler",
+        "http-api",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:handleSessions",
+      "type": "function",
+      "name": "handleSessions",
+      "filePath": "channel.go",
+      "lineRange": [
+        527,
+        539
+      ],
+      "summary": "Handles Navivox sessions requests and writes typed HTTP or WebSocket responses.",
+      "tags": [
+        "handler",
+        "http-api",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:handleSessionByID",
+      "type": "function",
+      "name": "handleSessionByID",
+      "filePath": "channel.go",
+      "lineRange": [
+        541,
+        564
+      ],
+      "summary": "Handles Navivox session by id requests and writes typed HTTP or WebSocket responses.",
+      "tags": [
+        "handler",
+        "http-api",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:Error",
+      "type": "function",
+      "name": "Error",
+      "filePath": "channel.go",
+      "lineRange": [
+        571,
+        571
+      ],
+      "summary": "Implements Error behavior within the Navivox channel package.",
+      "tags": [
+        "navivox",
+        "runtime",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:channel.go:statusForNavivoxError",
+      "type": "function",
+      "name": "statusForNavivoxError",
+      "filePath": "channel.go",
+      "lineRange": [
+        581,
+        594
+      ],
+      "summary": "Implements statusForNavivoxError behavior within the Navivox channel package.",
+      "tags": [
+        "navivox",
+        "runtime",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config_admin_test.go:TestNavivoxConfigAdminRequiresAuthAndRedactsSchemaAndGet",
+      "type": "function",
+      "name": "TestNavivoxConfigAdminRequiresAuthAndRedactsSchemaAndGet",
+      "filePath": "config_admin_test.go",
+      "lineRange": [
+        18,
+        105
+      ],
+      "summary": "Exercises the Navivox Navivox Config Admin Requires Auth And Redacts Schema And Get contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:config_admin_test.go:TestNavivoxConfigAdminValidateAndApplyAreNonMutatingOnError",
+      "type": "function",
+      "name": "TestNavivoxConfigAdminValidateAndApplyAreNonMutatingOnError",
+      "filePath": "config_admin_test.go",
+      "lineRange": [
+        107,
+        162
+      ],
+      "summary": "Exercises the Navivox Navivox Config Admin Validate And Apply Are Non Mutating On Error contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:config_admin_test.go:TestNavivoxConfigAdminDiffAndApplyReportsReloadApplied",
+      "type": "function",
+      "name": "TestNavivoxConfigAdminDiffAndApplyReportsReloadApplied",
+      "filePath": "config_admin_test.go",
+      "lineRange": [
+        164,
+        241
+      ],
+      "summary": "Exercises the Navivox Navivox Config Admin Diff And Apply Reports Reload Applied contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:config_admin_test.go:TestNavivoxConfigAdminApplyWritesSafeValuesAndSecretRedacted",
+      "type": "function",
+      "name": "TestNavivoxConfigAdminApplyWritesSafeValuesAndSecretRedacted",
+      "filePath": "config_admin_test.go",
+      "lineRange": [
+        243,
+        309
+      ],
+      "summary": "Exercises the Navivox Navivox Config Admin Apply Writes Safe Values And Secret Redacted contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:config_admin_test.go:doNavivoxConfigAdminRequest",
+      "type": "function",
+      "name": "doNavivoxConfigAdminRequest",
+      "filePath": "config_admin_test.go",
+      "lineRange": [
+        311,
+        328
+      ],
+      "summary": "Validates, applies, or reports Navivox configuration-admin state for trusted operators.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:config_admin.go:configAdminBackend",
+      "type": "class",
+      "name": "configAdminBackend",
+      "filePath": "config_admin.go",
+      "lineRange": [
+        15,
+        20
+      ],
+      "summary": "Defines configAdminBackend state for the Navivox configuration-admin schema, value, diff, validation, or backend flow.",
+      "tags": [
+        "configuration",
+        "data-model",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:config_admin.go:configAdminField",
+      "type": "class",
+      "name": "configAdminField",
+      "filePath": "config_admin.go",
+      "lineRange": [
+        38,
+        47
+      ],
+      "summary": "Defines configAdminField state for the Navivox configuration-admin schema, value, diff, validation, or backend flow.",
+      "tags": [
+        "configuration",
+        "data-model",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:config_admin.go:configAdminDiffEntry",
+      "type": "class",
+      "name": "configAdminDiffEntry",
+      "filePath": "config_admin.go",
+      "lineRange": [
+        68,
+        77
+      ],
+      "summary": "Defines configAdminDiffEntry state for the Navivox configuration-admin schema, value, diff, validation, or backend flow.",
+      "tags": [
+        "configuration",
+        "data-model",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config_admin.go:WithConfigAdminReloader",
+      "type": "function",
+      "name": "WithConfigAdminReloader",
+      "filePath": "config_admin.go",
+      "lineRange": [
+        22,
+        26
+      ],
+      "summary": "Validates, applies, or reports Navivox configuration-admin state for trusted operators.",
+      "tags": [
+        "configuration",
+        "validation",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config_admin.go:handleConfigAdmin",
+      "type": "function",
+      "name": "handleConfigAdmin",
+      "filePath": "config_admin.go",
+      "lineRange": [
+        93,
+        157
+      ],
+      "summary": "Handles Navivox config admin requests and writes typed HTTP or WebSocket responses.",
+      "tags": [
+        "handler",
+        "http-api",
+        "navivox"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:config_admin.go:validateConfigAdminRequest",
+      "type": "function",
+      "name": "validateConfigAdminRequest",
+      "filePath": "config_admin.go",
+      "lineRange": [
+        159,
+        173
+      ],
+      "summary": "Validates, applies, or reports Navivox configuration-admin state for trusted operators.",
+      "tags": [
+        "configuration",
+        "validation",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config_admin.go:validate",
+      "type": "function",
+      "name": "validate",
+      "filePath": "config_admin.go",
+      "lineRange": [
+        182,
+        212
+      ],
+      "summary": "Validates, applies, or reports Navivox configuration-admin state for trusted operators.",
+      "tags": [
+        "configuration",
+        "validation",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config_admin.go:apply",
+      "type": "function",
+      "name": "apply",
+      "filePath": "config_admin.go",
+      "lineRange": [
+        214,
+        242
+      ],
+      "summary": "Validates, applies, or reports Navivox configuration-admin state for trusted operators.",
+      "tags": [
+        "configuration",
+        "validation",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config_admin.go:configAdminSchema",
+      "type": "function",
+      "name": "configAdminSchema",
+      "filePath": "config_admin.go",
+      "lineRange": [
+        268,
+        280
+      ],
+      "summary": "Validates, applies, or reports Navivox configuration-admin state for trusted operators.",
+      "tags": [
+        "configuration",
+        "validation",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config_admin.go:configAdminValues",
+      "type": "function",
+      "name": "configAdminValues",
+      "filePath": "config_admin.go",
+      "lineRange": [
+        292,
+        309
+      ],
+      "summary": "Validates, applies, or reports Navivox configuration-admin state for trusted operators.",
+      "tags": [
+        "configuration",
+        "validation",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config_admin.go:configAdminFieldValue",
+      "type": "function",
+      "name": "configAdminFieldValue",
+      "filePath": "config_admin.go",
+      "lineRange": [
+        311,
+        332
+      ],
+      "summary": "Validates, applies, or reports Navivox configuration-admin state for trusted operators.",
+      "tags": [
+        "configuration",
+        "validation",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config_admin.go:applyConfigAdminChangeToConfig",
+      "type": "function",
+      "name": "applyConfigAdminChangeToConfig",
+      "filePath": "config_admin.go",
+      "lineRange": [
+        351,
+        396
+      ],
+      "summary": "Validates, applies, or reports Navivox configuration-admin state for trusted operators.",
+      "tags": [
+        "configuration",
+        "validation",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config_admin.go:configAdminDiffs",
+      "type": "function",
+      "name": "configAdminDiffs",
+      "filePath": "config_admin.go",
+      "lineRange": [
+        398,
+        423
+      ],
+      "summary": "Validates, applies, or reports Navivox configuration-admin state for trusted operators.",
+      "tags": [
+        "configuration",
+        "validation",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config_admin.go:normalizeConfigAdminChanges",
+      "type": "function",
+      "name": "normalizeConfigAdminChanges",
+      "filePath": "config_admin.go",
+      "lineRange": [
+        432,
+        443
+      ],
+      "summary": "Validates, applies, or reports Navivox configuration-admin state for trusted operators.",
+      "tags": [
+        "configuration",
+        "validation",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config_admin.go:parseConfigAdminBool",
+      "type": "function",
+      "name": "parseConfigAdminBool",
+      "filePath": "config_admin.go",
+      "lineRange": [
+        454,
+        463
+      ],
+      "summary": "Validates, applies, or reports Navivox configuration-admin state for trusted operators.",
+      "tags": [
+        "configuration",
+        "validation",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config_admin.go:parseConfigAdminCSV",
+      "type": "function",
+      "name": "parseConfigAdminCSV",
+      "filePath": "config_admin.go",
+      "lineRange": [
+        465,
+        487
+      ],
+      "summary": "Validates, applies, or reports Navivox configuration-admin state for trusted operators.",
+      "tags": [
+        "configuration",
+        "validation",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config_admin.go:firstConfigAdminChangedKey",
+      "type": "function",
+      "name": "firstConfigAdminChangedKey",
+      "filePath": "config_admin.go",
+      "lineRange": [
+        498,
+        508
+      ],
+      "summary": "Validates, applies, or reports Navivox configuration-admin state for trusted operators.",
+      "tags": [
+        "configuration",
+        "validation",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config_admin.go:sanitizeConfigAdminMessage",
+      "type": "function",
+      "name": "sanitizeConfigAdminMessage",
+      "filePath": "config_admin.go",
+      "lineRange": [
+        510,
+        528
+      ],
+      "summary": "Redacts or normalizes Navivox data for safe app-facing output in config_admin.go.",
+      "tags": [
+        "configuration",
+        "validation",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:memory_overview_test.go:TestNavivoxMemoryOverviewRequiresAuthAndReturnsSafeCounts",
+      "type": "function",
+      "name": "TestNavivoxMemoryOverviewRequiresAuthAndReturnsSafeCounts",
+      "filePath": "memory_overview_test.go",
+      "lineRange": [
+        14,
+        116
+      ],
+      "summary": "Exercises the Navivox Navivox Memory Overview Requires Auth And Returns Safe Counts contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:memory_overview.go:handleMemoryOverview",
+      "type": "function",
+      "name": "handleMemoryOverview",
+      "filePath": "memory_overview.go",
+      "lineRange": [
+        27,
+        38
+      ],
+      "summary": "Handles Navivox memory overview requests and writes typed HTTP or WebSocket responses.",
+      "tags": [
+        "handler",
+        "http-api",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:memory_overview.go:readMemoryOverview",
+      "type": "function",
+      "name": "readMemoryOverview",
+      "filePath": "memory_overview.go",
+      "lineRange": [
+        40,
+        102
+      ],
+      "summary": "Reads or labels Navivox memory overview data while preserving safe redaction boundaries.",
+      "tags": [
+        "memory",
+        "overview",
+        "navivox"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:memory_overview.go:countMemoryTable",
+      "type": "function",
+      "name": "countMemoryTable",
+      "filePath": "memory_overview.go",
+      "lineRange": [
+        104,
+        118
+      ],
+      "summary": "Reads or labels Navivox memory overview data while preserving safe redaction boundaries.",
+      "tags": [
+        "memory",
+        "overview",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:memory_overview.go:firstMemoryWorkspaceID",
+      "type": "function",
+      "name": "firstMemoryWorkspaceID",
+      "filePath": "memory_overview.go",
+      "lineRange": [
+        129,
+        142
+      ],
+      "summary": "Reads or labels Navivox memory overview data while preserving safe redaction boundaries.",
+      "tags": [
+        "memory",
+        "overview",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:memory_overview.go:safeMemoryDatabaseLabel",
+      "type": "function",
+      "name": "safeMemoryDatabaseLabel",
+      "filePath": "memory_overview.go",
+      "lineRange": [
+        144,
+        157
+      ],
+      "summary": "Redacts or normalizes Navivox data for safe app-facing output in memory_overview.go.",
+      "tags": [
+        "memory",
+        "overview",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts_test.go:TestNavivoxProfileContactSnapshotIsAuthBoundedAndRedacted",
+      "type": "function",
+      "name": "TestNavivoxProfileContactSnapshotIsAuthBoundedAndRedacted",
+      "filePath": "profile_contacts_test.go",
+      "lineRange": [
+        18,
+        104
+      ],
+      "summary": "Exercises the Navivox Navivox Profile Contact Snapshot Is Auth Bounded And Redacted contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:profile_contacts_test.go:TestNavivoxProfileContactWebSocketUpdateSanitizesLatestPreview",
+      "type": "function",
+      "name": "TestNavivoxProfileContactWebSocketUpdateSanitizesLatestPreview",
+      "filePath": "profile_contacts_test.go",
+      "lineRange": [
+        106,
+        165
+      ],
+      "summary": "Exercises the Navivox Navivox Profile Contact Web Socket Update Sanitizes Latest Preview contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "class:profile_contacts.go:ProfileContact",
+      "type": "class",
+      "name": "ProfileContact",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        31,
+        48
+      ],
+      "summary": "Defines ProfileContact data exchanged for redacted Navivox profile-contact state.",
+      "tags": [
+        "profile-contact",
+        "data-model",
+        "redaction"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:profile_contacts.go:profileConfigReadModel",
+      "type": "class",
+      "name": "profileConfigReadModel",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        54,
+        65
+      ],
+      "summary": "Defines profileConfigReadModel state for the Navivox configuration-admin schema, value, diff, validation, or backend flow.",
+      "tags": [
+        "configuration",
+        "data-model",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts.go:profileContactSnapshot",
+      "type": "function",
+      "name": "profileContactSnapshot",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        73,
+        103
+      ],
+      "summary": "Builds or updates redacted Navivox profile-contact state for app display and routing.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts.go:defaultProfileContacts",
+      "type": "function",
+      "name": "defaultProfileContacts",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        105,
+        137
+      ],
+      "summary": "Builds or updates redacted Navivox profile-contact state for app display and routing.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts.go:profileContactFromRoot",
+      "type": "function",
+      "name": "profileContactFromRoot",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        139,
+        181
+      ],
+      "summary": "Builds or updates redacted Navivox profile-contact state for app display and routing.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts.go:readProfileContactConfig",
+      "type": "function",
+      "name": "readProfileContactConfig",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        183,
+        208
+      ],
+      "summary": "Validates, applies, or reports Navivox configuration-admin state for trusted operators.",
+      "tags": [
+        "configuration",
+        "validation",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts.go:configuredWorkspaceRoots",
+      "type": "function",
+      "name": "configuredWorkspaceRoots",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        210,
+        221
+      ],
+      "summary": "Validates, applies, or reports Navivox configuration-admin state for trusted operators.",
+      "tags": [
+        "configuration",
+        "validation",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts.go:workspaceRootSummary",
+      "type": "function",
+      "name": "workspaceRootSummary",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        223,
+        242
+      ],
+      "summary": "Implements workspaceRootSummary behavior within the Navivox channel package.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts.go:profileContactRuntimeUpdateLocked",
+      "type": "function",
+      "name": "profileContactRuntimeUpdateLocked",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        244,
+        276
+      ],
+      "summary": "Builds or updates redacted Navivox profile-contact state for app display and routing.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts.go:updateProfileContactForSession",
+      "type": "function",
+      "name": "updateProfileContactForSession",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        278,
+        288
+      ],
+      "summary": "Builds or updates redacted Navivox profile-contact state for app display and routing.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts.go:broadcastProfileContact",
+      "type": "function",
+      "name": "broadcastProfileContact",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        290,
+        301
+      ],
+      "summary": "Builds or updates redacted Navivox profile-contact state for app display and routing.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts.go:profileScopeFromMetadata",
+      "type": "function",
+      "name": "profileScopeFromMetadata",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        303,
+        315
+      ],
+      "summary": "Builds or updates redacted Navivox profile-contact state for app display and routing.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts.go:normalizeProfileScope",
+      "type": "function",
+      "name": "normalizeProfileScope",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        317,
+        327
+      ],
+      "summary": "Builds or updates redacted Navivox profile-contact state for app display and routing.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts.go:normalizeProfileContact",
+      "type": "function",
+      "name": "normalizeProfileContact",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        334,
+        360
+      ],
+      "summary": "Builds or updates redacted Navivox profile-contact state for app display and routing.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts.go:mergeProfileContact",
+      "type": "function",
+      "name": "mergeProfileContact",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        362,
+        379
+      ],
+      "summary": "Builds or updates redacted Navivox profile-contact state for app display and routing.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts.go:sortProfileContacts",
+      "type": "function",
+      "name": "sortProfileContacts",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        381,
+        394
+      ],
+      "summary": "Builds or updates redacted Navivox profile-contact state for app display and routing.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts.go:profileDisplayName",
+      "type": "function",
+      "name": "profileDisplayName",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        396,
+        409
+      ],
+      "summary": "Builds or updates redacted Navivox profile-contact state for app display and routing.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts.go:safeNavivoxProfilePreview",
+      "type": "function",
+      "name": "safeNavivoxProfilePreview",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        411,
+        427
+      ],
+      "summary": "Redacts or normalizes Navivox data for safe app-facing output in profile_contacts.go.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts.go:appendBadge",
+      "type": "function",
+      "name": "appendBadge",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        429,
+        440
+      ],
+      "summary": "Implements appendBadge behavior within the Navivox channel package.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:profile_contacts.go:compactProfileStrings",
+      "type": "function",
+      "name": "compactProfileStrings",
+      "filePath": "profile_contacts.go",
+      "lineRange": [
+        442,
+        457
+      ],
+      "summary": "Builds or updates redacted Navivox profile-contact state for app display and routing.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:stream.go:sessionState",
+      "type": "class",
+      "name": "sessionState",
+      "filePath": "stream.go",
+      "lineRange": [
+        24,
+        36
+      ],
+      "summary": "Defines sessionState runtime state for Navivox WebSocket sessions and subscribers.",
+      "tags": [
+        "websocket",
+        "session-state",
+        "runtime"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:stream.go:client",
+      "type": "class",
+      "name": "client",
+      "filePath": "stream.go",
+      "lineRange": [
+        38,
+        47
+      ],
+      "summary": "Defines client runtime state for Navivox WebSocket sessions and subscribers.",
+      "tags": [
+        "websocket",
+        "session-state",
+        "runtime"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:stream.go:ClientMessage",
+      "type": "class",
+      "name": "ClientMessage",
+      "filePath": "stream.go",
+      "lineRange": [
+        49,
+        55
+      ],
+      "summary": "Defines the ClientMessage wire payload used by the Navivox stream protocol.",
+      "tags": [
+        "websocket",
+        "event-payload",
+        "protocol"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:stream.go:ServerEvent",
+      "type": "class",
+      "name": "ServerEvent",
+      "filePath": "stream.go",
+      "lineRange": [
+        57,
+        74
+      ],
+      "summary": "Defines the ServerEvent wire payload used by the Navivox stream protocol.",
+      "tags": [
+        "websocket",
+        "event-payload",
+        "protocol"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:stream.go:SafetyEvent",
+      "type": "class",
+      "name": "SafetyEvent",
+      "filePath": "stream.go",
+      "lineRange": [
+        76,
+        82
+      ],
+      "summary": "Defines the SafetyEvent wire payload used by the Navivox stream protocol.",
+      "tags": [
+        "websocket",
+        "event-payload",
+        "protocol"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:stream.go:ApprovalEvent",
+      "type": "class",
+      "name": "ApprovalEvent",
+      "filePath": "stream.go",
+      "lineRange": [
+        84,
+        90
+      ],
+      "summary": "Defines the ApprovalEvent wire payload used by the Navivox stream protocol.",
+      "tags": [
+        "websocket",
+        "event-payload",
+        "protocol"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:stream.go:handleStream",
+      "type": "function",
+      "name": "handleStream",
+      "filePath": "stream.go",
+      "lineRange": [
+        92,
+        146
+      ],
+      "summary": "Handles Navivox stream requests and writes typed HTTP or WebSocket responses.",
+      "tags": [
+        "handler",
+        "websocket",
+        "navivox"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:stream.go:handle",
+      "type": "function",
+      "name": "handle",
+      "filePath": "stream.go",
+      "lineRange": [
+        148,
+        184
+      ],
+      "summary": "Handles Navivox handle requests and writes typed HTTP or WebSocket responses.",
+      "tags": [
+        "handler",
+        "websocket",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:stream.go:enqueueTurnControl",
+      "type": "function",
+      "name": "enqueueTurnControl",
+      "filePath": "stream.go",
+      "lineRange": [
+        186,
+        205
+      ],
+      "summary": "Normalizes and enqueues Navivox turn-control or text-turn events into the gateway.",
+      "tags": [
+        "websocket",
+        "streaming",
+        "session"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:stream.go:sweepSessions",
+      "type": "function",
+      "name": "sweepSessions",
+      "filePath": "stream.go",
+      "lineRange": [
+        207,
+        216
+      ],
+      "summary": "Maintains Navivox WebSocket stream session state and event fanout behavior.",
+      "tags": [
+        "websocket",
+        "streaming",
+        "session"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:stream.go:ensureSessionLocked",
+      "type": "function",
+      "name": "ensureSessionLocked",
+      "filePath": "stream.go",
+      "lineRange": [
+        218,
+        230
+      ],
+      "summary": "Maintains Navivox WebSocket stream session state and event fanout behavior.",
+      "tags": [
+        "websocket",
+        "streaming",
+        "session"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:stream.go:subscribe",
+      "type": "function",
+      "name": "subscribe",
+      "filePath": "stream.go",
+      "lineRange": [
+        232,
+        244
+      ],
+      "summary": "Implements subscribe behavior within the Navivox channel package.",
+      "tags": [
+        "websocket",
+        "streaming",
+        "session"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:stream.go:removeClient",
+      "type": "function",
+      "name": "removeClient",
+      "filePath": "stream.go",
+      "lineRange": [
+        252,
+        263
+      ],
+      "summary": "Maintains Navivox WebSocket stream session state and event fanout behavior.",
+      "tags": [
+        "websocket",
+        "streaming",
+        "session"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:stream.go:broadcast",
+      "type": "function",
+      "name": "broadcast",
+      "filePath": "stream.go",
+      "lineRange": [
+        265,
+        285
+      ],
+      "summary": "Maintains Navivox WebSocket stream session state and event fanout behavior.",
+      "tags": [
+        "websocket",
+        "streaming",
+        "session"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:stream.go:safeNavivoxToolName",
+      "type": "function",
+      "name": "safeNavivoxToolName",
+      "filePath": "stream.go",
+      "lineRange": [
+        302,
+        327
+      ],
+      "summary": "Redacts or normalizes Navivox data for safe app-facing output in stream.go.",
+      "tags": [
+        "websocket",
+        "streaming",
+        "session"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:stream.go:safeNavivoxToolSummary",
+      "type": "function",
+      "name": "safeNavivoxToolSummary",
+      "filePath": "stream.go",
+      "lineRange": [
+        329,
+        339
+      ],
+      "summary": "Redacts or normalizes Navivox data for safe app-facing output in stream.go.",
+      "tags": [
+        "websocket",
+        "streaming",
+        "session"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:stream.go:safeNavivoxToolMetadata",
+      "type": "function",
+      "name": "safeNavivoxToolMetadata",
+      "filePath": "stream.go",
+      "lineRange": [
+        341,
+        371
+      ],
+      "summary": "Redacts or normalizes Navivox data for safe app-facing output in stream.go.",
+      "tags": [
+        "websocket",
+        "streaming",
+        "session"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:tool_events_test.go:TestNavivoxSendToolProgressStreamsUpdatedEvent",
+      "type": "function",
+      "name": "TestNavivoxSendToolProgressStreamsUpdatedEvent",
+      "filePath": "tool_events_test.go",
+      "lineRange": [
+        11,
+        65
+      ],
+      "summary": "Exercises the Navivox Navivox Send Tool Progress Streams Updated Event contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:turn.go:handleTurn",
+      "type": "function",
+      "name": "handleTurn",
+      "filePath": "turn.go",
+      "lineRange": [
+        49,
+        74
+      ],
+      "summary": "Handles Navivox turn requests and writes typed HTTP or WebSocket responses.",
+      "tags": [
+        "handler",
+        "http-api",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:turn.go:enqueueTurn",
+      "type": "function",
+      "name": "enqueueTurn",
+      "filePath": "turn.go",
+      "lineRange": [
+        76,
+        116
+      ],
+      "summary": "Normalizes and enqueues Navivox turn-control or text-turn events into the gateway.",
+      "tags": [
+        "turn-intake",
+        "gateway",
+        "validation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:turn.go:enqueue",
+      "type": "function",
+      "name": "enqueue",
+      "filePath": "turn.go",
+      "lineRange": [
+        118,
+        127
+      ],
+      "summary": "Normalizes and enqueues Navivox turn-control or text-turn events into the gateway.",
+      "tags": [
+        "turn-intake",
+        "gateway",
+        "validation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:voice_profiles_test.go:TestNavivoxVoiceProfilesReadRedactsCredentialsAndValidatesProviders",
+      "type": "function",
+      "name": "TestNavivoxVoiceProfilesReadRedactsCredentialsAndValidatesProviders",
+      "filePath": "voice_profiles_test.go",
+      "lineRange": [
+        16,
+        130
+      ],
+      "summary": "Exercises the Navivox Navivox Voice Profiles Read Redacts Credentials And Validates Providers contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:voice_profiles_test.go:TestNavivoxVoiceTurnResolvesProfileVoiceFallbackEvidence",
+      "type": "function",
+      "name": "TestNavivoxVoiceTurnResolvesProfileVoiceFallbackEvidence",
+      "filePath": "voice_profiles_test.go",
+      "lineRange": [
+        132,
+        209
+      ],
+      "summary": "Exercises the Navivox Navivox Voice Turn Resolves Profile Voice Fallback Evidence contract through package-level tests.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:voice_profiles_test.go:doNavivoxVoiceProfileRequest",
+      "type": "function",
+      "name": "doNavivoxVoiceProfileRequest",
+      "filePath": "voice_profiles_test.go",
+      "lineRange": [
+        211,
+        232
+      ],
+      "summary": "Builds or updates redacted Navivox profile-contact state for app display and routing.",
+      "tags": [
+        "test",
+        "navivox",
+        "contract"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:voice_profiles.go:handleVoiceProfiles",
+      "type": "function",
+      "name": "handleVoiceProfiles",
+      "filePath": "voice_profiles.go",
+      "lineRange": [
+        44,
+        75
+      ],
+      "summary": "Handles Navivox voice profiles requests and writes typed HTTP or WebSocket responses.",
+      "tags": [
+        "handler",
+        "http-api",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:voice_profiles.go:voiceProfileViews",
+      "type": "function",
+      "name": "voiceProfileViews",
+      "filePath": "voice_profiles.go",
+      "lineRange": [
+        84,
+        104
+      ],
+      "summary": "Builds or updates redacted Navivox profile-contact state for app display and routing.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:voice_profiles.go:uniqueSortedVoiceProviders",
+      "type": "function",
+      "name": "uniqueSortedVoiceProviders",
+      "filePath": "voice_profiles.go",
+      "lineRange": [
+        112,
+        128
+      ],
+      "summary": "Resolves Navivox voice-profile state or turn metadata used by voice-enabled turns.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:voice_profiles.go:voiceProfileMetadataForTurn",
+      "type": "function",
+      "name": "voiceProfileMetadataForTurn",
+      "filePath": "voice_profiles.go",
+      "lineRange": [
+        130,
+        175
+      ],
+      "summary": "Builds or updates redacted Navivox profile-contact state for app display and routing.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:voice_profiles.go:navivoxTurnMetadataMarksVoice",
+      "type": "function",
+      "name": "navivoxTurnMetadataMarksVoice",
+      "filePath": "voice_profiles.go",
+      "lineRange": [
+        177,
+        191
+      ],
+      "summary": "Resolves Navivox voice-profile state or turn metadata used by voice-enabled turns.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:voice_profiles.go:boolFromNavivoxMetadata",
+      "type": "function",
+      "name": "boolFromNavivoxMetadata",
+      "filePath": "voice_profiles.go",
+      "lineRange": [
+        201,
+        210
+      ],
+      "summary": "Implements boolFromNavivoxMetadata behavior within the Navivox channel package.",
+      "tags": [
+        "profile-contact",
+        "redaction",
+        "navivox"
+      ],
+      "complexity": "simple"
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:auth.go",
+      "target": "function:auth.go:withAuth",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:auth.go",
+      "target": "function:auth.go:authenticate",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:auth.go",
+      "target": "function:auth.go:authenticateTailscaleIdentity",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:auth.go",
+      "target": "function:auth.go:authenticateToken",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:auth.go",
+      "target": "function:auth.go:webSocketProtocolToken",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:auth.go",
+      "target": "function:auth.go:cors",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:auth.go",
+      "target": "function:auth.go:originAllowed",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:capabilities_test.go",
+      "target": "function:capabilities_test.go:TestNavivoxCapabilitiesEndpointAdvertisesStableContract",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:capabilities_test.go",
+      "target": "function:capabilities_test.go:TestNavivoxCapabilitiesEndpointAdvertisesStableContract",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:capabilities_test.go",
+      "target": "function:capabilities_test.go:TestNavivoxCapabilitiesAuthContractFollowsActiveMode",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:capabilities_test.go",
+      "target": "function:capabilities_test.go:TestNavivoxCapabilitiesAuthContractFollowsActiveMode",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:capabilities_test.go",
+      "target": "function:capabilities_test.go:TestNavivoxStatusLinksCapabilitiesDocument",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:capabilities_test.go",
+      "target": "function:capabilities_test.go:TestNavivoxStatusLinksCapabilitiesDocument",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:capabilities_test.go",
+      "target": "function:capabilities_test.go:TestNavivoxCapabilitiesRedactsSecretsAndLocalPaths",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:capabilities_test.go",
+      "target": "function:capabilities_test.go:TestNavivoxCapabilitiesRedactsSecretsAndLocalPaths",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:capabilities_test.go",
+      "target": "function:capabilities_test.go:containsEndpoint",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:capabilities.go",
+      "target": "class:capabilities.go:capabilityDocument",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:capabilities.go",
+      "target": "function:capabilities.go:capabilityDocument",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:capabilities.go",
+      "target": "function:capabilities.go:navivoxCapabilityAuthHeaders",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:capabilities.go",
+      "target": "function:capabilities.go:navivoxCapabilityNames",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:capabilities.go",
+      "target": "function:capabilities.go:navivoxEventKinds",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:capabilities.go",
+      "target": "function:capabilities.go:navivoxCapabilityEndpoints",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxStatusRequiresAuthAndHealthzIsPublic",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxStatusRequiresAuthAndHealthzIsPublic",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxProfileSeedEndpointCreatesDraftAndApplyShowsContact",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxProfileSeedEndpointCreatesDraftAndApplyShowsContact",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxProfileRoutingEndpointIsAuthBoundedAndSecretFree",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxProfileRoutingEndpointIsAuthBoundedAndSecretFree",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxStatusIncludesServerScopedProfileRoutingWithoutDefaultProfile",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxStatusIncludesServerScopedProfileRoutingWithoutDefaultProfile",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxStatusIncludesSetupHandoffForAppContinuation",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxStatusIncludesSetupHandoffForAppContinuation",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxHTTPStartTurnRequiresAuthAndEnqueuesTypedGatewayEvent",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxHTTPStartTurnRequiresAuthAndEnqueuesTypedGatewayEvent",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxWebSocketAuthAcceptsBrowserSubprotocolToken",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxWebSocketAuthAcceptsBrowserSubprotocolToken",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxLayeredAuthRequiresTokenAndAllowedTailscaleIdentity",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxLayeredAuthRequiresTokenAndAllowedTailscaleIdentity",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxWebSocketAuthRejectsBadBrowserSubprotocolToken",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxWebSocketAuthRejectsBadBrowserSubprotocolToken",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestWebSocketPingAndMalformedJSONReturnTypedEvents",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestWebSocketPingAndMalformedJSONReturnTypedEvents",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxWebSocketStartTurnStreamsGatewayResponses",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxWebSocketStartTurnStreamsGatewayResponses",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxVoiceMarkedStreamTurnEnqueuesTranscriptOnlyGatewayEvent",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxVoiceMarkedStreamTurnEnqueuesTranscriptOnlyGatewayEvent",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxRunRecordEndpointReturnsRedactedVoiceAndToolTimeline",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxRunRecordEndpointReturnsRedactedVoiceAndToolTimeline",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxHTTPStartTurnStreamsToSubscribedWebSocket",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxHTTPStartTurnStreamsToSubscribedWebSocket",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxWebSocketStopTurnEnqueuesCancel",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxWebSocketStopTurnEnqueuesCancel",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxSafetyEventsStreamAsTypedEvents",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxSafetyEventsStreamAsTypedEvents",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxSendToolProgressStreamsStructuredToolEvent",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxSendToolProgressStreamsStructuredToolEvent",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:newTestChannel",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:dialTestWebSocket",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:readNonProfileContactEvent",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNewChannel_TailscaleExposureWithLoopbackBind_FailsClosed",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNewChannel_TailscaleExposureWithLoopbackBind_FailsClosed",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNewChannel_TailscaleExposureWithMatchingVPNBind_Succeeds",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNewChannel_TailscaleExposureWithMatchingVPNBind_Succeeds",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNewChannel_LocalExposureUnaffectedByVPNCheck",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNewChannel_LocalExposureUnaffectedByVPNCheck",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestMergeProfileContact_PreservesLoaderHealth",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestMergeProfileContact_PreservesLoaderHealth",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxCORSPreflightAndActualRequest",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxCORSPreflightAndActualRequest",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxWebSocketCancelTurnEnqueuesCancel",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxWebSocketCancelTurnEnqueuesCancel",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxSubscriberLifecycleAndBroadcast",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxSubscriberLifecycleAndBroadcast",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxSessionSweepEvictsOldSessions",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel_test.go",
+      "target": "function:channel_test.go:TestNavivoxSessionSweepEvictsOldSessions",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel.go",
+      "target": "class:channel.go:Channel",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "class:channel.go:Channel",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel.go",
+      "target": "class:channel.go:profileSeedResponse",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:WithProfileRouting",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:WithProfileRouting",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:NewChannel",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:NewChannel",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:Name",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:Name",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:Run",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:Run",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:Handler",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:Handler",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:Send",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:Send",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:SendPlaceholder",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:SendPlaceholder",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:SendToolProgress",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:SendToolProgress",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:SendSafetyWarning",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:SendSafetyWarning",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:SendApprovalRequired",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:SendApprovalRequired",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:EditMessage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:EditMessage",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:EditMessageFinal",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:EditMessageFinal",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:edit",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:recordRunStartLocked",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:recordAssistantAndComplete",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:latestRunRecordLocked",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:lookupRunRecord",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:handleHealthz",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:handleStatus",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:handleProfileContacts",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:handleProfileSeed",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:redactNavivoxPathTail",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:handleRunRecord",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:handleSessions",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:handleSessionByID",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:Error",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:Error",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:channel.go",
+      "target": "function:channel.go:statusForNavivoxError",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin_test.go",
+      "target": "function:config_admin_test.go:TestNavivoxConfigAdminRequiresAuthAndRedactsSchemaAndGet",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin_test.go",
+      "target": "function:config_admin_test.go:TestNavivoxConfigAdminRequiresAuthAndRedactsSchemaAndGet",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:config_admin_test.go",
+      "target": "function:config_admin_test.go:TestNavivoxConfigAdminValidateAndApplyAreNonMutatingOnError",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin_test.go",
+      "target": "function:config_admin_test.go:TestNavivoxConfigAdminValidateAndApplyAreNonMutatingOnError",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:config_admin_test.go",
+      "target": "function:config_admin_test.go:TestNavivoxConfigAdminDiffAndApplyReportsReloadApplied",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin_test.go",
+      "target": "function:config_admin_test.go:TestNavivoxConfigAdminDiffAndApplyReportsReloadApplied",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:config_admin_test.go",
+      "target": "function:config_admin_test.go:TestNavivoxConfigAdminApplyWritesSafeValuesAndSecretRedacted",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin_test.go",
+      "target": "function:config_admin_test.go:TestNavivoxConfigAdminApplyWritesSafeValuesAndSecretRedacted",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:config_admin_test.go",
+      "target": "function:config_admin_test.go:doNavivoxConfigAdminRequest",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "class:config_admin.go:configAdminBackend",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "class:config_admin.go:configAdminField",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "class:config_admin.go:configAdminDiffEntry",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "function:config_admin.go:WithConfigAdminReloader",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "function:config_admin.go:WithConfigAdminReloader",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "function:config_admin.go:handleConfigAdmin",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "function:config_admin.go:validateConfigAdminRequest",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "function:config_admin.go:validate",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "function:config_admin.go:apply",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "function:config_admin.go:configAdminSchema",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "function:config_admin.go:configAdminValues",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "function:config_admin.go:configAdminFieldValue",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "function:config_admin.go:applyConfigAdminChangeToConfig",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "function:config_admin.go:configAdminDiffs",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "function:config_admin.go:normalizeConfigAdminChanges",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "function:config_admin.go:parseConfigAdminBool",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "function:config_admin.go:parseConfigAdminCSV",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "function:config_admin.go:firstConfigAdminChangedKey",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "function:config_admin.go:sanitizeConfigAdminMessage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:memory_overview_test.go",
+      "target": "function:memory_overview_test.go:TestNavivoxMemoryOverviewRequiresAuthAndReturnsSafeCounts",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:memory_overview_test.go",
+      "target": "function:memory_overview_test.go:TestNavivoxMemoryOverviewRequiresAuthAndReturnsSafeCounts",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:memory_overview.go",
+      "target": "function:memory_overview.go:handleMemoryOverview",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:memory_overview.go",
+      "target": "function:memory_overview.go:readMemoryOverview",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:memory_overview.go",
+      "target": "function:memory_overview.go:countMemoryTable",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:memory_overview.go",
+      "target": "function:memory_overview.go:firstMemoryWorkspaceID",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:memory_overview.go",
+      "target": "function:memory_overview.go:safeMemoryDatabaseLabel",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts_test.go",
+      "target": "function:profile_contacts_test.go:TestNavivoxProfileContactSnapshotIsAuthBoundedAndRedacted",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts_test.go",
+      "target": "function:profile_contacts_test.go:TestNavivoxProfileContactSnapshotIsAuthBoundedAndRedacted",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:profile_contacts_test.go",
+      "target": "function:profile_contacts_test.go:TestNavivoxProfileContactWebSocketUpdateSanitizesLatestPreview",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts_test.go",
+      "target": "function:profile_contacts_test.go:TestNavivoxProfileContactWebSocketUpdateSanitizesLatestPreview",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "class:profile_contacts.go:ProfileContact",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "class:profile_contacts.go:ProfileContact",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "class:profile_contacts.go:profileConfigReadModel",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "function:profile_contacts.go:profileContactSnapshot",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "function:profile_contacts.go:defaultProfileContacts",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "function:profile_contacts.go:profileContactFromRoot",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "function:profile_contacts.go:readProfileContactConfig",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "function:profile_contacts.go:configuredWorkspaceRoots",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "function:profile_contacts.go:workspaceRootSummary",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "function:profile_contacts.go:profileContactRuntimeUpdateLocked",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "function:profile_contacts.go:updateProfileContactForSession",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "function:profile_contacts.go:broadcastProfileContact",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "function:profile_contacts.go:profileScopeFromMetadata",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "function:profile_contacts.go:normalizeProfileScope",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "function:profile_contacts.go:normalizeProfileContact",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "function:profile_contacts.go:mergeProfileContact",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "function:profile_contacts.go:sortProfileContacts",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "function:profile_contacts.go:profileDisplayName",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "function:profile_contacts.go:safeNavivoxProfilePreview",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "function:profile_contacts.go:appendBadge",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "function:profile_contacts.go:compactProfileStrings",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:stream.go",
+      "target": "class:stream.go:sessionState",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:stream.go",
+      "target": "class:stream.go:client",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:stream.go",
+      "target": "class:stream.go:ClientMessage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:stream.go",
+      "target": "class:stream.go:ClientMessage",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:stream.go",
+      "target": "class:stream.go:ServerEvent",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:stream.go",
+      "target": "class:stream.go:ServerEvent",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:stream.go",
+      "target": "class:stream.go:SafetyEvent",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:stream.go",
+      "target": "class:stream.go:SafetyEvent",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:stream.go",
+      "target": "class:stream.go:ApprovalEvent",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:stream.go",
+      "target": "class:stream.go:ApprovalEvent",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:stream.go",
+      "target": "function:stream.go:handleStream",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:stream.go",
+      "target": "function:stream.go:handle",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:stream.go",
+      "target": "function:stream.go:enqueueTurnControl",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:stream.go",
+      "target": "function:stream.go:sweepSessions",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:stream.go",
+      "target": "function:stream.go:ensureSessionLocked",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:stream.go",
+      "target": "function:stream.go:subscribe",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:stream.go",
+      "target": "function:stream.go:removeClient",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:stream.go",
+      "target": "function:stream.go:broadcast",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:stream.go",
+      "target": "function:stream.go:safeNavivoxToolName",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:stream.go",
+      "target": "function:stream.go:safeNavivoxToolSummary",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:stream.go",
+      "target": "function:stream.go:safeNavivoxToolMetadata",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:tool_events_test.go",
+      "target": "function:tool_events_test.go:TestNavivoxSendToolProgressStreamsUpdatedEvent",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:tool_events_test.go",
+      "target": "function:tool_events_test.go:TestNavivoxSendToolProgressStreamsUpdatedEvent",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:turn.go",
+      "target": "function:turn.go:handleTurn",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:turn.go",
+      "target": "function:turn.go:enqueueTurn",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:turn.go",
+      "target": "function:turn.go:enqueue",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:voice_profiles_test.go",
+      "target": "function:voice_profiles_test.go:TestNavivoxVoiceProfilesReadRedactsCredentialsAndValidatesProviders",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:voice_profiles_test.go",
+      "target": "function:voice_profiles_test.go:TestNavivoxVoiceProfilesReadRedactsCredentialsAndValidatesProviders",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:voice_profiles_test.go",
+      "target": "function:voice_profiles_test.go:TestNavivoxVoiceTurnResolvesProfileVoiceFallbackEvidence",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:voice_profiles_test.go",
+      "target": "function:voice_profiles_test.go:TestNavivoxVoiceTurnResolvesProfileVoiceFallbackEvidence",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:voice_profiles_test.go",
+      "target": "function:voice_profiles_test.go:doNavivoxVoiceProfileRequest",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:voice_profiles.go",
+      "target": "function:voice_profiles.go:handleVoiceProfiles",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:voice_profiles.go",
+      "target": "function:voice_profiles.go:voiceProfileViews",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:voice_profiles.go",
+      "target": "function:voice_profiles.go:uniqueSortedVoiceProviders",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:voice_profiles.go",
+      "target": "function:voice_profiles.go:voiceProfileMetadataForTurn",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:voice_profiles.go",
+      "target": "function:voice_profiles.go:navivoxTurnMetadataMarksVoice",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:voice_profiles.go",
+      "target": "function:voice_profiles.go:boolFromNavivoxMetadata",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:channel.go",
+      "target": "file:auth.go",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "file:channel.go",
+      "target": "file:stream.go",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "file:channel.go",
+      "target": "file:turn.go",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "file:channel.go",
+      "target": "file:profile_contacts.go",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "file:channel.go",
+      "target": "file:config_admin.go",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "file:channel.go",
+      "target": "file:memory_overview.go",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "file:channel.go",
+      "target": "file:voice_profiles.go",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "file:channel.go",
+      "target": "file:capabilities.go",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "file:stream.go",
+      "target": "file:turn.go",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "file:stream.go",
+      "target": "file:profile_contacts.go",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "file:turn.go",
+      "target": "file:profile_contacts.go",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "file:voice_profiles.go",
+      "target": "file:turn.go",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:capabilities.go",
+      "target": "file:channel.go",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:codemap.md",
+      "target": "file:channel.go",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:codemap.md",
+      "target": "file:stream.go",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:codemap.md",
+      "target": "file:turn.go",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:codemap.md",
+      "target": "file:auth.go",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:codemap.md",
+      "target": "file:profile_contacts.go",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:codemap.md",
+      "target": "file:config_admin.go",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:codemap.md",
+      "target": "file:voice_profiles.go",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:codemap.md",
+      "target": "file:memory_overview.go",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:auth.go",
+      "target": "file:channel_test.go",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:capabilities.go",
+      "target": "file:capabilities_test.go",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:channel.go",
+      "target": "file:channel_test.go",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:channel.go",
+      "target": "file:tool_events_test.go",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:config_admin.go",
+      "target": "file:config_admin_test.go",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:memory_overview.go",
+      "target": "file:memory_overview_test.go",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "file:profile_contacts_test.go",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:profile_contacts.go",
+      "target": "file:channel_test.go",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:stream.go",
+      "target": "file:channel_test.go",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:stream.go",
+      "target": "file:tool_events_test.go",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:turn.go",
+      "target": "file:channel_test.go",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:turn.go",
+      "target": "file:voice_profiles_test.go",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:voice_profiles.go",
+      "target": "file:voice_profiles_test.go",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    }
+  ],
+  "layers": [
+    {
+      "id": "layer:navivox-channel-runtime",
+      "name": "Navivox Channel Runtime",
+      "description": "Gateway.Channel implementation, auth gates, HTTP route dispatch, WebSocket stream sessions, and text/voice turn enqueue mechanics.",
+      "nodeIds": [
+        "file:channel.go",
+        "file:auth.go",
+        "file:stream.go",
+        "file:turn.go"
+      ]
+    },
+    {
+      "id": "layer:operator-app-surfaces",
+      "name": "Operator App Surfaces",
+      "description": "App-facing capability, profile-contact, config-admin, memory overview, and voice-profile read models with redaction and validation boundaries.",
+      "nodeIds": [
+        "file:capabilities.go",
+        "file:config_admin.go",
+        "file:memory_overview.go",
+        "file:profile_contacts.go",
+        "file:voice_profiles.go"
+      ]
+    },
+    {
+      "id": "layer:contract-test-coverage",
+      "name": "Contract Test Coverage",
+      "description": "Package tests that preserve Navivox auth, HTTP, WebSocket, profile, config, memory, voice, tool-event, and runtime safety contracts.",
+      "nodeIds": [
+        "file:capabilities_test.go",
+        "file:channel_test.go",
+        "file:config_admin_test.go",
+        "file:memory_overview_test.go",
+        "file:profile_contacts_test.go",
+        "file:tool_events_test.go",
+        "file:voice_profiles_test.go"
+      ]
+    },
+    {
+      "id": "layer:architecture-documentation",
+      "name": "Architecture Documentation",
+      "description": "Repo-local codemap explaining Navivox responsibilities, module seams, data flows, integrations, and test surfaces.",
+      "nodeIds": [
+        "document:codemap.md"
+      ]
+    }
+  ],
+  "tour": [
+    {
+      "order": 1,
+      "title": "Subsystem Map",
+      "description": "Start with the codemap to learn the Navivox channel boundary, module seams, and HTTP/WebSocket flows.",
+      "nodeIds": [
+        "document:codemap.md"
+      ]
+    },
+    {
+      "order": 2,
+      "title": "Channel Entry Point",
+      "description": "Review channel.go to see how Navivox registers HTTP routes, implements gateway.Channel, tracks sessions and run records, and shapes errors.",
+      "nodeIds": [
+        "file:channel.go"
+      ]
+    },
+    {
+      "order": 3,
+      "title": "Auth, Stream, and Turn Intake",
+      "description": "Follow auth.go, stream.go, and turn.go to understand request authorization, WebSocket client/session management, and gateway inbound event enqueueing.",
+      "nodeIds": [
+        "file:auth.go",
+        "file:stream.go",
+        "file:turn.go"
+      ]
+    },
+    {
+      "order": 4,
+      "title": "App-Facing Read Models",
+      "description": "Inspect the capability, profile-contact, config-admin, memory overview, and voice-profile files to see how Navivox exposes trusted operator state without leaking secrets or local paths.",
+      "nodeIds": [
+        "file:capabilities.go",
+        "file:profile_contacts.go",
+        "file:config_admin.go",
+        "file:memory_overview.go",
+        "file:voice_profiles.go"
+      ]
+    },
+    {
+      "order": 5,
+      "title": "Contract Tests",
+      "description": "Use the package tests as executable documentation for auth requirements, streaming events, config mutation safety, redaction, and voice/profile contracts.",
+      "nodeIds": [
+        "file:channel_test.go",
+        "file:config_admin_test.go",
+        "file:capabilities_test.go",
+        "file:voice_profiles_test.go"
+      ]
+    }
+  ]
+}

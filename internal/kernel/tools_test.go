@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -21,13 +21,13 @@ import (
 // wrappers) inherit this contract by satisfying the same tools.Tool
 // interface; Gormes itself ships no domain-specific tools.
 func TestKernel_ToolCallHandshake_Echo(t *testing.T) {
-	mc := hermes.NewMockClient()
+	mc := llm.NewMockClient()
 
 	// Round 1: LLM requests the built-in "echo" tool with deterministic args.
-	mc.Script([]hermes.Event{
+	mc.Script([]llm.Event{
 		{
-			Kind: hermes.EventDone, FinishReason: "tool_calls",
-			ToolCalls: []hermes.ToolCall{
+			Kind: llm.EventDone, FinishReason: "tool_calls",
+			ToolCalls: []llm.ToolCall{
 				{
 					ID:        "call_echo_1",
 					Name:      "echo",
@@ -39,11 +39,11 @@ func TestKernel_ToolCallHandshake_Echo(t *testing.T) {
 
 	// Round 2: LLM's final answer referencing the echoed text.
 	finalAnswer := "Tool said: GoCo factory online."
-	events := []hermes.Event{}
+	events := []llm.Event{}
 	for _, ch := range finalAnswer {
-		events = append(events, hermes.Event{Kind: hermes.EventToken, Token: string(ch), TokensOut: 1})
+		events = append(events, llm.Event{Kind: llm.EventToken, Token: string(ch), TokensOut: 1})
 	}
-	events = append(events, hermes.Event{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 50, TokensOut: len(finalAnswer)})
+	events = append(events, llm.Event{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 50, TokensOut: len(finalAnswer)})
 	mc.Script(events, "sess-echo")
 
 	// Register Gormes's built-in EchoTool — no external/domain tools.
@@ -92,11 +92,11 @@ func TestKernel_ToolCallHandshake_Echo(t *testing.T) {
 }
 
 func TestKernel_ClearsToolProgressSoulAtTurnStart(t *testing.T) {
-	mc := hermes.NewMockClient()
+	mc := llm.NewMockClient()
 	finalAnswer := "No tools needed."
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: finalAnswer, TokensOut: len(finalAnswer)},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 10, TokensOut: len(finalAnswer)},
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: finalAnswer, TokensOut: len(finalAnswer)},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 10, TokensOut: len(finalAnswer)},
 	}, "sess-clean")
 
 	k := New(Config{
@@ -127,15 +127,15 @@ func TestKernel_ClearsToolProgressSoulAtTurnStart(t *testing.T) {
 }
 
 func TestKernel_DefaultToolIterationBudgetMatchesHermesBeyondTen(t *testing.T) {
-	mc := hermes.NewMockClient()
+	mc := llm.NewMockClient()
 	reg := tools.NewRegistry()
 	reg.MustRegister(&tools.EchoTool{})
 
 	for i := 0; i < 11; i++ {
-		mc.Script([]hermes.Event{{
-			Kind:         hermes.EventDone,
+		mc.Script([]llm.Event{{
+			Kind:         llm.EventDone,
 			FinishReason: "tool_calls",
-			ToolCalls: []hermes.ToolCall{{
+			ToolCalls: []llm.ToolCall{{
 				ID:        "call_echo_" + string(rune('a'+i)),
 				Name:      "echo",
 				Arguments: json.RawMessage(`{"text":"budget parity"}`),
@@ -144,9 +144,9 @@ func TestKernel_DefaultToolIterationBudgetMatchesHermesBeyondTen(t *testing.T) {
 	}
 
 	finalAnswer := "Completed after more than ten tool rounds."
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: finalAnswer, TokensOut: len(finalAnswer)},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 50, TokensOut: len(finalAnswer)},
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: finalAnswer, TokensOut: len(finalAnswer)},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 50, TokensOut: len(finalAnswer)},
 	}, "sess-budget")
 
 	k := New(Config{
@@ -183,15 +183,15 @@ func TestKernel_DefaultToolIterationBudgetMatchesHermesBeyondTen(t *testing.T) {
 }
 
 func TestKernel_ToolIterationBudgetRequestsToollessSummary(t *testing.T) {
-	mc := hermes.NewMockClient()
+	mc := llm.NewMockClient()
 	reg := tools.NewRegistry()
 	reg.MustRegister(&tools.EchoTool{})
 
 	for i := 0; i < 2; i++ {
-		mc.Script([]hermes.Event{{
-			Kind:         hermes.EventDone,
+		mc.Script([]llm.Event{{
+			Kind:         llm.EventDone,
 			FinishReason: "tool_calls",
-			ToolCalls: []hermes.ToolCall{{
+			ToolCalls: []llm.ToolCall{{
 				ID:        "call_echo_" + string(rune('a'+i)),
 				Name:      "echo",
 				Arguments: json.RawMessage(`{"text":"budget parity"}`),
@@ -200,9 +200,9 @@ func TestKernel_ToolIterationBudgetRequestsToollessSummary(t *testing.T) {
 	}
 
 	summary := "I reached the tool budget, so here is the useful summary."
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: summary, TokensOut: len(summary)},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 50, TokensOut: len(summary)},
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: summary, TokensOut: len(summary)},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 50, TokensOut: len(summary)},
 	}, "sess-budget-summary")
 
 	k := New(Config{

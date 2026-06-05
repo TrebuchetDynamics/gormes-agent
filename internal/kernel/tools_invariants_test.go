@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -20,23 +20,23 @@ import (
 // not deadlock — the mailbox's drain-then-send in emitFrame should keep
 // working even when a tool is running for hundreds of milliseconds.
 func TestToolLoop_DoesNotBreakReplaceLatestMailbox(t *testing.T) {
-	mc := hermes.NewMockClient()
+	mc := llm.NewMockClient()
 
 	// Round 1: LLM requests the "slow" tool.
-	mc.Script([]hermes.Event{
+	mc.Script([]llm.Event{
 		{
-			Kind: hermes.EventDone, FinishReason: "tool_calls",
-			ToolCalls: []hermes.ToolCall{
+			Kind: llm.EventDone, FinishReason: "tool_calls",
+			ToolCalls: []llm.ToolCall{
 				{ID: "c1", Name: "slow", Arguments: json.RawMessage(`{}`)},
 			},
 		},
 	}, "sess-stall-tool")
 	// Round 2: streaming answer (100 z-tokens + done).
-	events := []hermes.Event{}
+	events := []llm.Event{}
 	for i := 0; i < 100; i++ {
-		events = append(events, hermes.Event{Kind: hermes.EventToken, Token: "z", TokensOut: i + 1})
+		events = append(events, llm.Event{Kind: llm.EventToken, Token: "z", TokensOut: i + 1})
 	}
-	events = append(events, hermes.Event{Kind: hermes.EventDone, FinishReason: "stop"})
+	events = append(events, llm.Event{Kind: llm.EventDone, FinishReason: "stop"})
 	mc.Script(events, "sess-stall-tool")
 
 	reg := tools.NewRegistry()

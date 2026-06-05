@@ -1,0 +1,20 @@
+package routing
+
+import "github.com/TrebuchetDynamics/gormes-agent/internal/llm/routing/providerdefaults"
+
+type ProviderDefaultModelSource = providerdefaults.ProviderDefaultModelSource
+
+const (
+	ProviderDefaultModelSourceUnknown         ProviderDefaultModelSource = providerdefaults.ProviderDefaultModelSourceUnknown
+	ProviderDefaultModelSourceCodexConfig     ProviderDefaultModelSource = providerdefaults.ProviderDefaultModelSourceCodexConfig
+	ProviderDefaultModelSourceCodexCache      ProviderDefaultModelSource = providerdefaults.ProviderDefaultModelSourceCodexCache
+	ProviderDefaultModelSourceCuratedFallback ProviderDefaultModelSource = providerdefaults.ProviderDefaultModelSourceCuratedFallback
+	ProviderDefaultModelSourceStaticCatalog   ProviderDefaultModelSource = providerdefaults.ProviderDefaultModelSourceStaticCatalog
+)
+
+type ProviderDefaultModelOptions = providerdefaults.ProviderDefaultModelOptions
+type ProviderDefaultModelResolution = providerdefaults.ProviderDefaultModelResolution
+
+func ResolveProviderDefaultModel(provider string, opts ProviderDefaultModelOptions) ProviderDefaultModelResolution {
+	return providerdefaults.ResolveProviderDefaultModel(provider, opts)
+}

@@ -10,7 +10,9 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
 )
 
 func TestGatewayBoot_OpenAICodexProvider_DefaultsModel(t *testing.T) {
@@ -44,8 +46,7 @@ func TestGatewayBoot_OpenAICodexProvider_DefaultsModel(t *testing.T) {
 	}))
 	defer server.Close()
 
-	prev := authCodexOAuthLogin
-	authCodexOAuthLogin = func(context.Context, codexOAuthLoginRequest) (config.CodexOAuthTokens, error) {
+	restoreOAuthLogin := providermodule.SetCodexOAuthLoginForTest(func(context.Context, providermodule.CodexOAuthLoginRequest) (config.CodexOAuthTokens, error) {
 		return config.CodexOAuthTokens{
 			AccountID:    "acct",
 			Label:        "Codex",
@@ -53,8 +54,8 @@ func TestGatewayBoot_OpenAICodexProvider_DefaultsModel(t *testing.T) {
 			RefreshToken: "refresh-token",
 			BaseURL:      server.URL,
 		}, nil
-	}
-	t.Cleanup(func() { authCodexOAuthLogin = prev })
+	})
+	t.Cleanup(restoreOAuthLogin)
 
 	cmd := newRootCommandWithRuntime(rootRuntime{})
 	stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "add", "openai-codex", "--type", "oauth", "--inference-url", server.URL)
@@ -69,13 +70,13 @@ func TestGatewayBoot_OpenAICodexProvider_DefaultsModel(t *testing.T) {
 	if cfg.Hermes.Model != "gpt-5.5" {
 		t.Fatalf("cfg.Hermes.Model = %q, want provider default", cfg.Hermes.Model)
 	}
-	client, err := newProviderHTTPClient(cfg, cfg.Hermes.Provider)
+	client, err := gormescli.NewProviderHTTPClient(cfg, cfg.Hermes.Provider)
 	if err != nil {
 		t.Fatalf("newProviderHTTPClient: %v", err)
 	}
-	stream, err := client.OpenStream(context.Background(), hermes.ChatRequest{
+	stream, err := client.OpenStream(context.Background(), llm.ChatRequest{
 		Model:    cfg.Hermes.Model,
-		Messages: []hermes.Message{{Role: "user", Content: "hello"}},
+		Messages: []llm.Message{{Role: "user", Content: "hello"}},
 	})
 	if err != nil {
 		t.Fatalf("OpenStream: %v", err)

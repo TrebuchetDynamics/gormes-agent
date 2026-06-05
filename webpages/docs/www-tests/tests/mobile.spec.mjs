@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+import { expectMainHeading, expectNoHorizontalOverflow, visitPage } from '../../../shared/playwright/playwright-helpers.mjs';
+
 const VIEWPORTS = [
   { label: 'iPhone SE', width: 320, height: 568 },
   { label: 'small Android', width: 360, height: 760 },
@@ -11,25 +13,17 @@ const VIEWPORTS = [
 
 for (const vp of VIEWPORTS) {
   test(`docs home (${vp.label} ${vp.width}x${vp.height}) has no horizontal overflow`, async ({ page }) => {
-    await page.setViewportSize({ width: vp.width, height: vp.height });
-    await page.goto('/');
+    await visitPage(page, '/', vp);
 
-    const overflow = await page.evaluate(() =>
-      document.documentElement.scrollWidth > window.innerWidth,
-    );
-    expect(overflow, `page overflows at ${vp.width}px`).toBeFalsy();
+    await expectNoHorizontalOverflow(page, `page overflows at ${vp.width}px`);
   });
 
   test(`docs article page (${vp.label}) has no overflow and renders Starlight TOC`, async ({ page }) => {
-    await page.setViewportSize({ width: vp.width, height: vp.height });
-    await page.goto('/building-gormes/architecture_plan/phase-6-learning-loop/');
+    await visitPage(page, '/building-gormes/architecture_plan/phase-6-learning-loop/', vp);
 
-    const overflow = await page.evaluate(() =>
-      document.documentElement.scrollWidth > window.innerWidth,
-    );
-    expect(overflow, `article overflows at ${vp.width}px`).toBeFalsy();
+    await expectNoHorizontalOverflow(page, `article overflows at ${vp.width}px`);
 
-    await expect(page.getByRole('heading', { name: 'Phase 6 — The Learning Loop' }).first()).toBeVisible();
+    await expectMainHeading(page, 'Phase 6 — The Learning Loop');
     await expect(page.locator('mobile-starlight-toc')).toHaveCount(1);
 
     if (vp.width >= 1280) {
@@ -40,10 +34,9 @@ for (const vp of VIEWPORTS) {
 }
 
 test('mobile operator install journey keeps code blocks and next links usable', async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 568 });
-  await page.goto('/install/linux-macos/');
+  await visitPage(page, '/install/linux-macos/', { width: 320, height: 568 });
 
-  await expect(page.getByRole('heading', { name: 'Linux and macOS' }).first()).toBeVisible();
+  await expectMainHeading(page, 'Linux and macOS');
   await expect(page.getByText('curl -fsSL https://gormes.ai/install.sh | bash').first()).toBeVisible();
   await expect(page.locator('main')).not.toContainText('raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh');
 
@@ -60,12 +53,11 @@ test('mobile operator install journey keeps code blocks and next links usable', 
   await expect(next).toBeVisible();
   await next.click();
   await expect(page).toHaveURL(/\/install\/windows\//);
-  await expect(page.getByRole('heading', { name: 'Windows' }).first()).toBeVisible();
+  await expectMainHeading(page, 'Windows');
 });
 
 test('mobile menu button is accessible and desktop hides it', async ({ page }) => {
-  await page.setViewportSize({ width: 360, height: 760 });
-  await page.goto('/getting-started/first-run/');
+  await visitPage(page, '/getting-started/first-run/', { width: 360, height: 760 });
 
   await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(1);

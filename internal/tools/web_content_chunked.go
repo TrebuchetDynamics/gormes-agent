@@ -3,11 +3,14 @@ package tools
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"sort"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // ChunkedWebContentProcessorConfig holds configuration for chunked processing.
@@ -44,40 +47,46 @@ func DefaultChunkedWebContentProcessorConfig() ChunkedWebContentProcessorConfig 
 // for large content. It splits content into chunks, summarizes each in parallel,
 // then synthesizes a final summary.
 type ChunkedWebContentProcessor struct {
-	client hermes.Client
+	client llm.Client
 	model  string
 	cfg    ChunkedWebContentProcessorConfig
 }
 
 // NewChunkedWebContentProcessor creates a new ChunkedWebContentProcessor.
 // Returns nil if client is nil.
-func NewChunkedWebContentProcessor(client hermes.Client, model string, cfg ChunkedWebContentProcessorConfig) WebContentProcessor {
+func NewChunkedWebContentProcessor(client llm.Client, model string, cfg ChunkedWebContentProcessorConfig) WebContentProcessor {
 	if client == nil {
 		return nil
 	}
-	if cfg.MaxContentSize <= 0 {
-		cfg.MaxContentSize = 2_000_000
-	}
-	if cfg.ChunkThreshold <= 0 {
-		cfg.ChunkThreshold = 500_000
-	}
-	if cfg.ChunkSize <= 0 {
-		cfg.ChunkSize = 100_000
-	}
-	if cfg.MaxOutputChars <= 0 {
-		cfg.MaxOutputChars = 5000
-	}
-	if cfg.MaxParallelism <= 0 {
-		cfg.MaxParallelism = 3
-	}
-	if cfg.MinLength <= 0 {
-		cfg.MinLength = 5000
-	}
+	cfg = normalizeChunkedWebContentProcessorConfig(cfg)
 	return &ChunkedWebContentProcessor{
 		client: client,
 		model:  model,
 		cfg:    cfg,
 	}
+}
+
+func normalizeChunkedWebContentProcessorConfig(cfg ChunkedWebContentProcessorConfig) ChunkedWebContentProcessorConfig {
+	defaults := DefaultChunkedWebContentProcessorConfig()
+	if cfg.MaxContentSize <= 0 {
+		cfg.MaxContentSize = defaults.MaxContentSize
+	}
+	if cfg.ChunkThreshold <= 0 {
+		cfg.ChunkThreshold = defaults.ChunkThreshold
+	}
+	if cfg.ChunkSize <= 0 {
+		cfg.ChunkSize = defaults.ChunkSize
+	}
+	if cfg.MaxOutputChars <= 0 {
+		cfg.MaxOutputChars = defaults.MaxOutputChars
+	}
+	if cfg.MaxParallelism <= 0 {
+		cfg.MaxParallelism = defaults.MaxParallelism
+	}
+	if cfg.MinLength <= 0 {
+		cfg.MinLength = defaults.MinLength
+	}
+	return cfg
 }
 
 // ProcessWebContent implements WebContentProcessor.
@@ -97,19 +106,33 @@ func (p *ChunkedWebContentProcessor) ProcessWebContent(ctx context.Context, req 
 
 	// Single-pass processing if content fits within threshold
 	if contentLen <= p.cfg.ChunkThreshold {
-		return p.singlePassProcess(ctx, req)
+		result, err := p.singlePassProcess(ctx, req)
+		return limitWebProcessedOutput(result, p.cfg.MaxOutputChars), err
 	}
 
 	// Chunked processing for large content
-	return p.chunkedProcess(ctx, req)
+	result, err := p.chunkedProcess(ctx, req)
+	return limitWebProcessedOutput(result, p.cfg.MaxOutputChars), err
+}
+
+// limitWebProcessedOutput enforces MaxOutputChars on processed LLM output.
+func limitWebProcessedOutput(output string, maxChars int) string {
+	if maxChars <= 0 {
+		return output
+	}
+	runes := []rune(output)
+	if len(runes) <= maxChars {
+		return output
+	}
+	return string(runes[:maxChars])
 }
 
 // singlePassProcess handles content below the chunk threshold.
 func (p *ChunkedWebContentProcessor) singlePassProcess(ctx context.Context, req WebContentProcessRequest) (string, error) {
-	stream, err := p.client.OpenStream(ctx, hermes.ChatRequest{
+	stream, err := p.client.OpenStream(ctx, llm.ChatRequest{
 		Model:  p.model,
 		Stream: true,
-		Messages: []hermes.Message{
+		Messages: []llm.Message{
 			{
 				Role:    "system",
 				Content: "You are an expert content analyst. Produce a concise markdown summary that preserves key facts, figures, quotes, code snippets, and actionable details.",
@@ -139,8 +162,14 @@ func (p *ChunkedWebContentProcessor) chunkedProcess(ctx context.Context, req Web
 		return req.Content, nil
 	}
 
-	// Summarize chunks in parallel
-	summaries, err := p.summarizeChunks(ctx, req, chunks)
+	// Summarize chunks in parallel. Keep every candidate outcome so failed or
+	// empty chunks cannot be silently dropped before synthesis.
+	summaryOutcomes, err := p.summarizeChunks(ctx, req, chunks)
+	if err != nil {
+		return "", err
+	}
+
+	summaries, err := requireCompleteChunkSummaries(summaryOutcomes, len(chunks))
 	if err != nil {
 		return "", err
 	}
@@ -154,6 +183,32 @@ func (p *ChunkedWebContentProcessor) chunkedProcess(ctx context.Context, req Web
 	return p.synthesizeSummaries(ctx, req, summaries)
 }
 
+func requireCompleteChunkSummaries(outcomes []chunkSummary, wantChunks int) ([]chunkSummary, error) {
+	if len(outcomes) == 0 {
+		return nil, errors.New("no summaries available")
+	}
+	if len(outcomes) != wantChunks {
+		return nil, fmt.Errorf("chunk summary failed: received %d of %d chunk outcomes", len(outcomes), wantChunks)
+	}
+
+	summaries := make([]chunkSummary, 0, len(outcomes))
+	failed := 0
+	for _, outcome := range outcomes {
+		if !usableChunkSummary(outcome) {
+			failed++
+			continue
+		}
+		summaries = append(summaries, outcome)
+	}
+	if len(summaries) == 0 {
+		return nil, errors.New("no summaries available")
+	}
+	if failed > 0 {
+		return nil, fmt.Errorf("chunk summary failed for %d of %d chunks", failed, wantChunks)
+	}
+	return sortedChunkSummaries(summaries), nil
+}
+
 // chunkSummary holds the result of summarizing one chunk.
 type chunkSummary struct {
 	index   int
@@ -161,31 +216,52 @@ type chunkSummary struct {
 	err     error
 }
 
+func usableChunkSummary(summary chunkSummary) bool {
+	return summary.err == nil && strings.TrimSpace(summary.summary) != ""
+}
+
+func sortedChunkSummaries(summaries []chunkSummary) []chunkSummary {
+	sorted := make([]chunkSummary, len(summaries))
+	copy(sorted, summaries)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return sorted[i].index < sorted[j].index
+	})
+	return sorted
+}
+
+func joinChunkSummaries(summaries []chunkSummary) string {
+	sorted := sortedChunkSummaries(summaries)
+	parts := make([]string, 0, len(sorted))
+	for _, s := range sorted {
+		parts = append(parts, s.summary)
+	}
+	return strings.Join(parts, "\n\n---\n\n")
+}
+
 // splitIntoChunks splits content into chunks of approximately ChunkSize.
 // It tries to split at sentence boundaries for natural chunking.
 func (p *ChunkedWebContentProcessor) splitIntoChunks(content string) []string {
-	if len(content) <= p.cfg.ChunkSize {
+	return splitWebContentIntoChunks(content, p.cfg.ChunkSize)
+}
+
+func splitWebContentIntoChunks(content string, chunkSize int) []string {
+	if len(content) <= chunkSize {
 		return []string{content}
 	}
 
 	var chunks []string
 	remaining := content
 
-	for len(remaining) > p.cfg.ChunkSize {
-		// Find the actual split point
-		splitAt := findGoodSplitPoint(remaining, p.cfg.ChunkSize)
+	for len(remaining) > chunkSize {
+		splitAt := findGoodSplitPoint(remaining, chunkSize)
+		if splitAt <= 0 || splitAt >= len(remaining) {
+			splitAt = len(remaining)
+		}
 
-		// Take the chunk
 		chunks = append(chunks, remaining[:splitAt])
-
-		// Move to remaining
 		remaining = remaining[splitAt:]
-
-		// Skip leading whitespace for next chunk to avoid orphaned whitespace
-		remaining = strings.TrimLeft(remaining, " \n\t\r")
 	}
 
-	// Don't forget the last chunk
 	if len(remaining) > 0 {
 		chunks = append(chunks, remaining)
 	}
@@ -198,6 +274,10 @@ func (p *ChunkedWebContentProcessor) splitIntoChunks(content string) []string {
 // that are close to targetSize. It searches forward from targetSize, then
 // backward if no good point is found forward.
 func findGoodSplitPoint(content string, targetSize int) int {
+	return utf8SafeSplitPoint(content, rawGoodSplitPoint(content, targetSize))
+}
+
+func rawGoodSplitPoint(content string, targetSize int) int {
 	contentLen := len(content)
 	if contentLen <= targetSize {
 		return contentLen
@@ -258,7 +338,24 @@ func findGoodSplitPoint(content string, targetSize int) int {
 	return contentLen
 }
 
-// summarizeChunks processes chunks in parallel and returns successful summaries.
+func utf8SafeSplitPoint(content string, splitAt int) int {
+	if splitAt <= 0 || splitAt >= len(content) || utf8.RuneStart(content[splitAt]) {
+		return splitAt
+	}
+	for i := splitAt - 1; i > 0; i-- {
+		if utf8.RuneStart(content[i]) {
+			return i
+		}
+	}
+	for i := splitAt + 1; i < len(content); i++ {
+		if utf8.RuneStart(content[i]) {
+			return i
+		}
+	}
+	return len(content)
+}
+
+// summarizeChunks processes chunks in parallel and returns every chunk outcome.
 func (p *ChunkedWebContentProcessor) summarizeChunks(ctx context.Context, req WebContentProcessRequest, chunks []string) ([]chunkSummary, error) {
 	results := make(chan chunkSummary, len(chunks))
 	var wg sync.WaitGroup
@@ -288,9 +385,7 @@ func (p *ChunkedWebContentProcessor) summarizeChunks(ctx context.Context, req We
 
 	var summaries []chunkSummary
 	for r := range results {
-		if r.err == nil && r.summary != "" {
-			summaries = append(summaries, r)
-		}
+		summaries = append(summaries, r)
 	}
 
 	return summaries, nil
@@ -298,10 +393,10 @@ func (p *ChunkedWebContentProcessor) summarizeChunks(ctx context.Context, req We
 
 // summarizeChunk produces a summary for one chunk using a chunk-specific prompt.
 func (p *ChunkedWebContentProcessor) summarizeChunk(ctx context.Context, req WebContentProcessRequest, chunkIndex int, chunkContent string) (string, error) {
-	stream, err := p.client.OpenStream(ctx, hermes.ChatRequest{
+	stream, err := p.client.OpenStream(ctx, llm.ChatRequest{
 		Model:  p.model,
 		Stream: true,
-		Messages: []hermes.Message{
+		Messages: []llm.Message{
 			{
 				Role:    "system",
 				Content: "You are an expert content analyst processing a SECTION of a larger document. Do NOT write introductions or conclusions. Focus on extracting ALL key facts, figures, data points. Preserve quotes and code snippets verbatim. Use bullet points.",
@@ -325,29 +420,12 @@ func (p *ChunkedWebContentProcessor) summarizeChunk(ctx context.Context, req Web
 
 // synthesizeSummaries combines multiple chunk summaries into one cohesive summary.
 func (p *ChunkedWebContentProcessor) synthesizeSummaries(ctx context.Context, req WebContentProcessRequest, summaries []chunkSummary) (string, error) {
-	// Build the combined summaries text, sorted by chunk index
-	type byIndex []chunkSummary
-	sorted := make([]chunkSummary, len(summaries))
-	copy(sorted, summaries)
-	for i := 0; i < len(sorted)-1; i++ {
-		for j := i + 1; j < len(sorted); j++ {
-			if sorted[j].index < sorted[i].index {
-				sorted[i], sorted[j] = sorted[j], sorted[i]
-			}
-		}
-	}
+	combined := joinChunkSummaries(summaries)
 
-	var summaryTexts []string
-	for _, s := range sorted {
-		summaryTexts = append(summaryTexts, s.summary)
-	}
-
-	combined := strings.Join(summaryTexts, "\n\n---\n\n")
-
-	stream, err := p.client.OpenStream(ctx, hermes.ChatRequest{
+	stream, err := p.client.OpenStream(ctx, llm.ChatRequest{
 		Model:  p.model,
 		Stream: true,
-		Messages: []hermes.Message{
+		Messages: []llm.Message{
 			{
 				Role:    "system",
 				Content: "You have been given summaries of different sections of a large document. Synthesize these into ONE cohesive, comprehensive summary that removes redundancy, preserves all key facts, and is well-organized with clear structure.",
@@ -381,29 +459,11 @@ func (p *ChunkedWebContentProcessor) fallbackSummaries(summaries []chunkSummary)
 		return "", errors.New("no summaries available")
 	}
 
-	// Sort by original chunk index
-	sorted := make([]chunkSummary, len(summaries))
-	copy(sorted, summaries)
-	for i := 0; i < len(sorted)-1; i++ {
-		for j := i + 1; j < len(sorted); j++ {
-			if sorted[j].index < sorted[i].index {
-				sorted[i], sorted[j] = sorted[j], sorted[i]
-			}
-		}
-	}
-
-	var b strings.Builder
-	for i, s := range sorted {
-		if i > 0 {
-			b.WriteString("\n\n---\n\n")
-		}
-		b.WriteString(s.summary)
-	}
-	return b.String(), nil
+	return joinChunkSummaries(summaries), nil
 }
 
 // readStreamToString reads all tokens from a stream and returns them as a string.
-func (p *ChunkedWebContentProcessor) readStreamToString(ctx context.Context, stream hermes.Stream) (string, error) {
+func (p *ChunkedWebContentProcessor) readStreamToString(ctx context.Context, stream llm.Stream) (string, error) {
 	var out strings.Builder
 	for {
 		ev, err := stream.Recv(ctx)
@@ -414,9 +474,9 @@ func (p *ChunkedWebContentProcessor) readStreamToString(ctx context.Context, str
 			return "", err
 		}
 		switch ev.Kind {
-		case hermes.EventToken:
+		case llm.EventToken:
 			out.WriteString(ev.Token)
-		case hermes.EventDone:
+		case llm.EventDone:
 			return out.String(), nil
 		}
 	}

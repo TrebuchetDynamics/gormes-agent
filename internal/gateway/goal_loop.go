@@ -2,113 +2,32 @@ package gateway
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/goalloop"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 const (
-	GoalJudgeVerdictDone     = "done"
-	GoalJudgeVerdictContinue = "continue"
-	GoalJudgeVerdictSkipped  = "skipped"
+	GoalJudgeVerdictDone     = goalloop.JudgeVerdictDone
+	GoalJudgeVerdictContinue = goalloop.JudgeVerdictContinue
+	GoalJudgeVerdictSkipped  = goalloop.JudgeVerdictSkipped
 )
 
-type GoalJudge interface {
-	JudgeGoal(context.Context, string, string) (string, error)
-}
+type GoalJudge = goalloop.Judge
 
-type GoalJudgeFunc func(context.Context, string, string) (string, error)
+type GoalJudgeFunc = goalloop.JudgeFunc
 
-func (f GoalJudgeFunc) JudgeGoal(ctx context.Context, goal, lastResponse string) (string, error) {
-	return f(ctx, goal, lastResponse)
-}
-
-type GoalJudgeVerdict struct {
-	Verdict string
-	Reason  string
-}
+type GoalJudgeVerdict = goalloop.JudgeVerdict
 
 func EvaluateGoalJudge(ctx context.Context, judge GoalJudge, goal, lastResponse string) GoalJudgeVerdict {
-	if strings.TrimSpace(goal) == "" {
-		return GoalJudgeVerdict{Verdict: GoalJudgeVerdictSkipped, Reason: "empty goal"}
-	}
-	if strings.TrimSpace(lastResponse) == "" {
-		return GoalJudgeVerdict{Verdict: GoalJudgeVerdictContinue, Reason: "empty response (nothing to evaluate)"}
-	}
-	if judge == nil {
-		return GoalJudgeVerdict{Verdict: GoalJudgeVerdictContinue, Reason: "auxiliary client unavailable"}
-	}
-	raw, err := judge.JudgeGoal(ctx, goal, lastResponse)
-	if err != nil {
-		return GoalJudgeVerdict{Verdict: GoalJudgeVerdictContinue, Reason: "judge error: " + err.Error()}
-	}
-	return ParseGoalJudgeResponse(raw)
+	return goalloop.EvaluateJudge(ctx, judge, goal, lastResponse)
 }
 
 func ParseGoalJudgeResponse(raw string) GoalJudgeVerdict {
-	if strings.TrimSpace(raw) == "" {
-		return GoalJudgeVerdict{Verdict: GoalJudgeVerdictContinue, Reason: "judge returned empty response"}
-	}
-	text := strings.TrimSpace(raw)
-	if strings.HasPrefix(text, "```") {
-		text = strings.Trim(text, "`")
-		if i := strings.IndexByte(text, '\n'); i >= 0 {
-			text = text[i+1:]
-		}
-		text = strings.TrimSpace(text)
-	}
-	if !strings.HasPrefix(text, "{") {
-		if start := strings.IndexByte(text, '{'); start >= 0 {
-			if end := strings.LastIndexByte(text, '}'); end >= start {
-				text = text[start : end+1]
-			}
-		}
-	}
-
-	var data struct {
-		Done   any    `json:"done"`
-		Reason string `json:"reason"`
-	}
-	if err := json.Unmarshal([]byte(text), &data); err != nil {
-		return GoalJudgeVerdict{Verdict: GoalJudgeVerdictContinue, Reason: fmt.Sprintf("judge reply was not JSON: %q", truncateGoalReason(raw, 200))}
-	}
-	reason := strings.TrimSpace(data.Reason)
-	if reason == "" {
-		reason = "no reason provided"
-	}
-	if goalJudgeDone(data.Done) {
-		return GoalJudgeVerdict{Verdict: GoalJudgeVerdictDone, Reason: reason}
-	}
-	return GoalJudgeVerdict{Verdict: GoalJudgeVerdictContinue, Reason: reason}
-}
-
-func goalJudgeDone(value any) bool {
-	switch v := value.(type) {
-	case bool:
-		return v
-	case string:
-		switch strings.ToLower(strings.TrimSpace(v)) {
-		case "true", "yes", "1", "done":
-			return true
-		default:
-			return false
-		}
-	case float64:
-		return v != 0
-	default:
-		return false
-	}
-}
-
-func truncateGoalReason(s string, limit int) string {
-	runes := []rune(strings.TrimSpace(s))
-	if len(runes) <= limit {
-		return string(runes)
-	}
-	return string(runes[:limit]) + "..."
+	return goalloop.ParseJudgeResponse(raw)
 }
 
 func (m *Manager) handleGoalCommand(ctx context.Context, ch Channel, ev InboundEvent) {
@@ -186,24 +105,7 @@ func (m *Manager) handleGoalCommand(ctx context.Context, ch Channel, ev InboundE
 	))
 }
 
-func goalCommandArgs(text string) string {
-	body := strings.TrimSpace(text)
-	if body == "" {
-		return ""
-	}
-	fields := strings.Fields(body)
-	if len(fields) == 0 {
-		return ""
-	}
-	first := strings.TrimPrefix(strings.ToLower(fields[0]), "/")
-	if first != "goal" {
-		return body
-	}
-	if len(body) <= len(fields[0]) {
-		return ""
-	}
-	return strings.TrimSpace(body[len(fields[0]):])
-}
+func goalCommandArgs(text string) string { return goalloop.CommandArgs(text) }
 
 func (m *Manager) sendGoalStatus(ctx context.Context, ch Channel, ev InboundEvent) {
 	state, ok := m.loadGoalForInbound(ctx, ev)
@@ -214,23 +116,7 @@ func (m *Manager) sendGoalStatus(ctx context.Context, ch Channel, ev InboundEven
 	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, formatGoalStatusLine(state))
 }
 
-func formatGoalStatusLine(state *session.GoalState) string {
-	if state == nil {
-		return "No goal set."
-	}
-	status := strings.ToLower(strings.TrimSpace(string(state.Status)))
-	if status == "" {
-		status = string(session.GoalStatusActive)
-	}
-	line := fmt.Sprintf("Goal %s (%d/%d): %s", status, state.TurnsUsed, state.MaxTurns, state.Goal)
-	if reason := strings.TrimSpace(state.LastReason); reason != "" {
-		line += "\nLast verdict: " + strings.TrimSpace(state.LastVerdict) + " — " + reason
-	}
-	if reason := strings.TrimSpace(state.PausedReason); reason != "" {
-		line += "\nPaused reason: " + reason
-	}
-	return line
-}
+func formatGoalStatusLine(state *session.GoalState) string { return goalloop.FormatStatusLine(state) }
 
 func (m *Manager) pauseGoal(ctx context.Context, ch Channel, ev InboundEvent) {
 	sessionID, ok := m.goalSessionIDForInbound(ctx, ev)
@@ -425,7 +311,7 @@ func (m *Manager) handleGoalPostTurnContinuation(ctx context.Context, ch Channel
 		return
 	}
 	_, _ = m.sendWithHooks(ctx, ch, state.ChatID, fmt.Sprintf("↻ Continuing toward goal (%d/%d): %s", goal.TurnsUsed, goal.MaxTurns, verdict.Reason))
-	m.queueGoalContinuation(ctx, ch, state, session.ContinuationPrompt(goal.Goal))
+	m.queueGoalContinuation(ctx, ch, state, session.ContinuationPrompt(goal.Goal, goal.Subgoals))
 }
 
 func (m *Manager) pauseInterruptedGoal(ctx context.Context, ch Channel, state activeTurnSnapshot) {

@@ -70,7 +70,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           tag_version="${GITHUB_REF_NAME#v}"
-          code_version=$(grep 'var Version =' cmd/gormes/version.go | sed 's/.*"\(.*\)".*/\1/')
+          code_version=$(grep 'var Version =' cmd/gormes/main.go | sed 's/.*"\(.*\)".*/\1/')
           if [ "$tag_version" != "$code_version" ]; then
             echo "Version mismatch: tag=$tag_version, code=$code_version"
             exit 1
@@ -240,7 +240,7 @@ jobs:
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
-          date_alias=$(grep 'var VersionDateAlias =' cmd/gormes/version.go | sed 's/.*"\(.*\)".*/\1/')
+          date_alias=$(grep 'var VersionDateAlias =' cmd/gormes/main.go | sed 's/.*"\(.*\)".*/\1/')
           test -n "$date_alias"
           echo "date_alias=$date_alias" >> "$GITHUB_OUTPUT"
           {

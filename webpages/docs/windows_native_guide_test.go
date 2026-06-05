@@ -1,8 +1,6 @@
 package docs_test
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -77,16 +75,4 @@ func TestWindowsNativeGuideLinkedFromUsingGormesPages(t *testing.T) {
 	if !strings.Contains(installIndex, "./windows/") && !strings.Contains(installIndex, "Windows native") {
 		t.Fatalf("install index does not link or label the Windows native guide")
 	}
-}
-
-func readFirstExisting(t *testing.T, rels ...string) string {
-	t.Helper()
-	for _, rel := range rels {
-		raw, err := os.ReadFile(filepath.Join(".", rel))
-		if err == nil {
-			return string(raw)
-		}
-	}
-	t.Fatalf("none of the candidate files exist: %s", strings.Join(rels, ", "))
-	return ""
 }

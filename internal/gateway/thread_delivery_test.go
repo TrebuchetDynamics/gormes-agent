@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 type threadAwareFakeChannel struct {
@@ -183,7 +183,7 @@ func TestThreadAwareFinalPageUsesPinnedTurnThread(t *testing.T) {
 	var coCancel context.CancelFunc
 	m.dispatchFrame(context.Background(), kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "assistant", Content: "threaded final answer"},
 		},
 	}, &co, &coCancel)
@@ -235,7 +235,7 @@ func TestThreadAwareToolProgressUsesPinnedTurnThread(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("thread sends = %+v, want one tool-progress send", got)
 	}
-	if got[0].ChatID != "-10042" || got[0].ThreadID != "888" || !strings.Contains(got[0].Text, "ACTION [runtime] Running test suite") {
+	if got[0].ChatID != "-10042" || got[0].ThreadID != "888" || !strings.Contains(got[0].Text, "⚙️ [runtime] Running test suite") {
 		t.Fatalf("thread send = %+v, want threaded tool progress", got[0])
 	}
 }

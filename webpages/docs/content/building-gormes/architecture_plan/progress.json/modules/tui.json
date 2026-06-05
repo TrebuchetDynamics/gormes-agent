@@ -189,7 +189,7 @@
         "internal/doctor/ (existing health checks; the screen reuses, does not duplicate)",
         "internal/config/config.go (provider/auth/profile config presence)",
         "internal/config/credential_pool.go (auth store contract)",
-        "internal/agenttemplate/ (template seed detection)",
+        "internal/core/agenttemplate/ (template seed detection)",
         "internal/config/agents.go (default-agent registry)",
         "internal/tui/wizard (1.E.1 — Fix action launches a Step sequence)",
         "internal/tui/admin/shell.go (1.E.2 shell)"
@@ -583,7 +583,7 @@
         "system"
       ],
       "degraded_mode": "Non-TTY setup returns setup_gateway_requires_tty or renders `--plan` without raw key handling; token-only Telegram config is partial until an access policy is chosen; missing home channel is warning evidence, not unconfigured; legacy env/config aliases remain read-compatible but setup writes Gormes-owned names and redacts all secrets.",
-      "fixture": "cmd/gormes/setup_gateway_bubbletea_test.go; cmd/gormes/setup_gateway_test.go; internal/gateway/channel_setup_test.go; internal/config/config_test.go; internal/config/writer_test.go; internal/migrate/hermes/manifest_test.go; internal/migrate/hermes/writer_test.go",
+      "fixture": "cmd/gormes/setup_gateway_bubbletea_test.go; cmd/gormes/setup_gateway_test.go; internal/gateway/channel_setup_test.go; internal/config/config_test.go; internal/config/writer_test.go; internal/platform/migrate/hermes/manifest_test.go; internal/platform/migrate/hermes/writer_test.go",
       "source_refs": [
         "webpages/docs/content/building-gormes/architecture_plan/messaging-platform-setup-fidelity.md",
         "hermes-agent@9ed751b96:hermes_cli/setup.py:setup_gateway",
@@ -597,8 +597,8 @@
         "internal/tui/wizard",
         "internal/config/config.go",
         "internal/config/writer.go",
-        "internal/migrate/hermes/manifest.go",
-        "internal/migrate/hermes/writer.go"
+        "internal/platform/migrate/hermes/manifest.go",
+        "internal/platform/migrate/hermes/writer.go"
       ],
       "ready_when": [
         "Existing setup gateway checklist row is complete and exposes a fakeable section seam.",
@@ -642,9 +642,9 @@
         "internal/config/config.go",
         "internal/config/writer.go",
         "internal/config/telegram_config_test.go",
-        "internal/migrate/hermes/manifest.go",
-        "internal/migrate/hermes/writer.go",
-        "internal/migrate/hermes/telegram_mapping_test.go",
+        "internal/platform/migrate/hermes/manifest.go",
+        "internal/platform/migrate/hermes/writer.go",
+        "internal/platform/migrate/hermes/telegram_mapping_test.go",
         "webpages/docs/content/building-gormes/architecture_plan/messaging-platform-setup-fidelity.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
@@ -652,7 +652,7 @@
         "go test ./cmd/gormes -run 'TestSetupGateway.*BubbleTea|TestSetupGateway.*Telegram|TestSetupGateway.*Plan|TestSetupGateway.*Redact|TestSetupGateway.*NonTTY' -count=1",
         "go test ./internal/gateway -run 'TestChannelSetup' -count=1",
         "go test ./internal/config -run 'TestTelegram.*HomeChannel|TestTelegram.*EnvAlias|TestConfigWriter.*Telegram' -count=1",
-        "go test ./internal/migrate/hermes -run 'TestHermes.*Telegram|TestHermesConfigWriter.*Telegram' -count=1",
+        "go test ./internal/platform/migrate/hermes -run 'TestHermes.*Telegram|TestHermesConfigWriter.*Telegram' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -662,7 +662,7 @@
       "provenance": {
         "origin_type": "upstream_reconciliation",
         "upstream_ref": "hermes-agent@9ed751b96 setup.py + gateway.py + gateway/config.py + messaging docs",
-        "note": "Validated 2026-05-14 with row-local tests plus cmd/gormes, internal/config, internal/gateway, and internal/migrate/hermes package tests. Operator decision 2026-05-14: prefer Hermes analogy and fidelity wherever possible, with Gormes-owned improvements only for Bubble Tea TUI quality, tmux/non-TTY safety, review-before-write, Gormes-owned runtime paths, and explicit migration boundaries."
+        "note": "Validated 2026-05-14 with row-local tests plus cmd/gormes, internal/config, internal/gateway, and internal/platform/migrate/hermes package tests. Operator decision 2026-05-14: prefer Hermes analogy and fidelity wherever possible, with Gormes-owned improvements only for Bubble Tea TUI quality, tmux/non-TTY safety, review-before-write, Gormes-owned runtime paths, and explicit migration boundaries."
       }
     }
   },
@@ -864,7 +864,7 @@
       "name": "Native TUI /save canonical session export",
       "priority": "P2",
       "status": "complete",
-      "contract": "Native Bubble Tea TUI replaces the /save no-op stub registered by `Native TUI slash-command dispatch table` with a handler that calls an injected SessionExportFunc(ctx, sessionID) (path string, err error) which delegates to internal/transcript.ExportMarkdown over the persisted session DB and renders the resulting file path through StatusMessage — never via the kernel submit path",
+      "contract": "Native Bubble Tea TUI replaces the /save no-op stub registered by `Native TUI slash-command dispatch table` with a handler that calls an injected SessionExportFunc(ctx, sessionID) (path string, err error) which delegates to internal/persistence/transcript.ExportMarkdown over the persisted session DB and renders the resulting file path through StatusMessage — never via the kernel submit path",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "gateway",
@@ -880,16 +880,16 @@
         "../hermes-agent/tui_gateway/server.py@2536a36f:session.save",
         "internal/tui/slash_dispatch.go",
         "internal/tui/slash_dispatch_test.go",
-        "internal/transcript/markdown.go:ExportMarkdown,ErrSessionNotFound",
+        "internal/persistence/transcript/markdown.go:ExportMarkdown,ErrSessionNotFound",
         "cmd/gormes/session.go:sessionExportCmd"
       ],
       "ready_when": [
         "`Native TUI slash-command dispatch table` is complete (the registry and /save stub already exist).",
-        "internal/transcript.ExportMarkdown is the canonical persisted-transcript reader — `cmd/gormes/session.go` already proves it works over a sql.DB pointing at config.MemoryDBPath().",
+        "internal/persistence/transcript.ExportMarkdown is the canonical persisted-transcript reader — `cmd/gormes/session.go` already proves it works over a sql.DB pointing at config.MemoryDBPath().",
         "The existing TestSlashRegistry_SaveStubReturnsNotImplemented assertion in internal/tui/slash_dispatch_test.go is the only test the prior dispatch row required to assert /save was a no-op; replacing the stub means that one named test must be deleted or rewritten in the same slice (no test outside internal/tui asserts the stub message)."
       ],
       "not_ready_when": [
-        "The slice writes UI-shaped Model.frame.History rows directly instead of going through internal/transcript.ExportMarkdown.",
+        "The slice writes UI-shaped Model.frame.History rows directly instead of going through internal/persistence/transcript.ExportMarkdown.",
         "The slice opens a network connection, starts SSE/api_server transport, or treats /save as a normal model prompt.",
         "The slice changes kernel.Submit signatures or the registry shape introduced by the prior row.",
         "The slice modifies any internal/tui file other than slash_dispatch.go, slash_dispatch_test.go, slash_save.go, slash_save_test.go, or model.go (in particular: update.go, view.go, mouse_tracking.go, and auto_title.go must be untouched).",
@@ -908,7 +908,7 @@
         "TestSlashSave_ExportFailureRemovesPartialFile wires a fake that writes a partial file then returns an error; asserts the partial file is removed (os.Stat ENOENT) and StatusMessage starts with `save: write failed:`.",
         "TestSlashSave_ErrSessionNotFoundReturnsStoreUnavailable wires a fake returning transcript.ErrSessionNotFound; asserts StatusMessage=`save: store unavailable`."
       ],
-      "note": "Reshaped 2026-04-26 (continuation of `Native TUI slash-command dispatch table`). Wires the no-op /save stub to internal/transcript.ExportMarkdown via an injected function so unit tests do not need a real SQLite DB. cmd/gormes/main.go is responsible for binding the real implementation (open MemoryDBPath, call ExportMarkdown) when constructing the Model — that wiring lives outside this row's write_scope. 2026-04-26T20:30Z reshape: prior attempt failed report_validation_failed because the worker needed to delete TestSlashRegistry_SaveStubReturnsNotImplemented from internal/tui/slash_dispatch_test.go but that file was not in write_scope; this reshape adds slash_dispatch_test.go to write_scope, names the deletion explicitly in acceptance, and tightens not_ready_when to forbid touching any other internal/tui file.",
+      "note": "Reshaped 2026-04-26 (continuation of `Native TUI slash-command dispatch table`). Wires the no-op /save stub to internal/persistence/transcript.ExportMarkdown via an injected function so unit tests do not need a real SQLite DB. cmd/gormes/main.go is responsible for binding the real implementation (open MemoryDBPath, call ExportMarkdown) when constructing the Model — that wiring lives outside this row's write_scope. 2026-04-26T20:30Z reshape: prior attempt failed report_validation_failed because the worker needed to delete TestSlashRegistry_SaveStubReturnsNotImplemented from internal/tui/slash_dispatch_test.go but that file was not in write_scope; this reshape adds slash_dispatch_test.go to write_scope, names the deletion explicitly in acceptance, and tightens not_ready_when to forbid touching any other internal/tui file.",
       "write_scope": [
         "internal/tui/slash_dispatch.go",
         "internal/tui/slash_dispatch_test.go",
@@ -919,16 +919,16 @@
       ],
       "test_commands": [
         "go test ./internal/tui -run 'TestSlashSave_|TestSlashRegistry_' -count=1",
-        "go test ./internal/tui ./internal/transcript -count=1",
+        "go test ./internal/tui ./internal/persistence/transcript -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
-        "All 5 TestSlashSave_* fixtures pass; TestSlashRegistry_SaveStubReturnsNotImplemented is no longer present in internal/tui/slash_dispatch_test.go (it has been deleted because the stub it asserted is gone); no test in internal/tui opens a real network or DB connection; `go test ./internal/tui ./internal/transcript -count=1` is green."
+        "All 5 TestSlashSave_* fixtures pass; TestSlashRegistry_SaveStubReturnsNotImplemented is no longer present in internal/tui/slash_dispatch_test.go (it has been deleted because the stub it asserted is gone); no test in internal/tui opens a real network or DB connection; `go test ./internal/tui ./internal/persistence/transcript -count=1` is green."
       ],
       "provenance": {
         "origin_type": "hybrid",
         "upstream_ref": "hermes:2536a36f ui-tui/src/app/slash/commands/core.ts",
-        "note": "Hermes defines /save as a JSON-RPC session.save call; Gormes wires it directly to internal/transcript.ExportMarkdown via an injected SessionExportFunc to keep the TUI testable without SSE/JSON-RPC."
+        "note": "Hermes defines /save as a JSON-RPC session.save call; Gormes wires it directly to internal/persistence/transcript.ExportMarkdown via an injected SessionExportFunc to keep the TUI testable without SSE/JSON-RPC."
       }
     }
   },
@@ -990,7 +990,7 @@
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestTUISaveExportHelper_' -count=1",
-        "go test ./cmd/gormes ./internal/transcript -count=1",
+        "go test ./cmd/gormes ./internal/persistence/transcript -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -1096,20 +1096,20 @@
         "system"
       ],
       "degraded_mode": "TUI StatusMessage reports `branch: no conversation`, `branch: no active session`, `branch: store unavailable`, or `branch: fork failed: <err>`; failures leave the parent session active and do not copy partial turns.",
-      "fixture": "internal/tui/slash_branch_test.go and internal/session/fork_test.go",
+      "fixture": "internal/tui/slash_branch_test.go and internal/persistence/session/fork_test.go",
       "source_refs": [
         "../hermes-agent/cli.py@0824ba6a:_handle_branch_command",
         "../hermes-agent/hermes_state.py@0824ba6a:list_sessions_rich",
         "../hermes-agent/tests/cli/test_branch_command.py@0824ba6a",
         "../hermes-agent/tests/test_hermes_state.py@0824ba6a:TestListSessionsRich",
-        "internal/session/lineage.go:LineageKindFork,ResolveLineageTip",
-        "internal/transcript/markdown.go:ExportMarkdown",
+        "internal/persistence/session/lineage.go:LineageKindFork,ResolveLineageTip",
+        "internal/persistence/transcript/markdown.go:ExportMarkdown",
         "internal/tui/slash_dispatch.go"
       ],
       "ready_when": [
         "Native TUI slash-command dispatch table is complete, so `/branch` can register as a handled slash command instead of entering the model prompt.",
         "parent_session_id lineage for compression splits is validated, so fork children can be represented without changing compression-tip resolution.",
-        "internal/transcript already stores persisted turns by session_id and can be exercised through sqlite fixtures with no live provider."
+        "internal/persistence/transcript already stores persisted turns by session_id and can be exercised through sqlite fixtures with no live provider."
       ],
       "not_ready_when": [
         "The slice changes cmd/gormes startup wiring, opens a provider connection, or implements a full session browser/list UI in the same change.",
@@ -1126,12 +1126,12 @@
         "TestSlashBranch_HappyPathSwitchesSessionIDAndDoesNotSubmit wires a fake SessionBranchFunc, asserts the model SessionID changes to the child, the fake sees the parent ID, and kernel.Submit is not called.",
         "TestSlashBranch_CustomNamePreserved passes `/branch refactor path` and asserts BranchRequest.Title=`refactor path`."
       ],
-      "note": "Complete: internal/session.Fork orchestrates a fork via an injected TurnCopier and writes Metadata{ParentSessionID, LineageKindFork}; internal/transcript.ForkTurns runs a single INSERT…SELECT to duplicate parent rows under the child session_id without rewriting the parent; internal/tui adds a /branch slash handler wired through SessionBranchFunc on Options, exposes Model.SessionID() that prefers the locally-tracked branch session over the kernel frame, and keeps the slash text from ever reaching kernel.Submit. Tracks Hermes 0824ba6a, which fixed /branch so post-branch writes target the branch session log and branch sessions remain visible in session lists while delegate/compression children stay hidden. Gormes adapts this to native session IDs, transcript copying, and fork lineage rather than Python session_log_file paths.",
+      "note": "Complete: internal/persistence/session.Fork orchestrates a fork via an injected TurnCopier and writes Metadata{ParentSessionID, LineageKindFork}; internal/persistence/transcript.ForkTurns runs a single INSERT…SELECT to duplicate parent rows under the child session_id without rewriting the parent; internal/tui adds a /branch slash handler wired through SessionBranchFunc on Options, exposes Model.SessionID() that prefers the locally-tracked branch session over the kernel frame, and keeps the slash text from ever reaching kernel.Submit. Tracks Hermes 0824ba6a, which fixed /branch so post-branch writes target the branch session log and branch sessions remain visible in session lists while delegate/compression children stay hidden. Gormes adapts this to native session IDs, transcript copying, and fork lineage rather than Python session_log_file paths.",
       "write_scope": [
-        "internal/session/fork.go",
-        "internal/session/fork_test.go",
-        "internal/transcript/fork.go",
-        "internal/transcript/fork_test.go",
+        "internal/persistence/session/fork.go",
+        "internal/persistence/session/fork_test.go",
+        "internal/persistence/transcript/fork.go",
+        "internal/persistence/transcript/fork_test.go",
         "internal/tui/slash_branch.go",
         "internal/tui/slash_branch_test.go",
         "internal/tui/slash_dispatch.go",
@@ -1139,10 +1139,10 @@
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/session -run 'TestSessionFork_|TestBoltMap_ResolveLineageTipFollowsCompressionChildrenOnly' -count=1",
-        "go test ./internal/transcript -run TestForkTranscript -count=1",
+        "go test ./internal/persistence/session -run 'TestSessionFork_|TestBoltMap_ResolveLineageTipFollowsCompressionChildrenOnly' -count=1",
+        "go test ./internal/persistence/transcript -run TestForkTranscript -count=1",
         "go test ./internal/tui -run TestSlashBranch_ -count=1",
-        "go test ./internal/session ./internal/transcript ./internal/tui -count=1",
+        "go test ./internal/persistence/session ./internal/persistence/transcript ./internal/tui -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -1180,8 +1180,8 @@
         "internal/tui/model.go:SessionBranchFunc",
         "cmd/gormes/main.go:runResolvedTUIWithRuntime",
         "cmd/gormes/tui_branch_slash.go:newTUIBranchFunc",
-        "internal/session/fork.go:Fork",
-        "internal/transcript/fork.go:ForkTurns",
+        "internal/persistence/session/fork.go:Fork",
+        "internal/persistence/transcript/fork.go:ForkTurns",
         "internal/kernel/kernel.go:ResumeSession"
       ],
       "ready_when": [
@@ -1201,7 +1201,7 @@
         "When visible frame history is absent, the adapter loads the copied child transcript through transcript.LoadMessages before resuming.",
         "Focused TUI/cmd/session/transcript tests and progress validation pass."
       ],
-      "note": "Builder 2026-05-23 iteration 39: repaired `/branch` production local runtime binding. RED evidence: internal/tui test failed on missing BranchRequest.History and frame.SessionID update; cmd/gormes tests failed on undefined newTUIBranchFuncWithID and missing local SessionBranch injection. Green evidence: focused internal/tui, cmd/gormes, internal/session, internal/transcript tests pass; full validation runs in delivery report.",
+      "note": "Builder 2026-05-23 iteration 39: repaired `/branch` production local runtime binding. RED evidence: internal/tui test failed on missing BranchRequest.History and frame.SessionID update; cmd/gormes tests failed on undefined newTUIBranchFuncWithID and missing local SessionBranch injection. Green evidence: focused internal/tui, cmd/gormes, internal/persistence/session, internal/persistence/transcript tests pass; full validation runs in delivery report.",
       "write_scope": [
         "internal/tui/slash_branch.go",
         "internal/tui/slash_branch_test.go",
@@ -1213,8 +1213,8 @@
       "test_commands": [
         "go test ./internal/tui -run 'TestSlashBranch_|TestResumeSlash|TestSessionsSlash' -count=1",
         "go test ./cmd/gormes -run 'TestTUIBranchSlash|TestTUIResumeSlashBinding|TestTUISessionsSlashBinding' -count=1",
-        "go test ./internal/session -run 'TestSessionFork_|TestBoltMap_ResolveLineageTipFollowsCompressionChildrenOnly' -count=1",
-        "go test ./internal/transcript -run 'TestForkTranscript|TestLoadMessages' -count=1",
+        "go test ./internal/persistence/session -run 'TestSessionFork_|TestBoltMap_ResolveLineageTipFollowsCompressionChildrenOnly' -count=1",
+        "go test ./internal/persistence/transcript -run 'TestForkTranscript|TestLoadMessages' -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -1245,7 +1245,7 @@
         "cmd/gormes/tui_sessions_slash.go:newTUIResumeSessionFunc",
         "cmd/gormes/tui_branch_slash.go:newTUIBranchFuncWithID",
         "cmd/gormes/tui_session_switch.go:tuiResidentSessionSwitcher",
-        "internal/transcript/markdown.go:LoadMessages",
+        "internal/persistence/transcript/markdown.go:LoadMessages",
         "internal/kernel/kernel.go:ResumeSession",
         "internal/tui/slash_sessions.go:SessionResumeFunc",
         "internal/tui/slash_branch.go:SessionBranchFunc"
@@ -1261,7 +1261,7 @@
         "The slice requires live providers, user data, Chrome/browser state, gateway processes, or external credentials to validate."
       ],
       "acceptance": [
-        "`/resume` still resolves ids/prefixes through the session directory DB, replays persisted transcript rows as hermes.Message history, and switches the kernel resident session through the same resume seam.",
+        "`/resume` still resolves ids/prefixes through the session directory DB, replays persisted transcript rows as llm.Message history, and switches the kernel resident session through the same resume seam.",
         "`/branch` still forks parent transcript rows and metadata first, then switches the kernel resident session using visible history or copied-transcript fallback history.",
         "The duplicated transcript replay, Hermes message mapping, history clone, root-context fallback, and nil-resume error are centralized in cmd/gormes/tui_session_switch.go.",
         "Focused cmd/gormes and internal/tui slash characterization tests pass, followed by full Go/progress/diff validation."
@@ -2721,7 +2721,7 @@
       ],
       "ready_when": [
         "SATISFIED — the 'Kernel in-session model-switch seam for the native TUI' prerequisite row is COMPLETE: PlatformEventSetModel + kernel.SetSessionModel(provider,model) exist and are fixture-proven for the same-provider in-session switch (the /model picker's primary affordance). Cross-provider client swap is a separate non-blocking follow-up row, not a /model blocker.",
-        "Catalog seam: SATISFIED — the picker is populated from existing internal/hermes.ListPickerProviders() (internal/tui already imports internal/hermes); no cmd/gormes catalog import needed.",
+        "Catalog seam: SATISFIED — the picker is populated from existing internal/llm.ListPickerProviders() (internal/tui already imports internal/llm); no cmd/gormes catalog import needed.",
         "The native TUI slash registry consumes recognized commands before kernel submit (5.Q 'Native TUI slash-command dispatch table' complete, satisfied)."
       ],
       "not_ready_when": [
@@ -2798,7 +2798,7 @@
       "name": "Kernel in-session model-switch seam for the native TUI",
       "priority": "P1",
       "status": "complete",
-      "contract": "Add a Design-B kernel in-session model-switch: a new PlatformEventKind `PlatformEventSetModel` whose PlatformEvent carries the existing `Model string` plus a new `Provider string`, processed exactly like PlatformEventResetSession — a synchronous `ack chan error`, valid only from PhaseIdle/PhaseFailed (reject mid-turn with a typed error analogous to ErrResetDuringTurn), and the resident mutation performed on the Run loop's own goroutine to preserve the single-owner invariant. The handler sets a resident session override (k.sessionModel/k.sessionProvider); selectTurnModel (kernel.go:1431) precedence becomes per-event PlatformEvent.Model > resident session override > k.cfg.Model; when the chosen provider differs from the resident client's, a new k.client is resolved through the EXISTING FallbackClientFactory(ctx, hermes.ModelRoute) machinery (kernel.go:37) rather than a bespoke client builder. Session history is NOT cleared (unlike ResetSession). Catalog seam (2) needs NO new code: the downstream /model picker is populated from the existing internal/hermes.ListPickerProviders() (internal/tui already imports internal/hermes), so this row is kernel-only. Interface design is COMPLETE (gormes-interface-designer 2026-05-15: Design B chosen; Design A 'TUI per-submit sticky' rejected — fixed construction-time client cannot cross-provider; Design C 'out-of-band SetSessionModel method' rejected — data race vs the single-owner event loop).",
+      "contract": "Add a Design-B kernel in-session model-switch: a new PlatformEventKind `PlatformEventSetModel` whose PlatformEvent carries the existing `Model string` plus a new `Provider string`, processed exactly like PlatformEventResetSession — a synchronous `ack chan error`, valid only from PhaseIdle/PhaseFailed (reject mid-turn with a typed error analogous to ErrResetDuringTurn), and the resident mutation performed on the Run loop's own goroutine to preserve the single-owner invariant. The handler sets a resident session override (k.sessionModel/k.sessionProvider); selectTurnModel (kernel.go:1431) precedence becomes per-event PlatformEvent.Model > resident session override > k.cfg.Model; when the chosen provider differs from the resident client's, a new k.client is resolved through the EXISTING FallbackClientFactory(ctx, llm.ModelRoute) machinery (kernel.go:37) rather than a bespoke client builder. Session history is NOT cleared (unlike ResetSession). Catalog seam (2) needs NO new code: the downstream /model picker is populated from the existing internal/llm.ListPickerProviders() (internal/tui already imports internal/llm), so this row is kernel-only. Interface design is COMPLETE (gormes-interface-designer 2026-05-15: Design B chosen; Design A 'TUI per-submit sticky' rejected — fixed construction-time client cannot cross-provider; Design C 'out-of-band SetSessionModel method' rejected — data race vs the single-owner event loop).",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tui",
@@ -2806,9 +2806,9 @@
       "source_refs": [
         "internal/kernel/frame.go (PlatformEventKind + PlatformEvent.Model/.Provider — add PlatformEventSetModel; PlatformEvent.Model already exists as a per-submit override)",
         "internal/kernel/kernel.go:1431 selectTurnModel(residentModel, override) (precedence merge point)",
-        "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing cross-provider client-build machinery to reuse)",
+        "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, llm.ModelRoute) (existing cross-provider client-build machinery to reuse)",
         "internal/kernel/kernel.go PlatformEventResetSession + ErrResetDuringTurn + ack pattern (the proven resident-mutation template to mirror, history-clear excluded)",
-        "internal/hermes/picker_providers.go ListPickerProviders() (catalog seam 2 — already importable by internal/tui, no new code)",
+        "internal/llm/picker_providers.go ListPickerProviders() (catalog seam 2 — already importable by internal/tui, no new code)",
         "internal/gateway/model_picker.go SessionModelOverride (gateway-only prior art — NOT reused for the local kernel path)"
       ],
       "ready_when": [
@@ -2818,7 +2818,7 @@
         "The implementation deviates from the PlatformEventResetSession ack/single-owner-goroutine template (introducing a data race).",
         "The local kernel path is bound to the gateway-only SessionModelOverride instead of the new PlatformEventSetModel.",
         "A model switch clears session history (must preserve it like a normal continuation; only ResetSession clears history).",
-        "A bespoke provider-client builder is added instead of routing through the existing FallbackClientFactory/hermes.ModelRoute."
+        "A bespoke provider-client builder is added instead of routing through the existing FallbackClientFactory/llm.ModelRoute."
       ],
       "unblocks": [
         "Native TUI /model slash command binding over the existing model picker"
@@ -2827,9 +2827,9 @@
         "A PlatformEventSetModel{Provider,Model} with a synchronous ack changes the model on the NEXT turn's provider call; the resident k.cfg.Model is not mutated and per-event PlatformEvent.Model still wins over the session override.",
         "Session history is preserved across the switch (a fixture asserts prior turns survive and the next turn continues, not resets).",
         "Sent mid-turn (not PhaseIdle/PhaseFailed) the event is rejected via the ack channel with a typed error analogous to ErrResetDuringTurn, no partial mutation.",
-        "SHIPPED CORE = same-provider in-session switch. Provider is captured on the resident override (k.sessionProvider) but the cross-provider k.client swap via FallbackClientFactory/hermes.ModelRoute is intentionally split into the follow-up row 'Kernel cross-provider client swap for in-session model switch' (a provider+model -> hermes.ModelRoute resolver is required and not cleanly available yet). No bespoke provider-client builder was added and the gateway SessionModelOverride is untouched, so the not_ready_when guards hold."
+        "SHIPPED CORE = same-provider in-session switch. Provider is captured on the resident override (k.sessionProvider) but the cross-provider k.client swap via FallbackClientFactory/llm.ModelRoute is intentionally split into the follow-up row 'Kernel cross-provider client swap for in-session model switch' (a provider+model -> llm.ModelRoute resolver is required and not cleanly available yet). No bespoke provider-client builder was added and the gateway SessionModelOverride is untouched, so the not_ready_when guards hold."
       ],
-      "note": "Filed corrected builder-pass 2026-05-15/tui-slash-model; interface chosen by gormes-interface-designer 2026-05-15/tui-slash-model. Design B (PlatformEventSetModel mirroring the ResetSession event+ack template, reusing selectTurnModel + FallbackClientFactory) chosen as a deep module: one-event caller surface hiding race-free resident mutation + cross-provider client swap where k.client/factory already live. Rejected: Design A (TUI per-submit sticky via existing PlatformEvent.Model) — fixed construction-time client silently fails cross-provider, breaking the picker's primary affordance; Design C (out-of-band kernel.SetSessionModel method) — data race against the single-owner event loop. Catalog seam (2) collapsed to existing internal/hermes.ListPickerProviders (no new code), so this row is kernel-only and now builder-ready. SHIPPED 2026-05-15/tui-slash-model builder pass: frame.go adds PlatformEventSetModel + PlatformEvent.Provider + ErrSetModelDuringTurn; kernel.go adds k.sessionModel/k.sessionProvider resident fields, SetSessionModel(provider,model) mirroring ResetSession (event+ack, 500ms, ErrEventMailboxFull), a PlatformEventSetModel Run-loop handler (phase-guarded, NO history clear, tm.SetModel + ContextEngine.UpdateModelContext synced), residentModel() helper, selectTurnModel(k.residentModel(), e.Model) precedence wired, and mid-turn rejection added to handleRetryEvent + the streamLoop event switch so an in-flight switch acks ErrSetModelDuringTurn. 3 fixtures green (TestKernel_SetSessionModelAppliesToNextTurnAndPreservesHistory / RejectedMidTurn / PerEventModelWinsOverSessionOverride); full `go test ./internal/kernel -count=1` and `go run ./cmd/progress validate` pass. Cross-provider client swap intentionally split into the follow-up row (provider+model -> hermes.ModelRoute resolver needed). swarm_origin: builder-pass 2026-05-15/tui-slash-model; interface-design 2026-05-15/tui-slash-model.",
+      "note": "Filed corrected builder-pass 2026-05-15/tui-slash-model; interface chosen by gormes-interface-designer 2026-05-15/tui-slash-model. Design B (PlatformEventSetModel mirroring the ResetSession event+ack template, reusing selectTurnModel + FallbackClientFactory) chosen as a deep module: one-event caller surface hiding race-free resident mutation + cross-provider client swap where k.client/factory already live. Rejected: Design A (TUI per-submit sticky via existing PlatformEvent.Model) — fixed construction-time client silently fails cross-provider, breaking the picker's primary affordance; Design C (out-of-band kernel.SetSessionModel method) — data race against the single-owner event loop. Catalog seam (2) collapsed to existing internal/llm.ListPickerProviders (no new code), so this row is kernel-only and now builder-ready. SHIPPED 2026-05-15/tui-slash-model builder pass: frame.go adds PlatformEventSetModel + PlatformEvent.Provider + ErrSetModelDuringTurn; kernel.go adds k.sessionModel/k.sessionProvider resident fields, SetSessionModel(provider,model) mirroring ResetSession (event+ack, 500ms, ErrEventMailboxFull), a PlatformEventSetModel Run-loop handler (phase-guarded, NO history clear, tm.SetModel + ContextEngine.UpdateModelContext synced), residentModel() helper, selectTurnModel(k.residentModel(), e.Model) precedence wired, and mid-turn rejection added to handleRetryEvent + the streamLoop event switch so an in-flight switch acks ErrSetModelDuringTurn. 3 fixtures green (TestKernel_SetSessionModelAppliesToNextTurnAndPreservesHistory / RejectedMidTurn / PerEventModelWinsOverSessionOverride); full `go test ./internal/kernel -count=1` and `go run ./cmd/progress validate` pass. Cross-provider client swap intentionally split into the follow-up row (provider+model -> llm.ModelRoute resolver needed). swarm_origin: builder-pass 2026-05-15/tui-slash-model; interface-design 2026-05-15/tui-slash-model.",
       "write_scope": [
         "internal/kernel/frame.go",
         "internal/kernel/kernel.go",
@@ -2950,7 +2950,7 @@
         "internal/tui/slash_dispatch.go:NewDefaultSlashRegistry",
         "internal/cli/command_registry.go:CommandRegistry",
         "internal/tui/slash_completion.go:HermesSlashCommandCompletions",
-        "internal/app/gormescli/default_contracts.go:DefaultContracts",
+        "internal/cli/gormescli/default_contracts.go:DefaultContracts",
         "internal/gateway/commands.go:CommandRegistry",
         "internal/tui/slash_completion_test.go:TestHermesSlashCompletion_LocalNativeHandlersAreAvailable",
         "cmd/gormes/cli_contract_manifest_test.go:TestCLIContractRegistryOwnsLiveCobraSetupAndSlashSurfaces",
@@ -2974,7 +2974,7 @@
       "write_scope": [
         "internal/cli/command_registry.go",
         "internal/tui/slash_completion_test.go",
-        "internal/app/gormescli/default_contracts.go",
+        "internal/cli/gormescli/default_contracts.go",
         "internal/gateway/commands.go",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
       ],
@@ -3546,7 +3546,7 @@
         "internal/tui/slash_dispatch_behavior_test.go",
         "internal/tui/slash_completion_test.go",
         "internal/cli/command_registry.go",
-        "internal/app/gormescli/default_contracts.go",
+        "internal/cli/gormescli/default_contracts.go",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
       ],
       "test_commands": [
@@ -3986,7 +3986,7 @@
         "internal/tui/slash_logs_test.go",
         "internal/tui/slash_dispatch.go",
         "internal/cli/command_registry.go",
-        "internal/app/gormescli/default_contracts.go",
+        "internal/cli/gormescli/default_contracts.go",
         "internal/gateway/commands.go",
         "cmd/gormes/logs.go",
         "cmd/gormes/main.go",
@@ -4037,7 +4037,7 @@
         "internal/tui/slash_title.go:titleSlashHandler",
         "internal/tui/model.go:SessionTitleFunc",
         "cmd/gormes/tui_title_slash.go:newTUITitleFunc",
-        "internal/session/directory.go:Metadata.TitleManuallySet"
+        "internal/persistence/session/directory.go:Metadata.TitleManuallySet"
       ],
       "ready_when": [
         "The parent `Native TUI slash handler-port coverage` row remains a non-selectable umbrella.",
@@ -4107,7 +4107,7 @@
         "internal/tui/slash_sessions.go:sessionsSlashHandler",
         "internal/tui/model.go:SessionDirectoryFunc",
         "cmd/gormes/tui_sessions_slash.go:newTUISessionDirectoryFunc",
-        "internal/session/directory.go:ListDirectorySessions",
+        "internal/persistence/session/directory.go:ListDirectorySessions",
         "internal/cli/command_registry.go:resume CLI-only native picker metadata"
       ],
       "ready_when": [
@@ -4172,7 +4172,7 @@
         "system"
       ],
       "degraded_mode": "A nil SessionResume adapter returns `resume: session switch unavailable`; active/streaming turns return interrupt-first guidance; missing, ambiguous, database, transcript, or kernel errors are consumed as visible `resume: <error>` evidence. Remote/plain TUI constructors leave the seam nil and never open local SQLite state.",
-      "fixture": "internal/tui/slash_sessions_test.go::TestResumeSlashWithSessionIDSwitchesVisibleSessionAndHistoryWithoutSubmitting + internal/kernel/resume_session_test.go::TestKernelResumeSessionSwitchesResidentSessionAndHistory + internal/transcript/markdown_test.go::TestLoadMessagesReturnsOrderedHermesMessages + cmd/gormes/tui_sessions_slash_test.go::TestTUIResumeSlashBindingLocalModelReceivesSessionResumeAdapter",
+      "fixture": "internal/tui/slash_sessions_test.go::TestResumeSlashWithSessionIDSwitchesVisibleSessionAndHistoryWithoutSubmitting + internal/kernel/resume_session_test.go::TestKernelResumeSessionSwitchesResidentSessionAndHistory + internal/persistence/transcript/markdown_test.go::TestLoadMessagesReturnsOrderedHermesMessages + cmd/gormes/tui_sessions_slash_test.go::TestTUIResumeSlashBindingLocalModelReceivesSessionResumeAdapter",
       "source_refs": [
         "hermes-agent/ui-tui/src/app/slash/commands/session.ts",
         "hermes-agent/ui-tui/src/app/createSlashHandler.ts",
@@ -4180,8 +4180,8 @@
         "internal/tui/model.go:SessionResumeFunc",
         "internal/kernel/kernel.go:ResumeSession",
         "cmd/gormes/tui_sessions_slash.go:newTUIResumeSessionFunc",
-        "internal/session/directory.go:ResolveSessionIDPrefix",
-        "internal/transcript/markdown.go:LoadMessages"
+        "internal/persistence/session/directory.go:ResolveSessionIDPrefix",
+        "internal/persistence/transcript/markdown.go:LoadMessages"
       ],
       "ready_when": [
         "The `/sessions` and bare `/resume` picker child row is already complete.",
@@ -4201,7 +4201,7 @@
         "Transcript replay loads ordered user/assistant rows from the existing `turns` table without changing markdown export behavior.",
         "Remote/plain TUI constructors leave SessionResume nil, while local TUI startup injects the production adapter."
       ],
-      "note": "Builder 2026-05-23 iteration 38: shipped native `/resume <id-or-prefix>` resident-session switch. RED evidence: focused tests failed on undefined SessionResumeFunc/SessionResumeResult, missing Kernel.ResumeSession/ErrResumeSessionIDRequired, and missing transcript.LoadMessages. Green evidence: focused internal/tui, internal/kernel, internal/transcript, and cmd/gormes tests pass; full validation runs in delivery report.",
+      "note": "Builder 2026-05-23 iteration 38: shipped native `/resume <id-or-prefix>` resident-session switch. RED evidence: focused tests failed on undefined SessionResumeFunc/SessionResumeResult, missing Kernel.ResumeSession/ErrResumeSessionIDRequired, and missing transcript.LoadMessages. Green evidence: focused internal/tui, internal/kernel, internal/persistence/transcript, and cmd/gormes tests pass; full validation runs in delivery report.",
       "write_scope": [
         "internal/tui/model.go",
         "internal/tui/slash_sessions.go",
@@ -4209,8 +4209,8 @@
         "internal/kernel/frame.go",
         "internal/kernel/kernel.go",
         "internal/kernel/resume_session_test.go",
-        "internal/transcript/markdown.go",
-        "internal/transcript/markdown_test.go",
+        "internal/persistence/transcript/markdown.go",
+        "internal/persistence/transcript/markdown_test.go",
         "cmd/gormes/main.go",
         "cmd/gormes/tui_sessions_slash.go",
         "cmd/gormes/tui_sessions_slash_test.go",
@@ -4219,7 +4219,7 @@
       "test_commands": [
         "go test ./internal/tui -run 'TestResumeSlash|TestSessionsSlash|TestHermesSlashDispatchBehavior_(KnownUnhandledCommandsNeverSubmit|MutatingCommandsDoNotFallback|LocalHandlersStillRun)|TestHermesSlashCompletion|TestHermesChrome|TestTUIPackageDoesNotAdvertiseCopyHotkey' -count=1",
         "go test ./internal/kernel -run TestKernelResumeSession -count=1",
-        "go test ./internal/transcript -run TestLoadMessages -count=1",
+        "go test ./internal/persistence/transcript -run TestLoadMessages -count=1",
         "go test ./cmd/gormes -run 'TestTUIResumeSlashBinding|TestTUISessionsSlashBinding' -count=1",
         "go run ./cmd/progress validate"
       ],
@@ -4313,15 +4313,15 @@
       "fixture": "internal/tui/slash_usage_test.go::TestUsageSlashFetchesAccountUsageAsynchronously",
       "source_refs": [
         "hermes-agent/ui-tui/src/app/slash/commands/session.ts:/usage session usage command",
-        "internal/hermes/account_usage.go:RenderAccountUsageLines",
-        "internal/app/gormescli/modules/providers/usage.go:UsageSeams",
+        "internal/llm/account_usage.go:RenderAccountUsageLines",
+        "internal/cli/gormescli/modules/providers/usage.go:UsageSeams",
         "internal/gateway/usage_command.go:AccountUsageProvider",
         "internal/tui/slash_usage.go:AccountUsageFunc and usageAccountMsg",
         "cmd/gormes/tui_usage_slash.go:newTUIAccountUsageFunc"
       ],
       "ready_when": [
         "The local-frame `/usage` page binding is shipped and validated.",
-        "Provider account-usage rendering exists in `internal/hermes/account_usage.go` and is already used by CLI/gateway surfaces.",
+        "Provider account-usage rendering exists in `internal/llm/account_usage.go` and is already used by CLI/gateway surfaces.",
         "The TUI update loop can schedule asynchronous tea.Cmd work and handle typed result messages without blocking Bubble Tea Update."
       ],
       "not_ready_when": [
@@ -4500,7 +4500,7 @@
         "internal/tui/slash_dispatch_behavior_test.go",
         "internal/cli/command_registry.go",
         "internal/gateway/commands.go",
-        "internal/app/gormescli/default_contracts.go",
+        "internal/cli/gormescli/default_contracts.go",
         "docs/content/building-gormes/architecture_plan/progress.json/index.json",
         "docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
       ],
@@ -4818,6 +4818,96 @@
         "upstream_ref": "Hermes ui-tui sessionCommands `/skin` and skin.changed event behavior",
         "note": "Hermes owns the command output and live skin-change expectation; Gormes owns the native adapter seam for config persistence."
       }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 81,
+    "item": {
+      "name": "Native TUI voice record key uses voice toggle adapter",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Close the remaining native-TUI voice-key routing gap without claiming live microphone parity: when the configured Hermes-compatible `voice.record_key` is pressed, the Bubble Tea model must invoke the same injected `VoiceToggleFunc` used by `/voice on|off|tts|status`, update visible status/detail rows from that adapter, and never submit the keypress text to the model. If no adapter is wired or the adapter reports unavailable audio, the UI must show typed unavailable evidence instead of the current hard-coded key-only message. This slice does not start microphone capture, STT streaming, or TTS playback.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Native TUI voice capture remains degraded until a speech runtime row wires mic/STT/TTS. The record key should still route through the voice adapter so status, record-key display, and unavailable-audio details are one source of truth rather than a separate hard-coded `voice recording toggle unavailable` path.",
+      "fixture": "internal/tui/hermes_keybindings_test.go::TestHermesKeybindings_VoiceRecordTeaKeyUsesVoiceToggleAdapter",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/app/useInputHandlers.ts:voice.record_key handling",
+        "hermes-agent/hermes_cli/voice.py:voice_record_key_from_config",
+        "hermes-agent/hermes_cli/voice.py:format_voice_record_key_for_status",
+        "internal/tui/update.go:HermesActionToggleVoiceRecording branch",
+        "internal/tui/slash_voice.go",
+        "internal/tui/voice/slash.go",
+        "cmd/gormes/tui_voice_slash.go",
+        "internal/tui/hermes_keybindings_test.go:TestHermesKeybindings_VoiceRecordTeaKeyUsesConfiguredKey",
+        "internal/tui/slash_voice_test.go:TestVoiceSlashStatusUpdatesRecordKey",
+        "docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md:Voice recording key",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:TUI gateway and interactive UI"
+      ],
+      "ready_when": [
+        "The TUI already resolves configurable voice.record_key values and `/voice` already uses an injected adapter, but the raw key branch currently emits a hard-coded unavailable message and bypasses that adapter.",
+        "The slice can be proven with Bubble Tea model fixtures and a recording fake VoiceToggleFunc; no audio devices, providers, gateway, or Python Hermes runtime are required.",
+        "The row is limited to native TUI input routing and evidence display; live speech runtime parity remains a separate tools/voice row."
+      ],
+      "not_ready_when": [
+        "The implementation opens microphone devices, starts STT/TTS playback, imports speech provider code into internal/tui, or changes cmd/gormes production voice runtime beyond adapter wiring already present.",
+        "The keypress submits a prompt, mutates the draft, bypasses modal/slash-completion precedence, or claims `/voice` full parity in docs.",
+        "The test only checks the old hard-coded `voice_record_key_ok` status rather than proving the injected adapter was called and visible unavailable details came from it."
+      ],
+      "acceptance": [
+        "Pressing the configured record key on an idle model with a fake VoiceToggleFunc calls the adapter exactly once with the current session ID and a start/toggle action, clears no transcript content, and does not call the submitter.",
+        "The resulting status/transient voice detail uses the adapter result, including record-key display and unavailable-audio/setup details when returned by the adapter.",
+        "With no VoiceToggleFunc, the existing safe unavailable behavior remains visible and deterministic; reserved/malformed record-key fallback tests stay green.",
+        "Parity evidence for `Voice recording key` is updated from generic partial wording to name this adapter-routed degraded behavior while preserving live microphone/TTS gaps."
+      ],
+      "note": "Complete: TDD routed the native TUI voice.record_key branch through the injected VoiceToggleFunc instead of the hard-coded unavailable status. The key now requests the current session with action=record, renders the same Voice detail page/status shape as /voice from adapter results, preserves the draft, avoids Submitter calls, keeps nil-adapter safe unavailable evidence, and leaves live microphone/STT/TTS runtime parity as a separate gap.",
+      "write_scope": [
+        "internal/tui/update.go",
+        "internal/tui/hermes_keybindings_test.go",
+        "docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestHermesKeybindings_VoiceRecord(TeaKeyUsesVoiceToggleAdapter|KeyResolverUsesConfiguredKey|KeyMalformedAndReservedFallback)' -count=1",
+        "go test ./internal/tui ./cmd/gormes -run 'TestVoiceSlash|TestTUIVoiceSlash' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Native TUI voice.record_key dispatch is adapter-backed and test-proven, shows unavailable speech-runtime evidence from the voice adapter, does not submit prompt text, and does not overclaim live microphone/TTS parity."
+      ],
+      "provenance": {
+        "origin_type": "hermes",
+        "upstream_ref": "Hermes ui-tui voice.record_key handling and hermes_cli/voice.py status/key formatting",
+        "note": "Adapter routing only; live audio capture remains future work."
+      },
+      "completed_artifacts": [
+        "internal/tui/update.go",
+        "internal/tui/hermes_keybindings_test.go",
+        "cmd/gormes/tui_voice_slash.go",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md"
+      ],
+      "completion_evidence": {
+        "implementation": "internal/tui/update.go dispatches the configured voice record key to VoiceToggleFunc with action=record and renders adapter-backed Voice details.",
+        "tests": "internal/tui/hermes_keybindings_test.go proves the adapter call, session ID, no Submitter call, draft preservation, and unavailable-audio details.",
+        "docs": "Voice recording key parity evidence is partial with adapter-routed degraded behavior and live audio gaps preserved."
+      },
+      "validation": [
+        "go test ./internal/tui -run 'TestHermesKeybindings_VoiceRecord(TeaKeyUsesVoiceToggleAdapter|KeyResolverUsesConfiguredKey|KeyMalformedAndReservedFallback)' -count=1",
+        "go test ./internal/tui ./cmd/gormes -run 'TestVoiceSlash|TestTUIVoiceSlash|TestHermesKeybindings_VoiceRecord' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ]
     }
   },
   {
@@ -5176,6 +5266,138 @@
         "upstream_ref": "hermes:ui-tui@./hermes-agent/ui-tui",
         "owned_since": "2026-05-15T00:00:00Z",
         "note": "Gormes-owned chat TUI surface per methodology-first pivot; ccx-go (github.com/anton-abyzov/ccx-go, MIT) patterns-only donor, no code copy."
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.D",
+    "pos": 24,
+    "item": {
+      "name": "Gormes-owned TUI queued-message widget and busy delivery modes",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Adapt Pi's visible steering/follow-up queue pattern into the native Gormes Bubble Tea chat TUI without changing Hermes-compatible slash command semantics. While a turn is active, plain Enter should honor the configured busy-input mode, queued or steering drafts should be visible in the bottom-pinned chrome, queued entries should drain after the kernel returns idle, and the UI must keep Alt/Shift+Enter newline behavior intact.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "fixture": "internal/tui/queued_messages_test.go",
+      "source_refs": [
+        "pi@fc8a155 packages/coding-agent/README.md:Message Queue",
+        "pi@fc8a155 packages/coding-agent/docs/settings.md:Message Delivery",
+        "pi@fc8a155 packages/coding-agent/docs/rpc.md:queue_update events",
+        "internal/tui/queued_messages.go:QueuedMessages",
+        "internal/tui/update.go:HermesBusyInputMode and ResolveHermesKey",
+        "internal/tui/hermes_chrome.go:HermesChromeInput.QueuedMessages",
+        "internal/tui/view.go:RenderHermesChrome call site"
+      ],
+      "ready_when": [
+        "The builder keeps the work in the local Bubble Tea TUI and kernel submit/cancel seams; gateway/channel follow-up behavior remains unchanged.",
+        "The implementation uses fake frames and pure TUI tests; no provider, gateway process, or live terminal automation is required."
+      ],
+      "not_ready_when": [
+        "The slice changes Hermes-compatible Enter, Alt+Enter, Shift+Enter, Ctrl+C, slash dispatch, or active-turn policy semantics instead of only wiring visible queue state.",
+        "The slice stores queued drafts in a side file, hidden TODO list, or non-session backlog outside the TUI/kernel state path."
+      ],
+      "acceptance": [
+        "Active-turn drafts submitted in queue mode appear in a three-row queued-message widget above the status rule and do not immediately call Submit.",
+        "Steer mode shows steering evidence and schedules the draft through the existing active-turn injection path without hiding queued text from the operator.",
+        "When a frame transitions to idle/failed, queued follow-up drafts drain in FIFO order through the existing submit callback and the widget clears.",
+        "Alt+Enter and Shift+Enter still insert newlines and never enqueue or submit drafts."
+      ],
+      "note": "Planner 2026-05-25: Pi donor sweep classified this as a Gormes-owned TUI ergonomics improvement, not Hermes parity. Keep Pi's visible queue affordance while preserving Gormes/Hermes key semantics. Builder 2026-05-25 corrected write_scope to include internal/tui/model.go for the local busy-input state and cmd/gormes/main.go for the real kernel PlatformEventSteer adapter. COMPLETE 2026-05-25: Options.BusyInputMode now threads display.busy_input_mode into the native Bubble Tea model, queue mode clears the editor and renders width-bounded queued drafts above the status rule without immediately calling Submit, terminal idle/failed frames drain queued follow-ups FIFO through the existing submit callback, steer mode calls the injected PlatformEventSteer seam and keeps steering guidance visible until terminal turn completion, and Alt+Enter/Shift+Enter remain newline-only. Evidence: go test ./internal/tui -run 'Test.*Queued|TestHermesKeybindings_EnterPlainTextHonorsBusyInputMode|TestHermesChrome' -count=1 ok; go test ./internal/tui ./cmd/gormes -count=1 ok.",
+      "write_scope": [
+        "internal/tui/queued_messages.go",
+        "internal/tui/update.go",
+        "internal/tui/view.go",
+        "internal/tui/hermes_chrome.go",
+        "internal/tui/model.go",
+        "internal/tui/*queued*test.go",
+        "cmd/gormes/main.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'Test.*Queued|TestHermesKeybindings_EnterPlainTextHonorsBusyInputMode|TestHermesChrome' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report focused TUI test output, a short before/after render fixture for queued rows, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "upstream_ref": "Pi coding-agent fc8a155 message queue docs as donor evidence",
+        "owned_since": "2026-05-25",
+        "note": "Owned Gormes chat TUI enhancement; Pi is not a parity contract."
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.D",
+    "pos": 25,
+    "item": {
+      "name": "Gormes-owned TUI extension status widget and footer seam",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Introduce a small Go-native TUI extension context that lets trusted in-process Gormes extensions add or clear footer status entries, widgets above or below the editor, and working-indicator text/frames. The seam should be typed, width-safe, scoped to the active session, and degrade to no-op evidence in non-interactive modes; it must not execute TypeScript or import Pi packages.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "fixture": "internal/tui/status_bar_ext_test.go",
+      "source_refs": [
+        "pi@fc8a155 packages/coding-agent/docs/extensions.md:ctx.ui.setStatus/setWidget/setFooter/setWorkingIndicator",
+        "pi@fc8a155 packages/coding-agent/docs/tui.md:Patterns 4-6",
+        "pi@fc8a155 packages/coding-agent/examples/extensions/custom-footer.ts",
+        "pi@fc8a155 packages/coding-agent/examples/extensions/status-line.ts",
+        "internal/tui/status_bar_ext.go:RenderFaceTicker and RenderContextBar",
+        "internal/tui/hermes_chrome.go:HermesChromeInput",
+        "internal/kernel/extensions.go:ExtensionChain"
+      ],
+      "ready_when": [
+        "The builder defines a Go interface or small adapter layer rather than a script runtime; extension callbacks are fakeable in tests.",
+        "The first slice only covers TUI status/widget/footer/working indicator rendering, not general tool registration or package installation."
+      ],
+      "not_ready_when": [
+        "The slice loads third-party executable extension code, adds npm/TypeScript dependencies, or changes Hermes plugin CLI behavior.",
+        "The extension seam can write files, mutate provider requests, or bypass existing tool safety in this TUI-only slice."
+      ],
+      "acceptance": [
+        "A fake extension can set, replace, and clear a status entry that renders in the Hermes status/footer area without corrupting width-bounded output.",
+        "A fake extension can set a widget above or below the editor and the widget composes with todo/panel/status chrome ordering.",
+        "Working-indicator customization applies during active-turn frames and restores the default when cleared.",
+        "Non-interactive or nil-extension contexts return typed unavailable/no-op evidence instead of panicking."
+      ],
+      "note": "Planner 2026-05-25: Pi donor sweep found ctx.ui status/widget/footer APIs as useful Gormes-owned harness seams. Keep this slice Go-native and TUI-scoped; broader extension middleware belongs in later skills/plugin rows. COMPLETE 2026-05-25: internal/kernel now exposes a typed ExtensionUI interface plus no-op unavailable evidence; internal/tui adds a session-scoped ExtensionUIContext for status entries, custom footer rows, above/below editor widgets, and working indicator text/frames. RenderHermesChrome composes extension widgets with todo/panel/status/prompt ordering, View applies width-bounded status/footer rendering, and active-turn hints use custom frames/text until cleared. Evidence: go test ./internal/tui -run 'Test.*Extension.*(Status|Widget|Footer|Working)|TestHermesChrome' -count=1 ok; go test ./internal/kernel -run TestExtension -count=1 ok; go test ./internal/tui ./internal/kernel -count=1 ok.",
+      "write_scope": [
+        "internal/tui/",
+        "internal/kernel/extensions.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'Test.*Extension.*(Status|Widget|Footer|Working)|TestHermesChrome' -count=1",
+        "go test ./internal/kernel -run TestExtension -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report fake-extension render tests, non-interactive degraded evidence, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "upstream_ref": "Pi coding-agent fc8a155 extension UI docs as donor evidence",
+        "owned_since": "2026-05-25",
+        "note": "Owned Go-native TUI extension seam; do not import Pi runtime."
       }
     }
   }

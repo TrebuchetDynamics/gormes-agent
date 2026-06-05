@@ -254,13 +254,6 @@ type VoiceModeProvider interface {
 // RecordingHandle is an opaque handle returned by StartRecording.
 type RecordingHandle interface{}
 
-// VoiceModeEnvironment describes the audio environment.
-type VoiceModeEnvironment struct {
-	Available bool     `json:"available"`
-	Warnings  []string `json:"warnings,omitempty"`
-	Notices   []string `json:"notices,omitempty"`
-}
-
 // VoiceModeRunner orchestrates voice mode operations.
 type VoiceModeRunner struct {
 	cfg           VoiceModeConfig

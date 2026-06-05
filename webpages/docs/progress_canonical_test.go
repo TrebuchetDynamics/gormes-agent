@@ -2,12 +2,13 @@ package docs_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 // canonicalProgressPath is the single logical backlog as seen from the
@@ -46,6 +47,125 @@ func canonicalProgressBytes(t *testing.T, path string) []byte {
 // directory (post module-split umbrella C5), so `go test ./webpages/docs`
 // stays green across the operator-gated on-disk flip. Module-split umbrella
 // prerequisite C5c.
+func TestCanonicalProgressNavivoxPathsUseCurrentSiblingAppRoot(t *testing.T) {
+	stale := "../navivox-app/app"
+	progressRaw := string(canonicalProgressBytes(t, canonicalProgressPath))
+	if strings.Contains(progressRaw, stale) {
+		t.Fatalf("canonical progress still points at stale nested Navivox app root %q", stale)
+	}
+
+	featureMap := readDoc(t, "content/building-gormes/architecture_plan/hermes-honcho-feature-map.md")
+	oldAbsolute := "/home/xel/git/sages-openclaw/workspace-mineru/navivox-app/app"
+	for _, reject := range []string{stale, oldAbsolute} {
+		if strings.Contains(featureMap, reject) {
+			t.Fatalf("feature map still points at stale Navivox app root %q", reject)
+		}
+	}
+	if !strings.Contains(featureMap, "/home/xel/git/gormes/navivox-app") {
+		t.Fatalf("feature map must name the current Navivox app root")
+	}
+}
+
+func TestCompletionPlanCurrentFinishLedgerMatchesProgress(t *testing.T) {
+	p, err := progress.Load(canonicalProgressPath)
+	if err != nil {
+		t.Fatalf("progress.Load(%s): %v", canonicalProgressPath, err)
+	}
+	doc := readDoc(t, "content/building-gormes/architecture_plan/completion-plan.md")
+	stats := p.Stats()
+	expectedSummary := fmt.Sprintf("contains %s row objects: %s complete and %d planned", humanInt(stats.Items.Total), humanInt(stats.Items.Complete), stats.Items.Planned)
+	if !strings.Contains(doc, expectedSummary) {
+		t.Fatalf("completion-plan current ledger missing summary %q", expectedSummary)
+	}
+	for _, phaseID := range progressPhaseIDs(p) {
+		phase := p.Phases[phaseID]
+		nonComplete := 0
+		for _, subphase := range phase.Subphases {
+			for _, item := range subphase.Items {
+				if item.Status != progress.StatusComplete {
+					nonComplete++
+				}
+			}
+		}
+		expectedRow := fmt.Sprintf("| Phase %s", phaseID)
+		expectedCount := fmt.Sprintf("| %d |", nonComplete)
+		rowStart := strings.Index(doc, expectedRow)
+		if rowStart < 0 {
+			t.Fatalf("completion-plan current ledger missing row prefix %q", expectedRow)
+		}
+		rowEnd := strings.IndexByte(doc[rowStart:], '\n')
+		if rowEnd < 0 {
+			rowEnd = len(doc) - rowStart
+		}
+		row := doc[rowStart : rowStart+rowEnd]
+		if !strings.Contains(row, expectedCount) {
+			t.Fatalf("completion-plan phase %s row = %q, want count marker %q", phaseID, row, expectedCount)
+		}
+	}
+}
+
+func humanInt(n int) string {
+	if n < 1000 {
+		return fmt.Sprintf("%d", n)
+	}
+	s := fmt.Sprintf("%d", n)
+	out := make([]byte, 0, len(s)+len(s)/3)
+	prefix := len(s) % 3
+	if prefix == 0 {
+		prefix = 3
+	}
+	out = append(out, s[:prefix]...)
+	for i := prefix; i < len(s); i += 3 {
+		out = append(out, ',')
+		out = append(out, s[i:i+3]...)
+	}
+	return string(out)
+}
+
+func progressPhaseIDs(p *progress.Progress) []string {
+	ids := make([]string, 0, len(p.Phases))
+	for id := range p.Phases {
+		ids = append(ids, id)
+	}
+	for i := 1; i < len(ids); i++ {
+		for j := i; j > 0 && ids[j] < ids[j-1]; j-- {
+			ids[j], ids[j-1] = ids[j-1], ids[j]
+		}
+	}
+	return ids
+}
+
+func TestCanonicalProgressRowsWithActivePlannerBlockersUseStructuredBlockers(t *testing.T) {
+	var data any
+	if err := json.Unmarshal(canonicalProgressBytes(t, canonicalProgressPath), &data); err != nil {
+		t.Fatalf("decode canonical progress: %v", err)
+	}
+	for _, rowName := range []string{
+		"Engineering writeup #1: autonomous Hermes-porting loop",
+		"TD social presence connected to blog feed",
+	} {
+		rowName := rowName
+		t.Run(rowName, func(t *testing.T) {
+			row, ok := findProgressRowByName(data, rowName)
+			if !ok {
+				t.Fatalf("%s row not found", rowName)
+			}
+			blocker, ok := row["blocker"].(map[string]any)
+			if !ok {
+				t.Fatalf("%s row must record a structured blocker: %#v", rowName, row["blocker"])
+			}
+			for _, key := range []string{"type", "status", "blocker", "evidence", "unblocks_when", "owner", "pivot", "next_check"} {
+				if value, ok := blocker[key].(string); !ok || strings.TrimSpace(value) == "" {
+					t.Fatalf("%s blocker missing non-empty %q: %#v", rowName, key, blocker)
+				}
+			}
+			if blocker["status"] != "blocked" {
+				t.Fatalf("%s blocker status = %q, want blocked", rowName, blocker["status"])
+			}
+		})
+	}
+}
+
 func TestWebpagesDocsCanonicalReadersAreSplitDirectorySafe(t *testing.T) {
 	// Build a module-keyed split-DIRECTORY fixture from the real canonical
 	// backlog without disturbing the on-disk monolith.

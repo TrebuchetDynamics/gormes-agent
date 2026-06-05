@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 const defaultExpiryFinalizeAttempts = 3

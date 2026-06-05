@@ -33,13 +33,13 @@
 ```
 ?   	github.com/TrebuchetDynamics/gormes-agent/cmd/gormes	[no test files]
 ok  	github.com/TrebuchetDynamics/gormes-agent/docs	(cached)
-ok  	github.com/TrebuchetDynamics/gormes-agent/internal/cli	0.001s
+ok  	github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli	0.001s
 ok  	github.com/TrebuchetDynamics/gormes-agent/internal/config	0.002s
-ok  	github.com/TrebuchetDynamics/gormes-agent/internal/hermes	0.160s
+ok  	github.com/TrebuchetDynamics/gormes-agent/internal/llm	0.160s
 ok  	github.com/TrebuchetDynamics/gormes-agent/internal/kernel	0.881s
 ?   	github.com/TrebuchetDynamics/gormes-agent/internal/pybridge	[no test files]
-ok  	github.com/TrebuchetDynamics/gormes-agent/internal/store	0.122s
-ok  	github.com/TrebuchetDynamics/gormes-agent/internal/telemetry	0.001s
+ok  	github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store	0.122s
+ok  	github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry	0.001s
 ok  	github.com/TrebuchetDynamics/gormes-agent/internal/tui	0.138s
 ?   	github.com/TrebuchetDynamics/gormes-agent/pkg/gormes	[no test files]
 ```
@@ -51,13 +51,13 @@ ok  	github.com/TrebuchetDynamics/gormes-agent/internal/tui	0.138s
 ```
 ?   	github.com/TrebuchetDynamics/gormes-agent/cmd/gormes	[no test files]
 ok  	github.com/TrebuchetDynamics/gormes-agent/docs	(cached)
-ok  	github.com/TrebuchetDynamics/gormes-agent/internal/cli	(cached)
+ok  	github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli	(cached)
 ok  	github.com/TrebuchetDynamics/gormes-agent/internal/config	(cached)
-ok  	github.com/TrebuchetDynamics/gormes-agent/internal/hermes	(cached)
+ok  	github.com/TrebuchetDynamics/gormes-agent/internal/llm	(cached)
 ok  	github.com/TrebuchetDynamics/gormes-agent/internal/kernel	(cached)
 ?   	github.com/TrebuchetDynamics/gormes-agent/internal/pybridge	[no test files]
-ok  	github.com/TrebuchetDynamics/gormes-agent/internal/store	(cached)
-ok  	github.com/TrebuchetDynamics/gormes-agent/internal/telemetry	(cached)
+ok  	github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store	(cached)
+ok  	github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry	(cached)
 ok  	github.com/TrebuchetDynamics/gormes-agent/internal/tui	(cached)
 ?   	github.com/TrebuchetDynamics/gormes-agent/pkg/gormes	[no test files]
 ```
@@ -67,13 +67,13 @@ ok  	github.com/TrebuchetDynamics/gormes-agent/internal/tui	(cached)
 ### Coverage
 
 ```
-ok  	github.com/TrebuchetDynamics/gormes-agent/internal/cli	0.008s	coverage: 83.3% of statements
+ok  	github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli	0.008s	coverage: 83.3% of statements
 ok  	github.com/TrebuchetDynamics/gormes-agent/internal/config	0.003s	coverage: 69.8% of statements
-ok  	github.com/TrebuchetDynamics/gormes-agent/internal/hermes	0.161s	coverage: 82.2% of statements
+ok  	github.com/TrebuchetDynamics/gormes-agent/internal/llm	0.161s	coverage: 82.2% of statements
 ok  	github.com/TrebuchetDynamics/gormes-agent/internal/kernel	0.882s	coverage: 70.8% of statements
 	github.com/TrebuchetDynamics/gormes-agent/internal/pybridge		coverage: 0.0% of statements
-ok  	github.com/TrebuchetDynamics/gormes-agent/internal/store	0.122s	coverage: 61.5% of statements
-ok  	github.com/TrebuchetDynamics/gormes-agent/internal/telemetry	0.002s	coverage: 94.1% of statements
+ok  	github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store	0.122s	coverage: 61.5% of statements
+ok  	github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry	0.002s	coverage: 94.1% of statements
 ok  	github.com/TrebuchetDynamics/gormes-agent/internal/tui	0.138s	coverage: 82.0% of statements
 ```
 

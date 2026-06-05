@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/subagent"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/subagent"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -33,11 +33,11 @@ func TestKernel_CancelDuringToolCallsCancelsSidecarAndDelegatedChild(t *testing.
 	defer mgr.Close()
 	reg.MustRegister(subagent.NewDelegateTool(mgr, nil))
 
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "tool_calls",
-		ToolCalls: []hermes.ToolCall{
+		ToolCalls: []llm.ToolCall{
 			{ID: "call_exec", Name: "execute_code", Arguments: json.RawMessage(`{"language":"sh","code":"sleep 5"}`)},
 			{ID: "call_delegate", Name: "delegate_task", Arguments: json.RawMessage(`{"goal":"wait for cancel"}`)},
 		},
@@ -83,17 +83,17 @@ func TestKernel_SteerDuringToolBatchAppendsGuidanceToNextProviderRequest(t *test
 	reg := tools.NewRegistry()
 	reg.MustRegister(&steerBlockingTool{started: started, release: release})
 
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "tool_calls",
-		ToolCalls: []hermes.ToolCall{{
+		ToolCalls: []llm.ToolCall{{
 			ID:        "call_wait",
 			Name:      "steer_wait",
 			Arguments: json.RawMessage(`{}`),
 		}},
 	}}, "sess-steer")
-	mc.Script([]hermes.Event{{Kind: hermes.EventToken, Token: "done"}, {Kind: hermes.EventDone, FinishReason: "stop"}}, "sess-steer")
+	mc.Script([]llm.Event{{Kind: llm.EventToken, Token: "done"}, {Kind: llm.EventDone, FinishReason: "stop"}}, "sess-steer")
 
 	k := New(Config{
 		Model:             "hermes-agent",

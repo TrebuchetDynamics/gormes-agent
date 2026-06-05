@@ -7,7 +7,7 @@
 //
 // Default endpoint: http://localhost:11434 (Ollama). Ollama exposes
 // an OpenAI-compatible /v1/chat/completions endpoint that the existing
-// hermes.HTTPClient consumes without modification — Gormes is "Go-native
+// llm.HTTPClient consumes without modification — Gormes is "Go-native
 // + bring-your-own-LLM" out of the box.
 //
 // Overrides (operator):
@@ -31,8 +31,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/testutil/ollama"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/support/testutil/ollama"
 )
 
 func integrationEndpoint() string {
@@ -63,7 +63,7 @@ func TestExtractor_Integration_Ollama(t *testing.T) {
 	}
 	defer store.Close(context.Background())
 
-	hc := hermes.NewHTTPClient(endpoint, os.Getenv("GORMES_EXTRACTOR_API_KEY"))
+	hc := llm.NewHTTPClient(endpoint, os.Getenv("GORMES_EXTRACTOR_API_KEY"))
 
 	// Direct-insert 3 entity-rich turns, bypassing the kernel + persistence
 	// worker. Synthetic substitute for real Telegram DMs.

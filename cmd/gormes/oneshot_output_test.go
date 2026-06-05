@@ -7,18 +7,18 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/spf13/cobra"
 )
 
 func TestOneshotFinalOutput_PrintsOnlyFinalAssistantContent(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
-	mock := hermes.NewMockClient()
-	mock.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "final "},
-		{Kind: hermes.EventToken, Token: "answer"},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 3, TokensOut: 2},
+	mock := llm.NewMockClient()
+	mock.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "final "},
+		{Kind: llm.EventToken, Token: "answer"},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 3, TokensOut: 2},
 	}, "sess-must-not-enter-stdout")
 
 	var clientCalls int
@@ -27,7 +27,7 @@ func TestOneshotFinalOutput_PrintsOnlyFinalAssistantContent(t *testing.T) {
 			t.Fatal("runTUI was called for oneshot")
 			return nil
 		},
-		newOneshotClient: func(_ context.Context, cfg config.Config, invocation oneshotInvocation) (hermes.Client, error) {
+		newOneshotClient: func(_ context.Context, cfg config.Config, invocation oneshotInvocation) (llm.Client, error) {
 			clientCalls++
 			if cfg.Hermes.Endpoint != "" {
 				t.Fatalf("oneshot client factory endpoint = %q, want empty so one-shot does not silently dial implicit localhost", cfg.Hermes.Endpoint)
@@ -97,7 +97,7 @@ func TestOneshotFinalOutput_SetupFailureUsesStderrAndNonzeroExit(t *testing.T) {
 			t.Fatal("runTUI was called for oneshot setup failure")
 			return nil
 		},
-		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (hermes.Client, error) {
+		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (llm.Client, error) {
 			return nil, errors.New("fixture provider unavailable")
 		},
 	})

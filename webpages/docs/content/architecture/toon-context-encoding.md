@@ -10,7 +10,7 @@ Gormes treats TOON as the default serialization layer for JSON-shaped data that
 is going into prompts or other model-visible context. It is not a replacement
 for JSON in provider APIs, public APIs, config, or storage contracts.
 
-The local implementation lives in `internal/toon`. Its public entry points are
+The local implementation lives in `internal/protocols/toon`. Its public entry points are
 JSON-first:
 
 - `toon.EncodeJSON([]byte)` parses JSON while preserving object key order, then
@@ -20,7 +20,7 @@ JSON-first:
   JSON.
 - `toon.NewEncoder(io.Writer)` writes encoded TOON to a caller-owned writer.
 
-`internal/hermes.EncodePromptContext` uses TOON when callers leave the format
+`internal/llm.EncodePromptContext` uses TOON when callers leave the format
 unset. Callers that need exact JSON-shaped context can still request
 `PromptContextFormatJSON` explicitly.
 
@@ -53,7 +53,7 @@ not the runtime's core data model.
 
 ## Conformance note
 
-The `internal/toon` package preserves the JSON data model: object, array,
+The `internal/protocols/toon` package preserves the JSON data model: object, array,
 string, number, boolean, and null. It implements a conservative subset of the
 TOON v3.1 working-draft grammar needed by Gormes: nested objects, counted
 arrays, primitive inline arrays, primitive-object tabular arrays, list arrays,

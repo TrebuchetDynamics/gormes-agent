@@ -151,7 +151,7 @@ setup() {
   assert_output --partial "scripts/gormes-auto-codexu-orchestrator.sh"
   assert_output --partial "- Agent queue docs: docs/content/building-gormes/autoloop/agent-queue.md"
   assert_output --partial "- Progress schema docs: docs/content/building-gormes/autoloop/progress-schema.md"
-  assert_output --partial "docs/superpowers/plans/2026-04-24-orchestrator-oiling-release-1-plan.md"
+  assert_output --partial "docs/superpowers/plans/orchestration-planner/2026-04-24-orchestrator-oiling-release-1-plan.md"
   assert_output --partial "Candidate policy:"
   assert_output --partial "Skip rows with blocked_by until ready_when is satisfied."
 }

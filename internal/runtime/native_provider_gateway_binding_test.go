@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/runtime"
 )
 
@@ -18,10 +18,10 @@ type fakeNativeClient struct {
 	apiKey   string
 }
 
-func (fakeNativeClient) OpenStream(context.Context, hermes.ChatRequest) (hermes.Stream, error) {
+func (fakeNativeClient) OpenStream(context.Context, llm.ChatRequest) (llm.Stream, error) {
 	return nil, nil
 }
-func (fakeNativeClient) OpenRunEvents(context.Context, string) (hermes.RunEventStream, error) {
+func (fakeNativeClient) OpenRunEvents(context.Context, string) (llm.RunEventStream, error) {
 	return nil, nil
 }
 func (fakeNativeClient) Health(context.Context) error { return nil }
@@ -33,10 +33,10 @@ type fakeHTTPClient struct {
 	provider string
 }
 
-func (fakeHTTPClient) OpenStream(context.Context, hermes.ChatRequest) (hermes.Stream, error) {
+func (fakeHTTPClient) OpenStream(context.Context, llm.ChatRequest) (llm.Stream, error) {
 	return nil, nil
 }
-func (fakeHTTPClient) OpenRunEvents(context.Context, string) (hermes.RunEventStream, error) {
+func (fakeHTTPClient) OpenRunEvents(context.Context, string) (llm.RunEventStream, error) {
 	return nil, nil
 }
 func (fakeHTTPClient) Health(context.Context) error { return nil }
@@ -58,11 +58,11 @@ func TestResolveNativeRuntimeBinding_NoEndpointBuildsNativeProviderClient(t *tes
 		APIKey:   "secret-key-anthropic",
 		Endpoint: "",
 		ProxyURL: "",
-		HTTPClientFactory: func(baseURL, apiKey, provider string) hermes.Client {
+		HTTPClientFactory: func(baseURL, apiKey, provider string) llm.Client {
 			httpCalls++
 			return fakeHTTPClient{baseURL: baseURL, apiKey: apiKey, provider: provider}
 		},
-		NativeClientFactory: func(req runtime.NativeClientRequest) (hermes.Client, error) {
+		NativeClientFactory: func(req runtime.NativeClientRequest) (llm.Client, error) {
 			nativeCalls++
 			nativeSeen = fakeNativeClient{provider: req.Provider, model: req.Model, apiKey: req.APIKey}
 			return fakeNativeClient{provider: req.Provider, model: req.Model, apiKey: req.APIKey}, nil
@@ -118,12 +118,12 @@ func TestResolveNativeRuntimeBinding_ExplicitEndpointPreservesOpenAICompatible(t
 		APIKey:   "sk-explicit",
 		Endpoint: "https://example-openai-compatible.test/v1",
 		ProxyURL: "",
-		HTTPClientFactory: func(baseURL, apiKey, provider string) hermes.Client {
+		HTTPClientFactory: func(baseURL, apiKey, provider string) llm.Client {
 			httpCalls++
 			seen = fakeHTTPClient{baseURL: baseURL, apiKey: apiKey, provider: provider}
 			return fakeHTTPClient{baseURL: baseURL, apiKey: apiKey, provider: provider}
 		},
-		NativeClientFactory: func(_ runtime.NativeClientRequest) (hermes.Client, error) {
+		NativeClientFactory: func(_ runtime.NativeClientRequest) (llm.Client, error) {
 			nativeCalls++
 			return fakeNativeClient{}, nil
 		},
@@ -161,11 +161,11 @@ func TestResolveNativeRuntimeBinding_ProxyURLPreservesOpenAICompatible(t *testin
 		APIKey:   "sk-explicit",
 		Endpoint: "",
 		ProxyURL: "https://gormes-proxy.example.test",
-		HTTPClientFactory: func(baseURL, apiKey, provider string) hermes.Client {
+		HTTPClientFactory: func(baseURL, apiKey, provider string) llm.Client {
 			httpCalls++
 			return fakeHTTPClient{baseURL: baseURL, apiKey: apiKey, provider: provider}
 		},
-		NativeClientFactory: func(runtime.NativeClientRequest) (hermes.Client, error) {
+		NativeClientFactory: func(runtime.NativeClientRequest) (llm.Client, error) {
 			t.Fatalf("native factory must not be invoked when proxy URL is set")
 			return nil, nil
 		},
@@ -203,11 +203,11 @@ func TestResolveNativeRuntimeBinding_ChannelNeutralFactoryUsedAcrossPlatforms(t 
 			Endpoint: "",
 			ProxyURL: "",
 			Channel:  channel,
-			HTTPClientFactory: func(string, string, string) hermes.Client {
+			HTTPClientFactory: func(string, string, string) llm.Client {
 				t.Fatalf("channel %q: HTTP factory must not run when no explicit endpoint", channel)
 				return nil
 			},
-			NativeClientFactory: func(runtime.NativeClientRequest) (hermes.Client, error) {
+			NativeClientFactory: func(runtime.NativeClientRequest) (llm.Client, error) {
 				return fakeNativeClient{}, nil
 			},
 		}
@@ -276,11 +276,11 @@ func TestResolveNativeRuntimeBinding_DegradedWhenProviderConfigMissing(t *testin
 			req := tc.req
 			httpCalls := 0
 			nativeCalls := 0
-			req.HTTPClientFactory = func(string, string, string) hermes.Client {
+			req.HTTPClientFactory = func(string, string, string) llm.Client {
 				httpCalls++
 				return fakeHTTPClient{}
 			}
-			req.NativeClientFactory = func(runtime.NativeClientRequest) (hermes.Client, error) {
+			req.NativeClientFactory = func(runtime.NativeClientRequest) (llm.Client, error) {
 				nativeCalls++
 				return fakeNativeClient{}, nil
 			}

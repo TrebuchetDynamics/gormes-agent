@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // TestThinking_RenderEmpty verifies that RenderThinking returns empty for invisible state.
@@ -85,6 +85,25 @@ func TestThinking_NoTruncationWhenNotMarked(t *testing.T) {
 	// Content should be included without truncation
 	if !strings.Contains(got, longContent) {
 		t.Fatalf("RenderThinking should include full content when Truncated=false in %q", got)
+	}
+}
+
+func TestThinkingWithSkinUsesSharedStyles(t *testing.T) {
+	forceLipglossTrueColor(t)
+	skin := BuiltinSkins()["poseidon"]
+
+	thinking := RenderThinkingWithSkin(ThinkingState{Visible: true, Content: "checking style seams"}, skin)
+	for _, want := range []string{"🤔", "Reasoning", "checking style seams", "\x1b["} {
+		if !strings.Contains(thinking, want) {
+			t.Fatalf("styled thinking block missing %q:\n%s", want, thinking)
+		}
+	}
+
+	trail := RenderToolTrailWithSkin([]ToolCallNode{{Name: "bash", Status: ToolCallDone, Duration: 1500 * time.Millisecond}}, skin)
+	for _, want := range []string{"⚡", "✅", "bash", "1.5s", "\x1b["} {
+		if !strings.Contains(trail, want) {
+			t.Fatalf("styled tool trail missing %q:\n%s", want, trail)
+		}
 	}
 }
 
@@ -487,7 +506,7 @@ func TestConversationForcedBlocksRendersToolTrailStatusIcons(t *testing.T) {
 			{Text: "tool: patch: internal/tui/view.go"},
 			{Text: "tool error: patch: no match"},
 		},
-		History: []hermes.Message{{Role: "tool", Name: "read_file", Content: "ok"}},
+		History: []llm.Message{{Role: "tool", Name: "read_file", Content: "ok"}},
 	}
 	blocks := conversationForcedBlocks(f, 100, false)
 	got := strings.Join(blocks, "\n")

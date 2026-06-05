@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
 )
 
 func TestDoctorCustomEndpointAllSet(t *testing.T) {
@@ -253,8 +253,8 @@ func TestDoctorCmdInvokesCustomEndpointReadiness(t *testing.T) {
 		t.Fatalf("Execute: %v\nstdout=%s", err, stdout)
 	}
 
-	if !strings.Contains(stdout, "[PASS] Custom endpoint:") {
-		t.Fatalf("stdout missing [PASS] Custom endpoint: line:\n%s", stdout)
+	if !strings.Contains(stdout, "✓ Custom endpoint —") {
+		t.Fatalf("stdout missing Custom endpoint PASS glyph line:\n%s", stdout)
 	}
 	if !strings.Contains(stdout, "configured") {
 		t.Fatalf("stdout missing 'configured' summary:\n%s", stdout)
@@ -297,7 +297,7 @@ func TestDoctorCodexProviderHealthUsesAuthReadinessNotGenericHealth(t *testing.T
 	if called {
 		t.Fatalf("doctor called generic /health endpoint for Codex")
 	}
-	if !strings.Contains(stdout, "[PASS] provider health: auth-ready") {
+	if !strings.Contains(stdout, "✓ Provider health — auth-ready") {
 		t.Fatalf("stdout missing Codex auth-ready provider health:\n%s", stdout)
 	}
 	for _, leak := range []string{"codex-access-secret", "codex-refresh-secret"} {

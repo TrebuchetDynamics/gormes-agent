@@ -1,8 +1,13 @@
 # TODO.md — Gormes operational blockers
 
-No active operational blockers.
-
 ## Resolved blocker receipts
+
+[RESOLVED] Full repo validation for setup-provider parity iteration — resolved 2026-05-23 19:09:23 CST
+  original blocker: `go test ./... -count=1` failed twice in `github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin` while validating the setup-provider parity slice.
+  original evidence: first run failed `TestAdminAgents_SpawnWizardCreatesRecord` with `WaitFor: condition not met after 5s`; targeted rerun of that test passed; retry failed `TestAdminAgents_BindWizardWritesBinding` with `WaitFor: condition not met after 5s`; targeted rerun of that test passed.
+  resolution evidence: fresh `go test ./... -count=1` exited 0; `github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin` passed in 33.137s.
+  validation: `go test ./... -count=1`; `go run ./cmd/progress validate`; `git diff --check`.
+
 
 [RESOLVED] Publish follow-up release for Termux latest installer — resolved 2026-05-23 14:25:24 CST
   original blocker: live public `v0.2.20` was the latest release and affected Termux/Android installs could fail publish verification, then report `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`; the recovery fix was committed on `development` but not released.

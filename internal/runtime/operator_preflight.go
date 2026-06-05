@@ -5,11 +5,11 @@ import (
 )
 
 const (
-	PreflightReasonMissingProvider    = "provider_missing"
-	PreflightReasonMissingModel       = "model_missing"
-	PreflightReasonMissingCredential  = "credential_missing"
-	PreflightReasonMissingEndpoint    = "endpoint_missing"
-	PreflightReasonNativeUnavailable  = "native_runtime_unavailable"
+	PreflightReasonMissingProvider   = "provider_missing"
+	PreflightReasonMissingModel      = "model_missing"
+	PreflightReasonMissingCredential = "credential_missing"
+	PreflightReasonMissingEndpoint   = "endpoint_missing"
+	PreflightReasonNativeUnavailable = "native_runtime_unavailable"
 )
 
 // OperatorPreflightInput carries the already-resolved provider/model/credential
@@ -26,10 +26,10 @@ type OperatorPreflightInput struct {
 // stable degraded reason codes and recommended commands suitable for feeding
 // into OperatorRunReport without exposing secrets.
 type OperatorPreflightResult struct {
-	Ready             bool
-	DegradedReason    string
+	Ready              bool
+	DegradedReason     string
 	RecommendedCommand string
-	input             OperatorPreflightInput
+	input              OperatorPreflightInput
 }
 
 // Evidence returns a redacted status map suitable for OperatorRunReport

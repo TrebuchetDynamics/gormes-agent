@@ -1,6 +1,8 @@
 import { defineConfig } from 'astro/config';
 
+import { site } from './src/lib/site.js';
+
 export default defineConfig({
-  site: 'https://engineering.trebuchetdynamics.com',
+  site,
   output: 'static',
 });

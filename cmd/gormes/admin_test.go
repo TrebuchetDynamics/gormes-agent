@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/admin"
 )
 
@@ -26,7 +28,7 @@ func TestAdminCommand_NonTTYReturnsRequiresTTYEvidence(t *testing.T) {
 
 func TestAdminCommandCatalogCoversRootCommandTree(t *testing.T) {
 	root := newRootCommandWithRuntime(rootRuntime{})
-	entries := adminCommandEntries(root)
+	entries := gormescli.AdminCommandEntries(root)
 	paths := map[string]bool{}
 	for _, entry := range entries {
 		paths[entry.Path] = true
@@ -58,7 +60,7 @@ func TestAdminCommandCatalogCoversRootCommandTree(t *testing.T) {
 
 func TestAdminCommandCatalogMarksOnlySafeCommandsRunnable(t *testing.T) {
 	root := newRootCommandWithRuntime(rootRuntime{})
-	entries := adminCommandEntries(root)
+	entries := gormescli.AdminCommandEntries(root)
 	byPath := map[string]admin.CommandEntry{}
 	for _, entry := range entries {
 		byPath[entry.Path] = entry
@@ -88,7 +90,7 @@ func TestAdminCommandCatalogMarksOnlySafeCommandsRunnable(t *testing.T) {
 
 func TestAdminCommandRunnerExecutesSafeCommandAndRejectsMutating(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
-	runner := newAdminCommandRunner()
+	runner := newTestAdminCommandRunner()
 
 	result := runner(admin.CommandEntry{Path: "kanban list", RunLabel: "gormes kanban list", Runnable: true})
 	if result.Error != "" {
@@ -111,7 +113,7 @@ func TestAdminCommandRunArgsResolveConfiguredAuthProvider(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	writeOneshotFlagConfig(t, []byte("[hermes]\nprovider = \"openai-codex\"\n"))
 
-	args, label, err := adminCommandRunArgs("auth status")
+	args, label, err := gormescli.AdminCommandRunArgs("auth status")
 	if err != nil {
 		t.Fatalf("adminCommandRunArgs(auth status): %v", err)
 	}
@@ -122,4 +124,19 @@ func TestAdminCommandRunArgsResolveConfiguredAuthProvider(t *testing.T) {
 	if label != "gormes auth status openai-codex" {
 		t.Fatalf("label = %q, want gormes auth status openai-codex", label)
 	}
+}
+
+func newTestAdminCommandRunner() admin.CommandRunner {
+	return gormescli.AdminCommandRunner(gormescli.AdminRunnerOptions{
+		ExecuteCommand: func(args []string) (string, string, error) {
+			root := newRootCommandWithRuntime(rootRuntime{})
+			var stdout, stderr bytes.Buffer
+			root.SetOut(&stdout)
+			root.SetErr(&stderr)
+			root.SetIn(strings.NewReader(""))
+			err := executeRootCommand(root, args...)
+			return stdout.String(), stderr.String(), err
+		},
+		ExitCode: exitCodeFromError,
+	})
 }

@@ -5,27 +5,27 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 func TestPerTurnModelOverrideIsTurnScoped(t *testing.T) {
 	const residentModel = "resident-model"
 	const overrideModel = "override-model"
 
-	mock := hermes.NewMockClient()
+	mock := llm.NewMockClient()
 	releaseFirstStream := make(chan struct{})
 	client := &gatedMockClient{
 		MockClient:         mock,
 		releaseFirstStream: releaseFirstStream,
 	}
-	mock.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "override response"},
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	mock.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "override response"},
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-override")
-	mock.Script([]hermes.Event{
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	mock.Script([]llm.Event{
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-resident")
 
 	k := New(Config{
@@ -97,14 +97,14 @@ func TestPerTurnModelOverrideIsTurnScoped(t *testing.T) {
 func TestPerTurnModelBlankOverrideFallsBack(t *testing.T) {
 	const residentModel = "resident-model"
 
-	mock := hermes.NewMockClient()
+	mock := llm.NewMockClient()
 	releaseFirstStream := make(chan struct{})
 	client := &gatedMockClient{
 		MockClient:         mock,
 		releaseFirstStream: releaseFirstStream,
 	}
-	mock.Script([]hermes.Event{
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	mock.Script([]llm.Event{
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-blank")
 
 	k := New(Config{
@@ -151,12 +151,12 @@ func TestPerTurnModelBlankOverrideFallsBack(t *testing.T) {
 }
 
 type gatedMockClient struct {
-	*hermes.MockClient
+	*llm.MockClient
 	releaseFirstStream <-chan struct{}
 	firstStreamHeld    bool
 }
 
-func (c *gatedMockClient) OpenStream(ctx context.Context, req hermes.ChatRequest) (hermes.Stream, error) {
+func (c *gatedMockClient) OpenStream(ctx context.Context, req llm.ChatRequest) (llm.Stream, error) {
 	stream, err := c.MockClient.OpenStream(ctx, req)
 	if err != nil {
 		return nil, err
@@ -172,23 +172,23 @@ func (c *gatedMockClient) OpenStream(ctx context.Context, req hermes.ChatRequest
 }
 
 type gatedStream struct {
-	hermes.Stream
+	llm.Stream
 	release <-chan struct{}
 }
 
-func (s *gatedStream) Recv(ctx context.Context) (hermes.Event, error) {
+func (s *gatedStream) Recv(ctx context.Context) (llm.Event, error) {
 	if s.release != nil {
 		select {
 		case <-s.release:
 			s.release = nil
 		case <-ctx.Done():
-			return hermes.Event{}, ctx.Err()
+			return llm.Event{}, ctx.Err()
 		}
 	}
 	return s.Stream.Recv(ctx)
 }
 
-func waitForRequestCount(t *testing.T, mock *hermes.MockClient, want int, timeout time.Duration) []hermes.ChatRequest {
+func waitForRequestCount(t *testing.T, mock *llm.MockClient, want int, timeout time.Duration) []llm.ChatRequest {
 	t.Helper()
 	deadline := time.After(timeout)
 	ticker := time.NewTicker(time.Millisecond)

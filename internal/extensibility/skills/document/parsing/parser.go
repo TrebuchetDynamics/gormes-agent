@@ -1,0 +1,338 @@
+package parsing
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills/document/model"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills/document/structure"
+
+	"gopkg.in/yaml.v3"
+)
+
+// Parse converts a SKILL.md document into a typed model.Skill.
+func Parse(raw []byte, maxBytes int) (model.Skill, error) {
+	doc := structure.NormalizeBytes(raw)
+	if maxBytes > 0 && len(raw) > maxBytes {
+		return model.Skill{}, fmt.Errorf("skill document too large: %d > %d bytes", len(raw), maxBytes)
+	}
+
+	lines := structure.SplitLines(doc)
+	if len(lines) == 0 || !structure.IsFrontmatterDelimiter(lines[0]) {
+		return model.Skill{}, fmt.Errorf("skill frontmatter must start with ---")
+	}
+
+	end := -1
+	for i := 1; i < len(lines); i++ {
+		if structure.IsFrontmatterDelimiter(lines[i]) {
+			end = i
+			break
+		}
+	}
+	if end == -1 {
+		return model.Skill{}, fmt.Errorf("skill frontmatter closing --- not found")
+	}
+
+	var skill model.Skill
+	skill.RawBytes = len(raw)
+
+	frontmatter := parseFrontmatter(strings.Join(lines[1:end], "\n"))
+	skill.Name = frontmatterString(frontmatter, "name")
+	skill.Description = frontmatterString(frontmatter, "description")
+	skill.Version = frontmatterString(frontmatter, "version")
+	skill.Author = frontmatterString(frontmatter, "author")
+	skill.License = frontmatterString(frontmatter, "license")
+	skill.HermesTags = hermesTags(frontmatter)
+	skill.HermesCategory = hermesMetadataString(frontmatter, "category")
+	skill.HermesHomepage = hermesMetadataString(frontmatter, "homepage")
+	skill.RelatedSkills = relatedSkills(frontmatter)
+	skill.Platforms = frontmatterStringList(frontmatter["platforms"])
+	skill.RequiredEnvVars = requiredEnvVars(frontmatter)
+	skill.CredentialGroups = credentialGroups(frontmatter)
+	skill.Triggers = frontmatterStringList(frontmatter["triggers"])
+	skill.Exclusions = frontmatterStringList(frontmatter["exclusions"])
+	skill.ReviewState = reviewState(frontmatter)
+	skill.Conditions = skillConditions(frontmatter)
+
+	skill.Body = strings.Trim(strings.Join(lines[end+1:], "\n"), "\n")
+	if err := skill.Validate(maxBytes); err != nil {
+		return model.Skill{}, err
+	}
+	return skill, nil
+}
+
+func trimScalar(value string) string {
+	value = strings.TrimSpace(value)
+	if len(value) >= 2 {
+		if value[0] == '"' && value[len(value)-1] == '"' {
+			return value[1 : len(value)-1]
+		}
+		if value[0] == '\'' && value[len(value)-1] == '\'' {
+			return value[1 : len(value)-1]
+		}
+	}
+	return value
+}
+
+func parseFrontmatter(raw string) map[string]any {
+	out := map[string]any{}
+	if strings.TrimSpace(raw) == "" {
+		return out
+	}
+	if err := yaml.Unmarshal([]byte(raw), &out); err == nil {
+		return out
+	}
+
+	for _, line := range strings.Split(raw, "\n") {
+		if line == "" || line[0] == ' ' || line[0] == '\t' {
+			continue
+		}
+		key, value, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		out[strings.TrimSpace(key)] = trimScalar(value)
+	}
+	return out
+}
+
+func frontmatterString(frontmatter map[string]any, key string) string {
+	value, ok := frontmatter[key]
+	if !ok || value == nil {
+		return ""
+	}
+	return strings.TrimSpace(fmt.Sprint(value))
+}
+
+func frontmatterStringList(value any) []string {
+	switch v := value.(type) {
+	case nil:
+		return nil
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, item := range v {
+			out = appendStringValue(out, item)
+		}
+		return dedupeStrings(out)
+	case []string:
+		return dedupeStrings(v)
+	case string:
+		return parseInlineStringList(v)
+	default:
+		return appendStringValue(nil, v)
+	}
+}
+
+func requiredEnvVars(frontmatter map[string]any) []string {
+	var out []string
+	out = append(out, frontmatterStringList(frontmatter["required_environment_variables"])...)
+	if prereqs, ok := frontmatter["prerequisites"].(map[string]any); ok {
+		out = append(out, frontmatterStringList(prereqs["env_vars"])...)
+	}
+	return dedupeStrings(out)
+}
+
+func credentialGroups(frontmatter map[string]any) []model.CredentialGroup {
+	var out []model.CredentialGroup
+	out = append(out, parseCredentialGroups(frontmatter["credential_groups"])...)
+	out = append(out, parseCredentialGroups(frontmatter["required_environment_variable_groups"])...)
+	if prereqs, ok := frontmatter["prerequisites"].(map[string]any); ok {
+		out = append(out, parseCredentialGroups(prereqs["credential_groups"])...)
+		out = append(out, parseCredentialGroups(prereqs["env_var_groups"])...)
+	}
+	return dedupeCredentialGroups(out)
+}
+
+func parseCredentialGroups(value any) []model.CredentialGroup {
+	switch v := value.(type) {
+	case nil:
+		return nil
+	case []any:
+		out := make([]model.CredentialGroup, 0, len(v))
+		for _, item := range v {
+			if group, ok := parseCredentialGroup(item); ok {
+				out = append(out, group)
+			}
+		}
+		return out
+	case []string, string:
+		if group, ok := parseCredentialGroup(v); ok {
+			return []model.CredentialGroup{group}
+		}
+		return nil
+	default:
+		if group, ok := parseCredentialGroup(v); ok {
+			return []model.CredentialGroup{group}
+		}
+		return nil
+	}
+}
+
+func parseCredentialGroup(value any) (model.CredentialGroup, bool) {
+	switch v := value.(type) {
+	case map[string]any:
+		names := frontmatterStringList(v["any_of"])
+		if len(names) == 0 {
+			names = frontmatterStringList(v["anyOf"])
+		}
+		if len(names) == 0 {
+			names = frontmatterStringList(v["env_vars"])
+		}
+		names = dedupeStrings(names)
+		return model.CredentialGroup{AnyOf: names}, len(names) > 0
+	case []any, []string, string:
+		names := dedupeStrings(frontmatterStringList(v))
+		return model.CredentialGroup{AnyOf: names}, len(names) > 0
+	default:
+		return model.CredentialGroup{}, false
+	}
+}
+
+func dedupeCredentialGroups(in []model.CredentialGroup) []model.CredentialGroup {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]model.CredentialGroup, 0, len(in))
+	seen := map[string]bool{}
+	for _, group := range in {
+		group.AnyOf = dedupeStrings(group.AnyOf)
+		if len(group.AnyOf) == 0 {
+			continue
+		}
+		key := strings.Join(group.AnyOf, "\x00")
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, group)
+	}
+	return out
+}
+
+// hermesTags collects tag strings from the upstream-supported locations:
+// nested `metadata.hermes.tags` (claude-design, design-md), bare `hermes.tags`
+// (legacy), and a flat top-level `tags` list (popular-web-designs).
+func hermesTags(frontmatter map[string]any) []string {
+	var out []string
+	if metadata, ok := frontmatter["metadata"].(map[string]any); ok {
+		if hermes, ok := metadata["hermes"].(map[string]any); ok {
+			out = append(out, frontmatterStringList(hermes["tags"])...)
+		}
+	}
+	if hermes, ok := frontmatter["hermes"].(map[string]any); ok {
+		out = append(out, frontmatterStringList(hermes["tags"])...)
+	}
+	out = append(out, frontmatterStringList(frontmatter["tags"])...)
+	return dedupeStrings(out)
+}
+
+// relatedSkills mirrors hermesTags' precedence for the related_skills field
+// so creative skills carry cross-reference routing without inflating the
+// top-level frontmatter shape.
+func relatedSkills(frontmatter map[string]any) []string {
+	var out []string
+	if metadata, ok := frontmatter["metadata"].(map[string]any); ok {
+		if hermes, ok := metadata["hermes"].(map[string]any); ok {
+			out = append(out, frontmatterStringList(hermes["related_skills"])...)
+		}
+	}
+	if hermes, ok := frontmatter["hermes"].(map[string]any); ok {
+		out = append(out, frontmatterStringList(hermes["related_skills"])...)
+	}
+	out = append(out, frontmatterStringList(frontmatter["related_skills"])...)
+	return dedupeStrings(out)
+}
+
+func hermesMetadataString(frontmatter map[string]any, key string) string {
+	if value := frontmatterString(hermesMetadata(frontmatter), key); value != "" {
+		return value
+	}
+	return frontmatterString(frontmatter, key)
+}
+
+func reviewState(frontmatter map[string]any) string {
+	if state := frontmatterString(frontmatter, "review_state"); state != "" {
+		return state
+	}
+	if review, ok := frontmatter["review"].(map[string]any); ok {
+		return frontmatterString(review, "state")
+	}
+	return ""
+}
+
+func skillConditions(frontmatter map[string]any) model.SkillConditions {
+	hermes := hermesMetadata(frontmatter)
+	return model.SkillConditions{
+		FallbackForTools:    dedupeStrings(frontmatterStringList(hermes["fallback_for_tools"])),
+		FallbackForToolsets: dedupeStrings(frontmatterStringList(hermes["fallback_for_toolsets"])),
+		RequiresTools:       dedupeStrings(frontmatterStringList(hermes["requires_tools"])),
+		RequiresToolsets:    dedupeStrings(frontmatterStringList(hermes["requires_toolsets"])),
+	}
+}
+
+func hermesMetadata(frontmatter map[string]any) map[string]any {
+	if metadata, ok := frontmatter["metadata"].(map[string]any); ok {
+		if hermes, ok := metadata["hermes"].(map[string]any); ok {
+			return hermes
+		}
+	}
+	if hermes, ok := frontmatter["hermes"].(map[string]any); ok {
+		return hermes
+	}
+	return nil
+}
+
+func appendStringValue(out []string, value any) []string {
+	switch v := value.(type) {
+	case nil:
+		return out
+	case map[string]any:
+		if name := frontmatterString(v, "name"); name != "" {
+			return append(out, name)
+		}
+		if envVar := frontmatterString(v, "env_var"); envVar != "" {
+			return append(out, envVar)
+		}
+		return out
+	default:
+		if s := strings.TrimSpace(fmt.Sprint(v)); s != "" {
+			return append(out, s)
+		}
+		return out
+	}
+}
+
+func parseInlineStringList(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	raw = strings.TrimPrefix(raw, "[")
+	raw = strings.TrimSuffix(raw, "]")
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.Trim(strings.TrimSpace(part), "\"'")
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return dedupeStrings(out)
+}
+
+func dedupeStrings(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	seen := map[string]bool{}
+	out := make([]string, 0, len(in))
+	for _, value := range in {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		out = append(out, value)
+	}
+	return out
+}

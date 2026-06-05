@@ -59,6 +59,7 @@ const (
 	WebBackendPerplexity         WebBackend = "perplexity"
 	WebBackendDuckDuckGo         WebBackend = "duckduckgo"
 	WebBackendGoscraplingBrowser WebBackend = "goscrapling_browser"
+	WebBackendGoscraplingCrawler WebBackend = "goscrapling_crawler"
 )
 
 type WebEvidence string
@@ -89,6 +90,47 @@ type GoscraplingBrowserConfig struct {
 	Fetcher GoscraplingBrowserFetcher
 	Timeout time.Duration
 	Wait    time.Duration
+}
+
+type GoscraplingCrawler interface {
+	Crawl(context.Context, GoscraplingCrawlRequest) (GoscraplingCrawlResult, error)
+}
+
+type GoscraplingCrawlerConfig struct {
+	Crawler  GoscraplingCrawler
+	MaxPages int
+}
+
+type GoscraplingCrawlRequest struct {
+	URL          string
+	Instructions string
+	Depth        string
+	MaxPages     int
+}
+
+type GoscraplingCrawlResult struct {
+	Pages []GoscraplingCrawlPage
+	Stats GoscraplingCrawlStats
+}
+
+type GoscraplingCrawlPage struct {
+	URL         string
+	FinalURL    string
+	Title       string
+	Content     string
+	StatusCode  int
+	ContentType string
+	Error       string
+	Evidence    WebEvidence
+	Duplicate   bool
+	Offsite     bool
+}
+
+type GoscraplingCrawlStats struct {
+	Visited    int `json:"visited,omitempty"`
+	Duplicates int `json:"duplicates,omitempty"`
+	Offsite    int `json:"offsite,omitempty"`
+	MaxPages   int `json:"max_pages,omitempty"`
 }
 
 // WebBackendResolution is the credential/provider state used by web tools.
@@ -139,6 +181,7 @@ type WebToolsConfig struct {
 	Browser            BrowserHarnessToolsConfig
 	Backend            WebBackendConfig
 	GoscraplingBrowser GoscraplingBrowserConfig
+	GoscraplingCrawler GoscraplingCrawlerConfig
 	Policy             WebWebsitePolicy
 	Processing         WebContentProcessingConfig
 	ContentProcessor   WebContentProcessor
@@ -194,8 +237,12 @@ type webSearchResponse struct {
 	Data    struct {
 		Web []webSearchResult `json:"web"`
 	} `json:"data"`
-	Error    string      `json:"error,omitempty"`
-	Evidence WebEvidence `json:"evidence,omitempty"`
+	Error          string      `json:"error,omitempty"`
+	Evidence       WebEvidence `json:"evidence,omitempty"`
+	Backend        WebBackend  `json:"backend,omitempty"`
+	Source         string      `json:"source,omitempty"`
+	Degraded       bool        `json:"degraded,omitempty"`
+	DegradedReason string      `json:"degraded_reason,omitempty"`
 }
 
 type webExtractResponse struct {
@@ -213,18 +260,23 @@ type webExtractResult struct {
 }
 
 type webExtraction struct {
-	Engine       string `json:"engine,omitempty"`
-	Mode         string `json:"mode,omitempty"`
-	StatusCode   int    `json:"status_code,omitempty"`
-	ContentType  string `json:"content_type,omitempty"`
-	CSSSelector  string `json:"css_selector,omitempty"`
-	FinalURL     string `json:"final_url,omitempty"`
-	WaitEvidence string `json:"wait_evidence,omitempty"`
+	Engine       string                 `json:"engine,omitempty"`
+	Mode         string                 `json:"mode,omitempty"`
+	StatusCode   int                    `json:"status_code,omitempty"`
+	ContentType  string                 `json:"content_type,omitempty"`
+	CSSSelector  string                 `json:"css_selector,omitempty"`
+	FinalURL     string                 `json:"final_url,omitempty"`
+	WaitEvidence string                 `json:"wait_evidence,omitempty"`
+	Crawl        *GoscraplingCrawlStats `json:"crawl,omitempty"`
 }
 
 type webErrorResponse struct {
-	Success bool   `json:"success"`
-	Error   string `json:"error"`
+	Success        bool        `json:"success"`
+	Error          string      `json:"error"`
+	Evidence       WebEvidence `json:"evidence,omitempty"`
+	Backend        WebBackend  `json:"backend,omitempty"`
+	Degraded       bool        `json:"degraded,omitempty"`
+	DegradedReason string      `json:"degraded_reason,omitempty"`
 }
 
 // ResolveWebBackend resolves the currently usable web backend from a provided
@@ -371,6 +423,8 @@ func resolveConfiguredWebBackend(backend WebBackend, cfg WebBackendConfig, read 
 		return resolveCDPBackend(read)
 	case WebBackendGoscraplingBrowser:
 		return resolveGoscraplingBrowserBackend(explicit)
+	case WebBackendGoscraplingCrawler:
+		return resolveGoscraplingCrawlerBackend(explicit)
 	case WebBackendDuckDuckGo:
 		return duckDuckGoBackendResolution(read)
 	default:
@@ -414,6 +468,19 @@ func resolveGoscraplingBrowserBackend(explicit bool) WebBackendResolution {
 		Evidence:  WebEvidenceOK,
 		Source:    "config",
 		Note:      "extract only — goscrapling browser renderer selected by web.backend",
+	}
+}
+
+func resolveGoscraplingCrawlerBackend(explicit bool) WebBackendResolution {
+	if !explicit {
+		return unavailableWebBackend(WebBackendGoscraplingCrawler, "")
+	}
+	return WebBackendResolution{
+		Backend:   WebBackendGoscraplingCrawler,
+		Available: false,
+		Evidence:  WebEvidenceProviderUnavailable,
+		Source:    "config",
+		Note:      "local goscrapling crawler is not yet available; use Firecrawl or Tavily until the crawler adapter gate is complete",
 	}
 }
 
@@ -501,6 +568,8 @@ func normalizeWebBackend(raw string) WebBackend {
 		return WebBackendExa
 	case string(WebBackendGoscraplingBrowser), "goscrapling-browser", "browser_goscrapling":
 		return WebBackendGoscraplingBrowser
+	case string(WebBackendGoscraplingCrawler), "goscrapling-crawler", "crawler_goscrapling", "local_crawler", "local-crawler":
+		return WebBackendGoscraplingCrawler
 	case string(WebBackendCDP), "browser", "browser_cdp", "chrome":
 		return WebBackendCDP
 	case string(WebBackendBrave), "brave_search":
@@ -606,7 +675,14 @@ func (t *webTool) executeSearch(ctx context.Context, args json.RawMessage) (json
 	if err != nil {
 		return webSearchFailure("Error searching web: "+redactWebError(err.Error(), t.cfg.Resolution.APIKey), WebEvidenceRequestFailed)
 	}
-	return json.Marshal(normalizeWebSearch(raw))
+	response := normalizeWebSearch(raw)
+	response.Backend = t.cfg.Resolution.Backend
+	response.Source = t.cfg.Resolution.Source
+	if t.cfg.Resolution.Backend == WebBackendPerplexity && webSearchResponseHasNoSourceURLs(response) {
+		response.Degraded = true
+		response.DegradedReason = "no citations returned; answer may be model-synthesized"
+	}
+	return json.Marshal(response)
 }
 
 func (t *webTool) executeSearchBackend(ctx context.Context, query string, limit int) (map[string]any, error) {
@@ -1383,10 +1459,16 @@ func (t *webTool) executeCrawl(ctx context.Context, args json.RawMessage) (json.
 		return t.executeTavilyCrawl(ctx, crawlURL, in.Instructions, in.Depth)
 	}
 
+	if t.cfg.Resolution.Backend == WebBackendGoscraplingCrawler {
+		return t.executeGoscraplingCrawlerCrawl(ctx, crawlURL, in.Instructions, in.Depth)
+	}
+
 	if t.cfg.Resolution.Backend != WebBackendFirecrawl || !t.cfg.Resolution.Available {
 		return json.Marshal(webErrorResponse{
-			Success: false,
-			Error:   "web_crawl requires Firecrawl or Tavily. Set FIRECRAWL_API_KEY, FIRECRAWL_API_URL, TAVILY_API_KEY, or use web_search + web_extract instead.",
+			Success:  false,
+			Error:    "web_crawl requires Firecrawl or Tavily. Set FIRECRAWL_API_KEY, FIRECRAWL_API_URL, TAVILY_API_KEY, or use web_search + web_extract instead.",
+			Evidence: WebEvidenceProviderUnavailable,
+			Backend:  t.cfg.Resolution.Backend,
 		})
 	}
 
@@ -1408,6 +1490,80 @@ func (t *webTool) executeCrawl(ctx context.Context, args json.RawMessage) (json.
 		})
 	}
 	return t.marshalProcessedCrawlResults(ctx, normalizeWebCrawlDocuments(crawlURL, raw))
+}
+
+func (t *webTool) executeGoscraplingCrawlerCrawl(ctx context.Context, crawlURL, instructions, depth string) (json.RawMessage, error) {
+	if errResult, blocked := t.blockedWebExtractRequestResult(crawlURL); blocked {
+		return marshalWebExtractResponse(webExtractResponse{Results: []webExtractResult{errResult}})
+	}
+	crawler := t.cfg.GoscraplingCrawler.Crawler
+	if crawler == nil {
+		return json.Marshal(goscraplingCrawlerUnavailableResponse("local goscrapling crawler adapter not yet available"))
+	}
+	maxPages := t.cfg.GoscraplingCrawler.MaxPages
+	if maxPages <= 0 {
+		maxPages = defaultWebCrawlLimit
+	}
+	result, err := crawler.Crawl(ctx, GoscraplingCrawlRequest{URL: crawlURL, Instructions: strings.TrimSpace(instructions), Depth: strings.TrimSpace(depth), MaxPages: maxPages})
+	if err != nil {
+		return json.Marshal(webErrorResponse{
+			Success:        false,
+			Error:          "Error crawling website with local goscrapling crawler: " + redactWebError(err.Error(), t.cfg.Resolution.APIKey),
+			Evidence:       WebEvidenceRequestFailed,
+			Backend:        WebBackendGoscraplingCrawler,
+			Degraded:       true,
+			DegradedReason: "local goscrapling crawler adapter failed",
+		})
+	}
+	return t.marshalProcessedCrawlResults(ctx, normalizeGoscraplingCrawlPages(crawlURL, result, maxPages))
+}
+
+func goscraplingCrawlerUnavailableResponse(reason string) webErrorResponse {
+	return webErrorResponse{
+		Success:        false,
+		Error:          "local goscrapling crawler backend is not yet available. Use Firecrawl or Tavily for web_crawl until the local crawler adapter gate is complete.",
+		Evidence:       WebEvidenceProviderUnavailable,
+		Backend:        WebBackendGoscraplingCrawler,
+		Degraded:       true,
+		DegradedReason: reason,
+	}
+}
+
+func normalizeGoscraplingCrawlPages(requestedURL string, result GoscraplingCrawlResult, maxPages int) []webExtractResult {
+	stats := result.Stats
+	if stats.MaxPages == 0 {
+		stats.MaxPages = maxPages
+	}
+	out := make([]webExtractResult, 0, len(result.Pages))
+	for _, page := range result.Pages {
+		if page.Duplicate || page.Offsite {
+			continue
+		}
+		pageURL := firstNonEmpty(page.URL, page.FinalURL, requestedURL)
+		finalURL := firstNonEmpty(page.FinalURL, pageURL)
+		item := webExtractResult{
+			URL:     pageURL,
+			Title:   page.Title,
+			Content: page.Content,
+			Extraction: &webExtraction{
+				Engine:      "goscrapling",
+				Mode:        "crawler",
+				StatusCode:  page.StatusCode,
+				ContentType: page.ContentType,
+				FinalURL:    finalURL,
+				Crawl:       &stats,
+			},
+		}
+		if strings.TrimSpace(page.Error) != "" {
+			item.Error = page.Error
+			item.Evidence = page.Evidence
+			if item.Evidence == "" {
+				item.Evidence = WebEvidenceRequestFailed
+			}
+		}
+		out = append(out, item)
+	}
+	return out
 }
 
 func (t *webTool) executeTavilyCrawl(ctx context.Context, crawlURL, instructions, depth string) (json.RawMessage, error) {
@@ -1665,6 +1821,18 @@ func normalizeWebSearch(raw map[string]any) webSearchResponse {
 		out.Evidence = WebEvidenceRequestFailed
 	}
 	return out
+}
+
+func webSearchResponseHasNoSourceURLs(response webSearchResponse) bool {
+	if !response.Success || len(response.Data.Web) == 0 {
+		return false
+	}
+	for _, result := range response.Data.Web {
+		if strings.TrimSpace(result.URL) != "" {
+			return false
+		}
+	}
+	return true
 }
 
 func normalizePerplexitySearch(raw map[string]any) map[string]any {
@@ -2600,6 +2768,9 @@ func webRequiresEnv(includeManaged bool) []string {
 func webBackendToolNames(backend WebBackend) []string {
 	if backend == WebBackendCDP || backend == WebBackendGoscraplingBrowser {
 		return []string{WebToolExtract}
+	}
+	if backend == WebBackendGoscraplingCrawler {
+		return []string{WebToolCrawl}
 	}
 	if backend == WebBackendDuckDuckGo {
 		return []string{WebToolSearch, WebToolExtract}

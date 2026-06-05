@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func (k *Kernel) maxEmptyResponseRetries() int {
@@ -16,14 +16,14 @@ func (k *Kernel) maxEmptyResponseRetries() int {
 	return defaultMaxEmptyResponseRetries
 }
 
-func emptyFinalResponse(draft string, final hermes.Event) bool {
+func emptyFinalResponse(draft string, final llm.Event) bool {
 	if final.FinishReason == "tool_calls" || len(final.ToolCalls) > 0 {
 		return false
 	}
 	return strings.TrimSpace(draft) == ""
 }
 
-func (k *Kernel) activateFallback(ctx context.Context, request *hermes.ChatRequest, routes []hermes.ModelRoute, index *int) bool {
+func (k *Kernel) activateFallback(ctx context.Context, request *llm.ChatRequest, routes []llm.ModelRoute, index *int) bool {
 	if k.cfg.FallbackClientFactory == nil {
 		k.addSoul("fallback_unavailable: no fallback client factory")
 		return false
@@ -58,26 +58,26 @@ func (k *Kernel) activateFallback(ctx context.Context, request *hermes.ChatReque
 	return false
 }
 
-func (k *Kernel) updateContextForFallback(route hermes.ModelRoute, tools []hermes.ToolDescriptor) {
+func (k *Kernel) updateContextForFallback(route llm.ModelRoute, tools []llm.ToolDescriptor) {
 	if k.cfg.ContextEngine == nil {
 		return
 	}
-	metadata := hermes.LookupModelMetadata(hermes.ModelRegistryQuery{
+	metadata := llm.LookupModelMetadata(llm.ModelRegistryQuery{
 		Provider: route.Provider,
 		Model:    route.Model,
 	})
-	contextResolution := hermes.ResolveDisplayContextLength(hermes.ModelContextQuery{
+	contextResolution := llm.ResolveDisplayContextLength(llm.ModelContextQuery{
 		Provider: route.Provider,
 		Model:    route.Model,
-		ModelInfo: hermes.ModelContextMetadata{
+		ModelInfo: llm.ModelContextMetadata{
 			ContextWindow: metadata.RawContextWindow,
 		},
 	})
-	update := hermes.ContextModelContext{
+	update := llm.ContextModelContext{
 		Model:           route.Model,
 		Provider:        route.Provider,
 		ContextLength:   contextResolution.ContextLength,
-		ToolDescriptors: append([]hermes.ToolDescriptor(nil), tools...),
+		ToolDescriptors: append([]llm.ToolDescriptor(nil), tools...),
 	}
 	k.cfg.ContextEngine.UpdateModelContext(update)
 }

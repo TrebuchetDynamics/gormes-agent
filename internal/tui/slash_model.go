@@ -6,15 +6,12 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/modelpicker"
 )
 
 // ModelPickerCatalogProvider is the TUI-local provider/model catalog shape
 // consumed by the /model overlay.
-type ModelPickerCatalogProvider struct {
-	Provider ProviderEntry
-	Models   []ModelEntry
-}
+type ModelPickerCatalogProvider = modelpicker.CatalogProvider
 
 // ModelPickerCatalogFunc returns a fresh provider/model catalog for the TUI
 // /model picker. It is injected so local startup can use the built-in Hermes
@@ -31,34 +28,7 @@ type modelSessionSetMsg struct {
 // curated model suggestions into the pure renderer entries used by
 // ModelPickerState.
 func DefaultModelPickerCatalog() ([]ModelPickerCatalogProvider, error) {
-	providers := hermes.ListPickerProviders()
-	out := make([]ModelPickerCatalogProvider, 0, len(providers))
-	for _, provider := range providers {
-		id := strings.TrimSpace(provider.Slug)
-		if id == "" {
-			continue
-		}
-		modelIDs := provider.Models
-		if len(modelIDs) == 0 {
-			modelIDs = hermes.ProviderModelCatalogSuggestions(id, nil)
-		}
-		models := make([]ModelEntry, 0, len(modelIDs))
-		for _, modelID := range modelIDs {
-			modelID = strings.TrimSpace(modelID)
-			if modelID == "" {
-				continue
-			}
-			models = append(models, ModelEntry{ID: modelID, Label: modelID})
-		}
-		if len(models) == 0 {
-			continue
-		}
-		out = append(out, ModelPickerCatalogProvider{
-			Provider: ProviderEntry{ID: id, Label: firstNonEmptyString(strings.TrimSpace(provider.Label), id)},
-			Models:   models,
-		})
-	}
-	return out, nil
+	return modelpicker.DefaultCatalog()
 }
 
 func modelSlashHandler(input string, model *Model) SlashResult {
@@ -85,19 +55,7 @@ func modelSlashHandler(input string, model *Model) SlashResult {
 }
 
 func modelSlashArgument(input string) string {
-	trimmed := strings.TrimSpace(input)
-	if trimmed == "" {
-		return ""
-	}
-	fields := strings.Fields(trimmed)
-	if len(fields) <= 1 {
-		return ""
-	}
-	idx := strings.Index(trimmed, fields[1])
-	if idx < 0 {
-		return strings.Join(fields[1:], " ")
-	}
-	return strings.TrimSpace(trimmed[idx:])
+	return modelpicker.SlashArgument(input)
 }
 
 func (m *Model) loadModelPickerCatalog() ([]ModelPickerCatalogProvider, error) {
@@ -113,62 +71,15 @@ func (m *Model) loadModelPickerCatalog() ([]ModelPickerCatalogProvider, error) {
 }
 
 func normalizeModelPickerCatalog(catalog []ModelPickerCatalogProvider) []ModelPickerCatalogProvider {
-	out := make([]ModelPickerCatalogProvider, 0, len(catalog))
-	for _, entry := range catalog {
-		providerID := strings.TrimSpace(entry.Provider.ID)
-		if providerID == "" {
-			continue
-		}
-		label := firstNonEmptyString(strings.TrimSpace(entry.Provider.Label), providerID)
-		models := make([]ModelEntry, 0, len(entry.Models))
-		for _, model := range entry.Models {
-			modelID := strings.TrimSpace(model.ID)
-			if modelID == "" {
-				continue
-			}
-			models = append(models, ModelEntry{
-				ID:    modelID,
-				Label: firstNonEmptyString(strings.TrimSpace(model.Label), modelID),
-			})
-		}
-		if len(models) == 0 {
-			continue
-		}
-		out = append(out, ModelPickerCatalogProvider{
-			Provider: ProviderEntry{ID: providerID, Label: label},
-			Models:   models,
-		})
-	}
-	return out
+	return modelpicker.NormalizeCatalog(catalog)
 }
 
 func newModelPickerState(catalog []ModelPickerCatalogProvider, currentProvider, currentModel string, width, height int) ModelPickerState {
-	providers := make([]ProviderEntry, 0, len(catalog))
-	selectedProvider := 0
-	for i, entry := range catalog {
-		providers = append(providers, entry.Provider)
-		if currentProvider != "" && strings.EqualFold(entry.Provider.ID, currentProvider) {
-			selectedProvider = i
-		}
-	}
-	models := modelsForProviderIndex(catalog, selectedProvider)
-	return ModelPickerState{
-		Width:                 width,
-		Height:                height,
-		Providers:             providers,
-		SelectedProviderIndex: selectedProvider,
-		Models:                models,
-		SelectedModelIndex:    -1,
-		CurrentProvider:       currentProvider,
-		CurrentModel:          currentModel,
-	}
+	return modelpicker.NewState(catalog, currentProvider, currentModel, width, height)
 }
 
 func modelsForProviderIndex(catalog []ModelPickerCatalogProvider, idx int) []ModelEntry {
-	if idx < 0 || idx >= len(catalog) {
-		return nil
-	}
-	return append([]ModelEntry(nil), catalog[idx].Models...)
+	return modelpicker.ModelsForProviderIndex(catalog, idx)
 }
 
 func (m *Model) updateModelPickerForKey(msg tea.KeyMsg) tea.Cmd {
@@ -207,24 +118,7 @@ func (m *Model) handleModelPickerConfirmed(result ModelPickerResult) tea.Cmd {
 }
 
 func (m *Model) normalizeConfirmedModelSelection(provider, model string) (string, string) {
-	provider = strings.TrimSpace(provider)
-	model = strings.TrimSpace(model)
-	for _, entry := range m.modelPickerChoices {
-		if !strings.EqualFold(entry.Provider.ID, provider) {
-			continue
-		}
-		if model != "" {
-			for _, candidate := range entry.Models {
-				if candidate.ID == model {
-					return provider, model
-				}
-			}
-		}
-		if len(entry.Models) > 0 {
-			return provider, entry.Models[0].ID
-		}
-	}
-	return provider, model
+	return modelpicker.NormalizeConfirmedSelection(m.modelPickerChoices, provider, model)
 }
 
 func (m *Model) applyModelSelection(provider, model string) SlashResult {

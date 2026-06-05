@@ -8,7 +8,7 @@ weight: 7
 
 > **Upstream Hermes reference**
 > This page mirrors upstream Hermes behavior. For the current Gormes command
-> surface, use [gormes profile](../../../cli/profile/).
+> surface, use [gormes profile](../../../cli/setup/profile/).
 
 This page covers all commands related to [Hermes profiles](../../user-guide/profiles/). For general CLI commands, see [CLI Commands Reference](../cli-commands/).
 

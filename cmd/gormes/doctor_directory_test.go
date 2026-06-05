@@ -23,8 +23,8 @@ func TestDoctorCommandRendersDirectoryStructureSection(t *testing.T) {
 	if !strings.Contains(out, "◆ Directory Structure") {
 		t.Fatalf("doctor must render the ◆ Directory Structure section:\n%s", out)
 	}
-	if !strings.Contains(out, "] Directory Structure:") {
-		t.Fatalf("doctor must emit a Directory Structure check line:\n%s", out)
+	if !strings.Contains(out, "some Gormes directories/files not yet present") {
+		t.Fatalf("doctor must emit a Directory Structure summary line:\n%s", out)
 	}
 	if !strings.Contains(out, "~/.gormes") || !strings.Contains(out, "sessions/") {
 		t.Fatalf("Directory Structure must list the Gormes-owned home + subdir layout:\n%s", out)

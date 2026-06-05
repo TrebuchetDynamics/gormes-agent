@@ -38,7 +38,7 @@ plugins should remain separately testable packages.
 
 ### 1. Keep The Provider Contract Small
 
-`internal/hermes/client.go` is the right direction. Preserve a provider-neutral
+`internal/llm/client.go` is the right direction. Preserve a provider-neutral
 contract around:
 
 - request messages;

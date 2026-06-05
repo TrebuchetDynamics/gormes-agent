@@ -24,6 +24,20 @@ func repoRoot(t *testing.T) string {
 	}
 }
 
+func repoFile(t *testing.T, rel string) string {
+	t.Helper()
+	return filepath.Join(repoRoot(t), rel)
+}
+
+func readRepoFile(t *testing.T, rel string) string {
+	t.Helper()
+	raw, err := os.ReadFile(repoFile(t, rel))
+	if err != nil {
+		t.Fatalf("read %s: %v", rel, err)
+	}
+	return string(raw)
+}
+
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil

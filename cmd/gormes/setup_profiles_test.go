@@ -50,7 +50,7 @@ func TestSetupProfilesInteractiveListsAndCreates(t *testing.T) {
 	t.Setenv("GORMES_HOME", home)
 	fake := &setupCommandFakeSeams{isTTY: true}
 
-	// create "work", blank profile-select (active default), blank workspace,
+	// create "work", blank profile-select (active main), blank workspace,
 	// blank channels (skip persistence this test).
 	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "work\n\n\n\n", "profiles")
 	if err != nil {
@@ -58,7 +58,7 @@ func TestSetupProfilesInteractiveListsAndCreates(t *testing.T) {
 	}
 
 	out := stdout + stderr
-	if !strings.Contains(out, "default") || !strings.Contains(out, "(active)") {
+	if !strings.Contains(out, "main") || !strings.Contains(out, "(active)") {
 		t.Fatalf("must list known profiles with the active marker:\n%s", out)
 	}
 	if !strings.Contains(out, "work") {
@@ -77,13 +77,44 @@ func TestSetupProfilesInteractiveListsAndCreates(t *testing.T) {
 // Selecting a profile and entering one-or-more workspace dirs persists them
 // as a TOML ARRAY into THAT profile's own config.toml via the real
 // internal/config writer round-trip, and config.Load reads them back into
-// AgentsCfg.Defaults.Workspaces (default profile -> ~/.gormes/config.toml).
-func TestSetupProfilesPersistsWorkspaceListForDefaultProfile(t *testing.T) {
+// AgentsCfg.Defaults.Workspaces (main profile -> ~/.gormes/profiles/main/config.toml).
+func TestSetupProfilesFromProfileScopedEnvCreatesUnderBaseHome(t *testing.T) {
+	base := filepath.Join(t.TempDir(), ".gormes")
+	activeProfileRoot := filepath.Join(base, "profiles", "active")
+	if err := os.MkdirAll(activeProfileRoot, 0o700); err != nil {
+		t.Fatalf("mkdir active profile: %v", err)
+	}
+	t.Setenv("GORMES_HOME", activeProfileRoot)
+	fake := &setupCommandFakeSeams{isTTY: true}
+
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "work\nwork\n/srv/work\n\n", "profiles")
+	if err != nil {
+		t.Fatalf("setup profiles: Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	wantProfile := filepath.Join(base, "profiles", "work")
+	if _, statErr := os.Stat(wantProfile); statErr != nil {
+		t.Fatalf("created profile missing at base home %s: %v", wantProfile, statErr)
+	}
+	if _, statErr := os.Stat(filepath.Join(activeProfileRoot, "profiles", "work")); !os.IsNotExist(statErr) {
+		t.Fatalf("setup profiles created nested profile under active profile, stat err=%v", statErr)
+	}
+	if _, readErr := os.ReadFile(filepath.Join(wantProfile, "config.toml")); readErr != nil {
+		t.Fatalf("profile config must be written under base-home profile root: %v", readErr)
+	}
+	out := stdout + stderr
+	for _, want := range []string{"memory_db: .../work/memory.db", "goncho_db: .../work/memory.db", "sessions_db: .../work/sessions.db"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("setup profiles output missing storage contract %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestSetupProfilesPersistsWorkspaceListForMainProfile(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 	fake := &setupCommandFakeSeams{isTTY: true}
 
-	// skip create, select default (blank -> active), two workspace dirs,
+	// skip create, select main (blank -> active), two workspace dirs,
 	// blank channels.
 	in := "\n\n/ws/alpha,/ws/beta\n\n"
 	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), in, "profiles")
@@ -95,9 +126,10 @@ func TestSetupProfilesPersistsWorkspaceListForDefaultProfile(t *testing.T) {
 		t.Fatalf("successful persist must print the completion footer:\n%s", out)
 	}
 
-	raw, rerr := os.ReadFile(config.ConfigPath())
+	defaultCfg := filepath.Join(config.GormesHome(), "profiles", "main", "config.toml")
+	raw, rerr := os.ReadFile(defaultCfg)
 	if rerr != nil {
-		t.Fatalf("default profile config.toml must be written: %v", rerr)
+		t.Fatalf("main profile config.toml must be written under profiles/main: %v", rerr)
 	}
 	body := string(raw)
 	if !strings.Contains(body, "/ws/alpha") || !strings.Contains(body, "/ws/beta") {
@@ -107,7 +139,12 @@ func TestSetupProfilesPersistsWorkspaceListForDefaultProfile(t *testing.T) {
 		t.Fatalf("workspaces must be persisted as a TOML array:\n%s", body)
 	}
 
+	oldHome := os.Getenv("GORMES_HOME")
+	if err := os.Setenv("GORMES_HOME", filepath.Dir(defaultCfg)); err != nil {
+		t.Fatalf("scope main profile home: %v", err)
+	}
 	cfg, lerr := config.Load(nil)
+	_ = os.Setenv("GORMES_HOME", oldHome)
 	if lerr != nil {
 		t.Fatalf("config.Load round-trip: %v", lerr)
 	}
@@ -144,10 +181,67 @@ func TestSetupProfilesNamedProfileWritesOwnConfigNotDefaultHome(t *testing.T) {
 	if db, derr := os.ReadFile(defaultCfg); derr == nil && strings.Contains(string(db), "/srv/work-a") {
 		t.Fatalf("named profile workspaces must NOT leak into the default-home config:\n%s", db)
 	}
-	_ = stdout
+	out := stdout + stderr
+	if strings.Contains(out, home) {
+		t.Fatalf("setup profiles output leaked raw profile config path rooted at %s:\n%s", home, out)
+	}
+	if !strings.Contains(out, ".../work/config.toml") {
+		t.Fatalf("setup profiles output must identify the redacted profile config path:\n%s", out)
+	}
+}
+
+func TestSetupProfilesFromProfileScopedEnvLoadsBaseControlCenterConfig(t *testing.T) {
+	base := filepath.Join(t.TempDir(), ".gormes")
+	workRoot := filepath.Join(base, "profiles", "work")
+	if err := os.MkdirAll(workRoot, 0o700); err != nil {
+		t.Fatalf("mkdir active profile root: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(base, "config.toml"), []byte(`config_version = 2
+
+[profiles.main]
+enabled = true
+name = "Main desk"
+`), 0o600); err != nil {
+		t.Fatalf("write base v2 config: %v", err)
+	}
+	t.Setenv("GORMES_HOME", workRoot)
+	fake := &setupCommandFakeSeams{isTTY: true}
+
+	oldInputIsTerminal := setupInputIsTerminal
+	oldRunner := runSetupProfilesTUI
+	setupInputIsTerminal = func(*os.File) bool { return true }
+	runSetupProfilesTUI = func(_ context.Context, _ *os.File, _ io.Writer, state setupProfilesTUIState) (setupProfilesTUIResult, error) {
+		if !state.ControlCenter {
+			t.Fatalf("setup profiles loaded legacy state from active profile; want base-home Control Center state: %+v", state)
+		}
+		if len(state.Profiles) != 1 || state.Profiles[0].Name != "main" {
+			t.Fatalf("Control Center profiles = %+v, want root config profiles.main", state.Profiles)
+		}
+		return setupProfilesTUIResult{Discarded: true}, nil
+	}
+	t.Cleanup(func() {
+		setupInputIsTerminal = oldInputIsTerminal
+		runSetupProfilesTUI = oldRunner
+	})
+
+	cmd := newSetupCommandWithSeams(fake.seams())
+	var stdout, stderr strings.Builder
+	cmd.SetIn(os.Stdin)
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"profiles"})
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("setup profiles: Execute() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String()+stderr.String(), "Setup profiles draft discarded") {
+		t.Fatalf("setup profiles did not apply Control Center result:\nstdout=%s\nstderr=%s", stdout.String(), stderr.String())
+	}
 }
 
 func TestSetupProfilesControlCenterTUIShowsProviderCatalogAndStagesModelConfig(t *testing.T) {
+	t.Setenv("GORMES_TULIN_OPENROUTER_API_KEY", "sk-tulin-openrouter")
 	withOpenRouterModelCatalogFetcherForTest(t, func(context.Context) ([]string, error) {
 		return []string{"zai/glm-4.6", "openai/gpt-5.2", "meta-llama/llama-4", "anthropic/claude-sonnet-4.5"}, nil
 	})
@@ -176,9 +270,8 @@ func TestSetupProfilesControlCenterTUIShowsProviderCatalogAndStagesModelConfig(t
 	m.height = 80
 	view := m.View()
 	for _, want := range []string{
-		"Providers: openrouter credential=tulin-openrouter model=meta-llama/llama-4 status=ready",
-		"provider models openrouter: anthropic/claude-sonnet-4.5, meta-llama/llama-4, openai/gpt-5.2, zai/glm-4.6",
-		"p assign provider credential/model",
+		"Providers: openrouter meta-llama/llama-4 (1 ready)",
+		"p provider",
 	} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("control center provider view missing %q:\n%s", want, view)
@@ -234,8 +327,8 @@ func TestSetupProfilesControlCenterTUIShowsChannelReadinessAndStagesAllowLists(t
 	m.height = 80
 	view := m.View()
 	for _, want := range []string{
-		"Channels: telegram credential=tulin-telegram chats=1 users=1 require_mention=true tool_progress=compact status=ready",
-		"t assign channel credential/policy",
+		"Channels: telegram ✓ (1 ready)",
+		"t policy",
 	} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("control center channel view missing %q:\n%s", want, view)
@@ -279,12 +372,12 @@ func TestSetupProfilesControlCenterTUIKeyFlowStagesRenameCredentialsAndDiscard(t
 
 	view := m.View()
 	for _, want := range []string{
-		"Profile Control Center",
+		"Setup profiles",
 		"main",
-		"r rename display name",
-		"p assign provider credential/model",
-		"t assign channel credential/policy",
-		"d discard draft",
+		"r rename",
+		"p provider",
+		"t policy",
+		"d discard",
 	} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("control center TUI missing %q:\n%s", want, view)
@@ -411,7 +504,7 @@ name = ""
 	if string(after) != string(before) {
 		t.Fatalf("discard changed config.toml:\nbefore:\n%s\nafter:\n%s", before, after)
 	}
-	if out := stdout.String() + stderr.String(); !strings.Contains(out, "Profile Control Center draft discarded") {
+	if out := stdout.String() + stderr.String(); !strings.Contains(out, "Setup profiles draft discarded") {
 		t.Fatalf("discard output missing confirmation:\n%s", out)
 	}
 }
@@ -425,7 +518,7 @@ func TestSetupProfilesControlCenterTUIKeyFlowStagesLegacyMigrationForApply(t *te
 	}
 	m := newSetupProfilesModel(state)
 	view := m.View()
-	for _, want := range []string{"Migration preview", "add profiles.main", "m stage legacy migration", "s apply draft"} {
+	for _, want := range []string{"Migration preview", "add profiles.main", "m migrate", "s apply"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("migration control center view missing %q:\n%s", want, view)
 		}
@@ -513,7 +606,7 @@ func TestSetupProfilesLegacyControlCenterMigrationAppliesViaInternalConfig(t *te
 	}
 
 	out := stdout.String() + stderr.String()
-	for _, want := range []string{"Profile Control Center migration:", "Applied legacy profile config migration", "Backup:"} {
+	for _, want := range []string{"Setup profiles migration:", "Applied legacy profile config migration", "Backup:"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("migration apply output missing %q:\n%s", want, out)
 		}
@@ -522,6 +615,12 @@ func TestSetupProfilesLegacyControlCenterMigrationAppliesViaInternalConfig(t *te
 		if strings.Contains(out, forbidden) {
 			t.Fatalf("migration output leaked legacy prompt/secret %q:\n%s", forbidden, out)
 		}
+	}
+	if strings.Contains(out, home) {
+		t.Fatalf("migration output leaked raw root path rooted at %s:\n%s", home, out)
+	}
+	if !strings.Contains(out, ".../") || !strings.Contains(out, "config.toml") {
+		t.Fatalf("migration output must include redacted config/backup paths:\n%s", out)
 	}
 	cfg, err := config.Load(nil)
 	if err != nil {
@@ -612,6 +711,84 @@ name = ""
 	}
 }
 
+func TestSetupProfilesChannelsAcceptNavivoxAndRejectUnknown(t *testing.T) {
+	valid, unknown := parseSetupChannelList("telegram,navivox,goncho")
+	if !reflect.DeepEqual(valid, []string{"telegram", "navivox"}) {
+		t.Fatalf("valid channels = %#v, want telegram/navivox", valid)
+	}
+	if !reflect.DeepEqual(unknown, []string{"goncho"}) {
+		t.Fatalf("unknown channels = %#v, want goncho", unknown)
+	}
+	if got := setupKnownChannelsLabel(); !strings.Contains(got, "navivox") || strings.Contains(got, "goncho") {
+		t.Fatalf("known channels label = %q, want navivox and no goncho", got)
+	}
+}
+
+func TestSetupProfilesV2TUIRenamesMainAndRebuildsDisplayName(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	fake := &setupCommandFakeSeams{isTTY: true}
+	if err := os.MkdirAll(home, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(config.ConfigPath(), []byte(`
+config_version = 2
+
+[profiles.main]
+enabled = true
+name = ""
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	stdin, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatalf("open devnull: %v", err)
+	}
+	defer stdin.Close()
+
+	oldInputIsTerminal := setupInputIsTerminal
+	oldRunner := runSetupProfilesTUI
+	setupInputIsTerminal = func(file *os.File) bool { return file == stdin }
+	runSetupProfilesTUI = func(_ context.Context, _ *os.File, _ io.Writer, state setupProfilesTUIState) (setupProfilesTUIResult, error) {
+		if got := setupProfilesDisplayName(state.Profiles[0]); got != "Gormes" {
+			t.Fatalf("initial display name = %q, want Gormes fallback", got)
+		}
+		return setupProfilesTUIResult{Selected: "main", DisplayName: "Juan Desk", DisplayNameSet: true}, nil
+	}
+	t.Cleanup(func() {
+		setupInputIsTerminal = oldInputIsTerminal
+		runSetupProfilesTUI = oldRunner
+	})
+
+	cmd := newSetupCommandWithSeams(fake.seams())
+	var stdout, stderr strings.Builder
+	cmd.SetIn(stdin)
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"profiles"})
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("setup profiles rename: Execute() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	}
+
+	cfg, err := config.Load(nil)
+	if err != nil {
+		t.Fatalf("config.Load: %v", err)
+	}
+	if got := cfg.Profiles["main"].Name; got != "Juan Desk" {
+		t.Fatalf("profiles.main.name = %q, want persisted display name", got)
+	}
+	rebuilt := buildSetupProfilesControlCenterTUIState(cfg)
+	if len(rebuilt.Profiles) != 1 || rebuilt.Profiles[0].DisplayName != "Juan Desk" {
+		t.Fatalf("rebuilt TUI state = %+v, want saved display name", rebuilt.Profiles)
+	}
+	if view := newSetupProfilesModel(rebuilt).View(); !strings.Contains(view, "Display name: Juan Desk") {
+		t.Fatalf("rebuilt view missing saved display name:\n%s", view)
+	}
+}
+
 func TestSetupProfilesV2TUIAppliesOneRootConfigTransaction(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
@@ -652,7 +829,7 @@ name = ""
 			DisplayNameSet:        true,
 			Workspaces:            []string{"/workspace/tulin"},
 			WorkspacesSet:         true,
-			Channels:              []string{"telegram"},
+			Channels:              []string{"telegram", "navivox"},
 			ChannelsSet:           true,
 			ProviderID:            "openrouter",
 			ProviderCredentialID:  "tulin-openrouter",
@@ -687,17 +864,26 @@ name = ""
 	}
 
 	out := stdout.String() + stderr.String()
-	if !strings.Contains(out, "Profile Control Center draft:") || !strings.Contains(out, "Applied") {
+	if !strings.Contains(out, "Setup profiles draft:") || !strings.Contains(out, "Applied") {
 		t.Fatalf("v2 setup profiles must preview and apply the control center draft:\n%s", out)
 	}
 	if strings.Contains(out, "Active profile set") || strings.Contains(out, "profiles/tulin/config.toml") {
 		t.Fatalf("v2 setup profiles leaked legacy profile-home/active behavior:\n%s", out)
+	}
+	if strings.Contains(out, home) {
+		t.Fatalf("v2 setup profiles output leaked raw root config path rooted at %s:\n%s", home, out)
+	}
+	if !strings.Contains(out, ".../") || !strings.Contains(out, "config.toml") {
+		t.Fatalf("v2 setup profiles output must identify the redacted root config path:\n%s", out)
 	}
 	if _, err := os.Stat(filepath.Join(home, "active_profile")); !os.IsNotExist(err) {
 		t.Fatalf("v2 setup profiles must not write active_profile, stat err=%v", err)
 	}
 	if _, err := os.Stat(filepath.Join(home, "profiles", "tulin", "config.toml")); !os.IsNotExist(err) {
 		t.Fatalf("v2 setup profiles must not write per-profile config.toml, stat err=%v", err)
+	}
+	if info, err := os.Stat(filepath.Join(home, "profiles", "tulin", "home")); err != nil || !info.IsDir() {
+		t.Fatalf("v2 setup profiles must materialize the new profile runtime home without per-profile config: info=%+v err=%v", info, err)
 	}
 
 	cfg, err := config.Load(nil)
@@ -716,6 +902,9 @@ name = ""
 	}
 	if channel, ok := tulin.Channels["telegram"]; !ok || !channel.Enabled || channel.Credential != "tulin-telegram" || !reflect.DeepEqual(channel.AllowedChats, []string{"222", "333"}) || !reflect.DeepEqual(channel.AllowedUsers, []string{"6586915095"}) || !channel.RequireMention || channel.ToolProgress != "compact" {
 		t.Fatalf("profiles.tulin.channels.telegram = %+v, ok=%t", channel, ok)
+	}
+	if channel, ok := tulin.Channels["navivox"]; !ok || !channel.Enabled {
+		t.Fatalf("profiles.tulin.channels.navivox = %+v, ok=%t", channel, ok)
 	}
 	if cred := cfg.Credentials["tulin-openrouter"]; cred.Kind != "provider" || cred.Provider != "openrouter" || cred.OwnerProfile != "tulin" || cred.SecretRef == nil || cred.SecretRef.ID != "GORMES_TULIN_OPENROUTER_API_KEY" {
 		t.Fatalf("credentials.tulin-openrouter = %+v", cred)
@@ -741,6 +930,33 @@ func TestSetupProfilesNoTTYNoFalseSuccess(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(config.GormesHome(), "config.toml")); err == nil {
 		t.Fatalf("no-TTY setup profiles must not write config")
+	}
+}
+
+func TestSetupProfilesNonInteractiveMaterializesMainProfile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	fake := &setupCommandFakeSeams{isTTY: false}
+
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "profiles", "--non-interactive")
+	if err != nil {
+		t.Fatalf("setup profiles --non-interactive: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout+stderr, "Setup profiles non-interactive:") {
+		t.Fatalf("non-interactive setup profiles missing headless summary:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	for _, rel := range []string{"SOUL.md", "IDENTITY.md", filepath.Join("memory", "USER.md"), filepath.Join("memory", "MEMORY.md"), "memory.db"} {
+		if _, err := os.Stat(filepath.Join(home, "profiles", "main", rel)); err != nil {
+			t.Fatalf("profiles/main/%s missing after non-interactive setup: %v", rel, err)
+		}
+	}
+	cfg, err := config.Load(nil)
+	if err != nil {
+		t.Fatalf("config.Load: %v", err)
+	}
+	main, ok := cfg.Profiles[config.DefaultProfileID]
+	if !ok || !main.Enabled {
+		t.Fatalf("profiles.%s = %+v, ok=%t; want enabled", config.DefaultProfileID, main, ok)
 	}
 }
 
@@ -825,29 +1041,35 @@ func TestAgentDefaultsChannelsConfigRoundTrip(t *testing.T) {
 	}
 }
 
-// Child 2/3 TB2: selecting the default profile and entering channels persists
+// Child 2/3 TB2: selecting the main profile and entering channels persists
 // them as a TOML array into ~/.gormes/config.toml, round-tripping via
 // config.Load into AgentsCfg.Defaults.Channels.
-func TestSetupProfilesPersistsChannelListForDefaultProfile(t *testing.T) {
+func TestSetupProfilesPersistsChannelListForMainProfile(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 	fake := &setupCommandFakeSeams{isTTY: true}
 
-	// skip create, select default, blank workspace, channels telegram,discord.
+	// skip create, select main, blank workspace, channels telegram,discord.
 	in := "\n\n\ntelegram,discord\n"
 	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), in, "profiles")
 	if err != nil {
 		t.Fatalf("setup profiles: Execute() error = %v stderr=%s", err, stderr)
 	}
 	out := stdout + stderr
-	if !strings.Contains(out, "Set 2 channel(s) for profile \"default\"") {
+	if !strings.Contains(out, "Set 2 channel(s) for profile \"main\"") {
 		t.Fatalf("must confirm 2 channels set:\n%s", out)
 	}
 	if !strings.Contains(out, "Profiles configuration complete!") {
 		t.Fatalf("successful persist must print the completion footer:\n%s", out)
 	}
 
+	defaultCfg := filepath.Join(config.GormesHome(), "profiles", "main", "config.toml")
+	oldHome := os.Getenv("GORMES_HOME")
+	if err := os.Setenv("GORMES_HOME", filepath.Dir(defaultCfg)); err != nil {
+		t.Fatalf("scope main profile home: %v", err)
+	}
 	cfg, lerr := config.Load(nil)
+	_ = os.Setenv("GORMES_HOME", oldHome)
 	if lerr != nil {
 		t.Fatalf("config.Load round-trip: %v", lerr)
 	}
@@ -899,7 +1121,13 @@ func TestSetupProfilesSkipsUnknownChannels(t *testing.T) {
 	if !strings.Contains(out, "Skipping unknown channel \"bogus\"") {
 		t.Fatalf("unknown channel must produce a Gormes-owned skip notice:\n%s", out)
 	}
+	defaultCfg := filepath.Join(config.GormesHome(), "profiles", "main", "config.toml")
+	oldHome := os.Getenv("GORMES_HOME")
+	if err := os.Setenv("GORMES_HOME", filepath.Dir(defaultCfg)); err != nil {
+		t.Fatalf("scope main profile home: %v", err)
+	}
 	cfg, lerr := config.Load(nil)
+	_ = os.Setenv("GORMES_HOME", oldHome)
 	if lerr != nil {
 		t.Fatalf("config.Load: %v", lerr)
 	}

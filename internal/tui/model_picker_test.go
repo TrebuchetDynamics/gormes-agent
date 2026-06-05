@@ -5,7 +5,38 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/modelpicker"
 )
+
+func TestModelPicker_UsesSharedSkinStyles(t *testing.T) {
+	skin := BuiltinSkins()["ares"]
+	shared := SkinStylesFor(skin)
+	got := RenderModelPickerWithSkin(ModelPickerState{
+		Width:  60,
+		Height: 20,
+		Providers: []ProviderEntry{
+			{ID: "anthropic", Label: "Anthropic"},
+		},
+		SelectedProviderIndex: 0,
+	}, skin)
+	if !strings.Contains(got, "Select Model") || !strings.Contains(got, "❯") {
+		t.Fatalf("styled model picker lost visible chrome:\n%s", got)
+	}
+	if fg := shared.Selected.GetForeground(); fg != lipgloss.Color(skin.Colors.UIAcent) {
+		t.Fatalf("shared selected foreground = %v, want %v", fg, lipgloss.Color(skin.Colors.UIAcent))
+	}
+	if bg := shared.Status.GetBackground(); bg != lipgloss.Color(skin.Colors.StatusBarBackground) {
+		t.Fatalf("shared status background = %v, want %v", bg, lipgloss.Color(skin.Colors.StatusBarBackground))
+	}
+	if fg := shared.ActivePill.GetForeground(); fg != lipgloss.Color(skin.Colors.StatusBarBackground) {
+		t.Fatalf("shared active pill foreground = %v, want %v", fg, lipgloss.Color(skin.Colors.StatusBarBackground))
+	}
+	if bg := shared.ActivePill.GetBackground(); bg != lipgloss.Color(skin.Colors.UIAcent) {
+		t.Fatalf("shared active pill background = %v, want %v", bg, lipgloss.Color(skin.Colors.UIAcent))
+	}
+}
 
 // TestModelPicker_RenderProviderList proves the renderer shows all providers
 // in a 2-column grid with the selected provider highlighted by "❯".
@@ -65,26 +96,14 @@ func TestModelPicker_RenderProviderList(t *testing.T) {
 
 func TestModelPickerProvidersUseHermesProviderCatalog(t *testing.T) {
 	providers := HermesModelPickerProviders()
-	if len(providers) != 37 {
-		t.Fatalf("providers = %d, want 37", len(providers))
+	catalog := modelpicker.HermesProviders()
+	if len(providers) != len(catalog) {
+		t.Fatalf("providers = %d, want %d", len(providers), len(catalog))
 	}
-	for _, want := range []struct {
-		index int
-		id    string
-		label string
-	}{
-		{0, "nous", "Nous Portal (Nous Research subscription)"},
-		{5, "openai-codex", "OpenAI Codex"},
-		{36, "custom", "custom (direct API)"},
-	} {
-		got := providers[want.index]
-		if got.ID != want.id || got.Label != want.label {
-			t.Fatalf("provider[%d] = %#v, want id=%q label=%q", want.index, got, want.id, want.label)
-		}
-	}
-	for _, provider := range providers {
-		if strings.Contains(provider.Label, "(oauth_external)") || strings.Contains(provider.Label, "(api_key)") {
-			t.Fatalf("provider leaked raw auth taxonomy: %#v", provider)
+	for i, want := range catalog {
+		got := providers[i]
+		if got.ID != want.ID || got.Label != want.Label {
+			t.Fatalf("provider[%d] = %#v, want %#v", i, got, want)
 		}
 	}
 }

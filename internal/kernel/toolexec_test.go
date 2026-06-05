@@ -3,14 +3,16 @@ package kernel
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -23,13 +25,13 @@ func newKernelWithRegistry(t *testing.T, reg *tools.Registry) *Kernel {
 		Tools:             reg,
 		MaxToolIterations: 10,
 		MaxToolDuration:   30 * time.Second,
-	}, hermes.NewMockClient(), store.NewNoop(), telemetry.New(), nil)
+	}, llm.NewMockClient(), store.NewNoop(), telemetry.New(), nil)
 }
 
 func TestExecuteToolCalls_UnknownToolReturnsErrorResult(t *testing.T) {
 	reg := tools.NewRegistry()
 	k := newKernelWithRegistry(t, reg)
-	res := k.executeToolCalls(context.Background(), []hermes.ToolCall{
+	res := k.executeToolCalls(context.Background(), []llm.ToolCall{
 		{ID: "c1", Name: "not_registered", Arguments: json.RawMessage(`{}`)},
 	})
 	if len(res) != 1 {
@@ -49,7 +51,7 @@ func TestExecuteToolCalls_PanicRecovered(t *testing.T) {
 		},
 	})
 	k := newKernelWithRegistry(t, reg)
-	res := k.executeToolCalls(context.Background(), []hermes.ToolCall{
+	res := k.executeToolCalls(context.Background(), []llm.ToolCall{
 		{ID: "c1", Name: "boom", Arguments: json.RawMessage(`{}`)},
 	})
 	if !strings.Contains(res[0].Content, "panicked") {
@@ -64,7 +66,7 @@ func TestExecuteToolCalls_AppendsToolPreviewSoulEvent(t *testing.T) {
 	}
 	k := newKernelWithRegistry(t, reg)
 
-	_ = k.executeToolCalls(context.Background(), []hermes.ToolCall{
+	_ = k.executeToolCalls(context.Background(), []llm.ToolCall{
 		{
 			ID:        "c1",
 			Name:      "terminal",
@@ -95,12 +97,84 @@ func TestExecuteToolCalls_TodoMergePreviewUsesUpdatingWording(t *testing.T) {
 	reg.MustRegister(&tools.MockTool{NameStr: "todo"})
 	k := newKernelWithRegistry(t, reg)
 
-	_ = k.executeToolCalls(context.Background(), []hermes.ToolCall{
+	_ = k.executeToolCalls(context.Background(), []llm.ToolCall{
 		{ID: "todo-merge", Name: "todo", Arguments: json.RawMessage(`{"merge":true,"todos":[{"id":"1","content":"first","status":"pending"},{"id":"2","content":"second","status":"in_progress"}]}`)},
 	})
 
 	if got := soulTexts(k.soul); !containsString(got, "tool: todo: updating 2 task(s)") {
 		t.Fatalf("soul events = %#v, want Hermes todo merge preview", got)
+	}
+}
+
+func TestExecuteToolCalls_AppendsSubdirectoryHintsToToolResults(t *testing.T) {
+	root := t.TempDir()
+	backend := filepath.Join(root, "backend")
+	if err := os.MkdirAll(backend, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("root startup context"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(backend, "AGENTS.md"), []byte("Backend-specific instructions"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	reg := tools.NewRegistry()
+	reg.MustRegister(&tools.MockTool{NameStr: "read_file"})
+	k := newKernelWithRegistry(t, reg)
+	k.cfg.SubdirectoryHints = llm.NewSubdirectoryHintTracker(llm.SubdirectoryHintOptions{WorkingDir: root})
+
+	results := k.executeToolCalls(context.Background(), []llm.ToolCall{
+		{ID: "c1", Name: "read_file", Arguments: json.RawMessage(`{"path":"backend/main.go"}`)},
+		{ID: "c2", Name: "read_file", Arguments: json.RawMessage(`{"path":"backend/other.go"}`)},
+	})
+
+	if len(results) != 2 {
+		t.Fatalf("results len = %d, want 2", len(results))
+	}
+	if !strings.Contains(results[0].Content, "[Subdirectory context discovered: backend/AGENTS.md]") || !strings.Contains(results[0].Content, "Backend-specific instructions") {
+		t.Fatalf("first result missing subdirectory hint:\n%s", results[0].Content)
+	}
+	if strings.Contains(results[1].Content, "Backend-specific instructions") {
+		t.Fatalf("second result duplicated subdirectory hint:\n%s", results[1].Content)
+	}
+}
+
+func TestExecuteToolCalls_AppendsSubdirectoryHintsToMultimodalTextPart(t *testing.T) {
+	root := t.TempDir()
+	frontend := filepath.Join(root, "frontend")
+	if err := os.MkdirAll(frontend, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(frontend, "CLAUDE.md"), []byte("Frontend rules"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	reg := tools.NewRegistry()
+	reg.MustRegister(&tools.MockTool{
+		NameStr: "browser_vision",
+		ExecuteFn: func(_ context.Context, _ json.RawMessage) (json.RawMessage, error) {
+			return json.RawMessage(`{"_multimodal":true,"text_summary":"screenshot","content":[{"type":"text","text":"screenshot"},{"type":"image_url","image_url":{"url":"data:image/png;base64,AAA"}}]}`), nil
+		},
+	})
+	k := newKernelWithRegistry(t, reg)
+	k.cfg.SubdirectoryHints = llm.NewSubdirectoryHintTracker(llm.SubdirectoryHintOptions{WorkingDir: root})
+
+	results := k.executeToolCalls(context.Background(), []llm.ToolCall{
+		{ID: "c1", Name: "browser_vision", Arguments: json.RawMessage(`{"path":"frontend/screen.png"}`)},
+	})
+
+	if got := results[0].Content; !strings.Contains(got, "screenshot") || !strings.Contains(got, "Frontend rules") {
+		t.Fatalf("content summary missing appended hint: %q", got)
+	}
+	if len(results[0].ContentParts) != 2 {
+		t.Fatalf("ContentParts len = %d, want 2: %+v", len(results[0].ContentParts), results[0].ContentParts)
+	}
+	if got := results[0].ContentParts[0].Text; !strings.Contains(got, "screenshot") || !strings.Contains(got, "Frontend rules") {
+		t.Fatalf("text part missing appended hint: %q", got)
+	}
+	if results[0].ContentParts[1].ImageURL != "data:image/png;base64,AAA" {
+		t.Fatalf("image part was not preserved: %+v", results[0].ContentParts[1])
 	}
 }
 
@@ -137,7 +211,7 @@ func TestExecuteToolCalls_TimeoutHonoured(t *testing.T) {
 	})
 	k := newKernelWithRegistry(t, reg)
 	start := time.Now()
-	res := k.executeToolCalls(context.Background(), []hermes.ToolCall{
+	res := k.executeToolCalls(context.Background(), []llm.ToolCall{
 		{ID: "c1", Name: "slow", Arguments: json.RawMessage(`{}`)},
 	})
 	elapsed := time.Since(start)
@@ -158,7 +232,7 @@ func TestExecuteToolCalls_CancelBetweenCalls(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	res := k.executeToolCalls(ctx, []hermes.ToolCall{
+	res := k.executeToolCalls(ctx, []llm.ToolCall{
 		{ID: "1", Name: "a", Arguments: json.RawMessage(`{}`)},
 		{ID: "2", Name: "b", Arguments: json.RawMessage(`{}`)},
 	})
@@ -192,7 +266,7 @@ func TestExecuteToolCalls_ContextCancelCancelsEveryConcurrentWorker(t *testing.T
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan []toolResult, 1)
 	go func() {
-		done <- k.executeToolCalls(ctx, []hermes.ToolCall{
+		done <- k.executeToolCalls(ctx, []llm.ToolCall{
 			{ID: "call_alpha", Name: "alpha", Arguments: json.RawMessage(`{}`)},
 			{ID: "call_bravo", Name: "bravo", Arguments: json.RawMessage(`{}`)},
 			{ID: "call_charlie", Name: "charlie", Arguments: json.RawMessage(`{}`)},

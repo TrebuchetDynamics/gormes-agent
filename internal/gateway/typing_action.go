@@ -4,13 +4,14 @@ import (
 	"context"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/typingaction"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
 const (
-	typingActionName           = "typing"
-	typingActionThrottleWindow = 4 * time.Second
-	typingActionFailedCode     = "typing_action_failed"
+	typingActionName           = typingaction.Name
+	typingActionThrottleWindow = typingaction.ThrottleWindow
+	typingActionFailedCode     = typingaction.FailedCode
 )
 
 // TypingActionEvidence carries redacted non-fatal typing-action failure
@@ -24,12 +25,7 @@ type TypingActionEvidence struct {
 type TypingActionEvidenceSink func(TypingActionEvidence)
 
 func isTypingActionPhase(phase kernel.Phase) bool {
-	switch phase {
-	case kernel.PhaseConnecting, kernel.PhaseStreaming, kernel.PhaseReconnecting, kernel.PhaseFinalizing:
-		return true
-	default:
-		return false
-	}
+	return typingaction.ShouldSendForPhase(phase)
 }
 
 func (m *Manager) maybeSendTypingAction(ctx context.Context, ch Channel, phase kernel.Phase, chatID, threadID string) {

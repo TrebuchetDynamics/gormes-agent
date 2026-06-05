@@ -19,12 +19,12 @@ import (
 
 // SSHConfig holds configuration for an SSH environment.
 type SSHConfig struct {
-	Host     string
-	User     string
-	CWD      string
-	Timeout  int
-	Port     int
-	KeyPath  string
+	Host    string
+	User    string
+	CWD     string
+	Timeout int
+	Port    int
+	KeyPath string
 }
 
 // SSHEnvironment implements the Environment interface using SSH remote execution.
@@ -33,7 +33,6 @@ type SSHEnvironment struct {
 	controlSocket string
 	controlDir    string
 	remoteHome    string
-	stdinBuf      bytes.Buffer
 }
 
 // NewSSHEnvironment creates a new SSH environment and establishes connection.
@@ -91,14 +90,14 @@ func (e *SSHEnvironment) MapPath(hostPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	// For SSH, we map paths relative to the remote home directory
 	cleanPath := filepath.Clean(absPath)
 	if strings.HasPrefix(cleanPath, e.remoteHome) {
 		rel, _ := filepath.Rel(e.remoteHome, cleanPath)
 		return filepath.Join(e.remoteHome, rel), nil
 	}
-	
+
 	return cleanPath, nil
 }
 
@@ -121,7 +120,7 @@ func (e *SSHEnvironment) Upload(ctx context.Context, intent FileSyncIntent) (Fil
 	// Use scp to copy file
 	scpCmd := e.buildSCPCommand(false)
 	scpCmd = append(scpCmd, intent.HostPath, e.config.User+"@"+e.config.Host+":"+intent.EnvironmentPath)
-	
+
 	if err := runSCPCommand(ctx, scpCmd); err != nil {
 		return FileSyncResult{}, fmt.Errorf("scp upload failed: %w", err)
 	}
@@ -157,7 +156,7 @@ func (e *SSHEnvironment) Download(ctx context.Context, intent FileSyncIntent) (F
 	// Use scp to copy file
 	scpCmd := e.buildSCPCommand(false)
 	scpCmd = append(scpCmd, e.config.User+"@"+e.config.Host+":"+intent.EnvironmentPath, intent.HostPath)
-	
+
 	if err := runSCPCommand(ctx, scpCmd); err != nil {
 		return FileSyncResult{}, fmt.Errorf("scp download failed: %w", err)
 	}
@@ -255,9 +254,9 @@ func (e *SSHEnvironment) Cleanup(ctx context.Context) (EnvironmentCleanupResult,
 	evidence := []EnvironmentEvidence{}
 
 	// Close control connection
-	exitCmd := exec.Command("ssh", 
+	exitCmd := exec.Command("ssh",
 		"-o", "ControlPath="+e.controlSocket,
-		"-O", "exit", 
+		"-O", "exit",
 		e.config.User+"@"+e.config.Host,
 	)
 	exitCmd.Run() // Best effort
@@ -281,7 +280,7 @@ func (e *SSHEnvironment) Cleanup(ctx context.Context) (EnvironmentCleanupResult,
 func (e *SSHEnvironment) testConnection(ctx context.Context) error {
 	cmd := e.buildSSHCommand()
 	cmd = append(cmd, "echo", "SSH connection established")
-	
+
 	if err := runSSHCommand(ctx, cmd); err != nil {
 		return fmt.Errorf("connection test: %w", err)
 	}
@@ -292,7 +291,7 @@ func (e *SSHEnvironment) testConnection(ctx context.Context) error {
 func (e *SSHEnvironment) detectRemoteHome(ctx context.Context) string {
 	cmd := e.buildSSHCommand()
 	cmd = append(cmd, "echo", "$HOME")
-	
+
 	out, err := runSSHCommandOutput(ctx, cmd)
 	if err != nil {
 		return ""
@@ -367,7 +366,7 @@ func runSSHCommand(ctx context.Context, cmd []string) error {
 	c := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
 	var stderr bytes.Buffer
 	c.Stderr = &stderr
-	
+
 	if err := c.Run(); err != nil {
 		return fmt.Errorf("%s: %s: %w", cmd[0], stderr.String(), err)
 	}
@@ -380,7 +379,7 @@ func runSSHCommandOutput(ctx context.Context, cmd []string) (string, error) {
 	var stdout, stderr bytes.Buffer
 	c.Stdout = &stdout
 	c.Stderr = &stderr
-	
+
 	if err := c.Run(); err != nil {
 		return "", fmt.Errorf("%s: %s: %w", cmd[0], stderr.String(), err)
 	}
@@ -392,7 +391,7 @@ func runSCPCommand(ctx context.Context, cmd []string) error {
 	c := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
 	var stderr bytes.Buffer
 	c.Stderr = &stderr
-	
+
 	if err := c.Run(); err != nil {
 		return fmt.Errorf("%s: %s: %w", cmd[0], stderr.String(), err)
 	}
@@ -445,7 +444,7 @@ func (e *SSHEnvironment) BulkUpload(ctx context.Context, files []FileSyncIntent)
 
 	// Create tar archive in memory, stream over SSH
 	pr, pw := io.Pipe()
-	
+
 	// Start tar process
 	tarCmd := exec.CommandContext(ctx, "tar", "-cf", "-")
 	tarCmd.Args = append(tarCmd.Args, "-C", filepath.Dir(files[0].HostPath))
@@ -457,7 +456,7 @@ func (e *SSHEnvironment) BulkUpload(ctx context.Context, files []FileSyncIntent)
 	// Start SSH process
 	sshCmd := e.buildSSHCommand()
 	sshCmd = append(sshCmd, "tar", "xf", "-", "-C", "/")
-	
+
 	sshProcess := exec.CommandContext(ctx, sshCmd[0], sshCmd[1:]...)
 	sshProcess.Stdin = pr
 

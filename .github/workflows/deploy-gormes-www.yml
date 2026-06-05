@@ -11,7 +11,7 @@ on:
       - 'webpages/docs/content/building-gormes/architecture_plan/progress.json/**'
       - 'scripts/install.ps1'
       - 'scripts/install.cmd'
-      - 'cmd/gormes/version.go'
+      - 'cmd/gormes/main.go'
       - '.github/workflows/deploy-gormes-www.yml'
   workflow_dispatch:
 
@@ -47,7 +47,7 @@ jobs:
 
       - name: Refresh benchmark input
         run: |
-          version=$(grep 'var Version =' cmd/gormes/version.go | sed 's/.*"\(.*\)".*/\1/')
+          version=$(grep 'var Version =' cmd/gormes/main.go | sed 's/.*"\(.*\)".*/\1/')
           git_commit="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
           if git diff --quiet 2>/dev/null && git diff --cached --quiet 2>/dev/null; then
             git_dirty=false
@@ -78,13 +78,13 @@ jobs:
         working-directory: webpages/landing
         run: |
           grep -F 'data-site-runtime="astro-tailwind"' dist/index.html >/dev/null
-          grep -F "Go-native AI agent runtime without Python or Docker." dist/index.html >/dev/null
-          grep -F "Python agents break for boring reasons." dist/index.html >/dev/null
-          grep -F "What works today" dist/index.html >/dev/null
-          grep -F "CLI and offline TUI" dist/index.html >/dev/null
-          grep -F "Evidence, not a sidecar stack" dist/index.html >/dev/null
+          grep -F "Run AI agents anywhere." dist/index.html >/dev/null
+          grep -F "Less setup. More runtime." dist/index.html >/dev/null
+          grep -F "No Python drift" dist/index.html >/dev/null
+          grep -F "Offline doctor" dist/index.html >/dev/null
+          grep -F "SQLite memory" dist/index.html >/dev/null
           grep -F "Current release:" dist/index.html >/dev/null
-          grep -F "Static Go binary" dist/index.html >/dev/null
+          grep -F "static binary" dist/index.html >/dev/null
           grep -F 'href="/static/favicon.ico"' dist/index.html >/dev/null
           grep -F 'property="og:image" content="https://gormes.ai/static/social-card.png"' dist/index.html >/dev/null
           grep -F '/static/go-gopher-bear-lowpoly.png' dist/index.html >/dev/null

@@ -1,5 +1,6 @@
 # ── Generated codemap files (clog builder context) ────
 codemap.md
+hermes-knowledge-graph.json
 
 # ── Build outputs (Makefile writes to bin/) ──────────
 bin/
@@ -22,12 +23,21 @@ coverage.out
 coverage.html
 *.prof
 *.pprof
+__pycache__/
+*.pyc
 
 # ── Runtime logs and crash dumps ─────────────────────
 gormes.log
 crash-*.log
 .pi/gormes-loop/*.jsonl
 .pi/development-goal/
+.pi/auto-folder-refactor-sessions/
+.pi/candidates-folder-refactor/
+**/.pi/development-goal/
+**/.pi/auto-folder-refactor-sessions/
+**/.pi/auto-folder-refactor-state/
+**/.pi/candidates-folder-refactor/
+**/.pi/folder-refactor/
 
 # ── Local environment backups (may contain credentials) ──
 .env.backup.*
@@ -60,6 +70,8 @@ scripts/.swarm/
 
 # ── Local third-party reference clones ───────────────
 deer-flow/
+/@pi2many-hermes
+/@py2many-hermes
 
 # ── Docs/site generated artifacts ────────────────────
 docs/www-tests/node_modules/

@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestPicoClawChannelRegression_SenderIdentityAndAllowlist(t *testing.T) {
@@ -140,7 +140,7 @@ func TestPicoClawChannelRegression_RichMediaEnvelopePersists(t *testing.T) {
 
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: got},
 			{Role: "assistant", Content: "The image, PDF, and voice transcript metadata were preserved."},
 		},
@@ -204,7 +204,7 @@ func TestPicoClawChannelRegression_FinalDeliveryDoesNotEditToolPlaceholder(t *te
 	nowMu.Unlock()
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "apply the queued steer and finish cleanly"},
 			{Role: "assistant", Content: "Final answer after steering."},
 		},
@@ -262,7 +262,7 @@ func TestPicoClawChannelRegression_ToolProgressNotificationsAreComplete(t *testi
 	}
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "run the multi-tool inspection"},
 			{Role: "assistant", Content: "Inspection complete."},
 		},
@@ -272,7 +272,7 @@ func TestPicoClawChannelRegression_ToolProgressNotificationsAreComplete(t *testi
 		sent := ch.sentSnapshot()
 		return len(sent) >= 2 &&
 			strings.Contains(sent[0].Text, "browser") &&
-			strings.Contains(sent[0].Text, "ACTION [network] Fetching remote content") &&
+			strings.Contains(sent[0].Text, "🌐 [network] Fetching remote content") &&
 			sent[len(sent)-1].Text == "Inspection complete."
 	})
 	sent := ch.sentSnapshot()

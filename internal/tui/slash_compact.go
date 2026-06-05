@@ -1,38 +1,18 @@
 package tui
 
-import "strings"
+import "github.com/TrebuchetDynamics/gormes-agent/internal/tui/compact"
 
 func compactSlashHandler(input string, model *Model) SlashResult {
 	if model == nil {
 		return SlashResult{Handled: true, StatusMessage: "compact: TUI unavailable"}
 	}
-	next, ok := compactSlashNext(input, model.compactTranscript)
-	if !ok {
-		return SlashResult{Handled: true, StatusMessage: "usage: /compact [on|off|toggle]"}
+	result := compact.HandleSlash(input, model.compactTranscript)
+	if result.OK {
+		model.compactTranscript = result.Next
 	}
-	model.compactTranscript = next
-	if next {
-		return SlashResult{Handled: true, StatusMessage: "compact on"}
-	}
-	return SlashResult{Handled: true, StatusMessage: "compact off"}
+	return SlashResult{Handled: true, StatusMessage: result.StatusMessage}
 }
 
 func compactSlashNext(input string, current bool) (bool, bool) {
-	fields := strings.Fields(strings.TrimSpace(input))
-	if len(fields) <= 1 {
-		return !current, true
-	}
-	if len(fields) > 2 {
-		return current, false
-	}
-	switch strings.ToLower(fields[1]) {
-	case "on":
-		return true, true
-	case "off":
-		return false, true
-	case "toggle":
-		return !current, true
-	default:
-		return current, false
-	}
+	return compact.Next(input, current)
 }

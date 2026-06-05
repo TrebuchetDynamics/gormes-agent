@@ -17,17 +17,17 @@
         "system"
       ],
       "degraded_mode": "Missing Gormes-owned profile or memory files render missing-context evidence and continue the turn from the platform/session block; HERMES_HOME content is ignored unless explicitly migrated into Gormes-owned files or selected through GORMES_CONTEXT_HOME/GORMES_CONTEXT_MEMORY_DIR.",
-      "fixture": "internal/hermes/context_root_resolver_test.go + internal/gateway/live_turn_prompt_test.go",
+      "fixture": "internal/llm/context_root_resolver_test.go + internal/gateway/live_turn_prompt_test.go",
       "source_refs": [
         "../hermes-agent/hermes_constants.py (reference only; no runtime dependency)",
         "../hermes-agent/run_agent.py (reference only; no runtime dependency)",
-        "internal/hermes/context_files.go",
-        "internal/hermes/durable_user_context.go",
+        "internal/llm/context_files.go",
+        "internal/llm/durable_user_context.go",
         "internal/gateway/live_turn_prompt.go",
         "internal/gateway/live_turn_prompt_test.go"
       ],
       "ready_when": [
-        "Current live-turn context discovery seams are identified in internal/hermes and internal/gateway.",
+        "Current live-turn context discovery seams are identified in internal/llm and internal/gateway.",
         "Temp HERMES_HOME/profile/workspace fixtures can prove resolution order without reading Juan's live profile."
       ],
       "acceptance": [
@@ -37,13 +37,13 @@
         "Unit tests do not read `/home/xel/.gormes` or `/home/xel/.hermes`."
       ],
       "write_scope": [
-        "internal/hermes/",
+        "internal/llm/",
         "internal/gateway/live_turn_prompt.go",
         "internal/gateway/live_turn_prompt_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes ./internal/gateway -run 'ContextRoot|SOUL|DurableUserContext|LiveTurn' -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/llm ./internal/gateway -run 'ContextRoot|SOUL|DurableUserContext|LiveTurn' -count=1",
         "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -445,7 +445,7 @@
       "degraded_mode": "`selector_no_match` typed evidence is returned when no provider/model alias resolves; `selector_helper_unavailable` when one of the helper rows is not yet wired; `selector_alias_resolution_failed` when the static alias resolver returns an error.",
       "fixture": "internal/cli/selector_test.go",
       "source_refs": [
-        "internal/hermes/model_alias_resolver.go",
+        "internal/llm/model_alias_resolver.go",
         "internal/config/config.go:HermesCfg",
         "internal/cli/profile_name.go",
         "internal/cli/profile_root.go",
@@ -841,7 +841,7 @@
         "cmd/gormes/setup_profiles_tui.go:setupProfilesTUIState",
         "cmd/gormes/setup_profiles_tui.go:setupProfilesTUIResult",
         "cmd/gormes/setup_profiles_tui.go:maybeRunSetupProfilesTUI",
-        "internal/app/gormescli/modules/profiles/setup.go:SetupSections",
+        "internal/cli/gormescli/modules/profiles/setup.go:SetupSections",
         "webpages/docs/content/building-gormes/modules/profiles.md:Profiles Module Roadmap"
       ],
       "ready_when": [
@@ -1043,13 +1043,13 @@
         "internal/config/agents.go:AgentDefaultsCfg.Workspaces",
         "cmd/gormes/setup.go:runSetupProfilesInteractive writes agents.defaults.workspaces",
         "cmd/gormes/registry.go:buildDefaultRegistry registers file, execute_code, terminal tools",
-        "internal/agenttemplate/default_templates.go:SOUL.md and IDENTITY.md identity files",
+        "internal/core/agenttemplate/default_templates.go:SOUL.md and IDENTITY.md identity files",
         "internal/tools/filesystem_scope.go:NewFilesystemScope",
         "internal/tools/profile_workspace_scope.go:ProfileWorkspaceScope",
         "internal/tools/file_task_tools.go:FileTaskToolConfig / resolveWorkspacePathFromBase",
         "internal/tools/terminal_tool.go:TerminalTool.Execute / terminalWorkdir",
         "internal/tools/execute_code.go:LocalCodeSandbox.Execute",
-        "internal/codingagents/workspace.go:WorkspaceGuard.Resolve",
+        "internal/core/codingagents/workspace.go:WorkspaceGuard.Resolve",
         "hermes-agent/website/docs/user-guide/profiles.md:Profiles vs workspaces vs sandboxing (upstream says profiles do not sandbox; this row is Gormes-owned)"
       ],
       "ready_when": [
@@ -1088,8 +1088,8 @@
         "internal/tools/execute_code_test.go",
         "internal/tools/terminal_tool.go",
         "internal/tools/terminal_tool_test.go",
-        "internal/codingagents/workspace.go",
-        "internal/codingagents/workspace_test.go",
+        "internal/core/codingagents/workspace.go",
+        "internal/core/codingagents/workspace_test.go",
         "webpages/docs/content/cli/setup.md",
         "webpages/docs/content/cli/profile.md",
         "webpages/docs/content/configure/config-file.md",
@@ -1222,7 +1222,7 @@
         "internal/gateway/manager.go:ManagerConfig.ContextFilesProfile",
         "internal/gateway/fleet_supervisor.go:NewFleetSupervisor",
         "cmd/gormes/gateway_fleet.go:newGatewayFleetCommand",
-        "internal/app/gormescli/modules/gateway/live.go:GatewayCommandSeams",
+        "internal/cli/gormescli/modules/gateway/live.go:GatewayCommandSeams",
         "internal/gateway/fleet_supervisor.go:resolveCredentialHashes",
         "internal/gateway/profile_channel_config.go:ProfileChannelEvidenceCredentialHashUnavailable",
         "internal/gateway/fleet_supervisor.go:CommandFleetWorker",
@@ -1261,8 +1261,8 @@
         "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "webpages/docs/content/building-gormes/modules/profiles.md",
         "cmd/gormes/gateway_fleet.go",
-        "internal/app/gormescli/modules/gateway/live.go",
-        "internal/app/gormescli/modules/gateway/live_test.go",
+        "internal/cli/gormescli/modules/gateway/live.go",
+        "internal/cli/gormescli/modules/gateway/live_test.go",
         "internal/gateway/profile_channel_config.go",
         "cmd/gormes/update.go",
         "cmd/gormes/update_command_test.go",
@@ -1271,7 +1271,7 @@
       "test_commands": [
         "go test ./internal/gateway -run 'TestFleetSupervisor|TestGatewayFleet' -count=1",
         "go test ./cmd/gormes -run 'TestGatewayFleet|TestGatewayCommand_ConstructorReturnsIndependentInstances' -count=1",
-        "go test ./internal/app/gormescli/modules/gateway -run 'TestGatewayCommand' -count=1",
+        "go test ./internal/cli/gormescli/modules/gateway -run 'TestGatewayCommand' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check",
         "go test ./cmd/gormes -run 'TestUpdateGatewayRestart(UsesFleetSupervisor|NeverReportsProfileFleet|AlwaysFails)' -count=1",
@@ -1296,7 +1296,7 @@
       "name": "Profile Control Center read model",
       "priority": "P1",
       "status": "complete",
-      "contract": "Move profile setup state projection out of `cmd/gormes` into `internal/app/gormescli/modules/profiles` as a pure read model for a Profile Control Center. The model enumerates all enabled and disabled v2 profiles, shows profile id, display name status, Runtime/Readiness/Activity lanes, workspaces, provider readiness, channel readiness, credential ownership/share warnings, legacy migration warnings, and action availability from a typed catalog. It must not require a live gateway, provider, channel token, or Navivox server.",
+      "contract": "Move profile setup state projection out of `cmd/gormes` into `internal/cli/gormescli/modules/profiles` as a pure read model for a Profile Control Center. The model enumerates all enabled and disabled v2 profiles, shows profile id, display name status, Runtime/Readiness/Activity lanes, workspaces, provider readiness, channel readiness, credential ownership/share warnings, legacy migration warnings, and action availability from a typed catalog. It must not require a live gateway, provider, channel token, or Navivox server.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
@@ -1306,16 +1306,16 @@
         "system"
       ],
       "degraded_mode": "If v2 config is missing, the read model surfaces legacy_config_detected/migration_available rows instead of pretending the old per-profile config shape is current.",
-      "fixture": "internal/app/gormescli/modules/profiles/control_center_model_test.go",
+      "fixture": "internal/cli/gormescli/modules/profiles/control_center_model_test.go",
       "source_refs": [
         "docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
-        "internal/app/gormescli/modules/profiles/setup.go",
+        "internal/cli/gormescli/modules/profiles/setup.go",
         "cmd/gormes/setup_profiles_tui.go",
         "internal/config/config.go",
         "internal/doctor/",
         "internal/gateway/token_lock_test.go",
-        "internal/app/gormescli/modules/profiles/control_center_model.go:BuildControlCenterModel",
-        "internal/app/gormescli/modules/profiles/control_center_model.go:ControlCenterActionCatalog"
+        "internal/cli/gormescli/modules/profiles/control_center_model.go:BuildControlCenterModel",
+        "internal/cli/gormescli/modules/profiles/control_center_model.go:ControlCenterActionCatalog"
       ],
       "ready_when": [
         "Root config v2 structs exist or are faked behind a test seam.",
@@ -1339,21 +1339,21 @@
         "Readiness lanes distinguish missing workspace, missing provider credential, missing channel credential, and legacy migration available.",
         "The action catalog is typed and finite; no arbitrary command launcher appears in the model."
       ],
-      "note": "Validated 2026-05-23: the Profile Control Center now has a pure config-v2 read model in internal/app/gormescli/modules/profiles. Fixtures prove stable all-profile ordering for enabled and disabled profiles with no single active marker, blank main display-name readiness warnings, missing workspace/provider/channel credential lanes, legacy_config_detected plus migration_available degraded rows when v2 config is absent, redacted provider and channel credential sharing evidence with owner_profile visible, and a finite typed action catalog that rejects unsupported command-like actions. The model takes injected workspace existence facts only; it does not start gateways, probe providers, log into channels, resolve SecretRef values, read live profile homes, or launch arbitrary commands.",
+      "note": "Validated 2026-05-23: the Profile Control Center now has a pure config-v2 read model in internal/cli/gormescli/modules/profiles. Fixtures prove stable all-profile ordering for enabled and disabled profiles with no single active marker, blank main display-name readiness warnings, missing workspace/provider/channel credential lanes, legacy_config_detected plus migration_available degraded rows when v2 config is absent, redacted provider and channel credential sharing evidence with owner_profile visible, and a finite typed action catalog that rejects unsupported command-like actions. The model takes injected workspace existence facts only; it does not start gateways, probe providers, log into channels, resolve SecretRef values, read live profile homes, or launch arbitrary commands.",
       "write_scope": [
-        "internal/app/gormescli/modules/profiles/control_center_model.go",
-        "internal/app/gormescli/modules/profiles/control_center_model_test.go",
-        "internal/app/gormescli/modules/profiles/setup.go",
+        "internal/cli/gormescli/modules/profiles/control_center_model.go",
+        "internal/cli/gormescli/modules/profiles/control_center_model_test.go",
+        "internal/cli/gormescli/modules/profiles/setup.go",
         "cmd/gormes/setup_profiles_tui.go",
         "docs/content/building-gormes/architecture_plan/progress.json",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/app/gormescli/modules/profiles -run 'TestProfileControlCenterModel' -count=1",
+        "go test ./internal/cli/gormescli/modules/profiles -run 'TestProfileControlCenterModel' -count=1",
         "go test ./cmd/gormes -run 'TestSetupProfiles' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check",
-        "go test ./internal/app/gormescli/modules/profiles -run 'TestProfileControlCenterModel(ActionCatalog|ReportsSharedChannel|ListsAll|SurfacesLegacy)' -count=1"
+        "go test ./internal/cli/gormescli/modules/profiles -run 'TestProfileControlCenterModel(ActionCatalog|ReportsSharedChannel|ListsAll|SurfacesLegacy)' -count=1"
       ],
       "done_signal": [
         "Pure read-model fixtures prove all-profile service visibility, readiness lanes, redacted credentials, legacy migration warnings, and typed action availability without live runtime dependencies."
@@ -1383,16 +1383,16 @@
         "system"
       ],
       "degraded_mode": "If terminal capabilities are limited, the TUI falls back to deterministic list/input screens with the same read-model labels and draft/apply semantics.",
-      "fixture": "internal/app/gormescli/modules/profiles/control_center_tui_test.go",
+      "fixture": "internal/cli/gormescli/modules/profiles/control_center_tui_test.go",
       "source_refs": [
         "docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
         "cmd/gormes/setup_profiles_tui.go",
-        "internal/app/gormescli/modules/profiles/control_center_model.go",
+        "internal/cli/gormescli/modules/profiles/control_center_model.go",
         "internal/tui/wizard/",
         "cmd/gormes/setup.go:runSetupSection",
-        "internal/app/gormescli/modules/profiles/control_center_tui.go:BuildControlCenterTUIScreen",
-        "internal/app/gormescli/modules/profiles/control_center_tui.go:NewControlCenterDraft",
-        "internal/app/gormescli/modules/profiles/control_center_tui.go:RenderControlCenterDraftPreview",
+        "internal/cli/gormescli/modules/profiles/control_center_tui.go:BuildControlCenterTUIScreen",
+        "internal/cli/gormescli/modules/profiles/control_center_tui.go:NewControlCenterDraft",
+        "internal/cli/gormescli/modules/profiles/control_center_tui.go:RenderControlCenterDraftPreview",
         "cmd/gormes/setup_profiles_tui.go:applySetupProfilesControlCenterTUIResult",
         "internal/config/profile_config_v2.go:WriteProfileConfigV2",
         "/home/xel/.cache/tmp/architecture-review-gormes-20260523T0915Z.html",
@@ -1421,8 +1421,8 @@
       "write_scope": [
         "cmd/gormes/setup_profiles_tui.go",
         "cmd/gormes/setup_profiles_test.go",
-        "internal/app/gormescli/modules/profiles/control_center_tui.go",
-        "internal/app/gormescli/modules/profiles/control_center_tui_test.go",
+        "internal/cli/gormescli/modules/profiles/control_center_tui.go",
+        "internal/cli/gormescli/modules/profiles/control_center_tui_test.go",
         "internal/tui/wizard/",
         "webpages/docs/profile_docs_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json",
@@ -1431,12 +1431,12 @@
         "internal/config/profile_config_v2_test.go"
       ],
       "test_commands": [
-        "go test ./internal/app/gormescli/modules/profiles -run 'TestProfileControlCenterTUI|TestProfileDraft' -count=1",
+        "go test ./internal/cli/gormescli/modules/profiles -run 'TestProfileControlCenterTUI|TestProfileDraft' -count=1",
         "go test ./cmd/gormes -run 'TestSetupProfiles' -count=1",
         "go test ./webpages/docs -run 'TestProfile|TestSetup' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check",
-        "go test ./internal/app/gormescli/modules/profiles -run 'TestProfileControlCenterTUI|TestProfileDraft|TestProfileControlCenterModelActionCatalog' -count=1",
+        "go test ./internal/cli/gormescli/modules/profiles -run 'TestProfileControlCenterTUI|TestProfileDraft|TestProfileControlCenterModelActionCatalog' -count=1",
         "go test ./internal/config -run 'TestWriteProfileConfigV2|TestProfileConfigV2' -count=1",
         "go test ./cmd/gormes -run 'TestSetupProfiles|TestSetupProfilesTUI' -count=1",
         "go test ./cmd/gormes -run 'TestSetupProfilesControlCenterTUIKeyFlowStagesRenameCredentialsAndDiscard|TestSetupProfilesV2TUIDiscardWritesNothing|TestSetupProfilesV2TUIAppliesOneRootConfigTransaction' -count=1",
@@ -1590,12 +1590,12 @@
       ],
       "write_scope": [
         "internal/config/config.go",
-        "internal/hermes/prompt_assembly.go",
+        "internal/llm/prompt_assembly.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -count=1",
         "go build ./cmd/gormes",
         "go run ./cmd/progress validate"
       ],
@@ -1607,9 +1607,9 @@
           "internal/config/config.go: AgentRuntimeCfg extended with 8 new fields incl. Personalities map",
           "internal/config/config.go: DisplayCfg extended with 11 new Hermes-parity fields",
           "internal/config/config.go: defaultPersonalities() returns 12 built-in persona prompts",
-          "internal/hermes/prompt_assembly.go: Personality field in PromptAssemblyOptions, injected as <personality> block"
+          "internal/llm/prompt_assembly.go: Personality field in PromptAssemblyOptions, injected as <personality> block"
         ],
-        "tests": "go test ./internal/config -count=1, go test ./internal/hermes -count=1"
+        "tests": "go test ./internal/config -count=1, go test ./internal/llm -count=1"
       }
     }
   },
@@ -1652,12 +1652,12 @@
       ],
       "write_scope": [
         "internal/config/config.go",
-        "internal/hermes/prompt_assembly.go",
+        "internal/llm/prompt_assembly.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -count=1",
         "go build ./cmd/gormes",
         "go run ./cmd/progress validate"
       ],
@@ -1669,9 +1669,9 @@
           "internal/config/config.go: AgentRuntimeCfg extended with 8 new fields incl. Personalities map",
           "internal/config/config.go: DisplayCfg extended with 11 new Hermes-parity fields",
           "internal/config/config.go: defaultPersonalities() returns 12 built-in persona prompts",
-          "internal/hermes/prompt_assembly.go: Personality field in PromptAssemblyOptions, injected as <personality> block"
+          "internal/llm/prompt_assembly.go: Personality field in PromptAssemblyOptions, injected as <personality> block"
         ],
-        "tests": "go test ./internal/config -count=1, go test ./internal/hermes -count=1"
+        "tests": "go test ./internal/config -count=1, go test ./internal/llm -count=1"
       }
     }
   }

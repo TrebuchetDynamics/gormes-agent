@@ -8,8 +8,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 func maybeHandleRootFirstRun(cmd *cobra.Command, invocation tuiInvocation, runtime rootRuntime) (bool, error) {
@@ -50,7 +51,7 @@ func buildFirstRunPlanFromConfig(cfg config.Config, target cli.SetupTargetID, in
 		Provider:           cfg.Hermes.Provider,
 		Endpoint:           cfg.Hermes.Endpoint,
 		Model:              cfg.Hermes.Model,
-		APIKeyPresent:      configuredProviderAuthPresent(cfg),
+		APIKeyPresent:      gormescli.ConfiguredProviderAuthPresent(cfg),
 		Target:             target,
 		Channels:           firstRunChannelStates(cfg),
 		HermesSourcePath:   detectHermesMigrationSource(),

@@ -574,7 +574,7 @@
     "item": {
       "name": "[IMPORTANT:] prompt prefix for cron and skill commands",
       "status": "complete",
-      "contract": "internal/cron.CronHeartbeatPrefix and internal/skills.BuildSkillSlashCommandMessage emit `[IMPORTANT:` instead of `[SYSTEM:` so Azure OpenAI Default/DefaultV2 content filters do not reject Gormes prompts as prompt-injection (HTTP 400) — same semantic meta-instruction, different bracketed marker; tests update in lockstep so the byte-match assertions still cover drift",
+      "contract": "internal/automation/cron.CronHeartbeatPrefix and internal/skills.BuildSkillSlashCommandMessage emit `[IMPORTANT:` instead of `[SYSTEM:` so Azure OpenAI Default/DefaultV2 content filters do not reject Gormes prompts as prompt-injection (HTTP 400) — same semantic meta-instruction, different bracketed marker; tests update in lockstep so the byte-match assertions still cover drift",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "skills",
@@ -584,21 +584,21 @@
         "system"
       ],
       "degraded_mode": "Operator-visible prompt text changes from `[SYSTEM: ...]` to `[IMPORTANT: ...]`; behavior is otherwise identical, including the `[SILENT]` suppression contract and the skill body trimming.",
-      "fixture": "internal/cron/heartbeat_test.go",
+      "fixture": "internal/automation/cron/heartbeat_test.go",
       "source_refs": [
         "../hermes-agent/cron/scheduler.py@d7a34682",
         "../hermes-agent/agent/skill_commands.py@d7a34682",
         "../hermes-agent/cli.py@20cb706e",
         "../hermes-agent/gateway/run.py@20cb706e",
         "../hermes-agent/tools/process_registry.py@20cb706e",
-        "internal/cron/heartbeat.go:CronHeartbeatPrefix",
-        "internal/cron/heartbeat_test.go",
+        "internal/automation/cron/heartbeat.go:CronHeartbeatPrefix",
+        "internal/automation/cron/heartbeat_test.go",
         "internal/skills/commands.go:BuildSkillSlashCommandMessage",
         "internal/skills/preprocessing_commands_test.go"
       ],
       "ready_when": [
         "Upstream Hermes shipped this rename across two commits (d7a34682 + 20cb706e) on 2026-04-09 / 2026-04-26 with explicit cause (Azure content filter HTTP 400 on `[SYSTEM:` markers).",
-        "Gormes uses the same marker pattern in exactly two production code paths today: internal/cron/heartbeat.go (CronHeartbeatPrefix) and internal/skills/commands.go (BuildSkillSlashCommandMessage)."
+        "Gormes uses the same marker pattern in exactly two production code paths today: internal/automation/cron/heartbeat.go (CronHeartbeatPrefix) and internal/skills/commands.go (BuildSkillSlashCommandMessage)."
       ],
       "not_ready_when": [
         "The slice changes the `[SILENT]` token semantics, the skill body trimming, the cron prompt structure beyond the bracketed marker word, or the `Heartbeat [SYSTEM:] + [SILENT] delivery contract` row name in 2.D (that row name is a historical record; only the runtime constant + the byte-match tests change).",
@@ -606,27 +606,27 @@
         "The slice updates internal/progress/progress_test.go literal assertions for the 2.D row name (the row name in progress.json must stay as `Heartbeat [SYSTEM:] + [SILENT] delivery contract` for historical accuracy)."
       ],
       "acceptance": [
-        "internal/cron/heartbeat.go:CronHeartbeatPrefix starts with `[IMPORTANT:` (replacing `[SYSTEM:`) and the load-bearing phrases (`DELIVERY:`, `SILENT:`, `[SILENT]`) are byte-identical to the prior version.",
-        "internal/cron/heartbeat_test.go asserts `strings.HasPrefix(full, \"[IMPORTANT:\")` (not `[SYSTEM:`); the existing TestHeartbeatPrefix_ContainsLoadBearingPhrases load-bearing phrase set updates only its first member.",
+        "internal/automation/cron/heartbeat.go:CronHeartbeatPrefix starts with `[IMPORTANT:` (replacing `[SYSTEM:`) and the load-bearing phrases (`DELIVERY:`, `SILENT:`, `[SILENT]`) are byte-identical to the prior version.",
+        "internal/automation/cron/heartbeat_test.go asserts `strings.HasPrefix(full, \"[IMPORTANT:\")` (not `[SYSTEM:`); the existing TestHeartbeatPrefix_ContainsLoadBearingPhrases load-bearing phrase set updates only its first member.",
         "internal/skills/commands.go:BuildSkillSlashCommandMessage emits `[IMPORTANT: The user has invoked the \"<name>\" skill, ...` (replacing `[SYSTEM:`).",
         "internal/skills/preprocessing_commands_test.go updates its expected golden string to `[IMPORTANT:` for the affected fixtures.",
-        "DetectSilent semantics in internal/cron/heartbeat.go are unchanged (the `[SILENT]` token is independent of the leading marker)."
+        "DetectSilent semantics in internal/automation/cron/heartbeat.go are unchanged (the `[SILENT]` token is independent of the leading marker)."
       ],
-      "note": "Complete: cron heartbeat (CronHeartbeatPrefix) and skill-invocation prompt (BuildSkillSlashCommandMessage) now emit `[IMPORTANT:` instead of `[SYSTEM:`, mirroring Hermes commits d7a34682 + 20cb706e. The DELIVERY/SILENT/[SILENT] phrases in the cron prefix and the skill body trimming are byte-identical to the prior version. Tests in internal/cron/heartbeat_test.go and internal/skills/preprocessing_commands_test.go assert the new prefix and the absence of the legacy marker. The historical 2.D row name `Heartbeat [SYSTEM:] + [SILENT] delivery contract` was preserved per the not_ready_when guard. Code change landed previously via commit a8d25ba5; this slice closes the progress entry against the upstream pair.",
+      "note": "Complete: cron heartbeat (CronHeartbeatPrefix) and skill-invocation prompt (BuildSkillSlashCommandMessage) now emit `[IMPORTANT:` instead of `[SYSTEM:`, mirroring Hermes commits d7a34682 + 20cb706e. The DELIVERY/SILENT/[SILENT] phrases in the cron prefix and the skill body trimming are byte-identical to the prior version. Tests in internal/automation/cron/heartbeat_test.go and internal/skills/preprocessing_commands_test.go assert the new prefix and the absence of the legacy marker. The historical 2.D row name `Heartbeat [SYSTEM:] + [SILENT] delivery contract` was preserved per the not_ready_when guard. Code change landed previously via commit a8d25ba5; this slice closes the progress entry against the upstream pair.",
       "write_scope": [
-        "internal/cron/heartbeat.go",
-        "internal/cron/heartbeat_test.go",
+        "internal/automation/cron/heartbeat.go",
+        "internal/automation/cron/heartbeat_test.go",
         "internal/skills/commands.go",
         "internal/skills/preprocessing_commands_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron ./internal/skills -count=1",
+        "go test ./internal/automation/cron ./internal/skills -count=1",
         "go test ./internal/progress -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
-        "go test ./internal/cron and ./internal/skills both pass after the marker rename; `grep -rn '\\[SYSTEM:' internal/cron/ internal/skills/` returns no matches in production code; `grep -rn '\\[IMPORTANT:' internal/cron/ internal/skills/` returns at least 4 matches (constant + tests in both packages)."
+        "go test ./internal/automation/cron and ./internal/skills both pass after the marker rename; `grep -rn '\\[SYSTEM:' internal/automation/cron/ internal/skills/` returns no matches in production code; `grep -rn '\\[IMPORTANT:' internal/automation/cron/ internal/skills/` returns at least 4 matches (constant + tests in both packages)."
       ],
       "health": {
         "attempt_count": 1,
@@ -860,6 +860,135 @@
         "upstream_ref": "hermes:853ed609 skills/creative/touchdesigner-mcp/SKILL.md",
         "note": "Direct bundled-skill drift from Hermes; Gormes adapts only catalog/status metadata on top of the existing skills runtime."
       }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.F",
+    "pos": 11,
+    "item": {
+      "name": "Gateway/TUI dynamic skill slash invocation parity",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Hermes-compatible /skill-name args invocations work through native TUI and manager-backed gateway channels by resolving enabled SKILL.md commands before unknown-command guidance, expanding to the reviewed skill invocation message, and never submitting the raw slash text to the model.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "skills",
+      "module": "skills",
+      "degraded_mode": "Unknown or scan-failed slash commands remain consumed with visible unknown/unavailable guidance; built-in slash commands keep precedence; legacy ParseInboundText callers still receive empty EventUnknown bodies so slash text is not accidentally submitted.",
+      "fixture": "Hermes agent/skill_commands.py resolve_skill_command_key and build_skill_invocation_message; Gormes gateway/TUI fixtures invoke /skill-name args and assert expanded content plus no raw slash leakage.",
+      "source_refs": [
+        "hermes-agent/agent/skill_commands.py:resolve_skill_command_key",
+        "hermes-agent/agent/skill_commands.py:build_skill_invocation_message",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#prompt-context-compression-and-skills-in-prompt",
+        "internal/skills/commands.go:BuildSkillSlashCommandMessage",
+        "internal/gateway/skill_slash.go",
+        "internal/tui/slash_dispatch.go"
+      ],
+      "ready_when": [
+        "Existing internal/skills.Runtime can list enabled SkillSlashCommands from active SKILL.md files.",
+        "No in-repo builder-ready row existed; the feature map already identifies skill preprocessing and slash skills as the Hermes Phase 5.F/6.F contract."
+      ],
+      "not_ready_when": [
+        "A built-in or recognized-unavailable slash command can be shadowed by a skill or prompt template.",
+        "The raw /skill-name invocation can reach kernel submit/model history unchanged.",
+        "Telegram, Discord, or Slack manager-backed adapters discard unknown slash text before the manager can resolve dynamic skill commands."
+      ],
+      "acceptance": [
+        "Native TUI /skill-name args expands to BuildSkillSlashCommandMessage and submits transformed skill content with a native-tui runtime note instead of the raw slash text.",
+        "Gateway EventSubmit and preserved EventUnknown slash inputs resolve enabled skills before unknown guidance and submit expanded skill content with the calling platform runtime note.",
+        "Built-in and recognized-unavailable slash commands keep precedence over dynamic skills, and prompt templates cannot shadow dynamic skill commands.",
+        "Telegram, Discord, and Slack manager-backed adapters preserve unknown slash text for manager dynamic resolution without changing legacy ParseInboundText's empty unknown body contract.",
+        "Discord /skill autocomplete accepts optional args and the live Discord gateway channel wires a skill collector from the configured skills root."
+      ],
+      "write_scope": [
+        "internal/gateway/skill_slash.go",
+        "internal/gateway/manager.go",
+        "internal/gateway/event.go",
+        "internal/gateway/commands.go",
+        "internal/channels/telegram/bot.go",
+        "internal/channels/discord/**",
+        "internal/channels/slack/channel.go",
+        "internal/cli/gormescli/discord_channel.go",
+        "internal/tui/**",
+        "cmd/gormes/**",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/**"
+      ],
+      "test_commands": [
+        "go test ./internal/gateway -run 'TestManager_DynamicSkillSlash|TestManager_ActiveTurnSlashCommand|TestParseInboundText' -count=1",
+        "go test ./internal/tui -run 'TestSkillSlashDispatch|TestPromptTemplateSlash|TestHermesSlashDispatchBehavior' -count=1",
+        "go test ./internal/channels/discord -run 'TestDiscordSlashCommandsExposeRegistry|TestDiscordSkillSlashDispatches|TestDiscordSlashSourcePreservesThreadContext' -count=1",
+        "go test ./internal/channels/telegram ./internal/channels/slack ./internal/cli/gormescli -count=1",
+        "go test ./cmd/gormes -run 'TestTUIWiresPromptTemplate|TestGatewayTelegramDynamicCommands|Test.*Skill' -count=1"
+      ],
+      "done_signal": [
+        "Focused gateway/TUI/channel tests pass with fixtures proving expanded skill invocation content and no raw slash leakage.",
+        "Progress docs regenerate and progress validation remains green."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.F",
+    "pos": 12,
+    "item": {
+      "name": "TUI/gateway reload-skills command refresh binding",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Port the model-free `/reload-skills` / `/reload_skills` control path enough for Gormes dynamic skill invocation: native TUI reloads its in-memory skill slash registry from the configured skills root, and the gateway refreshes adapter-owned skill autocomplete/cache state while reporting the current enabled skill count without submitting slash text to the model.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "skills",
+      "module": "skills",
+      "degraded_mode": "If skill runtime or reload adapter state is unavailable, the command remains consumed with visible degraded evidence; skill scan failures do not submit slash text to the model or break existing commands.",
+      "fixture": "Hermes gateway/run.py:_handle_reload_skills_command rescans skills and refreshes adapter skill groups; Hermes ui-tui reload-skills calls skills.reload then commands.catalog to refresh local command catalog. Gormes Runtime scans active SKILL.md on demand, so this slice focuses on TUI registry refresh and gateway adapter cache refresh/count evidence rather than full Hermes added/removed pending-note parity.",
+      "source_refs": [
+        "hermes-agent/gateway/run.py:_handle_reload_skills_command",
+        "hermes-agent/ui-tui/src/app/slash/commands/ops.ts:reload-skills",
+        "hermes-agent/tests/gateway/test_reload_skills_command.py",
+        "hermes-agent/tests/gateway/test_reload_skills_discord_resync.py",
+        "internal/gateway/channel_scope.go:RefreshSkillGroups",
+        "internal/tui/slash_dispatch.go:RegisterSkillSlashCommands"
+      ],
+      "ready_when": [
+        "Gateway already has RefreshSkillGroups for Discord-style adapter cache refresh.",
+        "Native TUI already registers dynamic SkillSlashCommands at startup and can rebuild the slash registry from a new command slice.",
+        "Hermes source makes /reload-skills model-free and alias-compatible with /reload_skills."
+      ],
+      "not_ready_when": [
+        "The slice tries to implement full Hermes added/removed one-shot prompt notes before a Gormes skill-command cache exists.",
+        "The command can interrupt active turns or leak `/reload-skills` as a normal prompt.",
+        "TUI reload requires live private home state instead of the injected config-backed skills root."
+      ],
+      "acceptance": [
+        "Native TUI /reload-skills and /reload_skills consume the slash command, call an injected reload seam, rebuild dynamic skill slash handlers, and show visible count/error evidence.",
+        "After TUI reload, a newly returned /skill-name command can be invoked without restarting the TUI and without prompt-template/built-in shadowing.",
+        "Gateway /reload-skills and /reload_skills are recognized as immediate model-free commands, report enabled skill count, call RefreshSkillGroups, surface adapter errors as degraded evidence, and do not submit raw slash text during active turns.",
+        "cmd/gormes wires the native TUI reload seam to the configured skills root with hermetic tests."
+      ],
+      "note": "Completed 2026-05-26: native TUI /reload-skills rebuilds the dynamic skill slash registry from the injected skills root; gateway /reload-skills reports enabled count, refreshes adapter skill groups, and stays model-free with /reload_skills alias support. Full Hermes added/removed one-shot prompt notes remain intentionally out of this bounded cache-refresh slice.",
+      "write_scope": [
+        "internal/cli/command_registry.go",
+        "internal/gateway/commands.go",
+        "internal/gateway/event.go",
+        "internal/gateway/manager.go",
+        "internal/gateway/*skill*_test.go",
+        "internal/tui/**",
+        "cmd/gormes/**",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/**"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestReloadSkillsSlash' -count=1",
+        "go test ./internal/gateway -run 'TestManagerReloadSkillsCommand|TestReloadSkillsRefreshesSkillGroupAdapters|TestManager_ActiveTurnSlashCommand' -count=1",
+        "go test ./cmd/gormes -run 'TestTUIWiresSkillSlashReload' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "internal/tui/reload_skills_slash_test.go proves /reload-skills reloads dynamic skill commands and consumes unavailable/error states without model submission.",
+        "internal/gateway/reload_skills_command_test.go proves gateway /reload-skills and /reload_skills refresh adapter groups, report degraded evidence, and avoid model leakage during active turns.",
+        "cmd/gormes/skill_slash_test.go proves production TUI reload wiring reads the configured skills root."
+      ]
     }
   },
   {
@@ -1735,7 +1864,7 @@
         "system"
       ],
       "degraded_mode": "If no standalone sender is registered for a target, existing live_adapter_unavailable plus fallback_sink_used evidence is preserved. If a standalone sender fails, cron records standalone_sender_failed and then falls back through DeliverySink so the run audit remains recoverable.",
-      "fixture": "internal/cron/delivery_plan_test.go::TestCronDeliveryPlan_StandaloneSenderFallback",
+      "fixture": "internal/automation/cron/delivery_plan_test.go::TestCronDeliveryPlan_StandaloneSenderFallback",
       "source_refs": [
         "./hermes-agent/gateway/platform_registry.py@93e25ceb1:PlatformEntry.standalone_sender_fn",
         "./hermes-agent/tools/send_message_tool.py@93e25ceb1:_send_via_adapter",
@@ -1743,8 +1872,8 @@
         "./hermes-agent/plugins/platforms/google_chat/adapter.py@93e25ceb1:standalone sender registration",
         "./hermes-agent/plugins/platforms/teams/adapter.py@93e25ceb1:standalone sender registration",
         "./hermes-agent/plugins/platforms/irc/adapter.py@93e25ceb1:standalone sender registration",
-        "internal/cron/delivery_plan.go",
-        "internal/cron/delivery_plan_test.go"
+        "internal/automation/cron/delivery_plan.go",
+        "internal/automation/cron/delivery_plan_test.go"
       ],
       "ready_when": [
         "Cron multi-target delivery + media/live-adapter fallback and deliver=all routing are complete.",
@@ -1764,13 +1893,13 @@
       ],
       "note": "Complete 2026-05-09: bounded all-topic weakness sweep refreshed Hermes to 93e25ceb1 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 18, below the 90-row cap. P1 publication/release rows remain operator- or release-infra-gated; existing Google Chat, Teams, Feishu, Kanban, provider/auth, browser, Goncho, install/runtime, docs/public, and release child rows are complete, blocked, or row-backed. The fresh source-backed gap is Hermes' optional `standalone_sender_fn` hook for plugin platforms so out-of-process cron delivery can send through IRC, Teams, or Google Chat without a live gateway runner. TDD added the generic Gormes cron delivery seam only: live adapters still win first, a fakeable StandaloneDeliveryAdapter can deliver non-local targets before DeliverySink fallback, standalone sender failures emit typed evidence and then recover through DeliverySink, and platform-specific live clients remain separate rows.",
       "write_scope": [
-        "internal/cron/delivery_plan.go",
-        "internal/cron/delivery_plan_test.go",
+        "internal/automation/cron/delivery_plan.go",
+        "internal/automation/cron/delivery_plan_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/cron -run '^TestCronDeliveryPlan_StandaloneSenderFallback' -count=1",
-        "go test ./internal/cron -run '^TestCronDeliveryPlan_' -count=1",
+        "go test ./internal/automation/cron -run '^TestCronDeliveryPlan_StandaloneSenderFallback' -count=1",
+        "go test ./internal/automation/cron -run '^TestCronDeliveryPlan_' -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -1783,19 +1912,19 @@
       },
       "evidence": {
         "implementation": [
-          "internal/cron/delivery_plan.go: adds DeliveryEvidenceStandaloneSenderUsed and DeliveryEvidenceStandaloneSenderFailed.",
-          "internal/cron/delivery_plan.go: adds StandaloneDeliveryAdapter plus DeliverCronDeliveryPlanWithStandalone while preserving the existing DeliverCronDeliveryPlan nil-standalone path.",
-          "internal/cron/delivery_plan.go: deliverCronTarget keeps live-adapter-first behavior, invokes standalone sender only after live adapter absence/failure, treats ErrStandaloneSenderUnavailable as no registered sender, and falls back through DeliverySink after failed standalone sends."
+          "internal/automation/cron/delivery_plan.go: adds DeliveryEvidenceStandaloneSenderUsed and DeliveryEvidenceStandaloneSenderFailed.",
+          "internal/automation/cron/delivery_plan.go: adds StandaloneDeliveryAdapter plus DeliverCronDeliveryPlanWithStandalone while preserving the existing DeliverCronDeliveryPlan nil-standalone path.",
+          "internal/automation/cron/delivery_plan.go: deliverCronTarget keeps live-adapter-first behavior, invokes standalone sender only after live adapter absence/failure, treats ErrStandaloneSenderUnavailable as no registered sender, and falls back through DeliverySink after failed standalone sends."
         ],
         "tests": [
-          "internal/cron/delivery_plan_test.go: TestCronDeliveryPlan_StandaloneSenderFallbackUsesRegisteredSender",
-          "internal/cron/delivery_plan_test.go: TestCronDeliveryPlan_StandaloneSenderFallbackPreservesLiveAdapterFirst",
-          "internal/cron/delivery_plan_test.go: TestCronDeliveryPlan_StandaloneSenderFallbackFailureFallsBack"
+          "internal/automation/cron/delivery_plan_test.go: TestCronDeliveryPlan_StandaloneSenderFallbackUsesRegisteredSender",
+          "internal/automation/cron/delivery_plan_test.go: TestCronDeliveryPlan_StandaloneSenderFallbackPreservesLiveAdapterFirst",
+          "internal/automation/cron/delivery_plan_test.go: TestCronDeliveryPlan_StandaloneSenderFallbackFailureFallsBack"
         ],
         "verification": [
-          "RED: go test ./internal/cron -run '^TestCronDeliveryPlan_StandaloneSenderFallback' -count=1 failed on undefined standalone API and evidence constants.",
-          "GREEN: go test ./internal/cron -run '^TestCronDeliveryPlan_StandaloneSenderFallback' -count=1 passed.",
-          "GREEN: go test ./internal/cron -run '^TestCronDeliveryPlan_' -count=1 passed."
+          "RED: go test ./internal/automation/cron -run '^TestCronDeliveryPlan_StandaloneSenderFallback' -count=1 failed on undefined standalone API and evidence constants.",
+          "GREEN: go test ./internal/automation/cron -run '^TestCronDeliveryPlan_StandaloneSenderFallback' -count=1 passed.",
+          "GREEN: go test ./internal/automation/cron -run '^TestCronDeliveryPlan_' -count=1 passed."
         ]
       }
     }
@@ -1891,13 +2020,13 @@
         "system"
       ],
       "degraded_mode": "Skill review status reports review_prompt_unavailable, overlap_detected, no_skill_to_save, or draft_requires_review instead of auto-promoting narrow one-off skills.",
-      "fixture": "internal/hermes/background_review_test.go::TestBackgroundReviewFork_SkillPromptRejectsTransientEnvironmentFailures",
+      "fixture": "internal/llm/background_review_test.go::TestBackgroundReviewFork_SkillPromptRejectsTransientEnvironmentFailures",
       "source_refs": [
         "./hermes-agent/run_agent.py@e5af1dd63:AIAgent._SKILL_REVIEW_PROMPT",
         "./hermes-agent/run_agent.py@e5af1dd63:AIAgent._COMBINED_REVIEW_PROMPT",
         "./hermes-agent/tests/run_agent/test_review_prompt_class_first.py@e5af1dd63",
-        "internal/hermes/background_review.go",
-        "internal/hermes/background_review_test.go",
+        "internal/llm/background_review.go",
+        "internal/llm/background_review_test.go",
         "internal/skills/store.go",
         "internal/skills/selector.go",
         "docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md"
@@ -1921,15 +2050,15 @@
         "Prompt fixtures positively reframe setup-state failures as fixes to record under existing setup/troubleshooting skills, never as standalone `tool does not work` rules.",
         "The no-op escape phrase `Nothing to save.` remains valid and produces no draft writes."
       ],
-      "note": "Planner refresh 2026-05-10: bounded all-topic weakness sweep refreshed Hermes to e5af1dd63 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Current upstream deltas after the last completed user-stories/docs sweep are complete, row-backed, or lower risk except this stale complete prompt contract: Hermes e5af1dd63 adds explicit anti-pattern guidance so background skill review does not persist transient environment failures or negative tool claims as durable constraints. Reopened as one P1 source-backed prompt fixture refresh; no live LLM, selector, skill install, or background worker lifecycle code is in scope. Complete 2026-05-10: TDD added background review prompt fixtures for skills-only, combined memory+skills, and memory-only prompts, then expanded the existing backgroundReviewPrompt seam so skill review forks survey skills_list/skill_view, prefer class-level updates, reject environment-dependent failures, negative tool claims, resolved transient errors, and one-off task narratives, and reframe setup failures as fixes under existing setup/troubleshooting skills. RED: `go test ./internal/hermes -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt)' -count=1` failed on the old one-line prompt. GREEN: `go test ./internal/hermes -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt|InheritsActiveRuntime|RestrictsTools)' -count=1` and `go test ./internal/hermes -count=1` passed.",
+      "note": "Planner refresh 2026-05-10: bounded all-topic weakness sweep refreshed Hermes to e5af1dd63 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Current upstream deltas after the last completed user-stories/docs sweep are complete, row-backed, or lower risk except this stale complete prompt contract: Hermes e5af1dd63 adds explicit anti-pattern guidance so background skill review does not persist transient environment failures or negative tool claims as durable constraints. Reopened as one P1 source-backed prompt fixture refresh; no live LLM, selector, skill install, or background worker lifecycle code is in scope. Complete 2026-05-10: TDD added background review prompt fixtures for skills-only, combined memory+skills, and memory-only prompts, then expanded the existing backgroundReviewPrompt seam so skill review forks survey skills_list/skill_view, prefer class-level updates, reject environment-dependent failures, negative tool claims, resolved transient errors, and one-off task narratives, and reframe setup failures as fixes under existing setup/troubleshooting skills. RED: `go test ./internal/llm -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt)' -count=1` failed on the old one-line prompt. GREEN: `go test ./internal/llm -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt|InheritsActiveRuntime|RestrictsTools)' -count=1` and `go test ./internal/llm -count=1` passed.",
       "write_scope": [
-        "internal/hermes/background_review.go",
-        "internal/hermes/background_review_test.go",
+        "internal/llm/background_review.go",
+        "internal/llm/background_review_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt|InheritsActiveRuntime|RestrictsTools)' -count=1",
-        "go test ./internal/hermes -count=1",
+        "go test ./internal/llm -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt|InheritsActiveRuntime|RestrictsTools)' -count=1",
+        "go test ./internal/llm -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -2471,12 +2600,12 @@
       "note": "Gormes-owned, two-pass retrieval, and parent-scope chunks. Gormes should first define the tiny evidence contract a learning-loop selector can consume; a Go code indexer is a later decision.",
       "write_scope": [
         "internal/skills/",
-        "internal/insights/",
+        "internal/automation/insights/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/skills ./internal/insights -run 'Test.*Code.*Context|Test.*Call.*Edge|Test.*Parent.*Scope' -count=1",
-        "go test ./internal/skills ./internal/insights -count=1",
+        "go test ./internal/skills ./internal/automation/insights -run 'Test.*Code.*Context|Test.*Call.*Edge|Test.*Parent.*Scope' -count=1",
+        "go test ./internal/skills ./internal/automation/insights -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -2522,8 +2651,8 @@
         "internal/skills/curator_test.go",
         "internal/skills/usage.go",
         "internal/skills/store.go",
-        "internal/cron/store.go",
-        "internal/cron/curator_skill_rewrite_test.go"
+        "internal/automation/cron/store.go",
+        "internal/automation/cron/curator_skill_rewrite_test.go"
       ],
       "ready_when": [
         "Hermes background review fork lifecycle is builder-ready or validated so agent-created skills can be attributed to the review origin.",
@@ -2564,12 +2693,12 @@
         "internal/skills/curator_test.go",
         "internal/skills/usage.go",
         "internal/skills/store.go",
-        "internal/cron/store.go",
+        "internal/automation/cron/store.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/skills ./internal/cron -run 'TestCurator(State|Transitions|Run|Backup|Report|Classification|CronSkillRewrite)' -count=1",
-        "go test ./internal/skills ./internal/cron -count=1",
+        "go test ./internal/skills ./internal/automation/cron -run 'TestCurator(State|Transitions|Run|Backup|Report|Classification|CronSkillRewrite)' -count=1",
+        "go test ./internal/skills ./internal/automation/cron -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -2769,7 +2898,7 @@
         "system"
       ],
       "degraded_mode": "skill_manage returns skill_manage_unsupported_action, skill_manage_invalid_support_path, skill_manage_pinned_refusal, skill_manage_absorbed_target_missing, skill_manage_guard_blocked, or skill_manage_background_origin_unavailable instead of silently mutating the wrong file or bypassing curator intent.",
-      "fixture": "internal/tools/skill_manager_test.go + internal/skills/usage_test.go + internal/subagent/skill_provenance_test.go",
+      "fixture": "internal/tools/skill_manager_test.go + internal/skills/usage_test.go + internal/core/subagent/skill_provenance_test.go",
       "source_refs": [
         "./hermes-agent/tools/skill_manager_tool.py@b816fd4e2:_validate_file_path",
         "./hermes-agent/tools/skill_manager_tool.py@b816fd4e2:_resolve_skill_target",
@@ -2824,8 +2953,8 @@
         "internal/tools/skill_manager_test.go",
         "internal/skills/usage.go",
         "internal/skills/usage_test.go",
-        "internal/subagent/skill_provenance.go",
-        "internal/subagent/skill_provenance_test.go",
+        "internal/core/subagent/skill_provenance.go",
+        "internal/core/subagent/skill_provenance_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
@@ -2845,7 +2974,7 @@
         "implementation": [
           "internal/tools/skill_manager.go: skill_manage schema and handlers now cover write_file, remove_file, support-file patch targets, absorbed_into delete intent, pinned-skill refusal, usage updates, background-review-origin provenance, and optional guard rollback.",
           "internal/skills/usage.go: curator-facing .usage.json records now persist agent-created provenance, pinned state, patch counts, and usage-record deletion.",
-          "internal/subagent/skill_provenance.go: context helpers carry foreground vs background-review skill-write origin without requiring live subagent execution."
+          "internal/core/subagent/skill_provenance.go: context helpers carry foreground vs background-review skill-write origin without requiring live subagent execution."
         ],
         "tests": [
           "internal/tools/skill_manager_test.go:TestSkillManagerSchema_HermesActions",
@@ -2856,7 +2985,7 @@
           "internal/tools/skill_manager_test.go:TestSkillManagerAgentCreatedProvenance",
           "internal/tools/skill_manager_test.go:TestSkillManagerAgentCreatedGuard",
           "internal/skills/usage_test.go:TestSkillUsageAgentCreatedPinnedPatchAndForget",
-          "internal/subagent/skill_provenance_test.go:TestBackgroundReviewProvenance"
+          "internal/core/subagent/skill_provenance_test.go:TestBackgroundReviewProvenance"
         ],
         "verification": [
           "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/skills ./internal/subagent -run 'TestSkillManager(Schema|SupportFile|AbsorbedInto|PinnedGuard|AgentCreated|AgentCreatedGuard)|TestSkillUsage|TestBackgroundReviewProvenance' -count=1 -> ok",
@@ -3125,6 +3254,334 @@
           "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run TestBuildDefaultRegistryDelegationDisabled -count=1 -> ok",
           "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/skills ./cmd/gormes -run 'TestSkills(List|View)|TestSkillsTools|TestListInstalledSkills|TestBuildDefaultRegistryDelegationDisabled' -count=1 -> ok"
         ]
+      }
+    }
+  },
+  {
+    "phase": "6",
+    "subphase": "6.F",
+    "pos": 5,
+    "item": {
+      "name": "TUI and gateway direct URL skill install binding",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Bind the already-shipped direct-URL skill install policy to the channel-local `/skills install <https://.../SKILL.md> --name <safe-name>` path for native TUI and gateway surfaces. The slice must reuse the existing `skills.PerformURLInstall` quarantine/scan/store contract, keep non-interactive surfaces prompt-free, require explicit safe names when URL/frontmatter cannot provide one, and return channel-safe install or degraded evidence without submitting `/skills install` text to the model. This ports Hermes' chat slash install behavior while adapting Pi's package-source safety lessons (explicit source, scope, and review warning) to a Go-native skills-only slice; broader package resources, GitHub hub sources, update, uninstall, and skill editing remain out of scope.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "skills",
+      "module": "skills",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Missing URL install dependencies, unsafe --name/--category values, missing-name evidence, fetch failures, quarantine/scan failures, and store write failures return redacted `skills_install_*` / `url_skill_*` text and leave the active skill store unchanged. Telegram replies stay plain text and TUI status messages stay local.",
+      "fixture": "internal/gateway/skills_command_test.go::TestHandleSkillsCommandInstallDirectURL; internal/tui/slash_dispatch_behavior_test.go::TestHermesSlashDispatchBehavior_SkillsInstallRunsLocally",
+      "source_refs": [
+        "./hermes-agent/hermes_cli/skills_hub.py@43e566f77:handle_skills_slash install branch",
+        "./hermes-agent/hermes_cli/skills_hub.py@43e566f77:do_install noninteractive name override and skip_confirm behavior",
+        "./hermes-agent/tests/hermes_cli/test_skills_hub.py@43e566f77:test_url_install_*",
+        "./hermes-agent/website/docs/user-guide/features/skills.md@43e566f77:Skills Hub common commands and Slash commands",
+        "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/docs/packages.md@0.75.5:Package Sources, security warning, scope, package filtering",
+        "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/docs/skills.md@0.75.5:Locations and security warning",
+        "internal/skills/url_install.go:PerformURLInstall",
+        "internal/cli/skills_command.go:NewSkillsInstallCommand",
+        "internal/gateway/skills_command.go:renderSkillsManageUnavailable",
+        "internal/tui/slash_dispatch.go:skillsSlashHandler",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt / Skill preprocessing and slash skills"
+      ],
+      "ready_when": [
+        "The completed `Skills hub direct URL install name/category guard` row provides the noninteractive URL install policy, injected fetcher, quarantine scanner, and store seams.",
+        "The completed `TUI + Telegram browsing` and `Native TUI /skills read-only hub binding` rows already consume `/skills` locally and prove browse/search/list/inspect do not reach the model.",
+        "The builder keeps this first mutation slice scoped to direct HTTPS `SKILL.md` URLs plus safe `--name`/`--category`; registry browse/search sources, update, uninstall, edit, review, and Pi-style multi-resource packages stay future rows."
+      ],
+      "not_ready_when": [
+        "The implementation would install npm/git packages, execute extension code, load third-party skills before quarantine/scan evidence, or broaden to Pi extensions/prompts/themes/packages.",
+        "TUI or gateway code would prompt interactively, ask for secrets in chat, or submit `/skills install` text into the agent turn instead of handling it locally.",
+        "Tests need live network, live home directories, real Telegram credentials, or a real skill registry instead of injected fetcher/scanner/store fixtures."
+      ],
+      "blocked_by": [
+        "Skills hub direct URL install name/category guard",
+        "TUI + Telegram browsing",
+        "Native TUI /skills read-only hub binding"
+      ],
+      "acceptance": [
+        "`/skills install https://example.com/SKILL.md --name safe-skill` through `gateway.HandleSkillsCommandWithOptions` calls an injected fetcher/scanner/store once, writes one active `SKILL.md`, and renders a redacted `url_skill_installed`/installed-name reply.",
+        "Missing safe names on noninteractive TUI/gateway paths render the existing retry hint with `gormes skills install <url> --name <your-name>` and do not fetch or write after the missing-name evidence is known.",
+        "Unsafe `--name` and `--category` values reject before fetch/store mutation; quarantine/scan failures leave the active store unchanged and render channel-safe evidence.",
+        "Native TUI `/skills install ...` is consumed locally, clears the editor, updates the status message, and never invokes the model submitter; existing browse/search/list/inspect behavior remains unchanged.",
+        "Telegram `/skills install ...` replies through the existing plain-text skills reply path without leaking local paths, secrets, or markdown-only formatting."
+      ],
+      "note": "Planner 2026-05-25: bounded Pi+Hermes donor pass. Hermes 43e566f77 makes `/skills install` a chat slash command with noninteractive `--name` support; Gormes currently returns `skills_manage_unavailable` for mutating `/skills` actions even though the CLI direct-URL installer is validated. Pi's package docs reinforce explicit source grammar, scope, filtering, and third-party security warnings; this row adopts only the skills-direct-URL safety shape, not Pi packages or TypeScript extensions. Builder 2026-05-26: shipped direct HTTPS SKILL.md install for gateway/TUI /skills install using the existing PerformURLInstall fetch/scan/store policy, injected command seams for gateway manager and native TUI, kept edit/disable/review unavailable, proved success/missing-name/unsafe-name/quarantine no-mutation behavior, Telegram plain-text replies, and TUI local dispatch without model submission.",
+      "write_scope": [
+        "internal/gateway/skills_command.go",
+        "internal/gateway/skills_command_test.go",
+        "internal/gateway/manager.go",
+        "internal/tui/model.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_dispatch_behavior_test.go",
+        "cmd/gormes/skills.go",
+        "cmd/gormes/gateway.go",
+        "cmd/gormes/main.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "cmd/gormes/gateway_test.go"
+      ],
+      "test_commands": [
+        "go test ./internal/gateway -run 'TestHandleSkillsCommand.*(Install|Telegram)' -count=1",
+        "go test ./internal/tui -run 'TestHermesSlashDispatchBehavior_Skills(Install|SlashRunsLocally)' -count=1",
+        "go test ./cmd/gormes -run 'TestSkillsURLInstall|TestGateway.*Skills' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report the fake URL install success fixture, missing-name/unsafe-name no-mutation fixtures, TUI local slash-dispatch fixture, Telegram plain-text reply fixture, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:43e566f77 hermes_cli/skills_hub.py handle_skills_slash + Pi coding-agent 0.75.5 docs/packages.md safety/scope guidance",
+        "note": "Hermes is the compatibility contract for `/skills install`; Pi is a donor for source/scope/security packaging vocabulary only."
+      }
+    }
+  },
+  {
+    "phase": "6",
+    "subphase": "6.F",
+    "pos": 6,
+    "item": {
+      "name": "Hermes/Pi external skill directories config binding",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Port the Hermes `skills.external_dirs` contract into Gormes' Go-native skills runtime and shape it with Pi's multi-location skills discovery lesson. Gormes config should accept a list of extra skill roots, expand `~` and environment variables, resolve relative paths against Gormes home/profile state rather than the process cwd, skip missing or duplicate roots with typed evidence, preserve local active-skill precedence, and thread the resolved roots into prompt-building, `gormes skills list`, TUI/gateway `/skills list|inspect`, and future skill_manage mutation boundaries without reading live Hermes/Pi homes.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "skills",
+      "module": "skills",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Invalid or missing external skill roots are skipped with `skills_external_dir_skipped` evidence; unreadable roots fail only the affected skills command or prompt build, not provider startup. Duplicate roots and the local active skills root are ignored so external directories cannot shadow local active skills unexpectedly.",
+      "fixture": "internal/config/config_test.go::TestSkillsExternalDirs; internal/skills/list_test.go::TestListInstalledSkillsExternalDirs; internal/llm/skills_prompt_test.go::TestSkillsPromptExternalDirsOrderingAndStatusFiltering; internal/gateway/skills_command_test.go::TestHandleSkillsCommandExternalDirs",
+      "source_refs": [
+        "./hermes-agent/hermes_cli/config.py@43e566f77:DEFAULT_CONFIG skills.external_dirs",
+        "./hermes-agent/agent/skill_utils.py@43e566f77:get_external_skills_dirs,get_all_skills_dirs",
+        "./hermes-agent/tools/skills_tool.py@43e566f77:_find_all_skills,_get_category_from_path",
+        "./hermes-agent/tools/skill_manager_tool.py@43e566f77:_containing_skills_root",
+        "./hermes-agent/website/docs/user-guide/features/skills.md@43e566f77:External Skill Directories",
+        "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/docs/skills.md@0.75.5:Locations",
+        "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/docs/packages.md@0.75.5:Package Structure and package-sourced skills",
+        "internal/llm/skills_prompt.go:SkillsPromptOptions.ExternalDirs and BuildSkillsSystemPrompt",
+        "internal/config/config.go:SkillsCfg",
+        "internal/skills/list.go:ListInstalledSkillsFromRoots",
+        "internal/gateway/skills_command.go:SkillsCommandOptions",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt / Skill preprocessing and slash skills"
+      ],
+      "ready_when": [
+        "`internal/llm.BuildSkillsSystemPrompt` already has an `ExternalDirs` seam and fixture coverage for prompt order/filtering; the missing work is config/list/gateway/TUI wiring plus typed evidence.",
+        "The completed skills list/view, TUI browsing, and direct URL installer rows keep active-skill storage and read-only channel behavior separated, so external roots can be introduced as additional read sources before mutation writes are enabled.",
+        "The builder uses temp fixture roots only and treats Pi as a donor for discovery/location patterns, not as a runtime dependency or package format requirement."
+      ],
+      "not_ready_when": [
+        "The slice scans real `~/.hermes`, `~/.pi`, `~/.agents`, or project `.agents` directories instead of configured temp roots.",
+        "The implementation copies or executes external skill code, installs Pi packages, or makes package-sourced prompts/themes/extensions part of this skills-only row.",
+        "External roots can override local active skills, bypass disabled/platform filters, or make skill_manage write into shared directories without an explicit mutation policy fixture."
+      ],
+      "blocked_by": [
+        "Hermes skill catalog strict-fidelity classifier",
+        "Native skills list/view tool surface",
+        "TUI + Telegram browsing"
+      ],
+      "acceptance": [
+        "Config loading and `config set skills.external_dirs` round-trip a list of paths; resolver tests prove `~`, `${VAR}`, relative-to-Gormes-home, duplicate, missing, and local-root cases produce deterministic roots/evidence.",
+        "Prompt-builder tests prove local active skills win over external skills with the same name and that external skill entries still honor disabled names, platform filters, and fallback/requires tool conditions.",
+        "`gormes skills list --source external` (or an equivalent source/status filter) and `/skills list --source external` render bounded rows with source=`external`, category from external path, trust evidence, and no absolute-path leakage on Telegram/TUI surfaces.",
+        "`/skills inspect <external-skill>` can read the selected external SKILL.md through injected roots while missing/unreadable files return channel-safe degraded evidence.",
+        "Any skill_manage/edit mutation path remains explicit: either it refuses external roots with row-backed evidence or routes to the containing root only under a tested policy; no shared external directory is mutated accidentally."
+      ],
+      "note": "Planner 2026-05-25: second bounded Pi+Hermes donor pass. Hermes documents and implements `skills.external_dirs`; Gormes has the prompt-builder seam but no config/list/channel binding. Pi confirms the broader harness value of multiple global/project/package skill locations. This row narrows adoption to Hermes-compatible external skill roots, leaving Pi package resources and executable extension loading out of scope. Builder 2026-05-26: shipped the Gormes config resolver and config-set round trip for skills.external_dirs, wired resolved roots into CLI/root skills list --source external and default TUI/gateway /skills list|inspect, preserved local active-skill precedence over external duplicates, and covered missing/duplicate/local-root resolver evidence plus channel-safe external list/inspect fixtures. Pi remains a discovery-location donor only.",
+      "write_scope": [
+        "internal/config/config.go",
+        "internal/config/config_test.go",
+        "internal/config/writer.go",
+        "internal/skills/list.go",
+        "internal/skills/list_test.go",
+        "internal/llm/skills_prompt.go",
+        "internal/llm/skills_prompt_test.go",
+        "internal/gateway/skills_command.go",
+        "internal/gateway/skills_command_test.go",
+        "internal/tui/slash_dispatch.go",
+        "cmd/gormes/skills.go",
+        "cmd/gormes/main.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "internal/cli/skills_command.go",
+        "internal/cli/skills_command_test.go",
+        "cmd/gormes/skills_onboard_test.go"
+      ],
+      "test_commands": [
+        "go test ./internal/config -run 'TestSkillsExternalDirs|TestConfigSetSkillsExternalDirs' -count=1",
+        "go test ./internal/skills -run 'TestListInstalledSkillsExternalDirs' -count=1",
+        "go test ./internal/llm -run 'TestSkillsPromptExternalDirsOrderingAndStatusFiltering' -count=1",
+        "go test ./internal/gateway -run 'TestHandleSkillsCommandExternalDirs' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report config resolver fixtures, prompt local-precedence/filter fixtures, skills list/inspect external-source fixtures, channel-safe degraded evidence, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:43e566f77 skills.external_dirs + Pi coding-agent 0.75.5 skills/package location model",
+        "note": "Hermes defines the compatibility contract; Pi supplies a donor rationale for multi-location skill discovery and package-sourced skill roots without importing Pi packages."
+      }
+    }
+  },
+  {
+    "phase": "6",
+    "subphase": "6.F",
+    "pos": 7,
+    "item": {
+      "name": "Pi-style prompt template TUI expansion seam",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Add a Gormes-owned prompt-template catalog and native TUI slash expansion path inspired by Pi prompt templates while preserving Hermes slash-command and skill-invocation precedence. Markdown templates discovered from Gormes-controlled prompt roots expand `/name args...` into editable prompt text, support frontmatter `description` and `argument-hint`, perform deterministic positional substitution, and never execute code, install packages, read live Pi homes, or submit expanded text to the model until the operator confirms with a normal Enter.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "skills",
+      "module": "skills",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Missing prompt roots, unreadable files, malformed frontmatter, unsafe filenames, templates that collide with built-in slash commands, and invalid argument placeholders are skipped or rendered as prompt_template_* evidence without leaking absolute paths or submitting slash text to the model.",
+      "fixture": "internal/tui/prompttemplates/catalog_test.go::TestPromptTemplateDiscoveryAndExpansion; internal/tui/prompt_template_slash_test.go::TestPromptTemplateSlashExpansionSeedsEditorWithoutSubmit",
+      "source_refs": [
+        "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/docs/prompt-templates.md@0.75.5:Locations, Format, Argument Hints, Arguments, Loading Rules",
+        "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/README.md@0.75.5:Prompt Templates and startup header/slash expansion notes",
+        "./hermes-agent/agent/skill_commands.py@43e566f77:scan_skill_commands,resolve_skill_command_key,build_skill_invocation_message",
+        "./hermes-agent/tests/agent/test_skill_commands.py@43e566f77:slash skill command precedence and unavailable-skill fixtures",
+        "internal/tui/slash_dispatch.go:SlashRegistry, SlashResult.EditorText, slashFallbackResult",
+        "internal/tui/slash_completion.go:HermesSlashCommandCompletions and renderSlashCompletionMenu",
+        "internal/cli/command_registry.go:CommandRegistry and SlashLeaksToModelPrompt",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt / Skill preprocessing and slash skills"
+      ],
+      "ready_when": [
+        "The completed TUI slash-dispatch rows already consume local slash commands without submitting them to the kernel/model, and SlashResult.EditorText can seed editable text after a local command.",
+        "The completed skills external-roots and direct-URL install rows establish source/trust vocabulary and command precedence for operator-provided markdown resources.",
+        "The builder keeps this first Pi donor slice to non-recursive Markdown prompt templates under Gormes-controlled roots; package resources, executable Pi extensions, prompt-template installation, and gateway/Telegram expansion are future rows."
+      ],
+      "not_ready_when": [
+        "The implementation would read `~/.pi`, `.pi`, package manifests, npm/git packages, live sessions, or any private home/config outside explicit Gormes temp fixtures.",
+        "A template command shadows an existing Gormes/Hermes slash command such as `/skills`, `/model`, `/tree`, `/kanban`, or a future skill invocation instead of being skipped with collision evidence.",
+        "Expanded template text is submitted to the provider immediately, executes shell/code, or can mutate files without the operator seeing/editing the expanded prompt first."
+      ],
+      "blocked_by": [
+        "TUI and gateway direct URL skill install binding",
+        "Hermes/Pi external skill directories config binding"
+      ],
+      "acceptance": [
+        "A pure catalog discovers `*.md` templates non-recursively from injected Gormes prompt roots, parses optional YAML frontmatter `description` and `argument-hint`, derives a safe slash name from the filename, skips collisions with the built-in slash registry, and reports bounded prompt_template_skipped evidence without absolute-path leakage.",
+        "The expander supports `$1`, `$2`, `$@`, `$ARGUMENTS`, `${@:N}`, and `${@:N:L}` using deterministic quoted-argument parsing; missing arguments become empty strings and malformed placeholders remain literal with evidence rather than panicking.",
+        "Native TUI `/template-name args...` is consumed locally, clears the slash command, seeds the editor with the expanded prompt text via `SlashResult.EditorText`, updates status with `prompt_template_expanded`, and never calls the model submitter until the operator presses Enter again.",
+        "Slash completion includes template commands with description and argument hint, while built-in/unavailable Hermes commands keep precedence and display behavior unchanged.",
+        "Tests use temp GORMES_HOME/project roots only; no live Pi home, package manifest, network, provider, gateway, or session DB is required."
+      ],
+      "note": "Planner 2026-05-26: Pi coding-agent prompt templates provide a useful harness pattern (Markdown snippets, frontmatter descriptions, argument hints, positional expansion, non-recursive discovery). Hermes remains the compatibility boundary: Gormes must not weaken existing slash command, skill command, or no-leak-to-model behavior. This row adopts only the local TUI expansion seam as a Gormes-owned operator convenience; Pi packages, executable extensions, global ~/.pi discovery, CLI --prompt-template flags, and gateway/Telegram template expansion stay out of scope. Builder 2026-05-26: shipped internal/tui/prompttemplates discovery and expansion fixtures, native TUI prompt-template slash handlers that seed editable composer text without model submission, dynamic completion menu entries with argument hints, built-in slash-command collision precedence, and cmd/gormes local TUI discovery from GORMES_HOME/prompts plus project .gormes/prompts. Row-local gates passed.",
+      "write_scope": [
+        "internal/tui/prompttemplates/",
+        "internal/tui/model.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_completion.go",
+        "internal/tui/prompt_template_slash_test.go",
+        "cmd/gormes/main.go",
+        "cmd/gormes/prompt_templates.go",
+        "cmd/gormes/prompt_templates_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "internal/tui/prompt_templates.go"
+      ],
+      "test_commands": [
+        "go test ./internal/tui/prompttemplates -count=1",
+        "go test ./internal/tui -run 'TestPromptTemplateSlash(Expansion|Completions)' -count=1",
+        "go test ./cmd/gormes -run TestTUIWiresPromptTemplateDiscovery -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report prompt-template discovery/skip fixtures, argument-expansion fixtures, TUI editor-seeding without submitter calls, completion precedence fixtures, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Pi coding-agent 0.75.5 docs/prompt-templates.md + Hermes 43e566f77 agent/skill_commands.py slash-command precedence",
+        "note": "Pi supplies the prompt-template harness pattern; Hermes supplies the slash-command/skill precedence boundary that Gormes must preserve."
+      }
+    }
+  },
+  {
+    "phase": "6",
+    "subphase": "6.F",
+    "pos": 8,
+    "item": {
+      "name": "Prompt template CLI explicit roots and opt-out binding",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Extend the Pi-style prompt-template donor slice with CLI startup controls for the native TUI: `--prompt-template <path>` may be repeated with Markdown files or non-recursive directories, and `--no-prompt-templates` disables default and explicit prompt-template discovery for that TUI session. The flags must affect only local native TUI prompt-template expansion, not oneshot prompts, skills, gateway/Telegram slash commands, or Pi package/extension loading.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "skills",
+      "module": "skills",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Missing or unreadable explicit paths produce prompt_template_skipped evidence in the catalog and do not fail TUI startup; --no-prompt-templates returns an empty catalog even when explicit paths are supplied.",
+      "fixture": "cmd/gormes/prompt_templates_test.go::TestTUIWiresPromptTemplateFlags; internal/tui/prompttemplates/catalog_test.go::TestPromptTemplateDiscoveryAndExpansion",
+      "source_refs": [
+        "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/docs/prompt-templates.md@0.75.5:Locations CLI --prompt-template repeatable and --no-prompt-templates disable discovery",
+        "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/README.md@0.75.5:CLI flags --prompt-template <path> and --no-prompt-templates",
+        "internal/tui/prompttemplates/catalog.go:Discover supports directory and explicit file paths",
+        "cmd/gormes/main.go:installRootRPCModeFlags and resolveTUIInvocation",
+        "cmd/gormes/prompt_templates.go:tuiPromptTemplateCatalog",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt / Skill preprocessing and slash skills"
+      ],
+      "ready_when": [
+        "The completed `Pi-style prompt template TUI expansion seam` row provides the catalog, slash expansion, completion, and built-in command precedence behavior.",
+        "The CLI startup path already resolves TUI invocation flags before constructing the native Bubble Tea model."
+      ],
+      "not_ready_when": [
+        "The implementation would add Pi package manifest discovery, read ~/.pi, execute templates, or wire prompt templates into gateway/Telegram/model-submitted slash commands.",
+        "The flags would mutate persistent config or affect oneshot `gormes chat -q` prompts instead of one native TUI session."
+      ],
+      "blocked_by": [
+        "Pi-style prompt template TUI expansion seam"
+      ],
+      "acceptance": [
+        "Root/native TUI startup accepts repeatable `--prompt-template` flags, carries their exact paths in tuiInvocation, and discovers templates from both explicit directories and explicit Markdown files.",
+        "`--no-prompt-templates` carries a disabled flag in tuiInvocation and makes tuiPromptTemplateCatalog return no templates even when `--prompt-template` is also supplied.",
+        "Default GORMES_HOME/prompts and project .gormes/prompts discovery from the prior row still works when the disable flag is absent, and built-in slash-command collision skipping remains intact.",
+        "No live Pi home, package manifest, network, provider, gateway, or session DB is used in tests."
+      ],
+      "note": "Planner/Builder 2026-05-26: completed as the second bounded Pi prompt-template donor slice after the TUI expansion seam. Added persistent root flags, tuiInvocation fields, file-or-directory catalog discovery, disable behavior, and cmd/gormes fixtures. Hermes boundary unchanged: this is Gormes-owned native TUI harness UX and does not alter Hermes slash/skill precedence or channel behavior.",
+      "write_scope": [
+        "cmd/gormes/main.go",
+        "cmd/gormes/prompt_templates.go",
+        "cmd/gormes/prompt_templates_test.go",
+        "internal/tui/prompttemplates/catalog.go",
+        "internal/tui/prompttemplates/catalog_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui/prompttemplates -count=1",
+        "go test ./cmd/gormes -run 'TestTUIWiresPromptTemplate(Discovery|Flags)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report repeatable --prompt-template directory/file fixtures, --no-prompt-templates empty-catalog fixture, unchanged default discovery/collision fixture, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Pi coding-agent 0.75.5 docs/prompt-templates.md CLI flag surface + Hermes slash-command precedence boundary",
+        "note": "Pi supplies the CLI flag pattern; Hermes supplies the boundary that Gormes slash/skill behavior must not be weakened."
       }
     }
   },

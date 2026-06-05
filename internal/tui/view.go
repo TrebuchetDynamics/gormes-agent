@@ -6,24 +6,17 @@ import (
 	"runtime/debug"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/tooltrace"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/trace"
 )
 
 // Transcript chrome renders through the Gormes-owned semantic style system
 // (styles.go), resolved from the active HermesSkin so every built-in skin
 // re-themes the chat surface. No role/chrome color is hardcoded here.
-var (
-	chatChrome     = defaultChatStyles()
-	muted          = chatChrome.Assistant // generic dim: hints, sentinels, assistant body
-	userStyle      = chatChrome.User
-	errStyle       = chatChrome.Error
-	separatorStyle = chatChrome.Separator
-	toolOutStyle   = chatChrome.ToolOutput
-)
 
 // View renders the bottom-pinned Hermes-compatible chrome. Layout matches
 // cli.py:_build_tui_layout_children: scrollback/conversation, optional
@@ -49,9 +42,18 @@ func (m Model) View() string {
 	if editorHeight < 1 {
 		editorHeight = 1
 	}
-	editorBlockH := editorHeight
-	chromeOverhead := 1                                   // status rule
-	convH := m.height - editorBlockH - chromeOverhead - 1 // -1 for spinner/hint reserve
+	composerChromeWidth := m.width
+	if !showComposerInputChrome(m.width, m.height) {
+		composerChromeWidth = 0
+	}
+	editorBlockH := editorHeight + composerInputChromeExtraRows(composerChromeWidth)
+	hint := m.renderHermesHint()
+	hintOverhead := 0
+	if hint != "" {
+		hintOverhead = 1
+	}
+	chromeOverhead := 1 // status rule
+	convH := m.height - editorBlockH - chromeOverhead - hintOverhead
 	if convH < 3 {
 		convH = 3
 	}
@@ -68,54 +70,86 @@ func (m Model) View() string {
 		editorW = 10
 	}
 	editor.SetWidth(editorW)
-	prompt := editor.View()
+	prompt := RenderComposerInputChrome(ComposerInputChrome{
+		Width:     composerChromeWidth,
+		Prompt:    m.renderComposerPrompt(editor),
+		Draft:     editor.Value(),
+		Skin:      m.currentSkin(),
+		Focused:   m.composerChatFocused(),
+		Multiline: editorHeight > 1,
+	})
 
 	statusBar := ""
 	statusBarMode := normalizeStatusBarMode(m.statusBarMode)
 	if statusBarMode != StatusBarModeOff {
-		statusBar = RenderHermesStatusBar(hermesStatusModelFromFrame(m.frame), m.width)
+		statusBar = RenderHermesStatusBarWithSkin(hermesStatusModelFromFrame(m.frame), m.width, m.currentSkin())
+		if footer, ok := m.renderExtensionFooter(m.width); ok {
+			statusBar = footer
+		} else {
+			statusBar = m.renderExtensionStatusLine(statusBar, m.width)
+		}
 	}
 
-	hint := m.renderHermesHint()
-	completions := renderSlashCompletionMenu(editor.Value(), m.width)
+	completions := m.renderActiveSlashCompletionMenu(editor.Value())
 
 	// Render the active modal panel if one is present.
 	panel := m.RenderActivePanel(m.width, m.height)
 	if m.transientPage != nil && panel == "" {
-		panel = RenderTransientPage(*m.transientPage, m.width, convH)
+		panel = RenderTransientPageWithSkin(*m.transientPage, m.width, convH, m.currentSkin())
 	}
 	if m.modelPicker != nil {
 		picker := *m.modelPicker
 		picker.Width = m.width
 		picker.Height = m.height
-		panel = RenderModelPicker(picker)
+		panel = RenderModelPickerWithSkin(picker, m.currentSkin())
 	}
 
 	// Render todo panel if there are active tasks for the current session.
 	todoPanel := m.renderTodoPanel(convW)
 
 	return RenderHermesChrome(HermesChromeInput{
-		Width:         m.width,
-		Conversation:  conv,
-		Spinner:       hint,
-		Panel:         panel,
-		TodoPanel:     todoPanel,
-		StatusBar:     statusBar,
-		StatusBarMode: statusBarMode,
-		Prompt:        prompt,
-		Completions:   completions,
+		Width:                 m.width,
+		Conversation:          conv,
+		Spinner:               hint,
+		Panel:                 panel,
+		TodoPanel:             todoPanel,
+		ExtensionWidgetsAbove: m.renderExtensionWidgets(kernel.ExtensionUIWidgetAboveEditor, m.width),
+		QueuedMessages:        m.renderQueuedMessageWidgets(m.width),
+		StatusBar:             statusBar,
+		StatusBarMode:         statusBarMode,
+		Prompt:                prompt,
+		ExtensionWidgetsBelow: m.renderExtensionWidgets(kernel.ExtensionUIWidgetBelowEditor, m.width),
+		Completions:           completions,
 	})
 }
 
+func (m Model) renderComposerPrompt(editor textarea.Model) string {
+	return renderComposerPromptWithFocus(editor, m.currentSkin(), m.composerChatFocused())
+}
+
+func renderComposerPromptWithFocus(editor textarea.Model, skin HermesSkin, focused bool) string {
+	ApplyTextareaSkin(&editor, skin)
+	if focused {
+		_ = editor.Focus()
+	} else {
+		editor.Blur()
+	}
+	return editor.View()
+}
+
+func (m Model) composerChatFocused() bool {
+	return !m.IsPanelActive() && m.transientPage == nil && m.modelPicker == nil
+}
+
 func (m Model) renderHermesHint() string {
-	return renderHermesHintWithIndicator(m.frame, m.statusMessage, m.width, m.spinnerFrame, m.indicatorStyle)
+	skin := m.currentSkin()
+	if working, ok := m.extensionWorkingIndicator(); ok {
+		return renderHermesHintWithExtensionWorking(m.frame, m.statusMessage, m.width, m.spinnerFrame, m.indicatorStyle, working, skin)
+	}
+	return renderHermesHintWithIndicatorForSkin(m.frame, m.statusMessage, m.width, m.spinnerFrame, m.indicatorStyle, skin)
 }
 
-func renderHermesHint(f kernel.RenderFrame, statusMessage string, width int, spinnerFrame int) string {
-	return renderHermesHintWithIndicator(f, statusMessage, width, spinnerFrame, IndicatorStyleKaomoji)
-}
-
-func renderHermesHintWithIndicator(f kernel.RenderFrame, statusMessage string, width int, spinnerFrame int, indicator IndicatorStyle) string {
+func renderHermesHintWithIndicatorForSkin(f kernel.RenderFrame, statusMessage string, width int, spinnerFrame int, indicator IndicatorStyle, skin HermesSkin) string {
 	var parts []string
 	if f.Phase != kernel.PhaseIdle && f.Phase != kernel.PhaseFailed {
 		parts = append(parts, RenderIndicatorFrame(indicator, spinnerFrame))
@@ -134,7 +168,47 @@ func renderHermesHintWithIndicator(f kernel.RenderFrame, statusMessage string, w
 	if width > 0 {
 		text = RenderMarkdownSoftWrapTrim(text, width)
 	}
-	return muted.Render(text)
+	_, styles := conversationChatStyles(skin)
+	return styles.Assistant.Render(text)
+}
+
+func renderHermesHintWithExtensionWorking(f kernel.RenderFrame, statusMessage string, width int, spinnerFrame int, indicator IndicatorStyle, working extensionUIWorking, skin HermesSkin) string {
+	var parts []string
+	if f.Phase != kernel.PhaseIdle && f.Phase != kernel.PhaseFailed {
+		if !working.hideIndicator {
+			if len(working.frames) > 0 {
+				idx := spinnerFrame % len(working.frames)
+				if idx < 0 {
+					idx = 0
+				}
+				parts = append(parts, working.frames[idx])
+			} else {
+				parts = append(parts, RenderIndicatorFrame(indicator, spinnerFrame))
+			}
+		}
+		label := strings.TrimSpace(working.text)
+		if label == "" {
+			label = strings.ToLower(f.Phase.String())
+		}
+		if label != "" {
+			parts = append(parts, label)
+		}
+		if f.SessionID != "" {
+			parts = append(parts, "session "+shortSessionID(f.SessionID))
+		}
+	}
+	if statusMessage != "" {
+		parts = append(parts, statusMessage)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	text := strings.Join(parts, " · ")
+	if width > 0 {
+		text = RenderMarkdownSoftWrapTrim(text, width)
+	}
+	_, styles := conversationChatStyles(skin)
+	return styles.Assistant.Render(text)
 }
 
 func promptHeightForValue(value string) int {
@@ -209,6 +283,11 @@ func renderConv(f kernel.RenderFrame, width, height int) string {
 	return conversationViewportTail(f, width, height)
 }
 
+func conversationChatStyles(skin HermesSkin) (HermesSkin, chatStyles) {
+	skin = NormalizeStyleSkin(skin)
+	return skin, chatStylesFor(skin)
+}
+
 func conversationViewportTail(f kernel.RenderFrame, width, height int) string {
 	return conversationViewportTailWithMode(f, width, height, false)
 }
@@ -222,6 +301,7 @@ func conversationViewportTailWithDetails(f kernel.RenderFrame, width, height int
 }
 
 func conversationViewportTailWithSkinAndDetails(f kernel.RenderFrame, width, height int, forceCompact bool, details DetailsState, skin HermesSkin) string {
+	skin, styles := conversationChatStyles(skin)
 	if width < 4 {
 		width = 4
 	}
@@ -230,16 +310,16 @@ func conversationViewportTailWithSkinAndDetails(f kernel.RenderFrame, width, hei
 	}
 	wrapWidth := width - 4
 	compact := forceCompact || width < 8 || height < 3
-	forced := conversationForcedBlocksWithDetails(f, wrapWidth, compact, details)
+	forced := conversationForcedBlocksWithDetailsAndSkin(f, wrapWidth, compact, details, skin, styles)
 	maxLines := height + 1 + len(forced)
 
 	var visible []string
 	for i := len(f.History) - 1; i >= 0; i-- {
-		block := conversationMessageBlockAt(f.History, i, wrapWidth, compact)
+		block := conversationMessageBlockAtWithSkin(f.History, i, wrapWidth, compact, skin, styles)
 		omitted := i
 		candidate := append([]string{block}, visible...)
 		if omitted > 0 {
-			candidate = append([]string{omittedHistorySentinel(omitted, width)}, candidate...)
+			candidate = append([]string{omittedHistorySentinelWithStyles(omitted, width, styles)}, candidate...)
 		}
 		candidate = append(candidate, forced...)
 		if renderedLineCount(strings.Join(candidate, "\n\n")) > maxLines && len(visible) > 0 {
@@ -251,7 +331,7 @@ func conversationViewportTailWithSkinAndDetails(f kernel.RenderFrame, width, hei
 	omitted := len(f.History) - len(visible)
 	lines := make([]string, 0, len(visible)+1)
 	if omitted > 0 {
-		lines = append(lines, omittedHistorySentinel(omitted, width))
+		lines = append(lines, omittedHistorySentinelWithStyles(omitted, width, styles))
 	}
 	lines = append(lines, visible...)
 	lines = append(lines, forced...)
@@ -266,26 +346,31 @@ func conversationForcedBlocks(f kernel.RenderFrame, wrapWidth int, compact bool)
 }
 
 func conversationForcedBlocksWithDetails(f kernel.RenderFrame, wrapWidth int, compact bool, details DetailsState) []string {
+	skin, styles := conversationChatStyles(DefaultHermesSkin())
+	return conversationForcedBlocksWithDetailsAndSkin(f, wrapWidth, compact, details, skin, styles)
+}
+
+func conversationForcedBlocksWithDetailsAndSkin(f kernel.RenderFrame, wrapWidth int, compact bool, details DetailsState, skin HermesSkin, styles chatStyles) []string {
 	details = NormalizeDetailsState(details)
 	var blocks []string
 	hasFinal := frameHasFinalAssistant(f)
 	if !hasFinal {
-		if progress := conversationToolProgressBlockWithMode(f, wrapWidth, compact, details.SectionMode(DetailsSectionTools)); progress != "" {
+		if progress := conversationToolProgressBlockWithModeAndStyles(f, wrapWidth, compact, details.SectionMode(DetailsSectionTools), styles); progress != "" {
 			blocks = append(blocks, progress)
 		}
 	}
 	if f.DraftText != "" && !draftDuplicatesFinalAssistant(f) {
-		blocks = append(blocks, conversationDraftBlock(f.DraftText, wrapWidth, compact))
+		blocks = append(blocks, conversationDraftBlockWithSkin(f.DraftText, wrapWidth, compact, skin, styles))
 	}
 	if f.LastError != "" {
-		blocks = append(blocks, conversationErrorBlock(f.LastError, wrapWidth, compact))
+		blocks = append(blocks, conversationErrorBlockWithStyles(f.LastError, wrapWidth, compact, styles))
 	}
 	// R3 streaming feedback: when a turn is active but nothing concrete has
 	// surfaced yet (no tool trace, draft, or error), show the reused
 	// thinking indicator so the user is never left wondering. Suppressed the
 	// moment any real signal exists so it never disturbs transcript order.
 	if len(blocks) == 0 && !hasFinal && turnIsActive(f.Phase) {
-		if think := conversationThinkingBlockWithMode(compact, details.SectionMode(DetailsSectionThinking)); think != "" {
+		if think := conversationThinkingBlockWithModeAndSkin(compact, details.SectionMode(DetailsSectionThinking), skin, styles); think != "" {
 			blocks = append(blocks, think)
 		}
 	}
@@ -303,22 +388,18 @@ func turnIsActive(p kernel.Phase) bool {
 
 // conversationThinkingBlock reuses thinking.go's RenderThinking (it is not
 // reimplemented here) to render the live "reasoning" indicator.
-func conversationThinkingBlock(compact bool) string {
-	return conversationThinkingBlockWithMode(compact, DetailsModeExpanded)
-}
-
-func conversationThinkingBlockWithMode(compact bool, mode DetailsMode) string {
+func conversationThinkingBlockWithModeAndSkin(compact bool, mode DetailsMode, skin HermesSkin, styles chatStyles) string {
 	if mode == DetailsModeHidden {
 		return ""
 	}
-	t := RenderThinking(ThinkingState{Visible: true})
+	t := RenderThinkingWithSkin(ThinkingState{Visible: true}, skin)
 	if t == "" {
 		return ""
 	}
 	if compact || mode == DetailsModeCollapsed {
 		return compactViewportText(t)
 	}
-	return muted.Render(t)
+	return styles.Assistant.Render(t)
 }
 
 func frameHasFinalAssistant(f kernel.RenderFrame) bool {
@@ -336,7 +417,7 @@ func draftDuplicatesFinalAssistant(f kernel.RenderFrame) bool {
 	return draft == strings.TrimSpace(lastAssistantContent(f.History))
 }
 
-func lastAssistantContent(history []hermes.Message) string {
+func lastAssistantContent(history []llm.Message) string {
 	for i := len(history) - 1; i >= 0; i-- {
 		if history[i].Role == "assistant" {
 			return history[i].Content
@@ -345,11 +426,7 @@ func lastAssistantContent(history []hermes.Message) string {
 	return ""
 }
 
-func conversationToolProgressBlock(f kernel.RenderFrame, wrapWidth int, compact bool) string {
-	return conversationToolProgressBlockWithMode(f, wrapWidth, compact, DetailsModeExpanded)
-}
-
-func conversationToolProgressBlockWithMode(f kernel.RenderFrame, wrapWidth int, compact bool, mode DetailsMode) string {
+func conversationToolProgressBlockWithModeAndStyles(f kernel.RenderFrame, wrapWidth int, compact bool, mode DetailsMode, styles chatStyles) string {
 	if mode == DetailsModeHidden {
 		return ""
 	}
@@ -360,13 +437,13 @@ func conversationToolProgressBlockWithMode(f kernel.RenderFrame, wrapWidth int, 
 		if wrapWidth > 0 {
 			trail = RenderMarkdownSoftWrapTrim(trail, wrapWidth)
 		}
-		return toolOutStyle.Render(trail)
+		return styles.ToolOutput.Render(trail)
 	}
 	texts := make([]string, 0, len(f.SoulEvents))
 	for _, event := range f.SoulEvents {
 		texts = append(texts, event.Text)
 	}
-	progress := tooltrace.FormatBlock(texts)
+	progress := trace.FormatBlock(texts)
 	if progress == "" {
 		return ""
 	}
@@ -376,7 +453,7 @@ func conversationToolProgressBlockWithMode(f kernel.RenderFrame, wrapWidth int, 
 	if wrapWidth > 0 {
 		progress = RenderMarkdownSoftWrapTrim(progress, wrapWidth)
 	}
-	return toolOutStyle.Render(progress)
+	return styles.ToolOutput.Render(progress)
 }
 
 func conversationToolTrailNodes(f kernel.RenderFrame) []ToolCallNode {
@@ -439,9 +516,14 @@ func toolTrailEvent(text string) (string, string, ToolCallStatus, bool) {
 	}
 }
 
-func conversationMessageBlock(msg hermes.Message, wrapWidth int, compact bool) string {
+func conversationMessageBlock(msg llm.Message, wrapWidth int, compact bool) string {
+	skin, styles := conversationChatStyles(DefaultHermesSkin())
+	return conversationMessageBlockWithSkin(msg, wrapWidth, compact, skin, styles)
+}
+
+func conversationMessageBlockWithSkin(msg llm.Message, wrapWidth int, compact bool, skin HermesSkin, styles chatStyles) string {
 	if msg.Role == "tool" {
-		return conversationToolResultBlock(msg, wrapWidth, compact)
+		return conversationToolResultBlockWithStyles(msg, wrapWidth, compact, styles)
 	}
 	content := msg.Content
 	if compact {
@@ -449,18 +531,18 @@ func conversationMessageBlock(msg hermes.Message, wrapWidth int, compact bool) s
 	} else {
 		content = RenderMarkdownSoftWrapTrim(content, wrapWidth)
 	}
-	return transcriptRow(msg.Role, content)
+	return transcriptRowWithSkin(msg.Role, content, skin, styles)
 }
 
-func conversationMessageBlockAt(history []hermes.Message, idx, wrapWidth int, compact bool) string {
-	block := conversationMessageBlock(history[idx], wrapWidth, compact)
+func conversationMessageBlockAtWithSkin(history []llm.Message, idx, wrapWidth int, compact bool, skin HermesSkin, styles chatStyles) string {
+	block := conversationMessageBlockWithSkin(history[idx], wrapWidth, compact, skin, styles)
 	if !compact && conversationNeedsTurnSeparator(history, idx) {
-		return separatorStyle.Render("───") + "\n\n" + block
+		return styles.Separator.Render("───") + "\n\n" + block
 	}
 	return block
 }
 
-func conversationNeedsTurnSeparator(history []hermes.Message, idx int) bool {
+func conversationNeedsTurnSeparator(history []llm.Message, idx int) bool {
 	if idx < 0 || idx >= len(history) || history[idx].Role != "user" {
 		return false
 	}
@@ -472,14 +554,14 @@ func conversationNeedsTurnSeparator(history []hermes.Message, idx int) bool {
 	return false
 }
 
-func conversationToolResultBlock(msg hermes.Message, wrapWidth int, compact bool) string {
+func conversationToolResultBlockWithStyles(msg llm.Message, wrapWidth int, compact bool, styles chatStyles) string {
 	name := strings.TrimSpace(msg.Name)
 	if name == "" {
 		name = "tool"
 	}
 	content := strings.TrimSpace(msg.Content)
 	if compact {
-		return toolOutStyle.Render("⚡ " + name + " " + compactViewportText(content))
+		return styles.ToolOutput.Render("⚡ " + name + " " + compactViewportText(content))
 	}
 	content = RenderMarkdownSoftWrapTrim(content, wrapWidth)
 	lines := strings.Split(content, "\n")
@@ -505,7 +587,7 @@ func conversationToolResultBlock(msg hermes.Message, wrapWidth int, compact bool
 				out = append(out, "│ "+part)
 			}
 		}
-		return toolOutStyle.Render(strings.Join(out, "\n"))
+		return styles.ToolOutput.Render(strings.Join(out, "\n"))
 	}
 	out := []string{"   ╭─ ⚡ " + name}
 	for i, line := range lines {
@@ -513,26 +595,26 @@ func conversationToolResultBlock(msg hermes.Message, wrapWidth int, compact bool
 	}
 	out = append(out, lines...)
 	out = append(out, "   ╰─")
-	return toolOutStyle.Render(strings.Join(out, "\n"))
+	return styles.ToolOutput.Render(strings.Join(out, "\n"))
 }
 
-func conversationDraftBlock(draft string, wrapWidth int, compact bool) string {
+func conversationDraftBlockWithSkin(draft string, wrapWidth int, compact bool, skin HermesSkin, styles chatStyles) string {
 	if compact {
 		draft = compactViewportText(draft)
 	} else {
 		draft = RenderMarkdownSoftWrapTrim(draft, wrapWidth)
 	}
-	return transcriptRow("assistant", draft)
+	return transcriptRowWithSkin("assistant", draft, skin, styles)
 }
 
-func conversationErrorBlock(lastError string, wrapWidth int, compact bool) string {
+func conversationErrorBlockWithStyles(lastError string, wrapWidth int, compact bool, styles chatStyles) string {
 	if compact {
 		lastError = compactViewportText(lastError)
-		return errStyle.Render("err:") + " " + lastError
+		return styles.Error.Render("err:") + " " + lastError
 	}
 	lastError = RenderMarkdownSoftWrapTrim(strings.Join(strings.Fields(lastError), " "), errorBodyWidth(wrapWidth))
 	lines := strings.Split(lastError, "\n")
-	prefix := errStyle.Render("err:") + " "
+	prefix := styles.Error.Render("err:") + " "
 	continuation := strings.Repeat(" ", lipgloss.Width("err:")+1)
 	for i, line := range lines {
 		if i == 0 {
@@ -556,12 +638,12 @@ func compactViewportText(s string) string {
 	return truncateEllipsis(strings.Join(strings.Fields(s), " "), 48)
 }
 
-func omittedHistorySentinel(count, width int) string {
+func omittedHistorySentinelWithStyles(count, width int, styles chatStyles) string {
 	text := fmt.Sprintf("... %d earlier history messages omitted ...", count)
 	if width >= 20 {
 		text = RenderMarkdownSoftWrapTrim(text, width)
 	}
-	return muted.Render(text)
+	return styles.Assistant.Render(text)
 }
 
 func renderedLineCount(s string) int {
@@ -571,13 +653,10 @@ func renderedLineCount(s string) int {
 	return strings.Count(s, "\n") + 1
 }
 
-func conversationEmptyIntro(f kernel.RenderFrame, width int, compact bool) string {
-	return conversationEmptyIntroWithSkin(f, width, compact, DefaultHermesSkin())
-}
-
 func conversationEmptyIntroWithSkin(f kernel.RenderFrame, width int, compact bool, skin HermesSkin) string {
+	skin, styles := conversationChatStyles(skin)
 	if compact {
-		return muted.Render("⚕ Gormes · /help for commands")
+		return styles.Assistant.Render("⚕ Gormes · /help for commands")
 	}
 	ctx := welcomeContext{
 		Model:     f.Model,
@@ -606,9 +685,9 @@ func buildInfoVersion() string {
 	return v
 }
 
-func transcriptRow(role, content string) string {
-	glyph := transcriptGlyph(role)
-	style := transcriptGlyphStyle(role)
+func transcriptRowWithSkin(role, content string, skin HermesSkin, styles chatStyles) string {
+	glyph := transcriptGlyphForSkin(role, skin)
+	style := transcriptGlyphStyleForStyles(role, styles)
 	lines := strings.Split(content, "\n")
 	if len(lines) == 0 {
 		return style.Render(glyph)
@@ -626,8 +705,7 @@ func transcriptRow(role, content string) string {
 	return strings.Join(lines, "\n")
 }
 
-func transcriptGlyph(role string) string {
-	skin := DefaultHermesSkin()
+func transcriptGlyphForSkin(role string, skin HermesSkin) string {
 	switch role {
 	case "user":
 		prompt := strings.TrimSpace(skin.PromptSymbol)
@@ -651,14 +729,14 @@ func transcriptGlyph(role string) string {
 	return role
 }
 
-func transcriptGlyphStyle(role string) lipgloss.Style {
+func transcriptGlyphStyleForStyles(role string, styles chatStyles) lipgloss.Style {
 	switch role {
 	case "user":
-		return userStyle
+		return styles.User
 	case "assistant":
-		return muted
+		return styles.Assistant
 	default:
-		return muted
+		return styles.Assistant
 	}
 }
 
@@ -683,13 +761,6 @@ func shortSessionID(id string) string {
 	return id[:8] + "…"
 }
 
-func statusSuffix(message string) string {
-	if message == "" {
-		return ""
-	}
-	return " · " + message
-}
-
 func (m Model) renderTodoPanel(width int) string {
 	if m.todoReader == nil {
 		return ""
@@ -698,5 +769,5 @@ func (m Model) renderTodoPanel(width int) string {
 	if len(items) == 0 {
 		return ""
 	}
-	return RenderTodoPanel(items, width)
+	return RenderTodoPanelWithSkin(items, width, m.currentSkin())
 }

@@ -363,7 +363,7 @@
         "internal/channels/navivox/",
         "cmd/gormes/navivox.go",
         "cmd/gormes/navivox_connect_info.go",
-        "internal/app/gormescli/modules/profiles/",
+        "internal/cli/gormescli/modules/profiles/",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
@@ -1114,6 +1114,87 @@
     "subphase": "9.F",
     "pos": 3,
     "item": {
+      "name": "Navivox API capability contract",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Expose a first-class authenticated `/v1/navivox/capabilities` document for Navivox clients. The document must list supported Navivox endpoints, health aliases, event kinds, auth mode, profile-management actions, attachment limits, voice/STT/TTS support, canonical stream/deprecation rules, and must keep dashboard `/api/profiles`, raw local paths, tokens, and provider credentials out of the mobile contract.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "If the capability document is unavailable, Navivox clients must keep profile creation/import, attachment upload, and voice affordances disabled or in unavailable-sheet mode instead of guessing from dashboard or OpenAI-style endpoints.",
+      "fixture": "internal/channels/navivox/capabilities_test.go",
+      "source_refs": [
+        "../navivox-app/TODO.md:Gormes Navivox API capability contract",
+        "internal/channels/navivox/channel.go:Handler",
+        "internal/channels/navivox/capabilities.go:capabilityDocument",
+        "cmd/gormes/navivox_connect_info.go:navivoxConnectInfoEntry",
+        "docs/navivox-gateway-channel.md#endpoints",
+        "docs/content/cli/navivox.md#current-channel-contract"
+      ],
+      "ready_when": [
+        "Existing Navivox HTTP/WS channel already authenticates `/v1/navivox/*` routes and exposes status, profile contacts, turns, and stream endpoints.",
+        "Sibling Navivox TODO names the capability mismatch and asks Gormes to publish one versioned document before enabling client affordances."
+      ],
+      "not_ready_when": [
+        "The slice exposes dashboard `/api/profiles` directly to Navivox instead of a stable `/v1/navivox/*` wrapper.",
+        "The slice advertises raw local file paths, tokens, provider credentials, unsupported attachment upload, or unimplemented profile imports as available."
+      ],
+      "unblocks": [
+        "Navivox natural-language profile seed Flutter UI",
+        "Navivox safe config admin Flutter UI",
+        "Navivox voice run records Flutter inspection UI",
+        "Navivox per-profile BYO voice profiles Flutter UI"
+      ],
+      "acceptance": [
+        "`GET /v1/navivox/capabilities` requires Navivox auth and returns object `gormes.navivox.capabilities` with protocol_version `navivox.v1`.",
+        "The document advertises status, capabilities, profile contacts/routing/seed, config admin, voice profiles, run records, memory overview, sessions, turn, and canonical `/v1/navivox/stream` event kinds.",
+        "Profile management is capability-gated through `/v1/navivox/profile-contacts`, `/profile-routing`, and `/profile-seed`; dashboard `/api/profiles` is explicitly not exposed to Navivox clients.",
+        "Attachment and voice sections truthfully advertise no raw local path uploads, no workspace-file attach, 1 MiB turn request bound, device-transcribed text turns, voice profile endpoint, and STT/TTS provider matrices.",
+        "`gormes navivox connect` and pairing descriptors include `capabilities_url` without printing raw tokens; docs list the capability endpoint and gating rule."
+      ],
+      "note": "Shipped 2026-05-25: added `/v1/navivox/capabilities`, linked it from `/v1/navivox/status`, included capabilities_url in connect/pair descriptors, documented the capability-gating rule, and proved the contract with auth, endpoint/event, profile-management, attachment, voice, stream, and redaction assertions.",
+      "write_scope": [
+        "internal/channels/navivox/",
+        "cmd/gormes/navivox*.go",
+        "cmd/gormes/setup_navivox*.go",
+        "docs/navivox-gateway-channel.md",
+        "docs/content/cli/navivox.md",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/channels/navivox -run 'TestNavivoxCapabilities|TestNavivoxStatusLinksCapabilities' -count=1",
+        "go test ./internal/channels/navivox -count=1",
+        "go test ./cmd/gormes -run 'TestNavivox.*(ConnectInfo|Pair|Setup)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Navivox clients can fetch one authenticated capability document that gates profile-management, attachment, voice, and stream UI without relying on dashboard APIs or raw local paths."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-05-25T12:00:00Z",
+        "last_success": "2026-05-25T12:00:00Z"
+      },
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-25",
+        "note": "Gormes-owned Navivox mobile/API contract; Hermes has no Navivox equivalent."
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.F",
+    "pos": 4,
+    "item": {
       "name": "Navivox continuous voice command mode",
       "priority": "P1",
       "status": "complete",
@@ -1196,13 +1277,13 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 4,
+    "pos": 5,
     "item": {
       "name": "Navivox Telegram-inspired chat polish",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "After the connect-and-talk loop and profile contact summary API work, make Navivox feel like a polished Telegram-inspired operator client without changing the Gormes HTTP/WS backend. Render a flat profile-contact list with deterministic avatar, display name, small server label, sanitized latest preview, timestamp, health, attention badges, workspace counts, and mic availability; render the profile chat screen with grouped Telegram-style bubbles, compact timestamps, local send/queued/streaming/done/error ticks, a pinned redacted server/profile/trust banner, always-reachable composer, and a global continuous-voice bar when active. Use Telegram-like draggable sheets for profile/server/action/tool detail flows. Evaluate `v_chat_bubbles` as the bubble renderer (`VBubbleStyle.telegram`, `VCustomBubble` for ToolCallCard, performance config for long transcripts) but fall back to local widgets if the package fails accessibility, theming, performance, or dependency review. This row is visual/interaction polish only: no TDLib, MTProto, Firebase chat backend, Telegram login, telephony, campaigns, or call-center scope.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "navivox",
@@ -1211,7 +1292,7 @@
         "gateway"
       ],
       "degraded_mode": "If `v_chat_bubbles` is unsuitable, Navivox keeps the current simple adapter and implements only local Telegram-like preview tiles, grouped bubbles, status ticks, and sheets. Text chat, tool cards, and voice transcript fallback remain usable.",
-      "fixture": "../navivox-app/app/test/features/chat/navivox_telegram_polish_test.dart",
+      "fixture": "../navivox-app/test/features/chat/profile_contact_list_test.dart + ../navivox-app/test/features/chat/transcript_bubble_test.dart + ../navivox-app/test/features/chat/transcript_thread_test.dart + ../navivox-app/test/shared/app_shell_test.dart",
       "source_refs": [
         "../navivox-app/navivox-chat-ui-research.md:2",
         "../navivox-app/navivox-ui-design.md:2.1",
@@ -1242,22 +1323,23 @@
         "Chat bubbles are grouped by author and time gap, have compact timestamps and local delivery-state ticks, and update one assistant bubble during streaming.",
         "ToolCallCard remains a structured custom bubble or local widget with redaction, status, and expandable details; tool output is not rendered as assistant prose.",
         "Profile/server/action/tool detail panels use `DraggableScrollableSheet` or a tested desktop side-panel equivalent.",
-        "Mobile uses Material 3 `NavigationBar` with Chats, Servers, and Settings; desktop uses a rail/sidebar equivalent; both layouts have widget or golden coverage.",
+        "Mobile uses a Telegram-style navigation drawer with Chats, Servers, Memory, and Settings while profile chat/contact surfaces omit bottom navigation; desktop uses a rail/sidebar equivalent; both layouts have widget or golden coverage.",
         "A package gate documents whether `v_chat_bubbles` was adopted or rejected, including accessibility, theming, performance, license, and dependency findings."
       ],
+      "note": "Package gate 2026-05-24: `../navivox-app/navivox-chat-ui-research.md` now records that `v_chat_bubbles` remains a visual reference rather than an adopted dependency for this slice. Current local widgets keep Gormes gateway state ownership for grouped bubbles, typing updates, ToolCallCard/safety/voice custom surfaces, and long-press actions; future adoption requires a small adapter proving `VBubbleStyle.telegram` plus `VCustomBubble` accessibility/performance. COMPLETE 2026-05-25: Verified the sibling Navivox Flutter implementation already provides the Telegram-inspired profile contact list, grouped/statused bubbles, ToolCallCard/custom surfaces, draggable sheets, continuous voice affordances, drawer/rail navigation coverage, and no TDLib/MTProto/Firebase backend dependency. Updated local Navivox UI docs to make the drawer-over-bottom-nav decision explicit. Validation: `cd /home/xel/git/gormes/navivox-app && flutter test test/features/chat test/features/servers test/router/app_router_test.dart test/shared/app_shell_test.dart` ok; `go run ./cmd/progress validate` ok.",
       "write_scope": [
-        "../navivox-app/app/pubspec.yaml",
-        "../navivox-app/app/lib/features/chat/",
-        "../navivox-app/app/lib/features/servers/",
-        "../navivox-app/app/lib/shared/widgets/",
-        "../navivox-app/app/test/features/chat/",
-        "../navivox-app/app/test/features/servers/",
+        "../navivox-app/pubspec.yaml",
+        "../navivox-app/lib/features/chat/",
+        "../navivox-app/lib/features/servers/",
+        "../navivox-app/lib/shared/widgets/",
+        "../navivox-app/test/features/chat/",
+        "../navivox-app/test/features/servers/",
         "../navivox-app/navivox-chat-ui-research.md",
         "../navivox-app/navivox-ui-design.md",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "sh -c 'cd ../navivox-app/app && flutter test test/features/chat test/features/servers test/router/app_router_test.dart'",
+        "sh -c 'cd ../navivox-app && flutter test test/features/chat test/features/servers test/router/app_router_test.dart test/shared/app_shell_test.dart'",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1274,7 +1356,7 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 5,
+    "pos": 6,
     "item": {
       "name": "Navivox natural-language profile seed backend API",
       "priority": "P1",
@@ -1373,13 +1455,13 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 6,
+    "pos": 7,
     "item": {
       "name": "Navivox natural-language profile seed Flutter UI",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Add the sibling Navivox Flutter profile seed UI that calls the Gormes backend profile-seed API, offers Create from seed in the chat/profile flow, renders the returned editable draft fields, requires explicit workspace path entry or confirmation, applies only through the backend, and then shows the new profile as a contact. The Flutter app must not write TOML or infer/grant workspace roots on its own.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "navivox",
@@ -1389,12 +1471,12 @@
         "system"
       ],
       "degraded_mode": "Without a model/provider, seed creation uses a deterministic local template and marks generation_source=template; invalid or risky seeds are rejected with redacted typed evidence and do not mutate profile config or workspace roots.",
-      "fixture": "../navivox-app/app/test/features/profiles/profile_seed_flow_test.dart",
+      "fixture": "../navivox-app/test/features/profiles/profile_seed_flow_test.dart",
       "source_refs": [
         "../navivox-app/navivox-ui-design.md:2.8",
         "../navivox-app/navivox-chat-ui-research.md:10",
-        "../navivox-app/app/lib/features/chat/",
-        "../navivox-app/app/lib/features/profiles/",
+        "../navivox-app/lib/features/chat/",
+        "../navivox-app/lib/features/profiles/",
         "internal/channels/navivox/channel.go",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Navivox HTTP/WS Flutter channel"
       ],
@@ -1421,16 +1503,19 @@
         "After apply, the newly seeded profile appears in the profile/contact list and can be selected for a first chat turn.",
         "Provider-unconfigured backend responses render generation_source=template and redacted evidence without blocking first-run use."
       ],
-      "note": "Planner split 2026-05-23 iteration 61: this child owns only the sibling Flutter UI; the in-repo Gormes backend is tracked by `Navivox natural-language profile seed backend API`.",
+      "note": "Planner split 2026-05-23 iteration 61: this child owns only the sibling Flutter UI; the in-repo Gormes backend is tracked by `Navivox natural-language profile seed backend API`. Complete 2026-05-25: wired the sibling Navivox Flutter Create from seed flow through NavivoxChannel.profileSeed/GatewayNavivoxChannel.profileSeed, added an operator-facing seed draft/apply bottom sheet, rendered editable draft fields plus generation_source/evidence/provider state/workspace suggestions, required explicit workspace path entry or no-workspace confirmation before apply, applied only through the Gormes backend API, and updated the test channel to surface the returned contact. Validation: `cd ../navivox-app && flutter test test/features/profiles test/features/chat/profile_contact_list_test.dart`; `go run ./cmd/progress validate`; `git diff --check`.",
       "write_scope": [
-        "../navivox-app/app/lib/features/chat/",
-        "../navivox-app/app/lib/features/profiles/",
-        "../navivox-app/app/test/features/chat/",
-        "../navivox-app/app/test/features/profiles/",
+        "../navivox-app/lib/core/channel/navivox_channel.dart",
+        "../navivox-app/lib/core/channel/gateway_navivox_channel.dart",
+        "../navivox-app/lib/features/chat/",
+        "../navivox-app/lib/features/profiles/",
+        "../navivox-app/test/features/chat/",
+        "../navivox-app/test/features/profiles/",
+        "../navivox-app/test/support/test_navivox_channel.dart",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "sh -c 'cd ../navivox-app/app && flutter test test/features/profiles test/features/chat/profile_contact_list_test.dart'",
+        "sh -c 'cd ../navivox-app && flutter test test/features/profiles test/features/chat/profile_contact_list_test.dart'",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1446,7 +1531,7 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 7,
+    "pos": 8,
     "item": {
       "name": "Navivox structured tool event cards backend API",
       "priority": "P1",
@@ -1462,14 +1547,14 @@
         "system"
       ],
       "degraded_mode": "If a channel lacks structured tool progress, gateway falls back to existing bounded text progress; if Navivox receives malformed tool metadata, it renders redacted error evidence inside a tool card instead of assistant text.",
-      "fixture": "internal/gateway/tool_progress_structured_test.go; internal/channels/navivox/tool_events_test.go; internal/session/navivox_run_record_test.go",
+      "fixture": "internal/gateway/tool_progress_structured_test.go; internal/channels/navivox/tool_events_test.go; internal/persistence/session/navivox_run_record_test.go",
       "source_refs": [
         "internal/gateway/channel.go:ToolProgressSender",
         "internal/gateway/manager.go:dispatchToolProgress",
         "internal/gateway/render.go:FormatToolProgressEvents",
         "internal/channels/navivox/channel.go:SendToolProgress",
         "internal/channels/navivox/stream.go:safeNavivoxToolMetadata",
-        "internal/session/navivox_run_record.go:AppendToolEvent"
+        "internal/persistence/session/navivox_run_record.go:AppendToolEvent"
       ],
       "ready_when": [
         "`Navivox connect-and-talk first screen` has landed so a streaming chat fixture exists.",
@@ -1504,13 +1589,13 @@
         "internal/channels/navivox/stream.go",
         "internal/channels/navivox/channel_test.go",
         "internal/channels/navivox/tool_events_test.go",
-        "internal/session/navivox_run_record.go",
-        "internal/session/navivox_run_record_test.go",
+        "internal/persistence/session/navivox_run_record.go",
+        "internal/persistence/session/navivox_run_record_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/gateway ./internal/channels/navivox ./internal/session -run 'Test.*Tool.*Progress|Test.*Navivox.*Tool|Test.*RunRecordTool' -count=1",
-        "go test ./internal/gateway ./internal/channels/navivox ./internal/session -count=1",
+        "go test ./internal/gateway ./internal/channels/navivox ./internal/persistence/session -run 'Test.*Tool.*Progress|Test.*Navivox.*Tool|Test.*RunRecordTool' -count=1",
+        "go test ./internal/gateway ./internal/channels/navivox ./internal/persistence/session -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1526,13 +1611,13 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 8,
+    "pos": 9,
     "item": {
       "name": "Navivox structured tool event cards Flutter UI",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "The sibling Navivox Flutter app consumes the Gormes backend structured tool-progress contract, upserts one durable ToolCallCard per tool_call_id for started/updated/finished states, renders redacted artifact rows, and never converts tool events into assistant prose.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "navivox",
@@ -1542,12 +1627,13 @@
         "system"
       ],
       "degraded_mode": "If a channel lacks structured tool progress, gateway falls back to existing bounded text progress; if Navivox receives malformed tool metadata, it renders redacted error evidence inside a tool card instead of assistant text.",
-      "fixture": "../navivox-app/app/test/core/channel/gateway_navivox_channel_test.dart; ../navivox-app/app/test/features/chat/",
+      "fixture": "../navivox-app/test/core/channel/gateway_navivox_channel_test.dart; ../navivox-app/test/features/chat/",
       "source_refs": [
         "docs/content/building-gormes/architecture_plan/progress.json:Navivox structured tool event cards backend API",
-        "../navivox-app/app/lib/core/protocol/navivox_event.dart:NavivoxToolCall",
-        "../navivox-app/app/lib/core/channel/gateway_navivox_channel.dart:_upsertToolCall",
-        "../navivox-app/app/lib/features/chat/widgets/simple_chat_adapter.dart:_ToolCallBody"
+        "../navivox-app/lib/core/protocol/navivox_event.dart:NavivoxToolCall",
+        "../navivox-app/lib/core/channel/gateway_navivox_channel.dart:_upsertToolCall",
+        "../navivox-app/lib/features/chat/widgets/transcript_bubble.dart:_ToolCallBody",
+        "../navivox-app/lib/features/chat/transcript_tool_call_presentation.dart:TranscriptToolCallPresentation"
       ],
       "ready_when": [
         "`Navivox structured tool event cards backend API` is complete and exposes started/updated/finished backend fixtures.",
@@ -1558,27 +1644,27 @@
         "The UI displays raw tool arguments, stdout, credentials, or full logs.",
         "The UI changes the Gormes backend contract or requires non-repo credentials to validate."
       ],
-      "blocked_by": [
-        "Navivox structured tool event cards backend API"
-      ],
       "acceptance": [
         "GatewayNavivoxChannel upserts a single ToolCall message per tool_call_id for started, updated, and finished backend events.",
         "ToolCallCard renders status, summary, approval state when present, and bounded artifact rows with id/kind/title/summary/ref.",
         "Malformed or oversized event metadata is truncated/redacted in UI fixtures and never becomes assistant prose.",
         "Existing chat fixtures remain green for normal assistant streaming and final messages."
       ],
-      "note": "planner_split: 2026-05-23 iteration 66; sibling Flutter child row, intentionally out of repo-only scope unless Juan expands scope.",
+      "note": "planner_split: 2026-05-23 iteration 66; sibling Flutter child row, intentionally out of repo-only scope unless Juan expands scope. source_ref repair 2026-05-25: current Navivox chat tool-card renderer lives in transcript_bubble.dart and transcript_tool_call_presentation.dart; historical simple_chat_adapter.dart source ref is obsolete. Complete 2026-05-26: verified the sibling Navivox Flutter app consumes backend structured tool-progress lifecycle events as one durable ToolCallCard per tool_call_id, preserves started/updated/finished status, renders approval and bounded artifact rows, redacts malformed/secret metadata, and keeps tool progress out of assistant prose. Validation: `cd ../navivox-app && flutter test test/core/channel/gateway_navivox_channel_test.dart test/features/chat`; `go run ./cmd/progress validate`; `git diff --check`.",
       "write_scope": [
-        "../navivox-app/app/lib/core/gateway/navivox_gateway_protocol.dart",
-        "../navivox-app/app/lib/core/channel/gateway_navivox_channel.dart",
-        "../navivox-app/app/lib/core/protocol/navivox_event.dart",
-        "../navivox-app/app/lib/features/chat/widgets/simple_chat_adapter.dart",
-        "../navivox-app/app/test/core/channel/gateway_navivox_channel_test.dart",
-        "../navivox-app/app/test/features/chat/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "../navivox-app/lib/core/gateway/navivox_gateway_protocol.dart",
+        "../navivox-app/lib/core/channel/gateway_navivox_channel.dart",
+        "../navivox-app/lib/core/protocol/navivox_event.dart",
+        "../navivox-app/lib/features/chat/widgets/simple_chat_adapter.dart",
+        "../navivox-app/test/core/channel/gateway_navivox_channel_test.dart",
+        "../navivox-app/test/features/chat/",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "../navivox-app/lib/features/chat/transcript_tool_call_presentation.dart",
+        "../navivox-app/test/features/chat/transcript_tool_call_presentation_test.dart",
+        "../navivox-app/test/features/chat/tool_artifacts_render_test.dart"
       ],
       "test_commands": [
-        "sh -c 'cd ../navivox-app/app && flutter test test/core/channel/gateway_navivox_channel_test.dart test/features/chat'",
+        "sh -c 'cd ../navivox-app && flutter test test/core/channel/gateway_navivox_channel_test.dart test/features/chat'",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1594,7 +1680,7 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 9,
+    "pos": 10,
     "item": {
       "name": "Navivox safe config admin backend API",
       "priority": "P1",
@@ -1683,13 +1769,13 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 10,
+    "pos": 11,
     "item": {
       "name": "Navivox safe config admin Flutter UI",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Render the Navivox config admin backend contract in the sibling Flutter app: schema-driven controls, redacted current values, diff/validate/apply confirmation, secret set/rotate/delete/test actions, and reload-or-pending-restart status. Flutter consumes backend schema and actions only; it never edits config.toml, .env, or raw secret values directly.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "navivox",
@@ -1699,13 +1785,13 @@
         "system"
       ],
       "degraded_mode": "When config validation fails, Navivox shows typed field errors and keeps the last-good server config active; secret values are never returned, logged, or echoed, only status/source/redacted evidence.",
-      "fixture": "../navivox-app/app/test/features/config/config_screen_test.dart",
+      "fixture": "../navivox-app/test/features/config/config_screen_test.dart",
       "source_refs": [
         "../navivox-app/navivox-decision-record.md:141",
-        "../navivox-app/app/lib/core/channel/navivox_channel.dart",
-        "../navivox-app/app/lib/core/channel/gateway_navivox_channel.dart",
-        "../navivox-app/app/lib/features/config/screens/config_screen.dart",
-        "../navivox-app/app/test/features/config/config_screen_test.dart",
+        "../navivox-app/lib/core/channel/navivox_channel.dart",
+        "../navivox-app/lib/core/channel/gateway_navivox_channel.dart",
+        "../navivox-app/lib/features/config/screens/config_screen.dart",
+        "../navivox-app/test/features/config/config_screen_test.dart",
         "docs/content/building-gormes/architecture_plan/progress.json:Navivox safe config admin backend API"
       ],
       "ready_when": [
@@ -1730,16 +1816,20 @@
         "Secret controls render set/rotate/delete/test actions and status/source evidence without reading or storing raw secret values.",
         "Apply success renders reload_applied or pending_restart evidence from the backend."
       ],
-      "note": "planner_split: 2026-05-23 iteration 63 separated sibling Flutter controls from the in-repo config-admin backend API row.",
+      "note": "planner_split: 2026-05-23 iteration 63 separated sibling Flutter controls from the in-repo config-admin backend API row. Complete 2026-05-25: wired the sibling Navivox Flutter config screen through typed config-admin gateway client/channel methods for schema/get/diff/validate/apply, including capability-gated loading, backend field-error rendering, non-secret before/after diff confirmation, reload_applied/pending_restart result evidence, and schema-provided secret status/source/action metadata. Flutter still never edits config.toml/.env directly; raw current secrets are not kept in state or rendered, and write-only secret changes only travel to the authenticated backend apply route. Validation: RED compile failures for missing config-admin client/channel/UI symbols; `cd ../navivox-app && flutter test test/core/gateway/navivox_gateway_protocol_test.dart test/features/config`; `cd ../navivox-app && flutter analyze`.",
       "write_scope": [
-        "../navivox-app/app/lib/core/channel/navivox_channel.dart",
-        "../navivox-app/app/lib/core/channel/gateway_navivox_channel.dart",
-        "../navivox-app/app/lib/features/config/",
-        "../navivox-app/app/test/features/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "../navivox-app/lib/core/channel/navivox_channel.dart",
+        "../navivox-app/lib/core/channel/gateway_navivox_channel.dart",
+        "../navivox-app/lib/features/config/",
+        "../navivox-app/test/features/config/",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "../navivox-app/lib/core/gateway/navivox_gateway_client.dart",
+        "../navivox-app/lib/core/gateway/navivox_gateway_protocol.dart",
+        "../navivox-app/test/core/gateway/navivox_gateway_protocol_test.dart",
+        "../navivox-app/test/support/test_navivox_channel.dart"
       ],
       "test_commands": [
-        "sh -c 'cd ../navivox-app/app && flutter test test/features/config'",
+        "sh -c 'cd ../navivox-app && flutter test test/core/gateway/navivox_gateway_protocol_test.dart test/features/config'",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1755,7 +1845,7 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 11,
+    "pos": 12,
     "item": {
       "name": "Navivox voice run records backend API",
       "priority": "P1",
@@ -1771,17 +1861,17 @@
         "system"
       ],
       "degraded_mode": "If audio bytes, STT, TTS, or usage data are unavailable, the run record stores explicit unavailable evidence and preserves the text transcript/tool timeline instead of dropping the run or faking costs.",
-      "fixture": "internal/session/navivox_run_record_test.go",
+      "fixture": "internal/persistence/session/navivox_run_record_test.go",
       "source_refs": [
         "internal/apiserver/runs.go:runRecord",
-        "internal/session/",
-        "internal/store/recording.go",
+        "internal/persistence/session/",
+        "internal/persistence/store/recording.go",
         "cmd/gormes/session.go",
         "internal/channels/navivox/channel.go:sessionState",
         "internal/channels/navivox/codemap.md:Voice boundary",
         "https://docs.dograh.com/core-concepts/how-dograh-works",
-        "internal/session/navivox_run_record.go:NavivoxRunRecord",
-        "internal/session/navivox_run_record_test.go:TestNavivoxRunRecordVoiceTurnPreservesEvidenceAndUnknownUsage",
+        "internal/persistence/session/navivox_run_record.go:NavivoxRunRecord",
+        "internal/persistence/session/navivox_run_record_test.go:TestNavivoxRunRecordVoiceTurnPreservesEvidenceAndUnknownUsage",
         "internal/channels/navivox/channel.go:handleRunRecord",
         "internal/channels/navivox/turn.go:turnInput",
         "internal/channels/navivox/channel_test.go:TestNavivoxRunRecordEndpointReturnsRedactedVoiceAndToolTimeline"
@@ -1813,10 +1903,10 @@
         "Tool events appear in the run timeline as typed entries, not assistant prose.",
         "A run inspection endpoint or command returns redacted JSON suitable for the Navivox UI and preserves explicit `unknown` usage/cost evidence when provider usage is absent."
       ],
-      "note": "Complete 2026-05-23 development-goal iteration 60: added internal/session NavivoxRunRecord redacted read model, voice evidence extraction with raw-audio/secret redaction, typed tool timeline entries, explicit unknown provider usage/cost evidence, and authenticated Navivox /v1/navivox/run-records/{run_or_session_id} inspection endpoint. The backend record is retained after turn completion and deliberately stores no raw audio bytes.",
+      "note": "Complete 2026-05-23 development-goal iteration 60: added internal/persistence/session NavivoxRunRecord redacted read model, voice evidence extraction with raw-audio/secret redaction, typed tool timeline entries, explicit unknown provider usage/cost evidence, and authenticated Navivox /v1/navivox/run-records/{run_or_session_id} inspection endpoint. The backend record is retained after turn completion and deliberately stores no raw audio bytes.",
       "write_scope": [
-        "internal/session/",
-        "internal/store/",
+        "internal/persistence/session/",
+        "internal/persistence/store/",
         "internal/apiserver/runs.go",
         "internal/apiserver/responses_runs_test.go",
         "internal/channels/navivox/channel.go",
@@ -1827,9 +1917,9 @@
         "internal/channels/navivox/turn.go"
       ],
       "test_commands": [
-        "go test ./internal/session ./internal/store ./internal/apiserver ./internal/channels/navivox -run 'Test.*Navivox.*Run|Test.*Voice.*Run|Test.*RunRecord' -count=1",
+        "go test ./internal/persistence/session ./internal/persistence/store ./internal/apiserver ./internal/channels/navivox -run 'Test.*Navivox.*Run|Test.*Voice.*Run|Test.*RunRecord' -count=1",
         "go test ./cmd/gormes -run 'TestSession.*Run|TestNavivox.*Run' -count=1",
-        "go test ./internal/session ./internal/store ./internal/apiserver ./internal/channels/navivox -count=1",
+        "go test ./internal/persistence/session ./internal/persistence/store ./internal/apiserver ./internal/channels/navivox -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1845,13 +1935,13 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 12,
+    "pos": 13,
     "item": {
       "name": "Navivox voice run records Flutter inspection UI",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Render the sibling Flutter Navivox inspection surface for backend run records after the Gormes run-record API lands. The app should fetch or receive redacted run records, show text and voice transcript evidence, STT/TTS metadata, tool timeline cards, attachment/artifact refs, terminal status, and provider usage/cost with explicit unknown states. This row is intentionally cross-root and must not be selected during repo-only Gormes iterations.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "navivox",
@@ -1861,13 +1951,13 @@
         "system"
       ],
       "degraded_mode": "If audio bytes, STT, TTS, or usage data are unavailable, the run record stores explicit unavailable evidence and preserves the text transcript/tool timeline instead of dropping the run or faking costs.",
-      "fixture": "../navivox-app/app/test/features/chat/navivox_run_records_test.dart",
+      "fixture": "../navivox-app/test/features/chat/navivox_run_records_test.dart",
       "source_refs": [
         "internal/apiserver/runs.go:runRecord",
         "internal/channels/navivox/channel.go:sessionState",
-        "../navivox-app/app/lib/core/protocol/navivox_event.dart:NavivoxVoiceMessage",
-        "../navivox-app/app/lib/core/channel/gateway_navivox_channel.dart",
-        "../navivox-app/app/lib/features/chat/",
+        "../navivox-app/lib/core/protocol/navivox_event.dart:NavivoxVoiceMessage",
+        "../navivox-app/lib/core/channel/gateway_navivox_channel.dart",
+        "../navivox-app/lib/features/chat/",
         "https://docs.dograh.com/core-concepts/how-dograh-works"
       ],
       "ready_when": [
@@ -1881,25 +1971,23 @@
         "The slice reports fake token cost when provider usage is absent.",
         "The slice edits Gormes backend persistence instead of consuming the backend contract from the app side."
       ],
-      "blocked_by": [
-        "Navivox voice run records backend API"
-      ],
       "acceptance": [
         "After a text turn ends, the app can open a run detail or transcript panel showing redacted transcript, status, timestamps, session/run ids, and provider usage when available.",
         "After a voice turn ends, the app renders device transcript, optional server STT evidence, audio duration/codec metadata, TTS metadata, and explicit raw-audio retention status.",
         "Typed tool timeline entries render as tool cards or bounded timeline rows instead of assistant prose.",
         "Provider usage/cost fields render as `unknown` or unavailable when absent; the UI never fabricates zero cost."
       ],
+      "note": "Complete 2026-05-26: added sibling Navivox Flutter chat-run inspection from message actions through NavivoxChannel.runRecord, plus a redacted run-record presentation/sheet for transcript rows, voice evidence, raw-audio retention, typed tool timeline artifact refs, and explicit unknown provider usage/cost states. Validation: RED compile/action failures for missing run-record presentation/sheet/action; `cd ../navivox-app && flutter test test/features/chat/transcript_run_record_presentation_test.dart test/features/chat/transcript_run_record_sheet_test.dart test/features/chat/chat_run_record_inspection_test.dart test/features/chat/transcript_message_action_presentation_test.dart test/features/chat/transcript_message_action_sheet_test.dart`; `cd ../navivox-app && flutter test test/core/channel/gateway_navivox_channel_test.dart test/features/chat`; `go run ./cmd/progress validate`; `git diff --check`.",
       "write_scope": [
-        "../navivox-app/app/lib/core/protocol/navivox_event.dart",
-        "../navivox-app/app/lib/core/channel/gateway_navivox_channel.dart",
-        "../navivox-app/app/lib/features/chat/",
-        "../navivox-app/app/test/core/channel/gateway_navivox_channel_test.dart",
-        "../navivox-app/app/test/features/chat/",
+        "../navivox-app/lib/core/protocol/navivox_event.dart",
+        "../navivox-app/lib/core/channel/gateway_navivox_channel.dart",
+        "../navivox-app/lib/features/chat/",
+        "../navivox-app/test/core/channel/gateway_navivox_channel_test.dart",
+        "../navivox-app/test/features/chat/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "sh -c 'cd ../navivox-app/app && flutter test test/core/channel/gateway_navivox_channel_test.dart test/features/chat'",
+        "sh -c 'cd ../navivox-app && flutter test test/core/channel/gateway_navivox_channel_test.dart test/features/chat'",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1915,7 +2003,7 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 13,
+    "pos": 14,
     "item": {
       "name": "Navivox per-profile BYO voice profiles backend API",
       "priority": "P1",
@@ -1939,7 +2027,7 @@
         "internal/tools/tts_providers.go:BuiltinTTSProviderNames",
         "internal/tools/transcription_providers.go:ValidateTranscriptionProviderConfig",
         "internal/channels/navivox/turn.go:enqueueTurn",
-        "internal/session/navivox_run_record.go:NavivoxVoiceEvidence",
+        "internal/persistence/session/navivox_run_record.go:NavivoxVoiceEvidence",
         "docs/content/building-gormes/architecture_plan/progress.json:Navivox per-profile BYO voice profiles",
         "internal/config/profile_voice_profile_test.go:TestProfileVoiceProfileConfigLoadsAndValidatesProviderMatrix",
         "internal/config/profile_voice_profile_test.go:TestProfileVoiceProfileValidationRejectsUnknownProviders",
@@ -1986,14 +2074,14 @@
         "internal/channels/navivox/turn.go",
         "internal/channels/navivox/voice_profiles.go",
         "internal/channels/navivox/voice_profiles_test.go",
-        "internal/session/navivox_run_record.go",
-        "internal/session/navivox_run_record_test.go",
+        "internal/persistence/session/navivox_run_record.go",
+        "internal/persistence/session/navivox_run_record_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json",
         "internal/tools/slim_stubs.go"
       ],
       "test_commands": [
-        "go test ./internal/config ./internal/tools ./internal/channels/navivox ./internal/session -run 'Test.*VoiceProfile|Test.*TTS|Test.*Transcription|Test.*Navivox.*Voice' -count=1",
-        "go test ./internal/config ./internal/tools ./internal/channels/navivox ./internal/session -count=1",
+        "go test ./internal/config ./internal/tools ./internal/channels/navivox ./internal/persistence/session -run 'Test.*VoiceProfile|Test.*TTS|Test.*Transcription|Test.*Navivox.*Voice' -count=1",
+        "go test ./internal/config ./internal/tools ./internal/channels/navivox ./internal/persistence/session -count=1",
         "go test -tags slim ./internal/channels/navivox -run TestNavivoxVoiceProfilesReadRedactsCredentialsAndValidatesProviders -count=1",
         "go run ./cmd/progress validate",
         "timeout 20m go test ./... -count=1",
@@ -2011,21 +2099,21 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 14,
+    "pos": 15,
     "item": {
       "name": "Navivox per-profile BYO voice profiles Flutter UI",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Add the sibling Navivox Flutter profile/config controls that consume the backend voice-profile contract without writing config files or storing raw secrets.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "navivox",
-      "fixture": "../navivox-app/app/test/features/profiles/; ../navivox-app/app/test/features/config/",
+      "fixture": "../navivox-app/test/features/profiles/; ../navivox-app/test/features/config/",
       "source_refs": [
         "../navivox-app/navivox-ui-design.md:2.8",
-        "../navivox-app/app/lib/features/profiles/",
-        "../navivox-app/app/lib/features/config/",
+        "../navivox-app/lib/features/profiles/",
+        "../navivox-app/lib/features/config/",
         "docs/content/building-gormes/architecture_plan/progress.json:Navivox per-profile BYO voice profiles backend API"
       ],
       "ready_when": [
@@ -2046,16 +2134,22 @@
         "Voice provider fallback evidence from run records is visible after a fake or real voice turn.",
         "Text chat remains usable when voice providers are unavailable."
       ],
-      "note": "planner_split: 2026-05-23 iteration 65; sibling UI child row, intentionally out of repo-only scope unless Juan expands scope.",
+      "note": "planner_split: 2026-05-23 iteration 65; sibling UI child row, intentionally out of repo-only scope unless Juan expands scope. Complete 2026-05-25: wired the sibling Navivox Flutter voice-profile UI through typed NavivoxGatewayClient/NavivoxChannel read/validate/run-record methods, added a profile-scoped Config voice-profile card with editable STT/TTS/voice/language/fallback fields, write-only credential controls routed to backend safe config/admin calls, and run-record STT/TTS fallback evidence rendering. Secrets remain absent from backend validate payloads and display surfaces; invalid provider validation blocks config dispatch while keeping text chat available. Validation: `cd ../navivox-app && flutter test test/core/gateway/navivox_gateway_protocol_test.dart test/features/profiles test/features/config test/features/voice`; `go run ./cmd/progress validate`; `git diff --check`.",
       "write_scope": [
-        "../navivox-app/app/lib/features/profiles/",
-        "../navivox-app/app/lib/features/config/",
-        "../navivox-app/app/test/features/profiles/",
-        "../navivox-app/app/test/features/config/",
+        "../navivox-app/lib/core/channel/navivox_channel.dart",
+        "../navivox-app/lib/core/channel/gateway_navivox_channel.dart",
+        "../navivox-app/lib/core/gateway/navivox_gateway_client.dart",
+        "../navivox-app/lib/core/gateway/navivox_gateway_protocol.dart",
+        "../navivox-app/lib/features/profiles/",
+        "../navivox-app/lib/features/config/",
+        "../navivox-app/test/core/gateway/",
+        "../navivox-app/test/features/profiles/",
+        "../navivox-app/test/features/config/",
+        "../navivox-app/test/support/test_navivox_channel.dart",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "sh -c 'cd ../navivox-app/app && flutter test test/features/profiles test/features/config test/features/voice'",
+        "sh -c 'cd ../navivox-app && flutter test test/core/gateway/navivox_gateway_protocol_test.dart test/features/profiles test/features/config test/features/voice'",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],

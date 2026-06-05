@@ -40,7 +40,7 @@ subsection, create a sibling page and link it from this index.
 
 **Goncho** is Gormes's internal, in-binary, Go-native port of [Honcho](https://github.com/plastic-labs/honcho) — the peer-centric memory and social-cognition substrate from Plastic Labs. Goncho's goals are:
 
-1. **Integrated by default.** Goncho is not a sidecar. It is a Go package (`internal/goncho/`) that runs inside the same gormes binary, on the same SQLite substrate as Phase 3 memory, and uses the **same LLM pipeline** as the rest of gormes (`internal/hermes/` clients, `internal/kernel/` tool loop). No loopback HTTP, no second process, no second DB.
+1. **Integrated by default.** Goncho is not a sidecar. It is a Go package (`internal/goncho/`) that runs inside the same gormes binary, on the same SQLite substrate as Phase 3 memory, and uses the **same LLM pipeline** as the rest of gormes (`internal/llm/` clients, `internal/kernel/` tool loop). No loopback HTTP, no second process, no second DB.
 2. **Honcho-compatible at the tool edge.** The public tool surface (`honcho_profile`, `honcho_search`, `honcho_context`, `honcho_reasoning`, `honcho_conclude`) matches Honcho's mental model so callers — including other Claude/Honcho-literate models — keep the same vocabulary. Internally, the package is named `goncho` to make the port status explicit.
 3. **Optionally exposed over HTTP.** As with Hermes, the Goncho service must be reachable over a minimal HTTP surface for external tools, agents, or a future managed deployment. The HTTP layer is a thin adapter over the same `goncho.Service` — never a parallel implementation.
 4. **Non-destructive to Phase 3.** Goncho stands **on top of** the Phase 3 memory lattice (SQLite + FTS5 + graph + semantic fusion + memory mirror). It does not replace it. The substrate stays the source of truth; Goncho provides the Honcho-shaped read/write seams (peers, sessions, representations, dialectic, peer cards) that Phase 3 does not itself model.
@@ -690,7 +690,7 @@ As of 2026-04-24 the scaffolding Goncho stands on is mostly built. Summaries bel
 - `mirror.go` — Phase 3.D.5 atomic USER.md export every 30s.
 - `cosine.go` — normalized dot-product math.
 
-### 12.2 Session layer (`internal/session/`)
+### 12.2 Session layer (`internal/persistence/session/`)
 
 - `session.go` — `Map` interface (BoltMap prod, MemMap tests).
 - `bolt.go` — bbolt-persisted `(platform:chat_id) → session_id` mappings plus metadata buckets.
@@ -715,9 +715,9 @@ As of 2026-04-24 the scaffolding Goncho stands on is mostly built. Summaries bel
 
 All are 5s-timeout-gated, JSON-marshaled, with hardcoded schemas. `honcho_search` and `honcho_context` now advertise `scope` and `sources`; the remaining Phase 3.E.7 closeout gates are SillyTavern-specific persona/group-chat mapping fixtures and operator-readable cross-chat evidence.
 
-### 12.5 LLM pipeline (`internal/hermes/` + `internal/kernel/`)
+### 12.5 LLM pipeline (`internal/llm/` + `internal/kernel/`)
 
-- `internal/hermes/client.go` — `Client { OpenStream, OpenRunEvents, Health }`.
+- `internal/llm/client.go` — `Client { OpenStream, OpenRunEvents, Health }`.
 - `http_client.go` — generic OpenAI-compatible HTTP (Hermes, LM Studio, Open WebUI, upstream-compatible servers).
 - `anthropic_client.go` — direct Anthropic SDK integration.
 - `internal/kernel/kernel.go` — wires Client + `RecallProvider.GetContext()` with a 100ms deadline; executes tools via `tools.Registry`; injects memory as a `<memory-context>` fence.
@@ -733,8 +733,8 @@ All are 5s-timeout-gated, JSON-marshaled, with hardcoded schemas. `honcho_search
 ### 12.7 Pre-existing design docs (read these before editing)
 
 - `docs/superpowers/specs/2026-04-21-goncho-architecture-design.md` — full design spec for Goncho.
-- `docs/superpowers/plans/2026-04-21-goncho-immediate-slice.md` — minimum first slice.
-- `docs/superpowers/plans/2026-04-21-gormes-goncho-momentum-sprint.md` — sprint plan.
+- `docs/superpowers/plans/goncho-honcho/2026-04-21-goncho-immediate-slice.md` — minimum first slice.
+- `docs/superpowers/plans/goncho-honcho/2026-04-21-gormes-goncho-momentum-sprint.md` — sprint plan.
 - `docs/content/building-gormes/architecture_plan/phase-3-memory.md` — Phase 3 ledger and GONCHO-to-Gormes mapping table.
 - `docs/content/building-gormes/porting-a-subsystem.md` — generic porting guidance.
 
@@ -947,5 +947,5 @@ This file is intentionally incomplete. When you pick it up:
 - Memory substrate: `internal/memory/` (full Phase 3 inventory in §12.1).
 - Design spec: `docs/superpowers/specs/2026-04-21-goncho-architecture-design.md`.
 - Phase 3 ledger: `docs/content/building-gormes/architecture_plan/phase-3-memory.md`.
-- Sprint plan: `docs/superpowers/plans/2026-04-21-gormes-goncho-momentum-sprint.md`.
+- Sprint plan: `docs/superpowers/plans/goncho-honcho/2026-04-21-gormes-goncho-momentum-sprint.md`.
 - Porting guide: `docs/content/building-gormes/porting-a-subsystem.md`.

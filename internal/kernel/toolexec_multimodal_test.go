@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -26,7 +26,7 @@ func TestExecuteToolCalls_MultimodalVisionResultCarriesContentParts(t *testing.T
 	})
 	k := newKernelWithRegistry(t, reg)
 
-	res := k.executeToolCalls(context.Background(), []hermes.ToolCall{{
+	res := k.executeToolCalls(context.Background(), []llm.ToolCall{{
 		ID:        "call_vision",
 		Name:      "vision_analyze",
 		Arguments: json.RawMessage(`{"image_url":"/tmp/x.png","question":"describe"}`),

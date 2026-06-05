@@ -7,21 +7,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 // fixture builds a kernel wired to a fresh MockClient and NoopStore.
 // The caller may swap the store via fixtureWithStore.
-func fixture(t *testing.T) (*Kernel, *hermes.MockClient) {
+func fixture(t *testing.T) (*Kernel, *llm.MockClient) {
 	t.Helper()
 	return fixtureWithStore(t, store.NewNoop())
 }
 
-func fixtureWithStore(t *testing.T, s store.Store) (*Kernel, *hermes.MockClient) {
+func fixtureWithStore(t *testing.T, s store.Store) (*Kernel, *llm.MockClient) {
 	t.Helper()
-	mc := hermes.NewMockClient()
+	mc := llm.NewMockClient()
 	k := New(Config{
 		Model:     "hermes-agent",
 		Endpoint:  "http://mock",
@@ -80,11 +80,11 @@ func drainUntilIdle(t *testing.T, ch <-chan RenderFrame, minSeq uint64, timeout 
 func TestKernel_ProviderOutpacesTUI_Coalesces(t *testing.T) {
 	k, mc := fixture(t)
 
-	events := make([]hermes.Event, 0, 2001)
+	events := make([]llm.Event, 0, 2001)
 	for i := 0; i < 2000; i++ {
-		events = append(events, hermes.Event{Kind: hermes.EventToken, Token: "x", TokensOut: i + 1})
+		events = append(events, llm.Event{Kind: llm.EventToken, Token: "x", TokensOut: i + 1})
 	}
-	events = append(events, hermes.Event{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 10, TokensOut: 2000})
+	events = append(events, llm.Event{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 10, TokensOut: 2000})
 	mc.Script(events, "sess-1")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -127,9 +127,9 @@ func TestKernel_ProviderOutpacesTUI_Coalesces(t *testing.T) {
 func TestKernel_FinalIdleClearsDraftAfterHistoryAppend(t *testing.T) {
 	k, mc := fixture(t)
 
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "Hi! How can I help?"},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 5},
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Hi! How can I help?"},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 5},
 	}, "sess-final-clear")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -170,11 +170,11 @@ func TestKernel_CancelLeakFreedom(t *testing.T) {
 	k, mc := fixture(t)
 
 	// Script a long-running stream: 500 tokens.
-	events := make([]hermes.Event, 0, 501)
+	events := make([]llm.Event, 0, 501)
 	for i := 0; i < 500; i++ {
-		events = append(events, hermes.Event{Kind: hermes.EventToken, Token: "t", TokensOut: i + 1})
+		events = append(events, llm.Event{Kind: llm.EventToken, Token: "t", TokensOut: i + 1})
 	}
-	events = append(events, hermes.Event{Kind: hermes.EventDone, FinishReason: "stop"})
+	events = append(events, llm.Event{Kind: llm.EventDone, FinishReason: "stop"})
 	mc.Script(events, "")
 
 	runCtx, cancelRun := context.WithCancel(context.Background())
@@ -253,11 +253,11 @@ func TestKernel_SecondSubmitRejected(t *testing.T) {
 	// Script a very long stream so there is a meaningful window during which
 	// the kernel is mid-turn. 5000 tokens at ~µs each gives us plenty of time
 	// to observe at least one rejection frame before coalescing overwrites it.
-	events := make([]hermes.Event, 0, 5001)
+	events := make([]llm.Event, 0, 5001)
 	for i := 0; i < 5000; i++ {
-		events = append(events, hermes.Event{Kind: hermes.EventToken, Token: "t", TokensOut: i + 1})
+		events = append(events, llm.Event{Kind: llm.EventToken, Token: "t", TokensOut: i + 1})
 	}
-	events = append(events, hermes.Event{Kind: hermes.EventDone, FinishReason: "stop"})
+	events = append(events, llm.Event{Kind: llm.EventDone, FinishReason: "stop"})
 	mc.Script(events, "")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -325,9 +325,9 @@ func TestKernel_SeqMonotonic(t *testing.T) {
 	k, mc := fixture(t)
 	const turns = 10
 	for i := 0; i < turns; i++ {
-		mc.Script([]hermes.Event{
-			{Kind: hermes.EventToken, Token: "t", TokensOut: 1},
-			{Kind: hermes.EventDone, FinishReason: "stop"},
+		mc.Script([]llm.Event{
+			{Kind: llm.EventToken, Token: "t", TokensOut: 1},
+			{Kind: llm.EventDone, FinishReason: "stop"},
 		}, "")
 	}
 
@@ -405,7 +405,7 @@ func TestKernel_StoreAckTimeoutFails(t *testing.T) {
 // Test 7: Submit fails fast when the event mailbox is full (capacity-16).
 // This confirms the bounded-mailbox invariant at the TUI→kernel seam.
 func TestKernel_SubmitFailsFastOnFullMailbox(t *testing.T) {
-	mc := hermes.NewMockClient()
+	mc := llm.NewMockClient()
 	k := New(Config{
 		Model:     "hermes-agent",
 		Endpoint:  "http://mock",
@@ -434,13 +434,13 @@ func TestKernel_SubmitFailsFastOnFullMailbox(t *testing.T) {
 // Sanity / non-regression check alongside the concurrency tests above.
 func TestKernel_SequentialTurnsCompleteCleanly(t *testing.T) {
 	k, mc := fixture(t)
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "a", TokensOut: 1},
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "a", TokensOut: 1},
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "")
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "b", TokensOut: 1},
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "b", TokensOut: 1},
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -465,13 +465,13 @@ func TestKernel_SequentialTurnsCompleteCleanly(t *testing.T) {
 // resetting conversation history.
 func TestKernel_SetSessionModelAppliesToNextTurnAndPreservesHistory(t *testing.T) {
 	k, mc := fixture(t)
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "one"},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1},
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "one"},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1},
 	}, "sess-sm-1")
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "two"},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1},
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "two"},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1},
 	}, "sess-sm-2")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -515,7 +515,7 @@ func TestKernel_SetSessionModelAppliesToNextTurnAndPreservesHistory(t *testing.T
 }
 
 // countRole counts messages with the given role in a render frame's history.
-func countRole(history []hermes.Message, role string) int {
+func countRole(history []llm.Message, role string) int {
 	var n int
 	for _, m := range history {
 		if m.Role == role {
@@ -571,9 +571,9 @@ func TestKernel_SetSessionModelRejectedMidTurn(t *testing.T) {
 // per-event PlatformEvent.Model > resident session override > cfg.Model.
 func TestKernel_PerEventModelWinsOverSessionOverride(t *testing.T) {
 	k, mc := fixture(t)
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "ok"},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1},
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "ok"},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1},
 	}, "sess-sm-prec")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -603,19 +603,19 @@ func TestKernel_PerEventModelWinsOverSessionOverride(t *testing.T) {
 }
 
 func TestKernel_SetSessionModelCrossProviderSwapsClientViaFallbackFactory(t *testing.T) {
-	resident := hermes.NewMockClient()
-	swapped := hermes.NewMockClient()
-	swapped.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "swapped"},
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	resident := llm.NewMockClient()
+	swapped := llm.NewMockClient()
+	swapped.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "swapped"},
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-cross-provider")
-	var captured hermes.ModelRoute
+	var captured llm.ModelRoute
 	var factoryCalls int
 	k := New(Config{
 		Model:     "hermes-agent",
 		Endpoint:  "http://mock",
 		Admission: Admission{MaxBytes: 200_000, MaxLines: 10_000},
-		FallbackClientFactory: func(_ context.Context, route hermes.ModelRoute) (hermes.Client, error) {
+		FallbackClientFactory: func(_ context.Context, route llm.ModelRoute) (llm.Client, error) {
 			factoryCalls++
 			captured = route
 			return swapped, nil

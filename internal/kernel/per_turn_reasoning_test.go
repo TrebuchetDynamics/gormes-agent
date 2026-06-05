@@ -6,28 +6,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 func TestPerTurnReasoningOverrideIsTurnScoped(t *testing.T) {
 	const residentModel = "resident-model"
-	override := hermes.ReasoningEffortHigh
+	override := llm.ReasoningEffortHigh
 
-	mock := hermes.NewMockClient()
+	mock := llm.NewMockClient()
 	mock.SetProviderStatus(chatCompletionsProviderStatus())
 	releaseFirstStream := make(chan struct{})
 	client := &gatedMockClient{
 		MockClient:         mock,
 		releaseFirstStream: releaseFirstStream,
 	}
-	mock.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "reasoned response"},
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	mock.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "reasoned response"},
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-reasoning-override")
-	mock.Script([]hermes.Event{
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	mock.Script([]llm.Event{
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-provider-default")
 
 	k := New(Config{
@@ -41,8 +41,8 @@ func TestPerTurnReasoningOverrideIsTurnScoped(t *testing.T) {
 	go k.Run(ctx)
 
 	initial := <-k.Render()
-	if initial.ReasoningEffort.State != hermes.ReasoningEffortStateDefault {
-		t.Fatalf("initial ReasoningEffort.State = %q, want %q", initial.ReasoningEffort.State, hermes.ReasoningEffortStateDefault)
+	if initial.ReasoningEffort.State != llm.ReasoningEffortStateDefault {
+		t.Fatalf("initial ReasoningEffort.State = %q, want %q", initial.ReasoningEffort.State, llm.ReasoningEffortStateDefault)
 	}
 
 	if err := k.Submit(PlatformEvent{
@@ -55,7 +55,7 @@ func TestPerTurnReasoningOverrideIsTurnScoped(t *testing.T) {
 
 	inFlight := waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
 		return (f.Phase == PhaseConnecting || f.Phase == PhaseStreaming) &&
-			f.ReasoningEffort.State == hermes.ReasoningEffortStateOverride
+			f.ReasoningEffort.State == llm.ReasoningEffortStateOverride
 	}, time.Second)
 	if inFlight.ReasoningEffort.Effort != override {
 		t.Fatalf("in-flight Effort = %q, want %q", inFlight.ReasoningEffort.Effort, override)
@@ -68,7 +68,7 @@ func TestPerTurnReasoningOverrideIsTurnScoped(t *testing.T) {
 	firstFinal := waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
 		return f.Phase == PhaseIdle && f.SessionID == "sess-reasoning-override"
 	}, 2*time.Second)
-	if firstFinal.ReasoningEffort.State != hermes.ReasoningEffortStateDefault {
+	if firstFinal.ReasoningEffort.State != llm.ReasoningEffortStateDefault {
 		t.Fatalf("first final ReasoningEffort.State = %q, want provider default", firstFinal.ReasoningEffort.State)
 	}
 
@@ -81,7 +81,7 @@ func TestPerTurnReasoningOverrideIsTurnScoped(t *testing.T) {
 	secondFinal := waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
 		return f.Phase == PhaseIdle && f.SessionID == "sess-provider-default"
 	}, 2*time.Second)
-	if secondFinal.ReasoningEffort.State != hermes.ReasoningEffortStateDefault {
+	if secondFinal.ReasoningEffort.State != llm.ReasoningEffortStateDefault {
 		t.Fatalf("second final ReasoningEffort.State = %q, want provider default", secondFinal.ReasoningEffort.State)
 	}
 
@@ -97,13 +97,13 @@ func TestPerTurnReasoningOverrideIsTurnScoped(t *testing.T) {
 
 func TestPerTurnReasoningFallsBackToConfiguredDefault(t *testing.T) {
 	const residentModel = "resident-model"
-	configDefault := hermes.ReasoningEffortLow
-	override := hermes.ReasoningEffortXHigh
+	configDefault := llm.ReasoningEffortLow
+	override := llm.ReasoningEffortXHigh
 
-	mock := hermes.NewMockClient()
+	mock := llm.NewMockClient()
 	mock.SetProviderStatus(chatCompletionsProviderStatus())
-	mock.Script([]hermes.Event{{Kind: hermes.EventDone, FinishReason: "stop"}}, "sess-xhigh")
-	mock.Script([]hermes.Event{{Kind: hermes.EventDone, FinishReason: "stop"}}, "sess-low")
+	mock.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "sess-xhigh")
+	mock.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "sess-low")
 
 	k := New(Config{
 		Model:           residentModel,
@@ -127,7 +127,7 @@ func TestPerTurnReasoningFallsBackToConfiguredDefault(t *testing.T) {
 	firstFinal := waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
 		return f.Phase == PhaseIdle && f.SessionID == "sess-xhigh"
 	}, 2*time.Second)
-	if firstFinal.ReasoningEffort.Source != hermes.ReasoningEffortSourceConfigDefault {
+	if firstFinal.ReasoningEffort.Source != llm.ReasoningEffortSourceConfigDefault {
 		t.Fatalf("first final ReasoningEffort.Source = %q, want config default", firstFinal.ReasoningEffort.Source)
 	}
 	if firstFinal.ReasoningEffort.Effort != configDefault {
@@ -150,14 +150,14 @@ func TestPerTurnReasoningFallsBackToConfiguredDefault(t *testing.T) {
 }
 
 func TestPerTurnReasoningUnsupportedProviderReportsEvidenceAndOmitsRequest(t *testing.T) {
-	mock := hermes.NewMockClient()
-	mock.SetProviderStatus(hermes.ProviderStatus{Provider: "anthropic", Runtime: "anthropic_messages"})
+	mock := llm.NewMockClient()
+	mock.SetProviderStatus(llm.ProviderStatus{Provider: "anthropic", Runtime: "anthropic_messages"})
 	releaseFirstStream := make(chan struct{})
 	client := &gatedMockClient{
 		MockClient:         mock,
 		releaseFirstStream: releaseFirstStream,
 	}
-	mock.Script([]hermes.Event{{Kind: hermes.EventDone, FinishReason: "stop"}}, "sess-unsupported")
+	mock.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "sess-unsupported")
 
 	k := New(Config{
 		Model:     "resident-model",
@@ -173,14 +173,14 @@ func TestPerTurnReasoningUnsupportedProviderReportsEvidenceAndOmitsRequest(t *te
 	if err := k.Submit(PlatformEvent{
 		Kind:            PlatformEventSubmit,
 		Text:            "unsupported reasoning",
-		ReasoningEffort: string(hermes.ReasoningEffortHigh),
+		ReasoningEffort: string(llm.ReasoningEffortHigh),
 	}); err != nil {
 		t.Fatal(err)
 	}
 
 	inFlight := waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
 		return (f.Phase == PhaseConnecting || f.Phase == PhaseStreaming) &&
-			f.ReasoningEffort.State == hermes.ReasoningEffortStateUnsupported
+			f.ReasoningEffort.State == llm.ReasoningEffortStateUnsupported
 	}, time.Second)
 	if inFlight.ReasoningEffort.Forwarded {
 		t.Fatalf("Forwarded = true, want false for unsupported provider: %+v", inFlight.ReasoningEffort)
@@ -200,14 +200,14 @@ func TestPerTurnReasoningUnsupportedProviderReportsEvidenceAndOmitsRequest(t *te
 }
 
 func TestPerTurnReasoningInvalidOverrideReportsEvidenceAndOmitsRequest(t *testing.T) {
-	mock := hermes.NewMockClient()
+	mock := llm.NewMockClient()
 	mock.SetProviderStatus(chatCompletionsProviderStatus())
 	releaseFirstStream := make(chan struct{})
 	client := &gatedMockClient{
 		MockClient:         mock,
 		releaseFirstStream: releaseFirstStream,
 	}
-	mock.Script([]hermes.Event{{Kind: hermes.EventDone, FinishReason: "stop"}}, "sess-invalid")
+	mock.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "sess-invalid")
 
 	k := New(Config{
 		Model:     "resident-model",
@@ -230,7 +230,7 @@ func TestPerTurnReasoningInvalidOverrideReportsEvidenceAndOmitsRequest(t *testin
 
 	inFlight := waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
 		return (f.Phase == PhaseConnecting || f.Phase == PhaseStreaming) &&
-			f.ReasoningEffort.State == hermes.ReasoningEffortStateInvalid
+			f.ReasoningEffort.State == llm.ReasoningEffortStateInvalid
 	}, time.Second)
 	if inFlight.ReasoningEffort.Forwarded {
 		t.Fatalf("Forwarded = true, want false for invalid reasoning effort: %+v", inFlight.ReasoningEffort)
@@ -249,7 +249,7 @@ func TestPerTurnReasoningInvalidOverrideReportsEvidenceAndOmitsRequest(t *testin
 	}
 }
 
-func assertReasoningEffort(t *testing.T, req hermes.ChatRequest, want hermes.ReasoningEffort) {
+func assertReasoningEffort(t *testing.T, req llm.ChatRequest, want llm.ReasoningEffort) {
 	t.Helper()
 	if req.ReasoningEffort == nil {
 		t.Fatalf("ChatRequest.ReasoningEffort = nil, want %q", want)
@@ -259,6 +259,6 @@ func assertReasoningEffort(t *testing.T, req hermes.ChatRequest, want hermes.Rea
 	}
 }
 
-func chatCompletionsProviderStatus() hermes.ProviderStatus {
-	return hermes.ProviderStatus{Provider: "mock-openai", Runtime: "chat_completions"}
+func chatCompletionsProviderStatus() llm.ProviderStatus {
+	return llm.ProviderStatus{Provider: "mock-openai", Runtime: "chat_completions"}
 }

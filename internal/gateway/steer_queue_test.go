@@ -101,6 +101,36 @@ func TestSteerCommandRegistry_RunningAgentInjectsChannelNeutralEvent(t *testing.
 	}
 }
 
+func TestSteerCommandRegistry_RunningAgentAcceptsBotMention(t *testing.T) {
+	ch := newFakeChannel("telegram")
+	fk := &fakeKernel{}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+	}, fk, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	m.pinTurn("telegram", "42", "active-msg")
+
+	err := m.handleInbound(context.Background(), InboundEvent{
+		Platform: "telegram",
+		ChatID:   "42",
+		MsgID:    "steer-mention-msg",
+		Kind:     EventSteer,
+		Text:     "/steer@GormesBot inspect the failing test before editing",
+	})
+	if err != nil {
+		t.Fatalf("handleInbound(/steer@bot): %v", err)
+	}
+	got := fk.submitsSnapshot()
+	if len(got) != 1 {
+		t.Fatalf("running-agent steer submits = %d, want 1", len(got))
+	}
+	if got[0].Kind != kernel.PlatformEventSteer || got[0].Text != "inspect the failing test before editing" {
+		t.Fatalf("kernel steer event = %#v", got[0])
+	}
+}
+
 func TestSteerCommandRegistry_RunningAgentSubmitFailureQueuesFallback(t *testing.T) {
 	ch := newFakeChannel("telegram")
 	fk := &fakeKernel{submitErr: errors.New("mailbox full")}

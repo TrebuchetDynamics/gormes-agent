@@ -1,8 +1,13 @@
 import { test, expect } from '@playwright/test';
 
+import { visitPage } from '../../../shared/playwright/playwright-helpers.mjs';
+
 test('Starlight TOC scrollspy highlights the currently visible heading', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto('/building-gormes/architecture_plan/phase-6-learning-loop/');
+  await visitPage(
+    page,
+    '/building-gormes/architecture_plan/phase-6-learning-loop/',
+    { width: 1280, height: 800 },
+  );
 
   const toc = page.locator('.right-sidebar-panel');
   await expect(toc).toBeVisible();

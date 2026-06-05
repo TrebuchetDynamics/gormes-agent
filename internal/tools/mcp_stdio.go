@@ -18,15 +18,6 @@ import (
 // stdio. Hermes' donor pins the same version through its mcp client SDK.
 const stdioProtocolVersion = "2024-11-05"
 
-// MCPRawTool is the verbatim tool envelope returned by an MCP server's
-// tools/list response. InputSchema is preserved as raw JSON so downstream
-// schema normalization can run separately without lossy round-tripping.
-type MCPRawTool struct {
-	Name        string
-	Description string
-	InputSchema json.RawMessage
-}
-
 // StdioClientOpts injects the ReadWriteCloser-backed transport plus optional
 // observability hooks. Tests pass an in-process net.Pipe pair so no real
 // subprocess is spawned.
@@ -36,6 +27,7 @@ type StdioClientOpts struct {
 	Now            func() time.Time
 	ProcessPID     int
 	ProcessTracker *MCPStdioProcessTracker
+	OSVClient      OSVClient
 }
 
 // StdioClient speaks JSON-RPC over a stdio.ReadWriteCloser. It is the minimal
@@ -76,8 +68,17 @@ var ErrInitializeFailed = errors.New("mcp stdio: initialize failed")
 // cannot be parsed as JSON-RPC 2.0.
 var ErrInvalidJSONRPCResponse = errors.New("mcp stdio: invalid jsonrpc response")
 
+// ErrMCPPackageMalwareBlocked is returned when the optional OSV malware guard
+// finds a MAL-* advisory for a package-backed stdio server command.
+var ErrMCPPackageMalwareBlocked = errors.New("mcp stdio: package malware advisory blocked launch")
+
 // NewStdioClient constructs a StdioClient over the supplied connection.
 func NewStdioClient(def MCPServerDefinition, opts StdioClientOpts) (*StdioClient, error) {
+	if opts.OSVClient != nil {
+		if res := CheckMCPServerPackageLaunch(context.Background(), def, opts.OSVClient); res.Blocked {
+			return nil, fmt.Errorf("%w: %s", ErrMCPPackageMalwareBlocked, res.Message)
+		}
+	}
 	if opts.Conn == nil {
 		return nil, errors.New("mcp stdio: nil conn")
 	}

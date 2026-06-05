@@ -2,139 +2,59 @@ package gateway
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/memorypressure"
 )
+
+const defaultMemoryMonitorInterval = 5 * time.Minute
+
+type MemoryPressureStatus = memorypressure.Status
 
 const (
-	defaultMemoryMonitorInterval = 5 * time.Minute
-	defaultMemoryWarnRSSMB       = 1024
-	defaultMemoryCriticalRSSMB   = 1536
-	bytesPerMegabyte             = 1024 * 1024
+	MemoryPressureOK          = memorypressure.StatusOK
+	MemoryPressureWarn        = memorypressure.StatusWarn
+	MemoryPressureCritical    = memorypressure.StatusCritical
+	MemoryPressureUnavailable = memorypressure.StatusUnavailable
 )
 
-type MemoryPressureStatus string
+type MemoryPressureAction = memorypressure.Action
 
 const (
-	MemoryPressureOK          MemoryPressureStatus = "ok"
-	MemoryPressureWarn        MemoryPressureStatus = "warn"
-	MemoryPressureCritical    MemoryPressureStatus = "critical"
-	MemoryPressureUnavailable MemoryPressureStatus = "unavailable"
+	MemoryPressureActionNone    = memorypressure.ActionNone
+	MemoryPressureActionRestart = memorypressure.ActionRestart
 )
 
-type MemoryPressureAction string
-
-const (
-	MemoryPressureActionNone    MemoryPressureAction = "none"
-	MemoryPressureActionRestart MemoryPressureAction = "restart_requested"
-)
-
-type MemoryPressurePolicy struct {
-	WarnRSSMB      int
-	CriticalRSSMB  int
-	CriticalAction MemoryPressureAction
-}
+type MemoryPressurePolicy = memorypressure.Policy
 
 func DefaultMemoryPressurePolicy() MemoryPressurePolicy {
-	return MemoryPressurePolicy{
-		WarnRSSMB:      defaultMemoryWarnRSSMB,
-		CriticalRSSMB:  defaultMemoryCriticalRSSMB,
-		CriticalAction: MemoryPressureActionRestart,
-	}
+	return memorypressure.DefaultPolicy()
 }
 
-type MemoryMonitorOwner struct {
-	PID       int
-	StartTime int64
-}
+type MemoryMonitorOwner = memorypressure.Owner
 
-type MemorySample struct {
-	RSSBytes       uint64
-	Uptime         time.Duration
-	GoRoutines     int
-	GCCollections  uint32
-	SampleDuration time.Duration
-}
-
-type MemorySampler interface {
-	SampleMemory(context.Context) (MemorySample, error)
-}
+type MemorySample = memorypressure.Sample
 
 // RuntimeMemoryPressureEvidence is the JSON-safe gateway status surface for
 // memory pressure. It intentionally carries process counters only, never
 // environment variables, command lines, or paths.
-type RuntimeMemoryPressureEvidence struct {
-	Status          MemoryPressureStatus `json:"status,omitempty"`
-	RSSMB           int                  `json:"rss_mb,omitempty"`
-	WarnRSSMB       int                  `json:"warn_rss_mb,omitempty"`
-	CriticalRSSMB   int                  `json:"critical_rss_mb,omitempty"`
-	UptimeSeconds   int64                `json:"uptime_seconds,omitempty"`
-	GoRoutines      int                  `json:"goroutines,omitempty"`
-	GCCollections   uint32               `json:"gc_collections,omitempty"`
-	Action          MemoryPressureAction `json:"action,omitempty"`
-	TargetPID       int                  `json:"target_pid,omitempty"`
-	TargetStartTime int64                `json:"target_start_time,omitempty"`
-	Evidence        []string             `json:"evidence,omitempty"`
-	Message         string               `json:"message,omitempty"`
-	CheckedAt       string               `json:"checked_at,omitempty"`
-	Redacted        bool                 `json:"redacted"`
-}
+type RuntimeMemoryPressureEvidence = memorypressure.Evidence
 
 func EvaluateMemoryPressure(sample MemorySample, policy MemoryPressurePolicy, owner MemoryMonitorOwner, now time.Time) RuntimeMemoryPressureEvidence {
-	policy = normalizedMemoryPressurePolicy(policy)
-	rssMB := int(sample.RSSBytes / bytesPerMegabyte)
-	evidence := RuntimeMemoryPressureEvidence{
-		Status:        MemoryPressureOK,
-		RSSMB:         rssMB,
-		WarnRSSMB:     policy.WarnRSSMB,
-		CriticalRSSMB: policy.CriticalRSSMB,
-		UptimeSeconds: int64(sample.Uptime.Seconds()),
-		GoRoutines:    sample.GoRoutines,
-		GCCollections: sample.GCCollections,
-		Action:        MemoryPressureActionNone,
-		CheckedAt:     now.UTC().Format(time.RFC3339Nano),
-		Redacted:      true,
-		Evidence:      []string{"memory_pressure_ok"},
-		Message:       "gateway RSS is below warning threshold",
-	}
-	switch {
-	case rssMB >= policy.CriticalRSSMB:
-		evidence.Status = MemoryPressureCritical
-		evidence.Action = policy.CriticalAction
-		evidence.Evidence = []string{"memory_pressure_critical"}
-		evidence.Message = "gateway RSS is above critical threshold"
-		if evidence.Action == MemoryPressureActionRestart {
-			evidence.TargetPID = owner.PID
-			evidence.TargetStartTime = owner.StartTime
-			evidence.Evidence = append(evidence.Evidence, "memory_pressure_restart_requested")
-		}
-	case rssMB >= policy.WarnRSSMB:
-		evidence.Status = MemoryPressureWarn
-		evidence.Evidence = []string{"memory_pressure_warn"}
-		evidence.Message = "gateway RSS is above warning threshold"
-	}
-	return evidence
+	return memorypressure.Evaluate(sample, policy, owner, now)
 }
 
 func normalizedMemoryPressurePolicy(policy MemoryPressurePolicy) MemoryPressurePolicy {
-	if policy.WarnRSSMB <= 0 {
-		policy.WarnRSSMB = defaultMemoryWarnRSSMB
-	}
-	if policy.CriticalRSSMB <= 0 {
-		policy.CriticalRSSMB = defaultMemoryCriticalRSSMB
-	}
-	if policy.CriticalRSSMB < policy.WarnRSSMB {
-		policy.CriticalRSSMB = policy.WarnRSSMB
-	}
-	if policy.CriticalAction == "" {
-		policy.CriticalAction = MemoryPressureActionRestart
-	}
-	return policy
+	return memorypressure.NormalizePolicy(policy)
+}
+
+type MemorySampler interface {
+	SampleMemory(context.Context) (MemorySample, error)
 }
 
 type MemoryMonitorConfig struct {
@@ -307,38 +227,5 @@ func readCurrentRSSBytes() uint64 {
 }
 
 func FormatMemoryPressureEvidence(evidence RuntimeMemoryPressureEvidence) string {
-	if evidence.Status == "" {
-		return ""
-	}
-	parts := []string{
-		fmt.Sprintf("memory_pressure: %s", evidence.Status),
-		fmt.Sprintf("rss=%dMB", evidence.RSSMB),
-		fmt.Sprintf("warn=%dMB", evidence.WarnRSSMB),
-		fmt.Sprintf("critical=%dMB", evidence.CriticalRSSMB),
-	}
-	if evidence.UptimeSeconds > 0 {
-		parts = append(parts, fmt.Sprintf("uptime=%ds", evidence.UptimeSeconds))
-	}
-	if evidence.GoRoutines > 0 {
-		parts = append(parts, fmt.Sprintf("goroutines=%d", evidence.GoRoutines))
-	}
-	if evidence.GCCollections > 0 {
-		parts = append(parts, fmt.Sprintf("gc=%d", evidence.GCCollections))
-	}
-	if evidence.Action != "" && evidence.Action != MemoryPressureActionNone {
-		parts = append(parts, "action="+string(evidence.Action))
-	}
-	if evidence.TargetPID > 0 {
-		parts = append(parts, fmt.Sprintf("target_pid=%d", evidence.TargetPID))
-	}
-	if evidence.TargetStartTime > 0 {
-		parts = append(parts, fmt.Sprintf("target_start_time=%d", evidence.TargetStartTime))
-	}
-	if len(evidence.Evidence) > 0 {
-		parts = append(parts, "evidence="+strings.Join(evidence.Evidence, ","))
-	}
-	if evidence.Message != "" {
-		parts = append(parts, "message="+strconv.Quote(evidence.Message))
-	}
-	return strings.Join(parts, " ")
+	return memorypressure.Format(evidence)
 }

@@ -1,24 +1,19 @@
 package tui
 
-import "strings"
+import "github.com/TrebuchetDynamics/gormes-agent/internal/tui/statusbar"
 
-type StatusBarMode string
+type StatusBarMode = statusbar.Mode
 
 const (
-	StatusBarModeTop    StatusBarMode = "top"
-	StatusBarModeBottom StatusBarMode = "bottom"
-	StatusBarModeOff    StatusBarMode = "off"
+	StatusBarModeTop    = statusbar.ModeTop
+	StatusBarModeBottom = statusbar.ModeBottom
+	StatusBarModeOff    = statusbar.ModeOff
 )
 
-const statusBarSlashUsage = "usage: /statusbar [on|off|top|bottom|toggle]"
+const statusBarSlashUsage = statusbar.SlashUsage
 
 func normalizeStatusBarMode(mode StatusBarMode) StatusBarMode {
-	switch mode {
-	case StatusBarModeTop, StatusBarModeBottom, StatusBarModeOff:
-		return mode
-	default:
-		return StatusBarModeTop
-	}
+	return statusbar.NormalizeMode(mode)
 }
 
 func statusbarSlashHandler(input string, model *Model) SlashResult {
@@ -34,31 +29,9 @@ func statusbarSlashHandler(input string, model *Model) SlashResult {
 }
 
 func statusBarSlashNext(input string, current StatusBarMode) (StatusBarMode, bool) {
-	current = normalizeStatusBarMode(current)
-	fields := strings.Fields(strings.TrimSpace(input))
-	if len(fields) <= 1 {
-		return toggledStatusBarMode(current), true
-	}
-	if len(fields) > 2 {
-		return current, false
-	}
-	switch strings.ToLower(fields[1]) {
-	case "on", "top":
-		return StatusBarModeTop, true
-	case "bottom":
-		return StatusBarModeBottom, true
-	case "off":
-		return StatusBarModeOff, true
-	case "toggle":
-		return toggledStatusBarMode(current), true
-	default:
-		return current, false
-	}
+	return statusbar.SlashNext(input, current)
 }
 
 func toggledStatusBarMode(current StatusBarMode) StatusBarMode {
-	if normalizeStatusBarMode(current) == StatusBarModeOff {
-		return StatusBarModeTop
-	}
-	return StatusBarModeOff
+	return statusbar.ToggledMode(current)
 }

@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"bytes"
-	"io"
 	"reflect"
 	"strings"
 	"testing"
@@ -11,71 +9,6 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
-
-const (
-	bubbleTeaEnableMouseAllMotionSeq = "\x1b[?1003h\x1b[?1006h"
-	bubbleTeaDisableMouseSeq         = "\x1b[?1002l\x1b[?1003l\x1b[?1006l"
-)
-
-func TestParseMouseTrackingSlash(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		current bool
-		want    mouseSlashResult
-	}{
-		{
-			name:    "bare mouse toggles off",
-			input:   "/mouse",
-			current: true,
-			want:    mouseSlashResult{handled: true, valid: true, next: false},
-		},
-		{
-			name:    "toggle toggles on",
-			input:   "/mouse toggle",
-			current: false,
-			want:    mouseSlashResult{handled: true, valid: true, next: true},
-		},
-		{
-			name:    "on enables",
-			input:   "/mouse on",
-			current: false,
-			want:    mouseSlashResult{handled: true, valid: true, next: true},
-		},
-		{
-			name:    "off disables",
-			input:   "/mouse off",
-			current: true,
-			want:    mouseSlashResult{handled: true, valid: true, next: false},
-		},
-		{
-			name:    "scroll alias disables",
-			input:   "/scroll off",
-			current: true,
-			want:    mouseSlashResult{handled: true, valid: true, next: false},
-		},
-		{
-			name:    "invalid value is handled as usage error",
-			input:   "/mouse sideways",
-			current: true,
-			want:    mouseSlashResult{handled: true, valid: false, message: "usage: /mouse [on|off|toggle]"},
-		},
-		{
-			name:    "other slash command is not handled",
-			input:   "/help",
-			current: true,
-			want:    mouseSlashResult{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := parseMouseTrackingSlash(tt.input, tt.current); got != tt.want {
-				t.Fatalf("parseMouseTrackingSlash(%q, %v) = %#v, want %#v", tt.input, tt.current, got, tt.want)
-			}
-		})
-	}
-}
 
 func TestMouseSlashUpdatesRuntimeWithoutSubmitting(t *testing.T) {
 	var submitted []string
@@ -160,26 +93,6 @@ func TestViewKeepsMouseTrackingOffQuietWhenIdle(t *testing.T) {
 	}
 }
 
-func TestDefaultMouseModeCmdEmitsBubbleTeaTerminalSequences(t *testing.T) {
-	tests := []struct {
-		name    string
-		enabled bool
-		want    string
-	}{
-		{name: "enable", enabled: true, want: bubbleTeaEnableMouseAllMotionSeq},
-		{name: "disable", enabled: false, want: bubbleTeaDisableMouseSeq},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			out := terminalOutputForCmd(t, defaultMouseModeCmd(tt.enabled))
-			if !strings.Contains(out, tt.want) {
-				t.Fatalf("terminal output missing %q:\n%q", tt.want, out)
-			}
-		})
-	}
-}
-
 type mouseModeRecorder struct {
 	modes []bool
 }
@@ -204,39 +117,4 @@ func runTestCmd(t *testing.T, cmd tea.Cmd) {
 		}
 	default:
 	}
-}
-
-type initCmdModel struct {
-	cmd tea.Cmd
-}
-
-func (m initCmdModel) Init() tea.Cmd {
-	return tea.Sequence(m.cmd, tea.Quit)
-}
-
-func (m initCmdModel) Update(tea.Msg) (tea.Model, tea.Cmd) {
-	return m, nil
-}
-
-func (m initCmdModel) View() string {
-	return ""
-}
-
-func terminalOutputForCmd(t *testing.T, cmd tea.Cmd) string {
-	t.Helper()
-	var out bytes.Buffer
-	p := tea.NewProgram(
-		initCmdModel{cmd: cmd},
-		tea.WithInput(bytes.NewBuffer(nil)),
-		tea.WithOutput(&out),
-		tea.WithoutSignals(),
-	)
-	if _, err := p.Run(); err != nil {
-		t.Fatal(err)
-	}
-	b, err := io.ReadAll(&out)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(b)
 }

@@ -1,44 +1,23 @@
 package tui
 
-import (
-	"strings"
-	"unicode/utf8"
-)
+import "github.com/TrebuchetDynamics/gormes-agent/internal/tui/kanban"
 
 // KanbanSlashFunc runs a full /kanban editor command and returns bounded
 // operator-facing output. Production binds this to cmd/gormes' Kanban Cobra
 // tree; tests can inject a fake without opening a database.
 type KanbanSlashFunc func(input string) (string, error)
 
-const maxKanbanSlashStatusRunes = 600
+const maxKanbanSlashStatusRunes = kanban.MaxStatusRunes
 
 func kanbanSlashHandler(input string, model *Model) SlashResult {
-	if model == nil || model.kanbanSlash == nil {
-		return SlashResult{Handled: true, StatusMessage: "kanban: command runner unavailable"}
+	var run kanban.Runner
+	if model != nil && model.kanbanSlash != nil {
+		run = kanban.Runner(model.kanbanSlash)
 	}
-	output, err := model.kanbanSlash(input)
-	status := strings.TrimSpace(output)
-	if err != nil {
-		msg := strings.TrimSpace(err.Error())
-		if msg == "" {
-			msg = "command failed"
-		}
-		if status != "" {
-			msg = msg + ": " + status
-		}
-		return SlashResult{Handled: true, StatusMessage: boundKanbanSlashStatus("kanban: " + msg)}
-	}
-	if status == "" {
-		status = "kanban: no output"
-	}
-	return SlashResult{Handled: true, StatusMessage: boundKanbanSlashStatus(status)}
+	result := kanban.HandleSlash(input, run)
+	return SlashResult{Handled: true, StatusMessage: result.StatusMessage}
 }
 
 func boundKanbanSlashStatus(status string) string {
-	status = strings.Join(strings.Fields(strings.TrimSpace(status)), " ")
-	if utf8.RuneCountInString(status) <= maxKanbanSlashStatusRunes {
-		return status
-	}
-	runes := []rune(status)
-	return string(runes[:maxKanbanSlashStatusRunes]) + "..."
+	return kanban.BoundStatus(status)
 }

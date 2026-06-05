@@ -2,6 +2,19 @@
 
 This directory is the design-proof set for the Go-native port. Public-facing manifesto copy should trace back here, to `docs/ARCH_PLAN.md`, or to shipped code.
 
+## Responsibility Groups
+
+The canonical specs are grouped by change reason. Root-level dated paths remain as compatibility symlinks for existing plans, tests, and public links.
+
+- [Foundations](foundations/) — frontend adapter, ignition, deterministic kernel, TDD rig, and Phase 2 spine contracts.
+- [Web Docs](web-docs/) — public docs, landing page, manifesto, docs-site, and operator-console surfaces.
+- [Runtime Channels](runtime-channels/) — tool registry, gateway, messaging, cron, subagent, skills, and thin persistence surfaces.
+- [Memory Identity](memory-identity/) — lattice memory, graph, recall, semantic fusion, mirrors, and decay specs.
+- [Goncho / Honcho](goncho-honcho/) — Goncho architecture and Honcho-compatible pipeline specs.
+- [Orchestration Planner](orchestration-planner/) — progress, parity, autoloop, repoctl, planner, and builder-loop specs.
+- [Platform Install](platform-install/) — installer, onboarding, first-run, template reset, and update-command specs.
+- [Navivox](navivox/) — Navivox-specific voice/operator surface specs.
+
 ## Active Milestones
 
 - [2026-04-19-gormes-doc-sync-manifesto-design.md](2026-04-19-gormes-doc-sync-manifesto-design.md) — public-surface plan for README, manifesto page, and proof indexing.

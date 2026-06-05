@@ -8,6 +8,48 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.24] - 2026-06-05
+
+Date alias: `v2026.6.5`.
+
+> **Command-domain refactors, safer Navivox exposure, and landing deploy smoke freshness.**
+
+### Added
+- Piper sidecar repair command, Go-native TTS fixture provider, local web crawler gating, MCP OSV malware guard, and send-message contract validation.
+- Native image/voice configuration seams and root tools command config backing for broader runtime setup coverage.
+
+### Changed
+- Large `cmd/gormes` command/runtime surfaces moved into internal app packages with domain-focused tests and topology guidance.
+- Landing homepage and deploy smoke checks now track the simplified Astro copy and current proof surfaces.
+- Public benchmark mirrors and progress/refactor guidance were refreshed from current evidence.
+
+### Fixed
+- Navivox rejects weak exposed tokens and URL-embedded credentials while CI coverage protects the auth contract.
+- Provider cache and managed gateway handling are more robust; Hermes tool progress honors the environment fallback.
+- Whisper transcribe tests skip cleanly when the local model is unavailable.
+
+## [0.2.23] - 2026-05-25
+
+Date alias: `v2026.5.25`.
+
+> **Local Router, embeddable RPC mode, safer native file tools, and Navivox capability hardening.**
+
+### Added
+- Local OpenAI-compatible Router setup, status, health, model listing, non-streaming and SSE chat-completions surfaces with redacted recursion diagnostics and safe fallback behavior.
+- Gormes-owned stdin/stdout JSONL RPC mode for embedders, including LF-only framing, correlated responses, fake-runtime fixtures, structured errors, and deterministic lifecycle event streaming.
+- Native session tree navigation with labels/bookmarks, lineage rendering, branch/resume adapters, and safe prompt restore support.
+- Progress projection read models and write dry-run support for safer generated-roadmap maintenance.
+
+### Changed
+- Native write/edit/patch tools now serialize mutations per canonical file path while preserving independent-file concurrency and symlink alias safety.
+- Navivox capability documents now describe only callable/current client gates; setup handoff stays on status/connect surfaces and unavailable upload behavior is expressed as an explicit exclusion rather than a reserved endpoint.
+- Progress, README, docs, and landing mirrors were refreshed from the current validated backlog evidence.
+
+### Fixed
+- Installed `SOUL.md` stays lean by keeping project workflow rules in repository guidance instead of user-facing agent templates.
+- Blocked progress rendering and generated artifact planning now use shared workitem/projection helpers instead of duplicated row selection logic.
+- Navivox profile capability wording now avoids stale compatibility promises, raw local path hints, and secret-bearing capability output.
+
 ## [0.2.22] - 2026-05-23
 
 Date alias: `v2026.5.23`.
@@ -102,7 +144,7 @@ Date alias: `v2026.5.20`.
 ### Changed
 - Navivox gateway and protocol work now focus on the Go gateway/runtime path; the tracked Flutter prototype was removed from the release branch.
 - Release and git skills now document the mandatory `development` -> PR -> `main` -> tag path and stronger dirty-work/CI safety rules.
-- Module release guard tests now share a reusable `internal/testutil/modassert` helper.
+- Module release guard tests now share a reusable `internal/support/testutil/modassert` helper.
 
 ### Fixed
 - Bubble Tea setup/admin/profile/chat views now preserve prompts, selected rows, help text, status lines, and resize guidance in cramped terminals.
@@ -372,7 +414,7 @@ Date alias: `v2026.5.11`.
 - **Cross-channel message formatting** (`Phase 9.A`): Shared `FormatFinalMarkdown`
   renders headings, lists, code blocks, bold, italic, and links for Telegram
   (MarkdownV2), Discord (Discord markdown), and Slack (mrkdwn).
-- **Middleware chain framework** (`internal/agent/`): `Middleware` interface,
+- **Middleware chain framework** (`internal/core/agent/`): `Middleware` interface,
   `MiddlewareChain` with deterministic ordering, `RuntimeFeatures` with
   `FeatureFlag` toggle, 5 built-in middlewares, kernel integration.
 - **Cron in gateway mode**: Scheduler now starts in `gormes gateway` with
@@ -405,7 +447,7 @@ Date alias: `v2026.5.11`.
 
 ### Added
 
-- **Middleware chain framework** (`internal/agent/`): `Middleware` interface
+- **Middleware chain framework** (`internal/core/agent/`): `Middleware` interface
   with Before/After lifecycle hooks, `MiddlewareChain` with deterministic
   ordering and `Dump()` inspectability, `RuntimeFeatures` with
   `FeatureFlag` (Enabled/Disabled) and `CustomMiddleware` overrides.
@@ -485,7 +527,7 @@ precedent for back-to-back same-day releases).
 
 ### Fixed — OpenRouter (and other OpenAI-compatible) base URL with `/v1` no longer 404s
 
-- **`internal/hermes/http_client.go` `openAICompatibleURL`** now
+- **`internal/llm/http_client.go` `openAICompatibleURL`** now
   collapses a `/v1` prefix when both basePath and endpointPath carry
   it. Previously, `endpoint = "https://openrouter.ai/api/v1"` (the
   documented base URL) joined with `/v1/chat/completions` produced
@@ -650,7 +692,7 @@ releases).
 ### Multimodal vision passthrough
 
 - **Telegram photo → image_url content parts.** Channel attachments with
-  `Kind: "photo"` now materialize into `hermes.MessageContentPart{Type:
+  `Kind: "photo"` now materialize into `llm.MessageContentPart{Type:
   "image_url", ImageURL: "data:<mime>;base64,..."}` on the kernel turn
   message, so vision-capable providers (gpt-5.5 via openai-codex,
   Anthropic, OpenAI multipart) receive the image instead of just a text
@@ -1185,7 +1227,14 @@ until the release workflow accepts date-based tags as a separate concern).
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.17...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.24...HEAD
+[0.2.24]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.23...v0.2.24
+[0.2.23]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.22...v0.2.23
+[0.2.22]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.21...v0.2.22
+[0.2.21]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.20...v0.2.21
+[0.2.20]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.19...v0.2.20
+[0.2.19]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.18...v0.2.19
+[0.2.18]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.17...v0.2.18
 [0.2.17]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.16...v0.2.17
 [0.2.16]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.15...v0.2.16
 [0.2.15]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.14...v0.2.15

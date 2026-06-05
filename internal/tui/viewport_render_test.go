@@ -7,18 +7,18 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestRenderConvViewportBinding_UsesHeightBudget(t *testing.T) {
-	history := make([]hermes.Message, 0, 120)
+	history := make([]llm.Message, 0, 120)
 	for i := 0; i < 120; i++ {
 		role := "user"
 		if i%2 == 1 {
 			role = "assistant"
 		}
-		history = append(history, hermes.Message{
+		history = append(history, llm.Message{
 			Role:    role,
 			Content: fmt.Sprintf("turn-%03d-body-marker", i),
 		})
@@ -44,9 +44,9 @@ func TestRenderConvViewportBinding_UsesHeightBudget(t *testing.T) {
 }
 
 func TestRenderConvViewportBinding_DraftAndErrorPreserved(t *testing.T) {
-	history := make([]hermes.Message, 0, 120)
+	history := make([]llm.Message, 0, 120)
 	for i := 0; i < 120; i++ {
-		history = append(history, hermes.Message{
+		history = append(history, llm.Message{
 			Role:    "user",
 			Content: fmt.Sprintf("history-%03d", i),
 		})
@@ -75,7 +75,7 @@ func TestRenderConvViewportBinding_DraftAndErrorPreserved(t *testing.T) {
 
 func TestRenderConvViewportBinding_TinyTerminalCompactFallback(t *testing.T) {
 	frame := kernel.RenderFrame{
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "earliest body should stay hidden"},
 			{Role: "assistant", Content: "latest tiny terminal marker"},
 		},
@@ -102,7 +102,7 @@ func TestRenderConvViewportBinding_TinyTerminalCompactFallback(t *testing.T) {
 func TestRenderConvViewportBinding_WrapsProviderAuthError(t *testing.T) {
 	const width = 72
 	frame := kernel.RenderFrame{
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "as"},
 		},
 		LastError: "Unauthorized: Your authentication token has been invalidated. Please reauthenticate with the provider before continuing.",
@@ -126,9 +126,9 @@ func TestRenderConvViewportBinding_WrapsProviderAuthError(t *testing.T) {
 }
 
 func TestRenderConvViewportBinding_RenderedLineBudget(t *testing.T) {
-	history := make([]hermes.Message, 0, 120)
+	history := make([]llm.Message, 0, 120)
 	for i := 0; i < 120; i++ {
-		history = append(history, hermes.Message{
+		history = append(history, llm.Message{
 			Role:    "assistant",
 			Content: fmt.Sprintf("budget-turn-%03d", i),
 		})

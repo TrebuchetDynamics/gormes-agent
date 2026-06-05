@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/toolcompact"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/compact"
 )
 
 const (
@@ -41,7 +41,7 @@ type ExecuteCodeToolConfig struct {
 	ProjectSandbox   CodeSandbox
 	SubprocessHome   SubprocessHomeResolver
 	WorkspaceScope   *ProfileWorkspaceScope
-	OutputCompaction toolcompact.Config
+	OutputCompaction compact.Config
 }
 
 type ExecuteCodeModeResolverInput struct {
@@ -177,7 +177,7 @@ type ExecuteCodeTool struct {
 	DefaultStdoutCap int
 	DefaultStderrCap int
 	WorkspaceScope   *ProfileWorkspaceScope
-	OutputCompaction toolcompact.Config
+	OutputCompaction compact.Config
 }
 
 func NewExecuteCodeTool(configs ...ExecuteCodeToolConfig) *ExecuteCodeTool {
@@ -280,12 +280,13 @@ func (t *ExecuteCodeTool) Execute(ctx context.Context, args json.RawMessage) (js
 	}
 
 	if t.Mode == ExecuteCodeModeProject && t.WorkspaceScope != nil && t.WorkspaceScope.Configured() {
+		denial := profileWorkspaceExecuteDenied("project-mode execute_code")
 		return json.Marshal(CodeExecutionResult{
 			Status:   "blocked",
 			Language: language,
 			ExitCode: -1,
-			Error:    ProfileWorkspaceScopeViolation + ": project-mode execute_code cannot prove confinement for a non-empty profile workspace allow-list; fail closed before spawning",
-			Evidence: ProfileWorkspaceScopeViolation,
+			Error:    denial.Message,
+			Evidence: denial.Evidence,
 		})
 	}
 
@@ -305,14 +306,14 @@ func (t *ExecuteCodeTool) applyOutputCompaction(result *CodeExecutionResult, cod
 	if result == nil || fullOutput {
 		return
 	}
-	stdout := toolcompact.Compact(toolcompact.Request{
+	stdout := compact.Compact(compact.Request{
 		ToolName: "execute_code",
 		Command:  code,
 		Stream:   "stdout",
 		Text:     result.Stdout,
 		ExitCode: result.ExitCode,
 	}, t.OutputCompaction)
-	stderr := toolcompact.Compact(toolcompact.Request{
+	stderr := compact.Compact(compact.Request{
 		ToolName: "execute_code",
 		Command:  code,
 		Stream:   "stderr",
@@ -334,7 +335,7 @@ func (t *ExecuteCodeTool) applyOutputCompaction(result *CodeExecutionResult, cod
 	}
 }
 
-func codeStreamCompaction(result toolcompact.Result) *CodeStreamCompaction {
+func codeStreamCompaction(result compact.Result) *CodeStreamCompaction {
 	return &CodeStreamCompaction{
 		Applied:        result.Applied,
 		Reducer:        result.Reducer,

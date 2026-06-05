@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // R3: when a turn is active but nothing else signals progress yet (no tool
@@ -15,7 +15,7 @@ import (
 func TestStreamFeedback_ThinkingIndicatorWhenActiveAndQuiet(t *testing.T) {
 	frame := kernel.RenderFrame{
 		Phase: kernel.PhaseStreaming,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "do the thing"},
 		},
 	}
@@ -35,7 +35,7 @@ func TestStreamFeedback_ThinkingIndicatorWhenActiveAndQuiet(t *testing.T) {
 func TestStreamFeedback_ThinkingIndicatorSuppressedWhenDraftOrToolPresent(t *testing.T) {
 	withDraft := kernel.RenderFrame{
 		Phase:     kernel.PhaseStreaming,
-		History:   []hermes.Message{{Role: "user", Content: "q"}},
+		History:   []llm.Message{{Role: "user", Content: "q"}},
 		DraftText: "partial answer streaming in",
 	}
 	if g := renderConv(withDraft, 100, 12); strings.Contains(g, "🤔") {
@@ -44,7 +44,7 @@ func TestStreamFeedback_ThinkingIndicatorSuppressedWhenDraftOrToolPresent(t *tes
 
 	withTool := kernel.RenderFrame{
 		Phase:      kernel.PhaseStreaming,
-		History:    []hermes.Message{{Role: "user", Content: "q"}},
+		History:    []llm.Message{{Role: "user", Content: "q"}},
 		SoulEvents: []kernel.SoulEntry{{At: time.Now(), Text: "tool: read_file: x.go"}},
 	}
 	if g := renderConv(withTool, 100, 12); strings.Contains(g, "🤔") {
@@ -71,7 +71,7 @@ func TestStreamFeedback_CollapsibleToolOutput(t *testing.T) {
 	}
 	long := kernel.RenderFrame{
 		Phase: kernel.PhaseStreaming,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "read big"},
 			{Role: "tool", Name: "read_file", Content: b.String()},
 		},
@@ -86,7 +86,7 @@ func TestStreamFeedback_CollapsibleToolOutput(t *testing.T) {
 
 	short := kernel.RenderFrame{
 		Phase: kernel.PhaseStreaming,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "read small"},
 			{Role: "tool", Name: "read_file", Content: "package tui\n\nfunc View() string"},
 		},

@@ -2,12 +2,14 @@ package memory
 
 import (
 	"context"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/memory/ranking"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/memory/searchutil"
 	"log/slog"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 // RecallConfig controls the seed + CTE parameters.
@@ -184,7 +186,7 @@ func (p *Provider) GetContext(ctx context.Context, in RecallInput) string {
 				semErr = err
 				return
 			}
-			l2Normalize(qvec)
+			ranking.NormalizeL2(qvec)
 			semIDs, semErr = semanticSeeds(ctx, p.store.db, p.cache,
 				p.cfg.SemanticModel, qvec, p.cfg.SemanticTopK, p.cfg.SemanticMinSimilarity)
 			if semErr != nil {
@@ -204,7 +206,7 @@ func (p *Provider) GetContext(ctx context.Context, in RecallInput) string {
 			semIDs = nil
 		}
 
-		fused := RRFFuseIDs(ftsIDs, semIDs, p.cfg.RRFKFactor, p.cfg.RRFFTSWeight, p.cfg.RRFSemWeight)
+		fused := ranking.FuseIDs(ftsIDs, semIDs, p.cfg.RRFKFactor, p.cfg.RRFFTSWeight, p.cfg.RRFSemWeight)
 		if len(fused) > 0 {
 			seeds = fused
 		}
@@ -238,7 +240,7 @@ func (p *Provider) GetContext(ctx context.Context, in RecallInput) string {
 		if err != nil {
 			p.log.Warn("recall: query embed failed", "err", err)
 		} else {
-			l2Normalize(qvec)
+			ranking.NormalizeL2(qvec)
 			semIDs, err := semanticSeeds(ctx, p.store.db, p.cache,
 				p.cfg.SemanticModel, qvec, p.cfg.SemanticTopK, p.cfg.SemanticMinSimilarity)
 			if err != nil {
@@ -360,7 +362,7 @@ func metadataAllowsCurrentChat(metadata []session.Metadata, userID, chatKey stri
 
 	matchedCurrent := false
 	for _, meta := range metadata {
-		if !sameChatKey(metadataChatKey(meta), chatKey) {
+		if !searchutil.SameChatKey(metadataChatKey(meta), chatKey) {
 			continue
 		}
 		matchedCurrent = true
@@ -378,23 +380,6 @@ func metadataChatKey(meta session.Metadata) string {
 		return ""
 	}
 	return source + ":" + chatID
-}
-
-func sameChatKey(a, b string) bool {
-	aSource, aID, aOK := splitChatKey(a)
-	bSource, bID, bOK := splitChatKey(b)
-	if !aOK || !bOK {
-		return strings.TrimSpace(a) == strings.TrimSpace(b)
-	}
-	return strings.EqualFold(aSource, bSource) && aID == bID
-}
-
-func splitChatKey(chatKey string) (string, string, bool) {
-	source, chatID, ok := strings.Cut(strings.TrimSpace(chatKey), ":")
-	if !ok || strings.TrimSpace(source) == "" || strings.TrimSpace(chatID) == "" {
-		return "", "", false
-	}
-	return strings.TrimSpace(source), strings.TrimSpace(chatID), true
 }
 
 func fallbackChatScope(chatKey string) []string {

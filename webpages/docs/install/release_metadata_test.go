@@ -8,7 +8,7 @@ import (
 )
 
 func TestLandingReleaseMetadataCarriesDateAlias(t *testing.T) {
-	versionGo := readRepoFileRelease(t, "cmd/gormes/version.go")
+	versionGo := readRepoFile(t, "cmd/gormes/main.go")
 	version := goStringVar(t, versionGo, "Version")
 	dateAlias := goStringVar(t, versionGo, "VersionDateAlias")
 
@@ -19,7 +19,7 @@ func TestLandingReleaseMetadataCarriesDateAlias(t *testing.T) {
 		URL       string `json:"url"`
 		Source    string `json:"source"`
 	}
-	rawRelease := readRepoFileRelease(t, "webpages/landing/src/data/release.json")
+	rawRelease := readRepoFile(t, "webpages/landing/src/data/release.json")
 	if err := json.Unmarshal([]byte(rawRelease), &release); err != nil {
 		t.Fatalf("release.json must be valid JSON: %v\n%s", err, rawRelease)
 	}
@@ -30,18 +30,22 @@ func TestLandingReleaseMetadataCarriesDateAlias(t *testing.T) {
 		t.Fatalf("release.json tag = %q, want v%s", release.Tag, version)
 	}
 	if release.DateAlias != dateAlias {
-		t.Fatalf("release.json date_alias = %q, want %q from cmd/gormes/version.go", release.DateAlias, dateAlias)
+		t.Fatalf("release.json date_alias = %q, want %q from cmd/gormes/main.go", release.DateAlias, dateAlias)
 	}
-	if release.Source != "cmd/gormes/version.go" {
-		t.Fatalf("release.json source = %q, want cmd/gormes/version.go", release.Source)
-	}
-
-	syncAssets := readRepoFileRelease(t, "webpages/landing/scripts/sync-assets.mjs")
-	if !strings.Contains(syncAssets, "VersionDateAlias") || !strings.Contains(syncAssets, "date_alias") {
-		t.Fatalf("sync-assets.mjs must parse VersionDateAlias and write date_alias")
+	if release.Source != "cmd/gormes/main.go" {
+		t.Fatalf("release.json source = %q, want cmd/gormes/main.go", release.Source)
 	}
 
-	landingData := readRepoFileRelease(t, "webpages/landing/src/data/landing.js")
+	syncAssets := readRepoFile(t, "webpages/landing/scripts/sync-assets.mjs")
+	if !strings.Contains(syncAssets, "parseReleaseData") {
+		t.Fatalf("sync-assets.mjs must call parseReleaseData before writing release.json")
+	}
+	assetSync := readRepoFile(t, "webpages/landing/scripts/asset-sync.mjs")
+	if !strings.Contains(assetSync, "VersionDateAlias") || !strings.Contains(assetSync, "date_alias") {
+		t.Fatalf("asset-sync.mjs must parse VersionDateAlias and write date_alias")
+	}
+
+	landingData := readRepoFile(t, "webpages/landing/src/data/landing.js")
 	for _, want := range []string{"release?.date_alias", "releaseDateAlias", "Current release:"} {
 		if !strings.Contains(landingData, want) {
 			t.Fatalf("landing.js missing %q; release label must be derived from release.json date_alias", want)

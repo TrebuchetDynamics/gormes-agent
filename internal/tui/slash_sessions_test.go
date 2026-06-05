@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestSessionsSlashOpensPickerPageWithoutSubmitting(t *testing.T) {
@@ -55,7 +55,7 @@ func TestResumeSlashWithSessionIDSwitchesVisibleSessionAndHistoryWithoutSubmitti
 		requested = query
 		return SessionResumeResult{
 			SessionID: "sess-target",
-			History: []hermes.Message{
+			History: []llm.Message{
 				{Role: "user", Content: "previous question"},
 				{Role: "assistant", Content: "previous answer"},
 			},

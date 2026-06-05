@@ -8,11 +8,20 @@
 
 @layer base {
   html {
-    scroll-behavior: smooth;
+    background: #090b0f;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
   }
 
   body {
-    background: #090b0f;
+    background:
+      radial-gradient(circle at 15% 5%, rgba(115, 206, 221, 0.12), transparent 34rem),
+      radial-gradient(circle at 82% 0%, rgba(240, 200, 75, 0.09), transparent 30rem),
+      #090b0f;
     color: #eeece5;
     font-family: var(--font-sans);
     font-feature-settings: "kern", "liga", "calt";
@@ -24,6 +33,14 @@
   a {
     color: inherit;
     text-decoration: none;
+  }
+
+  main:focus {
+    outline: none;
+  }
+
+  section[id] {
+    scroll-margin-block-start: 5rem;
   }
 
   a:focus-visible,
@@ -39,8 +56,90 @@
 }
 
 @layer components {
+  .skip-link {
+    position: fixed;
+    inset-block-start: 0.75rem;
+    inset-inline-start: 0.75rem;
+    z-index: 100;
+    transform: translateY(-150%);
+    border: 1px solid rgba(240, 200, 75, 0.55);
+    border-radius: 999px;
+    background: #f0c84b;
+    color: #171000;
+    padding: 0.65rem 1rem;
+    font-weight: 800;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.3);
+    transition: transform 160ms ease;
+  }
+
+  .skip-link:focus-visible {
+    transform: translateY(0);
+  }
+
+  .section-title {
+    text-wrap: balance;
+  }
+
+  .hero::before {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    content: "";
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    background-size: 42px 42px;
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.75), transparent 72%);
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.75), transparent 72%);
+  }
+
+  .hero-panel {
+    container: hero-panel / inline-size;
+    position: relative;
+    overflow: clip;
+  }
+
+  .hero-panel::before {
+    position: absolute;
+    inset-inline: 1.25rem;
+    inset-block-start: 0;
+    block-size: 1px;
+    pointer-events: none;
+    content: "";
+    background: linear-gradient(90deg, transparent, rgba(115, 206, 221, 0.7), transparent);
+  }
+
+  @container hero-panel (inline-size < 360px) {
+    .hero-panel-metrics {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .glass-card {
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+  }
+
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+
   .copy-btn.copied {
     border-color: rgba(91, 231, 154, 0.8);
     color: #5be79a;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skip-link,
+    .btn,
+    .why-card {
+      transition-duration: 0.01ms;
+    }
+
+    .btn:hover,
+    .why-card:hover {
+      transform: none;
+    }
   }
 }

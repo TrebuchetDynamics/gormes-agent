@@ -9,8 +9,9 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/statuscmd"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 // statusTitleUnavailable is the documented degraded-mode sentinel rendered
@@ -56,7 +57,7 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 	}
 	agentRunning := "No"
 	if m.hasActiveTurn() {
-		agentRunning = "Yes"
+		agentRunning = "Yes ⚡"
 	}
 	platforms := m.connectedPlatforms()
 	if len(platforms) == 0 && strings.TrimSpace(ev.Platform) != "" {
@@ -76,8 +77,11 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 		"**Title:** " + esc(title),
 		"**Created:** " + esc(created),
 		"**Last Activity:** " + esc(lastActivity),
-		fmt.Sprintf("**Tokens:** %d", tokens),
+		fmt.Sprintf("**Cumulative API tokens (re-sent each call):** %s", formatStatusTokenTotal(tokens)),
 		"**Agent Running:** " + agentRunning,
+	}
+	if queueDepth := m.followUpQueueDepth(); queueDepth > 0 {
+		lines = append(lines, fmt.Sprintf("**Queued follow-ups:** %d", queueDepth))
 	}
 	if route.Enabled {
 		lines = append(lines,
@@ -86,7 +90,14 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 		)
 	}
 	if kanbanStatus, ok := m.kanbanDispatcherStatus(ctx); ok {
-		lines = append(lines, formatKanbanDispatcherStatusLines(kanbanStatus, esc)...)
+		lines = append(lines, statuscmd.FormatKanbanDispatcherLines(statuscmd.KanbanDispatcherStatus{
+			State:       string(kanbanStatus.State),
+			LastTickAt:  kanbanStatus.LastTickAt,
+			LastError:   kanbanStatus.LastError,
+			Spawned:     kanbanStatus.Spawned,
+			SpawnFailed: kanbanStatus.SpawnFailed,
+			AutoBlocked: kanbanStatus.AutoBlocked,
+		}, esc)...)
 	}
 	lines = append(lines,
 		"",
@@ -119,28 +130,6 @@ func (m *Manager) kanbanDispatcherStatus(ctx context.Context) (KanbanDispatcherS
 	return kanbanStatus, true
 }
 
-func formatKanbanDispatcherStatusLines(status KanbanDispatcherStatus, esc func(string) string) []string {
-	state := strings.TrimSpace(string(status.State))
-	if state == "" {
-		state = "unknown"
-	}
-	lines := []string{
-		"**Kanban Dispatcher:** `" + state + "`",
-	}
-	if strings.TrimSpace(status.LastTickAt) != "" {
-		lines = append(lines, "**Kanban Last Tick:** `"+strings.TrimSpace(status.LastTickAt)+"`")
-	}
-	lines = append(lines,
-		fmt.Sprintf("**Kanban Spawned:** %d", status.Spawned),
-		fmt.Sprintf("**Kanban Spawn Failed:** %d", status.SpawnFailed),
-		fmt.Sprintf("**Kanban Auto Blocked:** %d", status.AutoBlocked),
-	)
-	if strings.TrimSpace(status.LastError) != "" {
-		lines = append(lines, "**Kanban Last Error:** "+esc(status.LastError))
-	}
-	return lines
-}
-
 func (m *Manager) resolveStatusSession(ctx context.Context, ev InboundEvent, frame kernel.RenderFrame) string {
 	key := strings.TrimSpace(m.sessionKeyForInbound(ev))
 	sessionID := ""
@@ -170,10 +159,6 @@ func (m *Manager) resolveStatusSession(ctx context.Context, ev InboundEvent, fra
 	return sessionID
 }
 
-func generateStatusSessionID(now time.Time, ev InboundEvent) string {
-	return generateStatusSessionIDForKey(now, ev, ev.ChatKey())
-}
-
 func generateStatusSessionIDForKey(now time.Time, ev InboundEvent, key string) string {
 	stamp := now.Format("20060102_150405")
 	h := fnv.New32a()
@@ -197,6 +182,33 @@ func statusCreatedAt(sessionID string) string {
 
 func formatStatusTime(t time.Time) string {
 	return t.Local().Format("2006-01-02 15:04")
+}
+
+func formatStatusTokenTotal(tokens int) string {
+	raw := fmt.Sprintf("%d", tokens)
+	negative := strings.HasPrefix(raw, "-")
+	digits := raw
+	if negative {
+		digits = strings.TrimPrefix(raw, "-")
+	}
+	if len(digits) <= 3 {
+		return raw
+	}
+	leading := len(digits) % 3
+	if leading == 0 {
+		leading = 3
+	}
+	var out strings.Builder
+	out.Grow(len(raw) + len(digits)/3)
+	if negative {
+		out.WriteByte('-')
+	}
+	out.WriteString(digits[:leading])
+	for i := leading; i < len(digits); i += 3 {
+		out.WriteByte(',')
+		out.WriteString(digits[i : i+3])
+	}
+	return out.String()
 }
 
 func (m *Manager) persistStatusSession(ctx context.Context, sessionKey, sessionID string) {

@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 func TestManager_DrainTimeoutMarksOnlyStillRunningTurnResumePending(t *testing.T) {
@@ -138,10 +138,10 @@ func TestManager_ResumePendingNextSubmitPrependsOneReasonNoteAndClearsAfterAccep
 	}
 
 	m := NewManagerWithSubmitter(ManagerConfig{
-		AllowedChats: map[string]string{"telegram": "42"},
-		CoalesceMs:   10,
-		SessionMap:   smap,
-		Now:          func() time.Time { return now },
+		AllowedChats:   map[string]string{"telegram": "42"},
+		CoalesceMs:     10,
+		SessionMap:     smap,
+		Now:            func() time.Time { return now },
 		SkipAutoResume: true,
 	}, fk, slog.Default())
 	m.setRenderChan(frames)
@@ -190,7 +190,7 @@ func TestManager_ResumePendingNextSubmitPrependsOneReasonNoteAndClearsAfterAccep
 
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "what happened?"},
 			{Role: "assistant", Content: "resume accepted"},
 		},

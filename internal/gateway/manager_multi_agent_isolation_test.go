@@ -14,9 +14,9 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -82,7 +82,7 @@ func TestMultiAgentIsolation_AppliesToolPolicyAndSkillAllowlistPerRoutedAgent(t 
 	if got := registryDescriptorNames(alertsSubmit.Tools); !reflect.DeepEqual(got, []string{"echo"}) {
 		t.Fatalf("alerts tool descriptors = %#v, want only echo after terminal deny", got)
 	}
-	decision := alertsSubmit.ToolSafety.DecideToolCall(hermes.ToolCall{ID: "call-terminal", Name: "terminal", Arguments: json.RawMessage(`{"command":"id"}`)})
+	decision := alertsSubmit.ToolSafety.DecideToolCall(llm.ToolCall{ID: "call-terminal", Name: "terminal", Arguments: json.RawMessage(`{"command":"id"}`)})
 	if decision.Allow {
 		t.Fatal("alerts terminal call was allowed; want agent policy denial")
 	}

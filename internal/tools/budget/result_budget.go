@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 // Stable evidence codes returned by FormatToolResult so callers (gateway,
@@ -21,9 +23,11 @@ const (
 	ToolResultEvidencePersistenceFailed = "tool_output_persistence_failed"
 )
 
-// Default fallback bounds applied when callers leave config zero-valued. The
-// values are conservative so a misconfigured caller still cannot flood a
-// downstream channel.
+// Default fallback bounds applied when callers leave config zero-valued.
+// Owned divergence from Hermes: Hermes defaults are 100_000 result chars,
+// 200_000 turn chars, and 1_500 preview chars. Gormes keeps smaller fallback
+// bytes here because gateway/channel safety wins when caller config is absent;
+// callers that need Hermes-sized budgets must pass explicit config.
 const (
 	defaultToolTextBudgetBytes = 4 * 1024
 	defaultToolPreviewBytes    = 512
@@ -69,45 +73,62 @@ type ToolResultEvidence struct {
 // performs network I/O.
 func FormatToolResult(cfg ToolResultBudgetConfig, raw []byte, mediaType string) (string, ToolResultEvidence, error) {
 	cfg = cfg.withDefaults()
+	payload := prepareToolResultPayload(cfg, raw, mediaType)
 
-	bytes := len(raw)
-	preview := safePreview(raw, cfg.PreviewBytes)
-
-	if !cfg.shouldPersist(raw, mediaType) {
-		return preview, ToolResultEvidence{
+	if !cfg.shouldPersist(payload.SafeBytes, mediaType) {
+		inline := inlineUnderBudgetText(payload.SafeBytes)
+		return inline, ToolResultEvidence{
 			Code:    ToolResultEvidenceUnderBudget,
-			Preview: preview,
-			Bytes:   bytes,
+			Preview: inline,
+			Bytes:   payload.OriginalBytes,
 		}, nil
 	}
 
-	rel, err := persistArtifact(cfg.OutputDir, raw, mediaType)
+	rel, err := persistArtifact(cfg.OutputDir, payload.SafeBytes, mediaType)
 	if err != nil {
 		// Degraded mode: do not error out. Return bounded inline preview so
 		// the channel/provider still gets *something* without flooding, and
 		// surface persistence_failed evidence for operator triage.
-		degraded := truncatePointer(preview)
+		degraded := truncatePointer(payload.Preview)
 		return degraded, ToolResultEvidence{
 			Code:    ToolResultEvidencePersistenceFailed,
 			Preview: degraded,
-			Bytes:   bytes,
+			Bytes:   payload.OriginalBytes,
 		}, nil
 	}
 
-	pointer := buildPointer(rel, preview, mediaType, bytes)
+	pointer := buildPointer(rel, payload.Preview, mediaType, payload.OriginalBytes)
 	code := ToolResultEvidenceTruncated
 	// JSON/non-text payloads under the text budget still get persisted but
 	// they were not "truncated" in the textual sense; they were promoted to
 	// an artifact pointer. Report persisted in that case.
-	if !isTextMedia(mediaType) || bytes <= cfg.TextBudgetBytes {
+	if !isTextMedia(mediaType) || len(payload.SafeBytes) <= cfg.TextBudgetBytes {
 		code = ToolResultEvidencePersisted
 	}
 	return pointer, ToolResultEvidence{
 		Code:     code,
 		Artifact: rel,
-		Preview:  preview,
-		Bytes:    bytes,
+		Preview:  payload.Preview,
+		Bytes:    payload.OriginalBytes,
 	}, nil
+}
+
+type toolResultPayload struct {
+	SafeBytes     []byte
+	OriginalBytes int
+	Preview       string
+}
+
+func prepareToolResultPayload(cfg ToolResultBudgetConfig, raw []byte, mediaType string) toolResultPayload {
+	safe := raw
+	if isTextMedia(mediaType) {
+		safe = []byte(redaction.StripANSI(string(raw)))
+	}
+	return toolResultPayload{
+		SafeBytes:     safe,
+		OriginalBytes: len(raw),
+		Preview:       safePreview(safe, cfg.PreviewBytes),
+	}
 }
 
 func (cfg ToolResultBudgetConfig) withDefaults() ToolResultBudgetConfig {
@@ -134,15 +155,30 @@ func (cfg ToolResultBudgetConfig) shouldPersist(raw []byte, mediaType string) bo
 	return len(raw) > cfg.TextBudgetBytes
 }
 
+// inlineUnderBudgetText is the no-loss path for text that already fits the
+// configured budget. The preview limit must not apply here; otherwise a
+// payload can be reported as under budget while silently dropping bytes.
+func inlineUnderBudgetText(raw []byte) string {
+	return string(raw)
+}
+
 func isTextMedia(mediaType string) bool {
-	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
-	if mediaType == "" {
+	base := baseMediaType(mediaType)
+	if base == "" {
 		return true
 	}
-	if strings.HasPrefix(mediaType, "text/") {
+	if strings.HasPrefix(base, "text/") {
 		return true
 	}
 	return false
+}
+
+func baseMediaType(mediaType string) string {
+	mt := strings.ToLower(strings.TrimSpace(mediaType))
+	if base, _, ok := strings.Cut(mt, ";"); ok {
+		mt = strings.TrimSpace(base)
+	}
+	return mt
 }
 
 // persistArtifact writes raw to a sanitized relative path under outputDir.
@@ -185,7 +221,7 @@ func persistArtifact(outputDir string, raw []byte, mediaType string) (string, er
 // keep this conservative; unknown media types land as .bin so we never invent
 // an executable suffix.
 func extensionFor(mediaType string) string {
-	mt := strings.ToLower(strings.TrimSpace(mediaType))
+	mt := baseMediaType(mediaType)
 	switch {
 	case mt == "" || strings.HasPrefix(mt, "text/"):
 		return ".txt"
@@ -216,7 +252,13 @@ func safePreview(raw []byte, n int) string {
 // in degraded mode; this ensures the channel/provider still receives a
 // bounded payload even when we could not persist the artifact.
 func truncatePointer(s string) string {
-	const max = defaultToolPreviewBytes
+	return truncateUTF8Bytes(s, defaultToolPreviewBytes)
+}
+
+func truncateUTF8Bytes(s string, max int) string {
+	if max <= 0 {
+		return ""
+	}
 	if len(s) <= max {
 		return s
 	}
@@ -233,9 +275,7 @@ func truncatePointer(s string) string {
 func buildPointer(relArtifact, preview, mediaType string, totalBytes int) string {
 	header := fmt.Sprintf("[tool_output_artifact path=%s media=%s bytes=%d]",
 		relArtifact, normalizeMedia(mediaType), totalBytes)
-	if len(header) > maxToolPointerHeader {
-		header = header[:maxToolPointerHeader]
-	}
+	header = truncateUTF8Bytes(header, maxToolPointerHeader)
 	if preview == "" {
 		return header
 	}

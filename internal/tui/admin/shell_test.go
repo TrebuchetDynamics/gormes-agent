@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	basetui "github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/exp/teatest"
@@ -83,6 +84,35 @@ func TestAdminShell_DigitKeysJumpToScreen(t *testing.T) {
 // TestAdminShell_HelpOverlayShowsRegisteredKeybindings asserts that pressing
 // '?' toggles a help overlay containing the merged ShortHelp entries from
 // every registered screen.
+func TestAdminShell_GlobalChromeUsesSkinStyles(t *testing.T) {
+	skin := basetui.DefaultHermesSkin()
+	shared := basetui.SkinStylesFor(skin)
+	styles := adminShellStylesForSkin(skin)
+
+	if got, want := styles.ActiveTab.GetForeground(), shared.ActivePill.GetForeground(); got != want {
+		t.Fatalf("active tab foreground = %v, want shared active pill %v", got, want)
+	}
+	if got, want := styles.ActiveTab.GetBackground(), shared.ActivePill.GetBackground(); got != want {
+		t.Fatalf("active tab background = %v, want shared active pill %v", got, want)
+	}
+	if got, want := styles.Status.GetForeground(), shared.Status.GetForeground(); got != want {
+		t.Fatalf("status foreground = %v, want shared %v", got, want)
+	}
+	if got, want := styles.HelpKey.GetForeground(), shared.Accent.GetForeground(); got != want {
+		t.Fatalf("help key foreground = %v, want shared %v", got, want)
+	}
+
+	shell := New(&stubScreen{name: "Setup"}, &stubScreen{name: "Agents"})
+	updated, _ := shell.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
+	shell = updated.(*Shell)
+	view := shell.View()
+	for _, want := range []string{"[1 Setup]", " 2 Agents ", "⚕ Gormes", "tab/shift+tab cycle", "? help"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("styled admin chrome missing %q:\n%s", want, view)
+		}
+	}
+}
+
 func TestAdminShell_HelpOverlayShowsRegisteredKeybindings(t *testing.T) {
 	shell := New(
 		&stubScreen{

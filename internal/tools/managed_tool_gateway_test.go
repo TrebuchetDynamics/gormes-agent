@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -266,6 +267,214 @@ func TestManagedGatewayBridge_PassesThroughToolCallArguments(t *testing.T) {
 	}
 }
 
+func TestManagedGatewayBridge_DiscoverReinitializesAndRetriesExpiredSession(t *testing.T) {
+	const firstSession = "sess-list-expired"
+	const secondSession = "sess-list-new"
+
+	var mu sync.Mutex
+	var methods []string
+	var listSessions []string
+	initCount := 0
+	srv := newFakeManagedGatewayServer(t, func(t *testing.T, w http.ResponseWriter, r *http.Request, req fakeManagedGatewayRequest) {
+		if r.Method == http.MethodDelete {
+			return
+		}
+		mu.Lock()
+		methods = append(methods, req.Method)
+		if req.Method == "tools/list" {
+			listSessions = append(listSessions, r.Header.Get("Mcp-Session-Id"))
+		}
+		mu.Unlock()
+
+		switch req.Method {
+		case "initialize":
+			initCount++
+			if initCount == 1 {
+				w.Header().Set("Mcp-Session-Id", firstSession)
+			} else {
+				w.Header().Set("Mcp-Session-Id", secondSession)
+			}
+			writeManagedJSONResult(w, req.ID, `{"protocolVersion":"2024-11-05","capabilities":{}}`)
+		case "tools/list":
+			switch r.Header.Get("Mcp-Session-Id") {
+			case firstSession:
+				http.Error(w, "session expired", http.StatusNotFound)
+			case secondSession:
+				writeManagedJSONResult(w, req.ID,
+					`{"tools":[{"name":"figma_get_file","description":"Fetch a Figma file","inputSchema":{"type":"object"}}]}`)
+			default:
+				http.Error(w, "missing MCP session", http.StatusBadRequest)
+			}
+		default:
+			t.Errorf("unexpected method %q", req.Method)
+			http.Error(w, "unexpected", http.StatusBadRequest)
+		}
+	})
+
+	bridge := newTestManagedGatewayBridge(t, "figma", srv, "oauth-token")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	disc, err := bridge.Discover(ctx)
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	if disc.Evidence != ManagedGatewayEvidenceOK {
+		t.Fatalf("Evidence = %q, want %q", disc.Evidence, ManagedGatewayEvidenceOK)
+	}
+	if len(disc.Tools) != 1 || disc.Tools[0].Name != "figma_get_file" {
+		t.Fatalf("Tools = %+v, want figma_get_file", disc.Tools)
+	}
+
+	mu.Lock()
+	gotMethods := append([]string(nil), methods...)
+	gotListSessions := append([]string(nil), listSessions...)
+	mu.Unlock()
+	wantMethods := []string{"initialize", "tools/list", "initialize", "tools/list"}
+	if !reflect.DeepEqual(gotMethods, wantMethods) {
+		t.Fatalf("request methods = %v, want %v", gotMethods, wantMethods)
+	}
+	if !reflect.DeepEqual(gotListSessions, []string{firstSession, secondSession}) {
+		t.Fatalf("tools/list sessions = %v, want [%s %s]", gotListSessions, firstSession, secondSession)
+	}
+}
+
+func TestManagedGatewayBridge_CallToolInitializesBeforeSessionBoundCall(t *testing.T) {
+	const sessionID = "sess-figma-123"
+
+	var mu sync.Mutex
+	var methods []string
+	var callSession string
+	srv := newFakeManagedGatewayServer(t, func(t *testing.T, w http.ResponseWriter, r *http.Request, req fakeManagedGatewayRequest) {
+		if r.Method == http.MethodDelete {
+			return
+		}
+		mu.Lock()
+		methods = append(methods, req.Method)
+		if req.Method == "tools/call" {
+			callSession = r.Header.Get("Mcp-Session-Id")
+		}
+		mu.Unlock()
+
+		switch req.Method {
+		case "initialize":
+			w.Header().Set("Mcp-Session-Id", sessionID)
+			writeManagedJSONResult(w, req.ID, `{"protocolVersion":"2024-11-05","capabilities":{}}`)
+		case "tools/call":
+			if got := r.Header.Get("Mcp-Session-Id"); got != sessionID {
+				http.Error(w, "missing MCP session", http.StatusBadRequest)
+				return
+			}
+			writeManagedJSONResult(w, req.ID,
+				`{"content":[{"type":"text","text":"figma ok"}],"isError":false}`)
+		default:
+			t.Errorf("unexpected method %q", req.Method)
+			http.Error(w, "unexpected", http.StatusBadRequest)
+		}
+	})
+
+	bridge := newTestManagedGatewayBridge(t, "figma", srv, "oauth-token")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	res, evidence, err := bridge.CallTool(ctx, "figma_get_file", map[string]any{"file_key": "abc"})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if evidence != ManagedGatewayEvidenceOK {
+		t.Fatalf("Evidence = %q, want %q", evidence, ManagedGatewayEvidenceOK)
+	}
+	if len(res.Content) != 1 || res.Content[0].Text != "figma ok" {
+		t.Fatalf("Content = %+v, want figma ok", res.Content)
+	}
+
+	mu.Lock()
+	gotMethods := append([]string(nil), methods...)
+	gotCallSession := callSession
+	mu.Unlock()
+	if len(gotMethods) != 2 || gotMethods[0] != "initialize" || gotMethods[1] != "tools/call" {
+		t.Fatalf("request methods = %v, want [initialize tools/call]", gotMethods)
+	}
+	if gotCallSession != sessionID {
+		t.Fatalf("tools/call Mcp-Session-Id = %q, want %q", gotCallSession, sessionID)
+	}
+}
+
+func TestManagedGatewayBridge_CallToolReinitializesAndRetriesExpiredSession(t *testing.T) {
+	const firstSession = "sess-expired"
+	const secondSession = "sess-new"
+
+	var mu sync.Mutex
+	var methods []string
+	var callSessions []string
+	initCount := 0
+	srv := newFakeManagedGatewayServer(t, func(t *testing.T, w http.ResponseWriter, r *http.Request, req fakeManagedGatewayRequest) {
+		if r.Method == http.MethodDelete {
+			return
+		}
+		mu.Lock()
+		methods = append(methods, req.Method)
+		if req.Method == "tools/call" {
+			callSessions = append(callSessions, r.Header.Get("Mcp-Session-Id"))
+		}
+		mu.Unlock()
+
+		switch req.Method {
+		case "initialize":
+			initCount++
+			if initCount == 1 {
+				w.Header().Set("Mcp-Session-Id", firstSession)
+			} else {
+				w.Header().Set("Mcp-Session-Id", secondSession)
+			}
+			writeManagedJSONResult(w, req.ID, `{"protocolVersion":"2024-11-05","capabilities":{}}`)
+		case "tools/call":
+			switch r.Header.Get("Mcp-Session-Id") {
+			case firstSession:
+				http.Error(w, "session expired", http.StatusNotFound)
+			case secondSession:
+				writeManagedJSONResult(w, req.ID,
+					`{"content":[{"type":"text","text":"retry ok"}],"isError":false}`)
+			default:
+				http.Error(w, "missing MCP session", http.StatusBadRequest)
+			}
+		default:
+			t.Errorf("unexpected method %q", req.Method)
+			http.Error(w, "unexpected", http.StatusBadRequest)
+		}
+	})
+
+	bridge := newTestManagedGatewayBridge(t, "figma", srv, "oauth-token")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	res, evidence, err := bridge.CallTool(ctx, "figma_get_file", map[string]any{"file_key": "abc"})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if evidence != ManagedGatewayEvidenceOK {
+		t.Fatalf("Evidence = %q, want %q", evidence, ManagedGatewayEvidenceOK)
+	}
+	if len(res.Content) != 1 || res.Content[0].Text != "retry ok" {
+		t.Fatalf("Content = %+v, want retry ok", res.Content)
+	}
+
+	mu.Lock()
+	gotMethods := append([]string(nil), methods...)
+	gotCallSessions := append([]string(nil), callSessions...)
+	mu.Unlock()
+	wantMethods := []string{"initialize", "tools/call", "initialize", "tools/call"}
+	if !reflect.DeepEqual(gotMethods, wantMethods) {
+		t.Fatalf("request methods = %v, want %v", gotMethods, wantMethods)
+	}
+	if !reflect.DeepEqual(gotCallSessions, []string{firstSession, secondSession}) {
+		t.Fatalf("tools/call sessions = %v, want [%s %s]", gotCallSessions, firstSession, secondSession)
+	}
+}
+
 // TestManagedGatewayBridge_CancellationPropagatesToCallTool covers the
 // timeout/cancellation half of acceptance #2: ctx cancellation must abort
 // the in-flight tool call cleanly.
@@ -346,9 +555,82 @@ func TestManagedGatewayBridge_AuthRequiredReusesEvidence(t *testing.T) {
 	}
 }
 
+func TestManagedGatewayBridge_OAuthNoninteractiveMapsToAuthRequiredEvidence(t *testing.T) {
+	if got := classifyDiscoverError(ErrMCPOAuthNoninteractiveRequired); got != ManagedGatewayEvidenceAuthRequired {
+		t.Fatalf("classifyDiscoverError = %q, want %q", got, ManagedGatewayEvidenceAuthRequired)
+	}
+	if got := classifyCallToolError(ErrMCPOAuthNoninteractiveRequired); got != ManagedGatewayEvidenceAuthRequired {
+		t.Fatalf("classifyCallToolError = %q, want %q", got, ManagedGatewayEvidenceAuthRequired)
+	}
+}
+
 // TestManagedGatewayBridge_GatewayUnavailableReportsDegradedEvidence covers
 // acceptance #3 (the unavailable half): non-auth transport failures surface
 // as gateway_unavailable without registering tools.
+func TestManagedGatewayBridge_SessionRequiredMapsToAuthRequiredEvidence(t *testing.T) {
+	var mu sync.Mutex
+	var methods []string
+	srv := newFakeManagedGatewayServer(t, func(t *testing.T, w http.ResponseWriter, r *http.Request, req fakeManagedGatewayRequest) {
+		if r.Method == http.MethodDelete {
+			return
+		}
+		mu.Lock()
+		methods = append(methods, req.Method)
+		mu.Unlock()
+
+		switch req.Method {
+		case "initialize":
+			writeManagedJSONResult(w, req.ID, `{"protocolVersion":"2024-11-05","capabilities":{}}`)
+		case "tools/list", "tools/call":
+			if got := r.Header.Get("Mcp-Session-Id"); got != "" {
+				t.Fatalf("%s Mcp-Session-Id = %q, want empty when no session was negotiated", req.Method, got)
+			}
+			http.Error(w, "missing session", http.StatusBadRequest)
+		default:
+			t.Errorf("unexpected method %q", req.Method)
+			http.Error(w, "unexpected", http.StatusBadRequest)
+		}
+	})
+
+	bridge := newTestManagedGatewayBridge(t, "figma", srv, "oauth-token")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	disc, err := bridge.Discover(ctx)
+	if err == nil {
+		t.Fatal("Discover err = nil, want ErrMCPSessionRequired")
+	}
+	if !errors.Is(err, ErrMCPSessionRequired) {
+		t.Fatalf("Discover err = %v, want errors.Is ErrMCPSessionRequired", err)
+	}
+	if disc.Evidence != ManagedGatewayEvidenceAuthRequired {
+		t.Fatalf("Discover Evidence = %q, want %q", disc.Evidence, ManagedGatewayEvidenceAuthRequired)
+	}
+	if len(disc.Tools) != 0 {
+		t.Fatalf("Discover Tools = %+v, want empty", disc.Tools)
+	}
+
+	_, callEvidence, callErr := bridge.CallTool(ctx, "figma_get_file", map[string]any{"file_key": "abc"})
+	if callErr == nil {
+		t.Fatal("CallTool err = nil, want ErrMCPSessionRequired")
+	}
+	if !errors.Is(callErr, ErrMCPSessionRequired) {
+		t.Fatalf("CallTool err = %v, want errors.Is ErrMCPSessionRequired", callErr)
+	}
+	if callEvidence != ManagedGatewayEvidenceAuthRequired {
+		t.Fatalf("CallTool Evidence = %q, want %q", callEvidence, ManagedGatewayEvidenceAuthRequired)
+	}
+
+	mu.Lock()
+	gotMethods := append([]string(nil), methods...)
+	mu.Unlock()
+	wantMethods := []string{"initialize", "tools/list", "tools/call"}
+	if !reflect.DeepEqual(gotMethods, wantMethods) {
+		t.Fatalf("request methods = %v, want %v", gotMethods, wantMethods)
+	}
+}
+
 func TestManagedGatewayBridge_GatewayUnavailableReportsDegradedEvidence(t *testing.T) {
 	srv := newFakeManagedGatewayServer(t, func(t *testing.T, w http.ResponseWriter, r *http.Request, req fakeManagedGatewayRequest) {
 		http.Error(w, "down for maintenance", http.StatusServiceUnavailable)

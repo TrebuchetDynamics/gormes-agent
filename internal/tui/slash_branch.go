@@ -2,18 +2,15 @@ package tui
 
 import (
 	"context"
-	"fmt"
-	"strings"
-	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/branch"
 )
 
 // branchForkTimeout caps how long /branch waits on the injected helper.
 // Forks are local SQLite + bbolt writes — five seconds is generous; if they
 // outrun this budget the TUI surfaces a status line instead of blocking the
 // editor on a failed disk.
-const branchForkTimeout = 5 * time.Second
+const branchForkTimeout = branch.ForkTimeout
 
 // BranchRequest is the input to SessionBranchFunc. ParentSessionID is the
 // session whose persisted history the caller wants forked into a fresh
@@ -21,31 +18,18 @@ const branchForkTimeout = 5 * time.Second
 // without a name); HistoryCount is the in-memory render-frame turn count
 // the TUI saw at fork time, included so the helper can surface a
 // `branch: switched (N turns)` status without re-reading the store.
-type BranchRequest struct {
-	ParentSessionID string
-	Title           string
-	HistoryCount    int
-	// History is the visible in-memory transcript at fork time. Production
-	// adapters use it to switch the resident kernel immediately, even when the
-	// durable transcript store is incomplete or behind the current frame.
-	History []hermes.Message
-}
+type BranchRequest = branch.Request
 
 // BranchResult is the helper's response. SessionID is the freshly minted
 // child id the TUI must switch to; ParentSessionID echoes the parent so
 // callers can audit the helper observed the right one; TranscriptCopied
 // reports how many parent turns were duplicated under the child.
-type BranchResult struct {
-	SessionID        string
-	ParentSessionID  string
-	Title            string
-	TranscriptCopied int
-}
+type BranchResult = branch.Result
 
 // SessionBranchFunc is the injection point for the TUI /branch command.
 // cmd/gormes binds the production implementation that calls
 // session.Fork+transcript.ForkTurns; tests wire fakes.
-type SessionBranchFunc func(ctx context.Context, req BranchRequest) (BranchResult, error)
+type SessionBranchFunc = branch.Func
 
 // branchSlashHandler implements /branch. The handler MUST consume the input
 // (Handled=true) on every error branch so the slash text never falls through
@@ -55,53 +39,28 @@ func branchSlashHandler(input string, model *Model) SlashResult {
 	if model == nil {
 		return SlashResult{Handled: true, StatusMessage: "branch: store unavailable"}
 	}
-	if len(model.frame.History) == 0 {
-		return SlashResult{Handled: true, StatusMessage: "branch: no conversation"}
+	var fork branch.Func
+	if model.sessionBranch != nil {
+		fork = func(ctx context.Context, req branch.Request) (branch.Result, error) {
+			return model.sessionBranch(ctx, req)
+		}
 	}
-	if model.sessionBranch == nil {
-		return SlashResult{Handled: true, StatusMessage: "branch: store unavailable"}
-	}
-	parent := strings.TrimSpace(model.SessionID())
-	if parent == "" {
-		return SlashResult{Handled: true, StatusMessage: "branch: no active session"}
-	}
-
-	title := branchTitleFromInput(input)
-
-	ctx, cancel := context.WithTimeout(context.Background(), branchForkTimeout)
-	defer cancel()
-	res, err := model.sessionBranch(ctx, BranchRequest{
-		ParentSessionID: parent,
-		Title:           title,
-		HistoryCount:    len(model.frame.History),
-		History:         cloneResumeHistory(model.frame.History),
-	})
-	if err != nil {
-		return SlashResult{Handled: true, StatusMessage: fmt.Sprintf("branch: fork failed: %v", err)}
+	res := branch.HandleSlash(input, len(model.frame.History) > 0, model.SessionID(), len(model.frame.History), cloneResumeHistory(model.frame.History), fork)
+	if !res.Switch {
+		return SlashResult{Handled: true, StatusMessage: res.Status}
 	}
 
-	model.sessionID = res.SessionID
-	model.frame.SessionID = res.SessionID
+	model.sessionID = res.Branch.SessionID
+	model.frame.SessionID = res.Branch.SessionID
 	model.inFlight = false
 	model.frame.DraftText = ""
-	return SlashResult{
-		Handled:       true,
-		StatusMessage: branchSuccessStatus(res),
-	}
+	return SlashResult{Handled: true, StatusMessage: res.Status}
 }
 
 func branchTitleFromInput(input string) string {
-	trimmed := strings.TrimSpace(input)
-	idx := strings.IndexAny(trimmed, " \t")
-	if idx < 0 {
-		return ""
-	}
-	return strings.TrimSpace(trimmed[idx+1:])
+	return branch.TitleFromInput(input)
 }
 
 func branchSuccessStatus(res BranchResult) string {
-	if res.Title != "" {
-		return fmt.Sprintf("branch: switched to %s (%q, %d turns)", res.SessionID, res.Title, res.TranscriptCopied)
-	}
-	return fmt.Sprintf("branch: switched to %s (%d turns)", res.SessionID, res.TranscriptCopied)
+	return branch.SuccessStatus(res)
 }

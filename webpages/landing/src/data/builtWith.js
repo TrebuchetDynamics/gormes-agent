@@ -1,3 +1,5 @@
+import { site } from './site.js';
+
 export const builtWithPage = {
   title: 'Built with Gormes — Real Deployments and Self-Hosted Uses',
   description:
@@ -7,7 +9,7 @@ export const builtWithPage = {
   entries: [
     {
       name: 'TrebuchetDynamics operator loop',
-      href: 'https://github.com/TrebuchetDynamics/gormes-agent',
+      href: site.githubUrl,
       operator: 'TrebuchetDynamics',
       status: 'Self-hosted operator deployment',
       summary:
@@ -15,7 +17,7 @@ export const builtWithPage = {
       proof:
         'development branch progress.json, Go test gates, GitHub Actions release workflow',
       stack: ['Gormes CLI', 'progress.json', 'Go test gates', 'GitHub Actions'],
-      submissionContact: 'https://github.com/TrebuchetDynamics/gormes-agent/pulls',
+      submissionContact: `${site.githubUrl}/pulls`,
     },
   ],
   submission: {

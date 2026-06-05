@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"fmt"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/memory/ranking"
 	"log/slog"
 	"strings"
 	"sync"
@@ -224,8 +225,8 @@ func (e *Embedder) embedAndStore(ctx context.Context, row embedderRow) error {
 	// L2-normalize in-place before storage. Stored vectors must be unit
 	// vectors so that the recall provider can use dot product as cosine
 	// similarity without an extra division.
-	l2Normalize(vec)
-	blob := encodeFloat32LE(vec)
+	ranking.NormalizeL2(vec)
+	blob := ranking.EncodeFloat32LE(vec)
 
 	// NOTE: uses parent ctx, not callCtx — the per-call timeout applies only
 	// to the HTTP embed round-trip. Once we've computed a vector, don't let

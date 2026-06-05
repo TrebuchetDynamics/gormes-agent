@@ -11,8 +11,14 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/prompttemplates"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/sessionspage"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/skin"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/toolsview"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/voice"
 )
 
 // Submitter is the callback wired by main.go to enqueue a user turn on the
@@ -24,6 +30,10 @@ type Submitter func(text string)
 
 // Canceller is the callback wired by main.go to send PlatformEventCancel.
 type Canceller func()
+
+// Steerer is the callback wired by main.go to send PlatformEventSteer while a
+// turn is active. Nil means steer-mode drafts fall back to the next-turn queue.
+type Steerer func(text string)
 
 // SetSessionModelFunc is the TUI-local bridge to the kernel's resident
 // in-session model override. It applies to future turns without resetting the
@@ -56,14 +66,7 @@ type SessionTitleFunc func(sessionID, title string) (SessionTitleResult, error)
 // SessionDirectoryEntry is the TUI read model for the local /sessions and
 // /resume picker page. Production callers map their durable session directory
 // into this small shape so internal/tui stays free of SQLite and config paths.
-type SessionDirectoryEntry struct {
-	ID           string
-	Title        string
-	Preview      string
-	Source       string
-	LastActiveAt int64
-	MessageCount int
-}
+type SessionDirectoryEntry = sessionspage.Entry
 
 // SessionDirectoryFunc returns recent sessions for the native TUI picker page.
 // The limit is caller-supplied and already clamped by the slash handler.
@@ -73,7 +76,7 @@ type SessionDirectoryFunc func(limit int) ([]SessionDirectoryEntry, error)
 // adapter. History is already ordered for direct render-frame replacement.
 type SessionResumeResult struct {
 	SessionID string
-	History   []hermes.Message
+	History   []llm.Message
 }
 
 // SessionResumeFunc resolves an operator-supplied id/prefix and switches the
@@ -84,7 +87,7 @@ type SessionResumeFunc func(ctx context.Context, query string) (SessionResumeRes
 // AccountUsageFunc fetches provider account-usage evidence for /usage. It is
 // injected so internal/tui can render provider limits/cost evidence without
 // knowing config paths, credentials, HTTP clients, or provider-specific policy.
-type AccountUsageFunc func(ctx context.Context) (hermes.AccountUsageSnapshot, error)
+type AccountUsageFunc func(ctx context.Context) (llm.AccountUsageSnapshot, error)
 
 // ToolsConfigureRequest is the TUI-local request shape for /tools enable|disable.
 // Production callers own config persistence and MCP/server policy; internal/tui
@@ -97,33 +100,33 @@ type ToolsConfigureRequest struct {
 
 // ToolsConfigureResult mirrors the Hermes ui-tui tools.configure response
 // fields that affect visible TUI output.
-type ToolsConfigureResult struct {
-	Changed        []string
-	Unknown        []string
-	MissingServers []string
-	Reset          bool
-}
+type ToolsConfigureResult = toolsview.Result
 
 // ToolsConfigureFunc updates the active TUI tool configuration for /tools.
 // It is injected so internal/tui never writes config files directly.
 type ToolsConfigureFunc func(ToolsConfigureRequest) (ToolsConfigureResult, error)
 
+// SkillSlashReloadResult is the native TUI reload payload for /reload-skills.
+// Commands replaces the dynamic /skill-name registry; Output is operator-facing
+// evidence rendered in the status line.
+type SkillSlashReloadResult struct {
+	Commands []skills.SkillSlashCommand
+	Output   string
+}
+
+// SkillSlashReloadFunc refreshes dynamic skill slash commands for the native
+// TUI. Production callers own filesystem/config access; internal/tui only
+// swaps the in-memory registry.
+type SkillSlashReloadFunc func(context.Context) (SkillSlashReloadResult, error)
+
 // VoiceToggleRequest is the TUI-local request shape for /voice status|on|off|tts.
 // Production callers own runtime voice state, setup checks, and config access;
 // internal/tui only parses slash input and renders adapter evidence.
-type VoiceToggleRequest struct {
-	Action    string
-	SessionID string
-}
+type VoiceToggleRequest = voice.Request
 
 // VoiceToggleResult mirrors the Hermes ui-tui voice.toggle response fields
 // that affect visible output and frontend record-key state.
-type VoiceToggleResult struct {
-	Enabled   bool
-	TTS       bool
-	RecordKey string
-	Details   string
-}
+type VoiceToggleResult = voice.Result
 
 // VoiceToggleFunc updates or reads local voice mode state for /voice. It is
 // injected so internal/tui never starts live audio or writes config files.
@@ -131,16 +134,11 @@ type VoiceToggleFunc func(VoiceToggleRequest) (VoiceToggleResult, error)
 
 // SkinConfigRequest is the TUI-local request shape for /skin. Name is empty
 // for read-only status and non-empty for a requested skin switch.
-type SkinConfigRequest struct {
-	Name      string
-	SessionID string
-}
+type SkinConfigRequest = skin.Request
 
 // SkinConfigResult mirrors the Hermes config.get/config.set skin response
 // value that affects visible output and active native TUI skin state.
-type SkinConfigResult struct {
-	Name string
-}
+type SkinConfigResult = skin.Result
 
 // SkinConfigFunc gets or sets the active display skin for /skin. Production
 // callers own persistence so internal/tui never writes config files directly.
@@ -177,7 +175,7 @@ type Options struct {
 	BusyGuard BusyInputEvaluator
 	// SessionExport is the injected canonical-transcript export helper
 	// invoked by the /save slash command. The implementation is expected
-	// to delegate to internal/transcript.ExportMarkdown over the
+	// to delegate to internal/persistence/transcript.ExportMarkdown over the
 	// persisted session store; nil disables /save (handler returns
 	// `save: store unavailable`). cmd/gormes wires the real
 	// MemoryDBPath-backed implementation in main.go so the TUI never
@@ -191,6 +189,21 @@ type Options struct {
 	// nil keeps /kanban consumed with unavailable evidence; cmd/gormes wires
 	// this to the same Cobra command tree as `gormes kanban`.
 	KanbanSlash KanbanSlashFunc
+	// SkillsCommand is the injected local command runner invoked by /skills.
+	// nil falls back to gateway.HandleSkillsCommand so read-only skills commands
+	// still work in tests and legacy callers; cmd/gormes wires URL install seams.
+	SkillsCommand func(string) string
+	// SkillSlashCommands are Hermes-compatible dynamic /skill-name invocations.
+	// Built-in slash handlers keep precedence; prompt templates may not shadow
+	// these commands.
+	SkillSlashCommands []skills.SkillSlashCommand
+	// SkillSlashReload refreshes SkillSlashCommands for /reload-skills.
+	// nil keeps the command consumed with visible unavailable evidence.
+	SkillSlashReload SkillSlashReloadFunc
+	// PromptTemplates are local operator-authored Markdown snippets exposed as
+	// slash expansions. They never override built-in slash handlers and expand
+	// into editable composer text rather than submitting to the model directly.
+	PromptTemplates prompttemplates.Catalog
 	// GatewayLogTail is the injected gateway log-tail reader invoked by /logs.
 	// nil keeps /logs consumed with `no gateway logs`; cmd/gormes wires a
 	// bounded live-gateway/file-fallback adapter for local TUI startup.
@@ -217,6 +230,12 @@ type Options struct {
 	// switcher invoked by `/resume <id-or-prefix>`. nil keeps argument-based
 	// resume consumed with visible degraded evidence.
 	SessionResume SessionResumeFunc
+	// SessionTree is the injected lineage/label tree reader invoked by /tree.
+	// Production callers own session metadata/transcript I/O; internal/tui only
+	// renders the tree and dispatches typed label/restore requests.
+	SessionTree        SessionTreeFunc
+	SessionTreeLabel   SessionTreeLabelFunc
+	SessionTreeRestore SessionTreeRestoreFunc
 	// SetSessionModel is the injected kernel apply seam invoked by /model.
 	// nil keeps /model consumed with visible degraded evidence.
 	SetSessionModelFunc SetSessionModelFunc
@@ -255,6 +274,13 @@ type Options struct {
 	// Runtime callers use it for recoverable degraded state that should not
 	// scar terminal scrollback before Bubble Tea enters the alt screen.
 	StartupNotice string
+	// BusyInputMode controls Enter on plain text while a kernel turn is active:
+	// interrupt (default), queue, or steer. Queue and steer keep drafts visible
+	// in the bottom-pinned chrome until delivered or cleared.
+	BusyInputMode HermesBusyInputMode
+	// Steer is the injected active-turn guidance adapter used when BusyInputMode
+	// is steer. Nil degrades to queue mode with visible evidence.
+	Steer Steerer
 	// WelcomeVersion / WelcomeToolCount seed the session-aware welcome panel
 	// with the operator-facing release version and agent tool count, which
 	// are unreachable from internal/tui (main.Version is package main; the
@@ -292,6 +318,9 @@ type Model struct {
 
 	editor textarea.Model
 
+	inputHistory    *HermesHistory
+	slashCompletion slashCompletionState
+
 	// frame is the latest RenderFrame received from the kernel. View() renders
 	// this snapshot; Update() replaces it on every frameMsg.
 	frame kernel.RenderFrame
@@ -299,6 +328,7 @@ type Model struct {
 	frames   <-chan kernel.RenderFrame
 	submit   Submitter
 	cancel   Canceller
+	steer    Steerer
 	inFlight bool // true between a user submit and the next terminal frame
 
 	mouseTracking     bool
@@ -315,25 +345,36 @@ type Model struct {
 	detailsState      DetailsState
 	indicatorStyle    IndicatorStyle
 	spinnerFrame      int
+	busyInputMode     HermesBusyInputMode
+	queuedMessages    QueuedMessages
+	steeringMessages  QueuedMessages
+	extensionUI       extensionUIState
 
 	// sessionID, when non-empty, is the locally-tracked active session
 	// owned by a successful /branch fork. SessionID() prefers it over
 	// frame.SessionID so subsequent UI reads see the branch session even
 	// before the kernel acks the switch on its next render frame.
-	sessionID        string
-	sessionBranch    SessionBranchFunc
-	sessionExport    SessionExportFunc
-	clipboardWrite   func(string) error
-	kanbanSlash      KanbanSlashFunc
-	gatewayLogTail   GatewayLogTailFunc
-	sessionTitle     SessionTitleFunc
-	sessionDirectory SessionDirectoryFunc
-	accountUsage     AccountUsageFunc
-	toolsConfigure   ToolsConfigureFunc
-	voiceToggle      VoiceToggleFunc
-	skinConfig       SkinConfigFunc
-	sessionResume    SessionResumeFunc
-	todoReader       func(sessionID string) []TodoItem
+	sessionID          string
+	sessionBranch      SessionBranchFunc
+	sessionExport      SessionExportFunc
+	clipboardWrite     func(string) error
+	kanbanSlash        KanbanSlashFunc
+	skillsCommand      func(string) string
+	skillSlashCommands []skills.SkillSlashCommand
+	skillSlashReload   SkillSlashReloadFunc
+	promptTemplates    prompttemplates.Catalog
+	gatewayLogTail     GatewayLogTailFunc
+	sessionTitle       SessionTitleFunc
+	sessionDirectory   SessionDirectoryFunc
+	sessionTree        SessionTreeFunc
+	sessionTreeLabel   SessionTreeLabelFunc
+	sessionTreeRestore SessionTreeRestoreFunc
+	accountUsage       AccountUsageFunc
+	toolsConfigure     ToolsConfigureFunc
+	voiceToggle        VoiceToggleFunc
+	skinConfig         SkinConfigFunc
+	sessionResume      SessionResumeFunc
+	todoReader         func(sessionID string) []TodoItem
 
 	slashRegistry *SlashRegistry
 
@@ -381,13 +422,16 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 	// input line instead of the textarea default cursor marker.
 	normalPrompt, _ := skin.PromptSymbols("default")
 	ta.Prompt = normalPrompt
+	ApplyTextareaSkin(&ta, skin)
 	ta.SetHeight(1)
 	ta.Focus()
 	return Model{
 		editor:             ta,
+		inputHistory:       NewHermesHistory(),
 		frames:             frames,
 		submit:             submit,
 		cancel:             cancel,
+		steer:              opts.Steer,
 		mouseTracking:      opts.MouseTracking,
 		mouseModeCmd:       opts.MouseModeCmd,
 		voiceRecordKey:     opts.VoiceRecordKey,
@@ -399,9 +443,16 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		sessionExport:      opts.SessionExport,
 		clipboardWrite:     opts.ClipboardWrite,
 		kanbanSlash:        opts.KanbanSlash,
+		skillsCommand:      opts.SkillsCommand,
+		skillSlashCommands: opts.SkillSlashCommands,
+		skillSlashReload:   opts.SkillSlashReload,
+		promptTemplates:    opts.PromptTemplates,
 		gatewayLogTail:     opts.GatewayLogTail,
 		sessionTitle:       opts.SessionTitle,
 		sessionDirectory:   opts.SessionDirectory,
+		sessionTree:        opts.SessionTree,
+		sessionTreeLabel:   opts.SessionTreeLabel,
+		sessionTreeRestore: opts.SessionTreeRestore,
 		accountUsage:       opts.AccountUsage,
 		toolsConfigure:     opts.ToolsConfigure,
 		voiceToggle:        opts.VoiceToggle,
@@ -415,11 +466,23 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		sessionReset:       opts.SessionReset,
 		compactTranscript:  opts.CompactTranscript,
 		statusBarMode:      normalizeStatusBarMode(opts.StatusBarMode),
+		busyInputMode:      normalizeHermesBusyInputMode(opts.BusyInputMode),
 		detailsState:       NormalizeDetailsState(opts.DetailsState),
 		indicatorStyle:     NormalizeIndicatorStyle(string(opts.IndicatorStyle)),
 		offlineSmoke:       opts.OfflineSmoke,
-		slashRegistry:      NewDefaultSlashRegistry(),
-	}
+	}.withRebuiltSlashRegistry()
+}
+
+func (m Model) withRebuiltSlashRegistry() Model {
+	m.rebuildSlashRegistry()
+	return m
+}
+
+func (m *Model) rebuildSlashRegistry() {
+	r := NewDefaultSlashRegistry()
+	r.RegisterSkillSlashCommands(m.skillSlashCommands)
+	r.RegisterPromptTemplates(m.promptTemplates)
+	m.slashRegistry = r
 }
 
 // SessionID returns the model's active session identifier. A locally-tracked

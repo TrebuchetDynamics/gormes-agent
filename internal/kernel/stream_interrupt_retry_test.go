@@ -9,25 +9,25 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 func TestKernel_StreamInterruptSuppressesRetryAfterPlatformCancel(t *testing.T) {
 	st := newInterruptRetryStore()
 	releaseFirst := make(chan struct{})
 	client := &interruptRetryClient{
-		firstErr: &hermes.HTTPError{
+		firstErr: &llm.HTTPError{
 			Status:     http.StatusServiceUnavailable,
 			Body:       "transient stream setup failure",
 			RetryAfter: 15 * time.Millisecond,
 		},
 		firstStarted: make(chan struct{}),
 		releaseFirst: releaseFirst,
-		streams: []hermes.Stream{&interruptRetryStream{events: []hermes.Event{
-			{Kind: hermes.EventToken, Token: "unexpected"},
-			{Kind: hermes.EventDone, FinishReason: "stop"},
+		streams: []llm.Stream{&interruptRetryStream{events: []llm.Event{
+			{Kind: llm.EventToken, Token: "unexpected"},
+			{Kind: llm.EventDone, FinishReason: "stop"},
 		}}},
 	}
 	k := New(Config{
@@ -75,14 +75,14 @@ func TestKernel_StreamInterruptSuppressesRetryAfterPlatformCancel(t *testing.T) 
 func TestKernel_StreamInterruptSuppressesRetryWhenParentContextCancelsDuringBackoff(t *testing.T) {
 	st := newInterruptRetryStore()
 	client := &interruptRetryClient{
-		firstErr: &hermes.HTTPError{
+		firstErr: &llm.HTTPError{
 			Status:     http.StatusServiceUnavailable,
 			Body:       "transient stream setup failure",
 			RetryAfter: time.Hour,
 		},
-		streams: []hermes.Stream{&interruptRetryStream{events: []hermes.Event{
-			{Kind: hermes.EventToken, Token: "unexpected"},
-			{Kind: hermes.EventDone, FinishReason: "stop"},
+		streams: []llm.Stream{&interruptRetryStream{events: []llm.Event{
+			{Kind: llm.EventToken, Token: "unexpected"},
+			{Kind: llm.EventDone, FinishReason: "stop"},
 		}}},
 	}
 	k := New(Config{
@@ -117,14 +117,14 @@ func TestKernel_StreamInterruptSuppressesRetryWhenParentContextCancelsDuringBack
 func TestKernel_StreamInterruptSuppressesRetryNoCancelControlRecovers(t *testing.T) {
 	st := newInterruptRetryStore()
 	client := &interruptRetryClient{
-		firstErr: &hermes.HTTPError{
+		firstErr: &llm.HTTPError{
 			Status:     http.StatusServiceUnavailable,
 			Body:       "transient stream setup failure",
 			RetryAfter: time.Millisecond,
 		},
-		streams: []hermes.Stream{&interruptRetryStream{events: []hermes.Event{
-			{Kind: hermes.EventToken, Token: "ok"},
-			{Kind: hermes.EventDone, FinishReason: "stop"},
+		streams: []llm.Stream{&interruptRetryStream{events: []llm.Event{
+			{Kind: llm.EventToken, Token: "ok"},
+			{Kind: llm.EventDone, FinishReason: "stop"},
 		}}},
 	}
 	k := New(Config{
@@ -167,11 +167,11 @@ type interruptRetryClient struct {
 
 	mu               sync.Mutex
 	calls            int
-	streams          []hermes.Stream
+	streams          []llm.Stream
 	firstStartedOnce sync.Once
 }
 
-func (c *interruptRetryClient) OpenStream(ctx context.Context, _ hermes.ChatRequest) (hermes.Stream, error) {
+func (c *interruptRetryClient) OpenStream(ctx context.Context, _ llm.ChatRequest) (llm.Stream, error) {
 	c.mu.Lock()
 	c.calls++
 	call := c.calls
@@ -201,8 +201,8 @@ func (c *interruptRetryClient) OpenStream(ctx context.Context, _ hermes.ChatRequ
 	return s, nil
 }
 
-func (c *interruptRetryClient) OpenRunEvents(context.Context, string) (hermes.RunEventStream, error) {
-	return nil, hermes.ErrRunEventsNotSupported
+func (c *interruptRetryClient) OpenRunEvents(context.Context, string) (llm.RunEventStream, error) {
+	return nil, llm.ErrRunEventsNotSupported
 }
 
 func (c *interruptRetryClient) Health(context.Context) error { return nil }
@@ -214,13 +214,13 @@ func (c *interruptRetryClient) Calls() int {
 }
 
 type interruptRetryStream struct {
-	events []hermes.Event
+	events []llm.Event
 	pos    int
 }
 
-func (s *interruptRetryStream) Recv(context.Context) (hermes.Event, error) {
+func (s *interruptRetryStream) Recv(context.Context) (llm.Event, error) {
 	if s.pos >= len(s.events) {
-		return hermes.Event{}, io.EOF
+		return llm.Event{}, io.EOF
 	}
 	ev := s.events[s.pos]
 	s.pos++

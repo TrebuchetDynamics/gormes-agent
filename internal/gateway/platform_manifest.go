@@ -1,98 +1,49 @@
 package gateway
 
+import gatewayplatforms "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/platforms"
+
 // PlatformImplementationStatus classifies how much of one upstream Hermes
 // gateway platform has a native Gormes surface today.
-type PlatformImplementationStatus string
+type PlatformImplementationStatus = gatewayplatforms.PlatformImplementationStatus
 
 const (
-	PlatformStatusImplemented PlatformImplementationStatus = "implemented"
-	PlatformStatusPartial     PlatformImplementationStatus = "partial"
-	PlatformStatusRowBacked   PlatformImplementationStatus = "row_backed"
-	PlatformStatusExcluded    PlatformImplementationStatus = "excluded"
-	PlatformStatusOwned       PlatformImplementationStatus = "owned"
+	PlatformStatusImplemented = gatewayplatforms.PlatformStatusImplemented
+	PlatformStatusPartial     = gatewayplatforms.PlatformStatusPartial
+	PlatformStatusRowBacked   = gatewayplatforms.PlatformStatusRowBacked
+	PlatformStatusExcluded    = gatewayplatforms.PlatformStatusExcluded
+	PlatformStatusOwned       = gatewayplatforms.PlatformStatusOwned
 )
 
 // PlatformSurfaceStatus records whether one observable platform capability is
 // already implemented, partially implemented, row-backed, intentionally not
 // applicable, or owned by a Go-native Gormes surface.
-type PlatformSurfaceStatus string
+type PlatformSurfaceStatus = gatewayplatforms.PlatformSurfaceStatus
 
 const (
-	PlatformSurfaceImplemented   PlatformSurfaceStatus = "implemented"
-	PlatformSurfacePartial       PlatformSurfaceStatus = "partial"
-	PlatformSurfaceRowBacked     PlatformSurfaceStatus = "row_backed"
-	PlatformSurfaceNotApplicable PlatformSurfaceStatus = "not_applicable"
-	PlatformSurfaceOwned         PlatformSurfaceStatus = "owned"
+	PlatformSurfaceImplemented   = gatewayplatforms.PlatformSurfaceImplemented
+	PlatformSurfacePartial       = gatewayplatforms.PlatformSurfacePartial
+	PlatformSurfaceRowBacked     = gatewayplatforms.PlatformSurfaceRowBacked
+	PlatformSurfaceNotApplicable = gatewayplatforms.PlatformSurfaceNotApplicable
+	PlatformSurfaceOwned         = gatewayplatforms.PlatformSurfaceOwned
 )
 
 // PlatformKind distinguishes real operator channels from local/runtime-only
 // gateway surfaces that Hermes still exposes through the same Platform enum.
-type PlatformKind string
+type PlatformKind = gatewayplatforms.PlatformKind
 
 const (
-	PlatformKindChannel PlatformKind = "channel"
-	PlatformKindRuntime PlatformKind = "runtime"
-	PlatformKindWebhook PlatformKind = "webhook"
-	PlatformKindLocal   PlatformKind = "local"
+	PlatformKindChannel = gatewayplatforms.PlatformKindChannel
+	PlatformKindRuntime = gatewayplatforms.PlatformKindRuntime
+	PlatformKindWebhook = gatewayplatforms.PlatformKindWebhook
+	PlatformKindLocal   = gatewayplatforms.PlatformKindLocal
 )
 
 // PlatformManifestEntry is the source-backed platform inventory used by
-// gateway/channel planning. It is deliberately data-only: tests compare it to
-// upstream Hermes source without starting live SDKs, sockets, webhooks, QR
-// flows, or credential readers.
-type PlatformManifestEntry struct {
-	ID                      string
-	DisplayName             string
-	Kind                    PlatformKind
-	Status                  PlatformImplementationStatus
-	HermesSource            string
-	GormesSurface           string
-	RequiresLiveCredentials bool
-	Inbound                 PlatformSurfaceStatus
-	Outbound                PlatformSurfaceStatus
-	Media                   PlatformSurfaceStatus
-	Commands                PlatformSurfaceStatus
-	Toolset                 PlatformSurfaceStatus
-	Config                  PlatformSurfaceStatus
-	Pairing                 PlatformSurfaceStatus
-	Delivery                PlatformSurfaceStatus
-	BacklogOwner            string
-	Notes                   string
-}
+// gateway/channel planning.
+type PlatformManifestEntry = gatewayplatforms.PlatformManifestEntry
 
 // HermesGatewayPlatformManifest returns a copy of the current Hermes gateway
-// Platform enum and connector inventory as understood by Gormes. Unsupported
-// platforms remain explicit row-backed entries instead of disappearing from
-// status, docs, or follow-up planning.
+// Platform enum and connector inventory as understood by Gormes.
 func HermesGatewayPlatformManifest() []PlatformManifestEntry {
-	manifest := []PlatformManifestEntry{
-		{ID: "local", DisplayName: "Local runtime", Kind: PlatformKindLocal, Status: PlatformStatusOwned, HermesSource: "gateway/config.py:Platform.LOCAL", GormesSurface: "cmd/gormes root/TUI/oneshot", Inbound: PlatformSurfaceOwned, Outbound: PlatformSurfaceOwned, Media: PlatformSurfaceNotApplicable, Commands: PlatformSurfacePartial, Toolset: PlatformSurfacePartial, Config: PlatformSurfaceImplemented, Pairing: PlatformSurfaceNotApplicable, Delivery: PlatformSurfaceOwned, BacklogOwner: "Phase 4.I / Phase 5.Q", Notes: "Local is a runtime surface, not an external channel."},
-		{ID: "telegram", DisplayName: "Telegram", Kind: PlatformKindChannel, Status: PlatformStatusImplemented, HermesSource: "gateway/platforms/telegram.py", GormesSurface: "internal/channels/telegram + cmd/gormes gateway", RequiresLiveCredentials: true, Inbound: PlatformSurfaceImplemented, Outbound: PlatformSurfaceImplemented, Media: PlatformSurfacePartial, Commands: PlatformSurfaceImplemented, Toolset: PlatformSurfacePartial, Config: PlatformSurfaceImplemented, Pairing: PlatformSurfacePartial, Delivery: PlatformSurfaceImplemented, BacklogOwner: "Phase 2.B / Phase 2.F", Notes: "Primary dogfood channel; live tokens are never needed for manifest tests."},
-		{ID: "discord", DisplayName: "Discord", Kind: PlatformKindChannel, Status: PlatformStatusImplemented, HermesSource: "gateway/platforms/discord.py", GormesSurface: "internal/channels/discord", RequiresLiveCredentials: true, Inbound: PlatformSurfaceImplemented, Outbound: PlatformSurfaceImplemented, Media: PlatformSurfacePartial, Commands: PlatformSurfaceImplemented, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfaceImplemented, Pairing: PlatformSurfacePartial, Delivery: PlatformSurfaceImplemented, BacklogOwner: "Phase 2.B / Phase 2.F", Notes: "Mention-aware ingress and reply delivery are native; richer Discord toolsets remain row-backed."},
-		{ID: "whatsapp", DisplayName: "WhatsApp", Kind: PlatformKindChannel, Status: PlatformStatusImplemented, HermesSource: "gateway/platforms/whatsapp.py", GormesSurface: "internal/channels/whatsapp", RequiresLiveCredentials: true, Inbound: PlatformSurfaceImplemented, Outbound: PlatformSurfaceImplemented, Media: PlatformSurfacePartial, Commands: PlatformSurfaceImplemented, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfaceImplemented, Pairing: PlatformSurfacePartial, Delivery: PlatformSurfaceImplemented, BacklogOwner: "Phase 2.B.4", Notes: "Native transport startup and QR UX are outside the closed first-pass contract."},
-		{ID: "slack", DisplayName: "Slack", Kind: PlatformKindChannel, Status: PlatformStatusImplemented, HermesSource: "gateway/platforms/slack.py", GormesSurface: "internal/slack", RequiresLiveCredentials: true, Inbound: PlatformSurfaceImplemented, Outbound: PlatformSurfaceImplemented, Media: PlatformSurfacePartial, Commands: PlatformSurfaceImplemented, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfaceImplemented, Pairing: PlatformSurfacePartial, Delivery: PlatformSurfaceImplemented, BacklogOwner: "Phase 2.B.3 / Phase 5.O", Notes: "Socket Mode and command registry wiring are native; runtime management CLI remains row-backed."},
-		{ID: "signal", DisplayName: "Signal", Kind: PlatformKindChannel, Status: PlatformStatusPartial, HermesSource: "gateway/platforms/signal.py", GormesSurface: "internal/channels/signal", RequiresLiveCredentials: true, Inbound: PlatformSurfacePartial, Outbound: PlatformSurfacePartial, Media: PlatformSurfaceRowBacked, Commands: PlatformSurfaceImplemented, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfacePartial, Pairing: PlatformSurfaceRowBacked, Delivery: PlatformSurfacePartial, BacklogOwner: "Phase 7.A", Notes: "Shared-chassis behavior is present; bootstrap/transport remains paused."},
-		{ID: "mattermost", DisplayName: "Mattermost", Kind: PlatformKindChannel, Status: PlatformStatusRowBacked, HermesSource: "gateway/platforms/mattermost.py", GormesSurface: "internal/channels/threadtext", RequiresLiveCredentials: true, Inbound: PlatformSurfaceRowBacked, Outbound: PlatformSurfaceRowBacked, Media: PlatformSurfaceRowBacked, Commands: PlatformSurfaceRowBacked, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfaceRowBacked, Pairing: PlatformSurfaceRowBacked, Delivery: PlatformSurfaceRowBacked, BacklogOwner: "Phase 7.C", Notes: "Thread-text base contracts exist; Mattermost adapter remains row-backed."},
-		{ID: "matrix", DisplayName: "Matrix", Kind: PlatformKindChannel, Status: PlatformStatusRowBacked, HermesSource: "gateway/platforms/matrix.py", GormesSurface: "internal/channels/threadtext", RequiresLiveCredentials: true, Inbound: PlatformSurfaceRowBacked, Outbound: PlatformSurfaceRowBacked, Media: PlatformSurfaceRowBacked, Commands: PlatformSurfaceRowBacked, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfaceRowBacked, Pairing: PlatformSurfaceRowBacked, Delivery: PlatformSurfaceRowBacked, BacklogOwner: "Phase 7.C", Notes: "Thread-text base contracts exist; Matrix adapter remains row-backed."},
-		{ID: "homeassistant", DisplayName: "Home Assistant", Kind: PlatformKindChannel, Status: PlatformStatusImplemented, HermesSource: "gateway/platforms/homeassistant.py", GormesSurface: "internal/channels/homeassistant", RequiresLiveCredentials: true, Inbound: PlatformSurfaceImplemented, Outbound: PlatformSurfaceImplemented, Media: PlatformSurfaceNotApplicable, Commands: PlatformSurfaceRowBacked, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfaceImplemented, Pairing: PlatformSurfaceRowBacked, Delivery: PlatformSurfaceImplemented, BacklogOwner: "Phase 7.E", Notes: "State-change formatting and persistent notifications are native."},
-		{ID: "email", DisplayName: "Email", Kind: PlatformKindChannel, Status: PlatformStatusImplemented, HermesSource: "gateway/platforms/email.py", GormesSurface: "internal/channels/email", RequiresLiveCredentials: true, Inbound: PlatformSurfaceImplemented, Outbound: PlatformSurfaceImplemented, Media: PlatformSurfacePartial, Commands: PlatformSurfaceImplemented, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfaceImplemented, Pairing: PlatformSurfaceNotApplicable, Delivery: PlatformSurfaceImplemented, BacklogOwner: "Phase 7.B", Notes: "RFC822 normalization and reply-thread targets are native."},
-		{ID: "sms", DisplayName: "SMS", Kind: PlatformKindChannel, Status: PlatformStatusImplemented, HermesSource: "gateway/platforms/sms.py", GormesSurface: "internal/channels/sms", RequiresLiveCredentials: true, Inbound: PlatformSurfaceImplemented, Outbound: PlatformSurfaceImplemented, Media: PlatformSurfaceNotApplicable, Commands: PlatformSurfaceImplemented, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfaceImplemented, Pairing: PlatformSurfaceNotApplicable, Delivery: PlatformSurfaceImplemented, BacklogOwner: "Phase 7.B", Notes: "Phone-number keys and outbound segmentation are native."},
-		{ID: "dingtalk", DisplayName: "DingTalk", Kind: PlatformKindChannel, Status: PlatformStatusPartial, HermesSource: "gateway/platforms/dingtalk.py", GormesSurface: "internal/channels/dingtalk", RequiresLiveCredentials: true, Inbound: PlatformSurfacePartial, Outbound: PlatformSurfacePartial, Media: PlatformSurfaceRowBacked, Commands: PlatformSurfaceImplemented, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfacePartial, Pairing: PlatformSurfaceRowBacked, Delivery: PlatformSurfacePartial, BacklogOwner: "Phase 7.E", Notes: "Shared-bot ingress and Stream Mode bootstrap fixtures are native; live SDK binding is paused."},
-		{ID: "api_server", DisplayName: "API server", Kind: PlatformKindRuntime, Status: PlatformStatusRowBacked, HermesSource: "gateway/platforms/api_server.py", GormesSurface: "internal/apiserver", Inbound: PlatformSurfaceRowBacked, Outbound: PlatformSurfaceRowBacked, Media: PlatformSurfaceRowBacked, Commands: PlatformSurfaceRowBacked, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfacePartial, Pairing: PlatformSurfaceNotApplicable, Delivery: PlatformSurfaceRowBacked, BacklogOwner: "Phase 5.Q", Notes: "Runtime API surface; not an external chat channel."},
-		{ID: "webhook", DisplayName: "Webhook", Kind: PlatformKindWebhook, Status: PlatformStatusImplemented, HermesSource: "gateway/platforms/webhook.py", GormesSurface: "internal/channels/webhook", Inbound: PlatformSurfaceImplemented, Outbound: PlatformSurfaceImplemented, Media: PlatformSurfaceNotApplicable, Commands: PlatformSurfaceRowBacked, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfaceImplemented, Pairing: PlatformSurfaceNotApplicable, Delivery: PlatformSurfaceImplemented, BacklogOwner: "Phase 7.D / Phase 5.O", Notes: "Signed ingress and prompt-to-delivery bridge are native; management CLI is row-backed."},
-		{ID: "msgraph_webhook", DisplayName: "Microsoft Graph webhook", Kind: PlatformKindWebhook, Status: PlatformStatusRowBacked, HermesSource: "gateway/platforms/msgraph_webhook.py", GormesSurface: "Phase 7.D row-backed webhook listener", RequiresLiveCredentials: true, Inbound: PlatformSurfaceRowBacked, Outbound: PlatformSurfaceNotApplicable, Media: PlatformSurfaceNotApplicable, Commands: PlatformSurfaceRowBacked, Toolset: PlatformSurfaceNotApplicable, Config: PlatformSurfaceRowBacked, Pairing: PlatformSurfaceNotApplicable, Delivery: PlatformSurfaceRowBacked, BacklogOwner: "Phase 7.D", Notes: "Fresh Hermes Graph change-notification listener; validationToken echo, clientState, source-CIDR, dedupe, and scheduler wiring remain row-backed."},
-		{ID: "feishu", DisplayName: "Feishu", Kind: PlatformKindChannel, Status: PlatformStatusPartial, HermesSource: "gateway/platforms/feishu.py", GormesSurface: "internal/channels/feishu", RequiresLiveCredentials: true, Inbound: PlatformSurfacePartial, Outbound: PlatformSurfacePartial, Media: PlatformSurfacePartial, Commands: PlatformSurfaceImplemented, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfacePartial, Pairing: PlatformSurfaceRowBacked, Delivery: PlatformSurfacePartial, BacklogOwner: "Phase 7.E / Phase 5.A", Notes: "Shared-bot ingress and reply-target preservation are native; Drive/comment tool workflows remain row-backed."},
-		{ID: "google_chat", DisplayName: "Google Chat", Kind: PlatformKindChannel, Status: PlatformStatusPartial, HermesSource: "plugins/platforms/google_chat/adapter.py", GormesSurface: "internal/channels/googlechat", RequiresLiveCredentials: true, Inbound: PlatformSurfacePartial, Outbound: PlatformSurfacePartial, Media: PlatformSurfaceRowBacked, Commands: PlatformSurfaceRowBacked, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfacePartial, Pairing: PlatformSurfaceRowBacked, Delivery: PlatformSurfacePartial, BacklogOwner: "Phase 7.E / Phase 5.A", Notes: "Hermes exposes Google Chat as a bundled platform plugin with Pub/Sub and standalone send hooks; Gormes has a fakeable runtime seam but live Google Chat API behavior remains row-backed."},
-		{ID: "irc", DisplayName: "IRC", Kind: PlatformKindChannel, Status: PlatformStatusRowBacked, HermesSource: "plugins/platforms/irc/adapter.py", GormesSurface: "Phase 7.E row-backed plugin channel", RequiresLiveCredentials: true, Inbound: PlatformSurfaceRowBacked, Outbound: PlatformSurfaceRowBacked, Media: PlatformSurfaceNotApplicable, Commands: PlatformSurfaceRowBacked, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfaceRowBacked, Pairing: PlatformSurfaceNotApplicable, Delivery: PlatformSurfaceRowBacked, BacklogOwner: "Phase 7.E / Phase 5.A", Notes: "Hermes exposes IRC as a bundled stdlib platform plugin with env enablement and standalone cron delivery; no native Gormes IRC adapter exists yet."},
-		{ID: "line", DisplayName: "LINE", Kind: PlatformKindChannel, Status: PlatformStatusRowBacked, HermesSource: "plugins/platforms/line/adapter.py", GormesSurface: "Phase 7.E row-backed plugin channel", RequiresLiveCredentials: true, Inbound: PlatformSurfaceRowBacked, Outbound: PlatformSurfaceRowBacked, Media: PlatformSurfaceRowBacked, Commands: PlatformSurfaceRowBacked, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfaceRowBacked, Pairing: PlatformSurfaceRowBacked, Delivery: PlatformSurfaceRowBacked, BacklogOwner: "Phase 7.E / Phase 5.A", Notes: "Hermes exposes LINE as a bundled platform plugin with HMAC webhook verification, reply-token/postback routing, LINE-sized chunks, media URL serving, env enablement, and standalone cron send; Gormes keeps it visible as row-backed until adapter fixtures exist."},
-		{ID: "simplex", DisplayName: "SimpleX Chat", Kind: PlatformKindChannel, Status: PlatformStatusPartial, HermesSource: "plugins/platforms/simplex/adapter.py", GormesSurface: "internal/channels/simplex + cmd/gormes gateway", RequiresLiveCredentials: true, Inbound: PlatformSurfacePartial, Outbound: PlatformSurfacePartial, Media: PlatformSurfaceNotApplicable, Commands: PlatformSurfaceRowBacked, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfacePartial, Pairing: PlatformSurfacePartial, Delivery: PlatformSurfacePartial, BacklogOwner: "Phase 7.E / Phase 5.A", Notes: "Native fakeable SimpleX text ingress/outbound, env enablement, opaque contact IDs, allowlist evidence, home-channel delivery, and daemon status are present; QR/contact onboarding and media/file transfer remain explicit degraded follow-up work."},
-		{ID: "teams", DisplayName: "Microsoft Teams", Kind: PlatformKindChannel, Status: PlatformStatusPartial, HermesSource: "plugins/platforms/teams/adapter.py", GormesSurface: "internal/channels/teams + cmd/gormes gateway", RequiresLiveCredentials: true, Inbound: PlatformSurfacePartial, Outbound: PlatformSurfacePartial, Media: PlatformSurfacePartial, Commands: PlatformSurfaceRowBacked, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfaceImplemented, Pairing: PlatformSurfaceRowBacked, Delivery: PlatformSurfacePartial, BacklogOwner: "Phase 7.E / Phase 5.A", Notes: "Hermes exposes Teams as a bundled platform plugin rather than a gateway Platform enum value; Gormes has the fakeable seam and config/status wiring, while live Bot Framework transport remains row-backed."},
-		{ID: "wecom", DisplayName: "WeCom", Kind: PlatformKindChannel, Status: PlatformStatusImplemented, HermesSource: "gateway/platforms/wecom.py", GormesSurface: "internal/channels/wecom", RequiresLiveCredentials: true, Inbound: PlatformSurfaceImplemented, Outbound: PlatformSurfaceImplemented, Media: PlatformSurfacePartial, Commands: PlatformSurfaceImplemented, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfaceImplemented, Pairing: PlatformSurfacePartial, Delivery: PlatformSurfaceImplemented, BacklogOwner: "Phase 2.B.10", Notes: "Shared-bot and outbound lifecycle seams are native."},
-		{ID: "wecom_callback", DisplayName: "WeCom callback", Kind: PlatformKindWebhook, Status: PlatformStatusImplemented, HermesSource: "gateway/platforms/wecom_callback.py", GormesSurface: "internal/channels/wecom", RequiresLiveCredentials: true, Inbound: PlatformSurfaceImplemented, Outbound: PlatformSurfaceImplemented, Media: PlatformSurfacePartial, Commands: PlatformSurfaceImplemented, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfaceImplemented, Pairing: PlatformSurfacePartial, Delivery: PlatformSurfaceImplemented, BacklogOwner: "Phase 2.B.10", Notes: "Callback mode is a platform-specific webhook surface, not a missing channel."},
-		{ID: "weixin", DisplayName: "Weixin", Kind: PlatformKindChannel, Status: PlatformStatusImplemented, HermesSource: "gateway/platforms/weixin.py", GormesSurface: "internal/channels/weixin", RequiresLiveCredentials: true, Inbound: PlatformSurfaceImplemented, Outbound: PlatformSurfaceImplemented, Media: PlatformSurfacePartial, Commands: PlatformSurfaceImplemented, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfaceImplemented, Pairing: PlatformSurfacePartial, Delivery: PlatformSurfaceImplemented, BacklogOwner: "Phase 2.B.10", Notes: "Shared-bot and reply-path contracts are native."},
-		{ID: "bluebubbles", DisplayName: "BlueBubbles", Kind: PlatformKindChannel, Status: PlatformStatusPartial, HermesSource: "gateway/platforms/bluebubbles.py", GormesSurface: "internal/channels/bluebubbles", RequiresLiveCredentials: true, Inbound: PlatformSurfacePartial, Outbound: PlatformSurfacePartial, Media: PlatformSurfacePartial, Commands: PlatformSurfaceImplemented, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfacePartial, Pairing: PlatformSurfaceRowBacked, Delivery: PlatformSurfacePartial, BacklogOwner: "Phase 7.E", Notes: "Webhook auth, chat GUID cache, and home-channel fallback are native; iMessage bubble formatting is paused."},
-		{ID: "qqbot", DisplayName: "QQ Bot", Kind: PlatformKindChannel, Status: PlatformStatusPartial, HermesSource: "gateway/platforms/qqbot/", GormesSurface: "internal/channels/qqbot", RequiresLiveCredentials: true, Inbound: PlatformSurfacePartial, Outbound: PlatformSurfacePartial, Media: PlatformSurfacePartial, Commands: PlatformSurfaceImplemented, Toolset: PlatformSurfaceRowBacked, Config: PlatformSurfacePartial, Pairing: PlatformSurfaceRowBacked, Delivery: PlatformSurfacePartial, BacklogOwner: "Phase 7.E", Notes: "Shared-bot policy and passive replies are native; token/gateway fake transport remains follow-up."},
-		{ID: "yuanbao", DisplayName: "Yuanbao", Kind: PlatformKindChannel, Status: PlatformStatusPartial, HermesSource: "gateway/platforms/yuanbao.py", GormesSurface: "internal/channels/yuanbao", RequiresLiveCredentials: true, Inbound: PlatformSurfacePartial, Outbound: PlatformSurfacePartial, Media: PlatformSurfacePartial, Commands: PlatformSurfaceImplemented, Toolset: PlatformSurfacePartial, Config: PlatformSurfacePartial, Pairing: PlatformSurfaceRowBacked, Delivery: PlatformSurfacePartial, BacklogOwner: "Phase 7.E / Phase 5.A", Notes: "Protobuf/markdown/media/sticker fixtures and disabled toolset registration are native; live catalog remains row-backed."},
-	}
-	return append([]PlatformManifestEntry(nil), manifest...)
+	return gatewayplatforms.HermesGatewayPlatformManifest()
 }

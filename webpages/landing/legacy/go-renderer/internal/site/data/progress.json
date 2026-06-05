@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-23",
+    "last_updated": "2026-05-26",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -956,6 +956,10 @@
             {
               "name": "",
               "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
             }
           ]
         },
@@ -1099,6 +1103,10 @@
           "name": "Gateway Mid-Run Steering + Active-Turn Policy",
           "priority": "P2",
           "items": [
+            {
+              "name": "",
+              "status": "complete"
+            },
             {
               "name": "",
               "status": "complete"
@@ -1756,6 +1764,30 @@
             {
               "name": "",
               "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
             }
           ],
           "drift_state": {
@@ -1767,6 +1799,10 @@
         "4.B": {
           "name": "Context Engine + Compression",
           "items": [
+            {
+              "name": "",
+              "status": "complete"
+            },
             {
               "name": "",
               "status": "complete"
@@ -2468,6 +2504,10 @@
             {
               "name": "",
               "status": "planned"
+            },
+            {
+              "name": "",
+              "status": "complete"
             }
           ],
           "drift_state": {
@@ -2608,6 +2648,14 @@
             {
               "name": "",
               "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
             }
           ],
           "drift_state": {
@@ -2619,6 +2667,14 @@
         "5.F": {
           "name": "Skills System (Remaining)",
           "items": [
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
             {
               "name": "",
               "status": "complete"
@@ -2945,6 +3001,10 @@
         "5.L": {
           "name": "File Ops + Patches",
           "items": [
+            {
+              "name": "",
+              "status": "complete"
+            },
             {
               "name": "",
               "status": "complete"
@@ -4021,6 +4081,10 @@
             {
               "name": "",
               "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
             }
           ],
           "drift_state": {
@@ -4093,6 +4157,14 @@
         "5.Q": {
           "name": "API Server + TUI Gateway Streaming",
           "items": [
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
             {
               "name": "",
               "status": "complete"
@@ -4674,6 +4746,22 @@
             {
               "name": "",
               "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
             }
           ]
         },
@@ -5052,6 +5140,10 @@
             {
               "name": "",
               "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
             }
           ]
         },
@@ -5064,7 +5156,15 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
             },
             {
               "name": "",
@@ -5271,6 +5371,46 @@
             {
               "name": "",
               "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
             }
           ]
         },
@@ -5384,7 +5524,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
@@ -5392,7 +5532,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
@@ -5400,7 +5540,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
@@ -5408,7 +5548,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
@@ -5416,7 +5556,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
@@ -5424,7 +5564,11 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
             }
           ]
         },

@@ -233,6 +233,103 @@ func TestFreshInstallE2E_FreshInstallReadOnlyCommandsExitZero(t *testing.T) {
 	}
 }
 
+func TestFreshInstallE2E_OfflineCornerCommandMatrix(t *testing.T) {
+	freshInstallE2EHome(t)
+
+	cases := []struct {
+		name     string
+		args     []string
+		exitCode int
+		want     []string
+	}{
+		{name: "config_path", args: []string{"config", "path"}, want: []string{"config.toml"}},
+		{name: "config_env_path", args: []string{"config", "env-path"}, want: []string{".env"}},
+		{name: "doctor_terminal", args: []string{"doctor", "--offline", "--target", "terminal"}, want: []string{"Gormes Doctor"}},
+		{name: "security_audit", args: []string{"security", "audit"}, want: []string{"security_audit_completed", "redacted=true"}},
+		{name: "curator_status", args: []string{"curator", "status"}, want: []string{"curator:"}},
+		{name: "skills_list", args: []string{"skills", "list"}, want: []string{"Name", "builtin"}},
+		{name: "fallback_list", args: []string{"fallback", "list"}, want: []string{"No fallback providers configured"}},
+		{name: "cron_list", args: []string{"cron", "list"}, want: []string{"No cron jobs found"}},
+		{name: "agent_reset_dry_run", args: []string{"agent", "reset", "--dry-run"}, want: []string{"would_create SOUL.md", "would_create AGENTS.md"}},
+		{name: "send_dry_run", args: []string{"send", "--dry-run", "--to", "telegram", "hello"}, want: []string{"dry run: would send"}},
+		{name: "navivox_pair_help", args: []string{"navivox", "pair", "--help"}, want: []string{"terminal handoff", "compact QR"}},
+		{name: "hooks_row_backed", args: []string{"hooks", "list"}, exitCode: 2, want: []string{"row-backed in Gormes"}},
+		{name: "mcp_row_backed", args: []string{"mcp", "list"}, exitCode: 2, want: []string{"row-backed in Gormes"}},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := newRootCommandWithRuntime(rootRuntime{})
+			stdout, stderr, err := executeRootCommandForTest(cmd, tc.args...)
+			if got := commandExitCode(err); got != tc.exitCode {
+				t.Fatalf("fresh-install `%s` exit code = %d, want %d\nstdout=%s\nstderr=%s\nerr=%v",
+					strings.Join(tc.args, " "), got, tc.exitCode, stdout, stderr, err)
+			}
+			combined := stdout + "\n" + stderr
+			for _, want := range tc.want {
+				if !strings.Contains(combined, want) {
+					t.Fatalf("fresh-install `%s` output missing %q\nstdout=%s\nstderr=%s",
+						strings.Join(tc.args, " "), want, stdout, stderr)
+				}
+			}
+			for _, reject := range []string{"panic:", "fatal error:", "Hermes service"} {
+				if strings.Contains(combined, reject) {
+					t.Fatalf("fresh-install `%s` leaked %q\nstdout=%s\nstderr=%s",
+						strings.Join(tc.args, " "), reject, stdout, stderr)
+				}
+			}
+		})
+	}
+}
+
+func TestFreshInstallE2E_OfflineJSONCornerMatrix(t *testing.T) {
+	freshInstallE2EHome(t)
+
+	cases := []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{name: "security_audit", args: []string{"security", "audit", "--json"}, want: []string{"code", "summary", "categories"}},
+		{name: "curator_status", args: []string{"curator", "status", "--json"}, want: []string{"state", "defaults", "skills"}},
+		{name: "agent_reset_dry_run", args: []string{"agent", "reset", "--dry-run", "--json"}, want: []string{"target", "dry_run", "files"}},
+		{name: "channels_capabilities", args: []string{"channels", "capabilities", "--json"}, want: []string{"channels"}},
+		{name: "config_check", args: []string{"config", "check", "--json"}, want: []string{"paths", "issues", "ok"}},
+		{name: "doctor_terminal", args: []string{"doctor", "--offline", "--target", "terminal", "--json"}, want: []string{"target", "checks"}},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := newRootCommandWithRuntime(rootRuntime{})
+			stdout, stderr, err := executeRootCommandForTest(cmd, tc.args...)
+			if err != nil {
+				t.Fatalf("fresh-install `%s` must exit 0: %v\nstdout=%s\nstderr=%s",
+					strings.Join(tc.args, " "), err, stdout, stderr)
+			}
+
+			var parsed map[string]any
+			if err := json.Unmarshal([]byte(stdout), &parsed); err != nil {
+				t.Fatalf("fresh-install `%s` must emit a parseable JSON object: %v\nstdout=%s\nstderr=%s",
+					strings.Join(tc.args, " "), err, stdout, stderr)
+			}
+			if _, ok := parsed["build"].(map[string]any); !ok {
+				t.Fatalf("fresh-install `%s` missing build provenance block: %s", strings.Join(tc.args, " "), stdout)
+			}
+			for _, key := range tc.want {
+				if _, ok := parsed[key]; !ok {
+					t.Fatalf("fresh-install `%s` JSON missing key %q: %s", strings.Join(tc.args, " "), key, stdout)
+				}
+			}
+			if banned := findNullFields(parsed, ""); len(banned) > 0 {
+				t.Fatalf("fresh-install `%s` JSON emitted null fields: %s\nstdout=%s",
+					strings.Join(tc.args, " "), strings.Join(banned, ", "), stdout)
+			}
+		})
+	}
+}
+
 // TestFreshInstallE2E_BuildProvenancePresentInJSON is the
 // build-attribution conformance battery for the `--json` arc. Every
 // `--json` surface (except `version --json`, which IS the build

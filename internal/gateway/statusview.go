@@ -1,17 +1,10 @@
 package gateway
 
-import (
-	"fmt"
-	"sort"
-	"strings"
-)
+import gatewaystatusview "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/statusview"
 
 // StatusChannel is a configured channel row for the read-only gateway status
 // view. Detail should be non-secret operator context such as an allowlist ID.
-type StatusChannel struct {
-	Name   string
-	Detail string
-}
+type StatusChannel = gatewaystatusview.StatusChannel
 
 // StatusSummary is the pure input model for RenderStatusSummary.
 type StatusSummary struct {
@@ -23,355 +16,163 @@ type StatusSummary struct {
 // RenderStatusSummary renders the operator-facing gateway status text without
 // touching transports, clients, stores, or process state.
 func RenderStatusSummary(summary StatusSummary) string {
-	var b strings.Builder
-	b.WriteString("Gateway status\n")
-	b.WriteString(renderRuntimeLine(summary.Runtime))
-	b.WriteByte('\n')
-	if memoryLine := FormatMemoryPressureEvidence(summary.Runtime.MemoryPressure); memoryLine != "" {
-		b.WriteString(memoryLine)
-		b.WriteByte('\n')
-	}
-
-	channels := sortedStatusChannels(summary.Channels)
-	if len(channels) == 0 {
-		b.WriteString("channels: none configured\n")
-	} else {
-		b.WriteString("channels:\n")
-		pairingByPlatform := pairingPlatformMap(summary.Pairing.Platforms)
-		for _, channel := range channels {
-			b.WriteString(renderChannelLine(channel, summary.Runtime, pairingByPlatform[channel.Name]))
-			b.WriteByte('\n')
-		}
-	}
-
-	pending := sortedPendingPairingRecords(summary.Pairing.Pending)
-	approved := sortedApprovedPairingRecords(summary.Pairing.Approved)
-	if len(pending) > 0 || len(approved) > 0 {
-		b.WriteString("pairing:\n")
-		for _, record := range pending {
-			b.WriteString(fmt.Sprintf("- pending %s user=%s code=%s age=%ds\n", record.Platform, record.UserID, record.Code, record.AgeSeconds))
-		}
-		for _, record := range approved {
-			b.WriteString(fmt.Sprintf("- approved %s user=%s", record.Platform, record.UserID))
-			if record.UserName != "" {
-				b.WriteString(" name=")
-				b.WriteString(record.UserName)
-			}
-			b.WriteByte('\n')
-		}
-	}
-
-	expiryFinalized := sortedExpiryFinalizedEvidence(summary.Runtime.ExpiryFinalized)
-	expiryFinalize := sortedExpiryFinalizeEvidence(summary.Runtime.ExpiryFinalize)
-	if len(expiryFinalized) > 0 || len(expiryFinalize) > 0 {
-		b.WriteString("session_expiry:\n")
-		for _, evidence := range expiryFinalized {
-			b.WriteString(renderExpiryFinalizedEvidence(evidence))
-			b.WriteByte('\n')
-		}
-		for _, evidence := range expiryFinalize {
-			b.WriteString(renderExpiryFinalizeEvidence(evidence))
-			b.WriteByte('\n')
-		}
-	}
-
-	degraded := sortedPairingDegradedEvidence(summary.Pairing.Degraded)
-	if len(degraded) > 0 {
-		b.WriteString("degraded:\n")
-		for _, evidence := range degraded {
-			b.WriteString("- pairing")
-			if evidence.Platform != "" {
-				b.WriteByte(' ')
-				b.WriteString(evidence.Platform)
-			}
-			if evidence.Reason != "" {
-				b.WriteByte(' ')
-				b.WriteString(string(evidence.Reason))
-			}
-			if evidence.Message != "" {
-				b.WriteString(": ")
-				b.WriteString(evidence.Message)
-			}
-			b.WriteByte('\n')
-		}
-	}
-
-	return b.String()
-}
-
-func renderRuntimeLine(runtime RuntimeStatus) string {
-	if runtimeStatusMissing(runtime) {
-		return "runtime: missing"
-	}
-
-	state := string(runtime.GatewayState)
-	if state == "" {
-		state = "unknown"
-	}
-	parts := []string{}
-	if runtime.PID > 0 {
-		parts = append(parts, fmt.Sprintf("pid=%d", runtime.PID))
-	}
-	parts = append(parts, fmt.Sprintf("active_agents=%d", runtime.ActiveAgents))
-	if runtime.ExitReason != "" {
-		parts = append(parts, fmt.Sprintf("exit_reason=%q", runtime.ExitReason))
-	}
-	if runtime.RestartRequested {
-		parts = append(parts, "restart_requested=true")
-	}
-	if len(runtime.TakeoverMarkers) > 0 {
-		parts = append(parts, fmt.Sprintf("takeover_marker_seen=%d", len(runtime.TakeoverMarkers)))
-	}
-	if len(runtime.DuplicateRestarts) > 0 {
-		parts = append(parts, fmt.Sprintf("duplicate_restart_suppressed=%d", len(runtime.DuplicateRestarts)))
-	}
-	if len(runtime.ServiceManagerUnavailable) > 0 {
-		parts = append(parts, fmt.Sprintf("service_manager_unavailable=%d", len(runtime.ServiceManagerUnavailable)))
-	}
-	if runtime.ConfigReload.Status != "" {
-		parts = append(parts, fmt.Sprintf("config_reload=%s", runtime.ConfigReload.Status))
-	}
-	return fmt.Sprintf("runtime: %s (%s)", state, strings.Join(parts, " "))
-}
-
-func runtimeStatusMissing(runtime RuntimeStatus) bool {
-	return runtime.Kind == "" &&
-		runtime.PID == 0 &&
-		runtime.GatewayState == "" &&
-		runtime.ExitReason == "" &&
-		!runtime.RestartRequested &&
-		runtime.ActiveAgents == 0 &&
-		len(runtime.Platforms) == 0 &&
-		len(runtime.TokenLocks) == 0 &&
-		len(runtime.ExpiryFinalized) == 0 &&
-		len(runtime.ExpiryFinalize) == 0 &&
-		len(runtime.TakeoverMarkers) == 0 &&
-		len(runtime.DuplicateRestarts) == 0 &&
-		len(runtime.ServiceManagerUnavailable) == 0 &&
-		memoryPressureEvidenceEmpty(runtime.MemoryPressure) &&
-		runtime.ConfigReload == (RuntimeConfigReloadEvidence{}) &&
-		runtime.Proxy == (ProxyRuntimeStatus{}) &&
-		runtime.UpdatedAt == ""
-}
-
-func memoryPressureEvidenceEmpty(evidence RuntimeMemoryPressureEvidence) bool {
-	return evidence.Status == "" &&
-		evidence.RSSMB == 0 &&
-		evidence.WarnRSSMB == 0 &&
-		evidence.CriticalRSSMB == 0 &&
-		evidence.UptimeSeconds == 0 &&
-		evidence.GoRoutines == 0 &&
-		evidence.GCCollections == 0 &&
-		evidence.Action == "" &&
-		evidence.TargetPID == 0 &&
-		evidence.TargetStartTime == 0 &&
-		len(evidence.Evidence) == 0 &&
-		evidence.Message == "" &&
-		evidence.CheckedAt == "" &&
-		!evidence.Redacted
-}
-
-func renderChannelLine(channel StatusChannel, runtime RuntimeStatus, pairing PairingPlatformStatus) string {
-	lifecycle := "unknown"
-	if runtime.Platforms != nil {
-		if platform, ok := runtime.Platforms[channel.Name]; ok && platform.State != "" {
-			lifecycle = string(platform.State)
-		}
-	}
-
-	pairingState := string(PairingPlatformStateUnpaired)
-	pendingCount := 0
-	approvedCount := 0
-	if pairing.Platform != "" {
-		pairingState = string(pairing.State)
-		pendingCount = pairing.PendingCount
-		approvedCount = pairing.ApprovedCount
-	}
-
-	target := channel.Detail
-	if target == "" {
-		target = "-"
-	}
-
-	var b strings.Builder
-	fmt.Fprintf(&b, "- %s: lifecycle=%s", channel.Name, lifecycle)
-	if runtime.Platforms != nil {
-		if platform, ok := runtime.Platforms[channel.Name]; ok && platform.ErrorMessage != "" {
-			fmt.Fprintf(&b, " error=%q", platform.ErrorMessage)
-		}
-	}
-	fmt.Fprintf(&b, "; pairing=%s pending=%d approved=%d; target=%s", pairingState, pendingCount, approvedCount, target)
-	return b.String()
-}
-
-func renderExpiryFinalizedEvidence(evidence RuntimeExpiryFinalizedEvidence) string {
-	var b strings.Builder
-	b.WriteString("- finalized")
-	if evidence.SessionID != "" {
-		fmt.Fprintf(&b, " session=%s", evidence.SessionID)
-	}
-	if evidence.Source != "" {
-		fmt.Fprintf(&b, " source=%s", evidence.Source)
-	}
-	if evidence.ChatID != "" {
-		fmt.Fprintf(&b, " chat=%s", evidence.ChatID)
-	}
-	if evidence.UserID != "" {
-		fmt.Fprintf(&b, " user=%s", evidence.UserID)
-	}
-	fmt.Fprintf(&b, " expiry_finalized=%t", evidence.ExpiryFinalized)
-	if evidence.MigratedMemoryFlushed {
-		b.WriteString(" migrated_memory_flushed=true")
-	}
-	return b.String()
-}
-
-func renderExpiryFinalizeEvidence(evidence RuntimeExpiryFinalizeEvidence) string {
-	var b strings.Builder
-	status := evidence.Status
-	if status == "" {
-		status = "expiry_finalize_pending"
-	}
-	b.WriteString("- ")
-	b.WriteString(status)
-	if evidence.SessionID != "" {
-		fmt.Fprintf(&b, " session=%s", evidence.SessionID)
-	}
-	if evidence.Source != "" {
-		fmt.Fprintf(&b, " source=%s", evidence.Source)
-	}
-	if evidence.ChatID != "" {
-		fmt.Fprintf(&b, " chat=%s", evidence.ChatID)
-	}
-	if evidence.UserID != "" {
-		fmt.Fprintf(&b, " user=%s", evidence.UserID)
-	}
-	fmt.Fprintf(&b, " attempts=%d", evidence.Attempts)
-	if evidence.Error != "" {
-		fmt.Fprintf(&b, " error=%q", evidence.Error)
-	}
-	return b.String()
-}
-
-func sortedStatusChannels(channels []StatusChannel) []StatusChannel {
-	out := make([]StatusChannel, 0, len(channels))
-	for _, channel := range channels {
-		channel.Name = strings.TrimSpace(channel.Name)
-		channel.Detail = strings.TrimSpace(channel.Detail)
-		if channel.Name == "" {
-			continue
-		}
-		out = append(out, channel)
-	}
-	sort.SliceStable(out, func(i, j int) bool {
-		if out[i].Name != out[j].Name {
-			return out[i].Name < out[j].Name
-		}
-		return out[i].Detail < out[j].Detail
+	return gatewaystatusview.RenderStatusSummary(gatewaystatusview.StatusSummary{
+		Channels: summary.Channels,
+		Pairing:  statusViewPairing(summary.Pairing),
+		Runtime:  statusViewRuntime(summary.Runtime),
 	})
-	return out
 }
 
-func pairingPlatformMap(platforms []PairingPlatformStatus) map[string]PairingPlatformStatus {
-	out := make(map[string]PairingPlatformStatus, len(platforms))
-	for _, platform := range platforms {
-		if platform.Platform == "" {
-			continue
+func statusViewRuntime(runtime RuntimeStatus) gatewaystatusview.RuntimeStatus {
+	platforms := make(map[string]gatewaystatusview.PlatformRuntimeStatus, len(runtime.Platforms))
+	for name, platform := range runtime.Platforms {
+		platforms[name] = gatewaystatusview.PlatformRuntimeStatus{
+			State:        string(platform.State),
+			ErrorMessage: platform.ErrorMessage,
 		}
-		out[platform.Platform] = platform
+	}
+	return gatewaystatusview.RuntimeStatus{
+		Kind:                      runtime.Kind,
+		PID:                       runtime.PID,
+		GatewayState:              string(runtime.GatewayState),
+		ExitReason:                runtime.ExitReason,
+		RestartRequested:          runtime.RestartRequested,
+		ActiveAgents:              runtime.ActiveAgents,
+		Platforms:                 platforms,
+		Proxy:                     gatewaystatusview.ProxyRuntimeStatus{State: runtime.Proxy.State, URL: runtime.Proxy.URL, ErrorMessage: runtime.Proxy.ErrorMessage, UpdatedAt: runtime.Proxy.UpdatedAt},
+		TokenLocks:                anySlice(len(runtime.TokenLocks)),
+		MemoryPressure:            statusViewMemoryPressure(runtime.MemoryPressure),
+		ExpiryFinalized:           statusViewExpiryFinalized(runtime.ExpiryFinalized),
+		ExpiryFinalize:            statusViewExpiryFinalize(runtime.ExpiryFinalize),
+		TakeoverMarkers:           make([]gatewaystatusview.RuntimeRestartTakeoverEvidence, len(runtime.TakeoverMarkers)),
+		DuplicateRestarts:         make([]gatewaystatusview.RuntimeRestartDuplicateEvidence, len(runtime.DuplicateRestarts)),
+		ServiceManagerUnavailable: make([]gatewaystatusview.RuntimeServiceManagerUnavailableEvidence, len(runtime.ServiceManagerUnavailable)),
+		ConfigReload: gatewaystatusview.RuntimeConfigReloadEvidence{
+			Status:     string(runtime.ConfigReload.Status),
+			Generation: runtime.ConfigReload.Generation,
+			Error:      runtime.ConfigReload.Error,
+			AppliedAt:  runtime.ConfigReload.AppliedAt,
+			FailedAt:   runtime.ConfigReload.FailedAt,
+			Redacted:   runtime.ConfigReload.Redacted,
+		},
+		UpdatedAt: runtime.UpdatedAt,
+	}
+}
+
+func statusViewMemoryPressure(evidence RuntimeMemoryPressureEvidence) gatewaystatusview.RuntimeMemoryPressureEvidence {
+	return gatewaystatusview.RuntimeMemoryPressureEvidence{
+		Status:          string(evidence.Status),
+		RSSMB:           evidence.RSSMB,
+		WarnRSSMB:       evidence.WarnRSSMB,
+		CriticalRSSMB:   evidence.CriticalRSSMB,
+		UptimeSeconds:   evidence.UptimeSeconds,
+		GoRoutines:      evidence.GoRoutines,
+		GCCollections:   evidence.GCCollections,
+		Action:          string(evidence.Action),
+		TargetPID:       evidence.TargetPID,
+		TargetStartTime: evidence.TargetStartTime,
+		Evidence:        append([]string(nil), evidence.Evidence...),
+		Message:         evidence.Message,
+		CheckedAt:       evidence.CheckedAt,
+		Redacted:        evidence.Redacted,
+	}
+}
+
+func statusViewExpiryFinalized(records []RuntimeExpiryFinalizedEvidence) []gatewaystatusview.RuntimeExpiryFinalizedEvidence {
+	out := make([]gatewaystatusview.RuntimeExpiryFinalizedEvidence, 0, len(records))
+	for _, record := range records {
+		out = append(out, gatewaystatusview.RuntimeExpiryFinalizedEvidence{
+			SessionID:             record.SessionID,
+			Source:                record.Source,
+			ChatID:                record.ChatID,
+			UserID:                record.UserID,
+			ExpiryFinalized:       record.ExpiryFinalized,
+			MigratedMemoryFlushed: record.MigratedMemoryFlushed,
+		})
 	}
 	return out
 }
 
-func sortedPendingPairingRecords(records []PairingPendingRecord) []PairingPendingRecord {
-	out := append([]PairingPendingRecord(nil), records...)
-	sort.SliceStable(out, func(i, j int) bool {
-		left, right := out[i], out[j]
-		if left.Platform != right.Platform {
-			return left.Platform < right.Platform
-		}
-		if left.UserID != right.UserID {
-			return left.UserID < right.UserID
-		}
-		if left.AgeSeconds != right.AgeSeconds {
-			return left.AgeSeconds < right.AgeSeconds
-		}
-		return left.Code < right.Code
-	})
+func statusViewExpiryFinalize(records []RuntimeExpiryFinalizeEvidence) []gatewaystatusview.RuntimeExpiryFinalizeEvidence {
+	out := make([]gatewaystatusview.RuntimeExpiryFinalizeEvidence, 0, len(records))
+	for _, record := range records {
+		out = append(out, gatewaystatusview.RuntimeExpiryFinalizeEvidence{
+			SessionID: record.SessionID,
+			Source:    record.Source,
+			ChatID:    record.ChatID,
+			UserID:    record.UserID,
+			Status:    record.Status,
+			Attempts:  record.Attempts,
+			Error:     record.Error,
+		})
+	}
 	return out
 }
 
-func sortedApprovedPairingRecords(records []PairingApprovedRecord) []PairingApprovedRecord {
-	out := append([]PairingApprovedRecord(nil), records...)
-	sort.SliceStable(out, func(i, j int) bool {
-		left, right := out[i], out[j]
-		if left.Platform != right.Platform {
-			return left.Platform < right.Platform
-		}
-		if left.UserID != right.UserID {
-			return left.UserID < right.UserID
-		}
-		return left.UserName < right.UserName
-	})
+func statusViewPairing(pairing PairingStatus) gatewaystatusview.PairingStatus {
+	return gatewaystatusview.PairingStatus{
+		Platforms: statusViewPairingPlatforms(pairing.Platforms),
+		Pending:   statusViewPairingPending(pairing.Pending),
+		Approved:  statusViewPairingApproved(pairing.Approved),
+		Degraded:  statusViewPairingDegraded(pairing.Degraded),
+	}
+}
+
+func statusViewPairingPlatforms(records []PairingPlatformStatus) []gatewaystatusview.PairingPlatformStatus {
+	out := make([]gatewaystatusview.PairingPlatformStatus, 0, len(records))
+	for _, record := range records {
+		out = append(out, gatewaystatusview.PairingPlatformStatus{
+			Platform:      record.Platform,
+			State:         string(record.State),
+			PendingCount:  record.PendingCount,
+			ApprovedCount: record.ApprovedCount,
+		})
+	}
 	return out
 }
 
-func sortedExpiryFinalizedEvidence(records []RuntimeExpiryFinalizedEvidence) []RuntimeExpiryFinalizedEvidence {
-	out := append([]RuntimeExpiryFinalizedEvidence(nil), records...)
-	sort.SliceStable(out, func(i, j int) bool {
-		left, right := out[i], out[j]
-		if left.SessionID != right.SessionID {
-			return left.SessionID < right.SessionID
-		}
-		if left.Source != right.Source {
-			return left.Source < right.Source
-		}
-		if left.ChatID != right.ChatID {
-			return left.ChatID < right.ChatID
-		}
-		return left.UserID < right.UserID
-	})
+func statusViewPairingPending(records []PairingPendingRecord) []gatewaystatusview.PairingPendingRecord {
+	out := make([]gatewaystatusview.PairingPendingRecord, 0, len(records))
+	for _, record := range records {
+		out = append(out, gatewaystatusview.PairingPendingRecord{
+			Platform:   record.Platform,
+			Code:       record.Code,
+			UserID:     record.UserID,
+			AgeSeconds: record.AgeSeconds,
+		})
+	}
 	return out
 }
 
-func sortedExpiryFinalizeEvidence(records []RuntimeExpiryFinalizeEvidence) []RuntimeExpiryFinalizeEvidence {
-	out := append([]RuntimeExpiryFinalizeEvidence(nil), records...)
-	sort.SliceStable(out, func(i, j int) bool {
-		left, right := out[i], out[j]
-		if left.SessionID != right.SessionID {
-			return left.SessionID < right.SessionID
-		}
-		if left.Status != right.Status {
-			return left.Status < right.Status
-		}
-		if left.Source != right.Source {
-			return left.Source < right.Source
-		}
-		if left.ChatID != right.ChatID {
-			return left.ChatID < right.ChatID
-		}
-		return left.UserID < right.UserID
-	})
+func statusViewPairingApproved(records []PairingApprovedRecord) []gatewaystatusview.PairingApprovedRecord {
+	out := make([]gatewaystatusview.PairingApprovedRecord, 0, len(records))
+	for _, record := range records {
+		out = append(out, gatewaystatusview.PairingApprovedRecord{
+			Platform: record.Platform,
+			UserID:   record.UserID,
+			UserName: record.UserName,
+		})
+	}
 	return out
 }
 
-func sortedPairingDegradedEvidence(records []PairingDegradedEvidence) []PairingDegradedEvidence {
-	out := append([]PairingDegradedEvidence(nil), records...)
-	sort.SliceStable(out, func(i, j int) bool {
-		left, right := out[i], out[j]
-		if left.Platform != right.Platform {
-			return left.Platform < right.Platform
-		}
-		if left.Reason != right.Reason {
-			return left.Reason < right.Reason
-		}
-		if left.UserID != right.UserID {
-			return left.UserID < right.UserID
-		}
-		if left.Code != right.Code {
-			return left.Code < right.Code
-		}
-		return left.Message < right.Message
-	})
+func statusViewPairingDegraded(records []PairingDegradedEvidence) []gatewaystatusview.PairingDegradedEvidence {
+	out := make([]gatewaystatusview.PairingDegradedEvidence, 0, len(records))
+	for _, record := range records {
+		out = append(out, gatewaystatusview.PairingDegradedEvidence{
+			Reason:   string(record.Reason),
+			Message:  record.Message,
+			Platform: record.Platform,
+			UserID:   record.UserID,
+			Code:     record.Code,
+		})
+	}
 	return out
+}
+
+func anySlice(length int) []any {
+	if length == 0 {
+		return nil
+	}
+	return make([]any, length)
 }

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/goncho"
+	"github.com/TrebuchetDynamics/goncho/service"
 )
 
 func writeStableGonchoRecallTraceFixture(t *testing.T) string {

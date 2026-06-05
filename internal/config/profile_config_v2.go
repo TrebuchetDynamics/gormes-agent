@@ -4,130 +4,27 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	profileconfig "github.com/TrebuchetDynamics/gormes-agent/internal/config/profile"
 )
 
-const DefaultProfileID = "main"
+const DefaultProfileID = profileconfig.DefaultID
 
-type ProfileCfg struct {
-	Enabled      bool                          `toml:"enabled" yaml:"enabled"`
-	Name         string                        `toml:"name" yaml:"name"`
-	Description  string                        `toml:"description" yaml:"description"`
-	Workspaces   []string                      `toml:"workspaces" yaml:"workspaces"`
-	Tags         []string                      `toml:"tags" yaml:"tags"`
-	Settings     map[string]any                `toml:"settings" yaml:"settings"`
-	Runtime      ProfileRuntimeCfg             `toml:"runtime" yaml:"runtime"`
-	Providers    map[string]ProfileProviderCfg `toml:"providers" yaml:"providers"`
-	Channels     map[string]ProfileChannelCfg  `toml:"channels" yaml:"channels"`
-	VoiceProfile ProfileVoiceProfileCfg        `toml:"voice_profile" yaml:"voice_profile" json:"voice_profile,omitempty"`
-}
-
-type ProfileRuntimeCfg struct {
-	MaxTurns              int    `toml:"max_turns" yaml:"max_turns"`
-	SessionResetPolicy    string `toml:"session_reset_policy" yaml:"session_reset_policy"`
-	SessionResetAfterMins int    `toml:"session_reset_after_minutes" yaml:"session_reset_after_minutes"`
-	GonchoWorkspace       string `toml:"goncho_workspace" yaml:"goncho_workspace"`
-}
-
-type ProfileProviderCfg struct {
-	Enabled       bool     `toml:"enabled" yaml:"enabled"`
-	Credential    string   `toml:"credential" yaml:"credential"`
-	DefaultModel  string   `toml:"default_model" yaml:"default_model"`
-	AllowedModels []string `toml:"allowed_models" yaml:"allowed_models"`
-	Endpoint      string   `toml:"endpoint" yaml:"endpoint"`
-}
-
-type ProfileChannelCfg struct {
-	Enabled        bool     `toml:"enabled" yaml:"enabled"`
-	Credential     string   `toml:"credential" yaml:"credential"`
-	AllowedChats   []string `toml:"allowed_chats" yaml:"allowed_chats"`
-	AllowedUsers   []string `toml:"allowed_users" yaml:"allowed_users"`
-	RequireMention bool     `toml:"require_mention" yaml:"require_mention"`
-	ToolProgress   string   `toml:"tool_progress" yaml:"tool_progress"`
-	Servers        []string `toml:"servers" yaml:"servers"`
-	VoiceProfile   string   `toml:"voice_profile" yaml:"voice_profile"`
-}
-
-type ProfileVoiceProfileCfg struct {
-	STTProvider    string `toml:"stt_provider" yaml:"stt_provider" json:"stt_provider,omitempty"`
-	TTSProvider    string `toml:"tts_provider" yaml:"tts_provider" json:"tts_provider,omitempty"`
-	VoiceID        string `toml:"voice_id" yaml:"voice_id" json:"voice_id,omitempty"`
-	LanguagePolicy string `toml:"language_policy" yaml:"language_policy" json:"language_policy,omitempty"`
-	FallbackVoice  string `toml:"fallback_voice" yaml:"fallback_voice" json:"fallback_voice,omitempty"`
-	STTCredential  string `toml:"stt_credential" yaml:"stt_credential" json:"-"`
-	TTSCredential  string `toml:"tts_credential" yaml:"tts_credential" json:"-"`
-}
-
-type ProfileVoiceProviderMatrix struct {
-	STTProviders []string `json:"stt"`
-	TTSProviders []string `json:"tts"`
-}
-
-type ProfileVoiceProfileValidation struct {
-	ProfileID            string                                  `json:"profile_id"`
-	VoiceProfile         ProfileVoiceProfileCfg                  `json:"voice_profile"`
-	Valid                bool                                    `json:"valid"`
-	Errors               []ProfileVoiceProfileFieldError         `json:"errors,omitempty"`
-	CredentialStatusRefs map[string]ProfileVoiceCredentialStatus `json:"credential_status_refs,omitempty"`
-}
-
-type ProfileVoiceProfileFieldError struct {
-	Field   string `json:"field"`
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-type ProfileVoiceCredentialStatus struct {
-	Configured bool   `json:"configured"`
-	Required   bool   `json:"required"`
-	Status     string `json:"status"`
-	Source     string `json:"source,omitempty"`
-}
-
-type CredentialCfg struct {
-	Kind         string     `toml:"kind" yaml:"kind"`
-	Provider     string     `toml:"provider" yaml:"provider"`
-	Channel      string     `toml:"channel" yaml:"channel"`
-	OwnerProfile string     `toml:"owner_profile" yaml:"owner_profile"`
-	SecretRef    *SecretRef `toml:"secret_ref" yaml:"secret_ref"`
-}
-
-type ProfileService struct {
-	ID      string
-	Profile ProfileCfg
-}
-
-type NavivoxProfileRoutingReport struct {
-	Profiles []NavivoxProfileRoute `json:"profiles,omitempty"`
-	Servers  []NavivoxServerRoute  `json:"servers,omitempty"`
-}
-
-type NavivoxServerRoute struct {
-	ServerID     string                       `json:"server_id"`
-	Bind         string                       `json:"bind,omitempty"`
-	Transports   []string                     `json:"transports,omitempty"`
-	Capabilities []string                     `json:"capabilities,omitempty"`
-	Profiles     []NavivoxProfileRoute        `json:"profiles,omitempty"`
-	Warnings     []NavivoxProfileRouteWarning `json:"warnings,omitempty"`
-}
-
-type NavivoxProfileRoute struct {
-	ProfileID              string                       `json:"profile_id"`
-	DisplayName            string                       `json:"display_name,omitempty"`
-	Workspaces             []string                     `json:"workspaces,omitempty"`
-	Providers              []string                     `json:"providers,omitempty"`
-	Channels               []string                     `json:"channels,omitempty"`
-	ServerIDs              []string                     `json:"server_ids,omitempty"`
-	CredentialConfigured   bool                         `json:"credential_configured,omitempty"`
-	VoiceProfileConfigured bool                         `json:"voice_profile_configured,omitempty"`
-	Ready                  bool                         `json:"ready,omitempty"`
-	Warnings               []NavivoxProfileRouteWarning `json:"warnings,omitempty"`
-}
-
-type NavivoxProfileRouteWarning struct {
-	Code      string `json:"code"`
-	ProfileID string `json:"profile_id,omitempty"`
-	Message   string `json:"message,omitempty"`
-}
+type ProfileCfg = profileconfig.Config
+type ProfileRuntimeCfg = profileconfig.RuntimeConfig
+type ProfileProviderCfg = profileconfig.ProviderConfig
+type ProfileChannelCfg = profileconfig.ChannelConfig
+type ProfileVoiceProfileCfg = profileconfig.VoiceProfileConfig
+type ProfileVoiceProviderMatrix = profileconfig.VoiceProviderMatrix
+type ProfileVoiceProfileValidation = profileconfig.VoiceProfileValidation
+type ProfileVoiceProfileFieldError = profileconfig.VoiceProfileFieldError
+type ProfileVoiceCredentialStatus = profileconfig.VoiceCredentialStatus
+type CredentialCfg = profileconfig.CredentialConfig
+type ProfileService = profileconfig.Service
+type NavivoxProfileRoutingReport = profileconfig.NavivoxRoutingReport
+type NavivoxServerRoute = profileconfig.NavivoxServerRoute
+type NavivoxProfileRoute = profileconfig.NavivoxRoute
+type NavivoxProfileRouteWarning = profileconfig.NavivoxRouteWarning
 
 func (c Config) ProfileConfigV2Available() bool {
 	return len(c.Profiles) > 0
@@ -161,7 +58,7 @@ func (c Config) NavivoxProfileRouting() NavivoxProfileRoutingReport {
 }
 
 func (c Config) navivoxServerScopedProfileRouting() NavivoxProfileRoutingReport {
-	serverIDs := profileConfigV2SortedKeys(c.Navivox.Servers)
+	serverIDs := profileconfig.SortedKeys(c.Navivox.Servers)
 	servers := make([]NavivoxServerRoute, 0, len(serverIDs))
 	routedProfiles := map[string]NavivoxProfileRoute{}
 	for _, serverID := range serverIDs {
@@ -210,7 +107,7 @@ func (c Config) navivoxServerScopedProfileRouting() NavivoxProfileRoutingReport 
 		servers = append(servers, serverRoute)
 	}
 
-	profileIDs := profileConfigV2SortedKeys(routedProfiles)
+	profileIDs := profileconfig.SortedKeys(routedProfiles)
 	profiles := make([]NavivoxProfileRoute, 0, len(profileIDs))
 	for _, profileID := range profileIDs {
 		profiles = append(profiles, routedProfiles[profileID])
@@ -294,18 +191,6 @@ func navivoxRoutingStrings(values []string) []string {
 	return values
 }
 
-func DefaultConfigDocumentV2() map[string]any {
-	return map[string]any{
-		"config_version": int64(CurrentConfigVersion),
-		"profiles": map[string]any{
-			DefaultProfileID: map[string]any{
-				"enabled": true,
-				"name":    "",
-			},
-		},
-	}
-}
-
 // WriteProfileConfigV2 writes the canonical profile-service and credential
 // registry portions of cfg into path as one root TOML transaction. Existing
 // non-profile sections are preserved in the root document; profile data never
@@ -324,190 +209,14 @@ func WriteProfileConfigV2(path string, cfg Config) error {
 	if len(cfg.Profiles) == 0 {
 		delete(doc, "profiles")
 	} else {
-		doc["profiles"] = profileConfigV2ProfilesDocument(cfg.Profiles)
+		doc["profiles"] = profileconfig.ProfilesDocument(cfg.Profiles)
 	}
 	if len(cfg.Credentials) == 0 {
 		delete(doc, "credentials")
 	} else {
-		doc["credentials"] = profileConfigV2CredentialsDocument(cfg.Credentials)
+		doc["credentials"] = profileconfig.CredentialsDocument(cfg.Credentials)
 	}
 	return writeTOMLDoc(path, doc)
-}
-
-func profileConfigV2ProfilesDocument(profiles map[string]ProfileCfg) map[string]any {
-	out := map[string]any{}
-	for _, id := range profileConfigV2SortedKeys(profiles) {
-		profile := profiles[id]
-		entry := map[string]any{
-			"enabled": profile.Enabled,
-			"name":    profile.Name,
-		}
-		if profile.Description != "" {
-			entry["description"] = profile.Description
-		}
-		if len(profile.Workspaces) > 0 {
-			entry["workspaces"] = append([]string(nil), profile.Workspaces...)
-		}
-		if len(profile.Tags) > 0 {
-			entry["tags"] = append([]string(nil), profile.Tags...)
-		}
-		if len(profile.Settings) > 0 {
-			entry["settings"] = profile.Settings
-		}
-		if runtime := profileConfigV2RuntimeDocument(profile.Runtime); len(runtime) > 0 {
-			entry["runtime"] = runtime
-		}
-		if voice := profileConfigV2VoiceProfileDocument(profile.VoiceProfile); len(voice) > 0 {
-			entry["voice_profile"] = voice
-		}
-		if providers := profileConfigV2ProvidersDocument(profile.Providers); len(providers) > 0 {
-			entry["providers"] = providers
-		}
-		if channels := profileConfigV2ChannelsDocument(profile.Channels); len(channels) > 0 {
-			entry["channels"] = channels
-		}
-		out[id] = entry
-	}
-	return out
-}
-
-func profileConfigV2RuntimeDocument(runtime ProfileRuntimeCfg) map[string]any {
-	out := map[string]any{}
-	if runtime.MaxTurns != 0 {
-		out["max_turns"] = int64(runtime.MaxTurns)
-	}
-	if runtime.SessionResetPolicy != "" {
-		out["session_reset_policy"] = runtime.SessionResetPolicy
-	}
-	if runtime.SessionResetAfterMins != 0 {
-		out["session_reset_after_minutes"] = int64(runtime.SessionResetAfterMins)
-	}
-	if runtime.GonchoWorkspace != "" {
-		out["goncho_workspace"] = runtime.GonchoWorkspace
-	}
-	return out
-}
-
-func profileConfigV2VoiceProfileDocument(voice ProfileVoiceProfileCfg) map[string]any {
-	voice = normalizeProfileVoiceProfile(voice)
-	out := map[string]any{}
-	if voice.STTProvider != "" {
-		out["stt_provider"] = voice.STTProvider
-	}
-	if voice.TTSProvider != "" {
-		out["tts_provider"] = voice.TTSProvider
-	}
-	if voice.VoiceID != "" {
-		out["voice_id"] = voice.VoiceID
-	}
-	if voice.LanguagePolicy != "" {
-		out["language_policy"] = voice.LanguagePolicy
-	}
-	if voice.FallbackVoice != "" {
-		out["fallback_voice"] = voice.FallbackVoice
-	}
-	if voice.STTCredential != "" {
-		out["stt_credential"] = voice.STTCredential
-	}
-	if voice.TTSCredential != "" {
-		out["tts_credential"] = voice.TTSCredential
-	}
-	return out
-}
-
-func profileConfigV2ProvidersDocument(providers map[string]ProfileProviderCfg) map[string]any {
-	out := map[string]any{}
-	for _, id := range profileConfigV2SortedKeys(providers) {
-		provider := providers[id]
-		entry := map[string]any{"enabled": provider.Enabled}
-		if provider.Credential != "" {
-			entry["credential"] = provider.Credential
-		}
-		if provider.DefaultModel != "" {
-			entry["default_model"] = provider.DefaultModel
-		}
-		if len(provider.AllowedModels) > 0 {
-			entry["allowed_models"] = append([]string(nil), provider.AllowedModels...)
-		}
-		if provider.Endpoint != "" {
-			entry["endpoint"] = provider.Endpoint
-		}
-		out[id] = entry
-	}
-	return out
-}
-
-func profileConfigV2ChannelsDocument(channels map[string]ProfileChannelCfg) map[string]any {
-	out := map[string]any{}
-	for _, id := range profileConfigV2SortedKeys(channels) {
-		channel := channels[id]
-		entry := map[string]any{"enabled": channel.Enabled}
-		if channel.Credential != "" {
-			entry["credential"] = channel.Credential
-		}
-		if len(channel.AllowedChats) > 0 {
-			entry["allowed_chats"] = append([]string(nil), channel.AllowedChats...)
-		}
-		if len(channel.AllowedUsers) > 0 {
-			entry["allowed_users"] = append([]string(nil), channel.AllowedUsers...)
-		}
-		if channel.RequireMention {
-			entry["require_mention"] = channel.RequireMention
-		}
-		if channel.ToolProgress != "" {
-			entry["tool_progress"] = channel.ToolProgress
-		}
-		if len(channel.Servers) > 0 {
-			entry["servers"] = append([]string(nil), channel.Servers...)
-		}
-		if channel.VoiceProfile != "" {
-			entry["voice_profile"] = channel.VoiceProfile
-		}
-		out[id] = entry
-	}
-	return out
-}
-
-func profileConfigV2CredentialsDocument(credentials map[string]CredentialCfg) map[string]any {
-	out := map[string]any{}
-	for _, id := range profileConfigV2SortedKeys(credentials) {
-		credential := credentials[id]
-		entry := map[string]any{}
-		if credential.Kind != "" {
-			entry["kind"] = credential.Kind
-		}
-		if credential.Provider != "" {
-			entry["provider"] = credential.Provider
-		}
-		if credential.Channel != "" {
-			entry["channel"] = credential.Channel
-		}
-		if credential.OwnerProfile != "" {
-			entry["owner_profile"] = credential.OwnerProfile
-		}
-		if credential.SecretRef != nil {
-			entry["secret_ref"] = profileConfigV2SecretRefDocument(*credential.SecretRef)
-		}
-		out[id] = entry
-	}
-	return out
-}
-
-func profileConfigV2SecretRefDocument(ref SecretRef) map[string]any {
-	out := map[string]any{"source": string(ref.Source), "id": ref.ID}
-	if ref.Provider != "" {
-		out["provider"] = ref.Provider
-	}
-	return out
-}
-
-func profileConfigV2SortedKeys[T any](values map[string]T) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
 }
 
 func normalizeProfileConfigV2(cfg *Config) error {
@@ -528,7 +237,7 @@ func normalizeProfileConfigV2(cfg *Config) error {
 			profile.Runtime.GonchoWorkspace = strings.TrimSpace(profile.Runtime.GonchoWorkspace)
 			profile.Providers = normalizeProfileProviders(profile.Providers)
 			profile.Channels = normalizeProfileChannels(profile.Channels)
-			profile.VoiceProfile = normalizeProfileVoiceProfile(profile.VoiceProfile)
+			profile.VoiceProfile = profileconfig.NormalizeVoiceProfile(profile.VoiceProfile)
 			profiles[normalizedID] = profile
 		}
 		cfg.Profiles = profiles
@@ -577,84 +286,11 @@ func normalizeProfileConfigV2(cfg *Config) error {
 }
 
 func normalizeProfileVoiceProfile(voice ProfileVoiceProfileCfg) ProfileVoiceProfileCfg {
-	voice.STTProvider = strings.ToLower(strings.TrimSpace(voice.STTProvider))
-	voice.TTSProvider = strings.ToLower(strings.TrimSpace(voice.TTSProvider))
-	voice.VoiceID = strings.TrimSpace(voice.VoiceID)
-	voice.LanguagePolicy = strings.ToLower(strings.TrimSpace(voice.LanguagePolicy))
-	voice.FallbackVoice = strings.TrimSpace(voice.FallbackVoice)
-	voice.STTCredential = strings.TrimSpace(voice.STTCredential)
-	voice.TTSCredential = strings.TrimSpace(voice.TTSCredential)
-	return voice
+	return profileconfig.NormalizeVoiceProfile(voice)
 }
 
 func ValidateProfileVoiceProfile(profileID string, voice ProfileVoiceProfileCfg, matrix ProfileVoiceProviderMatrix) ProfileVoiceProfileValidation {
-	voice = normalizeProfileVoiceProfile(voice)
-	validation := ProfileVoiceProfileValidation{
-		ProfileID:            strings.TrimSpace(profileID),
-		VoiceProfile:         voice,
-		Valid:                true,
-		CredentialStatusRefs: map[string]ProfileVoiceCredentialStatus{},
-	}
-	sttProviders := normalizedProviderSet(matrix.STTProviders)
-	ttsProviders := normalizedProviderSet(matrix.TTSProviders)
-	if voice.STTProvider != "" && !sttProviders[voice.STTProvider] {
-		validation.Errors = append(validation.Errors, ProfileVoiceProfileFieldError{Field: "stt_provider", Code: "unknown_provider", Message: fmt.Sprintf("unknown STT provider %q", voice.STTProvider)})
-	}
-	if voice.TTSProvider != "" && !ttsProviders[voice.TTSProvider] {
-		validation.Errors = append(validation.Errors, ProfileVoiceProfileFieldError{Field: "tts_provider", Code: "unknown_provider", Message: fmt.Sprintf("unknown TTS provider %q", voice.TTSProvider)})
-	}
-	validation.CredentialStatusRefs["stt"] = profileVoiceCredentialStatus("stt", voice.STTProvider, voice.STTCredential)
-	validation.CredentialStatusRefs["tts"] = profileVoiceCredentialStatus("tts", voice.TTSProvider, voice.TTSCredential)
-	validation.Valid = len(validation.Errors) == 0
-	return validation
-}
-
-func normalizedProviderSet(values []string) map[string]bool {
-	out := map[string]bool{}
-	for _, value := range values {
-		value = strings.ToLower(strings.TrimSpace(value))
-		if value != "" {
-			out[value] = true
-		}
-	}
-	return out
-}
-
-func profileVoiceCredentialStatus(kind, provider, credential string) ProfileVoiceCredentialStatus {
-	provider = strings.ToLower(strings.TrimSpace(provider))
-	credential = strings.TrimSpace(credential)
-	required := profileVoiceProviderRequiresCredential(kind, provider)
-	switch {
-	case provider == "":
-		return ProfileVoiceCredentialStatus{Configured: false, Required: false, Status: "unset"}
-	case credential != "":
-		return ProfileVoiceCredentialStatus{Configured: true, Required: required, Status: "configured", Source: "profile_voice_profile." + kind + "_credential"}
-	case !required:
-		return ProfileVoiceCredentialStatus{Configured: true, Required: false, Status: "not_required", Source: provider}
-	default:
-		return ProfileVoiceCredentialStatus{Configured: false, Required: true, Status: "missing"}
-	}
-}
-
-func profileVoiceProviderRequiresCredential(kind, provider string) bool {
-	provider = strings.ToLower(strings.TrimSpace(provider))
-	if provider == "" {
-		return false
-	}
-	if kind == "stt" {
-		switch provider {
-		case "device", "local":
-			return false
-		default:
-			return true
-		}
-	}
-	switch provider {
-	case "piper", "neutts", "kittentts", "local", "text_only":
-		return false
-	default:
-		return true
-	}
+	return profileconfig.ValidateVoiceProfile(profileID, voice, matrix)
 }
 
 func normalizeProfileProviders(in map[string]ProfileProviderCfg) map[string]ProfileProviderCfg {

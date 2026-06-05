@@ -8,7 +8,7 @@ weight: 2
 
 > **Upstream Hermes reference**
 > This page mirrors upstream Hermes behavior. For the current Gormes command
-> surface, use [gormes profile](../../../cli/profile/) and
+> surface, use [gormes profile](../../../cli/setup/profile/) and
 > [Switch profiles for client work](../../../recipes/profiles/).
 
 Run multiple independent Hermes agents on the same machine — each with its own config, API keys, memory, sessions, skills, and gateway state.

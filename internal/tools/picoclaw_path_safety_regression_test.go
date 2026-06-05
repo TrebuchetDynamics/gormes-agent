@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/sandbox"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/sandbox"
 )
 
 func TestPicoClawPathSafety_RelativePathsStayUnderWorkspace(t *testing.T) {

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"os/exec"
 	"os/signal"
 	"runtime"
 	"strconv"
@@ -19,25 +18,26 @@ import (
 	"github.com/spf13/cobra"
 	"go.etcd.io/bbolt"
 
-	"github.com/TrebuchetDynamics/goncho"
+	dynamicagents "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	gormesgoncho "github.com/TrebuchetDynamics/goncho/integration/gormes"
-	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
-	navivoxchannel "github.com/TrebuchetDynamics/gormes-agent/internal/channels/navivox"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/simplex"
-	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
+	goncho "github.com/TrebuchetDynamics/goncho/service"
+	gonchoadapter "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/goncho"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/channelmemory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
+	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway"
+	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	gormesruntime "github.com/TrebuchetDynamics/gormes-agent/internal/runtime"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/slack"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -49,193 +49,95 @@ func newGatewayCommand() *cobra.Command {
 
 func gatewayCommandSeams() gatewaymodule.GatewayCommandSeams {
 	return gatewaymodule.GatewayCommandSeams{
-		Run:                        runGateway,
-		StopCommand:                newGatewayStopCommand,
-		RestartCommand:             newGatewayRestartCommand,
-		ReloadCommand:              newGatewayReloadCommand,
-		StatusCommand:              newGatewayStatusCommand,
-		FleetCommand:               newGatewayFleetCommand,
-		DiscoverCommand:            newGatewayDiscoverCommand,
-		ProbeCommand:               newGatewayProbeCommand,
-		UsageCostCommand:           newGatewayUsageCostCommand,
-		MutatingUnavailableCommand: newGatewayMutatingUnavailableCommand,
-		BootInstallCommand:         newGatewayBootInstallCommand,
-		BootUninstallCommand:       newGatewayBootUninstallCommand,
+		Run: runGateway,
+		StopCommand: func() *cobra.Command {
+			return gatewaymodule.NewStopCommand(gatewayCommandOptions())
+		},
+		RestartCommand: func() *cobra.Command {
+			return gatewaymodule.NewRestartCommand(gatewayCommandOptions())
+		},
+		ReloadCommand: func() *cobra.Command {
+			return gatewaymodule.NewReloadCommand(gatewayCommandOptions())
+		},
+		StatusCommand: func() *cobra.Command {
+			return gatewaymodule.NewStatusCommand(gatewayCommandOptions())
+		},
+		FleetCommand: func() *cobra.Command {
+			return gatewaymodule.NewFleetCommand(gatewayCommandOptions())
+		},
+		DiscoverCommand: func() *cobra.Command {
+			return gatewaymodule.NewDiscoverCommand(gatewayCommandOptions())
+		},
+		ProbeCommand: func() *cobra.Command {
+			return gatewaymodule.NewProbeCommand(gatewayCommandOptions())
+		},
+		UsageCostCommand: func() *cobra.Command {
+			return gatewaymodule.NewUsageCostCommand(gatewayCommandOptions())
+		},
+		MutatingUnavailableCommand: func(name string) *cobra.Command {
+			return gatewaymodule.NewMutatingUnavailableCommand(name, gatewayCommandOptions())
+		},
+		BootInstallCommand:   gatewaymodule.NewBootInstallCommand,
+		BootUninstallCommand: gatewaymodule.NewBootUninstallCommand,
 	}
 }
 
-// gatewayMutatingUnavailableExitCode is the stable non-zero exit code surfaced
-// by non-Windows lifecycle subcommands that still do not own a native service
-// manager path.
-const gatewayMutatingUnavailableExitCode = 2
+func newWebhookCommand() *cobra.Command {
+	return gatewaymodule.NewWebhookCommand(gatewayCommandOptions())
+}
+
+func newHooksCommand() *cobra.Command {
+	return gatewaymodule.NewHooksCommand(gatewayCommandOptions())
+}
+
+func newPairingCommand() *cobra.Command {
+	return gatewaymodule.NewPairingCommand(gatewayCommandOptions())
+}
+
+func configuredGatewayStatusChannels(cfg config.Config) []gateway.StatusChannel {
+	return gatewaymodule.ConfiguredStatusChannels(cfg)
+}
+
+func configuredTelegramGatewayStatusDetail(cfg config.TelegramCfg) string {
+	return gatewaymodule.ConfiguredTelegramStatusDetail(cfg)
+}
+
+func configuredSlackGatewayStatusDetail(cfg config.SlackCfg) string {
+	return gatewaymodule.ConfiguredSlackStatusDetail(cfg)
+}
+
+func configuredTeamsGatewayStatusDetail(cfg config.TeamsCfg) string {
+	return gatewaymodule.ConfiguredTeamsStatusDetail(cfg)
+}
+
+func configuredNavivoxGatewayStatusDetail(cfg config.NavivoxCfg) string {
+	return gatewaymodule.ConfiguredNavivoxStatusDetail(cfg)
+}
+
+func gatewayCommandOptions() gatewaymodule.Options {
+	return gatewaymodule.Options{
+		BuildProvenance: func() gormescli.BuildProvenance {
+			build := newBuildProvenance()
+			return gormescli.BuildProvenance{
+				Version:   build.Version,
+				GitCommit: build.GitCommit,
+			}
+		},
+		ExitError:                    newExitCodeError,
+		TermuxDetected:               gatewaymodule.TermuxDetected,
+		TermuxLifecycleGuidanceLine:  gatewaymodule.TermuxLifecycleGuidanceLine,
+		TermuxLifecycleGuidanceError: gatewaymodule.TermuxLifecycleGuidanceError,
+		TermuxNotificationStatus:     gatewaymodule.TermuxNotificationStatusLine,
+	}
+}
 
 var gatewayRuntimeGOOS = runtime.GOOS
 
 const gatewayDetachedEnvName = "GORMES_GATEWAY_DETACHED"
 
-var gatewayMutatingUnavailableSubcommands = []string{
-	"start",
-	"install",
-	"uninstall",
-}
-
-var gatewayRowBackedUnavailableSubcommands = []string{
-	"run",
-	"setup",
-	"migrate-legacy",
-	"list",
-}
-
-func newGatewayMutatingUnavailableCommand(name string) *cobra.Command {
-	return &cobra.Command{
-		Use:          name,
-		Short:        fmt.Sprintf("Manage gateway %s through the platform service helper", name),
-		Long:         fmt.Sprintf("On Windows, the %s subcommand uses the native Scheduled Task gateway service. On Termux, run the foreground gateway in tmux with `gormes gateway`. On other platforms it remains unavailable; use the systemd/launchd helper exposed by internal/cli/service_restart.go to drive the live service manager.", name),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			if gatewayRuntimeGOOS == "windows" {
-				return runGatewayWindowsScheduledTaskCommand(cmd, name)
-			}
-			if gatewayTermuxDetected() {
-				return newExitCodeError(gatewayMutatingUnavailableExitCode, gatewayTermuxLifecycleGuidanceError(name))
-			}
-			return newExitCodeError(gatewayMutatingUnavailableExitCode,
-				fmt.Errorf("gateway: %s is not available; use the service_restart helper", name))
-		},
-	}
-}
-
-type gatewayWindowsScheduledTaskConfig struct {
-	TaskName string
-	Command  string
-	Args     []string
-}
-
-type gatewayWindowsScheduledTaskRunner interface {
-	Install(context.Context, gatewayWindowsScheduledTaskConfig) error
-	Start(context.Context, gatewayWindowsScheduledTaskConfig) error
-	Restart(context.Context, gatewayWindowsScheduledTaskConfig) error
-	Uninstall(context.Context, gatewayWindowsScheduledTaskConfig) error
-}
-
-var gatewayWindowsTaskRunner gatewayWindowsScheduledTaskRunner = realGatewayWindowsScheduledTaskRunner{}
-
-func runGatewayWindowsScheduledTaskCommand(cmd *cobra.Command, action string) error {
-	cfg := defaultGatewayWindowsScheduledTaskConfig()
-	out := cmd.OutOrStdout()
-	ctx := cmd.Context()
-
-	switch action {
-	case "install":
-		if err := gatewayWindowsTaskRunner.Install(ctx, cfg); err != nil {
-			return gatewayWindowsScheduledTaskError("install", err)
-		}
-		fmt.Fprintf(out, "gateway install: Scheduled Task service installed name=%q\n", cfg.TaskName)
-		if err := gatewayWindowsTaskRunner.Start(ctx, cfg); err != nil {
-			return gatewayWindowsScheduledTaskError("install start", err)
-		}
-		fmt.Fprintf(out, "gateway install: Scheduled Task service started name=%q\n", cfg.TaskName)
-	case "start":
-		if err := gatewayWindowsTaskRunner.Start(ctx, cfg); err != nil {
-			return gatewayWindowsScheduledTaskError("start", err)
-		}
-		fmt.Fprintf(out, "gateway start: Scheduled Task service started name=%q\n", cfg.TaskName)
-	case "restart":
-		if err := gatewayWindowsTaskRunner.Restart(ctx, cfg); err != nil {
-			return gatewayWindowsScheduledTaskError("restart", err)
-		}
-		fmt.Fprintf(out, "gateway restart: Scheduled Task service restarted name=%q\n", cfg.TaskName)
-	case "uninstall":
-		if err := gatewayWindowsTaskRunner.Uninstall(ctx, cfg); err != nil {
-			return gatewayWindowsScheduledTaskError("uninstall", err)
-		}
-		fmt.Fprintf(out, "gateway uninstall: Scheduled Task service removed name=%q\n", cfg.TaskName)
-	default:
-		return newExitCodeError(gatewayMutatingUnavailableExitCode, fmt.Errorf("gateway: %s is not available; use the service_restart helper", action))
-	}
-	return nil
-}
-
-func gatewayWindowsScheduledTaskError(action string, err error) error {
-	return newExitCodeError(gatewayMutatingUnavailableExitCode,
-		fmt.Errorf("gateway %s scheduled_task_unavailable: %w", action, err))
-}
-
-func defaultGatewayWindowsScheduledTaskConfig() gatewayWindowsScheduledTaskConfig {
-	command, err := os.Executable()
-	if err != nil || strings.TrimSpace(command) == "" {
-		command = "gormes.exe"
-	}
-	return gatewayWindowsScheduledTaskConfig{
-		TaskName: "Gormes Gateway",
-		Command:  command,
-		Args:     []string{"gateway"},
-	}
-}
-
-type realGatewayWindowsScheduledTaskRunner struct{}
-
-func (realGatewayWindowsScheduledTaskRunner) Install(ctx context.Context, cfg gatewayWindowsScheduledTaskConfig) error {
-	return runGatewayWindowsScheduledTask(ctx, "/Create", "/TN", cfg.TaskName, "/SC", "ONLOGON", "/TR", windowsScheduledTaskCommandLine(cfg), "/F")
-}
-
-func (realGatewayWindowsScheduledTaskRunner) Start(ctx context.Context, cfg gatewayWindowsScheduledTaskConfig) error {
-	return runGatewayWindowsScheduledTask(ctx, "/Run", "/TN", cfg.TaskName)
-}
-
-func (realGatewayWindowsScheduledTaskRunner) Restart(ctx context.Context, cfg gatewayWindowsScheduledTaskConfig) error {
-	_ = runGatewayWindowsScheduledTask(ctx, "/End", "/TN", cfg.TaskName)
-	return runGatewayWindowsScheduledTask(ctx, "/Run", "/TN", cfg.TaskName)
-}
-
-func (realGatewayWindowsScheduledTaskRunner) Uninstall(ctx context.Context, cfg gatewayWindowsScheduledTaskConfig) error {
-	return runGatewayWindowsScheduledTask(ctx, "/Delete", "/TN", cfg.TaskName, "/F")
-}
-
-func runGatewayWindowsScheduledTask(ctx context.Context, args ...string) error {
-	cmd := exec.CommandContext(ctx, "schtasks", args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("schtasks %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
-	}
-	return nil
-}
-
-func windowsScheduledTaskCommandLine(cfg gatewayWindowsScheduledTaskConfig) string {
-	parts := []string{quoteWindowsScheduledTaskArg(cfg.Command)}
-	for _, arg := range cfg.Args {
-		parts = append(parts, quoteWindowsScheduledTaskArg(arg))
-	}
-	return `cmd.exe /d /c set "` + gatewayDetachedEnvName + `=1"&& ` + strings.Join(parts, " ")
-}
-
-func quoteWindowsScheduledTaskArg(value string) string {
-	return `"` + strings.ReplaceAll(value, `"`, `\"`) + `"`
-}
-
-type gracefulShutdownManager interface {
-	Shutdown(context.Context) error
-}
-
-type gatewayReloadManager interface {
-	Reload(context.Context) error
-}
-
 var consumeGatewayPlannedStopMarkerForSelf = func(ctx context.Context) (gateway.PlannedStopConsumeResult, error) {
 	store := gateway.NewPlannedStopStore(gateway.DefaultPlannedStopMarkerPath(config.GatewayRuntimeStatusPath()))
 	return store.ConsumeForSelf(ctx)
-}
-
-type gatewayChannelFactory func(config.Config, *slog.Logger) (gateway.Channel, error)
-
-type gatewayChannelFactories struct {
-	Telegram gatewayChannelFactory
-	Discord  gatewayChannelFactory
-	Slack    gatewayChannelFactory
-	Teams    gatewayChannelFactory
-	Yuanbao  gatewayChannelFactory
-	Navivox  gatewayChannelFactory
-	SimpleX  gatewayChannelFactory
 }
 
 func runGateway(cmd *cobra.Command, _ []string) error {
@@ -253,10 +155,10 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	securityReport := evaluateGatewayStartupSecurity(cfg, os.Getenv)
 	cfg = securityReport.Config
 	logGatewayStartupSecurityEvidence(securityReport.Evidence, slog.Default())
-	if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled && !cfg.Teams.Enabled && !cfg.Yuanbao.Enabled && !cfg.Navivox.Enabled && !simplex.ConfigFromEnv(os.LookupEnv).Enabled() {
+	if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled && !cfg.Teams.Enabled && !cfg.Yuanbao.Enabled && !cfg.Navivox.Enabled && !gormescli.SimpleXEnv(os.LookupEnv).Enabled {
 		return fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], [teams], [yuanbao], [navivox], or SIMPLEX_WS_URL")
 	}
-	if _, err := ensureGatewayAgentTemplates(cfg, slog.Default()); err != nil {
+	if _, err := gatewaymodule.EnsureAgentTemplates(cfg, slog.Default()); err != nil {
 		return err
 	}
 
@@ -265,10 +167,11 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("session map: %w", err)
 	}
 	defer smap.Close()
-	sessionMirror := startSessionIndexMirror(smap, slog.Default())
+	sessionMirror := gormescli.StartSessionIndexMirror(smap, slog.Default())
 	defer sessionMirror.Stop()
 
-	mstore, err := memory.OpenSqlite(config.MemoryDBPath(), cfg.Telegram.MemoryQueueCap, slog.Default())
+	memorySettings := channelmemory.SettingsFromConfig(cfg)
+	mstore, err := memory.OpenSqlite(config.MemoryDBPath(), memorySettings.QueueCap, slog.Default())
 	if err != nil {
 		return fmt.Errorf("memory store: %w", err)
 	}
@@ -279,7 +182,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 			slog.Warn("memory store close", "err", err)
 		}
 	}()
-	dynamicAgentRegistry, err := goncho.NewDynamicAgentRegistry(mstore.DB())
+	dynamicAgentRegistry, err := dynamicagents.NewDynamicAgentRegistry(mstore.DB())
 	if err != nil {
 		return fmt.Errorf("dynamic agent registry: %w", err)
 	}
@@ -288,7 +191,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("provider setup: %w", err)
 	}
-	hc := newReloadableHermesClient(baseHC)
+	hc := gateway.NewReloadableHermesClient(baseHC)
 	rootCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	signals := make(chan os.Signal, 2)
@@ -298,7 +201,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	}
 	signal.Notify(signals, shutdownSignals...)
 	defer signal.Stop(signals)
-	reg := buildDefaultRegistry(rootCtx, cfg, hc, cfg.Hermes.Model, withSessionSearch(mstore.DB(), smap))
+	reg := gormescli.BuildDefaultRegistry(rootCtx, cfg, hc, cfg.Hermes.Model, gormescli.WithSessionSearch(mstore.DB(), smap))
 	toolAudit := audit.NewJSONLWriter(config.ToolAuditLogPath())
 
 	// Initialize Goncho for cross-session memory persistence through the public
@@ -318,9 +221,9 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		if err != nil {
 			slog.Warn("goncho runtime open failed; memory disabled", "err", err)
 		} else {
-			gonchoStore = newGonchoAdapter(gonchoRuntime.Service)
-			registerGormesGonchoTools(reg, gonchoRuntime)
-			slog.Info(formatGormesGonchoStatus(gonchoRuntime.Status()))
+			gonchoStore = gonchoadapter.NewStore(gonchoRuntime.Service)
+			gormescli.RegisterGormesGonchoTools(reg, gonchoRuntime)
+			slog.Info(gormescli.FormatGormesGonchoStatus(gonchoRuntime.Status()))
 			defer func() {
 				shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), kernel.ShutdownBudget)
 				defer cancelShutdown()
@@ -337,10 +240,11 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		Endpoint:          cfg.Hermes.Endpoint,
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
 		Tools:             reg,
-		MaxToolIterations: configuredMaxToolIterations(cfg),
+		MaxToolIterations: gormescli.ConfiguredMaxToolIterations(cfg),
 		MaxToolDuration:   30 * time.Second,
 		ToolAudit:         toolAudit,
 		Goncho:            gonchoStore,
+		PrefillMessages:   gormescli.ConfiguredPrefillMessages(cfg),
 	}, hc, mstore, telemetry.New(), slog.Default())
 
 	// Phase 2.D — cron scheduler is initialized after channel registration below.
@@ -377,10 +281,10 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		securityReport := evaluateGatewayStartupSecurity(next, os.Getenv)
 		next = securityReport.Config
 		logGatewayStartupSecurityEvidence(securityReport.Evidence, slog.Default())
-		if next.Telegram.BotToken == "" && !next.Discord.Enabled() && !next.Slack.Enabled && !next.Teams.Enabled && !next.Yuanbao.Enabled && !next.Navivox.Enabled && !simplex.ConfigFromEnv(os.LookupEnv).Enabled() {
+		if next.Telegram.BotToken == "" && !next.Discord.Enabled() && !next.Slack.Enabled && !next.Teams.Enabled && !next.Yuanbao.Enabled && !next.Navivox.Enabled && !gormescli.SimpleXEnv(os.LookupEnv).Enabled {
 			return gateway.ManagerConfig{}, fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], [teams], [yuanbao], [navivox], or SIMPLEX_WS_URL")
 		}
-		if _, err := ensureGatewayAgentTemplates(next, slog.Default()); err != nil {
+		if _, err := gatewaymodule.EnsureAgentTemplates(next, slog.Default()); err != nil {
 			return gateway.ManagerConfig{}, err
 		}
 		nextBaseHC, err := newGatewayHermesClient(next)
@@ -390,9 +294,9 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		nextAllowedChats, nextAllowDiscovery, nextAllowedWhitelists := gatewayPolicyMaps(next)
 		nextCfg := gatewayManagerConfig(next, nextAllowedChats, nextAllowDiscovery, nextAllowedWhitelists, smap, hc, hooks, runtimeStatus, restartCfg)
 		nextCfg.DynamicAgentRegistry = dynamicAgentRegistry
-		nextReg := buildDefaultRegistry(rootCtx, next, hc, next.Hermes.Model, withSessionSearch(mstore.DB(), smap))
+		nextReg := gormescli.BuildDefaultRegistry(rootCtx, next, hc, next.Hermes.Model, gormescli.WithSessionSearch(mstore.DB(), smap))
 		if gonchoRuntime != nil {
-			registerGormesGonchoTools(nextReg, gonchoRuntime)
+			gormescli.RegisterGormesGonchoTools(nextReg, gonchoRuntime)
 		}
 		nextCfg.ToolRegistry = nextReg
 		nextCfg.SkillRuntime = skills.NewRuntime(next.SkillsRoot(), next.Skills.MaxDocumentBytes, next.Skills.SelectionCap, next.SkillsUsageLogPath())
@@ -548,22 +452,22 @@ func activateGatewaySecretRuntime(ctx context.Context, cfg config.Config, resolv
 	return activation.Config, activation.Snapshot, err
 }
 
-func newGatewayHermesClient(cfg config.Config) (hermes.Client, error) {
-	return newProviderHTTPClient(cfg, cfg.Hermes.Provider)
+func newGatewayHermesClient(cfg config.Config) (llm.Client, error) {
+	return gormescli.NewProviderHTTPClient(cfg, cfg.Hermes.Provider)
 }
 
 func newGatewayAgentRuntimeFactory(rootCtx context.Context, cfg config.Config, mstore *memory.SqliteStore, gonchoStore kernel.GonchoStore) gateway.AgentRuntimeFactory {
 	return func(_ context.Context, req gateway.AgentRuntimeRequest) (gateway.KernelSubmitter, error) {
 		agentCfg := cfg
-		model := firstUsageString(req.Model, cfg.Hermes.Model)
+		model := providermodule.FirstUsageString(req.Model, cfg.Hermes.Model)
 		agentCfg.Hermes.Model = model
-		hc, err := newProviderHTTPClientWithCredentialHome(agentCfg, agentCfg.Hermes.Provider, req.AuthHome)
+		hc, err := gormescli.NewProviderHTTPClientWithCredentialHome(agentCfg, agentCfg.Hermes.Provider, req.AuthHome)
 		if err != nil {
 			return nil, err
 		}
 		reg := req.Tools
 		if reg == nil {
-			reg = buildDefaultRegistry(rootCtx, agentCfg, hc, model).FilterPolicy(req.ToolPolicy.Allow, req.ToolPolicy.Deny)
+			reg = gormescli.BuildDefaultRegistry(rootCtx, agentCfg, hc, model).FilterPolicy(req.ToolPolicy.Allow, req.ToolPolicy.Deny)
 		}
 		k := kernel.New(kernel.Config{
 			Model:             model,
@@ -572,101 +476,16 @@ func newGatewayAgentRuntimeFactory(rootCtx context.Context, cfg config.Config, m
 			Tools:             reg,
 			Skills:            req.Skills,
 			ToolSafety:        req.ToolSafety,
-			MaxToolIterations: configuredMaxToolIterations(agentCfg),
+			MaxToolIterations: gormescli.ConfiguredMaxToolIterations(agentCfg),
 			MaxToolDuration:   30 * time.Second,
 			ChatKey:           req.SessionKey,
 			ToolAudit:         audit.NewJSONLWriter(config.ToolAuditLogPath()),
 			Goncho:            gonchoStore,
+			PrefillMessages:   gormescli.ConfiguredPrefillMessages(agentCfg),
 		}, hc, mstore, telemetry.New(), slog.Default())
 		go k.Run(rootCtx)
 		return k, nil
 	}
-}
-
-func defaultGatewayChannelFactories() gatewayChannelFactories {
-	return gatewayChannelFactories{
-		Telegram: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {
-			tc, err := telegram.NewRealClient(cfg.Telegram.BotToken)
-			if err != nil {
-				return nil, err
-			}
-			return telegram.New(telegram.Config{
-				AllowedChatID:       cfg.Telegram.AllowedChatID,
-				AllowedChatIDs:      cfg.Telegram.AllowedChatIDs(),
-				AllowedUserIDs:      cfg.Telegram.AllowedUserIDs,
-				FirstRunDiscovery:   cfg.Telegram.FirstRunDiscovery,
-				RequireMention:      cfg.Telegram.RequireMention,
-				GuestMode:           cfg.Telegram.GuestMode,
-				BotUsername:         cfg.Telegram.BotUsername,
-				Notifications:       cfg.Telegram.Notifications,
-				AudioTranscriber:    resolveTelegramAudioTranscriber(),
-				DynamicCommands:     gatewayTelegramDynamicCommands(context.Background(), cfg),
-				TokenLockDir:        config.GatewayLockDir(),
-				ModelPickerResolver: gateway.NewModelPickerResolver(&gateway.SessionModelOverride{}),
-			}, tc, log), nil
-		},
-		Discord: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {
-			ds, err := discord.NewRealSession(cfg.Discord.Token)
-			if err != nil {
-				return nil, err
-			}
-			return discord.New(discord.Config{
-				AllowedChannelID:       cfg.Discord.AllowedChannelID,
-				AllowedChannelIDs:      cfg.Discord.AllowedChannelIDs(),
-				IgnoredChannelIDs:      cfg.Discord.IgnoredChannelIDs(),
-				FreeResponseChannelIDs: cfg.Discord.FreeResponseChannelIDs(),
-				NoThreadChannelIDs:     cfg.Discord.NoThreadChannelIDs(),
-				ChannelSkillBindings:   cfg.Discord.ChannelSkillBindings,
-				ChannelPrompts:         cfg.Discord.ChannelPrompts,
-				RequireMention:         cfg.Discord.RequireMentionValue(true),
-				RequireMentionSet:      true,
-				AutoThread:             cfg.Discord.AutoThreadValue(true),
-				AutoThreadSet:          true,
-				AllowBots:              cfg.Discord.AllowBotsValue(),
-				ReplyToMode:            cfg.Discord.ReplyToModeValue(),
-				FirstRunDiscovery:      cfg.Discord.FirstRunDiscovery,
-			}, ds, log), nil
-		},
-		Slack: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {
-			return slack.NewChannel(slack.NewRealClient(cfg.Slack.BotToken, cfg.Slack.AppToken), log, slack.ChannelConfig{
-				RequireMention:       cfg.Slack.RequireMention,
-				StrictMention:        cfg.Slack.StrictMention,
-				FreeResponseChannels: cfg.Slack.FreeResponseChannels,
-				ChannelSkillBindings: cfg.Slack.ChannelSkillBindings,
-				ChannelPrompts:       cfg.Slack.ChannelPrompts,
-				AccountID:            cfg.Slack.AccountID,
-			}), nil
-		},
-		Teams: func(config.Config, *slog.Logger) (gateway.Channel, error) {
-			return nil, errors.New("teams_live_transport_unavailable: live Bot Framework binding is not implemented; Teams is fakeable only in this slice")
-		},
-		Yuanbao: func(config.Config, *slog.Logger) (gateway.Channel, error) {
-			return nil, errors.New("yuanbao_runtime_unavailable: live Yuanbao transport is not implemented; the runtime slice binds fake clients only")
-		},
-		Navivox: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {
-			return navivoxchannel.NewChannel(cfg.Navivox, log, navivoxchannel.WithProfileRouting(cfg.NavivoxProfileRouting()))
-		},
-		SimpleX: func(_ config.Config, log *slog.Logger) (gateway.Channel, error) {
-			cfg := simplex.ConfigFromEnv(os.LookupEnv)
-			return simplex.NewChannel(cfg, simplex.NewWebSocketTransport(cfg.WSURL), log), nil
-		},
-	}
-}
-
-func gatewayTelegramDynamicCommands(ctx context.Context, cfg config.Config) []gateway.PlatformCommand {
-	runtime := skills.NewRuntime(cfg.SkillsRoot(), cfg.Skills.MaxDocumentBytes, cfg.Skills.SelectionCap, cfg.SkillsUsageLogPath())
-	skillCommands, _, err := runtime.SkillSlashCommands(ctx, skills.RuntimeOptions{})
-	if err != nil || len(skillCommands) == 0 {
-		return nil
-	}
-	commands := make([]gateway.PlatformCommand, 0, len(skillCommands))
-	for _, cmd := range skillCommands {
-		commands = append(commands, gateway.PlatformCommand{
-			Name:        strings.TrimPrefix(cmd.Command, "/"),
-			Description: cmd.Description,
-		})
-	}
-	return commands
 }
 
 func gatewayCoalesceMs(cfg config.Config) int {
@@ -690,8 +509,8 @@ func gatewayFreshFinalAfter(cfg config.Config) time.Duration {
 	return time.Duration(cfg.Telegram.FreshFinalAfterSeconds * float64(time.Second))
 }
 
-func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, allowedWhitelists map[string]gateway.WhitelistConfig, smap session.Map, hc hermes.Client, hooks *gateway.Hooks, runtimeStatus gateway.RuntimeStatusWriter, restart gateway.RestartConfig) gateway.ManagerConfig {
-	titleStore, titleModel := buildGatewayTitleSeam(context.Background(), smap, hc, cfg.Hermes.Model)
+func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, allowedWhitelists map[string]gateway.WhitelistConfig, smap session.Map, hc llm.Client, hooks *gateway.Hooks, runtimeStatus gateway.RuntimeStatusWriter, restart gateway.RestartConfig) gateway.ManagerConfig {
+	titleStore, titleModel := gormescli.BuildGatewayTitleSeam(context.Background(), smap, hc, cfg.Hermes.Model)
 	return gateway.ManagerConfig{
 		AllowedChats:               allowedChats,
 		AllowedUsers:               gatewayAllowedUsers(cfg),
@@ -711,20 +530,23 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 		RuntimeStatus:              runtimeStatus,
 		Restart:                    restart,
 		RestartNotifications:       cfg.GatewayRestartNotifications(),
-		KanbanSlashRunner:          runTUIKanbanSlashCommand,
-		RememberedSourceStore:      gateway.NewChannelDirectorySourceStore(config.GormesHome()),
-		ContextFilesCWD:            gatewayContextFilesCWD(cfg),
-		LiveTurnNow:                func() time.Time { return time.Now() },
+		KanbanSlashRunner: func(ctx context.Context, input string) (string, error) {
+			return gormescli.RunTUIKanbanSlashCommand(ctx, input, kanbanCommandOptions())
+		},
+		SkillsCommandOptions:  skillsCommandOptionsForConfig(cfg),
+		RememberedSourceStore: gateway.NewChannelDirectorySourceStore(config.GormesHome()),
+		ContextFilesCWD:       gatewaymodule.ContextFilesCWD(cfg),
+		LiveTurnNow:           func() time.Time { return time.Now() },
 		LiveTurnActiveModel: func() string {
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway live-turn metadata"})
-			return firstUsageString(resolution.Model, cfg.Hermes.Model)
+			return providermodule.FirstUsageString(resolution.Model, cfg.Hermes.Model)
 		},
 		LiveTurnActiveProvider: func() string {
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway live-turn metadata"})
-			return firstUsageString(resolution.Provider, cfg.Hermes.Provider)
+			return providermodule.FirstUsageString(resolution.Provider, cfg.Hermes.Provider)
 		},
-		ImageInputMode: hermes.ImageInputMode(cfg.Agent.ImageInputMode),
-		AuxiliaryVision: hermes.AuxiliaryVisionConfig{
+		ImageInputMode: llm.ImageInputMode(cfg.Agent.ImageInputMode),
+		AuxiliaryVision: llm.AuxiliaryVisionConfig{
 			Provider: cfg.Auxiliary.Vision.Provider,
 			Model:    cfg.Auxiliary.Vision.Model,
 			BaseURL:  cfg.Auxiliary.Vision.BaseURL,
@@ -732,26 +554,16 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 		SessionResetPolicy:      cfg.Runtime.SessionResetPolicy,
 		SessionResetIdleMinutes: cfg.Runtime.SessionResetAfterMinutes,
 		SessionResetDailyHour:   cfg.Runtime.SessionResetDailyHour,
-		AccountUsage: func(ctx context.Context, ev gateway.InboundEvent) (hermes.AccountUsageSnapshot, error) {
+		AccountUsage: func(ctx context.Context, ev gateway.InboundEvent) (llm.AccountUsageSnapshot, error) {
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway /usage"})
-			provider := inferUsageProvider(resolution.Provider, firstUsageString(resolution.Model, cfg.Hermes.Model))
+			provider := providermodule.InferUsageProvider(resolution.Provider, providermodule.FirstUsageString(resolution.Model, cfg.Hermes.Model))
 			if provider == "" {
 				provider = "openai-codex"
 			}
-			fetcher := hermes.NewAccountUsageFetcher(accountUsageHTTPClient{client: usageHTTPClient}, func() time.Time { return time.Now().UTC() })
-			return fetcher.Fetch(ctx, hermes.AccountUsageFetchRequest{Provider: provider, BaseURL: cfg.Hermes.Endpoint, APIKey: cfg.Hermes.APIKey})
+			fetcher := llm.NewAccountUsageFetcher(providermodule.AccountUsageHTTPClient{Client: providermodule.UsageHTTPClient}, func() time.Time { return time.Now().UTC() })
+			return fetcher.Fetch(ctx, llm.AccountUsageFetchRequest{Provider: provider, BaseURL: cfg.Hermes.Endpoint, APIKey: cfg.Hermes.APIKey})
 		},
 	}
-}
-
-func gatewayContextFilesCWD(cfg config.Config) string {
-	if cwd := strings.TrimSpace(cfg.Terminal.CWD); cwd != "" && cwd != "." {
-		return cwd
-	}
-	if agent, ok := cfg.Agents.AgentByID(cfg.Agents.DefaultAgentID()); ok {
-		return strings.TrimSpace(agent.Workspace)
-	}
-	return ""
 }
 
 func gatewayAllowedUsers(cfg config.Config) map[string]map[string]bool {
@@ -771,13 +583,13 @@ func gatewayAllowedUsers(cfg config.Config) map[string]map[string]bool {
 		out["teams"] = users
 	}
 	if cfg.Navivox.Enabled {
-		out[navivoxchannel.PlatformName] = map[string]bool{"navivox": true}
+		out[channelsmodule.NavivoxPlatformName] = map[string]bool{"navivox": true}
 	}
-	if simplexCfg := simplex.ConfigFromEnv(os.LookupEnv); simplexCfg.Enabled() {
-		if users := simplexCfg.AllowedUserSet(); len(users) > 0 {
-			out[simplex.PlatformName] = users
-		} else if simplexCfg.AllowAllUsers {
-			out[simplex.PlatformName] = map[string]bool{"*": true}
+	if simplexInfo := gormescli.SimpleXEnv(os.LookupEnv); simplexInfo.Enabled {
+		if len(simplexInfo.AllowedUsers) > 0 {
+			out[simplexInfo.Platform] = simplexInfo.AllowedUsers
+		} else if simplexInfo.AllowAllUsers {
+			out[simplexInfo.Platform] = map[string]bool{"*": true}
 		}
 	}
 	return out
@@ -824,13 +636,13 @@ func gatewayPolicyMaps(cfg config.Config) (map[string]string, map[string]bool, m
 		allowDiscovery["yuanbao"] = cfg.Yuanbao.FirstRunDiscovery
 	}
 	if cfg.Navivox.Enabled {
-		allowDiscovery[navivoxchannel.PlatformName] = false
+		allowDiscovery[channelsmodule.NavivoxPlatformName] = false
 	}
-	if simplexCfg := simplex.ConfigFromEnv(os.LookupEnv); simplexCfg.Enabled() {
-		if home := strings.TrimSpace(simplexCfg.HomeChannel); home != "" {
-			allowedChats[simplex.PlatformName] = home
+	if simplexInfo := gormescli.SimpleXEnv(os.LookupEnv); simplexInfo.Enabled {
+		if simplexInfo.HomeChannel != "" {
+			allowedChats[simplexInfo.Platform] = simplexInfo.HomeChannel
 		}
-		allowDiscovery[simplex.PlatformName] = false
+		allowDiscovery[simplexInfo.Platform] = false
 	}
 	return allowedChats, allowDiscovery, whitelists
 }
@@ -864,292 +676,6 @@ func gatewayToolProgressModes(cfg config.Config) map[string]string {
 		return nil
 	}
 	return modes
-}
-
-func registerConfiguredGatewayChannels(mgr *gateway.Manager, cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, factories gatewayChannelFactories, status gateway.RuntimeStatusWriter, log *slog.Logger) (int, error) {
-	if log == nil {
-		log = slog.Default()
-	}
-	registered := 0
-
-	tgAccounts := cfg.Telegram.Accounts
-	if len(tgAccounts) == 0 && cfg.Telegram.BotToken != "" {
-		if factories.Telegram == nil {
-			return registered, fmt.Errorf("register telegram: missing channel factory")
-		}
-		ch, err := factories.Telegram(cfg, log)
-		if err != nil {
-			return registered, err
-		}
-		if err := mgr.Register(ch); err != nil {
-			return registered, fmt.Errorf("register telegram: %w", err)
-		}
-		if cfg.Telegram.AllowedChatID != 0 {
-			allowedChats["telegram"] = strconv.FormatInt(cfg.Telegram.AllowedChatID, 10)
-		}
-		allowDiscovery["telegram"] = cfg.Telegram.FirstRunDiscovery
-		registered++
-		log.Info("gateway: telegram channel enabled", "allowed_chat_id", cfg.Telegram.AllowedChatID, "allowed_user_count", len(cfg.Telegram.AllowedUserIDs))
-	}
-	for accountID, acct := range tgAccounts {
-		if acct.BotToken == "" {
-			writeGatewayChannelDegraded(status, "telegram", fmt.Sprintf("telegram account %s: missing bot_token", accountID))
-			log.Warn("gateway: telegram account disabled by missing token", "account", accountID)
-			continue
-		}
-		if factories.Telegram == nil {
-			return registered, fmt.Errorf("register telegram: missing channel factory")
-		}
-		acctCfg := cfg
-		acctCfg.Telegram.BotToken = acct.BotToken
-		acctCfg.Telegram.AllowedChatID = acct.AllowedChatID
-		acctCfg.Telegram.AllowedUserIDs = acct.AllowedUserIDs
-		acctCfg.Telegram.AccountID = accountID
-		ch, err := factories.Telegram(acctCfg, log)
-		if err != nil {
-			writeGatewayChannelDegraded(status, "telegram", fmt.Sprintf("telegram account %s: startup failed: %s", accountID, err.Error()))
-			log.Warn("gateway: telegram account startup failed", "account", accountID, "err", err)
-			continue
-		}
-		if err := mgr.Register(ch); err != nil {
-			return registered, fmt.Errorf("register telegram account %s: %w", accountID, err)
-		}
-		if acct.AllowedChatID != 0 {
-			allowedChats["telegram:"+accountID] = strconv.FormatInt(acct.AllowedChatID, 10)
-		}
-		allowDiscovery["telegram:"+accountID] = cfg.Telegram.FirstRunDiscovery
-		registered++
-		log.Info("gateway: telegram account enabled", "account", accountID, "allowed_chat_id", acct.AllowedChatID, "allowed_user_count", len(acct.AllowedUserIDs))
-	}
-
-	discordAccounts := cfg.Discord.Accounts
-	if len(discordAccounts) == 0 && cfg.Discord.Enabled() {
-		if factories.Discord == nil {
-			return registered, fmt.Errorf("register discord: missing channel factory")
-		}
-		ch, err := factories.Discord(cfg, log)
-		if err != nil {
-			return registered, err
-		}
-		if err := mgr.Register(ch); err != nil {
-			return registered, fmt.Errorf("register discord: %w", err)
-		}
-		if cfg.Discord.AllowedChannelID != "" {
-			allowedChats["discord"] = cfg.Discord.AllowedChannelID
-		}
-		allowDiscovery["discord"] = cfg.Discord.FirstRunDiscovery
-		registered++
-		log.Info("gateway: discord channel enabled", "allowed_channel_id", cfg.Discord.AllowedChannelID)
-	}
-	for accountID, acct := range discordAccounts {
-		if acct.Token == "" {
-			writeGatewayChannelDegraded(status, "discord", fmt.Sprintf("discord account %s: missing token", accountID))
-			log.Warn("gateway: discord account disabled by missing token", "account", accountID)
-			continue
-		}
-		if factories.Discord == nil {
-			return registered, fmt.Errorf("register discord: missing channel factory")
-		}
-		acctCfg := cfg
-		acctCfg.Discord.Token = acct.Token
-		acctCfg.Discord.AllowedChannelID = acct.AllowedChannelID
-		acctCfg.Discord.AllowedChannels = acct.AllowedChannels
-		acctCfg.Discord.AccountID = accountID
-		ch, err := factories.Discord(acctCfg, log)
-		if err != nil {
-			writeGatewayChannelDegraded(status, "discord", fmt.Sprintf("discord account %s: startup failed: %s", accountID, err.Error()))
-			log.Warn("gateway: discord account startup failed", "account", accountID, "err", err)
-			continue
-		}
-		if err := mgr.Register(ch); err != nil {
-			return registered, fmt.Errorf("register discord account %s: %w", accountID, err)
-		}
-		if acct.AllowedChannelID != "" {
-			allowedChats["discord:"+accountID] = acct.AllowedChannelID
-		}
-		allowDiscovery["discord:"+accountID] = cfg.Discord.FirstRunDiscovery
-		registered++
-		log.Info("gateway: discord account enabled", "account", accountID, "allowed_channel_id", acct.AllowedChannelID)
-	}
-
-	slackAccounts := cfg.Slack.Accounts
-	if len(slackAccounts) == 0 && cfg.Slack.Enabled {
-		if cfg.Slack.AllowedChannelID != "" {
-			allowedChats["slack"] = cfg.Slack.AllowedChannelID
-		}
-		allowDiscovery["slack"] = cfg.Slack.FirstRunDiscovery
-
-		if missing := missingSlackCredentials(cfg.Slack); len(missing) > 0 {
-			errText := "slack: missing " + strings.Join(missing, ",")
-			writeGatewayChannelDegraded(status, "slack", errText)
-			log.Warn("gateway: slack channel disabled by missing credentials", "missing", strings.Join(missing, ","))
-		} else {
-			if factories.Slack == nil {
-				return registered, fmt.Errorf("register slack: missing channel factory")
-			}
-			ch, err := factories.Slack(cfg, log)
-			if err != nil {
-				errText := "slack: startup failed: " + err.Error()
-				writeGatewayChannelDegraded(status, "slack", errText)
-				log.Warn("gateway: slack channel startup failed", "err", err)
-			} else {
-				if err := mgr.Register(ch); err != nil {
-					return registered, fmt.Errorf("register slack: %w", err)
-				}
-				registered++
-				log.Info("gateway: slack channel enabled", "allowed_channel_id", cfg.Slack.AllowedChannelID)
-			}
-		}
-	}
-	for accountID, acct := range slackAccounts {
-		if acct.BotToken == "" || acct.AppToken == "" {
-			writeGatewayChannelDegraded(status, "slack", fmt.Sprintf("slack account %s: missing bot_token or app_token", accountID))
-			log.Warn("gateway: slack account disabled by missing token", "account", accountID)
-			continue
-		}
-		if factories.Slack == nil {
-			return registered, fmt.Errorf("register slack: missing channel factory")
-		}
-		acctCfg := cfg
-		acctCfg.Slack.BotToken = acct.BotToken
-		acctCfg.Slack.AppToken = acct.AppToken
-		acctCfg.Slack.AllowedChannelID = acct.AllowedChannelID
-		acctCfg.Slack.AccountID = accountID
-		ch, err := factories.Slack(acctCfg, log)
-		if err != nil {
-			writeGatewayChannelDegraded(status, "slack", fmt.Sprintf("slack account %s: startup failed: %s", accountID, err.Error()))
-			log.Warn("gateway: slack account startup failed", "account", accountID, "err", err)
-			continue
-		}
-		if err := mgr.Register(ch); err != nil {
-			return registered, fmt.Errorf("register slack account %s: %w", accountID, err)
-		}
-		if acct.AllowedChannelID != "" {
-			allowedChats["slack:"+accountID] = acct.AllowedChannelID
-		}
-		allowDiscovery["slack:"+accountID] = cfg.Slack.FirstRunDiscovery
-		registered++
-		log.Info("gateway: slack account enabled", "account", accountID, "allowed_channel_id", acct.AllowedChannelID)
-	}
-
-	if cfg.Teams.Enabled {
-		if missing := cfg.Teams.MissingCredentials(); len(missing) > 0 {
-			errText := "teams: missing " + strings.Join(missing, ",")
-			writeGatewayChannelDegraded(status, "teams", errText)
-			log.Warn("gateway: teams channel disabled by missing credentials", "missing", strings.Join(missing, ","))
-		} else {
-			if factories.Teams == nil {
-				return registered, fmt.Errorf("register teams: missing channel factory")
-			}
-			ch, err := factories.Teams(cfg, log)
-			if err != nil {
-				errText := "teams: startup failed: " + err.Error()
-				writeGatewayChannelDegraded(status, "teams", errText)
-				log.Warn("gateway: teams channel startup failed", "err", err)
-			} else {
-				if err := mgr.Register(ch); err != nil {
-					return registered, fmt.Errorf("register teams: %w", err)
-				}
-				registered++
-				log.Info("gateway: teams channel enabled", "port", cfg.Teams.EffectivePort(), "allowed_user_count", len(cfg.Teams.AllowedUserIDs()))
-			}
-		}
-	}
-
-	if cfg.Yuanbao.Enabled {
-		if cfg.Yuanbao.AllowedConversationID != "" {
-			allowedChats["yuanbao"] = cfg.Yuanbao.AllowedConversationID
-		}
-		allowDiscovery["yuanbao"] = cfg.Yuanbao.FirstRunDiscovery
-
-		if missing := cfg.Yuanbao.MissingCredentials(); len(missing) > 0 {
-			errText := "yuanbao: missing " + strings.Join(missing, ",")
-			writeGatewayChannelDegraded(status, "yuanbao", errText)
-			log.Warn("gateway: yuanbao channel disabled by missing credentials", "missing", strings.Join(missing, ","))
-			return registered, nil
-		}
-		if factories.Yuanbao == nil {
-			return registered, fmt.Errorf("register yuanbao: missing channel factory")
-		}
-		ch, err := factories.Yuanbao(cfg, log)
-		if err != nil {
-			errText := "yuanbao: startup failed: " + err.Error()
-			writeGatewayChannelDegraded(status, "yuanbao", errText)
-			log.Warn("gateway: yuanbao channel startup failed", "err", err)
-			return registered, nil
-		}
-		if err := mgr.Register(ch); err != nil {
-			return registered, fmt.Errorf("register yuanbao: %w", err)
-		}
-		registered++
-		log.Info("gateway: yuanbao channel enabled", "allowed_conversation_id", cfg.Yuanbao.AllowedConversationID)
-	}
-
-	if cfg.Navivox.Enabled {
-		if factories.Navivox == nil {
-			return registered, fmt.Errorf("register navivox: missing channel factory")
-		}
-		ch, err := factories.Navivox(cfg, log)
-		if err != nil {
-			writeGatewayChannelDegraded(status, navivoxchannel.PlatformName, "navivox: startup failed: "+err.Error())
-			return registered, fmt.Errorf("register navivox: %w", err)
-		}
-		if err := mgr.Register(ch); err != nil {
-			return registered, fmt.Errorf("register navivox: %w", err)
-		}
-		registered++
-		log.Info("gateway: navivox channel enabled",
-			"bind_host", cfg.Navivox.BindHost,
-			"port", cfg.Navivox.Port,
-			"exposure_mode", cfg.Navivox.ExposureMode,
-			"auth_mode", cfg.Navivox.AuthMode)
-	}
-
-	if simplexCfg := simplex.ConfigFromEnv(os.LookupEnv); simplexCfg.Enabled() {
-		if home := strings.TrimSpace(simplexCfg.HomeChannel); home != "" {
-			allowedChats[simplex.PlatformName] = home
-		}
-		allowDiscovery[simplex.PlatformName] = false
-		if factories.SimpleX == nil {
-			return registered, fmt.Errorf("register simplex: missing channel factory")
-		}
-		ch, err := factories.SimpleX(cfg, log)
-		if err != nil {
-			errText := "simplex: startup failed: " + err.Error()
-			writeGatewayChannelDegraded(status, simplex.PlatformName, errText)
-			log.Warn("gateway: simplex channel startup failed", "err", err)
-		} else {
-			if err := mgr.Register(ch); err != nil {
-				return registered, fmt.Errorf("register simplex: %w", err)
-			}
-			registered++
-			log.Info("gateway: simplex channel enabled", "home_channel", simplexCfg.HomeChannel, "allowed_user_count", len(simplexCfg.AllowedUserSet()), "allow_all_users", simplexCfg.AllowAllUsers)
-		}
-	}
-
-	return registered, nil
-}
-
-func writeGatewayChannelDegraded(status gateway.RuntimeStatusWriter, platform, errText string) {
-	if status == nil {
-		return
-	}
-	_ = status.UpdateRuntimeStatus(context.Background(), gateway.RuntimeStatusUpdate{
-		Platform:      platform,
-		PlatformState: gateway.PlatformStateFailed,
-		ErrorMessage:  errText,
-	})
-}
-
-func missingSlackCredentials(cfg config.SlackCfg) []string {
-	missing := []string{}
-	if strings.TrimSpace(cfg.BotToken) == "" {
-		missing = append(missing, "bot_token")
-	}
-	if strings.TrimSpace(cfg.AppToken) == "" {
-		missing = append(missing, "app_token")
-	}
-	return missing
 }
 
 type gatewayStartupSecurityReport struct {
@@ -1227,10 +753,7 @@ func gatewayStartupAllowlistConfigured(cfg config.Config, lookupEnv func(string)
 	if cfg.Navivox.Enabled {
 		return true
 	}
-	if simplex.ConfigFromEnv(func(key string) (string, bool) {
-		value := lookupEnv(key)
-		return value, strings.TrimSpace(value) != ""
-	}).Enabled() && strings.TrimSpace(lookupEnv("SIMPLEX_ALLOWED_USERS")) != "" {
+	if gormescli.SimpleXStartupAllowlistConfigured(lookupEnv) {
 		return true
 	}
 	for _, key := range []string{
@@ -1276,6 +799,14 @@ func logGatewayStartupSecurityEvidence(evidence []gateway.AdmissionEvidence, log
 		}
 		log.Warn("gateway startup admission", "code", item.Code, "platform", item.Platform, "field", item.Field, "message", item.Message)
 	}
+}
+
+type gracefulShutdownManager interface {
+	Shutdown(context.Context) error
+}
+
+type gatewayReloadManager interface {
+	Reload(context.Context) error
 }
 
 func runGatewaySignalLoop(signals <-chan os.Signal, budget time.Duration, mgr gracefulShutdownManager, cancel context.CancelFunc, log *slog.Logger, forceExit func(int), wakeLockMgr tools.TermuxWakeLockManager) {
@@ -1373,21 +904,33 @@ func sqlOpenGoncho(path string) (*sql.DB, error) {
 	if err == nil {
 		return db, nil
 	}
-	if !isSQLiteCorruptionError(err) {
+	if !memory.IsSQLiteCorruptionError(err) {
 		return nil, err
 	}
-	if _, healErr := selfHealCorruptGonchoSQLite(path); healErr != nil {
+	if _, healErr := memory.SelfHealCorruptGonchoSQLite(path); healErr != nil {
 		return nil, fmt.Errorf("%w; self-heal failed: %v", err, healErr)
 	}
 	return sqlOpenGonchoRaw(path)
 }
 
-func sqlOpenGonchoRaw(path string) (*sql.DB, error) {
+func sqlOpenGonchoUnmigrated(path string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return nil, err
 	}
 	if err := db.Ping(); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	return db, nil
+}
+
+func sqlOpenGonchoRaw(path string) (*sql.DB, error) {
+	db, err := sqlOpenGonchoUnmigrated(path)
+	if err != nil {
+		return nil, err
+	}
+	if err := memory.EnsureSchema(db); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
@@ -1405,58 +948,4 @@ func sqlOpenGonchoRaw(path string) (*sql.DB, error) {
 		}
 	}
 	return db, nil
-}
-
-func newGonchoAdapter(svc *goncho.Service) kernel.GonchoStore {
-	return &gonchoAdapter{svc: svc}
-}
-
-type gonchoAdapter struct{ svc *goncho.Service }
-
-func (a *gonchoAdapter) AppendTurn(ctx context.Context, peer, sessionKey, role, content string) error {
-	if a.svc == nil || sessionKey == "" || content == "" {
-		return nil
-	}
-	_, err := a.svc.CreateMessages(ctx, goncho.CreateMessagesParams{
-		SessionKey: sessionKey,
-		Messages:   []goncho.CreateMessage{{Peer: peer, Role: role, Content: content}},
-	})
-	return err
-}
-
-func (a *gonchoAdapter) GetContext(ctx context.Context, sessionKey string, maxTokens int) (string, error) {
-	if a.svc == nil || sessionKey == "" {
-		return "", nil
-	}
-	result, err := a.svc.Context(ctx, goncho.ContextParams{
-		Peer:       "gormes",
-		SessionKey: sessionKey,
-		MaxTokens:  maxTokens,
-	})
-	if err != nil {
-		return "", err
-	}
-	var b strings.Builder
-	for _, m := range result.RecentMessages {
-		role := "User"
-		if m.Role == "assistant" {
-			role = "Gormes"
-		}
-		b.WriteString(role)
-		b.WriteString(": ")
-		b.WriteString(m.Content)
-		b.WriteByte('\n')
-	}
-	return b.String(), nil
-}
-
-func (a *gonchoAdapter) OnSessionEnd(ctx context.Context, sessionKey string, messages []hermes.Message) error {
-	if a.svc == nil || sessionKey == "" {
-		return nil
-	}
-	gonchoMsgs := make([]goncho.Message, len(messages))
-	for i, m := range messages {
-		gonchoMsgs[i] = goncho.Message{Role: m.Role, Content: m.Content}
-	}
-	return a.svc.OnSessionEnd(ctx, sessionKey, gonchoMsgs)
 }

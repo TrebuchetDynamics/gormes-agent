@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 type stubSkillProvider struct {
@@ -45,8 +45,8 @@ func TestKernel_InjectsSkillBlockAndRecordsUsage(t *testing.T) {
 		names: []string{"careful-review"},
 	}
 	recorder := &stubSkillUsageRecorder{}
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{{Kind: hermes.EventDone, FinishReason: "stop"}}, "sess-skills")
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "sess-skills")
 
 	k := New(Config{
 		Model:      "hermes-agent",
@@ -74,7 +74,7 @@ func TestKernel_InjectsSkillBlockAndRecordsUsage(t *testing.T) {
 	if len(req.Messages) != 3 {
 		t.Fatalf("len(Messages) = %d, want 3 (skills guidance + skill block + user)", len(req.Messages))
 	}
-	if req.Messages[0].Role != "system" || !strings.Contains(req.Messages[0].Content, hermes.SkillsGuidance) {
+	if req.Messages[0].Role != "system" || !strings.Contains(req.Messages[0].Content, llm.SkillsGuidance) {
 		t.Fatalf("Messages[0] = %+v, want skills guidance system message", req.Messages[0])
 	}
 	if req.Messages[1].Role != "system" {
@@ -103,8 +103,8 @@ func TestKernel_InjectsSkillBlockAndRecordsUsage(t *testing.T) {
 func TestKernel_SkillProviderErrorFallsBackToUserOnly(t *testing.T) {
 	provider := &stubSkillProvider{err: errors.New("boom")}
 	recorder := &stubSkillUsageRecorder{}
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{{Kind: hermes.EventDone, FinishReason: "stop"}}, "sess-skills-fallback")
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "sess-skills-fallback")
 
 	k := New(Config{
 		Model:      "hermes-agent",

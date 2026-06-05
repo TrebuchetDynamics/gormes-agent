@@ -155,5 +155,3 @@ func (t *BrowserSessionTracker) RunCleanup(ctx context.Context, nowFunc func() t
 		}
 	}
 }
-
-

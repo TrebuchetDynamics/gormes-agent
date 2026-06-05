@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>Run Hermes-compatible agents from one Go binary.</strong><br>
-  Gormes is a Go-native runtime for providers, tools, skills, local SQLite memory, sessions, dashboard, and chat gateways in one static binary. It brings the Hermes agent shape to Termux, Windows-without-Python, and locked-down Linux hosts: no pip, no venv, no Docker daemon. The bundled skill set covers the 30 most-used Hermes skills, including coding, GitHub, browser/web tools, research, productivity, and media workflows.
+  Gormes is a Go-native runtime for agents: providers, tools, skills, local SQLite memory, sessions, dashboard, chat gateways, and a Navivox HTTP/WebSocket app channel are packaged as one static binary. It brings the durable parts of Hermes — terminal UX, gateway conversations, reusable skills, persistent state, and provider/model choice — to Termux, Windows-without-Python, and locked-down Linux hosts: no pip, no venv, no Docker daemon. The bundled skill set covers the 30 most-used Hermes skills, including coding, GitHub, browser/web tools, research, productivity, and media workflows.
 </p>
 
 <p align="center">
@@ -21,9 +21,11 @@
   <img src="webpages/docs/assets/gormes-tui-demo.gif" alt="Gormes install, setup, provider setup, first task, web tools, Termux, and gateway demo" width="960">
 </p>
 
-Gormes is not a micro-agent. It keeps the broad Hermes agent architecture and makes it portable, inspectable, and cheap to operate from a normal terminal.
+Gormes is not a micro-agent or a prompt-wrapper app. It is runtime plumbing for agents that need to keep useful structure across sessions: configuration, tool permissions, skills, memory, profiles, logs, and channel bindings. It keeps the broad Hermes agent architecture and makes it portable, inspectable, and cheap to operate from a normal terminal.
 
 The demo above is a real operator path: install, setup, provider setup, first task, web tools, Termux, and gateway.
+
+Navivox adds the phone path: a trusted local or self-hosted app channel so operators can talk to Gormes profiles from Android/Termux without putting Telegram's bot cloud in the middle.
 
 ## At A Glance
 
@@ -31,11 +33,12 @@ The demo above is a real operator path: install, setup, provider setup, first ta
 |---|---|
 | Runtime shape | One Go binary for CLI, TUI, provider turns, tools, skills, memory, sessions, dashboard, and gateways |
 | Install proof | `gormes doctor --offline` and `gormes --offline` run before any provider token is needed |
-| Release artifact | Linux build ~47.7 MB; no local Python, Node, Redis, vector DB, or Docker daemon required |
+| Release artifact | Linux build ~52.1 MB; no local Python, Node, Redis, vector DB, or Docker daemon required |
 | Bundled skills | 30 Hermes skills across coding, GitHub, browser/web, research, productivity, and media workflows |
 | Local state | SQLite under `~/.gormes`; no Redis, vector DB, Python service, or Node service on the local path |
 | Stable channels | Telegram, Discord, and Slack through one gateway process |
-| Release posture | Useful today for CLI/TUI, provider turns, local state, and Telegram/Discord/Slack; voice/TTS, release signing, package-manager lanes, and remaining parity gaps are on the roadmap |
+| Navivox app path | HTTP/WebSocket pairing with `gormes navivox pair` for trusted Android/Termux operators; local/VPN/tailnet deployment is preferred and public exposure is discouraged |
+| Release posture | Useful today for CLI/TUI, provider turns, local state, Telegram/Discord/Slack, and experimental Navivox pairing; voice/TTS, release signing, package-manager lanes, and remaining parity gaps are on the roadmap |
 
 ## Quick Install
 
@@ -84,8 +87,10 @@ If `gormes chat` opens, the TUI and gateway have a model to use.
 - Small servers, Termux/Android, WSL2, and locked-down Linux hosts where Docker or venv repair is friction.
 - Termux can be the controller while a remote SSH host handles Docker, browser automation, GPU/local models, and large builds.
 - Long-running personal or team agents that need local sessions, memory, tools, and chat gateways.
+- Mobile operators who want voice/text access to their own agents without routing through Telegram bots when Navivox fits their deployment.
+- Builders who care less about one-off model outputs and more about reusable structure: skills, policies, profiles, memories, logs, and repeatable workflows.
 
-Not yet for teams that require signed enterprise releases, voice/TTS parity, or every Hermes channel on day one.
+Not yet for teams that require signed enterprise releases, voice/TTS parity, app-store Navivox polish, or every Hermes channel on day one.
 
 ## What Works Today
 
@@ -96,6 +101,7 @@ Not yet for teams that require signed enterprise releases, voice/TTS parity, or 
 | Providers: OpenAI, Anthropic, DeepSeek, Groq, Ollama, OpenAI Codex, OpenCode, custom endpoints | **Supported** |
 | Local SQLite memory (Goncho), session state | **Supported** |
 | Gateways: Telegram, Discord, Slack | **Supported** |
+| Navivox HTTP/WebSocket app channel and pairing QR/deep-link handoff | **Experimental** |
 | Profiles, local Kanban board, skills/plugins inventory, security/secret audits | **Supported** |
 | Hermes / OpenClaw migration with dry-run | **Supported** |
 | Gateways: WhatsApp, Teams, Yuanbao | **Experimental** |
@@ -103,6 +109,19 @@ Not yet for teams that require signed enterprise releases, voice/TTS parity, or 
 | Release signing, package-manager lanes | **Roadmap** |
 
 Detailed parity status by phase lives in the [roadmap](https://docs.gormes.ai/building-gormes/architecture_plan/).
+
+## Hermes Compatibility, Go Ownership
+
+Hermes is the behavior reference: terminal-first agent UX, shared CLI/gateway conversations, model choice, tools, skills, memory, migration, and longer-running workflows. Gormes ports that shape into a Go runtime with a different operational bet: make the agent's reusable structure easy to install, inspect, back up, and run where Python/Node stacks are hard to maintain.
+
+| Hermes surface | Gormes path today |
+|---|---|
+| Terminal agent interface | Native CLI/TUI plus `gormes chat` and offline TUI smoke tests |
+| Provider/model choice | OpenAI-compatible, Anthropic, DeepSeek, Groq, Ollama, Codex, OpenCode, and custom endpoints |
+| Messaging gateway | Telegram, Discord, and Slack are stable; WhatsApp, Teams, and Yuanbao are experimental |
+| Skills and tools | Bundled Hermes skill set plus Go-native registries for tools, skills, audits, and security checks |
+| Memory and sessions | Local SQLite state under `~/.gormes`, with Goncho/Honcho compatibility work tracked in the roadmap |
+| Learning loop, MCP, voice/TTS, broader channel parity | Explicit roadmap items, not treated as shipped claims |
 
 ## Why People Switch
 
@@ -137,6 +156,7 @@ gormes config show              # inspect config with secrets redacted
 gormes profile use <name>       # switch isolated profile homes
 gormes gateway                  # run the configured messaging gateway
 gormes gateway status --json    # inspect gateway runtime state
+gormes navivox pair             # pair the Navivox app over local/VPN/tailnet HTTP/WebSocket
 gormes logs                     # read recent gateway logs
 ```
 
@@ -190,6 +210,7 @@ gormes doctor --offline
 | [Providers](https://docs.gormes.ai/reference/providers/) | Supported provider config and credential paths. |
 | [Configuration](https://docs.gormes.ai/reference/config/) | `~/.gormes/config.toml`, `.env`, agents, workspaces, and bindings. |
 | [Gateway](https://docs.gormes.ai/building-gormes/core-systems/gateway/) | Channel runtime, status checks, reloads, and troubleshooting evidence. |
+| [Navivox channel](https://docs.gormes.ai/cli/navivox/) | App pairing, endpoint contract, trust boundaries, and mobile operator setup. |
 | [Troubleshooting](https://docs.gormes.ai/getting-started/troubleshooting/) | Common install, provider, gateway, and browser-tool failures. |
 | [Roadmap](https://docs.gormes.ai/building-gormes/architecture_plan/) | Hermes parity phases, status labels, and progress evidence. |
 
@@ -197,6 +218,7 @@ gormes doctor --offline
 
 - `gormes doctor --offline` and `gormes --offline` prove local readiness before any token spend.
 - Provider secrets stay local under `~/.gormes/.env`; config under `~/.gormes/config.toml`.
+- The Navivox app channel is disabled unless configured, prefers local/VPN/tailnet exposure, and treats pairing tokens, deep links, terminal QRs, and QR PNGs as secret material; public exposure requires explicit confirmation.
 - Tagged releases publish a single static binary per target plus SHA-256 checksums and SBOMs. Release signing and package-manager lanes remain on the roadmap.
 - The `curl … | sh` install path is validated by an end-to-end suite ([`tests/install/e2e.sh`](tests/install/e2e.sh)) covering API outage with redirect fallback, SHA-256 mismatch abort, SSH-origin update fallback to public HTTPS, hosts without Go/curl/wget/systemd, Termux detection, sudo'd root install, and `--uninstall --dry-run` preview. Runnable locally or via the [`install-e2e`](.github/workflows/install-e2e.yml) workflow on demand.
 
@@ -208,18 +230,18 @@ Gormes is ported against Hermes behavior in small, test-backed slices. This proc
 - Strategy: [Gormes Success Plan](docs/content/building-gormes/strategy/success-plan.md)
 - Engineering blog: [TrebuchetDynamics Engineering](https://engineering.trebuchetdynamics.com/) ([RSS](https://engineering.trebuchetdynamics.com/feed.xml))
 - Differentiator: [v1.0 differentiator](docs/content/building-gormes/strategy/v1-differentiator.md)
-- Development workflow: [repo-local development skills](docs/development-skills/) track the planner, builder, and TDD-slice process.
+- Development workflow: [repo-local development skills](development-skills/) track the planner, builder, and TDD-slice process.
 - Future toolkit extraction (`agentic-porting-kit`): tracked as a Phase 8 row.
 
 Hermes-Agent, with upstream Git history preserved for attribution, remains the behavior reference.
 
 ## Status
 
-Latest public release: [v0.2.22](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.22) (`v2026.5.23`).
+Latest public release: [v0.2.24](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.24) (`v2026.6.5`).
 
-Termux/Android status: `v0.2.22` carries forward the installer recovery for the `v0.2.20` Termux executable-argument issue. Affected users should reinstall from the latest release and verify with `gormes version` plus `gormes doctor --offline`.
+Termux/Android status: `v0.2.24` carries forward the installer recovery for the `v0.2.20` Termux executable-argument issue. Affected users should reinstall from the latest release and verify with `gormes version` plus `gormes doctor --offline`.
 
-CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. Release assets ship for Linux, macOS, Windows, and Termux/Android with SHA-256 checksums and SBOMs. The current Linux build measures ~47.7 MB (`benchmarks.json`).
+CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. Release assets ship for Linux, macOS, Windows, and Termux/Android with SHA-256 checksums and SBOMs. The current Linux build measures ~52.1 MB (`benchmarks.json`).
 
 <details>
 <summary>Roadmap phase rollup</summary>
@@ -231,11 +253,11 @@ CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git dif
 | Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
+| Phase 5 — The Final Purge | ✅ | 23/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
-| Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 4/7 subphases |
+| Phase 9 — Design & Security Hardening | ✅ | 7/7 subphases |
 <!-- PROGRESS:END -->
 
 </details>

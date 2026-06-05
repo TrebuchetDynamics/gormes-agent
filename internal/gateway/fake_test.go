@@ -221,11 +221,3 @@ func (f *fakeChannel) mediaSnapshot() []fakeMedia {
 	copy(out, f.media)
 	return out
 }
-
-func (f *fakeChannel) reactionsSnapshot() []fakeReaction {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	out := make([]fakeReaction, len(f.reactions))
-	copy(out, f.reactions)
-	return out
-}

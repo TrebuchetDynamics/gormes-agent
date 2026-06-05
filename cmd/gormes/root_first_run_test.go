@@ -10,9 +10,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 )
 
 func TestRootFreshInteractiveLaunchRoutesToFirstRunSetup(t *testing.T) {
@@ -182,7 +182,7 @@ api_key = "sk-test-oneshot"
 			tuiCalls++
 			return nil
 		},
-		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (hermes.Client, error) {
+		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (llm.Client, error) {
 			t.Fatal("newOneshotClient should not be called when runOneshot is injected")
 			return nil, nil
 		},

@@ -10,7 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/goncho"
+	"github.com/TrebuchetDynamics/goncho/service"
+	gonchoadapter "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
@@ -50,6 +51,47 @@ func TestSqlOpenGoncho_SetsBusyTimeout(t *testing.T) {
 	}
 	if mode != "wal" {
 		t.Errorf("journal_mode = %q, want wal", mode)
+	}
+}
+
+func TestSqlOpenGoncho_SupportsGonchoV020ProfileScopedMemory(t *testing.T) {
+	tmp := filepath.Join(t.TempDir(), "memory.db")
+	db, err := sqlOpenGoncho(tmp)
+	if err != nil {
+		t.Fatalf("sqlOpenGoncho: %v", err)
+	}
+	defer db.Close()
+
+	svc := goncho.NewService(db, goncho.Config{WorkspaceID: "gormes", ObserverPeerID: "gormes"}, nil)
+	if err := svc.SetProfileInNamespace(context.Background(), goncho.MemoryNamespace{
+		WorkspaceID: "gormes",
+		ProfileID:   "mineru",
+		PeerID:      "operator",
+		Scope:       goncho.MemoryScopeProfile,
+	}, []string{"Mineru prefers concise release notes."}); err != nil {
+		t.Fatalf("SetProfileInNamespace: %v", err)
+	}
+	if _, err := svc.Conclude(context.Background(), goncho.ConcludeParams{
+		ProfileID:  "mineru",
+		Peer:       "operator",
+		SessionKey: "release-session",
+		Conclusion: "Goncho v0.2.0 is the active Gormes memory dependency.",
+		Scope:      goncho.MemoryScopeProfile,
+	}); err != nil {
+		t.Fatalf("Conclude profile-scoped memory: %v", err)
+	}
+	got, err := svc.Search(context.Background(), goncho.SearchParams{
+		ProfileID: "mineru",
+		Peer:      "operator",
+		Query:     "active memory dependency",
+		Scope:     goncho.MemoryScopeProfile,
+		Limit:     5,
+	})
+	if err != nil {
+		t.Fatalf("Search profile-scoped memory: %v", err)
+	}
+	if got.ProfileID != "mineru" || len(got.Results) == 0 || !strings.Contains(got.Results[0].Content, "v0.2.0") {
+		t.Fatalf("profile-scoped search = profile %q results %#v, want mineru result with v0.2.0", got.ProfileID, got.Results)
 	}
 }
 
@@ -167,7 +209,7 @@ func TestGonchoGatewayTurnWriteSurvivesTransientProfileLock(t *testing.T) {
 		WorkspaceID:    "default",
 		ObserverPeerID: "gormes",
 	}, nil)
-	store := newGonchoAdapter(svc)
+	store := gonchoadapter.NewStore(svc)
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- store.AppendTurn(

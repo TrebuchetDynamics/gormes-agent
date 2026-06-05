@@ -1,23 +1,51 @@
 {
   "binary": {
     "build_flags": "CGO_ENABLED=0 -trimpath -ldflags=\"-s -w\"",
-    "commit": "6a7ed4e0c",
+    "commit": "63bac59f2",
     "go_version": "1.26+",
-    "last_measured": "2026-05-23",
+    "last_measured": "2026-06-05",
     "linker": "static",
     "name": "gormes",
     "path": "bin/gormes",
-    "size_bytes": 50450594,
-    "size_mb": "48.1",
+    "size_bytes": 54628514,
+    "size_mb": "52.1",
     "stripped": true
   },
   "code": {
-    "dependencies": 274,
-    "go_files": 991,
-    "go_lines": 258611,
-    "test_count": 6632
+    "dependencies": 278,
+    "go_files": 1976,
+    "go_lines": 304357,
+    "test_count": 7793
   },
   "history": [
+    {
+      "commit": "63bac59f2",
+      "date": "2026-06-05",
+      "phase": "Phase 5 — The Final Purge",
+      "size_bytes": 54628514,
+      "size_mb": 52.1
+    },
+    {
+      "commit": "93c927068",
+      "date": "2026-06-04",
+      "phase": "Phase 5 — The Final Purge",
+      "size_bytes": 54464674,
+      "size_mb": 51.9
+    },
+    {
+      "commit": "a9e00b58c",
+      "date": "2026-05-26",
+      "phase": "Phase 5 — The Final Purge",
+      "size_bytes": 75199737,
+      "size_mb": 71.7
+    },
+    {
+      "commit": "6dc5c261b",
+      "date": "2026-05-25",
+      "phase": "Phase 5 — The Final Purge",
+      "size_bytes": 51220642,
+      "size_mb": 48.8
+    },
     {
       "commit": "ea31f844d",
       "date": "2026-05-23",
@@ -199,14 +227,14 @@
   "runtime": {
     "offline_doctor": {
       "command": "bin/gormes doctor --offline --json",
-      "commit": "6a7ed4e0c",
+      "commit": "63bac59f2",
       "elapsed_ms": 8,
       "goarch": "amd64",
       "goos": "linux",
       "isolated_home": true,
-      "last_measured": "2026-05-23",
-      "peak_rss_kb": 25876,
-      "peak_rss_mb": 25.3,
+      "last_measured": "2026-06-05",
+      "peak_rss_kb": 30572,
+      "peak_rss_mb": 29.9,
       "status": "measured"
     }
   },
@@ -214,9 +242,9 @@
     "wasi_whisper": {
       "audio_fixture": "internal/wasi/whisper/testdata/jfk.wav",
       "benchmark": "BenchmarkWhisperWASI/tiny.en",
-      "binary_size_delta_mb_vs_pre_wasi_baseline": 20.2,
-      "current_binary_size_bytes": 50450594,
-      "current_binary_size_mb": 48.1,
+      "binary_size_delta_mb_vs_pre_wasi_baseline": 24.1,
+      "current_binary_size_bytes": 54628514,
+      "current_binary_size_mb": 52.1,
       "last_measured": "2026-05-10",
       "models": [
         {

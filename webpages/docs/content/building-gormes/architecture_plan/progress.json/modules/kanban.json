@@ -29,7 +29,13 @@
         "internal/kanban/store.go",
         "cmd/gormes/kanban.go",
         "internal/config/config.go:KanbanDBPath",
-        "cmd/gormes/hermes_cli_parity.go"
+        "cmd/gormes/hermes_cli_parity.go",
+        "./hermes-agent/hermes_cli/kanban.py@b207dc28b:build_parser:promote/_cmd_promote",
+        "./hermes-agent/hermes_cli/kanban_db.py@b207dc28b:promote_task",
+        "./hermes-agent/tests/hermes_cli/test_kanban_promote.py@b207dc28b",
+        "internal/kanban/store.go:PromoteTask",
+        "cmd/gormes/kanban.go:newKanbanPromoteCommand",
+        "cmd/gormes/kanban_command_test.go:TestKanbanCommandPromoteManualRecovery"
       ],
       "ready_when": [
         "The current upstream Hermes Kanban source and tests are synced locally and read from source/test files only, not live user config.",
@@ -49,9 +55,11 @@
         "TestKanbanCommandUsesGormesHomeNotHermesHome proves CLI initialization creates GORMES_HOME/kanban.db and does not touch HERMES_HOME.",
         "TestKanbanCommandCreateWithParentPromotesAfterComplete proves CLI JSON create/show/complete flows preserve dependency promotion.",
         "TestKanbanCommandListJSONFiltersByStatus proves list --status --json filters durable tasks for automation.",
-        "Command registry and Hermes CLI parity fixtures prove /kanban is recognized but unavailable until slash handlers land, while core gormes kanban commands are marked implemented and residual commands remain row-backed."
+        "Command registry and Hermes CLI parity fixtures prove /kanban is recognized but unavailable until slash handlers land, while core gormes kanban commands are marked implemented and residual commands remain row-backed.",
+        "TestKanbanStoreManualPromoteRecovery, TestKanbanStoreManualPromoteRefusesUntilParentsDoneUnlessForced, and TestKanbanStoreManualPromoteDryRunDoesNotMutate prove Hermes manual promote recovery for todo/blocked tasks, parent dependency refusals, --force, audit events, unchanged assignees, and dry-run non-mutation.",
+        "TestKanbanCommandPromoteManualRecovery, TestKanbanCommandPromoteBulkJSONPartialFailureAndDedupes, and TestKanbanCommandPromoteDryRunDoesNotMutate prove the public gormes kanban promote CLI, flat single-object JSON, bulk list JSON with partial-failure exit 1, --ids de-duplication, --dry-run text, and promoted_manual event evidence."
       ],
-      "note": "Complete: TDD landed internal/kanban.Store with idempotent SQLite schema creation, task/dependency/comment/event tables, create/get/list, complete promotion, atomic claim, cycle-checked link, block/unblock, and Gormes-only Kanban path resolution. cmd/gormes now exposes kanban init/create/list/show/claim/complete/block/unblock/link with JSON output for automation. This is deliberately the default-board durable core only: Hermes boards, dispatcher, daemon/watch/stats, notifications, run logs, worker tools, slash/gateway handlers, and dashboard remain explicit follow-up rows.",
+      "note": "Complete: TDD landed internal/kanban.Store with idempotent SQLite schema creation, task/dependency/comment/event tables, create/get/list, complete promotion, atomic claim, cycle-checked link, block/unblock, and Gormes-only Kanban path resolution. cmd/gormes now exposes kanban init/create/list/show/claim/complete/block/unblock/link with JSON output for automation. This is deliberately the default-board durable core only: Hermes boards, dispatcher, daemon/watch/stats, notifications, run logs, worker tools, slash/gateway handlers, and dashboard remain explicit follow-up rows. Current upstream promote parity is also implemented: `gormes kanban promote` manually recovers todo or blocked tasks to ready with dependency checks, --force, --dry-run, --ids bulk mode, flat single-result JSON/list bulk JSON, unchanged assignee/claim state, and promoted_manual audit events.",
       "write_scope": [
         "internal/kanban/store.go",
         "internal/kanban/store_test.go",
@@ -71,10 +79,13 @@
         "go test ./internal/cli -run TestCommandRegistryKanbanRecognizedUntilSlashHandlerLands -count=1",
         "go test ./cmd/gormes -run 'TestHermesCLIParityManifest(ClassifiesKanbanCoreAndResiduals|CrossLinksSlashRegistry|NoUnknowns)' -count=1",
         "go run ./cmd/progress validate",
-        "git diff --check"
+        "git diff --check",
+        "go test ./internal/kanban -run TestKanbanStoreManualPromote -count=1",
+        "go test ./cmd/gormes -run TestKanbanCommandPromote -count=1"
       ],
       "done_signal": [
-        "Gormes has a native kanban.db core with dependency promotion, atomic claim, block/unblock, GORMES_HOME isolation, CLI JSON output, slash-unavailable recognition, and manifest residuals for the unimplemented Kanban surfaces."
+        "Gormes has a native kanban.db core with dependency promotion, atomic claim, block/unblock, GORMES_HOME isolation, CLI JSON output, slash-unavailable recognition, and manifest residuals for the unimplemented Kanban surfaces.",
+        "Gormes kanban promote now matches the current Hermes recovery verb for todo/blocked -> ready promotion, dependency checks, --force, --dry-run, --ids bulk mode, JSON/text output, and audit events."
       ],
       "health": {
         "attempt_count": 1,
@@ -98,7 +109,10 @@
           "hermes:54e78cadb tools/kanban_tools.py",
           "hermes:54e78cadb tests/hermes_cli/test_kanban_db.py",
           "hermes:54e78cadb tests/hermes_cli/test_kanban_cli.py",
-          "hermes:54e78cadb tests/tools/test_kanban_tools.py"
+          "hermes:54e78cadb tests/tools/test_kanban_tools.py",
+          "hermes:b207dc28b hermes_cli/kanban.py:promote/_cmd_promote",
+          "hermes:b207dc28b hermes_cli/kanban_db.py:promote_task",
+          "hermes:b207dc28b tests/hermes_cli/test_kanban_promote.py"
         ],
         "note": "Hermes defines Kanban behavior; Gormes ports the durable default-board core into one Go binary and keeps all non-core orchestration surfaces row-backed."
       },

@@ -2,14 +2,12 @@ package gateway
 
 import (
 	"context"
-	"errors"
-	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/kanbancmd"
 )
 
-const maxGatewayKanbanOutputBytes = 3800
-
 func (m *Manager) handleKanbanCommand(ctx context.Context, ch Channel, ev InboundEvent) {
-	output, err := runGatewayKanbanSlash(ctx, m.cfg.KanbanSlashRunner, ev.Text)
+	output, err := runGatewayKanbanSlash(ctx, kanbancmd.Runner(m.cfg.KanbanSlashRunner), ev.Text)
 	if err != nil {
 		_, _ = m.sendWithHooksReply(ctx, ch, ev.ChatID, ev.MsgID, "kanban error: "+sanitizeConfigReloadError(err))
 		return
@@ -17,24 +15,10 @@ func (m *Manager) handleKanbanCommand(ctx context.Context, ch Channel, ev Inboun
 	_, _ = m.sendWithHooksReply(ctx, ch, ev.ChatID, ev.MsgID, boundGatewayKanbanOutput(output))
 }
 
-func runGatewayKanbanSlash(ctx context.Context, runner KanbanSlashRunner, input string) (string, error) {
-	if runner == nil {
-		return "", errors.New("kanban command runner unavailable")
-	}
-	input = strings.TrimSpace(input)
-	if input == "" {
-		input = "/kanban"
-	}
-	return runner(ctx, input)
+func runGatewayKanbanSlash(ctx context.Context, runner kanbancmd.Runner, input string) (string, error) {
+	return kanbancmd.RunSlash(ctx, runner, input)
 }
 
 func boundGatewayKanbanOutput(output string) string {
-	output = strings.TrimSpace(output)
-	if output == "" {
-		return "(no output)"
-	}
-	if len(output) <= maxGatewayKanbanOutputBytes {
-		return output
-	}
-	return output[:maxGatewayKanbanOutputBytes] + "\n... (truncated; use `gormes kanban ...` in your terminal for full output)"
+	return kanbancmd.BoundOutput(output)
 }

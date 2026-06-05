@@ -321,7 +321,7 @@ func (s *FleetSupervisor) profileTargets() []FleetProfileTarget {
 			DisplayName:       strings.TrimSpace(profile.Name),
 			Enabled:           profile.Enabled,
 			HomeRoot:          home,
-			RuntimeStatusPath: filepath.Join(home, "gateway_state.json"),
+			RuntimeStatusPath: filepath.Join(home, "runtime", "gateway_state.json"),
 			DesiredChannels:   fleetDesiredChannels(profile.Channels),
 		})
 	}

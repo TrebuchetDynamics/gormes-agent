@@ -16,13 +16,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 )
 
 const setupProviderTTYE2EHelperEnv = "GORMES_SETUP_PROVIDER_TTY_E2E_HELPER"
 const setupToolsTTYE2EHelperEnv = "GORMES_SETUP_TOOLS_TTY_E2E_HELPER"
+const setupNavivoxTTYE2EHelperEnv = "GORMES_SETUP_NAVIVOX_TTY_E2E_HELPER"
+const setupFiniteOptionsTTYE2EHelperEnv = "GORMES_SETUP_FINITE_OPTIONS_TTY_E2E_HELPER"
+const setupFiniteOptionsTTYE2EModeEnv = "GORMES_SETUP_FINITE_OPTIONS_TTY_E2E_MODE"
 
 func TestSetupProviderTTYE2EConsumesArrowKeys(t *testing.T) {
 	if os.Getenv(setupProviderTTYE2EHelperEnv) == "1" {
@@ -53,7 +57,10 @@ func TestSetupProviderTTYE2EConsumesArrowKeys(t *testing.T) {
 
 	events := readPTY(tty)
 	var transcript bytes.Buffer
-	waitForSetupProviderTTYOutput(t, tty, events, &transcript, "Up/Down or j/k navigate")
+	waitForSetupProviderTTYOutput(t, tty, events, &transcript, "Type to filter")
+	if !strings.Contains(transcript.String(), "❯") {
+		t.Fatalf("setup provider searchable Bubble Tea picker missing polished selected-row cursor:\n%s", transcript.String())
+	}
 	if strings.Contains(transcript.String(), "Choice [1-40]") {
 		t.Fatalf("setup provider prompt fell back to line input instead of the TTY picker:\n%s", transcript.String())
 	}
@@ -61,7 +68,7 @@ func TestSetupProviderTTYE2EConsumesArrowKeys(t *testing.T) {
 	if _, err := tty.Write([]byte("\x1b[B")); err != nil {
 		t.Fatalf("write arrow key to setup provider picker: %v", err)
 	}
-	if _, err := tty.Write([]byte("q")); err != nil {
+	if _, err := tty.Write([]byte("\x1b")); err != nil {
 		t.Fatalf("abort setup provider picker: %v", err)
 	}
 
@@ -109,6 +116,9 @@ func TestSetupToolsTTYE2EConsumesChecklistKeys(t *testing.T) {
 	events := readPTY(tty)
 	var transcript bytes.Buffer
 	waitForSetupTTYOutput(t, tty, events, &transcript, "SPACE toggle", "Toolsets (comma-separated")
+	if !strings.Contains(transcript.String(), "→") {
+		t.Fatalf("setup tools Bubble Tea checklist missing polished selected-row cursor:\n%s", transcript.String())
+	}
 
 	if _, err := tty.Write([]byte(" \r")); err != nil {
 		t.Fatalf("toggle and confirm setup tools checklist: %v", err)
@@ -135,6 +145,177 @@ func TestSetupToolsTTYE2EConsumesChecklistKeys(t *testing.T) {
 	}
 	if !strings.Contains(bodyText, `"browser"`) && !strings.Contains(bodyText, `'browser'`) {
 		t.Fatalf("setup tools checklist did not persist the confirmed selection:\n%s\ntranscript:\n%s", string(configBody), transcript.String())
+	}
+}
+
+func TestSetupNavivoxTTYE2EConsumesOptionKeys(t *testing.T) {
+	if os.Getenv(setupNavivoxTTYE2EHelperEnv) == "1" {
+		runSetupNavivoxTTYE2EHelper()
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestSetupNavivoxTTYE2EConsumesOptionKeys", "--")
+	cmd.Env = append(os.Environ(),
+		setupNavivoxTTYE2EHelperEnv+"=1",
+		"GORMES_HOME="+home,
+		"TERM=xterm-256color",
+	)
+
+	tty, err := startLinuxPTY(cmd, 40, 120)
+	if err != nil {
+		t.Fatalf("start setup navivox tty helper: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = tty.Close()
+		if cmd.Process != nil && cmd.ProcessState == nil {
+			_ = cmd.Process.Kill()
+		}
+	})
+
+	events := readPTY(tty)
+	var transcript bytes.Buffer
+	waitForSetupTTYOutput(t, tty, events, &transcript, "Enable Navivox Gateway Channel?", "Enable Navivox Gateway Channel? [Y/n]:")
+	if !strings.Contains(transcript.String(), "↑↓ navigate") || !strings.Contains(transcript.String(), "→") {
+		t.Fatalf("setup navivox enable prompt did not render as a selectable TUI:\n%s", transcript.String())
+	}
+	if _, err := tty.Write([]byte("\r")); err != nil {
+		t.Fatalf("confirm navivox enable picker: %v", err)
+	}
+
+	transcript.Reset()
+	waitForSetupTTYOutput(t, tty, events, &transcript, "Exposure mode", "Exposure mode (local/tailscale/wireguard/vpn/public)")
+	if !strings.Contains(transcript.String(), "↑↓ navigate") || !strings.Contains(transcript.String(), "→") {
+		t.Fatalf("setup navivox exposure prompt did not render as a selectable TUI:\n%s", transcript.String())
+	}
+	if _, err := tty.Write([]byte("\x1b[B\r")); err != nil {
+		t.Fatalf("select navivox exposure with arrow key: %v", err)
+	}
+
+	transcript.Reset()
+	waitForSetupTTYOutput(t, tty, events, &transcript, "Bind host", "Exposure mode (local/tailscale/wireguard/vpn/public)")
+	if _, err := tty.Write([]byte("\n")); err != nil {
+		t.Fatalf("accept navivox bind host default: %v", err)
+	}
+
+	transcript.Reset()
+	waitForSetupTTYOutput(t, tty, events, &transcript, "Port", "Exposure mode (local/tailscale/wireguard/vpn/public)")
+	if _, err := tty.Write([]byte("\n")); err != nil {
+		t.Fatalf("accept navivox port default: %v", err)
+	}
+
+	transcript.Reset()
+	waitForSetupTTYOutput(t, tty, events, &transcript, "Auth mode", "Auth mode (pairing_token/static_token/tailscale_identity/token_and_tailscale_identity)")
+	if _, err := tty.Write([]byte("\r")); err != nil {
+		t.Fatalf("accept navivox auth mode picker default: %v", err)
+	}
+
+	transcript.Reset()
+	waitForSetupTTYOutput(t, tty, events, &transcript, "Record manual firewall-open intent?", "Record manual firewall-open intent? [n]:")
+	if _, err := tty.Write([]byte("\r")); err != nil {
+		t.Fatalf("accept navivox firewall picker default: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("setup navivox tty helper exited with %v\ntranscript:\n%s", err, transcript.String())
+		}
+	case <-ctx.Done():
+		t.Fatalf("setup navivox tty helper timed out\ntranscript:\n%s", transcript.String())
+	}
+
+	cfg, err := config.Load(nil)
+	if err != nil {
+		t.Fatalf("load navivox config: %v", err)
+	}
+	if !cfg.Navivox.Enabled || cfg.Navivox.ExposureMode != config.NavivoxExposureTailscale {
+		t.Fatalf("Navivox config = %+v, want enabled tailscale exposure from arrow-key selection", cfg.Navivox)
+	}
+}
+
+func TestSetupFiniteOptionSectionsTTYE2EConsumeArrowKeys(t *testing.T) {
+	if os.Getenv(setupFiniteOptionsTTYE2EHelperEnv) == "1" {
+		runSetupFiniteOptionsTTYE2EHelper()
+		return
+	}
+
+	for _, tc := range []struct {
+		name      string
+		mode      string
+		want      string
+		forbidden []string
+	}{
+		{
+			name: "tts",
+			mode: "tts",
+			want: "Select TTS provider",
+			forbidden: []string{
+				"Select TTS provider [keep]:",
+				"\n  (○) Edge TTS (free, cloud-based, no setup needed)",
+			},
+		},
+		{
+			name: "terminal",
+			mode: "terminal",
+			want: "Select terminal backend",
+			forbidden: []string{
+				"Select terminal backend [keep]:",
+				"\n  (○) Local - run directly on this machine (default)",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			home := t.TempDir()
+			cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestSetupFiniteOptionSectionsTTYE2EConsumeArrowKeys", "--")
+			cmd.Env = append(os.Environ(),
+				setupFiniteOptionsTTYE2EHelperEnv+"=1",
+				setupFiniteOptionsTTYE2EModeEnv+"="+tc.mode,
+				"GORMES_HOME="+home,
+				"TERM=xterm-256color",
+			)
+
+			tty, err := startLinuxPTY(cmd, 40, 120)
+			if err != nil {
+				t.Fatalf("start setup %s tty helper: %v", tc.mode, err)
+			}
+			t.Cleanup(func() {
+				_ = tty.Close()
+				if cmd.Process != nil && cmd.ProcessState == nil {
+					_ = cmd.Process.Kill()
+				}
+			})
+
+			events := readPTY(tty)
+			var transcript bytes.Buffer
+			waitForSetupTTYOutput(t, tty, events, &transcript, tc.want, tc.forbidden...)
+			if !strings.Contains(transcript.String(), "↑↓ navigate") || !strings.Contains(transcript.String(), "→") {
+				t.Fatalf("setup %s prompt did not render as a selectable TUI:\n%s", tc.mode, transcript.String())
+			}
+			if _, err := tty.Write([]byte("\x1b[B\r")); err != nil {
+				t.Fatalf("navigate and confirm setup %s picker: %v", tc.mode, err)
+			}
+
+			done := make(chan error, 1)
+			go func() { done <- cmd.Wait() }()
+			select {
+			case err := <-done:
+				if err != nil {
+					t.Fatalf("setup %s tty helper exited with %v\ntranscript:\n%s", tc.mode, err, transcript.String())
+				}
+			case <-ctx.Done():
+				t.Fatalf("setup %s tty helper timed out\ntranscript:\n%s", tc.mode, transcript.String())
+			}
+		})
 	}
 }
 
@@ -215,6 +396,39 @@ func runSetupToolsTTYE2EHelper() {
 	os.Exit(0)
 }
 
+func runSetupNavivoxTTYE2EHelper() {
+	cmd := &cobra.Command{Use: "setup-navivox-tty-e2e-helper"}
+	cmd.SetIn(os.Stdin)
+	cmd.SetOut(os.Stdout)
+	cmd.SetErr(os.Stderr)
+	if err := runSetupNavivoxGateway(cmd, config.Config{}); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
+func runSetupFiniteOptionsTTYE2EHelper() {
+	cmd := &cobra.Command{Use: "setup-finite-options-tty-e2e-helper"}
+	cmd.SetIn(os.Stdin)
+	cmd.SetOut(os.Stdout)
+	cmd.SetErr(os.Stderr)
+	var err error
+	switch os.Getenv(setupFiniteOptionsTTYE2EModeEnv) {
+	case "tts":
+		err = runSetupTTSSection(cmd, false)
+	case "terminal":
+		err = runSetupTerminalSection(cmd, false)
+	default:
+		err = fmt.Errorf("unknown setup finite option helper mode %q", os.Getenv(setupFiniteOptionsTTYE2EModeEnv))
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
 type ptyReadEvent struct {
 	data []byte
 	err  error
@@ -264,13 +478,13 @@ func waitForSetupTTYOutput(t *testing.T, tty *os.File, events <-chan ptyReadEven
 			}
 			sentCursor = true
 		}
-		if strings.Contains(output, want) {
-			return
-		}
 		for _, needle := range forbidden {
 			if strings.Contains(output, needle) {
 				t.Fatalf("setup TTY e2e reached fallback prompt %q before %q:\n%s", needle, want, output)
 			}
+		}
+		if strings.Contains(output, want) {
+			return
 		}
 
 		select {

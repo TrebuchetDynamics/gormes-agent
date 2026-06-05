@@ -9,7 +9,7 @@ on:
       - 'webpages/landing/scripts/sync-assets.mjs'
       - 'benchmarks.json'
       - 'webpages/landing/src/data/benchmarks.json'
-      - 'cmd/gormes/version.go'
+      - 'cmd/gormes/main.go'
       - 'webpages/landing/src/data/release.json'
   push:
     branches: [main, development]
@@ -20,7 +20,7 @@ on:
       - 'webpages/landing/scripts/sync-assets.mjs'
       - 'benchmarks.json'
       - 'webpages/landing/src/data/benchmarks.json'
-      - 'cmd/gormes/version.go'
+      - 'cmd/gormes/main.go'
       - 'webpages/landing/src/data/release.json'
 
 permissions:

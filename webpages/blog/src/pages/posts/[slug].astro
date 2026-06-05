@@ -1,6 +1,7 @@
 ---
 import SiteLayout from '../../layouts/SiteLayout.astro';
 import { posts } from '../../lib/posts.js';
+import { articleTitle } from '../../lib/site.js';
 
 export function getStaticPaths() {
   return posts.map((post) => ({
@@ -13,7 +14,7 @@ const { post } = Astro.props;
 const Content = post.Content;
 ---
 
-<SiteLayout title={`${post.title} - TrebuchetDynamics Engineering`} description={post.summary}>
+<SiteLayout title={articleTitle(post.title)} description={post.summary} type="article">
   <article class="article-shell">
     <p class="eyebrow">Field note</p>
     <h1>{post.title}</h1>

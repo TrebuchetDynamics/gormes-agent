@@ -1,0 +1,32 @@
+package address
+
+import "strings"
+
+// Platform normalizes channel names for delivery routing comparisons and map
+// keys while keeping empty values empty for caller-specific validation.
+func Platform(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
+}
+
+// ID trims channel/chat/thread/user identifiers without changing their case or
+// punctuation, preserving provider-owned identifier semantics.
+func ID(value string) string {
+	return strings.TrimSpace(value)
+}
+
+// ChatWithThread returns the session metadata chat key used for threaded
+// delivery mirrors.
+func ChatWithThread(chatID, threadID string) string {
+	chatID = ID(chatID)
+	threadID = ID(threadID)
+	if threadID == "" {
+		return chatID
+	}
+	return chatID + ":" + threadID
+}
+
+// ChatMatches reports whether a stored session chat key matches the requested
+// chat/thread delivery address.
+func ChatMatches(candidate, chatID, threadID string) bool {
+	return ID(candidate) == ChatWithThread(chatID, threadID)
+}

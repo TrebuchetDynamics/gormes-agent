@@ -71,7 +71,7 @@ user. Use additional workspaces only for hard isolation:
 
 Use stable, scoped peer IDs:
 
-- Human user: canonical `internal/session.Metadata.UserID`.
+- Human user: canonical `internal/persistence/session.Metadata.UserID`.
 - Platform-specific fallback: `<source>:<chat_id>` only until canonical
   `user_id` is known.
 - Gormes assistant: `gormes`.

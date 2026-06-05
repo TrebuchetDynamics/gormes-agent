@@ -1,18 +1,18 @@
 {
   "schema_version": "1.0",
-  "hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+  "hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
   "pairs": [
     {
       "hermes_file": "agent/context_engine.py",
       "gormes_targets": [
-        "internal/hermes/context_engine.go",
-        "internal/hermes/context_references.go",
-        "internal/hermes/context_compressor_budget.go"
+        "internal/llm/context_engine.go",
+        "internal/llm/context_references.go",
+        "internal/llm/context_compressor_budget.go"
       ],
-      "status": "covered",
+      "status": "partial",
       "contract": "Hermes context-engine assembly, context references, compression budget/headroom decisions, and provider context-boundary behavior.",
       "tests": [
-        "go test ./internal/hermes -run 'TestContextEngine|TestContextReference|TestContextCompressor' -count=1"
+        "go test ./internal/llm -run 'TestContextEngine|TestContextReference|TestContextCompressor' -count=1"
       ],
       "progress_rows": [
         "Hermes agent runtime strict-fidelity source-pair expansion"
@@ -21,20 +21,20 @@
         "tests/agent/test_context_engine.py",
         "tests/agent/test_context_compressor.py"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
-      "notes": "Gormes implements this contract as Go-native context engine and compressor helpers with hermetic provider-boundary tests."
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
+      "notes": "Gormes implements this contract as Go-native context engine and compressor helpers with hermetic provider-boundary tests. Phase 0 update: upstream source changed between 43e566f77eaf and ef3a650f05d2; coverage requires review."
     },
     {
       "hermes_file": "agent/conversation_loop.py",
       "gormes_targets": [
         "internal/kernel/kernel.go",
-        "internal/hermes/prompt_assembly.go",
-        "internal/hermes/stream.go"
+        "internal/llm/prompt_assembly.go",
+        "internal/llm/stream.go"
       ],
       "status": "partial",
       "contract": "Hermes conversation loop turn orchestration, prompt assembly, streaming events, retry boundaries, and final assistant/tool ordering.",
       "tests": [
-        "go test ./internal/kernel ./internal/hermes -run 'Test.*Turn|Test.*Stream|TestPrompt' -count=1"
+        "go test ./internal/kernel ./internal/llm -run 'Test.*Turn|Test.*Stream|TestPrompt' -count=1"
       ],
       "progress_rows": [
         "Hermes agent runtime strict-fidelity source-pair expansion",
@@ -45,19 +45,19 @@
         "tests/agent/test_unsupported_parameter_retry.py",
         "tests/agent/test_unsupported_temperature_retry.py"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Kernel and Hermes client split the Python conversation loop; partial remains until every helper in the strict-fidelity bucket is classified or covered."
     },
     {
       "hermes_file": "agent/lsp/manager.py",
       "gormes_targets": [
-        "internal/lsp/diagnostics.go",
+        "internal/tools/lsp/diagnostics.go",
         "internal/tools/file_task_tools.go"
       ],
       "status": "partial",
       "contract": "Hermes LSP manager diagnostics, workspace/service lifecycle, diagnostic delta projection, and file-tool write-time semantic feedback.",
       "tests": [
-        "go test ./internal/lsp ./internal/tools -run 'Test.*LSP|Test.*Diagnostic' -count=1"
+        "go test ./internal/tools/lsp ./internal/tools -run 'Test.*LSP|Test.*Diagnostic' -count=1"
       ],
       "progress_rows": [
         "Hermes agent runtime strict-fidelity source-pair expansion",
@@ -68,21 +68,21 @@
         "tests/agent/lsp/test_service.py",
         "tests/agent/lsp/test_diagnostics_field.py"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Gormes currently covers diagnostic deltas at the file-tool seam; full LSP lifecycle/workspace parity remains partial."
     },
     {
       "hermes_file": "agent/prompt_builder.py",
       "gormes_targets": [
-        "internal/hermes/prompt_assembly.go",
-        "internal/hermes/context_files.go",
-        "internal/hermes/default_soul.go",
-        "internal/hermes/skills_prompt.go"
+        "internal/llm/prompt_assembly.go",
+        "internal/llm/context_files.go",
+        "internal/llm/default_soul.go",
+        "internal/llm/skills_prompt.go"
       ],
       "status": "partial",
       "contract": "Hermes system-prompt assembly, identity fallback, context-file loading, skill guidance, memory guidance, and provider-visible prompt fragment ordering.",
       "tests": [
-        "go test ./internal/hermes -run 'TestPrompt|TestContextFiles|TestDefaultSoul|TestGuidanceConstants|TestSkillsPrompt' -count=1"
+        "go test ./internal/llm -run 'TestPrompt|TestContextFiles|TestDefaultSoul|TestGuidanceConstants|TestSkillsPrompt' -count=1"
       ],
       "progress_rows": [
         "Default agent identity / SOUL.md loader",
@@ -93,7 +93,7 @@
         "tests/hermes_cli/test_ignore_user_config_flags.py",
         "tests/cron/test_cron_workdir.py"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Prompt fragments are split across Go-native helpers; file-shape parity means named homes for contract families, not one monolithic prompt_builder.go."
     },
     {
@@ -117,20 +117,20 @@
         "tests/agent/test_tool_result_classification.py",
         "tests/agent/test_tool_guardrails.py"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Gormes owns Go-native tool execution inside kernel plus tool registry packages; remaining helper parity is tracked as partial, not covered."
     },
     {
       "hermes_file": "agent/transports/chat_completions.py",
       "gormes_targets": [
-        "internal/hermes/provider_transport.go",
-        "internal/hermes/openrouter_compatible.go",
-        "internal/hermes/stream.go"
+        "internal/llm/provider_transport.go",
+        "internal/llm/openrouter_compatible.go",
+        "internal/llm/stream.go"
       ],
       "status": "partial",
       "contract": "Hermes OpenAI-compatible chat completions transport, streaming/tool-call projection, provider URL handling, retry diagnostics, and compatibility shims.",
       "tests": [
-        "go test ./internal/hermes -run 'Test.*Transport|Test.*Stream|TestOpenRouter|TestProvider' -count=1"
+        "go test ./internal/llm -run 'Test.*Transport|Test.*Stream|TestOpenRouter|TestProvider' -count=1"
       ],
       "progress_rows": [
         "Hermes agent runtime strict-fidelity source-pair expansion",
@@ -141,20 +141,20 @@
         "tests/agent/transports/test_transport.py",
         "tests/agent/test_direct_provider_url_detection.py"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Gormes provider transport is Go-native and broadly covered; partial remains for exact upstream transport taxonomy and edge-provider shims."
     },
     {
       "hermes_file": "agent/transports/codex.py",
       "gormes_targets": [
-        "internal/hermes/codex_responses_adapter.go",
-        "internal/hermes/codex_responses_stream.go",
-        "internal/hermes/codex_cloudflare_headers.go"
+        "internal/llm/codex_responses_adapter.go",
+        "internal/llm/codex_responses_stream.go",
+        "internal/llm/codex_cloudflare_headers.go"
       ],
       "status": "partial",
       "contract": "Hermes Codex transport request projection, Responses API stream repair, role/content mapping, Cloudflare headers, temperature/model compatibility, and multimodal tool-result handling.",
       "tests": [
-        "go test ./internal/hermes -run 'TestCodex|TestResponses|TestCloudflare' -count=1"
+        "go test ./internal/llm -run 'TestCodex|TestResponses|TestCloudflare' -count=1"
       ],
       "progress_rows": [
         "Hermes agent runtime strict-fidelity source-pair expansion",
@@ -165,7 +165,7 @@
         "tests/agent/transports/test_codex_app_server_runtime.py",
         "tests/agent/transports/test_codex_event_projector.py"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Codex transport is substantially mapped but remains partial while app-server/session transport details are still separate parity work."
     },
     {
@@ -184,7 +184,7 @@
         "Hermes CLI command-tree parity manifest",
         "TUI startup/setup behavior"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Current Hermes ui-tui remains the authoritative modern TUI source; cli.py is retained as legacy command/turn evidence."
     },
     {
@@ -192,9 +192,9 @@
       "gormes_targets": [
         "internal/gateway",
         "cmd/gormes/gateway.go",
-        "cmd/gormes/gateway_status.go",
-        "cmd/gormes/gateway_reload.go",
-        "cmd/gormes/gateway_stop.go"
+        "internal/platform/cli/gormescli/modules/gateway/status.go",
+        "internal/platform/cli/gormescli/modules/gateway/reload.go",
+        "internal/platform/cli/gormescli/modules/gateway/stop.go"
       ],
       "status": "partial",
       "contract": "Gateway process lifecycle, channel dispatch, visible tool-progress/status artifacts, reload/stop/status commands, and platform message routing.",
@@ -207,14 +207,14 @@
         "Gateway, platform, webhook, and cron management CLI",
         "Telegram on shared chassis"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Python async process shape is manual Go-native rewrite; behavior atoms stay paired here."
     },
     {
       "hermes_file": "hermes_cli/auth_commands.py",
       "gormes_targets": [
-        "cmd/gormes/auth.go",
-        "cmd/gormes/provider_auth.go",
+        "internal/platform/cli/gormescli/modules/providers/auth_runtime.go",
+        "internal/platform/cli/gormescli/providerauth.go",
         "internal/config/credential_pool.go",
         "internal/config/token_vault.go"
       ],
@@ -232,13 +232,13 @@
       "upstream_tests": [
         "tests/hermes_cli/test_auth_commands.py"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Gormes stores credentials Go-natively while preserving user-visible command/status/redaction contracts."
     },
     {
       "hermes_file": "hermes_cli/commands.py",
       "gormes_targets": [
-        "cmd/gormes/hermes_cli_parity.go",
+        "internal/platform/cli/gormescli/hermescliparity.go",
         "cmd/gormes/hermes_rowbacked_commands.go",
         "cmd/gormes/main.go"
       ],
@@ -250,15 +250,15 @@
       "progress_rows": [
         "Hermes CLI command-tree parity manifest"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Command handlers are split by Go package ownership; the manifest tracks command-family coverage."
     },
     {
       "hermes_file": "hermes_cli/config.py",
       "gormes_targets": [
         "internal/config",
-        "cmd/gormes/config.go",
-        "internal/hermes/default_soul.go"
+        "internal/platform/cli/gormescli/config.go",
+        "internal/llm/default_soul.go"
       ],
       "status": "partial",
       "contract": "Hermes home/config defaults, config load/save behavior, secure default SOUL seeding, provider defaults, and user-visible config command behavior.",
@@ -274,20 +274,20 @@
       "upstream_tests": [
         "tests/hermes_cli/test_config.py"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Gormes uses TOML/XDG-style config but must keep Hermes-visible defaults and setup behavior explicit."
     },
     {
       "hermes_file": "hermes_cli/default_soul.py",
       "gormes_targets": [
-        "internal/hermes/default_soul.go",
-        "internal/agenttemplate/default_templates.go",
-        "internal/agenttemplate/parity_manifest.go"
+        "internal/llm/default_soul.go",
+        "internal/core/agenttemplate/default_templates.go",
+        "internal/core/agenttemplate/parity_manifest.go"
       ],
       "status": "covered",
       "contract": "Default SOUL.md seed text, built-in identity fallback, and fresh-install template classification, with only the intentional Gorm default-persona and gormes runtime substitution.",
       "tests": [
-        "go test ./internal/hermes -run 'TestDefaultSoul|TestIdentityLoader' -count=1",
+        "go test ./internal/llm -run 'TestDefaultSoul|TestIdentityLoader' -count=1",
         "go test ./internal/agenttemplate -count=1"
       ],
       "progress_rows": [
@@ -298,14 +298,14 @@
         "tests/hermes_cli/test_config.py",
         "tests/hermes_cli/test_profiles.py"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "The Gorm persona plus gormes runtime substitution is intentional owned divergence; all other default-persona phrasing is source-paired. The agenttemplate manifest gates every seeded fresh-install template as either covered by Hermes or an explicit Gormes-owned divergence."
     },
     {
       "hermes_file": "hermes_cli/main.py",
       "gormes_targets": [
         "cmd/gormes/main.go",
-        "cmd/gormes/hermes_cli_parity.go"
+        "internal/platform/cli/gormescli/hermescliparity.go"
       ],
       "status": "partial",
       "contract": "Hermes CLI root parser, top-level command registration, help-visible command tree, and global flag compatibility.",
@@ -315,13 +315,14 @@
       "progress_rows": [
         "Hermes CLI command-tree parity manifest"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Go Cobra command tree is native, but root command names/flags must stay source-paired."
     },
     {
       "hermes_file": "hermes_cli/profiles.py",
       "gormes_targets": [
-        "cmd/gormes/profile.go",
+        "cmd/gormes/main.go",
+        "internal/platform/cli/gormescli/profileapp/profile.go",
         "internal/config/agents.go"
       ],
       "status": "partial",
@@ -340,28 +341,28 @@
         "tests/hermes_cli/test_profile_distribution.py",
         "tests/hermes_cli/test_profile_export_credentials.py"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Profile storage is Go-native; per-profile SOUL/default file contracts are explicitly paired."
     },
     {
       "hermes_file": "run_agent.py",
       "gormes_targets": [
         "internal/kernel/kernel.go",
-        "internal/hermes/prompt_assembly.go",
-        "internal/subagent"
+        "internal/llm/prompt_assembly.go",
+        "internal/core/subagent"
       ],
       "status": "partial",
       "contract": "Main Hermes agent turn loop, tool execution budget, background review hooks, subagent behavior, provider turn assembly, and session reset boundaries.",
       "tests": [
         "go test ./internal/kernel -count=1",
-        "go test ./internal/hermes -count=1",
-        "go test ./internal/subagent -count=1"
+        "go test ./internal/llm -count=1",
+        "go test ./internal/core/subagent -count=1"
       ],
       "progress_rows": [
         "Kernel tool loop",
         "Background review fork"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "The Python runtime loop is a manual Go-native rewrite; this pair tracks behavior contracts rather than file-level implementation."
     },
     {
@@ -384,64 +385,65 @@
         "tests/tools/test_image_generation_env.py",
         "tests/tools/test_image_generation_plugin_dispatch.py"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Gormes has Go-native provider dispatch and artifact envelopes; remaining upstream provider-specific behavior stays partial until strict-fidelity tails are closed."
     },
     {
       "hermes_file": "tools/skill_manager_tool.py",
       "gormes_targets": [
         "internal/tools/skill_manager.go",
-        "internal/skills"
+        "internal/extensibility/skills"
       ],
       "status": "partial",
       "contract": "Hermes skill_manage support-file and curator intent actions, mutation safety, and user-visible skill-management results.",
       "tests": [
         "go test ./internal/tools -run TestSkillManager -count=1",
-        "go test ./internal/skills -count=1"
+        "go test ./internal/extensibility/skills -count=1"
       ],
       "progress_rows": [
         "Hermes skill_manage support-file and curator intent actions",
         "Native skills list/view tool surface"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Skill file mutation is Go-native but paired to Hermes tool behavior."
     },
     {
       "hermes_file": "tools/skills_sync.py",
       "gormes_targets": [
-        "internal/skills/profile_sync.go",
-        "cmd/gormes/skills.go"
+        "internal/extensibility/skills/profile_sync.go",
+        "internal/app/skillscmd/service.go",
+        "internal/platform/cli/gormescli/skillscmd.go"
       ],
       "status": "partial",
       "contract": "Hermes bundled/user skill sync semantics, profile skill distribution, and update/sync user-visible behavior.",
       "tests": [
-        "go test ./internal/skills -run 'Test.*Sync|TestProfile' -count=1",
+        "go test ./internal/extensibility/skills -run 'Test.*Sync|TestProfile' -count=1",
         "go test ./cmd/gormes -run 'TestSkills' -count=1"
       ],
       "progress_rows": [
         "Native skills list/view tool surface",
         "Portable SKILL.md format"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Skill sync remains row-backed and must be rechecked when Hermes changes bundled-skill distribution."
     },
     {
       "hermes_file": "tools/skills_tool.py",
       "gormes_targets": [
         "internal/tools/skills_tools.go",
-        "internal/skills"
+        "internal/extensibility/skills"
       ],
       "status": "partial",
       "contract": "Hermes skills list/view tool surface, skill metadata rendering, and prompt-visible skill lookup behavior.",
       "tests": [
         "go test ./internal/tools -run 'TestSkills' -count=1",
-        "go test ./internal/skills -count=1"
+        "go test ./internal/extensibility/skills -count=1"
       ],
       "progress_rows": [
         "Native skills list/view tool surface",
         "Deterministic selection + prompt block"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "The tool implementation is split between tool wrappers and skill store/rendering helpers."
     },
     {
@@ -451,7 +453,7 @@
         "internal/tools/transcription_providers.go",
         "internal/tools/transcription_providers_local.go"
       ],
-      "status": "covered",
+      "status": "partial",
       "contract": "Hermes transcription tool descriptor, provider selection, model normalization, dotenv fallback, local-provider evidence, result envelope, and validation behavior.",
       "tests": [
         "go test ./internal/tools -run 'TestTranscription' -count=1"
@@ -464,8 +466,8 @@
         "tests/tools/test_transcription_tools.py",
         "tests/tools/test_transcription_dotenv_fallback.py"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
-      "notes": "Covered as a Go-native tool/provider matrix with hermetic provider tests; live provider credentials are not required for parity proof."
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
+      "notes": "Covered as a Go-native tool/provider matrix with hermetic provider tests; live provider credentials are not required for parity proof. Phase 0 update: upstream source changed between 43e566f77eaf and ef3a650f05d2; coverage requires review."
     },
     {
       "hermes_file": "tools/tts_tool.py",
@@ -488,7 +490,7 @@
         "tests/tools/test_tts_max_text_length.py",
         "tests/tools/test_tts_speed.py"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Gormes covers the provider matrix and command-provider seams; partial remains for provider-specific voice synthesis variants not yet classified as covered/excluded."
     },
     {
@@ -497,7 +499,7 @@
         "internal/tools/url_safety.go",
         "internal/tools/safety"
       ],
-      "status": "covered",
+      "status": "partial",
       "contract": "Hermes URL safety classification, SSRF/private-host blocking, static checks, allow/block policy helpers, and web-search URL guard behavior.",
       "tests": [
         "go test ./internal/tools ./internal/tools/safety -run 'URLSafety|SSRF|PrivateURL' -count=1"
@@ -509,8 +511,8 @@
         "tests/tools/test_url_safety.py",
         "tests/tools/test_browser_ssrf_local.py"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
-      "notes": "Safety policy lives under internal/tools/safety with a facade in internal/tools/url_safety.go."
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
+      "notes": "Safety policy lives under internal/tools/safety with a facade in internal/tools/url_safety.go. Phase 0 update: upstream source changed between 43e566f77eaf and ef3a650f05d2; coverage requires review."
     },
     {
       "hermes_file": "tools/web_tools.py",
@@ -536,7 +538,7 @@
         "tests/tools/test_web_providers_ddgs.py",
         "tests/tools/test_web_providers_searxng.py"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Gormes has broad Go-native provider and policy coverage; local goscrapling web_crawl remains a planned backend gate, so this pair is partial."
     },
     {
@@ -545,7 +547,7 @@
         "internal/tools/url_safety.go",
         "internal/tools/safety"
       ],
-      "status": "covered",
+      "status": "partial",
       "contract": "Hermes website policy file loading, domain blocking, shared policy files, cache invalidation, and pre-fetch policy errors for web tools.",
       "tests": [
         "go test ./internal/tools ./internal/tools/safety -run 'WebsitePolicy|WebExtractToolAppliesWebsitePolicy|WebCrawlToolAppliesWebsitePolicy' -count=1"
@@ -556,14 +558,14 @@
       "upstream_tests": [
         "tests/tools/test_website_policy.py"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
-      "notes": "Website policy is implemented in the shared safety package and exercised through direct policy and web-tool fixtures."
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
+      "notes": "Website policy is implemented in the shared safety package and exercised through direct policy and web-tool fixtures. Phase 0 update: upstream source changed between 43e566f77eaf and ef3a650f05d2; coverage requires review."
     },
     {
       "hermes_file": "tools/x_search_tool.py",
       "gormes_targets": [
-        "internal/tools/x_search.go",
-        "internal/tools/x_search_test.go"
+        "internal/tools/xsearch/x_search.go",
+        "internal/tools/xsearch/x_search_test.go"
       ],
       "status": "partial",
       "contract": "Hermes X search auth modes, OAuth expiry/rate-limit degraded evidence, tool schema, bounded fake-mode fixtures, and redacted credential behavior.",
@@ -576,19 +578,19 @@
       "upstream_tests": [
         "tests/tools/test_x_search_tool.py"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Gormes has auth/status/schema and fake-mode fixtures; live X search execution remains partial until provider integration is explicitly validated or excluded."
     },
     {
       "hermes_file": "ui-tui/package.json",
       "gormes_targets": [
         "internal/tui",
-        "internal/tuigateway"
+        "internal/adapters/tuigateway"
       ],
       "status": "partial",
       "contract": "Current Hermes ui-tui package, terminal interaction tests, gateway-client event tests, slash/action dispatch tests, viewport/history tests, clipboard/OSC52 tests, provider/model UI tests, approval-action tests, and state-isolation tests are classified as a Gormes native-TUI parity action matrix. Runtime coverage remains partial: mapped files are evidence for child rows, source-pair checks, owned divergence, or future TDD slices, not a full-fidelity runtime claim.",
       "tests": [
-        "go test ./internal/tui ./internal/tuigateway -count=1"
+        "go test ./internal/tui ./internal/adapters/tuigateway -count=1"
       ],
       "progress_rows": [
         "Hermes ui-tui strict-fidelity action matrix"
@@ -667,7 +669,7 @@
         "ui-tui/src/lib/text.test.ts",
         "ui-tui/src/lib/todo.test.ts"
       ],
-      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "last_checked_hermes_sha": "ef3a650f05d2e9ce14855af1d0184f3ee93455da",
       "notes": "Iteration 21 classified the full checked-in ui-tui source/test/doc inventory into exact progress source refs plus this source-pair action matrix so the contract inventory no longer reports ui-tui as an anonymous strict-fidelity bucket. Partial status is deliberate until each runtime behavior is proven by focused Gormes tests or explicit owned-divergence rows."
     }
   ]

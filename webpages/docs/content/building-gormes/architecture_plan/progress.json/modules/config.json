@@ -17,7 +17,7 @@
       "name": "Read-only bbolt sessions.db -> index.yaml mirror",
       "status": "complete",
       "module": "config",
-      "note": "TDD: shipped internal/session SessionIndexMirror with fixed YAML shape, lexically ordered bbolt key export, and atomic temp-file rewrite semantics."
+      "note": "TDD: shipped internal/persistence/session SessionIndexMirror with fixed YAML shape, lexically ordered bbolt key export, and atomic temp-file rewrite semantics."
     }
   },
   {
@@ -425,7 +425,7 @@
         "system"
       ],
       "degraded_mode": "Foreign config residue is ignored by normal commands and reported only through explicit migration guidance where relevant. Missing native MCP/server/provider config degrades to Gormes-native unknown/unconfigured evidence instead of falling back to `HERMES_HOME`, `~/.hermes`, `~/.openclaw`, `~/.clawdbot`, or `~/.moltbot`.",
-      "fixture": "internal/config/config_test.go::TestLoad_IgnoresHermesConfigYAML; cmd/gormes/gateway_test.go::TestGatewayVerbosePersistsGormesDisplayPlatformOnly; cmd/gormes/mcp_login_command_test.go::TestMCPLoginDefaultIgnoresHermesConfig; internal/migrate/hermes/manifest_test.go::TestHermesMigrationManifest*; internal/migrate/openclaw/manifest_test.go::TestOpenClawMigrationManifest*",
+      "fixture": "internal/config/config_test.go::TestLoad_IgnoresHermesConfigYAML; cmd/gormes/gateway_test.go::TestGatewayVerbosePersistsGormesDisplayPlatformOnly; cmd/gormes/mcp_login_command_test.go::TestMCPLoginDefaultIgnoresHermesConfig; internal/platform/migrate/hermes/manifest_test.go::TestHermesMigrationManifest*; internal/platform/migrate/openclaw/manifest_test.go::TestOpenClawMigrationManifest*",
       "source_refs": [
         "2026-05-03 operator hard rule: only `gormes migrate hermes` and `gormes migrate openclaw` may read cross-agent config",
         "internal/config/config.go:Load",
@@ -437,9 +437,9 @@
         "cmd/gormes/telegram.go:runTelegram",
         "internal/gateway/manager.go:handleVerboseCommand",
         "cmd/gormes/mcp_login.go:loadDefaultMCPConfig",
-        "internal/migrate/hermes/manifest.go:BuildManifest",
-        "internal/migrate/hermes/writer.go:ApplyManifest",
-        "internal/migrate/openclaw/manifest.go:BuildManifest",
+        "internal/platform/migrate/hermes/manifest.go:BuildManifest",
+        "internal/platform/migrate/hermes/writer.go:ApplyManifest",
+        "internal/platform/migrate/openclaw/manifest.go:BuildManifest",
         "cmd/gormes/migrate.go"
       ],
       "ready_when": [
@@ -485,10 +485,10 @@
         "internal/gateway/manager_test.go",
         "cmd/gormes/mcp_login.go",
         "cmd/gormes/mcp_login_command_test.go",
-        "internal/migrate/hermes/manifest.go",
-        "internal/migrate/hermes/manifest_test.go",
-        "internal/migrate/hermes/writer.go",
-        "internal/migrate/hermes/writer_test.go",
+        "internal/platform/migrate/hermes/manifest.go",
+        "internal/platform/migrate/hermes/manifest_test.go",
+        "internal/platform/migrate/hermes/writer.go",
+        "internal/platform/migrate/hermes/writer_test.go",
         "cmd/gormes/migrate_hermes_test.go",
         "cmd/gormes/migrate_hermes_writer_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
@@ -497,7 +497,7 @@
         "go test ./internal/config -run 'TestLoad_.*Hermes|TestSetGormesDisplayPlatformToolProgress|TestTokenVaultDefaultUsesGormesHomeNotHermesHome|TestConfigWriter' -count=1",
         "go test ./internal/memory -run TestDefaultMirrorConfigUsesGormesHome -count=1",
         "go test ./cmd/gormes -run 'Test.*MCPLogin.*Hermes|Test.*Verbose|TestMigrateHermes|TestOnboard|TestSetup' -count=1",
-        "go test ./internal/migrate/hermes -run 'TestHermesMigrationManifest|TestHermesConfigWriter' -count=1",
+        "go test ./internal/platform/migrate/hermes -run 'TestHermesMigrationManifest|TestHermesConfigWriter' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -520,14 +520,14 @@
           "internal/memory/mirror_config_test.go:TestDefaultMirrorConfigUsesGormesHome",
           "cmd/gormes/gateway_test.go:TestGatewayVerbosePersistsGormesDisplayPlatformOnly",
           "cmd/gormes/mcp_login_command_test.go:TestMCPLoginDefaultIgnoresHermesConfig",
-          "internal/migrate/hermes/manifest_test.go:TestHermesMigrationManifest_ModelProviderAndDisplayNativeTargets",
-          "internal/migrate/hermes/writer_test.go:TestHermesConfigWriter_MapsModelObjectAndDisplayToNativeConfig"
+          "internal/platform/migrate/hermes/manifest_test.go:TestHermesMigrationManifest_ModelProviderAndDisplayNativeTargets",
+          "internal/platform/migrate/hermes/writer_test.go:TestHermesConfigWriter_MapsModelObjectAndDisplayToNativeConfig"
         ],
         "verification": [
           "GOCACHE=/tmp/gormes-go-cache go test ./internal/config -run 'TestLoad_.*Hermes|TestSetGormesDisplayPlatformToolProgress|TestTokenVaultDefaultUsesGormesHomeNotHermesHome|TestConfigWriter' -count=1 -> ok",
           "GOCACHE=/tmp/gormes-go-cache go test ./internal/memory -run TestDefaultMirrorConfigUsesGormesHome -count=1 -> ok",
           "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run 'Test.*MCPLogin.*Hermes|Test.*Verbose|TestMigrateHermes|TestOnboard|TestSetup' -count=1 -> ok",
-          "GOCACHE=/tmp/gormes-go-cache go test ./internal/migrate/hermes -run 'TestHermesMigrationManifest|TestHermesConfigWriter' -count=1 -> ok"
+          "GOCACHE=/tmp/gormes-go-cache go test ./internal/platform/migrate/hermes -run 'TestHermesMigrationManifest|TestHermesConfigWriter' -count=1 -> ok"
         ]
       }
     }
@@ -1349,7 +1349,7 @@
     "item": {
       "name": "Hermes config migration dry-run manifest",
       "status": "complete",
-      "contract": "internal/migrate/hermes builds a deterministic dry-run manifest for `gormes migrate hermes` by reading an explicit source directory, $HERMES_HOME, or ~/.hermes, parsing config.yaml and .env, classifying every supported key as importable, skipped, conflict, or archived, and printing a report without writing Gormes state.",
+      "contract": "internal/platform/migrate/hermes builds a deterministic dry-run manifest for `gormes migrate hermes` by reading an explicit source directory, $HERMES_HOME, or ~/.hermes, parsing config.yaml and .env, classifying every supported key as importable, skipped, conflict, or archived, and printing a report without writing Gormes state.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
@@ -1359,7 +1359,7 @@
         "system"
       ],
       "degraded_mode": "Missing Hermes homes, invalid YAML, unreadable .env files, and newer unknown schema versions produce report items instead of panics or partial imports.",
-      "fixture": "internal/migrate/hermes/manifest_test.go; cmd/gormes/migrate_hermes_test.go",
+      "fixture": "internal/platform/migrate/hermes/manifest_test.go; cmd/gormes/migrate_hermes_test.go",
       "source_refs": [
         "./hermes-agent/hermes_constants.py:get_hermes_home",
         "./hermes-agent/hermes_cli/config.py:DEFAULT_CONFIG,load_config,load_env,migrate_config",
@@ -1397,16 +1397,16 @@
         "The dry-run command prints migrated/skipped/conflict/error counts and exits non-zero only for an unreadable or invalid requested source.",
         "No file under XDG_CONFIG_HOME, XDG_DATA_HOME, or XDG_STATE_HOME changes during dry-run tests."
       ],
-      "note": "Complete: TDD added internal/migrate/hermes/manifest.go, internal/migrate/hermes/manifest_test.go, cmd/gormes/migrate.go, and cmd/gormes/migrate_hermes_test.go. BuildManifest resolves Hermes home in the order --source, $HERMES_HOME, ~/.hermes and records every candidate path with a Found flag, classifies config.yaml model/providers/custom_provider/terminal/display/gateway/memory as importable into hermes.model/hermes.providers/hermes.custom_provider/terminal/tui.display/gateway/memory, archives _config_version, marks unsupported top-level sections as skipped with explicit reason text, classifies .env keys against a Telegram/Discord/Slack and *_API_KEY/*_TOKEN target map, never serializes raw secret bytes (RedactedValue=[REDACTED]), reports conflict_with_existing when a Gormes target env is already set, and surfaces invalid YAML as an Errors entry instead of panicking. The migrate cobra command requires --dry-run, errors non-zero on missing/non-directory --source, prints the manifest as indented JSON, and writes nothing under XDG_CONFIG_HOME/XDG_DATA_HOME/XDG_STATE_HOME. 2026-05-05 parity refresh maps Hermes Telegram dotenv keys TELEGRAM_BOT_TOKEN, TELEGRAM_HOME_CHANNEL, and TELEGRAM_ALLOWED_USERS into GORMES_TELEGRAM_TOKEN, GORMES_TELEGRAM_CHAT_ID, and GORMES_TELEGRAM_ALLOWED_USERS with redacted manifest output. Locked invariants: read-only filesystem behavior, redacted-only env values, deterministic config-key sorting, and explicit candidate-path reporting for every discovery origin. Root command wiring is deferred to the writer slice, which already owns cmd/gormes/migrate.go in its write_scope.",
+      "note": "Complete: TDD added internal/platform/migrate/hermes/manifest.go, internal/platform/migrate/hermes/manifest_test.go, cmd/gormes/migrate.go, and cmd/gormes/migrate_hermes_test.go. BuildManifest resolves Hermes home in the order --source, $HERMES_HOME, ~/.hermes and records every candidate path with a Found flag, classifies config.yaml model/providers/custom_provider/terminal/display/gateway/memory as importable into hermes.model/hermes.providers/hermes.custom_provider/terminal/tui.display/gateway/memory, archives _config_version, marks unsupported top-level sections as skipped with explicit reason text, classifies .env keys against a Telegram/Discord/Slack and *_API_KEY/*_TOKEN target map, never serializes raw secret bytes (RedactedValue=[REDACTED]), reports conflict_with_existing when a Gormes target env is already set, and surfaces invalid YAML as an Errors entry instead of panicking. The migrate cobra command requires --dry-run, errors non-zero on missing/non-directory --source, prints the manifest as indented JSON, and writes nothing under XDG_CONFIG_HOME/XDG_DATA_HOME/XDG_STATE_HOME. 2026-05-05 parity refresh maps Hermes Telegram dotenv keys TELEGRAM_BOT_TOKEN, TELEGRAM_HOME_CHANNEL, and TELEGRAM_ALLOWED_USERS into GORMES_TELEGRAM_TOKEN, GORMES_TELEGRAM_CHAT_ID, and GORMES_TELEGRAM_ALLOWED_USERS with redacted manifest output. Locked invariants: read-only filesystem behavior, redacted-only env values, deterministic config-key sorting, and explicit candidate-path reporting for every discovery origin. Root command wiring is deferred to the writer slice, which already owns cmd/gormes/migrate.go in its write_scope.",
       "write_scope": [
         "cmd/gormes/migrate.go",
         "cmd/gormes/migrate_hermes_test.go",
-        "internal/migrate/hermes/manifest.go",
-        "internal/migrate/hermes/manifest_test.go",
+        "internal/platform/migrate/hermes/manifest.go",
+        "internal/platform/migrate/hermes/manifest_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/migrate/hermes ./cmd/gormes -run 'TestHermesMigrationManifest|TestMigrateHermesDryRun' -count=1",
+        "go test ./internal/platform/migrate/hermes ./cmd/gormes -run 'TestHermesMigrationManifest|TestMigrateHermesDryRun' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1432,9 +1432,9 @@
         "system"
       ],
       "degraded_mode": "Conflicting existing Gormes keys are skipped by default and reported with --overwrite guidance; no partial write is allowed if backup creation fails.",
-      "fixture": "internal/migrate/hermes/writer_test.go; cmd/gormes/migrate_hermes_writer_test.go",
+      "fixture": "internal/platform/migrate/hermes/writer_test.go; cmd/gormes/migrate_hermes_writer_test.go",
       "source_refs": [
-        "internal/migrate/hermes/manifest.go",
+        "internal/platform/migrate/hermes/manifest.go",
         "internal/config/writer.go",
         "./hermes-agent/hermes_cli/config.py:save_config,save_env_value,migrate_config",
         "./hermes-agent/hermes_cli/setup.py:_setup_telegram",
@@ -1469,13 +1469,13 @@
       "write_scope": [
         "cmd/gormes/migrate.go",
         "cmd/gormes/migrate_hermes_writer_test.go",
-        "internal/migrate/hermes/writer.go",
-        "internal/migrate/hermes/writer_test.go",
+        "internal/platform/migrate/hermes/writer.go",
+        "internal/platform/migrate/hermes/writer_test.go",
         "internal/config/writer.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/migrate/hermes ./cmd/gormes ./internal/config -run 'TestHermesConfigWriter|TestMigrateHermesWriter|TestConfigWriter' -count=1",
+        "go test ./internal/platform/migrate/hermes ./cmd/gormes ./internal/config -run 'TestHermesConfigWriter|TestMigrateHermesWriter|TestConfigWriter' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1491,7 +1491,7 @@
     "item": {
       "name": "OpenClaw migration dry-run manifest",
       "status": "complete",
-      "contract": "internal/migrate/openclaw builds a deterministic dry-run manifest for `gormes migrate openclaw` by reading ~/.openclaw, ~/.clawdbot, ~/.moltbot, or --source, mapping OpenClaw config, .env, memory, skills, MCP, channels, model providers, TTS, tools, approvals, session reset, and archive-only surfaces into Gormes destinations without writing state.",
+      "contract": "internal/platform/migrate/openclaw builds a deterministic dry-run manifest for `gormes migrate openclaw` by reading ~/.openclaw, ~/.clawdbot, ~/.moltbot, or --source, mapping OpenClaw config, .env, memory, skills, MCP, channels, model providers, TTS, tools, approvals, session reset, and archive-only surfaces into Gormes destinations without writing state.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tools",
@@ -1501,7 +1501,7 @@
         "system"
       ],
       "degraded_mode": "Unknown OpenClaw keys, SecretRef file/exec sources, running OpenClaw processes, and platform token conflicts are reported as skipped/conflict/warning items instead of being dropped.",
-      "fixture": "internal/migrate/openclaw/manifest_test.go; cmd/gormes/migrate_openclaw_test.go",
+      "fixture": "internal/platform/migrate/openclaw/manifest_test.go; cmd/gormes/migrate_openclaw_test.go",
       "source_refs": [
         "../hermes-agent/hermes_cli/claw.py:claw_command,_cmd_migrate,_cmd_cleanup",
         "../hermes-agent/optional-skills/migration/openclaw-migration/scripts/openclaw_to_hermes.py:Migrator,MIGRATION_OPTION_METADATA,MIGRATION_PRESETS",
@@ -1539,12 +1539,12 @@
         "cmd/gormes/hermes_cli_parity.go",
         "cmd/gormes/command_alias_fidelity_test.go",
         "cmd/gormes/migrate_openclaw_test.go",
-        "internal/migrate/openclaw/manifest.go",
-        "internal/migrate/openclaw/manifest_test.go",
+        "internal/platform/migrate/openclaw/manifest.go",
+        "internal/platform/migrate/openclaw/manifest_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/migrate/openclaw ./cmd/gormes -run 'TestOpenClawMigrationManifest|TestMigrateOpenClawDryRun' -count=1",
+        "go test ./internal/platform/migrate/openclaw ./cmd/gormes -run 'TestOpenClawMigrationManifest|TestMigrateOpenClawDryRun' -count=1",
         "go test ./cmd/gormes -run 'TestHermesCommandAliasFidelity|TestHermesCLIParityManifest' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
@@ -1554,8 +1554,8 @@
       ],
       "blocked_by": [],
       "evidence": {
-        "implementation": "cmd/gormes/main.go, cmd/gormes/migrate.go, cmd/gormes/hermes_cli_parity.go, cmd/gormes/command_alias_fidelity_test.go, cmd/gormes/migrate_openclaw_test.go, internal/migrate/openclaw/manifest.go, internal/migrate/openclaw/manifest_test.go",
-        "tests": "go test ./internal/migrate/hermes ./internal/migrate/openclaw ./cmd/gormes -run 'Migrate|OpenClaw' -count=1; go test ./cmd/gormes -run 'TestHermesCommandAliasFidelity|TestHermesCLIParityManifest' -count=1; go run ./cmd/progress validate; git diff --check",
+        "implementation": "cmd/gormes/main.go, cmd/gormes/migrate.go, cmd/gormes/hermes_cli_parity.go, cmd/gormes/command_alias_fidelity_test.go, cmd/gormes/migrate_openclaw_test.go, internal/platform/migrate/openclaw/manifest.go, internal/platform/migrate/openclaw/manifest_test.go",
+        "tests": "go test ./internal/platform/migrate/hermes ./internal/platform/migrate/openclaw ./cmd/gormes -run 'Migrate|OpenClaw' -count=1; go test ./cmd/gormes -run 'TestHermesCommandAliasFidelity|TestHermesCLIParityManifest' -count=1; go run ./cmd/progress validate; git diff --check",
         "note": "Gormes-native OpenClaw dry-run manifest now covers source discovery, config/env/file classification, manual SecretRef evidence, redacted counts, dry-run-only CLI behavior, exact `gormes claw migrate --dry-run` compatibility spelling, and ooenclaw typo rejection without invoking Hermes/OpenClaw Python runtime."
       }
     }
@@ -1577,9 +1577,9 @@
         "system"
       ],
       "degraded_mode": "Running OpenClaw or active Gormes gateway channels produce warnings and require --yes before token-bearing migrations; cleanup refuses noninteractive destructive renames without --yes.",
-      "fixture": "internal/migrate/openclaw/apply_test.go; cmd/gormes/migrate_openclaw_apply_test.go; cmd/gormes/hermes_cli_parity_test.go",
+      "fixture": "internal/platform/migrate/openclaw/apply_test.go; cmd/gormes/migrate_openclaw_apply_test.go; cmd/gormes/hermes_cli_parity_test.go",
       "source_refs": [
-        "internal/migrate/openclaw/manifest.go",
+        "internal/platform/migrate/openclaw/manifest.go",
         "../hermes-agent/hermes_cli/claw.py:_detect_openclaw_processes,_warn_if_openclaw_running,_cmd_cleanup",
         "../hermes-agent/hermes_cli/main.py:claw_subparsers cleanup aliases=[clean]",
         "cmd/gormes/migrate.go:newClawCleanupCommand",
@@ -1617,14 +1617,14 @@
         "cmd/gormes/migrate_openclaw_apply_test.go",
         "cmd/gormes/hermes_cli_parity.go",
         "cmd/gormes/hermes_cli_parity_test.go",
-        "internal/migrate/openclaw/apply.go",
-        "internal/migrate/openclaw/apply_test.go",
+        "internal/platform/migrate/openclaw/apply.go",
+        "internal/platform/migrate/openclaw/apply_test.go",
         "internal/config/writer.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestClawCleanup|TestHermesCLIParityManifest' -count=1",
-        "go test ./internal/migrate/openclaw ./cmd/gormes ./internal/config -run 'TestOpenClawMigrationApply|TestMigrateOpenClawApply|TestOpenClawCleanup|TestConfigWriter' -count=1",
+        "go test ./internal/platform/migrate/openclaw ./cmd/gormes ./internal/config -run 'TestOpenClawMigrationApply|TestMigrateOpenClawApply|TestOpenClawCleanup|TestConfigWriter' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1645,7 +1645,7 @@
         "verification": [
           "RED: `timeout 5m go test ./cmd/gormes -run 'TestClawCleanup|TestHermesCLIParityManifestClawCleanupImplemented' -count=1` failed because `gormes claw cleanup` and `gormes claw clean` were unknown commands and the manifest row was row_backed.",
           "GREEN: `timeout 5m go test ./cmd/gormes -run 'TestClawCleanup|TestHermesCLIParityManifestClawCleanupImplemented' -count=1` passed after command wiring and manifest update.",
-          "GREEN: `timeout 10m go test ./internal/migrate/openclaw ./cmd/gormes ./internal/config -run 'TestOpenClawMigrationApply|TestMigrateOpenClawApply|TestOpenClawCleanup|TestConfigWriter' -count=1` passed.",
+          "GREEN: `timeout 10m go test ./internal/platform/migrate/openclaw ./cmd/gormes ./internal/config -run 'TestOpenClawMigrationApply|TestMigrateOpenClawApply|TestOpenClawCleanup|TestConfigWriter' -count=1` passed.",
           "GREEN: `timeout 5m go test ./cmd/gormes -run 'TestClawCleanup|TestHermesCLIParityManifest' -count=1` passed."
         ]
       }

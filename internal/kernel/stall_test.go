@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 // TestKernel_NonBlockingUnderTUIStall proves the capacity-1 replace-latest
@@ -21,14 +21,14 @@ import (
 // Treats the kernel as a black box: we inspect the render channel only,
 // never internal state. No test-only accessors on production types.
 func TestKernel_NonBlockingUnderTUIStall(t *testing.T) {
-	mc := hermes.NewMockClient()
-	events := make([]hermes.Event, 0, 1001)
+	mc := llm.NewMockClient()
+	events := make([]llm.Event, 0, 1001)
 	for i := 0; i < 1000; i++ {
-		events = append(events, hermes.Event{
-			Kind: hermes.EventToken, Token: "t", TokensOut: i + 1,
+		events = append(events, llm.Event{
+			Kind: llm.EventToken, Token: "t", TokensOut: i + 1,
 		})
 	}
-	events = append(events, hermes.Event{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1000})
+	events = append(events, llm.Event{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1000})
 	mc.Script(events, "sess-stall")
 
 	k := New(Config{
@@ -102,9 +102,9 @@ func TestKernel_NonBlockingUnderTUIStall(t *testing.T) {
 	<-done
 }
 
-// lastAssistantMessage returns a pointer to the last hermes.Message with
+// lastAssistantMessage returns a pointer to the last llm.Message with
 // Role "assistant", or nil if none exist.
-func lastAssistantMessage(history []hermes.Message) *hermes.Message {
+func lastAssistantMessage(history []llm.Message) *llm.Message {
 	for i := len(history) - 1; i >= 0; i-- {
 		if history[i].Role == "assistant" {
 			return &history[i]

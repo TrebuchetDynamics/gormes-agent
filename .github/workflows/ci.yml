@@ -74,4 +74,4 @@ jobs:
           cache: true
 
       - name: Test Navivox Go gateway
-        run: go test ./internal/channels/navivox -count=1
+        run: go test ./internal/adapters/channels/navivox -count=1

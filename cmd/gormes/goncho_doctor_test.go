@@ -304,6 +304,27 @@ func setupGonchoDoctorEnv(t *testing.T) {
 	t.Setenv("GORMES_API_KEY", "")
 }
 
+func TestDoctorGonchoConfigOutputShowsProfileLocalMemoryDB(t *testing.T) {
+	root := t.TempDir()
+	profileRoot := filepath.Join(root, "profiles", "work")
+	t.Setenv("GORMES_HOME", profileRoot)
+	cfg := config.Config{Goncho: config.GonchoCfg{Enabled: true, Workspace: "gormes", ObserverPeer: "gormes"}}
+
+	out := doctorGonchoConfig(cfg).Format()
+	for _, want := range []string{
+		"profile=work",
+		"scope=profile_root",
+		"memory_db=~/.gormes/profiles/work/memory.db",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("doctor Goncho output missing profile-local DB evidence %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, root) {
+		t.Fatalf("doctor Goncho output leaked absolute temp root instead of redacted profile path:\n%s", out)
+	}
+}
+
 func TestDoctorGonchoConfigOutputIncludesEffectiveSettingsAndRedactsSecrets(t *testing.T) {
 	cfg := config.Config{
 		Hermes: config.HermesCfg{APIKey: "sk-do-not-print"},

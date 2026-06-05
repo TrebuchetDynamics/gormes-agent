@@ -3,32 +3,28 @@ package tui
 import (
 	"fmt"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/skin"
 )
 
 func skinSlashHandler(input string, model *Model) SlashResult {
 	if model == nil {
 		return SlashResult{Handled: true, StatusMessage: "skin: TUI unavailable"}
 	}
-	name := parseSkinSlashName(input)
-	if model.skinConfig == nil {
-		model.transientPage = nil
-		return SlashResult{Handled: true, StatusMessage: "skin: configuration unavailable"}
+	var configure skin.ConfigFunc
+	if model.skinConfig != nil {
+		configure = skin.ConfigFunc(model.skinConfig)
 	}
-	result, err := model.skinConfig(SkinConfigRequest{Name: name, SessionID: model.SessionID()})
-	if err != nil {
-		model.transientPage = nil
-		return SlashResult{Handled: true, StatusMessage: "skin: " + err.Error()}
+	result := skin.HandleSlash(input, model.SessionID(), configure)
+	if result.Err != nil || !result.Apply {
+		if result.Body != "" {
+			model.transientPage = &TransientPageState{Title: "Skin", Body: result.Body}
+		} else {
+			model.transientPage = nil
+		}
+		return SlashResult{Handled: true, StatusMessage: result.StatusMessage}
 	}
-	if name == "" {
-		line := "skin: " + skinDisplayName(result.Name)
-		model.transientPage = &TransientPageState{Title: "Skin", Body: line}
-		return SlashResult{Handled: true, StatusMessage: line}
-	}
-	accepted := strings.TrimSpace(result.Name)
-	if accepted == "" {
-		accepted = name
-	}
-	accepted, err = model.applySkinName(accepted)
+	accepted, err := model.applySkinName(result.AcceptedName)
 	if err != nil {
 		model.transientPage = nil
 		return SlashResult{Handled: true, StatusMessage: "skin: " + err.Error()}
@@ -39,23 +35,11 @@ func skinSlashHandler(input string, model *Model) SlashResult {
 }
 
 func parseSkinSlashName(input string) string {
-	trimmed := strings.TrimSpace(input)
-	if trimmed == "" {
-		return ""
-	}
-	_, rest, ok := strings.Cut(trimmed, " ")
-	if !ok {
-		return ""
-	}
-	return strings.TrimSpace(rest)
+	return skin.SlashName(input)
 }
 
 func skinDisplayName(name string) string {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return "default"
-	}
-	return name
+	return skin.DisplayName(name)
 }
 
 func (m *Model) applySkinName(name string) (string, error) {
@@ -67,6 +51,7 @@ func (m *Model) applySkinName(name string) (string, error) {
 	m.activeSkinName = skin.Name
 	m.activeSkin = skin
 	m.editor.Prompt = prompt
+	ApplyTextareaSkin(&m.editor, skin)
 	return skin.Name, nil
 }
 

@@ -6,7 +6,7 @@ import (
 )
 
 func TestGitHubActionsUseGoModToolchain(t *testing.T) {
-	goMod := readRepoFileRelease(t, "go.mod")
+	goMod := readRepoFile(t, "go.mod")
 	if !strings.Contains(goMod, "\ngo 1.26\n") {
 		t.Fatalf("go.mod must declare the current Go floor; got:\n%s", goMod)
 	}
@@ -24,7 +24,7 @@ func TestGitHubActionsUseGoModToolchain(t *testing.T) {
 		rel := rel
 		setupCount := setupCount
 		t.Run(rel, func(t *testing.T) {
-			workflow := readRepoFileRelease(t, rel)
+			workflow := readRepoFile(t, rel)
 			if got := strings.Count(workflow, "uses: actions/setup-go@v6"); got != setupCount {
 				t.Fatalf("%s setup-go action count = %d, want %d with current setup-go docs", rel, got, setupCount)
 			}

@@ -18,7 +18,7 @@
         "system"
       ],
       "degraded_mode": "Learning-loop status reports background_review_unavailable, background_review_runtime_unavailable, background_review_denied_toolset, or background_review_cleanup_failed instead of running a full-tool child agent silently.",
-      "fixture": "internal/hermes/background_review_test.go",
+      "fixture": "internal/llm/background_review_test.go",
       "source_refs": [
         "./hermes-agent/run_agent.py@b816fd4e2:AIAgent._spawn_background_review",
         "./hermes-agent/run_agent.py@b816fd4e2:AIAgent._summarize_background_review_actions",
@@ -26,8 +26,8 @@
         "./hermes-agent/tests/run_agent/test_background_review_summary.py@b816fd4e2",
         "./hermes-agent/tests/run_agent/test_background_review_toolset_restriction.py@b816fd4e2",
         "./hermes-agent/tests/run_agent/test_review_prompt_class_first.py@b816fd4e2",
-        "internal/subagent/background_review_toolset.go",
-        "internal/hermes/guidance_constants.go",
+        "internal/core/subagent/background_review_toolset.go",
+        "internal/llm/guidance_constants.go",
         "internal/tools/skill_manager.go"
       ],
       "ready_when": [
@@ -56,17 +56,17 @@
         "TestBackgroundReviewFork_EmitsAttributedSummary proves CLI/gateway callbacks receive exactly one `Self-improvement review` summary when memory or skills were updated.",
         "TestBackgroundReviewFork_Cleanup proves approval callbacks are auto-deny during the run, cleared after the run, and memory providers are shutdown before close."
       ],
-      "note": "Hermes v0.12.0 made the after-turn self-improvement review concrete: it forks an AIAgent with the active runtime binding, memory+skills toolsets, auto-deny approvals, parent session attribution, prompt-history isolation, and explicit `Self-improvement review` user-facing summaries. Gormes already has the toolset-restriction policy; this row wires the lifecycle without adding curator scheduling yet. Completed 2026-05-06 with RED evidence from `go test ./internal/hermes -run TestBackgroundReviewFork -count=1` failing on missing background review lifecycle types, then GREEN evidence from the focused Hermes slice and the row package commands.",
+      "note": "Hermes v0.12.0 made the after-turn self-improvement review concrete: it forks an AIAgent with the active runtime binding, memory+skills toolsets, auto-deny approvals, parent session attribution, prompt-history isolation, and explicit `Self-improvement review` user-facing summaries. Gormes already has the toolset-restriction policy; this row wires the lifecycle without adding curator scheduling yet. Completed 2026-05-06 with RED evidence from `go test ./internal/llm -run TestBackgroundReviewFork -count=1` failing on missing background review lifecycle types, then GREEN evidence from the focused Hermes slice and the row package commands.",
       "write_scope": [
-        "internal/hermes/background_review.go",
-        "internal/hermes/background_review_test.go",
-        "internal/subagent/background_review_toolset.go",
+        "internal/llm/background_review.go",
+        "internal/llm/background_review_test.go",
+        "internal/core/subagent/background_review_toolset.go",
         "internal/tools/skill_manager.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes ./internal/subagent ./internal/tools -run 'TestBackgroundReviewFork|TestBackgroundReviewToolsetRestriction|TestSkillManager' -count=1",
-        "go test ./internal/hermes ./internal/subagent ./internal/tools -count=1",
+        "go test ./internal/llm ./internal/subagent ./internal/tools -run 'TestBackgroundReviewFork|TestBackgroundReviewToolsetRestriction|TestSkillManager' -count=1",
+        "go test ./internal/llm ./internal/subagent ./internal/tools -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -98,15 +98,15 @@
         "system"
       ],
       "degraded_mode": "Without this slice, Gormes can run the background review fork only from coarse interval counters and cannot explain why a turn should trigger memory/skill review before later extractor, scorer, or promotion logic runs.",
-      "fixture": "internal/hermes/learning_loop_signal_test.go",
+      "fixture": "internal/llm/learning_loop_signal_test.go",
       "source_refs": [
         "docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md:6.A deterministic detector execution note",
         "hermes-agent/tests/run_agent/test_codex_app_server_integration.py::test_background_review_NOT_invoked_below_threshold",
         "hermes-agent/tests/run_agent/test_codex_app_server_integration.py::test_background_review_skill_trigger_fires_above_threshold",
         "hermes-agent/tests/run_agent/test_memory_nudge_counter_hydration.py::_run_hydration",
         "hermes-agent/agent/background_review.py:_SKILL_REVIEW_PROMPT Signals to look for",
-        "internal/hermes/background_review.go",
-        "internal/hermes/background_review_test.go"
+        "internal/llm/background_review.go",
+        "internal/llm/background_review_test.go"
       ],
       "ready_when": [
         "Hermes background review fork lifecycle is complete and test-backed, so this slice only decides when to request that fork and what reason codes to pass along.",
@@ -128,16 +128,16 @@
         "TestLearningLoopSignalScorer_FeedbackAndRedaction proves explicit operator correction/frustration feedback can trigger a skill signal while raw prompt/tool content and secret-looking strings are absent from emitted evidence.",
         "The scorer exposes reason codes such as user_turn_threshold, tool_iteration_threshold, retry_loop, edit_burst, and operator_feedback without invoking live LLM scoring or mutating memory/skills."
       ],
-      "note": "Complete 2026-05-23: pure deterministic scorer already fixture-backed in internal/hermes/learning_loop_signal.go. Tests prove stable reason codes, threshold-triggered memory/skill review decisions, feedback-triggered skill review, and redacted count-only evidence with no provider call or memory/skill mutation.",
+      "note": "Complete 2026-05-23: pure deterministic scorer already fixture-backed in internal/llm/learning_loop_signal.go. Tests prove stable reason codes, threshold-triggered memory/skill review decisions, feedback-triggered skill review, and redacted count-only evidence with no provider call or memory/skill mutation.",
       "write_scope": [
-        "internal/hermes/learning_loop_signal.go",
-        "internal/hermes/learning_loop_signal_test.go",
-        "internal/hermes/background_review.go",
+        "internal/llm/learning_loop_signal.go",
+        "internal/llm/learning_loop_signal_test.go",
+        "internal/llm/background_review.go",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run TestLearningLoopSignalScorer -count=1",
-        "go test ./internal/hermes -run 'TestBackgroundReviewFork|TestLearningLoopSignalScorer' -count=1",
+        "go test ./internal/llm -run TestLearningLoopSignalScorer -count=1",
+        "go test ./internal/llm -run 'TestBackgroundReviewFork|TestLearningLoopSignalScorer' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -245,8 +245,8 @@
       "source_refs": [
         "docs/content/papers/agentic-os-design.md",
         "Hermes Agent GEPA engine (hermes-agent/agent/)",
-        "internal/hermes/prompt_evaluator.go",
-        "internal/hermes/eval_scenarios.go"
+        "internal/llm/prompt_evaluator.go",
+        "internal/llm/eval_scenarios.go"
       ],
       "ready_when": [
         "Agent loop is deterministic enough for reproducible evaluation",
@@ -265,13 +265,13 @@
       ],
       "note": "Complete: TDD expanded the prompt evaluator into a deterministic, variant-aware harness. `EvaluateVariant` runs one prompt variant against every scenario through an injected runner, records per-scenario task_success, tool_accuracy, response_quality on a 1-5 scale, error evidence, and aggregate scores, while `CompareVariants` returns deterministic aggregate ranking for prompt comparison. `DefaultPromptEvalScenarios` provides a 10-scenario local corpus covering file reads, code search, patching, tests, command safety, memory search/update, and doc refresh; focused tests prove replay determinism and sub-second execution without live LLM judging or provider calls.",
       "write_scope": [
-        "internal/hermes/prompt_evaluator.go",
-        "internal/hermes/prompt_evaluator_test.go",
-        "internal/hermes/eval_scenarios.go",
+        "internal/llm/prompt_evaluator.go",
+        "internal/llm/prompt_evaluator_test.go",
+        "internal/llm/eval_scenarios.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run TestPromptEvaluator -count=1",
+        "go test ./internal/llm -run TestPromptEvaluator -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -298,7 +298,7 @@
       "source_refs": [
         "docs/content/papers/agentic-os-design.md",
         "Hermes Agent GEPA engine",
-        "internal/hermes/prompt_evaluator.go"
+        "internal/llm/prompt_evaluator.go"
       ],
       "ready_when": [
         "Prompt evaluation harness exists (6.K row 1)"
@@ -316,12 +316,12 @@
       ],
       "note": "Complete: TDD replaced placeholder word-deletion mutation with a deterministic GEPA-style optimizer. `GenerateVariants` creates bounded strategy mutations for exact tool selection, concrete response quality, task decomposition, and command safety. `OptimizeDetailed` scores every variant through the prompt evaluation harness, promotes the best variant as the next iteration base only when it clears the improvement threshold, records per-iteration candidates/evaluations/selected variant, and terminates with explicit converged, perfect_score, or budget_exhausted evidence. Focused tests prove N-variant generation, cumulative next-base improvement, at least 10% aggregate lift over the baseline, and convergence without LLM API calls.",
       "write_scope": [
-        "internal/hermes/prompt_optimizer.go",
-        "internal/hermes/prompt_optimizer_test.go",
+        "internal/llm/prompt_optimizer.go",
+        "internal/llm/prompt_optimizer_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/hermes -run TestPromptOptimizer -count=1",
+        "go test ./internal/llm -run TestPromptOptimizer -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [

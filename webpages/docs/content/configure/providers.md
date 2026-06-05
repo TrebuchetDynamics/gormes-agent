@@ -56,6 +56,7 @@ for it — supply both explicitly.
 The supported paths, in order of recommendation:
 
 ```bash
+gormes providers setup openrouter           # print provider-specific setup commands
 gormes setup provider                       # interactive provider wizard
 gormes setup model                          # interactive model wizard
 gormes model                                # standalone interactive model picker

@@ -1,0 +1,11 @@
+# .understandignore — patterns for files/dirs to exclude from analysis
+# Syntax: same as .gitignore (globs, # comments, ! negation, trailing / for dirs)
+# Generated for the navivox subpackage graph.
+
+# Exclude Understand-Anything's own generated graph/intermediate files.
+.understand-anything/
+
+# --- Test file patterns (uncomment to exclude) ---
+# *.test.*
+# *.spec.*
+# *.snap

@@ -6,20 +6,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 func TestKernel_FinalizeAssistantTurnCarriesToolCallMetadata(t *testing.T) {
 	rec := store.NewRecording()
-	mc := hermes.NewMockClient()
+	mc := llm.NewMockClient()
 
-	mc.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	mc.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "tool_calls",
-		ToolCalls: []hermes.ToolCall{{
+		ToolCalls: []llm.ToolCall{{
 			ID:        "call_echo_1",
 			Name:      "echo",
 			Arguments: json.RawMessage(`{"text":"tool payload"}`),
@@ -27,11 +27,11 @@ func TestKernel_FinalizeAssistantTurnCarriesToolCallMetadata(t *testing.T) {
 	}}, "sess-tools-meta")
 
 	reply := "Echo complete."
-	events := make([]hermes.Event, 0, len(reply)+1)
+	events := make([]llm.Event, 0, len(reply)+1)
 	for _, ch := range reply {
-		events = append(events, hermes.Event{Kind: hermes.EventToken, Token: string(ch), TokensOut: 1})
+		events = append(events, llm.Event{Kind: llm.EventToken, Token: string(ch), TokensOut: 1})
 	}
-	events = append(events, hermes.Event{Kind: hermes.EventDone, FinishReason: "stop"})
+	events = append(events, llm.Event{Kind: llm.EventDone, FinishReason: "stop"})
 	mc.Script(events, "sess-tools-meta")
 
 	reg := tools.NewRegistry()

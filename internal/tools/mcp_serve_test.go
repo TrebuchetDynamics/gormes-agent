@@ -301,6 +301,31 @@ func TestToolInputSchema(t *testing.T) {
 	}
 }
 
+type staticSessionLister []SessionEntry
+
+func (l staticSessionLister) ListAll(ctx context.Context) ([]SessionEntry, error) {
+	return []SessionEntry(l), nil
+}
+
+func TestMCPServer_ConversationsListHandlerNonPositiveLimitUsesDefault(t *testing.T) {
+	s := &MCPServer{sessionStore: staticSessionLister{
+		{SessionKey: "s1", Title: "one"},
+		{SessionKey: "s2", Title: "two"},
+	}}
+
+	result, err := s.conversationsListHandler(context.Background(), map[string]interface{}{"limit": float64(-1)})
+	if err != nil {
+		t.Fatalf("conversationsListHandler returned error: %v", err)
+	}
+	payload, ok := result.(map[string]interface{})
+	if !ok {
+		t.Fatalf("result = %T, want map", result)
+	}
+	if got := payload["count"]; got != 2 {
+		t.Fatalf("count = %v, want 2 when non-positive limit falls back to default", got)
+	}
+}
+
 func TestMCPServer_HandleToolsCall_ToolNotFound(t *testing.T) {
 	s := &MCPServer{}
 

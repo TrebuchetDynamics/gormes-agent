@@ -5,25 +5,25 @@
 package gormes
 
 import (
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/runtimebridge"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/runtime/bridge"
 )
 
 // Hermes wire surface — everything Gormes needs to speak HTTP+SSE to a
 // Hermes-compatible api_server.
 type (
-	Client         = hermes.Client
-	Stream         = hermes.Stream
-	RunEventStream = hermes.RunEventStream
-	ChatRequest    = hermes.ChatRequest
-	Message        = hermes.Message
-	Event          = hermes.Event
-	EventKind      = hermes.EventKind
-	RunEvent       = hermes.RunEvent
-	RunEventType   = hermes.RunEventType
-	ErrorClass     = hermes.ErrorClass
-	HTTPError      = hermes.HTTPError
+	Client         = llm.Client
+	Stream         = llm.Stream
+	RunEventStream = llm.RunEventStream
+	ChatRequest    = llm.ChatRequest
+	Message        = llm.Message
+	Event          = llm.Event
+	EventKind      = llm.EventKind
+	RunEvent       = llm.RunEvent
+	RunEventType   = llm.RunEventType
+	ErrorClass     = llm.ErrorClass
+	HTTPError      = llm.HTTPError
 )
 
 // Kernel surface — the RenderFrame the TUI consumes plus the PlatformEvent

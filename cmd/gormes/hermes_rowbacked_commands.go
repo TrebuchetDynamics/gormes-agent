@@ -1,13 +1,15 @@
 package main
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/spf13/cobra"
+)
 
 const (
 	hermesGatewayCronRow = "Gateway, platform, webhook, and cron management CLI"
 	hermesDiagnosticsRow = "Diagnostics, backup, logs, and status CLI"
 	hermesConfigRow      = "Hermes config migration dry-run manifest"
 	hermesToolRow        = "Tool/runtime/security rows"
-	hermesACPMCPRow      = "ACP server side"
 	hermesSkillsRow      = "Skills hub direct URL install name/category guard"
 	hermesMemoryRow      = "Goncho memory integration into normal agent turn"
 	hermesKanbanRow      = "Hermes Kanban durable board core"
@@ -56,23 +58,5 @@ func newImportCommand() *cobra.Command {
 }
 
 func newToolsCommand() *cobra.Command {
-	return newHermesUnavailableParent(
-		"tools",
-		"Manage Hermes-compatible tool allowlists",
-		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-			Use:   "list",
-			Short: "List tool availability",
-			Row:   hermesToolRow,
-		}),
-		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-			Use:   "disable <name>",
-			Short: "Disable a tool",
-			Row:   hermesToolRow,
-		}),
-		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-			Use:   "enable <name>",
-			Short: "Enable a tool",
-			Row:   hermesToolRow,
-		}),
-	)
+	return gormescli.NewToolsCommand(gormescli.ToolsCommandOptions{})
 }

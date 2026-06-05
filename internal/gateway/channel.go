@@ -1,6 +1,12 @@
 package gateway
 
-import "context"
+import (
+	"context"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/delivery"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/reactions"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/rendering"
+)
 
 // Channel is the minimum every adapter implements. Additional capabilities are
 // modeled as optional interfaces that the manager type-asserts at runtime.
@@ -36,23 +42,18 @@ type ThreadReplySender interface {
 }
 
 // OutboundMediaKind classifies local files for native platform send paths.
-type OutboundMediaKind string
+type OutboundMediaKind = delivery.MediaKind
 
 const (
-	OutboundMediaKindAudio    OutboundMediaKind = "audio"
-	OutboundMediaKindDocument OutboundMediaKind = "document"
-	OutboundMediaKindImage    OutboundMediaKind = "image"
-	OutboundMediaKindVideo    OutboundMediaKind = "video"
+	OutboundMediaKindAudio    = delivery.MediaKindAudio
+	OutboundMediaKindDocument = delivery.MediaKindDocument
+	OutboundMediaKindImage    = delivery.MediaKindImage
+	OutboundMediaKindVideo    = delivery.MediaKindVideo
 )
 
 // OutboundMedia is a local file that should be delivered through a platform's
 // native media path instead of being shown as a raw MEDIA tag in assistant text.
-type OutboundMedia struct {
-	Path     string
-	AsVoice  bool
-	Kind     OutboundMediaKind
-	ThreadID string
-}
+type OutboundMedia = delivery.Media
 
 // MediaSender is implemented by channels that can send local files as native
 // platform media. replyToMsgID is optional and preserves reply quoting when the
@@ -93,24 +94,18 @@ type PlaceholderCapable interface {
 // ToolProgressStatus is the channel-neutral lifecycle state for structured
 // tool progress. Text-only channels can ignore it; first-party channels such
 // as Navivox can render it as native UI instead of assistant prose.
-type ToolProgressStatus string
+type ToolProgressStatus = rendering.ToolProgressStatus
 
 const (
-	ToolProgressStarted  ToolProgressStatus = "started"
-	ToolProgressUpdated  ToolProgressStatus = "updated"
-	ToolProgressFinished ToolProgressStatus = "finished"
-	ToolProgressFailed   ToolProgressStatus = "failed"
+	ToolProgressStarted  = rendering.ToolProgressStarted
+	ToolProgressUpdated  = rendering.ToolProgressUpdated
+	ToolProgressFinished = rendering.ToolProgressFinished
+	ToolProgressFailed   = rendering.ToolProgressFailed
 )
 
 // ToolProgressEvent carries redacted, bounded tool-progress evidence. It must
 // never include raw tool arguments, stdout, credentials, or full logs.
-type ToolProgressEvent struct {
-	ID       string
-	ToolName string
-	Status   ToolProgressStatus
-	Summary  string
-	Metadata map[string]any
-}
+type ToolProgressEvent = rendering.ToolProgressEvent
 
 // ToolProgressSender is implemented by channels that can render structured
 // tool progress as native UI objects instead of sending plain text logs.
@@ -157,12 +152,12 @@ type ThreadTypingActionCapable interface {
 
 // ProcessingOutcome is the channel-neutral terminal state for best-effort
 // processing reactions.
-type ProcessingOutcome string
+type ProcessingOutcome = reactions.ProcessingOutcome
 
 const (
-	ProcessingOutcomeSuccess   ProcessingOutcome = "success"
-	ProcessingOutcomeFailure   ProcessingOutcome = "failure"
-	ProcessingOutcomeCancelled ProcessingOutcome = "cancelled"
+	ProcessingOutcomeSuccess   = reactions.ProcessingOutcomeSuccess
+	ProcessingOutcomeFailure   = reactions.ProcessingOutcomeFailure
+	ProcessingOutcomeCancelled = reactions.ProcessingOutcomeCancelled
 )
 
 // ReactionCapable is implemented by channels that can react to inbound

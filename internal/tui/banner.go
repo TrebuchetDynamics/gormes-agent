@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/skin"
 )
 
 const (
@@ -35,38 +37,24 @@ const (
 	welcomeDefault = "Welcome to Gormes. Type your message or /help for commands."
 )
 
-var logoGradientColors = []string{
-	"#1D4ED8", "#2563EB", "#3B82F6", "#60A5FA", "#93C5FD", "#BFDBFE",
+func bannerLogoColors(s HermesSkin) []string {
+	return skin.BannerLogoColors(s)
 }
 
-var caduceusGradient = []struct{ line, color string }{
-	{line: "⠀⠀⠀⠀⠀⣀⡀⣀⣀⢀⣀⡀", color: "#CD7F32"},
-	{line: "⠀⠀⠀⣴⣾⣿⣿⣇⠸⣿⣿⠇⣸⣿⣿", color: "#CD7F32"},
-	{line: "⢀⣠⣶⠿⠋⣩⣿⠻⣿⡇⢠⡄⢸⣿⠟", color: "#FFBF00"},
-	{line: "⠉⠉⠁⠶⠟⠋⠉⢀⣈⣁⡈⢁⣈⣁⡀", color: "#FFBF00"},
-	{line: "⠀⠀⠀⠀⠀⣴⣿⡿⠛⢁⡈⠛⢿⣿⣦", color: "#FFD700"},
-	{line: "⠀⠀⠀⠀⠀⠿⣿⣦⣤⣈⠁⢠⣴⣿⠿", color: "#FFD700"},
-	{line: "⠀⠀⠀⠀⠀⠀⠈⠉⠻⢿⣿⣦⡉⠁", color: "#FFBF00"},
-	{line: "⠀⠀⠀⠀⠀⠀⠀⠀⠘⢷⣦⣈⠛⠃", color: "#FFBF00"},
-	{line: "⠀⠀⠀⠀⠀⠀⠀⢠⣴⠦⠈⠙⠿⣦⡄", color: "#CD7F32"},
-	{line: "⠀⠀⠀⠀⠀⠀⠀⠸⣿⣤⡈⠁⢤⣿⠇", color: "#CD7F32"},
-	{line: "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠛⠷⠄", color: "#B8860B"},
-	{line: "⠀⠀⠀⠀⠀⠀⠀⢀⣀⠑⢶⣄⡀", color: "#B8860B"},
-	{line: "⠀⠀⠀⠀⠀⠀⠀⣿⠁⢰⡆⠈", color: "#B8860B"},
-	{line: "⣿⣿⠁⠈⠳⠈⠠⠋⠁", color: "#B8860B"},
-	{line: "⣿⠁", color: "#B8860B"},
-	{line: "⠈⠁", color: "#B8860B"},
+func bannerCaduceusColors(s HermesSkin) []string {
+	return skin.BannerCaduceusColors(s)
 }
 
 func bannerLogo(skin HermesSkin) string {
 	var b strings.Builder
 	lines := strings.Split(gormesLogo, "\n")
+	colors := bannerLogoColors(skin)
 	for i, line := range lines {
 		colorIdx := i
-		if colorIdx >= len(logoGradientColors) {
-			colorIdx = len(logoGradientColors) - 1
+		if colorIdx >= len(colors) {
+			colorIdx = len(colors) - 1
 		}
-		s := lipgloss.NewStyle().Foreground(lipgloss.Color(logoGradientColors[colorIdx])).Render(line)
+		s := skinForeground(colors[colorIdx]).Render(line)
 		b.WriteString(s)
 		if i < len(lines)-1 {
 			b.WriteByte('\n')
@@ -76,17 +64,30 @@ func bannerLogo(skin HermesSkin) string {
 }
 
 func bannerCaduceus() string {
+	return bannerCaduceusWithSkin(DefaultHermesSkin())
+}
+
+func bannerCaduceusWithSkin(skin HermesSkin) string {
 	var b strings.Builder
-	for _, entry := range caduceusGradient {
-		s := lipgloss.NewStyle().Foreground(lipgloss.Color(entry.color)).Render(entry.line)
-		b.WriteString(s)
+	lines := strings.Split(caduceusArt, "\n")
+	colors := bannerCaduceusColors(skin)
+	for i, line := range lines {
+		colorIdx := i / 3
+		if colorIdx >= len(colors) {
+			colorIdx = len(colors) - 1
+		}
+		b.WriteString(skinForeground(colors[colorIdx]).Render(line))
 		b.WriteByte('\n')
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
 
 func bannerWelcome() string {
-	return lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700")).Bold(true).Render(welcomeDefault)
+	return bannerWelcomeWithSkin(DefaultHermesSkin())
+}
+
+func bannerWelcomeWithSkin(skin HermesSkin) string {
+	return SkinStylesFor(skin).Title.Render(welcomeDefault)
 }
 
 // welcomeContext carries the live session data the welcome panel renders.
@@ -129,12 +130,13 @@ type welcomePalette struct {
 	dim    string
 }
 
-func welcomePaletteFor(skin HermesSkin) welcomePalette {
+func welcomePaletteFor(s HermesSkin) welcomePalette {
+	palette := skin.WelcomePaletteFor(s)
 	return welcomePalette{
-		border: skin.Colors.BannerBorder,
-		title:  skin.Colors.BannerTitle,
-		accent: skin.Colors.BannerAccent,
-		dim:    skin.Colors.BannerDim,
+		border: palette.Border,
+		title:  palette.Title,
+		accent: palette.Accent,
+		dim:    palette.Dim,
 	}
 }
 
@@ -145,10 +147,10 @@ func welcomePaletteFor(skin HermesSkin) welcomePalette {
 // non-bordered form. Layout/composition is patterned after ccx-go's
 // RenderWelcomeInline; no code is copied and colors come from the skin.
 func welcomePanel(skin HermesSkin, ctx welcomeContext, width int) string {
-	pal := welcomePaletteFor(skin)
-	titleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.title)).Bold(true)
-	accentStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.accent))
-	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.dim))
+	styles := SkinStylesFor(skin)
+	titleStyle := styles.Title
+	accentStyle := styles.BannerAccent
+	dimStyle := styles.BannerDim
 	contentWidth := welcomeContentWidth(width)
 
 	var body []string
@@ -224,11 +226,6 @@ func welcomeContentWidth(width int) int {
 		return 20
 	}
 	return width
-}
-
-func welcomeSummary(ctx welcomeContext, toolCount int, toolsets []string, dimStyle, accentStyle lipgloss.Style) string {
-	lines := welcomeSummaryLines(ctx, toolCount, toolsets, 120, dimStyle, accentStyle)
-	return strings.Join(lines, "\n")
 }
 
 func welcomeSummaryLines(ctx welcomeContext, toolCount int, toolsets []string, width int, dimStyle, accentStyle lipgloss.Style) []string {
@@ -326,10 +323,10 @@ func wrapWelcomeWords(text string, width int) []string {
 }
 
 func welcomeBannerBox(skin HermesSkin, version string, width int) string {
-	pal := welcomePaletteFor(skin)
-	border := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.border))
-	title := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.title)).Bold(true)
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.dim))
+	styles := SkinStylesFor(skin)
+	border := styles.BannerBorder
+	title := styles.Title
+	dim := styles.BannerDim
 
 	innerW := width - 4
 	if innerW < 36 {

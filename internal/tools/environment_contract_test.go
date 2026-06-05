@@ -121,6 +121,36 @@ func TestEnvironmentContract_FileSyncPlanChecksumDeleteAndNormalization(t *testi
 	}
 }
 
+func TestToolEnvironmentExecutionNormalizesEvidenceAndCommandDefaults(t *testing.T) {
+	command := normalizeEnvironmentCommand(EnvironmentCommand{Command: "go test ./internal/tools"}, 45*time.Second)
+	if command.Timeout != 45*time.Second {
+		t.Fatalf("defaulted timeout = %s, want 45s", command.Timeout)
+	}
+	explicit := normalizeEnvironmentCommand(EnvironmentCommand{Command: "go test ./...", Timeout: 2 * time.Second}, 45*time.Second)
+	if explicit.Timeout != 2*time.Second {
+		t.Fatalf("explicit timeout = %s, want preserved 2s", explicit.Timeout)
+	}
+
+	recorded := recordedEnvironmentEvidence("fake", EnvironmentOperationExecute, "go test", "recorded command")
+	if recorded.Code != EnvironmentCommandRecorded || recorded.Status != EnvironmentStatusRecorded || recorded.Backend != "fake" || recorded.Operation != "execute" || recorded.Resource != "go test" || recorded.Message != "recorded command" {
+		t.Fatalf("recorded evidence = %#v, want canonical execute evidence", recorded)
+	}
+
+	cwd := cwdDeletedEnvironmentEvidence("fake", "/tmp/deleted")
+	if cwd.Code != EnvironmentTerminalCWDDeleted || cwd.Status != EnvironmentStatusRecorded || cwd.Operation != "execute" || cwd.Resource != "/tmp/deleted" {
+		t.Fatalf("cwd deleted evidence = %#v, want canonical cwd fallback evidence", cwd)
+	}
+
+	err := unavailableEnvironmentError("modal", EnvironmentOperationExecute, "not configured")
+	evidence, ok := EnvironmentEvidenceFromError(err)
+	if !ok {
+		t.Fatalf("unavailableEnvironmentError returned %T, want EnvironmentEvidenceError", err)
+	}
+	if evidence.Code != EnvironmentBackendUnavailable || evidence.Status != EnvironmentStatusUnavailable || evidence.Backend != "modal" || evidence.Operation != "execute" || evidence.Message != "not configured" {
+		t.Fatalf("unavailable evidence = %#v, want canonical unavailable execute evidence", evidence)
+	}
+}
+
 func TestEnvironmentContract_UnsupportedBackendEvidence(t *testing.T) {
 	env := UnsupportedEnvironment{Backend: "modal", Reason: "not configured"}
 	_, err := env.Execute(context.Background(), EnvironmentCommand{Command: "true"})

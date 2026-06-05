@@ -640,13 +640,13 @@ Source docs:
 - `../honcho/docs/v3/guides/integrations/paperclip.mdx`
 - `../honcho/docs/v3/guides/integrations/sillytavern.mdx`
 - `docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md`
-- `internal/session/directory.go`
+- `internal/persistence/session/directory.go`
 - `internal/memory/session_catalog.go`
 
 Current Gormes files:
 
-- `internal/session/directory.go`
-- `internal/session/directory_test.go`
+- `internal/persistence/session/directory.go`
+- `internal/persistence/session/directory_test.go`
 - `internal/memory/session_catalog.go`
 - `internal/memory/session_catalog_test.go`
 - `internal/goncho/types.go`
@@ -660,7 +660,7 @@ Red tests:
     unavailable;
   - assistant peer defaults to `gormes`;
   - subagent peer IDs preserve parent lineage metadata when supplied.
-- `internal/session/directory_test.go`
+- `internal/persistence/session/directory_test.go`
   - conflicting `source/chat_id -> user_id` bindings fail visibly;
   - sessions are returned newest-first for a canonical user.
 
@@ -678,7 +678,7 @@ Do not implement:
 
 Validation:
 
-- `go test ./internal/goncho ./internal/session ./internal/memory -count=1`
+- `go test ./internal/goncho ./internal/persistence/session ./internal/memory -count=1`
 - `go run ./cmd/progress validate`
 
 Commit message:

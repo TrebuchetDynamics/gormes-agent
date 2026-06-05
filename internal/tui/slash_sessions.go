@@ -2,12 +2,11 @@ package tui
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/sessionspage"
 )
 
 const sessionResumeTimeout = 5 * time.Second
@@ -67,99 +66,33 @@ func resumeSlashWithArg(query string, model *Model) SlashResult {
 }
 
 func sessionSlashName(input string) string {
-	fields := strings.Fields(strings.TrimSpace(input))
-	if len(fields) == 0 {
-		return ""
-	}
-	return strings.ToLower(strings.TrimPrefix(fields[0], "/"))
+	return sessionspage.SlashName(input)
 }
 
 func sessionSlashArg(input string) string {
-	trimmed := strings.TrimSpace(input)
-	fields := strings.Fields(trimmed)
-	if len(fields) <= 1 {
-		return ""
-	}
-	idx := strings.Index(trimmed, fields[1])
-	if idx < 0 {
-		return strings.Join(fields[1:], " ")
-	}
-	return strings.TrimSpace(trimmed[idx:])
+	return sessionspage.SlashArg(input)
 }
 
 func resumeSuccessStatus(sessionID string, messages int) string {
-	return fmt.Sprintf("resumed %s (%s)", sessionID, messageCountLabel(messages))
+	return sessionspage.ResumeSuccessStatus(sessionID, messages)
 }
 
-func cloneResumeHistory(in []hermes.Message) []hermes.Message {
-	if len(in) == 0 {
-		return nil
-	}
-	out := make([]hermes.Message, len(in))
-	for i, msg := range in {
-		out[i] = msg
-		out[i].ContentParts = append([]hermes.MessageContentPart(nil), msg.ContentParts...)
-	}
-	return out
+func cloneResumeHistory(in []llm.Message) []llm.Message {
+	return sessionspage.CloneResumeHistory(in)
 }
 
 func sessionsSlashLimit(input string) int {
-	fields := strings.Fields(strings.TrimSpace(input))
-	limit := 20
-	if len(fields) > 1 {
-		if n, err := strconv.Atoi(fields[1]); err == nil {
-			limit = n
-		}
-	}
-	if limit < 1 {
-		return 1
-	}
-	if limit > 100 {
-		return 100
-	}
-	return limit
+	return sessionspage.Limit(input)
 }
 
 func BuildSessionsPage(entries []SessionDirectoryEntry) (TransientPageState, bool) {
-	if len(entries) == 0 {
-		return TransientPageState{}, false
-	}
-	blocks := make([]string, 0, len(entries))
-	for i, entry := range entries {
-		id := strings.TrimSpace(entry.ID)
-		if id == "" {
-			id = "(unknown session)"
-		}
-		title := firstNonEmptyString(strings.TrimSpace(entry.Title), strings.TrimSpace(entry.Preview), id)
-		preview := strings.TrimSpace(entry.Preview)
-		if preview == "" {
-			preview = "(no preview)"
-		}
-		meta := []string{messageCountLabel(entry.MessageCount)}
-		if source := strings.TrimSpace(entry.Source); source != "" {
-			meta = append(meta, "source: "+source)
-		}
-		if when := sessionDirectoryTimeLabel(entry.LastActiveAt); when != "" {
-			meta = append(meta, "last active: "+when)
-		}
-		blocks = append(blocks, fmt.Sprintf("%2d. %s\nID: %s\nPreview: %s\n%s", i+1, title, id, preview, strings.Join(meta, " · ")))
-	}
-	return TransientPageState{Title: "Sessions", Body: strings.Join(blocks, "\n\n")}, true
+	return sessionspage.Build(entries)
 }
 
 func messageCountLabel(count int) string {
-	if count == 1 {
-		return "1 message"
-	}
-	if count < 0 {
-		count = 0
-	}
-	return fmt.Sprintf("%d messages", count)
+	return sessionspage.MessageCountLabel(count)
 }
 
 func sessionDirectoryTimeLabel(ts int64) string {
-	if ts <= 0 {
-		return ""
-	}
-	return time.Unix(ts, 0).UTC().Format("2006-01-02 15:04 UTC")
+	return sessionspage.TimeLabel(ts)
 }

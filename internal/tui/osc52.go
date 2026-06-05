@@ -1,60 +1,20 @@
 package tui
 
-import (
-	"encoding/base64"
-	"strings"
-)
+import "github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal"
 
-const OSC52ClipboardQuery = "\x1b]52;c;?\x07"
+const OSC52ClipboardQuery = terminal.OSC52ClipboardQuery
 
-type OSC52Response struct {
-	Code int
-	Type string
-	Data string
-}
-
-type OSC52SendFunc func(query string) (OSC52Response, error)
+type OSC52Response = terminal.OSC52Response
+type OSC52SendFunc = terminal.OSC52SendFunc
 
 func BuildOSC52ClipboardQuery(env map[string]string) string {
-	if envValue(env, "TMUX") == "" {
-		return OSC52ClipboardQuery
-	}
-	escaped := strings.ReplaceAll(OSC52ClipboardQuery, "\x1b", "\x1b\x1b")
-	return "\x1bPtmux;" + escaped + "\x1b\\"
+	return terminal.BuildOSC52ClipboardQuery(env)
 }
 
 func ParseOSC52ClipboardData(data string) (string, bool) {
-	_, encoded, ok := strings.Cut(data, ";")
-	if !ok || encoded == "" || encoded == "?" {
-		return "", false
-	}
-	decoded, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil {
-		return "", false
-	}
-	text := string(decoded)
-	if !IsUsableClipboardText(text) {
-		return "", false
-	}
-	return text, true
+	return terminal.ParseOSC52ClipboardData(data)
 }
 
 func ReadOSC52Clipboard(env map[string]string, send OSC52SendFunc, flush func() error) ClipboardTextResult {
-	if send == nil {
-		return ClipboardTextResult{Evidence: "tui_terminal_osc52_unavailable"}
-	}
-	if flush != nil {
-		if err := flush(); err != nil {
-			return ClipboardTextResult{Evidence: "tui_terminal_osc52_unavailable"}
-		}
-	}
-	response, err := send(BuildOSC52ClipboardQuery(env))
-	if err != nil || response.Code != 52 || response.Type != "osc" {
-		return ClipboardTextResult{Evidence: "tui_terminal_osc52_unavailable"}
-	}
-	text, ok := ParseOSC52ClipboardData(response.Data)
-	if !ok {
-		return ClipboardTextResult{Evidence: "tui_terminal_osc52_unavailable"}
-	}
-	return ClipboardTextResult{Text: text, OK: true}
+	return terminal.ReadOSC52Clipboard(env, send, flush)
 }

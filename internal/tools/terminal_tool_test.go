@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/toolcompact"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/compact"
 )
 
 func TestTerminalToolRunsForegroundCommand(t *testing.T) {
@@ -162,8 +162,8 @@ func TestTerminalTool_CompactsLargeStdoutWhenOptedIn(t *testing.T) {
 	tool := NewTerminalTool(TerminalToolConfig{
 		Workdir:        t.TempDir(),
 		DefaultTimeout: 5 * time.Second,
-		OutputCompaction: toolcompact.Config{
-			Mode:           toolcompact.ModeAuto,
+		OutputCompaction: compact.Config{
+			Mode:           compact.ModeAuto,
 			ThresholdBytes: 128,
 			HeadLines:      2,
 			TailLines:      2,
@@ -191,7 +191,7 @@ func TestTerminalTool_CompactsLargeStdoutWhenOptedIn(t *testing.T) {
 		t.Fatalf("compaction = %#v, want object", out["compaction"])
 	}
 	stdoutEvidence, ok := compaction["stdout"].(map[string]any)
-	if !ok || stdoutEvidence["reducer"] != toolcompact.ReducerGoTest {
+	if !ok || stdoutEvidence["reducer"] != compact.ReducerGoTest {
 		t.Fatalf("stdout compaction = %#v, want go_test reducer", compaction["stdout"])
 	}
 }
@@ -201,8 +201,8 @@ func TestTerminalTool_FullOutputBypassesCompaction(t *testing.T) {
 	tool := NewTerminalTool(TerminalToolConfig{
 		Workdir:        t.TempDir(),
 		DefaultTimeout: 5 * time.Second,
-		OutputCompaction: toolcompact.Config{
-			Mode:           toolcompact.ModeAuto,
+		OutputCompaction: compact.Config{
+			Mode:           compact.ModeAuto,
 			ThresholdBytes: 128,
 		},
 	})

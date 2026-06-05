@@ -85,9 +85,9 @@ func (m *Model) RenderActivePanel(width, height int) string {
 		}
 		panelState := ApprovalPanelState{
 			Description:  aps.Description,
-			Command:       aps.Command,
-			Choices:       choices,
-			Selected:      ApprovalChoice(aps.Selected),
+			Command:      aps.Command,
+			Choices:      choices,
+			Selected:     ApprovalChoice(aps.Selected),
 			ViewExpanded: aps.ViewExpanded,
 		}
 		if aps.Width > 0 {
@@ -100,7 +100,7 @@ func (m *Model) RenderActivePanel(width, height int) string {
 		} else {
 			panelState.Height = height
 		}
-		return RenderApprovalPanel(panelState)
+		return RenderApprovalPanelWithSkin(panelState, m.currentSkin())
 
 	case ActivePanelClarify:
 		kcs, ok := state.(*kernel.KernelClarifyState)
@@ -123,7 +123,7 @@ func (m *Model) RenderActivePanel(width, height int) string {
 		} else {
 			panelState.Height = height
 		}
-		return RenderClarifyPanel(panelState)
+		return RenderClarifyPanelWithSkin(panelState, m.currentSkin())
 
 	case ActivePanelSecret:
 		kss, ok := state.(*kernel.KernelSecretState)
@@ -137,7 +137,7 @@ func (m *Model) RenderActivePanel(width, height int) string {
 			SecretLen:  kss.SecretLen,
 			Hint:       kss.Hint,
 		}
-		return RenderSecretPanel(panelState)
+		return RenderSecretPanelWithSkin(panelState, m.currentSkin())
 
 	default:
 		return ""

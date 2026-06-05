@@ -5,35 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
-
-func TestDetailsStateMatchesHermesSectionDefaults(t *testing.T) {
-	state := DefaultDetailsState()
-	if got := state.SectionMode(DetailsSectionThinking); got != DetailsModeExpanded {
-		t.Fatalf("thinking default = %q, want expanded", got)
-	}
-	if got := state.SectionMode(DetailsSectionTools); got != DetailsModeExpanded {
-		t.Fatalf("tools default = %q, want expanded", got)
-	}
-	if got := state.SectionMode(DetailsSectionActivity); got != DetailsModeHidden {
-		t.Fatalf("activity default = %q, want hidden", got)
-	}
-	if got := state.SectionMode(DetailsSectionSubagents); got != DetailsModeCollapsed {
-		t.Fatalf("subagents default = %q, want collapsed", got)
-	}
-
-	state.Global = DetailsModeHidden
-	state.CommandOverride = true
-	if got := state.SectionMode(DetailsSectionThinking); got != DetailsModeHidden {
-		t.Fatalf("command override thinking = %q, want hidden", got)
-	}
-	state.Sections = map[DetailsSection]DetailsMode{DetailsSectionTools: DetailsModeExpanded}
-	if got := state.SectionMode(DetailsSectionTools); got != DetailsModeExpanded {
-		t.Fatalf("section override tools = %q, want expanded", got)
-	}
-}
 
 func TestDetailsSlashControlsThinkingAndToolVisibilityWithoutSubmitting(t *testing.T) {
 	sub := &nopSubmitter{}
@@ -146,7 +120,7 @@ func newDetailsSlashModel(sub *nopSubmitter) Model {
 		Phase:     kernel.PhaseStreaming,
 		Model:     "openai/gpt-4.1",
 		SessionID: "sess-details",
-		History:   []hermes.Message{{Role: "user", Content: "inspect details"}},
+		History:   []llm.Message{{Role: "user", Content: "inspect details"}},
 		SoulEvents: []kernel.SoulEntry{
 			{Text: "tool: terminal: ls -la"},
 		},

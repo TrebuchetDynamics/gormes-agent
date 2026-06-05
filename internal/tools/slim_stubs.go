@@ -69,7 +69,7 @@ func NewTranscriptionTool(any) *slimTranscriptionTool {
 // slimVoiceModeTool reports voice mode is unavailable.
 type slimVoiceModeTool struct{}
 
-func (s *slimVoiceModeTool) Name() string    { return "voice_mode" }
+func (s *slimVoiceModeTool) Name() string { return "voice_mode" }
 func (s *slimVoiceModeTool) Description() string {
 	return "Voice mode is not available in this slim build"
 }
@@ -94,7 +94,7 @@ func NewVoiceModeTool(any) *slimVoiceModeTool {
 // slimImageGenTool reports image generation is unavailable.
 type slimImageGenTool struct{}
 
-func (s *slimImageGenTool) Name() string    { return "image_generate" }
+func (s *slimImageGenTool) Name() string { return "image_generate" }
 func (s *slimImageGenTool) Description() string {
 	return "Image generation is not available in this slim build"
 }

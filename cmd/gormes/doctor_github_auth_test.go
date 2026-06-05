@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
 )
 
 func TestDoctorCommandRendersGitHubAuthFallback(t *testing.T) {
@@ -40,7 +40,7 @@ model = "gpt-5.1-codex"
 		t.Fatalf("Execute: %v\nstdout=%s", err, stdout)
 	}
 
-	for _, want := range []string{"[PASS] GitHub auth:", "gh CLI", "github_cli_authenticated"} {
+	for _, want := range []string{"✓ GitHub auth —", "gh CLI", "github_cli_authenticated"} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}

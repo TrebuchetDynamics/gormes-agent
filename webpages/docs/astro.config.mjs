@@ -1,69 +1,19 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
 
+import { redirectsForContentDir } from './scripts/starlight-content.mjs';
+
 const docsDir = path.dirname(fileURLToPath(import.meta.url));
 const canonicalContentDir = path.join(docsDir, 'content');
-
-function walkMarkdown(dir, files = []) {
-  if (!fs.existsSync(dir)) return files;
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      walkMarkdown(full, files);
-      continue;
-    }
-    if (entry.isFile() && entry.name.endsWith('.md')) {
-      files.push(full);
-    }
-  }
-  return files;
-}
-
-function routeForContentFile(file) {
-  const rel = path.relative(canonicalContentDir, file).split(path.sep).join('/');
-  if (rel === '_index.md') return '/';
-  if (rel.endsWith('/_index.md')) {
-    return `/${rel.slice(0, -'_index.md'.length)}`;
-  }
-  return `/${rel.replace(/\.md$/, '/')}`;
-}
-
-function frontmatterFor(raw) {
-  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-  return match ? match[1] : '';
-}
-
-function aliasesFor(frontmatter) {
-  const match = frontmatter.match(/^aliases:\s*\r?\n((?:\s+-\s+.+\r?\n?)+)/m);
-  if (!match) return [];
-  return match[1]
-    .split(/\r?\n/)
-    .map((line) => line.trim().replace(/^-\s+/, '').trim())
-    .filter(Boolean)
-    .map((alias) => alias.replace(/^['"]|['"]$/g, ''));
-}
-
-function collectRedirects() {
-  const redirects = {};
-  for (const file of walkMarkdown(canonicalContentDir)) {
-    const raw = fs.readFileSync(file, 'utf8');
-    const destination = routeForContentFile(file);
-    for (const alias of aliasesFor(frontmatterFor(raw))) {
-      redirects[alias] = destination;
-    }
-  }
-  return redirects;
-}
 
 export default defineConfig({
   site: 'https://docs.gormes.ai',
   outDir: process.env.ASTRO_OUT_DIR || './dist',
   publicDir: './static',
-  redirects: collectRedirects(),
+  redirects: redirectsForContentDir(canonicalContentDir),
   integrations: [
     starlight({
       title: 'Gormes Docs',

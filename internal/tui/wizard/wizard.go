@@ -9,12 +9,17 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	basetui "github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/term"
 )
+
+func defaultWizardStyles() basetui.SkinStyles {
+	return basetui.SkinStylesFor(basetui.DefaultHermesSkin())
+}
 
 var (
 	// ErrRequiresTTY is returned when an interactive wizard is requested
@@ -23,6 +28,8 @@ var (
 	// ErrAbort is returned when the operator cancels with Ctrl-C or Escape.
 	ErrAbort = errors.New("wizard_aborted")
 )
+
+const setupClearLineTail = "\x1b[K"
 
 // Wizard runs a sequence of step prompts and returns their typed answers.
 type Wizard interface {
@@ -94,6 +101,7 @@ func (r *Runner) Run(ctx context.Context, steps ...Step) (Result, error) {
 		tea.WithContext(ctx),
 		tea.WithInput(in),
 		tea.WithOutput(out),
+		tea.WithAltScreen(),
 	)
 	final, err := program.Run()
 	if err != nil {
@@ -140,6 +148,14 @@ type model struct {
 	pickCursor        int
 	checklistSelected map[string]struct{}
 	confirmYes        bool
+
+	// Search picker state — populated only when the active step uses
+	// pickDisplaySearch. searchInput is the typeahead filter; pickFiltered
+	// is the narrowed choice list; pickFilteredIndices maps each filtered
+	// entry back to the original Step.Choices index.
+	searchInput         textinput.Model
+	pickFiltered        []Choice
+	pickFilteredIndices []int
 }
 
 func newModel(steps []Step) model {
@@ -159,6 +175,12 @@ func (m model) Init() tea.Cmd {
 		return textinput.Blink
 	case KindMultiLine:
 		return textarea.Blink
+	case KindPick:
+		step, ok := m.activeStep()
+		if ok && step.pickDisplay == pickDisplaySearch {
+			return m.searchInput.Focus()
+		}
+		return nil
 	default:
 		return nil
 	}
@@ -195,7 +217,9 @@ func (m model) View() string {
 
 	var b strings.Builder
 	if len(m.steps) > 1 {
-		fmt.Fprintf(&b, "Gormes setup %d/%d\n\n", m.index+1, len(m.steps))
+		progress := fmt.Sprintf("Gormes Setup — step %d of %d", m.index+1, len(m.steps))
+		b.WriteString(setupTrimToWidth(progress, m.viewWidth()))
+		b.WriteString("\n\n")
 	}
 	if step.Prompt != "" {
 		b.WriteString(wrapSetupText(step.Prompt, m.viewWidth()))
@@ -223,6 +247,8 @@ func (m model) View() string {
 	case KindPick:
 		if step.pickDisplay == pickDisplayRadio {
 			help = "↑↓ navigate  ENTER/SPACE select  ESC cancel"
+		} else if step.pickDisplay == pickDisplaySearch {
+			help = "Type to filter  ↑↓ navigate  Enter select  Esc cancel"
 		} else {
 			help = "Up/Down or j/k navigate  1-9 select  Enter submit  Esc/q abort"
 		}
@@ -276,11 +302,19 @@ func (m model) updateComponent(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.text, cmd = m.text.Update(msg)
 	case KindMultiLine:
 		m.area, cmd = m.area.Update(msg)
+	case KindPick:
+		step, ok := m.activeStep()
+		if ok && step.pickDisplay == pickDisplaySearch {
+			m.searchInput, cmd = m.searchInput.Update(msg)
+		}
 	}
 	return m, cmd
 }
 
 func (m model) updatePick(msg tea.KeyMsg, step Step) (tea.Model, tea.Cmd) {
+	if step.pickDisplay == pickDisplaySearch {
+		return m.updateSearchPick(msg, step)
+	}
 	if len(step.Choices) == 0 {
 		m.err = fmt.Errorf("wizard pick step %q has no choices", step.ID)
 		m.done = true
@@ -409,6 +443,7 @@ func (m *model) prepareActiveStep() tea.Cmd {
 			ti.EchoCharacter = '*'
 		}
 		ti.Width = setupInputWidth(m.width)
+		basetui.ApplyTextInputSkin(&ti, basetui.DefaultHermesSkin())
 		m.text = ti
 		return m.text.Focus()
 	case KindMultiLine:
@@ -419,9 +454,34 @@ func (m *model) prepareActiveStep() tea.Cmd {
 		ta.SetWidth(setupInputWidth(m.width))
 		ta.SetHeight(4)
 		ta.SetValue(step.value.Text)
+		basetui.ApplyTextareaSkin(&ta, basetui.DefaultHermesSkin())
 		m.area = ta
 		return m.area.Focus()
 	case KindPick:
+		if step.pickDisplay == pickDisplaySearch {
+			ti := textinput.New()
+			ti.Prompt = ""
+			ti.Placeholder = "Type to filter..."
+			ti.Width = max(1, setupInputWidth(m.width)-10) // account for "Filter: " prefix
+			basetui.ApplyTextInputSkin(&ti, basetui.DefaultHermesSkin())
+			m.searchInput = ti
+			m.pickFiltered, m.pickFilteredIndices = FilterChoices(step.Choices, "")
+			m.pickCursor = 0
+			// Set cursor to default choice if present
+			defaultID := step.defaultChoiceID
+			if step.hasValue {
+				defaultID = step.value.ChoiceID
+			}
+			if defaultID != "" {
+				for i, choice := range m.pickFiltered {
+					if choice.ID == defaultID {
+						m.pickCursor = i
+						break
+					}
+				}
+			}
+			return m.searchInput.Focus()
+		}
 		if step.hasValue {
 			for i, choice := range step.Choices {
 				if choice.ID == step.value.ChoiceID {
@@ -461,6 +521,11 @@ func (m *model) resizeInputs() {
 		m.text.Width = width
 	case KindMultiLine:
 		m.area.SetWidth(width)
+	case KindPick:
+		step, ok := m.activeStep()
+		if ok && step.pickDisplay == pickDisplaySearch {
+			m.searchInput.Width = max(1, width-10)
+		}
 	}
 }
 
@@ -483,6 +548,9 @@ func (m model) renderPick(step Step) string {
 	if len(step.Choices) == 0 {
 		return "(no choices)"
 	}
+	if step.pickDisplay == pickDisplaySearch {
+		return m.renderSearchPick(step)
+	}
 	if step.pickDisplay == pickDisplayRadio {
 		return m.renderRadioPick(step)
 	}
@@ -490,7 +558,7 @@ func (m model) renderPick(step Step) string {
 	for i, choice := range step.Choices {
 		prefix := "  "
 		if i == m.pickCursor {
-			prefix = "> "
+			prefix = "→ "
 		}
 		label := choice.Label
 		if label == "" {
@@ -521,6 +589,141 @@ func (m model) renderRadioPick(step Step) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
+func (m model) renderSearchPick(step Step) string {
+	var b strings.Builder
+
+	styles := defaultWizardStyles()
+
+	// Filter input with styled prompt
+	b.WriteString(styles.Dim.Render("  Filter: "))
+	b.WriteString(m.searchInput.View())
+	if len(m.pickFiltered) == 0 && m.searchInput.Value() != "" {
+		b.WriteString(styles.Dim.Render("  (no matches)"))
+	}
+	b.WriteString(setupClearLineTail)
+	b.WriteString("\n")
+
+	// Separator
+	sepWidth := m.viewWidth() - 2
+	if sepWidth < 1 {
+		sepWidth = 1
+	}
+	b.WriteString(styles.Separator.Render(strings.Repeat("─", sepWidth)))
+	b.WriteByte('\n')
+
+	// Filtered choice list with scroll window
+	if len(m.pickFiltered) == 0 {
+		return strings.TrimRight(b.String(), "\n")
+	}
+
+	visibleHeight := m.viewHeight() - 6 // title, prompt, filter, sep, help, padding
+	if visibleHeight < 3 {
+		visibleHeight = 3
+	}
+
+	start, end := searchScrollWindow(m.pickCursor, len(m.pickFiltered), visibleHeight)
+	for i := start; i < end; i++ {
+		choice := m.pickFiltered[i]
+		prefix := "  "
+		style := styles.Normal
+		if i == m.pickCursor {
+			prefix = "❯ "
+			style = styles.Selected
+		}
+		label := choice.Label
+		if label == "" {
+			label = choice.ID
+		}
+		// Index number for quick reference
+		idxStr := styles.Dim.Render(fmt.Sprintf("%3d ", i+1))
+		// Truncate label to fit within terminal width
+		prefixWidth := lipgloss.Width(prefix) + lipgloss.Width(idxStr)
+		maxLabelWidth := m.viewWidth() - prefixWidth
+		if maxLabelWidth > 0 && lipgloss.Width(label) > maxLabelWidth {
+			label = setupTrimToWidth(label, maxLabelWidth)
+		}
+		b.WriteString(prefix + idxStr + style.Render(label) + setupClearLineTail + "\n")
+	}
+
+	// Scroll indicator
+	total := len(m.pickFiltered)
+	if total > visibleHeight {
+		indicator := fmt.Sprintf("  %d/%d", m.pickCursor+1, total)
+		b.WriteString(styles.Dim.Render(indicator) + setupClearLineTail)
+	}
+
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func searchScrollWindow(cursor, total, height int) (start, end int) {
+	if total <= height {
+		return 0, total
+	}
+	half := height / 2
+	start = cursor - half
+	if start < 0 {
+		start = 0
+	}
+	end = start + height
+	if end > total {
+		end = total
+		start = end - height
+		if start < 0 {
+			start = 0
+		}
+	}
+	return start, end
+}
+
+func (m model) updateSearchPick(msg tea.KeyMsg, step Step) (tea.Model, tea.Cmd) {
+	if len(step.Choices) == 0 {
+		m.err = fmt.Errorf("wizard search pick step %q has no choices", step.ID)
+		m.done = true
+		return m, tea.Quit
+	}
+
+	// Navigation keys that should NOT go to the text input.
+	switch msg.String() {
+	case "up", "ctrl+p":
+		if m.pickCursor > 0 {
+			m.pickCursor--
+		}
+		return m, nil
+	case "down", "ctrl+n":
+		if m.pickCursor < len(m.pickFiltered)-1 {
+			m.pickCursor++
+		}
+		return m, nil
+	case "enter":
+		if len(m.pickFiltered) > 0 && m.pickCursor < len(m.pickFiltered) {
+			origIdx := m.pickFilteredIndices[m.pickCursor]
+			return m.finishStep(Answer{Kind: step.Kind, ChoiceID: step.Choices[origIdx].ID})
+		}
+		return m, nil
+	}
+
+	// Cancel keys
+	if msg.Type == tea.KeyEscape {
+		m.err = ErrAbort
+		m.done = true
+		return m, tea.Quit
+	}
+
+	// Pass all other keys (typing, backspace, etc.) to the filter input.
+	var cmd tea.Cmd
+	m.searchInput, cmd = m.searchInput.Update(msg)
+
+	// Recompute filtered list from the current query.
+	m.pickFiltered, m.pickFilteredIndices = FilterChoices(step.Choices, m.searchInput.Value())
+	if m.pickCursor >= len(m.pickFiltered) {
+		m.pickCursor = len(m.pickFiltered) - 1
+	}
+	if m.pickCursor < 0 {
+		m.pickCursor = 0
+	}
+	return m, cmd
+}
+
 func (m model) renderChecklist(step Step) string {
 	if len(step.Choices) == 0 {
 		return "(no choices)"
@@ -529,7 +732,7 @@ func (m model) renderChecklist(step Step) string {
 	for i, choice := range step.Choices {
 		prefix := "  "
 		if i == m.pickCursor {
-			prefix = "> "
+			prefix = "→ "
 		}
 		marker := "[ ]"
 		if _, ok := m.checklistSelected[choice.ID]; ok {
@@ -570,9 +773,9 @@ func (m model) renderConfirm() string {
 	noPrefix := "  "
 	yesPrefix := "  "
 	if m.confirmYes {
-		yesPrefix = "> "
+		yesPrefix = "→ "
 	} else {
-		noPrefix = "> "
+		noPrefix = "→ "
 	}
 	return noPrefix + "No\n" + yesPrefix + "Yes"
 }
@@ -739,7 +942,7 @@ func setupPromptLine(lines []string) string {
 func setupFocalLine(lines []string) string {
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, ">") || strings.HasPrefix(trimmed, "→") {
+		if strings.HasPrefix(trimmed, ">") || strings.HasPrefix(trimmed, "→") || strings.HasPrefix(trimmed, "Filter:") {
 			return line
 		}
 	}

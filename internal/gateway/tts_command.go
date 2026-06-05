@@ -3,77 +3,53 @@ package gateway
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/ttsconfig"
 )
 
 // TTSEngine is the configured TTS engine identifier.
-type TTSEngine string
+type TTSEngine = ttsconfig.Engine
 
 const (
-	TTSEngineOpenAI     TTSEngine = "openai"
-	TTSEngineElevenLabs TTSEngine = "elevenlabs"
-	TTSEngineEdge       TTSEngine = "edge"
-	TTSEngineLocal      TTSEngine = "local"
-	TTSEngineDisabled   TTSEngine = "disabled"
+	TTSEngineOpenAI     = ttsconfig.EngineOpenAI
+	TTSEngineElevenLabs = ttsconfig.EngineElevenLabs
+	TTSEngineEdge       = ttsconfig.EngineEdge
+	TTSEngineLocal      = ttsconfig.EngineLocal
+	TTSEngineDisabled   = ttsconfig.EngineDisabled
 )
 
 // TTSSpeed is the normalized speech speed preset.
-type TTSSpeed string
+type TTSSpeed = ttsconfig.Speed
 
 const (
-	TTSSpeedSlow     TTSSpeed = "slow"
-	TTSSpeedNormal   TTSSpeed = "normal"
-	TTSSpeedFast     TTSSpeed = "fast"
-	TTSSpeedVeryFast TTSSpeed = "very-fast"
+	TTSSpeedSlow     = ttsconfig.SpeedSlow
+	TTSSpeedNormal   = ttsconfig.SpeedNormal
+	TTSSpeedFast     = ttsconfig.SpeedFast
+	TTSSpeedVeryFast = ttsconfig.SpeedVeryFast
 )
 
 // TTSConfig holds per-session TTS settings.
-type TTSConfig struct {
-	Enabled  bool      `json:"enabled"`
-	Engine   TTSEngine `json:"engine"`
-	Voice    string    `json:"voice"`
-	Speed    TTSSpeed  `json:"speed"`
-	Language string    `json:"language"`
+type TTSConfig = ttsconfig.Config
+
+// TTSConfigStore owns per-session TTS settings.
+type TTSConfigStore = ttsconfig.Store
+
+// NewTTSConfigStore returns a session-keyed TTS config store.
+func NewTTSConfigStore() *TTSConfigStore {
+	return ttsconfig.NewStore()
 }
 
-func (c TTSConfig) String() string {
-	enabled := "disabled"
-	if c.Enabled {
-		enabled = "enabled"
-	}
-	return fmt.Sprintf("TTS: %s\nengine: %s\nvoice: %s\nspeed: %s\nlanguage: %s",
-		enabled, c.Engine, c.Voice, c.Speed, c.Language)
-}
+var defaultTTSConfig = ttsconfig.DefaultConfig
 
-var defaultTTSConfig = TTSConfig{
-	Engine:   TTSEngineDisabled,
-	Voice:    "alloy",
-	Speed:    TTSSpeedNormal,
-	Language: "auto",
-}
+var knownTTSEngines = ttsconfig.KnownEngines
 
-var knownTTSEngines = []TTSEngine{TTSEngineOpenAI, TTSEngineElevenLabs, TTSEngineEdge, TTSEngineLocal, TTSEngineDisabled}
+var ttsSupportedSpeeds = ttsconfig.SupportedSpeeds
 
-var validTTSSpeeds = map[string]TTSSpeed{
-	"slow": TTSSpeedSlow, "normal": TTSSpeedNormal, "fast": TTSSpeedFast,
-	"very-fast": TTSSpeedVeryFast, "veryfast": TTSSpeedVeryFast,
-	"very_fast": TTSSpeedVeryFast, "very fast": TTSSpeedVeryFast,
-}
-
-var ttsSupportedSpeeds = fmt.Sprintf("%s, %s, %s, %s", TTSSpeedSlow, TTSSpeedNormal, TTSSpeedFast, TTSSpeedVeryFast)
-
-var ttsVoices = map[TTSEngine][]string{
-	TTSEngineOpenAI:     {"alloy", "echo", "fable", "onyx", "nova", "shimmer"},
-	TTSEngineElevenLabs: {"rachel", "domi", "bella", "elli", "josh", "arnold"},
-	TTSEngineEdge:       {"en-US-AriaNeural", "en-US-JennyNeural", "en-US-GuyNeural"},
-	TTSEngineLocal:      {},
-	TTSEngineDisabled:   {},
-}
+var ttsVoices = ttsconfig.Voices
 
 func resolveTTSSpeed(raw string) (TTSSpeed, bool) {
-	s, ok := validTTSSpeeds[strings.ToLower(strings.TrimSpace(raw))]
-	return s, ok
+	return ttsconfig.ResolveSpeed(raw)
 }
 
 func (m *Manager) handleTTSCommand(ctx context.Context, ch Channel, ev InboundEvent) {
@@ -114,29 +90,29 @@ func (m *Manager) handleTTSCommand(ctx context.Context, ch Channel, ev InboundEv
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("TTS speed set to: %s", s))
 	case "voice":
 		if len(args) < 3 {
-			voices := ttsVoices[cfg.Engine]
+			voices := ttsconfig.VoicesForEngineSorted(cfg.Engine)
 			selected := cfg.Voice
 			if len(voices) == 0 {
 				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("TTS voice: %s\nEngine %s does not support voice listing.", selected, cfg.Engine))
 			} else {
-				sort.Strings(voices)
 				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("TTS voice: %s\nAvailable voices for %s: %s", selected, cfg.Engine, strings.Join(voices, ", ")))
 			}
 			return
 		}
-		name := strings.ToLower(strings.Join(args[2:], " "))
+		name := strings.TrimSpace(strings.Join(args[2:], " "))
 		if len(ttsVoices[cfg.Engine]) > 0 {
-			found := false
+			canonical := ""
 			for _, v := range ttsVoices[cfg.Engine] {
 				if strings.EqualFold(v, name) {
-					found = true
+					canonical = v
 					break
 				}
 			}
-			if !found {
+			if canonical == "" {
 				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("Unknown voice: %s\nAvailable: %s", name, strings.Join(ttsVoices[cfg.Engine], ", ")))
 				return
 			}
+			name = canonical
 		}
 		cfg.Voice = name
 		m.setTTSConfig(ev.ChatKey(), cfg)
@@ -164,6 +140,7 @@ func (m *Manager) handleTTSCommand(ctx context.Context, ch Channel, ev InboundEv
 		}
 		cfg.Engine = found
 		cfg.Voice = defaultVoiceForEngine(found)
+		cfg.Enabled = found != TTSEngineDisabled
 		m.setTTSConfig(ev.ChatKey(), cfg)
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("TTS engine set to: %s", found))
 	case "language":
@@ -174,39 +151,23 @@ func (m *Manager) handleTTSCommand(ctx context.Context, ch Channel, ev InboundEv
 }
 
 func (m *Manager) getTTSConfig(sessionKey string) TTSConfig {
-	m.reasoningMu.Lock()
-	defer m.reasoningMu.Unlock()
-	if m.ttsConfigs == nil {
-		m.ttsConfigs = make(map[string]TTSConfig)
+	if m.ttsConfigStore == nil {
+		m.ttsConfigStore = NewTTSConfigStore()
 	}
-	cfg, ok := m.ttsConfigs[sessionKey]
-	if !ok {
-		cfg = defaultTTSConfig
-		m.ttsConfigs[sessionKey] = cfg
-	}
-	return cfg
+	return m.ttsConfigStore.Get(sessionKey)
 }
 
 func (m *Manager) setTTSConfig(sessionKey string, cfg TTSConfig) {
-	m.reasoningMu.Lock()
-	defer m.reasoningMu.Unlock()
-	if m.ttsConfigs == nil {
-		m.ttsConfigs = make(map[string]TTSConfig)
+	if m.ttsConfigStore == nil {
+		m.ttsConfigStore = NewTTSConfigStore()
 	}
-	m.ttsConfigs[sessionKey] = cfg
+	m.ttsConfigStore.Set(sessionKey, cfg)
 }
 
 func engineNames() []string {
-	n := make([]string, len(knownTTSEngines))
-	for i, e := range knownTTSEngines {
-		n[i] = string(e)
-	}
-	return n
+	return ttsconfig.EngineNames()
 }
 
 func defaultVoiceForEngine(e TTSEngine) string {
-	if v := ttsVoices[e]; len(v) > 0 {
-		return v[0]
-	}
-	return "default"
+	return ttsconfig.DefaultVoiceForEngine(e)
 }

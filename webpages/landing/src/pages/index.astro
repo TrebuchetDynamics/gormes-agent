@@ -1,14 +1,14 @@
 ---
-import '../styles/global.css';
+import BaseDocument from '../components/BaseDocument.astro';
 import { page } from '../data/landing.js';
+import { site } from '../data/site.js';
 
-const sectionShell = 'mx-auto max-w-5xl px-5 sm:px-7';
-const sectionPad = 'py-14 sm:py-16';
-const cardShell = 'rounded-lg border border-white/10 bg-white/[0.035] p-5 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]';
-const buttonBase = 'btn inline-flex min-h-11 items-center justify-center rounded-md px-4 py-2 text-sm font-bold transition hover:border-transparent focus-visible:rounded-md';
-const buttonPrimary = `${buttonBase} btn-primary bg-[#f0c84b] text-[#171000] hover:bg-[#ffd968]`;
-const buttonSecondary = `${buttonBase} btn-secondary border border-white/15 bg-white/[0.035] text-[#eeece5] hover:border-[#f0c84b]/70 hover:text-[#f0c84b]`;
-const canonicalUrl = page.siteUrl;
+const sectionShell = 'mx-auto max-w-6xl px-5 sm:px-7 lg:px-8';
+const sectionPad = 'py-14 sm:py-18 lg:py-20';
+const cardShell = 'glass-card rounded-2xl border border-white/10 bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.22)]';
+const buttonBase = 'btn inline-flex min-h-11 items-center justify-center rounded-full px-5 py-2.5 text-sm font-bold transition hover:border-transparent focus-visible:rounded-full';
+const buttonPrimary = `${buttonBase} btn-primary bg-[#f0c84b] text-[#171000] shadow-[0_12px_34px_rgba(240,200,75,0.24)] hover:bg-[#ffd968]`;
+const buttonSecondary = `${buttonBase} btn-secondary border border-white/15 bg-white/[0.055] text-[#eeece5] hover:border-[#f0c84b]/70 hover:text-[#f0c84b]`;
 const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
@@ -19,8 +19,8 @@ const softwareSchema = {
   description: page.description,
   softwareVersion: page.releaseTag,
   license: 'https://opensource.org/license/mit',
-  codeRepository: 'https://github.com/TrebuchetDynamics/gormes-agent',
-  downloadUrl: 'https://gormes.ai/install.sh',
+  codeRepository: site.githubUrl,
+  downloadUrl: site.installScriptUrl,
   offers: {
     '@type': 'Offer',
     price: '0',
@@ -28,95 +28,77 @@ const softwareSchema = {
   },
   publisher: {
     '@type': 'Organization',
-    name: 'TrebuchetDynamics',
-    url: 'https://trebuchetdynamics.com/',
+    name: site.publisherName,
+    url: site.publisherUrl,
   },
 };
 const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
-  name: 'TrebuchetDynamics',
-  url: 'https://trebuchetdynamics.com/',
+  name: site.publisherName,
+  url: site.publisherUrl,
   sameAs: ['https://github.com/TrebuchetDynamics'],
 };
 ---
 
-<!doctype html>
-<html lang="en" data-site-runtime="astro-tailwind">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{page.title}</title>
-    <meta name="description" content={page.description} />
-    <meta
-      name="keywords"
-      content="Go AI agent runtime, Hermes agent alternative, single binary AI agent, offline AI agent runtime, AI agent gateway, Termux AI agent"
-    />
-    <link rel="canonical" href={canonicalUrl} />
-    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
-    <link rel="icon" type="image/x-icon" href="/static/favicon.ico" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png" />
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Gormes" />
-    <meta property="og:title" content={page.title} />
-    <meta property="og:description" content={page.description} />
-    <meta property="og:url" content={page.siteUrl} />
-    <meta property="og:image" content="https://gormes.ai/static/social-card.png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Gormes Go-native AI agent runtime without Python or Docker" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={page.title} />
-    <meta name="twitter:description" content={page.description} />
-    <meta name="twitter:image" content="https://gormes.ai/static/social-card.png" />
-    <meta name="twitter:image:alt" content="Gormes Go-native AI agent runtime without Python or Docker" />
-    <script type="application/ld+json" set:html={JSON.stringify([softwareSchema, organizationSchema])}></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Fraunces:ital,opsz,wght,SOFT@0,9..144,400;0,9..144,700;0,9..144,900;1,9..144,400;1,9..144,700&family=JetBrains+Mono:wght@400;500;700&display=swap"
-    />
-  </head>
-  <body class="min-h-screen overflow-x-hidden bg-[#090b0f] text-[#eeece5]">
-    <header class="topbar border-b border-white/10">
+<BaseDocument
+  title={page.title}
+  description={page.description}
+  canonicalUrl={page.siteUrl}
+  keywords="Go AI agent runtime, local AI agent runtime, single binary AI agent, offline AI runtime, AI agent memory, AI gateway runtime, Hermes agent alternative, Android Termux AI agent"
+  socialUrl={page.siteUrl}
+  socialImageAlt="Gormes runs AI agents anywhere from one Go binary"
+  structuredData={[softwareSchema, organizationSchema]}
+>
+  <link slot="head" rel="sitemap" type="application/xml" href="/sitemap.xml" />
+    <a class="skip-link" href="#content">Skip to content</a>
+    <header class="topbar sticky top-0 z-50 border-b border-white/10 bg-[#090b0f]/78 backdrop-blur-xl supports-[backdrop-filter]:bg-[#090b0f]/64">
       <div class={`${sectionShell} topbar-inner flex items-center justify-between gap-5 py-4`}>
         <a class="brand inline-flex min-w-0 items-center border-0 hover:opacity-90" href="#top" aria-label="Gormes">
           <img
             class="h-auto w-[168px] max-w-[44vw] sm:w-[220px]"
             src="/static/gormes-agent-logo-blue.svg"
             alt="Gormes"
+            width="1200"
+            height="150"
           />
         </a>
-        <nav class="topnav flex flex-wrap justify-end gap-4 text-xs font-bold uppercase text-[#eeece5]/65" aria-label="Primary">
-          {page.nav.map((link) => (
-            <a class="border-0 hover:text-[#eeece5]" href={link.href}>{link.label}</a>
-          ))}
+        <nav aria-label="Primary">
+          <ul class="topnav m-0 flex list-none flex-wrap justify-end gap-2 p-0 text-xs font-bold uppercase text-[#eeece5]/65 sm:gap-3" role="list">
+            {page.nav.map((link) => (
+              <li>
+                <a class="rounded-full border border-transparent px-2.5 py-1.5 hover:border-white/10 hover:bg-white/[0.055] hover:text-[#eeece5]" href={link.href}>{link.label}</a>
+              </li>
+            ))}
+          </ul>
         </nav>
       </div>
     </header>
 
-    <main>
+    <main id="content" tabindex="-1">
       <section id="top" class="hero relative isolate overflow-hidden border-b border-white/10">
         <img
-          class="pointer-events-none absolute right-[-62px] top-8 z-0 hidden w-[360px] opacity-24 sm:block md:right-[-36px] md:w-[430px] lg:right-8 lg:opacity-35"
+          class="pointer-events-none absolute right-[-62px] top-10 z-0 hidden h-auto w-[360px] opacity-[0.18] sm:block md:right-[-36px] md:w-[430px] lg:right-8 lg:opacity-[0.28]"
           src="/static/go-gopher-bear-lowpoly.png"
           alt="Gormes Go-native AI agent runtime mascot"
+          width="800"
+          height="800"
+          fetchpriority="low"
+          decoding="async"
         />
-        <div class={`${sectionShell} hero-inner relative z-10 py-16 sm:py-20`}>
-          <div class="hero-content max-w-3xl">
-            <p class="kicker mb-4 text-xs font-bold uppercase tracking-[0.18em] text-[#73cedd]">{page.heroKicker}</p>
-            <h1 class="hero-title mb-5 max-w-[780px] break-words font-serif text-[clamp(2.35rem,8vw,4.8rem)] font-black leading-[0.98] text-white">
+        <div class={`${sectionShell} hero-inner relative z-10 grid gap-10 py-16 sm:py-20 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.72fr)] lg:items-center lg:py-24`}>
+          <div class="hero-content min-w-0 max-w-3xl">
+            <p class="kicker mb-4 text-xs font-bold uppercase tracking-[0.2em] text-[#73cedd]">{page.heroKicker}</p>
+            <h1 class="hero-title mb-5 max-w-[820px] text-balance font-serif text-[clamp(2.45rem,7.8vw,5.35rem)] font-black leading-[0.95] tracking-[-0.045em] text-white">
               {page.heroHeadline}
             </h1>
-            <div class="hero-subhead max-w-2xl text-base leading-7 text-[#eeece5]/75 sm:text-lg">
+            <div class="hero-subhead max-w-2xl text-pretty text-base leading-7 text-[#eeece5]/[0.76] sm:text-lg">
               {page.heroLines.map((line) => <p>{line}</p>)}
             </div>
-            <div class="hero-ctas mt-7 flex flex-col gap-3 sm:flex-row">
+            <div class="hero-ctas mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
               <a class={buttonPrimary} href={page.primaryCta.href}>{page.primaryCta.label}</a>
               <a class={buttonSecondary} href={page.secondaryCta.href}>{page.secondaryCta.label}</a>
+              <a class="inline-flex min-h-11 items-center justify-center rounded-full px-2 py-2 text-sm font-bold text-[#f0c84b] hover:text-[#ffd968] sm:justify-start" href={page.tertiaryCta.href}>{page.tertiaryCta.label}</a>
             </div>
             <div class="proof-strip mt-6 flex flex-wrap gap-2">
               {page.proofStrip.map((item) => (
@@ -132,6 +114,7 @@ const organizationSchema = {
               ))}
             </div>
           </div>
+
         </div>
       </section>
 
@@ -140,57 +123,38 @@ const organizationSchema = {
           <p class="kicker mb-3 text-xs font-bold uppercase text-[#eeece5]/50">{page.whyLabel}</p>
           <h2 class="section-title mb-5 max-w-2xl text-2xl font-bold text-[#eeece5]">{page.whyPainHeadline}</h2>
           <p class="max-w-3xl text-base leading-7 text-[#eeece5]/70">{page.whyPainIntro}</p>
-          <div class="why-card-grid mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div class="why-card-grid mt-8 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
             {page.whyCards.map((card) => (
-              <article class={`${cardShell} why-card min-w-0`}>
+              <article class={`${cardShell} why-card min-w-0 transition duration-200 hover:-translate-y-0.5 hover:border-[#73cedd]/28 hover:bg-white/[0.065]`}>
                 <h3 class="text-base font-bold text-[#eeece5]">{card.title}</h3>
                 <p class="mt-3 text-sm leading-6 text-[#eeece5]/70">{card.body}</p>
-                {card.href && card.linkLabel && (
-                  <a class="mt-4 inline-block text-sm font-bold text-[#f0c84b] hover:text-[#ffd968]" href={card.href}>
-                    {card.linkLabel}
-                  </a>
-                )}
               </article>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="built-for" class={`built-for border-b border-white/10 ${sectionPad}`}>
-        <div class={`${sectionShell} built-for-inner`}>
-          <h2 class="section-title mb-4 text-2xl font-bold text-[#eeece5]">{page.worksHeadline}</h2>
-          <p class="max-w-2xl text-base leading-7 text-[#eeece5]/70">{page.worksIntro}</p>
-          <div class="works-grid mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {page.worksItems.map((item) => (
-              <article class="works-card rounded-lg border border-white/10 bg-white/[0.035] p-4 text-sm font-bold text-[#eeece5]/80">
-                {item}
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="install" class={`install border-b border-white/10 bg-[#10141b] ${sectionPad}`}>
+      <section id="install" class={`install border-b border-white/10 ${sectionPad}`}>
         <div class={`${sectionShell} install-inner`}>
           <div class="install-header max-w-2xl">
-            <p class="kicker mb-3 text-xs font-bold uppercase text-[#eeece5]/50">INSTALL</p>
+            <p class="kicker mb-3 text-xs font-bold uppercase text-[#eeece5]/50">FIRST RUN</p>
             <h2 class="section-title mb-4 text-2xl font-bold text-[#eeece5]">{page.installHeadline}</h2>
             <p class="install-intro text-base leading-7 text-[#eeece5]/70">{page.installIntro}</p>
           </div>
-          <article class={`${cardShell} install-step mt-8 flex min-w-0 flex-col gap-4`}>
-            <div class="flex items-center justify-between gap-3">
-              <h3 class="font-mono text-xs font-bold uppercase text-[#f0c84b]">Linux, macOS, WSL2</h3>
+          <figure class={`${cardShell} install-step mt-8 flex min-w-0 flex-col gap-4`}>
+            <figcaption class="flex flex-wrap items-center justify-between gap-3">
+              <span class="font-mono text-xs font-bold uppercase tracking-[0.12em] text-[#f0c84b]">Linux, macOS, WSL2</span>
               <button
-                class="copy-btn inline-flex min-h-8 items-center rounded-md border border-white/15 px-3 py-1.5 font-mono text-xs font-bold text-[#eeece5]/70 transition hover:border-[#f0c84b]/70 hover:text-[#f0c84b]"
+                class="copy-btn inline-flex min-h-8 items-center rounded-full border border-white/15 px-3 py-1.5 font-mono text-xs font-bold text-[#eeece5]/70 transition hover:border-[#f0c84b]/70 hover:text-[#f0c84b]"
                 type="button"
                 data-copy-command
                 aria-label="Copy install command"
               >
                 <span class="copy-label">Copy</span>
               </button>
-            </div>
-            <pre class="cmd min-w-0 overflow-x-auto rounded-md bg-[#05070a] p-4 text-sm leading-6 text-[#eeece5]"><code>{page.installCommand}</code></pre>
-          </article>
+            </figcaption>
+            <pre class="cmd min-w-0 overflow-x-auto rounded-xl bg-[#05070a] p-4 text-sm leading-6 text-[#eeece5]" tabindex="0"><code>{page.installCommand}</code></pre>
+          </figure>
           <p class="install-footnote mt-6 text-sm text-[#eeece5]/65">
             {page.installFootnote}
             <a class="ml-1 font-bold text-[#f0c84b] hover:text-[#ffd968]" href={page.installFootnoteLink.href}>
@@ -200,58 +164,6 @@ const organizationSchema = {
         </div>
       </section>
 
-      <section id="proof" class={`proof border-b border-white/10 ${sectionPad}`}>
-        <div class={`${sectionShell} proof-inner`}>
-          <h2 class="section-title mb-4 text-2xl font-bold text-[#eeece5]">{page.proofHeadline}</h2>
-          <p class="max-w-2xl text-base leading-7 text-[#eeece5]/70">{page.proofIntro}</p>
-          <div class="proof-grid mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {page.proofItems.map((item) => (
-              <article class={`${cardShell} proof-card`}>
-                <p class="font-mono text-2xl font-black text-[#73cedd]">{item.value}</p>
-                <h3 class="mt-2 text-sm font-bold text-[#eeece5]">{item.label}</h3>
-                <p class="mt-2 text-xs leading-5 text-[#eeece5]/65">{item.detail}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="roadmap" class={`roadmap border-b border-white/10 bg-[#10141b] ${sectionPad}`}>
-        <div class={`${sectionShell} roadmap-inner`}>
-          <p class="kicker mb-3 text-xs font-bold uppercase text-[#eeece5]/50">{page.roadmapLabel}</p>
-          <h2 class="section-title mb-6 text-2xl font-bold text-[#eeece5]">{page.roadmapHeadline}</h2>
-          <div class="roadmap-summary grid gap-4 md:grid-cols-2">
-            <article class={`${cardShell} roadmap-summary-block`}>
-              <h3 class="roadmap-summary-heading text-sm font-bold text-[#f0c84b]">Available now</h3>
-              <ul class="roadmap-summary-list mt-4 space-y-2 text-sm leading-6 text-[#eeece5]/70">
-                {page.roadmapNow.map((item) => <li>{item}</li>)}
-              </ul>
-            </article>
-            <article class={`${cardShell} roadmap-summary-block`}>
-              <h3 class="roadmap-summary-heading text-sm font-bold text-[#f0c84b]">Expanding next</h3>
-              <ul class="roadmap-summary-list mt-4 space-y-2 text-sm leading-6 text-[#eeece5]/70">
-                {page.roadmapNext.map((item) => <li>{item}</li>)}
-              </ul>
-            </article>
-          </div>
-          <p class="roadmap-footer mt-5 text-sm font-bold text-[#f0c84b]">
-            <a class="hover:text-[#ffd968]" href={page.progressTrackerUrl}>
-              {page.roadmapLinkLabel}
-            </a>
-          </p>
-        </div>
-      </section>
-
-      <section id="final-cta" class={`final-cta ${sectionPad}`}>
-        <div class={`${sectionShell} final-cta-inner`}>
-          <h2 class="section-title max-w-2xl text-3xl font-bold text-white">{page.finalCtaHeadline}</h2>
-          <p class="final-cta-body mt-4 max-w-2xl text-base leading-7 text-[#eeece5]/70">{page.finalCtaBody}</p>
-          <div class="final-cta-actions mt-7 flex flex-col gap-3 sm:flex-row">
-            <a class={buttonPrimary} href={page.finalPrimaryCta.href}>{page.finalPrimaryCta.label}</a>
-            <a class={buttonSecondary} href={page.finalSecondaryCta.href}>{page.finalSecondaryCta.label}</a>
-          </div>
-        </div>
-      </section>
     </main>
 
     <footer class="footer border-t border-white/10 bg-[#05070a]">
@@ -307,5 +219,4 @@ const organizationSchema = {
         }
       });
     </script>
-  </body>
-</html>
+</BaseDocument>

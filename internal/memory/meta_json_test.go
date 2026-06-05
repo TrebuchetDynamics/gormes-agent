@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 )
 
 func TestSqliteStore_FinalizeAssistantTurnPersistsMetaJSON(t *testing.T) {

@@ -1,23 +1,19 @@
 package docs_test
 
 import (
-	"context"
-	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
-	"time"
 )
 
 var staleGormesIORefPattern = regexp.MustCompile(`(?i)(?:https?://)?(?:www\.)?gormes\.io`)
 
 func TestTargetsIncludeLandingPageDocs(t *testing.T) {
 	want := map[string]bool{
-		"superpowers/specs/2026-04-19-gormes-landing-page-design.md": false,
-		"superpowers/plans/2026-04-19-gormes-landing-page.md":        false,
+		"superpowers/specs/2026-04-19-gormes-landing-page-design.md":   false,
+		"superpowers/plans/web-docs/2026-04-19-gormes-landing-page.md": false,
 	}
 
 	for _, target := range targets {
@@ -35,8 +31,8 @@ func TestTargetsIncludeLandingPageDocs(t *testing.T) {
 
 func TestTargetsIncludeAICutoverDocs(t *testing.T) {
 	want := map[string]bool{
-		"superpowers/specs/2026-04-19-gormes-ai-cutover-design.md": false,
-		"superpowers/plans/2026-04-19-gormes-ai-cutover.md":        false,
+		"superpowers/specs/2026-04-19-gormes-ai-cutover-design.md":      false,
+		"superpowers/plans/foundations/2026-04-19-gormes-ai-cutover.md": false,
 	}
 
 	for _, target := range targets {
@@ -54,8 +50,8 @@ func TestTargetsIncludeAICutoverDocs(t *testing.T) {
 
 func TestTargetsIncludeManifestoSyncDocs(t *testing.T) {
 	want := map[string]bool{
-		"superpowers/specs/2026-04-19-gormes-doc-sync-manifesto-design.md": false,
-		"superpowers/plans/2026-04-19-gormes-doc-sync-manifesto.md":        false,
+		"superpowers/specs/2026-04-19-gormes-doc-sync-manifesto-design.md":   false,
+		"superpowers/plans/web-docs/2026-04-19-gormes-doc-sync-manifesto.md": false,
 	}
 
 	for _, target := range targets {
@@ -73,8 +69,8 @@ func TestTargetsIncludeManifestoSyncDocs(t *testing.T) {
 
 func TestTargetsIncludePhase2CPersistenceDocs(t *testing.T) {
 	want := map[string]bool{
-		"superpowers/specs/2026-04-19-gormes-phase2c-persistence-design.md": false,
-		"superpowers/plans/2026-04-19-gormes-phase2c-persistence.md":        false,
+		"superpowers/specs/2026-04-19-gormes-phase2c-persistence-design.md":           false,
+		"superpowers/plans/runtime-channels/2026-04-19-gormes-phase2c-persistence.md": false,
 	}
 
 	for _, target := range targets {
@@ -310,7 +306,7 @@ func TestAICutoverDocsExistAndCarryExpectedTitles(t *testing.T) {
 		t.Fatalf("cutover spec missing its title")
 	}
 
-	plan := readDoc(t, "superpowers/plans/2026-04-19-gormes-ai-cutover.md")
+	plan := readDoc(t, "superpowers/plans/foundations/2026-04-19-gormes-ai-cutover.md")
 	if !strings.Contains(plan, "Gormes.ai Hard Cutover Implementation Plan") {
 		t.Fatalf("cutover plan missing its title")
 	}
@@ -413,14 +409,13 @@ func TestLandingPageDesignDocDescribesCurrentGormesAIModule(t *testing.T) {
 }
 
 func TestLandingPagePlanDocDocumentsCurrentAICutoverImplementation(t *testing.T) {
-	raw := readDoc(t, "superpowers/plans/2026-04-19-gormes-landing-page.md")
+	raw := readDoc(t, "superpowers/plans/web-docs/2026-04-19-gormes-landing-page.md")
 	wants := []string{
 		"# Gormes.ai Landing Page Implementation Plan",
 		"webpages/landing/src/pages/index.astro",
 		"webpages/landing/src/data/landing.js",
 		"webpages/landing/src/styles/global.css",
 		"webpages/landing/scripts/sync-assets.mjs",
-		"webpages/landing/legacy/go-renderer/",
 		"webpages/landing/README.md",
 		"webpages/landing/tests/home.spec.mjs",
 		"go test ./webpages/docs",
@@ -441,9 +436,8 @@ func TestLandingPagePlanDocDocumentsCurrentAICutoverImplementation(t *testing.T)
 		"../landing/src/data/landing.js",
 		"../landing/src/pages/index.astro",
 		"../landing/src/styles/global.css",
-		"../landing/legacy/go-renderer/internal/site/data/progress.json",
-		"../landing/legacy/go-renderer/internal/site/content.go",
-		"../landing/legacy/go-renderer/internal/site/assets.go",
+		"../landing/public/install.sh",
+		"../landing/public/install.ps1",
 		"../landing/tests/home.spec.mjs",
 	} {
 		if _, err := os.Stat(filepath.Join(".", rel)); err != nil {
@@ -584,7 +578,7 @@ func TestSubsystemInventoryReflectsShippedPhase2AndPhase3Reality(t *testing.T) {
 }
 
 func TestPhase3IdentityLineagePlanIsLinkedAndContractsAreDocumented(t *testing.T) {
-	plan := readDoc(t, "superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-plan.md")
+	plan := readDoc(t, "superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-plan.md")
 	for _, want := range []string{
 		"# Phase 3 Identity + Lineage Implementation Plan",
 		"user_id > chat_id > session_id",
@@ -628,7 +622,7 @@ func TestPhase3IdentityLineagePlanIsLinkedAndContractsAreDocumented(t *testing.T
 }
 
 func TestPhase3IdentityLineageExecutionPlanIsLinkedAndSequenced(t *testing.T) {
-	plan := readDoc(t, "superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md")
+	plan := readDoc(t, "superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md")
 	for _, want := range []string{
 		"# Phase 3 Identity + Lineage Execution Plan",
 		"Relationship last_seen tracking",
@@ -638,7 +632,7 @@ func TestPhase3IdentityLineageExecutionPlanIsLinkedAndSequenced(t *testing.T) {
 		"same-chat default",
 		"opt-in cross-chat",
 		"Rollback and failure containment",
-		"go test ./internal/memory ./internal/session ./internal/goncho -count=1",
+		"go test ./internal/memory ./internal/persistence/session ./internal/goncho -count=1",
 	} {
 		if !strings.Contains(plan, want) {
 			t.Fatalf("identity/lineage execution plan is missing %q", want)
@@ -659,66 +653,6 @@ func TestPhase3IdentityLineageExecutionPlanIsLinkedAndSequenced(t *testing.T) {
 			t.Fatalf("phase-3-memory doc is missing %q", want)
 		}
 	}
-}
-
-func readDoc(t *testing.T, rel string) string {
-	t.Helper()
-
-	raw, err := os.ReadFile(filepath.Join(".", rel))
-	if err != nil {
-		t.Fatalf("read %s: %v", rel, err)
-	}
-	return string(raw)
-}
-
-func runGormesHelp(t *testing.T, args ...string) string {
-	t.Helper()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "go", append([]string{"run", "./cmd/gormes"}, args...)...)
-	cmd.Dir = filepath.Join("..", "..")
-	cmd.Env = append(os.Environ(), "GORMES_HOME="+t.TempDir())
-
-	out, err := cmd.CombinedOutput()
-	if ctx.Err() == context.DeadlineExceeded {
-		t.Fatalf("go run ./cmd/gormes %s timed out", strings.Join(args, " "))
-	}
-	if err != nil {
-		t.Fatalf("go run ./cmd/gormes %s failed: %v\n%s", strings.Join(args, " "), err, out)
-	}
-	return string(out)
-}
-
-func assertContainsAll(t *testing.T, label, raw string, wants []string) {
-	t.Helper()
-
-	for _, want := range wants {
-		if !strings.Contains(raw, want) {
-			t.Fatalf("%s is missing %q", label, want)
-		}
-	}
-}
-
-func readPlaywrightE2EScript(t *testing.T, rel string) string {
-	t.Helper()
-
-	type packageJSON struct {
-		Scripts map[string]string `json:"scripts"`
-	}
-
-	var pkg packageJSON
-	if err := json.Unmarshal([]byte(readDoc(t, rel)), &pkg); err != nil {
-		t.Fatalf("parse %s as json: %v", rel, err)
-	}
-
-	script, ok := pkg.Scripts["test:e2e"]
-	if !ok {
-		t.Fatalf("%s does not define scripts.test:e2e", rel)
-	}
-
-	return script
 }
 
 func hasStaleGormesIOReference(raw string) bool {

@@ -25,25 +25,40 @@ func (r *recordingSetSessionModel) call(provider, model string) error {
 }
 
 func TestModelSlashOpensPickerAndDoesNotSubmit(t *testing.T) {
-	for _, input := range []string{"/model", "/m"} {
-		t.Run(input, func(t *testing.T) {
+	for _, tc := range []struct {
+		input             string
+		acceptsCompletion bool
+	}{
+		{input: "/model"},
+		{input: "/m", acceptsCompletion: true},
+	} {
+		t.Run(tc.input, func(t *testing.T) {
 			sub := &nopSubmitter{}
 			setter := &recordingSetSessionModel{}
 			m := newModelSlashTestModel(sub, setter, fakeModelCatalog, nil)
 
-			m = enterModelSlash(t, m, input)
+			if tc.acceptsCompletion {
+				m.editor.SetValue(tc.input)
+				m = updateModelSlashKey(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+				if got := m.editor.Value(); got != "/model" {
+					t.Fatalf("first Enter after %s editor = %q, want accepted /model completion", tc.input, got)
+				}
+				m = updateModelSlashKey(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+			} else {
+				m = enterModelSlash(t, m, tc.input)
+			}
 
 			if sub.calls != 0 {
-				t.Fatalf("%s reached Submitter %d time(s), want 0", input, sub.calls)
+				t.Fatalf("%s reached Submitter %d time(s), want 0", tc.input, sub.calls)
 			}
 			if setter.calls != 0 {
-				t.Fatalf("%s called SetSessionModel %d time(s), want 0 before confirmation", input, setter.calls)
+				t.Fatalf("%s called SetSessionModel %d time(s), want 0 before confirmation", tc.input, setter.calls)
 			}
 			if got := m.editor.Value(); got != "" {
-				t.Fatalf("editor value after %s = %q, want cleared", input, got)
+				t.Fatalf("editor value after %s = %q, want cleared", tc.input, got)
 			}
 			if m.modelPicker == nil {
-				t.Fatalf("%s did not open model picker", input)
+				t.Fatalf("%s did not open model picker", tc.input)
 			}
 			if got := m.modelPicker.Providers[m.modelPicker.SelectedProviderIndex].ID; got != "anthropic" {
 				t.Fatalf("selected provider = %q, want current provider anthropic", got)

@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 // TestKernel_InitialSessionIDPrimesFirstRequest proves that InitialSessionID
@@ -15,10 +15,10 @@ import (
 // so the first outbound ChatRequest carries that session_id in the
 // X-Hermes-Session-Id header. Without this, --resume would silently no-op.
 func TestKernel_InitialSessionIDPrimesFirstRequest(t *testing.T) {
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "ok", TokensOut: 1},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1},
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "ok", TokensOut: 1},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1},
 	}, "sess-from-server")
 
 	k := New(Config{
@@ -54,9 +54,9 @@ func TestKernel_InitialSessionIDPrimesFirstRequest(t *testing.T) {
 // InitialSessionID does not change existing kernel behavior — all prior
 // kernel tests must remain unaffected.
 func TestKernel_InitialSessionIDEmptyKeepsExistingBehavior(t *testing.T) {
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-fresh")
 
 	k := New(Config{

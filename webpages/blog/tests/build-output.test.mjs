@@ -14,20 +14,27 @@ test('blog build publishes homepage, about page, real post, and feed', () => {
 
   assert.match(home, /TrebuchetDynamics Engineering/);
   assert.match(home, /Autonomous Hermes-porting loop/);
-  assert.match(home, /href="\/feed\.xml"/);
+  assert.match(home, /href="https:\/\/engineering\.trebuchetdynamics\.com\/feed\.xml"/);
+  assert.match(home, /rel="canonical" href="https:\/\/engineering\.trebuchetdynamics\.com\/"/);
+  assert.match(home, /property="og:url" content="https:\/\/engineering\.trebuchetdynamics\.com\/"/);
+  assert.match(home, /name="twitter:image" content="https:\/\/engineering\.trebuchetdynamics\.com\/static\/go-gopher-bear-lowpoly\.png"/);
 
   assert.match(about, /TrebuchetDynamics/);
   assert.match(about, /validation-gated agentic engineering/i);
   assert.match(about, /gormes-agent/);
   assert.match(about, /agentic-porting-kit/);
+  assert.match(about, /rel="canonical" href="https:\/\/engineering\.trebuchetdynamics\.com\/about\/"/);
 
   assert.match(post, /How an autonomous loop ships Hermes-parity slices/);
   assert.match(post, /progress\.json/);
   assert.match(post, /go test \.\/\.\.\. -count=1/);
+  assert.match(post, /rel="canonical" href="https:\/\/engineering\.trebuchetdynamics\.com\/posts\/autonomous-hermes-porting-loop\/"/);
+  assert.match(post, /property="og:type" content="article"/);
 
   assert.match(feed, /<rss version="2\.0"/);
   assert.match(feed, /<title>TrebuchetDynamics Engineering<\/title>/);
   assert.match(feed, /autonomous-hermes-porting-loop/);
+  assert.match(feed, /<atom:link href="https:\/\/engineering\.trebuchetdynamics\.com\/feed\.xml" rel="self" type="application\/rss\+xml"\/>/);
 });
 
 

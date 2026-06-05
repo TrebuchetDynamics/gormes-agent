@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 // TestKernel_FinalizeAssistantTurnReachesStore proves the kernel fires
@@ -21,13 +21,13 @@ import (
 func TestKernel_FinalizeAssistantTurnReachesStore(t *testing.T) {
 	rec := store.NewRecording()
 
-	mc := hermes.NewMockClient()
+	mc := llm.NewMockClient()
 	reply := "hello back"
-	events := make([]hermes.Event, 0, len(reply)+1)
+	events := make([]llm.Event, 0, len(reply)+1)
 	for _, ch := range reply {
-		events = append(events, hermes.Event{Kind: hermes.EventToken, Token: string(ch), TokensOut: 1})
+		events = append(events, llm.Event{Kind: llm.EventToken, Token: string(ch), TokensOut: 1})
 	}
-	events = append(events, hermes.Event{Kind: hermes.EventDone, FinishReason: "stop"})
+	events = append(events, llm.Event{Kind: llm.EventDone, FinishReason: "stop"})
 	mc.Script(events, "sess-finalize-test")
 
 	k := New(Config{
@@ -103,10 +103,10 @@ func TestKernel_FinalizeAssistantTurnReachesStore(t *testing.T) {
 
 func TestKernel_FinalizeAssistantTurnStoreErrorLogged(t *testing.T) {
 	rec := &finalizeFailStore{RecordingStore: store.NewRecording()}
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "stored later", TokensOut: 1},
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "stored later", TokensOut: 1},
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-finalize-error")
 
 	var logs bytes.Buffer
@@ -171,9 +171,9 @@ func waitForNCommands(t *testing.T, st *store.RecordingStore, n int, d time.Dura
 // scriptOneTurn sets up the mock client to return a single-event stream
 // (EventDone only) with the given sessionID returned by the server. This
 // keeps the test turn minimal — no tokens emitted, just a clean finish.
-func scriptOneTurn(mc *hermes.MockClient, serverSessionID string) {
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+func scriptOneTurn(mc *llm.MockClient, serverSessionID string) {
+	mc.Script([]llm.Event{
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, serverSessionID)
 }
 
@@ -183,7 +183,7 @@ func scriptOneTurn(mc *hermes.MockClient, serverSessionID string) {
 // through to the cron_job_id field with cron=1 marker.
 func TestKernel_SessionIDOverrideAppliesToTurn(t *testing.T) {
 	rec := store.NewRecording()
-	mc := hermes.NewMockClient()
+	mc := llm.NewMockClient()
 	scriptOneTurn(mc, "")
 
 	k := New(Config{
@@ -242,7 +242,7 @@ func TestKernel_SessionIDOverrideAppliesToTurn(t *testing.T) {
 // resident sessionID, NOT the cron override.
 func TestKernel_SessionIDOverrideDoesNotLeakToNextTurn(t *testing.T) {
 	rec := store.NewRecording()
-	mc := hermes.NewMockClient()
+	mc := llm.NewMockClient()
 	// Turn 1: cron. Turn 2: normal. Both scripted ahead of time.
 	scriptOneTurn(mc, "") // server doesn't assign a new session for turn 1
 	scriptOneTurn(mc, "") // server doesn't assign a new session for turn 2
@@ -327,7 +327,7 @@ func TestKernel_SessionIDOverrideDoesNotLeakToNextTurn(t *testing.T) {
 // SessionID/CronJobID on the event → payload has cron=0 and empty cron_job_id.
 func TestKernel_NonCronEventSendsZeroCronFields(t *testing.T) {
 	rec := store.NewRecording()
-	mc := hermes.NewMockClient()
+	mc := llm.NewMockClient()
 	scriptOneTurn(mc, "")
 
 	k := New(Config{

@@ -22,12 +22,12 @@ const (
 )
 
 const (
-	EnvironmentCommandRecorded       = "environment_command_recorded"
-	EnvironmentFileUploadRecorded    = "environment_file_upload_recorded"
-	EnvironmentFileDownloadRecorded  = "environment_file_download_recorded"
-	EnvironmentCleanupRecorded       = "environment_cleanup_recorded"
-	EnvironmentBackendUnavailable    = "environment_backend_unavailable"
-	EnvironmentTerminalCWDDeleted    = "terminal_cwd_deleted"
+	EnvironmentCommandRecorded      = "environment_command_recorded"
+	EnvironmentFileUploadRecorded   = "environment_file_upload_recorded"
+	EnvironmentFileDownloadRecorded = "environment_file_download_recorded"
+	EnvironmentCleanupRecorded      = "environment_cleanup_recorded"
+	EnvironmentBackendUnavailable   = "environment_backend_unavailable"
+	EnvironmentTerminalCWDDeleted   = "terminal_cwd_deleted"
 )
 
 type EnvironmentEvidence struct {
@@ -303,17 +303,10 @@ func (e *FakeEnvironment) Execute(ctx context.Context, command EnvironmentComman
 		EnvironmentPath: command.WorkingDir,
 	})
 
-	evidence := []EnvironmentEvidence{e.evidence(EnvironmentCommandRecorded, "execute", command.Command)}
+	evidence := []EnvironmentEvidence{recordedEnvironmentEvidence(e.backend, EnvironmentOperationExecute, command.Command, "fake environment recorded execute")}
 	if command.WorkingDir != "" {
 		if info, err := os.Stat(command.WorkingDir); err != nil || !info.IsDir() {
-			evidence = append(evidence, EnvironmentEvidence{
-				Code:      EnvironmentTerminalCWDDeleted,
-				Status:    EnvironmentStatusRecorded,
-				Backend:   e.backend,
-				Operation: string(EnvironmentOperationExecute),
-				Resource:  command.WorkingDir,
-				Message:   "cwd was deleted; resetting to a safe fallback",
-			})
+			evidence = append(evidence, cwdDeletedEnvironmentEvidence(e.backend, command.WorkingDir))
 		}
 	}
 	return EnvironmentResult{
@@ -395,17 +388,7 @@ func (e UnsupportedEnvironment) Cleanup(ctx context.Context) (EnvironmentCleanup
 }
 
 func (e UnsupportedEnvironment) unavailable(operation string) error {
-	reason := e.Reason
-	if reason == "" {
-		reason = "backend unavailable"
-	}
-	return &EnvironmentEvidenceError{Evidence: EnvironmentEvidence{
-		Code:      EnvironmentBackendUnavailable,
-		Status:    EnvironmentStatusUnavailable,
-		Backend:   e.Backend,
-		Operation: operation,
-		Message:   reason,
-	}}
+	return unavailableEnvironmentError(e.Backend, EnvironmentOperationKind(operation), e.Reason)
 }
 
 func ChecksumBytes(content []byte) string {

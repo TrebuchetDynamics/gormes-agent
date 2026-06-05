@@ -1,0 +1,787 @@
+package configapp
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"strings"
+
+	"github.com/spf13/cobra"
+
+	cfg "github.com/TrebuchetDynamics/gormes-agent/internal/config"
+)
+
+type BuildProvenance struct {
+	Version   string `json:"version"`
+	GitCommit string `json:"git_commit"`
+}
+
+var BuildProvenanceFunc = func() BuildProvenance { return BuildProvenance{} }
+
+// configShowReportJSON is the wire shape for `gormes config show --json`.
+// Fleet dashboards parse this to confirm config landed correctly across
+// machines without scraping multi-section prose. Secrets are reduced to
+// set/(not set) markers — never raw values.
+type configShowReportJSON struct {
+	Build   BuildProvenance       `json:"build"`
+	Paths   configShowPathsJSON   `json:"paths"`
+	Hermes  configShowHermesJSON  `json:"hermes"`
+	Secrets configShowSecretsJSON `json:"secrets"`
+}
+
+type configShowPathsJSON struct {
+	Config string `json:"config"`
+	Env    string `json:"env"`
+}
+
+type configShowHermesJSON struct {
+	Endpoint string `json:"endpoint"`
+	Model    string `json:"model"`
+	Provider string `json:"provider"`
+}
+
+type configShowSecretsJSON struct {
+	APIKey          string `json:"api_key"`
+	GormesAPIKeyEnv string `json:"gormes_api_key_env"`
+}
+
+// configCheckReportJSON is the wire shape for `gormes config check --json`.
+// Fleet automation parses this to flag schema drift across machines.
+// `ok` is the single boolean CI pipelines can branch on; `issues`
+// reports per-field severity for richer reporting.
+type configCheckReportJSON struct {
+	Build         BuildProvenance        `json:"build"`
+	Paths         configShowPathsJSON    `json:"paths"`
+	ConfigVersion int                    `json:"config_version"`
+	LatestVersion int                    `json:"latest_version"`
+	DotenvPresent bool                   `json:"dotenv_present"`
+	Issues        []configCheckIssueJSON `json:"issues"`
+	OK            bool                   `json:"ok"`
+	Error         string                 `json:"error,omitempty"`
+}
+
+type configCheckIssueJSON struct {
+	Severity string `json:"severity"`
+	Field    string `json:"field"`
+	Message  string `json:"message"`
+}
+
+// configSetReportJSON is the wire shape for `config set <key> <value> --json`.
+// Fleet provisioning scripts parse this to confirm WHERE the value landed
+// (TOML vs dotenv). The raw VALUE is intentionally absent from this
+// shape — even non-secrets — so the on-disk config remains the only
+// source of truth and audit logs don't double-store configuration.
+type configSetReportJSON struct {
+	Build  BuildProvenance `json:"build"`
+	Key    string          `json:"key"`
+	Target string          `json:"target"`
+	Path   string          `json:"path"`
+	Secret bool            `json:"secret"`
+}
+
+// configMigrateReportJSON is the wire shape for `config migrate --json`.
+// Fleet rollouts parse this to confirm cfg.toml landed on the current
+// schema version across machines. `wrote` distinguishes hosts that
+// actually applied the migration from those already on the current
+// version (`no_op: true`).
+type configMigrateReportJSON struct {
+	Build       BuildProvenance `json:"build"`
+	Path        string          `json:"path"`
+	FromVersion int             `json:"from_version"`
+	ToVersion   int             `json:"to_version"`
+	NoOp        bool            `json:"no_op"`
+	Wrote       bool            `json:"wrote"`
+}
+
+type configProfileMigrateReportJSON struct {
+	Build            BuildProvenance `json:"build"`
+	Mode             string          `json:"mode"`
+	Path             string          `json:"path"`
+	DryRun           bool            `json:"dry_run"`
+	NoOp             bool            `json:"no_op"`
+	Wrote            bool            `json:"wrote"`
+	BackupPath       string          `json:"backup_path,omitempty"`
+	Profiles         []string        `json:"profiles"`
+	Credentials      []string        `json:"credentials"`
+	SecretEnvTargets []string        `json:"secret_env_targets"`
+	ManualActions    []string        `json:"manual_actions"`
+	Conflicts        []string        `json:"conflicts"`
+	FallbackReads    []string        `json:"fallback_reads"`
+	Preview          []string        `json:"preview"`
+}
+
+// editorRunner abstracts the two operations `gormes config edit` performs
+// against the host: locating an editor binary on PATH and spawning it
+// against the resolved config path. Production wiring uses os/exec; tests
+// pass a stub so no real shell command is invoked.
+type EditorRunner interface {
+	LookPath(name string) (string, bool)
+	Run(editor, path string) error
+}
+
+type OSEditorRunner struct{}
+
+func (OSEditorRunner) LookPath(name string) (string, bool) {
+	resolved, err := exec.LookPath(name)
+	if err != nil {
+		return "", false
+	}
+	return resolved, true
+}
+
+func (OSEditorRunner) Run(editor, path string) error {
+	cmd := exec.Command(editor, path)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// configEditorRunner is the package-level injection seam for the editor
+// lookup + dispatch used by `gormes config edit`. Production wiring is the
+// os/exec-backed default; tests overwrite this var (with t.Cleanup
+// restoration) so no real binary is ever spawned. Tests must restore the
+// previous value or use the helper withConfigEditorRunner below.
+var editorRunner EditorRunner = OSEditorRunner{}
+
+// withConfigEditorRunner swaps the package-level editor runner for the
+// duration of a test and restores the previous value when the test ends.
+func WithEditorRunner(t interface{ Cleanup(func()) }, runner EditorRunner) {
+	prev := editorRunner
+	editorRunner = runner
+	t.Cleanup(func() { editorRunner = prev })
+}
+
+// newConfigCommand builds the `gormes config` subtree. It exposes the
+// Hermes-aliased command surface — show, path, env-path, set, edit, check,
+// migrate — over the native GormesHome TOML/dotenv files. Writes route
+// through internal/config helpers so secrets never land in cfg.toml.
+// `config migrate` applies only Gormes-native schema migrations; importing
+// upstream Hermes/OpenClaw state is owned by the separate `gormes migrate`
+// command tree.
+func NewCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          "config",
+		Short:        "Inspect or update the Gormes configuration files",
+		SilenceUsage: true,
+	}
+	cmd.AddCommand(newPathCommand())
+	cmd.AddCommand(newEnvPathCommand())
+	cmd.AddCommand(newShowCommand())
+	cmd.AddCommand(newGetCommand())
+	cmd.AddCommand(newSetCommand())
+	cmd.AddCommand(newEditCommand())
+	cmd.AddCommand(newCheckCommand())
+	cmd.AddCommand(newMigrateCommand())
+	return cmd
+}
+
+// configPathReportJSON is the wire shape for `config path --json` and
+// `config env-path --json`. Fleet automation inventorying Gormes config
+// locations across machines parses this to ingest each path with
+// binary attribution. Build provenance leads — same convention as the
+// rest of the `--json` arc. `kind` distinguishes the TOML config
+// (`config`) from the dotenv secrets file (`env`).
+type configPathReportJSON struct {
+	Build BuildProvenance `json:"build"`
+	Kind  string          `json:"kind"`
+	Path  string          `json:"path"`
+}
+
+func writeConfigPathJSON(cmd *cobra.Command, kind, path string) error {
+	body, err := json.MarshalIndent(configPathReportJSON{
+		Build: BuildProvenanceFunc(),
+		Kind:  kind,
+		Path:  path,
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
+}
+
+func newPathCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "path",
+		Short: "Print the Gormes TOML config path",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			asJSON, _ := cmd.Flags().GetBool("json")
+			if asJSON {
+				return writeConfigPathJSON(cmd, "config", cfg.ConfigPath())
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), cfg.ConfigPath())
+			return nil
+		},
+	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, kind, path}")
+	return cmd
+}
+
+func newEnvPathCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "env-path",
+		Short: "Print the Gormes dotenv (.env) secrets path",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			asJSON, _ := cmd.Flags().GetBool("json")
+			if asJSON {
+				return writeConfigPathJSON(cmd, "env", cfg.EnvPath())
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), cfg.EnvPath())
+			return nil
+		},
+	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, kind, path}")
+	return cmd
+}
+
+// newConfigGetCommand reads a single config value back, the natural
+// counterpart to `config set <key> <value>`. Operators previously had
+// to grep `config show` text or read cfg.toml directly to verify
+// what they had just set.
+//
+// Secret keys (api_key, *_TOKEN, etc.) emit the same redacted status
+// the show command prints (`(set)` / `(not set)`) so the raw value
+// never leaks into shell history. Non-secret keys emit the value
+// verbatim followed by a newline so callers can `$(gormes config get
+// hermes.endpoint)` the result safely.
+func newGetCommand() *cobra.Command {
+	var asJSON bool
+	cmd := &cobra.Command{
+		Use:   "get <key>",
+		Short: "Read a configuration value (redacted for secret keys)",
+		Args: func(_ *cobra.Command, args []string) error {
+			if len(args) < 1 {
+				return errors.New("usage: gormes config get <key>")
+			}
+			if len(args) > 1 {
+				return errors.New("gormes config get takes exactly one argument: <key>")
+			}
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			key := strings.TrimSpace(args[0])
+			if key == "" {
+				return errors.New("gormes config get: empty key")
+			}
+			out := cmd.OutOrStdout()
+			if cfg.IsSecretKey(key) {
+				envName := cfg.SecretEnvName(key)
+				cfg, err := cfg.Load(nil)
+				if err != nil {
+					return err
+				}
+				// Mirror `config show`'s redaction precedence: TOML's
+				// resolved api_key first, then the env override.
+				value := cfg.Hermes.APIKey
+				if value == "" {
+					value = os.Getenv(envName)
+				}
+				redacted := redactedSecretStatus(value)
+				isSet := strings.TrimSpace(value) != ""
+				if asJSON {
+					return emitConfigGetJSON(out, key, redacted, true, isSet)
+				}
+				fmt.Fprintln(out, redacted)
+				return nil
+			}
+			cfg, err := cfg.Load(nil)
+			if err != nil {
+				return err
+			}
+			var value string
+			switch key {
+			case "hermes.endpoint":
+				value = cfg.Hermes.Endpoint
+			case "hermes.model":
+				value = cfg.Hermes.Model
+			case "hermes.provider":
+				value = cfg.Hermes.Provider
+			default:
+				return fmt.Errorf("gormes config get: unknown key %q (try `gormes config show` for the resolved schema)", key)
+			}
+			isSet := strings.TrimSpace(value) != ""
+			if asJSON {
+				display := value
+				if !isSet {
+					display = "(not set)"
+				}
+				return emitConfigGetJSON(out, key, display, false, isSet)
+			}
+			// Empty non-secret values render as "(not set)" so output
+			// mirrors the secret-key form (and operators don't see a
+			// silent blank line that looks like a hung command).
+			if !isSet {
+				fmt.Fprintln(out, "(not set)")
+			} else {
+				fmt.Fprintln(out, value)
+			}
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a `{build, key, value, secret_redacted, set}` JSON document — non-secret values inline; secret values stay redacted")
+	return cmd
+}
+
+// configGetReportJSON is the wire shape for `gormes config get --json`.
+// Operator scripts that want to scrape one config value programmatically
+// previously had to pull the whole `config show --json` document and
+// jq-traverse to the target key. This single-key shape mirrors the
+// per-key UX of the text surface: secret keys carry the redacted
+// `(set)`/`(not set)` placeholder via `value`, never the raw secret;
+// `secret_redacted` lets fleet automation branch on whether the value
+// was redacted before logging it. `set` is the boolean fleet
+// dashboards alert on for un-configured keys.
+type configGetReportJSON struct {
+	Build          BuildProvenance `json:"build"`
+	Key            string          `json:"key"`
+	Value          string          `json:"value"`
+	SecretRedacted bool            `json:"secret_redacted"`
+	Set            bool            `json:"set"`
+}
+
+func emitConfigGetJSON(out io.Writer, key, value string, secretRedacted, isSet bool) error {
+	body, err := json.MarshalIndent(configGetReportJSON{
+		Build:          BuildProvenanceFunc(),
+		Key:            key,
+		Value:          value,
+		SecretRedacted: secretRedacted,
+		Set:            isSet,
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(out, string(body))
+	return err
+}
+
+func newSetCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "set <key> <value>",
+		Short: "Set a configuration value (TOML for non-secret keys, .env for *_API_KEY/*_TOKEN/api_key)",
+		Args: func(_ *cobra.Command, args []string) error {
+			if len(args) < 2 {
+				return errors.New("usage: gormes config set <key> <value>")
+			}
+			if len(args) > 2 {
+				return errors.New("gormes config set takes exactly two arguments: <key> <value>")
+			}
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			key := strings.TrimSpace(args[0])
+			value := args[1]
+			if key == "" {
+				return errors.New("gormes config set: empty key")
+			}
+			asJSON, _ := cmd.Flags().GetBool("json")
+			if cfg.IsSecretKey(key) {
+				envName := cfg.SecretEnvName(key)
+				if err := cfg.WriteEnvValue(cfg.EnvPath(), envName, value); err != nil {
+					return err
+				}
+				if asJSON {
+					return writeConfigSetJSON(cmd.OutOrStdout(), envName, "dotenv", cfg.EnvPath(), true)
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "set %s in %s\n", envName, cfg.EnvPath())
+				return nil
+			}
+			if err := cfg.WriteTOMLValue(cfg.ConfigPath(), key, value); err != nil {
+				return err
+			}
+			if asJSON {
+				return writeConfigSetJSON(cmd.OutOrStdout(), key, "toml", cfg.ConfigPath(), false)
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "set %s in %s\n", key, cfg.ConfigPath())
+			return nil
+		},
+	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, key, target: 'toml'|'dotenv', path, secret}`; the raw value is intentionally absent")
+	return cmd
+}
+
+func writeConfigSetJSON(out io.Writer, key, target, path string, secret bool) error {
+	body, err := json.MarshalIndent(configSetReportJSON{
+		Build:  BuildProvenanceFunc(),
+		Key:    key,
+		Target: target,
+		Path:   path,
+		Secret: secret,
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(out, string(body))
+	return nil
+}
+
+func newShowCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "show",
+		Short: "Show resolved Gormes configuration with secrets redacted",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			loaded, err := cfg.Load(nil)
+			if err != nil {
+				return err
+			}
+			out := cmd.OutOrStdout()
+			asJSON, _ := cmd.Flags().GetBool("json")
+			if asJSON {
+				body, marshalErr := json.MarshalIndent(configShowReportJSON{
+					Build: BuildProvenanceFunc(),
+					Paths: configShowPathsJSON{
+						Config: cfg.ConfigPath(),
+						Env:    cfg.EnvPath(),
+					},
+					Hermes: configShowHermesJSON{
+						Endpoint: loaded.Hermes.Endpoint,
+						Model:    loaded.Hermes.Model,
+						Provider: loaded.Hermes.Provider,
+					},
+					Secrets: configShowSecretsJSON{
+						APIKey:          redactedSecretStatus(loaded.Hermes.APIKey),
+						GormesAPIKeyEnv: redactedSecretStatus(os.Getenv("GORMES_API_KEY")),
+					},
+				}, "", "  ")
+				if marshalErr != nil {
+					return marshalErr
+				}
+				fmt.Fprintln(out, string(body))
+				return nil
+			}
+			fmt.Fprintln(out, "Paths")
+			fmt.Fprintf(out, "  config: %s\n", cfg.ConfigPath())
+			fmt.Fprintf(out, "  env:    %s\n", cfg.EnvPath())
+			fmt.Fprintln(out, "Hermes")
+			fmt.Fprintf(out, "  endpoint: %s\n", loaded.Hermes.Endpoint)
+			fmt.Fprintf(out, "  model:    %s\n", loaded.Hermes.Model)
+			fmt.Fprintf(out, "  provider: %s\n", loaded.Hermes.Provider)
+			fmt.Fprintln(out, "Secrets")
+			fmt.Fprintf(out, "  api_key: %s\n", redactedSecretStatus(loaded.Hermes.APIKey))
+			fmt.Fprintf(out, "  GORMES_API_KEY (env): %s\n", redactedSecretStatus(os.Getenv("GORMES_API_KEY")))
+			return nil
+		},
+	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, paths, hermes, secrets}`; secrets are redacted (set / (not set))")
+	return cmd
+}
+
+func redactedSecretStatus(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "(not set)"
+	}
+	return "set [REDACTED]"
+}
+
+// commonEditorCandidates lists the fallback editors `gormes config edit`
+// probes when EDITOR/VISUAL are both unset, in priority order. Mirrors
+// hermes_cli/cfg.py edit_config().
+var commonEditorCandidates = []string{"nano", "vim", "vi", "code", "notepad"}
+
+func newEditCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "edit",
+		Short: "Open the Gormes cfg.toml in $EDITOR / $VISUAL or a discovered fallback",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			path := cfg.ConfigPath()
+			if err := cfg.EnsureConfigFile(path); err != nil {
+				return err
+			}
+			runner := editorRunner
+			if runner == nil {
+				runner = OSEditorRunner{}
+			}
+			chosen := pickEditor(runner)
+			out := cmd.OutOrStdout()
+			if chosen == "" {
+				fmt.Fprintln(out, "No editor found. Set $EDITOR or $VISUAL, or open the file directly:")
+				fmt.Fprintf(out, "  %s\n", path)
+				return nil
+			}
+			fmt.Fprintf(out, "Opening %s in %s...\n", path, chosen)
+			return runner.Run(chosen, path)
+		},
+	}
+}
+
+// pickEditor mirrors edit_config(): EDITOR > VISUAL > common-editor scan.
+// Empty / unset env vars fall through to the lookup. The injected runner
+// is the only path through which a binary name is checked or spawned.
+func pickEditor(runner EditorRunner) string {
+	for _, env := range []string{"EDITOR", "VISUAL"} {
+		if v := strings.TrimSpace(os.Getenv(env)); v != "" {
+			return v
+		}
+	}
+	for _, candidate := range commonEditorCandidates {
+		if _, ok := runner.LookPath(candidate); ok {
+			return candidate
+		}
+	}
+	return ""
+}
+
+func newCheckCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "check",
+		Short: "Validate cfg.toml schema without writing — reports config_version, missing/empty fields, and dotenv presence",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			report, err := cfg.Check()
+			out := cmd.OutOrStdout()
+			asJSON, _ := cmd.Flags().GetBool("json")
+			if asJSON {
+				issues := make([]configCheckIssueJSON, len(report.Issues))
+				var sawError bool
+				for i, issue := range report.Issues {
+					issues[i] = configCheckIssueJSON{
+						Severity: issue.Severity,
+						Field:    issue.Field,
+						Message:  issue.Message,
+					}
+					if issue.Severity == "error" {
+						sawError = true
+					}
+				}
+				wire := configCheckReportJSON{
+					Build: BuildProvenanceFunc(),
+					Paths: configShowPathsJSON{
+						Config: report.ConfigPath,
+						Env:    report.EnvPath,
+					},
+					ConfigVersion: report.ConfigVersion,
+					LatestVersion: report.LatestVersion,
+					DotenvPresent: report.DotenvPresent,
+					Issues:        issues,
+					OK:            err == nil && !sawError,
+				}
+				if err != nil {
+					wire.Error = err.Error()
+				}
+				body, marshalErr := json.MarshalIndent(wire, "", "  ")
+				if marshalErr != nil {
+					return marshalErr
+				}
+				fmt.Fprintln(out, string(body))
+				if err != nil {
+					return errors.New("config check failed")
+				}
+				if sawError {
+					return errors.New("config check found errors")
+				}
+				return nil
+			}
+			fmt.Fprintln(out, "Paths")
+			fmt.Fprintf(out, "  config: %s\n", report.ConfigPath)
+			fmt.Fprintf(out, "  env:    %s\n", report.EnvPath)
+			fmt.Fprintf(out, "config_version: %d (latest known: %d)\n", report.ConfigVersion, report.LatestVersion)
+			fmt.Fprintf(out, "dotenv present: %t\n", report.DotenvPresent)
+			if err != nil {
+				fmt.Fprintf(out, "error: %s\n", err.Error())
+				return errors.New("config check failed")
+			}
+			if len(report.Issues) == 0 {
+				fmt.Fprintln(out, "OK")
+				return nil
+			}
+			var sawError bool
+			for _, issue := range report.Issues {
+				fmt.Fprintf(out, "  [%s] %s: %s\n", issue.Severity, issue.Field, issue.Message)
+				if issue.Severity == "error" {
+					sawError = true
+				}
+			}
+			if sawError {
+				return errors.New("config check found errors")
+			}
+			return nil
+		},
+	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, paths, config_version, latest_version, dotenv_present, issues: [...], ok, error?}`")
+	return cmd
+}
+
+func newMigrateCommand() *cobra.Command {
+	var asJSON bool
+	var profilesV2 bool
+	var dryRun bool
+	cmd := &cobra.Command{
+		Use:   "migrate",
+		Short: "Apply native Gormes cfg.toml schema/default migrations",
+		Long: `Apply native Gormes cfg.toml schema/default migrations.
+
+This command updates only the native Gormes config schema (TOML config_version
+and any default fill-ins). It is a no-op when the file is already at the
+current version. Atomic writes guarantee the file is never left half-written.
+
+Use --profiles-v2 to convert legacy Gormes root/per-profile config state into
+the single-root profile config v2 shape. Use --dry-run with --profiles-v2 to
+preview the redacted profile migration without writing.
+
+Importing upstream Hermes or OpenClaw state is a separate concern; use
+` + "`gormes migrate hermes`" + ` or ` + "`gormes migrate openclaw`" + ` for those cross-product paths.`,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if dryRun && !profilesV2 {
+				return errors.New("gormes config migrate: --dry-run requires --profiles-v2")
+			}
+			if profilesV2 {
+				return runConfigProfilesV2Migration(cmd, dryRun, asJSON)
+			}
+			result, err := cfg.MigrateConfigFile(cfg.ConfigPath())
+			out := cmd.OutOrStdout()
+			if err != nil {
+				return err
+			}
+			if asJSON {
+				body, marshalErr := json.MarshalIndent(configMigrateReportJSON{
+					Build:       BuildProvenanceFunc(),
+					Path:        result.Path,
+					FromVersion: result.FromVersion,
+					ToVersion:   result.ToVersion,
+					NoOp:        result.NoOp,
+					Wrote:       result.Wrote,
+				}, "", "  ")
+				if marshalErr != nil {
+					return marshalErr
+				}
+				fmt.Fprintln(out, string(body))
+				return nil
+			}
+			if result.NoOp {
+				fmt.Fprintf(out, "no-op: %s already at config_version=%d\n", result.Path, result.ToVersion)
+				return nil
+			}
+			fmt.Fprintf(out, "migrated %s: config_version %d -> %d (wrote=%t)\n",
+				result.Path, result.FromVersion, result.ToVersion, result.Wrote)
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: `{build, path, from_version, to_version, no_op, wrote}` or a profile-v2 migration summary with --profiles-v2")
+	cmd.Flags().BoolVar(&profilesV2, "profiles-v2", false, "migrate legacy Gormes root/per-profile config state into single-root profile config v2")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "preview the --profiles-v2 migration without writing cfg.toml or creating a backup")
+	return cmd
+}
+
+func runConfigProfilesV2Migration(cmd *cobra.Command, dryRun, asJSON bool) error {
+	out := cmd.OutOrStdout()
+	if dryRun {
+		plan, err := cfg.PlanProfileConfigV2Migration(cfg.ProfileMigrationV2Options{})
+		if err != nil {
+			return err
+		}
+		if asJSON {
+			return writeConfigProfileMigrateJSON(out, plan, "", dryRun, false)
+		}
+		writeConfigProfileMigrateText(out, plan, "", dryRun, false)
+		return nil
+	}
+	result, err := cfg.ApplyProfileConfigV2Migration(cfg.ProfileMigrationV2Options{})
+	if err != nil {
+		return err
+	}
+	if asJSON {
+		return writeConfigProfileMigrateJSON(out, result.Plan, result.BackupPath, dryRun, result.Wrote)
+	}
+	writeConfigProfileMigrateText(out, result.Plan, result.BackupPath, dryRun, result.Wrote)
+	return nil
+}
+
+func writeConfigProfileMigrateJSON(out io.Writer, plan cfg.ProfileMigrationV2Plan, backupPath string, dryRun, wrote bool) error {
+	body, err := json.MarshalIndent(configProfileMigrateReportJSON{
+		Build:            BuildProvenanceFunc(),
+		Mode:             "profile_v2",
+		Path:             plan.ConfigPath,
+		DryRun:           dryRun,
+		NoOp:             plan.NoOp,
+		Wrote:            wrote,
+		BackupPath:       backupPath,
+		Profiles:         configProfileMigrationProfileIDs(plan.ProfileAdditions),
+		Credentials:      configProfileMigrationCredentialIDs(plan.CredentialAdditions),
+		SecretEnvTargets: configProfileMigrationSecretTargets(plan.SecretMovements),
+		ManualActions:    configProfileMigrationManualActionCodes(plan.ManualActions),
+		Conflicts:        configProfileMigrationConflictIDs(plan.Conflicts),
+		FallbackReads:    configProfileMigrationFallbackReadCodes(plan.FallbackReads),
+		Preview:          append([]string(nil), plan.PreviewLines...),
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(out, string(body))
+	return err
+}
+
+func writeConfigProfileMigrateText(out io.Writer, plan cfg.ProfileMigrationV2Plan, backupPath string, dryRun, wrote bool) {
+	if plan.NoOp {
+		fmt.Fprintf(out, "no-op: %s already has profile config v2\n", plan.ConfigPath)
+		return
+	}
+	if dryRun {
+		fmt.Fprintf(out, "profile v2 migration preview for %s\n", plan.ConfigPath)
+	} else {
+		fmt.Fprintf(out, "migrated profile config v2 for %s (wrote=%t", plan.ConfigPath, wrote)
+		if backupPath != "" {
+			fmt.Fprintf(out, ", backup=%s", backupPath)
+		}
+		fmt.Fprintln(out, ")")
+	}
+	for _, line := range plan.PreviewLines {
+		fmt.Fprintf(out, "  %s\n", line)
+	}
+	for _, target := range configProfileMigrationSecretTargets(plan.SecretMovements) {
+		fmt.Fprintf(out, "  move secret to %s (redacted)\n", target)
+	}
+}
+
+func configProfileMigrationProfileIDs(profiles []cfg.ProfileMigrationV2ProfileAddition) []string {
+	ids := make([]string, 0, len(profiles))
+	for _, profile := range profiles {
+		ids = append(ids, profile.ID)
+	}
+	return ids
+}
+
+func configProfileMigrationCredentialIDs(credentials []cfg.ProfileMigrationV2CredentialAddition) []string {
+	ids := make([]string, 0, len(credentials))
+	for _, credential := range credentials {
+		ids = append(ids, credential.ID)
+	}
+	return ids
+}
+
+func configProfileMigrationSecretTargets(moves []cfg.ProfileMigrationV2SecretMovement) []string {
+	ids := make([]string, 0, len(moves))
+	for _, move := range moves {
+		ids = append(ids, move.TargetEnv)
+	}
+	return ids
+}
+
+func configProfileMigrationManualActionCodes(actions []cfg.ProfileMigrationV2ManualAction) []string {
+	codes := make([]string, 0, len(actions))
+	for _, action := range actions {
+		codes = append(codes, action.Code)
+	}
+	return codes
+}
+
+func configProfileMigrationConflictIDs(conflicts []cfg.ProfileMigrationV2Conflict) []string {
+	ids := make([]string, 0, len(conflicts))
+	for _, conflict := range conflicts {
+		ids = append(ids, conflict.Kind+":"+conflict.ID)
+	}
+	return ids
+}
+
+func configProfileMigrationFallbackReadCodes(reads []cfg.ProfileMigrationV2FallbackRead) []string {
+	codes := make([]string, 0, len(reads))
+	seen := map[string]bool{}
+	for _, read := range reads {
+		if !seen[read.Code] {
+			codes = append(codes, read.Code)
+			seen[read.Code] = true
+		}
+	}
+	return codes
+}

@@ -9,8 +9,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
@@ -26,7 +26,7 @@ func TestTUIUsageSlashBindingLocalModelReceivesAccountUsageAdapter(t *testing.T)
 	}
 
 	var sawAccountUsage bool
-	var snapshot hermes.AccountUsageSnapshot
+	var snapshot llm.AccountUsageSnapshot
 	var accountErr error
 	err = runResolvedTUIWithRuntime(cmd, tuiInvocation{Config: cfg}, rootRuntime{
 		tuiProgramFactory: func(model tea.Model, _ ...tea.ProgramOption) tuiProgram {
@@ -52,7 +52,7 @@ func TestTUIUsageSlashBindingLocalModelReceivesAccountUsageAdapter(t *testing.T)
 	if snapshot.Provider != "custom-provider" {
 		t.Fatalf("AccountUsage provider = %q, want custom-provider", snapshot.Provider)
 	}
-	if snapshot.Unavailable == nil || snapshot.Unavailable.Reason != hermes.AccountUsageReasonUnsupportedProvider {
+	if snapshot.Unavailable == nil || snapshot.Unavailable.Reason != llm.AccountUsageReasonUnsupportedProvider {
 		t.Fatalf("AccountUsage unavailable = %+v, want unsupported provider evidence", snapshot.Unavailable)
 	}
 }

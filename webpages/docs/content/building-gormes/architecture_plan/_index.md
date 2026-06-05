@@ -21,41 +21,41 @@ select and execute eligible work. The old loop command binaries are gone; the
 roadmap is still the machine-readable queue for developing the full
 `gormes-agent`.
 
-**Completion doctrine:** [Gormes Completion Plan](./completion-plan/) defines
+**Completion doctrine:** [Gormes Completion Plan](./governance/completion-plan/) defines
 the non-negotiable finish line: Gormes is complete only when it is Hermes in Go,
 with Goncho as the Honcho-compatible Go port inside Gormes.
 
-**Operating model:** [Completion Lane Roadmap](./lane-roadmap/) maps phases to
-finish lanes and gates; [Agent Operating Model](./agent-operating-model/) tells
+**Operating model:** [Completion Lane Roadmap](./governance/lane-roadmap/) maps phases to
+finish lanes and gates; [Agent Operating Model](./governance/agent-operating-model/) tells
 agents how to run bounded parity, planner, builder, TDD, and interface-design
 passes.
 
-**Feature map:** [Hermes And Honcho Feature Map](./hermes-honcho-feature-map/)
+**Feature map:** [Hermes And Honcho Feature Map](./parity/hermes-honcho-feature-map/)
 maps upstream Hermes and Honcho feature families to Go packages, implementation
 strategy, proof gates, and `progress.json` anchors.
 
-**Contract pairings:** [Hermes/Gormes Contract Pairings](./hermes-gormes-contract-pairings/)
+**Contract pairings:** [Hermes/Gormes Contract Pairings](./parity/hermes-gormes-contract-pairings/)
 defines the shared vocabulary for pairing upstream Hermes symbols with their
 Go-native Gormes adapters before rows are renamed or split.
 
-**Messaging setup contract:** [Messaging Platform Setup Fidelity](./messaging-platform-setup-fidelity/)
+**Messaging setup contract:** [Messaging Platform Setup Fidelity](./runtime/messaging-platform-setup-fidelity/)
 records the Hermes-fidelity rules for `gormes setup gateway`, channel config,
 Telegram-first setup, env compatibility, and migration boundaries.
 
-**CLI parity matrix:** [Hermes Command Surface Parity Matrix](./hermes-command-surface-parity/)
+**CLI parity matrix:** [Hermes Command Surface Parity Matrix](./parity/hermes-command-surface-parity/)
 records the operator-visible Hermes command tree, current Gormes state, and the
 `progress.json` rows that own remaining command/auth gaps.
 
-**Runtime plan:** [Hermes/Honcho To Gormes Go Runtime Plan](./hermes-honcho-go-runtime-plan/)
+**Runtime plan:** [Hermes/Honcho To Gormes Go Runtime Plan](./parity/hermes-honcho-go-runtime-plan/)
 reconciles the feature map, source-class ledger, swarm audit, nested coverage
 matrix, and progress rows into one implementation-ready subsystem plan.
 
-**Completeness audit:** [Upstream Coverage Ledger](./upstream-coverage-ledger/)
+**Completeness audit:** [Upstream Coverage Ledger](./parity/upstream-coverage-ledger/)
 lists the upstream source classes that must be represented in the feature map,
 so a planner pass can tell whether Hermes/Honcho mapping is complete or has
 drifted.
 
-**Feature-level swarm audit:** [Swarm Feature Parity Audit](./swarm-feature-parity-audit/)
+**Feature-level swarm audit:** [Swarm Feature Parity Audit](./parity/swarm-feature-parity-audit/)
 records the raw sub-agent parity findings that feed the runtime plan's
 classification and row-backed implementation queue.
 
@@ -63,20 +63,20 @@ classification and row-backed implementation queue.
 
 - The generated checklist below is rebuilt from `progress.json`; do not hand-edit
   content between `PROGRESS` markers.
-- Start with the [Completion Plan](./completion-plan/) when deciding what to
-  build next; then use the [Completion Lane Roadmap](./lane-roadmap/) for lane
-  gates and the [Agent Operating Model](./agent-operating-model/) for the
+- Start with the [Completion Plan](./governance/completion-plan/) when deciding what to
+  build next; then use the [Completion Lane Roadmap](./governance/lane-roadmap/) for lane
+  gates and the [Agent Operating Model](./governance/agent-operating-model/) for the
   exact pass workflow.
-- Use [Hermes And Honcho Feature Map](./hermes-honcho-feature-map/) when
+- Use [Hermes And Honcho Feature Map](./parity/hermes-honcho-feature-map/) when
   mapping upstream capabilities or deciding where a feature belongs in Go.
-- Use [Hermes/Gormes Contract Pairings](./hermes-gormes-contract-pairings/)
+- Use [Hermes/Gormes Contract Pairings](./parity/hermes-gormes-contract-pairings/)
   when a Gormes file name hides the upstream Hermes contract it adapts.
-- Use [Hermes/Honcho To Gormes Go Runtime Plan](./hermes-honcho-go-runtime-plan/)
+- Use [Hermes/Honcho To Gormes Go Runtime Plan](./parity/hermes-honcho-go-runtime-plan/)
   when turning mapped upstream capabilities into Go package targets,
   classifications, dependency order, and builder-ready row splits.
-- Use [Upstream Coverage Ledger](./upstream-coverage-ledger/) to verify that no
+- Use [Upstream Coverage Ledger](./parity/upstream-coverage-ledger/) to verify that no
   feature-bearing Hermes/Honcho source class is unmapped.
-- Use [Swarm Feature Parity Audit](./swarm-feature-parity-audit/) to find broad
+- Use [Swarm Feature Parity Audit](./parity/swarm-feature-parity-audit/) to find broad
   source classes that still hide missing or vague feature-level rows.
 - Use the phase pages for design intent and boundaries, then use
   [Contract Readiness](../contract-readiness/) and [Agent Queue](../builder-loop/agent-queue/)
@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 105/111 subphases shipped · 6 in progress · 0 planned
+**Overall:** 108/111 subphases shipped · 3 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -99,11 +99,11 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
+| Phase 5 — The Final Purge | ✅ | 23/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
-| Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 4/7 subphases |
+| Phase 9 — Design & Security Hardening | ✅ | 7/7 subphases |
 
 ---
 
@@ -371,6 +371,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Canonical CommandDef registry
 - [x] `gateway` Gateway slash dispatch + per-platform exposure
 - [x] `gateway` Gateway slash registry parity sweep (recognized-name expansion)
+- [x] `gateway` Gateway /commands paginated command and skill catalog
 
 ### 2.F.2 — Hook Registry + BOOT.md ✅
 
@@ -415,6 +416,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Mid-run steer injection between tool calls
 - [x] `gateway` Gateway-handled slash commands bypass active-session guard
 - [x] `gateway` Gateway persistent goal loop + continuation judge
+- [x] `gateway` Gateway/TUI /queue explicit FIFO slash parity
 
 ### 2.G — OS-AI Spine: Skills Runtime ✅
 
@@ -603,6 +605,12 @@ classification and row-backed implementation queue.
 - [x] `providers` xAI Grok provider adapter
 - [x] `providers` LM Studio provider adapter
 - [x] `providers` Vision-unsupported provider retry (strip-images-and-resend)
+- [x] `providers` Gormes Router config and route registry read model
+- [x] `providers` Gormes Router setup wizard and provider-picker boundary
+- [x] `providers` Gormes Router OpenAI-compatible models/chat endpoint
+- [x] `providers` Gormes Router streaming SSE and fallback safety
+- [x] `providers` Gormes Router health/status counters and redacted logs
+- [x] `providers` CLIProxyAPI-compatible upstream route adapter
 
 ### 4.B — Context Engine + Compression ✅
 
@@ -622,6 +630,7 @@ classification and row-backed implementation queue.
 - [x] `sessions` ContextEngine compression-boundary callback vocabulary
 - [x] `sessions` Kernel compression-boundary callback binding
 - [x] `sessions` ContextEngine session-end hook on reset
+- [x] `sessions` Gormes-owned session tree navigator over lineage and labels
 
 ### 4.C — Native Prompt Builder ✅
 
@@ -735,7 +744,7 @@ classification and row-backed implementation queue.
 - [x] `providers` P95 latency-aware failover
 - [x] `providers` Capability-based model tier routing
 
-## Phase 5 — The Final Purge 🔨
+## Phase 5 — The Final Purge ✅
 
 *Python tool scripts ported to Go or WASM*
 
@@ -772,7 +781,7 @@ classification and row-backed implementation queue.
 - [x] `tools` Singularity command/preflight contract
 - [x] `tools` Sandbox Policy Explain
 
-### 5.C — Browser Automation 🔨
+### 5.C — Browser Automation ✅
 
 - [x] `browser` Browser action contract + event transcript
 - [x] `browser` go-browser-harness Chromedp action backend
@@ -796,7 +805,8 @@ classification and row-backed implementation queue.
 - [x] `browser` Go browser harness binary repo + integration lane (placeholder)
 - [x] `browser` Browser session inactivity cleanup thread
 - [x] `browser` Goscrapling browser-backed extraction gate for web_extract
-- [ ] `browser` Goscrapling local crawler adapter gate for web_crawl
+- [x] `browser` Goscrapling local crawler fixture adapter seam for web_crawl
+- [x] `browser` web_crawl explicit local-crawler unavailable evidence
 
 ### 5.D — Vision + Image Generation ✅
 
@@ -833,6 +843,8 @@ classification and row-backed implementation queue.
 - [x] `tts` Go-native OGG/Opus decoder decision
 - [x] `tts` Go-native OGG/Opus decoder implementation
 - [x] `tts` Pure-Go TTS decision research
+- [x] `tts` Shared speech artifact cache for Go-owned TTS
+- [x] `tts` Go-owned local TTS runtime seam + fixture fallback
 
 ### 5.F — Skills System (Remaining) ✅
 
@@ -847,6 +859,8 @@ classification and row-backed implementation queue.
 - [x] `profiles` Update bundled skills across active and named profiles
 - [x] `skills` Bundled Airtable productivity skill contract
 - [x] `skills` Bundled TouchDesigner MCP skill catalog contract
+- [x] `skills` Gateway/TUI dynamic skill slash invocation parity
+- [x] `skills` TUI/gateway reload-skills command refresh binding
 
 ### 5.G — MCP Integration ✅
 
@@ -949,6 +963,7 @@ classification and row-backed implementation queue.
 - [x] `tools` V4A patch apply rollback for native patch tool
 - [x] `tools` Patch replace post-write verification
 - [x] `tools` Hermes LSP write-time semantic diagnostics
+- [x] `tools` Per-file mutation queue for native write edit and patch tools
 
 ### 5.M — Mixture of Agents ✅
 
@@ -1052,6 +1067,10 @@ classification and row-backed implementation queue.
 - [x] `providers` Provider/auth readiness preflight for unattended jobs
 - [x] `goncho` Goncho golden transcript e2e harness
 - [x] `goncho` Goncho retrieval benchmark corpus
+- [x] `tools` Hermes send_message tool list and target contract
+- [x] `tools` Image generation managed-gateway provider binding
+- [x] `tools` OSV malware advisory check for MCP package launch
+- [x] `tools` Hermes toolset distribution manifest and deterministic sampler
 
 ### 5.O — Hermes CLI Parity ✅
 
@@ -1195,6 +1214,7 @@ classification and row-backed implementation queue.
 - [x] `providers` Per-profile provider credential readiness
 - [x] `channels` Per-profile channel credential readiness and allow-lists
 - [x] `providers` Gormes setup providers plural alias
+- [x] `cli` Root tools command config-backed toolset toggles
 
 ### 5.P — Docker / Packaging ✅
 
@@ -1295,6 +1315,8 @@ classification and row-backed implementation queue.
 - [x] `tui` Native TUI /tools enable-disable binding
 - [x] `tui` Native TUI /voice status and toggle binding
 - [x] `tui` Native TUI /skin get-set binding
+- [x] `gateway` Gormes JSONL RPC mode over agent runtime events
+- [x] `tui` Native TUI voice record key uses voice toggle adapter
 
 ### 5.R — Code Execution Mode Policy ✅
 
@@ -1379,6 +1401,10 @@ classification and row-backed implementation queue.
 - [x] `skills` Hermes curator archive/list/prune CLI catch-up
 - [x] `channels` TUI + Telegram browsing
 - [x] `skills` Native skills list/view tool surface
+- [x] `skills` TUI and gateway direct URL skill install binding
+- [x] `skills` Hermes/Pi external skill directories config binding
+- [x] `skills` Pi-style prompt template TUI expansion seam
+- [x] `skills` Prompt template CLI explicit roots and opt-out binding
 
 ### 6.G — Structured Memory Types ✅
 
@@ -1498,11 +1524,12 @@ classification and row-backed implementation queue.
 - [x] `docs` Hermes v0.14 release feature-to-module pairing ledger
 - [x] `docs` Hermes contract inventory gate
 - [x] `docs` Strict-fidelity upstream test-suite classifier
+- [x] `docs` Hermes integrations claim audit + source-backed plugin/skill parity map
 
-### 8.D — Sharp v1.0 🔨
+### 8.D — Sharp v1.0 ✅
 
 - [x] `release` Sharp v1.0 differentiator decision
-- [ ] `release` Single-binary cross-platform release pipeline
+- [x] `release` Single-binary cross-platform release pipeline
 - [x] `release` Release binary version/provenance smoke guard
 - [x] `install` CI and installer Go toolchain floor sync
 - [x] `release` Release prep guide target matrix sync
@@ -1525,6 +1552,8 @@ classification and row-backed implementation queue.
 - [x] `tui` Gormes welcome panel version/tool-count wiring
 - [x] `release` Termux latest-installer follow-up release publication
 - [x] `release` Removal of public v0.2.20 Termux latest-install caveats from README, landing, install docs, and troubleshooting docs
+- [x] `tui` Gormes-owned TUI queued-message widget and busy delivery modes
+- [x] `tui` Gormes-owned TUI extension status widget and footer seam
 
 ### 8.E — Toolkit Extraction 🔨
 
@@ -1558,13 +1587,23 @@ classification and row-backed implementation queue.
 - [x] `progress` OpenCode part-cost telemetry adapter for builder loop
 - [x] `progress` Progress next-work read-only selector
 - [x] `progress` Progress next-work repo-scope filter
+- [x] `progress` Internal topology guard for package consolidation
+- [x] `cli` Internal CLI surface package rehome
+- [x] `tools` Internal tool compact helper package rehome
+- [x] `tools` Internal tool trace helper package rehome
+- [x] `tools` Internal session search tool package rehome
+- [x] `progress` Progress Control Plane staged deepening program
+- [x] `progress` Progress workitem row classification seam
+- [x] `progress` Progress Workspace layout and path seam
+- [x] `progress` Progress write generated artifact plan
+- [x] `progress` Progress projections for active handoff shipped evidence and health
 
 ### 8.G — Community & External Contributions ✅
 
 - [x] `docs` Built-with-Gormes page scaffold
 - [x] `docs` Upstream Hermes user-stories static mirror
 
-## Phase 9 — Design & Security Hardening 🔨
+## Phase 9 — Design & Security Hardening ✅
 
 *Owned architecture improvements from DeerFlow patterns: declarative middleware chain for the agent runtime, and sandbox provider abstraction with virtual path security layer.*
 
@@ -1594,23 +1633,24 @@ classification and row-backed implementation queue.
 - [x] `navivox` Navivox HTTP gateway connect command
 - [x] `navivox` Navivox setup QR image pairing handoff
 
-### 9.F — Navivox Operator Activation 🔨
+### 9.F — Navivox Operator Activation ✅
 
 - [x] `navivox` Navivox HTTP/WS documentation refresh
 - [x] `navivox` Navivox connect-and-talk first screen
 - [x] `navivox` Navivox profile contact summary API
+- [x] `navivox` Navivox API capability contract
 - [x] `navivox` Navivox continuous voice command mode
-- [ ] `navivox` Navivox Telegram-inspired chat polish
+- [x] `navivox` Navivox Telegram-inspired chat polish
 - [x] `navivox` Navivox natural-language profile seed backend API
-- [ ] `navivox` Navivox natural-language profile seed Flutter UI
+- [x] `navivox` Navivox natural-language profile seed Flutter UI
 - [x] `navivox` Navivox structured tool event cards backend API
-- [ ] `navivox` Navivox structured tool event cards Flutter UI
+- [x] `navivox` Navivox structured tool event cards Flutter UI
 - [x] `navivox` Navivox safe config admin backend API
-- [ ] `navivox` Navivox safe config admin Flutter UI
+- [x] `navivox` Navivox safe config admin Flutter UI
 - [x] `navivox` Navivox voice run records backend API
-- [ ] `navivox` Navivox voice run records Flutter inspection UI
+- [x] `navivox` Navivox voice run records Flutter inspection UI
 - [x] `navivox` Navivox per-profile BYO voice profiles backend API
-- [ ] `navivox` Navivox per-profile BYO voice profiles Flutter UI
+- [x] `navivox` Navivox per-profile BYO voice profiles Flutter UI
 
 ### 9.G — External Issue Radar Regression Guards ✅
 
@@ -1627,15 +1667,15 @@ classification and row-backed implementation queue.
 
 ## Phase 3 Deep Dive
 
-`3.E.7` and `3.E.8` now have a frozen architecture target in `docs/superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-plan.md`. The contract is `user_id > chat_id > session_id`, recall remains same-chat default, cross-chat recall is opt-in, and `parent_session_id` is reserved for compression/fork descendants instead of becoming a generic session rewrite mechanism.
+`3.E.7` and `3.E.8` now have a frozen architecture target in `docs/superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-plan.md`. The contract is `user_id > chat_id > session_id`, recall remains same-chat default, cross-chat recall is opt-in, and `parent_session_id` is reserved for compression/fork descendants instead of becoming a generic session rewrite mechanism.
 
-Execution is now sequenced in `docs/superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md`, with the closeout order fixed as `3.E.6.1 -> 3.E.7.2 -> 3.E.8.1 -> 3.E.8.2` so freshness, fence safety, lineage metadata, and search/observability land in that order.
+Execution is now sequenced in `docs/superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md`, with the closeout order fixed as `3.E.6.1 -> 3.E.7.2 -> 3.E.8.1 -> 3.E.8.2` so freshness, fence safety, lineage metadata, and search/observability land in that order.
 
 ---
 
 ## Phase 4 Entry Gate
 
-Before any Phase 4 coding starts, the [Pre-Phase-4 E2E Gate](./phase-3-memory/) must be green. Freeze the Hermes-backed hybrid baseline for delivery envelopes, `<memory-context>` fences, and transcript/export artifacts first, then follow the entry rule in [Phase 4 — The Brain Transplant](./phase-4-brain-transplant/).
+Before any Phase 4 coding starts, the [Pre-Phase-4 E2E Gate](./phases/phase-3-memory/) must be green. Freeze the Hermes-backed hybrid baseline for delivery envelopes, `<memory-context>` fences, and transcript/export artifacts first, then follow the entry rule in [Phase 4 — The Brain Transplant](./phases/phase-4-brain-transplant/).
 
 ---
 

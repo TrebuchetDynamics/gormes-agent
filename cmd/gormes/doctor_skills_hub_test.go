@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
 )
 
 func TestDoctorCommandRendersSkillsHubSectionOffline(t *testing.T) {
@@ -42,7 +42,7 @@ func TestDoctorCommandRendersSkillsHubSectionOffline(t *testing.T) {
 	out := stdout + stderr
 	for _, want := range []string{
 		"◆ Skills Hub",
-		"] Skills Hub:",
+		"✓ Skills Hub ready",
 		".hub",
 		"2 hub-installed skill(s)",
 		"skipped (--offline",

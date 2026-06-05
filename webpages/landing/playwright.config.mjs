@@ -23,7 +23,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `${assertPortFree} && node ../scripts/with-compatible-node.mjs ./node_modules/.bin/astro dev --host ${e2eHost} --port ${e2ePort}`,
+    command: `${assertPortFree} && node ../shared/node/with-compatible-node.mjs ./node_modules/.bin/astro dev --host ${e2eHost} --port ${e2ePort}`,
     url: e2eBaseURL,
     reuseExistingServer: false,
   },

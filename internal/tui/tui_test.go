@@ -9,8 +9,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // TestSubmitRoutesToSubmitter: typing text and pressing Enter invokes the
@@ -109,7 +109,7 @@ func TestViewRendersAssistantContent(t *testing.T) {
 	// Pad the history with leading messages so the distinctive assistant text
 	// lands below the top few rows that the standard renderer may drop when
 	// View's total line count exceeds the reported terminal height.
-	history := []hermes.Message{
+	history := []llm.Message{
 		{Role: "user", Content: "warmup-1"},
 		{Role: "user", Content: "warmup-2"},
 		{Role: "user", Content: "warmup-3"},

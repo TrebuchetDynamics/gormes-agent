@@ -1,12 +1,12 @@
 package tui
 
 import (
-	"strings"
-
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/terminal"
 )
 
-const mouseSlashUsage = "usage: /mouse [on|off|toggle]"
+const mouseSlashUsage = terminal.MouseSlashUsage
 
 type mouseSlashResult struct {
 	handled bool
@@ -16,41 +16,17 @@ type mouseSlashResult struct {
 }
 
 func parseMouseTrackingSlash(input string, current bool) mouseSlashResult {
-	fields := strings.Fields(strings.TrimSpace(input))
-	if len(fields) == 0 {
-		return mouseSlashResult{}
-	}
-
-	name := strings.ToLower(fields[0])
-	if name != "/mouse" && name != "/scroll" {
-		return mouseSlashResult{}
-	}
-	if len(fields) > 2 {
-		return mouseSlashResult{handled: true, message: mouseSlashUsage}
-	}
-
-	arg := ""
-	if len(fields) == 2 {
-		arg = strings.ToLower(fields[1])
-	}
-
-	switch arg {
-	case "", "toggle":
-		return mouseSlashResult{handled: true, valid: true, next: !current}
-	case "on":
-		return mouseSlashResult{handled: true, valid: true, next: true}
-	case "off":
-		return mouseSlashResult{handled: true, valid: true, next: false}
-	default:
-		return mouseSlashResult{handled: true, message: mouseSlashUsage}
+	result := terminal.ParseMouseTrackingSlash(input, current)
+	return mouseSlashResult{
+		handled: result.Handled,
+		valid:   result.Valid,
+		next:    result.Next,
+		message: result.Message,
 	}
 }
 
 func defaultMouseModeCmd(enabled bool) tea.Cmd {
-	if enabled {
-		return tea.EnableMouseAllMotion
-	}
-	return tea.DisableMouse
+	return terminal.DefaultMouseModeCmd(enabled)
 }
 
 func (m Model) emitMouseModeCmd(enabled bool) tea.Cmd {
@@ -58,11 +34,4 @@ func (m Model) emitMouseModeCmd(enabled bool) tea.Cmd {
 		return m.mouseModeCmd(enabled)
 	}
 	return defaultMouseModeCmd(enabled)
-}
-
-func (m Model) mouseStatus() string {
-	if m.mouseTracking {
-		return "mouse: on"
-	}
-	return "mouse: disabled"
 }

@@ -11,7 +11,7 @@ package runtime
 import (
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // EndpointSource records which input shaped the binding so status evidence
@@ -40,13 +40,13 @@ const (
 
 // HTTPClientFactory builds an OpenAI-compatible / proxy HTTP client. The
 // concrete factory lives in cmd/gormes; tests inject fakes through this seam.
-type HTTPClientFactory func(baseURL, apiKey, provider string) hermes.Client
+type HTTPClientFactory func(baseURL, apiKey, provider string) llm.Client
 
 // NativeClientFactory builds a provider-aware native runtime client. Tests
 // inject fakes; production wiring lands in a follow-up slice that brings the
 // channel-neutral factory into cmd/gormes without re-introducing the implicit
 // localhost backend.
-type NativeClientFactory func(req NativeClientRequest) (hermes.Client, error)
+type NativeClientFactory func(req NativeClientRequest) (llm.Client, error)
 
 // NativeClientRequest carries the already-resolved provider/model/credential
 // values into the native client factory. It deliberately does not carry raw
@@ -83,7 +83,7 @@ type Binding struct {
 	Endpoint        string
 	EndpointSource  EndpointSource
 	DegradedReasons []string
-	Client          hermes.Client
+	Client          llm.Client
 }
 
 // ResolveBinding picks the explicit OpenAI-compatible / proxy path when an

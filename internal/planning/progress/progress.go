@@ -1,0 +1,319 @@
+// Package progress is the single source of truth for Gormes roadmap progress.
+// It parses progress.json, derives phase/subphase status from items, and
+// renders the canonical markdown sections consumed by README and docs.
+package progress
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+)
+
+type Status string
+
+const (
+	StatusComplete   Status = "complete"
+	StatusInProgress Status = "in_progress"
+	StatusPlanned    Status = "planned"
+)
+
+type ContractStatus string
+
+const (
+	ContractStatusMissing      ContractStatus = "missing"
+	ContractStatusDraft        ContractStatus = "draft"
+	ContractStatusFixtureReady ContractStatus = "fixture_ready"
+	ContractStatusValidated    ContractStatus = "validated"
+)
+
+type SliceSize string
+
+const (
+	SliceSizeSmall    SliceSize = "small"
+	SliceSizeMedium   SliceSize = "medium"
+	SliceSizeLarge    SliceSize = "large"
+	SliceSizeUmbrella SliceSize = "umbrella"
+)
+
+type ExecutionOwner string
+
+const (
+	ExecutionOwnerDocs         ExecutionOwner = "docs"
+	ExecutionOwnerGateway      ExecutionOwner = "gateway"
+	ExecutionOwnerMemory       ExecutionOwner = "memory"
+	ExecutionOwnerProvider     ExecutionOwner = "provider"
+	ExecutionOwnerTools        ExecutionOwner = "tools"
+	ExecutionOwnerSkills       ExecutionOwner = "skills"
+	ExecutionOwnerOrchestrator ExecutionOwner = "orchestrator"
+	ExecutionOwnerTui          ExecutionOwner = "tui"
+	ExecutionOwnerGoncho       ExecutionOwner = "goncho"
+)
+
+type BuilderLoopMeta struct {
+	Entrypoint      string   `json:"entrypoint"`
+	Plan            string   `json:"plan"`
+	AgentQueue      string   `json:"agent_queue"`
+	ProgressSchema  string   `json:"progress_schema"`
+	CandidateSource string   `json:"candidate_source"`
+	UnitTest        string   `json:"unit_test"`
+	CandidatePolicy []string `json:"candidate_policy"`
+}
+
+type Meta struct {
+	Version     string          `json:"version"`
+	LastUpdated string          `json:"last_updated"`
+	Links       Links           `json:"links"`
+	BuilderLoop BuilderLoopMeta `json:"builder_loop,omitempty"`
+}
+
+// UnmarshalJSON accepts the legacy "autoloop" key as a fallback for the
+// renamed "builder_loop" field so progress.json files written before the
+// rename still parse cleanly. New writes always emit "builder_loop".
+func (m *Meta) UnmarshalJSON(data []byte) error {
+	type metaAlias Meta
+	aux := struct {
+		Autoloop    *BuilderLoopMeta `json:"autoloop,omitempty"`
+		BuilderLoop *BuilderLoopMeta `json:"builder_loop,omitempty"`
+		*metaAlias
+	}{metaAlias: (*metaAlias)(m)}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	switch {
+	case aux.BuilderLoop != nil:
+		m.BuilderLoop = *aux.BuilderLoop
+	case aux.Autoloop != nil:
+		m.BuilderLoop = *aux.Autoloop
+	}
+	return nil
+}
+
+type Links struct {
+	GitHubReadme string `json:"github_readme"`
+	LandingPage  string `json:"landing_page"`
+	DocsSite     string `json:"docs_site"`
+	SourceCode   string `json:"source_code"`
+}
+
+type Item struct {
+	Name     string `json:"name"`
+	Priority string `json:"priority,omitempty"`
+	Status   Status `json:"status"`
+	// Optional contract metadata turns roadmap rows into executable architecture
+	// requirements without forcing every historical item to be rewritten at once.
+	Contract       string         `json:"contract,omitempty"`
+	ContractStatus ContractStatus `json:"contract_status,omitempty"`
+	SliceSize      SliceSize      `json:"slice_size,omitempty"`
+	ExecutionOwner ExecutionOwner `json:"execution_owner,omitempty"`
+	// Module is the optional per-row subsystem bucket for the module-split
+	// backlog layout. Empty by default (omitempty → byte-neutral); when
+	// unset, progress.Module() derives a deterministic default from
+	// ExecutionOwner. Owned by the planner; backfilled explicitly.
+	Module       string           `json:"module,omitempty"`
+	TrustClass   []string         `json:"trust_class,omitempty"`
+	DegradedMode string           `json:"degraded_mode,omitempty"`
+	Fixture      string           `json:"fixture,omitempty"`
+	SourceRefs   []string         `json:"source_refs,omitempty"`
+	ReadyWhen    []string         `json:"ready_when,omitempty"`
+	NotReadyWhen []string         `json:"not_ready_when,omitempty"`
+	BlockedBy    []string         `json:"blocked_by,omitempty"`
+	Unblocks     []string         `json:"unblocks,omitempty"`
+	Acceptance   []string         `json:"acceptance,omitempty"`
+	Note         string           `json:"note,omitempty"`
+	Blocker      *BlockerMetadata `json:"blocker,omitempty"`
+	WriteScope   []string         `json:"write_scope,omitempty"`
+	TestCommands []string         `json:"test_commands,omitempty"`
+	// NoTestRequiredReason is an explicit planner-owned exception for rows
+	// whose work is documentation-only or otherwise cannot be proven by a
+	// focused row-local command. Builder selection treats rows without
+	// test_commands as unready unless this reason is present.
+	NoTestRequiredReason string   `json:"no_test_required,omitempty"`
+	DoneSignal           []string `json:"done_signal,omitempty"`
+	Wired                bool     `json:"wired,omitempty"`
+	// Optional, reserved, not rendered yet.
+	PR    string `json:"pr,omitempty"`
+	Owner string `json:"owner,omitempty"`
+	ETA   string `json:"eta,omitempty"`
+	// Health is execution-history metadata owned by autoloop. The planner
+	// must preserve this block verbatim across regenerations (see
+	// docs/superpowers/specs/2026-04-24-reactive-autoloop-design.md).
+	Health *RowHealth `json:"health,omitempty"`
+	// PlannerVerdict is execution-history metadata owned by the planner
+	// runtime. Autoloop reads it (to skip human-escalated rows) and must
+	// preserve it verbatim across writes (see
+	// docs/superpowers/specs/2026-04-24-planner-self-healing-design.md).
+	PlannerVerdict *PlannerVerdict `json:"planner_verdict,omitempty"`
+	// Provenance is per-row source-of-truth metadata owned by the planner.
+	// Autoloop preserves it via typed-struct round-trip. The planner sets
+	// origin_type="gormes" for rows with no upstream analog (see Phase D of
+	// docs/superpowers/plans/orchestration-planner/2026-04-25-planner-divergence-awareness.md).
+	Provenance *Provenance `json:"provenance,omitempty"`
+	// Extra preserves historical row evidence fields that are not yet promoted
+	// into the typed schema. This prevents layout rewrites from silently
+	// dropping operator proof blocks while the planner gradually normalizes
+	// older rows.
+	Extra map[string]json.RawMessage `json:"-"`
+}
+
+// BlockerMetadata records the fleet-standard blocker protocol directly on a
+// progress row. It intentionally lives in progress.json so blocked work stays
+// in the canonical backlog rather than drifting into a side queue.
+type BlockerMetadata struct {
+	Title         string   `json:"title,omitempty"`
+	Type          string   `json:"type,omitempty"`
+	Status        string   `json:"status,omitempty"`
+	RecordedAt    string   `json:"recorded_at,omitempty"`
+	Blocker       string   `json:"blocker,omitempty"`
+	Evidence      string   `json:"evidence,omitempty"`
+	UnblocksWhen  string   `json:"unblocks_when,omitempty"`
+	Owner         string   `json:"owner,omitempty"`
+	Pivot         string   `json:"pivot,omitempty"`
+	NextCheck     string   `json:"next_check,omitempty"`
+	Degraded      bool     `json:"degraded,omitempty"`
+	MissingFields []string `json:"missing_fields,omitempty"`
+}
+
+type Subphase struct {
+	Name     string `json:"name"`
+	Priority string `json:"priority,omitempty"`
+	// Exactly one of Items or Status is set. Enforced by Validate.
+	Items  []Item `json:"items,omitempty"`
+	Status Status `json:"status,omitempty"`
+	// DriftState is subphase-level convergence state owned by the planner.
+	// Autoloop preserves it via typed-struct round-trip (see Phase D of
+	// docs/superpowers/plans/orchestration-planner/2026-04-25-planner-divergence-awareness.md).
+	DriftState *DriftState                `json:"drift_state,omitempty"`
+	Extra      map[string]json.RawMessage `json:"-"`
+}
+
+type Phase struct {
+	Name        string `json:"name"`
+	Deliverable string `json:"deliverable"`
+	// DependencyNote is a free-form string on some phases.
+	DependencyNote string              `json:"dependency_note,omitempty"`
+	Subphases      map[string]Subphase `json:"subphases"`
+}
+
+type Progress struct {
+	Meta   Meta             `json:"meta"`
+	Phases map[string]Phase `json:"phases"`
+}
+
+// DerivedStatus computes subphase status.
+// If explicit Status is set (and no items), returns it.
+// Otherwise: all items complete -> complete; any complete or in_progress -> in_progress; else planned.
+// Validate guarantees exactly one of Items or Status is set.
+func (s Subphase) DerivedStatus() Status {
+	if len(s.Items) == 0 {
+		return s.Status
+	}
+	allComplete := true
+	anyStarted := false
+	for _, it := range s.Items {
+		if it.Status != StatusComplete {
+			allComplete = false
+		}
+		if it.Status == StatusComplete || it.Status == StatusInProgress {
+			anyStarted = true
+		}
+	}
+	switch {
+	case allComplete:
+		return StatusComplete
+	case anyStarted:
+		return StatusInProgress
+	default:
+		return StatusPlanned
+	}
+}
+
+// DerivedStatus computes phase status from subphases. Empty phase -> planned.
+func (ph Phase) DerivedStatus() Status {
+	if len(ph.Subphases) == 0 {
+		return StatusPlanned
+	}
+	allComplete := true
+	anyStarted := false
+	for _, sp := range ph.Subphases {
+		st := sp.DerivedStatus()
+		if st != StatusComplete {
+			allComplete = false
+		}
+		if st == StatusComplete || st == StatusInProgress {
+			anyStarted = true
+		}
+	}
+	switch {
+	case allComplete:
+		return StatusComplete
+	case anyStarted:
+		return StatusInProgress
+	default:
+		return StatusPlanned
+	}
+}
+
+// Load reads and parses the backlog from the given path. It is layout
+// transparent: a regular file is parsed as the monolithic progress.json
+// (unchanged historical behavior), while a directory is parsed as a split
+// layout (index.json + phases/<id>.json) and returns the identical
+// in-memory model. No consumer passes a directory today, so the monolithic
+// path is byte-for-byte unchanged; a malformed split dir yields
+// ErrMalformedSplit rather than a silently partial backlog.
+func Load(path string) (*Progress, error) {
+	if fi, err := os.Stat(path); err == nil && fi.IsDir() {
+		return loadSplit(path)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("progress: read %s: %w", path, err)
+	}
+	var p Progress
+	if err := json.Unmarshal(b, &p); err != nil {
+		return nil, fmt.Errorf("progress: parse %s: %w", path, err)
+	}
+	return &p, nil
+}
+
+type Counts struct {
+	Total      int
+	Complete   int
+	InProgress int
+	Planned    int
+}
+
+type Stats struct {
+	Phases    Counts
+	Subphases Counts
+	Items     Counts
+}
+
+// Stats walks all phases/subphases/items and tallies derived status.
+// Computed on demand — never stored in progress.json.
+func (p *Progress) Stats() Stats {
+	var s Stats
+	for _, ph := range p.Phases {
+		s.Phases.Total++
+		tally(&s.Phases, ph.DerivedStatus())
+		for _, sp := range ph.Subphases {
+			s.Subphases.Total++
+			tally(&s.Subphases, sp.DerivedStatus())
+			for _, it := range sp.Items {
+				s.Items.Total++
+				tally(&s.Items, it.Status)
+			}
+		}
+	}
+	return s
+}
+
+func tally(c *Counts, st Status) {
+	switch st {
+	case StatusComplete:
+		c.Complete++
+	case StatusInProgress:
+		c.InProgress++
+	case StatusPlanned:
+		c.Planned++
+	}
+}

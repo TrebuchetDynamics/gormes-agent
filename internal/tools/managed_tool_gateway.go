@@ -27,9 +27,9 @@ const (
 	ManagedGatewayEvidenceUnavailable ManagedGatewayEvidence = "gateway_unavailable"
 
 	// ManagedGatewayEvidenceAuthRequired signals the gateway rejected the
-	// supplied bearer token. Callers should drive recovery through the
-	// shared MCP OAuth refresh path; no tools are registered until the
-	// bridge re-discovers successfully.
+	// supplied bearer token or could not negotiate a required MCP session.
+	// Callers should drive recovery through the shared MCP OAuth refresh path;
+	// no tools are registered until the bridge re-discovers successfully.
 	ManagedGatewayEvidenceAuthRequired ManagedGatewayEvidence = "auth_required"
 
 	// ManagedGatewayEvidenceSchemaRejected signals discovery succeeded but
@@ -191,8 +191,27 @@ func (b *ManagedGatewayBridge) Discover(ctx context.Context) (ManagedGatewayDisc
 	}
 	raw, err := b.client.ListTools(ctx)
 	if err != nil {
+		if errors.Is(err, ErrMCPSessionExpired) {
+			return b.retryDiscoverAfterSessionReconnect(ctx)
+		}
 		return ManagedGatewayDiscovery{Evidence: classifyDiscoverError(err)}, err
 	}
+	return b.discoveryFromRawTools(raw), nil
+}
+
+func (b *ManagedGatewayBridge) retryDiscoverAfterSessionReconnect(ctx context.Context) (ManagedGatewayDiscovery, error) {
+	b.initialed = false
+	if err := b.Initialize(ctx); err != nil {
+		return ManagedGatewayDiscovery{Evidence: classifyDiscoverError(err)}, err
+	}
+	raw, err := b.client.ListTools(ctx)
+	if err != nil {
+		return ManagedGatewayDiscovery{Evidence: classifyDiscoverError(err)}, err
+	}
+	return b.discoveryFromRawTools(raw), nil
+}
+
+func (b *ManagedGatewayBridge) discoveryFromRawTools(raw []MCPRawTool) ManagedGatewayDiscovery {
 	norm := NormalizeTools(b.def.Vendor, raw)
 	evidence := ManagedGatewayEvidenceOK
 	if len(norm.Rejected) > 0 {
@@ -202,7 +221,7 @@ func (b *ManagedGatewayBridge) Discover(ctx context.Context) (ManagedGatewayDisc
 		Tools:    norm.Tools,
 		Rejected: norm.Rejected,
 		Evidence: evidence,
-	}, nil
+	}
 }
 
 // CallTool invokes the named tool on the gateway, passing through arguments,
@@ -214,9 +233,33 @@ func (b *ManagedGatewayBridge) CallTool(ctx context.Context, name string, argume
 	if b == nil {
 		return MCPCallResult{}, ManagedGatewayEvidenceUnavailable, errors.New("managed gateway: nil bridge")
 	}
-	res, circuitEvidence, err := CallMCPWithCircuitBreaker(ctx, b.breaker, b.def.Vendor, func(ctx context.Context) (MCPCallResult, error) {
+	if err := b.Initialize(ctx); err != nil {
+		return MCPCallResult{}, classifyCallToolError(err), err
+	}
+	call := func(ctx context.Context) (MCPCallResult, error) {
 		return b.client.CallTool(ctx, name, arguments)
-	})
+	}
+	res, circuitEvidence, err := CallMCPWithCircuitBreaker(ctx, b.breaker, b.def.Vendor, call)
+	if err != nil {
+		if errors.Is(err, ErrMCPSessionExpired) {
+			return b.retryCallToolAfterSessionReconnect(ctx, call)
+		}
+		return res, managedEvidenceFromMCPCircuit(circuitEvidence, classifyCallToolError(err)), err
+	}
+	if res.IsError {
+		return res, managedEvidenceFromMCPCircuit(circuitEvidence, ManagedGatewayEvidenceToolCallFailed), nil
+	}
+	return res, ManagedGatewayEvidenceOK, nil
+}
+
+func (b *ManagedGatewayBridge) retryCallToolAfterSessionReconnect(ctx context.Context, call func(context.Context) (MCPCallResult, error)) (MCPCallResult, ManagedGatewayEvidence, error) {
+	b.initialed = false
+	if err := b.Initialize(ctx); err != nil {
+		return MCPCallResult{}, classifyCallToolError(err), err
+	}
+	b.breaker.ResetAfterReconnect(b.def.Vendor)
+
+	res, circuitEvidence, err := CallMCPWithCircuitBreaker(ctx, b.breaker, b.def.Vendor, call)
 	if err != nil {
 		return res, managedEvidenceFromMCPCircuit(circuitEvidence, classifyCallToolError(err)), err
 	}
@@ -242,31 +285,30 @@ func (b *ManagedGatewayBridge) Close() error {
 }
 
 // classifyDiscoverError maps an Initialize/ListTools failure onto the
-// operator-visible evidence enum. Auth failures are routed through the
-// shared MCP OAuth recovery path; everything else (connectivity, 5xx,
-// timeouts) is indistinguishable to the caller and surfaces as
+// operator-visible evidence enum. Auth/session-negotiation failures are routed
+// through the shared MCP OAuth recovery path; everything else (connectivity,
+// 5xx, timeouts) is indistinguishable to the caller and surfaces as
 // gateway_unavailable so degraded-mode reporting stays consistent.
 func classifyDiscoverError(err error) ManagedGatewayEvidence {
 	if err == nil {
 		return ManagedGatewayEvidenceOK
 	}
-	if errors.Is(err, ErrAuthRequired) {
+	if errors.Is(err, ErrAuthRequired) || errors.Is(err, ErrMCPSessionRequired) || errors.Is(err, ErrMCPOAuthNoninteractiveRequired) {
 		return ManagedGatewayEvidenceAuthRequired
 	}
 	return ManagedGatewayEvidenceUnavailable
 }
 
 // classifyCallToolError maps a tools/call transport failure onto the
-// evidence enum. Auth failures route to auth_required so the caller can
-// drive recovery via the MCP OAuth refresh contract; every other transport
-// failure (timeouts, JSON-RPC errors, body decode errors) surfaces as
-// tool_call_failed because the call itself never produced a structured
-// result.
+// evidence enum. Auth/session-negotiation failures route to auth_required so
+// the caller can drive recovery via the MCP OAuth refresh contract; every other
+// transport failure (timeouts, JSON-RPC errors, body decode errors) surfaces as
+// tool_call_failed because the call itself never produced a structured result.
 func classifyCallToolError(err error) ManagedGatewayEvidence {
 	if err == nil {
 		return ManagedGatewayEvidenceOK
 	}
-	if errors.Is(err, ErrAuthRequired) {
+	if errors.Is(err, ErrAuthRequired) || errors.Is(err, ErrMCPSessionRequired) || errors.Is(err, ErrMCPOAuthNoninteractiveRequired) {
 		return ManagedGatewayEvidenceAuthRequired
 	}
 	return ManagedGatewayEvidenceToolCallFailed

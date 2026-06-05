@@ -9,8 +9,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // TestMultiTurnStreamedConversationE2E drives the real internal/tui Model
@@ -52,23 +52,23 @@ func TestMultiTurnStreamedConversationE2E(t *testing.T) {
 	push(kernel.RenderFrame{Phase: kernel.PhaseIdle})
 
 	var (
-		history []hermes.Message
+		history []llm.Message
 		turn    atomic.Int64
 	)
 
 	streamTurn := func(userText, partial, final string) {
-		history = append(history, hermes.Message{Role: "user", Content: userText})
+		history = append(history, llm.Message{Role: "user", Content: userText})
 		// Intermediate streamed draft: not yet committed to History.
 		push(kernel.RenderFrame{
 			Phase:     kernel.PhaseStreaming,
-			History:   append([]hermes.Message(nil), history...),
+			History:   append([]llm.Message(nil), history...),
 			DraftText: partial,
 		})
 		<-release // hold the draft on screen until the test has seen it
-		history = append(history, hermes.Message{Role: "assistant", Content: final})
+		history = append(history, llm.Message{Role: "assistant", Content: final})
 		push(kernel.RenderFrame{
 			Phase:   kernel.PhaseIdle,
-			History: append([]hermes.Message(nil), history...),
+			History: append([]llm.Message(nil), history...),
 		})
 	}
 

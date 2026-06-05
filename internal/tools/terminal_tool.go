@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/redaction"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/toolcompact"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/compact"
 )
 
 const (
@@ -32,7 +32,7 @@ type TerminalToolConfig struct {
 	MaxOutputBytes   int
 	SubprocessHome   SubprocessHomeResolver
 	WorkspaceScope   *ProfileWorkspaceScope
-	OutputCompaction toolcompact.Config
+	OutputCompaction compact.Config
 }
 
 type TerminalTool struct {
@@ -84,14 +84,15 @@ func (t *TerminalTool) Execute(ctx context.Context, args json.RawMessage) (json.
 	}
 
 	if t.cfg.WorkspaceScope != nil && t.cfg.WorkspaceScope.Configured() {
+		denial := profileWorkspaceExecuteDenied("local terminal")
 		return marshalToolPayload(redactTerminalResult(terminalResult{
 			Status:   "blocked",
 			ExitCode: -1,
-			Error:    ProfileWorkspaceScopeViolation + ": local terminal cannot prove confinement for a non-empty profile workspace allow-list; fail closed before spawning",
+			Error:    denial.Message,
 			Command:  in.Command,
 			Evidence: map[string]string{
-				"code":   ProfileWorkspaceScopeViolation,
-				"reason": "local_terminal_no_profile_workspace_confinement",
+				"code":   denial.Evidence,
+				"reason": denial.Reason,
 			},
 		}))
 	}
@@ -215,14 +216,14 @@ func (t *TerminalTool) applyOutputCompaction(result *terminalResult, fullOutput 
 	if result == nil || fullOutput {
 		return
 	}
-	stdout := toolcompact.Compact(toolcompact.Request{
+	stdout := compact.Compact(compact.Request{
 		ToolName: "terminal",
 		Command:  result.Command,
 		Stream:   "stdout",
 		Text:     result.Stdout,
 		ExitCode: result.ExitCode,
 	}, t.cfg.OutputCompaction)
-	stderr := toolcompact.Compact(toolcompact.Request{
+	stderr := compact.Compact(compact.Request{
 		ToolName: "terminal",
 		Command:  result.Command,
 		Stream:   "stderr",

@@ -1,56 +1,29 @@
 package tui
 
-import (
-	"strings"
-)
+import "github.com/TrebuchetDynamics/gormes-agent/internal/tui/title"
 
 func titleSlashHandler(input string, model *Model) SlashResult {
 	if model == nil {
 		return SlashResult{Handled: true, StatusMessage: "title: TUI unavailable"}
 	}
-	sessionID := strings.TrimSpace(model.SessionID())
-	if sessionID == "" {
-		return SlashResult{Handled: true, StatusMessage: "no active session"}
-	}
-	if model.sessionTitle == nil {
-		return SlashResult{Handled: true, StatusMessage: "title: session title unavailable"}
-	}
+	res := title.HandleSlash(title.SlashRequest{
+		Input:     input,
+		SessionID: model.SessionID(),
+		TitleFunc: titleSessionFunc(model.sessionTitle),
+	})
+	return SlashResult{Handled: true, StatusMessage: res.StatusMessage}
+}
 
-	title, hasTitle := titleSlashArg(input)
-	if !hasTitle {
-		res, err := model.sessionTitle(sessionID, "")
-		if err != nil {
-			return SlashResult{Handled: true, StatusMessage: "title: " + err.Error()}
-		}
-		current := strings.TrimSpace(res.Title)
-		if current == "" {
-			return SlashResult{Handled: true, StatusMessage: "no title set"}
-		}
-		return SlashResult{Handled: true, StatusMessage: "title: " + current}
+func titleSessionFunc(fn SessionTitleFunc) title.SessionTitleFunc {
+	if fn == nil {
+		return nil
 	}
-	if title == "" {
-		return SlashResult{Handled: true, StatusMessage: "usage: /title <your session title>"}
+	return func(sessionID, nextTitle string) (title.SessionTitleResult, error) {
+		res, err := fn(sessionID, nextTitle)
+		return title.SessionTitleResult{Title: res.Title, Pending: res.Pending}, err
 	}
-
-	res, err := model.sessionTitle(sessionID, title)
-	if err != nil {
-		return SlashResult{Handled: true, StatusMessage: "title: " + err.Error()}
-	}
-	next := strings.TrimSpace(res.Title)
-	if next == "" {
-		next = title
-	}
-	suffix := ""
-	if res.Pending {
-		suffix = " (queued while session initializes)"
-	}
-	return SlashResult{Handled: true, StatusMessage: "session title set: " + next + suffix}
 }
 
 func titleSlashArg(input string) (string, bool) {
-	fields := strings.Fields(strings.TrimSpace(input))
-	if len(fields) <= 1 {
-		return "", false
-	}
-	return strings.TrimSpace(strings.Join(fields[1:], " ")), true
+	return title.SlashArg(input)
 }

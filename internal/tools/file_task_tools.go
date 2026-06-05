@@ -18,8 +18,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/lsp"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/redaction"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/filesystem"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/lsp"
 	"github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
 )
@@ -47,6 +48,7 @@ type FileTaskToolConfig struct {
 	WorkspaceScope *ProfileWorkspaceScope
 	ReadGuard      *FileReadGuard
 	StateRegistry  *FileStateRegistry
+	MutationQueue  *FileMutationQueue
 	TaskID         string
 	CWDResolver    func() string
 	MaxReadChars   int
@@ -190,7 +192,7 @@ func (t *ReadFileTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		})
 	}
 	if t.duplicateWindow(rel, offset, limit, info) {
-		state, _ := t.fileStateRegistry().record(root, t.cfg.TaskID, cwd, rel, resolved)
+		state, _ := t.fileStateRegistry().Record(root, t.cfg.TaskID, cwd, rel, resolved)
 		status := FileReadResult{
 			Path:        rel,
 			DedupStatus: FileReadDedupStatusUnchanged,
@@ -206,7 +208,7 @@ func (t *ReadFileTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		return marshalReadFileStatus(rel, status, state)
 	}
 
-	state, _ := t.fileStateRegistry().record(root, t.cfg.TaskID, cwd, rel, resolved)
+	state, _ := t.fileStateRegistry().Record(root, t.cfg.TaskID, cwd, rel, resolved)
 	truncated := offset > 1 || endIdx < total
 	payload := map[string]any{
 		"path":             rel,
@@ -300,6 +302,56 @@ func fileReadEvidenceWithPath(in []FileReadEvidence, path string) []FileReadEvid
 // SearchFilesTool implements a local ripgrep-like search_files contract.
 type SearchFilesTool struct {
 	cfg FileTaskToolConfig
+}
+
+type searchContentEntry struct {
+	path  string
+	line  int
+	text  string
+	match bool
+}
+
+type searchContentAccumulator struct {
+	entries []searchContentEntry
+	indexes map[string]int
+}
+
+func (a *searchContentAccumulator) appendRange(rel string, lines []string, matchIndex, contextLines int) {
+	if matchIndex < 0 || matchIndex >= len(lines) {
+		return
+	}
+	if a.indexes == nil {
+		a.indexes = map[string]int{}
+	}
+	start, end := searchContentContextRange(matchIndex, len(lines), contextLines)
+	for lineIndex := start; lineIndex <= end; lineIndex++ {
+		key := searchContentEntryKey(rel, lineIndex)
+		if existing, ok := a.indexes[key]; ok {
+			if lineIndex == matchIndex {
+				a.entries[existing].match = true
+			}
+			continue
+		}
+		a.indexes[key] = len(a.entries)
+		a.entries = append(a.entries, searchContentEntry{
+			path:  rel,
+			line:  lineIndex + 1,
+			text:  lines[lineIndex],
+			match: lineIndex == matchIndex,
+		})
+	}
+}
+
+func searchContentEntryKey(rel string, lineIndex int) string {
+	return rel + "\x00" + strconv.Itoa(lineIndex)
+}
+
+func (e searchContentEntry) payload() map[string]any {
+	return map[string]any{
+		"path": e.path,
+		"line": e.line,
+		"text": e.text,
+	}
 }
 
 func NewSearchFilesTool(cfg FileTaskToolConfig) *SearchFilesTool {
@@ -427,8 +479,7 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 	}
 	counts := map[string]int{}
 	filesSeen := map[string]bool{}
-	var results []map[string]any
-	emittedContext := map[string]bool{}
+	var results searchContentAccumulator
 	contextLines := in.Context
 	if contextLines < 0 {
 		contextLines = 0
@@ -468,29 +519,7 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 			counts[rel]++
 			filesSeen[rel] = true
 			if outputMode == "content" {
-				start, end := i, i
-				if contextLines > 0 {
-					start = i - contextLines
-					if start < 0 {
-						start = 0
-					}
-					end = i + contextLines
-					if end >= len(lines) {
-						end = len(lines) - 1
-					}
-				}
-				for lineIndex := start; lineIndex <= end; lineIndex++ {
-					key := rel + "\x00" + strconv.Itoa(lineIndex)
-					if emittedContext[key] {
-						continue
-					}
-					emittedContext[key] = true
-					results = append(results, map[string]any{
-						"path": rel,
-						"line": lineIndex + 1,
-						"text": lines[lineIndex],
-					})
-				}
+				results.appendRange(rel, lines, i, contextLines)
 			}
 		}
 		return nil
@@ -527,13 +556,13 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 			"truncated": truncated,
 		})
 	case "content":
-		window, truncated := windowMatches(results, offset, limit)
+		window, truncated := windowSearchContentEntries(results.entries, offset, limit)
 		return marshalToolPayload(map[string]any{
 			"pattern":   in.Pattern,
 			"target":    "content",
 			"path":      relBase,
-			"count":     len(results),
-			"matches":   window,
+			"count":     len(results.entries),
+			"matches":   searchContentEntryPayloads(window),
 			"truncated": truncated,
 		})
 	default:
@@ -574,11 +603,24 @@ func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": in.Path, "error": err.Error()})
 	}
+	var out json.RawMessage
+	queueErr := fileTaskMutationQueue(t.cfg).Run(ctx, resolved, func(ctx context.Context) error {
+		var err error
+		out, err = t.executeResolvedWrite(ctx, resolved, rel, root, cwd, in.Content)
+		return err
+	})
+	if queueErr != nil {
+		return marshalToolPayload(map[string]any{"path": rel, "error": "file mutation queue: " + queueErr.Error()})
+	}
+	return out, nil
+}
+
+func (t *WriteFileTool) executeResolvedWrite(ctx context.Context, resolved, rel, root, cwd, content string) (json.RawMessage, error) {
 	registry := fileTaskStateRegistry(t.cfg)
-	if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
+	if check := registry.Check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
 		return marshalToolPayload(fileStateErrorPayload(rel, check))
 	}
-	if isFileReadGuardStatusText([]byte(in.Content)) {
+	if isFileReadGuardStatusText([]byte(content)) {
 		return marshalToolPayload(map[string]any{"path": rel, "error": ErrFileReadGuardStatusContent.Error()})
 	}
 	var preContent *string
@@ -591,19 +633,19 @@ func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json
 	if err := os.MkdirAll(filepath.Dir(resolved), 0o755); err != nil {
 		return marshalToolPayload(map[string]any{"path": rel, "error": "create parent directories: " + err.Error()})
 	}
-	if err := AtomicWrite(resolved, []byte(in.Content)); err != nil {
+	if err := AtomicWrite(resolved, []byte(content)); err != nil {
 		return marshalToolPayload(map[string]any{"path": rel, "error": "write file: " + err.Error()})
 	}
-	state, _ := registry.record(root, t.cfg.TaskID, cwd, rel, resolved)
+	state, _ := registry.Record(root, t.cfg.TaskID, cwd, rel, resolved)
 	payload := map[string]any{
 		"path":          rel,
-		"bytes_written": len([]byte(in.Content)),
+		"bytes_written": len([]byte(content)),
 		"status":        "ok",
 	}
-	if lint, ok := postEditLintDelta(resolved, rel, in.Content, preContent); ok {
+	if lint, ok := postEditLintDelta(resolved, rel, content, preContent); ok {
 		payload["lint"] = lint
 	}
-	if lspResult, ok := postEditLSPDiagnostics(ctx, t.cfg.LSPDiagnostics, resolved, rel, in.Content, preContent); ok {
+	if lspResult, ok := postEditLSPDiagnostics(ctx, t.cfg.LSPDiagnostics, resolved, rel, content, preContent); ok {
 		payload["lsp"] = lspResult
 	}
 	if statePayload := fileStatePayload(state); statePayload != nil {
@@ -650,7 +692,7 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 		mode = "replace"
 	}
 	if mode == "patch" {
-		return t.executeV4APatch(in.Patch)
+		return t.executeV4APatch(ctx, in.Patch)
 	}
 	if mode != "replace" {
 		return marshalToolPayload(map[string]any{"error": "patch currently supports replace mode only"})
@@ -665,8 +707,21 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": in.Path, "error": err.Error()})
 	}
+	var out json.RawMessage
+	queueErr := fileTaskMutationQueue(t.cfg).Run(ctx, resolved, func(ctx context.Context) error {
+		var err error
+		out, err = t.executeResolvedReplace(ctx, resolved, rel, root, cwd, in.OldString, in.NewString, in.ReplaceAll)
+		return err
+	})
+	if queueErr != nil {
+		return marshalToolPayload(map[string]any{"path": rel, "error": "file mutation queue: " + queueErr.Error()})
+	}
+	return out, nil
+}
+
+func (t *PatchTool) executeResolvedReplace(ctx context.Context, resolved, rel, root, cwd, oldString, newString string, replaceAll bool) (json.RawMessage, error) {
 	registry := fileTaskStateRegistry(t.cfg)
-	if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
+	if check := registry.Check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
 		return marshalToolPayload(fileStateErrorPayload(rel, check))
 	}
 	raw, err := fileTaskReadFile(resolved)
@@ -677,12 +732,12 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 		return marshalToolPayload(map[string]any{"path": rel, "error": "patch cannot edit binary files"})
 	}
 	content := string(raw)
-	updated, replacements, replaceErr := fuzzyPatchReplace(content, in.OldString, in.NewString, in.ReplaceAll)
+	updated, replacements, replaceErr := fuzzyPatchReplace(content, oldString, newString, replaceAll)
 	if replaceErr != nil {
 		payload := map[string]any{"path": rel, "error": replaceErr.Error()}
 		if errors.Is(replaceErr, errPatchNoMatch) {
 			payload["error"] = "old_string not found"
-			if hint := patchNoMatchHint(in.OldString, content); hint != "" {
+			if hint := patchNoMatchHint(oldString, content); hint != "" {
 				payload["hint"] = hint
 			}
 		}
@@ -704,7 +759,7 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 			"error": fmt.Sprintf("post-write verification failed for %s: did not persist intended content", rel),
 		})
 	}
-	state, _ := registry.record(root, t.cfg.TaskID, cwd, rel, resolved)
+	state, _ := registry.Record(root, t.cfg.TaskID, cwd, rel, resolved)
 	payload := map[string]any{
 		"path":         rel,
 		"replacements": replacements,
@@ -758,7 +813,11 @@ func fuzzyPatchReplace(content, oldString, newString string, replaceAll bool) (s
 		if len(matches) > 1 && !replaceAll {
 			return content, 0, fmt.Errorf("old_string matched %d times; set replace_all=true or include more context", len(matches))
 		}
-		if !replaceAll {
+		if replaceAll {
+			if err := validatePatchMatchSet(content, matches); err != nil {
+				return content, 0, err
+			}
+		} else {
 			matches = matches[:1]
 		}
 		return applyPatchTextMatches(content, matches, newString), len(matches), nil
@@ -1068,6 +1127,31 @@ func uniquePatchMatches(matches []patchTextMatch) []patchTextMatch {
 	return unique
 }
 
+func validatePatchMatchSet(content string, matches []patchTextMatch) error {
+	if len(matches) <= 1 {
+		return nil
+	}
+	sorted := make([]patchTextMatch, len(matches))
+	copy(sorted, matches)
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].start == sorted[j].start {
+			return sorted[i].end < sorted[j].end
+		}
+		return sorted[i].start < sorted[j].start
+	})
+	previousEnd := -1
+	for _, match := range sorted {
+		if match.start < 0 || match.end < match.start || match.end > len(content) {
+			return fmt.Errorf("invalid fuzzy match range %d:%d", match.start, match.end)
+		}
+		if previousEnd > match.start {
+			return errors.New("overlapping fuzzy matches; include more context so replace_all can choose non-overlapping regions")
+		}
+		previousEnd = match.end
+	}
+	return nil
+}
+
 func applyPatchTextMatches(content string, matches []patchTextMatch, replacement string) string {
 	sort.Slice(matches, func(i, j int) bool {
 		return matches[i].start > matches[j].start
@@ -1212,7 +1296,7 @@ func boundPatchHint(hint string) string {
 	return hint[:maxPatchHintChars] + "\n[hint truncated]"
 }
 
-func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
+func (t *PatchTool) executeV4APatch(ctx context.Context, patchText string) (json.RawMessage, error) {
 	ops, err := parseV4APatch(patchText)
 	if err != nil {
 		return marshalPatchValidationError(err.Error())
@@ -1220,6 +1304,23 @@ func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
 	if len(ops) == 0 {
 		return marshalPatchValidationError("patch contains no operations")
 	}
+	lockPaths, err := t.v4aMutationLockPaths(ops)
+	if err != nil {
+		return marshalPatchValidationError(err.Error())
+	}
+	var out json.RawMessage
+	queueErr := fileTaskMutationQueue(t.cfg).RunMany(ctx, lockPaths, func(context.Context) error {
+		var err error
+		out, err = t.executeV4APatchLocked(ops)
+		return err
+	})
+	if queueErr != nil {
+		return marshalPatchApplyError("", "file mutation queue: "+queueErr.Error(), nil, nil, nil)
+	}
+	return out, nil
+}
+
+func (t *PatchTool) executeV4APatchLocked(ops []v4aPatchOperation) (json.RawMessage, error) {
 	actions := make([]v4aPatchAction, 0, len(ops))
 	for _, op := range ops {
 		action, check, err := t.validateV4AOperation(op)
@@ -1283,9 +1384,9 @@ func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
 	for _, action := range actions {
 		switch action.kind {
 		case v4aOperationAdd, v4aOperationUpdate:
-			_, _ = registry.record(action.root, t.cfg.TaskID, action.cwd, action.rel, action.abs)
+			_, _ = registry.Record(action.root, t.cfg.TaskID, action.cwd, action.rel, action.abs)
 		case v4aOperationMove:
-			_, _ = registry.record(action.newRoot, t.cfg.TaskID, action.newCWD, action.newRel, action.newAbs)
+			_, _ = registry.Record(action.newRoot, t.cfg.TaskID, action.newCWD, action.newRel, action.newAbs)
 		}
 	}
 	payload := map[string]any{
@@ -1300,6 +1401,28 @@ func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
 		payload["lint"] = lintResults
 	}
 	return marshalToolPayload(payload)
+}
+
+func (t *PatchTool) v4aMutationLockPaths(ops []v4aPatchOperation) ([]string, error) {
+	paths := make([]string, 0, len(ops)*2)
+	for _, op := range ops {
+		resolved, _, _, _, err := resolveFileTaskWritePath(t.cfg, op.path)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, resolved)
+		if op.kind == v4aOperationMove {
+			if strings.TrimSpace(op.newPath) == "" {
+				continue
+			}
+			newResolved, _, _, _, err := resolveFileTaskWritePath(t.cfg, op.newPath)
+			if err != nil {
+				return nil, err
+			}
+			paths = append(paths, newResolved)
+		}
+	}
+	return paths, nil
 }
 
 func v4aPatchSnapshotRoot(actions []v4aPatchAction) (string, error) {
@@ -1339,7 +1462,7 @@ func (t *PatchTool) validateV4AOperation(op v4aPatchOperation) (v4aPatchAction, 
 		}
 		action.content = v4aAddContent(op)
 	case v4aOperationUpdate:
-		if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
+		if check := registry.Check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
 			return action, check, nil
 		}
 		raw, err := os.ReadFile(resolved)
@@ -1357,7 +1480,7 @@ func (t *PatchTool) validateV4AOperation(op v4aPatchOperation) (v4aPatchAction, 
 		action.preContent = &pre
 		action.content = updated
 	case v4aOperationDelete:
-		if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
+		if check := registry.Check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
 			return action, check, nil
 		}
 		info, err := os.Stat(resolved)
@@ -1371,7 +1494,7 @@ func (t *PatchTool) validateV4AOperation(op v4aPatchOperation) (v4aPatchAction, 
 		if strings.TrimSpace(op.newPath) == "" {
 			return action, nil, fmt.Errorf("move file %s: destination path is required", rel)
 		}
-		if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
+		if check := registry.Check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
 			return action, check, nil
 		}
 		info, err := os.Stat(resolved)
@@ -1636,10 +1759,40 @@ func applyV4AFuzzyHunk(content, search, replacement, hint string) (string, error
 	if strings.TrimSpace(hint) == "" {
 		return "", err
 	}
-	hintPos := strings.Index(content, hint)
-	if hintPos < 0 {
+	hintPositions := v4AContextHintPositions(content, hint)
+	if len(hintPositions) == 0 {
 		return "", err
 	}
+	if len(hintPositions) > 1 {
+		return "", fmt.Errorf("context hint %q is ambiguous (%d occurrences)", hint, len(hintPositions))
+	}
+	windowStart, windowEnd := v4AContextHintWindow(content, hintPositions[0])
+	window := content[windowStart:windowEnd]
+	windowUpdated, _, windowErr := fuzzyPatchReplace(window, search, replacement, false)
+	if windowErr != nil {
+		return "", err
+	}
+	return content[:windowStart] + windowUpdated + content[windowEnd:], nil
+}
+
+func v4AContextHintPositions(content, hint string) []int {
+	if hint == "" {
+		return nil
+	}
+	var positions []int
+	for offset := 0; offset <= len(content); {
+		idx := strings.Index(content[offset:], hint)
+		if idx < 0 {
+			break
+		}
+		pos := offset + idx
+		positions = append(positions, pos)
+		offset = pos + len(hint)
+	}
+	return positions
+}
+
+func v4AContextHintWindow(content string, hintPos int) (int, int) {
 	windowStart := hintPos - v4aContextHintBefore
 	if windowStart < 0 {
 		windowStart = 0
@@ -1648,12 +1801,7 @@ func applyV4AFuzzyHunk(content, search, replacement, hint string) (string, error
 	if windowEnd > len(content) {
 		windowEnd = len(content)
 	}
-	window := content[windowStart:windowEnd]
-	windowUpdated, _, windowErr := fuzzyPatchReplace(window, search, replacement, false)
-	if windowErr != nil {
-		return "", err
-	}
-	return content[:windowStart] + windowUpdated + content[windowEnd:], nil
+	return windowStart, windowEnd
 }
 
 func applyV4AAdditionOnlyHunk(content, hint, insertText string) (string, error) {
@@ -1909,23 +2057,11 @@ func boundStructuredLintOutput(output string) string {
 	return output[:maxStructuredLintOutput-len("...")] + "..."
 }
 
-func resolveWorkspaceFile(root, rawPath string) (string, string, error) {
-	workspaceRoot, err := resolveWorkspaceRoot(root)
-	if err != nil {
-		return "", "", err
-	}
-	return resolveWorkspacePath(workspaceRoot, rawPath)
-}
-
 func resolveFileTaskReadPath(cfg FileTaskToolConfig, rawPath string) (string, string, string, string, error) {
 	return resolveFileTaskPathForAccess(cfg, rawPath, ProfileWorkspaceAccessRead)
 }
 
 func resolveFileTaskWritePath(cfg FileTaskToolConfig, rawPath string) (string, string, string, string, error) {
-	return resolveFileTaskPathForAccess(cfg, rawPath, ProfileWorkspaceAccessWrite)
-}
-
-func resolveFileTaskPath(cfg FileTaskToolConfig, rawPath string) (string, string, string, string, error) {
 	return resolveFileTaskPathForAccess(cfg, rawPath, ProfileWorkspaceAccessWrite)
 }
 
@@ -2102,37 +2238,7 @@ func resolveWorkspacePath(root, rawPath string) (string, string, error) {
 }
 
 func validateWorkspaceRealPath(root, abs string) error {
-	if realPath, err := filepath.EvalSymlinks(abs); err == nil {
-		if !pathWithinRoot(root, filepath.Clean(realPath)) {
-			return fmt.Errorf("path %q resolves outside workspace root %q", abs, root)
-		}
-		return nil
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("resolve symlink path: %w", err)
-	} else if info, lstatErr := os.Lstat(abs); lstatErr == nil && info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("path %q is a broken symlink", abs)
-	}
-
-	ancestor := filepath.Dir(abs)
-	for {
-		if ancestor == "" || ancestor == "." || ancestor == string(filepath.Separator) {
-			break
-		}
-		if realAncestor, err := filepath.EvalSymlinks(ancestor); err == nil {
-			if !pathWithinRoot(root, filepath.Clean(realAncestor)) {
-				return fmt.Errorf("path parent %q resolves outside workspace root %q", ancestor, root)
-			}
-			return nil
-		} else if !os.IsNotExist(err) {
-			return fmt.Errorf("resolve parent symlink path: %w", err)
-		}
-		next := filepath.Dir(ancestor)
-		if next == ancestor {
-			break
-		}
-		ancestor = next
-	}
-	return nil
+	return filesystem.ValidateWorkspaceRealPath(root, abs)
 }
 
 func expandUserPath(path string) (string, error) {
@@ -2185,14 +2291,7 @@ func evalExistingPath(path string) string {
 }
 
 func workspaceRel(root, path string) string {
-	rel, err := filepath.Rel(root, path)
-	if err != nil {
-		return filepath.ToSlash(filepath.Clean(path))
-	}
-	if rel == "." {
-		return "."
-	}
-	return filepath.ToSlash(rel)
+	return filesystem.WorkspaceRel(root, path)
 }
 
 func splitTextLines(s string) []string {
@@ -2286,26 +2385,83 @@ func clampInt(value, fallback, max int) int {
 	return value
 }
 
-func windowStrings(values []string, offset, limit int) ([]string, bool) {
-	if offset > len(values) {
-		offset = len(values)
-	}
-	end := offset + limit
-	if end > len(values) {
-		end = len(values)
-	}
-	return append([]string(nil), values[offset:end]...), end < len(values)
+type searchWindowBounds struct {
+	start     int
+	end       int
+	truncated bool
 }
 
-func windowMatches(values []map[string]any, offset, limit int) ([]map[string]any, bool) {
-	if offset > len(values) {
-		offset = len(values)
+func computeSearchWindowBounds(total, offset, limit int) searchWindowBounds {
+	if offset < 0 {
+		offset = 0
+	}
+	if offset > total {
+		offset = total
 	}
 	end := offset + limit
-	if end > len(values) {
-		end = len(values)
+	if end > total {
+		end = total
 	}
-	return append([]map[string]any(nil), values[offset:end]...), end < len(values)
+	return searchWindowBounds{
+		start:     offset,
+		end:       end,
+		truncated: offset > 0 || end < total,
+	}
+}
+
+func windowStrings(values []string, offset, limit int) ([]string, bool) {
+	bounds := computeSearchWindowBounds(len(values), offset, limit)
+	return append([]string(nil), values[bounds.start:bounds.end]...), bounds.truncated
+}
+
+func searchContentContextRange(matchIndex, lineCount, contextLines int) (int, int) {
+	start, end := matchIndex, matchIndex
+	if contextLines > 0 {
+		start = matchIndex - contextLines
+		if start < 0 {
+			start = 0
+		}
+		end = matchIndex + contextLines
+		if end >= lineCount {
+			end = lineCount - 1
+		}
+	}
+	return start, end
+}
+
+func windowSearchContentEntries(values []searchContentEntry, offset, limit int) ([]searchContentEntry, bool) {
+	bounds := computeSearchWindowBounds(len(values), offset, limit)
+	if bounds.start < bounds.end && !searchContentWindowHasMatch(values[bounds.start:bounds.end]) {
+		for i := bounds.start; i < len(values); i++ {
+			if values[i].match {
+				bounds.start = i
+				bounds.end = i + 1
+				if bounds.start+limit < len(values) {
+					bounds.end = bounds.start + limit
+				}
+				bounds.truncated = bounds.start > 0 || bounds.end < len(values)
+				break
+			}
+		}
+	}
+	return append([]searchContentEntry(nil), values[bounds.start:bounds.end]...), bounds.truncated
+}
+
+func searchContentWindowHasMatch(values []searchContentEntry) bool {
+	for _, value := range values {
+		if value.match {
+			return true
+		}
+	}
+	return false
+}
+
+func searchContentEntryPayloads(entries []searchContentEntry) []map[string]any {
+	payloads := make([]map[string]any, 0, len(entries))
+	for _, entry := range entries {
+		payloads = append(payloads, entry.payload())
+	}
+	return payloads
 }
 
 func defaultJSONArgs(args json.RawMessage) json.RawMessage {

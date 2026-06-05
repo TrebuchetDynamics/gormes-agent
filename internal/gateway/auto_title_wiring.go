@@ -2,17 +2,17 @@ package gateway
 
 import (
 	"context"
-	"log/slog"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/autotitle"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 // AutoTitleAuxiliarySink receives AutoTitleEvidence for non-complete outcomes
 // (provider failures, blank results, store errors). Implementations must not
 // block or panic; the caller recovers and logs panics.
-type AutoTitleAuxiliarySink func(ctx context.Context, ev session.AutoTitleEvidence)
+type AutoTitleAuxiliarySink = autotitle.AuxiliarySink
 
 // runAutoTitle builds a two-turn TitleTurn transcript from lastUserText and
 // finalAssistantText, calls session.PerformAutoTitle once, and routes the
@@ -30,25 +30,7 @@ func runAutoTitle(
 	finalAssistantText string,
 	sink AutoTitleAuxiliarySink,
 ) {
-	transcript := []session.TitleTurn{
-		{Role: "user", Content: lastUserText},
-		{Role: "assistant", Content: finalAssistantText},
-	}
-	ev := session.PerformAutoTitle(ctx, store, gen, sessionID, transcript)
-	if ev.Code == session.AutoTitleCodeComplete {
-		return
-	}
-	if sink == nil {
-		return
-	}
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				slog.Error("auto_title_sink_panic", "panic", r)
-			}
-		}()
-		sink(ctx, ev)
-	}()
+	autotitle.Run(ctx, store, gen, sessionID, lastUserText, finalAssistantText, sink)
 }
 
 // maybeRunAutoTitle is the gateway entry point for auto-title generation. It
@@ -76,29 +58,16 @@ func (m *Manager) maybeRunAutoTitle(ctx context.Context, f kernel.RenderFrame, s
 	runAutoTitle(ctx, store, gen, sessionID, lastUserText, finalAssistantText, m.cfg.AuxiliaryFailureSink)
 }
 
-// titleModelToGenerator adapts a hermes.TitleModelFunc to the session.TitleGenerator
+// titleModelToGenerator adapts a llm.TitleModelFunc to the session.TitleGenerator
 // signature expected by PerformAutoTitle. It maps session.TitleTurn slices to
-// hermes.TitleModelRequest messages so the title model boundary is
+// llm.TitleModelRequest messages so the title model boundary is
 // platform-independent.
-func titleModelToGenerator(ctx context.Context, fn hermes.TitleModelFunc, transcript []session.TitleTurn) (string, error) {
-	msgs := make([]hermes.TitleModelMessage, 0, len(transcript))
-	for _, t := range transcript {
-		msgs = append(msgs, hermes.TitleModelMessage{Role: t.Role, Content: t.Content})
-	}
-	return fn(ctx, hermes.TitleModelRequest{
-		Messages:    msgs,
-		MaxTokens:   500,
-		Temperature: 0.3,
-	})
+func titleModelToGenerator(ctx context.Context, fn llm.TitleModelFunc, transcript []session.TitleTurn) (string, error) {
+	return autotitle.TitleModelToGenerator(ctx, fn, transcript)
 }
 
 // lastAssistantText extracts the Content of the last assistant-role message in
 // the frame History. Returns empty string when no assistant message is found.
 func lastAssistantText(f kernel.RenderFrame) string {
-	for i := len(f.History) - 1; i >= 0; i-- {
-		if f.History[i].Role == "assistant" {
-			return f.History[i].Content
-		}
-	}
-	return ""
+	return autotitle.LastAssistantText(f)
 }

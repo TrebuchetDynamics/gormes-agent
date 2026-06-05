@@ -1,11 +1,12 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func newHermesChromeFrame() kernel.RenderFrame {
@@ -13,7 +14,7 @@ func newHermesChromeFrame() kernel.RenderFrame {
 		Phase:     kernel.PhaseIdle,
 		Model:     "anthropic/claude-sonnet-4-20250514",
 		SessionID: "sess-hermes-chrome",
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "ping from operator"},
 			{Role: "assistant", Content: "pong from hermes"},
 		},
@@ -138,6 +139,30 @@ func TestHermesChrome_BottomPinnedOrder_View(t *testing.T) {
 	}
 	if statusIdx >= promptIdx {
 		t.Fatalf("status bar must precede prompt:\n%s", got)
+	}
+}
+
+func TestHermesChrome_IdleViewDoesNotReserveEmptyHintRow(t *testing.T) {
+	history := make([]llm.Message, 0, 10)
+	for i := 1; i <= 10; i++ {
+		history = append(history, llm.Message{Role: "user", Content: fmt.Sprintf("probe-user-%02d", i)})
+	}
+	f := kernel.RenderFrame{Phase: kernel.PhaseIdle, Model: "test/model", History: history}
+	m := NewModel(make(chan kernel.RenderFrame), func(string) {}, func() {})
+	m.width = 80
+	m.height = 14
+	m.frame = f
+
+	got := m.View()
+
+	if strings.Contains(got, "probe-user-07") {
+		t.Fatalf("precondition drift: test frame is too tall to prove a one-row reclaim:\n%s", got)
+	}
+	if !strings.Contains(got, "probe-user-08") {
+		t.Fatalf("idle View() reserved an empty hint/progress row instead of giving it back to transcript:\n%s", got)
+	}
+	if strings.Contains(got, "streaming") || strings.Contains(got, "connecting") {
+		t.Fatalf("idle View() rendered active progress text unexpectedly:\n%s", got)
 	}
 }
 

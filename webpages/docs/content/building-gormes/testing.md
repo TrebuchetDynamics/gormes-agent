@@ -126,10 +126,10 @@ go test ./docs -count=1
 
 | Lane | Focused gate |
 |---|---|
-| Native agent spine | `go test ./internal/hermes ./internal/kernel ./internal/gateway ./internal/telemetry -count=1` plus `go test ./internal/e2e -count=1` after Phase 4.I creates it |
-| Goncho/memory | `go test ./internal/goncho ./internal/gonchotools ./internal/memory ./internal/session ./internal/store -count=1` |
+| Native agent spine | `go test ./internal/llm ./internal/kernel ./internal/gateway ./internal/telemetry -count=1` plus `go test ./internal/e2e -count=1` after Phase 4.I creates it |
+| Goncho/memory | `go test ./internal/goncho ./internal/gonchotools ./internal/memory ./internal/persistence/session ./internal/persistence/store -count=1` |
 | Tools/security/skills | `go test ./internal/tools ./internal/plugins ./internal/skills ./internal/doctor -count=1` |
-| Gateway/channels/cron | `go test ./internal/gateway ./internal/cron ./internal/channels/... ./internal/slack ./internal/discord -count=1` |
+| Gateway/channels/cron | `go test ./internal/gateway ./internal/automation/cron ./internal/channels/... ./internal/slack ./internal/discord -count=1` |
 | CLI/API/TUI/release | `go test ./cmd/gormes ./internal/cli ./internal/apiserver ./internal/tui ./internal/tuigateway -count=1` |
 | Docs/progress | `go run ./cmd/progress validate && go test ./internal/progress ./docs -count=1` |
 

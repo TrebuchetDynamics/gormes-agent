@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 // mockRecall implements RecallProvider for kernel-level tests.
@@ -34,9 +34,9 @@ func (m *mockRecall) GetContext(ctx context.Context, p RecallParams) string {
 
 func TestKernel_InjectsMemoryContextWhenRecallNonNil(t *testing.T) {
 	rec := &mockRecall{returnContent: "<memory-context>MEMORY BLOCK HERE</memory-context>"}
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-recall-test")
 
 	k := New(Config{
@@ -84,8 +84,8 @@ func TestKernel_InjectsMemoryContextWhenRecallNonNil(t *testing.T) {
 }
 
 func TestKernel_NoRecallWhenProviderNil(t *testing.T) {
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{{Kind: hermes.EventDone, FinishReason: "stop"}}, "sess-no-recall")
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "sess-no-recall")
 
 	k := New(Config{
 		Model: "hermes-agent", Endpoint: "http://mock",
@@ -117,8 +117,8 @@ func TestKernel_RecallTimeoutFallsThrough(t *testing.T) {
 		returnContent: "<memory-context>SLOW</memory-context>",
 		delay:         500 * time.Millisecond,
 	}
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{{Kind: hermes.EventDone, FinishReason: "stop"}}, "sess-recall-timeout")
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "sess-recall-timeout")
 
 	k := New(Config{
 		Model: "hermes-agent", Endpoint: "http://mock",
@@ -149,8 +149,8 @@ func TestKernel_RecallTimeoutFallsThrough(t *testing.T) {
 
 func TestKernel_RecallEmptyStringNotInjected(t *testing.T) {
 	rec := &mockRecall{returnContent: ""} // empty = nothing to inject
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{{Kind: hermes.EventDone, FinishReason: "stop"}}, "sess-empty-recall")
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "sess-empty-recall")
 
 	k := New(Config{
 		Model: "hermes-agent", Endpoint: "http://mock",

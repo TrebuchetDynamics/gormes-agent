@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 )
@@ -38,9 +38,13 @@ var (
 )
 
 var upstreamHermesSupplementPages = map[string]struct{}{
-	"upstream-hermes/good-and-bad.md":     {},
-	"upstream-hermes/gormes-takeaways.md": {},
-	"upstream-hermes/source-study.md":     {},
+	"upstream-hermes/good-and-bad.md":                          {},
+	"upstream-hermes/gormes-takeaways.md":                      {},
+	"upstream-hermes/source-study.md":                          {},
+	"upstream-hermes/user-guide/features/automation/_index.md": {},
+	"upstream-hermes/user-guide/features/context/_index.md":    {},
+	"upstream-hermes/user-guide/features/platform/_index.md":   {},
+	"upstream-hermes/user-guide/features/providers/_index.md":  {},
 }
 
 var (
@@ -74,15 +78,15 @@ var targets = []string{
 	"ARCH_PLAN.md",
 	"THEORETICAL_ADVANTAGES_GORMES_HERMES.md",
 	"superpowers/specs/2026-04-18-gormes-frontend-adapter-design.md",
-	"superpowers/plans/2026-04-18-gormes-phase1-frontend-adapter.md",
+	"superpowers/plans/foundations/2026-04-18-gormes-phase1-frontend-adapter.md",
 	"superpowers/specs/2026-04-19-gormes-landing-page-design.md",
-	"superpowers/plans/2026-04-19-gormes-landing-page.md",
+	"superpowers/plans/web-docs/2026-04-19-gormes-landing-page.md",
 	"superpowers/specs/2026-04-19-gormes-ai-cutover-design.md",
-	"superpowers/plans/2026-04-19-gormes-ai-cutover.md",
+	"superpowers/plans/foundations/2026-04-19-gormes-ai-cutover.md",
 	"superpowers/specs/2026-04-19-gormes-doc-sync-manifesto-design.md",
-	"superpowers/plans/2026-04-19-gormes-doc-sync-manifesto.md",
+	"superpowers/plans/web-docs/2026-04-19-gormes-doc-sync-manifesto.md",
 	"superpowers/specs/2026-04-19-gormes-phase2c-persistence-design.md",
-	"superpowers/plans/2026-04-19-gormes-phase2c-persistence.md",
+	"superpowers/plans/runtime-channels/2026-04-19-gormes-phase2c-persistence.md",
 }
 
 var nativeDocsPages = map[string]struct{}{
@@ -489,7 +493,7 @@ func TestCommonErrorsDocumentsTermuxV022Recovery(t *testing.T) {
 }
 
 func TestChannelCapabilityMatrixDocs(t *testing.T) {
-	channels := readDoc(t, "content/cli/channels.md")
+	channels := readDoc(t, "content/cli/channels/channels.md")
 	for _, want := range []string{
 		"## Capability Matrix",
 		"Runtime-ready",
@@ -497,8 +501,8 @@ func TestChannelCapabilityMatrixDocs(t *testing.T) {
 		"Planned",
 		"gormes channels capabilities",
 		"gormes gateway status --json",
-		"[Telegram](../../operate/telegram-bot/)",
-		"[Discord](../gateway/)",
+		"[Telegram](../../../operate/telegram-bot/)",
+		"[Discord](../../runtime/gateway/)",
 		"[Slack](../slack/)",
 		"WhatsApp",
 	} {
@@ -599,9 +603,9 @@ func TestLearningLoopOperatorProofDocs(t *testing.T) {
 	}
 
 	for _, page := range []string{
-		"content/cli/curator.md",
-		"content/cli/skills.md",
-		"content/cli/memory.md",
+		"content/cli/extensions/curator.md",
+		"content/cli/extensions/skills.md",
+		"content/cli/runtime/memory.md",
 	} {
 		raw := readDoc(t, page)
 		for _, want := range []string{"learning loop", "building-gormes/core-systems/learning-loop/"} {
@@ -745,7 +749,7 @@ func mapSourceToContent(rel string) string {
 	rel = filepath.ToSlash(rel)
 	// Upstream docs mirror lives under content/upstream-hermes/.
 	const mirrorPrefix = "upstream-hermes/"
-	if rel == "index.md" {
+	if rel == "index.md" || rel == "index.mdx" {
 		return mirrorPrefix + "_index.md"
 	}
 	if strings.HasSuffix(rel, "/index.md") {
@@ -754,10 +758,47 @@ func mapSourceToContent(rel string) string {
 	if strings.HasSuffix(rel, "/_category_.json") {
 		return mirrorPrefix + strings.TrimSuffix(rel, "_category_.json") + "_index.md"
 	}
+	if organized := organizedUpstreamHermesFeatureContentRel(rel); organized != "" {
+		return mirrorPrefix + organized
+	}
 	if strings.HasSuffix(rel, ".mdx") {
 		return mirrorPrefix + strings.TrimSuffix(rel, ".mdx") + ".md"
 	}
 	return mirrorPrefix + rel
+}
+
+func organizedUpstreamHermesFeatureContentRel(rel string) string {
+	const prefix = "user-guide/features/"
+	if !strings.HasPrefix(rel, prefix) || !strings.HasSuffix(rel, ".md") {
+		return ""
+	}
+
+	slug := strings.TrimSuffix(strings.TrimPrefix(rel, prefix), ".md")
+	groups := map[string][]string{
+		"tools": {
+			"acp", "browser", "code-execution", "computer-use", "delegation", "image-generation",
+			"lsp", "mcp", "spotify", "tool-gateway", "tools", "tts", "vision", "web-search", "x-search",
+		},
+		"providers":  {"credential-pools", "fallback-providers", "provider-routing", "subscription-proxy"},
+		"context":    {"context-files", "context-references", "curator", "honcho", "memory", "memory-providers", "personality", "skills"},
+		"automation": {"batch-processing", "cron", "goals", "kanban", "kanban-tutorial", "kanban-worker-lanes"},
+		"platform":   {"api-server", "codex-app-server-runtime", "extending-the-dashboard", "skins", "voice-mode", "web-dashboard"},
+		"plugins":    {"built-in-plugins", "hooks", "plugins"},
+	}
+	indexSlugs := map[string]struct{}{"plugins": {}, "tools": {}}
+
+	for group, slugs := range groups {
+		for _, candidate := range slugs {
+			if candidate != slug {
+				continue
+			}
+			if _, ok := indexSlugs[slug]; ok {
+				return prefix + group + "/_index.md"
+			}
+			return prefix + group + "/" + slug + ".md"
+		}
+	}
+	return ""
 }
 
 func snippetAfter(t *testing.T, name, raw, marker string) string {

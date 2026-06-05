@@ -25,30 +25,9 @@ var forbiddenCopyHotkeys = []string{
 	"Ink",
 }
 
-// TestTerminalNativeSelectionHelpExists asserts the constant is exported,
-// non-empty, mentions "terminal", and is round-tripped by SelectionHelpLine.
-func TestTerminalNativeSelectionHelpExists(t *testing.T) {
-	if TerminalNativeSelectionHelp == "" {
-		t.Fatal("TerminalNativeSelectionHelp is empty")
-	}
-	if !strings.Contains(TerminalNativeSelectionHelp, "terminal") {
-		t.Errorf("TerminalNativeSelectionHelp = %q; want it to contain substring %q",
-			TerminalNativeSelectionHelp, "terminal")
-	}
+func TestTerminalNativeSelectionHelpCompatibilityWrapper(t *testing.T) {
 	if got := SelectionHelpLine(); got != TerminalNativeSelectionHelp {
 		t.Errorf("SelectionHelpLine() = %q; want %q", got, TerminalNativeSelectionHelp)
-	}
-}
-
-// TestTerminalNativeSelectionHelpNoFakeShortcuts asserts the help string
-// does not advertise any not-yet-implemented copy hotkey.
-func TestTerminalNativeSelectionHelpNoFakeShortcuts(t *testing.T) {
-	lower := strings.ToLower(TerminalNativeSelectionHelp)
-	for _, bad := range forbiddenCopyHotkeys {
-		if strings.Contains(lower, strings.ToLower(bad)) {
-			t.Errorf("TerminalNativeSelectionHelp = %q contains forbidden shortcut %q",
-				TerminalNativeSelectionHelp, bad)
-		}
 	}
 }
 

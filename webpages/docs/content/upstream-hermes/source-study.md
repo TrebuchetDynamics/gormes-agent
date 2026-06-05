@@ -278,7 +278,7 @@ from `dc4d92f1` to `b2d3308f`. The new drift is narrow but execution-relevant:
 - `ad0ac894` widens DeepSeek/Kimi/Moonshot replay padding from assistant
   tool-call turns to all assistant messages. Gormes already landed tool-call
   padding and cross-provider reasoning isolation, but its current
-  `internal/hermes/http_client.go` fixtures still leave plain assistant turns
+  `internal/llm/http_client.go` fixtures still leave plain assistant turns
   unpadded. The roadmap now tracks this as a small Phase 4.A provider row.
 - `25ba6a4a` makes gateway `/reasoning <level>` session-scoped by default,
   keeps `--global` as the persistence opt-in, and clears model plus reasoning
@@ -319,8 +319,8 @@ Gormes should not import Hermes' Node/Ink runtime. The planner split the drift
 into native Go rows under Phase 5.Q: one for TUI model override/static alias
 startup, one for native selection/copy parity-or-divergence, and the existing
 no-Node bundle independence row. The provider replay drift is tracked as a
-small Phase 4.A row against `internal/hermes/http_client.go` and
-`internal/hermes/reasoning_content_echo_test.go`.
+small Phase 4.A row against `internal/llm/http_client.go` and
+`internal/llm/reasoning_content_echo_test.go`.
 
 ## High-Level Shape
 
@@ -387,7 +387,7 @@ Core upstream evidence files at study time:
 
 Gormes already has smaller equivalents for several contracts:
 
-- `internal/hermes/client.go` owns the provider-neutral stream, tool-call, and
+- `internal/llm/client.go` owns the provider-neutral stream, tool-call, and
   tool-result event contract.
 - `internal/kernel/kernel.go` owns a single-goroutine turn loop and tool
   continuation loop.
@@ -551,7 +551,7 @@ Previous context sync delta (2026-04-25): upstream commit `5401a008` changed
 `agent/context_compressor.py` so `ContextCompressor.update_model()` recalculates
 threshold, tail, and max-summary token budgets when the active model window
 changes. Gormes has already mirrored the pure budget behavior in
-`internal/hermes/context_compressor_budget_test.go`; remaining work is kernel
+`internal/llm/context_compressor_budget_test.go`; remaining work is kernel
 model-override wiring and real history pruning/summary feedback, not another
 metadata-only row.
 

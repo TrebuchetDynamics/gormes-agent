@@ -216,15 +216,6 @@ func TestBrowserHarnessLegacyPythonCommandStillExplicit(t *testing.T) {
 	}
 }
 
-func decodeHarnessAction(t *testing.T, raw string) BrowserHarnessActionRequest {
-	t.Helper()
-	var action BrowserHarnessActionRequest
-	if err := json.Unmarshal([]byte(raw), &action); err != nil {
-		t.Fatalf("decode action JSON: %v\n%s", err, raw)
-	}
-	return action
-}
-
 // ---------------------------------------------------------------------------
 // New tests required by the chromedp backend row
 // ---------------------------------------------------------------------------

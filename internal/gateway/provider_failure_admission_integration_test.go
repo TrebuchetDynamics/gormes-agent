@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 // TestManager_KernelInbound_AdmissionAcceptedAfterProviderHTMLError reproduces
@@ -158,7 +158,7 @@ type alwaysHTMLErrorProvider struct {
 	calls   int
 }
 
-func (p *alwaysHTMLErrorProvider) OpenStream(context.Context, hermes.ChatRequest) (hermes.Stream, error) {
+func (p *alwaysHTMLErrorProvider) OpenStream(context.Context, llm.ChatRequest) (llm.Stream, error) {
 	p.mu.Lock()
 	p.calls++
 	p.mu.Unlock()
@@ -171,8 +171,8 @@ func (p *alwaysHTMLErrorProvider) OpenStreamCalls() int {
 	return p.calls
 }
 
-func (p *alwaysHTMLErrorProvider) OpenRunEvents(context.Context, string) (hermes.RunEventStream, error) {
-	return nil, hermes.ErrRunEventsNotSupported
+func (p *alwaysHTMLErrorProvider) OpenRunEvents(context.Context, string) (llm.RunEventStream, error) {
+	return nil, llm.ErrRunEventsNotSupported
 }
 
 func (p *alwaysHTMLErrorProvider) Health(context.Context) error { return nil }
@@ -197,16 +197,16 @@ type htmlErrorThenSuccessProvider struct {
 	calls   int
 }
 
-func (p *htmlErrorThenSuccessProvider) OpenStream(context.Context, hermes.ChatRequest) (hermes.Stream, error) {
+func (p *htmlErrorThenSuccessProvider) OpenStream(context.Context, llm.ChatRequest) (llm.Stream, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.calls++
 	if p.calls == 1 {
 		return nil, p.htmlErr
 	}
-	return &integrationSingleTurnStream{events: []hermes.Event{
-		{Kind: hermes.EventToken, Token: "ok", TokensOut: 1},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensOut: 1},
+	return &integrationSingleTurnStream{events: []llm.Event{
+		{Kind: llm.EventToken, Token: "ok", TokensOut: 1},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensOut: 1},
 	}}, nil
 }
 
@@ -216,23 +216,23 @@ func (p *htmlErrorThenSuccessProvider) OpenStreamCalls() int {
 	return p.calls
 }
 
-func (p *htmlErrorThenSuccessProvider) OpenRunEvents(context.Context, string) (hermes.RunEventStream, error) {
-	return nil, hermes.ErrRunEventsNotSupported
+func (p *htmlErrorThenSuccessProvider) OpenRunEvents(context.Context, string) (llm.RunEventStream, error) {
+	return nil, llm.ErrRunEventsNotSupported
 }
 
 func (p *htmlErrorThenSuccessProvider) Health(context.Context) error { return nil }
 
 type integrationSingleTurnStream struct {
 	mu     sync.Mutex
-	events []hermes.Event
+	events []llm.Event
 	pos    int
 }
 
-func (s *integrationSingleTurnStream) Recv(context.Context) (hermes.Event, error) {
+func (s *integrationSingleTurnStream) Recv(context.Context) (llm.Event, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.pos >= len(s.events) {
-		return hermes.Event{}, io.EOF
+		return llm.Event{}, io.EOF
 	}
 	ev := s.events[s.pos]
 	s.pos++

@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 type stubGoalJudge struct {
@@ -42,6 +42,7 @@ func (j *stubGoalJudge) callCount() int {
 	return j.calls
 }
 
+// loadGoal loads the current goal state from the manager.
 func TestGoalJudgeFailOpen(t *testing.T) {
 	ctx := context.Background()
 	cases := []struct {
@@ -370,7 +371,7 @@ func goalIdleFrame(sessionID, assistantText string) kernel.RenderFrame {
 	return kernel.RenderFrame{
 		Phase:     kernel.PhaseIdle,
 		SessionID: sessionID,
-		History: []hermes.Message{{
+		History: []llm.Message{{
 			Role:    "assistant",
 			Content: assistantText,
 		}},

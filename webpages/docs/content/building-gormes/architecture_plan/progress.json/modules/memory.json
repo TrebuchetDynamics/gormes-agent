@@ -169,7 +169,7 @@
       "name": "Append-only daily usage.jsonl writer",
       "status": "complete",
       "module": "memory",
-      "note": "TDD landed: internal/insights now appends normalized DailyRollup records to usage.jsonl with schema-locked JSONL lines and deterministic append ordering."
+      "note": "TDD landed: internal/automation/insights now appends normalized DailyRollup records to usage.jsonl with schema-locked JSONL lines and deterministic append ordering."
     }
   },
   {
@@ -493,7 +493,7 @@
       "source_refs": [
         "mercury-agent/src/core/memory.ts",
         "honcho/src/models.py",
-        "engram/internal/store/store.go"
+        "engram/internal/persistence/store/store.go"
       ],
       "ready_when": [
         "Goncho SQLite schema exists for extension"

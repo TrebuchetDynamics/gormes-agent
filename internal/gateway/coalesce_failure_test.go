@@ -84,14 +84,6 @@ func (f *failOnFinalEditor) plainSendsSnapshot() []fakeSent {
 	return out
 }
 
-func (f *failOnFinalEditor) editsSnapshot() []fakeEdit {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	out := make([]fakeEdit, len(f.edits))
-	copy(out, f.edits)
-	return out
-}
-
 // itoa is a minimal helper so this file has no strconv import dependency.
 func itoa(n int) string {
 	if n == 0 {

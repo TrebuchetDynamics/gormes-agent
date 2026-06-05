@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -185,7 +185,7 @@ func TestTUIComposerBracketedPasteRecovery(t *testing.T) {
 }
 
 func TestTUIComposerCopyAssistantOutput(t *testing.T) {
-	history := []hermes.Message{
+	history := []llm.Message{
 		{Role: "user", Content: "question"},
 		{Role: "assistant", Content: "one"},
 		{Role: "assistant", Content: "<think>hidden</think>Visible answer"},
@@ -215,7 +215,7 @@ func TestTUIComposerCopySlashUsesInjectedClipboard(t *testing.T) {
 			return nil
 		},
 	})
-	m.frame.History = []hermes.Message{
+	m.frame.History = []llm.Message{
 		{Role: "assistant", Content: "one"},
 		{Role: "assistant", Content: "<reasoning>hidden</reasoning>Visible answer"},
 	}

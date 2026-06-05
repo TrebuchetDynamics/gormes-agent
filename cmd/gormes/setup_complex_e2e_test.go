@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 )
 
 func TestSetupComplexE2E_ResetThenProviderNonInteractivePreservesBreadcrumbAndScrubsSecrets(t *testing.T) {
@@ -106,7 +106,7 @@ func TestSetupComplexE2E_ResetThenProviderNonInteractivePreservesBreadcrumbAndSc
 	}
 }
 
-func TestSetupComplexE2E_QuickSlackTargetOrdersCoreChannelLiveAndStopsOnRedactedFailure(t *testing.T) {
+func TestSetupComplexE2E_QuickSlackTargetStartsChannelBeforeCoreOnFreshInstall(t *testing.T) {
 	home := t.TempDir()
 	secret := "sk-slack-quick-live-secret"
 	t.Setenv("GORMES_HOME", home)
@@ -118,14 +118,12 @@ func TestSetupComplexE2E_QuickSlackTargetOrdersCoreChannelLiveAndStopsOnRedacted
 		current: cli.ProviderModel{Provider: " ", Model: " "},
 	}
 	seams := fake.seams()
-	seams.RunSetupProvider = func(_ *cobra.Command, nonInteractive bool) error {
-		events = append(events, fmt.Sprintf("provider:%t", nonInteractive))
-		fake.current = cli.ProviderModel{Provider: "openai", Model: " "}
+	seams.RunSetupProvider = func(*cobra.Command, bool) error {
+		t.Fatal("slack target sent operator to provider before channel setup")
 		return nil
 	}
 	seams.RunModelPicker = func(*cobra.Command) error {
-		events = append(events, "model-picker")
-		fake.current = cli.ProviderModel{Provider: "openai", Model: "gpt-4o-mini"}
+		t.Fatal("slack target sent operator to model before channel setup")
 		return nil
 	}
 	seams.RunGatewayPlatform = func(_ *cobra.Command, platform string) error {
@@ -140,30 +138,26 @@ func TestSetupComplexE2E_QuickSlackTargetOrdersCoreChannelLiveAndStopsOnRedacted
 		return nil
 	}
 	seams.RunProviderLiveTest = func(*cobra.Command) error {
-		events = append(events, "live-test")
-		return fmt.Errorf("live test rejected bearer token %s", secret)
+		t.Fatal("slack target ran provider live test before provider setup")
+		return nil
 	}
 	seams.LaunchChat = func(*cobra.Command) error {
-		t.Fatal("quick setup launched chat after failed live test")
+		t.Fatal("quick setup launched chat/TUI")
 		return nil
 	}
 
 	stdout, stderr, err := runSetupTestCommand(t, seams, "--quick", "--target", "slack")
-	if err == nil {
-		t.Fatalf("Execute() error = nil, want live-test failure\nstdout=%s\nstderr=%s", stdout, stderr)
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	if code := exitCodeFromError(err); code != 1 {
-		t.Fatalf("exit code = %d, want 1 err=%v", code, err)
-	}
-	if got, want := strings.Join(events, ","), "provider:false,model-picker,channel:slack,live-test"; got != want {
+	if got, want := strings.Join(events, ","), "channel:slack"; got != want {
 		t.Fatalf("events = %s, want %s\nstdout=%s", got, want, stdout)
 	}
 	for _, want := range []string{
-		"Quick Setup - configure missing items only",
-		"Provider endpoint or auth is missing.",
-		"Model/provider defaults are missing.",
-		"Provider live test failed. Chat was not opened.",
-		"Repair: gormes setup --quick --target slack",
+		"Slack channel setup checked.",
+		"Provider/model setup is still required before `gormes gateway` can answer Slack.",
+		"Next setup command: gormes setup provider",
+		"After that, start gateway: gormes gateway",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
@@ -172,12 +166,16 @@ func TestSetupComplexE2E_QuickSlackTargetOrdersCoreChannelLiveAndStopsOnRedacted
 	for _, forbidden := range []string{
 		secret,
 		"bearer token " + secret,
+		"Quick Setup - configure missing items only",
+		"Provider endpoint or auth is missing.",
+		"Model/provider defaults are missing.",
+		"Provider live test failed",
 		"Channel setup checked. Start messaging",
 		"Terminal chat ready",
 		"Start chatting with: gormes",
 	} {
-		if strings.Contains(stdout, forbidden) || strings.Contains(stderr, forbidden) || strings.Contains(err.Error(), forbidden) {
-			t.Fatalf("quick slack failure leaked/printed forbidden %q\nstdout=%s\nstderr=%s\nerr=%v", forbidden, stdout, stderr, err)
+		if strings.Contains(stdout, forbidden) || strings.Contains(stderr, forbidden) {
+			t.Fatalf("quick slack setup leaked/printed forbidden %q\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
 		}
 	}
 	for _, path := range []string{config.SessionDBPath(), config.MemoryDBPath(), config.GatewayRuntimeStatusPath()} {

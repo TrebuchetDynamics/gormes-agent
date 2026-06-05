@@ -1,0 +1,8 @@
+{
+  "version": "<semver>",
+  "git_commit": "<sha-or-unknown>",
+  "git_dirty": "<bool>",
+  "go_version": "<go-version>",
+  "os": "<goos>",
+  "arch": "<goarch>"
+}

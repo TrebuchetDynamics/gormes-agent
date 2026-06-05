@@ -1,4 +1,4 @@
-// Command progress is a thin wrapper around internal/progressctl: it
+// Command progress is a thin wrapper around internal/progress/ctl: it
 // validates the canonical progress.json and regenerates the markered docs
 // the skill-driven planning/building workflow reads from.
 package main
@@ -9,10 +9,10 @@ import (
 	"io"
 	"os"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progressctl"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/ctl"
 )
 
-const usage = "usage: progress [--repo-root <path>] {validate [--format text|json]|write|compact|split <dir>|emit|list --module <module>|next-work [--repo-only]}"
+const usage = "usage: progress [--repo-root <path>] {validate [--format text|json]|write [--dry-run]|compact|split <dir>|emit|list --module <module>|next-work [--repo-only]}"
 
 var errParse = errors.New("parse error")
 
@@ -26,6 +26,59 @@ func main() {
 	}
 }
 
+type progressCommand struct {
+	Run func(stdout io.Writer, root string, args []string) error
+}
+
+var progressCommands = map[string]progressCommand{
+	"validate": {Run: func(stdout io.Writer, root string, args []string) error {
+		format, err := parseFormat(args)
+		if err != nil {
+			return err
+		}
+		return progressctl.Validate(stdout, root, format)
+	}},
+	"write": {Run: func(stdout io.Writer, root string, args []string) error {
+		opts, err := parseWriteOptions(args)
+		if err != nil {
+			return err
+		}
+		return progressctl.WriteWithOptions(stdout, root, opts)
+	}},
+	"compact": {Run: func(stdout io.Writer, root string, args []string) error {
+		if err := requireNoArgs(args); err != nil {
+			return err
+		}
+		return progressctl.Compact(stdout, root)
+	}},
+	"split": {Run: func(stdout io.Writer, root string, args []string) error {
+		if len(args) != 1 {
+			return fmt.Errorf("%w\n%s", errParse, usage)
+		}
+		return progressctl.Split(stdout, root, args[0])
+	}},
+	"emit": {Run: func(stdout io.Writer, root string, args []string) error {
+		if err := requireNoArgs(args); err != nil {
+			return err
+		}
+		return progressctl.Emit(stdout, root)
+	}},
+	"list": {Run: func(stdout io.Writer, root string, args []string) error {
+		opts, err := parseListOptions(args)
+		if err != nil {
+			return err
+		}
+		return progressctl.List(stdout, root, opts)
+	}},
+	"next-work": {Run: func(stdout io.Writer, root string, args []string) error {
+		opts, err := parseNextWorkOptions(args)
+		if err != nil {
+			return err
+		}
+		return progressctl.NextWorkWithOptions(stdout, root, opts)
+	}},
+}
+
 func run(stdout, stderr io.Writer, args []string) error {
 	args, root, err := resolveRepoRoot(args)
 	if err != nil {
@@ -34,51 +87,26 @@ func run(stdout, stderr io.Writer, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("%w\n%s", errParse, usage)
 	}
-	switch args[0] {
-	case "--help", "-h", "help":
+	if isHelp(args[0]) {
 		_, err := fmt.Fprintln(stdout, usage)
 		return err
-	case "validate":
-		format, err := parseFormat(args[1:])
-		if err != nil {
-			return err
-		}
-		return progressctl.Validate(stdout, root, format)
-	case "write":
-		if len(args) != 1 {
-			return fmt.Errorf("%w\n%s", errParse, usage)
-		}
-		return progressctl.Write(stdout, root)
-	case "compact":
-		if len(args) != 1 {
-			return fmt.Errorf("%w\n%s", errParse, usage)
-		}
-		return progressctl.Compact(stdout, root)
-	case "split":
-		if len(args) != 2 {
-			return fmt.Errorf("%w\n%s", errParse, usage)
-		}
-		return progressctl.Split(stdout, root, args[1])
-	case "emit":
-		if len(args) != 1 {
-			return fmt.Errorf("%w\n%s", errParse, usage)
-		}
-		return progressctl.Emit(stdout, root)
-	case "list":
-		opts, err := parseListOptions(args[1:])
-		if err != nil {
-			return err
-		}
-		return progressctl.List(stdout, root, opts)
-	case "next-work":
-		opts, err := parseNextWorkOptions(args[1:])
-		if err != nil {
-			return err
-		}
-		return progressctl.NextWorkWithOptions(stdout, root, opts)
-	default:
+	}
+	cmd, ok := progressCommands[args[0]]
+	if !ok {
 		return fmt.Errorf("%w\n%s", errParse, usage)
 	}
+	return cmd.Run(stdout, root, args[1:])
+}
+
+func isHelp(arg string) bool {
+	return arg == "--help" || arg == "-h" || arg == "help"
+}
+
+func requireNoArgs(args []string) error {
+	if len(args) != 0 {
+		return fmt.Errorf("%w\n%s", errParse, usage)
+	}
+	return nil
 }
 
 func resolveRepoRoot(args []string) ([]string, string, error) {
@@ -125,6 +153,19 @@ func parseFormat(args []string) (string, error) {
 		return "", fmt.Errorf("%w: unexpected argument %q\n%s", errParse, args[i], usage)
 	}
 	return format, nil
+}
+
+func parseWriteOptions(args []string) (progressctl.WriteOptions, error) {
+	var opts progressctl.WriteOptions
+	for _, arg := range args {
+		switch arg {
+		case "--dry-run":
+			opts.DryRun = true
+		default:
+			return opts, fmt.Errorf("%w: unexpected argument %q\n%s", errParse, arg, usage)
+		}
+	}
+	return opts, nil
 }
 
 func parseNextWorkOptions(args []string) (progressctl.NextWorkOptions, error) {

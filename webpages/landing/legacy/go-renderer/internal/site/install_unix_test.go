@@ -13,6 +13,38 @@ import (
 
 const canonicalInstallScript = "../../../../../../install.sh"
 
+func stripANSI(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == 0x1b && i+1 < len(s) && s[i+1] == '[' {
+			i += 2
+			for i < len(s) && (s[i] < '@' || s[i] > '~') {
+				i++
+			}
+			continue
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
+
+func assertInstallSummaryComplete(t *testing.T, out string) {
+	t.Helper()
+	if !strings.Contains(out, "Installation Complete!") && !strings.Contains(out, "Gormes installed") {
+		t.Fatalf("success summary missing:\n%s", out)
+	}
+}
+
+func assertInstallSummarySource(t *testing.T, out, source string) {
+	t.Helper()
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, "Source:") && strings.Contains(line, source) {
+			return
+		}
+	}
+	t.Fatalf("summary did not name source %q:\n%s", source, out)
+}
+
 func runInstallSH(t *testing.T, body string, env ...string) (string, error) {
 	t.Helper()
 	cmd := exec.Command("sh", "-c", `. "`+canonicalInstallScript+`"; `+body)
@@ -761,11 +793,11 @@ func TestInstallSH_DefaultInstallNarratesHermesStyleExperience(t *testing.T) {
 	}
 
 	checkout := filepath.Join(home, ".gormes", "gormes-agent")
+	cleanOut := stripANSI(out)
 	for _, want := range []string{
-		"\x1b[1;34m",
-		"██████╗  ██████╗ ██████╗",
 		"Gormes Agent Installer",
-		"An open source AI agent",
+		"Go-native Hermes-compatible agent runtime.",
+		"Single binary. No Python, venv, Node, or Docker needed.",
 		"✓ Detected: linux (fedora)",
 		"→ Checking Go",
 		"✓ Go go1.26.0 found",
@@ -787,14 +819,13 @@ func TestInstallSH_DefaultInstallNarratesHermesStyleExperience(t *testing.T) {
 		"→ Setting up gormes command",
 		"✓ gormes command ready",
 		"→ Setup wizard skipped (no terminal available).",
-		"Gormes installed successfully",
-		"Choose setup path:",
+		"Installation Complete!",
 		"1. Navivox (recommended)",
 		"Pair your Android app and continue setup there.",
-		"Recommended next step: gormes navivox pair",
-		"CLI setup command: gormes setup",
+		"→ Recommended: gormes navivox pair",
+		"→ CLI setup:   gormes setup",
 	} {
-		if !strings.Contains(out, want) {
+		if !strings.Contains(cleanOut, want) {
 			t.Fatalf("install output missing %q\n%s", want, out)
 		}
 	}
@@ -828,28 +859,74 @@ func TestInstallSH_DefaultInstallRecommendsNavivoxFirstSetupPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("install.sh failed: %v\n%s\nlog:\n%s", err, out, readTextFile(t, logPath))
 	}
+	cleanOut := stripANSI(out)
 
 	for _, want := range []string{
-		"Gormes installed successfully",
-		"Choose setup path:",
+		"Installation Complete!",
 		"1. Navivox (recommended)",
 		"Pair your Android app and continue setup there.",
 		"2. CLI setup",
 		"Continue fully in terminal.",
-		"Recommended next step: gormes navivox pair",
+		"→ Recommended: gormes navivox pair",
 	} {
-		if !strings.Contains(out, want) {
+		if !strings.Contains(cleanOut, want) {
 			t.Fatalf("install output missing %q:\n%s", want, out)
 		}
 	}
 	for _, reject := range []string{"→ Starting setup wizard", "Setup wizard skipped"} {
-		if strings.Contains(out, reject) {
+		if strings.Contains(cleanOut, reject) {
 			t.Fatalf("default install should recommend setup paths instead of %q:\n%s", reject, out)
 		}
 	}
 	log := readTextFile(t, logPath)
 	if strings.Contains(log, "built-gormes setup") {
 		t.Fatalf("default install invoked terminal setup instead of recommending navivox pair:\n%s", log)
+	}
+}
+
+func TestInstallSH_LocalInstallSkipsSetupRecommendationWhenConfigAlreadyExists(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	local := filepath.Join(root, "local-source")
+	writeMinimalGoModule(t, local)
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+	configPath := filepath.Join(home, ".gormes", "config.toml")
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
+		t.Fatalf("mkdir config dir: %v", err)
+	}
+	if err := os.WriteFile(configPath, []byte("[hermes]\nprovider = 'openrouter'\nendpoint = 'https://openrouter.ai/api/v1'\n"), 0o644); err != nil {
+		t.Fatalf("write existing config: %v", err)
+	}
+
+	out, err := runInstallScriptWithArgsInDir(t, local,
+		[]string{"--local"},
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_INSTALL_TEST_HAS_TTY=1",
+		"UNAME=Linux",
+	)
+	if err != nil {
+		t.Fatalf("install.sh --local failed: %v\n%s\nlog:\n%s", err, out, readTextFile(t, logPath))
+	}
+	cleanOut := stripANSI(out)
+	for _, want := range []string{
+		"setup_wizard: skipped (existing setup detected)",
+		"using local source checkout " + local,
+		"→ Existing Gormes setup detected; skipping setup recommendation.",
+		"Run `gormes setup` to change providers, channels, or Navivox pairing.",
+	} {
+		if !strings.Contains(cleanOut, want) {
+			t.Fatalf("local install output missing %q:\n%s", want, out)
+		}
+	}
+	for _, reject := range []string{"1. Navivox (recommended)", "→ Recommended: gormes navivox pair", "→ CLI setup:   gormes setup"} {
+		if strings.Contains(cleanOut, reject) {
+			t.Fatalf("local install with existing setup should not show setup recommendation %q:\n%s", reject, out)
+		}
+	}
+	if log := readTextFile(t, logPath); strings.Contains(log, "built-gormes setup") {
+		t.Fatalf("local install invoked setup despite existing config:\n%s", log)
 	}
 }
 
@@ -870,7 +947,7 @@ func TestInstallSH_SkipSetupFlagAvoidsWizardEvenWithTerminal(t *testing.T) {
 		t.Fatalf("install.sh failed: %v\n%s\nlog:\n%s", err, out, readTextFile(t, logPath))
 	}
 
-	if !strings.Contains(out, "→ Skipping setup wizard (--skip-setup)") {
+	if !strings.Contains(stripANSI(out), "→ Skipping setup wizard (--skip-setup)") {
 		t.Fatalf("--skip-setup did not explain setup skip:\n%s", out)
 	}
 	log := readTextFile(t, logPath)
@@ -922,9 +999,7 @@ func TestInstallSH_DefaultInstallFetchesReleaseBinary(t *testing.T) {
 			t.Fatalf("binary-fetch default should not use source-build path %q\n%s", reject, log)
 		}
 	}
-	if !strings.Contains(out, "source: GitHub Releases") {
-		t.Fatalf("summary did not name GitHub Releases source:\n%s", out)
-	}
+	assertInstallSummarySource(t, out, "GitHub Releases")
 }
 
 func TestInstallSH_FromSourceInstallUsesManagedSourceCheckout(t *testing.T) {
@@ -973,9 +1048,7 @@ func TestInstallSH_FromSourceInstallUsesManagedSourceCheckout(t *testing.T) {
 			t.Fatalf("source-backed install should not use %q\n%s", reject, log)
 		}
 	}
-	if !strings.Contains(out, "source: "+checkout) {
-		t.Fatalf("summary did not name managed source checkout:\n%s", out)
-	}
+	assertInstallSummarySource(t, out, checkout)
 }
 
 func TestInstallSH_FromSourceInstallDoesNotProbeReleaseEndpoints(t *testing.T) {
@@ -1003,9 +1076,7 @@ func TestInstallSH_FromSourceInstallDoesNotProbeReleaseEndpoints(t *testing.T) {
 	if _, err := os.Stat(published); err != nil {
 		t.Fatalf("published command missing: %v", err)
 	}
-	if !strings.Contains(out, "Gormes installed") {
-		t.Fatalf("success summary missing:\n%s", out)
-	}
+	assertInstallSummaryComplete(t, out)
 	logBody, err := os.ReadFile(logPath)
 	if err != nil {
 		t.Fatalf("read fake log: %v", err)
@@ -1027,9 +1098,7 @@ func TestInstallSH_FromSourceInstallDoesNotProbeReleaseEndpoints(t *testing.T) {
 			t.Fatalf("managed source install should not probe release endpoint %q:\n%s", reject, log)
 		}
 	}
-	if !strings.Contains(out, "source: "+managedCheckout) {
-		t.Fatalf("summary missing managed checkout evidence:\n%s", out)
-	}
+	assertInstallSummarySource(t, out, managedCheckout)
 }
 
 func TestInstallSH_BranchOverrideBuildsManagedSourceCheckout(t *testing.T) {
@@ -1063,9 +1132,7 @@ func TestInstallSH_BranchOverrideBuildsManagedSourceCheckout(t *testing.T) {
 			t.Fatalf("branch override should skip release path %q:\n%s", reject, log)
 		}
 	}
-	if !strings.Contains(out, "source: "+filepath.Join(home, ".gormes", "gormes-agent")) {
-		t.Fatalf("branch override output missing source evidence:\n%s", out)
-	}
+	assertInstallSummarySource(t, out, filepath.Join(home, ".gormes", "gormes-agent"))
 }
 
 func TestInstallSH_UpdatesExistingCommandEarlierOnPATH(t *testing.T) {
@@ -1269,7 +1336,7 @@ fi
 			t.Fatalf("install output missing %q\n%s", want, out)
 		}
 	}
-	ledger, err := os.ReadFile(filepath.Join(home, ".gormes", "install.log.jsonl"))
+	ledger, err := os.ReadFile(filepath.Join(home, ".gormes", "lifecycle", "install.log.jsonl"))
 	if err != nil {
 		t.Fatalf("read install ledger: %v", err)
 	}
@@ -1373,7 +1440,7 @@ func TestInstallSH_RerunRestartsProfileGatewayServices(t *testing.T) {
 		}
 	}
 
-	ledger := readTextFile(t, filepath.Join(home, ".gormes", "install.log.jsonl"))
+	ledger := readTextFile(t, filepath.Join(home, ".gormes", "lifecycle", "install.log.jsonl"))
 	for _, want := range []string{
 		`"profile_gateways":[`,
 		`"unit":"gormes-gateway-mineru.service"`,
@@ -1493,6 +1560,80 @@ func TestInstallSH_VerboseDryRunShowsResolvedPlan(t *testing.T) {
 	}
 	if got := readTextFile(t, logPath); got != "" {
 		t.Fatalf("verbose dry-run invoked toolchain:\n%s", got)
+	}
+}
+
+func TestInstallSH_VerboseDryRunReportsLinuxPreflightIssues(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	binDir := filepath.Join(root, "bin")
+	emptyPath := filepath.Join(root, "empty-path")
+	if err := os.MkdirAll(emptyPath, 0o755); err != nil {
+		t.Fatalf("mkdir empty PATH: %v", err)
+	}
+
+	out, err := runInstallScriptWithArgs(t,
+		[]string{"--dry-run", "--verbose", "--home", home, "--bin-dir", binDir},
+		"HOME="+home,
+		"PATH="+emptyPath,
+		"UNAME=Linux",
+		"GORMES_INSTALL_TEST_UNAME_M=x86_64",
+		"GORMES_INSTALL_EFFECTIVE_UID=1000",
+	)
+	if err != nil {
+		t.Fatalf("verbose dry-run failed: %v\n%s", err, out)
+	}
+	for _, want := range []string{
+		"preflight:",
+		"platform_focus: linux",
+		"package_manager: none",
+		"download_tool: missing",
+		"archive_tool: missing",
+		"checksum_tool: missing",
+		"git: missing",
+		"go: missing",
+		"issue: binary-fetch prerequisites missing; installer will fall back to source build",
+		"issue: git missing and no supported package manager detected",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("verbose preflight output missing %q\n%s", want, out)
+		}
+	}
+}
+
+func TestInstallSH_VerboseDryRunReportsTermuxPreflightIssues(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	prefix := filepath.Join(root, "data", "data", "com.termux", "files", "usr")
+	emptyPath := filepath.Join(root, "empty-path")
+	if err := os.MkdirAll(emptyPath, 0o755); err != nil {
+		t.Fatalf("mkdir empty PATH: %v", err)
+	}
+
+	out, err := runInstallScriptWithArgs(t,
+		[]string{"--dry-run", "--verbose", "--home", home, "--restart-gateway", "never"},
+		"HOME="+home,
+		"PATH="+emptyPath,
+		"UNAME=Linux",
+		"GORMES_INSTALL_TEST_UNAME_M=aarch64",
+		"GORMES_INSTALL_EFFECTIVE_UID=1000",
+		"PREFIX="+prefix,
+		"TERMUX_VERSION=0.118.0",
+	)
+	if err != nil {
+		t.Fatalf("verbose Termux dry-run failed: %v\n%s", err, out)
+	}
+	for _, want := range []string{
+		"platform_focus: termux",
+		"published_binary: " + filepath.Join(prefix, "bin", "gormes"),
+		"termux_prefix: " + prefix,
+		"termux_pkg: missing",
+		"issue: Termux pkg missing; source builds cannot install git/golang automatically",
+		"restart_gateway: never",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("verbose Termux preflight output missing %q\n%s", want, out)
+		}
 	}
 }
 
@@ -1721,9 +1862,7 @@ func TestInstallSH_TermuxInstallsMissingGitAndGo(t *testing.T) {
 			t.Fatalf("toolchain log missing %q\n%s", want, log)
 		}
 	}
-	if !strings.Contains(out, "Gormes installed") {
-		t.Fatalf("success summary missing:\n%s", out)
-	}
+	assertInstallSummaryComplete(t, out)
 }
 
 func TestInstallSH_InstallsManagedGoWhenGoIsMissing(t *testing.T) {
@@ -1764,9 +1903,7 @@ func TestInstallSH_InstallsManagedGoWhenGoIsMissing(t *testing.T) {
 			t.Fatalf("toolchain log missing %q\n%s", want, log)
 		}
 	}
-	if !strings.Contains(out, "Gormes installed") {
-		t.Fatalf("success summary missing:\n%s", out)
-	}
+	assertInstallSummaryComplete(t, out)
 }
 
 func TestInstallSH_ReplacesTooOldGoWithManagedGo(t *testing.T) {

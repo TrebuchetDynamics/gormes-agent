@@ -16,9 +16,10 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -68,6 +69,49 @@ Run the report.
 	}
 	t.Fatalf("gatewayTelegramDynamicCommands() = %#v, want active skill command", commands)
 }
+
+func TestGatewaySkillsCommandOptionsInstallsDirectURL(t *testing.T) {
+	root := t.TempDir()
+	cfg := config.Config{Skills: config.SkillsCfg{Root: root}}
+	opts := skillsCommandOptionsForConfig(cfg)
+	fetcher := &fakeGatewayURLFetcher{body: []byte("---\ndescription: From gateway options\n---\n\nUse this skill.\n")}
+	opts.URLInstall.Fetcher = fetcher
+	opts.URLInstall.Scanner = fakeGatewayURLScanner{}
+
+	out := gateway.HandleSkillsCommandWithOptions(context.Background(), "/skills install https://example.com/SKILL.md --name gateway-skill", opts)
+	if !strings.Contains(out, "url_skill_installed") || !strings.Contains(out, "gateway-skill") {
+		t.Fatalf("install output missing evidence:\n%s", out)
+	}
+	if len(fetcher.calls) != 1 {
+		t.Fatalf("fetcher.calls = %d, want 1", len(fetcher.calls))
+	}
+	installed := filepath.Join(root, "active", "gateway-skill", "SKILL.md")
+	if _, err := os.Stat(installed); err != nil {
+		t.Fatalf("installed SKILL.md missing at configured root: %v", err)
+	}
+	if strings.Contains(out, root) {
+		t.Fatalf("install output leaked configured skills root:\n%s", out)
+	}
+}
+
+type fakeGatewayURLFetcher struct {
+	body  []byte
+	calls []string
+}
+
+func (f *fakeGatewayURLFetcher) Fetch(_ context.Context, url string) ([]byte, error) {
+	f.calls = append(f.calls, url)
+	return append([]byte(nil), f.body...), nil
+}
+
+type fakeGatewayURLScanner struct{}
+
+func (fakeGatewayURLScanner) Scan(context.Context, []byte) (bool, string, error) {
+	return true, "scan_clean", nil
+}
+
+var _ skills.URLFetcher = (*fakeGatewayURLFetcher)(nil)
+var _ skills.QuarantineScanner = fakeGatewayURLScanner{}
 
 func TestGatewayFreshFinalAfter_TelegramOnly(t *testing.T) {
 	cases := []struct {
@@ -272,9 +316,9 @@ func TestNewGatewayHermesClient_UsesConfiguredProviderTransport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newGatewayHermesClient error = %v", err)
 	}
-	stream, err := client.OpenStream(context.Background(), hermes.ChatRequest{
+	stream, err := client.OpenStream(context.Background(), llm.ChatRequest{
 		Model:    "gpt-5.5",
-		Messages: []hermes.Message{{Role: "user", Content: "hello"}},
+		Messages: []llm.Message{{Role: "user", Content: "hello"}},
 	})
 	if err != nil {
 		t.Fatalf("OpenStream error = %v", err)
@@ -284,14 +328,14 @@ func TestNewGatewayHermesClient_UsesConfiguredProviderTransport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Recv error = %v", err)
 	}
-	if event.Kind != hermes.EventToken || event.Token != "ok from codex" {
+	if event.Kind != llm.EventToken || event.Token != "ok from codex" {
 		t.Fatalf("event = %+v, want codex token event", event)
 	}
 	done, err := stream.Recv(context.Background())
 	if err != nil {
 		t.Fatalf("Recv done error = %v", err)
 	}
-	if done.Kind != hermes.EventDone || done.FinishReason != "stop" {
+	if done.Kind != llm.EventDone || done.FinishReason != "stop" {
 		t.Fatalf("done event = %+v, want stop", done)
 	}
 	if _, err := stream.Recv(context.Background()); err != io.EOF {
@@ -568,7 +612,7 @@ func TestGatewayManagerConfig_TitleModelNonNilWithBoltMap(t *testing.T) {
 	}))
 	defer stub.Close()
 
-	hc := hermes.NewHTTPClientWithProvider(stub.URL, "stub-key", "openai")
+	hc := llm.NewHTTPClientWithProvider(stub.URL, "stub-key", "openai")
 	mgrCfg := gatewayManagerConfig(
 		config.Config{Hermes: config.HermesCfg{Endpoint: stub.URL, Model: "stub-model"}},
 		map[string]string{},

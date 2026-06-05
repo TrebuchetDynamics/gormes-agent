@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 func TestMultiAgentGatewayRuntime_SubmitRoutesAccountsToAgentSessionKeys(t *testing.T) {

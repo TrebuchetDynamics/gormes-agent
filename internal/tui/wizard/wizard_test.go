@@ -9,10 +9,38 @@ import (
 	"testing"
 	"time"
 
+	basetui "github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/exp/teatest"
 )
+
+func TestWizardStylesUseGormesSkinTokens(t *testing.T) {
+	skin := basetui.DefaultHermesSkin()
+	styles := basetui.SkinStylesFor(skin)
+	if got, want := styles.Prompt.GetForeground(), lipgloss.Color(skin.Colors.Prompt); got != want {
+		t.Fatalf("wizard prompt foreground = %v, want %v", got, want)
+	}
+	if got, want := styles.Selected.GetForeground(), lipgloss.Color(skin.Colors.UIAcent); got != want {
+		t.Fatalf("wizard selected foreground = %v, want %v", got, want)
+	}
+	if got, want := styles.Separator.GetForeground(), lipgloss.Color(skin.Colors.SessionBorder); got != want {
+		t.Fatalf("wizard separator foreground = %v, want %v", got, want)
+	}
+
+	m := newModel([]Step{Text("endpoint", "Gateway endpoint", WithPlaceholder("http://host"))})
+	if got, want := m.text.PromptStyle.GetForeground(), lipgloss.Color(skin.Colors.Prompt); got != want {
+		t.Fatalf("text input prompt foreground = %v, want %v", got, want)
+	}
+	if got, want := m.text.PlaceholderStyle.GetForeground(), lipgloss.Color(skin.Colors.Placeholder); got != want {
+		t.Fatalf("text input placeholder foreground = %v, want %v", got, want)
+	}
+
+	search := newModel([]Step{Pick("model", "Select model", []Choice{{ID: "a", Label: "A"}, {ID: "b", Label: "B"}}, WithSearchChoices())})
+	if got, want := search.searchInput.Cursor.Style.GetForeground(), lipgloss.Color(skin.Colors.UIAcent); got != want {
+		t.Fatalf("search input cursor foreground = %v, want %v", got, want)
+	}
+}
 
 func TestWizardChassis_ViewHardeningBoundsSetupUX(t *testing.T) {
 	long := strings.Repeat("x", 160)
@@ -50,6 +78,11 @@ func TestWizardChassis_ViewHardeningBoundsSetupUX(t *testing.T) {
 			name:  "confirm with long prompt",
 			steps: []Step{Confirm("apply", "Apply these setup changes after reviewing this long warning "+long)},
 			want:  []string{"Apply these", "No", "Yes"},
+		},
+		{
+			name:  "search pick with long labels",
+			steps: []Step{Pick("model", "Select model "+long, []Choice{{ID: "anthropic/claude-opus-4", Label: "Claude Opus 4 " + long}, {ID: "openai/gpt-5", Label: "GPT-5 " + long}}, WithSearchChoices())},
+			want:  []string{"Select model", "Filter", "Claude Opus", "GPT-5"},
 		},
 	}
 
@@ -102,6 +135,11 @@ func TestWizardChassis_ViewHardeningBoundsShortSetupTerminal(t *testing.T) {
 			name:  "checklist keeps selected option and help visible",
 			steps: []Step{Checklist("tools", "Tool setup "+long, []Choice{{ID: "browser", Label: "Browser automation toolset " + long}, {ID: "shell", Label: "Shell command toolset " + long}})},
 			want:  []string{"Tool setup", "omitted", "resize", "Browser", "ENTER confirm"},
+		},
+		{
+			name:  "search pick keeps filter and help visible",
+			steps: []Step{Pick("model", "Select model "+long, []Choice{{ID: "anthropic/claude-opus-4", Label: "Claude Opus 4 " + long}, {ID: "openai/gpt-5", Label: "GPT-5 " + long}}, WithSearchChoices())},
+			want:  []string{"Select model", "Filter", "Enter select"},
 		},
 	}
 
@@ -162,7 +200,7 @@ func TestWizardChassis_CrampedMultiStepProviderChannelSetupKeepsProgressAndHelp(
 		}
 	}
 	collapsed := strings.Join(strings.Fields(got), " ")
-	for _, want := range []string{"Gormes setup 1/6", "Telegram bot token", "omitted", "resize", "Enter submit"} {
+	for _, want := range []string{"Gormes Setup", "step 1 of 6", "Telegram bot token", "omitted", "resize", "Enter submit"} {
 		if !strings.Contains(collapsed, want) {
 			t.Fatalf("multi-step setup wizard missing %q:\n%s", want, got)
 		}
@@ -219,7 +257,7 @@ func TestWizardChassis_PickerStepSupportsTmuxFriendlyKeys(t *testing.T) {
 	})
 
 	view := m.View()
-	for _, want := range []string{"1. Quick setup", "> 2. Full setup", "Up/Down", "j/k", "1-9 select", "Esc/q abort"} {
+	for _, want := range []string{"1. Quick setup", "→ 2. Full setup", "Up/Down", "j/k", "1-9 select", "Esc/q abort"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("picker view missing %q:\n%s", want, view)
 		}
@@ -267,8 +305,11 @@ func TestWizardChassis_SingleStepPickerOmitsProgressLine(t *testing.T) {
 	m := newModel([]Step{
 		Pick("provider", "Provider", []Choice{{ID: "openai", Label: "OpenAI"}}),
 	})
-	if view := m.View(); strings.Contains(view, "Gormes setup 1/1") {
-		t.Fatalf("single-step picker should omit progress line:\n%s", view)
+	view := m.View()
+	for _, forbidden := range []string{"Gormes setup 1/1", "Gormes Setup — step 1 of 1"} {
+		if strings.Contains(view, forbidden) {
+			t.Fatalf("single-step picker should omit progress line %q:\n%s", forbidden, view)
+		}
 	}
 }
 

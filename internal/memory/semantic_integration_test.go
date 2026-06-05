@@ -23,8 +23,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/testutil/ollama"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/support/testutil/ollama"
 )
 
 func semanticModel() string {
@@ -83,7 +83,7 @@ func TestRecall_Integration_Ollama_MyProjectsFindsAcme(t *testing.T) {
 	}
 
 	// ── Phase A: run extractor to populate entities ───────────────────
-	hc := hermes.NewHTTPClient(endpoint, "")
+	hc := llm.NewHTTPClient(endpoint, "")
 	ext := NewExtractor(store, hc, ExtractorConfig{
 		Model:        chatModel,
 		PollInterval: 500 * time.Millisecond,

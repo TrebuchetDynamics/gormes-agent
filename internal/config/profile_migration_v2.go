@@ -11,103 +11,25 @@ import (
 	"time"
 
 	"github.com/pelletier/go-toml/v2"
+
+	profileconfig "github.com/TrebuchetDynamics/gormes-agent/internal/config/profile"
 )
 
 // ProfileMigrationV2Options configures the legacy profile-state migration
 // planner. Home defaults to GormesHome and ConfigPath defaults to
 // $GORMES_HOME/config.toml. Now is used only by Apply for deterministic backup
 // names in tests.
-type ProfileMigrationV2Options struct {
-	Home       string
-	ConfigPath string
-	Now        func() time.Time
-}
-
-type ProfileMigrationV2Plan struct {
-	Home                string
-	ConfigPath          string
-	NoOp                bool
-	ProfileAdditions    []ProfileMigrationV2ProfileAddition
-	CredentialAdditions []ProfileMigrationV2CredentialAddition
-	ProviderLinks       []ProfileMigrationV2ProviderLink
-	ChannelLinks        []ProfileMigrationV2ChannelLink
-	FallbackReads       []ProfileMigrationV2FallbackRead
-	SecretMovements     []ProfileMigrationV2SecretMovement
-	ManualActions       []ProfileMigrationV2ManualAction
-	Conflicts           []ProfileMigrationV2Conflict
-	ActiveProfile       string
-	PreviewLines        []string
-}
-
-type ProfileMigrationV2ProfileAddition struct {
-	ID          string
-	Enabled     bool
-	DisplayName string
-	Workspaces  []string
-	Providers   []string
-	Channels    []string
-	SourcePath  string
-}
-
-type ProfileMigrationV2CredentialAddition struct {
-	ID           string
-	Kind         string
-	Provider     string
-	Channel      string
-	OwnerProfile string
-	SecretRef    *SecretRef
-}
-
-type ProfileMigrationV2ProviderLink struct {
-	ProfileID    string
-	Provider     string
-	CredentialID string
-	DefaultModel string
-	Endpoint     string
-}
-
-type ProfileMigrationV2ChannelLink struct {
-	ProfileID        string
-	Channel          string
-	CredentialID     string
-	AllowedChats     []string
-	AllowedUsers     []string
-	RequireMention   bool
-	ToolProgress     string
-	SlackAppTokenEnv string
-}
-
-type ProfileMigrationV2FallbackRead struct {
-	Code string
-	Path string
-}
-
-type ProfileMigrationV2SecretMovement struct {
-	Source       string
-	TargetEnv    string
-	CredentialID string
-	Redacted     bool
-}
-
-type ProfileMigrationV2ManualAction struct {
-	Code    string
-	Message string
-}
-
-type ProfileMigrationV2Conflict struct {
-	Kind       string
-	ID         string
-	SourcePath string
-	Resolution string
-}
-
-type ProfileMigrationV2ApplyResult struct {
-	Path       string
-	BackupPath string
-	NoOp       bool
-	Wrote      bool
-	Plan       ProfileMigrationV2Plan
-}
+type ProfileMigrationV2Options = profileconfig.MigrationV2Options
+type ProfileMigrationV2Plan = profileconfig.MigrationV2Plan
+type ProfileMigrationV2ProfileAddition = profileconfig.MigrationV2ProfileAddition
+type ProfileMigrationV2CredentialAddition = profileconfig.MigrationV2CredentialAddition
+type ProfileMigrationV2ProviderLink = profileconfig.MigrationV2ProviderLink
+type ProfileMigrationV2ChannelLink = profileconfig.MigrationV2ChannelLink
+type ProfileMigrationV2FallbackRead = profileconfig.MigrationV2FallbackRead
+type ProfileMigrationV2SecretMovement = profileconfig.MigrationV2SecretMovement
+type ProfileMigrationV2ManualAction = profileconfig.MigrationV2ManualAction
+type ProfileMigrationV2Conflict = profileconfig.MigrationV2Conflict
+type ProfileMigrationV2ApplyResult = profileconfig.MigrationV2ApplyResult
 
 type profileMigrationV2Source struct {
 	ID     string

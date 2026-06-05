@@ -1,8 +1,6 @@
 package install_test
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -11,7 +9,7 @@ import (
 // contract. It inspects text only; it must never invoke nix, hit a binary
 // cache, download dependencies, or require provider credentials.
 func TestNixFlakeContract(t *testing.T) {
-	flake := readRepoFileNix(t, "packaging/nix/flake.nix")
+	flake := readRepoFile(t, "packaging/nix/flake.nix")
 
 	tests := []struct {
 		name     string
@@ -123,13 +121,4 @@ func TestNixFlakeContract(t *testing.T) {
 			}
 		})
 	}
-}
-
-func readRepoFileNix(t *testing.T, rel string) string {
-	t.Helper()
-	raw, err := os.ReadFile(filepath.Join(repoRoot(t), rel))
-	if err != nil {
-		t.Fatalf("read %s: %v", rel, err)
-	}
-	return string(raw)
 }

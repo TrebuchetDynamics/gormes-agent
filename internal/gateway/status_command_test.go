@@ -12,8 +12,8 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 // statusReplyChannel records both Send and SendReply targets so tests can
@@ -181,7 +181,7 @@ func TestStatusCommand_PersistsAndRendersAccumulatedSessionTokenTotals(t *testin
 	})
 	m.rememberUsageFrame(kernel.RenderFrame{
 		SessionID: "sess-token-totals",
-		Telemetry: telemetry.Snapshot{TokensInTotal: 8, TokensOutTotal: 10},
+		Telemetry: telemetry.Snapshot{TokensInTotal: 600, TokensOutTotal: 634},
 	})
 	// Missing usage must not erase the durable total.
 	m.rememberUsageFrame(kernel.RenderFrame{SessionID: "sess-token-totals"})
@@ -193,8 +193,8 @@ func TestStatusCommand_PersistsAndRendersAccumulatedSessionTokenTotals(t *testin
 	if !ok {
 		t.Fatal("usage metadata was not persisted")
 	}
-	if meta.TokensInTotal != 8 || meta.TokensOutTotal != 10 {
-		t.Fatalf("metadata token totals = %d/%d, want 8/10", meta.TokensInTotal, meta.TokensOutTotal)
+	if meta.TokensInTotal != 600 || meta.TokensOutTotal != 634 {
+		t.Fatalf("metadata token totals = %d/%d, want 600/634", meta.TokensInTotal, meta.TokensOutTotal)
 	}
 
 	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventStatus}); err != nil {
@@ -204,8 +204,9 @@ func TestStatusCommand_PersistsAndRendersAccumulatedSessionTokenTotals(t *testin
 	if len(sent) != 1 {
 		t.Fatalf("sent count = %d, want 1: %#v", len(sent), sent)
 	}
-	if !strings.Contains(sent[0].Text, "**Tokens:** 18") {
-		t.Fatalf("status did not render persisted token total:\n%s", sent[0].Text)
+	wantTokens := "**Cumulative API tokens (re-sent each call):** 1,234"
+	if !strings.Contains(sent[0].Text, wantTokens) {
+		t.Fatalf("status did not render Hermes token line %q:\n%s", wantTokens, sent[0].Text)
 	}
 }
 
@@ -258,7 +259,7 @@ func TestStatusCommand_RendersAllRequiredFields(t *testing.T) {
 		"**Title:**",
 		"**Created:**",
 		"**Last Activity:**",
-		"**Tokens:**",
+		"**Cumulative API tokens (re-sent each call):**",
 		"**Agent Running:**",
 		"**Connected Platforms:**",
 	}
@@ -272,6 +273,80 @@ func TestStatusCommand_RendersAllRequiredFields(t *testing.T) {
 			t.Fatalf("status field %q out of order in:\n%s", label, got)
 		}
 		prev = idx
+	}
+}
+
+func TestStatusCommand_RendersHermesRunningIndicator(t *testing.T) {
+	ctx := context.Background()
+	smap := session.NewMemMap()
+	now := time.Date(2026, 4, 29, 9, 42, 0, 0, time.UTC)
+	if err := smap.Put(ctx, "telegram:42", "sess-running"); err != nil {
+		t.Fatalf("seed session map: %v", err)
+	}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		Now:          func() time.Time { return now },
+	}, &fakeKernel{}, slog.Default())
+	ch := newFakeChannel("telegram")
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+	m.pinTurn("telegram", "42", "running-message")
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventStatus}); err != nil {
+		t.Fatal(err)
+	}
+
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d, want 1: %#v", len(sent), sent)
+	}
+	if !strings.Contains(sent[0].Text, "**Agent Running:** Yes ⚡") {
+		t.Fatalf("status response missing Hermes running marker in:\n%s", sent[0].Text)
+	}
+}
+
+func TestStatusCommand_RendersQueuedFollowUps(t *testing.T) {
+	ctx := context.Background()
+	smap := session.NewMemMap()
+	now := time.Date(2026, 4, 29, 9, 42, 0, 0, time.UTC)
+	if err := smap.Put(ctx, "telegram:42", "sess-queued-status"); err != nil {
+		t.Fatalf("seed session map: %v", err)
+	}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		Now:          func() time.Time { return now },
+	}, &fakeKernel{}, slog.Default())
+	ch := newFakeChannel("telegram")
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+	m.pinTurn("telegram", "42", "running-message")
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "queue-message", Kind: EventSubmit, Text: "/queue run this after the current turn"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "status-message", Kind: EventStatus, Text: "/status"}); err != nil {
+		t.Fatal(err)
+	}
+
+	sent := ch.sentSnapshot()
+	if len(sent) != 2 {
+		t.Fatalf("sent count = %d, want queue ack and status: %#v", len(sent), sent)
+	}
+	got := sent[1].Text
+	for _, want := range []string{"**Agent Running:** Yes ⚡", "**Queued follow-ups:** 1", "**Connected Platforms:** telegram"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("status response missing %q in:\n%s", want, got)
+		}
+	}
+	if strings.Index(got, "**Queued follow-ups:** 1") <= strings.Index(got, "**Agent Running:** Yes ⚡") {
+		t.Fatalf("queued follow-up line should follow Agent Running in:\n%s", got)
+	}
+	if strings.Index(got, "**Queued follow-ups:** 1") >= strings.Index(got, "**Connected Platforms:** telegram") {
+		t.Fatalf("queued follow-up line should precede Connected Platforms in:\n%s", got)
 	}
 }
 
@@ -670,7 +745,7 @@ func TestManagerStatusCommandRendersHermesStyleGatewayStatus(t *testing.T) {
 		"**Session ID:** `sess-123`",
 		wantCreated,
 		wantActivity,
-		"**Tokens:** 7",
+		"**Cumulative API tokens (re-sent each call):** 7",
 		"**Agent Running:** No",
 		"**Connected Platforms:** telegram",
 	} {

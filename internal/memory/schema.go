@@ -3,7 +3,7 @@ package memory
 // schemaVersion is the canonical target version for this binary. OpenSqlite
 // migrates any earlier supported version up to this value, and refuses to
 // open DBs with an unknown version (future schemas).
-const schemaVersion = "3m"
+const schemaVersion = "3n"
 
 // schemaV3a is the baseline schema installed on a fresh DB. It matches
 // exactly what Phase 3.A shipped — any change to this string is a schema
@@ -524,4 +524,90 @@ CREATE INDEX IF NOT EXISTS idx_goncho_conclusions_scope
 	ON goncho_conclusions(workspace_id, scope, peer_id, updated_at DESC);
 
 UPDATE schema_meta SET v = '3m' WHERE k = 'version' AND v = '3l';
+`
+
+// migration3mTo3n adopts the Goncho v0.2 public release's profile-scoped
+// memory contract. v0.2 adds profile_id to peer cards and conclusions and
+// expands conclusion scopes to profile/shared/session while preserving existing
+// workspace/global rows. The migration rebuilds tables whose primary key or
+// CHECK constraint changed, then recreates FTS triggers against the new table.
+const migration3mTo3n = `
+CREATE TABLE IF NOT EXISTS goncho_peer_cards_new (
+	workspace_id      TEXT NOT NULL,
+	profile_id        TEXT NOT NULL DEFAULT '',
+	observer_peer_id  TEXT NOT NULL,
+	peer_id           TEXT NOT NULL,
+	card_json         TEXT NOT NULL,
+	updated_at        INTEGER NOT NULL,
+	PRIMARY KEY(workspace_id, profile_id, observer_peer_id, peer_id)
+);
+INSERT OR REPLACE INTO goncho_peer_cards_new(
+	workspace_id, profile_id, observer_peer_id, peer_id, card_json, updated_at
+)
+SELECT workspace_id, '', observer_peer_id, peer_id, card_json, updated_at
+FROM goncho_peer_cards;
+DROP TABLE goncho_peer_cards;
+ALTER TABLE goncho_peer_cards_new RENAME TO goncho_peer_cards;
+CREATE INDEX IF NOT EXISTS idx_goncho_peer_cards_observed
+	ON goncho_peer_cards(workspace_id, profile_id, peer_id, updated_at DESC);
+
+DROP TRIGGER IF EXISTS goncho_conclusions_ai;
+DROP TRIGGER IF EXISTS goncho_conclusions_ad;
+DROP TRIGGER IF EXISTS goncho_conclusions_au;
+DROP TABLE IF EXISTS goncho_conclusions_fts;
+CREATE TABLE IF NOT EXISTS goncho_conclusions_new (
+	id               INTEGER PRIMARY KEY AUTOINCREMENT,
+	workspace_id     TEXT NOT NULL,
+	profile_id       TEXT NOT NULL DEFAULT '',
+	observer_peer_id TEXT NOT NULL,
+	peer_id          TEXT NOT NULL,
+	session_key      TEXT,
+	content          TEXT NOT NULL,
+	kind             TEXT NOT NULL DEFAULT 'manual',
+	status           TEXT NOT NULL CHECK(status IN ('pending','processed','dead_letter')),
+	source           TEXT NOT NULL DEFAULT 'manual',
+	idempotency_key  TEXT NOT NULL,
+	evidence_json    TEXT NOT NULL DEFAULT '[]',
+	created_at       INTEGER NOT NULL,
+	updated_at       INTEGER NOT NULL,
+	scope            TEXT NOT NULL DEFAULT 'workspace'
+		CHECK(scope IN ('profile','workspace','shared','session','global'))
+);
+INSERT INTO goncho_conclusions_new(
+	id, workspace_id, profile_id, observer_peer_id, peer_id, session_key, content,
+	kind, status, source, idempotency_key, evidence_json, created_at, updated_at, scope
+)
+SELECT id, workspace_id, '', observer_peer_id, peer_id, session_key, content,
+	kind, status, source, idempotency_key, evidence_json, created_at, updated_at, scope
+FROM goncho_conclusions;
+DROP TABLE goncho_conclusions;
+ALTER TABLE goncho_conclusions_new RENAME TO goncho_conclusions;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_goncho_conclusions_idempotency
+	ON goncho_conclusions(workspace_id, profile_id, observer_peer_id, peer_id, idempotency_key);
+CREATE INDEX IF NOT EXISTS idx_goncho_conclusions_peer
+	ON goncho_conclusions(workspace_id, profile_id, peer_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_goncho_conclusions_session
+	ON goncho_conclusions(workspace_id, profile_id, session_key, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_goncho_conclusions_scope
+	ON goncho_conclusions(workspace_id, profile_id, scope, peer_id, updated_at DESC);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS goncho_conclusions_fts USING fts5(
+	content,
+	content='goncho_conclusions',
+	content_rowid='id'
+);
+INSERT INTO goncho_conclusions_fts(rowid, content)
+	SELECT id, content FROM goncho_conclusions;
+CREATE TRIGGER IF NOT EXISTS goncho_conclusions_ai AFTER INSERT ON goncho_conclusions BEGIN
+	INSERT INTO goncho_conclusions_fts(rowid, content) VALUES (new.id, new.content);
+END;
+CREATE TRIGGER IF NOT EXISTS goncho_conclusions_ad AFTER DELETE ON goncho_conclusions BEGIN
+	INSERT INTO goncho_conclusions_fts(goncho_conclusions_fts, rowid, content) VALUES('delete', old.id, old.content);
+END;
+CREATE TRIGGER IF NOT EXISTS goncho_conclusions_au AFTER UPDATE ON goncho_conclusions BEGIN
+	INSERT INTO goncho_conclusions_fts(goncho_conclusions_fts, rowid, content) VALUES('delete', old.id, old.content);
+	INSERT INTO goncho_conclusions_fts(rowid, content) VALUES (new.id, new.content);
+END;
+
+UPDATE schema_meta SET v = '3n' WHERE k = 'version' AND v = '3m';
 `

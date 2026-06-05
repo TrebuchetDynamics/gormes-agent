@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -56,19 +56,19 @@ type RenderFrame struct {
 	Seq             uint64
 	Phase           Phase
 	DraftText       string
-	History         []hermes.Message
+	History         []llm.Message
 	Telemetry       telemetry.Snapshot
 	StatusText      string
 	SessionID       string
 	Model           string
-	ReasoningEffort hermes.ReasoningEffortEvidence
-	ProviderStatus  hermes.ProviderStatus
+	ReasoningEffort llm.ReasoningEffortEvidence
+	ProviderStatus  llm.ProviderStatus
 	RetryStatus     RetryStatus
 	LastError       string
 	SoulEvents      []SoulEntry
 	// ContextStatus snapshots the active ContextEngine status, when one is
 	// configured. Nil means no context engine has been wired for this kernel.
-	ContextStatus *hermes.ContextStatus
+	ContextStatus *llm.ContextStatus
 
 	// PanelState carries active modal panel data from the kernel to the TUI.
 	// Nil/nil fields mean no panel is active. Only one panel may be active
@@ -129,7 +129,7 @@ type PlatformEvent struct {
 	// ContentParts carries multimodal user input alongside Text. When present,
 	// providers that support native image content receive these parts; Text
 	// remains the plain text projection for memory, recall, and legacy UI.
-	ContentParts []hermes.MessageContentPart
+	ContentParts []llm.MessageContentPart
 	// Tools, when non-nil, overrides Config.Tools for this submit event only.
 	// Gateway multi-agent routing uses this to expose the routed agent's
 	// policy-filtered tool registry without mutating the resident kernel.
@@ -170,7 +170,7 @@ type PlatformEvent struct {
 	SessionID string
 	// History carries replayed transcript messages for PlatformEventResumeSession.
 	// Other event kinds ignore it.
-	History []hermes.Message
+	History []llm.Message
 	// SessionContext, when non-empty, is injected as the first system
 	// message for this turn. Gateway frontends use it to describe the
 	// current source chat and delivery options without mutating the

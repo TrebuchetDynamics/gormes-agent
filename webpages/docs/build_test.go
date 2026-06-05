@@ -485,12 +485,18 @@ func TestDocsDeployWorkflowUsesCloudflarePages(t *testing.T) {
 }
 
 func TestDocsProgressArtifactUsesSplitSafeEmitter(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("scripts", "copy-progress-json.mjs"))
+	scriptRaw, err := os.ReadFile(filepath.Join("scripts", "copy-progress-json.mjs"))
 	if err != nil {
 		t.Fatalf("read copy-progress-json script: %v", err)
 	}
-	text := string(raw)
+	planRaw, err := os.ReadFile(filepath.Join("scripts", "progress-artifact.mjs"))
+	if err != nil {
+		t.Fatalf("read progress artifact module: %v", err)
+	}
+	script := string(scriptRaw)
+	combined := script + "\n" + string(planRaw)
 	for _, want := range []string{
+		"createProgressArtifactPlan",
 		"execFile",
 		"'go'",
 		"'./cmd/progress'",
@@ -498,15 +504,15 @@ func TestDocsProgressArtifactUsesSplitSafeEmitter(t *testing.T) {
 		"maxBuffer",
 		"fs.writeFile(target, stdout)",
 	} {
-		if !strings.Contains(text, want) {
-			t.Fatalf("copy-progress-json script missing %q", want)
+		if !strings.Contains(combined, want) {
+			t.Fatalf("progress artifact emitter missing %q", want)
 		}
 	}
 	for _, reject := range []string{
 		"fs.copyFile(source, target)",
 		"'content', 'building-gormes', 'architecture_plan', 'progress.json'",
 	} {
-		if strings.Contains(text, reject) {
+		if strings.Contains(combined, reject) {
 			t.Fatalf("copy-progress-json script must not raw-copy the canonical path; found %q", reject)
 		}
 	}

@@ -334,7 +334,7 @@ func TestFleetSupervisorRestartAllUsesIsolatedEnabledProfileTargets(t *testing.T
 	if opsTarget.HomeRoot != "/tmp/gormes-fleet/profiles/ops" {
 		t.Fatalf("ops home root = %q, want named profile home", opsTarget.HomeRoot)
 	}
-	if mainTarget.RuntimeStatusPath == opsTarget.RuntimeStatusPath || !strings.HasSuffix(opsTarget.RuntimeStatusPath, "/profiles/ops/gateway_state.json") {
+	if mainTarget.RuntimeStatusPath == opsTarget.RuntimeStatusPath || !strings.HasSuffix(opsTarget.RuntimeStatusPath, "/profiles/ops/runtime/gateway_state.json") {
 		t.Fatalf("runtime status paths main=%q ops=%q, want isolated per-profile paths", mainTarget.RuntimeStatusPath, opsTarget.RuntimeStatusPath)
 	}
 }

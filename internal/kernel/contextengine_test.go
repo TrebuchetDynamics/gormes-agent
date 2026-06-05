@@ -8,25 +8,25 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 func TestKernel_ContextStatusUpdatesFromStreamWithoutHiddenCompression(t *testing.T) {
 	engine := &compressSpyContextEngine{
-		DisabledContextEngine: hermes.NewDisabledContextEngine("compression disabled by config"),
+		DisabledContextEngine: llm.NewDisabledContextEngine("compression disabled by config"),
 	}
-	engine.UpdateModelContext(hermes.ContextModelContext{
+	engine.UpdateModelContext(llm.ContextModelContext{
 		Model:            "hermes-agent",
 		ContextLength:    1000,
 		ThresholdPercent: 0.75,
 	})
 
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "ok", TokensOut: 1},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 740, TokensOut: 8},
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "ok", TokensOut: 1},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 740, TokensOut: 8},
 	}, "sess-context")
 	k := New(Config{
 		Model:         "hermes-agent",
@@ -63,25 +63,25 @@ func TestKernel_ContextStatusUpdatesFromStreamWithoutHiddenCompression(t *testin
 }
 
 func TestKernel_ContextStatusToolReplaysThroughMockClient(t *testing.T) {
-	engine := hermes.NewDisabledContextEngine("compression disabled by config")
-	engine.UpdateModelContext(hermes.ContextModelContext{
+	engine := llm.NewDisabledContextEngine("compression disabled by config")
+	engine.UpdateModelContext(llm.ContextModelContext{
 		Model:            "hermes-agent",
 		ContextLength:    8000,
 		ThresholdPercent: 0.75,
 	})
 
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "tool_calls",
-		ToolCalls: []hermes.ToolCall{{
+		ToolCalls: []llm.ToolCall{{
 			ID:        "call_context_status",
-			Name:      hermes.ContextStatusToolName,
+			Name:      llm.ContextStatusToolName,
 			Arguments: json.RawMessage(`{}`),
 		}},
 	}}, "sess-context")
-	mc.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	mc.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "stop",
 		TokensIn:     120,
 		TokensOut:    4,
@@ -108,10 +108,10 @@ func TestKernel_ContextStatusToolReplaysThroughMockClient(t *testing.T) {
 	if len(requests) != 2 {
 		t.Fatalf("OpenStream calls = %d, want 2", len(requests))
 	}
-	if !hasToolDescriptor(requests[0].Tools, hermes.ContextStatusToolName) {
+	if !hasToolDescriptor(requests[0].Tools, llm.ContextStatusToolName) {
 		t.Fatalf("first request tools = %#v, want context status tool descriptor", requests[0].Tools)
 	}
-	var toolMsg *hermes.Message
+	var toolMsg *llm.Message
 	for i := range requests[1].Messages {
 		if requests[1].Messages[i].Role == "tool" && requests[1].Messages[i].ToolCallID == "call_context_status" {
 			toolMsg = &requests[1].Messages[i]
@@ -121,7 +121,7 @@ func TestKernel_ContextStatusToolReplaysThroughMockClient(t *testing.T) {
 	if toolMsg == nil {
 		t.Fatalf("second request messages = %#v, want context status tool result", requests[1].Messages)
 	}
-	var status hermes.ContextStatus
+	var status llm.ContextStatus
 	if err := json.Unmarshal([]byte(toolMsg.Content), &status); err != nil {
 		t.Fatalf("decode context status tool result: %v\n%s", err, toolMsg.Content)
 	}
@@ -131,19 +131,19 @@ func TestKernel_ContextStatusToolReplaysThroughMockClient(t *testing.T) {
 }
 
 func TestKernel_UnknownContextToolReturnsStructuredErrorAndStatus(t *testing.T) {
-	engine := hermes.NewDisabledContextEngine("compression disabled by config")
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	engine := llm.NewDisabledContextEngine("compression disabled by config")
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "tool_calls",
-		ToolCalls: []hermes.ToolCall{{
+		ToolCalls: []llm.ToolCall{{
 			ID:        "call_missing",
 			Name:      "missing_context_tool",
 			Arguments: json.RawMessage(`{"query":"x"}`),
 		}},
 	}}, "sess-context")
-	mc.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	mc.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "stop",
 		TokensIn:     120,
 		TokensOut:    4,
@@ -191,12 +191,12 @@ func TestKernel_UnknownContextToolReturnsStructuredErrorAndStatus(t *testing.T) 
 
 func TestKernel_ResetSession_NotifiesContextEngineSessionEndBeforeReset(t *testing.T) {
 	engine := &sessionEndSpyContextEngine{
-		DisabledContextEngine: hermes.NewDisabledContextEngine("compression disabled by config"),
+		DisabledContextEngine: llm.NewDisabledContextEngine("compression disabled by config"),
 	}
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "ok", TokensOut: 1},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 12, TokensOut: 3},
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "ok", TokensOut: 1},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 12, TokensOut: 3},
 	}, "sess-context-boundary")
 
 	k := New(Config{
@@ -245,13 +245,13 @@ func TestKernel_ResetSession_NotifiesContextEngineSessionEndBeforeReset(t *testi
 
 func TestKernel_ResetSession_ContextEngineSessionEndFailureStillResets(t *testing.T) {
 	engine := &sessionEndSpyContextEngine{
-		DisabledContextEngine: hermes.NewDisabledContextEngine("compression disabled by config"),
+		DisabledContextEngine: llm.NewDisabledContextEngine("compression disabled by config"),
 		sessionEndErr:         errors.New("flush failed"),
 	}
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "ok", TokensOut: 1},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 2, TokensOut: 1},
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "ok", TokensOut: 1},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 2, TokensOut: 1},
 	}, "sess-context-failing-boundary")
 
 	k := New(Config{
@@ -285,7 +285,7 @@ func TestKernel_ResetSession_ContextEngineSessionEndFailureStillResets(t *testin
 }
 
 type compressSpyContextEngine struct {
-	*hermes.DisabledContextEngine
+	*llm.DisabledContextEngine
 	compressCalls int
 }
 
@@ -293,25 +293,25 @@ func (s *compressSpyContextEngine) ShouldCompress(int) bool {
 	return true
 }
 
-func (s *compressSpyContextEngine) Compress(ctx context.Context, messages []hermes.Message, req hermes.CompressionRequest) ([]hermes.Message, hermes.CompressionReport, error) {
+func (s *compressSpyContextEngine) Compress(ctx context.Context, messages []llm.Message, req llm.CompressionRequest) ([]llm.Message, llm.CompressionReport, error) {
 	s.compressCalls++
 	return s.DisabledContextEngine.Compress(ctx, messages, req)
 }
 
 type sessionEndSpyContextEngine struct {
-	*hermes.DisabledContextEngine
+	*llm.DisabledContextEngine
 	sessionEndErr      error
 	sessionEndCalls    int
 	sessionEndID       string
-	sessionEndMessages []hermes.Message
+	sessionEndMessages []llm.Message
 	resetCalls         int
 	order              []string
 }
 
-func (s *sessionEndSpyContextEngine) OnSessionEnd(_ context.Context, sessionID string, messages []hermes.Message) error {
+func (s *sessionEndSpyContextEngine) OnSessionEnd(_ context.Context, sessionID string, messages []llm.Message) error {
 	s.sessionEndCalls++
 	s.sessionEndID = sessionID
-	s.sessionEndMessages = append([]hermes.Message(nil), messages...)
+	s.sessionEndMessages = append([]llm.Message(nil), messages...)
 	s.order = append(s.order, "end")
 	return s.sessionEndErr
 }
@@ -322,7 +322,7 @@ func (s *sessionEndSpyContextEngine) OnSessionReset() {
 	s.DisabledContextEngine.OnSessionReset()
 }
 
-func hasToolDescriptor(tools []hermes.ToolDescriptor, name string) bool {
+func hasToolDescriptor(tools []llm.ToolDescriptor, name string) bool {
 	for _, tool := range tools {
 		if tool.Name == name {
 			return true

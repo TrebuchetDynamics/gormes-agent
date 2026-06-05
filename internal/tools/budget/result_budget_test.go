@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // TestToolResultBudget_TruncatesTextAndPersistsArtifact proves text output
@@ -63,6 +64,78 @@ func TestToolResultBudget_TruncatesTextAndPersistsArtifact(t *testing.T) {
 	}
 }
 
+func TestToolResultBudget_UnderBudgetTextReturnsFullOutputNotPreview(t *testing.T) {
+	raw := []byte("0123456789")
+	cfg := ToolResultBudgetConfig{
+		OutputDir:       t.TempDir(),
+		TextBudgetBytes: 16,
+		PreviewBytes:    4,
+	}
+
+	text, evidence, err := FormatToolResult(cfg, raw, "text/plain")
+	if err != nil {
+		t.Fatalf("FormatToolResult: %v", err)
+	}
+	if text != string(raw) {
+		t.Fatalf("under-budget text = %q, want full output %q", text, string(raw))
+	}
+	if evidence.Code != ToolResultEvidenceUnderBudget {
+		t.Fatalf("evidence.Code = %q, want %q", evidence.Code, ToolResultEvidenceUnderBudget)
+	}
+	if evidence.Preview != string(raw) {
+		t.Fatalf("evidence.Preview = %q, want full under-budget output %q", evidence.Preview, string(raw))
+	}
+	if evidence.Artifact != "" {
+		t.Fatalf("evidence.Artifact = %q, want empty for under-budget output", evidence.Artifact)
+	}
+}
+
+func TestToolResultBudget_StripsANSIFromTextBeforeModelOrArtifact(t *testing.T) {
+	dir := t.TempDir()
+	raw := []byte("ok\x1b[31mred\x1b[0m" + strings.Repeat("x", 512))
+	cfg := ToolResultBudgetConfig{
+		OutputDir:       dir,
+		TextBudgetBytes: 32,
+		PreviewBytes:    16,
+	}
+
+	pointer, evidence, err := FormatToolResult(cfg, raw, "text/plain")
+	if err != nil {
+		t.Fatalf("FormatToolResult: %v", err)
+	}
+	if strings.Contains(pointer, "\x1b") || strings.Contains(evidence.Preview, "\x1b") {
+		t.Fatalf("ANSI escaped into model-facing output: pointer=%q preview=%q", pointer, evidence.Preview)
+	}
+	full, err := os.ReadFile(filepath.Join(dir, evidence.Artifact))
+	if err != nil {
+		t.Fatalf("read artifact: %v", err)
+	}
+	if strings.Contains(string(full), "\x1b") {
+		t.Fatalf("ANSI escaped into persisted artifact: %q", string(full[:min(len(full), 32)]))
+	}
+	if !strings.Contains(string(full), "okred") {
+		t.Fatalf("stripped artifact lost visible text: %q", string(full[:min(len(full), 32)]))
+	}
+}
+
+func TestToolResultBudget_BytesReportsOriginalRawOutput(t *testing.T) {
+	dir := t.TempDir()
+	raw := []byte("ok\x1b[31mred\x1b[0m" + strings.Repeat("x", 512))
+	cfg := ToolResultBudgetConfig{
+		OutputDir:       dir,
+		TextBudgetBytes: 32,
+		PreviewBytes:    16,
+	}
+
+	_, evidence, err := FormatToolResult(cfg, raw, "text/plain")
+	if err != nil {
+		t.Fatalf("FormatToolResult: %v", err)
+	}
+	if evidence.Bytes != len(raw) {
+		t.Fatalf("evidence.Bytes = %d, want original raw byte length %d", evidence.Bytes, len(raw))
+	}
+}
+
 // TestToolResultBudget_PersistsJSONNonText proves non-text/JSON output is
 // persisted as a JSON file and the pointer is short (no embedded JSON body).
 func TestToolResultBudget_PersistsJSONNonText(t *testing.T) {
@@ -110,6 +183,24 @@ func TestToolResultBudget_PersistsJSONNonText(t *testing.T) {
 	}
 	if _, ok := roundtrip["large"]; !ok {
 		t.Fatalf("artifact JSON missing 'large' field; got keys %v", roundtrip)
+	}
+}
+
+func TestToolResultBudget_PersistsParameterizedJSONAsJSONArtifact(t *testing.T) {
+	dir := t.TempDir()
+	raw := []byte(`{"ok":true}`)
+	cfg := ToolResultBudgetConfig{
+		OutputDir:       dir,
+		TextBudgetBytes: 128,
+		PreviewBytes:    16,
+	}
+
+	_, evidence, err := FormatToolResult(cfg, raw, "application/json; charset=utf-8")
+	if err != nil {
+		t.Fatalf("FormatToolResult: %v", err)
+	}
+	if !strings.HasSuffix(evidence.Artifact, ".json") {
+		t.Fatalf("evidence.Artifact = %q; want .json for parameterized JSON media type", evidence.Artifact)
 	}
 }
 
@@ -202,6 +293,30 @@ func TestToolResultBudget_PersistenceFailedEvidence(t *testing.T) {
 		if strings.Contains(pointer, secret) {
 			t.Fatalf("pointer leaks secret token %q", secret)
 		}
+	}
+}
+
+// TestToolResultBudget_PointerHeaderTruncatesAtUTF8Boundary proves pointer
+// headers stay transcript-safe when long media types force byte truncation.
+func TestToolResultBudget_PointerHeaderTruncatesAtUTF8Boundary(t *testing.T) {
+	dir := t.TempDir()
+	raw := []byte(strings.Repeat("m", 512))
+	mediaType := "application/x;" + strings.Repeat("界", 90)
+	cfg := ToolResultBudgetConfig{
+		OutputDir:       dir,
+		TextBudgetBytes: 128,
+		PreviewBytes:    0,
+	}
+
+	pointer, evidence, err := FormatToolResult(cfg, raw, mediaType)
+	if err != nil {
+		t.Fatalf("FormatToolResult: %v", err)
+	}
+	if evidence.Artifact == "" {
+		t.Fatalf("evidence.Artifact empty; want persisted non-text artifact")
+	}
+	if !utf8.ValidString(pointer) {
+		t.Fatalf("pointer is not valid UTF-8 after header truncation: %q", pointer)
 	}
 }
 

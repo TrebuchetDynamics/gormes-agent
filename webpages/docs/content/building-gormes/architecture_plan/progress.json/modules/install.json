@@ -60,7 +60,7 @@
         "internal/doctor/",
         "cmd/gormes/",
         "internal/config/",
-        "internal/store/",
+        "internal/persistence/store/",
         "internal/goncho/",
         "internal/gateway/",
         "webpages/docs/content/install/",
@@ -178,7 +178,7 @@
       "fixture": "internal/config Termux path fixtures, cmd/gormes doctor/config/goncho/registry path smoke fixtures, and internal/installtest Termux dry-run publication fixture",
       "source_refs": [
         "internal/config/config.go",
-        "internal/store/",
+        "internal/persistence/store/",
         "internal/goncho/",
         "cmd/gormes/goncho.go",
         "cmd/gormes/doctor.go",
@@ -204,7 +204,7 @@
       ],
       "write_scope": [
         "internal/config/",
-        "internal/store/",
+        "internal/persistence/store/",
         "internal/goncho/",
         "cmd/gormes/",
         "internal/installtest/",

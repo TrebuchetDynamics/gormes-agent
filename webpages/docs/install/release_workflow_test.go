@@ -2,7 +2,6 @@ package install_test
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -12,7 +11,7 @@ import (
 // product platforms Gormes claims, writes SHA-256 checksums beside them, and
 // publishes only on tagged releases.
 func TestReleaseWorkflowContract(t *testing.T) {
-	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	workflow := readRepoFile(t, ".github/workflows/release.yml")
 
 	wantAll := []string{
 		"name: Release Binaries",
@@ -81,7 +80,7 @@ func TestReleaseWorkflowContract(t *testing.T) {
 }
 
 func TestReleaseWorkflowValidateJobCoversCIBlogGate(t *testing.T) {
-	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	workflow := readRepoFile(t, ".github/workflows/release.yml")
 
 	wantAll := []string{
 		"cache-dependency-path: |",
@@ -118,7 +117,7 @@ func TestReleaseWorkflowValidateJobCoversCIBlogGate(t *testing.T) {
 }
 
 func TestReleaseWorkflowInjectsBuildDateProvenance(t *testing.T) {
-	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	workflow := readRepoFile(t, ".github/workflows/release.yml")
 	buildStep := workflowStepBlock(t, workflow, "- name: Build static binary archive")
 
 	wantAll := []string{
@@ -142,7 +141,7 @@ func TestReleaseWorkflowInjectsBuildDateProvenance(t *testing.T) {
 }
 
 func TestReleaseWorkflowSmokeChecksBinaryVersionMetadata(t *testing.T) {
-	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	workflow := readRepoFile(t, ".github/workflows/release.yml")
 	buildStep := workflowStepBlock(t, workflow, "- name: Build static binary archive")
 
 	wantAll := []string{
@@ -176,7 +175,7 @@ func TestReleaseWorkflowSmokeChecksBinaryVersionMetadata(t *testing.T) {
 }
 
 func TestReleaseWorkflowGeneratesSBOMsWithoutPublishingFromMatrix(t *testing.T) {
-	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	workflow := readRepoFile(t, ".github/workflows/release.yml")
 	sbomStep := workflowStepBlock(t, workflow, "- name: Generate SBOM")
 
 	wantAll := []string{
@@ -194,7 +193,7 @@ func TestReleaseWorkflowGeneratesSBOMsWithoutPublishingFromMatrix(t *testing.T) 
 }
 
 func TestReleaseWorkflowAttestsSBOMsForArchives(t *testing.T) {
-	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	workflow := readRepoFile(t, ".github/workflows/release.yml")
 	sbomStep := workflowStepBlock(t, workflow, "- name: Generate SBOM")
 	attestStep := workflowStepBlock(t, workflow, "- name: Attest SBOM")
 
@@ -215,7 +214,7 @@ func TestReleaseWorkflowAttestsSBOMsForArchives(t *testing.T) {
 }
 
 func TestReleaseWorkflowAttestsBuildProvenanceForArchives(t *testing.T) {
-	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	workflow := readRepoFile(t, ".github/workflows/release.yml")
 	provenanceStep := workflowStepBlock(t, workflow, "- name: Attest build provenance")
 
 	wantAll := []string{
@@ -236,7 +235,7 @@ func TestReleaseWorkflowAttestsBuildProvenanceForArchives(t *testing.T) {
 }
 
 func TestReleaseWorkflowEnforcesMaxArchiveSize(t *testing.T) {
-	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	workflow := readRepoFile(t, ".github/workflows/release.yml")
 	buildStep := workflowStepBlock(t, workflow, "- name: Build static binary archive")
 
 	wantAll := []string{
@@ -268,7 +267,7 @@ func TestReleaseWorkflowEnforcesMaxArchiveSize(t *testing.T) {
 }
 
 func TestReleaseWorkflowReleaseNotesIncludeArchiveSize(t *testing.T) {
-	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	workflow := readRepoFile(t, ".github/workflows/release.yml")
 	notesStep := workflowStepBlock(t, workflow, "- name: Build release notes")
 
 	wantAll := []string{
@@ -296,7 +295,7 @@ func TestReleaseWorkflowReleaseNotesIncludeArchiveSize(t *testing.T) {
 }
 
 func TestReleaseWorkflowReleaseNotesNameSBOMAttestations(t *testing.T) {
-	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	workflow := readRepoFile(t, ".github/workflows/release.yml")
 	notesStep := workflowStepBlock(t, workflow, "- name: Build release notes")
 
 	wantAll := []string{
@@ -323,13 +322,13 @@ func TestReleaseWorkflowReleaseNotesNameSBOMAttestations(t *testing.T) {
 }
 
 func TestReleaseWorkflowReleaseTitleCarriesDateAlias(t *testing.T) {
-	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	workflow := readRepoFile(t, ".github/workflows/release.yml")
 	notesStep := workflowStepBlock(t, workflow, "- name: Build release notes")
 	publishStep := workflowStepBlock(t, workflow, "- uses: softprops/action-gh-release@v3")
 
 	wantInNotesStep := []string{
 		"id: release_notes",
-		"date_alias=$(grep 'var VersionDateAlias =' cmd/gormes/version.go | sed 's/.*\"\\(.*\\)\".*/\\1/')",
+		"date_alias=$(grep 'var VersionDateAlias =' cmd/gormes/main.go | sed 's/.*\"\\(.*\\)\".*/\\1/')",
 		"test -n \"$date_alias\"",
 		"echo \"date_alias=$date_alias\" >> \"$GITHUB_OUTPUT\"",
 		"echo \"# Gormes ${GITHUB_REF_NAME} (${date_alias})\"",
@@ -351,7 +350,7 @@ func TestReleaseWorkflowReleaseTitleCarriesDateAlias(t *testing.T) {
 	}
 
 	assertWorkflowOrder(t, notesStep,
-		"date_alias=$(grep 'var VersionDateAlias =' cmd/gormes/version.go | sed 's/.*\"\\(.*\\)\".*/\\1/')",
+		"date_alias=$(grep 'var VersionDateAlias =' cmd/gormes/main.go | sed 's/.*\"\\(.*\\)\".*/\\1/')",
 		"echo \"# Gormes ${GITHUB_REF_NAME} (${date_alias})\"",
 	)
 	assertWorkflowOrder(t, notesStep,
@@ -377,7 +376,7 @@ func TestReleaseWorkflowReleaseTitleCarriesDateAlias(t *testing.T) {
 // block so the URL pattern is discoverable without reading the
 // landing site.
 func TestReleaseWorkflowPublishesInstallScripts(t *testing.T) {
-	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	workflow := readRepoFile(t, ".github/workflows/release.yml")
 	publishStep := workflowStepBlock(t, workflow, "- uses: softprops/action-gh-release@v3")
 
 	wantInUploadGlob := []string{
@@ -406,7 +405,7 @@ func TestReleaseWorkflowPublishesInstallScripts(t *testing.T) {
 }
 
 func TestReleasePrepGuideTargetMatrixMatchesWorkflow(t *testing.T) {
-	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	workflow := readRepoFile(t, ".github/workflows/release.yml")
 	raw, err := os.ReadFile("v0.1.0-release-prep.md")
 	if err != nil {
 		t.Fatalf("read release prep guide: %v", err)
@@ -453,15 +452,6 @@ func TestReleasePrepGuideTargetMatrixMatchesWorkflow(t *testing.T) {
 	if strings.Contains(guide, "will build Linux, macOS, and Windows static archives") {
 		t.Errorf("release prep guide still contains stale Linux/macOS/Windows summary")
 	}
-}
-
-func readRepoFileRelease(t *testing.T, rel string) string {
-	t.Helper()
-	raw, err := os.ReadFile(filepath.Join(repoRoot(t), rel))
-	if err != nil {
-		t.Fatalf("read %s: %v", rel, err)
-	}
-	return string(raw)
 }
 
 func workflowStepBlock(t *testing.T, workflow, stepName string) string {

@@ -40,14 +40,20 @@ the base URL, WebSocket URL, auth mode, and REST token when token auth is
 selected, so treat the PNG like a secret and avoid screenshots or support
 bundles that include it.
 
-`gormes navivox connect --json` also emits `base_url`, `healthz_url`, and
-`websocket_url` for each reachable interface; IPv6 addresses are bracketed in
-emitted URLs. It remains token-redacted and reports only `token_required`.
+For the one-terminal Android/Termux handoff, use `gormes navivox pair`. It
+starts a network-reachable bridge, preferring a detected Tailscale IPv4 address
+before other VPN/LAN addresses, and prints the token for manual fallback entry.
+It prints a terminal QR when the screen is wide enough and opens the Navivox app
+directly with `--open-navivox` when available. If the deep-link VIEW intent
+fails, it retries with an Android text-share payload. Treat the printed token
+and QR like a WhatsApp Web QR: anyone with them can connect while the bridge is
+online. It does not print the full secret descriptor unless `--print-deeplink`
+is explicitly provided.
 
 In the Flutter Navivox app setup screen, scan the QR image when available. If
-QR scanning is unavailable, enter the gateway base URL, for example
-`http://127.0.0.1:8765` or the Tailscale host URL, then enter the pairing
-token manually. After connection, chat messages use the WebSocket stream.
+QR scanning is unavailable, enter the printed gateway base URL (for example the
+Tailscale host URL) and the printed pairing token manually. After connection,
+chat messages use the WebSocket stream.
 
 ## Config Keys
 
@@ -94,7 +100,16 @@ GORMES_NAVIVOX_TOKEN=...
 
 - `GET /healthz`
 - `GET /v1/navivox/status`
+- `GET /v1/navivox/capabilities`
 - `GET /v1/navivox/profile-contacts`
+- `GET /v1/navivox/profile-routing`
+- `POST /v1/navivox/profile-seed`
+- `GET /v1/navivox/config-admin[/schema]`
+- `POST /v1/navivox/config-admin/{diff,validate,apply}`
+- `GET /v1/navivox/voice-profiles`
+- `POST /v1/navivox/voice-profiles/validate`
+- `GET /v1/navivox/run-records/{run_id_or_session_id}`
+- `GET /v1/navivox/memory/overview`
 - `GET /v1/navivox/sessions`
 - `GET /v1/navivox/sessions/{session_id}`
 - `POST /v1/navivox/turn`
@@ -106,6 +121,15 @@ HTTP and WebSocket requests use bearer auth for `pairing_token`,
 `tailscale_identity` uses Tailnet identity headers.
 `token_and_tailscale_identity` requires both layers. Browser WebSocket clients
 may pass the bearer token through the supported Navivox token subprotocol.
+
+`GET /v1/navivox/capabilities` is the first-class app contract. It advertises
+supported endpoints, event kinds, active auth mode, profile-management actions,
+attachment limits, voice/STT/TTS state, and exclusion rules. Navivox clients
+should capability-gate UI affordances from this document. In particular,
+profile contacts and seed/apply actions are wrapped by `/v1/navivox/*`; clients
+must not call dashboard `/api/profiles` routes directly. Attachments are not
+accepted by the current Navivox contract; raw local paths are not a durable
+contract.
 
 ## WebSocket Messages
 
@@ -124,6 +148,7 @@ Server events:
 - `assistant_delta`
 - `assistant_message`
 - `tool_call_started`
+- `tool_call_updated`
 - `tool_call_finished`
 - `safety_warning`
 - `approval_required`
@@ -184,6 +209,8 @@ gormes gateway
 curl http://127.0.0.1:8765/healthz
 curl -H "Authorization: Bearer $GORMES_NAVIVOX_TOKEN" \
   http://127.0.0.1:8765/v1/navivox/status
+curl -H "Authorization: Bearer $GORMES_NAVIVOX_TOKEN" \
+  http://127.0.0.1:8765/v1/navivox/capabilities
 ```
 
 WebSocket ping:

@@ -9,13 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/goncho"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/gonchotools"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/goncho/service"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/goncho"
 )
 
 func TestAgentTurnUsesGonchoMemory(t *testing.T) {
@@ -31,11 +31,11 @@ func TestAgentTurnUsesGonchoMemory(t *testing.T) {
 			t.Fatalf("tools evidence = %q, want honcho_tools_ready", status.ToolsEvidence)
 		}
 
-		provider := hermes.NewMockClient()
-		provider.Script([]hermes.Event{{
-			Kind:         hermes.EventDone,
+		provider := llm.NewMockClient()
+		provider.Script([]llm.Event{{
+			Kind:         llm.EventDone,
 			FinishReason: "tool_calls",
-			ToolCalls: []hermes.ToolCall{{
+			ToolCalls: []llm.ToolCall{{
 				ID:        "call_honcho_search",
 				Name:      "honcho_search",
 				Arguments: json.RawMessage(`{"peer":"telegram:6586915095","query":"evidence-first","session_key":"sess-goncho-turn"}`),
@@ -43,9 +43,9 @@ func TestAgentTurnUsesGonchoMemory(t *testing.T) {
 			TokensIn:  40,
 			TokensOut: 1,
 		}}, "provider-goncho-turn")
-		provider.Script([]hermes.Event{
-			{Kind: hermes.EventToken, Token: "Goncho memory confirms evidence-first reporting.", TokensOut: 6},
-			{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 80, TokensOut: 6},
+		provider.Script([]llm.Event{
+			{Kind: llm.EventToken, Token: "Goncho memory confirms evidence-first reporting.", TokensOut: 6},
+			{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 80, TokensOut: 6},
 		}, "provider-goncho-turn")
 
 		k, done, cancel := runKernelForGonchoTurn(t, mem, provider, kernel.Config{
@@ -107,10 +107,10 @@ func TestAgentTurnUsesGonchoMemory(t *testing.T) {
 			t.Fatalf("tools evidence = %q, want honcho_tools_unavailable", status.ToolsEvidence)
 		}
 
-		provider := hermes.NewMockClient()
-		provider.Script([]hermes.Event{
-			{Kind: hermes.EventToken, Token: "Turn stayed explainable without Goncho.", TokensOut: 5},
-			{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 10, TokensOut: 5},
+		provider := llm.NewMockClient()
+		provider.Script([]llm.Event{
+			{Kind: llm.EventToken, Token: "Turn stayed explainable without Goncho.", TokensOut: 5},
+			{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 10, TokensOut: 5},
 		}, "provider-degraded")
 
 		k, done, cancel := runKernelForGonchoTurn(t, mem, provider, kernel.Config{
@@ -183,7 +183,7 @@ func seedKernelGonchoMemory(t *testing.T, svc *goncho.Service) {
 	}
 }
 
-func runKernelForGonchoTurn(t *testing.T, mem *memory.SqliteStore, provider *hermes.MockClient, cfg kernel.Config) (*kernel.Kernel, chan error, context.CancelFunc) {
+func runKernelForGonchoTurn(t *testing.T, mem *memory.SqliteStore, provider *llm.MockClient, cfg kernel.Config) (*kernel.Kernel, chan error, context.CancelFunc) {
 	t.Helper()
 	k := kernel.New(cfg, provider, mem, telemetry.New(), nil)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -241,7 +241,7 @@ func waitForGonchoFrame(t *testing.T, ch <-chan kernel.RenderFrame, pred func(ke
 	}
 }
 
-func requestContainsGonchoRecall(req hermes.ChatRequest) bool {
+func requestContainsGonchoRecall(req llm.ChatRequest) bool {
 	if len(req.Messages) == 0 || req.Messages[0].Role != "system" {
 		return false
 	}
@@ -249,7 +249,7 @@ func requestContainsGonchoRecall(req hermes.ChatRequest) bool {
 		strings.Contains(req.Messages[0].Content, "evidence-first")
 }
 
-func requestHasTool(req hermes.ChatRequest, name string) bool {
+func requestHasTool(req llm.ChatRequest, name string) bool {
 	for _, desc := range req.Tools {
 		if desc.Name == name {
 			return true
@@ -258,7 +258,7 @@ func requestHasTool(req hermes.ChatRequest, name string) bool {
 	return false
 }
 
-func continuationHasHonchoToolReply(req hermes.ChatRequest, callID, want string) bool {
+func continuationHasHonchoToolReply(req llm.ChatRequest, callID, want string) bool {
 	for _, msg := range req.Messages {
 		if msg.Role == "tool" && msg.ToolCallID == callID && strings.Contains(msg.Content, want) {
 			return true

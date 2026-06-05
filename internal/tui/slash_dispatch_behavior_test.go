@@ -6,8 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestHermesSlashDispatchBehavior_LocalHandlersStillRun(t *testing.T) {
@@ -28,7 +28,7 @@ func TestHermesSlashDispatchBehavior_LocalHandlersStillRun(t *testing.T) {
 			sub := &nopSubmitter{}
 			m := newSlashDispatchBehaviorModel(sub)
 			if tt.withHistory {
-				m.frame.History = []hermes.Message{{Role: "user", Content: "hello"}}
+				m.frame.History = []llm.Message{{Role: "user", Content: "hello"}}
 				m.frame.SessionID = "sess-parent"
 			}
 
@@ -50,7 +50,7 @@ func TestHermesSlashDispatchBehavior_LocalHandlersStillRun(t *testing.T) {
 func TestHermesSlashDispatchBehavior_RedrawClearsVisibleFrameLocally(t *testing.T) {
 	sub := &nopSubmitter{}
 	m := newSlashDispatchBehaviorModel(sub)
-	m.frame.History = []hermes.Message{{Role: "user", Content: "keep in kernel, clear from view"}}
+	m.frame.History = []llm.Message{{Role: "user", Content: "keep in kernel, clear from view"}}
 	m.frame.DraftText = "streaming draft"
 	m.frame.LastError = "stale terminal error"
 	m.frame.SessionID = "sess-redraw"
@@ -122,13 +122,46 @@ func TestHermesSlashDispatchBehavior_SkillsSlashRunsLocallyWhileBusy(t *testing.
 	}
 }
 
+func TestHermesSlashDispatchBehavior_SkillsInstallRunsLocally(t *testing.T) {
+	sub := &nopSubmitter{}
+	calls := 0
+	frames := make(chan kernel.RenderFrame, 1)
+	frames <- kernel.RenderFrame{Phase: kernel.PhaseIdle, Seq: 1}
+	m := NewModelWithOptions(frames, sub.submit, func() {}, Options{
+		MouseTracking: true,
+		SkillsCommand: func(input string) string {
+			calls++
+			if input != "/skills install https://example.com/SKILL.md --name tui-skill" {
+				t.Fatalf("SkillsCommand input = %q", input)
+			}
+			return "url_skill_installed: installed tui-skill"
+		},
+	})
+	m.frame.Phase = kernel.PhaseIdle
+
+	m = enterSlashDispatchBehavior(t, m, "/skills install https://example.com/SKILL.md --name tui-skill")
+
+	if calls != 1 {
+		t.Fatalf("SkillsCommand calls = %d, want 1", calls)
+	}
+	if sub.calls != 0 {
+		t.Fatalf("/skills install reached Submitter %d time(s), want 0", sub.calls)
+	}
+	if got := m.editor.Value(); got != "" {
+		t.Fatalf("editor value after /skills install = %q, want cleared", got)
+	}
+	status := strings.ToLower(m.statusMessage)
+	if !strings.Contains(status, "url_skill_installed") || !strings.Contains(status, "tui-skill") {
+		t.Fatalf("status after /skills install = %q, want install evidence", m.statusMessage)
+	}
+}
+
 func TestHermesSlashDispatchBehavior_KnownUnhandledCommandsNeverSubmit(t *testing.T) {
 	for _, input := range []string{
 		"/provider openrouter",
 		"/image ./diagram.png",
 		"/tools list",
 		"/rollback",
-		"/queue later",
 	} {
 		t.Run(input, func(t *testing.T) {
 			sub := &nopSubmitter{}
@@ -153,17 +186,25 @@ func TestHermesSlashDispatchBehavior_KnownUnhandledCommandsNeverSubmit(t *testin
 
 func TestHermesSlashDispatchBehavior_UnknownAndAmbiguousSlashGuidance(t *testing.T) {
 	tests := []struct {
-		name       string
-		input      string
-		wantStatus string
+		name              string
+		input             string
+		wantStatus        string
+		dismissCompletion bool
 	}{
 		{name: "unknown", input: "/no-such-command-xyzzy", wantStatus: "unknown command"},
-		{name: "ambiguous", input: "/s", wantStatus: "ambiguous command"},
+		{name: "ambiguous", input: "/s", wantStatus: "ambiguous command", dismissCompletion: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sub := &nopSubmitter{}
-			m := enterSlashDispatchBehavior(t, newSlashDispatchBehaviorModel(sub), tt.input)
+			m := newSlashDispatchBehaviorModel(sub)
+			if tt.dismissCompletion {
+				m.editor.SetValue(tt.input)
+				m = updateModelSlashKey(t, m, tea.KeyMsg{Type: tea.KeyEscape})
+				m = updateModelSlashKey(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+			} else {
+				m = enterSlashDispatchBehavior(t, m, tt.input)
+			}
 
 			if sub.calls != 0 {
 				t.Fatalf("%s reached Submitter %d time(s), want 0", tt.input, sub.calls)

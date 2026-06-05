@@ -2,9 +2,10 @@ package gateway
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/topiccmd"
 )
 
 const telegramTopicCapabilityHintCooldown = 5 * time.Minute
@@ -15,21 +16,11 @@ type TelegramTopicCapabilitiesFunc func(context.Context, InboundEvent) (Telegram
 
 // TelegramTopicCapabilities mirrors the bounded BotFather topic settings that
 // Hermes checks before enabling Telegram private-chat topic mode.
-type TelegramTopicCapabilities struct {
-	Checked                   bool
-	HasTopicsEnabled          bool
-	AllowsUsersToCreateTopics bool
-}
+type TelegramTopicCapabilities = topiccmd.Capabilities
 
 // TelegramTopicModeRecord is the durable topic-mode row the gateway needs to
 // enable for a Telegram private chat.
-type TelegramTopicModeRecord struct {
-	ChatID                    string
-	UserID                    string
-	HasTopicsEnabled          bool
-	AllowsUsersToCreateTopics bool
-	CapabilityChecked         bool
-}
+type TelegramTopicModeRecord = topiccmd.ModeRecord
 
 // TelegramTopicStore is intentionally small: this slice owns only topic
 // command state toggles, not broader topic/session routing.
@@ -78,19 +69,7 @@ func (m *Manager) telegramTopicCommandReply(ctx context.Context, ev InboundEvent
 }
 
 func telegramTopicPrivateChat(ev InboundEvent) bool {
-	if !strings.EqualFold(strings.TrimSpace(ev.Platform), "telegram") {
-		return false
-	}
-	if ev.IsDirectMessage() {
-		return true
-	}
-	chatType := strings.TrimSpace(ev.ChatType)
-	if chatType != "" {
-		return false
-	}
-	// Older adapter fixtures may not carry ChatType. Telegram private chat IDs
-	// are positive, while group/supergroup/channel IDs are negative.
-	return !strings.HasPrefix(strings.TrimSpace(ev.ChatID), "-")
+	return topiccmd.PrivateChat(ev.Platform, ev.IsDirectMessage(), ev.ChatType, ev.ChatID)
 }
 
 func (m *Manager) telegramTopicAuthorized(ev InboundEvent) bool {
@@ -101,22 +80,7 @@ func (m *Manager) telegramTopicAuthorized(ev InboundEvent) bool {
 }
 
 func telegramTopicHelpText() string {
-	return strings.Join([]string{
-		"/topic - enable multi-session DM mode (one bot, many parallel chats)",
-		"",
-		"Usage:",
-		"  /topic             Enable topic mode, or show status if already on",
-		"  /topic help        Show this message",
-		"  /topic off         Disable topic mode and clear topic bindings",
-		"  /topic <id>        Inside a topic: restore a previous session by ID",
-		"",
-		"How it works:",
-		"1. Run /topic once in this DM. Gormes checks BotFather Threads Settings and flips on multi-session mode.",
-		"2. Tap All Messages at the top of the bot and send any message. Telegram creates a new topic for that message.",
-		"3. The root DM becomes a system lobby. Send /topic, /status, /help, and /usage there.",
-		"4. /new inside a topic resets just that topic's session.",
-		"5. /topic <id> inside a topic restores an old session into it.",
-	}, "\n")
+	return topiccmd.HelpText()
 }
 
 func (m *Manager) disableTelegramTopicMode(ctx context.Context, store TelegramTopicStore, ev InboundEvent) string {
@@ -174,17 +138,9 @@ func (m *Manager) enableTelegramTopicMode(ctx context.Context, store TelegramTop
 
 func (m *Manager) telegramTopicCapabilityGuidance(chatID, reason string) string {
 	if !m.shouldSendTelegramTopicCapabilityHint(chatID) {
-		return "telegram_topic_capability_hint_debounced: Topic setup guidance was sent recently. Try again in a few minutes."
+		return topiccmd.CapabilityDebouncedText()
 	}
-	return fmt.Sprintf(`%s
-
-How to enable them:
-1. Open @BotFather.
-2. Choose your bot.
-3. Open Bot Settings > Threads Settings.
-4. Turn on Threaded Mode and make sure users are allowed to create new threads.
-
-Then send /topic again.`, reason)
+	return topiccmd.CapabilityGuidance(reason)
 }
 
 func (m *Manager) shouldSendTelegramTopicCapabilityHint(chatID string) bool {
@@ -214,8 +170,5 @@ func (m *Manager) resetTelegramTopicDebounce(chatID string) {
 }
 
 func (m *Manager) telegramTopicRestoreGuidance(ev InboundEvent) string {
-	if strings.TrimSpace(ev.ThreadID) == "" {
-		return "To restore a session, first create or open a Telegram topic, then send /topic <session-id> inside that topic."
-	}
-	return "telegram_topic_unavailable: Session restore into a Telegram topic is not available in this build yet."
+	return topiccmd.RestoreGuidance(ev.ThreadID)
 }

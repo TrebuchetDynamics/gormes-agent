@@ -1851,12 +1851,12 @@
     "subphase": "5.C",
     "pos": 22,
     "item": {
-      "name": "Goscrapling local crawler adapter gate for web_crawl",
-      "priority": "P2",
-      "status": "planned",
-      "contract": "Add a dependency-gated local goscrapling crawler backend behind Gormes' existing `web_crawl` tool after the public goscrapling module exposes the spider primitives required for production-safe crawling. Gormes keeps the model-visible tool name and schema stable, owns URL/private-network/secret/website-policy checks, backend selection, result budgeting, channel rendering, and degraded evidence. goscrapling supplies crawler scheduling, session routing, duplicate/offsite accounting, robots/cache/checkpoint/session-adapter behavior, and response extraction through the public Go module graph with no local replace.",
-      "contract_status": "draft",
-      "slice_size": "medium",
+      "name": "Goscrapling local crawler fixture adapter seam for web_crawl",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Narrow the blocked goscrapling crawler plan into a builder-ready first seam: keep the public `web_crawl` descriptor/schema stable, add an injected local crawler adapter behind explicit `web.backend=goscrapling_crawler` selection, and prove the adapter can return normalized crawl pages with bounded crawl evidence using hermetic fake crawler sessions only. This slice must not bump goscrapling, use a local replace, fetch live websites, or claim robots/cache/checkpoint/session-adapter parity; when those primitives are absent or the adapter is not injected, Gormes must keep typed degraded unavailable evidence instead of falling back to Firecrawl/Tavily.",
+      "contract_status": "validated",
+      "slice_size": "small",
       "execution_owner": "tools",
       "module": "browser",
       "trust_class": [
@@ -1865,99 +1865,148 @@
         "child-agent",
         "system"
       ],
-      "degraded_mode": "Until the goscrapling robots/cache/checkpoint/session-adapter release gate is satisfied, local crawl stays unavailable and `web_crawl` continues using the current Firecrawl/Tavily providers. Unsupported backend selection, missing goscrapling crawler APIs, robots denial, website policy blocks, private/internal/secret URLs, max-page exhaustion, duplicate skips, or local crawler runtime errors must return bounded typed evidence without silently bypassing policy or leaking tokens.",
-      "fixture": "internal/tools/web_tools_test.go::TestWebCrawlToolUsesGoscraplingLocalCrawler + github.com/TrebuchetDynamics/goscrapling/spiders tests",
+      "degraded_mode": "Without an injected local crawler adapter, or when the adapter reports robots/cache/checkpoint/session-adapter capabilities unavailable, `web_crawl` returns typed degraded `web_provider_unavailable`/local-crawler evidence with backend `goscrapling_crawler`. Policy, private/internal URL, redirected-final URL, secret URL, max-page, duplicate/offsite, cancellation, and crawler runtime errors must be bounded and redacted; Firecrawl/Tavily fallback is forbidden for explicit local-crawler selection.",
+      "fixture": "internal/tools/web_tools_test.go::TestWebCrawlToolUsesGoscraplingLocalCrawlerFixtureAdapter",
       "source_refs": [
-        "go.mod::github.com/TrebuchetDynamics/goscrapling v0.1.0",
-        "github.com/TrebuchetDynamics/goscrapling@v0.1.0/spiders/crawler.go:Crawler.Run",
-        "github.com/TrebuchetDynamics/goscrapling@v0.1.0/spiders/crawler.go:Crawler.processRequest",
-        "github.com/TrebuchetDynamics/goscrapling@v0.1.0/spiders/request.go:Request",
-        "github.com/TrebuchetDynamics/goscrapling@v0.1.0/spiders/response.go:Response.Follow",
-        "github.com/TrebuchetDynamics/goscrapling@v0.1.0/spiders/scheduler.go:Scheduler",
-        "github.com/TrebuchetDynamics/goscrapling@v0.1.0/spiders/session.go:SessionManager",
-        "github.com/TrebuchetDynamics/goscrapling@v0.1.0/spiders/result.go:Result",
-        "github.com/TrebuchetDynamics/goscrapling@v0.1.0/spiders/allowed_domains_test.go:TestSpiderAllowedDomains",
-        "github.com/TrebuchetDynamics/goscrapling@v0.1.0/spiders/engine_concurrency_test.go:TestSpiderEngineConcurrency",
-        "github.com/TrebuchetDynamics/goscrapling@v0.1.0/docs/research/scrapling-parity-matrix.md:Spider/Crawler Parity",
-        "github.com/TrebuchetDynamics/goscrapling@v0.1.0/docs/content/building-goscrapling/builder-loop/blocked-slices.md:Robots.txt manager and delay directives",
-        "github.com/TrebuchetDynamics/goscrapling@v0.1.0/docs/content/building-goscrapling/builder-loop/blocked-slices.md:Development response cache",
-        "github.com/TrebuchetDynamics/goscrapling@v0.1.0/docs/content/building-goscrapling/builder-loop/blocked-slices.md:Checkpoint pause and resume",
         "hermes-agent/tools/web_tools.py:web_crawl_tool",
         "hermes-agent/tests/tools/test_web_providers.py:test_unconfigured_crawl_emits_top_level_error",
         "hermes-agent/tests/tools/test_website_policy.py:test_web_crawl_short_circuits_blocked_url",
         "internal/tools/web_tools.go:executeCrawl",
-        "internal/tools/web_tools.go:executeTavilyCrawl",
+        "internal/tools/web_tools.go:resolveGoscraplingCrawlerBackend",
         "internal/tools/web_tools.go:marshalProcessedCrawlResults",
-        "internal/tools/web_tools_test.go:TestGoscraplingDependencyUsesPublicV010Release",
+        "internal/tools/web_tools_test.go:TestWebCrawlExplicitGoscraplingCrawlerUnavailableDoesNotFallback",
         "internal/tools/web_tools_test.go:TestWebCrawlToolCallsFirecrawlAndNormalizesPages",
         "internal/tools/web_tools_test.go:TestWebCrawlToolCallsTavilyWithInstructions",
         "internal/tools/web_tools_test.go:TestWebCrawlToolBlocksEmbeddedSecretsBeforeHTTP",
         "internal/tools/web_tools_test.go:TestWebCrawlToolAppliesWebsitePolicyBeforeFetch",
         "internal/tools/web_tools_test.go:TestWebCrawlToolBlocksRedirectedFinalURL",
-        "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json:tools/web_tools.py",
-        "webpages/docs/content/building-gormes/cross-project-feature-map.md"
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md:web_search / web_extract / web_crawl",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Browser and web research"
       ],
       "ready_when": [
-        "Gormes' current Firecrawl/Tavily `web_crawl` adapter and URL/website-policy safety tests remain complete and green.",
-        "The public `github.com/TrebuchetDynamics/goscrapling` module version used by Gormes resolves from the Go module graph with no local `replace` and exposes crawler/session/result APIs plus tests equivalent to the cited v0.1.0 spider foundation.",
-        "A goscrapling release or verified dependency update closes the active robots, response-cache, checkpoint, and session-adapter blockers, or this row is deliberately narrowed to exclude each still-missing primitive with explicit degraded evidence.",
-        "A hermetic httptest/fake-session fixture can prove crawl discovery, allowed-domain/offsite behavior, robots allow/deny, max pages, duplicate skipping, cancellation/degraded evidence, and result normalization without live network, browser, provider, or LLM credentials.",
+        "Gormes' current Firecrawl/Tavily `web_crawl` adapter and explicit `goscrapling_crawler` unavailable-gate tests remain complete and green.",
+        "The row is deliberately narrowed to a Go-owned injected adapter seam and fake fixture; no public goscrapling release beyond the existing module graph is required for this first slice.",
+        "A hermetic fake-crawler fixture can prove adapter invocation, normalized pages, source/final URL/status evidence, max-page truncation, duplicate/offsite accounting, cancellation/error degradation, and deterministic ordering without live network, browser, provider, or LLM credentials.",
         "The product decision remains that local goscrapling crawling is an operator-selected backend behind `web_crawl`, not an automatic replacement for provider crawl APIs and not a new model-visible tool name."
       ],
       "not_ready_when": [
         "The implementation requires a sibling goscrapling checkout, local `replace`, unreleased API, live websites, real robots.txt fetches, external search indexes, browser rendering, stealth, proxy rotation, or Cloudflare bypass to pass tests.",
         "The slice replaces Firecrawl/Tavily crawl routing wholesale, changes the public `web_crawl` descriptor/schema, or registers a goscrapling-specific model-visible crawl tool without a compatibility row.",
-        "The crawler ignores robots/cache/checkpoint prerequisites, max-page/result budgets, website policy, private/internal URL blocking, final URL checks, secret URL guards, duplicate/offsite accounting, or channel-safe error redaction.",
-        "The builder implements goscrapling spider primitives inside Gormes instead of consuming a public goscrapling API and recording any dependency bump evidence in the row/tests."
-      ],
-      "blocked_by": [
-        "Goscrapling v0.1.x robots/cache/checkpoint release gate",
-        "Robots.txt manager and delay directives",
-        "Development response cache",
-        "Checkpoint pause and resume",
-        "Spider static, dynamic, stealth, and proxy session adapters"
+        "The builder claims full robots/cache/checkpoint/session-adapter parity, implements goscrapling spider primitives inside Gormes, or removes the existing fail-closed unavailable evidence for explicit local-crawler selection.",
+        "The crawler bypasses website policy, private/internal URL blocking, final URL checks, secret URL guards, max-page/result budgets, duplicate/offsite accounting, or channel-safe error redaction."
       ],
       "unblocks": [
-        "Local no-provider research crawls",
-        "Crawler-backed research workflows on Termux and locked-down corp Linux",
-        "Hermes tool tail strict-fidelity source-pair expansion"
+        "A later public-goscrapling crawler implementation row can bind the seam without changing the model-visible tool schema.",
+        "Local no-provider research crawl fixtures can be built incrementally behind explicit operator selection."
       ],
       "acceptance": [
         "The public `web_crawl` descriptor remains stable (`url`, `instructions`, `depth`) and no goscrapling-specific model-visible crawl tool is registered.",
-        "A local httptest/fake-session crawl fixture returns normalized `{results:[{url,title,content,error,extraction}]}` pages with `engine: goscrapling`, `mode: crawler`, source URL/final URL, status, and bounded crawl stats evidence.",
-        "Robots-denied, website-blocklisted, private/internal, redirected-final, and secret-bearing URLs are blocked before local crawler fetch execution or before result content is exposed.",
-        "Max-page, duplicate-skip, offsite-drop, cancellation, and deterministic ordering fixtures prove bounded crawling and stable output under fake sessions.",
-        "Checkpoint/cache/degraded fixtures either prove resumable/cache evidence from the public goscrapling API or explicitly return unavailable evidence that keeps the backend disabled until those primitives ship.",
-        "Existing Firecrawl and Tavily `web_crawl` fixtures, goscrapling static/browser `web_extract` fixtures, and default registry tests remain green with no credential-dependent path."
+        "With `web.backend=goscrapling_crawler` and an injected fake crawler adapter, `web_crawl` returns normalized `{results:[{url,title,content,error,extraction}]}` pages with `engine: goscrapling`, `mode: crawler`, source URL/final URL/status, and bounded crawl stats evidence.",
+        "Without an injected crawler adapter, explicit `goscrapling_crawler` selection preserves typed unavailable/degraded evidence and does not call Firecrawl/Tavily or injected HTTP clients.",
+        "Website-blocklisted, private/internal, redirected-final, and secret-bearing URLs are blocked before fake crawler fetch execution or before result content is exposed.",
+        "Max-page, duplicate-skip, offsite-drop, cancellation/error, and deterministic ordering fixtures prove bounded crawling under fake sessions.",
+        "Existing Firecrawl/Tavily `web_crawl`, goscrapling static/browser `web_extract`, and default registry tests remain green with no credential-dependent path."
       ],
-      "note": "Planner 2026-05-21 development-loop iteration 10: refined this draft row into a dependency-gated crawler handoff. Public goscrapling v0.1.0 already exposes Crawler/Scheduler/SessionManager/Result and spider foundation tests, but its own blocked-slices ledger still lists robots/cache/checkpoint/session-adapter gaps; keep the row draft and blocked until a released goscrapling API closes or explicitly scopes out those prerequisites.",
+      "note": "Planner 2026-06-01 parity reconciliation: narrowed the formerly blocked goscrapling dependency row into a fixture-ready adapter-seam slice. Full public goscrapling robots/cache/checkpoint/session-adapter binding remains future work; this row only proves the Gormes-owned web_crawl seam, policy gates, normalized result envelope, and fail-closed explicit-backend behavior with fake crawler fixtures.",
       "write_scope": [
-        "go.mod",
-        "go.sum",
         "internal/tools/web_tools.go",
         "internal/tools/web_tools_test.go",
-        "internal/config/",
-        "cmd/gormes/registry.go",
-        "cmd/gormes/registry_test.go",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/browser.json",
-        "webpages/docs/content/architecture/tool-execution.md"
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md"
       ],
       "test_commands": [
-        "go test github.com/TrebuchetDynamics/goscrapling/spiders -run 'TestSpider$|TestSpiderAllowedDomains|TestSpiderEngineConcurrency' -count=1",
-        "go test ./internal/tools -run TestGoscraplingDependencyUsesPublicV010Release -count=1",
-        "go test ./internal/tools -run TestWebCrawlToolUsesGoscraplingLocalCrawler -count=1",
+        "go test ./internal/tools -run 'TestWebCrawlToolUsesGoscraplingLocalCrawlerFixtureAdapter|TestWebCrawlExplicitGoscraplingCrawlerUnavailableDoesNotFallback|TestResolveWebBackendSupportsGoscraplingCrawlerUnavailableGate' -count=1",
         "go test ./internal/tools -run 'TestWebCrawlTool|TestWebExtractToolUsesGoscrapling' -count=1",
         "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
       "done_signal": [
-        "Hermetic fixtures prove a dependency-gated local goscrapling backend behind `web_crawl`, including public-module resolution, normalized crawl results, extraction evidence, robots/policy blocking, duplicate/offsite accounting, bounded cancellation/degraded evidence, and no regression to existing Firecrawl/Tavily crawl behavior or tool schema."
+        "Hermetic fixtures prove an explicit goscrapling_crawler adapter seam behind `web_crawl`, normalized crawl result/evidence output, policy and URL safety gates before crawler execution, bounded duplicate/offsite/max-page/cancellation degradation, and no regression to existing Firecrawl/Tavily crawl behavior or tool schema."
       ],
       "provenance": {
         "origin_type": "hybrid",
-        "upstream_ref": "Hermes `web_crawl_tool` provider/safety contract plus Gormes-owned goscrapling local backend decision and public goscrapling v0.1.0 spider foundation evidence",
-        "note": "Hermes defines the public web_crawl envelope and provider-error behavior; Gormes owns the optional local crawler backend, but only after goscrapling ships the crawler prerequisites through a public module release."
+        "upstream_ref": "Hermes `web_crawl_tool` provider/safety contract plus Gormes-owned local crawler seam decision",
+        "note": "Full public goscrapling crawler runtime binding, robots/cache/checkpoint/session adapters, and live crawling remain deferred follow-up work."
+      },
+      "completed_note": "Implemented explicit goscrapling_crawler fake-adapter seam behind web_crawl: injected crawler interface, normalized crawler result/evidence envelope, policy/private/secret URL blocking before crawler execution, duplicate/offsite dropping, max-page stats, degraded runtime errors, and preserved no-fallback unavailable evidence when no crawler is injected. Full public goscrapling robots/cache/checkpoint/session-adapter runtime binding remains deferred.",
+      "validation": [
+        "go test ./internal/tools -run 'TestWebCrawlToolUsesGoscraplingLocalCrawlerFixtureAdapter|TestWebCrawlGoscraplingCrawlerPolicyBlocksBeforeAdapter|TestWebCrawlGoscraplingCrawlerRuntimeErrorIsDegraded|TestWebCrawlExplicitGoscraplingCrawlerUnavailableDoesNotFallback|TestResolveWebBackendSupportsGoscraplingCrawlerUnavailableGate' -count=1"
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 23,
+    "item": {
+      "name": "web_crawl explicit local-crawler unavailable evidence",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Add the repo-local compatibility gate for operators who explicitly select the future local goscrapling crawler backend for `web_crawl` before the crawler dependency row is unblocked. The resolver should recognize local crawler spellings such as `goscrapling_crawler` / `goscrapling-crawler` as a crawl-intent backend, keep it unavailable unless a later adapter is registered, and make `web_crawl` return typed redacted unavailable evidence without falling through to Firecrawl/Tavily, making live HTTP calls, changing the model-visible schema, or implementing goscrapling spider primitives inside Gormes.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "When `web.backend` explicitly names the local crawler before the parent goscrapling crawler dependency is released, `web_crawl` returns `success:false` with `evidence:web_provider_unavailable` (or an equally typed unavailable code), `backend:goscrapling_crawler`, and a redacted operator-actionable message. Auto backend selection keeps existing Firecrawl/Tavily behavior; unsupported local crawler selection must not silently fall through to any remote provider.",
+      "fixture": "internal/tools/web_tools_test.go::TestWebCrawlExplicitGoscraplingCrawlerUnavailableDoesNotFallback",
+      "source_refs": [
+        "hermes-agent/tools/web_tools.py:_get_backend",
+        "hermes-agent/tools/web_tools.py:web_crawl_tool",
+        "hermes-agent/tests/tools/test_web_providers.py:test_unconfigured_crawl_emits_top_level_error",
+        "hermes-agent/tests/tools/test_website_policy.py:test_web_crawl_short_circuits_blocked_url",
+        "internal/tools/web_tools.go:ResolveWebBackendWithConfig",
+        "internal/tools/web_tools.go:executeCrawl",
+        "internal/tools/web_tools_test.go:TestWebCrawlToolCallsFirecrawlAndNormalizesPages",
+        "internal/tools/web_tools_test.go:TestWebCrawlToolCallsTavilyWithInstructions",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Browser and web research",
+        "docs/content/building-gormes/architecture_plan/progress.json/modules/browser.json:Goscrapling local crawler adapter gate for web_crawl"
+      ],
+      "ready_when": [
+        "The parent `Goscrapling local crawler adapter gate for web_crawl` remains blocked on robots/cache/checkpoint/session-adapter primitives; this row only adds explicit-selection degraded evidence and resolver spelling, not the crawler adapter.",
+        "Existing Firecrawl and Tavily `web_crawl` fixtures are already green and continue to define active crawl behavior.",
+        "A hermetic fake HTTP client can prove no outbound provider request happens when the local crawler backend is explicitly selected but unavailable."
+      ],
+      "not_ready_when": [
+        "The change imports new goscrapling crawler/spider packages, adds a local replace, touches go.mod/go.sum for an unreleased API, or implements crawler scheduling/robots/cache/checkpoint logic inside Gormes.",
+        "The public `web_crawl` schema changes, a goscrapling-specific model-visible tool is registered, or auto backend selection starts preferring the unavailable local crawler over configured Firecrawl/Tavily credentials.",
+        "The unavailable path returns a free-form string without machine-readable evidence/backend fields or leaks credential/config values in the error."
+      ],
+      "unblocks": [
+        "Goscrapling local crawler adapter gate for web_crawl",
+        "Local no-provider research crawls"
+      ],
+      "acceptance": [
+        "`ResolveWebBackendWithConfig(nil, WebBackendConfig{Backend: \"goscrapling_crawler\"})` and hyphen/alias spellings resolve to a stable local crawler backend identity with `Available:false` and provider-unavailable evidence.",
+        "`web_crawl` with explicit local crawler selection returns a typed JSON failure that includes backend/evidence/degraded detail and does not call the injected HTTP client or fall back to Firecrawl/Tavily.",
+        "Auto selection and existing configured Firecrawl/Tavily crawl tests remain unchanged and green.",
+        "The public `web_crawl` descriptor/schema remains exactly the existing URL/instructions/depth contract; local crawler remains a config/backend choice only."
+      ],
+      "note": "Complete: added WebBackendGoscraplingCrawler as an explicit config-only backend identity, resolver aliases for goscrapling_crawler/goscrapling-crawler/crawler_goscrapling, and web_crawl typed unavailable JSON with backend/evidence/degraded_reason. The hermetic crawl fixture proves no injected HTTP client request happens and Firecrawl/Tavily do not receive fallback traffic; existing Firecrawl/Tavily crawl tests remain green. No goscrapling spider packages, go.mod changes, schema changes, or crawler primitives were added.",
+      "write_scope": [
+        "internal/tools/web_tools.go",
+        "internal/tools/web_tools_test.go",
+        "docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/browser.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'Test(WebCrawlExplicitGoscraplingCrawlerUnavailableDoesNotFallback|ResolveWebBackend|WebCrawlToolCallsFirecrawl|WebCrawlToolCallsTavily)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "An operator can explicitly configure the future local goscrapling crawler backend and receive typed unavailable evidence from `web_crawl` with no remote-provider fallback, no live HTTP request, no schema drift, and no in-repo crawler primitive implementation."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes `web_crawl_tool` provider-unavailable contract plus Gormes-owned local goscrapling crawler backend decision",
+        "note": "This is a degraded-evidence compatibility slice extracted from the blocked local crawler parent; it does not claim crawler parity."
       }
     }
   },

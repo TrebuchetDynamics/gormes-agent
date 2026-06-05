@@ -158,7 +158,7 @@ build_prompt() {
 
   local autoloop_entrypoint autoloop_plan autoloop_agent_queue autoloop_progress_schema autoloop_candidate_source autoloop_unit_test autoloop_candidate_policy
   autoloop_entrypoint="$(json_autoloop_scalar_or_default "$selected_json" entrypoint "scripts/gormes-auto-codexu-orchestrator.sh")"
-  autoloop_plan="$(json_autoloop_scalar_or_default "$selected_json" plan "docs/superpowers/plans/2026-04-24-orchestrator-oiling-release-1-plan.md")"
+  autoloop_plan="$(json_autoloop_scalar_or_default "$selected_json" plan "docs/superpowers/plans/orchestration-planner/2026-04-24-orchestrator-oiling-release-1-plan.md")"
   autoloop_agent_queue="$(json_autoloop_scalar_or_default "$selected_json" agent_queue "docs/content/building-gormes/autoloop/agent-queue.md")"
   autoloop_progress_schema="$(json_autoloop_scalar_or_default "$selected_json" progress_schema "docs/content/building-gormes/autoloop/progress-schema.md")"
   autoloop_candidate_source="$(json_autoloop_scalar_or_default "$selected_json" candidate_source "$PROGRESS_JSON_REL")"

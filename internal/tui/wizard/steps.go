@@ -39,6 +39,7 @@ type pickDisplay string
 const (
 	pickDisplayNumbered pickDisplay = ""
 	pickDisplayRadio    pickDisplay = "radio"
+	pickDisplaySearch   pickDisplay = "search"
 )
 
 // Answer is the typed result for one step.
@@ -149,6 +150,17 @@ func WithDefaultChoice(choiceID string) StepOption {
 func WithRadioChoices() StepOption {
 	return func(step *Step) {
 		step.pickDisplay = pickDisplayRadio
+	}
+}
+
+// WithSearchChoices renders a single-select picker with a typeahead filter
+// input above a scrollable list. Typing narrows the visible choices by
+// substring match. This is the right display mode for long lists (models,
+// providers with many options) where scrolling through 40+ entries is poor
+// UX.
+func WithSearchChoices() StepOption {
+	return func(step *Step) {
+		step.pickDisplay = pickDisplaySearch
 	}
 }
 

@@ -1,8 +1,6 @@
 package install_test
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -87,8 +85,8 @@ func TestOCIImageContract(t *testing.T) {
 			// Acceptance #3: Honcho hosted compose/Prometheus/Grafana files
 			// must be classified as docs-only divergence in the Dockerfile,
 			// not pulled in as required local Goncho runtime dependencies.
-			name: "honcho_hosted_stack_is_docs_only_divergence",
-			body: stripDivergenceComments(dockerfile),
+			name:    "honcho_hosted_stack_is_docs_only_divergence",
+			body:    stripDivergenceComments(dockerfile),
 			wantAll: []string{},
 			wantNone: []string{
 				"prometheus.yml",
@@ -243,17 +241,6 @@ func TestOCIWorkflowBuildsAndSmokesAMD64AndARM64(t *testing.T) {
 			}
 		})
 	}
-}
-
-func readRepoFile(t *testing.T, rel string) string {
-	t.Helper()
-	// Tests under docs/install run with cwd there, so reach back
-	// to the repo root for top-level fixtures like Dockerfile and docker/.
-	raw, err := os.ReadFile(filepath.Join(repoRoot(t), rel))
-	if err != nil {
-		t.Fatalf("read %s: %v", rel, err)
-	}
-	return string(raw)
 }
 
 // stripDivergenceComments drops any line whose first non-whitespace tokens are

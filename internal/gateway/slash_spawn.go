@@ -2,10 +2,10 @@ package gateway
 
 import (
 	"context"
-	"errors"
 	"strings"
 
-	"github.com/TrebuchetDynamics/goncho"
+	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
+	gatewayspawn "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/spawncmd"
 )
 
 type AgentSpawnEvidence string
@@ -23,7 +23,7 @@ const (
 	AgentSpawnAckFailed            AgentSpawnEvidence = "agent_spawn_ack_failed"
 )
 
-var errSpawnUsage = errors.New("usage: /spawn <name> [persona text...]")
+var errSpawnUsage = gatewayspawn.ErrUsage
 
 // SpawnAgentRegistry is the small part of Goncho's dynamic registry needed by
 // channel-native /spawn flows.
@@ -44,10 +44,7 @@ type DiscordThreadCreator interface {
 	CreateThread(ctx context.Context, channelID, name string) (threadID string, err error)
 }
 
-type SpawnSlashCommand struct {
-	Name    string
-	Persona string
-}
+type SpawnSlashCommand = gatewayspawn.Command
 
 type SlashSpawnRequest struct {
 	Event              InboundEvent
@@ -66,18 +63,7 @@ type SlashSpawnResult struct {
 }
 
 func ParseSpawnSlash(raw string) (SpawnSlashCommand, error) {
-	token, args := splitGatewayCommandLine(raw)
-	if slashCommandName(token) != "spawn" {
-		return SpawnSlashCommand{}, errSpawnUsage
-	}
-	fields := strings.Fields(args)
-	if len(fields) == 0 {
-		return SpawnSlashCommand{}, errSpawnUsage
-	}
-	return SpawnSlashCommand{
-		Name:    fields[0],
-		Persona: strings.TrimSpace(strings.TrimPrefix(args, fields[0])),
-	}, nil
+	return gatewayspawn.Parse(raw)
 }
 
 func HandleSlashSpawn(ctx context.Context, req SlashSpawnRequest) SlashSpawnResult {
@@ -92,18 +78,18 @@ func HandleSlashSpawn(ctx context.Context, req SlashSpawnRequest) SlashSpawnResu
 		return spawnResult(AgentSpawnUnavailable, string(AgentSpawnUnavailable)+": dynamic agent registry is not configured.")
 	}
 
-	switch strings.ToLower(strings.TrimSpace(req.Event.Platform)) {
-	case "telegram":
+	if isTelegramPlatform(req.Event.Platform) {
 		return handleTelegramSlashSpawn(ctx, req, cmd)
-	case "discord":
-		return handleDiscordSlashSpawn(ctx, req, cmd)
-	default:
-		return spawnResult(AgentSpawnUnavailable, string(AgentSpawnUnavailable)+": /spawn is not available for this platform.")
 	}
+	if isDiscordPlatform(req.Event.Platform) {
+		return handleDiscordSlashSpawn(ctx, req, cmd)
+	}
+	return spawnResult(AgentSpawnUnavailable, string(AgentSpawnUnavailable)+": /spawn is not available for this platform.")
 }
 
 func handleTelegramSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd SpawnSlashCommand) SlashSpawnResult {
-	if !telegramSpawnForumSurface(req.Event) {
+	chatID, ok := telegramSpawnForumChatID(req.Event)
+	if !ok {
 		return spawnResult(AgentSpawnRequiresForum, string(AgentSpawnRequiresForum)+": /spawn requires a Telegram forum-enabled supergroup.")
 	}
 	topicCreator, ok := req.Channel.(TelegramForumTopicCreator)
@@ -115,7 +101,7 @@ func handleTelegramSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd Sp
 		return spawnResult(AgentSpawnUnavailable, string(AgentSpawnUnavailable)+": Telegram thread sends are unavailable for this channel.")
 	}
 
-	threadID, err := topicCreator.CreateForumTopic(ctx, req.Event.ChatID, cmd.Name)
+	threadID, err := topicCreator.CreateForumTopic(ctx, chatID, cmd.Name)
 	if err != nil {
 		return spawnResult(AgentSpawnTopicFailed, string(AgentSpawnTopicFailed)+": createForumTopic failed: "+err.Error())
 	}
@@ -130,7 +116,7 @@ func handleTelegramSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd Sp
 	match := goncho.BindingMatch{
 		Channel:  "telegram",
 		PeerKind: "group",
-		PeerID:   req.Event.ChatID,
+		PeerID:   chatID,
 		ThreadID: threadID,
 	}
 	if err := req.Registry.Bind(ctx, created.ID, match); err != nil {
@@ -138,7 +124,7 @@ func handleTelegramSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd Sp
 	}
 
 	ack := string(AgentSpawned) + ": " + created.Name + " is ready in this topic."
-	if _, err := threadSender.SendThread(ctx, req.Event.ChatID, threadID, ack); err != nil {
+	if _, err := threadSender.SendThread(ctx, chatID, threadID, ack); err != nil {
 		return spawnResult(AgentSpawnAckFailed, string(AgentSpawnAckFailed)+": "+err.Error())
 	}
 	return SlashSpawnResult{
@@ -151,14 +137,21 @@ func handleTelegramSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd Sp
 }
 
 func telegramSpawnForumSurface(ev InboundEvent) bool {
-	if !strings.EqualFold(strings.TrimSpace(ev.Platform), "telegram") {
-		return false
+	_, ok := telegramSpawnForumChatID(ev)
+	return ok
+}
+
+func telegramSpawnForumChatID(ev InboundEvent) (string, bool) {
+	if !isTelegramPlatform(ev.Platform) {
+		return "", false
 	}
-	return strings.EqualFold(strings.TrimSpace(ev.ChatType), "supergroup") && strings.TrimSpace(ev.ChatID) != ""
+	chatID := strings.TrimSpace(ev.ChatID)
+	return chatID, strings.EqualFold(strings.TrimSpace(ev.ChatType), "supergroup") && chatID != ""
 }
 
 func handleDiscordSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd SpawnSlashCommand) SlashSpawnResult {
-	if !discordSpawnGuildSurface(req.Event) {
+	channelID, ok := discordSpawnGuildChannelID(req.Event)
+	if !ok {
 		return spawnResult(AgentSpawnRequiresGuildChannel, string(AgentSpawnRequiresGuildChannel)+": /spawn requires a Discord guild text channel.")
 	}
 	threadCreator, ok := req.Channel.(DiscordThreadCreator)
@@ -170,7 +163,7 @@ func handleDiscordSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd Spa
 		return spawnResult(AgentSpawnUnavailable, string(AgentSpawnUnavailable)+": Discord thread sends are unavailable for this channel.")
 	}
 
-	threadID, err := threadCreator.CreateThread(ctx, req.Event.ChatID, cmd.Name)
+	threadID, err := threadCreator.CreateThread(ctx, channelID, cmd.Name)
 	if err != nil {
 		return spawnResult(AgentSpawnThreadFailed, string(AgentSpawnThreadFailed)+": StartThread failed: "+err.Error())
 	}
@@ -185,7 +178,7 @@ func handleDiscordSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd Spa
 	match := goncho.BindingMatch{
 		Channel:  "discord",
 		PeerKind: "channel",
-		PeerID:   req.Event.ChatID,
+		PeerID:   channelID,
 		ThreadID: threadID,
 	}
 	if err := req.Registry.Bind(ctx, created.ID, match); err != nil {
@@ -193,7 +186,7 @@ func handleDiscordSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd Spa
 	}
 
 	ack := string(AgentSpawned) + ": " + created.Name + " is ready in this thread."
-	if _, err := threadSender.SendThread(ctx, req.Event.ChatID, threadID, ack); err != nil {
+	if _, err := threadSender.SendThread(ctx, channelID, threadID, ack); err != nil {
 		return spawnResult(AgentSpawnAckFailed, string(AgentSpawnAckFailed)+": "+err.Error())
 	}
 	return SlashSpawnResult{
@@ -206,10 +199,16 @@ func handleDiscordSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd Spa
 }
 
 func discordSpawnGuildSurface(ev InboundEvent) bool {
-	if !strings.EqualFold(strings.TrimSpace(ev.Platform), "discord") {
-		return false
+	_, ok := discordSpawnGuildChannelID(ev)
+	return ok
+}
+
+func discordSpawnGuildChannelID(ev InboundEvent) (string, bool) {
+	if !isDiscordPlatform(ev.Platform) {
+		return "", false
 	}
-	return strings.TrimSpace(ev.GuildID) != "" && strings.TrimSpace(ev.ChatID) != ""
+	channelID := strings.TrimSpace(ev.ChatID)
+	return channelID, strings.TrimSpace(ev.GuildID) != "" && channelID != ""
 }
 
 func spawnResult(code AgentSpawnEvidence, msg string) SlashSpawnResult {

@@ -91,6 +91,19 @@ func newTestStdioClient(t *testing.T, server *fakeStdioServer) *StdioClient {
 	return client
 }
 
+func TestStdioClient_OSVMalwareGuardBlocksPackageBackedLaunch(t *testing.T) {
+	_, err := NewStdioClient(MCPServerDefinition{
+		Name:      "bad",
+		Enabled:   true,
+		Transport: MCPTransportStdio,
+		Command:   "npx",
+		Args:      []string{"bad-mcp"},
+	}, StdioClientOpts{OSVClient: fakeRootOSVClient{}})
+	if !errors.Is(err, ErrMCPPackageMalwareBlocked) {
+		t.Fatalf("NewStdioClient error = %v, want ErrMCPPackageMalwareBlocked", err)
+	}
+}
+
 func TestStdioClient_InitializeNegotiatesProtocolVersion(t *testing.T) {
 	server := startFakeStdioServer(t, func(req fakeStdioRequest) []byte {
 		if req.Method != "initialize" {

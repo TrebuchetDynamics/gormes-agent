@@ -15,17 +15,17 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/acp"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
-	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/protocols/acp"
 	gormesruntime "github.com/TrebuchetDynamics/gormes-agent/internal/runtime"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/security"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
+	tuilocal "github.com/TrebuchetDynamics/gormes-agent/internal/tui/local"
 	"github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
 )
@@ -90,8 +90,10 @@ type doctorTargetReadinessJSON struct {
 
 func (r *doctorReporter) Finalize() error {
 	if !r.asJSON {
-		fmt.Fprint(r.w, doctor.RenderDoctorHeader("Gormes Doctor"))
-		fmt.Fprint(r.w, doctor.RenderSectionedReport(r.collected))
+		style := doctor.RenderStyleForWriter(r.w)
+		fmt.Fprint(r.w, doctor.RenderDoctorHeaderStyled("🩺 Gormes Doctor", style))
+		fmt.Fprint(r.w, doctor.RenderDoctorStatusSummary(r.collected, style))
+		fmt.Fprint(r.w, doctor.RenderSectionedReportWithStyle(r.collected, style))
 		issues := doctor.CollectDoctorIssues(r.collected)
 		fmt.Fprint(r.w, doctor.RenderDoctorIssuesSummary(issues))
 		if r.fix {
@@ -127,8 +129,7 @@ var doctorNewTelegramClient = func(token string) error {
 	return err
 }
 var doctorNewDiscordSession = func(token string) error {
-	_, err := discord.NewRealSession(token)
-	return err
+	return gormescli.CheckDiscordSession(token)
 }
 
 // doctorApplyFix performs the real, source-backed remediation for one
@@ -263,16 +264,16 @@ func buildDoctorCmd() *cobra.Command {
 			if !offline {
 				providerName := cfg.Hermes.Provider
 				if doctorProviderHealthUsesAuthReadiness(cfg) {
-					if !configuredProviderAuthPresent(cfg) {
+					if !gormescli.ConfiguredProviderAuthPresent(cfg) {
 						reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusFail, Summary: fmt.Sprintf("auth missing (%s)", doctorProviderHealthTarget(cfg))})
 						markFailure(1)
 					} else {
 						reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusPass, Summary: fmt.Sprintf("auth-ready (%s)", doctorProviderHealthTarget(cfg))})
 					}
 				} else {
-					c, err := newProviderHTTPClient(cfg, providerName)
+					c, err := gormescli.NewProviderHTTPClient(cfg, providerName)
 					if err != nil {
-						redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
+						redactedErr := friendlyProviderSetupDetail(redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey))
 						reporter.Add(doctor.CheckResult{Name: "provider setup", Status: doctor.StatusFail, Summary: redactedErr})
 						markFailure(1)
 					} else {
@@ -292,7 +293,7 @@ func buildDoctorCmd() *cobra.Command {
 				reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusSkip, Summary: "skipped (--offline)"})
 			}
 
-			reporter.Add(doctorTUIStatus())
+			reporter.Add(tuilocal.DoctorStatus())
 			// Pure local FS inspection of the Gormes-owned home layout -
 			// no network, identical under --offline. Auto-groups under the
 			// ◆ Directory Structure header via sectionForCheck.
@@ -302,11 +303,11 @@ func buildDoctorCmd() *cobra.Command {
 			}
 
 			// Toolbox section — inspect the built-in registry. Runs in both modes.
-			reg := buildDefaultRegistry(context.Background(), cfg, nil, cfg.Hermes.Model)
+			reg := gormescli.BuildDefaultRegistry(context.Background(), cfg, nil, cfg.Hermes.Model)
 			result := doctor.CheckTools(reg)
 			reporter.Add(result)
 			reporter.Add(doctorWebToolsStatus(cfg))
-			reporter.Add(doctorBrowserRuntimeStatusWithDeps(browserRuntimeDoctorDeps{offline: offline}))
+			reporter.Add(gormescli.DoctorBrowserRuntimeStatusWithDeps(gormescli.BrowserRuntimeDoctorDeps{Offline: offline}))
 			reporter.Add(doctorACPBridgeStatus())
 			reporter.Add(doctorGitHubAuthStatus(cmd.Context(), offline))
 			reporter.Add(doctor.CheckSkillsHub(cmd.Context(), doctor.SkillsHubOptions{
@@ -332,7 +333,9 @@ func buildDoctorCmd() *cobra.Command {
 				reporter.Add(doctor.CheckResult{Name: "gateway", Status: doctor.StatusWarn, Summary: "no channels configured ([telegram], [discord], or [slack])"})
 			} else {
 				if cfg.Telegram.BotToken != "" {
-					if offline {
+					if runtimeWarning, ok := doctorTelegramGatewayRuntimeWarning(cfg.Telegram, runtimeStatus); ok {
+						reporter.Add(runtimeWarning)
+					} else if offline {
 						reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusPass, Summary: configuredTelegramGatewayStatusDetail(cfg.Telegram) + " (network validation skipped --offline)"})
 					} else if err := doctorNewTelegramClient(cfg.Telegram.BotToken); err != nil {
 						redactedErr := redactRuntimeSecretText(err.Error(), cfg.Telegram.BotToken)
@@ -454,41 +457,7 @@ func doctorTargetReadinessFromPlan(plan cli.FirstRunPlan) *doctorTargetReadiness
 // ~/.gormes ack store before the section renders, and a Gormes-owned
 // confirmation item is appended.
 func doctorSecurityAdvisoriesStatus(ackID string) doctor.CheckResult {
-	store := security.NewAckStore(config.GormesHome())
-
-	var ackConfirm string
-	if id := strings.TrimSpace(ackID); id != "" {
-		if err := store.Ack(id); err != nil {
-			ackConfirm = fmt.Sprintf("could not record ack for %q: %v", id, err)
-		} else {
-			ackConfirm = fmt.Sprintf("acknowledged %s (recorded under ~/.gormes)", id)
-		}
-	}
-
-	acked, _ := store.AckedIDs()
-	hits := security.DetectCompromised(security.DefaultCatalog(), security.NoInstalledPackages)
-	views := make([]doctor.DoctorAdvisoryView, 0, len(hits))
-	for _, h := range hits {
-		_, isAcked := acked[h.Advisory.ID]
-		views = append(views, doctor.DoctorAdvisoryView{
-			ID:          h.Advisory.ID,
-			Title:       h.Advisory.Title,
-			Package:     h.Package,
-			Version:     h.InstalledVersion,
-			Remediation: security.FullRemediationText(h),
-			Acked:       isAcked,
-		})
-	}
-
-	res := doctor.CheckSecurityAdvisories(doctor.DoctorSecurityAdvisoryInventory{Hits: views})
-	if ackConfirm != "" {
-		res.Items = append(res.Items, doctor.ItemInfo{
-			Name:   "ack",
-			Status: doctor.StatusPass,
-			Note:   ackConfirm,
-		})
-	}
-	return res
+	return gormescli.DoctorSecurityAdvisoriesStatus(ackID, config.GormesHome())
 }
 
 // doctorProfilesStatus renders the ◆ Profiles section content from the real
@@ -596,7 +565,7 @@ func doctorEffectiveProfileProviderModel(h config.HermesCfg) (string, string) {
 		model = ""
 	}
 	if provider != "" && (model == "" || strings.EqualFold(model, "hermes-agent")) {
-		resolved := hermes.ResolveProviderDefaultModel(provider, hermes.ProviderDefaultModelOptions{})
+		resolved := llm.ResolveProviderDefaultModel(provider, llm.ProviderDefaultModelOptions{})
 		if strings.TrimSpace(resolved.Model) != "" {
 			provider = strings.TrimSpace(resolved.Provider)
 			model = strings.TrimSpace(resolved.Model)
@@ -606,7 +575,7 @@ func doctorEffectiveProfileProviderModel(h config.HermesCfg) (string, string) {
 }
 
 func doctorProfileGatewaySummary(root string) doctor.DoctorProfileGateway {
-	snapshot, err := gateway.NewRuntimeStatusStore(filepath.Join(root, "gateway_state.json")).ReadRuntimeStatusSnapshot(context.Background())
+	snapshot, err := gateway.NewRuntimeStatusStore(filepath.Join(root, "runtime", "gateway_state.json")).ReadRuntimeStatusSnapshot(context.Background())
 	if err != nil {
 		return doctor.DoctorProfileGateway{Error: "gateway_state_unreadable"}
 	}
@@ -723,7 +692,7 @@ func doctorCustomEndpointAuthProviderStatus(cfg config.Config) doctor.AuthProvid
 		return out
 	}
 	endpointSet := strings.TrimSpace(h.Endpoint) != ""
-	authSet := strings.TrimSpace(h.APIKey) != "" || configuredProviderAPIKeyRefPresent(cfg)
+	authSet := strings.TrimSpace(h.APIKey) != "" || gormescli.ConfiguredProviderAPIKeyRefPresent(cfg)
 	switch {
 	case !endpointSet && !authSet:
 		return out
@@ -899,6 +868,52 @@ func doctorSecretRuntimeStatus(snapshot gormesruntime.SecretRuntimeSnapshot, act
 	}
 }
 
+func doctorTelegramGatewayRuntimeWarning(cfg config.TelegramCfg, runtime gateway.RuntimeStatus) (doctor.CheckResult, bool) {
+	if strings.TrimSpace(cfg.BotToken) == "" {
+		return doctor.CheckResult{}, false
+	}
+	if runtime.Kind == "" && runtime.GatewayState == "" && len(runtime.Platforms) == 0 {
+		return doctor.CheckResult{}, false
+	}
+	detail := configuredTelegramGatewayStatusDetail(cfg)
+	if runtime.GatewayState != "" && runtime.GatewayState != gateway.GatewayStateRunning {
+		return doctor.CheckResult{
+			Name:    "gateway/telegram",
+			Status:  doctor.StatusWarn,
+			Summary: fmt.Sprintf("%s; gateway runtime=%s; run `gormes gateway` or `gormes gateway restart` to activate Telegram", detail, runtime.GatewayState),
+		}, true
+	}
+	if runtime.GatewayState != gateway.GatewayStateRunning {
+		return doctor.CheckResult{}, false
+	}
+	platform, ok := runtime.Platforms["telegram"]
+	if !ok {
+		return doctor.CheckResult{
+			Name:    "gateway/telegram",
+			Status:  doctor.StatusWarn,
+			Summary: detail + "; live gateway has not registered telegram; run `gormes gateway restart` to load new channel config",
+		}, true
+	}
+	if platform.State == gateway.PlatformStateRunning {
+		return doctor.CheckResult{}, false
+	}
+	note := "state=" + string(platform.State)
+	if strings.TrimSpace(platform.ErrorMessage) != "" {
+		note += " error=" + platform.ErrorMessage
+	}
+	items := []doctor.ItemInfo{{
+		Name:   "runtime",
+		Status: doctor.StatusWarn,
+		Note:   note,
+	}}
+	return doctor.CheckResult{
+		Name:    "gateway/telegram",
+		Status:  doctor.StatusWarn,
+		Summary: fmt.Sprintf("%s; live gateway telegram lifecycle=%s; run `gormes gateway restart` to activate channel", detail, platform.State),
+		Items:   items,
+	}, true
+}
+
 func doctorSlackGatewayConfig(cfg config.Config, runtime gateway.RuntimeStatus) doctor.CheckResult {
 	slackCfg := cfg.Slack
 	if !slackCfg.Enabled {
@@ -978,7 +993,7 @@ func doctorCustomEndpointReadiness(cfg config.Config) doctor.CheckResult {
 
 	authItem := readinessItem("api_key", h.APIKey, doctor.StatusWarn)
 	if strings.EqualFold(strings.TrimSpace(h.Provider), config.CodexOAuthProvider) {
-		authItem = readinessBoolItem("auth", configuredProviderAuthPresent(cfg), doctor.StatusWarn)
+		authItem = readinessBoolItem("auth", gormescli.ConfiguredProviderAuthPresent(cfg), doctor.StatusWarn)
 		if authItem.Status != doctor.StatusPass {
 			authItem.Note = "missing; run `gormes auth add openai-codex`"
 		}
@@ -1065,7 +1080,15 @@ func readinessBoolItem(name string, present bool, missingStatus doctor.Status) d
 
 func doctorGonchoConfig(cfg config.Config) doctor.CheckResult {
 	g := cfg.Goncho
+	profile := doctorGonchoProfileName(config.GormesHome())
+	memoryDB := doctorGormesDisplayPath(config.MemoryDBPath())
 	items := []doctor.ItemInfo{
+		{
+			Name:   "storage",
+			Status: doctor.StatusPass,
+			Note: fmt.Sprintf("profile=%s scope=profile_root memory_db=%s sessions_db=%s",
+				profile, memoryDB, doctorGormesDisplayPath(config.SessionDBPath())),
+		},
 		{
 			Name:   "runtime",
 			Status: doctor.StatusPass,
@@ -1100,7 +1123,32 @@ func doctorGonchoConfig(cfg config.Config) doctor.CheckResult {
 	return doctor.CheckResult{
 		Name:    "Goncho config",
 		Status:  doctor.StatusPass,
-		Summary: fmt.Sprintf("enabled=%t workspace=%s observer_peer=%s", g.Enabled, g.Workspace, g.ObserverPeer),
+		Summary: fmt.Sprintf("enabled=%t profile=%s memory_db=%s workspace=%s observer_peer=%s", g.Enabled, profile, memoryDB, g.Workspace, g.ObserverPeer),
 		Items:   items,
 	}
+}
+
+func doctorGonchoProfileName(home string) string {
+	clean := filepath.Clean(strings.TrimSpace(home))
+	if clean != "." && filepath.Base(filepath.Dir(clean)) == "profiles" {
+		if name := filepath.Base(clean); name != "." && name != string(filepath.Separator) && strings.TrimSpace(name) != "" {
+			return name
+		}
+	}
+	return config.DefaultProfileID
+}
+
+func doctorGormesDisplayPath(path string) string {
+	clean := filepath.Clean(strings.TrimSpace(path))
+	base := filepath.Clean(strings.TrimSpace(config.GormesBaseHome()))
+	if clean == "." || base == "." || base == string(filepath.Separator) {
+		return filepath.ToSlash(clean)
+	}
+	if rel, err := filepath.Rel(base, clean); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		if rel == "." {
+			return "~/.gormes"
+		}
+		return filepath.ToSlash(filepath.Join("~/.gormes", rel))
+	}
+	return filepath.ToSlash(clean)
 }

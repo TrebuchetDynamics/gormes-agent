@@ -6,187 +6,131 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"reflect"
+	"net/http"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/imagegen"
 )
 
-func TestImageGenProviderRegistryRegisterLookupAndSort(t *testing.T) {
-	registry := NewImageGenProviderRegistry()
+func TestImageGenManagedGatewayProviderBindingWritesEnvelope(t *testing.T) {
+	const rawPNGBase64 = "iVBORw0KGgo="
+	const schema = `{"type":"object","properties":{"prompt":{"type":"string"},"model":{"type":"string"},"aspect_ratio":{"type":"string"},"image_size":{"type":"string"},"num_images":{"type":"number"},"output_format":{"type":"string"}}}`
 
-	if err := registry.Register("not a provider"); err == nil {
-		t.Fatal("Register(non-provider) error = nil, want failure")
-	}
-	if err := registry.Register(namedImageProvider{name: "  ", fakeImageProvider: &fakeImageProvider{available: true}}); err == nil {
-		t.Fatal("Register(empty-name provider) error = nil, want failure")
-	}
-
-	alpha := namedImageProvider{name: "alpha", fakeImageProvider: &fakeImageProvider{available: true}}
-	zeta := namedImageProvider{name: "zeta", fakeImageProvider: &fakeImageProvider{available: true}}
-	replacement := namedImageProvider{name: "alpha", fakeImageProvider: &fakeImageProvider{available: true, result: ImageProviderResult{Provider: "replacement"}}}
-	for _, provider := range []ImageGenProvider{zeta, alpha, replacement} {
-		if err := registry.Register(provider); err != nil {
-			t.Fatalf("Register(%s): %v", provider.Name(), err)
+	srv := newFakeManagedGatewayServer(t, func(t *testing.T, w http.ResponseWriter, r *http.Request, req fakeManagedGatewayRequest) {
+		switch req.Method {
+		case "initialize":
+			writeManagedJSONResult(w, req.ID, `{"protocolVersion":"2024-11-05","capabilities":{}}`)
+		case "tools/list":
+			writeManagedJSONResult(w, req.ID, `{"tools":[{"name":"image_generate","description":"managed image generation","inputSchema":`+schema+`}]}`)
+		case "tools/call":
+			writeManagedJSONResult(w, req.ID, `{"structuredContent":{"image_base64":"`+rawPNGBase64+`","media_type":"image/png"},"isError":false}`)
+		default:
+			t.Errorf("unexpected method %q", req.Method)
+			http.Error(w, "unexpected", http.StatusBadRequest)
 		}
-	}
-
-	if got := registry.ProviderNames(); !reflect.DeepEqual(got, []string{"alpha", "zeta"}) {
-		t.Fatalf("ProviderNames = %v, want sorted alpha/zeta", got)
-	}
-	got, ok := registry.Get("alpha")
-	if !ok {
-		t.Fatal("Get(alpha) ok=false, want replacement")
-	}
-	result, err := got.Generate(context.Background(), ImageProviderRequest{Model: DefaultFLUXModel})
-	if err != nil {
-		t.Fatalf("Generate replacement: %v", err)
-	}
-	if result.Provider != "replacement" {
-		t.Fatalf("replacement provider result = %+v, want replacement", result)
-	}
-}
-
-func TestImageGenActiveProviderResolution(t *testing.T) {
-	ctx := context.Background()
-	registry := NewImageGenProviderRegistry()
-
-	if got := registry.ResolveActive(ctx, ""); got.Provider != nil || got.Evidence != "" {
-		t.Fatalf("empty registry active = %+v, want nil without evidence", got)
-	}
-
-	solo := namedImageProvider{name: "solo", fakeImageProvider: &fakeImageProvider{available: true}}
-	if err := registry.Register(solo); err != nil {
-		t.Fatalf("Register solo: %v", err)
-	}
-	if got := registry.ResolveActive(ctx, ""); got.Name != "solo" || got.Provider == nil {
-		t.Fatalf("single provider active = %+v, want solo", got)
-	}
-
-	if err := registry.Register(namedImageProvider{name: "fal", fakeImageProvider: &fakeImageProvider{available: true}}); err != nil {
-		t.Fatalf("Register fal: %v", err)
-	}
-	if err := registry.Register(namedImageProvider{name: "openai", fakeImageProvider: &fakeImageProvider{available: true}}); err != nil {
-		t.Fatalf("Register openai: %v", err)
-	}
-	if got := registry.ResolveActive(ctx, ""); got.Name != "fal" || got.Provider == nil {
-		t.Fatalf("multi provider active = %+v, want fal fallback", got)
-	}
-	if got := registry.ResolveActive(ctx, "openai"); got.Name != "openai" || got.Provider == nil {
-		t.Fatalf("configured provider active = %+v, want openai", got)
-	}
-	if got := registry.ResolveActive(ctx, "missing"); got.Provider != nil || got.Evidence != ImageGenerationStatusProviderNotRegistered || got.Name != "missing" {
-		t.Fatalf("missing configured provider = %+v, want provider_not_registered evidence", got)
-	}
-}
-
-func TestImageGenerationDispatchRoutesConfiguredPluginProvider(t *testing.T) {
-	provider := namedImageProvider{
-		name: "codex",
-		fakeImageProvider: &fakeImageProvider{
-			available: true,
-			result: ImageProviderResult{
-				Provider:  "codex",
-				ImageURL:  "/tmp/codex-test.png",
-				MediaType: "image/png",
-			},
-		},
-	}
-	runner := NewImageGenRunner(ImageGenConfig{
-		Provider:     "codex",
-		DefaultModel: "fal-ai/flux-2/klein/9b",
-	}, map[string]ImageGenerator{
-		"codex": provider,
 	})
+	bridge := newTestManagedGatewayBridge(t, "fal-queue", srv, "nous-token")
+	provider := NewManagedGatewayImageGenProvider(ManagedGatewayImageGenProviderOptions{
+		Name:   "managed-fal",
+		Bridge: bridge,
+	})
+	registry := imagegen.NewImageGenProviderRegistry()
+	if err := registry.Register(provider); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
 
-	raw, err := NewImageGenTool(runner).Execute(context.Background(), json.RawMessage(`{"prompt":"draw cat","aspect_ratio":"square"}`))
-	if err != nil {
-		t.Fatalf("Execute: %v", err)
+	runner := imagegen.NewImageGenRunnerWithRegistry(imagegen.ImageGenConfig{Provider: "managed-fal"}, registry)
+	outDir := t.TempDir()
+	seed := 42
+	steps := 7
+	guidance := 3.5
+	result := runner.Generate(context.Background(), imagegen.ImageGenRequest{
+		Prompt:            "paint the secret launch plan",
+		Model:             "fal-ai/flux-2-pro",
+		AspectRatio:       "portrait",
+		OutputDir:         outDir,
+		NumImages:         1,
+		Seed:              &seed,
+		NumInferenceSteps: &steps,
+		GuidanceScale:     &guidance,
+	})
+	if !result.Success {
+		t.Fatalf("Generate = %+v, want success", result)
 	}
-	var result ImageGenResult
-	if err := json.Unmarshal(raw, &result); err != nil {
-		t.Fatalf("result JSON: %v", err)
+	if result.Provider != "managed-fal" {
+		t.Fatalf("Provider = %q, want managed-fal", result.Provider)
 	}
-	if !result.Success || result.Provider != "codex" || result.Model != DefaultFLUXModel || result.AspectRatio != "square" {
-		t.Fatalf("result = %+v, want codex success with model/aspect ratio", result)
+	if result.FilePath == "" || strings.Contains(result.FilePath, outDir) {
+		t.Fatalf("FilePath = %q, want relative artifact path", result.FilePath)
 	}
-	if provider.fakeImageProvider.calls != 1 {
-		t.Fatalf("provider calls = %d, want 1", provider.fakeImageProvider.calls)
+	if result.ImageURL != "" {
+		t.Fatalf("ImageURL = %q, want artifact envelope path instead", result.ImageURL)
+	}
+	if got := srv.LastCallName(); got != "image_generate" {
+		t.Fatalf("gateway tool = %q, want image_generate", got)
+	}
+	var args map[string]any
+	if err := json.Unmarshal(srv.LastCallArguments(), &args); err != nil {
+		t.Fatalf("decode gateway args: %v", err)
+	}
+	if args["prompt"] != "paint the secret launch plan" {
+		t.Fatalf("prompt arg = %v", args["prompt"])
+	}
+	if args["model"] != "fal-ai/flux-2-pro" || args["aspect_ratio"] != "portrait" || args["image_size"] != "portrait_16_9" {
+		t.Fatalf("forwarded args = %#v", args)
+	}
+	if args["num_inference_steps"] != float64(7) || args["guidance_scale"] != 3.5 || args["seed"] != float64(42) {
+		t.Fatalf("optional args = %#v", args)
 	}
 }
 
-func TestImageGenerationDispatchForceRefreshesPluginsOnce(t *testing.T) {
-	registry := NewImageGenProviderRegistry()
-	var calls []bool
-	runner := NewImageGenRunnerWithRegistry(ImageGenConfig{
-		Provider: "codex",
-		PluginDiscovery: ImageGenPluginDiscoveryFunc(func(_ context.Context, force bool) error {
-			calls = append(calls, force)
-			if force {
-				return registry.Register(namedImageProvider{name: "codex", fakeImageProvider: &fakeImageProvider{
-					available: true,
-					result: ImageProviderResult{
-						Provider:  "codex",
-						ImageURL:  "/tmp/codex-test.png",
-						MediaType: "image/png",
-					},
-				}})
-			}
-			return nil
-		}),
-	}, registry)
-
-	result := runner.Generate(context.Background(), ImageGenRequest{
-		Prompt:      "draw hammy",
-		AspectRatio: "portrait",
-		OutputDir:   t.TempDir(),
+func TestImageGenManagedGatewayProviderDegradedEvidenceIsRedacted(t *testing.T) {
+	srv := newFakeManagedGatewayServer(t, func(t *testing.T, w http.ResponseWriter, r *http.Request, req fakeManagedGatewayRequest) {
+		switch req.Method {
+		case "initialize":
+			writeManagedJSONResult(w, req.ID, `{"protocolVersion":"2024-11-05","capabilities":{}}`)
+		case "tools/list":
+			writeManagedJSONResult(w, req.ID, `{"tools":[{"name":"image_generate","description":"managed image generation"}]}`)
+		case "tools/call":
+			writeManagedJSONError(w, req.ID, -32000, "Bearer nous-secret failed for paint the secret launch plan")
+		default:
+			http.Error(w, "unexpected", http.StatusBadRequest)
+		}
 	})
-
-	if !reflect.DeepEqual(calls, []bool{false, true}) {
-		t.Fatalf("discovery calls = %v, want [false true]", calls)
+	bridge := newTestManagedGatewayBridge(t, "fal-queue", srv, "nous-secret")
+	provider := NewManagedGatewayImageGenProvider(ManagedGatewayImageGenProviderOptions{Name: "managed-fal", Bridge: bridge})
+	registry := imagegen.NewImageGenProviderRegistry()
+	if err := registry.Register(provider); err != nil {
+		t.Fatalf("Register: %v", err)
 	}
-	if !result.Success || result.Provider != "codex" || result.AspectRatio != "portrait" {
-		t.Fatalf("result = %+v, want codex success after force refresh", result)
-	}
-}
+	runner := imagegen.NewImageGenRunnerWithRegistry(imagegen.ImageGenConfig{Provider: "managed-fal"}, registry)
 
-func TestImageGenerationPluginProviderErrorsAreRedacted(t *testing.T) {
-	prompt := "secret-prompt-fragment"
-	token := "sk-secret-token"
-	runner := NewImageGenRunner(ImageGenConfig{Provider: "codex"}, map[string]ImageGenerator{
-		"codex": namedImageProvider{name: "codex", fakeImageProvider: &fakeImageProvider{
-			available: true,
-			err:       errors.New("failed for " + prompt + " with Bearer " + token),
-		}},
-	})
-
-	result := runner.Generate(context.Background(), ImageGenRequest{
-		Prompt:    prompt,
+	result := runner.Generate(context.Background(), imagegen.ImageGenRequest{
+		Prompt:    "paint the secret launch plan",
 		OutputDir: t.TempDir(),
 	})
-	if result.Success || result.Evidence != ImageGenerationStatus("image_gen_api_error") {
-		t.Fatalf("result = %+v, want provider error", result)
+	if result.Success {
+		t.Fatalf("Generate = %+v, want failure", result)
 	}
-	if strings.Contains(result.Error, prompt) || strings.Contains(result.Error, token) || strings.Contains(result.Error, "Bearer ") {
-		t.Fatalf("provider error leaked prompt or secret: %+v", result)
+	if result.Evidence != imagegen.ImageGenerationStatus("image_gen_api_error") {
+		t.Fatalf("Evidence = %q, want image_gen_api_error", result.Evidence)
 	}
-
-	unavailable := NewImageGenRunner(ImageGenConfig{Provider: "codex"}, map[string]ImageGenerator{
-		"codex": namedImageProvider{name: "codex", fakeImageProvider: &fakeImageProvider{available: false}},
-	}).Generate(context.Background(), ImageGenRequest{
-		Prompt:    prompt,
-		OutputDir: t.TempDir(),
-	})
-	if unavailable.Success || unavailable.Evidence != ImageGenerationStatus("image_gen_provider_unavailable") {
-		t.Fatalf("unavailable result = %+v, want provider unavailable", unavailable)
-	}
-	if strings.Contains(unavailable.Error, prompt) || strings.Contains(unavailable.Error, token) {
-		t.Fatalf("unavailable provider leaked prompt or secret: %+v", unavailable)
+	if strings.Contains(result.Error, "nous-secret") || strings.Contains(result.Error, "paint the secret launch plan") || strings.Contains(result.Error, "Bearer") {
+		t.Fatalf("error leaked secret or prompt: %+v", result)
 	}
 }
 
-type namedImageProvider struct {
-	name string
-	*fakeImageProvider
+func TestImageGenManagedGatewayProviderUnavailableWhenDiscoveryFails(t *testing.T) {
+	provider := NewManagedGatewayImageGenProvider(ManagedGatewayImageGenProviderOptions{Name: "managed-fal"})
+	if provider.Available(context.Background()) {
+		t.Fatal("Available = true, want false for nil bridge")
+	}
+	_, err := provider.Generate(context.Background(), imagegen.ImageProviderRequest{Prompt: "hello", Model: imagegen.DefaultFLUXModel})
+	if err == nil || !errors.Is(err, imagegen.ErrImageGenProviderUnavailable) {
+		t.Fatalf("Generate error = %v, want provider unavailable", err)
+	}
 }
 
-func (p namedImageProvider) Name() string { return p.name }
+var _ = time.Second

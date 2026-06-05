@@ -1,10 +1,24 @@
 ---
+import {
+  absoluteUrl,
+  feedPath,
+  githubUrl,
+  siteDescription,
+  siteTitle,
+  socialImagePath,
+} from '../lib/site.js';
 import '../styles/global.css';
 
 const {
-  title = 'TrebuchetDynamics Engineering',
-  description = 'Engineering notes from the validation-gated agentic porting loop behind Gormes.',
+  title = siteTitle,
+  description = siteDescription,
+  image = socialImagePath,
+  type = 'website',
 } = Astro.props;
+
+const canonicalUrl = absoluteUrl(Astro.url.pathname);
+const feedUrl = absoluteUrl(feedPath);
+const imageUrl = absoluteUrl(image);
 ---
 
 <!doctype html>
@@ -14,12 +28,18 @@ const {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="alternate" type="application/rss+xml" title="TrebuchetDynamics Engineering" href="/feed.xml" />
-    <meta property="og:site_name" content="TrebuchetDynamics Engineering" />
+    <link rel="canonical" href={canonicalUrl} />
+    <link rel="alternate" type="application/rss+xml" title={siteTitle} href={feedUrl} />
+    <meta property="og:site_name" content={siteTitle} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:image" content="https://engineering.trebuchetdynamics.com/static/go-gopher-bear-lowpoly.png" />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:type" content={type} />
+    <meta property="og:image" content={imageUrl} />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={imageUrl} />
   </head>
   <body>
     <header class="site-header">
@@ -38,7 +58,7 @@ const {
     </main>
     <footer class="site-footer">
       <span>Validation-gated agentic engineering, published from markdown.</span>
-      <a href="https://github.com/TrebuchetDynamics/gormes-agent">gormes-agent</a>
+      <a href={githubUrl}>gormes-agent</a>
     </footer>
   </body>
 </html>

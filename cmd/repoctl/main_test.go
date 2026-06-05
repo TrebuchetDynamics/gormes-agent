@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
 )
 
 func TestRunProgressSeedRoutesToSeedCatalog(t *testing.T) {
@@ -76,7 +76,7 @@ func TestRunHermesSourcePairsValidateRoutesToManifest(t *testing.T) {
 	root := t.TempDir()
 	for _, path := range []string{
 		"hermes-agent/hermes_cli/default_soul.py",
-		"internal/hermes/default_soul.go",
+		"internal/llm/default_soul.go",
 		"docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
 	} {
 		abs := filepath.Join(root, path)
@@ -90,10 +90,10 @@ func TestRunHermesSourcePairsValidateRoutesToManifest(t *testing.T) {
   "pairs": [
     {
       "hermes_file": "hermes_cli/default_soul.py",
-      "gormes_targets": ["internal/hermes/default_soul.go"],
+      "gormes_targets": ["internal/llm/default_soul.go"],
       "status": "covered",
       "contract": "Default SOUL.md seed text",
-      "tests": ["go test ./internal/hermes -run TestDefaultSoul -count=1"],
+      "tests": ["go test ./internal/llm -run TestDefaultSoul -count=1"],
       "last_checked_hermes_sha": "abc123"
     }
   ]
@@ -104,7 +104,7 @@ func TestRunHermesSourcePairsValidateRoutesToManifest(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "hermes-agent/hermes_cli/default_soul.py"), []byte("fixture\n"), 0o644); err != nil {
 		t.Fatalf("write hermes file: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "internal/hermes/default_soul.go"), []byte("fixture\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "internal/llm/default_soul.go"), []byte("fixture\n"), 0o644); err != nil {
 		t.Fatalf("write target: %v", err)
 	}
 
@@ -122,7 +122,7 @@ func TestRunHermesSourcePairsSyncSHARoutesToManifest(t *testing.T) {
 	root := t.TempDir()
 	for _, path := range []string{
 		"hermes-agent/hermes_cli/default_soul.py",
-		"internal/hermes/default_soul.go",
+		"internal/llm/default_soul.go",
 		"docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
 	} {
 		abs := filepath.Join(root, path)
@@ -136,10 +136,10 @@ func TestRunHermesSourcePairsSyncSHARoutesToManifest(t *testing.T) {
   "pairs": [
     {
       "hermes_file": "hermes_cli/default_soul.py",
-      "gormes_targets": ["internal/hermes/default_soul.go"],
+      "gormes_targets": ["internal/llm/default_soul.go"],
       "status": "covered",
       "contract": "Default SOUL.md seed text",
-      "tests": ["go test ./internal/hermes -run TestDefaultSoul -count=1"],
+      "tests": ["go test ./internal/llm -run TestDefaultSoul -count=1"],
       "last_checked_hermes_sha": "abc123"
     }
   ]
@@ -150,7 +150,7 @@ func TestRunHermesSourcePairsSyncSHARoutesToManifest(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "hermes-agent/hermes_cli/default_soul.py"), []byte("fixture\n"), 0o644); err != nil {
 		t.Fatalf("write hermes file: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "internal/hermes/default_soul.go"), []byte("fixture\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "internal/llm/default_soul.go"), []byte("fixture\n"), 0o644); err != nil {
 		t.Fatalf("write target: %v", err)
 	}
 

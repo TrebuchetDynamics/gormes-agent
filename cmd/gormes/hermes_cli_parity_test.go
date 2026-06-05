@@ -7,9 +7,37 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/spf13/cobra"
 )
+
+type hermesCLIParityStatus = gormescli.HermesCLIParityStatus
+
+const (
+	hermesCLIImplemented hermesCLIParityStatus = gormescli.HermesCLIImplemented
+	hermesCLIRowBacked   hermesCLIParityStatus = gormescli.HermesCLIRowBacked
+	hermesCLIOwned       hermesCLIParityStatus = gormescli.HermesCLIOwned
+	hermesCLIExcluded    hermesCLIParityStatus = gormescli.HermesCLIExcluded
+)
+
+type hermesCLIParityKind = gormescli.HermesCLIParityKind
+
+const (
+	hermesCLICommand        hermesCLIParityKind = gormescli.HermesCLICommand
+	hermesCLICommandSet     hermesCLIParityKind = gormescli.HermesCLICommandSet
+	hermesCLIGlobalFlag     hermesCLIParityKind = gormescli.HermesCLIGlobalFlag
+	hermesCLISlashCommand   hermesCLIParityKind = gormescli.HermesCLISlashCommand
+	hermesCLIAlias          hermesCLIParityKind = gormescli.HermesCLIAlias
+	hermesCLIGatewayHandler hermesCLIParityKind = gormescli.HermesCLIGatewayHandler
+	hermesCLIPluginCommand  hermesCLIParityKind = gormescli.HermesCLIPluginCommand
+)
+
+type hermesCLIParityEntry = gormescli.HermesCLIParityEntry
+
+func hermesCLIParityManifest() []hermesCLIParityEntry {
+	return gormescli.HermesCLIParityManifest()
+}
 
 func TestHermesCLIParityManifest(t *testing.T) {
 	entries := hermesCLIParityManifest()
@@ -193,7 +221,6 @@ func TestHermesCLIParityRowBackedCommandsEmitStructuredUnavailableJSON(t *testin
 	cases := [][]string{
 		{"webhook", "subscribe", "--json"},
 		{"hooks", "revoke", "--json"},
-		{"tools", "list", "--json"},
 		{"mcp", "list", "--json"},
 		{"skills", "tap", "add", "--json"},
 		{"memory", "reset", "--json"},
@@ -276,6 +303,7 @@ func TestHermesCLIParityManifestClassifiesKanbanCoreAndResiduals(t *testing.T) {
 		{"kanban", "complete"},
 		{"kanban", "block"},
 		{"kanban", "unblock"},
+		{"kanban", "promote"},
 		{"kanban", "link"},
 		{"kanban", "log"},
 		{"kanban", "tail"},
@@ -284,6 +312,11 @@ func TestHermesCLIParityManifestClassifiesKanbanCoreAndResiduals(t *testing.T) {
 		if entry.Status != hermesCLIImplemented || !strings.Contains(entry.Target, "cmd/gormes kanban") {
 			t.Fatalf("kanban core entry %v = %+v, want implemented cmd/gormes target", path, entry)
 		}
+	}
+
+	promote := requireHermesCLIEntry(t, []string{"kanban", "promote"})
+	if !promote.DryRun || !strings.Contains(promote.SourceRef, "promote") {
+		t.Fatalf("kanban promote entry = %+v, want implemented dry-run Hermes source classification", promote)
 	}
 
 	for _, path := range [][]string{

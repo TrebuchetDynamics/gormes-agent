@@ -1,8 +1,6 @@
 package install_test
 
 import (
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -20,7 +18,7 @@ import (
 // The test inspects file content only — it must never invoke `brew install`,
 // `brew audit`, network downloads, or any live tap mutation.
 func TestHomebrewFormulaContract(t *testing.T) {
-	formula := readRepoFileHomebrew(t, "packaging/homebrew/gormes-agent.rb")
+	formula := readRepoFile(t, "packaging/homebrew/gormes-agent.rb")
 
 	tests := []struct {
 		name     string
@@ -179,17 +177,6 @@ func TestHomebrewFormulaContract(t *testing.T) {
 			t.Errorf("sha256 must be 64 hex chars, got %d (%q)", len(got), got)
 		}
 	})
-}
-
-func readRepoFileHomebrew(t *testing.T, rel string) string {
-	t.Helper()
-	// Tests under docs/install run with cwd there, so reach back
-	// to the repo root for top-level fixtures like packaging/homebrew/.
-	raw, err := os.ReadFile(filepath.Join(repoRoot(t), rel))
-	if err != nil {
-		t.Fatalf("read %s: %v", rel, err)
-	}
-	return string(raw)
 }
 
 func captureGroup(t *testing.T, body, pattern string) string {

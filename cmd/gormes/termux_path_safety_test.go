@@ -12,6 +12,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 func TestTermuxRuntimeCommandsKeepStateUnderConfiguredHome(t *testing.T) {
@@ -91,11 +92,11 @@ func TestTermuxDefaultRegistryPathsStayUnderConfiguredHome(t *testing.T) {
 	env := setupTermuxPathSafetyEnv(t)
 
 	paths := map[string]string{
-		"browser artifacts": defaultBrowserArtifactDir(),
-		"web auth store":    defaultWebAuthStorePath(),
-		"memory tool dir":   defaultMemoryToolDir(),
-		"audio cache":       defaultAudioCacheDir(),
-		"whisper cache":     defaultTranscriptionCacheDir(),
+		"browser artifacts": gormescli.DefaultBrowserArtifactDir(),
+		"web auth store":    gormescli.DefaultWebAuthStorePath(),
+		"memory tool dir":   gormescli.DefaultMemoryToolDir(),
+		"audio cache":       gormescli.DefaultAudioCacheDir(),
+		"whisper cache":     gormescli.DefaultTranscriptionCacheDir(),
 	}
 	for name, got := range paths {
 		assertPathWithinRoot(t, name, got, env.gormesHome)

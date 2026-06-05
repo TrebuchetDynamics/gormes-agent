@@ -5,18 +5,18 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // countingFactory wraps a real factory and counts how many times it is called.
 // Only the factory call is counted, not individual method calls on the client.
 type countingFactory struct {
-	inner   func() (hermes.Client, error)
+	inner   func() (llm.Client, error)
 	calls   atomic.Int32
-	clients []hermes.Client // tracks constructed clients for identity checks
+	clients []llm.Client // tracks constructed clients for identity checks
 }
 
-func (f *countingFactory) New() (hermes.Client, error) {
+func (f *countingFactory) New() (llm.Client, error) {
 	f.calls.Add(1)
 	c, err := f.inner()
 	if err != nil {
@@ -26,7 +26,7 @@ func (f *countingFactory) New() (hermes.Client, error) {
 	return c, nil
 }
 
-func fakeClient(name string) hermes.Client {
+func fakeClient(name string) llm.Client {
 	return &stubClient{name: name}
 }
 
@@ -34,10 +34,10 @@ type stubClient struct {
 	name string
 }
 
-func (s *stubClient) OpenStream(_ context.Context, _ hermes.ChatRequest) (hermes.Stream, error) {
+func (s *stubClient) OpenStream(_ context.Context, _ llm.ChatRequest) (llm.Stream, error) {
 	return nil, nil
 }
-func (s *stubClient) OpenRunEvents(_ context.Context, _ string) (hermes.RunEventStream, error) {
+func (s *stubClient) OpenRunEvents(_ context.Context, _ string) (llm.RunEventStream, error) {
 	return nil, nil
 }
 func (s *stubClient) Health(_ context.Context) error { return nil }
@@ -46,10 +46,10 @@ func (s *stubClient) Health(_ context.Context) error { return nil }
 // only the selected provider is constructed; unselected providers never
 // invoke their factory.
 func TestProviderClientLazyInit_DoesNotConstructUnselectedProvider(t *testing.T) {
-	anthropicCalls := &countingFactory{inner: func() (hermes.Client, error) { return fakeClient("anthropic"), nil }}
-	openaiCalls := &countingFactory{inner: func() (hermes.Client, error) { return fakeClient("openai"), nil }}
-	bedrockCalls := &countingFactory{inner: func() (hermes.Client, error) { return fakeClient("bedrock"), nil }}
-	firecrawlCalls := &countingFactory{inner: func() (hermes.Client, error) { return fakeClient("firecrawl"), nil }}
+	anthropicCalls := &countingFactory{inner: func() (llm.Client, error) { return fakeClient("anthropic"), nil }}
+	openaiCalls := &countingFactory{inner: func() (llm.Client, error) { return fakeClient("openai"), nil }}
+	bedrockCalls := &countingFactory{inner: func() (llm.Client, error) { return fakeClient("bedrock"), nil }}
+	firecrawlCalls := &countingFactory{inner: func() (llm.Client, error) { return fakeClient("firecrawl"), nil }}
 
 	pool := NewClientPool()
 	pool.Register("anthropic", anthropicCalls.New)
@@ -83,7 +83,7 @@ func TestProviderClientLazyInit_DoesNotConstructUnselectedProvider(t *testing.T)
 // repeated calls.
 func TestProviderClientLazyInit_ConstructedOnce(t *testing.T) {
 	var constructed atomic.Int32
-	factory := &countingFactory{inner: func() (hermes.Client, error) {
+	factory := &countingFactory{inner: func() (llm.Client, error) {
 		constructed.Add(1)
 		return fakeClient("test-provider"), nil
 	}}
@@ -118,7 +118,7 @@ func TestProviderClientLazyInit_ConstructedOnce(t *testing.T) {
 // TestProviderClientLazyInit_ResetForTesting proves that Reset clears
 // constructed clients so subsequent Get calls re-invoke the factory.
 func TestProviderClientLazyInit_ResetForTesting(t *testing.T) {
-	factory := &countingFactory{inner: func() (hermes.Client, error) { return fakeClient("test"), nil }}
+	factory := &countingFactory{inner: func() (llm.Client, error) { return fakeClient("test"), nil }}
 
 	pool := NewClientPool()
 	pool.Register("test", factory.New)
@@ -162,8 +162,8 @@ func TestProviderClientLazyInit_UnknownProvider(t *testing.T) {
 // TestProviderClientLazyInit_FactoryError propagates factory errors.
 func TestProviderClientLazyInit_FactoryError(t *testing.T) {
 	pool := NewClientPool()
-	pool.Register("broken", func() (hermes.Client, error) {
-		return nil, hermes.ErrProviderUnavailable
+	pool.Register("broken", func() (llm.Client, error) {
+		return nil, llm.ErrProviderUnavailable
 	})
 
 	_, err := pool.Get("broken")
@@ -175,7 +175,7 @@ func TestProviderClientLazyInit_FactoryError(t *testing.T) {
 // TestProviderClientLazyInit_ConcurrentAccess proves the pool is safe for
 // concurrent access.
 func TestProviderClientLazyInit_ConcurrentAccess(t *testing.T) {
-	factory := &countingFactory{inner: func() (hermes.Client, error) { return fakeClient("concurrent"), nil }}
+	factory := &countingFactory{inner: func() (llm.Client, error) { return fakeClient("concurrent"), nil }}
 
 	pool := NewClientPool()
 	pool.Register("concurrent", factory.New)

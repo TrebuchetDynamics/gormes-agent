@@ -4,7 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestRenderMarkdown_FencedCodeBlocks(t *testing.T) {
@@ -342,6 +344,34 @@ func TestRenderMarkdown_Tables(t *testing.T) {
 	}
 }
 
+func TestRenderMarkdownWithSkinUsesSharedStyles(t *testing.T) {
+	forceLipglossTrueColor(t)
+	skin := BuiltinSkins()["poseidon"]
+	shared := SkinStylesFor(skin)
+	styles := markdownStylesFor(skin)
+
+	if got, want := styles.heading1.GetForeground(), shared.Title.GetForeground(); got != want {
+		t.Fatalf("heading1 foreground = %v, want shared title %v", got, want)
+	}
+	if got, want := styles.tableHead.GetForeground(), shared.Selected.GetForeground(); got != want {
+		t.Fatalf("table header foreground = %v, want shared selected %v", got, want)
+	}
+	if got, want := styles.code.GetBackground(), lipgloss.Color(skin.Colors.StatusBarBackground); got != want {
+		t.Fatalf("code background = %v, want focused/status background %v", got, want)
+	}
+
+	got := RenderMarkdownWithSkin("# Heading\n\nUse `gormes` now.\n\n> quoted", skin)
+	plain := StripANSIForTUI(got)
+	for _, want := range []string{"Heading", "gormes", "quoted"} {
+		if !strings.Contains(plain, want) {
+			t.Fatalf("styled markdown missing %q:\n%s", want, got)
+		}
+	}
+	if !strings.Contains(got, "\x1b[") {
+		t.Fatalf("styled markdown should render ANSI styles:\n%s", got)
+	}
+}
+
 func TestRenderMarkdown_EmptyInput(t *testing.T) {
 	result := RenderMarkdown("")
 	if result != "" {
@@ -397,7 +427,7 @@ func TestRenderMarkdownSoftWrapTrim_PreservesLeadingIndentation(t *testing.T) {
 }
 
 func TestConversationMessageBlock_UsesSoftWrapTrim(t *testing.T) {
-	got := conversationMessageBlock(hermes.Message{Role: "assistant", Content: "Let me"}, 5, false)
+	got := conversationMessageBlock(llm.Message{Role: "assistant", Content: "Let me"}, 5, false)
 	if strings.Contains(got, "\n   me") {
 		t.Fatalf("conversationMessageBlock() kept a boundary space on continuation line: %q", got)
 	}

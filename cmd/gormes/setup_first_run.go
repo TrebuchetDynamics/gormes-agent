@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -10,8 +11,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	setupwizard "github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 )
 
 func firstRunSetupOptions(seams setupCommandSeams) []setupMenuOption {
@@ -130,6 +133,28 @@ func runSetupQuick(cmd *cobra.Command, seams setupCommandSeams, nonInteractive b
 		if !ok {
 			return newExitCodeError(2, fmt.Errorf("setup_target_invalid_selection: %s", selected))
 		}
+		plan = buildFirstRunPlanFromConfig(cfg, target, !nonInteractive)
+	}
+
+	if setupQuickNavivoxChannelOnly(target, nonInteractive) {
+		if err := runSetupQuickChannel(cmd, seams, target, nonInteractive); err != nil {
+			return err
+		}
+		return runSetupQuickHandoff(cmd, seams, target, nonInteractive)
+	}
+	if setupQuickChannelBeforeMissingCore(target, plan, nonInteractive) {
+		if err := runSetupQuickChannel(cmd, seams, target, nonInteractive); err != nil {
+			return err
+		}
+		return runSetupQuickHandoff(cmd, seams, target, nonInteractive)
+	}
+
+	channelRanBeforeCore := false
+	if setupQuickChannelBeforeCore(target, plan, nonInteractive) {
+		if err := runSetupQuickChannel(cmd, seams, target, nonInteractive); err != nil {
+			return err
+		}
+		channelRanBeforeCore = true
 	}
 
 	if err := runSetupQuickCore(cmd, seams, nonInteractive); err != nil {
@@ -139,7 +164,7 @@ func runSetupQuick(cmd *cobra.Command, seams setupCommandSeams, nonInteractive b
 	if err != nil {
 		return err
 	}
-	if _, missingChannel := plan.Step(cli.FirstRunStepChannel); missingChannel && isSetupQuickChannelTarget(target) {
+	if _, missingChannel := plan.Step(cli.FirstRunStepChannel); missingChannel && isSetupQuickChannelTarget(target) && !channelRanBeforeCore {
 		if err := runSetupQuickChannel(cmd, seams, target, nonInteractive); err != nil {
 			return err
 		}
@@ -168,7 +193,7 @@ func runSetupQuickCore(cmd *cobra.Command, seams setupCommandSeams, nonInteracti
 	if err != nil {
 		return fmt.Errorf("quick setup: load config: %w", err)
 	}
-	if strings.TrimSpace(cfg.Hermes.Endpoint) == "" || !configuredProviderAuthPresent(cfg) {
+	if strings.TrimSpace(cfg.Hermes.Endpoint) == "" || !gormescli.ConfiguredProviderAuthPresent(cfg) {
 		fmt.Fprintln(out, "Provider endpoint or auth is missing.")
 		if err := seams.RunSetupProvider(cmd, nonInteractive); err != nil {
 			return err
@@ -187,6 +212,55 @@ func runSetupQuickCore(cmd *cobra.Command, seams setupCommandSeams, nonInteracti
 	return nil
 }
 
+// Navivox pairing is the selected destination, so always open the Navivox
+// channel setup from this quick-target path instead of falling through to the
+// provider/model picker or a generic handoff. Provider/model setup can be
+// completed later from Navivox or the normal setup provider/model sections.
+func setupQuickNavivoxChannelOnly(target cli.SetupTargetID, nonInteractive bool) bool {
+	return !nonInteractive && normalizeSetupQuickTarget(target) == cli.SetupTargetNavivox
+}
+
+// Navivox pairing is channel-only above. Other interactive channel targets
+// should still honor the first-run target picker: if core provider/model setup
+// is missing, open the selected channel setup first and hand off to the next
+// core setup step instead of surprising the operator with provider setup.
+func setupQuickChannelBeforeMissingCore(target cli.SetupTargetID, plan cli.FirstRunPlan, nonInteractive bool) bool {
+	if nonInteractive || normalizeSetupQuickTarget(target) == cli.SetupTargetNavivox || !isSetupQuickChannelTarget(target) {
+		return false
+	}
+	return setupQuickMissingCore(plan)
+}
+
+func setupQuickChannelBeforeCore(target cli.SetupTargetID, plan cli.FirstRunPlan, nonInteractive bool) bool {
+	if nonInteractive || !isSetupQuickChannelTarget(target) {
+		return false
+	}
+	_, missingChannel := plan.Step(cli.FirstRunStepChannel)
+	return missingChannel
+}
+
+func setupQuickMissingCore(plan cli.FirstRunPlan) bool {
+	for _, id := range []cli.FirstRunStepID{cli.FirstRunStepProvider, cli.FirstRunStepAuth, cli.FirstRunStepModel} {
+		if _, ok := plan.Step(id); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func setupQuickNextCoreSetupCommand(plan cli.FirstRunPlan) string {
+	if _, ok := plan.Step(cli.FirstRunStepProvider); ok {
+		return "gormes setup provider"
+	}
+	if step, ok := plan.Step(cli.FirstRunStepAuth); ok && strings.TrimSpace(step.Command) != "" {
+		return step.Command
+	}
+	if step, ok := plan.Step(cli.FirstRunStepModel); ok && strings.TrimSpace(step.Command) != "" {
+		return step.Command
+	}
+	return "gormes setup provider"
+}
+
 func runSetupQuickChannel(cmd *cobra.Command, seams setupCommandSeams, target cli.SetupTargetID, nonInteractive bool) error {
 	if nonInteractive {
 		if target == cli.SetupTargetWhatsApp {
@@ -199,12 +273,55 @@ func runSetupQuickChannel(cmd *cobra.Command, seams setupCommandSeams, target cl
 	if target == cli.SetupTargetWhatsApp {
 		return seams.RunWhatsAppSetup(cmd)
 	}
+	if target == cli.SetupTargetTelegram {
+		cfg, err := config.Load(nil)
+		if err != nil {
+			return fmt.Errorf("setup telegram: load config: %w", err)
+		}
+		answers, err := seams.RunTelegramGatewayWizard(cmd, cfg.Telegram)
+		if err != nil {
+			if errors.Is(err, setupwizard.ErrRequiresTTY) {
+				return newExitCodeError(2, fmt.Errorf("setup_telegram_requires_tty: run `gormes setup gateway --plan` for offline guidance, or run `gormes setup --quick --target telegram` in a terminal"))
+			}
+			return err
+		}
+		return applySetupTelegramGatewayAnswers(cmd, cfg.Telegram, answers)
+	}
 	return seams.RunGatewayPlatform(cmd, string(target))
 }
 
 func runSetupQuickHandoff(cmd *cobra.Command, seams setupCommandSeams, target cli.SetupTargetID, nonInteractive bool) error {
+	if normalizeSetupQuickTarget(target) == cli.SetupTargetNavivox {
+		out := cmd.OutOrStdout()
+		if cfg, err := config.Load(nil); err == nil {
+			if command := navivoxProviderSetupCommand(cfg); command != "" {
+				fmt.Fprintln(out, "Navivox channel setup checked.")
+				fmt.Fprintln(out, "Provider/model setup is still required before `gormes gateway` can answer Navivox.")
+				fmt.Fprintf(out, "Next setup command: %s\n", command)
+				fmt.Fprintln(out, "After that, start gateway: gormes gateway")
+				return nil
+			}
+		}
+		fmt.Fprintln(out, "Navivox channel setup checked. Start gateway after scanning the QR: gormes gateway")
+		return nil
+	}
 	if isSetupQuickChannelTarget(target) {
-		fmt.Fprintln(cmd.OutOrStdout(), "Channel setup checked. Start messaging with: gormes gateway")
+		out := cmd.OutOrStdout()
+		if cfg, err := config.Load(nil); err == nil {
+			plan := buildFirstRunPlanFromConfig(cfg, normalizeSetupQuickTarget(target), !nonInteractive)
+			if !nonInteractive && setupQuickMissingCore(plan) {
+				label := strings.TrimSpace(plan.TargetLabel)
+				if label == "" {
+					label = string(normalizeSetupQuickTarget(target))
+				}
+				fmt.Fprintf(out, "%s channel setup checked.\n", label)
+				fmt.Fprintf(out, "Provider/model setup is still required before `gormes gateway` can answer %s.\n", label)
+				fmt.Fprintf(out, "Next setup command: %s\n", setupQuickNextCoreSetupCommand(plan))
+				fmt.Fprintln(out, "After that, start gateway: gormes gateway")
+				return nil
+			}
+		}
+		fmt.Fprintln(out, "Channel setup checked. Start messaging with: gormes gateway")
 		return nil
 	}
 	if nonInteractive {
@@ -219,7 +336,7 @@ func runSetupProviderLiveTest(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	client, err := newProviderHTTPClient(cfg, cfg.Hermes.Provider)
+	client, err := gormescli.NewProviderHTTPClient(cfg, cfg.Hermes.Provider)
 	if err != nil {
 		return err
 	}
@@ -300,7 +417,7 @@ func redactedSetupQuickLiveTestError(err error) error {
 		secrets = append(secrets, cfg.Hermes.APIKey)
 	}
 	secrets = append(secrets, os.Getenv("GORMES_API_KEY"))
-	if dotenv := readDotenvValues(config.EnvPath()); dotenv != nil {
+	if dotenv := cli.ReadDotenvValues(config.EnvPath()); dotenv != nil {
 		secrets = append(secrets, dotenv["GORMES_API_KEY"])
 	}
 	return fmt.Errorf("%s", redactRuntimeSecretText(message, secrets...))

@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -10,6 +9,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/jsonfile"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/plannedstop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/runtimeproc"
 )
 
 const runtimeStatusKind = "gormes-gateway"
@@ -92,30 +95,21 @@ type RuntimeConfigReloadEvidence struct {
 
 // RuntimeProcessValidationStatus classifies how much trust callers can place
 // in the PID identity stored next to gateway_state.json.
-type RuntimeProcessValidationStatus string
+type RuntimeProcessValidationStatus = runtimeproc.ValidationStatus
 
 const (
-	RuntimeProcessValidationMissingState     RuntimeProcessValidationStatus = "missing_state"
-	RuntimeProcessValidationMissingPIDFile   RuntimeProcessValidationStatus = "missing_pid_file"
-	RuntimeProcessValidationStalePID         RuntimeProcessValidationStatus = "stale_pid"
-	RuntimeProcessValidationPIDReused        RuntimeProcessValidationStatus = "pid_reused"
-	RuntimeProcessValidationStopped          RuntimeProcessValidationStatus = "stopped_process"
-	RuntimeProcessValidationPermissionDenied RuntimeProcessValidationStatus = "permission_denied"
-	RuntimeProcessValidationLive             RuntimeProcessValidationStatus = "live"
+	RuntimeProcessValidationMissingState     = runtimeproc.ValidationMissingState
+	RuntimeProcessValidationMissingPIDFile   = runtimeproc.ValidationMissingPIDFile
+	RuntimeProcessValidationStalePID         = runtimeproc.ValidationStalePID
+	RuntimeProcessValidationPIDReused        = runtimeproc.ValidationPIDReused
+	RuntimeProcessValidationStopped          = runtimeproc.ValidationStopped
+	RuntimeProcessValidationPermissionDenied = runtimeproc.ValidationPermissionDenied
+	RuntimeProcessValidationLive             = runtimeproc.ValidationLive
 )
 
 // RuntimeProcessValidation is read-only evidence produced when a runtime
 // status snapshot is checked against process identity evidence.
-type RuntimeProcessValidation struct {
-	Status            RuntimeProcessValidationStatus `json:"status,omitempty"`
-	Live              bool                           `json:"live"`
-	Message           string                         `json:"message,omitempty"`
-	PID               int                            `json:"pid,omitempty"`
-	ExpectedStartTime int64                          `json:"expected_start_time,omitempty"`
-	ActualStartTime   int64                          `json:"actual_start_time,omitempty"`
-	Command           string                         `json:"command,omitempty"`
-	CheckedAt         string                         `json:"checked_at,omitempty"`
-}
+type RuntimeProcessValidation = runtimeproc.Validation
 
 // PlatformRuntimeStatus is one platform/channel's status entry inside the
 // shared runtime status model.
@@ -291,187 +285,35 @@ type RuntimeStatusWriter interface {
 	UpdateRuntimeStatus(context.Context, RuntimeStatusUpdate) error
 }
 
-const (
-	plannedStopMarkerKind = "gormes-gateway-planned-stop"
-
-	// PlannedStopMarkerTTL mirrors Hermes' short-lived planned-stop marker
-	// window. Stale markers are removed and never mask later unexpected exits.
-	PlannedStopMarkerTTL = time.Minute
-)
+// PlannedStopMarkerTTL mirrors Hermes' short-lived planned-stop marker
+// window. Stale markers are removed and never mask later unexpected exits.
+const PlannedStopMarkerTTL = plannedstop.MarkerTTL
 
 // PlannedStopMarker is written before an operator-initiated gateway stop sends
 // SIGTERM/SIGINT to the live gateway process.
-type PlannedStopMarker struct {
-	Kind            string `json:"kind"`
-	TargetPID       int    `json:"target_pid"`
-	TargetStartTime int64  `json:"target_start_time"`
-	StopperPID      int    `json:"stopper_pid"`
-	Generation      uint64 `json:"generation"`
-	Reason          string `json:"reason,omitempty"`
-	WrittenAt       string `json:"written_at"`
-}
+type PlannedStopMarker = plannedstop.Marker
 
-type PlannedStopConsumeStatus string
+type PlannedStopConsumeStatus = plannedstop.ConsumeStatus
 
 const (
-	PlannedStopConsumeMissing    PlannedStopConsumeStatus = "missing"
-	PlannedStopConsumeMatched    PlannedStopConsumeStatus = "matched"
-	PlannedStopConsumeStale      PlannedStopConsumeStatus = "stale"
-	PlannedStopConsumeMismatched PlannedStopConsumeStatus = "mismatched"
-	PlannedStopConsumeInvalid    PlannedStopConsumeStatus = "invalid"
+	PlannedStopConsumeMissing    = plannedstop.ConsumeMissing
+	PlannedStopConsumeMatched    = plannedstop.ConsumeMatched
+	PlannedStopConsumeStale      = plannedstop.ConsumeStale
+	PlannedStopConsumeMismatched = plannedstop.ConsumeMismatched
+	PlannedStopConsumeInvalid    = plannedstop.ConsumeInvalid
 )
 
-type PlannedStopConsumeResult struct {
-	Status  PlannedStopConsumeStatus
-	Matched bool
-	Reason  string
-	Marker  PlannedStopMarker
-}
+type PlannedStopConsumeResult = plannedstop.ConsumeResult
 
 // PlannedStopStore persists one planned-stop marker as atomic JSON.
-type PlannedStopStore struct {
-	path      string
-	now       func() time.Time
-	pid       func() int
-	startTime func(int) (int64, bool)
-	ttl       time.Duration
-}
+type PlannedStopStore = plannedstop.Store
 
 func NewPlannedStopStore(path string) *PlannedStopStore {
-	return &PlannedStopStore{
-		path:      path,
-		now:       func() time.Time { return time.Now().UTC() },
-		pid:       os.Getpid,
-		startTime: procProcessStartTime,
-		ttl:       PlannedStopMarkerTTL,
-	}
+	return plannedstop.NewStore(path)
 }
 
 func DefaultPlannedStopMarkerPath(runtimeStatusPath string) string {
-	if runtimeStatusPath == "" {
-		return ".gateway-planned-stop.json"
-	}
-	return filepath.Join(filepath.Dir(runtimeStatusPath), ".gateway-planned-stop.json")
-}
-
-func (s *PlannedStopStore) Write(ctx context.Context, marker PlannedStopMarker) error {
-	if s == nil || s.path == "" {
-		return nil
-	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if marker.Kind == "" {
-		marker.Kind = plannedStopMarkerKind
-	}
-	if marker.StopperPID == 0 {
-		marker.StopperPID = s.currentPID()
-	}
-	if marker.WrittenAt == "" {
-		marker.WrittenAt = s.currentTime().Format(time.RFC3339Nano)
-	}
-	return writeRestartJSONAtomic(ctx, s.path, marker)
-}
-
-func (s *PlannedStopStore) ConsumeForSelf(ctx context.Context) (PlannedStopConsumeResult, error) {
-	if s == nil || s.path == "" {
-		return PlannedStopConsumeResult{Status: PlannedStopConsumeMissing}, nil
-	}
-	if err := ctx.Err(); err != nil {
-		return PlannedStopConsumeResult{}, err
-	}
-	raw, err := os.ReadFile(s.path)
-	if errors.Is(err, os.ErrNotExist) {
-		return PlannedStopConsumeResult{Status: PlannedStopConsumeMissing}, nil
-	}
-	if err != nil {
-		return PlannedStopConsumeResult{}, fmt.Errorf("read planned stop marker: %w", err)
-	}
-	if len(raw) == 0 {
-		_ = s.Clear(context.Background())
-		return PlannedStopConsumeResult{Status: PlannedStopConsumeInvalid, Reason: "empty marker"}, nil
-	}
-
-	var marker PlannedStopMarker
-	if err := json.Unmarshal(raw, &marker); err != nil {
-		_ = s.Clear(context.Background())
-		return PlannedStopConsumeResult{Status: PlannedStopConsumeInvalid, Reason: "decode marker: " + err.Error()}, nil
-	}
-	if marker.Kind != "" && marker.Kind != plannedStopMarkerKind {
-		_ = s.Clear(context.Background())
-		return PlannedStopConsumeResult{Status: PlannedStopConsumeInvalid, Reason: "marker kind mismatch", Marker: marker}, nil
-	}
-	if s.plannedStopMarkerStale(marker) {
-		_ = s.Clear(context.Background())
-		return PlannedStopConsumeResult{Status: PlannedStopConsumeStale, Reason: "marker is stale", Marker: marker}, nil
-	}
-
-	result := PlannedStopConsumeResult{Status: PlannedStopConsumeMismatched, Reason: "target pid/start_time mismatch", Marker: marker}
-	if s.plannedStopMarkerMatchesSelf(marker) {
-		result.Status = PlannedStopConsumeMatched
-		result.Matched = true
-		result.Reason = ""
-	}
-	_ = s.Clear(context.Background())
-	return result, nil
-}
-
-func (s *PlannedStopStore) Clear(ctx context.Context) error {
-	if s == nil || s.path == "" {
-		return nil
-	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if err := os.Remove(s.path); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("remove planned stop marker: %w", err)
-	}
-	return nil
-}
-
-func (s *PlannedStopStore) currentTime() time.Time {
-	if s != nil && s.now != nil {
-		return s.now().UTC()
-	}
-	return time.Now().UTC()
-}
-
-func (s *PlannedStopStore) currentPID() int {
-	if s != nil && s.pid != nil {
-		return s.pid()
-	}
-	return os.Getpid()
-}
-
-func (s *PlannedStopStore) markerTTL() time.Duration {
-	if s != nil && s.ttl > 0 {
-		return s.ttl
-	}
-	return PlannedStopMarkerTTL
-}
-
-func (s *PlannedStopStore) plannedStopMarkerStale(marker PlannedStopMarker) bool {
-	writtenAt, err := time.Parse(time.RFC3339Nano, marker.WrittenAt)
-	if err != nil {
-		return true
-	}
-	return s.currentTime().Sub(writtenAt) > s.markerTTL()
-}
-
-func (s *PlannedStopStore) plannedStopMarkerMatchesSelf(marker PlannedStopMarker) bool {
-	if marker.TargetPID <= 0 || marker.TargetStartTime == 0 {
-		return false
-	}
-	pid := s.currentPID()
-	if marker.TargetPID != pid {
-		return false
-	}
-	startTime := s.startTime
-	if startTime == nil {
-		startTime = procProcessStartTime
-	}
-	actualStartTime, ok := startTime(pid)
-	return ok && actualStartTime != 0 && actualStartTime == marker.TargetStartTime
+	return plannedstop.DefaultMarkerPath(runtimeStatusPath)
 }
 
 // RuntimeStatusStore persists the gateway runtime status as atomic JSON.
@@ -551,19 +393,15 @@ func (s *RuntimeStatusStore) ReadRuntimeStatusSnapshot(ctx context.Context) (Run
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	raw, err := os.ReadFile(s.path)
-	if errors.Is(err, os.ErrNotExist) {
+	var status RuntimeStatus
+	exists, err := jsonfile.Read(ctx, s.path, &status, "runtime status")
+	if !exists || errors.Is(err, jsonfile.ErrEmpty) {
 		return RuntimeStatusSnapshot{Missing: true}, nil
 	}
 	if err != nil {
-		return RuntimeStatusSnapshot{}, fmt.Errorf("read runtime status: %w", err)
-	}
-	if len(raw) == 0 {
-		return RuntimeStatusSnapshot{Missing: true}, nil
-	}
-
-	var status RuntimeStatus
-	if err := json.Unmarshal(raw, &status); err != nil {
+		if jsonfile.IsReadError(err) {
+			return RuntimeStatusSnapshot{}, err
+		}
 		return RuntimeStatusSnapshot{}, fmt.Errorf("decode runtime status: %w", err)
 	}
 	if status.Platforms == nil {
@@ -905,8 +743,9 @@ func applyRuntimeProcessValidation(status RuntimeStatus, validation RuntimeProce
 }
 
 func (s *RuntimeStatusStore) readLocked() (RuntimeStatus, error) {
-	raw, err := os.ReadFile(s.path)
-	if errors.Is(err, os.ErrNotExist) {
+	var status RuntimeStatus
+	exists, err := jsonfile.Read(context.Background(), s.path, &status, "runtime status")
+	if !exists {
 		pid := s.pid()
 		startTime, _ := s.startTime(pid)
 		argv := append([]string(nil), s.argv()...)
@@ -922,10 +761,7 @@ func (s *RuntimeStatusStore) readLocked() (RuntimeStatus, error) {
 			UpdatedAt:    s.now().Format(time.RFC3339Nano),
 		}, nil
 	}
-	if err != nil {
-		return RuntimeStatus{}, fmt.Errorf("read runtime status: %w", err)
-	}
-	if len(raw) == 0 {
+	if errors.Is(err, jsonfile.ErrEmpty) {
 		pid := s.pid()
 		startTime, _ := s.startTime(pid)
 		argv := append([]string(nil), s.argv()...)
@@ -940,9 +776,10 @@ func (s *RuntimeStatusStore) readLocked() (RuntimeStatus, error) {
 			UpdatedAt:  s.now().Format(time.RFC3339Nano),
 		}, nil
 	}
-
-	var status RuntimeStatus
-	if err := json.Unmarshal(raw, &status); err != nil {
+	if err != nil {
+		if jsonfile.IsReadError(err) {
+			return RuntimeStatus{}, err
+		}
 		return RuntimeStatus{}, fmt.Errorf("decode runtime status: %w", err)
 	}
 	if status.Platforms == nil {
@@ -978,149 +815,36 @@ func (s *RuntimeStatusStore) writeLocked(ctx context.Context, status RuntimeStat
 }
 
 func writeRuntimeStatusJSONAtomic(path string, status RuntimeStatus) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create runtime status dir: %w", err)
-	}
-	raw, err := json.MarshalIndent(status, "", "  ")
-	if err != nil {
-		return fmt.Errorf("encode runtime status: %w", err)
-	}
-	raw = append(raw, '\n')
-
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".gateway_state-*.tmp")
-	if err != nil {
-		return fmt.Errorf("create runtime status temp file: %w", err)
-	}
-	tmpPath := tmp.Name()
-	defer func() {
-		_ = os.Remove(tmpPath)
-	}()
-
-	if _, err := tmp.Write(raw); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("write runtime status temp file: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("close runtime status temp file: %w", err)
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		return fmt.Errorf("replace runtime status: %w", err)
-	}
-	return nil
+	return jsonfile.WriteAtomic(context.Background(), path, status, "runtime status")
 }
 
 func readRuntimeStatusRecord(path string) (RuntimeStatus, error) {
 	if path == "" {
 		return RuntimeStatus{}, os.ErrNotExist
 	}
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return RuntimeStatus{}, err
-	}
-	if len(raw) == 0 {
+	var status RuntimeStatus
+	exists, err := jsonfile.Read(context.Background(), path, &status, "runtime PID record")
+	if !exists || errors.Is(err, jsonfile.ErrEmpty) {
 		return RuntimeStatus{}, os.ErrNotExist
 	}
-	var status RuntimeStatus
-	if err := json.Unmarshal(raw, &status); err != nil {
+	if err != nil {
+		if jsonfile.IsReadError(err) {
+			return RuntimeStatus{}, err
+		}
 		return RuntimeStatus{}, fmt.Errorf("decode runtime PID record: %w", err)
 	}
 	return status, nil
 }
 
 var (
-	errRuntimeProcessNotFound         = errors.New("runtime process not found")
-	errRuntimeProcessPermissionDenied = errors.New("runtime process permission denied")
+	errRuntimeProcessNotFound         = runtimeproc.ErrNotFound
+	errRuntimeProcessPermissionDenied = runtimeproc.ErrPermissionDenied
 )
 
-type runtimeProcessTable interface {
-	LookupRuntimeProcess(pid int) (runtimeProcessInfo, error)
-}
-
-type runtimeProcessInfo struct {
-	PID       int
-	StartTime int64
-	Command   string
-	Stopped   bool
-}
-
-type procRuntimeProcessTable struct{}
-
-func (procRuntimeProcessTable) LookupRuntimeProcess(pid int) (runtimeProcessInfo, error) {
-	if pid <= 0 {
-		return runtimeProcessInfo{}, errRuntimeProcessNotFound
-	}
-	statPath := filepath.Join("/proc", fmt.Sprint(pid), "stat")
-	raw, err := os.ReadFile(statPath)
-	if err != nil {
-		if errors.Is(err, os.ErrPermission) {
-			return runtimeProcessInfo{}, errRuntimeProcessPermissionDenied
-		}
-		if errors.Is(err, os.ErrNotExist) {
-			return runtimeProcessInfo{}, errRuntimeProcessNotFound
-		}
-		return runtimeProcessInfo{}, err
-	}
-	startTime, state, ok := parseProcStatIdentity(string(raw))
-	if !ok {
-		return runtimeProcessInfo{}, errRuntimeProcessNotFound
-	}
-	info := runtimeProcessInfo{
-		PID:       pid,
-		StartTime: startTime,
-		Stopped:   state == "T" || state == "t",
-	}
-	if cmdline, ok := readProcCmdline(pid); ok {
-		info.Command = cmdline
-	}
-	return info, nil
-}
-
-func readProcCmdline(pid int) (string, bool) {
-	raw, err := os.ReadFile(filepath.Join("/proc", fmt.Sprint(pid), "cmdline"))
-	if err != nil || len(raw) == 0 {
-		return "", false
-	}
-	parts := strings.Split(string(raw), "\x00")
-	out := make([]string, 0, len(parts))
-	for _, part := range parts {
-		if part != "" {
-			out = append(out, part)
-		}
-	}
-	if len(out) == 0 {
-		return "", false
-	}
-	return strings.Join(out, " "), true
-}
+type runtimeProcessTable = runtimeproc.ProcessTable
+type runtimeProcessInfo = runtimeproc.ProcessInfo
+type procRuntimeProcessTable = runtimeproc.ProcTable
 
 func procProcessStartTime(pid int) (int64, bool) {
-	if pid <= 0 {
-		return 0, false
-	}
-	raw, err := os.ReadFile(filepath.Join("/proc", fmt.Sprint(pid), "stat"))
-	if err != nil {
-		return 0, false
-	}
-	return parseProcStatStartTime(string(raw))
-}
-
-func parseProcStatStartTime(stat string) (int64, bool) {
-	startTime, _, ok := parseProcStatIdentity(stat)
-	return startTime, ok
-}
-
-func parseProcStatIdentity(stat string) (int64, string, bool) {
-	commEnd := strings.LastIndex(stat, ")")
-	if commEnd < 0 || commEnd+2 >= len(stat) {
-		return 0, "", false
-	}
-	fields := strings.Fields(stat[commEnd+2:])
-	if len(fields) <= 19 {
-		return 0, "", false
-	}
-	var start int64
-	if _, err := fmt.Sscan(fields[19], &start); err != nil {
-		return 0, "", false
-	}
-	return start, fields[0], true
+	return runtimeproc.ProcessStartTime(pid)
 }

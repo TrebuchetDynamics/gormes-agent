@@ -29,7 +29,7 @@ func (r *recordingSubmitter) Submit(ev kernel.PlatformEvent) error {
 	return nil
 }
 
-func (r *recordingSubmitter) ResetSession() error              { return nil }
+func (r *recordingSubmitter) ResetSession() error               { return nil }
 func (r *recordingSubmitter) Render() <-chan kernel.RenderFrame { return nil }
 
 func (r *recordingSubmitter) snapshot() []kernel.PlatformEvent {
