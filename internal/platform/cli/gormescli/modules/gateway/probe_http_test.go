@@ -1,4 +1,4 @@
-package main
+package gateway
 
 import (
 	"encoding/json"
@@ -11,7 +11,7 @@ import (
 )
 
 func TestGatewayProbeCommandHTTPVerifiesCapabilitiesWithRedactedAuthSource(t *testing.T) {
-	setupOneshotFlagTestEnv(t)
+	setupGatewayStatusTestEnv(t)
 	const secret = "sk-gateway-probe-secret"
 	t.Setenv("GATEWAY_PROXY_KEY", secret)
 	restoreRuntime := gatewayProbeRuntimeSummaryForTest(t, tools.GatewayRuntimeSummary{
@@ -25,8 +25,7 @@ func TestGatewayProbeCommandHTTPVerifiesCapabilitiesWithRedactedAuthSource(t *te
 	})
 	defer server.Close()
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	stdout, stderr, err := executeOneshotFlagCommand(cmd, "gateway", "probe", "--url", server.URL, "--json")
+	stdout, stderr, err := executeGatewayProbeCommand(t, "--url", server.URL, "--json")
 	if err != nil {
 		t.Fatalf("gateway probe --url: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
@@ -52,7 +51,7 @@ func TestGatewayProbeCommandHTTPVerifiesCapabilitiesWithRedactedAuthSource(t *te
 }
 
 func TestGatewayProbeCommandHTTPClassifiesUnauthorizedAndMalformedCapabilities(t *testing.T) {
-	setupOneshotFlagTestEnv(t)
+	setupGatewayStatusTestEnv(t)
 	restoreRuntime := gatewayProbeRuntimeSummaryForTest(t, tools.GatewayRuntimeSummary{State: "running"})
 	defer restoreRuntime()
 
@@ -62,8 +61,7 @@ func TestGatewayProbeCommandHTTPClassifiesUnauthorizedAndMalformedCapabilities(t
 		})
 		defer server.Close()
 
-		cmd := newRootCommandWithRuntime(rootRuntime{})
-		stdout, stderr, err := executeOneshotFlagCommand(cmd, "gateway", "probe", "--url", server.URL, "--json")
+		stdout, stderr, err := executeGatewayProbeCommand(t, "--url", server.URL, "--json")
 		if err == nil {
 			t.Fatalf("gateway probe --url unexpectedly succeeded\nstdout=%s\nstderr=%s", stdout, stderr)
 		}
@@ -90,8 +88,7 @@ func TestGatewayProbeCommandHTTPClassifiesUnauthorizedAndMalformedCapabilities(t
 		})
 		defer server.Close()
 
-		cmd := newRootCommandWithRuntime(rootRuntime{})
-		stdout, stderr, err := executeOneshotFlagCommand(cmd, "gateway", "probe", "--url", server.URL, "--json")
+		stdout, stderr, err := executeGatewayProbeCommand(t, "--url", server.URL, "--json")
 		if err == nil {
 			t.Fatalf("gateway probe --url unexpectedly succeeded\nstdout=%s\nstderr=%s", stdout, stderr)
 		}

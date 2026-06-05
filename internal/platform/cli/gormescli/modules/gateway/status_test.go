@@ -1,4 +1,4 @@
-package main
+package gateway
 
 import (
 	"bytes"
@@ -11,12 +11,51 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	runtimegateway "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/spf13/cobra"
 )
 
+const testGatewayVersion = "test-version"
+
+func testGatewayOptions() Options {
+	return Options{
+		BuildProvenance: func() gormescli.BuildProvenance {
+			return gormescli.BuildProvenance{Version: testGatewayVersion, GitCommit: "test-git"}
+		},
+		ExitError: gormescli.NewExitCodeError,
+	}
+}
+
+func newGatewayCommandForTest() *cobra.Command {
+	stub := func(name string) func() *cobra.Command {
+		return func() *cobra.Command {
+			return &cobra.Command{Use: name, RunE: func(*cobra.Command, []string) error { return nil }}
+		}
+	}
+	return NewGatewayCommandWithSeams(GatewayCommandSeams{
+		Run:            func(*cobra.Command, []string) error { return nil },
+		StopCommand:    stub("stop"),
+		RestartCommand: stub("restart"),
+		ReloadCommand:  stub("reload"),
+		StatusCommand:  func() *cobra.Command { return NewStatusCommand(testGatewayOptions()) },
+		FleetCommand:   func() *cobra.Command { return NewFleetCommand(testGatewayOptions()) },
+		DiscoverCommand: func() *cobra.Command {
+			return NewDiscoverCommand(testGatewayOptions())
+		},
+		ProbeCommand:     func() *cobra.Command { return NewProbeCommand(testGatewayOptions()) },
+		UsageCostCommand: func() *cobra.Command { return NewUsageCostCommand(testGatewayOptions()) },
+		MutatingUnavailableCommand: func(name string) *cobra.Command {
+			return &cobra.Command{Use: name, RunE: func(*cobra.Command, []string) error { return nil }}
+		},
+		BootInstallCommand:   stub("boot-install"),
+		BootUninstallCommand: stub("boot-uninstall"),
+	}, testGatewayOptions())
+}
+
 func TestGatewayCommand_ConstructorReturnsIndependentInstances(t *testing.T) {
-	a := newGatewayCommand()
-	b := newGatewayCommand()
+	a := newGatewayCommandForTest()
+	b := newGatewayCommandForTest()
 	if a == b {
 		t.Fatal("newGatewayCommand must return distinct instances")
 	}
@@ -66,8 +105,8 @@ allowed_channel_id = "D123"
 `))
 
 	now := time.Now().UTC()
-	pairing := gateway.NewXDGPairingStore()
-	if err := pairing.RecordPendingPairing(context.Background(), gateway.PairingPendingRecord{
+	pairing := runtimegateway.NewXDGPairingStore()
+	if err := pairing.RecordPendingPairing(context.Background(), runtimegateway.PairingPendingRecord{
 		Platform:  "telegram",
 		UserID:    "telegram-user",
 		UserName:  "Ada",
@@ -76,7 +115,7 @@ allowed_channel_id = "D123"
 	}); err != nil {
 		t.Fatalf("record pending pairing: %v", err)
 	}
-	if err := pairing.RecordApprovedPairing(context.Background(), gateway.PairingApprovedRecord{
+	if err := pairing.RecordApprovedPairing(context.Background(), runtimegateway.PairingApprovedRecord{
 		Platform:   "discord",
 		UserID:     "discord-owner",
 		UserName:   "Grace",
@@ -85,21 +124,21 @@ allowed_channel_id = "D123"
 		t.Fatalf("record approved pairing: %v", err)
 	}
 
-	runtimeStatus := gateway.NewRuntimeStatusStore(config.GatewayRuntimeStatusPath())
-	if err := runtimeStatus.UpdateRuntimeStatus(context.Background(), gateway.RuntimeStatusUpdate{
-		GatewayState: gateway.GatewayStateRunning,
+	runtimeStatus := runtimegateway.NewRuntimeStatusStore(config.GatewayRuntimeStatusPath())
+	if err := runtimeStatus.UpdateRuntimeStatus(context.Background(), runtimegateway.RuntimeStatusUpdate{
+		GatewayState: runtimegateway.GatewayStateRunning,
 	}); err != nil {
 		t.Fatalf("write gateway runtime: %v", err)
 	}
-	if err := runtimeStatus.UpdateRuntimeStatus(context.Background(), gateway.RuntimeStatusUpdate{
+	if err := runtimeStatus.UpdateRuntimeStatus(context.Background(), runtimegateway.RuntimeStatusUpdate{
 		Platform:      "telegram",
-		PlatformState: gateway.PlatformStateRunning,
+		PlatformState: runtimegateway.PlatformStateRunning,
 	}); err != nil {
 		t.Fatalf("write telegram runtime: %v", err)
 	}
-	if err := runtimeStatus.UpdateRuntimeStatus(context.Background(), gateway.RuntimeStatusUpdate{
+	if err := runtimeStatus.UpdateRuntimeStatus(context.Background(), runtimegateway.RuntimeStatusUpdate{
 		Platform:      "discord",
-		PlatformState: gateway.PlatformStateFailed,
+		PlatformState: runtimegateway.PlatformStateFailed,
 		ErrorMessage:  "discord: open session: denied",
 	}); err != nil {
 		t.Fatalf("write discord runtime: %v", err)
@@ -134,17 +173,17 @@ allowed_channel_id = "D123"
 func TestGatewayStatusCommand_RendersRuntimePIDValidationEvidence(t *testing.T) {
 	setupGatewayStatusTestEnv(t)
 	restoreRuntimeStore := gatewayStatusRuntimeStoreForTest(t, fakeGatewayStatusRuntimeStore{
-		snapshot: gateway.RuntimeStatusSnapshot{
-			Status: gateway.RuntimeStatus{
+		snapshot: runtimegateway.RuntimeStatusSnapshot{
+			Status: runtimegateway.RuntimeStatus{
 				Kind:         "gormes-gateway",
 				PID:          4242,
 				StartTime:    100,
 				Generation:   3,
 				Command:      "gormes gateway",
-				GatewayState: gateway.GatewayStateStopped,
+				GatewayState: runtimegateway.GatewayStateStopped,
 			},
-			Validation: gateway.RuntimeProcessValidation{
-				Status:            gateway.RuntimeProcessValidationStalePID,
+			Validation: runtimegateway.RuntimeProcessValidation{
+				Status:            runtimegateway.RuntimeProcessValidationStalePID,
 				Live:              false,
 				PID:               4242,
 				ExpectedStartTime: 100,
@@ -172,13 +211,13 @@ func TestGatewayStatusCommand_RendersRuntimePIDValidationEvidence(t *testing.T) 
 func TestGatewayStatusCommand_RendersMemoryPressureEvidence(t *testing.T) {
 	setupGatewayStatusTestEnv(t)
 	restoreRuntimeStore := gatewayStatusRuntimeStoreForTest(t, fakeGatewayStatusRuntimeStore{
-		snapshot: gateway.RuntimeStatusSnapshot{
-			Status: gateway.RuntimeStatus{
+		snapshot: runtimegateway.RuntimeStatusSnapshot{
+			Status: runtimegateway.RuntimeStatus{
 				Kind:         "gormes-gateway",
 				PID:          4242,
-				GatewayState: gateway.GatewayStateRunning,
-				MemoryPressure: gateway.RuntimeMemoryPressureEvidence{
-					Status:          gateway.MemoryPressureWarn,
+				GatewayState: runtimegateway.GatewayStateRunning,
+				MemoryPressure: runtimegateway.RuntimeMemoryPressureEvidence{
+					Status:          runtimegateway.MemoryPressureWarn,
 					RSSMB:           900,
 					WarnRSSMB:       800,
 					CriticalRSSMB:   1200,
@@ -193,8 +232,8 @@ func TestGatewayStatusCommand_RendersMemoryPressureEvidence(t *testing.T) {
 					TargetStartTime: 0,
 				},
 			},
-			Validation: gateway.RuntimeProcessValidation{
-				Status: gateway.RuntimeProcessValidationLive,
+			Validation: runtimegateway.RuntimeProcessValidation{
+				Status: runtimegateway.RuntimeProcessValidationLive,
 				Live:   true,
 				PID:    4242,
 			},
@@ -243,8 +282,8 @@ func TestGatewayStatusCommand_JSONIncludesBuildProvenance(t *testing.T) {
 	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
 		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
 	}
-	if got.Build.Version != Version {
-		t.Fatalf("got.build.version = %q, want %q", got.Build.Version, Version)
+	if got.Build.Version != testGatewayVersion {
+		t.Fatalf("got.build.version = %q, want %q", got.Build.Version, testGatewayVersion)
 	}
 	if got.Build.GitCommit == "" {
 		t.Fatalf("got.build.git_commit must be non-empty")
@@ -254,21 +293,21 @@ func TestGatewayStatusCommand_JSONIncludesBuildProvenance(t *testing.T) {
 func TestGatewayStatusCommand_JSONRendersStableRuntimeFields(t *testing.T) {
 	setupGatewayStatusTestEnv(t)
 	restoreRuntimeStore := gatewayStatusRuntimeStoreForTest(t, fakeGatewayStatusRuntimeStore{
-		snapshot: gateway.RuntimeStatusSnapshot{
-			Status: gateway.RuntimeStatus{
+		snapshot: runtimegateway.RuntimeStatusSnapshot{
+			Status: runtimegateway.RuntimeStatus{
 				Kind:         "gormes-gateway",
 				PID:          4242,
 				StartTime:    100,
 				Generation:   3,
 				Command:      "/home/xel/.gormes/bin/gormes gateway",
-				GatewayState: gateway.GatewayStateRunning,
+				GatewayState: runtimegateway.GatewayStateRunning,
 				ActiveAgents: 0,
-				Platforms: map[string]gateway.PlatformRuntimeStatus{
-					"telegram": {State: gateway.PlatformStateRunning},
+				Platforms: map[string]runtimegateway.PlatformRuntimeStatus{
+					"telegram": {State: runtimegateway.PlatformStateRunning},
 				},
 			},
-			Validation: gateway.RuntimeProcessValidation{
-				Status:            gateway.RuntimeProcessValidationLive,
+			Validation: runtimegateway.RuntimeProcessValidation{
+				Status:            runtimegateway.RuntimeProcessValidationLive,
 				Live:              true,
 				PID:               4242,
 				ExpectedStartTime: 100,
@@ -290,18 +329,18 @@ func TestGatewayStatusCommand_JSONRendersStableRuntimeFields(t *testing.T) {
 			ActiveAgents int    `json:"active_agents"`
 			Command      string `json:"command"`
 		} `json:"runtime"`
-		Validation gateway.RuntimeProcessValidation `json:"validation"`
+		Validation runtimegateway.RuntimeProcessValidation `json:"validation"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("gateway status --json returned invalid JSON: %v\n%s", err, stdout)
 	}
-	if got.Runtime.GatewayState != string(gateway.GatewayStateRunning) || got.Runtime.PID != 4242 || got.Runtime.ActiveAgents != 0 {
+	if got.Runtime.GatewayState != string(runtimegateway.GatewayStateRunning) || got.Runtime.PID != 4242 || got.Runtime.ActiveAgents != 0 {
 		t.Fatalf("json runtime = %+v, want running pid 4242 active_agents 0", got.Runtime)
 	}
 	if got.Runtime.Command != "/home/xel/.gormes/bin/gormes gateway" {
 		t.Fatalf("json runtime command = %q", got.Runtime.Command)
 	}
-	if got.Validation.Status != gateway.RuntimeProcessValidationLive || !got.Validation.Live || got.Validation.PID != 4242 {
+	if got.Validation.Status != runtimegateway.RuntimeProcessValidationLive || !got.Validation.Live || got.Validation.PID != 4242 {
 		t.Fatalf("json validation = %+v, want live pid 4242", got.Validation)
 	}
 	if strings.Contains(stdout, "Gateway status") || strings.Contains(stdout, "runtime_validation:") {
@@ -313,14 +352,14 @@ func TestGatewayStatusCommand_JSONRendersStableRuntimeFields(t *testing.T) {
 func TestGatewayStatusCommand_RendersStaleCodeRestartGuidance(t *testing.T) {
 	setupGatewayStatusTestEnv(t)
 	restoreRuntimeStore := gatewayStatusRuntimeStoreForTest(t, fakeGatewayStatusRuntimeStore{
-		snapshot: gateway.RuntimeStatusSnapshot{
-			Status: gateway.RuntimeStatus{
+		snapshot: runtimegateway.RuntimeStatusSnapshot{
+			Status: runtimegateway.RuntimeStatus{
 				Kind:         "gormes-gateway",
 				PID:          4242,
-				GatewayState: gateway.GatewayStateRunning,
+				GatewayState: runtimegateway.GatewayStateRunning,
 				BootGitSHA:   "1111111111111111111111111111111111111111",
-				StaleCode: &gateway.RuntimeStaleCodeEvidence{
-					Status:           gateway.RuntimeStaleCodeStale,
+				StaleCode: &runtimegateway.RuntimeStaleCodeEvidence{
+					Status:           runtimegateway.RuntimeStaleCodeStale,
 					BootGitSHA:       "1111111111111111111111111111111111111111",
 					CurrentGitSHA:    "2222222222222222222222222222222222222222",
 					Stale:            true,
@@ -329,8 +368,8 @@ func TestGatewayStatusCommand_RendersStaleCodeRestartGuidance(t *testing.T) {
 					Message:          "gateway restart recommended to load current git HEAD",
 				},
 			},
-			Validation: gateway.RuntimeProcessValidation{
-				Status: gateway.RuntimeProcessValidationLive,
+			Validation: runtimegateway.RuntimeProcessValidation{
+				Status: runtimegateway.RuntimeProcessValidationLive,
 				Live:   true,
 				PID:    4242,
 			},
@@ -355,14 +394,14 @@ func TestGatewayStatusCommand_RendersStaleCodeRestartGuidance(t *testing.T) {
 func TestGatewayStatusCommand_JSONRendersStaleCodeEvidence(t *testing.T) {
 	setupGatewayStatusTestEnv(t)
 	restoreRuntimeStore := gatewayStatusRuntimeStoreForTest(t, fakeGatewayStatusRuntimeStore{
-		snapshot: gateway.RuntimeStatusSnapshot{
-			Status: gateway.RuntimeStatus{
+		snapshot: runtimegateway.RuntimeStatusSnapshot{
+			Status: runtimegateway.RuntimeStatus{
 				Kind:         "gormes-gateway",
 				PID:          4242,
-				GatewayState: gateway.GatewayStateRunning,
+				GatewayState: runtimegateway.GatewayStateRunning,
 				BootGitSHA:   "1111111111111111111111111111111111111111",
-				StaleCode: &gateway.RuntimeStaleCodeEvidence{
-					Status:           gateway.RuntimeStaleCodeStale,
+				StaleCode: &runtimegateway.RuntimeStaleCodeEvidence{
+					Status:           runtimegateway.RuntimeStaleCodeStale,
 					BootGitSHA:       "1111111111111111111111111111111111111111",
 					CurrentGitSHA:    "2222222222222222222222222222222222222222",
 					Stale:            true,
@@ -371,8 +410,8 @@ func TestGatewayStatusCommand_JSONRendersStaleCodeEvidence(t *testing.T) {
 					Message:          "gateway restart recommended to load current git HEAD",
 				},
 			},
-			Validation: gateway.RuntimeProcessValidation{
-				Status: gateway.RuntimeProcessValidationLive,
+			Validation: runtimegateway.RuntimeProcessValidation{
+				Status: runtimegateway.RuntimeProcessValidationLive,
 				Live:   true,
 				PID:    4242,
 			},
@@ -386,14 +425,14 @@ func TestGatewayStatusCommand_JSONRendersStaleCodeEvidence(t *testing.T) {
 	}
 	var got struct {
 		Runtime struct {
-			StaleCode *gateway.RuntimeStaleCodeEvidence `json:"stale_code"`
+			StaleCode *runtimegateway.RuntimeStaleCodeEvidence `json:"stale_code"`
 		} `json:"runtime"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("gateway status --json returned invalid JSON: %v\n%s", err, stdout)
 	}
 	if got.Runtime.StaleCode == nil ||
-		got.Runtime.StaleCode.Status != gateway.RuntimeStaleCodeStale ||
+		got.Runtime.StaleCode.Status != runtimegateway.RuntimeStaleCodeStale ||
 		!got.Runtime.StaleCode.RestartSuggested {
 		t.Fatalf("json stale_code = %+v, want stale restart evidence", got.Runtime.StaleCode)
 	}
@@ -406,25 +445,25 @@ func TestGatewayStatusCommand_JSONRendersStaleCodeEvidence(t *testing.T) {
 func TestGatewayStatusCommand_JSONRendersMemoryPressureEvidence(t *testing.T) {
 	setupGatewayStatusTestEnv(t)
 	restoreRuntimeStore := gatewayStatusRuntimeStoreForTest(t, fakeGatewayStatusRuntimeStore{
-		snapshot: gateway.RuntimeStatusSnapshot{
-			Status: gateway.RuntimeStatus{
+		snapshot: runtimegateway.RuntimeStatusSnapshot{
+			Status: runtimegateway.RuntimeStatus{
 				Kind:         "gormes-gateway",
 				PID:          4242,
-				GatewayState: gateway.GatewayStateRunning,
-				MemoryPressure: gateway.RuntimeMemoryPressureEvidence{
-					Status:          gateway.MemoryPressureCritical,
+				GatewayState: runtimegateway.GatewayStateRunning,
+				MemoryPressure: runtimegateway.RuntimeMemoryPressureEvidence{
+					Status:          runtimegateway.MemoryPressureCritical,
 					RSSMB:           1300,
 					WarnRSSMB:       800,
 					CriticalRSSMB:   1200,
-					Action:          gateway.MemoryPressureActionRestart,
+					Action:          runtimegateway.MemoryPressureActionRestart,
 					TargetPID:       4242,
 					TargetStartTime: 99,
 					Redacted:        true,
 					Evidence:        []string{"memory_pressure_critical", "memory_pressure_restart_requested"},
 				},
 			},
-			Validation: gateway.RuntimeProcessValidation{
-				Status: gateway.RuntimeProcessValidationLive,
+			Validation: runtimegateway.RuntimeProcessValidation{
+				Status: runtimegateway.RuntimeProcessValidationLive,
 				Live:   true,
 				PID:    4242,
 			},
@@ -438,15 +477,15 @@ func TestGatewayStatusCommand_JSONRendersMemoryPressureEvidence(t *testing.T) {
 	}
 	var got struct {
 		Runtime struct {
-			MemoryPressure gateway.RuntimeMemoryPressureEvidence `json:"memory_pressure"`
+			MemoryPressure runtimegateway.RuntimeMemoryPressureEvidence `json:"memory_pressure"`
 		} `json:"runtime"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("gateway status --json returned invalid JSON: %v\n%s", err, stdout)
 	}
-	if got.Runtime.MemoryPressure.Status != gateway.MemoryPressureCritical ||
+	if got.Runtime.MemoryPressure.Status != runtimegateway.MemoryPressureCritical ||
 		got.Runtime.MemoryPressure.RSSMB != 1300 ||
-		got.Runtime.MemoryPressure.Action != gateway.MemoryPressureActionRestart ||
+		got.Runtime.MemoryPressure.Action != runtimegateway.MemoryPressureActionRestart ||
 		got.Runtime.MemoryPressure.TargetPID != 4242 ||
 		got.Runtime.MemoryPressure.TargetStartTime != 99 ||
 		!got.Runtime.MemoryPressure.Redacted {
@@ -462,7 +501,7 @@ func TestGatewayStatusCommand_JSONPairingPathHonorsGormesHome(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "xdg-config"))
 	t.Setenv("HERMES_HOME", filepath.Join(root, "hermes"))
 	restoreRuntimeStore := gatewayStatusRuntimeStoreForTest(t, fakeGatewayStatusRuntimeStore{
-		snapshot: gateway.RuntimeStatusSnapshot{Missing: true},
+		snapshot: runtimegateway.RuntimeStatusSnapshot{Missing: true},
 	})
 	defer restoreRuntimeStore()
 
@@ -471,7 +510,7 @@ func TestGatewayStatusCommand_JSONPairingPathHonorsGormesHome(t *testing.T) {
 		t.Fatalf("Execute: %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
 	}
 	var got struct {
-		Pairing gateway.PairingStatus `json:"pairing"`
+		Pairing runtimegateway.PairingStatus `json:"pairing"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("gateway status --json returned invalid JSON: %v\n%s", err, stdout)
@@ -508,13 +547,13 @@ func writeGatewayStatusConfig(t *testing.T, data []byte) {
 func executeGatewayStatusCommand(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
 	// Each newRootCommand() builds a fresh gateway tree via
-	// newGatewayCommand(), so the JSON flag's default state is
+	// newGatewayCommandForTest(), so the JSON flag's default state is
 	// natural — no explicit reset needed.
 	var stdout, stderr bytes.Buffer
-	cmd := newRootCommand()
+	cmd := NewStatusCommand(testGatewayOptions())
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)
-	cmd.SetArgs(append([]string{"gateway", "status"}, args...))
+	cmd.SetArgs(args)
 	err := cmd.Execute()
 	return stdout.String(), stderr.String(), err
 }
@@ -534,11 +573,11 @@ func assertGatewayStatusDidNotOpenRuntimeStores(t *testing.T) {
 }
 
 type fakeGatewayStatusRuntimeStore struct {
-	snapshot gateway.RuntimeStatusSnapshot
+	snapshot runtimegateway.RuntimeStatusSnapshot
 	err      error
 }
 
-func (s fakeGatewayStatusRuntimeStore) ReadValidatedRuntimeStatusSnapshot(context.Context) (gateway.RuntimeStatusSnapshot, error) {
+func (s fakeGatewayStatusRuntimeStore) ReadValidatedRuntimeStatusSnapshot(context.Context) (runtimegateway.RuntimeStatusSnapshot, error) {
 	return s.snapshot, s.err
 }
 

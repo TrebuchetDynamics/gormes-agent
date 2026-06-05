@@ -50,18 +50,76 @@ func newGatewayCommand() *cobra.Command {
 
 func gatewayCommandSeams() gatewaymodule.GatewayCommandSeams {
 	return gatewaymodule.GatewayCommandSeams{
-		Run:                        runGateway,
-		StopCommand:                newGatewayStopCommand,
-		RestartCommand:             newGatewayRestartCommand,
-		ReloadCommand:              newGatewayReloadCommand,
-		StatusCommand:              newGatewayStatusCommand,
-		FleetCommand:               newGatewayFleetCommand,
-		DiscoverCommand:            newGatewayDiscoverCommand,
-		ProbeCommand:               newGatewayProbeCommand,
-		UsageCostCommand:           newGatewayUsageCostCommand,
+		Run:            runGateway,
+		StopCommand:    newGatewayStopCommand,
+		RestartCommand: newGatewayRestartCommand,
+		ReloadCommand:  newGatewayReloadCommand,
+		StatusCommand: func() *cobra.Command {
+			return gatewaymodule.NewStatusCommand(gatewayCommandOptions())
+		},
+		FleetCommand: func() *cobra.Command {
+			return gatewaymodule.NewFleetCommand(gatewayCommandOptions())
+		},
+		DiscoverCommand: func() *cobra.Command {
+			return gatewaymodule.NewDiscoverCommand(gatewayCommandOptions())
+		},
+		ProbeCommand: func() *cobra.Command {
+			return gatewaymodule.NewProbeCommand(gatewayCommandOptions())
+		},
+		UsageCostCommand: func() *cobra.Command {
+			return gatewaymodule.NewUsageCostCommand(gatewayCommandOptions())
+		},
 		MutatingUnavailableCommand: newGatewayMutatingUnavailableCommand,
 		BootInstallCommand:         newGatewayBootInstallCommand,
 		BootUninstallCommand:       newGatewayBootUninstallCommand,
+	}
+}
+
+func newWebhookCommand() *cobra.Command {
+	return gatewaymodule.NewWebhookCommand(gatewayCommandOptions())
+}
+
+func newHooksCommand() *cobra.Command {
+	return gatewaymodule.NewHooksCommand(gatewayCommandOptions())
+}
+
+func newPairingCommand() *cobra.Command {
+	return gatewaymodule.NewPairingCommand(gatewayCommandOptions())
+}
+
+func configuredGatewayStatusChannels(cfg config.Config) []gateway.StatusChannel {
+	return gatewaymodule.ConfiguredStatusChannels(cfg)
+}
+
+func configuredTelegramGatewayStatusDetail(cfg config.TelegramCfg) string {
+	return gatewaymodule.ConfiguredTelegramStatusDetail(cfg)
+}
+
+func configuredSlackGatewayStatusDetail(cfg config.SlackCfg) string {
+	return gatewaymodule.ConfiguredSlackStatusDetail(cfg)
+}
+
+func configuredTeamsGatewayStatusDetail(cfg config.TeamsCfg) string {
+	return gatewaymodule.ConfiguredTeamsStatusDetail(cfg)
+}
+
+func configuredNavivoxGatewayStatusDetail(cfg config.NavivoxCfg) string {
+	return gatewaymodule.ConfiguredNavivoxStatusDetail(cfg)
+}
+
+func gatewayCommandOptions() gatewaymodule.Options {
+	return gatewaymodule.Options{
+		BuildProvenance: func() gormescli.BuildProvenance {
+			build := newBuildProvenance()
+			return gormescli.BuildProvenance{
+				Version:   build.Version,
+				GitCommit: build.GitCommit,
+			}
+		},
+		ExitError:                   newExitCodeError,
+		TermuxDetected:              gatewayTermuxDetected,
+		TermuxLifecycleGuidanceLine: gatewayTermuxLifecycleGuidanceLine,
+		TermuxNotificationStatus:    gatewayTermuxNotificationStatusLine,
 	}
 }
 

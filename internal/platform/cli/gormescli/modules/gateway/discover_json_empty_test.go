@@ -1,4 +1,4 @@
-package main
+package gateway
 
 import (
 	"encoding/json"
@@ -21,8 +21,7 @@ func TestGatewayDiscover_JSONEmitsEmptyBeaconsArrayNotNull(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	stdout, _, err := executeRootCommandForTest(cmd, "gateway", "discover", "--json", "--timeout", "50")
+	stdout, _, err := executeGatewayDiscoverCommand(t, "--json", "--timeout", "50")
 	if err != nil {
 		t.Fatalf("gateway discover --json: %v", err)
 	}

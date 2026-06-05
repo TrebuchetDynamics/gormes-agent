@@ -12,6 +12,11 @@ const GatewayCronRow = "Gateway, platform, webhook, and cron management CLI"
 // importable command code depend on cmd/gormes.
 type Options struct {
 	BuildProvenance func() gormescli.BuildProvenance
+	ExitError       func(code int, err error) error
+
+	TermuxDetected              func() bool
+	TermuxLifecycleGuidanceLine string
+	TermuxNotificationStatus    func() string
 }
 
 func rowBackedOptions(opts Options) gormescli.RowBackedCommandOptions {

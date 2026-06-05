@@ -1,4 +1,4 @@
-package main
+package gateway
 
 import (
 	"context"
@@ -13,8 +13,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	runtimegateway "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -47,7 +48,7 @@ var (
 	}
 )
 
-func newGatewayDiscoverCommand() *cobra.Command {
+func NewDiscoverCommand(opts Options) *cobra.Command {
 	var (
 		timeoutMs int
 		jsonOut   bool
@@ -72,7 +73,7 @@ func newGatewayDiscoverCommand() *cobra.Command {
 					result.Beacons = []tools.GatewayEndpoint{}
 				}
 				return encodeIndentedJSON(cmd.OutOrStdout(), gatewayDiscoverReportJSON{
-					Build:                 newBuildProvenance(),
+					Build:                 gatewayBuildProvenance(opts),
 					GatewayDiscoverResult: result,
 				})
 			}
@@ -85,7 +86,7 @@ func newGatewayDiscoverCommand() *cobra.Command {
 	return cmd
 }
 
-func newGatewayProbeCommand() *cobra.Command {
+func NewProbeCommand(opts Options) *cobra.Command {
 	var (
 		timeoutMs int
 		urlRaw    string
@@ -145,7 +146,7 @@ func newGatewayProbeCommand() *cobra.Command {
 					result.Discovery.Beacons = []tools.GatewayEndpoint{}
 				}
 				if err := encodeIndentedJSON(cmd.OutOrStdout(), gatewayProbeReportJSON{
-					Build:              newBuildProvenance(),
+					Build:              gatewayBuildProvenance(opts),
 					GatewayProbeResult: result,
 				}); err != nil {
 					return err
@@ -154,7 +155,7 @@ func newGatewayProbeCommand() *cobra.Command {
 				renderGatewayProbeText(cmd.OutOrStdout(), result)
 			}
 			if !result.OK {
-				return newExitCodeError(1, fmt.Errorf("gateway probe: no reachable gateway"))
+				return gatewayExitError(opts, 1, fmt.Errorf("gateway probe: no reachable gateway"))
 			}
 			return nil
 		},
@@ -176,12 +177,12 @@ func gatewayProbeHTTPAuth(cfg config.Config, lookupEnv func(string) string) tool
 		return tools.GatewayHTTPAuth{Token: token, Source: "env:GORMES_DASHBOARD_API_KEY"}
 	}
 	if token := strings.TrimSpace(cfg.Gateway.ProxyKey); token != "" {
-		return tools.GatewayHTTPAuth{Token: token, Source: "config:gateway.proxy_key"}
+		return tools.GatewayHTTPAuth{Token: token, Source: "config:runtimegateway.proxy_key"}
 	}
 	return tools.GatewayHTTPAuth{Source: "none"}
 }
 
-func newGatewayUsageCostCommand() *cobra.Command {
+func NewUsageCostCommand(opts Options) *cobra.Command {
 	var (
 		days            int
 		jsonOut         bool
@@ -226,7 +227,7 @@ func newGatewayUsageCostCommand() *cobra.Command {
 			}
 			if jsonOut {
 				return encodeIndentedJSON(cmd.OutOrStdout(), gatewayUsageCostReportJSON{
-					Build:                  newBuildProvenance(),
+					Build:                  gatewayBuildProvenance(opts),
 					GatewayUsageCostResult: result,
 				})
 			}
@@ -241,7 +242,7 @@ func newGatewayUsageCostCommand() *cobra.Command {
 	return cmd
 }
 
-func gatewayRuntimeSummaryFromSnapshot(snapshot gateway.RuntimeStatusSnapshot) tools.GatewayRuntimeSummary {
+func gatewayRuntimeSummaryFromSnapshot(snapshot runtimegateway.RuntimeStatusSnapshot) tools.GatewayRuntimeSummary {
 	status := snapshot.Status
 	platforms := map[string]string{}
 	for name, platform := range status.Platforms {
@@ -410,16 +411,23 @@ func encodeIndentedJSON(w io.Writer, value any) error {
 // continues to work because Go's JSON decoder ignores the unknown
 // `build` field by default.
 type gatewayDiscoverReportJSON struct {
-	Build buildProvenanceJSON `json:"build"`
+	Build gormescli.BuildProvenance `json:"build"`
 	tools.GatewayDiscoverResult
 }
 
 type gatewayProbeReportJSON struct {
-	Build buildProvenanceJSON `json:"build"`
+	Build gormescli.BuildProvenance `json:"build"`
 	tools.GatewayProbeResult
 }
 
 type gatewayUsageCostReportJSON struct {
-	Build buildProvenanceJSON `json:"build"`
+	Build gormescli.BuildProvenance `json:"build"`
 	tools.GatewayUsageCostResult
+}
+
+func gatewayExitError(opts Options, code int, err error) error {
+	if opts.ExitError != nil {
+		return opts.ExitError(code, err)
+	}
+	return gormescli.NewExitCodeError(code, err)
 }

@@ -1,6 +1,7 @@
-package main
+package gateway
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net"
@@ -20,14 +21,13 @@ import (
 // `--json` arc; existing top-level fields (ok/count/beacons) remain
 // addressable for backwards compatibility.
 func TestGatewayDiscoverCommand_JSONIncludesBuildProvenance(t *testing.T) {
-	setupOneshotFlagTestEnv(t)
+	setupGatewayStatusTestEnv(t)
 	restore := gatewayDiscovererForTest(t, tools.GatewayDiscovererFunc(func(context.Context) ([]tools.GatewayEndpoint, error) {
 		return nil, nil
 	}))
 	defer restore()
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	stdout, stderr, err := executeOneshotFlagCommand(cmd, "gateway", "discover", "--json")
+	stdout, stderr, err := executeGatewayDiscoverCommand(t, "--json")
 	if err != nil {
 		t.Fatalf("gateway discover --json: %v\nstderr=%s", err, stderr)
 	}
@@ -41,13 +41,13 @@ func TestGatewayDiscoverCommand_JSONIncludesBuildProvenance(t *testing.T) {
 	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
 		t.Fatalf("invalid JSON: %v\n%s", jsonErr, stdout)
 	}
-	if got.Build.Version != Version {
-		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+	if got.Build.Version != testGatewayVersion {
+		t.Errorf("build.version = %q, want %q", got.Build.Version, testGatewayVersion)
 	}
 }
 
 func TestGatewayDiscoverCommand_JSONListsBonjourGateways(t *testing.T) {
-	setupOneshotFlagTestEnv(t)
+	setupGatewayStatusTestEnv(t)
 	restore := gatewayDiscovererForTest(t, tools.GatewayDiscovererFunc(func(context.Context) ([]tools.GatewayEndpoint, error) {
 		return []tools.GatewayEndpoint{{
 			InstanceName: "devbox",
@@ -58,8 +58,7 @@ func TestGatewayDiscoverCommand_JSONListsBonjourGateways(t *testing.T) {
 	}))
 	defer restore()
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	stdout, stderr, err := executeOneshotFlagCommand(cmd, "gateway", "discover", "--json")
+	stdout, stderr, err := executeGatewayDiscoverCommand(t, "--json")
 	if err != nil {
 		t.Fatalf("gateway discover --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
@@ -80,7 +79,7 @@ func TestGatewayDiscoverCommand_JSONListsBonjourGateways(t *testing.T) {
 }
 
 func TestGatewayDiscoverProbeCommandShowsReachabilityHealthAndStatus(t *testing.T) {
-	setupOneshotFlagTestEnv(t)
+	setupGatewayStatusTestEnv(t)
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
@@ -106,8 +105,7 @@ func TestGatewayDiscoverProbeCommandShowsReachabilityHealthAndStatus(t *testing.
 	})
 	defer restoreRuntime()
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	stdout, stderr, err := executeOneshotFlagCommand(cmd, "gateway", "probe", "--json")
+	stdout, stderr, err := executeGatewayProbeCommand(t, "--json")
 	if err != nil {
 		t.Fatalf("gateway probe --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
@@ -137,7 +135,7 @@ func TestGatewayDiscoverProbeCommandShowsReachabilityHealthAndStatus(t *testing.
 }
 
 func TestGatewayDiscoverUsageCostCommandShowsSessionAndAggregateCosts(t *testing.T) {
-	setupOneshotFlagTestEnv(t)
+	setupGatewayStatusTestEnv(t)
 	smap, err := session.OpenBolt(config.SessionDBPath())
 	if err != nil {
 		t.Fatalf("OpenBolt: %v", err)
@@ -158,9 +156,7 @@ func TestGatewayDiscoverUsageCostCommandShowsSessionAndAggregateCosts(t *testing
 		t.Fatalf("Close: %v", err)
 	}
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	stdout, stderr, err := executeOneshotFlagCommand(cmd,
-		"gateway", "usage-cost",
+	stdout, stderr, err := executeGatewayUsageCostCommand(t,
 		"--days", "7",
 		"--input-cost-per-1k", "0.002",
 		"--output-cost-per-1k", "0.006",
@@ -201,4 +197,37 @@ func gatewayProbeRuntimeSummaryForTest(t *testing.T, summary tools.GatewayRuntim
 	return func() {
 		readGatewayProbeRuntimeSummary = old
 	}
+}
+
+func executeGatewayDiscoverCommand(t *testing.T, args ...string) (string, string, error) {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	cmd := NewDiscoverCommand(testGatewayOptions())
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs(args)
+	err := cmd.Execute()
+	return stdout.String(), stderr.String(), err
+}
+
+func executeGatewayProbeCommand(t *testing.T, args ...string) (string, string, error) {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	cmd := NewProbeCommand(testGatewayOptions())
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs(args)
+	err := cmd.Execute()
+	return stdout.String(), stderr.String(), err
+}
+
+func executeGatewayUsageCostCommand(t *testing.T, args ...string) (string, string, error) {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	cmd := NewUsageCostCommand(testGatewayOptions())
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs(args)
+	err := cmd.Execute()
+	return stdout.String(), stderr.String(), err
 }

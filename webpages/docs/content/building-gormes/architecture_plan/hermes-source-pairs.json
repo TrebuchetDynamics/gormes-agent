@@ -192,7 +192,7 @@
       "gormes_targets": [
         "internal/gateway",
         "cmd/gormes/gateway.go",
-        "cmd/gormes/gateway_status.go",
+        "internal/platform/cli/gormescli/modules/gateway/status.go",
         "cmd/gormes/gateway_reload.go",
         "cmd/gormes/gateway_stop.go"
       ],

@@ -1,4 +1,4 @@
-package main
+package gateway
 
 import (
 	"context"
@@ -10,28 +10,29 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	runtimegateway "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 type gatewayStatusRuntimeStore interface {
-	ReadValidatedRuntimeStatusSnapshot(context.Context) (gateway.RuntimeStatusSnapshot, error)
+	ReadValidatedRuntimeStatusSnapshot(context.Context) (runtimegateway.RuntimeStatusSnapshot, error)
 }
 
 var newGatewayStatusRuntimeStore = func(path string) gatewayStatusRuntimeStore {
-	return gateway.NewRuntimeStatusStore(path)
+	return runtimegateway.NewRuntimeStatusStore(path)
 }
 
-func newGatewayStatusCommand() *cobra.Command {
+func NewStatusCommand(opts Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Inspect configured gateway channels and persisted runtime state",
-		RunE:  runGatewayStatus,
+		RunE:  func(cmd *cobra.Command, args []string) error { return runGatewayStatus(cmd, args, opts) },
 	}
 	cmd.Flags().Bool("json", false, "print gateway status as JSON")
 	return cmd
 }
 
-func runGatewayStatus(cmd *cobra.Command, _ []string) error {
+func runGatewayStatus(cmd *cobra.Command, _ []string, opts Options) error {
 	cfg, err := config.Load(nil)
 	if err != nil {
 		return fmt.Errorf("config: %w", err)
@@ -42,7 +43,7 @@ func runGatewayStatus(cmd *cobra.Command, _ []string) error {
 		ctx = context.Background()
 	}
 
-	pairingStatus, err := gateway.NewXDGPairingStore().ReadPairingStatus(ctx)
+	pairingStatus, err := runtimegateway.NewXDGPairingStore().ReadPairingStatus(ctx)
 	if err != nil {
 		return fmt.Errorf("pairing status: %w", err)
 	}
@@ -53,13 +54,13 @@ func runGatewayStatus(cmd *cobra.Command, _ []string) error {
 	}
 	runtimeStatus := runtimeSnapshot.Status
 	if runtimeSnapshot.Missing {
-		runtimeStatus = gateway.RuntimeStatus{}
+		runtimeStatus = runtimegateway.RuntimeStatus{}
 	}
 	if jsonOutput, _ := cmd.Flags().GetBool("json"); jsonOutput {
-		return renderGatewayStatusJSON(cmd, cfg, pairingStatus, runtimeStatus, runtimeSnapshot.Validation, runtimeSnapshot.Missing)
+		return renderGatewayStatusJSON(cmd, opts, cfg, pairingStatus, runtimeStatus, runtimeSnapshot.Validation, runtimeSnapshot.Missing)
 	}
 
-	output := gateway.RenderStatusSummary(gateway.StatusSummary{
+	output := runtimegateway.RenderStatusSummary(runtimegateway.StatusSummary{
 		Channels: configuredGatewayStatusChannels(cfg),
 		Pairing:  pairingStatus,
 		Runtime:  runtimeStatus,
@@ -71,61 +72,60 @@ func runGatewayStatus(cmd *cobra.Command, _ []string) error {
 	if validationLine := renderRuntimeValidationLine(runtimeSnapshot.Validation); validationLine != "" {
 		output += validationLine + "\n"
 	}
-	if gatewayTermuxDetected() {
-		output += gatewayTermuxLifecycleGuidanceLine + "\n"
-		output += gatewayTermuxNotificationStatusLine()
+	if gatewayTermuxDetected(opts) {
+		output += gatewayTermuxLifecycleGuidanceLine(opts) + "\n"
+		output += gatewayTermuxNotificationStatusLine(opts)
 	}
 	_, err = fmt.Fprint(cmd.OutOrStdout(), output)
 	return err
 }
 
 type gatewayStatusJSON struct {
-	Build      buildProvenanceJSON              `json:"build"`
-	Runtime    gateway.RuntimeStatus            `json:"runtime"`
-	Channels   []gateway.StatusChannel          `json:"channels"`
-	Pairing    gateway.PairingStatus            `json:"pairing"`
-	Validation gateway.RuntimeProcessValidation `json:"validation"`
-	Missing    bool                             `json:"missing"`
-	Slack      string                           `json:"slack"`
+	Build      gormescli.BuildProvenance               `json:"build"`
+	Runtime    runtimegateway.RuntimeStatus            `json:"runtime"`
+	Channels   []runtimegateway.StatusChannel          `json:"channels"`
+	Pairing    runtimegateway.PairingStatus            `json:"pairing"`
+	Validation runtimegateway.RuntimeProcessValidation `json:"validation"`
+	Missing    bool                                    `json:"missing"`
+	Slack      string                                  `json:"slack"`
 }
 
-func renderGatewayStatusJSON(cmd *cobra.Command, cfg config.Config, pairing gateway.PairingStatus, runtime gateway.RuntimeStatus, validation gateway.RuntimeProcessValidation, missing bool) error {
+func renderGatewayStatusJSON(cmd *cobra.Command, opts Options, cfg config.Config, pairing runtimegateway.PairingStatus, runtime runtimegateway.RuntimeStatus, validation runtimegateway.RuntimeProcessValidation, missing bool) error {
 	// Normalize nil maps/slices on the empty/missing-runtime path so
 	// `--json` consumers iterate over `[]` / `{}` instead of crashing
 	// on `null`. Same convention as emitSessionListJSON /
 	// gateway probe/discover.
 	if runtime.Platforms == nil {
-		runtime.Platforms = map[string]gateway.PlatformRuntimeStatus{}
+		runtime.Platforms = map[string]runtimegateway.PlatformRuntimeStatus{}
 	}
 	if pairing.Platforms == nil {
-		pairing.Platforms = []gateway.PairingPlatformStatus{}
+		pairing.Platforms = []runtimegateway.PairingPlatformStatus{}
 	}
 	if pairing.Pending == nil {
-		pairing.Pending = []gateway.PairingPendingRecord{}
+		pairing.Pending = []runtimegateway.PairingPendingRecord{}
 	}
 	if pairing.Approved == nil {
-		pairing.Approved = []gateway.PairingApprovedRecord{}
+		pairing.Approved = []runtimegateway.PairingApprovedRecord{}
 	}
 	payload := gatewayStatusJSON{
-		Build:      newBuildProvenance(),
+		Build:      gatewayBuildProvenance(opts),
 		Runtime:    runtime,
 		Channels:   configuredGatewayStatusChannels(cfg),
 		Pairing:    pairing,
 		Validation: validation,
 		Missing:    missing,
-		Slack:      doctorSlackGatewayConfig(cfg, runtime).Summary,
+		Slack:      gatewaySlackDiagnosticSummary(cfg, runtime),
 	}
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetIndent("", "  ")
 	return enc.Encode(payload)
 }
 
-func renderGatewaySlackDiagnosticLine(cfg config.Config, runtime gateway.RuntimeStatus) string {
-	check := doctorSlackGatewayConfig(cfg, runtime)
-	return fmt.Sprintf("gateway/slack: %s\n", check.Summary)
+func renderGatewaySlackDiagnosticLine(cfg config.Config, runtime runtimegateway.RuntimeStatus) string {
+	return fmt.Sprintf("gateway/slack: %s\n", gatewaySlackDiagnosticSummary(cfg, runtime))
 }
 
-func renderGatewayStaleCodeLine(evidence *gateway.RuntimeStaleCodeEvidence) string {
+func renderGatewayStaleCodeLine(evidence *runtimegateway.RuntimeStaleCodeEvidence) string {
 	if evidence == nil || evidence.Status == "" {
 		return ""
 	}
@@ -156,7 +156,7 @@ func shortGatewayStatusSHA(sha string) string {
 	return sha[:12]
 }
 
-func renderRuntimeValidationLine(validation gateway.RuntimeProcessValidation) string {
+func renderRuntimeValidationLine(validation runtimegateway.RuntimeProcessValidation) string {
 	if validation.Status == "" {
 		return ""
 	}
@@ -179,10 +179,30 @@ func renderRuntimeValidationLine(validation gateway.RuntimeProcessValidation) st
 	return line
 }
 
-func configuredGatewayStatusChannels(cfg config.Config) []gateway.StatusChannel {
-	channels := []gateway.StatusChannel{}
+func ConfiguredStatusChannels(cfg config.Config) []runtimegateway.StatusChannel {
+	return configuredGatewayStatusChannels(cfg)
+}
+
+func ConfiguredTelegramStatusDetail(cfg config.TelegramCfg) string {
+	return configuredTelegramGatewayStatusDetail(cfg)
+}
+
+func ConfiguredSlackStatusDetail(cfg config.SlackCfg) string {
+	return configuredSlackGatewayStatusDetail(cfg)
+}
+
+func ConfiguredTeamsStatusDetail(cfg config.TeamsCfg) string {
+	return configuredTeamsGatewayStatusDetail(cfg)
+}
+
+func ConfiguredNavivoxStatusDetail(cfg config.NavivoxCfg) string {
+	return configuredNavivoxGatewayStatusDetail(cfg)
+}
+
+func configuredGatewayStatusChannels(cfg config.Config) []runtimegateway.StatusChannel {
+	channels := []runtimegateway.StatusChannel{}
 	if cfg.Telegram.BotToken != "" {
-		channels = append(channels, gateway.StatusChannel{
+		channels = append(channels, runtimegateway.StatusChannel{
 			Name:   "telegram",
 			Detail: configuredTelegramGatewayStatusDetail(cfg.Telegram),
 		})
@@ -192,25 +212,25 @@ func configuredGatewayStatusChannels(cfg config.Config) []gateway.StatusChannel 
 		if cfg.Discord.AllowedChannelID != "" {
 			detail = "allowed_channel_id=" + cfg.Discord.AllowedChannelID
 		}
-		channels = append(channels, gateway.StatusChannel{
+		channels = append(channels, runtimegateway.StatusChannel{
 			Name:   "discord",
 			Detail: detail,
 		})
 	}
 	if cfg.Slack.Enabled {
-		channels = append(channels, gateway.StatusChannel{
+		channels = append(channels, runtimegateway.StatusChannel{
 			Name:   "slack",
 			Detail: configuredSlackGatewayStatusDetail(cfg.Slack),
 		})
 	}
 	if cfg.Teams.Enabled {
-		channels = append(channels, gateway.StatusChannel{
+		channels = append(channels, runtimegateway.StatusChannel{
 			Name:   "teams",
 			Detail: configuredTeamsGatewayStatusDetail(cfg.Teams),
 		})
 	}
 	if cfg.Navivox.Enabled {
-		channels = append(channels, gateway.StatusChannel{
+		channels = append(channels, runtimegateway.StatusChannel{
 			Name:   "navivox",
 			Detail: configuredNavivoxGatewayStatusDetail(cfg.Navivox),
 		})
@@ -250,4 +270,59 @@ func configuredTeamsGatewayStatusDetail(cfg config.TeamsCfg) string {
 
 func configuredNavivoxGatewayStatusDetail(cfg config.NavivoxCfg) string {
 	return fmt.Sprintf("bind=%s:%d exposure=%s auth=%s", cfg.BindHost, cfg.Port, cfg.ExposureMode, cfg.AuthMode)
+}
+
+func gatewayBuildProvenance(opts Options) gormescli.BuildProvenance {
+	if opts.BuildProvenance == nil {
+		return gormescli.BuildProvenance{}
+	}
+	return opts.BuildProvenance()
+}
+
+func gatewayTermuxDetected(opts Options) bool {
+	return opts.TermuxDetected != nil && opts.TermuxDetected()
+}
+
+func gatewayTermuxLifecycleGuidanceLine(opts Options) string {
+	if opts.TermuxLifecycleGuidanceLine == "" {
+		return "Termux gateway: foreground/tmux lifecycle; run `gormes gateway` inside tmux; termux-wake-lock and Android battery settings are best-effort only, and Android may still stop background processes."
+	}
+	return opts.TermuxLifecycleGuidanceLine
+}
+
+func gatewayTermuxNotificationStatusLine(opts Options) string {
+	if opts.TermuxNotificationStatus == nil {
+		return ""
+	}
+	return opts.TermuxNotificationStatus()
+}
+
+func gatewaySlackDiagnosticSummary(cfg config.Config, runtime runtimegateway.RuntimeStatus) string {
+	slackCfg := cfg.Slack
+	if !slackCfg.Enabled {
+		return "disabled"
+	}
+	if missing := missingSlackCredentials(slackCfg); len(missing) > 0 {
+		return "missing_tokens=" + strings.Join(missing, ",")
+	}
+	platform, ok := runtime.Platforms["slack"]
+	switch {
+	case ok && platform.State == runtimegateway.PlatformStateRunning:
+		return "running"
+	case ok && platform.State == runtimegateway.PlatformStateFailed:
+		return "startup_failed"
+	default:
+		return "configured_not_running"
+	}
+}
+
+func missingSlackCredentials(cfg config.SlackCfg) []string {
+	missing := []string{}
+	if strings.TrimSpace(cfg.BotToken) == "" {
+		missing = append(missing, "bot_token")
+	}
+	if strings.TrimSpace(cfg.AppToken) == "" {
+		missing = append(missing, "app_token")
+	}
+	return missing
 }

@@ -1,4 +1,4 @@
-package main
+package gateway
 
 import (
 	"encoding/json"
@@ -23,8 +23,7 @@ func TestGatewayStatus_JSONEmitsEmptyMapsAndArraysNotNull(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	stdout, stderr, err := executeRootCommandForTest(cmd, "gateway", "status", "--json")
+	stdout, stderr, err := executeGatewayStatusCommand(t, "--json")
 	if err != nil {
 		t.Fatalf("gateway status --json: %v\nstderr=%s", err, stderr)
 	}

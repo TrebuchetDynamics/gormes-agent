@@ -1,4 +1,4 @@
-package main
+package gateway
 
 import (
 	"encoding/json"
@@ -22,8 +22,7 @@ func TestGatewayProbe_JSONEmitsEmptyBeaconsArrayNotNull(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	stdout, _, _ := executeRootCommandForTest(cmd, "gateway", "probe", "--json")
+	stdout, _, _ := executeGatewayProbeCommand(t, "--json")
 	// gateway probe on a fresh install (no beacons) returns exit 1
 	// with `ok: false`. The exit code is fine — the contract under
 	// test is the JSON shape, not the exit code.

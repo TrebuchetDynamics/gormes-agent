@@ -1,13 +1,15 @@
-package main
+package gateway
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	runtimegateway "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 func TestGatewayFleetJSONListsProfilesWithoutOpeningRuntimeStores(t *testing.T) {
@@ -66,12 +68,12 @@ id = "GORMES_OPS_WHATSAPP_TOKEN"
 			Version   string `json:"version"`
 			GitCommit string `json:"git_commit"`
 		} `json:"build"`
-		Status gateway.FleetStatus `json:"status"`
+		Status runtimegateway.FleetStatus `json:"status"`
 	}
 	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
 		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
 	}
-	if got.Build.Version != Version || got.Build.GitCommit == "" {
+	if got.Build.Version != testGatewayVersion || got.Build.GitCommit == "" {
 		t.Fatalf("build provenance missing/wrong: %+v", got.Build)
 	}
 	if len(got.Status.Profiles) != 3 {
@@ -141,19 +143,19 @@ id = "GORMES_OPS_TELEGRAM_TOKEN"
 		t.Fatalf("gateway fleet --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
 	var got struct {
-		Status gateway.FleetStatus `json:"status"`
+		Status runtimegateway.FleetStatus `json:"status"`
 	}
 	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
 		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
 	}
-	sharedHash := gateway.TokenCredentialHash(sharedToken)
+	sharedHash := runtimegateway.TokenCredentialHash(sharedToken)
 	for _, profileID := range []string{"main", "ops"} {
 		profile := findFleetProfile(t, got.Status, profileID)
 		channel := findFleetChannel(t, profile, "telegram")
 		if channel.CredentialHash != sharedHash {
 			t.Fatalf("%s credential hash = %q, want %q", profileID, channel.CredentialHash, sharedHash)
 		}
-		if channel.Ready || !hasGatewayFleetEvidence(channel.Evidence, gateway.ProfileChannelEvidenceTokenHashConflict) {
+		if channel.Ready || !hasGatewayFleetEvidence(channel.Evidence, runtimegateway.ProfileChannelEvidenceTokenHashConflict) {
 			t.Fatalf("%s channel = %+v, want duplicate token conflict evidence", profileID, channel)
 		}
 	}
@@ -173,9 +175,9 @@ enabled = true
 `))
 	previous := newGatewayFleetSupervisor
 	fake := &fakeGatewayFleetSupervisor{
-		restartReport: gateway.FleetOperationReport{
-			Action:  gateway.FleetOperationRestartAll,
-			Results: []gateway.FleetOperationResult{{ProfileID: "main", Status: gateway.FleetOperationStatusRestarted, RuntimeOwner: gateway.FleetRuntimeOwnerProfileServiceBridge}},
+		restartReport: runtimegateway.FleetOperationReport{
+			Action:  runtimegateway.FleetOperationRestartAll,
+			Results: []runtimegateway.FleetOperationResult{{ProfileID: "main", Status: runtimegateway.FleetOperationStatusRestarted, RuntimeOwner: runtimegateway.FleetRuntimeOwnerProfileServiceBridge}},
 		},
 	}
 	newGatewayFleetSupervisor = func(config.Config) gatewayFleetSupervisor { return fake }
@@ -189,25 +191,29 @@ enabled = true
 		t.Fatalf("restart calls = %d, want 1", fake.restartCalls)
 	}
 	var got struct {
-		Build  buildProvenanceJSON          `json:"build"`
-		Report gateway.FleetOperationReport `json:"report"`
+		Build  gormescli.BuildProvenance           `json:"build"`
+		Report runtimegateway.FleetOperationReport `json:"report"`
 	}
 	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
 		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
 	}
-	if got.Report.Action != gateway.FleetOperationRestartAll || len(got.Report.Results) != 1 || got.Report.Results[0].Status != gateway.FleetOperationStatusRestarted {
+	if got.Report.Action != runtimegateway.FleetOperationRestartAll || len(got.Report.Results) != 1 || got.Report.Results[0].Status != runtimegateway.FleetOperationStatusRestarted {
 		t.Fatalf("report = %+v, want one restarted profile", got.Report)
 	}
 }
 
 func executeGatewayFleetCommand(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
-	cmd := newRootCommand()
-	cmd.SetArgs(append([]string{"gateway", "fleet"}, args...))
-	return executeRootCommandForTest(cmd)
+	var stdout, stderr bytes.Buffer
+	cmd := NewFleetCommand(testGatewayOptions())
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs(args)
+	err := cmd.Execute()
+	return stdout.String(), stderr.String(), err
 }
 
-func findFleetProfile(t *testing.T, status gateway.FleetStatus, profileID string) gateway.FleetProfileStatus {
+func findFleetProfile(t *testing.T, status runtimegateway.FleetStatus, profileID string) runtimegateway.FleetProfileStatus {
 	t.Helper()
 	for _, profile := range status.Profiles {
 		if profile.ProfileID == profileID {
@@ -215,10 +221,10 @@ func findFleetProfile(t *testing.T, status gateway.FleetStatus, profileID string
 		}
 	}
 	t.Fatalf("profile %q not found in %+v", profileID, status.Profiles)
-	return gateway.FleetProfileStatus{}
+	return runtimegateway.FleetProfileStatus{}
 }
 
-func findFleetChannel(t *testing.T, profile gateway.FleetProfileStatus, channel string) gateway.FleetProfileChannelStatus {
+func findFleetChannel(t *testing.T, profile runtimegateway.FleetProfileStatus, channel string) runtimegateway.FleetProfileChannelStatus {
 	t.Helper()
 	for _, got := range profile.Channels {
 		if got.Channel == channel {
@@ -226,10 +232,10 @@ func findFleetChannel(t *testing.T, profile gateway.FleetProfileStatus, channel 
 		}
 	}
 	t.Fatalf("channel %q not found in %+v", channel, profile.Channels)
-	return gateway.FleetProfileChannelStatus{}
+	return runtimegateway.FleetProfileChannelStatus{}
 }
 
-func hasGatewayFleetEvidence(evidence []gateway.ProfileChannelReadinessEvidence, code string) bool {
+func hasGatewayFleetEvidence(evidence []runtimegateway.ProfileChannelReadinessEvidence, code string) bool {
 	for _, item := range evidence {
 		if item.Code == code {
 			return true
@@ -239,24 +245,24 @@ func hasGatewayFleetEvidence(evidence []gateway.ProfileChannelReadinessEvidence,
 }
 
 type fakeGatewayFleetSupervisor struct {
-	status        gateway.FleetStatus
-	restartReport gateway.FleetOperationReport
+	status        runtimegateway.FleetStatus
+	restartReport runtimegateway.FleetOperationReport
 	restartCalls  int
 }
 
-func (f *fakeGatewayFleetSupervisor) Status(context.Context) (gateway.FleetStatus, error) {
+func (f *fakeGatewayFleetSupervisor) Status(context.Context) (runtimegateway.FleetStatus, error) {
 	return f.status, nil
 }
 
-func (f *fakeGatewayFleetSupervisor) StartAll(context.Context) (gateway.FleetOperationReport, error) {
-	return gateway.FleetOperationReport{Action: gateway.FleetOperationStartAll}, nil
+func (f *fakeGatewayFleetSupervisor) StartAll(context.Context) (runtimegateway.FleetOperationReport, error) {
+	return runtimegateway.FleetOperationReport{Action: runtimegateway.FleetOperationStartAll}, nil
 }
 
-func (f *fakeGatewayFleetSupervisor) StopAll(context.Context) (gateway.FleetOperationReport, error) {
-	return gateway.FleetOperationReport{Action: gateway.FleetOperationStopAll}, nil
+func (f *fakeGatewayFleetSupervisor) StopAll(context.Context) (runtimegateway.FleetOperationReport, error) {
+	return runtimegateway.FleetOperationReport{Action: runtimegateway.FleetOperationStopAll}, nil
 }
 
-func (f *fakeGatewayFleetSupervisor) RestartAll(context.Context) (gateway.FleetOperationReport, error) {
+func (f *fakeGatewayFleetSupervisor) RestartAll(context.Context) (runtimegateway.FleetOperationReport, error) {
 	f.restartCalls++
 	return f.restartReport, nil
 }
