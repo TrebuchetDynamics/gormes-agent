@@ -32,6 +32,28 @@ BAD_PATTERNS = {
     r"/home/xel/git/sages-openclaw/workspace-mineru/references/go-agent-os": "resolve donor roots dynamically; do not require this stale path",
 }
 
+REQUIRED_SNIPPETS = {
+    "cmd-internal-refactor": {
+        "SKILL.md": [
+            "internal/platform/cli/gormescli",
+            "internal/app/<domain>",
+            "hermes-knowledge-graph.json",
+            "Stop after one domain",
+            "go test ./internal/support/repochecks",
+            "folder_refactor_audit",
+            "codemap.md",
+        ],
+        "references/domain-folder-topology.md": [
+            "cmd/gormes/main.go -> gormescli -> internal/app/<domain>",
+            "folder_refactor_scan",
+            "direct internal imports",
+            "Do not use an empty `-run` selector",
+            "codemap.md` cannot remain",
+            "Tests-only slices are valid",
+        ],
+    }
+}
+
 
 def parse_frontmatter(path: Path) -> tuple[str | None, str | None]:
     lines = path.read_text(encoding="utf-8").splitlines()
@@ -106,10 +128,25 @@ def audit_loader_views(errors: list[str]) -> None:
                 errors.append(f"{entry.relative_to(ROOT)}: resolves to {real}, want {want}")
 
 
+def audit_required_snippets(errors: list[str]) -> None:
+    for skill_name, files in REQUIRED_SNIPPETS.items():
+        skill_root = SKILLS_DIR / skill_name
+        for rel_path, snippets in files.items():
+            path = skill_root / rel_path
+            if not path.exists():
+                errors.append(f"{path.relative_to(ROOT)}: missing required skill file")
+                continue
+            text = path.read_text(encoding="utf-8")
+            for snippet in snippets:
+                if snippet not in text:
+                    errors.append(f"{path.relative_to(ROOT)}: missing required snippet {snippet!r}")
+
+
 def main() -> int:
     errors: list[str] = []
     audit_frontmatter(errors)
     audit_bad_patterns(errors)
+    audit_required_snippets(errors)
     audit_loader_views(errors)
     if errors:
         print("local skill audit failed:", file=sys.stderr)
