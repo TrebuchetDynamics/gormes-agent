@@ -21,6 +21,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -166,7 +167,7 @@ func (r *kernelRPCRuntime) ensureKernelLocked(ctx context.Context) error {
 		return nil
 	}
 	cfg := r.invocation.Config
-	client, err := getOrCreateProviderClient(cfg, r.invocation.Inference.Provider)
+	client, err := providerPool.GetOrCreate(cfg, r.invocation.Inference.Provider)
 	if err != nil {
 		return fmt.Errorf("provider setup failed: %s", redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey))
 	}
@@ -186,7 +187,7 @@ func (r *kernelRPCRuntime) ensureKernelLocked(ctx context.Context) error {
 		MaxToolIterations: configuredMaxToolIterations(cfg),
 		ToolAudit:         audit.NewJSONLWriter(config.ToolAuditLogPath()),
 		ToolSafety:        toolSafety,
-		PrefillMessages:   configuredPrefillMessages(cfg),
+		PrefillMessages:   gormescli.ConfiguredPrefillMessages(cfg),
 	}
 	if skillRuntime := newForcedSkillRuntime(cfg, r.invocation.ForcedSkills); skillRuntime != nil {
 		kernelCfg.Skills = skillRuntime

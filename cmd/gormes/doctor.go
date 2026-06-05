@@ -264,14 +264,14 @@ func buildDoctorCmd() *cobra.Command {
 			if !offline {
 				providerName := cfg.Hermes.Provider
 				if doctorProviderHealthUsesAuthReadiness(cfg) {
-					if !configuredProviderAuthPresent(cfg) {
+					if !gormescli.ConfiguredProviderAuthPresent(cfg) {
 						reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusFail, Summary: fmt.Sprintf("auth missing (%s)", doctorProviderHealthTarget(cfg))})
 						markFailure(1)
 					} else {
 						reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusPass, Summary: fmt.Sprintf("auth-ready (%s)", doctorProviderHealthTarget(cfg))})
 					}
 				} else {
-					c, err := newProviderHTTPClient(cfg, providerName)
+					c, err := gormescli.NewProviderHTTPClient(cfg, providerName)
 					if err != nil {
 						redactedErr := friendlyProviderSetupDetail(redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey))
 						reporter.Add(doctor.CheckResult{Name: "provider setup", Status: doctor.StatusFail, Summary: redactedErr})
@@ -692,7 +692,7 @@ func doctorCustomEndpointAuthProviderStatus(cfg config.Config) doctor.AuthProvid
 		return out
 	}
 	endpointSet := strings.TrimSpace(h.Endpoint) != ""
-	authSet := strings.TrimSpace(h.APIKey) != "" || configuredProviderAPIKeyRefPresent(cfg)
+	authSet := strings.TrimSpace(h.APIKey) != "" || gormescli.ConfiguredProviderAPIKeyRefPresent(cfg)
 	switch {
 	case !endpointSet && !authSet:
 		return out
@@ -993,7 +993,7 @@ func doctorCustomEndpointReadiness(cfg config.Config) doctor.CheckResult {
 
 	authItem := readinessItem("api_key", h.APIKey, doctor.StatusWarn)
 	if strings.EqualFold(strings.TrimSpace(h.Provider), config.CodexOAuthProvider) {
-		authItem = readinessBoolItem("auth", configuredProviderAuthPresent(cfg), doctor.StatusWarn)
+		authItem = readinessBoolItem("auth", gormescli.ConfiguredProviderAuthPresent(cfg), doctor.StatusWarn)
 		if authItem.Status != doctor.StatusPass {
 			authItem.Note = "missing; run `gormes auth add openai-codex`"
 		}

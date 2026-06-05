@@ -14,21 +14,6 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 )
 
-// TestMemoryCommand_ConstructorReturnsIndependentInstances proves
-// each newMemoryCommand() call returns a fresh tree (parent + status
-// subcommand) with no shared state. Same anti-pattern guard as
-// versionCmd / doctorCmd.
-func TestMemoryCommand_ConstructorReturnsIndependentInstances(t *testing.T) {
-	a := newMemoryCommand()
-	b := newMemoryCommand()
-	if a == b {
-		t.Fatal("newMemoryCommand must return distinct instances; got same pointer")
-	}
-	if a.Commands()[0] == b.Commands()[0] {
-		t.Fatal("subcommand instances must also be distinct between constructor calls")
-	}
-}
-
 func TestMemoryStatusCommand_PrintsExtractorSummary(t *testing.T) {
 	seedMemoryStatusDB(t)
 

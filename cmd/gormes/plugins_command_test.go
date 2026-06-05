@@ -9,8 +9,18 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/spf13/cobra"
 )
+
+func newPluginsCommandWithManager(manager any) *cobra.Command {
+	return gormescli.NewPluginsCommandWithManager(manager, gormescli.PluginsOptions{
+		BuildProvenance: func() gormescli.PluginsBuildProvenance {
+			build := newBuildProvenance()
+			return gormescli.PluginsBuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+		},
+	})
+}
 
 func TestPluginsCommandListInstallUpdateRemove(t *testing.T) {
 	root := t.TempDir()

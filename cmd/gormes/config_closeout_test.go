@@ -7,7 +7,14 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
+
+type editorRunner = gormescli.ConfigEditorRunner
+
+func withConfigEditorRunner(t interface{ Cleanup(func()) }, runner editorRunner) {
+	gormescli.WithConfigEditorRunner(t, runner)
+}
 
 // TestConfigEdit_NoEditorReportsConfigPath: when EDITOR/VISUAL is unset and
 // no fallback editor binary is discoverable, `gormes config edit` must NOT

@@ -11,6 +11,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 func TestSessionsDeletePrefixResolution(t *testing.T) {
@@ -250,7 +251,7 @@ func TestSessionsContinueResolvesMostRecentlyActive(t *testing.T) {
 		{id: "sess-old-start", role: "assistant", content: "recent activity", ts: 300},
 	})
 
-	got, err := resolveContinueSessionFlag("last")
+	got, err := gormescli.ResolveContinueSessionFlag("last")
 	if err != nil {
 		t.Fatalf("resolveContinueSessionFlag: %v", err)
 	}
@@ -260,13 +261,13 @@ func TestSessionsContinueResolvesMostRecentlyActive(t *testing.T) {
 }
 
 func TestCoalesceSessionArgsMultiWordNames(t *testing.T) {
-	got := coalesceSessionNameArgs([]string{"-c", "my", "project", "sessions", "list"})
+	got := gormescli.CoalesceSessionNameArgs([]string{"-c", "my", "project", "sessions", "list"})
 	want := []string{"-c", "my project", "sessions", "list"}
 	if strings.Join(got, "\x00") != strings.Join(want, "\x00") {
 		t.Fatalf("coalesced args = %#v, want %#v", got, want)
 	}
 
-	got = coalesceSessionNameArgs([]string{"--resume", "deep", "work", "--offline"})
+	got = gormescli.CoalesceSessionNameArgs([]string{"--resume", "deep", "work", "--offline"})
 	want = []string{"--resume", "deep work", "--offline"}
 	if strings.Join(got, "\x00") != strings.Join(want, "\x00") {
 		t.Fatalf("coalesced resume args = %#v, want %#v", got, want)

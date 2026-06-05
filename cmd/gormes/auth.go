@@ -16,9 +16,30 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 const openRouterBaseURL = "https://openrouter.ai/api/v1"
+
+const (
+	codexOAuthIssuer   = gormescli.CodexOAuthIssuer
+	codexOAuthTokenURL = gormescli.CodexOAuthTokenURL
+	codexOAuthClientID = gormescli.CodexOAuthClientID
+	codexOAuthBaseURL  = gormescli.CodexOAuthBaseURL
+)
+
+type codexOAuthLoginRequest = gormescli.CodexOAuthLoginRequest
+type codexDeviceCode = gormescli.CodexDeviceCode
+type codexAuthorizationCode = gormescli.CodexAuthorizationCode
+type codexTokenResponse = gormescli.CodexTokenResponse
+
+var authCodexOAuthLogin = runCodexDeviceCodeLogin
+
+func runCodexDeviceCodeLogin(ctx context.Context, req codexOAuthLoginRequest) (config.CodexOAuthTokens, error) {
+	return gormescli.RunCodexDeviceCodeLogin(ctx, req)
+}
+
+func sanitizeAuthCommandError(input string) string { return gormescli.SanitizeAuthCommandError(input) }
 
 var (
 	authBareAWSIdentityProbe          func() (string, error)
@@ -902,7 +923,7 @@ func findCredentialIndex(entries []config.PooledCredential, target string) int {
 }
 
 func normalizeAuthProvider(provider string) string {
-	normalized := normalizeProviderName(provider)
+	normalized := gormescli.NormalizeProviderName(provider)
 	switch normalized {
 	case "or", "open-router", "openrouter-free":
 		return "openrouter"

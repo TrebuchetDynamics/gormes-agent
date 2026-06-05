@@ -10,8 +10,18 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
 )
+
+type whatsappCommandSeams = channelsmodule.WhatsAppAppSeams
+type whatsappPairingPlan = channelsmodule.WhatsAppPairingPlan
+
+func newWhatsAppCommandWithSeams(seams whatsappCommandSeams) *cobra.Command {
+	return channelsmodule.NewWhatsAppAppCommandWithSeams(seams, whatsappCommandOptions())
+}
 
 func TestWhatsAppTopLevelCommandRendersPairingPreflight(t *testing.T) {
 	home := t.TempDir()

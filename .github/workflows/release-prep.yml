@@ -41,7 +41,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          current=$(grep 'var Version =' cmd/gormes/version.go | sed 's/.*"\(.*\)".*/\1/')
+          current=$(grep 'var Version =' cmd/gormes/main.go | sed 's/.*"\(.*\)".*/\1/')
           echo "current=$current"
 
           # Parse current version (e.g., 0.1.0 or 0.2.0-scout -> 0.1.0/0.2.0)
@@ -71,7 +71,7 @@ jobs:
 
       - name: Bump version in source
         run: |
-          sed -i 's/var Version = ".*"/var Version = "${{ steps.version.outputs.next }}"/' cmd/gormes/version.go
+          sed -i 's/var Version = ".*"/var Version = "${{ steps.version.outputs.next }}"/' cmd/gormes/main.go
 
       - name: Update CHANGELOG.md
         run: |
@@ -110,7 +110,7 @@ jobs:
 
             ### Checklist
             - [ ] Review CHANGELOG.md entries
-            - [ ] Verify version bump in `cmd/gormes/version.go`
+            - [ ] Verify version bump in `cmd/gormes/main.go`
             - [ ] Confirm all tests pass
             - [ ] Merge this PR to trigger the release workflow
 

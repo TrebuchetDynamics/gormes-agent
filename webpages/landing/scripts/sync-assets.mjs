@@ -50,10 +50,10 @@ async function refreshBenchmarks() {
 }
 
 async function writeReleaseData() {
-  const versionFile = resolve(repoRoot, 'cmd/gormes/version.go');
+  const versionFile = resolve(repoRoot, 'cmd/gormes/main.go');
   const raw = await readFile(versionFile, 'utf8');
   const release = parseReleaseData(raw, {
-    source: 'cmd/gormes/version.go',
+    source: 'cmd/gormes/main.go',
     errorSource: versionFile,
   });
 

@@ -276,7 +276,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("provider setup: %w", err)
 	}
-	hc := newReloadableHermesClient(baseHC)
+	hc := gateway.NewReloadableHermesClient(baseHC)
 	rootCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	signals := make(chan os.Signal, 2)
@@ -307,8 +307,8 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 			slog.Warn("goncho runtime open failed; memory disabled", "err", err)
 		} else {
 			gonchoStore = newGonchoAdapter(gonchoRuntime.Service)
-			registerGormesGonchoTools(reg, gonchoRuntime)
-			slog.Info(formatGormesGonchoStatus(gonchoRuntime.Status()))
+			gormescli.RegisterGormesGonchoTools(reg, gonchoRuntime)
+			slog.Info(gormescli.FormatGormesGonchoStatus(gonchoRuntime.Status()))
 			defer func() {
 				shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), kernel.ShutdownBudget)
 				defer cancelShutdown()
@@ -329,7 +329,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		MaxToolDuration:   30 * time.Second,
 		ToolAudit:         toolAudit,
 		Goncho:            gonchoStore,
-		PrefillMessages:   configuredPrefillMessages(cfg),
+		PrefillMessages:   gormescli.ConfiguredPrefillMessages(cfg),
 	}, hc, mstore, telemetry.New(), slog.Default())
 
 	// Phase 2.D — cron scheduler is initialized after channel registration below.
@@ -381,7 +381,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		nextCfg.DynamicAgentRegistry = dynamicAgentRegistry
 		nextReg := buildDefaultRegistry(rootCtx, next, hc, next.Hermes.Model, withSessionSearch(mstore.DB(), smap))
 		if gonchoRuntime != nil {
-			registerGormesGonchoTools(nextReg, gonchoRuntime)
+			gormescli.RegisterGormesGonchoTools(nextReg, gonchoRuntime)
 		}
 		nextCfg.ToolRegistry = nextReg
 		nextCfg.SkillRuntime = skills.NewRuntime(next.SkillsRoot(), next.Skills.MaxDocumentBytes, next.Skills.SelectionCap, next.SkillsUsageLogPath())
@@ -538,7 +538,7 @@ func activateGatewaySecretRuntime(ctx context.Context, cfg config.Config, resolv
 }
 
 func newGatewayHermesClient(cfg config.Config) (llm.Client, error) {
-	return newProviderHTTPClient(cfg, cfg.Hermes.Provider)
+	return gormescli.NewProviderHTTPClient(cfg, cfg.Hermes.Provider)
 }
 
 func newGatewayAgentRuntimeFactory(rootCtx context.Context, cfg config.Config, mstore *memory.SqliteStore, gonchoStore kernel.GonchoStore) gateway.AgentRuntimeFactory {
@@ -546,7 +546,7 @@ func newGatewayAgentRuntimeFactory(rootCtx context.Context, cfg config.Config, m
 		agentCfg := cfg
 		model := providermodule.FirstUsageString(req.Model, cfg.Hermes.Model)
 		agentCfg.Hermes.Model = model
-		hc, err := newProviderHTTPClientWithCredentialHome(agentCfg, agentCfg.Hermes.Provider, req.AuthHome)
+		hc, err := gormescli.NewProviderHTTPClientWithCredentialHome(agentCfg, agentCfg.Hermes.Provider, req.AuthHome)
 		if err != nil {
 			return nil, err
 		}
@@ -566,7 +566,7 @@ func newGatewayAgentRuntimeFactory(rootCtx context.Context, cfg config.Config, m
 			ChatKey:           req.SessionKey,
 			ToolAudit:         audit.NewJSONLWriter(config.ToolAuditLogPath()),
 			Goncho:            gonchoStore,
-			PrefillMessages:   configuredPrefillMessages(agentCfg),
+			PrefillMessages:   gormescli.ConfiguredPrefillMessages(agentCfg),
 		}, hc, mstore, telemetry.New(), slog.Default())
 		go k.Run(rootCtx)
 		return k, nil
@@ -615,11 +615,13 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 		RuntimeStatus:              runtimeStatus,
 		Restart:                    restart,
 		RestartNotifications:       cfg.GatewayRestartNotifications(),
-		KanbanSlashRunner:          runTUIKanbanSlashCommand,
-		SkillsCommandOptions:       skillsCommandOptionsForConfig(cfg),
-		RememberedSourceStore:      gateway.NewChannelDirectorySourceStore(config.GormesHome()),
-		ContextFilesCWD:            gatewayContextFilesCWD(cfg),
-		LiveTurnNow:                func() time.Time { return time.Now() },
+		KanbanSlashRunner: func(ctx context.Context, input string) (string, error) {
+			return gormescli.RunTUIKanbanSlashCommand(ctx, input, kanbanCommandOptions())
+		},
+		SkillsCommandOptions:  skillsCommandOptionsForConfig(cfg),
+		RememberedSourceStore: gateway.NewChannelDirectorySourceStore(config.GormesHome()),
+		ContextFilesCWD:       gatewayContextFilesCWD(cfg),
+		LiveTurnNow:           func() time.Time { return time.Now() },
 		LiveTurnActiveModel: func() string {
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway live-turn metadata"})
 			return providermodule.FirstUsageString(resolution.Model, cfg.Hermes.Model)

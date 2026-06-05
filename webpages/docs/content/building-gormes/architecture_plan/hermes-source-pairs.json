@@ -214,7 +214,7 @@
       "hermes_file": "hermes_cli/auth_commands.py",
       "gormes_targets": [
         "cmd/gormes/auth.go",
-        "cmd/gormes/provider_auth.go",
+        "internal/platform/cli/gormescli/providerauth.go",
         "internal/config/credential_pool.go",
         "internal/config/token_vault.go"
       ],
@@ -238,7 +238,7 @@
     {
       "hermes_file": "hermes_cli/commands.py",
       "gormes_targets": [
-        "cmd/gormes/hermes_cli_parity.go",
+        "internal/platform/cli/gormescli/hermescliparity.go",
         "cmd/gormes/hermes_rowbacked_commands.go",
         "cmd/gormes/main.go"
       ],
@@ -257,7 +257,7 @@
       "hermes_file": "hermes_cli/config.py",
       "gormes_targets": [
         "internal/config",
-        "cmd/gormes/config.go",
+        "internal/platform/cli/gormescli/config.go",
         "internal/llm/default_soul.go"
       ],
       "status": "partial",
@@ -305,7 +305,7 @@
       "hermes_file": "hermes_cli/main.py",
       "gormes_targets": [
         "cmd/gormes/main.go",
-        "cmd/gormes/hermes_cli_parity.go"
+        "internal/platform/cli/gormescli/hermescliparity.go"
       ],
       "status": "partial",
       "contract": "Hermes CLI root parser, top-level command registration, help-visible command tree, and global flag compatibility.",
@@ -321,7 +321,8 @@
     {
       "hermes_file": "hermes_cli/profiles.py",
       "gormes_targets": [
-        "cmd/gormes/profile.go",
+        "cmd/gormes/main.go",
+        "internal/platform/cli/gormescli/profileapp/profile.go",
         "internal/config/agents.go"
       ],
       "status": "partial",
@@ -410,7 +411,8 @@
       "hermes_file": "tools/skills_sync.py",
       "gormes_targets": [
         "internal/extensibility/skills/profile_sync.go",
-        "cmd/gormes/skills.go"
+        "internal/app/skillscmd/service.go",
+        "internal/platform/cli/gormescli/skillscmd.go"
       ],
       "status": "partial",
       "contract": "Hermes bundled/user skill sync semantics, profile skill distribution, and update/sync user-visible behavior.",

@@ -12,6 +12,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/transcript"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 func TestTUISaveExportHelper_WritesUnderGormesHome(t *testing.T) {
@@ -40,7 +41,7 @@ func TestTUISaveExportHelper_WritesUnderGormesHome(t *testing.T) {
 	t.Setenv("HERMES_HOME", hermesHome)
 	seedTUISaveTranscriptDB(t, "sess-xdg", "discord:chan-7")
 
-	path, err := newTUISaveExportFunc()(context.Background(), "sess-xdg")
+	path, err := gormescli.NewTUISaveExportFunc()(context.Background(), "sess-xdg")
 	if err != nil {
 		t.Fatalf("SessionExportFunc: %v", err)
 	}
@@ -85,7 +86,7 @@ func TestTUISaveExportHelper_CollisionSafeName(t *testing.T) {
 		t.Fatalf("seed occupied export: %v", err)
 	}
 
-	path, err := newTUISaveExportFunc()(context.Background(), "sess-collision")
+	path, err := gormescli.NewTUISaveExportFunc()(context.Background(), "sess-collision")
 	if err != nil {
 		t.Fatalf("SessionExportFunc: %v", err)
 	}
@@ -128,7 +129,7 @@ func TestTUISaveExportHelper_PropagatesExportErrors(t *testing.T) {
 	t.Setenv("HERMES_HOME", filepath.Join(root, "hermes-home"))
 	seedTUISaveTranscriptDB(t, "other-session", "telegram:42")
 
-	path, err := newTUISaveExportFunc()(context.Background(), "missing-session")
+	path, err := gormescli.NewTUISaveExportFunc()(context.Background(), "missing-session")
 	if !errors.Is(err, transcript.ErrSessionNotFound) {
 		t.Fatalf("SessionExportFunc error = %v, want %v", err, transcript.ErrSessionNotFound)
 	}

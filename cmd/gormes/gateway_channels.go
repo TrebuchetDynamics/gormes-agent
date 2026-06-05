@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/app/audiotools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
@@ -45,7 +46,7 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 				GuestMode:           cfg.Telegram.GuestMode,
 				BotUsername:         cfg.Telegram.BotUsername,
 				Notifications:       cfg.Telegram.Notifications,
-				AudioTranscriber:    resolveTelegramAudioTranscriber(),
+				AudioTranscriber:    audiotools.ResolveTelegramAudioTranscriber(),
 				DynamicCommands:     gatewayTelegramDynamicCommands(context.Background(), cfg),
 				TokenLockDir:        config.GatewayLockDir(),
 				ModelPickerResolver: gateway.NewModelPickerResolver(&gateway.SessionModelOverride{}),

@@ -13,6 +13,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	setupwizard "github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 )
 
@@ -192,7 +193,7 @@ func runSetupQuickCore(cmd *cobra.Command, seams setupCommandSeams, nonInteracti
 	if err != nil {
 		return fmt.Errorf("quick setup: load config: %w", err)
 	}
-	if strings.TrimSpace(cfg.Hermes.Endpoint) == "" || !configuredProviderAuthPresent(cfg) {
+	if strings.TrimSpace(cfg.Hermes.Endpoint) == "" || !gormescli.ConfiguredProviderAuthPresent(cfg) {
 		fmt.Fprintln(out, "Provider endpoint or auth is missing.")
 		if err := seams.RunSetupProvider(cmd, nonInteractive); err != nil {
 			return err
@@ -335,7 +336,7 @@ func runSetupProviderLiveTest(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	client, err := newProviderHTTPClient(cfg, cfg.Hermes.Provider)
+	client, err := gormescli.NewProviderHTTPClient(cfg, cfg.Hermes.Provider)
 	if err != nil {
 		return err
 	}

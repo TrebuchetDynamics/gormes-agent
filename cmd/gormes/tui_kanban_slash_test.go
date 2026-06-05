@@ -11,6 +11,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
@@ -74,7 +75,7 @@ func TestTUIKanbanSlashBindingRemoteTUIUnchanged(t *testing.T) {
 func TestRunTUIKanbanSlashCommandSurfacesErrors(t *testing.T) {
 	setupNativeTUITestEnv(t)
 
-	out, err := runTUIKanbanSlashCommand(context.Background(), "/kanban show missing-task")
+	out, err := gormescli.RunTUIKanbanSlashCommand(context.Background(), "/kanban show missing-task", kanbanCommandOptions())
 	if err == nil {
 		t.Fatalf("runTUIKanbanSlashCommand missing-task error = nil\nout=%s", out)
 	}
@@ -86,7 +87,7 @@ func TestRunTUIKanbanSlashCommandSurfacesErrors(t *testing.T) {
 func TestRunTUIKanbanSlashCommandCuratedHelpAliases(t *testing.T) {
 	setupNativeTUITestEnv(t)
 
-	bare, err := runTUIKanbanSlashCommand(context.Background(), "/kanban")
+	bare, err := gormescli.RunTUIKanbanSlashCommand(context.Background(), "/kanban", kanbanCommandOptions())
 	if err != nil {
 		t.Fatalf("runTUIKanbanSlashCommand(/kanban): %v\nout=%s", err, bare)
 	}
@@ -105,7 +106,7 @@ func TestRunTUIKanbanSlashCommandCuratedHelpAliases(t *testing.T) {
 	}
 
 	for _, alias := range []string{"help", "--help", "-h", "?"} {
-		out, err := runTUIKanbanSlashCommand(context.Background(), "/kanban "+alias)
+		out, err := gormescli.RunTUIKanbanSlashCommand(context.Background(), "/kanban "+alias, kanbanCommandOptions())
 		if err != nil {
 			t.Fatalf("runTUIKanbanSlashCommand(/kanban %s): %v\nout=%s", alias, err, out)
 		}
@@ -118,7 +119,7 @@ func TestRunTUIKanbanSlashCommandCuratedHelpAliases(t *testing.T) {
 func TestRunTUIKanbanSlashCommandSubcommandHelpUsesSlashProg(t *testing.T) {
 	setupNativeTUITestEnv(t)
 
-	out, err := runTUIKanbanSlashCommand(context.Background(), "/kanban show -h")
+	out, err := gormescli.RunTUIKanbanSlashCommand(context.Background(), "/kanban show -h", kanbanCommandOptions())
 	if err != nil {
 		t.Fatalf("runTUIKanbanSlashCommand(/kanban show -h): %v\nout=%s", err, out)
 	}
@@ -155,7 +156,7 @@ func TestRunTUIKanbanSlashCommandUsageErrorsAreFriendly(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			out, err := runTUIKanbanSlashCommand(context.Background(), tt.input)
+			out, err := gormescli.RunTUIKanbanSlashCommand(context.Background(), tt.input, kanbanCommandOptions())
 			if err != nil {
 				t.Fatalf("runTUIKanbanSlashCommand(%q) err = %v\nout=%s", tt.input, err, out)
 			}

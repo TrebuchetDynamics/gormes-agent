@@ -3468,6 +3468,41 @@ func runSetupAgentSettingsSection(cmd *cobra.Command, nonInteractive bool) error
 }
 
 type setupChoice = gormescli.SetupChoice
+type setupOptionChoice = gormescli.SetupOptionChoice
+
+func setupOptionPromptRuntime() gormescli.SetupOptionPromptRuntime {
+	return gormescli.SetupOptionPromptRuntime{
+		IsTerminal:         setupInputIsTerminal,
+		RunPick:            runBubbleTeaPickWithOptions,
+		PickShouldFallback: bubbleTeaPickShouldFallback,
+		PromptString:       promptString,
+		ExitCodeError:      newExitCodeError,
+	}
+}
+
+func promptSetupOptionChoice(cmd *cobra.Command, title, linePrompt, defaultID string, choices []setupOptionChoice) (string, error) {
+	return gormescli.PromptSetupOptionChoice(cmd, title, linePrompt, defaultID, choices, setupOptionPromptRuntime())
+}
+
+func promptSetupYesNoOption(cmd *cobra.Command, title, linePrompt string, defaultValue bool) (bool, bool, error) {
+	return gormescli.PromptSetupYesNoOption(cmd, title, linePrompt, defaultValue, setupOptionPromptRuntime())
+}
+
+func promptSetupChoice(cmd *cobra.Command, title, linePrompt, defaultValue string, choices []setupChoice) (string, error) {
+	return gormescli.PromptSetupChoice(cmd, title, linePrompt, defaultValue, choices, setupOptionPromptRuntime())
+}
+
+func setupChoicesToOptions(choices []setupChoice) []setupOptionChoice {
+	return gormescli.SetupChoicesToOptions(choices)
+}
+
+func setupOptionPickerChoices(options []setupOptionChoice) []tuiPickChoice {
+	return gormescli.SetupOptionPickerChoices(options)
+}
+
+func normalizeSetupOptionChoice(answer string, options []setupOptionChoice, defaultID string) string {
+	return gormescli.NormalizeSetupAnswer(answer, options, defaultID)
+}
 
 func ttsProviderOptions() []setupChoice {
 	return gormescli.SetupTTSProviderOptions()

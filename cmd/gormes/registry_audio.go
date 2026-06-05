@@ -3,7 +3,7 @@
 package main
 
 import (
-	"github.com/TrebuchetDynamics/gormes-agent/cmd/gormes/audiotools"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/app/audiotools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )

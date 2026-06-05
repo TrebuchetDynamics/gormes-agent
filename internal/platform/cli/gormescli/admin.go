@@ -11,6 +11,22 @@ import (
 type AdminOptions = appadmin.Options
 type AdminRunnerOptions = appadmin.RunnerOptions
 
+type AdminCommandOptions struct {
+	Runner tuiadmin.CommandRunner
+}
+
+func NewAdminCommand(opts AdminCommandOptions) *cobra.Command {
+	return &cobra.Command{
+		Use:          "admin",
+		Short:        "Open the unified admin TUI",
+		Args:         cobra.NoArgs,
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return AdminRun(cmd, AdminOptions{Runner: opts.Runner})
+		},
+	}
+}
+
 func AdminRun(cmd *cobra.Command, opts AdminOptions) error {
 	return appadmin.Run(cmd, opts)
 }

@@ -3,12 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
-	"github.com/skip2/go-qrcode"
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/app/navivox"
@@ -297,48 +294,19 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 }
 
 func navivoxSetupPairingQRPath() string {
-	return filepath.Join(config.GormesHome(), "cache", "navivox", "pairing.png")
+	return gormescli.SetupNavivoxPairingQRPath(config.GormesHome())
 }
 
 func writeNavivoxSetupPairingQR(path, descriptor string) error {
-	if strings.TrimSpace(descriptor) == "" {
-		return fmt.Errorf("setup navivox: pairing descriptor is empty")
-	}
-	pngBytes, err := qrcode.Encode(descriptor, qrcode.Medium, 512)
-	if err != nil {
-		return fmt.Errorf("setup navivox: encode pairing QR: %w", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("setup navivox: create QR directory: %w", err)
-	}
-	if err := os.WriteFile(path, pngBytes, 0o600); err != nil {
-		return fmt.Errorf("setup navivox: write pairing QR: %w", err)
-	}
-	if err := os.Chmod(path, 0o600); err != nil {
-		return fmt.Errorf("setup navivox: secure pairing QR: %w", err)
-	}
-	return nil
+	return gormescli.WriteSetupNavivoxPairingQR(path, descriptor)
 }
 
 func navivoxSetupTerminalQR(descriptor string) (string, error) {
-	if strings.TrimSpace(descriptor) == "" {
-		return "", fmt.Errorf("setup navivox: pairing descriptor is empty")
-	}
-	qr, err := qrcode.New(descriptor, qrcode.Medium)
-	if err != nil {
-		return "", fmt.Errorf("setup navivox: encode terminal QR: %w", err)
-	}
-	return qr.ToSmallString(false), nil
+	return gormescli.SetupNavivoxTerminalQR(descriptor)
 }
 
 func navivoxProviderSetupCommand(cfg config.Config) string {
-	if strings.TrimSpace(cfg.Hermes.Endpoint) == "" || !configuredProviderAuthPresent(cfg) {
-		return "gormes setup provider"
-	}
-	if strings.TrimSpace(cfg.Hermes.Model) == "" {
-		return "gormes setup model"
-	}
-	return ""
+	return gormescli.SetupNavivoxProviderSetupCommand(cfg, gormescli.ConfiguredProviderAuthPresent(cfg))
 }
 
 func navivoxSetupPairingURI(cfg config.NavivoxCfg) (string, error) {

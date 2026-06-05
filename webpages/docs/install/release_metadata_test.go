@@ -8,7 +8,7 @@ import (
 )
 
 func TestLandingReleaseMetadataCarriesDateAlias(t *testing.T) {
-	versionGo := readRepoFile(t, "cmd/gormes/version.go")
+	versionGo := readRepoFile(t, "cmd/gormes/main.go")
 	version := goStringVar(t, versionGo, "Version")
 	dateAlias := goStringVar(t, versionGo, "VersionDateAlias")
 
@@ -30,10 +30,10 @@ func TestLandingReleaseMetadataCarriesDateAlias(t *testing.T) {
 		t.Fatalf("release.json tag = %q, want v%s", release.Tag, version)
 	}
 	if release.DateAlias != dateAlias {
-		t.Fatalf("release.json date_alias = %q, want %q from cmd/gormes/version.go", release.DateAlias, dateAlias)
+		t.Fatalf("release.json date_alias = %q, want %q from cmd/gormes/main.go", release.DateAlias, dateAlias)
 	}
-	if release.Source != "cmd/gormes/version.go" {
-		t.Fatalf("release.json source = %q, want cmd/gormes/version.go", release.Source)
+	if release.Source != "cmd/gormes/main.go" {
+		t.Fatalf("release.json source = %q, want cmd/gormes/main.go", release.Source)
 	}
 
 	syncAssets := readRepoFile(t, "webpages/landing/scripts/sync-assets.mjs")

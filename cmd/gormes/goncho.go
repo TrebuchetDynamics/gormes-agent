@@ -17,6 +17,7 @@ import (
 
 	"github.com/TrebuchetDynamics/goncho/service"
 	internalgoncho "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/goncho"
+	memoryapp "github.com/TrebuchetDynamics/gormes-agent/internal/app/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
@@ -740,7 +741,7 @@ func formatGonchoDoctorReport(report gonchoDoctorReport) string {
 			counts.CompletedWorkUnits,
 		)
 	}
-	b.WriteString(formatDreamQueueEvidence(report.QueueStatus.Dream))
+	b.WriteString(memoryapp.FormatDreamQueueEvidence(report.QueueStatus.Dream))
 	fmt.Fprintf(&b, "goncho_queue: %s\n\n", report.QueueStatus.Message)
 
 	b.WriteString("Conclusion availability\n")

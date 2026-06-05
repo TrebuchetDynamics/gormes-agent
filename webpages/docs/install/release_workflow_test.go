@@ -328,7 +328,7 @@ func TestReleaseWorkflowReleaseTitleCarriesDateAlias(t *testing.T) {
 
 	wantInNotesStep := []string{
 		"id: release_notes",
-		"date_alias=$(grep 'var VersionDateAlias =' cmd/gormes/version.go | sed 's/.*\"\\(.*\\)\".*/\\1/')",
+		"date_alias=$(grep 'var VersionDateAlias =' cmd/gormes/main.go | sed 's/.*\"\\(.*\\)\".*/\\1/')",
 		"test -n \"$date_alias\"",
 		"echo \"date_alias=$date_alias\" >> \"$GITHUB_OUTPUT\"",
 		"echo \"# Gormes ${GITHUB_REF_NAME} (${date_alias})\"",
@@ -350,7 +350,7 @@ func TestReleaseWorkflowReleaseTitleCarriesDateAlias(t *testing.T) {
 	}
 
 	assertWorkflowOrder(t, notesStep,
-		"date_alias=$(grep 'var VersionDateAlias =' cmd/gormes/version.go | sed 's/.*\"\\(.*\\)\".*/\\1/')",
+		"date_alias=$(grep 'var VersionDateAlias =' cmd/gormes/main.go | sed 's/.*\"\\(.*\\)\".*/\\1/')",
 		"echo \"# Gormes ${GITHUB_REF_NAME} (${date_alias})\"",
 	)
 	assertWorkflowOrder(t, notesStep,

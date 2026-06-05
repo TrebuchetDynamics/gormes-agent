@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
+
+	"github.com/skip2/go-qrcode"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/network/vpnhost"
@@ -83,6 +87,51 @@ func vpnBindDefault(hosts []vpnhost.Host, match func(vpnhost.Host) bool) string 
 }
 
 // CSV trims a comma-separated setup answer into non-empty values.
+func PairingQRPath(home string) string {
+	return filepath.Join(home, "cache", "navivox", "pairing.png")
+}
+
+func WritePairingQR(path, descriptor string) error {
+	if strings.TrimSpace(descriptor) == "" {
+		return fmt.Errorf("setup navivox: pairing descriptor is empty")
+	}
+	pngBytes, err := qrcode.Encode(descriptor, qrcode.Medium, 512)
+	if err != nil {
+		return fmt.Errorf("setup navivox: encode pairing QR: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("setup navivox: create QR directory: %w", err)
+	}
+	if err := os.WriteFile(path, pngBytes, 0o600); err != nil {
+		return fmt.Errorf("setup navivox: write pairing QR: %w", err)
+	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		return fmt.Errorf("setup navivox: secure pairing QR: %w", err)
+	}
+	return nil
+}
+
+func TerminalQR(descriptor string) (string, error) {
+	if strings.TrimSpace(descriptor) == "" {
+		return "", fmt.Errorf("setup navivox: pairing descriptor is empty")
+	}
+	qr, err := qrcode.New(descriptor, qrcode.Medium)
+	if err != nil {
+		return "", fmt.Errorf("setup navivox: encode terminal QR: %w", err)
+	}
+	return qr.ToSmallString(false), nil
+}
+
+func ProviderSetupCommand(cfg config.Config, authConfigured bool) string {
+	if strings.TrimSpace(cfg.Hermes.Endpoint) == "" || !authConfigured {
+		return "gormes setup provider"
+	}
+	if strings.TrimSpace(cfg.Hermes.Model) == "" {
+		return "gormes setup model"
+	}
+	return ""
+}
+
 func CSV(value string) []string {
 	parts := strings.Split(value, ",")
 	out := make([]string, 0, len(parts))

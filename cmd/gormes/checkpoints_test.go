@@ -9,8 +9,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
+
+func newCheckpointsCommand() *cobra.Command {
+	return gormescli.NewCheckpointsCommand(func() gormescli.BuildProvenance {
+		provenance := newBuildProvenance()
+		return gormescli.BuildProvenance{Version: provenance.Version, GitCommit: provenance.GitCommit}
+	})
+}
 
 func seedCheckpointShadow(t *testing.T, root, name, workdir string, mtime time.Time) string {
 	t.Helper()

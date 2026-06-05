@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -18,6 +19,7 @@ import (
 	"syscall"
 	"time"
 
+	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
@@ -33,11 +35,177 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
+	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/profileapp"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 	tuilocal "github.com/TrebuchetDynamics/gormes-agent/internal/tui/local"
+	setupwizard "github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 )
+
+var logsHTTPClient = gormescli.NewLogsHTTPClient(5 * time.Second)
+var logsEndpointURL = "http://127.0.0.1:43827/api/logs"
+var providerPool = gormescli.NewProviderClientPool()
+
+type tuiPickChoice = gormescli.TUIPickChoice
+
+type exitCodeError struct {
+	code int
+	err  error
+}
+
+func newExitCodeError(code int, err error) error {
+	if err == nil {
+		err = fmt.Errorf("exit code %d", code)
+	}
+	return exitCodeError{code: code, err: err}
+}
+
+func (e exitCodeError) Error() string {
+	return e.err.Error()
+}
+
+func (e exitCodeError) Unwrap() error {
+	return e.err
+}
+
+func (e exitCodeError) ExitCode() int {
+	return e.code
+}
+
+func exitCodeFromError(err error) int {
+	if err == nil {
+		return 0
+	}
+	var coded interface {
+		ExitCode() int
+	}
+	if errors.As(err, &coded) {
+		return coded.ExitCode()
+	}
+	return 1
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func runBubbleTeaPick(ctx context.Context, stdin *os.File, out io.Writer, prompt string, choices []tuiPickChoice, defaultID string) (string, error) {
+	return gormescli.RunTUIPick(ctx, stdin, out, prompt, choices, defaultID)
+}
+
+func runBubbleTeaPickWithOptions(ctx context.Context, stdin *os.File, out io.Writer, prompt string, choices []tuiPickChoice, defaultID string, extraOptions ...setupwizard.StepOption) (string, error) {
+	return gormescli.RunTUIPickWithOptions(ctx, stdin, out, prompt, choices, defaultID, extraOptions...)
+}
+
+func runBubbleTeaChecklist(ctx context.Context, stdin *os.File, out io.Writer, prompt string, choices []tuiPickChoice, selectedIDs []string) ([]string, error) {
+	return gormescli.RunTUIChecklist(ctx, stdin, out, prompt, choices, selectedIDs)
+}
+
+func bubbleTeaPickShouldFallback(err error) bool {
+	return gormescli.TUIPickShouldFallback(err)
+}
+
+// Version marks the current operator-facing release line.
+//
+// Gormes adopts the Hermes-style dual taxonomy: the canonical semver tag (the
+// value below) is paired with a date alias of the form vYYYY.M.D in release
+// notes, release.json, and the GitHub release title. The git tag remains
+// v<Version> until the release workflow learns to extract version from this
+// file independently of the tag string.
+var Version = "0.2.23"
+
+// VersionDateAlias is the Hermes-style vYYYY.M.D paired alias for the
+// current release. Bumped together with Version on every release. Fleet
+// automation (whose own version IS the date) consumes this through
+// `gormes version --json`.
+var VersionDateAlias = "v2026.5.25"
+
+// GitCommit is the source SHA the binary was built from. Defaults to
+// "unknown" in dev/source builds; release CI is expected to inject the
+// real value via `-ldflags="-X main.GitCommit=<sha>"`. Fleet automation
+// verifying binaries against a specific commit reads this field
+// through `gormes version --json`.
+var GitCommit = "unknown"
+
+// GitDirty marks whether the source tree had uncommitted changes when
+// the binary was built. Stored as a string so the value is settable
+// via ldflags; parsed to bool for JSON output. Accepts "true"/"1" as
+// dirty, anything else (including the default empty/false) as clean.
+// Release CI is expected to inject the actual flag — dev/source
+// builds default to clean.
+var GitDirty = "false"
+
+// BuildDate is the UTC timestamp when the binary was built. Defaults to
+// "unknown" in dev/source builds; release CI injects the real value via
+// `-ldflags="-X main.BuildDate=<RFC3339 UTC>"`.
+var BuildDate = "unknown"
+
+// buildProvenanceJSON is the `{version, git_commit}` block prepended to
+// every `--json` document that reports captured runtime/operator state.
+type buildProvenanceJSON = gormescli.VersionBuildProvenance
+
+func versionInfo() gormescli.VersionInfo {
+	return gormescli.VersionInfo{
+		Version:   Version,
+		DateAlias: VersionDateAlias,
+		GitCommit: GitCommit,
+		GitDirty:  GitDirty,
+		BuildDate: BuildDate,
+	}
+}
+
+func newBuildProvenance() buildProvenanceJSON {
+	return gormescli.NewVersionBuildProvenance(versionInfo())
+}
+
+func parseGitDirty(value string) bool {
+	return gormescli.ParseGitDirty(value)
+}
+
+func resolveGitCommit() string {
+	return gormescli.ResolveGitCommit(GitCommit)
+}
+
+func resolveGitCommitFrom(injected string, settings []debug.BuildSetting) string {
+	return gormescli.ResolveGitCommitFrom(injected, settings)
+}
+
+func resolveGitDirty() bool {
+	return gormescli.ResolveGitDirty(GitDirty)
+}
+
+func resolveGitDirtyFrom(injected string, settings []debug.BuildSetting) bool {
+	return gormescli.ResolveGitDirtyFrom(injected, settings)
+}
+
+func resolveBuildDate() string {
+	return gormescli.ResolveBuildDate(BuildDate)
+}
+
+func resolveBuildDateFrom(injected string, settings []debug.BuildSetting) string {
+	return gormescli.ResolveBuildDateFrom(injected, settings)
+}
+
+func newVersionCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "version",
+		Short: "Print gormes version",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			asJSON, _ := cmd.Flags().GetBool("json")
+			return gormescli.RunVersion(cmd.OutOrStdout(), versionInfo(), asJSON)
+		},
+	}
+	cmd.Flags().Bool("json", false, "emit a machine-readable {version, date_alias, git_commit, build_date} JSON record (suitable for fleet automation)")
+	return cmd
+}
 
 func main() {
 	defer func() {
@@ -101,7 +269,7 @@ func normalizeTermuxDataAlias(path string) string {
 }
 
 func executeRootCommand(root *cobra.Command, args ...string) error {
-	args = coalesceSessionNameArgs(args)
+	args = gormescli.CoalesceSessionNameArgs(args)
 	if suggestion, ok := removedRootFlagSuggestion(args); ok {
 		fmt.Fprintf(root.ErrOrStderr(), "%s\n", suggestion)
 		return newExitCodeError(2, fmt.Errorf("%s", suggestion))
@@ -223,7 +391,7 @@ type rootRuntime struct {
 	tuiProgramFactory      tuiProgramFactory
 	isTTY                  func() bool
 	runFirstRunSetup       func(*cobra.Command) error
-	sendMessage            sendCommandDeliveryFunc
+	sendMessage            gormescli.SendDeliveryFunc
 }
 
 type tuiInvocation struct {
@@ -331,33 +499,84 @@ func installRootRPCModeFlags(root *cobra.Command) {
 
 func rootCommandFactories(runtime rootRuntime) gormescli.CommandFactories {
 	return gormescli.CommandFactories{
-		"doctor":    newDoctorCommand,
-		"version":   newVersionCommand,
-		"telegram":  newTelegramCommand,
-		"gateway":   newGatewayCommand,
-		"channels":  newChannelsCommand,
-		"whatsapp":  newWhatsAppCommand,
-		"slack":     newSlackCommand,
-		"session":   newSessionCommand,
-		"memory":    newMemoryCommand,
-		"goncho":    newGonchoCommand,
-		"kanban":    newKanbanCommand,
-		"chat":      func() *cobra.Command { return newChatCommand(runtime) },
-		"send":      func() *cobra.Command { return newSendCommand(runtime) },
-		"curator":   newCuratorCommand,
-		"acp":       newACPCommand,
-		"system":    newSystemCommand,
-		"agent":     newAgentCommand,
-		"navivox":   newNavivoxCommand,
-		"usage":     newUsageCommand,
-		"tts":       newTTSCommand,
-		"status":    newStatusCommand,
+		"doctor":   newDoctorCommand,
+		"version":  newVersionCommand,
+		"telegram": newTelegramCommand,
+		"gateway":  newGatewayCommand,
+		"channels": newChannelsCommand,
+		"whatsapp": newWhatsAppCommand,
+		"slack":    gormescli.NewSlackCommand,
+		"session":  newSessionCommand,
+		"memory":   newMemoryCommand,
+		"goncho":   newGonchoCommand,
+		"kanban": func() *cobra.Command {
+			return gormescli.NewKanbanCommand(kanbanCommandOptions())
+		},
+		"chat": func() *cobra.Command { return newChatCommand(runtime) },
+		"send": func() *cobra.Command {
+			isTTY := isStdinTTY
+			if runtime.isTTY != nil {
+				isTTY = runtime.isTTY
+			}
+			return gormescli.NewSendCommand(gormescli.SendOptions{Deliver: runtime.sendMessage, IsStdinTTY: isTTY})
+		},
+		"curator": func() *cobra.Command {
+			return gormescli.NewCuratorCommandWithDeps(gormescli.CuratorCommandDeps{}, func() gormescli.BuildProvenance {
+				build := newBuildProvenance()
+				return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+			})
+		},
+		"acp": newACPCommand,
+		"system": func() *cobra.Command {
+			return gormescli.NewSystemCommand(func() gormescli.BuildProvenance {
+				provenance := newBuildProvenance()
+				return gormescli.BuildProvenance{Version: provenance.Version, GitCommit: provenance.GitCommit}
+			})
+		},
+		"agent":   newAgentCommand,
+		"navivox": newNavivoxCommand,
+		"usage":   func() *cobra.Command { return providermodule.NewUsageCommand(providerCommandOptions()) },
+		"tts":     gormescli.NewTTSCommand,
+		"status": func() *cobra.Command {
+			return gormescli.NewStatusCommand(gormescli.StatusCommandOptions{
+				BuildProvenance: func() gormescli.BuildProvenance {
+					build := newBuildProvenance()
+					return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+				},
+				SystemSnapshot: func(ctx context.Context) (tools.SystemEventsSnapshot, error) {
+					return gormescli.DefaultSystemEventsManager().Snapshot(ctx)
+				},
+			})
+		},
 		"auth":      newAuthCommand,
-		"providers": newProvidersCommand,
-		"logout":    newLogoutCommand,
-		"config":    newConfigCommand,
-		"fallback":  newFallbackCommand,
-		"router":    newRouterCommand,
+		"providers": func() *cobra.Command { return providermodule.NewProvidersCommand(providerCommandOptions()) },
+		"logout": func() *cobra.Command {
+			return gormescli.NewLogoutCommand(gormescli.LogoutSeams{
+				NormalizeAuthProvider: normalizeAuthProvider,
+				ConfiguredProvider: func() (string, error) {
+					return gormescli.ConfiguredLogoutProvider(normalizeAuthProvider)
+				},
+				RunAuthLogout: runAuthLogoutCommand,
+				ResetProviderIfMatching: func(provider string) error {
+					return gormescli.ResetLogoutProviderIfMatching(provider, normalizeAuthProvider)
+				},
+			}, gormescli.LogoutOptions{
+				BuildProvenance: func() gormescli.BuildProvenance {
+					build := newBuildProvenance()
+					return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+				},
+			})
+		},
+		"config": func() *cobra.Command {
+			return gormescli.NewConfigCommand(func() gormescli.BuildProvenance {
+				build := newBuildProvenance()
+				return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+			})
+		},
+		"fallback": func() *cobra.Command {
+			return providermodule.NewFallbackCommandWithSeams(providerModelCommandSeams(defaultModelCommandSeams()))
+		},
+		"router": gormescli.NewRouterCommand,
 		"fidelity": func() *cobra.Command {
 			return gormescli.NewFidelityCommand(gormescli.FidelityCommandOptions{
 				Build: func() any {
@@ -366,36 +585,406 @@ func rootCommandFactories(runtime rootRuntime) gormescli.CommandFactories {
 				ExitCodeError: newExitCodeError,
 			})
 		},
-		"secrets":     newSecretsCommand,
-		"security":    newSecurityCommand,
-		"migrate":     newMigrateCommand,
-		"claw":        newClawCommand,
-		"profile":     newProfileCommand,
-		"model":       newModelCommand,
-		"setup":       newSetupCommand,
-		"skills":      newSkillsCommand,
-		"plugins":     newPluginsCommand,
-		"mcp":         newMCPCommand,
-		"dashboard":   newDashboardCommand,
-		"update":      newUpdateCommand,
-		"restore":     newRestoreCommand,
-		"uninstall":   newUninstallCommand,
-		"logs":        newLogsCommand,
-		"checkpoints": newCheckpointsCommand,
-		"completion":  gormescli.NewShellCompletionCommand,
-		"cron":        newCronCommand,
-		"webhook":     newWebhookCommand,
-		"hooks":       newHooksCommand,
-		"dump":        newDumpCommand,
-		"debug":       newDebugCommand,
-		"backup":      newBackupCommand,
-		"import":      newImportCommand,
-		"pairing":     newPairingCommand,
-		"tools":       newToolsCommand,
-		"insights":    newInsightsCommand,
-		"admin":       newAdminCommand,
-		"bridge":      newBridgeCommand,
-		"bootstrap":   newBootstrapCommand,
+		"secrets": func() *cobra.Command {
+			return gormescli.NewSecretsCommand(gormescli.SecretsOptions{
+				BuildProvenance: func() gormescli.SecretsBuildProvenance {
+					build := newBuildProvenance()
+					return gormescli.SecretsBuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+				},
+			})
+		},
+		"security": func() *cobra.Command {
+			return gormescli.NewSecurityCommand(gormescli.SecurityCommandOptions{
+				BuildProvenance: func() gormescli.SecurityBuildProvenance {
+					build := newBuildProvenance()
+					return gormescli.SecurityBuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+				},
+				ExitCodeError: newExitCodeError,
+			})
+		},
+		"migrate": newMigrateCommand,
+		"claw":    newClawCommand,
+		"profile": newProfileCommand,
+		"model":   newModelCommand,
+		"setup":   newSetupCommand,
+		"skills":  newSkillsCommand,
+		"plugins": func() *cobra.Command {
+			return gormescli.NewPluginsCommand(gormescli.PluginsOptions{
+				BuildProvenance: func() gormescli.PluginsBuildProvenance {
+					build := newBuildProvenance()
+					return gormescli.PluginsBuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+				},
+			})
+		},
+		"mcp": newMCPCommand,
+		"dashboard": func() *cobra.Command {
+			return gormescli.NewDashboardCommand(gormescli.DefaultDashboardCommandOptions(Version, resolveGitCommit(), resolveGitDirty()))
+		},
+		"update": newUpdateCommand,
+		"restore": func() *cobra.Command {
+			return gormescli.NewRestoreCommand(gormescli.RestoreCommandOptions{BuildProvenance: func() gormescli.BuildProvenance {
+				build := newBuildProvenance()
+				return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+			}})
+		},
+		"uninstall": func() *cobra.Command {
+			return gormescli.NewUninstallCommand(func() gormescli.BuildProvenance {
+				build := newBuildProvenance()
+				return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+			})
+		},
+		"logs": func() *cobra.Command {
+			return gormescli.NewLogsCommand(func() gormescli.BuildProvenance {
+				build := newBuildProvenance()
+				return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+			}, logsCommandOptions())
+		},
+		"checkpoints": func() *cobra.Command {
+			return gormescli.NewCheckpointsCommand(func() gormescli.BuildProvenance {
+				provenance := newBuildProvenance()
+				return gormescli.BuildProvenance{Version: provenance.Version, GitCommit: provenance.GitCommit}
+			})
+		},
+		"completion": gormescli.NewShellCompletionCommand,
+		"cron":       newCronCommand,
+		"webhook":    newWebhookCommand,
+		"hooks":      newHooksCommand,
+		"dump":       newDumpCommand,
+		"debug":      newDebugCommand,
+		"backup":     newBackupCommand,
+		"import":     newImportCommand,
+		"pairing":    newPairingCommand,
+		"tools":      newToolsCommand,
+		"insights":   func() *cobra.Command { return providermodule.NewInsightsCommand(providerCommandOptions()) },
+		"admin": func() *cobra.Command {
+			return gormescli.NewAdminCommand(gormescli.AdminCommandOptions{
+				Runner: gormescli.AdminCommandRunner(gormescli.AdminRunnerOptions{
+					ExecuteCommand: func(args []string) (string, string, error) {
+						root := newRootCommandWithRuntime(rootRuntime{})
+						var stdout, stderr bytes.Buffer
+						root.SetOut(&stdout)
+						root.SetErr(&stderr)
+						root.SetIn(strings.NewReader(""))
+						err := executeRootCommand(root, args...)
+						return stdout.String(), stderr.String(), err
+					},
+					ExitCode: exitCodeFromError,
+				}),
+			})
+		},
+		"bridge":    gormescli.NewBridgeCommand,
+		"bootstrap": gormescli.NewBootstrapCommand,
+	}
+}
+
+func newWhatsAppCommand() *cobra.Command {
+	return channelsmodule.NewWhatsAppAppCommand(whatsappCommandOptions())
+}
+
+func newACPCommand() *cobra.Command {
+	return gormescli.NewACPCommand(gormescli.ACPCommandOptions{
+		BuildProvenance: acpBuildProvenance,
+		ExitError:       newExitCodeError,
+	})
+}
+
+func acpBuildProvenance() gormescli.BuildProvenance {
+	build := newBuildProvenance()
+	return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+}
+
+func newAgentCommand() *cobra.Command {
+	return gormescli.NewAgentCommand(agentCommandOptions())
+}
+
+func agentCommandOptions() gormescli.AgentOptions {
+	return gormescli.AgentOptions{
+		DefaultResetTarget: config.GormesHome(),
+		BuildProvenance: func() gormescli.AgentBuildProvenance {
+			build := newBuildProvenance()
+			return gormescli.AgentBuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+		},
+		OpenRegistry: openDynamicAgentRegistry,
+	}
+}
+
+func openDynamicAgentRegistry() (gormescli.AgentRegistry, func(), error) {
+	path := config.MemoryDBPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return nil, func() {}, fmt.Errorf("gormes agent: create memory dir: %w", err)
+	}
+	db, err := sqlOpenGoncho(path)
+	if err != nil {
+		return nil, func() {}, fmt.Errorf("gormes agent: open registry db: %w", err)
+	}
+	reg, err := goncho.NewDynamicAgentRegistry(db)
+	if err != nil {
+		_ = db.Close()
+		return nil, func() {}, err
+	}
+	return reg, func() { _ = db.Close() }, nil
+}
+
+func newChannelsCommand() *cobra.Command {
+	return channelsmodule.NewCommandWithSeams(channelsCommandSeams(), channelsCommandOptions())
+}
+
+type skillsProfileSyncSeams = gormescli.SkillsProfileSyncSeams
+
+func newSkillsCommand() *cobra.Command {
+	return newSkillsCommandWithProfileSync(skillsProfileSyncSeams{})
+}
+
+func newSkillsCommandWithProfileSync(syncSeams skillsProfileSyncSeams) *cobra.Command {
+	return gormescli.NewSkillsCommand(gormescli.SkillsCLICommandOptions{
+		SyncSeams:       syncSeams,
+		BuildProvenance: skillsBuildProvenance,
+		Row:             hermesSkillsRow,
+		UnavailableCommand: func(spec gormescli.RowBackedCommandSpec) *cobra.Command {
+			return newHermesUnavailableCommand(spec)
+		},
+	})
+}
+
+func skillsCommandOptionsForConfig(cfg config.Config) gateway.SkillsCommandOptions {
+	return gormescli.SkillsCommandOptionsForConfig(cfg)
+}
+
+func defaultSkillSyncProfiles() ([]skills.SkillProfileRoot, error) {
+	return gormescli.DefaultSkillProfileRoots()
+}
+
+func skillsBuildProvenance() gormescli.BuildProvenance {
+	build := newBuildProvenance()
+	return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+}
+
+type hermesUnavailableCommandSpec = gormescli.RowBackedCommandSpec
+
+func newHermesUnavailableCommand(spec hermesUnavailableCommandSpec, children ...*cobra.Command) *cobra.Command {
+	return gormescli.NewRowBackedCommand(spec, hermesUnavailableOptions(), children...)
+}
+
+func newHermesUnavailableParent(use, short string, children ...*cobra.Command) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   use,
+		Short: short,
+	}
+	cmd.AddCommand(children...)
+	return cmd
+}
+
+func hermesUnavailableOptions() gormescli.RowBackedCommandOptions {
+	return gormescli.RowBackedCommandOptions{BuildProvenance: func() gormescli.BuildProvenance {
+		build := newBuildProvenance()
+		return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+	}}
+}
+
+func hermesUnavailableYesFlag(cmd *cobra.Command) {
+	cmd.Flags().BoolP("yes", "y", false, "skip confirmation")
+}
+
+type profileCommandSeams = profileapp.CommandSeams
+
+func newProfileCommand() *cobra.Command {
+	return profileapp.NewCommand(profileBuildProvenance)
+}
+
+func newProfileCommandWithSeams(seams profileCommandSeams) *cobra.Command {
+	return profileapp.NewCommandWithSeams(seams, profileCommandOptions())
+}
+
+func defaultProfileCommandSeams() profileCommandSeams {
+	return profileapp.DefaultSeams()
+}
+
+func defaultListKnownProfiles() ([]string, error) {
+	return profileapp.DefaultListKnownProfiles()
+}
+
+func profileCommandOptions() profileapp.CommandOptions {
+	return profileapp.CommandOptions{BuildProvenance: profileBuildProvenance}
+}
+
+func profileBuildProvenance() gormescli.BuildProvenance {
+	build := newBuildProvenance()
+	return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+}
+
+func newMigrateCommand() *cobra.Command {
+	return gormescli.NewMigrateCommand(migrateCommandOptions())
+}
+
+func newClawCommand() *cobra.Command {
+	return gormescli.NewClawCommand(migrateCommandOptions())
+}
+
+func migrateCommandOptions() gormescli.MigrateCommandOptions {
+	return gormescli.MigrateCommandOptions{
+		BuildProvenance: migrateBuildProvenance,
+		ExitCodeError:   newExitCodeError,
+	}
+}
+
+func migrateBuildProvenance() gormescli.BuildProvenance {
+	build := newBuildProvenance()
+	return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+}
+
+func newCronCommand() *cobra.Command {
+	return gormescli.NewCronCommand(gormescli.CronCommandOptions{
+		Rows: gormescli.CronCommandRows{
+			Create: gormescli.RowBackedCommandSpec{
+				Use:     "create",
+				Aliases: []string{"add"},
+				Short:   "Create a scheduled cron job",
+				Row:     hermesGatewayCronRow,
+			},
+			Edit: gormescli.RowBackedCommandSpec{
+				Use:   "edit <job-id>",
+				Short: "Edit a scheduled cron job",
+				Row:   hermesGatewayCronRow,
+			},
+			Pause: gormescli.RowBackedCommandSpec{
+				Use:   "pause <job-id>",
+				Short: "Pause a scheduled cron job",
+				Row:   hermesGatewayCronRow,
+			},
+			Resume: gormescli.RowBackedCommandSpec{
+				Use:   "resume <job-id>",
+				Short: "Resume a scheduled cron job",
+				Row:   hermesGatewayCronRow,
+			},
+			Run: gormescli.RowBackedCommandSpec{
+				Use:   "run <job-id>",
+				Short: "Run a scheduled cron job now",
+				Row:   hermesGatewayCronRow,
+			},
+			Tick: gormescli.RowBackedCommandSpec{
+				Use:   "tick",
+				Short: "Run one scheduler tick",
+				Row:   hermesGatewayCronRow,
+			},
+		},
+		UnavailableCommand: func(spec gormescli.RowBackedCommandSpec) *cobra.Command {
+			return newHermesUnavailableCommand(spec)
+		},
+	})
+}
+
+func newMemoryCommand() *cobra.Command {
+	return gormescli.NewMemoryCommand(gormescli.MemoryCommandOptions{
+		Status: memoryCommandOptions(),
+		Rows: gormescli.MemoryCommandRows{
+			Setup: gormescli.RowBackedCommandSpec{
+				Use:   "setup",
+				Short: "Configure Hermes-compatible memory",
+				Row:   hermesMemoryRow,
+			},
+			Off: gormescli.RowBackedCommandSpec{
+				Use:   "off",
+				Short: "Disable Hermes-compatible memory",
+				Row:   hermesMemoryRow,
+			},
+			Reset: gormescli.RowBackedCommandSpec{
+				Use:         "reset",
+				Short:       "Reset Hermes-compatible memory state",
+				Row:         hermesMemoryRow,
+				Destructive: true,
+				FlagSet:     hermesUnavailableYesFlag,
+			},
+		},
+		UnavailableCommand: func(spec gormescli.RowBackedCommandSpec) *cobra.Command {
+			return newHermesUnavailableCommand(spec)
+		},
+	})
+}
+
+func memoryCommandOptions() gormescli.MemoryCommandStatusOptions {
+	return gormescli.MemoryCommandStatusOptions{
+		BuildProvenance: memoryBuildProvenance,
+		OpenDB:          sqlOpenGoncho,
+	}
+}
+
+func memoryBuildProvenance() gormescli.MemoryBuildProvenance {
+	build := newBuildProvenance()
+	return gormescli.MemoryBuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+}
+
+func newSessionCommand() *cobra.Command {
+	return gormescli.NewSessionCommand(gormescli.SessionCommandOptions{
+		Build: func() gormescli.SessionBuildProvenance {
+			build := newBuildProvenance()
+			return gormescli.SessionBuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+		},
+		UnavailableCommand: func(spec gormescli.SessionUnavailableCommandSpec) *cobra.Command {
+			return newHermesUnavailableCommand(hermesUnavailableCommandSpec{Use: spec.Use, Short: spec.Short, Row: spec.Row})
+		},
+	})
+}
+
+func channelsCommandSeams() channelsmodule.Seams {
+	return channelsmodule.Seams{
+		LoadConfig:        func() (config.Config, error) { return config.Load(nil) },
+		ConfiguredDetails: gormescli.ConfiguredChannelCapabilityDetails,
+	}
+}
+
+func channelsCommandOptions() channelsmodule.Options {
+	return channelsmodule.Options{BuildProvenance: func() gormescli.BuildProvenance {
+		build := newBuildProvenance()
+		return gormescli.BuildProvenance{
+			Version:   build.Version,
+			GitCommit: build.GitCommit,
+		}
+	}}
+}
+
+func whatsappCommandOptions() channelsmodule.WhatsAppAppOptions {
+	return channelsmodule.WhatsAppAppOptions{BuildProvenance: func() channelsmodule.WhatsAppBuildProvenance {
+		build := newBuildProvenance()
+		return channelsmodule.WhatsAppBuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+	}}
+}
+
+func logsCommandOptions() gormescli.LogsCommandOptions {
+	return gormescli.LogsCommandOptions{
+		Client:      logsHTTPClient,
+		EndpointURL: logsEndpointURL,
+		LogPath:     config.LogPath(),
+	}
+}
+
+func readLogsTail(limit int) (string, error) {
+	opts := logsCommandOptions()
+	content, err := gormescli.ReadLogsContent(opts.Client, opts.EndpointURL, opts.LogPath)
+	if err != nil {
+		return "", err
+	}
+	return gormescli.ReadLogsTail(content, limit), nil
+}
+
+func kanbanCommandOptions() gormescli.KanbanCommandOptions {
+	return gormescli.KanbanCommandOptions{
+		BuildProvenance: func() gormescli.BuildProvenance {
+			build := newBuildProvenance()
+			return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+		},
+		ExitCodeError: newExitCodeError,
+	}
+}
+
+func providerCommandOptions() providermodule.Options {
+	return providermodule.Options{
+		BuildProvenance: func() gormescli.BuildProvenance {
+			build := newBuildProvenance()
+			return gormescli.BuildProvenance{
+				Version:   build.Version,
+				GitCommit: build.GitCommit,
+			}
+		},
 	}
 }
 
@@ -537,6 +1126,17 @@ func installParentUnknownSubcommandGuards(cmd *cobra.Command) {
 		}
 		return cmd.Help()
 	}
+}
+
+type jsonInputErrorReportJSON = gormescli.JSONInputErrorReport
+
+func emitJSONInputError(cmd *cobra.Command, action, errMsg string) error {
+	err := gormescli.EmitJSONInputError(cmd, action, errMsg, gormescli.BuildProvenance(newBuildProvenance()))
+	return newExitCodeError(1, err)
+}
+
+func argsIncludeJSONFlag(args []string) bool {
+	return gormescli.ArgsIncludeJSONFlag(args)
 }
 
 // emitJSONSubcommandRequired writes a structured `subcommand_required`
@@ -1043,7 +1643,7 @@ type oneshotClientFactory func(context.Context, config.Config, oneshotInvocation
 type oneshotKernelConfigurer func(*kernel.Config)
 
 func newOneshotHTTPClient(_ context.Context, cfg config.Config, invocation oneshotInvocation) (llm.Client, error) {
-	return getOrCreateProviderClient(cfg, invocation.Inference.Provider)
+	return providerPool.GetOrCreate(cfg, invocation.Inference.Provider)
 }
 
 func runResolvedOneshot(cmd *cobra.Command, invocation oneshotInvocation) error {
@@ -1085,7 +1685,7 @@ func runResolvedOneshotWithClient(cmd *cobra.Command, invocation oneshotInvocati
 		MaxToolIterations: configuredMaxToolIterations(cfg),
 		ToolAudit:         audit.NewJSONLWriter(config.ToolAuditLogPath()),
 		ToolSafety:        toolSafety,
-		PrefillMessages:   configuredPrefillMessages(cfg),
+		PrefillMessages:   gormescli.ConfiguredPrefillMessages(cfg),
 	}
 	if skillRuntime := newForcedSkillRuntime(cfg, invocation.ForcedSkills); skillRuntime != nil {
 		kernelCfg.Skills = skillRuntime
@@ -1325,7 +1925,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	c := llm.NewHTTPClientWithProvider(cfg.Hermes.Endpoint, cfg.Hermes.APIKey, providerName)
 	if !offline {
 		var err error
-		c, err = newProviderHTTPClient(cfg, providerName)
+		c, err = gormescli.NewProviderHTTPClient(cfg, providerName)
 		if err != nil {
 			redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
 			return newExitCodeError(1, errors.New(formatTUIProviderSetupError(redactedErr, cfg, providerName, modelName)))
@@ -1345,7 +1945,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	resumeFlag, _ := cmd.Flags().GetString("resume")
 	continueFlag, _ := cmd.Flags().GetString("continue")
 	if resumeFlag == "" && continueFlag != "" {
-		resolved, err := resolveContinueSessionFlag(continueFlag)
+		resolved, err := gormescli.ResolveContinueSessionFlag(continueFlag)
 		if err != nil {
 			return newExitCodeError(1, err)
 		}
@@ -1384,7 +1984,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		MaxToolDuration:   30 * time.Second,
 		InitialSessionID:  initialSID,
 		ToolAudit:         toolAudit,
-		PrefillMessages:   configuredPrefillMessages(cfg),
+		PrefillMessages:   gormescli.ConfiguredPrefillMessages(cfg),
 	}, c, store.NewNoop(), tm, tuiKernelLogger())
 
 	go k.Run(rootCtx)
@@ -1426,9 +2026,11 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 
 	welcomeVersion, welcomeToolCount, welcomeToolsets := welcomeStartupSeed(registry)
 	tuiOptions := tui.Options{
-		MouseTracking:    cfg.TUI.MouseTracking,
-		KanbanSlash:      func(input string) (string, error) { return runTUIKanbanSlashCommand(rootCtx, input) },
-		PromptTemplates:  tuiPromptTemplateCatalog(cfg, "", promptTemplateCatalogOptions{Paths: invocation.PromptTemplatePaths, Disabled: invocation.NoPromptTemplates}),
+		MouseTracking: cfg.TUI.MouseTracking,
+		KanbanSlash: func(input string) (string, error) {
+			return gormescli.RunTUIKanbanSlashCommand(rootCtx, input, kanbanCommandOptions())
+		},
+		PromptTemplates:  gormescli.PromptTemplateCatalog(cfg, "", gormescli.PromptTemplateCatalogOptions{Paths: invocation.PromptTemplatePaths, Disabled: invocation.NoPromptTemplates}),
 		GatewayLogTail:   readLogsTail,
 		AccountUsage:     tuilocal.NewAccountUsageFunc(cfg),
 		OfflineSmoke:     offline,
@@ -1461,7 +2063,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 			SkillSlashReload:   tuiSkillSlashReloadFunc(cfg),
 		},
 		Session: tuiadapter.SessionBundle{
-			Export:      newTUISaveExportFunc(),
+			Export:      gormescli.NewTUISaveExportFunc(),
 			Branch:      tuilocal.NewSessionBranchFunc(rootCtx, boltMap, k.ResumeSession),
 			Title:       tuilocal.NewSessionTitleFunc(rootCtx, boltMap),
 			Directory:   tuilocal.NewSessionDirectoryFunc(rootCtx),

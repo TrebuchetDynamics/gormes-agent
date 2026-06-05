@@ -88,7 +88,7 @@ test('planBenchmarkRefresh preserves benchmark refresh guardrails', () => {
 test('parseReleaseData mirrors cmd/gormes version metadata for the landing page', () => {
   const release = parseReleaseData(
     'package main\nvar Version = "0.2.99"\nvar VersionDateAlias = "2026-05-24"\n',
-    { source: 'cmd/gormes/version.go' },
+    { source: 'cmd/gormes/main.go' },
   );
 
   assert.deepEqual(release, {
@@ -96,13 +96,13 @@ test('parseReleaseData mirrors cmd/gormes version metadata for the landing page'
     tag: 'v0.2.99',
     date_alias: '2026-05-24',
     url: 'https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.99',
-    source: 'cmd/gormes/version.go',
+    source: 'cmd/gormes/main.go',
   });
 });
 
 test('parseReleaseData reports the missing version field by source file', () => {
   assert.throws(
-    () => parseReleaseData('package main\nvar VersionDateAlias = "2026-05-24"\n', { source: 'cmd/gormes/version.go' }),
-    /could not read Version from cmd\/gormes\/version.go/,
+    () => parseReleaseData('package main\nvar VersionDateAlias = "2026-05-24"\n', { source: 'cmd/gormes/main.go' }),
+    /could not read Version from cmd\/gormes\/main.go/,
   );
 });

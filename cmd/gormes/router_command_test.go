@@ -8,11 +8,13 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 func runRouterTestCommand(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
-	cmd := newRouterCommand()
+	cmd := gormescli.NewRouterCommand()
 	var stdout, stderr bytes.Buffer
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)

@@ -16,6 +16,21 @@ type AuthLifecycleReportJSON = applogout.AuthLifecycleReportJSON
 
 type AuthLifecycleRemovedJSON = applogout.RemovedJSON
 
+func NewLogoutCommand(seams LogoutSeams, opts LogoutOptions) *cobra.Command {
+	var provider string
+	cmd := &cobra.Command{
+		Use:          "logout [--provider <provider>]",
+		Short:        "Clear stored authentication for a Hermes-compatible provider",
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return RunTopLevelLogoutCommand(cmd, provider, seams, opts)
+		},
+	}
+	cmd.Flags().StringVar(&provider, "provider", "", "provider to log out from: nous, openai-codex, or spotify")
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, action, provider, redacted}")
+	return cmd
+}
+
 func WriteAuthLifecycleJSON(out interface{ Write(p []byte) (int, error) }, report AuthLifecycleReportJSON) error {
 	return applogout.WriteAuthLifecycleJSON(out, report)
 }

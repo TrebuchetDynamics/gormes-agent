@@ -43,7 +43,7 @@ export function planBenchmarkRefresh({ binaryExists, forceRefresh = false, gitSt
   return { action: 'record' };
 }
 
-export function parseReleaseData(raw, { source = 'cmd/gormes/version.go', errorSource = source } = {}) {
+export function parseReleaseData(raw, { source = 'cmd/gormes/main.go', errorSource = source } = {}) {
   const match = raw.match(/var\s+Version\s*=\s*"([^"]+)"/);
   if (!match) {
     throw new Error(`could not read Version from ${errorSource}`);

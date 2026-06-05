@@ -15,6 +15,7 @@ import (
 
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram"
 	internalgoncho "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/goncho"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/app/audiotools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
@@ -23,6 +24,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
@@ -125,8 +127,8 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	} else {
 		slog.Warn("goncho cross-session metadata disabled while sessions.db is locked", "sessions_db", config.SessionDBPath())
 	}
-	svc := newChannelGonchoService(mstore.DB(), gonchoCfg, slog.Default(), hc, cfg.Hermes.Model)
-	registerChannelGonchoTools(reg, svc)
+	svc := gormescli.NewChannelGonchoService(mstore.DB(), gonchoCfg, slog.Default(), hc, cfg.Hermes.Model)
+	gormescli.RegisterChannelGonchoTools(reg, svc)
 
 	tm := telemetry.New()
 	toolAudit := audit.NewJSONLWriter(config.ToolAuditLogPath())
@@ -175,7 +177,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		ChatKey:           key,
 		Goncho:            gonchoStore,
 		ToolAudit:         toolAudit,
-		PrefillMessages:   configuredPrefillMessages(cfg),
+		PrefillMessages:   gormescli.ConfiguredPrefillMessages(cfg),
 	}, hc, mstore, tm, slog.Default())
 
 	// Phase 3.B — async LLM-assisted entity/relationship extractor.
@@ -208,7 +210,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		GuestMode:         cfg.Telegram.GuestMode,
 		BotUsername:       cfg.Telegram.BotUsername,
 		Notifications:     cfg.Telegram.Notifications,
-		AudioTranscriber:  resolveTelegramAudioTranscriber(),
+		AudioTranscriber:  audiotools.ResolveTelegramAudioTranscriber(),
 		DynamicCommands:   gatewayTelegramDynamicCommands(rootCtx, cfg),
 		TokenLockDir:      config.GatewayLockDir(),
 	}, tc, slog.Default())

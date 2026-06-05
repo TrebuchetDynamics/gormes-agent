@@ -9,8 +9,28 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
+
+type curatorCommandDeps struct {
+	skillsRoot func() string
+	now        func() time.Time
+	reviewer   skills.CuratorReviewer
+}
+
+func newCuratorCommandWithDeps(deps curatorCommandDeps) *cobra.Command {
+	return gormescli.NewCuratorCommandWithDeps(gormescli.CuratorCommandDeps{
+		SkillsRoot: deps.skillsRoot,
+		Now:        deps.now,
+		Reviewer:   deps.reviewer,
+	}, func() gormescli.BuildProvenance {
+		build := newBuildProvenance()
+		return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+	})
+}
 
 func TestCuratorCommand_Status(t *testing.T) {
 	root := setupCuratorCommandHome(t)

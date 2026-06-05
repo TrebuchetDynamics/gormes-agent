@@ -19,6 +19,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 type updateCommandSeams struct {
@@ -1517,7 +1518,8 @@ func printUpdateReport(cmd *cobra.Command, report cli.UpdateReport, checkOnly bo
 }
 
 func printCuratorRecentRunNotice(cmd *cobra.Command) {
-	root := resolveCuratorSkillsRoot(curatorCommandDeps{})
+	curatorDeps := gormescli.CuratorCommandDeps{}
+	root := gormescli.ResolveCuratorSkillsRoot(curatorDeps)
 	curator := skills.NewCurator(skills.CuratorConfig{Root: root})
 	state, err := curator.LoadState()
 	if err != nil || state.LastRunAt == nil || state.LastRunAt.IsZero() {
@@ -1537,7 +1539,7 @@ func printCuratorRecentRunNotice(cmd *cobra.Command) {
 	}
 
 	out := cmd.OutOrStdout()
-	fmt.Fprintf(out, "\nℹ Skill curator — last run %s\n", formatCuratorTimestamp(state.LastRunAt, curatorCommandDeps{}))
+	fmt.Fprintf(out, "\nℹ Skill curator — last run %s\n", gormescli.FormatCuratorTimestamp(state.LastRunAt, curatorDeps))
 	for _, line := range strings.Split(summary, "\n") {
 		fmt.Fprintf(out, "  %s\n", line)
 	}
