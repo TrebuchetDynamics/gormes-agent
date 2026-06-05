@@ -129,13 +129,13 @@ func bubbleTeaPickShouldFallback(err error) bool {
 // notes, release.json, and the GitHub release title. The git tag remains
 // v<Version> until the release workflow learns to extract version from this
 // file independently of the tag string.
-var Version = "0.2.23"
+var Version = "0.2.24"
 
 // VersionDateAlias is the Hermes-style vYYYY.M.D paired alias for the
 // current release. Bumped together with Version on every release. Fleet
 // automation (whose own version IS the date) consumes this through
 // `gormes version --json`.
-var VersionDateAlias = "v2026.5.25"
+var VersionDateAlias = "v2026.6.5"
 
 // GitCommit is the source SHA the binary was built from. Defaults to
 // "unknown" in dev/source builds; release CI is expected to inject the

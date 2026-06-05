@@ -8,6 +8,26 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.24] - 2026-06-05
+
+Date alias: `v2026.6.5`.
+
+> **Command-domain refactors, safer Navivox exposure, and landing deploy smoke freshness.**
+
+### Added
+- Piper sidecar repair command, Go-native TTS fixture provider, local web crawler gating, MCP OSV malware guard, and send-message contract validation.
+- Native image/voice configuration seams and root tools command config backing for broader runtime setup coverage.
+
+### Changed
+- Large `cmd/gormes` command/runtime surfaces moved into internal app packages with domain-focused tests and topology guidance.
+- Landing homepage and deploy smoke checks now track the simplified Astro copy and current proof surfaces.
+- Public benchmark mirrors and progress/refactor guidance were refreshed from current evidence.
+
+### Fixed
+- Navivox rejects weak exposed tokens and URL-embedded credentials while CI coverage protects the auth contract.
+- Provider cache and managed gateway handling are more robust; Hermes tool progress honors the environment fallback.
+- Whisper transcribe tests skip cleanly when the local model is unavailable.
+
 ## [0.2.23] - 2026-05-25
 
 Date alias: `v2026.5.25`.
@@ -1207,7 +1227,8 @@ until the release workflow accepts date-based tags as a separate concern).
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.23...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.24...HEAD
+[0.2.24]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.23...v0.2.24
 [0.2.23]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.22...v0.2.23
 [0.2.22]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.21...v0.2.22
 [0.2.21]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.20...v0.2.21
