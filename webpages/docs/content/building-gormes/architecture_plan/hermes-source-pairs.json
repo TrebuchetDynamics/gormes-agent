@@ -213,7 +213,7 @@
     {
       "hermes_file": "hermes_cli/auth_commands.py",
       "gormes_targets": [
-        "cmd/gormes/auth.go",
+        "internal/platform/cli/gormescli/modules/providers/auth_runtime.go",
         "internal/platform/cli/gormescli/providerauth.go",
         "internal/config/credential_pool.go",
         "internal/config/token_vault.go"

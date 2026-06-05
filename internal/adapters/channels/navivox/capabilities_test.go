@@ -1,6 +1,7 @@
 package navivox
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/network/vpnhost"
 )
 
 func TestNavivoxCapabilitiesEndpointAdvertisesStableContract(t *testing.T) {
@@ -159,14 +161,27 @@ func TestNavivoxCapabilitiesAuthContractFollowsActiveMode(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.mode, func(t *testing.T) {
+			bindHost := config.NavivoxDefaultBindHost
+			exposureMode := config.NavivoxExposureLocal
+			allowOrigins := []string{"*"}
+			if tc.mode == config.NavivoxAuthTokenAndTailscaleIdentity {
+				prev := vpnHostLister
+				t.Cleanup(func() { vpnHostLister = prev })
+				vpnHostLister = func(context.Context) ([]vpnhost.Host, error) {
+					return []vpnhost.Host{{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"}}, nil
+				}
+				bindHost = "100.64.1.2"
+				exposureMode = config.NavivoxExposureTailscale
+				allowOrigins = []string{"https://navivox.example"}
+			}
 			ch, err := NewChannel(config.NavivoxCfg{
 				Enabled:      true,
-				BindHost:     config.NavivoxDefaultBindHost,
+				BindHost:     bindHost,
 				Port:         config.NavivoxDefaultPort,
-				ExposureMode: config.NavivoxExposureLocal,
+				ExposureMode: exposureMode,
 				AuthMode:     tc.mode,
-				Token:        "nvbx_test_token",
-				AllowOrigins: []string{"*"},
+				Token:        strongNavivoxTokenForTests,
+				AllowOrigins: allowOrigins,
 			}, nil)
 			if err != nil {
 				t.Fatal(err)

@@ -11,7 +11,8 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
-	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/profiles"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	cliprofile "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/profile"
 	"github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
 )
@@ -107,34 +108,72 @@ func (c *Channel) defaultProfileContacts(ctx context.Context) ([]ProfileContact,
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	seams := profilemodule.DefaultSeams()
-	known := []string{"main"}
-	if seams.ListKnownProfiles != nil {
-		if names, err := seams.ListKnownProfiles(); err == nil && len(names) > 0 {
-			known = names
-		}
-	}
+	baseHome := config.GormesBaseHome()
+	known := navivoxKnownProfileNames(baseHome)
 	contacts := make([]ProfileContact, 0, len(known))
-	seen := map[string]struct{}{}
 	for _, name := range known {
-		name = strings.TrimSpace(name)
-		if name == "" {
-			continue
-		}
-		if _, ok := seen[name]; ok {
-			continue
-		}
-		seen[name] = struct{}{}
 		root := ""
-		if seams.ResolveProfileRoot != nil {
-			if resolved, err := seams.ResolveProfileRoot(name); err == nil {
-				root = resolved
-			}
+		if resolved, err := cliprofile.ResolveProfileRuntimeRoot(baseHome, name); err == nil {
+			root = resolved
 		}
 		contacts = append(contacts, c.profileContactFromRoot(name, root))
 	}
 	sortProfileContacts(contacts)
 	return contacts, nil
+}
+
+func navivoxKnownProfileNames(baseHome string) []string {
+	known := []string{config.DefaultProfileID}
+	seen := map[string]struct{}{config.DefaultProfileID: {}}
+	addName := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return
+		}
+		if _, ok := seen[name]; ok {
+			return
+		}
+		if err := cliprofile.ValidateProfileName(name); err != nil {
+			return
+		}
+		seen[name] = struct{}{}
+		known = append(known, name)
+	}
+	if cfg, err := navivoxLoadConfigFromBaseHome(baseHome); err == nil {
+		for name := range cfg.Profiles {
+			addName(name)
+		}
+	}
+	profilesDir := filepath.Join(baseHome, "profiles")
+	entries, err := os.ReadDir(profilesDir)
+	if err != nil {
+		return known
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			addName(entry.Name())
+		}
+	}
+	return known
+}
+
+func navivoxLoadConfigFromBaseHome(baseHome string) (config.Config, error) {
+	baseHome = strings.TrimSpace(baseHome)
+	if baseHome == "" || filepath.Clean(config.GormesHome()) == filepath.Clean(baseHome) {
+		return config.Load(nil)
+	}
+	rawHome, hadHome := os.LookupEnv("GORMES_HOME")
+	if err := os.Setenv("GORMES_HOME", baseHome); err != nil {
+		return config.Config{}, err
+	}
+	defer func() {
+		if hadHome {
+			_ = os.Setenv("GORMES_HOME", rawHome)
+		} else {
+			_ = os.Unsetenv("GORMES_HOME")
+		}
+	}()
+	return config.Load(nil)
 }
 
 func (c *Channel) profileContactFromRoot(name, root string) ProfileContact {

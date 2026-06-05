@@ -15,9 +15,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	channelnavivox "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/navivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
 )
 
 type PairOptions struct {
@@ -266,13 +266,13 @@ func startNavivoxPairBridge(ctx context.Context, cfg config.NavivoxCfg, autoPort
 	bridgeCtx, stop := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	inbox := make(chan gateway.InboundEvent, 16)
-	handler, err := channelsmodule.NewNavivoxPairBridgeHandler(cfg, inbox)
+	channel, err := channelnavivox.NewChannel(cfg, nil, channelnavivox.WithSingleUsePairingStream())
 	if err != nil {
 		stop()
 		_ = ln.Close()
-		return config.NavivoxCfg{}, nil, nil, err
+		return config.NavivoxCfg{}, nil, nil, fmt.Errorf("navivox pair: create local bridge: %w", err)
 	}
-	server := &http.Server{Handler: handler}
+	server := &http.Server{Handler: channel.Handler(inbox)}
 	go func() {
 		<-bridgeCtx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)

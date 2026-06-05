@@ -1,0 +1,23 @@
+package gormescli
+
+import (
+	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+)
+
+func ConfiguredMaxToolIterations(cfg config.Config) int {
+	if cfg.Runtime.MaxToolIterations > 0 {
+		return cfg.Runtime.MaxToolIterations
+	}
+	return kernel.DefaultMaxToolIterations
+}
+
+func ConfiguredTTSProvider(cfg config.Config) string {
+	provider := strings.ToLower(strings.TrimSpace(cfg.Runtime.TTSProvider))
+	if provider == "" {
+		return "edge"
+	}
+	return provider
+}

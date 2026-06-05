@@ -51,17 +51,17 @@ func TestSetupProviderChoiceUsesSearchableBubbleTeaPickerForTTY(t *testing.T) {
 }
 
 func TestModelChoiceUsesBubbleTeaPickerForTTY(t *testing.T) {
-	raw, err := os.ReadFile("model.go")
+	raw, err := os.ReadFile("../../internal/platform/cli/gormescli/model.go")
 	if err != nil {
-		t.Fatalf("read model.go: %v", err)
+		t.Fatalf("read internal model.go: %v", err)
 	}
 	text := string(raw)
 	for _, want := range []string{
-		"runBubbleTeaPickWithOptions(ctx, stdin, out, \"Select model for \"+provider",
-		"modelPickerChoices(allModels)",
-		"defaultModelChoiceID(allModels, current)",
+		"RunTUIPickWithOptions(ctx, stdin, out, \"Select model for \"+provider",
+		"ModelPickerChoices(allModels)",
+		"DefaultModelChoiceID(allModels, current)",
 		"setupwizard.WithSearchChoices()",
-		"promptModelChoiceText(in, out, provider, current, models)",
+		"PromptModelChoiceText(in, out, provider, current, models)",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("model choice missing Bubble Tea routing marker %q", want)

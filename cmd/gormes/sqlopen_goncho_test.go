@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/goncho/service"
+	gonchoadapter "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
@@ -208,7 +209,7 @@ func TestGonchoGatewayTurnWriteSurvivesTransientProfileLock(t *testing.T) {
 		WorkspaceID:    "default",
 		ObserverPeerID: "gormes",
 	}, nil)
-	store := newGonchoAdapter(svc)
+	store := gonchoadapter.NewStore(svc)
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- store.AppendTurn(

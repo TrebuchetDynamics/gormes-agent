@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/remoteruntime"
 )
 
 func ResolveRemoteURL(flagValue string) string {
@@ -29,5 +29,5 @@ func ResolveRemoteSidecarURL() string {
 }
 
 func IsWebSocketRemoteURL(raw string) bool {
-	return gormescli.IsWebSocketRemoteURL(raw)
+	return remoteruntime.IsWebSocketRemoteURL(raw)
 }

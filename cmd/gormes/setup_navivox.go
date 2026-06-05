@@ -134,7 +134,7 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 	if authMode == config.NavivoxAuthPairingToken || authMode == config.NavivoxAuthStaticToken || authMode == config.NavivoxAuthTokenAndTailscaleIdentity {
 		token = strings.TrimSpace(cfg.Navivox.Token)
 		if token == "" {
-			generated, err := generateNavivoxSetupToken()
+			generated, err := navivox.GenerateSetupToken()
 			if err != nil {
 				return err
 			}
@@ -219,7 +219,7 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 		}
 	}
 
-	baseURL, wsURL := navivoxConnectInfoURLs(runtimeCfg.BindHost, runtimeCfg.Port)
+	baseURL, wsURL := navivox.NavivoxConnectInfoURLs(runtimeCfg.BindHost, runtimeCfg.Port)
 	pairingURI, err := navivoxSetupPairingURI(runtimeCfg)
 	if err != nil {
 		return err

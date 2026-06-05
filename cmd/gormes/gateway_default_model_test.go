@@ -12,6 +12,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
 )
 
 func TestGatewayBoot_OpenAICodexProvider_DefaultsModel(t *testing.T) {
@@ -45,8 +46,7 @@ func TestGatewayBoot_OpenAICodexProvider_DefaultsModel(t *testing.T) {
 	}))
 	defer server.Close()
 
-	prev := authCodexOAuthLogin
-	authCodexOAuthLogin = func(context.Context, codexOAuthLoginRequest) (config.CodexOAuthTokens, error) {
+	restoreOAuthLogin := providermodule.SetCodexOAuthLoginForTest(func(context.Context, providermodule.CodexOAuthLoginRequest) (config.CodexOAuthTokens, error) {
 		return config.CodexOAuthTokens{
 			AccountID:    "acct",
 			Label:        "Codex",
@@ -54,8 +54,8 @@ func TestGatewayBoot_OpenAICodexProvider_DefaultsModel(t *testing.T) {
 			RefreshToken: "refresh-token",
 			BaseURL:      server.URL,
 		}, nil
-	}
-	t.Cleanup(func() { authCodexOAuthLogin = prev })
+	})
+	t.Cleanup(restoreOAuthLogin)
 
 	cmd := newRootCommandWithRuntime(rootRuntime{})
 	stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "add", "openai-codex", "--type", "oauth", "--inference-url", server.URL)

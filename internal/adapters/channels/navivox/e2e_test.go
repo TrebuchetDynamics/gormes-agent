@@ -13,6 +13,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/network/vpnhost"
 )
 
 func TestNavivoxE2ERejectsWeakPublicTokenBeforeListen(t *testing.T) {
@@ -34,6 +35,68 @@ func TestNavivoxE2ERejectsWeakPublicTokenBeforeListen(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("error = %q, missing %q", err, want)
 		}
+	}
+}
+
+func TestNavivoxE2ERejectsLayeredTailscaleIdentityAuthOnPublicExposure(t *testing.T) {
+	_, err := NewChannel(config.NavivoxCfg{
+		Enabled:         true,
+		GatewayID:       "gw_0123456789abcdef0123456789abcdef",
+		BindHost:        "0.0.0.0",
+		Port:            config.NavivoxDefaultPort,
+		ExposureMode:    config.NavivoxExposurePublic,
+		AuthMode:        config.NavivoxAuthTokenAndTailscaleIdentity,
+		Token:           strongNavivoxTokenForTests,
+		PublicConfirmed: true,
+		AllowOrigins:    []string{"https://navivox.example"},
+	}, nil)
+	if err == nil {
+		t.Fatal("NewChannel error = nil, want public token+tailscale identity rejection")
+	}
+	for _, want := range []string{"token_and_tailscale_identity", "tailscale"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error = %q, missing %q", err, want)
+		}
+	}
+}
+
+func TestNavivoxE2ERejectsConflictingTailscaleIdentityHeaders(t *testing.T) {
+	prev := vpnHostLister
+	t.Cleanup(func() { vpnHostLister = prev })
+	vpnHostLister = func(context.Context) ([]vpnhost.Host, error) {
+		return []vpnhost.Host{{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"}}, nil
+	}
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:                  true,
+		GatewayID:                "gw_0123456789abcdef0123456789abcdef",
+		BindHost:                 "100.64.1.2",
+		Port:                     config.NavivoxDefaultPort,
+		ExposureMode:             config.NavivoxExposureTailscale,
+		AuthMode:                 config.NavivoxAuthTokenAndTailscaleIdentity,
+		Token:                    strongNavivoxTokenForTests,
+		AllowedTailnetIdentities: []string{"juan@example.com"},
+		AllowOrigins:             []string{"https://navivox.example"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer "+strongNavivoxTokenForTests)
+	req.Header.Set("Tailscale-User-Login", "juan@example.com")
+	req.Header.Set("X-Tailscale-User-Login", "intruder@example.com")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("conflicting tailscale identity headers status = %d, want 401", resp.StatusCode)
 	}
 }
 
@@ -143,6 +206,46 @@ func TestNavivoxE2EAuthFailuresRateLimitRemoteHost(t *testing.T) {
 	}
 }
 
+func TestNavivoxE2EURLCredentialProbingIsRateLimited(t *testing.T) {
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		GatewayID:    "gw_0123456789abcdef0123456789abcdef",
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 6, 4, 9, 0, 0, 0, time.UTC)
+	ch.now = func() time.Time { return now }
+	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
+	defer server.Close()
+
+	for i := 0; i < navivoxAuthFailureLimit; i++ {
+		resp, err := http.Get(server.URL + "/v1/navivox/status?token=nvbx_test_token")
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("url credential attempt %d status = %d, want 401", i+1, resp.StatusCode)
+		}
+	}
+
+	locked, err := http.Get(server.URL + "/v1/navivox/status?token=nvbx_test_token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer locked.Body.Close()
+	if locked.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("url credential during auth lockout status = %d, want 429", locked.StatusCode)
+	}
+}
+
 func TestNavivoxE2ERejectsURLCredentialEvenWithValidTokenAuth(t *testing.T) {
 	ch, err := NewChannel(config.NavivoxCfg{
 		Enabled:      true,
@@ -190,6 +293,84 @@ func TestNavivoxE2ERejectsURLCredentialEvenWithValidTokenAuth(t *testing.T) {
 			status = wsResp.StatusCode
 		}
 		t.Fatalf("websocket query token status = %d err=%v, want 401", status, err)
+	}
+}
+
+func TestNavivoxE2EHTTPTurnRequiresJSONContentType(t *testing.T) {
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		GatewayID:    "gw_0123456789abcdef0123456789abcdef",
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodPost, server.URL+"/v1/navivox/turn", strings.NewReader(`{"request_id":"req-json","text":"hello"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	req.Header.Set("Content-Type", "text/plain")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnsupportedMediaType {
+		t.Fatalf("text/plain turn status = %d, want 415", resp.StatusCode)
+	}
+	select {
+	case ev := <-inbox:
+		t.Fatalf("text/plain turn enqueued event = %+v, want none", ev)
+	default:
+	}
+}
+
+func TestNavivoxE2EHTTPTurnRejectsTrailingJSON(t *testing.T) {
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		GatewayID:    "gw_0123456789abcdef0123456789abcdef",
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodPost, server.URL+"/v1/navivox/turn", strings.NewReader(`{"request_id":"req-one","text":"first"}{"request_id":"req-two","text":"second"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("trailing JSON turn status = %d, want 400", resp.StatusCode)
+	}
+	select {
+	case ev := <-inbox:
+		t.Fatalf("trailing JSON turn enqueued event = %+v, want none", ev)
+	default:
 	}
 }
 

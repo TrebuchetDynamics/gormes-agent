@@ -128,6 +128,9 @@ func NormalizeNavivoxConfig(cfg *NavivoxCfg) error {
 	if cfg.AuthMode == NavivoxAuthTailscaleIdentity {
 		return fmt.Errorf("config: navivox.auth_mode=tailscale_identity is not allowed as standalone Navivox auth; use token auth or token_and_tailscale_identity")
 	}
+	if cfg.AuthMode == NavivoxAuthTokenAndTailscaleIdentity && cfg.ExposureMode != NavivoxExposureTailscale {
+		return fmt.Errorf("config: navivox.auth_mode=token_and_tailscale_identity requires navivox.exposure_mode=tailscale because identity headers are only trusted on Tailscale")
+	}
 	if err := navivoxValidateExposedToken(cfg); err != nil {
 		return err
 	}

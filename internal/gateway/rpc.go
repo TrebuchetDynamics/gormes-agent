@@ -22,6 +22,13 @@ type RPCRuntime = gatewayrpc.RPCRuntime
 
 type RPCModeOptions = gatewayrpc.RPCModeOptions
 
+type KernelRPCRuntimeOptions = gatewayrpc.KernelRuntimeOptions
+type KernelRPCRuntime = gatewayrpc.KernelRuntime
+
+func NewKernelRPCRuntime(opts KernelRPCRuntimeOptions) *KernelRPCRuntime {
+	return gatewayrpc.NewKernelRuntime(opts)
+}
+
 // RunRPCMode runs a strict LF-framed stdin/stdout JSONL protocol. Stderr is not
 // touched; malformed input and unsupported commands are reported as structured
 // response records on stdout and do not terminate the loop.

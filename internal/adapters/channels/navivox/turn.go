@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"mime"
 	"net/http"
 	"strings"
 
@@ -53,14 +55,23 @@ func (c *Channel) handleTurn(inbox chan<- gateway.InboundEvent) func(http.Respon
 			writeNavivoxError(w, http.StatusMethodNotAllowed, "", "bad_request", "Method not allowed")
 			return
 		}
+		if !navivoxRequestHasJSONContentType(r) {
+			writeNavivoxError(w, http.StatusUnsupportedMediaType, "", "unsupported_media_type", "Content-Type must be application/json")
+			return
+		}
 		var req turnRequest
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, navivoxMaxTurnRequestBytes)).Decode(&req); err != nil {
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, navivoxMaxTurnRequestBytes))
+		if err := decoder.Decode(&req); err != nil {
 			var maxBytesErr *http.MaxBytesError
 			if errors.As(err, &maxBytesErr) {
 				writeNavivoxError(w, http.StatusRequestEntityTooLarge, req.RequestID, "request_too_large", "Request is too large")
 				return
 			}
 			writeNavivoxError(w, http.StatusBadRequest, "", "bad_request", "Invalid JSON")
+			return
+		}
+		if err := navivoxRejectTrailingJSONValue(decoder); err != nil {
+			writeNavivoxError(w, http.StatusBadRequest, req.RequestID, "bad_request", "Invalid JSON")
 			return
 		}
 		sessionID, contact, err := c.enqueueTurn(r.Context(), inbox, turnInputFromRequest(req), identity)
@@ -77,6 +88,30 @@ func (c *Channel) handleTurn(inbox chan<- gateway.InboundEvent) func(http.Respon
 			c.broadcastProfileContact(*contact)
 		}
 	}
+}
+
+func navivoxRejectTrailingJSONValue(decoder *json.Decoder) error {
+	var extra any
+	if err := decoder.Decode(&extra); err != nil {
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		return err
+	}
+	return errors.New("unexpected trailing JSON value")
+}
+
+func navivoxRequestHasJSONContentType(r *http.Request) bool {
+	contentType := strings.TrimSpace(r.Header.Get("Content-Type"))
+	if contentType == "" {
+		return false
+	}
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return false
+	}
+	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
+	return mediaType == "application/json" || strings.HasSuffix(mediaType, "+json")
 }
 
 func (c *Channel) enqueueTurn(ctx context.Context, inbox chan<- gateway.InboundEvent, turn turnInput, identity string) (string, *ProfileContact, error) {

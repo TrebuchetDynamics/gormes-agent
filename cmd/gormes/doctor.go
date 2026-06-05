@@ -303,11 +303,11 @@ func buildDoctorCmd() *cobra.Command {
 			}
 
 			// Toolbox section — inspect the built-in registry. Runs in both modes.
-			reg := buildDefaultRegistry(context.Background(), cfg, nil, cfg.Hermes.Model)
+			reg := gormescli.BuildDefaultRegistry(context.Background(), cfg, nil, cfg.Hermes.Model)
 			result := doctor.CheckTools(reg)
 			reporter.Add(result)
 			reporter.Add(doctorWebToolsStatus(cfg))
-			reporter.Add(doctorBrowserRuntimeStatusWithDeps(browserRuntimeDoctorDeps{offline: offline}))
+			reporter.Add(gormescli.DoctorBrowserRuntimeStatusWithDeps(gormescli.BrowserRuntimeDoctorDeps{Offline: offline}))
 			reporter.Add(doctorACPBridgeStatus())
 			reporter.Add(doctorGitHubAuthStatus(cmd.Context(), offline))
 			reporter.Add(doctor.CheckSkillsHub(cmd.Context(), doctor.SkillsHubOptions{

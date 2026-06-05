@@ -19,6 +19,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/channelmemory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
@@ -67,7 +68,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	if sessionNotice != "" {
 		slog.Warn(sessionNotice, "sessions_db", config.SessionDBPath(), "action", "answering Telegram with in-memory session state; stop the other gormes owner or use `gormes gateway status` / `gormes gateway stop` to restore persistence")
 	}
-	if sessionMirror := startSessionIndexMirror(boltMap, slog.Default()); sessionMirror != nil {
+	if sessionMirror := gormescli.StartSessionIndexMirror(boltMap, slog.Default()); sessionMirror != nil {
 		defer sessionMirror.Stop()
 	}
 
@@ -94,7 +95,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Phase 3.A — open the SQLite memory store; worker starts immediately.
-	memorySettings := channelMemorySettingsFromConfig(cfg)
+	memorySettings := channelmemory.SettingsFromConfig(cfg)
 	mstore, err := memory.OpenSqlite(config.MemoryDBPath(), memorySettings.QueueCap, slog.Default())
 	if err != nil {
 		return fmt.Errorf("memory store: %w", err)
@@ -120,7 +121,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	rootCtx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	reg := buildDefaultRegistry(rootCtx, cfg, hc, cfg.Hermes.Model)
+	reg := gormescli.BuildDefaultRegistry(rootCtx, cfg, hc, cfg.Hermes.Model)
 	gonchoCfg := cfg.Goncho.RuntimeConfig()
 	if boltMap != nil {
 		gonchoCfg.SessionDirectory = &internalgoncho.SessionDirectoryAdapter{Map: boltMap}
@@ -133,7 +134,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	tm := telemetry.New()
 	toolAudit := audit.NewJSONLWriter(config.ToolAuditLogPath())
 
-	legacyRecallActive := memorySettings.legacyRecallActive(cfg.Telegram.AllowedChatID != 0)
+	legacyRecallActive := memorySettings.LegacyRecallActive(cfg.Telegram.AllowedChatID != 0)
 
 	// Phase 3.D — semantic fusion wiring for the legacy recall fallback.
 	// Activated only when Goncho is disabled, Telegram recall is active,
@@ -142,7 +143,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	// (Ollama often hosts both /v1/chat/completions and /v1/embeddings).
 	var semCache *memory.SemanticCache
 	var ec *memory.EmbedClient
-	if memorySettings.semanticFusionActive(legacyRecallActive) {
+	if memorySettings.SemanticFusionActive(legacyRecallActive) {
 		endpoint := memorySettings.SemanticEndpoint
 		if endpoint == "" {
 			endpoint = cfg.Hermes.Endpoint
@@ -151,7 +152,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		semCache = memory.NewSemanticCache()
 	}
 
-	gonchoStore, recallProv := channelMemoryProviders(channelMemoryOptions{
+	gonchoStore, recallProv := channelmemory.Providers(channelmemory.Options{
 		GonchoEnabled:       cfg.Goncho.Enabled,
 		GonchoService:       svc,
 		PeerID:              key,
@@ -170,7 +171,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		Endpoint:          cfg.Hermes.Endpoint,
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
 		Tools:             reg,
-		MaxToolIterations: configuredMaxToolIterations(cfg),
+		MaxToolIterations: gormescli.ConfiguredMaxToolIterations(cfg),
 		MaxToolDuration:   30 * time.Second,
 		InitialSessionID:  initialSID,
 		Recall:            recallProv,

@@ -93,7 +93,7 @@ var knownProviderEndpoints = map[string]string{
 	providerGroq:      "https://api.groq.com/openai/v1",
 	providerOllama:    "http://localhost:11434/v1",
 	"openai-codex":    "https://chatgpt.com/backend-api/codex",
-	"openrouter":      openRouterBaseURL,
+	"openrouter":      providermodule.OpenRouterBaseURL,
 	"opencode":        "https://opencode.ai/zen/v1",
 	"opencode-go":     "https://opencode.ai/zen/go/v1",
 }
@@ -203,7 +203,7 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 	}
 	if seams.RunModelPicker == nil {
 		seams.RunModelPicker = func(cmd *cobra.Command) error {
-			pickerCmd := newModelCommand()
+			pickerCmd := gormescli.NewModelCommand()
 			pickerCmd.SetOut(cmd.OutOrStdout())
 			pickerCmd.SetErr(cmd.ErrOrStderr())
 			pickerCmd.SetIn(cmd.InOrStdin())
@@ -1080,7 +1080,7 @@ func runSetupSelectedProviderFlow(cmd *cobra.Command, seams setupCommandSeams, c
 		return cli.ErrSelectorNoMatch
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Selected provider: %s\n", setupProviderDisplayLabel(provider))
-	if authProviderDefaultsToOAuth(provider) {
+	if providermodule.AuthProviderDefaultsToOAuth(provider) {
 		return runSetupOAuthProviderFlow(cmd, seams, current, provider)
 	}
 	if err := seams.RunActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: provider, Model: setupModelSeedForProvider(current, provider)}); err != nil {
@@ -1174,19 +1174,19 @@ func runSetupActiveProviderModelPicker(cmd *cobra.Command, current cli.ProviderM
 	if provider == "" {
 		return cli.ErrSelectorNoMatch
 	}
-	suggestions := defaultModelPickerSuggestionSet(provider)
+	suggestions := gormescli.DefaultModelPickerSuggestionSet(provider)
 	if suggestions.DegradedReason != "" {
 		fmt.Fprintf(cmd.OutOrStdout(), "Model catalog degraded for %s: %s; accepting free-text model.\n", provider, suggestions.DegradedReason)
 	}
-	model, err := promptModelChoiceWithOptions(cmd.InOrStdin(), cmd.OutOrStdout(), provider, current.Model, suggestions.Models, modelChoicePromptOptions{
+	model, err := gormescli.PromptModelChoiceWithOptions(cmd.InOrStdin(), cmd.OutOrStdout(), provider, current.Model, suggestions.Models, gormescli.ModelChoicePromptOptions{
 		Context:         cmd.Context(),
-		SuggestionLimit: modelChoiceSuggestionLimitUnlimited,
+		SuggestionLimit: gormescli.ModelChoiceSuggestionLimitUnlimited,
 	})
 	if err != nil {
 		return err
 	}
 	model = llm.NormalizeProviderModelID(provider, model)
-	if err := persistModelSelectionToConfig(cli.Selection{Provider: provider, Model: model}); err != nil {
+	if err := gormescli.PersistModelSelectionToConfig(cli.Selection{Provider: provider, Model: model}); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "model selection saved: provider=%s model=%s\n", provider, model)
@@ -1194,7 +1194,7 @@ func runSetupActiveProviderModelPicker(cmd *cobra.Command, current cli.ProviderM
 }
 
 func runSetupProviderAuth(cmd *cobra.Command, provider string) error {
-	authCmd := newAuthCommand()
+	authCmd := providermodule.NewAuthCommand(providerCommandOptions())
 	authCmd.SetOut(cmd.OutOrStdout())
 	authCmd.SetErr(cmd.ErrOrStderr())
 	authCmd.SetIn(cmd.InOrStdin())
@@ -1205,7 +1205,7 @@ func runSetupProviderAuth(cmd *cobra.Command, provider string) error {
 }
 
 func setupManagedInstallDir() string {
-	if dir, err := resolveManagedCheckoutDir(); err == nil && strings.TrimSpace(dir) != "" {
+	if dir, err := gormescli.ResolveManagedCheckoutDir(); err == nil && strings.TrimSpace(dir) != "" {
 		return dir
 	}
 	return filepath.Join(config.GormesHome(), "gormes-agent")
@@ -1429,7 +1429,7 @@ func setupProviderAutoDetectEnvProvider() string {
 
 func setupProviderShouldUseOAuth(provider, apiKey string) bool {
 	provider = setupCanonicalProviderID(provider)
-	if !authProviderDefaultsToOAuth(provider) {
+	if !providermodule.AuthProviderDefaultsToOAuth(provider) {
 		return false
 	}
 	if strings.TrimSpace(apiKey) != "" && setupProviderSupportsAPIKey(provider) {
@@ -1443,7 +1443,7 @@ func setupProviderSupportsAPIKey(provider string) bool {
 	if entry, ok := llm.ResolveProviderManifestEntry(provider); ok {
 		return strings.EqualFold(strings.TrimSpace(entry.AuthType), "api_key")
 	}
-	return !authProviderDefaultsToOAuth(provider)
+	return !providermodule.AuthProviderDefaultsToOAuth(provider)
 }
 
 func setupProviderImplicitAPIKeyEnv(envName string) bool {
@@ -1543,7 +1543,7 @@ func setupProviderInteractive(cmd *cobra.Command, seams setupCommandSeams) error
 	}
 
 	provider := setupCanonicalProviderID(entries[idx].ID)
-	if authProviderDefaultsToOAuth(provider) {
+	if providermodule.AuthProviderDefaultsToOAuth(provider) {
 		return runSetupSelectedProviderFlow(cmd, seams, current, provider)
 	}
 	var endpoint string
@@ -1574,9 +1574,9 @@ func setupProviderInteractive(cmd *cobra.Command, seams setupCommandSeams) error
 	}
 
 	defaultModel := setupProviderModelDefault(current, provider)
-	model, err := promptModelChoiceWithOptions(cmd.InOrStdin(), out, provider, defaultModel, defaultModelPickerSuggestionSet(provider).Models, modelChoicePromptOptions{
+	model, err := gormescli.PromptModelChoiceWithOptions(cmd.InOrStdin(), out, provider, defaultModel, gormescli.DefaultModelPickerSuggestionSet(provider).Models, gormescli.ModelChoicePromptOptions{
 		Context:         cmd.Context(),
-		SuggestionLimit: modelChoiceSuggestionLimitUnlimited,
+		SuggestionLimit: gormescli.ModelChoiceSuggestionLimitUnlimited,
 	})
 	if err != nil {
 		if errors.Is(err, cli.ErrModelPickerCancelled) {
@@ -1632,7 +1632,7 @@ func setupProviderEndpointDefault(provider string) string {
 	if endpoint := setupProviderEndpointEnvDefault(provider); endpoint != "" {
 		return endpoint
 	}
-	if endpoint := providerBaseURL(provider, ""); strings.TrimSpace(endpoint) != "" {
+	if endpoint := providermodule.ProviderBaseURL(provider, ""); strings.TrimSpace(endpoint) != "" {
 		return cleanSetupProviderEndpoint(endpoint)
 	}
 	if endpoint := knownProviderEndpoints[provider]; strings.TrimSpace(endpoint) != "" {
@@ -1642,7 +1642,7 @@ func setupProviderEndpointDefault(provider string) string {
 		if endpoint := setupProviderEndpointEnvDefault(entry.ID); endpoint != "" {
 			return endpoint
 		}
-		if endpoint := providerBaseURL(entry.ID, ""); strings.TrimSpace(endpoint) != "" {
+		if endpoint := providermodule.ProviderBaseURL(entry.ID, ""); strings.TrimSpace(endpoint) != "" {
 			return cleanSetupProviderEndpoint(endpoint)
 		}
 		if endpoint := knownProviderEndpoints[entry.ID]; strings.TrimSpace(endpoint) != "" {
@@ -2324,10 +2324,10 @@ func runSetupFallbackAdd(cmd *cobra.Command, seams setupCommandSeams) error {
 	}
 	provider = setupCanonicalProviderID(provider)
 
-	suggestions := defaultModelPickerSuggestionSet(provider)
-	model, err := promptModelChoiceWithOptions(cmd.InOrStdin(), out, provider, "", suggestions.Models, modelChoicePromptOptions{
+	suggestions := gormescli.DefaultModelPickerSuggestionSet(provider)
+	model, err := gormescli.PromptModelChoiceWithOptions(cmd.InOrStdin(), out, provider, "", suggestions.Models, gormescli.ModelChoicePromptOptions{
 		Context:         cmd.Context(),
-		SuggestionLimit: modelChoiceSuggestionLimitUnlimited,
+		SuggestionLimit: gormescli.ModelChoiceSuggestionLimitUnlimited,
 	})
 	if err != nil {
 		if errors.Is(err, cli.ErrModelPickerCancelled) {

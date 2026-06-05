@@ -34,6 +34,40 @@ func TestPairDescriptorBuildsSetupHandoffDescriptor(t *testing.T) {
 	}
 }
 
+func TestConnectDescriptorScrubsEndpointCredentialsAndQueries(t *testing.T) {
+	descriptor, err := ConnectDescriptor(
+		"https://user:stale-token@gateway.example:9443/setup?token=old#frag",
+		"wss://user:secret@stream.example:9443/custom/navivox/stream?token=leaked#frag",
+		"https://gateway.example:9443/v1/navivox/capabilities?token=old#frag",
+		"static_token",
+		"public",
+		"nvbx_connect_token",
+		true,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := url.Parse(descriptor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	values := parsed.Query()
+	for key, want := range map[string]string{
+		"base_url":         "https://gateway.example:9443",
+		"websocket_url":    "wss://stream.example:9443/custom/navivox/stream",
+		"capabilities_url": "https://gateway.example:9443/v1/navivox/capabilities",
+	} {
+		if got := values.Get(key); got != want {
+			t.Fatalf("%s = %q, want %q in %s", key, got, want, descriptor)
+		}
+	}
+	for _, forbidden := range []string{"user:", "stale-token", "secret@", "token=old", "token=leaked", "#frag"} {
+		if strings.Contains(descriptor, forbidden) {
+			t.Fatalf("descriptor leaked endpoint credential/query fragment %q: %s", forbidden, descriptor)
+		}
+	}
+}
+
 func TestSharePayloadConvertsDescriptorQueryToJSON(t *testing.T) {
 	payload := SharePayload("navivox://connect?base_url=http%3A%2F%2F127.0.0.1%3A8765&setup_handoff=true&token_required=true&rest_token=nvbx_share")
 	var got map[string]any

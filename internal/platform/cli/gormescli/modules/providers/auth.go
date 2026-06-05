@@ -1,8 +1,10 @@
 package providers
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -81,6 +83,76 @@ func (s AuthSeams) withDefaults() AuthSeams {
 		}
 	}
 	return s
+}
+
+func NewAuthCommand(opts Options) *cobra.Command {
+	newBuildProvenance = opts.buildProvenance
+	return NewAuthCommandWithSeams(DefaultAuthSeams(), opts)
+}
+
+func DefaultAuthSeams() AuthSeams {
+	return AuthSeams{
+		RunBare:                    runAuthBareCommand,
+		RunAdd:                     runAuthAddCommandFromProvider,
+		RunList:                    runAuthListCommand,
+		RunRemove:                  runAuthRemoveCommand,
+		RunReset:                   runAuthResetCommand,
+		RunStatus:                  runAuthStatusCommand,
+		RunLogout:                  runAuthLogoutCommand,
+		EmitJSONSubcommandRequired: emitAuthJSONSubcommandRequired,
+		EmitJSONInputError:         emitAuthJSONInputError,
+	}
+}
+
+func runAuthAddCommandFromProvider(cmd *cobra.Command, opts AuthAddOptions) error {
+	return runAuthAddCommand(cmd, authAddOptions{
+		Provider:                    opts.Provider,
+		AuthType:                    opts.AuthType,
+		Label:                       opts.Label,
+		APIKey:                      opts.APIKey,
+		InferenceURL:                opts.InferenceURL,
+		PortalURL:                   opts.PortalURL,
+		ClientID:                    opts.ClientID,
+		Scope:                       opts.Scope,
+		NoBrowser:                   opts.NoBrowser,
+		Timeout:                     opts.Timeout,
+		Insecure:                    opts.Insecure,
+		CABundle:                    opts.CABundle,
+		EmergencyImportFromCodexCLI: opts.EmergencyImportFromCodexCLI,
+	})
+}
+
+func emitAuthJSONInputError(cmd *cobra.Command, action, errMsg string) error {
+	err := gormescli.EmitJSONInputError(cmd, action, errMsg, newBuildProvenance())
+	return gormescli.NewExitCodeError(1, err)
+}
+
+func emitAuthJSONSubcommandRequired(cmd *cobra.Command) error {
+	available := make([]string, 0, len(cmd.Commands()))
+	for _, child := range cmd.Commands() {
+		if child.Hidden || child.Name() == "help" {
+			continue
+		}
+		available = append(available, child.Name())
+	}
+	parent := cmd.CommandPath()
+	report := struct {
+		Build     gormescli.BuildProvenance `json:"build"`
+		Action    string                    `json:"action"`
+		Parent    string                    `json:"parent"`
+		Available []string                  `json:"available"`
+		Error     string                    `json:"error"`
+	}{
+		Build:     newBuildProvenance(),
+		Action:    "subcommand_required",
+		Parent:    parent,
+		Available: available,
+		Error:     fmt.Sprintf("subcommand required for %q; choose one of: %s", parent, strings.Join(available, ", ")),
+	}
+	encoder := json.NewEncoder(cmd.OutOrStdout())
+	encoder.SetIndent("", "  ")
+	_ = encoder.Encode(report)
+	return gormescli.NewExitCodeError(1, fmt.Errorf("%s", report.Error))
 }
 
 func NewAuthCommandWithSeams(seams AuthSeams, opts Options) *cobra.Command {

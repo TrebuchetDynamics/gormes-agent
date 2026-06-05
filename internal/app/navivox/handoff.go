@@ -67,6 +67,8 @@ func Redact(text string) string {
 
 // PairDescriptor builds the one-terminal setup handoff descriptor.
 func PairDescriptor(authMode, exposureMode, token, baseURL, wsURL string) string {
+	baseURL = scrubNavivoxDescriptorEndpointOrRaw(baseURL, false)
+	wsURL = scrubNavivoxDescriptorEndpointOrRaw(wsURL, true)
 	values := url.Values{}
 	values.Set("base_url", baseURL)
 	values.Set("websocket_url", wsURL)
@@ -91,6 +93,19 @@ func PairDescriptor(authMode, exposureMode, token, baseURL, wsURL string) string
 
 // ConnectDescriptor builds a Navivox import descriptor for an existing gateway endpoint.
 func ConnectDescriptor(baseURL, websocketURL, capabilitiesURL, authMode, exposureMode, token string, tokenRequired bool) (string, error) {
+	var err error
+	baseURL, err = scrubNavivoxDescriptorEndpoint(baseURL, false)
+	if err != nil {
+		return "", fmt.Errorf("navivox connect: invalid base_url: %w", err)
+	}
+	websocketURL, err = scrubNavivoxDescriptorEndpoint(websocketURL, true)
+	if err != nil {
+		return "", fmt.Errorf("navivox connect: invalid websocket_url: %w", err)
+	}
+	capabilitiesURL, err = scrubNavivoxDescriptorEndpoint(capabilitiesURL, true)
+	if err != nil {
+		return "", fmt.Errorf("navivox connect: invalid capabilities_url: %w", err)
+	}
 	values := url.Values{}
 	values.Set("base_url", baseURL)
 	values.Set("websocket_url", websocketURL)
@@ -106,4 +121,32 @@ func ConnectDescriptor(baseURL, websocketURL, capabilitiesURL, authMode, exposur
 		values.Set("rest_token", token)
 	}
 	return (&url.URL{Scheme: "navivox", Host: "connect", RawQuery: values.Encode()}).String(), nil
+}
+
+func scrubNavivoxDescriptorEndpointOrRaw(raw string, preservePath bool) string {
+	cleaned, err := scrubNavivoxDescriptorEndpoint(raw, preservePath)
+	if err != nil {
+		return strings.TrimSpace(raw)
+	}
+	return cleaned
+}
+
+func scrubNavivoxDescriptorEndpoint(raw string, preservePath bool) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return "", err
+	}
+	if parsed.Scheme == "" || parsed.Host == "" {
+		return "", fmt.Errorf("absolute URL required")
+	}
+	parsed.User = nil
+	parsed.RawQuery = ""
+	parsed.ForceQuery = false
+	parsed.Fragment = ""
+	if !preservePath {
+		parsed.Path = ""
+		parsed.RawPath = ""
+	}
+	return parsed.String(), nil
 }

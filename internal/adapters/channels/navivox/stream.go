@@ -91,13 +91,13 @@ type ApprovalEvent struct {
 
 func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if c.authRateLimited(r) {
+			writeNavivoxError(w, http.StatusTooManyRequests, "", "auth_rate_limited", "Authentication attempts are temporarily rate limited")
+			return
+		}
 		if navivoxRequestHasURLCredential(r) {
 			c.recordAuthFailure(r)
 			writeNavivoxError(w, http.StatusUnauthorized, "", "url_credentials_rejected", "URL credentials are not accepted")
-			return
-		}
-		if c.authRateLimited(r) {
-			writeNavivoxError(w, http.StatusTooManyRequests, "", "auth_rate_limited", "Authentication attempts are temporarily rate limited")
 			return
 		}
 		identity, ok := c.authenticate(r)

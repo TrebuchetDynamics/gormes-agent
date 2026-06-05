@@ -11,6 +11,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/spf13/cobra"
 )
 
@@ -1756,7 +1757,7 @@ func TestSetupAgentSettingsInteractivePersistsRuntimeConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
-	if got := configuredMaxToolIterations(cfg); got != 200 {
+	if got := gormescli.ConfiguredMaxToolIterations(cfg); got != 200 {
 		t.Fatalf("configuredMaxToolIterations = %d, want 200", got)
 	}
 }

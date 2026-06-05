@@ -14,6 +14,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/profileapp"
 	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/provider"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
@@ -292,7 +293,7 @@ func setupProfilesProviderCatalogs(cfg config.Config) map[string]providermodule.
 	for providerID := range seen {
 		id := providerID
 		catalogs[id] = func() ([]string, error) {
-			set := defaultModelPickerSuggestionSet(id)
+			set := gormescli.DefaultModelPickerSuggestionSet(id)
 			if len(set.Models) == 0 && set.DegradedReason != "" {
 				return nil, fmt.Errorf("%s", set.DegradedReason)
 			}

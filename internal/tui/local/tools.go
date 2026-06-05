@@ -5,8 +5,9 @@ import (
 	"sort"
 	"strings"
 
+	appsetup "github.com/TrebuchetDynamics/gormes-agent/internal/app/setup"
+	appsetupchoice "github.com/TrebuchetDynamics/gormes-agent/internal/app/setupchoice"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
@@ -17,11 +18,11 @@ func NewToolsConfigureFunc() tui.ToolsConfigureFunc {
 }
 
 func ConfigureTools(req tui.ToolsConfigureRequest) (tui.ToolsConfigureResult, error) {
-	action := gormescli.NormalizeSetupValue(req.Action)
+	action := appsetupchoice.NormalizeValue(req.Action)
 	if action != "enable" && action != "disable" {
 		return tui.ToolsConfigureResult{}, fmt.Errorf("unsupported action %q", req.Action)
 	}
-	doc, toolCfg, err := gormescli.LoadSetupToolsConfig(config.ConfigPath())
+	doc, toolCfg, err := appsetup.LoadToolsConfig(config.ConfigPath())
 	if err != nil {
 		return tui.ToolsConfigureResult{}, err
 	}
@@ -38,13 +39,13 @@ func ConfigureTools(req tui.ToolsConfigureRequest) (tui.ToolsConfigureResult, er
 	var result tui.ToolsConfigureResult
 	for _, raw := range req.Names {
 		display := strings.TrimSpace(raw)
-		name := gormescli.NormalizeSetupValue(raw)
+		name := appsetupchoice.NormalizeValue(raw)
 		if name == "" {
 			continue
 		}
 		persistName := name
 		if server, _, ok := strings.Cut(name, ":"); ok {
-			server = gormescli.NormalizeSetupValue(server)
+			server = appsetupchoice.NormalizeValue(server)
 			if server == "" || !toolCfg.MCPServers[server].Enabled {
 				result.MissingServers = appendUniqueString(result.MissingServers, server)
 				continue
@@ -73,7 +74,7 @@ func ConfigureTools(req tui.ToolsConfigureRequest) (tui.ToolsConfigureResult, er
 	persisted := make([]string, 0, len(selected))
 	seen := map[string]struct{}{}
 	for _, name := range selected {
-		name = gormescli.NormalizeSetupValue(name)
+		name = appsetupchoice.NormalizeValue(name)
 		if name == "" || !current[name] {
 			continue
 		}
@@ -88,7 +89,7 @@ func ConfigureTools(req tui.ToolsConfigureRequest) (tui.ToolsConfigureResult, er
 		return tui.ToolsConfigureResult{}, err
 	}
 	doc["platform_toolsets"] = toolCfg.PlatformToolsets
-	if err := gormescli.WriteSetupToolsConfig(config.ConfigPath(), doc); err != nil {
+	if err := appsetup.WriteToolsConfig(config.ConfigPath(), doc); err != nil {
 		return tui.ToolsConfigureResult{}, err
 	}
 	result.Reset = true
@@ -96,13 +97,13 @@ func ConfigureTools(req tui.ToolsConfigureRequest) (tui.ToolsConfigureResult, er
 }
 
 func knownTUIToolsets() (map[string]bool, error) {
-	options, err := gormescli.SetupToolOptions()
+	options, err := appsetup.ToolOptions()
 	if err != nil {
 		return nil, err
 	}
 	known := make(map[string]bool, len(options))
 	for _, option := range options {
-		known[gormescli.NormalizeSetupValue(option.Key)] = true
+		known[appsetupchoice.NormalizeValue(option.Key)] = true
 	}
 	return known, nil
 }

@@ -21,14 +21,15 @@ type SessionCommandOptions struct {
 }
 
 func NewSessionCommand(options SessionCommandOptions) *cobra.Command {
-	return appsession.NewCommand(appsession.CommandOptions{
-		Build: options.Build,
-		UnavailableCommand: func(spec sessions.UnavailableCommandSpec) *cobra.Command {
-			if options.UnavailableCommand == nil {
-				return nil
-			}
+	var unavailable func(sessions.UnavailableCommandSpec) *cobra.Command
+	if options.UnavailableCommand != nil {
+		unavailable = func(spec sessions.UnavailableCommandSpec) *cobra.Command {
 			return options.UnavailableCommand(spec)
-		},
+		}
+	}
+	return appsession.NewCommand(appsession.CommandOptions{
+		Build:              options.Build,
+		UnavailableCommand: unavailable,
 	})
 }
 

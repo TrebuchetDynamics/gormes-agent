@@ -21,11 +21,13 @@ import (
 
 	dynamicagents "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	gormesgoncho "github.com/TrebuchetDynamics/goncho/integration/gormes"
-	"github.com/TrebuchetDynamics/goncho/service"
+	goncho "github.com/TrebuchetDynamics/goncho/service"
+	gonchoadapter "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/channelmemory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
@@ -252,10 +254,10 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("session map: %w", err)
 	}
 	defer smap.Close()
-	sessionMirror := startSessionIndexMirror(smap, slog.Default())
+	sessionMirror := gormescli.StartSessionIndexMirror(smap, slog.Default())
 	defer sessionMirror.Stop()
 
-	memorySettings := channelMemorySettingsFromConfig(cfg)
+	memorySettings := channelmemory.SettingsFromConfig(cfg)
 	mstore, err := memory.OpenSqlite(config.MemoryDBPath(), memorySettings.QueueCap, slog.Default())
 	if err != nil {
 		return fmt.Errorf("memory store: %w", err)
@@ -286,7 +288,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	}
 	signal.Notify(signals, shutdownSignals...)
 	defer signal.Stop(signals)
-	reg := buildDefaultRegistry(rootCtx, cfg, hc, cfg.Hermes.Model, withSessionSearch(mstore.DB(), smap))
+	reg := gormescli.BuildDefaultRegistry(rootCtx, cfg, hc, cfg.Hermes.Model, gormescli.WithSessionSearch(mstore.DB(), smap))
 	toolAudit := audit.NewJSONLWriter(config.ToolAuditLogPath())
 
 	// Initialize Goncho for cross-session memory persistence through the public
@@ -306,7 +308,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		if err != nil {
 			slog.Warn("goncho runtime open failed; memory disabled", "err", err)
 		} else {
-			gonchoStore = newGonchoAdapter(gonchoRuntime.Service)
+			gonchoStore = gonchoadapter.NewStore(gonchoRuntime.Service)
 			gormescli.RegisterGormesGonchoTools(reg, gonchoRuntime)
 			slog.Info(gormescli.FormatGormesGonchoStatus(gonchoRuntime.Status()))
 			defer func() {
@@ -325,7 +327,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		Endpoint:          cfg.Hermes.Endpoint,
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
 		Tools:             reg,
-		MaxToolIterations: configuredMaxToolIterations(cfg),
+		MaxToolIterations: gormescli.ConfiguredMaxToolIterations(cfg),
 		MaxToolDuration:   30 * time.Second,
 		ToolAudit:         toolAudit,
 		Goncho:            gonchoStore,
@@ -379,7 +381,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		nextAllowedChats, nextAllowDiscovery, nextAllowedWhitelists := gatewayPolicyMaps(next)
 		nextCfg := gatewayManagerConfig(next, nextAllowedChats, nextAllowDiscovery, nextAllowedWhitelists, smap, hc, hooks, runtimeStatus, restartCfg)
 		nextCfg.DynamicAgentRegistry = dynamicAgentRegistry
-		nextReg := buildDefaultRegistry(rootCtx, next, hc, next.Hermes.Model, withSessionSearch(mstore.DB(), smap))
+		nextReg := gormescli.BuildDefaultRegistry(rootCtx, next, hc, next.Hermes.Model, gormescli.WithSessionSearch(mstore.DB(), smap))
 		if gonchoRuntime != nil {
 			gormescli.RegisterGormesGonchoTools(nextReg, gonchoRuntime)
 		}
@@ -552,7 +554,7 @@ func newGatewayAgentRuntimeFactory(rootCtx context.Context, cfg config.Config, m
 		}
 		reg := req.Tools
 		if reg == nil {
-			reg = buildDefaultRegistry(rootCtx, agentCfg, hc, model).FilterPolicy(req.ToolPolicy.Allow, req.ToolPolicy.Deny)
+			reg = gormescli.BuildDefaultRegistry(rootCtx, agentCfg, hc, model).FilterPolicy(req.ToolPolicy.Allow, req.ToolPolicy.Deny)
 		}
 		k := kernel.New(kernel.Config{
 			Model:             model,
@@ -561,7 +563,7 @@ func newGatewayAgentRuntimeFactory(rootCtx context.Context, cfg config.Config, m
 			Tools:             reg,
 			Skills:            req.Skills,
 			ToolSafety:        req.ToolSafety,
-			MaxToolIterations: configuredMaxToolIterations(agentCfg),
+			MaxToolIterations: gormescli.ConfiguredMaxToolIterations(agentCfg),
 			MaxToolDuration:   30 * time.Second,
 			ChatKey:           req.SessionKey,
 			ToolAudit:         audit.NewJSONLWriter(config.ToolAuditLogPath()),
@@ -991,10 +993,10 @@ func sqlOpenGoncho(path string) (*sql.DB, error) {
 	if err == nil {
 		return db, nil
 	}
-	if !isSQLiteCorruptionError(err) {
+	if !memory.IsSQLiteCorruptionError(err) {
 		return nil, err
 	}
-	if _, healErr := selfHealCorruptGonchoSQLite(path); healErr != nil {
+	if _, healErr := memory.SelfHealCorruptGonchoSQLite(path); healErr != nil {
 		return nil, fmt.Errorf("%w; self-heal failed: %v", err, healErr)
 	}
 	return sqlOpenGonchoRaw(path)
@@ -1035,58 +1037,4 @@ func sqlOpenGonchoRaw(path string) (*sql.DB, error) {
 		}
 	}
 	return db, nil
-}
-
-func newGonchoAdapter(svc *goncho.Service) kernel.GonchoStore {
-	return &gonchoAdapter{svc: svc}
-}
-
-type gonchoAdapter struct{ svc *goncho.Service }
-
-func (a *gonchoAdapter) AppendTurn(ctx context.Context, peer, sessionKey, role, content string) error {
-	if a.svc == nil || sessionKey == "" || content == "" {
-		return nil
-	}
-	_, err := a.svc.CreateMessages(ctx, goncho.CreateMessagesParams{
-		SessionKey: sessionKey,
-		Messages:   []goncho.CreateMessage{{Peer: peer, Role: role, Content: content}},
-	})
-	return err
-}
-
-func (a *gonchoAdapter) GetContext(ctx context.Context, sessionKey string, maxTokens int) (string, error) {
-	if a.svc == nil || sessionKey == "" {
-		return "", nil
-	}
-	result, err := a.svc.Context(ctx, goncho.ContextParams{
-		Peer:       "gormes",
-		SessionKey: sessionKey,
-		MaxTokens:  maxTokens,
-	})
-	if err != nil {
-		return "", err
-	}
-	var b strings.Builder
-	for _, m := range result.RecentMessages {
-		role := "User"
-		if m.Role == "assistant" {
-			role = "Gormes"
-		}
-		b.WriteString(role)
-		b.WriteString(": ")
-		b.WriteString(m.Content)
-		b.WriteByte('\n')
-	}
-	return b.String(), nil
-}
-
-func (a *gonchoAdapter) OnSessionEnd(ctx context.Context, sessionKey string, messages []llm.Message) error {
-	if a.svc == nil || sessionKey == "" {
-		return nil
-	}
-	gonchoMsgs := make([]goncho.Message, len(messages))
-	for i, m := range messages {
-		gonchoMsgs[i] = goncho.Message{Role: m.Role, Content: m.Content}
-	}
-	return a.svc.OnSessionEnd(ctx, sessionKey, gonchoMsgs)
 }

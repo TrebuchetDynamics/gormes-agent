@@ -29,13 +29,13 @@ type navivoxAuthFailureState struct {
 
 func (c *Channel) withAuth(next authenticatedHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if c.authRateLimited(r) {
+			writeNavivoxError(w, http.StatusTooManyRequests, "", "auth_rate_limited", "Authentication attempts are temporarily rate limited")
+			return
+		}
 		if navivoxRequestHasURLCredential(r) {
 			c.recordAuthFailure(r)
 			writeNavivoxError(w, http.StatusUnauthorized, "", "url_credentials_rejected", "URL credentials are not accepted")
-			return
-		}
-		if c.authRateLimited(r) {
-			writeNavivoxError(w, http.StatusTooManyRequests, "", "auth_rate_limited", "Authentication attempts are temporarily rate limited")
 			return
 		}
 		identity, ok := c.authenticate(r)
@@ -142,8 +142,17 @@ func (c *Channel) authenticate(r *http.Request) (string, bool) {
 }
 
 func (c *Channel) authenticateTailscaleIdentity(r *http.Request) (string, bool) {
-	identity := firstHeader(r, "Tailscale-User-Login", "X-Tailscale-User-Login", "Tailscale-Device-Name", "X-Tailscale-Device-Name")
-	if identity == "" {
+	identity, present, ok := singleHeaderAliasValue(r.Header, "Tailscale-User-Login", "X-Tailscale-User-Login")
+	if !ok {
+		return "", false
+	}
+	if !present {
+		identity, present, ok = singleHeaderAliasValue(r.Header, "Tailscale-Device-Name", "X-Tailscale-Device-Name")
+		if !ok {
+			return "", false
+		}
+	}
+	if !present || identity == "" {
 		return "", false
 	}
 	if len(c.cfg.AllowedTailnetIdentities) == 0 {
@@ -250,13 +259,20 @@ func webSocketProtocolToken(r *http.Request) (string, bool) {
 	return token, found
 }
 
-func firstHeader(r *http.Request, names ...string) string {
+func singleHeaderAliasValue(header http.Header, names ...string) (value string, present bool, ok bool) {
 	for _, name := range names {
-		if value := strings.TrimSpace(r.Header.Get(name)); value != "" {
-			return value
+		for _, candidate := range nonEmptyHeaderValues(header, name) {
+			if !present {
+				value = candidate
+				present = true
+				continue
+			}
+			if !strings.EqualFold(value, candidate) {
+				return "", true, false
+			}
 		}
 	}
-	return ""
+	return value, present, true
 }
 
 func (c *Channel) cors(next http.Handler) http.Handler {
