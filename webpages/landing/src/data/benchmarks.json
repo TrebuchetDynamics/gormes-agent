@@ -1,23 +1,30 @@
 {
   "binary": {
     "build_flags": "CGO_ENABLED=0 -trimpath -ldflags=\"-s -w\"",
-    "commit": "a9e00b58c",
+    "commit": "93c927068",
     "go_version": "1.26+",
-    "last_measured": "2026-05-26",
+    "last_measured": "2026-06-04",
     "linker": "static",
     "name": "gormes",
     "path": "bin/gormes",
-    "size_bytes": 75199737,
-    "size_mb": "71.7",
+    "size_bytes": 54464674,
+    "size_mb": "51.9",
     "stripped": true
   },
   "code": {
-    "dependencies": 274,
-    "go_files": 1051,
-    "go_lines": 270214,
-    "test_count": 6891
+    "dependencies": 278,
+    "go_files": 1978,
+    "go_lines": 303689,
+    "test_count": 7784
   },
   "history": [
+    {
+      "commit": "93c927068",
+      "date": "2026-06-04",
+      "phase": "Phase 5 — The Final Purge",
+      "size_bytes": 54464674,
+      "size_mb": 51.9
+    },
     {
       "commit": "a9e00b58c",
       "date": "2026-05-26",
@@ -213,14 +220,14 @@
   "runtime": {
     "offline_doctor": {
       "command": "bin/gormes doctor --offline --json",
-      "commit": "a9e00b58c",
-      "elapsed_ms": 56,
+      "commit": "93c927068",
+      "elapsed_ms": 9,
       "goarch": "amd64",
       "goos": "linux",
       "isolated_home": true,
-      "last_measured": "2026-05-26",
-      "peak_rss_kb": 28456,
-      "peak_rss_mb": 27.8,
+      "last_measured": "2026-06-04",
+      "peak_rss_kb": 30736,
+      "peak_rss_mb": 30,
       "status": "measured"
     }
   },
@@ -228,9 +235,9 @@
     "wasi_whisper": {
       "audio_fixture": "internal/wasi/whisper/testdata/jfk.wav",
       "benchmark": "BenchmarkWhisperWASI/tiny.en",
-      "binary_size_delta_mb_vs_pre_wasi_baseline": 43.8,
-      "current_binary_size_bytes": 75199737,
-      "current_binary_size_mb": 71.7,
+      "binary_size_delta_mb_vs_pre_wasi_baseline": 24,
+      "current_binary_size_bytes": 54464674,
+      "current_binary_size_mb": 51.9,
       "last_measured": "2026-05-10",
       "models": [
         {
