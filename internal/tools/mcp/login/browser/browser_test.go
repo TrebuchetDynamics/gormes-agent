@@ -1,4 +1,4 @@
-package login
+package browser
 
 import (
 	"context"
@@ -13,11 +13,12 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/login/core"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/oauth"
 )
 
 func TestBrowserHookRecordsLaunchURL(t *testing.T) {
-	flow := NewBrowserFlow(BrowserOptions{
+	flow := NewFlow(Options{
 		BrowserOpen: func(ctx context.Context, launchURL string) error { return nil },
 		HTTPClient:  httptestTokenClient(t, func(r *http.Request) {}),
 	})
@@ -74,7 +75,7 @@ func TestBrowserTokenExchangeStoresSession(t *testing.T) {
 	defer issuer.Close()
 
 	var launched string
-	flow := NewBrowserFlow(BrowserOptions{
+	flow := NewFlow(Options{
 		CallbackTimeout: 2 * time.Second,
 		BrowserOpen: func(ctx context.Context, launchURL string) error {
 			launched = launchURL
@@ -91,12 +92,12 @@ func TestBrowserTokenExchangeStoresSession(t *testing.T) {
 	server := oauthTestServer("acme")
 	server.URL = issuer.URL + "/mcp"
 	store := oauth.NewStore()
-	result, err := Run(context.Background(), config.MCPConfigResolution{Servers: []config.MCPServerDefinition{server}}, store, flow, "acme")
+	result, err := core.Run(context.Background(), config.MCPConfigResolution{Servers: []config.MCPServerDefinition{server}}, store, flow, "acme")
 	if err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
-	if result.Evidence != EvidenceSaved {
-		t.Fatalf("evidence = %q, want %q message=%q", result.Evidence, EvidenceSaved, result.Message)
+	if result.Evidence != core.EvidenceSaved {
+		t.Fatalf("evidence = %q, want %q message=%q", result.Evidence, core.EvidenceSaved, result.Message)
 	}
 	if launched == "" {
 		t.Fatal("browser open hook was not called")
@@ -120,7 +121,7 @@ func TestBrowserRedirectURIMismatchTypedEvidence(t *testing.T) {
 	store := oauth.NewStore()
 	_ = store.Set("acme", oauth.Token{AccessToken: "plain-existing-token"})
 	before, _ := store.Get("acme")
-	flow := NewBrowserFlow(BrowserOptions{
+	flow := NewFlow(Options{
 		CallbackTimeout: 2 * time.Second,
 		BrowserOpen: func(ctx context.Context, launchURL string) error {
 			parsed, err := url.Parse(launchURL)
@@ -133,11 +134,11 @@ func TestBrowserRedirectURIMismatchTypedEvidence(t *testing.T) {
 		},
 	})
 	server := oauthTestServer("acme")
-	result, err := Run(context.Background(), config.MCPConfigResolution{Servers: []config.MCPServerDefinition{server}}, store, flow, "acme")
+	result, err := core.Run(context.Background(), config.MCPConfigResolution{Servers: []config.MCPServerDefinition{server}}, store, flow, "acme")
 	if err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
-	if result.Evidence != EvidenceRedirectURIMismatch {
+	if result.Evidence != core.EvidenceRedirectURIMismatch {
 		t.Fatalf("evidence = %q, want redirect mismatch", result.Evidence)
 	}
 	after, _ := store.Get("acme")
@@ -152,7 +153,7 @@ func TestBrowserTokenExchangeFailureTypedEvidence(t *testing.T) {
 	}))
 	defer issuer.Close()
 
-	flow := NewBrowserFlow(BrowserOptions{
+	flow := NewFlow(Options{
 		CallbackTimeout: 2 * time.Second,
 		BrowserOpen: func(ctx context.Context, launchURL string) error {
 			parsed, err := url.Parse(launchURL)
@@ -167,11 +168,11 @@ func TestBrowserTokenExchangeFailureTypedEvidence(t *testing.T) {
 	})
 	server := oauthTestServer("acme")
 	server.URL = issuer.URL
-	result, err := Run(context.Background(), config.MCPConfigResolution{Servers: []config.MCPServerDefinition{server}}, oauth.NewStore(), flow, "acme")
+	result, err := core.Run(context.Background(), config.MCPConfigResolution{Servers: []config.MCPServerDefinition{server}}, oauth.NewStore(), flow, "acme")
 	if err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
-	if result.Evidence != EvidenceTokenExchangeFailed {
+	if result.Evidence != core.EvidenceTokenExchangeFailed {
 		t.Fatalf("evidence = %q, want token exchange failure", result.Evidence)
 	}
 	if strings.Contains(result.Error(), "plain-secret") || strings.Contains(result.Error(), "access_token") {
@@ -193,7 +194,7 @@ func TestBrowserDuplicateCallbackDoesNotBlockExchange(t *testing.T) {
 	}))
 	defer issuer.Close()
 
-	flow := NewBrowserFlow(BrowserOptions{
+	flow := NewFlow(Options{
 		CallbackTimeout: 2 * time.Second,
 		BrowserOpen: func(ctx context.Context, launchURL string) error {
 			parsed, err := url.Parse(launchURL)
@@ -219,42 +220,42 @@ func TestBrowserDuplicateCallbackDoesNotBlockExchange(t *testing.T) {
 	})
 	server := oauthTestServer("acme")
 	server.URL = issuer.URL
-	result, err := Run(context.Background(), config.MCPConfigResolution{Servers: []config.MCPServerDefinition{server}}, oauth.NewStore(), flow, "acme")
+	result, err := core.Run(context.Background(), config.MCPConfigResolution{Servers: []config.MCPServerDefinition{server}}, oauth.NewStore(), flow, "acme")
 	if err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
-	if result.Evidence != EvidenceSaved {
+	if result.Evidence != core.EvidenceSaved {
 		t.Fatalf("evidence = %q, want saved; message=%q", result.Evidence, result.Message)
 	}
 }
 
 func TestBrowserPortCollisionTypedEvidence(t *testing.T) {
-	flow := NewBrowserFlow(BrowserOptions{
+	flow := NewFlow(Options{
 		Listen: func(ctx context.Context) (net.Listener, error) {
 			return nil, errors.New("bind: address already in use")
 		},
 	})
 	server := oauthTestServer("acme")
-	result, err := Run(context.Background(), config.MCPConfigResolution{Servers: []config.MCPServerDefinition{server}}, oauth.NewStore(), flow, "acme")
+	result, err := core.Run(context.Background(), config.MCPConfigResolution{Servers: []config.MCPServerDefinition{server}}, oauth.NewStore(), flow, "acme")
 	if err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
-	if result.Evidence != EvidencePortCollision {
+	if result.Evidence != core.EvidencePortCollision {
 		t.Fatalf("evidence = %q, want port collision", result.Evidence)
 	}
 }
 
 func TestBrowserCallbackTimeoutTypedEvidence(t *testing.T) {
-	flow := NewBrowserFlow(BrowserOptions{
+	flow := NewFlow(Options{
 		CallbackTimeout: 20 * time.Millisecond,
 		BrowserOpen:     func(context.Context, string) error { return nil },
 	})
 	server := oauthTestServer("acme")
-	result, err := Run(context.Background(), config.MCPConfigResolution{Servers: []config.MCPServerDefinition{server}}, oauth.NewStore(), flow, "acme")
+	result, err := core.Run(context.Background(), config.MCPConfigResolution{Servers: []config.MCPServerDefinition{server}}, oauth.NewStore(), flow, "acme")
 	if err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
-	if result.Evidence != EvidenceCallbackTimeout {
+	if result.Evidence != core.EvidenceCallbackTimeout {
 		t.Fatalf("evidence = %q, want timeout", result.Evidence)
 	}
 }
@@ -270,3 +271,7 @@ func httptestTokenClient(t *testing.T, check func(*http.Request)) *http.Client {
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func oauthTestServer(name string) config.MCPServerDefinition {
+	return config.MCPServerDefinition{Name: name, Enabled: true, Transport: config.MCPTransportHTTP, URL: "https://mcp.example/" + name, Headers: map[string]string{}}
+}
