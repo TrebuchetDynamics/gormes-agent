@@ -1,12 +1,14 @@
-package tui
+package skin_test
 
 import (
 	"strings"
 	"testing"
+
+	tui "github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
 func TestHermesSkin_DefaultTokens(t *testing.T) {
-	skin := DefaultHermesSkin()
+	skin := tui.DefaultHermesSkin()
 
 	if skin.PromptSymbol != "❯ " {
 		t.Fatalf("PromptSymbol = %q, want Hermes default prompt", skin.PromptSymbol)
@@ -41,7 +43,7 @@ func TestHermesSkin_DefaultTokens(t *testing.T) {
 }
 
 func TestHermesSkin_MinimalChromeThreshold(t *testing.T) {
-	skin := DefaultHermesSkin()
+	skin := tui.DefaultHermesSkin()
 
 	for _, tc := range []struct {
 		width int
@@ -59,7 +61,7 @@ func TestHermesSkin_MinimalChromeThreshold(t *testing.T) {
 }
 
 func TestHermesSkin_ProfilePromptPrefix(t *testing.T) {
-	skin := DefaultHermesSkin()
+	skin := tui.DefaultHermesSkin()
 
 	prompt, suffix := skin.PromptSymbols("research")
 	if prompt != "research ❯ " {
@@ -76,7 +78,7 @@ func TestHermesSkin_ProfilePromptPrefix(t *testing.T) {
 }
 
 func TestHermesSkin_BannerColors(t *testing.T) {
-	skin := DefaultHermesSkin()
+	skin := tui.DefaultHermesSkin()
 
 	wantBanner := map[string]string{
 		"border": "#CD7F32",
@@ -100,7 +102,7 @@ func TestHermesSkin_BannerColors(t *testing.T) {
 }
 
 func TestHermesSkin_UIColors(t *testing.T) {
-	skin := DefaultHermesSkin()
+	skin := tui.DefaultHermesSkin()
 
 	if skin.Colors.UIOk != "#4caf50" {
 		t.Fatalf("UI ok color = %q, want #4caf50", skin.Colors.UIOk)
@@ -114,7 +116,7 @@ func TestHermesSkin_UIColors(t *testing.T) {
 }
 
 func TestHermesSkin_ToolEmojis(t *testing.T) {
-	skin := DefaultHermesSkin()
+	skin := tui.DefaultHermesSkin()
 
 	tests := []struct {
 		tool  string

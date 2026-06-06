@@ -1,22 +1,31 @@
-package tui
+package spinner_test
 
 import (
 	"strings"
 	"testing"
 
+	tui "github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 )
 
+func forceLipglossTrueColor(t *testing.T) {
+	t.Helper()
+	old := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { lipgloss.SetColorProfile(old) })
+}
+
 func TestSpinnerRenderCompatibilityWrapper(t *testing.T) {
-	out := SpinnerRender(SpinnerDots, 0, 0, 0, 0, "ares", "1.2")
+	out := tui.SpinnerRender(tui.SpinnerDots, 0, 0, 0, 0, "ares", "1.2")
 	if !strings.Contains(out, "⟪⚔") || !strings.Contains(out, "1.2s") {
 		t.Fatalf("SpinnerRender = %q", out)
 	}
 }
 
 func TestRenderDiff(t *testing.T) {
-	skin := DefaultHermesSkin()
-	out := RenderDiff(skin, "--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new", 0)
+	skin := tui.DefaultHermesSkin()
+	out := tui.RenderDiff(skin, "--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new", 0)
 	if !strings.Contains(out, "old") || !strings.Contains(out, "new") {
 		t.Fatalf("RenderDiff = %q", out)
 	}
@@ -24,8 +33,8 @@ func TestRenderDiff(t *testing.T) {
 
 func TestRenderDiffUsesSharedSkinStyles(t *testing.T) {
 	forceLipglossTrueColor(t)
-	skin := BuiltinSkins()["poseidon"]
-	shared := SkinStylesFor(skin)
+	skin := tui.BuiltinSkins()["poseidon"]
+	shared := tui.SkinStylesFor(skin)
 	if got, want := shared.Good.GetForeground(), lipgloss.Color(skin.Colors.StatusBarGood); got != want {
 		t.Fatalf("shared good foreground = %v, want %v", got, want)
 	}
@@ -33,7 +42,7 @@ func TestRenderDiffUsesSharedSkinStyles(t *testing.T) {
 		t.Fatalf("shared bad foreground = %v, want %v", got, want)
 	}
 
-	out := RenderDiff(skin, "@@ -1 +1 @@\n-old\n+new", 0)
+	out := tui.RenderDiff(skin, "@@ -1 +1 @@\n-old\n+new", 0)
 	if !strings.Contains(out, "old") || !strings.Contains(out, "new") || !strings.Contains(out, "\x1b[") {
 		t.Fatalf("styled diff should include visible diff text and skin ANSI styling; got %q", out)
 	}

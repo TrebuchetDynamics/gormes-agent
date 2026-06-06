@@ -1,14 +1,23 @@
-package tui
+package statusbar_test
 
 import (
 	"strings"
 	"testing"
 
+	ui "github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 )
 
-func newWideStatusModel() HermesStatusModel {
-	return HermesStatusModel{
+func forceLipglossTrueColor(t *testing.T) {
+	t.Helper()
+	old := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { lipgloss.SetColorProfile(old) })
+}
+
+func newWideStatusModel() ui.HermesStatusModel {
+	return ui.HermesStatusModel{
 		StatusLabel:      "ready",
 		ModelName:        "anthropic/claude-sonnet-4-20250514",
 		ContextTokens:    12_450,
@@ -22,7 +31,7 @@ func newWideStatusModel() HermesStatusModel {
 }
 
 func TestHermesStatusBar_WideTerminal(t *testing.T) {
-	got := RenderHermesStatusBar(newWideStatusModel(), 120)
+	got := ui.RenderHermesStatusBar(newWideStatusModel(), 120)
 
 	// All five wide-tier components must appear in one line.
 	wantContains := []string{
@@ -55,7 +64,7 @@ func TestHermesStatusBar_WideTerminal(t *testing.T) {
 func TestHermesStatusBar_MidWidthCollapsesToModelPercentDuration(t *testing.T) {
 	model := newWideStatusModel()
 
-	got := RenderHermesStatusBar(model, 60)
+	got := ui.RenderHermesStatusBar(model, 60)
 
 	if !strings.Contains(got, "─ ready") {
 		t.Fatalf("mid-width status bar missing ready status rule: %q", got)
@@ -79,7 +88,7 @@ func TestHermesStatusBar_MidWidthCollapsesToModelPercentDuration(t *testing.T) {
 }
 
 func TestHermesStatusBar_NarrowWidthCollapsesToModelDuration(t *testing.T) {
-	got := RenderHermesStatusBar(newWideStatusModel(), 50)
+	got := ui.RenderHermesStatusBar(newWideStatusModel(), 50)
 
 	if !strings.Contains(got, "─ ready") {
 		t.Fatalf("narrow status bar missing ready status rule: %q", got)
@@ -97,7 +106,7 @@ func TestHermesStatusBar_NarrowWidthCollapsesToModelDuration(t *testing.T) {
 }
 
 func TestHermesStatusBar_TrimsToWidth(t *testing.T) {
-	model := HermesStatusModel{
+	model := ui.HermesStatusModel{
 		ModelName:       "anthropic/" + strings.Repeat("ultra-long-model-name-", 20),
 		ContextTokens:   100_000,
 		ContextLength:   200_000,
@@ -105,7 +114,7 @@ func TestHermesStatusBar_TrimsToWidth(t *testing.T) {
 	}
 
 	for _, width := range []int{40, 52, 76, 80, 120, 200} {
-		got := RenderHermesStatusBar(model, width)
+		got := ui.RenderHermesStatusBar(model, width)
 		if strings.Contains(got, "\n") {
 			t.Fatalf("width=%d: status bar wraps: %q", width, got)
 		}
@@ -115,14 +124,14 @@ func TestHermesStatusBar_TrimsToWidth(t *testing.T) {
 	}
 
 	// Wide CJK glyphs in the model name must still respect width budget.
-	cjk := HermesStatusModel{
+	cjk := ui.HermesStatusModel{
 		ModelName:       strings.Repeat("你", 30),
 		ContextTokens:   1000,
 		ContextLength:   8000,
 		SessionDuration: 30,
 	}
 	for _, width := range []int{20, 40, 80} {
-		got := RenderHermesStatusBar(cjk, width)
+		got := ui.RenderHermesStatusBar(cjk, width)
 		if w := lipgloss.Width(got); w > width {
 			t.Fatalf("cjk width=%d: status bar cell width %d > announced: %q", width, w, got)
 		}
@@ -131,10 +140,10 @@ func TestHermesStatusBar_TrimsToWidth(t *testing.T) {
 
 func TestHermesStatusBarWithSkinUsesSharedStatusStyle(t *testing.T) {
 	forceLipglossTrueColor(t)
-	skin := BuiltinSkins()["poseidon"]
-	shared := SkinStylesFor(skin)
+	skin := ui.BuiltinSkins()["poseidon"]
+	shared := ui.SkinStylesFor(skin)
 
-	got := RenderHermesStatusBarWithSkin(newWideStatusModel(), 80, skin)
+	got := ui.RenderHermesStatusBarWithSkin(newWideStatusModel(), 80, skin)
 	plain := StripANSIForTUI(got)
 	if !strings.Contains(plain, "─ ready") || !strings.Contains(plain, "sonnet 4 20250514") {
 		t.Fatalf("styled status bar lost status/model text:\n%s", got)
@@ -155,13 +164,13 @@ func TestHermesStatusBarWithSkinUsesSharedStatusStyle(t *testing.T) {
 
 func TestHermesStatusBarWithSkinStylesContextSeverity(t *testing.T) {
 	forceLipglossTrueColor(t)
-	skin := BuiltinSkins()["poseidon"]
-	shared := SkinStylesFor(skin)
+	skin := ui.BuiltinSkins()["poseidon"]
+	shared := ui.SkinStylesFor(skin)
 	model := newWideStatusModel()
 	model.ContextTokens = 90
 	model.ContextLength = 100
 
-	got := RenderHermesStatusBarWithSkin(model, 120, skin)
+	got := ui.RenderHermesStatusBarWithSkin(model, 120, skin)
 	segment := "[█████████░] 90%"
 	if !strings.Contains(StripANSIForTUI(got), segment) {
 		t.Fatalf("styled status bar missing context segment %q:\n%s", segment, got)
