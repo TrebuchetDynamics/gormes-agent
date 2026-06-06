@@ -32,8 +32,7 @@ func planAcceptedText(input string, completion Completion, acceptExact bool) acc
 		return acceptedTextPlan{Text: input, Reason: acceptedTextReasonEmptyCompletion}
 	}
 	if base, ok := subcommandBase(input); ok {
-		next := base + " " + accepted.name
-		return acceptedTextPlan{Text: next, Changed: next != input, Reason: acceptedTextReasonSubcommand}
+		return planAcceptedSubcommandText(input, base, accepted, acceptExact)
 	}
 
 	next := "/" + accepted.name
@@ -45,6 +44,14 @@ func planAcceptedText(input string, completion Completion, acceptExact bool) acc
 		next += " "
 	}
 	return acceptedTextPlan{Text: next, Changed: next != input, Reason: acceptedTextReasonCommand}
+}
+
+func planAcceptedSubcommandText(input, base string, accepted acceptedCompletion, acceptExact bool) acceptedTextPlan {
+	next := base + " " + accepted.name
+	if acceptExact && strings.TrimSpace(input) == next {
+		next += " "
+	}
+	return acceptedTextPlan{Text: next, Changed: next != input, Reason: acceptedTextReasonSubcommand}
 }
 
 func subcommandBase(input string) (string, bool) {

@@ -216,6 +216,13 @@ func TestAcceptedTextPlanExposesCompletionPath(t *testing.T) {
 			want:       acceptedTextPlan{Text: "/reasoning show", Changed: true, Reason: acceptedTextReasonSubcommand},
 		},
 		{
+			name:        "tab exact subcommand appends argument separator",
+			input:       "/reasoning none",
+			completion:  Completion{Name: "none"},
+			acceptExact: true,
+			want:        acceptedTextPlan{Text: "/reasoning none ", Changed: true, Reason: acceptedTextReasonSubcommand},
+		},
+		{
 			name:       "enter exact command is rejected",
 			input:      "/help",
 			completion: Completion{Name: "help"},
