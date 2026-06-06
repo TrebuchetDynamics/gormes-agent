@@ -1,4 +1,4 @@
-package engine
+package wasi
 
 import (
 	"context"
@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/testfixture"
 )
 
 func TestTranscriberRejectsMissingModel(t *testing.T) {
@@ -46,7 +44,7 @@ func TestTranscriberTranscribesFixtureWAV(t *testing.T) {
 		}
 	}()
 
-	transcript, err := transcriber.TranscribeWAV(ctx, testfixture.JFKWAVPath())
+	transcript, err := transcriber.TranscribeWAV(ctx, whisperTestdataPath("jfk.wav"))
 	if err != nil {
 		t.Fatalf("TranscribeWAV: %v", err)
 	}

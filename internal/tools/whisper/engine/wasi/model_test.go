@@ -1,4 +1,4 @@
-package engine
+package wasi
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/modelcache"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/testfixture"
 )
 
 func testTinyEnModelPath(t testing.TB, ctx context.Context) string {
@@ -36,5 +35,13 @@ func testTinyEnModelPath(t testing.TB, ctx context.Context) string {
 }
 
 func readWhisperWASM(t testing.TB) []byte {
-	return testfixture.WhisperWASM(t)
+	wasm, err := os.ReadFile(whisperTestdataPath("whisper.wasm"))
+	if err != nil {
+		t.Fatalf("read whisper.wasm: %v", err)
+	}
+	return wasm
+}
+
+func whisperTestdataPath(name string) string {
+	return filepath.Join("..", "..", "testdata", name)
 }
