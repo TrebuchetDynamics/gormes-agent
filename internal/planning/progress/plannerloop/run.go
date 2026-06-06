@@ -31,7 +31,7 @@ type RunOptions struct {
 	// Keywords narrows the planner's row-level context (QuarantinedRows,
 	// future PreviousReshapes) to only rows that mechanically match any of
 	// these substrings. Empty means broad/full-context run. See L6 topical
-	// focus mode in docs/superpowers/specs/2026-04-24-planner-self-healing-design.md.
+	// focus mode in webpages/docs/superpowers/specs/2026-04-24-planner-self-healing-design.md.
 	Keywords []string
 }
 

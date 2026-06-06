@@ -231,7 +231,7 @@ func GenerateHermesReport(ctx context.Context, opts Options) (Report, error) {
 	}
 	progressPath := resolveInputPath(repoRoot, opts.ProgressPath, []string{
 		"webpages/docs/content/building-gormes/architecture_plan/progress.json",
-		"docs/content/building-gormes/architecture_plan/progress.json",
+		"webpages/docs/content/building-gormes/architecture_plan/progress.json",
 	})
 	prog, err := progress.Load(progressPath)
 	if err != nil {
@@ -255,7 +255,7 @@ func GenerateHermesReport(ctx context.Context, opts Options) (Report, error) {
 
 	sourcePairsPath := resolveInputPath(repoRoot, opts.SourcePairsPath, []string{
 		"webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
-		"docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+		"webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
 	})
 	sourcePairs, sourcePairsState, err := loadSourcePairs(sourcePairsPath, hermesSHA)
 	if err != nil {

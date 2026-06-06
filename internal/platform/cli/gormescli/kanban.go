@@ -482,6 +482,9 @@ func runKanbanTail(ctx context.Context, out io.Writer, lister kanbanEventLister,
 	for {
 		events, err := lister.ListEvents(ctx, taskID)
 		if err != nil {
+			if ctx.Err() != nil {
+				return nil
+			}
 			return err
 		}
 		for _, event := range events {

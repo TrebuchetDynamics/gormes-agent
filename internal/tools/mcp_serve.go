@@ -210,6 +210,9 @@ func (s *MCPServer) handleToolsCall(ctx context.Context, params json.RawMessage)
 	if !ok {
 		return nil, fmt.Errorf("tool not found: %s", p.Name)
 	}
+	if tool.Handler == nil {
+		return nil, fmt.Errorf("tool handler missing: %s", p.Name)
+	}
 	result, err := tool.Handler(ctx, p.Arguments)
 	if err != nil {
 		return nil, err

@@ -12,6 +12,7 @@ const DefaultProfileID = profileconfig.DefaultID
 
 type ProfileCfg = profileconfig.Config
 type ProfileRuntimeCfg = profileconfig.RuntimeConfig
+type ProfileAllowedPathConfig = profileconfig.AllowedPathConfig
 type ProfileProviderCfg = profileconfig.ProviderConfig
 type ProfileChannelCfg = profileconfig.ChannelConfig
 type ProfileVoiceProfileCfg = profileconfig.VoiceProfileConfig
@@ -231,7 +232,10 @@ func normalizeProfileConfigV2(cfg *Config) error {
 			}
 			profile.Name = strings.TrimSpace(profile.Name)
 			profile.Description = strings.TrimSpace(profile.Description)
+			profile.Workspace = strings.TrimSpace(profile.Workspace)
 			profile.Workspaces = cleanStringSlice(profile.Workspaces)
+			profile.AllowedPaths = cleanStringSlice(profile.AllowedPaths)
+			profile.AllowedPathRules = normalizeProfileAllowedPathRules(profile.AllowedPathRules)
 			profile.Tags = cleanStringSlice(profile.Tags)
 			profile.Runtime.SessionResetPolicy = strings.TrimSpace(profile.Runtime.SessionResetPolicy)
 			profile.Runtime.GonchoWorkspace = strings.TrimSpace(profile.Runtime.GonchoWorkspace)
@@ -291,6 +295,24 @@ func normalizeProfileVoiceProfile(voice ProfileVoiceProfileCfg) ProfileVoiceProf
 
 func ValidateProfileVoiceProfile(profileID string, voice ProfileVoiceProfileCfg, matrix ProfileVoiceProviderMatrix) ProfileVoiceProfileValidation {
 	return profileconfig.ValidateVoiceProfile(profileID, voice, matrix)
+}
+
+func normalizeProfileAllowedPathRules(rules []ProfileAllowedPathConfig) []ProfileAllowedPathConfig {
+	if len(rules) == 0 {
+		return nil
+	}
+	out := make([]ProfileAllowedPathConfig, 0, len(rules))
+	for _, rule := range rules {
+		rule.Path = strings.TrimSpace(rule.Path)
+		rule.Access = strings.ToLower(strings.TrimSpace(rule.Access))
+		if rule.Path != "" {
+			out = append(out, rule)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func normalizeProfileProviders(in map[string]ProfileProviderCfg) map[string]ProfileProviderCfg {

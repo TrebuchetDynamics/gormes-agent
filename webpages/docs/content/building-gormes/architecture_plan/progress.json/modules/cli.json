@@ -63,7 +63,7 @@
         "../hermes-agent/hermes_cli/claw.py:claw_command,_cmd_migrate,_cmd_cleanup",
         "cmd/gormes/main.go:newRootCommandWithRuntime",
         "internal/cli/command_registry.go:CommandRegistry",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree"
       ],
       "ready_when": [
         "The Phase 5.O CLI umbrella remains inventory-only, so a manifest row can be added without reopening global planning.",
@@ -99,7 +99,7 @@
       "write_scope": [
         "cmd/gormes/hermes_cli_parity.go",
         "cmd/gormes/hermes_cli_parity_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestHermesCLIParityManifest|TestHermesCLIParityManifestNoUnknowns' -count=1",
@@ -164,7 +164,7 @@
         "../hermes-agent/gateway/run.py:_handle_status_command,_handle_restart_command,_handle_reset_command,_handle_help_command,_handle_model_command,_handle_profile_command,_handle_update_command,_handle_approve_command,_handle_deny_command,_handle_voice_command,_handle_usage_command",
         "cmd/gormes/hermes_cli_parity.go:hermesCLIParityManifest",
         "cmd/gormes/hermes_cli_parity_test.go:TestHermesCLIParityManifest",
-        "docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md:Current upstream nested parser inventory"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md:Current upstream nested parser inventory"
       ],
       "ready_when": [
         "Hermes CLI command-tree parity manifest is complete and can be refined without changing runtime command handlers.",
@@ -202,8 +202,8 @@
       "write_scope": [
         "cmd/gormes/hermes_cli_parity.go",
         "cmd/gormes/hermes_cli_parity_test.go",
-        "docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestHermesCLIParityManifest(NestedParserInventoryMatchesHermes|NoUnknowns)' -count=1",
@@ -220,7 +220,7 @@
         "note": "Hermes defines command spelling and aliases; Gormes owns Go-native manifest classification and implementation order."
       },
       "evidence": {
-        "implementation": "cmd/gormes/hermes_cli_parity.go, cmd/gormes/hermes_cli_parity_test.go, docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md",
+        "implementation": "cmd/gormes/hermes_cli_parity.go, cmd/gormes/hermes_cli_parity_test.go, webpages/docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md",
         "tests": "go test ./cmd/gormes -run 'TestHermesCLIParityManifest(NestedParserInventoryMatchesHermes|NoUnknowns)' -count=1; go test ./cmd/gormes -run TestHermesCLIParityManifest -count=1; go run ./cmd/progress validate; git diff --check",
         "note": "Nested parser inventory is source-backed from ../hermes-agent/hermes_cli/main.py add_parser groups and stays handler-neutral."
       }
@@ -259,7 +259,7 @@
         "../hermes-agent/hermes_cli/auth_commands.py:auth_status_command",
         "../hermes-agent/hermes_cli/auth_commands.py:auth_spotify_command",
         "cmd/gormes/hermes_cli_parity.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree"
       ],
       "ready_when": [
         "Hermes CLI command-tree parity manifest is validated and can be refreshed without implementing auth handlers.",
@@ -291,7 +291,7 @@
       "write_scope": [
         "cmd/gormes/hermes_cli_parity.go",
         "cmd/gormes/hermes_cli_parity_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestHermesCLIParityManifest(ProviderAuthCommandsMatchHermes|FallbackCommandsMatchHermes|NoUnknowns)' -count=1",
@@ -311,7 +311,7 @@
         "note": "Hermes defines the command spelling and deprecation boundary; Gormes owns the manifest and Go-native implementation order."
       },
       "evidence": {
-        "implementation": "cmd/gormes/hermes_cli_parity.go, cmd/gormes/hermes_cli_parity_test.go, docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md",
+        "implementation": "cmd/gormes/hermes_cli_parity.go, cmd/gormes/hermes_cli_parity_test.go, webpages/docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md",
         "tests": "go test ./cmd/gormes -run TestHermesCLIParityManifest -count=1; go test ./cmd/gormes -count=1; go run ./cmd/progress validate",
         "note": "Manifest now excludes removed top-level login as implementation target, models current auth add/list/remove/reset/status/logout/spotify, tracks top-level logout redaction/destructive behavior, and replaces stale fallback show/set with list/ls/add/remove/rm/clear."
       }
@@ -361,7 +361,7 @@
         "internal/cli/banner.go",
         "internal/cli/banner_output_test.go",
         "internal/cli/output.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run 'Test.*Banner|Test.*Output|Test.*ToolsetName|Test.*ContextLength' -count=1",
@@ -431,7 +431,7 @@
       "write_scope": [
         "internal/cli/tips.go",
         "internal/cli/tips_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run 'TestTips_|TestTipFor_' -count=1",
@@ -497,7 +497,7 @@
       "write_scope": [
         "internal/cli/openclaw_residue.go",
         "internal/cli/openclaw_residue_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run '^Test(OpenClawResidue|DetectOpenClawResidue)' -count=1",
@@ -564,7 +564,7 @@
       "write_scope": [
         "internal/cli/paste_sanitizer.go",
         "internal/cli/paste_sanitizer_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run '^TestStripLeakedBracketedPasteWrappers_' -count=1",
@@ -635,7 +635,7 @@
         "internal/cli/paste_diagnostic.go",
         "internal/cli/paste_diagnostic_test.go",
         "internal/cli/paste_sanitizer.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run '^TestSlowBracketedPasteDiagnostic_|^TestStripLeakedBracketedPasteWrappers_' -count=1",
@@ -706,7 +706,7 @@
         "internal/cli/user_message_preview.go",
         "internal/cli/user_message_preview_test.go",
         "internal/cli/output.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run '^TestUserMessagePreview' -count=1",
@@ -787,7 +787,7 @@
       "write_scope": [
         "internal/cli/dump.go",
         "internal/cli/dump_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run 'TestRenderDumpSummary_' -count=1",
@@ -845,7 +845,7 @@
       "note": "Complete: TDD landed internal/cli/pty_bridge_test.go plus a small internal/cli PTY adapter. Fixtures prove bounded read timeout/chunk behavior, write forwarding with pre-session validation, resize escape validation and winsize forwarding, idempotent close/child termination, and ErrPtyUnavailable degradation before spawn on unsupported platforms without dashboard, network, or live TUI dependencies.",
       "write_scope": [
         "internal/cli/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -count=1"
@@ -911,7 +911,7 @@
         "internal/cli/",
         "internal/gateway/commands.go",
         "internal/gateway/commands_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli ./internal/gateway -run 'Test.*Command.*Policy|Test.*Slash|Test.*Busy' -count=1",
@@ -1029,9 +1029,9 @@
         "internal/core/agenttemplate/parity_manifest.go",
         "internal/core/agenttemplate/template.go",
         "internal/core/agenttemplate/template_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/superpowers/specs/2026-04-30-agent-template-reset-design.md",
-        "docs/superpowers/plans/platform-install/2026-04-30-agent-template-reset.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/superpowers/specs/2026-04-30-agent-template-reset-design.md",
+        "webpages/docs/superpowers/plans/platform-install/2026-04-30-agent-template-reset.md"
       ],
       "test_commands": [
         "go test ./internal/agenttemplate -count=1",
@@ -1075,14 +1075,14 @@
         "system"
       ],
       "degraded_mode": "If py2many cannot be installed or the Go backend fails for most files, the report records tool_unavailable or backend_unsupported evidence with commands attempted, still emits an rg-based Hermes source-class inventory, and does not commit generated Go.",
-      "fixture": "docs/content/building-gormes/architecture_plan/py2many-hermes-map.md",
+      "fixture": "webpages/docs/content/building-gormes/architecture_plan/py2many-hermes-map.md",
       "source_refs": [
         "/py2many/py2many README: `py2many --go <file.py>`",
         "../hermes-agent/hermes_cli/default_soul.py:DEFAULT_SOUL_MD",
         "../hermes-agent/hermes_cli/config.py:_ensure_default_soul_md",
         "../hermes-agent/hermes_cli/profiles.py:create_profile",
         "../hermes-agent/agent/prompt_builder.py:DEFAULT_AGENT_IDENTITY",
-        "docs/development-skills/gormes-planner/SKILL.md:Persona, Templates, Skills, And Reset Defaults"
+        "development-skills/gormes-planner/SKILL.md:Persona, Templates, Skills, And Reset Defaults"
       ],
       "ready_when": [
         "The runner uses an isolated temp venv or tool cache and never modifies the Hermes checkout, live GORMES_HOME, live HERMES_HOME, or generated runtime Go packages.",
@@ -1101,12 +1101,12 @@
         "At least one discovery is traced into a progress.json row or an existing row update with exact source_refs; the default_soul/config/profile family must be represented.",
         "Generated Go artifacts are absent from `git status --short` unless they live under an explicitly ignored temp/output directory documented by the report."
       ],
-      "note": "Complete 2026-05-14, refreshed 2026-05-17: scripts/hermes-py2many-map.sh mapped all 1,710 Python files in hermes-agent@9f182bd7b with py2many 0.8. Report at docs/content/building-gormes/architecture_plan/py2many-hermes-map.md records status counts failed=1642, no-output=26, ok=38, timeout=4 and classification counts test-fixture=1128, manual-go-native-rewrite=281, schema-constant-candidate=123, unsupported-or-partial=173, transpiles=5. Generated Go artifacts stayed outside the repo under /home/xel/.cache/tmp/gormes-hermes-py2many-map.KjMwja and are evidence only.",
+      "note": "Complete 2026-05-14, refreshed 2026-05-17: scripts/hermes-py2many-map.sh mapped all 1,710 Python files in hermes-agent@9f182bd7b with py2many 0.8. Report at webpages/docs/content/building-gormes/architecture_plan/py2many-hermes-map.md records status counts failed=1642, no-output=26, ok=38, timeout=4 and classification counts test-fixture=1128, manual-go-native-rewrite=281, schema-constant-candidate=123, unsupported-or-partial=173, transpiles=5. Generated Go artifacts stayed outside the repo under /home/xel/.cache/tmp/gormes-hermes-py2many-map.KjMwja and are evidence only.",
       "write_scope": [
-        "cmd/repoctl",
+        "cmd/gormes-repo",
         "scripts/hermes-py2many-map.sh",
-        "docs/content/building-gormes/architecture_plan/py2many-hermes-map.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/py2many-hermes-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "scripts/hermes-py2many-map.sh --dry-run",
@@ -1132,7 +1132,7 @@
         "files_mapped": 1710,
         "generated_go_artifacts": 1684,
         "py2many": "0.8",
-        "report": "docs/content/building-gormes/architecture_plan/py2many-hermes-map.md",
+        "report": "webpages/docs/content/building-gormes/architecture_plan/py2many-hermes-map.md",
         "runner": "scripts/hermes-py2many-map.sh",
         "source_sha": "hermes:9f182bd7b",
         "status_counts": {
@@ -1168,10 +1168,10 @@
         "system"
       ],
       "degraded_mode": "`scripts/hermes-parity-refresh.sh --check --no-fetch` validates the pinned local checkout when remote access is unavailable. Plain `--check` fetches origin/main metadata and exits nonzero when upstream Hermes has advanced. `--update` refuses dirty or non-fast-forward Hermes checkouts before moving the detached checkout, syncing manifest SHAs, regenerating reports, and validating progress metadata.",
-      "fixture": "docs/content/building-gormes/architecture_plan/hermes-source-pairs.json + docs/content/building-gormes/architecture_plan/hermes-source-pairs.md",
+      "fixture": "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json + webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.md",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/py2many-hermes-map.md",
-        "docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+        "webpages/docs/content/building-gormes/architecture_plan/py2many-hermes-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
         "scripts/hermes-parity-refresh.sh",
         "../hermes-agent/hermes_cli/default_soul.py",
         "../hermes-agent/hermes_cli/config.py",
@@ -1201,9 +1201,9 @@
         "The update mode blindly preserves covered status for a Hermes source file that changed upstream."
       ],
       "acceptance": [
-        "`repoctl hermes-source-pairs validate` rejects covered rows without tests, missing Gormes targets, stale Hermes SHAs, and unmapped high-priority sources.",
-        "`repoctl hermes-source-pairs sync-sha` updates manifest and row SHAs and demotes covered rows to partial when their upstream source file changed between pinned SHAs.",
-        "`repoctl hermes-source-pairs report` regenerates a Markdown report with status counts and source-to-target rows.",
+        "`gormes-repo hermes-source-pairs validate` rejects covered rows without tests, missing Gormes targets, stale Hermes SHAs, and unmapped high-priority sources.",
+        "`gormes-repo hermes-source-pairs sync-sha` updates manifest and row SHAs and demotes covered rows to partial when their upstream source file changed between pinned SHAs.",
+        "`gormes-repo hermes-source-pairs report` regenerates a Markdown report with status counts and source-to-target rows.",
         "`scripts/hermes-parity-refresh.sh --check --no-fetch` validates the pinned local Hermes checkout and py2many dry-run path without mutating runtime state.",
         "`scripts/hermes-parity-refresh.sh --check` detects when origin/main is newer than the local Hermes checkout and exits nonzero with the current and upstream SHAs.",
         "`scripts/hermes-parity-refresh.sh --update` fast-forwards a clean Hermes checkout to origin/main, syncs the source-pair manifest, reruns py2many, regenerates the source-pair report, and leaves `--check` green."
@@ -1213,21 +1213,21 @@
         "internal/repoctl/source_pairs.go",
         "internal/repoctl/source_pairs_test.go",
         "internal/llm/guidance_constants.go",
-        "cmd/repoctl/main.go",
-        "cmd/repoctl/main_test.go",
+        "cmd/gormes-repo/main.go",
+        "cmd/gormes-repo/main_test.go",
         "scripts/hermes-parity-refresh.sh",
         "webpages/docs/content/upstream-hermes",
-        "docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
-        "docs/content/building-gormes/architecture_plan/hermes-source-pairs.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/repoctl -run SourcePairs -count=1",
-        "go test ./cmd/repoctl -run HermesSourcePairs -count=1",
+        "go test ./cmd/gormes-repo -run HermesSourcePairs -count=1",
         "go test ./internal/llm -run 'TestGuidanceConstants_ToolUseEnforcementModels_MatchesUpstream|TestModelPromptGuidance' -count=1",
-        "go run ./cmd/repoctl hermes-source-pairs validate --hermes-sha 0f0e20ef81709a6dd590b25af380b116db67628c",
-        "go run ./cmd/repoctl hermes-source-pairs sync-sha --hermes-sha 0f0e20ef81709a6dd590b25af380b116db67628c",
-        "go run ./cmd/repoctl hermes-source-pairs report",
+        "go run ./cmd/gormes-repo hermes-source-pairs validate --hermes-sha 0f0e20ef81709a6dd590b25af380b116db67628c",
+        "go run ./cmd/gormes-repo hermes-source-pairs sync-sha --hermes-sha 0f0e20ef81709a6dd590b25af380b116db67628c",
+        "go run ./cmd/gormes-repo hermes-source-pairs report",
         "scripts/hermes-parity-refresh.sh --update",
         "scripts/hermes-parity-refresh.sh --check --no-fetch",
         "scripts/hermes-parity-refresh.sh --check",
@@ -1245,17 +1245,17 @@
       "evidence": {
         "changed_files_update": 465,
         "demoted_covered_rows": 0,
-        "manifest": "docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+        "manifest": "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
         "origin_main_sha": "hermes:9f182bd7b04f73e4508999017e20740272b036a8",
         "phase0_check": "scripts/hermes-parity-refresh.sh --check",
-        "report": "docs/content/building-gormes/architecture_plan/hermes-source-pairs.md",
+        "report": "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.md",
         "source_sha": "hermes:9f182bd7b04f73e4508999017e20740272b036a8",
         "status_counts": {
           "covered": 1,
           "partial": 12
         },
         "update_runs": 4,
-        "validator": "cmd/repoctl hermes-source-pairs validate",
+        "validator": "cmd/gormes-repo hermes-source-pairs validate",
         "verification": [
           "scripts/hermes-parity-refresh.sh --update",
           "go run ./cmd/progress validate"
@@ -1290,7 +1290,7 @@
         "cmd/gormes/root_help_test.go:TestRemovedTopLevelEntrypointsReturnReplacementGuidance",
         "internal/cli/typo_suggestions_test.go:TestTypoSuggestionGuidesRemovedLoginCommand",
         "cmd/gormes/hermes_cli_parity.go:55",
-        "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
       ],
       "ready_when": [
         "Hermes login parser shape is source-backed and the `openai-codex` branch is active through Hermes provider-auth helpers.",
@@ -1317,9 +1317,9 @@
         "cmd/gormes/root_help_test.go",
         "internal/cli/typo_suggestions.go",
         "internal/cli/typo_suggestions_test.go",
-        "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md",
-        "docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestRemovedTopLevelEntrypointsReturnReplacementGuidance|TestHermesCLIParityManifestProviderAuthCommandsMatchHermes|TestHermesCommandAliasFidelity_RootUnknownAndTypoSuggestions' -count=1",
@@ -1384,7 +1384,7 @@
         "cmd/gormes/main.go",
         "cmd/gormes/oneshot_output_test.go",
         "internal/kernel/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run TestOneshotFinalOutput -count=1",
@@ -1450,7 +1450,7 @@
       "write_scope": [
         "internal/cli/service_restart.go",
         "internal/cli/service_restart_parse_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run TestServiceRestartParser -count=1",
@@ -1518,7 +1518,7 @@
       "write_scope": [
         "internal/cli/service_restart.go",
         "internal/cli/service_restart_poll_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run TestServiceRestartPoller -count=1",
@@ -1607,7 +1607,7 @@
       "write_scope": [
         "internal/cli/backup_policy.go",
         "internal/cli/backup_policy_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run '^TestBackupPolicy_|^TestBackupManifestExclusions_' -count=1",
@@ -1698,7 +1698,7 @@
         "internal/cli/backup_policy.go",
         "install.sh",
         "scripts/install.ps1",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestUpdateCommand' -count=1",
@@ -1790,7 +1790,7 @@
         "internal/cli/update_service_coordination.go",
         "internal/cli/update_service_coordination_test.go",
         "internal/cli/service_restart.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes ./internal/cli -run 'TestUpdateReleaseService|TestUpdateServiceCoordination|TestUpdateLock' -count=1",
@@ -1859,7 +1859,7 @@
       "write_scope": [
         "internal/cli/log_redact.go",
         "internal/cli/log_redact_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run 'TestRedactLine' -count=1",
@@ -1929,7 +1929,7 @@
       "write_scope": [
         "internal/cli/log_snapshot.go",
         "internal/cli/log_snapshot_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run 'TestSnapshotLogs' -count=1",
@@ -2026,7 +2026,7 @@
         "internal/gateway/manager.go",
         "internal/tui/slash_dispatch.go",
         "internal/tui/slash_commands_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestHermesCommandAliasFidelity_|TestHermesCLIParityManifest|TestLoginTypoSuggestion|TestMigrateOpenClaw' -count=1",
@@ -2063,9 +2063,9 @@
       "fixture": "internal/cli/logs_test.go",
       "source_refs": [
         "openclaw logs command",
-        "docs/content/building-gormes/must-have-features.md",
-        "docs/content/building-gormes/fleet-operational-patterns.md",
-        "docs/content/building-gormes/fleet-integration-plan.md"
+        "webpages/docs/content/building-gormes/must-have-features.md",
+        "webpages/docs/content/building-gormes/fleet-operational-patterns.md",
+        "webpages/docs/content/building-gormes/fleet-integration-plan.md"
       ],
       "ready_when": [
         "Gateway file logging is operational.",
@@ -2084,7 +2084,7 @@
         "internal/cli/logs.go",
         "internal/cli/logs_test.go",
         "cmd/gormes/logs.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run TestLogs -count=1",
@@ -2180,7 +2180,7 @@
         "cmd/gormes/setup.go:setupSections",
         "internal/cli/command_registry.go:CommandRegistry",
         "internal/progress/module.go:AllowedModules",
-        "docs/content/building-gormes/modules/profiles.md"
+        "webpages/docs/content/building-gormes/modules/profiles.md"
       ],
       "ready_when": [
         "The approved fine module taxonomy is available through internal/progress.ValidModule.",
@@ -2463,8 +2463,8 @@
         "cmd/gormes/setup_tools_test.go",
         "cmd/gormes/tools_command_test.go",
         "internal/tui/toolsview/slash.go",
-        "docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md:/tools",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tool registry and toolsets"
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md:/tools",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tool registry and toolsets"
       ],
       "ready_when": [
         "The current root `gormes tools` command is still row-backed unavailable while TUI `/tools enable|disable` and setup tool config helpers already provide the narrow config machinery needed for CLI platform toggles.",
@@ -2486,11 +2486,11 @@
       "write_scope": [
         "cmd/gormes/hermes_rowbacked_commands.go",
         "cmd/gormes/tools_command_test.go",
-        "docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
         "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
-        "docs/content/building-gormes/architecture_plan/progress.json/modules/cli.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/cli.json",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/cli.json"
       ],
       "test_commands": [
@@ -2588,7 +2588,7 @@
         "internal/channels/navivox/profile_contacts.go",
         "internal/progress/progress_test.go",
         "internal/cli/codemap.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal -run TestInternalTopology -count=1",

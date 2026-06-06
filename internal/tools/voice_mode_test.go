@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -113,6 +114,35 @@ func TestInMemoryVoiceModeStore(t *testing.T) {
 	if err == nil {
 		t.Error("Set with empty chatID should fail")
 	}
+}
+
+func TestInMemoryVoiceModeStoreConcurrentAccess(t *testing.T) {
+	ctx := context.Background()
+	store := NewInMemoryVoiceModeStore()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 16; i++ {
+		wg.Add(1)
+		go func(worker int) {
+			defer wg.Done()
+			for j := 0; j < 100; j++ {
+				chatID := "chat-concurrent"
+				if err := store.Set(ctx, VoiceModeChatState{ChatID: chatID, Mode: VoiceModeState((worker + j) % 3), UpdatedAt: time.Now().UTC()}); err != nil {
+					t.Errorf("Set: %v", err)
+					return
+				}
+				if _, err := store.Get(ctx, chatID); err != nil {
+					t.Errorf("Get: %v", err)
+					return
+				}
+				if _, err := store.List(ctx); err != nil {
+					t.Errorf("List: %v", err)
+					return
+				}
+			}
+		}(i)
+	}
+	wg.Wait()
 }
 
 func TestFileVoiceModeStore(t *testing.T) {

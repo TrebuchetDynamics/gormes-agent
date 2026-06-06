@@ -74,8 +74,7 @@ deer-flow/
 /@py2many-hermes
 
 # ── Docs/site generated artifacts ────────────────────
-docs/www-tests/node_modules/
-docs/www-tests/test-results/
+webpages/docs/www-tests/node_modules/
 webpages/docs/www-tests/test-results/
 scripts/whatsapp-bridge/node_modules/
 

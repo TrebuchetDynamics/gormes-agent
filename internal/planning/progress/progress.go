@@ -136,17 +136,17 @@ type Item struct {
 	ETA   string `json:"eta,omitempty"`
 	// Health is execution-history metadata owned by autoloop. The planner
 	// must preserve this block verbatim across regenerations (see
-	// docs/superpowers/specs/2026-04-24-reactive-autoloop-design.md).
+	// webpages/docs/superpowers/specs/2026-04-24-reactive-autoloop-design.md).
 	Health *RowHealth `json:"health,omitempty"`
 	// PlannerVerdict is execution-history metadata owned by the planner
 	// runtime. Autoloop reads it (to skip human-escalated rows) and must
 	// preserve it verbatim across writes (see
-	// docs/superpowers/specs/2026-04-24-planner-self-healing-design.md).
+	// webpages/docs/superpowers/specs/2026-04-24-planner-self-healing-design.md).
 	PlannerVerdict *PlannerVerdict `json:"planner_verdict,omitempty"`
 	// Provenance is per-row source-of-truth metadata owned by the planner.
 	// Autoloop preserves it via typed-struct round-trip. The planner sets
 	// origin_type="gormes" for rows with no upstream analog (see Phase D of
-	// docs/superpowers/plans/orchestration-planner/2026-04-25-planner-divergence-awareness.md).
+	// webpages/docs/superpowers/plans/orchestration-planner/2026-04-25-planner-divergence-awareness.md).
 	Provenance *Provenance `json:"provenance,omitempty"`
 	// Extra preserves historical row evidence fields that are not yet promoted
 	// into the typed schema. This prevents layout rewrites from silently
@@ -181,7 +181,7 @@ type Subphase struct {
 	Status Status `json:"status,omitempty"`
 	// DriftState is subphase-level convergence state owned by the planner.
 	// Autoloop preserves it via typed-struct round-trip (see Phase D of
-	// docs/superpowers/plans/orchestration-planner/2026-04-25-planner-divergence-awareness.md).
+	// webpages/docs/superpowers/plans/orchestration-planner/2026-04-25-planner-divergence-awareness.md).
 	DriftState *DriftState                `json:"drift_state,omitempty"`
 	Extra      map[string]json.RawMessage `json:"-"`
 }

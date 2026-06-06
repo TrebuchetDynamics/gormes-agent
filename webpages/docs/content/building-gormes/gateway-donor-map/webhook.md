@@ -9,7 +9,7 @@ PicoClaw's generic webhook support is useful as ingress scaffolding, but it is n
 
 ## Status
 
-`docs/content/building-gormes/architecture_plan/subsystem-inventory.md` plans both a gateway Webhook adapter in Phase 2.B.10 and a broader webhook subscription system in Phase 2.D. That means Gormes already expects webhook ingress to exist inside a larger runtime, not as a freestanding channel manager.
+`webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` plans both a gateway Webhook adapter in Phase 2.B.10 and a broader webhook subscription system in Phase 2.D. That means Gormes already expects webhook ingress to exist inside a larger runtime, not as a freestanding channel manager.
 
 Evidence level:
 
@@ -17,7 +17,7 @@ Evidence level:
 - The donor commit inspected for this research was `6421f146a99df1bebcd4b1ca8de2a289dfca3622`.
 - The upstream donor repo is `https://github.com/sipeed/picoclaw`.
 - Any `pkg/...` or `docs/...` path listed below is relative to that donor root, not relative to the Gormes repo.
-- Current Gormes planning and upstream Hermes operator behavior were verified in-tree against `docs/content/building-gormes/architecture_plan/subsystem-inventory.md` and `docs/content/upstream-hermes/user-guide/messaging/webhooks.md`.
+- Current Gormes planning and upstream Hermes operator behavior were verified in-tree against `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` and `webpages/docs/content/upstream-hermes/user-guide/messaging/webhooks.md`.
 
 Keep the boundary explicit: PicoClaw contributes generic HTTP ingress patterns only. Gormes gateway architecture remains authoritative.
 
@@ -39,8 +39,8 @@ The donor is not a direct architecture donor because it says nothing about route
 - `picoclaw/pkg/channels/webhook.go`
 - `picoclaw/pkg/channels/dynamic_mux.go`
 - Generic context only: `picoclaw/docs/guides/chat-apps.md`
-- `docs/content/upstream-hermes/user-guide/messaging/webhooks.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/upstream-hermes/user-guide/messaging/webhooks.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 ## What To Copy vs What To Rebuild
 
@@ -91,7 +91,7 @@ Rebuild in Gormes-native form:
 - `picoclaw/pkg/channels/webhook.go`: `WebhookHandler`, `HealthChecker`.
 - `picoclaw/pkg/channels/dynamic_mux.go`: `dynamicServeMux`, `Handle`, `HandleFunc`, `Unhandle`, `ServeHTTP`.
 - `picoclaw/docs/guides/chat-apps.md`
-- `docs/content/upstream-hermes/user-guide/messaging/webhooks.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/upstream-hermes/user-guide/messaging/webhooks.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 Recommendation: `adapt pattern only`.

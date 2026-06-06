@@ -11,6 +11,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	tuiapp "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/tuiapp"
 )
 
 // onboardStatusReportJSON is the internal first-run readiness JSON shape.
@@ -90,9 +91,9 @@ func onboardRuntime(cmd *cobra.Command, seams onboardCommandSeams) gormescli.Onb
 		Build:             gormescli.OnboardBuildProvenance{Version: build.Version, GitCommit: build.GitCommit},
 		Home:              config.GormesHome(),
 		ConfigPath:        config.ConfigPath(),
-		BuildFirstRunPlan: buildFirstRunPlanFromConfig,
+		BuildFirstRunPlan: tuiapp.BuildFirstRunPlanFromConfig,
 		NormalizeChoice:   normalizeSetupChoice,
-		FirstRunCommand:   firstRunGuidanceCommand,
+		FirstRunCommand:   tuiapp.FirstRunGuidanceCommand,
 	}
 	if seams.PromptAction != nil {
 		runtime.PromptAction = func(_ io.Reader, step cli.OnboardStep, defaultAction string) (string, error) {
@@ -120,7 +121,7 @@ func printOnboardStatus(cmd *cobra.Command, cfg config.Config) {
 }
 
 func printOnboardFirstRunReadiness(out io.Writer, plan cli.FirstRunPlan) {
-	gormescli.PrintOnboardFirstRunReadiness(out, plan, gormescli.OnboardRuntime{FirstRunCommand: firstRunGuidanceCommand})
+	gormescli.PrintOnboardFirstRunReadiness(out, plan, gormescli.OnboardRuntime{FirstRunCommand: tuiapp.FirstRunGuidanceCommand})
 }
 
 // onboardWizardPlanJSON is the internal onboarding wizard-plan JSON shape.

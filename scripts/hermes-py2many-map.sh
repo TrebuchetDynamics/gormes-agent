@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HERMES_SRC="${HERMES_SRC:-$ROOT/hermes-agent}"
-REPORT="${REPORT:-$ROOT/docs/content/building-gormes/architecture_plan/py2many-hermes-map.md}"
+REPORT="${REPORT:-$ROOT/webpages/docs/content/building-gormes/architecture_plan/py2many-hermes-map.md}"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-}"
 TIMEOUT_SECONDS="${PY2MANY_TIMEOUT_SECONDS:-8}"
 LIMIT=""

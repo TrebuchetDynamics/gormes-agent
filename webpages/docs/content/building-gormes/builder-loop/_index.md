@@ -13,7 +13,7 @@ builder passes now execute the building-gormes roadmap by selecting work from
 canonical row.
 
 These pages mirror the structured rows in
-`docs/content/building-gormes/architecture_plan/progress.json` so operators,
+`webpages/docs/content/building-gormes/architecture_plan/progress.json` so operators,
 contributors, and agents use the same queue.
 
 Before assigning work, read the [Completion Plan](../architecture_plan/completion-plan/)

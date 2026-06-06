@@ -18,6 +18,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 )
@@ -389,7 +390,7 @@ func runSetupToolsTTYE2EHelper() {
 	cmd.SetIn(os.Stdin)
 	cmd.SetOut(os.Stdout)
 	cmd.SetErr(os.Stderr)
-	if err := runSetupToolsSection(cmd, false); err != nil {
+	if err := gormescli.RunSetupToolsSection(cmd, false, setupToolsOptions(cmd)); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -401,7 +402,7 @@ func runSetupNavivoxTTYE2EHelper() {
 	cmd.SetIn(os.Stdin)
 	cmd.SetOut(os.Stdout)
 	cmd.SetErr(os.Stderr)
-	if err := runSetupNavivoxGateway(cmd, config.Config{}); err != nil {
+	if err := gormescli.RunSetupNavivoxGateway(cmd, config.Config{}, setupNavivoxGatewayOptions(cmd)); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

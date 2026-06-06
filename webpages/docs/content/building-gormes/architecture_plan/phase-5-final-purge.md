@@ -122,7 +122,7 @@ Phase 5 is the highest-risk place to accidentally create giant porting tasks. Tr
 ## Go donor pointers
 
 Before writing a new Phase 5 slice, route through the `gormes-references`
-skill (`docs/development-skills/gormes-references/SKILL.md`) to find the
+skill (`development-skills/gormes-references/SKILL.md`) to find the
 donor file that already shapes the seam.
 
 | Phase 5 problem | Donor file | Notes |

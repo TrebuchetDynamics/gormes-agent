@@ -5,7 +5,7 @@ weight: 20
 
 # Gormes — Executive Roadmap
 
-**Single source of truth:** [`progress.json`](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/content/building-gormes/architecture_plan/progress.json) — machine-readable, validated + regenerated on build.
+**Single source of truth:** [`progress.json`](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/webpages/docs/content/building-gormes/architecture_plan/progress.json) — machine-readable, validated + regenerated on build.
 
 **Public site:** https://gormes.ai
 
@@ -16,7 +16,7 @@ weight: 20
 - [Source code](https://github.com/TrebuchetDynamics/gormes-agent) — Implementation
 
 **Execution control plane:** repo-local Gormes skills consume this
-`progress.json` and the generated `docs/content/building-gormes/` pages to
+`progress.json` and the generated `webpages/docs/content/building-gormes/` pages to
 select and execute eligible work. The old loop command binaries are gone; the
 roadmap is still the machine-readable queue for developing the full
 `gormes-agent`.
@@ -1667,9 +1667,9 @@ classification and row-backed implementation queue.
 
 ## Phase 3 Deep Dive
 
-`3.E.7` and `3.E.8` now have a frozen architecture target in `docs/superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-plan.md`. The contract is `user_id > chat_id > session_id`, recall remains same-chat default, cross-chat recall is opt-in, and `parent_session_id` is reserved for compression/fork descendants instead of becoming a generic session rewrite mechanism.
+`3.E.7` and `3.E.8` now have a frozen architecture target in `webpages/docs/superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-plan.md`. The contract is `user_id > chat_id > session_id`, recall remains same-chat default, cross-chat recall is opt-in, and `parent_session_id` is reserved for compression/fork descendants instead of becoming a generic session rewrite mechanism.
 
-Execution is now sequenced in `docs/superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md`, with the closeout order fixed as `3.E.6.1 -> 3.E.7.2 -> 3.E.8.1 -> 3.E.8.2` so freshness, fence safety, lineage metadata, and search/observability land in that order.
+Execution is now sequenced in `webpages/docs/superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md`, with the closeout order fixed as `3.E.6.1 -> 3.E.7.2 -> 3.E.8.1 -> 3.E.8.2` so freshness, fence safety, lineage metadata, and search/observability land in that order.
 
 ---
 
@@ -1681,7 +1681,7 @@ Before any Phase 4 coding starts, the [Pre-Phase-4 E2E Gate](./phases/phase-3-me
 
 ## Data Format
 
-[`progress.json`](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/content/building-gormes/architecture_plan/progress.json) is the machine-readable source of truth. Top-level structure:
+[`progress.json`](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/webpages/docs/content/building-gormes/architecture_plan/progress.json) is the machine-readable source of truth. Top-level structure:
 
 - `meta` — schema version, last-updated timestamp, canonical URLs
 - `phases` — six phases keyed `"1"`..`"6"`, each containing `subphases`

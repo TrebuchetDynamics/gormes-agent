@@ -21,8 +21,8 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	tuiapp "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/tuiapp"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/protocols/acp"
 	gormesruntime "github.com/TrebuchetDynamics/gormes-agent/internal/runtime"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	tuilocal "github.com/TrebuchetDynamics/gormes-agent/internal/tui/local"
@@ -250,7 +250,7 @@ func buildDoctorCmd() *cobra.Command {
 			activatedCfg, secretSnapshot, secretActivationErr := activateGatewaySecretRuntime(cmd.Context(), cfg, nil)
 			cfg = activatedCfg
 			if target != "" {
-				plan := buildFirstRunPlanFromConfig(cfg, target, false)
+				plan := tuiapp.BuildFirstRunPlanFromConfig(cfg, target, false)
 				reporter.target = doctorTargetReadinessFromPlan(plan)
 				reporter.Add(doctorTargetReadinessStatus(plan))
 			}
@@ -308,7 +308,7 @@ func buildDoctorCmd() *cobra.Command {
 			reporter.Add(result)
 			reporter.Add(doctorWebToolsStatus(cfg))
 			reporter.Add(gormescli.DoctorBrowserRuntimeStatusWithDeps(gormescli.BrowserRuntimeDoctorDeps{Offline: offline}))
-			reporter.Add(doctorACPBridgeStatus())
+			reporter.Add(doctor.CheckACPBridgeStatus())
 			reporter.Add(doctorGitHubAuthStatus(cmd.Context(), offline))
 			reporter.Add(doctor.CheckSkillsHub(cmd.Context(), doctor.SkillsHubOptions{
 				Home:            config.GormesHome(),
@@ -406,7 +406,7 @@ func doctorTargetReadinessStatus(plan cli.FirstRunPlan) doctor.CheckResult {
 		status = doctor.StatusWarn
 	}
 	summary := plan.Summary
-	if command := firstRunGuidanceCommand(plan.NextCommand); command != "" {
+	if command := tuiapp.FirstRunGuidanceCommand(plan.NextCommand); command != "" {
 		if summary == "" {
 			summary = "next: " + command
 		} else {
@@ -416,7 +416,7 @@ func doctorTargetReadinessStatus(plan cli.FirstRunPlan) doctor.CheckResult {
 	items := make([]doctor.ItemInfo, 0, len(plan.MissingSteps))
 	for _, step := range plan.MissingSteps {
 		note := step.Detail
-		if command := firstRunGuidanceCommand(step.Command); command != "" {
+		if command := tuiapp.FirstRunGuidanceCommand(step.Command); command != "" {
 			note += "; run: " + command
 		}
 		items = append(items, doctor.ItemInfo{
@@ -759,62 +759,6 @@ func doctorProviderHealthTarget(cfg config.Config) string {
 
 func doctorProviderHealthUsesAuthReadiness(cfg config.Config) bool {
 	return strings.EqualFold(strings.TrimSpace(cfg.Hermes.Provider), config.CodexOAuthProvider)
-}
-
-func doctorACPBridgeStatus() doctor.CheckResult {
-	status := acp.DefaultBridgeStatus()
-	checkStatus := doctor.StatusPass
-	if !status.ServerReady || !status.ClientReady || status.RemoteStatus != acp.BridgeEndpointReady {
-		checkStatus = doctor.StatusWarn
-	}
-
-	serverStatus := doctor.StatusPass
-	if !status.ServerReady {
-		serverStatus = doctor.StatusWarn
-	}
-	clientStatus := doctor.StatusPass
-	if !status.ClientReady {
-		clientStatus = doctor.StatusWarn
-	}
-	remoteStatus := doctor.StatusPass
-	if status.RemoteStatus != acp.BridgeEndpointReady {
-		remoteStatus = doctor.StatusWarn
-	}
-
-	return doctor.CheckResult{
-		Name:   "ACP bridge",
-		Status: checkStatus,
-		Summary: fmt.Sprintf("server=%s client=%s remote=%s evidence=%s",
-			readyWord(status.ServerReady),
-			readyWord(status.ClientReady),
-			status.RemoteStatus,
-			status.RemoteEvidence,
-		),
-		Items: []doctor.ItemInfo{
-			{
-				Name:   "server",
-				Status: serverStatus,
-				Note:   fmt.Sprintf("evidence=%s surfaces=%d row_backed=%d", status.ServerEvidence, status.ServerSurfaces, status.ServerRowBacked),
-			},
-			{
-				Name:   "client",
-				Status: clientStatus,
-				Note:   "evidence=" + status.ClientEvidence,
-			},
-			{
-				Name:   "remote",
-				Status: remoteStatus,
-				Note:   fmt.Sprintf("evidence=%s reason=%s", status.RemoteEvidence, status.RemoteReason),
-			},
-		},
-	}
-}
-
-func readyWord(ok bool) string {
-	if ok {
-		return "ready"
-	}
-	return "unavailable"
 }
 
 func doctorSecretRuntimeStatus(snapshot gormesruntime.SecretRuntimeSnapshot, activationErr error) doctor.CheckResult {

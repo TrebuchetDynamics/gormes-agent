@@ -158,7 +158,7 @@ func projectionFixture() *Progress {
 					ContractStatus:       ContractStatusDraft,
 					SliceSize:            SliceSizeSmall,
 					ReadyWhen:            []string{"docs source exists"},
-					WriteScope:           []string{"docs/content/building-gormes/"},
+					WriteScope:           []string{"webpages/docs/content/building-gormes/"},
 					NoTestRequiredReason: "docs-only projection proof",
 					Acceptance:           []string{"docs copy checked"},
 					DoneSignal:           []string{"docs projection listed"},

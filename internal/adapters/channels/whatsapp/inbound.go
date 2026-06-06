@@ -202,4 +202,3 @@ func selfChatSuppression(msg InboundMessage, text string, ctx IdentityContext, i
 	}
 	return SelfChatSuppression{}, false
 }
-

@@ -47,7 +47,7 @@
       "write_scope": [
         "internal/goncho/dynamic_agents.go",
         "internal/goncho/dynamic_agents_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho -run '^TestDynamicAgentRegistry_' -count=1",
@@ -84,8 +84,8 @@
       "degraded_mode": "Memory status and tool schema evidence show when user-scope or source-filtered recall is unavailable.",
       "fixture": "internal/gonchotools/honcho_tools_test.go",
       "source_refs": [
-        "docs/content/upstream-hermes/gormes-takeaways.md",
-        "docs/content/building-gormes/architecture_plan/phase-3-memory.md",
+        "webpages/docs/content/upstream-hermes/gormes-takeaways.md",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-3-memory.md",
         "../honcho/docs/v3/guides/integrations/hermes.mdx"
       ],
       "ready_when": [
@@ -106,7 +106,7 @@
       "note": "TDD landed: `honcho_search` and `honcho_context` keep their public Honcho-compatible names while their JSON Schemas now advertise optional `scope` and `sources` controls backed by the existing internal GONCHO params. Schema tests assert both fields are discoverable and not required, and executor round-trips without either field preserve same-chat default behavior. Deny-path fixtures and operator evidence remain separate 3.E.7 slices.",
       "write_scope": [
         "internal/gonchotools/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gonchotools ./internal/goncho -count=1"
@@ -139,7 +139,7 @@
         "../honcho/docs/v3/guides/integrations/opencode.mdx",
         "../honcho/docs/v3/guides/integrations/sillytavern.mdx",
         "../honcho/docs/v3/guides/integrations/hermes.mdx",
-        "docs/content/building-gormes/architecture_plan/phase-3-memory.md"
+        "webpages/docs/content/building-gormes/architecture_plan/phase-3-memory.md"
       ],
       "ready_when": [
         "Public honcho_* schemas expose scope/source controls and interrupted turns cannot persist partial memory observations."
@@ -156,7 +156,7 @@
       "write_scope": [
         "internal/goncho/",
         "internal/memory/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho ./internal/memory -count=1"
@@ -199,8 +199,8 @@
       "source_refs": [
         "../honcho/docs/v3/documentation/features/get-context.mdx",
         "../honcho/docs/v3/documentation/features/advanced/representation-scopes.mdx",
-        "docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
-        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
         "internal/goncho/types.go",
         "internal/gonchotools/honcho_tools.go"
       ],
@@ -224,7 +224,7 @@
       "write_scope": [
         "internal/goncho/",
         "internal/gonchotools/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho ./internal/gonchotools -count=1"
@@ -256,8 +256,8 @@
       "source_refs": [
         "../honcho/docs/v3/documentation/features/advanced/search.mdx",
         "../honcho/docs/v3/documentation/features/advanced/using-filters.mdx",
-        "docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
-        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
         "internal/memory/session_catalog.go",
         "internal/goncho/types.go"
       ],
@@ -279,7 +279,7 @@
       "write_scope": [
         "internal/goncho/",
         "internal/memory/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho ./internal/memory -count=1"
@@ -336,9 +336,9 @@
       "write_scope": [
         "internal/memory/vector_divergence.go",
         "internal/memory/divergence_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
       ],
       "test_commands": [
         "go test ./internal/memory -run Divergence -count=1",
@@ -379,8 +379,8 @@
       "source_refs": [
         "../honcho/docs/v3/documentation/features/advanced/representation-scopes.mdx",
         "../honcho/docs/v3/documentation/features/advanced/peer-card.mdx",
-        "docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
-        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
         "internal/memory/schema.go",
         "internal/goncho/sql.go"
       ],
@@ -404,7 +404,7 @@
         "internal/goncho/",
         "internal/memory/",
         "internal/gonchotools/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho ./internal/memory ./internal/gonchotools -count=1"
@@ -436,8 +436,8 @@
       "source_refs": [
         "../honcho/docs/v3/documentation/features/advanced/queue-status.mdx",
         "../honcho/docs/v3/documentation/core-concepts/reasoning.mdx",
-        "docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
-        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
         "internal/memory/status.go"
       ],
       "ready_when": [
@@ -459,7 +459,7 @@
         "internal/goncho/",
         "internal/memory/",
         "cmd/gormes/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes ./internal/goncho ./internal/memory -count=1"
@@ -496,8 +496,8 @@
       "source_refs": [
         "../honcho/docs/v3/documentation/features/advanced/summarizer.mdx",
         "../honcho/docs/v3/documentation/features/get-context.mdx",
-        "docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
-        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
         "internal/goncho/service.go",
         "internal/memory/schema.go"
       ],
@@ -521,7 +521,7 @@
         "internal/goncho/",
         "internal/memory/",
         "internal/gonchotools/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho ./internal/memory ./internal/gonchotools -count=1"
@@ -558,10 +558,10 @@
         "../honcho/docs/v3/guides/integrations/claude-code.mdx",
         "../honcho/docs/v3/guides/integrations/mcp.mdx",
         "../honcho/docs/v3/openapi.json",
-        "docs/content/building-gormes/goncho_honcho_memory/01-prompts.md",
-        "docs/content/building-gormes/goncho_honcho_memory/02-tool-schemas.md",
-        "docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
-        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/01-prompts.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/02-tool-schemas.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
         "internal/gonchotools/honcho_tools.go",
         "internal/goncho/service.go"
       ],
@@ -585,7 +585,7 @@
       "write_scope": [
         "internal/goncho/",
         "internal/gonchotools/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho ./internal/gonchotools -count=1"
@@ -622,8 +622,8 @@
         "../honcho/src/utils/files.py",
         "../honcho/src/routers/messages.py",
         "../honcho/src/config.py",
-        "docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
-        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
         "internal/goncho/service.go",
         "internal/memory/schema.go"
       ],
@@ -648,7 +648,7 @@
         "internal/goncho/",
         "internal/memory/",
         "cmd/gormes/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho ./internal/memory ./cmd/gormes -count=1"
@@ -689,8 +689,8 @@
         "../honcho/docs/v3/guides/integrations/claude-code.mdx",
         "../honcho/docs/v3/guides/integrations/paperclip.mdx",
         "../honcho/docs/v3/guides/integrations/sillytavern.mdx",
-        "docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md",
-        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
         "internal/persistence/session/directory.go",
         "internal/goncho/types.go",
         "internal/goncho/service.go",
@@ -720,7 +720,7 @@
         "internal/goncho/",
         "internal/persistence/session/",
         "internal/gonchotools/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho ./internal/persistence/session ./internal/gonchotools -count=1"
@@ -755,8 +755,8 @@
         "../honcho/docs/v3/contributing/configuration.mdx",
         "../honcho/docs/v3/contributing/troubleshooting.mdx",
         "../honcho/docs/v3/documentation/features/advanced/queue-status.mdx",
-        "docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md",
-        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
         "cmd/gormes/doctor.go",
         "cmd/gormes/memory.go",
         "internal/memory/status.go",
@@ -789,7 +789,7 @@
         "internal/goncho/",
         "internal/memory/",
         "internal/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes ./internal/goncho ./internal/memory ./internal/config -count=1"
@@ -821,8 +821,8 @@
       "source_refs": [
         "../honcho/docs/v3/documentation/features/advanced/streaming-response.mdx",
         "../honcho/docs/v3/documentation/features/chat.mdx",
-        "docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md",
-        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
         "internal/goncho/types.go",
         "internal/goncho/service.go",
         "internal/gonchotools/honcho_tools.go",
@@ -849,7 +849,7 @@
         "internal/goncho/",
         "internal/gonchotools/",
         "internal/memory/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho ./internal/gonchotools ./internal/memory -count=1"
@@ -888,8 +888,8 @@
         "../honcho/docs/v3/contributing/configuration.mdx",
         "../honcho/docs/v3/contributing/self-hosting.mdx",
         "../honcho/docs/v3/contributing/troubleshooting.mdx",
-        "docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md",
-        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
         "internal/config/config.go",
         "internal/goncho/types.go",
         "cmd/gormes/doctor.go"
@@ -920,7 +920,7 @@
         "internal/config/",
         "internal/goncho/",
         "cmd/gormes/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config ./internal/goncho ./cmd/gormes -count=1"
@@ -953,8 +953,8 @@
         "../honcho/docs/v3/documentation/features/advanced/dreaming.mdx@e659b6b",
         "../honcho/docs/v3/documentation/core-concepts/reasoning.mdx@e659b6b",
         "../honcho/docs/v3/contributing/configuration.mdx@e659b6b",
-        "docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
-        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
         "internal/goncho/service.go",
         "internal/config/config.go"
       ],
@@ -978,7 +978,7 @@
         "internal/memory/",
         "internal/config/",
         "cmd/gormes/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho ./internal/memory ./internal/config ./cmd/gormes -run TestGonchoDream -count=1",
@@ -1076,9 +1076,9 @@
         "internal/goncho/service.go",
         "internal/goncho/sql.go",
         "internal/goncho/types.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
       ],
       "test_commands": [
         "go test ./internal/goncho -run CRUDInvariants -count=1",
@@ -1154,7 +1154,7 @@
         "internal/goncho/service.go",
         "internal/gonchotools/honcho_tools.go",
         "internal/gonchotools/honcho_profile_hint_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho ./internal/gonchotools -run 'TestHonchoProfileEmptyHint|TestHonchoProfileTool' -count=1",
@@ -1229,7 +1229,7 @@
         "internal/tools/memory_tool_test.go",
         "internal/memory/",
         "internal/goncho/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/memory ./internal/goncho -run 'MemoryTool|DurableUserContext|Goncho' -count=1",
@@ -1314,7 +1314,7 @@
         "internal/memory/",
         "internal/goncho/",
         "internal/kernel/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/memory ./internal/goncho ./internal/kernel -run 'MemoryProviderLifecycle|ShutdownMemory|PreCompress|Goncho' -count=1",
@@ -1353,8 +1353,8 @@
       "source_refs": [
         "User directive, 2026-05-03: plan V1 so V2 and later do not break user memory.",
         "User directive, 2026-05-03: multi-agent memory must be independent by default; normal Gormes runtime must not read other agents' config or private memory except through explicit migrate commands.",
-        "docs/content/building-gormes/goncho_honcho_memory/_index.md",
-        "docs/content/building-gormes/architecture_plan/phase-3-memory.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/_index.md",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-3-memory.md",
         "internal/memory/schema.go:schemaVersion",
         "internal/memory/migrate.go:migrate",
         "internal/goncho/memory_tools.go",
@@ -1390,8 +1390,8 @@
         "internal/goncho/",
         "internal/gonchotools/",
         "cmd/gormes/",
-        "docs/content/building-gormes/goncho_honcho_memory/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/memory -run 'TestMigrate|TestGonchoMemoryV1' -count=1",
@@ -1429,8 +1429,8 @@
         "Goncho Memory V1 compatibility contract and migration harness",
         "internal/goncho/",
         "internal/gonchotools/",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "Phase 5.G MCP Integration / Goncho MCP tool catalog"
       ],
       "ready_when": [
@@ -1456,8 +1456,8 @@
         "internal/gonchotools/",
         "internal/memory/",
         "cmd/gormes/",
-        "docs/content/building-gormes/architecture_plan/",
-        "docs/superpowers/specs/"
+        "webpages/docs/content/building-gormes/architecture_plan/",
+        "webpages/docs/superpowers/specs/"
       ],
       "test_commands": [
         "go test ./internal/goncho ./internal/gonchotools ./internal/memory -count=1",
@@ -1524,9 +1524,9 @@
         "internal/goncho/keys_test.go",
         "internal/goncho/webhooks.go",
         "internal/goncho/webhooks_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
       ],
       "test_commands": [
         "go test ./internal/goncho -run Keys -count=1",
@@ -1577,8 +1577,8 @@
         "../honcho/tests/webhooks/test_webhook_delivery.py",
         "../honcho/tests/routes/test_webhooks.py",
         "internal/goncho/webhooks.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Webhooks",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Honcho webhooks, keys, telemetry, and deploy divergence matrices"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Webhooks",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Honcho webhooks, keys, telemetry, and deploy divergence matrices"
       ],
       "ready_when": [
         "`Goncho keys + webhooks compatibility surface` has validated endpoint CRUD, test-event construction, and HMAC signing helpers.",
@@ -1607,7 +1607,7 @@
         "internal/goncho/webhook_delivery.go",
         "internal/goncho/webhook_delivery_test.go",
         "internal/progress/progress_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho -run 'TestWebhookDelivery' -count=1",
@@ -1682,9 +1682,9 @@
       "write_scope": [
         "internal/goncho/http/routes.go",
         "internal/goncho/http/routes_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
       ],
       "test_commands": [
         "go test ./internal/goncho/http -count=1",
@@ -1770,9 +1770,9 @@
       "write_scope": [
         "cmd/gormes/goncho_cli_parity.go",
         "cmd/gormes/goncho_cli_parity_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run GonchoCLIParity -count=1",
@@ -1857,8 +1857,8 @@
         "internal/goncho/compat_harness.go",
         "internal/goncho/compat_harness_test.go",
         "internal/gonchotools/",
-        "docs/content/building-gormes/goncho_honcho_memory/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho ./internal/gonchotools -run 'TestGonchoHonchoSDKCompatibility|TestHoncho' -count=1",
@@ -1930,7 +1930,7 @@
         "internal/goncho/",
         "internal/gonchotools/",
         "internal/memory/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kernel ./internal/goncho ./internal/gonchotools ./internal/memory -run 'TestAgentTurnUsesGonchoMemory|TestGoncho' -count=1",
@@ -2003,7 +2003,7 @@
         "internal/goncho/session_summary.go",
         "internal/goncho/session_summary_test.go",
         "internal/kernel/goncho_integration.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho -run 'TestSessionEndSummary' -count=1",
@@ -2070,7 +2070,7 @@
         "internal/memory/rrf_fusion_test.go",
         "internal/goncho/recall_pipeline.go",
         "internal/goncho/recall_pipeline_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/memory -run 'TestRRF' -count=1",
@@ -2136,7 +2136,7 @@
         "cmd/gormes/goncho_memory_test.go",
         "cmd/gormes/goncho_continue.go",
         "cmd/gormes/goncho_continue_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestMemoryCommand|TestContinueCommand' -count=1",
@@ -2204,7 +2204,7 @@
         "internal/goncho/dream_extraction_test.go",
         "internal/goncho/dream_compression.go",
         "internal/goncho/dream_compression_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho -run 'TestDream' -count=1",
@@ -2269,7 +2269,7 @@
         "internal/goncho/skill_outcomes.go",
         "internal/goncho/skill_outcomes_test.go",
         "internal/skills/executor.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho -run 'TestSkillOutcome' -count=1",
@@ -2338,7 +2338,7 @@
         "internal/goncho/workspace_detection.go",
         "internal/goncho/workspace_detection_test.go",
         "internal/goncho/workspace_isolation_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho -run 'TestWorkspace' -count=1",
@@ -2375,7 +2375,7 @@
         "system"
       ],
       "degraded_mode": "If any swarm lane reports missing or vague behavior, Gormes reports source_class_mapped_but_feature_level_incomplete and records the gap in Swarm Feature Parity Audit instead of claiming full feature parity.",
-      "fixture": "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+      "fixture": "webpages/docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
       "source_refs": [
         "../hermes-agent/run_agent.py",
         "../hermes-agent/agent/",
@@ -2394,10 +2394,10 @@
         "../honcho/sdks/typescript/__tests__/",
         "../honcho/mcp/src/tools/",
         "../honcho/honcho-cli/src/honcho_cli/",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
-        "docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
-        "docs/upstream_coverage_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+        "webpages/docs/upstream_coverage_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "ready_when": [
         "The planner can spawn read-only sub-agents over independent Hermes/Honcho surfaces.",
@@ -2417,19 +2417,19 @@
       ],
       "note": "Complete in the 2026-04-28 gormes-planner swarm pass: five read-only sub-agents audited independent Hermes/Honcho surfaces and found source-class coverage is proven but feature-level mapping remains incomplete until the swarm gap register is resolved into builder-ready rows.",
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
-        "docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
-        "docs/content/building-gormes/architecture_plan/_index.md",
-        "docs/content/building-gormes/architecture_plan/completion-plan.md",
-        "docs/content/building-gormes/_index.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+        "webpages/docs/content/building-gormes/architecture_plan/_index.md",
+        "webpages/docs/content/building-gormes/architecture_plan/completion-plan.md",
+        "webpages/docs/content/building-gormes/_index.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go run ./cmd/progress write",
         "go run ./cmd/progress validate",
         "go test ./docs -run TestUpstreamCoverageLedgerMatchesSourceClasses -count=1",
-        "go test ./docs -count=1"
+        "go test ./webpages/docs -count=1"
       ],
       "done_signal": [
         "The docs now answer that source-class coverage is executable but full feature-level mapping is not complete until the swarm gap register is empty or every gap has a builder-ready row."
@@ -2498,9 +2498,9 @@
       "write_scope": [
         "internal/gonchotools/honcho_mcp_catalog.go",
         "internal/gonchotools/honcho_mcp_catalog_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
       ],
       "test_commands": [
         "go test ./internal/gonchotools -run HonchoMCPCatalog -count=1",
@@ -2579,7 +2579,7 @@
         "internal/goncho/plugin_session_config_test.go",
         "internal/goncho/async_write_test.go",
         "internal/gonchotools/honcho_tools.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho -run 'TestGonchoHoncho|TestGonchoWriteFrequency|TestGonchoSessionName|TestGonchoAsync|TestGonchoPinPeerName' -count=1",
@@ -2633,7 +2633,7 @@
         "references/go-agent-os/engram/internal/persistence/store/store.go",
         "internal/goncho/",
         "internal/memory/",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
       ],
       "ready_when": [
         "The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing.",
@@ -2658,7 +2658,7 @@
         "internal/goncho/",
         "internal/memory/",
         "internal/gonchotools/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho ./internal/memory -run 'WriteQueue|Relation|Conflict|Supersede' -count=1",
@@ -2696,7 +2696,7 @@
         "internal/goncho/importance_scorer.go",
         "internal/memory/recall.go",
         "internal/memory/semantic_sql.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
       ],
       "ready_when": [
         "The builder restates the invariant: no projection without a RecallTrace.",
@@ -2730,7 +2730,7 @@
         "internal/goncho/recall_trace_test.go",
         "internal/goncho/recall_pipeline_test.go",
         "internal/goncho/testdata/recall_trace/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho -run 'TestRecall' -count=1",
@@ -2772,7 +2772,7 @@
         "internal/goncho/recall_pipeline.go",
         "internal/goncho/testdata/recall_trace/stable_trace.golden.json",
         "cmd/gormes/goncho.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
       ],
       "ready_when": [
         "The durable RecallTrace IR row is complete and validated.",
@@ -2802,7 +2802,7 @@
         "cmd/gormes/goncho.go",
         "cmd/gormes/goncho_recall_diagnostics.go",
         "cmd/gormes/goncho_recall_diagnostics_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho -run 'TestRecallDiagnostics' -count=1",
@@ -2846,7 +2846,7 @@
         "internal/goncho/recall_diagnostics.go",
         "internal/goncho/testdata/recall_trace/stable_trace.golden.json",
         "cmd/gormes/goncho.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
       ],
       "ready_when": [
         "The durable RecallTrace IR row is complete and validated.",
@@ -2877,7 +2877,7 @@
         "cmd/gormes/goncho.go",
         "cmd/gormes/goncho_recall_replay.go",
         "cmd/gormes/goncho_recall_replay_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho -run 'TestRecallReplay' -count=1",
@@ -2926,7 +2926,7 @@
         "cmd/gormes/goncho.go",
         "cmd/gormes/goncho_recall_diagnostics.go",
         "cmd/gormes/goncho_recall_replay.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
       ],
       "ready_when": [
         "Goncho durable recall trace IR, diagnostics CLI, and replay CLI rows are complete.",
@@ -2956,7 +2956,7 @@
         "internal/gonchotools/proof_matrix_test.go",
         "internal/memory/goncho_proof_matrix_test.go",
         "cmd/gormes/goncho_proof_matrix_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho -run 'TestGonchoProofMatrix' -count=1",
@@ -3004,7 +3004,7 @@
         "internal/goncho/recall_projector.go",
         "internal/goncho/recall_diagnostics.go",
         "internal/goncho/recall_replay.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
       ],
       "ready_when": [
         "Goncho durable RecallTrace, diagnostics, replay, proof matrix, and normal-turn memory integration rows are complete.",
@@ -3033,7 +3033,7 @@
       "write_scope": [
         "internal/support/e2e/goncho_memory_turn_test.go",
         "internal/support/e2e/testdata/goncho_memory_turn/golden.json",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/e2e -run 'TestGonchoGoldenTranscriptE2E' -count=1",
@@ -3076,7 +3076,7 @@
         "internal/goncho/recall_projector.go",
         "internal/goncho/testdata/recall_trace/stable_trace.golden.json",
         "internal/support/e2e/testdata/goncho_memory_turn/golden.json",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
       ],
       "ready_when": [
         "Goncho durable RecallTrace, diagnostics, replay, proof matrix, and golden transcript e2e rows are complete.",
@@ -3107,7 +3107,7 @@
         "internal/goncho/recall_benchmark.go",
         "internal/goncho/recall_benchmark_test.go",
         "internal/goncho/testdata/recall_benchmark/report.golden.json",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho -run 'TestRecallBenchmark' -count=1",

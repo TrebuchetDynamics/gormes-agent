@@ -391,7 +391,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Skill metadata (SKILL.md) | `skills/` | `internal/skills/` + `docs/development-skills/` | covered | Portable SKILL.md metadata. |
+| Skill metadata (SKILL.md) | `skills/` | `internal/skills/` + `development-skills/` | covered | Portable SKILL.md metadata. |
 | Skill install/list/inspect | `hermes_cli/skills_hub.py` | `cmd/gormes/skills.go` | covered | Skill CLI commands. |
 | Skill slash commands | `agent/skill_commands.py` | `internal/tui/slash_skills.go` | covered | Dynamic slash command registration. |
 | Skill prompt snapshot | `skill_preprocessing.py` | `internal/kernel/kernel.go` | partial | Skill blocks injected; ordering differs. |

@@ -27,7 +27,7 @@ type ImplInventory struct {
 // Config.GormesOriginalPaths and the PLANNER_GORMES_ORIGINAL_PATHS env var.
 var DefaultGormesOriginalPaths = []string{
 	"cmd/progress/",
-	"cmd/repoctl/",
+	"cmd/gormes-repo/",
 	"internal/progress/plannerloop/",
 	"internal/progress/triggers/",
 	"internal/progress/health.go",

@@ -260,7 +260,7 @@ case "$*" in
     ;;
   "status --porcelain")
     if [ -n "${WATCHDOG_GIT_DIRTY:-}" ]; then
-      printf ' M docs/content/building-gormes/architecture_plan/progress.json\n'
+      printf ' M webpages/docs/content/building-gormes/architecture_plan/progress.json\n'
     fi
     exit 0
     ;;

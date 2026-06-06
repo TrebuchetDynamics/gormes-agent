@@ -4,10 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
 const ProfileWorkspaceScopeViolation = "profile_workspace_scope_violation"
+const ProfileWorkspaceDeniedMessage = "Path is outside this profile’s allowed workspace. Add it to allowed_paths to grant access."
+
+var profileWorkspaceNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
 type ProfileWorkspaceAccess string
 
@@ -19,13 +23,16 @@ const (
 )
 
 type ProfileWorkspaceScopeOptions struct {
-	ProjectRoots []string
-	ProfileRoot  string
-	OperatorHome string
+	ProfileName   string
+	ProjectRoots  []string
+	ProfileRoot   string
+	WorkspaceRoot string
+	OperatorHome  string
 }
 
 type ProfileWorkspaceScope struct {
 	projectRoots []string
+	profileName  string
 	profileRoot  string
 	profilesRoot string
 	operatorHome string
@@ -42,40 +49,77 @@ func NewProfileWorkspaceScope(opts ProfileWorkspaceScopeOptions) (*ProfileWorksp
 		}
 		operatorHome = home
 	}
-	operatorHome, err := normalizeRequiredWorkspaceRoot(operatorHome)
+	operatorHome, err := normalizeRequiredWorkspaceRootWithHome(operatorHome, "")
 	if err != nil {
 		return nil, fmt.Errorf("profile workspace scope: operator home: %w", err)
 	}
 
-	projectRoots := cleanWorkspaceList(opts.ProjectRoots)
-	configured := len(projectRoots) > 0
-	if len(projectRoots) == 0 {
-		projectRoots = []string{operatorHome}
+	profileName := strings.TrimSpace(opts.ProfileName)
+	if profileName != "" && !validProfileWorkspaceName(profileName) {
+		return nil, fmt.Errorf("profile workspace scope: profile name %q must match [a-zA-Z0-9][a-zA-Z0-9._-]*", profileName)
 	}
-	normalizedRoots := make([]string, 0, len(projectRoots))
-	for _, raw := range projectRoots {
-		root, err := normalizeRequiredWorkspaceRoot(raw)
+
+	profileRoot := strings.TrimSpace(opts.ProfileRoot)
+	if profileRoot != "" {
+		profileRoot, err = normalizeRequiredWorkspaceRootWithHome(profileRoot, operatorHome)
 		if err != nil {
-			return nil, fmt.Errorf("profile workspace scope: project root %q: %w", raw, err)
+			return nil, fmt.Errorf("profile workspace scope: profile root: %w", err)
+		}
+		baseName := filepath.Base(profileRoot)
+		if profileName == "" {
+			if !validProfileWorkspaceName(baseName) {
+				return nil, fmt.Errorf("profile workspace scope: profile root name %q must match [a-zA-Z0-9][a-zA-Z0-9._-]*", baseName)
+			}
+			profileName = baseName
+		}
+	}
+	if profileName == "" {
+		profileName = "main"
+	}
+
+	workspaceRoot := strings.TrimSpace(opts.WorkspaceRoot)
+	if workspaceRoot == "" {
+		workspaceRoot = profileRoot
+	}
+	if workspaceRoot != "" {
+		workspaceRoot, err = normalizeRequiredWorkspaceRootWithHome(workspaceRoot, operatorHome)
+		if err != nil {
+			return nil, fmt.Errorf("profile workspace scope: workspace root: %w", err)
+		}
+		if err := rejectBlanketAllowedRoot(workspaceRoot, operatorHome, profileRoot); err != nil {
+			return nil, fmt.Errorf("profile workspace scope: workspace root: %w", err)
+		}
+	}
+
+	normalizedRoots := make([]string, 0, len(opts.ProjectRoots)+2)
+	for _, root := range []string{workspaceRoot, profileRoot} {
+		if root != "" && !containsPath(normalizedRoots, root) {
+			normalizedRoots = append(normalizedRoots, root)
+		}
+	}
+	for _, raw := range cleanWorkspaceList(opts.ProjectRoots) {
+		root, err := normalizeRequiredWorkspaceRootWithHome(raw, operatorHome)
+		if err != nil {
+			return nil, fmt.Errorf("profile workspace scope: allowed path %q: %w", raw, err)
+		}
+		if err := rejectBlanketAllowedRoot(root, operatorHome, profileRoot); err != nil {
+			return nil, fmt.Errorf("profile workspace scope: allowed path %q: %w", raw, err)
 		}
 		if !containsPath(normalizedRoots, root) {
 			normalizedRoots = append(normalizedRoots, root)
 		}
 	}
-
-	profileRoot := strings.TrimSpace(opts.ProfileRoot)
-	if profileRoot != "" {
-		profileRoot, err = normalizeWorkspacePath(profileRoot, operatorHome)
-		if err != nil {
-			return nil, fmt.Errorf("profile workspace scope: profile root: %w", err)
-		}
+	if len(normalizedRoots) == 0 {
+		return nil, fmt.Errorf("profile workspace scope: profile root is required")
 	}
+
 	return &ProfileWorkspaceScope{
 		projectRoots: normalizedRoots,
+		profileName:  profileName,
 		profileRoot:  profileRoot,
 		profilesRoot: inferProfilesRoot(profileRoot),
 		operatorHome: operatorHome,
-		configured:   configured,
+		configured:   true,
 	}, nil
 }
 
@@ -122,44 +166,17 @@ func (s *ProfileWorkspaceScope) Resolve(rawPath, base string, access ProfileWork
 	if base == "" {
 		return s.deny("", "profile workspace policy has no project root")
 	}
-	normalized, err := normalizeWorkspacePath(rawPath, base)
+	normalized, err := normalizeWorkspacePathWithHome(rawPath, base, s.operatorHome)
 	if err != nil {
 		return s.deny("", fmt.Sprintf("resolve path: %v", err))
 	}
 
-	if s.configured && s.profileRoot != "" && pathWithinRootForScope(s.profileRoot, normalized) {
-		if s.profileOwnedPathAllowed(normalized, access) {
-			return s.allow(normalized, s.profileRoot)
-		}
-		return s.deny(normalized, "active profile runtime state is not a model-facing project workspace")
-	}
-	if s.configured && s.profilesRoot != "" && pathWithinRootForScope(s.profilesRoot, normalized) {
-		return s.deny(normalized, "sibling profile roots are not model-facing project workspaces")
-	}
 	for _, root := range s.projectRoots {
 		if pathWithinRootForScope(root, normalized) {
 			return s.allow(normalized, root)
 		}
 	}
-	return s.deny(normalized, fmt.Sprintf("%s: path is outside configured profile workspace roots", access))
-}
-
-func (s *ProfileWorkspaceScope) profileOwnedPathAllowed(path string, access ProfileWorkspaceAccess) bool {
-	if s == nil || s.profileRoot == "" {
-		return false
-	}
-	switch access {
-	case ProfileWorkspaceAccessRead, ProfileWorkspaceAccessWrite, ProfileWorkspaceAccessDelegate:
-	default:
-		return false
-	}
-	for _, name := range []string{"SOUL.md", "IDENTITY.md"} {
-		if filepath.Clean(path) == filepath.Join(s.profileRoot, name) {
-			return true
-		}
-	}
-	skillsRoot := filepath.Join(s.profileRoot, "skills")
-	return pathWithinRootForScope(skillsRoot, path)
+	return s.deny(normalized, ProfileWorkspaceDeniedMessage)
 }
 
 func (s *ProfileWorkspaceScope) allow(path, root string) PathCheckResult {
@@ -196,7 +213,11 @@ func cleanWorkspaceList(values []string) []string {
 }
 
 func normalizeRequiredWorkspaceRoot(path string) (string, error) {
-	normalized, err := normalizeWorkspacePath(path, "")
+	return normalizeRequiredWorkspaceRootWithHome(path, "")
+}
+
+func normalizeRequiredWorkspaceRootWithHome(path, operatorHome string) (string, error) {
+	normalized, err := normalizeWorkspacePathWithHome(path, "", operatorHome)
 	if err != nil {
 		return "", err
 	}
@@ -215,7 +236,11 @@ func NormalizeWorkspacePath(path, base string) (string, error) {
 }
 
 func normalizeWorkspacePath(path, base string) (string, error) {
-	expanded, err := expandProfileUserPath(strings.TrimSpace(path))
+	return normalizeWorkspacePathWithHome(path, base, "")
+}
+
+func normalizeWorkspacePathWithHome(path, base, operatorHome string) (string, error) {
+	expanded, err := expandProfileUserPath(strings.TrimSpace(path), operatorHome)
 	if err != nil {
 		return "", err
 	}
@@ -255,8 +280,33 @@ func containsPath(paths []string, target string) bool {
 	return false
 }
 
-func expandProfileUserPath(path string) (string, error) {
+func validProfileWorkspaceName(name string) bool {
+	name = strings.TrimSpace(name)
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\\`) {
+		return false
+	}
+	return profileWorkspaceNamePattern.MatchString(name)
+}
+
+func rejectBlanketAllowedRoot(root, operatorHome, profileRoot string) error {
+	root = filepath.Clean(strings.TrimSpace(root))
+	operatorHome = filepath.Clean(strings.TrimSpace(operatorHome))
+	profileRoot = filepath.Clean(strings.TrimSpace(profileRoot))
+	if root == string(filepath.Separator) {
+		return fmt.Errorf("%q grants access to the entire filesystem", root)
+	}
+	if operatorHome != "." && operatorHome != "" && root == operatorHome && root != profileRoot {
+		return fmt.Errorf("%q grants access to the operator home", root)
+	}
+	return nil
+}
+
+func expandProfileUserPath(path string, operatorHome string) (string, error) {
+	operatorHome = strings.TrimSpace(operatorHome)
 	if path == "~" {
+		if operatorHome != "" {
+			return operatorHome, nil
+		}
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return "", fmt.Errorf("resolve home directory: %w", err)
@@ -264,11 +314,14 @@ func expandProfileUserPath(path string) (string, error) {
 		return home, nil
 	}
 	if strings.HasPrefix(path, "~/") {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("resolve home directory: %w", err)
+		if operatorHome == "" {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return "", fmt.Errorf("resolve home directory: %w", err)
+			}
+			operatorHome = home
 		}
-		return filepath.Join(home, strings.TrimPrefix(path, "~/")), nil
+		return filepath.Join(operatorHome, strings.TrimPrefix(path, "~/")), nil
 	}
 	return path, nil
 }

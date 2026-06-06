@@ -31,12 +31,12 @@ generate-progress:
 
 define record-benchmark
 	@echo "Recording benchmark..."
-	@go run ./cmd/repoctl benchmark record
+	@go run ./cmd/gormes-repo benchmark record
 endef
 
 define update-readme
 	@echo "Updating README.md..."
-	@go run ./cmd/repoctl readme update
+	@go run ./cmd/gormes-repo readme update
 endef
 
 update-readme:

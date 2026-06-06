@@ -101,7 +101,7 @@ The Phase 3 queue is not one flat backlog. The order matters because later memor
 
 ## Execution blueprint (2026-04-22)
 
-The delivery sequence is frozen in `docs/superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md`, but the remaining cross-chat closeout is now tracked as smaller slices:
+The delivery sequence is frozen in `webpages/docs/superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md`, but the remaining cross-chat closeout is now tracked as smaller slices:
 
 `3.E.7 SillyTavern persona/group-chat mapping fixtures -> 3.E.7 operator evidence -> 3.E.8 parent_session_id -> 3.E.8 lineage-aware hits/evidence`
 
@@ -120,7 +120,7 @@ Current code is ahead of the old narrative in `internal/memory/recall.go`, `inte
 
 ## Identity + lineage architecture freeze (2026-04-22)
 
-Before this plan, `3.E.7` and `3.E.8` were only coarse placeholders in the ledger and this page: current code had `chat_id` plus `session_id`, but no durable `user_id` or `parent_session_id` contract, and `internal/memory/recall.go` still allowed exact-name recall to cross chat boundaries when an entity was named directly. The original design remains documented in `docs/superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-plan.md`. The `user_id`, recall-fence, Honcho-compatible scope/source schema, deny-path, and baseline host-integration halves are now landed via `internal/persistence/session`, `internal/memory`, `internal/goncho`, and `internal/gonchotools`; the remaining implementation target is SillyTavern-specific host mapping plus operator evidence, followed by `parent_session_id` lineage and adjacent cross-chat consumers. Current code is split across three layers: `internal/persistence/session` owns canonical bindings, `internal/memory` owns scoped recall/search, and the internal GONCHO service plus `honcho_*` tools accept `scope=user` and `sources[]`.
+Before this plan, `3.E.7` and `3.E.8` were only coarse placeholders in the ledger and this page: current code had `chat_id` plus `session_id`, but no durable `user_id` or `parent_session_id` contract, and `internal/memory/recall.go` still allowed exact-name recall to cross chat boundaries when an entity was named directly. The original design remains documented in `webpages/docs/superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-plan.md`. The `user_id`, recall-fence, Honcho-compatible scope/source schema, deny-path, and baseline host-integration halves are now landed via `internal/persistence/session`, `internal/memory`, `internal/goncho`, and `internal/gonchotools`; the remaining implementation target is SillyTavern-specific host mapping plus operator evidence, followed by `parent_session_id` lineage and adjacent cross-chat consumers. Current code is split across three layers: `internal/persistence/session` owns canonical bindings, `internal/memory` owns scoped recall/search, and the internal GONCHO service plus `honcho_*` tools accept `scope=user` and `sources[]`.
 
 The frozen contract is:
 
@@ -134,7 +134,7 @@ This matters because the current memory substrate is already strong enough to ma
 ## Go donor pointers
 
 Before writing a new Phase 3 slice, route through the `gormes-references`
-skill (`docs/development-skills/gormes-references/SKILL.md`) to find the
+skill (`development-skills/gormes-references/SKILL.md`) to find the
 donor file that already shapes the seam.
 
 | Phase 3 problem | Donor file | Notes |

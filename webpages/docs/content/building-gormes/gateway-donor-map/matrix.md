@@ -9,7 +9,7 @@ Matrix is a plausible future Gormes adapter, but PicoClaw should be treated as a
 
 ## Status
 
-`docs/content/building-gormes/architecture_plan/subsystem-inventory.md` marks Matrix as planned for Phase 2.B.8. Gormes currently mirrors upstream Hermes operator docs for Matrix, but there is no Go Matrix adapter yet.
+`webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` marks Matrix as planned for Phase 2.B.8. Gormes currently mirrors upstream Hermes operator docs for Matrix, but there is no Go Matrix adapter yet.
 
 Evidence level:
 
@@ -17,7 +17,7 @@ Evidence level:
 - The donor commit inspected for this research was `6421f146a99df1bebcd4b1ca8de2a289dfca3622`.
 - The upstream donor repo is `https://github.com/sipeed/picoclaw`.
 - Any `pkg/...` or `docs/...` path listed below is relative to that donor root, not relative to the Gormes repo.
-- Current Gormes status and operator-facing behavior were verified in-tree against `docs/content/building-gormes/architecture_plan/subsystem-inventory.md` and `docs/content/upstream-hermes/user-guide/messaging/matrix.md`.
+- Current Gormes status and operator-facing behavior were verified in-tree against `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` and `webpages/docs/content/upstream-hermes/user-guide/messaging/matrix.md`.
 
 Keep the boundary explicit: PicoClaw contributes Matrix transport mechanics only. Gormes architecture remains authoritative for session identity, room or thread policy, and runtime ownership.
 
@@ -41,8 +41,8 @@ That said, the donor is stronger as an adapter shape reference than as a full pr
 - `picoclaw/pkg/channels/matrix/matrix.go`
 - `picoclaw/pkg/channels/matrix/matrix_test.go`
 - `picoclaw/docs/channels/matrix/README.md`
-- `docs/content/upstream-hermes/user-guide/messaging/matrix.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/upstream-hermes/user-guide/messaging/matrix.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 ## What To Copy vs What To Rebuild
 
@@ -99,7 +99,7 @@ Rebuild in Gormes-native form:
 - `picoclaw/pkg/channels/matrix/matrix.go`: `NewMatrixChannel`, `Start`, `initCrypto`, `Send`, `messageContent`, `SendMedia`, `StartTyping`, `SendPlaceholder`, `EditMessage`, `handleMemberEvent`, `handleMessageEvent`, `decryptEvent`, `extractInboundContent`, `downloadMedia`, `isGroupRoom`, `isBotMentioned`, `stripUserMention`.
 - `picoclaw/pkg/channels/matrix/matrix_test.go`: mention parsing, room-kind cache behavior, media temp-dir, media extension, and download tests.
 - `picoclaw/docs/channels/matrix/README.md`
-- `docs/content/upstream-hermes/user-guide/messaging/matrix.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/upstream-hermes/user-guide/messaging/matrix.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 Recommendation: `adapt pattern only`.

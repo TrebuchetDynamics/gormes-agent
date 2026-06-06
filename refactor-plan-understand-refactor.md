@@ -45,7 +45,7 @@ Start with **main.go** at `cmd/gormes/main.go`. It has combined score 2339, comp
 Related tests to inspect or create:
 
 - `cmd/progress/main_test.go`
-- `cmd/repoctl/main_test.go`
+- `cmd/gormes-repo/main_test.go`
 
 ### Relationship evidence
 

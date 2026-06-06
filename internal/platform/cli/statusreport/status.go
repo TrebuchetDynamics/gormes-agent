@@ -153,4 +153,3 @@ func statusBlockerRecord(item progress.Item) tools.BlockerRecord {
 		MissingFields: append([]string(nil), blocker.MissingFields...),
 	}
 }
-

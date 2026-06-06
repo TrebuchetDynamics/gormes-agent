@@ -56,8 +56,6 @@ func TestInstallersRequireCurrentGoToolchain(t *testing.T) {
 	}
 
 	for _, rel := range []string{
-		"docs/content/install/from-source.md",
-		"docs/content/start-here/_index.md",
 		"webpages/docs/content/install/from-source.md",
 		"webpages/docs/content/start-here/_index.md",
 	} {

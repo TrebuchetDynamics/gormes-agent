@@ -78,7 +78,7 @@ go run ./cmd/progress write
 node webpages/landing/scripts/sync-assets.mjs
 ```
 
-Use `go run ./cmd/progress write` when `docs/content/building-gormes/architecture_plan/progress.json` changed. It refreshes the progress-driven docs and site progress data.
+Use `go run ./cmd/progress write` when `webpages/docs/content/building-gormes/architecture_plan/progress.json` changed. It refreshes the progress-driven docs and site progress data.
 
 Use `node webpages/landing/scripts/sync-assets.mjs` when installer scripts, `benchmarks.json`, progress data, or site-served assets changed. It refreshes `webpages/landing/public/install.*` and generated site mirrors.
 
@@ -100,10 +100,10 @@ Run focused public-surface gates when relevant:
 timeout 20m sh -c 'cd webpages/landing/legacy/go-renderer && go test ./... -count=1'
 timeout 20m sh -c 'cd webpages/landing && npm run build'
 timeout 30m sh -c 'cd webpages/landing && npm run test:e2e'
-timeout 30m sh -c 'cd docs/www-tests && npm run test:e2e'
+timeout 30m sh -c 'cd webpages/docs/www-tests && npm run test:e2e'
 ```
 
-Use the public-surface gates when `README.md`, `docs/`, `webpages/landing/`, `benchmarks.json`, or `docs/content/building-gormes/architecture_plan/progress.json` changed. If a gate fails, inspect the failing test or command output, fix the real issue in the current worktree, then rerun the failing gate and any affected higher-level gate.
+Use the public-surface gates when `README.md`, `webpages/docs/`, `webpages/landing/`, `benchmarks.json`, or `webpages/docs/content/building-gormes/architecture_plan/progress.json` changed. If a gate fails, inspect the failing test or command output, fix the real issue in the current worktree, then rerun the failing gate and any affected higher-level gate.
 
 Run skill validation when a skill changed:
 

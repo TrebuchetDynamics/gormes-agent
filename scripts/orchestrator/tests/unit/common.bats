@@ -203,7 +203,7 @@ JSON
 @test "read_progress_summary falls back to REPO_ROOT canonical path" {
   local repo_root progress_rel progress_file
   repo_root="$BATS_TEST_TMPDIR/repo"
-  progress_rel="docs/content/building-gormes/architecture_plan/progress.json"
+  progress_rel="webpages/docs/content/building-gormes/architecture_plan/progress.json"
   progress_file="$repo_root/$progress_rel"
   mkdir -p "$(dirname "$progress_file")"
   cat > "$progress_file" <<'JSON'

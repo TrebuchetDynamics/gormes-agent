@@ -239,7 +239,7 @@
       "hermes_file": "hermes_cli/commands.py",
       "gormes_targets": [
         "internal/platform/cli/gormescli/hermescliparity.go",
-        "cmd/gormes/hermes_rowbacked_commands.go",
+        "internal/platform/cli/gormescli/hermes_rowbacked_commands.go",
         "cmd/gormes/main.go"
       ],
       "status": "partial",

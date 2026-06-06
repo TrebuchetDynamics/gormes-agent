@@ -1,7 +1,7 @@
 // Package cron is the Phase 2.D proactive scheduler. Jobs stored in
 // bbolt; per-run audit rows in SQLite; agent turns isolated via an
 // ephemeral session id per fire. See spec at
-// docs/superpowers/specs/2026-04-20-gormes-phase2d-cron-design.md.
+// webpages/docs/superpowers/specs/2026-04-20-gormes-phase2d-cron-design.md.
 package cron
 
 import (

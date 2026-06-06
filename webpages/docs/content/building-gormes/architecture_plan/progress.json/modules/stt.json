@@ -42,8 +42,8 @@
         "internal/channels/telegram/bot.go",
         "internal/channels/telegram/bot_test.go",
         "internal/channels/telegram/mock_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
         "www.gormes.ai/internal/site/data/progress.json"
       ],
       "test_commands": [
@@ -84,7 +84,7 @@
         "system"
       ],
       "degraded_mode": "If a future parity pass finds an unclassified subsystem, Gormes reports unknown_gap_in_runtime_plan and requires gormes-planner to update the runtime plan, feature map, swarm audit, upstream ledger, progress rows, and nested coverage test before builder selection.",
-      "fixture": "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+      "fixture": "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
       "source_refs": [
         "../hermes-agent/run_agent.py",
         "../hermes-agent/agent/",
@@ -104,14 +104,14 @@
         "../honcho/sdks/typescript/__tests__/",
         "../honcho/mcp/src/tools/",
         "../honcho/honcho-cli/src/honcho_cli/",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
-        "docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
-        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
-        "docs/development-skills/gormes-planner/references/parity-map.md",
-        "docs/development-skills/gormes-planner/references/progress-row-contract.md",
-        "docs/upstream_coverage_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+        "webpages/docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "development-skills/gormes-planner/references/parity-map.md",
+        "development-skills/gormes-planner/references/progress-row-contract.md",
+        "webpages/docs/upstream_coverage_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "ready_when": [
         "The source-lane swarm findings for Hermes runtime/providers, Hermes tools/security/plugins, Hermes gateway/CLI/release, Honcho core/Goncho, and Honcho SDK/MCP/CLI/deploy are available.",
@@ -135,23 +135,23 @@
       ],
       "note": "Complete in the 2026-04-28 gormes-planner second-wave swarm pass: source mappers fed architecture, runtime-contract, test-matrix, docs/register, and gap-classifier agents, producing a canonical Go runtime plan that maps all Hermes/Honcho subsystems without claiming implementation parity.",
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
-        "docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
-        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
-        "docs/content/building-gormes/architecture_plan/_index.md",
-        "docs/content/building-gormes/architecture_plan/completion-plan.md",
-        "docs/content/building-gormes/_index.md",
-        "docs/development-skills/gormes-planner/references/parity-map.md",
-        "docs/development-skills/gormes-planner/references/progress-row-contract.md",
-        "docs/upstream_coverage_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+        "webpages/docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/_index.md",
+        "webpages/docs/content/building-gormes/architecture_plan/completion-plan.md",
+        "webpages/docs/content/building-gormes/_index.md",
+        "development-skills/gormes-planner/references/parity-map.md",
+        "development-skills/gormes-planner/references/progress-row-contract.md",
+        "webpages/docs/upstream_coverage_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go run ./cmd/progress write",
         "go run ./cmd/progress validate",
         "go test ./docs -run 'TestUpstreamCoverageLedgerMatchesSourceClasses|TestNestedUpstreamFeatureCoverage' -count=1",
-        "go test ./docs -count=1"
+        "go test ./webpages/docs -count=1"
       ],
       "done_signal": [
         "The runtime plan is the canonical Hermes/Honcho-to-Gormes Go implementation map, with zero subsystem-level unknown/gap items and nested coverage protected by docs tests."
@@ -206,7 +206,7 @@
         "internal/config/config.go",
         "internal/gateway/manager.go",
         "cmd/gormes/gateway.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config -count=1",
@@ -275,7 +275,7 @@
       "write_scope": [
         "internal/tools/transcription_providers_local.go",
         "cmd/gormes/registry_audio.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go build ./cmd/gormes",

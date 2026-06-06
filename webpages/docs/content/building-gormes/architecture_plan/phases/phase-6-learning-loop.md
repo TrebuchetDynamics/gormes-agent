@@ -196,5 +196,5 @@ contract. Surrounding plumbing has donors:
 | 6.F operator review surfaces — workflow agent pattern | `adk-go/agent/workflowagents/...` | Loop / sequential / parallel primitives |
 
 Route through the `gormes-references` skill
-(`docs/development-skills/gormes-references/SKILL.md`) before re-deriving any
+(`development-skills/gormes-references/SKILL.md`) before re-deriving any
 of these shapes.

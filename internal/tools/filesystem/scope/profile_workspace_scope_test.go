@@ -31,6 +31,7 @@ func TestProfileWorkspaceScope_AllowsProjectsAndOwnedProfileContent(t *testing.T
 	writeFile(t, filepath.Join(sibling, "SOUL.md"), "sibling")
 
 	scope, err := NewProfileWorkspaceScope(ProfileWorkspaceScopeOptions{
+		ProfileName:  "coder",
 		ProjectRoots: []string{project1, project2},
 		ProfileRoot:  profile,
 		OperatorHome: root,
@@ -51,7 +52,7 @@ func TestProfileWorkspaceScope_AllowsProjectsAndOwnedProfileContent(t *testing.T
 		{name: "profile soul", path: filepath.Join(profile, "SOUL.md"), base: project1, access: ProfileWorkspaceAccessWrite, allowed: true},
 		{name: "profile identity", path: filepath.Join(profile, "IDENTITY.md"), base: project1, access: ProfileWorkspaceAccessWrite, allowed: true},
 		{name: "profile skill", path: filepath.Join(profile, "skills", "writer", "SKILL.md"), base: project1, access: ProfileWorkspaceAccessWrite, allowed: true},
-		{name: "profile env denied", path: filepath.Join(profile, ".env"), base: project1, access: ProfileWorkspaceAccessRead, allowed: false},
+		{name: "profile env inside workspace", path: filepath.Join(profile, ".env"), base: project1, access: ProfileWorkspaceAccessRead, allowed: true},
 		{name: "sibling profile denied", path: filepath.Join(sibling, "SOUL.md"), base: project1, access: ProfileWorkspaceAccessRead, allowed: false},
 		{name: "outside denied", path: filepath.Join(root, "outside.txt"), base: project1, access: ProfileWorkspaceAccessRead, allowed: false},
 	}
@@ -106,33 +107,153 @@ func TestProfileWorkspaceScope_BlocksSymlinkAndPrefixEscapes(t *testing.T) {
 	}
 }
 
-func TestProfileWorkspaceScope_EmptyListDefaultsToOperatorHome(t *testing.T) {
+func TestProfileWorkspaceScope_DefaultsToProfileRootAndDeniesHome(t *testing.T) {
 	operatorHome := t.TempDir()
-	project := filepath.Join(operatorHome, "project")
-	if err := os.MkdirAll(project, 0o755); err != nil {
-		t.Fatalf("mkdir project: %v", err)
+	profileRoot := filepath.Join(operatorHome, ".gormes", "profiles", "coder")
+	siblingRoot := filepath.Join(operatorHome, ".gormes", "profiles", "researcher")
+	for _, dir := range []string{profileRoot, siblingRoot, filepath.Join(operatorHome, "git", "gormes")} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
 	}
+	writeFile(t, filepath.Join(profileRoot, "notes.md"), "profile workspace")
+	writeFile(t, filepath.Join(siblingRoot, "notes.md"), "sibling")
+	writeFile(t, filepath.Join(operatorHome, "git", "gormes", "repo.md"), "repo")
 
 	scope, err := NewProfileWorkspaceScope(ProfileWorkspaceScopeOptions{
-		ProjectRoots: nil,
+		ProfileName:  "coder",
+		ProfileRoot:  profileRoot,
 		OperatorHome: operatorHome,
 	})
 	if err != nil {
 		t.Fatalf("NewProfileWorkspaceScope: %v", err)
 	}
-	if scope.Configured() {
-		t.Fatalf("Configured = true, want false for empty agents.defaults.workspaces")
+	if !scope.Configured() {
+		t.Fatalf("Configured = false, want true for profile-root default policy")
 	}
-	if got := scope.DefaultRoot(); got != operatorHome {
-		t.Fatalf("DefaultRoot = %q, want operator home %q", got, operatorHome)
+	if got := scope.DefaultRoot(); got != profileRoot {
+		t.Fatalf("DefaultRoot = %q, want active profile root %q", got, profileRoot)
 	}
-	allowed := scope.Resolve(filepath.Join(project, "new.txt"), operatorHome, ProfileWorkspaceAccessWrite)
-	if !allowed.Allowed {
-		t.Fatalf("operator home project denied: %#v", allowed)
+	allowed := scope.Resolve("notes.md", profileRoot, ProfileWorkspaceAccessRead)
+	if !allowed.Allowed || allowed.Root != profileRoot || allowed.Relative != "notes.md" {
+		t.Fatalf("profile notes decision = %#v, want allowed inside profile root", allowed)
 	}
-	denied := scope.Resolve(filepath.Join(filepath.Dir(operatorHome), "outside.txt"), operatorHome, ProfileWorkspaceAccessRead)
+	for _, path := range []string{
+		filepath.Join(siblingRoot, "notes.md"),
+		filepath.Join(operatorHome, "git", "gormes", "repo.md"),
+	} {
+		decision := scope.Resolve(path, profileRoot, ProfileWorkspaceAccessRead)
+		if decision.Allowed {
+			t.Fatalf("Resolve(%q) allowed outside profile root: %#v", path, decision)
+		}
+		if decision.Evidence != ProfileWorkspaceScopeViolation {
+			t.Fatalf("Resolve(%q) evidence = %q, want %q", path, decision.Evidence, ProfileWorkspaceScopeViolation)
+		}
+		if decision.Message != ProfileWorkspaceDeniedMessage {
+			t.Fatalf("Resolve(%q) message = %q, want stable allow-list guidance", path, decision.Message)
+		}
+	}
+}
+
+func TestProfileWorkspaceScope_ExplicitAllowedPathExtendsProfileRoot(t *testing.T) {
+	operatorHome := t.TempDir()
+	profileRoot := filepath.Join(operatorHome, ".gormes", "profiles", "coder")
+	repoRoot := filepath.Join(operatorHome, "git", "gormes")
+	for _, dir := range []string{profileRoot, repoRoot} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	writeFile(t, filepath.Join(repoRoot, "repo.md"), "repo")
+
+	scope, err := NewProfileWorkspaceScope(ProfileWorkspaceScopeOptions{
+		ProfileName:   "coder",
+		ProfileRoot:   profileRoot,
+		WorkspaceRoot: profileRoot,
+		ProjectRoots:  []string{repoRoot},
+		OperatorHome:  operatorHome,
+	})
+	if err != nil {
+		t.Fatalf("NewProfileWorkspaceScope: %v", err)
+	}
+	decision := scope.Resolve(filepath.Join(repoRoot, "repo.md"), profileRoot, ProfileWorkspaceAccessRead)
+	if !decision.Allowed || decision.Root != repoRoot || decision.Relative != "repo.md" {
+		t.Fatalf("allowlisted repo decision = %#v, want allowed under explicit path", decision)
+	}
+}
+
+func TestProfileWorkspaceScope_TildeUsesConfiguredOperatorHome(t *testing.T) {
+	processHome := t.TempDir()
+	operatorHome := t.TempDir()
+	profileRoot := filepath.Join(operatorHome, ".gormes", "profiles", "coder")
+	repoRoot := filepath.Join(operatorHome, "git", "gormes")
+	sshRoot := filepath.Join(operatorHome, ".ssh")
+	for _, dir := range []string{profileRoot, repoRoot, sshRoot} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	writeFile(t, filepath.Join(repoRoot, "repo.md"), "repo")
+	t.Setenv("HOME", processHome)
+
+	scope, err := NewProfileWorkspaceScope(ProfileWorkspaceScopeOptions{
+		ProfileName:  "coder",
+		ProfileRoot:  profileRoot,
+		ProjectRoots: []string{"~/git/gormes"},
+		OperatorHome: operatorHome,
+	})
+	if err != nil {
+		t.Fatalf("NewProfileWorkspaceScope: %v", err)
+	}
+
+	allowed := scope.Resolve("~/git/gormes/repo.md", profileRoot, ProfileWorkspaceAccessRead)
+	if !allowed.Allowed || allowed.Root != repoRoot || allowed.Relative != "repo.md" {
+		t.Fatalf("tilde allowlist decision = %#v, want repo under operator home", allowed)
+	}
+	denied := scope.Resolve("~/.ssh/id_rsa", profileRoot, ProfileWorkspaceAccessRead)
 	if denied.Allowed {
-		t.Fatalf("outside operator home allowed: %#v", denied)
+		t.Fatalf("tilde home secret allowed: %#v", denied)
+	}
+	if want := filepath.Join(operatorHome, ".ssh", "id_rsa"); denied.Normalized != want {
+		t.Fatalf("tilde normalized = %q, want operator home path %q", denied.Normalized, want)
+	}
+	if denied.Message != ProfileWorkspaceDeniedMessage {
+		t.Fatalf("message = %q, want stable allow-list guidance", denied.Message)
+	}
+}
+
+func TestProfileWorkspaceScopeRejectsUnsafeProfileNamesAndBlanketRoots(t *testing.T) {
+	operatorHome := t.TempDir()
+	profileRoot := filepath.Join(operatorHome, ".gormes", "profiles", "coder")
+	if err := os.MkdirAll(profileRoot, 0o755); err != nil {
+		t.Fatalf("mkdir profile: %v", err)
+	}
+
+	for _, name := range []string{"../coder", "coder/slash", ".", ".."} {
+		t.Run("profile name "+name, func(t *testing.T) {
+			_, err := NewProfileWorkspaceScope(ProfileWorkspaceScopeOptions{
+				ProfileName:  name,
+				ProfileRoot:  profileRoot,
+				OperatorHome: operatorHome,
+			})
+			if err == nil {
+				t.Fatalf("NewProfileWorkspaceScope accepted unsafe profile name %q", name)
+			}
+		})
+	}
+
+	for _, root := range []string{string(filepath.Separator), operatorHome} {
+		t.Run("allowed root "+root, func(t *testing.T) {
+			_, err := NewProfileWorkspaceScope(ProfileWorkspaceScopeOptions{
+				ProfileName:  "coder",
+				ProfileRoot:  profileRoot,
+				ProjectRoots: []string{root},
+				OperatorHome: operatorHome,
+			})
+			if err == nil {
+				t.Fatalf("NewProfileWorkspaceScope accepted blanket allowed root %q", root)
+			}
+		})
 	}
 }
 

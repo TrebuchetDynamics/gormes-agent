@@ -15,7 +15,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/commandruntime"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/provider"
@@ -43,7 +43,7 @@ type Seams struct {
 // command module. cmd/gormes supplies release/version values; tests can inject
 // stable values without importing the main package.
 type Options struct {
-	BuildProvenance func() gormescli.BuildProvenance
+	BuildProvenance func() commandruntime.BuildProvenance
 }
 
 func normalizeOptions(opts []Options) Options {
@@ -52,14 +52,14 @@ func normalizeOptions(opts []Options) Options {
 		out = opts[0]
 	}
 	if out.BuildProvenance == nil {
-		out.BuildProvenance = func() gormescli.BuildProvenance {
-			return gormescli.BuildProvenance{Version: "unknown", GitCommit: "unknown"}
+		out.BuildProvenance = func() commandruntime.BuildProvenance {
+			return commandruntime.BuildProvenance{Version: "unknown", GitCommit: "unknown"}
 		}
 	}
 	return out
 }
 
-func buildProvenance(options Options) gormescli.BuildProvenance {
+func buildProvenance(options Options) commandruntime.BuildProvenance {
 	options = normalizeOptions([]Options{options})
 	return options.BuildProvenance()
 }
@@ -334,11 +334,11 @@ func newProfileUseCommand(seams Seams, options Options) *cobra.Command {
 // active marker landed. Root is redacted (only the trailing segment)
 // — same secrets contract as `profile show`.
 type profileSetReportJSON struct {
-	Build   gormescli.BuildProvenance  `json:"build"`
-	Action  string                     `json:"action"`
-	Active  string                     `json:"active"`
-	Root    string                     `json:"root"`
-	Storage profileStorageContractJSON `json:"storage"`
+	Build   commandruntime.BuildProvenance `json:"build"`
+	Action  string                         `json:"action"`
+	Active  string                         `json:"active"`
+	Root    string                         `json:"root"`
+	Storage profileStorageContractJSON     `json:"storage"`
 }
 
 func newProfileCreateCommand(seams Seams, options Options) *cobra.Command {
@@ -359,12 +359,12 @@ func newProfileCreateCommand(seams Seams, options Options) *cobra.Command {
 }
 
 type profileCreateReportJSON struct {
-	Build    gormescli.BuildProvenance  `json:"build"`
-	Action   string                     `json:"action"`
-	Name     string                     `json:"name"`
-	Root     string                     `json:"root"`
-	Storage  profileStorageContractJSON `json:"storage"`
-	CloneAll bool                       `json:"clone_all"`
+	Build    commandruntime.BuildProvenance `json:"build"`
+	Action   string                         `json:"action"`
+	Name     string                         `json:"name"`
+	Root     string                         `json:"root"`
+	Storage  profileStorageContractJSON     `json:"storage"`
+	CloneAll bool                           `json:"clone_all"`
 }
 
 type profileUnavailableSpec struct {
@@ -377,13 +377,13 @@ type profileUnavailableSpec struct {
 }
 
 type profileUnavailableReportJSON struct {
-	Build       gormescli.BuildProvenance `json:"build"`
-	Action      string                    `json:"action"`
-	Command     string                    `json:"command"`
-	Status      string                    `json:"status"`
-	Row         string                    `json:"row"`
-	Destructive bool                      `json:"destructive,omitempty"`
-	Error       string                    `json:"error"`
+	Build       commandruntime.BuildProvenance `json:"build"`
+	Action      string                         `json:"action"`
+	Command     string                         `json:"command"`
+	Status      string                         `json:"status"`
+	Row         string                         `json:"row"`
+	Destructive bool                           `json:"destructive,omitempty"`
+	Error       string                         `json:"error"`
 }
 
 func newProfileUnavailableCommand(spec profileUnavailableSpec, options Options) *cobra.Command {
@@ -411,7 +411,7 @@ func runProfileUnavailableCommand(cmd *cobra.Command, spec profileUnavailableSpe
 			Build:       buildProvenance(options),
 			Action:      "profile_command_unavailable",
 			Command:     command,
-			Status:      gormescli.RowBackedStatus,
+			Status:      commandruntime.RowBackedStatus,
 			Row:         "Gormes profile command binding",
 			Destructive: spec.Destructive,
 			Error:       message,
@@ -421,7 +421,7 @@ func runProfileUnavailableCommand(cmd *cobra.Command, spec profileUnavailableSpe
 		}
 		fmt.Fprintln(cmd.OutOrStdout(), string(body))
 	}
-	return gormescli.NewExitCodeError(2, fmt.Errorf("%s", message))
+	return commandruntime.NewExitCodeError(2, fmt.Errorf("%s", message))
 }
 
 func profileUnavailableJSONFlag(cmd *cobra.Command) {
@@ -525,7 +525,7 @@ func runProfileShowCommand(cmd *cobra.Command, seams Seams, asJSON bool, options
 // — same convention as the rest of the --json arc. `active` is empty
 // when no profile is set (the human surface emits "<unset>").
 type profileShowReportJSON struct {
-	Build        gormescli.BuildProvenance       `json:"build"`
+	Build        commandruntime.BuildProvenance  `json:"build"`
 	Active       string                          `json:"active"`
 	Root         string                          `json:"root"`
 	Storage      profileStorageContractJSON      `json:"storage"`
@@ -804,9 +804,9 @@ func runProfileInfoCommand(cmd *cobra.Command, seams Seams, rawName string, asJS
 // — same convention as update / doctor / status / restore / auth /
 // gateway-status / secrets.
 type profileListReportJSON struct {
-	Build    gormescli.BuildProvenance `json:"build"`
-	Active   string                    `json:"active"`
-	Profiles []profileListEntryJSON    `json:"profiles"`
+	Build    commandruntime.BuildProvenance `json:"build"`
+	Active   string                         `json:"active"`
+	Profiles []profileListEntryJSON         `json:"profiles"`
 }
 
 type profileListEntryJSON struct {
@@ -817,20 +817,20 @@ type profileListEntryJSON struct {
 }
 
 type profileProvidersReportJSON struct {
-	Build     gormescli.BuildProvenance           `json:"build"`
+	Build     commandruntime.BuildProvenance      `json:"build"`
 	Active    string                              `json:"active"`
 	Providers []provider.ProfileProviderReadiness `json:"providers"`
 }
 
 type profileChannelsReportJSON struct {
-	Build    gormescli.BuildProvenance                 `json:"build"`
+	Build    commandruntime.BuildProvenance            `json:"build"`
 	Active   string                                    `json:"active"`
 	Bindings []gateway.ProfileChannelBindingReadiness  `json:"bindings"`
 	Evidence []gateway.ProfileChannelReadinessEvidence `json:"evidence,omitempty"`
 }
 
 type profileInfoReportJSON struct {
-	Build        gormescli.BuildProvenance        `json:"build"`
+	Build        commandruntime.BuildProvenance   `json:"build"`
 	Name         string                           `json:"name"`
 	Root         string                           `json:"root"`
 	Storage      profileStorageContractJSON       `json:"storage"`

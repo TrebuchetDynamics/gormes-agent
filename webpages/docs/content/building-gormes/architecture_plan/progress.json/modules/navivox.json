@@ -102,8 +102,8 @@
       "source_refs": [
         "openclaw/src/plugin-sdk/channel-pairing.ts:createChannelPairingChallengeIssuer",
         "openclaw/src/pairing/pairing-messages.ts:buildPairingReply",
-        "openclaw/docs/install/oracle.md:Install Tailscale",
-        "openclaw/docs/install/podman.md:Podman + Tailscale",
+        "openclaw/webpages/docs/install/oracle.md:Install Tailscale",
+        "openclaw/webpages/docs/install/podman.md:Podman + Tailscale",
         "hermes-agent/SECURITY.md:Network exposure",
         "internal/gateway/pairing_store.go",
         "cmd/gormes/navivox.go",
@@ -253,8 +253,8 @@
       "source_refs": [
         "cmd/gormes/navivox.go",
         "cmd/gormes/navivox_host_setup_test.go",
-        "openclaw/docs/install/oracle.md:Install Tailscale",
-        "openclaw/docs/install/ansible.md:Tailscale VPN",
+        "openclaw/webpages/docs/install/oracle.md:Install Tailscale",
+        "openclaw/webpages/docs/install/ansible.md:Tailscale VPN",
         "openclaw/docs/reference/wizard.md:sudo prompt note",
         "hermes-agent/SECURITY.md:Network exposure",
         "internal/tui/hermes_panels.go:SecretPanelSudo"
@@ -284,7 +284,7 @@
       "write_scope": [
         "cmd/gormes/navivox.go",
         "cmd/gormes/navivox_host_setup_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestNavivoxSetupHost' -count=1",
@@ -326,7 +326,7 @@
       "degraded_mode": "If a server references a missing or disabled profile, Navivox reports navivox_profile_unavailable for that route and keeps other configured profiles/servers available.",
       "fixture": "internal/config/profile_config_v2_test.go:TestNavivoxProfileRoutingBuildsServerScopedProfileFleetSafely",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#navivox",
+        "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md#navivox",
         "internal/config/config.go:NavivoxCfg",
         "internal/config/config.go:NavivoxServerCfg",
         "internal/config/profile_config_v2.go:Config.NavivoxProfileRouting",
@@ -365,7 +365,7 @@
         "cmd/gormes/navivox_connect_info.go",
         "internal/cli/gormescli/modules/profiles/",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/channels/navivox ./internal/config -run 'TestNavivoxProfileRouting|TestProfileConfigV2' -count=1",
@@ -448,7 +448,7 @@
         "flutter-navivox/app/test/core/channel/ssh_navivox_channel_tools_test.dart",
         "flutter-navivox/app/test/core/transport/dartssh2_byte_transport_test.dart",
         "flutter-navivox/app/pubspec.yaml",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./... -count=1",
@@ -512,7 +512,7 @@
         "flutter-navivox/app/lib/core/transport/in_memory_transport.dart",
         "flutter-navivox/app/test/router/",
         "flutter-navivox/app/test/core/channel/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "sh -c 'cd flutter-navivox/app && flutter test'"
@@ -570,7 +570,7 @@
         "flutter-navivox/app/test/features/keys/",
         "flutter-navivox/app/test/router/",
         "flutter-navivox/app/pubspec.yaml",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "sh -c 'cd flutter-navivox/app && flutter test'",
@@ -629,7 +629,7 @@
       "write_scope": [
         "internal/network/vpnhost/",
         "cmd/gormes/setup_navivox.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/network/vpnhost -count=1",
@@ -691,7 +691,7 @@
         "internal/config/navivox_config_test.go",
         "internal/channels/navivox/channel.go",
         "internal/channels/navivox/channel_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config -run Navivox -count=1",
@@ -748,7 +748,7 @@
         "cmd/gormes/navivox_connect_info.go",
         "cmd/gormes/navivox_connect_info_test.go",
         "cmd/gormes/main.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run NavivoxConnectInfo -count=1"
@@ -865,11 +865,11 @@
         "system"
       ],
       "degraded_mode": "If docs remain stale, builders may reintroduce the deleted SSH/stdin protocol or fake-server client; runtime behavior stays HTTP/WS but operator setup guidance is contradictory.",
-      "fixture": "docs/content/cli/navivox.md",
+      "fixture": "webpages/docs/content/cli/navivox.md",
       "source_refs": [
         "CHANGELOG.md:31",
         "CHANGELOG.md:67",
-        "docs/content/cli/navivox.md",
+        "webpages/docs/content/cli/navivox.md",
         "flutter-navivox/navivox-decision-record.md:86",
         "flutter-navivox/navivox-prd.md:15",
         "flutter-navivox/navivox-architecture.md:94",
@@ -879,12 +879,12 @@
         "flutter-navivox/navivox-ui-design.md:48",
         "flutter-navivox/navivox-data-model.md:14",
         "flutter-navivox/navivox-chat-ui-research.md:8",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:151",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:151",
         "https://github.com/dograh-hq/dograh#your-first-voice-bot"
       ],
       "ready_when": [
         "The current changelog proves SSH stdio was removed and HTTP/WS is the only Navivox transport.",
-        "`docs/content/cli/navivox.md` already documents `connect` as the surviving CLI surface.",
+        "`webpages/docs/content/cli/navivox.md` already documents `connect` as the surviving CLI surface.",
         "The pass stays docs-only and does not edit runtime code under cmd/ or internal/."
       ],
       "not_ready_when": [
@@ -903,7 +903,7 @@
         "Navivox per-profile BYO voice profiles"
       ],
       "acceptance": [
-        "`rg -n 'serve --stdio|navivox pair|setup-host|dartssh2|NVOX|SSH stdio|fake-server' flutter-navivox docs/content/cli docs/content/building-gormes` returns only historical/deleted mentions that are explicitly labeled as removed.",
+        "`rg -n 'serve --stdio|navivox pair|setup-host|dartssh2|NVOX|SSH stdio|fake-server' flutter-navivox webpages/docs/content/cli webpages/docs/content/building-gormes` returns only historical/deleted mentions that are explicitly labeled as removed.",
         "The docs name the live HTTP/WS endpoints and `gormes navivox connect` path.",
         "The Dograh-inspired activation principle is documented as `connect and talk without telephony setup`, not as telephony/campaign scope.",
         "HTTP/WS trust boundaries remain visible: disabled by default, loopback by default, VPN/public exposure gates, token redaction."
@@ -919,12 +919,12 @@
         "flutter-navivox/navivox-ui-design.md",
         "flutter-navivox/navivox-data-model.md",
         "flutter-navivox/navivox-chat-ui-research.md",
-        "docs/content/cli/navivox.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/cli/navivox.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "rg -n 'serve --stdio|navivox pair|setup-host|dartssh2|NVOX|SSH stdio|fake-server' flutter-navivox docs/content/cli docs/content/building-gormes",
+        "rg -n 'serve --stdio|navivox pair|setup-host|dartssh2|NVOX|SSH stdio|fake-server' flutter-navivox webpages/docs/content/cli webpages/docs/content/building-gormes",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1005,7 +1005,7 @@
         "flutter-navivox/app/test/core/channel/gateway_navivox_channel_test.dart",
         "flutter-navivox/app/test/features/setup/",
         "flutter-navivox/app/test/features/chat/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/channels/navivox -run 'TestNavivox.*Turn|TestNavivox.*Stream|TestNavivox.*Auth' -count=1",
@@ -1091,7 +1091,7 @@
         "flutter-navivox/app/test/features/chat/profile_contact_list_test.dart",
         "flutter-navivox/navivox-ui-design.md",
         "flutter-navivox/navivox-chat-ui-research.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/channels/navivox ./internal/doctor ./cmd/gormes -run 'Test.*Navivox.*Contact|Test.*Profile|TestDoctorProfiles' -count=1",
@@ -1135,7 +1135,7 @@
         "internal/channels/navivox/capabilities.go:capabilityDocument",
         "cmd/gormes/navivox_connect_info.go:navivoxConnectInfoEntry",
         "docs/navivox-gateway-channel.md#endpoints",
-        "docs/content/cli/navivox.md#current-channel-contract"
+        "webpages/docs/content/cli/navivox.md#current-channel-contract"
       ],
       "ready_when": [
         "Existing Navivox HTTP/WS channel already authenticates `/v1/navivox/*` routes and exposes status, profile contacts, turns, and stream endpoints.",
@@ -1164,9 +1164,9 @@
         "cmd/gormes/navivox*.go",
         "cmd/gormes/setup_navivox*.go",
         "docs/navivox-gateway-channel.md",
-        "docs/content/cli/navivox.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/cli/navivox.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/channels/navivox -run 'TestNavivoxCapabilities|TestNavivoxStatusLinksCapabilities' -count=1",
@@ -1256,7 +1256,7 @@
         "internal/channels/navivox/channel_test.go",
         "flutter-navivox/navivox-ui-design.md",
         "flutter-navivox/navivox-chat-ui-research.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "sh -c 'cd flutter-navivox/app && flutter test test/features/voice/continuous_voice_command_mode_test.dart test/features/chat test/features/settings'",
@@ -1336,7 +1336,7 @@
         "../navivox-app/test/features/servers/",
         "../navivox-app/navivox-chat-ui-research.md",
         "../navivox-app/navivox-ui-design.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "sh -c 'cd ../navivox-app && flutter test test/features/chat test/features/servers test/router/app_router_test.dart test/shared/app_shell_test.dart'",
@@ -1380,7 +1380,7 @@
         "internal/cli/profile_root.go",
         "internal/channels/navivox/channel.go",
         "internal/channels/navivox/profile_contacts.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Navivox HTTP/WS Flutter channel",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Navivox HTTP/WS Flutter channel",
         "https://docs.dograh.com/core-concepts/workflows-and-agents",
         "cmd/gormes/profile.go:newProfileCommand",
         "cmd/gormes/profile_seed.go:newProfileSeedCommand",
@@ -1429,7 +1429,7 @@
         "cmd/gormes/setup_profiles_test.go",
         "internal/channels/navivox/channel.go",
         "internal/channels/navivox/channel_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "cmd/gormes/profile_seed.go",
         "internal/profileseed/seed.go",
         "internal/profileseed/seed_test.go"
@@ -1478,7 +1478,7 @@
         "../navivox-app/lib/features/chat/",
         "../navivox-app/lib/features/profiles/",
         "internal/channels/navivox/channel.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Navivox HTTP/WS Flutter channel"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Navivox HTTP/WS Flutter channel"
       ],
       "ready_when": [
         "`Navivox natural-language profile seed backend API` has landed so the app can call a real server-authoritative draft/apply API.",
@@ -1512,7 +1512,7 @@
         "../navivox-app/test/features/chat/",
         "../navivox-app/test/features/profiles/",
         "../navivox-app/test/support/test_navivox_channel.dart",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "sh -c 'cd ../navivox-app && flutter test test/features/profiles test/features/chat/profile_contact_list_test.dart'",
@@ -1591,7 +1591,7 @@
         "internal/channels/navivox/tool_events_test.go",
         "internal/persistence/session/navivox_run_record.go",
         "internal/persistence/session/navivox_run_record_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway ./internal/channels/navivox ./internal/persistence/session -run 'Test.*Tool.*Progress|Test.*Navivox.*Tool|Test.*RunRecordTool' -count=1",
@@ -1629,7 +1629,7 @@
       "degraded_mode": "If a channel lacks structured tool progress, gateway falls back to existing bounded text progress; if Navivox receives malformed tool metadata, it renders redacted error evidence inside a tool card instead of assistant text.",
       "fixture": "../navivox-app/test/core/channel/gateway_navivox_channel_test.dart; ../navivox-app/test/features/chat/",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/progress.json:Navivox structured tool event cards backend API",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json:Navivox structured tool event cards backend API",
         "../navivox-app/lib/core/protocol/navivox_event.dart:NavivoxToolCall",
         "../navivox-app/lib/core/channel/gateway_navivox_channel.dart:_upsertToolCall",
         "../navivox-app/lib/features/chat/widgets/transcript_bubble.dart:_ToolCallBody",
@@ -1658,7 +1658,7 @@
         "../navivox-app/lib/features/chat/widgets/simple_chat_adapter.dart",
         "../navivox-app/test/core/channel/gateway_navivox_channel_test.dart",
         "../navivox-app/test/features/chat/",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "../navivox-app/lib/features/chat/transcript_tool_call_presentation.dart",
         "../navivox-app/test/features/chat/transcript_tool_call_presentation_test.dart",
         "../navivox-app/test/features/chat/tool_artifacts_render_test.dart"
@@ -1704,7 +1704,7 @@
         "internal/config/writer.go:IsSecretKey",
         "cmd/gormes/config.go:emitConfigGetJSON",
         "internal/gateway/config_reload.go:Reload",
-        "docs/content/building-gormes/architecture_plan/progress.json:Navivox safe config admin over HTTP",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json:Navivox safe config admin over HTTP",
         "internal/channels/navivox/config_admin.go:handleConfigAdmin",
         "internal/channels/navivox/config_admin.go:configAdminBackend.validate",
         "internal/channels/navivox/config_admin.go:configAdminBackend.apply",
@@ -1748,7 +1748,7 @@
         "internal/config/navivox_config_test.go",
         "internal/gateway/config_reload.go",
         "internal/gateway/config_reload_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/channels/navivox ./internal/config ./internal/gateway -run 'Test.*Config.*Admin|Test.*Navivox.*Config|Test.*ConfigReload' -count=1",
@@ -1792,7 +1792,7 @@
         "../navivox-app/lib/core/channel/gateway_navivox_channel.dart",
         "../navivox-app/lib/features/config/screens/config_screen.dart",
         "../navivox-app/test/features/config/config_screen_test.dart",
-        "docs/content/building-gormes/architecture_plan/progress.json:Navivox safe config admin backend API"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json:Navivox safe config admin backend API"
       ],
       "ready_when": [
         "`Navivox safe config admin backend API` has landed and exposes schema/get/diff/validate/apply/reload-or-pending-restart fixtures.",
@@ -1822,7 +1822,7 @@
         "../navivox-app/lib/core/channel/gateway_navivox_channel.dart",
         "../navivox-app/lib/features/config/",
         "../navivox-app/test/features/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "../navivox-app/lib/core/gateway/navivox_gateway_client.dart",
         "../navivox-app/lib/core/gateway/navivox_gateway_protocol.dart",
         "../navivox-app/test/core/gateway/navivox_gateway_protocol_test.dart",
@@ -1913,7 +1913,7 @@
         "internal/channels/navivox/channel_test.go",
         "cmd/gormes/session.go",
         "cmd/gormes/session_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "internal/channels/navivox/turn.go"
       ],
       "test_commands": [
@@ -1984,7 +1984,7 @@
         "../navivox-app/lib/features/chat/",
         "../navivox-app/test/core/channel/gateway_navivox_channel_test.dart",
         "../navivox-app/test/features/chat/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "sh -c 'cd ../navivox-app && flutter test test/core/channel/gateway_navivox_channel_test.dart test/features/chat'",
@@ -2028,7 +2028,7 @@
         "internal/tools/transcription_providers.go:ValidateTranscriptionProviderConfig",
         "internal/channels/navivox/turn.go:enqueueTurn",
         "internal/persistence/session/navivox_run_record.go:NavivoxVoiceEvidence",
-        "docs/content/building-gormes/architecture_plan/progress.json:Navivox per-profile BYO voice profiles",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json:Navivox per-profile BYO voice profiles",
         "internal/config/profile_voice_profile_test.go:TestProfileVoiceProfileConfigLoadsAndValidatesProviderMatrix",
         "internal/config/profile_voice_profile_test.go:TestProfileVoiceProfileValidationRejectsUnknownProviders",
         "internal/config/profile_voice_profile_test.go:TestWriteProfileConfigV2PersistsVoiceProfile",
@@ -2076,7 +2076,7 @@
         "internal/channels/navivox/voice_profiles_test.go",
         "internal/persistence/session/navivox_run_record.go",
         "internal/persistence/session/navivox_run_record_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "internal/tools/slim_stubs.go"
       ],
       "test_commands": [
@@ -2114,7 +2114,7 @@
         "../navivox-app/navivox-ui-design.md:2.8",
         "../navivox-app/lib/features/profiles/",
         "../navivox-app/lib/features/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json:Navivox per-profile BYO voice profiles backend API"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json:Navivox per-profile BYO voice profiles backend API"
       ],
       "ready_when": [
         "`Navivox per-profile BYO voice profiles backend API` is complete and exposes authenticated read/validate fixtures.",
@@ -2146,7 +2146,7 @@
         "../navivox-app/test/features/profiles/",
         "../navivox-app/test/features/config/",
         "../navivox-app/test/support/test_navivox_channel.dart",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "sh -c 'cd ../navivox-app && flutter test test/core/gateway/navivox_gateway_protocol_test.dart test/features/profiles test/features/config test/features/voice'",

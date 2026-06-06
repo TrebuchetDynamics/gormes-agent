@@ -112,6 +112,11 @@ func (e *EventingToolExecutor) Execute(ctx context.Context, req execution.ToolRe
 		_ = e.emitError(req, err)
 		return nil, err
 	}
+	if stream == nil {
+		err := errors.New("tools: nil tool event stream")
+		_ = e.emitError(req, err)
+		return nil, err
+	}
 
 	out := make(chan execution.ToolEvent, 8)
 	go func() {

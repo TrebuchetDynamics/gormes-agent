@@ -74,7 +74,7 @@
         "internal/tui/wizard/steps.go",
         "internal/tui/wizard/wizard_test.go",
         "internal/tui/wizard/testdata/ (teatest golden frames)",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui/wizard -run '^TestWizardChassis_' -count=1",
@@ -150,7 +150,7 @@
         "internal/tui/admin/welcome.go",
         "internal/tui/admin/shell_test.go",
         "internal/tui/admin/testdata/ (teatest golden frames)",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui/admin -run '^TestAdminShell_' -count=1",
@@ -218,7 +218,7 @@
         "cmd/gormes/admin.go",
         "internal/tui/admin/screen_health.go",
         "internal/tui/admin/health_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui/admin -run '^TestAdminHealth_' -count=1",
@@ -285,7 +285,7 @@
         "internal/tui/admin/screen_health.go",
         "internal/tui/admin/screen_chat.go",
         "internal/tui/admin/chat_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui/admin -run '^TestAdminChat_' -count=1",
@@ -348,7 +348,7 @@
         "internal/tui/admin/screen_health.go",
         "internal/tui/admin/screen_agents.go",
         "internal/tui/admin/agents_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui/admin -run '^TestAdminAgents_' -count=1",
@@ -414,7 +414,7 @@
         "internal/tui/admin/screen_commands.go",
         "internal/tui/admin/commands_test.go",
         "internal/tui/admin/screen_health.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui/admin ./cmd/gormes -run 'TestAdminCommands|TestAdminDefaultScreensIncludesCommandsTab|TestAdminCommandCatalogCoversRootCommandTree' -count=1",
@@ -484,7 +484,7 @@
         "internal/tui/admin/screen_commands.go",
         "internal/tui/admin/commands_test.go",
         "internal/tui/admin/screen_health.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui/admin ./cmd/gormes -run 'TestAdminCommands|TestAdminDefaultScreensIncludesCommandsTab|TestAdminCommandCatalogMarksOnlySafeCommandsRunnable|TestAdminCommandRunnerExecutesSafeCommandAndRejectsMutating|TestAdminCommandRunArgsResolveConfiguredAuthProvider' -count=1",
@@ -547,7 +547,7 @@
         "internal/tui/admin/shell.go",
         "internal/tui/admin/screen_commands.go",
         "internal/tui/admin/commands_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui/admin -run '^TestAdminCommands_Search' -count=1",
@@ -708,7 +708,7 @@
         "internal/tui/",
         "internal/config/",
         "cmd/gormes/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui ./internal/config ./cmd/gormes -count=1"
@@ -761,8 +761,8 @@
         "cmd/gormes/",
         "internal/tui/",
         "internal/cli/",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-5-final-purge.md",
         "www.gormes.ai/internal/site/content.go"
       ],
       "test_commands": [
@@ -835,7 +835,7 @@
       ],
       "note": "Reshaped 2026-04-26 (split from `Native TUI /save canonical session export`). Original /save row was quarantined no_progress x3 because Gormes TUI had no slash-command dispatch at all — only parseMouseTrackingSlash hardcoded in update.go. Workers couldn't decide where to register a new handler. This prerequisite row introduced a generic registry and a /save no-op stub; follow-up rows replaced the stub with export behavior and added /branch/browser handlers. 2026-05-04 behavioral audit refreshed active source refs to Hermes Ink createSlashHandler/SLASH_COMMANDS and split exact known-command non-leak semantics into `Native TUI Hermes slash dispatch behavioral matrix`.",
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "internal/tui/model.go",
         "internal/tui/mouse_tracking.go",
         "internal/tui/slash_dispatch.go",
@@ -915,7 +915,7 @@
         "internal/tui/slash_save.go",
         "internal/tui/slash_save_test.go",
         "internal/tui/model.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run 'TestSlashSave_|TestSlashRegistry_' -count=1",
@@ -986,7 +986,7 @@
       "write_scope": [
         "cmd/gormes/session.go",
         "cmd/gormes/tui_save_export_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestTUISaveExportHelper_' -count=1",
@@ -1056,7 +1056,7 @@
       "write_scope": [
         "cmd/gormes/main.go",
         "cmd/gormes/tui_save_binding_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestTUISaveBinding_' -count=1",
@@ -1136,7 +1136,7 @@
         "internal/tui/slash_branch_test.go",
         "internal/tui/slash_dispatch.go",
         "internal/tui/model.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/persistence/session -run 'TestSessionFork_|TestBoltMap_ResolveLineageTipFollowsCompressionChildrenOnly' -count=1",
@@ -1336,7 +1336,7 @@
       "write_scope": [
         "internal/tui/view.go",
         "internal/tui/viewport_history_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run '^TestConversationViewportTail_' -count=1",
@@ -1412,7 +1412,7 @@
       "write_scope": [
         "internal/tui/queued_messages.go",
         "internal/tui/queued_messages_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run '^TestQueuedMessages_' -count=1",
@@ -1475,7 +1475,7 @@
       "write_scope": [
         "internal/tui/view.go",
         "internal/tui/viewport_render_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run '^TestRenderConvViewportBinding_' -count=1",
@@ -1547,7 +1547,7 @@
       "write_scope": [
         "internal/tui/hermes_skin.go",
         "internal/tui/hermes_skin_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run '^TestHermesSkin_' -count=1",
@@ -1617,7 +1617,7 @@
       "write_scope": [
         "internal/tui/hermes_status_bar.go",
         "internal/tui/hermes_status_bar_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run '^TestHermesStatusBar_' -count=1",
@@ -1708,7 +1708,7 @@
         "internal/kernel/kernel_test.go",
         "cmd/gormes/main.go",
         "cmd/gormes/tui_*_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kernel -run 'TestKernel_FinalIdleClearsDraftAfterHistoryAppend|TestKernel_ProviderOutpacesTUI_Coalesces' -count=1",
@@ -1793,7 +1793,7 @@
         "internal/tui/model.go",
         "internal/tui/history.go",
         "internal/tui/hermes_keybindings_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run '^TestHermesKeybindings_' -count=1",
@@ -1860,7 +1860,7 @@
       "write_scope": [
         "internal/tui/update.go",
         "internal/tui/hermes_keybindings_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run 'TestHermesKeybindings_(AltEnterCtrlJShiftEnterInsertNewline|ShiftEnterCSI)' -count=1",
@@ -1948,7 +1948,7 @@
         "internal/tui/terminal_setup.go",
         "internal/tui/terminal_setup_test.go",
         "internal/tui/selection_help.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run 'TestTUIClipboard|TestTUIOSC52|TestTUITerminalSetup|TestTUITruecolor' -count=1",
@@ -2029,7 +2029,7 @@
         "internal/tui/update.go",
         "internal/tuigateway/ingress_rpc.go",
         "internal/tuigateway/ingress_rpc_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run 'TestTUIComposer|TestHermesKeybindings|TestSlashRegistry' -count=1",
@@ -2114,7 +2114,7 @@
         "internal/tui/slash_completion_test.go",
         "internal/cli/command_registry.go",
         "internal/cli/command_registry_policy_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run '^TestHermesSlashCompletion_' -count=1",
@@ -2177,7 +2177,7 @@
         "internal/tui/completion_request.go",
         "internal/tui/completion_request_test.go",
         "internal/tui/slash_completion.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run 'TestTUICompletionRequest|TestHermesSlashCompletion' -count=1",
@@ -2265,7 +2265,7 @@
         "internal/tui/slash_dispatch_behavior_test.go",
         "internal/tui/update.go",
         "internal/cli/command_registry.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run '^TestHermesSlashDispatchBehavior_' -count=1",
@@ -2333,7 +2333,7 @@
       "write_scope": [
         "internal/tui/slash_dispatch.go",
         "internal/tui/slash_dispatch_behavior_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run 'TestHermesSlashDispatchBehavior_QuitExitsLocally|TestHermesSlashDispatchBehavior_' -count=1",
@@ -2423,7 +2423,7 @@
         "internal/tui/hermes_panels_test.go",
         "internal/tui/model.go",
         "internal/tui/view.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run '^TestHermesPanels_' -count=1",
@@ -2503,7 +2503,7 @@
         "internal/tui/hermes_behavioral_fidelity_test.go",
         "internal/tui/hermes_chrome.go",
         "internal/tui/view.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run '^TestHermesBehavioralFidelity_' -count=1",
@@ -2577,7 +2577,7 @@
         "internal/tui/markdown.go",
         "internal/tui/markdown_test.go",
         "internal/tui/view.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run 'TestRenderMarkdownSoftWrapTrim|TestConversationMessageBlock_UsesSoftWrapTrim' -count=1",
@@ -2665,7 +2665,7 @@
         "cmd/gormes/",
         "internal/tui/",
         "internal/kernel/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tuigateway ./cmd/gormes ./internal/tui ./internal/kernel -run 'Test.*SSE|Test.*RemoteTUI|Test.*GatewayMux|Test.*PlatformEvent' -count=1",
@@ -2749,7 +2749,7 @@
         "internal/tui/slash_model_test.go",
         "cmd/gormes/main.go",
         "cmd/gormes/tui_model_slash_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run 'TestModelSlash|TestHermesSlashDispatchBehavior|ModelPicker' -count=1",
@@ -2834,7 +2834,7 @@
         "internal/kernel/frame.go",
         "internal/kernel/kernel.go",
         "internal/kernel/kernel_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kernel -run 'SetModel|ModelSwitch|SessionModel' -count=1",
@@ -3396,8 +3396,8 @@
       ],
       "acceptance": [
         "The relevant Hermes files/tests no longer appear as anonymous examples in the strict-fidelity unmapped bucket; they are linked to rows, source pairs, planned child rows, explicit exclusions, or owned-divergence notes.",
-        "`go run ./cmd/repoctl hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence.",
-        "`go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits.",
+        "`go run ./cmd/gormes-repo hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence.",
+        "`go run ./cmd/gormes-repo hermes-source-pairs validate` passes after any source-pair edits.",
         "`go run ./cmd/progress validate` passes and generated docs show the row in the correct module."
       ],
       "note": "Completed 2026-05-23 in development-goal iteration 21: classified the checked-in Hermes ui-tui source/test/doc inventory into exact source refs and a partial source-pair action matrix anchored at ui-tui/package.json. The contract inventory no longer reports the ui-tui suite or ui-tui source/docs/tests as anonymous unmapped strict-fidelity evidence. This is a classification closeout only; runtime behavior remains covered by existing/future focused child rows and the source-pair status stays partial to avoid unsupported full-parity claims.",
@@ -3410,8 +3410,8 @@
       ],
       "test_commands": [
         "go test ./internal/tui ./internal/tuigateway -count=1",
-        "go run ./cmd/repoctl hermes-source-pairs validate",
-        "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+        "go run ./cmd/gormes-repo hermes-source-pairs validate",
+        "go run ./cmd/gormes-repo hermes-contract-inventory --repo-root .",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -3467,7 +3467,7 @@
         "internal/tui/slash_dispatch.go",
         "internal/tui/slash_help.go",
         "internal/tui/slash_dispatch_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run 'TestSlashRegistry_Help|TestHermesSlashDispatchBehavior' -count=1",
@@ -3808,7 +3808,7 @@
         "internal/tui/slash_history.go:historySlashHandler",
         "internal/tui/transient_page.go:TransientPageState",
         "internal/cli/command_registry.go:CommandRegistry history entry",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:TUI gateway and interactive UI"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:TUI gateway and interactive UI"
       ],
       "ready_when": [
         "The parent `Native TUI slash handler-port coverage` row remains a non-selectable umbrella and `/history` is represented as this dedicated child row.",
@@ -3886,7 +3886,7 @@
         "internal/tui/transient_page.go:TransientPageState",
         "internal/tui/slash_dispatch.go:NewDefaultSlashRegistry",
         "internal/cli/command_registry.go:CommandRegistry status entry",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:TUI gateway and interactive UI"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:TUI gateway and interactive UI"
       ],
       "ready_when": [
         "The parent `Native TUI slash handler-port coverage` row remains a non-selectable umbrella and `/status` is represented as this dedicated child row.",
@@ -3960,7 +3960,7 @@
         "cmd/gormes/logs.go:readLogsTail",
         "cmd/gormes/main.go:local TUI GatewayLogTail injection",
         "internal/cli/command_registry.go:CommandRegistry logs entry",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:TUI gateway and interactive UI"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:TUI gateway and interactive UI"
       ],
       "ready_when": [
         "The parent `Native TUI slash handler-port coverage` row remains a non-selectable umbrella and `/logs` is represented as this dedicated child row.",
@@ -4411,8 +4411,8 @@
         "internal/cli/command_registry.go",
         "cmd/gormes/main.go",
         "cmd/gormes/tui_reset_slash_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json/index.json",
-        "docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/index.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run 'TestSessionSlash|TestSlashRegistry_Help|TestHermesSlashDispatchBehavior|TestHermesSlashCommandCompletions' -count=1",
@@ -4501,8 +4501,8 @@
         "internal/cli/command_registry.go",
         "internal/gateway/commands.go",
         "internal/cli/gormescli/default_contracts.go",
-        "docs/content/building-gormes/architecture_plan/progress.json/index.json",
-        "docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/index.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run 'TestCompactSlash|TestSlashRegistry_Help|TestHermesSlashDispatchBehavior|TestHermesSlashCommandCompletions' -count=1",
@@ -4849,8 +4849,8 @@
         "cmd/gormes/tui_voice_slash.go",
         "internal/tui/hermes_keybindings_test.go:TestHermesKeybindings_VoiceRecordTeaKeyUsesConfiguredKey",
         "internal/tui/slash_voice_test.go:TestVoiceSlashStatusUpdatesRecordKey",
-        "docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md:Voice recording key",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:TUI gateway and interactive UI"
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md:Voice recording key",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:TUI gateway and interactive UI"
       ],
       "ready_when": [
         "The TUI already resolves configurable voice.record_key values and `/voice` already uses an injected adapter, but the raw key branch currently emits a hard-coded unavailable message and bypasses that adapter.",
@@ -4872,9 +4872,9 @@
       "write_scope": [
         "internal/tui/update.go",
         "internal/tui/hermes_keybindings_test.go",
-        "docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
         "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
-        "docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
       ],
       "test_commands": [
@@ -4927,7 +4927,7 @@
         "internal/tui/hermes_behavioral_fidelity_test.go",
         "CLAUDE.md",
         "AGENTS.md",
-        "docs/content/building-gormes/strategy/success-plan.md"
+        "webpages/docs/content/building-gormes/strategy/success-plan.md"
       ],
       "ready_when": [
         "User has ratified the owned-divergence decision (done: methodology-first pivot, this planner pass)."
@@ -4949,7 +4949,7 @@
         "CLAUDE.md",
         "AGENTS.md",
         "internal/tui/hermes_behavioral_fidelity_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run 'Fidelity' -count=1",

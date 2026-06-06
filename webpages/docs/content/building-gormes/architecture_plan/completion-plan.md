@@ -13,7 +13,7 @@ Telegram": **Gormes is complete when it is Hermes in Go, with Goncho as the
 Honcho-compatible Go port inside Gormes.**
 
 The canonical backlog remains
-[`progress.json`](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/content/building-gormes/architecture_plan/progress.json).
+[`progress.json`](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/webpages/docs/content/building-gormes/architecture_plan/progress.json).
 This page explains how to drive that backlog without spending unbounded planner
 tokens or creating parallel queues.
 
@@ -179,7 +179,7 @@ Definition of done for this lane:
 ## Skill-Routed Operating Model
 
 Every substantial agent pass starts by choosing a repo-local skill. Canonical
-skill files live under `docs/development-skills/`; `.agents/skills/`,
+skill files live under `development-skills/`; `.agents/skills/`,
 `.claude/skills/`, and `.codex/skills/` are symlink loader views.
 
 | Situation | Skill path |
@@ -265,7 +265,7 @@ Primary gates for control-plane code changes:
 ```sh
 go test ./internal/progress -count=1
 go run ./cmd/progress validate
-go test ./docs -count=1
+go test ./webpages/docs -count=1
 ```
 
 Planner-doc passes should use non-loop validation only:
@@ -273,7 +273,7 @@ Planner-doc passes should use non-loop validation only:
 ```sh
 go run ./cmd/progress validate
 go test ./internal/progress -count=1
-go test ./docs -count=1
+go test ./webpages/docs -count=1
 ```
 
 ### Lane 1 — Native Agent Spine

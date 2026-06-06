@@ -66,7 +66,7 @@ terms:
 
 - `Gormes` becomes `target implementation`.
 - `Hermes` becomes `source implementation` or `parity oracle`.
-- `docs/content/building-gormes/architecture_plan/progress.json` becomes
+- `webpages/docs/content/building-gormes/architecture_plan/progress.json` becomes
   `PORTING_PROGRESS_PATH`, defaulting to `progress.json` in the target repo.
 - `cmd/progress` becomes a kit validation script or schema check.
 - Repo-local branch rules become host-repo rules loaded from that repo's

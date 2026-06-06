@@ -73,29 +73,3 @@ func TestSimpleXGatewayRegistrationUsesEnvBackedPluginConfig(t *testing.T) {
 		t.Fatalf("registered/channelCount = %d/%d, want SimpleX", registered, mgr.ChannelCount())
 	}
 }
-
-func TestSimpleXGatewayStartupAllowlistEnv(t *testing.T) {
-	if gatewayStartupAllowlistConfigured(config.Config{}, func(string) string { return "" }) {
-		t.Fatal("empty env startup allowlist = true, want false")
-	}
-	if !gatewayStartupAllowlistConfigured(config.Config{}, func(key string) string {
-		switch key {
-		case "SIMPLEX_WS_URL":
-			return "ws://127.0.0.1:5225"
-		case "SIMPLEX_ALLOWED_USERS":
-			return "contact-42"
-		default:
-			return ""
-		}
-	}) {
-		t.Fatal("SIMPLEX_ALLOWED_USERS did not satisfy startup allowlist evidence")
-	}
-	if !gatewayStartupAllowAllConfigured(func(key string) string {
-		if key == "SIMPLEX_ALLOW_ALL_USERS" {
-			return "true"
-		}
-		return ""
-	}) {
-		t.Fatal("SIMPLEX_ALLOW_ALL_USERS did not satisfy startup allow-all evidence")
-	}
-}

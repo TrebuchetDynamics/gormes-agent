@@ -61,9 +61,11 @@ func TestSkillManagerRoutesSkillMaintenanceThroughWriteASkill(t *testing.T) {
 func TestDevelopmentSkillLoaderViewsResolveToCanonicalSource(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 	canonicalRoot := filepath.Join(repoRoot, "development-skills")
-	docsAlias := filepath.Join(repoRoot, "docs", "development-skills")
-	if got, err := filepath.EvalSymlinks(docsAlias); err != nil || got != canonicalRoot {
-		t.Fatalf("docs/development-skills alias resolves to %q, %v; want %q", got, err, canonicalRoot)
+	docsAlias := filepath.Join(repoRoot, "webpages", "docs", "development-skills")
+	if _, err := os.Lstat(docsAlias); err == nil {
+		t.Fatalf("docs-site development-skills alias must not exist: %s", docsAlias)
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat docs-site development-skills alias: %v", err)
 	}
 	skills := canonicalDevelopmentSkills(t, canonicalRoot)
 	if len(skills) == 0 {

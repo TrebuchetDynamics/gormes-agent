@@ -171,7 +171,7 @@
       "write_scope": [
         "internal/tools/transcription_tool.go",
         "internal/tools/transcription_tool_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestTranscription' -count=1",
@@ -251,7 +251,7 @@
         "internal/channels/telegram/real_client.go",
         "internal/channels/telegram/transcriber.go",
         "internal/channels/telegram/transcriber_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run 'Voice|Audio|Transcrib|Download|Mention' -count=1",
@@ -332,7 +332,7 @@
         "internal/channels/telegram/bot_test.go",
         "cmd/gormes/registry.go",
         "cmd/gormes/registry_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run '^TestTextToSpeech' -count=1",
@@ -409,7 +409,7 @@
         "internal/tools/tts_command_provider.go",
         "internal/tools/tts_providers.go",
         "internal/tools/tts_minimax_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestMiniMaxTTS|TestTextToSpeech' -count=1",
@@ -613,7 +613,7 @@
         "internal/tui/hermes_keybindings_test.go",
         "cmd/gormes/setup.go",
         "cmd/gormes/config_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools ./internal/tui ./internal/config ./cmd/gormes -run 'Voice.*RecordKey|HermesKey.*Voice|Config.*Voice' -count=1",
@@ -709,7 +709,7 @@
         "cmd/gormes/telegram_transcriber_test.go",
         "cmd/gormes/gateway.go",
         "cmd/gormes/telegram.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/channels/telegram -run 'TestResolveAudioTranscriber' -count=1",
@@ -778,7 +778,7 @@
       ],
       "note": "Filed 2026-05-09. Research evidence collected via web search same day:\n\nPath #1 — Stay status quo. Local CLI (whisper/whisper-cli on PATH) + cloud HTTP fallback (Groq free tier, OpenAI). User installs local binary OR accepts cloud. Currently shipped.\n\nPath #2 — Take the cgo hit. Switch to a build-tag-gated STT path (e.g. stt_cgo) that integrates sherpa-onnx-go-linux (best engineered option). Single-static-binary promise becomes 'single static binary except STT-using builds.' Loses the Termux/Windows-without-extra-tooling appeal but gains real local STT.\n\nPath #3 — Bet on WASI. Productionize the whisper.cpp → WASI → wazero path. Pure Go, stays in binary. ~5x slower than native (90s vs 17s for the same audio), needs model file distribution (~75MB-1.5GB), no thread support in wazero. Months of work, untested in production by anyone in the Go ecosystem today.\n\nPath #4 — Wait + monitor. Track Go STT ecosystem; revisit when a real pure-Go option lands. Document the constraint publicly so users understand the tradeoff.\n\nGroq free tier (path #1 sub-option) was wired 2026-05-09 in the row 'Telegram voice STT HTTP-provider fallback' so users have a no-install option today even without resolving this row.\n\n---\n\nDECISION 2026-05-09: Path #3 (WASI productionization) selected.\n\nRationale (stakeholder): wazero gives the cleanest pure-Go deployment path; CGO_ENABLED=0 stays preserved end-to-end; the perf gap vs native whisper.cpp is acknowledged and accepted as the tradeoff for keeping the single-static-binary promise.\n\nSpawned rows (all in phase 5 / 5.E TTS / Voice / Transcription):\n- Row A — wazero WASI smoke harness (P1, small, builder-ready)\n- Row B — whisper.cpp WASI module discovery (P1, small, blocked_by Row A)\n- Row C — Pure-Go Whisper transcribe one WAV (P1, medium, blocked_by Row B)\n- Row D — Wire Pure-Go Whisper into Telegram resolver (P1, small, blocked_by Row C)\n- Row E — Audio preprocessing and chunking pipeline (P2, medium, blocked_by Row D)\n- Row F — Whisper benchmark harness + perf budget (P2, small, blocked_by Row C)\n- Row G — Go-native audio decoding (ffmpeg replacement) (P3, large, planned)\n- Row H — Pure-Go TTS path scoping (P3, large, planned, separate exploration)\n\nThis row resolves to `complete` only after Row D ships (in-binary WASI Whisper visible to operators via the Telegram resolver) AND benchmarks from Row F prove the perf gap is within an acceptable budget. Until then, Row D is the load-bearing milestone.\n\nGroq HTTP fallback (the path #1 sub-option already wired 2026-05-09 in the row \"Telegram voice STT HTTP-provider fallback\") stays as the third-priority cloud option in the resolver indefinitely. Operators without a model file still get transcription via Groq.",
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "no_test_required": "Documentation/research/planning row — automated tests not applicable",
       "done_signal": [
@@ -817,7 +817,7 @@
         "Context7 /tetratelabs/wazero docs: wazero.NewRuntime, wasi_snapshot_preview1.MustInstantiate, InstantiateWithConfig, and ModuleConfig.WithStdout",
         "Makefile (CGO_ENABLED=0 single-static-binary stance)",
         "internal/repoctl/bench.go (benchmarks build flags reference)",
-        "docs/content/building-gormes/architecture_plan/progress.json (Pure-Go STT exploration row 5.E[10] decision)"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json (Pure-Go STT exploration row 5.E[10] decision)"
       ],
       "ready_when": [
         "Stakeholder decision recorded on the Pure-Go STT exploration row (done 2026-05-09).",
@@ -843,7 +843,7 @@
         "internal/wasi/",
         "go.mod",
         "go.sum",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "CGO_ENABLED=0 go build ./...",
@@ -912,7 +912,7 @@
         "internal/wasi/whisper/",
         "go.mod",
         "go.sum",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "CGO_ENABLED=0 go build ./...",
@@ -980,7 +980,7 @@
       "note": "Complete 2026-05-10: Model file decision is resolved by the `Whisper tiny.en model cache fetcher` row: fetch the ~75 MB ggml-tiny.en.bin model in CI/local test caches from a pinned Hugging Face URL with size + SHA-256 verification, never commit it to git, and never embed it in the runtime binary. Planner refresh 2026-05-10: bounded all-topic weakness sweep refreshed Hermes to 44cdf555a and Honcho to e659b6b, covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows, and found current runtime deltas complete or row-backed. Planned rows were 19, below the 90-row cap; higher-priority TD publication and release rows were operator-gated or broad parent rows, while this P1 provider row was unblocked by completed `whisper.cpp WASI module discovery` and `Whisper tiny.en model cache fetcher` evidence. TDD added the public Transcriber API, embedded whisper.wasm, a package-local Embind HEAPU8/Float32Array bridge needed by the vendored whisper-wasi prototype, Go-side PCM16 mono 16k WAV decoding, serialized full_default inference, model_unavailable/wav_unsupported/wasi_inference_failed errors, and a jfk.wav fixture that proves real transcription through wazero.",
       "write_scope": [
         "internal/wasi/whisper/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "CGO_ENABLED=0 go build ./...",
@@ -1033,7 +1033,7 @@
       "source_refs": [
         "https://huggingface.co/api/models/ggerganov/whisper.cpp/tree/main?path=ggml-tiny.en.bin: ggml-tiny.en.bin size 77704715 and LFS oid 921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f",
         "internal/wasi/whisper/testdata/README.md: whisper.wasm fixture policy",
-        "docs/content/building-gormes/architecture_plan/progress.json: Pure-Go Whisper transcribe one WAV ready_when model-file decision"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json: Pure-Go Whisper transcribe one WAV ready_when model-file decision"
       ],
       "ready_when": [
         "Row B 'whisper.cpp WASI module discovery' is complete and internal/wasi/whisper exists.",
@@ -1061,7 +1061,7 @@
       "write_scope": [
         "internal/wasi/whisper/model_cache.go",
         "internal/wasi/whisper/model_cache_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/wasi/whisper -run 'TestModelArtifact|TestEnsureModel' -count=1",
@@ -1143,7 +1143,7 @@
         "cmd/gormes/telegram_transcriber.go",
         "cmd/gormes/telegram_transcriber_test.go",
         "cmd/gormes/telegram_transcriber_slim.go (slim build stub stays local-only — no wasi import in slim)",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "CGO_ENABLED=0 go build ./...",
@@ -1201,7 +1201,7 @@
         "./hermes-agent/tools/transcription_tools.py@44cdf555a:_prepare_local_audio",
         "internal/wasi/whisper/transcriber.go:TranscribeWAV",
         "cmd/gormes/telegram_transcriber.go:temporary non-WAV conversion bridge",
-        "docs/content/building-gormes/architecture_plan/progress.json:Audio preprocessing and chunking pipeline"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json:Audio preprocessing and chunking pipeline"
       ],
       "ready_when": [
         "Row D `Wire Pure-Go Whisper into Telegram resolver` is complete and can already hand local temp files to WASI Whisper.",
@@ -1225,7 +1225,7 @@
       "note": "Complete 2026-05-10: TDD added the reusable `internal/wasi/whisper/audio` package as the bounded child of the broader audio preprocessing parent. The package now decodes compatible 16kHz mono PCM WAV bytes without conversion, converts OGG/Opus-shaped inputs through an injected ffmpeg-style converter, returns typed `audio_preprocess_unavailable` degraded evidence when ffmpeg is missing or conversion fails, removes temp input/output files after preprocessing, and exposes fixed-window ChunkPCM behavior for short, silent, exact-boundary, multi-chunk, and ragged-tail samples. This slice deliberately did not change Telegram resolver ordering, the AudioTranscriber seam, the WASI Transcriber API, VAD, model benchmarking, or pure-Go codec libraries.",
       "write_scope": [
         "internal/wasi/whisper/audio/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "CGO_ENABLED=0 go test ./internal/wasi/whisper/audio -count=1",
@@ -1309,7 +1309,7 @@
         "internal/wasi/whisper/audio/",
         "cmd/gormes/telegram_transcriber.go",
         "cmd/gormes/telegram_transcriber_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "CGO_ENABLED=0 go build ./...",
@@ -1401,7 +1401,7 @@
         "webpages/landing/src/data/benchmarks.json",
         "webpages/landing/legacy/go-renderer/internal/site/data/benchmarks.json",
         "README.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "CGO_ENABLED=0 go test ./internal/wasi/whisper -bench=BenchmarkWhisperWASI -benchtime=10x -count=1 -timeout=30m",
@@ -1429,7 +1429,7 @@
           "GREEN: go test ./internal/repoctl -run 'TestRecordBenchmarkSTTBinaryDelta|TestUpdateReadmeSyncsSTTBenchmarkSummary' -count=1 passed after repoctl changes.",
           "GREEN: CGO_ENABLED=0 go test ./internal/wasi/whisper -bench=BenchmarkWhisperWASI -benchtime=10x -count=1 -timeout=30m passed in 510.111s with realtime_factor=3.778.",
           "GREEN: go test ./internal/repoctl -run 'TestRecordBenchmark(STT|CopiesBenchmarksToPublicMirrors)|TestUpdateReadme.*STT' -count=1 passed.",
-          "GREEN: go run ./cmd/repoctl benchmark record && go run ./cmd/repoctl readme update refreshed checked-in benchmark and README surfaces."
+          "GREEN: go run ./cmd/gormes-repo benchmark record && go run ./cmd/gormes-repo readme update refreshed checked-in benchmark and README surfaces."
         ]
       },
       "unblocks": []
@@ -1456,7 +1456,7 @@
         "Hermes upstream OGG/Opus handling is mapped and the Gormes audio preprocessing surface is understood."
       ],
       "write_scope": [
-        "docs/content/building-gormes/strategy/audio-decoder-decision.md"
+        "webpages/docs/content/building-gormes/strategy/audio-decoder-decision.md"
       ],
       "no_test_required": "Documentation/research/planning row — automated tests not applicable",
       "done_signal": [
@@ -1490,7 +1490,7 @@
       "degraded_mode": "Default builds convert audio via ffmpeg (requires ffmpeg on PATH). Noffmpeg builds return audio_decode_ffmpeg_missing evidence and the channel degrades to attachment markers.",
       "fixture": "internal/tools/audio_decode_test.go",
       "source_refs": [
-        "docs/content/building-gormes/strategy/audio-decoder-decision.md",
+        "webpages/docs/content/building-gormes/strategy/audio-decoder-decision.md",
         "internal/wasi/whisper/audio/preprocess.go",
         "internal/wasi/whisper/audio/convert_ffmpeg.go",
         "internal/wasi/whisper/audio/convert_stub.go",
@@ -1565,15 +1565,15 @@
         "system"
       ],
       "source_refs": [
-        "docs/content/building-gormes/strategy/tts-decision.md",
-        "docs/content/building-gormes/strategy/go-native-speech-options.md"
+        "webpages/docs/content/building-gormes/strategy/tts-decision.md",
+        "webpages/docs/content/building-gormes/strategy/go-native-speech-options.md"
       ],
       "ready_when": [
         "All TTS provider backends (edge, OpenAI, MiniMax, Piper, etc.) are mapped and their Go shell-out or API paths are understood."
       ],
-      "note": "Update 2026-05-24: superseded the command-provider-only local TTS decision after owner direction changed to a Go-owned speech path. Command/cloud providers remain compatibility fallbacks, but `docs/content/building-gormes/strategy/go-native-speech-options.md` now defines the target architecture and the planned `Go-owned WASM TTS backend` row owns implementation.",
+      "note": "Update 2026-05-24: superseded the command-provider-only local TTS decision after owner direction changed to a Go-owned speech path. Command/cloud providers remain compatibility fallbacks, but `webpages/docs/content/building-gormes/strategy/go-native-speech-options.md` now defines the target architecture and the planned `Go-owned WASM TTS backend` row owns implementation.",
       "write_scope": [
-        "docs/content/building-gormes/strategy/tts-decision.md"
+        "webpages/docs/content/building-gormes/strategy/tts-decision.md"
       ],
       "no_test_required": "Documentation/research/planning row — automated tests not applicable",
       "done_signal": [
@@ -1606,8 +1606,8 @@
       "degraded_mode": "Invalid metadata, empty cache dir, HTTP failures, status errors, size mismatch, checksum mismatch, write failures, and non-regular files return typed cache errors with redacted paths/URLs; failed downloads leave no final artifact and no .partial residue.",
       "fixture": "internal/speech/artifact/cache_test.go",
       "source_refs": [
-        "docs/content/building-gormes/strategy/go-native-speech-options.md",
-        "docs/content/building-gormes/strategy/go-native-tts-source-study.md",
+        "webpages/docs/content/building-gormes/strategy/go-native-speech-options.md",
+        "webpages/docs/content/building-gormes/strategy/go-native-tts-source-study.md",
         "internal/speech/artifact/cache.go:Ensure",
         "internal/speech/artifact/cache_test.go:TestEnsureDownloadsAndVerifiesArtifact",
         "internal/wasi/whisper/model_cache.go:EnsureModel",
@@ -1639,8 +1639,8 @@
         "internal/wasi/whisper/model_cache.go",
         "internal/wasi/whisper/model_cache_test.go",
         "internal/codemap.md",
-        "docs/content/building-gormes/strategy/go-native-speech-options.md",
-        "docs/content/building-gormes/strategy/go-native-tts-source-study.md",
+        "webpages/docs/content/building-gormes/strategy/go-native-speech-options.md",
+        "webpages/docs/content/building-gormes/strategy/go-native-tts-source-study.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
@@ -1679,14 +1679,14 @@
       "degraded_mode": "Missing fixture/runtime support, unsupported text, disabled build tags, synthesis errors, and benchmark budget overruns return typed tts_provider_unavailable or tts_api_error evidence without changing gateway delivery, leaking temp paths, or silently shelling out to Python/Node/platform commands. Provider=auto may still use existing cloud/command compatibility fallbacks; explicitly selecting the Go-owned provider must not fall through silently.",
       "fixture": "internal/tools/tts_go_native_provider_test.go; internal/speech/tts/fixture_test.go",
       "source_refs": [
-        "docs/content/building-gormes/strategy/go-native-speech-options.md",
-        "docs/content/building-gormes/strategy/tts-decision.md",
-        "docs/content/building-gormes/strategy/go-native-tts-source-study.md",
+        "webpages/docs/content/building-gormes/strategy/go-native-speech-options.md",
+        "webpages/docs/content/building-gormes/strategy/tts-decision.md",
+        "webpages/docs/content/building-gormes/strategy/go-native-tts-source-study.md",
         "internal/tools/tts_tool.go:TTSProvider/TTSRunner",
         "internal/tools/tts_providers.go:LazyLocalTTSProvider",
         "internal/tools/tts_command_provider.go:TTSCommandProvider",
         "internal/speech/artifact/cache.go:Ensure",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Voice, TTS, transcription",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Voice, TTS, transcription",
         "https://github.com/Mintplex-Labs/piper-tts-web/: browser-only Piper/ONNX WASM reference, not a wazero-ready backend",
         "https://github.com/shota3506/onnxruntime-purego: purego binding still requires native ONNX Runtime shared library",
         "https://github.com/second-state/WasmEdge-WASINN-examples/tree/master/wasmedge-piper: WASI-NN/Piper reference tied to WasmEdge host extensions",
@@ -1725,9 +1725,9 @@
         "cmd/gormes/registry_audio.go",
         "internal/config/profile_config_v2.go",
         "internal/config/profile_voice_profile_test.go",
-        "docs/content/building-gormes/strategy/tts-decision.md",
-        "docs/content/building-gormes/strategy/go-native-speech-options.md",
-        "docs/content/building-gormes/strategy/go-native-tts-source-study.md",
+        "webpages/docs/content/building-gormes/strategy/tts-decision.md",
+        "webpages/docs/content/building-gormes/strategy/go-native-speech-options.md",
+        "webpages/docs/content/building-gormes/strategy/go-native-tts-source-study.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
@@ -1811,8 +1811,8 @@
         "cmd/gormes/registry_audio.go",
         "internal/config/config.go",
         "internal/config/config_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestSetup' -count=1",

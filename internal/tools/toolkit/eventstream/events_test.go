@@ -104,6 +104,35 @@ func TestToolEvents_WrappedExecutorPublishesErrors(t *testing.T) {
 	assertToolBusEvent(t, byType[TopicToolError], TopicToolError, "gateway", "call-failed", "agent-main", "echo", "text")
 }
 
+func TestToolEvents_WrappedExecutorRejectsNilStream(t *testing.T) {
+	bus := events.NewInProcessEventBus()
+	defer bus.Close()
+	eventCh := subscribeToolEventTopics(bus)
+	exec := NewEventingToolExecutor(nilStreamExecutor{}, bus, "gateway")
+
+	stream, err := exec.Execute(context.Background(), execution.ToolRequest{
+		AgentID:  "agent-main",
+		ToolName: "nil-stream",
+		Metadata: map[string]string{"call_id": "call-nil-stream"},
+	})
+	if err == nil {
+		t.Fatal("Execute returned nil error for nil inner stream")
+	}
+	if stream != nil {
+		t.Fatalf("stream = %#v, want nil", stream)
+	}
+
+	got := readToolBusEvents(t, eventCh, TopicToolError)
+	byType := toolEventsByType(got)
+	assertToolBusEvent(t, byType[TopicToolError], TopicToolError, "gateway", "call-nil-stream", "agent-main", "nil-stream", "nil tool event stream")
+}
+
+type nilStreamExecutor struct{}
+
+func (nilStreamExecutor) Execute(context.Context, execution.ToolRequest) (<-chan execution.ToolEvent, error) {
+	return nil, nil
+}
+
 func subscribeToolEventTopics(bus events.EventBus) <-chan events.Event {
 	ch := make(chan events.Event, 16)
 	for _, topic := range []string{

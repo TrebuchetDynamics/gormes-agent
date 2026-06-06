@@ -110,7 +110,7 @@ Rebuild in Gormes-native form:
 - `internal/channels/telegram/client.go`
 - `../hermes-agent/gateway/stream_consumer.py@b16f9d43`: `_should_send_fresh_final`, `_try_fresh_final`.
 - `../hermes-agent/gateway/platforms/telegram.py@b16f9d43`: `delete_message`.
-- `docs/content/using-gormes/telegram-adapter.md`: stale high-level user doc; useful for operator-facing setup context, not as the authority for current shipped adapter behavior.
+- `webpages/docs/content/using-gormes/telegram-adapter.md`: stale high-level user doc; useful for operator-facing setup context, not as the authority for current shipped adapter behavior.
 - `picoclaw/pkg/channels/telegram/telegram.go`: `Start`, `Send`, `sendChunk`, `EditMessage`, `SendPlaceholder`, `SendMedia`, `handleMessage`, `parseContent`, `resolveTelegramOutboundTarget`, `isBotMentioned`.
 - `picoclaw/pkg/channels/telegram/command_registration.go`: `RegisterCommands`, `startCommandRegistration`, `commandRegistrationDelay`.
 - `picoclaw/pkg/channels/telegram/parse_markdown_to_md_v2.go`: `markdownToTelegramMarkdownV2`, `processText`, `escapeMarkdownV2`.

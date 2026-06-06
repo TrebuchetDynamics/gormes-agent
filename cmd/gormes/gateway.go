@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -11,7 +10,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -131,11 +129,7 @@ func gatewayCommandOptions() gatewaymodule.Options {
 	}
 }
 
-var gatewayRuntimeGOOS = runtime.GOOS
-
-const gatewayDetachedEnvName = "GORMES_GATEWAY_DETACHED"
-
-var consumeGatewayPlannedStopMarkerForSelf = func(ctx context.Context) (gateway.PlannedStopConsumeResult, error) {
+var consumeGatewayPlannedStopMarkerForSelf gateway.PlannedStopConsumer = func(ctx context.Context) (gateway.PlannedStopConsumeResult, error) {
 	store := gateway.NewPlannedStopStore(gateway.DefaultPlannedStopMarkerPath(config.GatewayRuntimeStatusPath()))
 	return store.ConsumeForSelf(ctx)
 }
@@ -152,9 +146,9 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	}
 	cfg = secretActivation.Config
 	secretSnapshot := secretActivation.Snapshot
-	securityReport := evaluateGatewayStartupSecurity(cfg, os.Getenv)
+	securityReport := gatewaymodule.EvaluateStartupSecurity(cfg, os.Getenv)
 	cfg = securityReport.Config
-	logGatewayStartupSecurityEvidence(securityReport.Evidence, slog.Default())
+	gatewaymodule.LogStartupSecurityEvidence(securityReport.Evidence, slog.Default())
 	if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled && !cfg.Teams.Enabled && !cfg.Yuanbao.Enabled && !cfg.Navivox.Enabled && !gormescli.SimpleXEnv(os.LookupEnv).Enabled {
 		return fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], [teams], [yuanbao], [navivox], or SIMPLEX_WS_URL")
 	}
@@ -195,7 +189,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	rootCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	signals := make(chan os.Signal, 2)
-	shutdownSignals, absorbInterrupt := gatewayShutdownSignalPlan()
+	shutdownSignals, absorbInterrupt := gateway.ShutdownSignalPlan(runtime.GOOS, os.Getenv)
 	if absorbInterrupt {
 		signal.Ignore(os.Interrupt)
 	}
@@ -278,9 +272,9 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 			return gateway.ManagerConfig{}, fmt.Errorf("secret runtime activation: %w", err)
 		}
 		next = activation.Config
-		securityReport := evaluateGatewayStartupSecurity(next, os.Getenv)
+		securityReport := gatewaymodule.EvaluateStartupSecurity(next, os.Getenv)
 		next = securityReport.Config
-		logGatewayStartupSecurityEvidence(securityReport.Evidence, slog.Default())
+		gatewaymodule.LogStartupSecurityEvidence(securityReport.Evidence, slog.Default())
 		if next.Telegram.BotToken == "" && !next.Discord.Enabled() && !next.Slack.Enabled && !next.Teams.Enabled && !next.Yuanbao.Enabled && !next.Navivox.Enabled && !gormescli.SimpleXEnv(os.LookupEnv).Enabled {
 			return gateway.ManagerConfig{}, fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], [teams], [yuanbao], [navivox], or SIMPLEX_WS_URL")
 		}
@@ -358,7 +352,16 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	go runGatewaySignalLoop(signals, kernel.ShutdownBudget, mgr, cancel, slog.Default(), os.Exit, wakeLockMgr)
+	go gateway.RunSignalLoop(gateway.SignalLoopOptions{
+		Signals:                  signals,
+		Budget:                   kernel.ShutdownBudget,
+		Manager:                  mgr,
+		Cancel:                   cancel,
+		Log:                      slog.Default(),
+		ForceExit:                os.Exit,
+		WakeLockManager:          wakeLockMgr,
+		ConsumePlannedStopMarker: consumeGatewayPlannedStopMarkerForSelf,
+	})
 
 	// Phase 2.D — cron scheduler + executor + mirror (opt-in via cfg.Cron.Enabled).
 	// Initialized after channel registration so delivery adapters are available.
@@ -530,13 +533,11 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 		RuntimeStatus:              runtimeStatus,
 		Restart:                    restart,
 		RestartNotifications:       cfg.GatewayRestartNotifications(),
-		KanbanSlashRunner: func(ctx context.Context, input string) (string, error) {
-			return gormescli.RunTUIKanbanSlashCommand(ctx, input, kanbanCommandOptions())
-		},
-		SkillsCommandOptions:  skillsCommandOptionsForConfig(cfg),
-		RememberedSourceStore: gateway.NewChannelDirectorySourceStore(config.GormesHome()),
-		ContextFilesCWD:       gatewaymodule.ContextFilesCWD(cfg),
-		LiveTurnNow:           func() time.Time { return time.Now() },
+		KanbanSlashRunner:          gatewaymodule.NewKanbanSlashRunner(kanbanCommandOptions()),
+		SkillsCommandOptions:       skillsCommandOptionsForConfig(cfg),
+		RememberedSourceStore:      gateway.NewChannelDirectorySourceStore(config.GormesHome()),
+		ContextFilesCWD:            gatewaymodule.ContextFilesCWD(cfg),
+		LiveTurnNow:                func() time.Time { return time.Now() },
 		LiveTurnActiveModel: func() string {
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway live-turn metadata"})
 			return providermodule.FirstUsageString(resolution.Model, cfg.Hermes.Model)
@@ -676,227 +677,6 @@ func gatewayToolProgressModes(cfg config.Config) map[string]string {
 		return nil
 	}
 	return modes
-}
-
-type gatewayStartupSecurityReport struct {
-	Config   config.Config
-	Evidence []gateway.AdmissionEvidence
-}
-
-func evaluateGatewayStartupSecurity(cfg config.Config, lookupEnv func(string) string) gatewayStartupSecurityReport {
-	if lookupEnv == nil {
-		lookupEnv = os.Getenv
-	}
-	report := gatewayStartupSecurityReport{Config: cfg}
-	report.Evidence = append(report.Evidence, gateway.CheckStartupAllowlist(gateway.StartupAdmissionInput{
-		AllowlistConfigured: gatewayStartupAllowlistConfigured(cfg, lookupEnv),
-		AllowAll:            gatewayStartupAllowAllConfigured(lookupEnv),
-	})...)
-	credentialReport := gateway.CheckWeakCredentialPlatforms([]gateway.CredentialGuardPlatform{
-		{
-			Name:    "telegram",
-			Enabled: strings.TrimSpace(cfg.Telegram.BotToken) != "",
-			Credentials: []gateway.CredentialGuardValue{{
-				Field: "bot_token",
-				Value: cfg.Telegram.BotToken,
-			}},
-		},
-		{
-			Name:    "discord",
-			Enabled: cfg.Discord.Enabled(),
-			Credentials: []gateway.CredentialGuardValue{{
-				Field: "token",
-				Value: cfg.Discord.Token,
-			}},
-		},
-		{
-			Name:    "slack",
-			Enabled: cfg.Slack.Enabled,
-			Credentials: []gateway.CredentialGuardValue{
-				{Field: "bot_token", Value: cfg.Slack.BotToken},
-				{Field: "app_token", Value: cfg.Slack.AppToken},
-			},
-		},
-	})
-	report.Evidence = append(report.Evidence, credentialReport.Evidence...)
-	for _, platform := range credentialReport.DisabledPlatforms {
-		switch platform {
-		case "telegram":
-			report.Config.Telegram.BotToken = ""
-		case "discord":
-			report.Config.Discord.Token = ""
-		case "slack":
-			report.Config.Slack.Enabled = false
-			report.Config.Slack.BotToken = ""
-			report.Config.Slack.AppToken = ""
-		}
-	}
-	return report
-}
-
-func gatewayStartupAllowlistConfigured(cfg config.Config, lookupEnv func(string) string) bool {
-	if cfg.Telegram.AllowedChatID != 0 || len(cfg.Telegram.AllowedUserIDs) > 0 {
-		return true
-	}
-	if strings.TrimSpace(cfg.Discord.AllowedChannelID) != "" {
-		return true
-	}
-	if strings.TrimSpace(cfg.Slack.AllowedChannelID) != "" {
-		return true
-	}
-	if len(cfg.Teams.AllowedUserIDs()) > 0 || cfg.Teams.AllowAllUsers {
-		return true
-	}
-	if strings.TrimSpace(cfg.Yuanbao.AllowedConversationID) != "" {
-		return true
-	}
-	if cfg.Navivox.Enabled {
-		return true
-	}
-	if gormescli.SimpleXStartupAllowlistConfigured(lookupEnv) {
-		return true
-	}
-	for _, key := range []string{
-		"SIGNAL_GROUP_ALLOWED_USERS",
-		"GORMES_TELEGRAM_ALLOWED_USERS",
-		"TELEGRAM_ALLOWED_USERS",
-		"GORMES_DISCORD_CHANNEL_ID",
-		"GORMES_SLACK_CHANNEL_ID",
-		"TEAMS_ALLOWED_USERS",
-	} {
-		if strings.TrimSpace(lookupEnv(key)) != "" {
-			return true
-		}
-	}
-	return false
-}
-
-func gatewayStartupAllowAllConfigured(lookupEnv func(string) string) bool {
-	for _, key := range []string{"GATEWAY_ALLOW_ALL_USERS", "TELEGRAM_ALLOW_ALL_USERS", "TEAMS_ALLOW_ALL_USERS", "SIMPLEX_ALLOW_ALL_USERS"} {
-		if parseGatewayStartupBool(lookupEnv(key)) {
-			return true
-		}
-	}
-	return false
-}
-
-func parseGatewayStartupBool(value string) bool {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "1", "t", "true", "y", "yes", "on":
-		return true
-	default:
-		return false
-	}
-}
-
-func logGatewayStartupSecurityEvidence(evidence []gateway.AdmissionEvidence, log *slog.Logger) {
-	if log == nil {
-		log = slog.Default()
-	}
-	for _, item := range evidence {
-		if item.Code == "" {
-			continue
-		}
-		log.Warn("gateway startup admission", "code", item.Code, "platform", item.Platform, "field", item.Field, "message", item.Message)
-	}
-}
-
-type gracefulShutdownManager interface {
-	Shutdown(context.Context) error
-}
-
-type gatewayReloadManager interface {
-	Reload(context.Context) error
-}
-
-func runGatewaySignalLoop(signals <-chan os.Signal, budget time.Duration, mgr gracefulShutdownManager, cancel context.CancelFunc, log *slog.Logger, forceExit func(int), wakeLockMgr tools.TermuxWakeLockManager) {
-	if log == nil {
-		log = slog.Default()
-	}
-	if forceExit == nil {
-		forceExit = os.Exit
-	}
-
-	for {
-		sig, ok := <-signals
-		if !ok {
-			return
-		}
-		if sig == syscall.SIGHUP {
-			reloader, ok := mgr.(gatewayReloadManager)
-			if !ok {
-				log.Warn("gateway config reload unavailable", "signal", sig.String())
-				continue
-			}
-			if err := reloader.Reload(context.Background()); err != nil {
-				log.Warn("gateway config reload failed; continuing with last good config")
-			} else {
-				log.Info("gateway config reloaded", "signal", sig.String())
-			}
-			continue
-		}
-		plannedStop, plannedStopStatus := classifyGatewayShutdownSignal(sig)
-		if plannedStop {
-			log.Info("gateway shutdown requested", "signal", sig.String(), "planned_stop", true, "planned_stop_status", plannedStopStatus)
-		} else {
-			log.Warn("gateway shutdown requested", "signal", sig.String(), "planned_stop", false, "exit_class", "unexpected_signal_restartable", "planned_stop_status", plannedStopStatus)
-		}
-
-		timer := time.AfterFunc(budget, func() {
-			log.Error("shutdown budget exceeded; forcing exit")
-			forceExit(3)
-		})
-		defer timer.Stop()
-
-		if err := wakeLockMgr.Release(context.Background()); err != nil {
-			log.Warn("termux-wake-lock release failed", "err", err)
-		} else {
-			log.Info("termux-wake-lock released")
-		}
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), budget)
-		err := mgr.Shutdown(shutdownCtx)
-		shutdownCancel()
-		if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
-			log.Warn("gateway shutdown drain", "err", err)
-		} else if err != nil {
-			log.Warn("gateway shutdown drain", "err", err)
-		}
-
-		cancel()
-		return
-	}
-}
-
-func gatewayShutdownSignalPlan() ([]os.Signal, bool) {
-	absorbInterrupt := gatewayRuntimeGOOS == "windows" && gatewayTruthyEnv(os.Getenv(gatewayDetachedEnvName))
-	signals := []os.Signal{syscall.SIGTERM, syscall.SIGHUP}
-	if !absorbInterrupt {
-		signals = append([]os.Signal{os.Interrupt}, signals...)
-	}
-	return signals, absorbInterrupt
-}
-
-func gatewayTruthyEnv(value string) bool {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "1", "true", "yes", "on":
-		return true
-	default:
-		return false
-	}
-}
-
-func classifyGatewayShutdownSignal(sig os.Signal) (bool, gateway.PlannedStopConsumeStatus) {
-	if sig == os.Interrupt {
-		return true, gateway.PlannedStopConsumeMatched
-	}
-	if sig != syscall.SIGTERM {
-		return false, ""
-	}
-	result, err := consumeGatewayPlannedStopMarkerForSelf(context.Background())
-	if err != nil {
-		return false, gateway.PlannedStopConsumeInvalid
-	}
-	return result.Matched, result.Status
 }
 
 func sqlOpenGoncho(path string) (*sql.DB, error) {

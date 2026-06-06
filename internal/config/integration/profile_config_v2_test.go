@@ -87,7 +87,10 @@ name = ""
 	}
 	main := cfg.Profiles["main"]
 	main.Name = "Main desk"
+	main.Workspace = "~/.gormes/profiles/main"
 	main.Workspaces = []string{"/workspace/main"}
+	main.AllowedPaths = []string{"~/git/gormes"}
+	main.AllowedPathRules = []ProfileAllowedPathConfig{{Path: "/srv/shared", Access: "read"}}
 	main.Providers = map[string]ProfileProviderCfg{
 		"openrouter": {Enabled: true, Credential: "main-openrouter", DefaultModel: "openrouter/auto"},
 	}
@@ -115,7 +118,11 @@ name = ""
 		"model = 'moonshotai/kimi-k2.6'",
 		"[profiles.main]",
 		"name = 'Main desk'",
+		"workspace = '~/.gormes/profiles/main'",
 		"workspaces = ['/workspace/main']",
+		"allowed_paths = ['~/git/gormes']",
+		"path = '/srv/shared'",
+		"access = 'read'",
 		"[profiles.main.providers.openrouter]",
 		"credential = 'main-openrouter'",
 		"[profiles.main.channels.telegram]",
@@ -144,7 +151,17 @@ name = ""
 	if loaded.Hermes.Provider != "openrouter" || loaded.Hermes.Model != "moonshotai/kimi-k2.6" {
 		t.Fatalf("non-profile sections not preserved: %+v", loaded.Hermes)
 	}
-	if got := loaded.Profiles["main"].Channels["telegram"].AllowedUsers; !reflect.DeepEqual(got, []string{"juan"}) {
+	loadedMain := loaded.Profiles["main"]
+	if loadedMain.Workspace != "~/.gormes/profiles/main" {
+		t.Fatalf("workspace = %q, want profile root", loadedMain.Workspace)
+	}
+	if !reflect.DeepEqual(loadedMain.AllowedPaths, []string{"~/git/gormes"}) {
+		t.Fatalf("allowed_paths = %#v, want ~/git/gormes", loadedMain.AllowedPaths)
+	}
+	if !reflect.DeepEqual(loadedMain.AllowedPathRules, []ProfileAllowedPathConfig{{Path: "/srv/shared", Access: "read"}}) {
+		t.Fatalf("allowed_path rules = %#v", loadedMain.AllowedPathRules)
+	}
+	if got := loadedMain.Channels["telegram"].AllowedUsers; !reflect.DeepEqual(got, []string{"juan"}) {
 		t.Fatalf("allowed_users = %#v, want juan", got)
 	}
 	if ref := loaded.Credentials["main-openrouter"].SecretRef; ref == nil || ref.Source != SecretRefSourceEnv || ref.ID != "GORMES_MAIN_OPENROUTER_API_KEY" {
@@ -165,7 +182,13 @@ config_version = 2
 [profiles.main]
 enabled = true
 name = "Yunobo"
+workspace = "~/.gormes/profiles/main"
 workspaces = ["/srv/arenaton", "/srv/gormes"]
+allowed_paths = ["~/git/gormes"]
+
+[[profiles.main.allowed_path]]
+path = "/srv/shared"
+access = "read"
 
 [profiles.main.providers.openrouter]
 enabled = true
@@ -220,6 +243,15 @@ secret_ref = { source = "env", id = "GORMES_MAIN_TELEGRAM_BOT_TOKEN" }
 		t.Fatalf("EnabledProfileServices IDs = %#v, want %#v", gotIDs, want)
 	}
 	main := cfg.Profiles["main"]
+	if main.Workspace != "~/.gormes/profiles/main" {
+		t.Fatalf("profiles.main.workspace = %q", main.Workspace)
+	}
+	if !reflect.DeepEqual(main.AllowedPaths, []string{"~/git/gormes"}) {
+		t.Fatalf("profiles.main.allowed_paths = %#v", main.AllowedPaths)
+	}
+	if !reflect.DeepEqual(main.AllowedPathRules, []ProfileAllowedPathConfig{{Path: "/srv/shared", Access: "read"}}) {
+		t.Fatalf("profiles.main.allowed_path rules = %#v", main.AllowedPathRules)
+	}
 	if got := main.Providers["openrouter"].Credential; got != "main-openrouter" {
 		t.Fatalf("profiles.main.providers.openrouter.credential = %q", got)
 	}

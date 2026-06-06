@@ -18,7 +18,7 @@
       "degraded_mode": "The orchestrator records precise failure reasons, poisoned-task thresholds, soft-success decisions, and original exit codes instead of collapsing failures into one generic status.",
       "fixture": "scripts/orchestrator/tests/unit/{failures,soft-success}.bats",
       "source_refs": [
-        "docs/superpowers/specs/2026-04-24-orchestrator-oiling-release-1-design.md",
+        "webpages/docs/superpowers/specs/2026-04-24-orchestrator-oiling-release-1-design.md",
         "scripts/orchestrator/lib/worktree.sh",
         "scripts/gormes-auto-codexu-orchestrator.sh"
       ],
@@ -71,7 +71,7 @@
       "degraded_mode": "When the recovery guard refuses a non-zero exit, the worker state keeps the original exit reason and does not promote the run.",
       "fixture": "scripts/orchestrator/tests/unit/soft-success.bats",
       "source_refs": [
-        "docs/superpowers/specs/2026-04-24-orchestrator-oiling-release-1-design.md",
+        "webpages/docs/superpowers/specs/2026-04-24-orchestrator-oiling-release-1-design.md",
         "scripts/gormes-auto-codexu-orchestrator.sh"
       ],
       "ready_when": [
@@ -120,7 +120,7 @@
       "degraded_mode": "Rows with repeated worker failures are skipped or demoted with visible health/quarantine evidence instead of being retried indefinitely.",
       "fixture": "internal/progress/health_test.go and internal/builderloop/health_writer_test.go",
       "source_refs": [
-        "docs/superpowers/specs/2026-04-24-reactive-autoloop-design.md",
+        "webpages/docs/superpowers/specs/2026-04-24-reactive-autoloop-design.md",
         "internal/progress/health.go",
         "internal/builderloop/health_writer.go",
         "internal/builderloop/candidates.go",
@@ -145,7 +145,7 @@
         "internal/progress/",
         "internal/builderloop/",
         "internal/plannertriggers/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/progress ./internal/builderloop ./internal/plannertriggers -count=1"
@@ -182,7 +182,7 @@
       "source_refs": [
         "internal/builderloop/run.go:CheckpointDirtyWorktree,lastCommitIsBuilderLoopCheckpoint,isBuilderLoopCheckpointSubject",
         "scripts/orchestrator/watchdog.sh:checkpoint_dirty",
-        "docs/superpowers/specs/2026-04-25-builder-owned-planner-cycle-design.md"
+        "webpages/docs/superpowers/specs/2026-04-25-builder-owned-planner-cycle-design.md"
       ],
       "ready_when": [
         "Watchdog dirty-worktree checkpointing is in place (commit ff96a5d94) and emits a record_run_health event we can key off of.",
@@ -207,7 +207,7 @@
       "write_scope": [
         "internal/builderloop/watchdog_coalesce.go",
         "internal/builderloop/watchdog_coalesce_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/builderloop -run TestDecideCheckpoint -count=1",
@@ -273,7 +273,7 @@
       "write_scope": [
         "internal/builderloop/pr_intake_backoff.go",
         "internal/builderloop/pr_intake_backoff_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/builderloop -run TestBackoffState -count=1",
@@ -344,7 +344,7 @@
       "write_scope": [
         "internal/builderloop/watchdog_state.go",
         "internal/builderloop/watchdog_state_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/builderloop -run '^TestDiagnose$' -count=1",
@@ -580,7 +580,7 @@
         "internal/core/subagent/",
         "internal/automation/cron/",
         "internal/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/subagent ./internal/automation/cron ./internal/config -count=1"
@@ -629,7 +629,7 @@
         "internal/core/subagent/",
         "internal/doctor/",
         "internal/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/subagent ./internal/doctor ./internal/config -count=1"
@@ -677,7 +677,7 @@
       "write_scope": [
         "internal/core/subagent/",
         "internal/doctor/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/subagent ./internal/doctor -count=1"
@@ -732,7 +732,7 @@
       "write_scope": [
         "internal/core/subagent/",
         "internal/doctor/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/subagent ./internal/doctor -count=1"
@@ -791,7 +791,7 @@
       "write_scope": [
         "internal/core/subagent/",
         "internal/doctor/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/subagent ./internal/doctor -count=1"
@@ -858,7 +858,7 @@
         "internal/core/subagent/durable_worker_test.go",
         "internal/doctor/durable_ledger.go",
         "internal/doctor/durable_ledger_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/subagent -run '^TestDurableWorkerRunOne_' -count=1",
@@ -923,7 +923,7 @@
         "internal/core/subagent/durable_worker_abort_test.go",
         "internal/doctor/durable_ledger.go",
         "internal/doctor/durable_ledger_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/subagent -run 'TestDurableWorker_TimeoutPropagatesCancel|TestDurableWorker_IgnoredAbortReleasesSlot|TestDurableWorker_ClaimsNextJobAfterRecovery' -count=1",
@@ -987,7 +987,7 @@
       "write_scope": [
         "internal/core/subagent/durable_worker_rss_watchdog.go",
         "internal/core/subagent/durable_worker_rss_watchdog_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/subagent -run 'TestDurableWorkerRSSWatchdog_|TestDurableWorkerWatchdogRestartPolicy_' -count=1",
@@ -1056,7 +1056,7 @@
         "internal/core/subagent/durable_worker_rss_watchdog.go",
         "internal/core/subagent/durable_worker_rss_drain_test.go",
         "internal/core/subagent/durable_worker_abort_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/subagent -run '^TestDurableWorkerRSSDrain_|^TestDurableWorker_' -count=1",
@@ -1128,7 +1128,7 @@
         "internal/plannerloop/autoloop_audit_test.go",
         "internal/plannerloop/prompt.go",
         "internal/plannerloop/prompt_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/plannerloop -run 'TestSummarizeAutoloopAuditIncludesRecentFailureDetail|TestBuildPromptIncludesRecentFailureDetail' -count=1",
@@ -1172,7 +1172,7 @@
       "source_refs": [
         "openclaw system event/heartbeat/presence CLI surface",
         "internal/audit/ (JSONL audit log)",
-        "docs/content/building-gormes/openclaw-platform-parity-audit.md"
+        "webpages/docs/content/building-gormes/openclaw-platform-parity-audit.md"
       ],
       "ready_when": [
         "Audit JSONL ledger (internal/audit/) is operational.",
@@ -1198,7 +1198,7 @@
         "cmd/gormes/system_command_test.go",
         "cmd/gormes/main.go",
         "cmd/gormes/status.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestSystemEvents -count=1",

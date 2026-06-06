@@ -1,6 +1,6 @@
 // Package session persists (platform, chat_id) -> session_id mappings so
 // Gormes binaries can resume the canonical Python-server transcript across
-// restarts. See docs/superpowers/specs/2026-04-19-gormes-phase2c-persistence-design.md.
+// restarts. See webpages/docs/superpowers/specs/2026-04-19-gormes-phase2c-persistence-design.md.
 //
 // Two implementations:
 //   - BoltMap: bbolt-backed (production). See bolt.go.

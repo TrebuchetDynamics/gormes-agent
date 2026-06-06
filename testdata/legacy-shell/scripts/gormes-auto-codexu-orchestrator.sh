@@ -25,7 +25,7 @@ trap err_trap ERR
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 ORIGINAL_REPO_ROOT="$REPO_ROOT"
-PROGRESS_JSON_REL="docs/content/building-gormes/architecture_plan/progress.json"
+PROGRESS_JSON_REL="webpages/docs/content/building-gormes/architecture_plan/progress.json"
 PROGRESS_JSON="$REPO_ROOT/$PROGRESS_JSON_REL"
 
 MAX_AGENTS="${MAX_AGENTS:-4}"

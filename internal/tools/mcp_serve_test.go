@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net"
+	"strings"
 	"testing"
 	"time"
 )
@@ -341,5 +342,27 @@ func TestMCPServer_HandleToolsCall_ToolNotFound(t *testing.T) {
 	}
 	if result != nil {
 		t.Error("expected nil result for nonexistent tool")
+	}
+}
+
+func TestMCPServer_HandleToolsCall_NilHandlerReturnsError(t *testing.T) {
+	s := &MCPServer{}
+	s.RegisterTool("broken", "misconfigured", map[string]interface{}{}, nil)
+
+	params := map[string]interface{}{
+		"name":      "broken",
+		"arguments": map[string]interface{}{},
+	}
+	b, _ := json.Marshal(params)
+
+	result, err := s.handleToolsCall(context.Background(), b)
+	if err == nil {
+		t.Fatal("expected error for nil tool handler")
+	}
+	if !strings.Contains(err.Error(), "tool handler missing") {
+		t.Fatalf("error = %v, want tool handler missing", err)
+	}
+	if result != nil {
+		t.Fatalf("result = %+v, want nil", result)
 	}
 }

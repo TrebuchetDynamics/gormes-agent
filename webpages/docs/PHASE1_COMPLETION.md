@@ -21,7 +21,7 @@
 | 7 | Ctrl+C mid-stream cancels cleanly | ✅ | `TestKernel_CancelLeakFreedom` + `TestCtrlCDuringInFlightCallsCancel` |
 | 8 | Resizing terminal does not crash | ✅ | `TestResizeDoesNotPanic` sweeps widths 200→80→50→10→2→200 |
 | 9 | `make test` passes with ≥ 70% coverage on internal/ (excl. tui) | ✅ | see coverage section below |
-| 10 | `docs/ARCH_PLAN.md` contains the 5-phase roadmap | ✅ | file present; Goldmark lint passes |
+| 10 | `webpages/docs/ARCH_PLAN.md` contains the 5-phase roadmap | ✅ | file present; Goldmark lint passes |
 | 11 | Markdown lint passes on ARCH_PLAN, spec, plan | ✅ | `TestMarkdownRendersCleanViaGoldmark` + `TestMarkdownAvoidsPortabilityHazards` |
 | 12 | No Python file modified | ✅ | `git diff --name-only origin/main..HEAD` scan — no `.py` files |
 | 13 | No SQLite files under Go control | ✅ | no `modernc.org/sqlite` / `database/sql` imports anywhere; no `.db` files in XDG data dir |
@@ -217,7 +217,7 @@ Kill the Python process mid-stream; verify the Go binary does not crash and the 
 
 ### Next phase
 
-**Phase 2** (the Wiring Harness / Gateway) — see `docs/ARCH_PLAN.md` §4.
+**Phase 2** (the Wiring Harness / Gateway) — see `webpages/docs/ARCH_PLAN.md` §4.
 
 Multi-platform adapters in Go for Telegram, Discord, Slack, and other platforms. Bridges from each platform to the same kernel + Python api_server HTTP+SSE boundary.
 

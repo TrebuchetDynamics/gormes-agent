@@ -30,7 +30,7 @@ symlink loader views.
 ### 1. Classify The User Request
 
 Start by locating the work in
-`docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md`
+`webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md`
 and, when implementation intent exists, the matching logical progress row via
 `cmd/progress` / `internal/planning/progress`. Parity evidence docs can supply
 source-backed classifications, but they are not the backlog.
@@ -50,8 +50,8 @@ Use this order when several skills could apply:
    planning feature work.
 2. **Evidence-gathering intent** — "what is missing", "compare", "audit",
    "map parity", "actually implemented", "already implemented", "why does
-   Hermes do X", "source refs", Hermes release notes, `docs/hermes-releases/`,
-   `docs/hermes-releases/FEATURE-MATRIX.md`, `hermes-knowledge-graph.json`,
+   Hermes do X", "source refs", Hermes release notes, `webpages/docs/hermes-releases/`,
+   `webpages/docs/hermes-releases/FEATURE-MATRIX.md`, `hermes-knowledge-graph.json`,
    external API docs, or a freshly tagged external dependency/release. Route to
    `gormes-hermes-parity`, `gormes-parity-auditor`, `gormes-openclaw-parity`,
    `gormes-pi-parity`, `gormes-context-sourcing`, or
@@ -92,7 +92,7 @@ Use this order when several skills could apply:
 | browser, CDP, Browser Use, `/browser connect` | browser parity | `gormes-browser-harness` |
 | Navivox, Telegram-like, Flutter chat/contact | mobile UI | `navivox-telegram-ui` |
 | what is missing, compare Hermes/Honcho | parity discovery | `gormes-parity-auditor` or `gormes-hermes-parity` |
-| Hermes release notes, `docs/hermes-releases/FEATURE-MATRIX.md`, or `hermes-knowledge-graph.json` | release/topology-seeded parity routing | `gormes-hermes-parity` then `gormes-planner` only if atoms/rows need edits |
+| Hermes release notes, `webpages/docs/hermes-releases/FEATURE-MATRIX.md`, or `hermes-knowledge-graph.json` | release/topology-seeded parity routing | `gormes-hermes-parity` then `gormes-planner` only if atoms/rows need edits |
 | actually implemented, already implemented, stale missing atoms | evidence reconciliation before build | `gormes-hermes-parity` then `gormes-planner` |
 | OpenClaw-only behavior | owned enhancement triage | `gormes-openclaw-parity` |
 | Pi, pi.dev, pi-coding-agent, extension API, SDK/RPC harness, TUI components | harness technique donor triage | `gormes-pi-parity` |
@@ -247,7 +247,7 @@ Use these composition rules:
   emit the next skill packet.
 
 Feature-map gaps route to `gormes-parity-auditor` then `gormes-planner`.
-Hermes release notes, `docs/hermes-releases/FEATURE-MATRIX.md`, and
+Hermes release notes, `webpages/docs/hermes-releases/FEATURE-MATRIX.md`, and
 `hermes-knowledge-graph.json` route to `gormes-hermes-parity` first because
 they are study/navigation aids, not executable queues; hand off to
 `gormes-planner` only after the active upstream source contract and matching

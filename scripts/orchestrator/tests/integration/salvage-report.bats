@@ -55,9 +55,9 @@ make_worker_repo() {
   echo local-change > "$wt/local.txt"
 
   git init -q -b main "$REPO_ROOT"
-  mkdir -p "$REPO_ROOT/docs/content/building-gormes/architecture_plan"
+  mkdir -p "$REPO_ROOT/webpages/docs/content/building-gormes/architecture_plan"
   cp "$FIXTURES_DIR/progress.fixture.json" \
-    "$REPO_ROOT/docs/content/building-gormes/architecture_plan/progress.json"
+    "$REPO_ROOT/webpages/docs/content/building-gormes/architecture_plan/progress.json"
   (
     cd "$REPO_ROOT"
     git -c user.email=t@t -c user.name=T add -A

@@ -8,16 +8,28 @@ import (
 const DefaultID = profilestorage.DefaultProfileID
 
 type Config struct {
-	Enabled      bool                      `toml:"enabled" yaml:"enabled"`
-	Name         string                    `toml:"name" yaml:"name"`
-	Description  string                    `toml:"description" yaml:"description"`
-	Workspaces   []string                  `toml:"workspaces" yaml:"workspaces"`
-	Tags         []string                  `toml:"tags" yaml:"tags"`
-	Settings     map[string]any            `toml:"settings" yaml:"settings"`
-	Runtime      RuntimeConfig             `toml:"runtime" yaml:"runtime"`
-	Providers    map[string]ProviderConfig `toml:"providers" yaml:"providers"`
-	Channels     map[string]ChannelConfig  `toml:"channels" yaml:"channels"`
-	VoiceProfile VoiceProfileConfig        `toml:"voice_profile" yaml:"voice_profile" json:"voice_profile,omitempty"`
+	Enabled          bool                      `toml:"enabled" yaml:"enabled"`
+	Name             string                    `toml:"name" yaml:"name"`
+	Description      string                    `toml:"description" yaml:"description"`
+	Workspace        string                    `toml:"workspace" yaml:"workspace"`
+	Workspaces       []string                  `toml:"workspaces" yaml:"workspaces"`
+	AllowedPaths     []string                  `toml:"allowed_paths" yaml:"allowed_paths"`
+	AllowedPathRules []AllowedPathConfig       `toml:"allowed_path" yaml:"allowed_path"`
+	Tags             []string                  `toml:"tags" yaml:"tags"`
+	Settings         map[string]any            `toml:"settings" yaml:"settings"`
+	Runtime          RuntimeConfig             `toml:"runtime" yaml:"runtime"`
+	Providers        map[string]ProviderConfig `toml:"providers" yaml:"providers"`
+	Channels         map[string]ChannelConfig  `toml:"channels" yaml:"channels"`
+	VoiceProfile     VoiceProfileConfig        `toml:"voice_profile" yaml:"voice_profile" json:"voice_profile,omitempty"`
+}
+
+// AllowedPathConfig is the future-compatible shape for per-path access modes.
+// allowed_paths = ["~/git/gormes"] remains the simple read/write allow-list;
+// [[profiles.<id>.allowed_path]] records can add read-only/read-write modes
+// without changing the profile table identity or file policy resolver API.
+type AllowedPathConfig struct {
+	Path   string `toml:"path" yaml:"path"`
+	Access string `toml:"access" yaml:"access"`
 }
 
 type RuntimeConfig struct {

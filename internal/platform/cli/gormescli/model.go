@@ -115,11 +115,7 @@ func DefaultModelProviderEntries() ([]cli.ProviderMenuEntry, error) {
 
 func PromptProviderChoice(in *os.File, out io.Writer, entries []cli.ProviderMenuEntry, defaultIndex int) (int, error) {
 	if in != nil && term.IsTerminal(int(in.Fd())) {
-		choices := make([]TUIPickChoice, len(entries))
-		for i, e := range entries {
-			choices[i] = TUIPickChoice{ID: fmt.Sprintf("%d", i), Label: e.Label}
-		}
-		selected, err := RunTUIPick(context.Background(), in, out, "Choose a provider", choices, fmt.Sprintf("%d", defaultIndex))
+		selected, err := RunTUIPick(context.Background(), in, out, "Choose a provider", ProviderPickerChoices(entries), fmt.Sprintf("%d", defaultIndex))
 		if err != nil && !TUIPickShouldFallback(err) {
 			return -1, err
 		}
@@ -136,6 +132,14 @@ func PromptProviderChoice(in *os.File, out io.Writer, entries []cli.ProviderMenu
 		return -1, fmt.Errorf("invalid provider choice")
 	}
 	return PromptProviderChoiceText(in, out, entries, defaultIndex)
+}
+
+func ProviderPickerChoices(entries []cli.ProviderMenuEntry) []TUIPickChoice {
+	choices := make([]TUIPickChoice, len(entries))
+	for i, entry := range entries {
+		choices[i] = TUIPickChoice{ID: strconv.Itoa(i), Label: entry.Label}
+	}
+	return choices
 }
 
 func PromptProviderChoiceText(in *os.File, out io.Writer, entries []cli.ProviderMenuEntry, defaultIndex int) (int, error) {
@@ -271,6 +275,30 @@ func BoundedModelCatalogSuggestions(suggestions []string, max int) []string {
 
 func PersistModelSelectionToConfig(selection cli.Selection) error {
 	return appmodel.PersistModelSelectionToConfig(selection)
+}
+
+func RunSetupActiveProviderModelPicker(cmd *cobra.Command, current cli.ProviderModel) error {
+	provider := strings.TrimSpace(current.Provider)
+	if provider == "" {
+		return cli.ErrSelectorNoMatch
+	}
+	suggestions := DefaultModelPickerSuggestionSet(provider)
+	if suggestions.DegradedReason != "" {
+		fmt.Fprintf(cmd.OutOrStdout(), "Model catalog degraded for %s: %s; accepting free-text model.\n", provider, suggestions.DegradedReason)
+	}
+	model, err := PromptModelChoiceWithOptions(cmd.InOrStdin(), cmd.OutOrStdout(), provider, current.Model, suggestions.Models, ModelChoicePromptOptions{
+		Context:         cmd.Context(),
+		SuggestionLimit: ModelChoiceSuggestionLimitUnlimited,
+	})
+	if err != nil {
+		return err
+	}
+	model = llm.NormalizeProviderModelID(provider, model)
+	if err := PersistModelSelectionToConfig(cli.Selection{Provider: provider, Model: model}); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "model selection saved: provider=%s model=%s\n", provider, model)
+	return nil
 }
 
 func NormalizeProviderModelID(provider, model string) string {

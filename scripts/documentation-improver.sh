@@ -334,7 +334,7 @@ Rules:
 Required tasks:
 1) Scan docs + current code surface for drift.
 2) Improve architecture/core docs for newly landed features.
-3) Sync website docs/content/data with current progress where needed.
+3) Sync website webpages/docs/content/data with current progress where needed.
 4) Refresh README.md so its top-line claims (supported channels, install steps,
    quickstart, status badges, headline binary stats) match what's actually in
    the tree. Keep claims sober — do NOT announce features that aren't wired.

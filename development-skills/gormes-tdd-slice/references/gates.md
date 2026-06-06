@@ -9,7 +9,7 @@ go run ./cmd/progress validate
 ```
 
 Confirm the selected test still matches the relevant section of
-`docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md`.
+`webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md`.
 If the row and map disagree, stop and route through `gormes-planner`.
 
 ## Runtime Change

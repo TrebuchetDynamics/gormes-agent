@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -125,6 +126,7 @@ type VoiceModeStore interface {
 
 // InMemoryVoiceModeStore is a thread-safe in-memory store for testing.
 type InMemoryVoiceModeStore struct {
+	mu     sync.RWMutex
 	states map[string]VoiceModeChatState
 }
 
@@ -133,7 +135,9 @@ func NewInMemoryVoiceModeStore() *InMemoryVoiceModeStore {
 }
 
 func (s *InMemoryVoiceModeStore) Get(_ context.Context, chatID string) (VoiceModeChatState, error) {
+	s.mu.RLock()
 	state, ok := s.states[chatID]
+	s.mu.RUnlock()
 	if !ok {
 		return VoiceModeChatState{ChatID: chatID, Mode: VoiceModeOff}, nil
 	}
@@ -144,11 +148,15 @@ func (s *InMemoryVoiceModeStore) Set(_ context.Context, state VoiceModeChatState
 	if state.ChatID == "" {
 		return errors.New("chat_id is required")
 	}
+	s.mu.Lock()
 	s.states[state.ChatID] = state
+	s.mu.Unlock()
 	return nil
 }
 
 func (s *InMemoryVoiceModeStore) List(_ context.Context) ([]VoiceModeChatState, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	result := make([]VoiceModeChatState, 0, len(s.states))
 	for _, state := range s.states {
 		result = append(result, state)

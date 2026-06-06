@@ -7,7 +7,7 @@ weight: 46
 
 **Status:** Living document. First pass covers philosophy, Honcho architecture (extracted from upstream `plastic-labs/honcho`), the internal Go port plan, and its relationship to Phase 3. The latest docs-driven delta from Honcho v3 is captured in [Honcho Docs Study Plan](./03-honcho-docs-study/), worker-ready execution slices are captured in [Agent Work Packets](./04-agent-work-packets/), and operator/runtime decisions are captured in [Operator Playbook](./05-operator-playbook/).
 
-**Audience:** Gormes contributors and future AI agents continuing the port. This is an **architecture reference**, not a migration cookbook — the cookbook lives in `docs/superpowers/specs/2026-04-21-goncho-architecture-design.md` and the Phase 3 ledger in `architecture_plan/phase-3-memory.md`.
+**Audience:** Gormes contributors and future AI agents continuing the port. This is an **architecture reference**, not a migration cookbook — the cookbook lives in `webpages/docs/superpowers/specs/2026-04-21-goncho-architecture-design.md` and the Phase 3 ledger in `architecture_plan/phase-3-memory.md`.
 
 > **Instruction to future agents:** This document is **not complete**. It is explicitly too large to write in one pass. Each top-level section has a **"Coverage / TODO"** footer calling out what is still missing. When you open this file, pick one TODO, fill it in against the real upstream source at `/workspace-mineru/honcho/src/**` (not from memory or training), and cross it off. Do not rewrite existing sections without a reason — they are cross-referenced from Phase 3 and the Goncho spec. If a section drifts out of date with upstream Honcho, add a `> **Drift note (YYYY-MM-DD):** ...` admonition rather than silently rewriting.
 
@@ -732,11 +732,11 @@ All are 5s-timeout-gated, JSON-marshaled, with hardcoded schemas. `honcho_search
 
 ### 12.7 Pre-existing design docs (read these before editing)
 
-- `docs/superpowers/specs/2026-04-21-goncho-architecture-design.md` — full design spec for Goncho.
-- `docs/superpowers/plans/goncho-honcho/2026-04-21-goncho-immediate-slice.md` — minimum first slice.
-- `docs/superpowers/plans/goncho-honcho/2026-04-21-gormes-goncho-momentum-sprint.md` — sprint plan.
-- `docs/content/building-gormes/architecture_plan/phase-3-memory.md` — Phase 3 ledger and GONCHO-to-Gormes mapping table.
-- `docs/content/building-gormes/porting-a-subsystem.md` — generic porting guidance.
+- `webpages/docs/superpowers/specs/2026-04-21-goncho-architecture-design.md` — full design spec for Goncho.
+- `webpages/docs/superpowers/plans/goncho-honcho/2026-04-21-goncho-immediate-slice.md` — minimum first slice.
+- `webpages/docs/superpowers/plans/goncho-honcho/2026-04-21-gormes-goncho-momentum-sprint.md` — sprint plan.
+- `webpages/docs/content/building-gormes/architecture_plan/phase-3-memory.md` — Phase 3 ledger and GONCHO-to-Gormes mapping table.
+- `webpages/docs/content/building-gormes/porting-a-subsystem.md` — generic porting guidance.
 
 ### Coverage / TODO
 
@@ -865,7 +865,7 @@ Keep these rows synchronized with [Honcho Docs Study Plan](./03-honcho-docs-stud
 
 ### Coverage / TODO
 
-- [ ] For each slice above, link to (or create) a superpowers spec/plan under `docs/superpowers/specs/`.
+- [ ] For each slice above, link to (or create) a superpowers spec/plan under `webpages/docs/superpowers/specs/`.
 - [ ] Capture explicit acceptance criteria per slice ("slice done" definition).
 - [ ] Add a migration-risk column (what breaks if we land this slice half-done).
 
@@ -917,7 +917,7 @@ This file is intentionally incomplete. When you pick it up:
 
 1. **Read, don't recall.** Always open the actual upstream files under `/workspace-mineru/honcho/src/**` before writing. Honcho ships fast; training data goes stale. Cite file paths.
 2. **One TODO at a time.** Each section has a `Coverage / TODO` footer. Pick the smallest one that still matters. Cross it off in the same commit you fill it in.
-3. **Preserve cross-references.** This doc is linked from `architecture_plan/phase-3-memory.md` and `docs/superpowers/specs/2026-04-21-goncho-architecture-design.md`. If you restructure top-level sections, update both references in the same PR.
+3. **Preserve cross-references.** This doc is linked from `architecture_plan/phase-3-memory.md` and `webpages/docs/superpowers/specs/2026-04-21-goncho-architecture-design.md`. If you restructure top-level sections, update both references in the same PR.
 4. **Don't collapse sections for brevity.** The goal is a reference an engineer can port from without re-reading the Python source. Terseness is not a virtue here.
 5. **Drift notes over silent rewrites.** If upstream changes contradict what's already here, add a `> **Drift note (YYYY-MM-DD):** …` admonition below the affected paragraph rather than deleting the old text. Later readers need the audit trail.
 6. **Mirror the enums verbatim.** `DocumentLevel`, `ReasoningLevel`, `TaskType`, `VectorSyncState`, `WebhookEventType` — never translate, never abbreviate. A Goncho install must feel Honcho-shaped at the edge.
@@ -933,7 +933,7 @@ This file is intentionally incomplete. When you pick it up:
 4. Fill §5 Coverage TODOs that are not already covered by `01-prompts.md` / `02-tool-schemas.md` — focus on runtime mechanics, output formats, and failure modes.
 5. Resolve §15 open questions one at a time.
 6. Draft §9 env-var naming decision so we stop blocking on config bikeshed.
-7. Once slice A (observation table) has a spec in `docs/superpowers/specs/`, turn §13.1 into a link rather than an inline task list.
+7. Once slice A (observation table) has a spec in `webpages/docs/superpowers/specs/`, turn §13.1 into a link rather than an inline task list.
 
 ---
 
@@ -945,7 +945,7 @@ This file is intentionally incomplete. When you pick it up:
 - Goncho service: `internal/goncho/service.go`, `types.go`, `sql.go`.
 - Tool layer: `internal/gonchotools/honcho_tools.go`.
 - Memory substrate: `internal/memory/` (full Phase 3 inventory in §12.1).
-- Design spec: `docs/superpowers/specs/2026-04-21-goncho-architecture-design.md`.
-- Phase 3 ledger: `docs/content/building-gormes/architecture_plan/phase-3-memory.md`.
-- Sprint plan: `docs/superpowers/plans/goncho-honcho/2026-04-21-gormes-goncho-momentum-sprint.md`.
-- Porting guide: `docs/content/building-gormes/porting-a-subsystem.md`.
+- Design spec: `webpages/docs/superpowers/specs/2026-04-21-goncho-architecture-design.md`.
+- Phase 3 ledger: `webpages/docs/content/building-gormes/architecture_plan/phase-3-memory.md`.
+- Sprint plan: `webpages/docs/superpowers/plans/goncho-honcho/2026-04-21-gormes-goncho-momentum-sprint.md`.
+- Porting guide: `webpages/docs/content/building-gormes/porting-a-subsystem.md`.

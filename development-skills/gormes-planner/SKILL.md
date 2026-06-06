@@ -35,15 +35,15 @@ If the task might instead be parity audit, implementation, TDD, interface design
 
 1. Read `AGENTS.md` and preserve the skill-driven evidence contract.
 2. Treat the logical progress backlog as canonical for implementation intent. Use `cmd/progress` and `internal/planning/progress` (`Load`/`SaveProgress`) for progress data; never hand-parse split-layout members or create side queues.
-3. Treat `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` as the canonical Hermes/Honcho-to-Go map for subsystem context.
-4. Treat `docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md` as the completeness check for whether all feature-bearing Hermes/Honcho source classes are mapped.
-5. Treat `docs/hermes-releases/FEATURE-MATRIX.md` as a release-note study aid for choosing high-signal improvement lanes; it is not an executable queue and never replaces source refs or behavior atoms.
+3. Treat `webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` as the canonical Hermes/Honcho-to-Go map for subsystem context.
+4. Treat `webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md` as the completeness check for whether all feature-bearing Hermes/Honcho source classes are mapped.
+5. Treat `webpages/docs/hermes-releases/FEATURE-MATRIX.md` as a release-note study aid for choosing high-signal improvement lanes; it is not an executable queue and never replaces source refs or behavior atoms.
 6. Use `./hermes-knowledge-graph.json` or `$HERMES_SRC/.understand-anything/knowledge-graph.json` as topology/routing accelerators before broad source searches; graph nodes and layers are navigation hints, not coverage proof.
 7. Treat `development-skills/<name>/SKILL.md` as the canonical skill source; `.agents/skills/`, `.claude/skills/`, and `.codex/skills/` are symlink loader views.
 8. Use in-repo upstream references when present, otherwise sibling checkouts:
    - `$HERMES_SRC`: `./hermes-agent`, then `../hermes-agent`
    - `$HONCHO_SRC`: `./honcho`, then `../honcho`
-9. Use existing Gormes code under `cmd/`, `internal/`, `docs/`, and `www.gormes.ai` as implementation evidence.
+9. Use existing Gormes code under `cmd/`, `internal/`, `webpages/docs/`, and `www.gormes.ai` as implementation evidence.
 10. Read existing parity evidence docs before creating or reshaping progress rows; they are source-backed classification evidence, not the backlog itself.
 11. For CLI/config/migration parity, inspect `$HERMES_SRC/hermes_cli/main.py`,
     `$HERMES_SRC/hermes_cli/commands.py`,
@@ -74,7 +74,7 @@ Keep passes small enough to finish. A planner pass should produce builder-ready 
 
 For full-map requests, update the feature map first, then reshape
 the progress rows. The docs map explains the destination; the logical progress backlog is the
-executable queue. If the request is seeded by `docs/hermes-releases/FEATURE-MATRIX.md`
+executable queue. If the request is seeded by `webpages/docs/hermes-releases/FEATURE-MATRIX.md`
 or `hermes-knowledge-graph.json`, use those artifacts to choose the smallest
 release family or source topology to inspect, then prove the active contract in
 `$HERMES_SRC` before editing rows or evidence.
@@ -95,7 +95,7 @@ go run ./cmd/progress next-work
 go run ./cmd/progress list --module <module>
 
 # Consult parity evidence as source-backed classification, not as the queue
-rg -n "missing|partial|covered|<topic>" docs/parity-evidence docs/content/building-gormes
+rg -n "missing|partial|covered|<topic>" webpages/docs/parity-evidence webpages/docs/content/building-gormes
 
 # Discover Gormes code surface
 find cmd internal -maxdepth 2 -type f -name '*.go' | sort
@@ -247,7 +247,7 @@ Apply the deep-module test when planning Go interfaces: a good Gormes module sho
 
 Planner passes may edit planning surfaces:
 
-- logical progress data under `docs/content/building-gormes/architecture_plan/progress.json` or its split layout, through `cmd/progress` / `internal/planning/progress`
+- logical progress data under `webpages/docs/content/building-gormes/architecture_plan/progress.json` or its split layout, through `cmd/progress` / `internal/planning/progress`
 - parity evidence docs when source-backed classifications change
 - generated building-gormes docs
 - upstream study docs

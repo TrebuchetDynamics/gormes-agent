@@ -60,7 +60,7 @@ Each fleet pattern is assigned to the Gormes phase and subphase where it natural
   - `internal/tools/blocker.go`
   - `internal/tools/blocker_test.go`
   - `internal/cli/status.go` (surface blockers)
-  - `docs/content/building-gormes/progress.json`
+  - `webpages/docs/content/building-gormes/progress.json`
 - **Test commands:** `go test ./internal/tools -run TestBlocker -count=1`
 - **Acceptance:**
   - `gormes status` shows active blockers with type, evidence, and owner
@@ -88,7 +88,7 @@ Each fleet pattern is assigned to the Gormes phase and subphase where it natural
   - `internal/tools/health.go`
   - `internal/tools/health_test.go`
   - `cmd/gormes/health.go`
-  - `docs/content/building-gormes/progress.json`
+  - `webpages/docs/content/building-gormes/progress.json`
 - **Test commands:** `go test ./internal/tools -run TestHealth -count=1`
 - **Acceptance:**
   - `gormes health` outputs session sizes with tier labels (ok/warn/critical)
@@ -115,7 +115,7 @@ Each fleet pattern is assigned to the Gormes phase and subphase where it natural
 - **Write scope:**
   - `internal/doctor/evidence.go`
   - `internal/doctor/evidence_test.go`
-  - `docs/content/building-gormes/progress.json`
+  - `webpages/docs/content/building-gormes/progress.json`
 - **Test commands:** `go test ./internal/doctor -run TestEvidence -count=1`
 - **Acceptance:**
   - `gormes doctor --offline` output contains exact pass/fail/skip counts per category
@@ -142,7 +142,7 @@ Each fleet pattern is assigned to the Gormes phase and subphase where it natural
 - **Write scope:**
   - `internal/tools/git_delivery.go`
   - `internal/tools/git_delivery_test.go`
-  - `docs/content/building-gormes/progress.json`
+  - `webpages/docs/content/building-gormes/progress.json`
 - **Test commands:** `go test ./internal/tools -run TestGitDelivery -count=1`
 - **Acceptance:**
   - Builder skill validates working tree is clean and commits are pushed before declaring row complete
@@ -168,7 +168,7 @@ Each fleet pattern is assigned to the Gormes phase and subphase where it natural
   - `internal/tools/qmd.go`
   - `internal/tools/qmd_test.go`
   - `cmd/gormes/search.go`
-  - `docs/content/building-gormes/progress.json`
+  - `webpages/docs/content/building-gormes/progress.json`
 - **Test commands:** `go test ./internal/tools -run TestQMD -count=1`
 - **Acceptance:**
   - `gormes search "how to deploy"` returns ranked results from workspace docs
@@ -196,7 +196,7 @@ Each fleet pattern is assigned to the Gormes phase and subphase where it natural
   - `internal/persistence/session/rollover.go`
   - `internal/persistence/session/rollover_test.go`
   - `cmd/gormes/session_rollover.go`
-  - `docs/content/building-gormes/progress.json`
+  - `webpages/docs/content/building-gormes/progress.json`
 - **Test commands:** `go test ./internal/persistence/session -run TestRollover -count=1`
 - **Acceptance:**
   - `gormes session rollover` exports and starts fresh session
@@ -225,7 +225,7 @@ Each fleet pattern is assigned to the Gormes phase and subphase where it natural
   - `internal/plugins/hooks.go`
   - `internal/plugins/hooks_test.go`
   - `cmd/gormes/hooks.go`
-  - `docs/content/building-gormes/progress.json`
+  - `webpages/docs/content/building-gormes/progress.json`
 - **Test commands:** `go test ./internal/plugins -run TestHooks -count=1`
 - **Acceptance:**
   - `gormes hooks list` shows all hooks with enabled/disabled status
@@ -253,7 +253,7 @@ Each fleet pattern is assigned to the Gormes phase and subphase where it natural
   - `internal/plugins/marketplace_test.go`
   - `internal/plugins/doctor.go`
   - `internal/plugins/sandbox.go`
-  - `docs/content/building-gormes/progress.json`
+  - `webpages/docs/content/building-gormes/progress.json`
 - **Test commands:** `go test ./internal/plugins -run TestMarketplace -count=1`
 - **Acceptance:**
   - `gormes plugins marketplace` lists available plugins from configured sources
@@ -281,7 +281,7 @@ Each fleet pattern is assigned to the Gormes phase and subphase where it natural
   - `internal/cli/onboard.go`
   - `internal/cli/onboard_test.go`
   - `cmd/gormes/onboard.go`
-  - `docs/content/building-gormes/progress.json`
+  - `webpages/docs/content/building-gormes/progress.json`
 - **Test commands:** `go test ./internal/cli -run TestOnboard -count=1`
 - **Acceptance:**
   - `gormes setup` and doctor readiness cover model → provider → auth → gateway → browser → skills → dashboard
@@ -308,7 +308,7 @@ Each fleet pattern is assigned to the Gormes phase and subphase where it natural
   - `internal/cli/logs.go`
   - `internal/cli/logs_test.go`
   - `cmd/gormes/logs.go`
-  - `docs/content/building-gormes/progress.json`
+  - `webpages/docs/content/building-gormes/progress.json`
 - **Test commands:** `go test ./internal/cli -run TestLogs -count=1`
 - **Acceptance:**
   - `gormes logs` shows recent gateway log entries

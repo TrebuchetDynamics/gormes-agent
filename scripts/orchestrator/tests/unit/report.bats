@@ -149,9 +149,9 @@ setup() {
   assert_output --partial "Criterion:"
   assert_output --partial "Autoloop control plane:"
   assert_output --partial "scripts/gormes-auto-codexu-orchestrator.sh"
-  assert_output --partial "- Agent queue docs: docs/content/building-gormes/autoloop/agent-queue.md"
-  assert_output --partial "- Progress schema docs: docs/content/building-gormes/autoloop/progress-schema.md"
-  assert_output --partial "docs/superpowers/plans/orchestration-planner/2026-04-24-orchestrator-oiling-release-1-plan.md"
+  assert_output --partial "- Agent queue docs: webpages/docs/content/building-gormes/autoloop/agent-queue.md"
+  assert_output --partial "- Progress schema docs: webpages/docs/content/building-gormes/autoloop/progress-schema.md"
+  assert_output --partial "webpages/docs/superpowers/plans/orchestration-planner/2026-04-24-orchestrator-oiling-release-1-plan.md"
   assert_output --partial "Candidate policy:"
   assert_output --partial "Skip rows with blocked_by until ready_when is satisfied."
 }
@@ -164,10 +164,10 @@ setup() {
   export REPO_SUBDIR="."
   export RUN_ID="testrun"
   export BASE_COMMIT="abc1234"
-  export PROGRESS_JSON_REL="docs/content/building-gormes/architecture_plan/progress.json"
+  export PROGRESS_JSON_REL="webpages/docs/content/building-gormes/architecture_plan/progress.json"
   mkdir -p "$STATE_DIR"
   local selected
-  selected='{"phase_id":"4","subphase_id":"4.A","item_name":"Provider harness","status":"in_progress","contract":"Provider transcript contract","contract_status":"fixture_ready","slice_size":"medium","execution_owner":"provider","fixture":"internal/hermes fixtures","degraded_mode":"status reports gaps","ready_when":["fixtures replay"],"not_ready_when":["live provider call required"],"write_scope":["internal/hermes/"],"test_commands":["go test ./internal/hermes -count=1"],"done_signal":["transcripts replay"],"acceptance":["fixture passes"],"source_refs":["docs/content/upstream-hermes/source-study.md"],"unblocks":["Bedrock"],"note":"Keep provider quirks out of kernel."}'
+  selected='{"phase_id":"4","subphase_id":"4.A","item_name":"Provider harness","status":"in_progress","contract":"Provider transcript contract","contract_status":"fixture_ready","slice_size":"medium","execution_owner":"provider","fixture":"internal/hermes fixtures","degraded_mode":"status reports gaps","ready_when":["fixtures replay"],"not_ready_when":["live provider call required"],"write_scope":["internal/hermes/"],"test_commands":["go test ./internal/hermes -count=1"],"done_signal":["transcripts replay"],"acceptance":["fixture passes"],"source_refs":["webpages/docs/content/upstream-hermes/source-study.md"],"unblocks":["Bedrock"],"note":"Keep provider quirks out of kernel."}'
   local prompt_file="$tmp/prompt.txt"
   run build_prompt 1 "$selected" "0:4/4.A/Provider harness" "$prompt_file"
   assert_success
@@ -195,17 +195,17 @@ setup() {
   export PROGRESS_JSON_REL="fallback/progress.json"
   mkdir -p "$STATE_DIR"
   local selected
-  selected='{"phase_id":"1","subphase_id":"1.C","item_name":"Autoloop metadata","status":"planned","autoloop":{"entrypoint":"custom-entry.sh","plan":"docs/superpowers/plans/custom-plan.md","agent_queue":"docs/content/building-gormes/custom-queue.md","progress_schema":"docs/content/building-gormes/custom-schema.md","candidate_source":"docs/content/building-gormes/architecture_plan/progress.json","unit_test":"custom test command","candidate_policy":["Skip blocked rows.","Skip umbrella rows."]}}'
+  selected='{"phase_id":"1","subphase_id":"1.C","item_name":"Autoloop metadata","status":"planned","autoloop":{"entrypoint":"custom-entry.sh","plan":"webpages/docs/superpowers/plans/custom-plan.md","agent_queue":"webpages/docs/content/building-gormes/custom-queue.md","progress_schema":"webpages/docs/content/building-gormes/custom-schema.md","candidate_source":"webpages/docs/content/building-gormes/architecture_plan/progress.json","unit_test":"custom test command","candidate_policy":["Skip blocked rows.","Skip umbrella rows."]}}'
   local prompt_file="$tmp/prompt.txt"
   run build_prompt 1 "$selected" "0:1/1.C/Autoloop metadata" "$prompt_file"
   assert_success
   run cat "$prompt_file"
   assert_success
   assert_output --partial "- Main entrypoint: custom-entry.sh"
-  assert_output --partial "- Candidate source: docs/content/building-gormes/architecture_plan/progress.json"
-  assert_output --partial "- Agent queue docs: docs/content/building-gormes/custom-queue.md"
-  assert_output --partial "- Progress schema docs: docs/content/building-gormes/custom-schema.md"
-  assert_output --partial "- Orchestrator plan: docs/superpowers/plans/custom-plan.md"
+  assert_output --partial "- Candidate source: webpages/docs/content/building-gormes/architecture_plan/progress.json"
+  assert_output --partial "- Agent queue docs: webpages/docs/content/building-gormes/custom-queue.md"
+  assert_output --partial "- Progress schema docs: webpages/docs/content/building-gormes/custom-schema.md"
+  assert_output --partial "- Orchestrator plan: webpages/docs/superpowers/plans/custom-plan.md"
   assert_output --partial "- Orchestrator tests: custom test command"
   assert_output --partial "Candidate policy:"
   assert_output --partial "- Skip blocked rows."

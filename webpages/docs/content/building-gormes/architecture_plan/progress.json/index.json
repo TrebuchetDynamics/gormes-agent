@@ -9,11 +9,11 @@
       "source_code": "https://github.com/TrebuchetDynamics/gormes-agent"
     },
     "builder_loop": {
-      "entrypoint": "docs/development-skills/gormes-skill-manager/SKILL.md",
-      "plan": "docs/content/building-gormes/architecture_plan/completion-plan.md",
-      "agent_queue": "docs/content/building-gormes/builder-loop/agent-queue.md",
-      "progress_schema": "docs/content/building-gormes/builder-loop/progress-schema.md",
-      "candidate_source": "docs/content/building-gormes/architecture_plan/progress.json",
+      "entrypoint": "development-skills/gormes-skill-manager/SKILL.md",
+      "plan": "webpages/docs/content/building-gormes/architecture_plan/completion-plan.md",
+      "agent_queue": "webpages/docs/content/building-gormes/builder-loop/agent-queue.md",
+      "progress_schema": "webpages/docs/content/building-gormes/builder-loop/progress-schema.md",
+      "candidate_source": "webpages/docs/content/building-gormes/architecture_plan/progress.json",
       "unit_test": "go test ./internal/progress -count=1",
       "candidate_policy": [
         "Skip rows with blocked_by until ready_when is satisfied.",
@@ -24,7 +24,7 @@
         "Run row-local tests first, then focused package tests, then go run ./cmd/progress validate.",
         "Update progress evidence only for the row being built.",
         "If validation fails from stale loop assumptions, fix the docs or progress row instead of invoking old loop binaries.",
-        "Canonical skill files live in docs/development-skills; .agents/skills, .claude/skills, and .codex/skills are symlink loader views.",
+        "Canonical skill files live in development-skills; .agents/skills, .claude/skills, and .codex/skills are symlink loader views.",
         "Prefer contract rows with write_scope, test_commands, and done_signal.",
         "Do not create side queues; missing work becomes a progress.json row."
       ]
@@ -34,7 +34,7 @@
   "skeleton": [
     {
       "id": "1",
-      "name": "Phase 1 \u2014 The Dashboard",
+      "name": "Phase 1 — The Dashboard",
       "deliverable": "Tactical bridge: Go TUI over Python's api_server HTTP+SSE boundary",
       "subphases": [
         {
@@ -83,7 +83,7 @@
     },
     {
       "id": "2",
-      "name": "Phase 2 \u2014 The Gateway",
+      "name": "Phase 2 — The Gateway",
       "deliverable": "Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout",
       "subphases": [
         {
@@ -253,7 +253,7 @@
     },
     {
       "id": "3",
-      "name": "Phase 3 \u2014 The Black Box (Memory)",
+      "name": "Phase 3 — The Black Box (Memory)",
       "deliverable": "SQLite + FTS5 + ontological graph + semantic fusion in Go; 3.E closes session visibility, audit trails, decay, and cross-chat/session boundaries",
       "subphases": [
         {
@@ -363,7 +363,7 @@
           "drift_state": {
             "status": "owned",
             "last_upstream_check": "2026-05-18T00:00:00Z",
-            "origin_decision": "Gormes-owned memory quality improvements inspired by Shokunin session-end summaries, hybrid retrieval patterns, and memory transparency UX. Not direct Honcho parity \u2014 Gormes-original enhancements to Goncho's write quality, retrieval effectiveness, and user control."
+            "origin_decision": "Gormes-owned memory quality improvements inspired by Shokunin session-end summaries, hybrid retrieval patterns, and memory transparency UX. Not direct Honcho parity — Gormes-original enhancements to Goncho's write quality, retrieval effectiveness, and user control."
           },
           "item_count": 6
         }
@@ -371,7 +371,7 @@
     },
     {
       "id": "4",
-      "name": "Phase 4 \u2014 The Brain Transplant",
+      "name": "Phase 4 — The Brain Transplant",
       "deliverable": "Native Go agent orchestrator + prompt builder",
       "dependency_note": "Build priority: 2.E0 deterministic subagent runtime -> 2.G static skills + reviewed candidate flow -> runner-enforced delegation policy + wider gateway surface -> native agent loop",
       "subphases": [
@@ -476,7 +476,7 @@
           "name": "Safety-Anchored Turn Loop (MOSAIC)",
           "item_count": 4,
           "extra": {
-            "source": "docs/content/papers/safety-and-deployment.md"
+            "source": "webpages/docs/content/papers/safety-and-deployment.md"
           }
         },
         {
@@ -484,14 +484,14 @@
           "name": "Advanced Provider Routing",
           "item_count": 3,
           "extra": {
-            "source": "docs/content/papers/safety-and-deployment.md"
+            "source": "webpages/docs/content/papers/safety-and-deployment.md"
           }
         }
       ]
     },
     {
       "id": "5",
-      "name": "Phase 5 \u2014 The Final Purge",
+      "name": "Phase 5 — The Final Purge",
       "deliverable": "Python tool scripts ported to Go or WASM",
       "subphases": [
         {
@@ -644,7 +644,7 @@
                   "internal/gateway/manager.go",
                   "internal/gateway/goal_loop.go",
                   "internal/gateway/goal_loop_test.go",
-                  "docs/content/building-gormes/architecture_plan/progress.json"
+                  "webpages/docs/content/building-gormes/architecture_plan/progress.json"
                 ],
                 "test_commands": [
                   "go test ./internal/gateway -run 'TestGatewayGoal.*(Continuation|Interrupt|ActiveTurnPolicy)' -count=1",
@@ -726,7 +726,7 @@
           "name": "Fault-Tolerant Sandbox Execution",
           "item_count": 3,
           "extra": {
-            "source": "docs/content/papers/safety-and-deployment.md"
+            "source": "webpages/docs/content/papers/safety-and-deployment.md"
           }
         },
         {
@@ -734,7 +734,7 @@
           "name": "Unified Event Bus",
           "item_count": 11,
           "extra": {
-            "source": "docs/content/papers/agentic-os-design.md"
+            "source": "webpages/docs/content/papers/agentic-os-design.md"
           }
         },
         {
@@ -746,7 +746,7 @@
     },
     {
       "id": "6",
-      "name": "Phase 6 \u2014 The Learning Loop (Soul)",
+      "name": "Phase 6 — The Learning Loop (Soul)",
       "deliverable": "Hermes-compatible background review and skill curation, plus Gormes-native evidence gates for safe compounding intelligence.",
       "subphases": [
         {
@@ -809,7 +809,7 @@
           "name": "Agentic Memory Lifecycle (AgeMem)",
           "item_count": 3,
           "extra": {
-            "source": "docs/content/papers/agent-memory-systems.md"
+            "source": "webpages/docs/content/papers/agent-memory-systems.md"
           }
         },
         {
@@ -817,7 +817,7 @@
           "name": "Self-Evolution Engine (GEPA)",
           "item_count": 3,
           "extra": {
-            "source": "docs/content/papers/agentic-os-design.md"
+            "source": "webpages/docs/content/papers/agentic-os-design.md"
           }
         },
         {
@@ -830,14 +830,14 @@
           },
           "item_count": 4,
           "extra": {
-            "source": "docs/content/papers/foundational-architectures.md"
+            "source": "webpages/docs/content/papers/foundational-architectures.md"
           }
         }
       ]
     },
     {
       "id": "7",
-      "name": "Phase 7 \u2014 Paused Channel Backlog",
+      "name": "Phase 7 — Paused Channel Backlog",
       "deliverable": "Deferred non-priority channel adapters after Telegram, Discord, Slack, WhatsApp, and WeChat stabilize",
       "subphases": [
         {
@@ -884,7 +884,7 @@
     },
     {
       "id": "8",
-      "name": "Phase 8 \u2014 Reputation & Publication",
+      "name": "Phase 8 — Reputation & Publication",
       "deliverable": "TrebuchetDynamics has a credible public face (blog, writeups, talks) that documents Gormes's autonomous-porting methodology and one or two sharp differentiators. Reputation is built through publication cadence, not parity scope.",
       "subphases": [
         {
@@ -926,7 +926,7 @@
     },
     {
       "id": "9",
-      "name": "Phase 9 \u2014 Design & Security Hardening",
+      "name": "Phase 9 — Design & Security Hardening",
       "deliverable": "Owned architecture improvements from DeerFlow patterns: declarative middleware chain for the agent runtime, and sandbox provider abstraction with virtual path security layer.",
       "subphases": [
         {
@@ -941,7 +941,7 @@
         },
         {
           "id": "9.C",
-          "name": "Hermes Config Parity \u2014 Personalities & Display",
+          "name": "Hermes Config Parity — Personalities & Display",
           "item_count": 1
         },
         {

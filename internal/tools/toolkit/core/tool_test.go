@@ -33,6 +33,18 @@ func TestRegistry_RegisterDuplicateReturnsError(t *testing.T) {
 	}
 }
 
+func TestRegistry_ZeroValueRegisterInitializesMap(t *testing.T) {
+	var r Registry
+	tool := &stubTool{name: "zero", schema: json.RawMessage(`{}`)}
+
+	if err := r.Register(tool); err != nil {
+		t.Fatalf("Register on zero-value registry: %v", err)
+	}
+	if got, ok := r.Get("zero"); !ok || got != tool {
+		t.Fatalf("Get after zero-value Register = (%#v, %t), want registered tool", got, ok)
+	}
+}
+
 func TestRegistry_MustRegister_PanicsOnDuplicate(t *testing.T) {
 	r := NewRegistry()
 	a := &stubTool{name: "a", schema: json.RawMessage(`{}`)}

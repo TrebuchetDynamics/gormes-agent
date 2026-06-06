@@ -163,7 +163,7 @@ Rows in Phase 8 are explicitly classified `provenance: gormes` (owned divergence
 
 ## Cross-Reference
 
-- `docs/content/building-gormes/architecture_plan/progress.json` — executable rows, Phase 8.
+- `webpages/docs/content/building-gormes/architecture_plan/progress.json` — executable rows, Phase 8.
 - `README.md` — operator-facing positioning, must align with the North Star.
 - `webpages/landing/` — public messaging, must align with the North Star.
 - `hermes-agent/` (submodule) — parity oracle, not contract.

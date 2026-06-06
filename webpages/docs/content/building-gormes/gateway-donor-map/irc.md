@@ -9,7 +9,7 @@ IRC is the clearest example in this donor set of a low-priority adapter with som
 
 ## Status
 
-`docs/content/building-gormes/architecture_plan/subsystem-inventory.md` does not list IRC as a planned Gormes gateway platform. This dossier exists only because PicoClaw ships an IRC edge and future contributors may wonder whether it is a useful donor.
+`webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` does not list IRC as a planned Gormes gateway platform. This dossier exists only because PicoClaw ships an IRC edge and future contributors may wonder whether it is a useful donor.
 
 Evidence level:
 

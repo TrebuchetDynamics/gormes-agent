@@ -2,7 +2,7 @@
 // It implements store.Store with fire-and-forget semantics: Exec returns
 // an Ack in microseconds after enqueueing a Command on a bounded channel;
 // a single-owner background worker performs all SQL I/O. On queue-full:
-// log + drop. See docs/superpowers/specs/2026-04-20-gormes-phase3a-memory-design.md.
+// log + drop. See webpages/docs/superpowers/specs/2026-04-20-gormes-phase3a-memory-design.md.
 package memory
 
 import (

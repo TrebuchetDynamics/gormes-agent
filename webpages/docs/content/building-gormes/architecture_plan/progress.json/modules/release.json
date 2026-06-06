@@ -16,9 +16,9 @@
         "operator"
       ],
       "degraded_mode": "Without a written, dated differentiator, the README and landing page cannot be rewritten coherently.",
-      "fixture": "docs/content/building-gormes/strategy/v1-differentiator.md",
+      "fixture": "webpages/docs/content/building-gormes/strategy/v1-differentiator.md",
       "source_refs": [
-        "docs/content/building-gormes/strategy/success-plan.md",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md",
         "hermes-agent/skills/",
         "internal/skills/"
       ],
@@ -38,14 +38,14 @@
         "Benchmarks page at gormes.ai/benchmarks"
       ],
       "acceptance": [
-        "docs/content/building-gormes/strategy/v1-differentiator.md exists with: differentiator paragraph, 30-skill list, exclusion list, ratified-on date.",
+        "webpages/docs/content/building-gormes/strategy/v1-differentiator.md exists with: differentiator paragraph, 30-skill list, exclusion list, ratified-on date.",
         "The differentiator paragraph fits in less than 50 words.",
         "The exclusion list explicitly mentions areas Gormes 1.0 will not chase."
       ],
       "note": "Complete: v1-differentiator.md created with differentiator paragraph, 30-skill list, exclusion list, and ratified-on date 2026-05-07. Unblocks README, landing page, release pipeline, and benchmarks rows.",
       "write_scope": [
-        "docs/content/building-gormes/strategy/v1-differentiator.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/strategy/v1-differentiator.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "no_test_required": "Documentation/research/planning row — automated tests not applicable",
       "done_signal": [
@@ -77,7 +77,7 @@
       "degraded_mode": "Without a release pipeline, the v1.0 differentiator (\"single binary on X platforms\") cannot be substantiated; users still build from source.",
       "fixture": ".github/workflows/release.yml",
       "source_refs": [
-        "docs/content/building-gormes/strategy/success-plan.md",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md",
         ".github/workflows/release.yml:Release Binaries workflow",
         "webpages/docs/install/release_workflow_test.go:TestReleaseWorkflowContract",
         "webpages/docs/install/release_workflow_test.go:TestReleaseWorkflowSmokeChecksBinaryVersionMetadata",
@@ -113,7 +113,7 @@
       ],
       "note": "Source: success-plan.md Q3 v1.0 milestone. 2026-05-08 all-topic parity sweep found stale release/operator wording and implementation drift: the contract named Termux android/arm64, but the release workflow, workflow test, and install.sh selector covered only linux/darwin/windows slugs. The child row `Termux android/arm64 release artifact and installer selector` owns that bounded closure before the full release-pipeline row can be completed. 2026-05-09 all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows; planned rows were 26, below the 90-row cap. Existing higher-priority TD blog/writeup rows remain operator-blocked, existing Hermes runtime rows cover or queue the main parity gaps, and the P1 release contract still promised a 30 MB binary without any workflow/test size gate. The child row `Release archive 30 MB size gate` owns that bounded closure. A later 2026-05-09 sweep found the same parent still promised release notes with install size and SHA while the workflow emitted SHA only; the child row `Release notes artifact size table` owns that bounded closure. This 2026-05-09 all-topic sweep found current Hermes runtime parity rows complete or row-backed, but the same release parent still generated SBOM files without proving the current GitHub SBOM-attestation contract. The child row `Release SBOM attestation binding` owns that bounded closure. A later 2026-05-09 sweep found the parent still promised install.ps1 fetches the right asset while the PowerShell installer was source-build only; the child row `Windows install.ps1 release binary fetch selector` owns that bounded closure. 2026-05-10 all-topic sweep refreshed Hermes to 44cdf555a and Honcho to e659b6b, covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows, and found current runtime deltas complete or row-backed. Planned rows were 15, below the 90-row cap; the broad release parent remains non-selectable until an actual tagged release proves all artifacts, but its acceptance still lacked a focused workflow guard that built binaries are metadata-smoked after ldflags injection. The child row `Release binary version/provenance smoke guard` owns that bounded closure. Planner 2026-05-21 iteration 2: classified this broad parent as an umbrella row and moved its active release dependency from the already-complete differentiator decision to the P0 Termux latest-installer follow-up release row. Builder agents should select child rows, not this parent, until public tag/artifact evidence closes the release lane. Planner 2026-05-21 iteration 4: replaced the parent row's no-op row-local test command with an explicit no_test_required reason because this umbrella is inventory-only; executable validation stays on focused child rows and the blocked Termux follow-up release row. Planner 2026-05-21 iteration 5: narrowed this umbrella parent write_scope to the canonical progress backlog only and replaced broad runtime/workflow references with exact release workflow, workflow-test, and version metadata source refs. Planner 2026-05-21 iteration 9: replaced stale umbrella acceptance test names with the exact release_workflow_test.go tests that now pin the seven-target matrix, archive size gate, metadata smoke checks, and install-script release assets. Planner 2026-05-21 iteration 10: materialized the public v0.2.20 Termux caveat cleanup dependency as its own blocked child row and wired this umbrella parent to wait for that cleanup evidence after the follow-up release. Planner 2026-05-23: v0.2.22 release evidence closed both P0 Termux child rows, so this umbrella parent no longer lists them in blocked_by; it remains planned/non-selectable as a release-pipeline inventory row rather than a single executable slice. Planner 2026-05-24: closed the umbrella parent after verifying public v0.2.22 is latest, Release Binaries run 26342488226 succeeded, and the release attaches linux-amd64, linux-arm64, darwin-amd64, darwin-arm64, windows-amd64, windows-arm64, and android-arm64 archives with matching SBOM/checksum sidecars plus install.sh/install.ps1. Focused release workflow tests and progress validation remain the proof surface; future release work must be split into child rows.",
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "no_test_required": "Umbrella release-pipeline parent is inventory-only and was closed from focused child-row validation plus public v0.2.22 release evidence; future executable release changes must use focused child rows with test_commands.",
       "done_signal": [
@@ -163,7 +163,7 @@
       "degraded_mode": "Without a binary smoke guard, the workflow can inject ldflags and publish archives while never proving the produced executable reports the tag, commit, dirty bit, and build date that release notes and fleet automation rely on.",
       "fixture": "webpages/docs/install/release_workflow_test.go::TestReleaseWorkflowSmokeChecksBinaryVersionMetadata",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/progress.json:Single-binary cross-platform release pipeline acceptance TestReleaseBinaryHasVersionMetadata",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json:Single-binary cross-platform release pipeline acceptance TestReleaseBinaryHasVersionMetadata",
         ".github/workflows/release.yml:Build static binary archive",
         "cmd/gormes/version.go:versionReportJSON",
         "cmd/gormes/version_test.go:TestVersionCommand_JSONIncludesBuildDateField",
@@ -189,8 +189,8 @@
       "write_scope": [
         ".github/workflows/release.yml",
         "webpages/docs/install/release_workflow_test.go",
-        "docs/install/release_workflow_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/install/release_workflow_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|InjectsBuildDateProvenance|SmokeChecksBinaryVersionMetadata|EnforcesMaxArchiveSize)' -count=1",
@@ -236,13 +236,13 @@
         "system"
       ],
       "degraded_mode": "If release documentation drifts from the workflow matrix, operators can approve a tag believing fewer or different artifacts will be produced. The fixture fails before release-prep docs can understate or omit target-specific archives and trust artifacts.",
-      "fixture": "docs/install/release_workflow_test.go::TestReleasePrepGuideTargetMatrixMatchesWorkflow and webpages/docs/install/release_workflow_test.go::TestReleasePrepGuideTargetMatrixMatchesWorkflow",
+      "fixture": "webpages/docs/install/release_workflow_test.go::TestReleasePrepGuideTargetMatrixMatchesWorkflow and webpages/docs/install/release_workflow_test.go::TestReleasePrepGuideTargetMatrixMatchesWorkflow",
       "source_refs": [
         ".github/workflows/release.yml:build matrix include",
-        "docs/install/v0.1.0-release-prep.md:release workflow summary",
         "webpages/docs/install/v0.1.0-release-prep.md:release workflow summary",
-        "docs/content/building-gormes/architecture_plan/progress.json:Single-binary cross-platform release pipeline",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Packaging and release"
+        "webpages/docs/install/v0.1.0-release-prep.md:release workflow summary",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json:Single-binary cross-platform release pipeline",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Packaging and release"
       ],
       "ready_when": [
         "The release workflow already builds the seven supported target archives and publishes SHA-256, SBOM, and attestation evidence.",
@@ -256,20 +256,20 @@
       ],
       "acceptance": [
         "TestReleasePrepGuideTargetMatrixMatchesWorkflow fails while v0.1.0-release-prep.md summarizes only Linux, macOS, and Windows instead of all seven archive slugs.",
-        "Both docs/install and webpages/docs/install copies of the guide name linux-amd64, linux-arm64, darwin-amd64, darwin-arm64, windows-amd64, windows-arm64, and android-arm64 Termux.",
+        "The webpages/docs/install guide name linux-amd64, linux-arm64, darwin-amd64, darwin-arm64, windows-amd64, windows-arm64, and android-arm64 Termux.",
         "The guide still states the release workflow is tag-only and approval-only, and it names SHA-256 sidecars, SPDX SBOMs, and GitHub SBOM/build-provenance attestations.",
         "Existing release workflow static contract tests remain green."
       ],
       "note": "Complete 2026-05-09: bounded all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 15 before this planner pass, below the 90-row cap, so adding one P1 source-backed row was allowed. Higher-priority TD publication rows remain operator-blocked, runtime parity manifests are complete or row-backed, and the broad P1 release pipeline row remains too large to assign directly. The unblocked docs/public release weakness was stale approval-facing v0.1.0 wording: the release workflow and completed child rows now prove seven release targets, SHA-256 sidecars, SBOMs, and GitHub attestations, while the guide still promised only Linux, macOS, and Windows archives. TDD added a fixture that pins the release-prep guide to the current workflow matrix and trust artifacts.",
       "write_scope": [
-        "docs/install/v0.1.0-release-prep.md",
         "webpages/docs/install/v0.1.0-release-prep.md",
-        "docs/install/release_workflow_test.go",
+        "webpages/docs/install/v0.1.0-release-prep.md",
         "webpages/docs/install/release_workflow_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/install/release_workflow_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./docs/install ./webpages/docs/install -run TestReleasePrepGuideTargetMatrixMatchesWorkflow -count=1",
+        "go test ./webpages/docs/install -run TestReleasePrepGuideTargetMatrixMatchesWorkflow -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -282,13 +282,13 @@
       "blocked_by": [],
       "evidence": {
         "implementation": [
-          "docs/install/release_workflow_test.go and hardlinked webpages/docs/install/release_workflow_test.go: TestReleasePrepGuideTargetMatrixMatchesWorkflow checks every release target slug, approval-only tag policy, SHA-256 sidecars, SPDX SBOMs, and GitHub SBOM/build-provenance attestations.",
-          "docs/install/v0.1.0-release-prep.md and hardlinked webpages/docs/install/v0.1.0-release-prep.md: release workflow summary now lists linux-amd64, linux-arm64, darwin-amd64, darwin-arm64, windows-amd64, windows-arm64, and android-arm64 (Termux) plus trust artifacts."
+          "webpages/docs/install/release_workflow_test.go: TestReleasePrepGuideTargetMatrixMatchesWorkflow checks every release target slug, approval-only tag policy, SHA-256 sidecars, SPDX SBOMs, and GitHub SBOM/build-provenance attestations.",
+          "webpages/docs/install/v0.1.0-release-prep.md: release workflow summary now lists linux-amd64, linux-arm64, darwin-amd64, darwin-arm64, windows-amd64, windows-arm64, and android-arm64 (Termux) plus trust artifacts."
         ],
         "verification": [
-          "RED: go test ./docs/install ./webpages/docs/install -run TestReleasePrepGuideTargetMatrixMatchesWorkflow -count=1 failed because the guide lacked all seven target slugs, SHA-256 sidecars, SPDX SBOMs, GitHub SBOM/build-provenance attestation wording, and android-arm64 (Termux).",
-          "GREEN: go test ./docs/install ./webpages/docs/install -run TestReleasePrepGuideTargetMatrixMatchesWorkflow -count=1 passed after guide sync.",
-          "GREEN: go test ./docs/install ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|PublishesInstallScripts|GeneratesSBOMsWithoutPublishingFromMatrix|AttestsSBOMsForArchives|AttestsBuildProvenanceForArchives|EnforcesMaxArchiveSize|ReleaseNotesIncludeArchiveSize)|TestReleasePrepGuideTargetMatrixMatchesWorkflow' -count=1 passed."
+          "RED: go test ./webpages/docs/install -run TestReleasePrepGuideTargetMatrixMatchesWorkflow -count=1 failed because the guide lacked all seven target slugs, SHA-256 sidecars, SPDX SBOMs, GitHub SBOM/build-provenance attestation wording, and android-arm64 (Termux).",
+          "GREEN: go test ./webpages/docs/install -run TestReleasePrepGuideTargetMatrixMatchesWorkflow -count=1 passed after guide sync.",
+          "GREEN: go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|PublishesInstallScripts|GeneratesSBOMsWithoutPublishingFromMatrix|AttestsSBOMsForArchives|AttestsBuildProvenanceForArchives|EnforcesMaxArchiveSize|ReleaseNotesIncludeArchiveSize)|TestReleasePrepGuideTargetMatrixMatchesWorkflow' -count=1 passed."
         ]
       }
     }
@@ -313,8 +313,8 @@
       "degraded_mode": "Without build_date, operators can verify the release tag and source commit but cannot tell when a downloaded binary was minted; the parent release pipeline acceptance remains only partially satisfied.",
       "fixture": "cmd/gormes/version_test.go::TestVersionCommand_JSONIncludesBuildDateField; webpages/docs/install/release_workflow_test.go::TestReleaseWorkflowInjectsBuildDateProvenance",
       "source_refs": [
-        "docs/content/building-gormes/strategy/success-plan.md:Q3 sharp v1.0 release artifact",
-        "docs/content/building-gormes/architecture_plan/progress.json:Single-binary cross-platform release pipeline acceptance",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md:Q3 sharp v1.0 release artifact",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json:Single-binary cross-platform release pipeline acceptance",
         ".github/workflows/release.yml:Build static binary archive",
         "cmd/gormes/version.go:versionReportJSON"
       ],
@@ -341,7 +341,7 @@
         "cmd/gormes/version_test.go",
         "cmd/gormes/version_vcs_fallback_test.go",
         "webpages/docs/install/release_workflow_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestVersionCommand_JSONIncludesBuildDateField|TestResolveBuildDateFrom' -count=1",
@@ -417,11 +417,11 @@
       "write_scope": [
         ".github/workflows/release.yml",
         "webpages/docs/install/release_workflow_test.go",
-        "docs/install/release_workflow_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/install/release_workflow_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./webpages/docs/install ./docs/install -run 'TestReleaseWorkflow(ReleaseTitleCarriesDateAlias|ReleaseNotesIncludeArchiveSize|ReleaseNotesNameSBOMAttestations|PublishesInstallScripts)' -count=1",
+        "go test ./webpages/docs/install -run 'TestReleaseWorkflow(ReleaseTitleCarriesDateAlias|ReleaseNotesIncludeArchiveSize|ReleaseNotesNameSBOMAttestations|PublishesInstallScripts)' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -437,12 +437,12 @@
         "implementation": [
           ".github/workflows/release.yml: Build release notes now parses VersionDateAlias from cmd/gormes/version.go, writes date_alias to GITHUB_OUTPUT, and starts release-notes.md with a semver plus date-alias heading.",
           ".github/workflows/release.yml: softprops/action-gh-release now sets the displayed release name from github.ref_name plus steps.release_notes.outputs.date_alias while preserving body_path and all release assets.",
-          "webpages/docs/install/release_workflow_test.go: TestReleaseWorkflowReleaseTitleCarriesDateAlias pins the release-note heading, date-alias step output, and softprops release name contract for both docs import paths."
+          "webpages/docs/install/release_workflow_test.go: TestReleaseWorkflowReleaseTitleCarriesDateAlias pins the release-note heading, date-alias step output, and softprops release name contract."
         ],
         "verification": [
-          "RED: go test ./webpages/docs/install ./docs/install -run TestReleaseWorkflowReleaseTitleCarriesDateAlias -count=1 failed because the workflow had no release_notes step output, date-alias heading, or softprops release name.",
-          "GREEN: go test ./webpages/docs/install ./docs/install -run TestReleaseWorkflowReleaseTitleCarriesDateAlias -count=1 passed.",
-          "GREEN: go test ./webpages/docs/install ./docs/install -run 'TestReleaseWorkflow(ReleaseTitleCarriesDateAlias|ReleaseNotesIncludeArchiveSize|ReleaseNotesNameSBOMAttestations|PublishesInstallScripts)' -count=1 passed."
+          "RED: go test ./webpages/docs/install -run TestReleaseWorkflowReleaseTitleCarriesDateAlias -count=1 failed because the workflow had no release_notes step output, date-alias heading, or softprops release name.",
+          "GREEN: go test ./webpages/docs/install -run TestReleaseWorkflowReleaseTitleCarriesDateAlias -count=1 passed.",
+          "GREEN: go test ./webpages/docs/install -run 'TestReleaseWorkflow(ReleaseTitleCarriesDateAlias|ReleaseNotesIncludeArchiveSize|ReleaseNotesNameSBOMAttestations|PublishesInstallScripts)' -count=1 passed."
         ]
       }
     }
@@ -467,8 +467,8 @@
       "degraded_mode": "Without artifact sizes in release notes, operators cannot verify the v1 single-binary size promise from the public release page even though the workflow enforces the cap internally.",
       "fixture": "webpages/docs/install/release_workflow_test.go::TestReleaseWorkflowReleaseNotesIncludeArchiveSize",
       "source_refs": [
-        "docs/content/building-gormes/strategy/v1-differentiator.md:30 MB Go binary claim",
-        "docs/content/building-gormes/strategy/success-plan.md:release notes install-size benchmark",
+        "webpages/docs/content/building-gormes/strategy/v1-differentiator.md:30 MB Go binary claim",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md:release notes install-size benchmark",
         ".github/workflows/release.yml:Build release notes",
         "webpages/docs/install/release_workflow_test.go:TestReleaseWorkflowEnforcesMaxArchiveSize"
       ],
@@ -492,7 +492,7 @@
       "write_scope": [
         ".github/workflows/release.yml",
         "webpages/docs/install/release_workflow_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|EnforcesMaxArchiveSize|ReleaseNotesIncludeArchiveSize)' -count=1",
@@ -539,8 +539,8 @@
       "degraded_mode": "Without an SBOM attestation binding, operators receive SBOM files and build-provenance attestations but cannot verify that the published SPDX document is cryptographically associated with the release archive.",
       "fixture": "webpages/docs/install/release_workflow_test.go::TestReleaseWorkflowAttestsSBOMsForArchives",
       "source_refs": [
-        "docs/content/building-gormes/strategy/success-plan.md:release provenance and install trust",
-        "docs/content/building-gormes/architecture_plan/progress.json:Single-binary cross-platform release pipeline not_ready_when release artifacts are unsigned",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md:release provenance and install trust",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json:Single-binary cross-platform release pipeline not_ready_when release artifacts are unsigned",
         ".github/workflows/release.yml:Generate SBOM",
         ".github/workflows/release.yml:Attest build provenance",
         "GitHub Actions docs: artifact attestations require subject-path and SBOM attestations require sbom-path"
@@ -565,7 +565,7 @@
       "write_scope": [
         ".github/workflows/release.yml",
         "webpages/docs/install/release_workflow_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|GeneratesSBOMsWithoutPublishingFromMatrix|AttestsSBOMsForArchives)' -count=1",
@@ -613,8 +613,8 @@
       "degraded_mode": "Without a focused build-provenance attestation contract, the release flow can drift to an older action or attest the wrong subject while release notes continue to claim GitHub build provenance exists.",
       "fixture": "webpages/docs/install/release_workflow_test.go::TestReleaseWorkflowAttestsBuildProvenanceForArchives",
       "source_refs": [
-        "docs/content/building-gormes/strategy/success-plan.md:release provenance and install trust",
-        "docs/content/building-gormes/architecture_plan/progress.json:Single-binary cross-platform release pipeline not_ready_when release artifacts are unsigned",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md:release provenance and install trust",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json:Single-binary cross-platform release pipeline not_ready_when release artifacts are unsigned",
         ".github/workflows/release.yml:Attest build provenance",
         "webpages/docs/install/release_workflow_test.go:TestReleaseWorkflowAttestsSBOMsForArchives",
         "GitHub Actions docs: artifact attestations for binaries use actions/attest@v4 with subject-path and require id-token, contents, and attestations permissions"
@@ -639,7 +639,7 @@
       "write_scope": [
         ".github/workflows/release.yml",
         "webpages/docs/install/release_workflow_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|AttestsSBOMsForArchives|AttestsBuildProvenanceForArchives)' -count=1",
@@ -691,7 +691,7 @@
         ".github/workflows/release.yml:Build release notes",
         "webpages/docs/install/release_workflow_test.go:TestReleaseWorkflowAttestsSBOMsForArchives",
         "webpages/docs/install/release_workflow_test.go:TestReleaseWorkflowAttestsBuildProvenanceForArchives",
-        "docs/content/building-gormes/architecture_plan/progress.json:Single-binary cross-platform release pipeline"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json:Single-binary cross-platform release pipeline"
       ],
       "ready_when": [
         "Release SBOM attestation binding is complete and uses actions/attest@v4 with subject-path plus sbom-path.",
@@ -712,8 +712,8 @@
       "write_scope": [
         ".github/workflows/release.yml",
         "webpages/docs/install/release_workflow_test.go",
-        "docs/install/release_workflow_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/install/release_workflow_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs/install -run 'TestReleaseWorkflow(ReleaseNotesIncludeArchiveSize|ReleaseNotesNameSBOMAttestations|AttestsSBOMsForArchives|AttestsBuildProvenanceForArchives|PublishesInstallScripts)' -count=1",
@@ -730,7 +730,7 @@
       "evidence": {
         "implementation": [
           ".github/workflows/release.yml: Build release notes now says SBOM and build-provenance attestations are published to the GitHub Attestations store.",
-          "webpages/docs/install/release_workflow_test.go and hardlinked docs/install/release_workflow_test.go: TestReleaseWorkflowReleaseNotesNameSBOMAttestations pins the trust wording and rejects the stale build-provenance-only line.",
+          "webpages/docs/install/release_workflow_test.go: TestReleaseWorkflowReleaseNotesNameSBOMAttestations pins the trust wording and rejects the stale build-provenance-only line.",
           "webpages/docs/install/release_workflow_test.go: TestReleaseWorkflowReleaseNotesIncludeArchiveSize now preserves the updated attestation wording alongside the size/SHA artifact table."
         ],
         "verification": [
@@ -761,8 +761,8 @@
       "degraded_mode": "If an archive exceeds the cap, the release matrix fails before upload or publication; operators keep source-build installs rather than receiving an oversized prebuilt binary.",
       "fixture": "webpages/docs/install/release_workflow_test.go::TestReleaseWorkflowEnforcesMaxArchiveSize",
       "source_refs": [
-        "docs/content/building-gormes/strategy/v1-differentiator.md:30 MB Go binary claim",
-        "docs/content/building-gormes/strategy/success-plan.md:sharp v1.0 differentiator and install-size benchmark",
+        "webpages/docs/content/building-gormes/strategy/v1-differentiator.md:30 MB Go binary claim",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md:sharp v1.0 differentiator and install-size benchmark",
         ".github/workflows/release.yml:Build static binary archive",
         "webpages/docs/install/release_workflow_test.go:TestReleaseWorkflowContract"
       ],
@@ -785,7 +785,7 @@
       "write_scope": [
         ".github/workflows/release.yml",
         "webpages/docs/install/release_workflow_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|EnforcesMaxArchiveSize)' -count=1",
@@ -851,9 +851,9 @@
         "README.md:Termux/Android caveat",
         "webpages/docs/content/install/_index.md:Termux/Android caveat",
         "webpages/docs/content/troubleshooting/common-errors.md:Termux v0.2.20 unknown command",
-        "docs/development-skills/gormes-release/SKILL.md:Branch Rule",
-        "docs/development-skills/gormes-release/SKILL.md:Preflight Commands",
-        "docs/development-skills/gormes-release/SKILL.md:Workflow steps 7-12",
+        "development-skills/gormes-release/SKILL.md:Branch Rule",
+        "development-skills/gormes-release/SKILL.md:Preflight Commands",
+        "development-skills/gormes-release/SKILL.md:Workflow steps 7-12",
         ".github/workflows/ci.yml:CI workflow",
         ".github/workflows/release.yml:Stage install scripts as release assets",
         ".github/workflows/release.yml:softprops/action-gh-release@v3 files",

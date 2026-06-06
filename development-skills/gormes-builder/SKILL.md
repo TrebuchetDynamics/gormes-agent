@@ -29,7 +29,7 @@ source refs. Do not depend on the Python runtime from Gormes code.
 
 1. Read `AGENTS.md`.
 2. Read the selected logical progress row through `cmd/progress` / `internal/planning/progress`. Use parity evidence docs only as source-backed classification evidence, not as the executable backlog.
-3. Read the relevant section of `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` for subsystem context.
+3. Read the relevant section of `webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` for subsystem context.
 4. Read exact upstream Hermes/Honcho source refs named by the row or evidence doc and current Gormes target files before editing.
 5. Read `references/delivery-gates.md` before final verification.
 
@@ -81,7 +81,7 @@ Useful discovery:
 ```sh
 go run ./cmd/progress next-work
 go run ./cmd/progress list --module <module>
-rg -n "missing|partial|provider|<topic>" docs/content/building-gormes docs/parity-evidence
+rg -n "missing|partial|provider|<topic>" webpages/docs/content/building-gormes webpages/docs/parity-evidence
 ```
 
 ## Build Workflow

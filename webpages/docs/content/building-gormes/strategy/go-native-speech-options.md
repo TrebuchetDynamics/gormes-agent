@@ -35,7 +35,7 @@ The TTS side does not yet satisfy the Go-owned target:
 - Cloud HTTP providers and command providers are implemented.
 - `LazyLocalTTSProvider` currently proves dependency status only; it returns
   `TTS synthesis provider is not wired in this build` when selected.
-- `docs/content/building-gormes/strategy/tts-decision.md` previously chose the
+- `webpages/docs/content/building-gormes/strategy/tts-decision.md` previously chose the
   command-provider pattern as the local TTS answer.
 
 That old decision keeps compatibility but does not meet the new product goal:

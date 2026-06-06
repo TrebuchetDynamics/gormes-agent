@@ -60,7 +60,6 @@ const (
 var benchmarkRuntimeArgs = []string{"doctor", "--offline", "--json"}
 
 var benchmarkMirrorPaths = []string{
-	filepath.Join("docs", "data", "benchmarks.json"),
 	filepath.Join("webpages", "docs", "data", "benchmarks.json"),
 	filepath.Join("webpages", "landing", "src", "data", "benchmarks.json"),
 	filepath.Join("webpages", "landing", "legacy", "go-renderer", "internal", "site", "data", "benchmarks.json"),
@@ -396,10 +395,10 @@ func historyDate(entry any) string {
 }
 
 func currentPhase(root string, history []any) string {
-	if phase := phaseFromArchPlan(filepath.Join(root, "docs", "ARCH_PLAN.md")); phase != "" {
+	if phase := phaseFromArchPlan(filepath.Join(root, "webpages", "docs", "ARCH_PLAN.md")); phase != "" {
 		return phase
 	}
-	if phase := phaseFromProgress(filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "progress.json")); phase != "" {
+	if phase := phaseFromProgress(filepath.Join(root, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json")); phase != "" {
 		return phase
 	}
 	for _, entry := range history {

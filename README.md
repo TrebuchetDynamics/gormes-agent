@@ -227,9 +227,9 @@ gormes doctor --offline
 Gormes is ported against Hermes behavior in small, test-backed slices. This process is here for auditability; the product pitch is the runtime you can install and run.
 
 - Roadmap: [Hermes parity phases](https://docs.gormes.ai/building-gormes/architecture_plan/)
-- Strategy: [Gormes Success Plan](docs/content/building-gormes/strategy/success-plan.md)
+- Strategy: [Gormes Success Plan](webpages/docs/content/building-gormes/strategy/success-plan.md)
 - Engineering blog: [TrebuchetDynamics Engineering](https://engineering.trebuchetdynamics.com/) ([RSS](https://engineering.trebuchetdynamics.com/feed.xml))
-- Differentiator: [v1.0 differentiator](docs/content/building-gormes/strategy/v1-differentiator.md)
+- Differentiator: [v1.0 differentiator](webpages/docs/content/building-gormes/strategy/v1-differentiator.md)
 - Development workflow: [repo-local development skills](development-skills/) track the planner, builder, and TDD-slice process.
 - Future toolkit extraction (`agentic-porting-kit`): tracked as a Phase 8 row.
 

@@ -111,7 +111,7 @@ Skill loading
 - Use the `skill` tool to load a skill by name (e.g. `skill gormes-git`). The
   tool returns the SKILL.md content; read it and follow the instructions
   manually. Do NOT call `skill_mcp` for these — they have no MCP endpoint.
-- The full skill catalog is under docs/development-skills/gormes-*/SKILL.md.
+- The full skill catalog is under development-skills/gormes-*/SKILL.md.
   The same files are symlinked into ~/.config/opencode/skills/ for
   discoverability.
 
@@ -147,7 +147,7 @@ Single focused goal per cycle (pick the FIRST that applies)
 
 3. Worktree is clean and you can read progress.json?
    Pick ONE small, builder-ready row from
-   docs/content/building-gormes/architecture_plan/progress.json (priority P1
+   webpages/docs/content/building-gormes/architecture_plan/progress.json (priority P1
    or P2, slice_size small, contract_status ready, blocked_by empty). Load
    `gormes-builder` and `gormes-tdd-slice`, follow them to implement that
    one row with a red→green→refactor loop. Run `go run ./cmd/progress
@@ -194,7 +194,7 @@ First invoke gormes-git. If the worktree is dirty, commit every current safe cha
 
 Then invoke gormes-hermes-parity against progress.json. Run a bounded all-topic weakness sweep: find source-backed missing tasks to add, stale complete rows to revisit, vague rows to sharpen, or existing builder-ready rows whose priority should rise. Cover the major Gormes/Hermes surfaces rather than only the most recent subsystem: CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows.
 
-Then invoke gormes-planner on the parity findings and current planned-row count. Convert findings into builder-ready progress.json row changes before implementation. Keep the queue completion-biased: add at most one new source-backed row per cycle, add no new P3/P4 rows while planned rows are 90 or higher, and prefer sharpening, de-duplicating, or reprioritizing existing rows when that is enough. Record implementation intent only in docs/content/building-gormes/architecture_plan/progress.json and regenerate derived progress surfaces when it changes.
+Then invoke gormes-planner on the parity findings and current planned-row count. Convert findings into builder-ready progress.json row changes before implementation. Keep the queue completion-biased: add at most one new source-backed row per cycle, add no new P3/P4 rows while planned rows are 90 or higher, and prefer sharpening, de-duplicating, or reprioritizing existing rows when that is enough. Record implementation intent only in webpages/docs/content/building-gormes/architecture_plan/progress.json and regenerate derived progress surfaces when it changes.
 
 Then implement the highest-priority builder-ready new/planned progress.json row after that parity sweep. If the top candidate is not actually ready, pick the next highest-priority builder-ready row or fix the highest-priority failing row that is already in scope. Do exactly one bounded row.
 
@@ -204,7 +204,7 @@ Hard constraints:
 - Read AGENTS.md and the selected skill files before editing.
 - Stay on the existing development branch only. Do not create branches or worktrees.
 - Do not recreate cmd/planner-loop, cmd/builder-loop, or any autonomous loop binary.
-- Do not create a backlog outside docs/content/building-gormes/architecture_plan/progress.json.
+- Do not create a backlog outside webpages/docs/content/building-gormes/architecture_plan/progress.json.
 - Do not skip because the worktree is dirty. Dirty state means gormes-git is the first task.
 - Do not treat the parity sweep as implementation. It may add, revisit, prioritize, or sharpen progress rows; runtime code belongs to the subsequent builder/TDD step.
 - Preserve any user or parallel-agent changes if they appear while working.

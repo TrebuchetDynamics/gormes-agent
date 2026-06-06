@@ -773,7 +773,7 @@ Features studied but explicitly excluded from the must-have list:
 - [Gormes Completion Plan](../architecture_plan/completion-plan/) — Execution doctrine
 - [Go Donor Reference Map](../architecture_plan/go-donor-reference-map/) — Go implementation patterns
 - [GO-HERMES-PORTS-FORKS.md](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/GO-HERMES-PORTS-FORKS.md) — All known Go Hermes ports
-- [progress.json](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/content/building-gormes/architecture_plan/progress.json) — Canonical execution queue
+- [progress.json](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/webpages/docs/content/building-gormes/architecture_plan/progress.json) — Canonical execution queue
 
 ---
 

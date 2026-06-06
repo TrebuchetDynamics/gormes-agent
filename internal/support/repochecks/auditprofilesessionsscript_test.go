@@ -18,7 +18,7 @@ func TestAuditProfileSessionsGatewayStatusUsesConfiguredHome(t *testing.T) {
 		0o755,
 	)
 	writeFile(t,
-		filepath.Join(tmpRepo, "docs", "content", "building-gormes", "modules", "runtime.md"),
+		filepath.Join(tmpRepo, "webpages", "docs", "content", "building-gormes", "modules", "runtime.md"),
 		[]byte("# Runtime\n"),
 		0o644,
 	)
@@ -83,7 +83,7 @@ func TestAuditProfileSessionsHonorsSessionLineLimitForYAML(t *testing.T) {
 		0o755,
 	)
 	writeFile(t,
-		filepath.Join(tmpRepo, "docs", "content", "building-gormes", "modules", "sessions.md"),
+		filepath.Join(tmpRepo, "webpages", "docs", "content", "building-gormes", "modules", "sessions.md"),
 		[]byte("# Sessions\n"),
 		0o644,
 	)

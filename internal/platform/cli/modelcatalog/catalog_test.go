@@ -1,6 +1,9 @@
 package modelcatalog
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestHermesModelProviderCatalogExcludesSetupActions(t *testing.T) {
 	entries := HermesModelProviderCatalog()
@@ -21,5 +24,23 @@ func TestHermesProviderCatalogReturnsCopy(t *testing.T) {
 
 	if got := HermesProviderCatalog()[0].ID; got != "nous" {
 		t.Fatalf("catalog first id = %q, want immutable copy", got)
+	}
+}
+
+func TestHermesProviderCatalogExcludesRouterAsUpstreamProvider(t *testing.T) {
+	entries := HermesProviderCatalog()
+	leaveUnchanged := false
+	for _, entry := range entries {
+		id := strings.ToLower(strings.TrimSpace(entry.ID))
+		label := strings.ToLower(strings.TrimSpace(entry.Label))
+		if id == ProviderCatalogLeaveUnchanged {
+			leaveUnchanged = true
+		}
+		if id == "router" || id == "gormes-router" || label == "gormes router" {
+			t.Fatalf("provider catalog exposed Router as upstream provider: %+v", entry)
+		}
+	}
+	if !leaveUnchanged {
+		t.Fatal("provider catalog missing leave-unchanged entry")
 	}
 }

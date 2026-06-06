@@ -6,7 +6,7 @@ dist/
 # unique suffix (e.g. .gormes-docs-astro-build-2070463986).
 .gormes-docs-astro-build-*/
 
-# Starlight reads from src/content/docs, but docs/content remains the
+# Starlight reads from src/content/docs, but webpages/docs/content remains the
 # canonical repository docs source. The sync script regenerates this tree.
 src/content/docs/
 

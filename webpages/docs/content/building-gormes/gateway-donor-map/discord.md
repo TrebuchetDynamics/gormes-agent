@@ -9,7 +9,7 @@ Discord is now shipped in Gormes, so this donor page is about parity gaps and re
 
 ## Status
 
-`docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now marks Discord as shipped for Phase 2.B.2. Gormes already has a Go Discord adapter on the shared gateway chassis; this page tracks donor material still worth porting or hardening.
+`webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now marks Discord as shipped for Phase 2.B.2. Gormes already has a Go Discord adapter on the shared gateway chassis; this page tracks donor material still worth porting or hardening.
 
 Evidence level:
 
@@ -17,7 +17,7 @@ Evidence level:
 - The donor commit inspected for this research was `6421f146a99df1bebcd4b1ca8de2a289dfca3622`.
 - The upstream donor repo is `https://github.com/sipeed/picoclaw`.
 - Any `pkg/...` or `docs/...` path listed below is relative to that donor root, not relative to the Gormes repo.
-- Current Gormes status and target behavior were verified in-tree against `docs/content/building-gormes/architecture_plan/subsystem-inventory.md` and `docs/content/upstream-hermes/user-guide/messaging/discord.md`.
+- Current Gormes status and target behavior were verified in-tree against `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` and `webpages/docs/content/upstream-hermes/user-guide/messaging/discord.md`.
 
 That makes Discord a real donor candidate. The PicoClaw implementation already covers:
 
@@ -50,8 +50,8 @@ The voice and TTS surface in `picoclaw/pkg/channels/discord/voice.go` is broader
 - `picoclaw/pkg/channels/discord/discord_test.go`
 - `picoclaw/pkg/channels/discord/discord_resolve_test.go`
 - `picoclaw/docs/channels/discord/README.md`
-- `docs/content/upstream-hermes/user-guide/messaging/discord.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/upstream-hermes/user-guide/messaging/discord.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 ## What To Copy vs What To Rebuild
 
@@ -73,7 +73,7 @@ Rebuild in Gormes-native form:
 ## Gormes Mapping
 
 - The donor's `Start` and `Stop` methods map into the current Gormes Discord adapter lifecycle: one adapter, one kernel-facing render loop, explicit shutdown.
-- `handleMessage` should map to Gormes inbound policy documented in `docs/content/upstream-hermes/user-guide/messaging/discord.md`: respond to DMs, require mention in server channels by default, preserve thread isolation, and keep session identity explicit.
+- `handleMessage` should map to Gormes inbound policy documented in `webpages/docs/content/upstream-hermes/user-guide/messaging/discord.md`: respond to DMs, require mention in server channels by default, preserve thread isolation, and keep session identity explicit.
 - `sendChunk` maps to Gormes outbound delivery, especially reply threading and per-message send timeout.
 - `startTyping` and `stopTyping` map cleanly to shared adapter UX helpers from `gateway-donor-map/shared-adapter-patterns.md`.
 - `voice.go` is best treated as a later `internal/channels/discord/voice.go` companion rather than part of the shipped text adapter.
@@ -109,7 +109,7 @@ Rebuild in Gormes-native form:
 - `picoclaw/pkg/channels/discord/discord_test.go`
 - `picoclaw/pkg/channels/discord/discord_resolve_test.go`
 - `picoclaw/docs/channels/discord/README.md`
-- `docs/content/upstream-hermes/user-guide/messaging/discord.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/upstream-hermes/user-guide/messaging/discord.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 Recommendation: `copy candidate`.

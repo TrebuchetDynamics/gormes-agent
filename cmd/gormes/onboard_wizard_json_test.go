@@ -17,9 +17,7 @@ import (
 // skip_warning}, ...]}` document. The plain `--json` snapshot path
 // stays unchanged for callers that don't ask for the wizard plan.
 func TestOnboardWizard_JSONEmitsStructuredPlan(t *testing.T) {
-	t.Setenv("GORMES_HOME", t.TempDir())
-	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	setupOnboardWizardTestEnv(t)
 
 	stdout, stderr, err := executeOnboardCommandWithSeams(t, onboardCommandSeams{}, "--wizard", "--json", "--non-interactive")
 	if err != nil {
@@ -79,9 +77,7 @@ func TestOnboardWizard_JSONEmitsStructuredPlan(t *testing.T) {
 // agents, ...}` — the existing internal onboardStatusReportJSON shape.
 // Adding the wizard JSON path must not double up the surface.
 func TestOnboard_JSONWithoutWizardFlagStaysSnapshotShape(t *testing.T) {
-	t.Setenv("GORMES_HOME", t.TempDir())
-	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	setupOnboardWizardTestEnv(t)
 
 	stdout, _, err := executeOnboardCommandWithSeams(t, onboardCommandSeams{}, "--json")
 	if err != nil {
@@ -96,9 +92,7 @@ func TestOnboard_JSONWithoutWizardFlagStaysSnapshotShape(t *testing.T) {
 }
 
 func TestOnboardJSONIncludesFirstRunReadiness(t *testing.T) {
-	t.Setenv("GORMES_HOME", t.TempDir())
-	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	setupOnboardWizardTestEnv(t)
 
 	stdout, stderr, err := executeOnboardCommandWithSeams(t, onboardCommandSeams{}, "--json")
 	if err != nil {
@@ -141,9 +135,7 @@ func TestOnboardJSONIncludesFirstRunReadiness(t *testing.T) {
 
 func TestOnboardJSONIncludesFirstRunReadinessWithSecretRefAuth(t *testing.T) {
 	secret := "sk-onboard-secretref"
-	t.Setenv("GORMES_HOME", t.TempDir())
-	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	setupOnboardWizardTestEnv(t)
 	t.Setenv("GORMES_PROVIDER_SECRET", secret)
 	writeOneshotFlagConfig(t, []byte(`
 [hermes]

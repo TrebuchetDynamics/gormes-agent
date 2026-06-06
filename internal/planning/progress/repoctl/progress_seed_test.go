@@ -11,7 +11,7 @@ import (
 
 func TestSeedProgressRowsAddsFleetRowsIdempotently(t *testing.T) {
 	root := t.TempDir()
-	progressPath := filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "progress.json")
+	progressPath := filepath.Join(root, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
 	writeSeedProgressFixture(t, progressPath)
 
 	first, err := SeedProgressRows(ProgressSeedOptions{Root: root, Set: "fleet"})

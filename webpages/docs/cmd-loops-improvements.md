@@ -3,7 +3,7 @@
 Historical audit conducted 2026-04-25 against the now-removed
 `cmd/builder-loop/` and `cmd/planner-loop/` directories. Those binaries have
 since been replaced by repo-local skills plus focused `cmd/progress` and
-`cmd/repoctl` helpers.
+`cmd/gormes-repo` helpers.
 
 Each item lists the rationale, current code reference, and a one-line outline
 of the fix. Items are grouped by tier; lower-numbered items are higher
@@ -33,7 +33,7 @@ leverage.
 
 ### 1. Break the planner→builder import
 
-`cmd/repoctl/main.go` and `internal/plannerloop/*.go` import
+`cmd/gormes-repo/main.go` and `internal/plannerloop/*.go` import
 `internal/builderloop` only for the `Runner`, `ExecRunner`, `FakeRunner`,
 `Command`, `Result`, and `ErrUnexpectedCommand` types. That is plumbing, not
 domain — and creates a backwards dependency from planning into building.
@@ -53,7 +53,7 @@ compile. Update plannerloop and both cmd/ binaries to depend on
 `parseRunOptions` in both binaries hand-rolls `--codexu | --claudeu |
 --opencode`. Every new backend means a parser change in two places. Today,
 that means `cmd/progress/main.go:108-128` and
-`cmd/repoctl/main.go:108-141`.
+`cmd/gormes-repo/main.go:108-141`.
 
 **Fix.** Single `--backend <name>` flag with validation against an allowlist.
 The existing `BACKEND` environment variable continues to work as an override
@@ -63,7 +63,7 @@ into a table-driven case.
 ### 3. Push env reads into `*.ConfigFromEnv` itself
 
 `autoloopEnv()` (`cmd/progress/main.go:269`) and `plannerEnv()`
-(`cmd/repoctl/main.go:143`) maintain hand-edited allowlists of 14 and 17
+(`cmd/gormes-repo/main.go:143`) maintain hand-edited allowlists of 14 and 17
 environment variable names respectively. Every new env knob (and there are
 many — see today's commits) requires editing these allowlists or the new knob
 silently has no effect.
@@ -98,7 +98,7 @@ subcommand. Distinguish help (stdout, exit 0) from parse errors
 
 ### 6. `planner-loop doctor` actually diagnoses drift
 
-`doctor` (`cmd/repoctl/main.go:313`) only `os.Stat`s a few directories
+`doctor` (`cmd/gormes-repo/main.go:313`) only `os.Stat`s a few directories
 and looks up the backend on PATH. It cannot detect "the loop has been
 running but not progressing" — the actual operational concern.
 
@@ -109,7 +109,7 @@ writable, last `health_updated` event in the planner ledger is fresher than
 
 ### 7. Show keywords in planner run summary
 
-`printRunSummary` (`cmd/repoctl/main.go:176`) omits
+`printRunSummary` (`cmd/gormes-repo/main.go:176`) omits
 `summary.Keywords` even though they meaningfully steer planner behavior. An
 operator running `planner-loop run hermes-issues` cannot confirm from the
 output that topical mode actually engaged.
@@ -136,14 +136,14 @@ that just happen to share the binary. This forces `builder-loop` to import
 `internal/progress` and `internal/repoctl`, expanding what changes when the
 loop changes.
 
-**Fix.** Promote to `cmd/progress` and `cmd/repoctl`, or fold all verbs
+**Fix.** Promote to `cmd/progress` and `cmd/gormes-repo`, or fold all verbs
 under a single `cmd/gormes <verb>` parent. Update Makefile,
 documentation, and any wrapper scripts.
 
-**Status (2026-04-25).** New `cmd/progress` and `cmd/repoctl` binaries
+**Status (2026-04-25).** New `cmd/progress` and `cmd/gormes-repo` binaries
 exist as standalone entry points. The shared progress logic moved to a
 new `internal/progressctl` package; `internal/repoctl` already existed
-so `cmd/repoctl` is a direct wrapper. The `builder-loop progress …` and
+so `cmd/gormes-repo` is a direct wrapper. The `builder-loop progress …` and
 `builder-loop repo …` subcommands keep working — they now delegate to
 the same internal packages — so existing automation does not break.
 Future cleanup: drop the builder-loop subcommands once operators have
@@ -165,7 +165,7 @@ one-liner.
 
 `commandStdout` and `commandRunner`/`serviceRunner` are mutable
 package-level vars used as test seams (cmd/progress/main.go:14-15,
-cmd/repoctl/main.go:16-17). They prevent `t.Parallel()` and require
+cmd/gormes-repo/main.go:16-17). They prevent `t.Parallel()` and require
 `t.Cleanup` dance in every test.
 
 **Fix.** A `cliDeps` struct (or interface) carrying `stdout`, `stderr`,

@@ -9,7 +9,7 @@ DingTalk is a good example of why transport shape matters more than headline pla
 
 ## Status
 
-`docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now groups DingTalk into the Phase `2.B.10` regional/device adapter tranche. Gormes now has a contract-tested `internal/channels/dingtalk` bot seam plus Stream Mode/bootstrap planning, session-webhook refresh, and retry/error handling. It still does not have a real DingTalk SDK binding, receive loop, or operator-configured runtime entrypoint.
+`webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now groups DingTalk into the Phase `2.B.10` regional/device adapter tranche. Gormes now has a contract-tested `internal/channels/dingtalk` bot seam plus Stream Mode/bootstrap planning, session-webhook refresh, and retry/error handling. It still does not have a real DingTalk SDK binding, receive loop, or operator-configured runtime entrypoint.
 
 Evidence level:
 
@@ -17,7 +17,7 @@ Evidence level:
 - The donor commit inspected for this research was `6421f146a99df1bebcd4b1ca8de2a289dfca3622`.
 - The upstream donor repo is `https://github.com/sipeed/picoclaw`.
 - Any `pkg/...` or `docs/...` path listed below is relative to that donor root, not relative to the Gormes repo.
-- Current Gormes status and target behavior were verified in-tree against `internal/channels/dingtalk/bot.go`, `internal/channels/dingtalk/runtime.go`, their tests, `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`, and `docs/content/upstream-hermes/user-guide/messaging/dingtalk.md`.
+- Current Gormes status and target behavior were verified in-tree against `internal/channels/dingtalk/bot.go`, `internal/channels/dingtalk/runtime.go`, their tests, `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`, and `webpages/docs/content/upstream-hermes/user-guide/messaging/dingtalk.md`.
 
 Keep the boundary explicit: PicoClaw contributes the DingTalk edge. Gormes architecture, session model, and UX policy remain authoritative.
 
@@ -37,8 +37,8 @@ The donor does not yet show advanced DingTalk features from the upstream Hermes 
 - `picoclaw/pkg/channels/dingtalk/dingtalk.go`
 - `picoclaw/pkg/channels/dingtalk/dingtalk_test.go`
 - `picoclaw/docs/channels/dingtalk/README.md`
-- `docs/content/upstream-hermes/user-guide/messaging/dingtalk.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/upstream-hermes/user-guide/messaging/dingtalk.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 ## What To Copy vs What To Rebuild
 
@@ -90,6 +90,6 @@ For the initial adapter, the donor is best used to shape inbound handling and ca
 - `picoclaw/pkg/channels/dingtalk/dingtalk.go`: `Start`, `Stop`, `Send`, `onChatBotMessageReceived`, `SendDirectReply`.
 - `picoclaw/pkg/channels/dingtalk/dingtalk_test.go`
 - `picoclaw/docs/channels/dingtalk/README.md`
-- `docs/content/upstream-hermes/user-guide/messaging/dingtalk.md`
+- `webpages/docs/content/upstream-hermes/user-guide/messaging/dingtalk.md`
 
 Recommendation: `adapt pattern only`.

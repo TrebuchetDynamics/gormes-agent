@@ -51,7 +51,7 @@
       "write_scope": [
         "internal/builderloop/ship_ratio.go",
         "internal/builderloop/ship_ratio_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/builderloop -run '^(TestClassifySubphase|TestComputeShipRatio)$' -count=1",
@@ -94,7 +94,7 @@
       "degraded_mode": "Without cost telemetry, the operating principle \"$/feature shipped\" cannot be enforced; the loop runs at indefinite cost.",
       "fixture": "internal/loopcost/cost_test.go",
       "source_refs": [
-        "docs/content/building-gormes/strategy/success-plan.md",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md",
         "scripts/gormes-builder-loop.sh",
         "scripts/gormes-builder-cron.sh",
         "internal/loopcost/cost.go",
@@ -125,7 +125,7 @@
         "internal/loopcost/cost_test.go",
         "scripts/gormes-builder-loop.sh",
         "scripts/gormes-builder-cron.sh",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "internal/codexubuilderloopscript_test.go"
       ],
       "test_commands": [
@@ -167,7 +167,7 @@
         "cmd/progress/main.go (validate/write entrypoint to extend with compact)",
         "internal/progress/progress.go Load/marshal ; internal/progress/progress_marshal.go (stable key order)",
         "internal/progress/validate_test.go ; references/progress-row-contract.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "ready_when": [
         "The progress-row contract schema + marshal stable-ordering are understood (internal/progress/progress_marshal.go); a completed row's other fields are provably untouched by the compaction."
@@ -189,7 +189,7 @@
         "internal/progress/compact_test.go",
         "internal/progressctl/progressctl.go",
         "internal/progressctl/progressctl_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/progress -count=1",
@@ -225,7 +225,7 @@
       "source_refs": [
         "internal/progress/progress.go:245 Load (public contract to preserve) ; internal/progress/progress_marshal.go (stable marshal)",
         "cmd/progress/main.go ; internal/plannerloop ; internal/builderloop/health_writer.go ; cmd/gormes/status.go ; internal/architectureplanneragent",
-        "docs/development-skills/gormes-hermes-parity/references/domain-language.md + behavior-atoms.md (canonical subsystem taxonomy to align module names)",
+        "development-skills/gormes-hermes-parity/references/domain-language.md + behavior-atoms.md (canonical subsystem taxonomy to align module names)",
         "AGENTS.md progress-contract (lines 89/96/100) ; the gormes-* skills' Source Order sections"
       ],
       "ready_when": [
@@ -239,9 +239,9 @@
         "All split-prep children are shipped: C1-C5e plus C5f (feature enum + validation), C5g (explicit per-row module backfill + audit), C5h (module-scoped progress commands), and C5i (generated per-module docs).",
         "The final C5 flip materializes modules/<feature>.json files using the approved feature taxonomy; zero rows are missing modules, zero rows use broad transitional module names, and the single logical backlog is preserved through internal/progress.Load."
       ],
-      "note": "SHIPPED 2026-05-17 — umbrella closed by C5f/C5g/C5h/C5i plus the operator-gated C5 physical flip. The canonical backlog now lives at docs/content/building-gormes/architecture_plan/progress.json as a feature-module-keyed split directory using the approved fine taxonomy (browser, builder, channels, cli, config, cross-cutting, doctor, docs, fleet, gateway, goncho, install, kanban, landing, learning-loop, memory, navivox, planner, profiles, progress, providers, release, runtime, sessions, skills, stt, tools, tts, tui). Broad transitional buckets were never materialized.",
+      "note": "SHIPPED 2026-05-17 — umbrella closed by C5f/C5g/C5h/C5i plus the operator-gated C5 physical flip. The canonical backlog now lives at webpages/docs/content/building-gormes/architecture_plan/progress.json as a feature-module-keyed split directory using the approved fine taxonomy (browser, builder, channels, cli, config, cross-cutting, doctor, docs, fleet, gateway, goncho, install, kanban, landing, learning-loop, memory, navivox, planner, profiles, progress, providers, release, runtime, sessions, skills, stt, tools, tts, tui). Broad transitional buckets were never materialized.",
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "no_test_required": "umbrella inventory parent; child rows carry the tests",
       "done_signal": [
@@ -297,7 +297,7 @@
         "cmd/progress/main.go",
         "internal/progressctl/progressctl.go",
         "internal/progressctl/progressctl_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/progress -count=1",
@@ -356,7 +356,7 @@
       "write_scope": [
         "internal/progress/health.go",
         "internal/progress/split_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./... -count=1",
@@ -392,7 +392,7 @@
       "source_refs": [
         "internal/progress/progress.go Item struct + ExecutionOwner enum ; internal/progress/progress_marshal.go (stable order) ; internal/progress/validate.go (validator-neutral check)",
         "internal/progress/split.go (C1 substrate the module key will later key WriteSplit by)",
-        "docs/development-skills/gormes-hermes-parity/references/behavior-atoms.md Source Buckets (agreed taxonomy) ; the umbrella row's recorded module set"
+        "development-skills/gormes-hermes-parity/references/behavior-atoms.md Source Buckets (agreed taxonomy) ; the umbrella row's recorded module set"
       ],
       "ready_when": [
         "C1 shipped; the agreed module taxonomy is recorded in the umbrella; the additive ROW B/C1 schema-extension pattern is the template."
@@ -413,7 +413,7 @@
         "internal/progress/progress.go",
         "internal/progress/module.go",
         "internal/progress/module_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/progress ./internal/progressctl -count=1",
@@ -437,7 +437,7 @@
       "name": "Backlog split C4: AGENTS.md + gormes-* skills source-order updated to the split layout",
       "priority": "P2",
       "status": "complete",
-      "contract": "Update AGENTS.md (the 'progress.json is the only backlog' rule and Shared Progress Representation section, ~lines 6/89/96/100) and every gormes-* skill's Source Order / progress-contract wording to describe the split (and, post-C5, per-module) on-disk layout while EXPLICITLY preserving the single LOGICAL backlog contract: physically multiple files, one logical backlog, all agents/tools still go through internal/progress.Load (never hand-parse member files). Doc/skill-only; no runtime code. Must keep the symlinked skill loader views (.agents/.claude/.codex) consistent with the canonical docs/development-skills sources. Owned Gormes infra.",
+      "contract": "Update AGENTS.md (the 'progress.json is the only backlog' rule and Shared Progress Representation section, ~lines 6/89/96/100) and every gormes-* skill's Source Order / progress-contract wording to describe the split (and, post-C5, per-module) on-disk layout while EXPLICITLY preserving the single LOGICAL backlog contract: physically multiple files, one logical backlog, all agents/tools still go through internal/progress.Load (never hand-parse member files). Doc/skill-only; no runtime code. Must keep the symlinked skill loader views (.agents/.claude/.codex) consistent with the canonical development-skills sources. Owned Gormes infra.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "docs",
@@ -449,7 +449,7 @@
       "fixture": "no runtime fixture (doc/skill copy change); skill-shape validated by quick_validate.py",
       "source_refs": [
         "AGENTS.md (progress-contract lines ~6/89/96/100, Shared Progress Representation)",
-        "docs/development-skills/gormes-planner/SKILL.md + gormes-builder + gormes-tdd-slice + gormes-hermes-parity + gormes-skill-manager Source Order sections",
+        "development-skills/gormes-planner/SKILL.md + gormes-builder + gormes-tdd-slice + gormes-hermes-parity + gormes-skill-manager Source Order sections",
         "internal/progress/split.go + progress.go Load (the API the wording must point at)"
       ],
       "ready_when": [
@@ -464,14 +464,14 @@
       ],
       "acceptance": [
         "AGENTS.md + every gormes-* skill Source Order describes the split/module layout AND restates the single-logical-backlog-via-internal/progress.Load contract.",
-        "Symlinked .agents/.claude/.codex skill views resolve to the updated canonical docs/development-skills sources (quick_validate.py + find -L check green).",
+        "Symlinked .agents/.claude/.codex skill views resolve to the updated canonical development-skills sources (quick_validate.py + find -L check green).",
         "`go run ./cmd/progress validate` + `go test ./webpages/docs -count=1` green; git diff --check clean."
       ],
       "note": "SHIPPED 2026-05-16 see git log — AGENTS.md + 4 skills (planner/builder/hermes-parity/skill-manager) state single LOGICAL backlog via internal/progress.Load (monolith-or-split transparent, never hand-parse, monolith-on-disk-today/split-pending-C5). Write-scope correction: gormes-tdd-slice not edited (no backlog-contract block to amend).",
       "write_scope": [
         "AGENTS.md",
-        "docs/development-skills",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "development-skills",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go run ./cmd/progress validate",
@@ -531,7 +531,7 @@
       "write_scope": [
         "internal/progress/split.go",
         "internal/progress/split_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/progress ./internal/progressctl -count=1",
@@ -592,7 +592,7 @@
         "webpages/docs/phase5_docs_test.go",
         "webpages/docs/upstream_coverage_test.go",
         "webpages/docs/docs_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs -count=1",
@@ -616,7 +616,7 @@
       "name": "Backlog split C5d: migrate gormes-* skill discovery commands off raw jq of the canonical progress.json",
       "priority": "P2",
       "status": "complete",
-      "contract": "The gormes-planner, gormes-builder, and gormes-provider-parity SKILL.md discovery snippets run `jq ... docs/content/building-gormes/architecture_plan/progress.json` directly against the canonical backlog. `jq` on a directory fails, so every future planner/builder/provider-parity pass — and the autonomous fleet that drives them — breaks the moment the canonical path becomes a module-keyed split DIRECTORY (C5). Replace the raw-jq discovery snippets with a split-safe equivalent: prefer `go run ./cmd/progress` (a read-only list/emit) or `jq` over `go run ./cmd/progress`'s merged emit, so discovery returns the same row inventory whether the canonical is a monolithic file or a split directory. Canonical skill sources are docs/development-skills/<name>/SKILL.md; .agents/.claude/.codex are symlink loader views (auto-resolve) and the webpages/docs/development-skills copies regenerate. If `cmd/progress` lacks a discovery-shaped read-only emit, this row MAY add a pure, non-default read-only subcommand (mirror the ROW B/C1 separate-explicit-action precedent) — record any cmd/progress write-scope addition in the row note. Owned Gormes infra; prerequisite for C5.",
+      "contract": "The gormes-planner, gormes-builder, and gormes-provider-parity SKILL.md discovery snippets run `jq ... webpages/docs/content/building-gormes/architecture_plan/progress.json` directly against the canonical backlog. `jq` on a directory fails, so every future planner/builder/provider-parity pass — and the autonomous fleet that drives them — breaks the moment the canonical path becomes a module-keyed split DIRECTORY (C5). Replace the raw-jq discovery snippets with a split-safe equivalent: prefer `go run ./cmd/progress` (a read-only list/emit) or `jq` over `go run ./cmd/progress`'s merged emit, so discovery returns the same row inventory whether the canonical is a monolithic file or a split directory. Canonical skill sources are development-skills/<name>/SKILL.md; .agents/.claude/.codex are symlink loader views (auto-resolve) and the webpages/development-skills copies regenerate. If `cmd/progress` lacks a discovery-shaped read-only emit, this row MAY add a pure, non-default read-only subcommand (mirror the ROW B/C1 separate-explicit-action precedent) — record any cmd/progress write-scope addition in the row note. Owned Gormes infra; prerequisite for C5.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "docs",
@@ -625,11 +625,11 @@
         "system"
       ],
       "degraded_mode": "If `cmd/progress` cannot emit the needed shape, the skill snippet must `go run ./cmd/progress` to a temp merged monolith and jq THAT — never jq the canonical path directly.",
-      "fixture": "docs/development-skills/{gormes-planner,gormes-builder,gormes-provider-parity}/SKILL.md ; quick_validate + `find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -name SKILL.md` symlink-shape gate.",
+      "fixture": "development-skills/{gormes-planner,gormes-builder,gormes-provider-parity}/SKILL.md ; quick_validate + `find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -name SKILL.md` symlink-shape gate.",
       "source_refs": [
-        "docs/development-skills/gormes-planner/SKILL.md (jq discovery snippet)",
-        "docs/development-skills/gormes-builder/SKILL.md (jq discovery snippet)",
-        "docs/development-skills/gormes-provider-parity/SKILL.md (jq discovery snippet)",
+        "development-skills/gormes-planner/SKILL.md (jq discovery snippet)",
+        "development-skills/gormes-builder/SKILL.md (jq discovery snippet)",
+        "development-skills/gormes-provider-parity/SKILL.md (jq discovery snippet)",
         "cmd/progress/main.go ; internal/progress.Load (C1) / module-keyed split (C5b)"
       ],
       "ready_when": [
@@ -649,12 +649,12 @@
       ],
       "note": "SHIPPED 2026-05-16 see git log — added pure read-only non-default `progress emit` (cmd/progress/main.go + progressctl.Emit: loadValidProgress→SaveProgress(temp)→stdout, byte-identical canonical for monolith/phase-split/module-split, never mutates canonical); gormes-planner:91 + gormes-builder:80 jq snippets repointed to `go run ./cmd/progress emit | jq …` (exact pipelines preserved). Write-scope corrections: gormes-provider-parity:45 is prose with NO jq snippet — untouched (source_refs over-assumed 3 jq snippets, only planner+builder had them); the emit impl lives in internal/progressctl/progressctl.go + progressctl_test.go (within the row's cmd/progress intent — the thin main.go just dispatches). Audit: zero raw jq of the canonical path remains in any gormes-* skill; symlink views (.agents/.claude/.codex) resolve to the edited canonical sources.",
       "write_scope": [
-        "docs/development-skills (gormes-planner, gormes-builder, gormes-provider-parity SKILL.md)",
+        "development-skills (gormes-planner, gormes-builder, gormes-provider-parity SKILL.md)",
         "cmd/progress/main.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "python3 /home/xel/.codex/skills/.system/skill-creator/scripts/quick_validate.py docs/development-skills/gormes-planner",
+        "python3 /home/xel/.codex/skills/.system/skill-creator/scripts/quick_validate.py development-skills/gormes-planner",
         "find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -name SKILL.md -print | sort",
         "go run ./cmd/progress validate",
         "git diff --check"
@@ -713,7 +713,7 @@
         "scripts/landingpage-improver.sh",
         ".github/workflows/www-mirror-sync.yml",
         ".github/workflows/deploy-gormes-www.yml",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go run ./cmd/progress validate",
@@ -773,7 +773,7 @@
         "internal/progress/module_test.go",
         "internal/progress/validate.go",
         "internal/progress/validate_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/progress -run 'TestModule|TestValidate' -count=1",
@@ -805,10 +805,10 @@
         "system"
       ],
       "degraded_mode": "If a row is too vague to classify, leave it out of the backfill and fail the audit; a planner must sharpen that row instead of guessing.",
-      "fixture": "docs/content/building-gormes/architecture_plan/module-assignment-audit.md ; docs/content/building-gormes/architecture_plan/progress.json",
+      "fixture": "webpages/docs/content/building-gormes/architecture_plan/module-assignment-audit.md ; webpages/docs/content/building-gormes/architecture_plan/progress.json",
       "source_refs": [
         "internal/progress/module.go approved taxonomy from C5f",
-        "docs/content/building-gormes/architecture_plan/progress.json current rows",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json current rows",
         "cmd/progress emit split-safe merged view",
         "module-split umbrella grill decision: unclassified blocks C5; cross-cutting is real but audited"
       ],
@@ -827,10 +827,10 @@
         "The migration diff changes only `module` fields plus the generated audit report; no row names, contracts, statuses, notes, priorities, source refs, or test commands are rewritten.",
         "The audit report lists counts per module, old-to-new mappings, manually reviewed ambiguous rows, and any cross-cutting justifications."
       ],
-      "note": "SHIPPED 2026-05-16 — added deterministic module assignment/audit support in internal/progress/module_assignment.go, then classified every canonical row into an explicit valid C5f feature module. The migration set 1033 previously-empty row modules and preserved the 6 explicit split-planning modules; zero rows are missing, invalid, or unclassified. Published docs/content/building-gormes/architecture_plan/module-assignment-audit.md with counts per module, old broad-bucket mapping, manual review notes, and cross-cutting review (none). No physical split was performed.",
+      "note": "SHIPPED 2026-05-16 — added deterministic module assignment/audit support in internal/progress/module_assignment.go, then classified every canonical row into an explicit valid C5f feature module. The migration set 1033 previously-empty row modules and preserved the 6 explicit split-planning modules; zero rows are missing, invalid, or unclassified. Published webpages/docs/content/building-gormes/architecture_plan/module-assignment-audit.md with counts per module, old broad-bucket mapping, manual review notes, and cross-cutting review (none). No physical split was performed.",
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/module-assignment-audit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/module-assignment-audit.md",
         "internal/progress",
         "cmd/progress"
       ],
@@ -864,12 +864,12 @@
         "system"
       ],
       "degraded_mode": "If multi-module filtering is not ready, support exactly one module and fail clearly on comma-separated input; never silently broaden to the whole backlog.",
-      "fixture": "cmd/progress list --module providers ; docs/development-skills/gormes-{planner,builder,tdd-slice}/SKILL.md",
+      "fixture": "cmd/progress list --module providers ; development-skills/gormes-{planner,builder,tdd-slice}/SKILL.md",
       "source_refs": [
         "cmd/progress/main.go current command surface",
         "internal/progressctl/progressctl.go split-safe Emit/Validate patterns",
-        "docs/development-skills/gormes-planner/SKILL.md Source Order",
-        "docs/development-skills/gormes-builder/SKILL.md row selection guidance"
+        "development-skills/gormes-planner/SKILL.md Source Order",
+        "development-skills/gormes-builder/SKILL.md row selection guidance"
       ],
       "ready_when": [
         "C5f shipped so the command can validate module names against the closed enum.",
@@ -892,9 +892,9 @@
         "cmd/progress/main_test.go",
         "internal/progressctl/progressctl.go",
         "internal/progressctl/progressctl_test.go",
-        "docs/development-skills/gormes-planner/SKILL.md",
-        "docs/development-skills/gormes-builder/SKILL.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "development-skills/gormes-planner/SKILL.md",
+        "development-skills/gormes-builder/SKILL.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/progressctl ./cmd/progress -run Module -count=1",
@@ -926,11 +926,11 @@
         "system"
       ],
       "degraded_mode": "If generated module pages would duplicate too much content, render compact row summaries with links back to the unified roadmap; do not create hand-authored side backlog files.",
-      "fixture": "docs/content/building-gormes/modules/ ; internal/progress/render.go",
+      "fixture": "webpages/docs/content/building-gormes/modules/ ; internal/progress/render.go",
       "source_refs": [
         "internal/progress/render.go current building-gormes renderers",
         "internal/progressctl/progressctl.go Write generated-doc flow",
-        "docs/content/building-gormes/architecture_plan/progress.json Item.Module fields from C5g",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json Item.Module fields from C5g",
         "module-split umbrella grill decision: unified roadmap plus generated per-module pages"
       ],
       "ready_when": [
@@ -949,14 +949,14 @@
         "Module pages group rows by original phase/subphase and include compact counts by priority/status.",
         "Unified docs expose each row's module compactly; docs tests prove rendering is stable."
       ],
-      "note": "SHIPPED 2026-05-16 — added generated module roadmap renderers and wired `progress write` to publish `docs/content/building-gormes/modules/` pages from the single logical backlog. The module index and one page per allowed feature module include phase/subphase grouping, status counts, priority counts, and explicit module labels; the unified architecture checklist now shows each row's module tag inline. Tests cover renderer stability plus identical generated provider pages from monolith and module-keyed split fixtures.",
+      "note": "SHIPPED 2026-05-16 — added generated module roadmap renderers and wired `progress write` to publish `webpages/docs/content/building-gormes/modules/` pages from the single logical backlog. The module index and one page per allowed feature module include phase/subphase grouping, status counts, priority counts, and explicit module labels; the unified architecture checklist now shows each row's module tag inline. Tests cover renderer stability plus identical generated provider pages from monolith and module-keyed split fixtures.",
       "write_scope": [
         "internal/progress/render.go",
         "internal/progress/render_test.go",
         "internal/progressctl/progressctl.go",
         "internal/progressctl/progressctl_test.go",
-        "docs/content/building-gormes",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/progress ./internal/progressctl -run 'Render|Module' -count=1",
@@ -981,7 +981,7 @@
       "name": "Backlog split C5: single atomic operator-gated flip to the module-keyed split directory",
       "priority": "P2",
       "status": "complete",
-      "contract": "The actual on-disk flip, ONE single atomic operator-gated commit. Replace the single canonical FILE docs/content/building-gormes/architecture_plan/progress.json with a feature-module-keyed split DIRECTORY at that exact path. The physical member files must use the approved feature taxonomy from C5f, not the earlier broad transitional buckets. Every backlog consumer stays transparent via internal/progress.Load/SaveProgress; the format remains atomic-all-modules (index.json skeleton + every modules/<feature>.json together reconstruct the whole backlog). The flip is allowed only after explicit valid modules are backfilled/audited, module-scoped views and docs exist, byte-identity is proven, and the operator records a quiet fleet signoff checklist.",
+      "contract": "The actual on-disk flip, ONE single atomic operator-gated commit. Replace the single canonical FILE webpages/docs/content/building-gormes/architecture_plan/progress.json with a feature-module-keyed split DIRECTORY at that exact path. The physical member files must use the approved feature taxonomy from C5f, not the earlier broad transitional buckets. Every backlog consumer stays transparent via internal/progress.Load/SaveProgress; the format remains atomic-all-modules (index.json skeleton + every modules/<feature>.json together reconstruct the whole backlog). The flip is allowed only after explicit valid modules are backfilled/audited, module-scoped views and docs exist, byte-identity is proven, and the operator records a quiet fleet signoff checklist.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tools",
@@ -1027,9 +1027,9 @@
         "All consumers/generators/tests/skills/fleet scripts/CI keep working: `go test ./... -count=1`, `go test ./webpages/docs -count=1`, `go run ./cmd/progress validate` green; module-scoped progress commands and generated module docs work against the split.",
         "The flip is one atomic git-reversible commit; the single logical backlog is preserved; no half-monolith/half-split committed state ever exists."
       ],
-      "note": "SHIPPED 2026-05-17 — operator quiet-fleet approval recorded from LGTM on the gated C5 recommendation; canonical docs/content/building-gormes/architecture_plan/progress.json is now the module-keyed split directory (index.json + modules/<feature>.json). Added row/subphase/health raw-field preservation so historical evidence/completed_at/upstream_refs/source fields are not dropped by typed Load/Save or module split. Pre-flip raw monolith and typed emit are semantically identical under jq -S; post-flip `go run ./cmd/progress emit` is byte-identical to pre-flip canonical emit. Physical files use only approved module names, no phases/ dir, no unclassified or broad transitional buckets. Also converted the docs Astro postbuild progress artifact from raw file copy to `cmd/progress emit`, added Go setup to the docs deploy workflow, and moved remaining builderloop/hermes/installtest real-canonical test reads through split-safe progress.Load/emit helpers. Focused shape/list/docs/raw-reader gates passed before broad validation.",
+      "note": "SHIPPED 2026-05-17 — operator quiet-fleet approval recorded from LGTM on the gated C5 recommendation; canonical webpages/docs/content/building-gormes/architecture_plan/progress.json is now the module-keyed split directory (index.json + modules/<feature>.json). Added row/subphase/health raw-field preservation so historical evidence/completed_at/upstream_refs/source fields are not dropped by typed Load/Save or module split. Pre-flip raw monolith and typed emit are semantically identical under jq -S; post-flip `go run ./cmd/progress emit` is byte-identical to pre-flip canonical emit. Physical files use only approved module names, no phases/ dir, no unclassified or broad transitional buckets. Also converted the docs Astro postbuild progress artifact from raw file copy to `cmd/progress emit`, added Go setup to the docs deploy workflow, and moved remaining builderloop/hermes/installtest real-canonical test reads through split-safe progress.Load/emit helpers. Focused shape/list/docs/raw-reader gates passed before broad validation.",
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan (the canonical progress.json path becomes the split directory + index.json + modules/ member files)",
+        "webpages/docs/content/building-gormes/architecture_plan (the canonical progress.json path becomes the split directory + index.json + modules/ member files)",
         "internal/progress/item_json.go",
         "internal/progress/progress.go",
         "internal/progress/health.go",
@@ -1045,7 +1045,7 @@
         "internal/builderloop/candidates_test.go",
         "internal/llm/codex_responses_temperature_test.go",
         "internal/installtest/go_toolchain_floor_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./... -count=1",
@@ -1083,7 +1083,7 @@
         "scripts/gormes-builder-loop.sh cost_window_metrics currently reads only `.usage.cost`",
         "internal/loopcost/cost.go opencodeLine currently models only `usage.cost` and RFC3339 string timestamps",
         "/home/xel/.local/state/gormes-agent/builder/logs/*.opencode.jsonl observed current OpenCode events with `type=step_finish`, `part.cost`, `part.tokens.input`, `part.tokens.output`, and numeric millisecond `timestamp`",
-        "docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-cost-evidence.md records the unknown-cost blocker and says a separate tools/progress row should update the cost-source adapter if JSONL schema drift is confirmed"
+        "webpages/docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-cost-evidence.md records the unknown-cost blocker and says a separate tools/progress row should update the cost-source adapter if JSONL schema drift is confirmed"
       ],
       "ready_when": [
         "Local OpenCode JSONL evidence shows `part.cost` lines exist in the default builder state and no live provider access is required to test a fixture.",
@@ -1108,8 +1108,8 @@
         "internal/loopcost/cost_test.go",
         "internal/codexubuilderloopscript_test.go",
         "scripts/gormes-builder-loop.sh",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-cost-evidence.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-cost-evidence.md"
       ],
       "test_commands": [
         "go test ./internal/loopcost -count=1",
@@ -1150,7 +1150,7 @@
         "internal/builderloop/candidates.go NormalizeCandidates and Candidate.SelectionReason",
         "internal/progressctl/progressctl.go List/Emit read-only split-safe command patterns",
         "cmd/progress/main.go command dispatcher and usage string",
-        "docs/content/building-gormes/builder-loop/agent-queue.md empty-queue guidance",
+        "webpages/docs/content/building-gormes/builder-loop/agent-queue.md empty-queue guidance",
         "/tmp/architecture-review-gormes-20260523Titer57-next-work.html"
       ],
       "ready_when": [
@@ -1172,7 +1172,7 @@
         "cmd/progress/main_test.go",
         "internal/progressctl/progressctl.go",
         "internal/progressctl/progressctl_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/progressctl -run NextWork -count=1",
@@ -1213,7 +1213,7 @@
         "internal/progressctl/progressctl.go NextWork",
         "internal/builderloop/candidates.go NormalizeCandidates",
         "cmd/progress/main.go command dispatcher",
-        "docs/content/building-gormes/architecture_plan/progress.json row `Navivox Telegram-inspired chat polish` write_scope includes ../navivox-app",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json row `Navivox Telegram-inspired chat polish` write_scope includes ../navivox-app",
         "/tmp/architecture-review-gormes-20260523Titer58-repo-scope-next-work.html"
       ],
       "ready_when": [
@@ -1238,7 +1238,7 @@
         "cmd/progress/main_test.go",
         "internal/progressctl/progressctl.go",
         "internal/progressctl/progressctl_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/progressctl -run NextWork -count=1",
@@ -1304,7 +1304,7 @@
       "write_scope": [
         "internal/internal_topology_test.go",
         "internal/REFACTOR-CMD-PLAN.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal -run TestInternalTopology -count=1",
@@ -1372,7 +1372,7 @@
       "write_scope": [
         "internal/progress/",
         "cmd/progress/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "no_test_required": "Umbrella row only; child rows carry the executable characterization and refactor tests.",
       "done_signal": [
@@ -1437,7 +1437,7 @@
         "internal/progress/render.go",
         "internal/progress/ctl/progressctl.go",
         "cmd/progress/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/progress/... -run 'Test.*(WorkItem|Assignable|CompletedBlocker|NextSlices|AgentQueue|NormalizeCandidates)' -count=1",
@@ -1507,7 +1507,7 @@
         "cmd/progress/",
         "webpages/docs/",
         "internal/installtest/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/progress/... -run 'Test.*(Workspace|Split|Canonical|Emit|Malformed)' -count=1",
@@ -1573,7 +1573,7 @@
         "internal/progress/ctl/",
         "internal/progress/render.go",
         "cmd/progress/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/progress/ctl ./cmd/progress -run 'Test.*(Artifact|Write|DryRun|ModuleRoadmap)' -count=1",
@@ -1637,7 +1637,7 @@
         "internal/progress/",
         "internal/progress/builderloop/",
         "internal/progress/ctl/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/progress/... -run 'Test.*(Projection|Handoff|Shipped|Health|Render)' -count=1",

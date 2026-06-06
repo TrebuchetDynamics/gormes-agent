@@ -18,7 +18,7 @@
       "degraded_mode": "Without a publication outlet, every loop commit is invisible in the reputation market; the strategy described in success-plan.md cannot start.",
       "fixture": "webpages/blog/ (or chosen blog repo path)",
       "source_refs": [
-        "docs/content/building-gormes/strategy/success-plan.md",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md",
         "webpages/landing/",
         "webpages/blog/",
         ".github/workflows/deploy-td-blog.yml"
@@ -48,8 +48,8 @@
         ".github/workflows/deploy-td-blog.yml",
         ".github/workflows/ci.yml",
         "README.md",
-        "docs/content/building-gormes/strategy/success-plan.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/strategy/success-plan.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "cd webpages/blog && npm run test",
@@ -83,14 +83,14 @@
       "degraded_mode": "Without distribution, even good writeups die without an audience; this row creates the minimum viable distribution channel.",
       "fixture": "scripts/blog-feed-social/publish.mjs --dry-run with a repo-local or freshly built feed fixture",
       "source_refs": [
-        "docs/content/building-gormes/strategy/success-plan.md",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md",
         "webpages/docs/content/building-gormes/strategy/success-plan.md:Q1 publication stack",
         "webpages/blog/src/pages/rss.xml.ts",
         "webpages/blog/package.json:test/build scripts",
         "webpages/blog/src/pages/feed.xml.js",
         "scripts/blog-feed-social/publish.mjs",
         "scripts/blog-feed-social/publish.test.mjs",
-        "docs/content/building-gormes/strategy/success-plan.md#publication-stack"
+        "webpages/docs/content/building-gormes/strategy/success-plan.md#publication-stack"
       ],
       "ready_when": [
         "TD blog (8.A row 1) is live and emitting a stable feed.",
@@ -130,7 +130,7 @@
       "write_scope": [
         "scripts/blog-feed-social/",
         "webpages/blog/",
-        "docs/content/building-gormes/strategy/success-plan.md",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md",
         "webpages/docs/content/building-gormes/strategy/success-plan.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
@@ -168,15 +168,15 @@
       "degraded_mode": "Without the rewrite, the public face of the repo positions Gormes as \"Hermes in Go\" — a clone framing that gives reputation credit to Hermes, not TrebuchetDynamics.",
       "fixture": "README.md",
       "source_refs": [
-        "docs/content/building-gormes/strategy/success-plan.md",
-        "docs/content/building-gormes/strategy/v1-differentiator.md",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md",
+        "webpages/docs/content/building-gormes/strategy/v1-differentiator.md",
         "README.md",
         "internal/repoctl/readme_test.go",
         "webpages/landing/"
       ],
       "ready_when": [
-        "docs/content/building-gormes/strategy/v1-differentiator.md is ratified and contains the <50-word differentiator paragraph.",
-        "docs/content/building-gormes/strategy/success-plan.md contains the North Star wording and 30-day README action item."
+        "webpages/docs/content/building-gormes/strategy/v1-differentiator.md is ratified and contains the <50-word differentiator paragraph.",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md contains the North Star wording and 30-day README action item."
       ],
       "not_ready_when": [
         "The differentiator is still 'TBD' or undecided.",
@@ -198,7 +198,7 @@
         "README.md",
         "internal/repoctl/readme_test.go",
         "webpages/docs/content/building-gormes/strategy/success-plan.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/repoctl -run README -count=1",
@@ -222,7 +222,7 @@
       "name": "README release and benchmark metadata sync",
       "priority": "P1",
       "status": "complete",
-      "contract": "README.md and public benchmark mirrors stay synchronized with the current release metadata and freshly measured optimized Linux binary: the README latest-release stanza, development-head wording, release-summary sentence, benchmark size, and benchmark date are derived from version/release metadata plus benchmarks.json, while repoctl benchmark recording updates every checked-in public benchmark mirror from one source of truth.",
+      "contract": "README.md and public benchmark mirrors stay synchronized with the current release metadata and freshly measured optimized Linux binary: the README latest-release stanza, development-head wording, release-summary sentence, benchmark size, and benchmark date are derived from version/release metadata plus benchmarks.json, while gormes-repo benchmark recording updates every checked-in public benchmark mirror from one source of truth.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "docs",
@@ -238,8 +238,8 @@
         "benchmarks.json:binary.size_mb and binary.last_measured",
         "webpages/landing/src/data/release.json:v0.2.0 release metadata",
         "cmd/gormes/version.go:Version and VersionDateAlias",
-        "docs/content/building-gormes/strategy/v1-differentiator.md:30 MB binary claim",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Packaging and release"
+        "webpages/docs/content/building-gormes/strategy/v1-differentiator.md:30 MB binary claim",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Packaging and release"
       ],
       "ready_when": [
         "The latest public GitHub release is known from local release metadata or gh release evidence.",
@@ -252,8 +252,8 @@
         "Benchmark recording updates only the root file while docs or landing mirrors remain stale."
       ],
       "acceptance": [
-        "TestUpdateReadmeSyncsReleaseAndBenchmarkMetadata fails while README.md still names v0.1.05 and stale 2026-05-05 benchmark data, then passes after repoctl readme update derives v0.2.0, the release URL, benchmark size, and last_measured date.",
-        "TestRecordBenchmarkCopiesBenchmarksToPublicMirrors proves repoctl benchmark record writes identical benchmark JSON to benchmarks.json, docs/data/benchmarks.json, webpages/docs/data/benchmarks.json, webpages/landing/src/data/benchmarks.json, and webpages/landing/legacy/go-renderer/internal/site/data/benchmarks.json.",
+        "TestUpdateReadmeSyncsReleaseAndBenchmarkMetadata fails while README.md still names v0.1.05 and stale 2026-05-05 benchmark data, then passes after gormes-repo readme update derives v0.2.0, the release URL, benchmark size, and last_measured date.",
+        "TestRecordBenchmarkCopiesBenchmarksToPublicMirrors proves gormes-repo benchmark record writes identical benchmark JSON to benchmarks.json, docs/data/benchmarks.json, webpages/docs/data/benchmarks.json, webpages/landing/src/data/benchmarks.json, and webpages/landing/legacy/go-renderer/internal/site/data/benchmarks.json.",
         "A fresh optimized Linux build is recorded into benchmarks.json and mirrors, showing the current size evidence below the 30 MB release gate without overwriting the ratified differentiator text.",
         "README release and benchmark prose names the current public release v0.2.0 and current benchmark date/size."
       ],
@@ -269,12 +269,12 @@
         "internal/repoctl/bench_test.go",
         "internal/repoctl/readme.go",
         "internal/repoctl/readme_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/repoctl -run 'Test(UpdateReadme|README|RecordBenchmark)' -count=1",
-        "BINARY_PATH=bin/gormes go run ./cmd/repoctl benchmark record",
-        "go run ./cmd/repoctl readme update",
+        "BINARY_PATH=bin/gormes go run ./cmd/gormes-repo benchmark record",
+        "go run ./cmd/gormes-repo readme update",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -296,7 +296,7 @@
           "RED: go test ./internal/repoctl -run 'TestRecordBenchmarkCopiesBenchmarksToPublicMirrors|TestRecordBenchmarkNormalizesSupportedPlatformMatrix|TestUpdateReadmeSyncsReleaseAndBenchmarkMetadata' -count=1 failed on missing mirrors, stale platform matrix, and stale README metadata.",
           "GREEN: go test ./internal/repoctl -run 'TestRecordBenchmarkCopiesBenchmarksToPublicMirrors|TestRecordBenchmarkNormalizesSupportedPlatformMatrix|TestUpdateReadmeSyncsReleaseAndBenchmarkMetadata' -count=1 passed after repoctl updates.",
           "GREEN: timeout 5m env CGO_ENABLED=0 go build -trimpath -ldflags=\"-s -w\" -o bin/gormes ./cmd/gormes produced a 29,311,138-byte linux/amd64 binary.",
-          "GREEN: BINARY_PATH=bin/gormes go run ./cmd/repoctl benchmark record and go run ./cmd/repoctl readme update refreshed checked-in metadata surfaces."
+          "GREEN: BINARY_PATH=bin/gormes go run ./cmd/gormes-repo benchmark record and go run ./cmd/gormes-repo readme update refreshed checked-in metadata surfaces."
         ]
       }
     }
@@ -318,9 +318,9 @@
         "operator"
       ],
       "degraded_mode": "Without this brief, future README/landing/docs passes can drift back into clone framing, unverifiable competitor claims, or methodology-heavy copy that hides the runtime wedge.",
-      "fixture": "docs/content/building-gormes/strategy/market-positioning.md",
+      "fixture": "webpages/docs/content/building-gormes/strategy/market-positioning.md",
       "source_refs": [
-        "docs/content/building-gormes/strategy/market-positioning.md",
+        "webpages/docs/content/building-gormes/strategy/market-positioning.md",
         "README.md",
         "webpages/docs/content/why-gormes.md",
         "webpages/landing/src/data/landing.js",
@@ -342,8 +342,8 @@
       ],
       "note": "Planner pass 2026-05-17 (gormes-planner): distilled a user-supplied Reddit competitor comparison into Gormes-owned positioning evidence. The post is not source-backed upstream evidence and must not create runtime parity rows by itself.",
       "write_scope": [
-        "docs/content/building-gormes/strategy/market-positioning.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/strategy/market-positioning.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs -count=1",
@@ -378,7 +378,7 @@
       "degraded_mode": "Without a canonical comparison, external posts define the category for Gormes and force the README or landing page to answer clone, chaos, or hosted-SaaS framing ad hoc.",
       "fixture": "webpages/docs/content/why-gormes.md::comparison matrix",
       "source_refs": [
-        "docs/content/building-gormes/strategy/market-positioning.md",
+        "webpages/docs/content/building-gormes/strategy/market-positioning.md",
         "README.md",
         "webpages/docs/content/why-gormes.md#public-comparison-matrix",
         "webpages/docs/content/start-here/_index.md",
@@ -410,7 +410,7 @@
         "webpages/docs/landing_page_docs_test.go",
         "webpages/landing/src/data/landing.js",
         "webpages/landing/tests/home.spec.mjs",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs -run 'Test.*(WhyGormes|Comparison|Landing)' -count=1",
@@ -447,11 +447,11 @@
         "system"
       ],
       "degraded_mode": "Until runtime rows ship, the docs are explicitly marked as the v2 target architecture and do not claim current shipped config behavior.",
-      "fixture": "docs/content/building-gormes/architecture_plan/profile-config-v2.md",
+      "fixture": "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/profile-config-v2.md",
         "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md",
-        "docs/content/configure/config-file.md#planned-v2-profile-schema",
+        "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md",
+        "webpages/docs/content/configure/config-file.md#planned-v2-profile-schema",
         "webpages/docs/content/configure/config-file.md#planned-v2-profile-schema"
       ],
       "ready_when": [
@@ -469,12 +469,12 @@
       ],
       "note": "Completed by this planner pass; runtime implementation remains in the child rows.",
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan/profile-config-v2.md",
         "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md",
-        "docs/content/configure/config-file.md",
+        "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md",
+        "webpages/docs/content/configure/config-file.md",
         "webpages/docs/content/configure/config-file.md",
         "webpages/docs/profile_docs_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
@@ -511,11 +511,11 @@
       "degraded_mode": "Without writeup #1, the methodology is invisible to anyone outside the repo; the autonomous loop is a curiosity, not a credential.",
       "fixture": "webpages/blog/posts/autonomous-hermes-porting-loop.md",
       "source_refs": [
-        "docs/content/building-gormes/strategy/success-plan.md",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md",
         "scripts/gormes-builder-cron.sh",
         "scripts/gormes-builder-loop.sh",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "webpages/docs/development-skills/gormes-builder/SKILL.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/development-skills/gormes-builder/SKILL.md",
         "webpages/blog/src/content/posts/autonomous-hermes-porting-loop.md",
         "webpages/blog/tests/build-output.test.mjs:autonomous Hermes-porting writeup has evidence-backed draft structure",
         "git show 2e3a56a21 -- install.sh internal/installtest/termux_path_safety_test.go",
@@ -567,8 +567,8 @@
       },
       "write_scope": [
         "webpages/blog/ (or external blog repo path)",
-        "docs/content/building-gormes/strategy/writeups/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/strategy/writeups/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "(cd webpages/blog && npm run test)",
@@ -576,7 +576,7 @@
         "git diff --check"
       ],
       "done_signal": [
-        "Public URL recorded in success-plan.md and README.md; submission record archived under docs/content/building-gormes/strategy/writeups/."
+        "Public URL recorded in success-plan.md and README.md; submission record archived under webpages/docs/content/building-gormes/strategy/writeups/."
       ],
       "provenance": {
         "origin_type": "gormes"
@@ -601,9 +601,9 @@
         "system"
       ],
       "degraded_mode": "If the builder loop has no opencode JSONL cost events or less than one week of measured telemetry, the packet must report unknown or insufficient data with command output and keep the parent writeup blocked.",
-      "fixture": "docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-cost-evidence.md",
+      "fixture": "webpages/docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-cost-evidence.md",
       "source_refs": [
-        "docs/content/building-gormes/strategy/success-plan.md#publication-stack",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md#publication-stack",
         "webpages/docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-review-packet.md",
         "scripts/gormes-builder-loop.sh:cost_window_metrics",
         "internal/loopcost/cost.go",
@@ -633,9 +633,9 @@
         "If measured data is unavailable or insufficient, the packet preserves the parent blocker and names the next non-fabricated collection step.",
         "Progress/docs validation passes without live network, social credentials, or release actions."
       ],
-      "note": "Planner 2026-05-23 iteration 54: split from the blocked public writeup parent after the local review packet completed, so the next builder can capture measured or explicitly unknown loop-cost evidence without publishing or fabricating cost numbers. Builder 2026-05-23 iteration 55: created `docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-cost-evidence.md`, recorded default and isolated cost-report output as `unknown_no_cost_data`, summarized 249 development-goal log events over a 10.5-hour window, and preserved the parent blocker because one-week measured telemetry is not satisfied.",
+      "note": "Planner 2026-05-23 iteration 54: split from the blocked public writeup parent after the local review packet completed, so the next builder can capture measured or explicitly unknown loop-cost evidence without publishing or fabricating cost numbers. Builder 2026-05-23 iteration 55: created `webpages/docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-cost-evidence.md`, recorded default and isolated cost-report output as `unknown_no_cost_data`, summarized 249 development-goal log events over a 10.5-hour window, and preserved the parent blocker because one-week measured telemetry is not satisfied.",
       "write_scope": [
-        "docs/content/building-gormes/strategy/writeups/",
+        "webpages/docs/content/building-gormes/strategy/writeups/",
         "webpages/docs/content/building-gormes/strategy/writeups/",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/docs.json",
         "webpages/docs/content/building-gormes/builder-loop/",
@@ -650,7 +650,7 @@
       ],
       "done_signal": [
         "Report the cost-evidence packet path, cost-report status fields, development-goal log iteration/result counts, whether the one-week requirement is satisfied, and the exact validation commands that passed without live credentials.",
-        "Iteration 55 evidence: cost-evidence packet path `docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-cost-evidence.md`; cost_status=unknown_no_cost_data, cost_7d_runs=0, cost_30d_runs=0; development-goal log parsed 249 events with 54 iteration_result entries over 10.5 hours; one-week requirement not satisfied."
+        "Iteration 55 evidence: cost-evidence packet path `webpages/docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-cost-evidence.md`; cost_status=unknown_no_cost_data, cost_7d_runs=0, cost_30d_runs=0; development-goal log parsed 249 events with 54 iteration_result entries over 10.5 hours; one-week requirement not satisfied."
       ],
       "provenance": {
         "origin_type": "gormes",
@@ -677,9 +677,9 @@
         "system"
       ],
       "degraded_mode": "If measured cost telemetry, publication date, platform, or social account evidence is missing, the packet must show those as explicit pending operator inputs rather than inventing estimates or publishing live.",
-      "fixture": "docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-review-packet.md",
+      "fixture": "webpages/docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-review-packet.md",
       "source_refs": [
-        "docs/content/building-gormes/strategy/success-plan.md#publication-stack",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md#publication-stack",
         "webpages/blog/src/content/posts/autonomous-hermes-porting-loop.md",
         "webpages/blog/tests/build-output.test.mjs:autonomous Hermes-porting writeup has evidence-backed draft structure",
         "scripts/blog-feed-social/publish.mjs",
@@ -704,9 +704,9 @@
         "The packet includes Juan-facing review questions for voice/tone, publication date, target platform, and social account while confirming no credentials are stored in the repository.",
         "Blog tests and progress/docs validation pass without live network publication."
       ],
-      "note": "Planner 2026-05-23 iteration 52: split from the blocked public writeup parent so local review-prep work can proceed while cost telemetry and operator publication decisions remain blocked on the parent row. Builder 2026-05-23 iteration 53: created `docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-review-packet.md`, added blog build-output coverage for the packet's draft path/feed/dry-run/commit evidence/pending inputs/secret boundary, and verified the dry-run social preview without live publication.",
+      "note": "Planner 2026-05-23 iteration 52: split from the blocked public writeup parent so local review-prep work can proceed while cost telemetry and operator publication decisions remain blocked on the parent row. Builder 2026-05-23 iteration 53: created `webpages/docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-review-packet.md`, added blog build-output coverage for the packet's draft path/feed/dry-run/commit evidence/pending inputs/secret boundary, and verified the dry-run social preview without live publication.",
       "write_scope": [
-        "docs/content/building-gormes/strategy/writeups/",
+        "webpages/docs/content/building-gormes/strategy/writeups/",
         "webpages/docs/content/building-gormes/strategy/writeups/",
         "webpages/blog/src/content/posts/autonomous-hermes-porting-loop.md",
         "webpages/blog/tests/build-output.test.mjs",
@@ -743,12 +743,12 @@
       "slice_size": "small",
       "execution_owner": "docs",
       "module": "docs",
-      "fixture": "docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
+      "fixture": "webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
       "source_refs": [
         "../hermes-agent/RELEASE_v0.14.0.md",
-        "docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
-        "docs/content/building-gormes/modules/_index.md"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/modules/_index.md"
       ],
       "ready_when": [
         "Hermes v0.14 release notes are present in the in-repo Hermes checkout.",
@@ -767,9 +767,9 @@
       ],
       "note": "Complete 2026-05-17: refreshed Hermes to 9f182bd7b, regenerated source-pair and py2many maps, then added a release-level module-pairing ledger plus planned rows for x_search, send_cmd, session recap, gateway memory monitor, LSP diagnostics, ACP setup-browser bootstrap, SimpleX, optional skills, and TUI truecolor/ANSI drift.",
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/modules"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/modules"
       ],
       "test_commands": [
         "go run ./cmd/progress write",
@@ -805,10 +805,10 @@
         "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
-        "webpages/docs/development-skills/gormes-planner/references/progress-row-contract.md",
+        "webpages/development-skills/gormes-planner/references/progress-row-contract.md",
         "internal/repoctl/source_pairs.go:ValidateSourcePairs",
         "internal/progress/progress.go:Item",
-        "cmd/repoctl/main.go",
+        "cmd/gormes-repo/main.go",
         "hermes-agent/RELEASE_v0.14.0.md",
         "hermes-agent/hermes_cli/main.py",
         "hermes-agent/tools/x_search_tool.py",
@@ -858,7 +858,7 @@
       ],
       "note": "SHIPPED 2026-05-18: report-only Hermes contract inventory landed with current-SHA source-pair joins, release checkpoints, per-module gap tables, typed continuity categories, generated JSON/Markdown, and strict-mode blockers for unmapped upstream source/doc/test files.",
       "write_scope": [
-        "cmd/repoctl",
+        "cmd/gormes-repo",
         "internal/repoctl",
         "internal/progress",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json",
@@ -870,13 +870,13 @@
       ],
       "test_commands": [
         "go test ./internal/repoctl -run 'TestHermesContractInventory' -count=1",
-        "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+        "go run ./cmd/gormes-repo hermes-contract-inventory --repo-root .",
         "go run ./cmd/progress validate",
         "go test ./webpages/docs -count=1",
         "git diff --check",
-        "go test ./internal/fidelity ./internal/repoctl ./cmd/repoctl ./cmd/gormes -run 'TestHermesReport|TestWriteHermesContractInventory|TestRunHermesContractInventory|TestFidelityHermes' -count=1",
+        "go test ./internal/fidelity ./internal/repoctl ./cmd/gormes-repo ./cmd/gormes -run 'TestHermesReport|TestWriteHermesContractInventory|TestRunHermesContractInventory|TestFidelityHermes' -count=1",
         "go run ./cmd/gormes fidelity hermes --repo-root . --json",
-        "go run ./cmd/repoctl hermes-source-pairs validate",
+        "go run ./cmd/gormes-repo hermes-source-pairs validate",
         "go test ./... -count=1"
       ],
       "done_signal": [
@@ -928,8 +928,8 @@
       ],
       "acceptance": [
         "The relevant Hermes files/tests no longer appear as anonymous examples in the strict-fidelity unmapped bucket; they are linked to rows, source pairs, planned child rows, explicit exclusions, or owned-divergence notes.",
-        "`go run ./cmd/repoctl hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence.",
-        "`go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits.",
+        "`go run ./cmd/gormes-repo hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence.",
+        "`go run ./cmd/gormes-repo hermes-source-pairs validate` passes after any source-pair edits.",
         "`go run ./cmd/progress validate` passes and generated docs show the row in the correct module."
       ],
       "note": "Complete 2026-05-21: strict-fidelity inventory now groups unmapped upstream tests by suite, inferred source-under-test prefix, examples, and matching progress rows. Generated JSON/Markdown expose actionable test-suite classifications without side queues or unsupported parity claims.",
@@ -941,7 +941,7 @@
       ],
       "test_commands": [
         "go test ./internal/fidelity ./internal/repoctl -run 'TestHermesReport|TestWriteHermesContractInventory' -count=1",
-        "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+        "go run ./cmd/gormes-repo hermes-contract-inventory --repo-root .",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
@@ -962,8 +962,8 @@
       ],
       "validation": [
         "go test ./internal/fidelity ./internal/repoctl -run 'TestHermesReport|TestWriteHermesContractInventory' -count=1",
-        "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
-        "go run ./cmd/repoctl hermes-source-pairs validate",
+        "go run ./cmd/gormes-repo hermes-contract-inventory --repo-root .",
+        "go run ./cmd/gormes-repo hermes-source-pairs validate",
         "go test ./... -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
@@ -1068,13 +1068,13 @@
       "degraded_mode": "Without a written extraction boundary, a builder can copy Gormes-local process into a public repo that still depends on Gormes paths and cannot prove the methodology is portable.",
       "fixture": "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md",
       "source_refs": [
-        "docs/content/building-gormes/strategy/success-plan.md",
-        "webpages/docs/development-skills/gormes-planner/SKILL.md",
-        "webpages/docs/development-skills/gormes-builder/SKILL.md",
-        "webpages/docs/development-skills/gormes-tdd-slice/SKILL.md",
-        "webpages/docs/development-skills/gormes-parity-auditor/SKILL.md",
-        "webpages/docs/development-skills/gormes-references/SKILL.md",
-        "webpages/docs/development-skills/gormes-skill-manager/SKILL.md"
+        "webpages/docs/content/building-gormes/strategy/success-plan.md",
+        "webpages/development-skills/gormes-planner/SKILL.md",
+        "webpages/development-skills/gormes-builder/SKILL.md",
+        "webpages/development-skills/gormes-tdd-slice/SKILL.md",
+        "webpages/development-skills/gormes-parity-auditor/SKILL.md",
+        "webpages/development-skills/gormes-references/SKILL.md",
+        "webpages/development-skills/gormes-skill-manager/SKILL.md"
       ],
       "ready_when": [
         "Phase 8 toolkit extraction is selected for planning.",
@@ -1092,9 +1092,9 @@
       ],
       "note": "Complete 2026-05-13: wrote the agentic-porting-kit extraction spec before touching the external repo. The spec defines the repo scaffold, Gormes-to-generic skill rename map, standalone Python greeter example, validation script, README promise, and backlink requirements. Evidence: go run ./cmd/progress validate; go test ./webpages/docs -count=1.",
       "write_scope": [
-        "docs/content/building-gormes/strategy/agentic-porting-kit.md",
-        "docs/content/building-gormes/strategy/success-plan.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go run ./cmd/progress validate",
@@ -1198,12 +1198,12 @@
       "source_refs": [
         "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md#skill-name-mapping",
         "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md#local-no-auth-fixture",
-        "docs/development-skills/gormes-skill-manager/SKILL.md",
-        "docs/development-skills/gormes-planner/SKILL.md",
-        "docs/development-skills/gormes-builder/SKILL.md",
-        "docs/development-skills/gormes-tdd-slice/SKILL.md",
-        "docs/development-skills/gormes-parity-auditor/SKILL.md",
-        "docs/development-skills/gormes-references/SKILL.md",
+        "development-skills/gormes-skill-manager/SKILL.md",
+        "development-skills/gormes-planner/SKILL.md",
+        "development-skills/gormes-builder/SKILL.md",
+        "development-skills/gormes-tdd-slice/SKILL.md",
+        "development-skills/gormes-parity-auditor/SKILL.md",
+        "development-skills/gormes-references/SKILL.md",
         "scripts/agentic-porting-kit/validate-local-example.sh"
       ],
       "ready_when": [
@@ -1281,7 +1281,7 @@
       ],
       "not_ready_when": [
         "The slice writes to the external TrebuchetDynamics/agentic-porting-kit repository or requires GitHub access.",
-        "The README depends on Gormes-local paths such as docs/content/building-gormes or cmd/progress instead of public scaffold paths.",
+        "The README depends on Gormes-local paths such as webpages/docs/content/building-gormes or cmd/progress instead of public scaffold paths.",
         "The license text is omitted or not validated by the local fixture command."
       ],
       "unblocks": [
@@ -1405,14 +1405,14 @@
       "degraded_mode": "Without the public scaffold, the methodology remains inspectable only inside Gormes and cannot be cited or reused by other teams.",
       "fixture": "TrebuchetDynamics/agentic-porting-kit:examples/python-greeter-to-go/progress.json",
       "source_refs": [
-        "docs/content/building-gormes/strategy/agentic-porting-kit.md",
-        "docs/content/building-gormes/strategy/success-plan.md",
-        "webpages/docs/development-skills/gormes-planner/SKILL.md",
-        "webpages/docs/development-skills/gormes-builder/SKILL.md",
-        "webpages/docs/development-skills/gormes-tdd-slice/SKILL.md",
-        "webpages/docs/development-skills/gormes-parity-auditor/SKILL.md",
-        "webpages/docs/development-skills/gormes-references/SKILL.md",
-        "webpages/docs/development-skills/gormes-skill-manager/SKILL.md"
+        "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md",
+        "webpages/development-skills/gormes-planner/SKILL.md",
+        "webpages/development-skills/gormes-builder/SKILL.md",
+        "webpages/development-skills/gormes-tdd-slice/SKILL.md",
+        "webpages/development-skills/gormes-parity-auditor/SKILL.md",
+        "webpages/development-skills/gormes-references/SKILL.md",
+        "webpages/development-skills/gormes-skill-manager/SKILL.md"
       ],
       "ready_when": [
         "Agentic-porting-kit local public layout assembly gate is complete and green, or the external repo builder intentionally replaces it with equivalent pre-push validation.",
@@ -1461,8 +1461,8 @@
         "(separate repo) skills/",
         "(separate repo) examples/python-greeter-to-go/",
         "README.md",
-        "docs/content/building-gormes/strategy/success-plan.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/strategy/success-plan.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "cd ${AGENTIC_PORTING_KIT_REPO:-../agentic-porting-kit} && ./scripts/validate-example.sh",
@@ -1496,7 +1496,7 @@
       "degraded_mode": "Without the page, even genuine outside users have no place to land their name; reputation compounds through visibility.",
       "fixture": "webpages/landing/src/data/builtWith.js + webpages/landing/src/pages/built-with.astro + webpages/landing/tests/home.spec.mjs",
       "source_refs": [
-        "docs/content/building-gormes/strategy/success-plan.md",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md",
         "webpages/landing/README.md",
         "webpages/landing/src/pages/index.astro",
         "webpages/landing/tests/home.spec.mjs"
@@ -1520,7 +1520,7 @@
         "webpages/landing/src/data/builtWith.js",
         "webpages/landing/src/pages/built-with.astro",
         "webpages/landing/tests/home.spec.mjs",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "(cd webpages/landing && npm run build)",
@@ -1596,7 +1596,7 @@
       "write_scope": [
         "webpages/docs/content/upstream-hermes/user-stories.md",
         "webpages/docs/upstream_user_stories_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs -run TestUpstreamHermesUserStoriesStaticMirror -count=1",

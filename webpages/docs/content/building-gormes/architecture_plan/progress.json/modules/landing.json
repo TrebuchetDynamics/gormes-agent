@@ -18,8 +18,8 @@
       "degraded_mode": "A landing page misaligned with the README erodes the methodology framing every time a reader bounces between the two.",
       "fixture": "webpages/landing/src/",
       "source_refs": [
-        "docs/content/building-gormes/strategy/success-plan.md",
-        "docs/content/building-gormes/strategy/v1-differentiator.md",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md",
+        "webpages/docs/content/building-gormes/strategy/v1-differentiator.md",
         "README.md",
         "webpages/landing/src/data/landing.js",
         "webpages/landing/src/pages/index.astro",
@@ -48,7 +48,7 @@
       "write_scope": [
         "webpages/landing/src/",
         "webpages/landing/tests/home.spec.mjs",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "(cd webpages/landing && npm run test:e2e)",
@@ -127,7 +127,7 @@
         "webpages/landing/src/data/landing.js",
         "webpages/landing/tests/home.spec.mjs",
         "webpages/docs/install/release_metadata_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs/install -run TestLandingReleaseMetadataCarriesDateAlias -count=1",
@@ -205,7 +205,7 @@
         "webpages/landing/legacy/go-renderer/internal/site/progress.go",
         "cmd/progress/main.go",
         "internal/buildscripts_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go run ./cmd/progress write",
@@ -264,7 +264,7 @@
       "write_scope": [
         "internal/progressctl/progressctl.go",
         "internal/progressctl/progressctl_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/progress ./internal/progressctl -count=1",

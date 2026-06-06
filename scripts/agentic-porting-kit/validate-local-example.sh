@@ -79,7 +79,7 @@ for name in expected_skills:
         if required not in text:
             raise SystemExit(f"{skill_path}: missing required phrase {required!r}")
     forbidden = [
-        "docs/content/building-gormes",
+        "webpages/docs/content/building-gormes",
         "cmd/progress",
         "github.com/TrebuchetDynamics/gormes-agent",
         "/home/xel/",
@@ -111,7 +111,7 @@ required_readme_phrases = [
 for phrase in required_readme_phrases:
     if phrase not in readme:
         raise SystemExit(f"README fixture missing required phrase: {phrase}")
-for token in ("/home/xel/", "docs/content/building-gormes", "cmd/progress"):
+for token in ("/home/xel/", "webpages/docs/content/building-gormes", "cmd/progress"):
     if token in readme:
         raise SystemExit(f"README fixture contains Gormes-local token: {token}")
 required_license_phrases = ["MIT License", "Trebuchet Dynamics", "Permission is hereby granted"]

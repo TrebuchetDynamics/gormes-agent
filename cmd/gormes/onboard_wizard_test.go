@@ -23,10 +23,7 @@ import (
 // arc. Secrets stay out: API keys live in the env file, not in this
 // report; only their *presence* is signalled via `auth_configured`.
 func TestOnboardCommand_JSONEmitsStructuredFirstRunStatus(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("GORMES_HOME", home)
-	t.Setenv("GORMES_SKILLS_ROOT", "")
-	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
+	setupOnboardWizardTestEnv(t)
 
 	writeOneshotFlagConfig(t, []byte(`
 [hermes]
@@ -85,10 +82,7 @@ api_key = "sk-ant-fixture-token"
 }
 
 func TestOnboardStatusPrintsFirstRunNextCommand(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("GORMES_HOME", home)
-	t.Setenv("GORMES_SKILLS_ROOT", "")
-	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
+	setupOnboardWizardTestEnv(t)
 
 	cmd := newOnboardCommandWithSeams(onboardCommandSeams{})
 	var stdout, stderr bytes.Buffer
@@ -112,10 +106,7 @@ func TestOnboardStatusPrintsFirstRunNextCommand(t *testing.T) {
 }
 
 func TestOnboardWizardInteractivePromptsForStepActions(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("GORMES_HOME", home)
-	t.Setenv("GORMES_SKILLS_ROOT", "")
-	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
+	setupOnboardWizardTestEnv(t)
 
 	var prompted []string
 	var defaults []string
@@ -172,10 +163,7 @@ func TestOnboardWizardInteractivePromptsForStepActions(t *testing.T) {
 }
 
 func TestOnboardWizardSkipWarningsBeforeSkip(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("GORMES_HOME", home)
-	t.Setenv("GORMES_SKILLS_ROOT", "")
-	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
+	setupOnboardWizardTestEnv(t)
 
 	seams := onboardCommandSeams{
 		IsTTY: func() bool { return true },
@@ -201,10 +189,7 @@ func TestOnboardWizardSkipWarningsBeforeSkip(t *testing.T) {
 }
 
 func TestOnboardWizardConfiguredStepsArePrefilled(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("GORMES_HOME", home)
-	t.Setenv("GORMES_SKILLS_ROOT", "")
-	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
+	home := setupOnboardWizardTestEnv(t)
 	writeOnboardWizardConfig(t, `
 [hermes]
 provider = "groq"
@@ -221,6 +206,7 @@ cdp_url = "http://127.0.0.1:9222"
 	if err := os.WriteFile(filepath.Join(home, ".env"), []byte("GORMES_API_KEY=sk-onboard-test\n"), 0o600); err != nil {
 		t.Fatalf("write env: %v", err)
 	}
+	t.Setenv("GORMES_API_KEY", "sk-onboard-test")
 
 	defaults := map[string]string{}
 	seams := onboardCommandSeams{
@@ -260,10 +246,7 @@ cdp_url = "http://127.0.0.1:9222"
 }
 
 func TestOnboardWizardDelegatesSelectedActions(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("GORMES_HOME", home)
-	t.Setenv("GORMES_SKILLS_ROOT", "")
-	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
+	setupOnboardWizardTestEnv(t)
 
 	var called []string
 	seams := onboardCommandSeams{
@@ -310,10 +293,7 @@ func TestOnboardWizardDelegatesSelectedActions(t *testing.T) {
 }
 
 func TestOnboardWizardRowBackedActionEvidence(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("GORMES_HOME", home)
-	t.Setenv("GORMES_SKILLS_ROOT", "")
-	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
+	setupOnboardWizardTestEnv(t)
 
 	seams := onboardCommandSeams{
 		IsTTY: func() bool { return true },
@@ -352,10 +332,7 @@ func TestOnboardWizardNonInteractiveStillDoesNotPrompt(t *testing.T) {
 		{name: "non tty", args: []string{"--wizard"}, tty: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			home := t.TempDir()
-			t.Setenv("GORMES_HOME", home)
-			t.Setenv("GORMES_SKILLS_ROOT", "")
-			t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
+			setupOnboardWizardTestEnv(t)
 
 			seams := onboardCommandSeams{
 				IsTTY: func() bool { return tc.tty },
@@ -392,6 +369,14 @@ func TestOnboardWizardNonInteractiveStillDoesNotPrompt(t *testing.T) {
 			}
 		})
 	}
+}
+
+func setupOnboardWizardTestEnv(t *testing.T) string {
+	t.Helper()
+	setupOneshotFlagTestEnv(t)
+	t.Setenv("GORMES_SKILLS_ROOT", "")
+	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
+	return config.GormesHome()
 }
 
 func executeOnboardCommandWithSeams(t *testing.T, seams onboardCommandSeams, args ...string) (string, string, error) {

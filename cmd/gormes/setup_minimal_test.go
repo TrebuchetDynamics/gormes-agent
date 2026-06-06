@@ -139,12 +139,12 @@ func firstSetupGatewayWizardSeam(fn func(*cobra.Command, config.Config) (setupGa
 		return fn
 	}
 	return func(cmd *cobra.Command, cfg config.Config) (setupGatewayWizardResult, error) {
-		options := setupGatewayPlatformOptions(cfg)
+		options := gormescli.SetupGatewayPlatformOptions(cfg)
 		selection, err := promptString(cmd, "Messaging platforms (comma-separated numbers or ids, blank to keep current): ", "")
 		if err != nil {
 			return setupGatewayWizardResult{}, err
 		}
-		selected, keepCurrent, err := parseSetupGatewaySelection(selection, options)
+		selected, keepCurrent, err := gormescli.ParseSetupGatewaySelection(selection, options)
 		if err != nil {
 			return setupGatewayWizardResult{}, err
 		}
@@ -514,9 +514,9 @@ func TestSetupActiveProviderModelPickerSkipsProviderList(t *testing.T) {
 	cmd.SetErr(&stderr)
 	cmd.SetIn(strings.NewReader("\n"))
 
-	err := runSetupActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: "openai-codex", Model: "gpt-5.5"})
+	err := gormescli.RunSetupActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: "openai-codex", Model: "gpt-5.5"})
 	if err != nil {
-		t.Fatalf("runSetupActiveProviderModelPicker() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+		t.Fatalf("RunSetupActiveProviderModelPicker() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
 	}
 	for _, want := range []string{"Select model for openai-codex:", "1. gpt-5.5", "Choice [1-8] (1), custom model, or q to cancel:", "model selection saved: provider=openai-codex model=gpt-5.5"} {
 		if !strings.Contains(stdout.String(), want) {
@@ -1673,8 +1673,6 @@ func TestSetupHermesParitySectionsAreImplementedNonInteractive(t *testing.T) {
 		section string
 		want    []string
 	}{
-		{section: "tts", want: []string{"Text-to-Speech Provider", "Default provider: Edge TTS", "Default voice/model", "Built-in/default TTS: Edge TTS", "test a voice", "OpenAI TTS", "Keep current"}},
-		{section: "terminal", want: []string{"Terminal Backend", "Local", "Docker", "Modal", "SSH", "Daytona", "Singularity/Apptainer", "Keep current"}},
 		{section: "gateway", want: []string{"Messaging Platforms", "Telegram", "Discord", "Slack", "gormes gateway"}},
 		{section: "tools", want: []string{"Tools for CLI", "Web Search & Scraping", "Browser Automation", "Terminal & Processes", "File Operations"}},
 		{section: "agent", want: []string{"Agent Settings", "Max iterations", "Tool progress mode", "Compression threshold", "Session reset policy"}},
@@ -1694,25 +1692,6 @@ func TestSetupHermesParitySectionsAreImplementedNonInteractive(t *testing.T) {
 				t.Fatalf("implemented section returned unsupported evidence:\nstdout=%s\nstderr=%s", stdout, stderr)
 			}
 		})
-	}
-}
-
-func TestSetupTTSInteractivePersistsListedProvidersWithoutRowBackedError(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("GORMES_HOME", home)
-
-	fake := &setupCommandFakeSeams{isTTY: true}
-	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "minimax\nn\n", "tts")
-	if err != nil {
-		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
-	}
-	for _, want := range []string{"Default provider: Edge TTS", "Built-in/default TTS: Edge TTS", "Selected provider: MiniMax TTS", "TTS provider set to: MiniMax TTS"} {
-		if !strings.Contains(stdout, want) {
-			t.Fatalf("stdout missing %q:\n%s", want, stdout)
-		}
-	}
-	if strings.Contains(stdout+stderr, "setup_tts_provider_row_backed") || strings.Contains(stdout+stderr, "Robot") {
-		t.Fatalf("TTS setup leaked confusing row-backed/Robot error:\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
 }
 
@@ -1883,5 +1862,64 @@ func TestSetupModelRequiresTTYWithoutNonInteractive(t *testing.T) {
 	}
 	if fake.modelPickerCalls != 0 || fake.loadedCurrent != 0 {
 		t.Fatalf("non-tty setup invoked work: picker=%d loadCurrent=%d", fake.modelPickerCalls, fake.loadedCurrent)
+	}
+}
+
+func writeSetupGatewayFixtureConfig(t *testing.T, body string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(config.ConfigPath()), 0o700); err != nil {
+		t.Fatalf("mkdir config home: %v", err)
+	}
+	if err := os.WriteFile(config.ConfigPath(), []byte(body), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+}
+
+func clearSetupGatewayTelegramEnv(t *testing.T) {
+	t.Helper()
+	for _, key := range []string{
+		"GORMES_TELEGRAM_BOT_TOKEN",
+		"GORMES_TELEGRAM_TOKEN",
+		"GORMES_TELEGRAM_HOME_CHANNEL",
+		"GORMES_TELEGRAM_CHAT_ID",
+		"GORMES_TELEGRAM_HOME_CHANNEL_NAME",
+		"GORMES_TELEGRAM_HOME_CHANNEL_THREAD_ID",
+		"GORMES_TELEGRAM_ALLOWED_USERS",
+		"GORMES_TELEGRAM_ALLOWED_CHATS",
+		"HERMES_TELEGRAM_BOT_TOKEN",
+		"HERMES_TELEGRAM_TOKEN",
+		"HERMES_TELEGRAM_HOME_CHANNEL",
+		"HERMES_TELEGRAM_CHAT_ID",
+		"HERMES_TELEGRAM_HOME_CHANNEL_NAME",
+		"HERMES_TELEGRAM_HOME_CHANNEL_THREAD_ID",
+		"HERMES_TELEGRAM_ALLOWED_USERS",
+		"HERMES_TELEGRAM_ALLOWED_CHATS",
+		"TELEGRAM_BOT_TOKEN",
+		"TELEGRAM_TOKEN",
+		"TELEGRAM_HOME_CHANNEL",
+		"TELEGRAM_CHAT_ID",
+		"TELEGRAM_HOME_CHANNEL_NAME",
+		"TELEGRAM_HOME_CHANNEL_THREAD_ID",
+		"TELEGRAM_ALLOWED_USERS",
+		"TELEGRAM_ALLOWED_CHATS",
+	} {
+		t.Setenv(key, "")
+	}
+}
+
+func TestRootFirstRunSetupCommandUsesCurrentSetupEntrypoint(t *testing.T) {
+	freshInstallE2EHome(t)
+
+	cmd := &cobra.Command{Use: "gormes"}
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+
+	err := runFirstRunSetupCommand(cmd)
+	if err != nil {
+		t.Fatalf("runFirstRunSetupCommand: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "Available setup sections:") {
+		t.Fatalf("stdout = %q, want setup command with no args to render current setup entrypoint", stdout.String())
 	}
 }

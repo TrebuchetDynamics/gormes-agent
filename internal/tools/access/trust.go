@@ -46,6 +46,9 @@ func (e *TrustClassExecutor) Execute(name string, caller TrustClass, args map[st
 	if !isTrustClassAllowed(caller, tool.AllowedClasses) {
 		return nil, fmt.Errorf("trust_class_denied: tool=%s requested=%s allowed=%v", name, caller, tool.AllowedClasses)
 	}
+	if tool.Handler == nil {
+		return nil, fmt.Errorf("tool_handler_missing: %s", name)
+	}
 
 	return tool.Handler(args)
 }

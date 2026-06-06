@@ -9,7 +9,7 @@ Slack's Phase 2.B.3 shared-chassis port is complete. PicoClaw still donates usef
 
 ## Status
 
-`docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now marks Slack as shipped for Phase 2.B.3. Gormes has a Go `internal/slack` Socket Mode bot with threaded replies, placeholder updates, session persistence, shared `CommandRegistry` parser wiring, a `gateway.Channel` shim, config/doctor loading, and `cmd/gormes gateway` registration.
+`webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now marks Slack as shipped for Phase 2.B.3. Gormes has a Go `internal/slack` Socket Mode bot with threaded replies, placeholder updates, session persistence, shared `CommandRegistry` parser wiring, a `gateway.Channel` shim, config/doctor loading, and `cmd/gormes gateway` registration.
 
 Evidence level:
 
@@ -17,7 +17,7 @@ Evidence level:
 - The donor commit inspected for this research was `6421f146a99df1bebcd4b1ca8de2a289dfca3622`.
 - The upstream donor repo is `https://github.com/sipeed/picoclaw`.
 - Any `pkg/...` or `docs/...` path listed below is relative to that donor root, not relative to the Gormes repo.
-- Current Gormes status and operator-facing behavior were verified in-tree against `internal/slack/bot.go`, `gormes/cmd/gormes/gateway.go`, `internal/gateway/commands.go`, `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`, and `docs/content/upstream-hermes/user-guide/messaging/slack.md`.
+- Current Gormes status and operator-facing behavior were verified in-tree against `internal/slack/bot.go`, `gormes/cmd/gormes/gateway.go`, `internal/gateway/commands.go`, `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`, and `webpages/docs/content/upstream-hermes/user-guide/messaging/slack.md`.
 
 PicoClaw already demonstrates a viable Slack edge with:
 
@@ -47,8 +47,8 @@ This remains a strong donor for follow-up polish around richer ack UX, deeper th
 - `picoclaw/pkg/channels/slack/slack.go`
 - `picoclaw/pkg/channels/slack/slack_test.go`
 - `picoclaw/docs/channels/slack/README.md`
-- `docs/content/upstream-hermes/user-guide/messaging/slack.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/upstream-hermes/user-guide/messaging/slack.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 ## What To Copy vs What To Rebuild
 
@@ -103,7 +103,7 @@ Rebuild in Gormes-native form:
 - `picoclaw/pkg/channels/slack/slack.go`: `Start`, `Stop`, `Send`, `SendMedia`, `ReactToMessage`, `eventLoop`, `handleEventsAPI`, `handleMessageEvent`, `handleAppMention`, `handleSlashCommand`, `parseSlackChatID`, `resolveSlackOutboundTarget`, `resolveSlackMediaOutboundTarget`.
 - `picoclaw/pkg/channels/slack/slack_test.go`
 - `picoclaw/docs/channels/slack/README.md`
-- `docs/content/upstream-hermes/user-guide/messaging/slack.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/upstream-hermes/user-guide/messaging/slack.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 Recommendation: `copy candidate`.

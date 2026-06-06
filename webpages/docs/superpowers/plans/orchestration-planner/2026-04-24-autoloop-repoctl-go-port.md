@@ -19,7 +19,7 @@ compatibility wrappers while the three companion scripts remain live shell.
 ## File Structure
 
 Implementation note: the repoctl side has been cut over at this structure.
-`cmd/repoctl` and `internal/repoctl` own repo maintenance. `cmd/autoloop` and
+`cmd/gormes-repo` and `internal/repoctl` own repo maintenance. `cmd/autoloop` and
 `internal/autoloop` own the Go CLI surface plus typed autoloop primitives; full
 legacy runtime parity remains staged. `testdata/legacy-shell` retains parity
 fixtures. Repoctl/orchestrator shell entrypoints under `scripts/` are wrappers,
@@ -30,8 +30,8 @@ remain live shell outside this cutover.
 Create these files:
 
 ```text
-cmd/repoctl/main.go
-cmd/repoctl/main_test.go
+cmd/gormes-repo/main.go
+cmd/gormes-repo/main_test.go
 internal/repoctl/bench.go
 internal/repoctl/bench_test.go
 internal/repoctl/progress.go
@@ -116,8 +116,8 @@ If files outside the task are dirty, stage only the paths listed in that task.
 **Files:**
 - Create: `internal/repoctl/bench.go`
 - Create: `internal/repoctl/bench_test.go`
-- Create: `cmd/repoctl/main.go`
-- Create: `cmd/repoctl/main_test.go`
+- Create: `cmd/gormes-repo/main.go`
+- Create: `cmd/gormes-repo/main_test.go`
 
 - [ ] **Step 1: Write the failing benchmark update test**
 
@@ -331,7 +331,7 @@ func trimSpaceBytes(b []byte) []byte {
 
 - [ ] **Step 4: Add minimal `repoctl` CLI**
 
-Create `cmd/repoctl/main.go`:
+Create `cmd/gormes-repo/main.go`:
 
 ```go
 package main
@@ -358,11 +358,11 @@ func run(args []string) error {
 		}
 		return repoctl.RecordBenchmark(repoctl.BenchmarkOptions{Root: root})
 	}
-	return fmt.Errorf("usage: repoctl benchmark record")
+	return fmt.Errorf("usage: gormes-repo benchmark record")
 }
 ```
 
-Create `cmd/repoctl/main_test.go`:
+Create `cmd/gormes-repo/main_test.go`:
 
 ```go
 package main
@@ -381,7 +381,7 @@ func TestRunRejectsUnknownCommand(t *testing.T) {
 Run:
 
 ```bash
-go test ./internal/repoctl ./cmd/repoctl -count=1
+go test ./internal/repoctl ./cmd/gormes-repo -count=1
 ```
 
 Expected: pass.
@@ -391,7 +391,7 @@ Expected: pass.
 Run:
 
 ```bash
-git add internal/repoctl/bench.go internal/repoctl/bench_test.go cmd/repoctl/main.go cmd/repoctl/main_test.go
+git add internal/repoctl/bench.go internal/repoctl/bench_test.go cmd/gormes-repo/main.go cmd/gormes-repo/main_test.go
 git commit -m "feat(repoctl): record binary benchmarks"
 ```
 
@@ -404,7 +404,7 @@ git commit -m "feat(repoctl): record binary benchmarks"
 - Create: `internal/repoctl/progress_test.go`
 - Create: `internal/repoctl/readme.go`
 - Create: `internal/repoctl/readme_test.go`
-- Modify: `cmd/repoctl/main.go`
+- Modify: `cmd/gormes-repo/main.go`
 
 - [ ] **Step 1: Write failing progress sync test**
 
@@ -640,7 +640,7 @@ func UpdateReadme(opts ReadmeOptions) error {
 
 - [ ] **Step 6: Wire repoctl subcommands**
 
-Modify `cmd/repoctl/main.go` so `run` contains:
+Modify `cmd/gormes-repo/main.go` so `run` contains:
 
 ```go
 func run(args []string) error {
@@ -657,7 +657,7 @@ func run(args []string) error {
 	if len(args) == 2 && args[0] == "readme" && args[1] == "update" {
 		return repoctl.UpdateReadme(repoctl.ReadmeOptions{Root: root})
 	}
-	return fmt.Errorf("usage: repoctl benchmark record | progress sync | readme update")
+	return fmt.Errorf("usage: gormes-repo benchmark record | progress sync | readme update")
 }
 ```
 
@@ -666,7 +666,7 @@ func run(args []string) error {
 Run:
 
 ```bash
-go test ./internal/repoctl ./cmd/repoctl -count=1
+go test ./internal/repoctl ./cmd/gormes-repo -count=1
 ```
 
 Expected: pass.
@@ -676,7 +676,7 @@ Expected: pass.
 Run:
 
 ```bash
-git add internal/repoctl/progress.go internal/repoctl/progress_test.go internal/repoctl/readme.go internal/repoctl/readme_test.go cmd/repoctl/main.go
+git add internal/repoctl/progress.go internal/repoctl/progress_test.go internal/repoctl/readme.go internal/repoctl/readme_test.go cmd/gormes-repo/main.go
 git commit -m "feat(repoctl): sync progress and README metadata"
 ```
 
@@ -687,7 +687,7 @@ git commit -m "feat(repoctl): sync progress and README metadata"
 **Files:**
 - Create: `internal/repoctl/compat.go`
 - Create: `internal/repoctl/compat_test.go`
-- Modify: `cmd/repoctl/main.go`
+- Modify: `cmd/gormes-repo/main.go`
 
 - [ ] **Step 1: Write failing compatibility decision tests**
 
@@ -876,7 +876,7 @@ func CheckGo122(ctx context.Context, opts Go122Options) error {
 
 - [ ] **Step 4: Wire repoctl compat subcommand**
 
-Modify `cmd/repoctl/main.go` to import `context` and add this branch before the usage error:
+Modify `cmd/gormes-repo/main.go` to import `context` and add this branch before the usage error:
 
 ```go
 if len(args) == 2 && args[0] == "compat" && args[1] == "go122" {
@@ -887,7 +887,7 @@ if len(args) == 2 && args[0] == "compat" && args[1] == "go122" {
 Update the usage string to:
 
 ```go
-return fmt.Errorf("usage: repoctl benchmark record | progress sync | readme update | compat go122")
+return fmt.Errorf("usage: gormes-repo benchmark record | progress sync | readme update | compat go122")
 ```
 
 - [ ] **Step 5: Run tests**
@@ -895,7 +895,7 @@ return fmt.Errorf("usage: repoctl benchmark record | progress sync | readme upda
 Run:
 
 ```bash
-go test ./internal/repoctl ./cmd/repoctl -count=1
+go test ./internal/repoctl ./cmd/gormes-repo -count=1
 ```
 
 Expected: pass.
@@ -905,7 +905,7 @@ Expected: pass.
 Run:
 
 ```bash
-git add internal/repoctl/compat.go internal/repoctl/compat_test.go cmd/repoctl/main.go
+git add internal/repoctl/compat.go internal/repoctl/compat_test.go cmd/gormes-repo/main.go
 git commit -m "feat(repoctl): add Go 1.22 compatibility check"
 ```
 
@@ -949,9 +949,9 @@ func TestMakefileUsesRepoctlInsteadOfMaintenanceShell(t *testing.T) {
 		}
 	}
 	for _, want := range []string{
-		"go run ./cmd/repoctl benchmark record",
-		"go run ./cmd/repoctl progress sync",
-		"go run ./cmd/repoctl readme update",
+		"go run ./cmd/gormes-repo benchmark record",
+		"go run ./cmd/gormes-repo progress sync",
+		"go run ./cmd/gormes-repo readme update",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("Makefile missing %q", want)
@@ -977,17 +977,17 @@ Modify the Makefile helper blocks to:
 ```make
 define record-benchmark
 	@echo "Recording benchmark..."
-	@go run ./cmd/repoctl benchmark record
+	@go run ./cmd/gormes-repo benchmark record
 endef
 
 define update-readme
 	@echo "Updating README.md..."
-	@go run ./cmd/repoctl readme update
+	@go run ./cmd/gormes-repo readme update
 endef
 
 define record-progress
 	@echo "Updating progress..."
-	@go run ./cmd/repoctl progress sync
+	@go run ./cmd/gormes-repo progress sync
 endef
 ```
 
@@ -1001,7 +1001,7 @@ set -eu
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 cd "$REPO_ROOT"
-exec go run ./cmd/repoctl benchmark record "$@"
+exec go run ./cmd/gormes-repo benchmark record "$@"
 ```
 
 Replace `scripts/record-progress.sh` with:
@@ -1012,7 +1012,7 @@ set -eu
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 cd "$REPO_ROOT"
-exec go run ./cmd/repoctl progress sync "$@"
+exec go run ./cmd/gormes-repo progress sync "$@"
 ```
 
 Replace `scripts/update-readme.sh` with:
@@ -1023,7 +1023,7 @@ set -eu
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 cd "$REPO_ROOT"
-exec go run ./cmd/repoctl readme update "$@"
+exec go run ./cmd/gormes-repo readme update "$@"
 ```
 
 Replace `scripts/check-go1.22-compat.sh` with:
@@ -1034,7 +1034,7 @@ set -eu
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 cd "$REPO_ROOT"
-exec go run ./cmd/repoctl compat go122 "$@"
+exec go run ./cmd/gormes-repo compat go122 "$@"
 ```
 
 - [ ] **Step 5: Run tests and Makefile target**
@@ -1042,7 +1042,7 @@ exec go run ./cmd/repoctl compat go122 "$@"
 Run:
 
 ```bash
-go test ./internal/repoctl ./cmd/repoctl -count=1
+go test ./internal/repoctl ./cmd/gormes-repo -count=1
 make validate-progress
 ```
 
@@ -3187,7 +3187,7 @@ Expected: repoctl/orchestrator entrypoints are wrappers or test harnesses, long 
 Run:
 
 ```bash
-go test ./internal/repoctl ./cmd/repoctl ./internal/autoloop ./cmd/autoloop -count=1
+go test ./internal/repoctl ./cmd/gormes-repo ./internal/autoloop ./cmd/autoloop -count=1
 go test ./docs -count=1
 go test ./cmd/gormes -count=1
 git diff --check

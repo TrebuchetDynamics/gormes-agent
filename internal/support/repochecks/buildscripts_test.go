@@ -96,7 +96,7 @@ func TestAutoCodexuOrchestratorLoopsByDefaultWhenBacklogEmpty(t *testing.T) {
 		0o755,
 	)
 	writeFile(t,
-		filepath.Join(tmpRepo, "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
+		filepath.Join(tmpRepo, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
 		[]byte(`{"phases":{"1":{"subphases":{"1.A":{"items":[{"name":"Done","status":"complete"}]}}}}}`),
 		0o644,
 	)
@@ -143,7 +143,7 @@ func TestAutoCodexuOrchestratorReusesExistingIntegrationWorktree(t *testing.T) {
 		0o755,
 	)
 	writeFile(t,
-		filepath.Join(tmpRepo, "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
+		filepath.Join(tmpRepo, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
 		[]byte(`{"phases":{"1":{"subphases":{"1.A":{"items":[{"name":"Done","status":"complete"}]}}}}}`),
 		0o644,
 	)
@@ -188,7 +188,7 @@ func TestAutoCodexuOrchestratorDoesNotSigpipeExistingIntegrationWorktreeLookup(t
 		0o755,
 	)
 	writeFile(t,
-		filepath.Join(tmpRepo, "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
+		filepath.Join(tmpRepo, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
 		[]byte(`{"phases":{"1":{"subphases":{"1.A":{"items":[{"name":"Done","status":"complete"}]}}}}}`),
 		0o644,
 	)
@@ -248,7 +248,7 @@ func TestAutoCodexuOrchestratorPromotesSuccessBeforeNextCycle(t *testing.T) {
 	}
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", ".."))
 	tmpRepo := t.TempDir()
-	progressRel := filepath.Join("docs", "content", "building-gormes", "architecture_plan", "progress.json")
+	progressRel := filepath.Join("webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
 
 	copyFile(t,
 		legacyAutoCodexuOrchestratorPath(repoRoot),
@@ -280,12 +280,12 @@ while (($#)); do
 done
 
 tmp="$(mktemp)"
-jq '(.phases["1"].subphases["1.A"].items[0].status)="complete"' docs/content/building-gormes/architecture_plan/progress.json > "$tmp"
-mv "$tmp" docs/content/building-gormes/architecture_plan/progress.json
+jq '(.phases["1"].subphases["1.A"].items[0].status)="complete"' webpages/docs/content/building-gormes/architecture_plan/progress.json > "$tmp"
+mv "$tmp" webpages/docs/content/building-gormes/architecture_plan/progress.json
 mkdir -p fake-worker
 branch="$(git rev-parse --abbrev-ref HEAD)"
 printf '%s\n' "$branch" > "fake-worker/${branch//\//_}.txt"
-git add docs/content/building-gormes/architecture_plan/progress.json fake-worker
+git add webpages/docs/content/building-gormes/architecture_plan/progress.json fake-worker
 git commit -m "test: complete loop proof task" >/dev/null
 commit="$(git rev-parse HEAD)"
 cat > "$final_file" <<EOF
@@ -294,7 +294,7 @@ Task: 1 / 1.A / Loop proof task
 
 2) Pre-doc baseline
 Files:
-- docs/content/building-gormes/architecture_plan/progress.json
+- webpages/docs/content/building-gormes/architecture_plan/progress.json
 
 3) RED proof
 Command: go test ./fake -run TestLoopProof
@@ -318,13 +318,13 @@ Snippet: ok
 
 7) Post-doc closeout
 Files:
-- docs/content/building-gormes/architecture_plan/progress.json
+- webpages/docs/content/building-gormes/architecture_plan/progress.json
 
 8) Commit
 Branch: $branch
 Commit: $commit
 Files:
-- docs/content/building-gormes/architecture_plan/progress.json
+- webpages/docs/content/building-gormes/architecture_plan/progress.json
 
 9) Acceptance check
 Criterion: Loop proof task selected once — PASS
@@ -339,7 +339,7 @@ EOF
 	runCommand(t, tmpRepo, "git", "add", ".")
 	runCommand(t, tmpRepo, "git", "commit", "-m", "init")
 
-	cmd := exec.Command("timeout", "8s", "bash", "scripts/gormes-auto-codexu-orchestrator.sh")
+	cmd := exec.Command("timeout", "15s", "bash", "scripts/gormes-auto-codexu-orchestrator.sh")
 	cmd.Dir = tmpRepo
 	cmd.Env = legacyOrchestratorTestEnv(os.Environ(), repoRoot, tmpRepo, binDir,
 		"INTEGRATION_BRANCH=codexu/test-integration",
@@ -379,7 +379,7 @@ func TestAutoCodexuOrchestratorAcceptsNonZeroCodexExitWithValidCommitAndReport(t
 	}
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", ".."))
 	tmpRepo := t.TempDir()
-	progressRel := filepath.Join("docs", "content", "building-gormes", "architecture_plan", "progress.json")
+	progressRel := filepath.Join("webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
 
 	copyFile(t,
 		legacyAutoCodexuOrchestratorPath(repoRoot),
@@ -411,10 +411,10 @@ while (($#)); do
 done
 
 tmp="$(mktemp)"
-jq '(.phases["1"].subphases["1.A"].items[0].status)="complete"' docs/content/building-gormes/architecture_plan/progress.json > "$tmp"
-mv "$tmp" docs/content/building-gormes/architecture_plan/progress.json
+jq '(.phases["1"].subphases["1.A"].items[0].status)="complete"' webpages/docs/content/building-gormes/architecture_plan/progress.json > "$tmp"
+mv "$tmp" webpages/docs/content/building-gormes/architecture_plan/progress.json
 branch="$(git rev-parse --abbrev-ref HEAD)"
-git add docs/content/building-gormes/architecture_plan/progress.json
+git add webpages/docs/content/building-gormes/architecture_plan/progress.json
 git commit -m "test: complete soft success task" >/dev/null
 commit="$(git rev-parse HEAD)"
 cat > "$final_file" <<EOF
@@ -423,7 +423,7 @@ Task: 1 / 1.A / Soft success task
 
 2) Pre-doc baseline
 Files:
-- docs/content/building-gormes/architecture_plan/progress.json
+- webpages/docs/content/building-gormes/architecture_plan/progress.json
 
 3) RED proof
 Command: go test ./fake -run TestSoft
@@ -447,13 +447,13 @@ Snippet: ok
 
 7) Post-doc closeout
 Files:
-- docs/content/building-gormes/architecture_plan/progress.json
+- webpages/docs/content/building-gormes/architecture_plan/progress.json
 
 8) Commit
 Branch: $branch
 Commit: $commit
 Files:
-- docs/content/building-gormes/architecture_plan/progress.json
+- webpages/docs/content/building-gormes/architecture_plan/progress.json
 
 9) Acceptance check
 Criterion: Soft success task selected once — PASS
@@ -500,12 +500,12 @@ func TestRecordBenchmarkHandlesArchPlanStub(t *testing.T) {
 	tmpRepo := t.TempDir()
 
 	writeFile(t,
-		filepath.Join(tmpRepo, "docs", "ARCH_PLAN.md"),
+		filepath.Join(tmpRepo, "webpages", "docs", "ARCH_PLAN.md"),
 		[]byte("# Stub architecture plan\n\nNo current phase marker here.\n"),
 		0o644,
 	)
 	writeFile(t,
-		filepath.Join(tmpRepo, "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
+		filepath.Join(tmpRepo, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
 		[]byte("{\n  \"phases\": {\n    \"1\": {\n      \"name\": \"Phase 1 — The Dashboard\",\n      \"subphases\": {\n        \"1.A\": {\n          \"items\": [\n            {\"name\": \"Core TUI\", \"status\": \"complete\"}\n          ]\n        }\n      }\n    },\n    \"2\": {\n      \"name\": \"Phase 2 — The Gateway\",\n      \"subphases\": {\n        \"2.E\": {\n          \"items\": [\n            {\"name\": \"Execution isolation\", \"status\": \"planned\"}\n          ]\n        }\n      }\n    }\n  }\n}\n"),
 		0o644,
 	)

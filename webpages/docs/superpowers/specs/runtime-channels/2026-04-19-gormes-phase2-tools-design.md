@@ -322,7 +322,7 @@ toolLoop:
         k.draft = ""
         k.emitFrame("executing tools")
         continue toolLoop
-    
+
     // FinishReason is "stop" or similar — actual end of turn
     break toolLoop
 

@@ -17,17 +17,17 @@
         "system"
       ],
       "degraded_mode": "Progress validation, docs tests, and stale-reference scans fail the handoff if active documentation drifts back to loop-binary execution or side queues.",
-      "fixture": "docs/content/building-gormes/builder-loop/builder-loop-handoff.md + docs/content/building-gormes/builder-loop/progress-schema.md",
+      "fixture": "webpages/docs/content/building-gormes/builder-loop/builder-loop-handoff.md + webpages/docs/content/building-gormes/builder-loop/progress-schema.md",
       "source_refs": [
         "AGENTS.md",
         "CLAUDE.md",
-        "docs/development-skills/gormes-planner/SKILL.md",
-        "docs/development-skills/gormes-builder/SKILL.md",
+        "development-skills/gormes-planner/SKILL.md",
+        "development-skills/gormes-builder/SKILL.md",
         ".agents/skills/gormes-planner/SKILL.md",
         ".agents/skills/gormes-builder/SKILL.md",
-        "docs/content/building-gormes/_index.md",
-        "docs/content/building-gormes/architecture_plan/completion-plan.md",
-        "docs/content/building-gormes/architecture_plan/agent-operating-model.md",
+        "webpages/docs/content/building-gormes/_index.md",
+        "webpages/docs/content/building-gormes/architecture_plan/completion-plan.md",
+        "webpages/docs/content/building-gormes/architecture_plan/agent-operating-model.md",
         "internal/progress/render.go"
       ],
       "ready_when": [
@@ -44,22 +44,22 @@
         "Building Gormes overview and execution queue pages link to Skill Builder Handoff across section map, contributor path, and reference groups.",
         "Skill Builder Handoff candidate policy says not to recreate the deleted builder-loop selector.",
         "Progress schema wording uses builder skills and skill-builder selection, not autonomous worker selection.",
-        "go run ./cmd/progress write refreshes docs/content and www.gormes.ai progress data from the canonical progress file."
+        "go run ./cmd/progress write refreshes webpages/docs/content and www.gormes.ai progress data from the canonical progress file."
       ],
       "note": "Complete in the 2026-04-28 gormes-planner pass: skill-driven docs, AGENTS.md, CLAUDE.md, progress schema wording, and generated Hugo pages now agree that skills replace the deleted loop binaries.",
       "write_scope": [
         "AGENTS.md",
         "CLAUDE.md",
         "internal/progress/render.go",
-        "docs/content/building-gormes/",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "www.gormes.ai/internal/site/data/progress.json"
       ],
       "test_commands": [
         "go run ./cmd/progress write",
         "go run ./cmd/progress validate",
         "go test ./internal/progress -count=1",
-        "go test ./docs -count=1"
+        "go test ./webpages/docs -count=1"
       ],
       "done_signal": [
         "Skill-routed handoff docs, generated progress pages, and site progress data are regenerated from progress.json and validation passes without invoking old loop binaries."
@@ -89,20 +89,20 @@
         "system"
       ],
       "degraded_mode": "If the manager cannot route the pass, it emits skill_route_unclear or new_skill_needed with the missing capability and sends the work back to gormes-planner instead of silently proceeding skill-less.",
-      "fixture": "docs/development-skills/gormes-skill-manager/SKILL.md",
+      "fixture": "development-skills/gormes-skill-manager/SKILL.md",
       "source_refs": [
-        "docs/development-skills/gormes-skill-manager/SKILL.md",
-        "docs/development-skills/gormes-skill-manager/references/skill-routing.md",
+        "development-skills/gormes-skill-manager/SKILL.md",
+        "development-skills/gormes-skill-manager/references/skill-routing.md",
         ".agents/skills/gormes-skill-manager/SKILL.md",
         ".agents/skills/gormes-skill-manager/references/skill-routing.md",
-        "docs/development-skills/gormes-planner/SKILL.md",
-        "docs/development-skills/gormes-builder/SKILL.md",
-        "docs/development-skills/gormes-parity-auditor/SKILL.md",
-        "docs/development-skills/gormes-tdd-slice/SKILL.md",
-        "docs/development-skills/gormes-interface-designer/SKILL.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "development-skills/gormes-planner/SKILL.md",
+        "development-skills/gormes-builder/SKILL.md",
+        "development-skills/gormes-parity-auditor/SKILL.md",
+        "development-skills/gormes-tdd-slice/SKILL.md",
+        "development-skills/gormes-interface-designer/SKILL.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
         "AGENTS.md",
-        "docs/content/building-gormes/architecture_plan/agent-operating-model.md"
+        "webpages/docs/content/building-gormes/architecture_plan/agent-operating-model.md"
       ],
       "ready_when": [
         "The current skill set exists on disk and AGENTS.md requires skill routing.",
@@ -122,20 +122,20 @@
       ],
       "note": "Complete in the 2026-04-28 gormes-planner plus skill-creator pass: gormes-skill-manager now routes from the Hermes/Honcho feature map and progress row, emits a selected_skill/feature_map_area/progress_row/reason/fallback/new_skill_needed packet, and points repeated workflow gaps to progress-backed skill creation instead of loop binaries.",
       "write_scope": [
-        "docs/development-skills/gormes-skill-manager/SKILL.md",
-        "docs/development-skills/gormes-skill-manager/references/skill-routing.md",
+        "development-skills/gormes-skill-manager/SKILL.md",
+        "development-skills/gormes-skill-manager/references/skill-routing.md",
         ".agents/skills/",
         ".claude/skills/",
         ".codex/skills/",
         "AGENTS.md",
         "CLAUDE.md",
-        "docs/content/building-gormes/architecture_plan/agent-operating-model.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/agent-operating-model.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go run ./cmd/progress write",
         "go run ./cmd/progress validate",
-        "go test ./docs -count=1"
+        "go test ./webpages/docs -count=1"
       ],
       "done_signal": [
         "The skill manager can route every known Gormes work type or produce a documented new-skill request without a private queue."
@@ -165,19 +165,19 @@
         "system"
       ],
       "degraded_mode": "Uncovered work types are reported as skill_gap rows with lane, missing input, expected output, and proposed skill name instead of being handled by free-form prompts.",
-      "fixture": "docs/development-skills/gormes-skill-manager/references/skill-routing.md::Completion Lane Coverage",
+      "fixture": "development-skills/gormes-skill-manager/references/skill-routing.md::Completion Lane Coverage",
       "source_refs": [
-        "docs/development-skills/",
-        "docs/development-skills/gormes-skill-manager/references/skill-routing.md",
-        "docs/development-skills/gormes-builder/references/delivery-gates.md",
-        "docs/development-skills/gormes-tdd-slice/references/gates.md",
+        "development-skills/",
+        "development-skills/gormes-skill-manager/references/skill-routing.md",
+        "development-skills/gormes-builder/references/delivery-gates.md",
+        "development-skills/gormes-tdd-slice/references/gates.md",
         ".agents/skills/",
         ".claude/skills/",
         ".codex/skills/",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
-        "docs/content/building-gormes/architecture_plan/completion-plan.md",
-        "docs/content/building-gormes/architecture_plan/lane-roadmap.md",
-        "docs/content/building-gormes/builder-loop/agent-queue.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/completion-plan.md",
+        "webpages/docs/content/building-gormes/architecture_plan/lane-roadmap.md",
+        "webpages/docs/content/building-gormes/builder-loop/agent-queue.md",
         "https://github.com/mattpocock/skills"
       ],
       "ready_when": [
@@ -198,18 +198,18 @@
       ],
       "note": "Complete in the 2026-04-28 skill coverage pass: the skill-routing reference maps skill control plane, Goncho/Honcho compatibility, normal-turn e2e, provider transcripts, gateway/channels, docs/Hugo/site sync, and release/install lanes to existing skill chains, while naming gormes-goncho-compat, gormes-e2e-operator, gormes-provider-parity, gormes-channel-adapter, gormes-docs-web-sync, and gormes-release-packager as progress-backed candidates only when repeated work proves them.",
       "write_scope": [
-        "docs/development-skills/",
+        "development-skills/",
         ".agents/skills/",
         ".claude/skills/",
         ".codex/skills/",
-        "docs/content/building-gormes/architecture_plan/agent-operating-model.md",
-        "docs/content/building-gormes/architecture_plan/completion-plan.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/agent-operating-model.md",
+        "webpages/docs/content/building-gormes/architecture_plan/completion-plan.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go run ./cmd/progress write",
         "go run ./cmd/progress validate",
-        "go test ./docs -count=1"
+        "go test ./webpages/docs -count=1"
       ],
       "done_signal": [
         "Skill coverage docs prove every completion lane has a primary route or a progress.json-backed new-skill proposal."
@@ -229,7 +229,7 @@
       "name": "Canonical development-skills directory and loader symlinks",
       "priority": "P1",
       "status": "complete",
-      "contract": "All repo-local skills live canonically under docs/development-skills/<name>/SKILL.md, with .agents/skills, .claude/skills, and .codex/skills as symlink loader views so Codex, Claude, and future agents consume the same skill definitions.",
+      "contract": "All repo-local skills live canonically under development-skills/<name>/SKILL.md, with .agents/skills, .claude/skills, and .codex/skills as symlink loader views so Codex, Claude, and future agents consume the same skill definitions.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "skills",
@@ -239,10 +239,10 @@
         "system"
       ],
       "degraded_mode": "If a loader path is not a symlink or points to a missing skill, gormes-skill-manager reports skill_loader_drift and repairs the symlink instead of copying files into another source of truth.",
-      "fixture": "docs/development-skills/README.md",
+      "fixture": "development-skills/README.md",
       "source_refs": [
-        "docs/development-skills/README.md",
-        "docs/development-skills/gormes-skill-manager/SKILL.md",
+        "development-skills/README.md",
+        "development-skills/gormes-skill-manager/SKILL.md",
         ".agents/skills/",
         ".claude/skills/",
         ".codex/skills/",
@@ -256,30 +256,30 @@
       ],
       "not_ready_when": [
         "The row copies skill files into multiple mutable directories.",
-        "The row deletes a skill without first preserving it under docs/development-skills.",
+        "The row deletes a skill without first preserving it under development-skills.",
         "The row changes runtime feature code."
       ],
       "acceptance": [
-        "Every repo-local skill has a canonical docs/development-skills/<name>/SKILL.md file.",
+        "Every repo-local skill has a canonical development-skills/<name>/SKILL.md file.",
         ".agents/skills/<name>, .claude/skills/<name>, and .codex/skills/<name> resolve to the canonical skill directory.",
         "AGENTS.md, CLAUDE.md, gormes-skill-manager, and planning docs describe the canonical skill source and symlink loader views.",
         "Skill validation succeeds for the Gormes skill set."
       ],
-      "note": "Complete in the 2026-04-28 gormes-planner plus skill-creator pass: moved repo-local skill directories into docs/development-skills and added symlink loader views for .agents, .claude, and .codex so skill edits have one source of truth.",
+      "note": "Complete in the 2026-04-28 gormes-planner plus skill-creator pass: moved repo-local skill directories into development-skills and added symlink loader views for .agents, .claude, and .codex so skill edits have one source of truth.",
       "write_scope": [
-        "docs/development-skills/",
+        "development-skills/",
         ".agents/skills/",
         ".claude/skills/",
         ".codex/skills/",
         "AGENTS.md",
         "CLAUDE.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -name SKILL.md -print",
-        "python /home/aldevaran/.codex/skills/.system/skill-creator/scripts/quick_validate.py docs/development-skills/gormes-planner",
+        "python /home/aldevaran/.codex/skills/.system/skill-creator/scripts/quick_validate.py development-skills/gormes-planner",
         "go run ./cmd/progress validate",
-        "go test ./docs -count=1"
+        "go test ./webpages/docs -count=1"
       ],
       "done_signal": [
         "The canonical skill tree and all loader symlink views resolve to the same SKILL.md files without duplicated mutable skill definitions."
@@ -347,7 +347,7 @@
         "internal/skills/hub_registry_sources.go",
         "internal/skills/hub_registry_sources_test.go",
         "internal/skills/hub_search.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills -run 'TestGitHubRegistry|TestSkillsSh|TestHermesIndex|TestWellKnown|TestClawHub|TestClaudeMarket|TestLobeHub' -count=1",
@@ -414,7 +414,7 @@
       "write_scope": [
         "internal/skills/url_candidate.go",
         "internal/skills/url_candidate_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills -run '^TestURLSkillCandidate_' -count=1",
@@ -489,7 +489,7 @@
         "internal/cli/skills_url_install_test.go",
         "internal/skills/url_install.go",
         "internal/skills/url_install_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills -run '^TestURLSkillInstall_' -count=1",
@@ -552,7 +552,7 @@
       "write_scope": [
         "internal/skills/",
         "internal/gateway/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills ./internal/gateway -count=1"
@@ -618,7 +618,7 @@
         "internal/automation/cron/heartbeat_test.go",
         "internal/skills/commands.go",
         "internal/skills/preprocessing_commands_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/automation/cron ./internal/skills -count=1",
@@ -692,7 +692,7 @@
         "internal/skills/list_test.go",
         "internal/cli/skills_command.go",
         "internal/cli/skills_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills -run 'TestListInstalledSkills' -count=1",
@@ -768,7 +768,7 @@
         "internal/skills/airtable_skill_test.go",
         "internal/skills/",
         "internal/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills -run 'TestAirtableSkill|TestSkill' -count=1",
@@ -845,7 +845,7 @@
         "skills/creative/touchdesigner-mcp/",
         "internal/skills/touchdesigner_skill_test.go",
         "internal/skills/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills -run 'TestTouchDesignerSkill|TestSkill' -count=1",
@@ -1040,7 +1040,7 @@
         "internal/plugins/",
         "internal/tools/",
         "internal/apiserver/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/plugins ./internal/tools ./internal/apiserver -count=1"
@@ -1109,7 +1109,7 @@
       "write_scope": [
         "internal/apiserver/",
         "internal/plugins/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/apiserver ./internal/plugins -count=1"
@@ -1173,7 +1173,7 @@
       "write_scope": [
         "internal/plugins/",
         "internal/apiserver/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/plugins ./internal/apiserver -run 'Test.*PageScopedSlot|TestDashboardPluginsEndpoint' -count=1",
@@ -1242,8 +1242,8 @@
         "./hermes-agent/hermes_cli/plugins_cmd.py@b816fd4e2",
         "./hermes-agent/hermes_cli/plugins.py@b816fd4e2",
         "./hermes-agent/hermes_cli/main.py@b816fd4e2:plugins_subparsers",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree",
-        "docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md:plugins",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md:plugins",
         "internal/plugins/loader.go",
         "internal/plugins/discovery.go",
         "cmd/gormes/hermes_cli_parity.go"
@@ -1277,7 +1277,7 @@
         "internal/plugins/lifecycle.go",
         "internal/plugins/lifecycle_test.go",
         "internal/plugins/discovery.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run TestPluginsCommand -count=1",
@@ -1355,7 +1355,7 @@
         "internal/plugins/loader.go",
         "internal/plugins/teams_pipeline_plugin.go",
         "internal/plugins/teams_pipeline_plugin_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/plugins -run '^TestTeamsPipelinePluginMetadata' -count=1",
@@ -1417,7 +1417,7 @@
       "write_scope": [
         "internal/tools/",
         "internal/plugins/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools ./internal/plugins -count=1"
@@ -1492,7 +1492,7 @@
         "internal/plugins/google_meet_plugin_test.go",
         "internal/plugins/",
         "internal/tools/registry.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/plugins ./internal/tools -run 'TestGoogleMeetPluginMetadata|TestSpotifyPlugin|TestManifest' -count=1",
@@ -1531,7 +1531,7 @@
       "source_refs": [
         "../hermes-agent/plugins/memory/hindsight/__init__.py@64a497bf:post_setup",
         "../hermes-agent/tests/plugins/memory/test_hindsight_provider.py@64a497bf:test_local_embedded_setup_blank_inputs_preserve_existing_config",
-        "docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Memory plugin: Hindsight"
+        "webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Memory plugin: Hindsight"
       ],
       "ready_when": [
         "Third-party extensions have a native plugin config-patch seam; do not implement this before the generic plugin setup surface exists.",
@@ -1556,7 +1556,7 @@
       "write_scope": [
         "internal/plugins/memory_hindsight_config.go",
         "internal/plugins/memory_hindsight_config_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/plugins -run '^TestHindsightSetupConfigPatch_' -count=1",
@@ -1595,8 +1595,8 @@
       "source_refs": [
         "openclaw hooks CLI surface",
         "internal/gateway/manager.go",
-        "docs/content/building-gormes/fleet-operational-patterns.md",
-        "docs/content/building-gormes/fleet-integration-plan.md"
+        "webpages/docs/content/building-gormes/fleet-operational-patterns.md",
+        "webpages/docs/content/building-gormes/fleet-integration-plan.md"
       ],
       "ready_when": [
         "Gateway HOOK.yaml loader (Phase 2) is operational.",
@@ -1618,7 +1618,7 @@
         "internal/plugins/hooks.go",
         "internal/plugins/hooks_test.go",
         "cmd/gormes/hooks.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/plugins -run TestHooks -count=1",
@@ -1652,7 +1652,7 @@
       "source_refs": [
         "../agent-zero/helpers/extension.py@7c71185f:extensible,call_extensions_async,call_extensions_sync",
         "../agent-zero/agent.py@7c71185f:agent_init,monologue_start,message_loop_start,before_main_llm_call,response_stream_chunk,reasoning_stream_chunk,message_loop_end,monologue_end",
-        "docs/content/building-gormes/agent-zero-feature-analysis.md",
+        "webpages/docs/content/building-gormes/agent-zero-feature-analysis.md",
         "internal/plugins/types.go:HookKind",
         "internal/plugins/loader.go:CapabilityHook",
         "internal/kernel/kernel.go",
@@ -1682,7 +1682,7 @@
       "write_scope": [
         "internal/kernel/extensions.go",
         "internal/kernel/extensions_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kernel -run TestExtensions -count=1",
@@ -1738,7 +1738,7 @@
         "internal/plugins/transform_llm_output.go",
         "internal/plugins/transform_llm_output_test.go",
         "internal/kernel/kernel.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/plugin -run TransformLLMOutput -count=1",
@@ -1763,7 +1763,7 @@
       "name": "Hermes plugin catalog strict-fidelity classifier",
       "priority": "P1",
       "status": "complete",
-      "contract": "Build a report-only Hermes plugin catalog classifier for `cmd/repoctl hermes-contract-inventory`: scan the current `hermes-agent/plugins/**` tree, group exact plugin files into first-party families (model providers, memory providers, browser/web search, platform adapters, Google Meet, Spotify, Teams pipeline, image/video generation, dashboard/observability), and attach each family to an existing progress row, planned child row, source-pair entry, explicit exclusion, or owned-divergence note. The classifier is evidence-only: it must not import or execute Hermes plugin runtime code, mutate provider/channel behavior, or claim strict coverage without row/source-pair/test proof.",
+      "contract": "Build a report-only Hermes plugin catalog classifier for `cmd/gormes-repo hermes-contract-inventory`: scan the current `hermes-agent/plugins/**` tree, group exact plugin files into first-party families (model providers, memory providers, browser/web search, platform adapters, Google Meet, Spotify, Teams pipeline, image/video generation, dashboard/observability), and attach each family to an existing progress row, planned child row, source-pair entry, explicit exclusion, or owned-divergence note. The classifier is evidence-only: it must not import or execute Hermes plugin runtime code, mutate provider/channel behavior, or claim strict coverage without row/source-pair/test proof.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "docs",
@@ -1775,7 +1775,7 @@
       "degraded_mode": "Until this classifier lands, strict-fidelity reports can only show plugin files as an undifferentiated unmapped bucket, so Gormes must avoid claiming complete Hermes plugin/provider/channel/memory parity.",
       "fixture": "internal/repoctl/hermes_contract_inventory_plugin_catalog_test.go",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Plugin SDK and first-party plugins",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Plugin SDK and first-party plugins",
         "internal/fidelity/report.go:buildCandidateInventory",
         "internal/repoctl/hermes_contract_inventory.go:RenderHermesContractInventoryMarkdown",
         "internal/repoctl/hermes_contract_inventory_test.go:TestWriteHermesContractInventoryWritesJSONAndMarkdown",
@@ -1831,7 +1831,7 @@
       "test_commands": [
         "go test ./internal/repoctl -run TestHermesContractInventoryClassifiesPluginCatalogFamilies -count=1",
         "go test ./internal/repoctl ./internal/fidelity -count=1",
-        "go run ./cmd/repoctl hermes-source-pairs validate",
+        "go run ./cmd/gormes-repo hermes-source-pairs validate",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1895,7 +1895,7 @@
       "write_scope": [
         "internal/automation/cron/delivery_plan.go",
         "internal/automation/cron/delivery_plan_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/automation/cron -run '^TestCronDeliveryPlan_StandaloneSenderFallback' -count=1",
@@ -1980,7 +1980,7 @@
         "internal/cli/",
         "internal/plugins/",
         "internal/tools/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli ./internal/plugins ./internal/tools -run 'Test.*Toolset|TestFirstPartySpotify' -count=1",
@@ -2029,7 +2029,7 @@
         "internal/llm/background_review_test.go",
         "internal/skills/store.go",
         "internal/skills/selector.go",
-        "docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md"
+        "webpages/docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md"
       ],
       "ready_when": [
         "Portable SKILL.md format is validated, so generated drafts can carry review state and remain out of prompt injection until approved.",
@@ -2054,7 +2054,7 @@
       "write_scope": [
         "internal/llm/background_review.go",
         "internal/llm/background_review_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt|InheritsActiveRuntime|RestrictsTools)' -count=1",
@@ -2120,7 +2120,7 @@
         "internal/skills/parser.go",
         "internal/skills/parser_test.go",
         "internal/skills/status.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills -run 'TestSkillFrontmatterValidation|TestParse' -count=1",
@@ -2193,7 +2193,7 @@
         "internal/skills/parser.go",
         "internal/skills/types.go",
         "internal/skills/selector.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills -run 'TestCreativeSkillMetadata_|TestParse|TestSelector' -count=1",
@@ -2232,7 +2232,7 @@
         "../hermes-agent/skills/creative/claude-design/SKILL.md@8c5d3a99",
         "../hermes-agent/skills/creative/popular-web-designs/SKILL.md@55be5323",
         "../hermes-agent/skills/creative/design-md/SKILL.md@55be5323",
-        "docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md"
+        "webpages/docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md"
       ],
       "ready_when": [
         "SKILL.md frontmatter validation guard is validated so malformed skill files are excluded before review metadata is interpreted.",
@@ -2259,7 +2259,7 @@
       "note": "Refined after Gormes-owned.22.4 and Hermes 8c5d3a99/55be5323/7d586ddb: first land the SKILL.md frontmatter validation guard and creative skill metadata compatibility, then extend the Phase 2.G parser/store contract with versioned metadata, provenance, review state, and atomic writes while preserving human-editable skill files.",
       "write_scope": [
         "internal/skills/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills -count=1"
@@ -2315,8 +2315,8 @@
       "note": "Complete 2026-05-21: TDD added parser coverage for Hermes v0.14 optional/catalog frontmatter shape using osint/notion-style metadata. internal/skills.Parse now preserves metadata.hermes.category and metadata.hermes.homepage in typed Skill fields while keeping tags, related_skills, platforms, env prerequisites, and body parsing intact. No Hermes optional Python scripts were vendored and no runtime enablement changed.",
       "write_scope": [
         "internal/skills",
-        "docs/development-skills",
-        "docs/content/building-gormes/architecture_plan"
+        "development-skills",
+        "webpages/docs/content/building-gormes/architecture_plan"
       ],
       "test_commands": [
         "go test ./internal/skills -run 'Test.*Skill.*Catalog|Test.*Optional' -count=1",
@@ -2346,7 +2346,7 @@
       "name": "Hermes skill catalog strict-fidelity classifier",
       "priority": "P1",
       "status": "complete",
-      "contract": "Build a report-only Hermes skill catalog strict-fidelity classifier for `cmd/repoctl hermes-contract-inventory`: scan the current `hermes-agent/skills` and `hermes-agent/optional-skills` trees, group exact `SKILL.md`, `DESCRIPTION.md`, and supporting-file examples into deterministic surface families (bundled catalog metadata, optional catalog metadata, category descriptions, prerequisites/readiness metadata, triggers/tags/related skills, support assets, sync/reset boundaries, and Python/script-only examples), and attach each family to an existing Gormes skill-store row, planned child row, source-pair entry, explicit exclusion, or owned-divergence note. The classifier is evidence-only: it must not copy bundled skill content into Gormes, execute support scripts, mutate `internal/skills` behavior, or claim strict skill-catalog parity without row/source-pair/test proof.",
+      "contract": "Build a report-only Hermes skill catalog strict-fidelity classifier for `cmd/gormes-repo hermes-contract-inventory`: scan the current `hermes-agent/skills` and `hermes-agent/optional-skills` trees, group exact `SKILL.md`, `DESCRIPTION.md`, and supporting-file examples into deterministic surface families (bundled catalog metadata, optional catalog metadata, category descriptions, prerequisites/readiness metadata, triggers/tags/related skills, support assets, sync/reset boundaries, and Python/script-only examples), and attach each family to an existing Gormes skill-store row, planned child row, source-pair entry, explicit exclusion, or owned-divergence note. The classifier is evidence-only: it must not copy bundled skill content into Gormes, execute support scripts, mutate `internal/skills` behavior, or claim strict skill-catalog parity without row/source-pair/test proof.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "docs",
@@ -2422,7 +2422,7 @@
         "go test ./internal/repoctl -run TestHermesContractInventoryClassifiesSkillCatalogSurface -count=1",
         "go test ./internal/repoctl ./internal/fidelity -count=1",
         "go test ./internal/skills -run 'TestParseSkill|TestOptionalSkillCatalogHermesV014Metadata|TestListInstalledSkills|TestSyncBundledSkills|TestPreprocessSkillContent|TestRuntimeBuildSkillBlock' -count=1",
-        "go run ./cmd/repoctl hermes-source-pairs validate",
+        "go run ./cmd/gormes-repo hermes-source-pairs validate",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -2479,7 +2479,7 @@
       "write_scope": [
         "internal/skills/",
         "internal/memory/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills ./internal/memory -run 'Test.*Hybrid.*Skill|Test.*Skill.*Lookup|Test.*Semantic' -count=1",
@@ -2548,7 +2548,7 @@
         "internal/skills/source_aware_retrieval.go",
         "internal/skills/source_aware_retrieval_test.go",
         "internal/memory/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills ./internal/memory -run 'Test.*Source.*Aware|Test.*Retrieval.*Damping|Test.*Temporal.*Bypass' -count=1",
@@ -2601,7 +2601,7 @@
       "write_scope": [
         "internal/skills/",
         "internal/automation/insights/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills ./internal/automation/insights -run 'Test.*Code.*Context|Test.*Call.*Edge|Test.*Parent.*Scope' -count=1",
@@ -2694,7 +2694,7 @@
         "internal/skills/usage.go",
         "internal/skills/store.go",
         "internal/automation/cron/store.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills ./internal/automation/cron -run 'TestCurator(State|Transitions|Run|Backup|Report|Classification|CronSkillRewrite)' -count=1",
@@ -2765,7 +2765,7 @@
         "cmd/gormes/curator_test.go",
         "cmd/gormes/update.go",
         "cmd/gormes/update_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills ./cmd/gormes -run 'TestCuratorRenameSummary|TestCuratorCommand_StatusMultilineSummary|TestUpdateCommand_.*CuratorRecentRunSummary' -count=1",
@@ -2955,7 +2955,7 @@
         "internal/skills/usage_test.go",
         "internal/core/subagent/skill_provenance.go",
         "internal/core/subagent/skill_provenance_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/skills ./internal/subagent -run 'TestSkillManager(Schema|SupportFile|AbsorbedInto|PinnedGuard|AgentCreated|AgentCreatedGuard)|TestSkillUsage|TestBackgroundReviewProvenance' -count=1",
@@ -3051,7 +3051,7 @@
         "internal/cli/command_registry.go",
         "internal/cli/command_registry_policy_test.go",
         "internal/gateway/commands.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes ./internal/cli ./internal/gateway -run 'TestCuratorCommand|TestCommandRegistry|TestGatewayCommand' -count=1",
@@ -3137,7 +3137,7 @@
         "internal/cli/command_registry_policy_test.go",
         "internal/skills/usage.go",
         "internal/skills/usage_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes ./internal/cli ./internal/skills -run 'TestCuratorCommand|TestHermesCLIParityManifest|TestCommandRegistry|TestSkillUsage' -count=1",
@@ -3220,7 +3220,7 @@
         "internal/skills/list.go",
         "cmd/gormes/registry.go",
         "cmd/gormes/registry_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "www.gormes.ai/internal/site/data/progress.json"
       ],
       "test_commands": [
@@ -3288,7 +3288,7 @@
         "internal/cli/skills_command.go:NewSkillsInstallCommand",
         "internal/gateway/skills_command.go:renderSkillsManageUnavailable",
         "internal/tui/slash_dispatch.go:skillsSlashHandler",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt / Skill preprocessing and slash skills"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt / Skill preprocessing and slash skills"
       ],
       "ready_when": [
         "The completed `Skills hub direct URL install name/category guard` row provides the noninteractive URL install policy, injected fetcher, quarantine scanner, and store seams.",
@@ -3323,7 +3323,7 @@
         "cmd/gormes/skills.go",
         "cmd/gormes/gateway.go",
         "cmd/gormes/main.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "cmd/gormes/gateway_test.go"
       ],
       "test_commands": [
@@ -3375,7 +3375,7 @@
         "internal/config/config.go:SkillsCfg",
         "internal/skills/list.go:ListInstalledSkillsFromRoots",
         "internal/gateway/skills_command.go:SkillsCommandOptions",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt / Skill preprocessing and slash skills"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt / Skill preprocessing and slash skills"
       ],
       "ready_when": [
         "`internal/llm.BuildSkillsSystemPrompt` already has an `ExternalDirs` seam and fixture coverage for prompt order/filtering; the missing work is config/list/gateway/TUI wiring plus typed evidence.",
@@ -3413,7 +3413,7 @@
         "internal/tui/slash_dispatch.go",
         "cmd/gormes/skills.go",
         "cmd/gormes/main.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "internal/cli/skills_command.go",
         "internal/cli/skills_command_test.go",
         "cmd/gormes/skills_onboard_test.go"
@@ -3463,7 +3463,7 @@
         "internal/tui/slash_dispatch.go:SlashRegistry, SlashResult.EditorText, slashFallbackResult",
         "internal/tui/slash_completion.go:HermesSlashCommandCompletions and renderSlashCompletionMenu",
         "internal/cli/command_registry.go:CommandRegistry and SlashLeaksToModelPrompt",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt / Skill preprocessing and slash skills"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt / Skill preprocessing and slash skills"
       ],
       "ready_when": [
         "The completed TUI slash-dispatch rows already consume local slash commands without submitting them to the kernel/model, and SlashResult.EditorText can seed editable text after a local command.",
@@ -3496,7 +3496,7 @@
         "cmd/gormes/main.go",
         "cmd/gormes/prompt_templates.go",
         "cmd/gormes/prompt_templates_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "internal/tui/prompt_templates.go"
       ],
       "test_commands": [
@@ -3541,7 +3541,7 @@
         "internal/tui/prompttemplates/catalog.go:Discover supports directory and explicit file paths",
         "cmd/gormes/main.go:installRootRPCModeFlags and resolveTUIInvocation",
         "cmd/gormes/prompt_templates.go:tuiPromptTemplateCatalog",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt / Skill preprocessing and slash skills"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt / Skill preprocessing and slash skills"
       ],
       "ready_when": [
         "The completed `Pi-style prompt template TUI expansion seam` row provides the catalog, slash expansion, completion, and built-in command precedence behavior.",
@@ -3567,7 +3567,7 @@
         "cmd/gormes/prompt_templates_test.go",
         "internal/tui/prompttemplates/catalog.go",
         "internal/tui/prompttemplates/catalog_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui/prompttemplates -count=1",
@@ -3652,7 +3652,7 @@
         "system"
       ],
       "source_refs": [
-        "docs/content/papers/foundational-architectures.md",
+        "webpages/docs/content/papers/foundational-architectures.md",
         "Voyager (arXiv:2305.16291)",
         "internal/skills/loader.go",
         "internal/skills/executor.go",
@@ -3724,7 +3724,7 @@
         "operator"
       ],
       "source_refs": [
-        "docs/content/papers/foundational-architectures.md",
+        "webpages/docs/content/papers/foundational-architectures.md",
         "Voyager skill library composition",
         "internal/skills/loader.go",
         "internal/skills/registry.go"

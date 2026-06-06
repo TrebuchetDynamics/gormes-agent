@@ -669,7 +669,7 @@ releases).
 > Landing copy at gormes.ai now leads with TrebuchetDynamics' autonomous-porting
 > methodology and the ratified v1 differentiator (30 Hermes skills, 1 Go binary,
 > 3 hard targets) instead of Hermes-compatibility, which becomes supporting
-> evidence per `docs/content/building-gormes/strategy/success-plan.md`. Telegram
+> evidence per `webpages/docs/content/building-gormes/strategy/success-plan.md`. Telegram
 > photo attachments now reach vision-capable providers as `image_url` content
 > parts; vision-rejected turns auto-retry text-only.
 
@@ -1021,7 +1021,7 @@ until the release workflow accepts date-based tags as a separate concern).
   writeup #1, sharp v1.0 differentiator decision, single-binary release
   pipeline, agentic-porting-kit extraction, loop $/iteration cost telemetry,
   and built-with-Gormes page.
-- `docs/content/building-gormes/strategy/success-plan.md` — 12-month strategy
+- `webpages/docs/content/building-gormes/strategy/success-plan.md` — 12-month strategy
   doc capturing the methodology-first North Star, quarterly roadmap, 30-day
   action sprint, reputation-metrics scoreboard, and risk register.
 - Six builder-ready Hermes-parity rows from the v2026.4.30 + v2026.5.7

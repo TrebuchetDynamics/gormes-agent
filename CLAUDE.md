@@ -32,7 +32,7 @@ Claude Code, and workspace-mineru / workspace-mimeru agents.
 
 Before doing any substantive work in this repository, select and use at least
 one repo-local skill. Canonical skill files live under
-`docs/development-skills/<name>/SKILL.md`; `.claude/skills/`,
+`development-skills/<name>/SKILL.md`; `.claude/skills/`,
 `.agents/skills/`, and `.codex/skills/` are symlink loader views. If the right
 skill is unclear, start with `gormes-skill-manager`.
 
@@ -55,7 +55,7 @@ Default routing:
 
 If none fits repeated Gormes work, use `gormes-skill-manager` with a skill
 creation workflow to create or refine a repo-local skill under
-`docs/development-skills/`, then symlink it into `.claude/skills/`,
+`development-skills/`, then symlink it into `.claude/skills/`,
 `.agents/skills/`, and `.codex/skills/`. Do not proceed skill-less on
 planning, building, parity analysis, interface design, TDD implementation, or
 skill maintenance.
@@ -76,7 +76,7 @@ Gormes-owned surface that may diverge from Hermes `ui-tui` by design;
 presentation parity is not a completion gate. This owned divergence is tracked
 in `progress.json` (Phase 8.D, "Gormes-owned chat TUI" rows) per the
 methodology-first strategy. Keep all implementation intent in
-`docs/content/building-gormes/architecture_plan/progress.json`; do not create
+`webpages/docs/content/building-gormes/architecture_plan/progress.json`; do not create
 parallel queues.
 
 <!-- karpathy-guidelines:start -->

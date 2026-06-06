@@ -278,7 +278,7 @@ func TestItemExtraEvidenceFieldsRoundTripAndStayIdempotent(t *testing.T) {
       "subphases": {
         "1.A": {
           "name": "S",
-          "source": "docs/content/papers/safety-and-deployment.md",
+          "source": "webpages/docs/content/papers/safety-and-deployment.md",
           "items": [
             {
               "name": "row-1",
@@ -334,7 +334,7 @@ func TestItemExtraEvidenceFieldsRoundTripAndStayIdempotent(t *testing.T) {
 		`"unblocks": []`,
 		`"no_test_required": ""`,
 		`"needs_human": false`,
-		`"source": "docs/content/papers/safety-and-deployment.md"`,
+		`"source": "webpages/docs/content/papers/safety-and-deployment.md"`,
 		`"RED: preserved"`,
 		`"upstream_refs": [`,
 	} {

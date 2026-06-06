@@ -42,6 +42,9 @@ func NewInProcessToolExecutor(reg *core.Registry) *InProcessToolExecutor {
 // Execute looks up the requested tool and streams started→output→completed, or
 // started→failed when the tool returns an error.
 func (e *InProcessToolExecutor) Execute(ctx context.Context, req ToolRequest) (<-chan ToolEvent, error) {
+	if e == nil || e.registry == nil {
+		return nil, fmt.Errorf("tools: nil tool registry")
+	}
 	tool, ok := e.registry.Get(req.ToolName)
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", core.ErrUnknownTool, req.ToolName)

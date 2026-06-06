@@ -92,7 +92,7 @@ must be done deliberately:
 4. Keep `blocked_by`, `unblocks`, `source_refs`, generated docs, and site
    data synchronized.
 5. Run `go run ./cmd/progress write`, `go run ./cmd/progress validate`,
-   `go test ./internal/progress -count=1`, and `go test ./docs -count=1`.
+   `go test ./internal/progress -count=1`, and `go test ./webpages/docs -count=1`.
 
 When the choice is between a risky rename and a clearer pairing note, prefer
 the pairing note. The taxonomy is meant to make parity work easier, not to

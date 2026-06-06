@@ -25,8 +25,8 @@
         "tests/install/e2e.sh:case_termux_detection_drives_plan",
         "cmd/gormes/doctor.go",
         "internal/doctor/termux.go",
-        "webpages/docs/development-skills/gormes-install/references/known-issues.md",
-        "docs/content/building-gormes/architecture_plan/progress.json:8.D Termux android/arm64 release artifact and installer selector"
+        "webpages/development-skills/gormes-install/references/known-issues.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json:8.D Termux android/arm64 release artifact and installer selector"
       ],
       "ready_when": [
         "The completed Phase 8.D android-arm64 release artifact row proves the release asset and installer selector path.",
@@ -53,7 +53,7 @@
         "A real-device smoke record proves install, version, doctor --offline --json, config check, Goncho/SQLite init, and provider-backed chat -q when credentials exist."
       ],
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "install.sh",
         "tests/install/",
         "internal/installtest/",
@@ -64,7 +64,7 @@
         "internal/goncho/",
         "internal/gateway/",
         "webpages/docs/content/install/",
-        "webpages/docs/development-skills/gormes-install/references/known-issues.md"
+        "webpages/development-skills/gormes-install/references/known-issues.md"
       ],
       "no_test_required": "Umbrella milestone; child rows carry executable verification.",
       "done_signal": [
@@ -102,7 +102,7 @@
         "tests/install/e2e.sh",
         "webpages/docs/install/termux_guide_test.go",
         "webpages/docs/content/install/linux-macos.md",
-        "webpages/docs/development-skills/gormes-install/references/known-issues.md"
+        "webpages/development-skills/gormes-install/references/known-issues.md"
       ],
       "ready_when": [
         "Phase 8.D Termux android/arm64 release artifact and installer selector is complete.",
@@ -123,11 +123,11 @@
       ],
       "write_scope": [
         "webpages/docs/content/install/",
-        "webpages/docs/development-skills/gormes-install/references/known-issues.md",
+        "webpages/development-skills/gormes-install/references/known-issues.md",
         "internal/installtest/",
         "tests/install/",
         "install.sh",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs/install -run TestLinuxMacInstallGuideDocumentsTermuxReleaseFirstPath -count=1",
@@ -208,7 +208,7 @@
         "internal/goncho/",
         "cmd/gormes/",
         "internal/installtest/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config ./cmd/gormes -run 'Termux|GatewayRuntimeStatusPath|ConfigPath|Goncho' -count=1",
@@ -287,7 +287,7 @@
         "internal/tools/",
         "internal/doctor/",
         "cmd/gormes/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway ./internal/tools -run 'Termux.*Notification|Notification.*Termux' -count=1",
@@ -362,7 +362,7 @@
       ],
       "write_scope": [
         "webpages/docs/content/install/",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "README.md"
       ],
       "no_test_required": "Manual real-device evidence row; CI simulation cannot replace the Android smoke transcript.",
@@ -419,7 +419,7 @@
       "write_scope": [
         "webpages/docs/content/install/",
         "README.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs -count=1",
@@ -495,7 +495,7 @@
         "internal/tools/docker_exec.go",
         "internal/tools/docker_exec_test.go",
         "internal/tools/docker_mount_policy.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestDockerExec -count=1",
@@ -579,7 +579,7 @@
       "write_scope": [
         "internal/tools/docker_container_key.go",
         "internal/tools/docker_container_key_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestDockerContainerKey -count=1",
@@ -624,7 +624,7 @@
         "../hermes-agent/hermes_cli/main.py:uninstall_parser",
         "../hermes-agent/hermes_cli/claw.py:_cmd_cleanup",
         "internal/config/config.go:ConfigPath,EnvPath",
-        "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
       ],
       "ready_when": [
         "Gormes config command surface is complete so the canonical config and dotenv paths are addressable.",
@@ -656,7 +656,7 @@
       "write_scope": [
         "cmd/gormes/uninstall.go",
         "cmd/gormes/uninstall_dryrun_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestUninstall' -count=1",
@@ -732,7 +732,7 @@
         "internal/cli/update_release_binary.go",
         "internal/cli/update_release_binary_test.go",
         "internal/cli/update_release_plan.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes ./internal/cli -run 'TestUpdateReleaseBinary|TestUpdateReleaseSnapshot|TestUpdateReleaseRollback' -count=1",
@@ -773,7 +773,7 @@
         "system"
       ],
       "degraded_mode": "Container smoke tests run offline and report missing binary, missing config volume, or Python-runtime dependency evidence without contacting registries or providers.",
-      "fixture": "docs/install/oci_image_test.go",
+      "fixture": "webpages/docs/install/oci_image_test.go",
       "source_refs": [
         "../hermes-agent/Dockerfile",
         "../hermes-agent/docker/entrypoint.sh",
@@ -783,7 +783,7 @@
         "../honcho/docker/entrypoint.sh",
         "../honcho/docker/prometheus.yml",
         "../honcho/docker/grafana-datasource.yml",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Packaging/release/install"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Packaging/release/install"
       ],
       "ready_when": [
         "The Go binary build and offline doctor command are stable.",
@@ -799,12 +799,12 @@
         "Honcho hosted compose/Prometheus/Grafana files are classified as owned/excluded divergence or docs-only operational examples, not required local Goncho runtime dependencies.",
         "A smoke command can run `gormes doctor --offline` with fake config volume inputs."
       ],
-      "note": "Complete: TDD added Dockerfile, docker/entrypoint.sh, and docs/install/oci_image_test.go. Locked invariants: two-stage Go build into distroless/static with no Python/Node/Playwright deps, /opt/data config volume seeded by entrypoint with offline-safe config.yaml, deterministic CMD doctor --offline smoke and gormes \"$@\" forwarding, and explicit divergence comments classifying hosted-Honcho compose/Prometheus/Grafana files as docs-only.",
+      "note": "Complete: TDD added Dockerfile, docker/entrypoint.sh, and webpages/docs/install/oci_image_test.go. Locked invariants: two-stage Go build into distroless/static with no Python/Node/Playwright deps, /opt/data config volume seeded by entrypoint with offline-safe config.yaml, deterministic CMD doctor --offline smoke and gormes \"$@\" forwarding, and explicit divergence comments classifying hosted-Honcho compose/Prometheus/Grafana files as docs-only.",
       "write_scope": [
         "Dockerfile",
         "docker/entrypoint.sh",
-        "docs/install/oci_image_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/install/oci_image_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./docs -run TestOCIImageContract -count=1",
@@ -838,12 +838,12 @@
         "system"
       ],
       "degraded_mode": "Formula validation reports missing artifact, checksum, binary layout, or doctor smoke evidence instead of publishing an untestable tap update.",
-      "fixture": "docs/install/homebrew_formula_test.go",
+      "fixture": "webpages/docs/install/homebrew_formula_test.go",
       "source_refs": [
         "../hermes-agent/packaging/homebrew/hermes-agent.rb",
         "../hermes-agent/scripts/release.py",
         "../hermes-agent/flake.nix",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Release packaging divergence matrix"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Release packaging divergence matrix"
       ],
       "ready_when": [
         "Static binary artifact naming and version output are stable enough for formula fixtures.",
@@ -858,11 +858,11 @@
         "Release-script fixtures prove Gormes artifact names and checksums can feed the formula without Hermes Python packaging paths.",
         "Nix/flake references remain separate row-backed packaging work unless explicitly included in a later Nix row."
       ],
-      "note": "Complete: TDD added packaging/homebrew/gormes-agent.rb and docs/install/homebrew_formula_test.go. Locked invariants: Formula class GormesAgent < Formula with explicit version, GitHub release-asset url and 64-hex sha256 sharing the same semver; static Go binary install via bin.install \"gormes\" with no Python virtualenv/pip/PyPI/Node/Playwright dependencies; offline doctor smoke via shell_output(\"#{bin}/gormes doctor --offline\") plus a version smoke; embedded release-asset script fixture emits per-platform tar.gz archives (darwin-arm64, darwin-amd64, linux-amd64, linux-arm64) checksummed by shasum -a 256 and built via go build ./cmd/gormes — no Hermes Python packaging paths and no Nix/flake inputs.",
+      "note": "Complete: TDD added packaging/homebrew/gormes-agent.rb and webpages/docs/install/homebrew_formula_test.go. Locked invariants: Formula class GormesAgent < Formula with explicit version, GitHub release-asset url and 64-hex sha256 sharing the same semver; static Go binary install via bin.install \"gormes\" with no Python virtualenv/pip/PyPI/Node/Playwright dependencies; offline doctor smoke via shell_output(\"#{bin}/gormes doctor --offline\") plus a version smoke; embedded release-asset script fixture emits per-platform tar.gz archives (darwin-arm64, darwin-amd64, linux-amd64, linux-arm64) checksummed by shasum -a 256 and built via go build ./cmd/gormes — no Hermes Python packaging paths and no Nix/flake inputs.",
       "write_scope": [
         "packaging/homebrew/gormes-agent.rb",
-        "docs/install/homebrew_formula_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/install/homebrew_formula_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./docs -run TestHomebrewFormulaContract -count=1",
@@ -903,7 +903,7 @@
         "./hermes-agent/nix/nixosModules.nix@a7e7921db:services.hermes-agent enable/settings/environmentFiles/stateDir/container split",
         "packaging/nix/flake.nix",
         "webpages/docs/install/homebrew_formula_test.go::homebrew_does_not_drag_in_nix_or_flake_inputs",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Packaging and release"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Packaging and release"
       ],
       "ready_when": [
         "Static Go binary release and offline doctor command are stable enough for packaging fixtures.",
@@ -926,7 +926,7 @@
       "write_scope": [
         "packaging/nix/flake.nix",
         "webpages/docs/install/nix_flake_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs/install -run TestNixFlakeContract -count=1",
@@ -979,10 +979,10 @@
         "webpages/landing/legacy/go-renderer/internal/site/assets_test.go",
         "webpages/landing/legacy/go-renderer/internal/site/install_unix_test.go",
         "README.md",
-        "docs/content/getting-started/installation.md",
-        "docs/content/reference/cli.md",
-        "docs/content/reference/environment.md",
-        "docs/content/using-gormes/install.md",
+        "webpages/docs/content/getting-started/installation.md",
+        "webpages/docs/content/reference/cli.md",
+        "webpages/docs/content/reference/environment.md",
+        "webpages/docs/content/using-gormes/install.md",
         "webpages/landing/README.md"
       ],
       "ready_when": [
@@ -1006,12 +1006,12 @@
         "webpages/landing/legacy/go-renderer/internal/site/assets_test.go",
         "webpages/landing/legacy/go-renderer/internal/site/install_unix_test.go",
         "README.md",
-        "docs/content/getting-started/installation.md",
-        "docs/content/reference/cli.md",
-        "docs/content/reference/environment.md",
-        "docs/content/using-gormes/install.md",
+        "webpages/docs/content/getting-started/installation.md",
+        "webpages/docs/content/reference/cli.md",
+        "webpages/docs/content/reference/environment.md",
+        "webpages/docs/content/using-gormes/install.md",
         "webpages/landing/README.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "(cd webpages/landing/legacy/go-renderer && go test ./internal/site -run TestInstallSH -count=1)",
@@ -1077,7 +1077,7 @@
         "webpages/landing/legacy/go-renderer/internal/site/assets.go",
         "webpages/landing/legacy/go-renderer/internal/site/install_unix_test.go",
         "webpages/landing/README.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "(cd webpages/landing/legacy/go-renderer && go test ./internal/site -run TestInstallSH -count=1)",
@@ -1124,7 +1124,7 @@
         "scripts/install.ps1",
         "scripts/install.cmd",
         "webpages/landing/legacy/go-renderer/internal/site/install_pwsh_test.go",
-        "docs/content/using-gormes/windows-native.md",
+        "webpages/docs/content/using-gormes/windows-native.md",
         "webpages/docs/content/using-gormes/windows-native.md",
         "webpages/landing/src/data/landing.js"
       ],
@@ -1146,21 +1146,21 @@
       "write_scope": [
         "scripts/install.ps1",
         "scripts/install.cmd",
-        "docs/content/using-gormes/windows-native.md",
         "webpages/docs/content/using-gormes/windows-native.md",
-        "docs/content/using-gormes/_index.md",
+        "webpages/docs/content/using-gormes/windows-native.md",
         "webpages/docs/content/using-gormes/_index.md",
-        "docs/content/using-gormes/install.md",
+        "webpages/docs/content/using-gormes/_index.md",
+        "webpages/docs/content/using-gormes/install.md",
         "webpages/docs/content/using-gormes/install.md",
         "docs/windows_native_guide_test.go",
         "webpages/docs/windows_native_guide_test.go",
         "docs/build_test.go",
         "webpages/docs/build_test.go",
-        "docs/content/building-gormes/must-have-features.md",
+        "webpages/docs/content/building-gormes/must-have-features.md",
         "webpages/docs/content/building-gormes/must-have-features.md",
         "webpages/landing/src/data/landing.js",
         "webpages/landing/tests/home.spec.mjs",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs -run WindowsNative -count=1",
@@ -1258,8 +1258,8 @@
       "degraded_mode": "Without this fix, any operator running install.sh with a sandbox bin dir (e.g., for testing, in a container, in CI) silently mutates the host's production gormes symlink. The gormes-install skill flags this as iso-bin-hijack on every sandbox pass.",
       "fixture": "internal/installtest/iso_bin_dir_test.go",
       "source_refs": [
-        "webpages/docs/development-skills/gormes-install/references/known-issues.md#iso-bin-hijack",
-        "webpages/docs/development-skills/gormes-install/SKILL.md",
+        "webpages/development-skills/gormes-install/references/known-issues.md#iso-bin-hijack",
+        "webpages/development-skills/gormes-install/SKILL.md",
         "install.sh",
         "cmd/gormes/uninstall_dryrun_test.go"
       ],
@@ -1281,12 +1281,12 @@
         "TestInstall_DefaultBinDir_StillUpdatesPathBinary preserves the convenient default behavior: with no sandbox env vars, install.sh DOES update an existing PATH-discovered gormes symlink so upgrade-in-place still works.",
         "TestInstall_VerboseLogReportsSandboxBoundary asserts the install transcript logs the sandbox boundary decision (e.g., \"sandbox bin dir set; skipping active PATH command update\") so the behavior is auditable."
       ],
-      "note": "Source: gormes-install pass on 2026-05-07 against install.sh@08706c6d3, logged in webpages/docs/development-skills/gormes-install/references/known-issues.md#iso-bin-hijack. P1 because every sandbox pass mutates a production binary path without operator consent. Recommended approach: track a `sandbox_isolated` flag in install.sh derived from `[ -n \"$GORMES_BIN_DIR\" ] && [ -n \"$GORMES_INSTALL_HOME\" ]` (or an explicit `--no-rewrite-active-path` flag) and gate the active-PATH rewrite on its absence. COMPLETE 2026-05-07: install.sh now defines sandbox_bin_dir_set() ([ -n GORMES_BIN_DIR ] || [ -n GORMES_PREFIX ]); update_active_command() early-returns when true with a clear log line; print_install_plan_body and print_verbose_plan both surface the decision as update_active_path_command: skipped|yes. Verified by 4 dry-run plan tests in internal/installtest/iso_bin_dir_test.go (skipped path for GORMES_BIN_DIR, skipped path for GORMES_PREFIX, default-yes path, verbose-includes-reason) plus an end-to-end real install pass that left the production ~/.local/bin/gormes -> ~/.gormes/bin/gormes symlink intact while publishing a sandbox binary.",
+      "note": "Source: gormes-install pass on 2026-05-07 against install.sh@08706c6d3, logged in webpages/development-skills/gormes-install/references/known-issues.md#iso-bin-hijack. P1 because every sandbox pass mutates a production binary path without operator consent. Recommended approach: track a `sandbox_isolated` flag in install.sh derived from `[ -n \"$GORMES_BIN_DIR\" ] && [ -n \"$GORMES_INSTALL_HOME\" ]` (or an explicit `--no-rewrite-active-path` flag) and gate the active-PATH rewrite on its absence. COMPLETE 2026-05-07: install.sh now defines sandbox_bin_dir_set() ([ -n GORMES_BIN_DIR ] || [ -n GORMES_PREFIX ]); update_active_command() early-returns when true with a clear log line; print_install_plan_body and print_verbose_plan both surface the decision as update_active_path_command: skipped|yes. Verified by 4 dry-run plan tests in internal/installtest/iso_bin_dir_test.go (skipped path for GORMES_BIN_DIR, skipped path for GORMES_PREFIX, default-yes path, verbose-includes-reason) plus an end-to-end real install pass that left the production ~/.local/bin/gormes -> ~/.gormes/bin/gormes symlink intact while publishing a sandbox binary.",
       "write_scope": [
         "install.sh",
         "internal/installtest/iso_bin_dir_test.go",
         "internal/installtest/harness.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/installtest -run IsoBinDir -count=1",
@@ -1323,8 +1323,8 @@
       "degraded_mode": "Without this fix, sandbox install passes leave permanent dangling PATH entries in the operator's login shell config. The gormes-install skill flags this as iso-shellrc-leak on every sandbox pass.",
       "fixture": "internal/installtest/iso_shellrc_test.go",
       "source_refs": [
-        "webpages/docs/development-skills/gormes-install/references/known-issues.md#iso-shellrc-leak",
-        "webpages/docs/development-skills/gormes-install/SKILL.md",
+        "webpages/development-skills/gormes-install/references/known-issues.md#iso-shellrc-leak",
+        "webpages/development-skills/gormes-install/SKILL.md",
         "install.sh"
       ],
       "ready_when": [
@@ -1345,11 +1345,11 @@
         "TestInstall_DryRunDefaultBinDir_StillEditsShellRcFiles: regression fence — without sandbox env vars, dry-run plan reports edit_shell_rc_files: yes.",
         "End-to-end real sandbox install pass: ~/.bashrc and ~/.profile gormes-line counts are byte-identical pre and post."
       ],
-      "note": "Source: gormes-install pass on 2026-05-07 against install.sh@08706c6d3, logged in webpages/docs/development-skills/gormes-install/references/known-issues.md#iso-shellrc-leak. COMPLETE 2026-05-07: install.sh's ensure_path_in_shell_config now early-returns with PATH_CONFIG_RESULT=sandbox_skipped when sandbox_bin_dir_set is true, after exporting the bin dir into the current install run's PATH. Plan emitters (print_install_plan_body and print_verbose_plan) surface the decision as edit_shell_rc_files: skipped|yes. Verified by 3 dry-run plan tests in internal/installtest/iso_shellrc_test.go (skipped path for GORMES_BIN_DIR, skipped path for GORMES_PREFIX, default-yes regression fence) plus an end-to-end real install pass that left ~/.bashrc and ~/.profile gormes-line counts unchanged. Note: the original heuristic plan was bin-dir-under-/tmp; the shipped fix uses the operator-explicit sandbox_bin_dir_set boundary instead because that is the actual user-intent signal and is consistent with the iso-bin-hijack and iso-systemd-hijack fixes.",
+      "note": "Source: gormes-install pass on 2026-05-07 against install.sh@08706c6d3, logged in webpages/development-skills/gormes-install/references/known-issues.md#iso-shellrc-leak. COMPLETE 2026-05-07: install.sh's ensure_path_in_shell_config now early-returns with PATH_CONFIG_RESULT=sandbox_skipped when sandbox_bin_dir_set is true, after exporting the bin dir into the current install run's PATH. Plan emitters (print_install_plan_body and print_verbose_plan) surface the decision as edit_shell_rc_files: skipped|yes. Verified by 3 dry-run plan tests in internal/installtest/iso_shellrc_test.go (skipped path for GORMES_BIN_DIR, skipped path for GORMES_PREFIX, default-yes regression fence) plus an end-to-end real install pass that left ~/.bashrc and ~/.profile gormes-line counts unchanged. Note: the original heuristic plan was bin-dir-under-/tmp; the shipped fix uses the operator-explicit sandbox_bin_dir_set boundary instead because that is the actual user-intent signal and is consistent with the iso-bin-hijack and iso-systemd-hijack fixes.",
       "write_scope": [
         "install.sh",
         "internal/installtest/iso_shellrc_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/installtest -run IsoShellRc -count=1",
@@ -1386,8 +1386,8 @@
       "degraded_mode": "Without this fix, every sandboxed install pass on a Linux host with systemd-user available silently rewrites the operator's production gormes-gateway.service to point ExecStart at /tmp/gormes-install-test/<ts>/home/bin/gormes. After the next /tmp reap or reboot, the gateway service fails to start because its binary path no longer exists. Same shape as iso-bin-hijack but worse — the failure is invisible until the operator tries to use the gateway.",
       "fixture": "internal/installtest/iso_systemd_dir_test.go",
       "source_refs": [
-        "webpages/docs/development-skills/gormes-install/references/known-issues.md#iso-systemd-hijack",
-        "webpages/docs/development-skills/gormes-install/SKILL.md",
+        "webpages/development-skills/gormes-install/references/known-issues.md#iso-systemd-hijack",
+        "webpages/development-skills/gormes-install/SKILL.md",
         "install.sh"
       ],
       "ready_when": [
@@ -1407,11 +1407,11 @@
         "TestInstall_DryRunDefaultBinDir_StillInstallsSystemService: regression fence — without sandbox env vars, dry-run plan reports install_system_service: yes.",
         "End-to-end real sandbox install pass: sha256 of ~/.config/systemd/user/gormes-gateway.service is byte-identical pre and post."
       ],
-      "note": "Source: gormes-install pass on 2026-05-07 (the SECOND pass after iso-bin-hijack landed). Discovered when post-state diff showed ~/.config/systemd/user/gormes-gateway.service mtime and content had changed, with ExecStart now pointing at /tmp/gormes-install-test/<ts>/home/bin/gormes. Logged in webpages/docs/development-skills/gormes-install/references/known-issues.md#iso-systemd-hijack. P0 because the gateway service breaks invisibly until next reboot or daemon-reload. COMPLETE 2026-05-07: install.sh's print_service_instructions dispatcher early-returns when sandbox_bin_dir_set is true, with a clear log line naming both ~/.config/systemd/user/ and ~/Library/LaunchAgents/. Plan emitters surface the decision as install_system_service: skipped|yes. Verified by 3 dry-run plan tests in internal/installtest/iso_systemd_dir_test.go plus an end-to-end real install pass that left the production unit's sha256 unchanged.",
+      "note": "Source: gormes-install pass on 2026-05-07 (the SECOND pass after iso-bin-hijack landed). Discovered when post-state diff showed ~/.config/systemd/user/gormes-gateway.service mtime and content had changed, with ExecStart now pointing at /tmp/gormes-install-test/<ts>/home/bin/gormes. Logged in webpages/development-skills/gormes-install/references/known-issues.md#iso-systemd-hijack. P0 because the gateway service breaks invisibly until next reboot or daemon-reload. COMPLETE 2026-05-07: install.sh's print_service_instructions dispatcher early-returns when sandbox_bin_dir_set is true, with a clear log line naming both ~/.config/systemd/user/ and ~/Library/LaunchAgents/. Plan emitters surface the decision as install_system_service: skipped|yes. Verified by 3 dry-run plan tests in internal/installtest/iso_systemd_dir_test.go plus an end-to-end real install pass that left the production unit's sha256 unchanged.",
       "write_scope": [
         "install.sh",
         "internal/installtest/iso_systemd_dir_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/installtest -run IsoSystemd -count=1",
@@ -1461,7 +1461,7 @@
         "webpages/landing/tests/home.spec.mjs",
         "webpages/landing/legacy/go-renderer/internal/site/content.go",
         "https://github.com/TrebuchetDynamics/gormes-agent/releases",
-        "webpages/docs/development-skills/gormes-install/references/test-recipes.md (binary-fetch coverage gap noted)"
+        "webpages/development-skills/gormes-install/references/test-recipes.md (binary-fetch coverage gap noted)"
       ],
       "ready_when": [
         "v0.1.06 release publishes 18 assets (linux/darwin/windows × amd64/arm64 .tar.gz + .sha256 + SBOM) so the binary-fetch path has artifacts to download.",
@@ -1483,7 +1483,7 @@
         "Candidate local install E2E publishes a usable binary, proves `gormes --version`, `gormes setup gateway --plan`, unconfigured `gormes gateway restart --json`, and `gormes gateway status --json` under isolated GORMES_HOME/PATH without touching the operator service manager.",
         "Public install surfaces lead with `curl -fsSL https://gormes.ai/install.sh | bash`, keep source build as the fallback/developer path, serve the Unix installer from the gormes.ai custom domain, and reject stale GitHub-release/raw-GitHub, `go install`, and `make build` commands."
       ],
-      "note": "Source: 2026-05-07 fresh-Fedora install report from operator. install.sh had been source-clone-and-build by design since v0.1.06 (noted as a coverage gap in webpages/docs/development-skills/gormes-install/references/test-recipes.md). COMPLETE 2026-05-07: install.sh now defines release_platform_arch() (maps uname -s/-m → release-asset slug), decide_install_method() (5-rule precedence: --local > --from-source > non-main branch > unsupported platform > binary-fetch), and fetch_release_binary() (GitHub API → curl/wget → SHA-256 verify → tar extract → publish to managed_bin_dir). Plan emitters surface the decision and reason. Verified by 5 dry-run plan tests in internal/installtest/install_method_test.go plus an end-to-end real install (1.832s wall, no Go invoked, exit=0, gormes 0.1.06 binary working). 2026-05-15 candidate-install E2E hardening: internal/installtest now runs install.sh --local into a sandbox, executes the installed binary for version JSON, setup gateway --plan channel copy, unconfigured gateway restart, gateway status, config, and offline TUI paths, with PATH hiding systemctl so no live service manager is touched. gateway restart now reports safe startup evidence (`no channels configured`) instead of a bare timeout. 2026-05-15 public trust hardening initially used the GitHub Releases installer URL. 2026-05-22 custom-domain polish switches active public install surfaces to `curl -fsSL https://gormes.ai/install.sh | bash`; the active Astro site mirrors repo-root install.sh into public/install.sh and legacy Go renderer loads repo-root install.sh for /install.sh while rejecting stale GitHub release/raw-GitHub commands.",
+      "note": "Source: 2026-05-07 fresh-Fedora install report from operator. install.sh had been source-clone-and-build by design since v0.1.06 (noted as a coverage gap in webpages/development-skills/gormes-install/references/test-recipes.md). COMPLETE 2026-05-07: install.sh now defines release_platform_arch() (maps uname -s/-m → release-asset slug), decide_install_method() (5-rule precedence: --local > --from-source > non-main branch > unsupported platform > binary-fetch), and fetch_release_binary() (GitHub API → curl/wget → SHA-256 verify → tar extract → publish to managed_bin_dir). Plan emitters surface the decision and reason. Verified by 5 dry-run plan tests in internal/installtest/install_method_test.go plus an end-to-end real install (1.832s wall, no Go invoked, exit=0, gormes 0.1.06 binary working). 2026-05-15 candidate-install E2E hardening: internal/installtest now runs install.sh --local into a sandbox, executes the installed binary for version JSON, setup gateway --plan channel copy, unconfigured gateway restart, gateway status, config, and offline TUI paths, with PATH hiding systemctl so no live service manager is touched. gateway restart now reports safe startup evidence (`no channels configured`) instead of a bare timeout. 2026-05-15 public trust hardening initially used the GitHub Releases installer URL. 2026-05-22 custom-domain polish switches active public install surfaces to `curl -fsSL https://gormes.ai/install.sh | bash`; the active Astro site mirrors repo-root install.sh into public/install.sh and legacy Go renderer loads repo-root install.sh for /install.sh while rejecting stale GitHub release/raw-GitHub commands.",
       "write_scope": [
         "install.sh",
         "cmd/gormes/gateway_restart.go",
@@ -1502,7 +1502,7 @@
         "webpages/landing/legacy/go-renderer/internal/site/assets.go",
         "webpages/landing/legacy/go-renderer/internal/site/render_test.go",
         "webpages/landing/legacy/go-renderer/internal/site/static_export_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/installtest -count=1",
@@ -1542,7 +1542,7 @@
         "install.sh:publish_built_binary (~1498-1545): skips the symlink path when `is_termux` is true and publishes a copied executable into `$PREFIX/bin`, then verifies `\"$published_bin\" version` before committing the target",
         "install.sh:is_termux (~243-245), pick_bin_dir Termux branch (~312-313 → `$PREFIX/bin`), managed_bin_dir (~299-301 → `$HOME/.gormes/bin`)",
         ".github/workflows/release.yml:95-96,148 (CGO_ENABLED=0 GOOS=android GOARCH=arm64 static build — not a build defect)",
-        "webpages/docs/development-skills/gormes-install/references/known-issues.md: [termux-publish-symlink-noexec] (operator transcript witness, v0.2.12, 2026-05-15; fixed in development for next release)",
+        "webpages/development-skills/gormes-install/references/known-issues.md: [termux-publish-symlink-noexec] (operator transcript witness, v0.2.12, 2026-05-15; fixed in development for next release)",
         "internal/installtest/iso_bin_dir_test.go + internal/installtest/harness.go (sandboxed install.sh dry-run/plan + --local install harness pattern to extend)",
         "progress.json Phase 5.P sibling 'Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary'; existing Termux rows (~1413 Termux first-class runtime, ~1564 Termux install docs) assume `$PREFIX/bin` publication works and do NOT cover this exec-domain mismatch"
       ],
@@ -1566,7 +1566,7 @@
         "install.sh",
         "internal/installtest/termux_publish_test.go",
         "internal/installtest/harness.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/installtest -run 'TestTermuxPublishesRealBinaryNotHomeSymlink|TestNonTermuxPublishKeepsSymlink' -count=1",
@@ -1619,7 +1619,7 @@
         "termux/termux-app#4630: compiled Go programs receive their own full path as an extra argv element under termux-exec.",
         "Operator latest-release transcript: publish verification failed for `$PREFIX/bin/gormes`, rolled back, then `gormes` reported `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`.",
         "cmd/gormes/main.go:sanitizeTermuxExecArgs and termuxExecArgMatchesExecutable.",
-        "webpages/docs/development-skills/gormes-install/references/known-issues.md:[termux-exec-args-injection]."
+        "webpages/development-skills/gormes-install/references/known-issues.md:[termux-exec-args-injection]."
       ],
       "ready_when": [
         "The repository stays on the existing development branch and no live Termux device is required for the unit-level argv sanitizer fixture.",
@@ -1638,7 +1638,7 @@
       "write_scope": [
         "cmd/gormes/main.go",
         "cmd/gormes/termux_exec_args_test.go",
-        "webpages/docs/development-skills/gormes-install/references/known-issues.md",
+        "webpages/development-skills/gormes-install/references/known-issues.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
@@ -1701,7 +1701,7 @@
       "write_scope": [
         "install.sh",
         "internal/installtest/termux_publish_recovery_test.go",
-        "webpages/docs/development-skills/gormes-install/references/known-issues.md",
+        "webpages/development-skills/gormes-install/references/known-issues.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
@@ -1740,7 +1740,7 @@
       "degraded_mode": "Without a crisp first-run proof, hosted competitors can define the self-hosting debate as Docker/VPS/weekend maintenance even when Gormes does not require Python, venvs, Docker, or a remote server for local use.",
       "fixture": "webpages/docs/docs_test.go::TestFirstRunProofPathDocumentsOfflineDoctorBeforeCredentials; webpages/landing/tests/home.spec.mjs::homepage sells the short buyer-focused landing",
       "source_refs": [
-        "docs/content/building-gormes/strategy/market-positioning.md",
+        "webpages/docs/content/building-gormes/strategy/market-positioning.md",
         "README.md",
         "webpages/docs/content/start-here/_index.md",
         "webpages/docs/content/install/_index.md",
@@ -1774,7 +1774,7 @@
         "webpages/docs/docs_test.go",
         "webpages/landing/src/data/landing.js",
         "webpages/landing/tests/home.spec.mjs",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs -run 'Test.*(StartHere|Install|DoctorOffline|FirstRun)' -count=1",
@@ -1824,7 +1824,7 @@
         "system"
       ],
       "degraded_mode": "If the workflow or installer floor drifts below go.mod, development CI, release builds, and source-build fallback can fail with a toolchain mismatch even though Docker and local development already use Go 1.26.",
-      "fixture": "docs/install/go_toolchain_workflow_test.go::TestGitHubActionsUseGoModToolchain and internal/installtest/go_toolchain_floor_test.go::TestInstallersRequireCurrentGoToolchain",
+      "fixture": "webpages/docs/install/go_toolchain_workflow_test.go::TestGitHubActionsUseGoModToolchain and internal/installtest/go_toolchain_floor_test.go::TestInstallersRequireCurrentGoToolchain",
       "source_refs": [
         "go.mod:go 1.26 and toolchain go1.26.0",
         "Dockerfile:FROM golang:1.26",
@@ -1849,7 +1849,7 @@
       "acceptance": [
         "TestGitHubActionsUseGoModToolchain fails while CI/release/release-prep/www deploy workflows use actions/setup-go with go-version: '1.25' and passes when each Go setup reads go.mod through go-version-file.",
         "TestInstallersRequireCurrentGoToolchain fails while install.sh or install.ps1 accept/advertise Go 1.25 and passes after managed Go defaults, version predicates, and error messages require 1.26+.",
-        "Source-build public docs in docs/content and webpages/docs/content say Go 1.26+.",
+        "Source-build public docs in webpages/docs/content and webpages/docs/content say Go 1.26+.",
         "Existing release workflow, installer, landing sync, and progress validation gates remain green."
       ],
       "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing publication rows remain operator-blocked and the broad P1 release parent remains too large to assign directly. The unblocked release/install weakness was toolchain drift: go.mod and Dockerfile require Go 1.26, while CI/release workflows, installer managed-Go defaults, and source-build docs still pinned Go 1.25. Context7 current actions/setup-go docs confirm go-version-file: go.mod reads the toolchain directive and avoids hard-coded drift. TDD changed all Go-using workflows to setup-go@v6 with go-version-file: go.mod, raised installer source-build floors to Go 1.26+, synced public docs, and refreshed landing installer mirrors.",
@@ -1861,12 +1861,12 @@
         "install.sh",
         "scripts/install.ps1",
         "internal/installtest/go_toolchain_floor_test.go",
-        "docs/install/go_toolchain_workflow_test.go",
         "webpages/docs/install/go_toolchain_workflow_test.go",
-        "docs/content/getting-started/installation.md",
-        "docs/content/using-gormes/install.md",
-        "docs/content/using-gormes/quickstart.md",
-        "docs/content/reference/environment.md",
+        "webpages/docs/install/go_toolchain_workflow_test.go",
+        "webpages/docs/content/getting-started/installation.md",
+        "webpages/docs/content/using-gormes/install.md",
+        "webpages/docs/content/using-gormes/quickstart.md",
+        "webpages/docs/content/reference/environment.md",
         "docs/src/content/docs/getting-started/installation.md",
         "docs/src/content/docs/using-gormes/install.md",
         "docs/src/content/docs/using-gormes/quickstart.md",
@@ -1885,10 +1885,10 @@
         "webpages/landing/legacy/go-renderer/internal/site/installers/install.sh",
         "webpages/landing/legacy/go-renderer/internal/site/installers/install.ps1",
         "webpages/landing/legacy/go-renderer/internal/site/install_unix_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./docs/install ./webpages/docs/install -run TestGitHubActionsUseGoModToolchain -count=1",
+        "go test ./webpages/docs/install -run TestGitHubActionsUseGoModToolchain -count=1",
         "go test ./internal/installtest -run TestInstallersRequireCurrentGoToolchain -count=1",
         "node webpages/landing/scripts/sync-assets.mjs",
         "timeout 20m sh -c 'cd webpages/landing/legacy/go-renderer && go test ./... -count=1'",
@@ -1906,14 +1906,14 @@
         "implementation": [
           ".github/workflows/ci.yml, release.yml, release-prep.yml, and deploy-gormes-www.yml: actions/setup-go now uses @v6 with go-version-file: go.mod instead of a hard-coded Go 1.25.",
           "install.sh and scripts/install.ps1: managed Go fallback default, version predicate, and source-build error text now require Go 1.26+.",
-          "docs/content, docs/src/content, webpages/docs/content, and webpages/docs/src/content source-build and environment-reference pages now advertise Go 1.26+ / managed Go 1.26.0.",
+          "webpages/docs/content, docs/src/content, webpages/docs/content, and webpages/docs/src/content source-build and environment-reference pages now advertise Go 1.26+ / managed Go 1.26.0.",
           "webpages/landing/scripts/sync-assets.mjs refreshed public and legacy installer mirrors after canonical install.sh/install.ps1 changed.",
           "webpages/landing/legacy/go-renderer/internal/site/install_unix_test.go fake managed-Go fixtures now report go1.26.0 so site installer tests exercise the new floor."
         ],
         "verification": [
-          "RED: go test ./docs/install ./webpages/docs/install -run TestGitHubActionsUseGoModToolchain -count=1 failed because workflows used actions/setup-go@v5 with go-version: '1.25'.",
+          "RED: go test ./webpages/docs/install -run TestGitHubActionsUseGoModToolchain -count=1 failed because workflows used actions/setup-go@v5 with go-version: '1.25'.",
           "RED: go test ./internal/installtest -run TestInstallersRequireCurrentGoToolchain -count=1 failed because installers and docs still accepted/advertised Go 1.25.",
-          "GREEN: go test ./docs/install ./webpages/docs/install -run TestGitHubActionsUseGoModToolchain -count=1 passed.",
+          "GREEN: go test ./webpages/docs/install -run TestGitHubActionsUseGoModToolchain -count=1 passed.",
           "GREEN: go test ./internal/installtest -run TestInstallersRequireCurrentGoToolchain -count=1 passed.",
           "GREEN: node webpages/landing/scripts/sync-assets.mjs synced public installer assets.",
           "GREEN: timeout 20m sh -c 'cd webpages/landing/legacy/go-renderer && go test ./... -count=1' passed after managed-Go test fixtures were updated."
@@ -1941,8 +1941,8 @@
       "degraded_mode": "Without the Windows release-fetch selector, the v1 Windows-without-Python promise is still source-build shaped: fresh Windows installs need Git plus Go even though CI publishes Windows release archives.",
       "fixture": "internal/installtest/windows_installer_release_test.go::TestWindowsInstallerReleaseFirstContract",
       "source_refs": [
-        "docs/content/building-gormes/strategy/v1-differentiator.md:Windows-without-Python single-binary claim",
-        "docs/content/building-gormes/architecture_plan/progress.json:Single-binary cross-platform release pipeline contract",
+        "webpages/docs/content/building-gormes/strategy/v1-differentiator.md:Windows-without-Python single-binary claim",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json:Single-binary cross-platform release pipeline contract",
         ".github/workflows/release.yml:windows amd64/arm64 release matrix",
         "install.sh:decide_install_method and fetch_release_binary release-first Unix contract",
         "scripts/install.ps1:source-backed Windows installer"
@@ -1970,7 +1970,7 @@
         "webpages/landing/scripts/sync-assets.mjs",
         "webpages/landing/public/install.ps1",
         "webpages/landing/legacy/go-renderer/internal/site/installers/install.ps1",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/installtest -run TestWindowsInstallerReleaseFirstContract -count=1",
@@ -2050,7 +2050,7 @@
         "Dockerfile",
         "docker/entrypoint.sh",
         "webpages/docs/install/oci_image_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs/install -run 'TestOCI(ImageContract|WorkflowBuildsAndSmokesAMD64AndARM64)' -count=1",
@@ -2102,7 +2102,7 @@
       "degraded_mode": "Unsupported Termux architectures fall back to source-build with an explicit no-published-asset reason; non-Termux Linux hosts continue selecting linux-* assets.",
       "fixture": "webpages/docs/install/release_workflow_test.go::TestReleaseWorkflowContract and internal/installtest/install_method_test.go::TestInstall_DryRunTermuxArm64_PrefersAndroidReleaseAsset",
       "source_refs": [
-        "docs/content/building-gormes/strategy/success-plan.md:single-binary platform claim",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md:single-binary platform claim",
         ".github/workflows/release.yml:build matrix include",
         "install.sh:release_platform_arch",
         "internal/installtest/install_method_test.go:supportedHostForBinaryFetch",
@@ -2129,7 +2129,7 @@
         "install.sh",
         "internal/installtest/install_method_test.go",
         "webpages/docs/install/release_workflow_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs/install -run TestReleaseWorkflowContract -count=1",
@@ -2209,7 +2209,7 @@
         "internal/tools/picoclaw_path_safety_regression_test.go",
         "internal/tools/",
         "internal/sandbox/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools ./internal/sandbox -run '^TestPicoClawPathSafety_' -count=1",

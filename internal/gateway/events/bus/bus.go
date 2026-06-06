@@ -14,9 +14,10 @@ const defaultSubscriberBufferSize = 64
 type EventBus = eventcontract.EventBus
 
 type subscriber struct {
-	handler EventHandler
-	buffer  chan Event
-	done    chan struct{}
+	handler  EventHandler
+	buffer   chan Event
+	done     chan struct{}
+	stopOnce sync.Once
 }
 
 // InProcessEventBus is an in-memory, topic-based pub/sub bus with no
@@ -68,13 +69,16 @@ func (b *InProcessEventBus) Publish(topic string, event Event) error {
 // Subscribe registers handler for topic and starts a goroutine that delivers
 // events. Returns an unsubscribe function.
 func (b *InProcessEventBus) Subscribe(topic string, handler EventHandler) func() {
+	if handler == nil {
+		return func() {}
+	}
+	b.mu.Lock()
+	b.ensureInitializedLocked()
 	s := &subscriber{
 		handler: handler,
 		buffer:  make(chan Event, b.bufferSize),
 		done:    make(chan struct{}, 1),
 	}
-
-	b.mu.Lock()
 	b.subs[topic] = append(b.subs[topic], s)
 	b.mu.Unlock()
 
@@ -90,7 +94,7 @@ func (b *InProcessEventBus) Subscribe(topic string, handler EventHandler) func()
 	}()
 
 	return func() {
-		close(s.done)
+		s.stopOnce.Do(func() { close(s.done) })
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		subs := b.subs[topic]
@@ -114,9 +118,21 @@ func (b *InProcessEventBus) Close() error {
 	b.closed = true
 	for _, subs := range b.subs {
 		for _, s := range subs {
-			close(s.done)
+			s.stopOnce.Do(func() { close(s.done) })
 		}
 	}
 	b.subs = make(map[string][]*subscriber)
 	return nil
+}
+
+func (b *InProcessEventBus) ensureInitializedLocked() {
+	if b.subs == nil {
+		b.subs = make(map[string][]*subscriber)
+	}
+	if b.bufferSize <= 0 {
+		b.bufferSize = defaultSubscriberBufferSize
+	}
+	if b.log == nil {
+		b.log = slog.Default()
+	}
 }

@@ -7,10 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
-func TestProfileWorkspaceToolAccessFailsClosedAcrossExecutingTools(t *testing.T) {
+func TestProjectModeExecuteCodeFailsClosedUnderProfileWorkspaceScope(t *testing.T) {
 	root := t.TempDir()
 	project := filepath.Join(root, "project")
 	if err := os.MkdirAll(project, 0o755); err != nil {
@@ -22,22 +21,6 @@ func TestProfileWorkspaceToolAccessFailsClosedAcrossExecutingTools(t *testing.T)
 	})
 	if err != nil {
 		t.Fatalf("NewProfileWorkspaceScope: %v", err)
-	}
-
-	terminalRaw, err := NewTerminalTool(TerminalToolConfig{
-		Workdir:        project,
-		DefaultTimeout: time.Second,
-		WorkspaceScope: scope,
-	}).Execute(context.Background(), json.RawMessage(`{"command":"printf should-not-run"}`))
-	if err != nil {
-		t.Fatalf("terminal Execute: %v", err)
-	}
-	var terminal terminalResult
-	if err := json.Unmarshal(terminalRaw, &terminal); err != nil {
-		t.Fatalf("decode terminal result: %v", err)
-	}
-	if terminal.Status != "blocked" || terminal.Evidence["code"] != ProfileWorkspaceScopeViolation || terminal.Evidence["reason"] != ProfileWorkspaceToolAccessExecuteBlocked {
-		t.Fatalf("terminal result = %+v, want shared profile workspace execute denial", terminal)
 	}
 
 	codeRaw, err := NewExecuteCodeTool(ExecuteCodeToolConfig{

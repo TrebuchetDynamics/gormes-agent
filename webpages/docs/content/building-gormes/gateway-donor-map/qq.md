@@ -9,7 +9,7 @@ QQ is one of the stronger donors in this task set because PicoClaw uses the offi
 
 ## Status
 
-`docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now groups QQ Bot into the Phase `2.B.10` regional/device adapter tranche. Gormes has a contract-tested shared-bot seam in `internal/channels/qqbot` for DM/group policy, mention gating, and passive-reply sequencing, but no real official QQ transport/bootstrap binding yet.
+`webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now groups QQ Bot into the Phase `2.B.10` regional/device adapter tranche. Gormes has a contract-tested shared-bot seam in `internal/channels/qqbot` for DM/group policy, mention gating, and passive-reply sequencing, but no real official QQ transport/bootstrap binding yet.
 
 Evidence level:
 
@@ -17,7 +17,7 @@ Evidence level:
 - The donor commit inspected for this research was `6421f146a99df1bebcd4b1ca8de2a289dfca3622`.
 - The upstream donor repo is `https://github.com/sipeed/picoclaw`.
 - Any `pkg/...` or `docs/...` path listed below is relative to that donor root, not relative to the Gormes repo.
-- Current Gormes status and operator-facing behavior were verified in-tree against `internal/channels/qqbot/bot.go`, `internal/channels/qqbot/bot_test.go`, `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`, and `docs/content/upstream-hermes/user-guide/messaging/qqbot.md`.
+- Current Gormes status and operator-facing behavior were verified in-tree against `internal/channels/qqbot/bot.go`, `internal/channels/qqbot/bot_test.go`, `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`, and `webpages/docs/content/upstream-hermes/user-guide/messaging/qqbot.md`.
 
 Keep the boundary explicit: PicoClaw contributes official QQ Bot transport mechanics only. Gormes architecture remains authoritative for platform event shape, session mapping, and runtime ownership.
 
@@ -44,8 +44,8 @@ This is not just shape reference. Much of the donor logic is platform-specific a
 - `picoclaw/pkg/channels/qq/botgo_logger.go`
 - `picoclaw/pkg/channels/qq/qq_test.go`
 - `picoclaw/docs/channels/qq/README.md`
-- `docs/content/upstream-hermes/user-guide/messaging/qqbot.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/upstream-hermes/user-guide/messaging/qqbot.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 ## What To Copy vs What To Rebuild
 
@@ -106,7 +106,7 @@ Rebuild in Gormes-native form:
 - `picoclaw/pkg/channels/qq/botgo_logger.go`
 - `picoclaw/pkg/channels/qq/qq_test.go`
 - `picoclaw/docs/channels/qq/README.md`
-- `docs/content/upstream-hermes/user-guide/messaging/qqbot.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/upstream-hermes/user-guide/messaging/qqbot.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 Recommendation: `copy candidate`.

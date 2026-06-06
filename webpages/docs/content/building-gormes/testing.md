@@ -40,7 +40,7 @@ go test -tags=live ./...         # requires local Ollama
 
 ## Landing + docs smoke (Playwright)
 
-`npm run test:e2e` from `www.gormes.ai/` and `docs/www-tests/`. Parametrized over mobile viewports (320 / 360 / 390 / 430 / 768 / 1024 px). Asserts:
+`npm run test:e2e` from `www.gormes.ai/` and `webpages/docs/www-tests/`. Parametrized over mobile viewports (320 / 360 / 390 / 430 / 768 / 1024 px). Asserts:
 
 - No horizontal overflow
 - Section copy matches the locked strings in `content.go`
@@ -119,7 +119,7 @@ Planner/doc-only rows normally run:
 
 ```bash
 go run ./cmd/progress validate
-go test ./docs -count=1
+go test ./webpages/docs -count=1
 ```
 
 ## Lane Gate Cheat Sheet

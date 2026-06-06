@@ -3,30 +3,23 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"regexp"
-	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/profileapp"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
-	toolspkg "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
+	tuiapp "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/tuiapp"
 	setupwizard "github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
-	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -137,20 +130,8 @@ type setupCommandSeams struct {
 	LaunchChat                     func(*cobra.Command) error
 }
 
-type setupGatewayWizardResult struct {
-	SelectedPlatforms []string
-	Telegram          *setupTelegramGatewayAnswers
-	BubbleTea         bool
-}
-
-type setupTelegramGatewayAnswers struct {
-	Token        string
-	AccessPolicy string
-	AllowedUsers string
-	HomeChatID   string
-	HomeThreadID string
-	Apply        bool
-}
+type setupGatewayWizardResult = gormescli.SetupGatewayWizardResult
+type setupTelegramGatewayAnswers = gormescli.SetupTelegramGatewayAnswers
 
 type setupAction string
 
@@ -199,7 +180,7 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 		seams.HasExistingInstall = defaultSetupHasExistingInstall
 	}
 	if seams.ResetConfig == nil {
-		seams.ResetConfig = resetSetupDefaultConfig
+		seams.ResetConfig = gormescli.ResetSetupDefaultConfig
 	}
 	if seams.RunModelPicker == nil {
 		seams.RunModelPicker = func(cmd *cobra.Command) error {
@@ -214,7 +195,7 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 		}
 	}
 	if seams.RunActiveProviderModelPicker == nil {
-		seams.RunActiveProviderModelPicker = runSetupActiveProviderModelPicker
+		seams.RunActiveProviderModelPicker = gormescli.RunSetupActiveProviderModelPicker
 	}
 	if seams.LoadCurrentModel == nil {
 		seams.LoadCurrentModel = defaultSetupLoadCurrentModel
@@ -248,26 +229,28 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 		seams.RunProviderAuth = runSetupProviderAuth
 	}
 	if seams.DetectHermesMigrationSource == nil {
-		seams.DetectHermesMigrationSource = detectHermesMigrationSource
+		seams.DetectHermesMigrationSource = tuiapp.DetectHermesMigrationSource
 	}
 	if seams.DetectOpenClawMigrationSource == nil {
-		seams.DetectOpenClawMigrationSource = detectOpenClawMigrationSource
+		seams.DetectOpenClawMigrationSource = tuiapp.DetectOpenClawMigrationSource
 	}
 	if seams.RunSetupTools == nil {
-		seams.RunSetupTools = runSetupToolsSection
+		seams.RunSetupTools = func(cmd *cobra.Command, nonInteractive bool) error {
+			return gormescli.RunSetupToolsSection(cmd, nonInteractive, setupToolsOptions(cmd))
+		}
 	}
 	if seams.RunWhatsAppSetup == nil {
 		seams.RunWhatsAppSetup = runSetupWhatsAppCommand
 	}
 	if seams.RunGatewaySetupWizard == nil {
-		seams.RunGatewaySetupWizard = runSetupGatewayBubbleTeaWizard
+		seams.RunGatewaySetupWizard = gormescli.RunSetupGatewayBubbleTeaWizard
 	}
 	if seams.RunTelegramGatewayWizard == nil {
-		seams.RunTelegramGatewayWizard = runSetupTelegramBubbleTeaWizard
+		seams.RunTelegramGatewayWizard = gormescli.RunSetupTelegramBubbleTeaWizard
 	}
 	if seams.RunGatewayPlatform == nil {
 		seams.RunGatewayPlatform = func(cmd *cobra.Command, platform string) error {
-			return runSetupGatewayPlatform(cmd, platform, seams.RunWhatsAppSetup)
+			return gormescli.RunSetupGatewayPlatform(cmd, platform, setupGatewayRuntime(cmd, seams))
 		}
 	}
 	if seams.LaunchChat == nil {
@@ -303,22 +286,9 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				if asJSON {
-					body, marshalErr := json.MarshalIndent(setupResetReportJSON{
-						Build:          newBuildProvenance(),
-						Action:         "reset",
-						ConfigPath:     config.ConfigPath(),
-						BreadcrumbPath: breadcrumb,
-					}, "", "  ")
-					if marshalErr != nil {
-						return marshalErr
-					}
-					fmt.Fprintln(cmd.OutOrStdout(), string(body))
-					return nil
-				}
-				fmt.Fprintln(cmd.OutOrStdout(), "Configuration reset to defaults.")
-				if breadcrumb != "" {
-					fmt.Fprintf(cmd.OutOrStdout(), "Prior config preserved at %s — restore with `cp %s %s`\n", breadcrumb, breadcrumb, config.ConfigPath())
+				done, err := gormescli.EmitSetupResetResult(cmd.OutOrStdout(), newBuildProvenance(), config.ConfigPath(), breadcrumb, asJSON)
+				if err != nil || done {
+					return err
 				}
 			}
 			if len(args) > 0 {
@@ -358,24 +328,13 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 	return cmd
 }
 
-// setupResetReportJSON is the wire shape for `setup --reset --json`.
-// Fleet automation running reset across machines parses this to record
-// where each operator's prior config was preserved (`breadcrumb_path`)
-// — the recovery handle scripts capture for rollback.
-type setupResetReportJSON struct {
-	Build          buildProvenanceJSON `json:"build"`
-	Action         string              `json:"action"`
-	ConfigPath     string              `json:"config_path"`
-	BreadcrumbPath string              `json:"breadcrumb_path"`
-}
-
 func defaultSetupCommandSeams() setupCommandSeams {
 	return setupCommandSeams{
 		IsTTY:                        isStdinTTY,
 		HasExistingInstall:           defaultSetupHasExistingInstall,
-		ResetConfig:                  resetSetupDefaultConfig,
+		ResetConfig:                  gormescli.ResetSetupDefaultConfig,
 		LoadCurrentModel:             defaultSetupLoadCurrentModel,
-		RunActiveProviderModelPicker: runSetupActiveProviderModelPicker,
+		RunActiveProviderModelPicker: gormescli.RunSetupActiveProviderModelPicker,
 		LoadProviderAuthStatus: func(provider string) (cli.ProviderAuthStatus, error) {
 			return cli.ResolveAuthStatus(context.Background(), provider, cli.AuthStatusOptions{})
 		},
@@ -385,8 +344,8 @@ func defaultSetupCommandSeams() setupCommandSeams {
 		ChooseProviderCredentialAction: promptSetupProviderCredentialAction,
 		RunProviderLiveTest:            runSetupProviderLiveTest,
 		RunProviderAuth:                runSetupProviderAuth,
-		DetectHermesMigrationSource:    detectHermesMigrationSource,
-		DetectOpenClawMigrationSource:  detectOpenClawMigrationSource,
+		DetectHermesMigrationSource:    tuiapp.DetectHermesMigrationSource,
+		DetectOpenClawMigrationSource:  tuiapp.DetectOpenClawMigrationSource,
 	}
 }
 
@@ -409,51 +368,6 @@ func defaultSetupHasExistingInstall() (bool, error) {
 		setupProviderAutoDetectEnvProvider() != "", nil
 }
 
-func resetSetupDefaultConfig() (string, error) {
-	path := config.ConfigPath()
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return "", fmt.Errorf("setup reset: mkdir %s: %w", dir, err)
-	}
-	var breadcrumb string
-	if prior, readErr := os.ReadFile(path); readErr == nil {
-		breadcrumb = path + ".before-reset." + time.Now().UTC().Format("20060102T150405Z")
-		if err := os.WriteFile(breadcrumb, prior, 0o600); err != nil {
-			return "", fmt.Errorf("setup reset: write breadcrumb %s: %w", breadcrumb, err)
-		}
-	} else if !os.IsNotExist(readErr) {
-		return "", fmt.Errorf("setup reset: read prior %s: %w", path, readErr)
-	}
-	body, err := toml.Marshal(config.DefaultConfigDocumentV2())
-	if err != nil {
-		return "", fmt.Errorf("setup reset: marshal defaults: %w", err)
-	}
-	tmp, err := os.CreateTemp(dir, ".config.toml.reset-*")
-	if err != nil {
-		return "", fmt.Errorf("setup reset: tempfile: %w", err)
-	}
-	tmpName := tmp.Name()
-	if _, err := tmp.Write(body); err != nil {
-		tmp.Close()
-		os.Remove(tmpName)
-		return "", fmt.Errorf("setup reset: write temp: %w", err)
-	}
-	if err := tmp.Chmod(0o600); err != nil {
-		tmp.Close()
-		os.Remove(tmpName)
-		return "", fmt.Errorf("setup reset: chmod temp: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		os.Remove(tmpName)
-		return "", fmt.Errorf("setup reset: close temp: %w", err)
-	}
-	if _, err := toolspkg.AtomicReplace(tmpName, path, toolspkg.AtomicReplaceOptions{FirstWriteMode: 0o600}); err != nil {
-		os.Remove(tmpName)
-		return "", fmt.Errorf("setup reset: replace %s: %w", path, err)
-	}
-	return breadcrumb, nil
-}
-
 func printSetupSections(cmd *cobra.Command) {
 	out := cmd.OutOrStdout()
 	fmt.Fprintln(out, "Available setup sections:")
@@ -467,6 +381,68 @@ func printSetupSections(cmd *cobra.Command) {
 	fmt.Fprintln(out, "  Provider setup: gormes setup provider")
 	fmt.Fprintln(out, "  Telegram setup: gormes setup telegram")
 	fmt.Fprintln(out, "  Router setup:   gormes setup router")
+}
+
+func firstRunSetupOptions(seams setupCommandSeams) []setupMenuOption {
+	options := gormescli.FirstRunSetupOptions(gormescli.SetupFirstRunSourceSeams{
+		DetectHermesMigrationSource:   seams.DetectHermesMigrationSource,
+		DetectOpenClawMigrationSource: seams.DetectOpenClawMigrationSource,
+	})
+	out := make([]setupMenuOption, len(options))
+	for i, option := range options {
+		out[i] = setupMenuOption{Action: setupAction(option.Action), Label: option.Label}
+	}
+	return out
+}
+
+func promptSetupTarget(cmd *cobra.Command, targets []cli.SetupTargetOption, defaultOption int) (cli.SetupTargetID, error) {
+	return gormescli.PromptSetupTarget(cmd, targets, defaultOption, gormescli.SetupTargetPromptOptions{
+		PromptString:       promptString,
+		NewExitCodeError:   newExitCodeError,
+		PickShouldFallback: bubbleTeaPickShouldFallback,
+	})
+}
+
+func runSetupQuick(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool, requestedTarget cli.SetupTargetID) error {
+	return gormescli.RunSetupQuick(cmd, setupQuickSeams(seams), nonInteractive, requestedTarget)
+}
+
+func setupQuickSeams(seams setupCommandSeams) gormescli.SetupQuickSeams {
+	return gormescli.SetupQuickSeams{
+		ChooseSetupTarget:   seams.ChooseSetupTarget,
+		RunSetupProvider:    seams.RunSetupProvider,
+		RunProviderLiveTest: seams.RunProviderLiveTest,
+		LoadCurrentModel:    seams.LoadCurrentModel,
+		RunSetupModelSection: func(cmd *cobra.Command, nonInteractive bool) error {
+			return runSetupModelSection(cmd, seams, nonInteractive)
+		},
+		RunWhatsAppSetup:              seams.RunWhatsAppSetup,
+		RunTelegramSetup:              func(cmd *cobra.Command) error { return runSetupQuickTelegram(cmd, seams) },
+		RunGatewayPlatform:            seams.RunGatewayPlatform,
+		LaunchChat:                    seams.LaunchChat,
+		DetectHermesMigrationSource:   seams.DetectHermesMigrationSource,
+		DetectOpenClawMigrationSource: seams.DetectOpenClawMigrationSource,
+		NewExitCodeError:              newExitCodeError,
+	}
+}
+
+func runSetupQuickTelegram(cmd *cobra.Command, seams setupCommandSeams) error {
+	cfg, err := config.Load(nil)
+	if err != nil {
+		return fmt.Errorf("setup telegram: load config: %w", err)
+	}
+	answers, err := seams.RunTelegramGatewayWizard(cmd, cfg.Telegram)
+	if err != nil {
+		if errors.Is(err, setupwizard.ErrRequiresTTY) {
+			return newExitCodeError(2, fmt.Errorf("setup_telegram_requires_tty: run `gormes setup gateway --plan` for offline guidance, or run `gormes setup --quick --target telegram` in a terminal"))
+		}
+		return err
+	}
+	return gormescli.ApplySetupTelegramGatewayAnswers(cmd, cfg.Telegram, answers, setupGatewayRuntime(cmd, seams))
+}
+
+func runSetupProviderLiveTest(cmd *cobra.Command) error {
+	return gormescli.RunSetupProviderLiveTest(cmd.Context())
 }
 
 func runSetupRoot(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
@@ -601,7 +577,7 @@ func runSetupSection(cmd *cobra.Command, seams setupCommandSeams, section string
 	label := setupSectionLabel(section)
 	out := cmd.OutOrStdout()
 	cli.ClearScreen(out)
-	fmt.Fprint(out, doctor.RenderDoctorHeader("Gormes Setup — "+label))
+	fmt.Fprint(out, gormescli.RenderSetupSectionHeader(label))
 
 	// Tee section output so the success-only footer can be suppressed when a
 	// section cleanly cancels (returns nil but prints its own cancel line),
@@ -611,41 +587,10 @@ func runSetupSection(cmd *cobra.Command, seams setupCommandSeams, section string
 	err := dispatchSetupSection(cmd, seams, section, nonInteractive)
 	cmd.SetOut(out)
 
-	if err == nil && !setupSectionSuppressSuccessFooter(section, captured.String()) {
+	if err == nil && !gormescli.SetupSectionSuppressSuccessFooter(section, captured.String()) {
 		fmt.Fprintf(out, "\n%s configuration complete!\n", label)
 	}
 	return err
-}
-
-// setupSectionOutputCancelled reports whether a section that returned nil
-// actually ended in a clean user cancellation (so the success footer must
-// be suppressed). It matches the distinctive terminal cancel sentinels the
-// sections print — not loose "cancel" prompt text — so interactive menus
-// like "3. Cancel" / "q to cancel" do not produce false negatives.
-func setupSectionSuppressSuccessFooter(section, out string) bool {
-	if setupSectionOutputCancelled(out) {
-		return true
-	}
-	return section == "provider" && setupProviderReceiptRendered(out)
-}
-
-func setupSectionOutputCancelled(out string) bool {
-	for _, sentinel := range []string{
-		"Setup cancelled.",
-		"setup canceled; no files were written.",
-		"Setup canceled.",
-	} {
-		if strings.Contains(out, sentinel) {
-			return true
-		}
-	}
-	return false
-}
-
-func setupProviderReceiptRendered(out string) bool {
-	return strings.Contains(out, "\nConnection\n") &&
-		strings.Contains(out, "\nAuthentication\n") &&
-		strings.Contains(out, "\nNext steps\n")
 }
 
 func dispatchSetupSection(cmd *cobra.Command, seams setupCommandSeams, section string, nonInteractive bool) error {
@@ -657,7 +602,7 @@ func dispatchSetupSection(cmd *cobra.Command, seams setupCommandSeams, section s
 	case "fallback":
 		return runSetupFallbackSection(cmd, seams, nonInteractive)
 	case "router":
-		return runSetupRouterSection(cmd, seams, nonInteractive || !seams.IsTTY())
+		return gormescli.RunSetupRouterSection(cmd)
 	case "agent":
 		if !nonInteractive && !seams.IsTTY() {
 			return errSetupRequiresTTY
@@ -666,7 +611,7 @@ func dispatchSetupSection(cmd *cobra.Command, seams setupCommandSeams, section s
 	case "workspace":
 		return runSetupAgentSection(cmd, section, seams, nonInteractive)
 	case "profiles":
-		return runSetupProfilesSection(cmd, seams, nonInteractive)
+		return gormescli.RunSetupProfilesSection(cmd, gormescli.SetupProfilesOptions{NonInteractive: nonInteractive, IsTTY: seams.IsTTY, RequiresTTYError: errSetupRequiresTTY})
 	case "bindings":
 		return runSetupBindingsSection(cmd, seams, nonInteractive)
 	case "tts":
@@ -685,7 +630,7 @@ func dispatchSetupSection(cmd *cobra.Command, seams setupCommandSeams, section s
 		if err != nil {
 			return err
 		}
-		return runSetupNavivoxGateway(cmd, cfg)
+		return gormescli.RunSetupNavivoxGateway(cmd, cfg, setupNavivoxGatewayOptions(cmd))
 	case "tools":
 		return seams.RunSetupTools(cmd, nonInteractive || !seams.IsTTY())
 	default:
@@ -993,7 +938,7 @@ func promptSetupProviderChoice(cmd *cobra.Command, entries []cli.ProviderMenuEnt
 			stdin,
 			cmd.OutOrStdout(),
 			"Select provider",
-			setupProviderPickerChoices(entries),
+			gormescli.ProviderPickerChoices(entries),
 			strconv.Itoa(defaultIndex),
 			setupwizard.WithSearchChoices(),
 		)
@@ -1013,14 +958,6 @@ func promptSetupProviderChoice(cmd *cobra.Command, entries []cli.ProviderMenuEnt
 	}
 
 	return promptSetupProviderChoiceText(cmd, entries, defaultIndex)
-}
-
-func setupProviderPickerChoices(entries []cli.ProviderMenuEntry) []tuiPickChoice {
-	choices := make([]tuiPickChoice, len(entries))
-	for i, entry := range entries {
-		choices[i] = tuiPickChoice{ID: strconv.Itoa(i), Label: entry.Label}
-	}
-	return choices
 }
 
 // promptSetupProviderChoiceText is the fallback line-input version used for
@@ -1167,30 +1104,6 @@ func promptSetupProviderCredentialAction(cmd *cobra.Command, _ setupProviderCred
 	default:
 		return "", newExitCodeError(2, fmt.Errorf("setup_provider_credentials_invalid_selection: %s", answer))
 	}
-}
-
-func runSetupActiveProviderModelPicker(cmd *cobra.Command, current cli.ProviderModel) error {
-	provider := strings.TrimSpace(current.Provider)
-	if provider == "" {
-		return cli.ErrSelectorNoMatch
-	}
-	suggestions := gormescli.DefaultModelPickerSuggestionSet(provider)
-	if suggestions.DegradedReason != "" {
-		fmt.Fprintf(cmd.OutOrStdout(), "Model catalog degraded for %s: %s; accepting free-text model.\n", provider, suggestions.DegradedReason)
-	}
-	model, err := gormescli.PromptModelChoiceWithOptions(cmd.InOrStdin(), cmd.OutOrStdout(), provider, current.Model, suggestions.Models, gormescli.ModelChoicePromptOptions{
-		Context:         cmd.Context(),
-		SuggestionLimit: gormescli.ModelChoiceSuggestionLimitUnlimited,
-	})
-	if err != nil {
-		return err
-	}
-	model = llm.NormalizeProviderModelID(provider, model)
-	if err := gormescli.PersistModelSelectionToConfig(cli.Selection{Provider: provider, Model: model}); err != nil {
-		return err
-	}
-	fmt.Fprintf(cmd.OutOrStdout(), "model selection saved: provider=%s model=%s\n", provider, model)
-	return nil
 }
 
 func runSetupProviderAuth(cmd *cobra.Command, provider string) error {
@@ -1603,7 +1516,7 @@ func setupProviderInteractiveSeams(seams setupCommandSeams) setupCommandSeams {
 		seams.RunProviderAuth = runSetupProviderAuth
 	}
 	if seams.RunActiveProviderModelPicker == nil {
-		seams.RunActiveProviderModelPicker = runSetupActiveProviderModelPicker
+		seams.RunActiveProviderModelPicker = gormescli.RunSetupActiveProviderModelPicker
 	}
 	return seams
 }
@@ -1915,245 +1828,6 @@ func runSetupAgentSection(cmd *cobra.Command, section string, seams setupCommand
 	return nil
 }
 
-// runSetupProfilesSection is the Gormes-owned `gormes setup profiles` section
-// (owned divergence: Hermes has no setup profiles section — Hermes profiles
-// are separate ~/.hermes-<name> homes via hermes_cli/profiles.py, never a
-// setup section). It reuses the profile command seams
-// (defaultProfileCommandSeams) for enumeration/creation and the real
-// internal/config TOML round-trip (config.WriteTOMLValue) to persist a
-// per-profile workspace LIST into the SELECTED profile's own config.toml.
-// Interactive profile editing uses the rich TUI when available. Non-interactive
-// mode performs the safe main profile bootstrap so install/setup smoke tests
-// and headless hosts can reach a profile-rooted layout without prompting.
-func runSetupProfilesSection(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
-	if nonInteractive {
-		return runSetupProfilesNonInteractive(cmd)
-	}
-	if !seams.IsTTY() {
-		return errSetupRequiresTTY
-	}
-	return runSetupProfilesInteractive(cmd, defaultProfileCommandSeams())
-}
-
-func runSetupProfilesNonInteractive(cmd *cobra.Command) error {
-	restoreHome, err := scopeSetupProfilesBaseHome()
-	if err != nil {
-		return err
-	}
-	defer restoreHome()
-
-	cfg, err := config.Load(nil)
-	if err != nil {
-		return fmt.Errorf("setup profiles non-interactive: load config: %w", err)
-	}
-	if cfg.Profiles == nil {
-		cfg.Profiles = map[string]config.ProfileCfg{}
-	}
-	main := cfg.Profiles[config.DefaultProfileID]
-	if !main.Enabled {
-		main.Enabled = true
-	}
-	cfg.Profiles[config.DefaultProfileID] = main
-
-	if err := materializeSetupProfilesControlCenterMainProfile(); err != nil {
-		return err
-	}
-	if writeSetupProfilesControlCenterConfig == nil {
-		return fmt.Errorf("profile control center root config writer unavailable")
-	}
-	if err := writeSetupProfilesControlCenterConfig(config.ConfigPath(), cfg); err != nil {
-		return fmt.Errorf("setup profiles non-interactive: write config: %w", err)
-	}
-
-	out := cmd.OutOrStdout()
-	fmt.Fprintln(out, "Setup profiles non-interactive:")
-	fmt.Fprintf(out, "  - materialized profile %q at %s\n", config.DefaultProfileID, setupRedactedFilePath(filepath.Join(config.GormesBaseHome(), "profiles", config.DefaultProfileID)))
-	fmt.Fprintf(out, "  - wrote profile registry to %s\n", setupRedactedProfileConfigPath(config.GormesHome()))
-	return nil
-}
-
-func scopeSetupProfilesBaseHome() (func(), error) {
-	rawHome, hadHome := os.LookupEnv("GORMES_HOME")
-	currentHome := config.GormesHome()
-	baseHome := config.GormesBaseHomeFor(currentHome)
-	if currentHome == baseHome {
-		return func() {}, nil
-	}
-	if err := os.Setenv("GORMES_HOME", baseHome); err != nil {
-		return nil, fmt.Errorf("setup profiles: scope base home: %w", err)
-	}
-	return func() {
-		if hadHome {
-			_ = os.Setenv("GORMES_HOME", rawHome)
-		} else {
-			_ = os.Unsetenv("GORMES_HOME")
-		}
-	}, nil
-}
-
-func runSetupProfilesInteractive(cmd *cobra.Command, pseams profileCommandSeams) error {
-	restoreHome, err := scopeSetupProfilesBaseHome()
-	if err != nil {
-		return err
-	}
-	defer restoreHome()
-
-	out := cmd.OutOrStdout()
-	known, err := pseams.ListKnownProfiles()
-	if err != nil {
-		return fmt.Errorf("list profiles: %w", err)
-	}
-	active := config.DefaultProfileID
-	if pseams.ReadActiveProfileName != nil {
-		if a, aerr := pseams.ReadActiveProfileName(); aerr == nil && strings.TrimSpace(a) != "" {
-			active = strings.TrimSpace(a)
-		}
-	}
-	if handled, err := maybeRunSetupProfilesTUI(cmd, pseams, known, active); handled || err != nil {
-		return err
-	}
-	listProfiles := func(names []string) {
-		fmt.Fprintln(out, "\nKnown profiles:")
-		for _, name := range names {
-			marker := ""
-			if name == active {
-				marker = " (active)"
-			}
-			fmt.Fprintf(out, "  - %s%s\n", name, marker)
-		}
-	}
-
-	fmt.Fprintln(out, "\nManage Gormes profiles and their workspaces.")
-	listProfiles(known)
-
-	newName, err := promptString(cmd, "\nCreate a new profile? Enter a name (blank to skip): ", "")
-	if err != nil {
-		return err
-	}
-	if newName = strings.TrimSpace(newName); newName != "" {
-		if pseams.ValidateProfileName != nil {
-			if verr := pseams.ValidateProfileName(newName); verr != nil {
-				return fmt.Errorf("invalid profile name %q: %w", newName, verr)
-			}
-		}
-		if pseams.CreateProfile == nil {
-			return fmt.Errorf("profile creation seam unavailable")
-		}
-		if _, cerr := pseams.CreateProfile(newName, false); cerr != nil {
-			return fmt.Errorf("create profile %q: %w", newName, cerr)
-		}
-		fmt.Fprintf(out, "Created profile %q (~/.gormes/profiles/%s).\n", newName, newName)
-		if refreshed, rerr := pseams.ListKnownProfiles(); rerr == nil {
-			known = refreshed
-		}
-		listProfiles(known)
-	}
-
-	selected, err := promptString(cmd, fmt.Sprintf("\nSelect a profile to set workspaces for [%s]: ", active), active)
-	if err != nil {
-		return err
-	}
-	selected = strings.TrimSpace(selected)
-	if selected == "" {
-		selected = active
-	}
-	if pseams.ResolveProfileRoot == nil {
-		return fmt.Errorf("profile root seam unavailable")
-	}
-	root, err := pseams.ResolveProfileRoot(selected)
-	if err != nil {
-		return fmt.Errorf("resolve profile %q: %w", selected, err)
-	}
-	writeSetupProfileStorageSummary(out, root)
-
-	profileConfigPath := filepath.Join(root, "config.toml")
-
-	wsInput, err := promptString(cmd, "Workspace directories (comma-separated, blank to keep current): ", "")
-	if err != nil {
-		return err
-	}
-	if strings.TrimSpace(wsInput) == "" {
-		fmt.Fprintf(out, "No workspace change for profile %q.\n", selected)
-	} else {
-		if err := config.WriteTOMLValue(profileConfigPath, "agents.defaults.workspaces", wsInput); err != nil {
-			return fmt.Errorf("persist workspaces for profile %q: %w", selected, err)
-		}
-		fmt.Fprintf(out, "Set %d workspace(s) for profile %q in %s.\n",
-			len(parseSetupWorkspaceList(wsInput)), selected, setupRedactedProfileConfigPath(root))
-	}
-
-	chInput, err := promptString(cmd, "Messaging channels (comma-separated: telegram,whatsapp,discord,slack — blank to keep): ", "")
-	if err != nil {
-		return err
-	}
-	if strings.TrimSpace(chInput) == "" {
-		fmt.Fprintf(out, "No channel change for profile %q.\n", selected)
-		return nil
-	}
-	validChannels, unknownChannels := parseSetupChannelList(chInput)
-	for _, u := range unknownChannels {
-		fmt.Fprintf(out, "Skipping unknown channel %q (known: %s).\n", u, setupKnownChannelsLabel())
-	}
-	if len(validChannels) == 0 {
-		fmt.Fprintf(out, "No valid channels for profile %q.\n", selected)
-		return nil
-	}
-	if err := config.WriteTOMLValue(profileConfigPath, "agents.defaults.channels", strings.Join(validChannels, ",")); err != nil {
-		return fmt.Errorf("persist channels for profile %q: %w", selected, err)
-	}
-	fmt.Fprintf(out, "Set %d channel(s) for profile %q in %s.\n", len(validChannels), selected, setupRedactedProfileConfigPath(root))
-	return nil
-}
-
-// knownSetupChannels is the Gormes-owned messaging-channel set the profiles
-// section accepts. Per-channel credential/token/QR/whatsapp-pairing setup is
-// intentionally out of scope here — this records WHICH channels a profile
-// uses, not their credentials.
-var knownSetupChannels = map[string]struct{}{
-	"telegram": {},
-	"whatsapp": {},
-	"discord":  {},
-	"slack":    {},
-	"navivox":  {},
-}
-
-func setupKnownChannelsLabel() string {
-	channels := make([]string, 0, len(knownSetupChannels))
-	for channel := range knownSetupChannels {
-		channels = append(channels, channel)
-	}
-	sort.Strings(channels)
-	return strings.Join(channels, ", ")
-}
-
-// parseSetupChannelList splits comma-separated channel input (reusing the
-// workspace-list splitter for symmetry) into validated known channels
-// (lowercased) and unknown tokens that are skipped, never persisted.
-func parseSetupChannelList(value string) (valid, unknown []string) {
-	for _, part := range parseSetupWorkspaceList(value) {
-		c := strings.ToLower(part)
-		if _, ok := knownSetupChannels[c]; ok {
-			valid = append(valid, c)
-		} else {
-			unknown = append(unknown, part)
-		}
-	}
-	return valid, unknown
-}
-
-// parseSetupWorkspaceList splits the comma-separated workspace input the same
-// way the internal/config writer coerces agents.defaults.workspaces, so the
-// confirmation count matches what is persisted.
-func parseSetupWorkspaceList(value string) []string {
-	out := make([]string, 0)
-	for _, part := range strings.Split(value, ",") {
-		if p := strings.TrimSpace(part); p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
-}
-
 func runSetupBindingsSection(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
 	out := cmd.OutOrStdout()
 
@@ -2354,627 +2028,51 @@ func runSetupFallbackAdd(cmd *cobra.Command, seams setupCommandSeams) error {
 }
 
 func runSetupTTSSection(cmd *cobra.Command, nonInteractive bool) error {
-	out := cmd.OutOrStdout()
-	cfg, _ := config.Load(nil)
-	current := firstNonEmptySetup(cfg.Runtime.TTSProvider, "edge")
-	options := ttsProviderOptions()
-	voice := setupTTSVoiceModel(cfg.TTS, current)
-
-	fmt.Fprintln(out, "Text-to-Speech Provider")
-	fmt.Fprintf(out, "Default provider: %s\n", ttsProviderLabel(current))
-	fmt.Fprintf(out, "Default voice/model: %s\n", firstNonEmptySetup(voice, "provider default"))
-	fmt.Fprintln(out, "Built-in/default TTS: Edge TTS")
-	fmt.Fprintln(out, "Help: choose a provider with arrows or a number, choose/test a voice before saving, or keep the current default.")
-	fmt.Fprintln(out)
-	if setupShouldPrintStaticChoiceMenu(cmd, nonInteractive) {
-		printSetupChoiceList(out, options, "keep")
-	}
-	if nonInteractive {
-		fmt.Fprintln(out, "\nSkipped (keeping current)")
-		return nil
-	}
-
-	choice, err := promptSetupChoice(cmd, "Select TTS provider", "Select TTS provider [keep]: ", "keep", options)
-	if err != nil {
-		return err
-	}
-	choice = normalizeSetupChoice(choice)
-	if choice == "" || choice == "keep" {
-		fmt.Fprintln(out, "Keeping current TTS provider.")
-		return nil
-	}
-	if !isSetupTTSProviderChoice(choice) {
-		label := ttsProviderLabel(choice)
-		return newExitCodeError(2, fmt.Errorf("TTS provider %q is not available in this setup screen. Choose a listed provider, or configure a custom command provider under [tts.providers] and rerun setup.", label))
-	}
-	fmt.Fprintf(out, "Selected provider: %s\n", ttsProviderLabel(choice))
-	testChoice, err := promptString(cmd, "Test voice before saving? [Y/n]: ", "y")
-	if err != nil {
-		return err
-	}
-	if normalizeSetupChoice(testChoice) != "n" && normalizeSetupChoice(testChoice) != "no" {
-		fmt.Fprintf(out, "Test voice: %s with %s\n", ttsProviderLabel(choice), firstNonEmptySetup(setupTTSVoiceModel(cfg.TTS, choice), "provider default voice"))
-		fmt.Fprintln(out, "Test voice passed (provider availability will be checked again when audio is generated).")
-	}
-	if err := config.WriteTOMLValue(config.ConfigPath(), "runtime.tts_provider", choice); err != nil {
-		return err
-	}
-	fmt.Fprintf(out, "TTS provider set to: %s\n", ttsProviderLabel(choice))
-	return nil
-}
-
-func isSetupTTSProviderChoice(value string) bool {
-	value = normalizeSetupChoice(value)
-	for _, option := range ttsProviderOptions() {
-		if option.Value == value && value != "keep" {
-			return true
-		}
-	}
-	return false
-}
-
-func setupTTSVoiceModel(ttsConfig map[string]any, provider string) string {
-	provider = normalizeSetupChoice(provider)
-	for _, key := range []string{"voice", "voice_id", "model", "default_voice", "default_model"} {
-		if value := setupStringFromAny(ttsConfig[key]); strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
-	}
-	if raw, ok := ttsConfig[provider].(map[string]any); ok {
-		for _, key := range []string{"voice", "voice_id", "model", "default_voice", "default_model"} {
-			if value := setupStringFromAny(raw[key]); strings.TrimSpace(value) != "" {
-				return strings.TrimSpace(value)
-			}
-		}
-	}
-	return ""
-}
-
-func setupStringFromAny(value any) string {
-	switch v := value.(type) {
-	case string:
-		return v
-	case fmt.Stringer:
-		return v.String()
-	default:
-		return ""
-	}
-}
-
-func setupShouldPrintStaticChoiceMenu(cmd *cobra.Command, nonInteractive bool) bool {
-	if nonInteractive {
-		return true
-	}
-	stdin, ok := cmd.InOrStdin().(*os.File)
-	return !ok || !setupInputIsTerminal(stdin)
-}
-
-func printSetupChoiceList(out io.Writer, options []setupChoice, selectedValue string) {
-	selectedValue = normalizeSetupChoice(selectedValue)
-	for _, option := range options {
-		selected := "○"
-		if normalizeSetupChoice(option.Value) == selectedValue {
-			selected = "●"
-		}
-		fmt.Fprintf(out, "  (%s) %s\n", selected, option.Label)
-	}
+	return gormescli.RunSetupTTSSection(cmd, nonInteractive, setupTTSOptions(cmd))
 }
 
 func runSetupTerminalSection(cmd *cobra.Command, nonInteractive bool) error {
-	out := cmd.OutOrStdout()
-	cfg, _ := config.Load(nil)
-	current := firstNonEmptySetup(cfg.Runtime.TerminalBackend, "local")
-	options := terminalBackendOptions()
+	return gormescli.RunSetupTerminalSection(cmd, nonInteractive, setupTerminalOptions(cmd))
+}
 
-	fmt.Fprintln(out, "Terminal Backend")
-	fmt.Fprintf(out, "Current: %s\n", terminalBackendLabel(current))
-	fmt.Fprintln(out)
-	if setupShouldPrintStaticChoiceMenu(cmd, nonInteractive) {
-		printSetupChoiceList(out, options, "keep")
+func setupGatewaySeams(seams setupCommandSeams) gormescli.SetupGatewaySeams {
+	return gormescli.SetupGatewaySeams{
+		RunGatewaySetupWizard:    seams.RunGatewaySetupWizard,
+		RunTelegramGatewayWizard: seams.RunTelegramGatewayWizard,
+		RunGatewayPlatform:       seams.RunGatewayPlatform,
 	}
-	if nonInteractive {
-		fmt.Fprintf(out, "\nKeeping current backend: %s\n", current)
-		return nil
-	}
+}
 
-	choice, err := promptSetupChoice(cmd, "Select terminal backend", "Select terminal backend [keep]: ", "keep", options)
-	if err != nil {
-		return err
-	}
-	choice = normalizeSetupChoice(choice)
-	if choice == "" || choice == "keep" {
-		fmt.Fprintf(out, "Keeping current backend: %s\n", current)
-		return nil
-	}
-	switch choice {
-	case "local":
-		if err := config.WriteTOMLValue(config.ConfigPath(), "runtime.terminal_backend", choice); err != nil {
-			return err
-		}
-		fmt.Fprintln(out, "Terminal backend set to: local")
-		return nil
-	default:
-		fmt.Fprintf(cmd.ErrOrStderr(), "setup_terminal_backend_row_backed: backend=%s\n", choice)
-		return newExitCodeError(2, fmt.Errorf("setup_terminal_backend_row_backed: %s", choice))
+func setupGatewayRuntime(cmd *cobra.Command, seams setupCommandSeams) gormescli.SetupGatewayRuntime {
+	return gormescli.SetupGatewayRuntime{
+		NewExitCodeError: newExitCodeError,
+		PromptString:     promptString,
+		PromptSecret:     promptSecret,
+		RunWhatsAppSetup: seams.RunWhatsAppSetup,
+		RunNavivoxGateway: func(cmd *cobra.Command, cfg config.Config) error {
+			return gormescli.RunSetupNavivoxGateway(cmd, cfg, setupNavivoxGatewayOptions(cmd))
+		},
 	}
 }
 
 func runSetupTelegramSection(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
-	if nonInteractive || !seams.IsTTY() {
-		return newExitCodeError(2, fmt.Errorf("setup_telegram_requires_tty: run `gormes setup gateway --plan` for offline guidance, or run `gormes setup telegram` in a terminal"))
-	}
-	cfg, err := config.Load(nil)
-	if err != nil {
-		return fmt.Errorf("setup telegram: load config: %w", err)
-	}
-	answers, err := seams.RunTelegramGatewayWizard(cmd, cfg.Telegram)
-	if err != nil {
-		if errors.Is(err, setupwizard.ErrRequiresTTY) {
-			return newExitCodeError(2, fmt.Errorf("setup_telegram_requires_tty: run `gormes setup gateway --plan` for offline guidance, or run `gormes setup telegram` in a terminal"))
-		}
-		return err
-	}
-	return applySetupTelegramGatewayAnswers(cmd, cfg.Telegram, answers)
+	return gormescli.RunSetupTelegramSection(cmd, nonInteractive || !seams.IsTTY(), setupGatewaySeams(seams), setupGatewayRuntime(cmd, seams))
 }
 
 func runSetupGatewaySection(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
-	out := cmd.OutOrStdout()
-	cfg, err := config.Load(nil)
-	if err != nil {
-		return fmt.Errorf("setup gateway: load config: %w", err)
-	}
-
-	if setupGatewayPlanFlag(cmd) {
-		renderSetupGatewayPlan(out, cfg, true)
-		return nil
-	}
-	if nonInteractive {
-		renderSetupGatewayPlan(out, cfg, true)
-		fmt.Fprintln(out)
-		fmt.Fprintln(out, "Skipped (keeping current gateway platform configuration).")
-		fmt.Fprintln(out, "Run `gormes setup gateway` from a TTY or configure credentials with `gormes config edit`.")
-		fmt.Fprintln(out, "Start messaging with: gormes gateway")
-		return nil
-	}
-
-	result, err := seams.RunGatewaySetupWizard(cmd, cfg)
-	if err != nil {
-		if errors.Is(err, setupwizard.ErrRequiresTTY) {
-			return newExitCodeError(2, fmt.Errorf("setup_gateway_requires_tty: run `gormes setup gateway --plan` for offline guidance, or run `gormes setup gateway` in a terminal"))
-		}
-		return err
-	}
-	selected := compactStringsSetup(result.SelectedPlatforms)
-	if len(selected) == 0 {
-		fmt.Fprintln(out, "No platform setup changes selected.")
-		fmt.Fprintln(out, "Keeping current gateway platform configuration.")
-		return nil
-	}
-	for _, platform := range selected {
-		if platform == "telegram" && result.Telegram != nil {
-			if err := applySetupTelegramGatewayAnswers(cmd, cfg.Telegram, *result.Telegram); err != nil {
-				return err
-			}
-			continue
-		}
-		if platform == "navivox" {
-			if err := runSetupNavivoxGateway(cmd, cfg); err != nil {
-				return err
-			}
-			continue
-		}
-		if result.BubbleTea && platform != "whatsapp" {
-			fmt.Fprintf(out, "%s Bubble Tea setup is not shipped in this slice; use `gormes setup gateway --plan` and `gormes config edit` for now.\n", setupGatewayPlatformFallbackLabel(platform))
-			continue
-		}
-		if err := seams.RunGatewayPlatform(cmd, platform); err != nil {
-			return err
-		}
-	}
-	fmt.Fprintln(out, "Start messaging with: gormes gateway")
-	return nil
-}
-
-func setupGatewayPlanFlag(cmd *cobra.Command) bool {
-	if cmd == nil {
-		return false
-	}
-	value, err := cmd.Flags().GetBool("plan")
-	return err == nil && value
-}
-
-func renderSetupGatewayPlan(out io.Writer, cfg config.Config, planOnly bool) {
-	plan := gateway.BuildChannelSetupPlan(cfg)
-	fmt.Fprintln(out, "Messaging Platforms")
-	if planOnly {
-		fmt.Fprintln(out, "Plan only: no files will be written and no live APIs will be called.")
-	}
-	for _, entry := range plan.Channels {
-		fmt.Fprintf(out, "\n%s (%s): %s\n", entry.DisplayName, entry.ID, entry.Status)
-		if len(entry.RequiredFields) > 0 {
-			fmt.Fprintf(out, "  Required: %s\n", strings.Join(entry.RequiredFields, ", "))
-		}
-		if len(entry.CurrentValues) > 0 {
-			fmt.Fprintf(out, "  Current: %s\n", strings.Join(entry.CurrentValues, ", "))
-		}
-		if len(entry.PlannedWrites) > 0 {
-			fmt.Fprintf(out, "  Planned writes: %s\n", strings.Join(entry.PlannedWrites, ", "))
-		}
-		if len(entry.Warnings) > 0 {
-			fmt.Fprintf(out, "  Warnings: %s\n", strings.Join(entry.Warnings, " "))
-		}
-		if entry.NextCommand != "" {
-			fmt.Fprintf(out, "  Next: %s\n", entry.NextCommand)
-		}
-	}
-	if plan.GatewayAction != "" {
-		fmt.Fprintf(out, "\nGateway action: %s\n", plan.GatewayAction)
-	}
-}
-
-type setupGatewayPlatformOption struct {
-	key        string
-	label      string
-	configured bool
-	detail     string
-}
-
-func setupGatewayPlatformOptions(cfg config.Config) []setupGatewayPlatformOption {
-	configured := map[string]string{}
-	for _, channel := range configuredGatewayStatusChannels(cfg) {
-		configured[channel.Name] = channel.Detail
-	}
-	manifestByID := map[string]gateway.PlatformManifestEntry{}
-	for _, entry := range gateway.HermesGatewayPlatformManifest() {
-		manifestByID[entry.ID] = entry
-	}
-
-	out := make([]setupGatewayPlatformOption, 0, 5)
-	for _, key := range []string{"telegram", "discord", "slack", "whatsapp", "navivox"} {
-		label := setupGatewayPlatformFallbackLabel(key)
-		if entry, ok := manifestByID[key]; ok && strings.TrimSpace(entry.DisplayName) != "" {
-			label = entry.DisplayName
-		}
-		detail, ok := configured[key]
-		out = append(out, setupGatewayPlatformOption{
-			key:        key,
-			label:      label,
-			configured: ok,
-			detail:     detail,
-		})
-	}
-	return out
-}
-
-func setupGatewayPlatformFallbackLabel(key string) string {
-	switch key {
-	case "telegram":
-		return "Telegram"
-	case "discord":
-		return "Discord"
-	case "slack":
-		return "Slack"
-	case "whatsapp":
-		return "WhatsApp"
-	case "navivox":
-		return "Navivox"
-	default:
-		return key
-	}
-}
-
-func parseSetupGatewaySelection(input string, options []setupGatewayPlatformOption) ([]string, bool, error) {
-	input = strings.TrimSpace(input)
-	if input == "" {
-		return nil, true, nil
-	}
-	byKey := make(map[string]setupGatewayPlatformOption, len(options))
-	byLabel := make(map[string]setupGatewayPlatformOption, len(options))
-	for _, option := range options {
-		byKey[option.key] = option
-		byLabel[normalizeSetupChoice(option.label)] = option
-	}
-
-	var selected []string
-	seen := map[string]bool{}
-	for _, token := range strings.FieldsFunc(input, setupSelectionSeparator) {
-		token = strings.TrimSpace(token)
-		if token == "" {
-			continue
-		}
-		var key string
-		if index, err := strconv.Atoi(token); err == nil {
-			if index < 1 || index > len(options) {
-				return nil, false, newExitCodeError(2, fmt.Errorf("setup_gateway_invalid_selection: %s", token))
-			}
-			key = options[index-1].key
-		} else {
-			normalized := normalizeSetupChoice(token)
-			if option, ok := byKey[normalized]; ok {
-				key = option.key
-			} else if option, ok := byLabel[normalized]; ok {
-				key = option.key
-			} else {
-				return nil, false, newExitCodeError(2, fmt.Errorf("setup_gateway_invalid_selection: %s", token))
-			}
-		}
-		if !seen[key] {
-			selected = append(selected, key)
-			seen[key] = true
-		}
-	}
-	return selected, false, nil
-}
-
-var setupTelegramBotTokenPattern = regexp.MustCompile(`^\d+:[A-Za-z0-9_-]{30,}$`)
-
-func runSetupGatewayBubbleTeaWizard(cmd *cobra.Command, cfg config.Config) (setupGatewayWizardResult, error) {
-	choices := []setupwizard.Choice{
-		{ID: "telegram", Label: "Telegram"},
-		{ID: "whatsapp", Label: "WhatsApp"},
-		{ID: "discord", Label: "Discord"},
-		{ID: "slack", Label: "Slack"},
-		{ID: "navivox", Label: "Navivox"},
-		{ID: "keep", Label: "Keep current configuration"},
-	}
-	result, err := setupwizard.New(
-		setupwizard.WithInput(os.Stdin),
-		setupwizard.WithOutput(cmd.OutOrStdout()),
-	).Run(cmd.Context(), setupwizard.Pick("platform", "Messaging Platforms (Gateway)", choices, setupwizard.WithDefaultChoice("telegram")))
-	if errors.Is(err, setupwizard.ErrAbort) {
-		return setupGatewayWizardResult{}, nil
-	}
-	if err != nil {
-		return setupGatewayWizardResult{}, err
-	}
-	platform := normalizeSetupChoice(result.Choice("platform"))
-	if platform == "" || platform == "keep" {
-		return setupGatewayWizardResult{}, nil
-	}
-	out := setupGatewayWizardResult{SelectedPlatforms: []string{platform}, BubbleTea: true}
-	if platform == "telegram" {
-		answers, err := runSetupTelegramBubbleTeaWizard(cmd, cfg.Telegram)
-		if err != nil {
-			return setupGatewayWizardResult{}, err
-		}
-		out.Telegram = &answers
-	}
-	return out, nil
-}
-
-func runSetupTelegramBubbleTeaWizard(cmd *cobra.Command, cfg config.TelegramCfg) (setupTelegramGatewayAnswers, error) {
-	runner := setupwizard.New(
-		setupwizard.WithInput(os.Stdin),
-		setupwizard.WithOutput(cmd.OutOrStdout()),
-	)
-	result, err := runner.Run(cmd.Context(), setupTelegramGatewayWizardSteps(cfg)...)
-	if errors.Is(err, setupwizard.ErrAbort) {
-		return setupTelegramGatewayAnswers{Apply: false}, nil
-	}
-	if err != nil {
-		return setupTelegramGatewayAnswers{}, err
-	}
-	answers := setupTelegramGatewayAnswers{
-		Token:        strings.TrimSpace(result.String("token")),
-		AccessPolicy: normalizeSetupChoice(result.Choice("access_policy")),
-		Apply:        true,
-	}
-	if answers.AccessPolicy == "" {
-		answers.AccessPolicy = setupTelegramDefaultAccessPolicy(cfg)
-	}
-	if answers.AccessPolicy == "allowlist" {
-		allowedResult, err := runner.Run(cmd.Context(), setupTelegramGatewayAllowedUsersSteps()...)
-		if errors.Is(err, setupwizard.ErrAbort) {
-			return setupTelegramGatewayAnswers{Apply: false}, nil
-		}
-		if err != nil {
-			return setupTelegramGatewayAnswers{}, err
-		}
-		answers.AllowedUsers = strings.TrimSpace(allowedResult.String("allowed_users"))
-	}
-	return answers, nil
-}
-
-func setupTelegramGatewayWizardSteps(cfg config.TelegramCfg) []setupwizard.Step {
-	return []setupwizard.Step{
-		setupwizard.Password("token", "Telegram bot token from BotFather (blank keeps current)", setupwizard.WithPlaceholder("123456:...")),
-		setupwizard.Pick("access_policy", "Telegram access policy", []setupwizard.Choice{
-			{ID: "allowlist", Label: "Allowlisted Telegram user IDs"},
-			{ID: "pairing", Label: "Pairing/first-run discovery"},
-			{ID: "open", Label: "Open access (risky)"},
-		}, setupwizard.WithDefaultChoice(setupTelegramDefaultAccessPolicy(cfg))),
-	}
-}
-
-func setupTelegramGatewayAllowedUsersSteps() []setupwizard.Step {
-	return []setupwizard.Step{
-		setupwizard.Text("allowed_users", "Allowed Telegram user IDs (comma-separated)", setupwizard.WithPlaceholder("6586915095,12345")),
-	}
-}
-
-func setupTelegramDefaultAccessPolicy(cfg config.TelegramCfg) string {
-	if cfg.GuestMode {
-		return "open"
-	}
-	if len(cfg.AllowedUserIDs) == 0 && cfg.FirstRunDiscovery {
-		return "pairing"
-	}
-	return "allowlist"
-}
-
-func applySetupTelegramGatewayAnswers(cmd *cobra.Command, cfg config.TelegramCfg, answers setupTelegramGatewayAnswers) error {
-	out := cmd.OutOrStdout()
-	token := strings.TrimSpace(answers.Token)
-	if token != "" && !setupTelegramBotTokenPattern.MatchString(token) {
-		return newExitCodeError(2, fmt.Errorf("setup telegram: invalid bot token format; expected BotFather token like 123456:ABC..."))
-	}
-	effectiveToken := token
-	if effectiveToken == "" {
-		effectiveToken = strings.TrimSpace(cfg.BotToken)
-	}
-	if effectiveToken == "" {
-		return newExitCodeError(2, fmt.Errorf("setup telegram: missing bot token; enter a Telegram bot token or configure one before enabling Telegram"))
-	}
-
-	accessPolicy := normalizeSetupChoice(answers.AccessPolicy)
-	if accessPolicy == "" {
-		accessPolicy = "allowlist"
-	}
-	allowedUsers, err := parseSetupTelegramAllowedUsers(answers.AllowedUsers)
-	if err != nil {
-		return err
-	}
-	profileBinding := setupGatewayProfileChannelPreview("telegram")
-
-	fmt.Fprintln(out, "Review Telegram gateway changes")
-	fmt.Fprintf(out, "  profiles.%s.channels.telegram.credential=%s\n", profileBinding.ProfileID, profileBinding.CredentialID)
-	if token != "" {
-		fmt.Fprintf(out, "  .env %s=[REDACTED]\n", profileBinding.SecretEnvName)
-		fmt.Fprintln(out, "  .env GORMES_TELEGRAM_BOT_TOKEN=[REDACTED]")
-	}
-	switch accessPolicy {
-	case "allowlist":
-		fmt.Fprintf(out, "  config.toml telegram.allowed_user_ids=%d\n", len(allowedUsers))
-	case "pairing":
-		fmt.Fprintln(out, "  config.toml telegram.first_run_discovery=true")
-	case "open":
-		fmt.Fprintln(out, "  config.toml telegram.guest_mode=true")
-	default:
-		return newExitCodeError(2, fmt.Errorf("setup telegram: unsupported access policy %q", answers.AccessPolicy))
-	}
-	if strings.TrimSpace(answers.HomeChatID) != "" {
-		fmt.Fprintf(out, "  config.toml telegram.home_channel.chat_id=%s\n", strings.TrimSpace(answers.HomeChatID))
-	}
-	if strings.TrimSpace(answers.HomeThreadID) != "" {
-		fmt.Fprintf(out, "  config.toml telegram.home_channel.thread_id=%s\n", strings.TrimSpace(answers.HomeThreadID))
-	}
-	fmt.Fprintln(out, "  group guidance: in BotFather, disable privacy when needed; add the bot as admin; after permission changes, remove and re-add the bot to the group.")
-	if !answers.Apply {
-		fmt.Fprintln(out, "Telegram setup canceled; no files were written.")
-		return nil
-	}
-
-	allowedProfileChats := []string(nil)
-	if chatID := strings.TrimSpace(answers.HomeChatID); chatID != "" {
-		allowedProfileChats = []string{chatID}
-	}
-	profileBinding, err = writeSetupGatewayProfileChannelBinding(setupGatewayProfileChannelOptions{
-		ChannelID:    "telegram",
-		AllowedChats: allowedProfileChats,
-		AllowedUsers: setupInt64Strings(allowedUsers),
-	})
-	if err != nil {
-		return fmt.Errorf("setup telegram: write profile channel binding: %w", err)
-	}
-	if token != "" {
-		if err := writeSetupGatewayTokenEnv(profileBinding, config.SecretEnvName("telegram.bot_token"), token); err != nil {
-			return fmt.Errorf("setup telegram: write token: %w", err)
-		}
-		if err := writeSetupGatewayRuntimeSecretRef("telegram.bot_token_ref", profileBinding.SecretEnvName); err != nil {
-			return fmt.Errorf("setup telegram: write token ref: %w", err)
-		}
-	}
-	switch accessPolicy {
-	case "allowlist":
-		if err := config.WriteTOMLValue(config.ConfigPath(), "telegram.allowed_user_ids", formatSetupInt64CSV(allowedUsers)); err != nil {
-			return fmt.Errorf("setup telegram: write allowed users: %w", err)
-		}
-		if err := config.WriteTOMLValue(config.ConfigPath(), "telegram.guest_mode", "false"); err != nil {
-			return fmt.Errorf("setup telegram: write guest mode: %w", err)
-		}
-	case "pairing":
-		if err := config.WriteTOMLValue(config.ConfigPath(), "telegram.first_run_discovery", "true"); err != nil {
-			return fmt.Errorf("setup telegram: write discovery config: %w", err)
-		}
-	case "open":
-		if err := config.WriteTOMLValue(config.ConfigPath(), "telegram.guest_mode", "true"); err != nil {
-			return fmt.Errorf("setup telegram: write guest mode: %w", err)
-		}
-	}
-	if chatID := strings.TrimSpace(answers.HomeChatID); chatID != "" {
-		if err := config.WriteTOMLValue(config.ConfigPath(), "telegram.home_channel.chat_id", chatID); err != nil {
-			return fmt.Errorf("setup telegram: write home channel: %w", err)
-		}
-	}
-	if threadID := strings.TrimSpace(answers.HomeThreadID); threadID != "" {
-		if err := config.WriteTOMLValue(config.ConfigPath(), "telegram.home_channel.thread_id", threadID); err != nil {
-			return fmt.Errorf("setup telegram: write home channel thread: %w", err)
-		}
-	}
-	fmt.Fprintln(out, "Telegram gateway channel configured.")
-	if strings.TrimSpace(answers.HomeChatID) == "" {
-		fmt.Fprintln(out, "Telegram home channel can be set later with /set-home after the bot is in the target chat.")
-	}
-	return nil
-}
-
-func parseSetupTelegramAllowedUsers(value string) ([]int64, error) {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return nil, nil
-	}
-	parts := strings.Split(value, ",")
-	out := make([]int64, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-		id, err := strconv.ParseInt(part, 10, 64)
-		if err != nil {
-			return nil, newExitCodeError(2, fmt.Errorf("setup telegram: invalid allowed user ID %q", part))
-		}
-		out = append(out, id)
-	}
-	return out, nil
-}
-
-func formatSetupInt64CSV(values []int64) string {
-	parts := make([]string, 0, len(values))
-	for _, value := range values {
-		parts = append(parts, strconv.FormatInt(value, 10))
-	}
-	return strings.Join(parts, ",")
-}
-
-func compactStringsSetup(values []string) []string {
-	out := make([]string, 0, len(values))
-	seen := map[string]bool{}
-	for _, value := range values {
-		value = normalizeSetupChoice(value)
-		if value == "" || seen[value] {
-			continue
-		}
-		out = append(out, value)
-		seen[value] = true
-	}
-	return out
-}
-
-func runSetupGatewayPlatformRowBacked(cmd *cobra.Command, platform string) error {
-	fmt.Fprintf(cmd.OutOrStdout(), "setup_gateway_platform_row_backed: platform=%s recommended_command=\"gormes setup gateway\"\n", platform)
-	return nil
+	return gormescli.RunSetupGatewaySection(cmd, nonInteractive, setupGatewaySeams(seams), setupGatewayRuntime(cmd, seams))
 }
 
 func runSetupGatewayPlatform(cmd *cobra.Command, platform string, runWhatsAppSetup func(*cobra.Command) error) error {
-	switch normalizeSetupChoice(platform) {
-	case "telegram":
-		return runSetupTelegramGatewayPlatform(cmd)
-	case "discord":
-		return runSetupDiscordGatewayPlatform(cmd)
-	case "slack":
-		return runSetupSlackGatewayPlatform(cmd)
-	case "whatsapp":
-		return runWhatsAppSetup(cmd)
-	case "navivox":
-		cfg, err := config.Load(nil)
-		if err != nil {
-			return fmt.Errorf("setup navivox: load config: %w", err)
-		}
-		return runSetupNavivoxGateway(cmd, cfg)
-	default:
-		return runSetupGatewayPlatformRowBacked(cmd, platform)
-	}
+	return gormescli.RunSetupGatewayPlatform(cmd, platform, gormescli.SetupGatewayRuntime{
+		NewExitCodeError: newExitCodeError,
+		PromptString:     promptString,
+		PromptSecret:     promptSecret,
+		RunWhatsAppSetup: runWhatsAppSetup,
+		RunNavivoxGateway: func(cmd *cobra.Command, cfg config.Config) error {
+			return gormescli.RunSetupNavivoxGateway(cmd, cfg, setupNavivoxGatewayOptions(cmd))
+		},
+	})
 }
 
 func runSetupWhatsAppCommand(cmd *cobra.Command) error {
@@ -2986,318 +2084,6 @@ func runSetupWhatsAppCommand(cmd *cobra.Command) error {
 	whatsAppCmd.SilenceUsage = true
 	whatsAppCmd.SilenceErrors = true
 	return whatsAppCmd.ExecuteContext(cmd.Context())
-}
-
-func runSetupTelegramGatewayPlatform(cmd *cobra.Command) error {
-	out := cmd.OutOrStdout()
-	cfg, err := config.Load(nil)
-	if err != nil {
-		return fmt.Errorf("setup telegram: load config: %w", err)
-	}
-	token, err := promptSecret(cmd, "Telegram bot token (stored in .env, blank to keep current): ")
-	if err != nil {
-		return err
-	}
-	profileBinding := setupGatewayProfileChannelPreview("telegram")
-	if strings.TrimSpace(token) == "" && strings.TrimSpace(cfg.Telegram.BotToken) == "" {
-		return newExitCodeError(2, fmt.Errorf("setup telegram: missing bot token; enter a Telegram bot token or configure one before enabling Telegram"))
-	}
-
-	chatID, err := promptString(cmd, "Allowed chat ID (blank for first-run discovery): ", "")
-	if err != nil {
-		return err
-	}
-	chatID = strings.TrimSpace(chatID)
-	if chatID == "" {
-		profileBinding, err = writeSetupGatewayProfileChannelBinding(setupGatewayProfileChannelOptions{ChannelID: "telegram"})
-		if err != nil {
-			return fmt.Errorf("setup telegram: write profile channel binding: %w", err)
-		}
-		if token != "" {
-			if err := writeSetupGatewayTokenEnv(profileBinding, config.SecretEnvName("telegram.bot_token"), token); err != nil {
-				return fmt.Errorf("setup telegram: write token: %w", err)
-			}
-			if err := writeSetupGatewayRuntimeSecretRef("telegram.bot_token_ref", profileBinding.SecretEnvName); err != nil {
-				return fmt.Errorf("setup telegram: write token ref: %w", err)
-			}
-		}
-		if err := config.WriteTOMLValue(config.ConfigPath(), "telegram.first_run_discovery", "true"); err != nil {
-			return fmt.Errorf("setup telegram: write discovery config: %w", err)
-		}
-		fmt.Fprintf(out, "Telegram profile channel configured: profiles.%s.channels.telegram\n", profileBinding.ProfileID)
-		fmt.Fprintln(out, "Telegram gateway channel configured for first-run discovery.")
-		return nil
-	}
-	if _, err := strconv.ParseInt(chatID, 10, 64); err != nil {
-		return newExitCodeError(2, fmt.Errorf("setup telegram: invalid allowed chat ID"))
-	}
-	profileBinding, err = writeSetupGatewayProfileChannelBinding(setupGatewayProfileChannelOptions{ChannelID: "telegram", AllowedChats: []string{chatID}})
-	if err != nil {
-		return fmt.Errorf("setup telegram: write profile channel binding: %w", err)
-	}
-	if token != "" {
-		if err := writeSetupGatewayTokenEnv(profileBinding, config.SecretEnvName("telegram.bot_token"), token); err != nil {
-			return fmt.Errorf("setup telegram: write token: %w", err)
-		}
-		if err := writeSetupGatewayRuntimeSecretRef("telegram.bot_token_ref", profileBinding.SecretEnvName); err != nil {
-			return fmt.Errorf("setup telegram: write token ref: %w", err)
-		}
-	}
-	if err := config.WriteTOMLValue(config.ConfigPath(), "telegram.allowed_chat_id", chatID); err != nil {
-		return fmt.Errorf("setup telegram: write allowed chat ID: %w", err)
-	}
-	if err := config.WriteTOMLValue(config.ConfigPath(), "telegram.first_run_discovery", "false"); err != nil {
-		return fmt.Errorf("setup telegram: write discovery config: %w", err)
-	}
-	fmt.Fprintf(out, "Telegram profile channel configured: profiles.%s.channels.telegram\n", profileBinding.ProfileID)
-	fmt.Fprintln(out, "Telegram gateway channel configured.")
-	return nil
-}
-
-func runSetupDiscordGatewayPlatform(cmd *cobra.Command) error {
-	out := cmd.OutOrStdout()
-	cfg, err := config.Load(nil)
-	if err != nil {
-		return fmt.Errorf("setup discord: load config: %w", err)
-	}
-	token, err := promptSecret(cmd, "Discord bot token (stored in .env, blank to keep current): ")
-	if err != nil {
-		return err
-	}
-	profileBinding := setupGatewayProfileChannelPreview("discord")
-	if strings.TrimSpace(token) == "" && strings.TrimSpace(cfg.Discord.Token) == "" {
-		return newExitCodeError(2, fmt.Errorf("setup discord: missing bot token; enter a Discord bot token or configure one before enabling Discord"))
-	}
-
-	channelID, err := promptString(cmd, "Allowed channel ID (blank for first-run discovery): ", "")
-	if err != nil {
-		return err
-	}
-	channelID = strings.TrimSpace(channelID)
-	if channelID == "" {
-		profileBinding, err = writeSetupGatewayProfileChannelBinding(setupGatewayProfileChannelOptions{ChannelID: "discord"})
-		if err != nil {
-			return fmt.Errorf("setup discord: write profile channel binding: %w", err)
-		}
-		if token != "" {
-			if err := writeSetupGatewayTokenEnv(profileBinding, config.SecretEnvName("discord.token"), token); err != nil {
-				return fmt.Errorf("setup discord: write token: %w", err)
-			}
-			if err := writeSetupGatewayRuntimeSecretRef("discord.token_ref", profileBinding.SecretEnvName); err != nil {
-				return fmt.Errorf("setup discord: write token ref: %w", err)
-			}
-		}
-		if err := config.WriteTOMLValue(config.ConfigPath(), "discord.first_run_discovery", "true"); err != nil {
-			return fmt.Errorf("setup discord: write discovery config: %w", err)
-		}
-		fmt.Fprintf(out, "Discord profile channel configured: profiles.%s.channels.discord\n", profileBinding.ProfileID)
-		fmt.Fprintln(out, "Discord gateway channel configured for first-run discovery.")
-		return nil
-	}
-	profileBinding, err = writeSetupGatewayProfileChannelBinding(setupGatewayProfileChannelOptions{ChannelID: "discord", AllowedChats: []string{channelID}})
-	if err != nil {
-		return fmt.Errorf("setup discord: write profile channel binding: %w", err)
-	}
-	if token != "" {
-		if err := writeSetupGatewayTokenEnv(profileBinding, config.SecretEnvName("discord.token"), token); err != nil {
-			return fmt.Errorf("setup discord: write token: %w", err)
-		}
-		if err := writeSetupGatewayRuntimeSecretRef("discord.token_ref", profileBinding.SecretEnvName); err != nil {
-			return fmt.Errorf("setup discord: write token ref: %w", err)
-		}
-	}
-	if err := config.WriteTOMLValue(config.ConfigPath(), "discord.allowed_channel_id", channelID); err != nil {
-		return fmt.Errorf("setup discord: write allowed channel ID: %w", err)
-	}
-	if err := config.WriteTOMLValue(config.ConfigPath(), "discord.first_run_discovery", "false"); err != nil {
-		return fmt.Errorf("setup discord: write discovery config: %w", err)
-	}
-	fmt.Fprintf(out, "Discord profile channel configured: profiles.%s.channels.discord\n", profileBinding.ProfileID)
-	fmt.Fprintln(out, "Discord gateway channel configured.")
-	return nil
-}
-
-func runSetupSlackGatewayPlatform(cmd *cobra.Command) error {
-	out := cmd.OutOrStdout()
-	cfg, err := config.Load(nil)
-	if err != nil {
-		return fmt.Errorf("setup slack: load config: %w", err)
-	}
-	botToken, err := promptSecret(cmd, "Slack bot token (xoxb, stored in .env, blank to keep current): ")
-	if err != nil {
-		return err
-	}
-	profileBinding := setupGatewayProfileChannelPreview("slack")
-	appToken, err := promptSecret(cmd, "Slack app token (xapp, stored in .env, blank to keep current): ")
-	if err != nil {
-		return err
-	}
-	appBinding := setupGatewayProfileChannelPreview("slack_app")
-
-	effectiveBotToken := strings.TrimSpace(botToken)
-	if effectiveBotToken == "" {
-		effectiveBotToken = strings.TrimSpace(cfg.Slack.BotToken)
-	}
-	effectiveAppToken := strings.TrimSpace(appToken)
-	if effectiveAppToken == "" {
-		effectiveAppToken = strings.TrimSpace(cfg.Slack.AppToken)
-	}
-	if effectiveBotToken == "" || effectiveAppToken == "" {
-		return newExitCodeError(2, fmt.Errorf("setup slack: missing Slack tokens; enter both bot and app tokens, or configure both before enabling Slack"))
-	}
-	if err := config.WriteTOMLValue(config.ConfigPath(), "slack.enabled", "true"); err != nil {
-		return fmt.Errorf("setup slack: write enabled config: %w", err)
-	}
-	channelID, err := promptString(cmd, "Allowed channel ID (blank for first-run discovery): ", "")
-	if err != nil {
-		return err
-	}
-	channelID = strings.TrimSpace(channelID)
-	allowedSlackChats := []string(nil)
-	if channelID != "" {
-		allowedSlackChats = []string{channelID}
-	}
-	profileBinding, err = writeSetupGatewayProfileChannelBinding(setupGatewayProfileChannelOptions{ChannelID: "slack", AllowedChats: allowedSlackChats})
-	if err != nil {
-		return fmt.Errorf("setup slack: write profile channel binding: %w", err)
-	}
-	appBinding, err = writeSetupGatewayProfileChannelCredential("slack_app")
-	if err != nil {
-		return fmt.Errorf("setup slack: write profile app credential: %w", err)
-	}
-	if botToken != "" {
-		if err := writeSetupGatewayTokenEnv(profileBinding, config.SecretEnvName("slack.bot_token"), botToken); err != nil {
-			return fmt.Errorf("setup slack: write bot token: %w", err)
-		}
-		if err := writeSetupGatewayRuntimeSecretRef("slack.bot_token_ref", profileBinding.SecretEnvName); err != nil {
-			return fmt.Errorf("setup slack: write bot token ref: %w", err)
-		}
-	}
-	if appToken != "" {
-		if err := writeSetupGatewayTokenEnv(appBinding, config.SecretEnvName("slack.app_token"), appToken); err != nil {
-			return fmt.Errorf("setup slack: write app token: %w", err)
-		}
-		if err := writeSetupGatewayRuntimeSecretRef("slack.app_token_ref", appBinding.SecretEnvName); err != nil {
-			return fmt.Errorf("setup slack: write app token ref: %w", err)
-		}
-	}
-	if channelID == "" {
-		if err := config.WriteTOMLValue(config.ConfigPath(), "slack.first_run_discovery", "true"); err != nil {
-			return fmt.Errorf("setup slack: write discovery config: %w", err)
-		}
-		fmt.Fprintf(out, "Slack profile channel configured: profiles.%s.channels.slack\n", profileBinding.ProfileID)
-		fmt.Fprintln(out, "Slack gateway channel configured for first-run discovery.")
-		return nil
-	}
-	if err := config.WriteTOMLValue(config.ConfigPath(), "slack.allowed_channel_id", channelID); err != nil {
-		return fmt.Errorf("setup slack: write allowed channel ID: %w", err)
-	}
-	if err := config.WriteTOMLValue(config.ConfigPath(), "slack.first_run_discovery", "false"); err != nil {
-		return fmt.Errorf("setup slack: write discovery config: %w", err)
-	}
-	fmt.Fprintf(out, "Slack profile channel configured: profiles.%s.channels.slack\n", profileBinding.ProfileID)
-	fmt.Fprintln(out, "Slack gateway channel configured.")
-	return nil
-}
-
-func runSetupToolsSection(cmd *cobra.Command, nonInteractive bool) error {
-	out := cmd.OutOrStdout()
-	doc, toolCfg, err := loadSetupToolsConfig(config.ConfigPath())
-	if err != nil {
-		return err
-	}
-	status, err := toolCfg.PlatformStatus("cli")
-	if err != nil {
-		return err
-	}
-	options, err := setupToolOptions()
-	if err != nil {
-		return err
-	}
-	selected := stringSet(status.RuntimeToolsets)
-
-	if !nonInteractive {
-		if stdin, ok := cmd.InOrStdin().(*os.File); ok && setupInputIsTerminal(stdin) {
-			chosen, err := promptSetupToolsChecklist(cmd, stdin, options, status.RuntimeToolsets)
-			if err == nil {
-				if chosen == nil {
-					fmt.Fprintln(out, "No tool setup changes selected.")
-					return nil
-				}
-				return saveSetupToolsSelection(cmd, doc, &toolCfg, chosen)
-			}
-			if !bubbleTeaPickShouldFallback(err) {
-				return err
-			}
-		}
-	}
-
-	fmt.Fprintln(out, "Tools for CLI")
-	fmt.Fprintln(out)
-	for i, option := range options {
-		marker := "[ ]"
-		if selected[option.Key] {
-			marker = "[x]"
-		}
-		fmt.Fprintf(out, "  %2d. %s %-28s %-16s %s\n", i+1, marker, option.Label, option.Key, option.Description)
-	}
-	if nonInteractive {
-		fmt.Fprintln(out, "\nSkipped (keeping current tool selection).")
-		return nil
-	}
-	fmt.Fprintln(out)
-	selection, err := promptString(cmd, "Toolsets (comma-separated numbers or keys, blank to keep current): ", "")
-	if err != nil {
-		return err
-	}
-	chosen, err := parseSetupToolSelection(selection, options, status.RuntimeToolsets)
-	if err != nil {
-		return err
-	}
-	return saveSetupToolsSelection(cmd, doc, &toolCfg, chosen)
-}
-
-func promptSetupToolsChecklist(cmd *cobra.Command, stdin *os.File, options []setupToolOption, selected []string) ([]string, error) {
-	return runBubbleTeaChecklist(
-		cmd.Context(),
-		stdin,
-		cmd.OutOrStdout(),
-		"Tools for 🖥️  CLI",
-		setupToolChecklistChoices(options),
-		selected,
-	)
-}
-
-func setupToolChecklistChoices(options []setupToolOption) []tuiPickChoice {
-	choices := make([]tuiPickChoice, len(options))
-	for i, option := range options {
-		label := option.Label
-		if option.Description != "" {
-			label = fmt.Sprintf("%s  (%s)", label, option.Description)
-		}
-		choices[i] = tuiPickChoice{ID: option.Key, Label: label}
-	}
-	return choices
-}
-
-func saveSetupToolsSelection(cmd *cobra.Command, doc map[string]any, toolCfg *cli.PlatformToolsetConfig, chosen []string) error {
-	out := cmd.OutOrStdout()
-	report, err := toolCfg.SavePlatformSelection("cli", chosen)
-	if err != nil {
-		return err
-	}
-	doc["platform_toolsets"] = toolCfg.PlatformToolsets
-	if err := writeSetupToolsConfig(config.ConfigPath(), doc); err != nil {
-		return err
-	}
-	fmt.Fprintf(out, "Saved CLI tool configuration: %s\n", strings.Join(report.PersistedToolsets, ", "))
-	for _, issue := range report.Issues {
-		if issue.Platform == "cli" || issue.Platform == "" {
-			fmt.Fprintf(out, "setup_tools_issue: kind=%s toolset=%s detail=%s\n", issue.Kind, issue.Toolset, issue.Detail)
-		}
-	}
-	renderSetupToolsProviderRows(out, chosen)
-	return nil
 }
 
 var setupToolProgressModes = []string{"off", "new", "all", "verbose"}
@@ -3484,6 +2270,75 @@ func promptSetupOptionChoice(cmd *cobra.Command, title, linePrompt, defaultID st
 	return gormescli.PromptSetupOptionChoice(cmd, title, linePrompt, defaultID, choices, setupOptionPromptRuntime())
 }
 
+func setupToolsOptions(cmd *cobra.Command) gormescli.SetupToolsOptions {
+	return gormescli.SetupToolsOptions{
+		ConfigPath: config.ConfigPath(),
+		PromptString: func(prompt, defaultValue string) (string, error) {
+			return promptString(cmd, prompt, defaultValue)
+		},
+	}
+}
+
+func setupTTSOptions(cmd *cobra.Command) gormescli.SetupTTSOptions {
+	return gormescli.SetupTTSOptions{
+		ConfigPath:       config.ConfigPath(),
+		NewExitCodeError: newExitCodeError,
+		PromptString: func(prompt, defaultValue string) (string, error) {
+			return promptString(cmd, prompt, defaultValue)
+		},
+	}
+}
+
+func setupTerminalOptions(cmd *cobra.Command) gormescli.SetupTerminalOptions {
+	return gormescli.SetupTerminalOptions{
+		ConfigPath:       config.ConfigPath(),
+		NewExitCodeError: newExitCodeError,
+		PromptString: func(prompt, defaultValue string) (string, error) {
+			return promptString(cmd, prompt, defaultValue)
+		},
+	}
+}
+
+func setupNavivoxGatewayOptions(cmd *cobra.Command) gormescli.SetupNavivoxOptions {
+	return gormescli.SetupNavivoxOptions{
+		AskYesNo: func(title, linePrompt string, defaultValue bool) (bool, bool, error) {
+			return promptSetupYesNoOption(cmd, title, linePrompt, defaultValue)
+		},
+		PromptChoice: func(title, linePrompt, defaultID string, choices []setupOptionChoice) (string, error) {
+			return promptSetupOptionChoice(cmd, title, linePrompt, defaultID, choices)
+		},
+		PromptString: func(prompt, defaultValue string) (string, error) {
+			return promptString(cmd, prompt, defaultValue)
+		},
+		ParsePositiveInt: parsePositiveInt,
+		WriteProfileChannelBinding: func(opts gormescli.SetupNavivoxProfileChannelOptions) (gormescli.SetupNavivoxProfileChannelBinding, error) {
+			binding, err := gormescli.WriteSetupGatewayProfileChannelBinding(gormescli.SetupGatewayProfileChannelOptions{
+				ChannelID:      opts.ChannelID,
+				AllowedChats:   opts.AllowedChats,
+				AllowedUsers:   opts.AllowedUsers,
+				RequireMention: opts.RequireMention,
+				ToolProgress:   opts.ToolProgress,
+			})
+			return gormescli.SetupNavivoxProfileChannelBinding{
+				ProfileID:     binding.ProfileID,
+				ChannelID:     binding.ChannelID,
+				CredentialID:  binding.CredentialID,
+				SecretEnvName: binding.SecretEnvName,
+				RegistryPath:  binding.RegistryPath,
+			}, err
+		},
+		WriteGatewayTokenEnv: func(binding gormescli.SetupNavivoxProfileChannelBinding, legacyEnvName, token string) error {
+			return gormescli.WriteSetupGatewayTokenEnv(gormescli.SetupGatewayProfileChannelBinding{
+				ProfileID:     binding.ProfileID,
+				ChannelID:     binding.ChannelID,
+				CredentialID:  binding.CredentialID,
+				SecretEnvName: binding.SecretEnvName,
+				RegistryPath:  binding.RegistryPath,
+			}, legacyEnvName, token)
+		},
+	}
+}
+
 func promptSetupYesNoOption(cmd *cobra.Command, title, linePrompt string, defaultValue bool) (bool, bool, error) {
 	return gormescli.PromptSetupYesNoOption(cmd, title, linePrompt, defaultValue, setupOptionPromptRuntime())
 }
@@ -3504,70 +2359,8 @@ func normalizeSetupOptionChoice(answer string, options []setupOptionChoice, defa
 	return gormescli.NormalizeSetupAnswer(answer, options, defaultID)
 }
 
-func ttsProviderOptions() []setupChoice {
-	return gormescli.SetupTTSProviderOptions()
-}
-
-func terminalBackendOptions() []setupChoice {
-	return gormescli.SetupTerminalBackendOptions()
-}
-
-type setupToolOption = gormescli.SetupToolOption
-
-func setupToolOptions() ([]setupToolOption, error) {
-	return gormescli.SetupToolOptions()
-}
-
-func loadSetupToolsConfig(path string) (map[string]any, cli.PlatformToolsetConfig, error) {
-	return gormescli.LoadSetupToolsConfig(path)
-}
-
-func writeSetupToolsConfig(path string, doc map[string]any) error {
-	return gormescli.WriteSetupToolsConfig(path, doc)
-}
-
-func parseSetupToolSelection(input string, options []setupToolOption, current []string) ([]string, error) {
-	selected, err := gormescli.ParseSetupToolSelection(input, options, current)
-	if err != nil {
-		var invalid gormescli.SetupInvalidToolSelectionError
-		if errors.As(err, &invalid) {
-			return nil, newExitCodeError(2, err)
-		}
-		return nil, err
-	}
-	return selected, nil
-}
-
 func setupSelectionSeparator(r rune) bool {
 	return r == ',' || r == ' ' || r == '\t' || r == '\n' || r == ';'
-}
-
-func stringSet(values []string) map[string]bool {
-	out := make(map[string]bool, len(values))
-	for _, value := range values {
-		out[value] = true
-	}
-	return out
-}
-
-func renderSetupToolsProviderRows(out io.Writer, selected []string) {
-	rows := gormescli.SetupToolsProviderRows(selected)
-	if len(rows) == 0 {
-		return
-	}
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Provider/API key setup")
-	for _, row := range rows {
-		fmt.Fprintf(out, "  setup_tools_provider_row_backed: toolset=%s provider=%s label=%s\n", row.Toolset, row.Kind, row.Label)
-	}
-}
-
-func terminalBackendLabel(value string) string {
-	return gormescli.SetupTerminalBackendLabel(value)
-}
-
-func ttsProviderLabel(value string) string {
-	return gormescli.SetupTTSProviderLabel(value)
 }
 
 func normalizeSetupChoice(value string) string {
@@ -3600,10 +2393,8 @@ func firstNonEmptySetup(values ...string) string {
 }
 
 func setupSectionUnsupported(cmd *cobra.Command, section string) error {
-	fmt.Fprintf(cmd.ErrOrStderr(), "setup_section_unsupported: section=%s available=%s\n", section, setupSectionList())
-	fmt.Fprintf(cmd.ErrOrStderr(), "Implemented sections: %s.\n", setupSectionList())
-	fmt.Fprintln(cmd.ErrOrStderr(), "setup_section_row_backed: recommended_command=\"gormes setup\"")
-	return newExitCodeError(2, fmt.Errorf("setup_section_unsupported: %s", section))
+	gormescli.WriteSetupSectionUnsupported(cmd.ErrOrStderr(), section, setupSectionList())
+	return newExitCodeError(2, gormescli.SetupSectionUnsupportedError(section))
 }
 
 func setupSectionList() string {

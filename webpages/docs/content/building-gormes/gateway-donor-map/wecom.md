@@ -9,7 +9,7 @@ WeCom is one of the clearer China-facing donor candidates because PicoClaw alrea
 
 ## Status
 
-`docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now groups WeCom into the Phase `2.B.10` regional/device adapter tranche. Gormes has a contract-tested shared-bot seam in `internal/channels/wecom` for policy-gated ingress and reply-path behavior, but the real WeCom WebSocket transport/bootstrap binding remains planned.
+`webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now groups WeCom into the Phase `2.B.10` regional/device adapter tranche. Gormes has a contract-tested shared-bot seam in `internal/channels/wecom` for policy-gated ingress and reply-path behavior, but the real WeCom WebSocket transport/bootstrap binding remains planned.
 
 Evidence level:
 
@@ -17,7 +17,7 @@ Evidence level:
 - The donor commit inspected for this research was `6421f146a99df1bebcd4b1ca8de2a289dfca3622`.
 - The upstream donor repo is `https://github.com/sipeed/picoclaw`.
 - Any `pkg/...` or `docs/...` path listed below is relative to that donor root, not relative to the Gormes repo.
-- Current Gormes status and target behavior were verified in-tree against `internal/channels/wecom/bot.go`, `internal/channels/wecom/bot_test.go`, `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`, and `docs/content/upstream-hermes/user-guide/messaging/wecom.md`.
+- Current Gormes status and target behavior were verified in-tree against `internal/channels/wecom/bot.go`, `internal/channels/wecom/bot_test.go`, `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`, and `webpages/docs/content/upstream-hermes/user-guide/messaging/wecom.md`.
 
 Keep the boundary explicit: PicoClaw is donor input for WeCom channel-edge mechanics only. Gormes architecture, session ownership, and gateway/kernel boundaries remain authoritative.
 
@@ -48,8 +48,8 @@ That split matters. WeCom is mostly donor code at the transport layer, but mostl
 - `picoclaw/cmd/picoclaw/internal/auth/wecom.go`
 - `picoclaw/web/backend/api/wecom.go`
 - `picoclaw/docs/channels/wecom/README.md`
-- `docs/content/upstream-hermes/user-guide/messaging/wecom.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/upstream-hermes/user-guide/messaging/wecom.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 ## What To Copy vs What To Rebuild
 
@@ -109,6 +109,6 @@ Rebuild in Gormes-native form:
 - `picoclaw/cmd/picoclaw/internal/auth/wecom.go`
 - `picoclaw/web/backend/api/wecom.go`
 - `picoclaw/docs/channels/wecom/README.md`
-- `docs/content/upstream-hermes/user-guide/messaging/wecom.md`
+- `webpages/docs/content/upstream-hermes/user-guide/messaging/wecom.md`
 
 Recommendation: `copy candidate`.

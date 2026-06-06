@@ -1,9 +1,9 @@
 # Phase 3.E — Operational Mirrors, Decay, and Cross-Chat Synthesis
 
-**Spec ID:** 2026-04-20-gormes-phase3e-mirrors-spec  
-**Status:** Draft (pending TDD test suite)  
-**Target Milestone:** Phase 3.E — Final Black Box deliverables  
-**Upstream References:** 
+**Spec ID:** 2026-04-20-gormes-phase3e-mirrors-spec
+**Status:** Draft (pending TDD test suite)
+**Target Milestone:** Phase 3.E — Final Black Box deliverables
+**Upstream References:**
 - Hermes `agent/insights.py` (768 lines, preview only)
 - Hermes `agent/memory_manager.py` (cross-session graph)
 - Hermes `hermes_state.py` (trajectory, compression split tracking)
@@ -41,8 +41,8 @@ These 8 deliverables are separable specs that can ship independently. Priority o
 ### 🔴 High Priority (Ship First)
 
 #### 3.E.1 — Session Index Mirror
-**Problem**: bbolt `sessions.db` is opaque binary; operators cannot `cat` or `grep` their session handles.  
-**Solution**: Read-only YAML mirror at `~/.local/share/gormes/sessions/index.yaml`.  
+**Problem**: bbolt `sessions.db` is opaque binary; operators cannot `cat` or `grep` their session handles.
+**Solution**: Read-only YAML mirror at `~/.local/share/gormes/sessions/index.yaml`.
 **Implementation**: ~150 lines.
 
 **Schema**:
@@ -81,8 +81,8 @@ sessions:
 ---
 
 #### 3.E.5 — Insights Audit Log
-**Problem**: Hermes has comprehensive `InsightsEngine` but Gormes telemetry vanishes on restart. No operational visibility into usage patterns or costs.  
-**Solution**: Lightweight append-only JSONL at `~/.local/share/gormes/insights/usage.jsonl`.  
+**Problem**: Hermes has comprehensive `InsightsEngine` but Gormes telemetry vanishes on restart. No operational visibility into usage patterns or costs.
+**Solution**: Lightweight append-only JSONL at `~/.local/share/gormes/insights/usage.jsonl`.
 **Implementation**: ~100 lines.
 
 **Schema** (one line per session close):
@@ -102,8 +102,8 @@ sessions:
 ### 🟡 Medium Priority (Ship Second)
 
 #### 3.E.2 — Tool Execution Audit Log
-**Problem**: Tool calls are ephemeral; debugging "what happened 3 days ago?" requires SQLite archaeology.  
-**Solution**: Append-only JSONL at `~/.local/share/gormes/tools/audit.jsonl`.  
+**Problem**: Tool calls are ephemeral; debugging "what happened 3 days ago?" requires SQLite archaeology.
+**Solution**: Append-only JSONL at `~/.local/share/gormes/tools/audit.jsonl`.
 **Implementation**: ~100 lines.
 
 **Schema**:
@@ -121,16 +121,16 @@ sessions:
 ---
 
 #### 3.E.3 — Transcript Export Command
-**Problem**: Hermes has NO human-readable transcript export. Conversations are trapped in SQLite/JSONL.  
-**Solution**: `gormes session export <id> --format=markdown` renders turns as readable Markdown.  
+**Problem**: Hermes has NO human-readable transcript export. Conversations are trapped in SQLite/JSONL.
+**Solution**: `gormes session export <id> --format=markdown` renders turns as readable Markdown.
 **Implementation**: ~200 lines. This EXCEEDS Hermes capability.
 
 **Output Format**:
 ```markdown
 # Session: Docker deployment help
-**Session ID:** sess_abc123  
-**Platform:** telegram  
-**Created:** 2026-04-20 10:00 UTC  
+**Session ID:** sess_abc123
+**Platform:** telegram
+**Created:** 2026-04-20 10:00 UTC
 **Messages:** 47
 
 ---
@@ -154,8 +154,8 @@ sessions:
 ---
 
 #### 3.E.4 — Extraction State Visibility
-**Problem**: Dead-letter queue and extraction errors are invisible to operators.  
-**Solution**: Optional status section in USER.md OR `gormes memory status` command.  
+**Problem**: Dead-letter queue and extraction errors are invisible to operators.
+**Solution**: Optional status section in USER.md OR `gormes memory status` command.
 **Implementation**: ~50 lines.
 
 **Display Format**:
@@ -180,8 +180,8 @@ Dead Letter (last 24h): 2 items
 ### 🟢 Lower Priority / Future
 
 #### 3.E.6 — Memory Decay
-**Problem**: Graph grows forever; stale facts compete with fresh facts in recall.  
-**Solution**: Weight attenuation on relationships + `last_seen` tracking. Old facts fade without deletion (reversible, audit-preserving).  
+**Problem**: Graph grows forever; stale facts compete with fresh facts in recall.
+**Solution**: Weight attenuation on relationships + `last_seen` tracking. Old facts fade without deletion (reversible, audit-preserving).
 **Implementation**: ~200 lines.
 
 **Algorithm**:
@@ -214,8 +214,8 @@ memory:
 ---
 
 #### 3.E.7 — Cross-Chat Synthesis
-**Problem**: One operator has Telegram, Discord, Slack sessions — but graph is fragmented by `chat_id`.  
-**Solution**: Graph unification across `chat_id` boundaries. Query "what is Juan working on?" returns facts from all platforms.  
+**Problem**: One operator has Telegram, Discord, Slack sessions — but graph is fragmented by `chat_id`.
+**Solution**: Graph unification across `chat_id` boundaries. Query "what is Juan working on?" returns facts from all platforms.
 **Implementation**: ~300 lines. Requires `user_id` concept above `chat_id`.
 
 **Architecture**:
@@ -243,8 +243,8 @@ memory:
 ---
 
 #### 3.E.8 — Parent-Session Chains
-**Problem**: Compression splits lose continuity; trajectory references are opaque.  
-**Solution**: Track parent session relationships from `hermes_state.py` compression logic.  
+**Problem**: Compression splits lose continuity; trajectory references are opaque.
+**Solution**: Track parent session relationships from `hermes_state.py` compression logic.
 **Implementation**: ~150 lines.
 
 **Schema Addition**:

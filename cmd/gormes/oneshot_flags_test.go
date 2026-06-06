@@ -208,6 +208,85 @@ func setupOneshotFlagTestEnv(t *testing.T) {
 	t.Setenv("GORMES_API_KEY", "")
 	t.Setenv("GORMES_INFERENCE_MODEL", "")
 	t.Setenv("GORMES_INFERENCE_PROVIDER", "")
+	for _, key := range []string{
+		"GATEWAY_PROXY_KEY",
+		"GATEWAY_PROXY_URL",
+		"GITHUB_TOKEN",
+		"GH_TOKEN",
+		"GORMES_BROWSER_CDP_URL",
+		"BROWSER_CDP_URL",
+		"CHROME_REMOTE_DEBUGGING_URL",
+		"GORMES_TELEGRAM_BOT_TOKEN",
+		"GORMES_TELEGRAM_TOKEN",
+		"HERMES_TELEGRAM_BOT_TOKEN",
+		"HERMES_TELEGRAM_TOKEN",
+		"TELEGRAM_BOT_TOKEN",
+		"TELEGRAM_TOKEN",
+		"GORMES_TELEGRAM_HOME_CHANNEL",
+		"GORMES_TELEGRAM_CHAT_ID",
+		"HERMES_TELEGRAM_HOME_CHANNEL",
+		"HERMES_TELEGRAM_CHAT_ID",
+		"TELEGRAM_HOME_CHANNEL",
+		"TELEGRAM_CHAT_ID",
+		"GORMES_TELEGRAM_HOME_CHANNEL_NAME",
+		"HERMES_TELEGRAM_HOME_CHANNEL_NAME",
+		"TELEGRAM_HOME_CHANNEL_NAME",
+		"GORMES_TELEGRAM_HOME_CHANNEL_THREAD_ID",
+		"HERMES_TELEGRAM_HOME_CHANNEL_THREAD_ID",
+		"TELEGRAM_HOME_CHANNEL_THREAD_ID",
+		"GORMES_TELEGRAM_ALLOWED_USERS",
+		"HERMES_TELEGRAM_ALLOWED_USERS",
+		"TELEGRAM_ALLOWED_USERS",
+		"GORMES_TELEGRAM_ALLOWED_CHATS",
+		"HERMES_TELEGRAM_ALLOWED_CHATS",
+		"TELEGRAM_ALLOWED_CHATS",
+		"GORMES_TELEGRAM_GUEST_MODE",
+		"HERMES_TELEGRAM_GUEST_MODE",
+		"TELEGRAM_GUEST_MODE",
+		"GORMES_TELEGRAM_NOTIFICATIONS",
+		"HERMES_TELEGRAM_NOTIFICATIONS",
+		"TELEGRAM_NOTIFICATIONS",
+		"GORMES_DISCORD_TOKEN",
+		"GORMES_DISCORD_CHANNEL_ID",
+		"GORMES_DISCORD_ALLOWED_CHANNELS",
+		"DISCORD_ALLOWED_CHANNELS",
+		"GORMES_DISCORD_IGNORED_CHANNELS",
+		"DISCORD_IGNORED_CHANNELS",
+		"GORMES_DISCORD_FREE_RESPONSE_CHANNELS",
+		"DISCORD_FREE_RESPONSE_CHANNELS",
+		"GORMES_DISCORD_NO_THREAD_CHANNELS",
+		"DISCORD_NO_THREAD_CHANNELS",
+		"GORMES_DISCORD_REQUIRE_MENTION",
+		"DISCORD_REQUIRE_MENTION",
+		"GORMES_DISCORD_AUTO_THREAD",
+		"DISCORD_AUTO_THREAD",
+		"GORMES_DISCORD_REPLY_TO_MODE",
+		"DISCORD_REPLY_TO_MODE",
+		"GORMES_DISCORD_ALLOW_BOTS",
+		"DISCORD_ALLOW_BOTS",
+		"GORMES_DISCORD_SERVER_ACTIONS",
+		"GORMES_SLACK_ENABLED",
+		"GORMES_SLACK_BOT_TOKEN",
+		"GORMES_SLACK_APP_TOKEN",
+		"GORMES_SLACK_CHANNEL_ID",
+		"GORMES_SLACK_ALLOWED_CHANNELS",
+		"SLACK_ALLOWED_CHANNELS",
+		"GORMES_SLACK_COALESCE_MS",
+		"GORMES_SLACK_FIRST_RUN_DISCOVERY",
+		"GORMES_SLACK_REQUIRE_MENTION",
+		"GORMES_SLACK_STRICT_MENTION",
+		"GORMES_SLACK_FREE_RESPONSE_CHANNELS",
+		"GORMES_SLACK_REPLY_IN_THREAD",
+		"GORMES_NAVIVOX_ENABLED",
+		"GORMES_NAVIVOX_BIND_HOST",
+		"GORMES_NAVIVOX_PORT",
+		"GORMES_NAVIVOX_EXPOSURE_MODE",
+		"GORMES_NAVIVOX_AUTH_MODE",
+		"GORMES_NAVIVOX_TOKEN",
+		"GORMES_NAVIVOX_ALLOW_ORIGINS",
+	} {
+		t.Setenv(key, "")
+	}
 	t.Setenv("GORMES_KANBAN_DB", "")
 	t.Setenv("GORMES_KANBAN_HOME", "")
 	t.Setenv("GORMES_KANBAN_TASK", "")
@@ -233,4 +312,48 @@ func executeOneshotFlagCommand(cmd *cobra.Command, args ...string) (string, stri
 	cmd.SetArgs(args)
 	err := cmd.Execute()
 	return stdout.String(), stderr.String(), err
+}
+
+func TestOneshotFirstRunDoesNotAffectScriptedChat(t *testing.T) {
+	freshInstallE2EHome(t)
+	writeOneshotFlagConfig(t, []byte(`
+[hermes]
+provider = "openai"
+endpoint = "https://api.openai.com/v1"
+model = "gpt-4o-mini"
+api_key = "sk-test-oneshot"
+`))
+
+	var setupCalls int
+	var tuiCalls int
+	var gotPrompt string
+	cmd := newRootCommandWithRuntime(rootRuntime{
+		isTTY: func() bool { return true },
+		runFirstRunSetup: func(*cobra.Command) error {
+			setupCalls++
+			return nil
+		},
+		runResolvedTUI: func(*cobra.Command, tuiInvocation) error {
+			tuiCalls++
+			return nil
+		},
+		runOneshot: func(_ *cobra.Command, invocation oneshotInvocation) error {
+			gotPrompt = invocation.Prompt
+			return nil
+		},
+	})
+
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "chat", "-q", "hello")
+	if err != nil {
+		t.Fatalf("chat -q: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if gotPrompt != "hello" {
+		t.Fatalf("scripted chat prompt = %q, want hello", gotPrompt)
+	}
+	if setupCalls != 0 {
+		t.Fatalf("runFirstRunSetup calls = %d, want 0", setupCalls)
+	}
+	if tuiCalls != 0 {
+		t.Fatalf("runResolvedTUI calls = %d, want 0", tuiCalls)
+	}
 }

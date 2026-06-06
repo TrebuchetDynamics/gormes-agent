@@ -276,12 +276,10 @@ func TestRecordBenchmarkCreatesLegacySkeletonWhenBenchmarksMissing(t *testing.T)
 		t.Fatalf("history = %+v", got.History)
 	}
 
-	docsRaw, err := os.ReadFile(filepath.Join(root, "docs", "data", "benchmarks.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(docsRaw) != string(raw) {
-		t.Fatalf("docs/data/benchmarks.json did not match root benchmarks.json")
+	if _, err := os.Stat(filepath.Join(root, "docs")); err == nil {
+		t.Fatalf("legacy docs mirror must not be recreated")
+	} else if !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("stat legacy docs mirror: %v", err)
 	}
 }
 
@@ -379,7 +377,7 @@ func TestRecordBenchmarkPreservesRepoStyleMetadata(t *testing.T) {
 	}
 }
 
-func TestRecordBenchmarkCopiesBenchmarksToDocsData(t *testing.T) {
+func TestRecordBenchmarkDoesNotRecreateLegacyDocsMirror(t *testing.T) {
 	root := t.TempDir()
 	bin := filepath.Join(root, "bin", "gormes")
 	if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
@@ -399,16 +397,10 @@ func TestRecordBenchmarkCopiesBenchmarksToDocsData(t *testing.T) {
 		t.Fatalf("RecordBenchmark: %v", err)
 	}
 
-	rootBench, err := os.ReadFile(filepath.Join(root, "benchmarks.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	docsBench, err := os.ReadFile(filepath.Join(root, "docs", "data", "benchmarks.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(docsBench) != string(rootBench) {
-		t.Fatalf("docs/data/benchmarks.json did not match root benchmarks.json")
+	if _, err := os.Stat(filepath.Join(root, "docs")); err == nil {
+		t.Fatalf("legacy docs mirror must not be recreated")
+	} else if !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("stat legacy docs mirror: %v", err)
 	}
 }
 
@@ -437,7 +429,6 @@ func TestRecordBenchmarkCopiesBenchmarksToPublicMirrors(t *testing.T) {
 		t.Fatal(err)
 	}
 	mirrors := []string{
-		filepath.Join("docs", "data", "benchmarks.json"),
 		filepath.Join("webpages", "docs", "data", "benchmarks.json"),
 		filepath.Join("webpages", "landing", "src", "data", "benchmarks.json"),
 		filepath.Join("webpages", "landing", "legacy", "go-renderer", "internal", "site", "data", "benchmarks.json"),
@@ -681,8 +672,8 @@ func TestRecordBenchmarkInfersPhaseFromProgressJSON(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "benchmarks.json"), []byte(`{"binary":{},"history":[]}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	writeTestFile(t, filepath.Join(root, "docs", "ARCH_PLAN.md"), "# Stub\n\nNo real phase marker.\n")
-	writeTestFile(t, filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "progress.json"), `{
+	writeTestFile(t, filepath.Join(root, "webpages", "docs", "ARCH_PLAN.md"), "# Stub\n\nNo real phase marker.\n")
+	writeTestFile(t, filepath.Join(root, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json"), `{
   "phases": {
     "1": {
       "name": "Phase 1 - Complete",
@@ -736,7 +727,7 @@ func TestRecordBenchmarkUsesLastProgressPhaseWhenAllComplete(t *testing.T) {
 	if err := os.WriteFile(bin, []byte("binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeTestFile(t, filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "progress.json"), `{
+	writeTestFile(t, filepath.Join(root, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json"), `{
   "phases": {
     "1": {
       "name": "Phase 1 - Complete",

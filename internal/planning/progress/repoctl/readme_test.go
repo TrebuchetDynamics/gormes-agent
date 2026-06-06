@@ -364,7 +364,7 @@ func TestREADMEHeroDemoGIFExists(t *testing.T) {
 
 func TestREADMELinksStrategyDoc(t *testing.T) {
 	raw := readRepoFile(t, "README.md")
-	want := "docs/content/building-gormes/strategy/success-plan.md"
+	want := "webpages/docs/content/building-gormes/strategy/success-plan.md"
 	if !strings.Contains(raw, want) {
 		t.Fatalf("README should link the strategy doc %q", want)
 	}

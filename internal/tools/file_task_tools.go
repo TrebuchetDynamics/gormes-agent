@@ -435,6 +435,12 @@ func (t *SearchFilesTool) searchFileNames(ctx context.Context, root, base, relBa
 			}
 			return nil
 		}
+		if t.cfg.WorkspaceScope != nil {
+			decision := t.cfg.WorkspaceScope.Resolve(path, base, ProfileWorkspaceAccessRead)
+			if !decision.Allowed {
+				return nil
+			}
+		}
 		rel := workspaceRel(root, path)
 		if decision := redaction.CheckSensitivePath(path); decision.Blocked {
 			return nil
@@ -499,6 +505,12 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 				return filepath.SkipDir
 			}
 			return nil
+		}
+		if t.cfg.WorkspaceScope != nil {
+			decision := t.cfg.WorkspaceScope.Resolve(path, base, ProfileWorkspaceAccessRead)
+			if !decision.Allowed {
+				return nil
+			}
 		}
 		rel := workspaceRel(root, path)
 		if decision := redaction.CheckSensitivePath(path); decision.Blocked {

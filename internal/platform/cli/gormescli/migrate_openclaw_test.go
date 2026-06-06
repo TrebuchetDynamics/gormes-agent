@@ -139,6 +139,41 @@ func TestMigrateOpenClawDryRun_PrintsManifestJSONAndCounts(t *testing.T) {
 	}
 }
 
+func TestClawMigrateDryRunDelegatesToOpenClawMigration(t *testing.T) {
+	root := setupMigrateOpenClawEnv(t)
+	src := filepath.Join(root, "src")
+	writeOpenClawCLIFixture(t, src)
+
+	stdout, stderr, err := executeRootCommandForTest(newClawRootCommandForTest(), "claw", "migrate", "--dry-run", "--source", src)
+	if err != nil {
+		t.Fatalf("claw migrate --dry-run: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var doc struct {
+		Source struct {
+			Selected     string `json:"selected"`
+			SelectedPath string `json:"selected_path"`
+		} `json:"source"`
+		Counts struct {
+			Migrated int `json:"migrated"`
+			Skipped  int `json:"skipped"`
+			Archived int `json:"archived"`
+			Errors   int `json:"errors"`
+		} `json:"counts"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &doc); err != nil {
+		t.Fatalf("stdout is not JSON: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if doc.Source.Selected != "explicit_source" || doc.Source.SelectedPath != src {
+		t.Fatalf("unexpected source: %+v", doc.Source)
+	}
+	if doc.Counts.Migrated < 1 || doc.Counts.Skipped < 1 || doc.Counts.Archived < 1 || doc.Counts.Errors != 0 {
+		t.Fatalf("unexpected counts: %+v", doc.Counts)
+	}
+	if strings.Contains(stdout, "plain-telegram-token") {
+		t.Fatalf("stdout leaked raw secret: %s", stdout)
+	}
+}
+
 func TestMigrateOpenClawDryRun_RejectsMissingDryRunAndTypo(t *testing.T) {
 	root := setupMigrateOpenClawEnv(t)
 	src := filepath.Join(root, "src")
@@ -156,7 +191,11 @@ func TestMigrateOpenClawDryRun_RejectsMissingDryRunAndTypo(t *testing.T) {
 	if err == nil {
 		t.Fatalf("ooenclaw should fail")
 	}
-	if !strings.Contains(err.Error()+stderr, "openclaw") {
+	combined := err.Error() + stderr
+	if !strings.Contains(combined, "openclaw") {
 		t.Fatalf("expected typo suggestion to mention openclaw, err=%v stderr=%s", err, stderr)
+	}
+	if !strings.Contains(strings.ToLower(combined), "unknown command") {
+		t.Fatalf("expected typo suggestion to stay an unknown-command error, err=%v stderr=%s", err, stderr)
 	}
 }

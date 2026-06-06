@@ -92,25 +92,29 @@ func (t *BrowserSessionTracker) Len() int {
 // was eligible for reaping, regardless of close success.
 func (t *BrowserSessionTracker) reapInactive(now time.Time, inactivityTimeout time.Duration) []ReapEntry {
 	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	var reaped []ReapEntry
+	eligible := make([]browserSessionEntry, 0)
 	for id, entry := range t.sessions {
 		if now.Sub(entry.lastActivity) < inactivityTimeout {
 			continue
 		}
+		eligible = append(eligible, *entry)
+		delete(t.sessions, id)
+	}
+	t.mu.Unlock()
+
+	reaped := make([]ReapEntry, 0, len(eligible))
+	for _, entry := range eligible {
 		var closeErr error
 		if entry.backend != nil {
-			closeErr = entry.backend.Close(context.Background(), id)
+			closeErr = entry.backend.Close(context.Background(), entry.sessionID)
 			if closeErr != nil {
 				t.log.Warn("browser_inactivity_cleanup_failed",
-					"session_id", id,
+					"session_id", entry.sessionID,
 					"error", closeErr,
 				)
 			}
 		}
-		reaped = append(reaped, ReapEntry{SessionID: id, Err: closeErr})
-		delete(t.sessions, id)
+		reaped = append(reaped, ReapEntry{SessionID: entry.sessionID, Err: closeErr})
 	}
 	return reaped
 }

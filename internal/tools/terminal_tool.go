@@ -83,18 +83,17 @@ func (t *TerminalTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		})
 	}
 
-	if t.cfg.WorkspaceScope != nil && t.cfg.WorkspaceScope.Configured() {
-		denial := profileWorkspaceExecuteDenied("local terminal")
-		return marshalToolPayload(redactTerminalResult(terminalResult{
-			Status:   "blocked",
-			ExitCode: -1,
-			Error:    denial.Message,
-			Command:  in.Command,
-			Evidence: map[string]string{
-				"code":   denial.Evidence,
-				"reason": denial.Reason,
-			},
-		}))
+	workdir, err := terminalWorkdir(t.cfg.Workdir, in.Workdir)
+	if err != nil {
+		return marshalToolPayload(redactTerminalResult(terminalResult{Status: "error", ExitCode: -1, Error: err.Error(), Command: in.Command}))
+	}
+	if t.cfg.WorkspaceScope != nil {
+		if decision := t.cfg.WorkspaceScope.Resolve(workdir.Path, t.cfg.WorkspaceScope.DefaultRoot(), ProfileWorkspaceAccessExecute); !decision.Allowed {
+			return profileWorkspaceTerminalDenied(in.Command, decision, "working directory is outside this profile's allowed workspace")
+		}
+		if decision, denied := terminalCommandWorkspaceDecision(t.cfg.WorkspaceScope, in.Command, workdir.Path); denied {
+			return profileWorkspaceTerminalDenied(in.Command, decision, "command references a path outside this profile's allowed workspace")
+		}
 	}
 
 	var guard BlockedResult
@@ -126,10 +125,6 @@ func (t *TerminalTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		})
 	}
 
-	workdir, err := terminalWorkdir(t.cfg.Workdir, in.Workdir)
-	if err != nil {
-		return marshalToolPayload(redactTerminalResult(terminalResult{Status: "error", ExitCode: -1, Error: err.Error(), Command: in.Command}))
-	}
 	timeout := t.cfg.DefaultTimeout
 	if timeout <= 0 {
 		timeout = defaultTerminalTimeout
@@ -244,6 +239,66 @@ func (t *TerminalTool) applyOutputCompaction(result *terminalResult, fullOutput 
 		result.Output = strings.TrimSpace(strings.TrimSpace(result.Stdout) + "\n" + strings.TrimSpace(result.Stderr))
 		result.Compaction = &evidence
 	}
+}
+
+func profileWorkspaceTerminalDenied(command string, decision PathCheckResult, reason string) (json.RawMessage, error) {
+	message := decision.Message
+	if message == "" {
+		message = ProfileWorkspaceDeniedMessage
+	}
+	return marshalToolPayload(redactTerminalResult(terminalResult{
+		Status:   "blocked",
+		ExitCode: -1,
+		Error:    fmt.Sprintf("%s: %s", decision.Evidence, message),
+		Command:  command,
+		Evidence: map[string]string{
+			"code":   decision.Evidence,
+			"reason": reason,
+		},
+	}))
+}
+
+func terminalCommandWorkspaceDecision(scope *ProfileWorkspaceScope, command, base string) (PathCheckResult, bool) {
+	if scope == nil {
+		return PathCheckResult{}, false
+	}
+	for _, token := range strings.Fields(command) {
+		candidate, ok := terminalPathCandidate(token)
+		if !ok {
+			continue
+		}
+		decision := scope.Resolve(candidate, base, ProfileWorkspaceAccessExecute)
+		if !decision.Allowed {
+			return decision, true
+		}
+	}
+	return PathCheckResult{}, false
+}
+
+func terminalPathCandidate(token string) (string, bool) {
+	trimmed := strings.TrimSpace(token)
+	trimmed = strings.Trim(trimmed, "'\"`;,|&(){}[]")
+	trimmed = strings.TrimLeft(trimmed, "<>")
+	trimmed = strings.TrimSpace(trimmed)
+	if trimmed == "" {
+		return "", false
+	}
+	if strings.ContainsRune(trimmed, '\x00') {
+		return trimmed, true
+	}
+	if trimmed == "$HOME" || strings.HasPrefix(trimmed, "$HOME/") {
+		return "~" + strings.TrimPrefix(trimmed, "$HOME"), true
+	}
+	if trimmed == "${HOME}" || strings.HasPrefix(trimmed, "${HOME}/") {
+		return "~" + strings.TrimPrefix(trimmed, "${HOME}"), true
+	}
+	if trimmed == "/" || strings.HasPrefix(trimmed, "/") || trimmed == "~" || strings.HasPrefix(trimmed, "~/") {
+		return trimmed, true
+	}
+	if trimmed == ".." || strings.HasPrefix(trimmed, "../") || strings.Contains(trimmed, "/../") || strings.HasSuffix(trimmed, "/..") {
+		return trimmed, true
+	}
+	return "", false
 }
 
 func redactTerminalResult(result terminalResult) terminalResult {

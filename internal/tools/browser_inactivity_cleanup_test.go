@@ -51,6 +51,17 @@ func (f *fakeSessionBackend) ClosedSessions() []string {
 	return out
 }
 
+type reentrantSessionBackend struct {
+	onClose func()
+}
+
+func (b *reentrantSessionBackend) Close(context.Context, string) error {
+	if b.onClose != nil {
+		b.onClose()
+	}
+	return nil
+}
+
 func TestBrowserInactivityCleanup_ReapsIdleSession(t *testing.T) {
 	anchor := time.Date(2026, 5, 7, 12, 0, 0, 0, time.UTC)
 	clock := newFakeClock(anchor)
@@ -171,6 +182,33 @@ func TestBrowserInactivityCleanup_NilBackendNoPanic(t *testing.T) {
 	}
 	if tracker.Len() != 0 {
 		t.Errorf("expected 0 sessions after reap of nil-backend session, got %d", tracker.Len())
+	}
+}
+
+func TestBrowserInactivityCleanup_DoesNotHoldTrackerLockDuringBackendClose(t *testing.T) {
+	anchor := time.Date(2026, 5, 7, 12, 0, 0, 0, time.UTC)
+	clock := newFakeClock(anchor)
+
+	tracker := NewBrowserSessionTracker(clock.Now)
+	backend := &reentrantSessionBackend{
+		onClose: func() {
+			_ = tracker.Len()
+		},
+	}
+	tracker.Register("sess-reentrant", backend, anchor.Add(-350*time.Second))
+
+	done := make(chan []ReapEntry, 1)
+	go func() {
+		done <- tracker.reapInactive(clock.Now(), 300*time.Second)
+	}()
+
+	select {
+	case reaped := <-done:
+		if len(reaped) != 1 || reaped[0].SessionID != "sess-reentrant" {
+			t.Fatalf("reaped = %+v, want sess-reentrant", reaped)
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("reapInactive deadlocked while backend Close re-entered tracker")
 	}
 }
 

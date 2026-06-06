@@ -10,7 +10,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/commandruntime"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/provider"
 )
 
@@ -30,8 +30,8 @@ func TestProfileModuleCommandUsesInjectedSeamsAndBuildProvenance(t *testing.T) {
 			return []string{"main", "work"}, nil
 		},
 	}, Options{
-		BuildProvenance: func() gormescli.BuildProvenance {
-			return gormescli.BuildProvenance{Version: "test-version", GitCommit: "test-sha"}
+		BuildProvenance: func() commandruntime.BuildProvenance {
+			return commandruntime.BuildProvenance{Version: "test-version", GitCommit: "test-sha"}
 		},
 	})
 
@@ -295,8 +295,8 @@ func TestProfileModuleProvidersCommandRendersReadiness(t *testing.T) {
 			}, nil
 		},
 	}, Options{
-		BuildProvenance: func() gormescli.BuildProvenance {
-			return gormescli.BuildProvenance{Version: "test-version", GitCommit: "test-sha"}
+		BuildProvenance: func() commandruntime.BuildProvenance {
+			return commandruntime.BuildProvenance{Version: "test-version", GitCommit: "test-sha"}
 		},
 	})
 
@@ -370,8 +370,8 @@ func TestProfileModuleChannelsCommandRendersReadiness(t *testing.T) {
 			}, nil
 		},
 	}, Options{
-		BuildProvenance: func() gormescli.BuildProvenance {
-			return gormescli.BuildProvenance{Version: "test-version", GitCommit: "test-sha"}
+		BuildProvenance: func() commandruntime.BuildProvenance {
+			return commandruntime.BuildProvenance{Version: "test-version", GitCommit: "test-sha"}
 		},
 	})
 

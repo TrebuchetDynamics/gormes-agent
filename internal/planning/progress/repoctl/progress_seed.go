@@ -56,7 +56,7 @@ func SeedProgressRows(opts ProgressSeedOptions) (ProgressSeedResult, error) {
 	}
 	path := opts.ProgressPath
 	if path == "" {
-		path = filepath.Join(opts.Root, "docs", "content", "building-gormes", "architecture_plan", "progress.json")
+		path = filepath.Join(opts.Root, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
 	}
 	doc, err := progress.Load(path)
 	if err != nil {

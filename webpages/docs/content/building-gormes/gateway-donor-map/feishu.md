@@ -9,7 +9,7 @@ Feishu is a plausible Phase 2 adapter target because PicoClaw already split the 
 
 ## Status
 
-`docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now groups Feishu into the Phase `2.B.10` regional/device adapter tranche. Gormes has a contract-tested shared-bot seam in `internal/channels/feishu` for ingress policy and reply-target preservation, but no real Feishu transport/bootstrap binding yet.
+`webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now groups Feishu into the Phase `2.B.10` regional/device adapter tranche. Gormes has a contract-tested shared-bot seam in `internal/channels/feishu` for ingress policy and reply-target preservation, but no real Feishu transport/bootstrap binding yet.
 
 Evidence level:
 
@@ -17,7 +17,7 @@ Evidence level:
 - The donor commit inspected for this research was `6421f146a99df1bebcd4b1ca8de2a289dfca3622`.
 - The upstream donor repo is `https://github.com/sipeed/picoclaw`.
 - Any `pkg/...` or `docs/...` path listed below is relative to that donor root, not relative to the Gormes repo.
-- Current Gormes status and target behavior were verified in-tree against `internal/channels/feishu/bot.go`, `internal/channels/feishu/bot_test.go`, `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`, and `docs/content/upstream-hermes/user-guide/messaging/feishu.md`.
+- Current Gormes status and target behavior were verified in-tree against `internal/channels/feishu/bot.go`, `internal/channels/feishu/bot_test.go`, `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`, and `webpages/docs/content/upstream-hermes/user-guide/messaging/feishu.md`.
 
 Keep the boundary explicit: PicoClaw donates Feishu edge mechanics only. Gormes remains authoritative for lifecycle ownership, session policy, and feature scope.
 
@@ -46,8 +46,8 @@ Only the inbound/runtime skeleton, media download path, and reply lookup logic a
 - `picoclaw/pkg/channels/feishu/token_cache.go`
 - `picoclaw/pkg/channels/feishu/feishu_reply_test.go`
 - `picoclaw/docs/channels/feishu/README.md`
-- `docs/content/upstream-hermes/user-guide/messaging/feishu.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/upstream-hermes/user-guide/messaging/feishu.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 ## What To Copy vs What To Rebuild
 
@@ -110,6 +110,6 @@ Feishu still looks like a reasonable Phase 2 target, but the recommendation is n
 - `picoclaw/pkg/channels/feishu/token_cache.go`
 - `picoclaw/pkg/channels/feishu/feishu_reply_test.go`
 - `picoclaw/docs/channels/feishu/README.md`
-- `docs/content/upstream-hermes/user-guide/messaging/feishu.md`
+- `webpages/docs/content/upstream-hermes/user-guide/messaging/feishu.md`
 
 Recommendation: `adapt pattern only`.

@@ -144,7 +144,7 @@ Do not widen the Phase 2 OS-AI spine to absorb Honcho-specific compatibility wor
 ## Go donor pointers
 
 Before writing a new Phase 2 slice, route through the `gormes-references`
-skill (`docs/development-skills/gormes-references/SKILL.md`) to find the
+skill (`development-skills/gormes-references/SKILL.md`) to find the
 donor file that already shapes the seam.
 
 | Phase 2 problem | Donor file | Notes |
@@ -167,7 +167,7 @@ edge) routes through `gormes-provider-parity` and
 ## Go donor pointers
 
 Before writing a new Phase 2 slice, route through the `gormes-references`
-skill (`docs/development-skills/gormes-references/SKILL.md`) to find the
+skill (`development-skills/gormes-references/SKILL.md`) to find the
 donor file that already shapes the seam.
 
 | Phase 2 problem | Donor file | Notes |

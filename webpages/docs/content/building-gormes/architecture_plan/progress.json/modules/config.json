@@ -72,7 +72,7 @@
       "write_scope": [
         "internal/tools/stateful_migration_queue.go",
         "internal/tools/stateful_migration_queue_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestStatefulToolMigrationQueue -count=1",
@@ -146,7 +146,7 @@
         "internal/tools/mcp_config.go",
         "internal/tools/mcp_config_test.go",
         "internal/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools ./internal/config -run 'Test.*MCP.*Config|Test.*MCP.*Env|Test.*Honcho.*MCP' -count=1",
@@ -226,7 +226,7 @@
         "internal/tools/approval_mode.go",
         "internal/tools/approval_mode_test.go",
         "internal/tools/dangerous_command.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestNormalizeApprovalMode|TestApprovalMode' -count=1",
@@ -273,7 +273,7 @@
         "./hermes-agent/tools/approval.py@242da9db9:check_all_command_guards cron session branch",
         "internal/tools/approval_mode.go",
         "internal/tools/approval_mode_test.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Approval and security policy"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Approval and security policy"
       ],
       "ready_when": [
         "Approval mode config normalization, Recoverable dangerous patterns + blocked-result schema, and hardline detection are complete.",
@@ -300,7 +300,7 @@
       "write_scope": [
         "internal/tools/approval_mode.go",
         "internal/tools/approval_mode_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestNormalizeCronApprovalMode|TestCronApprovalMode|TestNormalizeApprovalMode|TestApprovalMode' -count=1",
@@ -387,7 +387,7 @@
         "cmd/gormes/registry_test.go",
         "internal/tools/terminal_tool.go",
         "internal/tools/terminal_tool_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestConfigCommand_SetTerminalCWDWritesTOMLAndLoads|TestBuildDefaultRegistryPassesTerminalCWDToTerminalTool' -count=1",
@@ -491,7 +491,7 @@
         "internal/platform/migrate/hermes/writer_test.go",
         "cmd/gormes/migrate_hermes_test.go",
         "cmd/gormes/migrate_hermes_writer_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config -run 'TestLoad_.*Hermes|TestSetGormesDisplayPlatformToolProgress|TestTokenVaultDefaultUsesGormesHomeNotHermesHome|TestConfigWriter' -count=1",
@@ -583,7 +583,7 @@
       "write_scope": [
         "internal/cli/onboarding_state.go",
         "internal/cli/onboarding_state_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run '^TestOnboardingSeen|^TestMarkOnboardingSeen' -count=1",
@@ -630,7 +630,7 @@
         "../hermes-agent/tests/agent/test_onboarding.py",
         "internal/cli/onboarding_state.go",
         "internal/cli/onboarding_state_test.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli"
       ],
       "ready_when": [
         "CLI onboarding seen-state map helpers are complete and preserve arbitrary onboarding.seen flags.",
@@ -660,7 +660,7 @@
         "internal/cli/onboarding_hints_test.go",
         "internal/cli/onboarding_state.go",
         "internal/cli/onboarding_state_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run '^TestOnboardingHint|^TestBusyInputHint|^TestToolProgressHint' -count=1",
@@ -726,7 +726,7 @@
         "../hermes-agent/hermes_cli/setup.py:1165+:setup_tts",
         "../hermes-agent/hermes_cli/setup.py:1175+:setup_terminal",
         "../hermes-agent/hermes_cli/setup.py:1541+:setup_agent",
-        "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
       ],
       "ready_when": [
         "Gormes model interactive provider/model picker row exposes the shared picker entry point so the setup model section delegates rather than re-implementing.",
@@ -762,7 +762,7 @@
         "cmd/gormes/provider_client_test.go",
         "cmd/gormes/main.go",
         "cmd/gormes/hermes_cli_parity.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^(TestSetup|TestProviderHTTPClient_AnthropicProviderUsesMessagesAPI)' -count=1",
@@ -805,7 +805,7 @@
         "../hermes-agent/hermes_cli/main.py:8369-8403:setup_parser",
         "cmd/gormes/setup.go",
         "cmd/gormes/setup_minimal_test.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli"
       ],
       "ready_when": [
         "The completed `Gormes setup minimal sectioned wizard slice` owns provider/model/agent/workspace/bindings handlers and TTY guards.",
@@ -841,8 +841,8 @@
         "cmd/gormes/setup.go",
         "cmd/gormes/setup_minimal_test.go",
         "cmd/gormes/setup_menu_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestSetup' -count=1",
@@ -884,7 +884,7 @@
         "../hermes-agent/tests/hermes_cli/test_setup_reconfigure.py",
         "cmd/gormes/setup.go",
         "cmd/gormes/setup_minimal_test.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli"
       ],
       "ready_when": [
         "The `Gormes setup top-level chooser menu` row defines Full Setup/Quick Setup routing and cancellation behavior.",
@@ -915,8 +915,8 @@
       "write_scope": [
         "cmd/gormes/setup.go",
         "cmd/gormes/setup_minimal_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestSetup' -count=1",
@@ -995,9 +995,9 @@
         "cmd/gormes/setup.go",
         "cmd/gormes/setup_entry_mode_test.go",
         "cmd/gormes/setup_minimal_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
-        "docs/development-skills/gormes-hermes-parity/references/active-upstream-contracts.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "development-skills/gormes-hermes-parity/references/active-upstream-contracts.md"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestSetupEntryMode|TestSetupSections_HermesOwnedVsGormesOwned|TestSetupPromptSecret' -count=1",
@@ -1074,8 +1074,8 @@
         "cmd/gormes/setup_tools_test.go",
         "internal/cli/toolset_config.go",
         "internal/cli/effective_toolsets.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestSetupTools' -count=1",
@@ -1134,7 +1134,7 @@
         "../hermes-agent/hermes_cli/config.py:config_command,set_config_value,save_env_value,show_config",
         "../hermes-agent/tests/hermes_cli/test_set_config_value.py",
         "../hermes-agent/tests/hermes_cli/test_config_env_expansion.py",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree"
       ],
       "ready_when": [
         "The provider endpoint/API-key flag row has established runtime precedence and redaction vocabulary.",
@@ -1171,7 +1171,7 @@
         "internal/config/writer_test.go",
         "internal/config/dotenv.go",
         "internal/config/dotenv_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes ./internal/config -run 'TestConfigCommand|TestConfigWriter|TestLoad_' -count=1",
@@ -1209,7 +1209,7 @@
         "./hermes-agent/tests/cli/test_cli_save_config_value.py@85383c636:test_preserves_readable_unicode_after_config_mutation",
         "cmd/gormes/config.go:newConfigSetCommand",
         "internal/config/writer.go:WriteTOMLValue,writeTOMLAtomic",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree and Config command and provider overrides"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree and Config command and provider overrides"
       ],
       "ready_when": [
         "Gormes config command surface and native config closeout are complete.",
@@ -1237,7 +1237,7 @@
         "internal/config/writer.go",
         "internal/config/writer_test.go",
         "cmd/gormes/config_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config -run 'TestConfigWriter_WriteTOMLValue(PreservesCommentsAndUnicode|PreservesSymlink|RejectsUnknownSection|AcceptsExplicitEmpty)' -count=1",
@@ -1325,7 +1325,7 @@
         "internal/config/check.go",
         "internal/config/check_test.go",
         "internal/config/writer.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes ./internal/config -run 'TestConfig(Edit|Check|Migrate|Closeout)|TestConfigCheck' -count=1",
@@ -1371,7 +1371,7 @@
         "./hermes-agent/tests/hermes_cli/test_config_env_expansion.py",
         "./hermes-agent/website/docs/user-guide/messaging/telegram.md",
         "internal/config/config.go:LegacyHermesHome,ConfigPath,MemoryDBPath,SessionDBPath",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Hermes state/config migration command"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Hermes state/config migration command"
       ],
       "ready_when": [
         "The Gormes config command row defines the target config/dotenv write contract.",
@@ -1403,7 +1403,7 @@
         "cmd/gormes/migrate_hermes_test.go",
         "internal/platform/migrate/hermes/manifest.go",
         "internal/platform/migrate/hermes/manifest_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/platform/migrate/hermes ./cmd/gormes -run 'TestHermesMigrationManifest|TestMigrateHermesDryRun' -count=1",
@@ -1472,7 +1472,7 @@
         "internal/platform/migrate/hermes/writer.go",
         "internal/platform/migrate/hermes/writer_test.go",
         "internal/config/writer.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/platform/migrate/hermes ./cmd/gormes ./internal/config -run 'TestHermesConfigWriter|TestMigrateHermesWriter|TestConfigWriter' -count=1",
@@ -1508,7 +1508,7 @@
         "../hermes-agent/website/docs/guides/migrate-from-openclaw.md",
         "internal/cli/openclaw_residue.go",
         "internal/cli/onboarding_state.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:OpenClaw migration command"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:OpenClaw migration command"
       ],
       "ready_when": [
         "Gormes config command surface defines the target config/dotenv write contract.",
@@ -1541,7 +1541,7 @@
         "cmd/gormes/migrate_openclaw_test.go",
         "internal/platform/migrate/openclaw/manifest.go",
         "internal/platform/migrate/openclaw/manifest_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/platform/migrate/openclaw ./cmd/gormes -run 'TestOpenClawMigrationManifest|TestMigrateOpenClawDryRun' -count=1",
@@ -1620,7 +1620,7 @@
         "internal/platform/migrate/openclaw/apply.go",
         "internal/platform/migrate/openclaw/apply_test.go",
         "internal/config/writer.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestClawCleanup|TestHermesCLIParityManifest' -count=1",
@@ -1698,7 +1698,7 @@
         "internal/cli/",
         "internal/config/",
         "internal/tools/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli ./internal/config ./internal/tools -run TestPlatformToolsetConfig -count=1",
@@ -1765,7 +1765,7 @@
       "write_scope": [
         "cmd/gormes/setup.go",
         "cmd/gormes/setup_section_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'Setup' -count=1",
@@ -1812,8 +1812,8 @@
         "cmd/gormes/setup.go",
         "cmd/gormes/onboard.go",
         "internal/cli/onboard.go",
-        "docs/content/building-gormes/fleet-operational-patterns.md",
-        "docs/content/building-gormes/fleet-integration-plan.md"
+        "webpages/docs/content/building-gormes/fleet-operational-patterns.md",
+        "webpages/docs/content/building-gormes/fleet-integration-plan.md"
       ],
       "ready_when": [
         "QMD Hybrid Search (5.N) is operational for skill discovery step.",
@@ -1825,7 +1825,7 @@
       ],
       "acceptance": [
         "Top-level `gormes onboard` is not registered; removed-command guidance points operators to `gormes setup` or `gormes doctor --offline --target terminal --json`.",
-        "Current output separates runtime skills from docs/development-skills and points users to gormes skills list.",
+        "Current output separates runtime skills from development-skills and points users to gormes skills list.",
         "Current output states that skill capture is manual/prompted and full automatic distill/promote/maintain is partial.",
         "Configured provider output shows provider id, endpoint, and model instead of collapsing the setup state into one URL.",
         "The internal onboarding wizard seam walks model -> provider -> auth -> gateway -> browser -> skills -> dashboard without prompts, probes, launches, or live credentials.",
@@ -1842,7 +1842,7 @@
         "internal/skills/list.go",
         "internal/cli/onboard.go",
         "internal/cli/onboard_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestRootSkills|TestOnboard|TestSetup|TestHermesCLIParityManifest' -count=1",
@@ -1921,7 +1921,7 @@
         "cmd/gormes/skills_onboard_test.go",
         "internal/cli/onboard.go",
         "internal/cli/onboard_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestOnboardWizard' -count=1",
@@ -2024,7 +2024,7 @@
         "cmd/gormes/setup_minimal_test.go",
         "cmd/gormes/onboard_wizard_test.go",
         "internal/cli/onboard.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestSetupTextFidelity|TestSetup|TestOnboardWizard|TestRootHelp|TestHermesCLIParityManifest' -count=1",
@@ -2061,7 +2061,7 @@
       "degraded_mode": "If v2 schema is absent, config loading keeps the legacy v1 fallback read path and reports profile_config_v2_unavailable readiness evidence without writing per-profile canonical config.",
       "fixture": "internal/config/profile_config_v2_test.go",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#root-shape",
+        "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md#root-shape",
         "internal/config/config.go",
         "internal/config/agents.go",
         "internal/config/writer.go",
@@ -2143,7 +2143,7 @@
       "degraded_mode": "If migration cannot classify a legacy secret or profile file, the planner leaves it unmigrated with typed manual_action_required evidence and never deletes the source.",
       "fixture": "internal/config/profile_migration_v2_test.go",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#migration-rules",
+        "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md#migration-rules",
         "internal/config/config.go:migrateConfig",
         "cmd/gormes/config.go:config migrate",
         "cmd/gormes/setup_profiles_tui.go",
@@ -2182,7 +2182,7 @@
         "cmd/gormes/config.go",
         "cmd/gormes/setup_profiles_tui.go",
         "cmd/gormes/setup_profiles_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
@@ -2252,7 +2252,7 @@
       "write_scope": [
         "internal/tools/execute_code.go",
         "internal/tools/execute_code_mode_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestExecuteCodeModeResolver|TestExecuteCode' -count=1",
@@ -2315,7 +2315,7 @@
         "internal/tools/execute_code_strict_mode.go:StrictModeBlockedEnvelopeShape",
         "internal/tools/execute_code_project_mode.go:NewProjectModeSandbox",
         "cmd/gormes/registry.go:buildDefaultRegistry",
-        "docs/content/building-gormes/core-systems/tool-execution.md"
+        "webpages/docs/content/building-gormes/core-systems/tool-execution.md"
       ],
       "ready_when": [
         "Execution-mode resolver + config precedence is complete.",
@@ -2344,8 +2344,8 @@
         "internal/tools/execute_code_mode_cutover_test.go",
         "cmd/gormes/registry.go",
         "cmd/gormes/registry_test.go",
-        "docs/content/building-gormes/core-systems/tool-execution.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/core-systems/tool-execution.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config -run TestLoad_CodeExecutionModeConfig -count=1",
@@ -2363,7 +2363,7 @@
           "internal/tools/execute_code.go:ExecuteCodeToolConfig",
           "internal/tools/execute_code.go:NewExecuteCodeTool",
           "cmd/gormes/registry.go:buildDefaultRegistry",
-          "docs/content/building-gormes/core-systems/tool-execution.md"
+          "webpages/docs/content/building-gormes/core-systems/tool-execution.md"
         ],
         "tests": [
           "internal/config/config_test.go:TestLoad_CodeExecutionModeConfig",

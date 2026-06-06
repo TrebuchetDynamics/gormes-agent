@@ -71,7 +71,7 @@ func TestUpstreamCoverageLedgerMatchesSourceClasses(t *testing.T) {
 				"rl_cli.py":                      "`rl_cli.py`",
 				"run_agent.py":                   "`run_agent.py`",
 				"scripts":                        "`scripts/**`",
-				"setup-llm.sh":                "`setup-llm.sh`",
+				"setup-llm.sh":                   "`setup-llm.sh`",
 				"skills":                         "`skills/**`",
 				"tests":                          "`tests/**`",
 				"tools":                          "`tools/*.py`",

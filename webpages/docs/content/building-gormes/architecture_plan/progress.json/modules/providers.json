@@ -34,8 +34,8 @@
         "../hermes-agent/agent/transports/bedrock.py",
         "../hermes-agent/agent/transports/codex.py",
         "../hermes-agent/tests/agent/transports/test_transport.py",
-        "docs/content/upstream-hermes/source-study.md",
-        "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
+        "webpages/docs/content/upstream-hermes/source-study.md",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
       ],
       "ready_when": [
         "Anthropic transcript fixtures replay request, stream, finish reason, and usage data without live credentials."
@@ -57,7 +57,7 @@
       "note": "Complete: TDD landed `internal/llm/provider_transport.go`, `internal/llm/provider_transport_contract_test.go`, `internal/llm/provider_transcript_test.go`, and reusable fixtures under `internal/llm/testdata/provider_transcripts/`. `internal/llm.ProviderTransport` now exposes the provider-neutral request/fixture contract for `chat_completions`, `anthropic_messages`, `bedrock_converse`, and `codex_responses`; the harness replays request bodies and stream/response fixtures without live credentials, covers Anthropic request shaping, Bedrock Converse event decoding, Codex Responses normalization, reasoning/text stream events, finish_reason mapping, usage, and tool-call accumulation, and locks the upstream #12072/#0f778f77 regressions by flushing pending OpenAI-compatible and Anthropic tool calls on EOF while proving repeated tool-name deltas do not concatenate into invented names.",
       "write_scope": [
         "internal/llm/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run ProviderTransport -count=1",
@@ -97,8 +97,8 @@
         "../hermes-agent/hermes_cli/main.py:model command",
         "../hermes-agent/hermes_cli/auth_commands.py:_OAUTH_CAPABLE_PROVIDERS",
         "../hermes-agent/hermes_cli/models.py:_PROVIDER_MODELS",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Provider registry, aliases, and auth modes",
-        "docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md:Provider, channel, and tool-calling guardrails",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Provider registry, aliases, and auth modes",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md:Provider, channel, and tool-calling guardrails",
         "references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md"
       ],
       "ready_when": [
@@ -130,9 +130,9 @@
       "write_scope": [
         "internal/llm/provider_registry_manifest.go",
         "internal/llm/provider_registry_manifest_test.go",
-        "docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run TestHermesProviderRegistryManifest -count=1",
@@ -175,7 +175,7 @@
         "./hermes-agent/tests/agent/transports/test_chat_completions.py@c7f0aab94:TestChatCompletionsBuildKwargs",
         "./hermes-agent/hermes_cli/config.py@c7f0aab94:DEFAULT_CONFIG openrouter.min_coding_score",
         "./hermes-agent/hermes_cli/models.py@c7f0aab94:OPENROUTER_MODELS openrouter/pareto-code",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Providers, Models, And Credentials / OpenRouter/OpenAI-compatible models"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Providers, Models, And Credentials / OpenRouter/OpenAI-compatible models"
       ],
       "ready_when": [
         "Provider interface + stream fixture harness and OpenRouter attribution/request serialization are complete.",
@@ -203,7 +203,7 @@
         "internal/llm/http_client.go",
         "internal/llm/openrouter_compatible.go",
         "internal/llm/openrouter_pareto_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestOpenRouterPareto' -count=1",
@@ -239,8 +239,8 @@
       "degraded_mode": "Provider status reports transcript or continuation fixture gaps before adapters can be selected for tool-capable turns.",
       "fixture": "internal/llm cross-provider tool continuation fixtures",
       "source_refs": [
-        "docs/content/upstream-hermes/source-study.md",
-        "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
+        "webpages/docs/content/upstream-hermes/source-study.md",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
       ],
       "ready_when": [
         "Provider interface + stream fixture harness is available for cross-provider tool continuation fixtures."
@@ -265,7 +265,7 @@
       "note": "Complete: TDD added provider transcript coverage for OpenAI-compatible continuation requests so assistant `ToolCalls` and linked `tool` replies serialize from the shared `llm.Message` model instead of being dropped to role/content only. The shared harness now proves Anthropic continuation mapping, OpenAI-compatible continuation mapping, provider-safe `tool_calls`/`stop` finish reasons, EOF recovery for partial streamed tool calls, and duplicate-name accumulator safety before Bedrock/Gemini/OpenRouter/Codex reuse the seam.",
       "write_scope": [
         "internal/llm/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -count=1"
@@ -296,7 +296,7 @@
         "upstream Hermes d58b305a",
         "../hermes-agent/run_agent.py",
         "../hermes-agent/tests/run_agent/test_deepseek_reasoning_content_echo.py",
-        "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
+        "webpages/docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
       ],
       "ready_when": [
         "Shared provider continuation fixtures can serialize assistant tool-call messages and replay them without live provider credentials."
@@ -317,7 +317,7 @@
       "note": "Complete: TDD landed `internal/llm/reasoning_content_echo_test.go` with provider-boundary fixtures proving DeepSeek and Kimi/Moonshot OpenAI-compatible replays inject `reasoning_content=\"\"` on assistant tool-call messages when no reasoning exists. Detection covers DeepSeek provider name, model substring, and `api.deepseek.com` host plus Kimi/Moonshot provider/host signals. Explicit `reasoning_content` and normalized `reasoning` echoes are preserved on thinking-provider tool-call turns, non-tool assistant turns and generic providers are left unpadded, ordinary assistant content is unchanged, and provider status exposes the reasoning_content padding/repair degraded mode.",
       "write_scope": [
         "internal/llm/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -count=1"
@@ -356,7 +356,7 @@
         "../hermes-agent/tests/run_agent/test_deepseek_reasoning_content_echo.py@ee1a07f",
         "internal/llm/http_client.go:openAICompatibleReasoningContent",
         "internal/llm/reasoning_content_echo_test.go",
-        "docs/content/upstream-hermes/source-study.md"
+        "webpages/docs/content/upstream-hermes/source-study.md"
       ],
       "ready_when": [
         "DeepSeek/Kimi reasoning_content echo for tool-call replay is validated, so provider detection and basic empty-placeholder behavior already exist.",
@@ -381,7 +381,7 @@
       "write_scope": [
         "internal/llm/http_client.go",
         "internal/llm/reasoning_content_echo_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestReasoningContentEcho.*Isolation|TestReasoningContentEcho.*Preserves|TestReasoningContentEcho.*Untouched' -count=1",
@@ -456,7 +456,7 @@
         "internal/llm/http_client.go",
         "internal/llm/reasoning_content_echo_test.go",
         "internal/memory/interrupted_sync_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestReasoningContentEcho.*AllAssistant|TestReasoningContentEcho.*Plain|TestReasoningContentEcho.*Preserves|TestReasoningContentEcho.*Untouched' -count=1",
@@ -533,9 +533,9 @@
         "internal/llm/moonshot_schema.go",
         "internal/llm/moonshot_schema_test.go",
         "internal/llm/http_client.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
       ],
       "test_commands": [
         "go test ./internal/llm -run Moonshot -count=1",
@@ -613,7 +613,7 @@
         "internal/llm/http_client.go",
         "internal/llm/azure_openai_transport_test.go",
         "internal/llm/unsupported_parameter_retry_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestAzureOpenAI|TestUnsupportedParameterRetry' -count=1",
@@ -684,7 +684,7 @@
         "internal/llm/anthropic_client.go",
         "internal/llm/azure_anthropic_transport_test.go",
         "internal/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestAzureAnthropic|TestAnthropic' -count=1",
@@ -758,7 +758,7 @@
       "write_scope": [
         "internal/llm/azure_foundry_probe.go",
         "internal/llm/azure_foundry_probe_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run TestAzureFoundryProbe -count=1",
@@ -832,7 +832,7 @@
       "write_scope": [
         "internal/llm/azure_foundry_path_sniff.go",
         "internal/llm/azure_foundry_path_sniff_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run '^TestClassifyAzurePath$' -count=1",
@@ -914,7 +914,7 @@
       "write_scope": [
         "internal/llm/azure_foundry_models_probe.go",
         "internal/llm/azure_foundry_models_probe_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run TestProbeAzureFoundry -count=1",
@@ -992,7 +992,7 @@
         "internal/llm/azure_foundry_runtime.go",
         "internal/llm/azure_foundry_runtime_test.go",
         "internal/llm/model_context_resolver.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config ./internal/llm -run 'TestAzureFoundryRuntime|TestModelContext' -count=1",
@@ -1057,7 +1057,7 @@
         "internal/cli/azure_foundry_status.go",
         "internal/cli/azure_foundry_status_test.go",
         "internal/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli ./internal/config -run TestAzureFoundryStatus -count=1",
@@ -1132,7 +1132,7 @@
         "internal/llm/azure_foundry_api_mode_test.go",
         "internal/llm/azure_foundry_runtime.go",
         "internal/llm/azure_foundry_runtime_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestAzureFoundryAPIMode|TestAzureFoundryRuntime' -count=1",
@@ -1220,7 +1220,7 @@
         "internal/llm/bedrock_provider_binding_test.go",
         "internal/runtime/",
         "internal/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm ./internal/runtime ./internal/config -run TestBedrockProviderBinding -count=1",
@@ -1263,7 +1263,7 @@
         "../hermes-agent/agent/bedrock_adapter.py",
         "../hermes-agent/agent/transports/bedrock.py",
         "../hermes-agent/tests/agent/test_bedrock_adapter.py",
-        "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
+        "webpages/docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
       ],
       "ready_when": [
         "Provider interface + stream fixture harness and tool-call continuation contract are complete."
@@ -1282,7 +1282,7 @@
       "note": "Complete: TDD added pure Bedrock Converse request-payload shaping in `internal/llm` plus a request-body golden fixture. The mapper converts shared system/user/assistant/tool-result messages into Converse roles and content blocks, preserves assistant reasoning blocks and Bedrock cachePoint hints, maps tool definitions to `toolSpec.inputSchema.json` without dropping required fields, and pins `inferenceConfig.maxTokens`/`temperature` plus empty-content placeholders without importing AWS SDK clients or signing live requests. Bedrock remains unavailable until stream decoding and credential wiring land.",
       "write_scope": [
         "internal/llm/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -count=1"
@@ -1351,7 +1351,7 @@
       "write_scope": [
         "internal/llm/bedrock_sigv4.go",
         "internal/llm/bedrock_sigv4_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestResolveBedrockAuth_|TestResolveBedrockRegion|TestSignBedrockRequest_|TestBedrockAuthEvidence_' -count=1",
@@ -1425,7 +1425,7 @@
         "internal/llm/bedrock_client_cache_test.go",
         "internal/llm/bedrock_stale_error.go",
         "internal/llm/bedrock_stale_client_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestBedrockRuntimeCache_|TestClassifyBedrockStaleError_' -count=1",
@@ -1505,7 +1505,7 @@
         "internal/llm/gemini_cloudcode.go",
         "internal/llm/gemini_cloudcode_test.go",
         "internal/llm/testdata/gemini_cloudcode/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run TestGeminiCloudCode -count=1",
@@ -1586,7 +1586,7 @@
         "internal/llm/openrouter_compatible_test.go",
         "internal/llm/testdata/openrouter/",
         "internal/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm ./internal/config -run TestOpenRouter -count=1",
@@ -1658,7 +1658,7 @@
         "internal/llm/openrouter_compatible.go",
         "internal/llm/openrouter_compatible_test.go",
         "internal/llm/http_client.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestOpenRouter(GrokPromptCacheAffinityHeader|AttributionHeaders)' -count=1",
@@ -1745,7 +1745,7 @@
         "internal/llm/google_code_assist_test.go",
         "internal/llm/testdata/google_code_assist/",
         "internal/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm ./internal/config -run TestGoogleCodeAssist -count=1",
@@ -1813,7 +1813,7 @@
         "../hermes-agent/agent/codex_responses_adapter.py",
         "../hermes-agent/tests/run_agent/test_run_agent_codex_responses.py",
         "../hermes-agent/tests/run_agent/test_tool_call_args_sanitizer.py",
-        "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
+        "webpages/docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
       ],
       "ready_when": [
         "Shared provider transcript and tool-call continuation fixtures are complete."
@@ -1834,7 +1834,7 @@
       "note": "Complete: TDD added `internal/llm/codex_responses_adapter.go` and `internal/llm/codex_responses_adapter_test.go` as a pure Responses conversion harness. The fixture converts shared chat messages, system instructions, multimodal input_text/input_image content parts, function tool schemas, deterministic fallback call IDs, and function_call_output continuations into Responses payloads. It normalizes Responses output items back into shared assistant messages, reasoning/token/done events, usage, and tool calls. No OAuth/device login, ~/.codex import, or live Responses request is introduced; Codex status remains unavailable until auth wiring lands.",
       "write_scope": [
         "internal/llm/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -count=1"
@@ -1894,7 +1894,7 @@
         "internal/llm/codex_responses_adapter.go",
         "internal/llm/codex_responses_adapter_test.go",
         "internal/llm/codex_responses_role_content_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestBuildCodexResponsesPayload|TestCodexResponsesRoleContent' -count=1",
@@ -1969,8 +1969,8 @@
         "internal/llm/status.go",
         "internal/llm/provider_status_test.go",
         "internal/llm/provider_transcript_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestProviderTranscriptHarness_OpenAICodexUsesResponsesAPI|TestCodexProviderStatusReportsResponsesRuntime' -count=1",
@@ -2033,7 +2033,7 @@
       "write_scope": [
         "internal/llm/",
         "internal/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm ./internal/config -count=1"
@@ -2092,7 +2092,7 @@
       "note": "Complete: TDD added `internal/llm/codex_stream_repair_test.go` and tightened the pure Codex Responses normalizer. Fixtures prove empty `response.output` with streamed `output_text` backfills final assistant content with repair diagnostics, leaked `to=functions.*` text is stripped and marked incomplete before parent history/event tokens are updated, descriptor-backed Codex function-call arguments are repaired to valid JSON, missing required arguments are rejected without invented values, and unsupported Responses output items fail loudly instead of being hidden by repair.",
       "write_scope": [
         "internal/llm/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -count=1"
@@ -2167,7 +2167,7 @@
       "write_scope": [
         "internal/llm/reasoning_tag_sanitizer.go",
         "internal/llm/reasoning_tag_sanitizer_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run '^TestSanitizeReasoningTags' -count=1",
@@ -2238,7 +2238,7 @@
       "write_scope": [
         "internal/llm/",
         "internal/tools/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm ./internal/tools -count=1"
@@ -2294,7 +2294,7 @@
         "internal/llm/http_client.go",
         "internal/llm/openai_compatible_role_test.go",
         "internal/llm/model_guidance.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/llm -run 'DeveloperRole|OpenAICompatible|ModelPromptRole' -count=1",
@@ -2332,8 +2332,8 @@
       "source_refs": [
         "../hermes-agent/agent/transports/xai_http.py",
         "../hermes-agent/agent/transports/xai_schema.py",
-        "docs/content/building-gormes/must-have-features.md",
-        "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
+        "webpages/docs/content/building-gormes/must-have-features.md",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
       ],
       "ready_when": [
         "Provider interface + stream fixture harness is validated on main.",
@@ -2354,7 +2354,7 @@
         "internal/llm/grok_adapter.go",
         "internal/llm/grok_adapter_test.go",
         "internal/llm/testdata/grok_transcripts/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestGrok' -count=1",
@@ -2407,8 +2407,8 @@
       "fixture": "internal/llm/lmstudio_adapter_test.go",
       "source_refs": [
         "../hermes-agent/agent/transports/lmstudio_reasoning.py",
-        "docs/content/building-gormes/must-have-features.md",
-        "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
+        "webpages/docs/content/building-gormes/must-have-features.md",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
       ],
       "ready_when": [
         "Provider interface + stream fixture harness is validated on main.",
@@ -2427,7 +2427,7 @@
       "write_scope": [
         "internal/llm/lmstudio_adapter.go",
         "internal/llm/lmstudio_adapter_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestLMStudio' -count=1",
@@ -2514,7 +2514,7 @@
         "internal/llm/vision_unsupported_retry_test.go (new)",
         "internal/llm/http_client.go (wire the retry into the provider call path)",
         "internal/llm/client.go (types only if the retry seam needs public request metadata)",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "CGO_ENABLED=0 go test ./internal/llm -run TestVisionUnsupportedRetry -count=1",
@@ -2550,13 +2550,13 @@
       ],
       "fixture": "internal/provider/router/config_test.go",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Config schema",
+        "webpages/docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Config schema",
         "CLIProxyAPI@50d19e2 config.example.yaml: api-keys, request-retry, openai-compatibility, model aliases",
         "CLIProxyAPI@50d19e2 docs/sdk-access.md: Bearer/X-Api-Key/X-Goog-Api-Key/key query auth sources",
         "internal/config/config.go:Config and CredentialCfg",
         "internal/llm/provider_registry_manifest.go:ProviderManifestEntry",
         "internal/llm/model_routing.go:ModelRoute and FallbackModelPolicy",
-        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Setup UX and provider-picker boundary"
+        "webpages/docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Setup UX and provider-picker boundary"
       ],
       "ready_when": [
         "The builder uses fake providers/httptest and checked-in fixtures, not live credentials or locally installed Ollama/LM Studio.",
@@ -2617,7 +2617,7 @@
       "degraded_mode": "If Router is treated as a normal provider, users can accidentally configure Gormes to call its own local endpoint or assume Router itself supplies free model capacity instead of routing to configured user-owned providers.",
       "fixture": "cmd/gormes/setup_router_test.go",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Setup UX and provider-picker boundary",
+        "webpages/docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Setup UX and provider-picker boundary",
         "cmd/gormes/setup.go:setupProviderInteractive",
         "cmd/gormes/setup.go:setupProviderAutoDetectEnvProvider",
         "cmd/gormes/setup.go:runSetupFallback",
@@ -2699,13 +2699,13 @@
       ],
       "fixture": "internal/provider/router/server_test.go",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:HTTP surface",
+        "webpages/docs/content/building-gormes/architecture_plan/gormes-router-plan.md:HTTP surface",
         "CLIProxyAPI@50d19e2 README.md: OpenAI/Gemini/Claude/Codex/Grok compatible API endpoints",
         "CLIProxyAPI@50d19e2 examples/custom-provider/main.go: executor registration and model registration",
         "internal/llm/http_client.go:OpenAI-compatible chat-completions behavior",
         "internal/llm/provider_transport.go:chat_completions transport",
         "cmd/gormes/provider_client.go:provider credential resolution",
-        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Setup UX and provider-picker boundary"
+        "webpages/docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Setup UX and provider-picker boundary"
       ],
       "ready_when": [
         "The builder uses fake providers/httptest and checked-in fixtures, not live credentials or locally installed Ollama/LM Studio.",
@@ -2779,13 +2779,13 @@
       ],
       "fixture": "internal/provider/router/stream_fallback_test.go",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Fallback and health",
+        "webpages/docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Fallback and health",
         "CLIProxyAPI@50d19e2 config.example.yaml: request-retry and retry interval settings",
         "CLIProxyAPI@50d19e2 README.md: streaming/non-streaming responses and model fallback",
         "internal/llm/fallback_chain.go:ProviderChain dispatch attempts",
         "internal/llm/errors.go:provider error classification",
         "internal/llm/model_routing.go:FallbackModelPolicy",
-        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Setup UX and provider-picker boundary"
+        "webpages/docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Setup UX and provider-picker boundary"
       ],
       "ready_when": [
         "The builder uses fake providers/httptest and checked-in fixtures, not live credentials or locally installed Ollama/LM Studio.",
@@ -2854,12 +2854,12 @@
       ],
       "fixture": "internal/provider/router/status_test.go",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Logging/redaction",
+        "webpages/docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Logging/redaction",
         "CLIProxyAPI@50d19e2 docs/sdk-usage.md: request logging hooks and custom routes",
         "CLIProxyAPI@50d19e2 config.example.yaml: log, cooldown, quota/account status concepts",
         "internal/llm/provider_failure_diagnostic.go:redacted provider diagnostics",
         "cmd/gormes/provider_setup_auth_fidelity_test.go:provider evidence surfacing",
-        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Setup UX and provider-picker boundary"
+        "webpages/docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Setup UX and provider-picker boundary"
       ],
       "ready_when": [
         "The builder uses fake providers/httptest and checked-in fixtures, not live credentials or locally installed Ollama/LM Studio.",
@@ -2930,7 +2930,7 @@
       ],
       "fixture": "internal/provider/router/cliproxy_upstream_test.go",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Config schema",
+        "webpages/docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Config schema",
         "CLIProxyAPI@50d19e2 README.md: /v1/chat/completions and provider route aliases",
         "CLIProxyAPI@50d19e2 docs/sdk-advanced.md: /v1/models exposure",
         "internal/llm/provider_transport.go:chat_completions transport"
@@ -3030,7 +3030,7 @@
       "note": "Complete: internal/llm/context_compressor_provider_cap_test.go proves the auxiliary compression budget path forwards provider identity into ModelContextResolver before headroom math. The fixture uses fake resolver inputs for openai-codex/gpt-5.5 raw 1050000 versus provider cap 272000, confirms openai and missing-provider paths do not borrow the Codex cap, and exposes auxiliary_context_source / auxiliary_context_lookup_error evidence while ContextCompressorBudget lowers threshold_tokens below the provider cap after tool-schema plus 12000 fixed headroom.",
       "write_scope": [
         "internal/llm/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run TestContextCompressorProviderCap -count=1",
@@ -3116,7 +3116,7 @@
       "note": "TDD landed: internal/llm/model_context_resolver_test.go proves ResolveDisplayContextLength and ModelContextResolver deterministically prefer provider-enforced caps over raw models.dev metadata, fall back to fixture model metadata when provider metadata is unavailable, and report unknown when both sources are empty. The pure resolver has no live provider credentials, disk cache, routing policy, or network dependency.",
       "write_scope": [
         "internal/llm/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -count=1"
@@ -3153,7 +3153,7 @@
         "../hermes-agent/agent/model_metadata.py",
         "../hermes-agent/agent/models_dev.py",
         "../hermes-agent/agent/usage_pricing.py",
-        "docs/content/building-gormes/architecture_plan/subsystem-inventory.md"
+        "webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md"
       ],
       "ready_when": [
         "Provider-enforced context resolver fixtures establish the metadata package shape and fallback semantics."
@@ -3172,7 +3172,7 @@
       "note": "TDD landed: internal/llm/model_registry_test.go covers default embedded fixture lookup for provider/model family, raw context window, max output, pricing fields, and capability flags; explicit unknown pricing/capability states for sparse entries; and stale embedded snapshot status. The registry is static in internal/llm/model_registry.go and performs no live models.dev access or routing decisions.",
       "write_scope": [
         "internal/llm/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -count=1"
@@ -3234,7 +3234,7 @@
         "internal/llm/ollama_cloud_models_test.go",
         "cmd/gormes/model.go",
         "cmd/gormes/model_picker_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestOllamaCloud' -count=1",
@@ -3320,7 +3320,7 @@
         "internal/llm/model_registry.go",
         "cmd/gormes/model.go",
         "cmd/gormes/model_catalog_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestModelCatalog|TestAIGateway|TestPreferredProviderModelMerge|TestOpenRouterNousCatalog' -count=1",
@@ -3368,7 +3368,7 @@
         "../hermes-agent/agent/smart_model_routing.py",
         "../hermes-agent/agent/model_metadata.py",
         "../hermes-agent/hermes_cli/runtime_provider.py",
-        "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
+        "webpages/docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
       ],
       "ready_when": [
         "Context limits, pricing, capabilities, and provider-family metadata are fixture-backed."
@@ -3389,7 +3389,7 @@
       "write_scope": [
         "internal/llm/",
         "internal/kernel/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm ./internal/kernel -count=1"
@@ -3428,7 +3428,7 @@
         "internal/kernel/frame.go",
         "internal/kernel/kernel.go",
         "internal/llm/model_routing.go",
-        "docs/content/upstream-hermes/user-guide/features/provider-routing.md",
+        "webpages/docs/content/upstream-hermes/user-guide/features/provider-routing.md",
         "../hermes-agent/run_agent.py@5401a008"
       ],
       "ready_when": [
@@ -3450,7 +3450,7 @@
         "internal/kernel/frame.go",
         "internal/kernel/kernel.go",
         "internal/kernel/per_turn_model_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kernel -run TestPerTurnModel -count=1",
@@ -3531,7 +3531,7 @@
         "internal/kernel/frame.go",
         "internal/kernel/kernel.go",
         "internal/kernel/per_turn_reasoning_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kernel -run TestPerTurnReasoning -count=1",
@@ -3580,7 +3580,7 @@
         "./hermes-agent/hermes_cli/auth.py@dcff23a25:_update_config_for_provider(default_model)",
         "internal/config/config.go:575 (Model: \"hermes-agent\" inside defaults())",
         "internal/llm/model_routing.go (existing per-turn selector — provider default feeds in here)",
-        "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
+        "webpages/docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
       ],
       "ready_when": [
         "Routing policy and fallback selector is complete and validated, so the provider default can feed the existing startup/gateway model path without introducing another router.",
@@ -3607,7 +3607,7 @@
         "internal/config/",
         "internal/llm/",
         "cmd/gormes/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run TestProviderDefaultModel -count=1",
@@ -3710,7 +3710,7 @@
         "internal/llm/model_context_resolver_test.go",
         "internal/llm/model_registry.go",
         "internal/llm/model_registry_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestProviderDefaultModel_OpenAICodexKeepsCLIOnlyCacheModel|TestOpenAICodexModelCatalogSuggestions|TestResolveDisplayContextLengthCodexSpark|TestModelRegistryExposesOpenAICodexSpark' -count=1",
@@ -3806,7 +3806,7 @@
         "internal/config/config.go (image_input_mode field)",
         "internal/config/image_input_mode_test.go (new)",
         "cmd/gormes/gateway.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "CGO_ENABLED=0 go test ./internal/gateway -run 'TestManager.*ImageMode' -count=1",
@@ -3955,8 +3955,8 @@
         "../honcho/tests/telemetry/test_events.py",
         "../honcho/tests/telemetry/test_emitter.py",
         "../honcho/tests/integration/test_telemetry.py",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Telemetry and reasoning traces",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Telemetry and reasoning traces"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Telemetry and reasoning traces",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Telemetry and reasoning traces"
       ],
       "ready_when": [
         "Trajectory compression, Goncho webhook delivery, and Phase 3 insights rows are validated; provider usage remains the final local usage/status vocabulary dependency.",
@@ -3986,7 +3986,7 @@
         "internal/automation/insights/self_monitoring_test.go",
         "internal/goncho/telemetry.go",
         "internal/goncho/telemetry_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/telemetry ./internal/audit ./internal/automation/insights ./internal/goncho -run 'TestSelfMonitoring|TestGonchoTelemetry|TestReasoningTrace' -count=1",
@@ -4049,7 +4049,7 @@
       "write_scope": [
         "internal/config/token_vault.go",
         "internal/config/token_vault_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config -run '^TestTokenVault' -count=1",
@@ -4123,7 +4123,7 @@
         "internal/config/anthropic_auth_state_test.go",
         "internal/llm/anthropic_oauth_state.go",
         "internal/llm/anthropic_oauth_state_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config -run '^TestAnthropicAuthState' -count=1",
@@ -4175,7 +4175,7 @@
         "../hermes-agent/agent/credential_pool.py:PooledCredential,CredentialPool.select,mark_exhausted_and_rotate,acquire_lease,release_lease,reset_statuses",
         "../hermes-agent/agent/credential_pool.py:get_pool_strategy,_exhausted_until,_normalize_error_context",
         "../hermes-agent/hermes_cli/auth.py:read_credential_pool,write_credential_pool",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:provider routing and credential parity",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:provider routing and credential parity",
         "internal/config/token_vault.go"
       ],
       "ready_when": [
@@ -4204,7 +4204,7 @@
       "write_scope": [
         "internal/config/credential_pool.go",
         "internal/config/credential_pool_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config -run '^TestCredentialPool' -count=1",
@@ -4356,7 +4356,7 @@
       "write_scope": [
         "internal/config/google_oauth_state.go",
         "internal/config/google_oauth_state_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config -run '^TestGoogleOAuth' -count=1",
@@ -4405,7 +4405,7 @@
         "./hermes-agent/tests/test_minimax_oauth.py@f6d45e5df:test_provider_registry_contains_minimax_oauth",
         "internal/llm/provider_registry_manifest.go",
         "cmd/gormes/auth.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Providers, Models, And Credentials"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Providers, Models, And Credentials"
       ],
       "ready_when": [
         "Hermes provider registry and alias manifest is complete, so this row only refreshes one missing current upstream provider identity.",
@@ -4428,7 +4428,7 @@
         "internal/llm/provider_registry_manifest_test.go",
         "cmd/gormes/auth.go",
         "cmd/gormes/auth_oauth_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestHermesProviderRegistryManifest' -count=1",
@@ -4522,7 +4522,7 @@
         "internal/llm/provider_registry_manifest.go",
         "cmd/gormes/auth.go",
         "cmd/gormes/auth_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config -run TestCopilot -count=1",
@@ -4560,8 +4560,8 @@
       "degraded_mode": "Provider and kernel status expose retry schedule, Retry-After hints, cache disabled paths, rate guards, and budget telemetry gaps.",
       "fixture": "internal/llm and internal/kernel provider resilience fixtures",
       "source_refs": [
-        "docs/content/upstream-hermes/source-study.md",
-        "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
+        "webpages/docs/content/upstream-hermes/source-study.md",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
       ],
       "ready_when": [
         "Provider interface + stream fixture harness is available for resilience fixture coverage."
@@ -4586,7 +4586,7 @@
       "write_scope": [
         "internal/llm/",
         "internal/kernel/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm ./internal/kernel -count=1"
@@ -4619,8 +4619,8 @@
       "degraded_mode": "Provider status and logs expose auth, rate-limit, context, retryable, and non-retryable classes instead of raw opaque errors.",
       "fixture": "internal/llm provider error-classification fixture table",
       "source_refs": [
-        "docs/content/upstream-hermes/source-study.md",
-        "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
+        "webpages/docs/content/upstream-hermes/source-study.md",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
       ],
       "ready_when": [
         "Provider-side resilience remains active and error taxonomy fixtures can be split from retry-policy changes."
@@ -4643,7 +4643,7 @@
       "note": "Complete: TDD landed `internal/llm.ClassifyProviderError` with stable provider-error kinds for `rate_limit`, `auth`, `context`, `retryable`, `non_retryable`, and `unknown` while preserving the existing coarse `Classify` retry/fatal contract used by the kernel. `internal/llm/errors_test.go` now fixture-covers HTTP status and provider body hints for rate-limit, auth, context overflow, retryable server/transport failures, non-retryable request failures, and OpenRouter-style wrapped metadata errors without adding Retry-After hint parsing from the sibling slice.",
       "write_scope": [
         "internal/llm/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -count=1"
@@ -4706,7 +4706,7 @@
         "internal/llm/errors.go",
         "internal/llm/error_classifier.go",
         "internal/llm/errors_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestClassifyProviderError_GenericTimeoutMessages|TestDefaultChainErrorClassifierTimeoutRetriesThenFallback' -count=1",
@@ -4782,7 +4782,7 @@
         "internal/llm/errors.go",
         "internal/llm/errors_test.go",
         "internal/llm/errors_image_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestClassifyProviderError_(ImageTooLarge|TextContext|.*Rate|.*Auth|.*Context)' -count=1",
@@ -4851,7 +4851,7 @@
       "write_scope": [
         "internal/llm/",
         "internal/kernel/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run TestUnsupportedTemperatureRetry -count=1",
@@ -4898,7 +4898,7 @@
         "internal/llm/unsupported_temperature_retry_test.go",
         "internal/llm/codex_responses_temperature_test.go",
         "internal/llm/codex_responses_adapter.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "ready_when": [
         "Unsupported temperature retry + Codex no-temperature guard and Generic unsupported-parameter retry + max_tokens guard are validated on main.",
@@ -4921,7 +4921,7 @@
         "internal/llm/unsupported_temperature_retry_test.go",
         "internal/llm/codex_responses_adapter_test.go",
         "internal/llm/codex_responses_temperature_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'Test.*Temperature|TestBuildCodexResponsesPayload' -count=1",
@@ -4992,7 +4992,7 @@
       "note": "Complete: TDD landed internal/llm/unsupported_parameter_retry_test.go. OpenAI-compatible provider errors now route through a generic unsupported-parameter detector used by the temperature wrapper and covering temperature, max_tokens, seed, and top_p phrasings including unsupported, unknown, unrecognized, invalid, and does-not-support markers. A supported max_tokens recovery retries exactly once only when the original payload emitted max_tokens, rewrites it to max_completion_tokens with the same value, preserves model, messages, tools, temperature, session headers, and caller context, and records UnsupportedParameterRetry evidence in ProviderStatus. Omitted MaxTokens, unrelated max_tokens errors, and unsupported arbitrary parameters do not retry or emit zero/null max_completion_tokens.",
       "write_scope": [
         "internal/llm/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run TestUnsupportedParameterRetry -count=1",
@@ -5093,7 +5093,7 @@
         "internal/kernel/stream_interrupt_retry_test.go",
         "internal/kernel/kernel.go",
         "internal/kernel/retry.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kernel -run 'TestKernel_StreamInterruptSuppressesRetry|TestRetryBudget_WaitRespectsContextCancel' -count=1",
@@ -5161,7 +5161,7 @@
       "write_scope": [
         "internal/kernel/kernel.go",
         "internal/kernel/stream_drop_diagnostics_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kernel -run 'TestKernel_StreamDropDiagnostics|TestKernel_StreamInterruptSuppressesRetry' -count=1",
@@ -5255,7 +5255,7 @@
         "internal/llm/stream_tools_test.go",
         "internal/kernel/kernel.go",
         "internal/kernel/stream_drop_diagnostics_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kernel -run 'TestKernel_StreamDropDiagnostics|TestKernel_StreamInterruptSuppressesRetry' -count=1",
@@ -5341,7 +5341,7 @@
       "write_scope": [
         "internal/llm/provider_timeout_config.go",
         "internal/llm/provider_timeout_config_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run TestProviderTimeoutConfig -count=1",
@@ -5413,7 +5413,7 @@
         "internal/llm/status.go",
         "internal/llm/anthropic_client.go",
         "internal/llm/provider_status_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestPromptCachePolicy|TestApplyPromptCacheControl' -count=1",
@@ -5468,8 +5468,8 @@
       "source_refs": [
         "../hermes-agent/agent/account_usage.py:AccountUsageSnapshot,AccountUsageWindow,render_account_usage_lines,fetch_account_usage,_fetch_codex_account_usage,_fetch_anthropic_account_usage,_fetch_openrouter_account_usage",
         "../hermes-agent/tests/test_account_usage.py",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Providers, Models, And Credentials",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Provider account usage reporting"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Providers, Models, And Credentials",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Provider account usage reporting"
       ],
       "ready_when": [
         "Provider rate-guard and budget telemetry rows already define the status/evidence vocabulary for provider quota and degradation.",
@@ -5499,7 +5499,7 @@
       "write_scope": [
         "internal/llm/account_usage.go",
         "internal/llm/account_usage_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestAccountUsage' -count=1",
@@ -5572,7 +5572,7 @@
         "internal/llm/provider_rate_guard.go",
         "internal/llm/provider_rate_guard_test.go",
         "internal/llm/errors.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run TestProviderRateGuard -count=1",
@@ -5648,7 +5648,7 @@
       "write_scope": [
         "internal/llm/provider_rate_guard.go",
         "internal/llm/provider_rate_guard_classification_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run '^TestClassify429$' -count=1",
@@ -5727,7 +5727,7 @@
       "write_scope": [
         "internal/llm/provider_rate_guard_degraded.go",
         "internal/llm/provider_rate_guard_degraded_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run '^TestApplyClassification$' -count=1",
@@ -5804,7 +5804,7 @@
         "internal/llm/codex_responses_adapter.go",
         "internal/llm/anthropic_client.go",
         "internal/llm/fast_mode_request_overrides_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestResolveFastModeRequestOverrides|TestOpenAICompatibleChatRequestSerializesServiceTier|TestCodexResponsesPayloadSerializesServiceTier|TestAnthropicFastModeSerializesOnlyEligibleSpeed' -count=1",
@@ -5888,7 +5888,7 @@
         "internal/support/e2e/testdata/",
         "internal/llm/testdata/",
         "internal/persistence/transcript/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/e2e -run 'TestNormalTurnGoldenTranscripts' -count=1",
@@ -6156,7 +6156,7 @@
         "internal/llm/error_classifier.go",
         "internal/llm/context_compressor_budget.go",
         "internal/kernel/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestFallback|TestModelRouter|TestContextCompressor' -count=1",
@@ -6245,7 +6245,7 @@
         "internal/llm/fallback_activation_test.go",
         "internal/kernel/provider_fallback.go",
         "internal/kernel/provider_fallback_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestFallbackConfig.*KeyEnv|TestFallbackConfigNormalizes' -count=1",
@@ -6293,7 +6293,7 @@
         "system"
       ],
       "source_refs": [
-        "docs/content/papers/safety-and-deployment.md",
+        "webpages/docs/content/papers/safety-and-deployment.md",
         "internal/llm/fallback_chain.go",
         "internal/llm/provider.go"
       ],
@@ -6346,7 +6346,7 @@
         "system"
       ],
       "source_refs": [
-        "docs/content/papers/safety-and-deployment.md",
+        "webpages/docs/content/papers/safety-and-deployment.md",
         "internal/llm/fallback_chain.go"
       ],
       "ready_when": [
@@ -6397,7 +6397,7 @@
         "operator"
       ],
       "source_refs": [
-        "docs/content/papers/safety-and-deployment.md",
+        "webpages/docs/content/papers/safety-and-deployment.md",
         "internal/llm/provider.go",
         "Beluga AI model-switching docs"
       ],
@@ -6570,7 +6570,7 @@
       "write_scope": [
         "internal/skills/hub_search.go",
         "internal/skills/hub_search_types_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills -run 'TestHubSearchResultZeroValue|TestInMemoryRegistryProviderSnapshot|TestInMemoryRegistryProviderUnavailable' -count=1",
@@ -6640,7 +6640,7 @@
       "write_scope": [
         "internal/skills/hub_search.go",
         "internal/skills/hub_search_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills -run 'TestHubSearchEmptyQueryReturnsEmptyEvidence|TestHubSearchSortsAndDedupes|TestHubSearchRegistryUnavailable|TestHubSearchNoResults' -count=1",
@@ -6714,7 +6714,7 @@
       "write_scope": [
         "internal/tools/mcp_oauth_store.go",
         "internal/tools/mcp_oauth_store_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestMCPOAuthStore_' -count=1",
@@ -6778,7 +6778,7 @@
       "write_scope": [
         "internal/tools/mcp_oauth_refresh.go",
         "internal/tools/mcp_oauth_refresh_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestRefreshMCPOAuth_' -count=1",
@@ -6824,7 +6824,7 @@
         "../hermes-agent/tools/mixture_of_agents_tool.py:_run_aggregator_model",
         "../hermes-agent/tools/mixture_of_agents_tool.py:_construct_aggregator_prompt",
         "../hermes-agent/tests/tools/test_mixture_of_agents_tool.py",
-        "docs/content/building-gormes/architecture_plan/progress.json:OpenRouter compatible-provider routing",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json:OpenRouter compatible-provider routing",
         "references/go-agent-os/adk-go/agent/workflowagents/parallelagent/agent.go",
         "references/go-agent-os/adk-go/agent/workflowagents/parallelagent/agent_test.go",
         "references/go-agent-os/nanobot/pkg/tools/flows.go",
@@ -6861,7 +6861,7 @@
         "internal/tools/mixture_of_agents_test.go",
         "internal/tools/registry.go",
         "internal/llm/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools ./internal/llm -run TestMixtureOfAgents -count=1",
@@ -6941,7 +6941,7 @@
         "internal/apiserver/cron_admin_read.go",
         "internal/apiserver/cron_admin_read_test.go",
         "internal/apiserver/jobs_compat_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/automation/cron -run 'TestStore_.*PartialLegacy' -count=1",
@@ -7127,7 +7127,7 @@
         "cmd/gormes/auth_command_test.go",
         "cmd/gormes/main.go",
         "internal/config/credential_pool.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestGormesAuth|^TestGormesLogin' -count=1",
@@ -7223,7 +7223,7 @@
         "internal/config/codex_oauth_state.go",
         "internal/config/google_oauth_state.go",
         "internal/config/anthropic_auth_state.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'Test(GormesAuthAddCodexOAuthStoresDeviceCodeCredential|RunCodexDeviceCodeLoginUsesHermesDeviceFlow)' -count=1",
@@ -7312,7 +7312,7 @@
         "internal/config/spotify_auth_state.go",
         "internal/config/spotify_auth_state_test.go",
         "internal/plugins/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestGormesAuthSpotify' -count=1",
@@ -7360,7 +7360,7 @@
         "../hermes-agent/hermes_cli/auth_commands.py:_render_pool_table",
         "../hermes-agent/hermes_cli/main.py:auth_parser",
         "internal/config/credential_pool.go",
-        "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
       ],
       "ready_when": [
         "Hermes auth command-tree manifest refresh is validated, so `auth` parser shape is row-classified.",
@@ -7392,7 +7392,7 @@
       "write_scope": [
         "cmd/gormes/auth.go",
         "cmd/gormes/auth_bare_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestAuthBare' -count=1",
@@ -7445,7 +7445,7 @@
         "internal/config/codex_oauth_state.go",
         "internal/config/anthropic_auth_state.go",
         "internal/config/google_oauth_state.go",
-        "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
       ],
       "ready_when": [
         "Hermes auth credential-pool command surface row provides shared list/redaction helpers.",
@@ -7482,7 +7482,7 @@
         "cmd/gormes/auth_status_command_test.go",
         "internal/cli/auth_status.go",
         "internal/cli/auth_status_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestAuthStatus' -count=1",
@@ -7526,8 +7526,8 @@
         "../hermes-agent/hermes_cli/auth.py:CODEX_VENDOR_CLI_ISOLATION_NOTE",
         "internal/config/codex_oauth_state.go",
         "internal/config/credential_pool.go",
-        "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md",
-        "docs/content/building-gormes/architecture_plan/codex-vendor-cli-isolation.md"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md",
+        "webpages/docs/content/building-gormes/architecture_plan/codex-vendor-cli-isolation.md"
       ],
       "ready_when": [
         "Hermes auth OAuth provider adapters row provides the injectable Codex device-code seam.",
@@ -7557,7 +7557,7 @@
         "cmd/gormes/auth.go",
         "cmd/gormes/auth_add_codex_strict_test.go",
         "internal/config/codex_oauth_state.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run '^TestAuthAddCodex' -count=1",
@@ -7598,7 +7598,7 @@
         "../hermes-agent/hermes_cli/auth.py:logout_command",
         "../hermes-agent/hermes_cli/auth_commands.py:auth_logout_command",
         "internal/config/credential_pool.go",
-        "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
       ],
       "ready_when": [
         "Hermes auth credential-pool command surface row exposes the underlying logout helper used by `auth logout`.",
@@ -7626,7 +7626,7 @@
         "cmd/gormes/logout.go",
         "cmd/gormes/logout_top_level_test.go",
         "cmd/gormes/main.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestLogoutTopLevel' -count=1",
@@ -7670,7 +7670,7 @@
         "hermes-agent/hermes_cli/auth.py:5323-5350 logout_command",
         "cmd/gormes/logout.go",
         "cmd/gormes/logout_top_level_test.go",
-        "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
       ],
       "ready_when": [
         "The completed `Gormes top-level logout provider shortcut` row owns the explicit provider allow-list and shared auth logout helper.",
@@ -7697,7 +7697,7 @@
       "write_scope": [
         "cmd/gormes/logout.go",
         "cmd/gormes/logout_top_level_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestLogoutTopLevel' -count=1",
@@ -7746,7 +7746,7 @@
         "../hermes-agent/hermes_cli/auth.py:3856+:_login_openai_codex",
         "internal/llm/model_registry.go",
         "internal/config/config.go:HermesCfg",
-        "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
       ],
       "ready_when": [
         "Provider endpoint/API-key root flags + runtime resolution row exposes the runtime model/provider override path.",
@@ -7790,7 +7790,7 @@
         "internal/cli/model_picker.go",
         "internal/cli/model_picker_test.go",
         "internal/llm/model_registry.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestModelPicker|^TestModelCommandDefaultPersist' -count=1",
@@ -7833,7 +7833,7 @@
         "cmd/gormes/model.go:173:promptModelChoice / cmd/gormes/model.go:169:defaultModelCatalogSuggestions (passes nil → no live catalog)",
         "internal/llm/picker_providers.go:24:ListPickerProviders / :7:PickerProvider (existing dynamic picker port)",
         "internal/gateway/model_picker.go, internal/tui/slash_model.go (existing consumers — reuse, do not fork)",
-        "docs/content/building-gormes/architecture_plan/progress.json:19063 (the static promptModelChoice seam this supersedes)",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json:19063 (the static promptModelChoice seam this supersedes)",
         "Completed prerequisites: 2.B.5 Gateway /model interactive provider/model picker; 4.D Model catalog cache + preferred-provider live merge; 5.O Gormes model interactive provider/model picker; 5.Q Native TUI /model slash command binding"
       ],
       "ready_when": [
@@ -7859,7 +7859,7 @@
         "cmd/gormes/model.go",
         "cmd/gormes/setup_model_picker_test.go",
         "internal/llm/picker_providers.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestSetupModelPicker|TestSetup.*Provider|TestRunSetupActiveProviderModelPicker' -count=1",
@@ -7930,7 +7930,7 @@
         "cmd/gormes/main.go",
         "cmd/gormes/hermes_cli_parity.go",
         "cmd/gormes/hermes_cli_parity_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestFallbackCommand|TestHermesCLIParityManifest.*Fallback|TestHermesCLIParityManifest$|TestHermesCLIParityManifestNestedParserInventoryMatchesHermes' -count=1",
@@ -8009,7 +8009,7 @@
         "internal/llm/http_client_health_test.go",
         "internal/config/config.go",
         "internal/config/config_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestProviderHTTPClient|TestNewGatewayHermesClient|TestTUIUsesCodexCredentialPoolWhenEndpointEmpty|TestTUIStartupDoesNotProbeProviderHealth' -count=1",
@@ -8076,7 +8076,7 @@
         "cmd/gormes/main.go",
         "cmd/gormes/oneshot_flags_test.go",
         "internal/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run TestOneshotFlags -count=1",
@@ -8146,7 +8146,7 @@
       "write_scope": [
         "internal/cli/custom_provider_secret.go",
         "internal/cli/custom_provider_secret_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run 'TestResolveCustomProviderSecret_' -count=1",
@@ -8216,7 +8216,7 @@
       "write_scope": [
         "internal/cli/custom_provider_model_switch.go",
         "internal/cli/custom_provider_model_switch_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run 'TestCustomProviderModelSwitchPatch_|TestResolveCustomProviderSecret_' -count=1",
@@ -8270,7 +8270,7 @@
         "../hermes-agent/gateway/config.py",
         "internal/config/config.go:loadHermesConfigYAML",
         "internal/config/config.go:ResolveInference",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Config command and provider overrides"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Config command and provider overrides"
       ],
       "ready_when": [
         "Hermes config.yaml bridge already loads the active Hermes profile before Gormes TOML/env/flag overrides.",
@@ -8288,8 +8288,8 @@
       "write_scope": [
         "internal/config/config.go",
         "internal/config/config_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
         "cmd/gormes/gateway.go",
         "cmd/gormes/gateway_test.go"
       ],
@@ -8361,7 +8361,7 @@
         "internal/llm/nous_oauth_test.go",
         "internal/config/credential_pool.go",
         "cmd/gormes/auth.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run TestNousOAuth -count=1",
@@ -8595,7 +8595,7 @@
       "degraded_mode": "When a provider catalog cannot be fetched or a credential is missing, readiness returns provider_models_unavailable or provider_credential_missing and keeps manual model entry available without live token use.",
       "fixture": "internal/provider/profile_provider_config_test.go",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#providers",
+        "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md#providers",
         "internal/llm/provider_registry_manifest.go",
         "internal/provider/",
         "cmd/gormes/setup_model.go",
@@ -8639,7 +8639,7 @@
         "internal/llm/provider_registry_manifest.go",
         "cmd/gormes/auth.go",
         "internal/cli/gormescli/modules/profiles/",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "cmd/gormes/model.go",
         "cmd/gormes/setup_profiles_tui.go",
@@ -8790,7 +8790,7 @@
         "internal/llm/curator_auxiliary_test.go",
         "internal/cli/model_picker.go",
         "cmd/gormes/model.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config ./internal/llm ./internal/cli ./cmd/gormes -run 'TestCuratorAuxiliarySlot|TestModelPicker|TestModelCommand' -count=1",
@@ -8832,7 +8832,7 @@
         "./deer-flow/backend/packages/harness/deerflow/sandbox/sandbox_provider.py",
         "internal/sandbox/sandbox.go",
         "internal/sandbox/paths.go",
-        "docs/content/building-gormes/development-skills/deerflow-pattern-theft.md"
+        "webpages/docs/content/building-gormes/development-skills/deerflow-pattern-theft.md"
       ],
       "ready_when": [
         "internal/tools/ has existing IsolationLevel, FilesystemScope, and EnvironmentContract — the sandbox provider wraps these rather than replacing them.",
@@ -8866,7 +8866,7 @@
         "internal/sandbox/paths_test.go",
         "internal/tools/",
         "internal/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/sandbox/... -count=1",
@@ -8943,7 +8943,7 @@
         "internal/persistence/session/",
         "internal/persistence/transcript/",
         "internal/persistence/store/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/persistence/session ./internal/persistence/transcript ./internal/persistence/store -run '^TestPicoClawSessionLedger_' -count=1",
@@ -9032,7 +9032,7 @@
         "internal/llm/picoclaw_provider_regression_test.go",
         "internal/llm/",
         "internal/provider/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run '^TestPicoClawProviderRegression_' -count=1",

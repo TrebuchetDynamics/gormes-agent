@@ -19,8 +19,8 @@
         "fixture": "internal/tools/secrets_test.go",
         "source_refs": [
           "openclaw secrets apply/audit/configure/reload CLI surface",
-          "docs/content/building-gormes/openclaw-platform-parity-audit.md",
-          "docs/content/building-gormes/fleet-operational-patterns.md"
+          "webpages/docs/content/building-gormes/openclaw-platform-parity-audit.md",
+          "webpages/docs/content/building-gormes/fleet-operational-patterns.md"
         ],
         "ready_when": [
           "Hermes credential/oauth store migration (5.O) is validated.",
@@ -43,7 +43,7 @@
           "internal/tools/secrets.go",
           "internal/tools/secrets_test.go",
           "cmd/gormes/secrets.go",
-          "docs/content/building-gormes/architecture_plan/progress.json"
+          "webpages/docs/content/building-gormes/architecture_plan/progress.json"
         ],
         "test_commands": [
           "go test ./internal/tools -run TestSecrets -count=1",
@@ -72,8 +72,8 @@
         "fixture": "internal/tools/security_audit_test.go",
         "source_refs": [
           "openclaw security audit --deep --fix --json CLI surface",
-          "docs/content/building-gormes/openclaw-platform-parity-audit.md",
-          "docs/content/building-gormes/must-have-features.md"
+          "webpages/docs/content/building-gormes/openclaw-platform-parity-audit.md",
+          "webpages/docs/content/building-gormes/must-have-features.md"
         ],
         "ready_when": [
           "Shell blocklist + filesystem scoping (5.J) is operational.",
@@ -95,7 +95,7 @@
           "internal/tools/security_audit.go",
           "internal/tools/security_audit_test.go",
           "cmd/gormes/security.go",
-          "docs/content/building-gormes/architecture_plan/progress.json"
+          "webpages/docs/content/building-gormes/architecture_plan/progress.json"
         ],
         "test_commands": [
           "go test ./internal/tools -run TestSecurityAudit -count=1",
@@ -126,7 +126,7 @@
         "source_refs": [
           "openclaw system event/heartbeat/presence CLI surface",
           "internal/audit/ (JSONL audit log)",
-          "docs/content/building-gormes/openclaw-platform-parity-audit.md"
+          "webpages/docs/content/building-gormes/openclaw-platform-parity-audit.md"
         ],
         "ready_when": [
           "Audit JSONL ledger (internal/audit/) is operational.",
@@ -149,7 +149,7 @@
           "internal/tools/system_events.go",
           "internal/tools/system_events_test.go",
           "cmd/gormes/system.go",
-          "docs/content/building-gormes/architecture_plan/progress.json"
+          "webpages/docs/content/building-gormes/architecture_plan/progress.json"
         ],
         "test_commands": [
           "go test ./internal/tools -run TestSystemEvents -count=1",
@@ -178,7 +178,7 @@
         "fixture": "internal/tools/gateway_discover_test.go",
         "source_refs": [
           "openclaw gateway discover/probe/usage-cost CLI surface",
-          "docs/content/building-gormes/openclaw-platform-parity-audit.md"
+          "webpages/docs/content/building-gormes/openclaw-platform-parity-audit.md"
         ],
         "ready_when": [
           "Gateway status and health commands are operational.",
@@ -200,7 +200,7 @@
           "internal/tools/gateway_discover.go",
           "internal/tools/gateway_discover_test.go",
           "cmd/gormes/gateway_discover.go",
-          "docs/content/building-gormes/architecture_plan/progress.json"
+          "webpages/docs/content/building-gormes/architecture_plan/progress.json"
         ],
         "test_commands": [
           "go test ./internal/tools -run TestGatewayDiscover -count=1",
@@ -230,7 +230,7 @@
         "source_refs": [
           "openclaw channels capabilities CLI surface",
           "internal/channels/* (adapter implementations)",
-          "docs/content/building-gormes/openclaw-platform-parity-audit.md"
+          "webpages/docs/content/building-gormes/openclaw-platform-parity-audit.md"
         ],
         "ready_when": [
           "Channel adapters expose capability metadata.",
@@ -252,7 +252,7 @@
           "internal/channels/capabilities.go",
           "internal/channels/capabilities_test.go",
           "cmd/gormes/channels_capabilities.go",
-          "docs/content/building-gormes/architecture_plan/progress.json"
+          "webpages/docs/content/building-gormes/architecture_plan/progress.json"
         ],
         "test_commands": [
           "go test ./internal/channels -run TestCapabilities -count=1",
@@ -283,7 +283,7 @@
         "source_refs": [
           "openclaw acp client CLI surface",
           "internal/protocols/acp/server_manifest_test.go",
-          "docs/content/building-gormes/openclaw-platform-parity-audit.md"
+          "webpages/docs/content/building-gormes/openclaw-platform-parity-audit.md"
         ],
         "ready_when": [
           "ACP server side (5.H) is validated — server manifest, auth, session, tools, permissions, events.",
@@ -307,7 +307,7 @@
           "internal/protocols/acp/client.go",
           "internal/protocols/acp/client_test.go",
           "cmd/gormes/acp.go",
-          "docs/content/building-gormes/architecture_plan/progress.json"
+          "webpages/docs/content/building-gormes/architecture_plan/progress.json"
         ],
         "test_commands": [
           "go test ./internal/protocols/acp -run TestClient -count=1",
@@ -338,7 +338,7 @@
         "source_refs": [
           "agent-zero helpers/extension.py (@extensible decorator)",
           "agent-zero agent.py (hook points)",
-          "docs/content/building-gormes/agent-zero-feature-analysis.md",
+          "webpages/docs/content/building-gormes/agent-zero-feature-analysis.md",
           "internal/kernel/kernel.go"
         ],
         "ready_when": [
@@ -362,7 +362,7 @@
         "write_scope": [
           "internal/kernel/extensions.go",
           "internal/kernel/extensions_test.go",
-          "docs/content/building-gormes/architecture_plan/progress.json"
+          "webpages/docs/content/building-gormes/architecture_plan/progress.json"
         ],
         "test_commands": [
           "go test ./internal/kernel -run TestExtensions -count=1",
@@ -393,7 +393,7 @@
         "source_refs": [
           "agent-zero prompts/ (72 fragment files)",
           "agent-zero agent.py:prepare_prompt",
-          "docs/content/building-gormes/agent-zero-feature-analysis.md"
+          "webpages/docs/content/building-gormes/agent-zero-feature-analysis.md"
         ],
         "ready_when": [
           "Extension lifecycle hooks (5.I) provide prompt_before/after hook points.",
@@ -417,7 +417,7 @@
           "internal/llm/prompt_fragments.go",
           "internal/llm/prompt_fragments_test.go",
           "prompts/*.md",
-          "docs/content/building-gormes/architecture_plan/progress.json"
+          "webpages/docs/content/building-gormes/architecture_plan/progress.json"
         ],
         "test_commands": [
           "go test ./internal/llm -run TestPromptFragments -count=1",

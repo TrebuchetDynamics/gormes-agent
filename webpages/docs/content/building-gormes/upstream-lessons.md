@@ -165,9 +165,9 @@ one donor file that already implements its shape:
 | Before/after callback pipeline | `trpc-agent-go/model/callbacks.go`, `trpc-agent-go/agent/callbacks.go` |
 
 Use the `gormes-references` skill
-(`docs/development-skills/gormes-references/SKILL.md`) for
+(`development-skills/gormes-references/SKILL.md`) for
 runtime/tools/memory/utility lookups and the `gormes-provider-parity` skill
-(`docs/development-skills/gormes-provider-parity/SKILL.md`) for
+(`development-skills/gormes-provider-parity/SKILL.md`) for
 provider/auth/streaming/quota/retry. Always add a `// Adapted from
 <donor>/...::Symbol` comment when porting code.
 

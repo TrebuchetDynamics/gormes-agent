@@ -66,7 +66,7 @@
         "../hermes-agent/hermes_state.py",
         "../hermes-agent/docs/developer-guide/session-storage.md",
         "../hermes-agent/tests/gateway/test_resume_command.py",
-        "docs/content/building-gormes/architecture_plan/phase-3-memory.md"
+        "webpages/docs/content/building-gormes/architecture_plan/phase-3-memory.md"
       ],
       "ready_when": [
         "internal/persistence/session.Metadata already persists source, chat_id, user_id, and updated_at on bbolt-backed sessions."
@@ -86,7 +86,7 @@
       "note": "Complete: internal/persistence/session.Metadata now persists parent_session_id plus lineage_kind, roots default to primary without a parent, BoltMap and MemMap reject self-parent and parent-chain loops, ResolveLineageTip walks append-only compression descendants without rewriting ancestor metadata, and SessionIndexMirror renders child/orphan lineage status for operator audit. Compression execution, gateway resume routing, and lineage-aware search remain separate dependent rows.",
       "write_scope": [
         "internal/persistence/session/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/persistence/session -count=1"
@@ -129,7 +129,7 @@
         "../hermes-agent/hermes_state.py",
         "../hermes-agent/docs/developer-guide/session-storage.md",
         "internal/memory/session_catalog.go",
-        "docs/content/building-gormes/architecture_plan/phase-3-memory.md"
+        "webpages/docs/content/building-gormes/architecture_plan/phase-3-memory.md"
       ],
       "ready_when": [
         "Session lineage metadata is persisted and can be queried from the session read model."
@@ -149,7 +149,7 @@
       "write_scope": [
         "internal/memory/",
         "internal/persistence/session/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/memory ./internal/persistence/session -count=1"
@@ -183,7 +183,7 @@
         "internal/memory/session_lineage_search_test.go",
         "internal/goncho/service.go",
         "cmd/gormes/goncho.go",
-        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
         "../honcho/docs/v3/documentation/features/advanced/search.mdx@e659b6b",
         "../honcho/docs/v3/documentation/features/advanced/using-filters.mdx@e659b6b"
       ],
@@ -207,7 +207,7 @@
         "internal/goncho/types.go",
         "internal/goncho/service.go",
         "internal/goncho/service_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run TestGonchoDoctorSearchEvidence -count=1",
@@ -298,7 +298,7 @@
       "source_refs": [
         "../hermes-agent/agent/context_compressor.py@5401a008",
         "../hermes-agent/tests/agent/test_context_compressor.py@5401a008",
-        "docs/content/upstream-hermes/developer-guide/context-compression-and-caching.md",
+        "webpages/docs/content/upstream-hermes/developer-guide/context-compression-and-caching.md",
         "internal/llm/context_engine.go",
         "internal/llm/model_context_resolver.go"
       ],
@@ -323,7 +323,7 @@
       "note": "Complete: TDD landed a pure internal/llm ContextCompressorBudget helper mirroring upstream Hermes 5401a008 budget recalculation. Fixtures prove 200K initialization, 200K to 32K model-window updates, summary_target_ratio clamping, the 64K minimum-context threshold floor, max_summary_tokens sizing, and unavailable degraded status for unknown model windows without kernel wiring, provider credentials, summarizer calls, or message-history mutation.",
       "write_scope": [
         "internal/llm/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -count=1"
@@ -398,7 +398,7 @@
         "internal/llm/context_compressor_headroom_test.go",
         "internal/llm/context_compressor_provider_cap_test.go",
         "internal/llm/context_compressor_single_prompt_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestContextCompressor(SinglePrompt|ProviderCap|Headroom|Budget)' -count=1",
@@ -472,7 +472,7 @@
       "write_scope": [
         "internal/llm/context_compressor_content.go",
         "internal/llm/context_compressor_content_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run '^TestCompressionContentLength_' -count=1",
@@ -548,7 +548,7 @@
         "internal/llm/context_compressor_content.go",
         "internal/llm/context_compressor_image_budget_test.go",
         "internal/llm/context_compressor_budget.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestCompressionContent(BudgetLength|Length)_' -count=1",
@@ -587,7 +587,7 @@
       "source_refs": [
         "../hermes-agent/agent/context_references.py",
         "../hermes-agent/tests/agent/test_context_references.py",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Context references",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Context references",
         "internal/llm/context_references.go",
         "internal/contextrefs/refs.go",
         "internal/persistence/transcript/refs.go"
@@ -622,9 +622,9 @@
         "internal/contextrefs/refs.go",
         "internal/persistence/transcript/refs.go",
         "internal/persistence/transcript/refs_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
       ],
       "test_commands": [
         "go test ./internal/llm -run ContextReferences -count=1",
@@ -724,7 +724,7 @@
         "internal/llm/manual_compression_feedback.go",
         "internal/llm/manual_compression_feedback_test.go",
         "internal/llm/context_engine.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run '^TestManualCompression|^TestParseManualCompression' -count=1",
@@ -799,7 +799,7 @@
         "internal/llm/context_engine_test.go",
         "internal/llm/context_engine_boundary_test.go",
         "internal/llm/testdata/context_status/disabled_pressure_unknown_tool.json",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'Test.*ContextEngine.*Boundary|TestDisabledContextEngine_StatusToolFixture|TestContextStatusFixtures' -count=1",
@@ -875,7 +875,7 @@
         "internal/kernel/kernel.go",
         "internal/kernel/contextengine_test.go",
         "internal/kernel/compression_boundary_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kernel -run 'Test.*CompressionBoundary|Test.*ContextEngine' -count=1",
@@ -947,7 +947,7 @@
       "write_scope": [
         "internal/kernel/kernel.go",
         "internal/kernel/contextengine_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kernel -run 'TestKernel_ResetSession_NotifiesContextEngineSessionEndBeforeReset|TestKernel_ResetSession_ContextEngineSessionEndFailureStillResets|TestKernel_ResetSession_IdleSucceeds' -count=1",
@@ -1106,7 +1106,7 @@
       "write_scope": [
         "internal/llm/title_generator.go",
         "internal/llm/title_generator_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run '^TestTitle' -count=1",
@@ -1180,7 +1180,7 @@
         "internal/llm/title_generator_test.go",
         "internal/kernel/title_failure_test.go",
         "internal/gateway/title_failure_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm ./internal/kernel ./internal/gateway -run '^TestTitleFailure' -count=1",
@@ -1250,7 +1250,7 @@
         "internal/persistence/session/auto_title.go",
         "internal/persistence/session/auto_title_test.go",
         "internal/persistence/transcript/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/persistence/session ./internal/persistence/transcript -run '^TestAutoTitleSession_' -count=1",
@@ -1315,7 +1315,7 @@
         "internal/tui/model.go",
         "internal/tui/update.go",
         "internal/tui/busy_input_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli ./internal/tui -count=1"
@@ -1384,7 +1384,7 @@
         "internal/persistence/session/directory.go",
         "internal/persistence/session/mru_test.go",
         "internal/persistence/session/store.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestSessions|TestCoalesceSessionArgs' -count=1",
@@ -1502,7 +1502,7 @@
         "operator"
       ],
       "source_refs": [
-        "docs/content/papers/agent-memory-systems.md",
+        "webpages/docs/content/papers/agent-memory-systems.md",
         "Generative Agents memory stream (Park et al. 2023)",
         "Hermes Agent MEMORY.md persistence model",
         "internal/goncho/session.go",
@@ -1529,7 +1529,7 @@
         "internal/goncho/contradiction_detector.go",
         "internal/goncho/local_markdown_memory.go",
         "internal/goncho/memory_tools.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho -run TestCrossSession -count=1",
@@ -1558,7 +1558,7 @@
         "operator"
       ],
       "source_refs": [
-        "docs/content/papers/agentic-os-design.md",
+        "webpages/docs/content/papers/agentic-os-design.md",
         "Hermes Agent GEPA engine",
         "Generative Agents reflection mechanism (Park et al. 2023)",
         "internal/audit/jsonl.go",

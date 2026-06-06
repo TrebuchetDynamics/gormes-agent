@@ -11,7 +11,7 @@
 //   - Configurable path (respects memory.mirror_path)
 //   - Default sync interval: 30s
 //
-// See docs/superpowers/specs/2026-04-20-gormes-phase3d5-mirror-design.md.
+// See webpages/docs/superpowers/specs/2026-04-20-gormes-phase3d5-mirror-design.md.
 package mirror
 
 import (

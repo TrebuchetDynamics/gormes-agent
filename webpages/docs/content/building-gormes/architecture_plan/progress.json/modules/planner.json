@@ -19,7 +19,7 @@
       "degraded_mode": "Planner callers using the old wrapper names continue to exec the renamed planner-tasks manager instead of failing before a run can start.",
       "fixture": "internal/plannerloopagent_test.go",
       "source_refs": [
-        "docs/superpowers/plans/orchestration-planner/2026-04-23-gormes-architecture-task-manager-script.md",
+        "webpages/docs/superpowers/plans/orchestration-planner/2026-04-23-gormes-architecture-task-manager-script.md",
         "scripts/gormes-architecture-planner-tasks-manager.sh",
         "scripts/gormes-architecture-task-manager.sh",
         "scripts/architectureplanneragent.sh"
@@ -38,7 +38,7 @@
         "scripts/gormes-architecture-task-manager.sh",
         "scripts/architectureplanneragent.sh",
         "internal/progress/progress_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "bash -n scripts/gormes-architecture-planner-tasks-manager.sh",
@@ -71,7 +71,7 @@
       "degraded_mode": "Rows that resist planner reshapes are marked needs_human and removed from default autoloop selection instead of silently cycling.",
       "fixture": "internal/plannerloop/lifecycle_test.go",
       "source_refs": [
-        "docs/superpowers/specs/2026-04-24-planner-self-healing-design.md",
+        "webpages/docs/superpowers/specs/2026-04-24-planner-self-healing-design.md",
         "internal/plannerloop/verdict.go",
         "internal/plannerloop/evaluation.go",
         "internal/plannerloop/retry.go",
@@ -96,7 +96,7 @@
         "internal/plannerloop/",
         "internal/builderloop/",
         "internal/progress/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/plannerloop ./internal/builderloop ./internal/progress -count=1"
@@ -130,7 +130,7 @@
       "degraded_mode": "Planner status reports porting/converged/owned buckets and recent promotions so Gormes-original surfaces stop receiving fabricated upstream refs.",
       "fixture": "internal/plannerloop/divergence_lifecycle_test.go",
       "source_refs": [
-        "docs/superpowers/specs/2026-04-25-planner-divergence-awareness-design.md",
+        "webpages/docs/superpowers/specs/2026-04-25-planner-divergence-awareness-design.md",
         "internal/progress/health.go",
         "internal/plannerloop/implscan.go",
         "internal/plannerloop/drift.go",
@@ -144,14 +144,14 @@
       ],
       "acceptance": [
         "Provenance and DriftState round-trip through progress and survive autoloop writes.",
-        "Implementation inventory lists Gormes-original paths under internal/builderloop, internal/plannerloop, internal/plannertriggers, cmd/progress, cmd/repoctl, and progress health schema.",
+        "Implementation inventory lists Gormes-original paths under internal/builderloop, internal/plannerloop, internal/plannertriggers, cmd/progress, cmd/gormes-repo, and progress health schema.",
         "Status output buckets drift states and records forward-only drift promotions."
       ],
       "note": "Complete: progress now has typed Provenance and DriftState blocks; architectureplanner scans Gormes-original cmd/internal paths, injects implementation inventory and drift-state guidance into prompts, records forward drift promotions, and renders drift-state status buckets without treating owned surfaces as upstream-led.",
       "write_scope": [
         "internal/progress/",
         "internal/plannerloop/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/progress ./internal/plannerloop -count=1"
@@ -184,10 +184,10 @@
         "system"
       ],
       "degraded_mode": "If exact review evidence is unavailable, agents must stop and ask for reviewer text, PR/check URLs, file paths, command output, or copied review logs before shaping rows.",
-      "fixture": "docs/development-skills/gormes-planner/SKILL.md::external review ingestion + docs/development-skills/gormes-review-loop/SKILL.md::target gate capture",
+      "fixture": "development-skills/gormes-planner/SKILL.md::external review ingestion + development-skills/gormes-review-loop/SKILL.md::target gate capture",
       "source_refs": [
-        "docs/development-skills/gormes-planner/SKILL.md",
-        "docs/development-skills/gormes-review-loop/SKILL.md",
+        "development-skills/gormes-planner/SKILL.md",
+        "development-skills/gormes-review-loop/SKILL.md",
         "references/skill-routing.md",
         "AGENTS.md",
         "webpages/docs/content/building-gormes/strategy/pi-agent-study.md#most-useful-tips-for-gormes"
@@ -209,8 +209,8 @@
         "The workflow preserves progress.json as the only backlog and rejects review side queues."
       ],
       "write_scope": [
-        "docs/development-skills/gormes-planner/SKILL.md",
-        "docs/development-skills/gormes-review-loop/SKILL.md",
+        "development-skills/gormes-planner/SKILL.md",
+        "development-skills/gormes-review-loop/SKILL.md",
         "references/skill-routing.md",
         "AGENTS.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
@@ -260,7 +260,7 @@
         "system"
       ],
       "degraded_mode": "Unmapped upstream behavior is reported as parity_unmapped with upstream path, Gormes package, and proposed row instead of being hidden in prose.",
-      "fixture": "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+      "fixture": "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
       "source_refs": [
         "../hermes-agent/run_agent.py",
         "../hermes-agent/agent/",
@@ -272,9 +272,9 @@
         "../honcho/src/",
         "../honcho/docs/v3/",
         "../honcho/sdks/",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "ready_when": [
         "Upstream hermes-agent is available as ../hermes-agent or the planner pass records the exact missing source.",
@@ -297,20 +297,20 @@
       ],
       "note": "Updated in the 2026-04-28 gormes-planner swarm pass: hermes-honcho-go-runtime-plan.md now reconciles the feature map, source-class ledger, swarm audit, nested coverage matrix, package ownership, classifications, dependency order, and row split candidates for Hermes/Honcho-to-Go implementation.",
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
-        "docs/content/building-gormes/architecture_plan/subsystem-inventory.md",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/_index.md",
-        "docs/content/building-gormes/_index.md",
-        "docs/content/building-gormes/architecture_plan/completion-plan.md",
-        "docs/content/building-gormes/architecture_plan/lane-roadmap.md"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/_index.md",
+        "webpages/docs/content/building-gormes/_index.md",
+        "webpages/docs/content/building-gormes/architecture_plan/completion-plan.md",
+        "webpages/docs/content/building-gormes/architecture_plan/lane-roadmap.md"
       ],
       "test_commands": [
         "go run ./cmd/progress write",
         "go run ./cmd/progress validate",
         "go test ./docs -run 'TestUpstreamCoverageLedgerMatchesSourceClasses|TestNestedUpstreamFeatureCoverage' -count=1",
-        "go test ./docs -count=1"
+        "go test ./webpages/docs -count=1"
       ],
       "done_signal": [
         "Hermes/Honcho runtime-plan docs make the remaining normal-turn, provider, CLI/API, tool, gateway, plugin, Goncho memory, SDK, and operator-command gaps visible with Go targets, classifications, proof gates, and row split candidates."
@@ -340,7 +340,7 @@
         "system"
       ],
       "degraded_mode": "If an upstream source class is missing from the ledger or lacks a feature-map/progress anchor, parity auditors report parity_unmapped and send the work to gormes-planner before builder selection.",
-      "fixture": "docs/upstream_coverage_test.go::TestUpstreamCoverageLedgerMatchesSourceClasses",
+      "fixture": "webpages/docs/upstream_coverage_test.go::TestUpstreamCoverageLedgerMatchesSourceClasses",
       "source_refs": [
         "../hermes-agent/run_agent.py",
         "../hermes-agent/agent/",
@@ -357,10 +357,10 @@
         "../honcho/sdks/",
         "../honcho/mcp/",
         "../honcho/honcho-cli/",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
-        "docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
-        "docs/upstream_coverage_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+        "webpages/docs/upstream_coverage_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "ready_when": [
         "Upstream hermes-agent and honcho checkouts are available as sibling repos or the planner records the exact missing source.",
@@ -381,19 +381,19 @@
       ],
       "note": "Complete in the 2026-04-28 gormes-planner pass and hardened with docs test coverage: Upstream Coverage Ledger plus TestUpstreamCoverageLedgerMatchesSourceClasses tell future parity audits whether every feature-bearing Hermes/Honcho source class is mapped, planned, owned, or excluded instead of relying on broad feature prose.",
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
-        "docs/upstream_coverage_test.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
-        "docs/content/building-gormes/architecture_plan/completion-plan.md",
-        "docs/content/building-gormes/architecture_plan/_index.md",
-        "docs/content/building-gormes/_index.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+        "webpages/docs/upstream_coverage_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/completion-plan.md",
+        "webpages/docs/content/building-gormes/architecture_plan/_index.md",
+        "webpages/docs/content/building-gormes/_index.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go run ./cmd/progress write",
         "go run ./cmd/progress validate",
         "go test ./docs -run TestUpstreamCoverageLedgerMatchesSourceClasses -count=1",
-        "go test ./docs -count=1"
+        "go test ./webpages/docs -count=1"
       ],
       "done_signal": [
         "A planner can answer whether Hermes/Honcho mapping is complete by checking that the upstream coverage ledger has no unmapped feature-bearing source class."
@@ -451,7 +451,7 @@
       "write_scope": [
         "internal/plannerloop/autoloop_audit.go",
         "internal/plannerloop/autoloop_audit_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/plannerloop -run 'TestSubphaseFromTaskEmptyReturnsControlPlane|TestSummarizeAutoloopAuditBlankBucket|TestSummarizeAutoloopAuditPreservesNamedRows|TestControlPlaneSubphaseIDExported' -count=1",
@@ -499,7 +499,7 @@
         "../hermes-agent/hermes_cli/auth_commands.py:423-442",
         "cmd/gormes/auth.go:runAuthAddCommand",
         "cmd/gormes/auth_command_test.go:TestGormesAuthAddBedrockRefusesCredentialPoolMutation",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Credential pool, token vault, and auth commands"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Credential pool, token vault, and auth commands"
       ],
       "ready_when": [
         "Hermes upstream evidence confirms Bedrock is not a credential-pool `auth add` provider and uses the AWS SDK credential chain in the bare auth readout.",
@@ -519,7 +519,7 @@
       "write_scope": [
         "cmd/gormes/auth.go",
         "cmd/gormes/auth_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run '^TestGormesAuthAddBedrockRefusesCredentialPoolMutation$' -count=1",
@@ -594,7 +594,7 @@
         "internal/cli/update_release_plan.go",
         "internal/cli/update_release_plan_test.go",
         "internal/cli/update_lifecycle.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes ./internal/cli -run 'TestUpdateReleasePlanner|TestUpdateCommandReleaseDryRun|TestUpdateCommandCheck' -count=1",

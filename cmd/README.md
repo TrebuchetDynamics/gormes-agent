@@ -9,7 +9,7 @@ Run commands from the repository root.
 |---|---|---|
 | `gormes` | User-facing runtime and TUI. | `go run ./cmd/gormes --offline` |
 | `progress` | Validates `progress.json` and regenerates progress-driven docs/site data. | `go run ./cmd/progress validate` |
-| `repoctl` | Updates repo metadata such as benchmark and README data. | `go run ./cmd/repoctl benchmark record` |
+| `gormes-repo` | Updates repo metadata such as benchmark and README data. | `go run ./cmd/gormes-repo benchmark record` |
 
 The old autonomous `builder-loop` and `planner-loop` command directories were
 removed. Planning and building now happen through repo-local skills under
@@ -39,7 +39,7 @@ make build
 Update README benchmark text from `benchmarks.json`:
 
 ```sh
-go run ./cmd/repoctl readme update
+go run ./cmd/gormes-repo readme update
 ```
 
 ## Build Integration

@@ -31,6 +31,10 @@ func TestUninstall_RemovesLegacyXDGDataHomeArtifacts(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", xdgData)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "xdg-config"))
 	t.Setenv("HERMES_HOME", filepath.Join(root, "hermes-home"))
+	// This test verifies path enumeration/removal, not the default freedesktop
+	// trash integration. Force purge keeps GIO from creating gvfs-metadata under
+	// the temp XDG_DATA_HOME and racing t.TempDir cleanup.
+	t.Setenv("GORMES_UNINSTALL_FORCE_PURGE", "1")
 
 	// Seed the legacy XDG_DATA_HOME/gormes/ tree exactly the way old
 	// (<= 4cc864e80~1) binaries left it.
@@ -97,6 +101,7 @@ func TestUninstallDryRun_ListsLegacyXDGDataHomeArtifacts(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", xdgData)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "xdg-config"))
 	t.Setenv("HERMES_HOME", filepath.Join(root, "hermes-home"))
+	t.Setenv("GORMES_UNINSTALL_FORCE_PURGE", "1")
 
 	legacy := filepath.Join(xdgData, "gormes")
 	if err := os.MkdirAll(legacy, 0o755); err != nil {
