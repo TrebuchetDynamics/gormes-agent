@@ -67,18 +67,20 @@ func ClampContextPercent(pct float64) float64 {
 // percentage with severity-based coloring semantics. It returns a 10-character
 // string like "████░░░░░░" for 40%.
 func RenderContextBar(pct float64) string {
+	filled := contextBarFilledCells(pct)
+	return strings.Repeat("█", filled) + strings.Repeat("░", ContextBarWidth-filled)
+}
+
+func contextBarFilledCells(pct float64) int {
 	pct = ClampContextPercent(pct)
-
-	width := ContextBarWidth
-	filled := int((pct / 100) * float64(width))
+	filled := int((pct/100)*float64(ContextBarWidth) + 0.5)
 	if filled < 0 {
-		filled = 0
+		return 0
 	}
-	if filled > width {
-		filled = width
+	if filled > ContextBarWidth {
+		return ContextBarWidth
 	}
-
-	return strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
+	return filled
 }
 
 // ContextBarSeverity returns the severity level for a given percentage.

@@ -156,21 +156,8 @@ func hermesEffortLabel(effort string) string {
 }
 
 func HermesContextBar(percent int) string {
-	if percent < 0 {
-		percent = 0
-	}
-	if percent > 100 {
-		percent = 100
-	}
-	const width = 10
-	filled := int((float64(percent)/100)*width + 0.5)
-	if filled < 0 {
-		filled = 0
-	}
-	if filled > width {
-		filled = width
-	}
-	return strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
+	filled := contextBarFilledCells(float64(percent))
+	return strings.Repeat("█", filled) + strings.Repeat("░", ContextBarWidth-filled)
 }
 
 func HermesDurationLabel(seconds int64) string {

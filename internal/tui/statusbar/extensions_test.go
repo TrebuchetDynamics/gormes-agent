@@ -85,6 +85,16 @@ func TestRenderContextBar(t *testing.T) {
 	}
 }
 
+func TestRenderContextBarMatchesHermesFillPolicy(t *testing.T) {
+	for _, pct := range []int{0, 5, 6, 49, 50, 94, 95, 100} {
+		got := RenderContextBar(float64(pct))
+		want := HermesContextBar(pct)
+		if got != want {
+			t.Fatalf("RenderContextBar(%d) = %q, want HermesContextBar(%d) %q", pct, got, pct, want)
+		}
+	}
+}
+
 func TestRenderContextBarWithLabelUsesClampedPercent(t *testing.T) {
 	for _, tt := range []struct {
 		name string
