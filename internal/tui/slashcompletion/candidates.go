@@ -36,6 +36,13 @@ type slashCompletionCandidate struct {
 	ArgumentHint string
 }
 
+type candidateAdmission struct {
+	Identity  completionIdentity
+	Accepted  bool
+	Empty     bool
+	Duplicate bool
+}
+
 type slashCompletionCandidatePlan struct {
 	Completions   []Completion
 	EmptyDropped  int
@@ -53,19 +60,18 @@ func planSlashCompletionCandidates(prefix completionPrefix, candidates []slashCo
 	seen := make(map[string]struct{}, len(candidates))
 	plan := slashCompletionCandidatePlan{Completions: make([]Completion, 0, len(candidates))}
 	for _, candidate := range candidates {
-		identity := newCompletionIdentity(candidate.Name)
-		if !identity.valid() {
+		admission := admitCompletionCandidate(candidate.Name, prefix, seen)
+		if admission.Empty {
 			plan.EmptyDropped++
 			continue
 		}
-		if !prefix.matches(identity.Name) {
+		if admission.Duplicate {
+			plan.DuplicateKeys = append(plan.DuplicateKeys, admission.Identity.Key)
 			continue
 		}
-		if _, ok := seen[identity.Key]; ok {
-			plan.DuplicateKeys = append(plan.DuplicateKeys, identity.Key)
+		if !admission.Accepted {
 			continue
 		}
-		seen[identity.Key] = struct{}{}
 		plan.Completions = append(plan.Completions, Completion{
 			Name:         candidate.Name,
 			Display:      candidate.Display,
@@ -75,6 +81,21 @@ func planSlashCompletionCandidates(prefix completionPrefix, candidates []slashCo
 		})
 	}
 	return finishSlashCompletionCandidatePlan(plan)
+}
+
+func admitCompletionCandidate(rawName string, prefix completionPrefix, seen map[string]struct{}) candidateAdmission {
+	identity := newCompletionIdentity(rawName)
+	if !identity.valid() {
+		return candidateAdmission{Identity: identity, Empty: true}
+	}
+	if !prefix.matches(identity.Name) {
+		return candidateAdmission{Identity: identity}
+	}
+	if _, ok := seen[identity.Key]; ok {
+		return candidateAdmission{Identity: identity, Duplicate: true}
+	}
+	seen[identity.Key] = struct{}{}
+	return candidateAdmission{Identity: identity, Accepted: true}
 }
 
 func finishSlashCompletionCandidatePlan(plan slashCompletionCandidatePlan) slashCompletionCandidatePlan {

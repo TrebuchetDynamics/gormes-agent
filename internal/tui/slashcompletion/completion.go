@@ -206,20 +206,19 @@ func planMatchingSubcommandCandidates(subcommands []string, prefix completionPre
 	seen := make(map[string]struct{}, len(subcommands))
 	plan := subcommandCandidatePlan{Candidates: make([]subcommandCandidate, 0, len(subcommands))}
 	for _, sub := range subcommands {
-		identity := newCompletionIdentity(sub)
-		if !identity.valid() {
+		admission := admitCompletionCandidate(sub, prefix, seen)
+		if admission.Empty {
 			plan.EmptyDropped++
 			continue
 		}
-		if !prefix.matches(identity.Name) {
+		if admission.Duplicate {
+			plan.DuplicateKeys = append(plan.DuplicateKeys, admission.Identity.Key)
 			continue
 		}
-		if _, ok := seen[identity.Key]; ok {
-			plan.DuplicateKeys = append(plan.DuplicateKeys, identity.Key)
+		if !admission.Accepted {
 			continue
 		}
-		seen[identity.Key] = struct{}{}
-		plan.Candidates = append(plan.Candidates, subcommandCandidate{name: identity.Name, key: identity.Key})
+		plan.Candidates = append(plan.Candidates, subcommandCandidate{name: admission.Identity.Name, key: admission.Identity.Key})
 	}
 	if plan.empty() {
 		plan.Candidates = nil

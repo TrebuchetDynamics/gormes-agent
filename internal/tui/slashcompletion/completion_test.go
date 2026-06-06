@@ -159,6 +159,22 @@ func TestSkillCompletionsDeduplicateCaseInsensitiveNames(t *testing.T) {
 	}
 }
 
+func TestCandidateAdmissionExposesDroppedDuplicateAndPrefixFlow(t *testing.T) {
+	seen := map[string]struct{}{}
+	if got := admitCompletionCandidate("   ", newCompletionPrefix("rev"), seen); !got.Empty || got.Accepted || got.Duplicate || len(seen) != 0 {
+		t.Fatalf("admitCompletionCandidate empty = %#v with seen %#v, want empty only and no seen mutation", got, seen)
+	}
+	if got := admitCompletionCandidate("Review", newCompletionPrefix("he"), seen); got.Empty || got.Accepted || got.Duplicate || len(seen) != 0 {
+		t.Fatalf("admitCompletionCandidate prefix miss = %#v with seen %#v, want inert miss and no seen mutation", got, seen)
+	}
+	if got := admitCompletionCandidate("Review", newCompletionPrefix("rev"), seen); !got.Accepted || got.Identity.Key != "review" || len(seen) != 1 {
+		t.Fatalf("admitCompletionCandidate accepted = %#v with seen %#v, want accepted review", got, seen)
+	}
+	if got := admitCompletionCandidate("/review", newCompletionPrefix("rev"), seen); !got.Duplicate || got.Identity.Key != "review" || got.Accepted {
+		t.Fatalf("admitCompletionCandidate duplicate = %#v, want duplicate review", got)
+	}
+}
+
 func TestDynamicCompletionPlansExposeDroppedCandidates(t *testing.T) {
 	catalog := prompttemplates.Catalog{Templates: []prompttemplates.Template{
 		{Name: " Review ", Description: "first", ArgumentHint: "<scope>"},
