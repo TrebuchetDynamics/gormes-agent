@@ -53,19 +53,19 @@ func planSlashCompletionCandidates(prefix completionPrefix, candidates []slashCo
 	seen := make(map[string]struct{}, len(candidates))
 	plan := slashCompletionCandidatePlan{Completions: make([]Completion, 0, len(candidates))}
 	for _, candidate := range candidates {
-		key := completionKey(candidate.Name)
-		if key == "" {
+		identity := newCompletionIdentity(candidate.Name)
+		if !identity.valid() {
 			plan.EmptyDropped++
 			continue
 		}
-		if !prefix.matches(candidate.Name) {
+		if !prefix.matches(identity.Name) {
 			continue
 		}
-		if _, ok := seen[key]; ok {
-			plan.DuplicateKeys = append(plan.DuplicateKeys, key)
+		if _, ok := seen[identity.Key]; ok {
+			plan.DuplicateKeys = append(plan.DuplicateKeys, identity.Key)
 			continue
 		}
-		seen[key] = struct{}{}
+		seen[identity.Key] = struct{}{}
 		plan.Completions = append(plan.Completions, Completion{
 			Name:         candidate.Name,
 			Display:      candidate.Display,
@@ -106,16 +106,16 @@ func planUniqueCompletions(candidates []Completion) uniqueCompletionPlan {
 	out := make([]Completion, 0, len(candidates))
 	plan := uniqueCompletionPlan{}
 	for _, c := range candidates {
-		key := completionKey(c.Name)
-		if key == "" {
+		identity := newCompletionIdentity(c.Name)
+		if !identity.valid() {
 			plan.EmptyDropped++
 			continue
 		}
-		if _, ok := seen[key]; ok {
-			plan.DuplicateKeys = append(plan.DuplicateKeys, key)
+		if _, ok := seen[identity.Key]; ok {
+			plan.DuplicateKeys = append(plan.DuplicateKeys, identity.Key)
 			continue
 		}
-		seen[key] = struct{}{}
+		seen[identity.Key] = struct{}{}
 		out = append(out, c)
 	}
 	plan.Completions = out

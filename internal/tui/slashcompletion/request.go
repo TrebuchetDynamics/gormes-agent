@@ -25,8 +25,22 @@ type completionInputParts struct {
 
 type completionPrefix string
 
+type completionIdentity struct {
+	Name string
+	Key  string
+}
+
+func newCompletionIdentity(raw string) completionIdentity {
+	name := completionName(raw)
+	return completionIdentity{Name: name, Key: strings.ToLower(name)}
+}
+
+func (id completionIdentity) valid() bool {
+	return id.Key != ""
+}
+
 func newCompletionPrefix(raw string) completionPrefix {
-	return completionPrefix(completionKey(raw))
+	return completionPrefix(newCompletionIdentity(raw).Key)
 }
 
 func newSubcommandPrefix(raw string) completionPrefix {
@@ -116,5 +130,5 @@ func trimCompletionSlashPrefix(name string) string {
 }
 
 func completionKey(name string) string {
-	return strings.ToLower(completionName(name))
+	return newCompletionIdentity(name).Key
 }

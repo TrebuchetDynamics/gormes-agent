@@ -518,6 +518,19 @@ func TestResolveSubcommandFlowCentralizesPolicyGate(t *testing.T) {
 	}
 }
 
+func TestCompletionIdentityCentralizesNameKeyNormalization(t *testing.T) {
+	identity := newCompletionIdentity(" / /Review ")
+	want := completionIdentity{Name: "Review", Key: "review"}
+	if identity != want || !identity.valid() {
+		t.Fatalf("newCompletionIdentity = %#v, want %#v and valid", identity, want)
+	}
+
+	empty := newCompletionIdentity(" / / ")
+	if empty.valid() || empty != (completionIdentity{}) {
+		t.Fatalf("newCompletionIdentity(empty slash prefix) = %#v, want invalid zero identity", empty)
+	}
+}
+
 func TestCompletionPrefixesNormalizeBeforeMatching(t *testing.T) {
 	commandPrefix := newCompletionPrefix(" /REV ")
 	if !commandPrefix.matches("Review") || commandPrefix.matches("help") {

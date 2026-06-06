@@ -91,20 +91,20 @@ func (p *commandCompletionPlan) recordCandidateResult(result commandCompletionCa
 }
 
 func addCommandCompletionHit(seen map[string]commandCompletionHit, prefix completionPrefix, rawName string, entry cli.CommandPolicy, canonical bool) commandCompletionCandidateResult {
-	name := completionKey(rawName)
-	if name == "" {
+	identity := newCompletionIdentity(rawName)
+	if !identity.valid() {
 		return commandCompletionCandidateResult{EmptyDropped: true}
 	}
-	if !prefix.matches(name) {
+	if !prefix.matches(identity.Name) {
 		return commandCompletionCandidateResult{}
 	}
-	if existing, ok := seen[name]; ok {
+	if existing, ok := seen[identity.Key]; ok {
 		if shouldReplaceCommandCompletionHit(existing, canonical) {
-			seen[name] = commandCompletionHit{name: name, entry: entry, canonical: canonical}
+			seen[identity.Key] = commandCompletionHit{name: identity.Key, entry: entry, canonical: canonical}
 		}
-		return commandCompletionCandidateResult{DuplicateKey: name}
+		return commandCompletionCandidateResult{DuplicateKey: identity.Key}
 	}
-	seen[name] = commandCompletionHit{name: name, entry: entry, canonical: canonical}
+	seen[identity.Key] = commandCompletionHit{name: identity.Key, entry: entry, canonical: canonical}
 	return commandCompletionCandidateResult{}
 }
 
@@ -206,21 +206,20 @@ func planMatchingSubcommandCandidates(subcommands []string, prefix completionPre
 	seen := make(map[string]struct{}, len(subcommands))
 	plan := subcommandCandidatePlan{Candidates: make([]subcommandCandidate, 0, len(subcommands))}
 	for _, sub := range subcommands {
-		name := completionName(sub)
-		key := completionKey(name)
-		if key == "" {
+		identity := newCompletionIdentity(sub)
+		if !identity.valid() {
 			plan.EmptyDropped++
 			continue
 		}
-		if !prefix.matches(name) {
+		if !prefix.matches(identity.Name) {
 			continue
 		}
-		if _, ok := seen[key]; ok {
-			plan.DuplicateKeys = append(plan.DuplicateKeys, key)
+		if _, ok := seen[identity.Key]; ok {
+			plan.DuplicateKeys = append(plan.DuplicateKeys, identity.Key)
 			continue
 		}
-		seen[key] = struct{}{}
-		plan.Candidates = append(plan.Candidates, subcommandCandidate{name: name, key: key})
+		seen[identity.Key] = struct{}{}
+		plan.Candidates = append(plan.Candidates, subcommandCandidate{name: identity.Name, key: identity.Key})
 	}
 	if plan.empty() {
 		plan.Candidates = nil
@@ -305,9 +304,9 @@ func commandAutoSuggestPlanFor(word string) commandAutoSuggestPlan {
 }
 
 func addAutoSuggestMatch(seen map[string]struct{}, word, rawName string) {
-	name := completionKey(rawName)
-	if strings.HasPrefix(name, word) {
-		seen[name] = struct{}{}
+	identity := newCompletionIdentity(rawName)
+	if strings.HasPrefix(identity.Key, word) {
+		seen[identity.Key] = struct{}{}
 	}
 }
 
