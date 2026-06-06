@@ -78,6 +78,18 @@ func TestAcceptedText(t *testing.T) {
 	}
 }
 
+func TestAcceptedTextNormalizesSlashPrefixedCompletionNames(t *testing.T) {
+	got, ok := AcceptedText("/rev", Completion{Name: " /review ", ArgumentHint: "<scope>"}, true)
+	if !ok || got != "/review " {
+		t.Fatalf("AcceptedText with slash-prefixed completion = (%q, %v), want /review space true", got, ok)
+	}
+
+	got, ok = AcceptedText("/sk", Completion{Name: " /skin "}, true)
+	if !ok || got != "/skin" {
+		t.Fatalf("AcceptedText with slash-prefixed no-space command = (%q, %v), want /skin true", got, ok)
+	}
+}
+
 func TestAcceptedTextPlanExposesCompletionPath(t *testing.T) {
 	cases := []struct {
 		name        string

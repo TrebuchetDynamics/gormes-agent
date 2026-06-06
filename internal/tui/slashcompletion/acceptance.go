@@ -27,7 +27,7 @@ func AcceptedText(input string, completion Completion, acceptExact bool) (string
 }
 
 func planAcceptedText(input string, completion Completion, acceptExact bool) acceptedTextPlan {
-	name := strings.TrimSpace(strings.TrimPrefix(completion.Name, "/"))
+	name := acceptedCompletionName(completion)
 	if name == "" {
 		return acceptedTextPlan{Text: input, Reason: acceptedTextReasonEmptyCompletion}
 	}
@@ -68,17 +68,18 @@ func splitSubcommandInput(input string) (base string, subText string, ok bool) {
 }
 
 func shouldAppendSpace(completion Completion) bool {
-	name := strings.TrimSpace(strings.TrimPrefix(completion.Name, "/"))
+	name := acceptedCompletionName(completion)
 	if name == "" {
 		return false
 	}
-	if _, ok := noTrailingSpaceCommands[name]; ok {
+	policyKey := completionKey(name)
+	if _, ok := noTrailingSpaceCommands[policyKey]; ok {
 		return false
 	}
 	if strings.TrimSpace(completion.ArgumentHint) != "" {
 		return true
 	}
-	policy, ok := cli.ResolveCommandPolicy(name)
+	policy, ok := cli.ResolveCommandPolicy(policyKey)
 	if !ok {
 		return false
 	}
@@ -90,6 +91,10 @@ func shouldAppendSpace(completion Completion) bool {
 	}
 	_, ok = argumentCommandNames[policy.Name]
 	return ok
+}
+
+func acceptedCompletionName(completion Completion) string {
+	return strings.TrimPrefix(strings.TrimSpace(completion.Name), "/")
 }
 
 var noTrailingSpaceCommands = map[string]struct{}{
