@@ -1,17 +1,20 @@
-package queue
+package widget
 
 import (
 	"fmt"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/queue/buffer"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/queue/window"
 )
 
 // TrimFunc trims a rendered queue line to the caller's display width policy.
 type TrimFunc func(string, int) string
 
-// RenderWidget renders a width-bounded ComposerPane queue block. It shows at
-// most WindowSize queued drafts at a time, with stable FIFO numbering so
+// Render renders a width-bounded ComposerPane queue block. It shows at
+// most window.Size queued drafts at a time, with stable FIFO numbering so
 // operators can see what will steer or submit next.
-func RenderWidget(label string, q Messages, width int, trim TrimFunc) string {
+func Render(label string, q buffer.Messages, width int, trim TrimFunc) string {
 	items := q.Items()
 	if len(items) == 0 || width <= 0 {
 		return ""
@@ -24,7 +27,7 @@ func RenderWidget(label string, q Messages, width int, trim TrimFunc) string {
 	if editIdx, ok := q.EditIndex(); ok {
 		editPtr = &editIdx
 	}
-	win := ComputeWindow(len(items), editPtr)
+	win := window.Compute(len(items), editPtr)
 	lines := []string{fmt.Sprintf("%s (%d)", label, len(items))}
 	if win.ShowLead {
 		lines = append(lines, "  …")
