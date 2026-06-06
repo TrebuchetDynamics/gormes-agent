@@ -29,6 +29,65 @@ func flattenCompletionGroups(groups [][]Completion) []Completion {
 	return merged
 }
 
+type slashCompletionCandidate struct {
+	Name         string
+	Display      string
+	Description  string
+	ArgumentHint string
+}
+
+type slashCompletionCandidatePlan struct {
+	Completions   []Completion
+	EmptyDropped  int
+	DuplicateKeys []string
+}
+
+func (p slashCompletionCandidatePlan) empty() bool {
+	return len(p.Completions) == 0
+}
+
+func planSlashCompletionCandidates(prefix completionPrefix, candidates []slashCompletionCandidate) slashCompletionCandidatePlan {
+	if len(candidates) == 0 {
+		return slashCompletionCandidatePlan{}
+	}
+	seen := make(map[string]struct{}, len(candidates))
+	plan := slashCompletionCandidatePlan{Completions: make([]Completion, 0, len(candidates))}
+	for _, candidate := range candidates {
+		key := completionKey(candidate.Name)
+		if key == "" {
+			plan.EmptyDropped++
+			continue
+		}
+		if !prefix.matches(candidate.Name) {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			plan.DuplicateKeys = append(plan.DuplicateKeys, key)
+			continue
+		}
+		seen[key] = struct{}{}
+		plan.Completions = append(plan.Completions, Completion{
+			Name:         candidate.Name,
+			Display:      candidate.Display,
+			Description:  candidate.Description,
+			ArgumentHint: candidate.ArgumentHint,
+			Available:    true,
+		})
+	}
+	return finishSlashCompletionCandidatePlan(plan)
+}
+
+func finishSlashCompletionCandidatePlan(plan slashCompletionCandidatePlan) slashCompletionCandidatePlan {
+	if len(plan.Completions) == 0 {
+		plan.Completions = nil
+		return plan
+	}
+	sort.Slice(plan.Completions, func(i, j int) bool {
+		return completionKey(plan.Completions[i].Name) < completionKey(plan.Completions[j].Name)
+	})
+	return plan
+}
+
 type uniqueCompletionPlan struct {
 	Completions   []Completion
 	EmptyDropped  int

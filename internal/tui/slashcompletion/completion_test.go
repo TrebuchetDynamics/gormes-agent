@@ -146,6 +146,29 @@ func TestSkillCompletionsDeduplicateCaseInsensitiveNames(t *testing.T) {
 	}
 }
 
+func TestDynamicCompletionPlansExposeDroppedCandidates(t *testing.T) {
+	catalog := prompttemplates.Catalog{Templates: []prompttemplates.Template{
+		{Name: " Review ", Description: "first", ArgumentHint: "<scope>"},
+		{Name: "/review", Description: "duplicate"},
+		{Name: "   ", Description: "empty"},
+	}}
+	promptPlan := planPromptTemplateCompletions(newCompletionPrefix("rev"), catalog)
+	wantPrompt := []Completion{{Name: "Review", Display: "/Review", Description: "first", ArgumentHint: "<scope>", Available: true}}
+	if !reflect.DeepEqual(promptPlan.Completions, wantPrompt) || promptPlan.EmptyDropped != 1 || !reflect.DeepEqual(promptPlan.DuplicateKeys, []string{"review"}) {
+		t.Fatalf("planPromptTemplateCompletions = %#v, want completions %#v, one empty drop, duplicate review", promptPlan, wantPrompt)
+	}
+
+	skillPlan := planSkillCompletions(newCompletionPrefix("rev"), []skills.SkillSlashCommand{
+		{Command: "/Review", Description: "first"},
+		{Command: "review", Description: "duplicate"},
+		{Command: "   ", Description: "empty"},
+	})
+	wantSkill := []Completion{{Name: "review", Display: "/review", Description: "first", Available: true}}
+	if !reflect.DeepEqual(skillPlan.Completions, wantSkill) || skillPlan.EmptyDropped != 1 || !reflect.DeepEqual(skillPlan.DuplicateKeys, []string{"review"}) {
+		t.Fatalf("planSkillCompletions = %#v, want completions %#v, one empty drop, duplicate review", skillPlan, wantSkill)
+	}
+}
+
 func TestWithDynamicDeduplicatesCaseInsensitiveNames(t *testing.T) {
 	commands := []skills.SkillSlashCommand{{Command: "/Review", Description: "skill review"}}
 	catalog := prompttemplates.Catalog{Templates: []prompttemplates.Template{{Name: "Review", Description: "template review"}}}

@@ -110,21 +110,25 @@ func PromptTemplateCompletions(input string, catalog prompttemplates.Catalog) []
 	if !ok || !req.commandOnly() {
 		return nil
 	}
-	var candidates []Completion
+	plan := planPromptTemplateCompletions(req.commandPrefix, catalog)
+	if plan.empty() {
+		return nil
+	}
+	return plan.Completions
+}
+
+func planPromptTemplateCompletions(prefix completionPrefix, catalog prompttemplates.Catalog) slashCompletionCandidatePlan {
+	candidates := make([]slashCompletionCandidate, 0, len(catalog.Templates))
 	for _, tmpl := range catalog.Templates {
 		name := completionName(tmpl.Name)
-		if name == "" || !completionNameMatches(name, req.commandPrefix) {
-			continue
-		}
-		candidates = append(candidates, Completion{
+		candidates = append(candidates, slashCompletionCandidate{
 			Name:         name,
 			Display:      "/" + name,
 			Description:  tmpl.Description,
 			ArgumentHint: tmpl.ArgumentHint,
-			Available:    true,
 		})
 	}
-	return uniqueSortedCompletions(candidates)
+	return planSlashCompletionCandidates(prefix, candidates)
 }
 
 func SkillCompletions(input string, commands []skills.SkillSlashCommand) []Completion {
@@ -132,20 +136,24 @@ func SkillCompletions(input string, commands []skills.SkillSlashCommand) []Compl
 	if !ok || !req.commandOnly() {
 		return nil
 	}
-	var candidates []Completion
+	plan := planSkillCompletions(req.commandPrefix, commands)
+	if plan.empty() {
+		return nil
+	}
+	return plan.Completions
+}
+
+func planSkillCompletions(prefix completionPrefix, commands []skills.SkillSlashCommand) slashCompletionCandidatePlan {
+	candidates := make([]slashCompletionCandidate, 0, len(commands))
 	for _, command := range commands {
 		name := completionKey(command.Command)
-		if name == "" || !req.commandPrefix.matches(command.Command) {
-			continue
-		}
-		candidates = append(candidates, Completion{
+		candidates = append(candidates, slashCompletionCandidate{
 			Name:        name,
 			Display:     "/" + name,
 			Description: command.Description,
-			Available:   true,
 		})
 	}
-	return uniqueSortedCompletions(candidates)
+	return planSlashCompletionCandidates(prefix, candidates)
 }
 
 func WithPromptTemplates(input string, catalog prompttemplates.Catalog) []Completion {
