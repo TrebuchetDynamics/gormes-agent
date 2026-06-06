@@ -1,0 +1,236 @@
+package guard
+
+import (
+	"fmt"
+	"regexp"
+	"sync"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/safety/commandpatterns"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/safety/commandpolicy/hardline"
+)
+
+const (
+	sshSensitivePath            = `(?:~|\$home|\$\{home\})/\.ssh(?:/|$)`
+	hermesEnvPath               = `(?:~/\.hermes/|(?:\$home|\$\{home\})/\.hermes/|(?:\$hermes_home|\$\{hermes_home\})/)\.env\b`
+	projectEnvPath              = "(?:(?:/|\\.{1,2}/)?(?:[^\\s/\"'`]+/)*\\.env(?:\\.[^/\\s\"'`]+)*)"
+	projectConfigPath           = "(?:(?:/|\\.{1,2}/)?(?:[^\\s/\"'`]+/)*config\\.yaml)"
+	sensitiveWriteTarget        = `(?:/etc/|/dev/sd|` + sshSensitivePath + `|` + hermesEnvPath + `)`
+	projectSensitiveWriteTarget = `(?:` + projectEnvPath + `|` + projectConfigPath + `)`
+	commandTail                 = `(?:\s*(?:&&|\|\||;).*)?$`
+	shellCommandStart           = `(?:^|[;&|]\s*|&&\s*|\|\|\s*|\n\s*|\$\(\s*)`
+	gatewayRunCommand           = `(?:hermes\s+|gormes\s+)?gateway\s+run\b`
+)
+
+// DangerousPatterns is the recoverable dangerous-command pattern table,
+// ported from Hermes DANGEROUS_PATTERNS at tools/approval.py@eb28145f.
+//
+// These rules describe commands that require approval but can be bypassed by
+// future approval/yolo policy. GuardCommand checks DetectHardline before this
+// table so unconditional hardline rules always win.
+var DangerousPatterns = []commandpatterns.Entry{
+	{Regex: `\brm\s+(-[^\s]*\s+)*/`, Description: "delete in root path"},
+	{Regex: `\brm\s+-[^\s]*r`, Description: "recursive delete"},
+	{Regex: `\brm\s+--recursive\b`, Description: "recursive delete (long flag)"},
+	{Regex: `\bchmod\s+(-[^\s]*\s+)*(777|666|o\+[rwx]*w|a\+[rwx]*w)\b`, Description: "world/other-writable permissions"},
+	{Regex: `\bchmod\s+--recursive\b.*(777|666|o\+[rwx]*w|a\+[rwx]*w)`, Description: "recursive world/other-writable (long flag)"},
+	{Regex: `\bchown\s+(-[^\s]*)?R\s+root`, Description: "recursive chown to root"},
+	{Regex: `\bchown\s+--recursive\b.*root`, Description: "recursive chown to root (long flag)"},
+	{Regex: `\bmkfs\b`, Description: "format filesystem"},
+	{Regex: `\bdd\s+.*if=`, Description: "disk copy"},
+	{Regex: `>\s*/dev/sd`, Description: "write to block device"},
+	{Regex: `\bDROP\s+(TABLE|DATABASE)\b`, Description: "SQL DROP"},
+	{Regex: `\bDELETE\s+FROM\b`, Description: "SQL DELETE without WHERE"},
+	{Regex: `\bTRUNCATE\s+(TABLE)?\s*\w`, Description: "SQL TRUNCATE"},
+	{Regex: `>\s*/etc/`, Description: "overwrite system config"},
+	{Regex: `\bsystemctl\s+(-[^\s]+\s+)*(stop|restart|disable|mask)\b`, Description: "stop/restart system service"},
+	{Regex: `\bkill\s+-9\s+-1\b`, Description: "kill all processes"},
+	{Regex: `\bpkill\s+-9\b`, Description: "force kill processes"},
+	{Regex: `:\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:`, Description: "fork bomb"},
+	{Regex: `\b(bash|sh|zsh|ksh)\s+-[^\s]*c(\s+|$)`, Description: "shell command via -c/-lc flag"},
+	{Regex: `\b(python[23]?|perl|ruby|node)\s+-[ec]\s+`, Description: "script execution via -e/-c flag"},
+	{Regex: `\b(curl|wget)\b.*\|\s*(ba)?sh\b`, Description: "pipe remote content to shell"},
+	{Regex: `\b(bash|sh|zsh|ksh)\s+<\s*<?\s*\(\s*(curl|wget)\b`, Description: "execute remote script via process substitution"},
+	{Regex: `\b(cat|bat|less|more|head|tail|base64|xxd)\b[^\n]*(\.env(?:\.[^\s"'` + "`" + `]+)?|id_rsa|id_ed25519|\.ssh/|credentials|\.netrc|\.pgpass|\.npmrc|\.pypirc)`, Description: "read secret file"},
+	{Regex: `\b(curl|wget)\b[^\n]*(?:--data(?:-raw|-binary|-urlencode)?|-d|--form|-F|--upload-file|-T)\s+@?[^\s"'` + "`" + `]*(\.env(?:\.[^\s"'` + "`" + `]+)?|id_rsa|id_ed25519|\.ssh/|credentials|\.netrc|\.pgpass|\.npmrc|\.pypirc)`, Description: "exfiltrate secret file"},
+	{Regex: `\b(cat|base64|xxd|tar|gzip)\b[^\n]*(\.env(?:\.[^\s"'` + "`" + `]+)?|id_rsa|id_ed25519|\.ssh/|credentials|\.netrc|\.pgpass|\.npmrc|\.pypirc)[^\n]*\|\s*(curl|wget|nc|ncat|sftp|scp)\b`, Description: "pipe secret file to network"},
+	{Regex: `\btee\b.*["']?` + sensitiveWriteTarget, Description: "overwrite system file via tee"},
+	{Regex: `>>?\s*["']?` + sensitiveWriteTarget, Description: "overwrite system file via redirection"},
+	{Regex: `\btee\b.*["']?` + projectSensitiveWriteTarget + `["']?` + commandTail, Description: "overwrite project env/config via tee"},
+	{Regex: `>>?\s*["']?` + projectSensitiveWriteTarget + `["']?` + commandTail, Description: "overwrite project env/config via redirection"},
+	{Regex: `\bxargs\s+.*\brm\b`, Description: "xargs with rm"},
+	{Regex: `\bfind\b.*-exec\s+(/\S*/)?rm\b`, Description: "find -exec rm"},
+	{Regex: `\bfind\b.*-delete\b`, Description: "find -delete"},
+	{Regex: `\bhermes\s+gateway\s+(stop|restart)\b`, Description: "stop/restart hermes gateway (kills running agents)"},
+	{Regex: `\bhermes\s+update\b`, Description: "hermes update (restarts gateway, kills running agents)"},
+	{Regex: shellCommandStart + gatewayRunCommand + `.*(&\s*$|&\s*;|\bdisown\b|\bsetsid\b)`, Description: "start gateway outside systemd (use 'systemctl --user restart hermes-gateway')"},
+	{Regex: shellCommandStart + `(?:nohup|setsid)\b.*` + gatewayRunCommand, Description: "start gateway outside systemd (use 'systemctl --user restart hermes-gateway')"},
+	{Regex: `\b(pkill|killall)\b.*\b(hermes|gateway|cli\.py)\b`, Description: "kill hermes/gateway process (self-termination)"},
+	{Regex: `\bkill\b.*\$\(\s*pgrep\b`, Description: "kill process via pgrep expansion (self-termination)"},
+	{Regex: "\\bkill\\b.*`\\s*pgrep\\b", Description: "kill process via backtick pgrep expansion (self-termination)"},
+	{Regex: `\b(cp|mv|install)\b.*\s/etc/`, Description: "copy/move file into /etc/"},
+	{Regex: `\b(cp|mv|install)\b.*\s["']?` + projectSensitiveWriteTarget + `["']?` + commandTail, Description: "overwrite project env/config file"},
+	{Regex: `\bsed\s+-[^\s]*i.*\s/etc/`, Description: "in-place edit of system config"},
+	{Regex: `\bsed\s+--in-place\b.*\s/etc/`, Description: "in-place edit of system config (long flag)"},
+	{Regex: `\b(python[23]?|perl|ruby|node)\s+<<`, Description: "script execution via heredoc"},
+	{Regex: `\bgit\s+reset\s+--hard\b`, Description: "git reset --hard (destroys uncommitted changes)"},
+	{Regex: `\bgit\s+push\b.*--force\b`, Description: "git force push (rewrites remote history)"},
+	{Regex: `\bgit\s+push\b.*-f\b`, Description: "git force push short flag (rewrites remote history)"},
+	{Regex: `\bgit\s+clean\s+-[^\s]*f`, Description: "git clean with force (deletes untracked files)"},
+	{Regex: `\bgit\s+branch\s+-D\b`, Description: "git branch force delete"},
+	{Regex: `\bchmod\s+\+x\b.*[;&|]+\s*\./`, Description: "chmod +x followed by immediate execution"},
+}
+
+// BlockedResult is the pure guard result returned for commands that match a
+// hardline or recoverable dangerous-command rule.
+type BlockedResult struct {
+	Approved         bool
+	Hardline         bool
+	ApprovalRequired bool
+	Description      string
+	Message          string
+	Operator         string
+	Command          string
+	Evidence         map[string]string
+}
+
+var (
+	dangerousCompileOnce sync.Once
+	dangerousCompiled    []commandpatterns.Compiled
+	deleteWherePattern   = regexp.MustCompile(`(?is)\bWHERE\b`)
+)
+
+func compileDangerousPatterns() {
+	dangerousCompiled = commandpatterns.Compile(`(?is)`, DangerousPatterns)
+}
+
+func init() {
+	commandpatterns.MustValidate("DangerousPattern", `(?is)`, DangerousPatterns)
+}
+
+// DetectDangerous reports whether cmd matches any recoverable dangerous rule.
+// On match it returns (true, description); otherwise it returns (false, "").
+func DetectDangerous(cmd string) (bool, string) {
+	if cmd == "" {
+		return false, ""
+	}
+	dangerousCompileOnce.Do(compileDangerousPatterns)
+	for _, c := range dangerousCompiled {
+		if !c.Regex.MatchString(cmd) {
+			continue
+		}
+		if c.Description == "SQL DELETE without WHERE" && deleteWherePattern.MatchString(cmd) {
+			continue
+		}
+		return true, c.Description
+	}
+	return false, ""
+}
+
+// GuardCommand applies the pure dangerous-command guard. Hardline matches
+// always block first; recoverable dangerous matches require approval.
+func GuardCommand(cmd, mode string) BlockedResult {
+	if matched, description := hardline.DetectHardline(cmd); matched {
+		return blockedResult(cmd, mode, description, "hardline", true, false)
+	}
+	if matched, description := DetectDangerous(cmd); matched {
+		if mode == "off" {
+			return approvedRecoverableResult(cmd, mode, description)
+		}
+		return blockedResult(cmd, mode, description, "dangerous", false, true)
+	}
+	return BlockedResult{}
+}
+
+// GuardCronCommand applies Hermes' approvals.cron_mode contract for
+// noninteractive cron turns. It never requests interactive approval: deny mode
+// blocks recoverable dangerous commands with cron-mode evidence, approve mode
+// allows recoverable dangerous commands, and hardline commands always block.
+func GuardCronCommand(cmd string, mode any) BlockedResult {
+	cronMode := fmt.Sprint(mode)
+	if matched, description := hardline.DetectHardline(cmd); matched {
+		return blockedCronResult(cmd, cronMode, description, "hardline", true)
+	}
+	if matched, description := DetectDangerous(cmd); matched {
+		if cronMode == "approve" {
+			return approvedCronRecoverableResult(cmd, cronMode, description)
+		}
+		return blockedCronResult(cmd, cronMode, description, "dangerous", false)
+	}
+	return BlockedResult{}
+}
+
+func approvedRecoverableResult(cmd, mode, description string) BlockedResult {
+	return BlockedResult{
+		Approved:         true,
+		Hardline:         false,
+		ApprovalRequired: false,
+		Description:      description,
+		Operator:         mode,
+		Command:          cmd,
+		Evidence: map[string]string{
+			"approval_mode":       mode,
+			"command":             cmd,
+			"detector":            "dangerous",
+			"pattern_description": description,
+		},
+	}
+}
+
+func approvedCronRecoverableResult(cmd, mode, description string) BlockedResult {
+	return BlockedResult{
+		Approved:         true,
+		Hardline:         false,
+		ApprovalRequired: false,
+		Description:      description,
+		Operator:         mode,
+		Command:          cmd,
+		Evidence: map[string]string{
+			"cron_approval_mode":  mode,
+			"command":             cmd,
+			"detector":            "dangerous",
+			"pattern_description": description,
+		},
+	}
+}
+
+func blockedCronResult(cmd, mode, description, detector string, hardline bool) BlockedResult {
+	return BlockedResult{
+		Approved:         false,
+		Hardline:         hardline,
+		ApprovalRequired: false,
+		Description:      description,
+		Message:          cronBlockMessage(description, hardline),
+		Operator:         mode,
+		Command:          cmd,
+		Evidence: map[string]string{
+			"cron_approval_mode":  mode,
+			"command":             cmd,
+			"detector":            detector,
+			"pattern_description": description,
+		},
+	}
+}
+
+func cronBlockMessage(description string, hardline bool) string {
+	if hardline {
+		return "BLOCKED (hardline): " + description + ". This command is on the unconditional blocklist and cannot be executed via the agent — not even with --yolo, /yolo, approvals.mode=off, or cron approve mode."
+	}
+	return "BLOCKED: Command flagged as dangerous (" + description + ") but cron jobs run without a user present to approve it. Find an alternative approach that avoids this command. To allow dangerous commands in cron jobs, set approvals.cron_mode: approve in config.toml."
+}
+
+func blockedResult(cmd, mode, description, detector string, hardline, approvalRequired bool) BlockedResult {
+	return BlockedResult{
+		Approved:         false,
+		Hardline:         hardline,
+		ApprovalRequired: approvalRequired,
+		Description:      description,
+		Operator:         mode,
+		Command:          cmd,
+		Evidence: map[string]string{
+			"approval_mode":       mode,
+			"command":             cmd,
+			"detector":            detector,
+			"pattern_description": description,
+		},
+	}
+}

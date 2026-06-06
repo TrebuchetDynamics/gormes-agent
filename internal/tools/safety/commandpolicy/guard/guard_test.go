@@ -1,4 +1,4 @@
-package commandpolicy
+package guard
 
 import (
 	"os"

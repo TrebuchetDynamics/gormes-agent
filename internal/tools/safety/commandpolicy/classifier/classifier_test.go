@@ -1,4 +1,4 @@
-package commandpolicy
+package classifier
 
 import (
 	"testing"

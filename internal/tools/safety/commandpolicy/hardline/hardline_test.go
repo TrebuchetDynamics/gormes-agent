@@ -1,4 +1,4 @@
-package commandpolicy
+package hardline
 
 import (
 	"strings"
