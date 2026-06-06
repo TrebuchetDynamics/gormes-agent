@@ -236,6 +236,20 @@ func TestAcceptedTextRejectsStaleSubcommandCompletionOutsideCurrentPrefix(t *tes
 	}
 }
 
+func TestAcceptedTextRejectsStaleCommandCompletionOutsideCurrentPrefix(t *testing.T) {
+	input := "/he"
+	got, ok := AcceptedText(input, Completion{Name: "model"}, true)
+	if ok || got != input {
+		t.Fatalf("AcceptedText with stale command completion = (%q, %v), want original text false", got, ok)
+	}
+
+	plan := planAcceptedText(input, Completion{Name: "model"}, true)
+	want := acceptedTextPlan{Text: input, Reason: acceptedTextReasonUnsupportedInput}
+	if plan != want {
+		t.Fatalf("planAcceptedText with stale command completion = %#v, want %#v", plan, want)
+	}
+}
+
 func TestAcceptedTextPlanExposesCompletionPath(t *testing.T) {
 	cases := []struct {
 		name        string

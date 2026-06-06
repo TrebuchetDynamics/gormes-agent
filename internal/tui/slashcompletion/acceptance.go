@@ -41,6 +41,9 @@ func planAcceptedText(input string, completion Completion, acceptExact bool) acc
 		}
 		return planAcceptedSubcommandText(input, flow, accepted, acceptExact)
 	}
+	if !acceptedCommandCandidate(input, accepted) {
+		return acceptedTextPlan{Text: input, Reason: acceptedTextReasonUnsupportedInput}
+	}
 
 	next := "/" + accepted.name
 	exact := strings.TrimSpace(input) == next
@@ -81,6 +84,14 @@ func decideAcceptedSubcommandText(normalized string, exact, acceptExact bool) ac
 func inputHasCompletionArguments(input string) bool {
 	parts, ok := splitCompletionInput(input)
 	return ok && parts.hasArgs
+}
+
+func acceptedCommandCandidate(input string, accepted acceptedCompletion) bool {
+	req, ok := parseCompletionRequest(input)
+	if !ok {
+		return true
+	}
+	return req.commandOnly() && req.commandPrefix.matches(accepted.name)
 }
 
 func acceptedSubcommandCandidate(flow subcommandFlow, accepted acceptedCompletion) bool {
