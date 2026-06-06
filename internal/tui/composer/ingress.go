@@ -298,14 +298,20 @@ func composerLineCount(text string) int {
 }
 
 func composerPasteTokenLabel(text string, lineCount int) string {
-	preview := strings.TrimSpace(strings.ReplaceAll(text, "\n", " "))
-	if len(preview) > 48 {
-		preview = strings.TrimSpace(preview[:24]) + ".. " + strings.TrimSpace(preview[len(preview)-18:])
-	}
+	preview := composerPasteTokenPreview(text)
 	if preview == "" {
 		return "[[ [" + intString(lineCount) + " lines] ]]"
 	}
 	return "[[ " + preview + " [" + intString(lineCount) + " lines] ]]"
+}
+
+func composerPasteTokenPreview(text string) string {
+	preview := strings.TrimSpace(strings.ReplaceAll(text, "\n", " "))
+	runes := []rune(preview)
+	if len(runes) <= 48 {
+		return preview
+	}
+	return strings.TrimSpace(string(runes[:24])) + ".. " + strings.TrimSpace(string(runes[len(runes)-18:]))
 }
 
 func intString(n int) string {
