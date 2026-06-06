@@ -30,7 +30,7 @@ func newCompletionPrefix(raw string) completionPrefix {
 }
 
 func newSubcommandPrefix(raw string) completionPrefix {
-	return completionPrefix(strings.ToLower(strings.TrimSpace(raw)))
+	return completionPrefix(completionKey(raw))
 }
 
 func (p completionPrefix) string() string {

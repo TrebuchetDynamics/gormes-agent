@@ -391,11 +391,11 @@ func TestCompletionPrefixesNormalizeBeforeMatching(t *testing.T) {
 		t.Fatalf("completionPrefix matching did not normalize command prefix: %#v", commandPrefix)
 	}
 
-	subPrefix := newSubcommandPrefix(" Sh ")
+	subPrefix := newSubcommandPrefix(" /Sh ")
 	candidates := matchingSubcommandCandidates([]string{"Show", "hide"}, subPrefix)
 	want := []subcommandCandidate{{name: "Show", key: "show"}}
 	if !reflect.DeepEqual(candidates, want) {
-		t.Fatalf("matchingSubcommandCandidates with mixed-case prefix = %#v, want %#v", candidates, want)
+		t.Fatalf("matchingSubcommandCandidates with slash-prefixed mixed-case prefix = %#v, want %#v", candidates, want)
 	}
 }
 
@@ -460,7 +460,7 @@ func TestSubcommandAutoSuggestIgnoresInconsistentCandidatePlans(t *testing.T) {
 }
 
 func TestSubcommandCompletionWhitespaceIsConsistent(t *testing.T) {
-	for _, input := range []string{"/reasoning sh", "/reasoning\tsh", "/reasoning   sh"} {
+	for _, input := range []string{"/reasoning sh", "/reasoning\tsh", "/reasoning   sh", "/reasoning /sh"} {
 		got := SubcommandCompletions(input)
 		if len(got) != 1 || got[0].Name != "show" {
 			t.Fatalf("SubcommandCompletions(%q) = %#v, want show", input, got)
