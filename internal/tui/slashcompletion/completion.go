@@ -40,8 +40,10 @@ func commandCompletionCandidates(prefix completionPrefix) []Completion {
 }
 
 type commandCompletionPlan struct {
-	Hits        map[string]commandCompletionHit
-	SortedNames []string
+	Hits          map[string]commandCompletionHit
+	SortedNames   []string
+	EmptyDropped  int
+	DuplicateKeys []string
 }
 
 func (p commandCompletionPlan) empty() bool {
@@ -49,14 +51,15 @@ func (p commandCompletionPlan) empty() bool {
 }
 
 func planCommandCompletionCandidates(prefix completionPrefix, registry []cli.CommandPolicy) commandCompletionPlan {
-	hits := map[string]commandCompletionHit{}
+	plan := commandCompletionPlan{Hits: map[string]commandCompletionHit{}}
 	for _, cmd := range registry {
-		addCommandCompletionHit(hits, prefix, cmd.Name, cmd, true)
+		plan.recordCandidateResult(addCommandCompletionHit(plan.Hits, prefix, cmd.Name, cmd, true))
 		for _, alias := range cmd.Aliases {
-			addCommandCompletionHit(hits, prefix, alias, cmd, false)
+			plan.recordCandidateResult(addCommandCompletionHit(plan.Hits, prefix, alias, cmd, false))
 		}
 	}
-	return commandCompletionPlan{Hits: hits, SortedNames: sortedCompletionKeys(hits)}
+	plan.SortedNames = sortedCompletionKeys(plan.Hits)
+	return plan
 }
 
 func renderCommandCompletionPlan(plan commandCompletionPlan) []Completion {
@@ -73,15 +76,33 @@ func renderCommandCompletionPlan(plan commandCompletionPlan) []Completion {
 	return out
 }
 
-func addCommandCompletionHit(seen map[string]commandCompletionHit, prefix completionPrefix, rawName string, entry cli.CommandPolicy, canonical bool) {
+type commandCompletionCandidateResult struct {
+	EmptyDropped bool
+	DuplicateKey string
+}
+
+func (p *commandCompletionPlan) recordCandidateResult(result commandCompletionCandidateResult) {
+	if result.EmptyDropped {
+		p.EmptyDropped++
+	}
+	if result.DuplicateKey != "" {
+		p.DuplicateKeys = append(p.DuplicateKeys, result.DuplicateKey)
+	}
+}
+
+func addCommandCompletionHit(seen map[string]commandCompletionHit, prefix completionPrefix, rawName string, entry cli.CommandPolicy, canonical bool) commandCompletionCandidateResult {
 	name := completionKey(rawName)
-	if !prefix.matches(rawName) {
-		return
+	if name == "" {
+		return commandCompletionCandidateResult{EmptyDropped: true}
+	}
+	if !prefix.matches(name) {
+		return commandCompletionCandidateResult{}
 	}
 	if existing, ok := seen[name]; ok && (existing.canonical || !canonical) {
-		return
+		return commandCompletionCandidateResult{DuplicateKey: name}
 	}
 	seen[name] = commandCompletionHit{name: name, entry: entry, canonical: canonical}
+	return commandCompletionCandidateResult{}
 }
 
 func PromptTemplateCompletions(input string, catalog prompttemplates.Catalog) []Completion {

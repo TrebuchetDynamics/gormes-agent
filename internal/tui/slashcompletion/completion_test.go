@@ -56,6 +56,25 @@ func TestCommandCompletionPlanCanonicalNamesOutrankEarlierAliases(t *testing.T) 
 	}
 }
 
+func TestCommandCompletionPlanDropsEmptyNamesAndReportsDuplicates(t *testing.T) {
+	registry := []cli.CommandPolicy{
+		{Name: "", Description: "empty", Aliases: []string{" ", "Help"}},
+		{Name: "help", Description: "canonical help"},
+		{Name: "Help", Description: "duplicate canonical help"},
+	}
+
+	plan := planCommandCompletionCandidates(newCompletionPrefix(""), registry)
+	if !reflect.DeepEqual(plan.SortedNames, []string{"help"}) || plan.EmptyDropped != 2 || !reflect.DeepEqual(plan.DuplicateKeys, []string{"help"}) {
+		t.Fatalf("planCommandCompletionCandidates empty/duplicate evidence = %#v, want help only, two empty drops, duplicate help", plan)
+	}
+
+	got := renderCommandCompletionPlan(plan)
+	want := []Completion{{Name: "help", Display: "/help", Description: "canonical help", Available: true}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("renderCommandCompletionPlan empty/duplicate registry = %#v, want %#v", got, want)
+	}
+}
+
 func TestCompletionsAreDeterministicAndMerged(t *testing.T) {
 	first := CommandCompletions("/he")
 	second := CommandCompletions("/he")
