@@ -1,4 +1,4 @@
-package browser
+package navigation
 
 import "testing"
 
@@ -56,7 +56,7 @@ func TestClassifyBrowserHost_ExposesDecisionInputs(t *testing.T) {
 	}
 }
 
-func TestRouteBrowserNavigation_PrivateHostsUseLocalSidecar(t *testing.T) {
+func TestRouteNavigation_PrivateHostsUseLocalSidecar(t *testing.T) {
 	tests := []struct {
 		name    string
 		taskID  string
@@ -82,20 +82,20 @@ func TestRouteBrowserNavigation_PrivateHostsUseLocalSidecar(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := RouteBrowserNavigation(tt.taskID, tt.rawURL, true, true, false, false)
-			want := BrowserRoute{
+			got := RouteNavigation(tt.taskID, tt.rawURL, true, true, false, false)
+			want := Route{
 				SessionKey: tt.wantKey,
 				ForceLocal: true,
 				Reason:     "private_url_local_sidecar",
 			}
 			if got != want {
-				t.Fatalf("RouteBrowserNavigation(%q, %q) = %#v, want %#v", tt.taskID, tt.rawURL, got, want)
+				t.Fatalf("RouteNavigation(%q, %q) = %#v, want %#v", tt.taskID, tt.rawURL, got, want)
 			}
 		})
 	}
 }
 
-func TestRouteBrowserNavigation_PublicURLsUseCloudKey(t *testing.T) {
+func TestRouteNavigation_PublicURLsUseCloudKey(t *testing.T) {
 	tests := []struct {
 		name   string
 		rawURL string
@@ -106,16 +106,16 @@ func TestRouteBrowserNavigation_PublicURLsUseCloudKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := RouteBrowserNavigation("task-2", tt.rawURL, true, true, false, false)
-			want := BrowserRoute{SessionKey: "task-2"}
+			got := RouteNavigation("task-2", tt.rawURL, true, true, false, false)
+			want := Route{SessionKey: "task-2"}
 			if got != want {
-				t.Fatalf("RouteBrowserNavigation(%q) = %#v, want %#v", tt.rawURL, got, want)
+				t.Fatalf("RouteNavigation(%q) = %#v, want %#v", tt.rawURL, got, want)
 			}
 		})
 	}
 }
 
-func TestRouteBrowserNavigation_DisabledOrOverrideCases(t *testing.T) {
+func TestRouteNavigation_DisabledOrOverrideCases(t *testing.T) {
 	tests := []struct {
 		name                    string
 		cloudConfigured         bool
@@ -131,7 +131,7 @@ func TestRouteBrowserNavigation_DisabledOrOverrideCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := RouteBrowserNavigation(
+			got := RouteNavigation(
 				"task-3",
 				"http://localhost:3000/",
 				tt.cloudConfigured,
@@ -139,15 +139,15 @@ func TestRouteBrowserNavigation_DisabledOrOverrideCases(t *testing.T) {
 				tt.cdpOverride,
 				tt.camofoxMode,
 			)
-			want := BrowserRoute{SessionKey: "task-3"}
+			want := Route{SessionKey: "task-3"}
 			if got != want {
-				t.Fatalf("RouteBrowserNavigation(%s) = %#v, want %#v", tt.name, got, want)
+				t.Fatalf("RouteNavigation(%s) = %#v, want %#v", tt.name, got, want)
 			}
 		})
 	}
 }
 
-func TestRouteBrowserNavigation_DefaultTaskID(t *testing.T) {
+func TestRouteNavigation_DefaultTaskID(t *testing.T) {
 	tests := []struct {
 		name    string
 		rawURL  string
@@ -159,14 +159,14 @@ func TestRouteBrowserNavigation_DefaultTaskID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := RouteBrowserNavigation("", tt.rawURL, true, true, false, false)
-			want := BrowserRoute{SessionKey: tt.wantKey}
+			got := RouteNavigation("", tt.rawURL, true, true, false, false)
+			want := Route{SessionKey: tt.wantKey}
 			if tt.wantKey == "default::local" {
 				want.ForceLocal = true
 				want.Reason = "private_url_local_sidecar"
 			}
 			if got != want {
-				t.Fatalf("RouteBrowserNavigation(empty task, %q) = %#v, want %#v", tt.rawURL, got, want)
+				t.Fatalf("RouteNavigation(empty task, %q) = %#v, want %#v", tt.rawURL, got, want)
 			}
 		})
 	}

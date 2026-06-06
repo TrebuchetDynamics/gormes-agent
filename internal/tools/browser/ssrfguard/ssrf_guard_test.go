@@ -1,4 +1,4 @@
-package browser
+package ssrfguard
 
 import "testing"
 
@@ -20,12 +20,12 @@ func TestBrowserSSRFGuard_CoercesQuotedFalseValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := CoerceBrowserSSRFGuardBool(tt.raw, true)
+			got := CoerceBool(tt.raw, true)
 			if got.Value != tt.want {
-				t.Fatalf("CoerceBrowserSSRFGuardBool(%#v).Value = %v, want %v", tt.raw, got.Value, tt.want)
+				t.Fatalf("CoerceBool(%#v).Value = %v, want %v", tt.raw, got.Value, tt.want)
 			}
 			if got.Evidence != "" {
-				t.Fatalf("CoerceBrowserSSRFGuardBool(%#v).Evidence = %q, want empty", tt.raw, got.Evidence)
+				t.Fatalf("CoerceBool(%#v).Evidence = %q, want empty", tt.raw, got.Evidence)
 			}
 		})
 	}
@@ -43,31 +43,31 @@ func TestBrowserSSRFGuard_PrivateURLBlockedWhenCloudWouldReceiveIt(t *testing.T)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := CheckBrowserSSRFGuard("task-1", tt.rawURL, BrowserSSRFGuardOptions{
+			got := Check("task-1", tt.rawURL, Options{
 				CloudConfigured:         true,
 				AllowPrivateURLs:        false,
 				AutoLocalForPrivateURLs: false,
 			})
 			if got.Allowed {
-				t.Fatalf("CheckBrowserSSRFGuard(%q).Allowed = true, want false", tt.rawURL)
+				t.Fatalf("Check(%q).Allowed = true, want false", tt.rawURL)
 			}
 			if got.Evidence != "private_url_blocked" {
-				t.Fatalf("CheckBrowserSSRFGuard(%q).Evidence = %q, want private_url_blocked", tt.rawURL, got.Evidence)
+				t.Fatalf("Check(%q).Evidence = %q, want private_url_blocked", tt.rawURL, got.Evidence)
 			}
 		})
 	}
 }
 
 func TestBrowserSSRFGuard_PublicURLAllowed(t *testing.T) {
-	got := CheckBrowserSSRFGuard("task-2", "https://example.com/docs", BrowserSSRFGuardOptions{
+	got := Check("task-2", "https://example.com/docs", Options{
 		CloudConfigured:         true,
 		AllowPrivateURLs:        false,
 		AutoLocalForPrivateURLs: false,
 	})
 	if !got.Allowed {
-		t.Fatalf("CheckBrowserSSRFGuard(public).Allowed = false, want true")
+		t.Fatalf("Check(public).Allowed = false, want true")
 	}
 	if got.Evidence == "private_url_blocked" {
-		t.Fatalf("CheckBrowserSSRFGuard(public).Evidence = private_url_blocked, want no private block evidence")
+		t.Fatalf("Check(public).Evidence = private_url_blocked, want no private block evidence")
 	}
 }

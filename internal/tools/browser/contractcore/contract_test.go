@@ -1,4 +1,4 @@
-package browser
+package contractcore
 
 import (
 	"os"
@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/browser/ssrfguard"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/budget"
 )
 
@@ -21,7 +22,7 @@ func TestBrowserContractValidateAction(t *testing.T) {
 				Kind:    BrowserActionNavigate,
 				TaskID:  "task-1",
 				URL:     "https://example.com/docs",
-				Options: BrowserSSRFGuardOptions{CloudConfigured: true, AutoLocalForPrivateURLs: true},
+				Options: ssrfguard.Options{CloudConfigured: true, AutoLocalForPrivateURLs: true},
 			},
 		},
 		{
@@ -30,7 +31,7 @@ func TestBrowserContractValidateAction(t *testing.T) {
 				Kind:    BrowserActionNavigate,
 				TaskID:  "task-1",
 				URL:     "http://localhost:3000/",
-				Options: BrowserSSRFGuardOptions{CloudConfigured: true, AutoLocalForPrivateURLs: true},
+				Options: ssrfguard.Options{CloudConfigured: true, AutoLocalForPrivateURLs: true},
 			},
 		},
 		{
@@ -65,12 +66,12 @@ func TestBrowserContractValidateAction(t *testing.T) {
 			action: BrowserAction{
 				Kind: BrowserActionNavigate,
 				URL:  "http://127.0.0.1:8080/",
-				Options: BrowserSSRFGuardOptions{
+				Options: ssrfguard.Options{
 					CloudConfigured:         true,
 					AutoLocalForPrivateURLs: false,
 				},
 			},
-			wantCode: browserSSRFPrivateURLBlocked,
+			wantCode: ssrfguard.EvidencePrivateURLBlocked,
 		},
 	}
 
