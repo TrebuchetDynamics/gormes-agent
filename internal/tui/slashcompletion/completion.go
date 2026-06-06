@@ -199,13 +199,17 @@ func AutoSuggest(input string) string {
 }
 
 func singleCommandSuffix(input string) string {
-	word := strings.ToLower(strings.TrimPrefix(input, "/"))
+	word := commandAutoSuggestWord(input)
 	plan := commandAutoSuggestPlanFor(word)
 	if !plan.shouldExtend() {
 		return ""
 	}
 	unique := plan.Extending[0]
 	return unique[len(word):]
+}
+
+func commandAutoSuggestWord(input string) string {
+	return newCompletionPrefix(input).string()
 }
 
 type commandAutoSuggestPlan struct {

@@ -239,6 +239,15 @@ func TestAcceptedTextPlanExposesCompletionPath(t *testing.T) {
 	}
 }
 
+func TestCommandAutoSuggestUsesCompletionPrefixNormalization(t *testing.T) {
+	if got := CommandCompletions("//hel"); len(got) != 1 || got[0].Name != "help" {
+		t.Fatalf("CommandCompletions(//hel) = %#v, want normalized help completion", got)
+	}
+	if got := AutoSuggest("//hel"); got != "p" {
+		t.Fatalf("AutoSuggest(//hel) = %q, want p to match command completion normalization", got)
+	}
+}
+
 func TestSubcommandCompletionsAndAutoSuggest(t *testing.T) {
 	got := SubcommandCompletions("/reasoning sh")
 	if len(got) != 1 || got[0].Name != "show" {
