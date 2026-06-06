@@ -91,6 +91,20 @@ func TestSubcommandCompletionsAndAutoSuggest(t *testing.T) {
 	}
 }
 
+func TestSubcommandCompletionIsCaseInsensitiveAndCanonicalizesBase(t *testing.T) {
+	got := SubcommandCompletions("/Reasoning sh")
+	if len(got) != 1 || got[0].Name != "show" {
+		t.Fatalf("SubcommandCompletions(/Reasoning sh) = %#v, want show", got)
+	}
+	if suffix := AutoSuggest("/Reasoning sh"); suffix != "ow" {
+		t.Fatalf("AutoSuggest(/Reasoning sh) = %q, want ow", suffix)
+	}
+	accepted, ok := AcceptedText("/Reasoning sh", Completion{Name: "show"}, false)
+	if !ok || accepted != "/reasoning show" {
+		t.Fatalf("AcceptedText(/Reasoning sh, show) = (%q, %v), want /reasoning show true", accepted, ok)
+	}
+}
+
 func TestSubcommandCompletionWhitespaceIsConsistent(t *testing.T) {
 	for _, input := range []string{"/reasoning sh", "/reasoning\tsh", "/reasoning   sh"} {
 		got := SubcommandCompletions(input)

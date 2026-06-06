@@ -29,12 +29,14 @@ func CommandCompletions(input string) []Completion {
 	}
 	seen := map[string]hit{}
 	for _, cmd := range cli.CommandRegistry {
-		if strings.HasPrefix(cmd.Name, prefix) {
-			seen[cmd.Name] = hit{name: cmd.Name, entry: cmd}
+		name := completionKey(cmd.Name)
+		if strings.HasPrefix(name, prefix) {
+			seen[name] = hit{name: name, entry: cmd}
 		}
 		for _, alias := range cmd.Aliases {
-			if strings.HasPrefix(alias, prefix) {
-				seen[alias] = hit{name: alias, entry: cmd}
+			name := completionKey(alias)
+			if strings.HasPrefix(name, prefix) {
+				seen[name] = hit{name: name, entry: cmd}
 			}
 		}
 	}
@@ -105,11 +107,42 @@ func WithPromptTemplates(input string, catalog prompttemplates.Catalog) []Comple
 	return WithDynamic(input, nil, catalog)
 }
 
+type parsedSlashInput struct {
+	commandPrefix string
+	base          string
+	subPrefix     string
+	hasSubcommand bool
+}
+
 func slashCompletionPrefix(input string) (string, bool) {
-	if !strings.HasPrefix(input, "/") || strings.ContainsAny(input, " \t") {
+	parsed, ok := parseSlashInput(input)
+	if !ok || parsed.hasSubcommand {
 		return "", false
 	}
-	return strings.ToLower(strings.TrimPrefix(input, "/")), true
+	return parsed.commandPrefix, true
+}
+
+func parseSlashInput(input string) (parsedSlashInput, bool) {
+	if !strings.HasPrefix(input, "/") {
+		return parsedSlashInput{}, false
+	}
+	sep := strings.IndexFunc(input, func(r rune) bool { return r == ' ' || r == '\t' })
+	if sep < 0 {
+		return parsedSlashInput{commandPrefix: completionKey(input)}, true
+	}
+	base := completionKey(input[:sep])
+	if base == "" {
+		return parsedSlashInput{}, false
+	}
+	subText := strings.TrimLeft(input[sep+1:], " \t")
+	if strings.ContainsAny(subText, " \t") {
+		return parsedSlashInput{}, false
+	}
+	return parsedSlashInput{
+		base:          "/" + base,
+		subPrefix:     strings.ToLower(subText),
+		hasSubcommand: true,
+	}, true
 }
 
 func completionNameMatches(name, prefix string) bool {
@@ -165,18 +198,17 @@ func completionKey(name string) string {
 }
 
 func SubcommandCompletions(input string) []Completion {
-	base, subText, ok := splitSubcommandInput(input)
-	if !ok {
+	parsed, ok := parseSlashInput(input)
+	if !ok || !parsed.hasSubcommand {
 		return nil
 	}
-	policy, ok := cli.ResolveCommandPolicy(base)
+	policy, ok := cli.ResolveCommandPolicy(parsed.base)
 	if !ok || len(policy.Subcommands) == 0 {
 		return nil
 	}
-	prefix := strings.ToLower(subText)
 	out := make([]Completion, 0, len(policy.Subcommands))
 	for _, sub := range policy.Subcommands {
-		if !strings.HasPrefix(sub, prefix) {
+		if !strings.HasPrefix(completionKey(sub), parsed.subPrefix) {
 			continue
 		}
 		out = append(out, Completion{Name: sub, Display: sub, Available: true})
@@ -221,19 +253,11 @@ func subcommandBase(input string) (string, bool) {
 }
 
 func splitSubcommandInput(input string) (base string, subText string, ok bool) {
-	if !strings.HasPrefix(input, "/") {
+	parsed, ok := parseSlashInput(input)
+	if !ok || !parsed.hasSubcommand {
 		return "", "", false
 	}
-	sep := strings.IndexFunc(input, func(r rune) bool { return r == ' ' || r == '\t' })
-	if sep < 0 {
-		return "", "", false
-	}
-	base = input[:sep]
-	subText = strings.TrimLeft(input[sep+1:], " \t")
-	if strings.ContainsAny(subText, " \t") {
-		return "", "", false
-	}
-	return base, subText, true
+	return parsed.base, parsed.subPrefix, true
 }
 
 func shouldAppendSpace(completion Completion) bool {
@@ -333,23 +357,23 @@ func AutoSuggest(input string) string {
 		return unique[len(word):]
 	}
 
-	base, subText, splitOK := splitSubcommandInput(input)
-	if !splitOK {
+	parsed, splitOK := parseSlashInput(input)
+	if !splitOK || !parsed.hasSubcommand {
 		return ""
 	}
-	policy, ok := cli.ResolveCommandPolicy(base)
+	policy, ok := cli.ResolveCommandPolicy(parsed.base)
 	if !ok || len(policy.Subcommands) == 0 {
 		return ""
 	}
-	prefix := strings.ToLower(subText)
 	var matches []string
 	for _, sub := range policy.Subcommands {
-		if strings.HasPrefix(sub, prefix) && sub != prefix {
+		key := completionKey(sub)
+		if strings.HasPrefix(key, parsed.subPrefix) && key != parsed.subPrefix {
 			matches = append(matches, sub)
 		}
 	}
 	if len(matches) != 1 {
 		return ""
 	}
-	return matches[0][len(prefix):]
+	return matches[0][len(parsed.subPrefix):]
 }
