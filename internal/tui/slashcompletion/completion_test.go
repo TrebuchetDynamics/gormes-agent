@@ -78,6 +78,50 @@ func TestAcceptedText(t *testing.T) {
 	}
 }
 
+func TestAcceptedTextPlanExposesCompletionPath(t *testing.T) {
+	cases := []struct {
+		name        string
+		input       string
+		completion  Completion
+		acceptExact bool
+		want        acceptedTextPlan
+	}{
+		{
+			name:       "empty completion is inert",
+			input:      "/he",
+			completion: Completion{Name: "   "},
+			want:       acceptedTextPlan{Text: "/he", Reason: acceptedTextReasonEmptyCompletion},
+		},
+		{
+			name:       "subcommand preserves base and adds candidate",
+			input:      "/reasoning sh",
+			completion: Completion{Name: "show"},
+			want:       acceptedTextPlan{Text: "/reasoning show", Changed: true, Reason: acceptedTextReasonSubcommand},
+		},
+		{
+			name:       "enter exact command is rejected",
+			input:      "/help",
+			completion: Completion{Name: "help"},
+			want:       acceptedTextPlan{Text: "/help", Reason: acceptedTextReasonExactRejected},
+		},
+		{
+			name:        "tab accepted argument command appends space",
+			input:       "/rev",
+			completion:  Completion{Name: "review", ArgumentHint: "<scope>"},
+			acceptExact: true,
+			want:        acceptedTextPlan{Text: "/review ", Changed: true, Reason: acceptedTextReasonCommand},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := planAcceptedText(tc.input, tc.completion, tc.acceptExact); got != tc.want {
+				t.Fatalf("planAcceptedText(%q, %#v, %v) = %#v, want %#v", tc.input, tc.completion, tc.acceptExact, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestSubcommandCompletionsAndAutoSuggest(t *testing.T) {
 	got := SubcommandCompletions("/reasoning sh")
 	if len(got) != 1 || got[0].Name != "show" {
