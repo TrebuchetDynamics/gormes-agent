@@ -1,4 +1,4 @@
-package local
+package sessionadapters
 
 import (
 	"context"
