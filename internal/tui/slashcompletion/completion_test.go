@@ -421,6 +421,21 @@ func TestSubcommandCompletionCandidatesPreservePolicyOrderAndDeduplicate(t *test
 	}
 }
 
+func TestSubcommandCandidatePlanNormalizesRawPolicyValues(t *testing.T) {
+	plan := planMatchingSubcommandCandidates([]string{" /Show ", "show", "", "  "}, newSubcommandPrefix("sh"))
+	wantCandidates := []subcommandCandidate{{name: "Show", key: "show"}}
+	wantDuplicates := []string{"show"}
+	if !reflect.DeepEqual(plan.Candidates, wantCandidates) || plan.EmptyDropped != 2 || !reflect.DeepEqual(plan.DuplicateKeys, wantDuplicates) {
+		t.Fatalf("planMatchingSubcommandCandidates = %#v, want candidates %#v, two empty drops, duplicates %#v", plan, wantCandidates, wantDuplicates)
+	}
+
+	got := matchingSubcommandCompletions([]string{" /Show "}, newSubcommandPrefix("sh"))
+	want := []Completion{{Name: "Show", Display: "Show", Available: true}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("matchingSubcommandCompletions normalizes raw policy values = %#v, want %#v", got, want)
+	}
+}
+
 func TestSubcommandAutoSuggestDeduplicatesCaseVariantCandidates(t *testing.T) {
 	policySubcommands := []string{"Show", "show"}
 	matches := matchingSubcommandCandidates(policySubcommands, newSubcommandPrefix("sh"))

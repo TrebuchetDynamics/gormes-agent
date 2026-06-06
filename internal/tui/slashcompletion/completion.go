@@ -153,27 +153,51 @@ type subcommandCandidate struct {
 	key  string
 }
 
-func matchingSubcommandCandidates(subcommands []string, prefix completionPrefix) []subcommandCandidate {
+type subcommandCandidatePlan struct {
+	Candidates    []subcommandCandidate
+	EmptyDropped  int
+	DuplicateKeys []string
+}
+
+func (p subcommandCandidatePlan) empty() bool {
+	return len(p.Candidates) == 0
+}
+
+func planMatchingSubcommandCandidates(subcommands []string, prefix completionPrefix) subcommandCandidatePlan {
 	if len(subcommands) == 0 {
-		return nil
+		return subcommandCandidatePlan{}
 	}
 	seen := make(map[string]struct{}, len(subcommands))
-	out := make([]subcommandCandidate, 0, len(subcommands))
+	plan := subcommandCandidatePlan{Candidates: make([]subcommandCandidate, 0, len(subcommands))}
 	for _, sub := range subcommands {
-		key := completionKey(sub)
-		if key == "" || !prefix.matches(sub) {
+		name := completionName(sub)
+		key := completionKey(name)
+		if key == "" {
+			plan.EmptyDropped++
+			continue
+		}
+		if !prefix.matches(name) {
 			continue
 		}
 		if _, ok := seen[key]; ok {
+			plan.DuplicateKeys = append(plan.DuplicateKeys, key)
 			continue
 		}
 		seen[key] = struct{}{}
-		out = append(out, subcommandCandidate{name: sub, key: key})
+		plan.Candidates = append(plan.Candidates, subcommandCandidate{name: name, key: key})
 	}
-	if len(out) == 0 {
+	if plan.empty() {
+		plan.Candidates = nil
+	}
+	return plan
+}
+
+func matchingSubcommandCandidates(subcommands []string, prefix completionPrefix) []subcommandCandidate {
+	plan := planMatchingSubcommandCandidates(subcommands, prefix)
+	if plan.empty() {
 		return nil
 	}
-	return out
+	return plan.Candidates
 }
 
 func matchingSubcommandCompletions(subcommands []string, prefix completionPrefix) []Completion {
