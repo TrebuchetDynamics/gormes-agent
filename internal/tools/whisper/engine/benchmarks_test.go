@@ -1,12 +1,13 @@
-package whisper
+package engine
 
 import (
 	"context"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/testfixture"
 )
 
 func BenchmarkWhisperWASI(b *testing.B) {
@@ -18,9 +19,10 @@ func BenchmarkWhisperWASI(b *testing.B) {
 }
 
 func benchmarkWhisperWASITinyEn(b *testing.B, ctx context.Context) {
-	modelPath := benchmarkTinyEnModelPath(b, ctx)
-	fixturePath := filepath.Join("testdata", "jfk.wav")
-	samples, err := decodePCM16Mono16kWAV(fixturePath)
+	modelPath := testTinyEnModelPath(b, ctx)
+	wasm := readWhisperWASM(b)
+	fixturePath := testfixture.JFKWAVPath()
+	samples, err := DecodePCM16Mono16kWAV(fixturePath)
 	if err != nil {
 		b.Fatalf("decode benchmark fixture: %v", err)
 	}
@@ -41,7 +43,7 @@ func benchmarkWhisperWASITinyEn(b *testing.B, ctx context.Context) {
 		runtime.ReadMemStats(&before)
 
 		loadStarted := time.Now()
-		transcriber, err := NewTranscriber(ctx, modelPath)
+		transcriber, err := NewTranscriber(ctx, modelPath, wasm)
 		if err != nil {
 			b.Fatalf("NewTranscriber: %v", err)
 		}
@@ -80,11 +82,4 @@ func benchmarkWhisperWASITinyEn(b *testing.B, ctx context.Context) {
 	b.ReportMetric(avgInference/audioDuration.Seconds(), "realtime_factor")
 	b.ReportMetric(float64(peakAllocBytes)/1048576, "peak_memory_mb")
 	b.ReportMetric(float64(transcriptChars), "transcript_chars")
-}
-
-func benchmarkTinyEnModelPath(tb testing.TB, ctx context.Context) string {
-	tb.Helper()
-	return tinyEnModelPath(tb, ctx, func(tb testing.TB, _ string, err error) {
-		tb.Skipf("WASI Whisper tiny.en model unavailable: %v", err)
-	})
 }

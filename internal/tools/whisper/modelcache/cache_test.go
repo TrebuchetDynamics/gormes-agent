@@ -1,4 +1,4 @@
-package whisper
+package modelcache
 
 import (
 	"context"
@@ -58,7 +58,7 @@ func TestModelArtifactTinyEnPinned(t *testing.T) {
 	}
 }
 
-func TestEnsureModelUsesVerifiedExistingCache(t *testing.T) {
+func TestEnsureUsesVerifiedExistingCache(t *testing.T) {
 	cacheDir := t.TempDir()
 	body := []byte("cached model bytes")
 	artifact := testModelArtifact(body, "https://example.invalid/model.bin")
@@ -67,20 +67,20 @@ func TestEnsureModelUsesVerifiedExistingCache(t *testing.T) {
 		t.Fatalf("write cache: %v", err)
 	}
 	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
-		t.Fatal("EnsureModel made a network request for a verified cache hit")
+		t.Fatal("Ensure made a network request for a verified cache hit")
 		return nil, nil
 	})}
 
-	got, err := EnsureModel(context.Background(), artifact, cacheDir, client)
+	got, err := Ensure(context.Background(), artifact, cacheDir, client)
 	if err != nil {
-		t.Fatalf("EnsureModel: %v", err)
+		t.Fatalf("Ensure: %v", err)
 	}
 	if got != finalPath {
-		t.Fatalf("EnsureModel path = %q, want %q", got, finalPath)
+		t.Fatalf("Ensure path = %q, want %q", got, finalPath)
 	}
 }
 
-func TestEnsureModelDownloadsAndVerifies(t *testing.T) {
+func TestEnsureDownloadsAndVerifies(t *testing.T) {
 	body := []byte("downloaded model bytes")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write(body)
@@ -89,12 +89,12 @@ func TestEnsureModelDownloadsAndVerifies(t *testing.T) {
 
 	cacheDir := t.TempDir()
 	artifact := testModelArtifact(body, server.URL)
-	got, err := EnsureModel(context.Background(), artifact, cacheDir, server.Client())
+	got, err := Ensure(context.Background(), artifact, cacheDir, server.Client())
 	if err != nil {
-		t.Fatalf("EnsureModel: %v", err)
+		t.Fatalf("Ensure: %v", err)
 	}
 	if got != filepath.Join(cacheDir, artifact.Filename) {
-		t.Fatalf("EnsureModel path = %q", got)
+		t.Fatalf("Ensure path = %q", got)
 	}
 	read, err := os.ReadFile(got)
 	if err != nil {
@@ -106,7 +106,7 @@ func TestEnsureModelDownloadsAndVerifies(t *testing.T) {
 	assertNoModelCachePartial(t, cacheDir, artifact)
 }
 
-func TestEnsureModelRejectsChecksumMismatchAndRemovesPartial(t *testing.T) {
+func TestEnsureRejectsChecksumMismatchAndRemovesPartial(t *testing.T) {
 	expected := []byte("expected model bytes")
 	wrong := append([]byte(nil), expected...)
 	wrong[0] = 'X'
@@ -117,15 +117,15 @@ func TestEnsureModelRejectsChecksumMismatchAndRemovesPartial(t *testing.T) {
 
 	cacheDir := t.TempDir()
 	artifact := testModelArtifact(expected, server.URL)
-	_, err := EnsureModel(context.Background(), artifact, cacheDir, server.Client())
+	_, err := Ensure(context.Background(), artifact, cacheDir, server.Client())
 	if !modelCacheErrorCodeIs(err, ModelCacheChecksumMismatch) {
-		t.Fatalf("EnsureModel error = %v, want %s", err, ModelCacheChecksumMismatch)
+		t.Fatalf("Ensure error = %v, want %s", err, ModelCacheChecksumMismatch)
 	}
 	assertNoFinalModel(t, cacheDir, artifact)
 	assertNoModelCachePartial(t, cacheDir, artifact)
 }
 
-func TestEnsureModelRejectsShortBodyAndRemovesPartial(t *testing.T) {
+func TestEnsureRejectsShortBodyAndRemovesPartial(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("short"))
 	}))
@@ -133,15 +133,15 @@ func TestEnsureModelRejectsShortBodyAndRemovesPartial(t *testing.T) {
 
 	cacheDir := t.TempDir()
 	artifact := testModelArtifact([]byte("expected longer model bytes"), server.URL)
-	_, err := EnsureModel(context.Background(), artifact, cacheDir, server.Client())
+	_, err := Ensure(context.Background(), artifact, cacheDir, server.Client())
 	if !modelCacheErrorCodeIs(err, ModelCacheSizeMismatch) {
-		t.Fatalf("EnsureModel error = %v, want %s", err, ModelCacheSizeMismatch)
+		t.Fatalf("Ensure error = %v, want %s", err, ModelCacheSizeMismatch)
 	}
 	assertNoFinalModel(t, cacheDir, artifact)
 	assertNoModelCachePartial(t, cacheDir, artifact)
 }
 
-func TestEnsureModelRejectsHTTPStatusAndLeavesNoFinalFile(t *testing.T) {
+func TestEnsureRejectsHTTPStatusAndLeavesNoFinalFile(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "try later", http.StatusServiceUnavailable)
 	}))
@@ -149,30 +149,30 @@ func TestEnsureModelRejectsHTTPStatusAndLeavesNoFinalFile(t *testing.T) {
 
 	cacheDir := t.TempDir()
 	artifact := testModelArtifact([]byte("expected model bytes"), server.URL)
-	_, err := EnsureModel(context.Background(), artifact, cacheDir, server.Client())
+	_, err := Ensure(context.Background(), artifact, cacheDir, server.Client())
 	if !modelCacheErrorCodeIs(err, ModelCacheBadStatus) {
-		t.Fatalf("EnsureModel error = %v, want %s", err, ModelCacheBadStatus)
+		t.Fatalf("Ensure error = %v, want %s", err, ModelCacheBadStatus)
 	}
 	assertNoFinalModel(t, cacheDir, artifact)
 	assertNoModelCachePartial(t, cacheDir, artifact)
 }
 
-func TestEnsureModelRequiresCacheDir(t *testing.T) {
+func TestEnsureRequiresCacheDir(t *testing.T) {
 	artifact := testModelArtifact([]byte("expected model bytes"), "https://example.invalid/model.bin")
-	_, err := EnsureModel(context.Background(), artifact, "", nil)
+	_, err := Ensure(context.Background(), artifact, "", nil)
 	if !modelCacheErrorCodeIs(err, ModelCacheInvalidCacheDir) {
-		t.Fatalf("EnsureModel error = %v, want %s", err, ModelCacheInvalidCacheDir)
+		t.Fatalf("Ensure error = %v, want %s", err, ModelCacheInvalidCacheDir)
 	}
 }
 
-func TestEnsureModelRejectsUnsafeArtifactFilename(t *testing.T) {
+func TestEnsureRejectsUnsafeArtifactFilename(t *testing.T) {
 	cacheDir := t.TempDir()
 	for _, filename := range []string{"../model.bin", `models\model.bin`, ".", ".."} {
 		artifact := testModelArtifact([]byte("expected model bytes"), "https://example.invalid/model.bin")
 		artifact.Filename = filename
-		_, err := EnsureModel(context.Background(), artifact, cacheDir, nil)
+		_, err := Ensure(context.Background(), artifact, cacheDir, nil)
 		if !modelCacheErrorCodeIs(err, ModelCacheInvalidArtifact) {
-			t.Fatalf("EnsureModel(%q) error = %v, want %s", filename, err, ModelCacheInvalidArtifact)
+			t.Fatalf("Ensure(%q) error = %v, want %s", filename, err, ModelCacheInvalidArtifact)
 		}
 	}
 }

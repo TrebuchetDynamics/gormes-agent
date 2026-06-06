@@ -1,10 +1,10 @@
-package whisper
+package discovery
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/testfixture"
 )
 
 func TestWhisperWASMArtifactProvenance(t *testing.T) {
@@ -65,10 +65,5 @@ func hasExport(exports []string, want string) bool {
 }
 
 func readWhisperWASM(t *testing.T) []byte {
-	t.Helper()
-	wasm, err := os.ReadFile(filepath.Join("testdata", "whisper.wasm"))
-	if err != nil {
-		t.Fatalf("read whisper.wasm: %v", err)
-	}
-	return wasm
+	return testfixture.WhisperWASM(t)
 }
