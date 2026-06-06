@@ -1,9 +1,6 @@
-package runtime
+package gateway
 
-import (
-	"strings"
-	"testing"
-)
+import "testing"
 
 func TestResolveRemoteURLPrefersFlagThenEnvironment(t *testing.T) {
 	t.Setenv("GORMES_TUI_GATEWAY_URL", "ws://gormes-gateway/api/ws")
@@ -21,15 +18,5 @@ func TestResolveRemoteURLAcceptsHermesCompatibilityEnvironment(t *testing.T) {
 	t.Setenv("HERMES_TUI_GATEWAY_URL", " ws://hermes-gateway/api/ws?token=secret ")
 	if got := ResolveRemoteURL(""); got != "ws://hermes-gateway/api/ws?token=secret" {
 		t.Fatalf("ResolveRemoteURL(HERMES_TUI_GATEWAY_URL) = %q", got)
-	}
-}
-
-func TestDoctorTUIStatusReportsRemoteDegradedMode(t *testing.T) {
-	got := DoctorStatus().Format()
-	lower := strings.ToLower(got)
-	for _, want := range []string{"native tui", "go-native bubble tea", "remote", "websocket"} {
-		if !strings.Contains(lower, want) {
-			t.Errorf("doctor TUI status missing %q:\n%s", want, got)
-		}
 	}
 }
