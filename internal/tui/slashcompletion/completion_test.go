@@ -47,3 +47,23 @@ func TestSubcommandCompletionsAndAutoSuggest(t *testing.T) {
 		t.Fatalf("AutoSuggest(/reasoning sh) = %q, want ow", got)
 	}
 }
+
+func TestSubcommandCompletionWhitespaceIsConsistent(t *testing.T) {
+	for _, input := range []string{"/reasoning sh", "/reasoning\tsh", "/reasoning   sh"} {
+		got := SubcommandCompletions(input)
+		if len(got) != 1 || got[0].Name != "show" {
+			t.Fatalf("SubcommandCompletions(%q) = %#v, want show", input, got)
+		}
+		if suffix := AutoSuggest(input); suffix != "ow" {
+			t.Fatalf("AutoSuggest(%q) = %q, want ow", input, suffix)
+		}
+		accepted, ok := AcceptedText(input, Completion{Name: "show"}, false)
+		if !ok || accepted != "/reasoning show" {
+			t.Fatalf("AcceptedText(%q, show) = (%q, %v), want /reasoning show true", input, accepted, ok)
+		}
+	}
+
+	if got := SubcommandCompletions("/reasoning show now"); got != nil {
+		t.Fatalf("SubcommandCompletions with completed subcommand args = %#v, want nil", got)
+	}
+}

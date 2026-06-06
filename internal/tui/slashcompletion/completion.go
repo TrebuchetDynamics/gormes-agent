@@ -139,19 +139,12 @@ func WithDynamic(input string, commands []skills.SkillSlashCommand, catalog prom
 }
 
 func SubcommandCompletions(input string) []Completion {
-	if !strings.HasPrefix(input, "/") {
+	base, subText, ok := splitSubcommandInput(input)
+	if !ok {
 		return nil
 	}
-	parts := strings.SplitN(input, " ", 2)
-	if len(parts) != 2 {
-		return nil
-	}
-	policy, ok := cli.ResolveCommandPolicy(parts[0])
+	policy, ok := cli.ResolveCommandPolicy(base)
 	if !ok || len(policy.Subcommands) == 0 {
-		return nil
-	}
-	subText := parts[1]
-	if strings.ContainsAny(subText, " \t") {
 		return nil
 	}
 	prefix := strings.ToLower(subText)
@@ -190,18 +183,31 @@ func AcceptedText(input string, completion Completion, acceptExact bool) (string
 }
 
 func subcommandBase(input string) (string, bool) {
-	parts := strings.SplitN(input, " ", 2)
-	if len(parts) != 2 {
+	base, _, ok := splitSubcommandInput(input)
+	if !ok {
 		return "", false
 	}
-	policy, ok := cli.ResolveCommandPolicy(parts[0])
+	policy, ok := cli.ResolveCommandPolicy(base)
 	if !ok || len(policy.Subcommands) == 0 {
 		return "", false
 	}
-	if strings.ContainsAny(parts[1], " \t") {
-		return "", false
+	return base, true
+}
+
+func splitSubcommandInput(input string) (base string, subText string, ok bool) {
+	if !strings.HasPrefix(input, "/") {
+		return "", "", false
 	}
-	return parts[0], true
+	sep := strings.IndexFunc(input, func(r rune) bool { return r == ' ' || r == '\t' })
+	if sep < 0 {
+		return "", "", false
+	}
+	base = input[:sep]
+	subText = strings.TrimLeft(input[sep+1:], " \t")
+	if strings.ContainsAny(subText, " \t") {
+		return "", "", false
+	}
+	return base, subText, true
 }
 
 func shouldAppendSpace(completion Completion) bool {
@@ -301,15 +307,15 @@ func AutoSuggest(input string) string {
 		return unique[len(word):]
 	}
 
-	parts := strings.SplitN(input, " ", 2)
-	if len(parts) != 2 || strings.ContainsAny(parts[1], " \t") {
+	base, subText, splitOK := splitSubcommandInput(input)
+	if !splitOK {
 		return ""
 	}
-	policy, ok := cli.ResolveCommandPolicy(parts[0])
+	policy, ok := cli.ResolveCommandPolicy(base)
 	if !ok || len(policy.Subcommands) == 0 {
 		return ""
 	}
-	prefix := strings.ToLower(parts[1])
+	prefix := strings.ToLower(subText)
 	var matches []string
 	for _, sub := range policy.Subcommands {
 		if strings.HasPrefix(sub, prefix) && sub != prefix {
