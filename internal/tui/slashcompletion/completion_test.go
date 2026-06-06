@@ -25,8 +25,8 @@ func TestCommandCompletionPlanExposesSortedDedupedCandidates(t *testing.T) {
 	}
 
 	plan := planCommandCompletionCandidates(newCompletionPrefix("b"), registry)
-	if !reflect.DeepEqual(plan.SortedNames, []string{"backup", "beta"}) {
-		t.Fatalf("planCommandCompletionCandidates sorted names = %#v, want backup/beta", plan.SortedNames)
+	if !reflect.DeepEqual(plan.SortedNames, []string{"backup", "beta"}) || plan.PrefixMissed != 1 {
+		t.Fatalf("planCommandCompletionCandidates sorted names/prefix misses = %#v/%d, want backup/beta and one alpha miss", plan.SortedNames, plan.PrefixMissed)
 	}
 
 	got := renderCommandCompletionPlan(plan)
@@ -164,14 +164,41 @@ func TestCandidateAdmissionExposesDroppedDuplicateAndPrefixFlow(t *testing.T) {
 	if got := admitCompletionCandidate("   ", newCompletionPrefix("rev"), seen); !got.Empty || got.Accepted || got.Duplicate || len(seen) != 0 {
 		t.Fatalf("admitCompletionCandidate empty = %#v with seen %#v, want empty only and no seen mutation", got, seen)
 	}
-	if got := admitCompletionCandidate("Review", newCompletionPrefix("he"), seen); got.Empty || got.Accepted || got.Duplicate || len(seen) != 0 {
-		t.Fatalf("admitCompletionCandidate prefix miss = %#v with seen %#v, want inert miss and no seen mutation", got, seen)
+	if got := admitCompletionCandidate("Review", newCompletionPrefix("he"), seen); got.Empty || got.Accepted || got.Duplicate || !got.PrefixMissed || len(seen) != 0 {
+		t.Fatalf("admitCompletionCandidate prefix miss = %#v with seen %#v, want visible inert miss and no seen mutation", got, seen)
 	}
 	if got := admitCompletionCandidate("Review", newCompletionPrefix("rev"), seen); !got.Accepted || got.Identity.Key != "review" || len(seen) != 1 {
 		t.Fatalf("admitCompletionCandidate accepted = %#v with seen %#v, want accepted review", got, seen)
 	}
 	if got := admitCompletionCandidate("/review", newCompletionPrefix("rev"), seen); !got.Duplicate || got.Identity.Key != "review" || got.Accepted {
 		t.Fatalf("admitCompletionCandidate duplicate = %#v, want duplicate review", got)
+	}
+}
+
+func TestCompletionCandidatePlansExposePrefixMisses(t *testing.T) {
+	commandPlan := planCommandCompletionCandidates(newCompletionPrefix("re"), []cli.CommandPolicy{
+		{Name: "help"},
+		{Name: "review"},
+		{Name: "reset", Aliases: []string{"Again"}},
+	})
+	if !reflect.DeepEqual(commandPlan.SortedNames, []string{"reset", "review"}) || commandPlan.PrefixMissed != 2 {
+		t.Fatalf("planCommandCompletionCandidates prefix evidence = %#v, want review/reset and two misses", commandPlan)
+	}
+
+	promptPlan := planSlashCompletionCandidates(newCompletionPrefix("re"), []slashCompletionCandidate{
+		{Name: "review"},
+		{Name: "help"},
+		{Name: "reset"},
+	})
+	wantPrompt := []Completion{{Name: "reset", Display: "", Available: true}, {Name: "review", Display: "", Available: true}}
+	if !reflect.DeepEqual(promptPlan.Completions, wantPrompt) || promptPlan.PrefixMissed != 1 {
+		t.Fatalf("planSlashCompletionCandidates prefix evidence = %#v, want completions %#v and one miss", promptPlan, wantPrompt)
+	}
+
+	subcommandPlan := planMatchingSubcommandCandidates([]string{"show", "hide", "status"}, newSubcommandPrefix("s"))
+	wantSubcommands := []subcommandCandidate{{name: "show", key: "show"}, {name: "status", key: "status"}}
+	if !reflect.DeepEqual(subcommandPlan.Candidates, wantSubcommands) || subcommandPlan.PrefixMissed != 1 {
+		t.Fatalf("planMatchingSubcommandCandidates prefix evidence = %#v, want candidates %#v and one miss", subcommandPlan, wantSubcommands)
 	}
 }
 
@@ -183,8 +210,8 @@ func TestDynamicCompletionPlansExposeDroppedCandidates(t *testing.T) {
 	}}
 	promptPlan := planPromptTemplateCompletions(newCompletionPrefix("rev"), catalog)
 	wantPrompt := []Completion{{Name: "Review", Display: "/Review", Description: "first", ArgumentHint: "<scope>", Available: true}}
-	if !reflect.DeepEqual(promptPlan.Completions, wantPrompt) || promptPlan.EmptyDropped != 1 || !reflect.DeepEqual(promptPlan.DuplicateKeys, []string{"review"}) {
-		t.Fatalf("planPromptTemplateCompletions = %#v, want completions %#v, one empty drop, duplicate review", promptPlan, wantPrompt)
+	if !reflect.DeepEqual(promptPlan.Completions, wantPrompt) || promptPlan.EmptyDropped != 1 || promptPlan.PrefixMissed != 0 || !reflect.DeepEqual(promptPlan.DuplicateKeys, []string{"review"}) {
+		t.Fatalf("planPromptTemplateCompletions = %#v, want completions %#v, one empty drop, no prefix misses, duplicate review", promptPlan, wantPrompt)
 	}
 
 	skillPlan := planSkillCompletions(newCompletionPrefix("rev"), []skills.SkillSlashCommand{
@@ -193,8 +220,8 @@ func TestDynamicCompletionPlansExposeDroppedCandidates(t *testing.T) {
 		{Command: "   ", Description: "empty"},
 	})
 	wantSkill := []Completion{{Name: "review", Display: "/review", Description: "first", Available: true}}
-	if !reflect.DeepEqual(skillPlan.Completions, wantSkill) || skillPlan.EmptyDropped != 1 || !reflect.DeepEqual(skillPlan.DuplicateKeys, []string{"review"}) {
-		t.Fatalf("planSkillCompletions = %#v, want completions %#v, one empty drop, duplicate review", skillPlan, wantSkill)
+	if !reflect.DeepEqual(skillPlan.Completions, wantSkill) || skillPlan.EmptyDropped != 1 || skillPlan.PrefixMissed != 0 || !reflect.DeepEqual(skillPlan.DuplicateKeys, []string{"review"}) {
+		t.Fatalf("planSkillCompletions = %#v, want completions %#v, one empty drop, no prefix misses, duplicate review", skillPlan, wantSkill)
 	}
 }
 
@@ -603,8 +630,8 @@ func TestSubcommandCandidatePlanNormalizesRawPolicyValues(t *testing.T) {
 	plan := planMatchingSubcommandCandidates([]string{" /Show ", "show", "", "  "}, newSubcommandPrefix("sh"))
 	wantCandidates := []subcommandCandidate{{name: "Show", key: "show"}}
 	wantDuplicates := []string{"show"}
-	if !reflect.DeepEqual(plan.Candidates, wantCandidates) || plan.EmptyDropped != 2 || !reflect.DeepEqual(plan.DuplicateKeys, wantDuplicates) {
-		t.Fatalf("planMatchingSubcommandCandidates = %#v, want candidates %#v, two empty drops, duplicates %#v", plan, wantCandidates, wantDuplicates)
+	if !reflect.DeepEqual(plan.Candidates, wantCandidates) || plan.EmptyDropped != 2 || plan.PrefixMissed != 0 || !reflect.DeepEqual(plan.DuplicateKeys, wantDuplicates) {
+		t.Fatalf("planMatchingSubcommandCandidates = %#v, want candidates %#v, two empty drops, no prefix misses, duplicates %#v", plan, wantCandidates, wantDuplicates)
 	}
 
 	got := matchingSubcommandCompletions([]string{" /Show "}, newSubcommandPrefix("sh"))

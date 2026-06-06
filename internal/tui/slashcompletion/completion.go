@@ -43,6 +43,7 @@ type commandCompletionPlan struct {
 	Hits          map[string]commandCompletionHit
 	SortedNames   []string
 	EmptyDropped  int
+	PrefixMissed  int
 	DuplicateKeys []string
 }
 
@@ -78,12 +79,16 @@ func renderCommandCompletionPlan(plan commandCompletionPlan) []Completion {
 
 type commandCompletionCandidateResult struct {
 	EmptyDropped bool
+	PrefixMissed bool
 	DuplicateKey string
 }
 
 func (p *commandCompletionPlan) recordCandidateResult(result commandCompletionCandidateResult) {
 	if result.EmptyDropped {
 		p.EmptyDropped++
+	}
+	if result.PrefixMissed {
+		p.PrefixMissed++
 	}
 	if result.DuplicateKey != "" {
 		p.DuplicateKeys = append(p.DuplicateKeys, result.DuplicateKey)
@@ -96,7 +101,7 @@ func addCommandCompletionHit(seen map[string]commandCompletionHit, prefix comple
 		return commandCompletionCandidateResult{EmptyDropped: true}
 	}
 	if !prefix.matches(identity.Name) {
-		return commandCompletionCandidateResult{}
+		return commandCompletionCandidateResult{PrefixMissed: true}
 	}
 	if existing, ok := seen[identity.Key]; ok {
 		if shouldReplaceCommandCompletionHit(existing, canonical) {
@@ -192,6 +197,7 @@ type subcommandCandidate struct {
 type subcommandCandidatePlan struct {
 	Candidates    []subcommandCandidate
 	EmptyDropped  int
+	PrefixMissed  int
 	DuplicateKeys []string
 }
 
@@ -216,6 +222,9 @@ func planMatchingSubcommandCandidates(subcommands []string, prefix completionPre
 			continue
 		}
 		if !admission.Accepted {
+			if admission.PrefixMissed {
+				plan.PrefixMissed++
+			}
 			continue
 		}
 		plan.Candidates = append(plan.Candidates, subcommandCandidate{name: admission.Identity.Name, key: admission.Identity.Key})

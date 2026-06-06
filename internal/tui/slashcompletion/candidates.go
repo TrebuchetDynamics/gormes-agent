@@ -37,15 +37,17 @@ type slashCompletionCandidate struct {
 }
 
 type candidateAdmission struct {
-	Identity  completionIdentity
-	Accepted  bool
-	Empty     bool
-	Duplicate bool
+	Identity     completionIdentity
+	Accepted     bool
+	Empty        bool
+	Duplicate    bool
+	PrefixMissed bool
 }
 
 type slashCompletionCandidatePlan struct {
 	Completions   []Completion
 	EmptyDropped  int
+	PrefixMissed  int
 	DuplicateKeys []string
 }
 
@@ -70,6 +72,9 @@ func planSlashCompletionCandidates(prefix completionPrefix, candidates []slashCo
 			continue
 		}
 		if !admission.Accepted {
+			if admission.PrefixMissed {
+				plan.PrefixMissed++
+			}
 			continue
 		}
 		plan.Completions = append(plan.Completions, Completion{
@@ -89,7 +94,7 @@ func admitCompletionCandidate(rawName string, prefix completionPrefix, seen map[
 		return candidateAdmission{Identity: identity, Empty: true}
 	}
 	if !prefix.matches(identity.Name) {
-		return candidateAdmission{Identity: identity}
+		return candidateAdmission{Identity: identity, PrefixMissed: true}
 	}
 	if _, ok := seen[identity.Key]; ok {
 		return candidateAdmission{Identity: identity, Duplicate: true}
