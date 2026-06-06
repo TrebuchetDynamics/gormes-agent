@@ -90,6 +90,40 @@ func TestServerToolsKeepsFirstDuplicateServerProvenance(t *testing.T) {
 	}
 }
 
+func TestServerToolsPassesConnectorIndependentServerDefinition(t *testing.T) {
+	servers := []config.MCPServerDefinition{{
+		Name:    "github",
+		Enabled: true,
+		Args:    []string{"serve"},
+		Env:     map[string]string{"TOKEN": "secret"},
+		Headers: map[string]string{"Authorization": "Bearer secret"},
+		Sampling: config.MCPSamplingConfig{
+			AllowedModels: []string{"gpt-4o"},
+		},
+	}}
+
+	_ = ServerTools(context.Background(), servers, func(_ context.Context, def config.MCPServerDefinition) (Session, error) {
+		def.Args[0] = "tampered"
+		def.Env["TOKEN"] = "tampered"
+		def.Headers["Authorization"] = "tampered"
+		def.Sampling.AllowedModels[0] = "tampered"
+		return &fakeSession{tools: []descriptor.RawTool{{Name: "ok"}}}, nil
+	})
+
+	if servers[0].Args[0] != "serve" {
+		t.Fatalf("server args mutated by connector: %+v", servers[0].Args)
+	}
+	if servers[0].Env["TOKEN"] != "secret" {
+		t.Fatalf("server env mutated by connector: %+v", servers[0].Env)
+	}
+	if servers[0].Headers["Authorization"] != "Bearer secret" {
+		t.Fatalf("server headers mutated by connector: %+v", servers[0].Headers)
+	}
+	if servers[0].Sampling.AllowedModels[0] != "gpt-4o" {
+		t.Fatalf("server sampling models mutated by connector: %+v", servers[0].Sampling.AllowedModels)
+	}
+}
+
 func TestServerToolsCopiesRawToolSchemas(t *testing.T) {
 	schema := json.RawMessage(`{"type":"object"}`)
 	session := &fakeSession{tools: []descriptor.RawTool{{Name: "ok", InputSchema: schema}}}
