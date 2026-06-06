@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/transcript"
@@ -3659,5 +3660,250 @@ func TestQueueSlashEmptyReportsDepthEvenIdle(t *testing.T) {
 	}
 	if !strings.Contains(m.statusMessage, "1 queued message(s)") {
 		t.Fatalf("status after /queue = %q, want queue depth", m.statusMessage)
+	}
+}
+
+// ---- reload_skills_slash_test.go ----
+
+func TestReloadSkillsSlashRefreshesSkillSlashRegistry(t *testing.T) {
+	sub := &recordingSubmitter{}
+	calls := 0
+	frames := make(chan kernel.RenderFrame, 1)
+	frames <- kernel.RenderFrame{Phase: kernel.PhaseIdle, Seq: 1}
+	m := NewModelWithOptions(frames, sub.submit, func() {}, Options{
+		MouseTracking: true,
+		SkillSlashReload: func(context.Context) (SkillSlashReloadResult, error) {
+			calls++
+			return SkillSlashReloadResult{Commands: []skills.SkillSlashCommand{{
+				Command:     "/fresh-skill",
+				Name:        "fresh-skill",
+				Description: "Fresh skill",
+				Skill:       skills.Skill{Name: "fresh-skill", Body: "Fresh skill body."},
+			}}, Output: "Skills Reloaded\n1 skill(s) available"}, nil
+		},
+	})
+	m.frame.Phase = kernel.PhaseIdle
+
+	m = enterSlashDispatchBehavior(t, m, "/reload-skills")
+	if calls != 1 {
+		t.Fatalf("reload calls = %d, want 1", calls)
+	}
+	if sub.calls != 0 {
+		t.Fatalf("/reload-skills reached Submitter %d time(s), want 0", sub.calls)
+	}
+	if !strings.Contains(m.statusMessage, "1 skill(s) available") {
+		t.Fatalf("status after reload = %q", m.statusMessage)
+	}
+
+	m = enterSlashDispatchBehavior(t, m, "/fresh-skill now")
+	if sub.calls != 1 {
+		t.Fatalf("/fresh-skill submit calls = %d, want 1", sub.calls)
+	}
+	if !strings.Contains(sub.texts[0], "Fresh skill body.") || strings.Contains(sub.texts[0], "/fresh-skill now") {
+		t.Fatalf("fresh skill submit did not expand correctly:\n%s", sub.texts[0])
+	}
+}
+
+func TestReloadSkillsSlashConsumesUnavailableAndFailure(t *testing.T) {
+	sub := &recordingSubmitter{}
+	m := newSkillSlashModel(sub, nil)
+
+	m = enterSlashDispatchBehavior(t, m, "/reload_skills")
+	if sub.calls != 0 {
+		t.Fatalf("unwired reload reached Submitter %d time(s), want 0", sub.calls)
+	}
+	if !strings.Contains(m.statusMessage, "reload-skills") || !strings.Contains(m.statusMessage, "unavailable") {
+		t.Fatalf("unwired reload status = %q, want unavailable evidence", m.statusMessage)
+	}
+
+	frames := make(chan kernel.RenderFrame, 1)
+	frames <- kernel.RenderFrame{Phase: kernel.PhaseIdle, Seq: 1}
+	m = NewModelWithOptions(frames, sub.submit, func() {}, Options{
+		MouseTracking: true,
+		SkillSlashReload: func(context.Context) (SkillSlashReloadResult, error) {
+			return SkillSlashReloadResult{}, errors.New("scan failed")
+		},
+	})
+	m.frame.Phase = kernel.PhaseIdle
+	m = enterSlashDispatchBehavior(t, m, "/reload-skills")
+	if !strings.Contains(m.statusMessage, "scan failed") {
+		t.Fatalf("failed reload status = %q, want error evidence", m.statusMessage)
+	}
+}
+
+// ---- skill_slash_test.go ----
+
+type recordingSubmitter struct {
+	calls int
+	texts []string
+}
+
+func (r *recordingSubmitter) submit(text string) {
+	r.calls++
+	r.texts = append(r.texts, text)
+}
+
+func TestSkillSlashDispatch_SubmitsExpandedSkillMessage(t *testing.T) {
+	sub := &recordingSubmitter{}
+	m := newSkillSlashModel(sub, []skills.SkillSlashCommand{{
+		Command:     "/review-skill",
+		Name:        "review-skill",
+		Description: "Review code",
+		SkillDir:    "/tmp/review-skill",
+		Skill:       skills.Skill{Name: "review-skill", Body: "Review the requested code carefully."},
+	}})
+
+	m = enterSlashDispatchBehavior(t, m, "/review-skill inspect src")
+
+	if sub.calls != 1 {
+		t.Fatalf("Submitter calls = %d, want 1", sub.calls)
+	}
+	got := sub.texts[0]
+	for _, want := range []string{
+		`[IMPORTANT: The user has invoked the "review-skill" skill`,
+		"Review the requested code carefully.",
+		"[Skill directory: /tmp/review-skill]",
+		"The user has provided the following instruction alongside the skill invocation: inspect src",
+		"[Runtime note: native-tui]",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("submitted skill message missing %q:\n%s", want, got)
+		}
+	}
+	if strings.HasPrefix(strings.TrimSpace(got), "/review-skill") {
+		t.Fatalf("raw slash leaked into submit: %q", got)
+	}
+	if m.editor.Value() != "" {
+		t.Fatalf("editor after skill slash = %q, want cleared", m.editor.Value())
+	}
+	if !strings.Contains(m.statusMessage, "skill_invoked: review-skill") {
+		t.Fatalf("status = %q, want skill invocation evidence", m.statusMessage)
+	}
+}
+
+func TestSkillSlashDispatch_BuiltinsAndSkillsPrecedePromptTemplates(t *testing.T) {
+	sub := &recordingSubmitter{}
+	frames := make(chan kernel.RenderFrame, 1)
+	frames <- kernel.RenderFrame{Phase: kernel.PhaseIdle, Seq: 1}
+	m := NewModelWithOptions(frames, sub.submit, func() {}, Options{
+		MouseTracking: true,
+		SkillSlashCommands: []skills.SkillSlashCommand{
+			{Command: "/help", Name: "help", Skill: skills.Skill{Name: "help", Body: "must not run"}},
+			{Command: "/review-skill", Name: "review-skill", Skill: skills.Skill{Name: "review-skill", Body: "Skill body wins."}},
+		},
+		PromptTemplates: PromptTemplateCatalog{Templates: []prompttemplates.Template{{Name: "review-skill", Body: "Template body must not win."}}},
+	})
+	m.frame.Phase = kernel.PhaseIdle
+
+	m = enterSlashDispatchBehavior(t, m, "/help")
+	if sub.calls != 0 {
+		t.Fatalf("/help reached Submitter %d time(s), want builtin precedence", sub.calls)
+	}
+
+	m = enterSlashDispatchBehavior(t, m, "/review-skill now")
+	if sub.calls != 1 {
+		t.Fatalf("/review-skill Submitter calls = %d, want skill precedence over prompt template", sub.calls)
+	}
+	if !strings.Contains(sub.texts[0], "Skill body wins.") || strings.Contains(sub.texts[0], "Template body must not win") {
+		t.Fatalf("skill/template precedence wrong:\n%s", sub.texts[0])
+	}
+}
+
+func newSkillSlashModel(sub *recordingSubmitter, commands []skills.SkillSlashCommand) Model {
+	frames := make(chan kernel.RenderFrame, 1)
+	frames <- kernel.RenderFrame{Phase: kernel.PhaseIdle, Seq: 1}
+	m := NewModelWithOptions(frames, sub.submit, func() {}, Options{
+		MouseTracking:      true,
+		SkillSlashCommands: commands,
+	})
+	m.frame.Phase = kernel.PhaseIdle
+	return m
+}
+
+// ---- prompt_template_slash_test.go ----
+
+func TestPromptTemplateSlashExpansionSeedsEditorWithoutSubmit(t *testing.T) {
+	sub := &recordingPromptTemplateSubmitter{}
+	frames := make(chan kernel.RenderFrame, 1)
+	frames <- kernel.RenderFrame{Phase: kernel.PhaseIdle, Seq: 1}
+	catalog := prompttemplates.Catalog{Templates: []prompttemplates.Template{
+		{Name: "review", Description: "Review staged changes", ArgumentHint: "<scope>", Body: "Review $1 with args: $ARGUMENTS"},
+	}}
+	m := NewModelWithOptions(frames, sub.submit, func() {}, Options{PromptTemplates: catalog})
+	m.frame.Phase = kernel.PhaseIdle
+
+	m = enterSlashDispatchBehavior(t, m, `/review staged "bug fix"`)
+
+	if sub.calls != 0 {
+		t.Fatalf("/review reached Submitter %d time(s), want 0", sub.calls)
+	}
+	if got := m.editor.Value(); got != "Review staged with args: staged bug fix" {
+		t.Fatalf("editor after template expansion = %q", got)
+	}
+	if !strings.Contains(m.statusMessage, "prompt_template_expanded") || !strings.Contains(m.statusMessage, "review") {
+		t.Fatalf("status after template expansion = %q", m.statusMessage)
+	}
+
+	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd != nil {
+		_ = cmd()
+	}
+	updated, ok := next.(Model)
+	if !ok {
+		t.Fatalf("Update returned %T, want tui.Model", next)
+	}
+	if updated.editor.Value() != "" {
+		t.Fatalf("editor after submitting expanded template = %q, want cleared", updated.editor.Value())
+	}
+	if sub.calls != 1 || sub.last != "Review staged with args: staged bug fix" {
+		t.Fatalf("submitter calls=%d last=%q, want one expanded prompt", sub.calls, sub.last)
+	}
+}
+
+type recordingPromptTemplateSubmitter struct {
+	calls int
+	last  string
+}
+
+func (s *recordingPromptTemplateSubmitter) submit(text string) {
+	s.calls++
+	s.last = text
+}
+
+func TestPromptTemplateSlashCompletions(t *testing.T) {
+	catalog := prompttemplates.Catalog{Templates: []prompttemplates.Template{
+		{Name: "review", Description: "Review staged changes", ArgumentHint: "<scope>"},
+	}}
+	completions := SlashCompletionsWithPromptTemplates("/rev", catalog)
+	if len(completions) != 1 {
+		t.Fatalf("SlashCompletionsWithPromptTemplates = %+v, want one template", completions)
+	}
+	if got := completions[0]; got.Name != "review" || got.ArgumentHint != "<scope>" || got.Description != "Review staged changes" {
+		t.Fatalf("template completion = %+v", got)
+	}
+	menu := renderSlashCompletionMenuWithTemplates("/rev", 80, DefaultHermesSkin(), catalog)
+	if !strings.Contains(menu, "/review <scope>") || !strings.Contains(menu, "Review staged changes") {
+		t.Fatalf("completion menu missing prompt template hint/description:\n%s", menu)
+	}
+
+	// Built-in slash commands keep precedence over prompt-template names.
+	colliding := prompttemplates.Catalog{Templates: []prompttemplates.Template{{Name: "skills", Body: "shadow"}}}
+	sub := &nopSubmitter{}
+	calls := 0
+	frames := make(chan kernel.RenderFrame, 1)
+	frames <- kernel.RenderFrame{Phase: kernel.PhaseIdle, Seq: 1}
+	m := NewModelWithOptions(frames, sub.submit, func() {}, Options{
+		PromptTemplates: colliding,
+		SkillsCommand: func(input string) string {
+			calls++
+			return "skills local command"
+		},
+	})
+	m = enterSlashDispatchBehavior(t, m, "/skills list")
+	if calls != 1 {
+		t.Fatalf("colliding /skills template shadowed built-in skills command; calls=%d", calls)
+	}
+	if sub.calls != 0 {
+		t.Fatalf("/skills list reached Submitter %d time(s), want 0", sub.calls)
 	}
 }
