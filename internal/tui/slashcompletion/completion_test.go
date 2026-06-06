@@ -93,6 +93,28 @@ func TestPromptTemplateCompletionsNormalizeSlashPrefixedTemplateNames(t *testing
 	}
 }
 
+func TestCompletionNameNormalizationTrimsAfterSlashPrefix(t *testing.T) {
+	cases := []struct {
+		raw  string
+		want string
+	}{
+		{raw: " / Review ", want: "Review"},
+		{raw: "// review", want: "review"},
+	}
+	for _, tc := range cases {
+		if got := completionName(tc.raw); got != tc.want {
+			t.Fatalf("completionName(%q) = %q, want %q", tc.raw, got, tc.want)
+		}
+	}
+
+	catalog := prompttemplates.Catalog{Templates: []prompttemplates.Template{{Name: " / Review ", Description: "review"}}}
+	got := PromptTemplateCompletions("/rev", catalog)
+	want := []Completion{{Name: "Review", Display: "/Review", Description: "review", Available: true}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("PromptTemplateCompletions with spaced slash prefix = %#v, want %#v", got, want)
+	}
+}
+
 func TestSkillCompletionsDeduplicateCaseInsensitiveNames(t *testing.T) {
 	commands := []skills.SkillSlashCommand{
 		{Command: "/Review", Description: "first"},

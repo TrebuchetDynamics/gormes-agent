@@ -70,7 +70,9 @@ func completionNameMatches(name string, prefix completionPrefix) bool {
 }
 
 func completionName(name string) string {
-	return strings.TrimLeft(strings.TrimSpace(name), "/")
+	trimmed := strings.TrimSpace(name)
+	trimmed = strings.TrimLeft(trimmed, "/")
+	return strings.TrimSpace(trimmed)
 }
 
 func completionKey(name string) string {
