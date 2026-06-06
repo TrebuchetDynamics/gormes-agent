@@ -10,6 +10,9 @@ import (
 	"sync"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/engine/wasi/contract"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/engine/wasi/runtime/diagnostics"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/engine/wasi/runtime/emval"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/engine/wasi/runtime/whisperapi"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/engine/wasi/wav"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/pathredact"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/wasienv"
@@ -70,7 +73,7 @@ func (t *Transcriber) open(ctx context.Context) error {
 	}
 	builder.NewFunctionBuilder().
 		WithName("_emval_get_module_property").
-		WithGoModuleFunction(api.GoModuleFunc(t.emvalGetModuleProperty), []api.ValueType{api.ValueTypeI32}, []api.ValueType{api.ValueTypeI32}).
+		WithGoModuleFunction(api.GoModuleFunc(emval.ModuleProperties{Engine: t.engine}.EmvalGetModuleProperty), []api.ValueType{api.ValueTypeI32}, []api.ValueType{api.ValueTypeI32}).
 		Export("_emval_get_module_property")
 	if _, err := builder.Instantiate(ctx); err != nil {
 		return &contract.TranscriberError{Code: contract.TranscriberWASIInference, Err: fmt.Errorf("instantiate env imports: %w", err)}
@@ -86,13 +89,13 @@ func (t *Transcriber) open(ctx context.Context) error {
 	ctx = t.engine.Attach(ctx)
 	module, err := t.runtime.InstantiateModule(ctx, compiled, moduleConfig)
 	if err != nil {
-		return &contract.TranscriberError{Code: contract.TranscriberWASIInference, Err: redactTranscriberError(err, t.modelPath)}
+		return &contract.TranscriberError{Code: contract.TranscriberWASIInference, Err: diagnostics.RedactTranscriberError(err, t.modelPath)}
 	}
 	t.module = module
 
-	modelIndex, err := callWhisperInit(t.engine, ctx, "/models/"+filepath.Base(t.modelPath))
+	modelIndex, err := whisperapi.Init(t.engine, ctx, "/models/"+filepath.Base(t.modelPath))
 	if err != nil {
-		return &contract.TranscriberError{Code: contract.TranscriberModelUnavailable, Path: filepath.Base(t.modelPath), Err: redactTranscriberError(err, t.modelPath)}
+		return &contract.TranscriberError{Code: contract.TranscriberModelUnavailable, Path: filepath.Base(t.modelPath), Err: diagnostics.RedactTranscriberError(err, t.modelPath)}
 	}
 	if modelIndex == 0 {
 		return &contract.TranscriberError{Code: contract.TranscriberModelUnavailable, Path: filepath.Base(t.modelPath), Err: fmt.Errorf("whisper init returned zero model handle")}
@@ -117,9 +120,9 @@ func (t *Transcriber) TranscribeWAV(ctx context.Context, path string) (string, e
 	t.stdout.Reset()
 	t.stderr.Reset()
 	ctx = t.engine.Attach(ctx)
-	ret, err := callWhisperFullDefault(t.engine, ctx, t.modelIndex, newFloat32Array(samples), "en", 1, false)
+	ret, err := whisperapi.FullDefault(t.engine, ctx, t.modelIndex, emval.NewFloat32Array(samples), "en", 1, false)
 	if err != nil {
-		return "", &contract.TranscriberError{Code: contract.TranscriberWASIInference, Path: filepath.Base(path), Err: redactTranscriberError(err, path, t.modelPath)}
+		return "", &contract.TranscriberError{Code: contract.TranscriberWASIInference, Path: filepath.Base(path), Err: diagnostics.RedactTranscriberError(err, path, t.modelPath)}
 	}
 	output := strings.TrimSpace(t.stdout.String())
 	if stderr := strings.TrimSpace(t.stderr.String()); stderr != "" {
@@ -147,7 +150,7 @@ func (t *Transcriber) Close(ctx context.Context) error {
 	t.closed = true
 	var errs []error
 	if t.engine != nil && t.modelIndex != 0 {
-		if err := callWhisperFree(t.engine, t.engine.Attach(ctx), t.modelIndex); err != nil {
+		if err := whisperapi.Free(t.engine, t.engine.Attach(ctx), t.modelIndex); err != nil {
 			errs = append(errs, err)
 		}
 		t.modelIndex = 0
@@ -168,7 +171,7 @@ func (t *Transcriber) Close(ctx context.Context) error {
 		}
 	}
 	if len(errs) > 0 {
-		return &contract.TranscriberError{Code: contract.TranscriberWASIInference, Err: errorsJoin(errs)}
+		return &contract.TranscriberError{Code: contract.TranscriberWASIInference, Err: diagnostics.Join(errs)}
 	}
 	return nil
 }

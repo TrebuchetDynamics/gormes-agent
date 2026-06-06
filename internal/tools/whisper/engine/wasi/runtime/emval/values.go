@@ -1,4 +1,4 @@
-package runtime
+package emval
 
 import (
 	"context"
@@ -8,7 +8,11 @@ import (
 	"github.com/tetratelabs/wazero/api"
 )
 
-func (t *Transcriber) emvalGetModuleProperty(ctx context.Context, mod api.Module, stack []uint64) {
+type ModuleProperties struct {
+	Engine interface{ EmvalToHandle(any) int32 }
+}
+
+func (p ModuleProperties) EmvalGetModuleProperty(ctx context.Context, mod api.Module, stack []uint64) {
 	name := readCString(mod, uint32(api.DecodeI32(stack[0])))
 	switch name {
 	case "HEAPU8":
@@ -17,9 +21,9 @@ func (t *Transcriber) emvalGetModuleProperty(ctx context.Context, mod api.Module
 		if !ok {
 			panic("read whisper wasm memory")
 		}
-		stack[0] = api.EncodeI32(t.engine.EmvalToHandle(&emscriptenHeapU8{Buffer: buffer}))
+		stack[0] = api.EncodeI32(p.Engine.EmvalToHandle(&emscriptenHeapU8{Buffer: buffer}))
 	case "Float32Array":
-		stack[0] = api.EncodeI32(t.engine.EmvalToHandle(float32ArrayConstructor{}))
+		stack[0] = api.EncodeI32(p.Engine.EmvalToHandle(float32ArrayConstructor{}))
 	default:
 		panic(fmt.Errorf("unsupported whisper wasm module property %q", name))
 	}
@@ -113,7 +117,7 @@ type float32Array struct {
 	Buffer        []float32
 }
 
-func newFloat32Array(samples []float32) *float32Array {
+func NewFloat32Array(samples []float32) any {
 	return &float32Array{
 		Buffer:      samples,
 		Constructor: &float32Array{},

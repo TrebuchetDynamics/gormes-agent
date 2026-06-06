@@ -1,4 +1,4 @@
-package runtime
+package whisperapi
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	embind "github.com/jerbob92/wazero-emscripten-embind"
 )
 
-func callWhisperInit(engine embind.Engine, ctx context.Context, modelPath string) (uint32, error) {
+func Init(engine embind.Engine, ctx context.Context, modelPath string) (uint32, error) {
 	res, err := engine.CallPublicSymbol(ctx, "init", modelPath)
 	if err != nil || res == nil {
 		return 0, err
@@ -14,7 +14,7 @@ func callWhisperInit(engine embind.Engine, ctx context.Context, modelPath string
 	return res.(uint32), nil
 }
 
-func callWhisperFullDefault(engine embind.Engine, ctx context.Context, modelIndex uint32, audio any, language string, threads int32, translate bool) (int32, error) {
+func FullDefault(engine embind.Engine, ctx context.Context, modelIndex uint32, audio any, language string, threads int32, translate bool) (int32, error) {
 	res, err := engine.CallPublicSymbol(ctx, "full_default", modelIndex, audio, language, threads, translate)
 	if err != nil || res == nil {
 		return 0, err
@@ -22,7 +22,7 @@ func callWhisperFullDefault(engine embind.Engine, ctx context.Context, modelInde
 	return res.(int32), nil
 }
 
-func callWhisperFree(engine embind.Engine, ctx context.Context, modelIndex uint32) error {
+func Free(engine embind.Engine, ctx context.Context, modelIndex uint32) error {
 	_, err := engine.CallPublicSymbol(ctx, "free", modelIndex)
 	return err
 }
