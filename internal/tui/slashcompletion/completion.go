@@ -88,7 +88,7 @@ func SkillCompletions(input string, commands []skills.SkillSlashCommand) []Compl
 	}
 	var out []Completion
 	for _, command := range commands {
-		name := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(command.Command)), "/")
+		name := completionKey(command.Command)
 		if name == "" || !strings.HasPrefix(name, prefix) {
 			continue
 		}
@@ -115,7 +115,7 @@ func slashCompletionPrefix(input string) (string, bool) {
 }
 
 func completionNameMatches(name, prefix string) bool {
-	return strings.HasPrefix(strings.ToLower(strings.TrimPrefix(strings.TrimSpace(name), "/")), prefix)
+	return strings.HasPrefix(completionKey(name), prefix)
 }
 
 func WithDynamic(input string, commands []skills.SkillSlashCommand, catalog prompttemplates.Catalog) []Completion {
@@ -135,15 +135,23 @@ func WithDynamic(input string, commands []skills.SkillSlashCommand, catalog prom
 	out := make([]Completion, 0, count)
 	for _, group := range groups {
 		for _, c := range group {
-			if _, ok := seen[c.Name]; ok {
+			key := completionKey(c.Name)
+			if key == "" {
 				continue
 			}
-			seen[c.Name] = struct{}{}
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
 			out = append(out, c)
 		}
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	sort.Slice(out, func(i, j int) bool { return completionKey(out[i].Name) < completionKey(out[j].Name) })
 	return out
+}
+
+func completionKey(name string) string {
+	return strings.ToLower(strings.TrimPrefix(strings.TrimSpace(name), "/"))
 }
 
 func SubcommandCompletions(input string) []Completion {

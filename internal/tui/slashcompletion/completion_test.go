@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/prompttemplates"
 )
 
@@ -25,6 +26,16 @@ func TestCompletionsAreDeterministicAndMerged(t *testing.T) {
 	got := WithPromptTemplates("/rev", catalog)
 	if len(got) != 1 || got[0].Name != "review" || got[0].ArgumentHint != "<scope>" {
 		t.Fatalf("WithPromptTemplates = %#v, want review template", got)
+	}
+}
+
+func TestWithDynamicDeduplicatesCaseInsensitiveNames(t *testing.T) {
+	commands := []skills.SkillSlashCommand{{Command: "/Review", Description: "skill review"}}
+	catalog := prompttemplates.Catalog{Templates: []prompttemplates.Template{{Name: "Review", Description: "template review"}}}
+
+	got := WithDynamic("/rev", commands, catalog)
+	if len(got) != 1 || got[0].Name != "review" {
+		t.Fatalf("WithDynamic duplicate case variants = %#v, want one canonical review completion", got)
 	}
 }
 
