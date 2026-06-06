@@ -35,8 +35,11 @@ func planAcceptedText(input string, completion Completion, acceptExact bool) acc
 	if inputHasCompletionArguments(input) {
 		return acceptedTextPlan{Text: input, Reason: acceptedTextReasonUnsupportedInput}
 	}
-	if base, ok := subcommandBase(input); ok {
-		return planAcceptedSubcommandText(input, base, accepted, acceptExact)
+	if flow, ok := resolveSubcommandFlow(input); ok {
+		if !acceptedSubcommandCandidate(flow, accepted) {
+			return acceptedTextPlan{Text: input, Reason: acceptedTextReasonUnsupportedInput}
+		}
+		return planAcceptedSubcommandText(input, flow, accepted, acceptExact)
 	}
 
 	next := "/" + accepted.name
@@ -50,10 +53,9 @@ func planAcceptedText(input string, completion Completion, acceptExact bool) acc
 	return acceptedTextPlan{Text: next, Changed: next != input, Reason: acceptedTextReasonCommand}
 }
 
-func planAcceptedSubcommandText(input, base string, accepted acceptedCompletion, acceptExact bool) acceptedTextPlan {
-	next := base + " " + accepted.name
-	current, _ := parseCompletionRequest(input)
-	decision := decideAcceptedSubcommandText(next, current.subPrefix.string() == accepted.key, acceptExact)
+func planAcceptedSubcommandText(input string, flow subcommandFlow, accepted acceptedCompletion, acceptExact bool) acceptedTextPlan {
+	next := flow.Base + " " + accepted.name
+	decision := decideAcceptedSubcommandText(next, flow.Prefix.string() == accepted.key, acceptExact)
 	if decision.exact && !acceptExact {
 		return acceptedTextPlan{Text: input, Reason: acceptedTextReasonExactRejected}
 	}
@@ -81,12 +83,13 @@ func inputHasCompletionArguments(input string) bool {
 	return ok && parts.hasArgs
 }
 
-func subcommandBase(input string) (string, bool) {
-	flow, ok := resolveSubcommandFlow(input)
-	if !ok {
-		return "", false
+func acceptedSubcommandCandidate(flow subcommandFlow, accepted acceptedCompletion) bool {
+	for _, candidate := range matchingSubcommandCandidates(flow.Subcommands, flow.Prefix) {
+		if candidate.key == accepted.key {
+			return true
+		}
 	}
-	return flow.Base, true
+	return false
 }
 
 type acceptedCompletion struct {

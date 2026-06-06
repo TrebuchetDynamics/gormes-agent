@@ -222,6 +222,20 @@ func TestAcceptedTextRejectsStaleCompletionAfterSubcommandArguments(t *testing.T
 	}
 }
 
+func TestAcceptedTextRejectsStaleSubcommandCompletionOutsideCurrentPrefix(t *testing.T) {
+	input := "/reasoning sh"
+	got, ok := AcceptedText(input, Completion{Name: "hide"}, true)
+	if ok || got != input {
+		t.Fatalf("AcceptedText with stale subcommand completion = (%q, %v), want original text false", got, ok)
+	}
+
+	plan := planAcceptedText(input, Completion{Name: "hide"}, true)
+	want := acceptedTextPlan{Text: input, Reason: acceptedTextReasonUnsupportedInput}
+	if plan != want {
+		t.Fatalf("planAcceptedText with stale subcommand completion = %#v, want %#v", plan, want)
+	}
+}
+
 func TestAcceptedTextPlanExposesCompletionPath(t *testing.T) {
 	cases := []struct {
 		name        string
