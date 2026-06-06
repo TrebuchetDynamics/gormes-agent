@@ -1396,7 +1396,7 @@ build_gormes() {
   # values instead of compiled-in defaults.
   build_commit="$(git -C "$build_root" rev-parse --short HEAD 2>/dev/null || true)"
   [ -n "$build_commit" ] || build_commit="unknown"
-  build_version="$(grep '^\s*var Version\s*=' "$build_root/cmd/gormes/version.go" 2>/dev/null | sed 's/.*"\(.*\)".*/\1/' || true)"
+  build_version="$(grep '^\s*var Version\s*=' "$build_root/cmd/gormes/main.go" 2>/dev/null | sed 's/.*"\(.*\)".*/\1/' || true)"
   [ -n "$build_version" ] || build_version="0.0.0"
   build_ldflags="-s -w -X main.Version=${build_version} -X main.GitCommit=${build_commit} -X main.GitDirty=${build_dirty}"
   log_info "Building gormes from ${build_root} (${cache_tag})"

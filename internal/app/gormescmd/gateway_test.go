@@ -1,4 +1,4 @@
-package main
+package gormescmd
 
 import (
 	"context"
@@ -12,12 +12,12 @@ import (
 	"testing"
 	"time"
 
+	appgateway "github.com/TrebuchetDynamics/gormes-agent/internal/app/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
-	appgateway "github.com/TrebuchetDynamics/gormes-agent/internal/app/gateway"
 )
 
 func TestGatewayTelegramDynamicCommands_LoadsActiveSkillCommands(t *testing.T) {

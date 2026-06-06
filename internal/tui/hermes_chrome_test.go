@@ -23,10 +23,12 @@ func newHermesChromeFrame() kernel.RenderFrame {
 
 func TestHermesChrome_NoSidebar(t *testing.T) {
 	frames := make(chan kernel.RenderFrame, 1)
-	frames <- newHermesChromeFrame()
+	f := newHermesChromeFrame()
+	frames <- f
 	m := NewModel(frames, func(string) {}, func() {})
 	m.width = 120
 	m.height = 32
+	m.frame = f
 
 	got := m.View()
 
@@ -195,11 +197,15 @@ func TestHermesChrome_InkStyleTranscriptGutter(t *testing.T) {
 func TestHermesChrome_EmptyChatIntroUsesBubbleTeaView(t *testing.T) {
 	frames := make(chan kernel.RenderFrame, 1)
 	f := kernel.RenderFrame{
-		Phase: kernel.PhaseIdle,
-		Model: "anthropic/claude-sonnet-4-20250514",
+		Phase:     kernel.PhaseIdle,
+		Model:     "anthropic/claude-sonnet-4-20250514",
+		SessionID: "sess-hermes-intro",
 	}
 	frames <- f
-	m := NewModel(frames, func(string) {}, func() {})
+	m := NewModelWithOptions(frames, func(string) {}, func() {}, Options{
+		WelcomeToolCount: 26,
+		WelcomeToolsets:  []string{"browser", "browser-cdp", "clarify", "code_execution", "computer_use", "cronjob", "delegation", "discord", "email"},
+	})
 	m.width = 100
 	m.height = 28
 	m.frame = f
@@ -207,8 +213,10 @@ func TestHermesChrome_EmptyChatIntroUsesBubbleTeaView(t *testing.T) {
 	got := m.View()
 
 	assertContainsInOrder(t, got,
-		"⚕ Gormes",
-		"Go-native Hermes-compatible agent",
+		"Gormes",
+		"sess-her",
+		"browser, browser-cdp",
+		"26 tools",
 		"Welcome to Gormes",
 		"Type your message or /help for commands.",
 		"─ ready │ sonnet 4 20250514",

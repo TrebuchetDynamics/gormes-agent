@@ -16,7 +16,7 @@ func TestSetupInteractiveMenusUseBubbleTeaPicker(t *testing.T) {
 		path   string
 		marker string
 	}{
-		{path: filepath.Join(repo, "cmd/gormes/setup.go"), marker: "runBubbleTeaPick"},
+		{path: filepath.Join(repo, "internal/app/gormescmd/setup.go"), marker: "runBubbleTeaPick"},
 		{path: filepath.Join(repo, "internal/platform/cli/gormescli/setupfirst.go"), marker: "RunTUIPick"},
 	} {
 		raw, err := os.ReadFile(tc.path)
@@ -34,7 +34,7 @@ func TestSetupInteractiveMenusUseBubbleTeaPicker(t *testing.T) {
 }
 
 func TestSetupProviderChoiceUsesSearchableBubbleTeaPickerForTTY(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join(repoRootForSetupBubbleTeaTest(t), "cmd/gormes/setup.go"))
+	raw, err := os.ReadFile(filepath.Join(repoRootForSetupBubbleTeaTest(t), "internal/app/gormescmd/setup.go"))
 	if err != nil {
 		t.Fatalf("read setup.go: %v", err)
 	}
@@ -167,7 +167,7 @@ func repoRootForSetupBubbleTeaTest(t *testing.T) string {
 	}
 	for {
 		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			if _, err := os.Stat(filepath.Join(dir, "cmd/gormes/setup.go")); err == nil {
+			if _, err := os.Stat(filepath.Join(dir, "internal/app/gormescmd/setup.go")); err == nil {
 				return dir
 			}
 		}

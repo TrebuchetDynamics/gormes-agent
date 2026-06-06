@@ -1,5 +1,5 @@
 // Command gormes is the Go-native Hermes-compatible agent runtime.
-package main
+package gormescmd
 
 import (
 	"bytes"
@@ -26,9 +26,9 @@ import (
 	"github.com/spf13/cobra"
 
 	appgateway "github.com/TrebuchetDynamics/gormes-agent/internal/app/gateway"
-	apptelegram "github.com/TrebuchetDynamics/gormes-agent/internal/app/telegram"
-	navivoxapp "github.com/TrebuchetDynamics/gormes-agent/internal/app/navivox"
 	appgoncho "github.com/TrebuchetDynamics/gormes-agent/internal/app/goncho"
+	navivoxapp "github.com/TrebuchetDynamics/gormes-agent/internal/app/navivox"
+	apptelegram "github.com/TrebuchetDynamics/gormes-agent/internal/app/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
@@ -214,7 +214,7 @@ func resolveBuildDateFrom(injected string, settings []debug.BuildSetting) string
 	return gormescli.ResolveBuildDateFrom(injected, settings)
 }
 
-func main() {
+func Main() {
 	defer func() {
 		if r := recover(); r != nil {
 			dumpCrash(r)
@@ -363,12 +363,12 @@ func rootCommandFactories(runtime rootRuntime) gormescli.CommandFactories {
 					build := newBuildProvenance()
 					return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
 				},
-				NewExitCodeError:       newExitCodeError,
-				BuildFirstRunPlan:      tuiapp.BuildFirstRunPlanFromConfig,
+				NewExitCodeError:        newExitCodeError,
+				BuildFirstRunPlan:       tuiapp.BuildFirstRunPlanFromConfig,
 				FirstRunGuidanceCommand: tuiapp.FirstRunGuidanceCommand,
 			})
 		},
-		"version":  func() *cobra.Command { return gormescli.NewVersionCommand(versionInfo()) },
+		"version": func() *cobra.Command { return gormescli.NewVersionCommand(versionInfo()) },
 		"telegram": func() *cobra.Command {
 			return channelsmodule.NewTelegramCommandWithSeams(channelsmodule.TelegramCommandSeams{
 				Run: func(cmd *cobra.Command, args []string) error {
@@ -389,9 +389,9 @@ func rootCommandFactories(runtime rootRuntime) gormescli.CommandFactories {
 			return gatewaymodule.NewGatewayCommand(
 				func(cmd *cobra.Command, args []string) error {
 					return appgateway.RunGateway(cmd, args, appgateway.RunOptions{
-						RegisterChannels:    registerConfiguredGatewayChannelsWithDefaults,
-						NoWakeLock:          func(c *cobra.Command) bool { ok, _ := c.Flags().GetBool("no-wakelock"); return ok },
-						NewExitCodeError:    newExitCodeError,
+						RegisterChannels:     registerConfiguredGatewayChannelsWithDefaults,
+						NoWakeLock:           func(c *cobra.Command) bool { ok, _ := c.Flags().GetBool("no-wakelock"); return ok },
+						NewExitCodeError:     newExitCodeError,
 						GatewayManagerConfig: gatewayManagerConfig,
 					})
 				},

@@ -187,12 +187,12 @@ func WelcomePanel(s skin.HermesSkin, ctx WelcomeContext, width int) string {
 		toolsets = welcomeSeed.Toolsets
 	}
 
-	addCtx("cwd", ctx.CWD)
+	addCtx("CWD:", ctx.CWD)
 	if id := strings.TrimSpace(ctx.SessionID); id != "" {
-		addCtx("session", shortSessionID(id))
+		addCtx("Session:", shortSessionID(id))
 	}
 	if s.UseMinimalChrome(width) {
-		addCtx("version", version)
+		addCtx("Version:", version)
 	}
 	if len(ctxLines) > 0 {
 		if len(body) > 0 {
@@ -200,7 +200,13 @@ func WelcomePanel(s skin.HermesSkin, ctx WelcomeContext, width int) string {
 		}
 		body = append(body, ctxLines...)
 	}
-	if summary := welcomeSummaryLines(ctx, toolCount, toolsets, contentWidth, dimStyle, accentStyle); len(summary) > 0 {
+	if sections := welcomeSessionSections(toolCount, toolsets, contentWidth, dimStyle, accentStyle); len(sections) > 0 {
+		if len(body) > 0 {
+			body = append(body, "")
+		}
+		body = append(body, sections...)
+	}
+	if summary := welcomeSummaryLines(ctx, toolCount, nil, contentWidth, dimStyle, accentStyle); len(summary) > 0 {
 		if len(body) > 0 {
 			body = append(body, "")
 		}
@@ -228,6 +234,21 @@ func welcomeContentWidth(width int) int {
 		return 20
 	}
 	return width
+}
+
+func welcomeSessionSections(toolCount int, toolsets []string, width int, dimStyle, accentStyle lipgloss.Style) []string {
+	if toolCount <= 0 && len(toolsets) == 0 {
+		return nil
+	}
+	var lines []string
+	lines = append(lines, accentStyle.Render("▾ Available Tools"))
+	if len(toolsets) > 0 {
+		appendWelcomeWrapped(&lines, dimStyle.Render("  "), summarizeWelcomeToolsets(toolsets), width, dimStyle)
+	} else if toolCount > 0 {
+		appendWelcomeWrapped(&lines, dimStyle.Render("  "), fmt.Sprintf("%d tools", toolCount), width, dimStyle)
+	}
+	lines = append(lines, accentStyle.Render("▸ Available Skills"))
+	return lines
 }
 
 func welcomeSummaryLines(ctx WelcomeContext, toolCount int, toolsets []string, width int, dimStyle, accentStyle lipgloss.Style) []string {
@@ -337,17 +358,17 @@ func welcomeBannerBox(s skin.HermesSkin, version string, width int) string {
 	if innerW > 68 {
 		innerW = 68
 	}
-	line1 := fitWelcomeLine("⚕ Gormes - Go-native Hermes-compatible agent", innerW)
-	line2Text := "Gormes"
+	line1 := fitWelcomeLine("Gormes Agent - Go-native Hermes-compatible agent", innerW)
+	line2Text := "Gormes Agent"
 	if version = strings.TrimSpace(version); version != "" {
 		line2Text += " v" + strings.TrimPrefix(version, "v")
 	}
 	line2 := fitWelcomeLine(line2Text, innerW)
 
-	top := border.Render("╔" + strings.Repeat("═", innerW+2) + "╗")
-	mid1 := border.Render("║ ") + title.Render(line1) + border.Render(" ║")
-	mid2 := border.Render("║ ") + dim.Render(line2) + border.Render(" ║")
-	bot := border.Render("╚" + strings.Repeat("═", innerW+2) + "╝")
+	top := border.Render("╭" + strings.Repeat("─", innerW+2) + "╮")
+	mid1 := border.Render("│ ") + title.Render(line1) + border.Render(" │")
+	mid2 := border.Render("│ ") + dim.Render(line2) + border.Render(" │")
+	bot := border.Render("╰" + strings.Repeat("─", innerW+2) + "╯")
 	return strings.Join([]string{top, mid1, mid2, bot}, "\n")
 }
 

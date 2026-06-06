@@ -1,4 +1,4 @@
-package main
+package gormescmd
 
 import (
 	"context"
@@ -10,13 +10,13 @@ import (
 	"testing"
 	"time"
 
+	apptelegram "github.com/TrebuchetDynamics/gormes-agent/internal/app/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
-	apptelegram "github.com/TrebuchetDynamics/gormes-agent/internal/app/telegram"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
@@ -301,8 +301,8 @@ func TestTelegramProductionProviderPayloadUsesRuntimeSeededAgentTemplates(t *tes
 	ch := newTelegramTestChannel()
 	smap := session.NewMemMap()
 	mgrCfg := apptelegram.TelegramManagerConfig(cfg, smap, func(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, allowedWhitelists map[string]gateway.WhitelistConfig, smap session.Map) gateway.ManagerConfig {
-			return gatewayManagerConfig(cfg, allowedChats, allowDiscovery, allowedWhitelists, smap, nil, nil, nil, gateway.RestartConfig{})
-		})
+		return gatewayManagerConfig(cfg, allowedChats, allowDiscovery, allowedWhitelists, smap, nil, nil, nil, gateway.RestartConfig{})
+	})
 	mgrCfg.LiveTurnNow = func() time.Time { return time.Date(2026, 5, 5, 7, 0, 0, 0, time.UTC) }
 
 	m := gateway.NewManager(mgrCfg, k, slog.Default())
