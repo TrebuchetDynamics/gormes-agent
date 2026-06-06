@@ -312,8 +312,37 @@ func TestCompletionRequestParsingClassifiesCommandAndSubcommandFlow(t *testing.T
 		t.Fatalf("parseCompletionRequest(/Reasoning   Sh) = (%#v, %v), want canonical subcommand request", sub, ok)
 	}
 
+	emptySub, ok := parseCompletionRequest("/reasoning   ")
+	if !ok || !emptySub.subcommandOnly() || emptySub.base != "/reasoning" || emptySub.subPrefix.string() != "" {
+		t.Fatalf("parseCompletionRequest(/reasoning spaces) = (%#v, %v), want empty subcommand prefix", emptySub, ok)
+	}
+
 	if got, ok := parseCompletionRequest("/reasoning show now"); ok || got != (completionRequest{}) {
 		t.Fatalf("parseCompletionRequest with subcommand args = (%#v, %v), want rejected", got, ok)
+	}
+}
+
+func TestCompletionInputSplitExposesWhitespaceAndArgs(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  completionInputParts
+		ok    bool
+	}{
+		{name: "not slash", input: "help", ok: false},
+		{name: "command only", input: "/he", want: completionInputParts{command: "/he"}, ok: true},
+		{name: "empty subcommand slot", input: "/reasoning   ", want: completionInputParts{command: "/reasoning", hasSubcommandSlot: true}, ok: true},
+		{name: "subcommand prefix", input: "/Reasoning\tSh", want: completionInputParts{command: "/Reasoning", subword: "Sh", hasSubcommandSlot: true}, ok: true},
+		{name: "subcommand args", input: "/reasoning show now", want: completionInputParts{command: "/reasoning", subword: "show", hasSubcommandSlot: true, hasArgs: true}, ok: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := splitCompletionInput(tc.input)
+			if ok != tc.ok || got != tc.want {
+				t.Fatalf("splitCompletionInput(%q) = (%#v, %v), want (%#v, %v)", tc.input, got, ok, tc.want, tc.ok)
+			}
+		})
 	}
 }
 
