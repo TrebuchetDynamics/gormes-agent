@@ -56,6 +56,18 @@ func TestCommandCompletionPlanCanonicalNamesOutrankEarlierAliases(t *testing.T) 
 	}
 }
 
+func TestCommandCompletionPlanReportsCanonicalAliasCollisions(t *testing.T) {
+	registry := []cli.CommandPolicy{
+		{Name: "backup", Description: "backup", Aliases: []string{"Beta"}},
+		{Name: "Beta", Description: "canonical beta"},
+	}
+
+	plan := planCommandCompletionCandidates(newCompletionPrefix("b"), registry)
+	if !reflect.DeepEqual(plan.DuplicateKeys, []string{"beta"}) {
+		t.Fatalf("planCommandCompletionCandidates canonical-over-alias duplicate keys = %#v, want beta", plan.DuplicateKeys)
+	}
+}
+
 func TestCommandCompletionPlanDropsEmptyNamesAndReportsDuplicates(t *testing.T) {
 	registry := []cli.CommandPolicy{
 		{Name: "", Description: "empty", Aliases: []string{" ", "Help"}},
@@ -64,8 +76,8 @@ func TestCommandCompletionPlanDropsEmptyNamesAndReportsDuplicates(t *testing.T) 
 	}
 
 	plan := planCommandCompletionCandidates(newCompletionPrefix(""), registry)
-	if !reflect.DeepEqual(plan.SortedNames, []string{"help"}) || plan.EmptyDropped != 2 || !reflect.DeepEqual(plan.DuplicateKeys, []string{"help"}) {
-		t.Fatalf("planCommandCompletionCandidates empty/duplicate evidence = %#v, want help only, two empty drops, duplicate help", plan)
+	if !reflect.DeepEqual(plan.SortedNames, []string{"help"}) || plan.EmptyDropped != 2 || !reflect.DeepEqual(plan.DuplicateKeys, []string{"help", "help"}) {
+		t.Fatalf("planCommandCompletionCandidates empty/duplicate evidence = %#v, want help only, two empty drops, two duplicate help collisions", plan)
 	}
 
 	got := renderCommandCompletionPlan(plan)

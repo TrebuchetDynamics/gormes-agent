@@ -98,11 +98,18 @@ func addCommandCompletionHit(seen map[string]commandCompletionHit, prefix comple
 	if !prefix.matches(name) {
 		return commandCompletionCandidateResult{}
 	}
-	if existing, ok := seen[name]; ok && (existing.canonical || !canonical) {
+	if existing, ok := seen[name]; ok {
+		if shouldReplaceCommandCompletionHit(existing, canonical) {
+			seen[name] = commandCompletionHit{name: name, entry: entry, canonical: canonical}
+		}
 		return commandCompletionCandidateResult{DuplicateKey: name}
 	}
 	seen[name] = commandCompletionHit{name: name, entry: entry, canonical: canonical}
 	return commandCompletionCandidateResult{}
+}
+
+func shouldReplaceCommandCompletionHit(existing commandCompletionHit, incomingCanonical bool) bool {
+	return !existing.canonical && incomingCanonical
 }
 
 func PromptTemplateCompletions(input string, catalog prompttemplates.Catalog) []Completion {
