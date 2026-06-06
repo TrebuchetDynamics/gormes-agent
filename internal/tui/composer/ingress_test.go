@@ -27,6 +27,24 @@ func TestDetectComposerDroppedFileAcceptsQuotedRelativePaths(t *testing.T) {
 	}
 }
 
+func TestDetectComposerDroppedFileTreatsTabsAsRemainderSeparator(t *testing.T) {
+	wantPath := filepath.Clean("./drop.txt")
+	var statPaths []string
+	got := DetectComposerDroppedFile("./drop.txt\tdescribe it", ComposerDropOptions{
+		Stat: func(path string) (fs.FileInfo, error) {
+			statPaths = append(statPaths, path)
+			if path == wantPath {
+				return fakeComposerFileInfo{name: filepath.Base(path)}, nil
+			}
+			return nil, fs.ErrNotExist
+		},
+	})
+
+	if !got.Matched || got.Path != wantPath || got.Remainder != "describe it" {
+		t.Fatalf("DetectComposerDroppedFile tab-separated remainder = %+v (statPaths=%q), want matched path %q with remainder", got, statPaths, wantPath)
+	}
+}
+
 func TestCollapseComposerPasteLabelPreservesUTF8(t *testing.T) {
 	text := "a" + strings.Repeat("界", 30) + "\n" + strings.Repeat("emoji🙂", 30)
 

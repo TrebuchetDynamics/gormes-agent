@@ -341,9 +341,9 @@ func composerDropCandidates(input string) []composerDropCandidate {
 		}
 	}
 
-	candidates := make([]composerDropCandidate, 0, strings.Count(input, " ")+1)
+	candidates := make([]composerDropCandidate, 0, composerDropBoundaryCount(input)+1)
 	for end := len(input); end > 0; end-- {
-		if end != len(input) && input[end] != ' ' {
+		if end != len(input) && !isComposerDropRemainderBoundary(input[end]) {
 			continue
 		}
 		raw := strings.TrimSpace(input[:end])
@@ -356,6 +356,20 @@ func composerDropCandidates(input string) []composerDropCandidate {
 		})
 	}
 	return candidates
+}
+
+func composerDropBoundaryCount(input string) int {
+	count := 0
+	for i := 0; i < len(input); i++ {
+		if isComposerDropRemainderBoundary(input[i]) {
+			count++
+		}
+	}
+	return count
+}
+
+func isComposerDropRemainderBoundary(b byte) bool {
+	return b == ' ' || b == '\t'
 }
 
 func normalizeComposerDropPath(raw, home string) (string, bool) {
