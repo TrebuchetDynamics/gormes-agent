@@ -107,10 +107,7 @@ func LooksLikeComposerDroppedPath(text string) bool {
 		strings.HasPrefix(trimmed, "~/") ||
 		strings.HasPrefix(trimmed, "./") ||
 		strings.HasPrefix(trimmed, "../") ||
-		strings.HasPrefix(trimmed, `"/`) ||
-		strings.HasPrefix(trimmed, `'/`) ||
-		strings.HasPrefix(trimmed, `"~`) ||
-		strings.HasPrefix(trimmed, `'~`) ||
+		hasQuotedComposerPathPrefix(trimmed) ||
 		hasWindowsDrivePrefix(trimmed) ||
 		hasQuotedWindowsDrivePrefix(trimmed) {
 		return true
@@ -393,6 +390,18 @@ func normalizeComposerDropPath(raw, home string) (string, bool) {
 	}
 
 	return filepath.Clean(path), true
+}
+
+func hasQuotedComposerPathPrefix(s string) bool {
+	if len(s) < 2 || (s[0] != '"' && s[0] != '\'') {
+		return false
+	}
+	quoted := s[1:]
+	return strings.HasPrefix(quoted, "/") ||
+		strings.HasPrefix(quoted, "~/") ||
+		strings.HasPrefix(quoted, `~\`) ||
+		strings.HasPrefix(quoted, "./") ||
+		strings.HasPrefix(quoted, "../")
 }
 
 func hasWindowsDrivePrefix(s string) bool {
