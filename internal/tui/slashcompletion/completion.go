@@ -1,7 +1,6 @@
 package slashcompletion
 
 import (
-	"sort"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
@@ -63,18 +62,6 @@ func addCommandCompletionHit(seen map[string]commandCompletionHit, prefix, rawNa
 	}
 }
 
-func sortedCompletionKeys[T any](m map[string]T) []string {
-	if len(m) == 0 {
-		return nil
-	}
-	keys := make([]string, 0, len(m))
-	for key := range m {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
 func PromptTemplateCompletions(input string, catalog prompttemplates.Catalog) []Completion {
 	req, ok := parseCompletionRequest(input)
 	if !ok || !req.commandOnly() {
@@ -121,55 +108,6 @@ func WithPromptTemplates(input string, catalog prompttemplates.Catalog) []Comple
 	return WithDynamic(input, nil, catalog)
 }
 
-type completionRequestKind int
-
-const (
-	completionRequestCommand completionRequestKind = iota
-	completionRequestSubcommand
-)
-
-type completionRequest struct {
-	kind          completionRequestKind
-	commandPrefix string
-	base          string
-	subPrefix     string
-}
-
-func (r completionRequest) commandOnly() bool {
-	return r.kind == completionRequestCommand
-}
-
-func (r completionRequest) subcommandOnly() bool {
-	return r.kind == completionRequestSubcommand
-}
-
-func parseCompletionRequest(input string) (completionRequest, bool) {
-	if !strings.HasPrefix(input, "/") {
-		return completionRequest{}, false
-	}
-	sep := strings.IndexFunc(input, func(r rune) bool { return r == ' ' || r == '\t' })
-	if sep < 0 {
-		return completionRequest{kind: completionRequestCommand, commandPrefix: completionKey(input)}, true
-	}
-	base := completionKey(input[:sep])
-	if base == "" {
-		return completionRequest{}, false
-	}
-	subText := strings.TrimLeft(input[sep+1:], " \t")
-	if strings.ContainsAny(subText, " \t") {
-		return completionRequest{}, false
-	}
-	return completionRequest{
-		kind:      completionRequestSubcommand,
-		base:      "/" + base,
-		subPrefix: strings.ToLower(subText),
-	}, true
-}
-
-func completionNameMatches(name, prefix string) bool {
-	return strings.HasPrefix(completionKey(name), prefix)
-}
-
 func WithDynamic(input string, commands []skills.SkillSlashCommand, catalog prompttemplates.Catalog) []Completion {
 	groups := [][]Completion{
 		CommandCompletions(input),
@@ -177,49 +115,6 @@ func WithDynamic(input string, commands []skills.SkillSlashCommand, catalog prom
 		PromptTemplateCompletions(input, catalog),
 	}
 	return uniqueSortedCompletions(flattenCompletionGroups(groups))
-}
-
-func flattenCompletionGroups(groups [][]Completion) []Completion {
-	count := 0
-	for _, group := range groups {
-		count += len(group)
-	}
-	if count == 0 {
-		return nil
-	}
-	merged := make([]Completion, 0, count)
-	for _, group := range groups {
-		merged = append(merged, group...)
-	}
-	return merged
-}
-
-func uniqueSortedCompletions(candidates []Completion) []Completion {
-	if len(candidates) == 0 {
-		return nil
-	}
-	seen := make(map[string]struct{}, len(candidates))
-	out := make([]Completion, 0, len(candidates))
-	for _, c := range candidates {
-		key := completionKey(c.Name)
-		if key == "" {
-			continue
-		}
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		out = append(out, c)
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	sort.Slice(out, func(i, j int) bool { return completionKey(out[i].Name) < completionKey(out[j].Name) })
-	return out
-}
-
-func completionKey(name string) string {
-	return strings.ToLower(strings.TrimPrefix(strings.TrimSpace(name), "/"))
 }
 
 func SubcommandCompletions(input string) []Completion {
@@ -243,7 +138,8 @@ func matchingSubcommandCandidates(subcommands []string, prefix string) []subcomm
 	if len(subcommands) == 0 {
 		return nil
 	}
-	seen := make(map[string]string, len(subcommands))
+	seen := make(map[string]struct{}, len(subcommands))
+	out := make([]subcommandCandidate, 0, len(subcommands))
 	for _, sub := range subcommands {
 		key := completionKey(sub)
 		if key == "" || !strings.HasPrefix(key, prefix) {
@@ -252,15 +148,11 @@ func matchingSubcommandCandidates(subcommands []string, prefix string) []subcomm
 		if _, ok := seen[key]; ok {
 			continue
 		}
-		seen[key] = sub
+		seen[key] = struct{}{}
+		out = append(out, subcommandCandidate{name: sub, key: key})
 	}
-	keys := sortedCompletionKeys(seen)
-	if len(keys) == 0 {
+	if len(out) == 0 {
 		return nil
-	}
-	out := make([]subcommandCandidate, 0, len(keys))
-	for _, key := range keys {
-		out = append(out, subcommandCandidate{name: seen[key], key: key})
 	}
 	return out
 }

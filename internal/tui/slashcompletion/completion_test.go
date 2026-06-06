@@ -137,23 +137,25 @@ func TestCompletionRequestParsingClassifiesCommandAndSubcommandFlow(t *testing.T
 	}
 }
 
-func TestSubcommandCompletionCandidatesAreSortedAndDeduplicated(t *testing.T) {
-	candidates := matchingSubcommandCandidates([]string{"Show", "hide", "show", "", "status"}, "s")
+func TestSubcommandCompletionCandidatesPreservePolicyOrderAndDeduplicate(t *testing.T) {
+	candidates := matchingSubcommandCandidates([]string{"status", "Show", "hide", "show", "", "start"}, "s")
 	wantCandidates := []subcommandCandidate{
-		{name: "Show", key: "show"},
 		{name: "status", key: "status"},
+		{name: "Show", key: "show"},
+		{name: "start", key: "start"},
 	}
 	if !reflect.DeepEqual(candidates, wantCandidates) {
-		t.Fatalf("matchingSubcommandCandidates unsorted duplicate candidates = %#v, want %#v", candidates, wantCandidates)
+		t.Fatalf("matchingSubcommandCandidates policy-order duplicate candidates = %#v, want %#v", candidates, wantCandidates)
 	}
 
-	got := matchingSubcommandCompletions([]string{"Show", "hide", "show", "", "status"}, "s")
+	got := matchingSubcommandCompletions([]string{"status", "Show", "hide", "show", "", "start"}, "s")
 	want := []Completion{
-		{Name: "Show", Display: "Show", Available: true},
 		{Name: "status", Display: "status", Available: true},
+		{Name: "Show", Display: "Show", Available: true},
+		{Name: "start", Display: "start", Available: true},
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("matchingSubcommandCompletions unsorted duplicate candidates = %#v, want %#v", got, want)
+		t.Fatalf("matchingSubcommandCompletions policy-order duplicate candidates = %#v, want %#v", got, want)
 	}
 }
 
