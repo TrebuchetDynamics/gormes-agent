@@ -114,10 +114,10 @@ func TestWelcomePanel_SessionContextAndIdentity(t *testing.T) {
 		}
 	}
 
-	// Framed with a boxed product banner at full width, matching the
-	// operator-visible Hermes/Gormes startup surface rather than a loose
+	// Framed with Hermes Ink's rounded product banner at full width,
+	// matching the operator-visible startup surface rather than a loose
 	// rule-delimited text block.
-	for _, want := range []string{"╔", "║", "╚"} {
+	for _, want := range []string{"╭", "│", "╰"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("welcome panel missing boxed banner marker %q:\n%s", want, got)
 		}
@@ -182,7 +182,7 @@ func TestWelcomePanel_VersionToolCountSeam(t *testing.T) {
 	if !strings.Contains(got, "42 tools") {
 		t.Fatalf("seeded tool count not rendered:\n%s", got)
 	}
-	if !strings.Contains(got, "toolsets: terminal, skills") {
+	if !strings.Contains(got, "terminal, skills") {
 		t.Fatalf("seeded toolsets not rendered:\n%s", got)
 	}
 
@@ -250,7 +250,7 @@ func TestWelcomePanel_MinimalChromeDegrades(t *testing.T) {
 	ctx := WelcomeContext{Model: "anthropic/x"}
 	got := WelcomePanel(s, ctx, 50) // < hermesMinimalChromeWidth (64)
 
-	for _, banned := range []string{"╔", "║", "╚"} {
+	for _, banned := range []string{"╭", "│", "╰"} {
 		if strings.Contains(got, banned) {
 			t.Fatalf("minimal-chrome welcome panel must drop boxed banner marker %q at width 50:\n%s", banned, got)
 		}

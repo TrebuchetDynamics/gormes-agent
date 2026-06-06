@@ -358,7 +358,7 @@ func welcomeBannerBox(s skin.HermesSkin, version string, width int) string {
 	if innerW > 68 {
 		innerW = 68
 	}
-	line1 := fitWelcomeLine("Gormes Agent - Go-native Hermes-compatible agent", innerW)
+	line1 := fitWelcomeLine("⚕ Gormes Agent - Go-native Hermes-compatible agent", innerW)
 	line2Text := "Gormes Agent"
 	if version = strings.TrimSpace(version); version != "" {
 		line2Text += " v" + strings.TrimPrefix(version, "v")
