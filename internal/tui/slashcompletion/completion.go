@@ -261,14 +261,22 @@ func singleSubcommandSuffix(input string) string {
 
 func singleSubcommandCandidateSuffix(prefix completionPrefix, matches []subcommandCandidate) string {
 	prefixText := prefix.string()
-	var extending []subcommandCandidate
+	var suffixes []string
 	for _, match := range matches {
-		if match.key != prefixText {
-			extending = append(extending, match)
+		suffix, ok := subcommandCandidateSuffix(prefixText, match.key)
+		if ok {
+			suffixes = append(suffixes, suffix)
 		}
 	}
-	if len(extending) != 1 {
+	if len(suffixes) != 1 {
 		return ""
 	}
-	return extending[0].key[len(prefixText):]
+	return suffixes[0]
+}
+
+func subcommandCandidateSuffix(prefixText, candidateKey string) (string, bool) {
+	if candidateKey == prefixText || !strings.HasPrefix(candidateKey, prefixText) {
+		return "", false
+	}
+	return candidateKey[len(prefixText):], true
 }

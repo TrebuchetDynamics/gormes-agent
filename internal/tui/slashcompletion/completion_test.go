@@ -407,6 +407,17 @@ func TestSubcommandAutoSuggestDeduplicatesCaseVariantCandidates(t *testing.T) {
 	}
 }
 
+func TestSubcommandAutoSuggestIgnoresInconsistentCandidatePlans(t *testing.T) {
+	matches := []subcommandCandidate{{name: "Show", key: "show"}}
+	if suffix := singleSubcommandCandidateSuffix(newSubcommandPrefix("status"), matches); suffix != "" {
+		t.Fatalf("singleSubcommandCandidateSuffix inconsistent plan = %q, want empty suffix", suffix)
+	}
+
+	if suffix, ok := subcommandCandidateSuffix("status", "show"); ok || suffix != "" {
+		t.Fatalf("subcommandCandidateSuffix(status, show) = (%q, %v), want empty false", suffix, ok)
+	}
+}
+
 func TestSubcommandCompletionWhitespaceIsConsistent(t *testing.T) {
 	for _, input := range []string{"/reasoning sh", "/reasoning\tsh", "/reasoning   sh"} {
 		got := SubcommandCompletions(input)
