@@ -90,6 +90,24 @@ func TestAcceptedTextNormalizesSlashPrefixedCompletionNames(t *testing.T) {
 	}
 }
 
+func TestAcceptedTextUsesRegistryContractForTrailingSpace(t *testing.T) {
+	branch := CommandCompletions("/bran")
+	if len(branch) != 1 || branch[0].Name != "branch" {
+		t.Fatalf("CommandCompletions(/bran) = %#v, want branch", branch)
+	}
+	if got, ok := AcceptedText("/bran", branch[0], true); !ok || got != "/branch " {
+		t.Fatalf("AcceptedText(/bran, branch, tab) = (%q, %v), want /branch space true", got, ok)
+	}
+
+	model := CommandCompletions("/mod")
+	if len(model) != 1 || model[0].Name != "model" {
+		t.Fatalf("CommandCompletions(/mod) = %#v, want model", model)
+	}
+	if got, ok := AcceptedText("/mod", model[0], true); !ok || got != "/model" {
+		t.Fatalf("AcceptedText(/mod, model, tab) = (%q, %v), want /model true", got, ok)
+	}
+}
+
 func TestAcceptedTextPlanExposesCompletionPath(t *testing.T) {
 	cases := []struct {
 		name        string

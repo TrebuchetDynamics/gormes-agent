@@ -27,21 +27,21 @@ func AcceptedText(input string, completion Completion, acceptExact bool) (string
 }
 
 func planAcceptedText(input string, completion Completion, acceptExact bool) acceptedTextPlan {
-	name := acceptedCompletionName(completion)
-	if name == "" {
+	accepted := newAcceptedCompletion(completion)
+	if accepted.empty() {
 		return acceptedTextPlan{Text: input, Reason: acceptedTextReasonEmptyCompletion}
 	}
 	if base, ok := subcommandBase(input); ok {
-		next := base + " " + name
+		next := base + " " + accepted.name
 		return acceptedTextPlan{Text: next, Changed: next != input, Reason: acceptedTextReasonSubcommand}
 	}
 
-	next := "/" + name
+	next := "/" + accepted.name
 	exact := strings.TrimSpace(input) == next
 	if exact && !acceptExact {
 		return acceptedTextPlan{Text: input, Reason: acceptedTextReasonExactRejected}
 	}
-	if shouldAppendSpace(completion) && (acceptExact || !exact) {
+	if accepted.shouldAppendSpace() && (acceptExact || !exact) {
 		next += " "
 	}
 	return acceptedTextPlan{Text: next, Changed: next != input, Reason: acceptedTextReasonCommand}
@@ -67,34 +67,48 @@ func splitSubcommandInput(input string) (base string, subText string, ok bool) {
 	return req.base, req.subPrefix.string(), true
 }
 
-func shouldAppendSpace(completion Completion) bool {
-	name := acceptedCompletionName(completion)
-	if name == "" {
+type acceptedCompletion struct {
+	name         string
+	key          string
+	argumentHint string
+}
+
+func newAcceptedCompletion(completion Completion) acceptedCompletion {
+	name := strings.TrimPrefix(strings.TrimSpace(completion.Name), "/")
+	return acceptedCompletion{
+		name:         name,
+		key:          completionKey(name),
+		argumentHint: strings.TrimSpace(completion.ArgumentHint),
+	}
+}
+
+func (c acceptedCompletion) empty() bool {
+	return c.name == ""
+}
+
+func (c acceptedCompletion) shouldAppendSpace() bool {
+	if c.empty() {
 		return false
 	}
-	policyKey := completionKey(name)
-	if _, ok := noTrailingSpaceCommands[policyKey]; ok {
+	if _, ok := noTrailingSpaceCommands[c.key]; ok {
 		return false
 	}
-	if strings.TrimSpace(completion.ArgumentHint) != "" {
+	if c.argumentHint != "" {
 		return true
 	}
-	policy, ok := cli.ResolveCommandPolicy(policyKey)
+	policy, ok := cli.ResolveCommandPolicy(c.key)
 	if !ok {
 		return false
 	}
-	if _, ok := noTrailingSpaceCommands[policy.Name]; ok {
+	policyKey := completionKey(policy.Name)
+	if _, ok := noTrailingSpaceCommands[policyKey]; ok {
 		return false
 	}
 	if len(policy.Subcommands) > 0 {
 		return true
 	}
-	_, ok = argumentCommandNames[policy.Name]
+	_, ok = argumentCommandNames[policyKey]
 	return ok
-}
-
-func acceptedCompletionName(completion Completion) string {
-	return strings.TrimPrefix(strings.TrimSpace(completion.Name), "/")
 }
 
 var noTrailingSpaceCommands = map[string]struct{}{
