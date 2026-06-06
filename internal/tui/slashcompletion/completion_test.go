@@ -276,6 +276,14 @@ func TestAcceptedTextSpacePolicyMapsOnlyReferenceRegisteredCommands(t *testing.T
 }
 
 func TestAcceptedTextUsesRegistryContractForTrailingSpace(t *testing.T) {
+	staleHelp := newAcceptedCompletion(Completion{Name: "help", ArgumentHint: "<stale>"})
+	if decision := decideAcceptedCompletionSpacing(staleHelp); decision.AppendSpace || decision.Reason != acceptedCompletionSpacingUnknown {
+		t.Fatalf("decideAcceptedCompletionSpacing(stale help) = %#v, want registered help to ignore stale hint", decision)
+	}
+	if got, ok := AcceptedText("/he", Completion{Name: "help", ArgumentHint: "<stale>"}, true); !ok || got != "/help" {
+		t.Fatalf("AcceptedText(/he, stale help arg hint, tab) = (%q, %v), want registry policy /help true", got, ok)
+	}
+
 	branch := CommandCompletions("/bran")
 	if len(branch) != 1 || branch[0].Name != "branch" {
 		t.Fatalf("CommandCompletions(/bran) = %#v, want branch", branch)

@@ -133,28 +133,49 @@ func (c acceptedCompletion) empty() bool {
 }
 
 func (c acceptedCompletion) shouldAppendSpace() bool {
+	return decideAcceptedCompletionSpacing(c).AppendSpace
+}
+
+type acceptedCompletionSpacingDecision struct {
+	AppendSpace bool
+	Reason      acceptedCompletionSpacingReason
+}
+
+type acceptedCompletionSpacingReason string
+
+const (
+	acceptedCompletionSpacingEmpty             acceptedCompletionSpacingReason = "empty"
+	acceptedCompletionSpacingNoTrailingSpace   acceptedCompletionSpacingReason = "no-trailing-space"
+	acceptedCompletionSpacingPolicySubcommands acceptedCompletionSpacingReason = "policy-subcommands"
+	acceptedCompletionSpacingPolicyArgument    acceptedCompletionSpacingReason = "policy-argument"
+	acceptedCompletionSpacingArgumentHint      acceptedCompletionSpacingReason = "argument-hint"
+	acceptedCompletionSpacingUnknown           acceptedCompletionSpacingReason = "unknown"
+)
+
+func decideAcceptedCompletionSpacing(c acceptedCompletion) acceptedCompletionSpacingDecision {
 	if c.empty() {
-		return false
+		return acceptedCompletionSpacingDecision{Reason: acceptedCompletionSpacingEmpty}
 	}
 	if _, ok := noTrailingSpaceCommands[c.key]; ok {
-		return false
+		return acceptedCompletionSpacingDecision{Reason: acceptedCompletionSpacingNoTrailingSpace}
+	}
+	if policy, ok := cli.ResolveCommandPolicy(c.key); ok {
+		policyKey := completionKey(policy.Name)
+		if _, ok := noTrailingSpaceCommands[policyKey]; ok {
+			return acceptedCompletionSpacingDecision{Reason: acceptedCompletionSpacingNoTrailingSpace}
+		}
+		if len(policy.Subcommands) > 0 {
+			return acceptedCompletionSpacingDecision{AppendSpace: true, Reason: acceptedCompletionSpacingPolicySubcommands}
+		}
+		if _, ok := argumentCommandNames[policyKey]; ok {
+			return acceptedCompletionSpacingDecision{AppendSpace: true, Reason: acceptedCompletionSpacingPolicyArgument}
+		}
+		return acceptedCompletionSpacingDecision{Reason: acceptedCompletionSpacingUnknown}
 	}
 	if c.argumentHint != "" {
-		return true
+		return acceptedCompletionSpacingDecision{AppendSpace: true, Reason: acceptedCompletionSpacingArgumentHint}
 	}
-	policy, ok := cli.ResolveCommandPolicy(c.key)
-	if !ok {
-		return false
-	}
-	policyKey := completionKey(policy.Name)
-	if _, ok := noTrailingSpaceCommands[policyKey]; ok {
-		return false
-	}
-	if len(policy.Subcommands) > 0 {
-		return true
-	}
-	_, ok = argumentCommandNames[policyKey]
-	return ok
+	return acceptedCompletionSpacingDecision{Reason: acceptedCompletionSpacingUnknown}
 }
 
 var noTrailingSpaceCommands = map[string]struct{}{
