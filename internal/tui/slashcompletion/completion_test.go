@@ -29,6 +29,30 @@ func TestCompletionsAreDeterministicAndMerged(t *testing.T) {
 	}
 }
 
+func TestPromptTemplateCompletionsDeduplicateCaseInsensitiveNames(t *testing.T) {
+	catalog := prompttemplates.Catalog{Templates: []prompttemplates.Template{
+		{Name: "Review", Description: "first"},
+		{Name: "review", Description: "duplicate"},
+	}}
+
+	got := PromptTemplateCompletions("/rev", catalog)
+	if len(got) != 1 || got[0].Name != "Review" || got[0].Description != "first" {
+		t.Fatalf("PromptTemplateCompletions duplicate case variants = %#v, want first canonical Review completion", got)
+	}
+}
+
+func TestSkillCompletionsDeduplicateCaseInsensitiveNames(t *testing.T) {
+	commands := []skills.SkillSlashCommand{
+		{Command: "/Review", Description: "first"},
+		{Command: "review", Description: "duplicate"},
+	}
+
+	got := SkillCompletions("/rev", commands)
+	if len(got) != 1 || got[0].Name != "review" || got[0].Description != "first" {
+		t.Fatalf("SkillCompletions duplicate case variants = %#v, want first canonical review completion", got)
+	}
+}
+
 func TestWithDynamicDeduplicatesCaseInsensitiveNames(t *testing.T) {
 	commands := []skills.SkillSlashCommand{{Command: "/Review", Description: "skill review"}}
 	catalog := prompttemplates.Catalog{Templates: []prompttemplates.Template{{Name: "Review", Description: "template review"}}}

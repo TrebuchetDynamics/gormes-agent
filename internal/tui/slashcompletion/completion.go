@@ -64,12 +64,12 @@ func PromptTemplateCompletions(input string, catalog prompttemplates.Catalog) []
 	if !ok {
 		return nil
 	}
-	var out []Completion
+	var candidates []Completion
 	for _, tmpl := range catalog.Templates {
 		if !completionNameMatches(tmpl.Name, prefix) {
 			continue
 		}
-		out = append(out, Completion{
+		candidates = append(candidates, Completion{
 			Name:         tmpl.Name,
 			Display:      "/" + tmpl.Name,
 			Description:  tmpl.Description,
@@ -77,8 +77,7 @@ func PromptTemplateCompletions(input string, catalog prompttemplates.Catalog) []
 			Available:    true,
 		})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out
+	return uniqueSortedCompletions(candidates)
 }
 
 func SkillCompletions(input string, commands []skills.SkillSlashCommand) []Completion {
@@ -86,21 +85,20 @@ func SkillCompletions(input string, commands []skills.SkillSlashCommand) []Compl
 	if !ok {
 		return nil
 	}
-	var out []Completion
+	var candidates []Completion
 	for _, command := range commands {
 		name := completionKey(command.Command)
 		if name == "" || !strings.HasPrefix(name, prefix) {
 			continue
 		}
-		out = append(out, Completion{
+		candidates = append(candidates, Completion{
 			Name:        name,
 			Display:     "/" + name,
 			Description: command.Description,
 			Available:   true,
 		})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out
+	return uniqueSortedCompletions(candidates)
 }
 
 func WithPromptTemplates(input string, catalog prompttemplates.Catalog) []Completion {
@@ -131,20 +129,32 @@ func WithDynamic(input string, commands []skills.SkillSlashCommand, catalog prom
 	if count == 0 {
 		return nil
 	}
-	seen := make(map[string]struct{}, count)
-	out := make([]Completion, 0, count)
+	merged := make([]Completion, 0, count)
 	for _, group := range groups {
-		for _, c := range group {
-			key := completionKey(c.Name)
-			if key == "" {
-				continue
-			}
-			if _, ok := seen[key]; ok {
-				continue
-			}
-			seen[key] = struct{}{}
-			out = append(out, c)
+		merged = append(merged, group...)
+	}
+	return uniqueSortedCompletions(merged)
+}
+
+func uniqueSortedCompletions(candidates []Completion) []Completion {
+	if len(candidates) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(candidates))
+	out := make([]Completion, 0, len(candidates))
+	for _, c := range candidates {
+		key := completionKey(c.Name)
+		if key == "" {
+			continue
 		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, c)
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	sort.Slice(out, func(i, j int) bool { return completionKey(out[i].Name) < completionKey(out[j].Name) })
 	return out
