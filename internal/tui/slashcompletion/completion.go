@@ -231,17 +231,22 @@ func SubcommandCompletions(input string) []Completion {
 	if !ok || len(policy.Subcommands) == 0 {
 		return nil
 	}
-	out := make([]Completion, 0, len(policy.Subcommands))
-	for _, sub := range policy.Subcommands {
-		if !strings.HasPrefix(completionKey(sub), req.subPrefix) {
+	return matchingSubcommandCompletions(policy.Subcommands, req.subPrefix)
+}
+
+func matchingSubcommandCompletions(subcommands []string, prefix string) []Completion {
+	if len(subcommands) == 0 {
+		return nil
+	}
+	out := make([]Completion, 0, len(subcommands))
+	for _, sub := range subcommands {
+		key := completionKey(sub)
+		if key == "" || !strings.HasPrefix(key, prefix) {
 			continue
 		}
 		out = append(out, Completion{Name: sub, Display: sub, Available: true})
 	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
+	return uniqueSortedCompletions(out)
 }
 
 func AcceptedText(input string, completion Completion, acceptExact bool) (string, bool) {

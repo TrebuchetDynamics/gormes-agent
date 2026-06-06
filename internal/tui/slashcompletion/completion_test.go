@@ -137,6 +137,17 @@ func TestCompletionRequestParsingClassifiesCommandAndSubcommandFlow(t *testing.T
 	}
 }
 
+func TestSubcommandCompletionCandidatesAreSortedAndDeduplicated(t *testing.T) {
+	got := matchingSubcommandCompletions([]string{"Show", "hide", "show", "", "status"}, "s")
+	want := []Completion{
+		{Name: "Show", Display: "Show", Available: true},
+		{Name: "status", Display: "status", Available: true},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("matchingSubcommandCompletions unsorted duplicate candidates = %#v, want %#v", got, want)
+	}
+}
+
 func TestSubcommandCompletionWhitespaceIsConsistent(t *testing.T) {
 	for _, input := range []string{"/reasoning sh", "/reasoning\tsh", "/reasoning   sh"} {
 		got := SubcommandCompletions(input)
