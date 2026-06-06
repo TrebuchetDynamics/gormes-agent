@@ -15,10 +15,11 @@ type acceptedTextPlan struct {
 type acceptedTextReason string
 
 const (
-	acceptedTextReasonEmptyCompletion acceptedTextReason = "empty-completion"
-	acceptedTextReasonSubcommand      acceptedTextReason = "subcommand"
-	acceptedTextReasonExactRejected   acceptedTextReason = "exact-rejected"
-	acceptedTextReasonCommand         acceptedTextReason = "command"
+	acceptedTextReasonEmptyCompletion  acceptedTextReason = "empty-completion"
+	acceptedTextReasonSubcommand       acceptedTextReason = "subcommand"
+	acceptedTextReasonExactRejected    acceptedTextReason = "exact-rejected"
+	acceptedTextReasonUnsupportedInput acceptedTextReason = "unsupported-input"
+	acceptedTextReasonCommand          acceptedTextReason = "command"
 )
 
 func AcceptedText(input string, completion Completion, acceptExact bool) (string, bool) {
@@ -30,6 +31,9 @@ func planAcceptedText(input string, completion Completion, acceptExact bool) acc
 	accepted := newAcceptedCompletion(completion)
 	if accepted.empty() {
 		return acceptedTextPlan{Text: input, Reason: acceptedTextReasonEmptyCompletion}
+	}
+	if inputHasCompletionArguments(input) {
+		return acceptedTextPlan{Text: input, Reason: acceptedTextReasonUnsupportedInput}
 	}
 	if base, ok := subcommandBase(input); ok {
 		return planAcceptedSubcommandText(input, base, accepted, acceptExact)
@@ -70,6 +74,11 @@ func decideAcceptedSubcommandText(normalized string, exact, acceptExact bool) ac
 		decision.text += " "
 	}
 	return decision
+}
+
+func inputHasCompletionArguments(input string) bool {
+	parts, ok := splitCompletionInput(input)
+	return ok && parts.hasArgs
 }
 
 func subcommandBase(input string) (string, bool) {

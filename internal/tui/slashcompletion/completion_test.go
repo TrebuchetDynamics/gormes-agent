@@ -208,6 +208,20 @@ func TestAcceptedTextSubcommandExactWithExtraWhitespaceIsInertOnEnter(t *testing
 	}
 }
 
+func TestAcceptedTextRejectsStaleCompletionAfterSubcommandArguments(t *testing.T) {
+	input := "/reasoning show now"
+	got, ok := AcceptedText(input, Completion{Name: "help"}, true)
+	if ok || got != input {
+		t.Fatalf("AcceptedText with stale completion after subcommand args = (%q, %v), want original text false", got, ok)
+	}
+
+	plan := planAcceptedText(input, Completion{Name: "help"}, true)
+	want := acceptedTextPlan{Text: input, Reason: acceptedTextReasonUnsupportedInput}
+	if plan != want {
+		t.Fatalf("planAcceptedText with stale completion after subcommand args = %#v, want %#v", plan, want)
+	}
+}
+
 func TestAcceptedTextPlanExposesCompletionPath(t *testing.T) {
 	cases := []struct {
 		name        string
