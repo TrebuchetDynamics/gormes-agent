@@ -1,4 +1,4 @@
-package honcho
+package honchoadapter
 
 import (
 	"encoding/json"
