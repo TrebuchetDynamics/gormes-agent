@@ -19,11 +19,11 @@ type Completion struct {
 }
 
 func CommandCompletions(input string) []Completion {
-	prefix, ok := slashCompletionPrefix(input)
-	if !ok {
+	req, ok := parseCompletionRequest(input)
+	if !ok || !req.commandOnly() {
 		return nil
 	}
-	return commandCompletionCandidates(prefix)
+	return commandCompletionCandidates(req.commandPrefix)
 }
 
 type commandCompletionHit struct {
@@ -76,13 +76,13 @@ func sortedCompletionKeys[T any](m map[string]T) []string {
 }
 
 func PromptTemplateCompletions(input string, catalog prompttemplates.Catalog) []Completion {
-	prefix, ok := slashCompletionPrefix(input)
-	if !ok {
+	req, ok := parseCompletionRequest(input)
+	if !ok || !req.commandOnly() {
 		return nil
 	}
 	var candidates []Completion
 	for _, tmpl := range catalog.Templates {
-		if !completionNameMatches(tmpl.Name, prefix) {
+		if !completionNameMatches(tmpl.Name, req.commandPrefix) {
 			continue
 		}
 		candidates = append(candidates, Completion{
@@ -97,14 +97,14 @@ func PromptTemplateCompletions(input string, catalog prompttemplates.Catalog) []
 }
 
 func SkillCompletions(input string, commands []skills.SkillSlashCommand) []Completion {
-	prefix, ok := slashCompletionPrefix(input)
-	if !ok {
+	req, ok := parseCompletionRequest(input)
+	if !ok || !req.commandOnly() {
 		return nil
 	}
 	var candidates []Completion
 	for _, command := range commands {
 		name := completionKey(command.Command)
-		if name == "" || !strings.HasPrefix(name, prefix) {
+		if name == "" || !strings.HasPrefix(name, req.commandPrefix) {
 			continue
 		}
 		candidates = append(candidates, Completion{
@@ -121,41 +121,48 @@ func WithPromptTemplates(input string, catalog prompttemplates.Catalog) []Comple
 	return WithDynamic(input, nil, catalog)
 }
 
-type parsedSlashInput struct {
+type completionRequestKind int
+
+const (
+	completionRequestCommand completionRequestKind = iota
+	completionRequestSubcommand
+)
+
+type completionRequest struct {
+	kind          completionRequestKind
 	commandPrefix string
 	base          string
 	subPrefix     string
-	hasSubcommand bool
 }
 
-func slashCompletionPrefix(input string) (string, bool) {
-	parsed, ok := parseSlashInput(input)
-	if !ok || parsed.hasSubcommand {
-		return "", false
-	}
-	return parsed.commandPrefix, true
+func (r completionRequest) commandOnly() bool {
+	return r.kind == completionRequestCommand
 }
 
-func parseSlashInput(input string) (parsedSlashInput, bool) {
+func (r completionRequest) subcommandOnly() bool {
+	return r.kind == completionRequestSubcommand
+}
+
+func parseCompletionRequest(input string) (completionRequest, bool) {
 	if !strings.HasPrefix(input, "/") {
-		return parsedSlashInput{}, false
+		return completionRequest{}, false
 	}
 	sep := strings.IndexFunc(input, func(r rune) bool { return r == ' ' || r == '\t' })
 	if sep < 0 {
-		return parsedSlashInput{commandPrefix: completionKey(input)}, true
+		return completionRequest{kind: completionRequestCommand, commandPrefix: completionKey(input)}, true
 	}
 	base := completionKey(input[:sep])
 	if base == "" {
-		return parsedSlashInput{}, false
+		return completionRequest{}, false
 	}
 	subText := strings.TrimLeft(input[sep+1:], " \t")
 	if strings.ContainsAny(subText, " \t") {
-		return parsedSlashInput{}, false
+		return completionRequest{}, false
 	}
-	return parsedSlashInput{
-		base:          "/" + base,
-		subPrefix:     strings.ToLower(subText),
-		hasSubcommand: true,
+	return completionRequest{
+		kind:      completionRequestSubcommand,
+		base:      "/" + base,
+		subPrefix: strings.ToLower(subText),
 	}, true
 }
 
@@ -216,17 +223,17 @@ func completionKey(name string) string {
 }
 
 func SubcommandCompletions(input string) []Completion {
-	parsed, ok := parseSlashInput(input)
-	if !ok || !parsed.hasSubcommand {
+	req, ok := parseCompletionRequest(input)
+	if !ok || !req.subcommandOnly() {
 		return nil
 	}
-	policy, ok := cli.ResolveCommandPolicy(parsed.base)
+	policy, ok := cli.ResolveCommandPolicy(req.base)
 	if !ok || len(policy.Subcommands) == 0 {
 		return nil
 	}
 	out := make([]Completion, 0, len(policy.Subcommands))
 	for _, sub := range policy.Subcommands {
-		if !strings.HasPrefix(completionKey(sub), parsed.subPrefix) {
+		if !strings.HasPrefix(completionKey(sub), req.subPrefix) {
 			continue
 		}
 		out = append(out, Completion{Name: sub, Display: sub, Available: true})
@@ -271,11 +278,11 @@ func subcommandBase(input string) (string, bool) {
 }
 
 func splitSubcommandInput(input string) (base string, subText string, ok bool) {
-	parsed, ok := parseSlashInput(input)
-	if !ok || !parsed.hasSubcommand {
+	req, ok := parseCompletionRequest(input)
+	if !ok || !req.subcommandOnly() {
 		return "", "", false
 	}
-	return parsed.base, parsed.subPrefix, true
+	return req.base, req.subPrefix, true
 }
 
 func shouldAppendSpace(completion Completion) bool {
@@ -381,23 +388,23 @@ func addAutoSuggestMatch(seen map[string]struct{}, word, rawName string) {
 }
 
 func singleSubcommandSuffix(input string) string {
-	parsed, splitOK := parseSlashInput(input)
-	if !splitOK || !parsed.hasSubcommand {
+	req, splitOK := parseCompletionRequest(input)
+	if !splitOK || !req.subcommandOnly() {
 		return ""
 	}
-	policy, ok := cli.ResolveCommandPolicy(parsed.base)
+	policy, ok := cli.ResolveCommandPolicy(req.base)
 	if !ok || len(policy.Subcommands) == 0 {
 		return ""
 	}
 	var matches []string
 	for _, sub := range policy.Subcommands {
 		key := completionKey(sub)
-		if strings.HasPrefix(key, parsed.subPrefix) && key != parsed.subPrefix {
+		if strings.HasPrefix(key, req.subPrefix) && key != req.subPrefix {
 			matches = append(matches, sub)
 		}
 	}
 	if len(matches) != 1 {
 		return ""
 	}
-	return matches[0][len(parsed.subPrefix):]
+	return matches[0][len(req.subPrefix):]
 }

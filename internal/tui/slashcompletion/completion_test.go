@@ -121,6 +121,22 @@ func TestCompletionCandidateFlowDropsEmptyGroups(t *testing.T) {
 	}
 }
 
+func TestCompletionRequestParsingClassifiesCommandAndSubcommandFlow(t *testing.T) {
+	command, ok := parseCompletionRequest("/he")
+	if !ok || !command.commandOnly() || command.commandPrefix != "he" {
+		t.Fatalf("parseCompletionRequest(/he) = (%#v, %v), want command prefix he", command, ok)
+	}
+
+	sub, ok := parseCompletionRequest("/Reasoning   Sh")
+	if !ok || !sub.subcommandOnly() || sub.base != "/reasoning" || sub.subPrefix != "sh" {
+		t.Fatalf("parseCompletionRequest(/Reasoning   Sh) = (%#v, %v), want canonical subcommand request", sub, ok)
+	}
+
+	if got, ok := parseCompletionRequest("/reasoning show now"); ok || got != (completionRequest{}) {
+		t.Fatalf("parseCompletionRequest with subcommand args = (%#v, %v), want rejected", got, ok)
+	}
+}
+
 func TestSubcommandCompletionWhitespaceIsConsistent(t *testing.T) {
 	for _, input := range []string{"/reasoning sh", "/reasoning\tsh", "/reasoning   sh"} {
 		got := SubcommandCompletions(input)
