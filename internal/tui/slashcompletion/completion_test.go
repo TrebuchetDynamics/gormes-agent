@@ -225,6 +225,19 @@ func TestCompletionRequestParsingClassifiesCommandAndSubcommandFlow(t *testing.T
 	}
 }
 
+func TestResolveSubcommandFlowCentralizesPolicyGate(t *testing.T) {
+	flow, ok := resolveSubcommandFlow("/Reasoning   Sh")
+	if !ok || flow.Base != "/reasoning" || flow.Prefix.string() != "sh" || len(flow.Subcommands) == 0 {
+		t.Fatalf("resolveSubcommandFlow(/Reasoning   Sh) = (%#v, %v), want canonical reasoning flow", flow, ok)
+	}
+
+	for _, input := range []string{"/he", "/help ", "/reasoning show now"} {
+		if got, ok := resolveSubcommandFlow(input); ok || got.Base != "" || got.Prefix.string() != "" || got.Subcommands != nil {
+			t.Fatalf("resolveSubcommandFlow(%q) = (%#v, %v), want rejected", input, got, ok)
+		}
+	}
+}
+
 func TestCompletionPrefixesNormalizeBeforeMatching(t *testing.T) {
 	commandPrefix := newCompletionPrefix(" /REV ")
 	if !commandPrefix.matches("Review") || commandPrefix.matches("help") {

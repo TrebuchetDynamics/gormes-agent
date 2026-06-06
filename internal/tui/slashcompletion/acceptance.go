@@ -48,23 +48,11 @@ func planAcceptedText(input string, completion Completion, acceptExact bool) acc
 }
 
 func subcommandBase(input string) (string, bool) {
-	base, _, ok := splitSubcommandInput(input)
+	flow, ok := resolveSubcommandFlow(input)
 	if !ok {
 		return "", false
 	}
-	policy, ok := cli.ResolveCommandPolicy(base)
-	if !ok || len(policy.Subcommands) == 0 {
-		return "", false
-	}
-	return base, true
-}
-
-func splitSubcommandInput(input string) (base string, subText string, ok bool) {
-	req, ok := parseCompletionRequest(input)
-	if !ok || !req.subcommandOnly() {
-		return "", "", false
-	}
-	return req.base, req.subPrefix.string(), true
+	return flow.Base, true
 }
 
 type acceptedCompletion struct {

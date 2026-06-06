@@ -118,15 +118,11 @@ func WithDynamic(input string, commands []skills.SkillSlashCommand, catalog prom
 }
 
 func SubcommandCompletions(input string) []Completion {
-	req, ok := parseCompletionRequest(input)
-	if !ok || !req.subcommandOnly() {
+	flow, ok := resolveSubcommandFlow(input)
+	if !ok {
 		return nil
 	}
-	policy, ok := cli.ResolveCommandPolicy(req.base)
-	if !ok || len(policy.Subcommands) == 0 {
-		return nil
-	}
-	return matchingSubcommandCompletions(policy.Subcommands, req.subPrefix)
+	return matchingSubcommandCompletions(flow.Subcommands, flow.Prefix)
 }
 
 type subcommandCandidate struct {
@@ -213,15 +209,11 @@ func addAutoSuggestMatch(seen map[string]struct{}, word, rawName string) {
 }
 
 func singleSubcommandSuffix(input string) string {
-	req, splitOK := parseCompletionRequest(input)
-	if !splitOK || !req.subcommandOnly() {
+	flow, ok := resolveSubcommandFlow(input)
+	if !ok {
 		return ""
 	}
-	policy, ok := cli.ResolveCommandPolicy(req.base)
-	if !ok || len(policy.Subcommands) == 0 {
-		return ""
-	}
-	return singleSubcommandCandidateSuffix(req.subPrefix, matchingSubcommandCandidates(policy.Subcommands, req.subPrefix))
+	return singleSubcommandCandidateSuffix(flow.Prefix, matchingSubcommandCandidates(flow.Subcommands, flow.Prefix))
 }
 
 func singleSubcommandCandidateSuffix(prefix completionPrefix, matches []subcommandCandidate) string {
