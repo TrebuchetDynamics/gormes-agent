@@ -7,6 +7,14 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/prompttemplates"
 )
 
+func TestPromptTemplateCompletionMatchingIsCaseInsensitive(t *testing.T) {
+	catalog := prompttemplates.Catalog{Templates: []prompttemplates.Template{{Name: "Review", Description: "Review", ArgumentHint: "<scope>"}}}
+	got := PromptTemplateCompletions("/rev", catalog)
+	if len(got) != 1 || got[0].Name != "Review" {
+		t.Fatalf("PromptTemplateCompletions(/rev) = %#v, want Review regardless of catalog name case", got)
+	}
+}
+
 func TestCompletionsAreDeterministicAndMerged(t *testing.T) {
 	first := CommandCompletions("/he")
 	second := CommandCompletions("/he")

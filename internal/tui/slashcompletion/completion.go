@@ -19,13 +19,10 @@ type Completion struct {
 }
 
 func CommandCompletions(input string) []Completion {
-	if !strings.HasPrefix(input, "/") {
+	prefix, ok := slashCompletionPrefix(input)
+	if !ok {
 		return nil
 	}
-	if strings.ContainsAny(input, " \t") {
-		return nil
-	}
-	prefix := strings.ToLower(strings.TrimPrefix(input, "/"))
 	type hit struct {
 		name  string
 		entry cli.CommandPolicy
@@ -63,13 +60,13 @@ func CommandCompletions(input string) []Completion {
 }
 
 func PromptTemplateCompletions(input string, catalog prompttemplates.Catalog) []Completion {
-	if !strings.HasPrefix(input, "/") || strings.ContainsAny(input, " \t") {
+	prefix, ok := slashCompletionPrefix(input)
+	if !ok {
 		return nil
 	}
-	prefix := strings.ToLower(strings.TrimPrefix(input, "/"))
 	var out []Completion
 	for _, tmpl := range catalog.Templates {
-		if !strings.HasPrefix(tmpl.Name, prefix) {
+		if !completionNameMatches(tmpl.Name, prefix) {
 			continue
 		}
 		out = append(out, Completion{
@@ -85,10 +82,10 @@ func PromptTemplateCompletions(input string, catalog prompttemplates.Catalog) []
 }
 
 func SkillCompletions(input string, commands []skills.SkillSlashCommand) []Completion {
-	if !strings.HasPrefix(input, "/") || strings.ContainsAny(input, " \t") {
+	prefix, ok := slashCompletionPrefix(input)
+	if !ok {
 		return nil
 	}
-	prefix := strings.ToLower(strings.TrimPrefix(input, "/"))
 	var out []Completion
 	for _, command := range commands {
 		name := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(command.Command)), "/")
@@ -108,6 +105,17 @@ func SkillCompletions(input string, commands []skills.SkillSlashCommand) []Compl
 
 func WithPromptTemplates(input string, catalog prompttemplates.Catalog) []Completion {
 	return WithDynamic(input, nil, catalog)
+}
+
+func slashCompletionPrefix(input string) (string, bool) {
+	if !strings.HasPrefix(input, "/") || strings.ContainsAny(input, " \t") {
+		return "", false
+	}
+	return strings.ToLower(strings.TrimPrefix(input, "/")), true
+}
+
+func completionNameMatches(name, prefix string) bool {
+	return strings.HasPrefix(strings.ToLower(strings.TrimPrefix(strings.TrimSpace(name), "/")), prefix)
 }
 
 func WithDynamic(input string, commands []skills.SkillSlashCommand, catalog prompttemplates.Catalog) []Completion {
