@@ -17,6 +17,45 @@ func TestPromptTemplateCompletionMatchingIsCaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestCommandCompletionPlanExposesSortedDedupedCandidates(t *testing.T) {
+	registry := []cli.CommandPolicy{
+		{Name: "Beta", Description: "canonical beta"},
+		{Name: "alpha", Description: "alpha", ActiveTurnPolicy: cli.ActiveTurnPolicyUnavailable},
+		{Name: "backup", Description: "backup", Aliases: []string{"Beta"}},
+	}
+
+	plan := planCommandCompletionCandidates(newCompletionPrefix("b"), registry)
+	if !reflect.DeepEqual(plan.SortedNames, []string{"backup", "beta"}) {
+		t.Fatalf("planCommandCompletionCandidates sorted names = %#v, want backup/beta", plan.SortedNames)
+	}
+
+	got := renderCommandCompletionPlan(plan)
+	want := []Completion{
+		{Name: "backup", Display: "/backup", Description: "backup", Available: true},
+		{Name: "beta", Display: "/beta", Description: "canonical beta", Available: true},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("renderCommandCompletionPlan = %#v, want %#v", got, want)
+	}
+}
+
+func TestCommandCompletionPlanCanonicalNamesOutrankEarlierAliases(t *testing.T) {
+	registry := []cli.CommandPolicy{
+		{Name: "backup", Description: "backup", Aliases: []string{"Beta"}},
+		{Name: "Beta", Description: "canonical beta"},
+	}
+
+	plan := planCommandCompletionCandidates(newCompletionPrefix("b"), registry)
+	got := renderCommandCompletionPlan(plan)
+	want := []Completion{
+		{Name: "backup", Display: "/backup", Description: "backup", Available: true},
+		{Name: "beta", Display: "/beta", Description: "canonical beta", Available: true},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("renderCommandCompletionPlan canonical collision = %#v, want %#v", got, want)
+	}
+}
+
 func TestCompletionsAreDeterministicAndMerged(t *testing.T) {
 	first := CommandCompletions("/he")
 	second := CommandCompletions("/he")

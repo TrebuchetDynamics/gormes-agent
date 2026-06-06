@@ -26,25 +26,43 @@ func CommandCompletions(input string) []Completion {
 }
 
 type commandCompletionHit struct {
-	name  string
-	entry cli.CommandPolicy
+	name      string
+	entry     cli.CommandPolicy
+	canonical bool
 }
 
 func commandCompletionCandidates(prefix completionPrefix) []Completion {
-	seen := map[string]commandCompletionHit{}
-	for _, cmd := range cli.CommandRegistry {
-		addCommandCompletionHit(seen, prefix, cmd.Name, cmd)
-		for _, alias := range cmd.Aliases {
-			addCommandCompletionHit(seen, prefix, alias, cmd)
-		}
-	}
-	if len(seen) == 0 {
+	plan := planCommandCompletionCandidates(prefix, cli.CommandRegistry)
+	if plan.empty() {
 		return nil
 	}
-	names := sortedCompletionKeys(seen)
-	out := make([]Completion, 0, len(names))
-	for _, name := range names {
-		h := seen[name]
+	return renderCommandCompletionPlan(plan)
+}
+
+type commandCompletionPlan struct {
+	Hits        map[string]commandCompletionHit
+	SortedNames []string
+}
+
+func (p commandCompletionPlan) empty() bool {
+	return len(p.SortedNames) == 0
+}
+
+func planCommandCompletionCandidates(prefix completionPrefix, registry []cli.CommandPolicy) commandCompletionPlan {
+	hits := map[string]commandCompletionHit{}
+	for _, cmd := range registry {
+		addCommandCompletionHit(hits, prefix, cmd.Name, cmd, true)
+		for _, alias := range cmd.Aliases {
+			addCommandCompletionHit(hits, prefix, alias, cmd, false)
+		}
+	}
+	return commandCompletionPlan{Hits: hits, SortedNames: sortedCompletionKeys(hits)}
+}
+
+func renderCommandCompletionPlan(plan commandCompletionPlan) []Completion {
+	out := make([]Completion, 0, len(plan.SortedNames))
+	for _, name := range plan.SortedNames {
+		h := plan.Hits[name]
 		out = append(out, Completion{
 			Name:        name,
 			Display:     "/" + name,
@@ -55,11 +73,15 @@ func commandCompletionCandidates(prefix completionPrefix) []Completion {
 	return out
 }
 
-func addCommandCompletionHit(seen map[string]commandCompletionHit, prefix completionPrefix, rawName string, entry cli.CommandPolicy) {
+func addCommandCompletionHit(seen map[string]commandCompletionHit, prefix completionPrefix, rawName string, entry cli.CommandPolicy, canonical bool) {
 	name := completionKey(rawName)
-	if prefix.matches(rawName) {
-		seen[name] = commandCompletionHit{name: name, entry: entry}
+	if !prefix.matches(rawName) {
+		return
 	}
+	if existing, ok := seen[name]; ok && (existing.canonical || !canonical) {
+		return
+	}
+	seen[name] = commandCompletionHit{name: name, entry: entry, canonical: canonical}
 }
 
 func PromptTemplateCompletions(input string, catalog prompttemplates.Catalog) []Completion {
