@@ -177,8 +177,27 @@ func AutoSuggest(input string) string {
 
 func singleCommandSuffix(input string) string {
 	word := strings.ToLower(strings.TrimPrefix(input, "/"))
-	if word == "" {
+	plan := commandAutoSuggestPlanFor(word)
+	if !plan.shouldExtend() {
 		return ""
+	}
+	unique := plan.Extending[0]
+	return unique[len(word):]
+}
+
+type commandAutoSuggestPlan struct {
+	Word      string
+	Exact     bool
+	Extending []string
+}
+
+func (p commandAutoSuggestPlan) shouldExtend() bool {
+	return p.Word != "" && !p.Exact && len(p.Extending) == 1
+}
+
+func commandAutoSuggestPlanFor(word string) commandAutoSuggestPlan {
+	if word == "" {
+		return commandAutoSuggestPlan{}
 	}
 	seen := map[string]struct{}{}
 	for _, cmd := range cli.CommandRegistry {
@@ -187,18 +206,15 @@ func singleCommandSuffix(input string) string {
 			addAutoSuggestMatch(seen, word, alias)
 		}
 	}
-	matches := sortedCompletionKeys(seen)
-	var extending []string
-	for _, match := range matches {
-		if match != word {
-			extending = append(extending, match)
+	plan := commandAutoSuggestPlan{Word: word}
+	for _, match := range sortedCompletionKeys(seen) {
+		if match == word {
+			plan.Exact = true
+			continue
 		}
+		plan.Extending = append(plan.Extending, match)
 	}
-	if len(extending) != 1 {
-		return ""
-	}
-	unique := extending[0]
-	return unique[len(word):]
+	return plan
 }
 
 func addAutoSuggestMatch(seen map[string]struct{}, word, rawName string) {

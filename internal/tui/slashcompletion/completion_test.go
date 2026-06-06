@@ -182,6 +182,16 @@ func TestSubcommandCompletionsAndAutoSuggest(t *testing.T) {
 	}
 }
 
+func TestCommandAutoSuggestDoesNotExtendExactAlias(t *testing.T) {
+	if got := AutoSuggest("/q"); got != "" {
+		t.Fatalf("AutoSuggest(/q) = %q, want no ghost text because /q is an exact queue alias", got)
+	}
+	plan := commandAutoSuggestPlanFor("q")
+	if !plan.Exact || len(plan.Extending) == 0 {
+		t.Fatalf("commandAutoSuggestPlanFor(q) = %#v, want exact alias with visible longer candidates", plan)
+	}
+}
+
 func TestSubcommandCompletionIsCaseInsensitiveAndCanonicalizesBase(t *testing.T) {
 	got := SubcommandCompletions("/Reasoning sh")
 	if len(got) != 1 || got[0].Name != "show" {
