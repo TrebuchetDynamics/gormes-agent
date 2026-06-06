@@ -138,6 +138,15 @@ func TestCompletionRequestParsingClassifiesCommandAndSubcommandFlow(t *testing.T
 }
 
 func TestSubcommandCompletionCandidatesAreSortedAndDeduplicated(t *testing.T) {
+	candidates := matchingSubcommandCandidates([]string{"Show", "hide", "show", "", "status"}, "s")
+	wantCandidates := []subcommandCandidate{
+		{name: "Show", key: "show"},
+		{name: "status", key: "status"},
+	}
+	if !reflect.DeepEqual(candidates, wantCandidates) {
+		t.Fatalf("matchingSubcommandCandidates unsorted duplicate candidates = %#v, want %#v", candidates, wantCandidates)
+	}
+
 	got := matchingSubcommandCompletions([]string{"Show", "hide", "show", "", "status"}, "s")
 	want := []Completion{
 		{Name: "Show", Display: "Show", Available: true},
@@ -145,6 +154,18 @@ func TestSubcommandCompletionCandidatesAreSortedAndDeduplicated(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("matchingSubcommandCompletions unsorted duplicate candidates = %#v, want %#v", got, want)
+	}
+}
+
+func TestSubcommandAutoSuggestDeduplicatesCaseVariantCandidates(t *testing.T) {
+	policySubcommands := []string{"Show", "show"}
+	matches := matchingSubcommandCandidates(policySubcommands, "sh")
+	if len(matches) != 1 || matches[0].key != "show" {
+		t.Fatalf("matchingSubcommandCandidates duplicate case variants = %#v, want one show candidate", matches)
+	}
+
+	if suffix := singleSubcommandCandidateSuffix("sh", matches); suffix != "ow" {
+		t.Fatalf("singleSubcommandCandidateSuffix duplicate case variants = %q, want ow", suffix)
 	}
 }
 
