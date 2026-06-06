@@ -86,6 +86,9 @@ func TestSubcommandCompletionsAndAutoSuggest(t *testing.T) {
 	if got := AutoSuggest("/hel"); got != "p" {
 		t.Fatalf("AutoSuggest(/hel) = %q, want p", got)
 	}
+	if got := AutoSuggest("/Hel"); got != "p" {
+		t.Fatalf("AutoSuggest(/Hel) = %q, want case-insensitive p", got)
+	}
 	if got := AutoSuggest("/reasoning sh"); got != "ow" {
 		t.Fatalf("AutoSuggest(/reasoning sh) = %q, want ow", got)
 	}
@@ -102,6 +105,19 @@ func TestSubcommandCompletionIsCaseInsensitiveAndCanonicalizesBase(t *testing.T)
 	accepted, ok := AcceptedText("/Reasoning sh", Completion{Name: "show"}, false)
 	if !ok || accepted != "/reasoning show" {
 		t.Fatalf("AcceptedText(/Reasoning sh, show) = (%q, %v), want /reasoning show true", accepted, ok)
+	}
+}
+
+func TestCompletionCandidateFlowDropsEmptyGroups(t *testing.T) {
+	if got := flattenCompletionGroups(nil); got != nil {
+		t.Fatalf("flattenCompletionGroups(nil) = %#v, want nil", got)
+	}
+
+	groups := [][]Completion{{}, {{Name: "beta"}}, nil, {{Name: "alpha"}}}
+	got := uniqueSortedCompletions(flattenCompletionGroups(groups))
+	want := []Completion{{Name: "alpha"}, {Name: "beta"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("uniqueSortedCompletions(flattened groups) = %#v, want %#v", got, want)
 	}
 }
 

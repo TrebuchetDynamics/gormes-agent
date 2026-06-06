@@ -23,31 +23,26 @@ func CommandCompletions(input string) []Completion {
 	if !ok {
 		return nil
 	}
-	type hit struct {
-		name  string
-		entry cli.CommandPolicy
-	}
-	seen := map[string]hit{}
+	return commandCompletionCandidates(prefix)
+}
+
+type commandCompletionHit struct {
+	name  string
+	entry cli.CommandPolicy
+}
+
+func commandCompletionCandidates(prefix string) []Completion {
+	seen := map[string]commandCompletionHit{}
 	for _, cmd := range cli.CommandRegistry {
-		name := completionKey(cmd.Name)
-		if strings.HasPrefix(name, prefix) {
-			seen[name] = hit{name: name, entry: cmd}
-		}
+		addCommandCompletionHit(seen, prefix, cmd.Name, cmd)
 		for _, alias := range cmd.Aliases {
-			name := completionKey(alias)
-			if strings.HasPrefix(name, prefix) {
-				seen[name] = hit{name: name, entry: cmd}
-			}
+			addCommandCompletionHit(seen, prefix, alias, cmd)
 		}
 	}
 	if len(seen) == 0 {
 		return nil
 	}
-	names := make([]string, 0, len(seen))
-	for n := range seen {
-		names = append(names, n)
-	}
-	sort.Strings(names)
+	names := sortedCompletionKeys(seen)
 	out := make([]Completion, 0, len(names))
 	for _, name := range names {
 		h := seen[name]
@@ -59,6 +54,25 @@ func CommandCompletions(input string) []Completion {
 		})
 	}
 	return out
+}
+
+func addCommandCompletionHit(seen map[string]commandCompletionHit, prefix, rawName string, entry cli.CommandPolicy) {
+	name := completionKey(rawName)
+	if strings.HasPrefix(name, prefix) {
+		seen[name] = commandCompletionHit{name: name, entry: entry}
+	}
+}
+
+func sortedCompletionKeys[T any](m map[string]T) []string {
+	if len(m) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func PromptTemplateCompletions(input string, catalog prompttemplates.Catalog) []Completion {
@@ -155,6 +169,10 @@ func WithDynamic(input string, commands []skills.SkillSlashCommand, catalog prom
 		SkillCompletions(input, commands),
 		PromptTemplateCompletions(input, catalog),
 	}
+	return uniqueSortedCompletions(flattenCompletionGroups(groups))
+}
+
+func flattenCompletionGroups(groups [][]Completion) []Completion {
 	count := 0
 	for _, group := range groups {
 		count += len(group)
@@ -166,7 +184,7 @@ func WithDynamic(input string, commands []skills.SkillSlashCommand, catalog prom
 	for _, group := range groups {
 		merged = append(merged, group...)
 	}
-	return uniqueSortedCompletions(merged)
+	return merged
 }
 
 func uniqueSortedCompletions(candidates []Completion) []Completion {
@@ -324,39 +342,45 @@ func AutoSuggest(input string) string {
 		return ""
 	}
 	if !strings.ContainsAny(input, " \t") {
-		word := strings.ToLower(strings.TrimPrefix(input, "/"))
-		if word == "" {
-			return ""
-		}
-		seen := map[string]struct{}{}
-		for _, cmd := range cli.CommandRegistry {
-			if strings.HasPrefix(cmd.Name, word) {
-				seen[cmd.Name] = struct{}{}
-			}
-			for _, alias := range cmd.Aliases {
-				if strings.HasPrefix(alias, word) {
-					seen[alias] = struct{}{}
-				}
-			}
-		}
-		matches := make([]string, 0, len(seen))
-		for n := range seen {
-			matches = append(matches, n)
-		}
-		sort.Strings(matches)
-		var extending []string
-		for _, m := range matches {
-			if m != word {
-				extending = append(extending, m)
-			}
-		}
-		if len(extending) != 1 {
-			return ""
-		}
-		unique := extending[0]
-		return unique[len(word):]
+		return singleCommandSuffix(input)
 	}
+	return singleSubcommandSuffix(input)
+}
 
+func singleCommandSuffix(input string) string {
+	word := strings.ToLower(strings.TrimPrefix(input, "/"))
+	if word == "" {
+		return ""
+	}
+	seen := map[string]struct{}{}
+	for _, cmd := range cli.CommandRegistry {
+		addAutoSuggestMatch(seen, word, cmd.Name)
+		for _, alias := range cmd.Aliases {
+			addAutoSuggestMatch(seen, word, alias)
+		}
+	}
+	matches := sortedCompletionKeys(seen)
+	var extending []string
+	for _, match := range matches {
+		if match != word {
+			extending = append(extending, match)
+		}
+	}
+	if len(extending) != 1 {
+		return ""
+	}
+	unique := extending[0]
+	return unique[len(word):]
+}
+
+func addAutoSuggestMatch(seen map[string]struct{}, word, rawName string) {
+	name := completionKey(rawName)
+	if strings.HasPrefix(name, word) {
+		seen[name] = struct{}{}
+	}
+}
+
+func singleSubcommandSuffix(input string) string {
 	parsed, splitOK := parseSlashInput(input)
 	if !splitOK || !parsed.hasSubcommand {
 		return ""
