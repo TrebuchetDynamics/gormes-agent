@@ -1,27 +1,37 @@
-package tui
+package panels_test
 
 import (
 	"strings"
 	"testing"
 	"time"
 
+	tui "github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 )
 
 // TestHermesPanels_ToolSpinnerShowsElapsed proves that tool.started style
 // spinner text includes the tool name/preview and a live elapsed timer in the
 // Hermes mm:ss / "x.ys" / "Nm Ms" formats. Tracks
 // ../hermes-agent/cli.py:_render_spinner_text.
+
+func forceLipglossTrueColor(t *testing.T) {
+	t.Helper()
+	old := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { lipgloss.SetColorProfile(old) })
+}
+
 func TestHermesPanels_ToolSpinnerShowsElapsed(t *testing.T) {
 	tests := []struct {
 		name         string
-		state        ToolSpinnerState
+		state        tui.ToolSpinnerState
 		mustContain  []string
 		mustNotEmpty bool
 	}{
 		{
 			name: "sub-minute renders single-decimal seconds",
-			state: ToolSpinnerState{
+			state: tui.ToolSpinnerState{
 				ToolName: "bash",
 				Preview:  "ls -la",
 				Elapsed:  3500 * time.Millisecond,
@@ -30,7 +40,7 @@ func TestHermesPanels_ToolSpinnerShowsElapsed(t *testing.T) {
 		},
 		{
 			name: "over-minute renders Xm Ys",
-			state: ToolSpinnerState{
+			state: tui.ToolSpinnerState{
 				ToolName: "search",
 				Preview:  "grep foo",
 				Elapsed:  75 * time.Second,
@@ -39,7 +49,7 @@ func TestHermesPanels_ToolSpinnerShowsElapsed(t *testing.T) {
 		},
 		{
 			name: "zero elapsed omits the timer entirely",
-			state: ToolSpinnerState{
+			state: tui.ToolSpinnerState{
 				ToolName: "bash",
 				Preview:  "pwd",
 				Elapsed:  0,
@@ -49,28 +59,28 @@ func TestHermesPanels_ToolSpinnerShowsElapsed(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := RenderToolSpinner(tc.state)
+			got := tui.RenderToolSpinner(tc.state)
 			if got == "" {
-				t.Fatalf("RenderToolSpinner(%+v) = empty, want non-empty spinner text", tc.state)
+				t.Fatalf("tui.RenderToolSpinner(%+v) = empty, want non-empty spinner text", tc.state)
 			}
 			for _, want := range tc.mustContain {
 				if !strings.Contains(got, want) {
-					t.Fatalf("RenderToolSpinner(%+v) = %q, want contains %q", tc.state, got, want)
+					t.Fatalf("tui.RenderToolSpinner(%+v) = %q, want contains %q", tc.state, got, want)
 				}
 			}
 			if tc.state.Elapsed == 0 && (strings.Contains(got, "(") && strings.Contains(got, "s)")) {
-				t.Fatalf("RenderToolSpinner(%+v) = %q, must not include timer when Elapsed==0", tc.state, got)
+				t.Fatalf("tui.RenderToolSpinner(%+v) = %q, must not include timer when Elapsed==0", tc.state, got)
 			}
 		})
 	}
 }
 
 // TestHermesPanels_ToolScrollbackAllNewModes proves stacked tool-completion
-// lines render under both ToolScrollAll and ToolScrollNew, that "new" mode
+// lines render under both tui.ToolScrollAll and tui.ToolScrollNew, that "new" mode
 // suppresses consecutive duplicates, and that errors are tagged with [error].
 // Tracks ../hermes-agent/cli.py:_on_tool_progress (tool.completed branch).
 func TestHermesPanels_ToolScrollbackAllNewModes(t *testing.T) {
-	items := []ToolCompletion{
+	items := []tui.ToolCompletion{
 		{ToolName: "bash", Detail: "ls -la (0.4s)", Error: false},
 		{ToolName: "bash", Detail: "ls (0.2s)", Error: false},
 		{ToolName: "search", Detail: "grep foo (1.2s)", Error: true},
@@ -78,9 +88,9 @@ func TestHermesPanels_ToolScrollbackAllNewModes(t *testing.T) {
 	}
 
 	t.Run("all mode renders every completion stacked", func(t *testing.T) {
-		got := RenderToolScrollback(items, ToolScrollAll)
+		got := tui.RenderToolScrollback(items, tui.ToolScrollAll)
 		if len(got) != len(items) {
-			t.Fatalf("RenderToolScrollback all mode produced %d lines, want %d", len(got), len(items))
+			t.Fatalf("tui.RenderToolScrollback all mode produced %d lines, want %d", len(got), len(items))
 		}
 		joined := strings.Join(got, "\n")
 		for _, want := range []string{"ls -la", "ls (", "grep foo", "pwd"} {
@@ -97,7 +107,7 @@ func TestHermesPanels_ToolScrollbackAllNewModes(t *testing.T) {
 	})
 
 	t.Run("new mode suppresses consecutive duplicates of the same tool", func(t *testing.T) {
-		got := RenderToolScrollback(items, ToolScrollNew)
+		got := tui.RenderToolScrollback(items, tui.ToolScrollNew)
 		// items[0]=bash, items[1]=bash (suppressed), items[2]=search,
 		// items[3]=bash (different from previous => kept).
 		if len(got) != 3 {
@@ -119,26 +129,26 @@ func TestHermesPanels_ToolScrollbackAllNewModes(t *testing.T) {
 // TestHermesPanels_ApprovalPanelPreservesCommandAndChoices proves the
 // dangerous-command approval panel keeps the command and every choice visible
 // even with long descriptions, that the selected choice carries the Hermes
-// "❯" prefix, and that ApprovalView (when present and toggled via
+// "❯" prefix, and that tui.ApprovalView (when present and toggled via
 // ViewExpanded) expands the command in place rather than truncating it.
 // Tracks ../hermes-agent/cli.py:_get_approval_display_fragments.
 func TestHermesPanels_ApprovalPanelPreservesCommandAndChoices(t *testing.T) {
 	longCmd := strings.Repeat("rm -rf /tmp/foo-bar-baz/", 6) // > 70 chars
 	longDesc := strings.Repeat("This command will affect many files. ", 12)
 
-	state := ApprovalPanelState{
+	state := tui.ApprovalPanelState{
 		Description:  longDesc,
 		Command:      longCmd,
-		Choices:      []ApprovalChoice{ApprovalOnce, ApprovalSession, ApprovalAlways, ApprovalDeny, ApprovalView},
-		Selected:     ApprovalSession,
+		Choices:      []tui.ApprovalChoice{tui.ApprovalOnce, tui.ApprovalSession, tui.ApprovalAlways, tui.ApprovalDeny, tui.ApprovalView},
+		Selected:     tui.ApprovalSession,
 		ViewExpanded: false,
 		Width:        80,
 		Height:       20,
 	}
 
-	got := RenderApprovalPanel(state)
+	got := tui.RenderApprovalPanel(state)
 	if got == "" {
-		t.Fatalf("RenderApprovalPanel returned empty string")
+		t.Fatalf("tui.RenderApprovalPanel returned empty string")
 	}
 
 	// Command must always be visible (truncated form is acceptable when
@@ -175,8 +185,8 @@ func TestHermesPanels_ApprovalPanelPreservesCommandAndChoices(t *testing.T) {
 	// (no truncation marker) and the "view" choice should be removed.
 	expanded := state
 	expanded.ViewExpanded = true
-	expanded.Selected = ApprovalOnce
-	expandedRender := RenderApprovalPanel(expanded)
+	expanded.Selected = tui.ApprovalOnce
+	expandedRender := tui.RenderApprovalPanel(expanded)
 	if !strings.Contains(expandedRender, longCmd) {
 		t.Fatalf("ViewExpanded approval panel must include the full command verbatim; got %q", expandedRender)
 	}
@@ -187,17 +197,17 @@ func TestHermesPanels_ApprovalPanelPreservesCommandAndChoices(t *testing.T) {
 
 func TestHermesPanels_WithSkinUseSharedChromeStyles(t *testing.T) {
 	forceLipglossTrueColor(t)
-	skin := BuiltinSkins()["poseidon"]
-	state := ApprovalPanelState{
+	skin := tui.BuiltinSkins()["poseidon"]
+	state := tui.ApprovalPanelState{
 		Description: "Review shell command before running it.",
 		Command:     "rm -rf /tmp/example",
-		Choices:     []ApprovalChoice{ApprovalOnce, ApprovalDeny},
-		Selected:    ApprovalDeny,
+		Choices:     []tui.ApprovalChoice{tui.ApprovalOnce, tui.ApprovalDeny},
+		Selected:    tui.ApprovalDeny,
 		Width:       54,
 		Height:      12,
 	}
 
-	got := RenderApprovalPanelWithSkin(state, skin)
+	got := tui.RenderApprovalPanelWithSkin(state, skin)
 	for _, want := range []string{"Dangerous Command", "rm -rf", "Deny", "❯"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("styled approval panel missing %q:\n%s", want, got)
@@ -218,7 +228,7 @@ func TestHermesPanels_WithSkinUseSharedChromeStyles(t *testing.T) {
 // "❯", appends an "Other" option, and includes the timeout hint. Tracks
 // ../hermes-agent/cli.py:_get_clarify_display.
 func TestHermesPanels_ClarifyPanelRendersNumberedChoicesAndOther(t *testing.T) {
-	state := ClarifyPanelState{
+	state := tui.ClarifyPanelState{
 		Question:    "Which database should I use for this slice?",
 		Choices:     []string{"Postgres", "SQLite", "DuckDB"},
 		Selected:    1, // SQLite
@@ -227,9 +237,9 @@ func TestHermesPanels_ClarifyPanelRendersNumberedChoicesAndOther(t *testing.T) {
 		Height:      24,
 	}
 
-	got := RenderClarifyPanel(state)
+	got := tui.RenderClarifyPanel(state)
 	if got == "" {
-		t.Fatalf("RenderClarifyPanel returned empty string")
+		t.Fatalf("tui.RenderClarifyPanel returned empty string")
 	}
 	if !strings.Contains(got, "Which database should I use") {
 		t.Fatalf("clarify panel missing question text in %q", got)
@@ -275,14 +285,14 @@ func TestHermesPanels_SecretAndSudoPanelsNeverRenderSecretValue(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		state        SecretPanelState
+		state        tui.SecretPanelState
 		mustContain  []string
 		minSecretLen int
 	}{
 		{
 			name: "sudo panel shows hint + countdown + masked length",
-			state: SecretPanelState{
-				Mode:       SecretPanelSudo,
+			state: tui.SecretPanelState{
+				Mode:       tui.SecretPanelSudo,
 				PromptText: "[sudo] password:",
 				Countdown:  45 * time.Second,
 				SecretLen:  len(secretValue),
@@ -293,8 +303,8 @@ func TestHermesPanels_SecretAndSudoPanelsNeverRenderSecretValue(t *testing.T) {
 		},
 		{
 			name: "secret panel with help/hint shows prompt and hint",
-			state: SecretPanelState{
-				Mode:       SecretPanelArbitrary,
+			state: tui.SecretPanelState{
+				Mode:       tui.SecretPanelArbitrary,
 				PromptText: "Enter API token",
 				Countdown:  0,
 				SecretLen:  len(secretValue),
@@ -307,27 +317,27 @@ func TestHermesPanels_SecretAndSudoPanelsNeverRenderSecretValue(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := RenderSecretPanel(tc.state)
+			got := tui.RenderSecretPanel(tc.state)
 			if got == "" {
-				t.Fatalf("RenderSecretPanel returned empty for %+v", tc.state)
+				t.Fatalf("tui.RenderSecretPanel returned empty for %+v", tc.state)
 			}
 			for _, want := range tc.mustContain {
 				if !strings.Contains(got, want) {
-					t.Fatalf("RenderSecretPanel = %q, want contains %q", got, want)
+					t.Fatalf("tui.RenderSecretPanel = %q, want contains %q", got, want)
 				}
 			}
 			// Substring-scan for the literal secret value.
 			if strings.Contains(got, secretValue) {
-				t.Fatalf("RenderSecretPanel must never echo the secret value; got %q", got)
+				t.Fatalf("tui.RenderSecretPanel must never echo the secret value; got %q", got)
 			}
 			// Prefixes/suffixes of the secret must not leak either.
 			if strings.Contains(got, "hunter2") {
-				t.Fatalf("RenderSecretPanel leaked secret prefix; got %q", got)
+				t.Fatalf("tui.RenderSecretPanel leaked secret prefix; got %q", got)
 			}
 			// If a placeholder is shown for typed length, it must not be the
 			// raw value — only mask characters or the length number itself.
 			if strings.Contains(got, secretValue[:5]) {
-				t.Fatalf("RenderSecretPanel leaked secret head; got %q", got)
+				t.Fatalf("tui.RenderSecretPanel leaked secret head; got %q", got)
 			}
 		})
 	}
