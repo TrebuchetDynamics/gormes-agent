@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/prompttemplates"
 )
 
@@ -87,6 +88,19 @@ func TestAcceptedTextNormalizesSlashPrefixedCompletionNames(t *testing.T) {
 	got, ok = AcceptedText("/sk", Completion{Name: " /skin "}, true)
 	if !ok || got != "/skin" {
 		t.Fatalf("AcceptedText with slash-prefixed no-space command = (%q, %v), want /skin true", got, ok)
+	}
+}
+
+func TestAcceptedTextSpacePolicyMapsOnlyReferenceRegisteredCommands(t *testing.T) {
+	for name := range noTrailingSpaceCommands {
+		if _, ok := cli.ResolveCommandPolicy(name); !ok {
+			t.Fatalf("noTrailingSpaceCommands contains unregistered command %q", name)
+		}
+	}
+	for name := range argumentCommandNames {
+		if _, ok := cli.ResolveCommandPolicy(name); !ok {
+			t.Fatalf("argumentCommandNames contains unregistered command %q", name)
+		}
 	}
 }
 

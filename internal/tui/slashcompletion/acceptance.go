@@ -139,7 +139,6 @@ var argumentCommandNames = map[string]struct{}{
 	"sessions":   {},
 	"snapshot":   {},
 	"steer":      {},
-	"subgoal":    {},
 	"title":      {},
 	"topic":      {},
 	"tools":      {},
