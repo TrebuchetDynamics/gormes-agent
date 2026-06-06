@@ -1,4 +1,4 @@
-package oauth
+package refresh
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/oauth/tokens"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/redaction"
 )
 
@@ -21,7 +22,7 @@ var ErrInvalidRefreshToken = errors.New("mcp oauth: refreshed token missing acce
 // Refresher refreshes an MCP OAuth token without opening an interactive login
 // flow.
 type Refresher interface {
-	Refresh(ctx context.Context, refreshToken string) (newTokens Token, err error)
+	Refresh(ctx context.Context, refreshToken string) (newTokens tokens.Token, err error)
 }
 
 // RefreshOutcome is the degraded-mode outcome of Refresh.
@@ -41,7 +42,7 @@ type RefreshResult struct {
 	Outcome RefreshOutcome
 }
 
-func mergeRefreshedToken(previous, refreshed Token) Token {
+func mergeRefreshedToken(previous, refreshed tokens.Token) tokens.Token {
 	refreshToken := strings.TrimSpace(refreshed.RefreshToken)
 	if refreshToken == "" {
 		refreshed.RefreshToken = previous.RefreshToken
@@ -68,13 +69,13 @@ func safeRefreshError(server string, err error) error {
 }
 
 // Refresh refreshes an expired OAuth token for server using refresher.
-func Refresh(ctx context.Context, store *Store, server string, refresher Refresher, now time.Time) (RefreshResult, error) {
+func Refresh(ctx context.Context, store *tokens.Store, server string, refresher Refresher, now time.Time) (RefreshResult, error) {
 	result := RefreshResult{Server: server}
 
 	tok, ok := store.Get(server)
 	if !ok {
 		result.Outcome = RefreshOutcomeNoninteractiveRequired
-		return result, ErrNoninteractiveRequired
+		return result, tokens.ErrNoninteractiveRequired
 	}
 	if strings.TrimSpace(tok.AccessToken) != "" && (tok.ExpiresAt.IsZero() || now.Before(tok.ExpiresAt)) {
 		result.Outcome = RefreshOutcomeStillValid
@@ -83,7 +84,7 @@ func Refresh(ctx context.Context, store *Store, server string, refresher Refresh
 	refreshToken := strings.TrimSpace(tok.RefreshToken)
 	if refreshToken == "" {
 		result.Outcome = RefreshOutcomeNoninteractiveRequired
-		return result, ErrNoninteractiveRequired
+		return result, tokens.ErrNoninteractiveRequired
 	}
 	tok.RefreshToken = refreshToken
 	if refresher == nil {

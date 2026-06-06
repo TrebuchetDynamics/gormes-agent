@@ -1,4 +1,4 @@
-package oauth
+package tokens
 
 import (
 	"errors"

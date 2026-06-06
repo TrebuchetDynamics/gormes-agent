@@ -1,4 +1,4 @@
-package oauth
+package refresh
 
 import (
 	"context"
@@ -6,14 +6,16 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/oauth/tokens"
 )
 
 type fakeRefresher struct {
 	refreshToken string
-	nextToken    Token
+	nextToken    tokens.Token
 }
 
-func (f *fakeRefresher) Refresh(ctx context.Context, refreshToken string) (Token, error) {
+func (f *fakeRefresher) Refresh(ctx context.Context, refreshToken string) (tokens.Token, error) {
 	f.refreshToken = refreshToken
 	return f.nextToken, nil
 }
@@ -22,8 +24,8 @@ type failingRefresher struct {
 	err error
 }
 
-func (f failingRefresher) Refresh(context.Context, string) (Token, error) {
-	return Token{}, f.err
+func (f failingRefresher) Refresh(context.Context, string) (tokens.Token, error) {
+	return tokens.Token{}, f.err
 }
 
 func TestRefreshWithNilStoreRequiresNoninteractiveAuth(t *testing.T) {
@@ -31,8 +33,8 @@ func TestRefreshWithNilStoreRequiresNoninteractiveAuth(t *testing.T) {
 
 	got, err := Refresh(context.Background(), nil, "srv", nil, now)
 
-	if err != ErrNoninteractiveRequired {
-		t.Fatalf("Refresh error = %v, want %v", err, ErrNoninteractiveRequired)
+	if err != tokens.ErrNoninteractiveRequired {
+		t.Fatalf("Refresh error = %v, want %v", err, tokens.ErrNoninteractiveRequired)
 	}
 	if got.Server != "srv" {
 		t.Fatalf("Server = %q, want srv", got.Server)
@@ -44,8 +46,8 @@ func TestRefreshWithNilStoreRequiresNoninteractiveAuth(t *testing.T) {
 
 func TestRefreshRedactsRefresherErrors(t *testing.T) {
 	now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
-	store := NewStore()
-	if err := store.Set("srv", Token{
+	store := tokens.NewStore()
+	if err := store.Set("srv", tokens.Token{
 		AccessToken:  "access-1",
 		RefreshToken: "refresh-secret-1",
 		ExpiresAt:    now.Add(-time.Minute),
@@ -74,14 +76,14 @@ func TestRefreshRedactsRefresherErrors(t *testing.T) {
 
 func TestRefreshRefreshesMissingAccessTokenEvenBeforeExpiry(t *testing.T) {
 	now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
-	store := NewStore()
-	if err := store.Set("srv", Token{
+	store := tokens.NewStore()
+	if err := store.Set("srv", tokens.Token{
 		RefreshToken: "refresh-1",
 		ExpiresAt:    now.Add(time.Hour),
 	}); err != nil {
 		t.Fatalf("Set returned error: %v", err)
 	}
-	refresher := &fakeRefresher{nextToken: Token{
+	refresher := &fakeRefresher{nextToken: tokens.Token{
 		AccessToken: "access-2",
 		ExpiresAt:   now.Add(2 * time.Hour),
 	}}
@@ -111,20 +113,20 @@ func TestRefreshRefreshesMissingAccessTokenEvenBeforeExpiry(t *testing.T) {
 
 func TestRefreshWithWhitespaceRefreshTokenRequiresNoninteractiveAuth(t *testing.T) {
 	now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
-	store := NewStore()
-	if err := store.Set("srv", Token{
+	store := tokens.NewStore()
+	if err := store.Set("srv", tokens.Token{
 		AccessToken:  "access-1",
 		RefreshToken: " \t\n ",
 		ExpiresAt:    now.Add(-time.Minute),
 	}); err != nil {
 		t.Fatalf("Set returned error: %v", err)
 	}
-	refresher := &fakeRefresher{nextToken: Token{AccessToken: "access-2"}}
+	refresher := &fakeRefresher{nextToken: tokens.Token{AccessToken: "access-2"}}
 
 	got, err := Refresh(context.Background(), store, "srv", refresher, now)
 
-	if err != ErrNoninteractiveRequired {
-		t.Fatalf("Refresh error = %v, want %v", err, ErrNoninteractiveRequired)
+	if err != tokens.ErrNoninteractiveRequired {
+		t.Fatalf("Refresh error = %v, want %v", err, tokens.ErrNoninteractiveRequired)
 	}
 	if got.Outcome != RefreshOutcomeNoninteractiveRequired {
 		t.Fatalf("Outcome = %q, want %q", got.Outcome, RefreshOutcomeNoninteractiveRequired)
@@ -136,8 +138,8 @@ func TestRefreshWithWhitespaceRefreshTokenRequiresNoninteractiveAuth(t *testing.
 
 func TestRefreshRejectsResponseWithoutAccessToken(t *testing.T) {
 	now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
-	store := NewStore()
-	oldToken := Token{
+	store := tokens.NewStore()
+	oldToken := tokens.Token{
 		AccessToken:  "access-1",
 		RefreshToken: "refresh-1",
 		Scope:        "old-scope",
@@ -147,7 +149,7 @@ func TestRefreshRejectsResponseWithoutAccessToken(t *testing.T) {
 	if err := store.Set("srv", oldToken); err != nil {
 		t.Fatalf("Set returned error: %v", err)
 	}
-	refresher := &fakeRefresher{nextToken: Token{
+	refresher := &fakeRefresher{nextToken: tokens.Token{
 		RefreshToken: "refresh-2",
 		ExpiresAt:    now.Add(time.Hour),
 	}}
@@ -171,15 +173,15 @@ func TestRefreshRejectsResponseWithoutAccessToken(t *testing.T) {
 
 func TestRefreshPreservesOldRefreshTokenWhenResponseHasWhitespaceOne(t *testing.T) {
 	now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
-	store := NewStore()
-	if err := store.Set("srv", Token{
+	store := tokens.NewStore()
+	if err := store.Set("srv", tokens.Token{
 		AccessToken:  "access-1",
 		RefreshToken: "refresh-1",
 		ExpiresAt:    now.Add(-time.Minute),
 	}); err != nil {
 		t.Fatalf("Set returned error: %v", err)
 	}
-	refresher := &fakeRefresher{nextToken: Token{
+	refresher := &fakeRefresher{nextToken: tokens.Token{
 		AccessToken:  "access-2",
 		RefreshToken: " \t\n ",
 		ExpiresAt:    now.Add(time.Hour),
@@ -207,8 +209,8 @@ func TestRefreshPreservesOldRefreshTokenWhenResponseHasWhitespaceOne(t *testing.
 
 func TestRefreshPreservesOldRefreshTokenWhenResponseOmitsOne(t *testing.T) {
 	now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
-	store := NewStore()
-	if err := store.Set("srv", Token{
+	store := tokens.NewStore()
+	if err := store.Set("srv", tokens.Token{
 		AccessToken:  "access-1",
 		RefreshToken: "refresh-1",
 		Scope:        "old-scope",
@@ -217,7 +219,7 @@ func TestRefreshPreservesOldRefreshTokenWhenResponseOmitsOne(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Set returned error: %v", err)
 	}
-	refresher := &fakeRefresher{nextToken: Token{
+	refresher := &fakeRefresher{nextToken: tokens.Token{
 		AccessToken: "access-2",
 		Scope:       "new-scope",
 		Issuer:      "https://new.example.test",
