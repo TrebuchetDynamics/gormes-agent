@@ -64,7 +64,7 @@ func splitSubcommandInput(input string) (base string, subText string, ok bool) {
 	if !ok || !req.subcommandOnly() {
 		return "", "", false
 	}
-	return req.base, req.subPrefix, true
+	return req.base, req.subPrefix.string(), true
 }
 
 func shouldAppendSpace(completion Completion) bool {

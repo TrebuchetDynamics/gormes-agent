@@ -11,9 +11,27 @@ const (
 
 type completionRequest struct {
 	kind          completionRequestKind
-	commandPrefix string
+	commandPrefix completionPrefix
 	base          string
-	subPrefix     string
+	subPrefix     completionPrefix
+}
+
+type completionPrefix string
+
+func newCompletionPrefix(raw string) completionPrefix {
+	return completionPrefix(completionKey(raw))
+}
+
+func newSubcommandPrefix(raw string) completionPrefix {
+	return completionPrefix(strings.ToLower(strings.TrimSpace(raw)))
+}
+
+func (p completionPrefix) string() string {
+	return string(p)
+}
+
+func (p completionPrefix) matches(name string) bool {
+	return strings.HasPrefix(completionKey(name), p.string())
 }
 
 func (r completionRequest) commandOnly() bool {
@@ -30,7 +48,7 @@ func parseCompletionRequest(input string) (completionRequest, bool) {
 	}
 	sep := strings.IndexFunc(input, func(r rune) bool { return r == ' ' || r == '\t' })
 	if sep < 0 {
-		return completionRequest{kind: completionRequestCommand, commandPrefix: completionKey(input)}, true
+		return completionRequest{kind: completionRequestCommand, commandPrefix: newCompletionPrefix(input)}, true
 	}
 	base := completionKey(input[:sep])
 	if base == "" {
@@ -43,12 +61,12 @@ func parseCompletionRequest(input string) (completionRequest, bool) {
 	return completionRequest{
 		kind:      completionRequestSubcommand,
 		base:      "/" + base,
-		subPrefix: strings.ToLower(subText),
+		subPrefix: newSubcommandPrefix(subText),
 	}, true
 }
 
-func completionNameMatches(name, prefix string) bool {
-	return strings.HasPrefix(completionKey(name), prefix)
+func completionNameMatches(name string, prefix completionPrefix) bool {
+	return prefix.matches(name)
 }
 
 func completionKey(name string) string {

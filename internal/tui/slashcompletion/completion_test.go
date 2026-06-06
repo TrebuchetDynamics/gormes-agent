@@ -167,12 +167,12 @@ func TestCompletionCandidateFlowDropsEmptyGroups(t *testing.T) {
 
 func TestCompletionRequestParsingClassifiesCommandAndSubcommandFlow(t *testing.T) {
 	command, ok := parseCompletionRequest("/he")
-	if !ok || !command.commandOnly() || command.commandPrefix != "he" {
+	if !ok || !command.commandOnly() || command.commandPrefix.string() != "he" {
 		t.Fatalf("parseCompletionRequest(/he) = (%#v, %v), want command prefix he", command, ok)
 	}
 
 	sub, ok := parseCompletionRequest("/Reasoning   Sh")
-	if !ok || !sub.subcommandOnly() || sub.base != "/reasoning" || sub.subPrefix != "sh" {
+	if !ok || !sub.subcommandOnly() || sub.base != "/reasoning" || sub.subPrefix.string() != "sh" {
 		t.Fatalf("parseCompletionRequest(/Reasoning   Sh) = (%#v, %v), want canonical subcommand request", sub, ok)
 	}
 
@@ -181,8 +181,22 @@ func TestCompletionRequestParsingClassifiesCommandAndSubcommandFlow(t *testing.T
 	}
 }
 
+func TestCompletionPrefixesNormalizeBeforeMatching(t *testing.T) {
+	commandPrefix := newCompletionPrefix(" /REV ")
+	if !commandPrefix.matches("Review") || commandPrefix.matches("help") {
+		t.Fatalf("completionPrefix matching did not normalize command prefix: %#v", commandPrefix)
+	}
+
+	subPrefix := newSubcommandPrefix(" Sh ")
+	candidates := matchingSubcommandCandidates([]string{"Show", "hide"}, subPrefix)
+	want := []subcommandCandidate{{name: "Show", key: "show"}}
+	if !reflect.DeepEqual(candidates, want) {
+		t.Fatalf("matchingSubcommandCandidates with mixed-case prefix = %#v, want %#v", candidates, want)
+	}
+}
+
 func TestSubcommandCompletionCandidatesPreservePolicyOrderAndDeduplicate(t *testing.T) {
-	candidates := matchingSubcommandCandidates([]string{"status", "Show", "hide", "show", "", "start"}, "s")
+	candidates := matchingSubcommandCandidates([]string{"status", "Show", "hide", "show", "", "start"}, newSubcommandPrefix("s"))
 	wantCandidates := []subcommandCandidate{
 		{name: "status", key: "status"},
 		{name: "Show", key: "show"},
@@ -192,7 +206,7 @@ func TestSubcommandCompletionCandidatesPreservePolicyOrderAndDeduplicate(t *test
 		t.Fatalf("matchingSubcommandCandidates policy-order duplicate candidates = %#v, want %#v", candidates, wantCandidates)
 	}
 
-	got := matchingSubcommandCompletions([]string{"status", "Show", "hide", "show", "", "start"}, "s")
+	got := matchingSubcommandCompletions([]string{"status", "Show", "hide", "show", "", "start"}, newSubcommandPrefix("s"))
 	want := []Completion{
 		{Name: "status", Display: "status", Available: true},
 		{Name: "Show", Display: "Show", Available: true},
@@ -205,12 +219,12 @@ func TestSubcommandCompletionCandidatesPreservePolicyOrderAndDeduplicate(t *test
 
 func TestSubcommandAutoSuggestDeduplicatesCaseVariantCandidates(t *testing.T) {
 	policySubcommands := []string{"Show", "show"}
-	matches := matchingSubcommandCandidates(policySubcommands, "sh")
+	matches := matchingSubcommandCandidates(policySubcommands, newSubcommandPrefix("sh"))
 	if len(matches) != 1 || matches[0].key != "show" {
 		t.Fatalf("matchingSubcommandCandidates duplicate case variants = %#v, want one show candidate", matches)
 	}
 
-	if suffix := singleSubcommandCandidateSuffix("sh", matches); suffix != "ow" {
+	if suffix := singleSubcommandCandidateSuffix(newSubcommandPrefix("sh"), matches); suffix != "ow" {
 		t.Fatalf("singleSubcommandCandidateSuffix duplicate case variants = %q, want ow", suffix)
 	}
 }

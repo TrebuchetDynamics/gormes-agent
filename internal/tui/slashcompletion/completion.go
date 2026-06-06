@@ -30,7 +30,7 @@ type commandCompletionHit struct {
 	entry cli.CommandPolicy
 }
 
-func commandCompletionCandidates(prefix string) []Completion {
+func commandCompletionCandidates(prefix completionPrefix) []Completion {
 	seen := map[string]commandCompletionHit{}
 	for _, cmd := range cli.CommandRegistry {
 		addCommandCompletionHit(seen, prefix, cmd.Name, cmd)
@@ -55,9 +55,9 @@ func commandCompletionCandidates(prefix string) []Completion {
 	return out
 }
 
-func addCommandCompletionHit(seen map[string]commandCompletionHit, prefix, rawName string, entry cli.CommandPolicy) {
+func addCommandCompletionHit(seen map[string]commandCompletionHit, prefix completionPrefix, rawName string, entry cli.CommandPolicy) {
 	name := completionKey(rawName)
-	if strings.HasPrefix(name, prefix) {
+	if prefix.matches(rawName) {
 		seen[name] = commandCompletionHit{name: name, entry: entry}
 	}
 }
@@ -91,7 +91,7 @@ func SkillCompletions(input string, commands []skills.SkillSlashCommand) []Compl
 	var candidates []Completion
 	for _, command := range commands {
 		name := completionKey(command.Command)
-		if name == "" || !strings.HasPrefix(name, req.commandPrefix) {
+		if name == "" || !req.commandPrefix.matches(command.Command) {
 			continue
 		}
 		candidates = append(candidates, Completion{
@@ -134,7 +134,7 @@ type subcommandCandidate struct {
 	key  string
 }
 
-func matchingSubcommandCandidates(subcommands []string, prefix string) []subcommandCandidate {
+func matchingSubcommandCandidates(subcommands []string, prefix completionPrefix) []subcommandCandidate {
 	if len(subcommands) == 0 {
 		return nil
 	}
@@ -142,7 +142,7 @@ func matchingSubcommandCandidates(subcommands []string, prefix string) []subcomm
 	out := make([]subcommandCandidate, 0, len(subcommands))
 	for _, sub := range subcommands {
 		key := completionKey(sub)
-		if key == "" || !strings.HasPrefix(key, prefix) {
+		if key == "" || !prefix.matches(sub) {
 			continue
 		}
 		if _, ok := seen[key]; ok {
@@ -157,7 +157,7 @@ func matchingSubcommandCandidates(subcommands []string, prefix string) []subcomm
 	return out
 }
 
-func matchingSubcommandCompletions(subcommands []string, prefix string) []Completion {
+func matchingSubcommandCompletions(subcommands []string, prefix completionPrefix) []Completion {
 	candidates := matchingSubcommandCandidates(subcommands, prefix)
 	if len(candidates) == 0 {
 		return nil
@@ -224,15 +224,16 @@ func singleSubcommandSuffix(input string) string {
 	return singleSubcommandCandidateSuffix(req.subPrefix, matchingSubcommandCandidates(policy.Subcommands, req.subPrefix))
 }
 
-func singleSubcommandCandidateSuffix(prefix string, matches []subcommandCandidate) string {
+func singleSubcommandCandidateSuffix(prefix completionPrefix, matches []subcommandCandidate) string {
+	prefixText := prefix.string()
 	var extending []subcommandCandidate
 	for _, match := range matches {
-		if match.key != prefix {
+		if match.key != prefixText {
 			extending = append(extending, match)
 		}
 	}
 	if len(extending) != 1 {
 		return ""
 	}
-	return extending[0].key[len(prefix):]
+	return extending[0].key[len(prefixText):]
 }
