@@ -1,4 +1,4 @@
-package gonchotools
+package memoryv1
 
 import (
 	"context"

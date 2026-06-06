@@ -1,4 +1,4 @@
-package gonchotools
+package memoryv1
 
 import (
 	"os"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestMemoryV1MCPTranscriptUsesOnlyContractedTools(t *testing.T) {
-	body, err := os.ReadFile(filepath.Join("..", "..", "memory", "testdata", "goncho_v1", "tool_transcript.jsonl"))
+	body, err := os.ReadFile(filepath.Join("..", "..", "..", "memory", "testdata", "goncho_v1", "tool_transcript.jsonl"))
 	if err != nil {
 		t.Fatalf("read tool transcript fixture: %v", err)
 	}

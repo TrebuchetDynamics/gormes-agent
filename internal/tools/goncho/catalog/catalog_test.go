@@ -1,9 +1,15 @@
-package gonchotools
+package catalog
 
 import (
+	"context"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/goncho/service"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
+	honchoadapter "github.com/TrebuchetDynamics/gormes-agent/internal/tools/goncho/honcho"
 )
 
 func TestHonchoMCPCatalog_CoversEveryUpstreamToolName(t *testing.T) {
@@ -160,6 +166,29 @@ func assertCatalogInputs(t *testing.T, entry HonchoMCPToolCatalogEntry, required
 	}
 	if !reflect.DeepEqual(entry.OptionalInputs, optional) {
 		t.Fatalf("%s OptionalInputs = %#v, want %#v", entry.Name, entry.OptionalInputs, optional)
+	}
+}
+
+func newTestHonchoRegistry(t *testing.T) (*tools.Registry, *goncho.Service, func()) {
+	t.Helper()
+
+	store, err := memory.OpenSqlite(t.TempDir()+"/memory.db", 0, nil)
+	if err != nil {
+		t.Fatalf("OpenSqlite: %v", err)
+	}
+
+	reg := tools.NewRegistry()
+	svc := goncho.NewService(store.DB(), goncho.Config{
+		WorkspaceID:    "default",
+		ObserverPeerID: "gormes",
+		RecentMessages: 4,
+	}, nil)
+	honchoadapter.RegisterHonchoTools(reg, svc)
+
+	return reg, svc, func() {
+		if err := store.Close(context.Background()); err != nil {
+			t.Fatalf("Close: %v", err)
+		}
 	}
 }
 
