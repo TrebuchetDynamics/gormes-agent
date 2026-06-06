@@ -505,6 +505,22 @@ func TestCompletionInputSplitExposesWhitespaceAndArgs(t *testing.T) {
 	}
 }
 
+func TestCompletionWhitespaceContractIsSpaceAndTabOnly(t *testing.T) {
+	for _, input := range []string{"/reasoning sh", "/reasoning\tsh"} {
+		if !containsCompletionWhitespace(input) || indexCompletionWhitespace(input) < 0 {
+			t.Fatalf("completion whitespace helpers did not detect space/tab in %q", input)
+		}
+	}
+
+	input := "/reasoning\nsh"
+	if containsCompletionWhitespace(input) || indexCompletionWhitespace(input) >= 0 {
+		t.Fatalf("completion whitespace helpers treated newline as completion separator")
+	}
+	if got := trimCompletionWhitespaceLeft(" \tshow"); got != "show" {
+		t.Fatalf("trimCompletionWhitespaceLeft = %q, want show", got)
+	}
+}
+
 func TestResolveSubcommandFlowCentralizesPolicyGate(t *testing.T) {
 	flow, ok := resolveSubcommandFlow("/Reasoning   Sh")
 	if !ok || flow.Base != "/reasoning" || flow.Prefix.string() != "sh" || len(flow.Subcommands) == 0 {

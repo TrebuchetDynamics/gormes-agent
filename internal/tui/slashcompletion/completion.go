@@ -251,7 +251,7 @@ func AutoSuggest(input string) string {
 	if !strings.HasPrefix(input, "/") {
 		return ""
 	}
-	if !strings.ContainsAny(input, " \t") {
+	if !containsCompletionWhitespace(input) {
 		return singleCommandSuffix(input)
 	}
 	return singleSubcommandSuffix(input)

@@ -2,6 +2,8 @@ package slashcompletion
 
 import "strings"
 
+const completionWhitespaceChars = " \t"
+
 type completionRequestKind int
 
 const (
@@ -89,20 +91,32 @@ func splitCompletionInput(input string) (completionInputParts, bool) {
 	if !strings.HasPrefix(input, "/") {
 		return completionInputParts{}, false
 	}
-	sep := strings.IndexFunc(input, isCompletionWhitespace)
+	sep := indexCompletionWhitespace(input)
 	if sep < 0 {
 		return completionInputParts{command: input}, true
 	}
-	subText := strings.TrimLeft(input[sep+1:], " \t")
-	nextSep := strings.IndexFunc(subText, isCompletionWhitespace)
+	subText := trimCompletionWhitespaceLeft(input[sep+1:])
+	nextSep := indexCompletionWhitespace(subText)
 	if nextSep >= 0 {
 		return completionInputParts{command: input[:sep], subword: subText[:nextSep], hasSubcommandSlot: true, hasArgs: true}, true
 	}
 	return completionInputParts{command: input[:sep], subword: subText, hasSubcommandSlot: true}, true
 }
 
+func indexCompletionWhitespace(input string) int {
+	return strings.IndexFunc(input, isCompletionWhitespace)
+}
+
+func trimCompletionWhitespaceLeft(input string) string {
+	return strings.TrimLeft(input, completionWhitespaceChars)
+}
+
+func containsCompletionWhitespace(input string) bool {
+	return strings.ContainsAny(input, completionWhitespaceChars)
+}
+
 func isCompletionWhitespace(r rune) bool {
-	return r == ' ' || r == '\t'
+	return strings.ContainsRune(completionWhitespaceChars, r)
 }
 
 func (p completionInputParts) commandOnly() bool {
