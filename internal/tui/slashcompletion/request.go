@@ -104,9 +104,15 @@ func completionNameMatches(name string, prefix completionPrefix) bool {
 }
 
 func completionName(name string) string {
+	return trimCompletionSlashPrefix(name)
+}
+
+func trimCompletionSlashPrefix(name string) string {
 	trimmed := strings.TrimSpace(name)
-	trimmed = strings.TrimLeft(trimmed, "/")
-	return strings.TrimSpace(trimmed)
+	for strings.HasPrefix(trimmed, "/") {
+		trimmed = strings.TrimSpace(strings.TrimLeft(trimmed, "/"))
+	}
+	return trimmed
 }
 
 func completionKey(name string) string {

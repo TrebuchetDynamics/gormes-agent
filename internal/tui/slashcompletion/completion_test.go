@@ -131,6 +131,7 @@ func TestCompletionNameNormalizationTrimsAfterSlashPrefix(t *testing.T) {
 	}{
 		{raw: " / Review ", want: "Review"},
 		{raw: "// review", want: "review"},
+		{raw: " / /Review ", want: "Review"},
 	}
 	for _, tc := range cases {
 		if got := completionName(tc.raw); got != tc.want {
@@ -138,7 +139,7 @@ func TestCompletionNameNormalizationTrimsAfterSlashPrefix(t *testing.T) {
 		}
 	}
 
-	catalog := prompttemplates.Catalog{Templates: []prompttemplates.Template{{Name: " / Review ", Description: "review"}}}
+	catalog := prompttemplates.Catalog{Templates: []prompttemplates.Template{{Name: " / /Review ", Description: "review"}}}
 	got := PromptTemplateCompletions("/rev", catalog)
 	want := []Completion{{Name: "Review", Display: "/Review", Description: "review", Available: true}}
 	if !reflect.DeepEqual(got, want) {
