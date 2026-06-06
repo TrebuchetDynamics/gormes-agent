@@ -390,7 +390,7 @@ func runSetupToolsTTYE2EHelper() {
 	cmd.SetIn(os.Stdin)
 	cmd.SetOut(os.Stdout)
 	cmd.SetErr(os.Stderr)
-	if err := gormescli.RunSetupToolsSection(cmd, false, setupToolsOptions(cmd)); err != nil {
+	if err := gormescli.RunSetupToolsSection(cmd, false, gormescli.SetupToolsOptions{}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -417,9 +417,9 @@ func runSetupFiniteOptionsTTYE2EHelper() {
 	var err error
 	switch os.Getenv(setupFiniteOptionsTTYE2EModeEnv) {
 	case "tts":
-		err = runSetupTTSSection(cmd, false)
+		err = gormescli.RunSetupTTSSection(cmd, false, gormescli.SetupTTSOptions{})
 	case "terminal":
-		err = runSetupTerminalSection(cmd, false)
+		err = gormescli.RunSetupTerminalSection(cmd, false, gormescli.SetupTerminalOptions{})
 	default:
 		err = fmt.Errorf("unknown setup finite option helper mode %q", os.Getenv(setupFiniteOptionsTTYE2EModeEnv))
 	}

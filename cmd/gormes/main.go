@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -13,30 +14,40 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
+	gonchoservice "github.com/TrebuchetDynamics/goncho/service"
 	tea "github.com/charmbracelet/bubbletea"
+	_ "github.com/ncruces/go-sqlite3/driver"
 	"github.com/spf13/cobra"
 
+	appgateway "github.com/TrebuchetDynamics/gormes-agent/internal/app/gateway"
+	apptelegram "github.com/TrebuchetDynamics/gormes-agent/internal/app/telegram"
 	navivoxapp "github.com/TrebuchetDynamics/gormes-agent/internal/app/navivox"
+	appgoncho "github.com/TrebuchetDynamics/gormes-agent/internal/app/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/kanban"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
+	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway"
 	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/profileapp"
 	tuiapp "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/tuiapp"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/runtime"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	setupwizard "github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 )
@@ -346,16 +357,67 @@ func runFirstRunSetupCommand(cmd *cobra.Command) error {
 
 func rootCommandFactories(runtime rootRuntime) gormescli.CommandFactories {
 	return gormescli.CommandFactories{
-		"doctor":   newDoctorCommand,
+		"doctor": func() *cobra.Command {
+			return gormescli.NewDoctorCommand(gormescli.DoctorCommandOptions{
+				BuildProvenance: func() gormescli.BuildProvenance {
+					build := newBuildProvenance()
+					return gormescli.BuildProvenance{Version: build.Version, GitCommit: build.GitCommit}
+				},
+				NewExitCodeError:       newExitCodeError,
+				BuildFirstRunPlan:      tuiapp.BuildFirstRunPlanFromConfig,
+				FirstRunGuidanceCommand: tuiapp.FirstRunGuidanceCommand,
+			})
+		},
 		"version":  func() *cobra.Command { return gormescli.NewVersionCommand(versionInfo()) },
-		"telegram": newTelegramCommand,
-		"gateway":  newGatewayCommand,
+		"telegram": func() *cobra.Command {
+			return channelsmodule.NewTelegramCommandWithSeams(channelsmodule.TelegramCommandSeams{
+				Run: func(cmd *cobra.Command, args []string) error {
+					return apptelegram.RunTelegram(cmd, args, apptelegram.RunOptions{
+						GatewayTelegramDynamicCommands: appgateway.TelegramDynamicCommands,
+						GatewayManagerConfig: func(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, allowedWhitelists map[string]gateway.WhitelistConfig, smap session.Map) gateway.ManagerConfig {
+							return gatewayManagerConfig(cfg, allowedChats, allowDiscovery, allowedWhitelists, smap, nil, nil, nil, gateway.RestartConfig{})
+						},
+						EnsureAgentTemplates: func(cfg config.Config, log *slog.Logger) error {
+							_, err := gatewaymodule.EnsureAgentTemplates(cfg, log)
+							return err
+						},
+					})
+				},
+			})
+		},
+		"gateway": func() *cobra.Command {
+			return gatewaymodule.NewGatewayCommand(
+				func(cmd *cobra.Command, args []string) error {
+					return appgateway.RunGateway(cmd, args, appgateway.RunOptions{
+						RegisterChannels:    registerConfiguredGatewayChannelsWithDefaults,
+						NoWakeLock:          func(c *cobra.Command) bool { ok, _ := c.Flags().GetBool("no-wakelock"); return ok },
+						NewExitCodeError:    newExitCodeError,
+						GatewayManagerConfig: gatewayManagerConfig,
+					})
+				},
+				gatewaymodule.NewGatewayCommandOptions(
+					func() string { return newBuildProvenance().Version },
+					func() string { return newBuildProvenance().GitCommit },
+					newExitCodeError,
+				),
+			)
+		},
 		"channels": newChannelsCommand,
 		"whatsapp": newWhatsAppCommand,
 		"slack":    gormescli.NewSlackCommand,
 		"session":  newSessionCommand,
 		"memory":   newMemoryCommand,
-		"goncho":   newGonchoCommand,
+		"goncho": func() *cobra.Command {
+			return gormescli.NewGonchoCommand(gormescli.GonchoCommandOptions{
+				BuildProvenance: func() appgoncho.BuildProvenance {
+					build := newBuildProvenance()
+					return appgoncho.BuildProvenance{
+						Version:   build.Version,
+						GitCommit: build.GitCommit,
+					}
+				},
+			})
+		},
 		"kanban": func() *cobra.Command {
 			return gormescli.NewKanbanCommand(kanbanCommandOptions())
 		},
@@ -507,13 +569,13 @@ func rootCommandFactories(runtime rootRuntime) gormescli.CommandFactories {
 		},
 		"completion": gormescli.NewShellCompletionCommand,
 		"cron":       newCronCommand,
-		"webhook":    newWebhookCommand,
-		"hooks":      newHooksCommand,
+		"webhook":    func() *cobra.Command { return gatewaymodule.NewWebhookCommand(gatewayOptions()) },
+		"hooks":      func() *cobra.Command { return gatewaymodule.NewHooksCommand(gatewayOptions()) },
 		"dump":       func() *cobra.Command { return gormescli.NewDumpCommand(hermesUnavailableOptions()) },
 		"debug":      func() *cobra.Command { return gormescli.NewDebugCommand(hermesUnavailableOptions()) },
 		"backup":     func() *cobra.Command { return gormescli.NewBackupCommand(hermesUnavailableOptions()) },
 		"import":     func() *cobra.Command { return gormescli.NewImportCommand(hermesUnavailableOptions()) },
-		"pairing":    newPairingCommand,
+		"pairing":    func() *cobra.Command { return gatewaymodule.NewPairingCommand(gatewayOptions()) },
 		"tools":      func() *cobra.Command { return gormescli.NewToolsCommand(gormescli.ToolsCommandOptions{}) },
 		"insights":   func() *cobra.Command { return providermodule.NewInsightsCommand(providerCommandOptions()) },
 		"admin": func() *cobra.Command {
@@ -1552,4 +1614,279 @@ func dumpCrash(r any) {
 	defer f.Close()
 	fmt.Fprintf(f, "panic: %v\n\n%s\n", r, debug.Stack())
 	fmt.Fprintln(os.Stderr, gormescli.CrashStderrMessage(r, path))
+}
+
+// =============================================================================
+// Transitional functions moved from cmd/gormes/gateway.go (to be extracted to
+// internal/app/gateway or internal/platform/cli/gormescli/modules/gateway in
+// future passes).
+// =============================================================================
+
+// gatewayOptions returns a minimal gatewaymodule.Options for subcommands like
+// webhook, hooks, and pairing that need one but don't need the full runtime.
+func gatewayOptions() gatewaymodule.Options {
+	return gatewaymodule.Options{
+		BuildProvenance: func() gormescli.BuildProvenance {
+			build := newBuildProvenance()
+			return gormescli.BuildProvenance{
+				Version:   build.Version,
+				GitCommit: build.GitCommit,
+			}
+		},
+		ExitError: newExitCodeError,
+	}
+}
+
+func activateGatewaySecretRuntime(ctx context.Context, cfg config.Config, resolver runtime.SecretStringResolver) (config.Config, runtime.SecretRuntimeSnapshot, error) {
+	activation, err := runtime.ActivateGatewaySecretRefs(ctx, cfg, runtime.GatewaySecretRuntimeOptions{Resolver: resolver})
+	return activation.Config, activation.Snapshot, err
+}
+
+func newGatewayHermesClient(cfg config.Config) (llm.Client, error) {
+	return gormescli.NewProviderHTTPClient(cfg, cfg.Hermes.Provider)
+}
+
+func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, allowedWhitelists map[string]gateway.WhitelistConfig, smap session.Map, hc llm.Client, hooks *gateway.Hooks, runtimeStatus gateway.RuntimeStatusWriter, restart gateway.RestartConfig) gateway.ManagerConfig {
+	titleStore, titleModel := gormescli.BuildGatewayTitleSeam(context.Background(), smap, hc, cfg.Hermes.Model)
+	return gateway.ManagerConfig{
+		AllowedChats:               allowedChats,
+		AllowedUsers:               gatewayAllowedUsers(cfg),
+		AllowedChatWhitelists:      allowedWhitelists,
+		AllowDiscovery:             allowDiscovery,
+		CoalesceMs:                 gatewayCoalesceMs(cfg),
+		FreshFinalAfter:            gatewayFreshFinalAfter(cfg),
+		ToolProgressMode:           cfg.Display.ToolProgress,
+		ToolProgressCommandEnabled: cfg.Display.ToolProgressCommand,
+		PersistToolProgressMode:    config.SetGormesDisplayPlatformToolProgress,
+		ToolProgressModes:          gatewayToolProgressModes(cfg),
+		SessionMap:                 smap,
+		AgentRouting:               gatewayAgentRoutingConfig(cfg),
+		TitleStore:                 titleStore,
+		TitleModel:                 titleModel,
+		Hooks:                      hooks,
+		RuntimeStatus:              runtimeStatus,
+		Restart:                    restart,
+		RestartNotifications:       cfg.GatewayRestartNotifications(),
+		KanbanSlashRunner:          gatewaymodule.NewKanbanSlashRunner(kanbanCommandOptions()),
+		SkillsCommandOptions:       skillsCommandOptionsForConfig(cfg),
+		RememberedSourceStore:      gateway.NewChannelDirectorySourceStore(config.GormesHome()),
+		ContextFilesCWD:            gatewaymodule.ContextFilesCWD(cfg),
+		LiveTurnNow:                func() time.Time { return time.Now() },
+		LiveTurnActiveModel: func() string {
+			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway live-turn metadata"})
+			return providermodule.FirstUsageString(resolution.Model, cfg.Hermes.Model)
+		},
+		LiveTurnActiveProvider: func() string {
+			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway live-turn metadata"})
+			return providermodule.FirstUsageString(resolution.Provider, cfg.Hermes.Provider)
+		},
+		ImageInputMode: llm.ImageInputMode(cfg.Agent.ImageInputMode),
+		AuxiliaryVision: llm.AuxiliaryVisionConfig{
+			Provider: cfg.Auxiliary.Vision.Provider,
+			Model:    cfg.Auxiliary.Vision.Model,
+			BaseURL:  cfg.Auxiliary.Vision.BaseURL,
+		},
+		SessionResetPolicy:      cfg.Runtime.SessionResetPolicy,
+		SessionResetIdleMinutes: cfg.Runtime.SessionResetAfterMinutes,
+		SessionResetDailyHour:   cfg.Runtime.SessionResetDailyHour,
+		AccountUsage: func(ctx context.Context, ev gateway.InboundEvent) (llm.AccountUsageSnapshot, error) {
+			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway /usage"})
+			provider := providermodule.InferUsageProvider(resolution.Provider, providermodule.FirstUsageString(resolution.Model, cfg.Hermes.Model))
+			if provider == "" {
+				provider = "openai-codex"
+			}
+			fetcher := llm.NewAccountUsageFetcher(providermodule.AccountUsageHTTPClient{Client: providermodule.UsageHTTPClient}, func() time.Time { return time.Now().UTC() })
+			return fetcher.Fetch(ctx, llm.AccountUsageFetchRequest{Provider: provider, BaseURL: cfg.Hermes.Endpoint, APIKey: cfg.Hermes.APIKey})
+		},
+	}
+}
+
+func gatewayCoalesceMs(cfg config.Config) int {
+	coalesceMs := 1000
+	if cfg.Telegram.CoalesceMs > 0 {
+		coalesceMs = cfg.Telegram.CoalesceMs
+	}
+	if cfg.Discord.CoalesceMs > 0 && (cfg.Telegram.BotToken == "" || cfg.Telegram.CoalesceMs <= 0) {
+		coalesceMs = cfg.Discord.CoalesceMs
+	}
+	if cfg.Slack.Enabled && cfg.Slack.CoalesceMs > 0 && cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() {
+		coalesceMs = cfg.Slack.CoalesceMs
+	}
+	return coalesceMs
+}
+
+func gatewayFreshFinalAfter(cfg config.Config) time.Duration {
+	if cfg.Telegram.BotToken == "" || cfg.Telegram.FreshFinalAfterSeconds <= 0 {
+		return 0
+	}
+	return time.Duration(cfg.Telegram.FreshFinalAfterSeconds * float64(time.Second))
+}
+
+func gatewayPolicyMaps(cfg config.Config) (map[string]string, map[string]bool, map[string]gateway.WhitelistConfig) {
+	allowedChats := map[string]string{}
+	allowDiscovery := map[string]bool{}
+	whitelists := map[string]gateway.WhitelistConfig{}
+	if cfg.Telegram.BotToken != "" {
+		if cfg.Telegram.AllowedChatID != 0 {
+			allowedChats["telegram"] = strconv.FormatInt(cfg.Telegram.AllowedChatID, 10)
+		}
+		if wl := gateway.ParseWhitelistConfig(cfg.Telegram.AllowedChatIDs()); wl.Enabled {
+			whitelists["telegram"] = wl
+		}
+		allowDiscovery["telegram"] = cfg.Telegram.FirstRunDiscovery
+	}
+	if cfg.Discord.Enabled() {
+		if cfg.Discord.AllowedChannelID != "" {
+			allowedChats["discord"] = cfg.Discord.AllowedChannelID
+		}
+		if wl := gateway.ParseWhitelistConfig(cfg.Discord.AllowedChannelIDs()); wl.Enabled {
+			whitelists["discord"] = wl
+		}
+		allowDiscovery["discord"] = cfg.Discord.FirstRunDiscovery
+	}
+	if cfg.Slack.Enabled {
+		if cfg.Slack.AllowedChannelID != "" {
+			allowedChats["slack"] = cfg.Slack.AllowedChannelID
+		}
+		if wl := gateway.ParseWhitelistConfig(cfg.Slack.AllowedChannelIDs()); wl.Enabled {
+			whitelists["slack"] = wl
+		}
+		allowDiscovery["slack"] = cfg.Slack.FirstRunDiscovery
+	}
+	if cfg.Teams.Enabled {
+		allowDiscovery["teams"] = false
+	}
+	if cfg.Yuanbao.Enabled {
+		if cfg.Yuanbao.AllowedConversationID != "" {
+			allowedChats["yuanbao"] = cfg.Yuanbao.AllowedConversationID
+		}
+		allowDiscovery["yuanbao"] = cfg.Yuanbao.FirstRunDiscovery
+	}
+	if cfg.Navivox.Enabled {
+		allowDiscovery[channelsmodule.NavivoxPlatformName] = false
+	}
+	if simplexInfo := gormescli.SimpleXEnv(os.LookupEnv); simplexInfo.Enabled {
+		if simplexInfo.HomeChannel != "" {
+			allowedChats[simplexInfo.Platform] = simplexInfo.HomeChannel
+		}
+		allowDiscovery[simplexInfo.Platform] = false
+	}
+	return allowedChats, allowDiscovery, whitelists
+}
+
+func gatewayAllowedUsers(cfg config.Config) map[string]map[string]bool {
+	out := map[string]map[string]bool{}
+	if len(cfg.Telegram.AllowedUserIDs) > 0 {
+		users := make(map[string]bool, len(cfg.Telegram.AllowedUserIDs))
+		for _, id := range cfg.Telegram.AllowedUserIDs {
+			users[strconv.FormatInt(id, 10)] = true
+		}
+		out["telegram"] = users
+	}
+	if teamsUsers := cfg.Teams.AllowedUserIDs(); len(teamsUsers) > 0 {
+		users := make(map[string]bool, len(teamsUsers))
+		for _, id := range teamsUsers {
+			users[id] = true
+		}
+		out["teams"] = users
+	}
+	if cfg.Navivox.Enabled {
+		out[channelsmodule.NavivoxPlatformName] = map[string]bool{"navivox": true}
+	}
+	if simplexInfo := gormescli.SimpleXEnv(os.LookupEnv); simplexInfo.Enabled {
+		if len(simplexInfo.AllowedUsers) > 0 {
+			out[simplexInfo.Platform] = simplexInfo.AllowedUsers
+		} else if simplexInfo.AllowAllUsers {
+			out[simplexInfo.Platform] = map[string]bool{"*": true}
+		}
+	}
+	return out
+}
+
+func gatewayAgentRoutingConfig(cfg config.Config) gateway.AgentRoutingConfig {
+	enabled := len(cfg.Bindings) > 0 || len(cfg.Agents.List) > 1
+	if !enabled {
+		return gateway.AgentRoutingConfig{}
+	}
+	return gateway.AgentRoutingConfig{
+		Enabled:  true,
+		Agents:   cfg.Agents,
+		Bindings: cfg.Bindings,
+	}
+}
+
+func gatewayToolProgressModes(cfg config.Config) map[string]string {
+	if len(cfg.Display.Platforms) == 0 {
+		return nil
+	}
+	modes := map[string]string{}
+	for platform, display := range cfg.Display.Platforms {
+		key := strings.ToLower(strings.TrimSpace(platform))
+		mode := strings.TrimSpace(display.ToolProgress)
+		if key == "" || mode == "" {
+			continue
+		}
+		modes[key] = mode
+	}
+	if len(modes) == 0 {
+		return nil
+	}
+	return modes
+}
+
+// registerConfiguredGatewayChannelsWithDefaults wraps appgateway.RegisterConfiguredGatewayChannels
+// with default channel factories for use as an injected dependency in RunOptions.
+func registerConfiguredGatewayChannelsWithDefaults(mgr *gateway.Manager, cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, log *slog.Logger) (int, error) {
+	return appgateway.RegisterConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, appgateway.DefaultChannelFactories(), nil, log)
+}
+
+func sqlOpenGoncho(path string) (*sql.DB, error) {
+	db, err := sqlOpenGonchoRaw(path)
+	if err == nil {
+		return db, nil
+	}
+	if !memory.IsSQLiteCorruptionError(err) {
+		return nil, err
+	}
+	if _, healErr := memory.SelfHealCorruptGonchoSQLite(path); healErr != nil {
+		return nil, fmt.Errorf("%w; self-heal failed: %v", err, healErr)
+	}
+	return sqlOpenGonchoRaw(path)
+}
+
+func sqlOpenGonchoUnmigrated(path string) (*sql.DB, error) {
+	db, err := sql.Open("sqlite3", path)
+	if err != nil {
+		return nil, err
+	}
+	if err := db.Ping(); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	return db, nil
+}
+
+func sqlOpenGonchoRaw(path string) (*sql.DB, error) {
+	db, err := sqlOpenGonchoUnmigrated(path)
+	if err != nil {
+		return nil, err
+	}
+	if err := memory.EnsureSchema(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	if err := gonchoservice.RunMigrations(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	for _, stmt := range []string{
+		"PRAGMA journal_mode = WAL",
+		"PRAGMA busy_timeout = 5000",
+	} {
+		if _, err := db.Exec(stmt); err != nil {
+			_ = db.Close()
+			return nil, err
+		}
+	}
+	return db, nil
 }

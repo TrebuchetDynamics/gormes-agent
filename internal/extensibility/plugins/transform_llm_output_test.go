@@ -74,6 +74,28 @@ func TestTransformLLMOutput_AllHooksFailReturnsOriginal(t *testing.T) {
 	}
 }
 
+func TestTransformLLMOutput_ZeroValueRegistryErrorHookPreservesOriginal(t *testing.T) {
+	var r TransformLLMOutputRegistry
+	r.Register(func(_ context.Context, _ TransformLLMOutputInput) (string, error) {
+		return "", errors.New("zero-value hook failed")
+	})
+
+	got := r.Run(context.Background(), TransformLLMOutputInput{ResponseText: "original"})
+	if got != "original" {
+		t.Fatalf("expected original response for zero-value registry error; got %q", got)
+	}
+}
+
+func TestTransformLLMOutput_NilHookPreservesOriginal(t *testing.T) {
+	r := NewTransformLLMOutputRegistry(nil)
+	r.Register(nil)
+
+	got := r.Run(context.Background(), TransformLLMOutputInput{ResponseText: "original"})
+	if got != "original" {
+		t.Fatalf("expected original response for nil hook; got %q", got)
+	}
+}
+
 func TestTransformLLMOutput_RegistrationOrder(t *testing.T) {
 	r := NewTransformLLMOutputRegistry(nil)
 	order := []string{}

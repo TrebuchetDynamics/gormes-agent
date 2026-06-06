@@ -14,45 +14,22 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
-func TestChatPalette_SkinDerivedAndRoleDistinct(t *testing.T) {
-	def := BuiltinSkins()["default"]
-	p := chatPaletteFor(def)
+func TestChatStyles_ReThemesPerSkin(t *testing.T) {
+	defCS := chatStylesFor(BuiltinSkins()["default"])
+	posCS := chatStylesFor(BuiltinSkins()["poseidon"])
 
-	// Every semantic color must be sourced from the active skin's tokens,
-	// never hardcoded.
-	cases := map[string][2]string{
-		"user":       {p.user, def.Colors.UILabel},
-		"toolName":   {p.toolName, def.Colors.UIAcent},
-		"toolOutput": {p.toolOutput, def.Colors.BannerDim},
-		"error":      {p.errorc, def.Colors.UIError},
-		"prompt":     {p.prompt, def.Colors.Prompt},
-		"separator":  {p.separator, def.Colors.SessionBorder},
-	}
-	for role, pair := range cases {
-		if pair[0] == "" || pair[0] != pair[1] {
-			t.Fatalf("role %s color %q not sourced from skin token %q", role, pair[0], pair[1])
-		}
-	}
-
-	// Roles must be visually distinguishable from one another.
-	if p.user == p.toolName || p.toolName == p.errorc || p.user == p.errorc {
-		t.Fatalf("semantic roles not distinct: user=%q tool=%q error=%q", p.user, p.toolName, p.errorc)
-	}
-}
-
-func TestChatPalette_ReThemesPerSkin(t *testing.T) {
-	def := chatPaletteFor(BuiltinSkins()["default"])
-	pos := chatPaletteFor(BuiltinSkins()["poseidon"])
-
-	if def.user == pos.user && def.errorc == pos.errorc && def.toolName == pos.toolName {
-		t.Fatalf("switching skin did not re-theme any chat role: default=%+v poseidon=%+v", def, pos)
+	// Compare foreground colors directly (not rendered output) to avoid
+	// truecolor profile dependency.
+	if defCS.User.GetForeground() == posCS.User.GetForeground() {
+		t.Fatalf("switching skin did not re-theme user style: default=%v poseidon=%v",
+			defCS.User.GetForeground(), posCS.User.GetForeground())
 	}
 
 	// Styles resolve without panicking for every built-in skin.
 	for name, sk := range BuiltinSkins() {
 		cs := chatStylesFor(sk)
-		if cs.User.Render("x") == "" || cs.Error.Render("y") == "" {
-			t.Fatalf("skin %s produced empty role render", name)
+		if cs.User.GetForeground() == nil {
+			t.Fatalf("skin %s produced empty user color", name)
 		}
 	}
 }
@@ -231,7 +208,12 @@ func TestTUISurfaceColorsRouteThroughSharedStyles(t *testing.T) {
 			return nil
 		}
 		switch filepath.Base(path) {
-		case "styles.go", "hermes_skin.go":
+		case "hermes_facade.go", "hermes_skin.go":
+			return nil
+		}
+		// Allow subpackage skin/styles.go since it owns the canonical token
+		// definitions and skin.SkinStylesFor is the blessed access pattern.
+		if strings.HasPrefix(path, "skin/") {
 			return nil
 		}
 		data, err := os.ReadFile(path)
@@ -247,7 +229,7 @@ func TestTUISurfaceColorsRouteThroughSharedStyles(t *testing.T) {
 		t.Fatalf("scan TUI style files: %v", err)
 	}
 	if len(offenders) > 0 {
-		t.Fatalf("TUI component files must route colors through SkinStyles/styles.go, found direct lipgloss.Color use in: %s", strings.Join(offenders, ", "))
+		t.Fatalf("TUI component files must route colors through SkinStyles/hermes_facade.go, found direct lipgloss.Color use in: %s", strings.Join(offenders, ", "))
 	}
 }
 

@@ -16,6 +16,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	apptelegram "github.com/TrebuchetDynamics/gormes-agent/internal/app/telegram"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
@@ -33,7 +34,7 @@ func TestTelegramStartupFallsBackWhenSessionDBLocked(t *testing.T) {
 	}
 	defer locked.Close()
 
-	smap, boltMap, notice, err := openTelegramSessionMap()
+	smap, boltMap, notice, err := apptelegram.OpenTelegramSessionMap()
 	if err != nil {
 		t.Fatalf("openTelegramSessionMap: %v", err)
 	}
@@ -52,12 +53,15 @@ func TestTelegramStartupFallsBackWhenSessionDBLocked(t *testing.T) {
 }
 
 func TestTelegramManagerConfig_LiveTurnMetadataProductionWiring(t *testing.T) {
-	mgrCfg := telegramManagerConfig(
+	mgrCfg := apptelegram.TelegramManagerConfig(
 		config.Config{Hermes: config.HermesCfg{
 			Model:    "gpt-5.5",
 			Provider: "openai-codex",
 		}},
 		nil,
+		func(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, allowedWhitelists map[string]gateway.WhitelistConfig, smap session.Map) gateway.ManagerConfig {
+			return gatewayManagerConfig(cfg, allowedChats, allowDiscovery, allowedWhitelists, smap, nil, nil, nil, gateway.RestartConfig{})
+		},
 	)
 	if mgrCfg.LiveTurnNow == nil {
 		t.Fatal("LiveTurnNow is nil; production telegram metadata block would omit timestamp")
@@ -102,13 +106,15 @@ func TestTelegramProductionProviderPayloadIncludesOperatorContext(t *testing.T) 
 
 	ch := newTelegramTestChannel()
 	smap := session.NewMemMap()
-	mgrCfg := telegramManagerConfig(config.Config{
+	mgrCfg := apptelegram.TelegramManagerConfig(config.Config{
 		Hermes: config.HermesCfg{
 			Model:    "gpt-5.5",
 			Provider: "openai-codex",
 		},
 		Telegram: config.TelegramCfg{AllowedChatID: 42},
-	}, smap)
+	}, smap, func(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, allowedWhitelists map[string]gateway.WhitelistConfig, smap session.Map) gateway.ManagerConfig {
+		return gatewayManagerConfig(cfg, allowedChats, allowDiscovery, allowedWhitelists, smap, nil, nil, nil, gateway.RestartConfig{})
+	})
 	// Stabilize the golden metadata while still exercising the production
 	// telegramManagerConfig path for model/provider and context discovery.
 	mgrCfg.LiveTurnNow = func() time.Time { return time.Date(2026, 4, 29, 16, 55, 0, 0, time.UTC) }
@@ -210,14 +216,16 @@ func TestTelegramProductionProviderPayloadUsesConfiguredTerminalWorkspace(t *tes
 
 	ch := newTelegramTestChannel()
 	smap := session.NewMemMap()
-	mgrCfg := telegramManagerConfig(config.Config{
+	mgrCfg := apptelegram.TelegramManagerConfig(config.Config{
 		Hermes: config.HermesCfg{
 			Model:    "gpt-5.5",
 			Provider: "openai-codex",
 		},
 		Telegram: config.TelegramCfg{AllowedChatID: 42},
 		Terminal: config.TerminalCfg{CWD: workspace},
-	}, smap)
+	}, smap, func(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, allowedWhitelists map[string]gateway.WhitelistConfig, smap session.Map) gateway.ManagerConfig {
+		return gatewayManagerConfig(cfg, allowedChats, allowDiscovery, allowedWhitelists, smap, nil, nil, nil, gateway.RestartConfig{})
+	})
 	mgrCfg.LiveTurnNow = func() time.Time { return time.Date(2026, 5, 5, 6, 20, 0, 0, time.UTC) }
 
 	m := gateway.NewManager(mgrCfg, k, slog.Default())
@@ -292,7 +300,9 @@ func TestTelegramProductionProviderPayloadUsesRuntimeSeededAgentTemplates(t *tes
 
 	ch := newTelegramTestChannel()
 	smap := session.NewMemMap()
-	mgrCfg := telegramManagerConfig(cfg, smap)
+	mgrCfg := apptelegram.TelegramManagerConfig(cfg, smap, func(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, allowedWhitelists map[string]gateway.WhitelistConfig, smap session.Map) gateway.ManagerConfig {
+			return gatewayManagerConfig(cfg, allowedChats, allowDiscovery, allowedWhitelists, smap, nil, nil, nil, gateway.RestartConfig{})
+		})
 	mgrCfg.LiveTurnNow = func() time.Time { return time.Date(2026, 5, 5, 7, 0, 0, 0, time.UTC) }
 
 	m := gateway.NewManager(mgrCfg, k, slog.Default())

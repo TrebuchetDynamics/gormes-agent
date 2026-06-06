@@ -374,7 +374,7 @@ func ApplySetupTelegramGatewayAnswers(cmd *cobra.Command, cfg config.TelegramCfg
 	out := cmd.OutOrStdout()
 	token := strings.TrimSpace(answers.Token)
 	if token != "" && !setupTelegramBotTokenPattern.MatchString(token) {
-		return runtime.exitCodeError(2, fmt.Errorf("setup telegram: invalid bot token format; expected BotFather token like 123456:ABC..."))
+		return runtime.exitCodeError(2, fmt.Errorf("setup telegram: invalid bot token format; expected BotFather token like 123456:ABC (example format)"))
 	}
 	effectiveToken := token
 	if effectiveToken == "" {

@@ -285,9 +285,9 @@ func TestSqlOpenGoncho_SelfHealsCorruptDatabase(t *testing.T) {
 func TestMemoryDBOpensRouteThroughSharedHelper(t *testing.T) {
 	pkgRoot := pkgGormesDir(t)
 	// Files allowed to call sql.Open("sqlite3", ...) directly:
-	// - gateway.go: defines sqlOpenGoncho itself.
+	// - main.go: defines sqlOpenGoncho and sqlOpenGonchoUnmigrated.
 	// Everything else must route through sqlOpenGoncho.
-	allowed := map[string]bool{"gateway.go": true}
+	allowed := map[string]bool{"main.go": true}
 	var offenders []string
 	entries, err := os.ReadDir(pkgRoot)
 	if err != nil {

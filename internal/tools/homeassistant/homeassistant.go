@@ -397,13 +397,13 @@ func parseHomeAssistantServiceData(raw json.RawMessage) (map[string]any, error) 
 		}
 		var out map[string]any
 		if err := json.Unmarshal([]byte(text), &out); err != nil {
-			return nil, fmt.Errorf("Invalid JSON string in 'data' parameter: %v", err)
+			return nil, fmt.Errorf("invalid JSON string in 'data' parameter: %v", err)
 		}
 		return out, nil
 	}
 	var out map[string]any
 	if err := json.Unmarshal(raw, &out); err != nil {
-		return nil, fmt.Errorf("Invalid service data parameter: %v", err)
+		return nil, fmt.Errorf("invalid service data parameter: %v", err)
 	}
 	return out, nil
 }
@@ -549,7 +549,7 @@ func (c *homeAssistantHTTPClient) do(req *http.Request, out any) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("Home Assistant returned HTTP %d", resp.StatusCode)
+		return fmt.Errorf("home assistant returned HTTP %d", resp.StatusCode)
 	}
 	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
 		return err

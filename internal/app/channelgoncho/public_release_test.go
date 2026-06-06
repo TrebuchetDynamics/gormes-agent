@@ -12,7 +12,7 @@ import (
 )
 
 func TestGormesGonchoDependencyUsesLatestPublicRelease(t *testing.T) {
-	modassert.RequirePublicModuleVersion(t, "github.com/TrebuchetDynamics/goncho", "v0.2.0")
+	modassert.RequirePublicModuleVersion(t, "github.com/TrebuchetDynamics/goncho", "v0.3.2")
 }
 
 func TestGormesGonchoPublicRuntimeRegistersToolsAndReportsStatus(t *testing.T) {

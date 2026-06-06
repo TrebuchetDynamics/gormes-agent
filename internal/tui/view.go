@@ -12,6 +12,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/trace"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/banner"
 )
 
 // Transcript chrome renders through the Gormes-owned semantic style system
@@ -658,7 +659,7 @@ func conversationEmptyIntroWithSkin(f kernel.RenderFrame, width int, compact boo
 	if compact {
 		return styles.Assistant.Render("⚕ Gormes · /help for commands")
 	}
-	ctx := welcomeContext{
+	ctx := banner.WelcomeContext{
 		Model:     f.Model,
 		Provider:  f.ProviderStatus.Provider,
 		Runtime:   f.ProviderStatus.Runtime,
@@ -666,7 +667,7 @@ func conversationEmptyIntroWithSkin(f kernel.RenderFrame, width int, compact boo
 		SessionID: f.SessionID,
 		Version:   buildInfoVersion(),
 	}
-	return welcomePanel(skin, ctx, width)
+	return banner.WelcomePanel(skin, ctx, width)
 }
 
 // buildInfoVersion returns the operator-facing module version when the binary

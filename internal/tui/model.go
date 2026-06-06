@@ -7,6 +7,9 @@ package tui
 
 import (
 	"context"
+	"fmt"
+	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
@@ -14,10 +17,14 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/banner"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/composer"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/modelpicker"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/prompttemplates"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/sessionspage"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/skin"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/toolsview"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/usagepage"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/voice"
 )
 
@@ -408,7 +415,7 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 	// Seed the session-aware welcome panel from the caller (cmd/gormes wires
 	// the real release version + agent tool count). Zero values are safe and
 	// keep the R1 best-effort/omit behavior.
-	SetWelcomeContext(opts.WelcomeVersion, opts.WelcomeToolCount, opts.WelcomeToolsets...)
+	banner.SetWelcomeContext(opts.WelcomeVersion, opts.WelcomeToolCount, opts.WelcomeToolsets...)
 
 	skin := DefaultHermesSkin()
 	if resolved, ok := ResolveBuiltinSkin(opts.SkinName); ok {
@@ -496,6 +503,155 @@ func (m *Model) SessionID() string {
 	return m.frame.SessionID
 }
 
+// ─── model picker types and methods (consolidated from slash_model.go) ─────
+
+type modelSessionSetMsg struct {
+	Provider string
+	Model    string
+	Err      error
+}
+
+func (m *Model) loadModelPickerCatalog() ([]ModelPickerCatalogProvider, error) {
+	fn := m.modelPickerCatalog
+	if fn == nil {
+		return nil, fmt.Errorf("no model catalog configured")
+	}
+	catalog, err := fn()
+	if err != nil {
+		return nil, err
+	}
+	return normalizeModelPickerCatalog(catalog), nil
+}
+
+func (m *Model) updateModelPickerForKey(msg tea.KeyMsg) tea.Cmd {
+	if m.modelPicker == nil {
+		return nil
+	}
+	next, cmd := UpdateModelPicker(msg, *m.modelPicker)
+	next.Width = m.width
+	next.Height = m.height
+	if next.SelectedProviderIndex >= 0 && next.SelectedProviderIndex < len(m.modelPickerChoices) {
+		next.Models = modelsForProviderIndex(m.modelPickerChoices, next.SelectedProviderIndex)
+		if next.SelectedModelIndex >= len(next.Models) {
+			next.SelectedModelIndex = len(next.Models) - 1
+		}
+	}
+	m.modelPicker = &next
+	return cmd
+}
+
+func (m *Model) handleModelPickerConfirmed(result ModelPickerResult) tea.Cmd {
+	m.modelPicker = nil
+	if strings.TrimSpace(result.Provider) == "" {
+		m.statusMessage = "model: unchanged"
+		return nil
+	}
+	provider, model := m.normalizeConfirmedModelSelection(result.Provider, result.Model)
+	if strings.TrimSpace(model) == "" {
+		m.statusMessage = "model: no model selected"
+		return nil
+	}
+	res := m.applyModelSelection(provider, model)
+	if res.StatusMessage != "" {
+		m.statusMessage = res.StatusMessage
+	}
+	return res.Cmd
+}
+
+func (m *Model) normalizeConfirmedModelSelection(provider, model string) (string, string) {
+	return modelpicker.NormalizeConfirmedSelection(m.modelPickerChoices, provider, model)
+}
+
+func (m *Model) applyModelSelection(provider, model string) SlashResult {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return SlashResult{Handled: true, StatusMessage: "model: no model selected"}
+	}
+	provider = strings.TrimSpace(provider)
+	if m.setSessionModel == nil {
+		return SlashResult{Handled: true, StatusMessage: "model: switch unavailable"}
+	}
+	return SlashResult{
+		Handled: true,
+		Cmd: func() tea.Msg {
+			err := m.setSessionModel(provider, model)
+			return modelSessionSetMsg{Provider: provider, Model: model, Err: err}
+		},
+	}
+}
+
+func (m *Model) handleModelSessionSet(msg modelSessionSetMsg) {
+	if msg.Err != nil {
+		m.statusMessage = "model: " + msg.Err.Error()
+		return
+	}
+	provider := strings.TrimSpace(msg.Provider)
+	model := strings.TrimSpace(msg.Model)
+	if provider != "" {
+		m.modelProvider = provider
+	}
+	if model != "" {
+		m.modelName = model
+		m.frame.Model = model
+	}
+	m.statusMessage = fmt.Sprintf("model -> %s", model)
+}
+
+func (m *Model) currentModelProvider() string {
+	return strings.TrimSpace(m.modelProvider)
+}
+
+func (m *Model) currentModelName() string {
+	if model := strings.TrimSpace(m.frame.Model); model != "" {
+		return model
+	}
+	return strings.TrimSpace(m.modelName)
+}
+
+// ─── usage account types and methods (consolidated from slash_usage.go) ─────
+
+const (
+	usageAccountTimeout     = 30 * time.Second
+	usageAccountLoadingLine = usagepage.AccountLoadingLine
+)
+
+type usageAccountMsg struct {
+	Lines []string
+	Err   error
+}
+
+func (m *Model) usageAccountCmd() tea.Cmd {
+	fn := m.accountUsage
+	if fn == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), usageAccountTimeout)
+		defer cancel()
+		snapshot, err := fn(ctx)
+		if err != nil {
+			return usageAccountMsg{Err: err}
+		}
+		return usageAccountMsg{Lines: llm.RenderAccountUsageLines(snapshot, llm.AccountUsageRenderOptions{})}
+	}
+}
+
+func (m *Model) handleUsageAccount(msg usageAccountMsg) {
+	lines := msg.Lines
+	if msg.Err != nil {
+		lines = []string{"Provider: unavailable", "Usage unavailable: " + msg.Err.Error()}
+		m.statusMessage = "usage account unavailable: " + msg.Err.Error()
+	} else {
+		m.statusMessage = "usage account updated"
+	}
+	if m.transientPage == nil || m.transientPage.Title != "Usage" {
+		return
+	}
+	m.transientPage.Body = replaceUsageAccountLoading(m.transientPage.Body, lines)
+}
+
+// ─── end of consolidated model methods ──────────────────────────────────────
+
 // frameMsg wraps an incoming kernel.RenderFrame as a Bubble Tea message so
 // Update() can handle it via the normal msg switch.
 type frameMsg kernel.RenderFrame
@@ -522,4 +678,21 @@ func (m Model) Init() tea.Cmd {
 		cmds = append(cmds, m.emitMouseModeCmd(false))
 	}
 	return tea.Batch(cmds...)
+}
+
+// RunningPlaceholder returns the idle editor placeholder text, customized with
+// any busy-available slash commands.
+func (m Model) RunningPlaceholder() string {
+	var busySlashes []string
+	if m.slashRegistry != nil {
+		busySlashes = m.slashRegistry.BusyAvailableSlashes()
+	}
+	return composer.RunningPlaceholder(m.inFlight, busySlashes)
+}
+
+func (m Model) emitMouseModeCmd(enabled bool) tea.Cmd {
+	if m.mouseModeCmd != nil {
+		return m.mouseModeCmd(enabled)
+	}
+	return defaultMouseModeCmd(enabled)
 }

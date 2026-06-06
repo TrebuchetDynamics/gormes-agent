@@ -191,7 +191,8 @@
       "hermes_file": "gateway/run.py",
       "gormes_targets": [
         "internal/gateway",
-        "cmd/gormes/gateway.go",
+        "internal/app/gateway/service.go",
+        "internal/platform/cli/gormescli/modules/gateway/command.go",
         "internal/platform/cli/gormescli/modules/gateway/status.go",
         "internal/platform/cli/gormescli/modules/gateway/reload.go",
         "internal/platform/cli/gormescli/modules/gateway/stop.go"

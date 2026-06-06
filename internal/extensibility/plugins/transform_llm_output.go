@@ -66,10 +66,18 @@ func (r *TransformLLMOutputRegistry) Register(hook TransformLLMOutputFunc) {
 // and the offending hook is skipped. When no hook returns a non-empty
 // string, the original ResponseText is returned unchanged.
 func (r *TransformLLMOutputRegistry) Run(ctx context.Context, input TransformLLMOutputInput) string {
+	log := r.log
+	if log == nil {
+		log = slog.Default()
+	}
 	for _, hook := range r.hooks {
+		if hook == nil {
+			log.Warn("transform_llm_output hook missing; preserving original response")
+			continue
+		}
 		result, err := hook(ctx, input)
 		if err != nil {
-			r.log.Warn("transform_llm_output hook failed; preserving original response", "err", err)
+			log.Warn("transform_llm_output hook failed; preserving original response", "err", err)
 			continue
 		}
 		if result != "" {

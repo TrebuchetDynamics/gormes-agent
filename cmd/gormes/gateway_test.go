@@ -17,6 +17,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	appgateway "github.com/TrebuchetDynamics/gormes-agent/internal/app/gateway"
 )
 
 func TestGatewayTelegramDynamicCommands_LoadsActiveSkillCommands(t *testing.T) {
@@ -35,7 +36,7 @@ Run the report.
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	commands := gatewayTelegramDynamicCommands(context.Background(), config.Config{Skills: config.SkillsCfg{Root: root}})
+	commands := appgateway.TelegramDynamicCommands(context.Background(), config.Config{Skills: config.SkillsCfg{Root: root}})
 	for _, cmd := range commands {
 		if cmd.Name == "jellyfin-jellystat-24h-summary" && cmd.Description == "Summarize media stats" {
 			return
@@ -437,7 +438,7 @@ func TestGatewayManagerConfig_TitleModelNonNilWithBoltMap(t *testing.T) {
 
 func TestRegisterConfiguredGatewayChannels_TelegramPerAccountTokens(t *testing.T) {
 	var registered []string
-	factories := gatewayChannelFactories{
+	factories := appgateway.ChannelFactories{
 		Telegram: func(cfg config.Config, _ *slog.Logger) (gateway.Channel, error) {
 			registered = append(registered, cfg.Telegram.BotToken+":"+cfg.Telegram.AccountID)
 			return &telegramPerAccountFakeChannel{name: "telegram", accountID: cfg.Telegram.AccountID}, nil
@@ -459,7 +460,7 @@ func TestRegisterConfiguredGatewayChannels_TelegramPerAccountTokens(t *testing.T
 	allowDiscovery := map[string]bool{}
 	status := gateway.NewRuntimeStatusStore(filepath.Join(t.TempDir(), "status.json"))
 
-	count, err := registerConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, factories, status, slog.Default())
+	count, err := appgateway.RegisterConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, factories, status, slog.Default())
 	if err != nil {
 		t.Fatalf("registerConfiguredGatewayChannels: %v", err)
 	}
@@ -485,7 +486,7 @@ func TestRegisterConfiguredGatewayChannels_TelegramPerAccountTokens(t *testing.T
 
 func TestRegisterConfiguredGatewayChannels_NavivoxOnlyWhenEnabled(t *testing.T) {
 	calls := 0
-	factories := gatewayChannelFactories{
+	factories := appgateway.ChannelFactories{
 		Navivox: func(cfg config.Config, _ *slog.Logger) (gateway.Channel, error) {
 			calls++
 			return &telegramPerAccountFakeChannel{name: "navivox"}, nil
@@ -493,7 +494,7 @@ func TestRegisterConfiguredGatewayChannels_NavivoxOnlyWhenEnabled(t *testing.T) 
 	}
 	mgr := gateway.NewManager(gateway.ManagerConfig{}, nil, slog.Default())
 
-	registered, err := registerConfiguredGatewayChannels(mgr, config.Config{}, map[string]string{}, map[string]bool{}, factories, nil, slog.Default())
+	registered, err := appgateway.RegisterConfiguredGatewayChannels(mgr, config.Config{}, map[string]string{}, map[string]bool{}, factories, nil, slog.Default())
 	if err != nil {
 		t.Fatalf("register disabled navivox: %v", err)
 	}
@@ -511,7 +512,7 @@ func TestRegisterConfiguredGatewayChannels_NavivoxOnlyWhenEnabled(t *testing.T) 
 			Token:        "nvbx_test_token",
 		},
 	}
-	registered, err = registerConfiguredGatewayChannels(mgr, cfg, map[string]string{}, map[string]bool{}, factories, nil, slog.Default())
+	registered, err = appgateway.RegisterConfiguredGatewayChannels(mgr, cfg, map[string]string{}, map[string]bool{}, factories, nil, slog.Default())
 	if err != nil {
 		t.Fatalf("register enabled navivox: %v", err)
 	}
@@ -548,7 +549,7 @@ func (c *telegramPerAccountFakeChannel) Send(ctx context.Context, chatID, text s
 
 func TestRegisterConfiguredGatewayChannels_DiscordPerAccountTokens(t *testing.T) {
 	var registered []string
-	factories := gatewayChannelFactories{
+	factories := appgateway.ChannelFactories{
 		Discord: func(cfg config.Config, _ *slog.Logger) (gateway.Channel, error) {
 			registered = append(registered, cfg.Discord.Token+":"+cfg.Discord.AccountID)
 			return &discordPerAccountFakeChannel{name: "discord", accountID: cfg.Discord.AccountID}, nil
@@ -570,7 +571,7 @@ func TestRegisterConfiguredGatewayChannels_DiscordPerAccountTokens(t *testing.T)
 	allowDiscovery := map[string]bool{}
 	status := gateway.NewRuntimeStatusStore(filepath.Join(t.TempDir(), "status.json"))
 
-	count, err := registerConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, factories, status, slog.Default())
+	count, err := appgateway.RegisterConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, factories, status, slog.Default())
 	if err != nil {
 		t.Fatalf("registerConfiguredGatewayChannels: %v", err)
 	}
@@ -615,7 +616,7 @@ func (c *discordPerAccountFakeChannel) Send(ctx context.Context, chatID, text st
 
 func TestRegisterConfiguredGatewayChannels_SlackPerAccountTokens(t *testing.T) {
 	var registered []string
-	factories := gatewayChannelFactories{
+	factories := appgateway.ChannelFactories{
 		Slack: func(cfg config.Config, _ *slog.Logger) (gateway.Channel, error) {
 			registered = append(registered, cfg.Slack.BotToken+":"+cfg.Slack.AppToken+":"+cfg.Slack.AccountID)
 			return &slackPerAccountFakeChannel{name: "slack", accountID: cfg.Slack.AccountID}, nil
@@ -639,7 +640,7 @@ func TestRegisterConfiguredGatewayChannels_SlackPerAccountTokens(t *testing.T) {
 	allowDiscovery := map[string]bool{}
 	status := gateway.NewRuntimeStatusStore(filepath.Join(t.TempDir(), "status.json"))
 
-	count, err := registerConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, factories, status, slog.Default())
+	count, err := appgateway.RegisterConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, factories, status, slog.Default())
 	if err != nil {
 		t.Fatalf("registerConfiguredGatewayChannels: %v", err)
 	}
@@ -684,7 +685,7 @@ func (c *slackPerAccountFakeChannel) Send(ctx context.Context, chatID, text stri
 
 func TestRegisterConfiguredGatewayChannels_MissingAccountTokenReportsDegraded(t *testing.T) {
 	var registered []string
-	factories := gatewayChannelFactories{
+	factories := appgateway.ChannelFactories{
 		Telegram: func(cfg config.Config, _ *slog.Logger) (gateway.Channel, error) {
 			registered = append(registered, cfg.Telegram.BotToken+":"+cfg.Telegram.AccountID)
 			return &telegramPerAccountFakeChannel{name: "telegram", accountID: cfg.Telegram.AccountID}, nil
@@ -706,7 +707,7 @@ func TestRegisterConfiguredGatewayChannels_MissingAccountTokenReportsDegraded(t 
 	allowDiscovery := map[string]bool{}
 	status := gateway.NewRuntimeStatusStore(filepath.Join(t.TempDir(), "status.json"))
 
-	count, err := registerConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, factories, status, slog.Default())
+	count, err := appgateway.RegisterConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, factories, status, slog.Default())
 	if err != nil {
 		t.Fatalf("registerConfiguredGatewayChannels: %v", err)
 	}

@@ -60,3 +60,16 @@ func setupNativeTUITestEnv(t *testing.T) {
 	t.Setenv("GORMES_MODEL", "")
 	t.Setenv("GORMES_API_KEY", "")
 }
+
+func commandExitCode(err error) int {
+	if err == nil {
+		return 0
+	}
+	var coded interface {
+		ExitCode() int
+	}
+	if errors.As(err, &coded) {
+		return coded.ExitCode()
+	}
+	return 1
+}

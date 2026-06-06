@@ -2,11 +2,14 @@ package gormescli
 
 import (
 	"errors"
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	appsetup "github.com/TrebuchetDynamics/gormes-agent/internal/app/setup"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/toolsets"
 )
 
@@ -18,6 +21,14 @@ type SetupToolsChecklistChoice = appsetup.ToolsChecklistChoice
 func RunSetupToolsSection(cmd *cobra.Command, nonInteractive bool, opts SetupToolsOptions) error {
 	opts.Out = cmd.OutOrStdout()
 	opts.NonInteractive = nonInteractive
+	if opts.ConfigPath == "" {
+		opts.ConfigPath = config.ConfigPath()
+	}
+	if opts.PromptString == nil {
+		opts.PromptString = func(prompt, defaultValue string) (string, error) {
+			return setupToolsPromptString(cmd, prompt, defaultValue)
+		}
+	}
 	if !nonInteractive && opts.RunChecklist == nil {
 		if stdin, ok := cmd.InOrStdin().(*os.File); ok && StdinIsTerminal(stdin) {
 			opts.RunChecklist = func(title string, choices []SetupToolsChecklistChoice, selected []string) ([]string, error) {
@@ -32,6 +43,19 @@ func RunSetupToolsSection(cmd *cobra.Command, nonInteractive bool, opts SetupToo
 		return NewExitCodeError(2, err)
 	}
 	return err
+}
+
+func setupToolsPromptString(cmd *cobra.Command, prompt, defaultValue string) (string, error) {
+	fmt.Fprint(cmd.OutOrStdout(), prompt)
+	var input string
+	_, err := fmt.Fscanln(cmd.InOrStdin(), &input)
+	if err != nil {
+		if err.Error() == "unexpected newline" || strings.Contains(err.Error(), "expected") {
+			return defaultValue, nil
+		}
+		return "", err
+	}
+	return strings.TrimSpace(input), nil
 }
 
 func setupToolsChecklistChoices(options []SetupToolsChecklistChoice) []TUIPickChoice {

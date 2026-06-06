@@ -60,15 +60,15 @@ func defaultSetupSections() []gormescli.SetupSection {
 }
 
 func setupCanonicalSection(section string) string {
-	return setupRegistry.CanonicalSection(section)
+	return gormescli.SetupCanonicalSection(section)
 }
 
 func setupKnownSection(section string) bool {
-	return setupRegistry.KnownSection(section)
+	return gormescli.SetupKnownSection(section)
 }
 
 func setupSectionLabel(section string) string {
-	return setupRegistry.SectionLabel(section)
+	return gormescli.SetupSectionLabel(section)
 }
 
 const (
@@ -103,119 +103,80 @@ var knownProviderModels = map[string]string{
 	"opencode-go":     "gpt-5.2",
 }
 
-type setupCommandSeams struct {
-	IsTTY                          func() bool
-	HasExistingInstall             func() (bool, error)
-	ResetConfig                    func() (string, error)
-	RunModelPicker                 func(*cobra.Command) error
-	RunActiveProviderModelPicker   func(*cobra.Command, cli.ProviderModel) error
-	LoadCurrentModel               func() (cli.ProviderModel, error)
-	LoadProviderAuthStatus         func(string) (cli.ProviderAuthStatus, error)
-	ChooseSetupAction              func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
-	ChooseSetupTarget              func(*cobra.Command, []cli.SetupTargetOption, int) (cli.SetupTargetID, error)
-	ChooseSetupProvider            func(*cobra.Command, []cli.ProviderMenuEntry, int) (int, error)
-	ChooseProviderCredentialAction func(*cobra.Command, setupProviderCredentialPrompt) (setupProviderCredentialAction, error)
-	RunSetupProvider               func(*cobra.Command, bool) error
-	RunProviderLiveTest            func(*cobra.Command) error
-	RunProviderAuth                func(*cobra.Command, string) error
-	DetectHermesMigrationSource    func() string
-	DetectOpenClawMigrationSource  func() string
-	RunFullWizard                  func(*cobra.Command, bool) error
-	RunSetupGateway                func(*cobra.Command, bool) error
-	RunSetupTools                  func(*cobra.Command, bool) error
-	RunGatewaySetupWizard          func(*cobra.Command, config.Config) (setupGatewayWizardResult, error)
-	RunTelegramGatewayWizard       func(*cobra.Command, config.TelegramCfg) (setupTelegramGatewayAnswers, error)
-	RunGatewayPlatform             func(*cobra.Command, string) error
-	RunWhatsAppSetup               func(*cobra.Command) error
-	LaunchChat                     func(*cobra.Command) error
-}
-
+// Types aliased to gormescli — the canonical definitions now live in
+// internal/platform/cli/gormescli/setup_command.go.
+type setupCommandSeams = gormescli.SetupCommandSeams
 type setupGatewayWizardResult = gormescli.SetupGatewayWizardResult
 type setupTelegramGatewayAnswers = gormescli.SetupTelegramGatewayAnswers
-
-type setupAction string
-
-const (
-	setupActionQuick           setupAction = "quick"
-	setupActionFull            setupAction = "full"
-	setupActionModelProvider   setupAction = "model_provider"
-	setupActionFallback        setupAction = "fallback"
-	setupActionTerminal        setupAction = "terminal"
-	setupActionGateway         setupAction = "gateway"
-	setupActionTools           setupAction = "tools"
-	setupActionAgent           setupAction = "agent"
-	setupActionMigrateHermes   setupAction = "migrate_hermes"
-	setupActionMigrateOpenClaw setupAction = "migrate_openclaw"
-	setupActionExit            setupAction = "exit"
-)
-
-type setupMenuOption struct {
-	Action setupAction
-	Label  string
-}
-
-type setupProviderCredentialAction string
+type setupAction = gormescli.SetupAction
+type setupMenuOption = gormescli.SetupMenuOption
+type setupProviderCredentialAction = gormescli.SetupProviderCredentialAction
+type setupProviderCredentialPrompt = gormescli.SetupProviderCredentialPrompt
 
 const (
-	setupProviderCredentialUseExisting    setupProviderCredentialAction = "use_existing"
-	setupProviderCredentialReauthenticate setupProviderCredentialAction = "reauthenticate"
-	setupProviderCredentialCancel         setupProviderCredentialAction = "cancel"
+	setupActionQuick           = gormescli.SetupActionQuick
+	setupActionFull            = gormescli.SetupActionFull
+	setupActionModelProvider   = gormescli.SetupActionModelProvider
+	setupActionFallback        = gormescli.SetupActionFallback
+	setupActionTerminal        = gormescli.SetupActionTerminal
+	setupActionGateway         = gormescli.SetupActionGateway
+	setupActionTools           = gormescli.SetupActionTools
+	setupActionAgent           = gormescli.SetupActionAgent
+	setupActionMigrateHermes   = gormescli.SetupActionMigrateHermes
+	setupActionMigrateOpenClaw = gormescli.SetupActionMigrateOpenClaw
+	setupActionExit            = gormescli.SetupActionExit
 )
 
-type setupProviderCredentialPrompt struct {
-	Provider      string
-	ProviderLabel string
-	Status        cli.ProviderAuthStatus
-}
+const (
+	setupProviderCredentialUseExisting    = gormescli.SetupProviderCredentialUseExisting
+	setupProviderCredentialReauthenticate = gormescli.SetupProviderCredentialReauthenticate
+	setupProviderCredentialCancel         = gormescli.SetupProviderCredentialCancel
+)
 
 func newSetupCommand() *cobra.Command {
 	return newSetupCommandWithSeams(defaultSetupCommandSeams())
 }
 
 func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
+	gormescli.InitSetupRegistry(defaultSetupSections())
+	seams = fillSetupCommandSeamDefaults(seams)
+	return gormescli.NewSetupCommand(seams)
+}
+
+func fillSetupCommandSeamDefaults(seams setupCommandSeams) setupCommandSeams {
+	defaults := defaultSetupCommandSeams()
 	if seams.IsTTY == nil {
-		seams.IsTTY = isStdinTTY
+		seams.IsTTY = defaults.IsTTY
 	}
 	if seams.HasExistingInstall == nil {
-		seams.HasExistingInstall = defaultSetupHasExistingInstall
+		seams.HasExistingInstall = defaults.HasExistingInstall
 	}
 	if seams.ResetConfig == nil {
-		seams.ResetConfig = gormescli.ResetSetupDefaultConfig
+		seams.ResetConfig = defaults.ResetConfig
 	}
 	if seams.RunModelPicker == nil {
-		seams.RunModelPicker = func(cmd *cobra.Command) error {
-			pickerCmd := gormescli.NewModelCommand()
-			pickerCmd.SetOut(cmd.OutOrStdout())
-			pickerCmd.SetErr(cmd.ErrOrStderr())
-			pickerCmd.SetIn(cmd.InOrStdin())
-			pickerCmd.SetArgs([]string{})
-			pickerCmd.SilenceUsage = true
-			pickerCmd.SilenceErrors = true
-			return pickerCmd.ExecuteContext(cmd.Context())
-		}
+		seams.RunModelPicker = defaults.RunModelPicker
 	}
 	if seams.RunActiveProviderModelPicker == nil {
-		seams.RunActiveProviderModelPicker = gormescli.RunSetupActiveProviderModelPicker
+		seams.RunActiveProviderModelPicker = defaults.RunActiveProviderModelPicker
 	}
 	if seams.LoadCurrentModel == nil {
-		seams.LoadCurrentModel = defaultSetupLoadCurrentModel
+		seams.LoadCurrentModel = defaults.LoadCurrentModel
 	}
 	if seams.LoadProviderAuthStatus == nil {
-		seams.LoadProviderAuthStatus = func(provider string) (cli.ProviderAuthStatus, error) {
-			return cli.ResolveAuthStatus(context.Background(), provider, cli.AuthStatusOptions{})
-		}
+		seams.LoadProviderAuthStatus = defaults.LoadProviderAuthStatus
 	}
 	if seams.ChooseSetupAction == nil {
-		seams.ChooseSetupAction = promptSetupAction
+		seams.ChooseSetupAction = defaults.ChooseSetupAction
 	}
 	if seams.ChooseSetupTarget == nil {
-		seams.ChooseSetupTarget = promptSetupTarget
+		seams.ChooseSetupTarget = defaults.ChooseSetupTarget
 	}
 	if seams.ChooseSetupProvider == nil {
-		seams.ChooseSetupProvider = promptSetupProviderChoice
+		seams.ChooseSetupProvider = defaults.ChooseSetupProvider
 	}
 	if seams.ChooseProviderCredentialAction == nil {
-		seams.ChooseProviderCredentialAction = promptSetupProviderCredentialAction
+		seams.ChooseProviderCredentialAction = defaults.ChooseProviderCredentialAction
 	}
 	if seams.RunSetupProvider == nil {
 		seams.RunSetupProvider = func(cmd *cobra.Command, nonInteractive bool) error {
@@ -223,24 +184,31 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 		}
 	}
 	if seams.RunProviderLiveTest == nil {
-		seams.RunProviderLiveTest = runSetupProviderLiveTest
+		seams.RunProviderLiveTest = defaults.RunProviderLiveTest
 	}
 	if seams.RunProviderAuth == nil {
-		seams.RunProviderAuth = runSetupProviderAuth
+		seams.RunProviderAuth = defaults.RunProviderAuth
 	}
 	if seams.DetectHermesMigrationSource == nil {
-		seams.DetectHermesMigrationSource = tuiapp.DetectHermesMigrationSource
+		seams.DetectHermesMigrationSource = defaults.DetectHermesMigrationSource
 	}
 	if seams.DetectOpenClawMigrationSource == nil {
-		seams.DetectOpenClawMigrationSource = tuiapp.DetectOpenClawMigrationSource
+		seams.DetectOpenClawMigrationSource = defaults.DetectOpenClawMigrationSource
+	}
+	if seams.RunFullWizard == nil {
+		seams.RunFullWizard = func(cmd *cobra.Command, nonInteractive bool) error {
+			return runSetupFullWizard(cmd, seams, nonInteractive)
+		}
+	}
+	if seams.RunSetupGateway == nil {
+		seams.RunSetupGateway = func(cmd *cobra.Command, nonInteractive bool) error {
+			return runSetupGatewaySection(cmd, seams, nonInteractive)
+		}
 	}
 	if seams.RunSetupTools == nil {
 		seams.RunSetupTools = func(cmd *cobra.Command, nonInteractive bool) error {
-			return gormescli.RunSetupToolsSection(cmd, nonInteractive, setupToolsOptions(cmd))
+			return gormescli.RunSetupToolsSection(cmd, nonInteractive, gormescli.SetupToolsOptions{})
 		}
-	}
-	if seams.RunWhatsAppSetup == nil {
-		seams.RunWhatsAppSetup = runSetupWhatsAppCommand
 	}
 	if seams.RunGatewaySetupWizard == nil {
 		seams.RunGatewaySetupWizard = gormescli.RunSetupGatewayBubbleTeaWizard
@@ -253,86 +221,35 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 			return gormescli.RunSetupGatewayPlatform(cmd, platform, setupGatewayRuntime(cmd, seams))
 		}
 	}
+	if seams.RunWhatsAppSetup == nil {
+		seams.RunWhatsAppSetup = runSetupWhatsAppCommand
+	}
 	if seams.LaunchChat == nil {
 		seams.LaunchChat = launchSetupChat
 	}
-	if seams.RunSetupGateway == nil {
-		seams.RunSetupGateway = func(cmd *cobra.Command, nonInteractive bool) error {
-			return runSetupGatewaySection(cmd, seams, nonInteractive)
-		}
-	}
-	if seams.RunFullWizard == nil {
-		seams.RunFullWizard = func(cmd *cobra.Command, nonInteractive bool) error {
-			return runSetupFullWizard(cmd, seams, nonInteractive)
-		}
-	}
-
-	var nonInteractive bool
-	var reset bool
-	var reconfigure bool
-	var quick bool
-	var targetFlag string
-	var asJSON bool
-	var plan bool
-	cmd := &cobra.Command{
-		Use:          "setup [section]",
-		Short:        "Guided interactive setup — provider, model, and more",
-		Args:         cobra.MaximumNArgs(1),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			headless := nonInteractive || !seams.IsTTY()
-			if reset {
-				breadcrumb, err := seams.ResetConfig()
-				if err != nil {
-					return err
-				}
-				done, err := gormescli.EmitSetupResetResult(cmd.OutOrStdout(), newBuildProvenance(), config.ConfigPath(), breadcrumb, asJSON)
-				if err != nil || done {
-					return err
-				}
-			}
-			if len(args) > 0 {
-				section := strings.ToLower(strings.TrimSpace(args[0]))
-				return runSetupSection(cmd, seams, section, nonInteractive)
-			}
-			if quick {
-				return runSetupQuick(cmd, seams, headless, cli.SetupTargetID(targetFlag))
-			}
-			if headless {
-				printSetupSections(cmd)
-				return nil
-			}
-			existing, err := seams.HasExistingInstall()
-			if err != nil {
-				return err
-			}
-			if reconfigure {
-				if existing {
-					return seams.RunFullWizard(cmd, false)
-				}
-				return runSetupFirstTimeChoice(cmd, seams, false)
-			}
-			if existing {
-				return seams.RunFullWizard(cmd, false)
-			}
-			return runSetupFirstTimeChoice(cmd, seams, false)
-		},
-	}
-	cmd.Flags().BoolVar(&nonInteractive, "non-interactive", false, "use defaults/env and never prompt")
-	cmd.Flags().BoolVar(&reset, "reset", false, "DESTRUCTIVE: overwrite config.toml back to defaults, then re-run the setup wizard")
-	cmd.Flags().BoolVar(&reconfigure, "reconfigure", false, "re-run the setup wizard against the current config (non-destructive; existing values are kept where the operator skips a step)")
-	cmd.Flags().BoolVar(&quick, "quick", false, "configure missing setup items only")
-	cmd.Flags().StringVar(&targetFlag, "target", "", "setup target for --quick: terminal, telegram, whatsapp, discord, slack, or navivox")
-	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON for `--reset`: `{build, action: 'reset', config_path, breadcrumb_path}`")
-	cmd.Flags().BoolVar(&plan, "plan", false, "show messaging-platform setup plan without writing files or calling live APIs")
-	return cmd
+	seams.RunSetupSection = defaults.RunSetupSection
+	seams.RunSetupQuick = defaults.RunSetupQuick
+	seams.RunSetupFirstTimeChoice = defaults.RunSetupFirstTimeChoice
+	seams.BuildProvenance = defaults.BuildProvenance
+	seams.NewExitCodeError = defaults.NewExitCodeError
+	return seams
 }
 
 func defaultSetupCommandSeams() setupCommandSeams {
 	return setupCommandSeams{
-		IsTTY:                        isStdinTTY,
-		HasExistingInstall:           defaultSetupHasExistingInstall,
-		ResetConfig:                  gormescli.ResetSetupDefaultConfig,
+		IsTTY:              isStdinTTY,
+		HasExistingInstall: defaultSetupHasExistingInstall,
+		ResetConfig:        gormescli.ResetSetupDefaultConfig,
+		RunModelPicker: func(cmd *cobra.Command) error {
+			pickerCmd := gormescli.NewModelCommand()
+			pickerCmd.SetOut(cmd.OutOrStdout())
+			pickerCmd.SetErr(cmd.ErrOrStderr())
+			pickerCmd.SetIn(cmd.InOrStdin())
+			pickerCmd.SetArgs([]string{})
+			pickerCmd.SilenceUsage = true
+			pickerCmd.SilenceErrors = true
+			return pickerCmd.ExecuteContext(cmd.Context())
+		},
 		LoadCurrentModel:             defaultSetupLoadCurrentModel,
 		RunActiveProviderModelPicker: gormescli.RunSetupActiveProviderModelPicker,
 		LoadProviderAuthStatus: func(provider string) (cli.ProviderAuthStatus, error) {
@@ -346,6 +263,14 @@ func defaultSetupCommandSeams() setupCommandSeams {
 		RunProviderAuth:                runSetupProviderAuth,
 		DetectHermesMigrationSource:    tuiapp.DetectHermesMigrationSource,
 		DetectOpenClawMigrationSource:  tuiapp.DetectOpenClawMigrationSource,
+		RunSetupSection:                runSetupSection,
+		RunSetupQuick:                  runSetupQuick,
+		RunSetupFirstTimeChoice:        runSetupFirstTimeChoice,
+		BuildProvenance: func() gormescli.BuildProvenance {
+			b := newBuildProvenance()
+			return gormescli.BuildProvenance{Version: b.Version, GitCommit: b.GitCommit}
+		},
+		NewExitCodeError: newExitCodeError,
 	}
 }
 
@@ -468,7 +393,7 @@ func runSetupRoot(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bo
 	case setupActionFallback:
 		return runSetupFallbackSection(cmd, seams, nonInteractive)
 	case setupActionTerminal:
-		return runSetupTerminalSection(cmd, nonInteractive)
+		return gormescli.RunSetupTerminalSection(cmd, nonInteractive, gormescli.SetupTerminalOptions{})
 	case setupActionGateway:
 		return seams.RunSetupGateway(cmd, nonInteractive || !seams.IsTTY())
 	case setupActionTools:
@@ -615,9 +540,9 @@ func dispatchSetupSection(cmd *cobra.Command, seams setupCommandSeams, section s
 	case "bindings":
 		return runSetupBindingsSection(cmd, seams, nonInteractive)
 	case "tts":
-		return runSetupTTSSection(cmd, nonInteractive)
+		return gormescli.RunSetupTTSSection(cmd, nonInteractive, gormescli.SetupTTSOptions{})
 	case "terminal":
-		return runSetupTerminalSection(cmd, nonInteractive)
+		return gormescli.RunSetupTerminalSection(cmd, nonInteractive, gormescli.SetupTerminalOptions{})
 	case "gateway":
 		return seams.RunSetupGateway(cmd, nonInteractive || !seams.IsTTY())
 	case "telegram":
@@ -763,10 +688,10 @@ func runSetupFullWizard(cmd *cobra.Command, seams setupCommandSeams, nonInteract
 		if err := runSetupModelSection(cmd, seams, true); err != nil {
 			return err
 		}
-		if err := runSetupTTSSection(cmd, true); err != nil {
+		if err := gormescli.RunSetupTTSSection(cmd, true, gormescli.SetupTTSOptions{}); err != nil {
 			return err
 		}
-		if err := runSetupTerminalSection(cmd, true); err != nil {
+		if err := gormescli.RunSetupTerminalSection(cmd, true, gormescli.SetupTerminalOptions{}); err != nil {
 			return err
 		}
 		if err := runSetupAgentSettingsSection(cmd, true); err != nil {
@@ -789,10 +714,10 @@ func runSetupFullWizard(cmd *cobra.Command, seams setupCommandSeams, nonInteract
 	if !continued {
 		return nil
 	}
-	if err := runSetupTTSSection(cmd, false); err != nil {
+	if err := gormescli.RunSetupTTSSection(cmd, false, gormescli.SetupTTSOptions{}); err != nil {
 		return err
 	}
-	if err := runSetupTerminalSection(cmd, false); err != nil {
+	if err := gormescli.RunSetupTerminalSection(cmd, false, gormescli.SetupTerminalOptions{}); err != nil {
 		return err
 	}
 	if err := runSetupAgentSettingsSection(cmd, false); err != nil {
@@ -882,7 +807,7 @@ func printSetupReconfigureBlock(cmd *cobra.Command) {
 }
 
 func setupSectionPipeList(start, end int) string {
-	return setupRegistry.SectionPipeList(start, end)
+	return gormescli.SetupSectionPipeList(start, end)
 }
 
 func printSetupConfigurationLocation(cmd *cobra.Command) {
@@ -916,12 +841,7 @@ func printSetupInferenceProviderBlock(cmd *cobra.Command, current cli.ProviderMo
 }
 
 func printSetupProviderCredentialChoices(cmd *cobra.Command) {
-	out := cmd.OutOrStdout()
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, "    1. Use existing credentials")
-	fmt.Fprintln(out, "    2. Reauthenticate (new OAuth login)")
-	fmt.Fprintln(out, "    3. Cancel")
-	fmt.Fprintln(out)
+	gormescli.SetupProviderCredentialChoices(cmd)
 }
 
 func promptSetupProviderChoice(cmd *cobra.Command, entries []cli.ProviderMenuEntry, defaultIndex int) (int, error) {
@@ -1135,49 +1055,11 @@ func setupCredentialStatusMark(status cli.ProviderAuthStatus, err error) string 
 }
 
 func setupProviderDisplayLabel(provider string) string {
-	provider = strings.TrimSpace(strings.ToLower(provider))
-	if provider == "" {
-		return ""
-	}
-	switch provider {
-	case config.CodexOAuthProvider:
-		return "OpenAI Codex"
-	case config.AnthropicProvider:
-		return "Anthropic"
-	case config.NousOAuthProvider:
-		return "Nous"
-	case "openrouter":
-		return "OpenRouter"
-	case "google-gemini-cli":
-		return "Google Gemini CLI"
-	case "qwen-oauth":
-		return "Qwen OAuth"
-	}
-	if entry, ok := llm.ResolveProviderManifestEntry(provider); ok {
-		provider = entry.ID
-	}
-	parts := strings.Fields(strings.ReplaceAll(provider, "-", " "))
-	for i, part := range parts {
-		parts[i] = setupTitleProviderWord(part)
-	}
-	return strings.Join(parts, " ")
+	return gormescli.SetupProviderDisplayLabel(provider)
 }
 
 func setupTitleProviderWord(word string) string {
-	switch strings.ToLower(word) {
-	case "ai":
-		return "AI"
-	case "api":
-		return "API"
-	case "cli":
-		return "CLI"
-	case "oauth":
-		return "OAuth"
-	case "":
-		return ""
-	default:
-		return strings.ToUpper(word[:1]) + word[1:]
-	}
+	return gormescli.SetupTitleProviderWord(word)
 }
 
 func printSetupSummary(cmd *cobra.Command) {
@@ -2027,14 +1909,6 @@ func runSetupFallbackAdd(cmd *cobra.Command, seams setupCommandSeams) error {
 	return nil
 }
 
-func runSetupTTSSection(cmd *cobra.Command, nonInteractive bool) error {
-	return gormescli.RunSetupTTSSection(cmd, nonInteractive, setupTTSOptions(cmd))
-}
-
-func runSetupTerminalSection(cmd *cobra.Command, nonInteractive bool) error {
-	return gormescli.RunSetupTerminalSection(cmd, nonInteractive, setupTerminalOptions(cmd))
-}
-
 func setupGatewaySeams(seams setupCommandSeams) gormescli.SetupGatewaySeams {
 	return gormescli.SetupGatewaySeams{
 		RunGatewaySetupWizard:    seams.RunGatewaySetupWizard,
@@ -2268,35 +2142,6 @@ func setupOptionPromptRuntime() gormescli.SetupOptionPromptRuntime {
 
 func promptSetupOptionChoice(cmd *cobra.Command, title, linePrompt, defaultID string, choices []setupOptionChoice) (string, error) {
 	return gormescli.PromptSetupOptionChoice(cmd, title, linePrompt, defaultID, choices, setupOptionPromptRuntime())
-}
-
-func setupToolsOptions(cmd *cobra.Command) gormescli.SetupToolsOptions {
-	return gormescli.SetupToolsOptions{
-		ConfigPath: config.ConfigPath(),
-		PromptString: func(prompt, defaultValue string) (string, error) {
-			return promptString(cmd, prompt, defaultValue)
-		},
-	}
-}
-
-func setupTTSOptions(cmd *cobra.Command) gormescli.SetupTTSOptions {
-	return gormescli.SetupTTSOptions{
-		ConfigPath:       config.ConfigPath(),
-		NewExitCodeError: newExitCodeError,
-		PromptString: func(prompt, defaultValue string) (string, error) {
-			return promptString(cmd, prompt, defaultValue)
-		},
-	}
-}
-
-func setupTerminalOptions(cmd *cobra.Command) gormescli.SetupTerminalOptions {
-	return gormescli.SetupTerminalOptions{
-		ConfigPath:       config.ConfigPath(),
-		NewExitCodeError: newExitCodeError,
-		PromptString: func(prompt, defaultValue string) (string, error) {
-			return promptString(cmd, prompt, defaultValue)
-		},
-	}
 }
 
 func setupNavivoxGatewayOptions(cmd *cobra.Command) gormescli.SetupNavivoxOptions {

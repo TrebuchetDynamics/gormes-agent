@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -169,6 +170,34 @@ func TestProviderClientLazyInit_FactoryError(t *testing.T) {
 	_, err := pool.Get("broken")
 	if err == nil {
 		t.Error("Get(broken) = nil error, want factory error")
+	}
+}
+
+func TestProviderClientPoolZeroValueRegisterInitializesMaps(t *testing.T) {
+	var pool ClientPool
+	pool.Register("zero", func() (llm.Client, error) {
+		return fakeClient("zero"), nil
+	})
+
+	client, err := pool.Get("zero")
+	if err != nil {
+		t.Fatalf("Get(zero): %v", err)
+	}
+	if client == nil {
+		t.Fatal("Get(zero) = nil client")
+	}
+}
+
+func TestProviderClientPoolNilFactoryReturnsError(t *testing.T) {
+	pool := NewClientPool()
+	pool.Register("nil-factory", nil)
+
+	_, err := pool.Get("nil-factory")
+	if err == nil {
+		t.Fatal("Get(nil-factory) = nil error, want factory error")
+	}
+	if !strings.Contains(err.Error(), "factory") {
+		t.Fatalf("Get(nil-factory) error = %q, want factory context", err.Error())
 	}
 }
 

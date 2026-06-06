@@ -137,7 +137,7 @@ func StatusJob(out io.Writer, store JobStore, runStore RunReader, jobID string) 
 	}
 
 	if runStore != nil {
-		runs, err := runStore.LatestRuns(nil, job.ID, 5)
+		runs, err := runStore.LatestRuns(context.TODO(), job.ID, 5)
 		if err == nil && len(runs) > 0 {
 			fmt.Fprintln(out, "\nRecent runs:")
 			for _, r := range runs {
