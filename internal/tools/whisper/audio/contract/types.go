@@ -18,6 +18,10 @@ type PreprocessError struct {
 	Err  error
 }
 
+func NewUnavailableError(path string, err error) *PreprocessError {
+	return &PreprocessError{Code: AudioPreprocessUnavailable, Path: path, Err: err}
+}
+
 func (e *PreprocessError) Error() string {
 	var parts []string
 	parts = append(parts, e.Code)

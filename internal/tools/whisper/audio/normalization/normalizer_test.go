@@ -1,9 +1,13 @@
-package audio
+package normalization
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/audio/contract"
+)
 
 func TestNormalizeSpeechPCMTrimsSilenceAndKeepsPadding(t *testing.T) {
-	pcm := PCM{SampleRate: 10, Samples: []int16{0, 0, 0, 1000, 1200, -1000, 0, 0, 0}}
+	pcm := contract.PCM{SampleRate: 10, Samples: []int16{0, 0, 0, 1000, 1200, -1000, 0, 0, 0}}
 	got := NormalizeSpeechPCM(pcm)
 	if got.SampleRate != pcm.SampleRate {
 		t.Fatalf("sample rate = %d, want %d", got.SampleRate, pcm.SampleRate)
@@ -17,7 +21,7 @@ func TestNormalizeSpeechPCMTrimsSilenceAndKeepsPadding(t *testing.T) {
 }
 
 func TestNormalizeSpeechPCMPeakNormalizesQuietSpeech(t *testing.T) {
-	pcm := PCM{SampleRate: 16000, Samples: []int16{10, -10, 100, -100, 10}}
+	pcm := contract.PCM{SampleRate: 16000, Samples: []int16{10, -10, 100, -100, 10}}
 	got := NormalizeSpeechPCM(pcm)
 	peak := 0
 	for _, sample := range got.Samples {
@@ -31,7 +35,7 @@ func TestNormalizeSpeechPCMPeakNormalizesQuietSpeech(t *testing.T) {
 }
 
 func TestNormalizeSpeechPCMRemovesDCOffset(t *testing.T) {
-	pcm := PCM{SampleRate: 16000, Samples: []int16{1000, 1100, 900, 1000}}
+	pcm := contract.PCM{SampleRate: 16000, Samples: []int16{1000, 1100, 900, 1000}}
 	got := NormalizeSpeechPCM(pcm)
 	var sum int
 	for _, sample := range got.Samples {
