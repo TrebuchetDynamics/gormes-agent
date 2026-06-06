@@ -290,6 +290,19 @@ func TestAcceptedTextRejectsStaleSubcommandCompletionOutsideCurrentPrefix(t *tes
 	}
 }
 
+func TestAcceptedTextTreatsCaseVariantCommandAsExactOnEnter(t *testing.T) {
+	got, ok := AcceptedText("/Help", Completion{Name: "help"}, false)
+	if ok || got != "/Help" {
+		t.Fatalf("AcceptedText case-variant exact command = (%q, %v), want original text false", got, ok)
+	}
+
+	plan := planAcceptedText("/Help", Completion{Name: "help"}, false)
+	want := acceptedTextPlan{Text: "/Help", Reason: acceptedTextReasonExactRejected}
+	if plan != want {
+		t.Fatalf("planAcceptedText case-variant exact command = %#v, want %#v", plan, want)
+	}
+}
+
 func TestAcceptedTextRejectsStaleCommandCompletionOutsideCurrentPrefix(t *testing.T) {
 	cases := []struct {
 		name  string

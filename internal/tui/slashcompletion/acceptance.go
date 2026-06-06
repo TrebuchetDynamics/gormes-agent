@@ -46,14 +46,27 @@ func planAcceptedText(input string, completion Completion, acceptExact bool) acc
 	}
 
 	next := "/" + accepted.name
-	exact := strings.TrimSpace(input) == next
-	if exact && !acceptExact {
+	decision := decideAcceptedCommandText(next, newCompletionPrefix(input).string() == accepted.key, accepted.shouldAppendSpace(), acceptExact)
+	if decision.exact && !acceptExact {
 		return acceptedTextPlan{Text: input, Reason: acceptedTextReasonExactRejected}
 	}
-	if accepted.shouldAppendSpace() && (acceptExact || !exact) {
-		next += " "
+	return acceptedTextPlan{Text: decision.text, Changed: decision.text != input, Reason: acceptedTextReasonCommand}
+}
+
+type acceptedCommandTextDecision struct {
+	text  string
+	exact bool
+}
+
+func decideAcceptedCommandText(normalized string, exact, appendSpace, acceptExact bool) acceptedCommandTextDecision {
+	decision := acceptedCommandTextDecision{
+		text:  normalized,
+		exact: exact,
 	}
-	return acceptedTextPlan{Text: next, Changed: next != input, Reason: acceptedTextReasonCommand}
+	if appendSpace && (acceptExact || !decision.exact) {
+		decision.text += " "
+	}
+	return decision
 }
 
 func planAcceptedSubcommandText(input string, flow subcommandFlow, accepted acceptedCompletion, acceptExact bool) acceptedTextPlan {
