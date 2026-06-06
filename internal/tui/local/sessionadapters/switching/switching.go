@@ -1,4 +1,4 @@
-package sessionadapters
+package switching
 
 import (
 	"context"
@@ -9,44 +9,50 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/transcript"
 )
 
-type residentSessionSwitcher struct {
+type ResumeFunc func(string, []llm.Message) error
+
+type ResidentSessionSwitcher struct {
 	rootCtx context.Context
-	resume  func(string, []llm.Message) error
+	resume  ResumeFunc
 }
 
-func newResidentSessionSwitcher(rootCtx context.Context, resume func(string, []llm.Message) error) residentSessionSwitcher {
-	return residentSessionSwitcher{rootCtx: rootCtx, resume: resume}
+func NewResidentSessionSwitcher(rootCtx context.Context, resume ResumeFunc) ResidentSessionSwitcher {
+	return ResidentSessionSwitcher{rootCtx: rootCtx, resume: resume}
 }
 
-func (s residentSessionSwitcher) requireResume() error {
+func (s ResidentSessionSwitcher) RequireResume() error {
 	if s.resume == nil {
 		return fmt.Errorf("kernel resume unavailable")
 	}
 	return nil
 }
 
-func (s residentSessionSwitcher) context(ctx context.Context) context.Context {
+func (s ResidentSessionSwitcher) Context(ctx context.Context) context.Context {
+	return ContextWithRootFallback(s.rootCtx, ctx)
+}
+
+func ContextWithRootFallback(rootCtx, ctx context.Context) context.Context {
 	if ctx != nil {
 		return ctx
 	}
-	if s.rootCtx != nil {
-		return s.rootCtx
+	if rootCtx != nil {
+		return rootCtx
 	}
 	return context.Background()
 }
 
-func (s residentSessionSwitcher) switchWithTranscriptDB(ctx context.Context, db *sql.DB, sessionID string, history []llm.Message) ([]llm.Message, error) {
-	if err := s.requireResume(); err != nil {
+func (s ResidentSessionSwitcher) SwitchWithTranscriptDB(ctx context.Context, db *sql.DB, sessionID string, history []llm.Message) ([]llm.Message, error) {
+	if err := s.RequireResume(); err != nil {
 		return nil, err
 	}
-	ctx = s.context(ctx)
-	resolvedHistory := cloneHermesMessages(history)
+	ctx = s.Context(ctx)
+	resolvedHistory := CloneHermesMessages(history)
 	if len(resolvedHistory) == 0 {
 		messages, err := transcript.LoadMessages(ctx, db, sessionID)
 		if err != nil {
 			return nil, err
 		}
-		resolvedHistory = hermesMessagesFromTranscript(messages)
+		resolvedHistory = HermesMessagesFromTranscript(messages)
 	}
 	if err := s.resume(sessionID, resolvedHistory); err != nil {
 		return nil, err
@@ -54,7 +60,7 @@ func (s residentSessionSwitcher) switchWithTranscriptDB(ctx context.Context, db 
 	return resolvedHistory, nil
 }
 
-func hermesMessagesFromTranscript(messages []transcript.Message) []llm.Message {
+func HermesMessagesFromTranscript(messages []transcript.Message) []llm.Message {
 	if len(messages) == 0 {
 		return nil
 	}
@@ -65,7 +71,7 @@ func hermesMessagesFromTranscript(messages []transcript.Message) []llm.Message {
 	return out
 }
 
-func cloneHermesMessages(messages []llm.Message) []llm.Message {
+func CloneHermesMessages(messages []llm.Message) []llm.Message {
 	if len(messages) == 0 {
 		return nil
 	}
