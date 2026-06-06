@@ -51,16 +51,23 @@ func stateOffset(state string) int {
 // ContextBarWidth is the default width of the extension context bar.
 const ContextBarWidth = 10
 
+// ClampContextPercent normalizes context percentages before rendering bars or
+// labels so both surfaces report the same bounded value.
+func ClampContextPercent(pct float64) float64 {
+	if pct < 0 {
+		return 0
+	}
+	if pct > 100 {
+		return 100
+	}
+	return pct
+}
+
 // RenderContextBar renders a filled █ and empty ░ bar representing the
 // percentage with severity-based coloring semantics. It returns a 10-character
 // string like "████░░░░░░" for 40%.
 func RenderContextBar(pct float64) string {
-	if pct < 0 {
-		pct = 0
-	}
-	if pct > 100 {
-		pct = 100
-	}
+	pct = ClampContextPercent(pct)
 
 	width := ContextBarWidth
 	filled := int((pct / 100) * float64(width))
@@ -76,6 +83,7 @@ func RenderContextBar(pct float64) string {
 
 // ContextBarSeverity returns the severity level for a given percentage.
 func ContextBarSeverity(pct float64) HermesContextSeverity {
+	pct = ClampContextPercent(pct)
 	switch {
 	case pct >= 95:
 		return HermesContextCritical
@@ -90,6 +98,7 @@ func ContextBarSeverity(pct float64) HermesContextSeverity {
 
 // RenderContextBarWithLabel renders a context bar with a percentage label.
 func RenderContextBarWithLabel(pct float64) string {
+	pct = ClampContextPercent(pct)
 	bar := RenderContextBar(pct)
 	return fmt.Sprintf("[%s] %d%%", bar, int(pct))
 }

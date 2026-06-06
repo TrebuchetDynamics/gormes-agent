@@ -84,3 +84,20 @@ func TestRenderContextBar(t *testing.T) {
 		})
 	}
 }
+
+func TestRenderContextBarWithLabelUsesClampedPercent(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		pct  float64
+		want string
+	}{
+		{name: "negative", pct: -10, want: "[░░░░░░░░░░] 0%"},
+		{name: "over hundred", pct: 150, want: "[██████████] 100%"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := RenderContextBarWithLabel(tt.pct); got != tt.want {
+				t.Fatalf("RenderContextBarWithLabel(%v) = %q, want %q", tt.pct, got, tt.want)
+			}
+		})
+	}
+}
