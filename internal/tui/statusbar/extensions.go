@@ -13,16 +13,16 @@ var faceTickerIndicators = []string{"⚕", "🌀", "🤔", "✨", "🍵", "🔮"
 // The indicator cycles through ⚕🌀🤔✨🍵🔮 based on frame mod 6. Different states
 // may map to different starting positions in the cycle.
 func RenderFaceTicker(state string, frame int) string {
-	startOffset := stateOffset(state)
-	position := (startOffset + frame) % len(faceTickerIndicators)
-	if position < 0 {
-		position = 0
-	}
-	return faceTickerIndicators[position]
+	return faceTickerIndicators[faceTickerPosition(state, frame)]
+}
+
+func faceTickerPosition(state string, frame int) int {
+	return positiveModulo(stateOffset(state)+frame, len(faceTickerIndicators))
 }
 
 func stateOffset(state string) int {
-	switch strings.ToLower(state) {
+	state = normalizeFaceTickerState(state)
+	switch state {
 	case "idle":
 		return 0
 	case "reasoning":
@@ -41,11 +41,26 @@ func stateOffset(state string) int {
 		return 2
 	default:
 		hash := 0
-		for _, c := range strings.ToLower(state) {
+		for _, c := range state {
 			hash += int(c)
 		}
-		return hash % len(faceTickerIndicators)
+		return positiveModulo(hash, len(faceTickerIndicators))
 	}
+}
+
+func normalizeFaceTickerState(state string) string {
+	return strings.ToLower(strings.TrimSpace(state))
+}
+
+func positiveModulo(value, modulus int) int {
+	if modulus <= 0 {
+		return 0
+	}
+	position := value % modulus
+	if position < 0 {
+		position += modulus
+	}
+	return position
 }
 
 // ContextBarWidth is the default width of the extension context bar.

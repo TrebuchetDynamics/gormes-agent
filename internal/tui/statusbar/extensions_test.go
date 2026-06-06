@@ -56,6 +56,22 @@ func TestRenderFaceTickerStableAtSameFrame(t *testing.T) {
 	}
 }
 
+func TestRenderFaceTickerNormalizesStateWhitespace(t *testing.T) {
+	got := RenderFaceTicker(" reasoning ", 0)
+	want := RenderFaceTicker("reasoning", 0)
+	if got != want {
+		t.Fatalf("RenderFaceTicker did not normalize state whitespace: got %q, want %q", got, want)
+	}
+}
+
+func TestRenderFaceTickerNegativeFramesWrapCycle(t *testing.T) {
+	got := RenderFaceTicker("idle", -1)
+	want := RenderFaceTicker("idle", len(faceTickerIndicators)-1)
+	if got != want {
+		t.Fatalf("RenderFaceTicker negative frame did not wrap: got %q, want %q", got, want)
+	}
+}
+
 func TestRenderContextBar(t *testing.T) {
 	tests := []struct {
 		name       string
