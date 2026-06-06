@@ -91,12 +91,13 @@ func PromptTemplateCompletions(input string, catalog prompttemplates.Catalog) []
 	}
 	var candidates []Completion
 	for _, tmpl := range catalog.Templates {
-		if !completionNameMatches(tmpl.Name, req.commandPrefix) {
+		name := completionName(tmpl.Name)
+		if name == "" || !completionNameMatches(name, req.commandPrefix) {
 			continue
 		}
 		candidates = append(candidates, Completion{
-			Name:         tmpl.Name,
-			Display:      "/" + tmpl.Name,
+			Name:         name,
+			Display:      "/" + name,
 			Description:  tmpl.Description,
 			ArgumentHint: tmpl.ArgumentHint,
 			Available:    true,

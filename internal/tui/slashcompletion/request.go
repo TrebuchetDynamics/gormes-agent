@@ -69,6 +69,10 @@ func completionNameMatches(name string, prefix completionPrefix) bool {
 	return prefix.matches(name)
 }
 
+func completionName(name string) string {
+	return strings.TrimLeft(strings.TrimSpace(name), "/")
+}
+
 func completionKey(name string) string {
-	return strings.ToLower(strings.TrimPrefix(strings.TrimSpace(name), "/"))
+	return strings.ToLower(completionName(name))
 }

@@ -62,7 +62,7 @@ type acceptedCompletion struct {
 }
 
 func newAcceptedCompletion(completion Completion) acceptedCompletion {
-	name := strings.TrimPrefix(strings.TrimSpace(completion.Name), "/")
+	name := completionName(completion.Name)
 	return acceptedCompletion{
 		name:         name,
 		key:          completionKey(name),

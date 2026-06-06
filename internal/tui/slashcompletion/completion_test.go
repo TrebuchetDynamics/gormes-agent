@@ -81,6 +81,18 @@ func TestPromptTemplateCompletionsDeduplicateCaseInsensitiveNames(t *testing.T) 
 	}
 }
 
+func TestPromptTemplateCompletionsNormalizeSlashPrefixedTemplateNames(t *testing.T) {
+	catalog := prompttemplates.Catalog{Templates: []prompttemplates.Template{
+		{Name: " /Review ", Description: "review", ArgumentHint: "<scope>"},
+	}}
+
+	got := PromptTemplateCompletions("/rev", catalog)
+	want := []Completion{{Name: "Review", Display: "/Review", Description: "review", ArgumentHint: "<scope>", Available: true}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("PromptTemplateCompletions slash-prefixed template = %#v, want %#v", got, want)
+	}
+}
+
 func TestSkillCompletionsDeduplicateCaseInsensitiveNames(t *testing.T) {
 	commands := []skills.SkillSlashCommand{
 		{Command: "/Review", Description: "first"},
