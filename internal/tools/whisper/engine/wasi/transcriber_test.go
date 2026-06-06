@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/engine/wasi/testkit"
 )
 
 func TestTranscriberRejectsMissingModel(t *testing.T) {
@@ -33,8 +35,8 @@ func TestTranscriberTranscribesFixtureWAV(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	modelPath := testTinyEnModelPath(t, ctx)
-	transcriber, err := NewTranscriber(ctx, modelPath, readWhisperWASM(t))
+	modelPath := testkit.TinyEnModelPath(t, ctx)
+	transcriber, err := NewTranscriber(ctx, modelPath, testkit.ReadWhisperWASM(t))
 	if err != nil {
 		t.Fatalf("NewTranscriber: %v", err)
 	}
@@ -44,7 +46,7 @@ func TestTranscriberTranscribesFixtureWAV(t *testing.T) {
 		}
 	}()
 
-	transcript, err := transcriber.TranscribeWAV(ctx, whisperTestdataPath("jfk.wav"))
+	transcript, err := transcriber.TranscribeWAV(ctx, testkit.WhisperTestdataPath("jfk.wav"))
 	if err != nil {
 		t.Fatalf("TranscribeWAV: %v", err)
 	}

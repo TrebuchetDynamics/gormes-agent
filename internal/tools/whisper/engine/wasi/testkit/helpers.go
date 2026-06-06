@@ -1,4 +1,4 @@
-package wasi
+package testkit
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/modelcache"
 )
 
-func testTinyEnModelPath(t testing.TB, ctx context.Context) string {
+func TinyEnModelPath(t testing.TB, ctx context.Context) string {
 	t.Helper()
 	if path := strings.TrimSpace(os.Getenv("GORMES_WASI_WHISPER_MODEL")); path != "" {
 		if err := modelcache.Verify(path, modelcache.TinyEnModelArtifact); err != nil {
@@ -34,14 +34,15 @@ func testTinyEnModelPath(t testing.TB, ctx context.Context) string {
 	return path
 }
 
-func readWhisperWASM(t testing.TB) []byte {
-	wasm, err := os.ReadFile(whisperTestdataPath("whisper.wasm"))
+func ReadWhisperWASM(t testing.TB) []byte {
+	t.Helper()
+	wasm, err := os.ReadFile(WhisperTestdataPath("whisper.wasm"))
 	if err != nil {
 		t.Fatalf("read whisper.wasm: %v", err)
 	}
 	return wasm
 }
 
-func whisperTestdataPath(name string) string {
+func WhisperTestdataPath(name string) string {
 	return filepath.Join("..", "..", "testdata", name)
 }

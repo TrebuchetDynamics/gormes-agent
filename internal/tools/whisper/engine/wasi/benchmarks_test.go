@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/engine/wasi/testkit"
 )
 
 func BenchmarkWhisperWASI(b *testing.B) {
@@ -17,9 +19,9 @@ func BenchmarkWhisperWASI(b *testing.B) {
 }
 
 func benchmarkWhisperWASITinyEn(b *testing.B, ctx context.Context) {
-	modelPath := testTinyEnModelPath(b, ctx)
-	wasm := readWhisperWASM(b)
-	fixturePath := whisperTestdataPath("jfk.wav")
+	modelPath := testkit.TinyEnModelPath(b, ctx)
+	wasm := testkit.ReadWhisperWASM(b)
+	fixturePath := testkit.WhisperTestdataPath("jfk.wav")
 	samples, err := DecodePCM16Mono16kWAV(fixturePath)
 	if err != nil {
 		b.Fatalf("decode benchmark fixture: %v", err)
