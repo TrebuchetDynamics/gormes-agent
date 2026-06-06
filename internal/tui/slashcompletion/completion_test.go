@@ -256,16 +256,26 @@ func TestAcceptedTextRejectsStaleSubcommandCompletionOutsideCurrentPrefix(t *tes
 }
 
 func TestAcceptedTextRejectsStaleCommandCompletionOutsideCurrentPrefix(t *testing.T) {
-	input := "/he"
-	got, ok := AcceptedText(input, Completion{Name: "model"}, true)
-	if ok || got != input {
-		t.Fatalf("AcceptedText with stale command completion = (%q, %v), want original text false", got, ok)
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{name: "slash prefix mismatch", input: "/he"},
+		{name: "not a slash completion request", input: "he"},
 	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := AcceptedText(tc.input, Completion{Name: "model"}, true)
+			if ok || got != tc.input {
+				t.Fatalf("AcceptedText with stale command completion = (%q, %v), want original text false", got, ok)
+			}
 
-	plan := planAcceptedText(input, Completion{Name: "model"}, true)
-	want := acceptedTextPlan{Text: input, Reason: acceptedTextReasonUnsupportedInput}
-	if plan != want {
-		t.Fatalf("planAcceptedText with stale command completion = %#v, want %#v", plan, want)
+			plan := planAcceptedText(tc.input, Completion{Name: "model"}, true)
+			want := acceptedTextPlan{Text: tc.input, Reason: acceptedTextReasonUnsupportedInput}
+			if plan != want {
+				t.Fatalf("planAcceptedText with stale command completion = %#v, want %#v", plan, want)
+			}
+		})
 	}
 }
 

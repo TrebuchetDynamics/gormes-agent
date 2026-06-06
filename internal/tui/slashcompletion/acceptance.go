@@ -88,10 +88,7 @@ func inputHasCompletionArguments(input string) bool {
 
 func acceptedCommandCandidate(input string, accepted acceptedCompletion) bool {
 	req, ok := parseCompletionRequest(input)
-	if !ok {
-		return true
-	}
-	return req.commandOnly() && req.commandPrefix.matches(accepted.name)
+	return ok && req.commandOnly() && req.commandPrefix.matches(accepted.name)
 }
 
 func acceptedSubcommandCandidate(flow subcommandFlow, accepted acceptedCompletion) bool {
