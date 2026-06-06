@@ -1,4 +1,4 @@
-package wasi
+package wasi_test
 
 import (
 	"context"
@@ -9,14 +9,15 @@ import (
 	"testing"
 	"time"
 
+	wasi "github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/engine/wasi"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/engine/wasi/testkit"
 )
 
 func TestTranscriberRejectsMissingModel(t *testing.T) {
 	ctx := context.Background()
-	_, err := NewTranscriber(ctx, filepath.Join(t.TempDir(), "missing-model.bin"), nil)
-	if !transcriberErrorCodeIs(err, TranscriberModelUnavailable) {
-		t.Fatalf("NewTranscriber error = %v, want %s", err, TranscriberModelUnavailable)
+	_, err := wasi.NewTranscriber(ctx, filepath.Join(t.TempDir(), "missing-model.bin"), nil)
+	if !transcriberErrorCodeIs(err, wasi.TranscriberModelUnavailable) {
+		t.Fatalf("NewTranscriber error = %v, want %s", err, wasi.TranscriberModelUnavailable)
 	}
 }
 
@@ -25,9 +26,9 @@ func TestDecodeWAVRejectsUnsupportedInput(t *testing.T) {
 	if err := os.WriteFile(path, []byte("not a wave"), 0o600); err != nil {
 		t.Fatalf("write fixture: %v", err)
 	}
-	_, err := DecodePCM16Mono16kWAV(path)
-	if !transcriberErrorCodeIs(err, TranscriberWAVUnsupported) {
-		t.Fatalf("DecodePCM16Mono16kWAV error = %v, want %s", err, TranscriberWAVUnsupported)
+	_, err := wasi.DecodePCM16Mono16kWAV(path)
+	if !transcriberErrorCodeIs(err, wasi.TranscriberWAVUnsupported) {
+		t.Fatalf("DecodePCM16Mono16kWAV error = %v, want %s", err, wasi.TranscriberWAVUnsupported)
 	}
 }
 
@@ -36,7 +37,7 @@ func TestTranscriberTranscribesFixtureWAV(t *testing.T) {
 	defer cancel()
 
 	modelPath := testkit.TinyEnModelPath(t, ctx)
-	transcriber, err := NewTranscriber(ctx, modelPath, testkit.ReadWhisperWASM(t))
+	transcriber, err := wasi.NewTranscriber(ctx, modelPath, testkit.ReadWhisperWASM(t))
 	if err != nil {
 		t.Fatalf("NewTranscriber: %v", err)
 	}
@@ -59,7 +60,7 @@ func TestTranscriberTranscribesFixtureWAV(t *testing.T) {
 }
 
 func transcriberErrorCodeIs(err error, code string) bool {
-	var transcribeErr *TranscriberError
+	var transcribeErr *wasi.TranscriberError
 	if !errors.As(err, &transcribeErr) {
 		return false
 	}

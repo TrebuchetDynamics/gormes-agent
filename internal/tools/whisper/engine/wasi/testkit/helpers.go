@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -44,5 +45,9 @@ func ReadWhisperWASM(t testing.TB) []byte {
 }
 
 func WhisperTestdataPath(name string) string {
-	return filepath.Join("..", "..", "testdata", name)
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		return filepath.Join("..", "..", "testdata", name)
+	}
+	return filepath.Join(filepath.Dir(file), "..", "..", "..", "testdata", name)
 }
