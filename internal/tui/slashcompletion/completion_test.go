@@ -195,6 +195,19 @@ func TestAcceptedTextUsesRegistryContractForTrailingSpace(t *testing.T) {
 	}
 }
 
+func TestAcceptedTextSubcommandExactWithExtraWhitespaceIsInertOnEnter(t *testing.T) {
+	got, ok := AcceptedText("/reasoning   show", Completion{Name: "show"}, false)
+	if ok || got != "/reasoning   show" {
+		t.Fatalf("AcceptedText exact subcommand with extra spacing = (%q, %v), want original text false", got, ok)
+	}
+
+	plan := planAcceptedText("/reasoning   show", Completion{Name: "show"}, false)
+	want := acceptedTextPlan{Text: "/reasoning   show", Reason: acceptedTextReasonExactRejected}
+	if plan != want {
+		t.Fatalf("planAcceptedText exact subcommand with extra spacing = %#v, want %#v", plan, want)
+	}
+}
+
 func TestAcceptedTextPlanExposesCompletionPath(t *testing.T) {
 	cases := []struct {
 		name        string

@@ -48,10 +48,28 @@ func planAcceptedText(input string, completion Completion, acceptExact bool) acc
 
 func planAcceptedSubcommandText(input, base string, accepted acceptedCompletion, acceptExact bool) acceptedTextPlan {
 	next := base + " " + accepted.name
-	if acceptExact && strings.TrimSpace(input) == next {
-		next += " "
+	current, _ := parseCompletionRequest(input)
+	decision := decideAcceptedSubcommandText(next, current.subPrefix.string() == accepted.key, acceptExact)
+	if decision.exact && !acceptExact {
+		return acceptedTextPlan{Text: input, Reason: acceptedTextReasonExactRejected}
 	}
-	return acceptedTextPlan{Text: next, Changed: next != input, Reason: acceptedTextReasonSubcommand}
+	return acceptedTextPlan{Text: decision.text, Changed: decision.text != input, Reason: acceptedTextReasonSubcommand}
+}
+
+type acceptedSubcommandTextDecision struct {
+	text  string
+	exact bool
+}
+
+func decideAcceptedSubcommandText(normalized string, exact, acceptExact bool) acceptedSubcommandTextDecision {
+	decision := acceptedSubcommandTextDecision{
+		text:  normalized,
+		exact: exact,
+	}
+	if acceptExact && decision.exact {
+		decision.text += " "
+	}
+	return decision
 }
 
 func subcommandBase(input string) (string, bool) {
