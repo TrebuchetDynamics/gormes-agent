@@ -2,6 +2,7 @@ package statusbar
 
 import (
 	"fmt"
+	"math"
 	"strings"
 )
 
@@ -69,7 +70,7 @@ const ContextBarWidth = 10
 // ClampContextPercent normalizes context percentages before rendering bars or
 // labels so both surfaces report the same bounded value.
 func ClampContextPercent(pct float64) float64 {
-	if pct < 0 {
+	if math.IsNaN(pct) || pct < 0 {
 		return 0
 	}
 	if pct > 100 {

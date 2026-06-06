@@ -1,6 +1,7 @@
 package statusbar
 
 import (
+	"math"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -119,11 +120,21 @@ func TestRenderContextBarWithLabelUsesClampedPercent(t *testing.T) {
 	}{
 		{name: "negative", pct: -10, want: "[░░░░░░░░░░] 0%"},
 		{name: "over hundred", pct: 150, want: "[██████████] 100%"},
+		{name: "not a number", pct: math.NaN(), want: "[░░░░░░░░░░] 0%"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := RenderContextBarWithLabel(tt.pct); got != tt.want {
 				t.Fatalf("RenderContextBarWithLabel(%v) = %q, want %q", tt.pct, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestClampContextPercentAlwaysReturnsFiniteBounds(t *testing.T) {
+	for _, pct := range []float64{math.NaN(), math.Inf(-1), -1, 0, 42.5, 100, 101, math.Inf(1)} {
+		got := ClampContextPercent(pct)
+		if math.IsNaN(got) || got < 0 || got > 100 {
+			t.Fatalf("ClampContextPercent(%v) = %v, want finite value in [0,100]", pct, got)
+		}
 	}
 }
