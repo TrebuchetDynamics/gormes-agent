@@ -6,21 +6,14 @@ import (
 	"time"
 
 	tui "github.com/TrebuchetDynamics/gormes-agent/internal/tui"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/testenv"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
 )
 
 // TestHermesPanels_ToolSpinnerShowsElapsed proves that tool.started style
 // spinner text includes the tool name/preview and a live elapsed timer in the
 // Hermes mm:ss / "x.ys" / "Nm Ms" formats. Tracks
 // ../hermes-agent/cli.py:_render_spinner_text.
-
-func forceLipglossTrueColor(t *testing.T) {
-	t.Helper()
-	old := lipgloss.ColorProfile()
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() { lipgloss.SetColorProfile(old) })
-}
 
 func TestHermesPanels_ToolSpinnerShowsElapsed(t *testing.T) {
 	tests := []struct {
@@ -196,7 +189,7 @@ func TestHermesPanels_ApprovalPanelPreservesCommandAndChoices(t *testing.T) {
 }
 
 func TestHermesPanels_WithSkinUseSharedChromeStyles(t *testing.T) {
-	forceLipglossTrueColor(t)
+	testenv.TrueColor(t)
 	skin := tui.BuiltinSkins()["poseidon"]
 	state := tui.ApprovalPanelState{
 		Description: "Review shell command before running it.",

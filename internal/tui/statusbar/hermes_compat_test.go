@@ -5,16 +5,9 @@ import (
 	"testing"
 
 	tui "github.com/TrebuchetDynamics/gormes-agent/internal/tui"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/testenv"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
 )
-
-func forceLipglossTrueColor(t *testing.T) {
-	t.Helper()
-	old := lipgloss.ColorProfile()
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() { lipgloss.SetColorProfile(old) })
-}
 
 func newWideStatusModel() tui.HermesStatusModel {
 	return tui.HermesStatusModel{
@@ -139,7 +132,7 @@ func TestHermesStatusBar_TrimsToWidth(t *testing.T) {
 }
 
 func TestHermesStatusBarWithSkinUsesSharedStatusStyle(t *testing.T) {
-	forceLipglossTrueColor(t)
+	testenv.TrueColor(t)
 	skin := tui.BuiltinSkins()["poseidon"]
 	shared := tui.SkinStylesFor(skin)
 
@@ -163,7 +156,7 @@ func TestHermesStatusBarWithSkinUsesSharedStatusStyle(t *testing.T) {
 }
 
 func TestHermesStatusBarWithSkinStylesContextSeverity(t *testing.T) {
-	forceLipglossTrueColor(t)
+	testenv.TrueColor(t)
 	skin := tui.BuiltinSkins()["poseidon"]
 	model := newWideStatusModel()
 	model.ContextTokens = 90

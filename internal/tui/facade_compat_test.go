@@ -5,17 +5,10 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/testenv"
 )
-
-func forceLipglossTrueColor(t *testing.T) {
-	t.Helper()
-	old := lipgloss.ColorProfile()
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() { lipgloss.SetColorProfile(old) })
-}
 
 func TestTUIANSICompatibilityWrappers(t *testing.T) {
 	input := "A\x1b[31mB\x1b[2JC"
@@ -107,7 +100,7 @@ func TestRenderTodoPanelCompatibilityWrapper(t *testing.T) {
 }
 
 func TestRenderTodoPanelWithSkinUsesSharedStyles(t *testing.T) {
-	forceLipglossTrueColor(t)
+	testenv.TrueColor(t)
 	skin := BuiltinSkins()["poseidon"]
 	items := []TodoItem{
 		{Text: "Design shared TUI styles", Status: TodoStatusPending},
@@ -167,7 +160,7 @@ func TestModel_RenderTodoPanel(t *testing.T) {
 }
 
 func TestRenderTransientPageWithSkinUsesSharedChrome(t *testing.T) {
-	forceLipglossTrueColor(t)
+	testenv.TrueColor(t)
 	skin := BuiltinSkins()["poseidon"]
 	page := TransientPageState{Title: "Status", Body: "active profile\nready"}
 

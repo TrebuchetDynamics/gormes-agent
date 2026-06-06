@@ -5,17 +5,10 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/skin"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/testenv"
 )
-
-func forceTrueColor(t *testing.T) {
-	t.Helper()
-	old := lipgloss.ColorProfile()
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() { lipgloss.SetColorProfile(old) })
-}
 
 func TestBannerLogo_NonEmpty(t *testing.T) {
 	s := skin.DefaultHermesSkin()
@@ -39,7 +32,7 @@ func TestBannerCaduceus_NonEmpty(t *testing.T) {
 }
 
 func TestBannerLegacyHelpersUseSkinDerivedStyles(t *testing.T) {
-	forceTrueColor(t)
+	testenv.TrueColor(t)
 	def := skin.BuiltinSkins()["default"]
 	pos := skin.BuiltinSkins()["poseidon"]
 

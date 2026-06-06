@@ -12,6 +12,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/testenv"
 )
 
 func TestChatStyles_ReThemesPerSkin(t *testing.T) {
@@ -106,7 +107,7 @@ func TestComposerTextareaStylesFollowActiveSkin(t *testing.T) {
 }
 
 func TestComposerFocusDimsWhenOverlayOwnsFocus(t *testing.T) {
-	forceLipglossTrueColor(t)
+	testenv.TrueColor(t)
 	skin := BuiltinSkins()["poseidon"]
 	m := NewModelWithOptions(nil, nil, nil, Options{SkinName: skin.Name})
 
@@ -137,7 +138,7 @@ func TestComposerFocusDimsWhenOverlayOwnsFocus(t *testing.T) {
 }
 
 func TestModelViewGlobalChromeSmokeAcrossBuiltInSkins(t *testing.T) {
-	forceLipglossTrueColor(t)
+	testenv.TrueColor(t)
 	frame := kernel.RenderFrame{
 		Phase:     kernel.PhaseStreaming,
 		Model:     "anthropic/claude-sonnet-4-20250514",

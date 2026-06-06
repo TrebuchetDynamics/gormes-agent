@@ -5,16 +5,9 @@ import (
 	"testing"
 
 	tui "github.com/TrebuchetDynamics/gormes-agent/internal/tui"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/testenv"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
 )
-
-func forceLipglossTrueColor(t *testing.T) {
-	t.Helper()
-	old := lipgloss.ColorProfile()
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() { lipgloss.SetColorProfile(old) })
-}
 
 func TestSpinnerRenderCompatibilityWrapper(t *testing.T) {
 	out := tui.SpinnerRender(tui.SpinnerDots, 0, 0, 0, 0, "ares", "1.2")
@@ -32,7 +25,7 @@ func TestRenderDiff(t *testing.T) {
 }
 
 func TestRenderDiffUsesSharedSkinStyles(t *testing.T) {
-	forceLipglossTrueColor(t)
+	testenv.TrueColor(t)
 	skin := tui.BuiltinSkins()["poseidon"]
 	shared := tui.SkinStylesFor(skin)
 	if got, want := shared.Good.GetForeground(), lipgloss.Color(skin.Colors.StatusBarGood); got != want {

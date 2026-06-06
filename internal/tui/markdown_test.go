@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/testenv"
 )
 
 func TestRenderMarkdown_FencedCodeBlocks(t *testing.T) {
@@ -345,7 +346,7 @@ func TestRenderMarkdown_Tables(t *testing.T) {
 }
 
 func TestRenderMarkdownWithSkinUsesSharedStyles(t *testing.T) {
-	forceLipglossTrueColor(t)
+	testenv.TrueColor(t)
 	skin := BuiltinSkins()["poseidon"]
 	shared := SkinStylesFor(skin)
 	styles := markdownStylesFor(skin)
