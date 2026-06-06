@@ -29,26 +29,55 @@ func flattenCompletionGroups(groups [][]Completion) []Completion {
 	return merged
 }
 
-func uniqueSortedCompletions(candidates []Completion) []Completion {
+type uniqueCompletionPlan struct {
+	Completions   []Completion
+	EmptyDropped  int
+	DuplicateKeys []string
+}
+
+func (p uniqueCompletionPlan) empty() bool {
+	return len(p.Completions) == 0
+}
+
+func planUniqueCompletions(candidates []Completion) uniqueCompletionPlan {
 	if len(candidates) == 0 {
-		return nil
+		return uniqueCompletionPlan{}
 	}
 	seen := make(map[string]struct{}, len(candidates))
 	out := make([]Completion, 0, len(candidates))
+	plan := uniqueCompletionPlan{}
 	for _, c := range candidates {
 		key := completionKey(c.Name)
 		if key == "" {
+			plan.EmptyDropped++
 			continue
 		}
 		if _, ok := seen[key]; ok {
+			plan.DuplicateKeys = append(plan.DuplicateKeys, key)
 			continue
 		}
 		seen[key] = struct{}{}
 		out = append(out, c)
 	}
-	if len(out) == 0 {
+	plan.Completions = out
+	return finishUniqueCompletionPlan(plan)
+}
+
+func finishUniqueCompletionPlan(plan uniqueCompletionPlan) uniqueCompletionPlan {
+	if len(plan.Completions) == 0 {
+		plan.Completions = nil
+		return plan
+	}
+	sort.Slice(plan.Completions, func(i, j int) bool {
+		return completionKey(plan.Completions[i].Name) < completionKey(plan.Completions[j].Name)
+	})
+	return plan
+}
+
+func uniqueSortedCompletions(candidates []Completion) []Completion {
+	plan := planUniqueCompletions(candidates)
+	if plan.empty() {
 		return nil
 	}
-	sort.Slice(out, func(i, j int) bool { return completionKey(out[i].Name) < completionKey(out[j].Name) })
-	return out
+	return plan.Completions
 }

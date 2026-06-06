@@ -308,6 +308,25 @@ func TestCompletionCandidateFlowDropsEmptyGroups(t *testing.T) {
 	}
 }
 
+func TestUniqueCompletionPlanExposesDroppedCandidates(t *testing.T) {
+	plan := planUniqueCompletions([]Completion{
+		{Name: "Beta", Description: "kept first beta"},
+		{Name: "   ", Description: "empty candidate"},
+		{Name: "/alpha", Description: "sorted first"},
+		{Name: "beta", Description: "duplicate beta"},
+		{Name: "//ALPHA", Description: "duplicate alpha"},
+	})
+
+	wantCompletions := []Completion{
+		{Name: "/alpha", Description: "sorted first"},
+		{Name: "Beta", Description: "kept first beta"},
+	}
+	wantDuplicates := []string{"beta", "alpha"}
+	if !reflect.DeepEqual(plan.Completions, wantCompletions) || plan.EmptyDropped != 1 || !reflect.DeepEqual(plan.DuplicateKeys, wantDuplicates) {
+		t.Fatalf("planUniqueCompletions = %#v, want completions %#v, one empty drop, duplicates %#v", plan, wantCompletions, wantDuplicates)
+	}
+}
+
 func TestCompletionRequestParsingClassifiesCommandAndSubcommandFlow(t *testing.T) {
 	command, ok := parseCompletionRequest("/he")
 	if !ok || !command.commandOnly() || command.commandPrefix.string() != "he" {
