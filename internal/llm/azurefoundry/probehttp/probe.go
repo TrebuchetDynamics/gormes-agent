@@ -75,12 +75,7 @@ func probeOpenAIModels(ctx context.Context, client *http.Client, base, apiKey st
 	if err != nil {
 		return transport.Unknown, nil, "", []string{fmt.Sprintf("models_probe_request_error: %s", err.Error())}, nil
 	}
-	if apiKey != "" {
-		req.Header.Set("api-key", apiKey)
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "gormes-agent/azure-foundry-probe")
+	setProbeHeaders(req, apiKey)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -141,6 +136,15 @@ func probeOpenAIModels(ctx context.Context, client *http.Client, base, apiKey st
 	return transport.OpenAI, ids, reason, evidence, nil
 }
 
+func setProbeHeaders(req *http.Request, apiKey string) {
+	if apiKey != "" {
+		req.Header.Set("api-key", apiKey)
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "gormes-agent/azure-foundry-probe")
+}
+
 func probeAnthropicMessages(ctx context.Context, client *http.Client, base, apiKey string) (bool, string, []string, error) {
 	url := strings.TrimSuffix(base, "/v1") + "/v1/messages"
 	payload := []byte(`{"model":"probe","max_tokens":1,"messages":[{"role":"user","content":"ping"}]}`)
@@ -148,14 +152,9 @@ func probeAnthropicMessages(ctx context.Context, client *http.Client, base, apiK
 	if err != nil {
 		return false, "", []string{fmt.Sprintf("anthropic_probe_request_error: %s", err.Error())}, nil
 	}
-	if apiKey != "" {
-		req.Header.Set("api-key", apiKey)
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-	}
+	setProbeHeaders(req, apiKey)
 	req.Header.Set("anthropic-version", "2023-06-01")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "gormes-agent/azure-foundry-probe")
 
 	resp, err := client.Do(req)
 	if err != nil {

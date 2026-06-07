@@ -33,21 +33,12 @@ func Classify429(headers http.Header) RateLimitClass {
 	exhausted := false
 
 	for _, tag := range rateLimitBucketTags {
-		remainingRaw := strings.TrimSpace(headers.Get("X-RateLimit-Remaining-" + tag))
-		resetRaw := strings.TrimSpace(headers.Get("X-RateLimit-Reset-" + tag))
-		if remainingRaw == "" || resetRaw == "" {
-			continue
-		}
-		remaining, err := strconv.Atoi(remainingRaw)
-		if err != nil {
-			continue
-		}
-		reset, err := strconv.ParseFloat(resetRaw, 64)
-		if err != nil {
+		bucket, ok := parseRateLimitBucket(headers, tag)
+		if !ok || !bucket.HasRemaining || !bucket.HasReset {
 			continue
 		}
 		parsedAny = true
-		if remaining <= 0 && reset >= minResetForBreakerSeconds {
+		if bucket.Exhausted() {
 			exhausted = true
 		}
 	}
@@ -97,19 +88,9 @@ type BudgetSnapshot struct {
 func ParseBudget(headers http.Header) BudgetSnapshot {
 	snap := BudgetSnapshot{Buckets: make([]BudgetBucket, 0, len(rateLimitBucketTags))}
 	for _, tag := range rateLimitBucketTags {
-		remainingRaw := strings.TrimSpace(headers.Get("X-RateLimit-Remaining-" + tag))
-		resetRaw := strings.TrimSpace(headers.Get("X-RateLimit-Reset-" + tag))
-		if remainingRaw == "" && resetRaw == "" {
+		bucket, ok := parseRateLimitBucket(headers, tag)
+		if !ok {
 			continue
-		}
-		bucket := BudgetBucket{Tag: tag}
-		if v, err := strconv.Atoi(remainingRaw); err == nil {
-			bucket.Remaining = v
-			bucket.HasRemaining = true
-		}
-		if v, err := strconv.ParseFloat(resetRaw, 64); err == nil {
-			bucket.Reset = v
-			bucket.HasReset = true
 		}
 		snap.Buckets = append(snap.Buckets, bucket)
 		if bucket.HasRemaining && bucket.HasReset {
@@ -121,6 +102,24 @@ func ParseBudget(headers http.Header) BudgetSnapshot {
 	}
 	snap.HeaderMissing = !snap.AnyParsed
 	return snap
+}
+
+func parseRateLimitBucket(headers http.Header, tag string) (BudgetBucket, bool) {
+	remainingRaw := strings.TrimSpace(headers.Get("X-RateLimit-Remaining-" + tag))
+	resetRaw := strings.TrimSpace(headers.Get("X-RateLimit-Reset-" + tag))
+	if remainingRaw == "" && resetRaw == "" {
+		return BudgetBucket{}, false
+	}
+	bucket := BudgetBucket{Tag: tag}
+	if v, err := strconv.Atoi(remainingRaw); err == nil {
+		bucket.Remaining = v
+		bucket.HasRemaining = true
+	}
+	if v, err := strconv.ParseFloat(resetRaw, 64); err == nil {
+		bucket.Reset = v
+		bucket.HasReset = true
+	}
+	return bucket, true
 }
 
 // RateGuardDecision is the visible per-429 outcome that callers attach to

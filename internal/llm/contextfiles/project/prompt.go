@@ -88,12 +88,7 @@ func loadSoulContext(profileDir string, maxChars int) (string, ContextFileEviden
 		return "", ev
 	}
 	path := filepath.Join(profileDir, "SOUL.md")
-	content, ok := readContextFile(path, &ev)
-	if !ok {
-		return "", ev
-	}
-	content, ev = scanContextContent(content, "SOUL.md", ev)
-	content, ev = truncateContextContent(content, "SOUL.md", maxChars, ev)
+	content, ev, _ := contextsource.LoadFile(path, "SOUL.md", maxChars, ev)
 	return content, ev
 }
 

@@ -92,11 +92,6 @@ func loadDurableContextFile(memoryDir, name string, maxChars int) (string, Conte
 	}
 	path := filepath.Join(memoryDir, name)
 	ev.Path = path
-	content, ok := contextsource.ReadFile(path, &ev)
-	if !ok {
-		return "", ev
-	}
-	content, ev = contextsource.ScanContent(content, name, ev)
-	content, ev = contextsource.TruncateContent(content, name, maxChars, ev)
+	content, ev, _ := contextsource.LoadFile(path, name, maxChars, ev)
 	return content, ev
 }

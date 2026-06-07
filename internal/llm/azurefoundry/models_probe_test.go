@@ -145,6 +145,48 @@ func TestProbeAzureFoundry_AnthropicMessages400ValidShape(t *testing.T) {
 	}
 }
 
+func TestProbeAzureFoundry_SendsSharedProbeHeaders(t *testing.T) {
+	seen := map[string]http.Header{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen[r.URL.Path] = r.Header.Clone()
+		switch r.URL.Path {
+		case "/models":
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = io.WriteString(w, `{"error":"not found"}`)
+		case "/v1/messages":
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = io.WriteString(w, `{"error":"missing messages model"}`)
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	_, err := ProbeAzureFoundry(context.Background(), &http.Client{}, srv.URL, "test-api-key")
+	if err != nil {
+		t.Fatalf("ProbeAzureFoundry returned err = %v", err)
+	}
+	for _, path := range []string{"/models", "/v1/messages"} {
+		headers := seen[path]
+		if headers == nil {
+			t.Fatalf("%s was not requested; seen=%v", path, seen)
+		}
+		if got := headers.Get("api-key"); got != "test-api-key" {
+			t.Fatalf("%s api-key header = %q, want test-api-key", path, got)
+		}
+		if got := headers.Get("Authorization"); got != "Bearer test-api-key" {
+			t.Fatalf("%s Authorization header = %q, want bearer token", path, got)
+		}
+		if got := headers.Get("Accept"); got != "application/json" {
+			t.Fatalf("%s Accept header = %q, want application/json", path, got)
+		}
+		if got := headers.Get("User-Agent"); got != "gormes-agent/azure-foundry-probe" {
+			t.Fatalf("%s User-Agent header = %q, want azure-foundry probe UA", path, got)
+		}
+	}
+}
+
 // TestProbeAzureFoundry_BothFailReturnUnknown verifies that when neither
 // probe yields a recognisable shape, the helper falls back to
 // AzureTransportUnknown with Reason="manual_required" - the wizard's

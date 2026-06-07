@@ -67,23 +67,24 @@ func (c *BedrockRuntimeCache) EvictOnStaleError(region string, err error) bool {
 }
 
 func (c *BedrockRuntimeCache) Converse(ctx context.Context, region string, req BedrockRuntimeRequest) (BedrockRuntimeResponse, error) {
-	client, err := c.runtimeClient(region)
-	if err != nil {
-		return BedrockRuntimeResponse{}, err
-	}
-	out, err := client.Converse(ctx, req)
-	if err != nil {
-		c.EvictOnStaleError(region, err)
-	}
-	return out, err
+	return withBedrockRuntimeClient(c, region, func(client BedrockRuntimeClient) (BedrockRuntimeResponse, error) {
+		return client.Converse(ctx, req)
+	})
 }
 
 func (c *BedrockRuntimeCache) ConverseStream(ctx context.Context, region string, req BedrockRuntimeRequest) (BedrockRuntimeStreamResponse, error) {
+	return withBedrockRuntimeClient(c, region, func(client BedrockRuntimeClient) (BedrockRuntimeStreamResponse, error) {
+		return client.ConverseStream(ctx, req)
+	})
+}
+
+func withBedrockRuntimeClient[T any](c *BedrockRuntimeCache, region string, call func(BedrockRuntimeClient) (T, error)) (T, error) {
 	client, err := c.runtimeClient(region)
 	if err != nil {
-		return BedrockRuntimeStreamResponse{}, err
+		var zero T
+		return zero, err
 	}
-	out, err := client.ConverseStream(ctx, req)
+	out, err := call(client)
 	if err != nil {
 		c.EvictOnStaleError(region, err)
 	}
