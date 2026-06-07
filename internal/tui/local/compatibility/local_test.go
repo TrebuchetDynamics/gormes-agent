@@ -1,4 +1,4 @@
-package local
+package compatibility
 
 import (
 	"context"
@@ -15,6 +15,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
+	localpkg "github.com/TrebuchetDynamics/gormes-agent/internal/tui/local"
 )
 
 type sessionSeed struct {
@@ -40,7 +41,7 @@ func TestNewSessionBranchFuncWithIDForksTranscriptAndResumesKernelSession(t *tes
 
 	var resumedSession string
 	var resumedHistory []llm.Message
-	branch := NewSessionBranchFuncWithID(context.Background(), boltMap, func(sessionID string, history []llm.Message) error {
+	branch := localpkg.NewSessionBranchFuncWithID(context.Background(), boltMap, func(sessionID string, history []llm.Message) error {
 		resumedSession = sessionID
 		resumedHistory = append([]llm.Message(nil), history...)
 		return nil
@@ -89,7 +90,7 @@ func TestNewSessionBranchFuncWithIDFallsBackToCopiedTranscriptWhenVisibleHistory
 	defer boltMap.Close()
 
 	var resumedHistory []llm.Message
-	branch := NewSessionBranchFuncWithID(context.Background(), boltMap, func(_ string, history []llm.Message) error {
+	branch := localpkg.NewSessionBranchFuncWithID(context.Background(), boltMap, func(_ string, history []llm.Message) error {
 		resumedHistory = append([]llm.Message(nil), history...)
 		return nil
 	}, func() string { return "sess-child" })
@@ -110,7 +111,7 @@ func TestNewSessionDirectoryFuncListsMirrorSource(t *testing.T) {
 	})
 	writeSessionMirrorIndex(t, "sess-beta", "telegram")
 
-	entries, err := NewSessionDirectoryFunc(context.Background())(1)
+	entries, err := localpkg.NewSessionDirectoryFunc(context.Background())(1)
 	if err != nil {
 		t.Fatalf("SessionDirectory: %v", err)
 	}
@@ -129,7 +130,7 @@ func TestNewSessionResumeFuncResolvesPrefixAndLoadsHistory(t *testing.T) {
 	})
 
 	var resumedSession string
-	resume := NewSessionResumeFunc(context.Background(), func(sessionID string, _ []llm.Message) error {
+	resume := localpkg.NewSessionResumeFunc(context.Background(), func(sessionID string, _ []llm.Message) error {
 		resumedSession = sessionID
 		return nil
 	})
@@ -164,15 +165,15 @@ func TestSessionTreeAdaptersReadLabelAndRestore(t *testing.T) {
 		t.Fatalf("put fork metadata: %v", err)
 	}
 
-	treeResult, err := NewSessionTreeFunc(context.Background(), boltMap)(context.Background(), tui.SessionTreeRequest{Filter: "all-equivalent", ActiveSessionID: "sess-fork"})
+	treeResult, err := localpkg.NewSessionTreeFunc(context.Background(), boltMap)(context.Background(), tui.SessionTreeRequest{Filter: "all-equivalent", ActiveSessionID: "sess-fork"})
 	if err != nil {
 		t.Fatalf("SessionTree: %v", err)
 	}
-	labelResult, err := NewSessionTreeLabelFunc(context.Background(), boltMap)(context.Background(), tui.SessionTreeLabelRequest{SessionID: "sess-root", Action: "set", Label: "review"})
+	labelResult, err := localpkg.NewSessionTreeLabelFunc(context.Background(), boltMap)(context.Background(), tui.SessionTreeLabelRequest{SessionID: "sess-root", Action: "set", Label: "review"})
 	if err != nil {
 		t.Fatalf("SessionTreeLabel: %v", err)
 	}
-	restoreResult, err := NewSessionTreeRestoreFunc(context.Background())(context.Background(), tui.SessionTreeRestoreRequest{SessionID: "sess-root", MessageID: 1})
+	restoreResult, err := localpkg.NewSessionTreeRestoreFunc(context.Background())(context.Background(), tui.SessionTreeRestoreRequest{SessionID: "sess-root", MessageID: 1})
 	if err != nil {
 		t.Fatalf("SessionTreeRestore: %v", err)
 	}
@@ -205,7 +206,7 @@ func TestSessionTitleFuncPersistsManualTitle(t *testing.T) {
 	}
 	defer boltMap.Close()
 
-	titleFn := NewSessionTitleFunc(context.Background(), boltMap)
+	titleFn := localpkg.NewSessionTitleFunc(context.Background(), boltMap)
 	setRes, err := titleFn("sess-tui-title", "Operator Title")
 	if err != nil {
 		t.Fatalf("SessionTitle set: %v", err)
@@ -231,7 +232,7 @@ func TestConfigureToolsReportsUnknownMissingAndDisablePersistence(t *testing.T) 
 	writeSetupToolsFixtureConfig(t, `
 platform_toolsets = { cli = ["terminal"] }
 `)
-	configure := NewToolsConfigureFunc()
+	configure := localpkg.NewToolsConfigureFunc()
 
 	result, err := configure(tui.ToolsConfigureRequest{Action: "enable", Names: []string{"web", "github:create_issue", "not-a-toolset"}, SessionID: "sess-tools"})
 	if err != nil {
@@ -267,7 +268,7 @@ func TestSkinConfigFuncGetsSetsAndRejectsUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load config: %v", err)
 	}
-	configure := NewSkinConfigFunc(cfg)
+	configure := localpkg.NewSkinConfigFunc(cfg)
 	status, err := configure(tui.SkinConfigRequest{SessionID: "sess-skin"})
 	if err != nil {
 		t.Fatalf("SkinConfig status: %v", err)
@@ -292,7 +293,7 @@ func TestSkinConfigFuncGetsSetsAndRejectsUnknown(t *testing.T) {
 }
 
 func TestAccountUsageFuncReportsUnsupportedProvider(t *testing.T) {
-	accountUsage := NewAccountUsageFunc(config.Config{Hermes: config.HermesCfg{Provider: "custom-provider"}})
+	accountUsage := localpkg.NewAccountUsageFunc(config.Config{Hermes: config.HermesCfg{Provider: "custom-provider"}})
 	snapshot, err := accountUsage(context.Background())
 	if err != nil {
 		t.Fatalf("AccountUsage: %v", err)
@@ -306,7 +307,7 @@ func TestAccountUsageFuncReportsUnsupportedProvider(t *testing.T) {
 }
 
 func TestVoiceRequirementsDetailsShowsConfiguredSTT(t *testing.T) {
-	details := VoiceRequirementsDetails(config.Config{
+	details := localpkg.VoiceRequirementsDetails(config.Config{
 		Runtime: config.RuntimeCfg{TTSProvider: "edge"},
 		STT: config.STTCfg{
 			Provider: "local",
