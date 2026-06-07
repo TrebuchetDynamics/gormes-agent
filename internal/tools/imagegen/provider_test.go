@@ -149,6 +149,24 @@ func TestImageGenerationDispatchForceRefreshesPluginsOnce(t *testing.T) {
 	}
 }
 
+func TestManagedGatewayImageResultScansAllImageCandidates(t *testing.T) {
+	raw := []byte(`{"images":[{"revised_prompt":"not an image payload"},{"url":"https://cdn.example/final.png","mime_type":"image/webp"}]}`)
+
+	result, ok, err := parseManagedGatewayImageJSON(raw)
+	if err != nil {
+		t.Fatalf("parseManagedGatewayImageJSON: %v", err)
+	}
+	if !ok {
+		t.Fatal("parseManagedGatewayImageJSON ok=false, want later image candidate to be used")
+	}
+	if result.ImageURL != "https://cdn.example/final.png" {
+		t.Fatalf("ImageURL = %q, want later image candidate URL", result.ImageURL)
+	}
+	if result.MediaType != "image/webp" {
+		t.Fatalf("MediaType = %q, want image/webp", result.MediaType)
+	}
+}
+
 func TestImageGenerationPluginProviderErrorsAreRedacted(t *testing.T) {
 	prompt := "secret-prompt-fragment"
 	token := "sk-secret-token"
