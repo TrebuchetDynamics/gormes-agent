@@ -64,11 +64,18 @@ func (p MountPolicy) IsAllowed(hostPath string) bool {
 // other allowed paths are mapped read-only.
 func (p MountPolicy) AllowedMounts(workspacePath, containerWorkspace string) []MountEntry {
 	var mounts []MountEntry
+	seen := map[string]struct{}{}
 	workspace := mountWorkspace{hostPath: filepath.Clean(workspacePath), containerPath: containerWorkspacePath(containerWorkspace)}
 	for _, hostPath := range p.AllowedHostPaths {
-		if entry, ok := p.mountCandidate(hostPath, workspace); ok {
-			mounts = append(mounts, entry)
+		candidate := p.classifyMountCandidate(hostPath, workspace)
+		if !candidate.allowed {
+			continue
 		}
+		if _, ok := seen[candidate.entry.HostPath]; ok {
+			continue
+		}
+		seen[candidate.entry.HostPath] = struct{}{}
+		mounts = append(mounts, candidate.entry)
 	}
 	return mounts
 }
@@ -78,22 +85,31 @@ type mountWorkspace struct {
 	containerPath string
 }
 
-func (p MountPolicy) mountCandidate(hostPath string, workspace mountWorkspace) (MountEntry, bool) {
-	if p.IsBlocked(hostPath) {
-		return MountEntry{}, false
-	}
+type mountCandidate struct {
+	entry   MountEntry
+	allowed bool
+	blocked bool
+}
+
+func (p MountPolicy) classifyMountCandidate(hostPath string, workspace mountWorkspace) mountCandidate {
 	cleanHost := filepath.Clean(hostPath)
+	if p.IsBlocked(cleanHost) {
+		return mountCandidate{blocked: true}
+	}
 	readOnly := true
 	containerPath := cleanHost
 	if cleanHost == workspace.hostPath {
 		readOnly = false
 		containerPath = workspace.containerPath
 	}
-	return MountEntry{
-		HostPath:      cleanHost,
-		ContainerPath: containerPath,
-		ReadOnly:      readOnly,
-	}, true
+	return mountCandidate{
+		entry: MountEntry{
+			HostPath:      cleanHost,
+			ContainerPath: containerPath,
+			ReadOnly:      readOnly,
+		},
+		allowed: true,
+	}
 }
 
 func containerWorkspacePath(containerWorkspace string) string {

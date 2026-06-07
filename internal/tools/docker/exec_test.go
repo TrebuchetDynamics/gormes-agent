@@ -88,6 +88,30 @@ func TestDockerExec_MountPolicyAllowlist(t *testing.T) {
 		}
 	})
 
+	t.Run("deduplicates cleaned host paths before mounting", func(t *testing.T) {
+		runner := &fakeDockerRunner{
+			result: DockerExecResult{Stdout: "ok", ExitCode: 0},
+		}
+		backend := NewDockerExecBackend(runner, DockerExecConfig{
+			WorkspacePath:      "/tmp/data",
+			ContainerWorkspace: "/workspace",
+		}, []string{"/tmp/data", "/tmp/data/", "/tmp/../tmp/data", "/tmp/other"})
+
+		_, err := backend.Execute(context.Background(), "ls", nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(runner.lastMounts) != 2 {
+			t.Fatalf("expected 2 unique mounts, got %d: %#v", len(runner.lastMounts), runner.lastMounts)
+		}
+		if got := runner.lastMounts[0]; got.HostPath != "/tmp/data" || got.ContainerPath != "/workspace" || got.ReadOnly {
+			t.Fatalf("workspace mount = %#v, want host /tmp/data at /workspace read-write", got)
+		}
+		if got := runner.lastMounts[1]; got.HostPath != "/tmp/other" || !got.ReadOnly {
+			t.Fatalf("second mount = %#v, want read-only /tmp/other", got)
+		}
+	})
+
 	t.Run("workspace path is read-write", func(t *testing.T) {
 		runner := &fakeDockerRunner{
 			result: DockerExecResult{Stdout: "ok", ExitCode: 0},
