@@ -294,13 +294,9 @@ func TestManagerAudioRequestedTurnAddsDeliveryGuidance(t *testing.T) {
 		return len(fk.submitsSnapshot()) == 1
 	})
 	got := fk.submitsSnapshot()[0].SessionContext
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"Gateway audio delivery is enabled for this turn.",
 		"Do not claim that you generated audio yourself",
 		"do not claim the TTS provider is unavailable",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("SessionContext missing %q:\n%s", want, got)
-		}
-	}
+	)
 }

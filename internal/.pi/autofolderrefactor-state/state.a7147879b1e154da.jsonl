@@ -72,3 +72,6 @@
 {"ts":"2026-06-06T21:14:51-06:00","candidate":"tui/slashcompletion","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:14:51-06:00"}
 {"ts":"2026-06-06T21:17:12-06:00","candidate":"tui/wizard","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:17:12-06:00"}
 {"ts":"2026-06-06T21:19:16-06:00","candidate":"tui/modelpicker","reason":"no metric progress rollback","scope":"candidate","state":"cooldown","until":"2026-06-06T22:19:16-06:00"}
+{"ts":"2026-06-06T21:21:06-06:00","candidate":"tui/local/sessionadapters","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:21:06-06:00"}
+{"ts":"2026-06-06T21:21:08-06:00","candidate":"tui/local/preferences","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:22:17-06:00","candidate":"tui/local/runtime","reason":"no metric progress rollback","scope":"candidate","state":"cooldown","until":"2026-06-06T22:22:17-06:00"}

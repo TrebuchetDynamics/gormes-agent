@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -147,6 +148,18 @@ func TestBot_NotificationModeSilentThreadPlaceholdersByDefault(t *testing.T) {
 	uploads = client.uploadRequests()
 	if _, ok := uploads[1].Params["disable_notification"]; ok {
 		t.Fatalf("final SendThread params = %+v, want no disable_notification", uploads[1].Params)
+	}
+}
+
+func TestBot_ReplyPlaceholdersRejectInvalidReplyID(t *testing.T) {
+	client := newMockClient()
+	b := New(Config{}, client, nil)
+
+	if _, err := b.SendReplyPlaceholder(context.Background(), "42", "abc"); err == nil || !strings.Contains(err.Error(), `invalid reply msgID "abc"`) {
+		t.Fatalf("SendReplyPlaceholder err = %v, want invalid reply msgID", err)
+	}
+	if _, err := b.SendThreadReplyPlaceholder(context.Background(), "42", "777", "abc"); err == nil || !strings.Contains(err.Error(), `invalid reply msgID "abc"`) {
+		t.Fatalf("SendThreadReplyPlaceholder err = %v, want invalid reply msgID", err)
 	}
 }
 

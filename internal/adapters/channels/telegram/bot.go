@@ -710,12 +710,9 @@ func (b *Bot) SendMedia(ctx context.Context, chatID, replyToMsgID string, media 
 	if mediaPath == "" {
 		return "", fmt.Errorf("telegram: media path is required")
 	}
-	replyID := 0
-	if strings.TrimSpace(replyToMsgID) != "" {
-		replyID, err = strconv.Atoi(replyToMsgID)
-		if err != nil {
-			return "", fmt.Errorf("telegram: invalid reply msgID %q: %w", replyToMsgID, err)
-		}
+	replyID, err := telegramTextReplyID(replyToMsgID, false)
+	if err != nil {
+		return "", err
 	}
 	if strings.TrimSpace(media.ThreadID) != "" {
 		return b.sendMediaWithThread(id, replyID, media)
@@ -880,9 +877,9 @@ func (b *Bot) SendReplyPlaceholder(ctx context.Context, chatID, replyToMsgID str
 	if err != nil {
 		return "", err
 	}
-	replyID, err := strconv.Atoi(replyToMsgID)
+	replyID, err := telegramTextReplyID(replyToMsgID, true)
 	if err != nil {
-		return "", fmt.Errorf("telegram: invalid reply msgID %q: %w", replyToMsgID, err)
+		return "", err
 	}
 	msgCfg := tgbotapi.NewMessage(id, "⏳")
 	msgCfg.ParseMode = tgbotapi.ModeMarkdownV2
@@ -903,9 +900,9 @@ func (b *Bot) SendThreadReplyPlaceholder(ctx context.Context, chatID, threadID, 
 	if err != nil {
 		return "", err
 	}
-	replyID, err := strconv.Atoi(replyToMsgID)
+	replyID, err := telegramTextReplyID(replyToMsgID, true)
 	if err != nil {
-		return "", fmt.Errorf("telegram: invalid reply msgID %q: %w", replyToMsgID, err)
+		return "", err
 	}
 	thread, includeThread, err := telegramThreadIDForTextSend(threadID)
 	if err != nil {

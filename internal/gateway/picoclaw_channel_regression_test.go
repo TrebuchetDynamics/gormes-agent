@@ -46,16 +46,12 @@ func TestPicoClawChannelRegression_SenderIdentityAndAllowlist(t *testing.T) {
 		return len(fk.submitsSnapshot()) == 1
 	})
 	got := fk.submitsSnapshot()[0]
-	for _, want := range []string{
+	assertContainsAll(t, got.SessionContext,
 		"**Source:** matrix chat `!ops:example.org`",
 		"**User ID:** `@alice:example.org`",
 		"**Thread ID:** `$mx-thread-root`",
 		"**Message ID:** `$mx-message-1`",
-	} {
-		if !strings.Contains(got.SessionContext, want) {
-			t.Fatalf("SessionContext missing %q in:\n%s", want, got.SessionContext)
-		}
-	}
+	)
 
 	matrix.pushInbound(InboundEvent{
 		Platform: "matrix",
@@ -127,16 +123,12 @@ func TestPicoClawChannelRegression_RichMediaEnvelopePersists(t *testing.T) {
 		return len(fk.submitsSnapshot()) == 1
 	})
 	got := fk.submitsSnapshot()[0].Text
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"Attachments:",
 		"- image screenshot.png: https://media.example.test/channel/screenshot.png (mediaType=image/png, sourceId=img-123, sizeBytes=12345)",
 		"- document report.pdf: https://media.example.test/channel/report.pdf (mediaType=application/pdf, sourceId=doc-456, sizeBytes=67890)",
 		"- voice_transcript voice-note.txt: transcript:Please review the PDF before answering. (mediaType=text/plain, sourceId=voice-789)",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("submitted media envelope missing %q in:\n%s", want, got)
-		}
-	}
+	)
 
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
