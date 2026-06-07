@@ -117,6 +117,53 @@ func TestImageGenerationResult_WritesArtifactEnvelope(t *testing.T) {
 	}
 }
 
+func TestImageGenerationResult_DoesNotOverwriteSamePromptArtifacts(t *testing.T) {
+	dir := t.TempDir()
+
+	req := ImageGenerationRequest{
+		Provider:  "fal",
+		Model:     "fal-ai/flux-2-pro",
+		Prompt:    "repeatable prompt",
+		OutputDir: dir,
+		Bytes:     []byte("first-image"),
+		MediaType: "image/png",
+	}
+
+	first, err := BuildImageGenerationEnvelope(req)
+	if err != nil {
+		t.Fatalf("first BuildImageGenerationEnvelope: %v", err)
+	}
+
+	req.Bytes = []byte("second-image")
+	second, err := BuildImageGenerationEnvelope(req)
+	if err != nil {
+		t.Fatalf("second BuildImageGenerationEnvelope: %v", err)
+	}
+
+	if first.Artifact == "" || second.Artifact == "" {
+		t.Fatalf("artifacts must be populated: first=%q second=%q", first.Artifact, second.Artifact)
+	}
+	if first.Artifact == second.Artifact {
+		t.Fatalf("same prompt generated the same artifact path %q; earlier result would be overwritten", first.Artifact)
+	}
+
+	gotFirst, err := os.ReadFile(filepath.Join(dir, first.Artifact))
+	if err != nil {
+		t.Fatalf("read first artifact: %v", err)
+	}
+	if string(gotFirst) != "first-image" {
+		t.Fatalf("first artifact content = %q, want first-image", string(gotFirst))
+	}
+
+	gotSecond, err := os.ReadFile(filepath.Join(dir, second.Artifact))
+	if err != nil {
+		t.Fatalf("read second artifact: %v", err)
+	}
+	if string(gotSecond) != "second-image" {
+		t.Fatalf("second artifact content = %q, want second-image", string(gotSecond))
+	}
+}
+
 func TestImageGenerationResult_RedactsPromptAndSecrets(t *testing.T) {
 	dir := t.TempDir()
 

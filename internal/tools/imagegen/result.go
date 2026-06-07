@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -110,6 +111,66 @@ func hashPrompt(prompt string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+type artifactPathPlan struct {
+	rel  string
+	full string
+}
+
+func artifactCandidateName(promptHash, mediaType string, attempt int) string {
+	ext := extByMediaType(mediaType)
+	if attempt == 0 {
+		return fmt.Sprintf("image-%s%s", promptHash[:16], ext)
+	}
+	return fmt.Sprintf("image-%s-%d%s", promptHash[:16], attempt+1, ext)
+}
+
+func planArtifactPath(absDir, name string) (artifactPathPlan, error) {
+	full := filepath.Join(absDir, name)
+
+	// Belt-and-braces: refuse to write outside the resolved OutputDir
+	// even if extByMediaType ever returned a path-bearing extension.
+	rel, err := filepath.Rel(absDir, full)
+	if err != nil || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
+		return artifactPathPlan{}, fmt.Errorf("image_generation: refusing to write outside output dir")
+	}
+	return artifactPathPlan{rel: rel, full: full}, nil
+}
+
+func writeUniqueArtifact(absDir, promptHash, mediaType string, bytes []byte) (string, error) {
+	const maxArtifactNameAttempts = 10_000
+	for attempt := 0; attempt < maxArtifactNameAttempts; attempt++ {
+		plan, err := planArtifactPath(absDir, artifactCandidateName(promptHash, mediaType, attempt))
+		if err != nil {
+			return "", err
+		}
+
+		file, err := os.OpenFile(plan.full, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if errors.Is(err, os.ErrExist) {
+			continue
+		}
+		if err != nil {
+			return "", fmt.Errorf("image_generation: create artifact: %w", err)
+		}
+
+		n, writeErr := file.Write(bytes)
+		closeErr := file.Close()
+		if writeErr != nil {
+			_ = os.Remove(plan.full)
+			return "", fmt.Errorf("image_generation: write artifact: %w", writeErr)
+		}
+		if n != len(bytes) {
+			_ = os.Remove(plan.full)
+			return "", fmt.Errorf("image_generation: write artifact: %w", io.ErrShortWrite)
+		}
+		if closeErr != nil {
+			_ = os.Remove(plan.full)
+			return "", fmt.Errorf("image_generation: close artifact: %w", closeErr)
+		}
+		return plan.rel, nil
+	}
+	return "", fmt.Errorf("image_generation: could not allocate artifact path")
+}
+
 // redactReason scrubs known credential shapes from a free-form error
 // message and elides the raw prompt if it appears verbatim.
 func redactReason(reason, prompt string) string {
@@ -184,18 +245,9 @@ func BuildImageGenerationEnvelope(req ImageGenerationRequest) (ImageGenerationEn
 		return ImageGenerationEnvelope{}, fmt.Errorf("image_generation: create output dir: %w", err)
 	}
 
-	name := fmt.Sprintf("image-%s%s", promptHash[:16], extByMediaType(req.MediaType))
-	full := filepath.Join(absDir, name)
-
-	// Belt-and-braces: refuse to write outside the resolved OutputDir
-	// even if extByMediaType ever returned a path-bearing extension.
-	rel, err := filepath.Rel(absDir, full)
-	if err != nil || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
-		return ImageGenerationEnvelope{}, fmt.Errorf("image_generation: refusing to write outside output dir")
-	}
-
-	if err := os.WriteFile(full, req.Bytes, 0o644); err != nil {
-		return ImageGenerationEnvelope{}, fmt.Errorf("image_generation: write artifact: %w", err)
+	rel, err := writeUniqueArtifact(absDir, promptHash, req.MediaType, req.Bytes)
+	if err != nil {
+		return ImageGenerationEnvelope{}, err
 	}
 
 	return ImageGenerationEnvelope{
