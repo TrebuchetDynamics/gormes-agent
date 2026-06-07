@@ -26,3 +26,9 @@
 {"ts":"2026-06-06T20:08:42-06:00","candidate":"gateway/directory/model","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:08:42-06:00"}
 {"ts":"2026-06-06T20:11:28-06:00","candidate":"gateway/directory/model/entry","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:11:28-06:00"}
 {"ts":"2026-06-06T20:13:50-06:00","candidate":"gateway/approval","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:13:50-06:00"}
+{"ts":"2026-06-06T20:16:35-06:00","candidate":"gateway/profilechannels","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:16:35-06:00"}
+{"ts":"2026-06-06T20:16:37-06:00","candidate":"gateway/directory/model/entry/contract","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:16:39-06:00","candidate":"gateway/directory/model/policy","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:16:40-06:00","candidate":"gateway/directory/cache/readmodel","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:16:42-06:00","candidate":"gateway/directory/model/source","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:17:46-06:00","candidate":"gateway/directory/storage","reason":"no changes","scope":"candidate","state":"cooldown","until":"2026-06-06T21:17:46-06:00"}
