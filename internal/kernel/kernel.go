@@ -12,7 +12,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -21,7 +20,9 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel/fallback"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel/lifecycle"
+	kernelmodelrouting "github.com/TrebuchetDynamics/gormes-agent/internal/kernel/modelrouting"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel/skills"
+	kernelstreamdiag "github.com/TrebuchetDynamics/gormes-agent/internal/kernel/streamdiag"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
@@ -259,56 +260,23 @@ func (k *Kernel) applySessionModel(ctx context.Context, e PlatformEvent) error {
 }
 
 func (k *Kernel) shouldSwapSessionProvider(next string) bool {
-	current := strings.TrimSpace(firstNonEmpty(k.sessionProvider, k.cfg.Provider))
-	next = strings.TrimSpace(next)
-	return next != "" && next != current
+	return kernelmodelrouting.ShouldSwapProvider(k.sessionProvider, k.cfg.Provider, next)
 }
 
 func sessionModelRoute(provider, model string) (llm.ModelRoute, bool) {
-	entry, ok := llm.ResolveProviderManifestEntry(provider)
-	if !ok {
-		return llm.ModelRoute{}, false
-	}
-	if entry.ImplementationStatus != llm.ProviderImplemented && entry.ImplementationStatus != llm.ProviderOwned {
-		return llm.ModelRoute{}, false
-	}
-	route := llm.ModelRoute{
-		Provider:  strings.ToLower(strings.TrimSpace(entry.ID)),
-		Model:     strings.TrimSpace(model),
-		BaseURL:   strings.TrimSpace(entry.BaseURLOverride),
-		APIMode:   sessionModelAPIMode(entry.TransportFamily),
-		APIKeyEnv: firstNonEmpty(entry.EnvVars...),
-		KeyEnv:    strings.TrimSpace(entry.BaseURLEnvVar),
-	}
-	return route, route.Provider != "" && route.Model != ""
+	return kernelmodelrouting.Route(provider, model)
 }
 
 func sessionModelAPIMode(transport string) string {
-	switch strings.TrimSpace(transport) {
-	case "openai_chat":
-		return "chat_completions"
-	default:
-		return strings.TrimSpace(transport)
-	}
+	return kernelmodelrouting.APIMode(transport)
 }
 
 func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
-	}
-	return ""
+	return kernelmodelrouting.FirstNonEmpty(values...)
 }
 
 func modelMatchesAny(model string, needles []string) bool {
-	for _, needle := range needles {
-		needle = strings.ToLower(strings.TrimSpace(needle))
-		if needle != "" && strings.Contains(model, needle) {
-			return true
-		}
-	}
-	return false
+	return kernelmodelrouting.MatchesAny(model, needles)
 }
 
 // Render returns the receive side of the render mailbox. The channel is
@@ -1246,90 +1214,31 @@ func (k *Kernel) streamDropProviderName() string {
 }
 
 func streamDropRetryClassification(err error) llm.ProviderErrorClassification {
-	classification := llm.ClassifyProviderError(err)
-	if classification.Class == llm.ClassRetryable {
-		return classification
-	}
-	return llm.ProviderErrorClassification{
-		Kind:      llm.ProviderErrorRetryable,
-		Class:     llm.ClassRetryable,
-		Retryable: true,
-	}
+	return kernelstreamdiag.RetryClassification(err)
 }
 
 func streamDropErrorType(err error) string {
-	if err == nil {
-		return "unknown"
-	}
-	var httpErr *llm.HTTPError
-	if errors.As(err, &httpErr) {
-		return "HTTPError"
-	}
-	return streamDropConcreteErrorType(err)
+	return kernelstreamdiag.ErrorType(err)
 }
 
 func streamDropConcreteErrorType(err error) string {
-	if err == nil {
-		return "unknown"
-	}
-	name := strings.TrimPrefix(fmt.Sprintf("%T", err), "*")
-	if idx := strings.LastIndex(name, "."); idx >= 0 {
-		name = name[idx+1:]
-	}
-	if name == "" {
-		return "unknown"
-	}
-	return name
+	return kernelstreamdiag.ConcreteErrorType(err)
 }
 
 func streamDropErrorChain(err error) string {
-	if err == nil {
-		return "unknown"
-	}
-	parts := make([]string, 0, 4)
-	for current := err; current != nil && len(parts) < 4; current = errors.Unwrap(current) {
-		parts = append(parts, fmt.Sprintf("%s(%s)", streamDropConcreteErrorType(current), compactStreamDropText(current.Error(), 200)))
-	}
-	if len(parts) == 0 {
-		return "unknown"
-	}
-	return strings.Join(parts, " <- ")
+	return kernelstreamdiag.ErrorChain(err)
 }
 
 func formatStreamDiagnosticHeaders(headers map[string]string) string {
-	if len(headers) == 0 {
-		return ""
-	}
-	pairs := make([]string, 0, len(headers))
-	for rawName, rawValue := range headers {
-		name := strings.ToLower(strings.TrimSpace(rawName))
-		value := compactStreamDropText(rawValue, 120)
-		if name == "" || value == "" {
-			continue
-		}
-		pairs = append(pairs, name+"="+value)
-	}
-	sort.Strings(pairs)
-	return strings.Join(pairs, " ")
+	return kernelstreamdiag.FormatHeaders(headers)
 }
 
 func compactStreamDropText(text string, maxLen int) string {
-	text = strings.Join(strings.Fields(strings.TrimSpace(text)), " ")
-	if maxLen > 3 && len(text) > maxLen {
-		return text[:maxLen-3] + "..."
-	}
-	return text
+	return kernelstreamdiag.CompactText(text, maxLen)
 }
 
 func streamDropErrorText(err error) string {
-	if err == nil {
-		return "unknown stream drop"
-	}
-	text := strings.TrimSpace(err.Error())
-	if text == "" {
-		return streamDropErrorType(err)
-	}
-	return text
+	return kernelstreamdiag.ErrorText(err)
 }
 
 // streamInner runs one stream attempt. Pumps events from llm.Stream.Recv
@@ -1584,17 +1493,11 @@ func (k *Kernel) displayReasoningEffort(status llm.ProviderStatus) llm.Reasoning
 }
 
 func selectTurnModel(residentModel, override string) string {
-	if model := strings.TrimSpace(override); model != "" {
-		return model
-	}
-	return residentModel
+	return kernelmodelrouting.SelectTurnModel(residentModel, override)
 }
 
 func selectTurnReasoningEffort(residentEffort, override string, status llm.ProviderStatus) llm.ReasoningEffortEvidence {
-	if effort := strings.TrimSpace(override); effort != "" {
-		return llm.ResolveReasoningEffort(effort, llm.ReasoningEffortSourceTurnOverride, status)
-	}
-	return llm.ResolveReasoningEffort(residentEffort, llm.ReasoningEffortSourceConfigDefault, status)
+	return kernelmodelrouting.SelectTurnReasoningEffort(residentEffort, override, status)
 }
 
 // cronFlag returns 1 when the turn carries a cron_job_id (Phase 2.D),

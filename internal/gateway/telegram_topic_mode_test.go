@@ -27,11 +27,7 @@ func TestTelegramTopicHelpDoesNotTouchStore(t *testing.T) {
 	if len(sent) != 1 {
 		t.Fatalf("sent count = %d, want 1: %#v", len(sent), sent)
 	}
-	for _, want := range []string{"/topic help", "/topic off", "/topic <id>"} {
-		if !strings.Contains(sent[0].Text, want) {
-			t.Fatalf("help text missing %q:\n%s", want, sent[0].Text)
-		}
-	}
+	assertContainsAll(t, sent[0].Text, "/topic help", "/topic off", "/topic <id>")
 	if store.calls != 0 {
 		t.Fatalf("/topic help touched store %d time(s), want 0", store.calls)
 	}

@@ -337,11 +337,7 @@ func TestStatusCommand_RendersQueuedFollowUps(t *testing.T) {
 		t.Fatalf("sent count = %d, want queue ack and status: %#v", len(sent), sent)
 	}
 	got := sent[1].Text
-	for _, want := range []string{"**Agent Running:** Yes ⚡", "**Queued follow-ups:** 1", "**Connected Platforms:** telegram"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("status response missing %q in:\n%s", want, got)
-		}
-	}
+	assertContainsAll(t, got, "**Agent Running:** Yes ⚡", "**Queued follow-ups:** 1", "**Connected Platforms:** telegram")
 	if strings.Index(got, "**Queued follow-ups:** 1") <= strings.Index(got, "**Agent Running:** Yes ⚡") {
 		t.Fatalf("queued follow-up line should follow Agent Running in:\n%s", got)
 	}
@@ -388,18 +384,14 @@ func TestStatusCommandIncludesKanbanDispatcherStatus(t *testing.T) {
 		t.Fatalf("sent count = %d, want 1: %#v", len(sent), sent)
 	}
 	got := sent[0].Text
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"**Kanban Dispatcher:** `degraded`",
-		"**Kanban Last Tick:** `" + now.Format(time.RFC3339Nano) + "`",
+		"**Kanban Last Tick:** `"+now.Format(time.RFC3339Nano)+"`",
 		"**Kanban Spawned:** 2",
 		"**Kanban Spawn Failed:** 1",
 		"**Kanban Auto Blocked:** 3",
-		"**Kanban Last Error:** " + tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, "worker_spawn_failed: missing profile"),
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("status response missing %q in:\n%s", want, got)
-		}
-	}
+		"**Kanban Last Error:** "+tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, "worker_spawn_failed: missing profile"),
+	)
 }
 
 type unreadableRuntimeStatus struct{}

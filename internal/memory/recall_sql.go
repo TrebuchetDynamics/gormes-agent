@@ -192,18 +192,6 @@ func seedsFTS5(ctx context.Context, db *sql.DB, userMessage, chatKey string, lim
 	return scanIDs(rows)
 }
 
-// sanitizeFTS5Pattern strips characters that FTS5 treats as operators
-// ("?", "*", "(", ")", "+", "-", double quotes, etc.) so a user message
-// with normal punctuation ("how does Acme work?") becomes a valid
-// FTS5 MATCH pattern. Without this, any message containing "?" or "*"
-// produces "fts5: syntax error near ..." on every lookup.
-//
-// We preserve alphanumerics + spaces + underscores. Everything else collapses
-// to space, then runs of spaces collapse to one.
-func sanitizeFTS5Pattern(s string) string {
-	return searchutil.SanitizeFTS5Pattern(s)
-}
-
 // scanIDs drains `rows` into a []int64 of ID columns.
 func scanIDs(rows *sql.Rows) ([]int64, error) {
 	var out []int64

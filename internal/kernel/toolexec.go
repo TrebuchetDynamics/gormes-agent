@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel/toolpayload"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel/toolpreview"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
@@ -64,7 +66,7 @@ func (k *Kernel) executeToolCallsInterruptible(runCtx context.Context, calls []l
 
 	resultCh := make(chan indexedToolResult, len(calls))
 	for i, call := range calls {
-		k.addSoul(toolCallSoulText(call))
+		k.addSoul(toolpreview.SoulText(call))
 		k.emitFrame("executing tool: " + call.Name)
 		go func(index int, toolCall llm.ToolCall, sessionID string) {
 			resultCh <- k.executeOneToolCall(execCtx, index, toolCall, sessionID, turnKey)
@@ -132,144 +134,6 @@ func (k *Kernel) executeToolCallsInterruptible(runCtx context.Context, calls []l
 	}
 
 	return toolBatchOutcome{Results: results, Cancelled: cancelled}
-}
-
-func toolCallSoulText(call llm.ToolCall) string {
-	name := strings.TrimSpace(call.Name)
-	if name == "" {
-		name = "unknown"
-	}
-	if preview := toolCallPreview(name, call.Arguments); preview != "" {
-		return "tool: " + name + ": " + preview
-	}
-	return "tool: " + name
-}
-
-func toolCallPreview(name string, raw json.RawMessage) string {
-	var args map[string]any
-	if len(raw) == 0 || json.Unmarshal(raw, &args) != nil {
-		return ""
-	}
-	if len(args) == 0 {
-		return ""
-	}
-	if name == "process" {
-		var parts []string
-		if action := previewScalar(args["action"]); action != "" {
-			parts = append(parts, action)
-		}
-		if sessionID := previewScalar(args["session_id"]); sessionID != "" {
-			parts = append(parts, truncatePreviewToken(sessionID, 16))
-		}
-		if data := previewScalar(args["data"]); data != "" {
-			parts = append(parts, `"`+truncatePreviewToken(data, 20)+`"`)
-		}
-		return strings.Join(parts, " ")
-	}
-	if name == "todo" {
-		if todos, ok := args["todos"].([]any); ok {
-			if merge, _ := args["merge"].(bool); merge {
-				return fmt.Sprintf("updating %d task(s)", len(todos))
-			}
-			return fmt.Sprintf("planning %d task(s)", len(todos))
-		}
-		return "reading task list"
-	}
-	key := primaryToolPreviewArg(name)
-	if key == "" {
-		for _, fallback := range []string{"query", "text", "command", "path", "name", "prompt", "code", "goal", "url"} {
-			if _, ok := args[fallback]; ok {
-				key = fallback
-				break
-			}
-		}
-	}
-	if key == "" {
-		return ""
-	}
-	return previewScalar(args[key])
-}
-
-func primaryToolPreviewArg(name string) string {
-	switch name {
-	case "terminal":
-		return "command"
-	case "execute_code":
-		return "code"
-	case "web_search":
-		return "query"
-	case "web_extract":
-		return "urls"
-	case "web_crawl", "browser_navigate":
-		return "url"
-	case "read_file", "write_file", "patch":
-		return "path"
-	case "search_files":
-		return "pattern"
-	case "browser_click", "browser_type", "browser_scroll", "browser_back", "browser_press", "browser_console", "browser_get_images", "browser_vision", "browser_cdp", "browser_dialog":
-		switch name {
-		case "browser_click":
-			return "ref"
-		case "browser_type":
-			return "text"
-		case "browser_scroll":
-			return "direction"
-		case "browser_press":
-			return "key"
-		case "browser_cdp":
-			return "method"
-		case "browser_dialog":
-			return "action"
-		default:
-			return ""
-		}
-	case "image_generate":
-		return "prompt"
-	case "text_to_speech":
-		return "text"
-	case "vision_analyze":
-		return "question"
-	case "mixture_of_agents":
-		return "user_prompt"
-	case "skill_view", "skill_manage":
-		return "name"
-	case "skills_list":
-		return "category"
-	case "cronjob":
-		return "action"
-	case "delegate_task":
-		return "goal"
-	case "clarify":
-		return "question"
-	default:
-		return ""
-	}
-}
-
-func previewScalar(value any) string {
-	switch v := value.(type) {
-	case nil:
-		return ""
-	case string:
-		return strings.Join(strings.Fields(v), " ")
-	case []any:
-		if len(v) == 0 {
-			return ""
-		}
-		return previewScalar(v[0])
-	case fmt.Stringer:
-		return strings.Join(strings.Fields(v.String()), " ")
-	default:
-		return strings.Join(strings.Fields(fmt.Sprint(v)), " ")
-	}
-}
-
-func truncatePreviewToken(s string, n int) string {
-	runes := []rune(s)
-	if n <= 0 || len(runes) <= n {
-		return s
-	}
-	return string(runes[:n])
 }
 
 func (k *Kernel) executeOneToolCall(ctx context.Context, index int, call llm.ToolCall, sessionID, turnKey string) indexedToolResult {
@@ -510,7 +374,7 @@ func cancelledToolResult(call llm.ToolCall) toolResult {
 
 func newToolResult(call llm.ToolCall, payload json.RawMessage) toolResult {
 	result := toolResult{ID: call.ID, Name: call.Name, Content: string(payload)}
-	if summary, parts, ok := multimodalToolResult(payload); ok {
+	if summary, parts, ok := toolpayload.MultimodalResult(payload); ok {
 		result.Content = summary
 		result.ContentParts = parts
 	}
@@ -531,100 +395,9 @@ func (k *Kernel) appendSubdirectoryHint(call llm.ToolCall, result toolResult) to
 	}
 	result.Content += hint
 	if len(result.ContentParts) > 0 {
-		result.ContentParts = appendSubdirectoryHintToContentParts(result.ContentParts, hint)
+		result.ContentParts = toolpayload.AppendSubdirectoryHintToContentParts(result.ContentParts, hint)
 	}
 	return result
-}
-
-func appendSubdirectoryHintToContentParts(parts []llm.MessageContentPart, hint string) []llm.MessageContentPart {
-	out := cloneMessageContentParts(parts)
-	for i := range out {
-		if strings.EqualFold(out[i].Type, "text") {
-			out[i].Text += hint
-			return out
-		}
-	}
-	return append([]llm.MessageContentPart{{Type: "text", Text: hint}}, out...)
-}
-
-func multimodalToolResult(payload json.RawMessage) (string, []llm.MessageContentPart, bool) {
-	var envelope struct {
-		Multimodal  bool              `json:"_multimodal"`
-		TextSummary string            `json:"text_summary"`
-		Content     []json.RawMessage `json:"content"`
-	}
-	if err := json.Unmarshal(payload, &envelope); err != nil || !envelope.Multimodal || len(envelope.Content) == 0 {
-		return "", nil, false
-	}
-	parts := make([]llm.MessageContentPart, 0, len(envelope.Content))
-	for _, raw := range envelope.Content {
-		part, ok := multimodalContentPart(raw)
-		if ok {
-			parts = append(parts, part)
-		}
-	}
-	if len(parts) == 0 {
-		return "", nil, false
-	}
-	summary := strings.TrimSpace(envelope.TextSummary)
-	if summary == "" {
-		for _, part := range parts {
-			if part.Type == "text" && strings.TrimSpace(part.Text) != "" {
-				summary = strings.TrimSpace(part.Text)
-				break
-			}
-		}
-	}
-	if summary == "" {
-		summary = "Multimodal tool result attached."
-	}
-	return summary, parts, true
-}
-
-func multimodalContentPart(raw json.RawMessage) (llm.MessageContentPart, bool) {
-	var node map[string]any
-	if err := json.Unmarshal(raw, &node); err != nil {
-		return llm.MessageContentPart{}, false
-	}
-	partType := strings.ToLower(strings.TrimSpace(asString(node["type"])))
-	switch partType {
-	case "text", "input_text", "output_text":
-		text := asString(node["text"])
-		if strings.TrimSpace(text) == "" {
-			return llm.MessageContentPart{}, false
-		}
-		return llm.MessageContentPart{Type: "text", Text: text}, true
-	case "image_url", "input_image", "image":
-		url, detail := imageURLPart(node)
-		if strings.TrimSpace(url) == "" {
-			return llm.MessageContentPart{}, false
-		}
-		return llm.MessageContentPart{Type: "image_url", ImageURL: url, Detail: detail}, true
-	default:
-		return llm.MessageContentPart{}, false
-	}
-}
-
-func imageURLPart(node map[string]any) (string, string) {
-	detail := strings.TrimSpace(asString(node["detail"]))
-	switch image := node["image_url"].(type) {
-	case string:
-		return image, detail
-	case map[string]any:
-		if detail == "" {
-			detail = strings.TrimSpace(asString(image["detail"]))
-		}
-		return asString(image["url"]), detail
-	default:
-		return asString(node["url"]), detail
-	}
-}
-
-func asString(value any) string {
-	if s, ok := value.(string); ok {
-		return s
-	}
-	return ""
 }
 
 func (k *Kernel) recordToolAudit(rec *audit.Record) {
