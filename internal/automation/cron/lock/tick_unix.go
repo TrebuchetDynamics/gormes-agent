@@ -1,6 +1,6 @@
 //go:build !windows
 
-package cron
+package lock
 
 import (
 	"errors"
@@ -13,22 +13,22 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-type cronTickLock struct {
+type TickLock struct {
 	file *os.File
 }
 
-func defaultCronTickLockPath() string {
+func DefaultPath() string {
 	return filepath.Join(configpaths.GormesHome(), "cron", ".tick.lock")
 }
 
-func acquireCronTickLock(path string) (*cronTickLock, bool, error) {
+func Acquire(path string) (*TickLock, bool, error) {
 	rawPath := strings.TrimSpace(path)
 	if rawPath == "" {
-		return &cronTickLock{}, true, nil
+		return &TickLock{}, true, nil
 	}
 	path = filepath.Clean(rawPath)
 	if path == "." {
-		return &cronTickLock{}, true, nil
+		return &TickLock{}, true, nil
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, false, err
@@ -54,10 +54,10 @@ func acquireCronTickLock(path string) (*cronTickLock, bool, error) {
 		_ = file.Close()
 		return nil, false, err
 	}
-	return &cronTickLock{file: file}, true, nil
+	return &TickLock{file: file}, true, nil
 }
 
-func (l *cronTickLock) Release() {
+func (l *TickLock) Release() {
 	if l == nil || l.file == nil {
 		return
 	}
