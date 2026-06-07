@@ -248,6 +248,38 @@ func TestSessionSearchToolExecution_RecentModeDoesNotDropOlderCandidatesBehindCu
 	}
 }
 
+func TestSessionSearchToolExecution_RecentPlanExcludesCurrentLineageBeforeSearch(t *testing.T) {
+	metas := []session.Metadata{
+		{SessionID: "sess-root", Source: "telegram", ChatID: "42", UserID: "user-juan", UpdatedAt: 30},
+		{
+			SessionID:       "sess-child",
+			Source:          "telegram",
+			ChatID:          "42",
+			UserID:          "user-juan",
+			ParentSessionID: "sess-root",
+			LineageKind:     session.LineageKindCompression,
+			UpdatedAt:       40,
+		},
+		{SessionID: "sess-other", Source: "telegram", ChatID: "42", UserID: "user-juan", UpdatedAt: 20},
+	}
+	filter := memory.SearchFilter{SessionIDs: []string{"sess-root", "sess-child", "sess-other"}}
+
+	plan := newRecentSessionSearchPlan(metas, "sess-child", filter, 2)
+
+	if got := sessionSearchMetadataIDs(plan.CandidateMetadata); !slices.Equal(got, []string{"sess-other"}) {
+		t.Fatalf("candidate metadata IDs = %v, want current lineage removed before search", got)
+	}
+	if !slices.Equal(plan.Filter.SessionIDs, []string{"sess-other"}) {
+		t.Fatalf("filter session IDs = %v, want constrained to candidate metadata", plan.Filter.SessionIDs)
+	}
+	if plan.Evidence == nil || plan.Evidence.Status != "lineage_root_excluded" {
+		t.Fatalf("evidence = %+v, want lineage_root_excluded", plan.Evidence)
+	}
+	if plan.SearchLimit != 2+sessionSearchMaxLimit+2 {
+		t.Fatalf("search limit = %d, want limit plus overscan and excluded metadata count", plan.SearchLimit)
+	}
+}
+
 func TestSessionSearchToolExecution_DegradedEvidence(t *testing.T) {
 	t.Run("missing session directory", func(t *testing.T) {
 		store, _ := newSessionSearchFixture(t)
@@ -376,6 +408,14 @@ func sessionSearchResultRoles(results []sessionSearchHit) []string {
 	out := make([]string, 0, len(results))
 	for _, result := range results {
 		out = append(out, result.Role)
+	}
+	return out
+}
+
+func sessionSearchMetadataIDs(metas []session.Metadata) []string {
+	out := make([]string, 0, len(metas))
+	for _, meta := range metas {
+		out = append(out, meta.SessionID)
 	}
 	return out
 }

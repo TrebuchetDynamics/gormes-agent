@@ -215,9 +215,8 @@ func (t *SessionSearchTool) Execute(ctx context.Context, args json.RawMessage) (
 
 func (t *SessionSearchTool) executeSessionSearch(ctx context.Context, args SessionSearchArgs, mode string, metas []session.Metadata, filter memory.SearchFilter, scopeEvidence *memory.CrossChatRecallEvidence, limit int) (json.RawMessage, error) {
 	if mode == "recent" {
-		recentMetas, lineageEvidence := recentSessionSearchCandidateMetadata(metas, args.CurrentSessionID)
-		searchLimit := limit + sessionSearchMaxLimit + len(metas) - len(recentMetas)
-		sessions, err := memory.SearchSessions(ctx, t.db, metas, filter, searchLimit)
+		plan := newRecentSessionSearchPlan(metas, args.CurrentSessionID, filter, limit)
+		sessions, err := memory.SearchSessions(ctx, t.db, metas, plan.Filter, plan.SearchLimit)
 		if err != nil {
 			return nil, err
 		}
@@ -226,12 +225,12 @@ func (t *SessionSearchTool) executeSessionSearch(ctx context.Context, args Sessi
 			results = append(results, sessionSearchHitFromSession(hit))
 		}
 		var evidence []SessionSearchEvidence
-		if lineageEvidence != nil {
-			evidence = append(evidence, *lineageEvidence)
+		if plan.Evidence != nil {
+			evidence = append(evidence, *plan.Evidence)
 		}
 		var safetyEvidence *SessionSearchEvidence
 		results, safetyEvidence = excludeCurrentLineageFromRecent(results, metas, args.CurrentSessionID)
-		if safetyEvidence != nil && lineageEvidence == nil {
+		if safetyEvidence != nil && plan.Evidence == nil {
 			evidence = append(evidence, *safetyEvidence)
 		}
 		if len(results) > limit {
@@ -285,6 +284,55 @@ func sourceFilterDeniedEvidence(reason string) SessionSearchEvidence {
 		Status: "source_filter_denied",
 		Reason: reason,
 	}
+}
+
+type recentSessionSearchPlan struct {
+	CandidateMetadata []session.Metadata
+	Filter            memory.SearchFilter
+	SearchLimit       int
+	Evidence          *SessionSearchEvidence
+}
+
+func newRecentSessionSearchPlan(metas []session.Metadata, currentSessionID string, filter memory.SearchFilter, limit int) recentSessionSearchPlan {
+	candidateMetas, evidence := recentSessionSearchCandidateMetadata(metas, currentSessionID)
+	return recentSessionSearchPlan{
+		CandidateMetadata: candidateMetas,
+		Filter:            sessionSearchFilterForMetadata(filter, candidateMetas),
+		SearchLimit:       recentSessionSearchLimit(limit, len(metas)-len(candidateMetas)),
+		Evidence:          evidence,
+	}
+}
+
+func recentSessionSearchLimit(limit int, excludedMetadata int) int {
+	if excludedMetadata < 0 {
+		excludedMetadata = 0
+	}
+	return limit + sessionSearchMaxLimit + excludedMetadata
+}
+
+func sessionSearchFilterForMetadata(filter memory.SearchFilter, metas []session.Metadata) memory.SearchFilter {
+	if len(filter.SessionIDs) == 0 {
+		return filter
+	}
+	allowed := make(map[string]struct{}, len(metas))
+	for _, meta := range metas {
+		sessionID := strings.TrimSpace(meta.SessionID)
+		if sessionID != "" {
+			allowed[sessionID] = struct{}{}
+		}
+	}
+	filtered := make([]string, 0, len(filter.SessionIDs))
+	for _, sessionID := range filter.SessionIDs {
+		sessionID = strings.TrimSpace(sessionID)
+		if sessionID == "" || slices.Contains(filtered, sessionID) {
+			continue
+		}
+		if _, ok := allowed[sessionID]; ok {
+			filtered = append(filtered, sessionID)
+		}
+	}
+	filter.SessionIDs = filtered
+	return filter
 }
 
 func recentSessionSearchCandidateMetadata(metas []session.Metadata, currentSessionID string) ([]session.Metadata, *SessionSearchEvidence) {
