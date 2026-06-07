@@ -78,3 +78,24 @@ func TestEnvPassthroughRegistryRejectsAssignments(t *testing.T) {
 		t.Fatalf("All = %#v, want %#v", gotAll, wantAll)
 	}
 }
+
+func TestEnvPassthroughRegistryBlocksProviderCredentialsCaseInsensitively(t *testing.T) {
+	registry := NewEnvPassthroughRegistry([]string{" openai_api_key ", "SAFE_KEY"})
+
+	blocked := registry.Register([]string{"anthropic_token", "TENOR_API_KEY"})
+	wantBlocked := []string{"anthropic_token"}
+	if !reflect.DeepEqual(blocked, wantBlocked) {
+		t.Fatalf("blocked = %#v, want %#v", blocked, wantBlocked)
+	}
+
+	for _, name := range []string{"openai_api_key", "OPENAI_API_KEY", "anthropic_token", "ANTHROPIC_TOKEN"} {
+		if registry.IsAllowed(name) {
+			t.Fatalf("provider credential %q should not be allowed", name)
+		}
+	}
+	gotAll := registry.All()
+	wantAll := []string{"SAFE_KEY", "TENOR_API_KEY"}
+	if !reflect.DeepEqual(gotAll, wantAll) {
+		t.Fatalf("All = %#v, want %#v", gotAll, wantAll)
+	}
+}

@@ -130,8 +130,7 @@ func (r *EnvPassthroughRegistry) isProviderCredential(name string) bool {
 	if r == nil {
 		return false
 	}
-	_, ok := r.blocklist[name]
-	return ok
+	return isProviderCredentialName(name, r.blocklist)
 }
 
 type envPassthroughCandidate struct {
@@ -142,17 +141,28 @@ type envPassthroughCandidate struct {
 
 func classifyEnvPassthroughCandidate(raw string, blocklist map[string]struct{}) envPassthroughCandidate {
 	name := normalizeEnvPassthroughName(raw)
-	if name == "" || strings.ContainsRune(name, '=') || strings.ContainsRune(name, '\x00') {
+	if !isValidEnvPassthroughName(name) {
 		return envPassthroughCandidate{}
 	}
-	_, providerCredential := blocklist[name]
 	return envPassthroughCandidate{
 		Name:               name,
 		Valid:              true,
-		ProviderCredential: providerCredential,
+		ProviderCredential: isProviderCredentialName(name, blocklist),
 	}
 }
 
 func normalizeEnvPassthroughName(name string) string {
 	return strings.TrimSpace(name)
+}
+
+func isValidEnvPassthroughName(name string) bool {
+	return name != "" && !strings.ContainsRune(name, '=') && !strings.ContainsRune(name, '\x00')
+}
+
+func isProviderCredentialName(name string, blocklist map[string]struct{}) bool {
+	if blocklist == nil {
+		return false
+	}
+	_, ok := blocklist[strings.ToUpper(name)]
+	return ok
 }
