@@ -85,3 +85,4 @@
 {"ts":"2026-06-06T21:26:20-06:00","candidate":"adapters/channels/discord","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
 {"ts":"2026-06-06T21:29:06-06:00","candidate":"planning/progress/repoctl","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:29:06-06:00"}
 {"ts":"2026-06-06T21:32:03-06:00","candidate":"planning/progress/repoctl/inventory","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:32:03-06:00"}
+{"ts":"2026-06-06T21:35:54-06:00","candidate":"kernel","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T23:35:54-06:00"}
