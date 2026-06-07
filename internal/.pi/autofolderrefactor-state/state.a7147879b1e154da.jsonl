@@ -69,3 +69,4 @@
 {"ts":"2026-06-06T21:06:42-06:00","candidate":"tui/composer","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:06:42-06:00"}
 {"ts":"2026-06-06T21:09:49-06:00","candidate":"tui/statusbar","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:09:49-06:00"}
 {"ts":"2026-06-06T21:12:04-06:00","candidate":"tui/skin","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:12:04-06:00"}
+{"ts":"2026-06-06T21:14:51-06:00","candidate":"tui/slashcompletion","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:14:51-06:00"}
