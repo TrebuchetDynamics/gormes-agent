@@ -97,3 +97,4 @@
 {"ts":"2026-06-06T21:46:14-06:00","candidate":"adapters/apiserver/ui","reason":"no metric progress rollback","scope":"candidate","state":"cooldown","until":"2026-06-06T22:46:14-06:00"}
 {"ts":"2026-06-06T21:47:12-06:00","candidate":"adapters/apiserver/assets","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:47:12-06:00"}
 {"ts":"2026-06-06T21:47:14-06:00","candidate":"adapters/apiserver","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T21:50:38-06:00","candidate":"platform/cli/gormescli/modules/gateway","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T23:50:39-06:00"}
