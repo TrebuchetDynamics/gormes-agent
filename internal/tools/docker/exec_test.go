@@ -216,6 +216,27 @@ func TestDockerExec_MountPolicyAllowlist(t *testing.T) {
 			t.Fatalf("expected 2 sibling mounts to remain allowed, got %d: %#v", len(runner.lastMounts), runner.lastMounts)
 		}
 	})
+
+	t.Run("rejects empty and relative host paths", func(t *testing.T) {
+		runner := &fakeDockerRunner{
+			result: DockerExecResult{Stdout: "ok", ExitCode: 0},
+		}
+		backend := NewDockerExecBackend(runner, DockerExecConfig{
+			WorkspacePath:      ".",
+			ContainerWorkspace: "/workspace",
+		}, []string{"", ".", "project", "../project", " /tmp/data "})
+
+		_, err := backend.Execute(context.Background(), "ls", nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(runner.lastMounts) != 1 {
+			t.Fatalf("expected only absolute host path to mount, got %d: %#v", len(runner.lastMounts), runner.lastMounts)
+		}
+		if got := runner.lastMounts[0]; got.HostPath != "/tmp/data" || got.ContainerPath != "/tmp/data" || !got.ReadOnly {
+			t.Fatalf("mount = %#v, want read-only /tmp/data", got)
+		}
+	})
 }
 
 func TestDockerExec_EnvPassthrough(t *testing.T) {

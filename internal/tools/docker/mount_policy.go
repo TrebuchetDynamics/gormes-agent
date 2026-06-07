@@ -36,13 +36,24 @@ func DefaultMountPolicy(hostPaths []string) MountPolicy {
 
 // IsBlocked reports whether a host path matches any blocked prefix.
 func (p MountPolicy) IsBlocked(hostPath string) bool {
-	clean := filepath.Clean(hostPath)
+	clean, ok := normalizeMountHostPath(hostPath)
+	if !ok {
+		return false
+	}
 	for _, prefix := range p.BlockedPrefixes {
 		if blockedPrefixMatches(clean, prefix) {
 			return true
 		}
 	}
 	return false
+}
+
+func normalizeMountHostPath(hostPath string) (string, bool) {
+	clean := filepath.Clean(strings.TrimSpace(hostPath))
+	if clean == "." || !filepath.IsAbs(clean) {
+		return "", false
+	}
+	return clean, true
 }
 
 func blockedPrefixMatches(cleanHostPath, rawPrefix string) bool {
@@ -55,12 +66,13 @@ func blockedPrefixMatches(cleanHostPath, rawPrefix string) bool {
 
 // IsAllowed reports whether a host path is both in the allowlist and not blocked.
 func (p MountPolicy) IsAllowed(hostPath string) bool {
-	if p.IsBlocked(hostPath) {
+	clean, ok := normalizeMountHostPath(hostPath)
+	if !ok || p.IsBlocked(clean) {
 		return false
 	}
-	clean := filepath.Clean(hostPath)
 	for _, allowed := range p.AllowedHostPaths {
-		if clean == filepath.Clean(allowed) {
+		allowedClean, ok := normalizeMountHostPath(allowed)
+		if ok && clean == allowedClean {
 			return true
 		}
 	}
@@ -73,7 +85,8 @@ func (p MountPolicy) IsAllowed(hostPath string) bool {
 func (p MountPolicy) AllowedMounts(workspacePath, containerWorkspace string) []MountEntry {
 	var mounts []MountEntry
 	seen := map[string]struct{}{}
-	workspace := mountWorkspace{hostPath: filepath.Clean(workspacePath), containerPath: containerWorkspacePath(containerWorkspace)}
+	workspaceHost, _ := normalizeMountHostPath(workspacePath)
+	workspace := mountWorkspace{hostPath: workspaceHost, containerPath: containerWorkspacePath(containerWorkspace)}
 	for _, hostPath := range p.AllowedHostPaths {
 		candidate := p.classifyMountCandidate(hostPath, workspace)
 		if !candidate.allowed {
@@ -100,7 +113,10 @@ type mountCandidate struct {
 }
 
 func (p MountPolicy) classifyMountCandidate(hostPath string, workspace mountWorkspace) mountCandidate {
-	cleanHost := filepath.Clean(hostPath)
+	cleanHost, ok := normalizeMountHostPath(hostPath)
+	if !ok {
+		return mountCandidate{}
+	}
 	if p.IsBlocked(cleanHost) {
 		return mountCandidate{blocked: true}
 	}
