@@ -50,6 +50,30 @@ func TestQueueRegisterSupersedesAndClearScoped(t *testing.T) {
 	}
 }
 
+func TestQueueClonesRequestEvidence(t *testing.T) {
+	q := NewQueue()
+	evidence := map[string]string{"source": "original"}
+	ticket, err := q.RegisterSlashConfirmation("session-a", Request{Command: "reload-mcp", Evidence: evidence})
+	if err != nil {
+		t.Fatalf("RegisterSlashConfirmation: %v", err)
+	}
+	evidence["source"] = "mutated"
+
+	pending, ok := q.PendingSlashConfirmation("session-a")
+	if !ok {
+		t.Fatal("session-a pending confirmation missing")
+	}
+	pending.Request.Evidence["source"] = "caller-mutated"
+
+	outcome, err := q.ResolveSlashConfirmation(context.Background(), Resolution{SessionKey: "session-a", ID: ticket.ID, Choice: ChoiceOnce})
+	if err != nil {
+		t.Fatalf("ResolveSlashConfirmation: %v", err)
+	}
+	if got := outcome.Request.Evidence["source"]; got != "original" {
+		t.Fatalf("outcome evidence source = %q, want original", got)
+	}
+}
+
 func TestQueueResolveOnce(t *testing.T) {
 	q := NewQueue()
 	ticket, err := q.RegisterSlashConfirmation("session-a", Request{Command: "reload-mcp"})

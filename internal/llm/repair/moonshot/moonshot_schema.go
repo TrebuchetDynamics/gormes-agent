@@ -63,35 +63,19 @@ func SanitizeToolSchemaForModel(model string, raw json.RawMessage) json.RawMessa
 // SanitizeToolDescriptorsForModel returns a deep copy of descriptors using the
 // provider-specific tool schema sanitizer selected by model.
 func SanitizeToolDescriptorsForModel(model string, descriptors []ToolDescriptor) []ToolDescriptor {
-	if len(descriptors) == 0 {
-		return nil
-	}
-	out := make([]ToolDescriptor, 0, len(descriptors))
-	for _, d := range descriptors {
-		out = append(out, ToolDescriptor{
-			Name:        d.Name,
-			Description: d.Description,
-			Schema:      SanitizeToolSchemaForModel(model, d.Schema),
-		})
-	}
-	return out
+	return toolcalls.SanitizeToolDescriptorsWith(descriptors, func(raw json.RawMessage) json.RawMessage {
+		return SanitizeToolSchemaForModel(model, raw)
+	})
 }
 
 // SanitizeMoonshotToolDescriptors returns provider-safe descriptors for
 // Moonshot/Kimi's stricter flavored JSON Schema validator.
 func SanitizeMoonshotToolDescriptors(descriptors []ToolDescriptor) []ToolDescriptor {
-	if len(descriptors) == 0 {
-		return nil
-	}
-	out := make([]ToolDescriptor, 0, len(descriptors))
-	for _, d := range descriptors {
-		out = append(out, ToolDescriptor{
-			Name:        d.Name,
-			Description: d.Description,
-			Schema:      SanitizeMoonshotToolParameters(d.Schema),
-		})
-	}
-	return out
+	return toolcalls.SanitizeToolDescriptorsWith(descriptors, SanitizeMoonshotToolParameters)
+}
+
+func emptyObjectToolSchema() json.RawMessage {
+	return json.RawMessage(`{"type":"object","properties":{}}`)
 }
 
 // SanitizeMoonshotToolParameters normalizes tool parameters to the subset of
@@ -99,16 +83,16 @@ func SanitizeMoonshotToolDescriptors(descriptors []ToolDescriptor) []ToolDescrip
 func SanitizeMoonshotToolParameters(raw json.RawMessage) json.RawMessage {
 	var node any
 	if len(bytes.TrimSpace(raw)) == 0 {
-		return json.RawMessage(`{"type":"object","properties":{}}`)
+		return emptyObjectToolSchema()
 	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.UseNumber()
 	if err := dec.Decode(&node); err != nil {
-		return json.RawMessage(`{"type":"object","properties":{}}`)
+		return emptyObjectToolSchema()
 	}
 	top, ok := repairMoonshotSchema(node, true).(map[string]any)
 	if !ok {
-		return json.RawMessage(`{"type":"object","properties":{}}`)
+		return emptyObjectToolSchema()
 	}
 	if typ, _ := top["type"].(string); typ != "object" {
 		top["type"] = "object"
@@ -118,7 +102,7 @@ func SanitizeMoonshotToolParameters(raw json.RawMessage) json.RawMessage {
 	}
 	out, err := json.Marshal(top)
 	if err != nil {
-		return json.RawMessage(`{"type":"object","properties":{}}`)
+		return emptyObjectToolSchema()
 	}
 	return out
 }

@@ -3,12 +3,12 @@ package plannedstop
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/jsonfile"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/markerfile"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/runtimeproc"
 )
 
@@ -135,23 +135,17 @@ func (s *Store) ConsumeForSelf(ctx context.Context) (ConsumeResult, error) {
 }
 
 func (s *Store) Clear(ctx context.Context) error {
-	if s == nil || s.path == "" {
+	if s == nil {
 		return nil
 	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if err := os.Remove(s.path); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("remove planned stop marker: %w", err)
-	}
-	return nil
+	return markerfile.Clear(ctx, s.path, "planned stop marker")
 }
 
 func (s *Store) currentTime() time.Time {
-	if s != nil && s.now != nil {
-		return s.now().UTC()
+	if s == nil {
+		return markerfile.CurrentTime(nil)
 	}
-	return time.Now().UTC()
+	return markerfile.CurrentTime(s.now)
 }
 
 func (s *Store) currentPID() int {
@@ -162,10 +156,10 @@ func (s *Store) currentPID() int {
 }
 
 func (s *Store) markerTTL() time.Duration {
-	if s != nil && s.ttl > 0 {
-		return s.ttl
+	if s == nil {
+		return MarkerTTL
 	}
-	return MarkerTTL
+	return markerfile.PositiveDuration(s.ttl, MarkerTTL)
 }
 
 func (s *Store) markerStale(marker Marker) bool {

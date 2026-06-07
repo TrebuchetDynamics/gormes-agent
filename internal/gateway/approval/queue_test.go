@@ -31,6 +31,33 @@ func TestApprovalQueueSubmitAndHasBlocking(t *testing.T) {
 	}
 }
 
+func TestApprovalQueueClonesRequestEvidence(t *testing.T) {
+	q := NewGatewayApprovalQueue()
+	evidence := map[string]string{"detector": "original"}
+	ticket, err := q.SubmitGatewayApproval("session-a", GatewayApprovalRequest{Command: "danger", Evidence: evidence})
+	if err != nil {
+		t.Fatalf("SubmitGatewayApproval: %v", err)
+	}
+	evidence["detector"] = "mutated"
+
+	if err := q.ResolveGatewayApproval(context.Background(), Resolution{SessionKey: "session-a", Choice: ChoiceOnce}); err != nil {
+		t.Fatalf("ResolveGatewayApproval: %v", err)
+	}
+	outcome, ok := q.GatewayApprovalOutcome(ticket)
+	if !ok {
+		t.Fatal("approval outcome missing")
+	}
+	outcome.Request.Evidence["detector"] = "caller-mutated"
+
+	stored, ok := q.GatewayApprovalOutcome(ticket)
+	if !ok {
+		t.Fatal("approval outcome missing on second read")
+	}
+	if got := stored.Request.Evidence["detector"]; got != "original" {
+		t.Fatalf("stored evidence detector = %q, want original", got)
+	}
+}
+
 func TestApprovalQueueResolveOldestFIFO(t *testing.T) {
 	q := NewGatewayApprovalQueue()
 	first, err := q.SubmitGatewayApproval("session-a", GatewayApprovalRequest{Command: "first"})

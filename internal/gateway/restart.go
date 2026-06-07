@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/jsonfile"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/markerfile"
 )
 
 const (
@@ -179,30 +180,24 @@ func (s *RestartTakeoverStore) MarkNotificationSent(ctx context.Context, marker 
 }
 
 func (s *RestartTakeoverStore) Clear(ctx context.Context) error {
-	if s == nil || s.path == "" {
+	if s == nil {
 		return nil
 	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if err := os.Remove(s.path); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("remove restart takeover marker: %w", err)
-	}
-	return nil
+	return markerfile.Clear(ctx, s.path, "restart takeover marker")
 }
 
 func (s *RestartTakeoverStore) currentTime() time.Time {
-	if s != nil && s.now != nil {
-		return s.now().UTC()
+	if s == nil {
+		return markerfile.CurrentTime(nil)
 	}
-	return time.Now().UTC()
+	return markerfile.CurrentTime(s.now)
 }
 
 func (s *RestartTakeoverStore) markerTTL() time.Duration {
-	if s != nil && s.ttl > 0 {
-		return s.ttl
+	if s == nil {
+		return RestartTakeoverMarkerTTL
 	}
-	return RestartTakeoverMarkerTTL
+	return markerfile.PositiveDuration(s.ttl, RestartTakeoverMarkerTTL)
 }
 
 func (s *RestartTakeoverStore) expired(marker RestartTakeoverMarker) bool {

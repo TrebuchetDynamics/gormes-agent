@@ -73,14 +73,9 @@ func (d *LoopDetector) checkHardLoop() LoopDetectionResult {
 		return LoopDetectionResult{Detected: false}
 	}
 	last := d.history[len(d.history)-1]
-	count := 1
-	for i := len(d.history) - 2; i >= 0; i-- {
-		if turnsEqual(d.history[i], last) {
-			count++
-		} else {
-			break
-		}
-	}
+	count := countTrailingTurns(d.history, func(turn TurnRecord) bool {
+		return turnsEqual(turn, last)
+	})
 	if count >= d.HardLoopThreshold {
 		return LoopDetectionResult{
 			Detected: true,
@@ -95,14 +90,9 @@ func (d *LoopDetector) checkFailingLoop() LoopDetectionResult {
 	if len(d.history) < d.FailingLoopThreshold {
 		return LoopDetectionResult{Detected: false}
 	}
-	count := 0
-	for i := len(d.history) - 1; i >= 0; i-- {
-		if d.history[i].HadError {
-			count++
-		} else {
-			break
-		}
-	}
+	count := countTrailingTurns(d.history, func(turn TurnRecord) bool {
+		return turn.HadError
+	})
 	if count >= d.FailingLoopThreshold {
 		return LoopDetectionResult{
 			Detected: true,
@@ -140,14 +130,9 @@ func (d *LoopDetector) checkNoAction() LoopDetectionResult {
 	if len(d.history) < d.NoActionThreshold {
 		return LoopDetectionResult{Detected: false}
 	}
-	count := 0
-	for i := len(d.history) - 1; i >= 0; i-- {
-		if len(d.history[i].ToolCalls) == 0 {
-			count++
-		} else {
-			break
-		}
-	}
+	count := countTrailingTurns(d.history, func(turn TurnRecord) bool {
+		return len(turn.ToolCalls) == 0
+	})
 	if count >= d.NoActionThreshold {
 		return LoopDetectionResult{
 			Detected: true,
@@ -166,14 +151,9 @@ func (d *LoopDetector) checkSameTool() LoopDetectionResult {
 	if len(lastTools) == 0 {
 		return LoopDetectionResult{Detected: false}
 	}
-	count := 1
-	for i := len(d.history) - 2; i >= 0; i-- {
-		if slicesEqual(d.history[i].ToolCalls, lastTools) {
-			count++
-		} else {
-			break
-		}
-	}
+	count := countTrailingTurns(d.history, func(turn TurnRecord) bool {
+		return slicesEqual(turn.ToolCalls, lastTools)
+	})
 	if count >= d.SameToolThreshold {
 		return LoopDetectionResult{
 			Detected: true,
@@ -182,6 +162,18 @@ func (d *LoopDetector) checkSameTool() LoopDetectionResult {
 		}
 	}
 	return LoopDetectionResult{Detected: false}
+}
+
+func countTrailingTurns(history []TurnRecord, match func(TurnRecord) bool) int {
+	count := 0
+	for i := len(history) - 1; i >= 0; i-- {
+		if match(history[i]) {
+			count++
+		} else {
+			break
+		}
+	}
+	return count
 }
 
 func turnsEqual(a, b TurnRecord) bool {

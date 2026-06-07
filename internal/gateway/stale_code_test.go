@@ -2,9 +2,10 @@ package gateway
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/stalecodetest"
 )
 
 const (
@@ -14,7 +15,7 @@ const (
 
 func TestRuntimeStatusStorePersistsBootGitSHAAndAnnotatesStaleCode(t *testing.T) {
 	root := t.TempDir()
-	writeNormalGitHEAD(t, root, "development", staleCodeSHA2)
+	stalecodetest.WriteNormalGitHEAD(t, root, "development", staleCodeSHA2)
 	statusPath := filepath.Join(t.TempDir(), "gateway_state.json")
 	store := NewRuntimeStatusStore(statusPath)
 	store.bootGitSHA = staleCodeSHA1
@@ -45,9 +46,9 @@ func TestRuntimeStatusStorePersistsBootGitSHAAndAnnotatesStaleCode(t *testing.T)
 
 func TestRuntimeStatusStoreUsesPersistedSourceRootForValidatedReads(t *testing.T) {
 	liveRoot := t.TempDir()
-	writeNormalGitHEAD(t, liveRoot, "development", staleCodeSHA1)
+	stalecodetest.WriteNormalGitHEAD(t, liveRoot, "development", staleCodeSHA1)
 	otherRoot := t.TempDir()
-	writeNormalGitHEAD(t, otherRoot, "development", staleCodeSHA2)
+	stalecodetest.WriteNormalGitHEAD(t, otherRoot, "development", staleCodeSHA2)
 	statusPath := filepath.Join(t.TempDir(), "gateway_state.json")
 
 	writer := NewRuntimeStatusStore(statusPath)
@@ -78,21 +79,5 @@ func TestRuntimeStatusStoreUsesPersistedSourceRootForValidatedReads(t *testing.T
 	}
 	if snapshot.Status.StaleCode == nil || snapshot.Status.StaleCode.Status != RuntimeStaleCodeFresh {
 		t.Fatalf("StaleCode = %+v, want fresh from persisted source root", snapshot.Status.StaleCode)
-	}
-}
-
-func writeNormalGitHEAD(t *testing.T, root, branch, sha string) {
-	t.Helper()
-	writeFile(t, filepath.Join(root, ".git", "HEAD"), "ref: refs/heads/"+branch+"\n")
-	writeFile(t, filepath.Join(root, ".git", "refs", "heads", branch), sha+"\n")
-}
-
-func writeFile(t *testing.T, path, body string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("create %s: %v", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
 	}
 }

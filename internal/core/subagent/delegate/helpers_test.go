@@ -7,6 +7,23 @@ import (
 	"time"
 )
 
+func TestHasTasksAndParseTasksRejectEmptyOrNull(t *testing.T) {
+	for _, raw := range []json.RawMessage{nil, json.RawMessage(``), json.RawMessage(`   `), json.RawMessage(`null`)} {
+		if HasTasks(raw) {
+			t.Fatalf("HasTasks(%q) = true, want false", string(raw))
+		}
+		_, err := ParseTasks(raw)
+		if err == nil || !strings.Contains(err.Error(), "Provide either 'goal' (single task) or 'tasks' (batch)") {
+			t.Fatalf("ParseTasks(%q) error = %v, want missing task guidance", string(raw), err)
+		}
+	}
+
+	_, err := ParseTasks(json.RawMessage(` "" `))
+	if err == nil || !strings.Contains(err.Error(), "Provide either 'goal' (single task) or 'tasks' (batch)") {
+		t.Fatalf("ParseTasks(empty string) error = %v, want missing task guidance", err)
+	}
+}
+
 func TestParseTasksAcceptsJSONStringAndArray(t *testing.T) {
 	fromString, err := ParseTasks(json.RawMessage(`"[{\"goal\":\"Research topic A\"},{\"goal\":\"Research topic B\",\"context\":\"channels only\",\"toolsets\":\"echo\"}]"`))
 	if err != nil {

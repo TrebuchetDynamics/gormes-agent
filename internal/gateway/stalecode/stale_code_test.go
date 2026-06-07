@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/stalecodetest"
 )
 
 const (
@@ -15,7 +17,7 @@ const (
 
 func TestStaleCodeBootSHAEqualCurrentHEADReportsFreshAfterSourceMtimeChange(t *testing.T) {
 	root := t.TempDir()
-	writeNormalGitHEAD(t, root, "main", staleCodeSHA1)
+	stalecodetest.WriteNormalGitHEAD(t, root, "main", staleCodeSHA1)
 	sourcePath := filepath.Join(root, "internal", "gateway", "status.go")
 	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
 		t.Fatalf("create source dir: %v", err)
@@ -41,7 +43,7 @@ func TestStaleCodeBootSHAEqualCurrentHEADReportsFreshAfterSourceMtimeChange(t *t
 
 func TestStaleCodeChangedHEADReportsRestartEvidence(t *testing.T) {
 	root := t.TempDir()
-	writeNormalGitHEAD(t, root, "development", staleCodeSHA2)
+	stalecodetest.WriteNormalGitHEAD(t, root, "development", staleCodeSHA2)
 
 	got := NewStaleCodeChecker(root).Check(staleCodeSHA1)
 	if got.Status != RuntimeStaleCodeStale || !got.Stale || !got.RestartSuggested {
@@ -63,10 +65,10 @@ func TestStaleCodeGitFixturesResolveHEADWithoutSubprocesses(t *testing.T) {
 		worktree := filepath.Join(root, "worktree")
 		commonGit := filepath.Join(root, "common.git")
 		worktreeGit := filepath.Join(root, "common.git", "worktrees", "wt")
-		writeFile(t, filepath.Join(worktree, ".git"), "gitdir: "+worktreeGit+"\n")
-		writeFile(t, filepath.Join(worktreeGit, "HEAD"), "ref: refs/heads/development\n")
-		writeFile(t, filepath.Join(worktreeGit, "commondir"), "../..\n")
-		writeFile(t, filepath.Join(commonGit, "refs", "heads", "development"), staleCodeSHA1+"\n")
+		stalecodetest.WriteFile(t, filepath.Join(worktree, ".git"), "gitdir: "+worktreeGit+"\n")
+		stalecodetest.WriteFile(t, filepath.Join(worktreeGit, "HEAD"), "ref: refs/heads/development\n")
+		stalecodetest.WriteFile(t, filepath.Join(worktreeGit, "commondir"), "../..\n")
+		stalecodetest.WriteFile(t, filepath.Join(commonGit, "refs", "heads", "development"), staleCodeSHA1+"\n")
 
 		got := NewStaleCodeChecker(worktree).Check(staleCodeSHA1)
 		if got.Status != RuntimeStaleCodeFresh || got.CurrentGitSHA != staleCodeSHA1 {
@@ -76,8 +78,8 @@ func TestStaleCodeGitFixturesResolveHEADWithoutSubprocesses(t *testing.T) {
 
 	t.Run("packed refs", func(t *testing.T) {
 		root := t.TempDir()
-		writeFile(t, filepath.Join(root, ".git", "HEAD"), "ref: refs/heads/development\n")
-		writeFile(t, filepath.Join(root, ".git", "packed-refs"), "# pack-refs with: peeled fully-peeled sorted\n"+staleCodeSHA1+" refs/heads/development\n")
+		stalecodetest.WriteFile(t, filepath.Join(root, ".git", "HEAD"), "ref: refs/heads/development\n")
+		stalecodetest.WriteFile(t, filepath.Join(root, ".git", "packed-refs"), "# pack-refs with: peeled fully-peeled sorted\n"+staleCodeSHA1+" refs/heads/development\n")
 
 		got := NewStaleCodeChecker(root).Check(staleCodeSHA1)
 		if got.Status != RuntimeStaleCodeFresh || got.CurrentGitSHA != staleCodeSHA1 {
@@ -87,7 +89,7 @@ func TestStaleCodeGitFixturesResolveHEADWithoutSubprocesses(t *testing.T) {
 
 	t.Run("detached HEAD", func(t *testing.T) {
 		root := t.TempDir()
-		writeFile(t, filepath.Join(root, ".git", "HEAD"), staleCodeSHA1+"\n")
+		stalecodetest.WriteFile(t, filepath.Join(root, ".git", "HEAD"), staleCodeSHA1+"\n")
 
 		got := NewStaleCodeChecker(root).Check(staleCodeSHA1)
 		if got.Status != RuntimeStaleCodeFresh || got.CurrentGitSHA != staleCodeSHA1 {
@@ -106,7 +108,7 @@ func TestStaleCodeNonGitReportsUnavailable(t *testing.T) {
 
 func TestStaleCodeCacheRefreshBoundsHEADChanges(t *testing.T) {
 	root := t.TempDir()
-	writeNormalGitHEAD(t, root, "development", staleCodeSHA1)
+	stalecodetest.WriteNormalGitHEAD(t, root, "development", staleCodeSHA1)
 	now := time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC)
 	checker := NewStaleCodeChecker(root)
 	checker.CacheFreshness = 5 * time.Minute
@@ -115,7 +117,7 @@ func TestStaleCodeCacheRefreshBoundsHEADChanges(t *testing.T) {
 	if got := checker.Check(staleCodeSHA1); got.Status != RuntimeStaleCodeFresh {
 		t.Fatalf("initial stale code = %+v, want fresh", got)
 	}
-	writeNormalGitHEAD(t, root, "development", staleCodeSHA2)
+	stalecodetest.WriteNormalGitHEAD(t, root, "development", staleCodeSHA2)
 	now = now.Add(time.Minute)
 	if got := checker.Check(staleCodeSHA1); got.Status != RuntimeStaleCodeFresh || got.CurrentGitSHA != staleCodeSHA1 {
 		t.Fatalf("cached stale code = %+v, want cached fresh within freshness window", got)
@@ -123,22 +125,6 @@ func TestStaleCodeCacheRefreshBoundsHEADChanges(t *testing.T) {
 	now = now.Add(5*time.Minute + time.Second)
 	if got := checker.Check(staleCodeSHA1); got.Status != RuntimeStaleCodeStale || got.CurrentGitSHA != staleCodeSHA2 {
 		t.Fatalf("refreshed stale code = %+v, want stale after freshness window", got)
-	}
-}
-
-func writeNormalGitHEAD(t *testing.T, root, branch, sha string) {
-	t.Helper()
-	writeFile(t, filepath.Join(root, ".git", "HEAD"), "ref: refs/heads/"+branch+"\n")
-	writeFile(t, filepath.Join(root, ".git", "refs", "heads", branch), sha+"\n")
-}
-
-func writeFile(t *testing.T, path, body string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("create %s: %v", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
 	}
 }
 

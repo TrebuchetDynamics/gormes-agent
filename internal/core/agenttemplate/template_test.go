@@ -297,6 +297,17 @@ func TestAgentTemplatePairManifestValidatesSourceReferences(t *testing.T) {
 	}
 }
 
+func TestAgentTemplateApplyRejectsUnsafeTemplatePath(t *testing.T) {
+	target := t.TempDir()
+	_, err := ApplyTemplates(WriteOptions{TargetDir: target}, []FileTemplate{{ID: "bad", Path: "../SOUL.md", Content: "bad"}})
+	if err == nil || !strings.Contains(err.Error(), "invalid agent template path") {
+		t.Fatalf("ApplyTemplates unsafe path error = %v, want invalid path", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(target, "..", "SOUL.md")); !os.IsNotExist(statErr) {
+		t.Fatalf("unsafe template path wrote outside target or stat failed unexpectedly: %v", statErr)
+	}
+}
+
 func TestAgentTemplateApplyCreatesMissingFiles(t *testing.T) {
 	target := t.TempDir()
 

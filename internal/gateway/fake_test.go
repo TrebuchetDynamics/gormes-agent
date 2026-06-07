@@ -65,12 +65,7 @@ func newChannelOnlyFake(name string) *channelOnlyFake {
 func (f *channelOnlyFake) Name() string { return f.name }
 
 func (f *channelOnlyFake) Run(ctx context.Context, inbox chan<- InboundEvent) error {
-	f.mu.Lock()
-	f.inbox = inbox
-	f.mu.Unlock()
-	close(f.started)
-	<-ctx.Done()
-	return nil
+	return runStartedFakeChannel(ctx, inbox, &f.inbox, &f.mu, f.started)
 }
 
 func (f *channelOnlyFake) Send(_ context.Context, chatID, text string) (string, error) {
@@ -101,10 +96,14 @@ func (f *channelOnlyFake) sentSnapshot() []fakeSent {
 func (f *fakeChannel) Name() string { return f.name }
 
 func (f *fakeChannel) Run(ctx context.Context, inbox chan<- InboundEvent) error {
-	f.mu.Lock()
-	f.inbox = inbox
-	f.mu.Unlock()
-	close(f.started)
+	return runStartedFakeChannel(ctx, inbox, &f.inbox, &f.mu, f.started)
+}
+
+func runStartedFakeChannel(ctx context.Context, inbox chan<- InboundEvent, target *chan<- InboundEvent, mu *sync.Mutex, started chan struct{}) error {
+	mu.Lock()
+	*target = inbox
+	mu.Unlock()
+	close(started)
 	<-ctx.Done()
 	return nil
 }

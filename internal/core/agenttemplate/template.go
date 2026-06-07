@@ -110,10 +110,14 @@ func ApplyTemplates(opts WriteOptions, files []FileTemplate) (WriteResult, error
 
 func templateTargetPath(target, rel string) (string, error) {
 	clean := filepath.Clean(rel)
-	if clean == "." || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+	if unsafeRelativePath(clean, string(filepath.Separator)) || filepath.IsAbs(clean) {
 		return "", fmt.Errorf("invalid agent template path %q", rel)
 	}
 	return filepath.Join(target, clean), nil
+}
+
+func unsafeRelativePath(clean, separator string) bool {
+	return clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+separator)
 }
 
 func fileExists(path string) (bool, error) {

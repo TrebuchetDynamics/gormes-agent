@@ -1,24 +1,15 @@
 package gateway
 
-import "github.com/TrebuchetDynamics/gormes-agent/internal/config"
+import (
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/profilechannels"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/profilechanneltest"
+)
 
 func channelCredential(channel, ownerProfile, envID string) config.CredentialCfg {
-	return config.CredentialCfg{
-		Kind:         "channel",
-		Channel:      channel,
-		OwnerProfile: ownerProfile,
-		SecretRef: &config.SecretRef{
-			Source: config.SecretRefSourceEnv,
-			ID:     envID,
-		},
-	}
+	return profilechanneltest.ChannelCredential(channel, ownerProfile, envID)
 }
 
 func hasProfileChannelEvidence(items []ProfileChannelReadinessEvidence, code string) bool {
-	for _, item := range items {
-		if item.Code == code {
-			return true
-		}
-	}
-	return false
+	return profilechannels.HasEvidenceCode(items, code)
 }

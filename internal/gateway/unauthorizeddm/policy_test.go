@@ -2,12 +2,11 @@ package unauthorizeddm
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/pairing"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/unauthorizeddmtest"
 )
 
 type sentReply struct {
@@ -41,8 +40,8 @@ func TestHandle_DenyModeSendsDeterministicDenialAndRecordsEvidence(t *testing.T)
 	if len(sent) != 1 || sent[0].chatID != "unauthorized-dm" || sent[0].text != DenialText {
 		t.Fatalf("sent = %#v, want one deterministic denial to original DM", sent)
 	}
-	assertNoAuthorizedSessionLeak(t, sent[0].text)
-	assertDegradedEvidence(t, store, pairing.PairingDegradedAllowlistDenied, "telegram", "stranger")
+	unauthorizeddmtest.AssertNoAuthorizedSessionLeak(t, sent[0].text)
+	unauthorizeddmtest.AssertDegradedEvidence(t, store, pairing.PairingDegradedAllowlistDenied, "telegram", "stranger")
 }
 
 func TestHandle_PairModeSendsOneBoundedPromptAndRecordsPending(t *testing.T) {
@@ -73,7 +72,7 @@ func TestHandle_PairModeSendsOneBoundedPromptAndRecordsPending(t *testing.T) {
 	if len(sent[0].text) > 240 {
 		t.Fatalf("pairing prompt length = %d, want bounded <= 240: %q", len(sent[0].text), sent[0].text)
 	}
-	assertNoAuthorizedSessionLeak(t, sent[0].text)
+	unauthorizeddmtest.AssertNoAuthorizedSessionLeak(t, sent[0].text)
 
 	status, err := store.ReadPairingStatus(context.Background())
 	if err != nil {
@@ -86,7 +85,7 @@ func TestHandle_PairModeSendsOneBoundedPromptAndRecordsPending(t *testing.T) {
 	if pending.Platform != "telegram" || pending.UserID != "424242" || pending.UserName != "Private Chat" {
 		t.Fatalf("pending = %+v, want telegram private-chat fallback identity", pending)
 	}
-	assertPairingCode(t, pending.Code)
+	unauthorizeddmtest.AssertPairingCode(t, pending.Code)
 	if !strings.Contains(sent[0].text, pending.Code) || !strings.Contains(sent[0].text, "gormes pairing approve telegram "+pending.Code) {
 		t.Fatalf("pairing prompt = %q, want code and operator approval command", sent[0].text)
 	}
@@ -130,7 +129,7 @@ func TestHandle_IgnoreModeStaysSilentAndDoesNotStartAgent(t *testing.T) {
 	if len(sent) != 0 {
 		t.Fatalf("sent = %#v, want no platform reply", sent)
 	}
-	assertPairingFileNotCreated(t, store)
+	unauthorizeddmtest.AssertPairingFileNotCreated(t, store)
 }
 
 func TestHandle_GroupOrChannelMessagesStaySilent(t *testing.T) {
@@ -160,7 +159,7 @@ func TestHandle_GroupOrChannelMessagesStaySilent(t *testing.T) {
 	if len(sent) != 0 {
 		t.Fatalf("sent = %#v, want no group/channel replies", sent)
 	}
-	assertPairingFileNotCreated(t, store)
+	unauthorizeddmtest.AssertPairingFileNotCreated(t, store)
 }
 
 func captureSend(sent *[]sentReply) SendFunc {
@@ -170,59 +169,7 @@ func captureSend(sent *[]sentReply) SendFunc {
 	}
 }
 
-var testStorePaths = map[*pairing.PairingStore]string{}
-
 func newTestStore(t *testing.T) *pairing.PairingStore {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "pairing.json")
-	store := pairing.NewPairingStore(path)
-	testStorePaths[store] = path
-	return store
-}
-
-func assertPairingCode(t *testing.T, code string) {
-	t.Helper()
-	const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-	if len(code) != 8 {
-		t.Fatalf("len(%q) = %d, want %d", code, len(code), 8)
-	}
-	for _, c := range code {
-		if !strings.ContainsRune(alphabet, c) {
-			t.Fatalf("code %q contains %q outside Hermes alphabet %q", code, c, alphabet)
-		}
-	}
-}
-
-func assertNoAuthorizedSessionLeak(t *testing.T, text string) {
-	t.Helper()
-	for _, leak := range []string{"allowed", "authorized", "session", "allowed-chat-42"} {
-		if strings.Contains(strings.ToLower(text), leak) {
-			t.Fatalf("response %q leaks authorized-session state marker %q", text, leak)
-		}
-	}
-}
-
-func assertDegradedEvidence(t *testing.T, store *pairing.PairingStore, reason pairing.PairingDegradedReason, platform, userID string) {
-	t.Helper()
-	status, err := store.ReadPairingStatus(context.Background())
-	if err != nil {
-		t.Fatalf("ReadPairingStatus: %v", err)
-	}
-	if len(status.Pending) != 0 || len(status.Approved) != 0 {
-		t.Fatalf("status = %+v, want denied user evidence without pending or approved records", status)
-	}
-	for _, evidence := range status.Degraded {
-		if evidence.Reason == reason && evidence.Platform == platform && evidence.UserID == userID {
-			return
-		}
-	}
-	t.Fatalf("degraded evidence = %+v, want %s for %s/%s", status.Degraded, reason, platform, userID)
-}
-
-func assertPairingFileNotCreated(t *testing.T, store *pairing.PairingStore) {
-	t.Helper()
-	path := testStorePaths[store]
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		t.Fatalf("pairing store file err = %v, want not created", err)
-	}
+	return unauthorizeddmtest.NewStore(t)
 }

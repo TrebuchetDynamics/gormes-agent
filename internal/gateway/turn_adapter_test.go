@@ -1,18 +1,14 @@
 package gateway
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"errors"
-	"image"
-	"image/color"
-	"image/jpeg"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/gatewaytest"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
@@ -32,32 +28,9 @@ func (f *fakeSubmitter) Submit(ev kernel.PlatformEvent) error {
 func (f *fakeSubmitter) ResetSession() error               { return nil }
 func (f *fakeSubmitter) Render() <-chan kernel.RenderFrame { return nil }
 
-// writeFixtureJPEG creates a tiny synthetic JPEG so the tests stay hermetic
-// without committing binary fixtures. Returns the on-disk path; caller is
-// responsible for any cleanup beyond the test's t.TempDir().
-func writeFixtureJPEG(t *testing.T, dir, name string, fillR, fillG, fillB uint8) string {
-	t.Helper()
-	img := image.NewRGBA(image.Rect(0, 0, 4, 4))
-	fill := color.RGBA{R: fillR, G: fillG, B: fillB, A: 255}
-	for y := 0; y < 4; y++ {
-		for x := 0; x < 4; x++ {
-			img.Set(x, y, fill)
-		}
-	}
-	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90}); err != nil {
-		t.Fatalf("encode fixture jpeg: %v", err)
-	}
-	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, buf.Bytes(), 0o600); err != nil {
-		t.Fatalf("write fixture jpeg: %v", err)
-	}
-	return path
-}
-
 func TestTurnAdapter_Dispatch_PhotoAttachmentBecomesImageURLContentPart(t *testing.T) {
 	dir := t.TempDir()
-	jpgPath := writeFixtureJPEG(t, dir, "sample.jpg", 200, 50, 50)
+	jpgPath := gatewaytest.WriteFixtureJPEG(t, dir, "sample.jpg", 200, 50, 50)
 	wantBytes, err := os.ReadFile(jpgPath)
 	if err != nil {
 		t.Fatalf("read fixture: %v", err)
@@ -106,7 +79,7 @@ func TestTurnAdapter_Dispatch_PhotoAttachmentBecomesImageURLContentPart(t *testi
 
 func TestTurnAdapter_Dispatch_PhotoAttachmentEmptyTextAddsDefaultPromptAndPathHint(t *testing.T) {
 	dir := t.TempDir()
-	jpgPath := writeFixtureJPEG(t, dir, "sample.jpg", 50, 100, 200)
+	jpgPath := gatewaytest.WriteFixtureJPEG(t, dir, "sample.jpg", 50, 100, 200)
 
 	submitter := &fakeSubmitter{}
 	adapter := &TurnAdapter{Submitter: submitter}
@@ -171,8 +144,8 @@ func TestTurnAdapter_Dispatch_PhotoAttachmentMissingFileFallsBackToMarker(t *tes
 
 func TestTurnAdapter_Dispatch_MultiplePhotoAttachmentsBecomeMultipleImageURLParts(t *testing.T) {
 	dir := t.TempDir()
-	pathA := writeFixtureJPEG(t, dir, "a.jpg", 255, 0, 0)
-	pathB := writeFixtureJPEG(t, dir, "b.jpg", 0, 255, 0)
+	pathA := gatewaytest.WriteFixtureJPEG(t, dir, "a.jpg", 255, 0, 0)
+	pathB := gatewaytest.WriteFixtureJPEG(t, dir, "b.jpg", 0, 255, 0)
 
 	submitter := &fakeSubmitter{}
 	adapter := &TurnAdapter{Submitter: submitter}

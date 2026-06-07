@@ -80,7 +80,7 @@ func PlanImageShrinkRetry(req ImageShrinkRequest) ImageShrinkPlan {
 
 	// Hand the shrinker a defensive copy so it cannot mutate the caller's
 	// slice even if its implementation is careless.
-	input := append([]MessageContentPart(nil), req.Parts...)
+	input := cloneMessageContentParts(req.Parts)
 	resized, err := req.Shrinker(input)
 	if err != nil {
 		return ImageShrinkPlan{EvidenceCode: imageShrinkEvidenceFailed}

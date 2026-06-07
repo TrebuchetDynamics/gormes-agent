@@ -1,13 +1,12 @@
 package profilechannels
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/profilechanneltest"
 )
 
 func TestProfileChannelReadinessAllowsSameChannelDifferentProfileCredentialsAndAllowLists(t *testing.T) {
@@ -117,7 +116,7 @@ func TestProfileChannelReadinessWhatsAppAllowListsCanonicalizeJIDCase(t *testing
 			},
 		},
 		Credentials: map[string]config.CredentialCfg{
-			"main-whatsapp": channelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+			"main-whatsapp": profilechanneltest.ChannelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
 		},
 	}
 
@@ -179,7 +178,7 @@ func TestProfileChannelReadinessMissingCredentialSkipsOnlyThatBinding(t *testing
 	if missing.Ready {
 		t.Fatalf("missing binding Ready = true, want skipped/degraded: %+v", missing)
 	}
-	if !hasProfileChannelEvidence(missing.Evidence, "channel_credential_missing") {
+	if !HasEvidenceCode(missing.Evidence, "channel_credential_missing") {
 		t.Fatalf("missing binding evidence = %+v, want channel_credential_missing", missing.Evidence)
 	}
 	if !ready.Ready {
@@ -192,7 +191,7 @@ func TestProfileChannelReadinessMissingCredentialSkipsOnlyThatBinding(t *testing
 
 func TestProfileChannelReadinessDuplicateTokenHashConflictsAcrossProfiles(t *testing.T) {
 	const rawSharedToken = "123456:shared-whatsapp-token-that-must-not-leak"
-	sharedHash := tokenCredentialHash(rawSharedToken)
+	sharedHash := profilechanneltest.TokenCredentialHash(rawSharedToken)
 	cfg := config.Config{
 		Profiles: map[string]config.ProfileCfg{
 			"main": {
@@ -215,9 +214,9 @@ func TestProfileChannelReadinessDuplicateTokenHashConflictsAcrossProfiles(t *tes
 			},
 		},
 		Credentials: map[string]config.CredentialCfg{
-			"main-whatsapp":  channelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
-			"sales-whatsapp": channelCredential("whatsapp", "sales", "GORMES_SALES_WHATSAPP_TOKEN"),
-			"ops-telegram":   channelCredential("telegram", "ops", "GORMES_OPS_TELEGRAM_TOKEN"),
+			"main-whatsapp":  profilechanneltest.ChannelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+			"sales-whatsapp": profilechanneltest.ChannelCredential("whatsapp", "sales", "GORMES_SALES_WHATSAPP_TOKEN"),
+			"ops-telegram":   profilechanneltest.ChannelCredential("telegram", "ops", "GORMES_OPS_TELEGRAM_TOKEN"),
 		},
 	}
 
@@ -225,7 +224,7 @@ func TestProfileChannelReadinessDuplicateTokenHashConflictsAcrossProfiles(t *tes
 		CredentialHashes: map[string]string{
 			"main-whatsapp":  sharedHash,
 			"sales-whatsapp": sharedHash,
-			"ops-telegram":   tokenCredentialHash("other-token"),
+			"ops-telegram":   profilechanneltest.TokenCredentialHash("other-token"),
 		},
 	})
 	mainBinding := findProfileChannelBinding(t, report, "main", "whatsapp")
@@ -238,7 +237,7 @@ func TestProfileChannelReadinessDuplicateTokenHashConflictsAcrossProfiles(t *tes
 		if binding.CredentialHash != sharedHash {
 			t.Fatalf("%s credential hash = %q, want shared hash %q", binding.ProfileID, binding.CredentialHash, sharedHash)
 		}
-		if !hasProfileChannelEvidence(binding.Evidence, "channel_token_hash_conflict") {
+		if !HasEvidenceCode(binding.Evidence, "channel_token_hash_conflict") {
 			t.Fatalf("%s evidence = %+v, want channel_token_hash_conflict", binding.ProfileID, binding.Evidence)
 		}
 	}
@@ -268,30 +267,4 @@ func findProfileChannelBinding(t *testing.T, report ProfileChannelReadinessRepor
 	}
 	t.Fatalf("missing profile channel binding profile=%q channel=%q in %+v", profileID, channel, report.Bindings)
 	return ProfileChannelBindingReadiness{}
-}
-
-func hasProfileChannelEvidence(items []ProfileChannelReadinessEvidence, code string) bool {
-	for _, item := range items {
-		if item.Code == code {
-			return true
-		}
-	}
-	return false
-}
-
-func channelCredential(channel, ownerProfile, envID string) config.CredentialCfg {
-	return config.CredentialCfg{
-		Kind:         "channel",
-		Channel:      channel,
-		OwnerProfile: ownerProfile,
-		SecretRef: &config.SecretRef{
-			Source: config.SecretRefSourceEnv,
-			ID:     envID,
-		},
-	}
-}
-
-func tokenCredentialHash(credential string) string {
-	sum := sha256.Sum256([]byte(credential))
-	return hex.EncodeToString(sum[:])
 }

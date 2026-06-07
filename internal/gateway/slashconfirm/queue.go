@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/mapclone"
 )
 
 var (
@@ -233,12 +235,5 @@ func cloneOutcome(outcome Outcome) Outcome {
 }
 
 func cloneStringMap(input map[string]string) map[string]string {
-	if input == nil {
-		return nil
-	}
-	out := make(map[string]string, len(input))
-	for key, value := range input {
-		out[key] = value
-	}
-	return out
+	return mapclone.StringString(input)
 }

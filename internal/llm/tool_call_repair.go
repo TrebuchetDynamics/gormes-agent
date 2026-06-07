@@ -37,7 +37,7 @@ func toRepairToolDescriptors(descriptors []ToolDescriptor) []repair.ToolDescript
 		out = append(out, repair.ToolDescriptor{
 			Name:        d.Name,
 			Description: d.Description,
-			Schema:      append(json.RawMessage(nil), d.Schema...),
+			Schema:      cloneRawMessage(d.Schema),
 		})
 	}
 	return out
@@ -52,7 +52,7 @@ func fromRepairToolDescriptors(descriptors []repair.ToolDescriptor) []ToolDescri
 		out = append(out, ToolDescriptor{
 			Name:        d.Name,
 			Description: d.Description,
-			Schema:      append(json.RawMessage(nil), d.Schema...),
+			Schema:      cloneRawMessage(d.Schema),
 		})
 	}
 	return out
@@ -67,7 +67,7 @@ func toRepairToolCalls(calls []ToolCall) []repair.ToolCall {
 		out = append(out, repair.ToolCall{
 			ID:        c.ID,
 			Name:      c.Name,
-			Arguments: append(json.RawMessage(nil), c.Arguments...),
+			Arguments: cloneRawMessage(c.Arguments),
 		})
 	}
 	return out
@@ -82,7 +82,7 @@ func fromRepairToolCalls(calls []repair.ToolCall) []ToolCall {
 		out = append(out, ToolCall{
 			ID:        c.ID,
 			Name:      c.Name,
-			Arguments: append(json.RawMessage(nil), c.Arguments...),
+			Arguments: cloneRawMessage(c.Arguments),
 		})
 	}
 	return out

@@ -139,6 +139,36 @@ func TestDynamicAgentIdentity_ToolPolicyInheritedOnlyWhenExplicit(t *testing.T) 
 	}
 }
 
+func TestDynamicAgentIdentity_InheritedToolPolicyDeduplicatesAndTrims(t *testing.T) {
+	plan, err := ResolveDynamicAgentIdentity(DynamicAgentIdentityRequest{
+		Parent: ParentAgentIdentity{AgentID: "root-agent", Role: "root"},
+		Child:  ChildAgentIdentity{AgentID: "reviewer", Name: "Reviewer"},
+		ParentToolPolicy: ToolPolicy{
+			AllowedToolsets: []string{" memory ", "skills"},
+			DeniedTools:     []string{" terminal ", "terminal"},
+			PathGlobs:       []string{" src/** "},
+		},
+		ChildToolPolicy: ToolPolicy{
+			AllowedToolsets: []string{"skills", " browser "},
+			DeniedTools:     []string{"write_file", " terminal "},
+			PathGlobs:       []string{"src/**", " docs/** "},
+		},
+		InheritParentToolPolicy: true,
+	})
+	if err != nil {
+		t.Fatalf("ResolveDynamicAgentIdentity: %v", err)
+	}
+	if !reflect.DeepEqual(plan.ToolPolicy.Effective.AllowedToolsets, []string{"memory", "skills", "browser"}) {
+		t.Fatalf("AllowedToolsets = %+v, want [memory skills browser]", plan.ToolPolicy.Effective.AllowedToolsets)
+	}
+	if !reflect.DeepEqual(plan.ToolPolicy.Effective.DeniedTools, []string{"terminal", "write_file"}) {
+		t.Fatalf("DeniedTools = %+v, want [terminal write_file]", plan.ToolPolicy.Effective.DeniedTools)
+	}
+	if !reflect.DeepEqual(plan.ToolPolicy.Effective.PathGlobs, []string{"src/**", "docs/**"}) {
+		t.Fatalf("PathGlobs = %+v, want [src/** docs/**]", plan.ToolPolicy.Effective.PathGlobs)
+	}
+}
+
 func TestDynamicAgentIdentity_MemoryScopeIsChildAware(t *testing.T) {
 	plan, err := ResolveDynamicAgentIdentity(DynamicAgentIdentityRequest{
 		Parent: ParentAgentIdentity{AgentID: "root-agent", Role: "root"},

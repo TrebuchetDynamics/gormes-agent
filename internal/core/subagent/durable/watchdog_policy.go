@@ -81,25 +81,11 @@ func (p RSSWatchdogPolicy) Check(readRSS RSSReader, now Clock) RSSWatchdogDecisi
 		}
 	}
 	if readRSS == nil {
-		return RSSWatchdogDecision{
-			Reason: RSSWatchdogUnavailable,
-			Evidence: RSSWatchdogEvidence{
-				Reason:    RSSWatchdogUnavailable,
-				CheckedAt: nowUTC(now),
-				ErrorText: "rss reader is nil",
-			},
-		}
+		return rssUnavailableDecision(now, "rss reader is nil")
 	}
 	rssBytes, err := readRSS()
 	if err != nil {
-		return RSSWatchdogDecision{
-			Reason: RSSWatchdogUnavailable,
-			Evidence: RSSWatchdogEvidence{
-				Reason:    RSSWatchdogUnavailable,
-				CheckedAt: nowUTC(now),
-				ErrorText: err.Error(),
-			},
-		}
+		return rssUnavailableDecision(now, err.Error())
 	}
 	observedMB := bytesToMB(rssBytes)
 	if observedMB >= p.MaxRSSMB {
@@ -128,6 +114,17 @@ func (p WatchdogRestartPolicy) Classify(input WatchdogRestartInput) WatchdogRest
 	return WatchdogRestartDecision{
 		Reason:     WatchdogRestartCrash,
 		CrashCount: input.PreviousCrashCount + 1,
+	}
+}
+
+func rssUnavailableDecision(now Clock, errorText string) RSSWatchdogDecision {
+	return RSSWatchdogDecision{
+		Reason: RSSWatchdogUnavailable,
+		Evidence: RSSWatchdogEvidence{
+			Reason:    RSSWatchdogUnavailable,
+			CheckedAt: nowUTC(now),
+			ErrorText: errorText,
+		},
 	}
 }
 

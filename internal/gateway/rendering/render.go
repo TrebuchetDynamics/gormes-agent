@@ -5,6 +5,7 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/renderframe"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/rendering/browserartifacts"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/rendering/pagination"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/rendering/providererrors"
@@ -79,12 +80,7 @@ func FormatFinalPlain(f kernel.RenderFrame) string {
 
 // FinalAssistantText returns the raw final assistant text from render history.
 func FinalAssistantText(f kernel.RenderFrame) string {
-	for i := len(f.History) - 1; i >= 0; i-- {
-		if f.History[i].Role == "assistant" {
-			return f.History[i].Content
-		}
-	}
-	return ""
+	return renderframe.LastAssistantText(f)
 }
 
 func FormatFinalPlainText(text string) string {

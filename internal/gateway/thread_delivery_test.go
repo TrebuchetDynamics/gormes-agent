@@ -57,12 +57,7 @@ func newThreadAwareFakeChannel(name string) *threadAwareFakeChannel {
 func (f *threadAwareFakeChannel) Name() string { return f.name }
 
 func (f *threadAwareFakeChannel) Run(ctx context.Context, inbox chan<- InboundEvent) error {
-	f.mu.Lock()
-	f.inbox = inbox
-	f.mu.Unlock()
-	close(f.started)
-	<-ctx.Done()
-	return nil
+	return runStartedFakeChannel(ctx, inbox, &f.inbox, &f.mu, f.started)
 }
 
 func (f *threadAwareFakeChannel) Send(_ context.Context, chatID, text string) (string, error) {

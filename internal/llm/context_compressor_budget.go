@@ -219,21 +219,6 @@ func minInt(a, b int) int {
 	return b
 }
 
-func cloneToolDescriptors(in []ToolDescriptor) []ToolDescriptor {
-	if in == nil {
-		return nil
-	}
-	out := make([]ToolDescriptor, len(in))
-	for i, descriptor := range in {
-		out[i] = ToolDescriptor{
-			Name:        descriptor.Name,
-			Description: descriptor.Description,
-			Schema:      append(json.RawMessage(nil), descriptor.Schema...),
-		}
-	}
-	return out
-}
-
 func estimateToolDescriptorTokensRough(descriptors []ToolDescriptor) int {
 	if len(descriptors) == 0 {
 		return 0

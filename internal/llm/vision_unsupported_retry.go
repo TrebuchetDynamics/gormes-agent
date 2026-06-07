@@ -123,14 +123,7 @@ func stripVisionUnsupportedImagesFromMessages(messages []Message) ([]Message, bo
 }
 
 func cloneVisionRetryMessage(msg Message) Message {
-	next := msg
-	if len(msg.ContentParts) > 0 {
-		next.ContentParts = append([]MessageContentPart(nil), msg.ContentParts...)
-	}
-	if len(msg.ToolCalls) > 0 {
-		next.ToolCalls = append([]ToolCall(nil), msg.ToolCalls...)
-	}
-	return next
+	return cloneMessage(msg)
 }
 
 func isVisionImagePart(part MessageContentPart) bool {

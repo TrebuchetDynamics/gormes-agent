@@ -352,10 +352,7 @@ func codexResponsesTools(tools []ToolDescriptor) []codexResponsesTool {
 		if name == "" {
 			continue
 		}
-		params := tool.Schema
-		if len(params) == 0 {
-			params = json.RawMessage(`{"type":"object","properties":{}}`)
-		}
+		params := cloneToolSchemaOrDefault(tool.Schema)
 		out = append(out, codexResponsesTool{
 			Type:        "function",
 			Name:        name,
@@ -368,7 +365,11 @@ func codexResponsesTools(tools []ToolDescriptor) []codexResponsesTool {
 }
 
 func codexResponsesArguments(raw json.RawMessage) string {
-	args := strings.TrimSpace(string(raw))
+	return codexResponsesNonEmptyArguments(string(raw))
+}
+
+func codexResponsesNonEmptyArguments(raw string) string {
+	args := strings.TrimSpace(raw)
 	if args == "" {
 		return "{}"
 	}
@@ -380,22 +381,29 @@ func codexResponsesMessageText(item codexResponsesOutputItem) string {
 	for _, part := range item.Content {
 		switch part.Type {
 		case "output_text", "text":
-			if part.Text != "" {
-				parts = append(parts, part.Text)
-			}
+			parts = appendCodexResponsesTextPart(parts, part.Text)
 		}
 	}
-	return strings.TrimSpace(strings.Join(parts, ""))
+	return joinCodexResponsesTextParts(parts, "")
 }
 
 func codexResponsesReasoningText(item codexResponsesOutputItem) string {
 	parts := make([]string, 0, len(item.Summary))
 	for _, part := range item.Summary {
-		if part.Text != "" {
-			parts = append(parts, part.Text)
-		}
+		parts = appendCodexResponsesTextPart(parts, part.Text)
 	}
-	return strings.TrimSpace(strings.Join(parts, "\n"))
+	return joinCodexResponsesTextParts(parts, "\n")
+}
+
+func appendCodexResponsesTextPart(parts []string, text string) []string {
+	if text == "" {
+		return parts
+	}
+	return append(parts, text)
+}
+
+func joinCodexResponsesTextParts(parts []string, sep string) string {
+	return strings.TrimSpace(strings.Join(parts, sep))
 }
 
 func codexResponsesOutputArguments(item codexResponsesOutputItem) string {
@@ -403,16 +411,10 @@ func codexResponsesOutputArguments(item codexResponsesOutputItem) string {
 	if item.Type == "custom_tool_call" && len(raw) == 0 {
 		raw = item.Input
 	}
-	args := strings.TrimSpace(string(raw))
-	if args == "" {
-		return "{}"
-	}
+	args := codexResponsesNonEmptyArguments(string(raw))
 	var decoded string
 	if err := json.Unmarshal(raw, &decoded); err == nil {
-		args = strings.TrimSpace(decoded)
-		if args == "" {
-			return "{}"
-		}
+		args = codexResponsesNonEmptyArguments(decoded)
 	}
 	return args
 }

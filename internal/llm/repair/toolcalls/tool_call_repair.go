@@ -49,6 +49,13 @@ func (e *ToolCallRepairError) Error() string {
 // normalized to the conservative object-shaped subset accepted by provider
 // tool parsers.
 func SanitizeToolDescriptors(descriptors []ToolDescriptor) []ToolDescriptor {
+	return SanitizeToolDescriptorsWith(descriptors, sanitizeToolSchema)
+}
+
+// SanitizeToolDescriptorsWith returns a deep copy of descriptors with each
+// schema rewritten by sanitize. Provider-specific schema repair packages reuse
+// this to keep descriptor copying semantics consistent.
+func SanitizeToolDescriptorsWith(descriptors []ToolDescriptor, sanitize func(json.RawMessage) json.RawMessage) []ToolDescriptor {
 	if len(descriptors) == 0 {
 		return nil
 	}
@@ -57,7 +64,7 @@ func SanitizeToolDescriptors(descriptors []ToolDescriptor) []ToolDescriptor {
 		out = append(out, ToolDescriptor{
 			Name:        d.Name,
 			Description: d.Description,
-			Schema:      sanitizeToolSchema(d.Schema),
+			Schema:      sanitize(d.Schema),
 		})
 	}
 	return out
@@ -110,10 +117,14 @@ func RepairToolCallArguments(raw json.RawMessage) (json.RawMessage, map[string]a
 	return repairToolCallArguments(raw)
 }
 
+func emptyObjectToolSchema() json.RawMessage {
+	return json.RawMessage(`{"type":"object","properties":{}}`)
+}
+
 func sanitizeToolSchema(raw json.RawMessage) json.RawMessage {
 	var node any
 	if len(bytes.TrimSpace(raw)) == 0 || json.Unmarshal(raw, &node) != nil {
-		return json.RawMessage(`{"type":"object","properties":{}}`)
+		return emptyObjectToolSchema()
 	}
 	sanitized := sanitizeSchemaNode(node)
 	top, ok := sanitized.(map[string]any)
@@ -132,7 +143,7 @@ func sanitizeToolSchema(raw json.RawMessage) json.RawMessage {
 	}
 	out, err := json.Marshal(top)
 	if err != nil {
-		return json.RawMessage(`{"type":"object","properties":{}}`)
+		return emptyObjectToolSchema()
 	}
 	return out
 }

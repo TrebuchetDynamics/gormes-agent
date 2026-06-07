@@ -41,14 +41,13 @@ type Result struct {
 }
 
 func HasTasks(raw json.RawMessage) bool {
-	trimmed := strings.TrimSpace(string(raw))
-	return trimmed != "" && trimmed != "null"
+	return hasTaskInput(strings.TrimSpace(string(raw)))
 }
 
 func ParseTasks(raw json.RawMessage) ([]Task, error) {
 	trimmed := strings.TrimSpace(string(raw))
-	if trimmed == "" || trimmed == "null" {
-		return nil, errors.New("delegate_task: Provide either 'goal' (single task) or 'tasks' (batch).")
+	if !hasTaskInput(trimmed) {
+		return nil, missingTaskInputError()
 	}
 	if strings.HasPrefix(trimmed, `"`) {
 		var encoded string
@@ -57,7 +56,7 @@ func ParseTasks(raw json.RawMessage) ([]Task, error) {
 		}
 		encoded = strings.TrimSpace(encoded)
 		if encoded == "" {
-			return nil, errors.New("delegate_task: Provide either 'goal' (single task) or 'tasks' (batch).")
+			return nil, missingTaskInputError()
 		}
 		tasks, err := parseTaskArray([]byte(encoded), true)
 		if err != nil {
@@ -66,6 +65,14 @@ func ParseTasks(raw json.RawMessage) ([]Task, error) {
 		return tasks, nil
 	}
 	return parseTaskArray(raw, false)
+}
+
+func hasTaskInput(trimmed string) bool {
+	return trimmed != "" && trimmed != "null"
+}
+
+func missingTaskInputError() error {
+	return errors.New("delegate_task: Provide either 'goal' (single task) or 'tasks' (batch).")
 }
 
 func parseTaskArray(raw []byte, fromString bool) ([]Task, error) {

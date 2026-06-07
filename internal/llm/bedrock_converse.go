@@ -173,7 +173,7 @@ func bedrockAssistantContentBlocks(msg Message) ([]bedrockContentBlock, error) {
 			if !json.Valid(tc.Arguments) {
 				return nil, fmt.Errorf("bedrock tool call %q arguments are invalid JSON", tc.ID)
 			}
-			input = append(json.RawMessage(nil), tc.Arguments...)
+			input = cloneRawMessage(tc.Arguments)
 		}
 		blocks = append(blocks, bedrockContentBlock{
 			ToolUse: &bedrockToolUse{
@@ -238,10 +238,7 @@ func convertBedrockTools(tools []ToolDescriptor) ([]bedrockTool, error) {
 	descriptors := SanitizeToolDescriptors(tools)
 	out := make([]bedrockTool, 0, len(descriptors))
 	for _, tool := range descriptors {
-		schema := tool.Schema
-		if len(schema) == 0 {
-			schema = json.RawMessage(`{"type":"object","properties":{}}`)
-		}
+		schema := cloneToolSchemaOrDefault(tool.Schema)
 		if !json.Valid(schema) {
 			return nil, fmt.Errorf("bedrock tool %q schema is invalid JSON", tool.Name)
 		}
@@ -250,7 +247,7 @@ func convertBedrockTools(tools []ToolDescriptor) ([]bedrockTool, error) {
 				Name:        tool.Name,
 				Description: tool.Description,
 				InputSchema: bedrockToolInputSchema{
-					JSON: append(json.RawMessage(nil), schema...),
+					JSON: schema,
 				},
 			},
 		})
