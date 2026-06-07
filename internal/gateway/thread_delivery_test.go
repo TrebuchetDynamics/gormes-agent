@@ -132,25 +132,19 @@ func (f *threadAwareFakeChannel) nextID() string {
 func (f *threadAwareFakeChannel) threadSendSnapshot() []threadSendCall {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]threadSendCall, len(f.threadSends))
-	copy(out, f.threadSends)
-	return out
+	return cloneSlice(f.threadSends)
 }
 
 func (f *threadAwareFakeChannel) threadReplySnapshot() []threadReplyCall {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]threadReplyCall, len(f.threadReplies))
-	copy(out, f.threadReplies)
-	return out
+	return cloneSlice(f.threadReplies)
 }
 
 func (f *threadAwareFakeChannel) threadActionSnapshot() []threadActionCall {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]threadActionCall, len(f.threadActions))
-	copy(out, f.threadActions)
-	return out
+	return cloneSlice(f.threadActions)
 }
 
 func pinThreadedTurn(m *Manager, threadID string) {

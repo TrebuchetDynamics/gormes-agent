@@ -79,9 +79,7 @@ func (f *failOnFinalEditor) Send(_ context.Context, chatID, text string) (string
 func (f *failOnFinalEditor) plainSendsSnapshot() []fakeSent {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]fakeSent, len(f.plainSends))
-	copy(out, f.plainSends)
-	return out
+	return cloneSlice(f.plainSends)
 }
 
 // itoa is a minimal helper so this file has no strconv import dependency.

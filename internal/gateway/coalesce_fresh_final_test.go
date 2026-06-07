@@ -224,7 +224,5 @@ func (f *freshFinalFakeChannel) Send(ctx context.Context, chatID, text string) (
 func (f *freshFinalFakeChannel) deletesSnapshot() []fakeDelete {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]fakeDelete, len(f.deletes))
-	copy(out, f.deletes)
-	return out
+	return cloneSlice(f.deletes)
 }

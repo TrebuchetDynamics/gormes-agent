@@ -353,7 +353,5 @@ func (f *fakePlainSkillsChannel) SendPlainReply(_ context.Context, chatID, reply
 func (f *fakePlainSkillsChannel) plainSnapshot() []fakeSent {
 	f.plainMu.Lock()
 	defer f.plainMu.Unlock()
-	out := make([]fakeSent, len(f.plain))
-	copy(out, f.plain)
-	return out
+	return cloneSlice(f.plain)
 }

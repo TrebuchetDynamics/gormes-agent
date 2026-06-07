@@ -68,6 +68,20 @@ func TestCronDeliveryPlan_ParseTargets(t *testing.T) {
 	}
 }
 
+func TestCronDeliveryOriginAcceptsChatIDAlias(t *testing.T) {
+	origin, ok := deliveryOriginFromValue(reflect.ValueOf(struct {
+		Platform string
+		ChatId   string
+		ThreadId string
+	}{Platform: "telegram", ChatId: "chat-1", ThreadId: "thread-1"}))
+	if !ok {
+		t.Fatal("deliveryOriginFromValue ok = false, want true for ChatId alias")
+	}
+	if origin.ChatID != "chat-1" || origin.ThreadID != "thread-1" {
+		t.Fatalf("origin = %+v, want chat/thread aliases", origin)
+	}
+}
+
 func TestCronDeliveryPlanForJob_UsesStoredDeliverAndOrigin(t *testing.T) {
 	job := Job{
 		ID:      "job-1",

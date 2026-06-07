@@ -60,9 +60,7 @@ func (r *hookRecorder) record(_ context.Context, ev HookEvent) {
 func (r *hookRecorder) snapshot() []HookEvent {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	out := make([]HookEvent, len(r.events))
-	copy(out, r.events)
-	return out
+	return cloneSlice(r.events)
 }
 
 func TestManagerHooksReceiveLifecycle(t *testing.T) {

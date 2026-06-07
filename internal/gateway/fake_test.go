@@ -88,9 +88,7 @@ func (f *channelOnlyFake) pushInbound(e InboundEvent) {
 func (f *channelOnlyFake) sentSnapshot() []fakeSent {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]fakeSent, len(f.sent))
-	copy(out, f.sent)
-	return out
+	return cloneSlice(f.sent)
 }
 
 func (f *fakeChannel) Name() string { return f.name }
@@ -200,23 +198,23 @@ func (f *fakeChannel) pushInbound(e InboundEvent) {
 func (f *fakeChannel) sentSnapshot() []fakeSent {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]fakeSent, len(f.sent))
-	copy(out, f.sent)
+	return cloneSlice(f.sent)
+}
+
+func cloneSlice[T any](in []T) []T {
+	out := make([]T, len(in))
+	copy(out, in)
 	return out
 }
 
 func (f *fakeChannel) editsSnapshot() []fakeEdit {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]fakeEdit, len(f.edits))
-	copy(out, f.edits)
-	return out
+	return cloneSlice(f.edits)
 }
 
 func (f *fakeChannel) mediaSnapshot() []fakeMedia {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]fakeMedia, len(f.media))
-	copy(out, f.media)
-	return out
+	return cloneSlice(f.media)
 }

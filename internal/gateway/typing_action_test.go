@@ -39,9 +39,7 @@ func (f *typingActionFakeChannel) SendChatAction(_ context.Context, chatID, acti
 func (f *typingActionFakeChannel) actionSnapshot() []typingActionCall {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]typingActionCall, len(f.actions))
-	copy(out, f.actions)
-	return out
+	return cloneSlice(f.actions)
 }
 
 func TestTypingAction_FiresOnFirstStreamingFrame(t *testing.T) {

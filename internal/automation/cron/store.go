@@ -152,7 +152,7 @@ func NormalizeJobRecord(j Job, fallbackID string) Job {
 func fallbackJobName(j Job) string {
 	for _, candidate := range []string{
 		j.Prompt,
-		firstNonEmptyString(j.Skills),
+		firstNonEmpty(j.Skills...),
 		j.Script,
 		j.ID,
 		"cron job",
@@ -169,15 +169,6 @@ func fallbackJobName(j Job) string {
 		}
 	}
 	return "cron job"
-}
-
-func firstNonEmptyString(values []string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }
 
 // Update overwrites an existing job by ID. Errors with ErrJobNotFound
