@@ -1,16 +1,19 @@
-package safety
+package react
 
 import (
 	"context"
 	"encoding/json"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/safety/plangate"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/safety/toolgate"
 )
 
-func TestReActSafetyAdapter_CheckPlanRefuse(t *testing.T) {
-	adapter := NewReActSafetyAdapter(NewDefaultPlanGate(), NewDefaultToolGate())
+func TestSafetyAdapter_CheckPlanRefuse(t *testing.T) {
+	adapter := newDefaultTestAdapter()
 
-	plan := PlannedActions{
-		Calls: []PlannedCall{
+	plan := plangate.PlannedActions{
+		Calls: []plangate.PlannedCall{
 			{ToolName: "evil", TrustClassRequired: []string{"not-allowed"}},
 		},
 	}
@@ -30,11 +33,11 @@ func TestReActSafetyAdapter_CheckPlanRefuse(t *testing.T) {
 	}
 }
 
-func TestReActSafetyAdapter_CheckPlanProceed(t *testing.T) {
-	adapter := NewReActSafetyAdapter(NewDefaultPlanGate(), NewDefaultToolGate())
+func TestSafetyAdapter_CheckPlanProceed(t *testing.T) {
+	adapter := newDefaultTestAdapter()
 
-	plan := PlannedActions{
-		Calls: []PlannedCall{
+	plan := plangate.PlannedActions{
+		Calls: []plangate.PlannedCall{
 			{ToolName: "echo", TrustClassRequired: []string{"operator"}},
 		},
 	}
@@ -45,10 +48,10 @@ func TestReActSafetyAdapter_CheckPlanProceed(t *testing.T) {
 	}
 }
 
-func TestReActSafetyAdapter_CheckToolRefuse(t *testing.T) {
-	adapter := NewReActSafetyAdapter(NewDefaultPlanGate(), NewDefaultToolGate())
+func TestSafetyAdapter_CheckToolRefuse(t *testing.T) {
+	adapter := newDefaultTestAdapter()
 
-	call := ToolCallRequest{
+	call := toolgate.CallRequest{
 		ToolName:   "gateway_restart",
 		Arguments:  json.RawMessage(`{}`),
 		CallerRole: "operator",
@@ -60,10 +63,10 @@ func TestReActSafetyAdapter_CheckToolRefuse(t *testing.T) {
 	}
 }
 
-func TestReActSafetyAdapter_CheckToolExecute(t *testing.T) {
-	adapter := NewReActSafetyAdapter(NewDefaultPlanGate(), NewDefaultToolGate())
+func TestSafetyAdapter_CheckToolExecute(t *testing.T) {
+	adapter := newDefaultTestAdapter()
 
-	call := ToolCallRequest{
+	call := toolgate.CallRequest{
 		ToolName:   "echo",
 		Arguments:  json.RawMessage(`{}`),
 		CallerRole: "operator",

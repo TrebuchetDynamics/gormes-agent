@@ -1,16 +1,19 @@
-package safety
+package react
 
 import (
 	"context"
 	"encoding/json"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/safety/plangate"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/safety/toolgate"
 )
 
 func TestSafetyLoop_FullTurnSafe(t *testing.T) {
-	adapter := NewReActSafetyAdapter(NewDefaultPlanGate(), NewDefaultToolGate())
+	adapter := newDefaultTestAdapter()
 
-	plan := PlannedActions{
-		Calls: []PlannedCall{
+	plan := plangate.PlannedActions{
+		Calls: []plangate.PlannedCall{
 			{ToolName: "echo", TrustClassRequired: []string{"operator"}},
 		},
 	}
@@ -19,7 +22,7 @@ func TestSafetyLoop_FullTurnSafe(t *testing.T) {
 		t.Fatal("safe plan should proceed")
 	}
 
-	toolDecision, _ := adapter.CheckTool(context.Background(), ToolCallRequest{
+	toolDecision, _ := adapter.CheckTool(context.Background(), toolgate.CallRequest{
 		ToolName: "echo", Arguments: json.RawMessage(`{}`), CallerRole: "operator",
 	})
 	if toolDecision.Action != "execute" {
@@ -28,10 +31,10 @@ func TestSafetyLoop_FullTurnSafe(t *testing.T) {
 }
 
 func TestSafetyLoop_UnsafePlanCaught(t *testing.T) {
-	adapter := NewReActSafetyAdapter(NewDefaultPlanGate(), NewDefaultToolGate())
+	adapter := newDefaultTestAdapter()
 
-	plan := PlannedActions{
-		Calls: []PlannedCall{
+	plan := plangate.PlannedActions{
+		Calls: []plangate.PlannedCall{
 			{ToolName: "dangerous", TrustClassRequired: []string{"not-allowed"}},
 		},
 	}
@@ -45,10 +48,10 @@ func TestSafetyLoop_UnsafePlanCaught(t *testing.T) {
 }
 
 func TestSafetyLoop_ToolDriftCaught(t *testing.T) {
-	adapter := NewReActSafetyAdapter(NewDefaultPlanGate(), NewDefaultToolGate())
+	adapter := newDefaultTestAdapter()
 
-	plan := PlannedActions{
-		Calls: []PlannedCall{
+	plan := plangate.PlannedActions{
+		Calls: []plangate.PlannedCall{
 			{ToolName: "echo", TrustClassRequired: []string{"operator"}},
 			{ToolName: "gateway_restart", TrustClassRequired: []string{"operator"}},
 		},
@@ -58,7 +61,7 @@ func TestSafetyLoop_ToolDriftCaught(t *testing.T) {
 		t.Fatal("plan should pass (plan gate doesn't check system-only)")
 	}
 
-	toolDecision, _ := adapter.CheckTool(context.Background(), ToolCallRequest{
+	toolDecision, _ := adapter.CheckTool(context.Background(), toolgate.CallRequest{
 		ToolName: "gateway_restart", Arguments: json.RawMessage(`{}`), CallerRole: "operator",
 	})
 	if toolDecision.Action != "refuse" {
@@ -67,9 +70,9 @@ func TestSafetyLoop_ToolDriftCaught(t *testing.T) {
 }
 
 func TestSafetyLoop_Recovery(t *testing.T) {
-	adapter := NewReActSafetyAdapter(NewDefaultPlanGate(), NewDefaultToolGate())
+	adapter := newDefaultTestAdapter()
 
-	evilDecision, _ := adapter.CheckTool(context.Background(), ToolCallRequest{
+	evilDecision, _ := adapter.CheckTool(context.Background(), toolgate.CallRequest{
 		ToolName: "gateway_restart", Arguments: json.RawMessage(`{}`), CallerRole: "operator",
 	})
 	if evilDecision.Action != "refuse" {
@@ -79,7 +82,7 @@ func TestSafetyLoop_Recovery(t *testing.T) {
 		t.Fatal("turn should continue after refusal for recovery")
 	}
 
-	safeDecision, _ := adapter.CheckTool(context.Background(), ToolCallRequest{
+	safeDecision, _ := adapter.CheckTool(context.Background(), toolgate.CallRequest{
 		ToolName: "echo", Arguments: json.RawMessage(`{"text":"ok"}`), CallerRole: "operator",
 	})
 	if safeDecision.Action != "execute" {

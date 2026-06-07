@@ -277,7 +277,7 @@ func sessionModelRoute(provider, model string) (llm.ModelRoute, bool) {
 		Model:     strings.TrimSpace(model),
 		BaseURL:   strings.TrimSpace(entry.BaseURLOverride),
 		APIMode:   sessionModelAPIMode(entry.TransportFamily),
-		APIKeyEnv: firstString(entry.EnvVars),
+		APIKeyEnv: firstNonEmpty(entry.EnvVars...),
 		KeyEnv:    strings.TrimSpace(entry.BaseURLEnvVar),
 	}
 	return route, route.Provider != "" && route.Model != ""
@@ -290,15 +290,6 @@ func sessionModelAPIMode(transport string) string {
 	default:
 		return strings.TrimSpace(transport)
 	}
-}
-
-func firstString(values []string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
-	}
-	return ""
 }
 
 func firstNonEmpty(values ...string) string {

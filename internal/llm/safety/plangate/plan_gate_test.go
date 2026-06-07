@@ -1,4 +1,4 @@
-package safety
+package plangate
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 )
 
 func TestPlanGate_AllowSafePlan(t *testing.T) {
-	gate := NewDefaultPlanGate()
+	gate := NewDefaultGate()
 
 	plan := PlannedActions{
 		Calls: []PlannedCall{
@@ -28,7 +28,7 @@ func TestPlanGate_AllowSafePlan(t *testing.T) {
 }
 
 func TestPlanGate_RefuseUnsafePlan(t *testing.T) {
-	gate := NewDefaultPlanGate()
+	gate := NewDefaultGate()
 
 	plan := PlannedActions{
 		Calls: []PlannedCall{
@@ -52,7 +52,7 @@ func TestPlanGate_RefuseUnsafePlan(t *testing.T) {
 }
 
 func TestPlanGate_RefuseSingleTool(t *testing.T) {
-	gate := NewDefaultPlanGate()
+	gate := NewDefaultGate()
 
 	plan := PlannedActions{
 		Calls: []PlannedCall{
@@ -78,7 +78,7 @@ func TestPlanGate_RefuseSingleTool(t *testing.T) {
 }
 
 func TestPlanGate_EmptyPlan(t *testing.T) {
-	gate := NewDefaultPlanGate()
+	gate := NewDefaultGate()
 
 	decision, err := gate.CheckPlan(context.Background(), PlannedActions{})
 	if err != nil {
@@ -90,7 +90,7 @@ func TestPlanGate_EmptyPlan(t *testing.T) {
 }
 
 func TestPlanGate_CustomRule(t *testing.T) {
-	gate := NewDefaultPlanGate()
+	gate := NewDefaultGate()
 	gate.AddRule(blockToolRule{"rm_tool"})
 
 	plan := PlannedActions{
@@ -109,7 +109,7 @@ func TestPlanGate_CustomRule(t *testing.T) {
 }
 
 func TestPlanGate_MultipleRules(t *testing.T) {
-	gate := NewDefaultPlanGate()
+	gate := NewDefaultGate()
 	gate.AddRule(blockToolRule{"tool_a"})
 
 	plan := PlannedActions{
@@ -128,7 +128,7 @@ func TestPlanGate_MultipleRules(t *testing.T) {
 }
 
 func TestPlanGate_ReasonMessage(t *testing.T) {
-	gate := NewDefaultPlanGate()
+	gate := NewDefaultGate()
 
 	plan := PlannedActions{
 		Calls: []PlannedCall{

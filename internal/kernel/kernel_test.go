@@ -656,6 +656,34 @@ func TestKernel_SetSessionModelCrossProviderSwapsClientViaFallbackFactory(t *tes
 	}
 }
 
+func TestSessionModelRouteUsesFirstConfiguredCredentialEnv(t *testing.T) {
+	route, ok := sessionModelRoute("openrouter", "openai/gpt-4o-mini")
+	if !ok {
+		t.Fatal("sessionModelRoute ok = false, want true for implemented provider")
+	}
+	if route.APIKeyEnv == "" {
+		t.Fatalf("APIKeyEnv = empty, want first configured credential env: %+v", route)
+	}
+	if strings.TrimSpace(route.APIKeyEnv) != route.APIKeyEnv {
+		t.Fatalf("APIKeyEnv = %q, want trimmed", route.APIKeyEnv)
+	}
+}
+
+func TestShouldSwapSessionProviderTrimsAndFallsBackToConfiguredProvider(t *testing.T) {
+	k := New(Config{Provider: " openrouter "}, llm.NewMockClient(), store.NewNoop(), telemetry.New(), nil)
+	if k.shouldSwapSessionProvider(" openrouter ") {
+		t.Fatal("shouldSwapSessionProvider returned true for configured provider with whitespace")
+	}
+	if !k.shouldSwapSessionProvider(" anthropic ") {
+		t.Fatal("shouldSwapSessionProvider returned false for different trimmed provider")
+	}
+
+	k.sessionProvider = " anthropic "
+	if k.shouldSwapSessionProvider("anthropic") {
+		t.Fatal("shouldSwapSessionProvider returned true for current session provider with whitespace")
+	}
+}
+
 func TestKernel_SetSessionModelUnknownProviderDoesNotMutateResidentModel(t *testing.T) {
 	k, _ := fixture(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
