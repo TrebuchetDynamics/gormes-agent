@@ -59,16 +59,31 @@ func (b *DockerExecBackend) resolveImage() string {
 
 // filteredEnv returns only allowlisted environment variables.
 func (b *DockerExecBackend) filteredEnv() map[string]string {
-	if len(b.config.EnvAllowlist) == 0 {
-		return b.config.Env
+	return filterEnvSnapshot(b.config.Env, b.config.EnvAllowlist)
+}
+
+func filterEnvSnapshot(env map[string]string, allowlist []string) map[string]string {
+	if len(allowlist) == 0 {
+		return copyEnv(env)
 	}
-	filtered := make(map[string]string, len(b.config.EnvAllowlist))
-	for _, key := range b.config.EnvAllowlist {
-		if val, ok := b.config.Env[key]; ok {
+	filtered := make(map[string]string, len(allowlist))
+	for _, key := range allowlist {
+		if val, ok := env[key]; ok {
 			filtered[key] = val
 		}
 	}
 	return filtered
+}
+
+func copyEnv(env map[string]string) map[string]string {
+	if env == nil {
+		return nil
+	}
+	copied := make(map[string]string, len(env))
+	for key, val := range env {
+		copied[key] = val
+	}
+	return copied
 }
 
 // Execute runs a command inside a Docker container with mount policy,

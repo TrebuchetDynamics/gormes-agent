@@ -290,6 +290,35 @@ func TestDockerExec_EnvPassthrough(t *testing.T) {
 			t.Errorf("expected 2 env vars, got %d", len(runner.lastEnv))
 		}
 	})
+
+	t.Run("passes env snapshot when no allowlist", func(t *testing.T) {
+		runner := &fakeDockerRunner{
+			result: DockerExecResult{Stdout: "ok", ExitCode: 0},
+		}
+		backend := NewDockerExecBackend(runner, DockerExecConfig{
+			Env: map[string]string{
+				"DEBUG": "1",
+			},
+		}, nil)
+
+		_, err := backend.Execute(context.Background(), "env", nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		runner.lastEnv["DEBUG"] = "mutated-by-runner"
+		runner.lastEnv["LEAKED"] = "yes"
+
+		_, err = backend.Execute(context.Background(), "env", nil)
+		if err != nil {
+			t.Fatalf("unexpected second error: %v", err)
+		}
+		if got := runner.lastEnv["DEBUG"]; got != "1" {
+			t.Fatalf("second env DEBUG = %q, want original snapshot value", got)
+		}
+		if _, ok := runner.lastEnv["LEAKED"]; ok {
+			t.Fatalf("second env unexpectedly retained runner mutation: %#v", runner.lastEnv)
+		}
+	})
 }
 
 func TestDockerExec_TimeoutCleanup(t *testing.T) {
