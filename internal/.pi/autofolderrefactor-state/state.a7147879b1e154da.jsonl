@@ -95,3 +95,5 @@
 {"ts":"2026-06-06T21:44:14-06:00","candidate":"planning/progress/markdown","reason":"already clean","scope":"candidate","state":"done"}
 {"ts":"2026-06-06T21:44:16-06:00","candidate":"planning/progress","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
 {"ts":"2026-06-06T21:46:14-06:00","candidate":"adapters/apiserver/ui","reason":"no metric progress rollback","scope":"candidate","state":"cooldown","until":"2026-06-06T22:46:14-06:00"}
+{"ts":"2026-06-06T21:47:12-06:00","candidate":"adapters/apiserver/assets","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:47:12-06:00"}
+{"ts":"2026-06-06T21:47:14-06:00","candidate":"adapters/apiserver","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}

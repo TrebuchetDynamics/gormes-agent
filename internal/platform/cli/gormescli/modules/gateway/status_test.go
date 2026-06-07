@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -13,6 +12,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	runtimegateway "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway/commandtest"
 	"github.com/spf13/cobra"
 )
 
@@ -553,13 +553,7 @@ func executeGatewayStatusCommand(t *testing.T, args ...string) (string, string, 
 	// Each newRootCommand() builds a fresh gateway tree via
 	// newGatewayCommandForTest(), so the JSON flag's default state is
 	// natural — no explicit reset needed.
-	var stdout, stderr bytes.Buffer
-	cmd := NewStatusCommand(testGatewayOptions())
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs(args)
-	err := cmd.Execute()
-	return stdout.String(), stderr.String(), err
+	return commandtest.Execute(t, NewStatusCommand(testGatewayOptions()), args...)
 }
 
 func assertGatewayStatusDidNotOpenRuntimeStores(t *testing.T) {

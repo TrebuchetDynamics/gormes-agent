@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,6 +12,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway/commandtest"
 	"github.com/spf13/cobra"
 )
 
@@ -1043,7 +1043,6 @@ func TestGatewayMutatingDoesNotShadowGatewayStatus(t *testing.T) {
 
 func executeGatewayMutatingCommand(t *testing.T, sub string, args ...string) (string, string, error) {
 	t.Helper()
-	var stdout, stderr bytes.Buffer
 	stub := func(name string) func() *cobra.Command {
 		return func() *cobra.Command {
 			return &cobra.Command{Use: name, RunE: func(*cobra.Command, []string) error { return nil }}
@@ -1069,11 +1068,7 @@ func executeGatewayMutatingCommand(t *testing.T, sub string, args ...string) (st
 		BootInstallCommand:   stub("boot-install"),
 		BootUninstallCommand: stub("boot-uninstall"),
 	}, testGatewayOptions())
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs(append([]string{sub}, args...))
-	err := cmd.Execute()
-	return stdout.String(), stderr.String(), err
+	return commandtest.Execute(t, cmd, append([]string{sub}, args...)...)
 }
 
 func exitCodeFromError(err error) int {

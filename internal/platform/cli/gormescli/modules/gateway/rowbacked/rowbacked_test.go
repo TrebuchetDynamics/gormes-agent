@@ -1,13 +1,13 @@
 package rowbacked
 
 import (
-	"bytes"
 	"encoding/json"
 	"testing"
 
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway/commandtest"
 )
 
 func TestGatewayRowBackedCommandsUseInjectedBuildProvenance(t *testing.T) {
@@ -16,22 +16,18 @@ func TestGatewayRowBackedCommandsUseInjectedBuildProvenance(t *testing.T) {
 			return gormescli.BuildProvenance{Version: "test-version", GitCommit: "test-sha"}
 		},
 	})
-	var stdout bytes.Buffer
-	cmd.SetOut(&stdout)
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true
-	cmd.SetArgs([]string{"subscribe", "https://example.invalid/hook", "--json"})
-
-	err := cmd.Execute()
+	stdout, _, err := commandtest.Execute(t, cmd, "subscribe", "https://example.invalid/hook", "--json")
 	if err == nil {
-		t.Fatalf("webhook subscribe must remain row-backed\nstdout=%s", stdout.String())
+		t.Fatalf("webhook subscribe must remain row-backed\nstdout=%s", stdout)
 	}
 	if exit, ok := err.(interface{ ExitCode() int }); !ok || exit.ExitCode() != 2 {
 		t.Fatalf("webhook subscribe exit = %#v, want ExitCode() == 2", err)
 	}
 	var got gormescli.RowBackedReportJSON
-	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
-		t.Fatalf("webhook stdout must be JSON: %v\nstdout=%s", err, stdout.String())
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("webhook stdout must be JSON: %v\nstdout=%s", err, stdout)
 	}
 	if got.Build.Version != "test-version" || got.Build.GitCommit != "test-sha" {
 		t.Fatalf("build provenance = %+v, want injected test values", got.Build)

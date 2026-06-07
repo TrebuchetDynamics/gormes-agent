@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	runtimegateway "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway/commandtest"
 )
 
 func TestGatewayFleetJSONListsProfilesWithoutOpeningRuntimeStores(t *testing.T) {
@@ -204,13 +204,7 @@ enabled = true
 
 func executeGatewayFleetCommand(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
-	var stdout, stderr bytes.Buffer
-	cmd := NewFleetCommand(testGatewayOptions())
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs(args)
-	err := cmd.Execute()
-	return stdout.String(), stderr.String(), err
+	return commandtest.Execute(t, NewFleetCommand(testGatewayOptions()), args...)
 }
 
 func findFleetProfile(t *testing.T, status runtimegateway.FleetStatus, profileID string) runtimegateway.FleetProfileStatus {
