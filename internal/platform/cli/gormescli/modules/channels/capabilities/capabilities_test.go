@@ -1,4 +1,4 @@
-package channels
+package capabilities
 
 import (
 	"bytes"
@@ -109,7 +109,7 @@ func TestChannelsSetupSubcommandSupportsEveryManifestChannel(t *testing.T) {
 					t.Fatalf("stdout missing %q:\n%s", want, stdout.String())
 				}
 			}
-			if !isQuickSetupChannel(report.Channel) && strings.Contains(stdout.String(), "gormes setup --quick --target "+report.Channel) {
+			if !IsQuickSetupChannel(report.Channel) && strings.Contains(stdout.String(), "gormes setup --quick --target "+report.Channel) {
 				t.Fatalf("row-backed channel %s should not advertise unsupported quick target:\n%s", report.Channel, stdout.String())
 			}
 		})
