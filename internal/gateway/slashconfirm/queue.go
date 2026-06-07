@@ -214,7 +214,7 @@ func validChoice(choice Choice) bool {
 
 func cloneRequest(req Request) Request {
 	req.Command = strings.TrimSpace(req.Command)
-	req.Evidence = cloneStringMap(req.Evidence)
+	req.Evidence = mapclone.StringString(req.Evidence)
 	return req
 }
 
@@ -232,8 +232,4 @@ func cloneOutcome(outcome Outcome) Outcome {
 	outcome.Request = cloneRequest(outcome.Request)
 	outcome.Resolution = cloneResolution(outcome.Resolution)
 	return outcome
-}
-
-func cloneStringMap(input map[string]string) map[string]string {
-	return mapclone.StringString(input)
 }

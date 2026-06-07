@@ -209,17 +209,13 @@ func (q *GatewayApprovalQueue) recordOutcomeLocked(entry *gatewayApprovalEntry, 
 
 func cloneGatewayApprovalRequest(req GatewayApprovalRequest) GatewayApprovalRequest {
 	req.PatternKeys = append([]string(nil), req.PatternKeys...)
-	req.Evidence = cloneStringMap(req.Evidence)
+	req.Evidence = mapclone.StringString(req.Evidence)
 	return req
 }
 
 func cloneResolution(res choice.Resolution) choice.Resolution {
-	res.Evidence = cloneStringMap(res.Evidence)
+	res.Evidence = mapclone.StringString(res.Evidence)
 	return res
-}
-
-func cloneStringMap(input map[string]string) map[string]string {
-	return mapclone.StringString(input)
 }
 
 func cloneGatewayApprovalOutcome(outcome GatewayApprovalOutcome) GatewayApprovalOutcome {

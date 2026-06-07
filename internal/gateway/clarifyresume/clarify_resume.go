@@ -2,6 +2,7 @@ package clarifyresume
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -63,7 +64,7 @@ func (b *ClarifyResumeBroker) Await(ctx context.Context, route ClarifyResumeRout
 			ChatID:    strings.TrimSpace(route.ChatID),
 			MsgID:     strings.TrimSpace(route.MsgID),
 			Question:  strings.TrimSpace(req.Question),
-			Choices:   append([]string(nil), req.Choices...),
+			Choices:   slices.Clone(req.Choices),
 			CreatedAt: b.now().UTC(),
 		},
 		answer: make(chan string, 1),
@@ -112,7 +113,7 @@ func (b *ClarifyResumeBroker) Pending(platform, chatID string) (PendingClarifyRo
 		return PendingClarifyRoute{}, false
 	}
 	out := pending.route
-	out.Choices = append([]string(nil), pending.route.Choices...)
+	out.Choices = slices.Clone(pending.route.Choices)
 	return out, true
 }
 

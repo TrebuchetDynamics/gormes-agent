@@ -1,4 +1,4 @@
-package platforms
+package inventory
 
 import (
 	"errors"

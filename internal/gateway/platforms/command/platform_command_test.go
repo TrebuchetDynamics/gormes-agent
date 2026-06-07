@@ -1,4 +1,4 @@
-package platforms
+package command
 
 import (
 	"strings"

@@ -1,8 +1,9 @@
 package statusview
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -419,11 +420,11 @@ func sortedStatusChannels(channels []StatusChannel) []StatusChannel {
 		}
 		out = append(out, channel)
 	}
-	sort.SliceStable(out, func(i, j int) bool {
-		if out[i].Name != out[j].Name {
-			return out[i].Name < out[j].Name
+	slices.SortStableFunc(out, func(a, b StatusChannel) int {
+		if byName := cmp.Compare(a.Name, b.Name); byName != 0 {
+			return byName
 		}
-		return out[i].Detail < out[j].Detail
+		return cmp.Compare(a.Detail, b.Detail)
 	})
 	return out
 }
@@ -440,94 +441,89 @@ func pairingPlatformMap(platforms []PairingPlatformStatus) map[string]PairingPla
 }
 
 func sortedPendingPairingRecords(records []PairingPendingRecord) []PairingPendingRecord {
-	out := append([]PairingPendingRecord(nil), records...)
-	sort.SliceStable(out, func(i, j int) bool {
-		left, right := out[i], out[j]
-		if left.Platform != right.Platform {
-			return left.Platform < right.Platform
+	out := slices.Clone(records)
+	slices.SortStableFunc(out, func(left, right PairingPendingRecord) int {
+		if byPlatform := cmp.Compare(left.Platform, right.Platform); byPlatform != 0 {
+			return byPlatform
 		}
-		if left.UserID != right.UserID {
-			return left.UserID < right.UserID
+		if byUserID := cmp.Compare(left.UserID, right.UserID); byUserID != 0 {
+			return byUserID
 		}
-		if left.AgeSeconds != right.AgeSeconds {
-			return left.AgeSeconds < right.AgeSeconds
+		if byAgeSeconds := cmp.Compare(left.AgeSeconds, right.AgeSeconds); byAgeSeconds != 0 {
+			return byAgeSeconds
 		}
-		return left.Code < right.Code
+		return cmp.Compare(left.Code, right.Code)
 	})
 	return out
 }
 
 func sortedApprovedPairingRecords(records []PairingApprovedRecord) []PairingApprovedRecord {
-	out := append([]PairingApprovedRecord(nil), records...)
-	sort.SliceStable(out, func(i, j int) bool {
-		left, right := out[i], out[j]
-		if left.Platform != right.Platform {
-			return left.Platform < right.Platform
+	out := slices.Clone(records)
+	slices.SortStableFunc(out, func(left, right PairingApprovedRecord) int {
+		if byPlatform := cmp.Compare(left.Platform, right.Platform); byPlatform != 0 {
+			return byPlatform
 		}
-		if left.UserID != right.UserID {
-			return left.UserID < right.UserID
+		if byUserID := cmp.Compare(left.UserID, right.UserID); byUserID != 0 {
+			return byUserID
 		}
-		return left.UserName < right.UserName
+		return cmp.Compare(left.UserName, right.UserName)
 	})
 	return out
 }
 
 func sortedExpiryFinalizedEvidence(records []RuntimeExpiryFinalizedEvidence) []RuntimeExpiryFinalizedEvidence {
-	out := append([]RuntimeExpiryFinalizedEvidence(nil), records...)
-	sort.SliceStable(out, func(i, j int) bool {
-		left, right := out[i], out[j]
-		if left.SessionID != right.SessionID {
-			return left.SessionID < right.SessionID
+	out := slices.Clone(records)
+	slices.SortStableFunc(out, func(left, right RuntimeExpiryFinalizedEvidence) int {
+		if bySessionID := cmp.Compare(left.SessionID, right.SessionID); bySessionID != 0 {
+			return bySessionID
 		}
-		if left.Source != right.Source {
-			return left.Source < right.Source
+		if bySource := cmp.Compare(left.Source, right.Source); bySource != 0 {
+			return bySource
 		}
-		if left.ChatID != right.ChatID {
-			return left.ChatID < right.ChatID
+		if byChatID := cmp.Compare(left.ChatID, right.ChatID); byChatID != 0 {
+			return byChatID
 		}
-		return left.UserID < right.UserID
+		return cmp.Compare(left.UserID, right.UserID)
 	})
 	return out
 }
 
 func sortedExpiryFinalizeEvidence(records []RuntimeExpiryFinalizeEvidence) []RuntimeExpiryFinalizeEvidence {
-	out := append([]RuntimeExpiryFinalizeEvidence(nil), records...)
-	sort.SliceStable(out, func(i, j int) bool {
-		left, right := out[i], out[j]
-		if left.SessionID != right.SessionID {
-			return left.SessionID < right.SessionID
+	out := slices.Clone(records)
+	slices.SortStableFunc(out, func(left, right RuntimeExpiryFinalizeEvidence) int {
+		if bySessionID := cmp.Compare(left.SessionID, right.SessionID); bySessionID != 0 {
+			return bySessionID
 		}
-		if left.Status != right.Status {
-			return left.Status < right.Status
+		if byStatus := cmp.Compare(left.Status, right.Status); byStatus != 0 {
+			return byStatus
 		}
-		if left.Source != right.Source {
-			return left.Source < right.Source
+		if bySource := cmp.Compare(left.Source, right.Source); bySource != 0 {
+			return bySource
 		}
-		if left.ChatID != right.ChatID {
-			return left.ChatID < right.ChatID
+		if byChatID := cmp.Compare(left.ChatID, right.ChatID); byChatID != 0 {
+			return byChatID
 		}
-		return left.UserID < right.UserID
+		return cmp.Compare(left.UserID, right.UserID)
 	})
 	return out
 }
 
 func sortedPairingDegradedEvidence(records []PairingDegradedEvidence) []PairingDegradedEvidence {
-	out := append([]PairingDegradedEvidence(nil), records...)
-	sort.SliceStable(out, func(i, j int) bool {
-		left, right := out[i], out[j]
-		if left.Platform != right.Platform {
-			return left.Platform < right.Platform
+	out := slices.Clone(records)
+	slices.SortStableFunc(out, func(left, right PairingDegradedEvidence) int {
+		if byPlatform := cmp.Compare(left.Platform, right.Platform); byPlatform != 0 {
+			return byPlatform
 		}
-		if left.Reason != right.Reason {
-			return left.Reason < right.Reason
+		if byReason := cmp.Compare(left.Reason, right.Reason); byReason != 0 {
+			return byReason
 		}
-		if left.UserID != right.UserID {
-			return left.UserID < right.UserID
+		if byUserID := cmp.Compare(left.UserID, right.UserID); byUserID != 0 {
+			return byUserID
 		}
-		if left.Code != right.Code {
-			return left.Code < right.Code
+		if byCode := cmp.Compare(left.Code, right.Code); byCode != 0 {
+			return byCode
 		}
-		return left.Message < right.Message
+		return cmp.Compare(left.Message, right.Message)
 	})
 	return out
 }

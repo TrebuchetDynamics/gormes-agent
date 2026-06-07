@@ -1,8 +1,9 @@
 package commandregistry
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/commandline"
@@ -456,13 +457,8 @@ func platformCommandNameSet(commands []PlatformCommand) map[string]bool {
 }
 
 func sortedPlatformCommands(commands []PlatformCommand) []PlatformCommand {
-	out := append([]PlatformCommand(nil), commands...)
-	sort.SliceStable(out, func(i, j int) bool {
-		if out[i].Name != out[j].Name {
-			return out[i].Name < out[j].Name
-		}
-		return out[i].Description < out[j].Description
-	})
+	out := slices.Clone(commands)
+	SortPlatformCommands(out)
 	return out
 }
 
@@ -507,10 +503,12 @@ func SplitGatewayCommandLine(input string) (token, args string) {
 
 // SortPlatformCommands sorts platform commands by name and description for deterministic registration.
 func SortPlatformCommands(commands []PlatformCommand) {
-	sort.SliceStable(commands, func(i, j int) bool {
-		if commands[i].Name != commands[j].Name {
-			return commands[i].Name < commands[j].Name
-		}
-		return commands[i].Description < commands[j].Description
-	})
+	slices.SortStableFunc(commands, comparePlatformCommand)
+}
+
+func comparePlatformCommand(a, b PlatformCommand) int {
+	if byName := cmp.Compare(a.Name, b.Name); byName != 0 {
+		return byName
+	}
+	return cmp.Compare(a.Description, b.Description)
 }

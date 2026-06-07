@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/mapclone"
 )
 
 var ErrUnavailable = errors.New("gateway config reload unavailable")
@@ -44,25 +46,13 @@ func truncateUTF8ByBytes(msg string, maxBytes int) string {
 }
 
 func CloneStringMap(input map[string]string) map[string]string {
-	out := make(map[string]string, len(input))
-	for k, v := range input {
-		out[k] = v
-	}
-	return out
+	return mapclone.StringStringOrEmpty(input)
 }
 
 func CloneBoolMap(input map[string]bool) map[string]bool {
-	out := make(map[string]bool, len(input))
-	for k, v := range input {
-		out[k] = v
-	}
-	return out
+	return mapclone.StringBoolOrEmpty(input)
 }
 
 func CloneNestedBoolMap(input map[string]map[string]bool) map[string]map[string]bool {
-	out := make(map[string]map[string]bool, len(input))
-	for platform, users := range input {
-		out[platform] = CloneBoolMap(users)
-	}
-	return out
+	return mapclone.NestedStringBoolOrEmpty(input)
 }

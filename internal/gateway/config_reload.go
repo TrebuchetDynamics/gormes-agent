@@ -33,10 +33,10 @@ func (m *Manager) configReloader() func(context.Context) (ManagerConfig, error) 
 
 func (m *Manager) applyReloadableConfig(ctx context.Context, next ManagerConfig) {
 	m.mu.Lock()
-	m.cfg.AllowedChats = cloneStringMap(next.AllowedChats)
-	m.cfg.AllowedUsers = cloneNestedBoolMap(next.AllowedUsers)
+	m.cfg.AllowedChats = configreload.CloneStringMap(next.AllowedChats)
+	m.cfg.AllowedUsers = configreload.CloneNestedBoolMap(next.AllowedUsers)
 	m.cfg.AllowedChatWhitelists = next.AllowedChatWhitelists
-	m.cfg.AllowDiscovery = cloneBoolMap(next.AllowDiscovery)
+	m.cfg.AllowDiscovery = configreload.CloneBoolMap(next.AllowDiscovery)
 	m.cfg.CoalesceMs = next.CoalesceMs
 	if m.cfg.CoalesceMs <= 0 {
 		m.cfg.CoalesceMs = 1000
@@ -46,7 +46,7 @@ func (m *Manager) applyReloadableConfig(ctx context.Context, next ManagerConfig)
 	m.cfg.ToolProgressCommandEnabled = next.ToolProgressCommandEnabled
 	m.cfg.BusyInputMode = textvalue.FirstNonEmptyTrimmed(next.BusyInputMode, "interrupt")
 	m.cfg.ReplyMode = next.ReplyMode
-	m.cfg.ToolProgressModes = cloneStringMap(next.ToolProgressModes)
+	m.cfg.ToolProgressModes = configreload.CloneStringMap(next.ToolProgressModes)
 	if next.PersistToolProgressMode != nil {
 		m.cfg.PersistToolProgressMode = next.PersistToolProgressMode
 	}
@@ -102,13 +102,3 @@ func (m *Manager) handleReloadCommand(ctx context.Context, ch Channel, ev Inboun
 }
 
 func sanitizeConfigReloadError(err error) string { return configreload.SanitizeError(err) }
-
-func cloneStringMap(input map[string]string) map[string]string {
-	return configreload.CloneStringMap(input)
-}
-
-func cloneBoolMap(input map[string]bool) map[string]bool { return configreload.CloneBoolMap(input) }
-
-func cloneNestedBoolMap(input map[string]map[string]bool) map[string]map[string]bool {
-	return configreload.CloneNestedBoolMap(input)
-}

@@ -1,9 +1,13 @@
-package platforms
+package connectivity
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/platforms/inventory"
+)
 
 func TestPlatformConnectedCheckersCoverManifest(t *testing.T) {
-	missing := MissingPlatformConnectedCheckers(HermesGatewayPlatformManifest())
+	missing := MissingPlatformConnectedCheckers(inventory.HermesGatewayPlatformManifest())
 	if len(missing) > 0 {
 		t.Fatalf("missing connected checkers for built-in platforms: %v", missing)
 	}

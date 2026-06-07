@@ -1,8 +1,9 @@
 package commandcatalog
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -32,7 +33,7 @@ func Render(req Request) string {
 		requestedPage = page
 	}
 
-	entries := append([]string(nil), req.BuiltinLines...)
+	entries := slices.Clone(req.BuiltinLines)
 	skillCommands := sortedCommands(req.SkillCommands)
 	if len(skillCommands) > 0 {
 		entries = append(entries, "", "Skill commands:")
@@ -101,12 +102,12 @@ func pageSize(platform string) int {
 }
 
 func sortedCommands(commands []Command) []Command {
-	out := append([]Command(nil), commands...)
-	sort.SliceStable(out, func(i, j int) bool {
-		if out[i].Name != out[j].Name {
-			return out[i].Name < out[j].Name
+	out := slices.Clone(commands)
+	slices.SortStableFunc(out, func(a, b Command) int {
+		if byName := cmp.Compare(a.Name, b.Name); byName != 0 {
+			return byName
 		}
-		return out[i].Description < out[j].Description
+		return cmp.Compare(a.Description, b.Description)
 	})
 	return out
 }

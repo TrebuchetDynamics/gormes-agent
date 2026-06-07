@@ -31,6 +31,18 @@ func TestSanitizeErrorBoundsOutputWithoutSplittingUTF8(t *testing.T) {
 	}
 }
 
+func TestCloneMapsKeepHistoricalEmptyMapBehavior(t *testing.T) {
+	if got := CloneStringMap(nil); got == nil || len(got) != 0 {
+		t.Fatalf("CloneStringMap(nil) = %#v, want empty non-nil map", got)
+	}
+	if got := CloneBoolMap(nil); got == nil || len(got) != 0 {
+		t.Fatalf("CloneBoolMap(nil) = %#v, want empty non-nil map", got)
+	}
+	if got := CloneNestedBoolMap(nil); got == nil || len(got) != 0 {
+		t.Fatalf("CloneNestedBoolMap(nil) = %#v, want empty non-nil map", got)
+	}
+}
+
 func TestCloneNestedBoolMapIsDeepCopy(t *testing.T) {
 	input := map[string]map[string]bool{"telegram": {"u1": true}}
 	clone := CloneNestedBoolMap(input)
