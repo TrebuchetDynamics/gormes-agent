@@ -7,7 +7,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
@@ -20,44 +19,32 @@ func TestTUIVoiceSlashBindingLocalModelReceivesVoiceToggle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load config: %v", err)
 	}
-	cmd := newRootCommand()
-	if err := cmd.Flags().Set("offline", "true"); err != nil {
-		t.Fatalf("set offline flag: %v", err)
-	}
-
 	var sawToggle bool
 	var status, enabled, ttsOn, ttsOff, disabled tui.VoiceToggleResult
-	err = RunResolved(cmd, Invocation{Config: cfg}, Runtime{
-		ProgramFactory: func(model tea.Model, _ ...tea.ProgramOption) Program {
-			return fakeTUIProgram{run: func() {
-				toggle := capturedTUIVoiceToggle(t, model)
-				if toggle == nil {
-					return
-				}
-				sawToggle = true
-				status, err = toggle(tui.VoiceToggleRequest{Action: "status", SessionID: "sess-voice"})
-				if err != nil {
-					return
-				}
-				enabled, err = toggle(tui.VoiceToggleRequest{Action: "on", SessionID: "sess-voice"})
-				if err != nil {
-					return
-				}
-				ttsOn, err = toggle(tui.VoiceToggleRequest{Action: "tts", SessionID: "sess-voice"})
-				if err != nil {
-					return
-				}
-				ttsOff, err = toggle(tui.VoiceToggleRequest{Action: "tts", SessionID: "sess-voice"})
-				if err != nil {
-					return
-				}
-				disabled, err = toggle(tui.VoiceToggleRequest{Action: "off", SessionID: "sess-voice"})
-			}}
-		},
+	runOfflineTUIForTest(t, cfg, func(model tea.Model) {
+		toggle := capturedTUIVoiceToggle(t, model)
+		if toggle == nil {
+			return
+		}
+		sawToggle = true
+		status, err = toggle(tui.VoiceToggleRequest{Action: "status", SessionID: "sess-voice"})
+		if err != nil {
+			return
+		}
+		enabled, err = toggle(tui.VoiceToggleRequest{Action: "on", SessionID: "sess-voice"})
+		if err != nil {
+			return
+		}
+		ttsOn, err = toggle(tui.VoiceToggleRequest{Action: "tts", SessionID: "sess-voice"})
+		if err != nil {
+			return
+		}
+		ttsOff, err = toggle(tui.VoiceToggleRequest{Action: "tts", SessionID: "sess-voice"})
+		if err != nil {
+			return
+		}
+		disabled, err = toggle(tui.VoiceToggleRequest{Action: "off", SessionID: "sess-voice"})
 	})
-	if err != nil {
-		t.Fatalf("RunResolved: %v", err)
-	}
 	if !sawToggle {
 		t.Fatal("local TUI VoiceToggle = nil, want config-backed /voice adapter")
 	}
@@ -87,7 +74,7 @@ func TestTUIVoiceSlashBindingLocalModelReceivesVoiceToggle(t *testing.T) {
 }
 
 func TestTUIVoiceSlashBindingRemoteTUIUnchanged(t *testing.T) {
-	model := tui.NewModelWithOptions(make(chan kernel.RenderFrame), func(string) {}, func() {}, tui.Options{})
+	model := newPlainRemoteTUIModel()
 	if toggle := capturedTUIVoiceToggle(t, model); toggle != nil {
 		t.Fatal("plain/remote TUI VoiceToggle is non-nil; only local startup should inject /voice adapter")
 	}

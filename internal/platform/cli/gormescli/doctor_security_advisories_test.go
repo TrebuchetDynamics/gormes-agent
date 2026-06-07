@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,14 +17,9 @@ import (
 func TestDoctorCommandRendersSecurityAdvisoriesFirstCleanPass(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
-	cmd := newRootCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor", "--offline"})
-	_ = cmd.Execute()
+	stdout, stderr, _ := executeRootCommandForTest(newRootCommand(), "doctor", "--offline")
 
-	out := stdout.String() + stderr.String()
+	out := stdout + stderr
 	if !strings.Contains(out, "◆ Security Advisories") {
 		t.Fatalf("doctor must render the ◆ Security Advisories section:\n%s", out)
 	}
@@ -49,14 +43,9 @@ func TestDoctorCommandRendersSecurityAdvisoriesFirstCleanPass(t *testing.T) {
 func TestDoctorCommandAckPersistsToGormesHome(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
-	cmd := newRootCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor", "--offline", "--ack", "shai-hulud-2026-05"})
-	_ = cmd.Execute()
+	stdout, stderr, _ := executeRootCommandForTest(newRootCommand(), "doctor", "--offline", "--ack", "shai-hulud-2026-05")
 
-	out := stdout.String() + stderr.String()
+	out := stdout + stderr
 	if !strings.Contains(out, "acknowledged shai-hulud-2026-05") {
 		t.Fatalf("--ack must confirm the dismissal in output:\n%s", out)
 	}
@@ -72,13 +61,8 @@ func TestDoctorCommandAckPersistsToGormesHome(t *testing.T) {
 
 	// Round-trip: a second run still finds the persisted ack store readable
 	// and the section stays a clean PASS (no Python package installed).
-	cmd2 := newRootCommand()
-	var so2, se2 bytes.Buffer
-	cmd2.SetOut(&so2)
-	cmd2.SetErr(&se2)
-	cmd2.SetArgs([]string{"doctor", "--offline"})
-	_ = cmd2.Execute()
-	out2 := so2.String() + se2.String()
+	so2, se2, _ := executeRootCommandForTest(newRootCommand(), "doctor", "--offline")
+	out2 := so2 + se2
 	if !strings.Contains(out2, "◆ Security Advisories") || !strings.Contains(out2, "No active security advisories") {
 		t.Fatalf("post-ack run must still render a clean ◆ Security Advisories section:\n%s", out2)
 	}

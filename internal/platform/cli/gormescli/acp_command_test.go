@@ -131,22 +131,16 @@ func TestACPClientCommandRequireExistingMissingSessionExits1WithEvidence(t *test
 func TestACPServeCommandRunsJSONRPCOverStdio(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
-	cmd := newACPCommandForTest()
-	var stdout, stderr bytes.Buffer
-	cmd.SetIn(strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1}}` + "\n"))
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"serve"})
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("Execute() error = %v\nstderr=%s\nstdout=%s", err, stderr.String(), stdout.String())
+	stdout, stderr, err := executeCobraCommandForTest(newACPCommandForTest(), cobraCommandExecutionOptions{Input: strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1}}` + "\n")}, "serve")
+	if err != nil {
+		t.Fatalf("Execute() error = %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
 	}
-	if stderr.Len() != 0 {
-		t.Fatalf("stderr = %q, want no JSON-RPC transport contamination", stderr.String())
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want no JSON-RPC transport contamination", stderr)
 	}
 	var frame map[string]any
-	if err := json.Unmarshal(bytes.TrimSpace(stdout.Bytes()), &frame); err != nil {
-		t.Fatalf("stdout is not one clean JSON-RPC frame: %v\nstdout=%s", err, stdout.String())
+	if err := json.Unmarshal(bytes.TrimSpace([]byte(stdout)), &frame); err != nil {
+		t.Fatalf("stdout is not one clean JSON-RPC frame: %v\nstdout=%s", err, stdout)
 	}
 	result := frame["result"].(map[string]any)
 	caps := result["agentCapabilities"].(map[string]any)

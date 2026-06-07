@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"errors"
 	"os"
 	"strings"
@@ -17,9 +16,7 @@ func TestSetupModelPickerUsesActiveProviderPickerModelSet(t *testing.T) {
 	t.Setenv("GORMES_HOME", home)
 
 	cmd := &cobra.Command{}
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
+	stdout, stderr := attachCobraCommandBuffersForTest(cmd)
 	cmd.SetIn(strings.NewReader("6\n"))
 
 	err := RunSetupActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: "openai-codex", Model: "gpt-5.5"})
@@ -61,9 +58,7 @@ func TestSetupModelPickerUsesOpenRouterFullModelSet(t *testing.T) {
 	withOpenRouterModelCatalogFetcherForTest(t, openRouterModelCatalogOfflineForTest)
 
 	cmd := &cobra.Command{}
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
+	stdout, stderr := attachCobraCommandBuffersForTest(cmd)
 	cmd.SetIn(strings.NewReader("\n"))
 
 	err := RunSetupActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: "openrouter", Model: "moonshotai/kimi-k2.6"})
@@ -94,9 +89,7 @@ func TestSetupModelPickerCancelDoesNotPersist(t *testing.T) {
 	t.Setenv("GORMES_HOME", home)
 
 	cmd := &cobra.Command{}
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
+	stdout, stderr := attachCobraCommandBuffersForTest(cmd)
 	cmd.SetIn(strings.NewReader("q\n"))
 
 	err := RunSetupActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: "openai-codex", Model: "gpt-5.5"})
@@ -113,9 +106,7 @@ func TestSetupModelPickerReportsDegradedFallback(t *testing.T) {
 	t.Setenv("GORMES_HOME", home)
 
 	cmd := &cobra.Command{}
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
+	stdout, stderr := attachCobraCommandBuffersForTest(cmd)
 	cmd.SetIn(strings.NewReader("custom-model\n"))
 
 	err := RunSetupActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: "fixture-provider", Model: "current-model"})

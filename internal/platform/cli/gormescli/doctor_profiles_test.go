@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -21,14 +20,9 @@ import (
 func TestDoctorCommandRendersProfilesMainOnly(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
-	cmd := newRootCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor", "--offline"})
-	_ = cmd.Execute()
+	stdout, stderr, _ := executeCobraCommandForTest(newRootCommand(), cobraCommandExecutionOptions{}, "doctor", "--offline")
 
-	out := stdout.String() + stderr.String()
+	out := stdout + stderr
 	if !strings.Contains(out, "◆ Profiles") {
 		t.Fatalf("doctor must render the ◆ Profiles section:\n%s", out)
 	}
@@ -63,14 +57,9 @@ func TestDoctorCommandEnumeratesNamedProfile(t *testing.T) {
 		t.Fatalf("write profile gateway state: %v", err)
 	}
 
-	cmd := newRootCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor", "--offline"})
-	_ = cmd.Execute()
+	stdout, stderr, _ := executeCobraCommandForTest(newRootCommand(), cobraCommandExecutionOptions{}, "doctor", "--offline")
 
-	out := stdout.String() + stderr.String()
+	out := stdout + stderr
 	if !strings.Contains(out, "◆ Profiles") {
 		t.Fatalf("doctor must render the ◆ Profiles section:\n%s", out)
 	}

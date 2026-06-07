@@ -25,14 +25,9 @@ model = "configured-model"
 api_key = "sk-doctor-fix-test"
 `))
 
-	cmd := newRootCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor", "--offline", "--fix"})
-	_ = cmd.Execute()
+	stdout, stderr, _ := executeCobraCommandForTest(newRootCommand(), cobraCommandExecutionOptions{}, "doctor", "--offline", "--fix")
 
-	out := stdout.String() + stderr.String()
+	out := stdout + stderr
 	if !strings.Contains(out, "Auto-fix results:") {
 		t.Fatalf("doctor --fix must print an auto-fix results block:\n%s", out)
 	}
@@ -83,14 +78,9 @@ enabled = true
 name = ""
 `))
 
-	cmd := newRootCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor", "--offline", "--fix"})
-	_ = cmd.Execute()
+	stdout, stderr, _ := executeCobraCommandForTest(newRootCommand(), cobraCommandExecutionOptions{}, "doctor", "--offline", "--fix")
 
-	out := stdout.String() + stderr.String()
+	out := stdout + stderr
 	if !strings.Contains(out, "config schema: already current") {
 		t.Fatalf("already-current config must be reported as already current, not re-Fixed:\n%s", out)
 	}

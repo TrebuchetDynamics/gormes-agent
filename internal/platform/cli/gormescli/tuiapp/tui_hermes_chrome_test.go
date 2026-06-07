@@ -8,8 +8,6 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
-
-	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
 // TestNativeTUIStartupUsesAltScreen proves the Go Bubble Tea TUI runs as a
@@ -18,28 +16,9 @@ import (
 // multi-line dashboard in normal scrollback leaves stale frame fragments in
 // the terminal after each render tick.
 func TestNativeTUIStartupUsesAltScreen(t *testing.T) {
-	setupNativeTUITestEnv(t)
+	cfg := loadNativeTUITestConfig(t)
 
-	cfg, err := config.Load(nil)
-	if err != nil {
-		t.Fatalf("Load config: %v", err)
-	}
-
-	cmd := newRootCommand()
-	if err := cmd.Flags().Set("offline", "true"); err != nil {
-		t.Fatalf("set offline flag: %v", err)
-	}
-
-	var captured []tea.ProgramOption
-	err = RunResolved(cmd, Invocation{Config: cfg}, Runtime{
-		ProgramFactory: func(_ tea.Model, opts ...tea.ProgramOption) Program {
-			captured = append(captured, opts...)
-			return fakeTUIProgram{}
-		},
-	})
-	if err != nil {
-		t.Fatalf("RunResolved: %v", err)
-	}
+	captured := captureOfflineTUIProgramOptions(t, cfg)
 
 	altScreenPtr := reflect.ValueOf(tea.WithAltScreen()).Pointer()
 	foundAltScreen := false
@@ -58,28 +37,9 @@ func TestNativeTUIStartupUsesAltScreen(t *testing.T) {
 }
 
 func TestNativeTUIStartupDoesNotCaptureMouseByDefault(t *testing.T) {
-	setupNativeTUITestEnv(t)
+	cfg := loadNativeTUITestConfig(t)
 
-	cfg, err := config.Load(nil)
-	if err != nil {
-		t.Fatalf("Load config: %v", err)
-	}
-
-	cmd := newRootCommand()
-	if err := cmd.Flags().Set("offline", "true"); err != nil {
-		t.Fatalf("set offline flag: %v", err)
-	}
-
-	var captured []tea.ProgramOption
-	err = RunResolved(cmd, Invocation{Config: cfg}, Runtime{
-		ProgramFactory: func(_ tea.Model, opts ...tea.ProgramOption) Program {
-			captured = append(captured, opts...)
-			return fakeTUIProgram{}
-		},
-	})
-	if err != nil {
-		t.Fatalf("RunResolved: %v", err)
-	}
+	captured := captureOfflineTUIProgramOptions(t, cfg)
 
 	mousePtr := reflect.ValueOf(tea.WithMouseAllMotion()).Pointer()
 	for _, opt := range captured {

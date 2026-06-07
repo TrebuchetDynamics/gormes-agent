@@ -7,44 +7,25 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
 func TestTUIKanbanSlashBindingLocalModelReceivesRunner(t *testing.T) {
-	setupNativeTUITestEnv(t)
-
-	cfg, err := config.Load(nil)
-	if err != nil {
-		t.Fatalf("Load config: %v", err)
-	}
-
-	cmd := newRootCommand()
-	if err := cmd.Flags().Set("offline", "true"); err != nil {
-		t.Fatalf("set offline flag: %v", err)
-	}
+	cfg := loadNativeTUITestConfig(t)
 
 	var sawRunner bool
 	var initOut, listOut string
 	var initErr, listErr error
-	err = RunResolved(cmd, Invocation{Config: cfg}, Runtime{
-		ProgramFactory: func(model tea.Model, _ ...tea.ProgramOption) Program {
-			return fakeTUIProgram{run: func() {
-				runKanban := capturedTUIKanbanSlash(t, model)
-				if runKanban == nil {
-					return
-				}
-				sawRunner = true
-				initOut, initErr = runKanban("/kanban init")
-				listOut, listErr = runKanban("/kanban list")
-			}}
-		},
+	runOfflineTUIForTest(t, cfg, func(model tea.Model) {
+		runKanban := capturedTUIKanbanSlash(t, model)
+		if runKanban == nil {
+			return
+		}
+		sawRunner = true
+		initOut, initErr = runKanban("/kanban init")
+		listOut, listErr = runKanban("/kanban list")
 	})
-	if err != nil {
-		t.Fatalf("RunResolved: %v", err)
-	}
 
 	if !sawRunner {
 		t.Fatal("local TUI KanbanSlash = nil, want CLI-backed runner")
@@ -64,7 +45,7 @@ func TestTUIKanbanSlashBindingLocalModelReceivesRunner(t *testing.T) {
 }
 
 func TestTUIKanbanSlashBindingRemoteTUIUnchanged(t *testing.T) {
-	model := tui.NewModelWithOptions(make(chan kernel.RenderFrame), func(string) {}, func() {}, tui.Options{})
+	model := newPlainRemoteTUIModel()
 	if runKanban := capturedTUIKanbanSlash(t, model); runKanban != nil {
 		t.Fatal("plain/remote TUI KanbanSlash is non-nil; only local startup should inject command runner")
 	}

@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -86,13 +85,9 @@ api_key = "sk-ant-fixture-token"
 func TestOnboardStatusPrintsFirstRunNextCommand(t *testing.T) {
 	setupOnboardWizardTestEnv(t)
 
-	cmd := newOnboardCommandWithSeams(onboardCommandSeams{})
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{})
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("onboard: %v\nstderr=%s", err, stderr.String())
+	stdout, stderr, err := executeCobraCommandForTest(newOnboardCommandWithSeams(onboardCommandSeams{}), cobraCommandExecutionOptions{})
+	if err != nil {
+		t.Fatalf("onboard: %v\nstderr=%s", err, stderr)
 	}
 
 	for _, want := range []string{
@@ -101,8 +96,8 @@ func TestOnboardStatusPrintsFirstRunNextCommand(t *testing.T) {
 		"Provider: provider endpoint is not configured",
 		"Next: gormes setup --quick --target terminal",
 	} {
-		if !strings.Contains(stdout.String(), want) {
-			t.Fatalf("stdout missing %q:\n%s", want, stdout.String())
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
 }
@@ -383,15 +378,7 @@ func setupOnboardWizardTestEnv(t *testing.T) string {
 
 func executeOnboardCommandWithSeams(t *testing.T, seams onboardCommandSeams, args ...string) (string, string, error) {
 	t.Helper()
-	cmd := newOnboardCommandWithSeams(seams)
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs(args)
-	cmd.SilenceUsage = true
-	cmd.SilenceErrors = true
-	err := cmd.Execute()
-	return stdout.String(), stderr.String(), err
+	return executeCobraCommandForTest(newOnboardCommandWithSeams(seams), cobraCommandExecutionOptions{SilenceUsage: true, SilenceErrors: true}, args...)
 }
 
 func newOnboardCommandWithSeams(seams onboardCommandSeams) *cobra.Command {

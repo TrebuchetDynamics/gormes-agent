@@ -11,7 +11,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
@@ -35,29 +34,17 @@ func TestTUILogsSlashBindingLocalModelReceivesGatewayLogTail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load config: %v", err)
 	}
-	cmd := newRootCommand()
-	if err := cmd.Flags().Set("offline", "true"); err != nil {
-		t.Fatalf("set offline flag: %v", err)
-	}
-
 	var sawTail bool
 	var tailOut string
 	var tailErr error
-	err = RunResolved(cmd, Invocation{Config: cfg}, Runtime{
-		ProgramFactory: func(model tea.Model, _ ...tea.ProgramOption) Program {
-			return fakeTUIProgram{run: func() {
-				readTail := capturedTUILogTail(t, model)
-				if readTail == nil {
-					return
-				}
-				sawTail = true
-				tailOut, tailErr = readTail(2)
-			}}
-		},
+	runOfflineTUIForTest(t, cfg, func(model tea.Model) {
+		readTail := capturedTUILogTail(t, model)
+		if readTail == nil {
+			return
+		}
+		sawTail = true
+		tailOut, tailErr = readTail(2)
 	})
-	if err != nil {
-		t.Fatalf("RunResolved: %v", err)
-	}
 
 	if !sawTail {
 		t.Fatal("local TUI GatewayLogTail = nil, want CLI-backed log tail reader")
@@ -71,7 +58,7 @@ func TestTUILogsSlashBindingLocalModelReceivesGatewayLogTail(t *testing.T) {
 }
 
 func TestTUILogsSlashBindingRemoteTUIUnchanged(t *testing.T) {
-	model := tui.NewModelWithOptions(make(chan kernel.RenderFrame), func(string) {}, func() {}, tui.Options{})
+	model := newPlainRemoteTUIModel()
 	if readTail := capturedTUILogTail(t, model); readTail != nil {
 		t.Fatal("plain/remote TUI GatewayLogTail is non-nil; only local startup should inject log tail reader")
 	}

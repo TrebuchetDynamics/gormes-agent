@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -454,16 +453,7 @@ func runSessionsCommand(t *testing.T, in *strings.Reader, args ...string) (strin
 	// Each newSessionRootCommandForTest() builds a fresh session command tree via
 	// newSessionCommandForTest(), so flag state is naturally isolated — no
 	// explicit per-flag reset needed.
-	cmd := newSessionRootCommandForTest()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	if in != nil {
-		cmd.SetIn(in)
-	}
-	cmd.SetArgs(args)
-	err := cmd.Execute()
-	return stdout.String(), stderr.String(), err
+	return executeCobraCommandForTest(newSessionRootCommandForTest(), cobraCommandExecutionOptions{Input: in}, args...)
 }
 
 // TestSessionCommand_ConstructorReturnsIndependentInstances proves

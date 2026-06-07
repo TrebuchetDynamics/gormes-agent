@@ -251,14 +251,5 @@ func runSetupTestCommand(t *testing.T, seams setupCommandSeams, args ...string) 
 
 func runSetupTestCommandWithInput(t *testing.T, seams setupCommandSeams, input string, args ...string) (string, string, error) {
 	t.Helper()
-	cmd := newSetupCommandWithSeams(seams)
-	var stdout, stderr bytes.Buffer
-	cmd.SetIn(strings.NewReader(input))
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs(args)
-	cmd.SilenceUsage = true
-	cmd.SilenceErrors = true
-	err := cmd.Execute()
-	return stdout.String(), stderr.String(), err
+	return executeCobraCommandForTest(newSetupCommandWithSeams(seams), cobraCommandExecutionOptions{Input: strings.NewReader(input), SilenceUsage: true, SilenceErrors: true}, args...)
 }

@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"strings"
 	"testing"
 )
@@ -13,14 +12,9 @@ import (
 func TestDoctorCommandHumanOutputIsSectionGrouped(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
-	cmd := newRootCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor", "--offline"})
-	_ = cmd.Execute()
+	stdout, stderr, _ := executeCobraCommandForTest(newRootCommand(), cobraCommandExecutionOptions{}, "doctor", "--offline")
 
-	out := stdout.String() + stderr.String()
+	out := stdout + stderr
 	if !strings.Contains(out, "Gormes Doctor") {
 		t.Fatalf("human doctor output must start with a Hermes-style boxed Gormes Doctor header:\n%s", out)
 	}
@@ -61,20 +55,15 @@ func TestDoctorCommandFreshHumanModeContinuesAfterProviderFailure(t *testing.T) 
 	setupOneshotFlagTestEnv(t)
 	t.Setenv("HOME", t.TempDir())
 
-	cmd := newRootCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor"})
-	err := cmd.Execute()
+	stdout, stderr, err := executeCobraCommandForTest(newRootCommand(), cobraCommandExecutionOptions{}, "doctor")
 	if err == nil {
-		t.Fatalf("doctor fresh human mode err = nil, want provider setup failure\nstdout=%s\nstderr=%s", stdout.String(), stderr.String())
+		t.Fatalf("doctor fresh human mode err = nil, want provider setup failure\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
 	if code := exitCodeFromError(err); code != 1 {
-		t.Fatalf("exit code = %d, want 1 for provider setup failure\nstdout=%s\nstderr=%s\nerr=%v", code, stdout.String(), stderr.String(), err)
+		t.Fatalf("exit code = %d, want 1 for provider setup failure\nstdout=%s\nstderr=%s\nerr=%v", code, stdout, stderr, err)
 	}
 
-	out := stdout.String() + stderr.String()
+	out := stdout + stderr
 	for _, want := range []string{
 		"Gormes Doctor",
 		"◆ Configuration Files",
@@ -104,14 +93,9 @@ func TestDoctorCommandFreshHumanModeContinuesAfterProviderFailure(t *testing.T) 
 func TestDoctorCommandJSONHasNoSectionHeaders(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
-	cmd := newRootCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor", "--offline", "--json"})
-	_ = cmd.Execute()
+	stdout, _, _ := executeCobraCommandForTest(newRootCommand(), cobraCommandExecutionOptions{}, "doctor", "--offline", "--json")
 
-	out := stdout.String()
+	out := stdout
 	if strings.Contains(out, "◆") {
 		t.Fatalf("--json output must not contain ◆ section headers (human-mode only):\n%s", out)
 	}

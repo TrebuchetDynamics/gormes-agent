@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -26,13 +25,9 @@ func TestDoctorCommand_OfflineRoutedThroughCobra(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
 	cmd := newRootCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor", "--offline"})
-	_ = cmd.Execute()
+	stdout, stderr, _ := executeRootCommandForTest(cmd, "doctor", "--offline")
 
-	combined := stdout.String() + stderr.String()
+	combined := stdout + stderr
 	if combined == "" {
 		t.Fatalf("doctor --offline produced no captured output; output likely went to os.Stdout/Stderr instead of cobra writers")
 	}
@@ -50,11 +45,7 @@ func TestDoctorCommand_JSONIncludesBuildProvenance(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
 	cmd := newRootCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor", "--offline", "--json"})
-	_ = cmd.Execute()
+	stdout, _, _ := executeRootCommandForTest(cmd, "doctor", "--offline", "--json")
 
 	var got struct {
 		Build struct {
@@ -62,8 +53,8 @@ func TestDoctorCommand_JSONIncludesBuildProvenance(t *testing.T) {
 			GitCommit string `json:"git_commit"`
 		} `json:"build"`
 	}
-	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
-		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout.String(), err)
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, err)
 	}
 	if got.Build.Version != "test-version" {
 		t.Fatalf("got.build.version = %q, want %q", got.Build.Version, "test-version")
@@ -91,11 +82,7 @@ func TestDoctorCommand_JSONIncludesTermuxRuntimeWhenDetected(t *testing.T) {
 	t.Setenv("PATH", binDir)
 
 	cmd := newRootCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor", "--offline", "--json"})
-	_ = cmd.Execute()
+	stdout, stderr, _ := executeRootCommandForTest(cmd, "doctor", "--offline", "--json")
 
 	var got struct {
 		Checks []struct {
@@ -109,8 +96,8 @@ func TestDoctorCommand_JSONIncludesTermuxRuntimeWhenDetected(t *testing.T) {
 			} `json:"items"`
 		} `json:"checks"`
 	}
-	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
-		t.Fatalf("stdout must be valid JSON; got %q\nstderr=%s\nerr=%v", stdout.String(), stderr.String(), err)
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nstderr=%s\nerr=%v", stdout, stderr, err)
 	}
 	var termux *struct {
 		Name    string `json:"name"`
@@ -129,7 +116,7 @@ func TestDoctorCommand_JSONIncludesTermuxRuntimeWhenDetected(t *testing.T) {
 		}
 	}
 	if termux == nil {
-		t.Fatalf("doctor JSON missing Termux runtime check:\n%s", stdout.String())
+		t.Fatalf("doctor JSON missing Termux runtime check:\n%s", stdout)
 	}
 	if termux.Status != doctor.StatusWarn.String() {
 		t.Fatalf("Termux runtime status = %v, want WARN for lifecycle caveat", termux.Status)
@@ -160,13 +147,9 @@ func TestDoctorCommand_JSONFieldOrderPutsFailedBeforeChecks(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
 	cmd := newRootCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor", "--offline", "--json"})
-	_ = cmd.Execute()
+	stdout, _, _ := executeRootCommandForTest(cmd, "doctor", "--offline", "--json")
 
-	body := stdout.String()
+	body := stdout
 	failedIdx := strings.Index(body, `"failed"`)
 	checksIdx := strings.Index(body, `"checks"`)
 	if failedIdx < 0 || checksIdx < 0 {
@@ -186,18 +169,14 @@ func TestDoctorCommand_JSONReportsFailedFieldFromWorstCheck(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
 	cmd := newRootCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor", "--offline", "--json"})
-	_ = cmd.Execute()
+	stdout, _, _ := executeRootCommandForTest(cmd, "doctor", "--offline", "--json")
 
 	// Parse as a generic map first to assert the `failed` key is
 	// PRESENT (zero-value false would otherwise let a missing field
 	// silently pass through json.Unmarshal into a struct).
 	var raw map[string]any
-	if err := json.Unmarshal(stdout.Bytes(), &raw); err != nil {
-		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout.String(), err)
+	if err := json.Unmarshal([]byte(stdout), &raw); err != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, err)
 	}
 	gotFailedRaw, hasFailed := raw["failed"]
 	if !hasFailed {
@@ -235,11 +214,7 @@ func TestDoctorCommand_JSONReportsFailedFieldFromWorstCheck(t *testing.T) {
 func TestDoctorCommand_SourceBuildIdentitySummary(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	cmd := newRootCommandWithProvenance("0.0.0-test", "unknown", false)
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor", "--offline", "--json"})
-	_ = cmd.Execute()
+	stdout, _, _ := executeRootCommandForTest(cmd, "doctor", "--offline", "--json")
 
 	var got struct {
 		Checks []struct {
@@ -248,8 +223,8 @@ func TestDoctorCommand_SourceBuildIdentitySummary(t *testing.T) {
 			Summary string `json:"summary"`
 		} `json:"checks"`
 	}
-	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
-		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout.String(), err)
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, err)
 	}
 	for _, c := range got.Checks {
 		if c.Name != "build identity" {
@@ -291,11 +266,7 @@ func TestDoctorCommand_CleanBuildEmitsBuildIdentityPass(t *testing.T) {
 	wantVersion := "0.1.0-test"
 	wantCommit := "abc123def456"
 	cmd := newRootCommandWithProvenance(wantVersion, wantCommit, false)
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor", "--offline", "--json"})
-	_ = cmd.Execute()
+	stdout, _, _ := executeRootCommandForTest(cmd, "doctor", "--offline", "--json")
 
 	var got struct {
 		Checks []struct {
@@ -304,8 +275,8 @@ func TestDoctorCommand_CleanBuildEmitsBuildIdentityPass(t *testing.T) {
 			Summary string `json:"summary"`
 		} `json:"checks"`
 	}
-	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
-		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout.String(), err)
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, err)
 	}
 	var found bool
 	for _, c := range got.Checks {
@@ -341,11 +312,7 @@ func TestDoctorCommand_OfflineJSONEmitsCheckArray(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
 	cmd := newRootCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor", "--offline", "--json"})
-	_ = cmd.Execute()
+	stdout, _, _ := executeRootCommandForTest(cmd, "doctor", "--offline", "--json")
 
 	var got struct {
 		Checks []struct {
@@ -354,8 +321,8 @@ func TestDoctorCommand_OfflineJSONEmitsCheckArray(t *testing.T) {
 			Summary string `json:"summary"`
 		} `json:"checks"`
 	}
-	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
-		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout.String(), err)
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, err)
 	}
 	if len(got.Checks) == 0 {
 		t.Fatalf("got 0 checks, want at least the SecretRef runtime + Toolbox + provider-skipped entries")
@@ -371,8 +338,8 @@ func TestDoctorCommand_OfflineJSONEmitsCheckArray(t *testing.T) {
 			t.Fatalf("checks array missing entry %q; got names=%v", name, checkNames(got.Checks))
 		}
 	}
-	if strings.Contains(stdout.String(), "[PASS]") || strings.Contains(stdout.String(), "[WARN]") {
-		t.Fatalf("--json must not emit bracketed human lines; got:\n%s", stdout.String())
+	if strings.Contains(stdout, "[PASS]") || strings.Contains(stdout, "[WARN]") {
+		t.Fatalf("--json must not emit bracketed human lines; got:\n%s", stdout)
 	}
 }
 

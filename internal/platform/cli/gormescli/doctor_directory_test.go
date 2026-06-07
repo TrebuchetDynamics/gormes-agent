@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"strings"
 	"testing"
 )
@@ -12,14 +11,9 @@ import (
 func TestDoctorCommandRendersDirectoryStructureSection(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
-	cmd := newRootCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor", "--offline"})
-	_ = cmd.Execute()
+	stdout, stderr, _ := executeCobraCommandForTest(newRootCommand(), cobraCommandExecutionOptions{}, "doctor", "--offline")
 
-	out := stdout.String() + stderr.String()
+	out := stdout + stderr
 	if !strings.Contains(out, "◆ Directory Structure") {
 		t.Fatalf("doctor must render the ◆ Directory Structure section:\n%s", out)
 	}

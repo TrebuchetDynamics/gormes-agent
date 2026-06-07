@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,16 +27,12 @@ func TestDoctorOfflineReportsResolvedProviderDefaultModel(t *testing.T) {
 		t.Fatalf("write config: %v", err)
 	}
 
-	cmd := newRootCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"doctor", "--offline"})
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("doctor --offline: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	stdout, stderr, err := executeCobraCommandForTest(newRootCommand(), cobraCommandExecutionOptions{}, "doctor", "--offline")
+	if err != nil {
+		t.Fatalf("doctor --offline: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
 
-	combined := stdout.String() + stderr.String()
+	combined := stdout + stderr
 	if !strings.Contains(combined, "model=gpt-5.5 source=curated_fallback") {
 		t.Fatalf("doctor output missing resolved model provenance:\n%s", combined)
 	}

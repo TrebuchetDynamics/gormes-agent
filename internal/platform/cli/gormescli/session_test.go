@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -24,13 +23,9 @@ import (
 func TestSessionExportCommand_JSONEmitsStructuredTranscript(t *testing.T) {
 	seedTranscriptDB(t, "sess-cli-json", "discord:chan-9")
 
-	cmd := newSessionRootCommandForTest()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"session", "export", "sess-cli-json", "--format=markdown", "--json"})
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("session export --json: %v\nstderr=%s", err, stderr.String())
+	stdout, stderr, err := executeCobraCommandForTest(newSessionRootCommandForTest(), cobraCommandExecutionOptions{}, "session", "export", "sess-cli-json", "--format=markdown", "--json")
+	if err != nil {
+		t.Fatalf("session export --json: %v\nstderr=%s", err, stderr)
 	}
 
 	var got struct {
@@ -41,8 +36,8 @@ func TestSessionExportCommand_JSONEmitsStructuredTranscript(t *testing.T) {
 		Format    string `json:"format"`
 		Content   string `json:"content"`
 	}
-	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
-		t.Fatalf("invalid JSON: %v\nstdout=%s", err, stdout.String())
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("invalid JSON: %v\nstdout=%s", err, stdout)
 	}
 	if got.Build.Version != Version {
 		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
@@ -61,46 +56,35 @@ func TestSessionExportCommand_JSONEmitsStructuredTranscript(t *testing.T) {
 func TestSessionExportCommand_Markdown(t *testing.T) {
 	seedTranscriptDB(t, "sess-cli", "discord:chan-7")
 
-	cmd := newSessionRootCommandForTest()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"session", "export", "sess-cli", "--format=markdown"})
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("Execute: %v\nstderr=%s", err, stderr.String())
+	stdout, stderr, err := executeCobraCommandForTest(newSessionRootCommandForTest(), cobraCommandExecutionOptions{}, "session", "export", "sess-cli", "--format=markdown")
+	if err != nil {
+		t.Fatalf("Execute: %v\nstderr=%s", err, stderr)
 	}
 
-	out := stdout.String()
+	out := stdout
 	if !strings.Contains(out, "# Session: sess-cli") {
 		t.Fatalf("stdout = %q, want session heading", out)
 	}
 	if !strings.Contains(out, "**Tool Calls:**") {
 		t.Fatalf("stdout = %q, want tool call section", out)
 	}
-	if stderr.Len() != 0 {
-		t.Fatalf("stderr = %q, want empty", stderr.String())
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want empty", stderr)
 	}
 }
 
 func TestSessionExportCommand_MissingSession(t *testing.T) {
 	seedTranscriptDB(t, "other-session", "telegram:11")
 
-	cmd := newSessionRootCommandForTest()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"session", "export", "missing", "--format=markdown"})
-
-	err := cmd.Execute()
+	stdout, _, err := executeCobraCommandForTest(newSessionRootCommandForTest(), cobraCommandExecutionOptions{}, "session", "export", "missing", "--format=markdown")
 	if err == nil {
 		t.Fatal("Execute() error = nil, want missing-session error")
 	}
 	if !strings.Contains(err.Error(), `session "missing" not found`) {
 		t.Fatalf("error = %v, want missing-session message", err)
 	}
-	if stdout.Len() != 0 {
-		t.Fatalf("stdout = %q, want empty", stdout.String())
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
 	}
 }
 
