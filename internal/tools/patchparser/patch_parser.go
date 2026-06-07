@@ -51,11 +51,12 @@ func parsePatchFiles(patch string) []PatchFileInfo {
 			}
 			cur = &PatchFileInfo{}
 		} else if strings.HasPrefix(line, "--- ") && cur != nil && cur.File == "" {
-			name := strings.TrimPrefix(line, "--- ")
-			if strings.HasPrefix(name, "a/") {
-				name = name[2:]
+			name := normalizePatchFileName(strings.TrimPrefix(line, "--- "))
+			if name != "/dev/null" {
+				cur.File = name
 			}
-			cur.File = name
+		} else if strings.HasPrefix(line, "+++ ") && cur != nil && cur.File == "" {
+			cur.File = normalizePatchFileName(strings.TrimPrefix(line, "+++ "))
 		} else if cur != nil {
 			if strings.HasPrefix(line, "@@") {
 				cur.Hunks++
@@ -70,4 +71,12 @@ func parsePatchFiles(patch string) []PatchFileInfo {
 		files = append(files, *cur)
 	}
 	return files
+}
+
+func normalizePatchFileName(name string) string {
+	name = strings.TrimSpace(name)
+	if strings.HasPrefix(name, "a/") || strings.HasPrefix(name, "b/") {
+		return name[2:]
+	}
+	return name
 }
