@@ -3,18 +3,16 @@
 package transcription
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"mime/multipart"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/transcription/cloud"
 )
 
 // Default STT provider configuration values
@@ -123,65 +121,20 @@ func (p *TranscriptionOpenAIProvider) Transcribe(ctx context.Context, req Transc
 		model = req.Model
 	}
 
-	// Build multipart form request
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-
-	// Add model field
-	if err := writer.WriteField("model", model); err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("OpenAI STT field: %w", err)
+	fields := []cloud.Field{
+		{Name: "model", Value: model},
+		{Name: "response_format", Value: "text"},
 	}
-
-	// Add language hint if provided
 	if req.Language != "" {
-		if err := writer.WriteField("language", req.Language); err != nil {
-			return TranscriptionProviderResult{}, fmt.Errorf("OpenAI STT language field: %w", err)
-		}
+		fields = append(fields, cloud.Field{Name: "language", Value: req.Language})
 	}
-
-	// Add response_format - always text for simplicity
-	if err := writer.WriteField("response_format", "text"); err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("OpenAI STT format field: %w", err)
-	}
-
-	// Add audio file
-	f, err := os.Open(req.AudioPath)
+	resp, err := cloud.PostBearerMultipart(ctx, p.client, "OpenAI STT", p.config.BaseURL, "/audio/transcriptions", apiKey, req.AudioPath, fields)
 	if err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("OpenAI STT open audio: %w", err)
-	}
-	defer f.Close()
-
-	part, err := writer.CreateFormFile("file", filepath.Base(req.AudioPath))
-	if err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("OpenAI STT create form file: %w", err)
-	}
-	if _, err := io.Copy(part, f); err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("OpenAI STT copy audio: %w", err)
-	}
-	if err := writer.Close(); err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("OpenAI STT close writer: %w", err)
-	}
-
-	baseURL := strings.TrimSuffix(p.config.BaseURL, "/")
-	url := baseURL + "/v1/audio/transcriptions"
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, body)
-	if err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("OpenAI STT request: %w", err)
-	}
-
-	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
-	httpReq.Header.Set("Content-Type", writer.FormDataContentType())
-
-	resp, err := p.client.Do(httpReq)
-	if err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("OpenAI STT HTTP: %w", err)
+		return TranscriptionProviderResult{}, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		return TranscriptionProviderResult{}, fmt.Errorf("OpenAI STT HTTP %d: %s", resp.StatusCode, string(respBody))
+	if err := cloud.RequireOK("OpenAI STT", resp); err != nil {
+		return TranscriptionProviderResult{}, err
 	}
 
 	// We requested response_format=text above, so the body is the raw
@@ -191,12 +144,12 @@ func (p *TranscriptionOpenAIProvider) Transcribe(ctx context.Context, req Transc
 	// the Groq provider hit before the same fix landed. Same defect class:
 	// the comment "OpenAI returns {\"text\": \"...\"}" was true ONLY when
 	// no response_format was set; with response_format=text the body is raw.
-	bodyBytes, err := io.ReadAll(resp.Body)
+	transcript, err := cloud.ReadTrimmedText("OpenAI STT", resp.Body)
 	if err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("OpenAI STT read response: %w", err)
+		return TranscriptionProviderResult{}, err
 	}
 	return TranscriptionProviderResult{
-		Transcript: strings.TrimSpace(string(bodyBytes)),
+		Transcript: transcript,
 		Provider:   ProviderNameOpenAI, // from tts_providers.go
 		Model:      model,
 		Language:   req.Language,
@@ -255,54 +208,16 @@ func (p *TranscriptionGroqProvider) Transcribe(ctx context.Context, req Transcri
 		model = req.Model
 	}
 
-	// Build multipart form request
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-
-	if err := writer.WriteField("model", model); err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("Groq STT field: %w", err)
-	}
-	if err := writer.WriteField("response_format", "text"); err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("Groq STT format field: %w", err)
-	}
-
-	f, err := os.Open(req.AudioPath)
+	resp, err := cloud.PostBearerMultipart(ctx, p.client, "Groq STT", p.config.BaseURL, "/audio/transcriptions", apiKey, req.AudioPath, []cloud.Field{
+		{Name: "model", Value: model},
+		{Name: "response_format", Value: "text"},
+	})
 	if err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("Groq STT open audio: %w", err)
-	}
-	defer f.Close()
-
-	part, err := writer.CreateFormFile("file", filepath.Base(req.AudioPath))
-	if err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("Groq STT create form file: %w", err)
-	}
-	if _, err := io.Copy(part, f); err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("Groq STT copy audio: %w", err)
-	}
-	if err := writer.Close(); err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("Groq STT close writer: %w", err)
-	}
-
-	baseURL := strings.TrimSuffix(p.config.BaseURL, "/")
-	url := baseURL + "/audio/transcriptions"
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, body)
-	if err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("Groq STT request: %w", err)
-	}
-
-	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
-	httpReq.Header.Set("Content-Type", writer.FormDataContentType())
-
-	resp, err := p.client.Do(httpReq)
-	if err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("Groq STT HTTP: %w", err)
+		return TranscriptionProviderResult{}, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		return TranscriptionProviderResult{}, fmt.Errorf("Groq STT HTTP %d: %s", resp.StatusCode, string(respBody))
+	if err := cloud.RequireOK("Groq STT", resp); err != nil {
+		return TranscriptionProviderResult{}, err
 	}
 
 	// We requested response_format=text above, so the body is the raw
@@ -310,12 +225,12 @@ func (p *TranscriptionGroqProvider) Transcribe(ctx context.Context, req Transcri
 	// Content-Type Groq returns for text-format requests and avoids
 	// "invalid character ... looking for beginning of value" JSON parse
 	// errors that fire on the first non-{ character of a real transcript.
-	bodyBytes, err := io.ReadAll(resp.Body)
+	transcript, err := cloud.ReadTrimmedText("Groq STT", resp.Body)
 	if err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("Groq STT read response: %w", err)
+		return TranscriptionProviderResult{}, err
 	}
 	return TranscriptionProviderResult{
-		Transcript: strings.TrimSpace(string(bodyBytes)),
+		Transcript: transcript,
 		Provider:   ProviderNameGroq,
 		Model:      model,
 		Language:   req.Language,
@@ -374,51 +289,15 @@ func (p *TranscriptionMistralProvider) Transcribe(ctx context.Context, req Trans
 		model = req.Model
 	}
 
-	// Build multipart form request
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-
-	if err := writer.WriteField("model", model); err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("Mistral STT field: %w", err)
-	}
-
-	f, err := os.Open(req.AudioPath)
+	resp, err := cloud.PostBearerMultipart(ctx, p.client, "Mistral STT", p.config.BaseURL, "/audio/transcriptions", apiKey, req.AudioPath, []cloud.Field{
+		{Name: "model", Value: model},
+	})
 	if err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("Mistral STT open audio: %w", err)
-	}
-	defer f.Close()
-
-	part, err := writer.CreateFormFile("file", filepath.Base(req.AudioPath))
-	if err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("Mistral STT create form file: %w", err)
-	}
-	if _, err := io.Copy(part, f); err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("Mistral STT copy audio: %w", err)
-	}
-	if err := writer.Close(); err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("Mistral STT close writer: %w", err)
-	}
-
-	baseURL := strings.TrimSuffix(p.config.BaseURL, "/")
-	url := baseURL + "/v1/audio/transcriptions"
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, body)
-	if err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("Mistral STT request: %w", err)
-	}
-
-	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
-	httpReq.Header.Set("Content-Type", writer.FormDataContentType())
-
-	resp, err := p.client.Do(httpReq)
-	if err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("Mistral STT HTTP: %w", err)
+		return TranscriptionProviderResult{}, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		return TranscriptionProviderResult{}, fmt.Errorf("Mistral STT HTTP %d: %s", resp.StatusCode, string(respBody))
+	if err := cloud.RequireOK("Mistral STT", resp); err != nil {
+		return TranscriptionProviderResult{}, err
 	}
 
 	// Mistral returns {"text": "..."} or similar structure
@@ -483,59 +362,17 @@ func (p *TranscriptionXAIProvider) Transcribe(ctx context.Context, req Transcrip
 		return TranscriptionProviderResult{}, errors.New("xAI STT API key not configured")
 	}
 
-	// Build multipart form request
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-
-	// xAI supports optional language hint
+	fields := []cloud.Field{{Name: "format", Value: "true"}}
 	if req.Language != "" {
-		if err := writer.WriteField("language", req.Language); err != nil {
-			return TranscriptionProviderResult{}, fmt.Errorf("xAI STT language field: %w", err)
-		}
+		fields = append(fields, cloud.Field{Name: "language", Value: req.Language})
 	}
-
-	// xAI supports format and diarize options (default true/false respectively)
-	if err := writer.WriteField("format", "true"); err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("xAI STT format field: %w", err)
-	}
-
-	f, err := os.Open(req.AudioPath)
+	resp, err := cloud.PostBearerMultipart(ctx, p.client, "xAI STT", p.config.BaseURL, "/v1/stt", apiKey, req.AudioPath, fields)
 	if err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("xAI STT open audio: %w", err)
-	}
-	defer f.Close()
-
-	part, err := writer.CreateFormFile("file", filepath.Base(req.AudioPath))
-	if err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("xAI STT create form file: %w", err)
-	}
-	if _, err := io.Copy(part, f); err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("xAI STT copy audio: %w", err)
-	}
-	if err := writer.Close(); err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("xAI STT close writer: %w", err)
-	}
-
-	baseURL := strings.TrimSuffix(p.config.BaseURL, "/")
-	url := baseURL + "/v1/stt"
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, body)
-	if err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("xAI STT request: %w", err)
-	}
-
-	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
-	httpReq.Header.Set("Content-Type", writer.FormDataContentType())
-
-	resp, err := p.client.Do(httpReq)
-	if err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("xAI STT HTTP: %w", err)
+		return TranscriptionProviderResult{}, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		return TranscriptionProviderResult{}, fmt.Errorf("xAI STT HTTP %d: %s", resp.StatusCode, string(respBody))
+	if err := cloud.RequireOK("xAI STT", resp); err != nil {
+		return TranscriptionProviderResult{}, err
 	}
 
 	// xAI returns {"text": "..."}

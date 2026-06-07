@@ -57,7 +57,9 @@ func TestTranscriptionOpenAIProviderTranscribe(t *testing.T) {
 		var reqBody map[string]any
 		var authHeader string
 		var contentType string
+		var gotPath string
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotPath = r.URL.Path
 			authHeader = r.Header.Get("Authorization")
 			contentType = r.Header.Get("Content-Type")
 			if err := r.ParseMultipartForm(1024 * 1024); err != nil {
@@ -80,7 +82,7 @@ func TestTranscriptionOpenAIProviderTranscribe(t *testing.T) {
 		audio := writeTestAudioFile(t, "test.ogg", []byte("fake audio content"))
 		provider := NewTranscriptionOpenAIProvider(TranscriptionProviderConfig{
 			APIKey:  "sk-test-key",
-			BaseURL: server.URL,
+			BaseURL: server.URL + "/v1",
 			Model:   "whisper-1",
 			Timeout: 10 * time.Second,
 		})
@@ -112,6 +114,9 @@ func TestTranscriptionOpenAIProviderTranscribe(t *testing.T) {
 		}
 		if reqBody["response_format"] != "text" {
 			t.Fatalf("expected response_format=text (raw body contract), got: %v", reqBody["response_format"])
+		}
+		if gotPath != "/v1/audio/transcriptions" {
+			t.Fatalf("request path = %q, want single /v1 prefix", gotPath)
 		}
 		_ = contentType // multipart form-data
 	})
@@ -313,7 +318,9 @@ func TestTranscriptionMistralProviderAvailable(t *testing.T) {
 func TestTranscriptionMistralProviderTranscribe(t *testing.T) {
 	t.Run("transcribes successfully", func(t *testing.T) {
 		var receivedModel string
+		var gotPath string
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotPath = r.URL.Path
 			if err := r.ParseMultipartForm(1024 * 1024); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -327,7 +334,7 @@ func TestTranscriptionMistralProviderTranscribe(t *testing.T) {
 		audio := writeTestAudioFile(t, "test.mp3", []byte("fake audio"))
 		provider := NewTranscriptionMistralProvider(TranscriptionProviderConfig{
 			APIKey:  "mistral-test-key",
-			BaseURL: server.URL,
+			BaseURL: server.URL + "/v1",
 			Model:   "voxtral-mini-latest",
 			Timeout: 10 * time.Second,
 		})
@@ -348,6 +355,9 @@ func TestTranscriptionMistralProviderTranscribe(t *testing.T) {
 		}
 		if receivedModel != "voxtral-mini-latest" {
 			t.Fatalf("expected model voxtral-mini-latest, got: %s", receivedModel)
+		}
+		if gotPath != "/v1/audio/transcriptions" {
+			t.Fatalf("request path = %q, want single /v1 prefix", gotPath)
 		}
 	})
 }

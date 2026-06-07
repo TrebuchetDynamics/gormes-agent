@@ -34,16 +34,12 @@ func TestManager_DynamicSkillSlashSubmitExpandsBeforeKernel(t *testing.T) {
 	if submit.Kind != kernel.PlatformEventSubmit {
 		t.Fatalf("submit kind = %v, want submit", submit.Kind)
 	}
-	for _, want := range []string{
+	assertContainsAll(t, submit.Text,
 		`[IMPORTANT: The user has invoked the "review-skill" skill`,
 		"Review the requested code carefully.",
 		"The user has provided the following instruction alongside the skill invocation: inspect src",
 		"[Runtime note: telegram]",
-	} {
-		if !strings.Contains(submit.Text, want) {
-			t.Fatalf("submit text missing %q:\n%s", want, submit.Text)
-		}
-	}
+	)
 	if strings.HasPrefix(strings.TrimSpace(submit.Text), "/review-skill") {
 		t.Fatalf("raw slash leaked into kernel submit: %q", submit.Text)
 	}

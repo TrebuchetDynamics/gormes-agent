@@ -301,16 +301,12 @@ func TestManager_Inbound_VerboseDisabledSendsHermesGateGuidance(t *testing.T) {
 		return len(tg.sentSnapshot()) == 1
 	})
 	got := tg.sentSnapshot()[0].Text
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"The `/verbose` command is not enabled for messaging platforms.",
 		"Gormes `config.toml`",
 		"[display]",
 		"tool_progress_command = true",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("/verbose disabled response missing %q in %q", want, got)
-		}
-	}
+	)
 	if strings.Contains(got, "unavailable in this build") {
 		t.Fatalf("/verbose disabled response = %q, want Gormes config guidance instead of unavailable text", got)
 	}
@@ -347,14 +343,10 @@ func TestManager_Inbound_VerboseCyclesAndPersistsPerPlatform(t *testing.T) {
 		return len(tg.sentSnapshot()) == 1
 	})
 	got := tg.sentSnapshot()[0].Text
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"⚙️ Tool progress: **NEW**",
 		"saved for **telegram**",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("/verbose enabled response missing %q in %q", want, got)
-		}
-	}
+	)
 	if strings.Contains(got, "unavailable in this build") {
 		t.Fatalf("/verbose enabled response = %q, want cycle result", got)
 	}

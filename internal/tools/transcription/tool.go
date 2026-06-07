@@ -5,12 +5,11 @@ package transcription
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/transcription/validation"
 )
 
 const (
@@ -241,26 +240,11 @@ func (r *TranscriptionRunner) selectProviderCandidates(ctx context.Context, requ
 }
 
 func validateTranscriptionAudio(path string, maxBytes int64) TranscriptionResult {
-	if path == "" {
-		return transcriptionFailure("", "", "", TranscriptionEvidenceAudioNotFound, "audio path is required")
+	result := validation.Audio(path, maxBytes)
+	if result.Evidence == "" {
+		return TranscriptionResult{}
 	}
-	info, err := os.Stat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return transcriptionFailure("", "", "", TranscriptionEvidenceAudioNotFound, "audio file not found")
-		}
-		return transcriptionFailure("", "", "", TranscriptionEvidenceAudioNotFound, redactTranscriptionText(err.Error()))
-	}
-	if !info.Mode().IsRegular() {
-		return transcriptionFailure("", "", "", TranscriptionEvidenceAudioNotFile, "audio path is not a regular file")
-	}
-	if !supportedTranscriptionExt(filepath.Ext(path)) {
-		return transcriptionFailure("", "", "", TranscriptionEvidenceUnsupportedAudioFormat, "unsupported audio format")
-	}
-	if info.Size() > maxBytes {
-		return transcriptionFailure("", "", "", TranscriptionEvidenceAudioTooLarge, fmt.Sprintf("audio file exceeds max bytes (%d)", maxBytes))
-	}
-	return TranscriptionResult{}
+	return transcriptionFailure("", "", "", TranscriptionEvidence(result.Evidence), result.Message)
 }
 
 func isLocalTranscriptionProvider(provider string) bool {
@@ -296,15 +280,6 @@ func isBadLocalTranscript(provider, transcript string) bool {
 		}
 	}
 	return false
-}
-
-func supportedTranscriptionExt(ext string) bool {
-	switch strings.ToLower(strings.TrimSpace(ext)) {
-	case ".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm", ".ogg", ".aac", ".flac":
-		return true
-	default:
-		return false
-	}
 }
 
 func normalizeTranscriptionProviderName(provider string) string {
