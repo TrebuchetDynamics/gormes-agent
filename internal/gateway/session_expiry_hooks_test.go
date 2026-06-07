@@ -332,17 +332,13 @@ func (h *sessionExpiryHookFixture) CleanupCachedAgent(_ context.Context, ev Sess
 func (h *sessionExpiryHookFixture) finalizeSnapshot() []SessionExpiryEvent {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	out := make([]SessionExpiryEvent, len(h.finalize))
-	copy(out, h.finalize)
-	return out
+	return cloneSlice(h.finalize)
 }
 
 func (h *sessionExpiryHookFixture) cleanupSnapshot() []SessionExpiryEvent {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	out := make([]SessionExpiryEvent, len(h.cleanup))
-	copy(out, h.cleanup)
-	return out
+	return cloneSlice(h.cleanup)
 }
 
 func openSessionExpiryBolt(t *testing.T, path string) *session.BoltMap {

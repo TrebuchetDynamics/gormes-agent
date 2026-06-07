@@ -30,9 +30,7 @@ func (f *fakeRememberedSourceStore) RememberSource(_ context.Context, entry Reme
 func (f *fakeRememberedSourceStore) snapshot() []RememberedSourceEntry {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]RememberedSourceEntry, len(f.entries))
-	copy(out, f.entries)
-	return out
+	return cloneSlice(f.entries)
 }
 
 func TestManagerRememberSourceHook_PersistsAllowedInboundSource(t *testing.T) {

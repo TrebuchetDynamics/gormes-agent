@@ -328,7 +328,5 @@ func (w *isolationStatusWriter) UpdateRuntimeStatus(_ context.Context, update Ru
 func (w *isolationStatusWriter) snapshot() []RuntimeStatusUpdate {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	out := make([]RuntimeStatusUpdate, len(w.updates))
-	copy(out, w.updates)
-	return out
+	return cloneSlice(w.updates)
 }
