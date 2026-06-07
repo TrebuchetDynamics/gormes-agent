@@ -1,4 +1,4 @@
-package slack
+package rendering
 
 import (
 	"strings"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestFormatStream_RendersHermesToolProgressBlock(t *testing.T) {
-	got := formatStream(kernel.RenderFrame{
+	got := FormatStream(kernel.RenderFrame{
 		SoulEvents: []kernel.SoulEntry{
 			{At: time.Now(), Text: `tool: skill_view: plan`},
 			{At: time.Now(), Text: `tool: search_files: chrono|cron`},
@@ -25,10 +25,10 @@ func TestFormatStream_RendersHermesToolProgressBlock(t *testing.T) {
 		`📁 [repo] Inspecting repository status (×2)`,
 	} {
 		if !strings.Contains(got, want) {
-			t.Fatalf("formatStream missing %q in:\n%s", want, got)
+			t.Fatalf("FormatStream missing %q in:\n%s", want, got)
 		}
 	}
 	if strings.Contains(got, "tool done") || strings.Contains(got, `🔧 tool`) {
-		t.Fatalf("formatStream leaked generic tool text:\n%s", got)
+		t.Fatalf("FormatStream leaked generic tool text:\n%s", got)
 	}
 }

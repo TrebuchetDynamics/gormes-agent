@@ -1,4 +1,4 @@
-package whatsapp
+package runtimeplan
 
 import (
 	"path/filepath"

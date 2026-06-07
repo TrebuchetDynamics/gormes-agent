@@ -1,4 +1,4 @@
-package slack
+package threadctx
 
 import (
 	"strings"
@@ -6,7 +6,7 @@ import (
 )
 
 func TestThreadParentContextIncludesBotParentAndScopesCacheByTeam(t *testing.T) {
-	cache := newThreadContextCache("UBOT")
+	cache := NewCache("UBOT")
 
 	got := cache.Store("C123", "1000.0", "T_A", []ThreadMessage{
 		{Timestamp: "1000.0", TeamID: "T_A", BotID: "B_CRON", Text: "cron parent summary"},

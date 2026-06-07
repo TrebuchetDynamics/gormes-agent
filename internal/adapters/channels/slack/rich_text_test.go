@@ -63,7 +63,7 @@ func TestAugmentInboundTextSkipsPlainComposerDuplicate(t *testing.T) {
 	}
 }
 
-func TestAugmentInboundTextRecordsUnavailableEvidence(t *testing.T) {
+func TestAugmentInboundTextRecordsUnavailableSlackRichTextEvidence(t *testing.T) {
 	got, evidence := augmentInboundText("original text", []SlackBlock{
 		{"type": "rich_text", "elements": "not a list"},
 	}, []SlackAttachmentPreview{
