@@ -137,8 +137,9 @@ func (p MountPolicy) classifyMountCandidate(hostPath string, workspace mountWork
 }
 
 func containerWorkspacePath(containerWorkspace string) string {
-	if containerWorkspace == "" {
+	clean := filepath.Clean(strings.TrimSpace(containerWorkspace))
+	if clean == "." || !strings.HasPrefix(clean, "/") {
 		return defaultContainerWorkspace
 	}
-	return containerWorkspace
+	return clean
 }

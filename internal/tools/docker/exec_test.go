@@ -157,6 +157,40 @@ func TestDockerExec_MountPolicyAllowlist(t *testing.T) {
 		}
 	})
 
+	for _, tt := range []struct {
+		name               string
+		containerWorkspace string
+		want               string
+	}{
+		{name: "trims configured container workspace", containerWorkspace: " /workspace/project ", want: "/workspace/project"},
+		{name: "defaults relative container workspace", containerWorkspace: "workspace/project", want: "/workspace"},
+		{name: "defaults whitespace container workspace", containerWorkspace: " \t ", want: "/workspace"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			runner := &fakeDockerRunner{
+				result: DockerExecResult{Stdout: "ok", ExitCode: 0},
+			}
+			backend := NewDockerExecBackend(runner, DockerExecConfig{
+				WorkspacePath:      "/tmp/data",
+				ContainerWorkspace: tt.containerWorkspace,
+			}, []string{"/tmp/data"})
+
+			_, err := backend.Execute(context.Background(), "ls", nil)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(runner.lastMounts) != 1 {
+				t.Fatalf("expected 1 mount, got %d", len(runner.lastMounts))
+			}
+			if got := runner.lastMounts[0].ContainerPath; got != tt.want {
+				t.Fatalf("workspace mount container path = %q, want %q", got, tt.want)
+			}
+			if runner.lastCWD != tt.want {
+				t.Fatalf("cwd = %q, want %q", runner.lastCWD, tt.want)
+			}
+		})
+	}
+
 	t.Run("non-workspace paths are read-only", func(t *testing.T) {
 		runner := &fakeDockerRunner{
 			result: DockerExecResult{Stdout: "ok", ExitCode: 0},
