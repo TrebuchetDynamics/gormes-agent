@@ -368,7 +368,7 @@ const (
 	imageGenEvidenceOK                    imageGenEvidence = "image_gen_ok"
 	imageGenEvidenceDisabled              imageGenEvidence = "image_gen_disabled"
 	imageGenEvidenceInvalidArguments      imageGenEvidence = "image_gen_invalid_arguments"
-	imageGenEvidenceProviderUnavailable   imageGenEvidence = "image_gen_provider_unavailable"
+	imageGenEvidenceProviderUnavailable   imageGenEvidence = imageGenEvidence(ImageGenerationStatusProviderUnavailable)
 	imageGenEvidenceProviderNotRegistered imageGenEvidence = "provider_not_registered"
 	imageGenEvidenceAPIError              imageGenEvidence = "image_gen_api_error"
 )

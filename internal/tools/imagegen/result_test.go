@@ -273,6 +273,22 @@ func TestImageGenerationResult_ErrorEnvelopeDoesNotRequireOutputDir(t *testing.T
 	}
 }
 
+func TestImageGenerationResult_ErrorEnvelopePreservesProviderUnavailableEvidence(t *testing.T) {
+	env, err := BuildImageGenerationEnvelope(ImageGenerationRequest{
+		Provider:    "openai",
+		Model:       "gpt-image-1.5",
+		Prompt:      "a safe prompt",
+		Err:         errors.New("provider unavailable"),
+		ErrorStatus: ImageGenerationStatusProviderUnavailable,
+	})
+	if err != nil {
+		t.Fatalf("BuildImageGenerationEnvelope: %v", err)
+	}
+	if env.Status != ImageGenerationStatusProviderUnavailable {
+		t.Fatalf("Status = %q, want provider-unavailable evidence", env.Status)
+	}
+}
+
 func TestImageGenerationResult_ErrorEnvelope(t *testing.T) {
 	dir := t.TempDir()
 

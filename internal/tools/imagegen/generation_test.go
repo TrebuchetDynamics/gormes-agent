@@ -127,7 +127,7 @@ func TestImageGenProviderFallback(t *testing.T) {
 	if result.Success {
 		t.Fatalf("expected failure with no provider, got success")
 	}
-	if result.Evidence != ImageGenerationStatus("image_gen_provider_unavailable") {
+	if result.Evidence != ImageGenerationStatusProviderUnavailable {
 		t.Errorf("Evidence = %q, want provider_unavailable", result.Evidence)
 	}
 }
@@ -445,7 +445,7 @@ func TestImageGenRunnerNilProof(t *testing.T) {
 	if result.Success {
 		t.Error("nil runner should return failure")
 	}
-	if result.Evidence != ImageGenerationStatus("image_gen_provider_unavailable") {
+	if result.Evidence != ImageGenerationStatusProviderUnavailable {
 		t.Errorf("Evidence = %q, want provider_unavailable", result.Evidence)
 	}
 }

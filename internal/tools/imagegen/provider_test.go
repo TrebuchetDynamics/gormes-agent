@@ -176,7 +176,7 @@ func TestImageGenerationPluginProviderErrorsAreRedacted(t *testing.T) {
 		Prompt:    prompt,
 		OutputDir: t.TempDir(),
 	})
-	if unavailable.Success || unavailable.Evidence != ImageGenerationStatus("image_gen_provider_unavailable") {
+	if unavailable.Success || unavailable.Evidence != ImageGenerationStatusProviderUnavailable {
 		t.Fatalf("unavailable result = %+v, want provider unavailable", unavailable)
 	}
 	if strings.Contains(unavailable.Error, prompt) || strings.Contains(unavailable.Error, token) {

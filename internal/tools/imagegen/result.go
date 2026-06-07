@@ -35,6 +35,10 @@ const (
 	// ImageGenerationStatusProviderNotRegistered indicates image_gen.provider
 	// names a plugin provider that is not currently registered.
 	ImageGenerationStatusProviderNotRegistered ImageGenerationStatus = "provider_not_registered"
+
+	// ImageGenerationStatusProviderUnavailable indicates the selected provider
+	// exists but is not currently available for generation.
+	ImageGenerationStatusProviderUnavailable ImageGenerationStatus = "image_gen_provider_unavailable"
 )
 
 // ImageGenerationEnvelope is the stable, transcript-safe result of an image
@@ -225,7 +229,10 @@ func validateEnvelopeIdentity(req ImageGenerationRequest) error {
 
 func degradedStatus(status ImageGenerationStatus) ImageGenerationStatus {
 	switch status {
-	case ImageGenerationStatusUnavailable, ImageGenerationStatusProviderError, ImageGenerationStatusProviderNotRegistered:
+	case ImageGenerationStatusUnavailable,
+		ImageGenerationStatusProviderError,
+		ImageGenerationStatusProviderNotRegistered,
+		ImageGenerationStatusProviderUnavailable:
 		return status
 	default:
 		return ImageGenerationStatusProviderError
