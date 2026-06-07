@@ -1,9 +1,6 @@
 package channels
 
-import (
-	"fmt"
-	"strings"
-)
+import "github.com/TrebuchetDynamics/gormes-agent/internal/config/channels/yuanbao"
 
 // YuanbaoCfg drives the disabled-by-default Yuanbao gateway adapter. Live
 // websocket/QR-login behavior is deferred; the runtime slice binds fake
@@ -23,46 +20,31 @@ type YuanbaoCfg struct {
 // every credential the fake/live transports require. Missing pieces keep the
 // adapter degraded instead of starting an unauthenticated session.
 func (c YuanbaoCfg) RuntimeEnabled() bool {
-	if !c.Enabled {
-		return false
-	}
-	return strings.TrimSpace(c.LoginToken) != "" &&
-		strings.TrimSpace(c.HySource) != "" &&
-		strings.TrimSpace(c.AgentID) != ""
+	return c.asYuanbaoCfg().RuntimeEnabled()
 }
 
 // MissingCredentials lists the credential field names the runtime still needs
 // to start. The order is stable so doctor/gateway status output stays
 // deterministic.
 func (c YuanbaoCfg) MissingCredentials() []string {
-	missing := []string{}
-	if strings.TrimSpace(c.LoginToken) == "" {
-		missing = append(missing, "login_token")
-	}
-	if strings.TrimSpace(c.HySource) == "" {
-		missing = append(missing, "hy_source")
-	}
-	if strings.TrimSpace(c.AgentID) == "" {
-		missing = append(missing, "agent_id")
-	}
-	return missing
+	return c.asYuanbaoCfg().MissingCredentials()
 }
 
 // RedactedStatus returns a single-line status descriptor with every credential
 // and session field replaced by a presence boolean. The shape is shared by
 // gateway status and doctor renderers.
 func (c YuanbaoCfg) RedactedStatus() string {
-	parts := []string{
-		"yuanbao",
-		fmt.Sprintf("enabled=%t", c.Enabled),
-		fmt.Sprintf("login_token_set=%t", strings.TrimSpace(c.LoginToken) != ""),
-		fmt.Sprintf("hy_source_set=%t", strings.TrimSpace(c.HySource) != ""),
-		fmt.Sprintf("agent_id_set=%t", strings.TrimSpace(c.AgentID) != ""),
+	return c.asYuanbaoCfg().RedactedStatus()
+}
+
+func (c YuanbaoCfg) asYuanbaoCfg() yuanbao.Cfg {
+	return yuanbao.Cfg{
+		Enabled:               c.Enabled,
+		LoginToken:            c.LoginToken,
+		HySource:              c.HySource,
+		AgentID:               c.AgentID,
+		AllowedConversationID: c.AllowedConversationID,
+		CoalesceMs:            c.CoalesceMs,
+		FirstRunDiscovery:     c.FirstRunDiscovery,
 	}
-	if conv := strings.TrimSpace(c.AllowedConversationID); conv != "" {
-		parts = append(parts, "allowed_conversation_id="+conv)
-	} else {
-		parts = append(parts, fmt.Sprintf("first_run_discovery=%t", c.FirstRunDiscovery))
-	}
-	return strings.Join(parts, " ")
 }
