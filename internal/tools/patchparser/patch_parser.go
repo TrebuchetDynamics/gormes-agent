@@ -41,36 +41,64 @@ type PatchFileInfo struct {
 }
 
 func parsePatchFiles(patch string) []PatchFileInfo {
-	var files []PatchFileInfo
-	lines := strings.Split(patch, "\n")
-	var cur *PatchFileInfo
-	for _, line := range lines {
-		if strings.HasPrefix(line, "diff --git") {
-			if cur != nil {
-				files = append(files, *cur)
-			}
-			cur = &PatchFileInfo{}
-		} else if strings.HasPrefix(line, "--- ") && cur != nil && cur.File == "" {
+	state := patchParseState{}
+	for _, line := range strings.Split(patch, "\n") {
+		state.accept(line)
+	}
+	state.finish()
+	return state.files
+}
+
+type patchParseState struct {
+	files []PatchFileInfo
+	cur   *PatchFileInfo
+}
+
+func (s *patchParseState) accept(line string) {
+	switch {
+	case strings.HasPrefix(line, "diff --git"):
+		s.finish()
+		s.cur = &PatchFileInfo{}
+	case strings.HasPrefix(line, "--- "):
+		s.ensureCurrentFile()
+		if s.cur.File == "" {
 			name := normalizePatchFileName(strings.TrimPrefix(line, "--- "))
 			if name != "/dev/null" {
-				cur.File = name
-			}
-		} else if strings.HasPrefix(line, "+++ ") && cur != nil && cur.File == "" {
-			cur.File = normalizePatchFileName(strings.TrimPrefix(line, "+++ "))
-		} else if cur != nil {
-			if strings.HasPrefix(line, "@@") {
-				cur.Hunks++
-			} else if strings.HasPrefix(line, "+") && !strings.HasPrefix(line, "+++") {
-				cur.Additions++
-			} else if strings.HasPrefix(line, "-") && !strings.HasPrefix(line, "---") {
-				cur.Deletions++
+				s.cur.File = name
 			}
 		}
+	case strings.HasPrefix(line, "+++ "):
+		s.ensureCurrentFile()
+		if s.cur.File == "" {
+			s.cur.File = normalizePatchFileName(strings.TrimPrefix(line, "+++ "))
+		}
+	case s.cur != nil:
+		s.acceptBodyLine(line)
 	}
-	if cur != nil {
-		files = append(files, *cur)
+}
+
+func (s *patchParseState) acceptBodyLine(line string) {
+	switch {
+	case strings.HasPrefix(line, "@@"):
+		s.cur.Hunks++
+	case strings.HasPrefix(line, "+"):
+		s.cur.Additions++
+	case strings.HasPrefix(line, "-"):
+		s.cur.Deletions++
 	}
-	return files
+}
+
+func (s *patchParseState) ensureCurrentFile() {
+	if s.cur == nil {
+		s.cur = &PatchFileInfo{}
+	}
+}
+
+func (s *patchParseState) finish() {
+	if s.cur != nil {
+		s.files = append(s.files, *s.cur)
+		s.cur = nil
+	}
 }
 
 func normalizePatchFileName(name string) string {

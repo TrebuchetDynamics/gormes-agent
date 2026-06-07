@@ -78,6 +78,35 @@ index 0000000..c0ffee0
 	}
 }
 
+func TestPatchParserTool_UnifiedDiffWithoutGitHeader(t *testing.T) {
+	tool := NewPatchParserTool()
+	patch := `--- a/README.md
++++ b/README.md
+@@ -1 +1,2 @@
+ hello
++world`
+	result, err := tool.Execute(nil, patchParserJSON(patch))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	var out struct {
+		Files []PatchFileInfo `json:"files"`
+		Count int             `json:"count"`
+	}
+	if err := json.Unmarshal(result, &out); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got, want := out.Count, 1; got != want {
+		t.Fatalf("count = %d, want %d (files=%v)", got, want, out.Files)
+	}
+	if got, want := out.Files[0].File, "README.md"; got != want {
+		t.Fatalf("file = %q, want %q", got, want)
+	}
+	if got, want := out.Files[0].Additions, 1; got != want {
+		t.Fatalf("additions = %d, want %d", got, want)
+	}
+}
+
 func TestPatchParserTool_MultiFile(t *testing.T) {
 	tool := NewPatchParserTool()
 	patch := `diff --git a/a.go b/a.go
