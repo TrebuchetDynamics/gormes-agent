@@ -110,6 +110,29 @@ func TestDockerExec_MountPolicyAllowlist(t *testing.T) {
 		}
 	})
 
+	t.Run("workspace mount uses default container workspace when omitted", func(t *testing.T) {
+		runner := &fakeDockerRunner{
+			result: DockerExecResult{Stdout: "ok", ExitCode: 0},
+		}
+		backend := NewDockerExecBackend(runner, DockerExecConfig{
+			WorkspacePath: "/tmp/data",
+		}, []string{"/tmp/data"})
+
+		_, err := backend.Execute(context.Background(), "ls", nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(runner.lastMounts) != 1 {
+			t.Fatalf("expected 1 mount, got %d", len(runner.lastMounts))
+		}
+		if got := runner.lastMounts[0].ContainerPath; got != "/workspace" {
+			t.Fatalf("workspace mount container path = %q, want /workspace", got)
+		}
+		if runner.lastCWD != "/workspace" {
+			t.Fatalf("cwd = %q, want /workspace", runner.lastCWD)
+		}
+	})
+
 	t.Run("non-workspace paths are read-only", func(t *testing.T) {
 		runner := &fakeDockerRunner{
 			result: DockerExecResult{Stdout: "ok", ExitCode: 0},

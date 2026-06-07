@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+const defaultContainerWorkspace = "/workspace"
+
 // MountPolicy defines allowed and blocked host paths for Docker mounts.
 type MountPolicy struct {
 	AllowedHostPaths []string
@@ -62,23 +64,41 @@ func (p MountPolicy) IsAllowed(hostPath string) bool {
 // other allowed paths are mapped read-only.
 func (p MountPolicy) AllowedMounts(workspacePath, containerWorkspace string) []MountEntry {
 	var mounts []MountEntry
-	cleanWS := filepath.Clean(workspacePath)
+	workspace := mountWorkspace{hostPath: filepath.Clean(workspacePath), containerPath: containerWorkspacePath(containerWorkspace)}
 	for _, hostPath := range p.AllowedHostPaths {
-		if p.IsBlocked(hostPath) {
-			continue
+		if entry, ok := p.mountCandidate(hostPath, workspace); ok {
+			mounts = append(mounts, entry)
 		}
-		cleanHost := filepath.Clean(hostPath)
-		readOnly := true
-		containerPath := cleanHost
-		if cleanHost == cleanWS {
-			readOnly = false
-			containerPath = containerWorkspace
-		}
-		mounts = append(mounts, MountEntry{
-			HostPath:      cleanHost,
-			ContainerPath: containerPath,
-			ReadOnly:      readOnly,
-		})
 	}
 	return mounts
+}
+
+type mountWorkspace struct {
+	hostPath      string
+	containerPath string
+}
+
+func (p MountPolicy) mountCandidate(hostPath string, workspace mountWorkspace) (MountEntry, bool) {
+	if p.IsBlocked(hostPath) {
+		return MountEntry{}, false
+	}
+	cleanHost := filepath.Clean(hostPath)
+	readOnly := true
+	containerPath := cleanHost
+	if cleanHost == workspace.hostPath {
+		readOnly = false
+		containerPath = workspace.containerPath
+	}
+	return MountEntry{
+		HostPath:      cleanHost,
+		ContainerPath: containerPath,
+		ReadOnly:      readOnly,
+	}, true
+}
+
+func containerWorkspacePath(containerWorkspace string) string {
+	if containerWorkspace == "" {
+		return defaultContainerWorkspace
+	}
+	return containerWorkspace
 }

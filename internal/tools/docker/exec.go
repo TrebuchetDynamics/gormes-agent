@@ -78,10 +78,7 @@ func (b *DockerExecBackend) Execute(ctx context.Context, command string, args []
 
 	cwd := b.config.CWD
 	if cwd == "" {
-		cwd = b.config.ContainerWorkspace
-		if cwd == "" {
-			cwd = "/workspace"
-		}
+		cwd = containerWorkspacePath(b.config.ContainerWorkspace)
 	}
 
 	timeout := b.config.Timeout
