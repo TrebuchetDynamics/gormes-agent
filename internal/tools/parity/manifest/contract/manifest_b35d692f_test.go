@@ -1,4 +1,4 @@
-package manifest
+package contract
 
 import (
 	"encoding/json"
@@ -178,7 +178,7 @@ type platformRestrictions struct {
 func loadParityFixture(t *testing.T) parityFixture {
 	t.Helper()
 	var fixture parityFixture
-	if err := json.Unmarshal(upstreamToolParityManifestJSON, &fixture); err != nil {
+	if err := json.Unmarshal(RawUpstreamToolParityManifestJSON(), &fixture); err != nil {
 		t.Fatalf("unmarshal parity fixture: %v", err)
 	}
 	return fixture

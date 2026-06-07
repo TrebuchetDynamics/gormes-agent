@@ -1,4 +1,4 @@
-package manifest
+package contract
 
 import (
 	"encoding/json"
