@@ -38,3 +38,4 @@
 {"ts":"2026-06-06T20:20:45-06:00","candidate":"extensibility/skills/hub","reason":"already clean","scope":"candidate","state":"done"}
 {"ts":"2026-06-06T20:22:51-06:00","candidate":"extensibility/skills/document","reason":"no metric progress rollback","scope":"candidate","state":"cooldown","until":"2026-06-06T21:22:51-06:00"}
 {"ts":"2026-06-06T20:22:53-06:00","candidate":"extensibility/skills","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T20:29:45-06:00","candidate":"kernel","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:29:45-06:00"}
