@@ -8,9 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
-	"unsafe"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -107,19 +105,5 @@ func TestTUISaveBinding_RemoteTUIUnchanged(t *testing.T) {
 
 func capturedTUISessionExport(t *testing.T, model tea.Model) tui.SessionExportFunc {
 	t.Helper()
-
-	m, ok := model.(tui.Model)
-	if !ok {
-		t.Fatalf("captured model type = %T, want tui.Model", model)
-	}
-
-	field := reflect.ValueOf(&m).Elem().FieldByName("sessionExport")
-	if !field.IsValid() {
-		t.Fatal("tui.Model missing sessionExport field")
-	}
-	if field.IsNil() {
-		return nil
-	}
-
-	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface().(tui.SessionExportFunc)
+	return capturedOptionalTUIModelField[tui.SessionExportFunc](t, model, "sessionExport")
 }

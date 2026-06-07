@@ -1,10 +1,8 @@
 package tuiapp
 
 import (
-	"reflect"
 	"strings"
 	"testing"
-	"unsafe"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -91,29 +89,10 @@ func TestTUISkinSlashBindingRemoteTUIUnchanged(t *testing.T) {
 
 func capturedTUISkinConfig(t *testing.T, model tea.Model) tui.SkinConfigFunc {
 	t.Helper()
-	m, ok := model.(tui.Model)
-	if !ok {
-		t.Fatalf("captured model type = %T, want tui.Model", model)
-	}
-	field := reflect.ValueOf(&m).Elem().FieldByName("skinConfig")
-	if !field.IsValid() {
-		t.Fatal("tui.Model missing skinConfig field")
-	}
-	if field.IsNil() {
-		return nil
-	}
-	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface().(tui.SkinConfigFunc)
+	return capturedOptionalTUIModelField[tui.SkinConfigFunc](t, model, "skinConfig")
 }
 
 func capturedTUIActiveSkinName(t *testing.T, model tea.Model) string {
 	t.Helper()
-	m, ok := model.(tui.Model)
-	if !ok {
-		t.Fatalf("captured model type = %T, want tui.Model", model)
-	}
-	field := reflect.ValueOf(&m).Elem().FieldByName("activeSkinName")
-	if !field.IsValid() {
-		t.Fatal("tui.Model missing activeSkinName field")
-	}
-	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface().(string)
+	return capturedRequiredTUIModelField[string](t, model, "activeSkinName")
 }

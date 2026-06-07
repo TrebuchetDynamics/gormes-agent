@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"testing"
-	"unsafe"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -96,13 +94,5 @@ func TestTUIResetSlashBindingRemoteTUIUnchanged(t *testing.T) {
 
 func capturedTUISessionReset(t *testing.T, model tea.Model) tui.SessionResetFunc {
 	t.Helper()
-	m := capturedTUIModel(t, model)
-	field := reflect.ValueOf(&m).Elem().FieldByName("sessionReset")
-	if !field.IsValid() {
-		t.Fatal("tui.Model missing sessionReset field")
-	}
-	if field.IsNil() {
-		return nil
-	}
-	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface().(tui.SessionResetFunc)
+	return capturedOptionalTUIModelField[tui.SessionResetFunc](t, model, "sessionReset")
 }

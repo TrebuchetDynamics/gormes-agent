@@ -32,8 +32,8 @@ var BlockedTools = map[string]bool{
 }
 
 func BlockedToolRequest(enabled []string) string {
-	for _, name := range enabled {
-		name = strings.TrimSpace(name)
+	for _, rawName := range enabled {
+		name := normalizeToolName(rawName)
 		if name == "" {
 			continue
 		}
@@ -45,7 +45,7 @@ func BlockedToolRequest(enabled []string) string {
 }
 
 func ToolAllowlisted(enabled []string, name string) bool {
-	name = strings.TrimSpace(name)
+	name = normalizeToolName(name)
 	if name == "" {
 		return false
 	}
@@ -53,9 +53,13 @@ func ToolAllowlisted(enabled []string, name string) bool {
 		return !BlockedTools[name]
 	}
 	for _, allowed := range enabled {
-		if strings.TrimSpace(allowed) == name {
+		if normalizeToolName(allowed) == name {
 			return !BlockedTools[name]
 		}
 	}
 	return false
+}
+
+func normalizeToolName(name string) string {
+	return strings.TrimSpace(name)
 }

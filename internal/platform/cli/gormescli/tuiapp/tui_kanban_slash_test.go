@@ -2,10 +2,8 @@ package tuiapp
 
 import (
 	"context"
-	"reflect"
 	"strings"
 	"testing"
-	"unsafe"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -176,19 +174,5 @@ func TestRunTUIKanbanSlashCommandUsageErrorsAreFriendly(t *testing.T) {
 
 func capturedTUIKanbanSlash(t *testing.T, model tea.Model) tui.KanbanSlashFunc {
 	t.Helper()
-
-	m, ok := model.(tui.Model)
-	if !ok {
-		t.Fatalf("captured model type = %T, want tui.Model", model)
-	}
-
-	field := reflect.ValueOf(&m).Elem().FieldByName("kanbanSlash")
-	if !field.IsValid() {
-		t.Fatal("tui.Model missing kanbanSlash field")
-	}
-	if field.IsNil() {
-		return nil
-	}
-
-	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface().(tui.KanbanSlashFunc)
+	return capturedOptionalTUIModelField[tui.KanbanSlashFunc](t, model, "kanbanSlash")
 }

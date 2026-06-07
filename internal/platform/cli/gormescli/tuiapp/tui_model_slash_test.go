@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"testing"
-	"unsafe"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -113,45 +111,15 @@ func TestTUIModelSlashBindingRemoteTUIUnchanged(t *testing.T) {
 
 func capturedTUISetSessionModel(t *testing.T, model tea.Model) tui.SetSessionModelFunc {
 	t.Helper()
-	m := capturedTUIModel(t, model)
-	field := reflect.ValueOf(&m).Elem().FieldByName("setSessionModel")
-	if !field.IsValid() {
-		t.Fatal("tui.Model missing setSessionModel field")
-	}
-	if field.IsNil() {
-		return nil
-	}
-	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface().(tui.SetSessionModelFunc)
+	return capturedOptionalTUIModelField[tui.SetSessionModelFunc](t, model, "setSessionModel")
 }
 
 func capturedTUIModelPickerCatalog(t *testing.T, model tea.Model) tui.ModelPickerCatalogFunc {
 	t.Helper()
-	m := capturedTUIModel(t, model)
-	field := reflect.ValueOf(&m).Elem().FieldByName("modelPickerCatalog")
-	if !field.IsValid() {
-		t.Fatal("tui.Model missing modelPickerCatalog field")
-	}
-	if field.IsNil() {
-		return nil
-	}
-	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface().(tui.ModelPickerCatalogFunc)
+	return capturedOptionalTUIModelField[tui.ModelPickerCatalogFunc](t, model, "modelPickerCatalog")
 }
 
 func capturedTUIModelProvider(t *testing.T, model tea.Model) string {
 	t.Helper()
-	m := capturedTUIModel(t, model)
-	field := reflect.ValueOf(&m).Elem().FieldByName("modelProvider")
-	if !field.IsValid() {
-		t.Fatal("tui.Model missing modelProvider field")
-	}
-	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().String()
-}
-
-func capturedTUIModel(t *testing.T, model tea.Model) tui.Model {
-	t.Helper()
-	m, ok := model.(tui.Model)
-	if !ok {
-		t.Fatalf("captured model type = %T, want tui.Model", model)
-	}
-	return m
+	return capturedRequiredTUIModelField[string](t, model, "modelProvider")
 }

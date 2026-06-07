@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/gatewaytest"
 )
 
 func TestCoalescer_FirstContentThenEdit(t *testing.T) {
@@ -17,14 +19,14 @@ func TestCoalescer_FirstContentThenEdit(t *testing.T) {
 	go c.run(ctx)
 
 	c.setPending("first")
-	waitFor(t, 200*time.Millisecond, func() bool {
+	gatewaytest.WaitFor(t, 200*time.Millisecond, func() bool {
 		edits := ch.editsSnapshot()
 		return len(edits) == 1 && edits[0].Text == "first"
 	})
 
 	time.Sleep(25 * time.Millisecond)
 	c.setPending("second")
-	waitFor(t, 200*time.Millisecond, func() bool {
+	gatewaytest.WaitFor(t, 200*time.Millisecond, func() bool {
 		edits := ch.editsSnapshot()
 		return len(edits) == 2 && edits[1].Text == "second"
 	})
@@ -39,7 +41,7 @@ func TestCoalescer_FlushImmediateBypassesWindow(t *testing.T) {
 	go c.run(ctx)
 
 	c.flushImmediate(ctx, "final")
-	waitFor(t, 200*time.Millisecond, func() bool {
+	gatewaytest.WaitFor(t, 200*time.Millisecond, func() bool {
 		edits := ch.editsSnapshot()
 		return len(edits) == 1 && edits[0].Text == "final"
 	})
@@ -81,19 +83,4 @@ type finalizingFakeChannel struct {
 func (f *finalizingFakeChannel) EditMessageFinal(ctx context.Context, chatID, msgID, text string, finalize bool) error {
 	f.finalizes = append(f.finalizes, finalize)
 	return f.fakeChannel.EditMessage(ctx, chatID, msgID, text)
-}
-
-func waitFor(t *testing.T, timeout time.Duration, cond func() bool) {
-	t.Helper()
-	if timeout < time.Second {
-		timeout = time.Second
-	}
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		if cond() {
-			return
-		}
-		time.Sleep(2 * time.Millisecond)
-	}
-	t.Fatalf("condition not met within %s", timeout)
 }

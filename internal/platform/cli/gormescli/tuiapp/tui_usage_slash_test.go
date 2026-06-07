@@ -2,9 +2,7 @@ package tuiapp
 
 import (
 	"context"
-	"reflect"
 	"testing"
-	"unsafe"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -66,19 +64,5 @@ func TestTUIUsageSlashBindingRemoteTUIUnchanged(t *testing.T) {
 
 func capturedTUIAccountUsage(t *testing.T, model tea.Model) tui.AccountUsageFunc {
 	t.Helper()
-
-	m, ok := model.(tui.Model)
-	if !ok {
-		t.Fatalf("captured model type = %T, want tui.Model", model)
-	}
-
-	field := reflect.ValueOf(&m).Elem().FieldByName("accountUsage")
-	if !field.IsValid() {
-		t.Fatal("tui.Model missing accountUsage field")
-	}
-	if field.IsNil() {
-		return nil
-	}
-
-	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface().(tui.AccountUsageFunc)
+	return capturedOptionalTUIModelField[tui.AccountUsageFunc](t, model, "accountUsage")
 }

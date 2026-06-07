@@ -3,9 +3,7 @@ package tuiapp
 import (
 	"context"
 	"os"
-	"reflect"
 	"testing"
-	"unsafe"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -89,19 +87,5 @@ func TestTUITitleSlashBindingRemoteTUIUnchanged(t *testing.T) {
 
 func capturedTUITitle(t *testing.T, model tea.Model) tui.SessionTitleFunc {
 	t.Helper()
-
-	m, ok := model.(tui.Model)
-	if !ok {
-		t.Fatalf("captured model type = %T, want tui.Model", model)
-	}
-
-	field := reflect.ValueOf(&m).Elem().FieldByName("sessionTitle")
-	if !field.IsValid() {
-		t.Fatal("tui.Model missing sessionTitle field")
-	}
-	if field.IsNil() {
-		return nil
-	}
-
-	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface().(tui.SessionTitleFunc)
+	return capturedOptionalTUIModelField[tui.SessionTitleFunc](t, model, "sessionTitle")
 }

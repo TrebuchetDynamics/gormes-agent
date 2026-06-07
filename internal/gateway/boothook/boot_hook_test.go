@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/gatewaytest"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
@@ -51,7 +52,7 @@ func TestStartRunsWrappedBootPromptInBackground(t *testing.T) {
 		t.Fatal("Start() = false, want true")
 	}
 
-	waitFor(t, 200*time.Millisecond, func() bool {
+	gatewaytest.WaitFor(t, 200*time.Millisecond, func() bool {
 		return len(client.Requests()) == 1
 	})
 
@@ -165,19 +166,4 @@ func writeBootFile(t *testing.T, content string) string {
 
 func discardBootLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
-}
-
-func waitFor(t *testing.T, timeout time.Duration, cond func() bool) {
-	t.Helper()
-	if timeout < time.Second {
-		timeout = time.Second
-	}
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		if cond() {
-			return
-		}
-		time.Sleep(2 * time.Millisecond)
-	}
-	t.Fatalf("condition not met within %s", timeout)
 }

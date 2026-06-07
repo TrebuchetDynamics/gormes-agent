@@ -127,13 +127,7 @@ func TestDiffBetween_ProducesDiffAndFileList(t *testing.T) {
 	if !strings.Contains(diff, "feature.go") {
 		t.Fatalf("diff missing feature.go: %s", diff)
 	}
-	found := false
-	for _, f := range files {
-		if f == "feature.go" {
-			found = true
-		}
-	}
-	if !found {
+	if !containsPath(files, "feature.go") {
 		t.Fatalf("files = %v, want feature.go", files)
 	}
 }
@@ -156,13 +150,16 @@ func TestDiffBetween_IncludesUntrackedWorkingTreeFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DiffBetween: %v", err)
 	}
-	found := false
-	for _, f := range files {
-		if f == "scratch.txt" {
-			found = true
-		}
-	}
-	if !found {
+	if !containsPath(files, "scratch.txt") {
 		t.Fatalf("files = %v, want untracked scratch.txt", files)
 	}
+}
+
+func containsPath(paths []string, want string) bool {
+	for _, path := range paths {
+		if path == want {
+			return true
+		}
+	}
+	return false
 }

@@ -30,6 +30,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway"
+	tuistartup "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/tuiapp/startup"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
@@ -142,11 +143,11 @@ func RunRootCommand(cmd *cobra.Command, _ []string, runtime Runtime) error {
 // ResolveInvocation resolves root flags, env overrides, and persisted config
 // for native or remote TUI startup.
 func ResolveInvocation(cmd *cobra.Command) (Invocation, error) {
-	modelFlag := commandStringFlag(cmd, "model")
-	providerFlag := commandStringFlag(cmd, "provider")
-	endpointFlag := commandStringFlag(cmd, "endpoint")
-	apiKeyFlag := commandStringFlag(cmd, "api-key")
-	remoteFlag := tuilocal.ResolveRemoteURL(commandStringFlag(cmd, "remote"))
+	modelFlag := tuistartup.CommandStringFlag(cmd, "model")
+	providerFlag := tuistartup.CommandStringFlag(cmd, "provider")
+	endpointFlag := tuistartup.CommandStringFlag(cmd, "endpoint")
+	apiKeyFlag := tuistartup.CommandStringFlag(cmd, "api-key")
+	remoteFlag := tuilocal.ResolveRemoteURL(tuistartup.CommandStringFlag(cmd, "remote"))
 
 	cfg, err := config.Load(nil)
 	if err != nil {
@@ -162,10 +163,10 @@ func ResolveInvocation(cmd *cobra.Command) (Invocation, error) {
 	invocation := Invocation{
 		Inference:           resolution,
 		Config:              cfg,
-		ForcedSkills:        forcedSkillNames(cmd),
+		ForcedSkills:        tuistartup.ForcedSkillNames(cmd),
 		RemoteURL:           remoteFlag,
-		PromptTemplatePaths: commandStringArrayFlag(cmd, "prompt-template"),
-		NoPromptTemplates:   commandBoolFlag(cmd, "no-prompt-templates"),
+		PromptTemplatePaths: tuistartup.CommandStringArrayFlag(cmd, "prompt-template"),
+		NoPromptTemplates:   tuistartup.CommandBoolFlag(cmd, "no-prompt-templates"),
 	}
 	if err != nil {
 		return invocation, NewExitCodeError(2, err)
@@ -175,144 +176,13 @@ func ResolveInvocation(cmd *cobra.Command) (Invocation, error) {
 
 // ApplyProviderStartupFlags applies invocation-only provider overrides to cfg.
 func ApplyProviderStartupFlags(cfg *config.Config, endpointFlag, apiKeyFlag string) {
-	if endpoint := strings.TrimSpace(endpointFlag); endpoint != "" {
-		cfg.Hermes.Endpoint = endpoint
-	}
-	if apiKey := strings.TrimSpace(apiKeyFlag); apiKey != "" {
-		cfg.Hermes.APIKey = apiKey
-	}
-}
-
-func commandBoolFlag(cmd *cobra.Command, name string) bool {
-	if cmd == nil {
-		return false
-	}
-	if flags := cmd.Flags(); flags != nil && flags.Lookup(name) != nil {
-		value, _ := flags.GetBool(name)
-		return value
-	}
-	if flags := cmd.PersistentFlags(); flags != nil && flags.Lookup(name) != nil {
-		value, _ := flags.GetBool(name)
-		return value
-	}
-	if flags := cmd.InheritedFlags(); flags != nil && flags.Lookup(name) != nil {
-		value, _ := flags.GetBool(name)
-		return value
-	}
-	if root := cmd.Root(); root != nil && root != cmd {
-		if flags := root.Flags(); flags != nil && flags.Lookup(name) != nil {
-			value, _ := flags.GetBool(name)
-			return value
-		}
-		if flags := root.PersistentFlags(); flags != nil && flags.Lookup(name) != nil {
-			value, _ := flags.GetBool(name)
-			return value
-		}
-	}
-	return false
-}
-
-func commandStringFlag(cmd *cobra.Command, name string) string {
-	if cmd == nil {
-		return ""
-	}
-	if flags := cmd.Flags(); flags != nil && flags.Lookup(name) != nil {
-		value, _ := flags.GetString(name)
-		return value
-	}
-	if flags := cmd.PersistentFlags(); flags != nil && flags.Lookup(name) != nil {
-		value, _ := flags.GetString(name)
-		return value
-	}
-	if flags := cmd.InheritedFlags(); flags != nil && flags.Lookup(name) != nil {
-		value, _ := flags.GetString(name)
-		return value
-	}
-	if root := cmd.Root(); root != nil && root != cmd {
-		if flags := root.Flags(); flags != nil && flags.Lookup(name) != nil {
-			value, _ := flags.GetString(name)
-			return value
-		}
-		if flags := root.PersistentFlags(); flags != nil && flags.Lookup(name) != nil {
-			value, _ := flags.GetString(name)
-			return value
-		}
-	}
-	return ""
-}
-
-func commandStringArrayFlag(cmd *cobra.Command, name string) []string {
-	if cmd == nil {
-		return nil
-	}
-	if flags := cmd.Flags(); flags != nil && flags.Lookup(name) != nil {
-		values, _ := flags.GetStringArray(name)
-		return values
-	}
-	if flags := cmd.PersistentFlags(); flags != nil && flags.Lookup(name) != nil {
-		values, _ := flags.GetStringArray(name)
-		return values
-	}
-	if flags := cmd.InheritedFlags(); flags != nil && flags.Lookup(name) != nil {
-		values, _ := flags.GetStringArray(name)
-		return values
-	}
-	if root := cmd.Root(); root != nil && root != cmd {
-		if flags := root.Flags(); flags != nil && flags.Lookup(name) != nil {
-			values, _ := flags.GetStringArray(name)
-			return values
-		}
-		if flags := root.PersistentFlags(); flags != nil && flags.Lookup(name) != nil {
-			values, _ := flags.GetStringArray(name)
-			return values
-		}
-	}
-	return nil
-}
-
-func forcedSkillNames(cmd *cobra.Command) []string {
-	raw := commandStringArrayFlag(cmd, "skills")
-	if len(raw) == 0 {
-		return nil
-	}
-	seen := map[string]struct{}{}
-	out := make([]string, 0, len(raw))
-	for _, value := range raw {
-		for _, part := range strings.Split(value, ",") {
-			name := strings.TrimSpace(part)
-			if name == "" {
-				continue
-			}
-			key := strings.ToLower(name)
-			if _, ok := seen[key]; ok {
-				continue
-			}
-			seen[key] = struct{}{}
-			out = append(out, name)
-		}
-	}
-	return out
+	tuistartup.ApplyProviderStartupFlags(cfg, endpointFlag, apiKeyFlag)
 }
 
 // ResolveStaticStartupInference normalizes known model aliases without making
 // provider network calls during startup.
 func ResolveStaticStartupInference(resolution config.InferenceResolution) config.InferenceResolution {
-	if resolution.Model == "" {
-		return resolution
-	}
-	metadata := llm.LookupModelMetadata(llm.ModelRegistryQuery{
-		Provider: resolution.Provider,
-		Model:    resolution.Model,
-	})
-	if !metadata.Found {
-		return resolution
-	}
-	resolution.Model = metadata.Model
-	if resolution.Provider == "" {
-		resolution.Provider = metadata.Provider
-		resolution.ProviderAutoDetectRequired = false
-	}
-	return resolution
+	return tuistartup.ResolveStaticStartupInference(resolution)
 }
 
 // MaybeHandleFirstRun prints non-interactive setup guidance or runs the setup
@@ -338,7 +208,7 @@ func MaybeHandleFirstRun(cmd *cobra.Command, invocation Invocation, runtime Runt
 
 // RootFirstRunBypass reports whether flags bypass setup-readiness prompting.
 func RootFirstRunBypass(cmd *cobra.Command, invocation Invocation) bool {
-	if offline, _ := cmd.Flags().GetBool("offline"); offline {
+	if tuistartup.CommandBoolFlag(cmd, "offline") {
 		return true
 	}
 	return strings.TrimSpace(invocation.RemoteURL) != ""
@@ -515,7 +385,7 @@ func RunResolved(cmd *cobra.Command, invocation Invocation, runtime Runtime) err
 	}
 	providerName := firstNonEmpty(invocation.Inference.Provider, cfg.Hermes.Provider)
 
-	offline, _ := cmd.Flags().GetBool("offline")
+	offline := tuistartup.CommandBoolFlag(cmd, "offline")
 	c := llm.NewHTTPClientWithProvider(cfg.Hermes.Endpoint, cfg.Hermes.APIKey, providerName)
 	if !offline {
 		var err error
