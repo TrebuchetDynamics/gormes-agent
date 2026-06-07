@@ -101,6 +101,37 @@ func TestEnvPassthroughRegistryBlocksProviderCredentialsCaseInsensitively(t *tes
 	}
 }
 
+func TestEnvPassthroughRegistryBlocksAWSCredentialTriplet(t *testing.T) {
+	registry := NewEnvPassthroughRegistry([]string{
+		"AWS_ACCESS_KEY_ID",
+		"AWS_SECRET_ACCESS_KEY",
+		"AWS_SESSION_TOKEN",
+		"SAFE_KEY",
+	})
+
+	blocked := registry.Register([]string{
+		"AWS_ACCESS_KEY_ID",
+		"AWS_SECRET_ACCESS_KEY",
+		"AWS_SESSION_TOKEN",
+		"TENOR_API_KEY",
+	})
+	wantBlocked := []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"}
+	if !reflect.DeepEqual(blocked, wantBlocked) {
+		t.Fatalf("blocked = %#v, want %#v", blocked, wantBlocked)
+	}
+
+	for _, name := range wantBlocked {
+		if registry.IsAllowed(name) {
+			t.Fatalf("AWS provider credential %q should not be allowed", name)
+		}
+	}
+	gotAll := registry.All()
+	wantAll := []string{"SAFE_KEY", "TENOR_API_KEY"}
+	if !reflect.DeepEqual(gotAll, wantAll) {
+		t.Fatalf("All = %#v, want %#v", gotAll, wantAll)
+	}
+}
+
 func TestEnvPassthroughRegistrySnapshotsProviderCredentialBlocklist(t *testing.T) {
 	registry := NewEnvPassthroughRegistry(nil)
 

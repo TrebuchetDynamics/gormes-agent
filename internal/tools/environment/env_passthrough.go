@@ -6,28 +6,34 @@ import (
 	"sync"
 )
 
-// ProviderCredentialEnvBlocklist names Hermes/Gormes-managed provider
-// credentials that skills must not be allowed to smuggle into sandboxed child
-// processes. The list intentionally covers the common provider API key/token
-// variables from Hermes' _HERMES_PROVIDER_ENV_BLOCKLIST; non-provider third
-// party keys such as TENOR_API_KEY remain registerable.
-var ProviderCredentialEnvBlocklist = map[string]struct{}{
-	"ANTHROPIC_API_KEY":     {},
-	"ANTHROPIC_AUTH_TOKEN":  {},
-	"ANTHROPIC_TOKEN":       {},
-	"AWS_ACCESS_KEY_ID":     {},
-	"AWS_SECRET_ACCESS_KEY": {},
-	"AZURE_OPENAI_API_KEY":  {},
-	"COHERE_API_KEY":        {},
-	"GEMINI_API_KEY":        {},
-	"GOOGLE_API_KEY":        {},
-	"GROQ_API_KEY":          {},
-	"MISTRAL_API_KEY":       {},
-	"NOUS_API_KEY":          {},
-	"OPENAI_API_KEY":        {},
-	"OPENROUTER_API_KEY":    {},
-	"XAI_API_KEY":           {},
+// defaultProviderCredentialEnvBlocklistNames names Hermes/Gormes-managed
+// provider credentials that skills must not be allowed to smuggle into
+// sandboxed child processes. Keep provider credential families complete; for
+// example, AWS credentials are an access-key/secret/session-token triplet.
+// Non-provider third party keys such as TENOR_API_KEY remain registerable.
+var defaultProviderCredentialEnvBlocklistNames = []string{
+	"ANTHROPIC_API_KEY",
+	"ANTHROPIC_AUTH_TOKEN",
+	"ANTHROPIC_TOKEN",
+	"AWS_ACCESS_KEY_ID",
+	"AWS_SECRET_ACCESS_KEY",
+	"AWS_SESSION_TOKEN",
+	"AZURE_OPENAI_API_KEY",
+	"COHERE_API_KEY",
+	"GEMINI_API_KEY",
+	"GOOGLE_API_KEY",
+	"GROQ_API_KEY",
+	"MISTRAL_API_KEY",
+	"NOUS_API_KEY",
+	"OPENAI_API_KEY",
+	"OPENROUTER_API_KEY",
+	"XAI_API_KEY",
 }
+
+// ProviderCredentialEnvBlocklist is the mutable provider credential blocklist
+// used when new session registries are constructed. Existing registries keep a
+// construction-time snapshot so later mutations cannot cross session bounds.
+var ProviderCredentialEnvBlocklist = envNameSetFromList(defaultProviderCredentialEnvBlocklistNames)
 
 // EnvPassthroughRegistry is a session-scoped allowlist for environment
 // variables that may pass through to sandboxed tools. It mirrors Hermes'
@@ -198,6 +204,18 @@ func isProviderCredentialName(name string, blocklist map[string]struct{}) bool {
 func cloneEnvNameSet(in map[string]struct{}) map[string]struct{} {
 	out := make(map[string]struct{}, len(in))
 	for name := range in {
+		canonical := canonicalProviderCredentialName(name)
+		if canonical == "" {
+			continue
+		}
+		out[canonical] = struct{}{}
+	}
+	return out
+}
+
+func envNameSetFromList(names []string) map[string]struct{} {
+	out := make(map[string]struct{}, len(names))
+	for _, name := range names {
 		canonical := canonicalProviderCredentialName(name)
 		if canonical == "" {
 			continue
