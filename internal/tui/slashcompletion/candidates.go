@@ -44,11 +44,33 @@ type candidateAdmission struct {
 	PrefixMissed bool
 }
 
-type slashCompletionCandidatePlan struct {
-	Completions   []Completion
+type candidateEvidence struct {
 	EmptyDropped  int
 	PrefixMissed  int
 	DuplicateKeys []string
+}
+
+func (e *candidateEvidence) recordRejectedAdmission(admission candidateAdmission) bool {
+	if admission.Empty {
+		e.EmptyDropped++
+		return true
+	}
+	if admission.Duplicate {
+		e.DuplicateKeys = append(e.DuplicateKeys, admission.Identity.Key)
+		return true
+	}
+	if !admission.Accepted {
+		if admission.PrefixMissed {
+			e.PrefixMissed++
+		}
+		return true
+	}
+	return false
+}
+
+type slashCompletionCandidatePlan struct {
+	candidateEvidence
+	Completions []Completion
 }
 
 func (p slashCompletionCandidatePlan) empty() bool {
@@ -63,18 +85,7 @@ func planSlashCompletionCandidates(prefix completionPrefix, candidates []slashCo
 	plan := slashCompletionCandidatePlan{Completions: make([]Completion, 0, len(candidates))}
 	for _, candidate := range candidates {
 		admission := admitCompletionCandidate(candidate.Name, prefix, seen)
-		if admission.Empty {
-			plan.EmptyDropped++
-			continue
-		}
-		if admission.Duplicate {
-			plan.DuplicateKeys = append(plan.DuplicateKeys, admission.Identity.Key)
-			continue
-		}
-		if !admission.Accepted {
-			if admission.PrefixMissed {
-				plan.PrefixMissed++
-			}
+		if plan.recordRejectedAdmission(admission) {
 			continue
 		}
 		plan.Completions = append(plan.Completions, Completion{
@@ -90,10 +101,10 @@ func planSlashCompletionCandidates(prefix completionPrefix, candidates []slashCo
 
 func admitCompletionCandidate(rawName string, prefix completionPrefix, seen map[string]struct{}) candidateAdmission {
 	identity := newCompletionIdentity(rawName)
-	if !identity.valid() {
+	if !identity.Valid() {
 		return candidateAdmission{Identity: identity, Empty: true}
 	}
-	if !prefix.matches(identity.Name) {
+	if !prefix.Matches(identity.Name) {
 		return candidateAdmission{Identity: identity, PrefixMissed: true}
 	}
 	if _, ok := seen[identity.Key]; ok {
@@ -133,7 +144,7 @@ func planUniqueCompletions(candidates []Completion) uniqueCompletionPlan {
 	plan := uniqueCompletionPlan{}
 	for _, c := range candidates {
 		identity := newCompletionIdentity(c.Name)
-		if !identity.valid() {
+		if !identity.Valid() {
 			plan.EmptyDropped++
 			continue
 		}

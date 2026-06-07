@@ -513,17 +513,17 @@ func TestUniqueCompletionPlanExposesDroppedCandidates(t *testing.T) {
 
 func TestCompletionRequestParsingClassifiesCommandAndSubcommandFlow(t *testing.T) {
 	command, ok := parseCompletionRequest("/he")
-	if !ok || !command.commandOnly() || command.commandPrefix.string() != "he" {
+	if !ok || !command.commandOnly() || command.commandPrefix.String() != "he" {
 		t.Fatalf("parseCompletionRequest(/he) = (%#v, %v), want command prefix he", command, ok)
 	}
 
 	sub, ok := parseCompletionRequest("/Reasoning   Sh")
-	if !ok || !sub.subcommandOnly() || sub.base != "/reasoning" || sub.subPrefix.string() != "sh" {
+	if !ok || !sub.subcommandOnly() || sub.base != "/reasoning" || sub.subPrefix.String() != "sh" {
 		t.Fatalf("parseCompletionRequest(/Reasoning   Sh) = (%#v, %v), want canonical subcommand request", sub, ok)
 	}
 
 	emptySub, ok := parseCompletionRequest("/reasoning   ")
-	if !ok || !emptySub.subcommandOnly() || emptySub.base != "/reasoning" || emptySub.subPrefix.string() != "" {
+	if !ok || !emptySub.subcommandOnly() || emptySub.base != "/reasoning" || emptySub.subPrefix.String() != "" {
 		t.Fatalf("parseCompletionRequest(/reasoning spaces) = (%#v, %v), want empty subcommand prefix", emptySub, ok)
 	}
 
@@ -574,12 +574,12 @@ func TestCompletionWhitespaceContractIsSpaceAndTabOnly(t *testing.T) {
 
 func TestResolveSubcommandFlowCentralizesPolicyGate(t *testing.T) {
 	flow, ok := resolveSubcommandFlow("/Reasoning   Sh")
-	if !ok || flow.Base != "/reasoning" || flow.Prefix.string() != "sh" || len(flow.Subcommands) == 0 {
+	if !ok || flow.Base != "/reasoning" || flow.Prefix.String() != "sh" || len(flow.Subcommands) == 0 {
 		t.Fatalf("resolveSubcommandFlow(/Reasoning   Sh) = (%#v, %v), want canonical reasoning flow", flow, ok)
 	}
 
 	for _, input := range []string{"/he", "/help ", "/reasoning show now"} {
-		if got, ok := resolveSubcommandFlow(input); ok || got.Base != "" || got.Prefix.string() != "" || got.Subcommands != nil {
+		if got, ok := resolveSubcommandFlow(input); ok || got.Base != "" || got.Prefix.String() != "" || got.Subcommands != nil {
 			t.Fatalf("resolveSubcommandFlow(%q) = (%#v, %v), want rejected", input, got, ok)
 		}
 	}
@@ -588,19 +588,19 @@ func TestResolveSubcommandFlowCentralizesPolicyGate(t *testing.T) {
 func TestCompletionIdentityCentralizesNameKeyNormalization(t *testing.T) {
 	identity := newCompletionIdentity(" / /Review ")
 	want := completionIdentity{Name: "Review", Key: "review"}
-	if identity != want || !identity.valid() {
+	if identity != want || !identity.Valid() {
 		t.Fatalf("newCompletionIdentity = %#v, want %#v and valid", identity, want)
 	}
 
 	empty := newCompletionIdentity(" / / ")
-	if empty.valid() || empty != (completionIdentity{}) {
+	if empty.Valid() || empty != (completionIdentity{}) {
 		t.Fatalf("newCompletionIdentity(empty slash prefix) = %#v, want invalid zero identity", empty)
 	}
 }
 
 func TestCompletionPrefixesNormalizeBeforeMatching(t *testing.T) {
 	commandPrefix := newCompletionPrefix(" /REV ")
-	if !commandPrefix.matches("Review") || commandPrefix.matches("help") {
+	if !commandPrefix.Matches("Review") || commandPrefix.Matches("help") {
 		t.Fatalf("completionPrefix matching did not normalize command prefix: %#v", commandPrefix)
 	}
 

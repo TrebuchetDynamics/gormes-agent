@@ -46,7 +46,7 @@ func planAcceptedText(input string, completion Completion, acceptExact bool) acc
 	}
 
 	next := "/" + accepted.name
-	decision := decideAcceptedCommandText(next, newCompletionPrefix(input).string() == accepted.key, accepted.shouldAppendSpace(), acceptExact)
+	decision := decideAcceptedCommandText(next, newCompletionPrefix(input).String() == accepted.key, accepted.shouldAppendSpace(), acceptExact)
 	if decision.exact && !acceptExact {
 		return acceptedTextPlan{Text: input, Reason: acceptedTextReasonExactRejected}
 	}
@@ -71,7 +71,7 @@ func decideAcceptedCommandText(normalized string, exact, appendSpace, acceptExac
 
 func planAcceptedSubcommandText(input string, flow subcommandFlow, accepted acceptedCompletion, acceptExact bool) acceptedTextPlan {
 	next := flow.Base + " " + accepted.name
-	decision := decideAcceptedSubcommandText(next, flow.Prefix.string() == accepted.key, acceptExact)
+	decision := decideAcceptedSubcommandText(next, flow.Prefix.String() == accepted.key, acceptExact)
 	if decision.exact && !acceptExact {
 		return acceptedTextPlan{Text: input, Reason: acceptedTextReasonExactRejected}
 	}
@@ -101,7 +101,7 @@ func inputHasCompletionArguments(input string) bool {
 
 func acceptedCommandCandidate(input string, accepted acceptedCompletion) bool {
 	req, ok := parseCompletionRequest(input)
-	return ok && req.commandOnly() && req.commandPrefix.matches(accepted.name)
+	return ok && req.commandOnly() && req.commandPrefix.Matches(accepted.name)
 }
 
 func acceptedSubcommandCandidate(flow subcommandFlow, accepted acceptedCompletion) bool {

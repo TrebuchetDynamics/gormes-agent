@@ -40,11 +40,9 @@ func commandCompletionCandidates(prefix completionPrefix) []Completion {
 }
 
 type commandCompletionPlan struct {
-	Hits          map[string]commandCompletionHit
-	SortedNames   []string
-	EmptyDropped  int
-	PrefixMissed  int
-	DuplicateKeys []string
+	candidateEvidence
+	Hits        map[string]commandCompletionHit
+	SortedNames []string
 }
 
 func (p commandCompletionPlan) empty() bool {
@@ -97,10 +95,10 @@ func (p *commandCompletionPlan) recordCandidateResult(result commandCompletionCa
 
 func addCommandCompletionHit(seen map[string]commandCompletionHit, prefix completionPrefix, rawName string, entry cli.CommandPolicy, canonical bool) commandCompletionCandidateResult {
 	identity := newCompletionIdentity(rawName)
-	if !identity.valid() {
+	if !identity.Valid() {
 		return commandCompletionCandidateResult{EmptyDropped: true}
 	}
-	if !prefix.matches(identity.Name) {
+	if !prefix.Matches(identity.Name) {
 		return commandCompletionCandidateResult{PrefixMissed: true}
 	}
 	if existing, ok := seen[identity.Key]; ok {
@@ -195,10 +193,8 @@ type subcommandCandidate struct {
 }
 
 type subcommandCandidatePlan struct {
-	Candidates    []subcommandCandidate
-	EmptyDropped  int
-	PrefixMissed  int
-	DuplicateKeys []string
+	candidateEvidence
+	Candidates []subcommandCandidate
 }
 
 func (p subcommandCandidatePlan) empty() bool {
@@ -213,18 +209,7 @@ func planMatchingSubcommandCandidates(subcommands []string, prefix completionPre
 	plan := subcommandCandidatePlan{Candidates: make([]subcommandCandidate, 0, len(subcommands))}
 	for _, sub := range subcommands {
 		admission := admitCompletionCandidate(sub, prefix, seen)
-		if admission.Empty {
-			plan.EmptyDropped++
-			continue
-		}
-		if admission.Duplicate {
-			plan.DuplicateKeys = append(plan.DuplicateKeys, admission.Identity.Key)
-			continue
-		}
-		if !admission.Accepted {
-			if admission.PrefixMissed {
-				plan.PrefixMissed++
-			}
+		if plan.recordRejectedAdmission(admission) {
 			continue
 		}
 		plan.Candidates = append(plan.Candidates, subcommandCandidate{name: admission.Identity.Name, key: admission.Identity.Key})
@@ -276,7 +261,7 @@ func singleCommandSuffix(input string) string {
 }
 
 func commandAutoSuggestWord(input string) string {
-	return newCompletionPrefix(input).string()
+	return newCompletionPrefix(input).String()
 }
 
 type commandAutoSuggestPlan struct {
@@ -327,7 +312,7 @@ func singleSubcommandSuffix(input string) string {
 }
 
 func singleSubcommandCandidateSuffix(prefix completionPrefix, matches []subcommandCandidate) string {
-	prefixText := prefix.string()
+	prefixText := prefix.String()
 	var suffixes []string
 	for _, match := range matches {
 		suffix, ok := subcommandCandidateSuffix(prefixText, match.key)

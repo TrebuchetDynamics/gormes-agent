@@ -1,6 +1,10 @@
 package slashcompletion
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/slashcompletion/normalization"
+)
 
 const completionWhitespaceChars = " \t"
 
@@ -25,36 +29,20 @@ type completionInputParts struct {
 	hasArgs           bool
 }
 
-type completionPrefix string
+type completionPrefix = normalization.Prefix
 
-type completionIdentity struct {
-	Name string
-	Key  string
-}
+type completionIdentity = normalization.Identity
 
 func newCompletionIdentity(raw string) completionIdentity {
-	name := completionName(raw)
-	return completionIdentity{Name: name, Key: strings.ToLower(name)}
-}
-
-func (id completionIdentity) valid() bool {
-	return id.Key != ""
+	return normalization.NewIdentity(raw)
 }
 
 func newCompletionPrefix(raw string) completionPrefix {
-	return completionPrefix(newCompletionIdentity(raw).Key)
+	return normalization.NewCommandPrefix(raw)
 }
 
 func newSubcommandPrefix(raw string) completionPrefix {
-	return completionPrefix(completionKey(raw))
-}
-
-func (p completionPrefix) string() string {
-	return string(p)
-}
-
-func (p completionPrefix) matches(name string) bool {
-	return strings.HasPrefix(completionKey(name), p.string())
+	return normalization.NewSubcommandPrefix(raw)
 }
 
 func (r completionRequest) commandOnly() bool {
@@ -128,21 +116,17 @@ func (p completionInputParts) subcommandCandidate() bool {
 }
 
 func completionNameMatches(name string, prefix completionPrefix) bool {
-	return prefix.matches(name)
+	return prefix.Matches(name)
 }
 
 func completionName(name string) string {
-	return trimCompletionSlashPrefix(name)
+	return normalization.Name(name)
 }
 
 func trimCompletionSlashPrefix(name string) string {
-	trimmed := strings.TrimSpace(name)
-	for strings.HasPrefix(trimmed, "/") {
-		trimmed = strings.TrimSpace(strings.TrimLeft(trimmed, "/"))
-	}
-	return trimmed
+	return normalization.TrimSlashPrefix(name)
 }
 
 func completionKey(name string) string {
-	return newCompletionIdentity(name).Key
+	return normalization.Key(name)
 }
