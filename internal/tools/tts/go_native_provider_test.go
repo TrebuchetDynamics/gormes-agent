@@ -43,8 +43,8 @@ func TestGoNativeTTSProviderUsesConfiguredPiperRuntime(t *testing.T) {
 	os.Setenv("GORMES_TTS_PIPER_BIN", "piper-test")
 
 	provider := NewGoNativeTTSProvider(GoNativeTTSProviderConfig{})
-	if _, ok := provider.runtime.(*speechtts.PiperSynthesizer); !ok {
-		t.Fatalf("runtime = %T, want PiperSynthesizer when model env is configured", provider.runtime)
+	if _, ok := provider.RuntimeForTest().(*speechtts.PiperSynthesizer); !ok {
+		t.Fatalf("runtime = %T, want PiperSynthesizer when model env is configured", provider.RuntimeForTest())
 	}
 }
 
@@ -61,8 +61,8 @@ func TestGoNativeTTSProviderUsesCachedPiperRuntime(t *testing.T) {
 	os.Setenv("GORMES_TTS_PIPER_MODEL_CACHE", cache)
 
 	provider := NewGoNativeTTSProvider(GoNativeTTSProviderConfig{})
-	if _, ok := provider.runtime.(*speechtts.PiperSynthesizer); !ok {
-		t.Fatalf("runtime = %T, want cached PiperSynthesizer", provider.runtime)
+	if _, ok := provider.RuntimeForTest().(*speechtts.PiperSynthesizer); !ok {
+		t.Fatalf("runtime = %T, want cached PiperSynthesizer", provider.RuntimeForTest())
 	}
 }
 

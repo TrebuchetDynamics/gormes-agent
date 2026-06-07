@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/toolkit"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/tts/contracts"
 )
 
 const (
@@ -21,16 +22,16 @@ const (
 )
 
 // TTSEvidence is stable operator-facing evidence for TTS outcomes.
-type TTSEvidence string
+type TTSEvidence = contracts.Evidence
 
 const (
-	TTSEvidenceOK                     TTSEvidence = "tts_synthesized"
-	TTSEvidenceDisabled               TTSEvidence = "tts_disabled"
-	TTSEvidenceInvalidArguments       TTSEvidence = "tts_invalid_arguments"
-	TTSEvidenceUnsupportedAudioFormat TTSEvidence = "unsupported_audio_format"
-	TTSEvidenceProviderUnavailable    TTSEvidence = "tts_provider_unavailable"
-	TTSEvidenceAPIError               TTSEvidence = "tts_api_error"
-	TTSEvidenceOutputMissing          TTSEvidence = "tts_output_missing"
+	TTSEvidenceOK                     = contracts.EvidenceOK
+	TTSEvidenceDisabled               = contracts.EvidenceDisabled
+	TTSEvidenceInvalidArguments       = contracts.EvidenceInvalidArguments
+	TTSEvidenceUnsupportedAudioFormat = contracts.EvidenceUnsupportedAudioFormat
+	TTSEvidenceProviderUnavailable    = contracts.EvidenceProviderUnavailable
+	TTSEvidenceAPIError               = contracts.EvidenceAPIError
+	TTSEvidenceOutputMissing          = contracts.EvidenceOutputMissing
 )
 
 // TTSConfig controls the native text-to-speech helper. Provider is optional;
@@ -46,52 +47,22 @@ type TTSConfig struct {
 
 // TTSRequest is the public helper input. Provider is intentionally not exposed
 // in the model-facing schema yet; production config chooses the provider.
-type TTSRequest struct {
-	Text       string
-	OutputPath string
-	Provider   string
-	Platform   string
-	Voice      string
-	Speed      float64
-}
+type TTSRequest = contracts.Request
 
 // TTSResult is the redacted helper/tool result envelope.
-type TTSResult struct {
-	Success         bool        `json:"success"`
-	FilePath        string      `json:"file_path,omitempty"`
-	MediaTag        string      `json:"media_tag,omitempty"`
-	Provider        string      `json:"provider,omitempty"`
-	VoiceCompatible bool        `json:"voice_compatible,omitempty"`
-	Truncated       bool        `json:"truncated,omitempty"`
-	Evidence        TTSEvidence `json:"evidence"`
-	Error           string      `json:"error,omitempty"`
-}
+type TTSResult = contracts.Result
 
 // TTSProviderRequest is the normalized provider call input.
-type TTSProviderRequest struct {
-	Text       string
-	OutputPath string
-	Provider   string
-	Platform   string
-	Voice      string
-	Speed      float64
-}
+type TTSProviderRequest = contracts.ProviderRequest
 
 // TTSProviderResult is the provider-specific response before the runner
 // normalizes it into TTSResult.
-type TTSProviderResult struct {
-	FilePath        string
-	Provider        string
-	VoiceCompatible bool
-}
+type TTSProviderResult = contracts.ProviderResult
 
 // TTSProvider is implemented by real or fake synthesis backends. Tests use
 // fakes; production can inject local-command or HTTP providers without changing
 // gateway/channel contracts.
-type TTSProvider interface {
-	Available(context.Context) bool
-	Synthesize(context.Context, TTSProviderRequest) (TTSProviderResult, error)
-}
+type TTSProvider = contracts.Provider
 
 // TTSRunner validates text/output paths and dispatches to injected providers.
 type TTSRunner struct {

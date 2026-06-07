@@ -17,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/tts/configvalue"
 )
 
 // Default TTS configuration values
@@ -511,21 +513,21 @@ type miniMaxTTSSettings struct {
 }
 
 func (c TTSProviderConfig) miniMaxTTSSettings() miniMaxTTSSettings {
-	section := mapFromAny(lookupCaseInsensitiveAny(c.ProviderConfig, ProviderNameMiniMax))
+	section := configvalue.Map(configvalue.LookupCaseInsensitive(c.ProviderConfig, ProviderNameMiniMax))
 	envBaseURL, _ := lookupTTSProviderEnv(c, "GORMES_TTS_MINIMAX_BASE_URL", "MINIMAX_TTS_BASE_URL")
 	return miniMaxTTSSettings{
 		Model: firstNonEmptyTTS(
-			stringFromAny(lookupCaseInsensitiveAny(section, "model")),
+			configvalue.String(configvalue.LookupCaseInsensitive(section, "model")),
 			DefaultMiniMaxTTSModel,
 		),
 		VoiceID: firstNonEmptyTTS(
-			stringFromAny(lookupCaseInsensitiveAny(section, "voice_id")),
-			stringFromAny(lookupCaseInsensitiveAny(section, "voice")),
+			configvalue.String(configvalue.LookupCaseInsensitive(section, "voice_id")),
+			configvalue.String(configvalue.LookupCaseInsensitive(section, "voice")),
 			c.Voice,
 			DefaultMiniMaxTTSVoiceID,
 		),
 		BaseURL: firstNonEmptyTTS(
-			stringFromAny(lookupCaseInsensitiveAny(section, "base_url")),
+			configvalue.String(configvalue.LookupCaseInsensitive(section, "base_url")),
 			envBaseURL,
 			DefaultMiniMaxTTSBaseURL,
 		),
@@ -732,24 +734,24 @@ func TTSProviderMaxTextLengthForConfig(provider string, ttsConfig map[string]any
 	if key == "" {
 		return defaultTTSMaxTextLength
 	}
-	if section := mapFromAny(lookupCaseInsensitiveAny(ttsConfig, key)); section != nil {
-		if override := positiveIntFromAny(section["max_text_length"]); override > 0 {
+	if section := configvalue.Map(configvalue.LookupCaseInsensitive(ttsConfig, key)); section != nil {
+		if override := configvalue.PositiveInt(section["max_text_length"]); override > 0 {
 			return override
 		}
 	}
 	if !isBuiltinTTSProviderName(key) {
 		if named := namedTTSProviderConfig(ttsConfig, key); isTTSCommandProviderConfig(named) {
-			if override := positiveIntFromAny(named["max_text_length"]); override > 0 {
+			if override := configvalue.PositiveInt(named["max_text_length"]); override > 0 {
 				return override
 			}
 			return defaultCommandTTSMaxTextLength
 		}
 	}
 	if key == ProviderNameElevenLabs {
-		section := mapFromAny(lookupCaseInsensitiveAny(ttsConfig, key))
+		section := configvalue.Map(configvalue.LookupCaseInsensitive(ttsConfig, key))
 		modelID := "eleven_multilingual_v2"
 		if section != nil {
-			if configured := stringFromAny(section["model_id"]); configured != "" {
+			if configured := configvalue.String(section["model_id"]); configured != "" {
 				modelID = configured
 			}
 		}
@@ -795,9 +797,9 @@ func parseSpeed(s string) float64 {
 
 func TTSSpeedForProvider(provider string, ttsConfig map[string]any) float64 {
 	provider = normalizeTTSProviderName(provider)
-	speed := floatFromAny(lookupCaseInsensitiveAny(ttsConfig, "speed"))
-	if section := mapFromAny(lookupCaseInsensitiveAny(ttsConfig, provider)); section != nil {
-		if providerSpeed := floatFromAny(lookupCaseInsensitiveAny(section, "speed")); providerSpeed > 0 {
+	speed := configvalue.Float(configvalue.LookupCaseInsensitive(ttsConfig, "speed"))
+	if section := configvalue.Map(configvalue.LookupCaseInsensitive(ttsConfig, provider)); section != nil {
+		if providerSpeed := configvalue.Float(configvalue.LookupCaseInsensitive(section, "speed")); providerSpeed > 0 {
 			speed = providerSpeed
 		}
 	}

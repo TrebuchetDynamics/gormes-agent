@@ -9,10 +9,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/tts/commandtemplate"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/tts/configvalue"
 )
 
 const (
@@ -123,7 +125,7 @@ func (p *TTSCommandProvider) Synthesize(ctx context.Context, req TTSProviderRequ
 	if speed == "" {
 		speed = "1.0"
 	}
-	command := renderTTSCommandTemplate(p.cfg.Command, map[string]string{
+	command := commandtemplate.Render(p.cfg.Command, map[string]string{
 		"input_path":  inputPath,
 		"text_path":   inputPath,
 		"output_path": outputPath,
@@ -187,14 +189,14 @@ func ResolveTTSCommandProviderConfig(provider string, ttsConfig map[string]any) 
 		return TTSCommandProviderConfig{}, false
 	}
 	out := TTSCommandProviderConfig{
-		Command:         stringFromAny(raw["command"]),
-		Timeout:         commandTimeoutFromAny(firstPresentAny(raw, "timeout", "timeout_seconds")),
-		OutputFormat:    commandTTSOutputFormatFromAny(firstPresentAny(raw, "format", "output_format"), ""),
-		Voice:           stringFromAny(raw["voice"]),
-		Model:           stringFromAny(raw["model"]),
-		Speed:           stringFromAny(raw["speed"]),
-		VoiceCompatible: boolFromAny(raw["voice_compatible"]),
-		MaxTextLength:   positiveIntFromAny(raw["max_text_length"]),
+		Command:         configvalue.String(raw["command"]),
+		Timeout:         commandTimeoutFromAny(configvalue.FirstPresent(raw, "timeout", "timeout_seconds")),
+		OutputFormat:    commandTTSOutputFormatFromAny(configvalue.FirstPresent(raw, "format", "output_format"), ""),
+		Voice:           configvalue.String(raw["voice"]),
+		Model:           configvalue.String(raw["model"]),
+		Speed:           configvalue.String(raw["speed"]),
+		VoiceCompatible: configvalue.Bool(raw["voice_compatible"]),
+		MaxTextLength:   configvalue.PositiveInt(raw["max_text_length"]),
 	}
 	if out.OutputFormat == "" {
 		out.OutputFormat = defaultCommandTTSOutputFormat
@@ -206,7 +208,7 @@ func RegisterTTSCommandProviders(into map[string]TTSProvider, ttsConfig map[stri
 	if into == nil || ttsConfig == nil {
 		return
 	}
-	providers := mapFromAny(ttsConfig["providers"])
+	providers := configvalue.Map(ttsConfig["providers"])
 	for name := range providers {
 		key := normalizeTTSProviderName(name)
 		if resolved, ok := ResolveTTSCommandProviderConfig(key, ttsConfig); ok {
@@ -231,14 +233,14 @@ func namedTTSProviderConfig(ttsConfig map[string]any, name string) map[string]an
 	if ttsConfig == nil {
 		return nil
 	}
-	providers := mapFromAny(ttsConfig["providers"])
+	providers := configvalue.Map(ttsConfig["providers"])
 	if providers != nil {
-		if section := mapFromAny(lookupCaseInsensitiveAny(providers, name)); section != nil {
+		if section := configvalue.Map(configvalue.LookupCaseInsensitive(providers, name)); section != nil {
 			return section
 		}
 	}
 	if !isBuiltinTTSProviderName(name) {
-		if legacy := mapFromAny(lookupCaseInsensitiveAny(ttsConfig, name)); legacy != nil {
+		if legacy := configvalue.Map(configvalue.LookupCaseInsensitive(ttsConfig, name)); legacy != nil {
 			return legacy
 		}
 	}
@@ -249,15 +251,15 @@ func isTTSCommandProviderConfig(raw map[string]any) bool {
 	if raw == nil {
 		return false
 	}
-	providerType := strings.ToLower(strings.TrimSpace(stringFromAny(raw["type"])))
+	providerType := strings.ToLower(strings.TrimSpace(configvalue.String(raw["type"])))
 	if providerType != "" && providerType != "command" {
 		return false
 	}
-	return strings.TrimSpace(stringFromAny(raw["command"])) != ""
+	return strings.TrimSpace(configvalue.String(raw["command"])) != ""
 }
 
 func commandTimeoutFromAny(raw any) time.Duration {
-	seconds := floatFromAny(raw)
+	seconds := configvalue.Float(raw)
 	if seconds <= 0 {
 		return defaultTTSCommandTimeout
 	}
@@ -275,7 +277,7 @@ func commandTTSOutputFormatFromAny(raw any, outputPath string) string {
 			return ext
 		}
 	}
-	return normalizeCommandTTSOutputFormat(stringFromAny(raw))
+	return normalizeCommandTTSOutputFormat(configvalue.String(raw))
 }
 
 func normalizeCommandTTSOutputFormat(format string) string {
@@ -293,204 +295,6 @@ func isSupportedCommandTTSOutputFormat(format string) bool {
 	default:
 		return false
 	}
-}
-
-func renderTTSCommandTemplate(template string, placeholders map[string]string) string {
-	if template == "" || len(placeholders) == 0 {
-		return template
-	}
-	markerOpen := "\x00GORMES_TTS_OPEN\x00"
-	markerClose := "\x00GORMES_TTS_CLOSE\x00"
-	protected := strings.ReplaceAll(template, "{{", markerOpen)
-	protected = strings.ReplaceAll(protected, "}}", markerClose)
-	pattern := regexp.MustCompile(`\{([A-Za-z_][A-Za-z0-9_]*)\}`)
-	matches := pattern.FindAllStringSubmatchIndex(protected, -1)
-	var rendered strings.Builder
-	rendered.Grow(len(protected))
-	last := 0
-	for _, match := range matches {
-		rendered.WriteString(protected[last:match[0]])
-		token := protected[match[0]:match[1]]
-		name := protected[match[2]:match[3]]
-		value, ok := placeholders[name]
-		if !ok {
-			rendered.WriteString(token)
-		} else {
-			rendered.WriteString(quoteTTSCommandPlaceholder(value, shellQuoteContext(protected, match[0])))
-		}
-		last = match[1]
-	}
-	rendered.WriteString(protected[last:])
-	out := rendered.String()
-	out = strings.ReplaceAll(out, markerOpen, "{")
-	out = strings.ReplaceAll(out, markerClose, "}")
-	return out
-}
-
-func shellQuoteContext(template string, position int) string {
-	quote := byte(0)
-	escaped := false
-	for i := 0; i < position && i < len(template); i++ {
-		ch := template[i]
-		switch quote {
-		case '\'':
-			if ch == '\'' {
-				quote = 0
-			}
-		case '"':
-			if escaped {
-				escaped = false
-			} else if ch == '\\' {
-				escaped = true
-			} else if ch == '"' {
-				quote = 0
-			}
-		default:
-			if ch == '\'' || ch == '"' {
-				quote = ch
-			} else if ch == '\\' {
-				i++
-			}
-		}
-	}
-	if quote == 0 {
-		return ""
-	}
-	return string(quote)
-}
-
-func quoteTTSCommandPlaceholder(value, quoteContext string) string {
-	switch quoteContext {
-	case "'":
-		return strings.ReplaceAll(value, "'", `'\''`)
-	case `"`:
-		replacer := strings.NewReplacer(`\`, `\\`, `"`, `\"`, `$`, `\$`, "`", "\\`")
-		return replacer.Replace(value)
-	default:
-		return shellQuoteTTSPlaceholder(value)
-	}
-}
-
-var shellSafeTTSPlaceholder = regexp.MustCompile(`^[A-Za-z0-9_./:@%+=,-]+$`)
-
-func shellQuoteTTSPlaceholder(value string) string {
-	if value == "" {
-		return "''"
-	}
-	if runtime.GOOS == "windows" {
-		return strings.ReplaceAll(value, `"`, `\"`)
-	}
-	if shellSafeTTSPlaceholder.MatchString(value) {
-		return value
-	}
-	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
-}
-
-func mapFromAny(value any) map[string]any {
-	switch typed := value.(type) {
-	case map[string]any:
-		return typed
-	default:
-		return nil
-	}
-}
-
-func lookupCaseInsensitiveAny(values map[string]any, key string) any {
-	if values == nil {
-		return nil
-	}
-	if value, ok := values[key]; ok {
-		return value
-	}
-	for candidate, value := range values {
-		if strings.EqualFold(strings.TrimSpace(candidate), key) {
-			return value
-		}
-	}
-	return nil
-}
-
-func firstPresentAny(values map[string]any, keys ...string) any {
-	for _, key := range keys {
-		if values == nil {
-			return nil
-		}
-		if value, ok := values[key]; ok {
-			return value
-		}
-	}
-	return nil
-}
-
-func stringFromAny(value any) string {
-	switch typed := value.(type) {
-	case string:
-		return strings.TrimSpace(typed)
-	case fmt.Stringer:
-		return strings.TrimSpace(typed.String())
-	case nil:
-		return ""
-	default:
-		return strings.TrimSpace(fmt.Sprint(typed))
-	}
-}
-
-func boolFromAny(value any) bool {
-	switch typed := value.(type) {
-	case bool:
-		return typed
-	case string:
-		switch strings.ToLower(strings.TrimSpace(typed)) {
-		case "1", "true", "yes", "on":
-			return true
-		default:
-			return false
-		}
-	default:
-		return false
-	}
-}
-
-func positiveIntFromAny(value any) int {
-	switch typed := value.(type) {
-	case int:
-		if typed > 0 {
-			return typed
-		}
-	case int64:
-		if typed > 0 {
-			return int(typed)
-		}
-	case float64:
-		if typed > 0 {
-			return int(typed)
-		}
-	case string:
-		var parsed int
-		if _, err := fmt.Sscanf(strings.TrimSpace(typed), "%d", &parsed); err == nil && parsed > 0 {
-			return parsed
-		}
-	}
-	return 0
-}
-
-func floatFromAny(value any) float64 {
-	switch typed := value.(type) {
-	case int:
-		return float64(typed)
-	case int64:
-		return float64(typed)
-	case float64:
-		return typed
-	case float32:
-		return float64(typed)
-	case string:
-		var parsed float64
-		if _, err := fmt.Sscanf(strings.TrimSpace(typed), "%f", &parsed); err == nil {
-			return parsed
-		}
-	}
-	return 0
 }
 
 // EdgeTTSCommandProvider runs an edge-tts compatible CLI. It is native Gormes
