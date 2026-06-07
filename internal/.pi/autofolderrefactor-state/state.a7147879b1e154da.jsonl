@@ -59,3 +59,10 @@
 {"ts":"2026-06-06T20:53:37-06:00","candidate":"core/subagent","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
 {"ts":"2026-06-06T20:55:00-06:00","candidate":"config/integration","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:55:00-06:00"}
 {"ts":"2026-06-06T21:00:27-06:00","candidate":"config/credentials","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:00:27-06:00"}
+{"ts":"2026-06-06T21:04:36-06:00","candidate":"config/channels","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:04:36-06:00"}
+{"ts":"2026-06-06T21:04:38-06:00","candidate":"config/integration/channels","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:04:39-06:00","candidate":"config/profile","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:04:41-06:00","candidate":"config/integration/auxiliary","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:04:42-06:00","candidate":"config/integration/profiles","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:04:44-06:00","candidate":"config/configwriter","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:04:45-06:00","candidate":"config","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}

@@ -1,4 +1,4 @@
-package composer
+package fastecho
 
 import "testing"
 
