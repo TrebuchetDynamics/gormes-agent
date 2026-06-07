@@ -1,13 +1,14 @@
 package credentials
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config/credentials/jsonfile"
 )
 
 const (
@@ -222,7 +223,7 @@ func (s *CodexOAuthStateStore) ImportCodexCLITokens(req CodexCLIImportRequest) (
 		}, nil
 	}
 	var payload codexCLIAuthFile
-	if err := readJSON(req.AuthPath, &payload); err != nil {
+	if err := jsonfile.Read(req.AuthPath, &payload); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return CodexOAuthAuthStatus{
 				Code:     CodexOAuthStatusImportRejected,
@@ -290,14 +291,6 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
-}
-
-func readJSON(path string, target any) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(data, target)
 }
 
 func (s *CodexOAuthStateStore) AuthPath() (string, error) {

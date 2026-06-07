@@ -1,7 +1,6 @@
 package credentials
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -12,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config/credentials/homepaths"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config/credentials/jwtclaims"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -742,19 +743,7 @@ func credentialLabelFromJWT(accessToken, fallback string) string {
 }
 
 func decodeJWTClaims(token string) (map[string]any, bool) {
-	parts := strings.Split(token, ".")
-	if len(parts) < 2 {
-		return nil, false
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return nil, false
-	}
-	var claims map[string]any
-	if err := json.Unmarshal(payload, &claims); err != nil {
-		return nil, false
-	}
-	return claims, true
+	return jwtclaims.Decode(token)
 }
 
 func cloneCredentialEntries(entries []PooledCredential) []PooledCredential {
@@ -861,7 +850,7 @@ func writeCredentialPoolAuthStore(hermesHome string, store credentialPoolAuthSto
 func credentialPoolHermesHome(input string) (string, error) {
 	home := strings.TrimSpace(input)
 	if home == "" {
-		home = gormesBaseHome()
+		home = homepaths.BaseHome()
 	}
 	absHome, err := filepath.Abs(home)
 	if err != nil {
@@ -870,28 +859,11 @@ func credentialPoolHermesHome(input string) (string, error) {
 	return absHome, nil
 }
 
-func gormesBaseHome() string {
-	return gormesBaseHomeFor(gormesHome())
-}
+func gormesBaseHome() string { return homepaths.BaseHome() }
 
-func gormesHome() string {
-	if v := strings.TrimSpace(os.Getenv("GORMES_HOME")); v != "" {
-		return v
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".gormes")
-}
+func gormesHome() string { return homepaths.GormesHome() }
 
-func gormesBaseHomeFor(current string) string {
-	clean := filepath.Clean(strings.TrimSpace(current))
-	if clean == "." || clean == string(filepath.Separator) {
-		return current
-	}
-	if filepath.Base(filepath.Dir(clean)) == "profiles" {
-		return filepath.Dir(filepath.Dir(clean))
-	}
-	return current
-}
+func gormesBaseHomeFor(current string) string { return homepaths.BaseHomeFor(current) }
 
 func sanitizedEvidenceText(input string) string {
 	trimmed := strings.TrimSpace(input)

@@ -57,3 +57,4 @@
 {"ts":"2026-06-06T20:53:34-06:00","candidate":"core/subagent/lifecycle","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:53:34-06:00"}
 {"ts":"2026-06-06T20:53:35-06:00","candidate":"core/subagent/review","reason":"already clean","scope":"candidate","state":"done"}
 {"ts":"2026-06-06T20:53:37-06:00","candidate":"core/subagent","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T20:55:00-06:00","candidate":"config/integration","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:55:00-06:00"}
