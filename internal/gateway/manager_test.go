@@ -119,9 +119,7 @@ func (f *fakeKernel) Render() <-chan kernel.RenderFrame {
 func (f *fakeKernel) submitsSnapshot() []kernel.PlatformEvent {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]kernel.PlatformEvent, len(f.submits))
-	copy(out, f.submits)
-	return out
+	return cloneSlice(f.submits)
 }
 
 func stopManagerTestRun(t *testing.T, cancel context.CancelFunc, done <-chan struct{}) {

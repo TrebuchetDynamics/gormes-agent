@@ -1,1 +1,4 @@
 {"ts":"2026-06-06T19:19:50-06:00","candidate":"platform/cli/gormescli/tuiapp","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T20:19:51-06:00"}
+{"ts":"2026-06-06T19:22:58-06:00","candidate":"platform/cli/gormescli/modules/channels","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T20:22:58-06:00"}
+{"ts":"2026-06-06T19:22:59-06:00","candidate":"platform/cli/gormescli/modules/profiles/controlcenter","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T19:23:01-06:00","candidate":"platform/cli/gormescli/modules/sessions","reason":"already clean","scope":"candidate","state":"done"}
