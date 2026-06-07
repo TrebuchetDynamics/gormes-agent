@@ -1,4 +1,4 @@
-package repair
+package parsers
 
 import (
 	"encoding/json"
@@ -141,7 +141,7 @@ func TestToolCallParserManifestGoldenFixturesExistAndCoverDegraded(t *testing.T)
 		}
 		hasDegraded := false
 		for _, fx := range entry.GoldenFixtures {
-			path := filepath.Join("..", "testdata", "tool_call_parsers", fx)
+			path := filepath.Join("..", "..", "testdata", "tool_call_parsers", fx)
 			data, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatalf("read fixture %s for %s: %v", path, entry.UpstreamFile, err)

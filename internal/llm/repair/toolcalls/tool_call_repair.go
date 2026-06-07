@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/repair/schemas"
 )
 
 type ToolDescriptor struct {
@@ -118,7 +120,7 @@ func RepairToolCallArguments(raw json.RawMessage) (json.RawMessage, map[string]a
 }
 
 func emptyObjectToolSchema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{}}`)
+	return schemas.EmptyObjectToolSchema()
 }
 
 func sanitizeToolSchema(raw json.RawMessage) json.RawMessage {

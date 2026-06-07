@@ -1,28 +1,28 @@
-package repair
+package reasoning
 
 import "testing"
 
-func TestSanitizeReasoningTags_StoredAssistantText(t *testing.T) {
+func TestSanitizeTags_StoredAssistantText(t *testing.T) {
 	raw := "The answer starts here.\n\n<think>\nprivate chain of thought\n</think>\n\nThe answer ends here."
 
-	got := SanitizeReasoningTags(raw)
+	got := SanitizeTags(raw)
 	want := "The answer starts here.\nThe answer ends here."
 	if got != want {
-		t.Fatalf("SanitizeReasoningTags() = %q, want %q", got, want)
+		t.Fatalf("SanitizeTags() = %q, want %q", got, want)
 	}
 }
 
-func TestSanitizeReasoningTags_VisibleTextDropsUnterminatedThink(t *testing.T) {
+func TestSanitizeTags_VisibleTextDropsUnterminatedThink(t *testing.T) {
 	raw := "Visible answer before truncation.\n<think>\nprivate reasoning that never closes"
 
-	got := SanitizeReasoningTags(raw)
+	got := SanitizeTags(raw)
 	want := "Visible answer before truncation."
 	if got != want {
-		t.Fatalf("SanitizeReasoningTags() = %q, want %q", got, want)
+		t.Fatalf("SanitizeTags() = %q, want %q", got, want)
 	}
 }
 
-func TestSanitizeReasoningTags_ResumeRecapVariants(t *testing.T) {
+func TestSanitizeTags_ResumeRecapVariants(t *testing.T) {
 	tests := []struct {
 		name string
 		raw  string
@@ -82,27 +82,27 @@ func TestSanitizeReasoningTags_ResumeRecapVariants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := SanitizeReasoningTags(tt.raw)
+			got := SanitizeTags(tt.raw)
 			if got != tt.want {
-				t.Fatalf("SanitizeReasoningTags() = %q, want %q", got, tt.want)
+				t.Fatalf("SanitizeTags() = %q, want %q", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestSanitizeReasoningTags_RawAuditTextUnchanged(t *testing.T) {
+func TestSanitizeTags_RawAuditTextUnchanged(t *testing.T) {
 	raw := "Stored raw stream bytes.\n<think>audit-only reasoning</think>\nVisible answer."
 	original := raw
 
-	got := SanitizeReasoningTags(raw)
+	got := SanitizeTags(raw)
 	want := "Stored raw stream bytes.\nVisible answer."
 	if got != want {
-		t.Fatalf("SanitizeReasoningTags() = %q, want %q", got, want)
+		t.Fatalf("SanitizeTags() = %q, want %q", got, want)
 	}
 	if raw != original {
 		t.Fatalf("raw audit text mutated: got %q, want original %q", raw, original)
 	}
 	if raw == got {
-		t.Fatalf("SanitizeReasoningTags() returned raw text; want sanitized copy distinct from audit text")
+		t.Fatalf("SanitizeTags() returned raw text; want sanitized copy distinct from audit text")
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/repair/schemas"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/repair/toolcalls"
 )
 
@@ -75,7 +76,7 @@ func SanitizeMoonshotToolDescriptors(descriptors []ToolDescriptor) []ToolDescrip
 }
 
 func emptyObjectToolSchema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{}}`)
+	return schemas.EmptyObjectToolSchema()
 }
 
 // SanitizeMoonshotToolParameters normalizes tool parameters to the subset of
