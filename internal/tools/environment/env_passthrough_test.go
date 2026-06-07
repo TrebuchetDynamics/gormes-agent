@@ -58,3 +58,23 @@ func TestEnvPassthroughDefaultRegistryIsSessionScoped(t *testing.T) {
 		t.Fatal("second registry should not see first registry registrations")
 	}
 }
+
+func TestEnvPassthroughRegistryRejectsAssignments(t *testing.T) {
+	registry := NewEnvPassthroughRegistry([]string{"CONFIG_ONLY=value", " CONFIG_OK "})
+
+	blocked := registry.Register([]string{"TENOR_API_KEY=secret", "VALID_NAME"})
+	if len(blocked) != 0 {
+		t.Fatalf("assignment-like names should be ignored, not reported as provider credential blocks: %#v", blocked)
+	}
+
+	for _, name := range []string{"CONFIG_ONLY=value", "TENOR_API_KEY=secret"} {
+		if registry.IsAllowed(name) {
+			t.Fatalf("assignment-like candidate %q should not be allowed", name)
+		}
+	}
+	gotAll := registry.All()
+	wantAll := []string{"CONFIG_OK", "VALID_NAME"}
+	if !reflect.DeepEqual(gotAll, wantAll) {
+		t.Fatalf("All = %#v, want %#v", gotAll, wantAll)
+	}
+}

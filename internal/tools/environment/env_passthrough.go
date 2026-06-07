@@ -48,12 +48,12 @@ func NewEnvPassthroughRegistry(configured []string) *EnvPassthroughRegistry {
 		configured: map[string]struct{}{},
 		blocklist:  ProviderCredentialEnvBlocklist,
 	}
-	for _, name := range configured {
-		name = normalizeEnvPassthroughName(name)
-		if name == "" || r.isProviderCredential(name) {
+	for _, raw := range configured {
+		candidate := classifyEnvPassthroughCandidate(raw, r.blocklist)
+		if !candidate.Valid || candidate.ProviderCredential {
 			continue
 		}
-		r.configured[name] = struct{}{}
+		r.configured[candidate.Name] = struct{}{}
 	}
 	return r
 }
@@ -66,15 +66,15 @@ func (r *EnvPassthroughRegistry) Register(names []string) []string {
 	}
 	blocked := make([]string, 0)
 	for _, raw := range names {
-		name := normalizeEnvPassthroughName(raw)
-		if name == "" {
+		candidate := classifyEnvPassthroughCandidate(raw, r.blocklist)
+		if !candidate.Valid {
 			continue
 		}
-		if r.isProviderCredential(name) {
-			blocked = append(blocked, name)
+		if candidate.ProviderCredential {
+			blocked = append(blocked, candidate.Name)
 			continue
 		}
-		r.registered[name] = struct{}{}
+		r.registered[candidate.Name] = struct{}{}
 	}
 	return blocked
 }
@@ -85,14 +85,14 @@ func (r *EnvPassthroughRegistry) IsAllowed(name string) bool {
 	if r == nil {
 		return false
 	}
-	name = normalizeEnvPassthroughName(name)
-	if name == "" {
+	candidate := classifyEnvPassthroughCandidate(name, r.blocklist)
+	if !candidate.Valid || candidate.ProviderCredential {
 		return false
 	}
-	if _, ok := r.registered[name]; ok {
+	if _, ok := r.registered[candidate.Name]; ok {
 		return true
 	}
-	_, ok := r.configured[name]
+	_, ok := r.configured[candidate.Name]
 	return ok
 }
 
@@ -132,6 +132,25 @@ func (r *EnvPassthroughRegistry) isProviderCredential(name string) bool {
 	}
 	_, ok := r.blocklist[name]
 	return ok
+}
+
+type envPassthroughCandidate struct {
+	Name               string
+	Valid              bool
+	ProviderCredential bool
+}
+
+func classifyEnvPassthroughCandidate(raw string, blocklist map[string]struct{}) envPassthroughCandidate {
+	name := normalizeEnvPassthroughName(raw)
+	if name == "" || strings.ContainsRune(name, '=') || strings.ContainsRune(name, '\x00') {
+		return envPassthroughCandidate{}
+	}
+	_, providerCredential := blocklist[name]
+	return envPassthroughCandidate{
+		Name:               name,
+		Valid:              true,
+		ProviderCredential: providerCredential,
+	}
 }
 
 func normalizeEnvPassthroughName(name string) string {
