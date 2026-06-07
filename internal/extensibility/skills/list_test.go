@@ -144,42 +144,27 @@ func TestListInstalledSkills_BundledRootSymlinkTracksHermesSkills(t *testing.T) 
 
 func writeBundledListSkillDoc(t *testing.T, root, category, name string) {
 	t.Helper()
-	dir := filepath.Join(root, category, name)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatalf("MkdirAll(%q): %v", dir, err)
-	}
-	raw := "---\nname: " + name + "\ndescription: " + name + " description\n---\n\nUse " + name + "."
-	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(raw), 0o644); err != nil {
-		t.Fatalf("WriteFile(SKILL.md): %v", err)
-	}
+	writeListSkillDocAt(t, filepath.Join(root, category, name, "SKILL.md"), name)
 }
 
 func writeExternalListSkillDoc(t *testing.T, root, category, name string) {
 	t.Helper()
-	dir := filepath.Join(root, category, name)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatalf("MkdirAll(%q): %v", dir, err)
-	}
-	raw := "---\nname: " + name + "\ndescription: " + name + " description\n---\n\nUse " + name + "."
-	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(raw), 0o644); err != nil {
-		t.Fatalf("WriteFile(SKILL.md): %v", err)
-	}
+	writeListSkillDocAt(t, filepath.Join(root, category, name, "SKILL.md"), name)
 }
 
 func writeListSkillDoc(t *testing.T, root, category, name, source, trust string) {
 	t.Helper()
 	dir := filepath.Join(root, "active", category, name)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatalf("MkdirAll(%q): %v", dir, err)
-	}
-	raw := "---\nname: " + name + "\ndescription: " + name + " description\n---\n\nUse " + name + "."
-	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(raw), 0o644); err != nil {
-		t.Fatalf("WriteFile(SKILL.md): %v", err)
-	}
+	writeListSkillDocAt(t, filepath.Join(dir, "SKILL.md"), name)
 	meta := `{"source":"` + source + `","trust":"` + trust + `"}`
 	if err := os.WriteFile(filepath.Join(dir, "meta.json"), []byte(meta), 0o644); err != nil {
 		t.Fatalf("WriteFile(meta.json): %v", err)
 	}
+}
+
+func writeListSkillDocAt(t *testing.T, path, name string) {
+	t.Helper()
+	writeSkillDoc(t, path, name, name+" description", "Use "+name+".")
 }
 
 func findListRow(rows []SkillRow, name string) (SkillRow, bool) {
