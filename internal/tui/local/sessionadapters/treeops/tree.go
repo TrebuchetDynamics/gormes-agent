@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	appsession "github.com/TrebuchetDynamics/gormes-agent/internal/app/session"
 	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/local/sessionadapters/sessiondb"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/local/sessionadapters/switching"
 )
 
@@ -17,9 +17,9 @@ const sessionTreeLimit = 200
 func NewSessionTreeFunc(rootCtx context.Context, metadata *sessionpkg.BoltMap) tui.SessionTreeFunc {
 	return func(ctx context.Context, req tui.SessionTreeRequest) (tui.SessionTreeResult, error) {
 		ctx = switching.ContextWithRootFallback(rootCtx, ctx)
-		db, err := appsession.OpenSessionDirectoryDB()
+		db, err := sessiondb.OpenDirectory()
 		if err != nil {
-			if strings.Contains(err.Error(), "memory database not found") {
+			if sessiondb.IsMemoryDatabaseNotFound(err) {
 				return tui.SessionTreeResult{}, nil
 			}
 			return tui.SessionTreeResult{}, err
@@ -108,7 +108,7 @@ func NewSessionTreeLabelFunc(rootCtx context.Context, metadata *sessionpkg.BoltM
 func NewSessionTreeRestoreFunc(rootCtx context.Context) tui.SessionTreeRestoreFunc {
 	return func(ctx context.Context, req tui.SessionTreeRestoreRequest) (tui.SessionTreeRestoreResult, error) {
 		ctx = switching.ContextWithRootFallback(rootCtx, ctx)
-		db, err := appsession.OpenSessionDirectoryDB()
+		db, err := sessiondb.OpenDirectory()
 		if err != nil {
 			return tui.SessionTreeRestoreResult{}, err
 		}

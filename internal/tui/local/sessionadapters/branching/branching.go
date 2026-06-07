@@ -8,11 +8,11 @@ import (
 
 	"github.com/google/uuid"
 
-	appsession "github.com/TrebuchetDynamics/gormes-agent/internal/app/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/transcript"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/local/sessionadapters/sessiondb"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/local/sessionadapters/switching"
 )
 
@@ -36,7 +36,7 @@ func NewSessionBranchFuncWithID(rootCtx context.Context, metadata sessionpkg.Met
 		if childID == "" {
 			return tui.BranchResult{}, fmt.Errorf("child session id unavailable")
 		}
-		db, err := appsession.OpenSessionDirectoryDB()
+		db, err := sessiondb.OpenDirectory()
 		if err != nil {
 			return tui.BranchResult{}, err
 		}

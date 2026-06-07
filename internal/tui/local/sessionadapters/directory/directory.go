@@ -11,6 +11,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/local/sessionadapters/sessiondb"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/local/sessionadapters/switching"
 )
 
@@ -19,9 +20,9 @@ func NewSessionDirectoryFunc(ctx context.Context) tui.SessionDirectoryFunc {
 		if limit <= 0 {
 			limit = 20
 		}
-		db, err := appsession.OpenSessionDirectoryDB()
+		db, err := sessiondb.OpenDirectory()
 		if err != nil {
-			if strings.Contains(err.Error(), "memory database not found") {
+			if sessiondb.IsMemoryDatabaseNotFound(err) {
 				return nil, nil
 			}
 			return nil, err
@@ -59,7 +60,7 @@ func NewSessionResumeFunc(rootCtx context.Context, resume func(string, []llm.Mes
 		if err := switcher.RequireResume(); err != nil {
 			return tui.SessionResumeResult{}, err
 		}
-		db, err := appsession.OpenSessionDirectoryDB()
+		db, err := sessiondb.OpenDirectory()
 		if err != nil {
 			return tui.SessionResumeResult{}, err
 		}
