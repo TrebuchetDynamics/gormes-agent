@@ -156,7 +156,30 @@ func normalizeEnvPassthroughName(name string) string {
 }
 
 func isValidEnvPassthroughName(name string) bool {
-	return name != "" && !strings.ContainsRune(name, '=') && !strings.ContainsRune(name, '\x00')
+	if name == "" {
+		return false
+	}
+	for i := 0; i < len(name); i++ {
+		b := name[i]
+		if i == 0 {
+			if !isEnvPassthroughNameStart(b) {
+				return false
+			}
+			continue
+		}
+		if !isEnvPassthroughNamePart(b) {
+			return false
+		}
+	}
+	return true
+}
+
+func isEnvPassthroughNameStart(b byte) bool {
+	return b == '_' || ('A' <= b && b <= 'Z') || ('a' <= b && b <= 'z')
+}
+
+func isEnvPassthroughNamePart(b byte) bool {
+	return isEnvPassthroughNameStart(b) || ('0' <= b && b <= '9')
 }
 
 func isProviderCredentialName(name string, blocklist map[string]struct{}) bool {
