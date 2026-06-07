@@ -189,7 +189,7 @@ func TestDockerExec_MountPolicyAllowlist(t *testing.T) {
 		runner := &fakeDockerRunner{
 			result: DockerExecResult{Stdout: "ok", ExitCode: 0},
 		}
-		hostPaths := []string{"/etc/passwd", "/proc/cpuinfo", "/sys/kernel", "/var/run/docker.sock"}
+		hostPaths := []string{"/etc/passwd", "/proc/cpuinfo", "/sys/kernel", "/var/run/docker.sock", "/var/run/docker.sock/child"}
 		backend := NewDockerExecBackend(runner, DockerExecConfig{}, hostPaths)
 
 		_, err := backend.Execute(context.Background(), "ls", nil)
@@ -198,6 +198,22 @@ func TestDockerExec_MountPolicyAllowlist(t *testing.T) {
 		}
 		if len(runner.lastMounts) != 0 {
 			t.Errorf("expected 0 mounts (all blocked), got %d: %v", len(runner.lastMounts), runner.lastMounts)
+		}
+	})
+
+	t.Run("does not block sibling paths with dangerous prefix names", func(t *testing.T) {
+		runner := &fakeDockerRunner{
+			result: DockerExecResult{Stdout: "ok", ExitCode: 0},
+		}
+		hostPaths := []string{"/var/run/docker.sock.backup", "/etcetera/project"}
+		backend := NewDockerExecBackend(runner, DockerExecConfig{}, hostPaths)
+
+		_, err := backend.Execute(context.Background(), "ls", nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(runner.lastMounts) != 2 {
+			t.Fatalf("expected 2 sibling mounts to remain allowed, got %d: %#v", len(runner.lastMounts), runner.lastMounts)
 		}
 	})
 }

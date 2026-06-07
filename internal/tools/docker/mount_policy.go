@@ -38,11 +38,19 @@ func DefaultMountPolicy(hostPaths []string) MountPolicy {
 func (p MountPolicy) IsBlocked(hostPath string) bool {
 	clean := filepath.Clean(hostPath)
 	for _, prefix := range p.BlockedPrefixes {
-		if strings.HasPrefix(clean, prefix) || clean == strings.TrimSuffix(prefix, "/") {
+		if blockedPrefixMatches(clean, prefix) {
 			return true
 		}
 	}
 	return false
+}
+
+func blockedPrefixMatches(cleanHostPath, rawPrefix string) bool {
+	cleanPrefix := filepath.Clean(strings.TrimSpace(rawPrefix))
+	if cleanPrefix == "." {
+		return false
+	}
+	return cleanHostPath == cleanPrefix || strings.HasPrefix(cleanHostPath, cleanPrefix+string(filepath.Separator))
 }
 
 // IsAllowed reports whether a host path is both in the allowlist and not blocked.
