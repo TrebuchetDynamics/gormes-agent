@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -16,6 +15,7 @@ import (
 	runtimegateway "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway/jsonio"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -397,9 +397,7 @@ func formatFloat(value float64) string {
 }
 
 func encodeIndentedJSON(w io.Writer, value any) error {
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(value)
+	return jsonio.WriteIndented(w, value)
 }
 
 // gatewayDiscoverReportJSON, gatewayProbeReportJSON, and

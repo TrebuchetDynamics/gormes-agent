@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"syscall"
@@ -12,6 +11,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	runtimegateway "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway/jsonio"
 )
 
 // gatewayReloadReportJSON is the wire shape for `gateway reload --json`.
@@ -116,12 +116,7 @@ func runGatewayReload(cmd *cobra.Command, _ []string, opts Options) error {
 }
 
 func writeGatewayReloadJSON(out interface{ Write(p []byte) (int, error) }, report gatewayReloadReportJSON) error {
-	body, err := json.MarshalIndent(report, "", "  ")
-	if err != nil {
-		return err
-	}
-	fmt.Fprintln(out, string(body))
-	return nil
+	return jsonio.WriteIndented(out, report)
 }
 
 func gatewayReloadPID(snapshot runtimegateway.RuntimeStatusSnapshot) int {
