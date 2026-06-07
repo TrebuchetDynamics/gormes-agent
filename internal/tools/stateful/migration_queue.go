@@ -174,25 +174,61 @@ func missingStatefulPlanField(plan StatefulToolPlan) string {
 	if strings.TrimSpace(plan.Name) == "" {
 		return "name"
 	}
-	if plan.Domain == "" {
+	if !isKnownStatefulDomain(plan.Domain) {
 		return "domain"
 	}
-	if plan.RootPolicy == "" {
+	if !isKnownStatefulRootPolicy(plan.RootPolicy) {
 		return "root_policy"
 	}
-	if plan.RollbackPolicy == "" {
+	if !isKnownStatefulRollbackPolicy(plan.RollbackPolicy) {
 		return "rollback_policy"
 	}
 	if plan.Domain != ToolStateDomainReadOnly && plan.RollbackPolicy == ToolRollbackPolicyNone {
 		return "rollback_policy"
 	}
-	if plan.ConcurrencyPolicy == "" {
+	if !isKnownStatefulConcurrencyPolicy(plan.ConcurrencyPolicy) {
 		return "concurrency_policy"
 	}
 	if strings.TrimSpace(plan.OwnerRow) == "" {
 		return "owner_row"
 	}
 	return ""
+}
+
+func isKnownStatefulDomain(domain ToolStateDomain) bool {
+	switch domain {
+	case ToolStateDomainReadOnly, ToolStateDomainFile, ToolStateDomainSession, ToolStateDomainCheckpoint, ToolStateDomainProcess:
+		return true
+	default:
+		return false
+	}
+}
+
+func isKnownStatefulRootPolicy(policy ToolRootPolicy) bool {
+	switch policy {
+	case ToolRootPolicyInjectedXDG, ToolRootPolicyGormesData:
+		return true
+	default:
+		return false
+	}
+}
+
+func isKnownStatefulRollbackPolicy(policy ToolRollbackPolicy) bool {
+	switch policy {
+	case ToolRollbackPolicyNone, ToolRollbackPolicyAuditLog, ToolRollbackPolicyCheckpoint:
+		return true
+	default:
+		return false
+	}
+}
+
+func isKnownStatefulConcurrencyPolicy(policy ToolConcurrencyPolicy) bool {
+	switch policy {
+	case ToolConcurrencyConcurrentReads, ToolConcurrencySerializedWrites:
+		return true
+	default:
+		return false
+	}
 }
 
 func normalizeStatefulMutationRoot(root string) (string, bool) {
