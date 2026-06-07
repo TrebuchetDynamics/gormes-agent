@@ -171,14 +171,18 @@ func writeUniqueArtifact(absDir, promptHash, mediaType string, bytes []byte) (st
 	return "", fmt.Errorf("image_generation: could not allocate artifact path")
 }
 
-// redactReason scrubs known credential shapes from a free-form error
-// message and elides the raw prompt if it appears verbatim.
-func redactReason(reason, prompt string) string {
-	if reason == "" {
+// redactPrompt removes the raw prompt before token-level scrubbing mutates
+// embedded credential-shaped substrings and makes the prompt impossible to
+// match as a whole.
+func redactPrompt(reason, prompt string) string {
+	if prompt == "" || !strings.Contains(reason, prompt) {
 		return reason
 	}
-	out := reason
-	out = reBearer.ReplaceAllString(out, "[REDACTED_BEARER]")
+	return strings.ReplaceAll(reason, prompt, "[REDACTED_PROMPT]")
+}
+
+func redactKnownSecrets(reason string) string {
+	out := reBearer.ReplaceAllString(reason, "[REDACTED_BEARER]")
 	out = reSKToken.ReplaceAllString(out, "[REDACTED_SK_TOKEN]")
 	out = reKeyAssign.ReplaceAllString(out, "[REDACTED_API_KEY]")
 	for _, marker := range secretRedactionMarkers {
@@ -186,9 +190,17 @@ func redactReason(reason, prompt string) string {
 		// survived regex-based redaction.
 		out = strings.ReplaceAll(out, marker, "[REDACTED]")
 	}
-	if prompt != "" && strings.Contains(out, prompt) {
-		out = strings.ReplaceAll(out, prompt, "[REDACTED_PROMPT]")
+	return out
+}
+
+// redactReason scrubs known credential shapes from a free-form error
+// message and elides the raw prompt if it appears verbatim.
+func redactReason(reason, prompt string) string {
+	if reason == "" {
+		return reason
 	}
+	out := redactPrompt(reason, prompt)
+	out = redactKnownSecrets(out)
 	return out
 }
 

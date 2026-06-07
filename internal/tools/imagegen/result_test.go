@@ -204,6 +204,34 @@ func TestImageGenerationResult_RedactsPromptAndSecrets(t *testing.T) {
 	}
 }
 
+func TestImageGenerationResult_ErrorEnvelopeRedactsPromptEvenWhenPromptContainsSecretShape(t *testing.T) {
+	dir := t.TempDir()
+	prompt := "operator prompt with embedded sk-prompt-token and Bearer prompt-token"
+
+	env, err := BuildImageGenerationEnvelope(ImageGenerationRequest{
+		Provider:    "openai",
+		Model:       "gpt-image-1.5",
+		Prompt:      prompt,
+		OutputDir:   dir,
+		Err:         errors.New("provider rejected prompt: " + prompt),
+		ErrorStatus: ImageGenerationStatusProviderError,
+	})
+	if err != nil {
+		t.Fatalf("BuildImageGenerationEnvelope: %v", err)
+	}
+
+	for _, form := range renderEnvelopeForms(t, env) {
+		if strings.Contains(form, "operator prompt with embedded") || strings.Contains(form, "prompt-token") {
+			t.Fatalf("error envelope leaks prompt fragments after secret redaction: %s", form)
+		}
+		for _, marker := range secretMarkers {
+			if strings.Contains(form, marker) {
+				t.Fatalf("error envelope leaks secret marker %q: %s", marker, form)
+			}
+		}
+	}
+}
+
 func TestImageGenerationResult_ErrorEnvelope(t *testing.T) {
 	dir := t.TempDir()
 
