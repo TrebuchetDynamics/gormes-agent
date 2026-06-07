@@ -3,6 +3,8 @@ package commandcatalog
 import (
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/gatewaytest"
 )
 
 func TestRenderPaginatesBuiltinsAndSkills(t *testing.T) {
@@ -20,11 +22,7 @@ func TestRenderPaginatesBuiltinsAndSkills(t *testing.T) {
 		},
 	})
 
-	for _, want := range []string{"Available commands", "page 2/2", "Skill commands", "`/ops-skill`", "`/review-skill`"} {
-		if !strings.Contains(reply, want) {
-			t.Fatalf("catalog missing %q:\n%s", want, reply)
-		}
-	}
+	gatewaytest.AssertContainsAll(t, reply, "Available commands", "page 2/2", "Skill commands", "`/ops-skill`", "`/review-skill`")
 }
 
 func TestRenderUsageAndOutOfRange(t *testing.T) {

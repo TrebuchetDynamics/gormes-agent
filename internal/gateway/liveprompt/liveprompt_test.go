@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/gatewaytest"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
@@ -48,11 +49,7 @@ func TestAssembleOrdersRuntimeContextMetadataSelfHelpAndSession(t *testing.T) {
 		SelfHelpGate:  func(string) (string, bool) { return "## Self Help", true },
 	}
 	got, _, _ := Assemble(seams, "help", "sess-1", "## Current Session Context")
-	for _, want := range []string{"## Current Runtime Facts", "# Project Context", "## Turn Metadata", llm.ToolUseEnforcementGuidance, "## Self Help", "## Current Session Context"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("assembled prompt missing %q in:\n%s", want, got)
-		}
-	}
+	gatewaytest.AssertContainsAll(t, got, "## Current Runtime Facts", "# Project Context", "## Turn Metadata", llm.ToolUseEnforcementGuidance, "## Self Help", "## Current Session Context")
 	if strings.Index(got, "## Current Runtime Facts") > strings.Index(got, "# Project Context") {
 		t.Fatalf("runtime facts must precede context block:\n%s", got)
 	}

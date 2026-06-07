@@ -3,15 +3,13 @@ package topiccmd
 import (
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/gatewaytest"
 )
 
 func TestHelpTextIncludesCoreActions(t *testing.T) {
 	text := HelpText()
-	for _, want := range []string{"/topic help", "/topic off", "/topic <id>", "All Messages"} {
-		if !strings.Contains(text, want) {
-			t.Fatalf("help text missing %q:\n%s", want, text)
-		}
-	}
+	gatewaytest.AssertContainsAll(t, text, "/topic help", "/topic off", "/topic <id>", "All Messages")
 }
 
 func TestPrivateChatTelegramOnly(t *testing.T) {
@@ -42,11 +40,7 @@ func TestPrivateChatTelegramOnly(t *testing.T) {
 
 func TestGuidanceText(t *testing.T) {
 	capability := CapabilityGuidance("Telegram topics are not enabled for this bot yet.")
-	for _, want := range []string{"Telegram topics are not enabled", "Open @BotFather", "Then send /topic again"} {
-		if !strings.Contains(capability, want) {
-			t.Fatalf("capability guidance missing %q:\n%s", want, capability)
-		}
-	}
+	gatewaytest.AssertContainsAll(t, capability, "Telegram topics are not enabled", "Open @BotFather", "Then send /topic again")
 	if !strings.Contains(CapabilityDebouncedText(), "telegram_topic_capability_hint_debounced") {
 		t.Fatalf("debounced text missing evidence prefix")
 	}

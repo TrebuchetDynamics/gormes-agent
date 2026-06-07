@@ -1,8 +1,9 @@
 package ttsconfig
 
 import (
-	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/gatewaytest"
 )
 
 func TestResolveSpeedAliases(t *testing.T) {
@@ -40,9 +41,5 @@ func TestSortedVoiceListingDoesNotChangeDefaultVoice(t *testing.T) {
 
 func TestConfigString(t *testing.T) {
 	got := DefaultConfig.String()
-	for _, want := range []string{"TTS: enabled", "engine: edge", "voice: en-US-AriaNeural", "speed: normal", "language: auto"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("Config.String() missing %q in:\n%s", want, got)
-		}
-	}
+	gatewaytest.AssertContainsAll(t, got, "TTS: enabled", "engine: edge", "voice: en-US-AriaNeural", "speed: normal", "language: auto")
 }

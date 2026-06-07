@@ -732,7 +732,7 @@ func TestManagerStatusCommandRendersHermesStyleGatewayStatus(t *testing.T) {
 	got := sent[0].Text
 	wantActivity := "**Last Activity:** " + tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, time.Unix(now.Unix(), 0).Format("2006-01-02 15:04"))
 	wantCreated := "**Created:** " + tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, time.Unix(now.Unix(), 0).Format("2006-01-02 15:04"))
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"📊 **Gormes Gateway Status**",
 		"**Session ID:** `sess-123`",
 		wantCreated,
@@ -740,11 +740,7 @@ func TestManagerStatusCommandRendersHermesStyleGatewayStatus(t *testing.T) {
 		"**Cumulative API tokens (re-sent each call):** 7",
 		"**Agent Running:** No",
 		"**Connected Platforms:** telegram",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("status response missing %q in:\n%s", want, got)
-		}
-	}
+	)
 	if submits := k.submitsSnapshot(); len(submits) != 0 {
 		t.Fatalf("/status submitted to kernel: %#v", submits)
 	}
@@ -782,16 +778,12 @@ func TestManagerStatusCommandInitializesMissingChatSession(t *testing.T) {
 	got := sent[0].Text
 	wantActivity := "**Last Activity:** " + tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, time.Unix(now.Unix(), 0).Format("2006-01-02 15:04"))
 	wantCreated := "**Created:** " + tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, time.Unix(now.Unix(), 0).Format("2006-01-02 15:04"))
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"**Session ID:** `20260429_094200_",
 		wantCreated,
 		wantActivity,
 		"**Connected Platforms:** telegram",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("status response missing %q in:\n%s", want, got)
-		}
-	}
+	)
 	if strings.Contains(got, "**Session ID:** `(none)`") || strings.Contains(got, "**Session ID:** `telegram:42`") {
 		t.Fatalf("status response returned invalid session id:\n%s", got)
 	}

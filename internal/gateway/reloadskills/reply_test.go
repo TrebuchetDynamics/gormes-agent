@@ -1,8 +1,9 @@
 package reloadskills
 
 import (
-	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/gatewaytest"
 )
 
 func TestRenderReplyReportsSuccessAndAdapterRefreshes(t *testing.T) {
@@ -10,11 +11,7 @@ func TestRenderReplyReportsSuccessAndAdapterRefreshes(t *testing.T) {
 		SkillCount: 2,
 		Refreshes:  []RefreshResult{{Channel: " discord ", Count: 3, Hidden: 1}},
 	})
-	for _, want := range []string{"Skills Reloaded", "2 skill(s) available", "discord: refreshed 3 command(s), 1 hidden"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("RenderReply() = %q, missing %q", got, want)
-		}
-	}
+	gatewaytest.AssertContainsAll(t, got, "Skills Reloaded", "2 skill(s) available", "discord: refreshed 3 command(s), 1 hidden")
 }
 
 func TestRenderReplyReportsDegradedScanAndUnknownChannel(t *testing.T) {
@@ -22,9 +19,5 @@ func TestRenderReplyReportsDegradedScanAndUnknownChannel(t *testing.T) {
 		ScanError: "scan denied",
 		Refreshes: []RefreshResult{{Error: "cache denied"}},
 	})
-	for _, want := range []string{"Skills reload degraded", "skill scan: scan denied", "unknown: refresh error: cache denied"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("RenderReply() = %q, missing %q", got, want)
-		}
-	}
+	gatewaytest.AssertContainsAll(t, got, "Skills reload degraded", "skill scan: scan denied", "unknown: refresh error: cache denied")
 }

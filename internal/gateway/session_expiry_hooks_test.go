@@ -204,15 +204,11 @@ func TestSessionExpiryHooks_StatusSummaryRendersRetryEvidenceWithAttemptCounts(t
 		},
 	})
 
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"- expiry_finalize_pending session=sess-pending source=telegram chat=42 attempts=0",
 		"- expiry_finalize_failed session=sess-failed source=telegram chat=43 attempts=1 error=\"temporary hook failure\"",
 		"- expiry_finalize_gave_up session=sess-gave-up source=telegram chat=44 attempts=3 error=\"still failing\"",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("RenderStatusSummary missing %q\n%s", want, got)
-		}
-	}
+	)
 }
 
 func TestSessionExpiryHooks_ResumeSubmitDoesNotLaunchMemoryFlushOrExtractorWork(t *testing.T) {

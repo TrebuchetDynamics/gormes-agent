@@ -262,14 +262,10 @@ func TestManager_ResumePendingLosesToHardNonResumableEvidence(t *testing.T) {
 			if got.Text != "start fresh" || strings.Contains(got.Text, "[System note:") {
 				t.Fatalf("hard non-resumable state injected resume note:\n%s", got.Text)
 			}
-			for _, want := range []string{
+			assertContainsAll(t, got.SessionContext,
 				"**Non-Resumable Session ID:** `sess-hard`",
-				"**Non-Resumable Reason:** `" + reason + "`",
-			} {
-				if !strings.Contains(got.SessionContext, want) {
-					t.Fatalf("SessionContext missing %q in:\n%s", want, got.SessionContext)
-				}
-			}
+				"**Non-Resumable Reason:** `"+reason+"`",
+			)
 
 			status, err := store.ReadRuntimeStatus(ctx)
 			if err != nil {
