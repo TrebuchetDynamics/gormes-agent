@@ -1,5 +1,7 @@
 package environment
 
+import "strings"
+
 // SnapshotMode controls whether the terminal-environment shell wrapper
 // sources a persisted bash environment snapshot before running a user
 // command. The wrapper exists so future Goncho/Hermes terminal backends can
@@ -75,10 +77,14 @@ func BuildShellWrapper(cfg EnvironmentSnapshotConfig, userCommand string) (strin
 	// the user command verbatim on the next line. `|| true` keeps the
 	// wrapper resilient to a missing/corrupt snapshot file — the user
 	// command still runs, matching Hermes behavior.
-	sourceLine := "source " + cfg.SnapshotPath + " >/dev/null 2>&1 || true"
+	sourceLine := "source " + shellQuoteSnapshotPath(cfg.SnapshotPath) + " >/dev/null 2>&1 || true"
 	wrapper := sourceLine + "\n" + userCommand
 	return wrapper, EnvironmentSnapshotEvidence{
 		Code: EvidenceSnapshotLoaded,
 		Path: cfg.SnapshotPath,
 	}
+}
+
+func shellQuoteSnapshotPath(path string) string {
+	return "'" + strings.ReplaceAll(path, "'", "'\"'\"'") + "'"
 }

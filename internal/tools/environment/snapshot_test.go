@@ -57,6 +57,33 @@ func TestEnvironmentSnapshotSource_RedirectsStdoutAndStderr(t *testing.T) {
 	}
 }
 
+// TestEnvironmentSnapshotSource_QuotesSnapshotPath proves the snapshot path is
+// shell-quoted before the source line is assembled, so spaces and apostrophes in
+// profile/cache directories do not split the command or inject shell syntax.
+func TestEnvironmentSnapshotSource_QuotesSnapshotPath(t *testing.T) {
+	cfg := EnvironmentSnapshotConfig{
+		Mode:         SnapshotEnabled,
+		SnapshotPath: "/tmp/gormes snapshot/it's-live.sh",
+	}
+
+	wrapper, evidence := BuildShellWrapper(cfg, "echo still-runs")
+	if evidence.Code != EvidenceSnapshotLoaded {
+		t.Fatalf("evidence.Code = %q, want %q", evidence.Code, EvidenceSnapshotLoaded)
+	}
+
+	lines := strings.Split(wrapper, "\n")
+	if len(lines) != 2 {
+		t.Fatalf("wrapper lines = %#v, want source line plus user command", lines)
+	}
+	wantSourceLine := "source '/tmp/gormes snapshot/it'\"'\"'s-live.sh' >/dev/null 2>&1 || true"
+	if lines[0] != wantSourceLine {
+		t.Fatalf("source line = %q, want %q", lines[0], wantSourceLine)
+	}
+	if lines[1] != "echo still-runs" {
+		t.Fatalf("user command line = %q", lines[1])
+	}
+}
+
 // TestEnvironmentSnapshotSource_NoSnapshotSkipsSource proves no `source`
 // command is emitted when snapshot mode is disabled or path is missing; the
 // user command runs untouched.
