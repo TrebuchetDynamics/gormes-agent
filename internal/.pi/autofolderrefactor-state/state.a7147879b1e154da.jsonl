@@ -87,3 +87,11 @@
 {"ts":"2026-06-06T21:32:03-06:00","candidate":"planning/progress/repoctl/inventory","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:32:03-06:00"}
 {"ts":"2026-06-06T21:35:54-06:00","candidate":"kernel","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T23:35:54-06:00"}
 {"ts":"2026-06-06T21:41:30-06:00","candidate":"planning/progress/ctl","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:41:30-06:00"}
+{"ts":"2026-06-06T21:44:07-06:00","candidate":"automation/cron","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T23:44:07-06:00"}
+{"ts":"2026-06-06T21:44:08-06:00","candidate":"planning/progress/triggers","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:44:10-06:00","candidate":"planning/progress/plannerloop/ledgerlog","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:44:12-06:00","candidate":"planning/progress/repoctl/sourcepairs","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:44:13-06:00","candidate":"planning/progress/loopcost","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:44:14-06:00","candidate":"planning/progress/markdown","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:44:16-06:00","candidate":"planning/progress","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T21:46:14-06:00","candidate":"adapters/apiserver/ui","reason":"no metric progress rollback","scope":"candidate","state":"cooldown","until":"2026-06-06T22:46:14-06:00"}
