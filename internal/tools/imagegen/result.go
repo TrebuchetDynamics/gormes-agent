@@ -213,47 +213,67 @@ func redactReason(reason, prompt string) string {
 	return out
 }
 
+func validateEnvelopeIdentity(req ImageGenerationRequest) error {
+	if req.Provider == "" {
+		return errors.New("image_generation: provider is required")
+	}
+	if req.Model == "" {
+		return errors.New("image_generation: model is required")
+	}
+	return nil
+}
+
+func degradedStatus(status ImageGenerationStatus) ImageGenerationStatus {
+	switch status {
+	case ImageGenerationStatusUnavailable, ImageGenerationStatusProviderError, ImageGenerationStatusProviderNotRegistered:
+		return status
+	default:
+		return ImageGenerationStatusProviderError
+	}
+}
+
+func buildDegradedEnvelope(req ImageGenerationRequest, promptHash string) ImageGenerationEnvelope {
+	return ImageGenerationEnvelope{
+		Provider:   req.Provider,
+		Model:      req.Model,
+		PromptHash: promptHash,
+		Status:     degradedStatus(req.ErrorStatus),
+		Reason:     redactReason(req.Err.Error(), req.Prompt),
+	}
+}
+
+func validateArtifactRequest(req ImageGenerationRequest) error {
+	if req.OutputDir == "" {
+		return errors.New("image_generation: output dir is required")
+	}
+	if len(req.Bytes) == 0 {
+		return errors.New("image_generation: bytes required for ok envelope")
+	}
+	if req.MediaType == "" {
+		return errors.New("image_generation: media type is required")
+	}
+	return nil
+}
+
 // BuildImageGenerationEnvelope is the pure, transcript-safe boundary for
 // image-generation results. On success it writes Bytes to a freshly named
 // file under OutputDir and returns an OK envelope; on Err it returns a
 // degraded envelope with no file write. It never echoes raw prompt text or
 // provider credentials.
 func BuildImageGenerationEnvelope(req ImageGenerationRequest) (ImageGenerationEnvelope, error) {
-	if req.Provider == "" {
-		return ImageGenerationEnvelope{}, errors.New("image_generation: provider is required")
-	}
-	if req.Model == "" {
-		return ImageGenerationEnvelope{}, errors.New("image_generation: model is required")
-	}
-	if req.OutputDir == "" {
-		return ImageGenerationEnvelope{}, errors.New("image_generation: output dir is required")
+	if err := validateEnvelopeIdentity(req); err != nil {
+		return ImageGenerationEnvelope{}, err
 	}
 
 	promptHash := hashPrompt(req.Prompt)
 
 	// Error path: never write a file, never echo bytes, redact reason.
 	if req.Err != nil {
-		status := req.ErrorStatus
-		switch status {
-		case ImageGenerationStatusUnavailable, ImageGenerationStatusProviderError, ImageGenerationStatusProviderNotRegistered:
-			// ok
-		default:
-			status = ImageGenerationStatusProviderError
-		}
-		return ImageGenerationEnvelope{
-			Provider:   req.Provider,
-			Model:      req.Model,
-			PromptHash: promptHash,
-			Status:     status,
-			Reason:     redactReason(req.Err.Error(), req.Prompt),
-		}, nil
+		return buildDegradedEnvelope(req, promptHash), nil
 	}
 
-	if len(req.Bytes) == 0 {
-		return ImageGenerationEnvelope{}, errors.New("image_generation: bytes required for ok envelope")
-	}
-	if req.MediaType == "" {
-		return ImageGenerationEnvelope{}, errors.New("image_generation: media type is required")
+	if err := validateArtifactRequest(req); err != nil {
+		return ImageGenerationEnvelope{}, err
 	}
 
 	// Resolve output dir to an absolute path so subsequent path checks are

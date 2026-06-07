@@ -254,6 +254,25 @@ func TestImageGenerationResult_ErrorEnvelopeRedactsCredentialShapesUsedByRunner(
 	}
 }
 
+func TestImageGenerationResult_ErrorEnvelopeDoesNotRequireOutputDir(t *testing.T) {
+	env, err := BuildImageGenerationEnvelope(ImageGenerationRequest{
+		Provider:    "openai",
+		Model:       "gpt-image-1.5",
+		Prompt:      "a safe prompt",
+		Err:         errors.New("provider not configured"),
+		ErrorStatus: ImageGenerationStatusUnavailable,
+	})
+	if err != nil {
+		t.Fatalf("BuildImageGenerationEnvelope: %v", err)
+	}
+	if env.Status != ImageGenerationStatusUnavailable {
+		t.Fatalf("Status = %q, want %q", env.Status, ImageGenerationStatusUnavailable)
+	}
+	if env.Artifact != "" {
+		t.Fatalf("Artifact = %q, want empty for degraded envelope", env.Artifact)
+	}
+}
+
 func TestImageGenerationResult_ErrorEnvelope(t *testing.T) {
 	dir := t.TempDir()
 
