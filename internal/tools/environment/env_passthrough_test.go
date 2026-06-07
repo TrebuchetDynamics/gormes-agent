@@ -2,6 +2,7 @@ package environment
 
 import (
 	"reflect"
+	"sync"
 	"testing"
 )
 
@@ -132,5 +133,30 @@ func TestEnvPassthroughRegistryCanonicalizesCustomBlocklistEntries(t *testing.T)
 	wantBlocked := []string{"custom_provider_token"}
 	if !reflect.DeepEqual(blocked, wantBlocked) {
 		t.Fatalf("blocked = %#v, want %#v", blocked, wantBlocked)
+	}
+}
+
+func TestEnvPassthroughRegistryConcurrentSessionAccess(t *testing.T) {
+	registry := NewEnvPassthroughRegistry([]string{"CONFIG_ONLY"})
+
+	var wg sync.WaitGroup
+	for i := 0; i < 16; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 200; j++ {
+				registry.Register([]string{"TENOR_API_KEY", "OPENAI_API_KEY"})
+				_ = registry.IsAllowed("TENOR_API_KEY")
+				_ = registry.All()
+			}
+		}()
+	}
+	wg.Wait()
+
+	if !registry.IsAllowed("CONFIG_ONLY") {
+		t.Fatal("configured allowlist should remain visible after concurrent access")
+	}
+	if registry.IsAllowed("OPENAI_API_KEY") {
+		t.Fatal("provider credentials should remain blocked after concurrent access")
 	}
 }

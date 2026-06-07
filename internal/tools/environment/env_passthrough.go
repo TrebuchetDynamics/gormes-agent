@@ -3,6 +3,7 @@ package environment
 import (
 	"sort"
 	"strings"
+	"sync"
 )
 
 // ProviderCredentialEnvBlocklist names Hermes/Gormes-managed provider
@@ -33,6 +34,7 @@ var ProviderCredentialEnvBlocklist = map[string]struct{}{
 // ContextVar-backed registry with an explicit Go object so callers can keep
 // separate sessions isolated and tests can prove no cross-session bleed.
 type EnvPassthroughRegistry struct {
+	mu         sync.RWMutex
 	registered map[string]struct{}
 	configured map[string]struct{}
 	blocklist  map[string]struct{}
@@ -64,6 +66,9 @@ func (r *EnvPassthroughRegistry) Register(names []string) []string {
 	if r == nil {
 		return nil
 	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	blocked := make([]string, 0)
 	for _, raw := range names {
 		candidate := classifyEnvPassthroughCandidate(raw, r.blocklist)
@@ -85,6 +90,9 @@ func (r *EnvPassthroughRegistry) IsAllowed(name string) bool {
 	if r == nil {
 		return false
 	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	candidate := classifyEnvPassthroughCandidate(name, r.blocklist)
 	if !candidate.Valid || candidate.ProviderCredential {
 		return false
@@ -102,19 +110,10 @@ func (r *EnvPassthroughRegistry) All() []string {
 	if r == nil {
 		return nil
 	}
-	set := make(map[string]struct{}, len(r.registered)+len(r.configured))
-	for name := range r.registered {
-		set[name] = struct{}{}
-	}
-	for name := range r.configured {
-		set[name] = struct{}{}
-	}
-	out := make([]string, 0, len(set))
-	for name := range set {
-		out = append(out, name)
-	}
-	sort.Strings(out)
-	return out
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return sortedEnvNameUnion(r.registered, r.configured)
 }
 
 // ClearRegistered resets only the skill/session-scoped allowlist. Configured
@@ -123,6 +122,9 @@ func (r *EnvPassthroughRegistry) ClearRegistered() {
 	if r == nil {
 		return
 	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	clear(r.registered)
 }
 
@@ -130,6 +132,9 @@ func (r *EnvPassthroughRegistry) isProviderCredential(name string) bool {
 	if r == nil {
 		return false
 	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return isProviderCredentialName(name, r.blocklist)
 }
 
@@ -199,6 +204,25 @@ func cloneEnvNameSet(in map[string]struct{}) map[string]struct{} {
 		}
 		out[canonical] = struct{}{}
 	}
+	return out
+}
+
+func sortedEnvNameUnion(sets ...map[string]struct{}) []string {
+	size := 0
+	for _, set := range sets {
+		size += len(set)
+	}
+	union := make(map[string]struct{}, size)
+	for _, set := range sets {
+		for name := range set {
+			union[name] = struct{}{}
+		}
+	}
+	out := make([]string, 0, len(union))
+	for name := range union {
+		out = append(out, name)
+	}
+	sort.Strings(out)
 	return out
 }
 
