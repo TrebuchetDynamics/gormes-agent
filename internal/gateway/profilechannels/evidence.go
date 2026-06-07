@@ -1,10 +1,7 @@
 package profilechannels
 
+import "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/profilechannels/contracts"
+
 func HasEvidenceCode(items []ProfileChannelReadinessEvidence, code string) bool {
-	for _, item := range items {
-		if item.Code == code {
-			return true
-		}
-	}
-	return false
+	return contracts.HasEvidenceCode(items, code)
 }
