@@ -28,10 +28,9 @@ func TestPromptOptimizer_Mutate(t *testing.T) {
 
 func TestPromptOptimizer_GenerateVariants(t *testing.T) {
 	evaluator := NewPromptEvaluator([]EvalScenario{{Name: "test", Prompt: "hello"}})
-	optimizer := NewPromptOptimizer(evaluator, func(ctx context.Context, prompt string) ([]string, error) {
+	optimizer := NewPromptOptimizerWithSettings(evaluator, nil, func(ctx context.Context, prompt string) ([]string, error) {
 		return []string{}, nil
-	})
-	optimizer.variantsPerIteration = 4
+	}, 4, 50, 0.05)
 
 	variants := optimizer.GenerateVariants(PromptVariant{ID: "base", Prompt: "be helpful"}, 0)
 	if len(variants) != 4 {
@@ -63,10 +62,9 @@ func TestPromptOptimizer_GenerateVariants(t *testing.T) {
 
 func TestPromptOptimizer_GenerateVariantsIncludesResearchQualityWhenCapacityAllows(t *testing.T) {
 	evaluator := NewPromptEvaluator([]EvalScenario{{Name: "test", Prompt: "hello"}})
-	optimizer := NewPromptOptimizer(evaluator, func(ctx context.Context, prompt string) ([]string, error) {
+	optimizer := NewPromptOptimizerWithSettings(evaluator, nil, func(ctx context.Context, prompt string) ([]string, error) {
 		return []string{}, nil
-	})
-	optimizer.variantsPerIteration = 5
+	}, 5, 50, 0.05)
 
 	variants := optimizer.GenerateVariants(PromptVariant{ID: "base", Prompt: "be helpful"}, 0)
 	found := false
@@ -87,11 +85,9 @@ func TestPromptOptimizer_Optimize(t *testing.T) {
 		{Name: "read", Prompt: "read file", ExpectedTools: []string{"read"}},
 	}
 	evaluator := NewPromptEvaluator(scenarios)
-	optimizer := NewPromptOptimizer(evaluator, func(ctx context.Context, prompt string) ([]string, error) {
+	optimizer := NewPromptOptimizerWithSettings(evaluator, nil, func(ctx context.Context, prompt string) ([]string, error) {
 		return []string{}, nil
-	})
-	optimizer.maxIterations = 3
-	optimizer.improvementThreshold = 0.01
+	}, 4, 3, 0.01)
 
 	best, err := optimizer.Optimize(context.Background(), "be helpful and concise")
 	if err != nil {
@@ -107,7 +103,7 @@ func TestPromptOptimizer_OptimizeDetailedImprovesByTenPercent(t *testing.T) {
 		{Name: "read", Prompt: "read file", ExpectedTools: []string{"read_file"}, ExpectedOutcome: "read complete"},
 	}
 	evaluator := NewPromptEvaluator(scenarios)
-	optimizer := NewPromptOptimizerWithRunner(evaluator, func(ctx context.Context, variant PromptVariant, scenario EvalScenario) (EvalTrace, error) {
+	runner := func(ctx context.Context, variant PromptVariant, scenario EvalScenario) (EvalTrace, error) {
 		trace := EvalTrace{Response: "done"}
 		if strings.Contains(variant.Prompt, "exact required tool") {
 			trace.Tools = append([]string(nil), scenario.ExpectedTools...)
@@ -116,10 +112,8 @@ func TestPromptOptimizer_OptimizeDetailedImprovesByTenPercent(t *testing.T) {
 			trace.Response = scenario.ExpectedOutcome
 		}
 		return trace, nil
-	})
-	optimizer.maxIterations = 4
-	optimizer.variantsPerIteration = 2
-	optimizer.improvementThreshold = 0.01
+	}
+	optimizer := NewPromptOptimizerWithSettings(evaluator, runner, nil, 2, 4, 0.01)
 
 	result, err := optimizer.OptimizeDetailed(context.Background(), "be helpful")
 	if err != nil {
@@ -146,12 +140,10 @@ func TestPromptOptimizer_StopsWhenImprovementBelowThreshold(t *testing.T) {
 	evaluator := NewPromptEvaluator([]EvalScenario{
 		{Name: "noop", Prompt: "hello", ExpectedTools: []string{}, ExpectedOutcome: "done"},
 	})
-	optimizer := NewPromptOptimizerWithRunner(evaluator, func(ctx context.Context, variant PromptVariant, scenario EvalScenario) (EvalTrace, error) {
+	runner := func(ctx context.Context, variant PromptVariant, scenario EvalScenario) (EvalTrace, error) {
 		return EvalTrace{Response: scenario.ExpectedOutcome}, nil
-	})
-	optimizer.maxIterations = 5
-	optimizer.variantsPerIteration = 3
-	optimizer.improvementThreshold = 0.5
+	}
+	optimizer := NewPromptOptimizerWithSettings(evaluator, runner, nil, 3, 5, 0.5)
 
 	result, err := optimizer.OptimizeDetailed(context.Background(), "already good")
 	if err != nil {
