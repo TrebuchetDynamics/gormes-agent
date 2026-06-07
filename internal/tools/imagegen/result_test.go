@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // secretMarkers lists substrings that must never appear in any
@@ -229,6 +230,25 @@ func TestImageGenerationResult_ErrorEnvelopeRedactsPromptEvenWhenPromptContainsS
 				t.Fatalf("error envelope leaks secret marker %q: %s", marker, form)
 			}
 		}
+	}
+}
+
+func TestImageGenerationResult_ErrorEnvelopeReasonTruncationPreservesUTF8(t *testing.T) {
+	env, err := BuildImageGenerationEnvelope(ImageGenerationRequest{
+		Provider:    "openai",
+		Model:       "gpt-image-1.5",
+		Prompt:      "safe prompt",
+		Err:         errors.New(strings.Repeat("a", maxImageGenerationReasonLength-1) + "€"),
+		ErrorStatus: ImageGenerationStatusProviderError,
+	})
+	if err != nil {
+		t.Fatalf("BuildImageGenerationEnvelope: %v", err)
+	}
+	if !utf8.ValidString(env.Reason) {
+		t.Fatalf("truncated reason is not valid UTF-8: %q", env.Reason)
+	}
+	if !strings.HasSuffix(env.Reason, "...") {
+		t.Fatalf("truncated reason should keep ellipsis suffix, got %q", env.Reason)
 	}
 }
 

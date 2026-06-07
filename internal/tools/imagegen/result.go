@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // ImageGenerationStatus is the typed envelope outcome surfaced to transcripts
@@ -213,6 +214,17 @@ func redactKnownSecrets(reason string) string {
 
 const maxImageGenerationReasonLength = 240
 
+func truncateReason(reason string) string {
+	if len(reason) <= maxImageGenerationReasonLength {
+		return reason
+	}
+	cut := maxImageGenerationReasonLength
+	for cut > 0 && !utf8.ValidString(reason[:cut]) {
+		cut--
+	}
+	return reason[:cut] + "..."
+}
+
 // redactReason scrubs known credential shapes from a free-form error
 // message and elides the raw prompt if it appears verbatim.
 func redactReason(reason, prompt string) string {
@@ -222,10 +234,7 @@ func redactReason(reason, prompt string) string {
 	}
 	out = redactPrompt(out, strings.TrimSpace(prompt))
 	out = redactKnownSecrets(out)
-	if len(out) > maxImageGenerationReasonLength {
-		out = out[:maxImageGenerationReasonLength] + "..."
-	}
-	return out
+	return truncateReason(out)
 }
 
 func redactImageGenError(text string) string {
