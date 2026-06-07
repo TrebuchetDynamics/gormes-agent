@@ -88,6 +88,13 @@ var reSKToken = regexp.MustCompile(`sk-[A-Za-z0-9_\-]+`)
 // reKeyAssign matches KEY=value style leaks for known sensitive env vars.
 var reKeyAssign = regexp.MustCompile(`(?i)(ANTHROPIC_API_KEY|OPENAI_API_KEY)\s*=\s*\S+`)
 
+// reGenericSecretAssign matches credential-shaped key/value pairs commonly
+// surfaced by provider SDK errors (kept in sync with the runner redactor).
+var reGenericSecretAssign = regexp.MustCompile(`(?i)\b(sk|key|token|secret)[-_]?[A-Za-z0-9]*[=:]\s*["']?[^"'\s]+`)
+
+// reJWT matches JWT-like access tokens that may appear in provider errors.
+var reJWT = regexp.MustCompile(`\b[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]{20,}\b`)
+
 // extByMediaType returns a best-effort artifact extension for the given
 // IANA media type. Falls back to .bin so the path is always usable.
 func extByMediaType(mt string) string {
@@ -185,6 +192,8 @@ func redactKnownSecrets(reason string) string {
 	out := reBearer.ReplaceAllString(reason, "[REDACTED_BEARER]")
 	out = reSKToken.ReplaceAllString(out, "[REDACTED_SK_TOKEN]")
 	out = reKeyAssign.ReplaceAllString(out, "[REDACTED_API_KEY]")
+	out = reGenericSecretAssign.ReplaceAllString(out, "[REDACTED_SECRET]")
+	out = reJWT.ReplaceAllString(out, "[REDACTED_JWT]")
 	for _, marker := range secretRedactionMarkers {
 		// Defence-in-depth: drop any residual marker substring that
 		// survived regex-based redaction.
