@@ -132,6 +132,41 @@ func TestImageGenProviderFallback(t *testing.T) {
 	}
 }
 
+func TestImageGenRunnerPassesRequestOverrides(t *testing.T) {
+	ctx := context.Background()
+	provider := &fakeImageProvider{available: true}
+	runner := NewImageGenRunner(ImageGenConfig{}, map[string]ImageGenerator{
+		"fal": provider,
+	})
+	steps := 12
+	guidance := 7.25
+	format := "webp"
+
+	result := runner.Generate(ctx, ImageGenRequest{
+		Prompt:            "test",
+		OutputDir:         t.TempDir(),
+		NumImages:         2,
+		NumInferenceSteps: &steps,
+		GuidanceScale:     &guidance,
+		OutputFormat:      &format,
+	})
+	if !result.Success {
+		t.Fatalf("Generate result = %+v, want success", result)
+	}
+	if provider.lastReq.NumImages != 2 {
+		t.Errorf("NumImages = %d, want 2", provider.lastReq.NumImages)
+	}
+	if provider.lastReq.NumInferenceSteps == nil || *provider.lastReq.NumInferenceSteps != 12 {
+		t.Errorf("NumInferenceSteps = %v, want 12", provider.lastReq.NumInferenceSteps)
+	}
+	if provider.lastReq.GuidanceScale == nil || *provider.lastReq.GuidanceScale != 7.25 {
+		t.Errorf("GuidanceScale = %v, want 7.25", provider.lastReq.GuidanceScale)
+	}
+	if provider.lastReq.OutputFormat != "webp" {
+		t.Errorf("OutputFormat = %q, want webp", provider.lastReq.OutputFormat)
+	}
+}
+
 func TestImageGenModelResolution(t *testing.T) {
 	ctx := context.Background()
 	provider := &fakeImageProvider{available: true}
@@ -266,6 +301,45 @@ func TestFALModelSizeStyles(t *testing.T) {
 				t.Errorf("model %q ratio %q has empty size", model, ratio)
 			}
 		}
+	}
+}
+
+func TestBuildFALPayloadHonorsSupportedRequestOverrides(t *testing.T) {
+	meta := FALModelMetadata{
+		SizeStyle: "image_size_preset",
+		Defaults: map[string]any{
+			"num_inference_steps": 4,
+			"output_format":       "png",
+			"guidance_scale":      4.5,
+		},
+		Supports: map[string]bool{
+			"prompt":              true,
+			"image_size":          true,
+			"num_inference_steps": true,
+			"output_format":       true,
+			"guidance_scale":      true,
+		},
+	}
+	steps := 12
+	guidance := 7.25
+	req := ImageProviderRequest{
+		Prompt:            "a test prompt",
+		Size:              "square_hd",
+		OutputFormat:      "webp",
+		NumInferenceSteps: &steps,
+		GuidanceScale:     &guidance,
+	}
+
+	payload := buildFALPayload(req, meta)
+
+	if payload["num_inference_steps"] != 12 {
+		t.Errorf("num_inference_steps = %v, want request override 12", payload["num_inference_steps"])
+	}
+	if payload["output_format"] != "webp" {
+		t.Errorf("output_format = %v, want request override webp", payload["output_format"])
+	}
+	if payload["guidance_scale"] != 7.25 {
+		t.Errorf("guidance_scale = %v, want request override 7.25", payload["guidance_scale"])
 	}
 }
 
