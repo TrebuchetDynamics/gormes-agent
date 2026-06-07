@@ -92,6 +92,10 @@ var reSKToken = regexp.MustCompile(`sk-[A-Za-z0-9_\-]+`)
 // reKeyAssign matches KEY=value style leaks for known sensitive env vars.
 var reKeyAssign = regexp.MustCompile(`(?i)(ANTHROPIC_API_KEY|OPENAI_API_KEY)\s*=\s*\S+`)
 
+// reKeySpace matches provider messages such as "Key <credential>" that are
+// common in FAL transport errors and do not use assignment syntax.
+var reKeySpace = regexp.MustCompile(`(?i)\bKey\s+[A-Za-z0-9._~+/=\-]+`)
+
 // reGenericSecretAssign matches credential-shaped key/value pairs commonly
 // surfaced by provider SDK errors (kept in sync with the runner redactor).
 var reGenericSecretAssign = regexp.MustCompile(`(?i)\b(sk|key|token|secret)[-_]?[A-Za-z0-9]*[=:]\s*["']?[^"'\s]+`)
@@ -196,6 +200,7 @@ func redactKnownSecrets(reason string) string {
 	out := reBearer.ReplaceAllString(reason, "[REDACTED_BEARER]")
 	out = reSKToken.ReplaceAllString(out, "[REDACTED_SK_TOKEN]")
 	out = reKeyAssign.ReplaceAllString(out, "[REDACTED_API_KEY]")
+	out = reKeySpace.ReplaceAllString(out, "[REDACTED_KEY]")
 	out = reGenericSecretAssign.ReplaceAllString(out, "[REDACTED_SECRET]")
 	out = reJWT.ReplaceAllString(out, "[REDACTED_JWT]")
 	for _, marker := range secretRedactionMarkers {
@@ -206,15 +211,29 @@ func redactKnownSecrets(reason string) string {
 	return out
 }
 
+const maxImageGenerationReasonLength = 240
+
 // redactReason scrubs known credential shapes from a free-form error
 // message and elides the raw prompt if it appears verbatim.
 func redactReason(reason, prompt string) string {
-	if reason == "" {
-		return reason
+	out := strings.TrimSpace(reason)
+	if out == "" {
+		return "redacted image generation error"
 	}
-	out := redactPrompt(reason, prompt)
+	out = redactPrompt(out, strings.TrimSpace(prompt))
 	out = redactKnownSecrets(out)
+	if len(out) > maxImageGenerationReasonLength {
+		out = out[:maxImageGenerationReasonLength] + "..."
+	}
 	return out
+}
+
+func redactImageGenError(text string) string {
+	return redactImageGenErrorForPrompt(text, "")
+}
+
+func redactImageGenErrorForPrompt(text, prompt string) string {
+	return redactReason(text, prompt)
 }
 
 func validateEnvelopeIdentity(req ImageGenerationRequest) error {

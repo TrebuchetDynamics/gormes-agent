@@ -11,7 +11,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -550,35 +549,6 @@ func imageGenFailure(provider string, evidence imageGenEvidence, message string)
 		Evidence: ImageGenerationStatus(strings.TrimSpace(string(evidence))),
 		Error:    redactImageGenError(message),
 	}
-}
-
-// imageGenSecretPatterns matches credential shapes in error messages.
-var imageGenSecretPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+`),
-	regexp.MustCompile(`(?i)\bKey\s+[A-Za-z0-9._~+/=\-]+`),
-	regexp.MustCompile(`(?i)\b(sk|key|token|secret)[-_]?[A-Za-z0-9]*[=:]\s*["']?[^"'\s]+`),
-	regexp.MustCompile(`\b[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]{20,}\b`),
-}
-
-func redactImageGenError(text string) string {
-	return redactImageGenErrorForPrompt(text, "")
-}
-
-func redactImageGenErrorForPrompt(text, prompt string) string {
-	redacted := strings.TrimSpace(text)
-	for _, pattern := range imageGenSecretPatterns {
-		redacted = pattern.ReplaceAllString(redacted, "[redacted]")
-	}
-	if prompt = strings.TrimSpace(prompt); prompt != "" {
-		redacted = strings.ReplaceAll(redacted, prompt, "[redacted_prompt]")
-	}
-	if len(redacted) > 240 {
-		redacted = redacted[:240] + "..."
-	}
-	if redacted == "" {
-		return "redacted image generation error"
-	}
-	return redacted
 }
 
 // falAPIKeyPresent returns true if FAL_API_KEY is set in the environment.

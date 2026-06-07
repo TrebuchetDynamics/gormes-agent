@@ -235,19 +235,20 @@ func TestImageGenerationResult_ErrorEnvelopeRedactsPromptEvenWhenPromptContainsS
 func TestImageGenerationResult_ErrorEnvelopeRedactsCredentialShapesUsedByRunner(t *testing.T) {
 	dir := t.TempDir()
 	jwt := "aaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbb.cccccccccccccccccccc"
+	falKey := "FAL_SECRET_TOKEN_123456789"
 	env, err := BuildImageGenerationEnvelope(ImageGenerationRequest{
 		Provider:    "openai",
 		Model:       "gpt-image-1.5",
 		Prompt:      "safe prompt",
 		OutputDir:   dir,
-		Err:         errors.New("provider failed token=abc123 secret=shh " + jwt),
+		Err:         errors.New("provider failed token=abc123 secret=shh Key " + falKey + " " + jwt),
 		ErrorStatus: ImageGenerationStatusProviderError,
 	})
 	if err != nil {
 		t.Fatalf("BuildImageGenerationEnvelope: %v", err)
 	}
 
-	for _, leaked := range []string{"token=abc123", "secret=shh", jwt} {
+	for _, leaked := range []string{"token=abc123", "secret=shh", "Key " + falKey, falKey, jwt} {
 		if strings.Contains(env.Reason, leaked) {
 			t.Fatalf("error envelope leaks credential shape %q in reason %q", leaked, env.Reason)
 		}
