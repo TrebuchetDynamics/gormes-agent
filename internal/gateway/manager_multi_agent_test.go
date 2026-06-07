@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -152,11 +151,3 @@ func writeAgentMemory(t *testing.T, user string) string {
 	return dir
 }
 
-func assertContainsAll(t *testing.T, got string, wants ...string) {
-	t.Helper()
-	for _, want := range wants {
-		if !strings.Contains(got, want) {
-			t.Fatalf("missing %q in:\n%s", want, got)
-		}
-	}
-}
