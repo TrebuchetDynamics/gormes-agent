@@ -13,6 +13,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/trace"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/banner"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/extensionui"
 )
 
 // Transcript chrome renders through the Gormes-owned semantic style system
@@ -173,21 +174,21 @@ func renderHermesHintWithIndicatorForSkin(f kernel.RenderFrame, statusMessage st
 	return styles.Assistant.Render(text)
 }
 
-func renderHermesHintWithExtensionWorking(f kernel.RenderFrame, statusMessage string, width int, spinnerFrame int, indicator IndicatorStyle, working extensionUIWorking, skin HermesSkin) string {
+func renderHermesHintWithExtensionWorking(f kernel.RenderFrame, statusMessage string, width int, spinnerFrame int, indicator IndicatorStyle, working extensionui.Working, skin HermesSkin) string {
 	var parts []string
 	if f.Phase != kernel.PhaseIdle && f.Phase != kernel.PhaseFailed {
-		if !working.hideIndicator {
-			if len(working.frames) > 0 {
-				idx := spinnerFrame % len(working.frames)
+		if !working.HideIndicator {
+			if len(working.Frames) > 0 {
+				idx := spinnerFrame % len(working.Frames)
 				if idx < 0 {
 					idx = 0
 				}
-				parts = append(parts, working.frames[idx])
+				parts = append(parts, working.Frames[idx])
 			} else {
 				parts = append(parts, RenderIndicatorFrame(indicator, spinnerFrame))
 			}
 		}
-		label := strings.TrimSpace(working.text)
+		label := strings.TrimSpace(working.Text)
 		if label == "" {
 			label = strings.ToLower(f.Phase.String())
 		}

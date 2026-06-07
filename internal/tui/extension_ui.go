@@ -2,12 +2,10 @@ package tui
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
-
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/extensionui"
 )
 
 var _ kernel.ExtensionUI = ExtensionUIContext{}
@@ -39,7 +37,7 @@ func (c ExtensionUIContext) SetStatus(key, text string) kernel.ExtensionUIResult
 	if !ok {
 		return c.unavailable()
 	}
-	key = extensionUIKey(key)
+	key = extensionui.Key(key)
 	if key == "" {
 		return kernel.ExtensionUIResult{Status: kernel.ExtensionUINoop, Evidence: "extension UI status key required"}
 	}
@@ -48,7 +46,7 @@ func (c ExtensionUIContext) SetStatus(key, text string) kernel.ExtensionUIResult
 		return c.ClearStatus(key)
 	}
 	m.ensureExtensionUIState()
-	m.extensionUI.statuses[key] = extensionUIText{sessionID: c.sessionID, text: text}
+	m.extensionUI.statuses[key] = extensionui.Text{SessionID: c.sessionID, Text: text}
 	return kernel.ExtensionUIResult{Status: kernel.ExtensionUIApplied, Evidence: fmt.Sprintf("extension UI status set: %s", key)}
 }
 
@@ -57,7 +55,7 @@ func (c ExtensionUIContext) ClearStatus(key string) kernel.ExtensionUIResult {
 	if !ok {
 		return c.unavailable()
 	}
-	key = extensionUIKey(key)
+	key = extensionui.Key(key)
 	if key == "" {
 		return kernel.ExtensionUIResult{Status: kernel.ExtensionUINoop, Evidence: "extension UI status key required"}
 	}
@@ -72,19 +70,19 @@ func (c ExtensionUIContext) SetWidget(key string, lines []string, opts kernel.Ex
 	if !ok {
 		return c.unavailable()
 	}
-	key = extensionUIKey(key)
+	key = extensionui.Key(key)
 	if key == "" {
 		return kernel.ExtensionUIResult{Status: kernel.ExtensionUINoop, Evidence: "extension UI widget key required"}
 	}
-	clean := extensionUILines(lines)
+	clean := extensionui.Lines(lines)
 	if len(clean) == 0 {
 		return c.ClearWidget(key)
 	}
 	m.ensureExtensionUIState()
-	m.extensionUI.widgets[key] = extensionUIWidget{
-		sessionID: c.sessionID,
-		lines:     clean,
-		placement: kernel.NormalizeExtensionUIWidgetPlacement(opts.Placement),
+	m.extensionUI.widgets[key] = extensionui.Widget{
+		SessionID: c.sessionID,
+		Lines:     clean,
+		Placement: kernel.NormalizeExtensionUIWidgetPlacement(opts.Placement),
 	}
 	return kernel.ExtensionUIResult{Status: kernel.ExtensionUIApplied, Evidence: fmt.Sprintf("extension UI widget set: %s", key)}
 }
@@ -94,7 +92,7 @@ func (c ExtensionUIContext) ClearWidget(key string) kernel.ExtensionUIResult {
 	if !ok {
 		return c.unavailable()
 	}
-	key = extensionUIKey(key)
+	key = extensionui.Key(key)
 	if key == "" {
 		return kernel.ExtensionUIResult{Status: kernel.ExtensionUINoop, Evidence: "extension UI widget key required"}
 	}
@@ -109,12 +107,12 @@ func (c ExtensionUIContext) SetFooter(lines []string) kernel.ExtensionUIResult {
 	if !ok {
 		return c.unavailable()
 	}
-	clean := extensionUILines(lines)
+	clean := extensionui.Lines(lines)
 	if len(clean) == 0 {
 		return c.ClearFooter()
 	}
 	m.ensureExtensionUIState()
-	m.extensionUI.footer = &extensionUILinesState{sessionID: c.sessionID, lines: clean}
+	m.extensionUI.footer = &extensionui.LinesState{SessionID: c.sessionID, Lines: clean}
 	return kernel.ExtensionUIResult{Status: kernel.ExtensionUIApplied, Evidence: "extension UI footer set"}
 }
 
@@ -132,13 +130,13 @@ func (c ExtensionUIContext) SetWorkingIndicator(opts kernel.ExtensionUIWorkingIn
 	if !ok {
 		return c.unavailable()
 	}
-	frames := extensionUILines(opts.Frames)
+	frames := extensionui.Lines(opts.Frames)
 	m.ensureExtensionUIState()
-	m.extensionUI.working = &extensionUIWorking{
-		sessionID:     c.sessionID,
-		text:          strings.TrimSpace(opts.Text),
-		frames:        frames,
-		hideIndicator: opts.Frames != nil && len(frames) == 0,
+	m.extensionUI.working = &extensionui.Working{
+		SessionID:     c.sessionID,
+		Text:          strings.TrimSpace(opts.Text),
+		Frames:        frames,
+		HideIndicator: opts.Frames != nil && len(frames) == 0,
 	}
 	return kernel.ExtensionUIResult{Status: kernel.ExtensionUIApplied, Evidence: "extension UI working indicator set"}
 }
@@ -165,146 +163,45 @@ func (c ExtensionUIContext) unavailable() kernel.ExtensionUIResult {
 }
 
 type extensionUIState struct {
-	statuses map[string]extensionUIText
-	widgets  map[string]extensionUIWidget
-	footer   *extensionUILinesState
-	working  *extensionUIWorking
-}
-
-type extensionUIText struct {
-	sessionID string
-	text      string
-}
-
-type extensionUILinesState struct {
-	sessionID string
-	lines     []string
-}
-
-type extensionUIWidget struct {
-	sessionID string
-	lines     []string
-	placement kernel.ExtensionUIWidgetPlacement
-}
-
-type extensionUIWorking struct {
-	sessionID     string
-	text          string
-	frames        []string
-	hideIndicator bool
+	statuses map[string]extensionui.Text
+	widgets  map[string]extensionui.Widget
+	footer   *extensionui.LinesState
+	working  *extensionui.Working
 }
 
 func (m *Model) ensureExtensionUIState() {
 	if m.extensionUI.statuses == nil {
-		m.extensionUI.statuses = make(map[string]extensionUIText)
+		m.extensionUI.statuses = make(map[string]extensionui.Text)
 	}
 	if m.extensionUI.widgets == nil {
-		m.extensionUI.widgets = make(map[string]extensionUIWidget)
+		m.extensionUI.widgets = make(map[string]extensionui.Widget)
 	}
-}
-
-func extensionUIKey(key string) string {
-	return strings.TrimSpace(key)
-}
-
-func extensionUILines(lines []string) []string {
-	out := make([]string, 0, len(lines))
-	for _, line := range lines {
-		line = strings.TrimRight(line, " \t\r\n")
-		if line == "" {
-			continue
-		}
-		out = append(out, line)
-	}
-	return out
 }
 
 func (m Model) renderExtensionStatusLine(base string, width int) string {
-	entries := m.extensionStatusEntries()
-	if len(entries) == 0 {
-		return hermesStatusTrimToWidth(base, width)
-	}
-	suffix := " │ " + strings.Join(entries, " │ ")
-	suffix = hermesStatusTrimToWidth(suffix, width)
-	if width <= 0 {
-		return ""
-	}
-	if lipgloss.Width(suffix) >= width {
-		return suffix
-	}
-	baseWidth := width - lipgloss.Width(suffix)
-	return hermesStatusTrimToWidth(base, baseWidth) + suffix
+	return extensionui.StatusLine(base, m.extensionStatusEntries(), width, hermesStatusTrimToWidth)
 }
 
 func (m Model) renderExtensionFooter(width int) (string, bool) {
 	footer := m.extensionUI.footer
-	if footer == nil || footer.sessionID != m.SessionID() {
+	if footer == nil || footer.SessionID != m.SessionID() {
 		return "", false
 	}
-	return extensionUIRenderLines(footer.lines, width), true
+	return extensionui.RenderLines(footer.Lines, width, hermesStatusTrimToWidth), true
 }
 
 func (m Model) renderExtensionWidgets(placement kernel.ExtensionUIWidgetPlacement, width int) string {
-	placement = kernel.NormalizeExtensionUIWidgetPlacement(placement)
-	if len(m.extensionUI.widgets) == 0 {
-		return ""
-	}
-	keys := make([]string, 0, len(m.extensionUI.widgets))
-	for key, widget := range m.extensionUI.widgets {
-		if widget.sessionID == m.SessionID() && kernel.NormalizeExtensionUIWidgetPlacement(widget.placement) == placement {
-			keys = append(keys, key)
-		}
-	}
-	if len(keys) == 0 {
-		return ""
-	}
-	sort.Strings(keys)
-	blocks := make([]string, 0, len(keys))
-	for _, key := range keys {
-		blocks = append(blocks, extensionUIRenderLines(m.extensionUI.widgets[key].lines, width))
-	}
-	return strings.Join(blocks, "\n")
+	return extensionui.WidgetBlocks(m.extensionUI.widgets, m.SessionID(), placement, width, hermesStatusTrimToWidth)
 }
 
 func (m Model) extensionStatusEntries() []string {
-	if len(m.extensionUI.statuses) == 0 {
-		return nil
-	}
-	keys := make([]string, 0, len(m.extensionUI.statuses))
-	for key, entry := range m.extensionUI.statuses {
-		if entry.sessionID == m.SessionID() {
-			keys = append(keys, key)
-		}
-	}
-	if len(keys) == 0 {
-		return nil
-	}
-	sort.Strings(keys)
-	entries := make([]string, 0, len(keys))
-	for _, key := range keys {
-		text := strings.TrimSpace(m.extensionUI.statuses[key].text)
-		if text != "" {
-			entries = append(entries, text)
-		}
-	}
-	return entries
+	return extensionui.StatusEntries(m.extensionUI.statuses, m.SessionID())
 }
 
-func (m Model) extensionWorkingIndicator() (extensionUIWorking, bool) {
+func (m Model) extensionWorkingIndicator() (extensionui.Working, bool) {
 	working := m.extensionUI.working
-	if working == nil || working.sessionID != m.SessionID() {
-		return extensionUIWorking{}, false
+	if working == nil || working.SessionID != m.SessionID() {
+		return extensionui.Working{}, false
 	}
 	return *working, true
-}
-
-func extensionUIRenderLines(lines []string, width int) string {
-	if width <= 0 {
-		return ""
-	}
-	out := make([]string, 0, len(lines))
-	for _, line := range lines {
-		out = append(out, hermesStatusTrimToWidth(line, width))
-	}
-	return strings.Join(out, "\n")
 }
