@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/bedrock/testutil"
 )
 
 func TestSignBedrockRequest_DeterministicHeaders(t *testing.T) {
@@ -72,16 +74,7 @@ func TestSignBedrockRequest_ErrorRedactsSecrets(t *testing.T) {
 	if signErr == nil {
 		t.Fatal("SignBedrockRequest(nil) error = nil, want redacted error")
 	}
-	if containsAnyString(signErr.Error(), accessKey, secretKey, sessionToken) {
+	if testutil.ContainsAnyString(signErr.Error(), accessKey, secretKey, sessionToken) {
 		t.Fatalf("sign error leaked credential material: %q", signErr.Error())
 	}
-}
-
-func containsAnyString(s string, needles ...string) bool {
-	for _, needle := range needles {
-		if needle != "" && strings.Contains(s, needle) {
-			return true
-		}
-	}
-	return false
 }
