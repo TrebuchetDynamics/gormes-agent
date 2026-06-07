@@ -44,11 +44,7 @@ func TestGatewayUsageCommand_RendersRunningFrameBeforeCachedFrameAndAccountLimit
 	if len(sent) != 1 {
 		t.Fatalf("sent messages = %d, want 1", len(sent))
 	}
-	for _, want := range []string{"Usage source: running turn", "Model: running-model", "Session: running-session", "Tokens: 11 in / 22 out", "Provider: openai-codex (Pro)", "Session: 85% remaining (15% used)"} {
-		if !strings.Contains(sent[0].Text, want) {
-			t.Fatalf("usage output missing %q:\n%s", want, sent[0].Text)
-		}
-	}
+	assertContainsAll(t, sent[0].Text, "Usage source: running turn", "Model: running-model", "Session: running-session", "Tokens: 11 in / 22 out", "Provider: openai-codex (Pro)", "Session: 85% remaining (15% used)")
 	if strings.Contains(sent[0].Text, "cached-model") {
 		t.Fatalf("usage output used cached frame despite active running frame:\n%s", sent[0].Text)
 	}
@@ -67,11 +63,7 @@ func TestGatewayUsageCommand_UsesCachedFrameWhenNoActiveTurn(t *testing.T) {
 	}
 
 	got := ch.sentSnapshot()[0].Text
-	for _, want := range []string{"Usage source: cached turn", "Model: cached-model", "Tokens: 3 in / 4 out", "Provider: unavailable"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("usage output missing %q:\n%s", want, got)
-		}
-	}
+	assertContainsAll(t, got, "Usage source: cached turn", "Model: cached-model", "Tokens: 3 in / 4 out", "Provider: unavailable")
 }
 
 func TestGatewayUsageCommand_RegisteredInSharedRegistry(t *testing.T) {

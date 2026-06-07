@@ -1,4 +1,4 @@
-package parity
+package toolsets
 
 import (
 	"errors"
@@ -55,9 +55,7 @@ func TestHermesToolsetDistributionManifest(t *testing.T) {
 }
 
 func TestToolsetDistributionSamplerDeterministicSelection(t *testing.T) {
-	sample, err := SampleToolsetsFromDistribution("image_gen", ToolsetDistributionSampleOptions{
-		Random: sequenceRandom(0.89, 0.91, 0.54, 0.44, 0.09),
-	})
+	sample, err := SampleToolsetsFromDistribution("image_gen", validToolsetOptions(0.89, 0.91, 0.54, 0.44, 0.09))
 	if err != nil {
 		t.Fatalf("SampleToolsetsFromDistribution: %v", err)
 	}
@@ -82,7 +80,7 @@ func TestToolsetDistributionSamplerNamedDistributions(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			sample, err := SampleToolsetsFromDistribution(tc.name, ToolsetDistributionSampleOptions{Random: sequenceRandom(tc.rolls...)})
+			sample, err := SampleToolsetsFromDistribution(tc.name, validToolsetOptions(tc.rolls...))
 			if err != nil {
 				t.Fatalf("SampleToolsetsFromDistribution: %v", err)
 			}
@@ -151,6 +149,13 @@ func distributionWeights(distribution ToolsetDistribution) map[string]int {
 		weights[entry.Toolset] = entry.Probability
 	}
 	return weights
+}
+
+func validToolsetOptions(rolls ...float64) ToolsetDistributionSampleOptions {
+	return ToolsetDistributionSampleOptions{
+		Random:          sequenceRandom(rolls...),
+		ValidateToolset: func(string) bool { return true },
+	}
 }
 
 func sequenceRandom(values ...float64) func() float64 {

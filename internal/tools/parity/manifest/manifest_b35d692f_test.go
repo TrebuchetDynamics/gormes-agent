@@ -1,4 +1,4 @@
-package parity
+package manifest
 
 import (
 	"encoding/json"

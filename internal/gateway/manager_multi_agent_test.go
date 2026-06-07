@@ -150,4 +150,3 @@ func writeAgentMemory(t *testing.T, user string) string {
 	}
 	return dir
 }
-

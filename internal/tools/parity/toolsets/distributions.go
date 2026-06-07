@@ -1,4 +1,4 @@
-package parity
+package toolsets
 
 import (
 	"errors"
@@ -319,15 +319,7 @@ func resolveToolsetDistributionValidator(injected func(string) bool) (func(strin
 	if injected != nil {
 		return injected, nil
 	}
-	manifest, err := LoadUpstreamToolParityManifest()
-	if err != nil {
-		return nil, err
-	}
-	valid := make(map[string]bool, len(manifest.Toolsets))
-	for _, row := range manifest.Toolsets {
-		valid[row.Name] = true
-	}
-	return func(name string) bool { return valid[name] }, nil
+	return nil, errors.New("tools: toolset distribution validator is required")
 }
 
 func highestProbabilityToolset(entries []ToolsetDistributionEntry) ToolsetDistributionEntry {
