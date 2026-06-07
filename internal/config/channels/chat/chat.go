@@ -285,22 +285,19 @@ func flexibleBool(raw any, defaultValue bool) bool {
 	case bool:
 		return v
 	case string:
-		switch strings.ToLower(strings.TrimSpace(v)) {
-		case "false", "0", "no", "off":
-			return false
-		case "true", "1", "yes", "on":
-			return true
-		default:
-			return defaultValue
-		}
+		return parseFlexibleBoolToken(v, defaultValue)
 	default:
-		switch strings.ToLower(strings.TrimSpace(fmt.Sprint(v))) {
-		case "false", "0", "no", "off":
-			return false
-		case "true", "1", "yes", "on":
-			return true
-		default:
-			return defaultValue
-		}
+		return parseFlexibleBoolToken(fmt.Sprint(v), defaultValue)
+	}
+}
+
+func parseFlexibleBoolToken(value string, defaultValue bool) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "false", "0", "no", "off":
+		return false
+	case "true", "1", "yes", "on":
+		return true
+	default:
+		return defaultValue
 	}
 }
