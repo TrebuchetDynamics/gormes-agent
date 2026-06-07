@@ -47,3 +47,10 @@
 {"ts":"2026-06-06T20:38:54-06:00","candidate":"automation/cron","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:38:54-06:00"}
 {"ts":"2026-06-06T20:42:25-06:00","candidate":"platform/cli/gormescli/tuiapp","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:42:25-06:00"}
 {"ts":"2026-06-06T20:44:24-06:00","candidate":"platform/cli/gormescli/modules/channels","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:44:24-06:00"}
+{"ts":"2026-06-06T20:50:04-06:00","candidate":"platform/cli/onboarding","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:50:04-06:00"}
+{"ts":"2026-06-06T20:51:14-06:00","candidate":"platform/cli/display","reason":"no metric progress rollback","scope":"candidate","state":"cooldown","until":"2026-06-06T21:51:14-06:00"}
+{"ts":"2026-06-06T20:51:15-06:00","candidate":"platform/cli","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T20:51:17-06:00","candidate":"adapters/channels/telegram/media","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:51:18-06:00","candidate":"adapters/channels/telegram/callbacks","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:51:20-06:00","candidate":"adapters/channels/telegram/send","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:51:21-06:00","candidate":"adapters/channels/telegram","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
