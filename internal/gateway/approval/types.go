@@ -1,71 +1,31 @@
 package approval
 
-import (
-	"context"
-	"strings"
-)
+import "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/approval/choice"
 
 // Choice is the bounded decision a messaging-platform approval button may
 // resolve for a pending gateway approval request.
-type Choice string
+type Choice = choice.Choice
 
 const (
-	ChoiceOnce    Choice = "once"
-	ChoiceSession Choice = "session"
-	ChoiceAlways  Choice = "always"
-	ChoiceDeny    Choice = "deny"
+	ChoiceOnce    Choice = choice.ChoiceOnce
+	ChoiceSession Choice = choice.ChoiceSession
+	ChoiceAlways  Choice = choice.ChoiceAlways
+	ChoiceDeny    Choice = choice.ChoiceDeny
 )
 
 // Resolution is the redacted evidence passed from channel callbacks into the
 // gateway approval store/resolver.
-type Resolution struct {
-	SessionKey string
-	Choice     Choice
-	Platform   string
-	ChatID     string
-	MessageID  string
-	ActorID    string
-	Evidence   map[string]string
-}
+type Resolution = choice.Resolution
 
 // Resolver owns the gateway-side approval state for pending dangerous
 // operations. Channel implementations call it after a user chooses a bounded
 // approval action.
-type Resolver interface {
-	ResolveGatewayApproval(context.Context, Resolution) error
-}
+type Resolver = choice.Resolver
 
 // ResolverFunc adapts a function to Resolver.
-type ResolverFunc func(context.Context, Resolution) error
-
-func (f ResolverFunc) ResolveGatewayApproval(ctx context.Context, res Resolution) error {
-	if f == nil {
-		return nil
-	}
-	return f(ctx, res)
-}
+type ResolverFunc = choice.ResolverFunc
 
 // ParseChoice normalizes a gateway approval decision label.
 func ParseChoice(value string) (Choice, bool) {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case string(ChoiceOnce):
-		return ChoiceOnce, true
-	case string(ChoiceSession):
-		return ChoiceSession, true
-	case string(ChoiceAlways):
-		return ChoiceAlways, true
-	case string(ChoiceDeny):
-		return ChoiceDeny, true
-	default:
-		return "", false
-	}
-}
-
-func validChoice(choice Choice) bool {
-	switch choice {
-	case ChoiceOnce, ChoiceSession, ChoiceAlways, ChoiceDeny:
-		return true
-	default:
-		return false
-	}
+	return choice.ParseChoice(value)
 }

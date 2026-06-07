@@ -24,3 +24,4 @@
 {"ts":"2026-06-06T20:06:52-06:00","candidate":"tools/environment","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:06:52-06:00"}
 {"ts":"2026-06-06T20:06:53-06:00","candidate":"tools","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
 {"ts":"2026-06-06T20:08:42-06:00","candidate":"gateway/directory/model","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:08:42-06:00"}
+{"ts":"2026-06-06T20:11:28-06:00","candidate":"gateway/directory/model/entry","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:11:28-06:00"}
