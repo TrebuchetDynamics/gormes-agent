@@ -2,6 +2,8 @@ package stateful
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"reflect"
 	"sync"
 	"testing"
@@ -75,6 +77,29 @@ func TestStatefulToolMigrationQueuePathIsolation(t *testing.T) {
 	}
 	if ev := q.AuthorizePath("write_file", "/etc/passwd"); ev.Code != ToolPathDenied {
 		t.Fatalf("foreign absolute evidence = %#v, want %q", ev, ToolPathDenied)
+	}
+}
+
+func TestStatefulToolMigrationQueueRejectsSymlinkEscape(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("secret"), 0o600); err != nil {
+		t.Fatalf("write outside fixture: %v", err)
+	}
+	link := filepath.Join(root, "linked-outside")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlink fixture unavailable: %v", err)
+	}
+	q := NewStatefulToolMigrationQueue(StatefulToolQueueOptions{MutationRoots: []string{root}})
+	if ev := q.Register(StatefulToolPlan{Name: "write_file", Domain: ToolStateDomainFile, RootPolicy: ToolRootPolicyInjectedXDG, RollbackPolicy: ToolRollbackPolicyCheckpoint, ConcurrencyPolicy: ToolConcurrencySerializedWrites, OwnerRow: "File write/patch tool port"}); ev.Code != ToolStateContractRegistered {
+		t.Fatalf("register evidence: %#v", ev)
+	}
+
+	if ev := q.AuthorizePath("write_file", filepath.Join(link, "secret.txt")); ev.Code != ToolPathDenied {
+		t.Fatalf("symlink escape evidence = %#v, want %q", ev, ToolPathDenied)
+	}
+	if ev := q.AuthorizePath("write_file", filepath.Join(link, "new.txt")); ev.Code != ToolPathDenied {
+		t.Fatalf("new-file symlink escape evidence = %#v, want %q", ev, ToolPathDenied)
 	}
 }
 
