@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"strings"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
@@ -54,11 +53,7 @@ func TestSteerCommandRegistry_NoActiveTurnReportsUnavailable(t *testing.T) {
 	if len(sent) != 1 {
 		t.Fatalf("sent messages = %d, want 1 ack", len(sent))
 	}
-	for _, want := range []string{"steer_unavailable", "steer_preview", "keep working the selected slice"} {
-		if !strings.Contains(sent[0].Text, want) {
-			t.Fatalf("ack %q missing %q", sent[0].Text, want)
-		}
-	}
+	assertContainsAll(t, sent[0].Text, "steer_unavailable", "steer_preview", "keep working the selected slice")
 }
 
 func TestSteerCommandRegistry_RunningAgentInjectsChannelNeutralEvent(t *testing.T) {
@@ -94,11 +89,7 @@ func TestSteerCommandRegistry_RunningAgentInjectsChannelNeutralEvent(t *testing.
 	if len(sent) != 1 {
 		t.Fatalf("sent messages = %d, want 1 ack", len(sent))
 	}
-	for _, want := range []string{"steer_injected", "steer_preview"} {
-		if !strings.Contains(sent[0].Text, want) {
-			t.Fatalf("ack %q missing degraded evidence %q", sent[0].Text, want)
-		}
-	}
+	assertContainsAll(t, sent[0].Text, "steer_injected", "steer_preview")
 }
 
 func TestSteerCommandRegistry_RunningAgentAcceptsBotMention(t *testing.T) {
@@ -160,9 +151,5 @@ func TestSteerCommandRegistry_RunningAgentSubmitFailureQueuesFallback(t *testing
 	if len(sent) != 1 {
 		t.Fatalf("sent messages = %d, want 1 ack", len(sent))
 	}
-	for _, want := range []string{"steer_unavailable", "steer_queued", "steer_preview"} {
-		if !strings.Contains(sent[0].Text, want) {
-			t.Fatalf("ack %q missing degraded evidence %q", sent[0].Text, want)
-		}
-	}
+	assertContainsAll(t, sent[0].Text, "steer_unavailable", "steer_queued", "steer_preview")
 }

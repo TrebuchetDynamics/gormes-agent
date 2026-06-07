@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"sort"
 	"strings"
 	"syscall"
@@ -29,7 +28,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
-	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/tuiapp/firstrun"
 	tuistartup "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/tuiapp/startup"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
@@ -216,128 +215,25 @@ func RootFirstRunBypass(cmd *cobra.Command, invocation Invocation) bool {
 
 // BuildFirstRunPlanFromConfig builds first-run readiness from a loaded config.
 func BuildFirstRunPlanFromConfig(cfg config.Config, target cli.SetupTargetID, interactive bool) cli.FirstRunPlan {
-	return cli.BuildFirstRunPlan(cli.FirstRunPlanInput{
-		Interactive:        interactive,
-		Provider:           cfg.Hermes.Provider,
-		Endpoint:           cfg.Hermes.Endpoint,
-		Model:              cfg.Hermes.Model,
-		APIKeyPresent:      gormescli.ConfiguredProviderAuthPresent(cfg),
-		Target:             target,
-		Channels:           firstRunChannelStates(cfg),
-		HermesSourcePath:   DetectHermesMigrationSource(),
-		OpenClawSourcePath: DetectOpenClawMigrationSource(),
-	})
-}
-
-func firstRunChannelStates(cfg config.Config) []cli.ChannelState {
-	return []cli.ChannelState{
-		{
-			Target:         cli.SetupTargetTelegram,
-			Label:          "Telegram",
-			Configured:     strings.TrimSpace(cfg.Telegram.BotToken) != "",
-			Detail:         gatewaymodule.ConfiguredTelegramStatusDetail(cfg.Telegram),
-			SetupCommand:   "gormes setup --quick --target telegram",
-			HandoffCommand: "gormes gateway",
-		},
-		{
-			Target:         cli.SetupTargetWhatsApp,
-			Label:          "WhatsApp",
-			Configured:     strings.EqualFold(strings.TrimSpace(os.Getenv("WHATSAPP_ENABLED")), "true"),
-			Detail:         "WhatsApp channel",
-			SetupCommand:   "gormes whatsapp --plan",
-			HandoffCommand: "gormes gateway",
-		},
-		{
-			Target:         cli.SetupTargetDiscord,
-			Label:          "Discord",
-			Configured:     cfg.Discord.Enabled(),
-			Detail:         "Discord channel",
-			SetupCommand:   "gormes setup --quick --target discord",
-			HandoffCommand: "gormes gateway",
-		},
-		{
-			Target:         cli.SetupTargetSlack,
-			Label:          "Slack",
-			Configured:     cfg.Slack.Enabled,
-			Detail:         gatewaymodule.ConfiguredSlackStatusDetail(cfg.Slack),
-			SetupCommand:   "gormes setup --quick --target slack",
-			HandoffCommand: "gormes gateway",
-		},
-		{
-			Target:         cli.SetupTargetNavivox,
-			Label:          "Navivox",
-			Configured:     cfg.Navivox.Enabled,
-			Detail:         gatewaymodule.ConfiguredNavivoxStatusDetail(cfg.Navivox),
-			SetupCommand:   "gormes setup --quick --target navivox",
-			HandoffCommand: "gormes gateway",
-		},
-	}
+	return firstrun.BuildPlanFromConfig(cfg, target, interactive)
 }
 
 // PrintFirstRunGuidance writes the root-command first-run guidance text.
 func PrintFirstRunGuidance(out io.Writer, plan cli.FirstRunPlan) {
-	fmt.Fprintln(out, "Gormes setup needed")
-	if plan.Summary != "" {
-		fmt.Fprintf(out, "%s\n", plan.Summary)
-	}
-	for _, step := range plan.MissingSteps {
-		if step.Detail == "" {
-			continue
-		}
-		if command := FirstRunGuidanceCommand(step.Command); command != "" {
-			fmt.Fprintf(out, "- %s: %s (run: %s)\n", step.Label, step.Detail, command)
-		} else {
-			fmt.Fprintf(out, "- %s: %s\n", step.Label, step.Detail)
-		}
-	}
-	if command := FirstRunGuidanceCommand(plan.NextCommand); command != "" {
-		fmt.Fprintf(out, "Next: %s\n", command)
-	}
-	fmt.Fprintln(out, "Non-interactive mode will not prompt.")
+	firstrun.PrintGuidance(out, plan)
 }
 
 // FirstRunGuidanceCommand normalizes a setup command for guidance output.
-func FirstRunGuidanceCommand(command string) string { return strings.TrimSpace(command) }
+func FirstRunGuidanceCommand(command string) string { return firstrun.GuidanceCommand(command) }
 
 // DetectHermesMigrationSource returns a local Hermes source path when present.
-func DetectHermesMigrationSource() string {
-	if path := ExistingDir(strings.TrimSpace(os.Getenv("HERMES_HOME"))); path != "" {
-		return path
-	}
-	home := strings.TrimSpace(os.Getenv("HOME"))
-	if home != "" {
-		if path := ExistingDir(filepath.Join(home, ".hermes")); path != "" {
-			return path
-		}
-	}
-	return ""
-}
+func DetectHermesMigrationSource() string { return firstrun.DetectHermesMigrationSource() }
 
 // DetectOpenClawMigrationSource returns a local OpenClaw source path when present.
-func DetectOpenClawMigrationSource() string {
-	home := strings.TrimSpace(os.Getenv("HOME"))
-	if home == "" {
-		return ""
-	}
-	for _, name := range []string{".openclaw", ".clawdbot", ".moltbot"} {
-		if path := ExistingDir(filepath.Join(home, name)); path != "" {
-			return path
-		}
-	}
-	return ""
-}
+func DetectOpenClawMigrationSource() string { return firstrun.DetectOpenClawMigrationSource() }
 
 // ExistingDir returns path when it exists and is a directory.
-func ExistingDir(path string) string {
-	if strings.TrimSpace(path) == "" {
-		return ""
-	}
-	info, err := os.Stat(path)
-	if err != nil || !info.IsDir() {
-		return ""
-	}
-	return path
-}
+func ExistingDir(path string) string { return firstrun.ExistingDir(path) }
 
 // RunResolved starts either the remote SSE-backed TUI or the local Bubble Tea
 // model wired to a kernel and session persistence.
@@ -697,68 +593,17 @@ func openTUISessionMap(cmd *cobra.Command) (session.Map, *session.BoltMap, strin
 }
 
 func redactRuntimeSecretText(text string, secrets ...string) string {
-	redacted := text
-	for _, secret := range secrets {
-		secret = strings.TrimSpace(secret)
-		if secret == "" {
-			continue
-		}
-		redacted = strings.ReplaceAll(redacted, secret, "[REDACTED]")
-	}
-	return redacted
+	return tuistartup.RedactRuntimeSecretText(text, secrets...)
 }
 
 func formatTUIProviderSetupError(detail string, cfg config.Config, providerName, modelName string) string {
-	providerName = strings.TrimSpace(providerName)
-	modelName = strings.TrimSpace(modelName)
-	if modelName == "" {
-		modelName = strings.TrimSpace(cfg.Hermes.Model)
-	}
-	return strings.Join([]string{
-		"Gormes provider setup needed",
-		"",
-		"Startup cannot contact a model because provider settings are incomplete.",
-		"",
-		"Detected:",
-		"  home:     " + config.GormesHome(),
-		"  provider: " + setupDisplayValue(providerName),
-		"  model:    " + setupDisplayValue(modelName),
-		"",
-		"Fix:",
-		"  gormes setup model        choose provider/model defaults",
-		"  gormes setup provider     add endpoint and API key",
-		"  gormes auth add <provider>  add OAuth/API credentials when supported",
-		"",
-		"Smoke test without a provider:",
-		"  gormes --offline",
-		"",
-		"Advanced config/env:",
-		"  hermes.endpoint, hermes.provider, GORMES_ENDPOINT, GORMES_API_KEY",
-		"",
-		"Details:",
-		"  " + friendlyProviderSetupDetail(detail),
-	}, "\n")
+	return tuistartup.FormatProviderSetupError(detail, cfg, providerName, modelName)
 }
 
-func setupDisplayValue(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return "missing"
-	}
-	return value
-}
+func setupDisplayValue(value string) string { return tuistartup.SetupDisplayValue(value) }
 
 func friendlyProviderSetupDetail(detail string) string {
-	detail = strings.TrimSpace(detail)
-	lower := strings.ToLower(detail)
-	switch {
-	case strings.Contains(lower, "endpoint unconfigured and no provider declared"):
-		return "No provider endpoint or credential-backed provider is configured."
-	case strings.Contains(lower, "endpoint unconfigured for provider"):
-		return strings.ReplaceAll(detail, "hermes endpoint", "provider endpoint")
-	default:
-		return strings.ReplaceAll(detail, "hermes endpoint", "provider endpoint")
-	}
+	return tuistartup.FriendlyProviderSetupDetail(detail)
 }
 
 func pinCurrentKanbanBoardDBForChat() func() {

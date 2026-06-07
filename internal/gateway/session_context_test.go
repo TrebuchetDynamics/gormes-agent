@@ -66,7 +66,7 @@ func TestBuildSessionContextPrompt(t *testing.T) {
 		ConnectedPlatforms: []string{"discord", "telegram"},
 	})
 
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"## Current Session Context",
 		"**Source:** telegram chat `42`",
 		"**User ID:** `7`",
@@ -76,11 +76,7 @@ func TestBuildSessionContextPrompt(t *testing.T) {
 		"`local`",
 		"`discord`",
 		"`telegram`",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("prompt missing %q in:\n%s", want, got)
-		}
-	}
+	)
 }
 
 func TestBuildSessionContextPrompt_BlueBubblesGuidanceIncludesShortBubbleHint(t *testing.T) {
@@ -92,17 +88,13 @@ func TestBuildSessionContextPrompt_BlueBubblesGuidanceIncludesShortBubbleHint(t 
 		SessionKey: "bluebubbles:+15555550100",
 		SessionID:  "sess-bb",
 	})
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"**Platform notes:**",
 		"iMessage",
 		"short",
 		"blank line",
 		"1-3 sentences",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("BuildSessionContextPrompt missing %q for bluebubbles platform:\n%s", want, got)
-		}
-	}
+	)
 }
 
 func TestBuildSessionContextPrompt_NonBlueBubblesOmitsPlatformNotes(t *testing.T) {

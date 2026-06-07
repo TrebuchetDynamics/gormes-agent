@@ -79,12 +79,8 @@ func SyncBundledSkillsToProfiles(ctx context.Context, req BundledSkillProfileSyn
 		}
 		summary := SkillProfileSyncSummary{Profile: profile.Name}
 		if strings.TrimSpace(profile.Root) == "" {
-			summary.Failed++
-			report.Evidence = append(report.Evidence, SkillProfileSyncEvidence{
-				Code:    SkillProfileSyncInvalidProfile,
-				Profile: profile.Name,
-				Reason:  "profile root is empty",
-			})
+			summary, evidence := invalidProfileRootSyncResult(profile)
+			report.Evidence = append(report.Evidence, evidence)
 			report.Summaries = append(report.Summaries, summary)
 			continue
 		}
@@ -110,6 +106,14 @@ func SyncBundledSkillsToProfiles(ctx context.Context, req BundledSkillProfileSyn
 	}
 	sortProfileSyncReport(&report)
 	return report, nil
+}
+
+func invalidProfileRootSyncResult(profile SkillProfileRoot) (SkillProfileSyncSummary, SkillProfileSyncEvidence) {
+	return SkillProfileSyncSummary{Profile: profile.Name, Failed: 1}, SkillProfileSyncEvidence{
+		Code:    SkillProfileSyncInvalidProfile,
+		Profile: profile.Name,
+		Reason:  "profile root is empty",
+	}
 }
 
 func bundledSkillsForProfileSync(root string) ([]bundledSkillForProfileSync, error) {
