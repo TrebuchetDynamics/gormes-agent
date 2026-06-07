@@ -280,6 +280,27 @@ func TestSessionSearchToolExecution_RecentPlanExcludesCurrentLineageBeforeSearch
 	}
 }
 
+func TestSessionSearchToolExecution_RecentPlanExcludesCyclicCurrentLineage(t *testing.T) {
+	metas := []session.Metadata{
+		{SessionID: "sess-a", Source: "telegram", ChatID: "42", UserID: "user-juan", ParentSessionID: "sess-b", UpdatedAt: 30},
+		{SessionID: "sess-b", Source: "telegram", ChatID: "42", UserID: "user-juan", ParentSessionID: "sess-a", UpdatedAt: 20},
+		{SessionID: "sess-other", Source: "telegram", ChatID: "42", UserID: "user-juan", UpdatedAt: 10},
+	}
+	filter := memory.SearchFilter{SessionIDs: []string{"sess-a", "sess-b", "sess-other"}}
+
+	plan := newRecentSessionSearchPlan(metas, "sess-a", filter, 2)
+
+	if got := sessionSearchMetadataIDs(plan.CandidateMetadata); !slices.Equal(got, []string{"sess-other"}) {
+		t.Fatalf("candidate metadata IDs = %v, want cyclic current lineage removed before search", got)
+	}
+	if !slices.Equal(plan.Filter.SessionIDs, []string{"sess-other"}) {
+		t.Fatalf("filter session IDs = %v, want constrained to non-lineage candidate metadata", plan.Filter.SessionIDs)
+	}
+	if plan.Evidence == nil || plan.Evidence.Status != "lineage_root_excluded" {
+		t.Fatalf("evidence = %+v, want lineage_root_excluded", plan.Evidence)
+	}
+}
+
 func TestSessionSearchToolExecution_DegradedEvidence(t *testing.T) {
 	t.Run("missing session directory", func(t *testing.T) {
 		store, _ := newSessionSearchFixture(t)
