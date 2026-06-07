@@ -950,9 +950,9 @@ func TestGatewayDiscoverUsageCostDeduplicatesSessionIDByNewestUsage(t *testing.T
 	}
 }
 
-func TestGatewayUsageCostDedupKeepsFirstRowWhenTimestampsTie(t *testing.T) {
+func TestGatewayUsageCostDedupPrefersRicherUsageWhenTimestampsTie(t *testing.T) {
 	now := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
-	flow := evaluateGatewayUsageCostCandidates([]GatewayUsageSession{{
+	for _, sessions := range [][]GatewayUsageSession{{{
 		SessionID: "sess-tie",
 		UpdatedAt: now,
 		TokensIn:  100,
@@ -960,13 +960,23 @@ func TestGatewayUsageCostDedupKeepsFirstRowWhenTimestampsTie(t *testing.T) {
 		SessionID: "sess-tie",
 		UpdatedAt: now,
 		TokensIn:  200,
-	}}, now.Add(-24*time.Hour), GatewayUsagePricing{})
+	}}, {{
+		SessionID: "sess-tie",
+		UpdatedAt: now,
+		TokensIn:  200,
+	}, {
+		SessionID: "sess-tie",
+		UpdatedAt: now,
+		TokensIn:  100,
+	}}} {
+		flow := evaluateGatewayUsageCostCandidates(sessions, now.Add(-24*time.Hour), GatewayUsagePricing{})
 
-	if got := len(flow.Accepted); got != 1 {
-		t.Fatalf("Accepted len = %d, want 1; flow=%+v", got, flow)
-	}
-	if flow.Accepted[0].TokensIn != 100 {
-		t.Fatalf("Accepted[0] = %+v, want first same-timestamp row preserved", flow.Accepted[0])
+		if got := len(flow.Accepted); got != 1 {
+			t.Fatalf("Accepted len = %d, want 1; flow=%+v", got, flow)
+		}
+		if flow.Accepted[0].TokensIn != 200 {
+			t.Fatalf("Accepted[0] = %+v, want same-timestamp row with richer usage independent of input order", flow.Accepted[0])
+		}
 	}
 }
 

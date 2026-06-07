@@ -1495,17 +1495,23 @@ func chooseGatewayUsageCostDedupRow(candidate, current GatewayUsageCostSession, 
 	if !exists {
 		return true
 	}
-	return newerGatewayUsageCostRow(candidate, current)
+	return betterGatewayUsageCostDedupRow(candidate, current)
 }
 
-func newerGatewayUsageCostRow(candidate, current GatewayUsageCostSession) bool {
-	if candidate.UpdatedAt.IsZero() {
-		return false
+func betterGatewayUsageCostDedupRow(candidate, current GatewayUsageCostSession) bool {
+	if !candidate.UpdatedAt.Equal(current.UpdatedAt) {
+		if candidate.UpdatedAt.IsZero() {
+			return false
+		}
+		if current.UpdatedAt.IsZero() {
+			return true
+		}
+		return candidate.UpdatedAt.After(current.UpdatedAt)
 	}
-	if current.UpdatedAt.IsZero() {
-		return true
+	if candidate.TotalTokens != current.TotalTokens {
+		return candidate.TotalTokens > current.TotalTokens
 	}
-	return candidate.UpdatedAt.After(current.UpdatedAt)
+	return false
 }
 
 func normalizeGatewayUsagePricing(pricing GatewayUsagePricing) GatewayUsagePricing {
