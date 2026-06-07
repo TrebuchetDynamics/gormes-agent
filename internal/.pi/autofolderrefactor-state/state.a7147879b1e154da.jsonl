@@ -86,3 +86,4 @@
 {"ts":"2026-06-06T21:29:06-06:00","candidate":"planning/progress/repoctl","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:29:06-06:00"}
 {"ts":"2026-06-06T21:32:03-06:00","candidate":"planning/progress/repoctl/inventory","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:32:03-06:00"}
 {"ts":"2026-06-06T21:35:54-06:00","candidate":"kernel","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T23:35:54-06:00"}
+{"ts":"2026-06-06T21:41:30-06:00","candidate":"planning/progress/ctl","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:41:30-06:00"}
