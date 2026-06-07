@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -633,6 +634,17 @@ func TestFindDockerExecutable(t *testing.T) {
 	// Should return the override even if it doesn't exist
 	if path != "/usr/bin/docker" {
 		t.Errorf("expected /usr/bin/docker, got %s", path)
+	}
+}
+
+func TestSelectDockerExecutableHonorsExplicitOverrideWithoutStat(t *testing.T) {
+	override := filepath.Join(t.TempDir(), "missing-docker")
+	got := selectDockerExecutable(override,
+		func(string) (os.FileInfo, error) { return nil, os.ErrNotExist },
+		func(string) (string, error) { return "", errors.New("unexpected PATH lookup") },
+	)
+	if got != override {
+		t.Fatalf("selectDockerExecutable override = %q, want %q", got, override)
 	}
 }
 

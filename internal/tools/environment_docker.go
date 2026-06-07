@@ -401,10 +401,15 @@ func (p *DockerProvider) Create(ctx context.Context, config DockerConfig) (Envir
 
 // findDockerExecutable finds the docker executable path.
 func findDockerExecutable(override string) string {
+	return selectDockerExecutable(override, os.Stat, exec.LookPath)
+}
+
+type fileStatFunc func(string) (os.FileInfo, error)
+type lookPathFunc func(string) (string, error)
+
+func selectDockerExecutable(override string, stat fileStatFunc, lookPath lookPathFunc) string {
 	if override != "" {
-		if _, err := os.Stat(override); err == nil {
-			return override
-		}
+		return override
 	}
 
 	// Check PATH
@@ -416,16 +421,16 @@ func findDockerExecutable(override string) string {
 	}
 
 	for _, p := range paths {
-		if _, err := os.Stat(p); err == nil {
+		if _, err := stat(p); err == nil {
 			return p
 		}
 	}
 
 	// Fall back to whatever is in PATH
-	if p, err := exec.LookPath("docker"); err == nil {
+	if p, err := lookPath("docker"); err == nil {
 		return p
 	}
-	if p, err := exec.LookPath("podman"); err == nil {
+	if p, err := lookPath("podman"); err == nil {
 		return p
 	}
 
