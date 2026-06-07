@@ -46,7 +46,7 @@ func NewEnvPassthroughRegistry(configured []string) *EnvPassthroughRegistry {
 	r := &EnvPassthroughRegistry{
 		registered: map[string]struct{}{},
 		configured: map[string]struct{}{},
-		blocklist:  ProviderCredentialEnvBlocklist,
+		blocklist:  cloneEnvNameSet(ProviderCredentialEnvBlocklist),
 	}
 	for _, raw := range configured {
 		candidate := classifyEnvPassthroughCandidate(raw, r.blocklist)
@@ -165,4 +165,12 @@ func isProviderCredentialName(name string, blocklist map[string]struct{}) bool {
 	}
 	_, ok := blocklist[strings.ToUpper(name)]
 	return ok
+}
+
+func cloneEnvNameSet(in map[string]struct{}) map[string]struct{} {
+	out := make(map[string]struct{}, len(in))
+	for name := range in {
+		out[name] = struct{}{}
+	}
+	return out
 }

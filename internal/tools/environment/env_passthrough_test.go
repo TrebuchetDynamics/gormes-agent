@@ -99,3 +99,22 @@ func TestEnvPassthroughRegistryBlocksProviderCredentialsCaseInsensitively(t *tes
 		t.Fatalf("All = %#v, want %#v", gotAll, wantAll)
 	}
 }
+
+func TestEnvPassthroughRegistrySnapshotsProviderCredentialBlocklist(t *testing.T) {
+	registry := NewEnvPassthroughRegistry(nil)
+
+	ProviderCredentialEnvBlocklist["TEST_ONLY_PROVIDER_SECRET"] = struct{}{}
+	defer delete(ProviderCredentialEnvBlocklist, "TEST_ONLY_PROVIDER_SECRET")
+
+	if blocked := registry.Register([]string{"TEST_ONLY_PROVIDER_SECRET"}); len(blocked) != 0 {
+		t.Fatalf("existing registry should not inherit later global blocklist mutations: %#v", blocked)
+	}
+	if !registry.IsAllowed("TEST_ONLY_PROVIDER_SECRET") {
+		t.Fatal("existing registry should keep the construction-time blocklist snapshot")
+	}
+
+	fresh := NewEnvPassthroughRegistry(nil)
+	if blocked := fresh.Register([]string{"TEST_ONLY_PROVIDER_SECRET"}); !reflect.DeepEqual(blocked, []string{"TEST_ONLY_PROVIDER_SECRET"}) {
+		t.Fatalf("fresh registry should see current blocklist, blocked = %#v", blocked)
+	}
+}
