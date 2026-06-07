@@ -186,14 +186,22 @@ func isProviderCredentialName(name string, blocklist map[string]struct{}) bool {
 	if blocklist == nil {
 		return false
 	}
-	_, ok := blocklist[strings.ToUpper(name)]
+	_, ok := blocklist[canonicalProviderCredentialName(name)]
 	return ok
 }
 
 func cloneEnvNameSet(in map[string]struct{}) map[string]struct{} {
 	out := make(map[string]struct{}, len(in))
 	for name := range in {
-		out[name] = struct{}{}
+		canonical := canonicalProviderCredentialName(name)
+		if canonical == "" {
+			continue
+		}
+		out[canonical] = struct{}{}
 	}
 	return out
+}
+
+func canonicalProviderCredentialName(name string) string {
+	return strings.ToUpper(strings.TrimSpace(name))
 }

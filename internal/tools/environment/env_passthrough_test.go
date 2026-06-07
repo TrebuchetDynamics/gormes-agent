@@ -118,3 +118,19 @@ func TestEnvPassthroughRegistrySnapshotsProviderCredentialBlocklist(t *testing.T
 		t.Fatalf("fresh registry should see current blocklist, blocked = %#v", blocked)
 	}
 }
+
+func TestEnvPassthroughRegistryCanonicalizesCustomBlocklistEntries(t *testing.T) {
+	ProviderCredentialEnvBlocklist[" custom_provider_token "] = struct{}{}
+	defer delete(ProviderCredentialEnvBlocklist, " custom_provider_token ")
+
+	registry := NewEnvPassthroughRegistry([]string{"CUSTOM_PROVIDER_TOKEN"})
+	if registry.IsAllowed("CUSTOM_PROVIDER_TOKEN") {
+		t.Fatal("configured allowlist should not bypass custom provider credentials with noncanonical blocklist spelling")
+	}
+
+	blocked := registry.Register([]string{"custom_provider_token"})
+	wantBlocked := []string{"custom_provider_token"}
+	if !reflect.DeepEqual(blocked, wantBlocked) {
+		t.Fatalf("blocked = %#v, want %#v", blocked, wantBlocked)
+	}
+}
