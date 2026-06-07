@@ -67,7 +67,7 @@ func TestRenderFaceTickerNormalizesStateWhitespace(t *testing.T) {
 
 func TestRenderFaceTickerNegativeFramesWrapCycle(t *testing.T) {
 	got := RenderFaceTicker("idle", -1)
-	want := RenderFaceTicker("idle", len(faceTickerIndicators)-1)
+	want := RenderFaceTicker("idle", 5)
 	if got != want {
 		t.Fatalf("RenderFaceTicker negative frame did not wrap: got %q, want %q", got, want)
 	}
