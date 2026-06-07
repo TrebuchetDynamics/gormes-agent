@@ -6,13 +6,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel/testfixtures"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
 func TestKernel_InjectsPerEventSessionContextBeforeRecallAndUser(t *testing.T) {
-	rec := &mockRecall{returnContent: "<memory-context>MEMORY BLOCK</memory-context>"}
+	rec := &testfixtures.RecallProvider{ReturnContent: "<memory-context>MEMORY BLOCK</memory-context>"}
 	mc := llm.NewMockClient()
 	mc.Script([]llm.Event{
 		{Kind: llm.EventDone, FinishReason: "stop"},

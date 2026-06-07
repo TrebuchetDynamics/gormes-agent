@@ -6,34 +6,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel/testfixtures"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
-// mockRecall implements RecallProvider for kernel-level tests.
-type mockRecall struct {
-	returnContent string
-	delay         time.Duration
-	calls         int
-	lastInput     RecallParams
-}
-
-func (m *mockRecall) GetContext(ctx context.Context, p RecallParams) string {
-	m.calls++
-	m.lastInput = p
-	if m.delay > 0 {
-		select {
-		case <-time.After(m.delay):
-		case <-ctx.Done():
-			return "" // honor the kernel's deadline cutoff
-		}
-	}
-	return m.returnContent
-}
-
 func TestKernel_InjectsMemoryContextWhenRecallNonNil(t *testing.T) {
-	rec := &mockRecall{returnContent: "<memory-context>MEMORY BLOCK HERE</memory-context>"}
+	rec := &testfixtures.RecallProvider{ReturnContent: "<memory-context>MEMORY BLOCK HERE</memory-context>"}
 	mc := llm.NewMockClient()
 	mc.Script([]llm.Event{
 		{Kind: llm.EventDone, FinishReason: "stop"},
@@ -75,11 +55,11 @@ func TestKernel_InjectsMemoryContextWhenRecallNonNil(t *testing.T) {
 		t.Errorf("Messages[1] = %+v, want user/'tell me about Acme'", req.Messages[1])
 	}
 
-	if rec.lastInput.UserMessage != "tell me about Acme" {
-		t.Errorf("recall received UserMessage = %q", rec.lastInput.UserMessage)
+	if rec.LastInput.UserMessage != "tell me about Acme" {
+		t.Errorf("recall received UserMessage = %q", rec.LastInput.UserMessage)
 	}
-	if rec.lastInput.ChatKey != "telegram:42" {
-		t.Errorf("recall received ChatKey = %q", rec.lastInput.ChatKey)
+	if rec.LastInput.ChatKey != "telegram:42" {
+		t.Errorf("recall received ChatKey = %q", rec.LastInput.ChatKey)
 	}
 }
 
@@ -113,9 +93,9 @@ func TestKernel_NoRecallWhenProviderNil(t *testing.T) {
 }
 
 func TestKernel_RecallTimeoutFallsThrough(t *testing.T) {
-	rec := &mockRecall{
-		returnContent: "<memory-context>SLOW</memory-context>",
-		delay:         500 * time.Millisecond,
+	rec := &testfixtures.RecallProvider{
+		ReturnContent: "<memory-context>SLOW</memory-context>",
+		Delay:         500 * time.Millisecond,
 	}
 	mc := llm.NewMockClient()
 	mc.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "sess-recall-timeout")
@@ -148,7 +128,7 @@ func TestKernel_RecallTimeoutFallsThrough(t *testing.T) {
 }
 
 func TestKernel_RecallEmptyStringNotInjected(t *testing.T) {
-	rec := &mockRecall{returnContent: ""} // empty = nothing to inject
+	rec := &testfixtures.RecallProvider{ReturnContent: ""} // empty = nothing to inject
 	mc := llm.NewMockClient()
 	mc.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "sess-empty-recall")
 
@@ -172,7 +152,7 @@ func TestKernel_RecallEmptyStringNotInjected(t *testing.T) {
 	if len(reqs[0].Messages) != 1 {
 		t.Errorf("len(Messages) = %d, want 1 (empty recall)", len(reqs[0].Messages))
 	}
-	if rec.calls != 1 {
-		t.Errorf("recall.calls = %d, want 1 (should still be invoked)", rec.calls)
+	if rec.Calls != 1 {
+		t.Errorf("recall.calls = %d, want 1 (should still be invoked)", rec.Calls)
 	}
 }
