@@ -390,6 +390,27 @@ Gormes\032Gateway._openclaw-gw._tcp.local. can be reached at workstation.local.:
 	}
 }
 
+func TestParseDNSSDResolveGatewayKeepsMultipleResolvedAddresses(t *testing.T) {
+	stdout := `Lookup Gormes Gateway._openclaw-gw._tcp.local.
+Gormes Gateway._openclaw-gw._tcp.local. can be reached at workstation.local.:18789 (interface 4)
+Gormes Gateway._openclaw-gw._tcp.local. can be reached at 192.0.2.10:18789 (interface 4)
+ "displayName=Juan Gateway"
+`
+
+	endpoints := parseDNSSDResolveGateway(stdout, "Gormes Gateway")
+	if len(endpoints) != 2 {
+		t.Fatalf("endpoints = %+v, want both resolved gateway addresses", endpoints)
+	}
+	if endpoints[0].Address != "workstation.local" || endpoints[1].Address != "192.0.2.10" {
+		t.Fatalf("addresses = %q, %q; want resolved addresses in DNS-SD order", endpoints[0].Address, endpoints[1].Address)
+	}
+	for _, endpoint := range endpoints {
+		if endpoint.TXT["displayName"] != "Juan Gateway" {
+			t.Fatalf("endpoint = %+v, want shared TXT metadata on each resolved address", endpoint)
+		}
+	}
+}
+
 func TestParseDNSSDResolveGatewayDropsAmbiguousUnbracketedIPv6HostPort(t *testing.T) {
 	stdout := `Lookup Gormes Gateway._openclaw-gw._tcp.local.
 Gormes Gateway._openclaw-gw._tcp.local. can be reached at fe80::1:18789 (interface 4)

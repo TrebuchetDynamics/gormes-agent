@@ -589,31 +589,38 @@ func trimDNSSDBrowseServiceDomain(instance string) string {
 
 func parseDNSSDResolveGateway(stdout string, instance string) []GatewayEndpoint {
 	var (
-		address string
-		port    int
-		txt     = map[string]string{}
+		resolved []GatewayEndpoint
+		txt      = map[string]string{}
 	)
 	for _, raw := range strings.Split(stdout, "\n") {
 		line := strings.TrimSpace(raw)
 		if endpoint, ok := parseDNSSDReachedAtEndpoint(line); ok {
-			address, port = endpoint.Address, endpoint.Port
+			resolved = append(resolved, endpoint)
 			continue
 		}
 		for key, value := range parseGatewayTXTLine(line) {
 			txt[key] = value
 		}
 	}
-	if address == "" || port == 0 {
+	if len(resolved) == 0 {
 		return nil
 	}
-	return []GatewayEndpoint{NormalizeGatewayEndpoint(GatewayEndpoint{
+	endpoints := make([]GatewayEndpoint, 0, len(resolved))
+	for _, endpoint := range resolved {
+		endpoints = append(endpoints, buildDNSSDResolvedGatewayEndpoint(instance, endpoint, txt))
+	}
+	return endpoints
+}
+
+func buildDNSSDResolvedGatewayEndpoint(instance string, endpoint GatewayEndpoint, txt map[string]string) GatewayEndpoint {
+	return NormalizeGatewayEndpoint(GatewayEndpoint{
 		InstanceName: decodeDNSSDText(instance),
-		Address:      address,
-		Port:         port,
+		Address:      endpoint.Address,
+		Port:         endpoint.Port,
 		Source:       GatewayEndpointSourceBonjour,
 		Domain:       "local.",
 		TXT:          txt,
-	})}
+	})
 }
 
 func parseDNSSDReachedAtEndpoint(line string) (GatewayEndpoint, bool) {
