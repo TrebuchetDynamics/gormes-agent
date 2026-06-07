@@ -1,4 +1,4 @@
-package repoctl
+package inventory
 
 import (
 	"os"
@@ -27,7 +27,7 @@ func TestHermesContractInventoryClassifiesPluginCatalogFamilies(t *testing.T) {
 	}
 
 	families := result.Report.PluginCatalog
-	if got, want := pluginCatalogFamilyIDs(families), []string{
+	if got, want := catalogFamilyIDs(families), []string{
 		"browser_web_search",
 		"dashboard_observability",
 		"google_meet",
@@ -41,35 +41,35 @@ func TestHermesContractInventoryClassifiesPluginCatalogFamilies(t *testing.T) {
 		t.Fatalf("plugin family ids = %v, want %v", got, want)
 	}
 
-	googleMeet := pluginCatalogFamilyByID(t, families, "google_meet")
+	googleMeet := catalogFamilyByID(t, families, "google_meet", "plugin catalog")
 	if googleMeet.Status != fidelity.StatusCovered || googleMeet.Count == 0 {
 		t.Fatalf("google_meet family = %+v, want covered with examples", googleMeet)
 	}
-	if !containsPluginCatalogString(googleMeet.Examples, "plugins/google_meet/meet_bot.py") {
+	if !containsString(googleMeet.Examples, "plugins/google_meet/meet_bot.py") {
 		t.Fatalf("google_meet examples = %v, want meet_bot.py", googleMeet.Examples)
 	}
-	if !containsPluginCatalogProgressRow(googleMeet.ProgressRows, "Google Meet plugin metadata") {
+	if !containsProgressRow(googleMeet.ProgressRows, "Google Meet plugin metadata") {
 		t.Fatalf("google_meet progress rows = %+v, want Google Meet plugin metadata", googleMeet.ProgressRows)
 	}
-	if !containsPluginCatalogSourcePair(googleMeet.SourcePairs, "plugins/google_meet/plugin.yaml") {
+	if !containsSourcePair(googleMeet.SourcePairs, "plugins/google_meet/plugin.yaml") {
 		t.Fatalf("google_meet source pairs = %+v, want plugin.yaml", googleMeet.SourcePairs)
 	}
 
-	media := pluginCatalogFamilyByID(t, families, "image_video_generation")
+	media := catalogFamilyByID(t, families, "image_video_generation", "plugin catalog")
 	if media.Status != fidelity.StatusPlanned {
 		t.Fatalf("image/video family status = %q, want planned", media.Status)
 	}
 	for _, want := range []string{"plugins/image_gen/openai-codex/plugin.yaml", "plugins/video_gen/fal/plugin.yaml"} {
-		if !containsPluginCatalogString(media.Examples, want) {
+		if !containsString(media.Examples, want) {
 			t.Fatalf("image/video examples = %v, want %s", media.Examples, want)
 		}
 	}
 
-	dashboard := pluginCatalogFamilyByID(t, families, "dashboard_observability")
+	dashboard := catalogFamilyByID(t, families, "dashboard_observability", "plugin catalog")
 	if dashboard.Status != fidelity.StatusOwnedDivergence {
 		t.Fatalf("dashboard family status = %q, want owned_divergence", dashboard.Status)
 	}
-	if !containsPluginCatalogString(dashboard.Examples, "plugins/example-dashboard/dashboard/manifest.json") {
+	if !containsString(dashboard.Examples, "plugins/example-dashboard/dashboard/manifest.json") {
 		t.Fatalf("dashboard examples = %v, want dashboard manifest", dashboard.Examples)
 	}
 
@@ -175,15 +175,15 @@ func writePluginCatalogProgress(t *testing.T, root string) {
 					"1.A": {
 						Name: "Plugin catalog",
 						Items: []progress.Item{
-							pluginCatalogProgressItem("Google Meet plugin metadata", progress.StatusComplete, progress.ContractStatusValidated, "plugins", "hermes-agent/plugins/google_meet/plugin.yaml", "go test ./internal/plugins -run TestGoogleMeetPluginMetadata -count=1"),
-							pluginCatalogProgressItem("Dashboard plugin slots", progress.StatusComplete, progress.ContractStatusValidated, "plugins", "hermes-agent/plugins/example-dashboard/dashboard/manifest.json", "go test ./internal/plugins -run TestLoadDirParsesManifestDashboardCapabilitiesAndRequirements -count=1"),
-							pluginCatalogProgressItem("Provider plugin catalog parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "providers", "hermes-agent/plugins/model-providers/openrouter/plugin.yaml", "go test ./internal/provider -run TestProviderPluginCatalog -count=1"),
-							pluginCatalogProgressItem("Memory provider plugin catalog parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "memory", "hermes-agent/plugins/memory/honcho/plugin.yaml", "go test ./internal/memory -run TestMemoryPluginCatalog -count=1"),
-							pluginCatalogProgressItem("Browser and web plugin catalog parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "browser", "hermes-agent/plugins/browser/browser_use/provider.py", "go test ./internal/tools -run TestBrowserPluginCatalog -count=1"),
-							pluginCatalogProgressItem("Gateway platform plugin catalog parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "channels", "hermes-agent/plugins/platforms/simplex/adapter.py", "go test ./internal/gateway -run TestPlatformPluginCatalog -count=1"),
-							pluginCatalogProgressItem("Spotify plugin catalog parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "plugins", "hermes-agent/plugins/spotify/plugin.yaml", "go test ./internal/plugins -run TestSpotifyPluginMetadata -count=1"),
-							pluginCatalogProgressItem("Teams pipeline plugin catalog parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "plugins", "hermes-agent/plugins/teams_pipeline/plugin.yaml", "go test ./internal/plugins -run TestTeamsPipelinePluginMetadata -count=1"),
-							pluginCatalogProgressItem("Image and video plugin catalog parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "plugins", "hermes-agent/plugins/image_gen/openai-codex/plugin.yaml", "go test ./internal/plugins -run TestMediaPluginCatalog -count=1"),
+							catalogProgressItem("Google Meet plugin metadata", progress.StatusComplete, progress.ContractStatusValidated, "plugins", "hermes-agent/plugins/google_meet/plugin.yaml", "go test ./internal/plugins -run TestGoogleMeetPluginMetadata -count=1"),
+							catalogProgressItem("Dashboard plugin slots", progress.StatusComplete, progress.ContractStatusValidated, "plugins", "hermes-agent/plugins/example-dashboard/dashboard/manifest.json", "go test ./internal/plugins -run TestLoadDirParsesManifestDashboardCapabilitiesAndRequirements -count=1"),
+							catalogProgressItem("Provider plugin catalog parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "providers", "hermes-agent/plugins/model-providers/openrouter/plugin.yaml", "go test ./internal/provider -run TestProviderPluginCatalog -count=1"),
+							catalogProgressItem("Memory provider plugin catalog parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "memory", "hermes-agent/plugins/memory/honcho/plugin.yaml", "go test ./internal/memory -run TestMemoryPluginCatalog -count=1"),
+							catalogProgressItem("Browser and web plugin catalog parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "browser", "hermes-agent/plugins/browser/browser_use/provider.py", "go test ./internal/tools -run TestBrowserPluginCatalog -count=1"),
+							catalogProgressItem("Gateway platform plugin catalog parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "channels", "hermes-agent/plugins/platforms/simplex/adapter.py", "go test ./internal/gateway -run TestPlatformPluginCatalog -count=1"),
+							catalogProgressItem("Spotify plugin catalog parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "plugins", "hermes-agent/plugins/spotify/plugin.yaml", "go test ./internal/plugins -run TestSpotifyPluginMetadata -count=1"),
+							catalogProgressItem("Teams pipeline plugin catalog parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "plugins", "hermes-agent/plugins/teams_pipeline/plugin.yaml", "go test ./internal/plugins -run TestTeamsPipelinePluginMetadata -count=1"),
+							catalogProgressItem("Image and video plugin catalog parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "plugins", "hermes-agent/plugins/image_gen/openai-codex/plugin.yaml", "go test ./internal/plugins -run TestMediaPluginCatalog -count=1"),
 						},
 					},
 				},
@@ -193,63 +193,4 @@ func writePluginCatalogProgress(t *testing.T, root string) {
 	if err := progress.SaveProgress(path, p); err != nil {
 		t.Fatalf("write progress fixture: %v", err)
 	}
-}
-
-func pluginCatalogProgressItem(name string, status progress.Status, contractStatus progress.ContractStatus, module, sourceRef, testCommand string) progress.Item {
-	return progress.Item{
-		Name:           name,
-		Priority:       "P1",
-		Status:         status,
-		ContractStatus: contractStatus,
-		Module:         module,
-		Contract:       name + " contract.",
-		SourceRefs:     []string{sourceRef},
-		TestCommands:   []string{testCommand},
-	}
-}
-
-func pluginCatalogFamilyIDs(families []fidelity.CatalogFamilyReport) []string {
-	ids := make([]string, 0, len(families))
-	for _, family := range families {
-		ids = append(ids, family.ID)
-	}
-	return ids
-}
-
-func pluginCatalogFamilyByID(t *testing.T, families []fidelity.CatalogFamilyReport, id string) fidelity.CatalogFamilyReport {
-	t.Helper()
-	for _, family := range families {
-		if family.ID == id {
-			return family
-		}
-	}
-	t.Fatalf("plugin catalog family %q missing from %+v", id, families)
-	return fidelity.CatalogFamilyReport{}
-}
-
-func containsPluginCatalogString(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
-}
-
-func containsPluginCatalogProgressRow(rows []fidelity.ProgressRowEvidence, want string) bool {
-	for _, row := range rows {
-		if row.Name == want {
-			return true
-		}
-	}
-	return false
-}
-
-func containsPluginCatalogSourcePair(pairs []fidelity.SourcePairEvidence, want string) bool {
-	for _, pair := range pairs {
-		if pair.HermesFile == want {
-			return true
-		}
-	}
-	return false
 }

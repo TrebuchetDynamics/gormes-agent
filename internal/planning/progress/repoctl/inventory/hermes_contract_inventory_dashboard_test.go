@@ -1,4 +1,4 @@
-package repoctl
+package inventory
 
 import (
 	"os"
@@ -27,7 +27,7 @@ func TestHermesContractInventoryClassifiesWebDashboardSurface(t *testing.T) {
 	}
 
 	families := result.Report.WebDashboardCatalog
-	if got, want := dashboardFamilyIDs(families), []string{
+	if got, want := catalogFamilyIDs(families), []string{
 		"cron_admin_jobs",
 		"gateway_client_events",
 		"i18n_catalog",
@@ -42,64 +42,64 @@ func TestHermesContractInventoryClassifiesWebDashboardSurface(t *testing.T) {
 		t.Fatalf("web dashboard family ids = %v, want %v", got, want)
 	}
 
-	gateway := dashboardFamilyByID(t, families, "gateway_client_events")
+	gateway := catalogFamilyByID(t, families, "gateway_client_events", "web dashboard")
 	if gateway.Status != fidelity.StatusCovered || gateway.Count == 0 {
 		t.Fatalf("gateway client family = %+v, want covered with examples", gateway)
 	}
-	if !containsDashboardString(gateway.Examples, "web/src/lib/gatewayClient.ts") {
+	if !containsString(gateway.Examples, "web/src/lib/gatewayClient.ts") {
 		t.Fatalf("gateway client examples = %v, want gatewayClient.ts", gateway.Examples)
 	}
-	if !containsDashboardProgressRow(gateway.ProgressRows, "TUI gateway dashboard client events") {
+	if !containsProgressRow(gateway.ProgressRows, "TUI gateway dashboard client events") {
 		t.Fatalf("gateway client progress rows = %+v, want TUI gateway row", gateway.ProgressRows)
 	}
-	if !containsDashboardSourcePair(gateway.SourcePairs, "web/src/lib/gatewayClient.ts") {
+	if !containsSourcePair(gateway.SourcePairs, "web/src/lib/gatewayClient.ts") {
 		t.Fatalf("gateway client source pairs = %+v, want gatewayClient.ts", gateway.SourcePairs)
 	}
 
-	plugins := dashboardFamilyByID(t, families, "plugin_pages_slots")
+	plugins := catalogFamilyByID(t, families, "plugin_pages_slots", "web dashboard")
 	if plugins.Status != fidelity.StatusCovered {
 		t.Fatalf("plugin pages status = %q, want covered", plugins.Status)
 	}
 	for _, want := range []string{"web/src/pages/PluginsPage.tsx", "web/src/plugins/slots.ts", "web/src/plugins/registry.ts"} {
-		if !containsDashboardString(plugins.Examples, want) {
+		if !containsString(plugins.Examples, want) {
 			t.Fatalf("plugin page examples = %v, want %s", plugins.Examples, want)
 		}
 	}
 
-	cron := dashboardFamilyByID(t, families, "cron_admin_jobs")
+	cron := catalogFamilyByID(t, families, "cron_admin_jobs", "web dashboard")
 	if cron.Status != fidelity.StatusCovered {
 		t.Fatalf("cron/admin status = %q, want covered", cron.Status)
 	}
-	if !containsDashboardString(cron.Examples, "web/src/pages/CronPage.tsx") {
+	if !containsString(cron.Examples, "web/src/pages/CronPage.tsx") {
 		t.Fatalf("cron examples = %v, want CronPage.tsx", cron.Examples)
 	}
 
-	theme := dashboardFamilyByID(t, families, "theme_system")
+	theme := catalogFamilyByID(t, families, "theme_system", "web dashboard")
 	if theme.Status != fidelity.StatusOwnedDivergence {
 		t.Fatalf("theme status = %q, want owned_divergence", theme.Status)
 	}
 	for _, want := range []string{"web/src/themes/context.tsx", "web/src/themes/presets.ts", "web/src/components/ThemeSwitcher.tsx"} {
-		if !containsDashboardString(theme.Examples, want) {
+		if !containsString(theme.Examples, want) {
 			t.Fatalf("theme examples = %v, want %s", theme.Examples, want)
 		}
 	}
 
-	oauth := dashboardFamilyByID(t, families, "oauth_provider_panels")
+	oauth := catalogFamilyByID(t, families, "oauth_provider_panels", "web dashboard")
 	if oauth.Status != fidelity.StatusPlanned {
 		t.Fatalf("oauth/provider panel status = %q, want planned", oauth.Status)
 	}
 	for _, want := range []string{"web/src/components/OAuthProvidersCard.tsx", "web/src/components/OAuthLoginModal.tsx"} {
-		if !containsDashboardString(oauth.Examples, want) {
+		if !containsString(oauth.Examples, want) {
 			t.Fatalf("oauth examples = %v, want %s", oauth.Examples, want)
 		}
 	}
 
-	chat := dashboardFamilyByID(t, families, "terminal_chat_pty")
+	chat := catalogFamilyByID(t, families, "terminal_chat_pty", "web dashboard")
 	if chat.Status != fidelity.StatusPlanned {
 		t.Fatalf("terminal chat status = %q, want planned", chat.Status)
 	}
 	for _, want := range []string{"web/src/pages/ChatPage.tsx", "web/src/components/ToolCall.tsx", "web/src/components/SlashPopover.tsx"} {
-		if !containsDashboardString(chat.Examples, want) {
+		if !containsString(chat.Examples, want) {
 			t.Fatalf("chat examples = %v, want %s", chat.Examples, want)
 		}
 	}
@@ -266,16 +266,16 @@ func writeDashboardProgress(t *testing.T, root string) {
 					"1.A": {
 						Name: "Web dashboard",
 						Items: []progress.Item{
-							dashboardProgressItem("TUI gateway dashboard client events", progress.StatusComplete, progress.ContractStatusValidated, "gateway", "hermes-agent/web/src/lib/gatewayClient.ts", "go test ./internal/tuigateway -run TestGatewayMuxWebSocket_SessionSubmitAndFrameEvent -count=1"),
-							dashboardProgressItem("Dashboard sessions endpoint contract", progress.StatusComplete, progress.ContractStatusValidated, "gateway", "hermes-agent/web/src/pages/SessionsPage.tsx", "go test ./internal/apiserver -run TestDashboardContract_CoversNativeDashboardEndpoints -count=1"),
-							dashboardProgressItem("Dashboard page-scoped plugin slots", progress.StatusComplete, progress.ContractStatusValidated, "plugins", "hermes-agent/web/src/plugins/slots.ts", "go test ./internal/apiserver -run TestDashboardPluginsEndpointPreservesPageScopedSlotMetadata -count=1"),
-							dashboardProgressItem("Dashboard cron admin endpoints", progress.StatusComplete, progress.ContractStatusValidated, "gateway", "hermes-agent/web/src/pages/CronPage.tsx", "go test ./internal/apiserver -run TestAPIServerCronAdmin -count=1"),
-							dashboardProgressItem("Dashboard i18n locale catalog", progress.StatusComplete, progress.ContractStatusValidated, "gateway", "hermes-agent/web/src/i18n/context.tsx", "go test ./internal/tui/i18n -count=1"),
-							dashboardProgressItem("Gormes dashboard theme extension status", progress.StatusComplete, progress.ContractStatusValidated, "gateway", "hermes-agent/web/src/themes/context.tsx", "go test ./internal/apiserver -run TestDashboardExtensionStatusDistinguishesThemesPluginsAndBackendRoutes -count=1"),
-							dashboardProgressItem("Dashboard OAuth provider panels", progress.StatusPlanned, progress.ContractStatusFixtureReady, "providers", "hermes-agent/web/src/components/OAuthProvidersCard.tsx", "go test ./internal/apiserver -run TestAPIServerCapabilitiesEndpoint_AdvertisesHermesCompatibleContract -count=1"),
-							dashboardProgressItem("Dashboard terminal chat PTY parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "gateway", "hermes-agent/web/src/pages/ChatPage.tsx", "go test ./internal/apiserver -run TestDashboardContract_CoversNativeDashboardEndpoints -count=1"),
-							dashboardProgressItem("Dashboard model picker dialog parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "gateway", "hermes-agent/web/src/components/ModelPickerDialog.tsx", "go test ./internal/apiserver -run TestAPIServerCapabilitiesEndpoint_AdvertisesHermesCompatibleContract -count=1"),
-							dashboardProgressItem("Dashboard profiles config parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "profiles", "hermes-agent/web/src/pages/ProfilesPage.tsx", "go test ./internal/apiserver -run TestDashboardContract_CoversNativeDashboardEndpoints -count=1"),
+							catalogProgressItem("TUI gateway dashboard client events", progress.StatusComplete, progress.ContractStatusValidated, "gateway", "hermes-agent/web/src/lib/gatewayClient.ts", "go test ./internal/tuigateway -run TestGatewayMuxWebSocket_SessionSubmitAndFrameEvent -count=1"),
+							catalogProgressItem("Dashboard sessions endpoint contract", progress.StatusComplete, progress.ContractStatusValidated, "gateway", "hermes-agent/web/src/pages/SessionsPage.tsx", "go test ./internal/apiserver -run TestDashboardContract_CoversNativeDashboardEndpoints -count=1"),
+							catalogProgressItem("Dashboard page-scoped plugin slots", progress.StatusComplete, progress.ContractStatusValidated, "plugins", "hermes-agent/web/src/plugins/slots.ts", "go test ./internal/apiserver -run TestDashboardPluginsEndpointPreservesPageScopedSlotMetadata -count=1"),
+							catalogProgressItem("Dashboard cron admin endpoints", progress.StatusComplete, progress.ContractStatusValidated, "gateway", "hermes-agent/web/src/pages/CronPage.tsx", "go test ./internal/apiserver -run TestAPIServerCronAdmin -count=1"),
+							catalogProgressItem("Dashboard i18n locale catalog", progress.StatusComplete, progress.ContractStatusValidated, "gateway", "hermes-agent/web/src/i18n/context.tsx", "go test ./internal/tui/i18n -count=1"),
+							catalogProgressItem("Gormes dashboard theme extension status", progress.StatusComplete, progress.ContractStatusValidated, "gateway", "hermes-agent/web/src/themes/context.tsx", "go test ./internal/apiserver -run TestDashboardExtensionStatusDistinguishesThemesPluginsAndBackendRoutes -count=1"),
+							catalogProgressItem("Dashboard OAuth provider panels", progress.StatusPlanned, progress.ContractStatusFixtureReady, "providers", "hermes-agent/web/src/components/OAuthProvidersCard.tsx", "go test ./internal/apiserver -run TestAPIServerCapabilitiesEndpoint_AdvertisesHermesCompatibleContract -count=1"),
+							catalogProgressItem("Dashboard terminal chat PTY parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "gateway", "hermes-agent/web/src/pages/ChatPage.tsx", "go test ./internal/apiserver -run TestDashboardContract_CoversNativeDashboardEndpoints -count=1"),
+							catalogProgressItem("Dashboard model picker dialog parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "gateway", "hermes-agent/web/src/components/ModelPickerDialog.tsx", "go test ./internal/apiserver -run TestAPIServerCapabilitiesEndpoint_AdvertisesHermesCompatibleContract -count=1"),
+							catalogProgressItem("Dashboard profiles config parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "profiles", "hermes-agent/web/src/pages/ProfilesPage.tsx", "go test ./internal/apiserver -run TestDashboardContract_CoversNativeDashboardEndpoints -count=1"),
 						},
 					},
 				},
@@ -285,63 +285,4 @@ func writeDashboardProgress(t *testing.T, root string) {
 	if err := progress.SaveProgress(path, p); err != nil {
 		t.Fatalf("write progress fixture: %v", err)
 	}
-}
-
-func dashboardProgressItem(name string, status progress.Status, contractStatus progress.ContractStatus, module, sourceRef, testCommand string) progress.Item {
-	return progress.Item{
-		Name:           name,
-		Priority:       "P1",
-		Status:         status,
-		ContractStatus: contractStatus,
-		Module:         module,
-		Contract:       name + " contract.",
-		SourceRefs:     []string{sourceRef},
-		TestCommands:   []string{testCommand},
-	}
-}
-
-func dashboardFamilyIDs(families []fidelity.CatalogFamilyReport) []string {
-	ids := make([]string, 0, len(families))
-	for _, family := range families {
-		ids = append(ids, family.ID)
-	}
-	return ids
-}
-
-func dashboardFamilyByID(t *testing.T, families []fidelity.CatalogFamilyReport, id string) fidelity.CatalogFamilyReport {
-	t.Helper()
-	for _, family := range families {
-		if family.ID == id {
-			return family
-		}
-	}
-	t.Fatalf("web dashboard family %q missing from %+v", id, families)
-	return fidelity.CatalogFamilyReport{}
-}
-
-func containsDashboardString(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
-}
-
-func containsDashboardProgressRow(rows []fidelity.ProgressRowEvidence, want string) bool {
-	for _, row := range rows {
-		if row.Name == want {
-			return true
-		}
-	}
-	return false
-}
-
-func containsDashboardSourcePair(pairs []fidelity.SourcePairEvidence, want string) bool {
-	for _, pair := range pairs {
-		if pair.HermesFile == want {
-			return true
-		}
-	}
-	return false
 }

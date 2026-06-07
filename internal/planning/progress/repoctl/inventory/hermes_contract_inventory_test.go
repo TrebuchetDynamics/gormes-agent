@@ -1,4 +1,4 @@
-package repoctl
+package inventory
 
 import (
 	"encoding/json"

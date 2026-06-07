@@ -1,4 +1,4 @@
-package repoctl
+package benchmarks
 
 import (
 	"encoding/json"

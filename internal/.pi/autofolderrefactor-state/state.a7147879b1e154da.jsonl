@@ -75,3 +75,11 @@
 {"ts":"2026-06-06T21:21:06-06:00","candidate":"tui/local/sessionadapters","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:21:06-06:00"}
 {"ts":"2026-06-06T21:21:08-06:00","candidate":"tui/local/preferences","reason":"already clean","scope":"candidate","state":"done"}
 {"ts":"2026-06-06T21:22:17-06:00","candidate":"tui/local/runtime","reason":"no metric progress rollback","scope":"candidate","state":"cooldown","until":"2026-06-06T22:22:17-06:00"}
+{"ts":"2026-06-06T21:23:55-06:00","candidate":"tui/local","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:23:55-06:00"}
+{"ts":"2026-06-06T21:23:56-06:00","candidate":"tui","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T21:26:12-06:00","candidate":"adapters/channels/discord/legacy","reason":"no metric progress rollback","scope":"candidate","state":"cooldown","until":"2026-06-06T22:26:12-06:00"}
+{"ts":"2026-06-06T21:26:13-06:00","candidate":"adapters/channels/discord/messaging","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:26:15-06:00","candidate":"adapters/channels/discord/legacy/runtime","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:26:17-06:00","candidate":"adapters/channels/discord/attachments","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:26:18-06:00","candidate":"adapters/channels/discord/interactions","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:26:20-06:00","candidate":"adapters/channels/discord","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}

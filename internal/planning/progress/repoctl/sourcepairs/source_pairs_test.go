@@ -1,4 +1,4 @@
-package repoctl
+package sourcepairs
 
 import (
 	"os"
