@@ -374,9 +374,10 @@ func safeGitRef(ref string) bool {
 	if ref == "" || filepath.IsAbs(ref) || strings.Contains(ref, "\\") {
 		return false
 	}
-	clean := filepath.Clean(filepath.FromSlash(ref))
-	if clean == "." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) || clean == ".." {
-		return false
+	for _, part := range strings.Split(ref, "/") {
+		if part == "" || part == "." || part == ".." {
+			return false
+		}
 	}
 	return strings.HasPrefix(ref, "refs/")
 }

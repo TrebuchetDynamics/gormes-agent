@@ -98,6 +98,18 @@ func TestStaleCodeGitFixturesResolveHEADWithoutSubprocesses(t *testing.T) {
 	})
 }
 
+func TestStaleCodeUnsafeHeadRefReportsUnavailable(t *testing.T) {
+	root := t.TempDir()
+	stalecodetest.WriteFile(t, filepath.Join(root, ".git", "HEAD"), "ref: refs/heads/../evil\n")
+	stalecodetest.WriteFile(t, filepath.Join(root, ".git", "refs", "evil"), staleCodeSHA1+"\n")
+
+	got := NewStaleCodeChecker(root).Check(staleCodeSHA1)
+	if got.Status != RuntimeStaleCodeGitUnavailable || got.Stale || got.RestartSuggested {
+		t.Fatalf("unsafe ref stale code = %+v, want unavailable without restart", got)
+	}
+	assertStaleCodeEvidence(t, got, "stale_code_git_unavailable")
+}
+
 func TestStaleCodeNonGitReportsUnavailable(t *testing.T) {
 	got := NewStaleCodeChecker(t.TempDir()).Check(staleCodeSHA1)
 	if got.Status != RuntimeStaleCodeGitUnavailable || got.Stale || got.RestartSuggested {
