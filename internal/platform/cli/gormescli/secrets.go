@@ -21,6 +21,7 @@ func NewSecretsCommand(options SecretsOptions) *cobra.Command {
 	cmd.AddCommand(newSecretsAuditCommand(options))
 	cmd.AddCommand(newSecretsConfigureCommand(options))
 	cmd.AddCommand(newSecretsReloadCommand(options))
+	cmd.AddCommand(newSecretsBitwardenCommand(options))
 	return cmd
 }
 
@@ -94,5 +95,68 @@ func newSecretsReloadCommand(options SecretsOptions) *cobra.Command {
 	cmd.Flags().StringVar(&planPath, "plan", "", "JSON plan containing SecretRef targets")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "print machine-readable JSON")
 	_ = cmd.MarkFlagRequired("plan")
+	return cmd
+}
+
+func newSecretsBitwardenCommand(options SecretsOptions) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "bitwarden",
+		Aliases: []string{"bw"},
+		Short:   "Manage Bitwarden Secrets Manager integration",
+		Args:    cobra.NoArgs,
+	}
+	var setupAccessToken string
+	var setupServerURL string
+	var setupProjectID string
+	setupCmd := &cobra.Command{
+		Use:   "setup",
+		Short: "Interactive wizard: install bws, store access token, pick project",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return secretsapp.BitwardenSetup(cmd.Context(), cmd.OutOrStdout(), setupAccessToken, setupServerURL, setupProjectID, options)
+		},
+	}
+	setupCmd.Flags().StringVar(&setupProjectID, "project-id", "", "pre-select a Bitwarden project UUID instead of prompting")
+	setupCmd.Flags().StringVar(&setupAccessToken, "access-token", "", "provide the Bitwarden access token non-interactively (stored in .env)")
+	setupCmd.Flags().StringVar(&setupServerURL, "server-url", "", "Bitwarden region or self-hosted endpoint")
+	cmd.AddCommand(setupCmd)
+	cmd.AddCommand(&cobra.Command{
+		Use:   "status",
+		Short: "Show Bitwarden config, token, and bws binary status without secrets",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return secretsapp.BitwardenStatus(cmd.Context(), cmd.OutOrStdout())
+		},
+	})
+	var apply bool
+	syncCmd := &cobra.Command{
+		Use:   "sync",
+		Short: "Fetch Bitwarden secrets and report dry-run or apply actions",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return secretsapp.BitwardenSync(cmd.Context(), cmd.OutOrStdout(), apply)
+		},
+	}
+	syncCmd.Flags().BoolVar(&apply, "apply", false, "export fetched secrets into the current process")
+	cmd.AddCommand(syncCmd)
+	cmd.AddCommand(&cobra.Command{
+		Use:   "disable",
+		Short: "Disable Bitwarden secret loading while leaving the bootstrap token untouched",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return secretsapp.BitwardenDisable(cmd.Context(), cmd.OutOrStdout())
+		},
+	})
+	var force bool
+	installCmd := &cobra.Command{
+		Use:   "install",
+		Short: "Download and verify the pinned bws binary",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return secretsapp.BitwardenInstall(cmd.Context(), cmd.OutOrStdout(), force, options)
+		},
+	}
+	installCmd.Flags().BoolVar(&force, "force", false, "replace an existing managed bws binary")
+	cmd.AddCommand(installCmd)
 	return cmd
 }

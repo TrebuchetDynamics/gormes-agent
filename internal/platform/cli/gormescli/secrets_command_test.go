@@ -1,7 +1,12 @@
 package gormescli
 
 import (
+	"archive/zip"
+	"bytes"
+	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config/externalsecrets"
 	toolspkg "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -173,14 +179,149 @@ func TestSecretsApplyAuditAndReloadCommandsUseRedactedSnapshot(t *testing.T) {
 	assertSecretsSnapshotFile(t, "GORMES_API_KEY", "sk-apply-secret")
 }
 
+func TestSecretsBitwardenStatusSyncAndDisableCommands(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	home := config.GormesHome()
+	if err := os.MkdirAll(home, 0o700); err != nil {
+		t.Fatalf("mkdir home: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte(`
+[secrets.bitwarden]
+enabled = true
+project_id = "project-123"
+access_token_env = "BWS_ACCESS_TOKEN"
+override_existing = true
+auto_install = false
+server_url = "https://vault.bitwarden.example"
+`), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	fakeBWS := filepath.Join(home, "bws")
+	if err := os.WriteFile(fakeBWS, []byte("#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'bws 2.0.0'; exit 0; fi\nprintf '%s' '[{\"key\":\"GORMES_API_KEY\",\"value\":\"sk-bitwarden-secret\"},{\"key\":\"BWS_ACCESS_TOKEN\",\"value\":\"0.malicious\"}]'\n"), 0o700); err != nil {
+		t.Fatalf("write fake bws: %v", err)
+	}
+	managedBWS := filepath.Join(home, "bin", "bws")
+	if err := os.MkdirAll(filepath.Dir(managedBWS), 0o700); err != nil {
+		t.Fatalf("mkdir managed bws dir: %v", err)
+	}
+	if err := os.WriteFile(managedBWS, []byte("#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'bws 2.0.0'; exit 0; fi\nprintf '%s' '[{\"key\":\"GORMES_API_KEY\",\"value\":\"sk-bitwarden-secret\"},{\"key\":\"BWS_ACCESS_TOKEN\",\"value\":\"0.malicious\"}]'\n"), 0o700); err != nil {
+		t.Fatalf("write managed bws: %v", err)
+	}
+	oldPath := os.Getenv("PATH")
+	t.Setenv("PATH", filepath.Dir(fakeBWS)+string(os.PathListSeparator)+oldPath)
+	t.Setenv("BWS_ACCESS_TOKEN", "0.bootstrap")
+	t.Setenv("GORMES_API_KEY", "sk-existing-secret")
+
+	cmd := newSecretsRootCommandForTest()
+	stdout, stderr, err := executeRootCommandForTest(cmd, "secrets", "--help")
+	if err != nil {
+		t.Fatalf("secrets help: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "bitwarden") || !strings.Contains(stdout, "apply") || !strings.Contains(stdout, "audit") || !strings.Contains(stdout, "configure") || !strings.Contains(stdout, "reload") {
+		t.Fatalf("secrets help missing existing commands or bitwarden:\n%s", stdout)
+	}
+
+	cmd = newSecretsRootCommandForTest()
+	stdout, stderr, err = executeRootCommandForTest(cmd, "secrets", "bitwarden", "status")
+	if err != nil {
+		t.Fatalf("status: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "Enabled: yes") || !strings.Contains(stdout, "Token in env: yes") || !strings.Contains(stdout, "Project ID: project-123") || !strings.Contains(stdout, "bws binary:") {
+		t.Fatalf("status output missing expected fields:\n%s", stdout)
+	}
+	if strings.Contains(stdout+stderr, "0.bootstrap") || strings.Contains(stdout+stderr, "sk-existing-secret") {
+		t.Fatalf("status leaked secret:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+
+	cmd = newSecretsRootCommandForTest()
+	stdout, stderr, err = executeRootCommandForTest(cmd, "secrets", "bitwarden", "sync")
+	if err != nil {
+		t.Fatalf("sync dry-run: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "GORMES_API_KEY") || !strings.Contains(stdout, "skip (already set)") || !strings.Contains(stdout, "BWS_ACCESS_TOKEN") || !strings.Contains(stdout, "skip (bootstrap token)") {
+		t.Fatalf("sync dry-run output missing expected actions:\n%s", stdout)
+	}
+	if strings.Contains(stdout+stderr, "sk-bitwarden-secret") || strings.Contains(stdout+stderr, "0.bootstrap") {
+		t.Fatalf("sync dry-run leaked secret:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if got := os.Getenv("GORMES_API_KEY"); got != "sk-existing-secret" {
+		t.Fatalf("dry-run mutated env: %q", got)
+	}
+
+	cmd = newSecretsRootCommandForTest()
+	stdout, stderr, err = executeRootCommandForTest(cmd, "secrets", "bitwarden", "sync", "--apply")
+	if err != nil {
+		t.Fatalf("sync --apply: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if os.Getenv("GORMES_API_KEY") != "sk-bitwarden-secret" {
+		t.Fatalf("sync --apply did not update process env")
+	}
+	if strings.Contains(stdout+stderr, "sk-bitwarden-secret") || strings.Contains(stdout+stderr, "0.bootstrap") {
+		t.Fatalf("sync --apply leaked secret:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+
+	cmd = newSecretsRootCommandForTest()
+	stdout, stderr, err = executeRootCommandForTest(cmd, "secrets", "bitwarden", "install")
+	if err != nil {
+		t.Fatalf("install existing: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "Installed bws 2.0.0") || strings.Contains(stdout+stderr, "0.bootstrap") || strings.Contains(stdout+stderr, "sk-existing-secret") {
+		t.Fatalf("install output mismatch/leak:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+
+	cmd = newSecretsRootCommandForTest()
+	stdout, stderr, err = executeRootCommandForTest(cmd, "secrets", "bitwarden", "setup", "--access-token", "0.setup-token", "--server-url", "https://vault.bitwarden.example", "--project-id", "project-123")
+	if err != nil {
+		t.Fatalf("setup noninteractive: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if strings.Contains(stdout+stderr, "0.setup-token") || strings.Contains(stdout+stderr, "sk-bitwarden-secret") || !strings.Contains(stdout, "Bitwarden Secrets Manager is enabled") {
+		t.Fatalf("setup output mismatch/leak:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	envBody, err := os.ReadFile(filepath.Join(home, ".env"))
+	if err != nil || !strings.Contains(string(envBody), "BWS_ACCESS_TOKEN") {
+		t.Fatalf("setup did not write dotenv: %v\n%s", err, envBody)
+	}
+
+	cmd = newSecretsRootCommandForTest()
+	stdout, stderr, err = executeRootCommandForTest(cmd, "secrets", "bitwarden", "disable")
+	if err != nil {
+		t.Fatalf("disable: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	body, err := os.ReadFile(filepath.Join(home, "config.toml"))
+	if err != nil {
+		t.Fatalf("read config after disable: %v", err)
+	}
+	if !strings.Contains(string(body), "enabled = false") || !strings.Contains(stdout, "bootstrap token is left in .env") {
+		t.Fatalf("disable did not persist expected state/output:\nconfig=%s\nstdout=%s", body, stdout)
+	}
+}
+
 func newSecretsRootCommandForTest() *cobra.Command {
 	return newRootCommandWithFactoryForTest("secrets", func() *cobra.Command {
+		zipBytes := secretsCommandBitwardenZipForTest("bws", "#!/bin/sh\necho bws 2.0.0\n")
+		asset, _ := externalsecrets.BitwardenAssetName(externalsecrets.BitwardenInstallOptions{})
+		checksum := fmt.Sprintf("%x  %s\n", sha256.Sum256(zipBytes), asset)
 		return NewSecretsCommand(SecretsOptions{
 			BuildProvenance: func() SecretsBuildProvenance {
 				return SecretsBuildProvenance{Version: Version, GitCommit: "test-git"}
 			},
+			BitwardenInstallDownload: func(_ context.Context, url string) ([]byte, error) {
+				if strings.HasSuffix(url, asset) {
+					return zipBytes, nil
+				}
+				return []byte(checksum), nil
+			},
 		})
 	})
+}
+
+func secretsCommandBitwardenZipForTest(name, body string) []byte {
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	w, _ := zw.Create(name)
+	_, _ = w.Write([]byte(body))
+	_ = zw.Close()
+	return buf.Bytes()
 }
 
 func assertSecretsSnapshotFile(t *testing.T, wantID, forbiddenSecret string) {
