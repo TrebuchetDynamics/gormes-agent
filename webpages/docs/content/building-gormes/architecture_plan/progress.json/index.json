@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-06-07",
+    "last_updated": "2026-06-08",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -34,7 +34,7 @@
   "skeleton": [
     {
       "id": "1",
-      "name": "Phase 1 \u2014 The Dashboard",
+      "name": "Phase 1 — The Dashboard",
       "deliverable": "Tactical bridge: Go TUI over Python's api_server HTTP+SSE boundary",
       "subphases": [
         {
@@ -83,7 +83,7 @@
     },
     {
       "id": "2",
-      "name": "Phase 2 \u2014 The Gateway",
+      "name": "Phase 2 — The Gateway",
       "deliverable": "Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout",
       "subphases": [
         {
@@ -253,7 +253,7 @@
     },
     {
       "id": "3",
-      "name": "Phase 3 \u2014 The Black Box (Memory)",
+      "name": "Phase 3 — The Black Box (Memory)",
       "deliverable": "SQLite + FTS5 + ontological graph + semantic fusion in Go; 3.E closes session visibility, audit trails, decay, and cross-chat/session boundaries",
       "subphases": [
         {
@@ -363,7 +363,7 @@
           "drift_state": {
             "status": "owned",
             "last_upstream_check": "2026-05-18T00:00:00Z",
-            "origin_decision": "Gormes-owned memory quality improvements inspired by Shokunin session-end summaries, hybrid retrieval patterns, and memory transparency UX. Not direct Honcho parity \u2014 Gormes-original enhancements to Goncho's write quality, retrieval effectiveness, and user control."
+            "origin_decision": "Gormes-owned memory quality improvements inspired by Shokunin session-end summaries, hybrid retrieval patterns, and memory transparency UX. Not direct Honcho parity — Gormes-original enhancements to Goncho's write quality, retrieval effectiveness, and user control."
           },
           "item_count": 6
         }
@@ -371,7 +371,7 @@
     },
     {
       "id": "4",
-      "name": "Phase 4 \u2014 The Brain Transplant",
+      "name": "Phase 4 — The Brain Transplant",
       "deliverable": "Native Go agent orchestrator + prompt builder",
       "dependency_note": "Build priority: 2.E0 deterministic subagent runtime -> 2.G static skills + reviewed candidate flow -> runner-enforced delegation policy + wider gateway surface -> native agent loop",
       "subphases": [
@@ -491,7 +491,7 @@
     },
     {
       "id": "5",
-      "name": "Phase 5 \u2014 The Final Purge",
+      "name": "Phase 5 — The Final Purge",
       "deliverable": "Python tool scripts ported to Go or WASM",
       "subphases": [
         {
@@ -627,7 +627,7 @@
             "last_upstream_check": "2026-05-05T00:00:00Z",
             "origin_decision": "Hermes b816fd4e2 keeps update as a substantial operator lifecycle command, with autostash, branch recovery, friendly git errors, hangup/log mirroring, gateway restart verification, stale-dashboard handling, and --yes behavior. Gormes has installer rerun-as-update helpers plus backup and service-restart helper rows, but the top-level `gormes update` command remains row-backed. The second 2026-05-05 sweep also found missing sessions CLI ergonomics: MRU continue by last_active, prefix-safe delete/prune confirmation, browse fallback, and multi-word session argument coalescing. Keep update and sessions as dedicated CLI slices instead of mixing them into broad diagnostics/status inventory."
           },
-          "item_count": 145,
+          "item_count": 146,
           "extra": {
             "rows": [
               {
@@ -746,7 +746,7 @@
     },
     {
       "id": "6",
-      "name": "Phase 6 \u2014 The Learning Loop (Soul)",
+      "name": "Phase 6 — The Learning Loop (Soul)",
       "deliverable": "Hermes-compatible background review and skill curation, plus Gormes-native evidence gates for safe compounding intelligence.",
       "subphases": [
         {
@@ -837,7 +837,7 @@
     },
     {
       "id": "7",
-      "name": "Phase 7 \u2014 Paused Channel Backlog",
+      "name": "Phase 7 — Paused Channel Backlog",
       "deliverable": "Deferred non-priority channel adapters after Telegram, Discord, Slack, WhatsApp, and WeChat stabilize",
       "subphases": [
         {
@@ -884,7 +884,7 @@
     },
     {
       "id": "8",
-      "name": "Phase 8 \u2014 Reputation & Publication",
+      "name": "Phase 8 — Reputation & Publication",
       "deliverable": "TrebuchetDynamics has a credible public face (blog, writeups, talks) that documents Gormes's autonomous-porting methodology and one or two sharp differentiators. Reputation is built through publication cadence, not parity scope.",
       "subphases": [
         {
@@ -926,7 +926,7 @@
     },
     {
       "id": "9",
-      "name": "Phase 9 \u2014 Design & Security Hardening",
+      "name": "Phase 9 — Design & Security Hardening",
       "deliverable": "Owned architecture improvements from DeerFlow patterns: declarative middleware chain for the agent runtime, and sandbox provider abstraction with virtual path security layer.",
       "subphases": [
         {
@@ -941,7 +941,7 @@
         },
         {
           "id": "9.C",
-          "name": "Hermes Config Parity \u2014 Personalities & Display",
+          "name": "Hermes Config Parity — Personalities & Display",
           "item_count": 1
         },
         {
@@ -964,6 +964,16 @@
           "id": "9.G",
           "name": "External Issue Radar Regression Guards",
           "item_count": 6
+        },
+        {
+          "id": "9.H",
+          "name": "Architecture Deepening from tld Diagram Review",
+          "drift_state": {
+            "status": "owned",
+            "last_upstream_check": "2026-06-08T00:00:00Z",
+            "origin_decision": "Gormes-owned architecture hardening rows from local tld diagram review; no direct Hermes parity contract changes."
+          },
+          "item_count": 4
         }
       ]
     }

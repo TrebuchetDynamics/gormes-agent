@@ -10191,5 +10191,66 @@
         "note": "Hermes defines the Yuanbao platform/tool surface; Gormes adapts it through shared Go gateway, config, and toolset contracts."
       }
     }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.H",
+    "pos": 1,
+    "item": {
+      "name": "Gateway channel registration degraded-status helper",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gateway channel registration records missing credentials, startup failures, allowed-chat discovery, and degraded runtime status through one behavior-preserving helper instead of per-channel repeated mechanics.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "gateway",
+      "trust_class": [
+        "operator",
+        "gateway"
+      ],
+      "degraded_mode": "Existing gateway runtime status continues to mark failed/degraded platforms with the same redacted error text; helper centralizes the write path only.",
+      "fixture": "internal/app/gateway/*registration_test.go",
+      "source_refs": [
+        ".tld/gormes-agent.mmd",
+        "internal/app/gateway/channels.go",
+        "internal/gateway/codemap.md"
+      ],
+      "ready_when": [
+        "Existing Slack/Teams/Yuanbao registration tests characterize current degraded-status behavior before refactor."
+      ],
+      "not_ready_when": [
+        "The slice changes which channels register, changes public gateway status JSON, or mixes in channel adapter rewrites."
+      ],
+      "acceptance": [
+        "Missing-credential and startup-failure tests still assert the same platform state and error text.",
+        "RegisterConfiguredGatewayChannels has a single helper path for degraded status writes used by at least Slack, Teams, and Yuanbao branches."
+      ],
+      "write_scope": [
+        "internal/app/gateway/channels.go",
+        "internal/app/gateway/*registration_test.go"
+      ],
+      "test_commands": [
+        "go test ./internal/app/gateway -run 'Registration|ConfiguredGatewayChannels|Degraded' -count=1"
+      ],
+      "done_signal": [
+        "Focused gateway app registration tests pass and repeated degraded-status write mechanics are centralized without public behavior drift.",
+        "`go test ./internal/app/gateway -run 'Registration|ConfiguredGatewayChannels|Degraded' -count=1`, `go run ./cmd/progress validate`, and `git diff --check` pass."
+      ],
+      "evidence": {
+        "implementation": [
+          "internal/app/gateway/channels.go: gatewayChannelRegistrationDegraded centralizes degraded runtime-status writes and warnings for channel registration failures.",
+          "internal/app/gateway/channels.go: Slack, Teams, and Yuanbao missing-credential/startup-failure branches use the shared helper while preserving existing error text and nonblocking registration behavior."
+        ],
+        "verification": [
+          "GREEN: go test ./internal/app/gateway -run 'Registration|ConfiguredGatewayChannels|Degraded' -count=1 passed."
+        ]
+      },
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-06-08T00:00:00Z",
+        "note": "Derived from tld architecture review finding: channel registration repeats degraded/status/error mechanics across gateway channel branches."
+      }
+    }
   }
 ]

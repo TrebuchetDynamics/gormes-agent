@@ -10,9 +10,9 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module group:** Operator Setup
 **Module:** `config`
-**Rows:** 31
-**Status counts:** `complete`: 31 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 3 · `P1`: 8 · `P2`: 7 · `P3`: 1 · `unset`: 12
+**Rows:** 32
+**Status counts:** `complete`: 32 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P0`: 3 · `P1`: 8 · `P2`: 8 · `P3`: 1 · `unset`: 12
 
 ## Phase 3 — The Black Box (Memory)
 
@@ -93,3 +93,11 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 |---|---|---|---|
 | `complete` | `P1` | `config` | Execution-mode resolver + config precedence |
 | `complete` | `P2` | `config` | Default mode selection + config cut-over |
+
+## Phase 9 — Design & Security Hardening
+
+### 9.H — Architecture Deepening from tld Diagram Review
+
+| Status | Priority | Module | Row |
+|---|---|---|---|
+| `complete` | `P2` | `config` | Channel-neutral memory settings projection seam |

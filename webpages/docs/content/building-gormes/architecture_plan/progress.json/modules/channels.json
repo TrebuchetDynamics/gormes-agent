@@ -8227,5 +8227,125 @@
         "note": "Completed 2026-05-21 in delivery-loop iteration 5/10; docs-only proof slice, no channel runtime changes."
       }
     }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.H",
+    "pos": 2,
+    "item": {
+      "name": "Telegram batch debouncer shared state helper",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Telegram text and photo batching share one tested timer/map/sequence debouncer while preserving existing key/merge policy and disconnect flush semantics.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "channels",
+      "trust_class": [
+        "gateway"
+      ],
+      "degraded_mode": "If batching is disabled by zero delay or disconnect, existing immediate-send/flush behavior remains unchanged and no operator-facing config changes are introduced.",
+      "fixture": "internal/adapters/channels/telegram/*batch*_test.go",
+      "source_refs": [
+        ".tld/gormes-agent.mmd",
+        "internal/adapters/channels/telegram/text_batch.go",
+        "internal/adapters/channels/telegram/photo_batch.go",
+        "internal/adapters/channels/telegram/batching/batching.go"
+      ],
+      "ready_when": [
+        "Existing text and photo batch tests characterize merge, key, timer, cancel, and disconnect behavior before extraction."
+      ],
+      "not_ready_when": [
+        "The slice changes Telegram user-visible batching delays, attachment merge policy, or gateway.InboundEvent shape."
+      ],
+      "acceptance": [
+        "Text and photo batching still pass their current behavior tests.",
+        "The duplicated mutex/map/seq/timer flush machinery is behind one package-local helper or focused batching subpackage type."
+      ],
+      "note": "Complete 2026-06-08: added internal/adapters/channels/telegram/batching.EventBuffer as the shared timer/map/sequence debouncer for Telegram text and photo batching. Root Bot now holds text/photo EventBuffer instances; text batching drains pending events on Disconnect while photo batching continues to cancel/drop pending media batches, preserving existing behavior. RED: go test ./internal/adapters/channels/telegram/batching -run EventBuffer -count=1 failed on missing NewEventBuffer. GREEN: row-local tests and full Telegram adapter package pass.",
+      "write_scope": [
+        "internal/adapters/channels/telegram/text_batch.go",
+        "internal/adapters/channels/telegram/photo_batch.go",
+        "internal/adapters/channels/telegram/batching/",
+        "internal/adapters/channels/telegram/*batch*_test.go"
+      ],
+      "test_commands": [
+        "go test ./internal/adapters/channels/telegram -run 'Batch|Disconnect' -count=1",
+        "go test ./internal/adapters/channels/telegram/batching -count=1"
+      ],
+      "done_signal": [
+        "Focused Telegram batch tests pass with shared EventBuffer state and unchanged key/merge policy.",
+        "go test ./internal/adapters/channels/telegram -count=1 passes."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-06-08T00:00:00Z",
+        "note": "Derived from tld architecture review finding: Telegram text/photo batching extracted pure policy but still duplicates stateful timer machinery."
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.H",
+    "pos": 3,
+    "item": {
+      "name": "Telegram render-send MarkdownV2 contract fixture",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Telegram final/error/stream formatting and adapter send parse-mode fallback remain verified as one cross-package contract from gateway rendering through Bot send methods.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "channels",
+      "trust_class": [
+        "operator",
+        "gateway"
+      ],
+      "degraded_mode": "MarkdownV2 parse failures continue to fall back to plain text without leaking raw escape syntax; non-final streaming edits keep their existing plain-text mode.",
+      "fixture": "internal/adapters/channels/telegram/bot_parse_mode_test.go",
+      "source_refs": [
+        ".tld/runtime-core.mmd",
+        "internal/gateway/render.go",
+        "internal/gateway/rendering/render.go",
+        "internal/adapters/channels/telegram/bot.go",
+        "internal/adapters/channels/telegram/send_text.go"
+      ],
+      "ready_when": [
+        "Existing gateway rendering and Telegram parse-mode tests identify the current split contract before adding an end-to-end fixture."
+      ],
+      "not_ready_when": [
+        "The slice rewrites Markdown formatting semantics or changes Telegram parse-mode behavior without Hermes/Gormes parity evidence."
+      ],
+      "acceptance": [
+        "A focused fixture exercises gateway FormatFinalTelegramText/FormatErrorTelegram or equivalent render output through the Telegram adapter send path.",
+        "MarkdownV2 parse-mode and plain fallback assertions remain explicit in tests."
+      ],
+      "write_scope": [
+        "internal/gateway/rendering/",
+        "internal/gateway/render.go",
+        "internal/adapters/channels/telegram/"
+      ],
+      "test_commands": [
+        "go test ./internal/gateway/rendering ./internal/adapters/channels/telegram -run 'Telegram|MarkdownV2|ParseMode|Render' -count=1"
+      ],
+      "done_signal": [
+        "Focused rendering/Telegram tests pass and the cross-package render-send contract is protected by one fixture before future refactors.",
+        "`go test ./internal/gateway/rendering ./internal/adapters/channels/telegram -run 'Telegram|MarkdownV2|ParseMode|Render' -count=1`, `go run ./cmd/progress validate`, and `git diff --check` pass."
+      ],
+      "evidence": {
+        "implementation": [
+          "internal/adapters/channels/telegram/bot_parse_mode_test.go: TestBot_Send_RenderedFinalTelegramTextUsesMarkdownV2WithPlainFallback exercises gateway.FormatFinalTelegramText through Bot.Send and proves MarkdownV2 send plus plain fallback stripping.",
+          "internal/adapters/channels/telegram/bot_parse_mode_test.go: TestBot_EditMessageFinal_GatewayRenderedStreamAndErrorParseModes exercises gateway stream/error render output through Bot.EditMessageFinal and locks non-final plain edits vs final MarkdownV2 edits."
+        ],
+        "verification": [
+          "GREEN: go test ./internal/gateway/rendering ./internal/adapters/channels/telegram -run 'Telegram|MarkdownV2|ParseMode|Render' -count=1 passed."
+        ]
+      },
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-06-08T00:00:00Z",
+        "note": "Derived from tld architecture review finding: Telegram rendering is intentionally split between gateway formatting and adapter parse-mode/fallback behavior and needs an explicit cross-package fixture."
+      }
+    }
   }
 ]

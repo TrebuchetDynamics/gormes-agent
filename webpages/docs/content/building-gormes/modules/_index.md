@@ -27,9 +27,9 @@ External channel adapters, gateway orchestration, fleet operation, and Navivox i
 
 | Module | Rows | Complete | In progress | Planned | Priorities |
 |---|---:|---:|---:|---:|---|
-| [Channels](channel-gateway/channels/) | 134 | 134 | 0 | 0 | `P0`: 7 · `P1`: 47 · `P2`: 27 · `P3`: 4 · `P4`: 2 · `unset`: 47 |
+| [Channels](channel-gateway/channels/) | 136 | 136 | 0 | 0 | `P0`: 7 · `P1`: 47 · `P2`: 29 · `P3`: 4 · `P4`: 2 · `unset`: 47 |
 | [Fleet](channel-gateway/fleet/) | 23 | 23 | 0 | 0 | `P0`: 2 · `P1`: 7 · `P2`: 6 · `P3`: 3 · `unset`: 5 |
-| [Gateway](channel-gateway/gateway/) | 161 | 161 | 0 | 0 | `P0`: 14 · `P1`: 52 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54 |
+| [Gateway](channel-gateway/gateway/) | 162 | 162 | 0 | 0 | `P0`: 14 · `P1`: 53 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54 |
 | [Navivox](channel-gateway/navivox/) | 28 | 28 | 0 | 0 | `P0`: 3 · `P1`: 19 · `unset`: 6 |
 
 ## Delivery Control Plane
@@ -53,7 +53,7 @@ CLI, installation, configuration, diagnostics, profiles, and release lifecycle p
 | Module | Rows | Complete | In progress | Planned | Priorities |
 |---|---:|---:|---:|---:|---|
 | [CLI](operator-setup/cli/) | 35 | 35 | 0 | 0 | `P1`: 14 · `P2`: 8 · `P3`: 3 · `unset`: 10 |
-| [Config](operator-setup/config/) | 31 | 31 | 0 | 0 | `P0`: 3 · `P1`: 8 · `P2`: 7 · `P3`: 1 · `unset`: 12 |
+| [Config](operator-setup/config/) | 32 | 32 | 0 | 0 | `P0`: 3 · `P1`: 8 · `P2`: 8 · `P3`: 1 · `unset`: 12 |
 | [Doctor](operator-setup/doctor/) | 16 | 16 | 0 | 0 | `P1`: 5 · `P2`: 7 · `P3`: 2 · `unset`: 2 |
 | [Install](operator-setup/install/) | 30 | 30 | 0 | 0 | `P0`: 2 · `P1`: 17 · `P2`: 4 · `P3`: 3 · `unset`: 4 |
 | [Profiles](operator-setup/profiles/) | 24 | 24 | 0 | 0 | `P0`: 2 · `P1`: 12 · `P2`: 4 · `unset`: 6 |
@@ -66,7 +66,7 @@ Model-provider contracts plus Goncho/Honcho memory parity surfaces.
 | Module | Rows | Complete | In progress | Planned | Priorities |
 |---|---:|---:|---:|---:|---|
 | [Goncho](provider-models/goncho/) | 45 | 45 | 0 | 0 | `P0`: 7 · `P1`: 12 · `P2`: 11 · `P3`: 12 · `P4`: 2 · `unset`: 1 |
-| [Providers](provider-models/providers/) | 130 | 129 | 0 | 1 | `P0`: 9 · `P1`: 59 · `P2`: 24 · `P3`: 3 · `unset`: 35 |
+| [Providers](provider-models/providers/) | 131 | 131 | 0 | 0 | `P0`: 9 · `P1`: 60 · `P2`: 24 · `P3`: 3 · `unset`: 35 |
 
 ## Voice And Web
 

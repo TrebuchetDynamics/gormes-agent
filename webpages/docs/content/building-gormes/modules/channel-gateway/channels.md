@@ -10,9 +10,9 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module group:** Channel Gateway
 **Module:** `channels`
-**Rows:** 134
-**Status counts:** `complete`: 134 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 7 · `P1`: 47 · `P2`: 27 · `P3`: 4 · `P4`: 2 · `unset`: 47
+**Rows:** 136
+**Status counts:** `complete`: 136 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P0`: 7 · `P1`: 47 · `P2`: 29 · `P3`: 4 · `P4`: 2 · `unset`: 47
 
 ## Phase 2 — The Gateway
 
@@ -267,3 +267,12 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | Status | Priority | Module | Row |
 |---|---|---|---|
 | `complete` | `P1` | `channels` | Channel capability matrix with stable/fixture/planned labels |
+
+## Phase 9 — Design & Security Hardening
+
+### 9.H — Architecture Deepening from tld Diagram Review
+
+| Status | Priority | Module | Row |
+|---|---|---|---|
+| `complete` | `P2` | `channels` | Telegram batch debouncer shared state helper |
+| `complete` | `P2` | `channels` | Telegram render-send MarkdownV2 contract fixture |

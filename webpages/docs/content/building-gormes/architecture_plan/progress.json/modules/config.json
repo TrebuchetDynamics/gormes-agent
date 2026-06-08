@@ -2383,5 +2383,67 @@
         ]
       }
     }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.H",
+    "pos": 0,
+    "item": {
+      "name": "Channel-neutral memory settings projection seam",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Gateway/channel memory wiring consumes a narrow channel-neutral settings projection instead of requiring broad config.Config/legacy Telegram fields at runtime boundaries.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "config",
+      "trust_class": [
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "If the projection cannot be derived, existing config validation and gateway startup errors remain the only operator-visible signal; no new public config keys are introduced.",
+      "fixture": "internal/gateway/channelmemory/channelmemory_test.go",
+      "source_refs": [
+        ".tld/gormes-agent.mmd",
+        "internal/gateway/channelmemory/channelmemory.go",
+        "internal/config/codemap.md"
+      ],
+      "ready_when": [
+        "A builder can characterize SettingsFromConfig behavior without live channels or provider credentials."
+      ],
+      "not_ready_when": [
+        "The slice renames public config keys or changes legacy [telegram] compatibility semantics.",
+        "The slice expands beyond channelmemory/config projection callers."
+      ],
+      "acceptance": [
+        "Channel memory tests prove the same memory/recall settings are produced from config fixtures.",
+        "Runtime/channel-neutral code no longer needs to know individual legacy Telegram memory field names beyond the projection boundary."
+      ],
+      "write_scope": [
+        "internal/gateway/channelmemory/",
+        "internal/config/"
+      ],
+      "test_commands": [
+        "go test ./internal/gateway/channelmemory ./internal/config/... -count=1"
+      ],
+      "done_signal": [
+        "Focused tests pass and the projection boundary is documented by package names/types rather than duplicated config-field reads.",
+        "`go test ./internal/gateway/channelmemory ./internal/config/... -count=1`, `go run ./cmd/progress validate`, and `git diff --check` pass."
+      ],
+      "evidence": {
+        "implementation": [
+          "internal/config/channel_memory_config.go: Config.ChannelMemorySettings projects legacy [telegram] memory/extractor keys into a narrow channel-neutral config shape.",
+          "internal/gateway/channelmemory/channelmemory.go: SettingsFromProjection consumes config.ChannelMemorySettings and leaves legacy Telegram field reads inside the config projection boundary."
+        ],
+        "verification": [
+          "GREEN: go test ./internal/gateway/channelmemory ./internal/config/... -count=1 passed."
+        ]
+      },
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-06-08T00:00:00Z",
+        "note": "Derived from tld architecture review finding: config fan-out is wider than the diagram and leaks legacy Telegram memory fields into channel-neutral gateway memory wiring."
+      }
+    }
   }
 ]
