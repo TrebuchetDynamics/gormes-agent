@@ -238,6 +238,14 @@ func RunGateway(cmd *cobra.Command, _ []string, opts RunOptions) error {
 	if mgrCfg.AgentRouting.Enabled {
 		mgrCfg.AgentRuntimeFactory = NewGatewayAgentRuntimeFactory(rootCtx, cfg, mstore, gonchoStore)
 	}
+	ext := startGatewayExtractor(rootCtx, mstore, hc, cfg, memorySettings, slog.Default())
+	defer func() {
+		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), kernel.ShutdownBudget)
+		defer cancelShutdown()
+		if err := ext.Close(shutdownCtx); err != nil {
+			slog.Warn("extractor close", "err", err)
+		}
+	}()
 	mgrCfg.ReloadConfig = reloadManagerConfig
 	mgr := gateway.NewManager(mgrCfg, k, slog.Default())
 
@@ -300,6 +308,16 @@ func RunGateway(cmd *cobra.Command, _ []string, opts RunOptions) error {
 
 	slog.Info("gormes gateway starting", "channels", mgr.ChannelCount(), "endpoint", cfg.Hermes.Endpoint, "hooks_root", hooksRoot, "loaded_hooks", len(loadedHooks), "boot_path", bootPath, "boot_queued", bootQueued, "secret_refs", len(secretSnapshot.Entries), "wakelock", !noWakeLock)
 	return mgr.Run(rootCtx)
+}
+
+func startGatewayExtractor(rootCtx context.Context, mstore *memory.SqliteStore, hc llm.Client, cfg config.Config, settings channelmemory.Settings, log *slog.Logger) *memory.Extractor {
+	ext := memory.NewExtractor(mstore, hc, memory.ExtractorConfig{
+		Model:        cfg.Hermes.Model,
+		BatchSize:    settings.ExtractorBatchSize,
+		PollInterval: settings.ExtractorPollInterval,
+	}, log)
+	go ext.Run(rootCtx)
+	return ext
 }
 
 // InitGatewayCron starts the cron scheduler with multi-channel delivery.

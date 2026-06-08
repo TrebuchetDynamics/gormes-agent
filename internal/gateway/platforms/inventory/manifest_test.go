@@ -59,12 +59,19 @@ func TestHermesGatewayPlatformManifestCoversUpstream(t *testing.T) {
 		}
 		for _, id := range extras {
 			entry := byID[id]
-			if !strings.HasPrefix(entry.HermesSource, "plugins/platforms/") {
-				t.Fatalf("manifest extra %q must be source-backed by plugins/platforms, got %q", id, entry.HermesSource)
+			if strings.HasPrefix(entry.HermesSource, "plugins/platforms/") {
+				if err := assertHermesPluginPlatformSourceExists(entry.HermesSource); err != nil {
+					t.Fatalf("manifest extra %q has invalid plugin source: %v", id, err)
+				}
+				continue
 			}
-			if err := assertHermesPluginPlatformSourceExists(entry.HermesSource); err != nil {
-				t.Fatalf("manifest extra %q has invalid plugin source: %v", id, err)
+			if strings.HasPrefix(entry.HermesSource, "gateway/platforms/") {
+				if err := assertHermesGatewayPlatformSourceExists(entry.HermesSource); err != nil {
+					t.Fatalf("manifest extra %q has invalid gateway connector source: %v", id, err)
+				}
+				continue
 			}
+			t.Fatalf("manifest extra %q must be source-backed by plugins/platforms or gateway/platforms, got %q", id, entry.HermesSource)
 		}
 	}
 
@@ -141,6 +148,14 @@ func manifestEntriesOutsideUpstream(byID map[string]PlatformManifestEntry, upstr
 }
 
 func assertHermesPluginPlatformSourceExists(source string) error {
+	return assertHermesSourceFileExists(source)
+}
+
+func assertHermesGatewayPlatformSourceExists(source string) error {
+	return assertHermesSourceFileExists(source)
+}
+
+func assertHermesSourceFileExists(source string) error {
 	root, err := workspaceRoot()
 	if err != nil {
 		return err

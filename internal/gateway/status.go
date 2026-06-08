@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -338,7 +339,7 @@ func NewRuntimeStatusStore(path string) *RuntimeStatusStore {
 		now:              func() time.Time { return time.Now().UTC() },
 		pid:              os.Getpid,
 		startTime:        procProcessStartTime,
-		argv:             func() []string { return append([]string(nil), os.Args...) },
+		argv:             func() []string { return slices.Clone(os.Args) },
 		bootGitSHA:       RuntimeBootGitSHA(),
 		staleCodeChecker: NewStaleCodeChecker(DefaultStaleCodeSourceRoot()),
 		processes:        procRuntimeProcessTable{},
@@ -597,7 +598,7 @@ func (s *RuntimeStatusStore) merge(status *RuntimeStatus, update RuntimeStatusUp
 		status.StartTime = 0
 	}
 	status.Generation++
-	status.Argv = append([]string(nil), s.argv()...)
+	status.Argv = slices.Clone(s.argv())
 	status.Command = strings.Join(status.Argv, " ")
 	if status.Platforms == nil {
 		status.Platforms = map[string]PlatformRuntimeStatus{}
@@ -748,7 +749,7 @@ func (s *RuntimeStatusStore) readLocked() (RuntimeStatus, error) {
 	if !exists {
 		pid := s.pid()
 		startTime, _ := s.startTime(pid)
-		argv := append([]string(nil), s.argv()...)
+		argv := slices.Clone(s.argv())
 		return RuntimeStatus{
 			Kind:         runtimeStatusKind,
 			PID:          pid,
@@ -764,7 +765,7 @@ func (s *RuntimeStatusStore) readLocked() (RuntimeStatus, error) {
 	if errors.Is(err, jsonfile.ErrEmpty) {
 		pid := s.pid()
 		startTime, _ := s.startTime(pid)
-		argv := append([]string(nil), s.argv()...)
+		argv := slices.Clone(s.argv())
 		return RuntimeStatus{
 			Kind:       runtimeStatusKind,
 			PID:        pid,
@@ -805,7 +806,7 @@ func (s *RuntimeStatusStore) writeLocked(ctx context.Context, status RuntimeStat
 		Generation: status.Generation,
 		BootGitSHA: status.BootGitSHA,
 		Command:    status.Command,
-		Argv:       append([]string(nil), status.Argv...),
+		Argv:       slices.Clone(status.Argv),
 		UpdatedAt:  status.UpdatedAt,
 	}
 	if err := writeRuntimeStatusJSONAtomic(s.pidPath, pidRecord); err != nil {

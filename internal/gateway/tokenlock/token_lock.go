@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -96,7 +97,7 @@ func NewTokenLockStore(dir string) *TokenLockStore {
 		now:        func() time.Time { return time.Now().UTC() },
 		pid:        os.Getpid,
 		startTime:  runtimeproc.ProcessStartTime,
-		argv:       func() []string { return append([]string(nil), os.Args...) },
+		argv:       func() []string { return slices.Clone(os.Args) },
 		processes:  runtimeproc.ProcTable{},
 		removeFile: os.Remove,
 	}
@@ -247,7 +248,7 @@ func (s *TokenLockStore) lockDir() string {
 func (s *TokenLockStore) currentRecord(platform, credentialHash string) tokenLockRecord {
 	pid := s.pid()
 	startTime, _ := s.startTime(pid)
-	argv := append([]string(nil), s.argv()...)
+	argv := slices.Clone(s.argv())
 	return tokenLockRecord{
 		Kind:           TokenLockKind,
 		Platform:       platform,

@@ -1,6 +1,7 @@
 package pairing
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -10,7 +11,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -499,7 +500,7 @@ func (s *PairingStore) statusFromState(state pairingFile) PairingStatus {
 	for platform := range state.Platforms {
 		platforms = append(platforms, platform)
 	}
-	sort.Strings(platforms)
+	slices.Sort(platforms)
 
 	for _, platformName := range platforms {
 		platform := state.Platforms[platformName]
@@ -553,29 +554,8 @@ func (s *PairingStore) statusFromState(state pairingFile) PairingStatus {
 		}
 	}
 
-	sort.SliceStable(status.Pending, func(i, j int) bool {
-		left, right := status.Pending[i], status.Pending[j]
-		if left.Platform != right.Platform {
-			return left.Platform < right.Platform
-		}
-		if left.UserID != right.UserID {
-			return left.UserID < right.UserID
-		}
-		if !left.CreatedAt.Equal(right.CreatedAt) {
-			return left.CreatedAt.Before(right.CreatedAt)
-		}
-		return left.Code < right.Code
-	})
-	sort.SliceStable(status.Approved, func(i, j int) bool {
-		left, right := status.Approved[i], status.Approved[j]
-		if left.Platform != right.Platform {
-			return left.Platform < right.Platform
-		}
-		if left.UserID != right.UserID {
-			return left.UserID < right.UserID
-		}
-		return left.ApprovedAt.Before(right.ApprovedAt)
-	})
+	slices.SortStableFunc(status.Pending, comparePendingPairingRecord)
+	slices.SortStableFunc(status.Approved, compareApprovedPairingRecord)
 	for _, evidence := range state.Evidence {
 		status.Degraded = append(status.Degraded, PairingDegradedEvidence{
 			Reason:   evidence.Reason,
@@ -589,23 +569,57 @@ func (s *PairingStore) statusFromState(state pairingFile) PairingStatus {
 			Count:    evidence.Count,
 		})
 	}
-	sort.SliceStable(status.Degraded, func(i, j int) bool {
-		left, right := status.Degraded[i], status.Degraded[j]
-		if !left.At.Equal(right.At) {
-			return left.At.Before(right.At)
-		}
-		if left.Reason != right.Reason {
-			return left.Reason < right.Reason
-		}
-		if left.Platform != right.Platform {
-			return left.Platform < right.Platform
-		}
-		if left.UserID != right.UserID {
-			return left.UserID < right.UserID
-		}
-		return left.Code < right.Code
-	})
+	slices.SortStableFunc(status.Degraded, compareDegradedPairingEvidence)
 	return status
+}
+
+func comparePendingPairingRecord(left, right PairingPendingRecord) int {
+	if byPlatform := cmp.Compare(left.Platform, right.Platform); byPlatform != 0 {
+		return byPlatform
+	}
+	if byUserID := cmp.Compare(left.UserID, right.UserID); byUserID != 0 {
+		return byUserID
+	}
+	if byCreatedAt := compareTime(left.CreatedAt, right.CreatedAt); byCreatedAt != 0 {
+		return byCreatedAt
+	}
+	return cmp.Compare(left.Code, right.Code)
+}
+
+func compareApprovedPairingRecord(left, right PairingApprovedRecord) int {
+	if byPlatform := cmp.Compare(left.Platform, right.Platform); byPlatform != 0 {
+		return byPlatform
+	}
+	if byUserID := cmp.Compare(left.UserID, right.UserID); byUserID != 0 {
+		return byUserID
+	}
+	return compareTime(left.ApprovedAt, right.ApprovedAt)
+}
+
+func compareDegradedPairingEvidence(left, right PairingDegradedEvidence) int {
+	if byAt := compareTime(left.At, right.At); byAt != 0 {
+		return byAt
+	}
+	if byReason := cmp.Compare(left.Reason, right.Reason); byReason != 0 {
+		return byReason
+	}
+	if byPlatform := cmp.Compare(left.Platform, right.Platform); byPlatform != 0 {
+		return byPlatform
+	}
+	if byUserID := cmp.Compare(left.UserID, right.UserID); byUserID != 0 {
+		return byUserID
+	}
+	return cmp.Compare(left.Code, right.Code)
+}
+
+func compareTime(left, right time.Time) int {
+	if left.Before(right) {
+		return -1
+	}
+	if right.Before(left) {
+		return 1
+	}
+	return 0
 }
 
 func (s *PairingStore) ensurePairingPlatformLocked(state *pairingFile, platformName string) pairingPlatformFile {

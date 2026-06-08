@@ -94,7 +94,7 @@ func runSessionListCommand(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	sessions = ApplySessionMirrorSources(sessions, config.SessionIndexMirrorPath())
+	sessions = ApplySessionMirrorSources(sessions, effectiveSessionIndexMirrorPath())
 	sessions = filterSessionDirectoryBySource(sessions, source, limit)
 	if asJSON {
 		return emitSessionListJSON(cmd, sessions)
@@ -208,7 +208,7 @@ func runSessionExportCommand(cmd *cobra.Command, args []string) error {
 		}
 		return err
 	}
-	out = applySessionExportMirrorSource(out, resolved, config.SessionIndexMirrorPath())
+	out = applySessionExportMirrorSource(out, resolved, effectiveSessionIndexMirrorPath())
 
 	if asJSON {
 		body, marshalErr := json.MarshalIndent(sessionExportReportJSON{
@@ -440,6 +440,21 @@ func ResolveContinueSessionFlag(raw string) (string, error) {
 		return "", err
 	}
 	return resolved, nil
+}
+
+func effectiveSessionIndexMirrorPath() string {
+	path := config.SessionIndexMirrorPath()
+	if _, err := os.Stat(path); err == nil {
+		return path
+	}
+	contract := config.CurrentProfileStorageContract()
+	if contract.Scope == config.ProfileStorageScopeProfileRoot && contract.ProfileID == config.DefaultProfileID {
+		baseMirror := filepath.Join(contract.BaseHome, "sessions", "index.yaml")
+		if _, err := os.Stat(baseMirror); err == nil {
+			return baseMirror
+		}
+	}
+	return path
 }
 
 func ApplySessionMirrorSources(entries []sessionpkg.DirectoryEntry, mirrorPath string) []sessionpkg.DirectoryEntry {
