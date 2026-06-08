@@ -57,6 +57,9 @@ openclaw/
 
 # ── Agent/orchestrator scratch ───────────────────────
 scripts/.swarm/
+.tld/
+graphify-out/
+**/graphify-out/
 .claude/worktrees/
 .claude/scheduled_tasks.lock
 **/.claude/scheduled_tasks.lock

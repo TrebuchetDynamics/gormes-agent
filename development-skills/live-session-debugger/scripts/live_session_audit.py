@@ -204,7 +204,8 @@ def scan_permissions(home: pathlib.Path) -> list[dict[str, Any]]:
             total += st.st_size
             if st.st_mode & stat.S_IROTH:
                 world += 1
-        risky.append({"path": str(audio), "audio_files": count, "total_bytes": total, "world_readable_files": world})
+        if world > 0:
+            risky.append({"path": str(audio), "audio_files": count, "total_bytes": total, "world_readable_files": world})
     return risky
 
 
