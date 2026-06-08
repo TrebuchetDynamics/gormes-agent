@@ -5,8 +5,6 @@ description: "Generate project ideas via creative constraints"
 ---
 
 
-
-
 # Ideation
 
 Generate project ideas via creative constraints.
@@ -15,18 +13,18 @@ Generate project ideas via creative constraints.
 
 | | |
 |---|---|
-| Source | Bundled (installed by default) |
-| Path | `skills/creative/creative-ideation` |
+| Source | Optional — install with `hermes skills install official/creative/creative-ideation` |
+| Path | `optional-skills/creative/creative-ideation` |
 | Version | `1.0.0` |
 | Author | SHL0MS |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `Creative`, `Ideation`, `Projects`, `Brainstorming`, `Inspiration` |
 
 ## Reference: full SKILL.md
 
 > **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Creative Ideation
 

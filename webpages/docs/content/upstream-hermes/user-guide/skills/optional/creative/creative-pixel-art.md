@@ -5,8 +5,6 @@ description: "Pixel art w/ era palettes (NES, Game Boy, PICO-8)"
 ---
 
 
-
-
 # Pixel Art
 
 Pixel art w/ era palettes (NES, Game Boy, PICO-8).
@@ -15,18 +13,18 @@ Pixel art w/ era palettes (NES, Game Boy, PICO-8).
 
 | | |
 |---|---|
-| Source | Bundled (installed by default) |
-| Path | `skills/creative/pixel-art` |
+| Source | Optional — install with `hermes skills install official/creative/pixel-art` |
+| Path | `optional-skills/creative/pixel-art` |
 | Version | `2.0.0` |
 | Author | dodo-reach |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `creative`, `pixel-art`, `arcade`, `snes`, `nes`, `gameboy`, `retro`, `image`, `video` |
 
 ## Reference: full SKILL.md
 
 > **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Pixel Art
 

@@ -19,7 +19,7 @@ Core agent execution, local state, tools, and terminal/browser interaction surfa
 | [Runtime](agent-runtime/runtime/) | 18 | 18 | 0 | 0 | `P0`: 2 · `P1`: 10 · `P2`: 6 |
 | [Sessions](agent-runtime/sessions/) | 29 | 29 | 0 | 0 | `P1`: 9 · `P2`: 5 · `P3`: 1 · `unset`: 14 |
 | [Tools](agent-runtime/tools/) | 151 | 151 | 0 | 0 | `P0`: 23 · `P1`: 57 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26 |
-| [TUI](agent-runtime/tui/) | 72 | 72 | 0 | 0 | `P0`: 3 · `P1`: 15 · `P2`: 43 · `P3`: 1 · `unset`: 10 |
+| [TUI](agent-runtime/tui/) | 73 | 73 | 0 | 0 | `P0`: 3 · `P1`: 16 · `P2`: 43 · `P3`: 1 · `unset`: 10 |
 
 ## Channel Gateway
 
@@ -66,7 +66,7 @@ Model-provider contracts plus Goncho/Honcho memory parity surfaces.
 | Module | Rows | Complete | In progress | Planned | Priorities |
 |---|---:|---:|---:|---:|---|
 | [Goncho](provider-models/goncho/) | 45 | 45 | 0 | 0 | `P0`: 7 · `P1`: 12 · `P2`: 11 · `P3`: 12 · `P4`: 2 · `unset`: 1 |
-| [Providers](provider-models/providers/) | 126 | 126 | 0 | 0 | `P0`: 9 · `P1`: 55 · `P2`: 24 · `P3`: 3 · `unset`: 35 |
+| [Providers](provider-models/providers/) | 130 | 129 | 0 | 1 | `P0`: 9 · `P1`: 59 · `P2`: 24 · `P3`: 3 · `unset`: 35 |
 
 ## Voice And Web
 

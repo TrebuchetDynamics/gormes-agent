@@ -99,7 +99,7 @@ file+line ref or explicit `missing`, and a classification.
 | Bedrock Converse transport | `agent/bedrock_adapter.py` | `internal/llm/` | partial | Stream events; SigV4 pending. |
 | Codex Responses transport | `agent/codex_responses_adapter.py`; `agent/transports/codex.py` | `internal/llm/` | covered | Responses conversion shipped, including stable session `prompt_cache_key` body routing and ChatGPT Codex backend cache-scope headers. |
 | Gemini transport | `agent/gemini_native_adapter.py` | → `missing` | missing | Not ported. |
-| Google Code Assist | `agent/gemini_cloudcode_adapter.py` | → `missing` | missing | Not ported. |
+| Google Code Assist | `agent/gemini_cloudcode_adapter.py`; `agent/google_code_assist.py` | `internal/llm/gemini_cloudcode.go`; `internal/llm/gemini_cloudcode_test.go`; `internal/llm/google_code_assist.go`; `internal/llm/google_code_assist_test.go`; `internal/llm/googlecodeassist/` | covered | Gemini Cloud Code request/stream mapper plus Google Code Assist project/quota resolver are complete with fake token/HTTP fixtures for headers, project precedence, onboarding, quota parsing, stream/tool normalization, and safe Google error classification. Browser OAuth/live Google credentials remain outside these pure provider fixtures. |
 | OpenRouter | `tools/openrouter_client.py` | `internal/llm/openrouter_compatible.go`; `internal/llm/http_client.go`; `internal/llm/openrouter_compatible_test.go` | covered | OpenRouter runtime resolution, OpenAI-compatible transport, attribution headers (`HTTP-Referer`, `X-OpenRouter-Title`, categories), OpenRouter-base custom routes, Grok prompt-cache affinity, model metadata/pricing, Pareto extra body, and safe error classification are fixture-covered without live credentials. |
 
 ### 2.2 Provider registry
@@ -107,7 +107,7 @@ file+line ref or explicit `missing`, and a classification.
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
 | Provider ID and alias manifest | `hermes_cli/providers.py` `HERMES_OVERLAYS` | `internal/llm/provider_registry_manifest.go` | covered | Manifest with all Hermes provider IDs and aliases. |
-| Model metadata and pricing | `agent/model_metadata.py` | → `missing` | missing | Not ported. |
+| Model metadata and pricing | `agent/model_metadata.py`; `agent/models_dev.py`; `agent/usage_pricing.py` | `internal/llm/model_registry.go`; `internal/llm/model_registry_test.go`; `internal/llm/model_context_resolver_test.go`; `internal/llm/routing/modelcatalog/`; `internal/llm/modelcatalog/`; `internal/llm/openrouter_compatible_test.go` | covered | Static registry/context resolver fixtures expose provider family, context windows, max output, pricing, capabilities, explicit unknown states, provider-enforced caps, OpenRouter pricing, and models.dev/catalog cache/merge behavior without live network. |
 
 ### 2.3 Auth
 
@@ -116,7 +116,7 @@ file+line ref or explicit `missing`, and a classification.
 | Credential pool | `agent/credential_pool.py` | `internal/config/` + `internal/cli/` | partial | Gormes has credential command surface; pool semantics differ. |
 | OAuth device code | `hermes_cli/auth.py` `_login_openai_codex` | `cmd/gormes/auth.go` | partial | Codex OAuth path exists but paused/Hermes drift unclear. |
 | Credential file token vault | `tools/credential_files.py`; `tools/path_security.py`; `agent/credential_sources.py` source-removal registry | `internal/config/token_vault.go` | covered | Gormes row 4.G covers safe relative credential-file resolution, unsafe-path rejection, dedupe, clear semantics, and redacted evidence. |
-| Bitwarden Secrets Manager source | `agent/secret_sources/bitwarden.py`; `hermes_cli/env_loader.py` `_apply_external_secret_sources`; `hermes_cli/secrets_cli.py` | `internal/config/externalsecrets/bitwarden.go`; `internal/config/config.go` | partial | Gormes now loads `[secrets.bitwarden]` during config startup, invokes `bws secret list`, injects env vars before env config resolution, labels applied keys as Bitwarden, preserves the bootstrap token, and degrades without blocking startup. Missing Hermes parity: CLI `secrets bitwarden` setup/status/sync/install/disable, managed pinned `bws` auto-install/checksum verification, disk cache, and credential-pool borrowed-source persistence. |
+| Bitwarden Secrets Manager source | `agent/secret_sources/bitwarden.py`; `hermes_cli/env_loader.py` `_apply_external_secret_sources`; `hermes_cli/secrets_cli.py` | `internal/config/externalsecrets/bitwarden.go`; `internal/config/config.go`; `internal/app/secrets/`; `internal/platform/cli/gormescli/secrets.go` | partial | Gormes loads `[secrets.bitwarden]` during config startup, invokes `bws secret list`, injects env vars before env config resolution, labels applied keys as Bitwarden, preserves the bootstrap token, degrades without blocking startup, exposes CLI `secrets bitwarden` status/sync/disable/install/setup, ships managed pinned `bws` install/checksum verification, and has setup token/env/config/project-selection/test-fetch redaction tests. Remaining Hermes parity: disk cache (planned row `Bitwarden disk cache parity`) and credential-pool borrowed-source persistence. |
 | Auth commands (add/list/remove/reset/status/logout/spotify) | `hermes_cli/auth_commands.py` | `cmd/gormes/auth.go` | partial | Most commands exist; Spotify and top-level logout planned. |
 | Secret ref validation | `hermes_cli/config.py` | `internal/provider/profile_provider_config.go` | covered | SecretRef env resolution and missing-ref evidence. |
 
@@ -171,7 +171,7 @@ file+line ref or explicit `missing`, and a classification.
 | `kanban` subcommand | `hermes_cli/kanban.py` | `cmd/gormes/kanban.go` | covered | Task board. |
 | `memory` subcommand | `plugins/memory/` | `cmd/gormes/goncho*.go` | covered | Memory status/doctor. |
 | `browser` subcommand | `hermes_cli/browser_connect.py` | `cmd/gormes/browser*.go` | covered | Browser connect. |
-| `uninstall` subcommand | `hermes_cli/uninstall.py` | → `missing` | missing | Not ported. |
+| `uninstall` subcommand | `hermes_cli/main.py:15469` + `hermes_cli/uninstall.py` | `internal/app/gormescmd/main.go`; `internal/app/uninstall/service.go`; `internal/platform/cli/gormescli/uninstall_dryrun_test.go`; `internal/platform/cli/gormescli/uninstall_legacy_xdg_test.go` | covered | Top-level `gormes uninstall` is wired and fixture-covered for dry-run-by-default previews, `--yes` destructive execution, JSON reports, keep-config/credential filters, managed-home artifacts, legacy XDG cleanup, and install.sh-published symlink cleanup. Gormes intentionally diverges from Hermes GUI-only flags because Gormes has no Electron desktop GUI surface. |
 | `migrate hermes` | `N/A` | `cmd/gormes/migrate.go` | covered | Hermes config/session migration. |
 | `migrate openclaw` | `hermes_cli/claw.py` | `internal/platform/migrate/openclaw/` | covered | OpenClaw migration shipped. |
 
@@ -245,13 +245,13 @@ file+line ref or explicit `missing`, and a classification.
 |---|---|---|---|---|
 | Tool progress rendering | `agent/display.py` `get_tool_emoji` | `internal/tooltrace/` | covered | Shared renderer with emoji icons. |
 | `new/all/off` modes | `gateway/display_config.py` | `internal/config/` + `internal/tooltrace/` | covered | Tool progress display modes. |
-| Duplicate collapse | `agent/display.py` | `internal/tooltrace/` | partial | Collapse for consecutive same-symbol tool traces. |
+| Duplicate collapse | `agent/display.py` | `internal/tui/panels/panels.go`; `internal/tui/panels/hermes_compat_test.go` | covered | `new` mode suppresses consecutive duplicate tool scrollback entries while preserving distinct tools and `all` mode history. |
 | Tool preview truncation | `agent/display.py` `build_tool_preview` | `internal/tooltrace/` | covered | Truncation of long tool args. |
 | `(×N)` collapse | `agent/display.py` | `internal/tooltrace/` | covered | Identical consecutive tool calls collapsed. |
 | `todo merge=true` wording | `agent/display.py` | `internal/tooltrace/` | covered | Special todo merge display. |
 | Unknown-tool degradation | `agent/display.py` | `internal/tooltrace/` | covered | Unknown tools display as generic ⚡. |
 | Tool result error display | `gateway/run.py` `:14716` | `internal/gateway/render.go` | covered | Error tool results rendered distinctly. |
-| Tool progress override per-platform | `gateway/run.py` `display.platforms.<name>.tool_progress` | `internal/config/` | partial | Config exists; per-platform override not proven. |
+| Tool progress override per-platform | `gateway/run.py` `display.platforms.<name>.tool_progress` | `internal/gateway/manager.go` `toolProgressMode`; `internal/config/hermes_display_writer.go`; `internal/config/integration/load/config_test.go`; `internal/gateway/manager_test.go` | covered | Named-platform and base-platform overrides take precedence over global mode; `/verbose` persists native `display.platforms.<platform>.tool_progress` with config round-trip tests. |
 | Tool progress env var fallback | `hermes_cli/config.py` `HERMES_TOOL_PROGRESS`, `HERMES_TOOL_PROGRESS_MODE`; `gateway/run.py` env fallback when config absent | `internal/config/config.go`; `internal/config/tool_progress_env_test.go` | covered | Deprecated Hermes env vars are honored only when `display.tool_progress` is not configured: `HERMES_TOOL_PROGRESS=false` maps to `off`, `HERMES_TOOL_PROGRESS=true` maps to `all`, and `HERMES_TOOL_PROGRESS_MODE` maps to normalized mode. Config file values win. |
 
 ### 4.3 Composer behavior
@@ -264,7 +264,7 @@ file+line ref or explicit `missing`, and a classification.
 | Ctrl+D deletes char / exits | `ui-tui/src/app/useInputHandlers.ts` | `internal/tui/update.go` | covered | Delete char when draft non-empty. |
 | Ctrl+L repaints | `ui-tui/src/app/useInputHandlers.ts` | `internal/tui/update.go` | covered | Force redraw. |
 | Paste/image handling | `ui-tui/src/app/useInputHandlers.ts` | `internal/tui/composer_ingress.go` | covered | Clipboard paste and image attachment. |
-| Voice recording key | `ui-tui/src/app/useInputHandlers.ts`; `hermes_cli/voice.py` | `internal/tui/update.go`; `internal/tui/hermes_keybindings_test.go`; `cmd/gormes/tui_voice_slash.go` | partial | Configurable `voice.record_key` now routes through the same injected voice adapter as `/voice`, shows typed unavailable audio/STT details, and never submits keypress text to the model; live microphone capture/STT/TTS playback remains a separate voice-mode gap. |
+| Voice recording key | `ui-tui/src/app/useInputHandlers.ts`; `hermes_cli/voice.py` | `internal/tui/update.go`; `internal/tui/model.go`; `internal/tui/hermes_keybindings_test.go`; `internal/tui/hermes_voice_runtime_test.go`; `cmd/gormes/tui_voice_slash.go` | covered | Configurable `voice.record_key` preserves the status-only `/voice` adapter when no runtime is injected and, with fake recorder/STT/TTS seams, starts capture without submit, stops into transcript composer insertion, surfaces recorder/STT/TTS evidence, and invokes assistant playback once per idle frame without live audio hardware. |
 
 ---
 
@@ -699,14 +699,14 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Voice mode (TTS/STT toggle) | `tools/voice_mode.py` | `internal/tools/voice_mode.go`; `internal/tools/voice_mode_test.go`; `cmd/gormes/tui_voice_slash.go` | partial | Tool/runner seam persists per-chat `off`/`voice_only`/`all`, exposes requirement checks, gates playback by mode, and exercises STT/TTS/audio fake providers; live microphone/audio provider wiring remains incomplete. |
-| Voice recording | `hermes_cli/voice.py` | `internal/tools/voice_mode.go`; `internal/tools/voice_mode_test.go`; `internal/tui/update.go`; `internal/tui/hermes_keybindings_test.go` | partial | Recording/transcription seam and configurable TUI voice key routing exist with typed unavailable evidence; live capture/silence detection/playback parity is not proven. |
+| Voice mode (TTS/STT toggle) | `tools/voice_mode.py` | `internal/tools/voice_mode.go`; `internal/tools/voice_mode_test.go`; `cmd/gormes/tui_voice_slash.go`; `internal/tui/hermes_voice_runtime_test.go` | partial | Tool/runner seam persists per-chat `off`/`voice_only`/`all`, exposes requirement checks, gates playback by mode, and native TUI orchestration now exercises fake recorder/STT/TTS providers. Remaining gap is real-device/provider binding and Hermes-equivalent cancellation/silence lifecycle outside fakeable TUI orchestration. |
+| Voice recording | `hermes_cli/voice.py` | `internal/tools/voice_mode.go`; `internal/tools/voice_mode_test.go`; `internal/tui/update.go`; `internal/tui/model.go`; `internal/tui/hermes_keybindings_test.go`; `internal/tui/hermes_voice_runtime_test.go` | partial | Recording/transcription seams and native TUI push-to-talk orchestration are fixture-covered with typed unavailable evidence, transcript insertion, and TTS playback hooks. Remaining gap is real microphone/silence-detection/device lifecycle parity, not the native TUI record-key orchestration. |
 | PTY bridge (terminal emulation) | `hermes_cli/pty_bridge.py` | `internal/platform/cli/pty/`; `internal/platform/cli/pty/bridge/`; `internal/platform/cli/pty/pty_bridge_test.go` | partial | Go PTY adapter now covers platform availability, spawn normalization, byte-safe read/write, resize, close cleanup, PID/aliveness, typed unavailable/invalid-message errors, and dashboard sidecar event isolation. Remaining gaps: actual dashboard/websocket `/api/pty` binding and terminal process registry integration. |
 | Push-to-talk keybinding | `cli.py` voice.record_key | `internal/tui/` `voiceRecordKey` | covered | Configurable voice key in TUI. |
 | TTS result envelope | `tools/tts_tool.py` | `internal/tools/tts/tool.go`; `internal/tools/tts/tool_test.go`; `internal/tools/tts/go_native_provider_test.go` | covered | Returns success/file_path/MEDIA evidence, voice-compatible audio tags, and typed failure evidence. |
 | WASI Whisper STT | `tools/transcription_tools.py` | `internal/tools/whisper/` | covered | Local STT via WASM. |
 | Go-owned local TTS backend | N/A (Gormes-owned) | `internal/speech/tts/fixture.go`; `internal/tools/tts/go_native_provider.go` | owned | Pure-Go local fixture/formant WAV provider behind TTSProvider seam; deliberately not neural Piper parity. |
-| Voice mode state machine | `tools/voice_mode.py` | `internal/tools/voice_mode.go`; `internal/tools/voice_mode_test.go` | partial | Chat-level mode state, requirement checks, record/transcribe, playback, and provider failure transitions are fixture-covered; Hermes-style explicit idle/recording/processing lifecycle and cancellation state are not yet proven. |
+| Voice mode state machine | `tools/voice_mode.py` | `internal/tools/voice_mode.go`; `internal/tools/voice_mode_test.go`; `internal/tui/hermes_voice_runtime_test.go` | partial | Chat-level mode state, requirement checks, record/transcribe, playback, provider failure transitions, and native TUI recording/processing flag resets are fixture-covered. Remaining gap is full real-device cancellation/silence lifecycle parity. |
 | TTS provider abstraction | `tools/tts_tool.py`; `agent/tts_provider.py` | `internal/tools/tts/tool.go`; `internal/tools/tts/command_provider.go`; `internal/tools/tts/go_native_provider.go` | covered | Cloud/command/local provider seam with explicit provider selection, no built-in shadowing, and Go-owned local runtime adapter. |
 
 ---

@@ -5,8 +5,6 @@ description: "Execute plans via delegate_task subagents (2-stage review)"
 ---
 
 
-
-
 # Subagent Driven Development
 
 Execute plans via delegate_task subagents (2-stage review).
@@ -15,19 +13,19 @@ Execute plans via delegate_task subagents (2-stage review).
 
 | | |
 |---|---|
-| Source | Bundled (installed by default) |
-| Path | `skills/software-development/subagent-driven-development` |
+| Source | Optional — install with `hermes skills install official/software-development/subagent-driven-development` |
+| Path | `optional-skills/software-development/subagent-driven-development` |
 | Version | `1.1.0` |
 | Author | Hermes Agent (adapted from obra/superpowers) |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `delegation`, `subagent`, `implementation`, `workflow`, `parallel` |
-| Related skills | [`writing-plans`](../software-development-writing-plans/), [`requesting-code-review`](../software-development-requesting-code-review/), [`test-driven-development`](../software-development-test-driven-development/) |
+| Related skills | `plan`, `requesting-code-review`, `test-driven-development` |
 
 ## Reference: full SKILL.md
 
 > **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Subagent-Driven Development
 
@@ -40,7 +38,7 @@ Execute implementation plans by dispatching fresh subagents per task with system
 ## When to Use
 
 Use this skill when:
-- You have an implementation plan (from writing-plans skill or user requirements)
+- You have an implementation plan (from the `plan` skill or user requirements)
 - Tasks are mostly independent
 - Quality and spec compliance are important
 - You want automated review between tasks
@@ -272,10 +270,10 @@ git add -A && git commit -m "feat: complete [feature name] implementation"
 
 ## Integration with Other Skills
 
-### With writing-plans
+### With plan
 
-This skill EXECUTES plans created by the writing-plans skill:
-1. User requirements → writing-plans → implementation plan
+This skill EXECUTES plans created by the `plan` skill:
+1. User requirements → plan → implementation plan
 2. Implementation plan → subagent-driven-development → working code
 
 ### With test-driven-development

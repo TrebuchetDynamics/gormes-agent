@@ -5,8 +5,6 @@ description: "Play Pokemon via headless emulator + RAM reads"
 ---
 
 
-
-
 # Pokemon Player
 
 Play Pokemon via headless emulator + RAM reads.
@@ -15,14 +13,14 @@ Play Pokemon via headless emulator + RAM reads.
 
 | | |
 |---|---|
-| Source | Bundled (installed by default) |
-| Path | `skills/gaming/pokemon-player` |
+| Source | Optional — install with `hermes skills install official/gaming/pokemon-player` |
+| Path | `optional-skills/gaming/pokemon-player` |
+| Platforms | linux, macos, windows |
 
 ## Reference: full SKILL.md
 
 > **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Pokemon Player
 

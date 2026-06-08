@@ -71,7 +71,7 @@ Use this page with:
 
 ## Current Finish Ledger
 
-As of the 2026-06-02 `cmd/progress next-work --repo-only` scan, the split canonical backlog contains 1,185 row objects: 1,182 complete and 3 planned. The repo-local `web_crawl explicit local-crawler unavailable evidence`, `Root tools command config-backed toolset toggles`, `Native TUI voice record key uses voice toggle adapter`, `Hermes send_message tool list and target contract`, `Goscrapling local crawler fixture adapter seam for web_crawl`, `Image generation managed-gateway provider binding`, `OSV malware advisory check for MCP package launch`, and `Hermes toolset distribution manifest and deterministic sampler` slices are complete. Treat old phase-open counts as historical context only; current implementation intent comes from the row objects and generated queue pages.
+As of the 2026-06-07 `cmd/progress next-work --repo-only` scan, the split canonical backlog contains 1,190 row objects: 1,186 complete and 4 planned. The repo-local `web_crawl explicit local-crawler unavailable evidence`, `Root tools command config-backed toolset toggles`, `Native TUI voice record key uses voice toggle adapter`, `Hermes send_message tool list and target contract`, `Goscrapling local crawler fixture adapter seam for web_crawl`, `Image generation managed-gateway provider binding`, `OSV malware advisory check for MCP package launch`, `Hermes toolset distribution manifest and deterministic sampler`, `Bitwarden secrets command status/sync/disable`, `Bitwarden managed bws install + checksum verification`, and `Native TUI live voice capture and playback parity` slices are complete; `Bitwarden disk cache parity` is the current repo-local builder-ready row. Treat old phase-open counts as historical context only; current implementation intent comes from the row objects and generated queue pages.
 
 | Phase | Non-complete rows | Planner meaning |
 |---|---:|---|
@@ -79,7 +79,7 @@ As of the 2026-06-02 `cmd/progress next-work --repo-only` scan, the split canoni
 | Phase 2 — Gateway | 0 | Gateway, channel, slash/skill/tool exposure, and operator-control rows are currently closed in the active backlog. New Hermes/Pi findings must become fresh rows before builder work. |
 | Phase 3 — Memory | 0 | Current Goncho/Honcho memory closure rows are complete; future memory work must be sourced from a new parity or product row. |
 | Phase 4 — Brain Transplant | 0 | Native-turn/provider/context rows in the active backlog are closed; regressions still need row-backed parity evidence before implementation. |
-| Phase 5 — Final Purge | 0 | Tool, CLI, and browser rows in the active repo-local backlog are currently closed; full goscrapling runtime binding remains deferred until public robots/cache/checkpoint/session-adapter APIs are ready. |
+| Phase 5 — Final Purge | 1 | Tool, CLI, browser, Bitwarden status/sync/disable/install/setup, and native TUI voice orchestration rows are closed; the active repo-local Phase 5 row is Bitwarden disk cache parity, while full goscrapling runtime binding remains deferred until public robots/cache/checkpoint/session-adapter APIs are ready. |
 | Phase 6 — Learning Loop | 0 | Skill extraction, retrieval, scoring, and operator surfaces are closed in the active backlog; new learning-loop work starts with planner evidence. |
 | Phase 7 — Paused Channels | 0 | The paused channel backlog has no active non-complete rows. Do not expand channels without a fixture-ready progress row. |
 | Phase 8 — Reputation & Publication | 3 | Public-social, engineering-writeup, and agentic-porting-kit rows remain planned but operator/external-access gated. |
@@ -87,12 +87,10 @@ As of the 2026-06-02 `cmd/progress next-work --repo-only` scan, the split canoni
 
 Structured blocker receipts remain attached to planned rows (three active
 blocker records plus one resolved release receipt), but blocker metadata is not
-builder-ready work. The current queue has no unblocked repo-local builder-ready
-slice. Planner work should choose one planned row, either satisfy/remove its
-blocker or sharpen the contract, then validate progress before assigning it to a
-builder. The current best follow-up planner candidates are the WASI TTS runtime
-source selection, the full Goscrapling runtime binding release gate, or
-publication rows after operator input.
+builder-ready work. The current queue has one unblocked repo-local builder-ready slice. Builder work
+should take `Bitwarden disk cache parity`; planner work should resume only after
+that row is complete or blocked. The remaining
+planned publication rows stay operator/input gated until their blockers clear.
 
 The first closure target is not "all green"; it is a **Python-free normal
 agent turn** with local Goncho memory and tested tool-call continuation. That is

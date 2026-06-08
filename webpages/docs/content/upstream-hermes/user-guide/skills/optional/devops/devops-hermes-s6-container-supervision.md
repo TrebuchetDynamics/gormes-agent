@@ -3,6 +3,8 @@ title: "Hermes S6 Container Supervision"
 sidebar_label: "Hermes S6 Container Supervision"
 description: "Modify, debug, or extend the s6-overlay supervision tree inside the Hermes Agent Docker image — adding new services, debugging profile gateways, understandin..."
 ---
+
+
 # Hermes S6 Container Supervision
 
 Modify, debug, or extend the s6-overlay supervision tree inside the Hermes Agent Docker image — adding new services, debugging profile gateways, understanding the Architecture B main-program pattern.
@@ -11,17 +13,19 @@ Modify, debug, or extend the s6-overlay supervision tree inside the Hermes Agent
 
 | | |
 |---|---|
-| Source | Bundled (installed by default) |
-| Path | `skills/software-development/hermes-s6-container-supervision` |
+| Source | Optional — install with `hermes skills install official/devops/hermes-s6-container-supervision` |
+| Path | `optional-skills/devops/hermes-s6-container-supervision` |
 | Version | `1.0.0` |
 | Author | Hermes Agent |
 | License | MIT |
+| Platforms | linux |
 | Tags | `docker`, `s6`, `supervision`, `gateway`, `profiles` |
-| Related skills | [`hermes-agent`](https://hermesagent.ai/docs/user-guide/skills/bundled/autonomous-ai-agents/autonomous-ai-agents-hermes-agent), `hermes-agent-dev` |
+| Related skills | `hermes-agent`, `hermes-agent-dev` |
 
 ## Reference: full SKILL.md
 
-> **Info: The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.**
+> **Info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Hermes s6-overlay Container Supervision
 

@@ -742,8 +742,8 @@
         "The slice reads or writes AZURE_FOUNDRY_BASE_URL, AZURE_FOUNDRY_API_KEY, deployment config, or model context metadata."
       ],
       "blocked_by": [
-        "Azure Foundry probe — path sniffing",
-        "Azure Foundry probe — /models classification + Anthropic fallback"
+        "Azure Foundry probe \u2014 path sniffing",
+        "Azure Foundry probe \u2014 /models classification + Anthropic fallback"
       ],
       "unblocks": [
         "Azure Foundry runtime env/config read model"
@@ -788,7 +788,7 @@
     "subphase": "4.A",
     "pos": 12,
     "item": {
-      "name": "Azure Foundry probe — path sniffing",
+      "name": "Azure Foundry probe \u2014 path sniffing",
       "priority": "P2",
       "status": "complete",
       "contract": "TDD packet for a missing pure helper; create exactly two files and do not edit the already validated /models probe. First add internal/llm/azure_foundry_path_sniff_test.go in package llm with TestClassifyAzurePath table subtests named exact_anthropic, trailing_anthropic, nested_anthropic, mixed_case, bare_host_unknown, openai_path_unknown, substring_false_positives, and empty_and_malformed_unknown. Then add internal/llm/azure_foundry_path_sniff.go exposing ClassifyAzurePath(rawURL string) AzureTransport that reuses the AzureTransport type/constants from internal/llm/azure_foundry_models_probe.go. Algorithm: url.Parse; empty path or parse error => AzureTransportUnknown; lowercase and strings.TrimRight(parsed.Path, \"/\"); return AzureTransportAnthropic only when the path equals \"/anthropic\", ends with \"/anthropic\", or contains \"/anthropic/\". This slice never returns AzureTransportOpenAI and never opens HTTP, reads env/config, writes files, starts goroutines, or changes ProbeAzureFoundry.",
@@ -868,10 +868,10 @@
     "subphase": "4.A",
     "pos": 13,
     "item": {
-      "name": "Azure Foundry probe — /models classification + Anthropic fallback",
+      "name": "Azure Foundry probe \u2014 /models classification + Anthropic fallback",
       "priority": "P2",
       "status": "complete",
-      "contract": "Pure helper internal/llm/azure_foundry_models_probe.go exposes type AzureProbeResult struct{Transport AzureTransport; Models []string; Reason string; Evidence []string} and ProbeAzureFoundry(ctx, client *http.Client, base, apiKey string) (AzureProbeResult, error). Probes <base>/models first; on 200 + OpenAI-shaped JSON returns openai_chat_completions with the model IDs. On non-200 or shape mismatch, probes <base>/v1/messages with a zero-token Anthropic Messages payload and classifies anthropic_messages on any 4xx that mentions 'messages' or 'model'. Otherwise returns Transport=unknown and Reason=manual_required. Tests use httptest.Server fakes only — no live Azure call, no credential storage, no config writes.",
+      "contract": "Pure helper internal/llm/azure_foundry_models_probe.go exposes type AzureProbeResult struct{Transport AzureTransport; Models []string; Reason string; Evidence []string} and ProbeAzureFoundry(ctx, client *http.Client, base, apiKey string) (AzureProbeResult, error). Probes <base>/models first; on 200 + OpenAI-shaped JSON returns openai_chat_completions with the model IDs. On non-200 or shape mismatch, probes <base>/v1/messages with a zero-token Anthropic Messages payload and classifies anthropic_messages on any 4xx that mentions 'messages' or 'model'. Otherwise returns Transport=unknown and Reason=manual_required. Tests use httptest.Server fakes only \u2014 no live Azure call, no credential storage, no config writes.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "provider",
@@ -2464,7 +2464,7 @@
       "name": "Vision-unsupported provider retry (strip-images-and-resend)",
       "priority": "P1",
       "status": "complete",
-      "contract": "When a provider returns a 4xx error whose body matches the vision-rejection phrase set, the provider stack strips all image_url / input_image / image content parts from the in-flight messages, marks the session as vision-unsupported (so future turns in the same session skip image attachment), and retries the same turn once. 5xx and timeout errors are NOT classified as vision-unsupported — those route to the existing transient-retry path. Phrase matching is best-effort English; expand the phrase set when new provider wordings are observed.",
+      "contract": "When a provider returns a 4xx error whose body matches the vision-rejection phrase set, the provider stack strips all image_url / input_image / image content parts from the in-flight messages, marks the session as vision-unsupported (so future turns in the same session skip image attachment), and retries the same turn once. 5xx and timeout errors are NOT classified as vision-unsupported \u2014 those route to the existing transient-retry path. Phrase matching is best-effort English; expand the phrase set when new provider wordings are observed.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "provider",
@@ -2480,10 +2480,10 @@
         "./hermes-agent/run_agent.py@998676dd0:878-916 _strip_images_from_messages",
         "./hermes-agent/run_agent.py@998676dd0:11176-11180 _vision_supported session flag",
         "./hermes-agent/run_agent.py@998676dd0:12739-12799 _IMAGE_REJECTION_PHRASES + retry implementation",
-        "../picoclaw/pkg/agent/llm_media.go (sibling Go port — same pattern)",
+        "../picoclaw/pkg/agent/llm_media.go (sibling Go port \u2014 same pattern)",
         "../picoclaw/pkg/agent/turn_coord.go:499 (vision-unsupported retry call site)",
         "../picoclaw/pkg/agent/pipeline_llm.go:207 (alternative pipeline retry path)",
-        "internal/llm/image_shrink_retry.go (existing too-large retry — pattern reference for the new retry)",
+        "internal/llm/image_shrink_retry.go (existing too-large retry \u2014 pattern reference for the new retry)",
         "internal/llm/http_client.go:OpenStream/openCodexResponsesStream (provider call entry)",
         "internal/llm/client.go:ChatRequest and MessageContentPart types",
         "internal/llm/codex_responses_adapter.go (one provider that may emit vision-rejection)"
@@ -2493,9 +2493,9 @@
         "image_shrink_retry.go pattern is stable and tests are green (true)."
       ],
       "not_ready_when": [
-        "The retry catches 5xx or timeout errors — must be 4xx-only.",
+        "The retry catches 5xx or timeout errors \u2014 must be 4xx-only.",
         "The retry runs more than once per turn (avoid infinite loops if the phrase matcher is over-eager).",
-        "Stripping images mutates the persisted goncho turn record — strip should happen only on the in-flight provider request, not on the user's recorded message."
+        "Stripping images mutates the persisted goncho turn record \u2014 strip should happen only on the in-flight provider request, not on the user's recorded message."
       ],
       "blocked_by": [
         "Multimodal photo attachment passthrough"
@@ -2508,7 +2508,7 @@
         "image_shrink_retry continues to work for too-large image errors (separate path; vision-rejection retry runs first only when its phrase set matches).",
         "CGO_ENABLED=0 go build ./... clean; CGO_ENABLED=0 go test ./internal/llm ./internal/gateway ./cmd/gormes -count=1 green."
       ],
-      "note": "Filed 2026-05-09 from gormes-hermes-parity audit. Hermes has 14 phrase matchers + 4xx-only gate + session-scoped flag. Picoclaw has equivalent at pkg/agent/llm_media.go and pkg/agent/turn_coord.go. Gormes had image_shrink_retry for too-large but no vision-unsupported retry — when a non-vision provider rejected image_url, the bot returned the safe-busy reply with no automatic recovery. Refined 2026-05-10 during bounded all-topic weakness sweep after refreshing Hermes to 998676dd0 and planned rows were 22, below the 90-row cap. No new row was added: CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows were complete or row-backed, while this provider-visible multimodal fallback was source-backed, unblocked by the completed photo passthrough row, fixture-ready, and higher leverage than operator-blocked P1 publication/release parent rows. Complete 2026-05-10: TDD added PlanVisionUnsupportedRetry, 4xx-only phrase detection for Hermes' image-rejection phrases plus `unsupported content type: image_url` and `unknown variant image_url`, in-flight image stripping without mutating caller-owned ChatRequest messages, tool-message placeholders for image-only tool outputs, session-scoped text-only memory in httpClient, and retry wiring for both OpenAI-compatible chat completions and Codex Responses. RED: `CGO_ENABLED=0 go test ./internal/llm -run TestVisionUnsupportedRetry -count=1` failed on missing retry seam. GREEN: that focused test plus `CGO_ENABLED=0 go test ./internal/llm ./internal/gateway ./cmd/gormes -count=1` passed.",
+      "note": "Filed 2026-05-09 from gormes-hermes-parity audit. Hermes has 14 phrase matchers + 4xx-only gate + session-scoped flag. Picoclaw has equivalent at pkg/agent/llm_media.go and pkg/agent/turn_coord.go. Gormes had image_shrink_retry for too-large but no vision-unsupported retry \u2014 when a non-vision provider rejected image_url, the bot returned the safe-busy reply with no automatic recovery. Refined 2026-05-10 during bounded all-topic weakness sweep after refreshing Hermes to 998676dd0 and planned rows were 22, below the 90-row cap. No new row was added: CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows were complete or row-backed, while this provider-visible multimodal fallback was source-backed, unblocked by the completed photo passthrough row, fixture-ready, and higher leverage than operator-blocked P1 publication/release parent rows. Complete 2026-05-10: TDD added PlanVisionUnsupportedRetry, 4xx-only phrase detection for Hermes' image-rejection phrases plus `unsupported content type: image_url` and `unknown variant image_url`, in-flight image stripping without mutating caller-owned ChatRequest messages, tool-message placeholders for image-only tool outputs, session-scoped text-only memory in httpClient, and retry wiring for both OpenAI-compatible chat completions and Codex Responses. RED: `CGO_ENABLED=0 go test ./internal/llm -run TestVisionUnsupportedRetry -count=1` failed on missing retry seam. GREEN: that focused test plus `CGO_ENABLED=0 go test ./internal/llm ./internal/gateway ./cmd/gormes -count=1` passed.",
       "write_scope": [
         "internal/llm/vision_unsupported_retry.go (new)",
         "internal/llm/vision_unsupported_retry_test.go (new)",
@@ -2527,7 +2527,7 @@
       "provenance": {
         "origin_type": "upstream",
         "upstream_ref": "hermes-agent/run_agent.py@998676dd0:878-916 _strip_images_from_messages; 11176-11180 _vision_supported; 12739-12799 image-rejection recovery",
-        "note": "Hermes detects 14 phrases (`does not support vision`, `only 'text' content type is supported`, `image_url is not supported`, etc.) on a 4xx provider error, sets _vision_supported=False, strips all image_url parts from messages, and retries the same turn text-only. 4xx-only gate to avoid catching transient 5xx as vision-unsupported. Picoclaw has the same pattern at pkg/agent/llm_media.go and pkg/agent/turn_coord.go:499. Gormes has image_shrink_retry.go for too-large but no vision-unsupported retry — when a provider rejects image_url today, the bot returns the safe-busy reply with no automatic recovery."
+        "note": "Hermes detects 14 phrases (`does not support vision`, `only 'text' content type is supported`, `image_url is not supported`, etc.) on a 4xx provider error, sets _vision_supported=False, strips all image_url parts from messages, and retries the same turn text-only. 4xx-only gate to avoid catching transient 5xx as vision-unsupported. Picoclaw has the same pattern at pkg/agent/llm_media.go and pkg/agent/turn_coord.go:499. Gormes has image_shrink_retry.go for too-large but no vision-unsupported retry \u2014 when a provider rejects image_url today, the bot returns the safe-busy reply with no automatic recovery."
       }
     }
   },
@@ -2575,7 +2575,7 @@
         "Absent Ollama/LM Studio/local endpoints are represented as optional/unavailable and do not block non-local routes.",
         "Free-tier candidate routes require user-owned credentials and are labelled provider-controlled quota, not free/unlimited capacity."
       ],
-      "note": "SHIPPED 2026-05-25 — added internal/provider/router config/read-model registry with redacted auth/status evidence, provider-controlled quota labelling, optional local-route unavailable state, and retryable-only fallback normalization; validated by go test ./internal/config ./internal/provider/router -run 'TestRouter(Config|Route|Registry|Status)' -count=1.",
+      "note": "SHIPPED 2026-05-25 \u2014 added internal/provider/router config/read-model registry with redacted auth/status evidence, provider-controlled quota labelling, optional local-route unavailable state, and retryable-only fallback normalization; validated by go test ./internal/config ./internal/provider/router -run 'TestRouter(Config|Route|Registry|Status)' -count=1.",
       "write_scope": [
         "internal/provider/router/",
         "internal/config/",
@@ -2956,7 +2956,7 @@
         "TestRouterCLIProxyAPIUpstream proves Router chat requests send the configured upstream model to the fake CLIProxyAPI endpoint while preserving the external route alias for clients.",
         "TestRouterCLIProxyAPIUpstream proves upstream Authorization and local Router credentials stay redacted from responses and status/log-safe evidence."
       ],
-      "note": "SHIPPED 2026-05-25 — added a Gormes-owned HTTPUpstreamProvider for OpenAI-compatible upstream routes such as user-run CLIProxyAPI servers. The adapter resolves redacted route credential handles (api_key_env/api_key_ref/primary key), probes /v1/models, posts non-streaming and SSE chat-completion requests to /v1/chat/completions with the configured upstream model, classifies HTTP/network failures without raw-body leaks, and remains behind the existing Router provider seam. It does not import CLIProxyAPI runtime code, call management APIs, automate OAuth/browser capture, use WebSockets, or add account-pool semantics. Validated by go test ./internal/provider/router -run 'TestRouterCLIProxyAPIUpstream' -count=1.",
+      "note": "SHIPPED 2026-05-25 \u2014 added a Gormes-owned HTTPUpstreamProvider for OpenAI-compatible upstream routes such as user-run CLIProxyAPI servers. The adapter resolves redacted route credential handles (api_key_env/api_key_ref/primary key), probes /v1/models, posts non-streaming and SSE chat-completion requests to /v1/chat/completions with the configured upstream model, classifies HTTP/network failures without raw-body leaks, and remains behind the existing Router provider seam. It does not import CLIProxyAPI runtime code, call management APIs, automate OAuth/browser capture, use WebSockets, or add account-pool semantics. Validated by go test ./internal/provider/router -run 'TestRouterCLIProxyAPIUpstream' -count=1.",
       "write_scope": [
         "internal/provider/router/",
         "internal/config/",
@@ -3562,7 +3562,7 @@
       "name": "Provider-default model resolution at config load",
       "priority": "P1",
       "status": "complete",
-      "contract": "When hermes.provider is set and hermes.model is empty or still equals the upstream Hermes-fleet placeholder 'hermes-agent', Gormes resolves the effective model from the provider's catalog instead of sending 'hermes-agent' to the provider. Resolution mirrors Hermes' get_default_model_for_provider(provider) — first entry in the provider's best-known model list. For openai-codex, config load stays offline: prefer the operator's Codex CLI default model, then the local Codex model cache ordered by picker priority, then the curated DEFAULT_CODEX_MODELS fallback from Hermes.",
+      "contract": "When hermes.provider is set and hermes.model is empty or still equals the upstream Hermes-fleet placeholder 'hermes-agent', Gormes resolves the effective model from the provider's catalog instead of sending 'hermes-agent' to the provider. Resolution mirrors Hermes' get_default_model_for_provider(provider) \u2014 first entry in the provider's best-known model list. For openai-codex, config load stays offline: prefer the operator's Codex CLI default model, then the local Codex model cache ordered by picker priority, then the curated DEFAULT_CODEX_MODELS fallback from Hermes.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "provider",
@@ -3579,7 +3579,7 @@
         "./hermes-agent/hermes_cli/codex_models.py@dcff23a25:get_codex_model_ids and DEFAULT_CODEX_MODELS",
         "./hermes-agent/hermes_cli/auth.py@dcff23a25:_update_config_for_provider(default_model)",
         "internal/config/config.go:575 (Model: \"hermes-agent\" inside defaults())",
-        "internal/llm/model_routing.go (existing per-turn selector — provider default feeds in here)",
+        "internal/llm/model_routing.go (existing per-turn selector \u2014 provider default feeds in here)",
         "webpages/docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
       ],
       "ready_when": [
@@ -3778,12 +3778,12 @@
       ],
       "ready_when": [
         "Multimodal photo attachment passthrough (2.B.12 row 6) is complete (true at HEAD = 0a7f8d02d).",
-        "Model-capability metadata is queryable from gateway code via internal/llm (true — model_registry.go).",
+        "Model-capability metadata is queryable from gateway code via internal/llm (true \u2014 model_registry.go).",
         "The row can ship a typed vision_pre_analysis_unavailable degraded marker for text mode without silently stripping images; a concrete vision_analyze backend can follow as a separate provider/tool-result slice."
       ],
       "not_ready_when": [
         "The slice silently strips images for non-vision models without surfacing degraded-mode evidence to the operator.",
-        "The slice hardcodes a specific vision_analyze provider — must respect auxiliary.vision config (provider/model/base_url) per Hermes parity."
+        "The slice hardcodes a specific vision_analyze provider \u2014 must respect auxiliary.vision config (provider/model/base_url) per Hermes parity."
       ],
       "blocked_by": [
         "Multimodal photo attachment passthrough"
@@ -3795,7 +3795,7 @@
         "Operator-configurable: agent.image_input_mode in config.toml (auto|native|text) honored same as Hermes.",
         "CGO_ENABLED=0 go build ./... clean; CGO_ENABLED=0 go test ./internal/gateway ./internal/llm ./cmd/gormes -count=1 green."
       ],
-      "note": "Filed 2026-05-09 from gormes-hermes-parity audit covering the 0a7f8d02d / 72aa8e29b multimodal slice. The DecideImageInputMode + BuildNativeImageContentParts helpers were ported from Hermes but never wired — planner row 0a7f8d02d wired only the always-native path. Planner refresh 2026-05-10 covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 20, below the 90-row cap; no new row was added. Fresh Hermes 3800972dd vision_analyze native fast-path evidence raised this existing gateway row to P1 and narrowed the builder slice to model-aware gateway selection plus typed degraded text mode. Complete 2026-05-10: Manager.submitPinned now calls DecideImageInputMode through imagePayloadFromAttachments, native mode remains unchanged for known vision-capable models, explicit/auto text mode suppresses image_url parts, auxiliary.vision forces text mode, and config/reload wiring honors agent.image_input_mode plus auxiliary.vision.",
+      "note": "Filed 2026-05-09 from gormes-hermes-parity audit covering the 0a7f8d02d / 72aa8e29b multimodal slice. The DecideImageInputMode + BuildNativeImageContentParts helpers were ported from Hermes but never wired \u2014 planner row 0a7f8d02d wired only the always-native path. Planner refresh 2026-05-10 covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 20, below the 90-row cap; no new row was added. Fresh Hermes 3800972dd vision_analyze native fast-path evidence raised this existing gateway row to P1 and narrowed the builder slice to model-aware gateway selection plus typed degraded text mode. Complete 2026-05-10: Manager.submitPinned now calls DecideImageInputMode through imagePayloadFromAttachments, native mode remains unchanged for known vision-capable models, explicit/auto text mode suppresses image_url parts, auxiliary.vision forces text mode, and config/reload wiring honors agent.image_input_mode plus auxiliary.vision.",
       "write_scope": [
         "internal/gateway/manager.go",
         "internal/gateway/turn_adapter.go",
@@ -4275,9 +4275,9 @@
         "Provider-tool-memory golden transcript suite"
       ],
       "acceptance": [
-        "TestCredentialSanitizerStripsUnicodeLookalikes proves OPENROUTER_API_KEY value `sk-proj-abcʋdef` becomes `sk-proj-abcdef` and records U+028B redacted evidence.",
+        "TestCredentialSanitizerStripsUnicodeLookalikes proves OPENROUTER_API_KEY value `sk-proj-abc\u028bdef` becomes `sk-proj-abcdef` and records U+028B redacted evidence.",
         "TestCredentialSanitizerWarnsOncePerKey proves repeated loads of GEMINI_API_KEY with non-ASCII bytes emit one warning record for that key and sanitize both values.",
-        "TestCredentialSanitizerLeavesNonCredentialUnicode proves MY_UNICODE_VAR=`hello café` remains unchanged and emits no warning.",
+        "TestCredentialSanitizerLeavesNonCredentialUnicode proves MY_UNICODE_VAR=`hello caf\u00e9` remains unchanged and emits no warning.",
         "TestCredentialSanitizerPreservesASCIIControlBytes proves ASCII ESC/control characters stay in credential values, matching Hermes' sanitizer scope.",
         "TestLoadDotenvFilesSanitizesCredentialValues proves Gormes .env loading sanitizes API_KEY/TOKEN-looking keys before os.Setenv while preserving shell-env precedence and redacting warnings.",
         "TestCredentialPoolStatusSanitizesTokenFields proves credential-pool token fields are sanitized before status/selection evidence and raw non-ASCII token bytes never appear in rendered JSON."
@@ -5558,8 +5558,8 @@
         "Provider-side resilience",
         "Classified provider-error taxonomy",
         "Retry-After header parsing + HTTPError hint",
-        "Provider rate guard — x-ratelimit header classification",
-        "Provider rate guard — degraded-state + last-known-good evidence"
+        "Provider rate guard \u2014 x-ratelimit header classification",
+        "Provider rate guard \u2014 degraded-state + last-known-good evidence"
       ],
       "acceptance": [
         "Headers with remaining=0 and reset window >=60s classify as genuine account rate limit and record redacted reset evidence.",
@@ -5602,10 +5602,10 @@
     "subphase": "4.H",
     "pos": 18,
     "item": {
-      "name": "Provider rate guard — x-ratelimit header classification",
+      "name": "Provider rate guard \u2014 x-ratelimit header classification",
       "priority": "P2",
       "status": "complete",
-      "contract": "TDD packet for a missing pure helper that matches Hermes 192e7eb2 reset-window semantics; create exactly two files and do not wire a provider breaker. STEP 1: cd into the repo root and run `ls internal/llm/provider_rate_guard*.go` — both files must be absent before the worker writes them; if Classify429 already exists, the worker should run the focused test and update this row. STEP 2: write internal/llm/provider_rate_guard_classification_test.go in package llm with one TestClassify429 function holding a t.Run-driven table with named subtests genuine_quota_1h_reset, short_reset_upstream_capacity, healthy_remaining_upstream_capacity, missing_headers_insufficient, unknown_headers_ignored, malformed_values_ignored, and three_buckets_with_remaining_one_missing_returns_upstream_capacity. Each subtest builds an http.Header via h := http.Header{}; h.Set(...); h.Set(...). STEP 3: write internal/llm/provider_rate_guard.go exposing type RateLimitClass string with constants RateLimitGenuineQuota=\"genuine_quota\", RateLimitUpstreamCapacity=\"upstream_capacity\", RateLimitInsufficientEvidence=\"insufficient_evidence\" and func Classify429(headers http.Header) RateLimitClass. Algorithm: iterate the four Hermes Nous bucket tags (\"requests\", \"requests-1h\", \"tokens\", \"tokens-1h\") via the paired x-ratelimit-remaining-{tag} and x-ratelimit-reset-{tag} headers; use headers.Get, strings.TrimSpace, strconv.Atoi for remaining, strconv.ParseFloat for reset seconds. A bucket is exhausted only if remaining<=0 AND reset>=60 seconds (matches Hermes _MIN_RESET_FOR_BREAKER_SECONDS). If any bucket is exhausted, return RateLimitGenuineQuota. If at least one bucket parsed successfully and none are exhausted, return RateLimitUpstreamCapacity. Otherwise return RateLimitInsufficientEvidence. STEP 4: no shared breaker state, no time.Now, no sleeps, no retry policy, and no provider routing changes; imports are limited to net/http, strconv, and strings (plus testing in the test file).",
+      "contract": "TDD packet for a missing pure helper that matches Hermes 192e7eb2 reset-window semantics; create exactly two files and do not wire a provider breaker. STEP 1: cd into the repo root and run `ls internal/llm/provider_rate_guard*.go` \u2014 both files must be absent before the worker writes them; if Classify429 already exists, the worker should run the focused test and update this row. STEP 2: write internal/llm/provider_rate_guard_classification_test.go in package llm with one TestClassify429 function holding a t.Run-driven table with named subtests genuine_quota_1h_reset, short_reset_upstream_capacity, healthy_remaining_upstream_capacity, missing_headers_insufficient, unknown_headers_ignored, malformed_values_ignored, and three_buckets_with_remaining_one_missing_returns_upstream_capacity. Each subtest builds an http.Header via h := http.Header{}; h.Set(...); h.Set(...). STEP 3: write internal/llm/provider_rate_guard.go exposing type RateLimitClass string with constants RateLimitGenuineQuota=\"genuine_quota\", RateLimitUpstreamCapacity=\"upstream_capacity\", RateLimitInsufficientEvidence=\"insufficient_evidence\" and func Classify429(headers http.Header) RateLimitClass. Algorithm: iterate the four Hermes Nous bucket tags (\"requests\", \"requests-1h\", \"tokens\", \"tokens-1h\") via the paired x-ratelimit-remaining-{tag} and x-ratelimit-reset-{tag} headers; use headers.Get, strings.TrimSpace, strconv.Atoi for remaining, strconv.ParseFloat for reset seconds. A bucket is exhausted only if remaining<=0 AND reset>=60 seconds (matches Hermes _MIN_RESET_FOR_BREAKER_SECONDS). If any bucket is exhausted, return RateLimitGenuineQuota. If at least one bucket parsed successfully and none are exhausted, return RateLimitUpstreamCapacity. Otherwise return RateLimitInsufficientEvidence. STEP 4: no shared breaker state, no time.Now, no sleeps, no retry policy, and no provider routing changes; imports are limited to net/http, strconv, and strings (plus testing in the test file).",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "provider",
@@ -5633,7 +5633,7 @@
         "The worker needs to edit internal/llm/client.go, internal/llm/errors.go, internal/kernel/retry.go, or any provider routing code to make the tests pass."
       ],
       "unblocks": [
-        "Provider rate guard — degraded-state + last-known-good evidence"
+        "Provider rate guard \u2014 degraded-state + last-known-good evidence"
       ],
       "acceptance": [
         "TestClassify429/genuine_quota_1h_reset (X-RateLimit-Remaining-Requests-1h=0 and X-RateLimit-Reset-Requests-1h=300) returns RateLimitGenuineQuota even when other present buckets are >0.",
@@ -5684,10 +5684,10 @@
     "subphase": "4.H",
     "pos": 19,
     "item": {
-      "name": "Provider rate guard — degraded-state + last-known-good evidence",
+      "name": "Provider rate guard \u2014 degraded-state + last-known-good evidence",
       "priority": "P2",
       "status": "complete",
-      "contract": "TDD packet for a missing pure state-transition helper. The prerequisite (RateLimitClass + Classify429 in internal/llm/provider_rate_guard.go) is shipped on main as of commit a1d7d928; do NOT stub or duplicate those constants. STEP 1: write internal/llm/provider_rate_guard_degraded_test.go in package llm (importing only `testing` and `time`). Define t0 and t1 once at the top of TestApplyClassification: `t0 := time.Date(2026,4,26,12,0,0,0,time.UTC); t1 := t0.Add(5*time.Minute)`. Add six t.Run subtests in this order — preserves_last_known_when_insufficient, treats_empty_class_as_insufficient, fresh_genuine_quota_clears_unavailable, fresh_upstream_capacity_clears_unavailable, input_immutability_via_struct_value, transitions_back_to_available_on_fresh_evidence — each calling ApplyClassification with explicit GuardState literals and asserting the returned struct field-by-field with t.Fatalf on mismatch. STEP 2: write internal/llm/provider_rate_guard_degraded.go in package llm (importing only `time`). Define `type GuardState struct { LastKnownClass RateLimitClass; LastKnownAt time.Time; Unavailable bool }` and `func ApplyClassification(state GuardState, now time.Time, class RateLimitClass) GuardState`. Algorithm: if class == RateLimitInsufficientEvidence OR class == RateLimitClass(\"\"), return GuardState{LastKnownClass: state.LastKnownClass, LastKnownAt: state.LastKnownAt, Unavailable: true}. Otherwise return GuardState{LastKnownClass: class, LastKnownAt: now, Unavailable: false}. The helper takes its argument by value, never mutates it, never reads time.Now, never spawns a goroutine, and never touches retry/breaker code.",
+      "contract": "TDD packet for a missing pure state-transition helper. The prerequisite (RateLimitClass + Classify429 in internal/llm/provider_rate_guard.go) is shipped on main as of commit a1d7d928; do NOT stub or duplicate those constants. STEP 1: write internal/llm/provider_rate_guard_degraded_test.go in package llm (importing only `testing` and `time`). Define t0 and t1 once at the top of TestApplyClassification: `t0 := time.Date(2026,4,26,12,0,0,0,time.UTC); t1 := t0.Add(5*time.Minute)`. Add six t.Run subtests in this order \u2014 preserves_last_known_when_insufficient, treats_empty_class_as_insufficient, fresh_genuine_quota_clears_unavailable, fresh_upstream_capacity_clears_unavailable, input_immutability_via_struct_value, transitions_back_to_available_on_fresh_evidence \u2014 each calling ApplyClassification with explicit GuardState literals and asserting the returned struct field-by-field with t.Fatalf on mismatch. STEP 2: write internal/llm/provider_rate_guard_degraded.go in package llm (importing only `time`). Define `type GuardState struct { LastKnownClass RateLimitClass; LastKnownAt time.Time; Unavailable bool }` and `func ApplyClassification(state GuardState, now time.Time, class RateLimitClass) GuardState`. Algorithm: if class == RateLimitInsufficientEvidence OR class == RateLimitClass(\"\"), return GuardState{LastKnownClass: state.LastKnownClass, LastKnownAt: state.LastKnownAt, Unavailable: true}. Otherwise return GuardState{LastKnownClass: class, LastKnownAt: now, Unavailable: false}. The helper takes its argument by value, never mutates it, never reads time.Now, never spawns a goroutine, and never touches retry/breaker code.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "provider",
@@ -5704,7 +5704,7 @@
         "internal/llm/provider_rate_guard.go::Classify429"
       ],
       "ready_when": [
-        "Provider rate guard — x-ratelimit header classification is complete on main (commit a1d7d928); RateLimitClass and the three RateLimit* constants are importable directly from package llm.",
+        "Provider rate guard \u2014 x-ratelimit header classification is complete on main (commit a1d7d928); RateLimitClass and the three RateLimit* constants are importable directly from package llm.",
         "internal/llm/provider_rate_guard_degraded.go and provider_rate_guard_degraded_test.go are absent on main; the worker's first edit is the focused failing test file."
       ],
       "not_ready_when": [
@@ -6038,7 +6038,7 @@
       "name": "Resilient provider chain dispatch",
       "priority": "P1",
       "status": "complete",
-      "contract": "DeepSeek → OpenAI → Anthropic → Grok → Ollama resilient routing with chain failure detection",
+      "contract": "DeepSeek \u2192 OpenAI \u2192 Anthropic \u2192 Grok \u2192 Ollama resilient routing with chain failure detection",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "provider",
@@ -6306,8 +6306,8 @@
       "acceptance": [
         "Circuit breaker trips after N consecutive failures",
         "OPEN state fast-fails without making network calls",
-        "Half-open probe succeeds → breaker resets to CLOSED",
-        "Half-open probe fails → breaker returns to OPEN",
+        "Half-open probe succeeds \u2192 breaker resets to CLOSED",
+        "Half-open probe fails \u2192 breaker returns to OPEN",
         "Each API key tracked independently",
         "Breaker state transitions are logged at INFO level"
       ],
@@ -6320,7 +6320,7 @@
         "go test ./internal/llm -run TestCircuitBreaker -count=1"
       ],
       "done_signal": [
-        "Circuit breaker tests prove CLOSED→OPEN→HALF_OPEN→CLOSED transitions with configurable thresholds"
+        "Circuit breaker tests prove CLOSED\u2192OPEN\u2192HALF_OPEN\u2192CLOSED transitions with configurable thresholds"
       ],
       "evidence": {
         "implementation": "internal/llm/circuit_breaker.go",
@@ -6710,7 +6710,7 @@
         "TestMCPOAuthStore_StatusRedactsSecrets: tokens with AccessToken='sk-abc-secret' and RefreshToken='rt-xyz-secret' produce a StatusFor result whose String() and Evidence fields contain neither 'sk-abc-secret' nor 'rt-xyz-secret' (sub-string assertion).",
         "TestMCPOAuthStore_NoninteractiveErrorClass: a constant ErrMCPOAuthNoninteractiveRequired is exported and StatusFor for an absent server in noninteractive mode (NewMCPOAuthStore().WithNoninteractive(true)) returns State='noninteractive_required', Evidence='noninteractive_auth_unavailable'."
       ],
-      "note": "Reshape of the prior quarantined 5.G row. The previous contract spanned token store + refresh flow + 401 recovery + browser handling — workers had no obvious atomic edit. This row narrows scope to one in-memory store with a typed token + status read, six named tests, and one declared error class, all inside internal/tools. Refresh, 401 recovery, and persistence land in follow-up rows. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
+      "note": "Reshape of the prior quarantined 5.G row. The previous contract spanned token store + refresh flow + 401 recovery + browser handling \u2014 workers had no obvious atomic edit. This row narrows scope to one in-memory store with a typed token + status read, six named tests, and one declared error class, all inside internal/tools. Refresh, 401 recovery, and persistence land in follow-up rows. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
       "write_scope": [
         "internal/tools/mcp_oauth_store.go",
         "internal/tools/mcp_oauth_store_test.go",
@@ -7201,7 +7201,7 @@
         "Nous OAuth writes only credential_pool.nous but not providers.nous; Hermes requires both for later 401 recovery.",
         "OpenAI Codex relink leaves a stale device_code suppression marker in auth.json.",
         "Provider errors or status output include access_token, refresh_token, agent_key, auth code, client secret, device code, raw callback URL, or raw provider body.",
-        "OAuth-capable provider lookup is hard-coded as a literal set instead of derived from ProviderConfig.AuthType field. (Hermes _OAUTH_CAPABLE_PROVIDERS is duplicated at auth_commands.py:36 and 173 — Gormes must avoid that drift by deriving from ProviderConfig.)"
+        "OAuth-capable provider lookup is hard-coded as a literal set instead of derived from ProviderConfig.AuthType field. (Hermes _OAUTH_CAPABLE_PROVIDERS is duplicated at auth_commands.py:36 and 173 \u2014 Gormes must avoid that drift by deriving from ProviderConfig.)"
       ],
       "unblocks": [
         "Nous OAuth device code + refresh token + agent key provisioning"
@@ -7382,7 +7382,7 @@
         "Gateway, platform, webhook, and cron management CLI"
       ],
       "acceptance": [
-        "TestAuthBareNonTTYRendersPoolTable proves bare `gormes auth` in non-TTY mode prints one section per provider with header `<provider> (N credentials):`, label/auth_type/source columns, current `←` marker, and exhaustion status text without entering an interactive prompt.",
+        "TestAuthBareNonTTYRendersPoolTable proves bare `gormes auth` in non-TTY mode prints one section per provider with header `<provider> (N credentials):`, label/auth_type/source columns, current `\u2190` marker, and exhaustion status text without entering an interactive prompt.",
         "TestAuthBareEmptyPoolMessage proves a pristine credential pool prints `(no credentials configured)` per provider and exits 0.",
         "TestAuthBareRedactsSecrets proves no fixture token, API key, or refresh token byte appears in stdout/stderr.",
         "TestAuthBareAWSIdentityOptionalProbe proves a fake AWS identity probe surfaces `bedrock identity: arn:...` when the probe succeeds and `bedrock identity: aws_identity_unavailable` when it fails, without aborting the readout.",
@@ -7728,7 +7728,7 @@
       "name": "Gormes model interactive provider/model picker",
       "priority": "P2",
       "status": "complete",
-      "contract": "`gormes model` runs a selection-only interactive provider+model picker over the Hermes provider registry manifest and the `Model and profile selector seam (Cobra + gateway)` interface: it requires a TTY, shows the current provider/model, presents a provider menu, prompts for the model identifier, and persists only `hermes.model` and `hermes.provider` to the active Gormes config TOML. Provider auth is the responsibility of `gormes auth add` (including the explicit `--emergency-import-from-codex-cli` override) — `gormes model` never offers OAuth, device-code, or vendor-CLI import flows.",
+      "contract": "`gormes model` runs a selection-only interactive provider+model picker over the Hermes provider registry manifest and the `Model and profile selector seam (Cobra + gateway)` interface: it requires a TTY, shows the current provider/model, presents a provider menu, prompts for the model identifier, and persists only `hermes.model` and `hermes.provider` to the active Gormes config TOML. Provider auth is the responsibility of `gormes auth add` (including the explicit `--emergency-import-from-codex-cli` override) \u2014 `gormes model` never offers OAuth, device-code, or vendor-CLI import flows.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tools",
@@ -7816,7 +7816,7 @@
       "name": "Gormes setup model step uses the dynamic provider-tracked model picker",
       "priority": "P1",
       "status": "complete",
-      "contract": "The `gormes setup` Inference Provider section must present, for the operator's selected/active provider, the same dynamic per-provider callable-model list the `gormes model` and gateway/native-TUI `/model` pickers already use (internal/llm.ListPickerProviders), instead of the legacy bare free-text prompt with at most five static suggestions. Two coupled defects: (1) the model prompt provider must equal the provider just selected/active in the section — the transcript witness shows Active provider \"OpenAI Codex\" but the prompt reads \"Model for openrouter [gpt-5.5]\", because runSetupInferenceProviderSection does not carry the chosen/active provider into runSetupActiveProviderModelPicker (it resolves to the provider-catalog default, openrouter); (2) cmd/gormes/model.go:promptModelChoice is fed defaultModelCatalogSuggestions(provider) = hermes.ProviderModelCatalogSuggestions(provider, nil) — the nil disables the live/dynamic catalog, so the operator never sees the provider's actual model set. The fix wires the existing ListPickerProviders-backed picker (the port already consumed by internal/gateway/model_picker.go and internal/tui/slash_model.go) into the setup model step with provider continuity, while preserving q/cancel, Enter-keeps-current, and `gormes setup model --non-interactive` default behavior. This supersedes the deliberately-static promptModelChoice seam introduced by the completed row at progress.json:19063; it must not fork a second picker or change the already-complete gateway/`gormes model`/TUI picker behavior.",
+      "contract": "The `gormes setup` Inference Provider section must present, for the operator's selected/active provider, the same dynamic per-provider callable-model list the `gormes model` and gateway/native-TUI `/model` pickers already use (internal/llm.ListPickerProviders), instead of the legacy bare free-text prompt with at most five static suggestions. Two coupled defects: (1) the model prompt provider must equal the provider just selected/active in the section \u2014 the transcript witness shows Active provider \"OpenAI Codex\" but the prompt reads \"Model for openrouter [gpt-5.5]\", because runSetupInferenceProviderSection does not carry the chosen/active provider into runSetupActiveProviderModelPicker (it resolves to the provider-catalog default, openrouter); (2) cmd/gormes/model.go:promptModelChoice is fed defaultModelCatalogSuggestions(provider) = hermes.ProviderModelCatalogSuggestions(provider, nil) \u2014 the nil disables the live/dynamic catalog, so the operator never sees the provider's actual model set. The fix wires the existing ListPickerProviders-backed picker (the port already consumed by internal/gateway/model_picker.go and internal/tui/slash_model.go) into the setup model step with provider continuity, while preserving q/cancel, Enter-keeps-current, and `gormes setup model --non-interactive` default behavior. This supersedes the deliberately-static promptModelChoice seam introduced by the completed row at progress.json:19063; it must not fork a second picker or change the already-complete gateway/`gormes model`/TUI picker behavior.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tools",
@@ -7830,9 +7830,9 @@
         "../hermes-agent/hermes_cli/setup.py@6784c8079:3122:SETUP_SECTIONS / 3132:run_setup_wizard",
         "cmd/gormes/setup.go:751:runSetupInferenceProviderSection (provider not carried to model step)",
         "cmd/gormes/setup.go:1020:runSetupActiveProviderModelPicker (provider := current.Provider; calls promptModelChoice with static suggestions)",
-        "cmd/gormes/model.go:173:promptModelChoice / cmd/gormes/model.go:169:defaultModelCatalogSuggestions (passes nil → no live catalog)",
+        "cmd/gormes/model.go:173:promptModelChoice / cmd/gormes/model.go:169:defaultModelCatalogSuggestions (passes nil \u2192 no live catalog)",
         "internal/llm/picker_providers.go:24:ListPickerProviders / :7:PickerProvider (existing dynamic picker port)",
-        "internal/gateway/model_picker.go, internal/tui/slash_model.go (existing consumers — reuse, do not fork)",
+        "internal/gateway/model_picker.go, internal/tui/slash_model.go (existing consumers \u2014 reuse, do not fork)",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json:19063 (the static promptModelChoice seam this supersedes)",
         "Completed prerequisites: 2.B.5 Gateway /model interactive provider/model picker; 4.D Model catalog cache + preferred-provider live merge; 5.O Gormes model interactive provider/model picker; 5.Q Native TUI /model slash command binding"
       ],
@@ -7847,7 +7847,7 @@
         "The model prompt still shows a provider different from the selected/active provider."
       ],
       "acceptance": [
-        "In `gormes setup`, after selecting/confirming a provider, the model step lists that provider's ListPickerProviders model set (not the ≤5 static nil-catalog suggestions).",
+        "In `gormes setup`, after selecting/confirming a provider, the model step lists that provider's ListPickerProviders model set (not the \u22645 static nil-catalog suggestions).",
         "The model prompt's provider equals the selected/active provider (no \"Model for openrouter\" when the active provider is OpenAI Codex / openai-codex).",
         "q / cancel aborts with no change; empty input keeps the current model; a chosen model persists via the existing config write path.",
         "`gormes setup model --non-interactive` still resolves a default model without prompting.",
@@ -8142,7 +8142,7 @@
         "TestResolveCustomProviderSecret_EnvVarUnset: ref={Name:'acme',APIKey:'${ACME_KEY}'}, env={} returns {EffectiveSecret:'', PersistAsRef:'${ACME_KEY}', Evidence:'env_var_unset'} and a non-nil error of class ErrCustomProviderEnvUnset.",
         "TestResolveCustomProviderSecret_BothEmpty: ref={Name:'acme',APIKey:'',KeyEnv:''}, env={} returns {EffectiveSecret:'', PersistAsRef:'', Evidence:'credential_missing'} and a non-nil error of class ErrCustomProviderCredentialMissing."
       ],
-      "note": "Reshape of the prior quarantined 5.O row. The previous contract spanned model_switch.py, main.py, tui_gateway/server.py, fake /v1/models catalogs, and internal/config + internal/llm — workers had no obvious first edit. This row narrows scope to one named pure function plus its struct/error declarations and five named tests, all inside internal/cli. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
+      "note": "Reshape of the prior quarantined 5.O row. The previous contract spanned model_switch.py, main.py, tui_gateway/server.py, fake /v1/models catalogs, and internal/config + internal/llm \u2014 workers had no obvious first edit. This row narrows scope to one named pure function plus its struct/error declarations and five named tests, all inside internal/cli. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
       "write_scope": [
         "internal/cli/custom_provider_secret.go",
         "internal/cli/custom_provider_secret_test.go",
@@ -8318,7 +8318,7 @@
       "name": "Nous OAuth device code + refresh token + agent key provisioning",
       "priority": "P2",
       "status": "complete",
-      "contract": "Gormes ports Hermes' Nous OAuth device code login, refresh token rotation, and agent key minting pipeline. The credential_pool.go already holds the persistence schema (NousOAuthCredentials struct, SaveNousOAuthCredentials), but no actual OAuth handshake or token refresh logic exists. This row adds: (1) browser-based device code login flow matching Hermes' _nous_device_code_login, (2) refresh token rotation via X-Nous-Refresh-Token header matching _refresh_access_token, (3) short-lived (24h) agent API key minting from portal matching _mint_agent_key, and (4) runtime credential resolution orchestrating refresh→mint with retry on stale access tokens matching resolve_nous_runtime_credentials.",
+      "contract": "Gormes ports Hermes' Nous OAuth device code login, refresh token rotation, and agent key minting pipeline. The credential_pool.go already holds the persistence schema (NousOAuthCredentials struct, SaveNousOAuthCredentials), but no actual OAuth handshake or token refresh logic exists. This row adds: (1) browser-based device code login flow matching Hermes' _nous_device_code_login, (2) refresh token rotation via X-Nous-Refresh-Token header matching _refresh_access_token, (3) short-lived (24h) agent API key minting from portal matching _mint_agent_key, and (4) runtime credential resolution orchestrating refresh\u2192mint with retry on stale access tokens matching resolve_nous_runtime_credentials.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "provider",
@@ -8352,10 +8352,10 @@
         "Device code login fixture proves the browser-based OAuth flow produces a valid access token and refresh token stored via SaveNousOAuthCredentials.",
         "Refresh token rotation fixture proves expired access tokens are refreshed via X-Nous-Refresh-Token header and the new token pair is persisted.",
         "Agent key minting fixture proves a short-lived agent API key is obtained from the portal after successful refresh.",
-        "Runtime credential resolution fixture proves resolve flow orchestrates refresh→mint→retry for stale access tokens.",
+        "Runtime credential resolution fixture proves resolve flow orchestrates refresh\u2192mint\u2192retry for stale access tokens.",
         "Error classification fixture proves device_code_expired, refresh_token_revoked, and agent_key_minting_failed states produce actionable operator guidance."
       ],
-      "note": "Tracer bullet 2026-05-08: LoadNousOAuthCredentials round-trip implemented. SaveNousOAuthCredentials → auth.json persistence → LoadNousOAuthCredentials recovery cycle is now fixture-backed. OAuth device code login, refresh token rotation, and agent key minting remain for follow-up slices.",
+      "note": "Tracer bullet 2026-05-08: LoadNousOAuthCredentials round-trip implemented. SaveNousOAuthCredentials \u2192 auth.json persistence \u2192 LoadNousOAuthCredentials recovery cycle is now fixture-backed. OAuth device code login, refresh token rotation, and agent key minting remain for follow-up slices.",
       "write_scope": [
         "internal/llm/nous_oauth.go",
         "internal/llm/nous_oauth_test.go",
@@ -8726,6 +8726,305 @@
     }
   },
   {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 141,
+    "item": {
+      "name": "Bitwarden secrets command status/sync/disable",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes exposes Hermes-compatible `secrets bitwarden status`, `secrets bitwarden sync`, and `secrets bitwarden disable` commands over the existing Bitwarden external-secret loader: status reports enabled/configured/token/binary state without leaking token values; sync performs a dry-run by default and `--apply` only mutates the current process; disable flips `[secrets.bitwarden].enabled=false` while leaving the bootstrap token for explicit operator removal.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "provider",
+      "module": "providers",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If Bitwarden is disabled, token/project is missing, `bws` is unavailable, or `bws` returns invalid JSON, the command prints/returns a redacted diagnostic and never blocks unrelated Gormes startup or leaks secret values.",
+      "fixture": "internal/app/secrets/service_test.go; internal/platform/cli/gormescli/secrets_command_test.go; internal/config/externalsecrets/bitwarden_test.go",
+      "source_refs": [
+        "./hermes-agent/hermes_cli/main.py:12979 secrets command parser",
+        "./hermes-agent/hermes_cli/secrets_cli.py:41 register_cli",
+        "./hermes-agent/hermes_cli/secrets_cli.py:292 cmd_status",
+        "./hermes-agent/hermes_cli/secrets_cli.py:332 cmd_sync",
+        "./hermes-agent/hermes_cli/secrets_cli.py:391 cmd_disable",
+        "./hermes-agent/hermes_cli/env_loader.py:250 _apply_external_secret_sources",
+        "./hermes-agent/agent/secret_sources/bitwarden.py:438 fetch_bitwarden_secrets",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md:Bitwarden Secrets Manager source",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md:Per-provider auth add behavior matrix",
+        "internal/config/externalsecrets/bitwarden.go:ApplyBitwarden",
+        "internal/config/config.go:applyExternalSecretSources",
+        "internal/platform/cli/gormescli/secrets.go",
+        "internal/app/secrets/service.go"
+      ],
+      "ready_when": [
+        "Existing Gormes Bitwarden startup loader remains partial parity evidence and can be reused rather than reimplemented.",
+        "Builder can add CLI/service code with hermetic fake `bws` fixtures; no live Bitwarden account, network, browser, or real `bws` install is required.",
+        "Scope is limited to status/sync/disable; interactive setup, project picker, managed pinned `bws` install/checksum verification, disk cache, and credential-pool borrowed-source persistence remain separate follow-up work."
+      ],
+      "not_ready_when": [
+        "The slice tries to implement interactive `secrets bitwarden setup` or `install` in the same pass.",
+        "The command persists fetched provider secrets to `.env`, config.toml, logs, JSON output, or progress evidence instead of process env / redacted reports.",
+        "Tests require live Bitwarden credentials, network access, an installed `bws`, or operator-specific paths."
+      ],
+      "unblocks": [
+        "Bitwarden secrets setup/install command",
+        "Credential-pool Bitwarden borrowed-source persistence",
+        "Provider setup/status secrets provenance display"
+      ],
+      "acceptance": [
+        "`gormes secrets bitwarden status` reports enabled, token env var name, token-present boolean, project ID set/unset, server URL/default, override/cache/auto-install flags, and optional `bws` binary/version state with all raw values redacted.",
+        "`gormes secrets bitwarden sync` refuses disabled/missing-token/missing-project configs with secret-safe diagnostics; with fake `bws` output it lists skip/would-export actions by env var name, skips the bootstrap token, honors existing env values unless `--apply`, and never prints secret values.",
+        "`gormes secrets bitwarden sync --apply` injects fetched values only into the current process env through seams and records Bitwarden source labels; it does not write `.env`, config.toml, or `secrets-runtime.json`.",
+        "`gormes secrets bitwarden disable` writes config with `[secrets.bitwarden].enabled=false` and tells the operator the bootstrap token remains in `.env` for manual removal.",
+        "Parent `gormes secrets` help lists the `bitwarden` subcommand without removing existing `apply`, `audit`, `configure`, or `reload` SecretRef commands."
+      ],
+      "note": "Complete. Gormes now exposes `gormes secrets bitwarden status`, `sync`, `sync --apply`, and `disable` over the existing Bitwarden external-secret loader. The commands report redacted config/token/binary state, dry-run sync without env or source-label mutation, apply exports only to the current process while preserving the bootstrap token, and disable persists `[secrets.bitwarden].enabled=false` while telling operators the bootstrap token remains in `.env` for manual removal. Setup/install/cache/credential-pool persistence remain separate follow-up rows.",
+      "write_scope": [
+        "internal/app/secrets/",
+        "internal/platform/cli/gormescli/",
+        "internal/config/externalsecrets/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/app/secrets -run Bitwarden -count=1",
+        "go test ./internal/platform/cli/gormescli -run Secrets -count=1",
+        "go test ./internal/config/externalsecrets -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Hermetic CLI/service tests prove `status`, `sync`, `sync --apply`, and `disable` behavior with fake Bitwarden output and secret-redaction assertions.",
+        "`go test ./internal/app/secrets -run Bitwarden -count=1`, `go test ./internal/platform/cli/gormescli -run Secrets -count=1`, `go test ./internal/config/externalsecrets -count=1`, and `go run ./cmd/progress validate` pass."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 142,
+    "item": {
+      "name": "Bitwarden managed bws install + checksum verification",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes implements the Hermes Bitwarden `secrets bitwarden install [--force]` managed-binary contract: choose the pinned bws version and platform asset deterministically, download the official release asset plus checksum file, verify SHA-256 before extraction, reject zip-slip members, install atomically to `$GORMES_HOME/bin/bws` with executable permissions, and report secret-safe success/failure. Existing startup auto_install may use the same installer seam, but this slice does not implement the interactive setup wizard or disk secret cache.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "provider",
+      "module": "providers",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Network, checksum, unsupported-platform, corrupt-zip, zip-slip, chmod, or version-probe failures return actionable redacted errors; startup secret loading still degrades without blocking unrelated Gormes commands when bws is unavailable.",
+      "fixture": "internal/config/externalsecrets/bitwarden_install_test.go; internal/app/secrets/bitwarden_test.go; internal/platform/cli/gormescli/secrets_command_test.go",
+      "source_refs": [
+        "./hermes-agent/agent/secret_sources/bitwarden.py:59 _BWS_VERSION",
+        "./hermes-agent/agent/secret_sources/bitwarden.py:61 _BWS_RELEASE_BASE",
+        "./hermes-agent/agent/secret_sources/bitwarden.py:64 _BWS_CHECKSUM_NAME",
+        "./hermes-agent/agent/secret_sources/bitwarden.py:252 _platform_asset_name",
+        "./hermes-agent/agent/secret_sources/bitwarden.py:291 install_bws",
+        "./hermes-agent/agent/secret_sources/bitwarden.py:352 _http_download",
+        "./hermes-agent/agent/secret_sources/bitwarden.py:361 _expected_sha256",
+        "./hermes-agent/hermes_cli/secrets_cli.py:87 install parser",
+        "./hermes-agent/hermes_cli/secrets_cli.py:430 cmd_install",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md:Bitwarden Secrets Manager source",
+        "internal/config/externalsecrets/bitwarden.go:FindBitwardenBinary",
+        "internal/platform/cli/gormescli/secrets.go:newSecretsBitwardenCommand"
+      ],
+      "ready_when": [
+        "`Bitwarden secrets command status/sync/disable` is complete, so the parent `secrets bitwarden` command already exists.",
+        "Builder can prove installer behavior with local zip/checksum fixtures and injected/local download seams; no live GitHub, Bitwarden account, real bws binary, browser, or operator paths are required.",
+        "Scope is limited to managed bws install and CLI `install [--force]`; interactive setup, project selection, `.env` token persistence, disk secret cache, and credential-pool borrowed-source persistence remain separate rows."
+      ],
+      "not_ready_when": [
+        "The slice calls live GitHub Releases, live Bitwarden, or the operator's real `$GORMES_HOME` in tests.",
+        "The installer accepts a downloaded archive without checksum verification or extracts zip members without containment checks.",
+        "The slice expands into interactive `secrets bitwarden setup`, project picker, or disk cache behavior."
+      ],
+      "unblocks": [
+        "Bitwarden secrets setup wizard",
+        "Bitwarden startup auto_install parity",
+        "Bitwarden disk cache parity"
+      ],
+      "acceptance": [
+        "`gormes secrets bitwarden install` installs the pinned bws version into `$GORMES_HOME/bin/bws`, prints the installed path/version without secrets, and leaves an existing managed binary untouched unless `--force` is set.",
+        "Installer fixtures prove platform asset-name selection for linux glibc/musl, darwin universal, and windows x86_64/aarch64 equivalents through deterministic seams, with unsupported platforms returning a clear error.",
+        "Checksum fixtures prove the zip is rejected on mismatch or missing checksum entry before extraction or replacement of the existing binary.",
+        "Zip fixtures prove absolute/parent-traversal members are rejected and only the selected bws executable can be staged under a temp dir before atomic replacement.",
+        "`FindBitwardenBinary`/startup auto_install can use the same managed installer seam when enabled, while unavailable install paths remain non-fatal for config startup and redacted in status/sync errors."
+      ],
+      "note": "Complete: added the Hermes-compatible managed bws installer seam in `internal/config/externalsecrets` plus `gormes secrets bitwarden install [--force]`. The installer pins bws 2.0.0, derives platform assets, downloads the release archive and checksum through testable seams, verifies SHA-256 before extraction, rejects zip-slip archive members, stages atomically under `$GORMES_HOME/bin/bws`, preserves existing managed binaries unless `--force`, and lets startup auto_install reuse the same seam. Service and CLI tests prove redacted install output with fake release fixtures; externalsecrets tests prove checksum mismatch preservation, zip-slip rejection, existing-binary no-force behavior, force replacement, platform asset names, and unsupported-platform degradation without live GitHub/Bitwarden calls. Remaining Bitwarden parity stays split to interactive setup, disk cache, and credential-pool borrowed-source persistence.",
+      "write_scope": [
+        "internal/config/externalsecrets/",
+        "internal/app/secrets/",
+        "internal/platform/cli/gormescli/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/config/externalsecrets -run Bitwarden -count=1",
+        "go test ./internal/app/secrets -run Bitwarden -count=1",
+        "go test ./internal/platform/cli/gormescli -run Secrets -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Hermetic tests prove install success, existing-binary no-force behavior, checksum rejection before replacement, zip-slip rejection, unsupported-platform degradation, platform asset selection, and CLI output redaction without live network or credentials.",
+        "`go test ./internal/config/externalsecrets -run Bitwarden -count=1`, `go test ./internal/app/secrets -run Bitwarden -count=1`, `go test ./internal/platform/cli/gormescli -run Secrets -count=1`, and `go run ./cmd/progress validate` pass."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 143,
+    "item": {
+      "name": "Bitwarden secrets setup wizard",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes implements the Hermes `secrets bitwarden setup` operator flow over the already-shipped Bitwarden status/sync/disable/install seams: install or find the managed `bws` binary, accept non-interactive `--access-token`, `--server-url`, and `--project-id` flags with a clear missing-flags error when no TTY is available, store the bootstrap access token in `$GORMES_HOME/.env` under the configured `access_token_env`, resolve the Bitwarden region/server URL from flag/env/existing config/interactive choice, optionally list projects through `bws project list --output json`, test-fetch project secrets without leaking values, and persist `[secrets.bitwarden]` enabled/project/server/cache/override/auto_install config. Interactive prompts must be seam-driven for tests; no live Bitwarden account, network, or real terminal is required.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "provider",
+      "module": "providers",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Missing non-interactive flags, empty token, bws install failure, project-list failure, invalid JSON, no visible projects, or fetch failure return secret-safe diagnostics and leave config/.env either unchanged or only with the explicitly accepted bootstrap token; raw access tokens and fetched secret values never appear in stdout/stderr/JSON/progress evidence.",
+      "fixture": "internal/app/secrets/bitwarden_test.go; internal/platform/cli/gormescli/secrets_command_test.go; internal/config/externalsecrets/bitwarden_install_test.go",
+      "source_refs": [
+        "./hermes-agent/hermes_cli/secrets_cli.py:41 register_cli setup parser",
+        "./hermes-agent/hermes_cli/secrets_cli.py:102 cmd_setup",
+        "./hermes-agent/hermes_cli/secrets_cli.py:136 non-interactive missing flags guard",
+        "./hermes-agent/hermes_cli/secrets_cli.py:162 token_env resolution",
+        "./hermes-agent/hermes_cli/secrets_cli.py:176 save_env_value bootstrap token",
+        "./hermes-agent/hermes_cli/secrets_cli.py:183 _resolve_server_url",
+        "./hermes-agent/hermes_cli/secrets_cli.py:200 _list_projects selection",
+        "./hermes-agent/hermes_cli/secrets_cli.py:239 fetch_bitwarden_secrets test fetch",
+        "./hermes-agent/hermes_cli/secrets_cli.py:269 persisted secrets.bitwarden config",
+        "./hermes-agent/hermes_cli/secrets_cli.py:467 _list_projects",
+        "./hermes-agent/hermes_cli/secrets_cli.py:512 _resolve_server_url",
+        "internal/config/externalsecrets/bitwarden.go:InstallBitwardenBWS",
+        "internal/app/secrets/service.go:BitwardenInstall/BitwardenSync/BitwardenStatus/BitwardenDisable",
+        "internal/platform/cli/gormescli/secrets.go:newSecretsBitwardenCommand",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md:Bitwarden Secrets Manager source"
+      ],
+      "ready_when": [
+        "`Bitwarden secrets command status/sync/disable` and `Bitwarden managed bws install + checksum verification` are complete, so setup can compose existing seams rather than reimplement installer or sync behavior.",
+        "Builder can expose setup-specific seams for prompt/input, project listing, test fetch, config writes, and dotenv writes; tests run entirely against temp homes and fake bws output.",
+        "Scope is limited to `secrets bitwarden setup`; disk secret cache and credential-pool borrowed-source persistence remain separate rows."
+      ],
+      "not_ready_when": [
+        "The implementation calls live Bitwarden/GitHub, requires a real TTY, writes to the operator's real home, or depends on Python Hermes in tests.",
+        "The setup command prints raw access tokens or fetched secret values, writes fetched provider secrets to `.env`, or bypasses the existing config/dotenv secret-safe writers.",
+        "The slice also implements disk cache, credential-pool provenance, provider-specific STT/TTS, or unrelated setup wizard sections."
+      ],
+      "unblocks": [
+        "Bitwarden disk cache parity",
+        "Credential-pool Bitwarden borrowed-source persistence"
+      ],
+      "acceptance": [
+        "`gormes secrets bitwarden setup --access-token 0.test --server-url https://vault.bitwarden.example --project-id project-123` in a non-TTY temp home installs/finds fake bws, test-fetches fake project secrets, writes only `BWS_ACCESS_TOKEN=0.test` to `.env` with mode 0600, persists `[secrets.bitwarden] enabled=true project_id server_url access_token_env cache_ttl_seconds=300 override_existing=true auto_install=true`, and prints next-step status/sync/disable hints without leaking token or secret values.",
+        "Non-TTY setup without any required flag returns a nonzero secret-safe error naming missing `--access-token`, `--server-url` (unless `BWS_SERVER_URL` is set), and/or `--project-id`, with usage guidance matching Hermes' setup shape.",
+        "Interactive scripted-input fixtures cover keeping an existing server_url, choosing US/EU/custom region, listing fake projects, rejecting invalid/out-of-range project choices, and selecting the project ID persisted to config.",
+        "Project-list fixtures cover invalid_client/authorization/non-JSON/no-projects diagnostics with no config enablement and no raw token/secret output.",
+        "Fetch-success fixtures classify bootstrap token as never overriding itself and existing env vars as already set/overwritten in the preview; fetched secret values are never persisted by setup and never printed."
+      ],
+      "note": "Complete. Gormes now exposes `gormes secrets bitwarden setup` over the shipped Bitwarden install/status/sync seams. Noninteractive setup accepts `--access-token`, `--server-url`, and `--project-id`, fails secret-safely when required flags are missing without a TTY, stores only the bootstrap token in `$GORMES_HOME/.env` with 0600 permissions, test-fetches fake Bitwarden secrets without printing/persisting fetched values, and persists `[secrets.bitwarden]` enabled/project/server/token-env/cache/override/auto-install settings. Seam-driven interactive setup can choose the existing/default/US/EU/custom server and select a project from fake `bws project list` output without live Bitwarden, GitHub, or a real terminal.",
+      "write_scope": [
+        "internal/app/secrets/",
+        "internal/config/externalsecrets/",
+        "internal/platform/cli/gormescli/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/app/secrets -run Bitwarden -count=1",
+        "go test ./internal/platform/cli/gormescli -run Secrets -count=1",
+        "go test ./internal/config/externalsecrets -run Bitwarden -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermetic CLI/service tests prove noninteractive setup, scripted interactive region/project selection, project-list/test-fetch failure diagnostics, secret redaction, dotenv mode, config persistence, and no fetched-secret persistence.",
+        "`go test ./internal/app/secrets -run Bitwarden -count=1`, `go test ./internal/platform/cli/gormescli -run Secrets -count=1`, `go test ./internal/config/externalsecrets -run Bitwarden -count=1`, `go run ./cmd/progress validate`, and `git diff --check` pass."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 144,
+    "item": {
+      "name": "Bitwarden disk cache parity",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Gormes ports Hermes' two-layer Bitwarden Secrets Manager cache for startup/config external-secret loading: `ApplyBitwarden`/the underlying fetch path first reuses a fresh in-process entry keyed by token fingerprint + project_id + server_url, then reads `$GORMES_HOME/cache/bws_cache.json` when `cache_ttl_seconds > 0`, promotes a fresh disk hit back into the process cache, and writes successful fetched secret maps back to disk atomically with mode 0600. Cache files must contain only the fingerprint key, fetched_at timestamp, and fetched Bitwarden secret map; they must never contain the raw access token, raw command env, stderr, project-list output, or unrelated provider config. Expired, malformed, wrong-key, unreadable, or unwritable cache state is best-effort: ignore and re-fetch through fake `bws` without blocking startup.",
+      "contract_status": "draft",
+      "slice_size": "medium",
+      "execution_owner": "provider",
+      "module": "providers",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If the cache is disabled with `cache_ttl_seconds <= 0`, stale, malformed, unreadable, has a key mismatch, or cannot be written atomically, Gormes falls back to the existing fakeable `bws secret list` path and returns the normal redacted Bitwarden report. Startup must remain non-fatal and secret-safe.",
+      "fixture": "internal/config/externalsecrets/bitwarden_cache_test.go with temp GORMES_HOME, fake clock, fake bws runner, malformed/wrong-key/stale cache fixtures, and permission/mode assertions; no live Bitwarden, GitHub, network, or real bws binary.",
+      "source_refs": [
+        "./hermes-agent/agent/secret_sources/bitwarden.py:72 _DISK_CACHE_BASENAME",
+        "./hermes-agent/agent/secret_sources/bitwarden.py:75 _disk_cache_path",
+        "./hermes-agent/agent/secret_sources/bitwarden.py:87 _cache_key_str",
+        "./hermes-agent/agent/secret_sources/bitwarden.py:93 _read_disk_cache",
+        "./hermes-agent/agent/secret_sources/bitwarden.py:123 _write_disk_cache",
+        "./hermes-agent/agent/secret_sources/bitwarden.py:155 _CachedFetch.is_fresh",
+        "./hermes-agent/agent/secret_sources/bitwarden.py:438 fetch_bitwarden_secrets",
+        "./hermes-agent/hermes_cli/env_loader.py:250 _apply_external_secret_sources",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md:Bitwarden Secrets Manager source",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Providers, Models, And Credentials / Credential pool, token vault, and auth commands",
+        "internal/config/externalsecrets/bitwarden.go:ApplyBitwarden",
+        "internal/config/config.go:applyExternalSecretSources",
+        "internal/app/secrets/service.go:BitwardenSetup/BitwardenSync"
+      ],
+      "ready_when": [
+        "Bitwarden status/sync/disable, managed install, and setup wizard rows are complete, so the remaining source-backed cache behavior can be added under the existing external-secret loader seam.",
+        "Builder can add cache helpers and tests in `internal/config/externalsecrets` using temp homes, fake runner output, and optional fake time; no CLI command, live Bitwarden, network, or real bws binary is required.",
+        "Scope is limited to startup/fetch cache semantics. Credential-pool borrowed-source persistence remains a separate row because it changes auth metadata, not fetch caching."
+      ],
+      "not_ready_when": [
+        "The slice attempts credential-pool borrowed-source persistence, setup wizard changes, project picker changes, or provider credential UI in the same pass.",
+        "The implementation writes the bootstrap access token, command env, stderr, raw .env contents, or unrelated provider config into `bws_cache.json`.",
+        "Tests require live Bitwarden credentials, GitHub/network access, wall-clock sleeps, a real bws install, or operator-specific paths."
+      ],
+      "unblocks": [
+        "Credential-pool Bitwarden borrowed-source persistence",
+        "Provider setup/status secrets provenance display"
+      ],
+      "acceptance": [
+        "A first successful fake `bws secret list` with `cache_ttl_seconds=300` writes `$GORMES_HOME/cache/bws_cache.json` atomically with mode 0600, containing a stable non-token key, `fetched_at`, and fetched env-var secrets only.",
+        "A second ApplyBitwarden call in a fresh process-cache state with the same token/project/server and fresh disk cache uses the disk cache without invoking fake bws, applies/skips env vars exactly like a live fetch, and records Bitwarden source labels for applied keys.",
+        "Fresh in-process cache avoids repeated fake bws calls within one process; disabling cache with `cache_ttl_seconds <= 0` always calls fake bws and does not read/write disk cache.",
+        "Wrong cache key, stale fetched_at, malformed JSON, non-object secrets, invalid env-var names, unreadable files, and write failures are ignored or warned best-effort, then Gormes re-fetches through fake bws without leaking token or secret values.",
+        "Server URL participates in the cache key so US/EU/self-hosted cache entries do not bleed across regions."
+      ],
+      "note": "Planner split from the remaining Bitwarden parity atom after setup/install/status/sync/disable shipped. Hermes caches BSM fetches in memory and `$HERMES_HOME/cache/bws_cache.json` keyed by access-token fingerprint, project id, and server URL. Gormes currently fetches through fakeable `bws secret list` but has no disk/in-process cache layer, so this is the next repo-scoped builder row. Credential-pool borrowed-source persistence remains the subsequent Bitwarden row.",
+      "write_scope": [
+        "internal/config/externalsecrets/",
+        "internal/app/secrets/",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/providers.json"
+      ],
+      "test_commands": [
+        "go test ./internal/config/externalsecrets -run Bitwarden -count=1",
+        "go test ./internal/app/secrets -run Bitwarden -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermetic cache tests prove first-fetch write, fresh disk-cache hit without bws invocation, in-process cache hit, cache disabled path, stale/wrong-key/malformed cache fallback, server-url key isolation, mode 0600, and token/secret redaction."
+      ]
+    }
+  },
+  {
     "phase": "6",
     "subphase": "6.E",
     "pos": 0,
@@ -8815,7 +9114,7 @@
       "name": "Sandbox provider interface and virtual path security",
       "priority": "P1",
       "status": "complete",
-      "contract": "Gormes gains a sandbox provider abstraction layer over the existing tool execution environment (internal/tools/, internal/tools/environment_*.go, internal/tools/filesystem_scope.go), inspired by DeerFlow's SandboxProvider/Sandbox interface pair with virtual path security. The SandboxProvider interface defines acquire/get/release/shutdown lifecycle. A LocalSandboxProvider implementation provides filesystem-level isolation with per-thread virtual path mapping. The virtual path system uses a /mnt/user-data/{workspace,uploads,outputs} prefix that resolves to host paths with path-traversal rejection, path-family enforcement (read-only vs read-write), and output masking (host paths never leak into agent return values). Existing internal/tools/IsolationLevel (process/container/vm) and FilesystemScope continue to work — the sandbox provider wraps them rather than replacing them.",
+      "contract": "Gormes gains a sandbox provider abstraction layer over the existing tool execution environment (internal/tools/, internal/tools/environment_*.go, internal/tools/filesystem_scope.go), inspired by DeerFlow's SandboxProvider/Sandbox interface pair with virtual path security. The SandboxProvider interface defines acquire/get/release/shutdown lifecycle. A LocalSandboxProvider implementation provides filesystem-level isolation with per-thread virtual path mapping. The virtual path system uses a /mnt/user-data/{workspace,uploads,outputs} prefix that resolves to host paths with path-traversal rejection, path-family enforcement (read-only vs read-write), and output masking (host paths never leak into agent return values). Existing internal/tools/IsolationLevel (process/container/vm) and FilesystemScope continue to work \u2014 the sandbox provider wraps them rather than replacing them.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "orchestrator",
@@ -8835,14 +9134,14 @@
         "webpages/docs/content/building-gormes/development-skills/deerflow-pattern-theft.md"
       ],
       "ready_when": [
-        "internal/tools/ has existing IsolationLevel, FilesystemScope, and EnvironmentContract — the sandbox provider wraps these rather than replacing them.",
+        "internal/tools/ has existing IsolationLevel, FilesystemScope, and EnvironmentContract \u2014 the sandbox provider wraps these rather than replacing them.",
         "A VirtualPathResolver or equivalent exists for /mnt/user-data/ prefix resolution.",
-        "LocalSandboxProvider implements the SandboxProvider interface at minimum — Docker/VM providers are follow-ups.",
+        "LocalSandboxProvider implements the SandboxProvider interface at minimum \u2014 Docker/VM providers are follow-ups.",
         "Path traversal detection and output masking have test coverage."
       ],
       "not_ready_when": [
         "The sandbox provider duplicates or replaces internal/tools/ environment contracts without a migration plan.",
-        "The row attempts to port the full Docker AioSandboxProvider in one slice — local filesystem provider first.",
+        "The row attempts to port the full Docker AioSandboxProvider in one slice \u2014 local filesystem provider first.",
         "The virtual path system hard-codes /mnt/ paths without configurable base directory support.",
         "Output masking regex patterns cause catastrophic backtracking (RE2-safe patterns required)."
       ],

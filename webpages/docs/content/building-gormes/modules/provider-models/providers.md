@@ -10,9 +10,9 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module group:** Provider Models
 **Module:** `providers`
-**Rows:** 126
-**Status counts:** `complete`: 126 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 9 · `P1`: 55 · `P2`: 24 · `P3`: 3 · `unset`: 35
+**Rows:** 130
+**Status counts:** `complete`: 129 · `in_progress`: 0 · `planned`: 1
+**Priority counts:** `P0`: 9 · `P1`: 59 · `P2`: 24 · `P3`: 3 · `unset`: 35
 
 ## Phase 3 — The Black Box (Memory)
 
@@ -221,6 +221,10 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `providers` | cmd/gormes provider command surface package extraction |
 | `complete` | `P1` | `providers` | Per-profile provider credential readiness |
 | `complete` | `P2` | `providers` | Gormes setup providers plural alias |
+| `complete` | `P1` | `providers` | Bitwarden secrets command status/sync/disable |
+| `complete` | `P1` | `providers` | Bitwarden managed bws install + checksum verification |
+| `complete` | `P1` | `providers` | Bitwarden secrets setup wizard |
+| `planned` | `P1` | `providers` | Bitwarden disk cache parity |
 
 ## Phase 6 — The Learning Loop (Soul)
 

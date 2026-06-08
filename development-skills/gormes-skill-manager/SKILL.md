@@ -101,6 +101,7 @@ Use this order when several skills could apply:
 | `goscrapling v0.1.0`, tagged sibling repo, scrape dependency, use from GitHub release | released-module E2E integration | `gormes-context-sourcing` then `gormes-tdd-slice` |
 | architecture/planner/parity/builder loop, delivery loop extension | bounded delivery orchestration | `gormes-delivery-loop` |
 | plan, roadmap, progress row | planner pass | `gormes-planner` |
+| TODO, backlog item, add work, missing feature, rough idea, "where track todos" | canonical backlog intake | `gormes-progress-slicer` then `gormes-planner` |
 | split plan/PRD/review into rows | vertical slicing | `gormes-progress-slicer` |
 | implement row, build slice | builder pass | `gormes-builder` + `gormes-tdd-slice` |
 | failing test, bug fix, TDD | red-green loop | `gormes-tdd-slice` |
@@ -186,7 +187,7 @@ Pick the primary intent:
   - For Juan's `goscrapling v0.1.0` handoff, preserve the supplied evidence (`/home/xel/git/sages-openclaw/workspace-mineru/goscrapling`, branch `main`, tag commit `ca1f046aa942c0739a73cb0715b67aec608b8e39`, tag `v0.1.0`, pre-tag validation) as context, but do not import from that sibling checkout. Verify the public GitHub module/tag with Go tooling, update Gormes via the release version, and write a failing E2E/TDD proof before implementation.
 - **Architecture zoom-out, codebase architecture improvement, or unfamiliar cross-package work**: use `gormes-architecture-zoomout` before implementation; route unclear package boundaries to `gormes-interface-designer` and repeated mechanics to `gormes-service-layer-refactor`.
 - **Bounded architecture -> planner -> parity -> builder cycles**: use `gormes-delivery-loop` when Juan explicitly asks for the chain or an extension that repeats it. Keep each iteration budgeted, progress-row-backed, test-validated, committed, and pushed before continuing.
-- **Broad plan, PRD, parity gap, or review finding that needs progress rows**: use `gormes-progress-slicer`, then `gormes-planner` to update canonical progress surfaces.
+- **Broad plan, PRD, parity gap, TODO/backlog request, or review finding that needs progress rows**: use `gormes-progress-slicer`, then `gormes-planner` to update canonical progress surfaces. Never create or append side-channel TODO files; `TODO.md` is not the active backlog.
 - **Throwaway design, state-machine, protocol, or UI experiment**: use `gormes-prototype-spike`; route validated production work to `gormes-tdd-slice`.
 - **Repeated runtime mechanics or service-layer cleanup** after a feature works: use `gormes-service-layer-refactor`; route unclear package boundaries to `gormes-interface-designer` first.
 - **PR readiness audit before external review or merge**: use `gormes-pr-check`; route actionable findings to `gormes-review-loop` or `gormes-greptile-loop`.
