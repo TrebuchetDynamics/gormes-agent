@@ -98,6 +98,37 @@ func TestStaleCodeGitFixturesResolveHEADWithoutSubprocesses(t *testing.T) {
 	})
 }
 
+func TestStaleCodeGitFileRejectsMissingMetadataDirectories(t *testing.T) {
+	t.Run("missing gitdir", func(t *testing.T) {
+		root := t.TempDir()
+		stalecodetest.WriteFile(t, filepath.Join(root, ".git"), "gitdir: ../missing.git\n")
+
+		if got, ok := gitRootFromCandidate(root); ok || got != "" {
+			t.Fatalf("gitRootFromCandidate = %q, %v; want rejected missing gitdir", got, ok)
+		}
+		got := NewStaleCodeChecker(root).Check(staleCodeSHA1)
+		if got.Status != RuntimeStaleCodeGitUnavailable || got.Stale || got.RestartSuggested {
+			t.Fatalf("missing gitdir stale code = %+v, want unavailable without restart", got)
+		}
+	})
+
+	t.Run("missing commondir", func(t *testing.T) {
+		root := t.TempDir()
+		gitDir := filepath.Join(root, "actual.git")
+		stalecodetest.WriteFile(t, filepath.Join(root, "worktree", ".git"), "gitdir: ../actual.git\n")
+		stalecodetest.WriteFile(t, filepath.Join(gitDir, "HEAD"), "ref: refs/heads/development\n")
+		stalecodetest.WriteFile(t, filepath.Join(gitDir, "commondir"), "../missing-common.git\n")
+
+		if got, ok := gitRootFromCandidate(filepath.Join(root, "worktree")); ok || got != "" {
+			t.Fatalf("gitRootFromCandidate = %q, %v; want rejected missing commondir", got, ok)
+		}
+		got := NewStaleCodeChecker(filepath.Join(root, "worktree")).Check(staleCodeSHA1)
+		if got.Status != RuntimeStaleCodeGitUnavailable || got.Stale || got.RestartSuggested {
+			t.Fatalf("missing commondir stale code = %+v, want unavailable without restart", got)
+		}
+	})
+}
+
 func TestStaleCodeUnsafeHeadRefReportsUnavailable(t *testing.T) {
 	root := t.TempDir()
 	stalecodetest.WriteFile(t, filepath.Join(root, ".git", "HEAD"), "ref: refs/heads/../evil\n")

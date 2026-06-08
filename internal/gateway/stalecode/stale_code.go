@@ -300,6 +300,12 @@ func resolveGitMetadataDir(sourceRoot string) (gitMetadataDir, error) {
 		gitDir = filepath.Join(sourceRoot, gitDir)
 	}
 	gitDir = filepath.Clean(gitDir)
+	if info, err := os.Stat(gitDir); err != nil || !info.IsDir() {
+		if err == nil {
+			err = fmt.Errorf("not a directory")
+		}
+		return gitMetadataDir{}, fmt.Errorf("%w: gitdir unavailable: %w", errStaleCodeGitUnavailable, err)
+	}
 	commonDir := gitDir
 	if raw, err := os.ReadFile(filepath.Join(gitDir, "commondir")); err == nil {
 		commonDir = strings.TrimSpace(string(raw))
@@ -310,6 +316,12 @@ func resolveGitMetadataDir(sourceRoot string) (gitMetadataDir, error) {
 			commonDir = filepath.Join(gitDir, commonDir)
 		}
 		commonDir = filepath.Clean(commonDir)
+		if info, err := os.Stat(commonDir); err != nil || !info.IsDir() {
+			if err == nil {
+				err = fmt.Errorf("not a directory")
+			}
+			return gitMetadataDir{}, fmt.Errorf("%w: commondir unavailable: %w", errStaleCodeGitUnavailable, err)
+		}
 	}
 	return gitMetadataDir{gitDir: gitDir, commonDir: commonDir}, nil
 }
