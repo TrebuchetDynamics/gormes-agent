@@ -85,8 +85,8 @@ func TestCredentialPoolLoadFiltersByOwnerProfile(t *testing.T) {
 func TestCredentialPoolProfileFilteredPersistPreservesOtherOwners(t *testing.T) {
 	hermesHome := t.TempDir()
 	entries := []PooledCredential{
-		{ID: "alpha", Label: "Alpha", AuthType: CredentialAuthAPIKey, Source: "fixture", OwnerProfile: "alpha", AccessToken: "alpha-token"},
-		{ID: "beta", Label: "Beta", AuthType: CredentialAuthAPIKey, Source: "fixture", OwnerProfile: "beta", AccessToken: "beta-token"},
+		{ID: "alpha", Label: "Alpha", AuthType: CredentialAuthAPIKey, Source: "manual", OwnerProfile: "alpha", AccessToken: "alpha-token"},
+		{ID: "beta", Label: "Beta", AuthType: CredentialAuthAPIKey, Source: "manual", OwnerProfile: "beta", AccessToken: "beta-token"},
 	}
 	if err := SaveCredentialPoolEntries(CredentialPoolOptions{HermesHome: hermesHome, Provider: "fixture-provider"}, entries); err != nil {
 		t.Fatal(err)
@@ -146,7 +146,7 @@ func TestCredentialPoolStatusSanitizesTokenFields(t *testing.T) {
 	ResetDefaultCredentialSanitizerWarnings()
 	hermesHome := t.TempDir()
 	entries := []PooledCredential{
-		{ID: "alpha", Label: "Alpha", AuthType: CredentialAuthOAuth, Source: "fixture", AccessToken: "tok\u028ben", RefreshToken: "ref\u00e9resh"},
+		{ID: "alpha", Label: "Alpha", AuthType: CredentialAuthOAuth, Source: "manual", AccessToken: "tok\u028ben", RefreshToken: "ref\u00e9resh"},
 	}
 	if err := SaveCredentialPoolEntries(CredentialPoolOptions{HermesHome: hermesHome, Provider: "fixture-provider"}, entries); err != nil {
 		t.Fatal(err)

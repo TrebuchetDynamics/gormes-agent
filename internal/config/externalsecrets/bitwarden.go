@@ -80,7 +80,12 @@ func (r BitwardenReport) OK() bool { return r.Error == "" }
 
 var secretSources = map[string]string{}
 
-func ResetSecretSourcesForTests() { secretSources = map[string]string{} }
+var bitwardenProcessCache = map[bitwardenCacheKey]bitwardenCachedFetch{}
+
+func ResetSecretSourcesForTests() {
+	secretSources = map[string]string{}
+	bitwardenProcessCache = map[bitwardenCacheKey]bitwardenCachedFetch{}
+}
 
 func GetSecretSource(envVar string) string { return secretSources[envVar] }
 
@@ -111,26 +116,12 @@ func ApplyBitwarden(ctx context.Context, cfg BitwardenConfig, opts BitwardenOpti
 		report.Error = "project_id is empty"
 		return report
 	}
-	binary, err := findBWS(cfg, opts)
+	secrets, warnings, binary, err := fetchBitwardenSecrets(ctx, cfg, tokenEnv, token, projectID, opts)
 	if err != nil {
 		report.Error = err.Error()
 		return report
 	}
 	report.BinaryPath = binary
-	stdout, stderr, err := runBWS(ctx, binary, tokenEnv, token, projectID, strings.TrimSpace(cfg.ServerURL), opts)
-	if err != nil {
-		message := strings.TrimSpace(string(stderr))
-		if message == "" {
-			message = err.Error()
-		}
-		report.Error = "bws failed: " + truncate(message, 200)
-		return report
-	}
-	secrets, warnings, err := parseBWSSecrets(stdout)
-	if err != nil {
-		report.Error = err.Error()
-		return report
-	}
 	report.Warnings = append(report.Warnings, warnings...)
 	for key, value := range secrets {
 		if key == tokenEnv {
@@ -377,6 +368,160 @@ func httpDownloadBitwarden(timeout time.Duration) func(context.Context, string) 
 		}
 		return io.ReadAll(resp.Body)
 	}
+}
+
+type bitwardenCacheKey struct {
+	tokenFingerprint string
+	projectID        string
+	serverURL        string
+}
+
+type bitwardenCachedFetch struct {
+	Secrets   map[string]string
+	FetchedAt float64
+}
+
+func (c bitwardenCachedFetch) fresh(ttlSeconds int) bool {
+	if ttlSeconds <= 0 {
+		return false
+	}
+	return time.Since(time.Unix(0, int64(c.FetchedAt*float64(time.Second)))) < time.Duration(ttlSeconds)*time.Second
+}
+
+func fetchBitwardenSecrets(ctx context.Context, cfg BitwardenConfig, tokenEnv, token, projectID string, opts BitwardenOptions) (map[string]string, []string, string, error) {
+	serverURL := strings.TrimSpace(cfg.ServerURL)
+	ttl := cfg.CacheTTLSeconds
+	useCache := ttl > 0
+	key := bitwardenCacheKey{tokenFingerprint: bitwardenTokenFingerprint(token), projectID: projectID, serverURL: serverURL}
+	if useCache {
+		if cached, ok := bitwardenProcessCache[key]; ok && cached.fresh(ttl) {
+			return cloneStringMap(cached.Secrets), nil, "", nil
+		}
+		if cached, ok := readBitwardenDiskCache(opts.HomeDir, key, ttl); ok {
+			bitwardenProcessCache[key] = cached
+			return cloneStringMap(cached.Secrets), nil, "", nil
+		}
+	}
+	binary, err := findBWS(cfg, opts)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	stdout, stderr, err := runBWS(ctx, binary, tokenEnv, token, projectID, serverURL, opts)
+	if err != nil {
+		message := strings.TrimSpace(string(stderr))
+		if message == "" {
+			message = err.Error()
+		}
+		return nil, nil, binary, fmt.Errorf("bws failed: %s", truncate(message, 200))
+	}
+	secrets, warnings, err := parseBWSSecrets(stdout)
+	if err != nil {
+		return nil, nil, binary, err
+	}
+	entry := bitwardenCachedFetch{Secrets: cloneStringMap(secrets), FetchedAt: float64(time.Now().UnixNano()) / float64(time.Second)}
+	if useCache {
+		bitwardenProcessCache[key] = entry
+		writeBitwardenDiskCache(opts.HomeDir, key, entry)
+	}
+	return secrets, warnings, binary, nil
+}
+
+func bitwardenTokenFingerprint(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])[:16]
+}
+
+func bitwardenCacheKeyString(key bitwardenCacheKey) string {
+	return key.tokenFingerprint + "|" + key.projectID + "|" + key.serverURL
+}
+
+func bitwardenDiskCachePath(home string) string {
+	home = strings.TrimSpace(home)
+	if home == "" {
+		home = os.Getenv("GORMES_HOME")
+	}
+	if home == "" {
+		home = filepath.Join(os.Getenv("HOME"), ".gormes")
+	}
+	return filepath.Join(home, "cache", "bws_cache.json")
+}
+
+func readBitwardenDiskCache(home string, key bitwardenCacheKey, ttlSeconds int) (bitwardenCachedFetch, bool) {
+	var zero bitwardenCachedFetch
+	if ttlSeconds <= 0 {
+		return zero, false
+	}
+	body, err := os.ReadFile(bitwardenDiskCachePath(home))
+	if err != nil {
+		return zero, false
+	}
+	var payload struct {
+		Key       string            `json:"key"`
+		FetchedAt float64           `json:"fetched_at"`
+		Secrets   map[string]string `json:"secrets"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return zero, false
+	}
+	if payload.Key != bitwardenCacheKeyString(key) || payload.FetchedAt == 0 || payload.Secrets == nil {
+		return zero, false
+	}
+	for name := range payload.Secrets {
+		if !envNamePattern.MatchString(name) {
+			return zero, false
+		}
+	}
+	entry := bitwardenCachedFetch{Secrets: cloneStringMap(payload.Secrets), FetchedAt: payload.FetchedAt}
+	if !entry.fresh(ttlSeconds) {
+		return zero, false
+	}
+	return entry, true
+}
+
+func writeBitwardenDiskCache(home string, key bitwardenCacheKey, entry bitwardenCachedFetch) {
+	path := bitwardenDiskCachePath(home)
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return
+	}
+	payload := struct {
+		Key       string            `json:"key"`
+		FetchedAt float64           `json:"fetched_at"`
+		Secrets   map[string]string `json:"secrets"`
+	}{Key: bitwardenCacheKeyString(key), FetchedAt: entry.FetchedAt, Secrets: cloneStringMap(entry.Secrets)}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".bws_cache_*.tmp")
+	if err != nil {
+		return
+	}
+	tmpName := tmp.Name()
+	if _, err := tmp.Write(body); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return
+	}
+	if err := tmp.Chmod(0o600); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpName)
+		return
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		os.Remove(tmpName)
+	}
+}
+
+func cloneStringMap(in map[string]string) map[string]string {
+	out := make(map[string]string, len(in))
+	for key, value := range in {
+		out[key] = value
+	}
+	return out
 }
 
 func runBWS(ctx context.Context, binary, tokenEnv, token, projectID, serverURL string, opts BitwardenOptions) ([]byte, []byte, error) {
