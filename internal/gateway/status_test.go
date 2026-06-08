@@ -133,14 +133,19 @@ func TestRuntimeStatusStore_WritesPIDStartTimeGenerationAndCommandIdentity(t *te
 	if !reflect.DeepEqual(status.Argv, []string{"gormes", "gateway"}) {
 		t.Fatalf("status Argv = %#v, want gormes gateway argv", status.Argv)
 	}
+	if status.ProcessValidation.Status != RuntimeProcessValidationLive || !status.ProcessValidation.Live {
+		t.Fatalf("status ProcessValidation = %+v, want persisted live self-validation", status.ProcessValidation)
+	}
 
 	pidRecord := readRuntimeStatusFixture(t, pidPath)
 	if pidRecord.PID != status.PID ||
 		pidRecord.StartTime != status.StartTime ||
 		pidRecord.Generation != status.Generation ||
 		pidRecord.Command != status.Command ||
-		!reflect.DeepEqual(pidRecord.Argv, status.Argv) {
-		t.Fatalf("pid record = %+v, want same identity as status %+v", pidRecord, status)
+		!reflect.DeepEqual(pidRecord.Argv, status.Argv) ||
+		pidRecord.ProcessValidation.Status != RuntimeProcessValidationLive ||
+		!pidRecord.ProcessValidation.Live {
+		t.Fatalf("pid record = %+v, want same live identity as status %+v", pidRecord, status)
 	}
 }
 

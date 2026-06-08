@@ -194,11 +194,7 @@ func RunTelegram(cmd *cobra.Command, _ []string, opts RunOptions) error {
 	}, hc, mstore, tm, slog.Default())
 
 	// Phase 3.B — async LLM-assisted entity/relationship extractor.
-	ext := memory.NewExtractor(mstore, hc, memory.ExtractorConfig{
-		Model:        cfg.Hermes.Model,
-		BatchSize:    memorySettings.ExtractorBatchSize,
-		PollInterval: memorySettings.ExtractorPollInterval,
-	}, slog.Default())
+	ext := memory.NewExtractor(mstore, hc, memorySettings.ExtractorConfig(cfg.Hermes.Model), slog.Default())
 	defer func() {
 		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), kernel.ShutdownBudget)
 		defer cancelShutdown()

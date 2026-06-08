@@ -21,12 +21,6 @@ const (
 	telegramDefaultMediaBatchDelay = 300 * time.Millisecond
 )
 
-type telegramPhotoBatchEntry struct {
-	event gateway.InboundEvent
-	timer *time.Timer
-	seq   uint64
-}
-
 func (b *Bot) telegramDocumentAttachment(ctx context.Context, doc *tgbotapi.Document) (string, string, *gateway.Attachment) {
 	if doc == nil {
 		return "", "", nil

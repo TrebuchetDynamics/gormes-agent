@@ -3,11 +3,13 @@ package telegram
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
 // TestBot_Send_SetsMarkdownV2ParseMode locks in the Hermes parity contract:
@@ -213,6 +215,100 @@ func TestBot_Send_FallsBackToPlainOnMarkdownV2ParseError(t *testing.T) {
 // double-escape: render.go already produces MarkdownV2-escaped strings
 // (verified in internal/gateway/render_test.go). bot.go must hand the body
 // through untouched.
+func TestBot_Send_RenderedFinalTelegramTextUsesMarkdownV2WithPlainFallback(t *testing.T) {
+	mc := newMockClient()
+	calls := 0
+	mc.SendFn = func(c tgbotapi.Chattable) (tgbotapi.Message, error) {
+		calls++
+		if calls == 1 {
+			return tgbotapi.Message{}, errors.New("Bad Request: can't parse entities: malformed markdown")
+		}
+		return tgbotapi.Message{MessageID: 4242}, nil
+	}
+	b := New(Config{AllowedChatID: 42}, mc, nil)
+
+	body := gateway.FormatFinalTelegramText("Use a_b(c)! and **bold** text")
+	if body == "" || body == "Use a_b(c)! and **bold** text" {
+		t.Fatalf("gateway final renderer did not produce MarkdownV2 body: %q", body)
+	}
+	if _, err := b.Send(context.Background(), "42", body); err != nil {
+		t.Fatalf("Send rendered final: %v", err)
+	}
+
+	sent := mc.sentMessages()
+	if len(sent) != 2 {
+		t.Fatalf("sent count = %d, want 2 (MarkdownV2 attempt + fallback)", len(sent))
+	}
+	first, ok := sent[0].(tgbotapi.MessageConfig)
+	if !ok {
+		t.Fatalf("first send type = %T, want MessageConfig", sent[0])
+	}
+	if first.ParseMode != tgbotapi.ModeMarkdownV2 {
+		t.Fatalf("first ParseMode = %q, want %q", first.ParseMode, tgbotapi.ModeMarkdownV2)
+	}
+	if first.Text != body {
+		t.Fatalf("first body = %q, want rendered gateway body %q", first.Text, body)
+	}
+	second, ok := sent[1].(tgbotapi.MessageConfig)
+	if !ok {
+		t.Fatalf("second send type = %T, want MessageConfig", sent[1])
+	}
+	if second.ParseMode != "" {
+		t.Fatalf("fallback ParseMode = %q, want empty", second.ParseMode)
+	}
+	for _, forbidden := range []string{`\\_`, `\\(`, `\\!`, "*bold*"} {
+		if strings.Contains(second.Text, forbidden) {
+			t.Fatalf("fallback body = %q, still contains raw MarkdownV2 syntax %q", second.Text, forbidden)
+		}
+	}
+	if !strings.Contains(second.Text, "Use a_b(c)! and bold text") {
+		t.Fatalf("fallback body = %q, want clean rendered plaintext", second.Text)
+	}
+}
+
+func TestBot_EditMessageFinal_GatewayRenderedStreamAndErrorParseModes(t *testing.T) {
+	mc := newMockClient()
+	b := New(Config{AllowedChatID: 42}, mc, nil)
+
+	streamBody := gateway.FormatStreamTelegram(gatewayTestRenderFrame("partial _stream_", ""))
+	if err := b.EditMessageFinal(context.Background(), "42", "1234", streamBody, false); err != nil {
+		t.Fatalf("EditMessageFinal(non-final stream): %v", err)
+	}
+	errorBody := gateway.FormatErrorTelegram(gatewayTestRenderFrame("", "provider blew up at a_b(c)!"))
+	if err := b.EditMessageFinal(context.Background(), "42", "1234", errorBody, true); err != nil {
+		t.Fatalf("EditMessageFinal(final error): %v", err)
+	}
+
+	sent := mc.sentMessages()
+	if len(sent) != 2 {
+		t.Fatalf("sent count = %d, want stream edit + final error edit", len(sent))
+	}
+	streamEdit, ok := sent[0].(tgbotapi.EditMessageTextConfig)
+	if !ok {
+		t.Fatalf("stream send type = %T, want EditMessageTextConfig", sent[0])
+	}
+	if streamEdit.ParseMode != "" {
+		t.Fatalf("stream ParseMode = %q, want plain text mode", streamEdit.ParseMode)
+	}
+	if streamEdit.Text != streamBody {
+		t.Fatalf("stream body = %q, want gateway-rendered body %q", streamEdit.Text, streamBody)
+	}
+	finalEdit, ok := sent[1].(tgbotapi.EditMessageTextConfig)
+	if !ok {
+		t.Fatalf("final send type = %T, want EditMessageTextConfig", sent[1])
+	}
+	if finalEdit.ParseMode != tgbotapi.ModeMarkdownV2 {
+		t.Fatalf("final ParseMode = %q, want %q", finalEdit.ParseMode, tgbotapi.ModeMarkdownV2)
+	}
+	if finalEdit.Text != errorBody {
+		t.Fatalf("final body = %q, want gateway-rendered error %q", finalEdit.Text, errorBody)
+	}
+}
+
+func gatewayTestRenderFrame(draft, lastError string) kernel.RenderFrame {
+	return kernel.RenderFrame{DraftText: draft, LastError: lastError}
+}
+
 func TestBot_Send_PreservesEscapingFromRenderLayer(t *testing.T) {
 	mc := newMockClient()
 	b := New(Config{AllowedChatID: 42}, mc, nil)

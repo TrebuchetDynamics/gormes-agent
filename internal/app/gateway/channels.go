@@ -75,6 +75,14 @@ func DefaultChannelFactories() ChannelFactories {
 }
 
 // TelegramDynamicCommands returns the dynamic Telegram commands from skills.
+func gatewayChannelRegistrationDegraded(status runtimegateway.RuntimeStatusWriter, log *slog.Logger, platform, errText, logMessage string, attrs ...any) {
+	WriteGatewayChannelDegraded(status, platform, errText)
+	if log == nil {
+		log = slog.Default()
+	}
+	log.Warn(logMessage, attrs...)
+}
+
 func TelegramDynamicCommands(ctx context.Context, cfg config.Config) []runtimegateway.PlatformCommand {
 	runtime := skills.NewRuntime(cfg.SkillsRoot(), cfg.Skills.MaxDocumentBytes, cfg.Skills.SelectionCap, cfg.SkillsUsageLogPath())
 	skillCommands, _, err := runtime.SkillSlashCommands(ctx, skills.RuntimeOptions{})
@@ -218,8 +226,7 @@ func RegisterConfiguredGatewayChannels(
 
 		if missing := MissingSlackCredentials(cfg.Slack); len(missing) > 0 {
 			errText := "slack: missing " + strings.Join(missing, ",")
-			WriteGatewayChannelDegraded(status, "slack", errText)
-			log.Warn("gateway: slack channel disabled by missing credentials", "missing", strings.Join(missing, ","))
+			gatewayChannelRegistrationDegraded(status, log, "slack", errText, "gateway: slack channel disabled by missing credentials", "missing", strings.Join(missing, ","))
 		} else {
 			if factories.Slack == nil {
 				return registered, fmt.Errorf("register slack: missing channel factory")
@@ -227,8 +234,7 @@ func RegisterConfiguredGatewayChannels(
 			ch, err := factories.Slack(cfg, log)
 			if err != nil {
 				errText := "slack: startup failed: " + err.Error()
-				WriteGatewayChannelDegraded(status, "slack", errText)
-				log.Warn("gateway: slack channel startup failed", "err", err)
+				gatewayChannelRegistrationDegraded(status, log, "slack", errText, "gateway: slack channel startup failed", "err", err)
 			} else {
 				if err := mgr.Register(ch); err != nil {
 					return registered, fmt.Errorf("register slack: %w", err)
@@ -272,8 +278,7 @@ func RegisterConfiguredGatewayChannels(
 	if cfg.Teams.Enabled {
 		if missing := cfg.Teams.MissingCredentials(); len(missing) > 0 {
 			errText := "teams: missing " + strings.Join(missing, ",")
-			WriteGatewayChannelDegraded(status, "teams", errText)
-			log.Warn("gateway: teams channel disabled by missing credentials", "missing", strings.Join(missing, ","))
+			gatewayChannelRegistrationDegraded(status, log, "teams", errText, "gateway: teams channel disabled by missing credentials", "missing", strings.Join(missing, ","))
 		} else {
 			if factories.Teams == nil {
 				return registered, fmt.Errorf("register teams: missing channel factory")
@@ -281,8 +286,7 @@ func RegisterConfiguredGatewayChannels(
 			ch, err := factories.Teams(cfg, log)
 			if err != nil {
 				errText := "teams: startup failed: " + err.Error()
-				WriteGatewayChannelDegraded(status, "teams", errText)
-				log.Warn("gateway: teams channel startup failed", "err", err)
+				gatewayChannelRegistrationDegraded(status, log, "teams", errText, "gateway: teams channel startup failed", "err", err)
 			} else {
 				if err := mgr.Register(ch); err != nil {
 					return registered, fmt.Errorf("register teams: %w", err)
@@ -301,8 +305,7 @@ func RegisterConfiguredGatewayChannels(
 
 		if missing := cfg.Yuanbao.MissingCredentials(); len(missing) > 0 {
 			errText := "yuanbao: missing " + strings.Join(missing, ",")
-			WriteGatewayChannelDegraded(status, "yuanbao", errText)
-			log.Warn("gateway: yuanbao channel disabled by missing credentials", "missing", strings.Join(missing, ","))
+			gatewayChannelRegistrationDegraded(status, log, "yuanbao", errText, "gateway: yuanbao channel disabled by missing credentials", "missing", strings.Join(missing, ","))
 			return registered, nil
 		}
 		if factories.Yuanbao == nil {
@@ -311,8 +314,7 @@ func RegisterConfiguredGatewayChannels(
 		ch, err := factories.Yuanbao(cfg, log)
 		if err != nil {
 			errText := "yuanbao: startup failed: " + err.Error()
-			WriteGatewayChannelDegraded(status, "yuanbao", errText)
-			log.Warn("gateway: yuanbao channel startup failed", "err", err)
+			gatewayChannelRegistrationDegraded(status, log, "yuanbao", errText, "gateway: yuanbao channel startup failed", "err", err)
 			return registered, nil
 		}
 		if err := mgr.Register(ch); err != nil {

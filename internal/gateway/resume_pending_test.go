@@ -13,6 +13,64 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
+func TestManager_DrainTimeoutReasonMarksResumePendingAndRuntimeEvidence(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		reason DrainTimeoutReason
+	}{
+		{name: "shutdown", reason: DrainReasonShutdownTimeout},
+		{name: "restart", reason: DrainReasonRestartTimeout},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			now := time.Date(2026, 4, 25, 16, 19, 0, 0, time.UTC)
+			smap := session.NewMemMap()
+			store := NewRuntimeStatusStore(t.TempDir() + "/gateway_state.json")
+			store.now = func() time.Time { return now }
+			if err := smap.Put(ctx, "telegram:42", "sess-running"); err != nil {
+				t.Fatalf("Put running session: %v", err)
+			}
+			m := NewManagerWithSubmitter(ManagerConfig{
+				AllowedChats:  map[string]string{"telegram": "42"},
+				SessionMap:    smap,
+				RuntimeStatus: store,
+				Now:           func() time.Time { return now },
+			}, &fakeKernel{}, slog.Default())
+			m.pinTurn("telegram", "42", "active-msg")
+			m.setPinnedTurnSession("telegram:42", "sess-running", SessionSource{
+				Platform: "telegram",
+				ChatID:   "42",
+				UserID:   "user-42",
+			})
+
+			drainCtx, cancelDrain := context.WithTimeout(context.Background(), time.Millisecond)
+			defer cancelDrain()
+			err := m.ShutdownWithDrainReason(drainCtx, tc.reason)
+			if !errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("ShutdownWithDrainReason error = %v, want deadline exceeded", err)
+			}
+
+			meta, ok, err := smap.GetMetadata(ctx, "sess-running")
+			if err != nil {
+				t.Fatalf("GetMetadata: %v", err)
+			}
+			if !ok || !meta.ResumePending || meta.ResumeReason != string(tc.reason) {
+				t.Fatalf("metadata = %+v ok=%v, want %s resume_pending", meta, ok, tc.reason)
+			}
+			status, err := store.ReadRuntimeStatus(ctx)
+			if err != nil {
+				t.Fatalf("ReadRuntimeStatus: %v", err)
+			}
+			if len(status.DrainTimeouts) != 1 || status.DrainTimeouts[0].Reason != string(tc.reason) {
+				t.Fatalf("DrainTimeouts = %+v, want %s evidence", status.DrainTimeouts, tc.reason)
+			}
+			if len(status.ResumePending) != 1 || status.ResumePending[0].Reason != string(tc.reason) || status.ResumePending[0].SessionID != "sess-running" {
+				t.Fatalf("ResumePending status = %+v, want sess-running %s evidence", status.ResumePending, tc.reason)
+			}
+		})
+	}
+}
+
 func TestManager_DrainTimeoutMarksOnlyStillRunningTurnResumePending(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 4, 25, 16, 20, 0, 0, time.UTC)

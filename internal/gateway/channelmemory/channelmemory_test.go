@@ -13,34 +13,36 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 )
 
-func TestSettingsFromConfigAreChannelNeutral(t *testing.T) {
-	settings := SettingsFromConfig(config.Config{
-		Telegram: config.TelegramCfg{
-			MemoryQueueCap:         99,
-			ExtractorBatchSize:     7,
-			ExtractorPollInterval:  2 * time.Second,
-			RecallEnabled:          true,
-			RecallWeightThreshold:  0.75,
-			RecallMaxFacts:         8,
-			RecallDepth:            3,
-			RecallDecayHorizonDays: 45,
-			MirrorEnabled:          true,
-			MirrorPath:             "/tmp/user.md",
-			MirrorInterval:         3 * time.Second,
-			SemanticEnabled:        true,
-			SemanticEndpoint:       "http://embed",
-			SemanticModel:          "nomic-embed-text",
-			SemanticTopK:           4,
-			SemanticMinSimilarity:  0.42,
-			EmbedderPollInterval:   4 * time.Second,
-			EmbedderBatchSize:      11,
-			EmbedderCallTimeout:    5 * time.Second,
-			QueryEmbedTimeout:      6 * time.Millisecond,
-		},
+func TestSettingsFromProjectionAreChannelNeutral(t *testing.T) {
+	settings := SettingsFromProjection(config.ChannelMemorySettings{
+		QueueCap:               99,
+		ExtractorBatchSize:     7,
+		ExtractorPollInterval:  2 * time.Second,
+		LegacyRecallEnabled:    true,
+		RecallWeightThreshold:  0.75,
+		RecallMaxFacts:         8,
+		RecallDepth:            3,
+		RecallDecayHorizonDays: 45,
+		MirrorEnabled:          true,
+		MirrorPath:             "/tmp/user.md",
+		MirrorInterval:         3 * time.Second,
+		SemanticEnabled:        true,
+		SemanticEndpoint:       "http://embed",
+		SemanticModel:          "nomic-embed-text",
+		SemanticTopK:           4,
+		SemanticMinSimilarity:  0.42,
+		EmbedderPollInterval:   4 * time.Second,
+		EmbedderBatchSize:      11,
+		EmbedderCallTimeout:    5 * time.Second,
+		QueryEmbedTimeout:      6 * time.Millisecond,
 	})
 
 	if settings.QueueCap != 99 || settings.ExtractorBatchSize != 7 || settings.ExtractorPollInterval != 2*time.Second {
 		t.Fatalf("settings queue/extractor = %#v", settings)
+	}
+	extractor := settings.ExtractorConfig("gpt-test")
+	if extractor.Model != "gpt-test" || extractor.BatchSize != 7 || extractor.PollInterval != 2*time.Second || extractor.CallTimeout != ExtractorCallTimeout {
+		t.Fatalf("ExtractorConfig = %#v, want channel settings with extended call timeout", extractor)
 	}
 	if !settings.LegacyRecallActive(true) || settings.LegacyRecallActive(false) {
 		t.Fatalf("LegacyRecallActive did not stay caller-scoped")

@@ -600,6 +600,7 @@ func (s *RuntimeStatusStore) merge(status *RuntimeStatus, update RuntimeStatusUp
 	status.Generation++
 	status.Argv = slices.Clone(s.argv())
 	status.Command = strings.Join(status.Argv, " ")
+	status.ProcessValidation = s.selfRuntimeProcessValidation(*status)
 	if status.Platforms == nil {
 		status.Platforms = map[string]PlatformRuntimeStatus{}
 	}
@@ -743,6 +744,22 @@ func applyRuntimeProcessValidation(status RuntimeStatus, validation RuntimeProce
 	return status
 }
 
+func (s *RuntimeStatusStore) selfRuntimeProcessValidation(status RuntimeStatus) RuntimeProcessValidation {
+	checkedAt := status.UpdatedAt
+	if checkedAt == "" && s != nil && s.now != nil {
+		checkedAt = s.now().Format(time.RFC3339Nano)
+	}
+	return RuntimeProcessValidation{
+		Status:            RuntimeProcessValidationLive,
+		Live:              true,
+		PID:               status.PID,
+		ExpectedStartTime: status.StartTime,
+		ActualStartTime:   status.StartTime,
+		Command:           status.Command,
+		CheckedAt:         checkedAt,
+	}
+}
+
 func (s *RuntimeStatusStore) readLocked() (RuntimeStatus, error) {
 	var status RuntimeStatus
 	exists, err := jsonfile.Read(context.Background(), s.path, &status, "runtime status")
@@ -800,14 +817,15 @@ func (s *RuntimeStatusStore) writeLocked(ctx context.Context, status RuntimeStat
 		return nil
 	}
 	pidRecord := RuntimeStatus{
-		Kind:       status.Kind,
-		PID:        status.PID,
-		StartTime:  status.StartTime,
-		Generation: status.Generation,
-		BootGitSHA: status.BootGitSHA,
-		Command:    status.Command,
-		Argv:       slices.Clone(status.Argv),
-		UpdatedAt:  status.UpdatedAt,
+		Kind:              status.Kind,
+		PID:               status.PID,
+		StartTime:         status.StartTime,
+		Generation:        status.Generation,
+		BootGitSHA:        status.BootGitSHA,
+		Command:           status.Command,
+		Argv:              slices.Clone(status.Argv),
+		ProcessValidation: status.ProcessValidation,
+		UpdatedAt:         status.UpdatedAt,
 	}
 	if err := writeRuntimeStatusJSONAtomic(s.pidPath, pidRecord); err != nil {
 		return fmt.Errorf("write runtime pid record: %w", err)

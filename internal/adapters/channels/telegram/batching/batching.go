@@ -38,7 +38,12 @@ func MergePhotoBatch(first, next gateway.InboundEvent) gateway.InboundEvent {
 }
 
 func InboundEventIsBatchableText(ev gateway.InboundEvent) bool {
-	return ev.Kind == gateway.EventSubmit && strings.TrimSpace(ev.Text) != "" && len(ev.Attachments) == 0
+	switch ev.Kind {
+	case gateway.EventSubmit, gateway.EventSteer:
+		return strings.TrimSpace(ev.Text) != "" && len(ev.Attachments) == 0
+	default:
+		return false
+	}
 }
 
 func TextBatchKey(ev gateway.InboundEvent) string {

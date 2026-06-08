@@ -311,11 +311,7 @@ func RunGateway(cmd *cobra.Command, _ []string, opts RunOptions) error {
 }
 
 func startGatewayExtractor(rootCtx context.Context, mstore *memory.SqliteStore, hc llm.Client, cfg config.Config, settings channelmemory.Settings, log *slog.Logger) *memory.Extractor {
-	ext := memory.NewExtractor(mstore, hc, memory.ExtractorConfig{
-		Model:        cfg.Hermes.Model,
-		BatchSize:    settings.ExtractorBatchSize,
-		PollInterval: settings.ExtractorPollInterval,
-	}, log)
+	ext := memory.NewExtractor(mstore, hc, settings.ExtractorConfig(cfg.Hermes.Model), log)
 	go ext.Run(rootCtx)
 	return ext
 }
