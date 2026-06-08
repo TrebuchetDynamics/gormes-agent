@@ -322,8 +322,8 @@ func TestHermesKeybindings_VoiceRecordTeaKeyUsesConfiguredKey(t *testing.T) {
 	if sub.calls != 0 {
 		t.Fatalf("voice record key reached Submitter %d time(s), want 0", sub.calls)
 	}
-	if !strings.Contains(updated.statusMessage, "Ctrl+O") || !strings.Contains(updated.statusMessage, "voice_record_key_ok") {
-		t.Fatalf("statusMessage = %q, want configured key evidence", updated.statusMessage)
+	if !strings.Contains(updated.statusMessage, "voice_recorder_unavailable") {
+		t.Fatalf("statusMessage = %q, want typed recorder evidence", updated.statusMessage)
 	}
 }
 
@@ -359,8 +359,8 @@ func TestHermesKeybindings_VoiceRecordTeaKeyUsesVoiceToggleAdapter(t *testing.T)
 	if calls != 1 {
 		t.Fatalf("VoiceToggle calls = %d, want 1", calls)
 	}
-	if gotReq != (VoiceToggleRequest{Action: "record", SessionID: "sess-voice-key"}) {
-		t.Fatalf("VoiceToggle request = %#v, want record action for current session", gotReq)
+	if gotReq != (VoiceToggleRequest{Action: "status", SessionID: "sess-voice-key"}) {
+		t.Fatalf("VoiceToggle request = %#v, want status check for current session", gotReq)
 	}
 	if sub.calls != 0 {
 		t.Fatalf("voice record key reached Submitter %d time(s), want 0", sub.calls)
@@ -368,16 +368,11 @@ func TestHermesKeybindings_VoiceRecordTeaKeyUsesVoiceToggleAdapter(t *testing.T)
 	if got := updated.editor.Value(); got != "draft must stay local" {
 		t.Fatalf("editor value = %q, want draft preserved", got)
 	}
-	if updated.transientPage == nil || updated.transientPage.Title != "Voice" {
-		t.Fatalf("transient voice page = %+v, want Voice details", updated.transientPage)
+	if updated.transientPage != nil {
+		t.Fatalf("transient voice page = %+v, want no status page during missing-recorder keypress", updated.transientPage)
 	}
-	for _, want := range []string{"Voice Mode Status", "Record key: Ctrl+O", "Audio: unavailable in native TUI", "STT: not configured"} {
-		if !strings.Contains(updated.transientPage.Body, want) {
-			t.Fatalf("voice details missing %q:\n%s", want, updated.transientPage.Body)
-		}
-	}
-	if !strings.Contains(updated.statusMessage, "Voice Mode Status") {
-		t.Fatalf("statusMessage = %q, want adapter-rendered voice status", updated.statusMessage)
+	if !strings.Contains(updated.statusMessage, "voice_recorder_unavailable") {
+		t.Fatalf("statusMessage = %q, want typed recorder evidence", updated.statusMessage)
 	}
 }
 

@@ -139,6 +139,49 @@ type VoiceToggleResult = voice.Result
 // injected so internal/tui never starts live audio or writes config files.
 type VoiceToggleFunc func(VoiceToggleRequest) (VoiceToggleResult, error)
 
+type VoiceRecordRequest struct {
+	SessionID string
+}
+
+type VoiceRecordEvidence struct {
+	Code    string
+	Message string
+}
+
+type VoiceAudioArtifact struct {
+	ID       string
+	MIMEType string
+	Bytes    []byte
+	Path     string
+}
+
+type VoiceTranscript struct {
+	Text string
+}
+
+type VoiceRecorder interface {
+	Start(context.Context, VoiceRecordRequest) (VoiceRecordEvidence, error)
+	Stop(context.Context, VoiceRecordRequest) (VoiceAudioArtifact, VoiceRecordEvidence, error)
+}
+
+type VoiceTranscriber interface {
+	Transcribe(context.Context, VoiceAudioArtifact) (VoiceTranscript, VoiceRecordEvidence, error)
+}
+
+type VoicePlayback interface {
+	Speak(context.Context, string) (VoiceRecordEvidence, error)
+}
+
+type VoiceRuntime struct {
+	Recorder    VoiceRecorder
+	Transcriber VoiceTranscriber
+	Playback    VoicePlayback
+}
+
+func (r VoiceRuntime) empty() bool {
+	return r.Recorder == nil && r.Transcriber == nil && r.Playback == nil
+}
+
 // SkinConfigRequest is the TUI-local request shape for /skin. Name is empty
 // for read-only status and non-empty for a requested skin switch.
 type SkinConfigRequest = skin.Request
@@ -162,6 +205,10 @@ type Options struct {
 	// nil keeps /voice consumed with visible setup evidence; cmd/gormes wires
 	// a no-live-audio adapter for local TUI startup.
 	VoiceToggle VoiceToggleFunc
+	// VoiceRuntime owns fakeable live-audio orchestration for the native TUI.
+	// Production callers may wire real recorder/STT/TTS adapters; tests use
+	// hermetic fakes so internal/tui never opens audio devices directly.
+	VoiceRuntime VoiceRuntime
 	// SkinName seeds the active native TUI skin. Empty or unknown values fall
 	// back to default so invalid persisted config cannot break startup.
 	SkinName string
@@ -379,6 +426,10 @@ type Model struct {
 	accountUsage       AccountUsageFunc
 	toolsConfigure     ToolsConfigureFunc
 	voiceToggle        VoiceToggleFunc
+	voiceRuntime       VoiceRuntime
+	voiceRecording     bool
+	voiceProcessing    bool
+	voiceLastSpokenSeq uint64
 	skinConfig         SkinConfigFunc
 	sessionResume      SessionResumeFunc
 	todoReader         func(sessionID string) []TodoItem
@@ -463,6 +514,7 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		accountUsage:       opts.AccountUsage,
 		toolsConfigure:     opts.ToolsConfigure,
 		voiceToggle:        opts.VoiceToggle,
+		voiceRuntime:       opts.VoiceRuntime,
 		skinConfig:         opts.SkinConfig,
 		sessionResume:      opts.SessionResume,
 		todoReader:         opts.TodoReader,
