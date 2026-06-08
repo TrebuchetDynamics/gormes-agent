@@ -9,6 +9,35 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
+type fleetStatusHarness struct {
+	cfg      config.Config
+	worker   *fakeFleetWorker
+	resolver *fakeFleetSecretResolver
+	hashes   map[string]string
+	homeRoot string
+}
+
+func (h fleetStatusHarness) status(t *testing.T) FleetStatus {
+	t.Helper()
+	if h.homeRoot == "" {
+		h.homeRoot = "/fleet/home"
+	}
+	worker := FleetProfileWorker(h.worker)
+	if worker == nil {
+		worker = &fakeFleetWorker{}
+	}
+	status, err := NewFleetSupervisor(h.cfg, FleetSupervisorOptions{
+		HomeRoot:           h.homeRoot,
+		CredentialHashes:   h.hashes,
+		CredentialResolver: h.resolver,
+		Worker:             worker,
+	}).Status(context.Background())
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	return status
+}
+
 func TestFleetSupervisorStatusListsConfiguredProfilesWithIsolationAndTokenConflictEvidence(t *testing.T) {
 	sharedHash := TokenCredentialHash("telegram-token-that-must-not-leak")
 	cfg := config.Config{
@@ -46,18 +75,15 @@ func TestFleetSupervisorStatusListsConfiguredProfilesWithIsolationAndTokenConfli
 		},
 	}
 
-	supervisor := NewFleetSupervisor(cfg, FleetSupervisorOptions{
-		HomeRoot: "/operator/private/gormes",
-		CredentialHashes: map[string]string{
+	status := fleetStatusHarness{
+		cfg:      cfg,
+		worker:   worker,
+		homeRoot: "/operator/private/gormes",
+		hashes: map[string]string{
 			"main-telegram": sharedHash,
 			"ops-telegram":  sharedHash,
 		},
-		Worker: worker,
-	})
-	status, err := supervisor.Status(context.Background())
-	if err != nil {
-		t.Fatalf("Status: %v", err)
-	}
+	}.status(t)
 	if len(status.Profiles) != 3 {
 		t.Fatalf("profiles = %d, want every configured profile: %+v", len(status.Profiles), status.Profiles)
 	}
