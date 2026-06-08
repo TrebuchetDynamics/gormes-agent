@@ -27,7 +27,7 @@ const MaxMessageLen = maxMessageLen
 // ToolProgressStatus is the channel-neutral lifecycle state for structured
 // tool progress. Text-only channels can ignore it; first-party channels such
 // as Navivox can render it as native UI instead of assistant prose.
-type ToolProgressStatus = toolprogress.Status
+type ToolProgressStatus = toolprogress.ToolProgressStatus
 
 const (
 	ToolProgressStarted  = toolprogress.Started

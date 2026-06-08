@@ -13,13 +13,13 @@ const (
 	BytesPerMegabyte     = 1024 * 1024
 )
 
-type Status string
+type PressureStatus string
 
 const (
-	StatusOK          Status = "ok"
-	StatusWarn        Status = "warn"
-	StatusCritical    Status = "critical"
-	StatusUnavailable Status = "unavailable"
+	StatusOK          PressureStatus = "ok"
+	StatusWarn        PressureStatus = "warn"
+	StatusCritical    PressureStatus = "critical"
+	StatusUnavailable PressureStatus = "unavailable"
 )
 
 type Action string
@@ -73,20 +73,20 @@ type Sample struct {
 }
 
 type Evidence struct {
-	Status          Status   `json:"status,omitempty"`
-	RSSMB           int      `json:"rss_mb,omitempty"`
-	WarnRSSMB       int      `json:"warn_rss_mb,omitempty"`
-	CriticalRSSMB   int      `json:"critical_rss_mb,omitempty"`
-	UptimeSeconds   int64    `json:"uptime_seconds,omitempty"`
-	GoRoutines      int      `json:"goroutines,omitempty"`
-	GCCollections   uint32   `json:"gc_collections,omitempty"`
-	Action          Action   `json:"action,omitempty"`
-	TargetPID       int      `json:"target_pid,omitempty"`
-	TargetStartTime int64    `json:"target_start_time,omitempty"`
-	Evidence        []string `json:"evidence,omitempty"`
-	Message         string   `json:"message,omitempty"`
-	CheckedAt       string   `json:"checked_at,omitempty"`
-	Redacted        bool     `json:"redacted"`
+	Status          PressureStatus `json:"status,omitempty"`
+	RSSMB           int            `json:"rss_mb,omitempty"`
+	WarnRSSMB       int            `json:"warn_rss_mb,omitempty"`
+	CriticalRSSMB   int            `json:"critical_rss_mb,omitempty"`
+	UptimeSeconds   int64          `json:"uptime_seconds,omitempty"`
+	GoRoutines      int            `json:"goroutines,omitempty"`
+	GCCollections   uint32         `json:"gc_collections,omitempty"`
+	Action          Action         `json:"action,omitempty"`
+	TargetPID       int            `json:"target_pid,omitempty"`
+	TargetStartTime int64          `json:"target_start_time,omitempty"`
+	Evidence        []string       `json:"evidence,omitempty"`
+	Message         string         `json:"message,omitempty"`
+	CheckedAt       string         `json:"checked_at,omitempty"`
+	Redacted        bool           `json:"redacted"`
 }
 
 func Evaluate(sample Sample, policy Policy, owner Owner, now time.Time) Evidence {

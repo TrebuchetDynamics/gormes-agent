@@ -14,7 +14,7 @@ import (
 
 const defaultMemoryMonitorInterval = 5 * time.Minute
 
-type MemoryPressureStatus = memorypressure.Status
+type MemoryPressureStatus = memorypressure.PressureStatus
 
 const (
 	MemoryPressureOK          = memorypressure.StatusOK

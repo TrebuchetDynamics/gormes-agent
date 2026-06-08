@@ -17,7 +17,7 @@ func TestEvaluateClassifiesPressureAndBoundsCriticalAction(t *testing.T) {
 	tests := []struct {
 		name   string
 		rssMB  int
-		status Status
+		status PressureStatus
 		action Action
 	}{
 		{name: "ok", rssMB: 256, status: StatusOK, action: ActionNone},
