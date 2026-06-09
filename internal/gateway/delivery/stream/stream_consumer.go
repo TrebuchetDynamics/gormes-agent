@@ -36,6 +36,9 @@ func (c *StreamConsumer) FanOut(ctx context.Context, frame kernel.RenderFrame, t
 	if c == nil || c.sink == nil {
 		return results
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	for _, target := range targets {
 		if ctx.Err() != nil {
 			break
