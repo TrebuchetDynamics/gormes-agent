@@ -438,8 +438,11 @@ func TelegramBotCommandsWith(dynamic []PlatformCommand) []PlatformCommand {
 	out := TelegramBotCommands()
 	seen := platformCommandNameSet(out)
 	for _, cmd := range sortedPlatformCommands(dynamic) {
+		if !safeDynamicPlatformCommandName(cmd.Name) {
+			continue
+		}
 		name := NormalizeTelegramCommandName(cmd.Name)
-		if name == "" || seen[name] || dynamicCommandCollidesWithRegisteredSlash(name) {
+		if name == "" || !dynamicCommandNameSafe(cmd.Name) || seen[name] || dynamicCommandCollidesWithRegisteredSlash(name) {
 			continue
 		}
 		seen[name] = true
@@ -466,8 +469,11 @@ func SlackSubcommandMap() map[string]string {
 func SlackSubcommandMapWith(dynamic []PlatformCommand) map[string]string {
 	out := SlackSubcommandMap()
 	for _, cmd := range sortedPlatformCommands(dynamic) {
+		if !safeDynamicPlatformCommandName(cmd.Name) {
+			continue
+		}
 		name := NormalizeSlackCommandName(cmd.Name)
-		if name == "" || dynamicCommandCollidesWithRegisteredSlash(name) {
+		if name == "" || !dynamicCommandNameSafe(cmd.Name) || dynamicCommandCollidesWithRegisteredSlash(name) {
 			continue
 		}
 		out[name] = "/" + name
@@ -475,16 +481,62 @@ func SlackSubcommandMapWith(dynamic []PlatformCommand) map[string]string {
 	return out
 }
 
+func safeDynamicPlatformCommandName(name string) bool {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return false
+	}
+	redacted, count := redaction.RedactSecretsWithCount(name, "[redacted]")
+	if count == 0 || redacted == name {
+		return true
+	}
+	lower := strings.ToLower(name)
+	compact := compactDynamicCommandName(lower)
+	return !(strings.Contains(lower, "api_key") || strings.Contains(lower, "api-key") || strings.Contains(compact, "apikey") || strings.Contains(lower, "token") || strings.Contains(lower, "password"))
+}
+
+func compactDynamicCommandName(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 func renderPlatformCommandDescription(value string) string {
 	var b strings.Builder
-	for _, r := range value {
+	for _, r := range redaction.RedactSecrets(value) {
 		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
 			b.WriteByte(' ')
 			continue
 		}
 		b.WriteRune(r)
 	}
-	return strings.Join(strings.Fields(b.String()), " ")
+	fields := strings.Fields(b.String())
+	for i, field := range fields {
+		lower := strings.ToLower(field)
+		if strings.Contains(lower, "[redacted]") && commandDescriptionSecretField(lower) {
+			fields[i] = "[redacted]"
+		}
+	}
+	return strings.Join(fields, " ")
+}
+
+func commandDescriptionSecretField(value string) bool {
+	return strings.Contains(value, "api_key") || strings.Contains(value, "api-key") || strings.Contains(value, "apikey") || strings.Contains(value, "token") || strings.Contains(value, "secret") || strings.Contains(value, "password")
+}
+
+func dynamicCommandNameSafe(value string) bool {
+	lower := strings.ToLower(value)
+	for _, marker := range []string{"api_key", "api-key", "apikey", "token", "secret", "password"} {
+		if strings.Contains(lower, marker+"=") || strings.Contains(lower, marker+":") {
+			return redaction.RedactSecrets(value) == value
+		}
+	}
+	return true
 }
 
 func dynamicCommandCollidesWithRegisteredSlash(name string) bool {

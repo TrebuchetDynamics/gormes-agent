@@ -138,12 +138,21 @@ func TestPlatformExposureDeterministicAndSafe(t *testing.T) {
 		t.Fatalf("TelegramBotCommandsWith dynamic secret description = %q ok=%v, want redacted", desc, ok)
 	}
 
+	secretDynamicTelegram := TelegramBotCommandsWith([]PlatformCommand{{Name: "api_key=plain-secret-token", Description: "secret-bearing dynamic name"}})
+	if platformCommandsContainName(secretDynamicTelegram, "api_key_plain_secret_token") {
+		t.Fatalf("TelegramBotCommandsWith exposed secret-bearing dynamic command name: %#v", secretDynamicTelegram)
+	}
+
 	dynamicSlack := SlackSubcommandMapWith([]PlatformCommand{
 		{Name: "/Planner.Pro_[SAFE]! now", Description: "dynamic skill"},
+		{Name: "api_key=plain-secret-token", Description: "secret-bearing dynamic name"},
 		{Name: "!!!", Description: "empty after normalization"},
 	})
 	if got := dynamicSlack["planner-pro-safe-now"]; got != "/planner-pro-safe-now" {
 		t.Fatalf("SlackSubcommandMapWith sanitized dynamic command = %q, want /planner-pro-safe-now", got)
+	}
+	if _, ok := dynamicSlack["api-key-plain-secret-token"]; ok {
+		t.Fatalf("SlackSubcommandMapWith exposed secret-bearing dynamic command name: %#v", dynamicSlack)
 	}
 	if _, ok := dynamicSlack["!!!"]; ok {
 		t.Fatalf("SlackSubcommandMapWith exposed punctuation-only command: %#v", dynamicSlack)
