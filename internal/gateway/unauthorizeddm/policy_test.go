@@ -144,6 +144,18 @@ func TestHandle_PairModeSendsOneBoundedPromptAndRecordsPending(t *testing.T) {
 	}
 }
 
+func TestFormatPairingPromptRedactsSecretLikeFields(t *testing.T) {
+	got := FormatPairingPrompt("telegram api_key=platform-secret", "token=pairing-secret")
+	for _, forbidden := range []string{"platform-secret", "pairing-secret", "api_key", "token="} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("FormatPairingPrompt leaked secret-like field %q in:\n%s", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "[redacted]") {
+		t.Fatalf("FormatPairingPrompt missing redaction marker in:\n%s", got)
+	}
+}
+
 func TestFormatPairingPromptSanitizesOperatorCommandFields(t *testing.T) {
 	got := FormatPairingPrompt(" telegram\nrm -rf /` ", " ABCD1234\nBAD ")
 	for _, forbidden := range []string{"\nrm -rf", "`telegram", "ABCD1234\nBAD"} {

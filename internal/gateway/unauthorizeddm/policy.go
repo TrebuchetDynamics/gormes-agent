@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/pairing"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 // Behavior controls the shared response contract for direct messages from
@@ -119,7 +120,16 @@ func FormatPairingPrompt(platformName, code string) string {
 }
 
 func promptToken(value string) string {
-	value = strings.ReplaceAll(value, "`", "'")
+	value = redaction.RedactSecrets(value)
+	value = strings.NewReplacer(
+		"api_key=[redacted]", "[redacted]",
+		"api-key=[redacted]", "[redacted]",
+		"apikey=[redacted]", "[redacted]",
+		"token=[redacted]", "[redacted]",
+		"secret=[redacted]", "[redacted]",
+		"password=[redacted]", "[redacted]",
+		"`", "'",
+	).Replace(value)
 	return strings.Join(strings.Fields(value), " ")
 }
 
