@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 // Engine is the configured TTS engine identifier.
@@ -46,7 +48,16 @@ func (c Config) String() string {
 }
 
 func configLineValue(value string) string {
-	return strings.Join(strings.Fields(value), " ")
+	redacted := redaction.RedactSecrets(value)
+	redacted = strings.NewReplacer(
+		"api_key=[redacted]", "[redacted]",
+		"api-key=[redacted]", "[redacted]",
+		"apikey=[redacted]", "[redacted]",
+		"token=[redacted]", "[redacted]",
+		"secret=[redacted]", "[redacted]",
+		"password=[redacted]", "[redacted]",
+	).Replace(redacted)
+	return strings.Join(strings.Fields(redacted), " ")
 }
 
 var DefaultConfig = Config{

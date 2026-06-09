@@ -1,6 +1,7 @@
 package ttsconfig
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/gatewaytest"
@@ -36,6 +37,24 @@ func TestSortedVoiceListingDoesNotChangeDefaultVoice(t *testing.T) {
 	voices[0] = "mutated-test-voice"
 	if got := DefaultVoiceForEngine(EngineElevenLabs); got != before {
 		t.Fatalf("default elevenlabs voice changed after sorted listing: got %q want %q", got, before)
+	}
+}
+
+func TestConfigStringRedactsSecretLikeFields(t *testing.T) {
+	got := (Config{
+		Enabled:  true,
+		Engine:   EngineEdge,
+		Voice:    "api_key=plain-secret-token",
+		Speed:    SpeedNormal,
+		Language: "token=language-secret",
+	}).String()
+	for _, forbidden := range []string{"plain-secret-token", "language-secret", "api_key", "token="} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("Config.String leaked secret-like field %q in:\n%s", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "[redacted]") {
+		t.Fatalf("Config.String missing redaction marker in:\n%s", got)
 	}
 }
 
