@@ -12,6 +12,11 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
+const (
+	navivoxMaxRequestIDLen = 128
+	navivoxMaxSessionIDLen = 256
+)
+
 type turnRequest struct {
 	RequestID string         `json:"request_id"`
 	SessionID string         `json:"session_id,omitempty"`
@@ -76,11 +81,12 @@ func (c *Channel) handleTurn(inbox chan<- gateway.InboundEvent) func(http.Respon
 		}
 		sessionID, contact, err := c.enqueueTurn(r.Context(), inbox, turnInputFromRequest(req), identity)
 		if err != nil {
-			writeNavivoxError(w, statusForNavivoxError(err), req.RequestID, codeForNavivoxError(err), safeNavivoxError(err))
+			writeNavivoxError(w, statusForNavivoxError(err), safeNavivoxRequestID(req.RequestID), codeForNavivoxError(err), safeNavivoxError(err))
 			return
 		}
+		requestID, _ := normalizeNavivoxRequestID(req.RequestID)
 		writeNavivoxJSON(w, http.StatusAccepted, map[string]any{
-			"request_id": req.RequestID,
+			"request_id": requestID,
 			"session_id": sessionID,
 			"status":     "queued",
 		})
@@ -115,15 +121,21 @@ func navivoxRequestHasJSONContentType(r *http.Request) bool {
 }
 
 func (c *Channel) enqueueTurn(ctx context.Context, inbox chan<- gateway.InboundEvent, turn turnInput, identity string) (string, *ProfileContact, error) {
-	requestID := strings.TrimSpace(turn.RequestID)
+	requestID, ok := normalizeNavivoxRequestID(turn.RequestID)
 	if requestID == "" {
 		return "", nil, navivoxError{code: "bad_request", message: "request_id is required"}
+	}
+	if !ok {
+		return "", nil, navivoxError{code: "bad_request", message: "request_id is too long"}
 	}
 	text := strings.TrimSpace(turn.Text)
 	if text == "" {
 		return "", nil, navivoxError{code: "bad_request", message: "text is required"}
 	}
-	sessionID := strings.TrimSpace(turn.SessionID)
+	sessionID, sessionIDOK := normalizeNavivoxSessionID(turn.SessionID)
+	if !sessionIDOK {
+		return "", nil, navivoxError{code: "bad_request", message: "session_id is too long"}
+	}
 	if sessionID == "" {
 		sessionID = "navivox-" + c.newID()
 	}
@@ -154,6 +166,30 @@ func (c *Channel) enqueueTurn(ctx context.Context, inbox chan<- gateway.InboundE
 	c.mu.Unlock()
 	c.log.Info("navivox turn queued", "client_identity", identity, "request_id", requestID, "session_id", sessionID, "action", "start_turn", "status", "queued")
 	return sessionID, &contact, nil
+}
+
+func normalizeNavivoxRequestID(raw string) (string, bool) {
+	requestID := strings.TrimSpace(raw)
+	if len([]rune(requestID)) > navivoxMaxRequestIDLen {
+		return "", false
+	}
+	return requestID, true
+}
+
+func safeNavivoxRequestID(raw string) string {
+	requestID, ok := normalizeNavivoxRequestID(raw)
+	if !ok {
+		return ""
+	}
+	return requestID
+}
+
+func normalizeNavivoxSessionID(raw string) (string, bool) {
+	sessionID := strings.TrimSpace(raw)
+	if len([]rune(sessionID)) > navivoxMaxSessionIDLen {
+		return "", false
+	}
+	return sessionID, true
 }
 
 func enqueue(ctx context.Context, inbox chan<- gateway.InboundEvent, ev gateway.InboundEvent) error {

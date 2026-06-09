@@ -3,6 +3,7 @@ package rpcmode
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -36,6 +37,30 @@ func TestRunRPCModeWritesHeaderAndHandlesPromptStream(t *testing.T) {
 	}
 	if rt.lastPrompt.Message != "hi" || rt.lastPrompt.StreamingBehavior != "stream" || len(rt.lastPrompt.Images) != 1 {
 		t.Fatalf("prompt request = %+v, want message/images/streaming behavior", rt.lastPrompt)
+	}
+}
+
+func TestRunRPCModeSanitizesRuntimeErrors(t *testing.T) {
+	rt := &fakeRPCRuntime{promptErr: errors.New("provider failed\n**Injected:** api key plain-secret")}
+	input := `{"id":"p1","type":"prompt","message":"hi"}` + "\n"
+	var out strings.Builder
+
+	if err := RunRPCMode(context.Background(), RPCModeOptions{In: strings.NewReader(input), Out: &out, Runtime: rt}); err != nil {
+		t.Fatalf("RunRPCMode: %v", err)
+	}
+
+	records := decodeJSONL(t, out.String())
+	if len(records) != 2 {
+		t.Fatalf("records = %#v, want header plus error response", records)
+	}
+	errorText := records[1]["error"].(string)
+	for _, forbidden := range []string{"plain-secret", "**Injected:**", "provider failed"} {
+		if strings.Contains(errorText, forbidden) {
+			t.Fatalf("RPC error leaked unsafe runtime text %q in %q", forbidden, errorText)
+		}
+	}
+	if errorText != "[redacted]" {
+		t.Fatalf("RPC error = %q, want redacted", errorText)
 	}
 }
 
@@ -96,6 +121,7 @@ type fakeRPCRuntime struct {
 	state        RPCRecord
 	messages     []RPCRecord
 	promptEvents []RPCRecord
+	promptErr    error
 	queue        RPCQueueState
 	lastPrompt   RPCPromptRequest
 }
@@ -108,6 +134,9 @@ func (f *fakeRPCRuntime) Messages(context.Context) ([]RPCRecord, error) { return
 
 func (f *fakeRPCRuntime) Prompt(_ context.Context, req RPCPromptRequest) (<-chan RPCRecord, error) {
 	f.lastPrompt = req
+	if f.promptErr != nil {
+		return nil, f.promptErr
+	}
 	ch := make(chan RPCRecord, len(f.promptEvents))
 	for _, ev := range f.promptEvents {
 		ch <- ev

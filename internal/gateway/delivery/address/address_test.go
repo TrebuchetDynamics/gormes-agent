@@ -11,6 +11,17 @@ func TestPlatformAndIDNormalizeDeliveryAddressFields(t *testing.T) {
 	}
 }
 
+func TestChatWithThreadAvoidsColonDelimiterCollisions(t *testing.T) {
+	first := ChatWithThread("room:thread", "x")
+	second := ChatWithThread("room", "thread:x")
+	if first == second {
+		t.Fatalf("ChatWithThread collision for colon-bearing IDs: %q", first)
+	}
+	if ChatMatches(first, "room", "thread:x") {
+		t.Fatalf("ChatMatches matched wrong colon-bearing chat/thread pair: %q", first)
+	}
+}
+
 func TestChatMatchesThreadedSessionKey(t *testing.T) {
 	if !ChatMatches(" -100:10 ", "-100", "10") {
 		t.Fatal("ChatMatches threaded key = false, want true")

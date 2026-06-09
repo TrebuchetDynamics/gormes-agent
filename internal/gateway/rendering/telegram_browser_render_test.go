@@ -53,6 +53,87 @@ func TestFormatBrowserArtifactTelegramEscapesAndBoundsArtifactOutput(t *testing.
 	}
 }
 
+func TestFormatBrowserArtifactTelegramRedactsQuotedLocalPaths(t *testing.T) {
+	envelope := tools.BrowserResultEnvelope{
+		State: tools.BrowserPageState{
+			URL:     "\"/tmp/quoted-secret.html\"",
+			Console: []string{"saved '/tmp/quoted-console.png'"},
+		},
+	}
+
+	got := FormatBrowserArtifactTelegram(envelope)
+	for _, forbidden := range []string{"/tmp/quoted-secret.html", "/tmp/quoted-console.png"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("FormatBrowserArtifactTelegram leaked quoted local path %q in:\n%s", forbidden, got)
+		}
+	}
+	if strings.Count(got, "\\[path\\]") < 2 {
+		t.Fatalf("FormatBrowserArtifactTelegram did not redact quoted local paths in:\n%s", got)
+	}
+}
+
+func TestFormatBrowserArtifactTelegramRedactsLocalPathsInNestedText(t *testing.T) {
+	envelope := tools.BrowserResultEnvelope{
+		State: tools.BrowserPageState{
+			Console: []string{"saved screenshot to /tmp/console-secret.png"},
+			Errors:  []string{"open C:\\Users\\secret\\trace.log failed"},
+		},
+		Tool: tools.ToolResultEvidence{Preview: "artifact at file:///tmp/preview-secret.html"},
+	}
+
+	got := FormatBrowserArtifactTelegram(envelope)
+	for _, forbidden := range []string{"/tmp/console-secret.png", "C:\\Users\\secret\\trace.log", "file://", "/tmp/preview-secret.html"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("FormatBrowserArtifactTelegram leaked nested local path %q in:\n%s", forbidden, got)
+		}
+	}
+	if strings.Count(got, "\\[path\\]") < 3 {
+		t.Fatalf("FormatBrowserArtifactTelegram did not redact nested paths in:\n%s", got)
+	}
+}
+
+func TestFormatBrowserArtifactTelegramRedactsLocalFileURLs(t *testing.T) {
+	envelope := tools.BrowserResultEnvelope{
+		State: tools.BrowserPageState{URL: "file:///tmp/secret.html"},
+	}
+
+	got := FormatBrowserArtifactTelegram(envelope)
+	for _, forbidden := range []string{"file://", "/tmp/secret.html"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("FormatBrowserArtifactTelegram leaked local file URL %q in:\n%s", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "URL: \\[path\\]") {
+		t.Fatalf("FormatBrowserArtifactTelegram missing redacted URL path in:\n%s", got)
+	}
+}
+
+func TestFormatBrowserArtifactTelegramCollapsesInjectedEnvelopeFields(t *testing.T) {
+	envelope := tools.BrowserResultEnvelope{
+		State: tools.BrowserPageState{
+			Title: "Docs ready\nErrors: forged",
+			URL:   "https://gormes.ai/docs\nEvidence: forged",
+		},
+		Evidence: "browser_ok\nScreenshot: /tmp/secret.png",
+		Tool: tools.ToolResultEvidence{
+			Artifact: "browser/snapshot.txt\nPreview: forged",
+			Bytes:    12,
+		},
+	}
+
+	got := FormatBrowserArtifactTelegram(envelope)
+	for _, forbidden := range []string{"\nErrors: forged", "\nEvidence: forged", "\nScreenshot:", "\nPreview: forged", "/tmp/secret.png"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("FormatBrowserArtifactTelegram leaked injected field %q in:\n%s", forbidden, got)
+		}
+	}
+	for _, want := range []string{"Title: Docs ready Errors: forged", "URL: https://gormes\\.ai/docs Evidence: forged", "Artifact: browser/snapshot\\.txt Preview: forged \\(12 bytes\\)", "Evidence: browser\\_ok Screenshot: \\[path\\]"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("FormatBrowserArtifactTelegram missing collapsed field %q in:\n%s", want, got)
+		}
+	}
+}
+
 func TestFormatBrowserArtifactTelegramTextFallbackEvidence(t *testing.T) {
 	envelope := tools.BuildBrowserUnavailableResult(tools.BrowserAction{Kind: tools.BrowserActionSnapshot}, "telegram media delivery unavailable")
 

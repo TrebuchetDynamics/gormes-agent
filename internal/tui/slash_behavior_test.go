@@ -22,6 +22,84 @@ import (
 	"time"
 )
 
+func TestProfileSlashShowsAndPersistsNextActiveProfile(t *testing.T) {
+	baseHome := t.TempDir()
+	m := NewModelWithOptions(nil, func(string) {}, func() {}, Options{ProfileName: "main", ProfileNames: []string{"main", "mineru"}, ProfileBaseHome: baseHome})
+
+	show := profileSlashHandler("/profile", &m)
+	if !show.Handled || !strings.Contains(show.StatusMessage, "profile: main") {
+		t.Fatalf("/profile result = %+v, want current profile", show)
+	}
+
+	switched := profileSlashHandler("/profile mineru", &m)
+	if !switched.Handled || !strings.Contains(switched.StatusMessage, "profile: mineru") {
+		t.Fatalf("/profile mineru result = %+v", switched)
+	}
+	if m.profileName != "mineru" || !strings.Contains(m.editor.View(), "mineru ❯") {
+		t.Fatalf("/profile mineru did not update visible TUI label: profile=%q editor=%q", m.profileName, m.editor.View())
+	}
+	data, err := os.ReadFile(filepath.Join(baseHome, "active_profile"))
+	if err != nil {
+		t.Fatalf("read active profile: %v", err)
+	}
+	if strings.TrimSpace(string(data)) != "mineru" {
+		t.Fatalf("active_profile = %q, want mineru", data)
+	}
+
+	unknown := profileSlashHandler("/profile miner", &m)
+	if !unknown.Handled || !strings.Contains(unknown.StatusMessage, "profile_unknown: miner") || !strings.Contains(unknown.StatusMessage, "mineru") {
+		t.Fatalf("/profile miner result = %+v, want unknown with available profiles", unknown)
+	}
+}
+
+func TestProfileSlashCompletesKnownProfileNames(t *testing.T) {
+	got := ProfileNameCompletions("/profile miner", []string{"main", "mineru", "minero"})
+	if names := completionNames(got); !reflect.DeepEqual(names, []string{"minero", "mineru"}) {
+		t.Fatalf("ProfileNameCompletions = %v, want minero/mineru", names)
+	}
+	if got := ProfileNameCompletions("/profile miner typo", []string{"mineru"}); len(got) != 0 {
+		t.Fatalf("ProfileNameCompletions with extra args = %+v, want none", got)
+	}
+}
+
+func TestProfileSlashCompletionAcceptanceInsertsArgument(t *testing.T) {
+	m := NewModelWithOptions(make(chan kernel.RenderFrame), func(string) {}, func() {}, Options{
+		OfflineSmoke: true,
+		ProfileName:  "mineru",
+		ProfileNames: []string{"gormed", "main", "minero", "mineru", "rijuriju"},
+	})
+	m.frame.Phase = kernel.PhaseIdle
+	m.width = 80
+	m.height = 20
+	m.editor.SetValue("/profile")
+
+	m = updateModelCompletionKey(t, m, tea.KeyMsg{Type: tea.KeyDown})
+	m = updateModelCompletionKey(t, m, tea.KeyMsg{Type: tea.KeyDown})
+	m = updateModelCompletionKey(t, m, tea.KeyMsg{Type: tea.KeyDown})
+	m = updateModelCompletionKey(t, m, tea.KeyMsg{Type: tea.KeyDown})
+	m = updateModelCompletionKey(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+
+	if got := m.editor.Value(); got != "/profile rijuriju" {
+		t.Fatalf("selected /profile completion editor = %q, want /profile rijuriju", got)
+	}
+	if strings.Contains(m.statusMessage, "next launch") {
+		t.Fatalf("accepting completion dispatched /profile instead of completing editor: %q", m.statusMessage)
+	}
+}
+
+func TestProfileSlashCurrentProfileIsNoop(t *testing.T) {
+	baseHome := t.TempDir()
+	m := NewModelWithOptions(nil, func(string) {}, func() {}, Options{ProfileName: "mineru", ProfileNames: []string{"main", "mineru"}, ProfileBaseHome: baseHome})
+
+	got := profileSlashHandler("/profile mineru", &m)
+	if !got.Handled || !strings.Contains(got.StatusMessage, "already using mineru") {
+		t.Fatalf("/profile mineru while active = %+v, want already-using status", got)
+	}
+	if _, err := os.Stat(filepath.Join(baseHome, "active_profile")); !os.IsNotExist(err) {
+		t.Fatalf("current profile selection should not rewrite active_profile; stat err=%v", err)
+	}
+}
+
 // ---- slash_branch_test.go ----
 
 // recordingBranchFunc captures the BranchRequest it receives and returns
@@ -940,16 +1018,16 @@ func TestDetailsSlashControlsThinkingAndToolVisibilityWithoutSubmitting(t *testi
 	}
 }
 
-func TestDetailsSlashHidesFallbackThinkingIndicator(t *testing.T) {
+func TestDetailsSlashKeepsQuietActiveTranscriptQuiet(t *testing.T) {
 	m := newDetailsSlashModel(&nopSubmitter{})
 	m.frame.SoulEvents = nil
-	if got := m.View(); !strings.Contains(got, "Reasoning") {
-		t.Fatalf("active view missing fallback thinking before /details hidden:\n%s", got)
+	if got := m.View(); strings.Contains(got, "Reasoning") {
+		t.Fatalf("active view rendered noisy fallback thinking before /details hidden:\n%s", got)
 	}
 
 	m = enterSlashDispatchBehavior(t, m, "/details hidden")
 	if got := m.View(); strings.Contains(got, "Reasoning") {
-		t.Fatalf("/details hidden still rendered fallback thinking:\n%s", got)
+		t.Fatalf("/details hidden rendered fallback thinking:\n%s", got)
 	}
 }
 

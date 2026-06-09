@@ -76,14 +76,17 @@ func (m *Manager) FinalizeExpiredSessions(ctx context.Context) error {
 			return err
 		}
 		meta := candidate.Metadata
-		if meta.SessionID == "" || meta.ExpiryFinalized || meta.ExpiryFinalizeStatus == session.ExpiryFinalizeStatusGaveUp {
+		if meta.SessionID == "" || meta.ExpiryFinalized || meta.ExpiryFinalizeStatus == session.ExpiryFinalizeStatusGaveUp || meta.ExpiryFinalizeStatus == session.ExpiryFinalizeStatusFinalized {
 			continue
 		}
+		meta.ExpiryFinalizeAttempts = nonNegativeExpiryFinalizeAttempts(meta.ExpiryFinalizeAttempts)
+		candidate.Metadata = meta
 		m.writeExpiryFinalizeEvidence(ctx, expiryFinalizeEvidence(candidate, session.ExpiryFinalizeStatusPending, meta.ExpiryFinalizeAttempts, "", now))
 
 		attempt := meta.ExpiryFinalizeAttempts + 1
 		ev := sessionExpiryEvent(candidate, attempt, m.expiryFinalizeMaxAttempts(), now)
 		if err := m.finalizeExpiredSession(ctx, ev); err != nil {
+			errText := sanitizeConfigReloadError(err)
 			status := session.ExpiryFinalizeStatusFailed
 			if attempt >= ev.MaxAttempts {
 				status = session.ExpiryFinalizeStatusGaveUp
@@ -96,14 +99,14 @@ func (m *Manager) FinalizeExpiredSessions(ctx context.Context) error {
 				ExpiryFinalized:              status == session.ExpiryFinalizeStatusGaveUp,
 				ExpiryFinalizeStatus:         status,
 				ExpiryFinalizeAttempts:       attempt,
-				ExpiryFinalizeLastError:      err.Error(),
+				ExpiryFinalizeLastError:      errText,
 				ExpiryFinalizeLastEvidenceAt: now.Unix(),
 				UpdatedAt:                    now.Unix(),
 			}
 			if writeErr := writer.PutMetadata(ctx, update); writeErr != nil {
 				return fmt.Errorf("persist expiry finalization failure for %q: %w", meta.SessionID, writeErr)
 			}
-			m.writeExpiryFinalizeEvidence(ctx, expiryFinalizeEvidence(candidate, status, attempt, err.Error(), now))
+			m.writeExpiryFinalizeEvidence(ctx, expiryFinalizeEvidence(candidate, status, attempt, errText, now))
 			continue
 		}
 
@@ -132,6 +135,13 @@ func (m *Manager) FinalizeExpiredSessions(ctx context.Context) error {
 		m.writeExpiryFinalizeEvidence(ctx, expiryFinalizeEvidence(candidate, session.ExpiryFinalizeStatusFinalized, attempt, "", now))
 	}
 	return nil
+}
+
+func nonNegativeExpiryFinalizeAttempts(attempts int) int {
+	if attempts < 0 {
+		return 0
+	}
+	return attempts
 }
 
 func (m *Manager) expiryFinalizeMaxAttempts() int {

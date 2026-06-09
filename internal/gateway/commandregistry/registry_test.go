@@ -22,9 +22,51 @@ func TestRegistryResolvesAliasesAndParsesBodies(t *testing.T) {
 		t.Fatalf("ParseInboundText(/queue ...) = (%v, %q), want EventQueue with raw body", kind, body)
 	}
 
+	kind, body = ParseInboundText("／queue keep going")
+	if kind != EventQueue || body != "／queue keep going" {
+		t.Fatalf("ParseInboundText(fullwidth /queue ...) = (%v, %q), want EventQueue with raw body", kind, body)
+	}
+
 	kind, body = ParseInboundText("/undo")
 	if kind != EventSubmit || body != "/undo" {
 		t.Fatalf("ParseInboundText(/undo) = (%v, %q), want unavailable command preserved as submit", kind, body)
+	}
+
+	setHome, ok := ResolveCommand("/set_home")
+	if !ok || setHome.Name != "sethome" {
+		t.Fatalf("ResolveCommand(/set_home) = (%+v, %v), want sethome underscore alias for platform-safe command text", setHome, ok)
+	}
+}
+
+func TestDoubleSlashDoesNotResolveAsCommand(t *testing.T) {
+	if cmd, ok := ResolveCommand("//title"); ok {
+		t.Fatalf("ResolveCommand(//title) = %+v, true; want not resolved", cmd)
+	}
+	kind, body := ParseInboundText("//title Friendly Greeting")
+	if kind == EventTitle || body == "//title Friendly Greeting" && kind != EventUnknown {
+		t.Fatalf("ParseInboundText(//title) = (%v, %q), want no title command dispatch", kind, body)
+	}
+}
+
+func TestUnknownSlashGuidanceRedactsSecretLikeCommandToken(t *testing.T) {
+	guidance := UnknownSlashCommandGuidance("/api_key=plain-secret-token")
+	for _, forbidden := range []string{"plain-secret-token", "api_key"} {
+		if strings.Contains(guidance, forbidden) {
+			t.Fatalf("guidance leaked secret-like command token %q: %s", forbidden, guidance)
+		}
+	}
+	if !strings.Contains(guidance, "[redacted]") {
+		t.Fatalf("guidance missing redaction marker: %s", guidance)
+	}
+}
+
+func TestUnknownSlashGuidanceSanitizesCommandToken(t *testing.T) {
+	guidance := UnknownSlashCommandGuidance("bad`name")
+	if strings.Contains(guidance, "`/bad`name`") || strings.Count(guidance, "`") != 2 {
+		t.Fatalf("guidance has unsafe backtick command rendering: %s", guidance)
+	}
+	if !strings.Contains(guidance, "/bad'name") {
+		t.Fatalf("guidance = %s, want sanitized command token", guidance)
 	}
 }
 
@@ -81,6 +123,16 @@ func TestPlatformExposureDeterministicAndSafe(t *testing.T) {
 		}
 	}
 
+	dynamicTelegram := TelegramBotCommandsWith([]PlatformCommand{{Name: "set-home", Description: "collides with built-in alias"}})
+	if platformCommandsContainName(dynamicTelegram, "set_home") {
+		t.Fatalf("TelegramBotCommandsWith exposed dynamic command colliding with built-in alias: %#v", dynamicTelegram)
+	}
+
+	dynamicTelegram = TelegramBotCommandsWith([]PlatformCommand{{Name: "dynamic-skill", Description: "first line\nsecond\u009b line"}})
+	if desc, ok := platformCommandDescription(dynamicTelegram, "dynamic_skill"); !ok || desc != "first line second line" {
+		t.Fatalf("TelegramBotCommandsWith dynamic description = %q ok=%v, want sanitized single line", desc, ok)
+	}
+
 	dynamicSlack := SlackSubcommandMapWith([]PlatformCommand{
 		{Name: "/Planner.Pro_[SAFE]! now", Description: "dynamic skill"},
 		{Name: "!!!", Description: "empty after normalization"},
@@ -91,4 +143,18 @@ func TestPlatformExposureDeterministicAndSafe(t *testing.T) {
 	if _, ok := dynamicSlack["!!!"]; ok {
 		t.Fatalf("SlackSubcommandMapWith exposed punctuation-only command: %#v", dynamicSlack)
 	}
+}
+
+func platformCommandsContainName(commands []PlatformCommand, name string) bool {
+	_, ok := platformCommandDescription(commands, name)
+	return ok
+}
+
+func platformCommandDescription(commands []PlatformCommand, name string) (string, bool) {
+	for _, cmd := range commands {
+		if cmd.Name == name {
+			return cmd.Description, true
+		}
+	}
+	return "", false
 }

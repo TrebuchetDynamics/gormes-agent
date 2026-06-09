@@ -167,6 +167,9 @@ func WriteRawAtomicWithOptions(ctx context.Context, path string, raw []byte, lab
 			return fmt.Errorf("close %s temp file: %w", label, err)
 		}
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if opts.FileMode != 0 {
 		if err := os.Chmod(tmpPath, opts.FileMode); err != nil {
 			return fmt.Errorf("chmod %s temp file: %w", label, err)

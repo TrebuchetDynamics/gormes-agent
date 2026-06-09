@@ -151,6 +151,22 @@ func TestNavivoxProfileContactWebSocketUpdateSanitizesLatestPreview(t *testing.T
 	}
 }
 
+func TestNavivoxProfileContactKeyKeepsDelimiterBearingScopesSeparate(t *testing.T) {
+	ch := newTestChannel(t)
+	ch.mu.Lock()
+	first := ch.profileContactRuntimeUpdateLocked("server::one", "profile", "first", "user", ProfileContactTurnActive)
+	second := ch.profileContactRuntimeUpdateLocked("server", "one::profile", "second", "user", ProfileContactTurnActive)
+	gotLen := len(ch.profileContacts)
+	ch.mu.Unlock()
+
+	if first.ServerID == second.ServerID && first.ProfileID == second.ProfileID {
+		t.Fatalf("test scopes unexpectedly identical: first=%+v second=%+v", first, second)
+	}
+	if gotLen != 2 {
+		t.Fatalf("profileContacts len = %d, want separate entries for delimiter-bearing scopes", gotLen)
+	}
+}
+
 func profileContactIDs(contacts []ProfileContact) []string {
 	out := make([]string, 0, len(contacts))
 	for _, contact := range contacts {

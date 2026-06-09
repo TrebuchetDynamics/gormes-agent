@@ -98,6 +98,30 @@ func TestPrepareMediaContentExtractsBracketedPathWithSpaces(t *testing.T) {
 	}
 }
 
+func TestCleanMediaPathRejectsControlCharacters(t *testing.T) {
+	for _, raw := range []string{"voice\nadmin.ogg", "voice\radmin.ogg", "voice\tadmin.ogg"} {
+		if got, ok := CleanMediaPath(raw); ok {
+			t.Fatalf("CleanMediaPath(%q) = %q, true; want rejected control-character path", raw, got)
+		}
+	}
+}
+
+func TestCleanMediaPathRejectsRemoteURL(t *testing.T) {
+	for _, raw := range []string{"https://cdn.example/audio.mp3", "file://tmp/audio.mp3", "data:audio/mpeg;base64,AAAA.mp3"} {
+		if got, ok := CleanMediaPath(raw); ok {
+			t.Fatalf("CleanMediaPath(%q) = %q, true; want rejected remote/scheme path", raw, got)
+		}
+	}
+}
+
+func TestCleanMediaPathRejectsBackslashTraversal(t *testing.T) {
+	for _, raw := range []string{`..\\secret.mp3`, `subdir\\..\\secret.mp3`, `..\secret.mp3`, `subdir\..\secret.mp3`} {
+		if got, ok := CleanMediaPath(raw); ok {
+			t.Fatalf("CleanMediaPath(%q) = %q, true; want rejected backslash traversal", raw, got)
+		}
+	}
+}
+
 func TestPrepareMediaContentRejectsUnsafeMediaTags(t *testing.T) {
 	content := PrepareMediaContent("listen MEDIA:../plain.txt")
 	if len(content.Media) != 0 {

@@ -149,6 +149,73 @@ func TestTitleCommand_SetsSessionMetadataAndStatusRendersIt(t *testing.T) {
 	}
 }
 
+func TestTitleCommand_SetConfirmationSanitizesTitleRendering(t *testing.T) {
+	ctx := context.Background()
+	smap := session.NewMemMap()
+	if err := smap.Put(ctx, "telegram:42", "sess-title-confirm"); err != nil {
+		t.Fatalf("seed session map: %v", err)
+	}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+	}, &fakeKernel{}, slog.Default())
+	ch := newFakeChannel("telegram")
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventTitle, Text: "/title **Admin** `x`"}); err != nil {
+		t.Fatal(err)
+	}
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d, want 1: %#v", len(sent), sent)
+	}
+	for _, forbidden := range []string{"**Admin**", "`x`"} {
+		if strings.Contains(sent[0].Text, forbidden) {
+			t.Fatalf("title confirmation leaked unsafe title rendering %q in %q", forbidden, sent[0].Text)
+		}
+	}
+	if !strings.Contains(sent[0].Text, "Session title set: ''Admin'' 'x'") {
+		t.Fatalf("title confirmation missing sanitized title: %q", sent[0].Text)
+	}
+}
+
+func TestTitleCommand_ShowSanitizesStoredTitle(t *testing.T) {
+	ctx := context.Background()
+	smap := session.NewMemMap()
+	if err := smap.Put(ctx, "telegram:42", "sess-title-stored"); err != nil {
+		t.Fatalf("seed session map: %v", err)
+	}
+	if err := smap.PutMetadata(ctx, session.Metadata{SessionID: "sess-title-stored", Title: "Good\n**Injected:** `x`"}); err != nil {
+		t.Fatalf("seed metadata: %v", err)
+	}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+	}, &fakeKernel{}, slog.Default())
+	ch := newFakeChannel("telegram")
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventTitle, Text: "/title"}); err != nil {
+		t.Fatal(err)
+	}
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d, want 1: %#v", len(sent), sent)
+	}
+	for _, forbidden := range []string{"**Injected:**", "`x`", "Good\n"} {
+		if strings.Contains(sent[0].Text, forbidden) {
+			t.Fatalf("title show leaked stored title injection %q in %q", forbidden, sent[0].Text)
+		}
+	}
+	if !strings.Contains(sent[0].Text, "Title: Good ''Injected:'' 'x'") {
+		t.Fatalf("title show missing sanitized title: %q", sent[0].Text)
+	}
+}
+
 func TestTitleCommand_InvalidTitleReturnsGuidanceWithoutMutation(t *testing.T) {
 	ctx := context.Background()
 	smap := session.NewMemMap()
@@ -632,6 +699,41 @@ func TestStatusCommand_BoldFieldLabels(t *testing.T) {
 // metadata-derived value substrings (titles, model names, session IDs) are
 // escaped via tgbotapi.EscapeText so MarkdownV2-special characters
 // (underscores, asterisks, brackets) cannot break the bold-label parse.
+func TestStatusCommandSanitizesBackticksInCodeSpanValues(t *testing.T) {
+	ctx := context.Background()
+	k := &fakeKernel{}
+	smap := session.NewMemMap()
+	now := time.Date(2026, 4, 29, 9, 42, 0, 0, time.UTC)
+	if err := smap.Put(ctx, "telegram:42", "sess`evil"); err != nil {
+		t.Fatalf("seed session map: %v", err)
+	}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		Now:          func() time.Time { return now },
+	}, k, slog.Default())
+	ch := newFakeChannel("telegram")
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventStatus}); err != nil {
+		t.Fatal(err)
+	}
+
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d, want 1", len(sent))
+	}
+	got := sent[0].Text
+	if strings.Contains(got, "`sess`evil`") {
+		t.Fatalf("status response left backtick-breaking session id code span:\n%s", got)
+	}
+	if !strings.Contains(got, "**Session ID:** `sess'evil`") {
+		t.Fatalf("status response missing sanitized session id code span:\n%s", got)
+	}
+}
+
 func TestStatusCommand_EscapesMarkdownV2InValueSubstrings(t *testing.T) {
 	ctx := context.Background()
 	k := &fakeKernel{}
@@ -678,6 +780,47 @@ func TestStatusCommand_EscapesMarkdownV2InValueSubstrings(t *testing.T) {
 
 // TestManagerStatusCommandRendersHermesStyleGatewayStatus is the original
 // session-mapping fixture, updated for the bold-label MarkdownV2 contract.
+func TestManagerStatusCommandIgnoresNegativeMetadataTimes(t *testing.T) {
+	ctx := context.Background()
+	k := &fakeKernel{}
+	smap := session.NewMemMap()
+	if err := smap.Put(ctx, "telegram:42", "sess-negative-times"); err != nil {
+		t.Fatalf("seed session map: %v", err)
+	}
+	if err := smap.PutMetadata(ctx, session.Metadata{
+		SessionID: "sess-negative-times",
+		Source:    "telegram",
+		ChatID:    "42",
+		Title:     "Negative time fixture",
+		CreatedAt: -1,
+		UpdatedAt: -2,
+	}); err != nil {
+		t.Fatalf("seed metadata: %v", err)
+	}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+	}, k, slog.Default())
+	ch := newFakeChannel("telegram")
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventStatus}); err != nil {
+		t.Fatal(err)
+	}
+
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d, want 1", len(sent))
+	}
+	got := sent[0].Text
+	if strings.Contains(got, "1969") || strings.Contains(got, "12-31") {
+		t.Fatalf("status response rendered corrupt negative metadata timestamps:\n%s", got)
+	}
+	assertContainsAll(t, got, "**Created:** "+tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, "(unknown)"))
+}
+
 func TestManagerStatusCommandRendersHermesStyleGatewayStatus(t *testing.T) {
 	ctx := context.Background()
 	k := &fakeKernel{}

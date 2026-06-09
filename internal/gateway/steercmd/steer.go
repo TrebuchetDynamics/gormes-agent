@@ -5,6 +5,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/commandline"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 // Evidence strings are stable degraded-mode reasons surfaced before any
@@ -60,16 +61,16 @@ func Parse(raw string, payload PayloadMetadata) Command {
 // Preview returns deterministic, bounded guidance text for acknowledgments and
 // evidence. Truncation is marked with an ASCII suffix.
 func Preview(guidance string) string {
-	guidance = strings.TrimSpace(guidance)
-	if utf8.RuneCountInString(guidance) <= PreviewMaxRunes {
-		return guidance
+	preview := previewLineValue(guidance)
+	if utf8.RuneCountInString(preview) <= PreviewMaxRunes {
+		return preview
 	}
 
 	limit := PreviewMaxRunes - utf8.RuneCountInString(previewTruncationMarker)
 	if limit <= 0 {
 		return truncateRunes(previewTruncationMarker, PreviewMaxRunes)
 	}
-	return truncateRunes(guidance, limit) + previewTruncationMarker
+	return truncateRunes(preview, limit) + previewTruncationMarker
 }
 
 func commandGuidance(raw string) (string, bool) {
@@ -88,6 +89,27 @@ func commandGuidance(raw string) (string, bool) {
 		return "", false
 	}
 	return guidance, true
+}
+
+func previewLineValue(value string) string {
+	value = collapseRedactedSecretAssignments(redaction.RedactSecrets(value))
+	replacer := strings.NewReplacer(
+		"`", "'",
+		"*", "'",
+	)
+	return strings.Join(strings.Fields(replacer.Replace(value)), " ")
+}
+
+func collapseRedactedSecretAssignments(value string) string {
+	replacer := strings.NewReplacer(
+		"api_key=[redacted]", "[redacted]",
+		"api-key=[redacted]", "[redacted]",
+		"api key=[redacted]", "[redacted]",
+		"token=[redacted]", "[redacted]",
+		"secret=[redacted]", "[redacted]",
+		"password=[redacted]", "[redacted]",
+	)
+	return replacer.Replace(value)
 }
 
 func truncateRunes(s string, limit int) string {

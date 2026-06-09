@@ -3,6 +3,8 @@ package providererrors
 import (
 	"encoding/json"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 func SanitizeText(s string) string {
@@ -13,7 +15,7 @@ func SanitizeText(s string) string {
 	lower := strings.ToLower(trimmed)
 	if strings.Contains(lower, "<html") || strings.Contains(lower, "<!doctype html") || strings.Contains(lower, "<svg") {
 		if idx := strings.Index(trimmed, ":"); idx > 0 {
-			prefix := strings.TrimSpace(trimmed[:idx])
+			prefix := providerErrorFieldText(trimmed[:idx])
 			if prefix != "" && !strings.ContainsAny(prefix, "<>\n\r") {
 				return prefix + ": provider returned HTML error body"
 			}
@@ -26,7 +28,7 @@ func SanitizeText(s string) string {
 	if looksLikeJSON(trimmed) {
 		return sanitizeProviderJSONError("", trimmed)
 	}
-	return trimmed
+	return providerErrorFieldText(trimmed)
 }
 
 func splitProviderErrorBody(s string) (prefix, body string, ok bool) {
@@ -118,10 +120,26 @@ func firstProviderJSONStringField(obj map[string]any, names ...string) string {
 func providerJSONStringField(v any) string {
 	switch x := v.(type) {
 	case string:
-		return strings.Join(strings.Fields(x), " ")
+		return providerErrorFieldText(x)
 	default:
 		return ""
 	}
+}
+
+func providerErrorFieldText(value string) string {
+	value = collapseRedactedProviderAssignments(redaction.RedactSecrets(value))
+	return strings.Join(strings.Fields(value), " ")
+}
+
+func collapseRedactedProviderAssignments(value string) string {
+	replacer := strings.NewReplacer(
+		"api_key=[redacted]", "[redacted]",
+		"api-key=[redacted]", "[redacted]",
+		"token=[redacted]", "[redacted]",
+		"secret=[redacted]", "[redacted]",
+		"password=[redacted]", "[redacted]",
+	)
+	return replacer.Replace(value)
 }
 
 func isProviderAuthPrefix(prefix string) bool {

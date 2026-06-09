@@ -330,8 +330,57 @@ func newRootCommandWithRuntime(runtime rootRuntime) *cobra.Command {
 			gormescli.InstallRootHelpRenderer,
 		},
 	}, rootCommandFactories(runtime))
+	installProfileShortcutCommands(root, runtime)
 	gormescli.InstallRootRPCModeFlags(root)
 	return root
+}
+
+func installProfileShortcutCommands(root *cobra.Command, runtime rootRuntime) {
+	profiles, err := defaultListKnownProfiles()
+	if err != nil {
+		return
+	}
+	existing := map[string]struct{}{}
+	for _, cmd := range root.Commands() {
+		existing[cmd.Name()] = struct{}{}
+		for _, alias := range cmd.Aliases {
+			existing[alias] = struct{}{}
+		}
+	}
+	baseHome := config.GormesBaseHome()
+	for _, profile := range profiles {
+		profile := strings.TrimSpace(profile)
+		if profile == config.DefaultProfileID {
+			continue
+		}
+		if profile == "" {
+			continue
+		}
+		if _, conflict := existing[profile]; conflict {
+			continue
+		}
+		if err := cli.ValidateProfileName(profile); err != nil {
+			continue
+		}
+		cmd := &cobra.Command{
+			Use:          profile,
+			Short:        "Open the " + profile + " profile",
+			Hidden:       true,
+			Args:         cobra.NoArgs,
+			SilenceUsage: true,
+			RunE: func(cmd *cobra.Command, _ []string) error {
+				if err := applyProfileRuntimeHome(baseHome, profile); err != nil {
+					return err
+				}
+				invocation, err := resolveTUIInvocation(cmd)
+				if err != nil {
+					return err
+				}
+				return runtime.runResolvedTUI(cmd, invocation)
+			},
+		}
+		root.AddCommand(cmd)
+	}
 }
 
 func tuiAppRuntime(runtime rootRuntime) tuiapp.Runtime {
@@ -902,6 +951,7 @@ func providerCommandOptions() providermodule.Options {
 }
 
 func applyProfileStartupFlag(cmd *cobra.Command) error {
+	_ = os.Unsetenv("GORMES_ACTIVE_PROFILE")
 	if err := gormescli.RejectGatewayProfileStartupFlag(cmd, gormescli.GatewayProfileStartupGuardOptions{ExitCodeError: newExitCodeError}); err != nil {
 		return err
 	}
@@ -926,12 +976,22 @@ func applyProfileStartupFlag(cmd *cobra.Command) error {
 	if err := cli.ValidateProfileName(name); err != nil {
 		return newExitCodeError(2, fmt.Errorf("profile_name_invalid: %w", err))
 	}
+	if err := applyProfileRuntimeHome(baseHome, name); err != nil {
+		return err
+	}
+	return nil
+}
+
+func applyProfileRuntimeHome(baseHome, name string) error {
 	root, err := startupProfileRoot(baseHome, name)
 	if err != nil {
 		return newExitCodeError(2, err)
 	}
 	if err := os.Setenv("GORMES_HOME", root); err != nil {
 		return newExitCodeError(2, fmt.Errorf("profile: set GORMES_HOME: %w", err))
+	}
+	if err := os.Setenv("GORMES_ACTIVE_PROFILE", name); err != nil {
+		return newExitCodeError(2, fmt.Errorf("profile: set active profile: %w", err))
 	}
 	return nil
 }
@@ -964,6 +1024,16 @@ func newChatCommand(runtime rootRuntime) *cobra.Command {
 			restoreKanbanDB := pinCurrentKanbanBoardDBForChat()
 			defer restoreKanbanDB()
 			prompt := strings.TrimSpace(query)
+			if prompt == "" && len(args) == 1 && isKnownProfileShortcut(args[0]) {
+				if err := applyProfileRuntimeHome(config.GormesBaseHome(), strings.TrimSpace(args[0])); err != nil {
+					return err
+				}
+				invocation, err := resolveTUIInvocation(cmd)
+				if err != nil {
+					return err
+				}
+				return runtime.runResolvedTUI(cmd, invocation)
+			}
 			if prompt == "" && len(args) > 0 {
 				prompt = strings.TrimSpace(strings.Join(args, " "))
 			}
@@ -983,6 +1053,26 @@ func newChatCommand(runtime rootRuntime) *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&query, "query", "q", "", "send one chat query and exit")
 	return cmd
+}
+
+func isKnownProfileShortcut(name string) bool {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return false
+	}
+	if err := cli.ValidateProfileName(name); err != nil {
+		return false
+	}
+	profiles, err := defaultListKnownProfiles()
+	if err != nil {
+		return false
+	}
+	for _, profile := range profiles {
+		if profile == name {
+			return true
+		}
+	}
+	return false
 }
 
 func pinCurrentKanbanBoardDBForChat() func() {
@@ -1158,7 +1248,15 @@ func resolveOneshotInvocationForPrompt(cmd *cobra.Command, prompt string) (onesh
 }
 
 func resolveTUIInvocation(cmd *cobra.Command) (tuiInvocation, error) {
-	return tuiapp.ResolveInvocation(cmd)
+	invocation, err := tuiapp.ResolveInvocation(cmd)
+	if err != nil {
+		return invocation, err
+	}
+	profiles, listErr := defaultListKnownProfiles()
+	if listErr == nil {
+		invocation.ProfileNames = profiles
+	}
+	return invocation, nil
 }
 
 func applyProviderStartupFlags(cfg *config.Config, endpointFlag, apiKeyFlag string) {
@@ -1359,6 +1457,7 @@ func runResolvedOneshotWithClient(cmd *cobra.Command, invocation oneshotInvocati
 		Model:             model,
 		Provider:          cfg.Hermes.Provider,
 		Endpoint:          cfg.Hermes.Endpoint,
+		SystemPrompt:      llm.DefaultAgentIdentity,
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
 		MaxToolIterations: gormescli.ConfiguredMaxToolIterations(cfg),
 		ToolAudit:         audit.NewJSONLWriter(config.ToolAuditLogPath()),

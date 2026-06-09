@@ -39,7 +39,7 @@ func (m *Manager) handleSubmitEvent(ctx context.Context, ch Channel, ev InboundE
 
 func (m *Manager) preprocessSlashSubmit(ctx context.Context, ch Channel, ev InboundEvent) (InboundEvent, bool) {
 	body := strings.TrimSpace(ev.Text)
-	if !strings.HasPrefix(body, "/") {
+	if !strings.HasPrefix(body, "/") && !strings.HasPrefix(body, "／") {
 		return ev, false
 	}
 

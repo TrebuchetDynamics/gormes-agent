@@ -42,6 +42,9 @@ func SelectDeliveryMirrorSession(candidates []session.Metadata, target DeliveryM
 
 	matches := make([]session.Metadata, 0, len(candidates))
 	for _, meta := range candidates {
+		if address.ID(meta.SessionID) == "" {
+			continue
+		}
 		if address.Platform(meta.Source) != platform {
 			continue
 		}
@@ -66,7 +69,15 @@ func SelectDeliveryMirrorSession(candidates []session.Metadata, target DeliveryM
 			best = meta
 		}
 	}
-	return best, true
+	return normalizeSelectedMetadata(best), true
+}
+
+func normalizeSelectedMetadata(meta session.Metadata) session.Metadata {
+	meta.SessionID = address.ID(meta.SessionID)
+	meta.Source = address.Platform(meta.Source)
+	meta.ChatID = address.ID(meta.ChatID)
+	meta.UserID = address.ID(meta.UserID)
+	return meta
 }
 
 func MirrorDeliveryToSession(ctx context.Context, st store.Store, candidates []session.Metadata, target DeliveryMirrorTarget, now time.Time) (DeliveryMirrorResult, error) {
@@ -129,11 +140,11 @@ func deliveryMirrorFilterByUser(items []session.Metadata, userID string) ([]sess
 
 func deliveryMirrorHasAmbiguousUserProvenance(items []session.Metadata) bool {
 	knownUsers := map[string]struct{}{}
-	hasUnknownUser := false
+	unknownUsers := 0
 	for _, meta := range items {
 		userID := address.ID(meta.UserID)
 		if userID == "" {
-			hasUnknownUser = true
+			unknownUsers++
 			continue
 		}
 		knownUsers[userID] = struct{}{}
@@ -141,5 +152,5 @@ func deliveryMirrorHasAmbiguousUserProvenance(items []session.Metadata) bool {
 			return true
 		}
 	}
-	return hasUnknownUser && len(knownUsers) > 0
+	return unknownUsers > 0 && (len(knownUsers) > 0 || unknownUsers > 1)
 }

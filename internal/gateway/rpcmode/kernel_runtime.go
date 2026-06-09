@@ -230,7 +230,7 @@ func (r *KernelRuntime) forwardPromptFrames(ctx context.Context, render <-chan k
 	for {
 		frame, err := readKernelFrame(ctx, render)
 		if err != nil {
-			out <- RPCRecord{"type": "agent_end", "error": err.Error()}
+			out <- RPCRecord{"type": "agent_end", "error": rpcErrorText(err.Error())}
 			return
 		}
 		r.mu.Lock()
@@ -242,8 +242,9 @@ func (r *KernelRuntime) forwardPromptFrames(ctx context.Context, render <-chan k
 			out <- RPCRecord{"type": "message_update", "message": RPCRecord{"role": "assistant", "content": frame.DraftText}, "assistantMessageEvent": RPCRecord{"type": "text_delta", "delta": delta}}
 		}
 		if frame.LastError != "" || frame.Phase == kernel.PhaseFailed {
-			out <- RPCRecord{"type": "message_end", "message": RPCRecord{"role": "assistant", "content": frame.DraftText}, "error": frame.LastError}
-			out <- RPCRecord{"type": "agent_end", "messages": rpcMessagesFromHermes(frame.History), "error": frame.LastError}
+			errorText := rpcErrorText(frame.LastError)
+			out <- RPCRecord{"type": "message_end", "message": RPCRecord{"role": "assistant", "content": frame.DraftText}, "error": errorText}
+			out <- RPCRecord{"type": "agent_end", "messages": rpcMessagesFromHermes(frame.History), "error": errorText}
 			return
 		}
 		if frame.Phase == kernel.PhaseIdle && frame.Seq > startSeq {

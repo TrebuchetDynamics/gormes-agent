@@ -1,6 +1,7 @@
 package channelmemory
 
 import (
+	"strings"
 	"time"
 
 	gonchoservice "github.com/TrebuchetDynamics/goncho/service"
@@ -79,7 +80,7 @@ func (s Settings) LegacyRecallActive(peerConfigured bool) bool {
 }
 
 func (s Settings) SemanticFusionActive(legacyRecallActive bool) bool {
-	return legacyRecallActive && s.SemanticEnabled && s.SemanticModel != ""
+	return legacyRecallActive && s.SemanticEnabled && strings.TrimSpace(s.SemanticModel) != ""
 }
 
 // Options describes channel-agnostic memory wiring for any edge runtime.

@@ -50,6 +50,23 @@ func TestBuildPromptDelivery_RendersPromptAndExplicitThreadTarget(t *testing.T) 
 	}
 }
 
+func TestBuildPromptDelivery_PreservesColonBearingChatID(t *testing.T) {
+	got, err := BuildPromptDelivery("matrix-hook", "evt-room", "push", RouteConfig{
+		Prompt:  "Matrix alert",
+		Deliver: "matrix",
+		DeliverExtra: map[string]any{
+			"chat_id": "!room:matrix.org",
+		},
+	}, map[string]any{})
+	if err != nil {
+		t.Fatalf("BuildPromptDelivery() error = %v", err)
+	}
+	want := gateway.DeliveryTarget{Platform: "matrix", ChatID: "!room:matrix.org", IsExplicit: true}
+	if got.Target != want {
+		t.Fatalf("Target = %+v, want %+v", got.Target, want)
+	}
+}
+
 func TestBuildPromptDelivery_MapsMessageThreadIDAlias(t *testing.T) {
 	got, err := BuildPromptDelivery("alerts", "evt-2", "issues", RouteConfig{
 		Prompt:  "Issue {number}",

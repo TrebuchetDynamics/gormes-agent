@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -135,6 +136,18 @@ func TestPlatformReconnectLifecycle_ReconnectSuccessClearsFailure(t *testing.T) 
 				t.Fatalf("connected = %+v, want telegram installed after reconnect", connected)
 			}
 		})
+	}
+}
+
+func TestPlatformLifecycleErrorSanitizerRedactsBearerAndCollapsesOperatorText(t *testing.T) {
+	got := sanitizePlatformLifecycleError(errors.New("connect failed\nAuthorization: Bearer sk-secret-token\n**Injected:** yes"))
+	for _, forbidden := range []string{"sk-secret-token", "Bearer sk", "\n", "**Injected:**"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("sanitizePlatformLifecycleError leaked %q in %q", forbidden, got)
+		}
+	}
+	if got != "[redacted]" {
+		t.Fatalf("sanitizePlatformLifecycleError = %q, want [redacted]", got)
 	}
 }
 

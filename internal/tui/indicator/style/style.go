@@ -30,7 +30,7 @@ func Normalize(raw string) Style {
 	case Kaomoji:
 		return Kaomoji
 	default:
-		return Kaomoji
+		return Unicode
 	}
 }
 

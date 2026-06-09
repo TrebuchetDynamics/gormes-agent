@@ -173,12 +173,16 @@ func TestTUIStartupFallsBackWhenSessionDBLocked(t *testing.T) {
 		t.Fatalf("locked sessions.db warning should render inside Bubble Tea, not stderr:\n%s", stderr.String())
 	}
 	for _, want := range []string{
-		"session state: in-memory",
-		"sessions.db locked",
-		"gateway status/stop",
+		"session: temporary",
+		"sessions.db busy",
 	} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("rendered TUI missing %q:\n%s", want, rendered)
+		}
+	}
+	for _, forbidden := range []string{"session state: in-memory", "gateway status/stop"} {
+		if strings.Contains(rendered, forbidden) {
+			t.Fatalf("rendered TUI leaked verbose lock notice %q:\n%s", forbidden, rendered)
 		}
 	}
 }

@@ -130,6 +130,26 @@ func TestFleetSupervisorStatusListsConfiguredProfilesWithIsolationAndTokenConfli
 	}
 }
 
+func TestFleetSupervisorStatusClampsNegativeRuntimePID(t *testing.T) {
+	cfg := config.Config{Profiles: map[string]config.ProfileCfg{"main": {Enabled: true}}}
+	worker := &fakeFleetWorker{statuses: map[string]FleetProfileRuntime{
+		"main": {Owner: FleetRuntimeOwnerProfileServiceBridge, State: FleetRuntimeStateRunning, Live: true, PID: -42},
+	}}
+
+	status := fleetStatusHarness{cfg: cfg, worker: worker, homeRoot: t.TempDir()}.status(t)
+	main := findFleetProfile(t, status, "main")
+	if main.Runtime.PID < 0 {
+		t.Fatalf("runtime PID = %d, want stale/corrupt negative PID clamped", main.Runtime.PID)
+	}
+	body, err := json.Marshal(status)
+	if err != nil {
+		t.Fatalf("marshal status: %v", err)
+	}
+	if strings.Contains(string(body), `"pid":-`) {
+		t.Fatalf("fleet status JSON leaked negative PID:\n%s", body)
+	}
+}
+
 func TestFleetSupervisorStatusResolvesSecretRefTokenHashesForConflicts(t *testing.T) {
 	const sharedToken = "123456:shared-secret-that-must-not-leak"
 	sharedHash := TokenCredentialHash(sharedToken)
@@ -273,6 +293,32 @@ func TestCommandFleetWorkerStartAllUsesProfileHomeEnvAndDoesNotRestartLiveProfil
 		if strings.Contains(string(body), leaked) {
 			t.Fatalf("operation report leaked private path %q:\n%s", leaked, body)
 		}
+	}
+}
+
+func TestCommandFleetWorkerReportSanitizesCommandJSONFields(t *testing.T) {
+	cfg := config.Config{Profiles: map[string]config.ProfileCfg{"main": {Enabled: true}}}
+	runner := &fakeFleetCommandRunner{results: []FleetCommandResult{{Stdout: `{"action":"started\nstatus: forged api_key=plain-secret-token","mode":"runtime"}`}}}
+	worker := NewCommandFleetWorker(CommandFleetWorkerOptions{
+		Command: "gormes",
+		Runner:  runner,
+		StatusWorker: &fakeFleetWorker{statuses: map[string]FleetProfileRuntime{
+			"main": {Owner: FleetRuntimeOwnerProfileServiceBridge, State: FleetRuntimeStateStopped, Live: false},
+		}},
+	})
+
+	report, err := NewFleetSupervisor(cfg, FleetSupervisorOptions{HomeRoot: t.TempDir(), Worker: worker}).StartAll(context.Background())
+	if err != nil {
+		t.Fatalf("StartAll: %v", err)
+	}
+	result := findFleetOperationResult(t, report, "main")
+	for _, forbidden := range []string{"\nstatus: forged", "plain-secret-token", "api_key"} {
+		if strings.Contains(result.Message, forbidden) {
+			t.Fatalf("fleet operation message leaked unsafe command field %q in %q", forbidden, result.Message)
+		}
+	}
+	if !strings.Contains(result.Message, "action=started status: forged [redacted]") {
+		t.Fatalf("fleet operation message missing sanitized action evidence: %q", result.Message)
 	}
 }
 

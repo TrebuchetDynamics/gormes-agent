@@ -2,6 +2,7 @@ package routing
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -56,6 +57,9 @@ func (d AgentRouteDecision) SessionKey() string {
 	}
 	if mainKey == "" {
 		mainKey = "main"
+	}
+	if strings.Contains(agentID, ":") {
+		return "agent:" + strconv.Itoa(len(agentID)) + ":" + agentID + ":" + strconv.Itoa(len(mainKey)) + ":" + mainKey
 	}
 	return "agent:" + agentID + ":" + mainKey
 }

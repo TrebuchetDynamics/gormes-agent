@@ -68,8 +68,9 @@ func TestParse_TrimsText(t *testing.T) {
 	if got.Guidance != want {
 		t.Fatalf("Guidance = %q, want %q", got.Guidance, want)
 	}
-	if got.Preview != want {
-		t.Fatalf("Preview = %q, want %q", got.Preview, want)
+	previewWant := "keep the internal whitespace"
+	if got.Preview != previewWant {
+		t.Fatalf("Preview = %q, want sanitized %q", got.Preview, previewWant)
 	}
 }
 
@@ -81,6 +82,39 @@ func TestParse_AcceptsBotMentionCommandToken(t *testing.T) {
 	}
 	if got.Guidance != "keep investigating" {
 		t.Fatalf("Guidance = %q, want parsed guidance", got.Guidance)
+	}
+}
+
+func TestPreview_SanitizesMultilineGuidanceForAcknowledgement(t *testing.T) {
+	got := Preview("keep going\n**Injected:** fake status\tplease")
+	want := "keep going ''Injected:'' fake status please"
+	if got != want {
+		t.Fatalf("Preview() = %q, want sanitized single-line %q", got, want)
+	}
+	parsed := Parse("/steer keep going\n**Injected:** fake status", PayloadMetadata{})
+	if parsed.Guidance != "keep going\n**Injected:** fake status" {
+		t.Fatalf("Parse Guidance = %q, want original multiline guidance", parsed.Guidance)
+	}
+	if parsed.Preview != "keep going ''Injected:'' fake status" {
+		t.Fatalf("Parse Preview = %q, want sanitized single-line preview", parsed.Preview)
+	}
+}
+
+func TestPreview_RedactsSecretLikeGuidanceForAcknowledgement(t *testing.T) {
+	got := Preview("keep api_key=plain-secret-token for the local adapter")
+	if strings.Contains(got, "plain-secret-token") || strings.Contains(got, "api_key") {
+		t.Fatalf("Preview leaked secret-like guidance: %q", got)
+	}
+	if !strings.Contains(got, "[redacted]") {
+		t.Fatalf("Preview missing redaction marker: %q", got)
+	}
+
+	parsed := Parse("/steer keep api_key=plain-secret-token", PayloadMetadata{})
+	if parsed.Guidance != "keep api_key=plain-secret-token" {
+		t.Fatalf("Parse Guidance = %q, want raw guidance preserved", parsed.Guidance)
+	}
+	if strings.Contains(parsed.Preview, "plain-secret-token") || !strings.Contains(parsed.Preview, "[redacted]") {
+		t.Fatalf("Parse Preview did not redact secret-like guidance: %q", parsed.Preview)
 	}
 }
 

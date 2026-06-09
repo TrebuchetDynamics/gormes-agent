@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/delivery/address"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
@@ -63,6 +65,13 @@ func (t Target) String() string {
 	if t.ChatID == "" {
 		return platform
 	}
+	if platform != "matrix" && platform != "simplex" && (strings.Contains(t.ChatID, ":") || strings.Contains(t.ThreadID, ":")) {
+		out := platform + ":" + strconv.Itoa(len(t.ChatID)) + ":" + t.ChatID
+		if t.ThreadID != "" {
+			out += ":" + strconv.Itoa(len(t.ThreadID)) + ":" + t.ThreadID
+		}
+		return out
+	}
 	if t.ThreadID == "" {
 		return platform + ":" + t.ChatID
 	}
@@ -100,9 +109,10 @@ func ResolveHomeTargetWithFallback(target Target, homes HomeTargets, fallback Ho
 	}
 	if fallback.DiscoveryEnabled && address.Platform(fallback.Source.Platform) == platform && address.ID(fallback.Source.ChatID) != "" {
 		return Target{
-			Platform: platform,
-			ChatID:   address.ID(fallback.Source.ChatID),
-			ThreadID: address.ID(fallback.Source.ThreadID),
+			Platform:   platform,
+			ChatID:     address.ID(fallback.Source.ChatID),
+			ThreadID:   address.ID(fallback.Source.ThreadID),
+			IsExplicit: true,
 		}, nil
 	}
 	return target, MissingHomeError{Platform: platform}
@@ -138,6 +148,7 @@ func normalizeConfiguredHomeTarget(platform string, home Target) (Target, bool) 
 	home.Platform = address.Platform(textvalue.FirstNonEmptyTrimmed(home.Platform, platform))
 	home.ChatID = address.ID(home.ChatID)
 	home.ThreadID = address.ID(home.ThreadID)
+	home.IsExplicit = true
 	return home, true
 }
 
@@ -165,6 +176,15 @@ func ParseTarget(raw string, origin *OriginSource) (Target, error) {
 	}
 
 	parts := strings.Split(trimmed, ":")
+	if target, ok, err := parseLengthEncodedTarget(parts); ok || err != nil {
+		return target, err
+	}
+	if len(parts) > 0 && address.Platform(parts[0]) == "matrix" && len(parts) >= 4 {
+		return parseMatrixColonTarget(parts)
+	}
+	if len(parts) > 0 && address.Platform(parts[0]) == "simplex" && len(parts) >= 3 && address.ID(parts[1]) == "group" {
+		return parseSimplexGroupTarget(parts)
+	}
 	switch len(parts) {
 	case 1:
 		platform := address.Platform(parts[0])
@@ -181,6 +201,13 @@ func ParseTarget(raw string, origin *OriginSource) (Target, error) {
 		return Target{Platform: platform, ChatID: chatID, IsExplicit: true}, nil
 	case 3:
 		platform := address.Platform(parts[0])
+		if platformColonChatIDPrefixAllowed(platform, address.ID(parts[1])) {
+			chatID := address.ID(strings.Join(parts[1:], ":"))
+			if chatID == "" {
+				return Target{}, errors.New("gateway: invalid explicit delivery target")
+			}
+			return Target{Platform: platform, ChatID: chatID, IsExplicit: true}, nil
+		}
 		chatID := address.ID(parts[1])
 		threadID := address.ID(parts[2])
 		if platform == "" || chatID == "" || threadID == "" {
@@ -189,5 +216,91 @@ func ParseTarget(raw string, origin *OriginSource) (Target, error) {
 		return Target{Platform: platform, ChatID: chatID, ThreadID: threadID, IsExplicit: true}, nil
 	default:
 		return Target{}, errors.New("gateway: invalid delivery target")
+	}
+}
+
+func parseLengthEncodedTarget(parts []string) (Target, bool, error) {
+	if len(parts) < 4 {
+		return Target{}, false, nil
+	}
+	platform := address.Platform(parts[0])
+	if platform == "" {
+		return Target{}, false, nil
+	}
+	chatLen, err := strconv.Atoi(address.ID(parts[1]))
+	if err != nil || chatLen <= 0 {
+		return Target{}, false, nil
+	}
+	rest := strings.Join(parts[2:], ":")
+	if len(rest) < chatLen {
+		return Target{}, true, errors.New("gateway: invalid length-encoded delivery target")
+	}
+	chatID := rest[:chatLen]
+	remainder := rest[chatLen:]
+	if !utf8.ValidString(chatID) || address.ID(chatID) == "" {
+		return Target{}, true, errors.New("gateway: invalid length-encoded delivery target")
+	}
+	if remainder == "" {
+		return Target{Platform: platform, ChatID: chatID, IsExplicit: true}, true, nil
+	}
+	if !strings.HasPrefix(remainder, ":") {
+		return Target{}, true, errors.New("gateway: invalid length-encoded delivery target")
+	}
+	remainder = strings.TrimPrefix(remainder, ":")
+	threadLenText, threadValue, ok := strings.Cut(remainder, ":")
+	if !ok {
+		return Target{}, true, errors.New("gateway: invalid length-encoded delivery target")
+	}
+	threadLen, err := strconv.Atoi(address.ID(threadLenText))
+	if err != nil || threadLen <= 0 || len(threadValue) != threadLen || !utf8.ValidString(threadValue) || address.ID(threadValue) == "" {
+		return Target{}, true, errors.New("gateway: invalid length-encoded delivery target")
+	}
+	return Target{Platform: platform, ChatID: chatID, ThreadID: threadValue, IsExplicit: true}, true, nil
+}
+
+func parseSimplexGroupTarget(parts []string) (Target, error) {
+	chatID := address.ID(strings.Join(parts[1:], ":"))
+	if chatID == "" || !strings.HasPrefix(chatID, "group:") || strings.TrimPrefix(chatID, "group:") == "" {
+		return Target{}, errors.New("gateway: invalid explicit delivery target")
+	}
+	return Target{Platform: "simplex", ChatID: chatID, IsExplicit: true}, nil
+}
+
+func parseMatrixColonTarget(parts []string) (Target, error) {
+	for _, part := range parts[1:] {
+		if address.ID(part) == "" {
+			return Target{}, errors.New("gateway: invalid explicit delivery target")
+		}
+	}
+	threadStart := 0
+	for i := 2; i < len(parts); i++ {
+		if strings.HasPrefix(address.ID(parts[i]), "$") {
+			threadStart = i
+			break
+		}
+	}
+	if threadStart == 0 {
+		chatID := address.ID(strings.Join(parts[1:], ":"))
+		if chatID == "" || !strings.HasPrefix(chatID, "!") {
+			return Target{}, errors.New("gateway: invalid explicit delivery target")
+		}
+		return Target{Platform: "matrix", ChatID: chatID, IsExplicit: true}, nil
+	}
+	chatID := address.ID(strings.Join(parts[1:threadStart], ":"))
+	threadID := address.ID(strings.Join(parts[threadStart:], ":"))
+	if chatID == "" || threadID == "" || !strings.HasPrefix(chatID, "!") {
+		return Target{}, errors.New("gateway: invalid threaded delivery target")
+	}
+	return Target{Platform: "matrix", ChatID: chatID, ThreadID: threadID, IsExplicit: true}, nil
+}
+
+func platformColonChatIDPrefixAllowed(platform, firstChatPart string) bool {
+	switch platform {
+	case "matrix":
+		return strings.HasPrefix(firstChatPart, "!")
+	case "simplex":
+		return firstChatPart == "group"
+	default:
+		return false
 	}
 }

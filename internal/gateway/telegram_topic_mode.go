@@ -86,13 +86,13 @@ func telegramTopicHelpText() string {
 func (m *Manager) disableTelegramTopicMode(ctx context.Context, store TelegramTopicStore, ev InboundEvent) string {
 	enabled, err := store.IsTelegramTopicModeEnabled(ctx, ev.ChatID, ev.UserID)
 	if err != nil {
-		return "telegram_topic_unavailable: " + err.Error()
+		return "telegram_topic_unavailable: " + telegramTopicErrorText(err)
 	}
 	if !enabled {
 		return "Multi-session topic mode is not currently enabled for this chat."
 	}
 	if err := store.DisableTelegramTopicMode(ctx, ev.ChatID); err != nil {
-		return "telegram_topic_unavailable: failed to disable topic mode: " + err.Error()
+		return "telegram_topic_unavailable: failed to disable topic mode: " + telegramTopicErrorText(err)
 	}
 	m.resetTelegramTopicDebounce(ev.ChatID)
 	return strings.Join([]string{
@@ -108,7 +108,7 @@ func (m *Manager) enableTelegramTopicMode(ctx context.Context, store TelegramTop
 		var err error
 		capabilities, err = m.cfg.TelegramTopicCapabilities(ctx, ev)
 		if err != nil {
-			return "telegram_topic_unavailable: capability check failed: " + err.Error()
+			return "telegram_topic_unavailable: capability check failed: " + telegramTopicErrorText(err)
 		}
 	}
 	if capabilities.Checked {
@@ -128,12 +128,42 @@ func (m *Manager) enableTelegramTopicMode(ctx context.Context, store TelegramTop
 		CapabilityChecked:         capabilities.Checked,
 	}
 	if err := store.EnableTelegramTopicMode(ctx, record); err != nil {
-		return "telegram_topic_unavailable: failed to enable topic mode: " + err.Error()
+		return "telegram_topic_unavailable: failed to enable topic mode: " + telegramTopicErrorText(err)
 	}
 	if strings.TrimSpace(ev.ThreadID) != "" {
 		return "Telegram multi-session topics are enabled. This topic will be used as an independent Gormes session."
 	}
 	return "Telegram multi-session topics are enabled.\n\nTo create a new Gormes chat, open All Messages at the top of this bot interface and send any message there."
+}
+
+func telegramTopicErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := strings.TrimSpace(err.Error())
+	if msg == "" {
+		return ""
+	}
+	lower := strings.ToLower(msg)
+	compact := compactTelegramTopicSecretSeparators(lower)
+	for _, marker := range []string{"token", "api_key", "apikey", "authorization", "bearer", "secret", "password"} {
+		if strings.Contains(lower, marker) || strings.Contains(compact, marker) {
+			return "[redacted]"
+		}
+	}
+	replacer := strings.NewReplacer("`", "'", "*", "'", "#", "＃")
+	return strings.Join(strings.Fields(replacer.Replace(msg)), " ")
+}
+
+func compactTelegramTopicSecretSeparators(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func (m *Manager) telegramTopicCapabilityGuidance(chatID, reason string) string {

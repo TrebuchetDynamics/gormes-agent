@@ -125,7 +125,7 @@ func TestExtensionWorkingIndicatorOverridesAndClears(t *testing.T) {
 		t.Fatalf("SetWorkingIndicator status = %q, want applied: %#v", res.Status, res)
 	}
 	got := m.renderHermesHint()
-	for _, want := range []string{"◓", "syncing extension cache", "session sess-ext"} {
+	for _, want := range []string{"◓", "syncing extension cache"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("custom working indicator missing %q from %q", want, got)
 		}

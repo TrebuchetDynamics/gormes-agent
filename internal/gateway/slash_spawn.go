@@ -103,7 +103,7 @@ func handleTelegramSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd Sp
 
 	threadID, err := topicCreator.CreateForumTopic(ctx, chatID, cmd.Name)
 	if err != nil {
-		return spawnResult(AgentSpawnTopicFailed, string(AgentSpawnTopicFailed)+": createForumTopic failed: "+err.Error())
+		return spawnResult(AgentSpawnTopicFailed, string(AgentSpawnTopicFailed)+": createForumTopic failed: "+spawnErrorText(err))
 	}
 	created, err := req.Registry.Create(ctx, goncho.CreateAgentOptions{
 		Name:        cmd.Name,
@@ -111,7 +111,7 @@ func handleTelegramSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd Sp
 		ReservedIDs: req.ReservedIDs,
 	})
 	if err != nil {
-		return spawnResult(AgentSpawnRegistryFailed, string(AgentSpawnRegistryFailed)+": "+err.Error())
+		return spawnResult(AgentSpawnRegistryFailed, string(AgentSpawnRegistryFailed)+": "+spawnErrorText(err))
 	}
 	match := goncho.BindingMatch{
 		Channel:  "telegram",
@@ -120,12 +120,12 @@ func handleTelegramSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd Sp
 		ThreadID: threadID,
 	}
 	if err := req.Registry.Bind(ctx, created.ID, match); err != nil {
-		return spawnResult(AgentSpawnRegistryFailed, string(AgentSpawnRegistryFailed)+": "+err.Error())
+		return spawnResult(AgentSpawnRegistryFailed, string(AgentSpawnRegistryFailed)+": "+spawnErrorText(err))
 	}
 
-	ack := string(AgentSpawned) + ": " + created.Name + " is ready in this topic."
+	ack := string(AgentSpawned) + ": " + spawnLineValue(created.Name) + " is ready in this topic."
 	if _, err := threadSender.SendThread(ctx, chatID, threadID, ack); err != nil {
-		return spawnResult(AgentSpawnAckFailed, string(AgentSpawnAckFailed)+": "+err.Error())
+		return spawnResult(AgentSpawnAckFailed, string(AgentSpawnAckFailed)+": "+spawnErrorText(err))
 	}
 	return SlashSpawnResult{
 		Code:      AgentSpawned,
@@ -165,7 +165,7 @@ func handleDiscordSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd Spa
 
 	threadID, err := threadCreator.CreateThread(ctx, channelID, cmd.Name)
 	if err != nil {
-		return spawnResult(AgentSpawnThreadFailed, string(AgentSpawnThreadFailed)+": StartThread failed: "+err.Error())
+		return spawnResult(AgentSpawnThreadFailed, string(AgentSpawnThreadFailed)+": StartThread failed: "+spawnErrorText(err))
 	}
 	created, err := req.Registry.Create(ctx, goncho.CreateAgentOptions{
 		Name:        cmd.Name,
@@ -173,7 +173,7 @@ func handleDiscordSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd Spa
 		ReservedIDs: req.ReservedIDs,
 	})
 	if err != nil {
-		return spawnResult(AgentSpawnRegistryFailed, string(AgentSpawnRegistryFailed)+": "+err.Error())
+		return spawnResult(AgentSpawnRegistryFailed, string(AgentSpawnRegistryFailed)+": "+spawnErrorText(err))
 	}
 	match := goncho.BindingMatch{
 		Channel:  "discord",
@@ -182,12 +182,12 @@ func handleDiscordSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd Spa
 		ThreadID: threadID,
 	}
 	if err := req.Registry.Bind(ctx, created.ID, match); err != nil {
-		return spawnResult(AgentSpawnRegistryFailed, string(AgentSpawnRegistryFailed)+": "+err.Error())
+		return spawnResult(AgentSpawnRegistryFailed, string(AgentSpawnRegistryFailed)+": "+spawnErrorText(err))
 	}
 
-	ack := string(AgentSpawned) + ": " + created.Name + " is ready in this thread."
+	ack := string(AgentSpawned) + ": " + spawnLineValue(created.Name) + " is ready in this thread."
 	if _, err := threadSender.SendThread(ctx, channelID, threadID, ack); err != nil {
-		return spawnResult(AgentSpawnAckFailed, string(AgentSpawnAckFailed)+": "+err.Error())
+		return spawnResult(AgentSpawnAckFailed, string(AgentSpawnAckFailed)+": "+spawnErrorText(err))
 	}
 	return SlashSpawnResult{
 		Code:      AgentSpawned,
@@ -209,6 +209,40 @@ func discordSpawnGuildChannelID(ev InboundEvent) (string, bool) {
 	}
 	channelID := strings.TrimSpace(ev.ChatID)
 	return channelID, strings.TrimSpace(ev.GuildID) != "" && channelID != ""
+}
+
+func spawnLineValue(value string) string {
+	replacer := strings.NewReplacer("`", "'", "*", "'", "#", "＃")
+	return strings.Join(strings.Fields(replacer.Replace(value)), " ")
+}
+
+func spawnErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := strings.TrimSpace(err.Error())
+	if msg == "" {
+		return ""
+	}
+	lower := strings.ToLower(msg)
+	compact := compactSpawnSecretSeparators(lower)
+	for _, marker := range []string{"token", "api_key", "apikey", "authorization", "bearer", "secret", "password"} {
+		if strings.Contains(compact, marker) || strings.Contains(lower, marker) {
+			return "[redacted]"
+		}
+	}
+	return spawnLineValue(msg)
+}
+
+func compactSpawnSecretSeparators(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func spawnResult(code AgentSpawnEvidence, msg string) SlashSpawnResult {

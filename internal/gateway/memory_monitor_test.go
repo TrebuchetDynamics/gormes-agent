@@ -2,7 +2,9 @@ package gateway
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -52,6 +54,41 @@ func TestMemoryMonitorSampleOnceWritesRuntimeStatusEvidence(t *testing.T) {
 	}
 	if status.MemoryPressure.TargetPID != 4242 || status.MemoryPressure.TargetStartTime != 99 {
 		t.Fatalf("critical target = %+v, want bounded current owner", status.MemoryPressure)
+	}
+}
+
+func TestMemoryMonitorSampleErrorSanitizesRuntimeStatusEvidence(t *testing.T) {
+	now := time.Date(2026, 5, 18, 4, 36, 0, 0, time.UTC)
+	store := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
+	store.pid = func() int { return 4242 }
+	store.startTime = func(int) (int64, bool) { return 99, true }
+	store.argv = func() []string { return []string{"gormes", "gateway"} }
+	store.now = func() time.Time { return now }
+
+	monitor := NewMemoryMonitor(MemoryMonitorConfig{
+		Status:  store,
+		Sampler: fakeMemorySampler{err: errors.New("sample failed\n**Injected:** token=plain-secret")},
+		Now:     func() time.Time { return now },
+	})
+
+	if err := monitor.SampleOnce(context.Background()); err != nil {
+		t.Fatalf("SampleOnce: %v", err)
+	}
+
+	status, err := store.ReadRuntimeStatus(context.Background())
+	if err != nil {
+		t.Fatalf("ReadRuntimeStatus: %v", err)
+	}
+	if status.MemoryPressure.Status != MemoryPressureUnavailable {
+		t.Fatalf("memory pressure = %+v, want unavailable", status.MemoryPressure)
+	}
+	for _, forbidden := range []string{"plain-secret", "**Injected:**", "sample failed"} {
+		if strings.Contains(status.MemoryPressure.Message, forbidden) {
+			t.Fatalf("memory pressure message leaked unsafe sampler error %q in %q", forbidden, status.MemoryPressure.Message)
+		}
+	}
+	if status.MemoryPressure.Message != "[redacted]" {
+		t.Fatalf("memory pressure message = %q, want redacted", status.MemoryPressure.Message)
 	}
 }
 

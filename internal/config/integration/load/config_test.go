@@ -41,6 +41,67 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+func TestLoad_ProfileHomeInheritsBaseProviderConfig(t *testing.T) {
+	baseHome := t.TempDir()
+	profileHome := filepath.Join(baseHome, "profiles", "rijuriju")
+	if err := os.MkdirAll(profileHome, 0o755); err != nil {
+		t.Fatalf("mkdir profile home: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(baseHome, "config.toml"), []byte(`
+[hermes]
+provider = "openai-codex"
+endpoint = "https://codex.example.test/v1"
+model = "gpt-5.5"
+`), 0o600); err != nil {
+		t.Fatalf("write base config: %v", err)
+	}
+	t.Setenv("GORMES_HOME", profileHome)
+	t.Setenv("GORMES_ENDPOINT", "")
+	t.Setenv("GORMES_API_KEY", "")
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Hermes.Provider != "openai-codex" || cfg.Hermes.Endpoint != "https://codex.example.test/v1" || cfg.Hermes.Model != "gpt-5.5" {
+		t.Fatalf("profile config = provider %q endpoint %q model %q, want inherited base provider", cfg.Hermes.Provider, cfg.Hermes.Endpoint, cfg.Hermes.Model)
+	}
+}
+
+func TestLoad_ProfileHomeConfigOverridesBaseProviderConfig(t *testing.T) {
+	baseHome := t.TempDir()
+	profileHome := filepath.Join(baseHome, "profiles", "rijuriju")
+	if err := os.MkdirAll(profileHome, 0o755); err != nil {
+		t.Fatalf("mkdir profile home: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(baseHome, "config.toml"), []byte(`
+[hermes]
+provider = "openai-codex"
+endpoint = "https://codex.example.test/v1"
+model = "gpt-5.5"
+`), 0o600); err != nil {
+		t.Fatalf("write base config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(profileHome, "config.toml"), []byte(`
+[hermes]
+provider = "openrouter"
+model = "anthropic/claude-sonnet-4"
+`), 0o600); err != nil {
+		t.Fatalf("write profile config: %v", err)
+	}
+	t.Setenv("GORMES_HOME", profileHome)
+	t.Setenv("GORMES_ENDPOINT", "")
+	t.Setenv("GORMES_API_KEY", "")
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Hermes.Provider != "openrouter" || cfg.Hermes.Endpoint != "https://codex.example.test/v1" || cfg.Hermes.Model != "anthropic/claude-sonnet-4" {
+		t.Fatalf("profile config = provider %q endpoint %q model %q, want profile override plus inherited endpoint", cfg.Hermes.Provider, cfg.Hermes.Endpoint, cfg.Hermes.Model)
+	}
+}
+
 func TestLoad_BuiltinDefaults(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("GORMES_ENDPOINT", "")

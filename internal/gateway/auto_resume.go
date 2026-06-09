@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
@@ -32,11 +33,24 @@ func (m *Manager) autoResumePendingSessions(ctx context.Context, inbox chan<- In
 		return
 	}
 
+	if err := ctx.Err(); err != nil {
+		m.log.Debug("auto-resume: context canceled", "err", err)
+		return
+	}
+
 	scheduled := 0
 	for _, meta := range all {
+		if err := ctx.Err(); err != nil {
+			m.log.Debug("auto-resume: context canceled", "err", err)
+			return
+		}
 		if !meta.ResumePending {
 			continue
 		}
+		meta.Source = strings.ToLower(strings.TrimSpace(meta.Source))
+		meta.ChatID = strings.TrimSpace(meta.ChatID)
+		meta.UserID = strings.TrimSpace(meta.UserID)
+		meta.SessionID = strings.TrimSpace(meta.SessionID)
 		if meta.SessionID == "" {
 			continue
 		}
@@ -56,6 +70,7 @@ func (m *Manager) autoResumePendingSessions(ctx context.Context, inbox chan<- In
 		sessionKey := meta.Source + ":" + chatID
 		if err := m.cfg.SessionMap.Put(ctx, sessionKey, meta.SessionID); err != nil {
 			m.log.Debug("auto-resume: ensure session mapping", "key", sessionKey, "err", err)
+			continue
 		}
 
 		ev := InboundEvent{
@@ -83,6 +98,10 @@ func (m *Manager) autoResumePendingSessions(ctx context.Context, inbox chan<- In
 }
 
 func (m *Manager) autoResumeMarkNonResumable(ctx context.Context, meta session.Metadata, reason string) {
+	meta.Source = strings.ToLower(strings.TrimSpace(meta.Source))
+	meta.ChatID = strings.TrimSpace(meta.ChatID)
+	meta.UserID = strings.TrimSpace(meta.UserID)
+	meta.SessionID = strings.TrimSpace(meta.SessionID)
 	now := m.now()
 	writer, ok := m.cfg.SessionMap.(sessionMetadataWriter)
 	if !ok {

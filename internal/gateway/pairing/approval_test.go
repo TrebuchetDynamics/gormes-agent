@@ -2,6 +2,7 @@ package pairing
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -65,6 +66,75 @@ func TestPairingApproval_GeneratesHermesCompatibleCodesAndApprovesValidCode(t *t
 	}
 	if got := approvedKeys(status.Approved); !reflect.DeepEqual(got, []string{"telegram/ada"}) {
 		t.Fatalf("approved records = %v", got)
+	}
+}
+
+func TestPairingApproval_NormalizesPlatformNamesAcrossRequestAndApproval(t *testing.T) {
+	store := newPairingApprovalTestStore(t)
+	issued, err := store.GeneratePairingCode(context.Background(), PairingCodeRequest{
+		Platform: " Telegram ",
+		UserID:   "ada",
+	})
+	if err != nil {
+		t.Fatalf("GeneratePairingCode: %v", err)
+	}
+	if issued.Status != PairingCodeIssued {
+		t.Fatalf("issued status = %q, want %q", issued.Status, PairingCodeIssued)
+	}
+
+	approved, err := store.ApprovePairingCode(context.Background(), "telegram", issued.Code)
+	if err != nil {
+		t.Fatalf("ApprovePairingCode: %v", err)
+	}
+	if approved.Status != PairingApprovalApproved || approved.UserID != "ada" {
+		t.Fatalf("approval = %+v, want approved ada across normalized platform names", approved)
+	}
+	status, err := store.ReadPairingStatus(context.Background())
+	if err != nil {
+		t.Fatalf("ReadPairingStatus: %v", err)
+	}
+	if got := approvedKeys(status.Approved); !reflect.DeepEqual(got, []string{"telegram/ada"}) {
+		t.Fatalf("approved records = %v, want lowercase canonical platform", got)
+	}
+}
+
+func TestPairingApproval_ApprovesLegacyMixedCasePersistedPlatform(t *testing.T) {
+	store := newPairingApprovalTestStore(t)
+	now := time.Date(2026, 4, 25, 21, 45, 0, 0, time.UTC)
+	store.now = func() time.Time { return now }
+	raw := `{
+  "kind": "gormes-gateway-pairing",
+  "version": 1,
+  "platforms": {
+    " Telegram ": {
+      "pending": {
+        "ABC123XY": {
+          "user_id": "ada",
+          "user_name": "Ada",
+          "created_at": "2026-04-25T21:45:00Z"
+        }
+      }
+    }
+  },
+  "updated_at": "2026-04-25T21:45:00Z"
+}`
+	if err := os.WriteFile(store.path, []byte(raw), 0o600); err != nil {
+		t.Fatalf("write legacy pairing state: %v", err)
+	}
+
+	approved, err := store.ApprovePairingCode(context.Background(), "telegram", "abc123xy")
+	if err != nil {
+		t.Fatalf("ApprovePairingCode: %v", err)
+	}
+	if approved.Status != PairingApprovalApproved || approved.UserID != "ada" || approved.UserName != "Ada" {
+		t.Fatalf("approval = %+v, want approved legacy mixed-case persisted platform", approved)
+	}
+	status, err := store.ReadPairingStatus(context.Background())
+	if err != nil {
+		t.Fatalf("ReadPairingStatus: %v", err)
+	}
+	if got := approvedKeys(status.Approved); !reflect.DeepEqual(got, []string{"telegram/ada"}) {
+		t.Fatalf("approved records = %v, want canonical telegram/ada", got)
 	}
 }
 
@@ -156,6 +226,34 @@ func TestPairingApproval_EnforcesPendingLimitAndExpiry(t *testing.T) {
 	}
 	if got := pendingKeys(status.Pending); len(got) != 0 {
 		t.Fatalf("pending after one-hour expiry = %v, want no active pending codes", got)
+	}
+}
+
+func TestPairingApproval_RateLimitKeyAvoidsDelimiterCollisions(t *testing.T) {
+	store := newPairingApprovalTestStore(t)
+	now := time.Date(2026, 4, 25, 22, 30, 0, 0, time.UTC)
+	store.now = func() time.Time { return now }
+
+	first, err := store.GeneratePairingCode(context.Background(), PairingCodeRequest{
+		Platform: "telegram:bot",
+		UserID:   "ada",
+	})
+	if err != nil {
+		t.Fatalf("GeneratePairingCode(first): %v", err)
+	}
+	if first.Status != PairingCodeIssued {
+		t.Fatalf("first status = %q, want issued", first.Status)
+	}
+
+	second, err := store.GeneratePairingCode(context.Background(), PairingCodeRequest{
+		Platform: "telegram",
+		UserID:   "bot:ada",
+	})
+	if err != nil {
+		t.Fatalf("GeneratePairingCode(second): %v", err)
+	}
+	if second.Status != PairingCodeIssued {
+		t.Fatalf("second status = %q, want issued for distinct platform/user despite colon collision", second.Status)
 	}
 }
 

@@ -3,11 +3,42 @@ package gateway
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
 type gatewayCommandHandler func(*Manager, context.Context, Channel, InboundEvent) error
+
+func resetCommandErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := strings.TrimSpace(err.Error())
+	if msg == "" {
+		return ""
+	}
+	lower := strings.ToLower(msg)
+	compact := compactResetSecretSeparators(lower)
+	for _, marker := range []string{"token", "api_key", "apikey", "authorization", "bearer", "secret", "password"} {
+		if strings.Contains(lower, marker) || strings.Contains(compact, marker) {
+			return "[redacted]"
+		}
+	}
+	replacer := strings.NewReplacer("`", "'", "*", "'", "#", "＃")
+	return strings.Join(strings.Fields(replacer.Replace(msg)), " ")
+}
+
+func compactResetSecretSeparators(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
 
 var gatewayCommandHandlers = map[EventKind]gatewayCommandHandler{
 	EventStart: func(m *Manager, ctx context.Context, ch Channel, ev InboundEvent) error {
@@ -31,7 +62,7 @@ var gatewayCommandHandlers = map[EventKind]gatewayCommandHandler{
 			if errors.Is(err, kernel.ErrResetDuringTurn) {
 				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Cannot reset during active turn — send /stop first.")
 			} else {
-				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Session reset failed: "+err.Error())
+				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Session reset failed: "+resetCommandErrorText(err))
 			}
 			return nil
 		}

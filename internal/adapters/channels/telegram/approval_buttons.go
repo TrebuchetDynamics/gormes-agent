@@ -116,7 +116,7 @@ func (b *Bot) handleCallbackQuery(ctx context.Context, query *tgbotapi.CallbackQ
 		actorName = "User"
 	}
 	_ = b.answerCallback(query.ID, label)
-	_ = b.editApprovalMessage(query, label+" by "+actorName)
+	_ = b.editApprovalMessage(query, label+" by "+telegramApprovalActorText(actorName))
 
 	if b.cfg.ApprovalResolver == nil {
 		return true
@@ -272,6 +272,15 @@ func (b *Bot) editApprovalMessage(query *tgbotapi.CallbackQuery, text string) er
 
 func telegramApprovalDecisionLabel(choice gateway.ApprovalChoice) string {
 	return telegramcallbacks.ApprovalDecisionLabel(choice)
+}
+
+func telegramApprovalActorText(actor string) string {
+	replacer := strings.NewReplacer(
+		"`", "'",
+		"*", "'",
+		"#", "＃",
+	)
+	return strings.Join(strings.Fields(replacer.Replace(actor)), " ")
 }
 
 func telegramCallbackActor(query *tgbotapi.CallbackQuery) (string, string) {

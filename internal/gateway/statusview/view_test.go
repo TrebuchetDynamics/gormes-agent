@@ -86,6 +86,82 @@ func TestRenderStatusSummary_NoChannelsAndMissingState(t *testing.T) {
 	}
 }
 
+func TestRenderStatusSummary_SanitizesMultilineStatusFields(t *testing.T) {
+	got := RenderStatusSummary(StatusSummary{
+		Channels: []StatusChannel{{Name: "telegram\n- injected", Detail: "allowed_chat_id=42\nsecret=leak"}},
+		Runtime: RuntimeStatus{
+			GatewayState:   "running\nforged",
+			ConfigReload:   RuntimeConfigReloadEvidence{Status: "failed\nforged"},
+			MemoryPressure: RuntimeMemoryPressureEvidence{Status: "warn\nforged", RSSMB: 512, WarnRSSMB: 256, CriticalRSSMB: 1024},
+			Platforms: map[string]PlatformRuntimeStatus{
+				"telegram\n- injected": {State: "failed\nforged", ErrorMessage: "denied\nnext=line"},
+			},
+		},
+		Pairing: PairingStatus{
+			Pending:  []PairingPendingRecord{{Platform: "telegram\nforged", UserID: "ada\nroot", Code: "ABC\n123", AgeSeconds: 1}},
+			Degraded: []PairingDegradedEvidence{{Platform: "telegram\nforged", Reason: "locked\nout", Message: "bad\nline"}},
+		},
+	})
+
+	for _, forbidden := range []string{"\n- injected", "\nsecret=leak", "\nnext=line", "ada\nroot", "bad\nline", "config_reload=failed\n", "memory_pressure: warn\n"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("RenderStatusSummary leaked multiline field %q in:\n%s", forbidden, got)
+		}
+	}
+	for _, want := range []string{
+		"runtime: running forged (active_agents=0 config_reload=failed forged)",
+		"memory_pressure: warn forged rss=512MB warn=256MB critical=1024MB",
+		"- telegram - injected: lifecycle=failed forged error=\"denied next=line\"; pairing=unpaired pending=0 approved=0; target=allowed_chat_id=42 secret=leak",
+		"- pending telegram forged user=ada root code=ABC 123 age=1s",
+		"- pairing telegram forged locked out: bad line",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("RenderStatusSummary missing sanitized value %q in:\n%s", want, got)
+		}
+	}
+}
+
+func TestRenderStatusSummaryClampsNegativeMemoryPressureCounters(t *testing.T) {
+	got := RenderStatusSummary(StatusSummary{Runtime: RuntimeStatus{MemoryPressure: RuntimeMemoryPressureEvidence{
+		Status:          "warn",
+		RSSMB:           -512,
+		WarnRSSMB:       -256,
+		CriticalRSSMB:   -1024,
+		UptimeSeconds:   -60,
+		GoRoutines:      -3,
+		TargetPID:       -42,
+		TargetStartTime: -99,
+	}}})
+	for _, forbidden := range []string{"rss=-", "warn=-", "critical=-", "uptime=-", "goroutines=-", "target_pid=-", "target_start_time=-"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("RenderStatusSummary leaked negative memory pressure counter %q in:\n%s", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "memory_pressure: warn rss=0MB warn=0MB critical=0MB") {
+		t.Fatalf("RenderStatusSummary missing clamped memory pressure counters in:\n%s", got)
+	}
+}
+
+func TestRenderStatusSummaryClampsNegativePairingCounters(t *testing.T) {
+	got := RenderStatusSummary(StatusSummary{
+		Channels: []StatusChannel{{Name: "telegram", Detail: "allowed_chat_id=42"}},
+		Pairing: PairingStatus{
+			Platforms: []PairingPlatformStatus{{Platform: "telegram", State: "paired", PendingCount: -2, ApprovedCount: -1}},
+			Pending:   []PairingPendingRecord{{Platform: "telegram", UserID: "u1", Code: "ABC", AgeSeconds: -30}},
+		},
+	})
+	for _, forbidden := range []string{"pending=-", "approved=-", "age=-"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("RenderStatusSummary leaked negative pairing counter %q in:\n%s", forbidden, got)
+		}
+	}
+	for _, want := range []string{"pairing=paired pending=0 approved=0", "age=0s"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("RenderStatusSummary missing clamped value %q in:\n%s", want, got)
+		}
+	}
+}
+
 func TestRenderStatusSummary_DoesNotMutateInputOrdering(t *testing.T) {
 	channels := []StatusChannel{
 		{Name: "telegram", Detail: "allowed_chat_id=42"},

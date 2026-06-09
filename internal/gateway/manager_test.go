@@ -358,6 +358,112 @@ func TestManager_Inbound_VerboseCyclesAndPersistsPerPlatform(t *testing.T) {
 	}
 }
 
+func TestManager_Inbound_VerbosePersistErrorSanitizesOperatorReply(t *testing.T) {
+	tg := newFakeChannel("telegram")
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:               map[string]string{"telegram": "42"},
+		ToolProgressCommandEnabled: true,
+		ToolProgressModes:          map[string]string{"telegram": "off"},
+		PersistToolProgressMode: func(string, string) error {
+			return errors.New("save failed\n**Injected:** bearer plain-secret")
+		},
+	}, &fakeKernel{}, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	tg.pushInbound(InboundEvent{Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "m", Kind: EventVerbose, Text: "/verbose"})
+
+	waitFor(t, 200*time.Millisecond, func() bool { return len(tg.sentSnapshot()) == 1 })
+	got := tg.sentSnapshot()[0].Text
+	for _, forbidden := range []string{"plain-secret", "**Injected:**", "\n**"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("/verbose persist error leaked unsafe text %q in:\n%s", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "could not save to config: [redacted]") {
+		t.Fatalf("/verbose persist error missing redaction marker:\n%s", got)
+	}
+}
+
+func TestManager_Inbound_ModelCommandSanitizesModelAndProvider(t *testing.T) {
+	ch := newFakeChannel("slack")
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:           map[string]string{"slack": "42"},
+		LiveTurnActiveModel:    func() string { return "bad`**model**" },
+		LiveTurnActiveProvider: func() string { return "openai\n# injected" },
+	}, &fakeKernel{}, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	ch.pushInbound(InboundEvent{Platform: "slack", ChatID: "42", UserID: "u", MsgID: "m", Kind: EventModel, Text: "/model"})
+
+	waitFor(t, 200*time.Millisecond, func() bool { return len(ch.sentSnapshot()) == 1 })
+	got := ch.sentSnapshot()[0].Text
+	for _, forbidden := range []string{"bad`**model**", "# injected", "\n#"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("/model leaked unsafe field %q in:\n%s", forbidden, got)
+		}
+	}
+	assertContainsAll(t, got, "🤖 **Model:** `bad'''model''`", "📡 **Provider:** `openai ＃ injected`")
+}
+
+func TestManager_Inbound_ProfileCommandSanitizesHomePath(t *testing.T) {
+	t.Setenv("GORMES_HOME", "/tmp/gormes`**home**\n# injected")
+	ch := newFakeChannel("slack")
+	m := NewManagerWithSubmitter(ManagerConfig{AllowedChats: map[string]string{"slack": "42"}}, &fakeKernel{}, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	ch.pushInbound(InboundEvent{Platform: "slack", ChatID: "42", UserID: "u", MsgID: "m", Kind: EventProfile, Text: "/profile"})
+
+	waitFor(t, 200*time.Millisecond, func() bool { return len(ch.sentSnapshot()) == 1 })
+	got := ch.sentSnapshot()[0].Text
+	for _, forbidden := range []string{"`**home**", "# injected", "\n#"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("/profile leaked unsafe home path %q in:\n%s", forbidden, got)
+		}
+	}
+	assertContainsAll(t, got, "👤 **Profile:** `(default)`", "📂 **Home:** `/tmp/gormes'''home'' ＃ injected`")
+}
+
+func TestManager_Inbound_GatewayCommandSanitizesConnectedPlatformNames(t *testing.T) {
+	ch := newFakeChannel("slack`**bot**\n# injected")
+	m := NewManagerWithSubmitter(ManagerConfig{AllowedChats: map[string]string{"slack`**bot**\n# injected": "42"}}, &fakeKernel{}, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	ch.pushInbound(InboundEvent{Platform: ch.Name(), ChatID: "42", UserID: "u", MsgID: "m", Kind: EventGateway, Text: "/gateway"})
+
+	waitFor(t, 200*time.Millisecond, func() bool { return len(ch.sentSnapshot()) == 1 })
+	got := ch.sentSnapshot()[0].Text
+	for _, forbidden := range []string{"`**bot**", "# injected", "\n#"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("/gateway leaked unsafe platform name %q in:\n%s", forbidden, got)
+		}
+	}
+	assertContainsAll(t, got, "📡 **Connected Platforms:** slack'''bot'' ＃ injected")
+}
+
 func TestManager_ToolProgressModeUsesHermesPlatformDefaults(t *testing.T) {
 	m := NewManagerWithSubmitter(ManagerConfig{}, &fakeKernel{}, slog.Default())
 	for _, tc := range []struct {
@@ -541,6 +647,33 @@ func TestManager_Inbound_Reset(t *testing.T) {
 		defer fk.mu.Unlock()
 		return fk.resets == 1
 	})
+}
+
+func TestManager_Inbound_ResetErrorSanitizesOperatorReply(t *testing.T) {
+	tg := newFakeChannel("telegram")
+	fk := &fakeKernel{resetErr: errors.New("reset failed\n**Injected:** token=plain-secret")}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+	}, fk, slog.Default())
+	_ = m.Register(tg)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	tg.pushInbound(InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventReset})
+
+	waitFor(t, 200*time.Millisecond, func() bool { return len(tg.sentSnapshot()) == 1 })
+	got := tg.sentSnapshot()[0].Text
+	for _, forbidden := range []string{"plain-secret", "**Injected:**", "\n"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("reset error leaked unsafe text %q in %q", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "Session reset failed: [redacted]") {
+		t.Fatalf("reset error missing redaction marker: %q", got)
+	}
 }
 
 func TestManager_Inbound_Start_RepliesHelp(t *testing.T) {

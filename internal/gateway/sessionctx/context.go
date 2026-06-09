@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 // Source describes the gateway-facing origin of a turn.
@@ -125,8 +126,8 @@ func BuildPrompt(ctx Context) string {
 	source := ctx.Source
 	lines := []string{"## Current Session Context", ""}
 
-	platform := strings.ToLower(strings.TrimSpace(source.Platform))
-	chatID := strings.TrimSpace(source.ChatID)
+	platform := promptLineValue(strings.ToLower(strings.TrimSpace(source.Platform)))
+	chatID := promptLineValue(source.ChatID)
 	switch {
 	case platform == "" && chatID == "":
 		lines = append(lines, "**Source:** unknown")
@@ -135,49 +136,49 @@ func BuildPrompt(ctx Context) string {
 	default:
 		lines = append(lines, "**Source:** "+platform+" chat `"+chatID+"`")
 	}
-	if userID := strings.TrimSpace(source.UserID); userID != "" {
+	if userID := promptLineValue(source.UserID); userID != "" {
 		lines = append(lines, "**User ID:** `"+userID+"`")
 	}
-	if guildID := strings.TrimSpace(source.GuildID); guildID != "" {
+	if guildID := promptLineValue(source.GuildID); guildID != "" {
 		lines = append(lines, "**Guild ID:** `"+guildID+"`")
 	}
-	if parentChatID := strings.TrimSpace(source.ParentChatID); parentChatID != "" {
+	if parentChatID := promptLineValue(source.ParentChatID); parentChatID != "" {
 		lines = append(lines, "**Parent Chat ID:** `"+parentChatID+"`")
 	}
-	if threadID := strings.TrimSpace(source.ThreadID); threadID != "" {
+	if threadID := promptLineValue(source.ThreadID); threadID != "" {
 		lines = append(lines, "**Thread ID:** `"+threadID+"`")
 	}
-	if messageID := strings.TrimSpace(source.MessageID); messageID != "" {
+	if messageID := promptLineValue(source.MessageID); messageID != "" {
 		lines = append(lines, "**Message ID:** `"+messageID+"`")
 	}
-	if agentID := strings.TrimSpace(ctx.Agent.ID); agentID != "" {
+	if agentID := promptLineValue(ctx.Agent.ID); agentID != "" {
 		lines = append(lines, "**Agent ID:** `"+agentID+"`")
 	}
-	if agentName := strings.TrimSpace(ctx.Agent.Name); agentName != "" && agentName != strings.TrimSpace(ctx.Agent.ID) {
+	if agentName := promptLineValue(ctx.Agent.Name); agentName != "" && agentName != promptLineValue(ctx.Agent.ID) {
 		lines = append(lines, "**Agent Name:** "+agentName)
 	}
-	if tier := strings.TrimSpace(ctx.Agent.BindingTier); tier != "" {
+	if tier := promptLineValue(ctx.Agent.BindingTier); tier != "" {
 		lines = append(lines, "**Agent Binding:** `"+tier+"`")
 	}
-	if workspace := strings.TrimSpace(ctx.Agent.Workspace); workspace != "" {
+	if workspace := promptLineValue(ctx.Agent.Workspace); workspace != "" {
 		lines = append(lines, "**Agent Workspace:** `"+workspace+"`")
 	}
-	if agentDir := strings.TrimSpace(ctx.Agent.AgentDir); agentDir != "" {
+	if agentDir := promptLineValue(ctx.Agent.AgentDir); agentDir != "" {
 		lines = append(lines, "**Agent Dir:** `"+agentDir+"`")
 	}
-	if key := strings.TrimSpace(ctx.SessionKey); key != "" {
+	if key := promptLineValue(ctx.SessionKey); key != "" {
 		lines = append(lines, "**Session Key:** `"+key+"`")
 	}
-	if sessionID := strings.TrimSpace(ctx.SessionID); sessionID != "" {
+	if sessionID := promptLineValue(ctx.SessionID); sessionID != "" {
 		lines = append(lines, "**Session ID:** `"+sessionID+"`")
 	}
-	if requested := strings.TrimSpace(ctx.RequestedSessionID); requested != "" {
+	if requested := promptLineValue(ctx.RequestedSessionID); requested != "" {
 		lines = append(lines, "**Requested Session ID:** `"+requested+"`")
 	}
 	if len(ctx.ResumePath) > 1 {
 		parts := make([]string, 0, len(ctx.ResumePath))
 		for _, id := range ctx.ResumePath {
-			if id = strings.TrimSpace(id); id != "" {
+			if id = promptLineValue(id); id != "" {
 				parts = append(parts, "`"+id+"`")
 			}
 		}
@@ -185,13 +186,13 @@ func BuildPrompt(ctx Context) string {
 			lines = append(lines, "**Resume Continuation:** "+strings.Join(parts, " -> "))
 		}
 	}
-	if status := strings.TrimSpace(ctx.ResumeStatus); status != "" && status != session.LineageStatusOK {
+	if status := promptLineValue(ctx.ResumeStatus); status != "" && status != session.LineageStatusOK {
 		lines = append(lines, "**Resume Continuation Status:** `"+status+"`")
 	}
-	if blockedSessionID := strings.TrimSpace(ctx.NonResumableSessionID); blockedSessionID != "" {
+	if blockedSessionID := promptLineValue(ctx.NonResumableSessionID); blockedSessionID != "" {
 		lines = append(lines, "**Non-Resumable Session ID:** `"+blockedSessionID+"`")
 	}
-	if blockedReason := strings.TrimSpace(ctx.NonResumableReason); blockedReason != "" {
+	if blockedReason := promptLineValue(ctx.NonResumableReason); blockedReason != "" {
 		lines = append(lines, "**Non-Resumable Reason:** `"+blockedReason+"`")
 	}
 
@@ -201,10 +202,10 @@ func BuildPrompt(ctx Context) string {
 
 	targets := []string{"`origin`", "`local`"}
 	if len(ctx.ConnectedPlatforms) > 0 {
-		seen := make(map[string]struct{}, len(ctx.ConnectedPlatforms))
+		seen := map[string]struct{}{"origin": {}, "local": {}}
 		platforms := make([]string, 0, len(ctx.ConnectedPlatforms))
 		for _, name := range ctx.ConnectedPlatforms {
-			name = strings.ToLower(strings.TrimSpace(name))
+			name = promptLineValue(strings.ToLower(strings.TrimSpace(name)))
 			if name == "" {
 				continue
 			}
@@ -221,4 +222,26 @@ func BuildPrompt(ctx Context) string {
 	}
 	lines = append(lines, "**Delivery Targets:** "+strings.Join(targets, ", "))
 	return strings.Join(lines, "\n")
+}
+
+func promptLineValue(value string) string {
+	replacer := strings.NewReplacer(
+		"`", "'",
+		"*", "'",
+		"#", "＃",
+	)
+	value = replacer.Replace(value)
+	value = redaction.RedactSecrets(value)
+	fields := strings.Fields(value)
+	for i, field := range fields {
+		lower := strings.ToLower(field)
+		if strings.Contains(lower, "[redacted]") && secretLikePromptField(lower) {
+			fields[i] = "[redacted]"
+		}
+	}
+	return strings.Join(fields, " ")
+}
+
+func secretLikePromptField(value string) bool {
+	return strings.Contains(value, "api_key") || strings.Contains(value, "api-key") || strings.Contains(value, "apikey") || strings.Contains(value, "token") || strings.Contains(value, "secret") || strings.Contains(value, "password")
 }

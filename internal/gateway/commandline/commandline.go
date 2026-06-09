@@ -3,13 +3,20 @@ package commandline
 import (
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // Name normalizes a slash command token/name for lookup. It trims bot mention
 // suffixes and ignores trailing arguments.
 func Name(name string) string {
 	key := strings.ToLower(strings.TrimSpace(name))
-	key = strings.TrimPrefix(key, "/")
+	if strings.HasPrefix(key, "/") || strings.HasPrefix(key, "／") {
+		_, size := utf8.DecodeRuneInString(key)
+		key = key[size:]
+		if strings.HasPrefix(key, "/") || strings.HasPrefix(key, "／") {
+			return ""
+		}
+	}
 	if i := strings.IndexFunc(key, isCommandSpace); i >= 0 {
 		key = key[:i]
 	}
@@ -39,10 +46,14 @@ func Split(input string) (token, args string) {
 // existing already-split payload behavior explicitly.
 func PayloadIfCommand(input, command string) (payload string, ok bool) {
 	token, args := Split(input)
-	if token == "" || Name(token) != Name(command) {
+	if token == "" || !isSlashCommandToken(token) || Name(token) != Name(command) {
 		return "", false
 	}
 	return args, true
+}
+
+func isSlashCommandToken(token string) bool {
+	return strings.HasPrefix(token, "/") || strings.HasPrefix(token, "／")
 }
 
 func isCommandSpace(r rune) bool {

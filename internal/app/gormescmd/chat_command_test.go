@@ -142,6 +142,70 @@ func TestChatCommandProfileFlagDefaultIsRejected(t *testing.T) {
 	}
 }
 
+func TestChatCommandProfileArgOpensProfileTUI(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	baseHome := config.GormesHome()
+	wantProfileHome := filepath.Join(baseHome, "profiles", "mineru")
+	if err := os.MkdirAll(wantProfileHome, 0o755); err != nil {
+		t.Fatalf("create profile: %v", err)
+	}
+
+	var gotHome string
+	var gotProfile string
+	cmd := newRootCommandWithRuntime(rootRuntime{
+		runOneshot: func(_ *cobra.Command, _ oneshotInvocation) error {
+			t.Fatal("chat profile shortcut must open TUI, not send profile name as a prompt")
+			return nil
+		},
+		runResolvedTUI: func(_ *cobra.Command, invocation tuiInvocation) error {
+			gotHome = os.Getenv("GORMES_HOME")
+			gotProfile = invocation.ProfileName
+			return nil
+		},
+	})
+
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "chat", "mineru")
+	if err != nil {
+		t.Fatalf("Execute() error = %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if gotHome != wantProfileHome {
+		t.Fatalf("GORMES_HOME during chat profile shortcut = %q, want %q", gotHome, wantProfileHome)
+	}
+	if gotProfile != "mineru" {
+		t.Fatalf("invocation.ProfileName = %q, want mineru", gotProfile)
+	}
+}
+
+func TestRootProfileNameShortcutOpensProfileTUI(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	baseHome := config.GormesHome()
+	wantProfileHome := filepath.Join(baseHome, "profiles", "mineru")
+	if err := os.MkdirAll(wantProfileHome, 0o755); err != nil {
+		t.Fatalf("create profile: %v", err)
+	}
+
+	var gotHome string
+	var gotProfile string
+	cmd := newRootCommandWithRuntime(rootRuntime{
+		runResolvedTUI: func(_ *cobra.Command, invocation tuiInvocation) error {
+			gotHome = os.Getenv("GORMES_HOME")
+			gotProfile = invocation.ProfileName
+			return nil
+		},
+	})
+
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "mineru")
+	if err != nil {
+		t.Fatalf("Execute() error = %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if gotHome != wantProfileHome {
+		t.Fatalf("GORMES_HOME during root profile shortcut = %q, want %q", gotHome, wantProfileHome)
+	}
+	if gotProfile != "mineru" {
+		t.Fatalf("invocation.ProfileName = %q, want mineru", gotProfile)
+	}
+}
+
 func TestChatCommandStickyActiveProfileSetsIndependentMemoryHome(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	baseHome := config.GormesHome()

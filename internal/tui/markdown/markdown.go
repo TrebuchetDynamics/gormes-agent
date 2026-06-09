@@ -48,7 +48,7 @@ func Render(text string, styles Styles) string {
 			var codeLines []string
 			i++
 			for i < len(lines) {
-				if fencedCodeCloseRe.MatchString(lines[i]) {
+				if isClosingFence(lines[i], fence) {
 					break
 				}
 				codeLines = append(codeLines, lines[i])
@@ -105,28 +105,28 @@ func Render(text string, styles Styles) string {
 		}
 
 		// Numbered lists
-		if matches := numberedDotRe.FindStringSubmatch(line); len(matches) > 0 {
+		if numberedDotRe.MatchString(line) || numberedParenRe.MatchString(line) {
 			var listItems []string
-			var separators []string
+			var markers []string
 			for i < len(lines) {
 				if m := numberedDotRe.FindStringSubmatch(lines[i]); len(m) > 0 {
-					separators = append(separators, ".")
+					markers = append(markers, m[1]+".")
 					listItems = append(listItems, m[2])
 					i++
 				} else if m := numberedParenRe.FindStringSubmatch(lines[i]); len(m) > 0 {
-					separators = append(separators, ")")
+					markers = append(markers, m[1]+")")
 					listItems = append(listItems, m[2])
 					i++
 				} else {
 					break
 				}
 			}
-			output = append(output, renderNumberedList(separators, listItems, styles))
+			output = append(output, renderNumberedList(markers, listItems, styles))
 			continue
 		}
 
 		// Tables
-		if strings.Contains(line, "|") && i+1 < len(lines) && tableDividerRe.MatchString(strings.Trim(lines[i+1], " ")) {
+		if strings.Contains(line, "|") && i+1 < len(lines) && isTableDivider(lines[i+1]) {
 			var rows [][]string
 			// Header row
 			rows = append(rows, splitTableRow(line))
@@ -291,18 +291,30 @@ func isHorizontalRule(line string) bool {
 // Regular expressions for markdown parsing
 var (
 	fencedCodeBlockRe = regexp.MustCompile(`^\s*(` + "`" + `{3,}|~{3,})(.*)$`)
-	fencedCodeCloseRe = regexp.MustCompile(`^\s*(` + "`" + `{3,}|~{3,})\s*$`)
 	headingRe         = regexp.MustCompile(`^\s*(#{1,6})\s+(.*?)(?:\s+#+\s*)?$`)
 	quoteRe           = regexp.MustCompile(`^\s*(>\s*)+`)
 	bulletRe          = regexp.MustCompile(`^(\s*)[-+*]\s+(.*)$`)
 	numberedDotRe     = regexp.MustCompile(`^\s*(\d+)\.\s+(.*)$`)
 	numberedParenRe   = regexp.MustCompile(`^\s*(\d+)\)\s+(.*)$`)
-	tableDividerRe    = regexp.MustCompile(`^:?[\s-]+:?$`)
+	tableDividerRe    = regexp.MustCompile(`^:?-{3,}:?$`)
 	inlineCodeRe      = regexp.MustCompile("`([^`]+)`")
 	boldRe            = regexp.MustCompile(`\*\*(.+?)\*\*`)
 	italicRe          = regexp.MustCompile(`\*([^*]+)\*`)
 	linkRe            = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
 )
+
+func isClosingFence(line, openingFence string) bool {
+	line = strings.TrimSpace(line)
+	if line == "" || len(openingFence) == 0 || line[0] != openingFence[0] {
+		return false
+	}
+	for _, r := range line {
+		if r != rune(openingFence[0]) {
+			return false
+		}
+	}
+	return len(line) >= len(openingFence)
+}
 
 func renderCodeBlock(fence, lang string, lines []string, styles Styles) string {
 	var header string
@@ -346,14 +358,14 @@ func renderBulletList(items []string, styles Styles) string {
 	return strings.Join(output, "\n")
 }
 
-func renderNumberedList(separators []string, items []string, styles Styles) string {
+func renderNumberedList(markers []string, items []string, styles Styles) string {
 	var output []string
 	for i, item := range items {
-		sep := "."
-		if i < len(separators) {
-			sep = separators[i]
+		marker := "1."
+		if i < len(markers) {
+			marker = markers[i]
 		}
-		output = append(output, styles.Ordered.Render(item+sep+" "+renderInline(item, styles)))
+		output = append(output, styles.Ordered.Render(marker+" "+renderInline(item, styles)))
 	}
 	return strings.Join(output, "\n")
 }
@@ -444,6 +456,20 @@ func renderInline(text string, styles Styles) string {
 	})
 
 	return text
+}
+
+func isTableDivider(line string) bool {
+	line = strings.TrimSpace(line)
+	line = strings.Trim(line, "|")
+	if line == "" {
+		return false
+	}
+	for _, cell := range strings.Split(line, "|") {
+		if !tableDividerRe.MatchString(strings.TrimSpace(cell)) {
+			return false
+		}
+	}
+	return true
 }
 
 func splitTableRow(line string) []string {

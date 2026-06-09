@@ -58,6 +58,13 @@ func TestSettingsFromProjectionAreChannelNeutral(t *testing.T) {
 	}
 }
 
+func TestSemanticFusionRequiresNonBlankSemanticModel(t *testing.T) {
+	settings := Settings{SemanticEnabled: true, SemanticModel: " \t\n "}
+	if settings.SemanticFusionActive(true) {
+		t.Fatal("SemanticFusionActive = true with blank semantic model, want false")
+	}
+}
+
 func TestDefaultMemoryUsesGonchoInsteadOfLegacyRecall(t *testing.T) {
 	store, err := memory.OpenSqlite(filepath.Join(t.TempDir(), "memory.db"), 0, nil)
 	if err != nil {

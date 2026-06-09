@@ -205,7 +205,7 @@ func (s *PairingStore) GeneratePairingCode(ctx context.Context, request PairingC
 		return PairingCodeResult{}, err
 	}
 
-	request.Platform = strings.TrimSpace(request.Platform)
+	request.Platform = normalizePairingPlatform(request.Platform)
 	request.UserID = strings.TrimSpace(request.UserID)
 	request.UserName = strings.TrimSpace(request.UserName)
 	if request.Platform == "" {
@@ -320,7 +320,7 @@ func (s *PairingStore) ApprovePairingCode(ctx context.Context, platformName, cod
 	if err := ctx.Err(); err != nil {
 		return PairingApprovalResult{}, err
 	}
-	platformName = strings.TrimSpace(platformName)
+	platformName = normalizePairingPlatform(platformName)
 	code = normalizePairingCode(code)
 	if platformName == "" {
 		return PairingApprovalResult{}, fmt.Errorf("approve pairing code: platform is required")
@@ -389,7 +389,7 @@ func (s *PairingStore) RecordPendingPairing(ctx context.Context, record PairingP
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	record.Platform = strings.TrimSpace(record.Platform)
+	record.Platform = normalizePairingPlatform(record.Platform)
 	record.Code = normalizePairingCode(record.Code)
 	record.UserID = strings.TrimSpace(record.UserID)
 	if record.Platform == "" || record.Code == "" || record.UserID == "" {
@@ -432,7 +432,7 @@ func (s *PairingStore) RecordApprovedPairing(ctx context.Context, record Pairing
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	record.Platform = strings.TrimSpace(record.Platform)
+	record.Platform = normalizePairingPlatform(record.Platform)
 	record.UserID = strings.TrimSpace(record.UserID)
 	if record.Platform == "" || record.UserID == "" {
 		return fmt.Errorf("record approved pairing: platform and user_id are required")
@@ -816,16 +816,48 @@ func decodePairingState(raw []byte) (pairingFile, error) {
 	if state.Lockouts == nil {
 		state.Lockouts = map[string]time.Time{}
 	}
-	for name, platform := range state.Platforms {
+	normalizePairingPlatformMap(&state)
+	return state, nil
+}
+
+func normalizePairingPlatformMap(state *pairingFile) {
+	if state == nil {
+		return
+	}
+	keys := make([]string, 0, len(state.Platforms))
+	for name := range state.Platforms {
+		keys = append(keys, name)
+	}
+	slices.Sort(keys)
+	normalized := map[string]pairingPlatformFile{}
+	for _, name := range keys {
+		platform := state.Platforms[name]
 		if platform.Pending == nil {
 			platform.Pending = map[string]pairingPendingFileRecord{}
 		}
 		if platform.Approved == nil {
 			platform.Approved = map[string]pairingApprovedFileRecord{}
 		}
-		state.Platforms[name] = platform
+		canonical := normalizePairingPlatform(name)
+		if canonical == "" {
+			canonical = name
+		}
+		existing := normalized[canonical]
+		if existing.Pending == nil {
+			existing.Pending = map[string]pairingPendingFileRecord{}
+		}
+		if existing.Approved == nil {
+			existing.Approved = map[string]pairingApprovedFileRecord{}
+		}
+		for code, record := range platform.Pending {
+			existing.Pending[normalizePairingCode(code)] = record
+		}
+		for userID, record := range platform.Approved {
+			existing.Approved[strings.TrimSpace(userID)] = record
+		}
+		normalized[canonical] = existing
 	}
-	return state, nil
+	state.Platforms = normalized
 }
 
 func newPairingFile(now time.Time) pairingFile {
@@ -904,7 +936,14 @@ type pairingEvidenceFileRecord struct {
 }
 
 func pairingRateLimitKey(platformName, userID string) string {
+	if strings.Contains(platformName, ":") || strings.Contains(userID, ":") {
+		return fmt.Sprintf("%d:%s:%d:%s", len(platformName), platformName, len(userID), userID)
+	}
 	return platformName + ":" + userID
+}
+
+func normalizePairingPlatform(platform string) string {
+	return strings.ToLower(strings.TrimSpace(platform))
 }
 
 func normalizePairingCode(code string) string {

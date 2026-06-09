@@ -46,7 +46,7 @@ func skipRune(r rune) bool {
 	if r < 0x20 && r != '\t' && r != '\n' && r != '\r' {
 		return true
 	}
-	if r == 0x7f {
+	if r == 0x7f || (r >= 0x80 && r <= 0x9f) {
 		return true
 	}
 	switch {

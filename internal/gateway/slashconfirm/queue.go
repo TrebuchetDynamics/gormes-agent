@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/mapclone"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 var (
@@ -127,7 +127,12 @@ func (q *Queue) PendingSlashConfirmation(sessionKey string) (Pending, bool) {
 	return clonePending(entry.pending), true
 }
 
-func (q *Queue) ResolveSlashConfirmation(_ context.Context, res Resolution) (Outcome, error) {
+func (q *Queue) ResolveSlashConfirmation(ctx context.Context, res Resolution) (Outcome, error) {
+	if ctx != nil {
+		if err := ctx.Err(); err != nil {
+			return Outcome{}, err
+		}
+	}
 	sessionKey := strings.TrimSpace(res.SessionKey)
 	if sessionKey == "" {
 		return Outcome{}, ErrEmptySession
@@ -178,14 +183,15 @@ func (q *Queue) ClearSlashConfirmationSession(sessionKey string) bool {
 }
 
 func (q *Queue) SlashConfirmationOutcome(ticket Ticket) (Outcome, bool) {
-	if q == nil || ticket.ID == 0 || strings.TrimSpace(ticket.SessionKey) == "" {
+	sessionKey := strings.TrimSpace(ticket.SessionKey)
+	if q == nil || ticket.ID == 0 || sessionKey == "" {
 		return Outcome{}, false
 	}
 
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	outcome, ok := q.outcomes[ticket.ID]
-	if !ok || outcome.Ticket.SessionKey != ticket.SessionKey {
+	if !ok || outcome.Ticket.SessionKey != sessionKey {
 		return Outcome{}, false
 	}
 	return cloneOutcome(outcome), true
@@ -213,9 +219,49 @@ func validChoice(choice Choice) bool {
 }
 
 func cloneRequest(req Request) Request {
-	req.Command = strings.TrimSpace(req.Command)
-	req.Evidence = mapclone.StringString(req.Evidence)
+	req.Command = sanitizeRequestText(req.Command)
+	req.Description = sanitizeRequestText(req.Description)
+	req.Evidence = cloneEvidence(req.Evidence)
 	return req
+}
+
+func sanitizeRequestText(value string) string {
+	value = strings.Join(strings.Fields(value), " ")
+	value = redaction.RedactSecrets(value)
+	fields := strings.Fields(value)
+	for i, field := range fields {
+		lower := strings.ToLower(field)
+		if strings.Contains(lower, "[redacted]") && (strings.Contains(lower, "api_key") || strings.Contains(lower, "api-key") || strings.Contains(lower, "apikey") || strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "password")) {
+			fields[i] = "[redacted]"
+		}
+	}
+	return strings.Join(fields, " ")
+}
+
+func cloneEvidence(input map[string]string) map[string]string {
+	if input == nil {
+		return nil
+	}
+	out := make(map[string]string, len(input))
+	for key, value := range input {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		key = sanitizeRequestText(key)
+		value = sanitizeRequestText(value)
+		if secretLikeRequestField(key) {
+			key = "[redacted]"
+			value = "[redacted]"
+		}
+		out[key] = value
+	}
+	return out
+}
+
+func secretLikeRequestField(value string) bool {
+	lower := strings.ToLower(value)
+	return strings.Contains(lower, "api_key") || strings.Contains(lower, "api-key") || strings.Contains(lower, "apikey") || strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "password")
 }
 
 func cloneResolution(res Resolution) Resolution {

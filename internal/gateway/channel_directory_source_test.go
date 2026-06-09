@@ -61,7 +61,7 @@ func TestManagerRememberSourceHook_PersistsAllowedInboundSource(t *testing.T) {
 		t.Fatalf("remembered entries = %d, want 1", len(entries))
 	}
 	got := entries[0]
-	if got.Platform != "telegram" || got.ChatID != "-1001" || got.ThreadID != "17585" || got.MessageID != "platform-msg" || got.ID != "-1001:17585" {
+	if got.Platform != "telegram" || got.ChatID != "-1001" || got.ThreadID != "17585" || got.MessageID != "platform-msg" || got.ID != "-1001:17585" || got.Type != "group" {
 		t.Fatalf("remembered entry = %+v, want normalized source metadata", got)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -63,6 +64,61 @@ func TestRuntimeStatusStore_MergesChannelLifecycleIntoReadModel(t *testing.T) {
 	}
 }
 
+func TestRuntimeStatusStore_ClearsProxyURLOnStoppedUpdate(t *testing.T) {
+	store := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
+
+	if err := store.UpdateRuntimeStatus(context.Background(), RuntimeStatusUpdate{
+		ProxyState: "running",
+		ProxyURL:   "http://127.0.0.1:4321",
+	}); err != nil {
+		t.Fatalf("write running proxy status: %v", err)
+	}
+	if err := store.UpdateRuntimeStatus(context.Background(), RuntimeStatusUpdate{ProxyState: "stopped"}); err != nil {
+		t.Fatalf("write stopped proxy status: %v", err)
+	}
+
+	status, err := store.ReadRuntimeStatus(context.Background())
+	if err != nil {
+		t.Fatalf("read status: %v", err)
+	}
+	if status.Proxy.State != "stopped" {
+		t.Fatalf("proxy state = %q, want stopped", status.Proxy.State)
+	}
+	if status.Proxy.URL != "" {
+		t.Fatalf("proxy URL = %q, want cleared after stopped update", status.Proxy.URL)
+	}
+}
+
+func TestRuntimeStatusStore_ClearsKanbanLastErrorOnStoppedUpdate(t *testing.T) {
+	store := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
+
+	if err := store.UpdateRuntimeStatus(context.Background(), RuntimeStatusUpdate{
+		KanbanDispatcher: &KanbanDispatcherStatus{
+			State:       KanbanDispatcherStateDegraded,
+			LastError:   "worker_spawn_failed: missing profile",
+			SpawnFailed: 1,
+		},
+	}); err != nil {
+		t.Fatalf("write degraded kanban status: %v", err)
+	}
+	if err := store.UpdateRuntimeStatus(context.Background(), RuntimeStatusUpdate{
+		KanbanDispatcher: &KanbanDispatcherStatus{State: KanbanDispatcherStateStopped},
+	}); err != nil {
+		t.Fatalf("write stopped kanban status: %v", err)
+	}
+
+	status, err := store.ReadRuntimeStatus(context.Background())
+	if err != nil {
+		t.Fatalf("read status: %v", err)
+	}
+	if status.KanbanDispatcher.State != KanbanDispatcherStateStopped {
+		t.Fatalf("kanban state = %q, want stopped", status.KanbanDispatcher.State)
+	}
+	if status.KanbanDispatcher.LastError != "" {
+		t.Fatalf("kanban last error = %q, want cleared after stopped update", status.KanbanDispatcher.LastError)
+	}
+}
+
 func TestRuntimeStatusStore_ClearsStaleExitReasonOnFreshStart(t *testing.T) {
 	store := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
 
@@ -87,6 +143,36 @@ func TestRuntimeStatusStore_ClearsStaleExitReasonOnFreshStart(t *testing.T) {
 	}
 	if status.ExitReason != "" {
 		t.Fatalf("ExitReason = %q, want cleared stale failure", status.ExitReason)
+	}
+}
+
+func TestRuntimeStatusStore_RedactsArgvSecretsInStatusFiles(t *testing.T) {
+	root := t.TempDir()
+	statusPath := filepath.Join(root, "gateway_state.json")
+	pidPath := filepath.Join(root, "gateway.pid")
+	store := NewRuntimeStatusStore(statusPath)
+	store.pidPath = pidPath
+	store.pid = func() int { return 4242 }
+	store.startTime = func(int) (int64, bool) { return 87654321, true }
+	store.argv = func() []string { return []string{"gormes", "gateway", "--api-key=plain-secret-token"} }
+
+	if err := store.UpdateRuntimeStatus(context.Background(), RuntimeStatusUpdate{GatewayState: GatewayStateStarting}); err != nil {
+		t.Fatalf("write gateway starting: %v", err)
+	}
+
+	for _, path := range []string{statusPath, pidPath} {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		for _, forbidden := range []string{"plain-secret-token", "api-key"} {
+			if strings.Contains(string(raw), forbidden) {
+				t.Fatalf("runtime status file %s leaked argv secret %q:\n%s", path, forbidden, raw)
+			}
+		}
+		if !strings.Contains(string(raw), "[redacted]") {
+			t.Fatalf("runtime status file %s missing redacted argv evidence:\n%s", path, raw)
+		}
 	}
 }
 

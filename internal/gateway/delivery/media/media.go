@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 type MediaKind string
@@ -100,8 +101,14 @@ func parseMediaTag(tag string) (mediaTagCandidate, bool) {
 
 func CleanMediaPath(raw string) (string, bool) {
 	value := strings.TrimSpace(raw)
-	if value == "" || strings.ContainsRune(value, 0) {
+	if value == "" || strings.ContainsRune(value, 0) || hasMediaPathControl(value) || hasMediaPathScheme(value) {
 		return "", false
+	}
+	value = strings.ReplaceAll(value, "\\", "/")
+	for _, segment := range strings.Split(value, "/") {
+		if segment == ".." {
+			return "", false
+		}
 	}
 	value = filepath.Clean(value)
 	if value == "." || value == ".." {
@@ -110,14 +117,28 @@ func CleanMediaPath(raw string) (string, bool) {
 	if !SupportedMediaExt(filepath.Ext(value)) {
 		return "", false
 	}
-	if !filepath.IsAbs(value) {
-		for _, segment := range strings.Split(filepath.ToSlash(value), "/") {
-			if segment == ".." {
-				return "", false
-			}
+	return value, true
+}
+
+func hasMediaPathControl(value string) bool {
+	for _, r := range value {
+		if unicode.IsControl(r) {
+			return true
 		}
 	}
-	return value, true
+	return false
+}
+
+func hasMediaPathScheme(value string) bool {
+	colon := strings.Index(value, ":")
+	if colon < 0 {
+		return false
+	}
+	if colon == 1 && len(value) >= 3 && ((value[0] >= 'A' && value[0] <= 'Z') || (value[0] >= 'a' && value[0] <= 'z')) && (value[2] == '/' || value[2] == '\\') {
+		return false
+	}
+	sep := strings.IndexAny(value, `/\\`)
+	return sep < 0 || colon < sep
 }
 
 func SupportedMediaExt(ext string) bool {

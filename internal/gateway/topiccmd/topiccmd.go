@@ -3,6 +3,8 @@ package topiccmd
 import (
 	"fmt"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 // Capabilities mirrors the bounded BotFather topic settings checked before
@@ -30,7 +32,11 @@ func PrivateChat(platform string, isDirectMessage bool, chatType, chatID string)
 	if isDirectMessage {
 		return true
 	}
-	if strings.TrimSpace(chatType) != "" {
+	switch strings.ToLower(strings.TrimSpace(chatType)) {
+	case "", "private", "private_chat", "dm", "direct":
+	case "group", "supergroup", "channel":
+		return false
+	default:
 		return false
 	}
 	// Older adapter fixtures may not carry ChatType. Telegram private chat IDs
@@ -68,7 +74,24 @@ How to enable them:
 3. Open Bot Settings > Threads Settings.
 4. Turn on Threaded Mode and make sure users are allowed to create new threads.
 
-Then send /topic again.`, reason)
+Then send /topic again.`, guidanceLine(reason))
+}
+
+func guidanceLine(value string) string {
+	value = collapseRedactedReasonAssignments(redaction.RedactSecrets(value))
+	value = strings.NewReplacer("`", "'", "*", "'").Replace(value)
+	return strings.Join(strings.Fields(value), " ")
+}
+
+func collapseRedactedReasonAssignments(value string) string {
+	replacer := strings.NewReplacer(
+		"api_key=[redacted]", "[redacted]",
+		"api-key=[redacted]", "[redacted]",
+		"token=[redacted]", "[redacted]",
+		"secret=[redacted]", "[redacted]",
+		"password=[redacted]", "[redacted]",
+	)
+	return replacer.Replace(value)
 }
 
 // CapabilityDebouncedText is the bounded evidence reply when setup guidance was recently sent.

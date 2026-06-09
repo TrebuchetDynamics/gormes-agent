@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 const (
@@ -443,6 +444,9 @@ func normalizeFleetRuntime(runtime FleetProfileRuntime) FleetProfileRuntime {
 	}
 	runtime.Version = strings.TrimSpace(runtime.Version)
 	runtime.LastError = strings.TrimSpace(runtime.LastError)
+	if runtime.PID < 0 {
+		runtime.PID = 0
+	}
 	return runtime
 }
 
@@ -659,29 +663,42 @@ func fleetCommandOperationEvidence(action FleetOperation, success FleetOperation
 		return FleetOperationEvidence{Status: success, RuntimeOwner: FleetRuntimeOwnerProfileCommandWorker, Message: fmt.Sprintf("gateway %s command completed without parseable JSON", commandName)}
 	}
 	parts := []string{"gateway " + commandName}
-	if report.Action != "" {
-		parts = append(parts, "action="+report.Action)
+	if actionText := fleetCommandReportField(report.Action); actionText != "" {
+		parts = append(parts, "action="+actionText)
 	}
-	if report.Mode != "" {
-		parts = append(parts, "mode="+report.Mode)
+	if mode := fleetCommandReportField(report.Mode); mode != "" {
+		parts = append(parts, "mode="+mode)
 	}
-	if report.Manager != "" {
-		parts = append(parts, "manager="+report.Manager)
+	if manager := fleetCommandReportField(report.Manager); manager != "" {
+		parts = append(parts, "manager="+manager)
 	}
-	if report.Service != "" {
-		parts = append(parts, "service="+report.Service)
+	if service := fleetCommandReportField(report.Service); service != "" {
+		parts = append(parts, "service="+service)
 	}
-	if report.Outcome != "" {
-		parts = append(parts, "outcome="+report.Outcome)
+	if outcome := fleetCommandReportField(report.Outcome); outcome != "" {
+		parts = append(parts, "outcome="+outcome)
 	}
-	if report.FinalStatus != "" {
-		parts = append(parts, "final_status="+report.FinalStatus)
+	if finalStatus := fleetCommandReportField(report.FinalStatus); finalStatus != "" {
+		parts = append(parts, "final_status="+finalStatus)
 	}
 	status := success
 	if action == FleetOperationStopAll {
 		status = FleetOperationStatusStopped
 	}
 	return FleetOperationEvidence{Status: status, RuntimeOwner: FleetRuntimeOwnerProfileCommandWorker, Message: strings.Join(parts, " ")}
+}
+
+func fleetCommandReportField(value string) string {
+	value = strings.Join(strings.Fields(value), " ")
+	value = redaction.RedactSecrets(value)
+	fields := strings.Fields(value)
+	for i, field := range fields {
+		lower := strings.ToLower(field)
+		if strings.Contains(lower, "[redacted]") && (strings.Contains(lower, "api_key") || strings.Contains(lower, "apikey") || strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "password")) {
+			fields[i] = "[redacted]"
+		}
+	}
+	return strings.TrimSpace(strings.Join(fields, " "))
 }
 
 func fleetGatewayServiceName(target FleetProfileTarget) string {

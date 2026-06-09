@@ -973,10 +973,22 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 func (m *Manager) handleReasoningCommand(ctx context.Context, ch Channel, ev InboundEvent) {
 	reply, err := m.DispatchReasoning(m.sessionKeyForInbound(ev), commandArgs(ev.Text))
 	if err != nil {
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Reasoning command error: "+err.Error()+"\n\nUsage: /reasoning [low|medium|high|reset|show] [--global]")
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Reasoning command error: "+reasoningCommandErrorText(err)+"\n\nUsage: /reasoning [low|medium|high|reset|show] [--global]")
 		return
 	}
 	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, formatReasoningReply(reply))
+}
+
+func reasoningCommandErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := strings.TrimSpace(err.Error())
+	if msg == "" {
+		return ""
+	}
+	replacer := strings.NewReplacer("`", "'", "*", "'", "#", "＃")
+	return strings.Join(strings.Fields(replacer.Replace(msg)), " ")
 }
 
 func (m *Manager) handleBusyCommand(ctx context.Context, ch Channel, ev InboundEvent) {
@@ -1061,12 +1073,42 @@ func (m *Manager) handleVerboseCommand(ctx context.Context, ch Channel, ev Inbou
 		return
 	}
 	if err := m.cfg.PersistToolProgressMode(platform, mode); err != nil {
-		text += "\n_(could not save to config: " + err.Error() + ")_"
+		text += "\n_(could not save to config: " + verboseCommandErrorText(err) + ")_"
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, text)
 		return
 	}
 	text += "\n_(saved for **" + platform + "** — takes effect on next message)_"
 	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, text)
+}
+
+func verboseCommandErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := strings.TrimSpace(err.Error())
+	if msg == "" {
+		return ""
+	}
+	lower := strings.ToLower(msg)
+	compact := compactVerboseSecretSeparators(lower)
+	for _, marker := range []string{"token", "api_key", "apikey", "authorization", "bearer", "secret", "password"} {
+		if strings.Contains(lower, marker) || strings.Contains(compact, marker) {
+			return "[redacted]"
+		}
+	}
+	replacer := strings.NewReplacer("`", "'", "*", "'", "#", "＃")
+	return strings.Join(strings.Fields(replacer.Replace(msg)), " ")
+}
+
+func compactVerboseSecretSeparators(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func (m *Manager) handleSessionsCommand(ctx context.Context, ch Channel, ev InboundEvent) {
@@ -1105,12 +1147,21 @@ func (m *Manager) handleModelCommand(ctx context.Context, ch Channel, ev Inbound
 	if provider == "" {
 		provider = "unknown"
 	}
-	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("🤖 **Model:** `%s`\n📡 **Provider:** `%s`", model, provider))
+	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("🤖 **Model:** `%s`\n📡 **Provider:** `%s`", modelCommandFieldText(model), modelCommandFieldText(provider)))
+}
+
+func modelCommandFieldText(value string) string {
+	msg := strings.TrimSpace(value)
+	if msg == "" {
+		return "unknown"
+	}
+	replacer := strings.NewReplacer("`", "'", "*", "'", "#", "＃")
+	return strings.Join(strings.Fields(replacer.Replace(msg)), " ")
 }
 
 func (m *Manager) handleProfileCommand(ctx context.Context, ch Channel, ev InboundEvent) {
 	home := config.GormesHome()
-	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("👤 **Profile:** `(default)`\n📂 **Home:** `%s`", home))
+	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("👤 **Profile:** `(default)`\n📂 **Home:** `%s`", modelCommandFieldText(home)))
 }
 
 func (m *Manager) handlePlatformsCommand(ctx context.Context, ch Channel, ev InboundEvent) {
@@ -1143,7 +1194,7 @@ func (m *Manager) formatConnectedPlatforms() string {
 	defer m.mu.Unlock()
 	names := make([]string, 0, len(m.channels))
 	for name := range m.channels {
-		names = append(names, name)
+		names = append(names, modelCommandFieldText(name))
 	}
 	sort.Strings(names)
 	if len(names) == 0 {

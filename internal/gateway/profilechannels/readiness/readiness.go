@@ -126,14 +126,12 @@ func applyProfileChannelTokenHashConflicts(report *contracts.ProfileChannelReadi
 		if len(indexes) < 2 {
 			continue
 		}
-		credentialIDs := map[string]struct{}{}
 		profileIDs := map[string]struct{}{}
 		for _, index := range indexes {
 			binding := report.Bindings[index]
-			credentialIDs[binding.CredentialID] = struct{}{}
 			profileIDs[binding.ProfileID] = struct{}{}
 		}
-		if len(credentialIDs) < 2 || len(profileIDs) < 2 {
+		if len(profileIDs) < 2 {
 			continue
 		}
 		for _, index := range indexes {
@@ -186,6 +184,9 @@ func SortedConfigBindings(channels map[string]config.ProfileChannelCfg) []contra
 	sort.Slice(candidates, func(i, j int) bool {
 		if candidates[i].channel != candidates[j].channel {
 			return candidates[i].channel < candidates[j].channel
+		}
+		if candidates[i].config.Enabled != candidates[j].config.Enabled {
+			return candidates[i].config.Enabled
 		}
 		iExact := candidates[i].rawKey == candidates[i].channel
 		jExact := candidates[j].rawKey == candidates[j].channel

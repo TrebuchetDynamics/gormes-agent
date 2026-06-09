@@ -261,6 +261,47 @@ func TestProfileChannelSetupPlanWhatsAppNormalizesProfileChannelKey(t *testing.T
 	}
 }
 
+func TestProfileChannelSetupPlanWhatsAppClampsNegativePairingCounts(t *testing.T) {
+	cfg := config.Config{
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"whatsapp": {
+						Enabled:      true,
+						Credential:   "main-whatsapp",
+						AllowedChats: []string{"12025550123@s.whatsapp.net"},
+					},
+				},
+			},
+		},
+		Credentials: map[string]config.CredentialCfg{
+			"main-whatsapp": profilechanneltest.ChannelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+		},
+	}
+
+	plan := BuildChannelSetupPlanWithOptions(cfg, ChannelSetupPlanOptions{
+		Pairing: PairingStatus{
+			Platforms: []PairingPlatformStatus{{
+				Platform:      "whatsapp",
+				State:         PairingPlatformStatePaired,
+				PendingCount:  -2,
+				ApprovedCount: -1,
+			}},
+		},
+	})
+	whatsapp := findChannelSetupEntry(t, plan, "whatsapp")
+	rendered := strings.Join(whatsapp.CurrentValues, "\n")
+	if strings.Contains(rendered, "=-") {
+		t.Fatalf("whatsapp pairing counts should not render negative values:\n%s", rendered)
+	}
+	for _, want := range []string{"whatsapp.pairing_approved_users=0", "whatsapp.pairing_pending_codes=0"} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("whatsapp setup values missing clamped count %q:\n%s", want, rendered)
+		}
+	}
+}
+
 func TestProfileChannelSetupPlanWhatsAppReportsPairedLoginStatus(t *testing.T) {
 	cfg := config.Config{
 		Profiles: map[string]config.ProfileCfg{

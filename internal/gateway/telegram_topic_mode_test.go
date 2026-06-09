@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 	"testing"
@@ -66,6 +67,35 @@ func TestTelegramTopicOffDisablesAndClearsBindingsIdempotently(t *testing.T) {
 	sent = ch.sentSnapshot()
 	if len(sent) != 2 || !strings.Contains(sent[1].Text, "not currently enabled") {
 		t.Fatalf("second /topic off reply = %#v, want idempotent no-op guidance", sent)
+	}
+}
+
+func TestTelegramTopicStoreErrorsSanitizedInReplies(t *testing.T) {
+	store := newFakeTelegramTopicStore()
+	store.isErr = errors.New("db failed\n**Injected:** token=plain-secret")
+	ch := newFakeChannel("telegram")
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:       map[string]string{"telegram": "42"},
+		TelegramTopicStore: store,
+	}, nil, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.handleInbound(context.Background(), telegramTopicEvent("/topic off", "7")); err != nil {
+		t.Fatal(err)
+	}
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d, want 1: %#v", len(sent), sent)
+	}
+	for _, forbidden := range []string{"plain-secret", "**Injected:**", "\n"} {
+		if strings.Contains(sent[0].Text, forbidden) {
+			t.Fatalf("topic error reply leaked unsafe text %q in %q", forbidden, sent[0].Text)
+		}
+	}
+	if !strings.Contains(sent[0].Text, "[redacted]") {
+		t.Fatalf("topic error reply missing redaction marker: %q", sent[0].Text)
 	}
 }
 
@@ -179,6 +209,9 @@ type fakeTelegramTopicStore struct {
 	calls        int
 	enableCalls  int
 	disableCalls int
+	isErr        error
+	enableErr    error
+	disableErr   error
 }
 
 func newFakeTelegramTopicStore() *fakeTelegramTopicStore {
@@ -190,12 +223,18 @@ func newFakeTelegramTopicStore() *fakeTelegramTopicStore {
 
 func (s *fakeTelegramTopicStore) IsTelegramTopicModeEnabled(_ context.Context, chatID, userID string) (bool, error) {
 	s.calls++
+	if s.isErr != nil {
+		return false, s.isErr
+	}
 	return s.enabled[chatID+"\x00"+userID], nil
 }
 
 func (s *fakeTelegramTopicStore) EnableTelegramTopicMode(_ context.Context, record TelegramTopicModeRecord) error {
 	s.calls++
 	s.enableCalls++
+	if s.enableErr != nil {
+		return s.enableErr
+	}
 	s.enabled[record.ChatID+"\x00"+record.UserID] = true
 	return nil
 }
@@ -203,6 +242,9 @@ func (s *fakeTelegramTopicStore) EnableTelegramTopicMode(_ context.Context, reco
 func (s *fakeTelegramTopicStore) DisableTelegramTopicMode(_ context.Context, chatID string) error {
 	s.calls++
 	s.disableCalls++
+	if s.disableErr != nil {
+		return s.disableErr
+	}
 	for key := range s.enabled {
 		if strings.HasPrefix(key, chatID+"\x00") {
 			s.enabled[key] = false

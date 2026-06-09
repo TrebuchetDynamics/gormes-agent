@@ -2,6 +2,7 @@ package coalescing
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 )
@@ -31,6 +32,8 @@ type Evidence struct {
 // outcomes. The sink must not block or panic; panics are not recovered here —
 // callers must ensure the sink is safe to call from any goroutine.
 type EvidenceSink func(Evidence)
+
+var errNoSender = errors.New("coalescer sender is not configured")
 
 func EvidenceSinkOption(sink EvidenceSink) Option {
 	return func(c *Coalescer) {
@@ -139,6 +142,11 @@ func (c *Coalescer) FlushImmediate(ctx context.Context, text string) {
 }
 
 func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finalize bool) {
+	if ctx != nil {
+		if err := ctx.Err(); err != nil {
+			return
+		}
+	}
 	c.deliveryMu.Lock()
 	defer c.deliveryMu.Unlock()
 
@@ -237,9 +245,12 @@ func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finali
 }
 
 func (c *Coalescer) sendInitialVisibleMessage(ctx context.Context, text string, finalize bool) (string, error) {
+	if c.sender == nil {
+		return "", errNoSender
+	}
 	if c.initialTextSend {
-		if msgID, err, ok := c.sendInitialText(ctx, text); ok {
-			return msgID, err
+		if msgID, err, ok := c.sendInitialText(ctx, text); ok && err == nil {
+			return msgID, nil
 		}
 	}
 	msgID, err := c.sender.SendPlaceholder(ctx, c.chatID)
@@ -269,6 +280,11 @@ func (c *Coalescer) Run(ctx context.Context) {
 }
 
 func (c *Coalescer) tryFlush(ctx context.Context) {
+	if ctx != nil {
+		if err := ctx.Err(); err != nil {
+			return
+		}
+	}
 	c.deliveryMu.Lock()
 	defer c.deliveryMu.Unlock()
 
@@ -402,6 +418,9 @@ type messageDeleter interface {
 }
 
 func editCoalescedMessage(ctx context.Context, sender PlaceholderEditor, chatID, msgID, text string, finalize bool) error {
+	if sender == nil {
+		return errNoSender
+	}
 	if finalizer, ok := sender.(finalizingMessageEditor); ok {
 		return finalizer.EditMessageFinal(ctx, chatID, msgID, text, finalize)
 	}

@@ -1,6 +1,9 @@
 package address
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 // Platform normalizes channel names for delivery routing comparisons and map
 // keys while keeping empty values empty for caller-specific validation.
@@ -21,6 +24,9 @@ func ChatWithThread(chatID, threadID string) string {
 	threadID = ID(threadID)
 	if threadID == "" {
 		return chatID
+	}
+	if strings.Contains(chatID, ":") || strings.Contains(threadID, ":") {
+		return strconv.Itoa(len(chatID)) + ":" + chatID + ":" + strconv.Itoa(len(threadID)) + ":" + threadID
 	}
 	return chatID + ":" + threadID
 }

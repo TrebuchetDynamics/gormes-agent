@@ -42,7 +42,11 @@ func (c Config) String() string {
 		enabled = "enabled"
 	}
 	return fmt.Sprintf("TTS: %s\nengine: %s\nvoice: %s\nspeed: %s\nlanguage: %s",
-		enabled, c.Engine, c.Voice, c.Speed, c.Language)
+		enabled, configLineValue(string(c.Engine)), configLineValue(c.Voice), configLineValue(string(c.Speed)), configLineValue(c.Language))
+}
+
+func configLineValue(value string) string {
+	return strings.Join(strings.Fields(value), " ")
 }
 
 var DefaultConfig = Config{

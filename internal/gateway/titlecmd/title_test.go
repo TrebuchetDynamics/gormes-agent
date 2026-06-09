@@ -15,13 +15,16 @@ func TestParseArgHandlesSlashAndRawTitle(t *testing.T) {
 	if got, ok := ParseArg("Friendly Greeting"); !ok || got != "Friendly Greeting" {
 		t.Fatalf("ParseArg raw = %q, %v; want Friendly Greeting,true", got, ok)
 	}
+	if got, ok := ParseArg("title Friendly Greeting"); !ok || got != "title Friendly Greeting" {
+		t.Fatalf("ParseArg raw matching word = %q, %v; want title Friendly Greeting,true", got, ok)
+	}
 	if got, ok := ParseArg("/title"); ok || got != "" {
 		t.Fatalf("ParseArg empty = %q, %v; want empty,false", got, ok)
 	}
 }
 
 func TestSanitizeCleansControlAndFormattingRunes(t *testing.T) {
-	got, err := Sanitize(" Hello\x00\u200b   world\n ")
+	got, err := Sanitize(" Hello\x00\u009b\u200b   world\n ")
 	if err != nil {
 		t.Fatalf("Sanitize: %v", err)
 	}

@@ -2,6 +2,7 @@ package modelpicker
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -49,6 +50,43 @@ func TestGatewayModelPickerProviderCallbackEditsToModelStage(t *testing.T) {
 	}
 }
 
+func TestGatewayModelPickerRejectsUnknownProviderCallback(t *testing.T) {
+	ov := &SessionModelOverride{}
+	resolver := NewModelPickerResolver(ov)
+	if _, err := resolver.OpenModelPicker(context.Background(), ModelPickerRequest{ChatID: "test"}); err != nil {
+		t.Fatalf("OpenModelPicker: %v", err)
+	}
+
+	resp, err := resolver.HandleModelPickerCallback(context.Background(), ModelPickerCallback{
+		ChatID:    "test",
+		Prefix:    "mp",
+		Value:     "not-a-provider",
+		MessageID: 1,
+	})
+	if err != nil {
+		t.Fatalf("HandleModelPickerCallback(mp unknown): %v", err)
+	}
+	if !resp.Finished || resp.Changed {
+		t.Fatalf("unknown provider response = %+v, want finished unchanged", resp)
+	}
+	if !ov.IsZero() {
+		t.Fatalf("unknown provider changed override: %+v", ov)
+	}
+
+	resp, err = resolver.HandleModelPickerCallback(context.Background(), ModelPickerCallback{
+		ChatID:    "test",
+		Prefix:    "mm",
+		Value:     "0",
+		MessageID: 1,
+	})
+	if err != nil {
+		t.Fatalf("HandleModelPickerCallback(mm after unknown): %v", err)
+	}
+	if resp.Changed || !ov.IsZero() {
+		t.Fatalf("model callback after rejected provider response=%+v override=%+v, want unchanged", resp, ov)
+	}
+}
+
 func TestGatewayModelPickerModelCallbackAppliesSessionOverride(t *testing.T) {
 	ov := &SessionModelOverride{}
 	resolver := NewModelPickerResolver(ov)
@@ -81,6 +119,75 @@ func TestGatewayModelPickerModelCallbackAppliesSessionOverride(t *testing.T) {
 	}
 	if ov.Provider != "openrouter" {
 		t.Errorf("SessionModelOverride.Provider = %q, want openrouter", ov.Provider)
+	}
+}
+
+func TestGatewayModelPickerRejectsOverflowingModelCallbackValue(t *testing.T) {
+	ov := &SessionModelOverride{}
+	resolver := &ResolverImpl{pickerState: &modelPickerManager{}, override: ov}
+	resolver.pickerState.set("test", modelPickerState{
+		stage:         "model",
+		pendingSlug:   "openrouter",
+		pendingModels: []string{"default"},
+	})
+
+	resp, err := resolver.HandleModelPickerCallback(context.Background(), ModelPickerCallback{
+		ChatID: "test",
+		Prefix: "mm",
+		Value:  "18446744073709551616",
+	})
+	if err != nil {
+		t.Fatalf("HandleModelPickerCallback(mm overflow): %v", err)
+	}
+	if !resp.Finished || resp.Changed || !ov.IsZero() {
+		t.Fatalf("overflowing model callback response=%+v override=%+v, want finished unchanged", resp, ov)
+	}
+}
+
+func TestGatewayModelPickerRejectsMalformedModelCallbackValue(t *testing.T) {
+	ov := &SessionModelOverride{}
+	resolver := &ResolverImpl{pickerState: &modelPickerManager{}, override: ov}
+	resolver.pickerState.set("test", modelPickerState{
+		stage:         "model",
+		pendingSlug:   "openrouter",
+		pendingModels: []string{"default"},
+	})
+
+	resp, err := resolver.HandleModelPickerCallback(context.Background(), ModelPickerCallback{
+		ChatID: "test",
+		Prefix: "mm",
+		Value:  "not-an-index",
+	})
+	if err != nil {
+		t.Fatalf("HandleModelPickerCallback(mm malformed): %v", err)
+	}
+	if !resp.Finished || resp.Changed || !ov.IsZero() {
+		t.Fatalf("malformed model callback response=%+v override=%+v, want finished unchanged", resp, ov)
+	}
+}
+
+func TestGatewayModelPickerModelSelectionSanitizesMarkdownCodeSpan(t *testing.T) {
+	ov := &SessionModelOverride{}
+	resolver := &ResolverImpl{pickerState: &modelPickerManager{}, override: ov}
+	resolver.pickerState.set("test", modelPickerState{
+		stage:         "model",
+		pendingSlug:   "openrouter",
+		pendingModels: []string{"model`break"},
+	})
+
+	resp, err := resolver.HandleModelPickerCallback(context.Background(), ModelPickerCallback{
+		ChatID: "test",
+		Prefix: "mm",
+		Value:  "0",
+	})
+	if err != nil {
+		t.Fatalf("HandleModelPickerCallback(mm): %v", err)
+	}
+	if resp.Text == "⚙ *Model Configuration*\n\nModel set to `model`break`\nProvider: *Openrouter*" {
+		t.Fatalf("model picker response left backtick-breaking code span: %q", resp.Text)
+	}
+	if want := "Model set to `model'break`"; !strings.Contains(resp.Text, want) {
+		t.Fatalf("model picker response missing sanitized model %q in %q", want, resp.Text)
 	}
 }
 

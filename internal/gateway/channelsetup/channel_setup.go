@@ -181,8 +181,8 @@ func applyWhatsAppPairingSetupStatus(entry *ChannelSetupEntry, pairing PairingSt
 		}
 		entry.CurrentValues = append(entry.CurrentValues,
 			"whatsapp.pairing="+string(state),
-			"whatsapp.pairing_approved_users="+strconv.Itoa(platform.ApprovedCount),
-			"whatsapp.pairing_pending_codes="+strconv.Itoa(platform.PendingCount),
+			"whatsapp.pairing_approved_users="+strconv.Itoa(nonNegativeCount(platform.ApprovedCount)),
+			"whatsapp.pairing_pending_codes="+strconv.Itoa(nonNegativeCount(platform.PendingCount)),
 		)
 		if state == PairingPlatformStatePaired && entry.Status == ChannelSetupStatusConfigured {
 			entry.Status = ChannelSetupStatusPaired
@@ -197,6 +197,13 @@ func applyWhatsAppPairingSetupStatus(entry *ChannelSetupEntry, pairing PairingSt
 		break
 	}
 	applyWhatsAppPairingDegradedSetupStatus(entry, pairing.Degraded)
+}
+
+func nonNegativeCount(value int) int {
+	if value < 0 {
+		return 0
+	}
+	return value
 }
 
 func applyWhatsAppPairingDegradedSetupStatus(entry *ChannelSetupEntry, degraded []PairingDegradedEvidence) {

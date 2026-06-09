@@ -126,5 +126,5 @@ func (b *ClarifyResumeBroker) clearIfCurrent(key string, pending *clarifyPending
 }
 
 func clarifyResumeKey(platform, chatID string) string {
-	return strings.TrimSpace(platform) + ":" + strings.TrimSpace(chatID)
+	return strings.ToLower(strings.TrimSpace(platform)) + ":" + strings.TrimSpace(chatID)
 }

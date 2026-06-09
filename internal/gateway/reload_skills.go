@@ -63,6 +63,9 @@ func (m *Manager) reloadSkillCommands(ctx context.Context) ([]PlatformCommand, e
 		if name == "" {
 			continue
 		}
+		if _, collides := ResolveCommand(name); collides {
+			continue
+		}
 		out = append(out, PlatformCommand{Name: name, Description: command.Description})
 	}
 	return out, nil

@@ -319,13 +319,42 @@ func sanitizePlatformLifecycleError(err error) string {
 		return ""
 	}
 	msg := strings.TrimSpace(err.Error())
-	for _, marker := range []string{"token=", "api_key=", "password=", "secret="} {
-		idx := strings.Index(strings.ToLower(msg), marker)
-		if idx >= 0 {
-			return strings.TrimSpace(msg[:idx+len(marker)]) + "[redacted]"
+	if msg == "" {
+		return ""
+	}
+	lower := strings.ToLower(msg)
+	compact := compactPlatformLifecycleSecretSeparators(lower)
+	for _, marker := range []string{"token=", "api_key=", "api key", "api-key", "password=", "secret=", "authorization", "bearer "} {
+		if strings.Contains(lower, marker) {
+			return "[redacted]"
 		}
 	}
-	return msg
+	for _, marker := range []string{"token", "apikey", "password", "secret", "authorization", "bearer"} {
+		if strings.Contains(compact, marker) {
+			return "[redacted]"
+		}
+	}
+	return renderPlatformLifecycleErrorText(msg)
+}
+
+func compactPlatformLifecycleSecretSeparators(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func renderPlatformLifecycleErrorText(msg string) string {
+	replacer := strings.NewReplacer(
+		"`", "'",
+		"*", "'",
+		"#", "＃",
+	)
+	return strings.Join(strings.Fields(replacer.Replace(msg)), " ")
 }
 
 func firstNonNilError(values ...error) error {

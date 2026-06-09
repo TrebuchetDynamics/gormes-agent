@@ -116,15 +116,11 @@ func resolveTarget(deliver string, extra map[string]any) (gateway.DeliveryTarget
 		return gateway.DeliveryTarget{}, false, errors.New("webhook: threaded delivery requires chat_id")
 	}
 
-	raw := deliver
 	if chatID != "" {
-		raw += ":" + chatID
-	}
-	if threadID != "" {
-		raw += ":" + threadID
+		return gateway.DeliveryTarget{Platform: deliver, ChatID: chatID, ThreadID: threadID, IsExplicit: true}, true, nil
 	}
 
-	target, err := gateway.ParseDeliveryTarget(raw, nil)
+	target, err := gateway.ParseDeliveryTarget(deliver, nil)
 	if err != nil {
 		return gateway.DeliveryTarget{}, false, err
 	}

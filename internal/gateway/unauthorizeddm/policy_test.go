@@ -44,6 +44,44 @@ func TestHandle_DenyModeSendsDeterministicDenialAndRecordsEvidence(t *testing.T)
 	unauthorizeddmtest.AssertDegradedEvidence(t, store, pairing.PairingDegradedAllowlistDenied, "telegram", "stranger")
 }
 
+func TestHandle_PairModeFallsBackToEventUserIDWhenPairingUserIDMissing(t *testing.T) {
+	store := newTestStore(t)
+	var sent []sentReply
+
+	decision, err := Handle(context.Background(), Event{
+		Platform:      "telegram",
+		ChatID:        "424242",
+		ChatName:      "Private Chat",
+		UserID:        "telegram-user-42",
+		UserName:      "Mallory",
+		DirectMessage: true,
+	}, Policy{
+		Behavior:            BehaviorPair,
+		GeneratePairingCode: store.GeneratePairingCode,
+		Send:                captureSend(&sent),
+	})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+	if !decision.ReplySent || decision.PairingStatus != pairing.PairingCodeIssued {
+		t.Fatalf("decision = %#v, want pairing code issued using event UserID fallback", decision)
+	}
+
+	status, err := store.ReadPairingStatus(context.Background())
+	if err != nil {
+		t.Fatalf("ReadPairingStatus: %v", err)
+	}
+	if len(status.Pending) != 1 {
+		t.Fatalf("pending = %+v, want one pending pairing", status.Pending)
+	}
+	if status.Pending[0].UserID != "telegram-user-42" || status.Pending[0].UserName != "Mallory" {
+		t.Fatalf("pending identity = %+v, want fallback event user identity", status.Pending[0])
+	}
+	if len(sent) != 1 || !strings.Contains(sent[0].text, status.Pending[0].Code) {
+		t.Fatalf("sent = %+v, want pairing prompt with issued code", sent)
+	}
+}
+
 func TestHandle_PairModeSendsOneBoundedPromptAndRecordsPending(t *testing.T) {
 	store := newTestStore(t)
 	var sent []sentReply
@@ -103,6 +141,21 @@ func TestHandle_PairModeSendsOneBoundedPromptAndRecordsPending(t *testing.T) {
 	}
 	if got := len(sent); got != 1 {
 		t.Fatalf("send count after rate-limited repeat = %d, want still one prompt", got)
+	}
+}
+
+func TestFormatPairingPromptSanitizesOperatorCommandFields(t *testing.T) {
+	got := FormatPairingPrompt(" telegram\nrm -rf /` ", " ABCD1234\nBAD ")
+	for _, forbidden := range []string{"\nrm -rf", "`telegram", "ABCD1234\nBAD"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("FormatPairingPrompt leaked unsafe field %q in:\n%s", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "Pairing code: `ABCD1234 BAD`") {
+		t.Fatalf("prompt missing sanitized code in:\n%s", got)
+	}
+	if !strings.Contains(got, "`gormes pairing approve telegram rm -rf /' ABCD1234 BAD`") {
+		t.Fatalf("prompt missing sanitized operator command in:\n%s", got)
 	}
 }
 

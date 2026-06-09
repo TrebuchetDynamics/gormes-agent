@@ -65,7 +65,7 @@ func (m Model) View() string {
 		convW = 4
 	}
 
-	conv := conversationViewportTailWithSkinAndDetails(m.frame, convW, convH, m.compactTranscript, m.detailsState, m.currentSkin())
+	conv := m.conversationViewportTailWithSkinAndDetails(convW, convH)
 
 	editorW := m.width
 	if editorW < 10 {
@@ -84,7 +84,7 @@ func (m Model) View() string {
 	statusBar := ""
 	statusBarMode := normalizeStatusBarMode(m.statusBarMode)
 	if statusBarMode != StatusBarModeOff {
-		statusBar = RenderHermesStatusBarWithSkin(hermesStatusModelFromFrame(m.frame), m.width, m.currentSkin())
+		statusBar = RenderHermesStatusBarWithSkin(m.hermesStatusModelFromFrame(), m.width, m.currentSkin())
 		if footer, ok := m.renderExtensionFooter(m.width); ok {
 			statusBar = footer
 		} else {
@@ -156,17 +156,13 @@ func renderHermesHintWithIndicatorForSkin(f kernel.RenderFrame, statusMessage st
 	if f.Phase != kernel.PhaseIdle && f.Phase != kernel.PhaseFailed {
 		parts = append(parts, RenderIndicatorFrame(indicator, spinnerFrame))
 		parts = append(parts, strings.ToLower(f.Phase.String()))
-		if f.SessionID != "" {
-			parts = append(parts, "session "+shortSessionID(f.SessionID))
-		}
-	}
-	if statusMessage != "" {
+	} else if statusMessage != "" {
 		parts = append(parts, statusMessage)
 	}
 	if len(parts) == 0 {
 		return ""
 	}
-	text := strings.Join(parts, " · ")
+	text := strings.Join(parts, " ")
 	if width > 0 {
 		text = RenderMarkdownSoftWrapTrim(text, width)
 	}
@@ -195,17 +191,13 @@ func renderHermesHintWithExtensionWorking(f kernel.RenderFrame, statusMessage st
 		if label != "" {
 			parts = append(parts, label)
 		}
-		if f.SessionID != "" {
-			parts = append(parts, "session "+shortSessionID(f.SessionID))
-		}
-	}
-	if statusMessage != "" {
+	} else if statusMessage != "" {
 		parts = append(parts, statusMessage)
 	}
 	if len(parts) == 0 {
 		return ""
 	}
-	text := strings.Join(parts, " · ")
+	text := strings.Join(parts, " ")
 	if width > 0 {
 		text = RenderMarkdownSoftWrapTrim(text, width)
 	}
@@ -230,11 +222,27 @@ func promptHeightForValue(value string) int {
 // hermesStatusModelFromFrame projects the kernel render frame onto the data
 // shape expected by RenderHermesStatusBar.
 func hermesStatusModelFromFrame(f kernel.RenderFrame) HermesStatusModel {
+	return hermesStatusModelFromFrameWithProfile(f, "")
+}
+
+func (m Model) hermesStatusModelFromFrame() HermesStatusModel {
+	return hermesStatusModelFromFrameWithProfile(m.frame, m.profileName)
+}
+
+func hermesStatusModelFromFrameWithProfile(f kernel.RenderFrame, profileName string) HermesStatusModel {
+	cwd := hermesWorkingDirLabel()
+	if profile := strings.TrimSpace(profileName); profile != "" {
+		if cwd != "" {
+			cwd = "profile " + profile + " · " + cwd
+		} else {
+			cwd = "profile " + profile
+		}
+	}
 	out := HermesStatusModel{
 		StatusLabel:     hermesStatusLabelFromPhase(f.Phase),
 		ModelName:       f.Model,
 		ReasoningEffort: string(f.ReasoningEffort.Requested),
-		CWDLabel:        hermesWorkingDirLabel(),
+		CWDLabel:        cwd,
 	}
 	if f.ContextStatus != nil {
 		out.ContextTokens = f.ContextStatus.LastTotalTokens
@@ -303,6 +311,14 @@ func conversationViewportTailWithDetails(f kernel.RenderFrame, width, height int
 }
 
 func conversationViewportTailWithSkinAndDetails(f kernel.RenderFrame, width, height int, forceCompact bool, details DetailsState, skin HermesSkin) string {
+	return conversationViewportTailWithSkinDetailsAndProfile(f, width, height, forceCompact, details, skin, "")
+}
+
+func (m Model) conversationViewportTailWithSkinAndDetails(width, height int) string {
+	return conversationViewportTailWithSkinDetailsAndProfile(m.frame, width, height, m.compactTranscript, m.detailsState, m.currentSkin(), m.profileName)
+}
+
+func conversationViewportTailWithSkinDetailsAndProfile(f kernel.RenderFrame, width, height int, forceCompact bool, details DetailsState, skin HermesSkin, profileName string) string {
 	skin, styles := conversationChatStyles(skin)
 	if width < 4 {
 		width = 4
@@ -338,7 +354,7 @@ func conversationViewportTailWithSkinAndDetails(f kernel.RenderFrame, width, hei
 	lines = append(lines, visible...)
 	lines = append(lines, forced...)
 	if len(lines) == 0 {
-		return conversationEmptyIntroWithSkin(f, width, compact, skin)
+		return conversationEmptyIntroWithProfileAndSkin(f, width, compact, profileName, skin)
 	}
 	return strings.Join(lines, "\n\n")
 }
@@ -367,15 +383,9 @@ func conversationForcedBlocksWithDetailsAndSkin(f kernel.RenderFrame, wrapWidth 
 	if f.LastError != "" {
 		blocks = append(blocks, conversationErrorBlockWithStyles(f.LastError, wrapWidth, compact, styles))
 	}
-	// R3 streaming feedback: when a turn is active but nothing concrete has
-	// surfaced yet (no tool trace, draft, or error), show the reused
-	// thinking indicator so the user is never left wondering. Suppressed the
-	// moment any real signal exists so it never disturbs transcript order.
-	if len(blocks) == 0 && !hasFinal && turnIsActive(f.Phase) {
-		if think := conversationThinkingBlockWithModeAndSkin(compact, details.SectionMode(DetailsSectionThinking), skin, styles); think != "" {
-			blocks = append(blocks, think)
-		}
-	}
+	// Keep active-turn waiting feedback in the single hint/status area. Hermes'
+	// chat transcript stays quiet until text or tool progress exists; injecting a
+	// separate "Reasoning..." assistant block makes the prompt feel noisy.
 	return blocks
 }
 
@@ -656,8 +666,16 @@ func renderedLineCount(s string) int {
 }
 
 func conversationEmptyIntroWithSkin(f kernel.RenderFrame, width int, compact bool, skin HermesSkin) string {
+	return conversationEmptyIntroWithProfileAndSkin(f, width, compact, "", skin)
+}
+
+func conversationEmptyIntroWithProfileAndSkin(f kernel.RenderFrame, width int, compact bool, profileName string, skin HermesSkin) string {
 	skin, styles := conversationChatStyles(skin)
 	if compact {
+		profile := strings.TrimSpace(profileName)
+		if profile != "" {
+			return styles.Assistant.Render("⚕ Gormes · profile " + profile + " · /help for commands")
+		}
 		return styles.Assistant.Render("⚕ Gormes · /help for commands")
 	}
 	ctx := banner.WelcomeContext{
@@ -665,6 +683,7 @@ func conversationEmptyIntroWithSkin(f kernel.RenderFrame, width int, compact boo
 		Provider:  f.ProviderStatus.Provider,
 		Runtime:   f.ProviderStatus.Runtime,
 		CWD:       hermesWorkingDirLabel(),
+		Profile:   strings.TrimSpace(profileName),
 		SessionID: f.SessionID,
 		Version:   buildInfoVersion(),
 	}

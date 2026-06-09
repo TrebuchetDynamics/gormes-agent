@@ -69,7 +69,9 @@ func (s Store) RememberSource(_ context.Context, entry model.RememberedSourceEnt
 		return nil
 	}
 	ledger := model.EmptyRememberedSourceLedger()
-	_ = s.jsonFile().Read(&ledger)
+	if err := s.jsonFile().Read(&ledger); err != nil && !os.IsNotExist(err) {
+		return err
+	}
 	ledger = model.EnsureRememberedSourceLedger(ledger)
 	if s.now == nil {
 		s.now = time.Now

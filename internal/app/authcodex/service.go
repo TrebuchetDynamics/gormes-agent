@@ -61,11 +61,15 @@ func RunDeviceCodeLogin(ctx context.Context, req LoginRequest) (config.CodexOAut
 		return config.CodexOAuthTokens{}, err
 	}
 	if req.Out != nil {
-		fmt.Fprintln(req.Out, "To continue, open this URL in your browser:")
-		fmt.Fprintf(req.Out, "  %s/codex/device\n", issuer)
-		fmt.Fprintln(req.Out, "Enter this code:")
-		fmt.Fprintf(req.Out, "  %s\n", device.UserCode)
-		fmt.Fprintln(req.Out, "Waiting for sign-in... redacted=true")
+		fmt.Fprintln(req.Out, "To continue, follow these steps:")
+		fmt.Fprintln(req.Out)
+		fmt.Fprintln(req.Out, "  1. Open this URL in your browser:")
+		fmt.Fprintf(req.Out, "     %s/codex/device\n", issuer)
+		fmt.Fprintln(req.Out)
+		fmt.Fprintln(req.Out, "  2. Enter this code:")
+		fmt.Fprintf(req.Out, "     %s\n", device.UserCode)
+		fmt.Fprintln(req.Out)
+		fmt.Fprintln(req.Out, "Waiting for sign-in... (press Ctrl+C to cancel)")
 	}
 
 	pollCtx, cancel := context.WithTimeout(ctx, timeout)

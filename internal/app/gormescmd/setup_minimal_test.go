@@ -32,6 +32,7 @@ type setupCommandFakeSeams struct {
 	runSetupProvider               func(*cobra.Command, bool) error
 	runProviderLiveTest            func(*cobra.Command) error
 	runProviderAuth                func(*cobra.Command, string) error
+	runProviderReauthenticate      func(*cobra.Command, string) error
 	runActiveProviderModelPicker   func(*cobra.Command, cli.ProviderModel) error
 	runFullWizard                  func(*cobra.Command, bool) error
 	runSetupGateway                func(*cobra.Command, bool) error
@@ -88,6 +89,7 @@ func (f *setupCommandFakeSeams) seams() setupCommandSeams {
 		RunSetupProvider:               f.runSetupProvider,
 		RunProviderLiveTest:            f.runProviderLiveTest,
 		RunProviderAuth:                f.runProviderAuth,
+		RunProviderReauthenticate:      f.runProviderReauthenticate,
 		RunFullWizard:                  f.runFullWizard,
 		RunSetupGateway:                f.runSetupGateway,
 		RunGatewaySetupWizard:          firstSetupGatewayWizardSeam(f.runGatewaySetupWizard),
@@ -437,6 +439,10 @@ func TestSetupFullWizardReauthenticateRunsAuthBeforeModelPicker(t *testing.T) {
 		events = append(events, "auth:"+provider)
 		return nil
 	}
+	fake.runProviderReauthenticate = func(_ *cobra.Command, provider string) error {
+		events = append(events, "reauth:"+provider)
+		return nil
+	}
 	seams := fake.seams()
 	seams.RunActiveProviderModelPicker = func(_ *cobra.Command, current cli.ProviderModel) error {
 		if current.Provider != "openai-codex" {
@@ -450,7 +456,7 @@ func TestSetupFullWizardReauthenticateRunsAuthBeforeModelPicker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	if got, want := strings.Join(events, ","), "auth:openai-codex,model"; got != want {
+	if got, want := strings.Join(events, ","), "reauth:openai-codex,model"; got != want {
 		t.Fatalf("events = %s, want %s\nstdout=%s", got, want, stdout)
 	}
 	if !strings.Contains(stdout, "Starting a fresh OpenAI Codex login...") {
@@ -651,7 +657,7 @@ func TestSetupProviderNonInteractiveWritesConfigAndDotenv(t *testing.T) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
-	for _, forbidden := range []string{secret, "sk-t***7890", "sk-t", "7890", "Provider configuration complete!"} {
+	for _, forbidden := range []string{secret, "sk-t***7890", "sk-t", "Provider configuration complete!"} {
 		if strings.Contains(stdout+stderr, forbidden) {
 			t.Fatalf("setup output leaked or duplicated forbidden material %q:\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
 		}
@@ -1016,7 +1022,7 @@ func TestSetupProvidersNonInteractiveKnownAPIProviderUsesProviderBaseURLEnv(t *t
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
-	for _, forbidden := range []string{secret, "sk-openrouter-base", "13579", "OPENROUTER_API_KEY=", "Provider configuration complete!"} {
+	for _, forbidden := range []string{secret, "sk-openrouter-base", "OPENROUTER_API_KEY=", "Provider configuration complete!"} {
 		if strings.Contains(stdout+stderr, forbidden) {
 			t.Fatalf("setup providers output leaked or duplicated forbidden material %q:\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
 		}

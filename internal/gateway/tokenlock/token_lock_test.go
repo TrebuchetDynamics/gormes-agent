@@ -14,6 +14,113 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/runtimeproc"
 )
 
+func TestReadTokenLockRecordPropagatesUnreadablePath(t *testing.T) {
+	record, err := readTokenLockRecord(t.TempDir())
+	if err == nil {
+		t.Fatalf("readTokenLockRecord err = nil record=%+v, want read error for directory lock path", record)
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("readTokenLockRecord err = %v, must not mask unreadable lock as missing", err)
+	}
+}
+
+func TestTokenScopedGatewayLockRedactsExistingOwnerCommandEvidence(t *testing.T) {
+	dir := t.TempDir()
+	credential := "shared-token"
+	path := filepath.Join(dir, "telegram-"+TokenCredentialHash(credential)+".lock")
+	writeTokenLockJSONFixture(t, path, map[string]any{
+		"kind":            "gormes-gateway-token-lock",
+		"platform":        "telegram",
+		"credential_hash": TokenCredentialHash(credential),
+		"pid":             1001,
+		"start_time":      501,
+		"command":         "gormes gateway --api-key=plain-secret-token",
+		"updated_at":      "2026-04-25T17:00:00Z",
+	})
+
+	store := newTokenLockTestStore(t, dir, 2002, 602, fakeRuntimeProcessTable{
+		1001: {startTime: 501, command: "gormes gateway --api-key=plain-secret-token"},
+	})
+	_, evidence, err := store.Acquire(context.Background(), TokenLockRequest{Platform: "telegram", Credential: credential})
+	if !errors.Is(err, ErrTokenLockHeld) {
+		t.Fatalf("Acquire err = %v, want ErrTokenLockHeld", err)
+	}
+	for _, forbidden := range []string{"plain-secret-token", "api-key"} {
+		if strings.Contains(evidence.ProcessValidation.Command, forbidden) {
+			t.Fatalf("process validation command leaked %q in %+v", forbidden, evidence.ProcessValidation)
+		}
+	}
+	if evidence.ProcessValidation.Command != "gormes gateway [redacted]" {
+		t.Fatalf("process validation command = %q, want redacted command", evidence.ProcessValidation.Command)
+	}
+}
+
+func TestTokenScopedGatewayLockHonorsLegacySanitizedPlatformLock(t *testing.T) {
+	dir := t.TempDir()
+	credential := "shared-token"
+	legacyPath := filepath.Join(dir, "telegram_work-"+TokenCredentialHash(credential)+".lock")
+	writeTokenLockJSONFixture(t, legacyPath, map[string]any{
+		"kind":            "gormes-gateway-token-lock",
+		"platform":        "telegram_work",
+		"credential_hash": TokenCredentialHash(credential),
+		"pid":             1001,
+		"start_time":      501,
+		"updated_at":      "2026-04-25T17:00:00Z",
+	})
+
+	store := newTokenLockTestStore(t, dir, 2002, 602, fakeRuntimeProcessTable{
+		1001: {startTime: 501, command: "gormes gateway"},
+	})
+	_, evidence, err := store.Acquire(context.Background(), TokenLockRequest{Platform: "telegram:work", Credential: credential})
+	if !errors.Is(err, ErrTokenLockHeld) {
+		t.Fatalf("Acquire err = %v, want ErrTokenLockHeld for live legacy lock", err)
+	}
+	if evidence.Path != legacyPath || evidence.OwnerPID != 1001 {
+		t.Fatalf("evidence = %+v, want legacy path held by pid 1001", evidence)
+	}
+}
+
+func TestTokenScopedGatewayLockPathDisambiguatesSanitizedPlatformCollisions(t *testing.T) {
+	dir := t.TempDir()
+	store := newTokenLockTestStore(t, dir, 1001, 501, nil)
+	credential := "shared-token"
+
+	colonPath := store.LockPath("telegram:work", credential)
+	underscorePath := store.LockPath("telegram_work", credential)
+	if colonPath == underscorePath {
+		t.Fatalf("LockPath collision for sanitized platform names: %q", colonPath)
+	}
+	if !strings.Contains(filepath.Base(underscorePath), "telegram_work-") {
+		t.Fatalf("safe platform path = %q, want readable platform prefix", underscorePath)
+	}
+	if !strings.Contains(filepath.Base(colonPath), "telegram_work_") {
+		t.Fatalf("escaped platform path = %q, want readable sanitized prefix plus disambiguator", colonPath)
+	}
+}
+
+func TestTokenScopedGatewayLockRedactsArgvSecrets(t *testing.T) {
+	dir := t.TempDir()
+	store := newTokenLockTestStore(t, dir, 1001, 501, nil)
+	store.argv = func() []string { return []string{"gormes", "gateway", "--api-key=plain-secret-token"} }
+
+	lock, _, err := store.Acquire(context.Background(), TokenLockRequest{Platform: "telegram", Credential: "shared-token"})
+	if err != nil {
+		t.Fatalf("Acquire: %v", err)
+	}
+	raw, err := os.ReadFile(lock.Path())
+	if err != nil {
+		t.Fatalf("read lock record: %v", err)
+	}
+	for _, forbidden := range []string{"plain-secret-token", "api-key"} {
+		if strings.Contains(string(raw), forbidden) {
+			t.Fatalf("lock record leaked argv secret %q:\n%s", forbidden, raw)
+		}
+	}
+	if !strings.Contains(string(raw), "[redacted]") {
+		t.Fatalf("lock record missing redacted argv evidence:\n%s", raw)
+	}
+}
+
 func TestTokenScopedGatewayLockPathUsesGormesHomeHash(t *testing.T) {
 	gormesHome := t.TempDir()
 	t.Setenv("GORMES_HOME", gormesHome)
@@ -147,6 +254,59 @@ func TestTokenScopedGatewayLockClearsStaleStoppedOwnerWithoutDeletingUnrelatedLo
 	record := readTokenLockRecordFixture(t, ownerLock.Path())
 	if record.PID != 2002 {
 		t.Fatalf("reacquired lock pid = %d, want contender pid 2002", record.PID)
+	}
+}
+
+func TestTokenScopedGatewayLockReentrantAcquireWhenStartTimeUnavailable(t *testing.T) {
+	dir := t.TempDir()
+	store := newTokenLockTestStore(t, dir, 1001, 0, fakeRuntimeProcessTable{
+		1001: {startTime: 0, command: "gormes gateway"},
+	})
+	first, _, err := store.Acquire(context.Background(), TokenLockRequest{
+		Platform:   "telegram",
+		Credential: "shared-token",
+	})
+	if err != nil {
+		t.Fatalf("first acquire: %v", err)
+	}
+	second, evidence, err := store.Acquire(context.Background(), TokenLockRequest{
+		Platform:   "telegram",
+		Credential: "shared-token",
+	})
+	if err != nil {
+		t.Fatalf("reentrant acquire without start time: %v evidence=%+v", err, evidence)
+	}
+	if second.Path() != first.Path() || evidence.Status != TokenLockStatusAcquired {
+		t.Fatalf("reentrant acquire = path %q evidence %+v, want same path acquired", second.Path(), evidence)
+	}
+}
+
+func TestTokenScopedGatewayLockClearsStoppedOwnerWhenStartTimeUnavailable(t *testing.T) {
+	dir := t.TempDir()
+	owner := newTokenLockTestStore(t, dir, 1001, 0, nil)
+	ownerLock, _, err := owner.Acquire(context.Background(), TokenLockRequest{
+		Platform:   "telegram",
+		Credential: "shared-token",
+	})
+	if err != nil {
+		t.Fatalf("owner acquire: %v", err)
+	}
+
+	contender := newTokenLockTestStore(t, dir, 2002, 602, fakeRuntimeProcessTable{
+		1001: {startTime: 0, command: "gormes gateway", stopped: true},
+	})
+	newLock, evidence, err := contender.Acquire(context.Background(), TokenLockRequest{
+		Platform:   "telegram",
+		Credential: "shared-token",
+	})
+	if err != nil {
+		t.Fatalf("contender acquire after stopped owner without start time: %v", err)
+	}
+	if evidence.Status != TokenLockStatusStaleCleared || evidence.ProcessValidation.Status != runtimeproc.ValidationStopped {
+		t.Fatalf("evidence = %+v, want stale-cleared stopped-process evidence", evidence)
+	}
+	if newLock.Path() != ownerLock.Path() {
+		t.Fatalf("new lock path = %q, want reused scoped path %q", newLock.Path(), ownerLock.Path())
 	}
 }
 

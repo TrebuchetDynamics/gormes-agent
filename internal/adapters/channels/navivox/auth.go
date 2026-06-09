@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -301,5 +302,29 @@ func (c *Channel) originAllowed(origin string) bool {
 	if origin == "" {
 		return true
 	}
-	return channelutil.ContainsString(c.cfg.AllowOrigins, "*") || channelutil.ContainsEqualFold(c.cfg.AllowOrigins, origin)
+	if channelutil.ContainsString(c.cfg.AllowOrigins, "*") || channelutil.ContainsEqualFold(c.cfg.AllowOrigins, origin) {
+		return true
+	}
+	return c.cfg.ExposureMode == config.NavivoxExposureLocal && navivoxLoopbackBrowserOrigin(origin)
+}
+
+func navivoxLoopbackBrowserOrigin(origin string) bool {
+	parsed, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	switch parsed.Scheme {
+	case "http", "https":
+	default:
+		return false
+	}
+	if parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Path != "" {
+		return false
+	}
+	host := parsed.Hostname()
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }

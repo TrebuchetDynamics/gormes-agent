@@ -152,7 +152,7 @@ func (m *MemoryMonitor) SampleOnce(ctx context.Context) error {
 		evidence := RuntimeMemoryPressureEvidence{
 			Status:    MemoryPressureUnavailable,
 			Action:    MemoryPressureActionNone,
-			Message:   err.Error(),
+			Message:   memoryPressureErrorText(err),
 			CheckedAt: m.cfg.Now().UTC().Format(time.RFC3339Nano),
 			Redacted:  true,
 			Evidence:  []string{"memory_pressure_unavailable"},
@@ -161,6 +161,36 @@ func (m *MemoryMonitor) SampleOnce(ctx context.Context) error {
 	}
 	evidence := EvaluateMemoryPressure(sample, m.cfg.Policy, m.cfg.Owner(), m.cfg.Now())
 	return m.writeEvidence(ctx, evidence)
+}
+
+func memoryPressureErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := strings.TrimSpace(err.Error())
+	if msg == "" {
+		return ""
+	}
+	lower := strings.ToLower(msg)
+	compact := compactMemorySecretSeparators(lower)
+	for _, marker := range []string{"api_key", "apikey", "authorization", "bearer", "secret", "password", "token="} {
+		if strings.Contains(lower, marker) || strings.Contains(compact, marker) {
+			return "[redacted]"
+		}
+	}
+	replacer := strings.NewReplacer("`", "'", "*", "'", "#", "＃")
+	return strings.Join(strings.Fields(replacer.Replace(msg)), " ")
+}
+
+func compactMemorySecretSeparators(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func (m *MemoryMonitor) writeEvidence(ctx context.Context, evidence RuntimeMemoryPressureEvidence) error {

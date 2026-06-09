@@ -36,12 +36,42 @@ func (m *Manager) handleUsageCommand(ctx context.Context, ch Channel, ev Inbound
 	}
 	snapshot, err := m.cfg.AccountUsage(ctx, ev)
 	if err != nil {
-		lines = append(lines, "Provider: unavailable", "Usage unavailable: "+err.Error())
+		lines = append(lines, "Provider: unavailable", "Usage unavailable: "+usageErrorText(err))
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, strings.Join(lines, "\n"))
 		return
 	}
 	lines = append(lines, llm.RenderAccountUsageLines(snapshot, llm.AccountUsageRenderOptions{})...)
 	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, strings.Join(lines, "\n"))
+}
+
+func usageErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := strings.TrimSpace(err.Error())
+	if msg == "" {
+		return ""
+	}
+	lower := strings.ToLower(msg)
+	compact := compactUsageSecretSeparators(lower)
+	for _, marker := range []string{"token", "api_key", "apikey", "authorization", "bearer", "secret", "password"} {
+		if strings.Contains(lower, marker) || strings.Contains(compact, marker) {
+			return "[redacted]"
+		}
+	}
+	replacer := strings.NewReplacer("`", "'", "*", "'", "#", "＃")
+	return strings.Join(strings.Fields(replacer.Replace(msg)), " ")
+}
+
+func compactUsageSecretSeparators(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func (m *Manager) rememberUsageFrame(f kernel.RenderFrame) {

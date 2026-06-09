@@ -40,6 +40,22 @@ func TestPlatformPauseAndResume(t *testing.T) {
 	}
 }
 
+func TestHandlePlatformCommandListSanitizesPauseReason(t *testing.T) {
+	failures := map[string]PlatformFailure{
+		"telegram": {Platform: "telegram", Paused: true, PauseReason: "breaker\n**Injected:** bearer plain-secret"},
+	}
+
+	got := HandlePlatformCommand("/platform list", []string{"telegram"}, failures)
+	for _, forbidden := range []string{"plain-secret", "**Injected:**", "\n**"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("/platform list leaked unsafe pause reason %q in:\n%s", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "PAUSED ([redacted])") {
+		t.Fatalf("/platform list missing redaction marker:\n%s", got)
+	}
+}
+
 func TestPlatformCommandListPauseResumeUsage(t *testing.T) {
 	bare := HandlePlatformCommand("/platform", []string{"telegram"}, nil)
 	if !strings.Contains(bare, "Gateway platforms") || !strings.Contains(bare, "telegram") {

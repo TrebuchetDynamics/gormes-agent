@@ -22,6 +22,7 @@ func TestPrivateChatTelegramOnly(t *testing.T) {
 		want            bool
 	}{
 		{name: "telegram explicit dm", platform: "telegram", isDirectMessage: true, chatType: "private", chatID: "42", want: true},
+		{name: "telegram capitalized private chat type", platform: "telegram", chatType: " Private ", chatID: "42", want: true},
 		{name: "telegram legacy positive chat id", platform: "telegram", chatID: "42", want: true},
 		{name: "telegram legacy negative group id", platform: "telegram", chatID: "-42", want: false},
 		{name: "telegram explicit group", platform: "telegram", chatType: "group", chatID: "42", want: false},
@@ -36,6 +37,29 @@ func TestPrivateChatTelegramOnly(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCapabilityGuidanceRedactsSecretLikeReason(t *testing.T) {
+	got := CapabilityGuidance("BotFather check failed: api_key=plain-secret-token")
+	if strings.Contains(got, "plain-secret-token") || strings.Contains(got, "api_key") {
+		t.Fatalf("CapabilityGuidance leaked secret-like reason:\n%s", got)
+	}
+	if !strings.Contains(got, "[redacted]") {
+		t.Fatalf("CapabilityGuidance missing redaction marker:\n%s", got)
+	}
+}
+
+func TestCapabilityGuidanceSanitizesReasonLine(t *testing.T) {
+	got := CapabilityGuidance("Topics disabled\n**Injected:** fake guidance` ")
+	for _, forbidden := range []string{"\n**Injected:**", "guidance`"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("CapabilityGuidance leaked unsafe reason %q in:\n%s", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "Topics disabled ''Injected:'' fake guidance'") {
+		t.Fatalf("CapabilityGuidance missing sanitized reason in:\n%s", got)
+	}
+	gatewaytest.AssertContainsAll(t, got, "Open @BotFather", "Then send /topic again")
 }
 
 func TestGuidanceText(t *testing.T) {

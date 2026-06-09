@@ -39,7 +39,9 @@ func (d Directory) Resolve(platform, query string) (gatewaydelivery.Target, mode
 
 func exactNameMatches(platform string, entries []model.Entry, normalized string) []model.Entry {
 	return collectMatches(entries, func(entry model.Entry) bool {
-		return model.NormalizeQuery(entry.Name) == normalized || model.NormalizeQuery(model.TargetDisplayName(platform, entry)) == normalized
+		return model.NormalizeQuery(entry.Name) == normalized ||
+			model.NormalizeQuery(model.TargetDisplayName(platform, entry)) == normalized ||
+			model.NormalizeQuery(displayDirectoryText(model.TargetDisplayName(platform, entry))) == normalized
 	})
 }
 
@@ -55,13 +57,18 @@ func guildQualifiedQueryParts(raw string) (guildPart, channelPart string, ok boo
 
 func guildQualifiedMatches(entries []model.Entry, guildPart, channelPart string) []model.Entry {
 	return collectMatches(entries, func(entry model.Entry) bool {
-		return model.NormalizeGuildQuery(model.EntryGuild(entry)) == guildPart && model.NormalizeQuery(entry.Name) == channelPart
+		guildMatches := model.NormalizeGuildQuery(model.EntryGuild(entry)) == guildPart ||
+			model.NormalizeGuildQuery(displayDirectoryText(model.EntryGuild(entry))) == guildPart
+		channelMatches := model.NormalizeQuery(entry.Name) == channelPart ||
+			model.NormalizeQuery(displayDirectoryText(entry.Name)) == channelPart
+		return guildMatches && channelMatches
 	})
 }
 
 func prefixNameMatches(entries []model.Entry, normalized string) []model.Entry {
 	return collectMatches(entries, func(entry model.Entry) bool {
-		return strings.HasPrefix(model.NormalizeQuery(entry.Name), normalized)
+		return strings.HasPrefix(model.NormalizeQuery(entry.Name), normalized) ||
+			strings.HasPrefix(model.NormalizeQuery(displayDirectoryText(entry.Name)), normalized)
 	})
 }
 

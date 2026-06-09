@@ -5,6 +5,18 @@ import (
 	"testing"
 )
 
+func TestSplitOutboundTextDoesNotCreateDanglingEscapeAtTinyLimit(t *testing.T) {
+	chunks := splitOutboundText(`\_x`, 1)
+	if len(chunks) < 2 {
+		t.Fatalf("splitOutboundText() len = %d, want multiple chunks", len(chunks))
+	}
+	for i, chunk := range chunks[:len(chunks)-1] {
+		if hasDanglingMarkdownEscape(chunk) {
+			t.Fatalf("splitOutboundText() chunk %d ends with dangling escape: %q; chunks=%q", i, chunk, chunks)
+		}
+	}
+}
+
 func TestSplitOutboundTextDoesNotCreateDanglingMarkdownEscape(t *testing.T) {
 	chunks := splitOutboundText(strings.Repeat("\\", 7)+"done", 4)
 	if len(chunks) < 2 {

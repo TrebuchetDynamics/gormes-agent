@@ -10,6 +10,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/commandline"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
@@ -72,8 +73,12 @@ func defaultSkillsCommandOptions() SkillsCommandOptions {
 // evidence.
 func HandleSkillsCommandWithOptions(ctx context.Context, body string, opts SkillsCommandOptions) string {
 	text := strings.TrimSpace(body)
-	text = strings.TrimPrefix(text, "/skills")
-	text = strings.TrimSpace(text)
+	if payload, ok := commandline.PayloadIfCommand(text, "skills"); ok {
+		text = payload
+	} else {
+		text = strings.TrimPrefix(text, "/skills")
+		text = strings.TrimSpace(text)
+	}
 
 	parts := strings.Fields(text)
 	if len(parts) == 0 {
@@ -96,11 +101,11 @@ func HandleSkillsCommandWithOptions(ctx context.Context, body string, opts Skill
 	case "install":
 		return handleSkillsInstall(ctx, parts[1:], opts)
 	case "edit", "disable", "review":
-		return renderSkillsManageUnavailable(subcommand)
+		return renderSkillsManageUnavailable(subcommand, opts)
 	case "help":
 		return renderSkillsHelp()
 	default:
-		return fmt.Sprintf("Unknown /skills subcommand: %q. Try /skills list, /skills inspect <name>, /skills search <query>, or /skills browse\n", subcommand)
+		return fmt.Sprintf("Unknown /skills subcommand: %q. Try /skills list, /skills inspect <name>, /skills search <query>, or /skills browse\n", sanitizeSkillCommandText(subcommand, opts))
 	}
 }
 
@@ -135,11 +140,11 @@ func handleSkillsList(args []string, opts SkillsCommandOptions) string {
 			category = "-"
 		}
 		b.WriteString(fmt.Sprintf("%s  %s  %s  %s  %s\n",
-			row.Name,
-			category,
-			row.Source,
-			row.Trust,
-			status,
+			sanitizeSkillCommandText(row.Name, opts),
+			sanitizeSkillCommandText(category, opts),
+			sanitizeSkillCommandText(row.Source, opts),
+			sanitizeSkillCommandText(row.Trust, opts),
+			sanitizeSkillCommandText(status, opts),
 		))
 	}
 
@@ -208,7 +213,7 @@ func handleSkillsInspect(name string, opts SkillsCommandOptions) string {
 	}
 
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Skill: %s\n", found.Name))
+	b.WriteString(fmt.Sprintf("Skill: %s\n", sanitizeSkillCommandText(found.Name, opts)))
 
 	// Try to read the skill file for more details
 	path := found.Path
@@ -219,14 +224,14 @@ func handleSkillsInspect(name string, opts SkillsCommandOptions) string {
 			// Try to parse frontmatter
 			skill, err := skills.Parse(raw, skills.DefaultMaxDocumentBytes)
 			if err == nil {
-				b.WriteString(fmt.Sprintf("Description: %s\n", skill.Description))
+				b.WriteString(fmt.Sprintf("Description: %s\n", sanitizeSkillCommandText(skill.Description, opts)))
 				if len(skill.HermesTags) > 0 {
-					b.WriteString(fmt.Sprintf("Tags: %s\n", strings.Join(skill.HermesTags, ", ")))
+					b.WriteString(fmt.Sprintf("Tags: %s\n", sanitizeSkillCommandText(strings.Join(skill.HermesTags, ", "), opts)))
 				}
 				if len(skill.RelatedSkills) > 0 {
-					b.WriteString(fmt.Sprintf("Related: %s\n", strings.Join(skill.RelatedSkills, ", ")))
+					b.WriteString(fmt.Sprintf("Related: %s\n", sanitizeSkillCommandText(strings.Join(skill.RelatedSkills, ", "), opts)))
 				}
-				preview := buildSkillBodyPreview(skill.Body, skillInspectBodyPreviewRunes)
+				preview := buildSkillBodyPreview(skill.Body, skillInspectBodyPreviewRunes, opts)
 				b.WriteString(fmt.Sprintf("\n---\n%s\n", preview.Text))
 				if preview.MoreRunes > 0 {
 					b.WriteString(fmt.Sprintf("\n... (%d more characters)", preview.MoreRunes))
@@ -239,9 +244,9 @@ func handleSkillsInspect(name string, opts SkillsCommandOptions) string {
 		}
 	}
 
-	b.WriteString(fmt.Sprintf("\nSource: %s\n", found.Source))
-	b.WriteString(fmt.Sprintf("Trust: %s\n", found.Trust))
-	b.WriteString(fmt.Sprintf("Status: %s\n", found.Status))
+	b.WriteString(fmt.Sprintf("\nSource: %s\n", sanitizeSkillCommandText(found.Source, opts)))
+	b.WriteString(fmt.Sprintf("Trust: %s\n", sanitizeSkillCommandText(found.Trust, opts)))
+	b.WriteString(fmt.Sprintf("Status: %s\n", sanitizeSkillCommandText(string(found.Status), opts)))
 
 	return b.String()
 }
@@ -355,8 +360,8 @@ func renderHubRows(b *strings.Builder, rows []skills.HubSearchResult, opts Skill
 	}
 }
 
-func renderSkillsManageUnavailable(action string) string {
-	return fmt.Sprintf("skills_manage_unavailable: /skills %s is row 6.F read-only in this build; mutating skills.manage actions are unavailable, and no skill store was changed.\n", action)
+func renderSkillsManageUnavailable(action string, opts SkillsCommandOptions) string {
+	return fmt.Sprintf("skills_manage_unavailable: /skills %s is row 6.F read-only in this build; mutating skills.manage actions are unavailable, and no skill store was changed.\n", sanitizeSkillCommandText(action, opts))
 }
 
 func renderSkillsHelp() string {
@@ -474,8 +479,8 @@ type skillBodyPreview struct {
 	MoreRunes int
 }
 
-func buildSkillBodyPreview(body string, limit int) skillBodyPreview {
-	trimmed := strings.TrimSpace(body)
+func buildSkillBodyPreview(body string, limit int, opts SkillsCommandOptions) skillBodyPreview {
+	trimmed := sanitizeSkillCommandTextWithLimit(body, opts, -1)
 	if limit <= 0 {
 		return skillBodyPreview{MoreRunes: utf8RuneCount(trimmed)}
 	}
@@ -494,7 +499,17 @@ func utf8RuneCount(s string) int {
 }
 
 func sanitizeSkillCommandText(text string, opts SkillsCommandOptions) string {
+	return sanitizeSkillCommandTextWithLimit(text, opts, skillsCommandMaxDescriptionRunes(opts))
+}
+
+func sanitizeSkillCommandTextWithLimit(text string, opts SkillsCommandOptions, limit int) string {
 	cleaned := redaction.RedactSecrets(strings.TrimSpace(text))
+	replacer := strings.NewReplacer(
+		"`", "'",
+		"*", "'",
+		"#", "＃",
+	)
+	cleaned = replacer.Replace(cleaned)
 	cleaned = strings.ReplaceAll(cleaned, "\r", " ")
 	cleaned = strings.ReplaceAll(cleaned, "\n", " ")
 	fields := strings.Fields(cleaned)
@@ -505,7 +520,6 @@ func sanitizeSkillCommandText(text string, opts SkillsCommandOptions) string {
 		}
 	}
 	cleaned = strings.Join(fields, " ")
-	limit := skillsCommandMaxDescriptionRunes(opts)
 	if limit > 0 {
 		runes := []rune(cleaned)
 		if len(runes) > limit {

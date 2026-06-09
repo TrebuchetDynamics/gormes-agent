@@ -38,7 +38,7 @@ func TestAgentTemplateDefaultFilesMatchLiveTurnLookup(t *testing.T) {
 	if soul := got["SOUL.md"].Content; !strings.HasPrefix(soul, llm.DefaultSoulMD) {
 		t.Fatalf("SOUL.md template must start with llm.DefaultSoulMD\n--- got ---\n%s\n--- want prefix ---\n%s", soul, llm.DefaultSoulMD)
 	}
-	if soul := got["SOUL.md"].Content; !strings.Contains(soul, "You are Gorm,") || !strings.Contains(soul, "run by gormes") || !strings.Contains(soul, "helpful, knowledgeable, and direct") {
+	if soul := got["SOUL.md"].Content; !strings.Contains(soul, "You are Gorm by default") || !strings.Contains(soul, "run by gormes") || !strings.Contains(soul, "helpful, knowledgeable, and direct") {
 		t.Fatalf("SOUL.md template does not carry the Hermes-derived persona defaults:\n%s", soul)
 	}
 }
@@ -371,7 +371,7 @@ func TestAgentTemplateApplyForceOverwritesExisting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read SOUL.md: %v", err)
 	}
-	if strings.Contains(string(body), "custom persona") || !strings.Contains(string(body), "You are Gorm,") {
+	if strings.Contains(string(body), "custom persona") || !strings.Contains(string(body), "You are Gorm by default") {
 		t.Fatalf("SOUL.md was not overwritten with the default template:\n%s", body)
 	}
 }

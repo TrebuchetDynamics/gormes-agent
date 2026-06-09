@@ -3,6 +3,7 @@ package slashconfirm
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -50,6 +51,62 @@ func TestQueueRegisterSupersedesAndClearScoped(t *testing.T) {
 	}
 }
 
+func TestQueueRedactsSecretLikeRequestMetadata(t *testing.T) {
+	q := NewQueue()
+	ticket, err := q.RegisterSlashConfirmation("session-a", Request{
+		Command:     "reload-mcp --token=plain-secret-token",
+		Description: "reload with api_key=description-secret",
+		Evidence:    map[string]string{"token": "evidence-secret", "source": "operator password=evidence-password"},
+	})
+	if err != nil {
+		t.Fatalf("RegisterSlashConfirmation: %v", err)
+	}
+	pending, ok := q.PendingSlashConfirmation("session-a")
+	if !ok {
+		t.Fatal("pending confirmation missing")
+	}
+	outcome, err := q.ResolveSlashConfirmation(context.Background(), Resolution{SessionKey: "session-a", ID: ticket.ID, Choice: ChoiceOnce})
+	if err != nil {
+		t.Fatalf("ResolveSlashConfirmation: %v", err)
+	}
+	for label, req := range map[string]Request{"pending": pending.Request, "outcome": outcome.Request} {
+		combined := req.Command + "\n" + req.Description
+		for key, value := range req.Evidence {
+			combined += "\n" + key + "=" + value
+		}
+		for _, forbidden := range []string{"plain-secret-token", "description-secret", "evidence-secret", "evidence-password", "--token", "api_key", "password="} {
+			if strings.Contains(combined, forbidden) {
+				t.Fatalf("%s request leaked secret-like metadata %q in:\n%s", label, forbidden, combined)
+			}
+		}
+		if !strings.Contains(combined, "[redacted]") {
+			t.Fatalf("%s request missing redacted evidence in:\n%s", label, combined)
+		}
+	}
+}
+
+func TestQueueNormalizesRequestMetadata(t *testing.T) {
+	q := NewQueue()
+	ticket, err := q.RegisterSlashConfirmation("session-a", Request{
+		Command:     " reload-mcp ",
+		Description: " reload servers ",
+		Evidence:    map[string]string{" source ": " prompt "},
+	})
+	if err != nil {
+		t.Fatalf("RegisterSlashConfirmation: %v", err)
+	}
+	outcome, err := q.ResolveSlashConfirmation(context.Background(), Resolution{SessionKey: "session-a", ID: ticket.ID, Choice: ChoiceOnce})
+	if err != nil {
+		t.Fatalf("ResolveSlashConfirmation: %v", err)
+	}
+	if outcome.Request.Command != "reload-mcp" || outcome.Request.Description != "reload servers" || outcome.Request.Evidence["source"] != "prompt" {
+		t.Fatalf("outcome request = %+v, want trimmed metadata", outcome.Request)
+	}
+	if _, ok := outcome.Request.Evidence[" source "]; ok {
+		t.Fatalf("outcome evidence kept untrimmed key: %+v", outcome.Request.Evidence)
+	}
+}
+
 func TestQueueClonesRequestEvidence(t *testing.T) {
 	q := NewQueue()
 	evidence := map[string]string{"source": "original"}
@@ -71,6 +128,62 @@ func TestQueueClonesRequestEvidence(t *testing.T) {
 	}
 	if got := outcome.Request.Evidence["source"]; got != "original" {
 		t.Fatalf("outcome evidence source = %q, want original", got)
+	}
+}
+
+func TestQueueOutcomeLookupTrimsTicketSessionKey(t *testing.T) {
+	q := NewQueue()
+	ticket, err := q.RegisterSlashConfirmation("session-a", Request{Command: "reload-mcp"})
+	if err != nil {
+		t.Fatalf("RegisterSlashConfirmation: %v", err)
+	}
+	if _, err := q.ResolveSlashConfirmation(context.Background(), Resolution{SessionKey: "session-a", ID: ticket.ID, Choice: ChoiceOnce}); err != nil {
+		t.Fatalf("ResolveSlashConfirmation: %v", err)
+	}
+
+	lookup := Ticket{SessionKey: " session-a ", ID: ticket.ID}
+	outcome, ok := q.SlashConfirmationOutcome(lookup)
+	if !ok {
+		t.Fatalf("SlashConfirmationOutcome(%+v) missing; want canonical session lookup", lookup)
+	}
+	if outcome.Ticket.SessionKey != "session-a" {
+		t.Fatalf("outcome ticket session = %q, want canonical session-a", outcome.Ticket.SessionKey)
+	}
+}
+
+func TestQueueResolveAllowsNilContext(t *testing.T) {
+	q := NewQueue()
+	ticket, err := q.RegisterSlashConfirmation("session-a", Request{Command: "reload-mcp"})
+	if err != nil {
+		t.Fatalf("RegisterSlashConfirmation: %v", err)
+	}
+	outcome, err := q.ResolveSlashConfirmation(nil, Resolution{SessionKey: "session-a", ID: ticket.ID, Choice: ChoiceOnce})
+	if err != nil {
+		t.Fatalf("ResolveSlashConfirmation nil context: %v", err)
+	}
+	if outcome.Ticket != ticket || outcome.Choice != ChoiceOnce {
+		t.Fatalf("outcome = %+v, want resolved ticket %+v", outcome, ticket)
+	}
+}
+
+func TestQueueResolveHonorsCanceledContextWithoutMutating(t *testing.T) {
+	q := NewQueue()
+	ticket, err := q.RegisterSlashConfirmation("session-a", Request{Command: "reload-mcp"})
+	if err != nil {
+		t.Fatalf("RegisterSlashConfirmation: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err = q.ResolveSlashConfirmation(ctx, Resolution{SessionKey: "session-a", ID: ticket.ID, Choice: ChoiceOnce})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ResolveSlashConfirmation canceled error = %v, want context.Canceled", err)
+	}
+	if _, ok := q.PendingSlashConfirmation("session-a"); !ok {
+		t.Fatal("canceled resolve cleared pending confirmation; want no mutation")
+	}
+	if _, ok := q.SlashConfirmationOutcome(ticket); ok {
+		t.Fatal("canceled resolve recorded outcome; want no mutation")
 	}
 }
 

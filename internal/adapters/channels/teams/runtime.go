@@ -253,6 +253,8 @@ func (c *Channel) SendExecApproval(ctx context.Context, chatID string, req Appro
 	if c.client == nil {
 		return "", errors.New("teams_client_unavailable")
 	}
+	req.Command = sanitizeTeamsApprovalText(req.Command)
+	req.Description = sanitizeTeamsApprovalText(req.Description)
 	card := ApprovalCard{
 		Title:          "Command Approval Required",
 		CommandPreview: bounded(req.Command, 2000),
@@ -305,9 +307,10 @@ func (c *Channel) approvalClickAllowed(action ApprovalAction) bool {
 	if c.cfg.AllowAllUsers || len(c.cfg.AllowedUsers) == 0 {
 		return true
 	}
-	clicker := firstNonEmpty(action.ClickerAADID, action.ClickerID)
+	clicker := strings.TrimSpace(firstNonEmpty(action.ClickerAADID, action.ClickerID))
 	for _, allowed := range c.cfg.AllowedUsers {
-		if strings.TrimSpace(allowed) == "*" || strings.TrimSpace(allowed) == clicker {
+		allowed = strings.TrimSpace(allowed)
+		if allowed == "*" || strings.EqualFold(allowed, clicker) {
 			return true
 		}
 	}
@@ -316,11 +319,21 @@ func (c *Channel) approvalClickAllowed(action ApprovalAction) bool {
 
 func approvalData(req ApprovalRequest, action string) map[string]string {
 	return map[string]string{
-		"session_key":   req.SessionKey,
-		"cmd":           bounded(req.Command, 200),
-		"desc":          req.Description,
+		"session_key":   strings.TrimSpace(req.SessionKey),
+		"cmd":           bounded(sanitizeTeamsApprovalText(req.Command), 200),
+		"desc":          sanitizeTeamsApprovalText(req.Description),
 		"hermes_action": action,
 	}
+}
+
+func sanitizeTeamsApprovalText(value string) string {
+	replacer := strings.NewReplacer(
+		"`", "'",
+		"*", "'",
+		"[", "(",
+		"]", ")",
+	)
+	return strings.Join(strings.Fields(replacer.Replace(value)), " ")
 }
 
 func mapApprovalChoice(action string) (string, bool) {

@@ -49,6 +49,10 @@ func (c *ReloadableHermesClient) Health(ctx context.Context) error {
 	return current.Health(ctx)
 }
 
+func (c *ReloadableHermesClient) ProviderStatus() llm.ProviderStatus {
+	return llm.ProviderStatusOf(c.get())
+}
+
 func (c *ReloadableHermesClient) get() llm.Client {
 	c.mu.RLock()
 	defer c.mu.RUnlock()

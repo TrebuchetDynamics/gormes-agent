@@ -38,6 +38,17 @@ func TestAgentRouter_MostSpecificBindingWins(t *testing.T) {
 	}
 }
 
+func TestAgentRouteDecisionSessionKeyAvoidsDelimiterCollisions(t *testing.T) {
+	first := AgentRouteDecision{AgentID: "a:b", MainKey: "c"}.SessionKey()
+	second := AgentRouteDecision{AgentID: "a", MainKey: "b:c"}.SessionKey()
+	if first == second {
+		t.Fatalf("SessionKey collision for delimiter-bearing agent/main keys: %q", first)
+	}
+	if got := (AgentRouteDecision{AgentID: "alerts", MainKey: "telegram:42"}).SessionKey(); got != "agent:alerts:telegram:42" {
+		t.Fatalf("normal SessionKey = %q, want legacy-readable key", got)
+	}
+}
+
 func TestAgentRouter_SnapshotsMutableInputs(t *testing.T) {
 	agents := config.AgentsCfg{List: []config.AgentCfg{
 		{ID: "main", Default: true, Skills: []string{"main-skill"}, Tools: config.AgentToolPolicy{Allow: []string{"echo"}}},

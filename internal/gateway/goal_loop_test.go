@@ -130,6 +130,78 @@ func TestGatewayGoalCommandQueuesInitialTurn(t *testing.T) {
 	}
 }
 
+func TestGatewayGoalCommandSetSanitizesMetadataErrors(t *testing.T) {
+	ctx := context.Background()
+	base := session.NewMemMap()
+	if err := base.Put(ctx, "telegram:42", "sess-goal-fail"); err != nil {
+		t.Fatalf("seed session map: %v", err)
+	}
+	smap := failingTitleSessionMap{MemMap: base, err: errors.New("metadata failed\n**Injected:** bearer plain-secret")}
+	tg := newFakeChannel("telegram")
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		GoalMaxTurns: 4,
+	}, &fakeKernel{}, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", UserID: "u1", MsgID: "m1", Kind: EventSubmit, Text: "/goal ship it"}); err != nil {
+		t.Fatalf("handleInbound: %v", err)
+	}
+
+	got := tg.sentSnapshot()[0].Text
+	for _, forbidden := range []string{"plain-secret", "**Injected:**", "\n**"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("goal metadata error leaked unsafe text %q in:\n%s", forbidden, got)
+		}
+	}
+	if got != "goal_metadata_unavailable: [redacted]" {
+		t.Fatalf("goal metadata error reply = %q, want redacted", got)
+	}
+}
+
+func TestGatewayGoalCommandSetSanitizesConfirmation(t *testing.T) {
+	tg := newFakeChannel("telegram")
+	fk := &fakeKernel{}
+	smap := session.NewMemMap()
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		GoalMaxTurns: 4,
+	}, fk, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = m.Run(ctx)
+	}()
+	defer stopManagerTestRun(t, cancel, done)
+
+	unsafeGoal := "ship it\n**Injected:** token=plain-secret"
+	tg.pushInbound(InboundEvent{Platform: "telegram", ChatID: "42", UserID: "u1", MsgID: "m1", Kind: EventSubmit, Text: "/goal " + unsafeGoal})
+
+	waitFor(t, 200*time.Millisecond, func() bool { return sentTextContains(tg, "Goal set") })
+	got := tg.sentSnapshot()[0].Text
+	for _, forbidden := range []string{"plain-secret", "**Injected:**", "\n**"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("goal confirmation leaked unsafe text %q in:\n%s", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "⊙ Goal set (4-turn budget): [redacted]") {
+		t.Fatalf("goal confirmation missing sanitized marker:\n%s", got)
+	}
+	if submitted := fk.submitsSnapshot()[0].Text; submitted != unsafeGoal {
+		t.Fatalf("submitted goal text = %q, want raw goal preserved", submitted)
+	}
+}
+
 func TestGatewayGoalPostTurnContinuationBudget(t *testing.T) {
 	t.Run("continue queues one bounded continuation", func(t *testing.T) {
 		tg, fk, render, smap, _, cleanup := newGoalLoopHarness(t, &stubGoalJudge{

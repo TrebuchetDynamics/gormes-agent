@@ -28,6 +28,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/sessiontree"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/skillsslash"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/skin"
+	uislash "github.com/TrebuchetDynamics/gormes-agent/internal/tui/slash"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/slashcompletion"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/statusbar"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/statuspage"
@@ -36,15 +37,13 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/toolsview"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/usagepage"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/voice"
+	tea "github.com/charmbracelet/bubbletea"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
-	tea "github.com/charmbracelet/bubbletea"
 	"time"
-	uislash "github.com/TrebuchetDynamics/gormes-agent/internal/tui/slash"
 )
-
-
 
 // SlashResult is the typed return value of a SlashHandler. It tells Update
 // whether the input was consumed (Handled), what status line to show
@@ -212,6 +211,7 @@ func NewDefaultSlashRegistry() *SlashRegistry {
 	r.Register("branch", branchSlashHandler)
 	r.Register("copy", copySlashHandler)
 	r.Register("status", statusSlashHandler, WithBusyAvailable())
+	r.Register("profile", profileSlashHandler, WithBusyAvailable())
 	r.Register("statusbar", statusbarSlashHandler, WithBusyAvailable())
 	r.Register("sb", statusbarSlashHandler, WithBusyAvailable())
 	r.Register("browser", browserSlashHandler, WithBusyAvailable())
@@ -416,7 +416,6 @@ func redrawSlashHandler(_ string, model *Model) SlashResult {
 // shape, delegates the core logic to a sibling subpackage, and mutates model
 // state directly. Consolidating them here reduces root file count.
 
-
 // ─── /help ──────────────────────────────────────────────────────────────────
 
 func helpSlashHandler(_ string, _ *Model) SlashResult {
@@ -553,6 +552,83 @@ func statusSlashHandler(_ string, model *Model) SlashResult {
 
 func BuildStatusPage(frame kernel.RenderFrame, sessionID string) TransientPageState {
 	return statuspage.Build(frame, sessionID)
+}
+
+func knownProfileName(name string, profileNames []string) bool {
+	name = strings.TrimSpace(name)
+	for _, profile := range profileNames {
+		if strings.TrimSpace(profile) == name {
+			return true
+		}
+	}
+	return false
+}
+
+func profileAvailableSuffix(profileNames []string) string {
+	var names []string
+	seen := map[string]struct{}{}
+	for _, profile := range profileNames {
+		profile = strings.TrimSpace(profile)
+		if profile == "" || strings.EqualFold(profile, "default") {
+			continue
+		}
+		key := strings.ToLower(profile)
+		if _, dup := seen[key]; dup {
+			continue
+		}
+		seen[key] = struct{}{}
+		names = append(names, profile)
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	sort.Strings(names)
+	return " (available: " + strings.Join(names, ", ") + ")"
+}
+
+// ─── /profile ──────────────────────────────────────────────────────────────
+
+func profileSlashHandler(input string, model *Model) SlashResult {
+	if model == nil {
+		return SlashResult{Handled: true, StatusMessage: "profile: TUI unavailable"}
+	}
+	name := strings.TrimSpace(slashInvocationArgs(input))
+	current := strings.TrimSpace(model.profileName)
+	if name == "" || strings.EqualFold(name, "show") {
+		if current == "" {
+			current = "unprofiled"
+		}
+		return SlashResult{Handled: true, StatusMessage: "profile: " + current}
+	}
+	if err := cli.ValidateProfileName(name); err != nil {
+		return SlashResult{Handled: true, StatusMessage: "profile_name_invalid: " + err.Error()}
+	}
+	if !knownProfileName(name, model.profileNames) {
+		return SlashResult{Handled: true, StatusMessage: "profile_unknown: " + name + profileAvailableSuffix(model.profileNames)}
+	}
+	if current != "" && strings.EqualFold(name, current) {
+		return SlashResult{Handled: true, StatusMessage: "profile: already using " + current}
+	}
+	baseHome := strings.TrimSpace(model.profileBaseHome)
+	if baseHome == "" {
+		return SlashResult{Handled: true, StatusMessage: "profile: base home unavailable; run `gormes --profile " + name + "`"}
+	}
+	if err := cli.WriteActiveProfile(filepath.Join(baseHome, "active_profile"), name); err != nil {
+		return SlashResult{Handled: true, StatusMessage: "profile: switch failed: " + err.Error()}
+	}
+	model.applyProfileLabel(name)
+	return SlashResult{Handled: true, StatusMessage: "profile: " + name + " (current UI label; restart to reload profile state)"}
+}
+
+func (m *Model) applyProfileLabel(name string) {
+	name = strings.TrimSpace(name)
+	m.profileName = name
+	promptName := name
+	if promptName == "" {
+		promptName = "default"
+	}
+	prompt, _ := m.currentSkin().PromptSymbols(promptName)
+	m.editor.Prompt = prompt
 }
 
 // ─── /title ─────────────────────────────────────────────────────────────────
@@ -1169,8 +1245,6 @@ func statusBarSlashNext(input string, current StatusBarMode) (StatusBarMode, boo
 	return statusbar.SlashNext(input, current)
 }
 
-
-
 // SlashCompletion is one entry in a slash-completion menu. It carries enough
 // metadata for a downstream Bubble Tea menu binding to render canonical
 // commands, their aliases, recognized-but-unavailable commands, and static
@@ -1251,11 +1325,41 @@ func HermesSlashSubcommandCompletions(input string) []SlashCompletion {
 	return slashcompletion.SubcommandCompletions(input)
 }
 
+func ProfileNameCompletions(input string, profileNames []string) []SlashCompletion {
+	fields := strings.Fields(strings.TrimSpace(input))
+	if len(fields) == 0 || !strings.EqualFold(fields[0], "/profile") || len(fields) > 2 {
+		return nil
+	}
+	prefix := ""
+	if len(fields) == 2 {
+		prefix = strings.ToLower(fields[1])
+	}
+	seen := map[string]struct{}{}
+	var out []SlashCompletion
+	for _, name := range profileNames {
+		name = strings.TrimSpace(name)
+		if name == "" || strings.EqualFold(name, "default") {
+			continue
+		}
+		key := strings.ToLower(name)
+		if _, dup := seen[key]; dup {
+			continue
+		}
+		seen[key] = struct{}{}
+		if prefix != "" && !strings.HasPrefix(key, prefix) {
+			continue
+		}
+		out = append(out, SlashCompletion{Name: name, Display: name, Description: "switch active profile on next launch", Available: true})
+	}
+	sort.Slice(out, func(i, j int) bool { return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name) })
+	return out
+}
+
 func (m Model) renderActiveSlashCompletionMenu(input string) string {
 	if m.slashCompletion.dismissedFor == input {
 		return ""
 	}
-	menu, ok := slashCompletionMenuForInput(input, m.width, m.skillSlashCommands, m.promptTemplates)
+	menu, ok := slashCompletionMenuForInput(input, m.width, m.skillSlashCommands, m.promptTemplates, m.profileNames)
 	if !ok {
 		return ""
 	}
@@ -1263,7 +1367,7 @@ func (m Model) renderActiveSlashCompletionMenu(input string) string {
 	if m.slashCompletion.key == menu.key {
 		selected = clampSlashCompletionIndex(m.slashCompletion.index, len(menu.completions))
 	}
-	return renderSlashCompletionMenuWithDynamicSelected(input, m.width, m.currentSkin(), m.skillSlashCommands, m.promptTemplates, selected)
+	return renderSlashCompletionMenuWithDynamicSelected(input, m.width, m.currentSkin(), m.skillSlashCommands, m.promptTemplates, m.profileNames, selected)
 }
 
 func (m *Model) activeSlashCompletionMenu() (slashCompletionMenu, bool) {
@@ -1271,7 +1375,7 @@ func (m *Model) activeSlashCompletionMenu() (slashCompletionMenu, bool) {
 	if m.slashCompletion.dismissedFor == input {
 		return slashCompletionMenu{}, false
 	}
-	return slashCompletionMenuForInput(input, m.width, m.skillSlashCommands, m.promptTemplates)
+	return slashCompletionMenuForInput(input, m.width, m.skillSlashCommands, m.promptTemplates, m.profileNames)
 }
 
 func (m *Model) ensureSlashCompletionSelection(menu slashCompletionMenu) int {
@@ -1302,11 +1406,11 @@ func renderSlashCompletionMenuWithTemplates(input string, width int, skin Hermes
 }
 
 func renderSlashCompletionMenuWithDynamic(input string, width int, skin HermesSkin, commands []skills.SkillSlashCommand, catalog prompttemplates.Catalog) string {
-	return renderSlashCompletionMenuWithDynamicSelected(input, width, skin, commands, catalog, 0)
+	return renderSlashCompletionMenuWithDynamicSelected(input, width, skin, commands, catalog, nil, 0)
 }
 
-func renderSlashCompletionMenuWithDynamicSelected(input string, width int, skin HermesSkin, commands []skills.SkillSlashCommand, catalog prompttemplates.Catalog, selected int) string {
-	menu, ok := slashCompletionMenuForInput(input, width, commands, catalog)
+func renderSlashCompletionMenuWithDynamicSelected(input string, width int, skin HermesSkin, commands []skills.SkillSlashCommand, catalog prompttemplates.Catalog, profileNames []string, selected int) string {
+	menu, ok := slashCompletionMenuForInput(input, width, commands, catalog, profileNames)
 	if !ok {
 		return ""
 	}
@@ -1372,12 +1476,15 @@ func renderSlashCompletionMenuWithDynamicSelected(input string, width int, skin 
 	return strings.Join(lines, "\n")
 }
 
-func slashCompletionMenuForInput(input string, width int, commands []skills.SkillSlashCommand, catalog prompttemplates.Catalog) (slashCompletionMenu, bool) {
+func slashCompletionMenuForInput(input string, width int, commands []skills.SkillSlashCommand, catalog prompttemplates.Catalog, profileNames []string) (slashCompletionMenu, bool) {
 	req, ok := CompletionRequestForInput(input)
 	if !ok || req.Method != TUICompletionSlash {
 		return slashCompletionMenu{}, false
 	}
-	completions := HermesSlashSubcommandCompletions(input)
+	completions := ProfileNameCompletions(input, profileNames)
+	if len(completions) == 0 {
+		completions = HermesSlashSubcommandCompletions(input)
+	}
 	if len(completions) == 0 {
 		completions = SlashCompletionsWithDynamic(input, commands, catalog)
 	}
@@ -1447,7 +1554,25 @@ func wrapSlashCompletionIndex(index, delta, count int) int {
 }
 
 func slashCompletionAcceptedText(input string, completion SlashCompletion, trigger slashCompletionAcceptTrigger) (string, bool) {
+	if next, ok := acceptedProfileCompletionText(input, completion); ok {
+		return next, next != input
+	}
 	return slashcompletion.AcceptedText(input, completion, trigger == slashCompletionAcceptTab)
+}
+
+func acceptedProfileCompletionText(input string, completion SlashCompletion) (string, bool) {
+	fields := strings.Fields(strings.TrimSpace(input))
+	if len(fields) == 0 || !strings.EqualFold(fields[0], "/profile") || len(fields) > 2 {
+		return input, false
+	}
+	name := strings.TrimSpace(completion.Name)
+	if name == "" || strings.HasPrefix(name, "/") {
+		return input, false
+	}
+	if len(fields) == 2 && !strings.HasPrefix(strings.ToLower(name), strings.ToLower(fields[1])) {
+		return input, false
+	}
+	return "/profile " + name, true
 }
 
 func slashCompletionDisplay(c SlashCompletion) string {

@@ -31,6 +31,7 @@ type SetupCommandSeams struct {
 	RunSetupProvider               func(*cobra.Command, bool) error
 	RunProviderLiveTest            func(*cobra.Command) error
 	RunProviderAuth                func(*cobra.Command, string) error
+	RunProviderReauthenticate      func(*cobra.Command, string) error
 	DetectHermesMigrationSource    func() string
 	DetectOpenClawMigrationSource  func() string
 	RunFullWizard                  func(*cobra.Command, bool) error
@@ -157,6 +158,9 @@ func NewSetupCommand(seams SetupCommandSeams) *cobra.Command {
 	}
 	if seams.RunProviderAuth == nil {
 		seams.RunProviderAuth = func(*cobra.Command, string) error { return nil }
+	}
+	if seams.RunProviderReauthenticate == nil {
+		seams.RunProviderReauthenticate = seams.RunProviderAuth
 	}
 	if seams.DetectHermesMigrationSource == nil {
 		seams.DetectHermesMigrationSource = func() string { return "" }

@@ -84,8 +84,11 @@ func TestOneshotFinalOutput_PrintsOnlyFinalAssistantContent(t *testing.T) {
 	if len(req.Tools) != 0 {
 		t.Fatalf("ChatRequest.Tools length = %d, want no tools in output-boundary fixture", len(req.Tools))
 	}
-	if len(req.Messages) != 1 || req.Messages[0].Role != "user" || req.Messages[0].Content != "hi" {
-		t.Fatalf("ChatRequest.Messages = %#v, want one user prompt", req.Messages)
+	if len(req.Messages) != 2 || req.Messages[0].Role != "system" || req.Messages[1].Role != "user" || req.Messages[1].Content != "hi" {
+		t.Fatalf("ChatRequest.Messages = %#v, want identity system prompt then user prompt", req.Messages)
+	}
+	if !strings.Contains(req.Messages[0].Content, "You are Gorm") || !strings.Contains(req.Messages[0].Content, "run by gormes") {
+		t.Fatalf("identity system prompt = %q, want Gorm/Gormes identity", req.Messages[0].Content)
 	}
 }
 

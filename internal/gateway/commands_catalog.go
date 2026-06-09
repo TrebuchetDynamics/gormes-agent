@@ -64,6 +64,9 @@ func (m *Manager) enabledSkillPlatformCommands(ctx context.Context) []PlatformCo
 		if name == "" {
 			continue
 		}
+		if _, collides := ResolveCommand(name); collides {
+			continue
+		}
 		key := strings.ToLower(name)
 		if _, ok := seen[key]; ok {
 			continue

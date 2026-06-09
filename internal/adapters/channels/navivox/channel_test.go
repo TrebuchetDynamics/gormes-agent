@@ -1240,6 +1240,72 @@ func TestMergeProfileContact_PreservesLoaderHealth(t *testing.T) {
 	}
 }
 
+func TestNavivoxLocalCORSAllowsLoopbackBrowserOriginWithoutExplicitAllowlist(t *testing.T) {
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+
+	origin := "http://127.0.0.1:8767"
+	preflight, err := http.NewRequest(http.MethodOptions, server.URL+"/v1/navivox/status", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	preflight.Header.Set("Origin", origin)
+	preflightResp, err := http.DefaultClient.Do(preflight)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer preflightResp.Body.Close()
+	if preflightResp.StatusCode != http.StatusNoContent {
+		t.Fatalf("CORS preflight status = %d, want 204", preflightResp.StatusCode)
+	}
+	if got := preflightResp.Header.Get("Access-Control-Allow-Origin"); got != origin {
+		t.Fatalf("CORS Allow-Origin = %q, want %q", got, origin)
+	}
+}
+
+func TestNavivoxLocalCORSRejectsNonLoopbackBrowserOriginWithoutExplicitAllowlist(t *testing.T) {
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+
+	preflight, err := http.NewRequest(http.MethodOptions, server.URL+"/v1/navivox/status", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	preflight.Header.Set("Origin", "https://navivox.example")
+	preflightResp, err := http.DefaultClient.Do(preflight)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer preflightResp.Body.Close()
+	if preflightResp.StatusCode != http.StatusForbidden {
+		t.Fatalf("CORS preflight status = %d, want 403", preflightResp.StatusCode)
+	}
+}
+
 func TestNavivoxCORSPreflightAndActualRequest(t *testing.T) {
 	ch := newTestChannel(t)
 	inbox := make(chan gateway.InboundEvent, 1)

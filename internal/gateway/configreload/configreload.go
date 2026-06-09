@@ -22,12 +22,38 @@ func SanitizeError(err error) string {
 		return ""
 	}
 	lower := strings.ToLower(msg)
-	for _, hint := range []string{"api_key", "token", "authorization", "bearer ", "secret", "password"} {
+	compact := compactSecretSeparators(lower)
+	for _, hint := range []string{"api_key", "api key", "api-key", "token", "authorization", "bearer ", "secret", "password"} {
 		if strings.Contains(lower, hint) {
 			return "[redacted]"
 		}
 	}
-	return truncateUTF8ByBytes(msg, sanitizedErrorMaxBytes)
+	for _, hint := range []string{"apikey", "authorization", "bearer", "secret", "password", "token"} {
+		if strings.Contains(compact, hint) {
+			return "[redacted]"
+		}
+	}
+	return truncateUTF8ByBytes(renderOperatorErrorText(msg), sanitizedErrorMaxBytes)
+}
+
+func compactSecretSeparators(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func renderOperatorErrorText(msg string) string {
+	replacer := strings.NewReplacer(
+		"`", "'",
+		"*", "'",
+		"#", "＃",
+	)
+	return strings.Join(strings.Fields(replacer.Replace(msg)), " ")
 }
 
 func truncateUTF8ByBytes(msg string, maxBytes int) string {

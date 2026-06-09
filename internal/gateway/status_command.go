@@ -40,10 +40,10 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 	if meta, ok := m.lookupSessionMetadata(ctx, sessionID); ok {
 		title = strings.TrimSpace(meta.Title)
 		metadataTokens = meta.TokensInTotal + meta.TokensOutTotal
-		if meta.CreatedAt != 0 {
+		if meta.CreatedAt > 0 {
 			created = formatStatusTime(time.Unix(meta.CreatedAt, 0))
 		}
-		if meta.UpdatedAt != 0 {
+		if meta.UpdatedAt > 0 {
 			lastActivity = formatStatusTime(time.Unix(meta.UpdatedAt, 0))
 		}
 	}
@@ -73,7 +73,7 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 	lines := []string{
 		"📊 **Gormes Gateway Status**",
 		"",
-		"**Session ID:** `" + sessionID + "`",
+		"**Session ID:** `" + statusCodeValue(sessionID) + "`",
 		"**Title:** " + esc(title),
 		"**Created:** " + esc(created),
 		"**Last Activity:** " + esc(lastActivity),
@@ -85,8 +85,8 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 	}
 	if route.Enabled {
 		lines = append(lines,
-			"**Agent ID:** `"+strings.TrimSpace(route.Decision.AgentID)+"`",
-			"**Agent Binding:** `"+string(route.Decision.BindingTier)+"`",
+			"**Agent ID:** `"+statusCodeValue(route.Decision.AgentID)+"`",
+			"**Agent Binding:** `"+statusCodeValue(string(route.Decision.BindingTier))+"`",
 		)
 	}
 	if kanbanStatus, ok := m.kanbanDispatcherStatus(ctx); ok {
@@ -182,6 +182,11 @@ func statusCreatedAt(sessionID string) string {
 
 func formatStatusTime(t time.Time) string {
 	return t.Local().Format("2006-01-02 15:04")
+}
+
+func statusCodeValue(value string) string {
+	replacer := strings.NewReplacer("`", "'", "\\", "/")
+	return strings.Join(strings.Fields(replacer.Replace(strings.TrimSpace(value))), " ")
 }
 
 func formatStatusTokenTotal(tokens int) string {

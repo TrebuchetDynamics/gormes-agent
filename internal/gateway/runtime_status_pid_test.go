@@ -3,10 +3,43 @@ package gateway
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestRuntimeStatusReadPropagatesUnreadableStatusFile(t *testing.T) {
+	store := NewRuntimeStatusStore(t.TempDir())
+
+	status, err := store.ReadRuntimeStatus(context.Background())
+	if err == nil {
+		t.Fatalf("ReadRuntimeStatus err = nil status=%+v, want read error for directory status path", status)
+	}
+}
+
+func TestRuntimeStatusPIDRecordPropagatesUnreadablePath(t *testing.T) {
+	status, err := readRuntimeStatusRecord(t.TempDir())
+	if err == nil {
+		t.Fatalf("readRuntimeStatusRecord err = nil status=%+v, want read error for directory PID record path", status)
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("readRuntimeStatusRecord err = %v, must not mask unreadable PID record as missing", err)
+	}
+}
+
+func TestRuntimeStatusSnapshotPropagatesUnreadableStatusFile(t *testing.T) {
+	store := NewRuntimeStatusStore(t.TempDir())
+
+	snapshot, err := store.ReadRuntimeStatusSnapshot(context.Background())
+	if err == nil {
+		t.Fatalf("ReadRuntimeStatusSnapshot err = nil snapshot=%+v, want read error for directory status path", snapshot)
+	}
+	if snapshot.Missing {
+		t.Fatalf("ReadRuntimeStatusSnapshot snapshot=%+v, must not mask unreadable status as missing", snapshot)
+	}
+}
 
 func TestRuntimeStatusPIDValidation_ClassifiesPIDIdentityEvidence(t *testing.T) {
 	baseStatus := RuntimeStatus{
@@ -138,22 +171,60 @@ func TestRuntimeStatusPIDValidation_ClassifiesPIDIdentityEvidence(t *testing.T) 
 	}
 }
 
+func TestRuntimeStatusPIDValidation_RedactsCommandSecrets(t *testing.T) {
+	root := t.TempDir()
+	statusPath := filepath.Join(root, "gateway_state.json")
+	pidPath := filepath.Join(root, "gateway.pid")
+	status := RuntimeStatus{
+		Kind:         runtimeStatusKind,
+		PID:          4242,
+		StartTime:    100,
+		Generation:   7,
+		Command:      "gormes gateway --api-key=plain-secret-token",
+		Argv:         []string{"gormes", "gateway", "--api-key=plain-secret-token"},
+		GatewayState: GatewayStateRunning,
+	}
+	writeRuntimeStatusFixture(t, statusPath, status)
+	writeRuntimeStatusFixture(t, pidPath, status)
+
+	store := NewRuntimeStatusStore(statusPath)
+	store.pidPath = pidPath
+	store.processes = fakeRuntimeProcessTable{
+		4242: {startTime: 100, command: "gormes gateway --api-key=plain-secret-token"},
+	}
+
+	snapshot, err := store.ReadValidatedRuntimeStatusSnapshot(context.Background())
+	if err != nil {
+		t.Fatalf("read validated runtime status: %v", err)
+	}
+	for _, forbidden := range []string{"plain-secret-token", "api-key"} {
+		if strings.Contains(snapshot.Validation.Command, forbidden) || strings.Contains(snapshot.Status.ProcessValidation.Command, forbidden) {
+			t.Fatalf("validation leaked command secret %q: snapshot=%+v status=%+v", forbidden, snapshot.Validation, snapshot.Status.ProcessValidation)
+		}
+	}
+	if snapshot.Validation.Command != "gormes gateway [redacted]" {
+		t.Fatalf("validation command = %q, want redacted", snapshot.Validation.Command)
+	}
+}
+
 func TestRuntimeStatusPIDValidation_CleansStaleStateWithoutDroppingLastError(t *testing.T) {
 	root := t.TempDir()
 	statusPath := filepath.Join(root, "gateway_state.json")
 	pidPath := filepath.Join(root, "gateway.pid")
 	status := RuntimeStatus{
-		Kind:          runtimeStatusKind,
-		PID:           4242,
-		StartTime:     100,
-		Generation:    7,
-		Command:       "gormes gateway",
-		Argv:          []string{"gormes", "gateway"},
-		GatewayState:  GatewayStateRunning,
-		ExitReason:    "last_error: discord startup denied",
-		ActiveAgents:  3,
-		UpdatedAt:     "2026-04-25T16:30:00Z",
-		DrainTimeouts: []RuntimeDrainTimeoutEvidence{{SessionID: "sess-running", Reason: "shutdown_timeout"}},
+		Kind:             runtimeStatusKind,
+		PID:              4242,
+		StartTime:        100,
+		Generation:       7,
+		Command:          "gormes gateway",
+		Argv:             []string{"gormes", "gateway"},
+		GatewayState:     GatewayStateRunning,
+		ExitReason:       "last_error: discord startup denied",
+		RestartRequested: true,
+		ActiveAgents:     3,
+		UpdatedAt:        "2026-04-25T16:30:00Z",
+		Proxy:            ProxyRuntimeStatus{State: "running", URL: "http://127.0.0.1:4321"},
+		DrainTimeouts:    []RuntimeDrainTimeoutEvidence{{SessionID: "sess-running", Reason: "shutdown_timeout"}},
 		Platforms: map[string]PlatformRuntimeStatus{
 			"telegram": {State: PlatformStateRunning, UpdatedAt: "2026-04-25T16:30:00Z"},
 			"discord": {
@@ -191,6 +262,12 @@ func TestRuntimeStatusPIDValidation_CleansStaleStateWithoutDroppingLastError(t *
 	if snapshot.Status.ActiveAgents != 0 {
 		t.Fatalf("ActiveAgents = %d, want stale cleanup to zero active agents", snapshot.Status.ActiveAgents)
 	}
+	if snapshot.Status.RestartRequested {
+		t.Fatal("RestartRequested = true, want stale cleanup to clear old restart request")
+	}
+	if snapshot.Status.Proxy.State != "stopped" || snapshot.Status.Proxy.URL != "" {
+		t.Fatalf("Proxy = %+v, want stopped with no stale URL", snapshot.Status.Proxy)
+	}
 	if snapshot.Status.ExitReason != status.ExitReason {
 		t.Fatalf("ExitReason = %q, want preserved last error %q", snapshot.Status.ExitReason, status.ExitReason)
 	}
@@ -203,6 +280,45 @@ func TestRuntimeStatusPIDValidation_CleansStaleStateWithoutDroppingLastError(t *
 	}
 	if len(snapshot.Status.DrainTimeouts) != 1 {
 		t.Fatalf("DrainTimeouts = %+v, want evidence preserved", snapshot.Status.DrainTimeouts)
+	}
+}
+
+func TestRuntimeStatusPIDValidation_RejectsReusedPIDWhenStartTimeMissingButCommandDiffers(t *testing.T) {
+	root := t.TempDir()
+	statusPath := filepath.Join(root, "gateway_state.json")
+	pidPath := filepath.Join(root, "gateway.pid")
+	status := RuntimeStatus{
+		Kind:         runtimeStatusKind,
+		PID:          4242,
+		Generation:   7,
+		Command:      "gormes gateway",
+		Argv:         []string{"gormes", "gateway"},
+		GatewayState: GatewayStateRunning,
+		Platforms: map[string]PlatformRuntimeStatus{
+			"telegram": {State: PlatformStateRunning},
+		},
+	}
+	writeRuntimeStatusFixture(t, statusPath, status)
+	writeRuntimeStatusFixture(t, pidPath, status)
+
+	store := NewRuntimeStatusStore(statusPath)
+	store.pidPath = pidPath
+	store.processes = fakeRuntimeProcessTable{
+		4242: {command: "python unrelated-worker"},
+	}
+
+	snapshot, err := store.ReadValidatedRuntimeStatusSnapshot(context.Background())
+	if err != nil {
+		t.Fatalf("read validated runtime status: %v", err)
+	}
+	if snapshot.Validation.Status != RuntimeProcessValidationPIDReused {
+		t.Fatalf("validation status = %q, want pid_reused for command mismatch without start time", snapshot.Validation.Status)
+	}
+	if snapshot.Validation.Live {
+		t.Fatal("validation live = true, want false for command mismatch without start time")
+	}
+	if snapshot.Status.GatewayState == GatewayStateRunning {
+		t.Fatalf("GatewayState = %q, want stale cleanup to refuse running", snapshot.Status.GatewayState)
 	}
 }
 

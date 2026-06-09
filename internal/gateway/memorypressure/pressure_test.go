@@ -1,9 +1,68 @@
 package memorypressure
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestFormatSanitizesMultilineEvidence(t *testing.T) {
+	got := Format(Evidence{
+		Status:        StatusWarn,
+		RSSMB:         900,
+		WarnRSSMB:     800,
+		CriticalRSSMB: 1200,
+		Action:        "restart_requested\nforged=true",
+		Evidence:      []string{"memory_pressure_warn", "extra\nline"},
+		Message:       "warning\nforged status",
+	})
+	for _, forbidden := range []string{"\nforged", "extra\nline", "warning\nforged"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("Format leaked multiline evidence %q in %q", forbidden, got)
+		}
+	}
+	for _, want := range []string{
+		"action=restart_requested forged=true",
+		"evidence=memory_pressure_warn,extra line",
+		"message=\"warning forged status\"",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("Format missing sanitized value %q in %q", want, got)
+		}
+	}
+}
+
+func TestNormalizePolicyBoundsInvalidCriticalAction(t *testing.T) {
+	policy := NormalizePolicy(Policy{WarnRSSMB: 800, CriticalRSSMB: 1200, CriticalAction: "restart_requested\nforged=false"})
+	if policy.CriticalAction != ActionRestart {
+		t.Fatalf("CriticalAction = %q, want bounded default %q", policy.CriticalAction, ActionRestart)
+	}
+
+	ev := Evaluate(Sample{RSSBytes: 1300 * BytesPerMegabyte}, policy, Owner{PID: 4242, StartTime: 99}, time.Date(2026, 5, 18, 4, 30, 0, 0, time.UTC))
+	if ev.Action != ActionRestart || ev.TargetPID != 4242 || ev.TargetStartTime != 99 {
+		t.Fatalf("critical evidence = %+v, want bounded restart action with owner target", ev)
+	}
+}
+
+func TestEvaluateCriticalRestartClampsInvalidOwnerIdentity(t *testing.T) {
+	now := time.Date(2026, 5, 18, 4, 30, 0, 0, time.UTC)
+	ev := Evaluate(
+		Sample{RSSBytes: 1300 * BytesPerMegabyte},
+		Policy{WarnRSSMB: 800, CriticalRSSMB: 1200, CriticalAction: ActionRestart},
+		Owner{PID: -42, StartTime: -99},
+		now,
+	)
+	if ev.Status != StatusCritical || ev.Action != ActionRestart {
+		t.Fatalf("critical restart evidence = %+v, want critical restart", ev)
+	}
+	if ev.TargetPID != 0 || ev.TargetStartTime != 0 {
+		t.Fatalf("critical restart evidence trusted invalid owner identity: %+v", ev)
+	}
+	formatted := Format(ev)
+	if strings.Contains(formatted, "-42") || strings.Contains(formatted, "-99") {
+		t.Fatalf("formatted evidence leaked invalid owner identity: %q", formatted)
+	}
+}
 
 func TestEvaluateClassifiesPressureAndBoundsCriticalAction(t *testing.T) {
 	now := time.Date(2026, 5, 18, 4, 30, 0, 0, time.UTC)

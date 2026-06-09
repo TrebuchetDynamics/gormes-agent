@@ -15,7 +15,11 @@ func Target(platform string, entry entrymodel.Entry) gatewaydelivery.Target {
 	chatID := policy.TrimText(entry.ChatID)
 	threadID := policy.TrimText(entry.ThreadID)
 	if chatID == "" {
-		parts := strings.SplitN(policy.TrimText(entry.ID), ":", 2)
+		entryID := policy.TrimText(entry.ID)
+		if parsed, err := gatewaydelivery.ParseTarget(platform+":"+entryID, nil); err == nil && parsed.ChatID != "" {
+			return parsed
+		}
+		parts := strings.SplitN(entryID, ":", 2)
 		chatID = parts[0]
 		if len(parts) == 2 && threadID == "" {
 			threadID = parts[1]

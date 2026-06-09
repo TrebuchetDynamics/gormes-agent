@@ -302,9 +302,39 @@ func (p *ProxySubmitter) degradedErrorMessage(err error) string {
 		return "missing proxy credentials: remote API rejected the proxy request"
 	}
 	if classification.Status > 0 {
-		return fmt.Sprintf("proxy remote error (%d): %s", classification.Status, err.Error())
+		return fmt.Sprintf("proxy remote error (%d): %s", classification.Status, proxyErrorText(err))
 	}
-	return "proxy unreachable: " + err.Error()
+	return "proxy unreachable: " + proxyErrorText(err)
+}
+
+func proxyErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := strings.TrimSpace(err.Error())
+	if msg == "" {
+		return ""
+	}
+	lower := strings.ToLower(msg)
+	compact := compactProxySecretSeparators(lower)
+	for _, marker := range []string{"api_key", "apikey", "authorization", "bearer", "secret", "password", "token="} {
+		if strings.Contains(lower, marker) || strings.Contains(compact, marker) {
+			return "[redacted]"
+		}
+	}
+	replacer := strings.NewReplacer("`", "'", "*", "'", "#", "＃")
+	return strings.Join(strings.Fields(replacer.Replace(msg)), " ")
+}
+
+func compactProxySecretSeparators(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func (p *ProxySubmitter) finishStale(generation uint64, sessionID string) {

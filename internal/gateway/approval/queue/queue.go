@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/approval/choice"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/mapclone"
 )
 
 var (
@@ -113,6 +112,7 @@ func (q *GatewayApprovalQueue) ResolveGatewayApproval(_ context.Context, res cho
 	if len(queue) == 0 {
 		return ErrGatewayApprovalNotPending
 	}
+	res.SessionKey = sessionKey
 	entry := queue[0]
 	queue = queue[1:]
 	if len(queue) == 0 {
@@ -171,14 +171,15 @@ func (q *GatewayApprovalQueue) ClearGatewayApprovalSession(sessionKey string) in
 }
 
 func (q *GatewayApprovalQueue) GatewayApprovalOutcome(ticket GatewayApprovalTicket) (GatewayApprovalOutcome, bool) {
-	if q == nil || ticket.ID == 0 || strings.TrimSpace(ticket.SessionKey) == "" {
+	sessionKey := strings.TrimSpace(ticket.SessionKey)
+	if q == nil || ticket.ID == 0 || sessionKey == "" {
 		return GatewayApprovalOutcome{}, false
 	}
 
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	outcome, ok := q.outcomes[ticket.ID]
-	if !ok || outcome.Ticket.SessionKey != ticket.SessionKey {
+	if !ok || outcome.Ticket.SessionKey != sessionKey {
 		return GatewayApprovalOutcome{}, false
 	}
 	return cloneGatewayApprovalOutcome(outcome), true
@@ -208,14 +209,44 @@ func (q *GatewayApprovalQueue) recordOutcomeLocked(entry *gatewayApprovalEntry, 
 }
 
 func cloneGatewayApprovalRequest(req GatewayApprovalRequest) GatewayApprovalRequest {
-	req.PatternKeys = append([]string(nil), req.PatternKeys...)
-	req.Evidence = mapclone.StringString(req.Evidence)
+	req.Command = strings.TrimSpace(req.Command)
+	req.Description = strings.TrimSpace(req.Description)
+	req.PatternKey = strings.TrimSpace(req.PatternKey)
+	patterns := make([]string, 0, len(req.PatternKeys))
+	for _, pattern := range req.PatternKeys {
+		pattern = strings.TrimSpace(pattern)
+		if pattern != "" {
+			patterns = append(patterns, pattern)
+		}
+	}
+	req.PatternKeys = patterns
+	req.Evidence = cloneEvidence(req.Evidence)
 	return req
 }
 
 func cloneResolution(res choice.Resolution) choice.Resolution {
-	res.Evidence = mapclone.StringString(res.Evidence)
+	res.SessionKey = strings.TrimSpace(res.SessionKey)
+	res.Platform = strings.TrimSpace(res.Platform)
+	res.ChatID = strings.TrimSpace(res.ChatID)
+	res.MessageID = strings.TrimSpace(res.MessageID)
+	res.ActorID = strings.TrimSpace(res.ActorID)
+	res.Evidence = cloneEvidence(res.Evidence)
 	return res
+}
+
+func cloneEvidence(input map[string]string) map[string]string {
+	if input == nil {
+		return nil
+	}
+	out := make(map[string]string, len(input))
+	for key, value := range input {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		out[key] = strings.TrimSpace(value)
+	}
+	return out
 }
 
 func cloneGatewayApprovalOutcome(outcome GatewayApprovalOutcome) GatewayApprovalOutcome {

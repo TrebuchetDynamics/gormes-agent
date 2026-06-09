@@ -135,19 +135,19 @@ func (s *RestartTakeoverStore) Read(ctx context.Context) (RestartTakeoverMarker,
 	}
 	var marker RestartTakeoverMarker
 	exists, err := jsonfile.Read(ctx, s.path, &marker, "restart takeover marker")
-	if !exists {
-		return RestartTakeoverMarker{}, false, false, nil
-	}
 	if errors.Is(err, jsonfile.ErrEmpty) {
 		_ = s.Clear(context.Background())
 		return RestartTakeoverMarker{}, false, true, nil
 	}
 	if err != nil {
-		if jsonfile.IsReadError(err) {
+		if jsonfile.IsReadError(err) || !exists {
 			return RestartTakeoverMarker{}, false, false, err
 		}
 		_ = s.Clear(context.Background())
 		return RestartTakeoverMarker{}, false, true, nil
+	}
+	if !exists {
+		return RestartTakeoverMarker{}, false, false, nil
 	}
 	if marker.Kind != "" && marker.Kind != restartTakeoverMarkerKind {
 		_ = s.Clear(context.Background())
@@ -205,7 +205,9 @@ func (s *RestartTakeoverStore) expired(marker RestartTakeoverMarker) bool {
 	if err != nil {
 		return true
 	}
-	return s.currentTime().Sub(requestedAt) > s.markerTTL()
+	age := s.currentTime().Sub(requestedAt)
+	ttl := s.markerTTL()
+	return age > ttl || age < -ttl
 }
 
 func restartMarkerMatchesEvent(marker RestartTakeoverMarker, ev InboundEvent) bool {
@@ -220,10 +222,12 @@ func restartMarkerMatchesEvent(marker RestartTakeoverMarker, ev InboundEvent) bo
 	}
 	updateID := restartUpdateID(ev)
 	messageID := strings.TrimSpace(ev.MsgID)
-	if marker.UpdateID != "" && marker.UpdateID == updateID {
+	markerUpdateID := strings.TrimSpace(marker.UpdateID)
+	if markerUpdateID != "" && markerUpdateID == updateID {
 		return true
 	}
-	return marker.MessageID != "" && marker.MessageID == messageID
+	markerMessageID := strings.TrimSpace(marker.MessageID)
+	return markerMessageID != "" && markerMessageID == messageID
 }
 
 func restartUpdateID(ev InboundEvent) string {

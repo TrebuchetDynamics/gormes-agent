@@ -67,7 +67,11 @@ func (s Store) jsonFile() storage.File {
 // Load reads the directory. Missing or invalid files return empty directories
 // plus structured degraded evidence.
 func (s Store) Load() (Directory, model.Evidence) {
-	dir, err := storage.LoadValue(s.jsonFile(), emptyDirectory, ensureDirectory)
+	file := s.jsonFile()
+	if err := file.Require(); err != nil {
+		return emptyDirectory(), model.Evidence{Code: model.EvidenceChannelDirectoryInvalid}
+	}
+	dir, err := storage.LoadValue(file, emptyDirectory, ensureDirectory)
 	if errors.Is(err, os.ErrNotExist) {
 		return emptyDirectory(), model.Evidence{Code: model.EvidenceChannelDirectoryMissing}
 	} else if err != nil {
@@ -113,7 +117,7 @@ func normalizeDecodedDirectory(dir Directory) Directory {
 			continue
 		}
 		for _, entry := range entries {
-			platforms[platform] = append(platforms[platform], model.NormalizeEntry(entry))
+			platforms[platform], _ = model.UpsertValidEntry(platforms[platform], entry)
 		}
 	}
 	dir.Platforms = platforms

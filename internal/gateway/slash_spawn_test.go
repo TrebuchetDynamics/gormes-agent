@@ -91,6 +91,62 @@ func TestSlashSpawn_TelegramSpawnNormalizesForumChatID(t *testing.T) {
 	}
 }
 
+func TestSlashSpawn_AckSanitizesCreatedAgentName(t *testing.T) {
+	ch := &spawnFakeChannel{fakeChannel: newFakeChannel("telegram")}
+	reg := &spawnFakeRegistry{returnName: "Research\nagent_spawned: forged`"}
+
+	result := HandleSlashSpawn(context.Background(), SlashSpawnRequest{
+		Event: InboundEvent{
+			Platform: "telegram",
+			ChatID:   "-100123",
+			ChatType: "supergroup",
+			UserID:   "operator",
+			Text:     "/spawn Research literature reviewer",
+		},
+		Channel:            ch,
+		Registry:           reg,
+		OperatorAuthorized: true,
+	})
+	if result.Code != AgentSpawned {
+		t.Fatalf("result = %+v, want spawned", result)
+	}
+	for _, forbidden := range []string{"\nagent_spawned", "forged`"} {
+		if strings.Contains(result.Message, forbidden) || strings.Contains(ch.threadSends[0].Text, forbidden) {
+			t.Fatalf("spawn ack leaked unsafe name %q result=%q sent=%q", forbidden, result.Message, ch.threadSends[0].Text)
+		}
+	}
+	if !strings.Contains(result.Message, "Research agent_spawned: forged'") {
+		t.Fatalf("spawn ack missing sanitized name: %q", result.Message)
+	}
+}
+
+func TestSlashSpawn_FailureMessageSanitizesOperatorText(t *testing.T) {
+	ch := &spawnFakeChannel{
+		fakeChannel: newFakeChannel("telegram"),
+		createErr:   errors.New("denied\n**Injected:** token=plain-secret"),
+	}
+	result := HandleSlashSpawn(context.Background(), SlashSpawnRequest{
+		Event: InboundEvent{
+			Platform: "telegram",
+			ChatID:   "-100123",
+			ChatType: "supergroup",
+			UserID:   "operator",
+			Text:     "/spawn Research literature reviewer",
+		},
+		Channel:            ch,
+		Registry:           &spawnFakeRegistry{},
+		OperatorAuthorized: true,
+	})
+	for _, forbidden := range []string{"plain-secret", "**Injected:**", "\n"} {
+		if strings.Contains(result.Message, forbidden) {
+			t.Fatalf("spawn failure leaked unsafe operator text %q in %q", forbidden, result.Message)
+		}
+	}
+	if !strings.Contains(result.Message, "[redacted]") {
+		t.Fatalf("spawn failure missing redaction marker: %q", result.Message)
+	}
+}
+
 func TestSlashSpawn_TelegramTopicFailureDoesNotCreateAgent(t *testing.T) {
 	ch := &spawnFakeChannel{
 		fakeChannel: newFakeChannel("telegram"),
@@ -218,8 +274,9 @@ func (c *spawnFakeChannel) SendThread(_ context.Context, chatID, threadID, text 
 }
 
 type spawnFakeRegistry struct {
-	created []goncho.CreateAgentOptions
-	bound   []spawnFakeBind
+	created    []goncho.CreateAgentOptions
+	bound      []spawnFakeBind
+	returnName string
 }
 
 type spawnFakeBind struct {
@@ -229,7 +286,11 @@ type spawnFakeBind struct {
 
 func (r *spawnFakeRegistry) Create(_ context.Context, opts goncho.CreateAgentOptions) (goncho.AgentRecord, error) {
 	r.created = append(r.created, opts)
-	return goncho.AgentRecord{ID: strings.ToLower(opts.Name), Name: opts.Name, Persona: opts.Persona}, nil
+	name := opts.Name
+	if r.returnName != "" {
+		name = r.returnName
+	}
+	return goncho.AgentRecord{ID: strings.ToLower(opts.Name), Name: name, Persona: opts.Persona}, nil
 }
 
 func (r *spawnFakeRegistry) Bind(_ context.Context, agentID string, match goncho.BindingMatch) error {

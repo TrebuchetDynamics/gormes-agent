@@ -24,7 +24,7 @@ func Run(out, _ io.Writer, nonInteractive bool, runtime Runtime) error {
 	runtime = runtimeDefaults(runtime)
 	cfg, _ := runtime.LoadConfig()
 	current := firstNonEmpty(cfg.Runtime.TTSProvider, "edge")
-	options := setup.TTSProviderOptions()
+	options := TTSProviderOptionsWithCurrent(current)
 	voice := VoiceModel(cfg.TTS, current)
 
 	fmt.Fprintln(out, "Text-to-Speech Provider")
@@ -68,6 +68,18 @@ func Run(out, _ io.Writer, nonInteractive bool, runtime Runtime) error {
 	}
 	fmt.Fprintf(out, "TTS provider set to: %s\n", setup.TTSProviderLabel(choice))
 	return nil
+}
+
+func TTSProviderOptionsWithCurrent(current string) []setup.Choice {
+	options := append([]setup.Choice(nil), setup.TTSProviderOptions()...)
+	label := setup.TTSProviderLabel(firstNonEmpty(current, "edge"))
+	for i := range options {
+		if setupchoice.NormalizeValue(options[i].Value) == "keep" {
+			options[i].Label = fmt.Sprintf("Keep current (%s)", label)
+			break
+		}
+	}
+	return options
 }
 
 func IsProviderChoice(value string) bool {

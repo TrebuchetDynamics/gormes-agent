@@ -80,8 +80,11 @@ func outboundSplitIndex(runes []rune, limit int) int {
 }
 
 func markdownSafeSplitIndex(runes []rune, split int) int {
-	if split <= 1 || split > len(runes) || trailingBackslashCount(runes[:split])%2 == 0 {
+	if split <= 0 || split > len(runes) || trailingBackslashCount(runes[:split])%2 == 0 {
 		return split
+	}
+	if split == 1 && len(runes) > 1 {
+		return 2
 	}
 	return split - 1
 }

@@ -33,6 +33,32 @@ func TestSelectDeliveryMirrorSession_PrefersExactUserAndThread(t *testing.T) {
 	}
 }
 
+func TestSelectDeliveryMirrorSessionNormalizesReturnedMetadata(t *testing.T) {
+	candidates := []session.Metadata{
+		{SessionID: " sess-valid ", Source: " Slack ", ChatID: " C123 ", UserID: " u1 ", UpdatedAt: 10},
+	}
+
+	got, ok := SelectDeliveryMirrorSession(candidates, DeliveryMirrorTarget{Platform: "slack", ChatID: "C123", UserID: "u1"})
+	if !ok {
+		t.Fatal("SelectDeliveryMirrorSession ok = false, want match")
+	}
+	if got.SessionID != "sess-valid" || got.Source != "slack" || got.ChatID != "C123" || got.UserID != "u1" {
+		t.Fatalf("selected metadata = %+v, want normalized identifiers", got)
+	}
+}
+
+func TestSelectDeliveryMirrorSessionIgnoresEmptySessionIDCandidates(t *testing.T) {
+	candidates := []session.Metadata{
+		{SessionID: "", Source: "slack", ChatID: "C123", UpdatedAt: 99},
+		{SessionID: "sess-valid", Source: "slack", ChatID: "C123", UpdatedAt: 10},
+	}
+
+	got, ok := SelectDeliveryMirrorSession(candidates, DeliveryMirrorTarget{Platform: "slack", ChatID: "C123"})
+	if !ok || got.SessionID != "sess-valid" {
+		t.Fatalf("SelectDeliveryMirrorSession = %+v, %v; want sess-valid ignoring empty session id", got, ok)
+	}
+}
+
 func TestSelectDeliveryMirrorSession_AmbiguousGroupWithoutUser(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -50,6 +76,13 @@ func TestSelectDeliveryMirrorSession_AmbiguousGroupWithoutUser(t *testing.T) {
 			candidates: []session.Metadata{
 				{SessionID: "sess-known", Source: "telegram", ChatID: "-100", UserID: "u1", UpdatedAt: 10},
 				{SessionID: "sess-unknown", Source: "telegram", ChatID: "-100", UpdatedAt: 20},
+			},
+		},
+		{
+			name: "multiple unknown user provenance",
+			candidates: []session.Metadata{
+				{SessionID: "sess-unknown-a", Source: "telegram", ChatID: "-100", UpdatedAt: 10},
+				{SessionID: "sess-unknown-b", Source: "telegram", ChatID: "-100", UpdatedAt: 20},
 			},
 		},
 	}
@@ -70,6 +103,40 @@ func TestSelectDeliveryMirrorSession_ExplicitUserMustMatchSingleCandidate(t *tes
 
 	if got, ok := SelectDeliveryMirrorSession(candidates, DeliveryMirrorTarget{Platform: "telegram", ChatID: "-100", UserID: "u2"}); ok {
 		t.Fatalf("SelectDeliveryMirrorSession = %+v, want no mirror to different explicit user", got)
+	}
+}
+
+func TestMirrorDeliveryToSessionNormalizesSelectedMetadataPayload(t *testing.T) {
+	rec := store.NewRecording()
+	now := time.Date(2026, 5, 1, 12, 30, 0, 0, time.UTC)
+	candidates := []session.Metadata{
+		{SessionID: " sess-target ", Source: " slack ", ChatID: " C123 ", UpdatedAt: 42},
+	}
+
+	result, err := MirrorDeliveryToSession(context.Background(), rec, candidates, DeliveryMirrorTarget{
+		Platform:    "slack",
+		ChatID:      "C123",
+		MessageText: "hello",
+	}, now)
+	if err != nil {
+		t.Fatalf("MirrorDeliveryToSession error = %v", err)
+	}
+	if !result.Mirrored || result.SessionID != "sess-target" {
+		t.Fatalf("result = %+v, want normalized mirrored session", result)
+	}
+	var payload struct {
+		SessionID string `json:"session_id"`
+		ChatID    string `json:"chat_id"`
+	}
+	cmds := rec.Commands()
+	if len(cmds) != 1 {
+		t.Fatalf("commands = %+v, want one mirror command", cmds)
+	}
+	if err := json.Unmarshal(cmds[0].Payload, &payload); err != nil {
+		t.Fatalf("payload decode: %v", err)
+	}
+	if payload.SessionID != "sess-target" || payload.ChatID != "C123" {
+		t.Fatalf("payload = %+v, want normalized session/chat metadata", payload)
 	}
 }
 

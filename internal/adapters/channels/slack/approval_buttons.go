@@ -176,11 +176,11 @@ func slackApprovalButton(label, actionID, sessionKey, style string) SlackBlock {
 }
 
 func slackApprovalSectionText(command, description string) string {
-	cmd := strings.TrimSpace(command)
+	cmd := sanitizeSlackApprovalText(command)
 	if cmd == "" {
 		cmd = "(empty command)"
 	}
-	desc := strings.TrimSpace(description)
+	desc := sanitizeSlackApprovalText(description)
 	if desc == "" {
 		desc = "dangerous command"
 	}
@@ -204,6 +204,16 @@ func slackApprovalSectionText(command, description string) string {
 		}
 		return channelutil.TruncateRunes(text, slackApprovalSectionLimit)
 	}
+}
+
+func sanitizeSlackApprovalText(value string) string {
+	replacer := strings.NewReplacer(
+		"`", "'",
+		"*", "'",
+		"<", "(",
+		">", ")",
+	)
+	return strings.Join(strings.Fields(replacer.Replace(value)), " ")
 }
 
 func formatSlackApprovalSection(command, description string) string {
@@ -239,7 +249,7 @@ func isSlackApprovalAction(actionID string) bool {
 }
 
 func slackApprovalDecisionText(choice gateway.ApprovalChoice, actor string) string {
-	actor = strings.TrimSpace(actor)
+	actor = sanitizeSlackApprovalText(actor)
 	if actor == "" {
 		actor = "unknown user"
 	}

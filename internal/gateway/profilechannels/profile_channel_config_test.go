@@ -143,6 +143,35 @@ func TestProfileChannelReadinessWhatsAppAllowListsCanonicalizeJIDCase(t *testing
 	}
 }
 
+func TestProfileChannelReadinessDuplicateNormalizedChannelDoesNotLetDisabledAliasHideEnabledBinding(t *testing.T) {
+	cfg := config.Config{
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"whatsapp": {Enabled: false, Credential: "disabled-whatsapp"},
+					"WhatsApp": {Enabled: true, Credential: "main-whatsapp", AllowedChats: []string{"12025550123@s.whatsapp.net"}},
+				},
+			},
+		},
+		Credentials: map[string]config.CredentialCfg{
+			"main-whatsapp": profilechanneltest.ChannelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+		},
+	}
+
+	report := BuildProfileChannelReadiness(cfg)
+	binding := findProfileChannelBinding(t, report, "main", "whatsapp")
+	if !binding.Ready {
+		t.Fatalf("binding Ready = false, want enabled mixed-case binding to survive disabled normalized alias: %+v", binding)
+	}
+	if binding.CredentialID != "main-whatsapp" {
+		t.Fatalf("credential ID = %q, want enabled binding credential", binding.CredentialID)
+	}
+	if len(report.Bindings) != 1 {
+		t.Fatalf("bindings = %d, want one normalized whatsapp binding", len(report.Bindings))
+	}
+}
+
 func TestProfileChannelReadinessMissingCredentialSkipsOnlyThatBinding(t *testing.T) {
 	cfg := config.Config{
 		Profiles: map[string]config.ProfileCfg{
@@ -186,6 +215,43 @@ func TestProfileChannelReadinessMissingCredentialSkipsOnlyThatBinding(t *testing
 	}
 	if len(report.Bindings) != 2 {
 		t.Fatalf("bindings = %d, want both degraded and ready bindings present", len(report.Bindings))
+	}
+}
+
+func TestProfileChannelReadinessSharedCredentialIDConflictsAcrossProfiles(t *testing.T) {
+	sharedHash := profilechanneltest.TokenCredentialHash("shared-whatsapp-token")
+	cfg := config.Config{
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"whatsapp": {Enabled: true, Credential: "shared-whatsapp", AllowedChats: []string{"12025550123@s.whatsapp.net"}},
+				},
+			},
+			"sales": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"whatsapp": {Enabled: true, Credential: "shared-whatsapp", AllowedChats: []string{"12025550124@s.whatsapp.net"}},
+				},
+			},
+		},
+		Credentials: map[string]config.CredentialCfg{
+			"shared-whatsapp": profilechanneltest.ChannelCredential("whatsapp", "", "GORMES_SHARED_WHATSAPP_TOKEN"),
+		},
+	}
+
+	report := BuildProfileChannelReadinessWithOptions(cfg, ProfileChannelReadinessOptions{
+		CredentialHashes: map[string]string{"shared-whatsapp": sharedHash},
+	})
+	mainBinding := findProfileChannelBinding(t, report, "main", "whatsapp")
+	salesBinding := findProfileChannelBinding(t, report, "sales", "whatsapp")
+	for _, binding := range []ProfileChannelBindingReadiness{mainBinding, salesBinding} {
+		if binding.Ready {
+			t.Fatalf("%s binding Ready = true, want shared credential conflict evidence: %+v", binding.ProfileID, binding)
+		}
+		if !HasEvidenceCode(binding.Evidence, "channel_token_hash_conflict") {
+			t.Fatalf("%s evidence = %+v, want channel_token_hash_conflict", binding.ProfileID, binding.Evidence)
+		}
 	}
 }
 

@@ -35,6 +35,33 @@ func TestRunNonInteractivePrintsCurrentDefaultsAndChoiceList(t *testing.T) {
 	}
 }
 
+func TestRunInteractiveKeepCurrentChoiceNamesCurrentProvider(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	var promptChoices []setup.Choice
+	var out, errOut bytes.Buffer
+	err := Run(&out, &errOut, false, Runtime{
+		LoadConfig: func() (config.Config, error) {
+			return config.Config{Runtime: config.RuntimeCfg{TTSProvider: "openai"}}, nil
+		},
+		PromptChoice: func(title, linePrompt, defaultValue string, choices []setup.Choice) (string, error) {
+			promptChoices = append([]setup.Choice(nil), choices...)
+			return "keep", nil
+		},
+		PromptString: func(prompt, defaultValue string) (string, error) { return "n", nil },
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v stdout=%s stderr=%s", err, out.String(), errOut.String())
+	}
+	if !strings.Contains(out.String(), "Default provider: OpenAI TTS") {
+		t.Fatalf("stdout missing current provider:\n%s", out.String())
+	}
+	if got := keepChoiceLabel(promptChoices); got != "Keep current (OpenAI TTS)" {
+		t.Fatalf("keep choice label = %q, want current provider named", got)
+	}
+}
+
 func TestRunInteractivePersistsListedProviderWithoutRowBackedError(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
@@ -69,6 +96,15 @@ func TestRunInteractivePersistsListedProviderWithoutRowBackedError(t *testing.T)
 	if cfg.Runtime.TTSProvider != "minimax" {
 		t.Fatalf("Runtime.TTSProvider = %q, want minimax", cfg.Runtime.TTSProvider)
 	}
+}
+
+func keepChoiceLabel(choices []setup.Choice) string {
+	for _, choice := range choices {
+		if choice.Value == "keep" {
+			return choice.Label
+		}
+	}
+	return ""
 }
 
 func TestVoiceModelUsesProviderSpecificVoice(t *testing.T) {

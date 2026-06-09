@@ -53,7 +53,11 @@ func NormalizePolicy(policy Policy) Policy {
 	if policy.CriticalRSSMB < policy.WarnRSSMB {
 		policy.CriticalRSSMB = policy.WarnRSSMB
 	}
-	if policy.CriticalAction == "" {
+	switch policy.CriticalAction {
+	case ActionRestart, ActionNone:
+	case "":
+		policy.CriticalAction = ActionRestart
+	default:
 		policy.CriticalAction = ActionRestart
 	}
 	return policy
@@ -113,8 +117,12 @@ func Evaluate(sample Sample, policy Policy, owner Owner, now time.Time) Evidence
 		evidence.Evidence = []string{"memory_pressure_critical"}
 		evidence.Message = "gateway RSS is above critical threshold"
 		if evidence.Action == ActionRestart {
-			evidence.TargetPID = owner.PID
-			evidence.TargetStartTime = owner.StartTime
+			if owner.PID > 0 {
+				evidence.TargetPID = owner.PID
+			}
+			if owner.StartTime > 0 {
+				evidence.TargetStartTime = owner.StartTime
+			}
 			evidence.Evidence = append(evidence.Evidence, "memory_pressure_restart_requested")
 		}
 	case rssMB >= policy.WarnRSSMB:
@@ -145,7 +153,7 @@ func Format(evidence Evidence) string {
 		parts = append(parts, fmt.Sprintf("gc=%d", evidence.GCCollections))
 	}
 	if evidence.Action != "" && evidence.Action != ActionNone {
-		parts = append(parts, "action="+string(evidence.Action))
+		parts = append(parts, "action="+formatValue(string(evidence.Action)))
 	}
 	if evidence.TargetPID > 0 {
 		parts = append(parts, fmt.Sprintf("target_pid=%d", evidence.TargetPID))
@@ -154,10 +162,20 @@ func Format(evidence Evidence) string {
 		parts = append(parts, fmt.Sprintf("target_start_time=%d", evidence.TargetStartTime))
 	}
 	if len(evidence.Evidence) > 0 {
-		parts = append(parts, "evidence="+strings.Join(evidence.Evidence, ","))
+		items := make([]string, 0, len(evidence.Evidence))
+		for _, item := range evidence.Evidence {
+			if item = formatValue(item); item != "" {
+				items = append(items, item)
+			}
+		}
+		parts = append(parts, "evidence="+strings.Join(items, ","))
 	}
 	if evidence.Message != "" {
-		parts = append(parts, "message="+strconv.Quote(evidence.Message))
+		parts = append(parts, "message="+strconv.Quote(formatValue(evidence.Message)))
 	}
 	return strings.Join(parts, " ")
+}
+
+func formatValue(value string) string {
+	return strings.Join(strings.Fields(value), " ")
 }

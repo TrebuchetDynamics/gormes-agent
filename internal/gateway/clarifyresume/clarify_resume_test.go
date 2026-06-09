@@ -65,6 +65,38 @@ func TestClarifyResumeBroker_PersistsOneShotRouteAndClearsAfterReply(t *testing.
 	}
 }
 
+func TestClarifyResumeBroker_NormalizesPlatformCaseForResume(t *testing.T) {
+	broker := NewClarifyResumeBroker(func() time.Time { return time.Unix(1700000000, 0).UTC() })
+	route := ClarifyResumeRoute{SessionID: "session-1", Platform: " Telegram ", ChatID: "42", MsgID: "m1"}
+
+	responses := make(chan tools.ClarifyResponse, 1)
+	errs := make(chan error, 1)
+	go func() {
+		resp, err := broker.Await(context.Background(), route, tools.ClarifyRequest{Question: "Deploy now?"})
+		responses <- resp
+		errs <- err
+	}()
+
+	waitFor(t, 200*time.Millisecond, func() bool {
+		_, ok := broker.Pending("telegram", "42")
+		return ok
+	})
+	if ok := broker.Resume("telegram", "42", "yes"); !ok {
+		t.Fatal("Resume() = false, want true for case-normalized platform")
+	}
+	select {
+	case err := <-errs:
+		if err != nil {
+			t.Fatalf("Await() error = %v", err)
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("Await() did not return after case-normalized resume")
+	}
+	if resp := <-responses; resp.UserResponse != "yes" {
+		t.Fatalf("UserResponse = %q, want yes", resp.UserResponse)
+	}
+}
+
 func TestClarifyResumeBroker_AwaitTimeoutClearsRoute(t *testing.T) {
 	broker := NewClarifyResumeBroker(func() time.Time { return time.Unix(1700000000, 0).UTC() })
 	route := ClarifyResumeRoute{SessionID: "session-2", Platform: "telegram", ChatID: "42"}

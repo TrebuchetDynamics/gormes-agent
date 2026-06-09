@@ -151,12 +151,39 @@ func FormatStatusLine(state *session.GoalState) string {
 	if status == "" {
 		status = string(session.GoalStatusActive)
 	}
-	line := fmt.Sprintf("Goal %s (%d/%d): %s", status, state.TurnsUsed, state.MaxTurns, state.Goal)
+	line := fmt.Sprintf("Goal %s (%d/%d): %s", status, state.TurnsUsed, state.MaxTurns, displayText(state.Goal))
 	if reason := strings.TrimSpace(state.LastReason); reason != "" {
-		line += "\nLast verdict: " + strings.TrimSpace(state.LastVerdict) + " — " + reason
+		line += "\nLast verdict: " + displayText(state.LastVerdict) + " — " + displayText(reason)
 	}
 	if reason := strings.TrimSpace(state.PausedReason); reason != "" {
-		line += "\nPaused reason: " + reason
+		line += "\nPaused reason: " + displayText(reason)
 	}
 	return line
+}
+
+func displayText(value string) string {
+	msg := strings.TrimSpace(value)
+	if msg == "" {
+		return ""
+	}
+	lower := strings.ToLower(msg)
+	compact := compactSecretSeparators(lower)
+	for _, marker := range []string{"token", "api_key", "apikey", "authorization", "bearer", "secret", "password"} {
+		if strings.Contains(lower, marker) || strings.Contains(compact, marker) {
+			return "[redacted]"
+		}
+	}
+	replacer := strings.NewReplacer("`", "'", "*", "'", "#", "＃")
+	return strings.Join(strings.Fields(replacer.Replace(msg)), " ")
+}
+
+func compactSecretSeparators(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }

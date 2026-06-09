@@ -8,6 +8,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/commandline"
 	gatewayevents "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/events"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 type EventKind = gatewayevents.EventKind
@@ -233,6 +234,12 @@ func buildRecognizedUnavailableSlashCommands() map[string]struct{} {
 func ResolveCommand(name string) (CommandDef, bool) {
 	key := SlashCommandName(name)
 	cmd, ok := commandLookup[key]
+	if ok {
+		return cmd, true
+	}
+	if strings.Contains(key, "_") {
+		cmd, ok = commandLookup[strings.ReplaceAll(key, "_", "-")]
+	}
 	return cmd, ok
 }
 
@@ -263,7 +270,7 @@ type GatewayCommandDispatch struct {
 // mapped EventKind; unknown slash commands become EventUnknown.
 func ParseInboundText(text string) (EventKind, string) {
 	body := strings.TrimSpace(text)
-	if !strings.HasPrefix(body, "/") {
+	if !hasSlashCommandPrefix(body) {
 		return EventSubmit, body
 	}
 	resolved := ResolveGatewayCommandDispatch(body)
@@ -317,6 +324,10 @@ func SlashCommandKindCarriesBody(kind EventKind) bool {
 // (for example /skill-name) before falling back to unknown-command guidance,
 // while legacy adapters can keep ParseInboundText's empty unknown body to avoid
 // accidentally submitting unknown slash text.
+func hasSlashCommandPrefix(body string) bool {
+	return strings.HasPrefix(body, "/") || strings.HasPrefix(body, "／")
+}
+
 func ParseInboundTextPreserveUnknown(text string) (EventKind, string) {
 	kind, body := ParseInboundText(text)
 	if kind == EventUnknown {
@@ -348,11 +359,27 @@ func ResolveGatewayCommandDispatch(text string) GatewayCommandDispatch {
 // tells users how to inspect commands or resend literal text without allowing
 // the slash token to fall through as a provider prompt.
 func UnknownSlashCommandGuidance(name string) string {
-	cleaned := SlashCommandName(name)
+	cleaned := renderUnknownSlashCommandName(SlashCommandName(name))
 	if cleaned == "" {
 		cleaned = "unknown"
 	}
 	return fmt.Sprintf("unknown command `/%s`. Type /commands to see what's available, or resend without the leading slash to send as a regular message.", cleaned)
+}
+
+func renderUnknownSlashCommandName(name string) string {
+	name = collapseRedactedUnknownCommandAssignments(redaction.RedactSecrets(name))
+	return strings.Join(strings.Fields(strings.NewReplacer("`", "'", "*", "'").Replace(name)), " ")
+}
+
+func collapseRedactedUnknownCommandAssignments(value string) string {
+	replacer := strings.NewReplacer(
+		"api_key=[redacted]", "[redacted]",
+		"api-key=[redacted]", "[redacted]",
+		"token=[redacted]", "[redacted]",
+		"secret=[redacted]", "[redacted]",
+		"password=[redacted]", "[redacted]",
+	)
+	return replacer.Replace(value)
 }
 
 // GatewayHelpLines renders registry-driven help output in canonical order,
@@ -390,7 +417,7 @@ func TelegramBotCommands() []PlatformCommand {
 		}
 		out = append(out, PlatformCommand{
 			Name:        strings.ReplaceAll(cmd.Name, "-", "_"),
-			Description: cmd.Description,
+			Description: renderPlatformCommandDescription(cmd.Description),
 		})
 	}
 	return out
@@ -412,11 +439,11 @@ func TelegramBotCommandsWith(dynamic []PlatformCommand) []PlatformCommand {
 	seen := platformCommandNameSet(out)
 	for _, cmd := range sortedPlatformCommands(dynamic) {
 		name := NormalizeTelegramCommandName(cmd.Name)
-		if name == "" || seen[name] {
+		if name == "" || seen[name] || dynamicCommandCollidesWithRegisteredSlash(name) {
 			continue
 		}
 		seen[name] = true
-		out = append(out, PlatformCommand{Name: name, Description: strings.TrimSpace(cmd.Description)})
+		out = append(out, PlatformCommand{Name: name, Description: renderPlatformCommandDescription(cmd.Description)})
 	}
 	return out
 }
@@ -440,12 +467,29 @@ func SlackSubcommandMapWith(dynamic []PlatformCommand) map[string]string {
 	out := SlackSubcommandMap()
 	for _, cmd := range sortedPlatformCommands(dynamic) {
 		name := NormalizeSlackCommandName(cmd.Name)
-		if name == "" {
+		if name == "" || dynamicCommandCollidesWithRegisteredSlash(name) {
 			continue
 		}
 		out[name] = "/" + name
 	}
 	return out
+}
+
+func renderPlatformCommandDescription(value string) string {
+	var b strings.Builder
+	for _, r := range value {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			b.WriteByte(' ')
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return strings.Join(strings.Fields(b.String()), " ")
+}
+
+func dynamicCommandCollidesWithRegisteredSlash(name string) bool {
+	_, ok := ResolveCommand(name)
+	return ok
 }
 
 func platformCommandNameSet(commands []PlatformCommand) map[string]bool {

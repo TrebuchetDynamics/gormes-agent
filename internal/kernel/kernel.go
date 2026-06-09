@@ -78,6 +78,10 @@ type Config struct {
 	// Skills injects a deterministic procedural block ahead of the user turn.
 	// Nil means no skill runtime.
 	Skills SkillProvider
+	// SystemPrompt is the base identity/context prompt prepended to every turn.
+	// Empty preserves caller-owned prompt assembly for gateway paths that already
+	// pass a session context block.
+	SystemPrompt string
 	// PrefillMessages are ephemeral few-shot messages inserted into provider
 	// requests after system/context messages and before visible conversation.
 	// They are never appended to kernel history or persisted.

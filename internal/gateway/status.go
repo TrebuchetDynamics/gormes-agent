@@ -14,6 +14,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/jsonfile"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/plannedstop"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/runtimeproc"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 const runtimeStatusKind = "gormes-gateway"
@@ -396,14 +397,17 @@ func (s *RuntimeStatusStore) ReadRuntimeStatusSnapshot(ctx context.Context) (Run
 
 	var status RuntimeStatus
 	exists, err := jsonfile.Read(ctx, s.path, &status, "runtime status")
-	if !exists || errors.Is(err, jsonfile.ErrEmpty) {
+	if errors.Is(err, jsonfile.ErrEmpty) {
 		return RuntimeStatusSnapshot{Missing: true}, nil
 	}
 	if err != nil {
-		if jsonfile.IsReadError(err) {
+		if jsonfile.IsReadError(err) || !exists {
 			return RuntimeStatusSnapshot{}, err
 		}
 		return RuntimeStatusSnapshot{}, fmt.Errorf("decode runtime status: %w", err)
+	}
+	if !exists {
+		return RuntimeStatusSnapshot{Missing: true}, nil
 	}
 	if status.Platforms == nil {
 		status.Platforms = map[string]PlatformRuntimeStatus{}
@@ -489,7 +493,7 @@ func (s *RuntimeStatusStore) validateRuntimeProcess(snapshot RuntimeStatusSnapsh
 			Live:              false,
 			PID:               snapshot.Status.PID,
 			ExpectedStartTime: snapshot.Status.StartTime,
-			Command:           snapshot.Status.Command,
+			Command:           sanitizeRuntimeValidationCommand(snapshot.Status.Command),
 			Message:           mismatch,
 			CheckedAt:         checkedAt,
 		}
@@ -510,7 +514,7 @@ func (s *RuntimeStatusStore) validateRuntimeProcess(snapshot RuntimeStatusSnapsh
 	validation := RuntimeProcessValidation{
 		PID:               pid,
 		ExpectedStartTime: expectedStartTime,
-		Command:           command,
+		Command:           sanitizeRuntimeValidationCommand(command),
 		CheckedAt:         checkedAt,
 	}
 	if pid <= 0 {
@@ -546,6 +550,11 @@ func (s *RuntimeStatusStore) validateRuntimeProcess(snapshot RuntimeStatusSnapsh
 		validation.Message = "process start time does not match runtime status"
 		return validation
 	}
+	if command != "" && process.Command != "" && process.Command != command {
+		validation.Status = RuntimeProcessValidationPIDReused
+		validation.Message = "process command does not match runtime status"
+		return validation
+	}
 	if process.Stopped {
 		validation.Status = RuntimeProcessValidationStopped
 		validation.Message = "process is stopped"
@@ -555,9 +564,34 @@ func (s *RuntimeStatusStore) validateRuntimeProcess(snapshot RuntimeStatusSnapsh
 	validation.Status = RuntimeProcessValidationLive
 	validation.Live = true
 	if validation.Command == "" {
-		validation.Command = process.Command
+		validation.Command = sanitizeRuntimeValidationCommand(process.Command)
 	}
 	return validation
+}
+
+func sanitizeRuntimeStatusArgv(argv []string) []string {
+	out := slices.Clone(argv)
+	for i, arg := range out {
+		out[i] = sanitizeRuntimeValidationCommandPart(arg)
+	}
+	return out
+}
+
+func sanitizeRuntimeValidationCommand(command string) string {
+	parts := strings.Fields(command)
+	for i, part := range parts {
+		parts[i] = sanitizeRuntimeValidationCommandPart(part)
+	}
+	return strings.Join(parts, " ")
+}
+
+func sanitizeRuntimeValidationCommandPart(part string) string {
+	part = redaction.RedactSecrets(strings.Join(strings.Fields(part), " "))
+	lower := strings.ToLower(part)
+	if strings.Contains(lower, "[redacted]") && (strings.Contains(lower, "api-key") || strings.Contains(lower, "api_key") || strings.Contains(lower, "apikey") || strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "password")) {
+		return "[redacted]"
+	}
+	return part
 }
 
 func runtimePIDRecordMismatch(status RuntimeStatus, pidRecord RuntimeStatus) string {
@@ -598,7 +632,7 @@ func (s *RuntimeStatusStore) merge(status *RuntimeStatus, update RuntimeStatusUp
 		status.StartTime = 0
 	}
 	status.Generation++
-	status.Argv = slices.Clone(s.argv())
+	status.Argv = sanitizeRuntimeStatusArgv(s.argv())
 	status.Command = strings.Join(status.Argv, " ")
 	status.ProcessValidation = s.selfRuntimeProcessValidation(*status)
 	if status.Platforms == nil {
@@ -628,6 +662,9 @@ func (s *RuntimeStatusStore) merge(status *RuntimeStatus, update RuntimeStatusUp
 	if update.ProxyState != "" || update.ProxyURL != "" || update.ProxyErrorMessage != "" {
 		if update.ProxyState != "" {
 			status.Proxy.State = update.ProxyState
+			if strings.TrimSpace(strings.ToLower(update.ProxyState)) == "stopped" {
+				status.Proxy.URL = ""
+			}
 		}
 		if update.ProxyURL != "" {
 			status.Proxy.URL = update.ProxyURL
@@ -643,7 +680,7 @@ func (s *RuntimeStatusStore) merge(status *RuntimeStatus, update RuntimeStatusUp
 		if update.KanbanDispatcher.LastTickAt != "" {
 			kanbanStatus.LastTickAt = update.KanbanDispatcher.LastTickAt
 		}
-		if update.KanbanDispatcher.LastError != "" || update.KanbanDispatcher.State == KanbanDispatcherStateRunning {
+		if update.KanbanDispatcher.LastError != "" || update.KanbanDispatcher.State == KanbanDispatcherStateRunning || update.KanbanDispatcher.State == KanbanDispatcherStateStopped {
 			kanbanStatus.LastError = update.KanbanDispatcher.LastError
 		}
 		kanbanStatus.Spawned += update.KanbanDispatcher.Spawned
@@ -725,6 +762,7 @@ func applyRuntimeProcessValidation(status RuntimeStatus, validation RuntimeProce
 		return status
 	}
 	status.GatewayState = GatewayStateStopped
+	status.RestartRequested = false
 	status.ActiveAgents = 0
 	for name, platform := range status.Platforms {
 		switch platform.State {
@@ -736,6 +774,7 @@ func applyRuntimeProcessValidation(status RuntimeStatus, validation RuntimeProce
 	switch strings.TrimSpace(strings.ToLower(status.Proxy.State)) {
 	case "starting", "running", "draining":
 		status.Proxy.State = "stopped"
+		status.Proxy.URL = ""
 	}
 	if status.KanbanDispatcher.State == KanbanDispatcherStateRunning ||
 		status.KanbanDispatcher.State == KanbanDispatcherStateDegraded {
@@ -763,26 +802,10 @@ func (s *RuntimeStatusStore) selfRuntimeProcessValidation(status RuntimeStatus) 
 func (s *RuntimeStatusStore) readLocked() (RuntimeStatus, error) {
 	var status RuntimeStatus
 	exists, err := jsonfile.Read(context.Background(), s.path, &status, "runtime status")
-	if !exists {
-		pid := s.pid()
-		startTime, _ := s.startTime(pid)
-		argv := slices.Clone(s.argv())
-		return RuntimeStatus{
-			Kind:         runtimeStatusKind,
-			PID:          pid,
-			StartTime:    startTime,
-			BootGitSHA:   s.bootGitSHA,
-			Command:      strings.Join(argv, " "),
-			Argv:         argv,
-			GatewayState: GatewayStateStarting,
-			Platforms:    map[string]PlatformRuntimeStatus{},
-			UpdatedAt:    s.now().Format(time.RFC3339Nano),
-		}, nil
-	}
 	if errors.Is(err, jsonfile.ErrEmpty) {
 		pid := s.pid()
 		startTime, _ := s.startTime(pid)
-		argv := slices.Clone(s.argv())
+		argv := sanitizeRuntimeStatusArgv(s.argv())
 		return RuntimeStatus{
 			Kind:       runtimeStatusKind,
 			PID:        pid,
@@ -795,10 +818,26 @@ func (s *RuntimeStatusStore) readLocked() (RuntimeStatus, error) {
 		}, nil
 	}
 	if err != nil {
-		if jsonfile.IsReadError(err) {
+		if jsonfile.IsReadError(err) || !exists {
 			return RuntimeStatus{}, err
 		}
 		return RuntimeStatus{}, fmt.Errorf("decode runtime status: %w", err)
+	}
+	if !exists {
+		pid := s.pid()
+		startTime, _ := s.startTime(pid)
+		argv := sanitizeRuntimeStatusArgv(s.argv())
+		return RuntimeStatus{
+			Kind:         runtimeStatusKind,
+			PID:          pid,
+			StartTime:    startTime,
+			BootGitSHA:   s.bootGitSHA,
+			Command:      strings.Join(argv, " "),
+			Argv:         argv,
+			GatewayState: GatewayStateStarting,
+			Platforms:    map[string]PlatformRuntimeStatus{},
+			UpdatedAt:    s.now().Format(time.RFC3339Nano),
+		}, nil
 	}
 	if status.Platforms == nil {
 		status.Platforms = map[string]PlatformRuntimeStatus{}
@@ -843,14 +882,17 @@ func readRuntimeStatusRecord(path string) (RuntimeStatus, error) {
 	}
 	var status RuntimeStatus
 	exists, err := jsonfile.Read(context.Background(), path, &status, "runtime PID record")
-	if !exists || errors.Is(err, jsonfile.ErrEmpty) {
+	if errors.Is(err, jsonfile.ErrEmpty) {
 		return RuntimeStatus{}, os.ErrNotExist
 	}
 	if err != nil {
-		if jsonfile.IsReadError(err) {
+		if jsonfile.IsReadError(err) || !exists {
 			return RuntimeStatus{}, err
 		}
 		return RuntimeStatus{}, fmt.Errorf("decode runtime PID record: %w", err)
+	}
+	if !exists {
+		return RuntimeStatus{}, os.ErrNotExist
 	}
 	return status, nil
 }

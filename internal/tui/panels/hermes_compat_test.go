@@ -273,6 +273,27 @@ func TestHermesPanels_ClarifyPanelRendersNumberedChoicesAndOther(t *testing.T) {
 // length, never the value. Tracks
 // ../hermes-agent/cli.py:_sudo_password_callback and
 // ../hermes-agent/cli.py:_get_secret_display.
+func TestHermesPanels_ClarifyPanelRespectsSmallHeightBudget(t *testing.T) {
+	state := tui.ClarifyPanelState{
+		Question:    strings.Repeat("This is a long question. ", 8),
+		Choices:     []string{"Alpha", "Beta", "Gamma"},
+		Selected:    0,
+		TimeoutHint: "(10s)",
+		Height:      8,
+	}
+
+	got := tui.RenderClarifyPanel(state)
+	lines := strings.Split(strings.TrimSuffix(got, "\n"), "\n")
+	if len(lines) > state.Height {
+		t.Fatalf("clarify panel rendered %d rows, want at most Height=%d:\n%s", len(lines), state.Height, got)
+	}
+	for _, want := range []string{"1. Alpha", "2. Beta", "3. Gamma", "Other"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("height-clamped clarify panel dropped choice %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestHermesPanels_SecretAndSudoPanelsNeverRenderSecretValue(t *testing.T) {
 	const secretValue = "hunter2-do-not-leak-this-into-the-tui"
 

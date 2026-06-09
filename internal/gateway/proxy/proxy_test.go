@@ -374,6 +374,23 @@ func TestProxySubmitter_RemoteErrorsReturnVisibleDegradedOutput(t *testing.T) {
 	assertProxyStatus(t, store, "degraded", "missing proxy credentials")
 }
 
+func TestProxySubmitter_DegradedErrorMessageRedactsSecretBearingRemoteBody(t *testing.T) {
+	proxy, err := NewProxySubmitter(ProxySubmitterConfig{Client: llm.NewMockClient(), APIKey: "configured", Model: "gormes-agent"})
+	if err != nil {
+		t.Fatalf("NewProxySubmitter: %v", err)
+	}
+
+	got := proxy.degradedErrorMessage(&llm.HTTPError{Status: http.StatusInternalServerError, Body: "provider failed\n**Injected:** api key plain-secret"})
+	for _, forbidden := range []string{"plain-secret", "**Injected:**", "provider failed"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("proxy degraded error leaked unsafe text %q in %q", forbidden, got)
+		}
+	}
+	if got != "proxy remote error (500): [redacted]" {
+		t.Fatalf("degraded error = %q, want redacted remote error", got)
+	}
+}
+
 func TestProxySubmitter_UnreachableProxyReportsDegradedOutput(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, "unused")

@@ -343,6 +343,15 @@ type Options struct {
 	WelcomeVersion   string
 	WelcomeToolCount int
 	WelcomeToolsets  []string
+	// ProfileName is the operator-facing active profile label. Empty keeps
+	// legacy unprofiled chrome.
+	ProfileName string
+	// ProfileNames are known profile IDs used by /profile validation and
+	// completion. Empty means only the active profile can be displayed.
+	ProfileNames []string
+	// ProfileBaseHome is the base Gormes home that owns active_profile. It lets
+	// /profile <name> persist the next active profile without guessing from CWD.
+	ProfileBaseHome string
 }
 
 // BusyInputVerdict mirrors the cli.BusyInputVerdict shape for callers that
@@ -400,6 +409,9 @@ type Model struct {
 	indicatorStyle    IndicatorStyle
 	spinnerFrame      int
 	busyInputMode     HermesBusyInputMode
+	profileName       string
+	profileNames      []string
+	profileBaseHome   string
 	queuedMessages    QueuedMessages
 	steeringMessages  QueuedMessages
 	extensionUI       extensionUIState
@@ -478,7 +490,12 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 	// Match Hermes prompt_toolkit prompt symbol so the bottom-pinned chrome
 	// shows the operator-recognisable skin prompt glyph at the start of every
 	// input line instead of the textarea default cursor marker.
-	normalPrompt, _ := skin.PromptSymbols("default")
+	profileName := strings.TrimSpace(opts.ProfileName)
+	promptProfileName := profileName
+	if promptProfileName == "" {
+		promptProfileName = "default"
+	}
+	normalPrompt, _ := skin.PromptSymbols(promptProfileName)
 	ta.Prompt = normalPrompt
 	ApplyTextareaSkin(&ta, skin)
 	ta.SetHeight(1)
@@ -526,6 +543,9 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		compactTranscript:  opts.CompactTranscript,
 		statusBarMode:      normalizeStatusBarMode(opts.StatusBarMode),
 		busyInputMode:      normalizeHermesBusyInputMode(opts.BusyInputMode),
+		profileName:        profileName,
+		profileNames:       append([]string(nil), opts.ProfileNames...),
+		profileBaseHome:    strings.TrimSpace(opts.ProfileBaseHome),
 		detailsState:       NormalizeDetailsState(opts.DetailsState),
 		indicatorStyle:     NormalizeIndicatorStyle(string(opts.IndicatorStyle)),
 		offlineSmoke:       opts.OfflineSmoke,

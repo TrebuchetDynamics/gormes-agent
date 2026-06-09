@@ -5,11 +5,13 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/jsonfile"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/markerfile"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/runtimeproc"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 const markerKind = "gormes-gateway-planned-stop"
@@ -89,7 +91,21 @@ func (s *Store) Write(ctx context.Context, marker Marker) error {
 	if marker.WrittenAt == "" {
 		marker.WrittenAt = s.currentTime().Format(time.RFC3339Nano)
 	}
+	marker.Reason = sanitizeMarkerReason(marker.Reason)
 	return jsonfile.WriteAtomic(ctx, s.path, marker, "planned stop marker")
+}
+
+func sanitizeMarkerReason(reason string) string {
+	reason = strings.Join(strings.Fields(reason), " ")
+	reason = redaction.RedactSecrets(reason)
+	fields := strings.Fields(reason)
+	for i, field := range fields {
+		lower := strings.ToLower(field)
+		if strings.Contains(lower, "[redacted]") && (strings.Contains(lower, "api_key") || strings.Contains(lower, "api-key") || strings.Contains(lower, "apikey") || strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "password")) {
+			fields[i] = "[redacted]"
+		}
+	}
+	return strings.Join(fields, " ")
 }
 
 func (s *Store) ConsumeForSelf(ctx context.Context) (ConsumeResult, error) {
@@ -101,20 +117,21 @@ func (s *Store) ConsumeForSelf(ctx context.Context) (ConsumeResult, error) {
 	}
 	var marker Marker
 	exists, err := jsonfile.Read(ctx, s.path, &marker, "planned stop marker")
-	if !exists {
-		return ConsumeResult{Status: ConsumeMissing}, nil
-	}
 	if errors.Is(err, jsonfile.ErrEmpty) {
 		_ = s.Clear(context.Background())
 		return ConsumeResult{Status: ConsumeInvalid, Reason: "empty marker"}, nil
 	}
 	if err != nil {
-		if jsonfile.IsReadError(err) {
+		if jsonfile.IsReadError(err) || !exists {
 			return ConsumeResult{}, err
 		}
 		_ = s.Clear(context.Background())
 		return ConsumeResult{Status: ConsumeInvalid, Reason: "decode marker: " + err.Error()}, nil
 	}
+	if !exists {
+		return ConsumeResult{Status: ConsumeMissing}, nil
+	}
+	marker.Reason = sanitizeMarkerReason(marker.Reason)
 	if marker.Kind != "" && marker.Kind != markerKind {
 		_ = s.Clear(context.Background())
 		return ConsumeResult{Status: ConsumeInvalid, Reason: "marker kind mismatch", Marker: marker}, nil

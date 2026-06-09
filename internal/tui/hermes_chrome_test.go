@@ -144,6 +144,31 @@ func TestHermesChrome_BottomPinnedOrder_View(t *testing.T) {
 	}
 }
 
+func TestHermesChrome_ActiveWaitingHintIsQuiet(t *testing.T) {
+	frames := make(chan kernel.RenderFrame, 1)
+	f := kernel.RenderFrame{
+		Phase:     kernel.PhaseConnecting,
+		Model:     "gpt-5.5",
+		SessionID: "sess-verbose-animation",
+		History:   []llm.Message{{Role: "user", Content: "hello"}},
+	}
+	frames <- f
+	m := NewModelWithOptions(frames, func(string) {}, func() {}, Options{StartupNotice: "session: temporary (sessions.db busy)"})
+	m.width = 120
+	m.height = 28
+	m.frame = f
+
+	got := m.View()
+	if !strings.Contains(got, "⠋ connecting") {
+		t.Fatalf("active waiting hint missing quiet unicode spinner:\n%s", got)
+	}
+	for _, noisy := range []string{"Reasoning", "🤔", "(≧◡≦)", "session state: in-memory", "gateway status/stop", "session sess-"} {
+		if strings.Contains(got, noisy) {
+			t.Fatalf("active waiting view leaked noisy marker %q:\n%s", noisy, got)
+		}
+	}
+}
+
 func TestHermesChrome_IdleViewDoesNotReserveEmptyHintRow(t *testing.T) {
 	history := make([]llm.Message, 0, 10)
 	for i := 1; i <= 10; i++ {
@@ -224,6 +249,43 @@ func TestHermesChrome_EmptyChatIntroUsesBubbleTeaView(t *testing.T) {
 	)
 	if strings.Contains(got, "start typing below to begin") {
 		t.Fatalf("Bubble Tea chat view leaked old empty placeholder:\n%s", got)
+	}
+}
+
+func TestHermesChrome_ProfileIsVisibleInWelcomeStatusAndPrompt(t *testing.T) {
+	frames := make(chan kernel.RenderFrame, 1)
+	f := kernel.RenderFrame{Phase: kernel.PhaseIdle, Model: "gpt-5.5", SessionID: "sess-profile"}
+	frames <- f
+	m := NewModelWithOptions(frames, func(string) {}, func() {}, Options{ProfileName: "mineru"})
+	m.width = 120
+	m.height = 30
+	m.frame = f
+
+	got := m.View()
+	for _, want := range []string{"Profile:", "mineru", "profile mineru", "mineru ❯ Type a message"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("View missing profile marker %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestHermesChrome_DoesNotDuplicateProfileComposerPrompt(t *testing.T) {
+	frames := make(chan kernel.RenderFrame, 1)
+	f := kernel.RenderFrame{Phase: kernel.PhaseIdle, Model: "gpt-5.5", SessionID: "sess-profile"}
+	frames <- f
+	m := NewModelWithOptions(frames, func(string) {}, func() {}, Options{
+		ProfileName:   "mineru",
+		StartupNotice: "session: temporary (sessions.db busy)",
+	})
+	m.height = 30
+	m.frame = f
+
+	for _, width := range []int{40, 45, 50, 55, 60, 65, 72, 90} {
+		m.width = width
+		got := m.View()
+		if count := strings.Count(got, "mineru ❯"); count != 1 {
+			t.Fatalf("width=%d: View rendered profile composer prompt %d times, want 1:\n%s", width, count, got)
+		}
 	}
 }
 

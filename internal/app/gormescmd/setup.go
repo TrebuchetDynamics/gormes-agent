@@ -189,6 +189,9 @@ func fillSetupCommandSeamDefaults(seams setupCommandSeams) setupCommandSeams {
 	if seams.RunProviderAuth == nil {
 		seams.RunProviderAuth = defaults.RunProviderAuth
 	}
+	if seams.RunProviderReauthenticate == nil {
+		seams.RunProviderReauthenticate = defaults.RunProviderReauthenticate
+	}
 	if seams.DetectHermesMigrationSource == nil {
 		seams.DetectHermesMigrationSource = defaults.DetectHermesMigrationSource
 	}
@@ -261,6 +264,7 @@ func defaultSetupCommandSeams() setupCommandSeams {
 		ChooseProviderCredentialAction: promptSetupProviderCredentialAction,
 		RunProviderLiveTest:            runSetupProviderLiveTest,
 		RunProviderAuth:                runSetupProviderAuth,
+		RunProviderReauthenticate:      runSetupProviderReauthenticate,
 		DetectHermesMigrationSource:    tuiapp.DetectHermesMigrationSource,
 		DetectOpenClawMigrationSource:  tuiapp.DetectOpenClawMigrationSource,
 		RunSetupSection:                runSetupSection,
@@ -977,7 +981,7 @@ func runSetupOAuthProviderFlow(cmd *cobra.Command, seams setupCommandSeams, curr
 		case setupProviderCredentialUseExisting:
 		case setupProviderCredentialReauthenticate:
 			fmt.Fprintf(cmd.OutOrStdout(), "Starting a fresh %s login...\n\n", label)
-			if err := seams.RunProviderAuth(cmd, provider); err != nil {
+			if err := seams.RunProviderReauthenticate(cmd, provider); err != nil {
 				return err
 			}
 		case setupProviderCredentialCancel:
@@ -1027,11 +1031,25 @@ func promptSetupProviderCredentialAction(cmd *cobra.Command, _ setupProviderCred
 }
 
 func runSetupProviderAuth(cmd *cobra.Command, provider string) error {
+	return runSetupProviderAuthWithArgs(cmd, provider, nil)
+}
+
+func runSetupProviderReauthenticate(cmd *cobra.Command, provider string) error {
+	extraArgs := []string(nil)
+	if strings.EqualFold(strings.TrimSpace(provider), config.CodexOAuthProvider) {
+		extraArgs = append(extraArgs, "--skip-codex-cli-import")
+	}
+	return runSetupProviderAuthWithArgs(cmd, provider, extraArgs)
+}
+
+func runSetupProviderAuthWithArgs(cmd *cobra.Command, provider string, extraArgs []string) error {
 	authCmd := providermodule.NewAuthCommand(providerCommandOptions())
 	authCmd.SetOut(cmd.OutOrStdout())
 	authCmd.SetErr(cmd.ErrOrStderr())
 	authCmd.SetIn(cmd.InOrStdin())
-	authCmd.SetArgs([]string{"add", provider, "--type", "oauth"})
+	args := []string{"add", provider, "--type", "oauth", "--setup-output"}
+	args = append(args, extraArgs...)
+	authCmd.SetArgs(args)
 	authCmd.SilenceUsage = true
 	authCmd.SilenceErrors = true
 	return authCmd.ExecuteContext(cmd.Context())

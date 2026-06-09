@@ -52,9 +52,29 @@ func EmptyRememberedSourceLedger() RememberedSourceLedger {
 	return RememberedSourceLedger{Platforms: policy.EmptyPlatformBuckets[RememberedSourceEntry]()}
 }
 
-// EnsureRememberedSourceLedger initializes the platform buckets after JSON decode.
+// EnsureRememberedSourceLedger initializes and normalizes platform buckets after
+// JSON decode so older/operator-edited ledgers keep the same lookup contract as
+// entries written through RememberSource.
 func EnsureRememberedSourceLedger(ledger RememberedSourceLedger) RememberedSourceLedger {
-	ledger.Platforms = policy.EnsurePlatformBuckets(ledger.Platforms)
+	ledger.UpdatedAt = policy.TrimText(ledger.UpdatedAt)
+	platforms := policy.EmptyPlatformBuckets[RememberedSourceEntry]()
+	for platform, entries := range policy.EnsurePlatformBuckets(ledger.Platforms) {
+		platform = entrymodel.NormalizePlatform(platform)
+		if platform == "" {
+			continue
+		}
+		for _, entry := range entries {
+			if policy.TrimText(entry.Platform) == "" {
+				entry.Platform = platform
+			}
+			entry = NormalizeRememberedSourceEntry(entry)
+			if entry.Platform == "" || entry.ID == "" {
+				continue
+			}
+			platforms[entry.Platform], _ = UpsertRememberedSourceEntry(platforms[entry.Platform], entry)
+		}
+	}
+	ledger.Platforms = platforms
 	return ledger
 }
 
@@ -67,6 +87,7 @@ func RememberedSourceEntryFromSource(source Source) RememberedSourceEntry {
 		UserID:       policy.TrimText(source.UserID),
 		UserName:     policy.TrimText(source.UserName),
 		ThreadID:     policy.TrimText(source.ThreadID),
+		ChatTopic:    policy.TrimText(source.ChatTopic),
 		GuildID:      policy.TrimText(source.GuildID),
 		ParentChatID: policy.TrimText(source.ParentChatID),
 		MessageID:    policy.TrimText(source.MessageID),

@@ -113,13 +113,21 @@ func Handle(ctx context.Context, ev Event, policy Policy) (Decision, error) {
 // FormatPairingPrompt returns the bounded public prompt sent for pair-mode
 // unauthorized DMs.
 func FormatPairingPrompt(platformName, code string) string {
-	platformName = strings.TrimSpace(platformName)
-	code = strings.TrimSpace(code)
+	platformName = promptToken(platformName)
+	code = promptToken(code)
 	return fmt.Sprintf("Hi. I don't recognize this DM yet.\n\nPairing code: `%s`\nAsk the operator to run: `gormes pairing approve %s %s`", code, platformName, code)
+}
+
+func promptToken(value string) string {
+	value = strings.ReplaceAll(value, "`", "'")
+	return strings.Join(strings.Fields(value), " ")
 }
 
 func pairingRequestFromEvent(ev Event, allowlistDenied bool) pairing.PairingCodeRequest {
 	userID := strings.TrimSpace(ev.PairingUserID)
+	if userID == "" {
+		userID = strings.TrimSpace(ev.UserID)
+	}
 	userName := strings.TrimSpace(ev.UserName)
 	if userName == "" && userID != "" && userID == strings.TrimSpace(ev.ChatID) && ev.DirectMessage {
 		userName = strings.TrimSpace(ev.ChatName)

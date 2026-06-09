@@ -10,11 +10,11 @@ func TestNormalizeMatchesHermesEnum(t *testing.T) {
 		raw  string
 		want Style
 	}{
-		{raw: "", want: Kaomoji},
+		{raw: "", want: Unicode},
 		{raw: " Emoji ", want: Emoji},
 		{raw: "UNICODE", want: Unicode},
 		{raw: "ascii", want: ASCII},
-		{raw: "rainbow", want: Kaomoji},
+		{raw: "rainbow", want: Unicode},
 	}
 	for _, tc := range cases {
 		if got := Normalize(tc.raw); got != tc.want {

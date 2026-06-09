@@ -8,6 +8,7 @@ func TestNameNormalizesSlashCommandTokens(t *testing.T) {
 		want string
 	}{
 		{raw: "/status", want: "status"},
+		{raw: "／status", want: "status"},
 		{raw: "/status@GormesBot", want: "status"},
 		{raw: " /TTS@GormesBot on ", want: "tts"},
 		{raw: "goal status", want: "goal"},
@@ -50,7 +51,9 @@ func TestPayloadIfCommandExposesCommandPayloadContract(t *testing.T) {
 		{name: "bot mention", raw: "/title@GormesBot Friendly Greeting", commandName: "/title", wantPayload: "Friendly Greeting", wantOK: true},
 		{name: "unicode whitespace", raw: "/title\u00a0Friendly Greeting", commandName: "title", wantPayload: "Friendly Greeting", wantOK: true},
 		{name: "bare command", raw: "/title", commandName: "title", wantPayload: "", wantOK: true},
+		{name: "fullwidth slash", raw: "／title Friendly Greeting", commandName: "title", wantPayload: "Friendly Greeting", wantOK: true},
 		{name: "non matching payload", raw: "Friendly Greeting", commandName: "title", wantPayload: "", wantOK: false},
+		{name: "matching word without slash is raw payload", raw: "title Friendly Greeting", commandName: "title", wantPayload: "", wantOK: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			gotPayload, gotOK := PayloadIfCommand(tc.raw, tc.commandName)

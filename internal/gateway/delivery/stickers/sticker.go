@@ -34,7 +34,7 @@ func CacheStickerDescription(path, fileUniqueID, description, emoji, setName str
 	if !ok {
 		return nil
 	}
-	cache, err := loadStickerCache(path)
+	cache, err := loadStickerCacheForWrite(path)
 	if err != nil {
 		return err
 	}
@@ -53,9 +53,9 @@ func stickerCacheKey(fileUniqueID string) (string, bool) {
 }
 
 func BuildStickerInjection(description, emoji, setName string) string {
-	description = strings.TrimSpace(description)
-	emoji = strings.TrimSpace(emoji)
-	setName = strings.TrimSpace(setName)
+	description = sanitizeStickerPromptField(description)
+	emoji = sanitizeStickerPromptField(emoji)
+	setName = sanitizeStickerPromptField(setName)
 	context := ""
 	if setName != "" && emoji != "" {
 		context = " " + emoji + ` from "` + setName + `"`
@@ -66,20 +66,41 @@ func BuildStickerInjection(description, emoji, setName string) string {
 }
 
 func BuildAnimatedStickerInjection(emoji string) string {
-	emoji = strings.TrimSpace(emoji)
+	emoji = sanitizeStickerPromptField(emoji)
 	if emoji != "" {
 		return `[The user sent an animated sticker ` + emoji + `~ I can't see animated ones yet, but the emoji suggests: ` + emoji + `]`
 	}
 	return "[The user sent an animated sticker~ I can't see animated ones yet]"
 }
 
+func sanitizeStickerPromptField(value string) string {
+	replacer := strings.NewReplacer(
+		"\"", "'",
+		"`", "'",
+		"[", "(",
+		"]", ")",
+	)
+	return strings.Join(strings.Fields(replacer.Replace(value)), " ")
+}
+
 func loadStickerCache(path string) (map[string]StickerDescription, error) {
-	var cache map[string]StickerDescription
-	exists, err := jsonfile.Read(context.Background(), path, &cache, "sticker cache")
+	cache, err := readStickerCache(path)
 	if err != nil {
 		if errors.Is(err, jsonfile.ErrEmpty) || !jsonfile.IsReadError(err) {
 			return map[string]StickerDescription{}, nil
 		}
+		return nil, err
+	}
+	return cache, nil
+}
+
+func readStickerCache(path string) (map[string]StickerDescription, error) {
+	if strings.TrimSpace(path) == "" {
+		return map[string]StickerDescription{}, nil
+	}
+	var cache map[string]StickerDescription
+	exists, err := jsonfile.Read(context.Background(), path, &cache, "sticker cache")
+	if err != nil {
 		return nil, err
 	}
 	if !exists || cache == nil {
@@ -88,7 +109,21 @@ func loadStickerCache(path string) (map[string]StickerDescription, error) {
 	return cache, nil
 }
 
+func loadStickerCacheForWrite(path string) (map[string]StickerDescription, error) {
+	cache, err := readStickerCache(path)
+	if err != nil {
+		if errors.Is(err, jsonfile.ErrEmpty) {
+			return map[string]StickerDescription{}, nil
+		}
+		return nil, err
+	}
+	return cache, nil
+}
+
 func saveStickerCache(path string, cache map[string]StickerDescription) error {
+	if strings.TrimSpace(path) == "" {
+		return nil
+	}
 	return jsonfile.WriteAtomicWithOptions(context.Background(), path, cache, "sticker cache", jsonfile.WriteOptions{
 		DirMode:    0o700,
 		FileMode:   0o600,

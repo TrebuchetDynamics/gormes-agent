@@ -154,7 +154,7 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 				_ = json.Unmarshal(payload, &envelope)
 				_ = cl.write(ServerEvent{
 					Type:      "error",
-					RequestID: strings.TrimSpace(envelope.RequestID),
+					RequestID: safeNavivoxRequestID(envelope.RequestID),
 					Code:      "request_too_large",
 					Message:   "Request is too large",
 				})
@@ -172,7 +172,7 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			if err := cl.handle(r.Context(), inbox, msg); err != nil {
 				_ = cl.write(ServerEvent{
 					Type:      "error",
-					RequestID: msg.RequestID,
+					RequestID: safeNavivoxRequestID(msg.RequestID),
 					Code:      codeForNavivoxError(err),
 					Message:   safeNavivoxError(err),
 				})
@@ -212,9 +212,13 @@ func (c *Channel) reservePairingStream() (func(bool), bool) {
 
 func (cl *client) handle(ctx context.Context, inbox chan<- gateway.InboundEvent, msg ClientMessage) error {
 	msg.Type = strings.TrimSpace(msg.Type)
-	msg.RequestID = strings.TrimSpace(msg.RequestID)
+	requestID, ok := normalizeNavivoxRequestID(msg.RequestID)
+	msg.RequestID = requestID
 	if msg.RequestID == "" {
 		return navivoxError{code: "bad_request", message: "request_id is required"}
+	}
+	if !ok {
+		return navivoxError{code: "bad_request", message: "request_id is too long"}
 	}
 	switch msg.Type {
 	case "ping":
@@ -237,9 +241,12 @@ func (cl *client) handle(ctx context.Context, inbox chan<- gateway.InboundEvent,
 	case "stop_turn":
 		return cl.enqueueTurnControl(ctx, inbox, msg, "stopped")
 	case "subscribe_session":
-		sessionID := strings.TrimSpace(msg.SessionID)
+		sessionID, ok := normalizeNavivoxSessionID(msg.SessionID)
 		if sessionID == "" {
 			return navivoxError{code: "bad_request", message: "session_id is required"}
+		}
+		if !ok {
+			return navivoxError{code: "bad_request", message: "session_id is too long"}
 		}
 		cl.subscribe(sessionID, msg.RequestID)
 		return cl.write(ServerEvent{Type: "session_started", RequestID: msg.RequestID, SessionID: sessionID})
@@ -249,9 +256,12 @@ func (cl *client) handle(ctx context.Context, inbox chan<- gateway.InboundEvent,
 }
 
 func (cl *client) enqueueTurnControl(ctx context.Context, inbox chan<- gateway.InboundEvent, msg ClientMessage, status string) error {
-	sessionID := strings.TrimSpace(msg.SessionID)
+	sessionID, ok := normalizeNavivoxSessionID(msg.SessionID)
 	if sessionID == "" {
 		return navivoxError{code: "bad_request", message: "session_id is required"}
+	}
+	if !ok {
+		return navivoxError{code: "bad_request", message: "session_id is too long"}
 	}
 	ev := gateway.InboundEvent{
 		Platform:  PlatformName,
@@ -437,8 +447,10 @@ func safeNavivoxToolMetadata(raw map[string]any) map[string]any {
 
 func navivoxToolMetadataSensitiveKey(key string) bool {
 	key = strings.ToLower(strings.TrimSpace(key))
-	for _, marker := range []string{"secret", "token", "password", "api_key", "apikey", "credential", "raw_audio", "audio_bytes"} {
-		if strings.Contains(key, marker) {
+	collapsed := strings.NewReplacer("_", "", "-", "", ".", "", ":", " ").Replace(key)
+	collapsed = strings.Join(strings.Fields(collapsed), "")
+	for _, marker := range []string{"secret", "token", "password", "apikey", "credential", "rawaudio", "audiobytes"} {
+		if strings.Contains(collapsed, marker) {
 			return true
 		}
 	}

@@ -31,6 +31,48 @@ func TestApprovalQueueSubmitAndHasBlocking(t *testing.T) {
 	}
 }
 
+func TestApprovalQueueNormalizesRequestMetadata(t *testing.T) {
+	q := NewGatewayApprovalQueue()
+	ticket, err := q.SubmitGatewayApproval("session-a", GatewayApprovalRequest{
+		Command:     " danger ",
+		Description: " destructive ",
+		PatternKey:  " git reset ",
+		PatternKeys: []string{" git reset ", " ", " rm -rf "},
+		Evidence:    map[string]string{" detector ": " policy ", " ": "dropped"},
+	})
+	if err != nil {
+		t.Fatalf("SubmitGatewayApproval: %v", err)
+	}
+	if err := q.ResolveGatewayApproval(context.Background(), Resolution{SessionKey: "session-a", Choice: ChoiceOnce}); err != nil {
+		t.Fatalf("ResolveGatewayApproval: %v", err)
+	}
+	outcome, ok := q.GatewayApprovalOutcome(ticket)
+	if !ok {
+		t.Fatal("approval outcome missing")
+	}
+	wantPatterns := []string{"git reset", "rm -rf"}
+	if outcome.Request.Command != "danger" || outcome.Request.Description != "destructive" || outcome.Request.PatternKey != "git reset" {
+		t.Fatalf("outcome request fields = %+v, want trimmed metadata", outcome.Request)
+	}
+	if len(outcome.Request.PatternKeys) != len(wantPatterns) {
+		t.Fatalf("PatternKeys = %+v, want %+v", outcome.Request.PatternKeys, wantPatterns)
+	}
+	for i, want := range wantPatterns {
+		if outcome.Request.PatternKeys[i] != want {
+			t.Fatalf("PatternKeys = %+v, want %+v", outcome.Request.PatternKeys, wantPatterns)
+		}
+	}
+	if outcome.Request.Evidence["detector"] != "policy" {
+		t.Fatalf("Evidence = %+v, want trimmed detector evidence", outcome.Request.Evidence)
+	}
+	if _, ok := outcome.Request.Evidence[" detector "]; ok {
+		t.Fatalf("Evidence kept untrimmed key: %+v", outcome.Request.Evidence)
+	}
+	if _, ok := outcome.Request.Evidence[""]; ok {
+		t.Fatalf("Evidence kept empty key: %+v", outcome.Request.Evidence)
+	}
+}
+
 func TestApprovalQueueClonesRequestEvidence(t *testing.T) {
 	q := NewGatewayApprovalQueue()
 	evidence := map[string]string{"detector": "original"}
@@ -55,6 +97,100 @@ func TestApprovalQueueClonesRequestEvidence(t *testing.T) {
 	}
 	if got := stored.Request.Evidence["detector"]; got != "original" {
 		t.Fatalf("stored evidence detector = %q, want original", got)
+	}
+}
+
+func TestApprovalQueueOutcomeLookupTrimsTicketSessionKey(t *testing.T) {
+	q := NewGatewayApprovalQueue()
+	ticket, err := q.SubmitGatewayApproval("session-a", GatewayApprovalRequest{Command: "danger"})
+	if err != nil {
+		t.Fatalf("SubmitGatewayApproval: %v", err)
+	}
+	if err := q.ResolveGatewayApproval(context.Background(), Resolution{SessionKey: "session-a", Choice: ChoiceOnce}); err != nil {
+		t.Fatalf("ResolveGatewayApproval: %v", err)
+	}
+
+	lookup := GatewayApprovalTicket{SessionKey: " session-a ", ID: ticket.ID}
+	outcome, ok := q.GatewayApprovalOutcome(lookup)
+	if !ok {
+		t.Fatalf("GatewayApprovalOutcome(%+v) missing; want canonical session lookup", lookup)
+	}
+	if outcome.Ticket.SessionKey != "session-a" {
+		t.Fatalf("outcome ticket session = %q, want canonical session-a", outcome.Ticket.SessionKey)
+	}
+}
+
+func TestApprovalQueueResolutionNormalizesEvidenceMap(t *testing.T) {
+	q := NewGatewayApprovalQueue()
+	ticket, err := q.SubmitGatewayApproval("session-a", GatewayApprovalRequest{Command: "danger"})
+	if err != nil {
+		t.Fatalf("SubmitGatewayApproval: %v", err)
+	}
+
+	if err := q.ResolveGatewayApproval(context.Background(), Resolution{
+		SessionKey: "session-a",
+		Choice:     ChoiceOnce,
+		Evidence:   map[string]string{" actor ": " ada ", " ": "dropped"},
+	}); err != nil {
+		t.Fatalf("ResolveGatewayApproval: %v", err)
+	}
+	outcome, ok := q.GatewayApprovalOutcome(ticket)
+	if !ok {
+		t.Fatal("approval outcome missing")
+	}
+	if outcome.Resolution.Evidence["actor"] != "ada" {
+		t.Fatalf("outcome evidence = %+v, want trimmed actor evidence", outcome.Resolution.Evidence)
+	}
+	if _, ok := outcome.Resolution.Evidence[" actor "]; ok {
+		t.Fatalf("outcome evidence kept untrimmed key: %+v", outcome.Resolution.Evidence)
+	}
+	if _, ok := outcome.Resolution.Evidence[""]; ok {
+		t.Fatalf("outcome evidence kept empty key: %+v", outcome.Resolution.Evidence)
+	}
+}
+
+func TestApprovalQueueResolutionNormalizesEvidenceFields(t *testing.T) {
+	q := NewGatewayApprovalQueue()
+	ticket, err := q.SubmitGatewayApproval("session-a", GatewayApprovalRequest{Command: "danger"})
+	if err != nil {
+		t.Fatalf("SubmitGatewayApproval: %v", err)
+	}
+
+	if err := q.ResolveGatewayApproval(context.Background(), Resolution{
+		SessionKey: " session-a ",
+		Choice:     ChoiceOnce,
+		Platform:   " telegram ",
+		ChatID:     " 42 ",
+		MessageID:  " 1000 ",
+		ActorID:    " 111 ",
+	}); err != nil {
+		t.Fatalf("ResolveGatewayApproval: %v", err)
+	}
+	outcome, ok := q.GatewayApprovalOutcome(ticket)
+	if !ok {
+		t.Fatal("approval outcome missing")
+	}
+	if outcome.Resolution.SessionKey != "session-a" || outcome.Resolution.Platform != "telegram" || outcome.Resolution.ChatID != "42" || outcome.Resolution.MessageID != "1000" || outcome.Resolution.ActorID != "111" {
+		t.Fatalf("outcome resolution = %+v, want trimmed evidence fields", outcome.Resolution)
+	}
+}
+
+func TestApprovalQueueResolutionRecordsTrimmedSessionKey(t *testing.T) {
+	q := NewGatewayApprovalQueue()
+	ticket, err := q.SubmitGatewayApproval("session-a", GatewayApprovalRequest{Command: "danger"})
+	if err != nil {
+		t.Fatalf("SubmitGatewayApproval: %v", err)
+	}
+
+	if err := q.ResolveGatewayApproval(context.Background(), Resolution{SessionKey: " session-a ", Choice: ChoiceOnce}); err != nil {
+		t.Fatalf("ResolveGatewayApproval: %v", err)
+	}
+	outcome, ok := q.GatewayApprovalOutcome(ticket)
+	if !ok {
+		t.Fatal("approval outcome missing")
+	}
+	if outcome.Resolution.SessionKey != "session-a" {
+		t.Fatalf("outcome resolution session key = %q, want trimmed session-a", outcome.Resolution.SessionKey)
 	}
 }
 

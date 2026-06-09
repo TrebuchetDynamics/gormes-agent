@@ -100,6 +100,7 @@ type WelcomeContext struct {
 	Provider  string
 	Runtime   string
 	CWD       string
+	Profile   string
 	SessionID string
 	Version   string // best-effort; "" => version line omitted
 	ToolCount int    // 0 => tools line omitted
@@ -188,6 +189,7 @@ func WelcomePanel(s skin.HermesSkin, ctx WelcomeContext, width int) string {
 	}
 
 	addCtx("CWD:", ctx.CWD)
+	addCtx("Profile:", ctx.Profile)
 	if id := strings.TrimSpace(ctx.SessionID); id != "" {
 		addCtx("Session:", shortSessionID(id))
 	}

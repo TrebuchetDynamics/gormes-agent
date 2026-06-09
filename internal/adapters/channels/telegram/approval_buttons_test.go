@@ -181,6 +181,39 @@ func TestTelegramApprovalButtons_UnavailableWhenStorageOrChannelMissing(t *testi
 	}
 }
 
+func TestTelegramApprovalCallbackSanitizesActorNameInEdit(t *testing.T) {
+	client := newMockClient()
+	resolver := &adaptertest.ApprovalRecorder{}
+	b := New(Config{
+		AllowedChatID:    42,
+		ApprovalResolver: resolver,
+	}, client, nil)
+	data := sendTelegramApprovalPrompt(t, b, client, "telegram:42:actor", 0)
+
+	b.handleCallbackQuery(context.Background(), &tgbotapi.CallbackQuery{
+		ID:   "callback-actor-1",
+		Data: data,
+		From: &tgbotapi.User{ID: 111, FirstName: "Ada\n**Injected:** `token`"},
+		Message: &tgbotapi.Message{
+			MessageID: 1000,
+			Chat:      &tgbotapi.Chat{ID: 42, Type: "private"},
+		},
+	})
+
+	edits := telegramApprovalEdits(client)
+	if len(edits) != 1 {
+		t.Fatalf("edits = %+v, want one edit", edits)
+	}
+	for _, forbidden := range []string{"\n", "**Injected:**", "`token`"} {
+		if strings.Contains(edits[0].Text, forbidden) {
+			t.Fatalf("edit text leaked actor markup %q in %q", forbidden, edits[0].Text)
+		}
+	}
+	if !strings.Contains(edits[0].Text, "Approved once by Ada ''Injected:'' 'token'") {
+		t.Fatalf("edit text = %q, want sanitized actor", edits[0].Text)
+	}
+}
+
 func TestTelegramApprovalCallback_ResolvesOnceAndEditsPrompt(t *testing.T) {
 	client := newMockClient()
 	resolver := &adaptertest.ApprovalRecorder{}

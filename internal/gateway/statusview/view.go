@@ -169,13 +169,13 @@ func RenderStatusSummary(summary StatusSummary) string {
 	if len(pending) > 0 || len(approved) > 0 {
 		b.WriteString("pairing:\n")
 		for _, record := range pending {
-			b.WriteString(fmt.Sprintf("- pending %s user=%s code=%s age=%ds\n", record.Platform, record.UserID, record.Code, record.AgeSeconds))
+			b.WriteString(fmt.Sprintf("- pending %s user=%s code=%s age=%ds\n", statusLineValue(record.Platform), statusLineValue(record.UserID), statusLineValue(record.Code), nonNegativeInt64(record.AgeSeconds)))
 		}
 		for _, record := range approved {
-			b.WriteString(fmt.Sprintf("- approved %s user=%s", record.Platform, record.UserID))
+			b.WriteString(fmt.Sprintf("- approved %s user=%s", statusLineValue(record.Platform), statusLineValue(record.UserID)))
 			if record.UserName != "" {
 				b.WriteString(" name=")
-				b.WriteString(record.UserName)
+				b.WriteString(statusLineValue(record.UserName))
 			}
 			b.WriteByte('\n')
 		}
@@ -202,15 +202,15 @@ func RenderStatusSummary(summary StatusSummary) string {
 			b.WriteString("- pairing")
 			if evidence.Platform != "" {
 				b.WriteByte(' ')
-				b.WriteString(evidence.Platform)
+				b.WriteString(statusLineValue(evidence.Platform))
 			}
 			if evidence.Reason != "" {
 				b.WriteByte(' ')
-				b.WriteString(evidence.Reason)
+				b.WriteString(statusLineValue(evidence.Reason))
 			}
 			if evidence.Message != "" {
 				b.WriteString(": ")
-				b.WriteString(evidence.Message)
+				b.WriteString(statusLineValue(evidence.Message))
 			}
 			b.WriteByte('\n')
 		}
@@ -224,7 +224,7 @@ func renderRuntimeLine(runtime RuntimeStatus) string {
 		return "runtime: missing"
 	}
 
-	state := runtime.GatewayState
+	state := statusLineValue(runtime.GatewayState)
 	if state == "" {
 		state = "unknown"
 	}
@@ -234,7 +234,7 @@ func renderRuntimeLine(runtime RuntimeStatus) string {
 	}
 	parts = append(parts, fmt.Sprintf("active_agents=%d", runtime.ActiveAgents))
 	if runtime.ExitReason != "" {
-		parts = append(parts, fmt.Sprintf("exit_reason=%q", runtime.ExitReason))
+		parts = append(parts, fmt.Sprintf("exit_reason=%q", statusLineValue(runtime.ExitReason)))
 	}
 	if runtime.RestartRequested {
 		parts = append(parts, "restart_requested=true")
@@ -248,8 +248,8 @@ func renderRuntimeLine(runtime RuntimeStatus) string {
 	if len(runtime.ServiceManagerUnavailable) > 0 {
 		parts = append(parts, fmt.Sprintf("service_manager_unavailable=%d", len(runtime.ServiceManagerUnavailable)))
 	}
-	if runtime.ConfigReload.Status != "" {
-		parts = append(parts, fmt.Sprintf("config_reload=%s", runtime.ConfigReload.Status))
+	if status := statusLineValue(runtime.ConfigReload.Status); status != "" {
+		parts = append(parts, fmt.Sprintf("config_reload=%s", status))
 	}
 	return fmt.Sprintf("runtime: %s (%s)", state, strings.Join(parts, " "))
 }
@@ -292,26 +292,27 @@ func memoryPressureEvidenceEmpty(evidence RuntimeMemoryPressureEvidence) bool {
 }
 
 func formatMemoryPressureEvidence(evidence RuntimeMemoryPressureEvidence) string {
-	if evidence.Status == "" {
+	status := statusLineValue(evidence.Status)
+	if status == "" {
 		return ""
 	}
 	parts := []string{
-		fmt.Sprintf("memory_pressure: %s", evidence.Status),
-		fmt.Sprintf("rss=%dMB", evidence.RSSMB),
-		fmt.Sprintf("warn=%dMB", evidence.WarnRSSMB),
-		fmt.Sprintf("critical=%dMB", evidence.CriticalRSSMB),
+		fmt.Sprintf("memory_pressure: %s", status),
+		fmt.Sprintf("rss=%dMB", nonNegativeInt(evidence.RSSMB)),
+		fmt.Sprintf("warn=%dMB", nonNegativeInt(evidence.WarnRSSMB)),
+		fmt.Sprintf("critical=%dMB", nonNegativeInt(evidence.CriticalRSSMB)),
 	}
-	if evidence.UptimeSeconds > 0 {
-		parts = append(parts, fmt.Sprintf("uptime=%ds", evidence.UptimeSeconds))
+	if uptime := nonNegativeInt64(evidence.UptimeSeconds); uptime > 0 {
+		parts = append(parts, fmt.Sprintf("uptime=%ds", uptime))
 	}
-	if evidence.GoRoutines > 0 {
-		parts = append(parts, fmt.Sprintf("goroutines=%d", evidence.GoRoutines))
+	if goroutines := nonNegativeInt(evidence.GoRoutines); goroutines > 0 {
+		parts = append(parts, fmt.Sprintf("goroutines=%d", goroutines))
 	}
 	if evidence.GCCollections > 0 {
 		parts = append(parts, fmt.Sprintf("gc=%d", evidence.GCCollections))
 	}
 	if evidence.Action != "" && evidence.Action != "none" {
-		parts = append(parts, "action="+evidence.Action)
+		parts = append(parts, "action="+statusLineValue(evidence.Action))
 	}
 	if evidence.TargetPID > 0 {
 		parts = append(parts, fmt.Sprintf("target_pid=%d", evidence.TargetPID))
@@ -320,20 +321,25 @@ func formatMemoryPressureEvidence(evidence RuntimeMemoryPressureEvidence) string
 		parts = append(parts, fmt.Sprintf("target_start_time=%d", evidence.TargetStartTime))
 	}
 	if len(evidence.Evidence) > 0 {
-		parts = append(parts, "evidence="+strings.Join(evidence.Evidence, ","))
+		cleaned := make([]string, 0, len(evidence.Evidence))
+		for _, item := range evidence.Evidence {
+			if item = statusLineValue(item); item != "" {
+				cleaned = append(cleaned, item)
+			}
+		}
+		parts = append(parts, "evidence="+strings.Join(cleaned, ","))
 	}
 	if evidence.Message != "" {
-		parts = append(parts, "message="+strconv.Quote(evidence.Message))
+		parts = append(parts, "message="+strconv.Quote(statusLineValue(evidence.Message)))
 	}
 	return strings.Join(parts, " ")
 }
 
 func renderChannelLine(channel StatusChannel, runtime RuntimeStatus, pairing PairingPlatformStatus) string {
 	lifecycle := "unknown"
-	if runtime.Platforms != nil {
-		if platform, ok := runtime.Platforms[channel.Name]; ok && platform.State != "" {
-			lifecycle = platform.State
-		}
+	platform, hasPlatform := platformRuntimeStatus(runtime.Platforms, channel.Name)
+	if hasPlatform && platform.State != "" {
+		lifecycle = statusLineValue(platform.State)
 	}
 
 	pairingState := "unpaired"
@@ -345,17 +351,15 @@ func renderChannelLine(channel StatusChannel, runtime RuntimeStatus, pairing Pai
 		approvedCount = pairing.ApprovedCount
 	}
 
-	target := channel.Detail
+	target := statusLineValue(channel.Detail)
 	if target == "" {
 		target = "-"
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "- %s: lifecycle=%s", channel.Name, lifecycle)
-	if runtime.Platforms != nil {
-		if platform, ok := runtime.Platforms[channel.Name]; ok && platform.ErrorMessage != "" {
-			fmt.Fprintf(&b, " error=%q", platform.ErrorMessage)
-		}
+	fmt.Fprintf(&b, "- %s: lifecycle=%s", statusLineValue(channel.Name), lifecycle)
+	if hasPlatform && platform.ErrorMessage != "" {
+		fmt.Fprintf(&b, " error=%q", statusLineValue(platform.ErrorMessage))
 	}
 	fmt.Fprintf(&b, "; pairing=%s pending=%d approved=%d; target=%s", pairingState, pendingCount, approvedCount, target)
 	return b.String()
@@ -365,16 +369,16 @@ func renderExpiryFinalizedEvidence(evidence RuntimeExpiryFinalizedEvidence) stri
 	var b strings.Builder
 	b.WriteString("- finalized")
 	if evidence.SessionID != "" {
-		fmt.Fprintf(&b, " session=%s", evidence.SessionID)
+		fmt.Fprintf(&b, " session=%s", statusLineValue(evidence.SessionID))
 	}
 	if evidence.Source != "" {
-		fmt.Fprintf(&b, " source=%s", evidence.Source)
+		fmt.Fprintf(&b, " source=%s", statusLineValue(evidence.Source))
 	}
 	if evidence.ChatID != "" {
-		fmt.Fprintf(&b, " chat=%s", evidence.ChatID)
+		fmt.Fprintf(&b, " chat=%s", statusLineValue(evidence.ChatID))
 	}
 	if evidence.UserID != "" {
-		fmt.Fprintf(&b, " user=%s", evidence.UserID)
+		fmt.Fprintf(&b, " user=%s", statusLineValue(evidence.UserID))
 	}
 	fmt.Fprintf(&b, " expiry_finalized=%t", evidence.ExpiryFinalized)
 	if evidence.MigratedMemoryFlushed {
@@ -385,27 +389,27 @@ func renderExpiryFinalizedEvidence(evidence RuntimeExpiryFinalizedEvidence) stri
 
 func renderExpiryFinalizeEvidence(evidence RuntimeExpiryFinalizeEvidence) string {
 	var b strings.Builder
-	status := evidence.Status
+	status := statusLineValue(evidence.Status)
 	if status == "" {
 		status = "expiry_finalize_pending"
 	}
 	b.WriteString("- ")
 	b.WriteString(status)
 	if evidence.SessionID != "" {
-		fmt.Fprintf(&b, " session=%s", evidence.SessionID)
+		fmt.Fprintf(&b, " session=%s", statusLineValue(evidence.SessionID))
 	}
 	if evidence.Source != "" {
-		fmt.Fprintf(&b, " source=%s", evidence.Source)
+		fmt.Fprintf(&b, " source=%s", statusLineValue(evidence.Source))
 	}
 	if evidence.ChatID != "" {
-		fmt.Fprintf(&b, " chat=%s", evidence.ChatID)
+		fmt.Fprintf(&b, " chat=%s", statusLineValue(evidence.ChatID))
 	}
 	if evidence.UserID != "" {
-		fmt.Fprintf(&b, " user=%s", evidence.UserID)
+		fmt.Fprintf(&b, " user=%s", statusLineValue(evidence.UserID))
 	}
 	fmt.Fprintf(&b, " attempts=%d", evidence.Attempts)
 	if evidence.Error != "" {
-		fmt.Fprintf(&b, " error=%q", evidence.Error)
+		fmt.Fprintf(&b, " error=%q", statusLineValue(evidence.Error))
 	}
 	return b.String()
 }
@@ -413,8 +417,8 @@ func renderExpiryFinalizeEvidence(evidence RuntimeExpiryFinalizeEvidence) string
 func sortedStatusChannels(channels []StatusChannel) []StatusChannel {
 	out := make([]StatusChannel, 0, len(channels))
 	for _, channel := range channels {
-		channel.Name = strings.TrimSpace(channel.Name)
-		channel.Detail = strings.TrimSpace(channel.Detail)
+		channel.Name = statusLineValue(channel.Name)
+		channel.Detail = statusLineValue(channel.Detail)
 		if channel.Name == "" {
 			continue
 		}
@@ -432,12 +436,32 @@ func sortedStatusChannels(channels []StatusChannel) []StatusChannel {
 func pairingPlatformMap(platforms []PairingPlatformStatus) map[string]PairingPlatformStatus {
 	out := make(map[string]PairingPlatformStatus, len(platforms))
 	for _, platform := range platforms {
+		platform.Platform = statusLineValue(platform.Platform)
 		if platform.Platform == "" {
 			continue
 		}
+		platform.State = statusLineValue(platform.State)
+		platform.PendingCount = nonNegativeInt(platform.PendingCount)
+		platform.ApprovedCount = nonNegativeInt(platform.ApprovedCount)
 		out[platform.Platform] = platform
 	}
 	return out
+}
+
+func platformRuntimeStatus(platforms map[string]PlatformRuntimeStatus, name string) (PlatformRuntimeStatus, bool) {
+	if platforms == nil {
+		return PlatformRuntimeStatus{}, false
+	}
+	name = statusLineValue(name)
+	if platform, ok := platforms[name]; ok {
+		return platform, true
+	}
+	for key, platform := range platforms {
+		if statusLineValue(key) == name {
+			return platform, true
+		}
+	}
+	return PlatformRuntimeStatus{}, false
 }
 
 func sortedPendingPairingRecords(records []PairingPendingRecord) []PairingPendingRecord {
@@ -526,4 +550,22 @@ func sortedPairingDegradedEvidence(records []PairingDegradedEvidence) []PairingD
 		return cmp.Compare(left.Message, right.Message)
 	})
 	return out
+}
+
+func statusLineValue(value string) string {
+	return strings.Join(strings.Fields(value), " ")
+}
+
+func nonNegativeInt(value int) int {
+	if value < 0 {
+		return 0
+	}
+	return value
+}
+
+func nonNegativeInt64(value int64) int64 {
+	if value < 0 {
+		return 0
+	}
+	return value
 }

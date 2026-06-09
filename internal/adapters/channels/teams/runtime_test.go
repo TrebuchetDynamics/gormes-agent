@@ -196,6 +196,56 @@ func TestTeamsImageAttachmentNormalization(t *testing.T) {
 	}
 }
 
+func TestTeamsApprovalCardSanitizesPromptBreakingMarkup(t *testing.T) {
+	client := &fakeTeamsClient{}
+	ch := NewChannel(Config{ClientID: "bot-id"}, client, slog.Default())
+
+	_, err := ch.SendExecApproval(context.Background(), "conv-1", ApprovalRequest{
+		Command:     "rm -rf\n**approve everything** `token`",
+		SessionKey:  "sess-1",
+		Description: "dangerous\n[click me](https://evil.example) `secret`",
+	})
+	if err != nil {
+		t.Fatalf("SendExecApproval: %v", err)
+	}
+	if len(client.sentApproval) != 1 {
+		t.Fatalf("sent approval cards = %+v, want one", client.sentApproval)
+	}
+	card := client.sentApproval[0]
+	for _, text := range []string{card.CommandPreview, card.Description, card.Actions[0].Data["cmd"], card.Actions[0].Data["desc"]} {
+		for _, forbidden := range []string{"\n", "**approve", "`token`", "[click me](https://evil.example)", "`secret`"} {
+			if strings.Contains(text, forbidden) {
+				t.Fatalf("approval card leaked Teams markup %q in %q", forbidden, text)
+			}
+		}
+	}
+	if !strings.Contains(card.CommandPreview, "rm -rf ''approve everything'' 'token'") {
+		t.Fatalf("CommandPreview = %q, want sanitized command", card.CommandPreview)
+	}
+	if !strings.Contains(card.Description, "dangerous (click me)(https://evil.example) 'secret'") {
+		t.Fatalf("Description = %q, want sanitized description", card.Description)
+	}
+}
+
+func TestTeamsApprovalActionCanonicalizesClickerID(t *testing.T) {
+	store := newFakeApprovalStore()
+	store.blocking["sess-1"] = true
+	ch := NewChannel(Config{
+		ClientID:      "bot-id",
+		AllowedUsers:  []string{" AAD-ALLOWED "},
+		ApprovalStore: store,
+	}, &fakeTeamsClient{}, slog.Default())
+
+	got := ch.HandleApprovalAction(ApprovalAction{
+		ClickerAADID: " aad-allowed ",
+		SessionKey:   "sess-1",
+		Action:       "approve_once",
+	})
+	if got.Status != "resolved" || store.resolved != "sess-1=once" {
+		t.Fatalf("canonicalized approval action = %+v store=%q, want resolved", got, store.resolved)
+	}
+}
+
 func TestTeamsSendTextTypingAndApprovalCards(t *testing.T) {
 	client := &fakeTeamsClient{}
 	store := newFakeApprovalStore()

@@ -79,6 +79,9 @@ type Invocation struct {
 	// or directories for the native TUI. NoPromptTemplates disables discovery.
 	PromptTemplatePaths []string
 	NoPromptTemplates   bool
+	ProfileName         string
+	ProfileNames        []string
+	ProfileBaseHome     string
 }
 
 type exitCodeError struct {
@@ -166,6 +169,8 @@ func ResolveInvocation(cmd *cobra.Command) (Invocation, error) {
 		RemoteURL:           remoteFlag,
 		PromptTemplatePaths: tuistartup.CommandStringArrayFlag(cmd, "prompt-template"),
 		NoPromptTemplates:   tuistartup.CommandBoolFlag(cmd, "no-prompt-templates"),
+		ProfileName:         strings.TrimSpace(os.Getenv("GORMES_ACTIVE_PROFILE")),
+		ProfileBaseHome:     config.GormesBaseHome(),
 	}
 	if err != nil {
 		return invocation, NewExitCodeError(2, err)
@@ -269,6 +274,9 @@ func RunResolved(cmd *cobra.Command, invocation Invocation, runtime Runtime) err
 					VoiceRecordKey:     invocation.Config.Voice.RecordKey,
 					SkillSlashCommands: gormescli.TUISkillSlashCommands(ctx, invocation.Config),
 					SkillSlashReload:   gormescli.TUISkillSlashReloadFunc(invocation.Config),
+					ProfileName:        invocation.ProfileName,
+					ProfileNames:       invocation.ProfileNames,
+					ProfileBaseHome:    invocation.ProfileBaseHome,
 				}
 			},
 		})
@@ -338,6 +346,7 @@ func RunResolved(cmd *cobra.Command, invocation Invocation, runtime Runtime) err
 		Model:             modelName,
 		Provider:          cfg.Hermes.Provider,
 		Endpoint:          cfg.Hermes.Endpoint,
+		SystemPrompt:      llm.AgentIdentityForProfile(invocation.ProfileName),
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
 		Tools:             registry,
 		MaxToolIterations: gormescli.ConfiguredMaxToolIterations(cfg),
@@ -400,6 +409,9 @@ func RunResolved(cmd *cobra.Command, invocation Invocation, runtime Runtime) err
 		WelcomeVersion:   welcomeVersion,
 		WelcomeToolCount: welcomeToolCount,
 		WelcomeToolsets:  welcomeToolsets,
+		ProfileName:      invocation.ProfileName,
+		ProfileNames:     invocation.ProfileNames,
+		ProfileBaseHome:  invocation.ProfileBaseHome,
 	}
 	tuiadapter.RuntimeBundle{
 		Presentation: tuiadapter.PresentationBundle{
@@ -572,7 +584,7 @@ func openTUISessionMap(cmd *cobra.Command) (session.Map, *session.BoltMap, strin
 		return smap, smap, "", nil
 	}
 	if errors.Is(err, session.ErrDBLocked) {
-		notice := "session state: in-memory (sessions.db locked; gateway status/stop)"
+		notice := "session: temporary (sessions.db busy)"
 		return session.NewMemMap(), nil, notice, nil
 	}
 	if errors.Is(err, session.ErrDBCorrupt) {

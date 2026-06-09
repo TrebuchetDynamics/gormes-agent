@@ -16,7 +16,7 @@ func TestResolveHomeTarget_ChannelNeutralPlatformHome(t *testing.T) {
 	if !ok {
 		t.Fatal("ResolveHomeTarget did not resolve configured discord home")
 	}
-	want := Target{Platform: "discord", ChatID: "D-home"}
+	want := Target{Platform: "discord", ChatID: "D-home", IsExplicit: true}
 	if got != want {
 		t.Fatalf("resolved target = %+v, want %+v", got, want)
 	}
@@ -56,7 +56,7 @@ func TestResolveHomeTargetWithFallback_UsesDiscoveryOnlyWhenEnabled(t *testing.T
 	if err != nil {
 		t.Fatalf("ResolveHomeTargetWithFallback error = %v", err)
 	}
-	want := Target{Platform: "bluebubbles", ChatID: "chat-guid", ThreadID: "thread-guid"}
+	want := Target{Platform: "bluebubbles", ChatID: "chat-guid", ThreadID: "thread-guid", IsExplicit: true}
 	if got != want {
 		t.Fatalf("resolved fallback = %+v, want %+v", got, want)
 	}
