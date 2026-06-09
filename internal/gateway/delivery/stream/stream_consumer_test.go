@@ -54,6 +54,23 @@ func (s *recordingStreamSink) DeliverFrame(_ context.Context, target routing.Tar
 	return nil
 }
 
+func TestStreamConsumer_FanOutAllowsNilContext(t *testing.T) {
+	sink := &recordingStreamSink{}
+	consumer := NewStreamConsumer(sink)
+	targets := []routing.Target{{Platform: "telegram", ChatID: "42", IsExplicit: true}}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("FanOut panicked with nil context: %v", r)
+		}
+	}()
+	results := consumer.FanOut(nil, kernel.RenderFrame{SessionID: "sess-nilctx"}, targets)
+
+	if len(results) != 1 || len(sink.calls) != 1 {
+		t.Fatalf("fanout with nil context results=%d calls=%d, want 1/1", len(results), len(sink.calls))
+	}
+}
+
 func TestStreamConsumer_FanOutsToMultipleTargets(t *testing.T) {
 	sink := &recordingStreamSink{}
 	consumer := NewStreamConsumer(sink)
