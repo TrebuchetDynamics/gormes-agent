@@ -3,6 +3,7 @@ package mirror
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -137,6 +138,39 @@ func TestMirrorDeliveryToSessionNormalizesSelectedMetadataPayload(t *testing.T) 
 	}
 	if payload.SessionID != "sess-target" || payload.ChatID != "C123" {
 		t.Fatalf("payload = %+v, want normalized session/chat metadata", payload)
+	}
+}
+
+func TestMirrorDeliveryToSessionRedactsSecretLikeSourceLabel(t *testing.T) {
+	rec := store.NewRecording()
+	candidates := []session.Metadata{{SessionID: "sess-target", Source: "slack", ChatID: "C123", UpdatedAt: 42}}
+
+	_, err := MirrorDeliveryToSession(context.Background(), rec, candidates, DeliveryMirrorTarget{
+		Platform:    "slack",
+		ChatID:      "C123",
+		MessageText: "hello",
+		SourceLabel: "tool api_key=plain-secret-token",
+	}, time.Date(2026, 5, 1, 12, 30, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("MirrorDeliveryToSession error = %v", err)
+	}
+	cmds := rec.Commands()
+	if len(cmds) != 1 {
+		t.Fatalf("commands = %+v, want one mirror command", cmds)
+	}
+	var payload struct {
+		MetaJSON string `json:"meta_json"`
+	}
+	if err := json.Unmarshal(cmds[0].Payload, &payload); err != nil {
+		t.Fatalf("payload decode: %v", err)
+	}
+	for _, forbidden := range []string{"plain-secret-token", "api_key"} {
+		if strings.Contains(payload.MetaJSON, forbidden) {
+			t.Fatalf("meta_json leaked secret-like source label %q: %s", forbidden, payload.MetaJSON)
+		}
+	}
+	if !strings.Contains(payload.MetaJSON, "[redacted]") {
+		t.Fatalf("meta_json missing redaction marker: %s", payload.MetaJSON)
 	}
 }
 

@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/delivery/address"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 const (
@@ -92,7 +94,7 @@ func MirrorDeliveryToSession(ctx context.Context, st store.Store, candidates []s
 	if content == "" {
 		return DeliveryMirrorResult{Evidence: DeliveryMirrorSessionMissing}, nil
 	}
-	source := address.ID(target.SourceLabel)
+	source := sanitizeMirrorSourceLabel(target.SourceLabel)
 	if source == "" {
 		source = "gormes"
 	}
@@ -120,6 +122,23 @@ func MirrorDeliveryToSession(ctx context.Context, st store.Store, candidates []s
 		return DeliveryMirrorResult{}, err
 	}
 	return DeliveryMirrorResult{Mirrored: true, SessionID: selected.SessionID}, nil
+}
+
+func sanitizeMirrorSourceLabel(value string) string {
+	value = address.ID(value)
+	value = redaction.RedactSecrets(value)
+	fields := strings.Fields(value)
+	for i, field := range fields {
+		lower := strings.ToLower(field)
+		if strings.Contains(lower, "[redacted]") && mirrorSecretField(lower) {
+			fields[i] = "[redacted]"
+		}
+	}
+	return strings.Join(fields, " ")
+}
+
+func mirrorSecretField(value string) bool {
+	return strings.Contains(value, "api_key") || strings.Contains(value, "api-key") || strings.Contains(value, "apikey") || strings.Contains(value, "token") || strings.Contains(value, "secret") || strings.Contains(value, "password")
 }
 
 func deliveryMirrorFilterByUser(items []session.Metadata, userID string) ([]session.Metadata, bool) {
