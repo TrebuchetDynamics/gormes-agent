@@ -16,11 +16,11 @@ func TestInstall_DryRunSkipBrowserFlagsAreAccepted(t *testing.T) {
 				"GORMES_RESTART_GATEWAY": "never",
 			}, flag)
 
-			if !strings.Contains(out, "browser_setup: skipped") {
+			if !strings.Contains(out, "browser    skip") {
 				t.Fatalf("dry-run plan should report browser_setup as skipped for %s; got:\n%s", flag, out)
 			}
-			if !strings.Contains(out, "single Go binary") {
-				t.Fatalf("dry-run plan should explain %s is a no-op for Gormes' single Go binary install; got:\n%s", flag, out)
+			if !strings.Contains(out, "no Playwright install needed") {
+				t.Fatalf("dry-run plan should explain %s is a no-op for Gormes' no Playwright install needed install; got:\n%s", flag, out)
 			}
 		})
 	}

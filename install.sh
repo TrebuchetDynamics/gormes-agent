@@ -142,12 +142,8 @@ prompt_yes_no() {
 
 print_banner() {
   log ""
-  log_color "${MAGENTA}${BOLD}" "┌─────────────────────────────────────────────────────────┐"
-  log_color "${MAGENTA}${BOLD}" "│              ◉ Gormes Agent Installer                   │"
-  log_color "${MAGENTA}${BOLD}" "├─────────────────────────────────────────────────────────┤"
-  log_color "${MAGENTA}${BOLD}" "│  Go-native Hermes-compatible agent runtime.             │"
-  log_color "${MAGENTA}${BOLD}" "│  Single binary. No Python, venv, Node, or Docker needed. │"
-  log_color "${MAGENTA}${BOLD}" "└─────────────────────────────────────────────────────────┘"
+  log_color "${MAGENTA}${BOLD}" "◉ Gormes installer"
+  log_color "$CYAN" "  Go-native Hermes-compatible agent runtime · single binary"
   log ""
 }
 
@@ -271,6 +267,58 @@ is_termux() {
     *com.termux/files/usr*) return 0 ;;
     *) return 1 ;;
   esac
+}
+
+is_wsl() {
+  case "${GORMES_INSTALL_TEST_WSL:-}" in
+    1|true|yes|on) return 0 ;;
+    0|false|no|off) return 1 ;;
+  esac
+  case "$(platform_name)" in
+    Linux*) ;;
+    *) return 1 ;;
+  esac
+  if [ -r /proc/version ] && grep -qiE 'microsoft|wsl' /proc/version 2>/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+is_container_runtime() {
+  case "${GORMES_INSTALL_TEST_CONTAINER:-}" in
+    1|true|yes|on) return 0 ;;
+    0|false|no|off) return 1 ;;
+  esac
+  [ -f /.dockerenv ] && return 0
+  [ -f /run/.containerenv ] && return 0
+  if [ -r /proc/1/cgroup ] && grep -qiE 'docker|kubepods|containerd|libpod|podman' /proc/1/cgroup 2>/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+launchctl_available() {
+  case "${GORMES_INSTALL_TEST_LAUNCHCTL:-}" in
+    1|true|yes|on) return 0 ;;
+    0|false|no|off) return 1 ;;
+  esac
+  has launchctl
+}
+
+systemd_user_available() {
+  if [ -n "${GORMES_INSTALL_TEST_SYSTEMD:-}" ]; then
+    case "$GORMES_INSTALL_TEST_SYSTEMD" in
+      1|true|yes|on) return 0 ;;
+      0|false|no|off) return 1 ;;
+    esac
+  fi
+  if [ -n "${GORMES_INSTALL_TEST_SYSTEMD_USER:-}" ]; then
+    case "$GORMES_INSTALL_TEST_SYSTEMD_USER" in
+      1|true|yes|on) return 0 ;;
+      0|false|no|off) return 1 ;;
+    esac
+  fi
+  has systemctl && systemctl --user >/dev/null 2>&1
 }
 
 effective_uid() {
@@ -666,6 +714,7 @@ ensure_base_prerequisites() {
 
 ensure_source_prerequisites() {
   verbose "checking source-build prerequisites"
+  log_section "Checks"
   if is_termux; then
     ensure_termux_core_packages
   else
@@ -781,12 +830,11 @@ ensure_termux_core_packages() {
 }
 
 ensure_git() {
-  log_info "Checking Git..."
   if has git; then
     git_version=$(git --version 2>/dev/null || true)
     set -- $git_version
     version="${3:-unknown}"
-    log_success "Git ${version} found"
+    log_success "Git ${version}"
     return
   fi
 
@@ -800,11 +848,10 @@ ensure_git() {
 }
 
 ensure_go() {
-  log_info "Checking Go ${GO_VERSION}..."
   if has go; then
     goversion=$(current_go_version)
     if go_version_supported "$goversion"; then
-      log_success "Go ${goversion} found"
+      log_success "Go ${goversion}"
       return
     fi
     log_info "found ${goversion}; installing managed Go ${GO_VERSION}"
@@ -818,20 +865,18 @@ ensure_go() {
 }
 
 check_node_optional() {
-  log_info "Checking Node.js (for browser tools)..."
   if has node; then
     node_version=$(node --version 2>/dev/null || true)
-    log_success "Node.js ${node_version:-unknown} found"
+    log_success "Node.js ${node_version:-unknown}"
     return
   fi
   log_warn "Node.js not found (browser-adjacent tools may be limited)"
 }
 
 check_ripgrep_optional() {
-  log_info "Checking ripgrep (fast file search)..."
   if has rg; then
     rg_version=$(rg --version 2>/dev/null | sed -n '1p')
-    log_success "${rg_version:-ripgrep unknown} found"
+    log_success "${rg_version:-ripgrep unknown}"
     return
   fi
   log_warn "ripgrep not found (file search will use slower fallbacks)"
@@ -861,12 +906,11 @@ check_ripgrep_optional() {
 }
 
 check_ffmpeg_optional() {
-  log_info "Checking ffmpeg (TTS voice messages)..."
   if has ffmpeg; then
     ffmpeg_line=$(ffmpeg -version 2>/dev/null | sed -n '1p')
     set -- $ffmpeg_line
     version="${3:-unknown}"
-    log_success "ffmpeg ${version} found"
+    log_success "ffmpeg ${version}"
     return
   fi
   log_warn "ffmpeg not found (voice/TTS media support may be limited)"
@@ -1237,7 +1281,7 @@ ensure_checkout() {
     fi
     SOURCE_ROOT_DIR="$LOCAL_SOURCE_DIR"
     INSTALL_SOURCE_DESC="$LOCAL_SOURCE_DIR"
-    log "using local source checkout ${LOCAL_SOURCE_DIR}"
+    log_info "Source ${LOCAL_SOURCE_DIR}"
     return
   fi
 
@@ -1384,7 +1428,7 @@ build_gormes() {
       return
     fi
     if [ "$cached_tag" = "$cache_tag" ] && [ "$build_dirty" = "true" ]; then
-      log_info "source tree has local changes; rebuilding"
+      log_info "Dirty source tree; rebuilding"
     fi
     if [ -n "$cached_tag" ] && [ "$cached_tag" != "$cache_tag" ]; then
       log_info "source changed (${cached_tag} → ${cache_tag}); rebuilding"
@@ -1459,7 +1503,7 @@ ensure_path_in_shell_config() {
     PATH_CONFIG_RESULT="sandbox_skipped"
     PATH="${epsc_bin_dir}:${PATH}"
     export PATH
-    log "skipping shell rc PATH edits (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary — ~/.bashrc, ~/.profile, ~/.zshrc, fish config left untouched)"
+    log_info "Shell rc unchanged (${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+GORMES_PREFIX} sandbox)"
     return 0
   fi
 
@@ -1646,11 +1690,11 @@ update_active_command() {
   build_bin="$1"
   published_bin="$2"
   if sandbox_bin_dir_set; then
-    log "skipping active PATH command update (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary)"
+    log_info "PATH command unchanged (${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+GORMES_PREFIX} sandbox)"
     return 0
   fi
   if is_termux; then
-    log "skipping active PATH command update (Termux runtime; respecting $PREFIX/bin boundary)"
+    log_info "PATH command unchanged (Termux PREFIX boundary)"
     return 0
   fi
   paths=""
@@ -1711,15 +1755,16 @@ verify_install() {
   build_root=$(build_root_dir 2>/dev/null || true)
   if [ -n "$build_root" ] && [ -f "$build_root/go.mod" ]; then
     log ""
+    log_section "Health"
     if (cd "$build_root" && go run ./cmd/progress validate) >/dev/null 2>&1; then
-      log "  progress ✓"
+      log_success "progress metadata"
     else
-      log "  progress ⚠ (run 'go run ./cmd/progress validate' in ${build_root})"
+      log_warn "progress metadata (run 'go run ./cmd/progress validate' in ${build_root})"
     fi
   fi
 
   if "$published_bin" doctor --offline >/dev/null 2>&1; then
-    log "  TUI ✓  Tools ✓  Gateway ✓  Goncho ✓  Web ✓"
+    log_success "doctor --offline"
   else
     doctor_out=$("$published_bin" doctor --offline 2>&1 || true)
     printf '%s\n' "$doctor_out" | while IFS= read -r line; do
@@ -1814,14 +1859,13 @@ print_setup_path_recommendation() {
 
 run_setup_wizard() {
   if [ "$RUN_SETUP" = "false" ]; then
-    log_info "Skipping setup wizard (--skip-setup)"
+    log_info "Setup skipped (--skip-setup)"
     return 0
   fi
 
   if setup_already_configured; then
-    log_info "Existing Gormes setup detected; skipping setup recommendation."
-    log "  config: $(managed_home_dir)/config.toml"
-    log "  Run \`gormes setup\` to change providers, channels, or Navivox pairing."
+    log_info "Setup already configured ($(managed_home_dir)/config.toml)"
+    log "  Change later: gormes setup"
     return 0
   fi
 
@@ -1883,10 +1927,6 @@ append_install_ledger() {
     printf ',"restart_gateway":"%s"' "$(json_escape "$RESTART_GATEWAY")"
     printf '}\n'
   } >> "$ledger"
-}
-
-systemd_user_available() {
-  has systemctl && systemctl --user >/dev/null 2>&1
 }
 
 running_profile_gateway_units() {
@@ -1978,7 +2018,7 @@ restart_profile_gateway_units_if_running() {
   [ -n "$rpguir_units" ] || return 0
   case "$RESTART_GATEWAY" in
     never)
-      log "profile gateway restart skipped by policy=never"
+      log_info "Profile gateway restart skipped (policy=never)"
       return 0
       ;;
     auto|always)
@@ -1986,7 +2026,7 @@ restart_profile_gateway_units_if_running() {
   esac
 
   if ! systemd_user_available; then
-    log "profile gateway restart skipped: systemd --user unavailable"
+    log_info "Profile gateway restart skipped (systemd --user unavailable)"
     return 0
   fi
 
@@ -2085,7 +2125,7 @@ restart_gateway_if_running() {
   old_pid="$1"
   case "$RESTART_GATEWAY" in
     never)
-      log "gateway restart skipped by policy=never"
+      log_info "Gateway restart skipped (policy=never)"
       return 0
       ;;
     auto)
@@ -2150,8 +2190,7 @@ bootstrap_config() {
 GORMESCFG
 
   log ""
-  log "Bootstrapped ${config}"
-  log "Edit it to set your provider and gateway credentials."
+  log_success "Created ${config}"
 }
 
 bootstrap_profile_context() {
@@ -2159,7 +2198,7 @@ bootstrap_profile_context() {
   build_bin="$(managed_bin_dir)/gormes"
   [ -x "$build_bin" ] || return 0
   if GORMES_HOME="$home" "$build_bin" profile materialize-main --json >/dev/null 2>&1; then
-    log "Bootstrapped ${home}/profiles/main context files and memory.db"
+    log_success "Created main profile context"
     return 0
   fi
   fail "could not bootstrap ${home}/profiles/main context files"
@@ -2170,30 +2209,24 @@ print_summary() {
   published_bin="${bin_dir}/gormes"
 
   log ""
-  log_color "${GREEN}${BOLD}" "┌─────────────────────────────────────────────────────────┐"
-  log_color "${GREEN}${BOLD}" "│              ✓ Installation Complete!                   │"
-  log_color "${GREEN}${BOLD}" "└─────────────────────────────────────────────────────────┘"
+  log_color "${GREEN}${BOLD}" "✓ Gormes installed"
   log ""
 
-  log_section "📁 Your files"
-  log ""
-  log "  Binary:      ${published_bin}"
-  log "  Managed:     $(managed_bin_dir)/gormes"
-  log "  Source:      $(install_source_description)"
-  log "  Config:      $(managed_home_dir)/config.toml"
-  log "  Auth:        $(managed_home_dir)/auth.json (created by setup/auth commands)"
-  log "  Env:         $(managed_home_dir)/.env (optional imported secrets)"
-  log "  Gateway log: $(managed_home_dir)/gateway.log"
-  log "  Ledger:      $(install_ledger_path)"
+  log_section "Files"
+  log "  command   ${published_bin}"
+  log "  managed   $(managed_bin_dir)/gormes"
+  log "  source    $(install_source_description)"
+  log "  config    $(managed_home_dir)/config.toml"
+  log "  auth      $(managed_home_dir)/auth.json"
+  log "  log       $(managed_home_dir)/gateway.log"
+  log "  ledger    $(install_ledger_path)"
   active_bin=$(active_command_path)
   if [ -n "$active_bin" ] && [ "$active_bin" != "$published_bin" ] && ! same_binary "$active_bin" "$published_bin"; then
     log_warn "Active command is older: ${active_bin} (run 'hash -r' or restart shell)"
   fi
 
   log ""
-  log_rule
-  log ""
-  log_section "⚡ PATH"
+  log_section "PATH"
   if path_contains_dir "$bin_dir"; then
     log_success "${bin_dir} already on PATH"
   elif [ -n "${PATH_CONFIG_FILES:-}" ]; then
@@ -2220,61 +2253,75 @@ print_summary() {
   fi
 
   log ""
-  log_rule
-  log ""
-  log_section "🚀 Commands"
-  log ""
-  log "  gormes                  # start chatting"
-  log "  gormes --offline        # smoke test TUI"
-  log "  gormes doctor --offline # check everything"
-  log "  gormes setup            # configure providers/channels"
-  log "  gormes navivox pair     # pair Android app setup flow"
-  log "  gormes dashboard        # web UI at http://127.0.0.1:43827/dashboard"
-  log "  gormes gateway status   # gateway health"
+  log_section "Try next"
+  log "  gormes                  # chat"
+  log "  gormes doctor --offline # health check"
+  log "  gormes setup            # providers/channels"
+  log "  gormes gateway status   # messaging gateway"
+  log "  gormes dashboard        # http://127.0.0.1:43827/dashboard"
 
   log ""
-  log_rule
-  log ""
-  log_section "✅ Next steps"
-  log ""
-  log "  1. Run: gormes doctor --offline"
+  log_section "Next steps"
+  log "  1. gormes doctor --offline"
   if setup_already_configured; then
-    log "  2. Chat: gormes"
+    log "  2. gormes"
   else
-    log "  2. Configure: gormes setup"
-    log "     Or pair Android app: gormes navivox pair"
+    log "  2. gormes setup"
+    log "     or: gormes navivox pair"
   fi
-  log "  3. Messaging gateway: gormes gateway status"
-  log "     Start after setup if needed: gormes gateway start"
+  log "  3. gormes gateway status"
 
   log ""
-  log_rule
-  log ""
-  log_section "🌐 Web backends"
-  log ""
-  log "  Search:  auto-enabled via DuckDuckGo (no API key)"
-  log "  Extract: export CHROME_REMOTE_DEBUGGING_URL=http://localhost:9222"
-  log "           Start Chrome with --remote-debugging-port=9222"
-  log "  Paid:    export FIRECRAWL_API_KEY=fc-xxx"
+  log_section "Web"
+  log "  search   DuckDuckGo auto-enabled"
+  log "  extract  export CHROME_REMOTE_DEBUGGING_URL=http://localhost:9222"
+  log "  paid     export FIRECRAWL_API_KEY=fc-xxx"
 
   log ""
-  log_info "Update: rerun this installer."
+  log_info "Update: rerun ./install.sh"
 }
 
 print_service_instructions() {
   if sandbox_bin_dir_set; then
-    log "skipping system service install (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary — ~/.config/systemd/user/ and ~/Library/LaunchAgents/ left untouched)"
+    log_info "Service unchanged (${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+GORMES_PREFIX} sandbox)"
     return 0
   fi
   if is_termux; then
-    log "skipping system service install (Termux runtime; use tmux plus termux-wake-lock for long gateway sessions)"
+    print_manual_service_instructions "Termux gateway" \
+      "tmux new -s gormes-gateway 'termux-wake-lock; gormes gateway'" \
+      "termux-wake-unlock"
     return 0
   fi
-  if has systemctl && systemctl --user >/dev/null 2>&1; then
-    install_systemd_user_service
-  elif [ "$(platform_name)" = "Darwin" ] && has launchctl; then
-    install_launchd_service
+  if is_container_runtime; then
+    print_manual_service_instructions "Container gateway" \
+      "docker run --restart unless-stopped ... gormes gateway" \
+      "If using the official image, prefer its image-owned s6 services."
+    return 0
   fi
+  if service_plan_is_systemd; then
+    install_systemd_user_service
+  elif [ "$(platform_name)" = "Darwin" ] && launchctl_available; then
+    install_launchd_service
+  elif is_wsl; then
+    print_manual_service_instructions "WSL gateway" \
+      "tmux new -s gormes-gateway 'gormes gateway'" \
+      "Enable WSL systemd to use: systemctl --user enable --now gormes-gateway"
+  else
+    print_manual_service_instructions "Gateway autostart" \
+      "nohup gormes gateway >> \"$(managed_home_dir)/gateway.log\" 2>&1 &" \
+      "supervisord example: command=gormes gateway; tmux/runit/s6 also work."
+  fi
+}
+
+print_manual_service_instructions() {
+  title="$1"
+  start_cmd="$2"
+  note="$3"
+  log ""
+  log_section "Service"
+  log "  manual    ${title}"
+  log "  start     ${start_cmd}"
+  [ -n "$note" ] && log "  note      ${note}"
 }
 
 install_systemd_user_service() {
@@ -2318,24 +2365,22 @@ SYSTEMDUNIT
   # `systemctl --user enable --now gormes-gateway` once setup completes.
   if [ "$RUN_SETUP" = "false" ] || [ "$SETUP_COMPLETED" != "true" ]; then
     log ""
-    log "systemd user service file installed (NOT auto-enabled until setup completes):"
-    log "  ${service_file}"
-    log "After configuring Gormes, enable with:"
-    log "  systemctl --user enable --now gormes-gateway"
-    log "Then check:"
-    log "  systemctl --user status gormes-gateway"
-    log "  journalctl --user -u gormes-gateway -f"
+    log_section "Service"
+    log "  installed ${service_file}"
+    log "  enable    systemctl --user enable --now gormes-gateway"
+    log "  status    systemctl --user status gormes-gateway"
+    log "  logs      journalctl --user -u gormes-gateway -f"
     return 0
   fi
 
   systemctl --user enable gormes-gateway.service
 
   log ""
-  log "systemd user service installed:"
-  log "  systemctl --user start gormes-gateway    # start now"
-  log "  systemctl --user status gormes-gateway   # check status"
-  log "  journalctl --user -u gormes-gateway -f   # follow logs"
-  log "  (auto-starts on login; survives reboots)"
+  log_section "Service"
+  log "  installed and enabled gormes-gateway"
+  log "  start     systemctl --user start gormes-gateway"
+  log "  status    systemctl --user status gormes-gateway"
+  log "  logs      journalctl --user -u gormes-gateway -f"
 }
 
 install_launchd_service() {
@@ -2379,10 +2424,9 @@ PLISTUNIT
 
   if [ "$RUN_SETUP" = "false" ] || [ "$SETUP_COMPLETED" != "true" ]; then
     log ""
-    log "launchd service file installed (NOT loaded until setup completes):"
-    log "  ${plist_file}"
-    log "After configuring Gormes, load with:"
-    log "  launchctl bootstrap gui/$(id -u) ${plist_file}"
+    log_section "Service"
+    log "  installed ${plist_file}"
+    log "  load      launchctl bootstrap gui/$(id -u) ${plist_file}"
     return 0
   fi
 
@@ -2484,56 +2528,100 @@ print_preflight_diagnostics() {
   fi
 }
 
-print_side_effect_plan() {
+service_plan_label() {
   if sandbox_bin_dir_set; then
-    log "  update_active_path_command: skipped (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary)"
-    log "  edit_shell_rc_files: skipped (sandbox bin dir set; ~/.bashrc, ~/.profile, ~/.zshrc, fish config left untouched)"
-    log "  install_system_service: skipped (sandbox bin dir set; ~/.config/systemd/user/ and ~/Library/LaunchAgents/ left untouched)"
-  elif is_termux; then
-    log "  update_active_path_command: skipped (Termux runtime; respecting $PREFIX/bin boundary)"
-    log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
-    log "  install_system_service: skipped (Termux runtime; use tmux plus termux-wake-lock for long gateway sessions)"
+    printf 'skip (protects ~/.config/systemd/user/)\n'
+    return
+  fi
+  if is_termux; then
+    printf 'manual (Termux: tmux + termux-wake-lock)\n'
+    return
+  fi
+  case "$(platform_name)" in
+    Darwin*)
+      if launchctl_available; then
+        printf 'install LaunchAgent\n'
+      else
+        printf 'manual (launchctl unavailable)\n'
+      fi
+      return
+      ;;
+    Linux*) ;;
+    *)
+      printf 'manual (unsupported service manager)\n'
+      return
+      ;;
+  esac
+  if is_container_runtime; then
+    printf 'container (Docker restart policy; image-owned s6 if available)\n'
+  elif systemd_user_available; then
+    if is_wsl; then
+      printf 'install systemd user service (WSL systemd; not auto-enabled until setup completes)\n'
+    else
+      printf 'install systemd user service (not auto-enabled until setup completes)\n'
+    fi
+  elif is_wsl; then
+    printf 'manual (WSL without systemd: tmux or gormes gateway)\n'
   else
-    log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
-    log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
-    log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS; not auto-enabled until setup completes — run \`systemctl --user enable --now gormes-gateway\` after configuring Gormes)"
+    printf 'manual (nohup/tmux/supervisord; systemd user unavailable)\n'
   fi
 }
 
+service_plan_is_systemd() {
+  case "$(service_plan_label)" in
+    install\ systemd*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+print_side_effect_plan() {
+  if sandbox_bin_dir_set; then
+    log "  path       skip (${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+GORMES_PREFIX} sandbox)"
+    log "  shell rc   skip (protects ~/.bashrc, ~/.profile, ~/.zshrc)"
+  elif is_termux; then
+    log "  path       skip (Termux PREFIX boundary)"
+    log "  shell rc   update if bin dir is missing from PATH"
+  else
+    log "  path       publish/adopt gormes on PATH"
+    log "  shell rc   update if bin dir is missing from PATH"
+  fi
+  log "  service    $(service_plan_label)"
+}
+
 print_restart_plan() {
-  log "  restart_gateway: ${RESTART_GATEWAY}"
-  if ! sandbox_bin_dir_set && ! is_termux; then
-    log "  profile_gateways: active gormes-gateway-*.service units follow restart_gateway policy"
+  log "  gateway    restart=${RESTART_GATEWAY}"
+  if service_plan_is_systemd; then
+    log "  profiles   restart active gormes-gateway-*.service units (${RESTART_GATEWAY})"
   fi
 }
 
 print_setup_wizard_plan() {
   if [ "$RUN_SETUP" = "false" ]; then
-    log "  setup_wizard: skipped"
+    log "  setup      skip (--skip-setup)"
   elif setup_already_configured; then
-    log "  setup_wizard: skipped (existing setup detected)"
+    log "  setup      skip (existing config)"
   else
-    log "  setup_wizard: navivox-recommended"
+    log "  setup      recommended (Navivox pairing available)"
   fi
 }
 
 print_install_plan_body() {
   decide_install_method
-  log "  branch: $(install_branch_label)"
-  log "  install_method: ${INSTALL_METHOD} (${INSTALL_METHOD_DETAIL})"
+  log "  branch     $(install_branch_label)"
+  log "  mode       ${INSTALL_METHOD} (${INSTALL_METHOD_DETAIL})"
   if [ "$INSTALL_METHOD" = "binary-fetch" ]; then
-    log "  source: github releases (no git clone, no Go toolchain)"
+    log "  source     GitHub release asset"
   elif [ -n "$LOCAL_SOURCE_DIR" ]; then
-    log "  source: ${LOCAL_SOURCE_DIR}"
+    log "  source     ${LOCAL_SOURCE_DIR}"
   else
-    log "  source: managed git checkout of ${BRANCH}"
-    log "  checkout: $(managed_checkout_dir)"
+    log "  source     managed checkout of ${BRANCH}"
+    log "  checkout   $(managed_checkout_dir)"
   fi
-  log "  install_home: $(managed_home_dir)"
-  log "  managed_binary: $(managed_bin_dir)/gormes"
-  log "  published_binary: $(pick_bin_dir)/gormes"
+  log "  home       $(managed_home_dir)"
+  log "  managed    $(managed_bin_dir)/gormes"
+  log "  command    $(pick_bin_dir)/gormes"
   if [ "$SKIP_BROWSER" = "true" ]; then
-    log "  browser_setup: skipped (--skip-browser accepted for Hermes compatibility; Gormes installs as a single Go binary with no Playwright setup step)"
+    log "  browser    skip (--skip-browser; no Playwright install needed)"
   fi
   print_side_effect_plan
   print_restart_plan
@@ -2546,7 +2634,7 @@ print_dry_run() {
 }
 
 print_install_plan() {
-  log "install plan"
+  log_section "Plan"
   print_install_plan_body
   log ""
 }

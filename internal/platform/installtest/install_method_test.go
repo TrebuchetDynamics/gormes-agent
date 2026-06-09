@@ -4,8 +4,8 @@
 // These tests cover the install_method decision: install.sh now defaults to
 // fetching pre-built release binaries from GitHub Releases instead of cloning
 // + building from source. The decision is exposed via the dry-run plan as
-// `install_method: binary-fetch|source-build (<reason>)` so the test contract
-// is exactly what the operator sees.
+// `mode       binary-fetch|source-build (<reason>)` so the test contract is
+// exactly what the operator sees.
 package installtest
 
 import (
@@ -27,7 +27,7 @@ func TestInstall_DryRunDefaultRestartGatewayAuto(t *testing.T) {
 		"GORMES_SKIP_SETUP":   "1",
 	})
 
-	if !strings.Contains(out, "restart_gateway: auto") {
+	if !strings.Contains(out, "gateway    restart=auto") {
 		t.Fatalf("dry-run plan should default gateway restart policy to auto; got:\n%s", out)
 	}
 }
@@ -44,10 +44,10 @@ func TestInstall_DryRunExistingConfigSkipsSetupByDefault(t *testing.T) {
 		"GORMES_INSTALL_HOME": home,
 	})
 
-	if !strings.Contains(out, "setup_wizard: skipped (existing setup detected)") {
+	if !strings.Contains(out, "setup      skip (existing config)") {
 		t.Fatalf("dry-run plan should skip setup by default when config already exists; got:\n%s", out)
 	}
-	if strings.Contains(out, "setup_wizard: navivox-recommended") {
+	if strings.Contains(out, "setup      recommended") {
 		t.Fatalf("dry-run plan should not recommend setup for an existing config; got:\n%s", out)
 	}
 }
@@ -68,14 +68,14 @@ func TestInstall_DryRunDefaultPlatform_PrefersBinaryFetch(t *testing.T) {
 		"GORMES_RESTART_GATEWAY": "never",
 	})
 
-	if !strings.Contains(out, "install_method: binary-fetch") {
+	if !strings.Contains(out, "mode       binary-fetch") {
 		t.Fatalf("dry-run plan should report install_method as binary-fetch by default\non supported platforms; got:\n%s", out)
 	}
 	if !strings.Contains(out, "no Go toolchain or git clone needed") {
 		t.Fatalf("dry-run plan should explain WHY binary-fetch is the right default\n(no Go toolchain, no git clone); got:\n%s", out)
 	}
 	// Plan must NOT advertise a source build when binary-fetch is the chosen path.
-	if strings.Contains(out, "source: managed git checkout") {
+	if strings.Contains(out, "source     managed checkout") {
 		t.Fatalf("dry-run plan must not advertise managed git checkout when\ninstall_method is binary-fetch; got:\n%s", out)
 	}
 }
@@ -91,13 +91,13 @@ func TestInstall_DryRunFromSourceFlag_ForcesSourceBuild(t *testing.T) {
 		"GORMES_RESTART_GATEWAY": "never",
 	}, "--from-source")
 
-	if !strings.Contains(out, "install_method: source-build") {
+	if !strings.Contains(out, "mode       source-build") {
 		t.Fatalf("dry-run plan should report install_method as source-build\nwhen --from-source is set; got:\n%s", out)
 	}
 	if !strings.Contains(out, "--from-source flag set") {
 		t.Fatalf("dry-run plan should name the override that triggered source-build\nso operators can audit the decision; got:\n%s", out)
 	}
-	if !strings.Contains(out, "source: managed git checkout") {
+	if !strings.Contains(out, "source     managed checkout") {
 		t.Fatalf("source-build path must still advertise the managed git checkout\nso operators know what will be cloned; got:\n%s", out)
 	}
 }
@@ -114,7 +114,7 @@ func TestInstall_DryRunFromSourceEnvVar_ForcesSourceBuild(t *testing.T) {
 		"GORMES_INSTALL_FROM_SOURCE": "1",
 	})
 
-	if !strings.Contains(out, "install_method: source-build") {
+	if !strings.Contains(out, "mode       source-build") {
 		t.Fatalf("dry-run plan should report install_method as source-build\nwhen GORMES_INSTALL_FROM_SOURCE=1; got:\n%s", out)
 	}
 }
@@ -131,7 +131,7 @@ func TestInstall_DryRunNonDefaultBranch_FallsBackToSourceBuild(t *testing.T) {
 		"GORMES_RESTART_GATEWAY": "never",
 	})
 
-	if !strings.Contains(out, "install_method: source-build") {
+	if !strings.Contains(out, "mode       source-build") {
 		t.Fatalf("dry-run plan should report install_method as source-build\nwhen --branch is non-default (release binaries only published from main); got:\n%s", out)
 	}
 	if !strings.Contains(out, "release binaries are only published from main") {
@@ -159,7 +159,7 @@ func TestInstall_DryRunLocal_ReportsCheckedOutBranch(t *testing.T) {
 		"GORMES_RESTART_GATEWAY": "never",
 	}, "--local")
 
-	if !strings.Contains(out, "branch: "+branch) {
+	if !strings.Contains(out, "branch     "+branch) {
 		t.Fatalf("--local dry-run plan should report checked-out branch %q; got:\n%s", branch, out)
 	}
 }
@@ -198,7 +198,7 @@ func TestInstall_DryRunTermuxArm64_PrefersAndroidReleaseAsset(t *testing.T) {
 	fixture.Prefix = "/data/data/com.termux/files/usr"
 	out := runInstallDryRun(t, fixture.env(nil), "--verbose")
 
-	if !strings.Contains(out, "install_method: binary-fetch") {
+	if !strings.Contains(out, "mode       binary-fetch") {
 		t.Fatalf("Termux arm64 dry-run should prefer binary-fetch; got:\n%s", out)
 	}
 	if !strings.Contains(out, "release_arch: android-arm64") {
@@ -222,7 +222,7 @@ func TestInstall_DryRunLinuxArm64_StillUsesLinuxReleaseAsset(t *testing.T) {
 		"UNAME":                       "Linux",
 	}, "--verbose")
 
-	if !strings.Contains(out, "install_method: binary-fetch") {
+	if !strings.Contains(out, "mode       binary-fetch") {
 		t.Fatalf("Linux arm64 dry-run should prefer binary-fetch; got:\n%s", out)
 	}
 	if !strings.Contains(out, "release_arch: linux-arm64") {

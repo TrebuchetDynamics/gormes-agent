@@ -1985,20 +1985,11 @@ func defaultBackupWriterFor() cli.BackupWriter {
 	}
 	keep := resolveBackupKeep()
 	return func(ctx context.Context) (cli.BackupResult, error) {
-		stamp := time.Now().UTC().Format("20060102T150405Z")
-		dest := filepath.Join(home, "lifecycle", "backups", "pre-update-"+stamp+".zip")
-		res, err := cli.WriteBackupZip(ctx, home, dest)
-		if err != nil {
-			return res, err
-		}
-		// Prune is best-effort: a prune failure must not surface as a
-		// backup-write failure (the new zip is already on disk and
-		// usable).
-		if count, freed, _ := cli.PruneBackups(filepath.Dir(dest), keep); count > 0 {
-			res.PrunedCount = count
-			res.PrunedBytes = freed
-		}
-		return res, nil
+		return cli.WritePreUpdateBackup(ctx, cli.PreUpdateBackupRequest{
+			Home: home,
+			Now:  time.Now().UTC(),
+			Keep: keep,
+		})
 	}
 }
 

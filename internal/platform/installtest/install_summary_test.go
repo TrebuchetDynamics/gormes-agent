@@ -31,16 +31,16 @@ func TestInstall_PrintSummaryHermesStyleChromeAndNextSteps(t *testing.T) {
 
 	summary := string(out)
 	for _, want := range []string{
-		"✓ Installation Complete!",
-		"📁 Your files",
-		"Auth:",
-		"Gateway log:",
-		"─────────────────────────────────────────────────────────",
-		"🚀 Commands",
+		"✓ Gormes installed",
+		"Files",
+		"auth",
+		"log",
+		"Try next",
+		"gormes setup",
+		"Next steps",
+		"gormes doctor --offline",
 		"gormes navivox pair",
-		"✅ Next steps",
-		"Run: gormes doctor --offline",
-		"Configure: gormes setup",
+		"Web",
 	} {
 		if !strings.Contains(summary, want) {
 			t.Fatalf("summary missing %q\nsummary:\n%s", want, summary)

@@ -213,6 +213,17 @@ func WriteBackupZip(ctx context.Context, sourceDir, destPath string) (BackupResu
 		if d.IsDir() {
 			return nil
 		}
+		info, infoErr := d.Info()
+		if infoErr != nil {
+			return infoErr
+		}
+		// Do not follow symlinks or other special files while taking an
+		// operator-home backup. A symlink inside GORMES_HOME can point at
+		// arbitrary host state, and opening it would silently copy data that
+		// is outside the requested backup root.
+		if !info.Mode().IsRegular() {
+			return nil
+		}
 		f, openErr := os.Open(path)
 		if openErr != nil {
 			return openErr

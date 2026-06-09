@@ -69,6 +69,33 @@ func TestWriteBackupZip_IncludesPlainFilesExcludesSidecars(t *testing.T) {
 	}
 }
 
+func TestWriteBackupZip_SkipsSymlinksToAvoidOutsideHomeLeak(t *testing.T) {
+	src := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "secret.txt")
+	if err := os.WriteFile(outside, []byte("do-not-back-up"), 0o600); err != nil {
+		t.Fatalf("write outside secret: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(src, "config.toml"), []byte("safe"), 0o644); err != nil {
+		t.Fatalf("write safe fixture: %v", err)
+	}
+	if err := os.Symlink(outside, filepath.Join(src, "linked-secret.txt")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+
+	dst := filepath.Join(t.TempDir(), "pre-update.zip")
+	res, err := WriteBackupZip(context.Background(), src, dst)
+	if err != nil {
+		t.Fatalf("WriteBackupZip: %v", err)
+	}
+	if res.FileCount != 1 {
+		t.Fatalf("FileCount = %d, want only the regular file backed up", res.FileCount)
+	}
+	got := zipEntries(t, dst)
+	if len(got) != 1 || got[0] != "config.toml" {
+		t.Fatalf("entries = %v, want only config.toml; symlinks must not be followed", got)
+	}
+}
+
 // TestWriteBackupZip_AtomicRenameOnSuccessNoTmpLeak proves the writer's
 // atomic-rename invariant: after a successful write, no .tmp file
 // remains alongside the destination zip.

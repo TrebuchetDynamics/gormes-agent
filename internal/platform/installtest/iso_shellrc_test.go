@@ -22,7 +22,7 @@ func TestInstall_DryRunSandboxBinDir_ReportsShellRcEditsSkipped(t *testing.T) {
 		"GORMES_RESTART_GATEWAY": "never",
 	})
 
-	if !strings.Contains(out, "edit_shell_rc_files: skipped") {
+	if !strings.Contains(out, "shell rc   skip") {
 		t.Fatalf("dry-run plan should report shell rc edits as skipped\nwhen GORMES_BIN_DIR is set; got:\n%s", out)
 	}
 	if !strings.Contains(out, ".bashrc") {
@@ -41,7 +41,7 @@ func TestInstall_DryRunGormesPrefix_ReportsShellRcEditsSkipped(t *testing.T) {
 		"GORMES_RESTART_GATEWAY": "never",
 	})
 
-	if !strings.Contains(out, "edit_shell_rc_files: skipped") {
+	if !strings.Contains(out, "shell rc   skip") {
 		t.Fatalf("dry-run plan should report shell rc edits as skipped\nwhen GORMES_PREFIX is set; got:\n%s", out)
 	}
 }
@@ -60,10 +60,10 @@ func TestInstall_DryRunDefaultBinDir_StillEditsShellRcFiles(t *testing.T) {
 		// Deliberately NOT setting GORMES_BIN_DIR / GORMES_PREFIX.
 	})
 
-	if !strings.Contains(out, "edit_shell_rc_files: yes") {
+	if !strings.Contains(out, "shell rc   update") {
 		t.Fatalf("dry-run plan should report shell rc edits as enabled\nwhen no sandbox env vars are set; got:\n%s", out)
 	}
-	if strings.Contains(out, "edit_shell_rc_files: skipped") {
+	if strings.Contains(out, "shell rc   skip") {
 		t.Fatalf("dry-run plan must not report skipped when no sandbox env vars are set; got:\n%s", out)
 	}
 }

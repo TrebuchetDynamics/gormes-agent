@@ -11,6 +11,8 @@ import (
 // `gormes restore --list` operator surface.
 type BackupListing = backup.BackupListing
 
+type PreUpdateBackupRequest = backup.PreUpdateBackupRequest
+
 // ListBackups enumerates `pre-update-*.zip` files under backupDir and
 // returns them sorted newest-first by mtime. Files that don't match the
 // pattern are ignored (operators may store unrelated files in the same
@@ -22,6 +24,21 @@ func ListBackups(backupDir string) ([]BackupListing, error) { return backup.List
 // removed and total bytes freed.
 func PruneBackups(backupDir string, keep int) (removedCount int, freedBytes int64, err error) {
 	return backup.PruneBackups(backupDir, keep)
+}
+
+func WritePreUpdateBackup(ctx context.Context, req PreUpdateBackupRequest) (BackupResult, error) {
+	res, err := backup.WritePreUpdateBackup(ctx, req)
+	if err != nil {
+		return BackupResult{}, err
+	}
+	return BackupResult{
+		Path:        res.Path,
+		SizeBytes:   res.SizeBytes,
+		DurationMs:  res.DurationMs,
+		FileCount:   res.FileCount,
+		PrunedCount: res.PrunedCount,
+		PrunedBytes: res.PrunedBytes,
+	}, nil
 }
 
 // WriteBackupZip walks sourceDir and writes a zip archive containing

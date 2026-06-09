@@ -22,7 +22,7 @@ func TestInstall_DryRunSandboxBinDir_ReportsSystemServiceInstallSkipped(t *testi
 		"GORMES_RESTART_GATEWAY": "never",
 	})
 
-	if !strings.Contains(out, "install_system_service: skipped") {
+	if !strings.Contains(out, "service    skip") {
 		t.Fatalf("dry-run plan should report system-service install as skipped\nwhen GORMES_BIN_DIR is set; got:\n%s", out)
 	}
 	if !strings.Contains(out, "systemd/user") {
@@ -41,7 +41,7 @@ func TestInstall_DryRunGormesPrefix_ReportsSystemServiceInstallSkipped(t *testin
 		"GORMES_RESTART_GATEWAY": "never",
 	})
 
-	if !strings.Contains(out, "install_system_service: skipped") {
+	if !strings.Contains(out, "service    skip") {
 		t.Fatalf("dry-run plan should report system-service install as skipped\nwhen GORMES_PREFIX is set; got:\n%s", out)
 	}
 }
@@ -54,16 +54,18 @@ func TestInstall_DryRunGormesPrefix_ReportsSystemServiceInstallSkipped(t *testin
 func TestInstall_DryRunDefaultBinDir_StillInstallsSystemService(t *testing.T) {
 	sb := t.TempDir()
 	out := runInstallDryRun(t, map[string]string{
-		"GORMES_INSTALL_HOME":    filepath.Join(sb, "home"),
-		"GORMES_SKIP_SETUP":      "1",
-		"GORMES_RESTART_GATEWAY": "never",
+		"GORMES_INSTALL_HOME":           filepath.Join(sb, "home"),
+		"GORMES_SKIP_SETUP":             "1",
+		"GORMES_RESTART_GATEWAY":        "never",
+		"GORMES_INSTALL_TEST_SYSTEMD":   "1",
+		"GORMES_INSTALL_TEST_CONTAINER": "0",
 		// Deliberately NOT setting GORMES_BIN_DIR / GORMES_PREFIX.
 	})
 
-	if !strings.Contains(out, "install_system_service: yes") {
+	if !strings.Contains(out, "service    install systemd user service") {
 		t.Fatalf("dry-run plan should report system-service install as enabled\nwhen no sandbox env vars are set; got:\n%s", out)
 	}
-	if strings.Contains(out, "install_system_service: skipped") {
+	if strings.Contains(out, "service    skip") {
 		t.Fatalf("dry-run plan must not report skipped when no sandbox env vars are set; got:\n%s", out)
 	}
 }
