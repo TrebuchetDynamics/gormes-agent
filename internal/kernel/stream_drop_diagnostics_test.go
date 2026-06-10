@@ -142,6 +142,10 @@ func TestKernel_StreamDropDiagnosticsForMidStreamRetry(t *testing.T) {
 			t.Fatalf("mid-stream reconnecting status = %q, want %q", reconnecting.StatusText, want)
 		}
 	}
+	_, final := drainUntilIdle(t, k.Render(), initial.Seq, time.Second)
+	if len(final.History) == 0 || final.History[len(final.History)-1].Content != "fresh answer" {
+		t.Fatalf("final history = %#v, want recovered assistant message", final.History)
+	}
 	logText := logs.String()
 	for _, want := range []string{
 		"mid_stream=true",
@@ -162,10 +166,6 @@ func TestKernel_StreamDropDiagnosticsForMidStreamRetry(t *testing.T) {
 		t.Fatalf("mid-stream log leaked non-allowlisted header:\n%s", logText)
 	}
 
-	_, final := drainUntilIdle(t, k.Render(), initial.Seq, time.Second)
-	if len(final.History) == 0 || final.History[len(final.History)-1].Content != "fresh answer" {
-		t.Fatalf("final history = %#v, want fresh retry answer", final.History)
-	}
 }
 
 type streamDropDiagnosticsClient struct {

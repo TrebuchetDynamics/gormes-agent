@@ -297,10 +297,6 @@ func TestSignalLoopDoesNotLogReloadFailureSecrets(t *testing.T) {
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("Reload was not called after SIGHUP")
 	}
-	logText := logs.String()
-	if bytes.Contains([]byte(logText), []byte("plain-secret-token")) || bytes.Contains([]byte(logText), []byte("api_key")) {
-		t.Fatalf("reload failure log leaked secret material:\n%s", logText)
-	}
 	select {
 	case <-rootCtx.Done():
 		t.Fatal("root context canceled after failed reload signal")
@@ -318,6 +314,10 @@ func TestSignalLoopDoesNotLogReloadFailureSecrets(t *testing.T) {
 	case <-done:
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("signal loop did not return")
+	}
+	logText := logs.String()
+	if bytes.Contains([]byte(logText), []byte("plain-secret-token")) || bytes.Contains([]byte(logText), []byte("api_key")) {
+		t.Fatalf("reload failure log leaked secret material:\n%s", logText)
 	}
 }
 

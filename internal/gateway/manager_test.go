@@ -1100,6 +1100,7 @@ func TestManager_Outbound_FreshFinalAfterSendsFreshFinal(t *testing.T) {
 type replyPlaceholderFakeChannel struct {
 	*fakeChannel
 
+	mu                sync.Mutex
 	replyPlaceholders []fakeReplyPlaceholder
 	replies           []fakeReplySend
 }
@@ -1108,13 +1109,29 @@ type fakeReplyPlaceholder struct{ ChatID, ReplyToMsgID string }
 type fakeReplySend struct{ ChatID, ReplyToMsgID, Text string }
 
 func (f *replyPlaceholderFakeChannel) SendReplyPlaceholder(ctx context.Context, chatID, replyToMsgID string) (string, error) {
+	f.mu.Lock()
 	f.replyPlaceholders = append(f.replyPlaceholders, fakeReplyPlaceholder{ChatID: chatID, ReplyToMsgID: replyToMsgID})
+	f.mu.Unlock()
 	return f.fakeChannel.SendPlaceholder(ctx, chatID)
 }
 
 func (f *replyPlaceholderFakeChannel) SendReply(ctx context.Context, chatID, replyToMsgID, text string) (string, error) {
+	f.mu.Lock()
 	f.replies = append(f.replies, fakeReplySend{ChatID: chatID, ReplyToMsgID: replyToMsgID, Text: text})
+	f.mu.Unlock()
 	return f.fakeChannel.Send(ctx, chatID, text)
+}
+
+func (f *replyPlaceholderFakeChannel) replyPlaceholdersSnapshot() []fakeReplyPlaceholder {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return cloneSlice(f.replyPlaceholders)
+}
+
+func (f *replyPlaceholderFakeChannel) repliesSnapshot() []fakeReplySend {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return cloneSlice(f.replies)
 }
 
 func (f *replyPlaceholderFakeChannel) SendChatAction(context.Context, string, string) error {
@@ -1152,14 +1169,15 @@ func TestManager_Outbound_FirstStreamingContentRepliesToInboundMessage(t *testin
 
 	frames <- kernel.RenderFrame{Phase: kernel.PhaseStreaming, SessionID: "sess-1", DraftText: "partial"}
 	waitFor(t, 200*time.Millisecond, func() bool {
-		return len(tg.replies) == 1
+		return len(tg.repliesSnapshot()) == 1
 	})
 
-	if got := tg.replies[0]; got.ChatID != "42" || got.ReplyToMsgID != "telegram-user-msg-1" || !strings.Contains(got.Text, "partial") {
+	replies := tg.repliesSnapshot()
+	if got := replies[0]; got.ChatID != "42" || got.ReplyToMsgID != "telegram-user-msg-1" || !strings.Contains(got.Text, "partial") {
 		t.Fatalf("reply send = %+v, want chat 42 replying to inbound message with stream content", got)
 	}
-	if len(tg.replyPlaceholders) != 0 {
-		t.Fatalf("reply placeholders = %#v, want none for Hermes-style first content send", tg.replyPlaceholders)
+	if placeholders := tg.replyPlaceholdersSnapshot(); len(placeholders) != 0 {
+		t.Fatalf("reply placeholders = %#v, want none for Hermes-style first content send", placeholders)
 	}
 }
 
