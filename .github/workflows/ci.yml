@@ -35,6 +35,7 @@ jobs:
           cache-dependency-path: |
             webpages/docs/package-lock.json
             webpages/blog/package-lock.json
+            webpages/landing/package-lock.json
 
       - name: Download modules
         run: go mod download
@@ -47,12 +48,31 @@ jobs:
         working-directory: webpages/blog
         run: npm ci
 
+      - name: Install landing dependencies
+        working-directory: webpages/landing
+        run: npm ci
+
       - name: Run Go tests
         run: go test ./... -count=1
 
       - name: Test engineering blog
         working-directory: webpages/blog
         run: npm run test
+
+      - name: Build docs site
+        working-directory: webpages/docs
+        run: npm run build
+
+      - name: Test landing data and asset sync
+        working-directory: webpages/landing
+        run: npm run test:data && npm run test:sync-assets
+
+      - name: Build landing site
+        working-directory: webpages/landing
+        run: npm run build
+
+      - name: Smoke install dry-run
+        run: bash tests/install/e2e.sh plan_dryrun_inside_sandbox
 
       - name: Validate progress
         run: go run ./cmd/progress validate

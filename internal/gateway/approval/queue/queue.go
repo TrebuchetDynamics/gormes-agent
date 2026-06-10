@@ -10,6 +10,8 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
+const maxStoredGatewayApprovalOutcomes = 1024
+
 var (
 	ErrGatewayApprovalEmptySession  = errors.New("gateway approval session key is empty")
 	ErrGatewayApprovalInvalidChoice = errors.New("gateway approval choice is invalid")
@@ -44,10 +46,11 @@ type GatewayApprovalOutcome struct {
 // GatewayApprovalQueue stores pending approval requests per gateway session.
 // It mirrors Hermes' FIFO gateway approval queue without doing any channel IO.
 type GatewayApprovalQueue struct {
-	mu       sync.Mutex
-	nextID   uint64
-	queues   map[string][]*gatewayApprovalEntry
-	outcomes map[uint64]GatewayApprovalOutcome
+	mu           sync.Mutex
+	nextID       uint64
+	queues       map[string][]*gatewayApprovalEntry
+	outcomes     map[uint64]GatewayApprovalOutcome
+	outcomeOrder []uint64
 }
 
 type gatewayApprovalEntry struct {
@@ -57,8 +60,9 @@ type gatewayApprovalEntry struct {
 
 func NewGatewayApprovalQueue() *GatewayApprovalQueue {
 	return &GatewayApprovalQueue{
-		queues:   map[string][]*gatewayApprovalEntry{},
-		outcomes: map[uint64]GatewayApprovalOutcome{},
+		queues:       map[string][]*gatewayApprovalEntry{},
+		outcomes:     map[uint64]GatewayApprovalOutcome{},
+		outcomeOrder: make([]uint64, 0, maxStoredGatewayApprovalOutcomes),
 	}
 }
 
@@ -242,6 +246,16 @@ func (q *GatewayApprovalQueue) recordOutcomeLocked(entry *gatewayApprovalEntry, 
 		Resolution: cloneResolution(res),
 		Choice:     decision,
 		Canceled:   canceled,
+	}
+	q.outcomeOrder = append(q.outcomeOrder, entry.ticket.ID)
+	q.pruneStoredOutcomesLocked()
+}
+
+func (q *GatewayApprovalQueue) pruneStoredOutcomesLocked() {
+	for len(q.outcomeOrder) > maxStoredGatewayApprovalOutcomes {
+		oldest := q.outcomeOrder[0]
+		q.outcomeOrder = q.outcomeOrder[1:]
+		delete(q.outcomes, oldest)
 	}
 }
 

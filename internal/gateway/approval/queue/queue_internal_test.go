@@ -67,6 +67,31 @@ func (c *cancelAfterFirstErrContext) Err() error {
 	return context.Canceled
 }
 
+func TestGatewayApprovalQueuePrunesOldestStoredOutcomes(t *testing.T) {
+	q := NewGatewayApprovalQueue()
+	var first GatewayApprovalTicket
+	for i := 0; i < maxStoredGatewayApprovalOutcomes+1; i++ {
+		ticket, err := q.SubmitGatewayApproval("session-a", GatewayApprovalRequest{Command: "danger"})
+		if err != nil {
+			t.Fatalf("SubmitGatewayApproval %d: %v", i, err)
+		}
+		if i == 0 {
+			first = ticket
+		}
+		if err := q.ResolveGatewayApproval(context.Background(), choice.Resolution{SessionKey: "session-a", Choice: choice.ChoiceOnce}); err != nil {
+			t.Fatalf("ResolveGatewayApproval %d: %v", i, err)
+		}
+	}
+
+	if _, ok := q.GatewayApprovalOutcome(first); ok {
+		t.Fatalf("oldest outcome was retained after exceeding maxStoredGatewayApprovalOutcomes=%d", maxStoredGatewayApprovalOutcomes)
+	}
+	latest := GatewayApprovalTicket{SessionKey: "session-a", ID: uint64(maxStoredGatewayApprovalOutcomes + 1)}
+	if _, ok := q.GatewayApprovalOutcome(latest); !ok {
+		t.Fatal("latest outcome was pruned; want newest outcomes retained")
+	}
+}
+
 func TestSubmitGatewayApprovalDoesNotReuseStoredOutcomeIDAfterCounterWrap(t *testing.T) {
 	q := NewGatewayApprovalQueue()
 	first, err := q.SubmitGatewayApproval("session-a", GatewayApprovalRequest{Command: "danger"})

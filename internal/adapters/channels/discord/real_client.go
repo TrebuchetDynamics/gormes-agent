@@ -11,7 +11,8 @@ import (
 )
 
 type realSession struct {
-	s *discordgo.Session
+	s                    *discordgo.Session
+	attachmentHTTPClient *http.Client
 }
 
 var _ discordSession = (*realSession)(nil)
@@ -20,6 +21,10 @@ var _ discordInteractionResponder = (*realSession)(nil)
 var _ discordThreadStarter = (*realSession)(nil)
 
 func NewRealSession(token string) (discordSession, error) {
+	return NewRealSessionWithHTTPClient(token, nil)
+}
+
+func NewRealSessionWithHTTPClient(token string, attachmentHTTPClient *http.Client) (discordSession, error) {
 	if token == "" {
 		return nil, fmt.Errorf("discord: empty bot token")
 	}
@@ -31,7 +36,14 @@ func NewRealSession(token string) (discordSession, error) {
 		discordgo.IntentsGuildMessages |
 		discordgo.IntentsDirectMessages |
 		discordgo.IntentsMessageContent
-	return &realSession{s: s}, nil
+	return &realSession{s: s, attachmentHTTPClient: boundedDiscordAttachmentHTTPClient(attachmentHTTPClient)}, nil
+}
+
+func boundedDiscordAttachmentHTTPClient(client *http.Client) *http.Client {
+	if client != nil {
+		return client
+	}
+	return &http.Client{Timeout: discordAttachmentHTTPTimeout}
 }
 
 func (r *realSession) Open() error  { return r.s.Open() }
@@ -100,7 +112,8 @@ func (r *realSession) ReadAttachment(ctx context.Context, attachment *discordgo.
 		return nil, err
 	}
 	req.Header.Set("Authorization", r.s.Token)
-	resp, err := http.DefaultClient.Do(req)
+	client := boundedDiscordAttachmentHTTPClient(r.attachmentHTTPClient)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}

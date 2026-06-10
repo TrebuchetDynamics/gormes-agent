@@ -3,6 +3,7 @@ package matrix
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
@@ -185,7 +186,7 @@ func NewBootstrap(cfg Config, factory MatrixClientFactory, opts ...BootstrapOpti
 
 func ResolveBootstrapConfig(extra map[string]string, getenv func(string) string) Config {
 	if getenv == nil {
-		getenv = func(string) string { return "" }
+		getenv = os.Getenv
 	}
 	get := func(key, envKey string) string {
 		if extra != nil {

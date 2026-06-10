@@ -143,6 +143,6 @@ jobs:
             case "$response" in
               200|201) echo "attached" ;;
               409|400) echo "already attached (status $response); skipping" ;;
-              *) echo "unexpected status $response"; cat /tmp/cf-resp.json ;;
+              *) echo "unexpected status $response"; cat /tmp/cf-resp.json; exit 1 ;;
             esac
           done
