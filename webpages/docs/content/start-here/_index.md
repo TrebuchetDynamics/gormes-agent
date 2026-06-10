@@ -38,7 +38,7 @@ gormes setup
 gormes chat
 ```
 
-From source (requires Go 1.26+):
+From source (requires Go 1.26.4+):
 
 ```bash
 git clone https://github.com/TrebuchetDynamics/gormes-agent.git

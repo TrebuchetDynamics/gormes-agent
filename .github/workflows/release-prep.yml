@@ -36,6 +36,15 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            webpages/docs/package-lock.json
+            webpages/blog/package-lock.json
+            webpages/landing/package-lock.json
+
       - name: Resolve next version
         id: version
         shell: bash
@@ -63,11 +72,54 @@ jobs:
           echo "current=$current" >> "$GITHUB_OUTPUT"
           echo "next=$next" >> "$GITHUB_OUTPUT"
 
-      - name: Validate before bump
-        run: |
-          go test ./... -count=1
-          go run ./cmd/progress validate
-          git diff --check
+      - name: Download modules
+        run: go mod download
+
+      - name: Install docs dependencies
+        working-directory: webpages/docs
+        run: npm ci
+
+      - name: Install blog dependencies
+        working-directory: webpages/blog
+        run: npm ci
+
+      - name: Install landing dependencies
+        working-directory: webpages/landing
+        run: npm ci
+
+      - name: Run Go tests
+        run: go test ./... -count=1
+
+      - name: Run core race tests
+        run: go test -race ./internal/kernel ./internal/gateway ./internal/adapters/channels/navivox ./internal/adapters/apiserver -count=1
+
+      - name: Check Go vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.3.0 ./...
+
+      - name: Test engineering blog
+        working-directory: webpages/blog
+        run: npm run test
+
+      - name: Build docs site
+        working-directory: webpages/docs
+        run: npm run build
+
+      - name: Test landing data and asset sync
+        working-directory: webpages/landing
+        run: npm run test:data && npm run test:sync-assets
+
+      - name: Build landing site
+        working-directory: webpages/landing
+        run: npm run build
+
+      - name: Smoke install dry-run
+        run: bash tests/install/e2e.sh plan_dryrun_inside_sandbox
+
+      - name: Validate progress
+        run: go run ./cmd/progress validate
+
+      - name: Check whitespace
+        run: git diff --check
 
       - name: Bump version in source
         run: |
@@ -112,6 +164,7 @@ jobs:
             - [ ] Review CHANGELOG.md entries
             - [ ] Verify version bump in `cmd/gormes/main.go`
             - [ ] Confirm all tests pass
+            - [ ] Run the manual `install-e2e` workflow against this PR/ref and attach the passing run URL
             - [ ] Merge this PR to trigger the release workflow
 
             After merging, create and push a tag:

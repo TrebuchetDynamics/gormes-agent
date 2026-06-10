@@ -55,6 +55,12 @@ jobs:
       - name: Run Go tests
         run: go test ./... -count=1
 
+      - name: Run core race tests
+        run: go test -race ./internal/kernel ./internal/gateway ./internal/adapters/channels/navivox ./internal/adapters/apiserver -count=1
+
+      - name: Check Go vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.3.0 ./...
+
       - name: Test engineering blog
         working-directory: webpages/blog
         run: npm run test
@@ -76,6 +82,21 @@ jobs:
 
       - name: Validate progress
         run: go run ./cmd/progress validate
+
+      - name: Check tracked local agent artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          tracked=$(git ls-files 'internal/**/.pi/**' 'cmd/**/.pi/**' 'webpages/**/.pi/**' | while IFS= read -r path; do
+            if [ -e "$path" ]; then
+              printf '%s\n' "$path"
+            fi
+          done)
+          if [ -n "$tracked" ]; then
+            echo "::error title=Tracked local agent artifacts::Remove tracked .pi local-state files:"
+            printf '%s\n' "$tracked"
+            exit 1
+          fi
 
       - name: Check whitespace
         run: git diff --check

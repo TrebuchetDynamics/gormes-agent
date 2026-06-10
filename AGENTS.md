@@ -14,6 +14,9 @@ agent in this workspace, including workspace-mineru / workspace-mimeru agents.
   repair work directly on `main` after the bootstrap that created this rule.
 - Work directly on the existing `development` branch only. Do not create or use
   short-lived branches, feature branches, or git worktrees for Gormes work.
+  The release-prep GitHub Actions workflow may create `release/<version>` PR
+  branches as an automation-only exception; agents must not create or use those
+  branches for normal work.
 - Before editing, confirm the current branch is `development`. If it is not,
   stop before changing files and switch safely to `development` or report the
   blocker; never create another branch or worktree as the workaround.

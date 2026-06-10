@@ -16,10 +16,10 @@
     "preview": "node ../shared/node/with-compatible-node.mjs astro preview"
   },
   "dependencies": {
-    "@astrojs/starlight": "latest",
-    "astro": "latest"
+    "@astrojs/starlight": "0.38.4",
+    "astro": "6.2.1"
   },
   "devDependencies": {
-    "typescript": "latest"
+    "typescript": "5.9.3"
   }
 }

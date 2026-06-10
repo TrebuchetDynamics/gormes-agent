@@ -7,11 +7,8 @@ import (
 
 func TestGitHubActionsUseGoModToolchain(t *testing.T) {
 	goMod := readRepoFile(t, "go.mod")
-	if !strings.Contains(goMod, "\ngo 1.26\n") {
-		t.Fatalf("go.mod must declare the current Go floor; got:\n%s", goMod)
-	}
-	if !strings.Contains(goMod, "\ntoolchain go1.26.") {
-		t.Fatalf("go.mod must declare a Go 1.26 toolchain; got:\n%s", goMod)
+	if !strings.Contains(goMod, "\ngo 1.26.4\n") {
+		t.Fatalf("go.mod must declare the current patched Go floor; got:\n%s", goMod)
 	}
 
 	workflows := map[string]int{
