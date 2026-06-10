@@ -40,6 +40,32 @@ func TestImageInputRouting_AutoTextForUnknownOrNonVisionModel(t *testing.T) {
 	}
 }
 
+func TestBuildNativeImageContentPartsSkipsSensitiveLocalPaths(t *testing.T) {
+	dir := t.TempDir()
+	secretDir := filepath.Join(dir, ".ssh")
+	if err := os.Mkdir(secretDir, 0o700); err != nil {
+		t.Fatalf("mkdir sensitive dir: %v", err)
+	}
+	secretImage := filepath.Join(secretDir, "secret.png")
+	if err := os.WriteFile(secretImage, []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}, 0o600); err != nil {
+		t.Fatalf("write sensitive image: %v", err)
+	}
+
+	parts, skipped := BuildNativeImageContentParts("inspect", []string{secretImage})
+
+	if len(skipped) != 1 || skipped[0] != secretImage {
+		t.Fatalf("skipped = %v, want sensitive path %q", skipped, secretImage)
+	}
+	if len(parts) != 1 || parts[0].Type != "text" || parts[0].Text != "inspect" {
+		t.Fatalf("parts = %+v, want only text part", parts)
+	}
+	for _, part := range parts {
+		if strings.Contains(part.Text, secretImage) || strings.HasPrefix(part.ImageURL, "data:") {
+			t.Fatalf("parts leaked sensitive image content/path: %+v", parts)
+		}
+	}
+}
+
 func TestBuildNativeImageContentParts_TextAndImages(t *testing.T) {
 	dir := t.TempDir()
 	pngPath := filepath.Join(dir, "img.png")
@@ -141,6 +167,33 @@ func TestExtractImageRefs_LocalURLDedupAndSkipsCode(t *testing.T) {
 	}
 }
 
+func TestExtractImageRefsSkipsSensitiveLocalPaths(t *testing.T) {
+	dir := t.TempDir()
+	secretDir := filepath.Join(dir, ".ssh")
+	if err := os.Mkdir(secretDir, 0o700); err != nil {
+		t.Fatalf("mkdir sensitive dir: %v", err)
+	}
+	secretImage := filepath.Join(secretDir, "secret.png")
+	if err := os.WriteFile(secretImage, []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}, 0o600); err != nil {
+		t.Fatalf("write sensitive image: %v", err)
+	}
+
+	paths, urls := ExtractImageRefs("inspect " + secretImage)
+
+	if len(paths) != 0 || len(urls) != 0 {
+		t.Fatalf("ExtractImageRefs sensitive image paths=%v urls=%v, want none", paths, urls)
+	}
+}
+
+func TestExtractImageRefsSkipsPrivateImageURLs(t *testing.T) {
+	_, urls := ExtractImageRefs("internal images http://localhost/secret.png http://127.0.0.1/admin.jpg http://169.254.169.254/meta.png public https://example.com/public.png")
+
+	want := []string{"https://example.com/public.png"}
+	if len(urls) != len(want) || urls[0] != want[0] {
+		t.Fatalf("urls = %v, want %v", urls, want)
+	}
+}
+
 func TestExtractImageRefs_HomeRelativePathExpands(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
@@ -156,6 +209,46 @@ func TestExtractImageRefs_HomeRelativePathExpands(t *testing.T) {
 	}
 	if len(urls) != 0 {
 		t.Fatalf("urls = %v, want none", urls)
+	}
+}
+
+func TestBuildNativeImageContentPartsRejectsPrivateImageURLs(t *testing.T) {
+	parts, skipped := BuildNativeImageContentParts("inspect", nil, []string{
+		"http://localhost/secret.png",
+		"http://127.0.0.1/admin.png",
+		"http://127.1/admin.png",
+		"http://2130706433/admin.png",
+		"http://0x7f000001/admin.png",
+		"http://[::1]/admin.png",
+		"http://169.254.169.254/latest/meta-data.png",
+	})
+
+	if len(skipped) != 0 {
+		t.Fatalf("skipped = %v, want no raw private URL evidence", skipped)
+	}
+	if len(parts) != 1 || parts[0].Type != "text" || parts[0].Text != "inspect" {
+		t.Fatalf("parts = %+v, want only text part", parts)
+	}
+	for _, part := range parts {
+		if strings.Contains(part.Text, "localhost") || strings.Contains(part.Text, "169.254") || strings.Contains(part.ImageURL, "127.0.0.1") {
+			t.Fatalf("parts leaked private image URL: %+v", parts)
+		}
+	}
+}
+
+func TestBuildNativeImageContentPartsRejectsNonHTTPImageURLs(t *testing.T) {
+	parts, skipped := BuildNativeImageContentParts("inspect", nil, []string{"file:///home/me/.ssh/secret.png", "data:image/png;base64,AAAA"})
+
+	if len(skipped) != 0 {
+		t.Fatalf("skipped = %v, want no raw non-HTTP URL evidence", skipped)
+	}
+	if len(parts) != 1 || parts[0].Type != "text" || parts[0].Text != "inspect" {
+		t.Fatalf("parts = %+v, want only text part", parts)
+	}
+	for _, part := range parts {
+		if strings.Contains(part.Text, ".ssh") || strings.Contains(part.ImageURL, "file://") || strings.Contains(part.ImageURL, "data:image") {
+			t.Fatalf("parts leaked non-HTTP image URL: %+v", parts)
+		}
 	}
 }
 

@@ -8,6 +8,8 @@ import (
 	"io"
 	"strings"
 	"sync"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 var ErrContextSummaryUnavailable = errors.New("hermes: context summary unavailable")
@@ -35,6 +37,9 @@ type ContextSummarizerFunc func(context.Context, ContextSummaryRequest) (string,
 func (f ContextSummarizerFunc) SummarizeContext(ctx context.Context, req ContextSummaryRequest) (string, error) {
 	if f == nil {
 		return "", ErrContextSummaryUnavailable
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 	return f(ctx, req)
 }
@@ -427,7 +432,7 @@ func (e *ProviderBackedContextEngine) Status() ContextStatus {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.refreshLocked()
-	return e.status
+	return cloneContextStatus(e.status)
 }
 
 func (e *ProviderBackedContextEngine) UpdateModelContext(update ContextModelContext) {
@@ -440,8 +445,17 @@ func (e *ProviderBackedContextEngine) UpdateModelContext(update ContextModelCont
 func (e *ProviderBackedContextEngine) recordCompressionError(err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.status.Compression.LastError = err.Error()
+	e.status.Compression.LastError = contextCompressionErrorText(err)
 	e.refreshLocked()
+}
+
+func contextCompressionErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := redaction.RedactSecrets(err.Error())
+	msg = strings.NewReplacer("`", "'", "*", "'", "#", "＃").Replace(msg)
+	return strings.Join(strings.Fields(msg), " ")
 }
 
 func (e *ProviderBackedContextEngine) refreshLocked() {

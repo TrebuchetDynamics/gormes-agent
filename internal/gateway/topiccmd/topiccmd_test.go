@@ -25,7 +25,9 @@ func TestPrivateChatTelegramOnly(t *testing.T) {
 		{name: "telegram capitalized private chat type", platform: "telegram", chatType: " Private ", chatID: "42", want: true},
 		{name: "telegram legacy positive chat id", platform: "telegram", chatID: "42", want: true},
 		{name: "telegram legacy negative group id", platform: "telegram", chatID: "-42", want: false},
+		{name: "telegram legacy negative chat id overrides stale dm flag", platform: "telegram", isDirectMessage: true, chatID: "-42", want: false},
 		{name: "telegram explicit group", platform: "telegram", chatType: "group", chatID: "42", want: false},
+		{name: "telegram explicit group overrides stale dm flag", platform: "telegram", isDirectMessage: true, chatType: "group", chatID: "42", want: false},
 		{name: "account-scoped telegram", platform: "telegram:work", isDirectMessage: true, chatID: "42", want: true},
 		{name: "non telegram", platform: "discord", isDirectMessage: true, chatID: "42", want: false},
 	}
@@ -36,6 +38,18 @@ func TestPrivateChatTelegramOnly(t *testing.T) {
 				t.Fatalf("PrivateChat() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestCapabilityGuidanceRedactsAuthorizationReason(t *testing.T) {
+	got := CapabilityGuidance("BotFather check failed: authorization=Bearer plain-secret-token")
+	for _, forbidden := range []string{"plain-secret-token", "authorization", "Bearer", "bearer"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("CapabilityGuidance leaked authorization reason %q in:\n%s", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "[redacted]") {
+		t.Fatalf("CapabilityGuidance missing redaction marker:\n%s", got)
 	}
 }
 

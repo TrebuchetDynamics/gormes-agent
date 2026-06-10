@@ -60,7 +60,13 @@ func (s Store) Load() (model.RememberedSourceLedger, model.Evidence) {
 	return ledger, model.Evidence{}
 }
 
-func (s Store) RememberSource(_ context.Context, entry model.RememberedSourceEntry) error {
+func (s Store) RememberSource(ctx context.Context, entry model.RememberedSourceEntry) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if err := s.jsonFile().Require(); err != nil {
 		return err
 	}
@@ -80,6 +86,9 @@ func (s Store) RememberSource(_ context.Context, entry model.RememberedSourceEnt
 	entry.UpdatedAt = now
 	ledger.UpdatedAt = now
 	ledger.Platforms[entry.Platform], _ = model.UpsertRememberedSourceEntry(ledger.Platforms[entry.Platform], entry)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.save(ledger)
 }
 

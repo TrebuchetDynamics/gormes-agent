@@ -51,8 +51,7 @@ type InMemoryRegistryProvider struct {
 // of the given results sorted by Name ascending. If err is non-nil, Snapshot
 // returns it unchanged and the results slice is ignored on the read path.
 func NewInMemoryRegistryProvider(results []HubSearchResult, err error) *InMemoryRegistryProvider {
-	sorted := make([]HubSearchResult, len(results))
-	copy(sorted, results)
+	sorted := cloneHubSearchResults(results)
 	sort.SliceStable(sorted, func(i, j int) bool {
 		return sorted[i].Name < sorted[j].Name
 	})
@@ -69,9 +68,16 @@ func (p *InMemoryRegistryProvider) Snapshot(_ context.Context) ([]HubSearchResul
 	if p.err != nil {
 		return nil, p.err
 	}
-	out := make([]HubSearchResult, len(p.results))
-	copy(out, p.results)
-	return out, nil
+	return cloneHubSearchResults(p.results), nil
+}
+
+func cloneHubSearchResults(results []HubSearchResult) []HubSearchResult {
+	out := make([]HubSearchResult, len(results))
+	copy(out, results)
+	for i := range out {
+		out[i].Tags = append([]string(nil), out[i].Tags...)
+	}
+	return out
 }
 
 // HubSearchEvidence is a typed enum reported by Search to describe degraded
@@ -129,16 +135,21 @@ type HubBrowseResponse struct {
 // caller-supplied fallback provider list is returned unchanged with typed
 // evidence when available.
 func PreferHermesIndexProvider(ctx context.Context, index HubRegistryProvider, fallbacks []HubRegistryProvider) ([]HubRegistryProvider, HubSearchEvidence) {
+	fallbackCopy := append([]HubRegistryProvider(nil), fallbacks...)
+	ctx = nonNilContext(ctx)
 	if index == nil {
-		return append([]HubRegistryProvider(nil), fallbacks...), ""
+		return fallbackCopy, ""
+	}
+	if err := ctx.Err(); err != nil {
+		return fallbackCopy, ""
 	}
 	snap, err := index.Snapshot(ctx)
 	if err != nil {
 		evidence := registryErrorEvidence(err)
-		return append([]HubRegistryProvider(nil), fallbacks...), evidence
+		return fallbackCopy, evidence
 	}
 	if len(snap) == 0 {
-		return append([]HubRegistryProvider(nil), fallbacks...), HubSearchEvidenceNoResults
+		return fallbackCopy, HubSearchEvidenceNoResults
 	}
 	return []HubRegistryProvider{index}, ""
 }
@@ -162,6 +173,7 @@ func registryErrorEvidence(err error) HubSearchEvidence {
 // inactive skill stores and never opens a network connection — providers are
 // the only seam to live data.
 func Search(ctx context.Context, query string, providers []HubRegistryProvider, opts HubSearchOptions) (HubSearchResponse, error) {
+	ctx = nonNilContext(ctx)
 	trimmed := strings.TrimSpace(query)
 	if trimmed == "" {
 		return HubSearchResponse{Evidence: HubSearchEvidenceEmptyQuery}, nil
@@ -184,6 +196,7 @@ func Search(ctx context.Context, query string, providers []HubRegistryProvider, 
 // Browse returns a page of all read-only registry results. It shares Search's
 // provider, dedupe, and sort rules, but does not require a query.
 func Browse(ctx context.Context, providers []HubRegistryProvider, opts HubBrowseOptions) (HubBrowseResponse, error) {
+	ctx = nonNilContext(ctx)
 	results, evidence, err := collectHubResults(ctx, providers, func(HubSearchResult) bool { return true })
 	if err != nil {
 		return HubBrowseResponse{}, err
@@ -199,10 +212,12 @@ func Browse(ctx context.Context, providers []HubRegistryProvider, opts HubBrowse
 	total := len(results)
 	totalPages := 0
 	if total > 0 {
-		totalPages = (total + pageSize - 1) / pageSize
+		totalPages = ((total - 1) / pageSize) + 1
 		if page > totalPages {
 			page = totalPages
 		}
+	} else {
+		page = 1
 	}
 	start := 0
 	if page > 1 {
@@ -220,6 +235,7 @@ func Browse(ctx context.Context, providers []HubRegistryProvider, opts HubBrowse
 }
 
 func collectHubResults(ctx context.Context, providers []HubRegistryProvider, keep func(HubSearchResult) bool) ([]HubSearchResult, HubSearchEvidence, error) {
+	ctx = nonNilContext(ctx)
 	var (
 		merged      []HubSearchResult
 		unavailable bool
@@ -227,6 +243,9 @@ func collectHubResults(ctx context.Context, providers []HubRegistryProvider, kee
 		malformed   bool
 	)
 	for _, p := range providers {
+		if err := ctx.Err(); err != nil {
+			return nil, "", err
+		}
 		if p == nil {
 			continue
 		}
@@ -243,6 +262,9 @@ func collectHubResults(ctx context.Context, providers []HubRegistryProvider, kee
 				return nil, "", err
 			}
 			continue
+		}
+		if err := ctx.Err(); err != nil {
+			return nil, "", err
 		}
 		for _, r := range snap {
 			if keep == nil || keep(r) {
@@ -287,4 +309,11 @@ func collectHubResults(ctx context.Context, providers []HubRegistryProvider, kee
 		evidence = HubSearchEvidenceNoResults
 	}
 	return deduped, evidence, nil
+}
+
+func nonNilContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
 }

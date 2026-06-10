@@ -3,6 +3,7 @@ package approval
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -28,6 +29,115 @@ func TestApprovalQueueSubmitAndHasBlocking(t *testing.T) {
 	}
 	if q.HasBlockingApproval("session-b") {
 		t.Fatal("HasBlockingApproval(session-b) = true, want false")
+	}
+}
+
+func TestApprovalQueueRemovesControlCharactersFromOutcomeMetadata(t *testing.T) {
+	q := NewGatewayApprovalQueue()
+	ticket, err := q.SubmitGatewayApproval("session-a", GatewayApprovalRequest{
+		Command:     "danger\x1b[31m",
+		Description: "destructive\u009b reset",
+		PatternKey:  "pattern\x7fkey",
+		PatternKeys: []string{"list\x1bpattern"},
+		Evidence:    map[string]string{"detector\x1b": "policy\u009b"},
+	})
+	if err != nil {
+		t.Fatalf("SubmitGatewayApproval: %v", err)
+	}
+	if err := q.ResolveGatewayApproval(context.Background(), Resolution{
+		SessionKey: "session-a",
+		Choice:     ChoiceOnce,
+		Platform:   "telegram\x1b",
+		ChatID:     "42\u009b",
+		Evidence:   map[string]string{"actor\x1b": "ada\u009b"},
+	}); err != nil {
+		t.Fatalf("ResolveGatewayApproval: %v", err)
+	}
+	outcome, ok := q.GatewayApprovalOutcome(ticket)
+	if !ok {
+		t.Fatal("approval outcome missing")
+	}
+	combined := outcome.Request.Command + "\n" + outcome.Request.Description + "\n" + outcome.Request.PatternKey + "\n" + strings.Join(outcome.Request.PatternKeys, "\n")
+	for key, value := range outcome.Request.Evidence {
+		combined += "\n" + key + "=" + value
+	}
+	combined += "\n" + outcome.Resolution.Platform + "\n" + outcome.Resolution.ChatID
+	for key, value := range outcome.Resolution.Evidence {
+		combined += "\n" + key + "=" + value
+	}
+	for _, forbidden := range []string{"\x1b", "\u009b", "\x7f"} {
+		if strings.Contains(combined, forbidden) {
+			t.Fatalf("approval outcome kept control character %q in:\n%q", forbidden, combined)
+		}
+	}
+	for _, want := range []string{"danger [31m", "destructive reset", "telegram", "42"} {
+		if !strings.Contains(combined, want) {
+			t.Fatalf("approval outcome = %q, want sanitized fragment %q", combined, want)
+		}
+	}
+}
+
+func TestApprovalQueueRedactsSecretLikeRequestMetadata(t *testing.T) {
+	q := NewGatewayApprovalQueue()
+	ticket, err := q.SubmitGatewayApproval("session-a", GatewayApprovalRequest{
+		Command:     "danger --token=plain-secret-token",
+		Description: "runs with api_key=description-secret",
+		PatternKey:  "password=pattern-secret",
+		PatternKeys: []string{"secret=pattern-list-secret"},
+		Evidence:    map[string]string{"token": "evidence-secret", "source": "operator password=evidence-password"},
+	})
+	if err != nil {
+		t.Fatalf("SubmitGatewayApproval: %v", err)
+	}
+	if err := q.ResolveGatewayApproval(context.Background(), Resolution{SessionKey: "session-a", Choice: ChoiceOnce}); err != nil {
+		t.Fatalf("ResolveGatewayApproval: %v", err)
+	}
+	outcome, ok := q.GatewayApprovalOutcome(ticket)
+	if !ok {
+		t.Fatal("approval outcome missing")
+	}
+	combined := outcome.Request.Command + "\n" + outcome.Request.Description + "\n" + outcome.Request.PatternKey + "\n" + strings.Join(outcome.Request.PatternKeys, "\n")
+	for key, value := range outcome.Request.Evidence {
+		combined += "\n" + key + "=" + value
+	}
+	for _, forbidden := range []string{"plain-secret-token", "description-secret", "pattern-secret", "pattern-list-secret", "evidence-secret", "evidence-password", "--token", "api_key", "password="} {
+		if strings.Contains(combined, forbidden) {
+			t.Fatalf("approval request leaked secret-like metadata %q in:\n%s", forbidden, combined)
+		}
+	}
+	if !strings.Contains(combined, "[redacted]") {
+		t.Fatalf("approval request missing redacted evidence in:\n%s", combined)
+	}
+}
+
+func TestApprovalQueueRedactsAuthorizationRequestMetadata(t *testing.T) {
+	q := NewGatewayApprovalQueue()
+	ticket, err := q.SubmitGatewayApproval("session-a", GatewayApprovalRequest{
+		Command:     "curl -H 'Authorization: Bearer plain-secret-token'",
+		Description: "uses authorization=Bearer description-secret",
+		Evidence:    map[string]string{"authorization": "Bearer evidence-secret", "source": "operator bearer=evidence-password"},
+	})
+	if err != nil {
+		t.Fatalf("SubmitGatewayApproval: %v", err)
+	}
+	if err := q.ResolveGatewayApproval(context.Background(), Resolution{SessionKey: "session-a", Choice: ChoiceOnce}); err != nil {
+		t.Fatalf("ResolveGatewayApproval: %v", err)
+	}
+	outcome, ok := q.GatewayApprovalOutcome(ticket)
+	if !ok {
+		t.Fatal("approval outcome missing")
+	}
+	combined := outcome.Request.Command + "\n" + outcome.Request.Description
+	for key, value := range outcome.Request.Evidence {
+		combined += "\n" + key + "=" + value
+	}
+	for _, forbidden := range []string{"plain-secret-token", "description-secret", "evidence-secret", "evidence-password", "Authorization", "authorization", "Bearer", "bearer="} {
+		if strings.Contains(combined, forbidden) {
+			t.Fatalf("approval request leaked authorization metadata %q in:\n%s", forbidden, combined)
+		}
+	}
+	if !strings.Contains(combined, "[redacted]") {
+		t.Fatalf("approval request missing redacted authorization evidence in:\n%s", combined)
 	}
 }
 
@@ -120,6 +230,42 @@ func TestApprovalQueueOutcomeLookupTrimsTicketSessionKey(t *testing.T) {
 	}
 }
 
+func TestApprovalQueueRedactsSecretLikeResolutionEvidence(t *testing.T) {
+	q := NewGatewayApprovalQueue()
+	ticket, err := q.SubmitGatewayApproval("session-a", GatewayApprovalRequest{Command: "danger"})
+	if err != nil {
+		t.Fatalf("SubmitGatewayApproval: %v", err)
+	}
+
+	if err := q.ResolveGatewayApproval(context.Background(), Resolution{
+		SessionKey: "session-a",
+		Choice:     ChoiceOnce,
+		Platform:   "telegram token=platform-secret",
+		ChatID:     "chat api_key=chat-secret",
+		MessageID:  "message password=message-secret",
+		ActorID:    "actor secret=actor-secret",
+		Evidence:   map[string]string{"token": "evidence-secret", "source": "operator password=evidence-password"},
+	}); err != nil {
+		t.Fatalf("ResolveGatewayApproval: %v", err)
+	}
+	outcome, ok := q.GatewayApprovalOutcome(ticket)
+	if !ok {
+		t.Fatal("approval outcome missing")
+	}
+	combined := outcome.Resolution.Platform + "\n" + outcome.Resolution.ChatID + "\n" + outcome.Resolution.MessageID + "\n" + outcome.Resolution.ActorID
+	for key, value := range outcome.Resolution.Evidence {
+		combined += "\n" + key + "=" + value
+	}
+	for _, forbidden := range []string{"platform-secret", "chat-secret", "message-secret", "actor-secret", "evidence-secret", "evidence-password", "token=", "api_key", "password=", "secret="} {
+		if strings.Contains(combined, forbidden) {
+			t.Fatalf("approval resolution leaked secret-like metadata %q in:\n%s", forbidden, combined)
+		}
+	}
+	if !strings.Contains(combined, "[redacted]") {
+		t.Fatalf("approval resolution missing redacted evidence in:\n%s", combined)
+	}
+}
+
 func TestApprovalQueueResolutionNormalizesEvidenceMap(t *testing.T) {
 	q := NewGatewayApprovalQueue()
 	ticket, err := q.SubmitGatewayApproval("session-a", GatewayApprovalRequest{Command: "danger"})
@@ -191,6 +337,27 @@ func TestApprovalQueueResolutionRecordsTrimmedSessionKey(t *testing.T) {
 	}
 	if outcome.Resolution.SessionKey != "session-a" {
 		t.Fatalf("outcome resolution session key = %q, want trimmed session-a", outcome.Resolution.SessionKey)
+	}
+}
+
+func TestApprovalQueueResolveHonorsCanceledContextWithoutMutating(t *testing.T) {
+	q := NewGatewayApprovalQueue()
+	ticket, err := q.SubmitGatewayApproval("session-a", GatewayApprovalRequest{Command: "danger"})
+	if err != nil {
+		t.Fatalf("SubmitGatewayApproval: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = q.ResolveGatewayApproval(ctx, Resolution{SessionKey: "session-a", Choice: ChoiceOnce})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ResolveGatewayApproval canceled error = %v, want context.Canceled", err)
+	}
+	if !q.HasBlockingApproval("session-a") {
+		t.Fatal("canceled resolve cleared pending approval; want no mutation")
+	}
+	if _, ok := q.GatewayApprovalOutcome(ticket); ok {
+		t.Fatal("canceled resolve recorded outcome; want no mutation")
 	}
 }
 

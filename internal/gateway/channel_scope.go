@@ -96,6 +96,9 @@ func (m *Manager) applyChannelAutoSkills(route agentRuntimeRoute, snapshot agent
 // skill command state. Failures are returned as evidence and do not stop other
 // adapters from refreshing.
 func (m *Manager) RefreshSkillGroups(ctx context.Context) []SkillGroupRefreshResult {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	m.mu.Lock()
 	channels := make([]Channel, 0, len(m.channels))
 	for _, ch := range m.channels {

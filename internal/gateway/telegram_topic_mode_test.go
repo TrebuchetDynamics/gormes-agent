@@ -99,6 +99,34 @@ func TestTelegramTopicStoreErrorsSanitizedInReplies(t *testing.T) {
 	}
 }
 
+func TestTelegramTopicMutationAllowsWildcardOperator(t *testing.T) {
+	store := newFakeTelegramTopicStore()
+	ch := newFakeChannel("telegram")
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:       map[string]string{"telegram": "42"},
+		AllowedUsers:       map[string]map[string]bool{"telegram": {"*": true}},
+		TelegramTopicStore: store,
+	}, nil, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.handleInbound(context.Background(), telegramTopicEvent("/topic", "any-user")); err != nil {
+		t.Fatal(err)
+	}
+
+	if store.enableCalls != 1 {
+		t.Fatalf("wildcard operator enableCalls=%d, want 1", store.enableCalls)
+	}
+	if !store.enabled["42\x00any-user"] {
+		t.Fatalf("topic mode not enabled for wildcard operator: %+v", store.enabled)
+	}
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 || strings.Contains(strings.ToLower(sent[0].Text), "not authorized") {
+		t.Fatalf("wildcard operator reply = %#v, want authorized enable guidance", sent)
+	}
+}
+
 func TestTelegramTopicMutationRefusesUnauthorizedUser(t *testing.T) {
 	store := newFakeTelegramTopicStore()
 	store.enabled["42\x007"] = true

@@ -41,6 +41,7 @@ type Bot struct {
 
 	approvalResolved map[string]bool
 	approvalBlocks   map[string][]SlackBlock
+	approvalTickets  map[string]uint64
 	mentionedThreads map[string]struct{}
 }
 
@@ -75,6 +76,7 @@ func New(cfg Config, client Client, k *kernel.Kernel, log *slog.Logger) *Bot {
 		log:              log,
 		approvalResolved: map[string]bool{},
 		approvalBlocks:   map[string][]SlackBlock{},
+		approvalTickets:  map[string]uint64{},
 		mentionedThreads: map[string]struct{}{},
 	}
 }

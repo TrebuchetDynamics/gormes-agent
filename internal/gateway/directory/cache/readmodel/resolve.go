@@ -19,7 +19,7 @@ func (d Directory) Resolve(platform, query string) (gatewaydelivery.Target, mode
 	}
 	for _, entry := range entries {
 		if entry.ID == raw {
-			return model.DeliveryTarget(platform, entry), model.Evidence{}
+			return resolvedEntryTarget(platform, raw, entry)
 		}
 	}
 	normalized := model.NormalizeQuery(raw)
@@ -83,14 +83,33 @@ func collectMatches(entries []model.Entry, keep func(model.Entry) bool) []model.
 }
 
 func resolveDirectoryMatches(platform, raw string, matches []model.Entry) (gatewaydelivery.Target, model.Evidence, bool) {
-	switch len(matches) {
+	validTargets := make([]gatewaydelivery.Target, 0, len(matches))
+	for _, match := range matches {
+		target, evidence := resolvedEntryTarget(platform, raw, match)
+		if evidence.Code != "" {
+			continue
+		}
+		validTargets = append(validTargets, target)
+	}
+	switch len(validTargets) {
 	case 0:
-		return gatewaydelivery.Target{}, model.Evidence{}, false
+		if len(matches) == 0 {
+			return gatewaydelivery.Target{}, model.Evidence{}, false
+		}
+		return gatewaydelivery.Target{}, model.Evidence{Code: model.EvidenceChannelDirectoryMissing, Platform: platform, Query: raw}, true
 	case 1:
-		return model.DeliveryTarget(platform, matches[0]), model.Evidence{}, true
+		return validTargets[0], model.Evidence{}, true
 	default:
 		return gatewaydelivery.Target{}, model.Evidence{Code: model.EvidenceChannelTargetAmbiguous, Platform: platform, Query: raw}, true
 	}
+}
+
+func resolvedEntryTarget(platform, raw string, entry model.Entry) (gatewaydelivery.Target, model.Evidence) {
+	target := model.DeliveryTarget(platform, entry)
+	if target.ChatID == "" || !target.IsExplicit {
+		return gatewaydelivery.Target{}, model.Evidence{Code: model.EvidenceChannelDirectoryMissing, Platform: platform, Query: raw}
+	}
+	return target, model.Evidence{}
 }
 
 // ValidateDeliveryTarget returns channel_target_stale when an explicit target

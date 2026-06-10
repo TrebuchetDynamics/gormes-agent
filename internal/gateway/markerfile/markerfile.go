@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -28,6 +29,12 @@ func PositiveDuration(configured, fallback time.Duration) time.Duration {
 func Clear(ctx context.Context, path, description string) error {
 	if path == "" {
 		return nil
+	}
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("%s path is empty", description)
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 	if err := ctx.Err(); err != nil {
 		return err

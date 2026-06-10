@@ -5,7 +5,51 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestQueueRegisterDoesNotReuseStoredOutcomeIDAfterCounterWrap(t *testing.T) {
+	q := NewQueue()
+	first, err := q.RegisterSlashConfirmation("session-a", Request{Command: "reload-mcp"})
+	if err != nil {
+		t.Fatalf("RegisterSlashConfirmation first: %v", err)
+	}
+	if _, err := q.ResolveSlashConfirmation(context.Background(), Resolution{SessionKey: "session-a", ID: first.ID, Choice: ChoiceOnce}); err != nil {
+		t.Fatalf("ResolveSlashConfirmation first: %v", err)
+	}
+	q.nextID = ^uint64(0)
+
+	second, err := q.RegisterSlashConfirmation("session-b", Request{Command: "reload-mcp"})
+	if err != nil {
+		t.Fatalf("RegisterSlashConfirmation after wrap: %v", err)
+	}
+	if second.ID == first.ID {
+		t.Fatalf("RegisterSlashConfirmation reused stored outcome ID after wrap: first=%+v second=%+v", first, second)
+	}
+	if _, err := q.ResolveSlashConfirmation(context.Background(), Resolution{SessionKey: "session-b", ID: second.ID, Choice: ChoiceOnce}); err != nil {
+		t.Fatalf("ResolveSlashConfirmation second: %v", err)
+	}
+	if _, ok := q.SlashConfirmationOutcome(first); !ok {
+		t.Fatal("stored first outcome was lost after wrapped ticket resolution")
+	}
+}
+
+func TestQueueRegisterSkipsZeroTicketIDOnCounterWrap(t *testing.T) {
+	q := NewQueue()
+	q.nextID = ^uint64(0)
+
+	ticket, err := q.RegisterSlashConfirmation("session-a", Request{Command: "reload-mcp"})
+	if err != nil {
+		t.Fatalf("RegisterSlashConfirmation: %v", err)
+	}
+	if ticket.ID == 0 {
+		t.Fatalf("RegisterSlashConfirmation returned zero ticket ID after counter wrap: %+v", ticket)
+	}
+	pending, ok := q.PendingSlashConfirmation("session-a")
+	if !ok || pending.Ticket.ID != ticket.ID {
+		t.Fatalf("PendingSlashConfirmation = (%+v, %v), want non-zero ticket %+v", pending, ok, ticket)
+	}
+}
 
 func TestQueueRegisterSupersedesAndClearScoped(t *testing.T) {
 	q := NewQueue()
@@ -164,6 +208,39 @@ func TestQueueResolveAllowsNilContext(t *testing.T) {
 	if outcome.Ticket != ticket || outcome.Choice != ChoiceOnce {
 		t.Fatalf("outcome = %+v, want resolved ticket %+v", outcome, ticket)
 	}
+}
+
+func TestQueueResolveHonorsContextCanceledAfterInitialCheck(t *testing.T) {
+	q := NewQueue()
+	ticket, err := q.RegisterSlashConfirmation("session-a", Request{Command: "reload-mcp"})
+	if err != nil {
+		t.Fatalf("RegisterSlashConfirmation: %v", err)
+	}
+	ctx := &cancelAfterFirstErrContext{}
+
+	_, err = q.ResolveSlashConfirmation(ctx, Resolution{SessionKey: "session-a", ID: ticket.ID, Choice: ChoiceOnce})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ResolveSlashConfirmation canceled-after-check error = %v, want context.Canceled", err)
+	}
+	if _, ok := q.PendingSlashConfirmation("session-a"); !ok {
+		t.Fatal("canceled-after-check resolve cleared pending confirmation; want no mutation")
+	}
+	if _, ok := q.SlashConfirmationOutcome(ticket); ok {
+		t.Fatal("canceled-after-check resolve recorded outcome; want no mutation")
+	}
+}
+
+type cancelAfterFirstErrContext struct{ calls int }
+
+func (c *cancelAfterFirstErrContext) Deadline() (time.Time, bool) { return time.Time{}, false }
+func (c *cancelAfterFirstErrContext) Done() <-chan struct{}       { return nil }
+func (c *cancelAfterFirstErrContext) Value(any) any               { return nil }
+func (c *cancelAfterFirstErrContext) Err() error {
+	c.calls++
+	if c.calls == 1 {
+		return nil
+	}
+	return context.Canceled
 }
 
 func TestQueueResolveHonorsCanceledContextWithoutMutating(t *testing.T) {

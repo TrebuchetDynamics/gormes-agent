@@ -296,6 +296,32 @@ func TestCommandFleetWorkerStartAllUsesProfileHomeEnvAndDoesNotRestartLiveProfil
 	}
 }
 
+func TestCommandFleetWorkerReportRedactsAuthorizationCommandJSONFields(t *testing.T) {
+	cfg := config.Config{Profiles: map[string]config.ProfileCfg{"main": {Enabled: true}}}
+	runner := &fakeFleetCommandRunner{results: []FleetCommandResult{{Stdout: `{"action":"started authorization=Bearer plain-secret-token","mode":"runtime"}`}}}
+	worker := NewCommandFleetWorker(CommandFleetWorkerOptions{
+		Command: "gormes",
+		Runner:  runner,
+		StatusWorker: &fakeFleetWorker{statuses: map[string]FleetProfileRuntime{
+			"main": {Owner: FleetRuntimeOwnerProfileServiceBridge, State: FleetRuntimeStateStopped, Live: false},
+		}},
+	})
+
+	report, err := NewFleetSupervisor(cfg, FleetSupervisorOptions{HomeRoot: t.TempDir(), Worker: worker}).StartAll(context.Background())
+	if err != nil {
+		t.Fatalf("StartAll: %v", err)
+	}
+	result := findFleetOperationResult(t, report, "main")
+	for _, forbidden := range []string{"plain-secret-token", "authorization", "Bearer", "bearer"} {
+		if strings.Contains(result.Message, forbidden) {
+			t.Fatalf("fleet operation message leaked authorization command field %q in %q", forbidden, result.Message)
+		}
+	}
+	if !strings.Contains(result.Message, "[redacted]") {
+		t.Fatalf("fleet operation message missing redaction marker: %q", result.Message)
+	}
+}
+
 func TestCommandFleetWorkerReportSanitizesCommandJSONFields(t *testing.T) {
 	cfg := config.Config{Profiles: map[string]config.ProfileCfg{"main": {Enabled: true}}}
 	runner := &fakeFleetCommandRunner{results: []FleetCommandResult{{Stdout: `{"action":"started\nstatus: forged api_key=plain-secret-token","mode":"runtime"}`}}}
@@ -373,6 +399,34 @@ func TestCommandFleetWorkerStopAndRestartAllUseProfileScopedCommands(t *testing.
 	}
 	if findFleetOperationResult(t, restartReport, "main").Status != FleetOperationStatusRestarted || findFleetOperationResult(t, restartReport, "ops").Status != FleetOperationStatusRestarted {
 		t.Fatalf("restart report = %+v, want restarted statuses", restartReport)
+	}
+}
+
+func TestFleetSupervisorStatusAndOperationsAllowNilContext(t *testing.T) {
+	cfg := config.Config{Profiles: map[string]config.ProfileCfg{
+		"main": {Enabled: true},
+	}}
+	worker := &fakeFleetWorker{operationStatus: FleetOperationStatusStarted}
+	supervisor := NewFleetSupervisor(cfg, FleetSupervisorOptions{HomeRoot: "/tmp/gormes-fleet", Worker: worker})
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("fleet supervisor panicked with nil context: %v", r)
+		}
+	}()
+
+	status, err := supervisor.Status(nil)
+	if err != nil {
+		t.Fatalf("Status nil context: %v", err)
+	}
+	if len(status.Profiles) != 1 || status.Profiles[0].ProfileID != "main" {
+		t.Fatalf("Status nil context profiles = %+v, want main profile", status.Profiles)
+	}
+	report, err := supervisor.StartAll(nil)
+	if err != nil {
+		t.Fatalf("StartAll nil context: %v", err)
+	}
+	if len(report.Results) != 1 || len(worker.startTargets) != 1 {
+		t.Fatalf("StartAll nil context report=%+v targets=%+v, want one started target", report, worker.startTargets)
 	}
 }
 

@@ -44,6 +44,64 @@ func TestHandle_DenyModeSendsDeterministicDenialAndRecordsEvidence(t *testing.T)
 	unauthorizeddmtest.AssertDegradedEvidence(t, store, pairing.PairingDegradedAllowlistDenied, "telegram", "stranger")
 }
 
+func TestHandle_HonorsCanceledContextBeforePairingReply(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var sent []sentReply
+
+	decision, err := Handle(ctx, Event{
+		Platform:      "telegram",
+		ChatID:        "424242",
+		DirectMessage: true,
+		PairingUserID: "stranger",
+	}, Policy{
+		Behavior: BehaviorPair,
+		GeneratePairingCode: func(context.Context, pairing.PairingCodeRequest) (pairing.PairingCodeResult, error) {
+			cancel()
+			return pairing.PairingCodeResult{Status: pairing.PairingCodeIssued, Code: "ABCD1234"}, nil
+		},
+		Send: captureSend(&sent),
+	})
+	if err == nil || !strings.Contains(err.Error(), context.Canceled.Error()) {
+		t.Fatalf("Handle err = %v, want context.Canceled", err)
+	}
+	if len(sent) != 0 {
+		t.Fatalf("sent=%+v, want canceled context to avoid public pairing reply", sent)
+	}
+	if !decision.Handled || decision.ReplySent || decision.PairingStatus != pairing.PairingCodeIssued {
+		t.Fatalf("decision = %#v, want issued pairing status without reply side effect", decision)
+	}
+}
+
+func TestHandle_HonorsCanceledContextBeforePairingMutation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	var generated int
+	var sent []sentReply
+
+	decision, err := Handle(ctx, Event{
+		Platform:      "telegram",
+		ChatID:        "424242",
+		DirectMessage: true,
+		PairingUserID: "stranger",
+	}, Policy{
+		Behavior: BehaviorPair,
+		GeneratePairingCode: func(context.Context, pairing.PairingCodeRequest) (pairing.PairingCodeResult, error) {
+			generated++
+			return pairing.PairingCodeResult{Status: pairing.PairingCodeIssued, Code: "ABCD1234"}, nil
+		},
+		Send: captureSend(&sent),
+	})
+	if err == nil || !strings.Contains(err.Error(), context.Canceled.Error()) {
+		t.Fatalf("Handle err = %v, want context.Canceled", err)
+	}
+	if generated != 0 || len(sent) != 0 {
+		t.Fatalf("generated=%d sent=%+v, want canceled context to avoid mutation/send", generated, sent)
+	}
+	if !decision.Handled || decision.ReplySent || decision.PairingStatus != "" {
+		t.Fatalf("decision = %#v, want handled without side effects", decision)
+	}
+}
+
 func TestHandle_PairModeFallsBackToEventUserIDWhenPairingUserIDMissing(t *testing.T) {
 	store := newTestStore(t)
 	var sent []sentReply
@@ -141,6 +199,13 @@ func TestHandle_PairModeSendsOneBoundedPromptAndRecordsPending(t *testing.T) {
 	}
 	if got := len(sent); got != 1 {
 		t.Fatalf("send count after rate-limited repeat = %d, want still one prompt", got)
+	}
+}
+
+func TestFormatPairingPromptBoundsUntrustedFields(t *testing.T) {
+	got := FormatPairingPrompt(strings.Repeat("platform", 80), strings.Repeat("CODE", 80))
+	if len(got) > 240 {
+		t.Fatalf("FormatPairingPrompt length = %d, want bounded <= 240:\n%s", len(got), got)
 	}
 }
 

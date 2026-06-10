@@ -4,10 +4,26 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/model"
 )
+
+func TestStoreLoadSanitizesDecodedLedgerUpdatedAt(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, channelDirectorySourcesFileName), []byte(`{"updated_at":"now\nforged=true","platforms":{"telegram":[{"platform":"telegram","id":"42","name":"Ops"}]}}`), 0o600); err != nil {
+		t.Fatalf("write ledger: %v", err)
+	}
+
+	ledger, evidence := NewStore(root).Load()
+	if evidence.Code != "" {
+		t.Fatalf("evidence = %+v, want none", evidence)
+	}
+	if strings.Contains(ledger.UpdatedAt, "\n") || ledger.UpdatedAt != "now forged=true" {
+		t.Fatalf("UpdatedAt = %q, want sanitized single-line value", ledger.UpdatedAt)
+	}
+}
 
 func TestStoreLoadNormalizesDecodedLedger(t *testing.T) {
 	root := t.TempDir()
@@ -29,6 +45,21 @@ func TestStoreLoadNormalizesDecodedLedger(t *testing.T) {
 	got := entries[0]
 	if got.Platform != "telegram" || got.ID != "-100:7" || got.Name != "Ops / Release Room" || got.ChatID != "-100" || got.ThreadID != "7" || got.ChatTopic != "Release Room" {
 		t.Fatalf("entry = %+v, want normalized remembered source", got)
+	}
+}
+
+func TestRememberSourceHonorsCanceledContextBeforeWriting(t *testing.T) {
+	root := t.TempDir()
+	store := NewStore(root)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := store.RememberSource(ctx, model.RememberedSourceEntry{Platform: "telegram", ID: "42", Name: "Ops"})
+	if err == nil {
+		t.Fatal("RememberSource canceled context err = nil, want context cancellation")
+	}
+	if _, statErr := os.Stat(filepath.Join(root, channelDirectorySourcesFileName)); !os.IsNotExist(statErr) {
+		t.Fatalf("ledger stat after canceled RememberSource = %v, want no file created", statErr)
 	}
 }
 

@@ -74,6 +74,9 @@ func telegramTopicPrivateChat(ev InboundEvent) bool {
 
 func (m *Manager) telegramTopicAuthorized(ev InboundEvent) bool {
 	if users := m.cfg.AllowedUsers["telegram"]; len(users) > 0 {
+		if users["*"] {
+			return true
+		}
 		return users[strings.TrimSpace(ev.UserID)]
 	}
 	return m.allowed(ev)

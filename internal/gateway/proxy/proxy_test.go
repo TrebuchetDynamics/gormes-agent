@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -231,6 +232,49 @@ func TestProxySubmitter_PreservesAssistantReplayMetadata(t *testing.T) {
 	}
 }
 
+func TestProxySubmitter_RenderFrameMutationDoesNotCorruptStoredHistory(t *testing.T) {
+	client := llm.NewMockClient()
+	client.Script([]llm.Event{{Kind: llm.EventToken, Token: "first ok"}}, "sess-first")
+	proxy, err := NewProxySubmitter(ProxySubmitterConfig{
+		Client: client,
+		Model:  "gormes-agent",
+		History: []llm.Message{{
+			Role:         "assistant",
+			ContentParts: []llm.MessageContentPart{{Type: "text", Text: "original part"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewProxySubmitter: %v", err)
+	}
+	if err := proxy.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventSubmit, Text: "first", SessionID: "sess-first"}); err != nil {
+		t.Fatalf("first Submit: %v", err)
+	}
+	first := readProxyTerminalFrame(t, proxy.Render())
+	first.History[0].ContentParts[0].Text = "mutated by renderer"
+
+	client.Script([]llm.Event{{Kind: llm.EventToken, Token: "second ok"}}, "sess-second")
+	if err := proxy.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventSubmit, Text: "second", SessionID: "sess-second"}); err != nil {
+		t.Fatalf("second Submit: %v", err)
+	}
+	_ = readProxyTerminalFrame(t, proxy.Render())
+
+	requests := client.Requests()
+	if len(requests) != 2 {
+		t.Fatalf("client requests len = %d, want 2", len(requests))
+	}
+	parts := proxyClientMessageByContentPart(t, requests[1].Messages, "original part")
+	if parts.ContentParts[0].Text != "original part" {
+		t.Fatalf("second request content part = %q, want stored history isolated from render mutation", parts.ContentParts[0].Text)
+	}
+	for _, msg := range requests[1].Messages {
+		for _, part := range msg.ContentParts {
+			if part.Text == "mutated by renderer" {
+				t.Fatalf("second request replayed renderer-mutated content part: %#v", requests[1].Messages)
+			}
+		}
+	}
+}
+
 func TestProxySubmitter_PreservesAssistantReplayMetadataForClientRequest(t *testing.T) {
 	client := llm.NewMockClient()
 	client.Script([]llm.Event{{Kind: llm.EventToken, Token: "client metadata ok"}}, "sess-client-replay")
@@ -343,6 +387,50 @@ func TestProxySubmitter_StaleGenerationReportsDegradedOutput(t *testing.T) {
 		}
 	}
 	assertProxyStatus(t, store, "degraded", "stale generation")
+}
+
+func TestProxySubmitter_StaleCompletionDoesNotEmitDuringNewActiveTurn(t *testing.T) {
+	store := &capturingRuntimeStatus{}
+	proxy, err := NewProxySubmitter(ProxySubmitterConfig{Client: llm.NewMockClient(), Model: "gormes-agent", RuntimeStatus: store})
+	if err != nil {
+		t.Fatalf("NewProxySubmitter: %v", err)
+	}
+	proxy.mu.Lock()
+	proxy.generation = 2
+	proxy.active = true
+	proxy.activeGeneration = 2
+	proxy.mu.Unlock()
+
+	proxy.finishStale(1, "stale-session")
+
+	select {
+	case frame := <-proxy.Render():
+		t.Fatalf("stale completion emitted frame during newer active turn: %+v", frame)
+	case <-time.After(50 * time.Millisecond):
+	}
+	if got := store.snapshot(); got.ProxyState != "" || got.ProxyErrorMessage != "" {
+		t.Fatalf("stale completion updated proxy status during newer active turn: %+v", got)
+	}
+	if err := proxy.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventSubmit, Text: "new turn"}); !errors.Is(err, ErrProxyBusy) {
+		t.Fatalf("Submit during newer active turn after stale completion = %v, want ErrProxyBusy", err)
+	}
+}
+
+func TestProxySubmitter_StaleErrorDoesNotClearNewActiveTurn(t *testing.T) {
+	proxy, err := NewProxySubmitter(ProxySubmitterConfig{Client: llm.NewMockClient(), Model: "gormes-agent"})
+	if err != nil {
+		t.Fatalf("NewProxySubmitter: %v", err)
+	}
+	proxy.mu.Lock()
+	proxy.generation = 2
+	proxy.active = true
+	proxy.mu.Unlock()
+
+	proxy.finishProxyError(1, "stale-session", nil, errors.New("stale remote error"))
+
+	if err := proxy.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventSubmit, Text: "new turn"}); !errors.Is(err, ErrProxyBusy) {
+		t.Fatalf("Submit during newer active turn after stale error = %v, want ErrProxyBusy", err)
+	}
 }
 
 func TestProxySubmitter_RemoteErrorsReturnVisibleDegradedOutput(t *testing.T) {

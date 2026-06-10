@@ -110,10 +110,18 @@ func SelfRestartViaExec() error {
 	return syscall.Exec(executable, os.Args, os.Environ())
 }
 
+func restartContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
 func (s *RestartTakeoverStore) Write(ctx context.Context, marker RestartTakeoverMarker) error {
 	if s == nil || s.path == "" {
 		return nil
 	}
+	ctx = restartContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -130,6 +138,7 @@ func (s *RestartTakeoverStore) Read(ctx context.Context) (RestartTakeoverMarker,
 	if s == nil || s.path == "" {
 		return RestartTakeoverMarker{}, false, false, nil
 	}
+	ctx = restartContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return RestartTakeoverMarker{}, false, false, err
 	}

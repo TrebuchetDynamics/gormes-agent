@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/routing/identity"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 type ModelContextSource string
@@ -125,7 +126,7 @@ func (r ModelContextResolver) Resolve(query ModelContextQuery) ModelContextResol
 	if r.providerCaps != nil {
 		length, ok, err := r.providerCaps.LookupModelContext(query)
 		if err != nil {
-			result.ProviderLookupError = err.Error()
+			result.ProviderLookupError = modelContextErrorText(err)
 		}
 		if ok && length > 0 {
 			result.ContextLength = length
@@ -141,6 +142,15 @@ func (r ModelContextResolver) Resolve(query ModelContextQuery) ModelContextResol
 	}
 
 	return result
+}
+
+func modelContextErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := redaction.RedactSecrets(err.Error())
+	msg = strings.NewReplacer("`", "'", "*", "'", "#", "＃").Replace(msg)
+	return strings.Join(strings.Fields(msg), " ")
 }
 
 var defaultModelContextCaps = StaticModelContextCaps{

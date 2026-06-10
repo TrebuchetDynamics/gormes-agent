@@ -79,6 +79,9 @@ func (s *Store) Write(ctx context.Context, marker Marker) error {
 	if s == nil || s.path == "" {
 		return nil
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -99,18 +102,33 @@ func sanitizeMarkerReason(reason string) string {
 	reason = strings.Join(strings.Fields(reason), " ")
 	reason = redaction.RedactSecrets(reason)
 	fields := strings.Fields(reason)
-	for i, field := range fields {
+	out := make([]string, 0, len(fields))
+	for i := 0; i < len(fields); i++ {
+		field := fields[i]
 		lower := strings.ToLower(field)
-		if strings.Contains(lower, "[redacted]") && (strings.Contains(lower, "api_key") || strings.Contains(lower, "api-key") || strings.Contains(lower, "apikey") || strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "password")) {
-			fields[i] = "[redacted]"
+		nextRedacted := i+1 < len(fields) && strings.Contains(strings.ToLower(fields[i+1]), "[redacted]")
+		if plannedStopSecretField(lower) && (strings.Contains(lower, "[redacted]") || nextRedacted) {
+			out = append(out, "[redacted]")
+			if nextRedacted {
+				i++
+			}
+			continue
 		}
+		out = append(out, field)
 	}
-	return strings.Join(fields, " ")
+	return strings.Join(out, " ")
+}
+
+func plannedStopSecretField(value string) bool {
+	return strings.Contains(value, "api_key") || strings.Contains(value, "api-key") || strings.Contains(value, "apikey") || strings.Contains(value, "authorization") || strings.Contains(value, "bearer") || strings.Contains(value, "token") || strings.Contains(value, "secret") || strings.Contains(value, "password")
 }
 
 func (s *Store) ConsumeForSelf(ctx context.Context) (ConsumeResult, error) {
 	if s == nil || s.path == "" {
 		return ConsumeResult{Status: ConsumeMissing}, nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 	if err := ctx.Err(); err != nil {
 		return ConsumeResult{}, err
@@ -132,7 +150,7 @@ func (s *Store) ConsumeForSelf(ctx context.Context) (ConsumeResult, error) {
 		return ConsumeResult{Status: ConsumeMissing}, nil
 	}
 	marker.Reason = sanitizeMarkerReason(marker.Reason)
-	if marker.Kind != "" && marker.Kind != markerKind {
+	if marker.Kind != markerKind {
 		_ = s.Clear(context.Background())
 		return ConsumeResult{Status: ConsumeInvalid, Reason: "marker kind mismatch", Marker: marker}, nil
 	}

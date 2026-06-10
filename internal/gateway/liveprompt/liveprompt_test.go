@@ -65,6 +65,20 @@ func TestDefaultMemoryDirPrefersWorkspaceMemoryOverGlobalHome(t *testing.T) {
 	}
 }
 
+func TestAssembleSanitizesHiddenFormattingRuntimeFactPaths(t *testing.T) {
+	seams := Seams{
+		ProfileDir: func() string { return "" },
+		CWD:        func() string { return "/tmp/workspace-demo/gormes\u200b-agent\u202e" },
+	}
+	got, _, _ := Assemble(seams, "", "", "")
+	if strings.Contains(got, "\u200b") || strings.Contains(got, "\u202e") {
+		t.Fatalf("runtime facts leaked hidden formatting path text:\n%s", got)
+	}
+	if !strings.Contains(got, "gormes -agent") {
+		t.Fatalf("runtime facts missing sanitized visible path text:\n%s", got)
+	}
+}
+
 func TestAssembleSanitizesRuntimeFactPaths(t *testing.T) {
 	seams := Seams{
 		ProfileDir: func() string { return "" },

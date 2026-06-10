@@ -62,9 +62,15 @@ func ResolveSessionID(ctx context.Context, smap session.Map, chatKey string) (st
 }
 
 func ResolveSession(ctx context.Context, smap session.Map, chatKey string) (ResolvedSession, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	key := strings.TrimSpace(chatKey)
 	if key == "" || smap == nil {
 		return ResolvedSession{SessionID: key}, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return ResolvedSession{SessionID: key}, err
 	}
 	stored, err := smap.Get(ctx, key)
 	if err != nil {
@@ -72,6 +78,9 @@ func ResolveSession(ctx context.Context, smap session.Map, chatKey string) (Reso
 	}
 	if stored = strings.TrimSpace(stored); stored != "" {
 		resolved := ResolvedSession{SessionID: stored}
+		if err := ctx.Err(); err != nil {
+			return resolved, err
+		}
 		resolver, ok := smap.(session.LineageResolver)
 		if !ok {
 			return resolved, nil

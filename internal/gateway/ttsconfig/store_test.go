@@ -5,6 +5,26 @@ import (
 	"testing"
 )
 
+func TestConfigStringRemovesHiddenFormattingFields(t *testing.T) {
+	got := (Config{
+		Enabled:  true,
+		Engine:   EngineLocal,
+		Voice:    "local\u202e.gnp",
+		Speed:    SpeedFast,
+		Language: "en\u200dus",
+	}).String()
+	for _, forbidden := range []string{"\u202e", "\u200d"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("Config.String leaked hidden formatting rune %q in:\n%s", forbidden, got)
+		}
+	}
+	for _, want := range []string{"voice: local.gnp", "language: enus"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("Config.String missing sanitized field %q in:\n%s", want, got)
+		}
+	}
+}
+
 func TestConfigStringSanitizesDynamicFields(t *testing.T) {
 	got := (Config{
 		Enabled:  true,

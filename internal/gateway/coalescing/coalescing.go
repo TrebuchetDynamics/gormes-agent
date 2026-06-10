@@ -142,13 +142,17 @@ func (c *Coalescer) FlushImmediate(ctx context.Context, text string) {
 }
 
 func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finalize bool) {
-	if ctx != nil {
-		if err := ctx.Err(); err != nil {
-			return
-		}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return
 	}
 	c.deliveryMu.Lock()
 	defer c.deliveryMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return
+	}
 
 	state := c.finalDeliverySnapshot()
 	msgID := state.msgID
@@ -175,7 +179,7 @@ func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finali
 	if msgID == "" {
 		sentAt := c.now()
 		sentID, err = c.sendInitialVisibleMessage(ctx, text, finalize)
-		if err == nil {
+		if err == nil || sentID != "" {
 			createdAt = sentAt
 		}
 	} else {
@@ -187,6 +191,14 @@ func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finali
 		// Mid-stream (non-finalize) edit errors are expected during streaming
 		// throttle (e.g., Telegram rate limits). Keep the silent-swallow
 		// behavior for those; only act on finalize errors.
+		if sentID != "" {
+			c.mu.Lock()
+			if c.pendingMsgID == "" {
+				c.pendingMsgID = sentID
+				c.messageCreatedAt = createdAt
+			}
+			c.mu.Unlock()
+		}
 		if !finalize {
 			return
 		}
@@ -249,8 +261,13 @@ func (c *Coalescer) sendInitialVisibleMessage(ctx context.Context, text string, 
 		return "", errNoSender
 	}
 	if c.initialTextSend {
-		if msgID, err, ok := c.sendInitialText(ctx, text); ok && err == nil {
-			return msgID, nil
+		if msgID, err, ok := c.sendInitialText(ctx, text); ok {
+			if err == nil {
+				return msgID, nil
+			}
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return "", err
+			}
 		}
 	}
 	msgID, err := c.sender.SendPlaceholder(ctx, c.chatID)
@@ -258,7 +275,7 @@ func (c *Coalescer) sendInitialVisibleMessage(ctx context.Context, text string, 
 		return "", err
 	}
 	if err := editCoalescedMessage(ctx, c.sender, c.chatID, msgID, text, finalize); err != nil {
-		return "", err
+		return msgID, err
 	}
 	return msgID, nil
 }
@@ -309,6 +326,14 @@ func (c *Coalescer) tryFlush(ctx context.Context) {
 	if msgID == "" {
 		sentID, err := c.sendInitialVisibleMessage(ctx, text, false)
 		if err != nil {
+			if sentID != "" {
+				c.mu.Lock()
+				if c.pendingMsgID == "" {
+					c.pendingMsgID = sentID
+					c.messageCreatedAt = now
+				}
+				c.mu.Unlock()
+			}
 			return
 		}
 		c.mu.Lock()

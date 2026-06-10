@@ -83,16 +83,22 @@ func (f File) Path() string {
 }
 
 // Require validates the file root with the store-specific label.
+func containsControlCharacter(value string) bool {
+	return strings.ContainsFunc(value, func(r rune) bool {
+		return r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f)
+	})
+}
+
 func (f File) Require() error {
 	if err := f.Root.Require(f.Label); err != nil {
 		return err
 	}
 	name := strings.TrimSpace(f.Name)
-	if name == "" || name == "." || name != f.Name || filepath.IsAbs(name) || filepath.Clean(name) != name || filepath.Base(name) != name {
+	if name == "" || name == "." || name != f.Name || containsControlCharacter(name) || filepath.IsAbs(name) || filepath.Clean(name) != name || filepath.Base(name) != name {
 		return fmt.Errorf("%s file name is invalid", f.Label)
 	}
 	tmpPattern := strings.TrimSpace(f.TmpPattern)
-	if tmpPattern != "" && (tmpPattern != f.TmpPattern || filepath.IsAbs(tmpPattern) || filepath.Clean(tmpPattern) != tmpPattern || filepath.Base(tmpPattern) != tmpPattern) {
+	if tmpPattern != "" && (tmpPattern != f.TmpPattern || containsControlCharacter(tmpPattern) || filepath.IsAbs(tmpPattern) || filepath.Clean(tmpPattern) != tmpPattern || filepath.Base(tmpPattern) != tmpPattern) {
 		return fmt.Errorf("%s temp pattern is invalid", f.Label)
 	}
 	return nil

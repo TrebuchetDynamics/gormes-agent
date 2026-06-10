@@ -6,6 +6,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 // StatusChannel is a configured channel row for the read-only gateway status
@@ -169,13 +172,34 @@ func RenderStatusSummary(summary StatusSummary) string {
 	if len(pending) > 0 || len(approved) > 0 {
 		b.WriteString("pairing:\n")
 		for _, record := range pending {
-			b.WriteString(fmt.Sprintf("- pending %s user=%s code=%s age=%ds\n", statusLineValue(record.Platform), statusLineValue(record.UserID), statusLineValue(record.Code), nonNegativeInt64(record.AgeSeconds)))
+			b.WriteString("- pending")
+			if platform := statusLineValue(record.Platform); platform != "" {
+				b.WriteByte(' ')
+				b.WriteString(platform)
+			}
+			if userID := statusLineValue(record.UserID); userID != "" {
+				b.WriteString(" user=")
+				b.WriteString(userID)
+			}
+			if code := statusLineValue(record.Code); code != "" {
+				b.WriteString(" code=")
+				b.WriteString(code)
+			}
+			b.WriteString(fmt.Sprintf(" age=%ds\n", nonNegativeInt64(record.AgeSeconds)))
 		}
 		for _, record := range approved {
-			b.WriteString(fmt.Sprintf("- approved %s user=%s", statusLineValue(record.Platform), statusLineValue(record.UserID)))
-			if record.UserName != "" {
+			b.WriteString("- approved")
+			if platform := statusLineValue(record.Platform); platform != "" {
+				b.WriteByte(' ')
+				b.WriteString(platform)
+			}
+			if userID := statusLineValue(record.UserID); userID != "" {
+				b.WriteString(" user=")
+				b.WriteString(userID)
+			}
+			if userName := statusLineValue(record.UserName); userName != "" {
 				b.WriteString(" name=")
-				b.WriteString(statusLineValue(record.UserName))
+				b.WriteString(userName)
 			}
 			b.WriteByte('\n')
 		}
@@ -200,17 +224,17 @@ func RenderStatusSummary(summary StatusSummary) string {
 		b.WriteString("degraded:\n")
 		for _, evidence := range degraded {
 			b.WriteString("- pairing")
-			if evidence.Platform != "" {
+			if platform := statusLineValue(evidence.Platform); platform != "" {
 				b.WriteByte(' ')
-				b.WriteString(statusLineValue(evidence.Platform))
+				b.WriteString(platform)
 			}
-			if evidence.Reason != "" {
+			if reason := statusLineValue(evidence.Reason); reason != "" {
 				b.WriteByte(' ')
-				b.WriteString(statusLineValue(evidence.Reason))
+				b.WriteString(reason)
 			}
-			if evidence.Message != "" {
+			if message := statusLineValue(evidence.Message); message != "" {
 				b.WriteString(": ")
-				b.WriteString(statusLineValue(evidence.Message))
+				b.WriteString(message)
 			}
 			b.WriteByte('\n')
 		}
@@ -232,9 +256,9 @@ func renderRuntimeLine(runtime RuntimeStatus) string {
 	if runtime.PID > 0 {
 		parts = append(parts, fmt.Sprintf("pid=%d", runtime.PID))
 	}
-	parts = append(parts, fmt.Sprintf("active_agents=%d", runtime.ActiveAgents))
-	if runtime.ExitReason != "" {
-		parts = append(parts, fmt.Sprintf("exit_reason=%q", statusLineValue(runtime.ExitReason)))
+	parts = append(parts, fmt.Sprintf("active_agents=%d", nonNegativeInt(runtime.ActiveAgents)))
+	if exitReason := statusLineValue(runtime.ExitReason); exitReason != "" {
+		parts = append(parts, fmt.Sprintf("exit_reason=%q", exitReason))
 	}
 	if runtime.RestartRequested {
 		parts = append(parts, "restart_requested=true")
@@ -327,7 +351,9 @@ func formatMemoryPressureEvidence(evidence RuntimeMemoryPressureEvidence) string
 				cleaned = append(cleaned, item)
 			}
 		}
-		parts = append(parts, "evidence="+strings.Join(cleaned, ","))
+		if len(cleaned) > 0 {
+			parts = append(parts, "evidence="+strings.Join(cleaned, ","))
+		}
 	}
 	if evidence.Message != "" {
 		parts = append(parts, "message="+strconv.Quote(statusLineValue(evidence.Message)))
@@ -338,15 +364,19 @@ func formatMemoryPressureEvidence(evidence RuntimeMemoryPressureEvidence) string
 func renderChannelLine(channel StatusChannel, runtime RuntimeStatus, pairing PairingPlatformStatus) string {
 	lifecycle := "unknown"
 	platform, hasPlatform := platformRuntimeStatus(runtime.Platforms, channel.Name)
-	if hasPlatform && platform.State != "" {
-		lifecycle = statusLineValue(platform.State)
+	if hasPlatform {
+		if state := statusLineValue(platform.State); state != "" {
+			lifecycle = state
+		}
 	}
 
 	pairingState := "unpaired"
 	pendingCount := 0
 	approvedCount := 0
 	if pairing.Platform != "" {
-		pairingState = pairing.State
+		if state := statusLineValue(pairing.State); state != "" {
+			pairingState = state
+		}
 		pendingCount = pairing.PendingCount
 		approvedCount = pairing.ApprovedCount
 	}
@@ -358,8 +388,10 @@ func renderChannelLine(channel StatusChannel, runtime RuntimeStatus, pairing Pai
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "- %s: lifecycle=%s", statusLineValue(channel.Name), lifecycle)
-	if hasPlatform && platform.ErrorMessage != "" {
-		fmt.Fprintf(&b, " error=%q", statusLineValue(platform.ErrorMessage))
+	if hasPlatform {
+		if errorMessage := statusLineValue(platform.ErrorMessage); errorMessage != "" {
+			fmt.Fprintf(&b, " error=%q", errorMessage)
+		}
 	}
 	fmt.Fprintf(&b, "; pairing=%s pending=%d approved=%d; target=%s", pairingState, pendingCount, approvedCount, target)
 	return b.String()
@@ -368,17 +400,17 @@ func renderChannelLine(channel StatusChannel, runtime RuntimeStatus, pairing Pai
 func renderExpiryFinalizedEvidence(evidence RuntimeExpiryFinalizedEvidence) string {
 	var b strings.Builder
 	b.WriteString("- finalized")
-	if evidence.SessionID != "" {
-		fmt.Fprintf(&b, " session=%s", statusLineValue(evidence.SessionID))
+	if sessionID := statusLineValue(evidence.SessionID); sessionID != "" {
+		fmt.Fprintf(&b, " session=%s", sessionID)
 	}
-	if evidence.Source != "" {
-		fmt.Fprintf(&b, " source=%s", statusLineValue(evidence.Source))
+	if source := statusLineValue(evidence.Source); source != "" {
+		fmt.Fprintf(&b, " source=%s", source)
 	}
-	if evidence.ChatID != "" {
-		fmt.Fprintf(&b, " chat=%s", statusLineValue(evidence.ChatID))
+	if chatID := statusLineValue(evidence.ChatID); chatID != "" {
+		fmt.Fprintf(&b, " chat=%s", chatID)
 	}
-	if evidence.UserID != "" {
-		fmt.Fprintf(&b, " user=%s", statusLineValue(evidence.UserID))
+	if userID := statusLineValue(evidence.UserID); userID != "" {
+		fmt.Fprintf(&b, " user=%s", userID)
 	}
 	fmt.Fprintf(&b, " expiry_finalized=%t", evidence.ExpiryFinalized)
 	if evidence.MigratedMemoryFlushed {
@@ -395,21 +427,21 @@ func renderExpiryFinalizeEvidence(evidence RuntimeExpiryFinalizeEvidence) string
 	}
 	b.WriteString("- ")
 	b.WriteString(status)
-	if evidence.SessionID != "" {
-		fmt.Fprintf(&b, " session=%s", statusLineValue(evidence.SessionID))
+	if sessionID := statusLineValue(evidence.SessionID); sessionID != "" {
+		fmt.Fprintf(&b, " session=%s", sessionID)
 	}
-	if evidence.Source != "" {
-		fmt.Fprintf(&b, " source=%s", statusLineValue(evidence.Source))
+	if source := statusLineValue(evidence.Source); source != "" {
+		fmt.Fprintf(&b, " source=%s", source)
 	}
-	if evidence.ChatID != "" {
-		fmt.Fprintf(&b, " chat=%s", statusLineValue(evidence.ChatID))
+	if chatID := statusLineValue(evidence.ChatID); chatID != "" {
+		fmt.Fprintf(&b, " chat=%s", chatID)
 	}
-	if evidence.UserID != "" {
-		fmt.Fprintf(&b, " user=%s", statusLineValue(evidence.UserID))
+	if userID := statusLineValue(evidence.UserID); userID != "" {
+		fmt.Fprintf(&b, " user=%s", userID)
 	}
-	fmt.Fprintf(&b, " attempts=%d", evidence.Attempts)
-	if evidence.Error != "" {
-		fmt.Fprintf(&b, " error=%q", statusLineValue(evidence.Error))
+	fmt.Fprintf(&b, " attempts=%d", nonNegativeInt(evidence.Attempts))
+	if errText := statusLineValue(evidence.Error); errText != "" {
+		fmt.Fprintf(&b, " error=%q", errText)
 	}
 	return b.String()
 }
@@ -553,7 +585,49 @@ func sortedPairingDegradedEvidence(records []PairingDegradedEvidence) []PairingD
 }
 
 func statusLineValue(value string) string {
+	value = collapseRedactedStatusAssignments(redaction.RedactSecrets(value))
+	value = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			return ' '
+		}
+		if unicode.Is(unicode.Cf, r) {
+			return -1
+		}
+		return r
+	}, value)
 	return strings.Join(strings.Fields(value), " ")
+}
+
+func collapseRedactedStatusAssignments(value string) string {
+	replacer := strings.NewReplacer(
+		"api_key=[redacted]", "[redacted]",
+		"api-key=[redacted]", "[redacted]",
+		"authorization=[redacted]", "[redacted]",
+		"bearer=[redacted]", "[redacted]",
+		"token=[redacted]", "[redacted]",
+		"secret=[redacted]", "[redacted]",
+		"password=[redacted]", "[redacted]",
+	)
+	fields := strings.Fields(replacer.Replace(value))
+	out := make([]string, 0, len(fields))
+	for i := 0; i < len(fields); i++ {
+		field := fields[i]
+		lower := strings.ToLower(field)
+		nextRedacted := i+1 < len(fields) && strings.Contains(strings.ToLower(fields[i+1]), "[redacted]")
+		if statusSecretField(lower) && (strings.Contains(lower, "[redacted]") || nextRedacted) {
+			out = append(out, "[redacted]")
+			if nextRedacted {
+				i++
+			}
+			continue
+		}
+		out = append(out, field)
+	}
+	return strings.Join(out, " ")
+}
+
+func statusSecretField(value string) bool {
+	return strings.Contains(value, "api_key") || strings.Contains(value, "api-key") || strings.Contains(value, "apikey") || strings.Contains(value, "authorization") || strings.Contains(value, "bearer") || strings.Contains(value, "token") || strings.Contains(value, "secret") || strings.Contains(value, "password")
 }
 
 func nonNegativeInt(value int) int {

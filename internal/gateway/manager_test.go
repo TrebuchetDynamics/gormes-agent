@@ -53,6 +53,35 @@ func TestManager_RegisterEmptyName(t *testing.T) {
 	}
 }
 
+func TestManager_ConfigMapsAreSnapshotted(t *testing.T) {
+	allowedChats := map[string]string{"telegram": "42"}
+	allowedUsers := map[string]map[string]bool{"telegram": {"u1": true}}
+	m := NewManager(ManagerConfig{
+		AllowedChats: allowedChats,
+		AllowedUsers: allowedUsers,
+	}, nil, slog.Default())
+
+	allowedChats["telegram"] = "99"
+	allowedUsers["telegram"]["u2"] = true
+	allowedUsers["slack"] = map[string]bool{"u3": true}
+
+	if !m.allowed(InboundEvent{Platform: "telegram", ChatID: "42"}) {
+		t.Fatal("manager lost original allowed chat after caller mutated config map")
+	}
+	if m.allowed(InboundEvent{Platform: "telegram", ChatID: "99"}) {
+		t.Fatal("manager observed caller mutation to allowed chat map")
+	}
+	if !m.allowed(InboundEvent{Platform: "telegram", ChatID: "unlisted", UserID: "u1"}) {
+		t.Fatal("manager lost original allowed user after caller mutated nested map")
+	}
+	if m.allowed(InboundEvent{Platform: "telegram", ChatID: "unlisted", UserID: "u2"}) {
+		t.Fatal("manager observed caller mutation to nested allowed users map")
+	}
+	if m.allowed(InboundEvent{Platform: "slack", ChatID: "unlisted", UserID: "u3"}) {
+		t.Fatal("manager observed caller-added platform allowed users map")
+	}
+}
+
 func TestManager_AllowedUsesPlatformUserAllowlist(t *testing.T) {
 	m := NewManager(ManagerConfig{
 		AllowedUsers: map[string]map[string]bool{
@@ -218,6 +247,31 @@ func TestManager_ReloadCommandAppliesReloadableAllowlistWithoutRestart(t *testin
 	got := fk.submitsSnapshot()[0]
 	if got.Text != "after reload" {
 		t.Fatalf("kernel submit text = %q, want reloaded chat submit", got.Text)
+	}
+}
+
+func TestManager_ReloadSnapshotsWhitelistConfig(t *testing.T) {
+	reloadedWhitelists := map[string]WhitelistConfig{"telegram": {Enabled: true, IDs: []string{"42"}}}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "old"},
+		ReloadConfig: func(context.Context) (ManagerConfig, error) {
+			return ManagerConfig{
+				AllowedUsers:          map[string]map[string]bool{"telegram": {"*": true}},
+				AllowedChatWhitelists: reloadedWhitelists,
+			}, nil
+		},
+	}, &fakeKernel{}, slog.Default())
+
+	if err := m.Reload(context.Background()); err != nil {
+		t.Fatalf("Reload: %v", err)
+	}
+	reloadedWhitelists["telegram"] = WhitelistConfig{Enabled: true, IDs: []string{"99"}}
+
+	if !m.allowed(InboundEvent{Platform: "telegram", ChatID: "42"}) {
+		t.Fatal("manager lost reloaded whitelist after caller mutated returned map")
+	}
+	if m.allowed(InboundEvent{Platform: "telegram", ChatID: "99"}) {
+		t.Fatal("manager observed caller mutation to reloaded whitelist map")
 	}
 }
 

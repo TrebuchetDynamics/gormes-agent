@@ -57,6 +57,9 @@ func Run(
 // session.TitleTurn slices to llm.TitleModelRequest messages so the title model
 // boundary is platform-independent.
 func TitleModelToGenerator(ctx context.Context, fn llm.TitleModelFunc, transcript []session.TitleTurn) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	msgs := make([]llm.TitleModelMessage, 0, len(transcript))
 	for _, t := range transcript {
 		msgs = append(msgs, llm.TitleModelMessage{Role: t.Role, Content: t.Content})

@@ -73,6 +73,13 @@ type MemoryMonitor struct {
 	mu     sync.Mutex
 }
 
+func memoryMonitorContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
 func NewMemoryMonitor(cfg MemoryMonitorConfig) *MemoryMonitor {
 	if cfg.Sampler == nil {
 		cfg.Sampler = NewRuntimeMemorySampler()
@@ -94,6 +101,7 @@ func (m *MemoryMonitor) Start(ctx context.Context) bool {
 	if m == nil || m.cfg.Status == nil || m.cfg.Sampler == nil {
 		return false
 	}
+	ctx = memoryMonitorContext(ctx)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.cancel != nil {
@@ -102,7 +110,8 @@ func (m *MemoryMonitor) Start(ctx context.Context) bool {
 	runCtx, cancel := context.WithCancel(ctx)
 	m.cancel = cancel
 	m.done = make(chan struct{}, 1)
-	go m.run(runCtx)
+	done := m.done
+	go m.run(runCtx, done)
 	return true
 }
 
@@ -110,6 +119,7 @@ func (m *MemoryMonitor) Stop(ctx context.Context) error {
 	if m == nil {
 		return nil
 	}
+	ctx = memoryMonitorContext(ctx)
 	m.mu.Lock()
 	cancel := m.cancel
 	done := m.done
@@ -128,8 +138,8 @@ func (m *MemoryMonitor) Stop(ctx context.Context) error {
 	}
 }
 
-func (m *MemoryMonitor) run(ctx context.Context) {
-	defer close(m.done)
+func (m *MemoryMonitor) run(ctx context.Context, done chan struct{}) {
+	defer close(done)
 	_ = m.SampleOnce(ctx)
 	ticker := time.NewTicker(m.cfg.Interval)
 	defer ticker.Stop()
@@ -211,6 +221,7 @@ func NewRuntimeMemorySampler() RuntimeMemorySampler {
 }
 
 func (s RuntimeMemorySampler) SampleMemory(ctx context.Context) (MemorySample, error) {
+	ctx = memoryMonitorContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return MemorySample{}, err
 	}

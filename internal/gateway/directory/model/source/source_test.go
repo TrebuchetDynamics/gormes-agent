@@ -30,6 +30,29 @@ func TestRememberedSourceEntryIDAvoidsColonDelimiterCollisions(t *testing.T) {
 	}
 }
 
+func TestUpsertRememberedSourceEntryRejectsControlCharacters(t *testing.T) {
+	for _, item := range []RememberedSourceEntry{
+		{Platform: "telegram\nforged", ChatID: "42", ChatName: "Ops"},
+		{Platform: "telegram", ID: "42\nforged", Name: "Ops"},
+		{Platform: "telegram", ID: "42", Name: "Ops\u009bforged"},
+		{Platform: "telegram", ChatID: "42\nforged", ChatName: "Ops"},
+		{Platform: "telegram", ChatID: "42", ChatName: "Ops\nforged"},
+		{Platform: "telegram", ChatID: "42", ChatName: "Ops", ThreadID: "7\nforged"},
+		{Platform: "telegram", ChatID: "42", ChatName: "Ops", ChatTopic: "topic\nforged"},
+		{Platform: "telegram", ChatID: "42", ChatName: "Ops", UserID: "user\nforged"},
+		{Platform: "telegram", ChatID: "42", ChatName: "Ops", UserName: "user\nforged"},
+		{Platform: "telegram", ChatID: "42", ChatName: "Ops", GuildID: "guild\nforged"},
+		{Platform: "telegram", ChatID: "42", ChatName: "Ops", ParentChatID: "parent\nforged"},
+		{Platform: "telegram", ChatID: "42", ChatName: "Ops", MessageID: "msg\nforged"},
+		{Platform: "telegram", ChatID: "42", ChatName: "Ops", UpdatedAt: "now\nforged"},
+	} {
+		entries, ok := UpsertRememberedSourceEntry(nil, item)
+		if ok || len(entries) != 0 {
+			t.Fatalf("UpsertRememberedSourceEntry(%+v) = entries %+v ok %v, want rejected", item, entries, ok)
+		}
+	}
+}
+
 func TestUpsertRememberedSourceEntryNormalizesAndReplacesByID(t *testing.T) {
 	entries, ok := UpsertRememberedSourceEntry(nil, RememberedSourceEntry{Platform: " Telegram ", ChatID: " -100 ", ChatName: " Ops "})
 	if !ok {

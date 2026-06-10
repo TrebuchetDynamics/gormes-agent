@@ -9,6 +9,37 @@ import (
 	"time"
 )
 
+func TestMemoryMonitorStartAndStopAllowNilContext(t *testing.T) {
+	store := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
+	monitor := NewMemoryMonitor(MemoryMonitorConfig{
+		Status:   store,
+		Sampler:  fakeMemorySampler{},
+		Interval: time.Hour,
+	})
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("memory monitor panicked with nil context: %v", r)
+		}
+	}()
+	if !monitor.Start(nil) {
+		t.Fatal("Start nil context = false, want started")
+	}
+	if err := monitor.Stop(nil); err != nil {
+		t.Fatalf("Stop nil context: %v", err)
+	}
+}
+
+func TestRuntimeMemorySamplerAllowsNilContext(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("RuntimeMemorySampler panicked with nil context: %v", r)
+		}
+	}()
+	if _, err := NewRuntimeMemorySampler().SampleMemory(nil); err != nil {
+		t.Fatalf("SampleMemory nil context: %v", err)
+	}
+}
+
 func TestMemoryMonitorSampleOnceWritesRuntimeStatusEvidence(t *testing.T) {
 	now := time.Date(2026, 5, 18, 4, 35, 0, 0, time.UTC)
 	store := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))

@@ -54,6 +54,9 @@ type SessionExpiryEvent struct {
 }
 
 func (m *Manager) FinalizeExpiredSessions(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}

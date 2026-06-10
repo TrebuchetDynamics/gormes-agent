@@ -9,4 +9,5 @@ const (
 	Evicted          Reason = "deduplicator_evicted"
 	Disabled         Reason = "deduplicator_disabled"
 	MissingMessageID Reason = "dedup_unavailable_missing_message_id"
+	MissingScope     Reason = "dedup_unavailable_missing_scope"
 )

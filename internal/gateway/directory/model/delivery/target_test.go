@@ -7,6 +7,39 @@ import (
 	entrymodel "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/model/entry"
 )
 
+func TestTargetRejectsBlankPlatform(t *testing.T) {
+	got := Target(" \t ", entrymodel.Entry{ID: "42", ChatID: "42"})
+	if got.Platform != "" || got.ChatID != "" || got.ThreadID != "" || got.IsExplicit {
+		t.Fatalf("Target(blank platform) = %+v, want invalid target", got)
+	}
+}
+
+func TestTargetRejectsControlCharactersInEntryIdentifiers(t *testing.T) {
+	for _, entry := range []entrymodel.Entry{
+		{ID: "42\nadmin"},
+		{ID: "42", ChatID: "42\nadmin"},
+		{ID: "42", ChatID: "42", ThreadID: "thread\nadmin"},
+	} {
+		got := Target("telegram", entry)
+		if got.ChatID != "" || got.ThreadID != "" || got.IsExplicit {
+			t.Fatalf("Target(%+v) = %+v, want invalid control-character target rejected", entry, got)
+		}
+	}
+}
+
+func TestTargetRejectsLocalEntryIdentifiers(t *testing.T) {
+	for _, entry := range []entrymodel.Entry{
+		{ID: "42"},
+		{ChatID: "42"},
+		{ChatID: "42", ThreadID: "99"},
+	} {
+		got := Target("local", entry)
+		if got.ChatID != "" || got.ThreadID != "" || got.IsExplicit {
+			t.Fatalf("Target(local, %+v) = %+v, want local directory target rejected", entry, got)
+		}
+	}
+}
+
 func TestTargetUsesExplicitChatAndThreadIDs(t *testing.T) {
 	target := Target("telegram", entrymodel.Entry{ID: "ignored", ChatID: " -100 ", ThreadID: " 12 "})
 	if target.Platform != "telegram" || target.ChatID != "-100" || target.ThreadID != "12" || !target.IsExplicit {

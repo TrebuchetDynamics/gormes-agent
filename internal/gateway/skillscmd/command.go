@@ -41,7 +41,11 @@ func HandleSkillsCommand(body string) string {
 
 func skillsCommandNeedsInstalledRoots(body string) bool {
 	text := strings.TrimSpace(body)
-	text = strings.TrimPrefix(text, "/skills")
+	if payload, ok := commandline.PayloadIfCommand(text, "skills"); ok {
+		text = payload
+	} else {
+		text = strings.TrimPrefix(text, "/skills")
+	}
 	parts := strings.Fields(strings.TrimSpace(text))
 	if len(parts) == 0 {
 		return false
@@ -72,6 +76,9 @@ func defaultSkillsCommandOptions() SkillsCommandOptions {
 // installed list/inspect, hub browse/search, and mutating-action unavailable
 // evidence.
 func HandleSkillsCommandWithOptions(ctx context.Context, body string, opts SkillsCommandOptions) string {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	text := strings.TrimSpace(body)
 	if payload, ok := commandline.PayloadIfCommand(text, "skills"); ok {
 		text = payload

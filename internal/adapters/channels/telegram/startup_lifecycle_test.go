@@ -63,6 +63,43 @@ func TestTelegramStartupClearsWebhookBeforePolling(t *testing.T) {
 	}
 }
 
+func TestTelegramStartupRetryableFailureRetriesBeforePolling(t *testing.T) {
+	client := newMockClient()
+	var deleteWebhookCalls int
+	client.RequestFn = func(c tgbotapi.Chattable) (*tgbotapi.APIResponse, error) {
+		if _, ok := c.(tgbotapi.DeleteWebhookConfig); ok {
+			deleteWebhookCalls++
+			if deleteWebhookCalls == 1 {
+				return nil, errors.New("Too Many Requests: retry after 5")
+			}
+		}
+		return &tgbotapi.APIResponse{Ok: true}, nil
+	}
+	pollingStarted := make(chan struct{})
+	client.GetUpdatesFn = func(ctx context.Context, _ tgbotapi.UpdateConfig) ([]tgbotapi.Update, error) {
+		closeOnce(pollingStarted)
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	bot := New(Config{PollingConflictRetryDelay: time.Millisecond}, client, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := runTelegramBotForTest(ctx, bot)
+
+	select {
+	case <-pollingStarted:
+	case <-time.After(200 * time.Millisecond):
+		cancel()
+		t.Fatal("polling did not start after retryable startup failure")
+	}
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if deleteWebhookCalls != 2 {
+		t.Fatalf("deleteWebhook calls = %d, want 2", deleteWebhookCalls)
+	}
+}
+
 func TestTelegramStartupTokenLockConflictIsFatalAndReleasesOwnedLock(t *testing.T) {
 	t.Run("conflict", func(t *testing.T) {
 		client := newMockClient()

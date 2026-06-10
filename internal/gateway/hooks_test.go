@@ -63,6 +63,17 @@ func (r *hookRecorder) snapshot() []HookEvent {
 	return cloneSlice(r.events)
 }
 
+func TestHooksFireAllowsNilContext(t *testing.T) {
+	hooks := NewHooks()
+	hooks.Add(HookBeforeSend, func(ctx context.Context, _ HookEvent) {
+		if ctx == nil {
+			panic("nil context")
+		}
+	})
+
+	hooks.Fire(nil, HookEvent{Point: HookBeforeSend})
+}
+
 func TestManagerHooksReceiveLifecycle(t *testing.T) {
 	tg := newFakeChannel("telegram")
 	fk := &fakeKernel{}

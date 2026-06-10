@@ -516,10 +516,94 @@ func NewManagerWithSubmitter(cfg ManagerConfig, k kernelSubmitter, log *slog.Log
 	return newManagerInternal(cfg, k, log)
 }
 
+func cloneStringMap(in map[string]string) map[string]string {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for key, value := range in {
+		out[key] = value
+	}
+	return out
+}
+
+func cloneBoolMap(in map[string]bool) map[string]bool {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]bool, len(in))
+	for key, value := range in {
+		out[key] = value
+	}
+	return out
+}
+
+func cloneNestedBoolMap(in map[string]map[string]bool) map[string]map[string]bool {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]map[string]bool, len(in))
+	for key, nested := range in {
+		out[key] = cloneBoolMap(nested)
+	}
+	return out
+}
+
+func cloneWhitelistConfigMap(in map[string]WhitelistConfig) map[string]WhitelistConfig {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]WhitelistConfig, len(in))
+	for key, value := range in {
+		value.IDs = append([]string(nil), value.IDs...)
+		out[key] = value
+	}
+	return out
+}
+
+func cloneSkillsCommandOptions(in SkillsCommandOptions) SkillsCommandOptions {
+	in.ExternalDirs = append([]string(nil), in.ExternalDirs...)
+	in.HubProviders = append([]skills.HubRegistryProvider(nil), in.HubProviders...)
+	if in.Disabled != nil {
+		disabled := make(map[string]struct{}, len(in.Disabled))
+		for key, value := range in.Disabled {
+			disabled[key] = value
+		}
+		in.Disabled = disabled
+	}
+	return in
+}
+
+func cloneAgentRoutingConfig(in AgentRoutingConfig) AgentRoutingConfig {
+	in.Agents.Defaults.Workspaces = append([]string(nil), in.Agents.Defaults.Workspaces...)
+	in.Agents.Defaults.Channels = append([]string(nil), in.Agents.Defaults.Channels...)
+	in.Agents.Defaults.Skills = append([]string(nil), in.Agents.Defaults.Skills...)
+	in.Agents.List = append([]config.AgentCfg(nil), in.Agents.List...)
+	for i := range in.Agents.List {
+		in.Agents.List[i].Skills = append([]string(nil), in.Agents.List[i].Skills...)
+		in.Agents.List[i].Tools.Allow = append([]string(nil), in.Agents.List[i].Tools.Allow...)
+		in.Agents.List[i].Tools.Deny = append([]string(nil), in.Agents.List[i].Tools.Deny...)
+		in.Agents.List[i].GroupChat.MentionPatterns = append([]string(nil), in.Agents.List[i].GroupChat.MentionPatterns...)
+	}
+	in.Bindings = append([]config.AgentBindingCfg(nil), in.Bindings...)
+	for i := range in.Bindings {
+		in.Bindings[i].Match.Roles = append([]string(nil), in.Bindings[i].Match.Roles...)
+	}
+	return in
+}
+
 func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) *Manager {
 	if log == nil {
 		log = slog.Default()
 	}
+	cfg.AllowedChats = cloneStringMap(cfg.AllowedChats)
+	cfg.AllowedUsers = cloneNestedBoolMap(cfg.AllowedUsers)
+	cfg.AllowedChatWhitelists = cloneWhitelistConfigMap(cfg.AllowedChatWhitelists)
+	cfg.AllowDiscovery = cloneBoolMap(cfg.AllowDiscovery)
+	cfg.ToolProgressModes = cloneStringMap(cfg.ToolProgressModes)
+	cfg.RestartNotifications = cloneBoolMap(cfg.RestartNotifications)
+	cfg.SkillsCommandOptions = cloneSkillsCommandOptions(cfg.SkillsCommandOptions)
+	cfg.AgentRouting = cloneAgentRoutingConfig(cfg.AgentRouting)
 	if cfg.CoalesceMs <= 0 {
 		cfg.CoalesceMs = 1000
 	}
@@ -947,7 +1031,8 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 		m.handleSubmitEvent(ctx, ch, ev)
 		return nil
 	case EventUnknown:
-		if strings.HasPrefix(strings.TrimSpace(ev.Text), "/") {
+		unknownText := strings.TrimSpace(ev.Text)
+		if strings.HasPrefix(unknownText, "/") || strings.HasPrefix(unknownText, "／") {
 			ev.Kind = EventSubmit
 			m.handleSubmitEvent(ctx, ch, ev)
 			return nil
@@ -1925,6 +2010,11 @@ func (m *Manager) ConsumeRestartTakeoverMarker(ctx context.Context) error {
 	if !ok || marker.NotificationSentAt != "" {
 		return nil
 	}
+	marker.SourcePlatform = strings.TrimSpace(marker.SourcePlatform)
+	marker.ChatID = strings.TrimSpace(marker.ChatID)
+	marker.ThreadID = strings.TrimSpace(marker.ThreadID)
+	marker.UpdateID = strings.TrimSpace(marker.UpdateID)
+	marker.MessageID = strings.TrimSpace(marker.MessageID)
 	ch := m.lookupChannel(marker.SourcePlatform)
 	if ch == nil {
 		return nil

@@ -20,6 +20,38 @@ func TestNameNormalizesSlashCommandTokens(t *testing.T) {
 	}
 }
 
+func TestNameRejectsHiddenFormattingInCommandToken(t *testing.T) {
+	for _, raw := range []string{"/sta\u200btus", "／sta\u202etus", "sta\ufefftus"} {
+		if got := Name(raw); got != "" {
+			t.Fatalf("Name(%q) = %q, want empty for hidden formatting in command token", raw, got)
+		}
+	}
+}
+
+func TestNameRejectsBotMentionSuffixWithInvalidCharacters(t *testing.T) {
+	for _, raw := range []string{"/status@bot-name", "／status@bot.name", "status@bot/name"} {
+		if got := Name(raw); got != "" {
+			t.Fatalf("Name(%q) = %q, want empty for invalid bot mention suffix", raw, got)
+		}
+	}
+}
+
+func TestNameRejectsMalformedBotMentionWithMultipleAtSigns(t *testing.T) {
+	for _, raw := range []string{"/status@@GormesBot", "／status@@GormesBot", "status@@GormesBot"} {
+		if got := Name(raw); got != "" {
+			t.Fatalf("Name(%q) = %q, want empty for malformed bot mention", raw, got)
+		}
+	}
+}
+
+func TestNameRejectsEmptyBotMentionSuffix(t *testing.T) {
+	for _, raw := range []string{"/status@", "／status@", "status@"} {
+		if got := Name(raw); got != "" {
+			t.Fatalf("Name(%q) = %q, want empty for malformed bot mention", raw, got)
+		}
+	}
+}
+
 func TestSplitSeparatesTokenAndTrimmedArgs(t *testing.T) {
 	for _, tc := range []struct {
 		raw       string
@@ -35,6 +67,21 @@ func TestSplitSeparatesTokenAndTrimmedArgs(t *testing.T) {
 		gotToken, gotArgs := Split(tc.raw)
 		if gotToken != tc.wantToken || gotArgs != tc.wantArgs {
 			t.Fatalf("Split(%q) = (%q, %q), want (%q, %q)", tc.raw, gotToken, gotArgs, tc.wantToken, tc.wantArgs)
+		}
+	}
+}
+
+func TestPayloadIfCommandRejectsEmptyCommandName(t *testing.T) {
+	for _, tc := range []struct {
+		raw     string
+		command string
+	}{
+		{raw: "/", command: ""},
+		{raw: "/ status", command: " "},
+		{raw: "//status", command: "//"},
+	} {
+		if payload, ok := PayloadIfCommand(tc.raw, tc.command); ok {
+			t.Fatalf("PayloadIfCommand(%q, %q) = (%q, true), want empty command rejected", tc.raw, tc.command, payload)
 		}
 	}
 }

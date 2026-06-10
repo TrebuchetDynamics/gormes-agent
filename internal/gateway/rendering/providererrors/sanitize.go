@@ -3,6 +3,7 @@ package providererrors
 import (
 	"encoding/json"
 	"strings"
+	"unicode"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
@@ -128,6 +129,15 @@ func providerJSONStringField(v any) string {
 
 func providerErrorFieldText(value string) string {
 	value = collapseRedactedProviderAssignments(redaction.RedactSecrets(value))
+	value = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			return ' '
+		}
+		if unicode.Is(unicode.Cf, r) {
+			return -1
+		}
+		return r
+	}, value)
 	return strings.Join(strings.Fields(value), " ")
 }
 

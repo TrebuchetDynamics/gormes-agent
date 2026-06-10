@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 const (
@@ -31,6 +32,9 @@ type JudgeVerdict struct {
 }
 
 func EvaluateJudge(ctx context.Context, judge Judge, goal, lastResponse string) JudgeVerdict {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if strings.TrimSpace(goal) == "" {
 		return JudgeVerdict{Verdict: JudgeVerdictSkipped, Reason: "empty goal"}
 	}
@@ -42,9 +46,15 @@ func EvaluateJudge(ctx context.Context, judge Judge, goal, lastResponse string) 
 	}
 	raw, err := judge.JudgeGoal(ctx, goal, lastResponse)
 	if err != nil {
-		return JudgeVerdict{Verdict: JudgeVerdictContinue, Reason: "judge error: " + err.Error()}
+		return JudgeVerdict{Verdict: JudgeVerdictContinue, Reason: "judge error: " + sanitizeJudgeReason(err.Error())}
 	}
 	return ParseJudgeResponse(raw)
+}
+
+func sanitizeJudgeReason(reason string) string {
+	reason = redaction.RedactSecrets(reason)
+	reason = strings.NewReplacer("`", "'", "*", "'", "#", "＃").Replace(reason)
+	return strings.Join(strings.Fields(reason), " ")
 }
 
 func ParseJudgeResponse(raw string) JudgeVerdict {

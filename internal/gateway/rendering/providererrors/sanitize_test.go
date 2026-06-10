@@ -17,6 +17,18 @@ func TestSanitizeTextRedactsSecretLikeHTMLPrefix(t *testing.T) {
 	}
 }
 
+func TestSanitizeTextRemovesHiddenFormatting(t *testing.T) {
+	got := SanitizeText("provider failed\u202e: retry\u200d later")
+	for _, forbidden := range []string{"\u202e", "\u200d"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("SanitizeText leaked hidden formatting rune %q in %q", forbidden, got)
+		}
+	}
+	if got != "provider failed: retry later" {
+		t.Fatalf("SanitizeText hidden formatting = %q, want cleaned text", got)
+	}
+}
+
 func TestSanitizeTextRedactsSecretLikePlainText(t *testing.T) {
 	got := SanitizeText("provider failed: api_key=plain-secret-token")
 	for _, forbidden := range []string{"plain-secret-token", "api_key"} {

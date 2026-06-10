@@ -40,6 +40,24 @@ func TestSortedVoiceListingDoesNotChangeDefaultVoice(t *testing.T) {
 	}
 }
 
+func TestConfigStringRedactsAuthorizationFields(t *testing.T) {
+	got := (Config{
+		Enabled:  true,
+		Engine:   EngineLocal,
+		Voice:    "authorization=Bearer voice-secret-token",
+		Speed:    SpeedNormal,
+		Language: "authorization=Bearer language-secret-token",
+	}).String()
+	for _, forbidden := range []string{"voice-secret-token", "language-secret-token", "authorization", "Bearer", "bearer"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("Config.String leaked authorization field %q in:\n%s", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "[redacted]") {
+		t.Fatalf("Config.String missing redaction marker:\n%s", got)
+	}
+}
+
 func TestConfigStringRedactsSecretLikeFields(t *testing.T) {
 	got := (Config{
 		Enabled:  true,

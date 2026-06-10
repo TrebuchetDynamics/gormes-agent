@@ -19,11 +19,20 @@ type RateLimitBucket struct {
 }
 
 func (b RateLimitBucket) Used() int {
-	used := b.Limit - b.Remaining
-	if used < 0 {
+	if b.Limit <= 0 {
 		return 0
 	}
-	return used
+	return b.Limit - b.normalizedRemaining()
+}
+
+func (b RateLimitBucket) normalizedRemaining() int {
+	if b.Remaining < 0 {
+		return 0
+	}
+	if b.Limit > 0 && b.Remaining > b.Limit {
+		return b.Limit
+	}
+	return b.Remaining
 }
 
 func (b RateLimitBucket) UsagePercent() float64 {
@@ -121,8 +130,11 @@ func ParseRateLimitHeaders(headers http.Header, provider string, capturedAt time
 
 func safeRateLimitInt(raw string) int {
 	value, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
-	if err != nil {
+	if err != nil || value <= 0 {
 		return 0
+	}
+	if value > float64(int(^uint(0)>>1)) {
+		return int(^uint(0) >> 1)
 	}
 	return int(value)
 }
@@ -189,16 +201,19 @@ func FormatRateLimitCompactAt(state RateLimitState, now time.Time) string {
 	}
 	var parts []string
 	if state.RequestsMinute.Limit > 0 {
-		parts = append(parts, fmt.Sprintf("RPM: %d/%d", state.RequestsMinute.Remaining, state.RequestsMinute.Limit))
+		parts = append(parts, fmt.Sprintf("RPM: %d/%d", state.RequestsMinute.normalizedRemaining(), state.RequestsMinute.Limit))
 	}
 	if state.RequestsHour.Limit > 0 {
-		parts = append(parts, fmt.Sprintf("RPH: %s/%s (resets %s)", formatRateLimitCount(state.RequestsHour.Remaining), formatRateLimitCount(state.RequestsHour.Limit), formatRateLimitSeconds(state.RequestsHour.RemainingDuration(now))))
+		parts = append(parts, fmt.Sprintf("RPH: %s/%s (resets %s)", formatRateLimitCount(state.RequestsHour.normalizedRemaining()), formatRateLimitCount(state.RequestsHour.Limit), formatRateLimitSeconds(state.RequestsHour.RemainingDuration(now))))
 	}
 	if state.TokensMinute.Limit > 0 {
-		parts = append(parts, fmt.Sprintf("TPM: %s/%s", formatRateLimitCount(state.TokensMinute.Remaining), formatRateLimitCount(state.TokensMinute.Limit)))
+		parts = append(parts, fmt.Sprintf("TPM: %s/%s", formatRateLimitCount(state.TokensMinute.normalizedRemaining()), formatRateLimitCount(state.TokensMinute.Limit)))
 	}
 	if state.TokensHour.Limit > 0 {
-		parts = append(parts, fmt.Sprintf("TPH: %s/%s (resets %s)", formatRateLimitCount(state.TokensHour.Remaining), formatRateLimitCount(state.TokensHour.Limit), formatRateLimitSeconds(state.TokensHour.RemainingDuration(now))))
+		parts = append(parts, fmt.Sprintf("TPH: %s/%s (resets %s)", formatRateLimitCount(state.TokensHour.normalizedRemaining()), formatRateLimitCount(state.TokensHour.Limit), formatRateLimitSeconds(state.TokensHour.RemainingDuration(now))))
+	}
+	if len(parts) == 0 {
+		return "No rate limit bucket data."
 	}
 	return strings.Join(parts, " | ")
 }
@@ -217,7 +232,7 @@ func rateLimitBucketLine(label string, bucket RateLimitBucket, now time.Time) st
 		pct,
 		formatRateLimitCount(bucket.Used()),
 		formatRateLimitCount(bucket.Limit),
-		formatRateLimitCount(bucket.Remaining),
+		formatRateLimitCount(bucket.normalizedRemaining()),
 		formatRateLimitSeconds(bucket.RemainingDuration(now)),
 	)
 }

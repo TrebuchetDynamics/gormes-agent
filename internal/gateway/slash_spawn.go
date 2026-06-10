@@ -264,6 +264,9 @@ func (m *Manager) handleSpawnCommand(ctx context.Context, ch Channel, ev Inbound
 
 func (m *Manager) spawnOperatorAuthorized(ev InboundEvent) bool {
 	if users := m.cfg.AllowedUsers[ev.Platform]; len(users) > 0 {
+		if users["*"] {
+			return true
+		}
 		return users[strings.TrimSpace(ev.UserID)]
 	}
 	return true

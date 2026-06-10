@@ -35,7 +35,7 @@ func (m *Manager) applyReloadableConfig(ctx context.Context, next ManagerConfig)
 	m.mu.Lock()
 	m.cfg.AllowedChats = configreload.CloneStringMap(next.AllowedChats)
 	m.cfg.AllowedUsers = configreload.CloneNestedBoolMap(next.AllowedUsers)
-	m.cfg.AllowedChatWhitelists = next.AllowedChatWhitelists
+	m.cfg.AllowedChatWhitelists = cloneWhitelistConfigMap(next.AllowedChatWhitelists)
 	m.cfg.AllowDiscovery = configreload.CloneBoolMap(next.AllowDiscovery)
 	m.cfg.CoalesceMs = next.CoalesceMs
 	if m.cfg.CoalesceMs <= 0 {
@@ -69,9 +69,10 @@ func (m *Manager) applyReloadableConfig(ctx context.Context, next ManagerConfig)
 	if next.SkillRuntime != nil {
 		m.cfg.SkillRuntime = next.SkillRuntime
 	}
-	m.cfg.AgentRouting = next.AgentRouting
-	m.agentRouter = NewAgentRouter(next.AgentRouting.Agents, next.AgentRouting.Bindings)
-	m.agentRoutingEnabled = next.AgentRouting.Enabled
+	agentRouting := cloneAgentRoutingConfig(next.AgentRouting)
+	m.cfg.AgentRouting = agentRouting
+	m.agentRouter = NewAgentRouter(agentRouting.Agents, agentRouting.Bindings)
+	m.agentRoutingEnabled = agentRouting.Enabled
 	if next.AgentRuntimeFactory != nil {
 		m.cfg.AgentRuntimeFactory = next.AgentRuntimeFactory
 	}

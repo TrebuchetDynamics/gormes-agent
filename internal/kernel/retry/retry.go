@@ -128,6 +128,9 @@ func Wait(ctx context.Context, d time.Duration) error {
 	if d <= 0 {
 		return nil
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	select {
 	case <-time.After(d):
 		return nil

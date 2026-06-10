@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -43,6 +44,9 @@ func (f *fakeGatewayTTSTool) Execute(_ context.Context, args json.RawMessage) (j
 	f.platform = in.Platform
 	f.voice = in.Voice
 	f.speed = in.Speed
+	if err := os.WriteFile("/tmp/gormes-auto-tts.mp3", []byte("audio"), 0o600); err != nil {
+		return nil, err
+	}
 	return json.Marshal(map[string]any{
 		"success":   true,
 		"media_tag": "MEDIA:/tmp/gormes-auto-tts.mp3",

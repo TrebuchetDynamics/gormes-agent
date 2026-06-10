@@ -204,6 +204,24 @@ func (s *cancelingStreamSink) DeliverFrame(_ context.Context, target routing.Tar
 	return context.Canceled
 }
 
+func TestStreamConsumer_FanOutStopsWhenSinkReturnsContextCanceled(t *testing.T) {
+	sink := &recordingStreamSink{errs: map[string]error{"telegram:42": context.Canceled}}
+	consumer := NewStreamConsumer(sink)
+	targets := []routing.Target{
+		{Platform: "telegram", ChatID: "42", IsExplicit: true},
+		{Platform: "discord", ChatID: "99", IsExplicit: true},
+	}
+
+	results := consumer.FanOut(context.Background(), kernel.RenderFrame{SessionID: "sess-cancel-err"}, targets)
+
+	if len(sink.calls) != 1 {
+		t.Fatalf("sink calls = %d, want stop after context.Canceled delivery error", len(sink.calls))
+	}
+	if len(results) != 1 || !errors.Is(results[0].Err, context.Canceled) {
+		t.Fatalf("results = %+v, want one context.Canceled result", results)
+	}
+}
+
 func TestStreamConsumer_FanOutContinuesAfterError(t *testing.T) {
 	sink := &recordingStreamSink{
 		errs: map[string]error{"telegram:42": errors.New("send failed")},

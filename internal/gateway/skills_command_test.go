@@ -225,6 +225,39 @@ func TestHandleSkillsCommandInstallDirectURL(t *testing.T) {
 	}
 }
 
+func TestManagerSkillsCommandOptionsAreSnapshotted(t *testing.T) {
+	root := t.TempDir()
+	writeGatewaySkill(t, root, "active/ops/planner", "planner", "Plan work", "Body")
+	disabled := map[string]struct{}{}
+	ch := newFakeChannel("slack")
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"slack": "C42"},
+		SkillsCommandOptions: SkillsCommandOptions{
+			SkillsRoot: root,
+			Disabled:   disabled,
+		},
+	}, &fakeKernel{}, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	disabled["planner"] = struct{}{}
+
+	if err := m.handleInbound(context.Background(), InboundEvent{Platform: "slack", ChatID: "C42", UserID: "u", MsgID: "m-skills-list", Kind: EventSkills, Text: "/skills list"}); err != nil {
+		t.Fatalf("handleInbound(/skills list): %v", err)
+	}
+
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("skills list sends = %d, want 1", len(sent))
+	}
+	if strings.Contains(sent[0].Text, "planner  -  local  trusted  disabled") || strings.Contains(sent[0].Text, "0 enabled, 1 disabled") {
+		t.Fatalf("manager observed caller mutation to SkillsCommandOptions.Disabled:\n%s", sent[0].Text)
+	}
+	if !strings.Contains(sent[0].Text, "planner  ops  local  local  enabled") {
+		t.Fatalf("skills list missing originally enabled skill after config mutation:\n%s", sent[0].Text)
+	}
+}
+
 func TestHandleSkillsCommandTelegramInstallUsesPlainTextReply(t *testing.T) {
 	kind, body := ParseInboundText("/skills install https://example.com/SKILL.md --name telegram-skill")
 	if kind != EventSkills {

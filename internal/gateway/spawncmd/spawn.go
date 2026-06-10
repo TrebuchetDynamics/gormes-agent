@@ -19,7 +19,7 @@ type Command struct {
 // command line. It performs no authorization, channel, registry, or I/O work.
 func Parse(raw string) (Command, error) {
 	token, args := commandline.Split(raw)
-	if commandline.Name(token) != "spawn" {
+	if !isSlashCommandToken(token) || commandline.Name(token) != "spawn" {
 		return Command{}, ErrUsage
 	}
 	fields := strings.Fields(args)
@@ -36,6 +36,10 @@ func Parse(raw string) (Command, error) {
 	}, nil
 }
 
+func isSlashCommandToken(token string) bool {
+	return strings.HasPrefix(token, "/") || strings.HasPrefix(token, "／")
+}
+
 func sanitizeName(name string) string {
 	var b strings.Builder
 	for _, r := range name {
@@ -48,7 +52,7 @@ func sanitizeName(name string) string {
 }
 
 func skipNameRune(r rune) bool {
-	if r < 0x20 || r == 0x7f {
+	if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
 		return true
 	}
 	switch {

@@ -38,6 +38,31 @@ func TestChannelDirectoryAtomicWriteAndLoad(t *testing.T) {
 	}
 }
 
+func TestChannelDirectoryResolveIgnoresInvalidDuplicateMatch(t *testing.T) {
+	dir := ChannelDirectory{Platforms: map[string][]ChannelDirectoryEntry{
+		"telegram": {
+			{ID: "42", Name: "Ops", Type: "group"},
+			{ID: "43\nadmin", Name: "Ops", Type: "group"},
+		},
+	}}
+	got, evidence := dir.Resolve("telegram", "Ops")
+	if evidence.Code != "" || got.ChatID != "42" || got.Platform != "telegram" {
+		t.Fatalf("Resolve with invalid duplicate = %+v evidence=%+v, want valid telegram target 42", got, evidence)
+	}
+}
+
+func TestChannelDirectoryResolveRejectsInvalidEntryTarget(t *testing.T) {
+	dir := ChannelDirectory{Platforms: map[string][]ChannelDirectoryEntry{
+		"telegram": {{ID: "42\nadmin", Name: "Ops", Type: "group"}},
+	}}
+	for _, query := range []string{"Ops", "42\nadmin"} {
+		got, evidence := dir.Resolve("telegram", query)
+		if got.ChatID != "" || evidence.Code != model.EvidenceChannelDirectoryMissing {
+			t.Fatalf("Resolve(%q) invalid entry target = %+v evidence=%+v, want missing evidence", query, got, evidence)
+		}
+	}
+}
+
 func TestChannelDirectoryResolveCompositeThreadTarget(t *testing.T) {
 	dir := ChannelDirectory{Platforms: map[string][]ChannelDirectoryEntry{
 		"telegram": {{ID: "-1001:17585", Name: "Coaching Chat / topic 17585", Type: "group", ChatID: "-1001", ThreadID: "17585", ChatTopic: "topic 17585"}},
@@ -124,6 +149,20 @@ func TestChannelDirectoryDisplayCollapsesInjectedEntryText(t *testing.T) {
 		if !strings.Contains(display, want) {
 			t.Fatalf("display missing sanitized text %q in:\n%s", want, display)
 		}
+	}
+}
+
+func TestChannelDirectoryDisplayRemovesHiddenFormattingRunes(t *testing.T) {
+	dir := ChannelDirectory{Platforms: map[string][]ChannelDirectoryEntry{
+		"telegram": {{ID: "42", Name: "ops\u202egnp", Type: "dm"}},
+	}}
+
+	display := dir.FormatForDisplay()
+	if strings.Contains(display, "\u202e") {
+		t.Fatalf("display leaked hidden formatting rune in:\n%s", display)
+	}
+	if !strings.Contains(display, "telegram:opsgnp (dm)") {
+		t.Fatalf("display = %q, want hidden formatting removed", display)
 	}
 }
 

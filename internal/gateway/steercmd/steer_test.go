@@ -74,6 +74,16 @@ func TestParse_TrimsText(t *testing.T) {
 	}
 }
 
+func TestParse_RejectsBareCommandWordWithoutSlash(t *testing.T) {
+	got := Parse("steer keep investigating", PayloadMetadata{})
+	if got.Evidence != EvidenceUsage {
+		t.Fatalf("Evidence = %q, want %q", got.Evidence, EvidenceUsage)
+	}
+	if got.Guidance != "" || got.Preview != "" {
+		t.Fatalf("Parse accepted bare command word: %+v", got)
+	}
+}
+
 func TestParse_AcceptsBotMentionCommandToken(t *testing.T) {
 	got := Parse("/steer@GormesBot keep investigating", PayloadMetadata{})
 
@@ -97,6 +107,31 @@ func TestPreview_SanitizesMultilineGuidanceForAcknowledgement(t *testing.T) {
 	}
 	if parsed.Preview != "keep going ''Injected:'' fake status" {
 		t.Fatalf("Parse Preview = %q, want sanitized single-line preview", parsed.Preview)
+	}
+}
+
+func TestPreview_RedactsAuthorizationGuidanceForAcknowledgement(t *testing.T) {
+	got := Preview("keep authorization=Bearer plain-secret-token for adapter")
+	for _, forbidden := range []string{"plain-secret-token", "authorization", "Bearer", "bearer"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("Preview leaked authorization guidance %q in %q", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "[redacted]") {
+		t.Fatalf("Preview missing redaction marker: %q", got)
+	}
+
+	parsed := Parse("/steer keep authorization=Bearer plain-secret-token", PayloadMetadata{})
+	if parsed.Guidance != "keep authorization=Bearer plain-secret-token" {
+		t.Fatalf("Parse Guidance = %q, want raw guidance preserved", parsed.Guidance)
+	}
+	for _, forbidden := range []string{"plain-secret-token", "authorization", "Bearer", "bearer"} {
+		if strings.Contains(parsed.Preview, forbidden) {
+			t.Fatalf("Parse Preview leaked authorization guidance %q in %q", forbidden, parsed.Preview)
+		}
+	}
+	if !strings.Contains(parsed.Preview, "[redacted]") {
+		t.Fatalf("Parse Preview missing redaction marker: %q", parsed.Preview)
 	}
 }
 

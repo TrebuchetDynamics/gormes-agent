@@ -59,6 +59,7 @@ type NoopStore struct{}
 func NewNoop() *NoopStore { return &NoopStore{} }
 
 func (*NoopStore) Exec(ctx context.Context, _ Command) (Ack, error) {
+	ctx = storeContext(ctx)
 	// Honour ctx cancellation immediately — callers rely on this for the
 	// kernel's uniform cancellation contract, even against the fastest Store.
 	select {
@@ -67,6 +68,13 @@ func (*NoopStore) Exec(ctx context.Context, _ Command) (Ack, error) {
 	default:
 		return Ack{TurnID: 0}, nil
 	}
+}
+
+func storeContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
 }
 
 // SlowStore is a test helper. Each Exec sleeps `delay` before acking — used
@@ -79,6 +87,7 @@ type SlowStore struct {
 func NewSlow(d time.Duration) *SlowStore { return &SlowStore{delay: d} }
 
 func (s *SlowStore) Exec(ctx context.Context, _ Command) (Ack, error) {
+	ctx = storeContext(ctx)
 	timer := time.NewTimer(s.delay)
 	defer timer.Stop()
 	select {

@@ -23,6 +23,8 @@ const (
 // sessions, or pairing state.
 const DenialText = "Access denied."
 
+const maxPromptTokenRunes = 32
+
 // Event is the channel-neutral unauthorized direct-message input.
 type Event struct {
 	Platform      string
@@ -76,6 +78,12 @@ func NormalizeBehavior(behavior Behavior) Behavior {
 // agent turn.
 func Handle(ctx context.Context, ev Event, policy Policy) (Decision, error) {
 	decision := Decision{Handled: true}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return decision, err
+	}
 	if !ev.DirectMessage {
 		return decision, nil
 	}
@@ -130,7 +138,15 @@ func promptToken(value string) string {
 		"password=[redacted]", "[redacted]",
 		"`", "'",
 	).Replace(value)
-	return strings.Join(strings.Fields(value), " ")
+	return truncatePromptToken(strings.Join(strings.Fields(value), " "))
+}
+
+func truncatePromptToken(value string) string {
+	runes := []rune(value)
+	if len(runes) <= maxPromptTokenRunes {
+		return value
+	}
+	return string(runes[:maxPromptTokenRunes])
 }
 
 func pairingRequestFromEvent(ev Event, allowlistDenied bool) pairing.PairingCodeRequest {
@@ -153,6 +169,9 @@ func pairingRequestFromEvent(ev Event, allowlistDenied bool) pairing.PairingCode
 func sendReply(ctx context.Context, send SendFunc, chatID, text string, decision Decision) (Decision, error) {
 	if send == nil {
 		return decision, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return decision, err
 	}
 	if err := send(ctx, chatID, text); err != nil {
 		return decision, err

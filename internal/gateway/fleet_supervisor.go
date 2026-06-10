@@ -150,6 +150,13 @@ type FleetOperationSummary struct {
 	Failed           int `json:"failed"`
 }
 
+func fleetContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
 func NewFleetSupervisor(cfg config.Config, opts FleetSupervisorOptions) *FleetSupervisor {
 	worker := opts.Worker
 	if worker == nil {
@@ -165,6 +172,7 @@ func (s *FleetSupervisor) Status(ctx context.Context) (FleetStatus, error) {
 	if s == nil {
 		return FleetStatus{}, nil
 	}
+	ctx = fleetContext(ctx)
 	credentialHashes, unavailableCredentialHashes := s.resolveCredentialHashes()
 	readiness := BuildProfileChannelReadinessWithOptions(s.cfg, ProfileChannelReadinessOptions{CredentialHashes: credentialHashes})
 	applyFleetCredentialHashUnavailable(&readiness, unavailableCredentialHashes)
@@ -218,6 +226,7 @@ func (s *FleetSupervisor) runAll(ctx context.Context, action FleetOperation, def
 	if s == nil {
 		return report, nil
 	}
+	ctx = fleetContext(ctx)
 	for _, target := range s.profileTargets() {
 		if err := ctx.Err(); err != nil {
 			return report, err
@@ -692,13 +701,25 @@ func fleetCommandReportField(value string) string {
 	value = strings.Join(strings.Fields(value), " ")
 	value = redaction.RedactSecrets(value)
 	fields := strings.Fields(value)
-	for i, field := range fields {
+	out := make([]string, 0, len(fields))
+	for i := 0; i < len(fields); i++ {
+		field := fields[i]
 		lower := strings.ToLower(field)
-		if strings.Contains(lower, "[redacted]") && (strings.Contains(lower, "api_key") || strings.Contains(lower, "apikey") || strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "password")) {
-			fields[i] = "[redacted]"
+		nextRedacted := i+1 < len(fields) && strings.Contains(strings.ToLower(fields[i+1]), "[redacted]")
+		if fleetCommandSecretField(lower) && (strings.Contains(lower, "[redacted]") || nextRedacted) {
+			out = append(out, "[redacted]")
+			if nextRedacted {
+				i++
+			}
+			continue
 		}
+		out = append(out, field)
 	}
-	return strings.TrimSpace(strings.Join(fields, " "))
+	return strings.TrimSpace(strings.Join(out, " "))
+}
+
+func fleetCommandSecretField(value string) bool {
+	return strings.Contains(value, "api_key") || strings.Contains(value, "api-key") || strings.Contains(value, "apikey") || strings.Contains(value, "authorization") || strings.Contains(value, "bearer") || strings.Contains(value, "token") || strings.Contains(value, "secret") || strings.Contains(value, "password")
 }
 
 func fleetGatewayServiceName(target FleetProfileTarget) string {

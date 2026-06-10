@@ -261,7 +261,7 @@ func (e *DisabledContextEngine) HandleToolCall(_ context.Context, name string, _
 	if name == ContextStatusToolName {
 		e.mu.Lock()
 		e.refreshLocked()
-		status := e.status
+		status := cloneContextStatus(e.status)
 		e.mu.Unlock()
 		payload, err := json.Marshal(status)
 		return payload, err
@@ -285,7 +285,17 @@ func (e *DisabledContextEngine) Status() ContextStatus {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.refreshLocked()
-	return e.status
+	return cloneContextStatus(e.status)
+}
+
+func cloneContextStatus(status ContextStatus) ContextStatus {
+	if status.Boundary.Last != nil {
+		boundary := *status.Boundary.Last
+		status.Boundary.Last = &boundary
+	}
+	status.Tools.UnknownToolErrors = append([]ContextToolError(nil), status.Tools.UnknownToolErrors...)
+	status.Replay.Gaps = append([]ContextReplayGap(nil), status.Replay.Gaps...)
+	return status
 }
 
 func (e *DisabledContextEngine) UpdateModelContext(update ContextModelContext) {

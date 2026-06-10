@@ -9,6 +9,9 @@ func TruncateMarkdownV2Safe(s string, max int) string {
 	}
 	runes := []rune(s)
 	if len(runes) <= max {
+		if trailingBackslashCount(runes)%2 == 1 {
+			return string(runes[:len(runes)-1])
+		}
 		return s
 	}
 	end := markdownSafeTruncateEnd(runes, max-1)

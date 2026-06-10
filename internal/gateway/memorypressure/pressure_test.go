@@ -6,6 +6,37 @@ import (
 	"time"
 )
 
+func TestFormatClampsNegativeCounters(t *testing.T) {
+	got := Format(Evidence{
+		Status:          StatusWarn,
+		RSSMB:           -900,
+		WarnRSSMB:       -800,
+		CriticalRSSMB:   -1200,
+		UptimeSeconds:   -30,
+		GoRoutines:      -7,
+		TargetPID:       -42,
+		TargetStartTime: -99,
+	})
+	for _, forbidden := range []string{"rss=-", "warn=-", "critical=-", "uptime=-", "goroutines=-", "target_pid=-", "target_start_time=-"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("Format leaked negative counter %q in %q", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "rss=0MB warn=0MB critical=0MB") {
+		t.Fatalf("Format missing clamped memory counters in %q", got)
+	}
+}
+
+func TestFormatSanitizesMultilineStatus(t *testing.T) {
+	got := Format(Evidence{Status: "warn\nforged=true", RSSMB: 900, WarnRSSMB: 800, CriticalRSSMB: 1200})
+	if strings.Contains(got, "\nforged") {
+		t.Fatalf("Format leaked multiline status in %q", got)
+	}
+	if !strings.Contains(got, "memory_pressure: warn forged=true") {
+		t.Fatalf("Format missing sanitized status in %q", got)
+	}
+}
+
 func TestFormatSanitizesMultilineEvidence(t *testing.T) {
 	got := Format(Evidence{
 		Status:        StatusWarn,

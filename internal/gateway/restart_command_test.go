@@ -176,6 +176,44 @@ func TestGatewayRestartCommand_DuplicateRedeliveryIsSuppressedOnce(t *testing.T)
 	}
 }
 
+func TestRestartTakeoverStoreAllowsNilContext(t *testing.T) {
+	now := time.Date(2026, 5, 10, 10, 30, 0, 0, time.UTC)
+	store := NewRestartTakeoverStore(filepath.Join(t.TempDir(), "restart_takeover.json"))
+	store.now = func() time.Time { return now }
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("restart takeover store panicked with nil context: %v", r)
+		}
+	}()
+
+	seed := RestartTakeoverMarker{
+		SourcePlatform: "telegram",
+		ChatID:         "42",
+		UpdateID:       "update-101",
+		MessageID:      "msg-9",
+	}
+	if err := store.Write(nil, seed); err != nil {
+		t.Fatalf("Write nil context: %v", err)
+	}
+	marker, ok, _, err := store.Read(nil)
+	if err != nil || !ok {
+		t.Fatalf("Read nil context marker=%+v ok=%v err=%v, want existing marker", marker, ok, err)
+	}
+	if err := store.MarkNotificationSent(nil, marker, now.Add(time.Second)); err != nil {
+		t.Fatalf("MarkNotificationSent nil context: %v", err)
+	}
+	_, suppressed, err := store.SuppressDuplicate(nil, InboundEvent{
+		Platform:  "telegram",
+		ChatID:    "42",
+		MsgID:     "msg-9",
+		MessageID: "update-101",
+		Kind:      EventRestart,
+	})
+	if err != nil || !suppressed {
+		t.Fatalf("SuppressDuplicate nil context suppressed=%v err=%v, want suppressed", suppressed, err)
+	}
+}
+
 func TestRestartTakeoverStoreSuppressDuplicateTrimsMarkerIDs(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 5, 10, 11, 0, 0, 0, time.UTC)
@@ -413,6 +451,43 @@ func TestGatewayRestartCommand_DrainTimeoutUsesResumePendingRecovery(t *testing.
 	}
 	if len(status.ResumePending) != 1 || status.ResumePending[0].SessionID != "sess-running" {
 		t.Fatalf("ResumePending = %+v, want sess-running evidence", status.ResumePending)
+	}
+}
+
+func TestGatewayRestartCommand_TakeoverStartupNotificationTrimsMarkerAddress(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	statusStore := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
+	statusStore.now = func() time.Time { return now }
+	markerStore := NewRestartTakeoverStore(filepath.Join(t.TempDir(), "restart_takeover.json"))
+	markerStore.now = func() time.Time { return now }
+	if err := markerStore.Write(ctx, RestartTakeoverMarker{
+		SourcePlatform: " telegram ",
+		ChatID:         " 42 ",
+		UpdateID:       " update-101 ",
+		MessageID:      " msg-9 ",
+		Generation:     3,
+		RequestedAt:    now.Format(time.RFC3339Nano),
+	}); err != nil {
+		t.Fatalf("seed marker: %v", err)
+	}
+
+	ch := newFakeChannel("telegram")
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:  map[string]string{"telegram": "42"},
+		RuntimeStatus: statusStore,
+		Restart:       RestartConfig{MarkerStore: markerStore},
+		Now:           func() time.Time { return now },
+	}, &fakeKernel{}, nil)
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	if err := m.ConsumeRestartTakeoverMarker(ctx); err != nil {
+		t.Fatalf("ConsumeRestartTakeoverMarker: %v", err)
+	}
+	if sent := ch.sentSnapshot(); len(sent) != 1 || sent[0].ChatID != "42" || !strings.Contains(sent[0].Text, "Gateway restarted") {
+		t.Fatalf("restart notification sends = %#v, want trimmed telegram/42 restarted notification", sent)
 	}
 }
 

@@ -43,6 +43,8 @@ func TestLooksLikeNetworkError(t *testing.T) {
 		"connection reset",
 		"network is unreachable",
 		"read: i/o timeout",
+		"Too Many Requests: retry after 5",
+		"telegram: 429 Too Many Requests",
 	} {
 		if !LooksLikeNetworkError(errors.New(msg)) {
 			t.Fatalf("LooksLikeNetworkError(%q) = false", msg)

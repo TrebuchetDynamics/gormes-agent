@@ -88,9 +88,9 @@ func (a Attachment) submitLine() string {
 		label += " " + fileName
 	}
 
-	target := sanitizeAttachmentPromptField(a.URL)
+	target := sanitizeAttachmentTargetField(a.URL)
 	if target == "" {
-		target = sanitizeAttachmentPromptField(a.SourceID)
+		target = sanitizeAttachmentTargetField(a.SourceID)
 	}
 	if target == "" {
 		return ""
@@ -115,6 +115,14 @@ func (a Attachment) submitLine() string {
 		line += " (" + strings.Join(meta, ", ") + ")"
 	}
 	return line
+}
+
+func sanitizeAttachmentTargetField(value string) string {
+	value = sanitizeAttachmentPromptField(value)
+	if value != "" && redaction.CheckSensitivePath(value).Blocked {
+		return "[redacted]"
+	}
+	return value
 }
 
 func sanitizeAttachmentPromptField(value string) string {
@@ -145,7 +153,7 @@ func (a Attachment) audioTranscriptionHintLine() string {
 		return ""
 	}
 	audioPath := strings.TrimSpace(a.URL)
-	if audioPath == "" || !isLocalAttachmentPath(audioPath) {
+	if audioPath == "" || !isLocalAttachmentPath(audioPath) || redaction.CheckSensitivePath(audioPath).Blocked {
 		return ""
 	}
 

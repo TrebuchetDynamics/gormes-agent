@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/delivery/routing"
@@ -45,6 +46,9 @@ func (c *StreamConsumer) FanOut(ctx context.Context, frame kernel.RenderFrame, t
 		}
 		err := c.sink.DeliverFrame(ctx, target, cloneRenderFrame(frame))
 		results = append(results, DeliveryResult{Target: target, Err: err})
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			break
+		}
 	}
 	return results
 }

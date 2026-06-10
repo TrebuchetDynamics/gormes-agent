@@ -129,6 +129,54 @@ func TestStaleCodeGitFileRejectsMissingMetadataDirectories(t *testing.T) {
 	})
 }
 
+func TestStaleCodePackedRefWithTrailingFieldsReportsUnavailable(t *testing.T) {
+	root := t.TempDir()
+	stalecodetest.WriteFile(t, filepath.Join(root, ".git", "HEAD"), "ref: refs/heads/development\n")
+	stalecodetest.WriteFile(t, filepath.Join(root, ".git", "packed-refs"), staleCodeSHA1+" refs/heads/development trailing-field\n")
+
+	got := NewStaleCodeChecker(root).Check(staleCodeSHA1)
+	if got.Status != RuntimeStaleCodeGitUnavailable || got.Stale || got.RestartSuggested {
+		t.Fatalf("packed ref with trailing fields stale code = %+v, want unavailable without fresh/stale classification", got)
+	}
+	assertStaleCodeEvidence(t, got, "stale_code_git_unavailable")
+}
+
+func TestStaleCodeShortGitRefReportsUnavailable(t *testing.T) {
+	root := t.TempDir()
+	stalecodetest.WriteFile(t, filepath.Join(root, ".git", "HEAD"), "ref: refs/heads/development\n")
+	stalecodetest.WriteFile(t, filepath.Join(root, ".git", "refs", "heads", "development"), "1111111\n")
+
+	got := NewStaleCodeChecker(root).Check("1111111")
+	if got.Status != RuntimeStaleCodeGitUnavailable || got.Stale || got.RestartSuggested {
+		t.Fatalf("short git ref stale code = %+v, want unavailable without fresh/stale classification", got)
+	}
+	assertStaleCodeEvidence(t, got, "stale_code_git_unavailable")
+}
+
+func TestStaleCodeLockSuffixHeadRefReportsUnavailable(t *testing.T) {
+	root := t.TempDir()
+	stalecodetest.WriteFile(t, filepath.Join(root, ".git", "HEAD"), "ref: refs/heads/development.lock\n")
+	stalecodetest.WriteFile(t, filepath.Join(root, ".git", "refs", "heads", "development.lock"), staleCodeSHA1+"\n")
+
+	got := NewStaleCodeChecker(root).Check(staleCodeSHA1)
+	if got.Status != RuntimeStaleCodeGitUnavailable || got.Stale || got.RestartSuggested {
+		t.Fatalf("lock-suffix HEAD ref stale code = %+v, want unavailable without fresh/stale classification", got)
+	}
+	assertStaleCodeEvidence(t, got, "stale_code_git_unavailable")
+}
+
+func TestStaleCodeControlCharacterHeadRefReportsUnavailable(t *testing.T) {
+	root := t.TempDir()
+	stalecodetest.WriteFile(t, filepath.Join(root, ".git", "HEAD"), "ref: refs/heads/dev\nmal\n")
+	stalecodetest.WriteFile(t, filepath.Join(root, ".git", "refs", "heads", "dev\nmal"), staleCodeSHA1+"\n")
+
+	got := NewStaleCodeChecker(root).Check(staleCodeSHA1)
+	if got.Status != RuntimeStaleCodeGitUnavailable || got.Stale || got.RestartSuggested {
+		t.Fatalf("control-character HEAD ref stale code = %+v, want unavailable without fresh/stale classification", got)
+	}
+	assertStaleCodeEvidence(t, got, "stale_code_git_unavailable")
+}
+
 func TestStaleCodeUnsafeHeadRefReportsUnavailable(t *testing.T) {
 	root := t.TempDir()
 	stalecodetest.WriteFile(t, filepath.Join(root, ".git", "HEAD"), "ref: refs/heads/../evil\n")

@@ -40,6 +40,36 @@ func TestStickerCache_WritePropagatesCorruptCache(t *testing.T) {
 	}
 }
 
+func TestStickerCache_ZeroCachedAtIsMiss(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sticker_cache.json")
+	if err := os.WriteFile(path, []byte(`{"uid-1":{"description":"A ghost","emoji":"ghost","set_name":"Ghosts"}}`), 0o600); err != nil {
+		t.Fatalf("write cache: %v", err)
+	}
+
+	got, ok, err := GetCachedStickerDescription(path, "uid-1")
+	if err != nil {
+		t.Fatalf("GetCachedStickerDescription: %v", err)
+	}
+	if ok || got.Description != "" {
+		t.Fatalf("zero cached_at entry = %+v ok=%v, want cache miss", got, ok)
+	}
+}
+
+func TestStickerCache_EmptyPersistedDescriptionIsMiss(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sticker_cache.json")
+	if err := os.WriteFile(path, []byte(`{"uid-1":{"description":"   ","emoji":"ghost","set_name":"Ghosts","cached_at":1770000000}}`), 0o600); err != nil {
+		t.Fatalf("write cache: %v", err)
+	}
+
+	got, ok, err := GetCachedStickerDescription(path, "uid-1")
+	if err != nil {
+		t.Fatalf("GetCachedStickerDescription: %v", err)
+	}
+	if ok || got.Description != "" {
+		t.Fatalf("empty persisted description = %+v ok=%v, want cache miss", got, ok)
+	}
+}
+
 func TestStickerCache_StoreLookupAndOverwrite(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "sticker_cache.json")
 	now := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
@@ -84,6 +114,65 @@ func TestStickerCache_EmptyPathDisablesCacheWithoutCwdWrites(t *testing.T) {
 	}
 }
 
+func TestStickerCache_HiddenFormattingUniqueIDIsIgnored(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sticker_cache.json")
+	now := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
+
+	if err := CacheStickerDescription(path, "uid-1\u200bshadow", "stale sticker", "ghost", "Ghosts", now); err != nil {
+		t.Fatalf("CacheStickerDescription hidden-formatting key: %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("hidden-formatting unique ID created cache file err=%v, want no cache write", err)
+	}
+	if got, ok, err := GetCachedStickerDescription(path, "uid-1\u200bshadow"); err != nil || ok || got.Description != "" {
+		t.Fatalf("hidden-formatting unique ID lookup = %+v ok=%v err=%v, want miss without error", got, ok, err)
+	}
+}
+
+func TestStickerCache_ControlCharacterUniqueIDIsIgnored(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sticker_cache.json")
+	now := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
+
+	if err := CacheStickerDescription(path, "uid-1\nshadow", "stale sticker", "ghost", "Ghosts", now); err != nil {
+		t.Fatalf("CacheStickerDescription control-character key: %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("control-character unique ID created cache file err=%v, want no cache write", err)
+	}
+	if got, ok, err := GetCachedStickerDescription(path, "uid-1\nshadow"); err != nil || ok || got.Description != "" {
+		t.Fatalf("control-character unique ID lookup = %+v ok=%v err=%v, want miss without error", got, ok, err)
+	}
+}
+
+func TestStickerCache_ZeroTimestampIsNotWritten(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sticker_cache.json")
+
+	if err := CacheStickerDescription(path, "uid-1", "A ghost", "ghost", "Ghosts", time.Time{}); err != nil {
+		t.Fatalf("CacheStickerDescription zero timestamp: %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("zero timestamp created cache file err=%v, want no cache write", err)
+	}
+	if got, ok, err := GetCachedStickerDescription(path, "uid-1"); err != nil || ok || got.Description != "" {
+		t.Fatalf("zero timestamp lookup = %+v ok=%v err=%v, want miss without error", got, ok, err)
+	}
+}
+
+func TestStickerCache_BlankDescriptionIsNotWritten(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sticker_cache.json")
+	now := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
+
+	if err := CacheStickerDescription(path, "uid-1", "   ", "ghost", "Ghosts", now); err != nil {
+		t.Fatalf("CacheStickerDescription blank description: %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("blank description created cache file err=%v, want no cache write", err)
+	}
+	if got, ok, err := GetCachedStickerDescription(path, "uid-1"); err != nil || ok || got.Description != "" {
+		t.Fatalf("blank description lookup = %+v ok=%v err=%v, want miss without error", got, ok, err)
+	}
+}
+
 func TestStickerCache_EmptyUniqueIDIsIgnored(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "sticker_cache.json")
 	now := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
@@ -96,6 +185,44 @@ func TestStickerCache_EmptyUniqueIDIsIgnored(t *testing.T) {
 	}
 	if got, ok, err := GetCachedStickerDescription(path, "\t"); err != nil || ok || got.Description != "" {
 		t.Fatalf("empty unique ID lookup = %+v ok=%v err=%v, want miss without error", got, ok, err)
+	}
+}
+
+func TestBuildStickerInjectionRemovesControlCharacters(t *testing.T) {
+	got := BuildStickerInjection("cute\x1b[31m cat", "😺\u009b", "Pack\x7fName")
+	for _, forbidden := range []string{"\x1b", "\u009b", "\x7f"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("BuildStickerInjection kept control character %q in %q", forbidden, got)
+		}
+	}
+	for _, want := range []string{"cute (31m cat", "😺", "Pack Name"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("BuildStickerInjection = %q, want sanitized fragment %q", got, want)
+		}
+	}
+}
+
+func TestBuildStickerInjectionRedactsAuthorizationMetadata(t *testing.T) {
+	got := BuildStickerInjection("cute authorization Bearer plain-secret-token", "bearer=emoji-secret", "authorization=Bearer pack-secret")
+	for _, forbidden := range []string{"plain-secret-token", "emoji-secret", "pack-secret", "authorization", "bearer"} {
+		if strings.Contains(strings.ToLower(got), forbidden) {
+			t.Fatalf("BuildStickerInjection leaked authorization metadata %q in %q", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "[redacted]") {
+		t.Fatalf("BuildStickerInjection missing redaction marker in %q", got)
+	}
+}
+
+func TestBuildStickerInjectionRedactsSecretLikeMetadata(t *testing.T) {
+	got := BuildStickerInjection("cute api_key=plain-secret-token", "token=emoji-secret", "secret=pack-secret")
+	for _, forbidden := range []string{"plain-secret-token", "emoji-secret", "pack-secret", "api_key", "token=", "secret="} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("BuildStickerInjection leaked secret-like metadata %q in %q", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "[redacted]") {
+		t.Fatalf("BuildStickerInjection missing redaction marker in %q", got)
 	}
 }
 

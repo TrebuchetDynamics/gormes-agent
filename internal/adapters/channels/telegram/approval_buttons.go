@@ -23,11 +23,13 @@ type ApprovalPrompt struct {
 	ThreadID    string
 	Command     string
 	SessionKey  string
+	TicketID    uint64
 	Description string
 }
 
 type telegramApprovalState struct {
 	SessionKey string
+	TicketID   uint64
 	ChatID     int64
 	MessageID  int
 	ThreadID   string
@@ -77,6 +79,7 @@ func (b *Bot) SendExecApproval(ctx context.Context, prompt ApprovalPrompt) (stri
 	}
 	b.storeApprovalSessionKey(approvalID, telegramApprovalState{
 		SessionKey: sessionKey,
+		TicketID:   prompt.TicketID,
 		ChatID:     chatID,
 		MessageID:  msg.MessageID,
 		ThreadID:   strings.TrimSpace(prompt.ThreadID),
@@ -123,6 +126,7 @@ func (b *Bot) handleCallbackQuery(ctx context.Context, query *tgbotapi.CallbackQ
 	}
 	if err := b.cfg.ApprovalResolver.ResolveGatewayApproval(ctx, gateway.ApprovalResolution{
 		SessionKey: state.SessionKey,
+		TicketID:   state.TicketID,
 		Choice:     choice,
 		Platform:   b.Name(),
 		ChatID:     strconv.FormatInt(state.ChatID, 10),

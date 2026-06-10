@@ -29,6 +29,40 @@ func TestPositiveDuration(t *testing.T) {
 	}
 }
 
+func TestClearRejectsBlankPathWithoutRemovingCwdFile(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	if err := os.WriteFile(" ", []byte(`{}`), 0o600); err != nil {
+		t.Fatalf("write cwd space file: %v", err)
+	}
+
+	err := Clear(context.Background(), " ", "test marker")
+	if err == nil {
+		t.Fatal("Clear blank path err = nil, want error")
+	}
+	if _, statErr := os.Stat(" "); statErr != nil {
+		t.Fatalf("space file stat after blank Clear = %v, want preserved", statErr)
+	}
+}
+
+func TestClearAllowsNilContext(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "marker.json")
+	if err := os.WriteFile(path, []byte(`{}`), 0o600); err != nil {
+		t.Fatalf("write marker: %v", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("Clear panicked with nil context: %v", r)
+		}
+	}()
+	if err := Clear(nil, path, "test marker"); err != nil {
+		t.Fatalf("Clear nil context: %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("stat after nil-context clear = %v, want missing", err)
+	}
+}
+
 func TestClearRemovesExistingAndIgnoresMissing(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "marker.json")
 	if err := os.WriteFile(path, []byte(`{}`), 0o600); err != nil {

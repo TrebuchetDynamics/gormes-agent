@@ -70,6 +70,20 @@ func UpsertValidEntry(entries []Entry, item Entry) ([]Entry, bool) {
 	return policy.UpsertByNormalizedID(entries, item, NormalizeEntry, func(entry Entry) string {
 		return entry.ID
 	}, func(entry Entry) bool {
-		return entry.ID != "" && entry.Name != ""
+		return entry.ID != "" && entry.Name != "" && !entryContainsControl(entry)
 	})
+}
+
+func entryContainsControl(entry Entry) bool {
+	return containsControl(entry.ID) ||
+		containsControl(entry.Name) ||
+		containsControl(entry.Type) ||
+		containsControl(entry.Guild) ||
+		containsControl(entry.ChatID) ||
+		containsControl(entry.ThreadID) ||
+		containsControl(entry.ChatTopic)
+}
+
+func containsControl(value string) bool {
+	return strings.ContainsFunc(value, func(r rune) bool { return r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) })
 }

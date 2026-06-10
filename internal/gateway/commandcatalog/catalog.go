@@ -6,7 +6,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/commandline"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
@@ -37,15 +39,22 @@ func Render(req Request) string {
 
 	entries := slices.Clone(req.BuiltinLines)
 	skillCommands := sortedCommands(req.SkillCommands)
+	seenSkillCommands := map[string]struct{}{}
 	var skillLines []string
 	for _, cmd := range skillCommands {
 		name := renderCommandCatalogValue(cmd.Name)
 		if name == "" {
 			continue
 		}
-		if !strings.HasPrefix(name, "/") {
-			name = "/" + name
+		name = normalizeRenderedCommandName(name)
+		key := commandline.Name(name)
+		if key == "" {
+			continue
 		}
+		if _, ok := seenSkillCommands[key]; ok {
+			continue
+		}
+		seenSkillCommands[key] = struct{}{}
 		desc := renderCommandCatalogValue(cmd.Description)
 		if desc == "" {
 			desc = "Invoke skill"
@@ -100,16 +109,19 @@ func Render(req Request) string {
 }
 
 func parseRequestedPage(raw string) (int, bool) {
-	page, err := strconv.Atoi(raw)
-	if err == nil {
-		return page, true
-	}
 	for _, r := range raw {
 		if r < '0' || r > '9' {
 			return 0, false
 		}
 	}
-	return int(^uint(0) >> 1), true
+	page, err := strconv.Atoi(raw)
+	if err != nil {
+		return int(^uint(0) >> 1), true
+	}
+	if page < 1 {
+		return 0, false
+	}
+	return page, true
 }
 
 func countCatalogCommandLines(lines []string) int {
@@ -122,6 +134,19 @@ func countCatalogCommandLines(lines []string) int {
 	return count
 }
 
+func normalizeRenderedCommandName(name string) string {
+	name = strings.TrimSpace(name)
+	if strings.HasPrefix(name, "/") {
+		name = strings.TrimSpace(strings.TrimPrefix(name, "/"))
+	} else if strings.HasPrefix(name, "／") {
+		name = strings.TrimSpace(strings.TrimPrefix(name, "／"))
+	}
+	if name == "" {
+		return ""
+	}
+	return "/" + name
+}
+
 func renderCommandCatalogValue(value string) string {
 	value = collapseRedactedCommandAssignments(redaction.RedactSecrets(value))
 	replacer := strings.NewReplacer(
@@ -129,18 +154,60 @@ func renderCommandCatalogValue(value string) string {
 		"*", "'",
 		"#", "＃",
 	)
-	return strings.Join(strings.Fields(replacer.Replace(value)), " ")
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range replacer.Replace(value) {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			b.WriteByte(' ')
+			continue
+		}
+		if unicode.Is(unicode.Cf, r) {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	fields := strings.Fields(b.String())
+	out := make([]string, 0, len(fields))
+	for i := 0; i < len(fields); i++ {
+		field := fields[i]
+		lower := strings.ToLower(field)
+		nextRedacted := i+1 < len(fields) && strings.Contains(strings.ToLower(fields[i+1]), "[redacted]")
+		if commandCatalogSecretField(lower) && (strings.Contains(lower, "[redacted]") || nextRedacted || commandCatalogSplitSecretField(lower)) {
+			out = append(out, "[redacted]")
+			if nextRedacted {
+				i++
+			} else if commandCatalogSplitSecretField(lower) && i+1 < len(fields) {
+				i++
+				if strings.Contains(strings.ToLower(fields[i]), "bearer") && i+1 < len(fields) {
+					i++
+				}
+			}
+			continue
+		}
+		out = append(out, field)
+	}
+	return strings.Join(out, " ")
 }
 
 func collapseRedactedCommandAssignments(value string) string {
 	replacer := strings.NewReplacer(
 		"api_key=[redacted]", "[redacted]",
 		"api-key=[redacted]", "[redacted]",
+		"authorization=[redacted]", "[redacted]",
+		"bearer=[redacted]", "[redacted]",
 		"token=[redacted]", "[redacted]",
 		"secret=[redacted]", "[redacted]",
 		"password=[redacted]", "[redacted]",
 	)
 	return replacer.Replace(value)
+}
+
+func commandCatalogSecretField(value string) bool {
+	return strings.Contains(value, "api_key") || strings.Contains(value, "api-key") || strings.Contains(value, "apikey") || strings.Contains(value, "authorization") || strings.Contains(value, "bearer") || strings.Contains(value, "token") || strings.Contains(value, "secret") || strings.Contains(value, "password")
+}
+
+func commandCatalogSplitSecretField(value string) bool {
+	return strings.Contains(value, "authorization") || strings.Contains(value, "bearer")
 }
 
 func pageSize(platform string) int {

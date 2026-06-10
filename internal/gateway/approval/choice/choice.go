@@ -20,6 +20,7 @@ const (
 // gateway approval store/resolver.
 type Resolution struct {
 	SessionKey string
+	TicketID   uint64
 	Choice     Choice
 	Platform   string
 	ChatID     string
@@ -42,7 +43,22 @@ func (f ResolverFunc) ResolveGatewayApproval(ctx context.Context, res Resolution
 	if f == nil {
 		return nil
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	res.Evidence = cloneEvidence(res.Evidence)
 	return f(ctx, res)
+}
+
+func cloneEvidence(evidence map[string]string) map[string]string {
+	if evidence == nil {
+		return nil
+	}
+	out := make(map[string]string, len(evidence))
+	for key, value := range evidence {
+		out[key] = value
+	}
+	return out
 }
 
 // ParseChoice normalizes a gateway approval decision label.

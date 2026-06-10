@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -118,6 +119,44 @@ func TestAutoTitleSession_ManualTitlePreserved(t *testing.T) {
 	}
 	if store.current != "user picked title" {
 		t.Fatalf("store.current = %q; want preserved manual title %q", store.current, "user picked title")
+	}
+}
+
+func TestAutoTitleSession_SanitizesFailureEvidence(t *testing.T) {
+	cases := []struct {
+		name  string
+		store *fakeTitleStore
+		gen   *countingGenerator
+	}{
+		{
+			name:  "store read",
+			store: &fakeTitleStore{getErr: errors.New("read failed\nAuthorization: Bearer sk-read-secret\n**Injected:** yes")},
+			gen:   &countingGenerator{title: "unused"},
+		},
+		{
+			name:  "provider",
+			store: &fakeTitleStore{exists: false},
+			gen:   &countingGenerator{err: errors.New("provider failed\nAuthorization: Bearer sk-provider-secret\n**Injected:** yes")},
+		},
+		{
+			name:  "store write",
+			store: &fakeTitleStore{setErr: errors.New("write failed\nAuthorization: Bearer sk-write-secret\n**Injected:** yes")},
+			gen:   &countingGenerator{title: "Safe Title"},
+		},
+	}
+	transcript := []Turn{{Role: "user", Content: "any prompt"}}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			evidence := Perform(context.Background(), tc.store, tc.gen.generate, "session-id", transcript)
+			for _, forbidden := range []string{"sk-read-secret", "sk-provider-secret", "sk-write-secret", "Bearer sk", "\n", "**Injected:**"} {
+				if strings.Contains(evidence.Reason, forbidden) {
+					t.Fatalf("evidence reason leaked %q in %q", forbidden, evidence.Reason)
+				}
+			}
+			if !strings.Contains(evidence.Reason, "[redacted]") {
+				t.Fatalf("evidence reason = %q, want redaction marker", evidence.Reason)
+			}
+		})
 	}
 }
 

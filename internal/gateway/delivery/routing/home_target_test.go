@@ -67,6 +67,49 @@ func TestResolveHomeTargetWithFallback_UsesDiscoveryOnlyWhenEnabled(t *testing.T
 	}
 }
 
+func TestResolveHomeTargetSkipsConfiguredHomeForDifferentPlatform(t *testing.T) {
+	target := Target{Platform: "telegram"}
+	homes := HomeTargets{"telegram": {Platform: "discord", ChatID: "D-home"}}
+	fallback := HomeDiscoveryFallback{Source: OriginSource{Platform: "telegram", ChatID: "T-home"}, DiscoveryEnabled: true}
+
+	got, err := ResolveHomeTargetWithFallback(target, homes, fallback)
+	if err != nil {
+		t.Fatalf("ResolveHomeTargetWithFallback: %v", err)
+	}
+	want := Target{Platform: "telegram", ChatID: "T-home", IsExplicit: true}
+	if got != want {
+		t.Fatalf("ResolveHomeTargetWithFallback = %+v, want fallback %+v", got, want)
+	}
+}
+
+func TestResolveHomeTargetSkipsDiscoveryFallbackWithControlCharacters(t *testing.T) {
+	target := Target{Platform: "telegram"}
+	fallback := HomeDiscoveryFallback{Source: OriginSource{Platform: "telegram", ChatID: "99\nadmin"}, DiscoveryEnabled: true}
+
+	got, err := ResolveHomeTargetWithFallback(target, nil, fallback)
+	if _, ok := err.(MissingHomeError); !ok {
+		t.Fatalf("ResolveHomeTargetWithFallback error = %T %v, want MissingHomeError", err, err)
+	}
+	if got != target {
+		t.Fatalf("ResolveHomeTargetWithFallback = %+v, want unresolved target %+v", got, target)
+	}
+}
+
+func TestResolveHomeTargetSkipsConfiguredHomeWithControlCharacters(t *testing.T) {
+	target := Target{Platform: "telegram"}
+	homes := HomeTargets{"telegram": {Platform: "telegram", ChatID: "42\nadmin"}}
+	fallback := HomeDiscoveryFallback{Source: OriginSource{Platform: "telegram", ChatID: "99"}, DiscoveryEnabled: true}
+
+	got, err := ResolveHomeTargetWithFallback(target, homes, fallback)
+	if err != nil {
+		t.Fatalf("ResolveHomeTargetWithFallback: %v", err)
+	}
+	want := Target{Platform: "telegram", ChatID: "99", IsExplicit: true}
+	if got != want {
+		t.Fatalf("ResolveHomeTargetWithFallback = %+v, want fallback %+v", got, want)
+	}
+}
+
 func TestResolveHomeTargetWithFallback_ConfiguredHomeWinsOverDiscovery(t *testing.T) {
 	target, err := ParseTarget("slack", nil)
 	if err != nil {

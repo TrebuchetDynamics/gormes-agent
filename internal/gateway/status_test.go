@@ -10,6 +10,28 @@ import (
 	"testing"
 )
 
+func TestRuntimeStatusStoreAllowsNilContext(t *testing.T) {
+	store := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("runtime status store panicked with nil context: %v", r)
+		}
+	}()
+
+	if err := store.UpdateRuntimeStatus(nil, RuntimeStatusUpdate{GatewayState: GatewayStateRunning}); err != nil {
+		t.Fatalf("UpdateRuntimeStatus nil context: %v", err)
+	}
+	if status, err := store.ReadRuntimeStatus(nil); err != nil || status.GatewayState != GatewayStateRunning {
+		t.Fatalf("ReadRuntimeStatus nil context status=%+v err=%v, want running status", status, err)
+	}
+	if snapshot, err := store.ReadRuntimeStatusSnapshot(nil); err != nil || snapshot.Missing {
+		t.Fatalf("ReadRuntimeStatusSnapshot nil context snapshot=%+v err=%v, want present snapshot", snapshot, err)
+	}
+	if snapshot, err := store.ReadValidatedRuntimeStatusSnapshot(nil); err != nil || snapshot.Missing {
+		t.Fatalf("ReadValidatedRuntimeStatusSnapshot nil context snapshot=%+v err=%v, want present snapshot", snapshot, err)
+	}
+}
+
 func TestRuntimeStatusStore_MergesChannelLifecycleIntoReadModel(t *testing.T) {
 	store := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
 
@@ -173,6 +195,135 @@ func TestRuntimeStatusStore_RedactsArgvSecretsInStatusFiles(t *testing.T) {
 		if !strings.Contains(string(raw), "[redacted]") {
 			t.Fatalf("runtime status file %s missing redacted argv evidence:\n%s", path, raw)
 		}
+	}
+}
+
+func TestRuntimeStatusStore_RedactsSplitAuthorizationArgvInStatusFiles(t *testing.T) {
+	root := t.TempDir()
+	statusPath := filepath.Join(root, "gateway_state.json")
+	pidPath := filepath.Join(root, "gateway.pid")
+	store := NewRuntimeStatusStore(statusPath)
+	store.pidPath = pidPath
+	store.pid = func() int { return 4242 }
+	store.startTime = func(int) (int64, bool) { return 87654321, true }
+	store.argv = func() []string { return []string{"gormes", "gateway", "--authorization", "Bearer plain-secret-token"} }
+
+	if err := store.UpdateRuntimeStatus(context.Background(), RuntimeStatusUpdate{GatewayState: GatewayStateStarting}); err != nil {
+		t.Fatalf("write gateway starting: %v", err)
+	}
+
+	for _, path := range []string{statusPath, pidPath} {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		for _, forbidden := range []string{"plain-secret-token", "authorization", "Bearer"} {
+			if strings.Contains(string(raw), forbidden) {
+				t.Fatalf("runtime status file %s leaked split authorization argv %q:\n%s", path, forbidden, raw)
+			}
+		}
+		if !strings.Contains(string(raw), "[redacted]") {
+			t.Fatalf("runtime status file %s missing redacted argv evidence:\n%s", path, raw)
+		}
+	}
+}
+
+func TestRuntimeStatusStore_RedactsAuthorizationArgvInStatusFiles(t *testing.T) {
+	root := t.TempDir()
+	statusPath := filepath.Join(root, "gateway_state.json")
+	pidPath := filepath.Join(root, "gateway.pid")
+	store := NewRuntimeStatusStore(statusPath)
+	store.pidPath = pidPath
+	store.pid = func() int { return 4242 }
+	store.startTime = func(int) (int64, bool) { return 87654321, true }
+	store.argv = func() []string {
+		return []string{"gormes", "gateway", "--header", "Authorization: Bearer plain-secret-token"}
+	}
+
+	if err := store.UpdateRuntimeStatus(context.Background(), RuntimeStatusUpdate{GatewayState: GatewayStateStarting}); err != nil {
+		t.Fatalf("write gateway starting: %v", err)
+	}
+
+	for _, path := range []string{statusPath, pidPath} {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		for _, forbidden := range []string{"plain-secret-token", "Authorization", "authorization", "Bearer"} {
+			if strings.Contains(string(raw), forbidden) {
+				t.Fatalf("runtime status file %s leaked authorization argv %q:\n%s", path, forbidden, raw)
+			}
+		}
+		if !strings.Contains(string(raw), "[redacted]") {
+			t.Fatalf("runtime status file %s missing redacted argv evidence:\n%s", path, raw)
+		}
+	}
+}
+
+func TestRuntimeStatusStore_PrimaryStatusWriteFailurePreservesPIDRecord(t *testing.T) {
+	root := t.TempDir()
+	statusRoot := filepath.Join(root, "status")
+	pidRoot := filepath.Join(root, "pid")
+	if err := os.Mkdir(statusRoot, 0o755); err != nil {
+		t.Fatalf("mkdir status root: %v", err)
+	}
+	if err := os.Mkdir(pidRoot, 0o755); err != nil {
+		t.Fatalf("mkdir pid root: %v", err)
+	}
+	statusPath := filepath.Join(statusRoot, "gateway_state.json")
+	pidPath := filepath.Join(pidRoot, "gateway.pid")
+	store := NewRuntimeStatusStore(statusPath)
+	store.pidPath = pidPath
+	store.pid = func() int { return 4242 }
+	store.startTime = func(int) (int64, bool) { return 87654321, true }
+	store.argv = func() []string { return []string{"gormes", "gateway"} }
+
+	if err := store.UpdateRuntimeStatus(context.Background(), RuntimeStatusUpdate{GatewayState: GatewayStateStarting}); err != nil {
+		t.Fatalf("write initial status: %v", err)
+	}
+	beforePID := readRuntimeStatusFixture(t, pidPath)
+
+	if err := os.Chmod(statusRoot, 0o500); err != nil {
+		t.Fatalf("chmod status root read-only: %v", err)
+	}
+	defer func() { _ = os.Chmod(statusRoot, 0o700) }()
+	err := store.UpdateRuntimeStatus(context.Background(), RuntimeStatusUpdate{Platform: "telegram", PlatformState: PlatformStateRunning})
+	if err == nil {
+		t.Fatal("UpdateRuntimeStatus with unwritable primary status succeeded, want error")
+	}
+	afterPID := readRuntimeStatusFixture(t, pidPath)
+	if !reflect.DeepEqual(afterPID, beforePID) {
+		t.Fatalf("pid record changed after primary status write failure\nbefore: %+v\nafter:  %+v", beforePID, afterPID)
+	}
+}
+
+func TestRuntimeStatusStore_PIDRecordWriteFailurePreservesPrimaryStatus(t *testing.T) {
+	root := t.TempDir()
+	statusPath := filepath.Join(root, "gateway_state.json")
+	pidPath := filepath.Join(root, "gateway.pid")
+	store := NewRuntimeStatusStore(statusPath)
+	store.pidPath = pidPath
+	store.pid = func() int { return 4242 }
+	store.startTime = func(int) (int64, bool) { return 87654321, true }
+	store.argv = func() []string { return []string{"gormes", "gateway"} }
+
+	if err := store.UpdateRuntimeStatus(context.Background(), RuntimeStatusUpdate{GatewayState: GatewayStateStarting}); err != nil {
+		t.Fatalf("write initial status: %v", err)
+	}
+	before := readRuntimeStatusFixture(t, statusPath)
+
+	badPIDPath := filepath.Join(root, "pid-record-dir")
+	if err := os.Mkdir(badPIDPath, 0o755); err != nil {
+		t.Fatalf("mkdir bad pid path: %v", err)
+	}
+	store.pidPath = badPIDPath
+	err := store.UpdateRuntimeStatus(context.Background(), RuntimeStatusUpdate{Platform: "telegram", PlatformState: PlatformStateRunning})
+	if err == nil {
+		t.Fatal("UpdateRuntimeStatus with unwritable pid record succeeded, want error")
+	}
+	after := readRuntimeStatusFixture(t, statusPath)
+	if !reflect.DeepEqual(after, before) {
+		t.Fatalf("primary runtime status changed after pid record write failure\nbefore: %+v\nafter:  %+v", before, after)
 	}
 }
 

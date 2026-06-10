@@ -9,6 +9,35 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
+func TestEvaluateJudgeSanitizesJudgeError(t *testing.T) {
+	got := EvaluateJudge(context.Background(), JudgeFunc(func(context.Context, string, string) (string, error) {
+		return "", errors.New("judge failed\nAuthorization: Bearer sk-goal-secret\n**Injected:** yes")
+	}), "ship it", "made progress")
+	if got.Verdict != JudgeVerdictContinue {
+		t.Fatalf("verdict = %q, want continue", got.Verdict)
+	}
+	for _, forbidden := range []string{"sk-goal-secret", "Bearer sk", "\n", "**Injected:**"} {
+		if strings.Contains(got.Reason, forbidden) {
+			t.Fatalf("judge reason leaked %q in %q", forbidden, got.Reason)
+		}
+	}
+	if !strings.Contains(got.Reason, "[redacted]") {
+		t.Fatalf("judge reason = %q, want redaction marker", got.Reason)
+	}
+}
+
+func TestEvaluateJudgeAllowsNilContext(t *testing.T) {
+	got := EvaluateJudge(nil, JudgeFunc(func(ctx context.Context, goal, lastResponse string) (string, error) {
+		if ctx == nil {
+			panic("nil context")
+		}
+		return `{"done": false, "reason": "keep going"}`, nil
+	}), "ship it", "made progress")
+	if got.Verdict != JudgeVerdictContinue || got.Reason != "keep going" {
+		t.Fatalf("EvaluateJudge nil context = %+v, want continue/keep going", got)
+	}
+}
+
 func TestEvaluateJudgeFailOpen(t *testing.T) {
 	ctx := context.Background()
 	cases := []struct {

@@ -207,6 +207,76 @@ func TestRuntimeStatusPIDValidation_RedactsCommandSecrets(t *testing.T) {
 	}
 }
 
+func TestRuntimeStatusPIDValidation_ComparesSanitizedCommandIdentity(t *testing.T) {
+	root := t.TempDir()
+	statusPath := filepath.Join(root, "gateway_state.json")
+	pidPath := filepath.Join(root, "gateway.pid")
+	status := RuntimeStatus{
+		Kind:         runtimeStatusKind,
+		PID:          4242,
+		StartTime:    100,
+		Generation:   7,
+		Command:      "gormes gateway [31m --flag value",
+		Argv:         []string{"gormes", "gateway [31m", "--flag value"},
+		GatewayState: GatewayStateRunning,
+	}
+	writeRuntimeStatusFixture(t, statusPath, status)
+	writeRuntimeStatusFixture(t, pidPath, status)
+
+	store := NewRuntimeStatusStore(statusPath)
+	store.pidPath = pidPath
+	store.processes = fakeRuntimeProcessTable{
+		4242: {startTime: 100, command: "gormes gateway\x1b[31m --flag\u009bvalue"},
+	}
+
+	snapshot, err := store.ReadValidatedRuntimeStatusSnapshot(context.Background())
+	if err != nil {
+		t.Fatalf("read validated runtime status: %v", err)
+	}
+	if snapshot.Validation.Status != RuntimeProcessValidationLive || !snapshot.Validation.Live {
+		t.Fatalf("validation = %+v, want live when command identity only differs by stripped controls", snapshot.Validation)
+	}
+}
+
+func TestRuntimeStatusPIDValidation_RemovesCommandControlCharacters(t *testing.T) {
+	root := t.TempDir()
+	statusPath := filepath.Join(root, "gateway_state.json")
+	pidPath := filepath.Join(root, "gateway.pid")
+	status := RuntimeStatus{
+		Kind:         runtimeStatusKind,
+		PID:          4242,
+		StartTime:    100,
+		Generation:   7,
+		Command:      "gormes gateway\x1b[31m --flag\u009bvalue",
+		Argv:         []string{"gormes", "gateway\x1b[31m", "--flag\u009bvalue"},
+		GatewayState: GatewayStateRunning,
+	}
+	writeRuntimeStatusFixture(t, statusPath, status)
+	writeRuntimeStatusFixture(t, pidPath, status)
+
+	store := NewRuntimeStatusStore(statusPath)
+	store.pidPath = pidPath
+	store.processes = fakeRuntimeProcessTable{
+		4242: {startTime: 100, command: "gormes gateway\x1b[31m --flag\u009bvalue"},
+	}
+
+	snapshot, err := store.ReadValidatedRuntimeStatusSnapshot(context.Background())
+	if err != nil {
+		t.Fatalf("read validated runtime status: %v", err)
+	}
+	combined := snapshot.Validation.Command + "\n" + strings.Join(snapshot.Status.Argv, "\n") + "\n" + snapshot.Status.ProcessValidation.Command
+	for _, forbidden := range []string{"\x1b", "\u009b"} {
+		if strings.Contains(combined, forbidden) {
+			t.Fatalf("runtime status kept control character %q in %q", forbidden, combined)
+		}
+	}
+	for _, want := range []string{"gateway [31m", "--flag value"} {
+		if !strings.Contains(combined, want) {
+			t.Fatalf("runtime status = %q, want sanitized fragment %q", combined, want)
+		}
+	}
+}
+
 func TestRuntimeStatusPIDValidation_CleansStaleStateWithoutDroppingLastError(t *testing.T) {
 	root := t.TempDir()
 	statusPath := filepath.Join(root, "gateway_state.json")

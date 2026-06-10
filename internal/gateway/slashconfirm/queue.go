@@ -100,8 +100,7 @@ func (q *Queue) RegisterSlashConfirmation(sessionKey string, req Request) (Ticke
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.ensureLocked()
-	q.nextID++
-	ticket := Ticket{SessionKey: sessionKey, ID: q.nextID}
+	ticket := Ticket{SessionKey: sessionKey, ID: q.nextTicketIDLocked()}
 	q.pending[sessionKey] = &entry{
 		pending: Pending{
 			Ticket:    ticket,
@@ -146,6 +145,11 @@ func (q *Queue) ResolveSlashConfirmation(ctx context.Context, res Resolution) (O
 
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	if ctx != nil {
+		if err := ctx.Err(); err != nil {
+			return Outcome{}, err
+		}
+	}
 	q.ensureLocked()
 	entry := q.pending[sessionKey]
 	if entry == nil {
@@ -195,6 +199,28 @@ func (q *Queue) SlashConfirmationOutcome(ticket Ticket) (Outcome, bool) {
 		return Outcome{}, false
 	}
 	return cloneOutcome(outcome), true
+}
+
+func (q *Queue) nextTicketIDLocked() uint64 {
+	for {
+		q.nextID++
+		if q.nextID == 0 || q.ticketIDInUseLocked(q.nextID) {
+			continue
+		}
+		return q.nextID
+	}
+}
+
+func (q *Queue) ticketIDInUseLocked(id uint64) bool {
+	if _, ok := q.outcomes[id]; ok {
+		return true
+	}
+	for _, entry := range q.pending {
+		if entry != nil && entry.pending.Ticket.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 func (q *Queue) ensureLocked() {

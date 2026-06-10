@@ -318,6 +318,13 @@ func DefaultPlannedStopMarkerPath(runtimeStatusPath string) string {
 	return plannedstop.DefaultMarkerPath(runtimeStatusPath)
 }
 
+func runtimeStatusContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
 // RuntimeStatusStore persists the gateway runtime status as atomic JSON.
 type RuntimeStatusStore struct {
 	path             string
@@ -353,6 +360,7 @@ func (s *RuntimeStatusStore) UpdateRuntimeStatus(ctx context.Context, update Run
 	if s == nil || s.path == "" {
 		return nil
 	}
+	ctx = runtimeStatusContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -373,6 +381,7 @@ func (s *RuntimeStatusStore) ReadRuntimeStatus(ctx context.Context) (RuntimeStat
 	if s == nil || s.path == "" {
 		return RuntimeStatus{}, nil
 	}
+	ctx = runtimeStatusContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return RuntimeStatus{}, err
 	}
@@ -388,6 +397,7 @@ func (s *RuntimeStatusStore) ReadRuntimeStatusSnapshot(ctx context.Context) (Run
 	if s == nil || s.path == "" {
 		return RuntimeStatusSnapshot{Missing: true}, nil
 	}
+	ctx = runtimeStatusContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return RuntimeStatusSnapshot{}, err
 	}
@@ -420,6 +430,7 @@ func (s *RuntimeStatusStore) ReadRuntimeStatusSnapshot(ctx context.Context) (Run
 // state is stale, the returned status is cleaned in memory so callers do not
 // treat old running channels as live.
 func (s *RuntimeStatusStore) ReadValidatedRuntimeStatusSnapshot(ctx context.Context) (RuntimeStatusSnapshot, error) {
+	ctx = runtimeStatusContext(ctx)
 	snapshot, err := s.ReadRuntimeStatusSnapshot(ctx)
 	if err != nil {
 		return RuntimeStatusSnapshot{}, err
@@ -432,6 +443,8 @@ func (s *RuntimeStatusStore) ReadValidatedRuntimeStatusSnapshot(ctx context.Cont
 	snapshot.Validation = validation
 	snapshot.Status = applyRuntimeProcessValidation(snapshot.Status, validation, snapshot.Missing)
 	snapshot.Status = s.applyStaleCodeEvidence(snapshot.Status, validation, snapshot.Missing)
+	snapshot.Status = sanitizeRuntimeStatusCommandEvidence(snapshot.Status)
+	snapshot.Validation.Command = sanitizeRuntimeValidationCommand(snapshot.Validation.Command)
 	return snapshot, nil
 }
 
@@ -550,7 +563,7 @@ func (s *RuntimeStatusStore) validateRuntimeProcess(snapshot RuntimeStatusSnapsh
 		validation.Message = "process start time does not match runtime status"
 		return validation
 	}
-	if command != "" && process.Command != "" && process.Command != command {
+	if command != "" && process.Command != "" && sanitizeRuntimeValidationCommand(process.Command) != sanitizeRuntimeValidationCommand(command) {
 		validation.Status = RuntimeProcessValidationPIDReused
 		validation.Message = "process command does not match runtime status"
 		return validation
@@ -569,29 +582,64 @@ func (s *RuntimeStatusStore) validateRuntimeProcess(snapshot RuntimeStatusSnapsh
 	return validation
 }
 
+func sanitizeRuntimeStatusCommandEvidence(status RuntimeStatus) RuntimeStatus {
+	status.Command = sanitizeRuntimeValidationCommand(status.Command)
+	status.Argv = sanitizeRuntimeStatusArgv(status.Argv)
+	status.ProcessValidation.Command = sanitizeRuntimeValidationCommand(status.ProcessValidation.Command)
+	return status
+}
+
 func sanitizeRuntimeStatusArgv(argv []string) []string {
-	out := slices.Clone(argv)
-	for i, arg := range out {
-		out[i] = sanitizeRuntimeValidationCommandPart(arg)
+	return sanitizeRuntimeCommandParts(slices.Clone(argv))
+}
+
+func sanitizeRuntimeValidationCommand(command string) string {
+	return strings.Join(sanitizeRuntimeCommandParts(strings.Fields(command)), " ")
+}
+
+func sanitizeRuntimeCommandParts(parts []string) []string {
+	out := make([]string, 0, len(parts))
+	for i := 0; i < len(parts); i++ {
+		part := parts[i]
+		lower := strings.ToLower(part)
+		if runtimeCommandSecretField(lower) && !strings.ContainsAny(part, "=") {
+			out = append(out, "[redacted]")
+			if i+1 < len(parts) {
+				i++
+				if strings.Contains(strings.ToLower(parts[i]), "bearer") && i+1 < len(parts) {
+					i++
+				}
+			}
+			continue
+		}
+		out = append(out, sanitizeRuntimeValidationCommandPart(part))
 	}
 	return out
 }
 
-func sanitizeRuntimeValidationCommand(command string) string {
-	parts := strings.Fields(command)
-	for i, part := range parts {
-		parts[i] = sanitizeRuntimeValidationCommandPart(part)
-	}
-	return strings.Join(parts, " ")
-}
-
 func sanitizeRuntimeValidationCommandPart(part string) string {
-	part = redaction.RedactSecrets(strings.Join(strings.Fields(part), " "))
+	var b strings.Builder
+	b.Grow(len(part))
+	for _, r := range part {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			b.WriteByte(' ')
+			continue
+		}
+		b.WriteRune(r)
+	}
+	part = redaction.RedactSecrets(strings.Join(strings.Fields(b.String()), " "))
 	lower := strings.ToLower(part)
-	if strings.Contains(lower, "[redacted]") && (strings.Contains(lower, "api-key") || strings.Contains(lower, "api_key") || strings.Contains(lower, "apikey") || strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "password")) {
+	if strings.Contains(lower, "[redacted]") && runtimeCommandSecretField(lower) {
+		return "[redacted]"
+	}
+	if runtimeCommandSecretField(lower) && strings.ContainsAny(part, "=:") {
 		return "[redacted]"
 	}
 	return part
+}
+
+func runtimeCommandSecretField(value string) bool {
+	return strings.Contains(value, "api-key") || strings.Contains(value, "api_key") || strings.Contains(value, "apikey") || strings.Contains(value, "authorization") || strings.Contains(value, "bearer") || strings.Contains(value, "token") || strings.Contains(value, "secret") || strings.Contains(value, "password")
 }
 
 func runtimePIDRecordMismatch(status RuntimeStatus, pidRecord RuntimeStatus) string {
@@ -849,27 +897,47 @@ func (s *RuntimeStatusStore) writeLocked(ctx context.Context, status RuntimeStat
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	var previousPIDRecord []byte
+	var hadPreviousPIDRecord bool
+	if s.pidPath != "" {
+		if raw, err := os.ReadFile(s.pidPath); err == nil {
+			previousPIDRecord = slices.Clone(raw)
+			hadPreviousPIDRecord = true
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("read existing runtime pid record: %w", err)
+		}
+		pidRecord := RuntimeStatus{
+			Kind:              status.Kind,
+			PID:               status.PID,
+			StartTime:         status.StartTime,
+			Generation:        status.Generation,
+			BootGitSHA:        status.BootGitSHA,
+			Command:           status.Command,
+			Argv:              slices.Clone(status.Argv),
+			ProcessValidation: status.ProcessValidation,
+			UpdatedAt:         status.UpdatedAt,
+		}
+		if err := writeRuntimeStatusJSONAtomic(s.pidPath, pidRecord); err != nil {
+			return fmt.Errorf("write runtime pid record: %w", err)
+		}
+	}
 	if err := writeRuntimeStatusJSONAtomic(s.path, status); err != nil {
+		if s.pidPath != "" {
+			_ = restoreRuntimePIDRecord(s.pidPath, previousPIDRecord, hadPreviousPIDRecord)
+		}
 		return err
 	}
-	if s.pidPath == "" {
+	return nil
+}
+
+func restoreRuntimePIDRecord(path string, raw []byte, existed bool) error {
+	if !existed {
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
 		return nil
 	}
-	pidRecord := RuntimeStatus{
-		Kind:              status.Kind,
-		PID:               status.PID,
-		StartTime:         status.StartTime,
-		Generation:        status.Generation,
-		BootGitSHA:        status.BootGitSHA,
-		Command:           status.Command,
-		Argv:              slices.Clone(status.Argv),
-		ProcessValidation: status.ProcessValidation,
-		UpdatedAt:         status.UpdatedAt,
-	}
-	if err := writeRuntimeStatusJSONAtomic(s.pidPath, pidRecord); err != nil {
-		return fmt.Errorf("write runtime pid record: %w", err)
-	}
-	return nil
+	return os.WriteFile(path, raw, 0o600)
 }
 
 func writeRuntimeStatusJSONAtomic(path string, status RuntimeStatus) error {

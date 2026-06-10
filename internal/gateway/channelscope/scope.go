@@ -53,7 +53,7 @@ func NormalizeSkillBindings(raw any) []SkillBinding {
 	case nil:
 		return nil
 	case []SkillBinding:
-		return append([]SkillBinding(nil), v...)
+		return cloneSkillBindings(v)
 	case []map[string]any:
 		out := make([]SkillBinding, 0, len(v))
 		for _, item := range v {
@@ -82,6 +82,18 @@ func NormalizeSkillBindings(raw any) []SkillBinding {
 	default:
 		return nil
 	}
+}
+
+func cloneSkillBindings(bindings []SkillBinding) []SkillBinding {
+	if len(bindings) == 0 {
+		return nil
+	}
+	out := make([]SkillBinding, len(bindings))
+	for i, binding := range bindings {
+		out[i] = binding
+		out[i].Skills = append([]string(nil), binding.Skills...)
+	}
+	return out
 }
 
 func skillBindingFromMap(item map[string]any) (SkillBinding, bool) {

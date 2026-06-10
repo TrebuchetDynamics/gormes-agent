@@ -2,6 +2,17 @@ package textlimit
 
 import "testing"
 
+func TestTruncateMarkdownV2SafeRemovesDanglingEscapeWithoutTruncation(t *testing.T) {
+	got := TruncateMarkdownV2Safe(`abc\`, 4)
+	want := `abc`
+	if got != want {
+		t.Fatalf("TruncateMarkdownV2Safe() = %q, want dangling escape removed as %q", got, want)
+	}
+	if hasDanglingMarkdownEscape(got) {
+		t.Fatalf("TruncateMarkdownV2Safe() returned dangling escape: %q", got)
+	}
+}
+
 func TestTruncateMarkdownV2SafeKeepsCompleteEscapePairAtBoundary(t *testing.T) {
 	got := TruncateMarkdownV2Safe(`abc\\def`, 6)
 	want := `abc\\…`

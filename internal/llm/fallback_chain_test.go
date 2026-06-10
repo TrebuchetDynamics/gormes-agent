@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"testing"
 	"time"
 )
@@ -165,6 +166,35 @@ func TestProviderChain_RetryThenFallback(t *testing.T) {
 	}
 	if result.Attempts[2].Decision != ChainDecisionSuccess {
 		t.Fatalf("expected third decision=success, got %s", result.Attempts[2].Decision)
+	}
+}
+
+func TestProviderChain_SanitizesAttemptErrorEvidence(t *testing.T) {
+	factory := &fakeFactory{
+		clients: map[string]*fakeClient{
+			"deepseek": {err: errors.New("stream failed\nAuthorization: Bearer sk-fallback-secret\n**Injected:** yes")},
+		},
+	}
+	chain := NewProviderChain(factory)
+	chain.Order = []string{"deepseek"}
+	chain.PerAttemptTimeout = 5 * time.Second
+
+	_, result, err := chain.Dispatch(context.Background(), ChatRequest{})
+	if err == nil {
+		t.Fatal("expected dispatch error")
+	}
+	if len(result.Attempts) != 1 {
+		t.Fatalf("attempts = %d, want 1", len(result.Attempts))
+	}
+	for _, value := range []string{result.Attempts[0].ErrorMsg, result.FinalErrorMsg, err.Error()} {
+		for _, forbidden := range []string{"sk-fallback-secret", "Bearer sk", "\n", "**Injected:**"} {
+			if strings.Contains(value, forbidden) {
+				t.Fatalf("fallback evidence leaked %q in %q", forbidden, value)
+			}
+		}
+		if !strings.Contains(value, "[redacted]") {
+			t.Fatalf("fallback evidence = %q, want redaction marker", value)
+		}
 	}
 }
 

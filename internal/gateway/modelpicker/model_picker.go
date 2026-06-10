@@ -81,10 +81,20 @@ type ResolverImpl struct {
 }
 
 func NewModelPickerResolver(ov *SessionModelOverride) ModelPickerResolver {
+	if ov == nil {
+		ov = &SessionModelOverride{}
+	}
 	return &ResolverImpl{
 		pickerState: &modelPickerManager{},
 		override:    ov,
 	}
+}
+
+func (r *ResolverImpl) stateManager() *modelPickerManager {
+	if r.pickerState == nil {
+		r.pickerState = &modelPickerManager{}
+	}
+	return r.pickerState
 }
 
 func (r *ResolverImpl) PickerProviders() []string {
@@ -117,7 +127,7 @@ func (r *ResolverImpl) OpenModelPicker(ctx context.Context, req ModelPickerReque
 		list[i] = p.Label
 		slugs[i] = p.Slug
 	}
-	r.pickerState.set(req.ChatID, modelPickerState{
+	r.stateManager().set(req.ChatID, modelPickerState{
 		stage:         "provider",
 		pendingModels: slugs,
 	})
@@ -128,7 +138,7 @@ func (r *ResolverImpl) OpenModelPicker(ctx context.Context, req ModelPickerReque
 }
 
 func (r *ResolverImpl) HandleModelPickerCallback(ctx context.Context, cb ModelPickerCallback) (ModelPickerResponse, error) {
-	state := r.pickerState.get(cb.ChatID)
+	state := r.stateManager().get(cb.ChatID)
 	switch cb.Prefix {
 	case "mp":
 		return r.handleProviderSelection(cb, state)
@@ -137,7 +147,7 @@ func (r *ResolverImpl) HandleModelPickerCallback(ctx context.Context, cb ModelPi
 	case "mb":
 		return r.handleBack(cb, state)
 	case "mx":
-		r.pickerState.remove(cb.ChatID)
+		r.stateManager().remove(cb.ChatID)
 		return ModelPickerResponse{Text: "Selection cancelled.", Finished: true}, nil
 	default:
 		return ModelPickerResponse{Text: "Unknown picker action.", Finished: true}, nil
@@ -147,7 +157,7 @@ func (r *ResolverImpl) HandleModelPickerCallback(ctx context.Context, cb ModelPi
 func (r *ResolverImpl) handleProviderSelection(cb ModelPickerCallback, state modelPickerState) (ModelPickerResponse, error) {
 	slug := cb.Value
 	if state.stage != "provider" || !modelPickerValueAllowed(slug, state.pendingModels) {
-		r.pickerState.remove(cb.ChatID)
+		r.stateManager().remove(cb.ChatID)
 		return ModelPickerResponse{Text: "Invalid provider selection.", Finished: true}, nil
 	}
 	providers := llm.ListPickerProviders()
@@ -159,11 +169,11 @@ func (r *ResolverImpl) handleProviderSelection(cb ModelPickerCallback, state mod
 		}
 	}
 	if label == "" {
-		r.pickerState.remove(cb.ChatID)
+		r.stateManager().remove(cb.ChatID)
 		return ModelPickerResponse{Text: "Invalid provider selection.", Finished: true}, nil
 	}
 	models := r.PickerModels(slug)
-	r.pickerState.set(cb.ChatID, modelPickerState{
+	r.stateManager().set(cb.ChatID, modelPickerState{
 		stage:         "model",
 		messageID:     cb.MessageID,
 		pendingSlug:   slug,
@@ -175,27 +185,33 @@ func (r *ResolverImpl) handleProviderSelection(cb ModelPickerCallback, state mod
 
 func (r *ResolverImpl) handleModelSelection(cb ModelPickerCallback, state modelPickerState) (ModelPickerResponse, error) {
 	if state.stage != "model" || strings.TrimSpace(state.pendingSlug) == "" {
-		r.pickerState.remove(cb.ChatID)
+		r.stateManager().remove(cb.ChatID)
+		return ModelPickerResponse{Text: "Invalid model selection.", Finished: true}, nil
+	}
+	if state.messageID != 0 && cb.MessageID != 0 && cb.MessageID != state.messageID {
+		r.stateManager().remove(cb.ChatID)
 		return ModelPickerResponse{Text: "Invalid model selection.", Finished: true}, nil
 	}
 	modelIdx := 0
 	if cb.Value != "" {
 		n, err := parseInt(cb.Value)
 		if err != nil {
-			r.pickerState.remove(cb.ChatID)
+			r.stateManager().remove(cb.ChatID)
 			return ModelPickerResponse{Text: "Invalid model selection.", Finished: true}, nil
 		}
 		modelIdx = n
 	}
 	models := state.pendingModels
 	if modelIdx < 0 || modelIdx >= len(models) {
-		r.pickerState.remove(cb.ChatID)
+		r.stateManager().remove(cb.ChatID)
 		return ModelPickerResponse{Text: "Invalid model selection.", Finished: true}, nil
 	}
 	model := models[modelIdx]
-	r.override.Model = model
-	r.override.Provider = state.pendingSlug
-	r.pickerState.remove(cb.ChatID)
+	if r.override != nil {
+		r.override.Model = model
+		r.override.Provider = state.pendingSlug
+	}
+	r.stateManager().remove(cb.ChatID)
 	text := "⚙ *Model Configuration*\n\nModel set to `" + modelPickerCodeValue(model) + "`\nProvider: *" + modelPickerEmphasisValue(titleCase(state.pendingSlug)) + "*"
 	return ModelPickerResponse{Text: text, Model: model, Provider: state.pendingSlug, Finished: true, Changed: true}, nil
 }

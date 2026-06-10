@@ -183,6 +183,109 @@ func TestPairingStore_DegradedReadsReturnEmptyDeterministicStatus(t *testing.T) 
 	})
 }
 
+func TestPairingStore_ReadStatusHonorsCanceledContextAfterInitialCheck(t *testing.T) {
+	store := NewPairingStore(filepath.Join(t.TempDir(), "pairing.json"))
+	ctx := &cancelAfterFirstPairingErrContext{}
+	var reads int
+	store.readFile = func(string) ([]byte, error) {
+		reads++
+		return []byte(`{"kind":"gormes-gateway-pairing","version":1,"platforms":{}}`), nil
+	}
+
+	_, err := store.ReadPairingStatus(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ReadPairingStatus err = %v, want context.Canceled", err)
+	}
+	if reads != 0 {
+		t.Fatalf("readFile calls = %d, want canceled context to avoid pairing state read", reads)
+	}
+}
+
+func TestPairingStore_RecordApprovedHonorsCanceledContextAfterInitialCheck(t *testing.T) {
+	store := NewPairingStore(filepath.Join(t.TempDir(), "pairing.json"))
+	ctx := &cancelAfterFirstPairingErrContext{}
+	var reads int
+	store.readFile = func(string) ([]byte, error) {
+		reads++
+		return []byte(`{"kind":"gormes-gateway-pairing","version":1,"platforms":{}}`), nil
+	}
+
+	err := store.RecordApprovedPairing(ctx, PairingApprovedRecord{Platform: "telegram", UserID: "user-1"})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("RecordApprovedPairing err = %v, want context.Canceled", err)
+	}
+	if reads != 0 {
+		t.Fatalf("readFile calls = %d, want canceled context to avoid pairing state read", reads)
+	}
+}
+
+func TestPairingStore_RecordPendingHonorsCanceledContextAfterInitialCheck(t *testing.T) {
+	store := NewPairingStore(filepath.Join(t.TempDir(), "pairing.json"))
+	ctx := &cancelAfterFirstPairingErrContext{}
+	var reads int
+	store.readFile = func(string) ([]byte, error) {
+		reads++
+		return []byte(`{"kind":"gormes-gateway-pairing","version":1,"platforms":{}}`), nil
+	}
+
+	err := store.RecordPendingPairing(ctx, PairingPendingRecord{Platform: "telegram", Code: "ABCD1234", UserID: "user-1"})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("RecordPendingPairing err = %v, want context.Canceled", err)
+	}
+	if reads != 0 {
+		t.Fatalf("readFile calls = %d, want canceled context to avoid pairing state read", reads)
+	}
+}
+
+func TestPairingStore_ApproveHonorsCanceledContextAfterInitialCheck(t *testing.T) {
+	store := NewPairingStore(filepath.Join(t.TempDir(), "pairing.json"))
+	ctx := &cancelAfterFirstPairingErrContext{}
+	var reads int
+	store.readFile = func(string) ([]byte, error) {
+		reads++
+		return []byte(`{"kind":"gormes-gateway-pairing","version":1,"platforms":{}}`), nil
+	}
+
+	_, err := store.ApprovePairingCode(ctx, "telegram", "ABCD1234")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ApprovePairingCode err = %v, want context.Canceled", err)
+	}
+	if reads != 0 {
+		t.Fatalf("readFile calls = %d, want canceled context to avoid pairing state read", reads)
+	}
+}
+
+func TestPairingStore_GenerateHonorsCanceledContextAfterInitialCheck(t *testing.T) {
+	store := NewPairingStore(filepath.Join(t.TempDir(), "pairing.json"))
+	ctx := &cancelAfterFirstPairingErrContext{}
+	var reads int
+	store.readFile = func(string) ([]byte, error) {
+		reads++
+		return nil, os.ErrNotExist
+	}
+
+	_, err := store.GeneratePairingCode(ctx, PairingCodeRequest{Platform: "telegram", UserID: "user-1"})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("GeneratePairingCode err = %v, want context.Canceled", err)
+	}
+	if reads != 0 {
+		t.Fatalf("readFile calls = %d, want canceled context to avoid pairing state read", reads)
+	}
+}
+
+type cancelAfterFirstPairingErrContext struct{ calls int }
+
+func (c *cancelAfterFirstPairingErrContext) Deadline() (time.Time, bool) { return time.Time{}, false }
+func (c *cancelAfterFirstPairingErrContext) Done() <-chan struct{}       { return nil }
+func (c *cancelAfterFirstPairingErrContext) Value(any) any               { return nil }
+func (c *cancelAfterFirstPairingErrContext) Err() error {
+	c.calls++
+	if c.calls == 1 {
+		return nil
+	}
+	return context.Canceled
+}
+
 func TestPairingStore_AtomicWriteFailurePreservesOldState(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "pairing.json")
 	store := NewPairingStore(path)

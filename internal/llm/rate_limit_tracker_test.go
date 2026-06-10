@@ -137,6 +137,73 @@ func TestParseRateLimitHeadersRequiresRateLimitHeaders(t *testing.T) {
 	}
 }
 
+func TestFormatRateLimitClampsDirectNegativeRemaining(t *testing.T) {
+	now := time.Unix(1_700_000_000, 0)
+	state := RateLimitState{
+		CapturedAt: now,
+		Provider:   "openrouter",
+		RequestsMinute: RateLimitBucket{
+			Limit:      100,
+			Remaining:  -5,
+			ResetAfter: 30 * time.Second,
+			CapturedAt: now,
+		},
+	}
+
+	display := FormatRateLimitDisplayAt(state, now)
+	compact := FormatRateLimitCompactAt(state, now)
+	for _, rendered := range []string{display, compact} {
+		if strings.Contains(rendered, "-5") || strings.Contains(rendered, "105/100") || strings.Contains(rendered, "105.0%") {
+			t.Fatalf("rate limit rendering leaked direct negative remaining/overuse:\n%s", rendered)
+		}
+	}
+	if !strings.Contains(display, "100/100 used  (0 left") {
+		t.Fatalf("display missing clamped direct remaining:\n%s", display)
+	}
+	if !strings.Contains(compact, "RPM: 0/100") {
+		t.Fatalf("compact missing clamped direct remaining: %s", compact)
+	}
+}
+
+func TestFormatRateLimitClampsNegativeRemaining(t *testing.T) {
+	now := time.Unix(1_700_000_000, 0)
+	state, ok := ParseRateLimitHeaders(http.Header{
+		"X-RateLimit-Limit-Requests":     {"100"},
+		"X-RateLimit-Remaining-Requests": {"-5"},
+		"X-RateLimit-Reset-Requests":     {"30"},
+	}, "openrouter", now)
+	if !ok {
+		t.Fatal("ParseRateLimitHeaders returned ok=false")
+	}
+
+	display := FormatRateLimitDisplayAt(state, now)
+	compact := FormatRateLimitCompactAt(state, now)
+	for _, rendered := range []string{display, compact} {
+		if strings.Contains(rendered, "-5") || strings.Contains(rendered, "-105") || strings.Contains(rendered, "105.0%") {
+			t.Fatalf("rate limit rendering leaked negative remaining/overuse:\n%s", rendered)
+		}
+	}
+	if !strings.Contains(display, "100/100 used  (0 left") {
+		t.Fatalf("display missing clamped remaining:\n%s", display)
+	}
+	if !strings.Contains(compact, "RPM: 0/100") {
+		t.Fatalf("compact missing clamped remaining: %s", compact)
+	}
+}
+
+func TestFormatRateLimitCompactMalformedBucketsReturnsFallback(t *testing.T) {
+	state, ok := ParseRateLimitHeaders(http.Header{
+		"X-RateLimit-Limit-Requests":     {"not-a-number"},
+		"X-RateLimit-Remaining-Requests": {"also-bad"},
+	}, "openai", time.Unix(0, 0))
+	if !ok {
+		t.Fatal("ParseRateLimitHeaders returned ok=false despite x-ratelimit header presence")
+	}
+	if got := FormatRateLimitCompactAt(state, state.CapturedAt); got == "" {
+		t.Fatal("FormatRateLimitCompactAt returned empty output for malformed/no-data buckets")
+	}
+}
+
 func TestRateLimitMalformedBucketDegradesToNoDataBucket(t *testing.T) {
 	state, ok := ParseRateLimitHeaders(http.Header{
 		"X-RateLimit-Limit-Requests":     {"not-a-number"},

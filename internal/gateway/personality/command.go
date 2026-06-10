@@ -20,15 +20,26 @@ func ParseArg(text string) string {
 	if payload, ok := commandline.PayloadIfCommand(body, "personality"); ok {
 		return payload
 	}
+	if isSlashCommandLike(body) {
+		return ""
+	}
 	return body
+}
+
+func isSlashCommandLike(body string) bool {
+	return strings.HasPrefix(body, "/") || strings.HasPrefix(body, "／")
 }
 
 // TruncateDesc shortens a personality prompt description by rune count.
 func TruncateDesc(s string, max int) string {
-	if len([]rune(s)) <= max {
+	if max < 0 {
+		max = 0
+	}
+	runes := []rune(s)
+	if len(runes) <= max {
 		return s
 	}
-	return string([]rune(s)[:max]) + "…"
+	return string(runes[:max]) + "…"
 }
 
 // RenderList formats the /personality list response.
@@ -88,9 +99,30 @@ func collapseRedactedPersonalityAssignments(value string) string {
 	replacer := strings.NewReplacer(
 		"api_key=[redacted]", "[redacted]",
 		"api-key=[redacted]", "[redacted]",
+		"authorization=[redacted]", "[redacted]",
+		"bearer=[redacted]", "[redacted]",
 		"token=[redacted]", "[redacted]",
 		"secret=[redacted]", "[redacted]",
 		"password=[redacted]", "[redacted]",
 	)
-	return replacer.Replace(value)
+	fields := strings.Fields(replacer.Replace(value))
+	out := make([]string, 0, len(fields))
+	for i := 0; i < len(fields); i++ {
+		field := fields[i]
+		lower := strings.ToLower(field)
+		nextRedacted := i+1 < len(fields) && strings.Contains(strings.ToLower(fields[i+1]), "[redacted]")
+		if personalitySecretField(lower) && (strings.Contains(lower, "[redacted]") || nextRedacted) {
+			out = append(out, "[redacted]")
+			if nextRedacted {
+				i++
+			}
+			continue
+		}
+		out = append(out, field)
+	}
+	return strings.Join(out, " ")
+}
+
+func personalitySecretField(value string) bool {
+	return strings.Contains(value, "api_key") || strings.Contains(value, "api-key") || strings.Contains(value, "apikey") || strings.Contains(value, "authorization") || strings.Contains(value, "bearer") || strings.Contains(value, "token") || strings.Contains(value, "secret") || strings.Contains(value, "password")
 }

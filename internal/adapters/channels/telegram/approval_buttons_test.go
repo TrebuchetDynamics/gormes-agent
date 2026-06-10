@@ -214,6 +214,46 @@ func TestTelegramApprovalCallbackSanitizesActorNameInEdit(t *testing.T) {
 	}
 }
 
+func TestTelegramApprovalCallbackCarriesGatewayTicketID(t *testing.T) {
+	client := newMockClient()
+	resolver := &adaptertest.ApprovalRecorder{}
+	b := New(Config{
+		AllowedChatID:    42,
+		ApprovalResolver: resolver,
+	}, client, nil)
+	_, err := b.SendExecApproval(context.Background(), ApprovalPrompt{
+		ChatID:      "42",
+		Command:     "rm -rf /important",
+		SessionKey:  "telegram:42:ticket",
+		TicketID:    77,
+		Description: "dangerous deletion",
+	})
+	if err != nil {
+		t.Fatalf("SendExecApproval: %v", err)
+	}
+	msg := client.sentMessages()[0].(tgbotapi.MessageConfig)
+	markup := telegramApprovalMarkup(t, msg.ReplyMarkup)
+	data := *markup.InlineKeyboard[0][0].CallbackData
+
+	b.handleCallbackQuery(context.Background(), &tgbotapi.CallbackQuery{
+		ID:   "callback-ticket-id",
+		Data: data,
+		From: &tgbotapi.User{ID: 111, FirstName: "Norbert"},
+		Message: &tgbotapi.Message{
+			MessageID: 1000,
+			Chat:      &tgbotapi.Chat{ID: 42, Type: "private"},
+		},
+	})
+
+	resolved := resolver.Snapshot()
+	if len(resolved) != 1 {
+		t.Fatalf("resolver calls = %+v, want one", resolved)
+	}
+	if resolved[0].TicketID != 77 {
+		t.Fatalf("TicketID = %d, want 77", resolved[0].TicketID)
+	}
+}
+
 func TestTelegramApprovalCallback_ResolvesOnceAndEditsPrompt(t *testing.T) {
 	client := newMockClient()
 	resolver := &adaptertest.ApprovalRecorder{}

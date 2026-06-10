@@ -87,6 +87,12 @@ type BackgroundReviewRunner interface {
 type BackgroundReviewRunnerFunc func(context.Context, BackgroundReviewFork) ([]BackgroundReviewMessage, error)
 
 func (f BackgroundReviewRunnerFunc) RunBackgroundReview(ctx context.Context, fork BackgroundReviewFork) ([]BackgroundReviewMessage, error) {
+	if f == nil {
+		return nil, nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	return f(ctx, fork)
 }
 

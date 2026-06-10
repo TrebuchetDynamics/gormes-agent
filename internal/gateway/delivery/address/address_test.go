@@ -11,6 +11,26 @@ func TestPlatformAndIDNormalizeDeliveryAddressFields(t *testing.T) {
 	}
 }
 
+func TestChatMatchesLegacyUnthreadedColonChatKey(t *testing.T) {
+	if !ChatMatches("room:server", "room:server", "") {
+		t.Fatal("ChatMatches legacy unthreaded colon chat key = false, want true")
+	}
+	if !ChatMatches(" !room:server ", "!room:server", "") {
+		t.Fatal("ChatMatches trimmed matrix-style colon chat key = false, want true")
+	}
+}
+
+func TestChatWithThreadAvoidsUnthreadedColonChatCollision(t *testing.T) {
+	unthreadedColonChat := ChatWithThread("room:thread", "")
+	threadedPlainChat := ChatWithThread("room", "thread")
+	if unthreadedColonChat == threadedPlainChat {
+		t.Fatalf("ChatWithThread collision between unthreaded colon chat and threaded plain chat: %q", unthreadedColonChat)
+	}
+	if ChatMatches(unthreadedColonChat, "room", "thread") {
+		t.Fatalf("ChatMatches matched unthreaded colon chat as threaded plain chat: %q", unthreadedColonChat)
+	}
+}
+
 func TestChatWithThreadAvoidsColonDelimiterCollisions(t *testing.T) {
 	first := ChatWithThread("room:thread", "x")
 	second := ChatWithThread("room", "thread:x")

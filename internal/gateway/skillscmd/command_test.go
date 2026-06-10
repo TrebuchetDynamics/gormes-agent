@@ -7,7 +7,17 @@ import (
 	"strings"
 	"testing"
 	"unicode/utf8"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 )
+
+func TestSkillsCommandNeedsInstalledRootsUnderstandsCommandTokenVariants(t *testing.T) {
+	for _, body := range []string{"/skills list", "／skills list", "/skills@GormesBot inspect planner"} {
+		if !skillsCommandNeedsInstalledRoots(body) {
+			t.Fatalf("skillsCommandNeedsInstalledRoots(%q) = false, want true", body)
+		}
+	}
+}
 
 func TestHandleSkillsCommandAcceptsFullwidthSlashPrefix(t *testing.T) {
 	root := t.TempDir()
@@ -19,6 +29,15 @@ func TestHandleSkillsCommandAcceptsFullwidthSlashPrefix(t *testing.T) {
 	}
 	if strings.Contains(out, "Unknown /skills subcommand") {
 		t.Fatalf("fullwidth /skills prefix treated as unknown:\n%s", out)
+	}
+}
+
+func TestHandleSkillsCommandWithOptionsAllowsNilContext(t *testing.T) {
+	out := HandleSkillsCommandWithOptions(nil, "/skills search planner", SkillsCommandOptions{
+		HubProviders: []skills.HubRegistryProvider{skillCommandContextCheckingProvider{}},
+	})
+	if !strings.Contains(out, "Skill Hub Search") || !strings.Contains(out, "planner") {
+		t.Fatalf("nil-context skills search output missing expected content:\n%s", out)
 	}
 }
 
@@ -80,6 +99,15 @@ func TestHandleSkillsInspectBodyPreviewKeepsUTF8Boundary(t *testing.T) {
 	if strings.Contains(out, string(utf8.RuneError)+"tail") {
 		t.Fatalf("inspect output contains replacement rune from split UTF-8 body: %q", out)
 	}
+}
+
+type skillCommandContextCheckingProvider struct{}
+
+func (skillCommandContextCheckingProvider) Snapshot(ctx context.Context) ([]skills.HubSearchResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return []skills.HubSearchResult{{Name: "planner", Description: "Plan safely", InstallID: "planner", Score: 1}}, nil
 }
 
 func writeSkillCommandSkill(t *testing.T, root, rel, name, description, body string) {

@@ -85,6 +85,40 @@ func TestPromptAssembly_MissingBlockEvidence(t *testing.T) {
 	}
 }
 
+func TestPromptAssembly_SanitizesSkillsErrorEvidence(t *testing.T) {
+	tmp := t.TempDir()
+	unsafeSkillsPath := filepath.Join(tmp, "Authorization: Bearer sk-promptsecretabcdef\n**Injected:** yes")
+	if err := os.WriteFile(unsafeSkillsPath, []byte("not a dir"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result := BuildSystemPrompt(PromptAssemblyOptions{
+		IdentityOpts:     IdentityLoaderOptions{ProfileDir: tmp},
+		ContextFilesOpts: ContextFilesOptions{CWD: tmp, SkipSoul: true},
+		SkillsOpts:       SkillsPromptOptions{LocalDir: unsafeSkillsPath},
+	})
+	if len(result.Errors) == 0 {
+		t.Fatal("Errors = empty, want skills prompt failure evidence")
+	}
+	for _, value := range append(result.Errors, skillsSnapshotReasons(result.Blocks)...) {
+		for _, forbidden := range []string{"sk-promptsecretabcdef", "Bearer sk", "\n", "**Injected:**"} {
+			if strings.Contains(value, forbidden) {
+				t.Fatalf("prompt assembly evidence leaked %q in %q", forbidden, value)
+			}
+		}
+	}
+}
+
+func skillsSnapshotReasons(blocks []PromptBlockEvidence) []string {
+	var reasons []string
+	for _, block := range blocks {
+		if block.Block == "skills_snapshot" {
+			reasons = append(reasons, block.Reason)
+		}
+	}
+	return reasons
+}
+
 func TestPromptAssembly_Deterministic(t *testing.T) {
 	tmp := t.TempDir()
 	soul := filepath.Join(tmp, "SOUL.md")

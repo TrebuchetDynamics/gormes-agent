@@ -3,6 +3,7 @@ package readmodel
 import (
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/model"
 )
@@ -67,6 +68,12 @@ func (d Directory) FormatForDisplay() string {
 }
 
 func displayDirectoryText(value string) string {
+	value = strings.Map(func(r rune) rune {
+		if unicode.Is(unicode.Cf, r) {
+			return -1
+		}
+		return r
+	}, value)
 	value = strings.ReplaceAll(value, "`", "'")
 	return strings.Join(strings.Fields(value), " ")
 }

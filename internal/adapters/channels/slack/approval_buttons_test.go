@@ -246,6 +246,48 @@ func TestSlackApprovalDecisionTextSanitizesActorMarkup(t *testing.T) {
 	}
 }
 
+func TestSlackApprovalCallbackCarriesGatewayTicketID(t *testing.T) {
+	client := newApprovalBlockClient()
+	resolver := &adaptertest.ApprovalRecorder{}
+	b := New(Config{
+		AllowedChannelID: "C123",
+		ApprovalResolver: resolver,
+	}, client, newIdleSlackKernel(), nil)
+	msgTS, err := b.SendExecApproval(context.Background(), ApprovalPrompt{
+		ChannelID:   "C123",
+		ThreadTS:    "1711111111.000300",
+		Command:     "rm -rf /tmp/project",
+		SessionKey:  "slack:C123:sess-ticket",
+		TicketID:    88,
+		Description: "dangerous command",
+	})
+	if err != nil {
+		t.Fatalf("SendExecApproval: %v", err)
+	}
+
+	b.handleEvent(context.Background(), Event{
+		RequestID: "callback-ticket-1",
+		ChannelID: "C123",
+		UserID:    "U42",
+		ApprovalAction: &ApprovalAction{
+			ActionID:   "hermes_approve_once",
+			SessionKey: "slack:C123:sess-ticket",
+			MessageTS:  msgTS,
+			ChannelID:  "C123",
+			UserID:     "U42",
+			UserName:   "ada",
+		},
+	})
+
+	resolved := resolver.Snapshot()
+	if len(resolved) != 1 {
+		t.Fatalf("resolver calls = %+v, want one", resolved)
+	}
+	if resolved[0].TicketID != 88 {
+		t.Fatalf("TicketID = %d, want 88", resolved[0].TicketID)
+	}
+}
+
 func TestSlackApprovalCallback_ResolvesOnceAndUpdatesMessage(t *testing.T) {
 	client := newApprovalBlockClient()
 	resolver := &adaptertest.ApprovalRecorder{}

@@ -13,6 +13,18 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
+func TestFinalizeExpiredSessionsAllowsNilContextWhenDisabled(t *testing.T) {
+	m := NewManagerWithSubmitter(ManagerConfig{}, &fakeKernel{}, slog.Default())
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("FinalizeExpiredSessions panicked with nil context: %v", r)
+		}
+	}()
+	if err := m.FinalizeExpiredSessions(nil); err != nil {
+		t.Fatalf("FinalizeExpiredSessions nil context: %v", err)
+	}
+}
+
 func TestSessionExpiryHooks_FinalizeAndCachedAgentCleanupRunOnceAndPersistAcrossReload(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 4, 25, 18, 5, 0, 0, time.UTC)

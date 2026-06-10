@@ -166,6 +166,75 @@ func TestGatewayModelPickerRejectsMalformedModelCallbackValue(t *testing.T) {
 	}
 }
 
+func TestGatewayModelPickerZeroValueResolverDoesNotPanic(t *testing.T) {
+	resolver := &ResolverImpl{}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("zero-value ResolverImpl panicked: %v", r)
+		}
+	}()
+	if _, err := resolver.OpenModelPicker(context.Background(), ModelPickerRequest{ChatID: "test"}); err != nil {
+		t.Fatalf("OpenModelPicker: %v", err)
+	}
+	if _, err := resolver.HandleModelPickerCallback(context.Background(), ModelPickerCallback{ChatID: "test", Prefix: "mp", Value: "openrouter", MessageID: 1}); err != nil {
+		t.Fatalf("HandleModelPickerCallback(mp): %v", err)
+	}
+	resp, err := resolver.HandleModelPickerCallback(context.Background(), ModelPickerCallback{ChatID: "test", Prefix: "mm", Value: "0", MessageID: 1})
+	if err != nil {
+		t.Fatalf("HandleModelPickerCallback(mm): %v", err)
+	}
+	if !resp.Finished || !resp.Changed || resp.Model == "" || resp.Provider != "openrouter" {
+		t.Fatalf("zero-value model callback response=%+v, want successful selection response", resp)
+	}
+}
+
+func TestGatewayModelPickerNilOverrideDoesNotPanic(t *testing.T) {
+	resolver := NewModelPickerResolver(nil)
+	if _, err := resolver.OpenModelPicker(context.Background(), ModelPickerRequest{ChatID: "test"}); err != nil {
+		t.Fatalf("OpenModelPicker: %v", err)
+	}
+	if _, err := resolver.HandleModelPickerCallback(context.Background(), ModelPickerCallback{ChatID: "test", Prefix: "mp", Value: "openrouter", MessageID: 1}); err != nil {
+		t.Fatalf("HandleModelPickerCallback(mp): %v", err)
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("HandleModelPickerCallback(mm) panicked with nil override: %v", r)
+		}
+	}()
+	resp, err := resolver.HandleModelPickerCallback(context.Background(), ModelPickerCallback{ChatID: "test", Prefix: "mm", Value: "0", MessageID: 1})
+	if err != nil {
+		t.Fatalf("HandleModelPickerCallback(mm): %v", err)
+	}
+	if !resp.Finished || !resp.Changed || resp.Model == "" || resp.Provider != "openrouter" {
+		t.Fatalf("nil override model callback response=%+v, want successful selection response", resp)
+	}
+}
+
+func TestGatewayModelPickerRejectsStaleModelCallbackMessage(t *testing.T) {
+	ov := &SessionModelOverride{}
+	resolver := &ResolverImpl{pickerState: &modelPickerManager{}, override: ov}
+	resolver.pickerState.set("test", modelPickerState{
+		stage:         "model",
+		messageID:     2,
+		pendingSlug:   "openrouter",
+		pendingModels: []string{"default"},
+	})
+
+	resp, err := resolver.HandleModelPickerCallback(context.Background(), ModelPickerCallback{
+		ChatID:    "test",
+		Prefix:    "mm",
+		Value:     "0",
+		MessageID: 1,
+	})
+	if err != nil {
+		t.Fatalf("HandleModelPickerCallback(stale mm): %v", err)
+	}
+	if !resp.Finished || resp.Changed || !ov.IsZero() {
+		t.Fatalf("stale model callback response=%+v override=%+v, want finished unchanged", resp, ov)
+	}
+}
+
 func TestGatewayModelPickerModelSelectionSanitizesMarkdownCodeSpan(t *testing.T) {
 	ov := &SessionModelOverride{}
 	resolver := &ResolverImpl{pickerState: &modelPickerManager{}, override: ov}

@@ -111,6 +111,13 @@ func TokenCredentialHash(credential string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+func tokenLockContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
 // LockPath returns the lock path for platform plus credential identity.
 func (s *TokenLockStore) LockPath(platform, credential string) string {
 	return filepath.Join(s.lockDir(), sanitizeTokenLockPlatform(platform)+"-"+TokenCredentialHash(credential)+".lock")
@@ -122,6 +129,7 @@ func (s *TokenLockStore) Acquire(ctx context.Context, req TokenLockRequest) (*To
 	if s == nil {
 		s = NewTokenLockStore("")
 	}
+	ctx = tokenLockContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return nil, TokenLockEvidence{}, err
 	}
@@ -218,6 +226,7 @@ func (l *TokenScopedGatewayLock) Release(ctx context.Context) (TokenLockEvidence
 	if l == nil || l.store == nil || l.path == "" {
 		return TokenLockEvidence{}, nil
 	}
+	ctx = tokenLockContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return TokenLockEvidence{}, err
 	}
@@ -230,7 +239,7 @@ func (l *TokenScopedGatewayLock) Release(ctx context.Context) (TokenLockEvidence
 	}
 	if err != nil {
 		evidence.Status = TokenLockStatusReleaseFailed
-		evidence.Message = err.Error()
+		evidence.Message = sanitizeTokenLockMessage(err.Error())
 		return evidence, fmt.Errorf("%w: %v", ErrTokenLockReleaseFailed, err)
 	}
 	if existing.Platform != l.record.Platform ||
@@ -246,7 +255,7 @@ func (l *TokenScopedGatewayLock) Release(ctx context.Context) (TokenLockEvidence
 		evidence.Status = TokenLockStatusReleaseFailed
 		evidence.OwnerPID = existing.PID
 		evidence.OwnerStartTime = existing.StartTime
-		evidence.Message = err.Error()
+		evidence.Message = sanitizeTokenLockMessage(err.Error())
 		return evidence, fmt.Errorf("%w: %v", ErrTokenLockReleaseFailed, err)
 	}
 	return evidence, nil
@@ -276,29 +285,54 @@ func (s *TokenLockStore) currentRecord(platform, credentialHash string) tokenLoc
 }
 
 func sanitizeTokenLockArgv(argv []string) []string {
-	out := slices.Clone(argv)
-	for i, arg := range out {
-		out[i] = sanitizeTokenLockArg(arg)
-	}
-	return out
+	return sanitizeTokenLockParts(slices.Clone(argv))
 }
 
 func sanitizeTokenLockArg(arg string) string {
+	arg = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			return ' '
+		}
+		if unicode.Is(unicode.Cf, r) {
+			return -1
+		}
+		return r
+	}, arg)
 	arg = strings.Join(strings.Fields(arg), " ")
 	arg = redaction.RedactSecrets(arg)
 	lower := strings.ToLower(arg)
-	if strings.Contains(lower, "[redacted]") && (strings.Contains(lower, "api-key") || strings.Contains(lower, "api_key") || strings.Contains(lower, "apikey") || strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "password")) {
+	if strings.Contains(lower, "[redacted]") && (strings.Contains(lower, "api-key") || strings.Contains(lower, "api_key") || strings.Contains(lower, "apikey") || strings.Contains(lower, "authorization") || strings.Contains(lower, "bearer") || strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "password")) {
 		return "[redacted]"
 	}
 	return arg
 }
 
 func sanitizeTokenLockCommand(command string) string {
-	parts := strings.Fields(command)
-	for i, part := range parts {
-		parts[i] = sanitizeTokenLockArg(part)
+	return strings.Join(sanitizeTokenLockParts(strings.Fields(command)), " ")
+}
+
+func sanitizeTokenLockParts(parts []string) []string {
+	out := make([]string, 0, len(parts))
+	for i := 0; i < len(parts); i++ {
+		part := parts[i]
+		lower := strings.ToLower(part)
+		if tokenLockSplitSecretField(lower) && !strings.ContainsAny(part, "=:") {
+			out = append(out, "[redacted]")
+			if i+1 < len(parts) {
+				i++
+				if strings.Contains(strings.ToLower(parts[i]), "bearer") && i+1 < len(parts) {
+					i++
+				}
+			}
+			continue
+		}
+		out = append(out, sanitizeTokenLockArg(part))
 	}
-	return strings.Join(parts, " ")
+	return out
+}
+
+func tokenLockSplitSecretField(value string) bool {
+	return strings.Contains(value, "authorization") || strings.Contains(value, "bearer")
 }
 
 func (s *TokenLockStore) ownsRecord(record tokenLockRecord) bool {
@@ -313,6 +347,7 @@ func (s *TokenLockStore) ownsRecord(record tokenLockRecord) bool {
 }
 
 func (s *TokenLockStore) createLock(ctx context.Context, path string, record tokenLockRecord, status TokenLockStatus, validation runtimeproc.Validation) (*TokenScopedGatewayLock, TokenLockEvidence, error) {
+	ctx = tokenLockContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return nil, TokenLockEvidence{}, err
 	}
@@ -378,7 +413,7 @@ func (s *TokenLockStore) validateTokenLockOwner(record tokenLockRecord) runtimep
 			validation.Message = "process is not running"
 		default:
 			validation.Status = runtimeproc.ValidationStalePID
-			validation.Message = err.Error()
+			validation.Message = sanitizeTokenLockMessage(err.Error())
 		}
 		return validation
 	}
@@ -429,13 +464,19 @@ func (s *TokenLockStore) evidence(record tokenLockRecord, path string, status To
 		OwnerPID:          record.PID,
 		OwnerStartTime:    record.StartTime,
 		ProcessValidation: validation,
-		Message:           message,
+		Message:           sanitizeTokenLockMessage(message),
 		UpdatedAt:         s.now().UTC().Format(time.RFC3339Nano),
 	}
 	if evidence.ProcessValidation.Status == "" {
 		evidence.ProcessValidation = runtimeproc.Validation{}
 	}
 	return evidence
+}
+
+func sanitizeTokenLockMessage(message string) string {
+	msg := redaction.RedactSecrets(message)
+	msg = strings.NewReplacer("`", "'", "*", "'", "#", "＃").Replace(msg)
+	return strings.Join(strings.Fields(msg), " ")
 }
 
 func (s *TokenLockStore) remove(path string) error {
@@ -459,6 +500,9 @@ func readTokenLockRecord(path string) (tokenLockRecord, error) {
 	}
 	if !exists {
 		return tokenLockRecord{}, os.ErrNotExist
+	}
+	if record.Kind != TokenLockKind {
+		return tokenLockRecord{}, fmt.Errorf("invalid token lock kind %q", record.Kind)
 	}
 	return record, nil
 }

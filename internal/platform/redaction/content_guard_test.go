@@ -44,6 +44,29 @@ func TestRedactSecretsCoversCommonCredentialShapes(t *testing.T) {
 	}
 }
 
+func TestRedactSecretsCoversHiddenFormattingSecretLabels(t *testing.T) {
+	input := strings.Join([]string{
+		"to\u200dken=plain-secret-token",
+		"api\u2066_key=plain-api-secret",
+		"Authorization: Bea\u202erer plain-bearer-secret",
+	}, "\n")
+
+	redacted, count := RedactSecretsWithCount(input, "[REDACTED]")
+	if count < 3 {
+		t.Fatalf("redaction count = %d, want at least 3 in:\n%s", count, redacted)
+	}
+	for _, leaked := range []string{"plain-secret-token", "plain-api-secret", "plain-bearer-secret", "\u200d", "\u2066", "\u202e"} {
+		if strings.Contains(redacted, leaked) {
+			t.Fatalf("redacted text leaked %q in:\n%s", leaked, redacted)
+		}
+	}
+	for _, want := range []string{"token=[REDACTED]", "api_key=[REDACTED]", "Authorization: Bearer [REDACTED]"} {
+		if !strings.Contains(redacted, want) {
+			t.Fatalf("redacted text missing normalized redaction %q in:\n%s", want, redacted)
+		}
+	}
+}
+
 func TestRedactSecretsCoversHermesProviderTokensAndQuerySecrets(t *testing.T) {
 	input := strings.Join([]string{
 		"NPM_TOKEN=npm_abcdefghijklmnopqrstuvwxyz",

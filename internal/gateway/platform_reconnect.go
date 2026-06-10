@@ -28,6 +28,9 @@ func (f RuntimeStatusWriterFunc) UpdateRuntimeStatus(ctx context.Context, update
 	if f == nil {
 		return nil
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	return f(ctx, update)
 }
 
@@ -81,12 +84,23 @@ func NonRetryablePlatformError(err error) error {
 	return platformConnectError{err: err, retryable: false}
 }
 
+func platformLifecycleContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
 func StartPlatformLifecycle(ctx context.Context, plans []PlatformStartupPlan, opts PlatformLifecycleOptions) PlatformLifecycleResult {
+	ctx = platformLifecycleContext(ctx)
 	result := PlatformLifecycleResult{
 		Connected: map[string]Channel{},
 		Failed:    map[string]PlatformFailure{},
 	}
 	for _, plan := range plans {
+		if err := ctx.Err(); err != nil {
+			break
+		}
 		platform := normalizePlatformID(plan.Platform)
 		if platform == "" {
 			continue
@@ -118,12 +132,16 @@ func ReconnectFailedPlatforms(ctx context.Context, failures map[string]PlatformF
 	if failures == nil {
 		return
 	}
+	ctx = platformLifecycleContext(ctx)
 	if connected == nil {
 		connected = map[string]Channel{}
 	}
 	now := platformLifecycleNow(opts)
 	threshold := resolvePlatformPauseThreshold(opts)
 	for queueKey, failure := range failures {
+		if err := ctx.Err(); err != nil {
+			break
+		}
 		candidate, ok := platformReconnectCandidateFor(queueKey, failure, plans)
 		if !ok || candidate.Failure.Paused {
 			// Circuit breaker open: keep the entry queued but do not
@@ -227,6 +245,10 @@ func recordQueuedPlatformFailure(failures map[string]PlatformFailure, candidate 
 }
 
 func connectPlatformWithTimeout(ctx context.Context, plan PlatformStartupPlan) (Channel, error) {
+	ctx = platformLifecycleContext(ctx)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if plan.Connect == nil {
 		return nil, NonRetryablePlatformError(errors.New("platform connector missing"))
 	}

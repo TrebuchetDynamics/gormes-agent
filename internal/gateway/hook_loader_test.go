@@ -79,6 +79,36 @@ command:
 	assertHookLines(t, filepath.Join(outDir, "global.jsonl"), 2, `"point":"after_send"`)
 }
 
+func TestRunHookCommandAllowsNilContext(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatalf("Executable: %v", err)
+	}
+
+	root := t.TempDir()
+	outDir := filepath.Join(root, "out")
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(out): %v", err)
+	}
+	t.Setenv("GO_WANT_HOOK_HELPER_PROCESS", "1")
+	t.Setenv("GORMES_HOOK_TEST_OUT_DIR", outDir)
+
+	spec := LoadedHook{
+		Name:    "nilctx",
+		Dir:     root,
+		Command: []string{exe, "-test.run=TestHookHelperProcess", "--", "nilctx"},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("runHookCommand panicked with nil context: %v", r)
+		}
+	}()
+	if err := runHookCommand(nil, spec, HookEvent{Point: HookBeforeSend, Platform: "telegram", ChatID: "42"}); err != nil {
+		t.Fatalf("runHookCommand nil context error = %v, want nil", err)
+	}
+	assertHookLines(t, filepath.Join(outDir, "nilctx.jsonl"), 1, `"point":"before_send"`)
+}
+
 func TestLoadHookScripts_SkipsInvalidHooks(t *testing.T) {
 	exe, err := os.Executable()
 	if err != nil {

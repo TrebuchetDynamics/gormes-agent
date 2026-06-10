@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/delivery/address"
@@ -65,7 +66,7 @@ func (t Target) String() string {
 	if t.ChatID == "" {
 		return platform
 	}
-	if platform != "matrix" && platform != "simplex" && (strings.Contains(t.ChatID, ":") || strings.Contains(t.ThreadID, ":")) {
+	if targetStringNeedsLengthEncoding(platform, t.ChatID, t.ThreadID) {
 		out := platform + ":" + strconv.Itoa(len(t.ChatID)) + ":" + t.ChatID
 		if t.ThreadID != "" {
 			out += ":" + strconv.Itoa(len(t.ThreadID)) + ":" + t.ThreadID
@@ -76,6 +77,16 @@ func (t Target) String() string {
 		return platform + ":" + t.ChatID
 	}
 	return platform + ":" + t.ChatID + ":" + t.ThreadID
+}
+
+func targetStringNeedsLengthEncoding(platform, chatID, threadID string) bool {
+	if platform == "simplex" && threadID != "" {
+		return true
+	}
+	if platform == "matrix" {
+		return threadID != "" && (strings.Contains(chatID, ":") || strings.Contains(threadID, ":") || !strings.HasPrefix(threadID, "$"))
+	}
+	return platform != "simplex" && (strings.Contains(chatID, ":") || strings.Contains(threadID, ":"))
 }
 
 // ResolveHomeTarget expands a platform-only delivery target (for example
@@ -108,12 +119,16 @@ func ResolveHomeTargetWithFallback(target Target, homes HomeTargets, fallback Ho
 		return home, nil
 	}
 	if fallback.DiscoveryEnabled && address.Platform(fallback.Source.Platform) == platform && address.ID(fallback.Source.ChatID) != "" {
-		return Target{
-			Platform:   platform,
-			ChatID:     address.ID(fallback.Source.ChatID),
-			ThreadID:   address.ID(fallback.Source.ThreadID),
-			IsExplicit: true,
-		}, nil
+		chatID := address.ID(fallback.Source.ChatID)
+		threadID := address.ID(fallback.Source.ThreadID)
+		if !containsControlRune(chatID) && !containsControlRune(threadID) {
+			return Target{
+				Platform:   platform,
+				ChatID:     chatID,
+				ThreadID:   threadID,
+				IsExplicit: true,
+			}, nil
+		}
 	}
 	return target, MissingHomeError{Platform: platform}
 }
@@ -142,12 +157,12 @@ func configuredHomeTarget(platform string, homes HomeTargets) (Target, bool) {
 }
 
 func normalizeConfiguredHomeTarget(platform string, home Target) (Target, bool) {
-	if address.ID(home.ChatID) == "" {
-		return Target{}, false
-	}
 	home.Platform = address.Platform(textvalue.FirstNonEmptyTrimmed(home.Platform, platform))
 	home.ChatID = address.ID(home.ChatID)
 	home.ThreadID = address.ID(home.ThreadID)
+	if home.Platform != platform || home.ChatID == "" || containsControlRune(home.Platform) || containsControlRune(home.ChatID) || containsControlRune(home.ThreadID) {
+		return Target{}, false
+	}
 	home.IsExplicit = true
 	return home, true
 }
@@ -160,14 +175,26 @@ func ParseTarget(raw string, origin *OriginSource) (Target, error) {
 	if trimmed == "" {
 		return Target{}, errors.New("gateway: empty delivery target")
 	}
+	if containsControlRune(trimmed) {
+		return Target{}, errors.New("gateway: invalid delivery target")
+	}
 	if strings.EqualFold(trimmed, "origin") {
 		if origin == nil {
 			return Target{Platform: "local", IsOrigin: true}, nil
 		}
+		platform := address.Platform(origin.Platform)
+		chatID := address.ID(origin.ChatID)
+		threadID := address.ID(origin.ThreadID)
+		if containsControlRune(platform) || containsControlRune(chatID) || containsControlRune(threadID) {
+			return Target{}, errors.New("gateway: invalid origin delivery target")
+		}
+		if platform == "" || chatID == "" {
+			return Target{Platform: "local", IsOrigin: true}, nil
+		}
 		return Target{
-			Platform: address.Platform(origin.Platform),
-			ChatID:   address.ID(origin.ChatID),
-			ThreadID: address.ID(origin.ThreadID),
+			Platform: platform,
+			ChatID:   chatID,
+			ThreadID: threadID,
 			IsOrigin: true,
 		}, nil
 	}
@@ -179,7 +206,7 @@ func ParseTarget(raw string, origin *OriginSource) (Target, error) {
 	if target, ok, err := parseLengthEncodedTarget(parts); ok || err != nil {
 		return target, err
 	}
-	if len(parts) > 0 && address.Platform(parts[0]) == "matrix" && len(parts) >= 4 {
+	if len(parts) > 0 && address.Platform(parts[0]) == "matrix" && len(parts) >= 3 {
 		return parseMatrixColonTarget(parts)
 	}
 	if len(parts) > 0 && address.Platform(parts[0]) == "simplex" && len(parts) >= 3 && address.ID(parts[1]) == "group" {
@@ -195,7 +222,7 @@ func ParseTarget(raw string, origin *OriginSource) (Target, error) {
 	case 2:
 		platform := address.Platform(parts[0])
 		chatID := address.ID(parts[1])
-		if platform == "" || chatID == "" {
+		if platform == "" || platform == "local" || chatID == "" {
 			return Target{}, errors.New("gateway: invalid explicit delivery target")
 		}
 		return Target{Platform: platform, ChatID: chatID, IsExplicit: true}, nil
@@ -210,7 +237,7 @@ func ParseTarget(raw string, origin *OriginSource) (Target, error) {
 		}
 		chatID := address.ID(parts[1])
 		threadID := address.ID(parts[2])
-		if platform == "" || chatID == "" || threadID == "" {
+		if platform == "" || platform == "local" || chatID == "" || threadID == "" {
 			return Target{}, errors.New("gateway: invalid threaded delivery target")
 		}
 		return Target{Platform: platform, ChatID: chatID, ThreadID: threadID, IsExplicit: true}, nil
@@ -219,16 +246,45 @@ func ParseTarget(raw string, origin *OriginSource) (Target, error) {
 	}
 }
 
+func containsControlRune(value string) bool {
+	for _, r := range value {
+		if unicode.IsControl(r) || hiddenFormattingRune(r) {
+			return true
+		}
+	}
+	return false
+}
+
+func hiddenFormattingRune(r rune) bool {
+	switch {
+	case r >= 0x200b && r <= 0x200f:
+		return true
+	case r >= 0x2028 && r <= 0x202e:
+		return true
+	case r >= 0x2060 && r <= 0x2069:
+		return true
+	case r == 0xfeff || r == 0xfffc:
+		return true
+	case r >= 0xfff9 && r <= 0xfffb:
+		return true
+	default:
+		return false
+	}
+}
+
 func parseLengthEncodedTarget(parts []string) (Target, bool, error) {
 	if len(parts) < 4 {
 		return Target{}, false, nil
 	}
 	platform := address.Platform(parts[0])
-	if platform == "" {
+	if platform == "" || platform == "local" {
 		return Target{}, false, nil
 	}
-	chatLen, err := strconv.Atoi(address.ID(parts[1]))
-	if err != nil || chatLen <= 0 {
+	chatLen, lengthLooksEncoded, err := parsePositiveTargetLength(parts[1])
+	if err != nil {
+		return Target{}, true, errors.New("gateway: invalid length-encoded delivery target")
+	}
+	if !lengthLooksEncoded {
 		return Target{}, false, nil
 	}
 	rest := strings.Join(parts[2:], ":")
@@ -240,6 +296,7 @@ func parseLengthEncodedTarget(parts []string) (Target, bool, error) {
 	if !utf8.ValidString(chatID) || address.ID(chatID) == "" {
 		return Target{}, true, errors.New("gateway: invalid length-encoded delivery target")
 	}
+	chatID = address.ID(chatID)
 	if remainder == "" {
 		return Target{Platform: platform, ChatID: chatID, IsExplicit: true}, true, nil
 	}
@@ -251,11 +308,29 @@ func parseLengthEncodedTarget(parts []string) (Target, bool, error) {
 	if !ok {
 		return Target{}, true, errors.New("gateway: invalid length-encoded delivery target")
 	}
-	threadLen, err := strconv.Atoi(address.ID(threadLenText))
-	if err != nil || threadLen <= 0 || len(threadValue) != threadLen || !utf8.ValidString(threadValue) || address.ID(threadValue) == "" {
+	threadLen, lengthLooksEncoded, err := parsePositiveTargetLength(threadLenText)
+	threadID := address.ID(threadValue)
+	if err != nil || !lengthLooksEncoded || len(threadValue) != threadLen || !utf8.ValidString(threadValue) || threadID == "" {
 		return Target{}, true, errors.New("gateway: invalid length-encoded delivery target")
 	}
-	return Target{Platform: platform, ChatID: chatID, ThreadID: threadValue, IsExplicit: true}, true, nil
+	return Target{Platform: platform, ChatID: chatID, ThreadID: threadID, IsExplicit: true}, true, nil
+}
+
+func parsePositiveTargetLength(raw string) (int, bool, error) {
+	text := address.ID(raw)
+	if text == "" {
+		return 0, false, nil
+	}
+	for _, r := range text {
+		if r < '0' || r > '9' {
+			return 0, false, nil
+		}
+	}
+	length, err := strconv.Atoi(text)
+	if err != nil || length <= 0 {
+		return 0, true, err
+	}
+	return length, true, nil
 }
 
 func parseSimplexGroupTarget(parts []string) (Target, error) {

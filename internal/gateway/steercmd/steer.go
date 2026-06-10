@@ -80,7 +80,7 @@ func commandGuidance(raw string) (string, bool) {
 	}
 
 	command, rest := commandline.Split(body)
-	if commandline.Name(command) != commandName {
+	if !isSlashCommandToken(command) || commandline.Name(command) != commandName {
 		return "", false
 	}
 
@@ -89,6 +89,10 @@ func commandGuidance(raw string) (string, bool) {
 		return "", false
 	}
 	return guidance, true
+}
+
+func isSlashCommandToken(token string) bool {
+	return strings.HasPrefix(token, "/") || strings.HasPrefix(token, "／")
 }
 
 func previewLineValue(value string) string {
@@ -105,11 +109,32 @@ func collapseRedactedSecretAssignments(value string) string {
 		"api_key=[redacted]", "[redacted]",
 		"api-key=[redacted]", "[redacted]",
 		"api key=[redacted]", "[redacted]",
+		"authorization=[redacted]", "[redacted]",
+		"bearer=[redacted]", "[redacted]",
 		"token=[redacted]", "[redacted]",
 		"secret=[redacted]", "[redacted]",
 		"password=[redacted]", "[redacted]",
 	)
-	return replacer.Replace(value)
+	fields := strings.Fields(replacer.Replace(value))
+	out := make([]string, 0, len(fields))
+	for i := 0; i < len(fields); i++ {
+		field := fields[i]
+		lower := strings.ToLower(field)
+		nextRedacted := i+1 < len(fields) && strings.Contains(strings.ToLower(fields[i+1]), "[redacted]")
+		if steerSecretField(lower) && (strings.Contains(lower, "[redacted]") || nextRedacted) {
+			out = append(out, "[redacted]")
+			if nextRedacted {
+				i++
+			}
+			continue
+		}
+		out = append(out, field)
+	}
+	return strings.Join(out, " ")
+}
+
+func steerSecretField(value string) bool {
+	return strings.Contains(value, "api_key") || strings.Contains(value, "api-key") || strings.Contains(value, "apikey") || strings.Contains(value, "authorization") || strings.Contains(value, "bearer") || strings.Contains(value, "token") || strings.Contains(value, "secret") || strings.Contains(value, "password")
 }
 
 func truncateRunes(s string, limit int) string {

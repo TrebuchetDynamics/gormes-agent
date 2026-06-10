@@ -3,6 +3,7 @@ package statuscmd
 import (
 	"fmt"
 	"strings"
+	"unicode"
 )
 
 // KanbanDispatcherStatus is the minimal read model needed to render the
@@ -25,7 +26,19 @@ func renderCodeField(value string) string {
 		"*", "'",
 		"#", "＃",
 	)
-	return strings.Join(strings.Fields(replacer.Replace(value)), " ")
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range replacer.Replace(value) {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			b.WriteByte(' ')
+			continue
+		}
+		if unicode.Is(unicode.Cf, r) {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return strings.Join(strings.Fields(b.String()), " ")
 }
 
 func renderFreeText(value string) string {
@@ -54,6 +67,13 @@ func compactSecretSeparators(value string) string {
 	return b.String()
 }
 
+func nonNegativeInt(value int) int {
+	if value < 0 {
+		return 0
+	}
+	return value
+}
+
 func FormatKanbanDispatcherLines(status KanbanDispatcherStatus, esc func(string) string) []string {
 	state := renderCodeField(status.State)
 	if state == "" {
@@ -66,9 +86,9 @@ func FormatKanbanDispatcherLines(status KanbanDispatcherStatus, esc func(string)
 		lines = append(lines, "**Kanban Last Tick:** `"+lastTickAt+"`")
 	}
 	lines = append(lines,
-		fmt.Sprintf("**Kanban Spawned:** %d", status.Spawned),
-		fmt.Sprintf("**Kanban Spawn Failed:** %d", status.SpawnFailed),
-		fmt.Sprintf("**Kanban Auto Blocked:** %d", status.AutoBlocked),
+		fmt.Sprintf("**Kanban Spawned:** %d", nonNegativeInt(status.Spawned)),
+		fmt.Sprintf("**Kanban Spawn Failed:** %d", nonNegativeInt(status.SpawnFailed)),
+		fmt.Sprintf("**Kanban Auto Blocked:** %d", nonNegativeInt(status.AutoBlocked)),
 	)
 	if lastError := renderFreeText(status.LastError); lastError != "" {
 		if esc == nil {

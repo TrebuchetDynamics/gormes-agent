@@ -255,7 +255,7 @@ func (b *Bot) registerCommands() error {
 }
 
 func (b *Bot) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error {
-	if err := b.prepareStartup(ctx); err != nil {
+	if err := b.prepareStartupWithRetry(ctx); err != nil {
 		return err
 	}
 	defer b.releaseStartupTokenLock(context.Background())

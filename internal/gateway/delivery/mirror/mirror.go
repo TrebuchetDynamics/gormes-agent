@@ -38,19 +38,23 @@ func SelectDeliveryMirrorSession(candidates []session.Metadata, target DeliveryM
 	chatID := address.ID(target.ChatID)
 	threadID := address.ID(target.ThreadID)
 	userID := address.ID(target.UserID)
-	if platform == "" || chatID == "" {
+	if platform == "" || chatID == "" || containsMirrorControlRune(platform) || containsMirrorControlRune(chatID) || containsMirrorControlRune(threadID) || containsMirrorControlRune(userID) {
 		return session.Metadata{}, false
 	}
 
 	matches := make([]session.Metadata, 0, len(candidates))
 	for _, meta := range candidates {
-		if address.ID(meta.SessionID) == "" {
+		sessionID := address.ID(meta.SessionID)
+		metaSource := address.Platform(meta.Source)
+		metaChatID := address.ID(meta.ChatID)
+		metaUserID := address.ID(meta.UserID)
+		if sessionID == "" || containsMirrorControlRune(sessionID) || containsMirrorControlRune(metaSource) || containsMirrorControlRune(metaChatID) || containsMirrorControlRune(metaUserID) {
 			continue
 		}
-		if address.Platform(meta.Source) != platform {
+		if metaSource != platform {
 			continue
 		}
-		if !address.ChatMatches(meta.ChatID, chatID, threadID) {
+		if !address.ChatMatches(metaChatID, chatID, threadID) {
 			continue
 		}
 		matches = append(matches, meta)
@@ -74,6 +78,15 @@ func SelectDeliveryMirrorSession(candidates []session.Metadata, target DeliveryM
 	return normalizeSelectedMetadata(best), true
 }
 
+func containsMirrorControlRune(value string) bool {
+	for _, r := range value {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			return true
+		}
+	}
+	return false
+}
+
 func normalizeSelectedMetadata(meta session.Metadata) session.Metadata {
 	meta.SessionID = address.ID(meta.SessionID)
 	meta.Source = address.Platform(meta.Source)
@@ -83,6 +96,12 @@ func normalizeSelectedMetadata(meta session.Metadata) session.Metadata {
 }
 
 func MirrorDeliveryToSession(ctx context.Context, st store.Store, candidates []session.Metadata, target DeliveryMirrorTarget, now time.Time) (DeliveryMirrorResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return DeliveryMirrorResult{}, err
+	}
 	if st == nil {
 		return DeliveryMirrorResult{Evidence: DeliveryMirrorStoreUnavailable}, nil
 	}
@@ -90,8 +109,8 @@ func MirrorDeliveryToSession(ctx context.Context, st store.Store, candidates []s
 	if !ok {
 		return DeliveryMirrorResult{Evidence: DeliveryMirrorSessionMissing}, nil
 	}
-	content := address.ID(target.MessageText)
-	if content == "" {
+	content := target.MessageText
+	if strings.TrimSpace(content) == "" {
 		return DeliveryMirrorResult{Evidence: DeliveryMirrorSessionMissing}, nil
 	}
 	source := sanitizeMirrorSourceLabel(target.SourceLabel)
@@ -127,7 +146,16 @@ func MirrorDeliveryToSession(ctx context.Context, st store.Store, candidates []s
 func sanitizeMirrorSourceLabel(value string) string {
 	value = address.ID(value)
 	value = redaction.RedactSecrets(value)
-	fields := strings.Fields(value)
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			b.WriteByte(' ')
+			continue
+		}
+		b.WriteRune(r)
+	}
+	fields := strings.Fields(b.String())
 	for i, field := range fields {
 		lower := strings.ToLower(field)
 		if strings.Contains(lower, "[redacted]") && mirrorSecretField(lower) {

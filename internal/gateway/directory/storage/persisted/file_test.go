@@ -20,6 +20,33 @@ func TestSpecAppliesDefaultFileMetadataWhilePreservingRoot(t *testing.T) {
 	}
 }
 
+func TestFileWriteRejectsControlCharactersInFileNameAndTmpPattern(t *testing.T) {
+	root := t.TempDir()
+	for name, file := range map[string]File{
+		"file name C0":   {Root: NewRoot(root), Name: "directory\n.json", TmpPattern: ".directory-*.tmp", Label: "directory"},
+		"file name C1":   {Root: NewRoot(root), Name: "directory\u009b.json", TmpPattern: ".directory-*.tmp", Label: "directory"},
+		"tmp pattern C0": {Root: NewRoot(root), Name: "directory.json", TmpPattern: ".directory-\n*.tmp", Label: "directory"},
+		"tmp pattern C1": {Root: NewRoot(root), Name: "directory.json", TmpPattern: ".directory-\u009b*.tmp", Label: "directory"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			called := false
+			err := file.WriteAtomic(map[string]bool{"ok": true}, func(path string, raw []byte, mode os.FileMode) error {
+				called = true
+				return os.WriteFile(path, raw, mode)
+			})
+			if err == nil {
+				t.Fatal("WriteAtomic with control-character path metadata succeeded, want validation error")
+			}
+			if !strings.Contains(err.Error(), "invalid") {
+				t.Fatalf("WriteAtomic error = %v, want invalid metadata validation", err)
+			}
+			if called {
+				t.Fatal("writer was called for control-character path metadata")
+			}
+		})
+	}
+}
+
 func TestFileWriteRejectsEscapingTmpPattern(t *testing.T) {
 	root := t.TempDir()
 	called := false

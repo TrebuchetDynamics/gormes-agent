@@ -5,6 +5,14 @@ import (
 	"testing"
 )
 
+func TestParseArgRejectsMalformedSlashCommand(t *testing.T) {
+	for _, raw := range []string{"/personality@bad-name pirate", "//personality pirate", "／personality@bot.name pirate"} {
+		if got := ParseArg(raw); got != "" {
+			t.Fatalf("ParseArg(%q) = %q, want malformed slash command rejected", raw, got)
+		}
+	}
+}
+
 func TestParseArg(t *testing.T) {
 	tests := []struct {
 		name string
@@ -42,6 +50,42 @@ func TestRenderListSortsAndTruncates(t *testing.T) {
 	want := strings.Join(wantLines, "\n")
 	if got != want {
 		t.Fatalf("RenderList() =\n%s\nwant\n%s", got, want)
+	}
+}
+
+func TestRenderListClampsNegativeDescriptionLimit(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("RenderList panicked with negative description limit: %v", r)
+		}
+	}()
+	got := RenderList("", map[string]string{"pirate": "ahoy"}, -1)
+	if !strings.Contains(got, "`/personality pirate` — …") {
+		t.Fatalf("RenderList with negative desc limit =\n%s\nwant clamped ellipsis", got)
+	}
+}
+
+func TestRenderListAndUnknownRedactAuthorizationValues(t *testing.T) {
+	got := RenderList("authorization=Bearer plain-secret-token", map[string]string{
+		"auth-mode": "uses authorization=Bearer plain-secret-token",
+	}, 100)
+	for _, forbidden := range []string{"plain-secret-token", "authorization", "Bearer", "bearer"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("RenderList leaked authorization value %q in:\n%s", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "[redacted]") {
+		t.Fatalf("RenderList missing redaction marker:\n%s", got)
+	}
+
+	unknown := RenderUnknown("authorization=Bearer plain-secret-token", map[string]string{"authorization=Bearer plain-secret-token": ""})
+	for _, forbidden := range []string{"plain-secret-token", "authorization", "Bearer", "bearer"} {
+		if strings.Contains(unknown, forbidden) {
+			t.Fatalf("RenderUnknown leaked authorization value %q in %q", forbidden, unknown)
+		}
+	}
+	if !strings.Contains(unknown, "[redacted]") {
+		t.Fatalf("RenderUnknown missing redaction marker: %q", unknown)
 	}
 }
 

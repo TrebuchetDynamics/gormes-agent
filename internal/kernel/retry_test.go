@@ -45,6 +45,21 @@ func TestRetryBudget_Exhausted(t *testing.T) {
 	}
 }
 
+func TestRetryBudget_WaitAllowsNilContext(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("Wait panicked with nil context: %v", r)
+		}
+	}()
+	start := time.Now()
+	if err := Wait(nil, time.Millisecond); err != nil {
+		t.Fatalf("Wait nil context error = %v, want nil", err)
+	}
+	if d := time.Since(start); d > 100*time.Millisecond {
+		t.Fatalf("Wait nil context duration = %v, want short timer wait", d)
+	}
+}
+
 func TestRetryBudget_WaitRespectsContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

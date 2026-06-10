@@ -47,5 +47,9 @@ func ReadJSON(path string, value any) error { return codec.ReadJSON(path, value)
 // under root. The temporary file is created in root so rename stays atomic on
 // normal local filesystems.
 func WriteAtomicJSON(root, name, tmpPattern string, value any, writer Writer) error {
-	return codec.WriteAtomicJSON(root, name, tmpPattern, value, writer)
+	file := persisted.NewFile(root, name, tmpPattern, "directory json")
+	if err := file.Require(); err != nil {
+		return err
+	}
+	return codec.WriteAtomicJSON(file.Root.String(), file.Name, file.TmpPattern, value, writer)
 }

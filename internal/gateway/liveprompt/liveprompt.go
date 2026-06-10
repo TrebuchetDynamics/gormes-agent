@@ -301,7 +301,32 @@ func buildRuntimeFactsBlock(profileDir, cwd string) string {
 
 func runtimeFactPathText(value string) string {
 	value = strings.ReplaceAll(value, "`", "'")
-	return strings.Join(strings.Fields(value), " ")
+	var b strings.Builder
+	for _, r := range value {
+		if hiddenRuntimeFactFormattingRune(r) {
+			b.WriteByte(' ')
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return strings.Join(strings.Fields(b.String()), " ")
+}
+
+func hiddenRuntimeFactFormattingRune(r rune) bool {
+	switch {
+	case r >= 0x200b && r <= 0x200f:
+		return true
+	case r >= 0x2028 && r <= 0x202e:
+		return true
+	case r >= 0x2060 && r <= 0x2069:
+		return true
+	case r == 0xfeff || r == 0xfffc:
+		return true
+	case r >= 0xfff9 && r <= 0xfffb:
+		return true
+	default:
+		return false
+	}
 }
 
 func activeWorkspaceFromLiveTurnContext(profileDir, cwd string) string {

@@ -138,16 +138,16 @@ func Format(evidence Evidence) string {
 		return ""
 	}
 	parts := []string{
-		fmt.Sprintf("memory_pressure: %s", evidence.Status),
-		fmt.Sprintf("rss=%dMB", evidence.RSSMB),
-		fmt.Sprintf("warn=%dMB", evidence.WarnRSSMB),
-		fmt.Sprintf("critical=%dMB", evidence.CriticalRSSMB),
+		fmt.Sprintf("memory_pressure: %s", formatValue(string(evidence.Status))),
+		fmt.Sprintf("rss=%dMB", nonNegativeInt(evidence.RSSMB)),
+		fmt.Sprintf("warn=%dMB", nonNegativeInt(evidence.WarnRSSMB)),
+		fmt.Sprintf("critical=%dMB", nonNegativeInt(evidence.CriticalRSSMB)),
 	}
-	if evidence.UptimeSeconds > 0 {
-		parts = append(parts, fmt.Sprintf("uptime=%ds", evidence.UptimeSeconds))
+	if uptime := nonNegativeInt64(evidence.UptimeSeconds); uptime > 0 {
+		parts = append(parts, fmt.Sprintf("uptime=%ds", uptime))
 	}
-	if evidence.GoRoutines > 0 {
-		parts = append(parts, fmt.Sprintf("goroutines=%d", evidence.GoRoutines))
+	if goroutines := nonNegativeInt(evidence.GoRoutines); goroutines > 0 {
+		parts = append(parts, fmt.Sprintf("goroutines=%d", goroutines))
 	}
 	if evidence.GCCollections > 0 {
 		parts = append(parts, fmt.Sprintf("gc=%d", evidence.GCCollections))
@@ -178,4 +178,18 @@ func Format(evidence Evidence) string {
 
 func formatValue(value string) string {
 	return strings.Join(strings.Fields(value), " ")
+}
+
+func nonNegativeInt(value int) int {
+	if value < 0 {
+		return 0
+	}
+	return value
+}
+
+func nonNegativeInt64(value int64) int64 {
+	if value < 0 {
+		return 0
+	}
+	return value
 }

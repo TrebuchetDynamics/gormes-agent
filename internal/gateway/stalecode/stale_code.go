@@ -268,7 +268,7 @@ func currentGitHEADSHA(sourceRoot string) (string, error) {
 		}
 		return resolveGitRef(meta, ref)
 	}
-	if sha := normalizeGitSHA(head); sha != "" {
+	if sha := normalizeFullGitSHA(head); sha != "" {
 		return sha, nil
 	}
 	return "", fmt.Errorf("%w: unrecognized HEAD", errStaleCodeGitUnavailable)
@@ -331,7 +331,7 @@ func resolveGitRef(meta gitMetadataDir, ref string) (string, error) {
 	for _, root := range dedupeNonEmptyPaths([]string{meta.gitDir, meta.commonDir}) {
 		raw, err := os.ReadFile(filepath.Join(root, refPath))
 		if err == nil {
-			if sha := normalizeGitSHA(strings.TrimSpace(string(raw))); sha != "" {
+			if sha := normalizeFullGitSHA(strings.TrimSpace(string(raw))); sha != "" {
 				return sha, nil
 			}
 			return "", fmt.Errorf("%w: invalid loose ref", errStaleCodeGitUnavailable)
@@ -369,7 +369,10 @@ func readPackedRef(path, ref string) (string, bool, error) {
 		}
 		fields := strings.Fields(line)
 		if len(fields) >= 2 && fields[1] == ref {
-			sha := normalizeGitSHA(fields[0])
+			if len(fields) != 2 {
+				return "", false, fmt.Errorf("%w: invalid packed ref", errStaleCodeGitUnavailable)
+			}
+			sha := normalizeFullGitSHA(fields[0])
 			if sha == "" {
 				return "", false, fmt.Errorf("%w: invalid packed ref", errStaleCodeGitUnavailable)
 			}
@@ -383,15 +386,19 @@ func readPackedRef(path, ref string) (string, bool, error) {
 }
 
 func safeGitRef(ref string) bool {
-	if ref == "" || filepath.IsAbs(ref) || strings.Contains(ref, "\\") {
+	if ref == "" || filepath.IsAbs(ref) || strings.Contains(ref, "\\") || strings.Contains(ref, "..") || strings.Contains(ref, "@{") || strings.ContainsFunc(ref, isGitRefControl) {
 		return false
 	}
 	for _, part := range strings.Split(ref, "/") {
-		if part == "" || part == "." || part == ".." {
+		if part == "" || part == "." || part == ".." || strings.HasPrefix(part, ".") || strings.HasSuffix(part, ".") || strings.HasSuffix(part, ".lock") || strings.ContainsAny(part, "~^:?*[ ") {
 			return false
 		}
 	}
 	return strings.HasPrefix(ref, "refs/")
+}
+
+func isGitRefControl(r rune) bool {
+	return r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f)
 }
 
 func normalizeGitSHA(raw string) string {
@@ -405,6 +412,14 @@ func normalizeGitSHA(raw string) string {
 		}
 	}
 	return raw
+}
+
+func normalizeFullGitSHA(raw string) string {
+	sha := normalizeGitSHA(raw)
+	if len(sha) != 40 && len(sha) != 64 {
+		return ""
+	}
+	return sha
 }
 
 func gitSHAMatches(a, b string) bool {

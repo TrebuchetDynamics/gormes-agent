@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/approval/choice"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 var (
@@ -73,8 +74,7 @@ func (q *GatewayApprovalQueue) SubmitGatewayApproval(sessionKey string, req Gate
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.ensureLocked()
-	q.nextID++
-	ticket := GatewayApprovalTicket{SessionKey: sessionKey, ID: q.nextID}
+	ticket := GatewayApprovalTicket{SessionKey: sessionKey, ID: q.nextTicketIDLocked()}
 	q.queues[sessionKey] = append(q.queues[sessionKey], &gatewayApprovalEntry{
 		ticket:  ticket,
 		request: cloneGatewayApprovalRequest(req),
@@ -93,7 +93,12 @@ func (q *GatewayApprovalQueue) HasBlockingApproval(sessionKey string) bool {
 	return len(q.queues[sessionKey]) > 0
 }
 
-func (q *GatewayApprovalQueue) ResolveGatewayApproval(_ context.Context, res choice.Resolution) error {
+func (q *GatewayApprovalQueue) ResolveGatewayApproval(ctx context.Context, res choice.Resolution) error {
+	if ctx != nil {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+	}
 	sessionKey := strings.TrimSpace(res.SessionKey)
 	if sessionKey == "" {
 		return ErrGatewayApprovalEmptySession
@@ -107,6 +112,11 @@ func (q *GatewayApprovalQueue) ResolveGatewayApproval(_ context.Context, res cho
 
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	if ctx != nil {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+	}
 	q.ensureLocked()
 	queue := q.queues[sessionKey]
 	if len(queue) == 0 {
@@ -114,6 +124,9 @@ func (q *GatewayApprovalQueue) ResolveGatewayApproval(_ context.Context, res cho
 	}
 	res.SessionKey = sessionKey
 	entry := queue[0]
+	if res.TicketID != 0 && entry.ticket.ID != res.TicketID {
+		return ErrGatewayApprovalNotPending
+	}
 	queue = queue[1:]
 	if len(queue) == 0 {
 		delete(q.queues, sessionKey)
@@ -185,6 +198,30 @@ func (q *GatewayApprovalQueue) GatewayApprovalOutcome(ticket GatewayApprovalTick
 	return cloneGatewayApprovalOutcome(outcome), true
 }
 
+func (q *GatewayApprovalQueue) nextTicketIDLocked() uint64 {
+	for {
+		q.nextID++
+		if q.nextID == 0 || q.ticketIDInUseLocked(q.nextID) {
+			continue
+		}
+		return q.nextID
+	}
+}
+
+func (q *GatewayApprovalQueue) ticketIDInUseLocked(id uint64) bool {
+	if _, ok := q.outcomes[id]; ok {
+		return true
+	}
+	for _, entries := range q.queues {
+		for _, entry := range entries {
+			if entry != nil && entry.ticket.ID == id {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (q *GatewayApprovalQueue) ensureLocked() {
 	if q.queues == nil {
 		q.queues = map[string][]*gatewayApprovalEntry{}
@@ -209,12 +246,12 @@ func (q *GatewayApprovalQueue) recordOutcomeLocked(entry *gatewayApprovalEntry, 
 }
 
 func cloneGatewayApprovalRequest(req GatewayApprovalRequest) GatewayApprovalRequest {
-	req.Command = strings.TrimSpace(req.Command)
-	req.Description = strings.TrimSpace(req.Description)
-	req.PatternKey = strings.TrimSpace(req.PatternKey)
+	req.Command = sanitizeGatewayApprovalText(req.Command)
+	req.Description = sanitizeGatewayApprovalText(req.Description)
+	req.PatternKey = sanitizeGatewayApprovalText(req.PatternKey)
 	patterns := make([]string, 0, len(req.PatternKeys))
 	for _, pattern := range req.PatternKeys {
-		pattern = strings.TrimSpace(pattern)
+		pattern = sanitizeGatewayApprovalText(pattern)
 		if pattern != "" {
 			patterns = append(patterns, pattern)
 		}
@@ -224,12 +261,41 @@ func cloneGatewayApprovalRequest(req GatewayApprovalRequest) GatewayApprovalRequ
 	return req
 }
 
+func sanitizeGatewayApprovalText(value string) string {
+	value = redaction.RedactSecrets(strings.TrimSpace(value))
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			b.WriteByte(' ')
+			continue
+		}
+		b.WriteRune(r)
+	}
+	fields := strings.Fields(b.String())
+	out := make([]string, 0, len(fields))
+	for i := 0; i < len(fields); i++ {
+		field := fields[i]
+		lower := strings.ToLower(field)
+		nextRedacted := i+1 < len(fields) && strings.Contains(strings.ToLower(fields[i+1]), "[redacted]")
+		if secretLikeGatewayApprovalField(lower) && (strings.Contains(lower, "[redacted]") || nextRedacted || strings.ContainsAny(field, "=:")) {
+			out = append(out, "[redacted]")
+			if nextRedacted {
+				i++
+			}
+			continue
+		}
+		out = append(out, field)
+	}
+	return strings.Join(out, " ")
+}
+
 func cloneResolution(res choice.Resolution) choice.Resolution {
 	res.SessionKey = strings.TrimSpace(res.SessionKey)
-	res.Platform = strings.TrimSpace(res.Platform)
-	res.ChatID = strings.TrimSpace(res.ChatID)
-	res.MessageID = strings.TrimSpace(res.MessageID)
-	res.ActorID = strings.TrimSpace(res.ActorID)
+	res.Platform = sanitizeGatewayApprovalText(res.Platform)
+	res.ChatID = sanitizeGatewayApprovalText(res.ChatID)
+	res.MessageID = sanitizeGatewayApprovalText(res.MessageID)
+	res.ActorID = sanitizeGatewayApprovalText(res.ActorID)
 	res.Evidence = cloneEvidence(res.Evidence)
 	return res
 }
@@ -244,9 +310,20 @@ func cloneEvidence(input map[string]string) map[string]string {
 		if key == "" {
 			continue
 		}
-		out[key] = strings.TrimSpace(value)
+		key = sanitizeGatewayApprovalText(key)
+		value = sanitizeGatewayApprovalText(value)
+		if secretLikeGatewayApprovalField(key) {
+			key = "[redacted]"
+			value = "[redacted]"
+		}
+		out[key] = value
 	}
 	return out
+}
+
+func secretLikeGatewayApprovalField(value string) bool {
+	lower := strings.ToLower(value)
+	return strings.Contains(lower, "api_key") || strings.Contains(lower, "api-key") || strings.Contains(lower, "apikey") || strings.Contains(lower, "authorization") || strings.Contains(lower, "bearer") || strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "password")
 }
 
 func cloneGatewayApprovalOutcome(outcome GatewayApprovalOutcome) GatewayApprovalOutcome {

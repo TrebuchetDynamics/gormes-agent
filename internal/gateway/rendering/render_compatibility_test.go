@@ -269,6 +269,105 @@ func TestFormatFinalTelegramText_RendersMarkdownDocumentForTelegram(t *testing.T
 	}
 }
 
+func TestFormatFinalMarkdownDemotesPlainBroadcastMentions(t *testing.T) {
+	input := "Heads up @everyone and @here: deploy in #channel. Also @channel."
+	outputs := map[string]string{
+		"discord": FormatFinalDiscordText(input),
+		"slack":   FormatFinalSlackText(input),
+	}
+	for name, got := range outputs {
+		for _, forbidden := range []string{"@everyone", "@here", "@channel"} {
+			if strings.Contains(strings.ToLower(got), forbidden) {
+				t.Fatalf("%s output kept broadcast mention %q in:\n%s", name, forbidden, got)
+			}
+		}
+		for _, want := range []string{"everyone", "here", "channel"} {
+			if !strings.Contains(strings.ToLower(got), want) {
+				t.Fatalf("%s output lost mention label %q in:\n%s", name, want, got)
+			}
+		}
+	}
+}
+
+func TestFormatFinalMarkdownRejectsMentionBearingLinkURLs(t *testing.T) {
+	input := "See [docs](https://@everyone@example.com/path) and [ops](https://example.com/@here/run)."
+
+	for name, got := range map[string]string{
+		"telegram": FormatFinalTelegramText(input),
+		"discord":  FormatFinalDiscordText(input),
+		"slack":    FormatFinalSlackText(input),
+	} {
+		if strings.Contains(got, "@everyone") || strings.Contains(got, "@here") {
+			t.Fatalf("%s formatter leaked mention-bearing link URL in:\n%s", name, got)
+		}
+		if !strings.Contains(got, "docs") || !strings.Contains(got, "ops") {
+			t.Fatalf("%s formatter dropped safe link labels in:\n%s", name, got)
+		}
+	}
+}
+
+func TestFormatFinalMarkdownRejectsControlCharacterLinkURLs(t *testing.T) {
+	input := "See [docs](https://example.com/\x1b[31msecret)."
+
+	for name, got := range map[string]string{
+		"telegram": FormatFinalTelegramText(input),
+		"discord":  FormatFinalDiscordText(input),
+		"slack":    FormatFinalSlackText(input),
+	} {
+		if strings.Contains(got, "\x1b") || strings.Contains(got, "[31msecret") || strings.Contains(got, "https://example.com/") {
+			t.Fatalf("%s formatter leaked control-character link URL in:\n%s", name, got)
+		}
+		if !strings.Contains(got, "docs") {
+			t.Fatalf("%s formatter dropped safe link label in:\n%s", name, got)
+		}
+	}
+}
+
+func TestFormatFinalMarkdownSanitizesLinkLabelControls(t *testing.T) {
+	input := "See [safe\t@everyone](https://example.com/path)."
+
+	for name, got := range map[string]string{
+		"telegram": FormatFinalTelegramText(input),
+		"discord":  FormatFinalDiscordText(input),
+		"slack":    FormatFinalSlackText(input),
+	} {
+		if strings.Contains(got, "safe\t@everyone") || strings.Contains(got, "@everyone") {
+			t.Fatalf("%s formatter leaked control/mention-bearing link label in:\n%s", name, got)
+		}
+		if !strings.Contains(got, "safe everyone") {
+			t.Fatalf("%s formatter missing sanitized link label in:\n%s", name, got)
+		}
+	}
+}
+
+func TestFormatFinalSlackTextEscapesLinkEnvelopeFields(t *testing.T) {
+	got := FormatFinalSlackText("See [bad>label](https://example.com/a>b?x=1&y=2).")
+
+	if strings.Contains(got, "<https://example.com/a>b?x=1&y=2|bad>label>") || strings.Contains(got, "bad>label") || strings.Contains(got, "a>b") {
+		t.Fatalf("FormatFinalSlackText leaked unescaped link envelope fields:\n%s", got)
+	}
+	if !strings.Contains(got, "<https://example.com/a&gt;b?x=1&amp;y=2|bad&gt;label>") {
+		t.Fatalf("FormatFinalSlackText missing escaped link envelope:\n%s", got)
+	}
+}
+
+func TestFormatFinalMarkdownRejectsUnsafeLinkSchemes(t *testing.T) {
+	input := "See [run](javascript:alert(1)) and [file](file:///etc/passwd)."
+
+	for name, got := range map[string]string{
+		"telegram": FormatFinalTelegramText(input),
+		"discord":  FormatFinalDiscordText(input),
+		"slack":    FormatFinalSlackText(input),
+	} {
+		if strings.Contains(got, "javascript:") || strings.Contains(got, "file://") || strings.Contains(got, "<javascript:") || strings.Contains(got, "](javascript:") {
+			t.Fatalf("%s formatter leaked unsafe link scheme in:\n%s", name, got)
+		}
+		if !strings.Contains(got, "run") || !strings.Contains(got, "file") {
+			t.Fatalf("%s formatter dropped link labels in:\n%s", name, got)
+		}
+	}
+}
+
 func TestFormatFinalTelegramText_EscapesLinkURLsForMarkdownV2(t *testing.T) {
 	input := "Extracted docs from: https://docs.openclaw.ai/concepts/presence\n\n- [Typing indicators](https://docs.openclaw.ai/concepts/typing-indicators)"
 

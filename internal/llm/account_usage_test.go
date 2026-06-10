@@ -224,6 +224,35 @@ func TestAccountUsageUnsupportedMissingAndDegradedEvidence(t *testing.T) {
 		}
 	})
 
+	t.Run("request_failure_sanitizes_evidence", func(t *testing.T) {
+		client := &fakeAccountUsageHTTP{
+			responses: map[string]fakeAccountUsageResponse{
+				"https://openrouter.ai/api/v1/credits": {
+					err: errors.New("dial failed\nAuthorization: Bearer sk-account-usage-secret\n**Injected:** yes"),
+				},
+			},
+		}
+		fetcher := NewAccountUsageFetcher(client, fixedAccountUsageClock)
+		got, err := fetcher.Fetch(context.Background(), AccountUsageFetchRequest{
+			Provider: "openrouter",
+			APIKey:   "sk-openrouter-secret",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Available() || got.Unavailable == nil || got.Unavailable.Reason != AccountUsageReasonRequestFailed {
+			t.Fatalf("snapshot = %+v, want request-failed evidence", got)
+		}
+		for _, forbidden := range []string{"sk-account-usage-secret", "Bearer sk", "\n", "**Injected:**"} {
+			if strings.Contains(got.Unavailable.Message, forbidden) {
+				t.Fatalf("unavailable message leaked %q in %q", forbidden, got.Unavailable.Message)
+			}
+		}
+		if !strings.Contains(got.Unavailable.Message, "[redacted]") {
+			t.Fatalf("unavailable message = %q, want redaction marker", got.Unavailable.Message)
+		}
+	})
+
 	t.Run("malformed_json_is_degraded", func(t *testing.T) {
 		client := &fakeAccountUsageHTTP{
 			responses: map[string]fakeAccountUsageResponse{

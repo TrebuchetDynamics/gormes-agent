@@ -14,6 +14,23 @@ func TestNormalizeQueryTrimsBeforeChannelMarker(t *testing.T) {
 	}
 }
 
+func TestUpsertValidEntryRejectsControlCharacters(t *testing.T) {
+	for _, item := range []Entry{
+		{ID: "123\nforged", Name: "Ops"},
+		{ID: "123", Name: "Ops\u009bforged"},
+		{ID: "123", Name: "Ops", Type: "group\nforged"},
+		{ID: "123", Name: "Ops", Guild: "guild\nforged"},
+		{ID: "123", Name: "Ops", ChatID: "42\nforged"},
+		{ID: "123", Name: "Ops", ThreadID: "7\nforged"},
+		{ID: "123", Name: "Ops", ChatTopic: "topic\nforged"},
+	} {
+		entries, ok := UpsertValidEntry(nil, item)
+		if ok || len(entries) != 0 {
+			t.Fatalf("UpsertValidEntry(%+v) = entries %+v ok %v, want rejected", item, entries, ok)
+		}
+	}
+}
+
 func TestUpsertValidEntryNormalizesAndSkipsIncompleteEntries(t *testing.T) {
 	entries, ok := UpsertValidEntry(nil, Entry{ID: " 123 ", Name: " Ops ", Type: " group "})
 	if !ok {

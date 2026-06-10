@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
@@ -53,18 +54,21 @@ func NewClarifyResumeBroker(now func() time.Time) *ClarifyResumeBroker {
 }
 
 func (b *ClarifyResumeBroker) Await(ctx context.Context, route ClarifyResumeRoute, req tools.ClarifyRequest) (tools.ClarifyResponse, error) {
-	if b == nil || strings.TrimSpace(route.Platform) == "" || strings.TrimSpace(route.ChatID) == "" {
+	if b == nil || strings.TrimSpace(route.Platform) == "" || strings.TrimSpace(route.ChatID) == "" || unsafeClarifyRouteText(route.Platform) || unsafeClarifyRouteText(route.ChatID) {
 		return tools.ClarifyResponse{}, tools.ErrClarifyRouteMissing
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 	key := clarifyResumeKey(route.Platform, route.ChatID)
 	pending := &clarifyPending{
 		route: PendingClarifyRoute{
-			SessionID: strings.TrimSpace(route.SessionID),
-			Platform:  strings.TrimSpace(route.Platform),
-			ChatID:    strings.TrimSpace(route.ChatID),
-			MsgID:     strings.TrimSpace(route.MsgID),
-			Question:  strings.TrimSpace(req.Question),
-			Choices:   slices.Clone(req.Choices),
+			SessionID: sanitizePendingClarifyText(route.SessionID),
+			Platform:  sanitizePendingClarifyText(route.Platform),
+			ChatID:    sanitizePendingClarifyText(route.ChatID),
+			MsgID:     sanitizePendingClarifyText(route.MsgID),
+			Question:  sanitizePendingClarifyText(req.Question),
+			Choices:   sanitizePendingClarifyChoices(req.Choices),
 			CreatedAt: b.now().UTC(),
 		},
 		answer: make(chan string, 1),
@@ -127,4 +131,37 @@ func (b *ClarifyResumeBroker) clearIfCurrent(key string, pending *clarifyPending
 
 func clarifyResumeKey(platform, chatID string) string {
 	return strings.ToLower(strings.TrimSpace(platform)) + ":" + strings.TrimSpace(chatID)
+}
+
+func unsafeClarifyRouteText(value string) bool {
+	for _, r := range value {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) || unicode.Is(unicode.Cf, r) {
+			return true
+		}
+	}
+	return false
+}
+
+func sanitizePendingClarifyChoices(choices []string) []string {
+	if len(choices) == 0 {
+		return nil
+	}
+	out := make([]string, len(choices))
+	for i, choice := range choices {
+		out[i] = sanitizePendingClarifyText(choice)
+	}
+	return out
+}
+
+func sanitizePendingClarifyText(value string) string {
+	value = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			return ' '
+		}
+		if unicode.Is(unicode.Cf, r) {
+			return -1
+		}
+		return r
+	}, value)
+	return strings.Join(strings.Fields(value), " ")
 }

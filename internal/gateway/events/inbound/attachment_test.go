@@ -5,6 +5,33 @@ import (
 	"testing"
 )
 
+func TestSubmitTextRedactsSensitiveLocalAttachmentTarget(t *testing.T) {
+	got := SubmitText("inspect", "", []Attachment{{
+		Kind: "document",
+		URL:  "~/.ssh/id_rsa.txt",
+	}})
+	if strings.Contains(got, "~/.ssh/id_rsa.txt") || strings.Contains(got, ".ssh") {
+		t.Fatalf("SubmitText leaked sensitive local attachment target:\n%s", got)
+	}
+	if !strings.Contains(got, "- document: [redacted]") {
+		t.Fatalf("SubmitText missing redacted sensitive attachment target:\n%s", got)
+	}
+}
+
+func TestSubmitTextDoesNotEmitAudioTranscriptionHintForSensitiveLocalPath(t *testing.T) {
+	got := SubmitText("listen", "", []Attachment{{
+		Kind:      "audio",
+		URL:       "~/.ssh/voice.mp3",
+		MediaType: "audio/mpeg",
+	}})
+	if strings.Contains(got, "transcribe_audio audio_path") {
+		t.Fatalf("SubmitText emitted transcription hint for sensitive local path:\n%s", got)
+	}
+	if strings.Contains(got, "~/.ssh/voice.mp3") || !strings.Contains(got, "- audio: [redacted]") {
+		t.Fatalf("SubmitText did not redact regular attachment line for sensitive audio path:\n%s", got)
+	}
+}
+
 func TestSubmitTextDoesNotTreatMalformedRemoteAudioURLAsLocalPath(t *testing.T) {
 	got := SubmitText("listen", "", []Attachment{{
 		Kind:      "audio",

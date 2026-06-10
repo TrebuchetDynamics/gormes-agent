@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
@@ -21,7 +22,15 @@ type sessionMetadataLister interface {
 // into inbox to trigger recovery through the normal handleInbound path,
 // or marks the session as non-resumable when the source platform has no
 // registered channel.
+func autoResumeContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
 func (m *Manager) autoResumePendingSessions(ctx context.Context, inbox chan<- InboundEvent) {
+	ctx = autoResumeContext(ctx)
 	lister, ok := m.cfg.SessionMap.(sessionMetadataLister)
 	if !ok {
 		return
@@ -51,7 +60,7 @@ func (m *Manager) autoResumePendingSessions(ctx context.Context, inbox chan<- In
 		meta.ChatID = strings.TrimSpace(meta.ChatID)
 		meta.UserID = strings.TrimSpace(meta.UserID)
 		meta.SessionID = strings.TrimSpace(meta.SessionID)
-		if meta.SessionID == "" {
+		if meta.SessionID == "" || unsafeAutoResumeMetadataText(meta.Source) || unsafeAutoResumeMetadataText(meta.ChatID) || unsafeAutoResumeMetadataText(meta.SessionID) {
 			continue
 		}
 
@@ -95,6 +104,15 @@ func (m *Manager) autoResumePendingSessions(ctx context.Context, inbox chan<- In
 		m.log.Info("auto-resume: scheduled recovery for interrupted sessions",
 			"count", scheduled)
 	}
+}
+
+func unsafeAutoResumeMetadataText(value string) bool {
+	for _, r := range value {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) || unicode.Is(unicode.Cf, r) {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *Manager) autoResumeMarkNonResumable(ctx context.Context, meta session.Metadata, reason string) {

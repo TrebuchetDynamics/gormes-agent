@@ -10,6 +10,21 @@ type facadeLoadValueFixture struct {
 	Name string `json:"name"`
 }
 
+func TestFacadeWriteAtomicJSONRejectsEscapingName(t *testing.T) {
+	root := t.TempDir()
+	outside := filepath.Join(filepath.Dir(root), "escaped-facade.json")
+
+	err := WriteAtomicJSON(root, "../escaped-facade.json", ".facade-*.tmp", map[string]bool{"escaped": true}, nil)
+	if err == nil {
+		t.Fatal("WriteAtomicJSON with escaping name succeeded, want validation error")
+	}
+	if _, statErr := os.Stat(outside); statErr == nil {
+		t.Fatalf("WriteAtomicJSON created file outside root at %s", outside)
+	} else if !os.IsNotExist(statErr) {
+		t.Fatalf("Stat outside file: %v", statErr)
+	}
+}
+
 func TestFacadePreservesFileSpecAndLoadValueContract(t *testing.T) {
 	root := t.TempDir()
 	file := Spec{Name: "fixture.json", TmpPattern: ".fixture-*.tmp", Label: "fixture"}.Apply(File{Root: NewRoot(" " + root + " ")})
