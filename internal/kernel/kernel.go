@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -152,6 +153,15 @@ type Kernel struct {
 	render chan RenderFrame
 	events chan PlatformEvent
 
+	// subscribers are independent render mailboxes handed out by Subscribe().
+	// Unlike the single shared render channel, each gets its own copy of every
+	// frame, so multiple consumers (e.g. the gateway plus cron runs sharing one
+	// kernel) never steal frames from one another. Guarded by subMu.
+	subMu       sync.Mutex
+	subscribers map[int]chan RenderFrame
+	nextSubID   int
+	subsClosed  bool
+
 	// Atomic — shared-read, kernel-write. Monotonically increasing per process.
 	seq atomic.Uint64
 
@@ -287,6 +297,70 @@ func modelMatchesAny(model string, needles []string) bool {
 // closed when Run exits.
 func (k *Kernel) Render() <-chan RenderFrame { return k.render }
 
+// Subscribe returns an independent render stream plus a function to release it.
+// Each subscription has its own cap-RenderMailboxCap replace-latest mailbox, so
+// multiple consumers do not compete on a single channel (which would let one
+// steal frames meant for another). Call the returned func to unsubscribe; all
+// subscriptions are also closed when Run exits. Safe to call from any goroutine.
+func (k *Kernel) Subscribe() (<-chan RenderFrame, func()) {
+	ch := make(chan RenderFrame, RenderMailboxCap)
+	k.subMu.Lock()
+	if k.subsClosed {
+		k.subMu.Unlock()
+		close(ch)
+		return ch, func() {}
+	}
+	if k.subscribers == nil {
+		k.subscribers = make(map[int]chan RenderFrame)
+	}
+	id := k.nextSubID
+	k.nextSubID++
+	k.subscribers[id] = ch
+	k.subMu.Unlock()
+
+	var once sync.Once
+	return ch, func() {
+		once.Do(func() {
+			k.subMu.Lock()
+			if c, ok := k.subscribers[id]; ok {
+				delete(k.subscribers, id)
+				close(c)
+			}
+			k.subMu.Unlock()
+		})
+	}
+}
+
+// closeSubscribers closes every live subscription and blocks future ones from
+// receiving. Called once on Run exit.
+func (k *Kernel) closeSubscribers() {
+	k.subMu.Lock()
+	k.subsClosed = true
+	for id, ch := range k.subscribers {
+		close(ch)
+		delete(k.subscribers, id)
+	}
+	k.subMu.Unlock()
+}
+
+// fanOutFrame delivers frame to every subscription with the same replace-latest
+// (drain-then-send) semantics as the shared render channel. Holds subMu so a
+// concurrent unsubscribe cannot close a channel mid-send.
+func (k *Kernel) fanOutFrame(frame RenderFrame) {
+	k.subMu.Lock()
+	for _, ch := range k.subscribers {
+		select {
+		case <-ch:
+		default:
+		}
+		select {
+		case ch <- frame:
+		default:
+		}
+	}
+	k.subMu.Unlock()
+}
+
 // Submit enqueues a platform event. Returns ErrEventMailboxFull if the
 // mailbox is saturated; the caller decides whether to retry or drop.
 // Safe to call from any goroutine.
@@ -378,6 +452,7 @@ func (k *Kernel) ResumeSession(sessionID string, history []llm.Message) error {
 // render channel on exit.
 func (k *Kernel) Run(ctx context.Context) error {
 	defer close(k.render)
+	defer k.closeSubscribers()
 	k.emitFrame("idle")
 	for {
 		select {
@@ -1471,6 +1546,8 @@ func (k *Kernel) emitFrame(status string) {
 	default:
 		// Should be unreachable after the drain above.
 	}
+	// Deliver the same frame to every independent subscription.
+	k.fanOutFrame(frame)
 }
 
 // residentModel is the kernel's between-turns model: the resident in-session

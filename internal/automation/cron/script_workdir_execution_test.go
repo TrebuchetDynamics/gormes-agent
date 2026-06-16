@@ -158,7 +158,9 @@ func (k *envCapturingKernel) Submit(e kernel.PlatformEvent) error {
 	return nil
 }
 
-func (k *envCapturingKernel) Render() <-chan kernel.RenderFrame { return k.render }
+func (k *envCapturingKernel) Subscribe() (<-chan kernel.RenderFrame, func()) {
+	return k.render, func() {}
+}
 
 type RunnerFunc func(context.Context, Job)
 

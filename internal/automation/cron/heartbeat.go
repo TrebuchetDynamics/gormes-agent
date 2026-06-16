@@ -98,7 +98,7 @@ func boundContextFromOutput(output string) string {
 	if len(output) <= maxContextFromOutputChars {
 		return output
 	}
-	return output[:maxContextFromOutputChars] + contextFromTruncated
+	return cutBytesAtRuneBoundary(output, maxContextFromOutputChars) + contextFromTruncated
 }
 
 func validContextFromJobID(id string) bool {

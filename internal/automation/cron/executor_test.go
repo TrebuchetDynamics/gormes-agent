@@ -56,15 +56,15 @@ func (fk *fakeKernel) Submit(e kernel.PlatformEvent) error {
 	return nil
 }
 
-func (fk *fakeKernel) Render() <-chan kernel.RenderFrame { return fk.render }
+func (fk *fakeKernel) Subscribe() (<-chan kernel.RenderFrame, func()) { return fk.render, func() {} }
 
 type erroringKernel struct{ err error }
 
 func (e *erroringKernel) Submit(_ kernel.PlatformEvent) error { return e.err }
-func (e *erroringKernel) Render() <-chan kernel.RenderFrame {
+func (e *erroringKernel) Subscribe() (<-chan kernel.RenderFrame, func()) {
 	ch := make(chan kernel.RenderFrame)
 	close(ch)
-	return ch
+	return ch, func() {}
 }
 
 func newTestExecutorEnv(t *testing.T, fk KernelAPI) (*Executor, *atomic.Value, func()) {
