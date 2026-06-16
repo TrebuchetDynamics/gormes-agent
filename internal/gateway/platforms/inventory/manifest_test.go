@@ -217,6 +217,28 @@ func yamlScalarValue(data []byte, key string) string {
 	return ""
 }
 
+func TestOperatorPlatformManifestIncludesGormesOwnedNavivox(t *testing.T) {
+	byID := make(map[string]PlatformManifestEntry)
+	for _, entry := range OperatorPlatformManifest() {
+		byID[entry.ID] = entry
+	}
+	navivox, ok := byID["navivox"]
+	if !ok {
+		t.Fatalf("OperatorPlatformManifest missing navivox; have %v", sortedKeys(byID))
+	}
+	if navivox.Status != PlatformStatusOwned || navivox.HermesSource != "gormes-owned:internal/adapters/channels/navivox" {
+		t.Fatalf("navivox operator manifest entry = %+v, want gormes-owned source/status", navivox)
+	}
+
+	hermes := make(map[string]bool)
+	for _, entry := range HermesGatewayPlatformManifest() {
+		hermes[entry.ID] = true
+	}
+	if hermes["navivox"] {
+		t.Fatal("HermesGatewayPlatformManifest should not include Gormes-owned navivox")
+	}
+}
+
 func TestHermesGatewayPlatformManifestReturnsCopy(t *testing.T) {
 	first := HermesGatewayPlatformManifest()
 	second := HermesGatewayPlatformManifest()

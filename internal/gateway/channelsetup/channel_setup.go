@@ -91,6 +91,10 @@ func BuildChannelSetupPlan(cfg config.Config) ChannelSetupPlan {
 	return BuildChannelSetupPlanWithOptions(cfg, ChannelSetupPlanOptions{})
 }
 
+func ProfileSetupChannelIDs() []string {
+	return []string{"telegram", "whatsapp", "discord", "slack", "navivox"}
+}
+
 // BuildChannelSetupPlanWithOptions builds setup guidance from config plus
 // caller-supplied read-model evidence such as gateway pairing status.
 func BuildChannelSetupPlanWithOptions(cfg config.Config, opts ChannelSetupPlanOptions) ChannelSetupPlan {

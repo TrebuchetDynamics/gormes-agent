@@ -47,3 +47,15 @@ type PlatformManifestEntry = gatewayplatforms.PlatformManifestEntry
 func HermesGatewayPlatformManifest() []PlatformManifestEntry {
 	return gatewayplatforms.HermesGatewayPlatformManifest()
 }
+
+// GormesOwnedPlatformManifest returns first-party Gormes operator channels
+// that are intentionally outside Hermes' upstream platform inventory.
+func GormesOwnedPlatformManifest() []PlatformManifestEntry {
+	return gatewayplatforms.GormesOwnedPlatformManifest()
+}
+
+// OperatorPlatformManifest combines Hermes parity rows with Gormes-owned
+// operator channels for user-facing capability/status reports.
+func OperatorPlatformManifest() []PlatformManifestEntry {
+	return gatewayplatforms.OperatorPlatformManifest()
+}

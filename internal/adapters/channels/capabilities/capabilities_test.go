@@ -49,6 +49,36 @@ func TestCapabilitiesDeriveSupportFromGatewayManifest(t *testing.T) {
 	}
 }
 
+func TestCapabilitiesIncludeGormesOwnedNavivoxChannel(t *testing.T) {
+	reports, err := BuildCapabilityReports(CapabilityOptions{
+		Configured: map[string]string{"navivox": "bind=127.0.0.1:8765 exposure=local"},
+		Channel:    "navivox",
+	})
+	if err != nil {
+		t.Fatalf("BuildCapabilityReports(navivox): %v", err)
+	}
+	if len(reports) != 1 {
+		t.Fatalf("reports = %d, want 1", len(reports))
+	}
+	got := reports[0]
+	if got.Channel != "navivox" || got.DisplayName != "Navivox" || got.Implementation != string(gateway.PlatformStatusOwned) {
+		t.Fatalf("navivox identity = channel %q display %q implementation %q, want owned Navivox", got.Channel, got.DisplayName, got.Implementation)
+	}
+	if !got.Configured || got.ConfigDetail != "bind=127.0.0.1:8765 exposure=local" {
+		t.Fatalf("configured = %t detail=%q, want configured Navivox detail", got.Configured, got.ConfigDetail)
+	}
+	for _, want := range []string{"receive", "send", "media", "tools"} {
+		if !adaptertest.ContainsString(got.Intents, want) {
+			t.Fatalf("navivox intents = %#v, missing %q", got.Intents, want)
+		}
+	}
+	for _, want := range []string{"channel:navivox", "kind:channel", "credentials:required"} {
+		if !adaptertest.ContainsString(got.Scopes, want) {
+			t.Fatalf("navivox scopes = %#v, missing %q", got.Scopes, want)
+		}
+	}
+}
+
 func TestCapabilitiesListAllManifestChannelsWithUnconfiguredEvidence(t *testing.T) {
 	reports, err := BuildCapabilityReports(CapabilityOptions{
 		Configured: map[string]string{"slack": "allowed_channel_id=C123"},

@@ -1,12 +1,37 @@
 package channelsetup
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/profilechanneltest"
 )
+
+func TestProfileSetupChannelIDsAreStableAndPlanned(t *testing.T) {
+	ids := ProfileSetupChannelIDs()
+	want := []string{"telegram", "whatsapp", "discord", "slack", "navivox"}
+	if !reflect.DeepEqual(ids, want) {
+		t.Fatalf("ProfileSetupChannelIDs() = %#v, want %#v", ids, want)
+	}
+
+	ids[0] = "mutated"
+	if got := ProfileSetupChannelIDs()[0]; got != "telegram" {
+		t.Fatalf("ProfileSetupChannelIDs returned mutable shared state, first id = %q", got)
+	}
+
+	plan := BuildChannelSetupPlan(config.Config{})
+	planned := map[string]bool{}
+	for _, entry := range plan.Channels {
+		planned[entry.ID] = true
+	}
+	for _, id := range want {
+		if !planned[id] {
+			t.Fatalf("ProfileSetupChannelIDs includes %q but channel setup plan does not", id)
+		}
+	}
+}
 
 func TestChannelSetupTelegramStatusAndRedaction(t *testing.T) {
 	const token = "123456:secret-token-that-must-not-leak"

@@ -186,8 +186,9 @@ func renderChannelSetupGuidance(cmd *cobra.Command, rawChannel string) error {
 		fmt.Fprintln(out, "  Profile scope: profiles.<id>.channels.navivox")
 		fmt.Fprintln(out, "  gormes setup navivox")
 		fmt.Fprintln(out, "  gormes setup --quick --target navivox")
+		fmt.Fprintln(out, "  gormes setup gateway --plan")
 		fmt.Fprintln(out, "  gormes navivox pair")
-		fmt.Fprintln(out, "  gormes channels")
+		fmt.Fprintln(out, "  gormes channels navivox")
 		return nil
 	}
 	reports, err := channelcaps.BuildCapabilityReports(channelcaps.CapabilityOptions{Channel: channel})

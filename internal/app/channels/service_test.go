@@ -41,6 +41,11 @@ func TestConfiguredCapabilityDetailsRedactsAndSummarizes(t *testing.T) {
 	cfg.Teams.Port = 5001
 	cfg.Teams.AllowedUsers = []string{"aad-1", "aad-2"}
 	cfg.Teams.AllowAllUsers = true
+	cfg.Navivox.Enabled = true
+	cfg.Navivox.BindHost = "127.0.0.1"
+	cfg.Navivox.Port = 8765
+	cfg.Navivox.ExposureMode = config.NavivoxExposureLocal
+	cfg.Navivox.AuthMode = config.NavivoxAuthPairingToken
 
 	details := ConfiguredCapabilityDetails(cfg, func(key string) string {
 		if key == "WHATSAPP_ENABLED" {
@@ -57,6 +62,7 @@ func TestConfiguredCapabilityDetailsRedactsAndSummarizes(t *testing.T) {
 		"slack":    "allowed_channel_id=C123",
 		"whatsapp": "mode=bot",
 		"teams":    "configured port=5001 allowed_users=2 allow_all_users=true",
+		"navivox":  "bind=127.0.0.1:8765 exposure=local auth=pairing_token",
 	}
 	for key, want := range wants {
 		if got := details[key]; got != want {

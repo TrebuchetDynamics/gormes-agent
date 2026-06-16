@@ -98,3 +98,31 @@ func HermesGatewayPlatformManifest() []PlatformManifestEntry {
 	}
 	return append([]PlatformManifestEntry(nil), manifest...)
 }
+
+// GormesOwnedPlatformManifest returns source-backed first-party channels that
+// are intentionally outside Hermes' upstream Platform enum. These entries feed
+// operator capability/status surfaces without weakening the Hermes parity
+// manifest tests above.
+func GormesOwnedPlatformManifest() []PlatformManifestEntry {
+	manifest := []PlatformManifestEntry{
+		{ID: "navivox", DisplayName: "Navivox", Kind: PlatformKindChannel, Status: PlatformStatusOwned, HermesSource: "gormes-owned:internal/adapters/channels/navivox", GormesSurface: "internal/adapters/channels/navivox + cmd/gormes gateway", RequiresLiveCredentials: true, Inbound: PlatformSurfaceOwned, Outbound: PlatformSurfaceOwned, Media: PlatformSurfacePartial, Commands: PlatformSurfacePartial, Toolset: PlatformSurfaceOwned, Config: PlatformSurfaceImplemented, Pairing: PlatformSurfacePartial, Delivery: PlatformSurfaceOwned, BacklogOwner: "Navivox first-party channel", Notes: "Gormes-owned HTTP/WebSocket channel for the Flutter Navivox app; not an upstream Hermes platform."},
+	}
+	return append([]PlatformManifestEntry(nil), manifest...)
+}
+
+// OperatorPlatformManifest combines upstream Hermes platform parity rows with
+// Gormes-owned operator channels for capability/status reporting.
+func OperatorPlatformManifest() []PlatformManifestEntry {
+	manifest := HermesGatewayPlatformManifest()
+	seen := map[string]struct{}{}
+	for _, entry := range manifest {
+		seen[entry.ID] = struct{}{}
+	}
+	for _, entry := range GormesOwnedPlatformManifest() {
+		if _, ok := seen[entry.ID]; ok {
+			continue
+		}
+		manifest = append(manifest, entry)
+	}
+	return append([]PlatformManifestEntry(nil), manifest...)
+}
