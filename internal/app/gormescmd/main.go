@@ -1997,5 +1997,9 @@ func sqlOpenGonchoRaw(path string) (*sql.DB, error) {
 			return nil, err
 		}
 	}
+	// Pin the pool to one connection so the per-connection busy_timeout above is
+	// honored; otherwise database/sql may open extra connections with
+	// busy_timeout=0 that fail concurrent writes immediately with SQLITE_BUSY.
+	db.SetMaxOpenConns(1)
 	return db, nil
 }

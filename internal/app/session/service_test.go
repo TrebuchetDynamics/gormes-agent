@@ -1,6 +1,25 @@
 package session
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
+
+func TestSQLOpenGonchoPinsSingleConnectionForBusyTimeout(t *testing.T) {
+	// PRAGMA busy_timeout is per-connection. The pool must be pinned to one
+	// connection so the 5s busy_timeout set at open time is actually honored;
+	// otherwise database/sql may open extra connections with busy_timeout=0 and
+	// concurrent writes fail immediately with SQLITE_BUSY instead of waiting.
+	path := filepath.Join(t.TempDir(), "sessions.db")
+	db, err := sqlOpenGoncho(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if max := db.Stats().MaxOpenConnections; max != 1 {
+		t.Fatalf("MaxOpenConnections = %d, want 1 so per-connection busy_timeout is honored", max)
+	}
+}
 
 func TestCoalesceSessionNameArgsMultiWordNames(t *testing.T) {
 	got := CoalesceSessionNameArgs([]string{"-c", "my", "project", "sessions", "list"})
