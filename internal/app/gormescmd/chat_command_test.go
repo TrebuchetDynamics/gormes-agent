@@ -35,16 +35,22 @@ func TestChatWelcomeStartupSeedUsesRealVersionAndToolCount(t *testing.T) {
 	}
 
 	reg := tools.NewRegistry()
-	reg.MustRegister(&tools.MockTool{
-		NameStr: "terminal",
-		ExecuteFn: func(context.Context, json.RawMessage) (json.RawMessage, error) {
-			return json.RawMessage(`{}`), nil
-		},
-	})
-	if _, n2, toolsets2 := welcomeStartupSeed(reg); n2 != 1 {
+	for _, name := range []string{"terminal", "browser_click", "browser_dialog", "computer_use", "discord", "himalaya"} {
+		reg.MustRegister(&tools.MockTool{
+			NameStr: name,
+			ExecuteFn: func(context.Context, json.RawMessage) (json.RawMessage, error) {
+				return json.RawMessage(`{}`), nil
+			},
+		})
+	}
+	if _, n2, toolsets2 := welcomeStartupSeed(reg); n2 != 6 {
 		t.Fatalf("one-tool registry count = %d, want 1", n2)
-	} else if !slices.Contains(toolsets2, "terminal") {
-		t.Fatalf("one-tool registry toolsets = %v, want terminal", toolsets2)
+	} else {
+		for _, want := range []string{"terminal", "browser", "browser-cdp", "computer_use", "discord", "email"} {
+			if !slices.Contains(toolsets2, want) {
+				t.Fatalf("registry toolsets = %v, want %s", toolsets2, want)
+			}
+		}
 	}
 }
 

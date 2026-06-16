@@ -5,6 +5,8 @@ import (
 	"os"
 	"runtime/debug"
 	"strings"
+	"time"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/lipgloss"
@@ -39,8 +41,11 @@ func (m Model) View() string {
 	}
 
 	editor := m.editor
-	editorHeight := promptHeightForValue(editor.Value())
-	editor.SetHeight(editorHeight)
+	editorW := m.width
+	if editorW < 10 {
+		editorW = 10
+	}
+	editorHeight := promptHeightForValue(editor.Value(), editorW)
 	if editorHeight < 1 {
 		editorHeight = 1
 	}
@@ -48,16 +53,34 @@ func (m Model) View() string {
 	if !showComposerInputChrome(m.width, m.height) {
 		composerChromeWidth = 0
 	}
-	editorBlockH := editorHeight + composerInputChromeExtraRows(composerChromeWidth)
+	composerExtraRows := composerInputChromeExtraRows(composerChromeWidth)
 	hint := m.renderHermesHint()
 	hintOverhead := 0
 	if hint != "" {
 		hintOverhead = 1
 	}
-	chromeOverhead := 1 // status rule
+	statusBarMode := normalizeStatusBarMode(m.statusBarMode)
+	chromeOverhead := 2 // continuous input rules above and below the prompt
+	if statusBarMode != StatusBarModeOff {
+		chromeOverhead++
+	}
+	// The composer grows with the draft (Hermes parity), but it must never
+	// consume so much height that the conversation, chrome, and status bar are
+	// pushed off-screen. Cap it to leave room for chrome plus a minimum
+	// conversation viewport; taller drafts scroll inside the textarea.
+	const minConversationHeight = 3
+	maxEditorHeight := m.height - chromeOverhead - hintOverhead - minConversationHeight - composerExtraRows
+	if maxEditorHeight < 1 {
+		maxEditorHeight = 1
+	}
+	if editorHeight > maxEditorHeight {
+		editorHeight = maxEditorHeight
+	}
+	editor.SetHeight(editorHeight)
+	editorBlockH := editorHeight + composerExtraRows
 	convH := m.height - editorBlockH - chromeOverhead - hintOverhead
-	if convH < 3 {
-		convH = 3
+	if convH < minConversationHeight {
+		convH = minConversationHeight
 	}
 
 	convW := m.width
@@ -67,10 +90,6 @@ func (m Model) View() string {
 
 	conv := m.conversationViewportTailWithSkinAndDetails(convW, convH)
 
-	editorW := m.width
-	if editorW < 10 {
-		editorW = 10
-	}
 	editor.SetWidth(editorW)
 	prompt := RenderComposerInputChrome(ComposerInputChrome{
 		Width:     composerChromeWidth,
@@ -82,7 +101,6 @@ func (m Model) View() string {
 	})
 
 	statusBar := ""
-	statusBarMode := normalizeStatusBarMode(m.statusBarMode)
 	if statusBarMode != StatusBarModeOff {
 		statusBar = RenderHermesStatusBarWithSkin(m.hermesStatusModelFromFrame(), m.width, m.currentSkin())
 		if footer, ok := m.renderExtensionFooter(m.width); ok {
@@ -131,12 +149,95 @@ func (m Model) renderComposerPrompt(editor textarea.Model) string {
 
 func renderComposerPromptWithFocus(editor textarea.Model, skin HermesSkin, focused bool) string {
 	ApplyTextareaSkin(&editor, skin)
+	// Hermes' welcome copy already tells the operator how to start; the bottom
+	// composer itself stays as a clean bare prompt when empty instead of showing
+	// an inline placeholder sentence.
+	editor.Placeholder = ""
 	if focused {
 		_ = editor.Focus()
 	} else {
 		editor.Blur()
 	}
-	return editor.View()
+	return alignComposerContinuationPrompts(editor.View())
+}
+
+func alignComposerContinuationPrompts(view string) string {
+	lines := strings.Split(view, "\n")
+	if len(lines) <= 1 {
+		return view
+	}
+	for i := 1; i < len(lines); i++ {
+		if line, ok := composerContinuationPromptBlank(lines[i]); ok {
+			lines[i] = line
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func composerContinuationPromptBlank(line string) (string, bool) {
+	plain := StripANSIForTUI(line)
+	if !strings.HasPrefix(plain, "❯ ") {
+		return line, false
+	}
+	cut := byteIndexAfterVisiblePrefix(line, "❯ ")
+	if cut < 0 {
+		return "  " + strings.TrimPrefix(plain, "❯ "), true
+	}
+	return "  " + line[cut:], true
+}
+
+func byteIndexAfterVisiblePrefix(s, visiblePrefix string) int {
+	visibleIdx := 0
+	for i := 0; i < len(s); {
+		if s[i] == '\x1b' {
+			i = skipANSISequence(s, i)
+			continue
+		}
+		r, size := utf8.DecodeRuneInString(s[i:])
+		if r == utf8.RuneError && size == 0 {
+			return -1
+		}
+		want, wantSize := utf8.DecodeRuneInString(visiblePrefix[visibleIdx:])
+		if want == utf8.RuneError && wantSize == 0 {
+			return i
+		}
+		if r != want {
+			return -1
+		}
+		i += size
+		visibleIdx += wantSize
+		if visibleIdx >= len(visiblePrefix) {
+			return i
+		}
+	}
+	return -1
+}
+
+func skipANSISequence(s string, start int) int {
+	if start+1 >= len(s) {
+		return len(s)
+	}
+	switch s[start+1] {
+	case '[':
+		for i := start + 2; i < len(s); i++ {
+			if s[i] >= 0x40 && s[i] <= 0x7e {
+				return i + 1
+			}
+		}
+		return len(s)
+	case ']':
+		for i := start + 2; i < len(s); i++ {
+			if s[i] == '\a' {
+				return i + 1
+			}
+			if s[i] == '\x1b' && i+1 < len(s) && s[i+1] == '\\' {
+				return i + 2
+			}
+		}
+		return len(s)
+	default:
+		return start + 2
+	}
 }
 
 func (m Model) composerChatFocused() bool {
@@ -144,6 +245,9 @@ func (m Model) composerChatFocused() bool {
 }
 
 func (m Model) renderHermesHint() string {
+	if strings.TrimSpace(m.statusMessage) != "" && m.frame.Phase == kernel.PhaseIdle {
+		return ""
+	}
 	skin := m.currentSkin()
 	if working, ok := m.extensionWorkingIndicator(); ok {
 		return renderHermesHintWithExtensionWorking(m.frame, m.statusMessage, m.width, m.spinnerFrame, m.indicatorStyle, working, skin)
@@ -205,16 +309,25 @@ func renderHermesHintWithExtensionWorking(f kernel.RenderFrame, statusMessage st
 	return styles.Assistant.Render(text)
 }
 
-func promptHeightForValue(value string) int {
+func promptHeightForValue(value string, width int) int {
 	if value == "" {
 		return 1
 	}
-	lines := strings.Count(value, "\n") + 1
+	textColumns := width - lipgloss.Width("❯ ")
+	if textColumns < 1 {
+		textColumns = 1
+	}
+	lines := 0
+	for _, line := range strings.Split(value, "\n") {
+		lineWidth := lipgloss.Width(StripANSIForTUI(line))
+		visualLines := (lineWidth + textColumns - 1) / textColumns
+		if visualLines < 1 {
+			visualLines = 1
+		}
+		lines += visualLines
+	}
 	if lines < 1 {
 		return 1
-	}
-	if lines > 4 {
-		return 4
 	}
 	return lines
 }
@@ -226,23 +339,36 @@ func hermesStatusModelFromFrame(f kernel.RenderFrame) HermesStatusModel {
 }
 
 func (m Model) hermesStatusModelFromFrame() HermesStatusModel {
-	return hermesStatusModelFromFrameWithProfile(m.frame, m.profileName)
+	out := hermesStatusModelFromFrameWithProfile(m.frame, m.profileName)
+	if notice := strings.TrimSpace(m.statusMessage); notice != "" && m.frame.Phase == kernel.PhaseIdle {
+		out.StatusLabel = notice
+	}
+	if !m.sessionStartedAt.IsZero() {
+		now := m.statusNow
+		if now == nil {
+			now = time.Now
+		}
+		elapsed := now().Sub(m.sessionStartedAt)
+		if elapsed > 0 {
+			out.SessionDuration = int64(elapsed.Seconds())
+		}
+	}
+	return out
 }
 
 func hermesStatusModelFromFrameWithProfile(f kernel.RenderFrame, profileName string) HermesStatusModel {
-	cwd := hermesWorkingDirLabel()
-	if profile := strings.TrimSpace(profileName); profile != "" {
-		if cwd != "" {
-			cwd = "profile " + profile + " · " + cwd
-		} else {
-			cwd = "profile " + profile
-		}
-	}
+	// The active profile and cwd are already visible in the welcome panel; keep
+	// the chat status row focused on Hermes' model/context/timer segments and
+	// avoid the Gormes-specific `profile main · cwd` tail shown in older builds.
+	_ = strings.TrimSpace(profileName)
 	out := HermesStatusModel{
-		StatusLabel:     hermesStatusLabelFromPhase(f.Phase),
-		ModelName:       f.Model,
-		ReasoningEffort: string(f.ReasoningEffort.Requested),
-		CWDLabel:        cwd,
+		StatusLabel:      hermesStatusLabelFromPhase(f.Phase),
+		ModelName:        f.Model,
+		ReasoningEffort:  string(f.ReasoningEffort.Requested),
+		PromptElapsed:    0,
+		PromptLive:       false,
+		HasPromptElapsed: true,
+		CWDLabel:         "",
 	}
 	if f.ContextStatus != nil {
 		out.ContextTokens = f.ContextStatus.LastTotalTokens
@@ -311,14 +437,14 @@ func conversationViewportTailWithDetails(f kernel.RenderFrame, width, height int
 }
 
 func conversationViewportTailWithSkinAndDetails(f kernel.RenderFrame, width, height int, forceCompact bool, details DetailsState, skin HermesSkin) string {
-	return conversationViewportTailWithSkinDetailsAndProfile(f, width, height, forceCompact, details, skin, "")
+	return conversationViewportTailWithSkinDetailsAndProfile(f, width, height, forceCompact, details, skin, "", "")
 }
 
 func (m Model) conversationViewportTailWithSkinAndDetails(width, height int) string {
-	return conversationViewportTailWithSkinDetailsAndProfile(m.frame, width, height, m.compactTranscript, m.detailsState, m.currentSkin(), m.profileName)
+	return conversationViewportTailWithSkinDetailsAndProfile(m.frame, width, height, m.compactTranscript, m.detailsState, m.currentSkin(), m.profileName, m.profileBaseHome)
 }
 
-func conversationViewportTailWithSkinDetailsAndProfile(f kernel.RenderFrame, width, height int, forceCompact bool, details DetailsState, skin HermesSkin, profileName string) string {
+func conversationViewportTailWithSkinDetailsAndProfile(f kernel.RenderFrame, width, height int, forceCompact bool, details DetailsState, skin HermesSkin, profileName string, homeLabel string) string {
 	skin, styles := conversationChatStyles(skin)
 	if width < 4 {
 		width = 4
@@ -354,7 +480,7 @@ func conversationViewportTailWithSkinDetailsAndProfile(f kernel.RenderFrame, wid
 	lines = append(lines, visible...)
 	lines = append(lines, forced...)
 	if len(lines) == 0 {
-		return conversationEmptyIntroWithProfileAndSkin(f, width, compact, profileName, skin)
+		return conversationEmptyIntroWithProfileAndSkin(f, width, compact, profileName, homeLabel, skin)
 	}
 	return strings.Join(lines, "\n\n")
 }
@@ -666,23 +792,23 @@ func renderedLineCount(s string) int {
 }
 
 func conversationEmptyIntroWithSkin(f kernel.RenderFrame, width int, compact bool, skin HermesSkin) string {
-	return conversationEmptyIntroWithProfileAndSkin(f, width, compact, "", skin)
+	return conversationEmptyIntroWithProfileAndSkin(f, width, compact, "", "", skin)
 }
 
-func conversationEmptyIntroWithProfileAndSkin(f kernel.RenderFrame, width int, compact bool, profileName string, skin HermesSkin) string {
+func conversationEmptyIntroWithProfileAndSkin(f kernel.RenderFrame, width int, compact bool, profileName string, homeLabel string, skin HermesSkin) string {
 	skin, styles := conversationChatStyles(skin)
 	if compact {
-		profile := strings.TrimSpace(profileName)
-		if profile != "" {
-			return styles.Assistant.Render("⚕ Gormes · profile " + profile + " · /help for commands")
-		}
 		return styles.Assistant.Render("⚕ Gormes · /help for commands")
+	}
+	homeLabel = strings.TrimSpace(homeLabel)
+	if homeLabel == "" {
+		homeLabel = hermesWorkingDirLabel()
 	}
 	ctx := banner.WelcomeContext{
 		Model:     f.Model,
 		Provider:  f.ProviderStatus.Provider,
 		Runtime:   f.ProviderStatus.Runtime,
-		CWD:       hermesWorkingDirLabel(),
+		CWD:       homeLabel,
 		Profile:   strings.TrimSpace(profileName),
 		SessionID: f.SessionID,
 		Version:   buildInfoVersion(),
@@ -714,8 +840,9 @@ func transcriptRowWithSkin(role, content string, skin HermesSkin, styles chatSty
 		return style.Render(glyph)
 	}
 
-	prefix := style.Render(glyph) + " "
-	continuation := strings.Repeat(" ", lipgloss.Width(glyph)+1)
+	prefixPad := transcriptPrefixPad(role)
+	prefix := prefixPad + style.Render(glyph) + " "
+	continuation := strings.Repeat(" ", lipgloss.Width(prefixPad)+lipgloss.Width(glyph)+1)
 	for i, line := range lines {
 		if i == 0 {
 			lines[i] = prefix + line
@@ -724,6 +851,13 @@ func transcriptRowWithSkin(role, content string, skin HermesSkin, styles chatSty
 		lines[i] = continuation + line
 	}
 	return strings.Join(lines, "\n")
+}
+
+func transcriptPrefixPad(role string) string {
+	if role == "user" {
+		return "  "
+	}
+	return ""
 }
 
 func transcriptGlyphForSkin(role string, skin HermesSkin) string {

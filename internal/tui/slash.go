@@ -598,7 +598,7 @@ func profileSlashHandler(input string, model *Model) SlashResult {
 		if current == "" {
 			current = "unprofiled"
 		}
-		return SlashResult{Handled: true, StatusMessage: "profile: " + current}
+		return SlashResult{Handled: true, StatusMessage: "profile " + current}
 	}
 	if err := cli.ValidateProfileName(name); err != nil {
 		return SlashResult{Handled: true, StatusMessage: "profile_name_invalid: " + err.Error()}
@@ -607,7 +607,7 @@ func profileSlashHandler(input string, model *Model) SlashResult {
 		return SlashResult{Handled: true, StatusMessage: "profile_unknown: " + name + profileAvailableSuffix(model.profileNames)}
 	}
 	if current != "" && strings.EqualFold(name, current) {
-		return SlashResult{Handled: true, StatusMessage: "profile: already using " + current}
+		return SlashResult{Handled: true, StatusMessage: "profile already using " + current}
 	}
 	baseHome := strings.TrimSpace(model.profileBaseHome)
 	if baseHome == "" {
@@ -617,17 +617,13 @@ func profileSlashHandler(input string, model *Model) SlashResult {
 		return SlashResult{Handled: true, StatusMessage: "profile: switch failed: " + err.Error()}
 	}
 	model.applyProfileLabel(name)
-	return SlashResult{Handled: true, StatusMessage: "profile: " + name + " (current UI label; restart to reload profile state)"}
+	return SlashResult{Handled: true, StatusMessage: "profile " + name}
 }
 
 func (m *Model) applyProfileLabel(name string) {
 	name = strings.TrimSpace(name)
 	m.profileName = name
-	promptName := name
-	if promptName == "" {
-		promptName = "default"
-	}
-	prompt, _ := m.currentSkin().PromptSymbols(promptName)
+	prompt, _ := m.currentSkin().PromptSymbols("default")
 	m.editor.Prompt = prompt
 }
 

@@ -10,6 +10,32 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
+func TestGormesChatModelView_TallDraftDoesNotOverflowHeight(t *testing.T) {
+	// A long pasted/multiline draft must not grow the bottom-pinned composer
+	// past the terminal height and push the status bar off-screen. The composer
+	// height is capped; the conversation viewport absorbs the remaining budget.
+	tallDraft := strings.Repeat("draft line\n", 40) + "draft line"
+
+	for _, size := range []struct{ width, height int }{{40, 12}, {80, 20}, {120, 30}} {
+		m := NewModel(make(chan kernel.RenderFrame), func(string) {}, func() {})
+		m.width = size.width
+		m.height = size.height
+		m.frame = kernel.RenderFrame{
+			Phase:   kernel.PhaseIdle,
+			Model:   "anthropic/claude-sonnet-4-20250514",
+			History: []llm.Message{{Role: "assistant", Content: "ready"}},
+		}
+		m.editor.SetValue(tallDraft)
+
+		got := m.View()
+		lineCount := strings.Count(got, "\n") + 1
+		if lineCount > size.height {
+			t.Fatalf("Model.View rendered %d lines, exceeds terminal height %d at %+v:\n%s",
+				lineCount, size.height, size, got)
+		}
+	}
+}
+
 func TestGormesChatModelView_UserReportHardening(t *testing.T) {
 	longToken := strings.Repeat("z", 180)
 	final := "final model view answer should appear once"

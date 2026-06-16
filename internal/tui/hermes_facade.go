@@ -27,10 +27,10 @@ import (
 type HermesSkin = skin.HermesSkin
 type HermesSkinColors = skin.HermesSkinColors
 
-func DefaultHermesSkin() HermesSkin { return skin.DefaultHermesSkin() }
-func DefaultToolEmojis() map[string]string { return skin.DefaultToolEmojis() }
+func DefaultHermesSkin() HermesSkin                     { return skin.DefaultHermesSkin() }
+func DefaultToolEmojis() map[string]string              { return skin.DefaultToolEmojis() }
 func ResolveBuiltinSkin(name string) (HermesSkin, bool) { return skin.ResolveBuiltinSkin(name) }
-func BuiltinSkins() map[string]HermesSkin { return skin.BuiltinSkins() }
+func BuiltinSkins() map[string]HermesSkin               { return skin.BuiltinSkins() }
 
 // ─── Hermes chrome re-exports ───────────────────────────────────────────────
 
@@ -202,8 +202,12 @@ func renderHermesStatusBar(model HermesStatusModel, width int) string {
 	return statusbar.RenderHermes(model, width)
 }
 
-func hermesStatusModelLabel(name, effort string, fast bool) string {
+func HermesModelLabel(name, effort string, fast bool) string {
 	return statusbar.HermesModelLabel(name, effort, fast)
+}
+
+func hermesStatusModelLabel(name, effort string, fast bool) string {
+	return HermesModelLabel(name, effort, fast)
 }
 
 func hermesStatusContextBar(percent int) string {

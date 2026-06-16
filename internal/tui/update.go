@@ -84,9 +84,14 @@ type submittedMsg struct{}
 type cancelledMsg struct{}
 
 type activeTurnTickMsg struct{}
+type statusTickMsg struct{}
 
 func activeTurnTickCmd() tea.Cmd {
 	return tea.Tick(120*time.Millisecond, func(time.Time) tea.Msg { return activeTurnTickMsg{} })
+}
+
+func statusTickCmd() tea.Cmd {
+	return tea.Tick(time.Second, func(time.Time) tea.Msg { return statusTickMsg{} })
 }
 
 // Update is the Bubble Tea event loop. MUST NOT block: every kernel
@@ -257,6 +262,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, activeTurnTickCmd())
 			return m, tea.Batch(cmds...)
 		}
+
+	case statusTickMsg:
+		cmds = append(cmds, statusTickCmd())
+		return m, tea.Batch(cmds...)
 
 	case modelPickerConfirmedMsg:
 		cmd := m.handleModelPickerConfirmed(ModelPickerResult(msg))

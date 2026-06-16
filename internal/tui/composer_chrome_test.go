@@ -83,6 +83,45 @@ func TestRenderComposerInputChromeDoesNotAddPausedHeader(t *testing.T) {
 	}
 }
 
+func TestViewProfileLabelDoesNotLeakIntoHermesComposerPrompt(t *testing.T) {
+	m := NewModelWithOptions(make(chan kernel.RenderFrame), func(string) {}, func() {}, Options{ProfileName: "main"})
+	m.width = 100
+	m.height = 24
+	m.frame = kernel.RenderFrame{Phase: kernel.PhaseIdle, Model: "test/model"}
+
+	if strings.Contains(m.editor.View(), "Type a message and hit Enter…") {
+		t.Fatalf("editor state should not retain old inline placeholder that can leak into Hermes composer: %q", m.editor.View())
+	}
+	got := m.View()
+	if strings.Contains(got, "main ❯") {
+		t.Fatalf("profile label leaked into Hermes composer prompt:\n%s", got)
+	}
+	if strings.Contains(got, "❯ Type a message and hit Enter…") {
+		t.Fatalf("View leaked inline placeholder into bare Hermes composer prompt:\n%s", got)
+	}
+	assertPromptRulePair(t, got, m.width, "❯")
+	for _, stale := range []string{"Profile:", "main ❯", "profile main"} {
+		if strings.Contains(got, stale) {
+			t.Fatalf("View leaked profile marker %q into Hermes chat chrome:\n%s", stale, got)
+		}
+	}
+}
+
+func TestComposerContinuationPromptBlankPreservesStyledText(t *testing.T) {
+	styled := "❯ hello\n\x1b[36m❯\x1b[0m \x1b[37mworld"
+	got := alignComposerContinuationPrompts(styled)
+	plain := StripANSIForTUI(got)
+	if !strings.Contains(plain, "❯ hello\n  world") {
+		t.Fatalf("continuation prompt blank plain text = %q, want Hermes prompt-width blank", plain)
+	}
+	if !strings.Contains(got, "\x1b[37mworld") {
+		t.Fatalf("continuation prompt blank should preserve text styling suffix, got %q", got)
+	}
+	if strings.Contains(strings.Split(plain, "\n")[1], "❯") {
+		t.Fatalf("continuation row retained prompt glyph: %q", plain)
+	}
+}
+
 func TestComposerInputChromeViewportGateKeepsBarePrompt(t *testing.T) {
 	for _, size := range [][2]int{{80, 14}, {80, 24}} {
 		if showComposerInputChrome(size[0], size[1]) {

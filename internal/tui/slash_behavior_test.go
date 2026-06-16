@@ -27,16 +27,22 @@ func TestProfileSlashShowsAndPersistsNextActiveProfile(t *testing.T) {
 	m := NewModelWithOptions(nil, func(string) {}, func() {}, Options{ProfileName: "main", ProfileNames: []string{"main", "mineru"}, ProfileBaseHome: baseHome})
 
 	show := profileSlashHandler("/profile", &m)
-	if !show.Handled || !strings.Contains(show.StatusMessage, "profile: main") {
+	if !show.Handled || !strings.Contains(show.StatusMessage, "profile main") {
 		t.Fatalf("/profile result = %+v, want current profile", show)
+	}
+	if strings.Contains(show.StatusMessage, "profile: main") {
+		t.Fatalf("/profile show leaked old colon-style profile chrome: %+v", show)
 	}
 
 	switched := profileSlashHandler("/profile mineru", &m)
-	if !switched.Handled || !strings.Contains(switched.StatusMessage, "profile: mineru") {
+	if !switched.Handled || !strings.Contains(switched.StatusMessage, "profile mineru") {
 		t.Fatalf("/profile mineru result = %+v", switched)
 	}
-	if m.profileName != "mineru" || !strings.Contains(m.editor.View(), "mineru ❯") {
-		t.Fatalf("/profile mineru did not update visible TUI label: profile=%q editor=%q", m.profileName, m.editor.View())
+	if strings.Contains(switched.StatusMessage, "profile: mineru") || strings.Contains(switched.StatusMessage, "restart to reload profile state") || strings.Contains(switched.StatusMessage, "current UI label") {
+		t.Fatalf("/profile mineru leaked old verbose profile chrome: %+v", switched)
+	}
+	if m.profileName != "mineru" || strings.Contains(m.editor.View(), "mineru ❯") || !strings.Contains(m.editor.View(), "❯") {
+		t.Fatalf("/profile mineru should keep profile state but leave Hermes composer prompt bare: profile=%q editor=%q", m.profileName, m.editor.View())
 	}
 	data, err := os.ReadFile(filepath.Join(baseHome, "active_profile"))
 	if err != nil {
@@ -85,6 +91,26 @@ func TestProfileSlashCompletionAcceptanceInsertsArgument(t *testing.T) {
 	if strings.Contains(m.statusMessage, "next launch") {
 		t.Fatalf("accepting completion dispatched /profile instead of completing editor: %q", m.statusMessage)
 	}
+}
+
+func TestProfileSlashRenderedViewUsesHermesStatusNoticeAndBarePrompt(t *testing.T) {
+	baseHome := t.TempDir()
+	m := NewModelWithOptions(make(chan kernel.RenderFrame), func(string) {}, func() {}, Options{ProfileName: "main", ProfileNames: []string{"main", "mineru"}, ProfileBaseHome: baseHome})
+	m.width = 100
+	m.height = 24
+	m.frame = kernel.RenderFrame{Phase: kernel.PhaseIdle, Model: "openai/gpt-5-5", SessionID: "sess-profile-view"}
+
+	m = enterSlashDispatchBehavior(t, m, "/profile mineru")
+	got := m.View()
+	if !strings.Contains(got, "profile mineru │ gpt 5.5") {
+		t.Fatalf("/profile notice should render inside Hermes status rule beside pinned model/context:\n%s", got)
+	}
+	for _, stale := range []string{"\nprofile mineru\n", "profile: mineru", "restart to reload profile state", "current UI label", "mineru ❯", "main ❯", "Type a message and hit Enter…"} {
+		if strings.Contains(got, stale) {
+			t.Fatalf("/profile rendered view leaked old Gormes chrome %q:\n%s", stale, got)
+		}
+	}
+	assertPromptRulePair(t, got, m.width, "❯")
 }
 
 func TestProfileSlashCurrentProfileIsNoop(t *testing.T) {
@@ -410,7 +436,7 @@ func TestCompactSlashTogglesTranscriptRenderingWithoutSubmitting(t *testing.T) {
 	m.frame.History = compactSlashHistory()
 
 	full := m.View()
-	if !strings.Contains(full, "───") {
+	if !containsTurnSeparatorLine(full) {
 		t.Fatalf("full transcript view missing turn separator before /compact on:\n%s", full)
 	}
 
@@ -429,7 +455,7 @@ func TestCompactSlashTogglesTranscriptRenderingWithoutSubmitting(t *testing.T) {
 		t.Fatalf("status after /compact on = %q, want compact on", m.statusMessage)
 	}
 	compact := m.View()
-	if strings.Contains(compact, "───") {
+	if containsTurnSeparatorLine(compact) {
 		t.Fatalf("compact transcript still rendered turn separator:\n%s", compact)
 	}
 	if strings.Contains(m.statusMessage, "recognized but unavailable") {
@@ -443,9 +469,18 @@ func TestCompactSlashTogglesTranscriptRenderingWithoutSubmitting(t *testing.T) {
 	if !strings.Contains(m.statusMessage, "compact off") {
 		t.Fatalf("status after /compact off = %q, want compact off", m.statusMessage)
 	}
-	if restored := m.View(); !strings.Contains(restored, "───") {
+	if restored := m.View(); !containsTurnSeparatorLine(restored) {
 		t.Fatalf("full transcript view missing turn separator after /compact off:\n%s", restored)
 	}
+}
+
+func containsTurnSeparatorLine(view string) bool {
+	for _, line := range strings.Split(view, "\n") {
+		if strings.TrimSpace(line) == "───" {
+			return true
+		}
+	}
+	return false
 }
 
 func TestCompactSlashToggleAndUsage(t *testing.T) {
@@ -506,7 +541,7 @@ func TestCompactSlashKeepsTinyTerminalAutoCompact(t *testing.T) {
 	m.frame.History = compactSlashHistory()
 
 	got := m.View()
-	if strings.Contains(got, "───") {
+	if containsTurnSeparatorLine(got) {
 		t.Fatalf("tiny terminal should remain auto-compact even when /compact is off:\n%s", got)
 	}
 }
@@ -2815,7 +2850,7 @@ func TestStatusBarSlashTogglesChromePlacementWithoutSubmitting(t *testing.T) {
 	if !strings.Contains(m.statusMessage, "status bar off") {
 		t.Fatalf("status after /statusbar off = %q, want off evidence", m.statusMessage)
 	}
-	if got := m.View(); strings.Contains(got, "─ ready │") {
+	if got := m.View(); strings.Contains(got, "⚕ sonnet") {
 		t.Fatalf("/statusbar off still rendered the status rule:\n%s", got)
 	}
 	if strings.Contains(strings.ToLower(m.statusMessage), "recognized") {
@@ -2922,7 +2957,7 @@ func newStatusBarSlashModel(sub *nopSubmitter) Model {
 
 func assertStatusBarBeforePrompt(t *testing.T, view string) {
 	t.Helper()
-	statusIdx := strings.Index(view, "─ ready │")
+	statusIdx := hermesStatusRuleIndex(view)
 	promptIdx := strings.LastIndex(view, "❯")
 	if statusIdx < 0 || promptIdx < 0 || statusIdx >= promptIdx {
 		t.Fatalf("want status bar before prompt, statusIdx=%d promptIdx=%d:\n%s", statusIdx, promptIdx, view)
@@ -2931,11 +2966,27 @@ func assertStatusBarBeforePrompt(t *testing.T, view string) {
 
 func assertStatusBarAfterPrompt(t *testing.T, view string) {
 	t.Helper()
-	statusIdx := strings.LastIndex(view, "─ ready │")
+	statusIdx := hermesStatusRuleLastIndex(view)
 	promptIdx := strings.LastIndex(view, "❯")
 	if statusIdx < 0 || promptIdx < 0 || promptIdx >= statusIdx {
 		t.Fatalf("want status bar after prompt, statusIdx=%d promptIdx=%d:\n%s", statusIdx, promptIdx, view)
 	}
+}
+
+func hermesStatusRuleIndex(view string) int {
+	idx := strings.Index(view, "⚕ sonnet")
+	if idx >= 0 {
+		return idx
+	}
+	return strings.Index(view, "sonnet 4 20250514")
+}
+
+func hermesStatusRuleLastIndex(view string) int {
+	idx := strings.LastIndex(view, "⚕ sonnet")
+	if idx >= 0 {
+		return idx
+	}
+	return strings.LastIndex(view, "sonnet 4 20250514")
 }
 
 // ---- slash_status_test.go ----

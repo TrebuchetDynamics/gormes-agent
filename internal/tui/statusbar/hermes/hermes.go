@@ -60,6 +60,15 @@ func Render(model Model, width int) string {
 	if status == "" {
 		status = "ready"
 	}
+	if status != "ready" {
+		maxStatusWidth := 24
+		if width >= 100 {
+			maxStatusWidth = 40
+		}
+		if lipgloss.Width(status) > maxStatusWidth {
+			status = TrimToWidth(status, maxStatusWidth)
+		}
+	}
 	short := ModelLabel(model.ModelName, model.ReasoningEffort, model.Fast)
 	duration := DurationLabel(model.SessionDuration)
 	percent := Percent(model.ContextTokens, model.ContextLength)
@@ -69,6 +78,9 @@ func Render(model Model, width int) string {
 	}
 
 	parts := []string{status, short}
+	if status == "ready" {
+		parts = []string{"⚕ " + short}
+	}
 	switch {
 	case width < 52:
 		parts = append(parts, duration)
@@ -88,7 +100,7 @@ func Render(model Model, width int) string {
 		if percent != nil {
 			parts = append(parts, fmt.Sprintf("[%s] %s", ContextBar(*percent), percentLabel))
 		} else {
-			parts = append(parts, percentLabel)
+			parts = append(parts, fmt.Sprintf("[%s] %s", ContextBar(0), percentLabel))
 		}
 		parts = append(parts, duration)
 		if model.HasPromptElapsed {
@@ -96,7 +108,11 @@ func Render(model Model, width int) string {
 		}
 	}
 
-	line := "─ " + strings.Join(parts, " │ ")
+	linePrefix := "─ "
+	if status == "ready" {
+		linePrefix = " "
+	}
+	line := linePrefix + strings.Join(parts, " │ ")
 	if cwd := strings.TrimSpace(model.CWDLabel); cwd != "" && width >= 76 {
 		line += " ─ " + cwd
 	}
@@ -118,7 +134,7 @@ func ModelLabel(name, effort string, fast bool) string {
 	name = strings.TrimPrefix(name, "anthropic-")
 	name = strings.TrimPrefix(name, "anthropic_")
 	name = strings.NewReplacer("-", " ", "_", " ").Replace(name)
-	name = strings.TrimSpace(name)
+	name = decimalizeModelVersion(strings.TrimSpace(name))
 	pieces := []string{name}
 	if e := effortLabel(effort); e != "" {
 		pieces = append(pieces, e)
@@ -131,6 +147,27 @@ func ModelLabel(name, effort string, fast bool) string {
 		label = TrimToWidth(label, 26)
 	}
 	return label
+}
+
+func decimalizeModelVersion(name string) string {
+	fields := strings.Fields(name)
+	if len(fields) < 2 {
+		return name
+	}
+	out := make([]string, 0, len(fields))
+	for i := 0; i < len(fields); i++ {
+		if i+1 < len(fields) && isSingleDigit(fields[i]) && isSingleDigit(fields[i+1]) {
+			out = append(out, fields[i]+"."+fields[i+1])
+			i++
+			continue
+		}
+		out = append(out, fields[i])
+	}
+	return strings.Join(out, " ")
+}
+
+func isSingleDigit(value string) bool {
+	return len(value) == 1 && value[0] >= '0' && value[0] <= '9'
 }
 
 func effortLabel(effort string) string {

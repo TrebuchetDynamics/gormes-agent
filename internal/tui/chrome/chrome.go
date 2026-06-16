@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/ansitext"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/statusbar"
 )
 
@@ -64,7 +65,9 @@ type Input struct {
 }
 
 // Render assembles the bottom-pinned chrome stack used by Hermes' Ink frontend.
-// Layout order matches ComposerPane in ui-tui/src/components/appLayout.tsx:
+// Layout order matches ComposerPane in ui-tui/src/components/appLayout.tsx,
+// with Gormes' prompt wrapped by continuous operator-visible rules to preserve
+// the Hermes chat transcript/prompt separation expected by users:
 //
 //	conversation
 //	(optional) spinner/hint
@@ -73,7 +76,9 @@ type Input struct {
 //	(optional) queued messages
 //	(optional) sticky prompt
 //	status bar (top mode)
+//	continuous input rule
 //	prompt + input area
+//	continuous input rule
 //	(optional) extension widgets below editor
 //	status bar (bottom mode)
 //	(optional) voice status
@@ -81,12 +86,14 @@ type Input struct {
 //	(optional) completions menu
 //
 // All sections are caller-rendered strings; this helper only picks order,
-// and drops empty optional rows. Current Hermes Ink uses StatusRule as the
-// composer separator and does not inject standalone full-width input rules.
+// and drops empty optional rows.
 func Render(in Input) string {
-	parts := make([]string, 0, 7)
+	parts := make([]string, 0, 10)
 	if in.Conversation != "" {
 		parts = append(parts, in.Conversation)
+		if hasBottomChrome(in) {
+			parts = append(parts, "")
+		}
 	}
 	if in.Spinner != "" {
 		parts = append(parts, in.Spinner)
@@ -111,7 +118,13 @@ func Render(in Input) string {
 		parts = append(parts, in.StatusBar)
 	}
 	if in.Prompt != "" {
+		if rule := inputRule(in.Width); rule != "" {
+			parts = append(parts, rule)
+		}
 		parts = append(parts, in.Prompt)
+		if rule := inputRule(in.Width); rule != "" {
+			parts = append(parts, rule)
+		}
 	}
 	if in.ExtensionWidgetsBelow != "" {
 		parts = append(parts, in.ExtensionWidgetsBelow)
@@ -132,13 +145,33 @@ func Render(in Input) string {
 	return TrimTrailingLineWhitespace(lipgloss.JoinVertical(lipgloss.Left, parts...))
 }
 
+func hasBottomChrome(in Input) bool {
+	return in.Spinner != "" || in.TodoPanel != "" || in.Panel != "" || in.ExtensionWidgetsAbove != "" || in.QueuedMessages != "" || in.StickyPrompt != "" || in.StatusBar != "" || in.Prompt != "" || in.ExtensionWidgetsBelow != "" || in.VoiceStatus != "" || in.ImageBar != "" || in.Completions != ""
+}
+
+func inputRule(width int) string {
+	if width < 8 {
+		return ""
+	}
+	return strings.Repeat("─", width)
+}
+
 func TrimTrailingLineWhitespace(s string) string {
 	if s == "" {
 		return s
 	}
 	lines := strings.Split(s, "\n")
 	for i, line := range lines {
-		lines[i] = strings.TrimRight(line, " \t")
+		trimmed := strings.TrimRight(line, " \t")
+		if strings.TrimRight(ansitext.StripForTUI(line), " \t") == "❯" && lipgloss.Width(ansitext.StripForTUI(line)) > lipgloss.Width("❯") {
+			// Hermes' PromptPrefix reserves one cell after the prompt glyph so the
+			// cursor/input starts after a visible gap; keep that single composer
+			// cell while still trimming textarea right-padding on the row. Detect via
+			// ANSI-stripped text so styled prompt glyphs keep the same visible gap.
+			lines[i] = trimmed + " "
+			continue
+		}
+		lines[i] = trimmed
 	}
 	return strings.Join(lines, "\n")
 }

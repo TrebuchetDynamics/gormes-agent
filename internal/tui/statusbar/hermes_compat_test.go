@@ -28,8 +28,7 @@ func TestHermesStatusBar_WideTerminal(t *testing.T) {
 
 	// All five wide-tier components must appear in one line.
 	wantContains := []string{
-		"─ ready",
-		"sonnet 4 20250514",
+		"⚕ sonnet 4 20250514",
 		"12.4K/200K",
 		"[",
 		"6%",
@@ -49,8 +48,54 @@ func TestHermesStatusBar_WideTerminal(t *testing.T) {
 	if !strings.Contains(got, " │ ") {
 		t.Fatalf("wide status bar must use Hermes bar separator: %q", got)
 	}
-	if strings.Contains(got, "⚕") {
-		t.Fatalf("current Hermes Ink status rule must not render the old product glyph prefix: %q", got)
+	if strings.Contains(got, "─ ready") {
+		t.Fatalf("Hermes target status rule must not render idle ready label before model: %q", got)
+	}
+}
+
+func TestHermesStatusBar_WideUnknownContextKeepsEmptyUsageBar(t *testing.T) {
+	model := newWideStatusModel()
+	model.ContextTokens = 0
+	model.ContextLength = 0
+
+	got := tui.RenderHermesStatusBar(model, 120)
+
+	for _, frag := range []string{"ctx --", "[░░░░░░░░░░] --"} {
+		if !strings.Contains(got, frag) {
+			t.Fatalf("wide unknown-context status missing %q in %q", frag, got)
+		}
+	}
+}
+
+func TestHermesStatusBar_LongIdleNoticePreservesPinnedModelAndContext(t *testing.T) {
+	model := tui.HermesStatusModel{
+		StatusLabel:      "profile switched to a very long operator-facing notice that should yield",
+		ModelName:        "openai/gpt-5-5",
+		SessionDuration:  1,
+		HasPromptElapsed: true,
+	}
+
+	got := tui.RenderHermesStatusBar(model, 80)
+
+	for _, frag := range []string{"gpt 5.5", "ctx --", "[░░░░░░░░░░] --", "⏲ 0s"} {
+		if !strings.Contains(got, frag) {
+			t.Fatalf("long notice should yield before pinned Hermes essentials; missing %q in %q", frag, got)
+		}
+	}
+	if w := lipgloss.Width(got); w > 80 {
+		t.Fatalf("long notice status width = %d, want <= 80: %q", w, got)
+	}
+}
+
+func TestHermesStatusBar_ModelLabelPreservesHermesDecimalModelVersions(t *testing.T) {
+	if got := tui.HermesModelLabel("openai/gpt-5-5", "", false); got != "gpt 5.5" {
+		t.Fatalf("gpt-5-5 model label = %q, want Hermes-style decimal version", got)
+	}
+	if got := tui.HermesModelLabel("anthropic/claude-opus-4-6", "", false); got != "opus 4.6" {
+		t.Fatalf("claude-opus-4-6 model label = %q, want Hermes-style decimal version", got)
+	}
+	if got := tui.HermesModelLabel("anthropic/claude-sonnet-4-20250514", "", false); got != "sonnet 4 20250514" {
+		t.Fatalf("dated sonnet model label = %q, should not decimalize date suffix", got)
 	}
 }
 
@@ -59,8 +104,8 @@ func TestHermesStatusBar_MidWidthCollapsesToModelPercentDuration(t *testing.T) {
 
 	got := tui.RenderHermesStatusBar(model, 60)
 
-	if !strings.Contains(got, "─ ready") {
-		t.Fatalf("mid-width status bar missing ready status rule: %q", got)
+	if !strings.Contains(got, "⚕ sonnet") {
+		t.Fatalf("mid-width status bar missing Hermes model status slot: %q", got)
 	}
 	if !strings.Contains(got, "sonnet 4 20250514") {
 		t.Fatalf("mid-width status bar missing model: %q", got)
@@ -83,8 +128,8 @@ func TestHermesStatusBar_MidWidthCollapsesToModelPercentDuration(t *testing.T) {
 func TestHermesStatusBar_NarrowWidthCollapsesToModelDuration(t *testing.T) {
 	got := tui.RenderHermesStatusBar(newWideStatusModel(), 50)
 
-	if !strings.Contains(got, "─ ready") {
-		t.Fatalf("narrow status bar missing ready status rule: %q", got)
+	if !strings.Contains(got, "⚕ sonnet") {
+		t.Fatalf("narrow status bar missing Hermes model status slot: %q", got)
 	}
 	if !strings.Contains(got, "sonnet") {
 		// Narrow tier may trim the long model with an ellipsis.
@@ -93,8 +138,8 @@ func TestHermesStatusBar_NarrowWidthCollapsesToModelDuration(t *testing.T) {
 	if strings.Contains(got, "⏱") || strings.Contains(got, "⏲") {
 		t.Fatalf("narrow status bar leaks per-prompt timer: %q", got)
 	}
-	if strings.Contains(got, "⚕") {
-		t.Fatalf("narrow status bar leaked old product glyph prefix: %q", got)
+	if strings.Contains(got, "─ ready") {
+		t.Fatalf("narrow status bar leaked idle ready label before model: %q", got)
 	}
 }
 
@@ -138,7 +183,7 @@ func TestHermesStatusBarWithSkinUsesSharedStatusStyle(t *testing.T) {
 
 	got := tui.RenderHermesStatusBarWithSkin(newWideStatusModel(), 80, skin)
 	plain := tui.StripANSIForTUI(got)
-	if !strings.Contains(plain, "─ ready") || !strings.Contains(plain, "sonnet 4 20250514") {
+	if !strings.Contains(plain, "⚕ sonnet 4 20250514") {
 		t.Fatalf("styled status bar lost status/model text:\n%s", got)
 	}
 	if !strings.Contains(got, "\x1b[") {

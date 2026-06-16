@@ -340,9 +340,13 @@ type Options struct {
 	// are unreachable from internal/tui (main.Version is package main; the
 	// tool count is absent from kernel.RenderFrame). Zero values keep the
 	// R1 best-effort/omit behavior.
-	WelcomeVersion   string
-	WelcomeToolCount int
-	WelcomeToolsets  []string
+	WelcomeVersion          string
+	WelcomeVersionDateAlias string
+	WelcomeGitCommit        string
+	WelcomeToolCount        int
+	WelcomeSkillCount       int
+	WelcomeToolsets         []string
+	WelcomeSkillRows        []string
 	// ProfileName is the operator-facing active profile label. Empty keeps
 	// legacy unprofiled chrome.
 	ProfileName string
@@ -400,6 +404,8 @@ type Model struct {
 	activeSkinName    string
 	activeSkin        HermesSkin
 	statusMessage     string
+	sessionStartedAt  time.Time
+	statusNow         func() time.Time
 	transientPage     *TransientPageState
 	busyGuard         BusyInputEvaluator
 	offlineSmoke      bool
@@ -478,28 +484,27 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 	// Seed the session-aware welcome panel from the caller (cmd/gormes wires
 	// the real release version + agent tool count). Zero values are safe and
 	// keep the R1 best-effort/omit behavior.
-	banner.SetWelcomeContext(opts.WelcomeVersion, opts.WelcomeToolCount, opts.WelcomeToolsets...)
+	banner.SetWelcomeContextWithBuildProvenance(opts.WelcomeVersion, opts.WelcomeVersionDateAlias, opts.WelcomeGitCommit, opts.WelcomeToolCount, opts.WelcomeSkillCount, opts.WelcomeToolsets, opts.WelcomeSkillRows)
 
 	skin := DefaultHermesSkin()
 	if resolved, ok := ResolveBuiltinSkin(opts.SkinName); ok {
 		skin = resolved
 	}
 	ta := textarea.New()
-	ta.Placeholder = "Type a message and hit Enter…"
+	ta.Placeholder = ""
 	ta.ShowLineNumbers = false
 	// Match Hermes prompt_toolkit prompt symbol so the bottom-pinned chrome
 	// shows the operator-recognisable skin prompt glyph at the start of every
-	// input line instead of the textarea default cursor marker.
+	// input line instead of the textarea default cursor marker. The active
+	// profile stays visible in the status rule; Hermes' composer remains a bare
+	// ❯ prompt rather than prefixing the profile name.
 	profileName := strings.TrimSpace(opts.ProfileName)
-	promptProfileName := profileName
-	if promptProfileName == "" {
-		promptProfileName = "default"
-	}
-	normalPrompt, _ := skin.PromptSymbols(promptProfileName)
+	normalPrompt, _ := skin.PromptSymbols("default")
 	ta.Prompt = normalPrompt
 	ApplyTextareaSkin(&ta, skin)
 	ta.SetHeight(1)
 	ta.Focus()
+	now := time.Now()
 	return Model{
 		editor:             ta,
 		inputHistory:       NewHermesHistory(),
@@ -512,6 +517,8 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		voiceRecordKey:     opts.VoiceRecordKey,
 		activeSkinName:     skin.Name,
 		activeSkin:         skin,
+		sessionStartedAt:   now,
+		statusNow:          time.Now,
 		sessionBranch:      opts.SessionBranch,
 		busyGuard:          opts.BusyGuard,
 		statusMessage:      opts.StartupNotice,
@@ -745,7 +752,7 @@ func (m Model) waitFrame() tea.Cmd {
 // Init is the Bubble Tea entry point. We start the cursor blink and the
 // first render-frame wait in parallel.
 func (m Model) Init() tea.Cmd {
-	cmds := []tea.Cmd{textarea.Blink, m.waitFrame()}
+	cmds := []tea.Cmd{textarea.Blink, m.waitFrame(), statusTickCmd()}
 	if !m.mouseTracking {
 		cmds = append(cmds, m.emitMouseModeCmd(false))
 	}

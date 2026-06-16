@@ -22,7 +22,7 @@ func TestExtensionStatusSetReplaceClearRendersWidthBounded(t *testing.T) {
 		t.Fatalf("SetStatus status = %q, want applied: %#v", res.Status, res)
 	}
 	got := m.View()
-	assertContainsInOrder(t, got, "─ ready", "indexing workspace")
+	assertContainsInOrder(t, got, "⚕ sonnet", "indexing workspace")
 	assertRenderedWidthAtMost(t, got, m.width)
 
 	res = ctx.SetStatus("fake", "✓ indexed")
@@ -67,7 +67,7 @@ func TestExtensionWidgetAboveBelowComposeWithChromeOrdering(t *testing.T) {
 		"todo before extension widget",
 		"Panel",
 		"ABOVE editor widget",
-		"─ ready",
+		"⚕ sonnet",
 		"❯",
 		"BELOW editor widget",
 	)
@@ -90,7 +90,7 @@ func TestExtensionFooterReplacesStatusAndClears(t *testing.T) {
 	if !strings.Contains(got, "CUSTOM footer from fake extension") {
 		t.Fatalf("custom footer missing from view:\n%s", got)
 	}
-	if strings.Contains(got, "─ ready │") {
+	if strings.Contains(got, "⚕ sonnet") {
 		t.Fatalf("custom footer should replace built-in status row:\n%s", got)
 	}
 	assertRenderedWidthAtMost(t, got, m.width)
@@ -103,7 +103,7 @@ func TestExtensionFooterReplacesStatusAndClears(t *testing.T) {
 	if strings.Contains(got, "CUSTOM footer") {
 		t.Fatalf("cleared custom footer still visible:\n%s", got)
 	}
-	if !strings.Contains(got, "─ ready │") {
+	if !strings.Contains(got, "⚕ sonnet") {
 		t.Fatalf("built-in status row did not return after clearing custom footer:\n%s", got)
 	}
 }

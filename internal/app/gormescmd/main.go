@@ -387,6 +387,8 @@ func tuiAppRuntime(runtime rootRuntime) tuiapp.Runtime {
 	return tuiapp.Runtime{
 		ProgramFactory:       runtime.tuiProgramFactory,
 		Version:              Version,
+		VersionDateAlias:     VersionDateAlias,
+		GitCommit:            resolveGitCommit(),
 		KanbanCommandOptions: kanbanCommandOptions(),
 		GatewayLogTail:       readLogsTail,
 		IsTTY:                runtime.isTTY,
@@ -1632,16 +1634,24 @@ func toolsetsForToolName(name string) []string {
 	switch {
 	case name == "":
 		return nil
+	case strings.Contains(name, "browser_cdp"), strings.Contains(name, "browser-cdp"), strings.Contains(name, "browser_dialog"):
+		return []string{"browser-cdp"}
 	case strings.Contains(name, "browser"), strings.HasPrefix(name, "web_"):
 		return []string{"browser"}
 	case strings.Contains(name, "clarify"):
 		return []string{"clarify"}
 	case strings.Contains(name, "execute_code"):
 		return []string{"code_execution"}
+	case strings.Contains(name, "computer"):
+		return []string{"computer_use"}
 	case strings.Contains(name, "cron"):
 		return []string{"cronjob"}
 	case strings.Contains(name, "delegate"):
 		return []string{"delegation"}
+	case strings.Contains(name, "discord"):
+		return []string{"discord"}
+	case strings.Contains(name, "email"), strings.Contains(name, "himalaya"):
+		return []string{"email"}
 	case strings.Contains(name, "file"), strings.Contains(name, "patch"):
 		return []string{"file"}
 	case strings.Contains(name, "homeassistant"):

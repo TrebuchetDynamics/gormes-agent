@@ -18,6 +18,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/tuiadapter"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
@@ -55,6 +56,8 @@ type Runtime struct {
 	ProgramFactory       ProgramFactory
 	RunResolvedTUI       func(*cobra.Command, Invocation) error
 	Version              string
+	VersionDateAlias     string
+	GitCommit            string
 	KanbanCommandOptions gormescli.KanbanCommandOptions
 	GatewayLogTail       tui.GatewayLogTailFunc
 	IsTTY                func() bool
@@ -394,24 +397,29 @@ func RunResolved(cmd *cobra.Command, invocation Invocation, runtime Runtime) err
 	}
 
 	welcomeVersion, welcomeToolCount, welcomeToolsets := welcomeStartupSeed(runtime.Version, registry)
+	welcomeSkillCount, welcomeSkillRows := welcomeStartupSkillSummary(cfg)
 	tuiOptions := tui.Options{
 		MouseTracking: cfg.TUI.MouseTracking,
 		KanbanSlash: func(input string) (string, error) {
 			return gormescli.RunTUIKanbanSlashCommand(rootCtx, input, runtime.KanbanCommandOptions)
 		},
-		PromptTemplates:  gormescli.PromptTemplateCatalog(cfg, "", gormescli.PromptTemplateCatalogOptions{Paths: invocation.PromptTemplatePaths, Disabled: invocation.NoPromptTemplates}),
-		GatewayLogTail:   runtime.GatewayLogTail,
-		AccountUsage:     tuilocal.NewAccountUsageFunc(cfg),
-		OfflineSmoke:     offline,
-		StartupNotice:    startupNotice,
-		BusyInputMode:    tui.HermesBusyInputMode(cfg.Display.BusyInputMode),
-		Steer:            steerTurn,
-		WelcomeVersion:   welcomeVersion,
-		WelcomeToolCount: welcomeToolCount,
-		WelcomeToolsets:  welcomeToolsets,
-		ProfileName:      invocation.ProfileName,
-		ProfileNames:     invocation.ProfileNames,
-		ProfileBaseHome:  invocation.ProfileBaseHome,
+		PromptTemplates:         gormescli.PromptTemplateCatalog(cfg, "", gormescli.PromptTemplateCatalogOptions{Paths: invocation.PromptTemplatePaths, Disabled: invocation.NoPromptTemplates}),
+		GatewayLogTail:          runtime.GatewayLogTail,
+		AccountUsage:            tuilocal.NewAccountUsageFunc(cfg),
+		OfflineSmoke:            offline,
+		StartupNotice:           startupNotice,
+		BusyInputMode:           tui.HermesBusyInputMode(cfg.Display.BusyInputMode),
+		Steer:                   steerTurn,
+		WelcomeVersion:          welcomeVersion,
+		WelcomeVersionDateAlias: runtime.VersionDateAlias,
+		WelcomeGitCommit:        runtime.GitCommit,
+		WelcomeToolCount:        welcomeToolCount,
+		WelcomeSkillCount:       welcomeSkillCount,
+		WelcomeToolsets:         welcomeToolsets,
+		WelcomeSkillRows:        welcomeSkillRows,
+		ProfileName:             invocation.ProfileName,
+		ProfileNames:            invocation.ProfileNames,
+		ProfileBaseHome:         invocation.ProfileBaseHome,
 	}
 	tuiadapter.RuntimeBundle{
 		Presentation: tuiadapter.PresentationBundle{
@@ -518,6 +526,48 @@ func welcomeStartupSeed(version string, reg *tools.Registry) (string, int, []str
 	return version, len(descs), welcomeToolsets(descs)
 }
 
+func welcomeStartupSkillSummary(cfg config.Config) (int, []string) {
+	externalRoots, _ := cfg.ExternalSkillsDirs()
+	rows := skills.ListInstalledSkillsFromRoots(cfg.SkillsRoot(), skills.BundledRoot(), skills.ListOptions{EnabledOnly: true, ExternalRoots: externalRoots}, nil)
+	return len(rows), welcomeSkillRows(rows)
+}
+
+func welcomeSkillRows(rows []skills.SkillRow) []string {
+	byCategory := map[string][]string{}
+	for _, row := range rows {
+		category := strings.TrimSpace(row.Category)
+		if category == "" {
+			category = "general"
+		}
+		name := strings.TrimSpace(row.Name)
+		if name == "" {
+			continue
+		}
+		byCategory[category] = append(byCategory[category], name)
+	}
+	categories := make([]string, 0, len(byCategory))
+	for category := range byCategory {
+		categories = append(categories, category)
+	}
+	sort.Strings(categories)
+	out := make([]string, 0, len(categories))
+	for _, category := range categories {
+		names := byCategory[category]
+		sort.Strings(names)
+		const limit = 4
+		shown := names
+		if len(shown) > limit {
+			shown = names[:limit]
+		}
+		value := strings.Join(shown, ", ")
+		if len(names) > limit {
+			value += ", ..."
+		}
+		out = append(out, category+": "+value)
+	}
+	return out
+}
+
 func welcomeToolsets(descs []llm.ToolDescriptor) []string {
 	seen := map[string]struct{}{}
 	for _, desc := range descs {
@@ -538,16 +588,24 @@ func toolsetsForToolName(name string) []string {
 	switch {
 	case name == "":
 		return nil
+	case strings.Contains(name, "browser_cdp"), strings.Contains(name, "browser-cdp"), strings.Contains(name, "browser_dialog"):
+		return []string{"browser-cdp"}
 	case strings.Contains(name, "browser"), strings.HasPrefix(name, "web_"):
 		return []string{"browser"}
 	case strings.Contains(name, "clarify"):
 		return []string{"clarify"}
 	case strings.Contains(name, "execute_code"):
 		return []string{"code_execution"}
+	case strings.Contains(name, "computer"):
+		return []string{"computer_use"}
 	case strings.Contains(name, "cron"):
 		return []string{"cronjob"}
 	case strings.Contains(name, "delegate"):
 		return []string{"delegation"}
+	case strings.Contains(name, "discord"):
+		return []string{"discord"}
+	case strings.Contains(name, "email"), strings.Contains(name, "himalaya"):
+		return []string{"email"}
 	case strings.Contains(name, "file"), strings.Contains(name, "patch"):
 		return []string{"file"}
 	case strings.Contains(name, "homeassistant"):

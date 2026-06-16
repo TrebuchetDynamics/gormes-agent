@@ -117,8 +117,8 @@ func TestComposerFocusDimsWhenOverlayOwnsFocus(t *testing.T) {
 	promptSymbol, _ := skin.PromptSymbols("default")
 	promptSymbol = strings.TrimSpace(promptSymbol)
 	focused := renderComposerPromptWithFocus(m.editor, skin, true)
-	if !strings.Contains(StripANSIForTUI(focused), promptSymbol+" Type a message") {
-		t.Fatalf("focused composer lost prompt/placeholder:\n%s", focused)
+	if !strings.Contains(StripANSIForTUI(focused), promptSymbol) || strings.Contains(StripANSIForTUI(focused), "Type a message") {
+		t.Fatalf("focused composer should render a bare Hermes prompt without inline placeholder:\n%s", focused)
 	}
 	if !strings.Contains(focused, "48;2") {
 		t.Fatalf("focused composer should render active focus-line background:\n%s", focused)
@@ -129,8 +129,8 @@ func TestComposerFocusDimsWhenOverlayOwnsFocus(t *testing.T) {
 		t.Fatal("transient page should move visual focus away from composer")
 	}
 	blurred := m.renderComposerPrompt(m.editor)
-	if !strings.Contains(StripANSIForTUI(blurred), promptSymbol+" Type a message") {
-		t.Fatalf("blurred composer should preserve Hermes prompt text:\n%s", blurred)
+	if !strings.Contains(StripANSIForTUI(blurred), promptSymbol) || strings.Contains(StripANSIForTUI(blurred), "Type a message") {
+		t.Fatalf("blurred composer should preserve bare Hermes prompt text:\n%s", blurred)
 	}
 	if strings.Contains(blurred, "48;2") {
 		t.Fatalf("overlay-blurred composer should not keep active focus-line background:\n%s", blurred)
