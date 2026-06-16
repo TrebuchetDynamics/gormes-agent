@@ -1568,6 +1568,17 @@ func TestGatewayLockDir_DefaultsToHomeDotGormes(t *testing.T) {
 	}
 }
 
+func TestGatewayLockDir_ProfileHomeUsesOwnerRoot(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GORMES_HOME", filepath.Join(root, "profiles", "tulin"))
+
+	got := GatewayLockDir()
+	want := filepath.Join(root, "runtime", "gateway-locks")
+	if got != want {
+		t.Errorf("GatewayLockDir() for profile home = %q, want shared owner root %q", got, want)
+	}
+}
+
 func TestBootPath_DefaultsToHomeDotGormes(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", "")
 	t.Setenv("GORMES_HOME", "")

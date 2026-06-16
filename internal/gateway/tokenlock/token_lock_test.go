@@ -70,6 +70,59 @@ func TestTokenScopedGatewayLockRejectsMissingKindWithoutClearingFile(t *testing.
 	}
 }
 
+func TestTokenScopedGatewayLockClearsStaleEmptyLock(t *testing.T) {
+	dir := t.TempDir()
+	credential := "shared-token"
+	path := filepath.Join(dir, "telegram-"+TokenCredentialHash(credential)+".lock")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir lock dir: %v", err)
+	}
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		t.Fatalf("write empty lock: %v", err)
+	}
+	store := newTokenLockTestStore(t, dir, 2002, 602, nil)
+	old := store.now().Add(-10 * time.Second)
+	if err := os.Chtimes(path, old, old); err != nil {
+		t.Fatalf("age empty lock: %v", err)
+	}
+	lock, evidence, err := store.Acquire(context.Background(), TokenLockRequest{Platform: "telegram", Credential: credential})
+	if err != nil || lock == nil {
+		t.Fatalf("Acquire stale empty lock err=%v lock=%v evidence=%+v, want acquired", err, lock, evidence)
+	}
+	if evidence.Status != TokenLockStatusStaleCleared {
+		t.Fatalf("evidence status = %q, want stale-lock-cleared", evidence.Status)
+	}
+	record := readTokenLockRecordFixture(t, path)
+	if record.Kind != TokenLockKind || record.PID != 2002 {
+		t.Fatalf("stale empty lock replacement = %+v, want current process record", record)
+	}
+}
+
+func TestTokenScopedGatewayLockBlocksFreshEmptyLock(t *testing.T) {
+	dir := t.TempDir()
+	credential := "shared-token"
+	path := filepath.Join(dir, "telegram-"+TokenCredentialHash(credential)+".lock")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir lock dir: %v", err)
+	}
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		t.Fatalf("write empty lock: %v", err)
+	}
+
+	store := newTokenLockTestStore(t, dir, 2002, 602, nil)
+	lock, evidence, err := store.Acquire(context.Background(), TokenLockRequest{Platform: "telegram", Credential: credential})
+	if !errors.Is(err, ErrTokenLockHeld) || lock != nil {
+		t.Fatalf("Acquire fresh empty lock err=%v lock=%v evidence=%+v, want held", err, lock, evidence)
+	}
+	if evidence.ProcessValidation.Status != runtimeproc.ValidationLive {
+		t.Fatalf("fresh empty lock validation = %+v, want live/in-progress", evidence.ProcessValidation)
+	}
+	info, statErr := os.Stat(path)
+	if statErr != nil || info.Size() != 0 {
+		t.Fatalf("fresh empty lock was modified stat=%+v err=%v", info, statErr)
+	}
+}
+
 func TestTokenScopedGatewayLockRedactsExistingOwnerCommandEvidence(t *testing.T) {
 	dir := t.TempDir()
 	credential := "shared-token"
@@ -251,6 +304,40 @@ func TestTokenScopedGatewayLockPathUsesGormesHomeHash(t *testing.T) {
 		if strings.Contains(evidence.Message, leak) {
 			t.Fatalf("lock evidence message leaks credential material %q: %+v", leak, evidence)
 		}
+	}
+}
+
+func TestTokenScopedGatewayLockProfileHomesShareCredentialLockDir(t *testing.T) {
+	root := t.TempDir()
+	credential := "123456:ABC-shared-token"
+
+	t.Setenv("GORMES_HOME", filepath.Join(root, "profiles", "main"))
+	mainStore := newTokenLockTestStore(t, config.GatewayLockDir(), 1001, 501, nil)
+	mainLock, _, err := mainStore.Acquire(context.Background(), TokenLockRequest{
+		Platform:   "telegram",
+		Credential: credential,
+	})
+	if err != nil {
+		t.Fatalf("main acquire: %v", err)
+	}
+	wantDir := filepath.Join(root, "runtime", "gateway-locks")
+	if filepath.Dir(mainLock.Path()) != wantDir {
+		t.Fatalf("main lock dir = %q, want shared owner root %q", filepath.Dir(mainLock.Path()), wantDir)
+	}
+
+	t.Setenv("GORMES_HOME", filepath.Join(root, "profiles", "mineru"))
+	profileStore := newTokenLockTestStore(t, config.GatewayLockDir(), 2002, 602, fakeRuntimeProcessTable{
+		1001: {startTime: 501, command: "gormes gateway"},
+	})
+	profileLock, evidence, err := profileStore.Acquire(context.Background(), TokenLockRequest{
+		Platform:   "telegram",
+		Credential: credential,
+	})
+	if !errors.Is(err, ErrTokenLockHeld) || profileLock != nil {
+		t.Fatalf("profile acquire err=%v lock=%v evidence=%+v, want shared-token lock held", err, profileLock, evidence)
+	}
+	if evidence.Path != mainLock.Path() || evidence.OwnerPID != 1001 {
+		t.Fatalf("profile evidence = %+v, want main lock path %q owned by pid 1001", evidence, mainLock.Path())
 	}
 }
 

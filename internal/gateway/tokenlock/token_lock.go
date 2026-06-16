@@ -37,6 +37,7 @@ var (
 	ErrTokenLockHeld                   = errors.New("gateway token lock held")
 	ErrTokenLockCredentialHashMismatch = errors.New("gateway token lock credential hash mismatch")
 	ErrTokenLockReleaseFailed          = errors.New("gateway token lock release failed")
+	errEmptyTokenLock                  = errors.New("empty token lock record")
 )
 
 // TokenLockRequest describes the external credential identity a gateway
@@ -163,6 +164,19 @@ func (s *TokenLockStore) Acquire(ctx context.Context, req TokenLockRequest) (*To
 				continue
 			}
 			return lock, evidence, err
+		case errors.Is(err, errEmptyTokenLock):
+			stale, validation := s.emptyLockIsStale(activePath)
+			if !stale {
+				evidence := s.evidence(record, activePath, TokenLockStatusHeld, validation, "credential lock is being created")
+				return nil, evidence, fmt.Errorf("%w: %s", ErrTokenLockHeld, activePath)
+			}
+			if err := s.remove(activePath); err != nil {
+				evidence := s.evidence(record, activePath, TokenLockStatusHeld, validation, "stale empty credential lock could not be cleared: "+err.Error())
+				return nil, evidence, fmt.Errorf("%w: %v", ErrTokenLockHeld, err)
+			}
+			evidenceStatus = TokenLockStatusStaleCleared
+			staleValidation = validation
+			continue
 		case err != nil:
 			return nil, s.evidence(record, activePath, TokenLockStatusHeld, runtimeproc.Validation{}, err.Error()), err
 		}
@@ -384,6 +398,31 @@ func (s *TokenLockStore) createLock(ctx context.Context, path string, record tok
 	return lock, s.evidence(record, path, status, validation, ""), nil
 }
 
+func (s *TokenLockStore) emptyLockIsStale(path string) (bool, runtimeproc.Validation) {
+	checkedAt := s.now().UTC().Format(time.RFC3339Nano)
+	validation := runtimeproc.Validation{
+		Status:    runtimeproc.ValidationStalePID,
+		Message:   "empty token lock has no owner process evidence",
+		CheckedAt: checkedAt,
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		validation.Message = sanitizeTokenLockMessage(err.Error())
+		return false, validation
+	}
+	if info.Size() != 0 {
+		validation.Message = "token lock changed while validating empty record"
+		return false, validation
+	}
+	if s.now().Sub(info.ModTime()) < 2*time.Second {
+		validation.Status = runtimeproc.ValidationLive
+		validation.Live = true
+		validation.Message = "empty token lock was just created"
+		return false, validation
+	}
+	return true, validation
+}
+
 func (s *TokenLockStore) validateTokenLockOwner(record tokenLockRecord) runtimeproc.Validation {
 	checkedAt := s.now().UTC().Format(time.RFC3339Nano)
 	validation := runtimeproc.Validation{
@@ -490,7 +529,7 @@ func readTokenLockRecord(path string) (tokenLockRecord, error) {
 	var record tokenLockRecord
 	exists, err := jsonfile.Read(context.Background(), path, &record, "token lock record")
 	if errors.Is(err, jsonfile.ErrEmpty) {
-		return tokenLockRecord{}, os.ErrNotExist
+		return tokenLockRecord{}, errEmptyTokenLock
 	}
 	if err != nil {
 		if jsonfile.IsReadError(err) || !exists {
