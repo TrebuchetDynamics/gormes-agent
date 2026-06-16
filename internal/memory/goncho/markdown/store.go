@@ -307,6 +307,17 @@ func normalizeReloadItem(item memoryv1.GonchoMemoryV1Item) memoryv1.GonchoMemory
 	}
 	item.Content = strings.Trim(item.Content, "\n")
 	item.Checksum = strings.TrimSpace(item.Checksum)
+	// Timestamps are optional in the V1 item contract (the validator does not
+	// require them), but the SQLite columns are NOT NULL and unixTime("") fails
+	// to parse. Default any missing timestamp to now so a spec-valid item does
+	// not abort the whole all-or-nothing reload transaction.
+	now := time.Now().UTC().Format(time.RFC3339)
+	if strings.TrimSpace(item.CreatedAt) == "" {
+		item.CreatedAt = now
+	}
+	if strings.TrimSpace(item.UpdatedAt) == "" {
+		item.UpdatedAt = now
+	}
 	return item
 }
 
