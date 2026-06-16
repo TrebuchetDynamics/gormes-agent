@@ -185,12 +185,19 @@ func synthesizeFixturePCM(text string, sampleRate int, duration time.Duration) [
 	return samples
 }
 
-func writePCM16WAV(path string, sampleRate int, samples []int16) error {
+func writePCM16WAV(path string, sampleRate int, samples []int16) (err error) {
 	file, err := os.Create(path)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	// Capture the Close error so a deferred write failure (e.g. fsync-on-close
+	// on NFS / a full disk) surfaces instead of being silently dropped, leaving
+	// a truncated WAV that callers would treat as a successful synthesis.
+	defer func() {
+		if cerr := file.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 	dataBytes := uint32(len(samples) * 2)
 	byteRate := uint32(sampleRate * defaultChannels * defaultBitsPerSample / 8)
 	blockAlign := uint16(defaultChannels * defaultBitsPerSample / 8)
