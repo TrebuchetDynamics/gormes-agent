@@ -182,6 +182,84 @@ func TestKernel_DefaultToolIterationBudgetMatchesHermesBeyondTen(t *testing.T) {
 	}
 }
 
+func TestKernel_ToolIterationSummaryDoesNotMixPartialDraft(t *testing.T) {
+	mc := llm.NewMockClient()
+	reg := tools.NewRegistry()
+	reg.MustRegister(&tools.EchoTool{})
+
+	// Round 1 (iteration 1) executes a tool.
+	mc.Script([]llm.Event{{
+		Kind:         llm.EventDone,
+		FinishReason: "tool_calls",
+		ToolCalls: []llm.ToolCall{{
+			ID:        "call_echo_a",
+			Name:      "echo",
+			Arguments: json.RawMessage(`{"text":"budget parity"}`),
+		}},
+	}}, "sess-mix-draft")
+
+	// Round 2 (over budget) streams partial assistant text *before* its tool
+	// calls. That leftover text must not leak into the final summary.
+	leftover := "Let me check one more thing... "
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: leftover, TokensOut: len(leftover)},
+		{
+			Kind:         llm.EventDone,
+			FinishReason: "tool_calls",
+			ToolCalls: []llm.ToolCall{{
+				ID:        "call_echo_b",
+				Name:      "echo",
+				Arguments: json.RawMessage(`{"text":"again"}`),
+			}},
+		},
+	}, "sess-mix-draft")
+
+	summary := "Here is the clean final summary."
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: summary, TokensOut: len(summary)},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 50, TokensOut: len(summary)},
+	}, "sess-mix-draft")
+
+	k := New(Config{
+		Model:             "hermes-agent",
+		Endpoint:          "http://mock",
+		Admission:         Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		Tools:             reg,
+		MaxToolIterations: 1,
+		MaxToolDuration:   5 * time.Second,
+	}, mc, store.NewNoop(), telemetry.New(), nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+
+	<-k.Render()
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "mix draft check"}); err != nil {
+		t.Fatal(err)
+	}
+
+	final := waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
+		if f.Phase == PhaseFailed {
+			t.Fatalf("budget exhaustion surfaced as failure LastError=%q", f.LastError)
+		}
+		if f.Phase != PhaseIdle {
+			return false
+		}
+		return lastAssistantMessage(f.History) != nil
+	}, 5*time.Second)
+
+	got := lastAssistantMessage(final.History)
+	if got == nil {
+		t.Fatal("no final assistant message")
+	}
+	if got.Content != summary {
+		t.Fatalf("final assistant content = %q, want only the summary %q (partial draft leaked)", got.Content, summary)
+	}
+	if strings.Contains(got.Content, leftover) {
+		t.Fatalf("final assistant content leaked partial tool-round draft: %q", got.Content)
+	}
+}
+
 func TestKernel_ToolIterationBudgetRequestsToollessSummary(t *testing.T) {
 	mc := llm.NewMockClient()
 	reg := tools.NewRegistry()

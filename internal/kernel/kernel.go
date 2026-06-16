@@ -996,6 +996,11 @@ func (k *Kernel) requestMaxIterationSummary(ctx context.Context, base llm.ChatRe
 		Content: maxIterationSummaryRequest,
 	})
 
+	// Discard any partial text streamed during the over-budget tool round. The
+	// summary is a fresh, standalone response and replaces that interrupted
+	// fragment; without this reset streamInner would append the summary onto the
+	// leftover draft and persist a malformed mixed final message.
+	k.draft = ""
 	k.lastError = ""
 	k.phase = PhaseFinalizing
 	k.emitFrame(fmt.Sprintf("iteration budget exhausted (%d/%d); requesting summary", maxIter, maxIter))
