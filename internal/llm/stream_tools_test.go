@@ -82,6 +82,71 @@ func TestStream_ToolCallDeltasAccumulate(t *testing.T) {
 	}
 }
 
+// Some OpenAI-compatible providers/proxies (vLLM, llama.cpp servers, certain
+// models) stream tool_call deltas but report finish_reason:"stop" instead of
+// "tool_calls". The buffered calls must still be flushed onto the EventDone,
+// otherwise the turn ends as plain text and the tools are silently dropped.
+const sseToolCallsStopFinishFixture = `data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_xyz","type":"function","function":{"name":"echo","arguments":""}}]}}]}
+
+data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"text\":\"hi\"}"}}]}}]}
+
+data: {"choices":[{"finish_reason":"stop"}]}
+
+data: [DONE]
+
+`
+
+func TestStream_ToolCallsFlushedWhenFinishReasonIsStop(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(200)
+		bw := bufio.NewWriter(w)
+		fmt.Fprint(bw, sseToolCallsStopFinishFixture)
+		bw.Flush()
+	}))
+	defer srv.Close()
+
+	c := NewHTTPClient(srv.URL, "")
+	s, err := c.OpenStream(context.Background(), ChatRequest{
+		Model:    "x",
+		Messages: []Message{{Role: "user", Content: "echo hi"}},
+		Tools: []ToolDescriptor{{
+			Name:        "echo",
+			Description: "echo text",
+			Schema:      json.RawMessage(`{"type":"object","properties":{"text":{"type":"string"}},"required":["text"]}`),
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	var final Event
+	for {
+		e, err := s.Recv(context.Background())
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if e.Kind == EventDone {
+			final = e
+			break
+		}
+	}
+
+	if len(final.ToolCalls) != 1 {
+		t.Fatalf("ToolCalls len = %d, want 1 (tool calls dropped on finish_reason=stop)", len(final.ToolCalls))
+	}
+	if final.FinishReason != "tool_calls" {
+		t.Fatalf("FinishReason = %q, want tool_calls when calls are present", final.FinishReason)
+	}
+	if tc := final.ToolCalls[0]; tc.Name != "echo" || !strings.Contains(string(tc.Arguments), `"hi"`) {
+		t.Errorf("tool call = %+v, want echo with hi", tc)
+	}
+}
+
 func TestStreamDiagnosticsCapturesAllowlistedHeadersAndCounters(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")

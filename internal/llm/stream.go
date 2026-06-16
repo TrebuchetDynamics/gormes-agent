@@ -197,13 +197,20 @@ func (s *chatStream) Recv(ctx context.Context) (Event, error) {
 				ev.TokensIn = chunk.Usage.PromptTokens
 				ev.TokensOut = chunk.Usage.CompletionTokens
 			}
-			if c.FinishReason == "tool_calls" && len(s.pendingCalls) > 0 {
+			// Flush buffered tool calls on any terminal finish, not only
+			// finish_reason=="tool_calls". Some OpenAI-compatible providers report
+			// "stop" (or other reasons) alongside tool_call deltas; the kernel
+			// breaks on this first EventDone, so the EOF-flush fallback never runs
+			// and the calls would be silently dropped. Normalise the finish reason
+			// to "tool_calls" so downstream tool execution still fires.
+			if len(s.pendingCalls) > 0 {
 				toolCalls, err := RepairToolCalls(flushPending(s.pendingCalls), s.tools)
 				s.pendingCalls = make(map[int]*pendingToolCall) // reset for possible reuse
 				if err != nil {
 					return Event{}, err
 				}
 				ev.ToolCalls = toolCalls
+				ev.FinishReason = "tool_calls"
 			}
 			events = append(events, ev)
 		}
