@@ -201,6 +201,12 @@ func RunSetupProviderLiveTest(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if setupProviderLiveTestUsesAuthReadiness(cfg) {
+		if !ConfiguredProviderAuthPresent(cfg) {
+			return fmt.Errorf("%s credential unavailable: run `gormes auth add %s --type oauth`", config.CodexOAuthProvider, config.CodexOAuthProvider)
+		}
+		return nil
+	}
 	client, err := NewProviderHTTPClient(cfg, cfg.Hermes.Provider)
 	if err != nil {
 		return err
@@ -208,6 +214,10 @@ func RunSetupProviderLiveTest(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	return client.Health(ctx)
+}
+
+func setupProviderLiveTestUsesAuthReadiness(cfg config.Config) bool {
+	return strings.EqualFold(strings.TrimSpace(cfg.Hermes.Provider), config.CodexOAuthProvider)
 }
 
 func NormalizeSetupQuickTarget(target cli.SetupTargetID) cli.SetupTargetID {

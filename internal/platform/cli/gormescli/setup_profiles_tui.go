@@ -19,7 +19,6 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 	"github.com/charmbracelet/bubbles/filepicker"
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -132,7 +131,6 @@ type setupProfilesModel struct {
 	workspaceBrowserEntries []string
 	workspaceBrowserIndex   int
 	workspacePicker         filepicker.Model
-	channelList             list.Model
 	result                  setupProfilesTUIResult
 	err                     error
 }
@@ -149,13 +147,7 @@ var runSetupProfilesTUI = runSetupProfilesTUIDefault
 var writeSetupProfilesControlCenterConfig = config.WriteProfileConfigV2
 var applySetupProfilesControlCenterMigration = config.ApplyProfileConfigV2Migration
 
-var setupProfilesChannelChoices = []string{"telegram", "whatsapp", "discord", "slack", "navivox"}
-
-type setupChannelListItem string
-
-func (i setupChannelListItem) FilterValue() string { return string(i) }
-func (i setupChannelListItem) Title() string       { return string(i) }
-func (i setupChannelListItem) Description() string { return "profile channel" }
+var setupProfilesChannelChoices = gatewaymodule.ProfileSetupChannelIDs()
 
 func maybeRunSetupProfilesTUI(cmd *cobra.Command, pseams SetupProfilesSeams, known []string, active string) (bool, error) {
 	stdin, ok := cmd.InOrStdin().(*os.File)
@@ -699,24 +691,6 @@ func newSetupProfilesTextInput() textinput.Model {
 	return input
 }
 
-func newSetupProfilesChannelList(width, height int) list.Model {
-	items := make([]list.Item, 0, len(setupProfilesChannelChoices))
-	for _, channel := range setupProfilesChannelChoices {
-		items = append(items, setupChannelListItem(channel))
-	}
-	delegate := list.NewDefaultDelegate()
-	delegate.ShowDescription = false
-	delegate.SetSpacing(0)
-	model := list.New(items, delegate, max(20, width), max(3, height))
-	model.Title = "Channels"
-	model.SetShowTitle(false)
-	model.SetShowStatusBar(false)
-	model.SetShowPagination(false)
-	model.SetFilteringEnabled(false)
-	model.SetShowHelp(false)
-	return model
-}
-
 func newSetupProfilesWorkspacePicker(path string, height int) filepicker.Model {
 	picker := filepicker.New()
 	picker.CurrentDirectory = path
@@ -755,7 +729,6 @@ func newSetupProfilesModel(state setupProfilesTUIState) setupProfilesModel {
 		width:        80,
 		height:       24,
 		channelDraft: make(map[string]bool),
-		channelList:  newSetupProfilesChannelList(80, 8),
 	}
 }
 
@@ -767,7 +740,6 @@ func (m setupProfilesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if size, ok := msg.(tea.WindowSizeMsg); ok {
 		m.width = size.Width
 		m.height = size.Height
-		m.channelList.SetSize(max(20, size.Width), max(3, min(8, size.Height-6)))
 		m.workspacePicker.SetHeight(max(3, min(10, size.Height-6)))
 		return m, nil
 	}
@@ -814,8 +786,7 @@ func (m setupProfilesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.selectWorkspaceBrowserEntry(), nil
 		}
 		if m.mode == setupProfilesModeChannels {
-			channel := setupProfilesSelectedChannel(m.channelList)
-			if channel != "" {
+			if channel := setupProfilesChannelAt(m.channelIndex); channel != "" {
 				m.channelDraft[channel] = !m.channelDraft[channel]
 			}
 		}
@@ -824,10 +795,7 @@ func (m setupProfilesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.mode == setupProfilesModeWorkspaces && m.workspaceIndex > 0 {
 			m.workspaceIndex--
 		} else if m.mode == setupProfilesModeChannels {
-			var cmd tea.Cmd
-			m.channelList, cmd = m.channelList.Update(key)
-			m.channelIndex = m.channelList.Index()
-			return m, cmd
+			m = m.moveChannelCursor(-1)
 		} else if m.mode == setupProfilesModeBrowse && m.selected > 0 {
 			m.selected--
 		}
@@ -836,10 +804,7 @@ func (m setupProfilesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.mode == setupProfilesModeWorkspaces && m.workspaceIndex < len(m.workspaceDraft)-1 {
 			m.workspaceIndex++
 		} else if m.mode == setupProfilesModeChannels {
-			var cmd tea.Cmd
-			m.channelList, cmd = m.channelList.Update(key)
-			m.channelIndex = m.channelList.Index()
-			return m, cmd
+			m = m.moveChannelCursor(1)
 		} else if m.mode == setupProfilesModeBrowse && m.selected < len(m.state.Profiles)-1 {
 			m.selected++
 		}
@@ -950,15 +915,10 @@ func (m setupProfilesModel) handleRunes(runes []rune) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		switch runes[0] {
-		case 'j', 'k':
-			msg := tea.KeyMsg{Type: tea.KeyDown}
-			if runes[0] == 'k' {
-				msg = tea.KeyMsg{Type: tea.KeyUp}
-			}
-			var cmd tea.Cmd
-			m.channelList, cmd = m.channelList.Update(msg)
-			m.channelIndex = m.channelList.Index()
-			return m, cmd
+		case 'j':
+			m = m.moveChannelCursor(1)
+		case 'k':
+			m = m.moveChannelCursor(-1)
 		case 'q':
 			m.mode = setupProfilesModeBrowse
 		}
@@ -1378,28 +1338,39 @@ func (m setupProfilesModel) writeChannelsList(b *strings.Builder) {
 	fmt.Fprintln(b, "\nChannels")
 	fmt.Fprintln(b, "Space toggle  j/k or Up/Down move  Enter done  q back")
 	fmt.Fprintln(b, "Channels attach this profile agent to Gormes messaging channels. Navivox routes through the Gormes Navivox channel, not directly to Goncho.")
-	m.channelList.SetSize(max(20, m.viewWidth()), max(3, min(8, m.viewHeight()-8)))
-	view := strings.TrimRight(m.channelList.View(), "\n")
-	if strings.TrimSpace(view) != "" {
-		for _, line := range strings.Split(view, "\n") {
-			trimmed := strings.TrimSpace(line)
-			for _, channel := range setupProfilesChannelChoices {
-				if strings.Contains(trimmed, channel) && m.channelDraft[channel] {
-					line += "  ✓"
-					break
-				}
-			}
-			fmt.Fprintln(b, line)
+	for i, channel := range setupProfilesChannelChoices {
+		cursor := " "
+		if i == m.channelIndex {
+			cursor = ">"
 		}
+		checked := " "
+		if m.channelDraft[channel] {
+			checked = "x"
+		}
+		fmt.Fprintf(b, "%s [%s] %s\n", cursor, checked, channel)
 	}
 }
 
-func setupProfilesSelectedChannel(model list.Model) string {
-	item, ok := model.SelectedItem().(setupChannelListItem)
-	if !ok {
+func setupProfilesChannelAt(index int) string {
+	if index < 0 || index >= len(setupProfilesChannelChoices) {
 		return ""
 	}
-	return string(item)
+	return setupProfilesChannelChoices[index]
+}
+
+func (m setupProfilesModel) moveChannelCursor(delta int) setupProfilesModel {
+	if len(setupProfilesChannelChoices) == 0 {
+		m.channelIndex = 0
+		return m
+	}
+	m.channelIndex += delta
+	if m.channelIndex < 0 {
+		m.channelIndex = 0
+	}
+	if m.channelIndex >= len(setupProfilesChannelChoices) {
+		m.channelIndex = len(setupProfilesChannelChoices) - 1
+	}
+	return m
 }
 
 func (m setupProfilesModel) writeWorkspaceBrowser(b *strings.Builder) {

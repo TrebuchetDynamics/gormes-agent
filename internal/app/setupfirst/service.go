@@ -325,14 +325,8 @@ func runQuickHandoff(runtime QuickRuntime, target cli.SetupTargetID) error {
 		fmt.Fprintln(out, "Channel setup checked. Start messaging with: gormes gateway")
 		return nil
 	}
-	if runtime.NonInteractive {
-		fmt.Fprintln(out, "Terminal chat ready. Start chatting with: gormes")
-		return nil
-	}
-	if runtime.LaunchChat == nil {
-		return fmt.Errorf("launch chat seam unavailable")
-	}
-	return runtime.LaunchChat()
+	fmt.Fprintln(out, "Terminal chat ready. Start chatting with: gormes")
+	return nil
 }
 
 func NormalizeQuickTarget(target cli.SetupTargetID) cli.SetupTargetID {

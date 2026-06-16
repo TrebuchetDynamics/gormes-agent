@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/exp/teatest"
@@ -245,6 +246,39 @@ func TestSetupProfilesTUICommandActionsAreArrowSelectable(t *testing.T) {
 	}
 	if m.input != "Gormes" {
 		t.Fatalf("display-name editor input = %q, want current display name", m.input)
+	}
+}
+
+func TestSetupProfilesChannelChoicesUseGatewaySetupInventory(t *testing.T) {
+	if got, want := setupProfilesChannelChoices, gatewaymodule.ProfileSetupChannelIDs(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("setupProfilesChannelChoices = %#v, want gateway setup inventory %#v", got, want)
+	}
+}
+
+func TestSetupProfilesChannelEditorUsesReadableCursorAndCheckboxes(t *testing.T) {
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		ControlCenter: true,
+		Profiles: []setupProfileView{{
+			Name:        "mineru",
+			DisplayName: "mineru",
+			Channels:    []string{"telegram"},
+		}},
+	})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m = updated.(setupProfilesModel)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	m = updated.(setupProfilesModel)
+
+	view := m.View()
+	for _, want := range []string{"> [x] telegram", "  [ ] whatsapp"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("channel editor missing readable selection row %q:\n%s", want, view)
+		}
+	}
+	for _, stale := range []string{"│ telegram", "│ whatsapp"} {
+		if strings.Contains(view, stale) {
+			t.Fatalf("channel editor leaked Bubble list cursor %q instead of setup cursor/checkbox rows:\n%s", stale, view)
+		}
 	}
 }
 

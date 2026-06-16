@@ -117,7 +117,7 @@ api_key = "test-api-key"
 		return nil
 	}
 	seams.LaunchChat = func(*cobra.Command) error {
-		events = append(events, "chat")
+		t.Fatal("quick terminal setup launched chat/TUI")
 		return nil
 	}
 
@@ -128,12 +128,12 @@ api_key = "test-api-key"
 	if fullCalls != 0 || chooserCalls != 0 {
 		t.Fatalf("fullCalls=%d chooserCalls=%d, want both 0", fullCalls, chooserCalls)
 	}
-	for _, want := range []string{"Quick Setup - configure missing items only", "Current model/provider: claude-sonnet-4 via anthropic", "No missing core setup items detected."} {
+	for _, want := range []string{"Quick Setup - configure missing items only", "Current model/provider: claude-sonnet-4 via anthropic", "No missing core setup items detected.", "Terminal chat ready. Start chatting with: gormes"} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
-	if got, want := strings.Join(events, ","), "target,live-test,chat"; got != want {
+	if got, want := strings.Join(events, ","), "target,live-test"; got != want {
 		t.Fatalf("events = %s, want %s", got, want)
 	}
 }
@@ -208,7 +208,7 @@ func TestSetupQuickPromptsTargetBeforeProviderWork(t *testing.T) {
 		return nil
 	}
 	seams.LaunchChat = func(*cobra.Command) error {
-		events = append(events, "chat")
+		t.Fatal("quick terminal setup launched chat/TUI")
 		return nil
 	}
 
@@ -216,8 +216,11 @@ func TestSetupQuickPromptsTargetBeforeProviderWork(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	if got, want := strings.Join(events, ","), "target,provider,model,live-test,chat"; got != want {
+	if got, want := strings.Join(events, ","), "target,provider,model,live-test"; got != want {
 		t.Fatalf("events = %s, want %s\nstdout=%s", got, want, stdout)
+	}
+	if !strings.Contains(stdout, "Terminal chat ready. Start chatting with: gormes") {
+		t.Fatalf("stdout missing terminal handoff:\n%s", stdout)
 	}
 }
 

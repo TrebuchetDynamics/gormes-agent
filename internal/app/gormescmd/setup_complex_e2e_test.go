@@ -333,7 +333,7 @@ func TestSetupComplexE2E_ProviderNonInteractiveMergesDotenvWithoutDuplicateSecre
 	}
 }
 
-func TestSetupComplexE2E_QuickTUITargetAliasRunsLiveTestThenLaunchesChatOnly(t *testing.T) {
+func TestSetupComplexE2E_QuickTUITargetAliasRunsLiveTestThenPrintsHandoffOnly(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 	t.Setenv("GORMES_API_KEY", "sk-tui-target-secret")
@@ -367,7 +367,7 @@ model = "gpt-5.2-codex"
 		return nil
 	}
 	seams.LaunchChat = func(*cobra.Command) error {
-		events = append(events, "chat")
+		t.Fatal("configured tui quick setup launched chat/TUI")
 		return nil
 	}
 
@@ -375,15 +375,15 @@ model = "gpt-5.2-codex"
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	if got, want := strings.Join(events, ","), "live-test,chat"; got != want {
+	if got, want := strings.Join(events, ","), "live-test"; got != want {
 		t.Fatalf("events = %s, want %s\nstdout=%s", got, want, stdout)
 	}
-	for _, want := range []string{"Quick Setup - configure missing items only", "Current model/provider: gpt-5.2-codex via openai-codex", "No missing core setup items detected."} {
+	for _, want := range []string{"Quick Setup - configure missing items only", "Current model/provider: gpt-5.2-codex via openai-codex", "No missing core setup items detected.", "Terminal chat ready. Start chatting with: gormes"} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
-	for _, forbidden := range []string{"sk-tui-target-secret", "Channel setup command", "Channel setup checked", "Terminal chat ready", "setup gateway"} {
+	for _, forbidden := range []string{"sk-tui-target-secret", "Channel setup command", "Channel setup checked", "setup gateway"} {
 		if strings.Contains(stdout, forbidden) || strings.Contains(stderr, forbidden) {
 			t.Fatalf("tui target output leaked/printed forbidden %q\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
 		}
