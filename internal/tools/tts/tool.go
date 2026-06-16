@@ -109,6 +109,7 @@ func (r *TTSRunner) Synthesize(ctx context.Context, req TTSRequest) TTSResult {
 		return ttsFailure(providerName, TTSEvidenceInvalidArguments, redactTTSText(err.Error()))
 	}
 
+	language := normalizeTTSLanguage(req.Language)
 	providerResult, err := provider.Synthesize(ctx, TTSProviderRequest{
 		Text:       text,
 		OutputPath: outputPath,
@@ -116,6 +117,7 @@ func (r *TTSRunner) Synthesize(ctx context.Context, req TTSRequest) TTSResult {
 		Platform:   strings.ToLower(strings.TrimSpace(req.Platform)),
 		Voice:      strings.TrimSpace(req.Voice),
 		Speed:      req.Speed,
+		Language:   language,
 	})
 	if err != nil {
 		return ttsFailure(providerName, TTSEvidenceAPIError, redactTTSText(err.Error()))
@@ -371,7 +373,7 @@ func (*TextToSpeechTool) Description() string {
 }
 
 func (*TextToSpeechTool) Schema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{"text":{"type":"string","description":"The text to convert to speech. Provider-specific character caps apply and are enforced automatically; over-long input is truncated."},"output_path":{"type":"string","description":"Optional custom file path to save the audio. Defaults to the Gormes audio cache."}},"required":["text"]}`)
+	return json.RawMessage(`{"type":"object","properties":{"text":{"type":"string","description":"The text to convert to speech. Provider-specific character caps apply and are enforced automatically; over-long input is truncated."},"output_path":{"type":"string","description":"Optional custom file path to save the audio. Defaults to the Gormes audio cache."},"language":{"type":"string","description":"Optional BCP-47 language hint, or auto to infer a matching provider voice from the text."}},"required":["text"]}`)
 }
 
 func (*TextToSpeechTool) Timeout() time.Duration { return 90 * time.Second }
@@ -384,6 +386,7 @@ func (t *TextToSpeechTool) Execute(ctx context.Context, args json.RawMessage) (j
 		Platform   string          `json:"platform"`
 		Voice      string          `json:"voice"`
 		Speed      json.RawMessage `json:"speed"`
+		Language   string          `json:"language"`
 	}
 	if err := json.Unmarshal(args, &in); err != nil {
 		result := ttsFailure("", TTSEvidenceInvalidArguments, "invalid TTS args: "+err.Error())
@@ -396,6 +399,7 @@ func (t *TextToSpeechTool) Execute(ctx context.Context, args json.RawMessage) (j
 		Platform:   in.Platform,
 		Voice:      in.Voice,
 		Speed:      parseTTSRequestSpeed(in.Speed),
+		Language:   in.Language,
 	})
 	return json.Marshal(result)
 }

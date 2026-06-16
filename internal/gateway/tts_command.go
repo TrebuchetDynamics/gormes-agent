@@ -144,7 +144,18 @@ func (m *Manager) handleTTSCommand(ctx context.Context, ch Channel, ev InboundEv
 		m.setTTSConfig(ev.ChatKey(), cfg)
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("TTS engine set to: %s", found))
 	case "language":
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Manual TTS language selection is not implemented yet. Current mode: auto.")
+		if len(args) < 3 {
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("TTS language: %s\nUsage: /tts language [auto|en|es|pt|fr|de|it|ja|ko|zh]", cfg.Language))
+			return
+		}
+		language := normalizeTTSCommandLanguage(strings.Join(args[2:], " "))
+		if language == "" {
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Unknown TTS language. Supported: auto, en, es, pt, fr, de, it, ja, ko, zh")
+			return
+		}
+		cfg.Language = language
+		m.setTTSConfig(ev.ChatKey(), cfg)
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("TTS language set to: %s", language))
 	default:
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Usage: /tts [on|off|speed|voice|engine|language]")
 	}
@@ -170,4 +181,15 @@ func engineNames() []string {
 
 func defaultVoiceForEngine(e TTSEngine) string {
 	return ttsconfig.DefaultVoiceForEngine(e)
+}
+
+func normalizeTTSCommandLanguage(raw string) string {
+	lang := strings.ToLower(strings.TrimSpace(raw))
+	lang = strings.ReplaceAll(lang, "_", "-")
+	switch lang {
+	case "auto", "en", "en-us", "es", "es-es", "pt", "pt-br", "fr", "fr-fr", "de", "de-de", "it", "it-it", "ja", "ja-jp", "ko", "ko-kr", "zh", "zh-cn":
+		return lang
+	default:
+		return ""
+	}
 }

@@ -75,6 +75,9 @@ func (m *Manager) appendAutoTTSMedia(ctx context.Context, platform, sessionKey, 
 	if cfg.Speed != "" {
 		toolArgs["speed"] = string(cfg.Speed)
 	}
+	if strings.TrimSpace(cfg.Language) != "" {
+		toolArgs["language"] = cfg.Language
+	}
 	args, err := json.Marshal(toolArgs)
 	if err != nil {
 		return media

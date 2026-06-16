@@ -20,6 +20,7 @@ type fakeGatewayTTSTool struct {
 	platform string
 	voice    string
 	speed    string
+	language string
 }
 
 func (f *fakeGatewayTTSTool) Name() string        { return "text_to_speech" }
@@ -35,6 +36,7 @@ func (f *fakeGatewayTTSTool) Execute(_ context.Context, args json.RawMessage) (j
 		Platform string `json:"platform"`
 		Voice    string `json:"voice"`
 		Speed    string `json:"speed"`
+		Language string `json:"language"`
 	}
 	if err := json.Unmarshal(args, &in); err != nil {
 		return nil, err
@@ -44,6 +46,7 @@ func (f *fakeGatewayTTSTool) Execute(_ context.Context, args json.RawMessage) (j
 	f.platform = in.Platform
 	f.voice = in.Voice
 	f.speed = in.Speed
+	f.language = in.Language
 	if err := os.WriteFile("/tmp/gormes-auto-tts.mp3", []byte("audio"), 0o600); err != nil {
 		return nil, err
 	}
@@ -171,12 +174,12 @@ func TestGatewayAutoTTSPassesSessionEngineToTool(t *testing.T) {
 	}
 }
 
-func TestGatewayAutoTTSPassesSessionVoiceAndSpeedToTool(t *testing.T) {
+func TestGatewayAutoTTSPassesSessionVoiceSpeedAndLanguageToTool(t *testing.T) {
 	reg := tools.NewRegistry()
 	tts := &fakeGatewayTTSTool{}
 	reg.MustRegister(tts)
 	m := NewManagerWithSubmitter(ManagerConfig{ToolRegistry: reg}, &fakeKernel{}, slog.Default())
-	m.setTTSConfig("telegram:42", TTSConfig{Enabled: true, Engine: TTSEngineEdge, Voice: "en-US-JennyNeural", Speed: TTSSpeedFast})
+	m.setTTSConfig("telegram:42", TTSConfig{Enabled: true, Engine: TTSEngineEdge, Voice: "en-US-JennyNeural", Speed: TTSSpeedFast, Language: "auto"})
 	frame := kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
 		History: []llm.Message{{
@@ -190,8 +193,28 @@ func TestGatewayAutoTTSPassesSessionVoiceAndSpeedToTool(t *testing.T) {
 	if len(media) != 1 {
 		t.Fatalf("media = %#v, want synthesized audio", media)
 	}
-	if tts.voice != "en-US-JennyNeural" || tts.speed != string(TTSSpeedFast) {
-		t.Fatalf("tts request voice/speed = %q/%q, want en-US-JennyNeural/fast", tts.voice, tts.speed)
+	if tts.voice != "en-US-JennyNeural" || tts.speed != string(TTSSpeedFast) || tts.language != "auto" {
+		t.Fatalf("tts request voice/speed/language = %q/%q/%q, want en-US-JennyNeural/fast/auto", tts.voice, tts.speed, tts.language)
+	}
+}
+
+func TestTTSLanguageCommandSetsAutoLanguage(t *testing.T) {
+	ch := newFakeChannel("telegram")
+	m := NewManagerWithSubmitter(ManagerConfig{}, &fakeKernel{}, slog.Default())
+
+	m.handleTTSCommand(context.Background(), ch, InboundEvent{
+		Platform: "telegram",
+		ChatID:   "42",
+		Text:     "/tts language es",
+	})
+
+	cfg := m.getTTSConfig("telegram:42")
+	if cfg.Language != "es" {
+		t.Fatalf("language = %q, want es", cfg.Language)
+	}
+	got := ch.sentSnapshot()
+	if len(got) != 1 || !strings.Contains(got[0].Text, "TTS language set to: es") {
+		t.Fatalf("language reply = %#v, want confirmation", got)
 	}
 }
 
