@@ -5,11 +5,10 @@ package dashboard
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
-import (
-	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/apiserver/ui/shell"
-	"github.com/a-h/templ"
-)
+import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
+
+import "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/apiserver/ui/shell"
 
 func Page() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {

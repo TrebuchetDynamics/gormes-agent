@@ -57,7 +57,12 @@ templ Layout(title string) {
 			<div class="sep"></div>
 			<a href="/skills" class={ templ.KV("active", title == "Skills") }>📦 Skills</a>
 			<a href="/cron" class={ templ.KV("active", title == "Cron") }>⏰ Cron</a>
+			<a href="/models" class={ templ.KV("active", title == "Models") }>🧠 Models</a>
 			<a href="/config" class={ templ.KV("active", title == "Config") }>⚙️ Config</a>
+			<a href="/env" class={ templ.KV("active", title == "Env") }>🔑 Env</a>
+			<div class="sep"></div>
+			<a href="/system" class={ templ.KV("active", title == "System") }>🖥️ System</a>
+			<a href="/logs" class={ templ.KV("active", title == "Logs") }>📜 Logs</a>
 			<div class="sep"></div>
 			<div style="padding:9px 16px;color:var(--dim);font-size:10px" id="nav-status">
 				Connecting…

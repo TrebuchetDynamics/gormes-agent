@@ -5,7 +5,7 @@ import "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/apiserver/ui
 templ Sessions() {
 	@shell.Layout("Sessions") {
 		<h1>📋 Sessions</h1>
-		<div id="session-list" hx-get="/api/sessions" hx-trigger="load" hx-swap="innerHTML">
+		<div id="session-list" hx-get="/ui/sessions" hx-trigger="load, every 30s" hx-swap="innerHTML">
 			<div style="color:var(--dim)">Loading sessions…</div>
 		</div>
 	}
@@ -14,7 +14,7 @@ templ Sessions() {
 templ Config() {
 	@shell.Layout("Config") {
 		<h1>⚙️ Configuration</h1>
-		<div id="config-view" hx-get="/api/config" hx-trigger="load" hx-swap="innerHTML">
+		<div id="config-view" hx-get="/ui/config" hx-trigger="load" hx-swap="innerHTML">
 			<div style="color:var(--dim)">Loading configuration…</div>
 		</div>
 	}
@@ -23,7 +23,7 @@ templ Config() {
 templ Skills() {
 	@shell.Layout("Skills") {
 		<h1>📦 Skills</h1>
-		<div id="skills-view" hx-get="/api/skills" hx-trigger="load" hx-swap="innerHTML">
+		<div id="skills-view" hx-get="/ui/skills" hx-trigger="load" hx-swap="innerHTML">
 			<div style="color:var(--dim)">Loading skills…</div>
 		</div>
 	}
@@ -32,8 +32,45 @@ templ Skills() {
 templ Cron() {
 	@shell.Layout("Cron") {
 		<h1>⏰ Cron Jobs</h1>
-		<div id="cron-list" hx-get="/v1/admin/cron/jobs" hx-trigger="load" hx-swap="innerHTML">
+		<div id="cron-list" hx-get="/ui/cron" hx-trigger="load, every 30s" hx-swap="innerHTML">
 			<div style="color:var(--dim)">Loading cron jobs…</div>
+		</div>
+	}
+}
+
+templ Env() {
+	@shell.Layout("Env") {
+		<h1>🔑 Environment & Keys</h1>
+		<div style="color:var(--dim);margin-bottom:8px">Provider credential presence. Secret values are never shown.</div>
+		<div id="env-view" hx-get="/ui/env" hx-trigger="load" hx-swap="innerHTML">
+			<div style="color:var(--dim)">Loading environment…</div>
+		</div>
+	}
+}
+
+templ Models() {
+	@shell.Layout("Models") {
+		<h1>🧠 Models</h1>
+		<div id="models-view" hx-get="/ui/models" hx-trigger="load" hx-swap="innerHTML">
+			<div style="color:var(--dim)">Loading models…</div>
+		</div>
+	}
+}
+
+templ System() {
+	@shell.Layout("System") {
+		<h1>🖥️ System</h1>
+		<div id="system-view" hx-get="/ui/system" hx-trigger="load, every 5s" hx-swap="innerHTML">
+			<div style="color:var(--dim)">Loading system stats…</div>
+		</div>
+	}
+}
+
+templ Logs() {
+	@shell.Layout("Logs") {
+		<h1>📜 Logs</h1>
+		<div id="logs-view" hx-get="/ui/logs" hx-trigger="load, every 5s" hx-swap="innerHTML">
+			<div style="color:var(--dim)">Loading logs…</div>
 		</div>
 	}
 }

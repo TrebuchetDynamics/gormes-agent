@@ -1,10 +1,13 @@
 package apiserver
 
 import (
+	"context"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/httpstream"
 )
@@ -68,8 +71,8 @@ func (s *Server) handleDashboardStatusFragment(w http.ResponseWriter, _ *http.Re
 	fmt.Fprintf(w, `<div class="status-box"><div class="val">⚕</div><div class="lbl">Running</div></div>
 <div class="status-box"><div class="val">%s</div><div class="lbl">Model</div></div>
 <div class="status-box"><div class="val">%s</div><div class="lbl">Session</div></div>`,
-		truncateStr(s.modelName, 12),
-		truncateStr(s.providerName, 12))
+		html.EscapeString(truncateStr(s.modelName, 12)),
+		html.EscapeString(truncateStr(s.providerName, 12)))
 }
 
 func (s *Server) handleDashboardMemoryFragment(w http.ResponseWriter, _ *http.Request) {
@@ -80,6 +83,15 @@ func (s *Server) handleDashboardMemoryFragment(w http.ResponseWriter, _ *http.Re
 </div>
 <div style="color:var(--dim);font-size:11px">Click a memory node to inspect</div>`)
 }
+
+// dashboardChatSessionID keeps dashboard chat turns on one continuous native
+// session so the kernel preserves conversation history across messages.
+const dashboardChatSessionID = "dashboard-chat"
+
+// dashboardChatTurnTimeout bounds a single dashboard chat turn. It is generous
+// because agent turns can run tools, but it prevents an orphaned turn from
+// living forever after the page is closed.
+const dashboardChatTurnTimeout = 10 * time.Minute
 
 func (s *Server) handleAgentExecute(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -92,9 +104,61 @@ func (s *Server) handleAgentExecute(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, `<div class="card" style="border-color:var(--err)">Error: prompt is required</div>`)
 		return
 	}
-	s.broadcastSSE("frame", fmt.Sprintf(`<div class="line">❯ %s</div>`, prompt))
+	safe := html.EscapeString(prompt)
+	s.logStore.Append("chat", "user: "+prompt)
+	s.broadcastSSE("frame", fmt.Sprintf(`<div class="line">❯ %s</div>`, safe))
+
+	if s.loop == nil {
+		// Display-only degrade: no native turn loop is wired.
+		w.WriteHeader(http.StatusOK)
+		io.WriteString(w, fmt.Sprintf(`<div class="card" style="border-color:var(--warn)">⚠ Chat is display-only (no turn loop): %s</div>`, safe))
+		return
+	}
+
+	// Run the turn asynchronously and stream the reply over SSE. The request
+	// context ends when this handler returns, so the turn uses an independent
+	// bounded context instead.
+	go s.runDashboardChatTurn(prompt)
 	w.WriteHeader(http.StatusOK)
-	io.WriteString(w, fmt.Sprintf(`<div class="card" style="border-color:var(--ok)">✅ Task injected: %s</div>`, prompt))
+	io.WriteString(w, `<div class="card" style="border-color:var(--ok)">✅ Sent</div>`)
+}
+
+// runDashboardChatTurn executes one native turn for the dashboard chat surface
+// and broadcasts streamed tokens plus the final reply (or error) to all SSE
+// subscribers. Tokens are HTML-escaped before broadcast.
+func (s *Server) runDashboardChatTurn(prompt string) {
+	ctx, cancel := context.WithTimeout(context.Background(), dashboardChatTurnTimeout)
+	defer cancel()
+
+	streamed := false
+	res, err := s.loop.StreamTurn(ctx, TurnRequest{
+		UserMessage: prompt,
+		SessionID:   dashboardChatSessionID,
+	}, StreamCallbacks{
+		OnToken: func(token string) error {
+			if token == "" {
+				return nil
+			}
+			streamed = true
+			s.broadcastSSE("frame", fmt.Sprintf(`<span class="stream">%s</span>`, html.EscapeString(token)))
+			return nil
+		},
+	})
+	if err != nil {
+		s.logStore.Append("chat", "error: "+err.Error())
+		s.broadcastSSE("frame", fmt.Sprintf(`<div class="line error">⚠ %s</div>`, html.EscapeString(err.Error())))
+		return
+	}
+	s.logStore.Append("chat", "assistant reply delivered")
+	if streamed {
+		// Terminate the streamed token line so the next turn starts fresh.
+		s.broadcastSSE("frame", `<div class="line"></div>`)
+		return
+	}
+	// Non-streaming loop: emit the complete assistant reply as one frame.
+	if reply := strings.TrimSpace(res.Content); reply != "" {
+		s.broadcastSSE("frame", fmt.Sprintf(`<div class="line stream">%s</div>`, html.EscapeString(reply)))
+	}
 }
 
 func truncateStr(s string, max int) string {
