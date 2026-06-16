@@ -117,7 +117,7 @@ func TestGuidanceConstants_WSLEnvironmentHint_ByteEquivalent(t *testing.T) {
 // internal/provider, and other live-turn subsystems. This static check must
 // always run; it does not depend on upstream availability.
 func TestGuidanceConstants_NoRuntimeImport(t *testing.T) {
-	const target = "constants.go"
+	const target = "facade.go"
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, target, nil, parser.ImportsOnly)
 	if err != nil {
@@ -143,7 +143,7 @@ func TestGuidanceConstants_NoRuntimeImport(t *testing.T) {
 		}
 		for _, banned := range disallowed {
 			if head == banned {
-				t.Fatalf("guidance_constants.go must not import internal/%s (found %q)", banned, path)
+				t.Fatalf("guidance facade must not import internal/%s (found %q)", banned, path)
 			}
 		}
 	}

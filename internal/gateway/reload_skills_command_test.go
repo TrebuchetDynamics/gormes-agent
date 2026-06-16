@@ -49,6 +49,43 @@ func TestManagerReloadSkillsCommandRefreshesAdaptersAndDoesNotLeak(t *testing.T)
 	}
 }
 
+func TestManagerReloadSkillsCommandOmitsSkillsCollidingWithBuiltins(t *testing.T) {
+	root := writeReloadSkillsCommandSkill(t, "set-home", "Collides with built-in sethome alias.")
+	ch := &refreshableGatewayChannel{fakeChannel: newFakeChannel("discord")}
+	fk := &fakeKernel{}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"discord": "C42"},
+		SkillRuntime: skills.NewRuntime(root, 8*1024, 5, ""),
+	}, fk, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	ch.pushInbound(InboundEvent{Platform: "discord", ChatID: "C42", UserID: "u", MsgID: "m1", Kind: EventSubmit, Text: "/reload-skills"})
+
+	waitFor(t, 300*time.Millisecond, func() bool {
+		for _, sent := range ch.sentSnapshot() {
+			if strings.Contains(sent.Text, "Skills Reloaded") {
+				if strings.Contains(sent.Text, "1 skill(s) available") {
+					t.Fatalf("reload-skills counted colliding skill command:\n%s", sent.Text)
+				}
+				return true
+			}
+		}
+		return false
+	})
+	if ch.calls != 1 {
+		t.Fatalf("refresh calls = %d, want 1", ch.calls)
+	}
+	if got := len(fk.submitsSnapshot()); got != 0 {
+		t.Fatalf("kernel submits = %d, want no model submission for /reload-skills", got)
+	}
+}
+
 func TestManagerReloadSkillsCommandHandlesParsedGatewayEvent(t *testing.T) {
 	root := writeReloadSkillsCommandSkill(t, "ops-skill", "Operate safely.")
 	ch := &refreshableGatewayChannel{fakeChannel: newFakeChannel("discord")}
@@ -119,14 +156,5 @@ func TestManagerReloadSkillsCommandReportsScanAndAdapterErrors(t *testing.T) {
 
 func writeReloadSkillsCommandSkill(t *testing.T, name, body string) string {
 	t.Helper()
-	root := t.TempDir()
-	dir := filepath.Join(root, "active", name)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatalf("MkdirAll: %v", err)
-	}
-	raw := "---\nname: " + name + "\ndescription: Invoke " + name + "\n---\n\n" + body + "\n"
-	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(raw), 0o644); err != nil {
-		t.Fatalf("WriteFile SKILL.md: %v", err)
-	}
-	return root
+	return writeActiveSkill(t, name, "Invoke "+name, body)
 }

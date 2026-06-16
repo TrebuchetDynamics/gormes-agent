@@ -1,5 +1,6 @@
 # ── Generated codemap files (clog builder context) ────
 codemap.md
+!/pkg/codemap.md
 hermes-knowledge-graph.json
 
 # ── Build outputs (Makefile writes to bin/) ──────────
@@ -57,6 +58,9 @@ openclaw/
 
 # ── Agent/orchestrator scratch ───────────────────────
 scripts/.swarm/
+.tld/
+graphify-out/
+**/graphify-out/
 .claude/worktrees/
 .claude/scheduled_tasks.lock
 **/.claude/scheduled_tasks.lock
@@ -74,8 +78,7 @@ deer-flow/
 /@py2many-hermes
 
 # ── Docs/site generated artifacts ────────────────────
-docs/www-tests/node_modules/
-docs/www-tests/test-results/
+webpages/docs/www-tests/node_modules/
 webpages/docs/www-tests/test-results/
 scripts/whatsapp-bridge/node_modules/
 

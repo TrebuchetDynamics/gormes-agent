@@ -30,6 +30,47 @@ func (c *statusReplyChannel) SendReply(ctx context.Context, chatID, replyToMsgID
 	return c.fakeChannel.Send(ctx, chatID, text)
 }
 
+type statusCommandHarness struct {
+	ctx        context.Context
+	kernel     *fakeKernel
+	sessionMap *session.MemMap
+	manager    *Manager
+	channel    *fakeChannel
+	now        time.Time
+}
+
+func newStatusCommandHarness(t *testing.T, smap *session.MemMap, now time.Time, opts ...func(*ManagerConfig)) *statusCommandHarness {
+	t.Helper()
+	if smap == nil {
+		smap = session.NewMemMap()
+	}
+	if now.IsZero() {
+		now = time.Date(2026, 4, 29, 9, 42, 0, 0, time.UTC)
+	}
+	k := &fakeKernel{}
+	cfg := ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		Now:          func() time.Time { return now },
+	}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	m := NewManagerWithSubmitter(cfg, k, slog.Default())
+	ch := newFakeChannel("telegram")
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+	return &statusCommandHarness{
+		ctx:        context.Background(),
+		kernel:     k,
+		sessionMap: smap,
+		manager:    m,
+		channel:    ch,
+		now:        now,
+	}
+}
+
 func TestParseInboundTextStatus(t *testing.T) {
 	kind, body := ParseInboundText("/status")
 	if kind != EventStatus || body != "" {
@@ -105,6 +146,73 @@ func TestTitleCommand_SetsSessionMetadataAndStatusRendersIt(t *testing.T) {
 	}
 	if !strings.Contains(sent[2].Text, "**Title:** Friendly Greeting with Juan") {
 		t.Fatalf("status did not render manual title:\n%s", sent[2].Text)
+	}
+}
+
+func TestTitleCommand_SetConfirmationSanitizesTitleRendering(t *testing.T) {
+	ctx := context.Background()
+	smap := session.NewMemMap()
+	if err := smap.Put(ctx, "telegram:42", "sess-title-confirm"); err != nil {
+		t.Fatalf("seed session map: %v", err)
+	}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+	}, &fakeKernel{}, slog.Default())
+	ch := newFakeChannel("telegram")
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventTitle, Text: "/title **Admin** `x`"}); err != nil {
+		t.Fatal(err)
+	}
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d, want 1: %#v", len(sent), sent)
+	}
+	for _, forbidden := range []string{"**Admin**", "`x`"} {
+		if strings.Contains(sent[0].Text, forbidden) {
+			t.Fatalf("title confirmation leaked unsafe title rendering %q in %q", forbidden, sent[0].Text)
+		}
+	}
+	if !strings.Contains(sent[0].Text, "Session title set: ''Admin'' 'x'") {
+		t.Fatalf("title confirmation missing sanitized title: %q", sent[0].Text)
+	}
+}
+
+func TestTitleCommand_ShowSanitizesStoredTitle(t *testing.T) {
+	ctx := context.Background()
+	smap := session.NewMemMap()
+	if err := smap.Put(ctx, "telegram:42", "sess-title-stored"); err != nil {
+		t.Fatalf("seed session map: %v", err)
+	}
+	if err := smap.PutMetadata(ctx, session.Metadata{SessionID: "sess-title-stored", Title: "Good\n**Injected:** `x`"}); err != nil {
+		t.Fatalf("seed metadata: %v", err)
+	}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+	}, &fakeKernel{}, slog.Default())
+	ch := newFakeChannel("telegram")
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventTitle, Text: "/title"}); err != nil {
+		t.Fatal(err)
+	}
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d, want 1: %#v", len(sent), sent)
+	}
+	for _, forbidden := range []string{"**Injected:**", "`x`", "Good\n"} {
+		if strings.Contains(sent[0].Text, forbidden) {
+			t.Fatalf("title show leaked stored title injection %q in %q", forbidden, sent[0].Text)
+		}
+	}
+	if !strings.Contains(sent[0].Text, "Title: Good ''Injected:'' 'x'") {
+		t.Fatalf("title show missing sanitized title: %q", sent[0].Text)
 	}
 }
 
@@ -277,28 +385,17 @@ func TestStatusCommand_RendersAllRequiredFields(t *testing.T) {
 }
 
 func TestStatusCommand_RendersHermesRunningIndicator(t *testing.T) {
-	ctx := context.Background()
-	smap := session.NewMemMap()
-	now := time.Date(2026, 4, 29, 9, 42, 0, 0, time.UTC)
-	if err := smap.Put(ctx, "telegram:42", "sess-running"); err != nil {
+	h := newStatusCommandHarness(t, nil, time.Time{})
+	if err := h.sessionMap.Put(h.ctx, "telegram:42", "sess-running"); err != nil {
 		t.Fatalf("seed session map: %v", err)
 	}
-	m := NewManagerWithSubmitter(ManagerConfig{
-		AllowedChats: map[string]string{"telegram": "42"},
-		SessionMap:   smap,
-		Now:          func() time.Time { return now },
-	}, &fakeKernel{}, slog.Default())
-	ch := newFakeChannel("telegram")
-	if err := m.Register(ch); err != nil {
-		t.Fatal(err)
-	}
-	m.pinTurn("telegram", "42", "running-message")
+	h.manager.pinTurn("telegram", "42", "running-message")
 
-	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventStatus}); err != nil {
+	if err := h.manager.handleInbound(h.ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventStatus}); err != nil {
 		t.Fatal(err)
 	}
 
-	sent := ch.sentSnapshot()
+	sent := h.channel.sentSnapshot()
 	if len(sent) != 1 {
 		t.Fatalf("sent count = %d, want 1: %#v", len(sent), sent)
 	}
@@ -308,40 +405,25 @@ func TestStatusCommand_RendersHermesRunningIndicator(t *testing.T) {
 }
 
 func TestStatusCommand_RendersQueuedFollowUps(t *testing.T) {
-	ctx := context.Background()
-	smap := session.NewMemMap()
-	now := time.Date(2026, 4, 29, 9, 42, 0, 0, time.UTC)
-	if err := smap.Put(ctx, "telegram:42", "sess-queued-status"); err != nil {
+	h := newStatusCommandHarness(t, nil, time.Time{})
+	if err := h.sessionMap.Put(h.ctx, "telegram:42", "sess-queued-status"); err != nil {
 		t.Fatalf("seed session map: %v", err)
 	}
-	m := NewManagerWithSubmitter(ManagerConfig{
-		AllowedChats: map[string]string{"telegram": "42"},
-		SessionMap:   smap,
-		Now:          func() time.Time { return now },
-	}, &fakeKernel{}, slog.Default())
-	ch := newFakeChannel("telegram")
-	if err := m.Register(ch); err != nil {
-		t.Fatal(err)
-	}
-	m.pinTurn("telegram", "42", "running-message")
+	h.manager.pinTurn("telegram", "42", "running-message")
 
-	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "queue-message", Kind: EventSubmit, Text: "/queue run this after the current turn"}); err != nil {
+	if err := h.manager.handleInbound(h.ctx, InboundEvent{Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "queue-message", Kind: EventSubmit, Text: "/queue run this after the current turn"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "status-message", Kind: EventStatus, Text: "/status"}); err != nil {
+	if err := h.manager.handleInbound(h.ctx, InboundEvent{Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "status-message", Kind: EventStatus, Text: "/status"}); err != nil {
 		t.Fatal(err)
 	}
 
-	sent := ch.sentSnapshot()
+	sent := h.channel.sentSnapshot()
 	if len(sent) != 2 {
 		t.Fatalf("sent count = %d, want queue ack and status: %#v", len(sent), sent)
 	}
 	got := sent[1].Text
-	for _, want := range []string{"**Agent Running:** Yes ⚡", "**Queued follow-ups:** 1", "**Connected Platforms:** telegram"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("status response missing %q in:\n%s", want, got)
-		}
-	}
+	assertContainsAll(t, got, "**Agent Running:** Yes ⚡", "**Queued follow-ups:** 1", "**Connected Platforms:** telegram")
 	if strings.Index(got, "**Queued follow-ups:** 1") <= strings.Index(got, "**Agent Running:** Yes ⚡") {
 		t.Fatalf("queued follow-up line should follow Agent Running in:\n%s", got)
 	}
@@ -368,38 +450,27 @@ func TestStatusCommandIncludesKanbanDispatcherStatus(t *testing.T) {
 		t.Fatalf("seed runtime status: %v", err)
 	}
 
-	m := NewManagerWithSubmitter(ManagerConfig{
-		AllowedChats:  map[string]string{"telegram": "42"},
-		SessionMap:    smap,
-		RuntimeStatus: statusStore,
-		Now:           func() time.Time { return now },
-	}, &fakeKernel{}, slog.Default())
-	ch := newFakeChannel("telegram")
-	if err := m.Register(ch); err != nil {
+	h := newStatusCommandHarness(t, smap, now, func(cfg *ManagerConfig) {
+		cfg.RuntimeStatus = statusStore
+	})
+
+	if err := h.manager.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventStatus}); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventStatus}); err != nil {
-		t.Fatal(err)
-	}
-
-	sent := ch.sentSnapshot()
+	sent := h.channel.sentSnapshot()
 	if len(sent) != 1 {
 		t.Fatalf("sent count = %d, want 1: %#v", len(sent), sent)
 	}
 	got := sent[0].Text
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"**Kanban Dispatcher:** `degraded`",
-		"**Kanban Last Tick:** `" + now.Format(time.RFC3339Nano) + "`",
+		"**Kanban Last Tick:** `"+now.Format(time.RFC3339Nano)+"`",
 		"**Kanban Spawned:** 2",
 		"**Kanban Spawn Failed:** 1",
 		"**Kanban Auto Blocked:** 3",
-		"**Kanban Last Error:** " + tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, "worker_spawn_failed: missing profile"),
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("status response missing %q in:\n%s", want, got)
-		}
-	}
+		"**Kanban Last Error:** "+tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, "worker_spawn_failed: missing profile"),
+	)
 }
 
 type unreadableRuntimeStatus struct{}
@@ -413,23 +484,15 @@ func (unreadableRuntimeStatus) ReadRuntimeStatus(context.Context) (RuntimeStatus
 }
 
 func TestStatusCommandOmitsKanbanDispatcherWhenRuntimeStatusUnreadable(t *testing.T) {
-	ctx := context.Background()
-	m := NewManagerWithSubmitter(ManagerConfig{
-		AllowedChats:  map[string]string{"telegram": "42"},
-		SessionMap:    session.NewMemMap(),
-		RuntimeStatus: unreadableRuntimeStatus{},
-		Now:           func() time.Time { return time.Date(2026, 5, 7, 13, 20, 0, 0, time.UTC) },
-	}, &fakeKernel{}, slog.Default())
-	ch := newFakeChannel("telegram")
-	if err := m.Register(ch); err != nil {
+	h := newStatusCommandHarness(t, nil, time.Date(2026, 5, 7, 13, 20, 0, 0, time.UTC), func(cfg *ManagerConfig) {
+		cfg.RuntimeStatus = unreadableRuntimeStatus{}
+	})
+
+	if err := h.manager.handleInbound(h.ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventStatus}); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventStatus}); err != nil {
-		t.Fatal(err)
-	}
-
-	sent := ch.sentSnapshot()
+	sent := h.channel.sentSnapshot()
 	if len(sent) != 1 {
 		t.Fatalf("sent count = %d, want 1: %#v", len(sent), sent)
 	}
@@ -551,19 +614,7 @@ func TestStatusCommand_TitleUnavailable(t *testing.T) {
 // and never reaches the kernel/provider/model path. The fake kernel records
 // every PlatformEvent submit; after dispatch the recorder must be empty.
 func TestStatusCommand_ProviderBypass(t *testing.T) {
-	ctx := context.Background()
-	k := &fakeKernel{}
-	smap := session.NewMemMap()
-	now := time.Date(2026, 4, 29, 9, 42, 0, 0, time.UTC)
-	m := NewManagerWithSubmitter(ManagerConfig{
-		AllowedChats: map[string]string{"telegram": "42"},
-		SessionMap:   smap,
-		Now:          func() time.Time { return now },
-	}, k, slog.Default())
-	ch := newFakeChannel("telegram")
-	if err := m.Register(ch); err != nil {
-		t.Fatal(err)
-	}
+	h := newStatusCommandHarness(t, nil, time.Time{})
 
 	ev := InboundEvent{
 		Platform: "telegram",
@@ -573,11 +624,11 @@ func TestStatusCommand_ProviderBypass(t *testing.T) {
 		Kind:     EventStatus,
 		Text:     "/status",
 	}
-	if err := m.handleInbound(ctx, ev); err != nil {
+	if err := h.manager.handleInbound(h.ctx, ev); err != nil {
 		t.Fatal(err)
 	}
 
-	if submits := k.submitsSnapshot(); len(submits) != 0 {
+	if submits := h.kernel.submitsSnapshot(); len(submits) != 0 {
 		t.Fatalf("/status leaked into kernel as model submits: %#v", submits)
 	}
 }
@@ -624,26 +675,14 @@ func TestStatusCommand_RepliesWithReplyToMsgID(t *testing.T) {
 // to MarkdownV2 by the bot) displays it as visible bold rather than two
 // literal asterisks.
 func TestStatusCommand_BoldFieldLabels(t *testing.T) {
-	ctx := context.Background()
-	k := &fakeKernel{}
-	smap := session.NewMemMap()
-	now := time.Date(2026, 4, 29, 9, 42, 0, 0, time.UTC)
-	m := NewManagerWithSubmitter(ManagerConfig{
-		AllowedChats: map[string]string{"telegram": "42"},
-		SessionMap:   smap,
-		Now:          func() time.Time { return now },
-	}, k, slog.Default())
-	ch := newFakeChannel("telegram")
-	if err := m.Register(ch); err != nil {
-		t.Fatal(err)
-	}
+	h := newStatusCommandHarness(t, nil, time.Time{})
 
 	ev := InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventStatus}
-	if err := m.handleInbound(ctx, ev); err != nil {
+	if err := h.manager.handleInbound(h.ctx, ev); err != nil {
 		t.Fatal(err)
 	}
 
-	sent := ch.sentSnapshot()
+	sent := h.channel.sentSnapshot()
 	if len(sent) != 1 {
 		t.Fatalf("sent count = %d, want 1", len(sent))
 	}
@@ -660,6 +699,41 @@ func TestStatusCommand_BoldFieldLabels(t *testing.T) {
 // metadata-derived value substrings (titles, model names, session IDs) are
 // escaped via tgbotapi.EscapeText so MarkdownV2-special characters
 // (underscores, asterisks, brackets) cannot break the bold-label parse.
+func TestStatusCommandSanitizesBackticksInCodeSpanValues(t *testing.T) {
+	ctx := context.Background()
+	k := &fakeKernel{}
+	smap := session.NewMemMap()
+	now := time.Date(2026, 4, 29, 9, 42, 0, 0, time.UTC)
+	if err := smap.Put(ctx, "telegram:42", "sess`evil"); err != nil {
+		t.Fatalf("seed session map: %v", err)
+	}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		Now:          func() time.Time { return now },
+	}, k, slog.Default())
+	ch := newFakeChannel("telegram")
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventStatus}); err != nil {
+		t.Fatal(err)
+	}
+
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d, want 1", len(sent))
+	}
+	got := sent[0].Text
+	if strings.Contains(got, "`sess`evil`") {
+		t.Fatalf("status response left backtick-breaking session id code span:\n%s", got)
+	}
+	if !strings.Contains(got, "**Session ID:** `sess'evil`") {
+		t.Fatalf("status response missing sanitized session id code span:\n%s", got)
+	}
+}
+
 func TestStatusCommand_EscapesMarkdownV2InValueSubstrings(t *testing.T) {
 	ctx := context.Background()
 	k := &fakeKernel{}
@@ -706,6 +780,47 @@ func TestStatusCommand_EscapesMarkdownV2InValueSubstrings(t *testing.T) {
 
 // TestManagerStatusCommandRendersHermesStyleGatewayStatus is the original
 // session-mapping fixture, updated for the bold-label MarkdownV2 contract.
+func TestManagerStatusCommandIgnoresNegativeMetadataTimes(t *testing.T) {
+	ctx := context.Background()
+	k := &fakeKernel{}
+	smap := session.NewMemMap()
+	if err := smap.Put(ctx, "telegram:42", "sess-negative-times"); err != nil {
+		t.Fatalf("seed session map: %v", err)
+	}
+	if err := smap.PutMetadata(ctx, session.Metadata{
+		SessionID: "sess-negative-times",
+		Source:    "telegram",
+		ChatID:    "42",
+		Title:     "Negative time fixture",
+		CreatedAt: -1,
+		UpdatedAt: -2,
+	}); err != nil {
+		t.Fatalf("seed metadata: %v", err)
+	}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+	}, k, slog.Default())
+	ch := newFakeChannel("telegram")
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventStatus}); err != nil {
+		t.Fatal(err)
+	}
+
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d, want 1", len(sent))
+	}
+	got := sent[0].Text
+	if strings.Contains(got, "1969") || strings.Contains(got, "12-31") {
+		t.Fatalf("status response rendered corrupt negative metadata timestamps:\n%s", got)
+	}
+	assertContainsAll(t, got, "**Created:** "+tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, "(unknown)"))
+}
+
 func TestManagerStatusCommandRendersHermesStyleGatewayStatus(t *testing.T) {
 	ctx := context.Background()
 	k := &fakeKernel{}
@@ -740,7 +855,7 @@ func TestManagerStatusCommandRendersHermesStyleGatewayStatus(t *testing.T) {
 	got := sent[0].Text
 	wantActivity := "**Last Activity:** " + tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, time.Unix(now.Unix(), 0).Format("2006-01-02 15:04"))
 	wantCreated := "**Created:** " + tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, time.Unix(now.Unix(), 0).Format("2006-01-02 15:04"))
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"📊 **Gormes Gateway Status**",
 		"**Session ID:** `sess-123`",
 		wantCreated,
@@ -748,11 +863,7 @@ func TestManagerStatusCommandRendersHermesStyleGatewayStatus(t *testing.T) {
 		"**Cumulative API tokens (re-sent each call):** 7",
 		"**Agent Running:** No",
 		"**Connected Platforms:** telegram",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("status response missing %q in:\n%s", want, got)
-		}
-	}
+	)
 	if submits := k.submitsSnapshot(); len(submits) != 0 {
 		t.Fatalf("/status submitted to kernel: %#v", submits)
 	}
@@ -790,16 +901,12 @@ func TestManagerStatusCommandInitializesMissingChatSession(t *testing.T) {
 	got := sent[0].Text
 	wantActivity := "**Last Activity:** " + tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, time.Unix(now.Unix(), 0).Format("2006-01-02 15:04"))
 	wantCreated := "**Created:** " + tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, time.Unix(now.Unix(), 0).Format("2006-01-02 15:04"))
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"**Session ID:** `20260429_094200_",
 		wantCreated,
 		wantActivity,
 		"**Connected Platforms:** telegram",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("status response missing %q in:\n%s", want, got)
-		}
-	}
+	)
 	if strings.Contains(got, "**Session ID:** `(none)`") || strings.Contains(got, "**Session ID:** `telegram:42`") {
 		t.Fatalf("status response returned invalid session id:\n%s", got)
 	}

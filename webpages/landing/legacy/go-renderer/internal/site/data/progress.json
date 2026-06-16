@@ -9,11 +9,11 @@
       "source_code": "https://github.com/TrebuchetDynamics/gormes-agent"
     },
     "builder_loop": {
-      "entrypoint": "docs/development-skills/gormes-skill-manager/SKILL.md",
-      "plan": "docs/content/building-gormes/architecture_plan/completion-plan.md",
-      "agent_queue": "docs/content/building-gormes/builder-loop/agent-queue.md",
-      "progress_schema": "docs/content/building-gormes/builder-loop/progress-schema.md",
-      "candidate_source": "docs/content/building-gormes/architecture_plan/progress.json",
+      "entrypoint": "development-skills/gormes-skill-manager/SKILL.md",
+      "plan": "webpages/docs/content/building-gormes/architecture_plan/completion-plan.md",
+      "agent_queue": "webpages/docs/content/building-gormes/builder-loop/agent-queue.md",
+      "progress_schema": "webpages/docs/content/building-gormes/builder-loop/progress-schema.md",
+      "candidate_source": "webpages/docs/content/building-gormes/architecture_plan/progress.json",
       "unit_test": "go test ./internal/progress -count=1",
       "candidate_policy": [
         "Skip rows with blocked_by until ready_when is satisfied.",
@@ -24,7 +24,7 @@
         "Run row-local tests first, then focused package tests, then go run ./cmd/progress validate.",
         "Update progress evidence only for the row being built.",
         "If validation fails from stale loop assumptions, fix the docs or progress row instead of invoking old loop binaries.",
-        "Canonical skill files live in docs/development-skills; .agents/skills, .claude/skills, and .codex/skills are symlink loader views.",
+        "Canonical skill files live in development-skills; .agents/skills, .claude/skills, and .codex/skills are symlink loader views.",
         "Prefer contract rows with write_scope, test_commands, and done_signal.",
         "Do not create side queues; missing work becomes a progress.json row."
       ]

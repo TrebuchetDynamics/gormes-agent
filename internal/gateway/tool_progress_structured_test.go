@@ -31,9 +31,7 @@ func (f *structuredToolProgressFakeChannel) SendToolProgress(_ context.Context, 
 func (f *structuredToolProgressFakeChannel) toolProgressSnapshot() []ToolProgressEvent {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]ToolProgressEvent, len(f.toolProgress))
-	copy(out, f.toolProgress)
-	return out
+	return cloneSlice(f.toolProgress)
 }
 
 func TestManager_Outbound_NavivoxToolProgressUsesStructuredEvents(t *testing.T) {

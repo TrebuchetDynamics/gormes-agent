@@ -25,6 +25,35 @@ func TestPublishSubscribe(t *testing.T) {
 	eventtest.WaitUntil(t, time.Second, func() bool { return received.Load() == 1 })
 }
 
+func TestZeroValueBusSubscribeInitializesDefaults(t *testing.T) {
+	var bus InProcessEventBus
+
+	var received atomic.Int32
+	unsub := bus.Subscribe("test", func(Event) {
+		received.Add(1)
+	})
+	defer bus.Close()
+	defer unsub()
+
+	if err := bus.Publish("test", NewEvent("test.type", "tests", nil, "trace-zero")); err != nil {
+		t.Fatalf("Publish: %v", err)
+	}
+	eventtest.WaitUntil(t, time.Second, func() bool { return received.Load() == 1 })
+}
+
+func TestSubscribeNilHandlerIsNoop(t *testing.T) {
+	bus := NewInProcessEventBus()
+	defer bus.Close()
+
+	unsub := bus.Subscribe("test", nil)
+	if err := bus.Publish("test", NewEvent("test.type", "tests", nil, "trace-nil")); err != nil {
+		t.Fatalf("Publish: %v", err)
+	}
+	time.Sleep(20 * time.Millisecond)
+	unsub()
+	unsub()
+}
+
 func TestEventBusCore_PubSubRoutingTypedEvent(t *testing.T) {
 	bus := NewInProcessEventBus()
 	defer bus.Close()
@@ -142,6 +171,25 @@ func TestUnsubscribe(t *testing.T) {
 	if count.Load() != 0 {
 		t.Fatalf("received %d events after unsubscribe, want 0", count.Load())
 	}
+}
+
+func TestUnsubscribeIsIdempotent(t *testing.T) {
+	bus := NewInProcessEventBus()
+	defer bus.Close()
+
+	unsub := bus.Subscribe("topic", func(Event) {})
+	unsub()
+	unsub()
+}
+
+func TestUnsubscribeAfterCloseIsSafe(t *testing.T) {
+	bus := NewInProcessEventBus()
+	unsub := bus.Subscribe("topic", func(Event) {})
+
+	if err := bus.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	unsub()
 }
 
 func TestBackpressure(t *testing.T) {

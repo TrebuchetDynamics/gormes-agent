@@ -200,6 +200,7 @@ func TestReactionLifecycle_ReactionErrorsDoNotBlockFinalDelivery(t *testing.T) {
 		sent := ch.sentSnapshot()
 		return len(sent) == 1 && strings.Contains(sent[0].Text, "final answer still sends")
 	})
+	stopManagerTestRun(t, cancel, done)
 	if !strings.Contains(logs.String(), "reaction_unavailable") {
 		t.Fatalf("logs = %q, want redacted reaction_unavailable evidence", logs.String())
 	}

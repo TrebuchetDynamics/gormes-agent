@@ -7,6 +7,74 @@ import (
 	"testing"
 )
 
+func TestContextEngineStatusReturnsIsolatedSnapshot(t *testing.T) {
+	engine := NewDisabledContextEngine("test")
+	_, _ = engine.HandleToolCall(context.Background(), "unknown_tool", nil, ContextToolCallOptions{})
+
+	first := engine.Status()
+	if len(first.Tools.UnknownToolErrors) != 1 {
+		t.Fatalf("UnknownToolErrors len = %d, want 1", len(first.Tools.UnknownToolErrors))
+	}
+	first.Tools.UnknownToolErrors[0].Message = "mutated by caller"
+
+	second := engine.Status()
+	if got := second.Tools.UnknownToolErrors[0].Message; got == "mutated by caller" {
+		t.Fatalf("Status leaked mutable UnknownToolErrors slice: %+v", second.Tools.UnknownToolErrors)
+	}
+}
+
+func TestContextEngineCompressionErrorStatusIsSanitized(t *testing.T) {
+	engine := NewProviderBackedContextEngine(ProviderBackedContextEngineConfig{
+		Model:            "test/model",
+		ContextLength:    100_000,
+		ThresholdPercent: 0.50,
+		ProtectFirstN:    0,
+		TailTokenBudget:  1,
+		MinTailMessages:  1,
+		Summarizer: ContextSummarizerFunc(func(context.Context, ContextSummaryRequest) (string, error) {
+			return "", errors.New("summary failed\nAuthorization: Bearer sk-context-secret\n**Injected:** yes")
+		}),
+	})
+	messages := []Message{
+		{Role: "user", Content: "one"},
+		{Role: "assistant", Content: "two"},
+		{Role: "user", Content: "three"},
+		{Role: "assistant", Content: "four"},
+	}
+
+	_, _, err := engine.Compress(context.Background(), messages, CompressionRequest{CurrentTokens: 80_000})
+	if err == nil {
+		t.Fatal("Compress error = nil, want summarizer failure")
+	}
+	lastError := engine.Status().Compression.LastError
+	for _, forbidden := range []string{"sk-context-secret", "Bearer sk", "\n", "**Injected:**"} {
+		if strings.Contains(lastError, forbidden) {
+			t.Fatalf("compression status LastError leaked %q in %q", forbidden, lastError)
+		}
+	}
+	if !strings.Contains(lastError, "[redacted]") {
+		t.Fatalf("compression status LastError = %q, want redaction marker", lastError)
+	}
+}
+
+func TestContextSummarizerFuncAllowsNilContext(t *testing.T) {
+	got, err := ContextSummarizerFunc(func(ctx context.Context, req ContextSummaryRequest) (string, error) {
+		if ctx == nil {
+			panic("nil context")
+		}
+		if req.FocusTopic != "focus" {
+			t.Fatalf("FocusTopic = %q, want focus", req.FocusTopic)
+		}
+		return "summary", nil
+	}).SummarizeContext(nil, ContextSummaryRequest{FocusTopic: "focus"})
+	if err != nil {
+		t.Fatalf("SummarizeContext error = %v, want nil", err)
+	}
+	if got != "summary" {
+		t.Fatalf("SummarizeContext = %q, want summary", got)
+	}
+}
+
 func TestProviderBackedContextEngine_CompressUsesSummaryLineagePlan(t *testing.T) {
 	oldSummary := "OLD-SUMMARY-BODY durable facts from previous context"
 	messages := []Message{

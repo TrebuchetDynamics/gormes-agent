@@ -62,7 +62,7 @@
         "internal/gateway/",
         "internal/doctor/",
         "webpages/docs/content/install/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'Test.*Termux.*Gateway|TestDoctorCommand_JSONIncludesTermuxRuntimeWhenDetected' -count=1",
@@ -152,7 +152,7 @@
       "write_scope": [
         "internal/kernel/kernel.go",
         "internal/kernel/tools_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kernel -run 'TestKernel_ToolCallHandshake_Echo|TestKernel_DefaultToolIterationBudgetMatchesHermesBeyondTen|TestKernel_ToolIterationBudgetRequestsToollessSummary' -count=1",
@@ -512,7 +512,7 @@
         "internal/gateway/slash_confirm_test.go",
         "internal/gateway/manager.go",
         "internal/gateway/manager_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestSlashConfirm|TestManager_ResetClearsSlashConfirmation|TestManager_ResetDuringActiveTurnPreservesSlashConfirmation' -count=1",
@@ -568,7 +568,7 @@
         "internal/gateway/turn_adapter.go:TurnRequest.SessionContext",
         "internal/kernel/kernel.go:204",
         "internal/kernel/frame.go:112",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
       ],
       "ready_when": [
         "internal/llm/context_files.go BuildContextFilesPrompt is complete (it is) and exposes channel-neutral SOUL/project block rendering with threat-scan guards.",
@@ -587,7 +587,7 @@
       ],
       "note": "Validated by the completed child rows for SOUL/project context, durable USER/MEMORY context, timestamp/model/provider/session metadata, self-help guidance, prompt-builder guidance constants, and production cmd/gormes metadata wiring. The stale planned umbrella has been reconciled so progress surfaces no longer advertise already-shipped live-turn prompt assembly as future work.",
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go run ./cmd/progress validate"
@@ -663,7 +663,7 @@
         "internal/gateway/manager.go",
         "internal/gateway/live_turn_prompt.go",
         "internal/gateway/live_turn_prompt_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "www.gormes.ai/internal/site/data/progress.json"
       ],
       "test_commands": [
@@ -776,7 +776,7 @@
         "internal/gateway/live_turn_prompt.go",
         "internal/gateway/live_turn_prompt_test.go",
         "internal/gateway/manager.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "www.gormes.ai/internal/site/data/progress.json"
       ],
       "test_commands": [
@@ -899,7 +899,7 @@
         "internal/gateway/live_turn_prompt.go",
         "internal/gateway/live_turn_prompt_test.go",
         "internal/gateway/manager.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "www.gormes.ai/internal/site/data/progress.json"
       ],
       "test_commands": [
@@ -984,7 +984,7 @@
         "./hermes-agent/tests/run_agent/test_memory_nudge_counter_hydration.py@e612c3d6f (adjacent memory prompt/runtime nudge drift evidence)",
         "internal/llm/guidance_constants.go:MemoryGuidance",
         "internal/llm/guidance_constants_test.go:TestGuidanceConstants_MemoryGuidance_ByteEquivalent",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#prompt-context-compression-and-skills-in-prompt"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#prompt-context-compression-and-skills-in-prompt"
       ],
       "ready_when": [
         "The in-repo Hermes submodule is refreshed to e612c3d6f or newer and includes commit 6e5489c9f.",
@@ -1006,8 +1006,8 @@
       "write_scope": [
         "internal/llm/guidance_constants.go",
         "internal/support/e2e/testdata/normal_turn/memory_backed.json",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/",
         "webpages/landing/src/data/progress.json",
         "webpages/landing/legacy/go-renderer/internal/site/data/progress.json",
         "hermes-agent"
@@ -1110,7 +1110,7 @@
         "internal/gateway/manager.go",
         "internal/gateway/live_turn_prompt.go",
         "internal/gateway/live_turn_prompt_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "www.gormes.ai/internal/site/data/progress.json"
       ],
       "test_commands": [
@@ -1179,7 +1179,7 @@
         "internal/gateway/title_command.go",
         "internal/gateway/status_command_test.go",
         "internal/cli/command_registry.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'Title|Status|Command' -count=1",
@@ -1250,7 +1250,7 @@
         "internal/persistence/session/directory_test.go",
         "internal/gateway/title_command.go",
         "internal/gateway/title_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "www.gormes.ai/internal/site/data/progress.json"
       ],
       "test_commands": [
@@ -1328,7 +1328,7 @@
         "internal/gateway/auto_title_wiring_test.go",
         "internal/gateway/manager.go",
         "cmd/gormes/gateway.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "www.gormes.ai/internal/site/data/progress.json"
       ],
       "test_commands": [
@@ -1406,7 +1406,7 @@
         "internal/gateway/typing_action_test.go",
         "internal/gateway/manager.go",
         "internal/channels/telegram/bot.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'TypingAction|Coalescer' -count=1",
@@ -1455,7 +1455,7 @@
       "write_scope": [
         "internal/gateway/coalesce.go",
         "internal/gateway/coalesce_failure_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'Coalescer|Coalesce' -count=1",
@@ -1540,7 +1540,7 @@
         "internal/config/config_test.go",
         "cmd/gormes/gateway.go",
         "cmd/gormes/gateway_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel ./internal/config ./cmd/gormes -run 'TestFormatToolProgress|TestFormatStreamPlain_DoesNotInlineToolProgress|TestManager_Outbound_ToolProgress(PersistsAsSeparateMessage|OffSuppressesSeparateMessage)|TestManager_Inbound_Verbose(CyclesAndPersistsPerPlatform|DisabledSendsHermesGateGuidance)|TestParseInboundText/verbose|TestSlashCommandPolicyParityWithCLIRegistry|TestExecuteToolCalls_AppendsToolPreviewSoulEvent|TestKernel_ClearsToolProgressSoulAtTurnStart|TestTypingAction_NonTypingChannelStillDeliversStreamFrame|TestLoad_HermesConfigYAMLDisplayToolProgressParity|TestSetHermesDisplayPlatformToolProgressWritesPlatformOverride|TestGatewayManagerConfig_ToolProgressDisplayConfig' -count=1",
@@ -1659,7 +1659,7 @@
         "internal/llm/durable_user_context_test.go",
         "internal/gateway/live_turn_prompt.go",
         "internal/gateway/live_turn_prompt_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/llm ./internal/gateway -run 'DurableUserContext|LiveTurn|FrozenMemorySnapshot' -count=1",
@@ -1715,7 +1715,7 @@
         "internal/gateway/",
         "internal/kernel/",
         "internal/llm/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel ./internal/llm -run 'Guidance|Tool|Skill|LiveTurn' -count=1",
@@ -1779,7 +1779,7 @@
         "internal/gateway/commands.go",
         "internal/gateway/commands_test.go",
         "internal/gateway/active_turn_command_bypass_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'ActiveTurn|Command|Slash' -count=1",
@@ -1832,7 +1832,7 @@
       "write_scope": [
         "internal/gateway/",
         "internal/persistence/session/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/persistence/session -run 'SessionMetadata|Status|Telegram' -count=1",
@@ -1889,7 +1889,7 @@
         "internal/gateway/",
         "internal/persistence/session/",
         "internal/llm/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/persistence/session ./internal/llm -run 'Token|Usage|Status' -count=1",
@@ -1957,7 +1957,7 @@
         "internal/gateway/admission_test.go",
         "internal/apiserver/server.go",
         "internal/apiserver/auth_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestGateway.*Allowlist|TestGateway.*WeakCredential' -count=1",
@@ -2064,7 +2064,7 @@
         "internal/gateway/manager.go",
         "internal/gateway/manager_test.go",
         "internal/gateway/fake_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run NonEditable -count=1",
@@ -2128,7 +2128,7 @@
       "write_scope": [
         "internal/gateway/coalesce.go",
         "internal/gateway/coalesce_fresh_final_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestCoalescerFreshFinal|TestCoalescer' -count=1",
@@ -2207,7 +2207,7 @@
         "internal/gateway/manager.go",
         "internal/gateway/manager_test.go",
         "internal/gateway/fake_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestCoalescerFreshFinal' -count=1",
@@ -2272,7 +2272,7 @@
       "write_scope": [
         "internal/gateway/message_deduplicator.go",
         "internal/gateway/message_deduplicator_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run '^TestMessageDeduplicator_' -count=1",
@@ -2345,7 +2345,7 @@
       "write_scope": [
         "internal/gateway/inbound_dedup_key.go",
         "internal/gateway/inbound_dedup_key_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run '^TestInboundDedupKey_' -count=1",
@@ -2420,7 +2420,7 @@
         "internal/gateway/message_deduplicator_manager_test.go",
         "internal/gateway/manager.go",
         "internal/gateway/fake_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run '^TestGatewayInboundDedup_' -count=1",
@@ -2509,7 +2509,7 @@
         "internal/slack/bot.go",
         "internal/slack/client.go",
         "internal/slack/media_send_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestPrepareMediaDeliveryContent|TestManagerFinalResponseDeliversMedia' -count=1",
@@ -2625,7 +2625,7 @@
         "internal/slack/media_batch_test.go",
         "internal/channels/email/contract.go",
         "internal/channels/email/media_batch_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestMediaBatch|TestManager.*MultiImage' -count=1",
@@ -2710,7 +2710,7 @@
         "internal/gateway/platform_http_client_limits_test.go",
         "internal/channels/whatsapp/runtime.go",
         "cmd/gormes/gateway.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestPlatform(Reconnect|Connected|HTTPClient|Lifecycle)' -count=1",
@@ -2748,7 +2748,7 @@
         "internal/gateway/platform_http_client_limits_test.go",
         "internal/channels/whatsapp/runtime.go",
         "internal/channels/whatsapp/runtime_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ]
     }
   },
@@ -2822,7 +2822,7 @@
         "internal/gateway/event.go",
         "internal/cli/command_registry.go",
         "internal/tui/slash_commands_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestPlatform(CircuitBreaker|Pause|Resume|List)|TestPlatformCommand' -count=1",
@@ -2875,7 +2875,7 @@
         "internal/channels/telegram/approval_buttons.go:87:handleCallbackQuery callback-router pattern Gormes already owns",
         "internal/llm/provider_registry_manifest.go:HermesProviderRegistryManifest curated provider list",
         "internal/gateway/reasoning_command.go:SessionReasoningState per-session override precedent",
-        "docs/content/building-gormes/architecture_plan/progress.json:Gormes model interactive provider/model picker (CLI row 41975, coordinated)"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json:Gormes model interactive provider/model picker (CLI row 41975, coordinated)"
       ],
       "ready_when": [
         "Telegram inline approval buttons + callback auth is complete so the Telegram callback router already accepts a new `mp:/mm:/mg:/mb:/mx:` family alongside the existing `ea:` family without changing existing approval routing.",
@@ -2919,7 +2919,7 @@
         "internal/llm/picker_providers.go",
         "internal/llm/picker_providers_test.go",
         "cmd/gormes/hermes_cli_parity.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestGatewayModel(Command|Picker)' -count=1",
@@ -3043,7 +3043,7 @@
         "internal/gateway/turn_adapter.go",
         "internal/gateway/channel_neutral_turn_adapter_test.go",
         "internal/channels/fakes/channel.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway ./internal/channels/... -run 'ChannelNeutral|TurnAdapter|Admission|AwaitUserReply' -count=1",
@@ -3110,8 +3110,8 @@
         "../hermes-agent/gateway/platforms/qqbot/",
         "../hermes-agent/gateway/platforms/yuanbao.py",
         "../hermes-agent/tools/yuanbao_tools.py",
-        "docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Gateway platforms",
-        "docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md:Provider, channel, and tool-calling guardrails"
+        "webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Gateway platforms",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md:Provider, channel, and tool-calling guardrails"
       ],
       "ready_when": [
         "Channel-neutral native runtime turn adapter is complete and provides a shared channel boundary for fake fixtures.",
@@ -3142,9 +3142,9 @@
       "write_scope": [
         "internal/gateway/platform_manifest.go",
         "internal/gateway/platform_manifest_test.go",
-        "docs/content/building-gormes/architecture_plan/subsystem-inventory.md",
-        "docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestHermesGatewayPlatformManifest|TestPlatformConnectedCheckers' -count=1",
@@ -3221,7 +3221,7 @@
         "internal/gateway/platform_manifest_test.go",
         "internal/gateway/platform_connected_checkers.go",
         "internal/gateway/platform_connected_checkers_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestHermesGatewayPlatformManifest|TestPlatformConnectedCheckers' -count=1",
@@ -3283,7 +3283,7 @@
         "internal/channels/telegram/document_cache.go:150 (telegramPhotoMessageAttachment — channel-side download)",
         "../hermes-agent/gateway/run.py (Hermes parity reference)",
         "../picoclaw/pkg/providers/common/common.go:96-156 (sibling Go port — confirms the no-OCR/just-pass-to-provider approach)",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md (Channels / Multimodal section)"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md (Channels / Multimodal section)"
       ],
       "ready_when": [
         "kernel.PlatformEvent.ContentParts existed and was wired through to llm.Message{ContentParts} (true at HEAD before this slice).",
@@ -3308,7 +3308,7 @@
       "write_scope": [
         "internal/gateway/turn_adapter.go",
         "internal/gateway/turn_adapter_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "CGO_ENABLED=0 go test ./internal/gateway -run 'TestTurnAdapter_Dispatch_' -count=1",
@@ -3384,7 +3384,7 @@
         "internal/gateway/turn_adapter_test.go",
         "internal/gateway/manager.go",
         "internal/gateway/manager_photo_passthrough_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "CGO_ENABLED=0 go test ./internal/llm -run 'BuildNativeImageContentParts' -count=1",
@@ -3479,7 +3479,7 @@
         "internal/automation/cron/no_agent_test.go",
         "internal/tools/cronjob_tool.go",
         "internal/tools/cronjob_tool_no_agent_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/automation/cron -run TestCronNoAgent -count=1",
@@ -3622,7 +3622,7 @@
         "internal/automation/cron/",
         "internal/audit/",
         "internal/doctor/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/subagent ./internal/automation/cron ./internal/audit ./internal/doctor -count=1"
@@ -3719,7 +3719,7 @@
         "internal/gateway/commands.go",
         "internal/gateway/commands_test.go",
         "internal/gateway/active_turn_command_bypass_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "www.gormes.ai/internal/site/data/progress.json"
       ],
       "test_commands": [
@@ -3909,7 +3909,7 @@
         "internal/gateway/manager_test.go",
         "internal/gateway/platform_reconnect.go",
         "internal/gateway/platform_reconnect_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestManager_RunCleansStartupFailedChannel|TestManager_ChannelDisconnectTimeout' -count=1",
@@ -3989,7 +3989,7 @@
       "write_scope": [
         "internal/gateway/manager.go",
         "internal/gateway/manager_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestManager_RunShutdownDisconnectTimeout|TestManager_RunChannelDisconnectTimeoutReturnsStartupFailure' -count=1",
@@ -4079,7 +4079,7 @@
       "write_scope": [
         "internal/gateway/",
         "internal/persistence/session/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'Test.*ResumePending|Test.*Drain' -count=1",
@@ -4128,7 +4128,7 @@
         "../hermes-agent/gateway/pairing.py@5401a008",
         "../hermes-agent/tests/gateway/test_pairing.py@5401a008",
         "internal/gateway/status.go",
-        "docs/content/building-gormes/architecture_plan/phase-2-gateway.md"
+        "webpages/docs/content/building-gormes/architecture_plan/phase-2-gateway.md"
       ],
       "ready_when": [
         "The shared gateway package already owns RuntimeStatusStore and can add a pairing read model without live adapter startup.",
@@ -4151,7 +4151,7 @@
       "write_scope": [
         "internal/gateway/pairing_store.go",
         "internal/gateway/pairing_store_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run TestPairingStore -count=1",
@@ -4227,7 +4227,7 @@
         "internal/gateway/pairing_store.go",
         "internal/gateway/pairing_approval_test.go",
         "internal/gateway/event.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run TestPairingApproval -count=1",
@@ -4278,7 +4278,7 @@
         "../hermes-agent/gateway/config.py@5401a008",
         "../hermes-agent/gateway/run.py@5401a008",
         "internal/gateway/pairing_store.go",
-        "docs/content/building-gormes/architecture_plan/phase-2-gateway.md"
+        "webpages/docs/content/building-gormes/architecture_plan/phase-2-gateway.md"
       ],
       "ready_when": [
         "Pairing approval, rate limiting, allowlist checks, and Telegram missing-from_user fallback are fixture-locked in internal/gateway/pairing_approval_test.go."
@@ -4297,7 +4297,7 @@
         "internal/gateway/authorization.go",
         "internal/gateway/unauthorized_dm_test.go",
         "internal/gateway/pairing_store.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run TestUnauthorizedDM -count=1",
@@ -4372,7 +4372,7 @@
         "cmd/gormes/",
         "internal/gateway/",
         "internal/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run TestGatewayStatusCommand -count=1",
@@ -4450,7 +4450,7 @@
         "internal/gateway/status_test.go",
         "internal/gateway/runtime_status_pid_test.go",
         "cmd/gormes/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestRuntimeStatus.*PID|TestRuntimeStatusStore' -count=1",
@@ -4524,7 +4524,7 @@
       "write_scope": [
         "internal/gateway/",
         "internal/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run TestTokenScopedGatewayLock -count=1",
@@ -4599,7 +4599,7 @@
       "write_scope": [
         "internal/gateway/",
         "cmd/gormes/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run TestGatewayRestartCommand -count=1",
@@ -4674,7 +4674,7 @@
         "internal/gateway/restart.go",
         "internal/gateway/restart_command_test.go",
         "cmd/gormes/gateway.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config -run 'GatewayRestartNotification|Load_HermesConfigYAMLDoesNotOverrideNativeGormes' -count=1",
@@ -4744,7 +4744,7 @@
       "write_scope": [
         "internal/persistence/session/",
         "internal/gateway/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/persistence/session -run TestExpiryFinalizedMigration -count=1",
@@ -4811,7 +4811,7 @@
       "write_scope": [
         "internal/gateway/",
         "internal/persistence/session/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run TestSessionExpiryHooks -count=1",
@@ -4864,7 +4864,7 @@
       "degraded_mode": "If a platform has no configured home channel and first-run discovery has not supplied one, resolution must return a structured missing_home_channel error and leave delivery at local/origin fallback; it must not guess a chat, leak secrets, or special-case Telegram.",
       "fixture": "internal/gateway/home_channel_resolver_test.go with temp config structs and fake SessionSource records only; no live platform SDK or Hermes runtime service.",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#phase-2--gateway-and-platform-runtime",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#phase-2--gateway-and-platform-runtime",
         "../hermes-agent/gateway/config.py:HomeChannel",
         "../hermes-agent/gateway/config.py:PlatformConfig.home_channel",
         "../hermes-agent/gateway/delivery.py:DeliveryTarget.parse",
@@ -4903,7 +4903,7 @@
         "internal/config/config.go",
         "internal/config/config_test.go",
         "cmd/gormes/gateway.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway ./internal/config ./cmd/gormes -run 'HomeChannel|DeliveryTarget|Gateway.*Allowed|ResolveHome' -count=1",
@@ -4985,7 +4985,7 @@
         "internal/automation/cron/delivery_plan_test.go",
         "internal/tools/cronjob_tool.go",
         "internal/tools/cronjob_tool_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/automation/cron -run 'TestCronDeliveryPlanForJob_UsesStoredDeliverAndOrigin|TestCronDeliveryPlan_ParseTargets' -count=1",
@@ -5066,7 +5066,7 @@
         "internal/gateway/channel_directory.go",
         "internal/gateway/channel_directory_test.go",
         "internal/gateway/testdata/channel_directory/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run TestChannelDirectory -count=1",
@@ -5149,7 +5149,7 @@
         "internal/gateway/channel_directory_refresh.go",
         "internal/gateway/channel_directory_refresh_test.go",
         "internal/gateway/delivery.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestChannelDirectory(Refresh|Stale|Atomic)' -count=1",
@@ -5228,7 +5228,7 @@
         "internal/gateway/channel_directory_source.go",
         "internal/gateway/channel_directory_source_test.go",
         "internal/gateway/manager_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'RememberSource|ChannelDirectorySource|Authorization|Pairing|SessionContext' -count=1",
@@ -5307,7 +5307,7 @@
         "internal/gateway/delivery_mirror_test.go",
         "internal/gateway/sticker_cache.go",
         "internal/gateway/sticker_cache_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestSelectDeliveryMirrorSession|TestMirrorDeliveryToSession|TestStickerCache|TestBuildStickerInjection' -count=1",
@@ -5450,7 +5450,7 @@
       "write_scope": [
         "internal/gateway/steer_command.go",
         "internal/gateway/steer_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run '^TestParseSteerCommand_|^TestSteerPreview_' -count=1",
@@ -5526,7 +5526,7 @@
         "internal/gateway/manager.go",
         "internal/gateway/steer_command.go",
         "internal/gateway/steer_queue_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run '^TestSteerCommandRegistry_' -count=1",
@@ -5618,7 +5618,7 @@
         "internal/kernel/tool_interrupt_test.go",
         "internal/gateway/manager.go",
         "internal/gateway/steer_queue_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kernel -run 'Steer|ToolInterrupt|Tool' -count=1",
@@ -5680,8 +5680,8 @@
       "degraded_mode": "If a command is unknown, unavailable, or marked busy_reject while a turn is active, the gateway returns the existing sanitized busy/unavailable evidence and does not enqueue the slash text into the running model turn.",
       "fixture": "internal/gateway/active_turn_command_bypass_test.go",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway--platform-control",
-        "docs/content/upstream-hermes/reference/slash-commands.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway--platform-control",
+        "webpages/docs/content/upstream-hermes/reference/slash-commands.md",
         "internal/gateway/commands.go",
         "internal/cli/command_registry.go",
         "internal/gateway/turn_adapter.go"
@@ -5707,7 +5707,7 @@
         "internal/cli/command_registry.go",
         "internal/cli/*command*_test.go",
         "internal/channels/fakes/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway ./internal/cli ./internal/channels/... -run 'ActiveTurn|CommandBypass|SlashCommand|TurnAdapter' -count=1",
@@ -5887,7 +5887,7 @@
         "internal/tui/slash_dispatch.go",
         "internal/tui/slash_dispatch_behavior_test.go",
         "internal/tui/queue_slash_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestManagerQueueCommand' -count=1",
@@ -6004,7 +6004,7 @@
         "cmd/gormes/agent_spawn_test.go",
         "cmd/gormes/agent_bind_test.go",
         "cmd/gormes/agent_inspect_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestAgent(Spawn|Bind|Unbind|Inspect)' -count=1",
@@ -6066,7 +6066,7 @@
       "write_scope": [
         "internal/gateway/",
         "internal/persistence/session/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway ./internal/persistence/session -count=1"
@@ -6127,7 +6127,7 @@
       "write_scope": [
         "internal/llm/bedrock_stream.go",
         "internal/llm/bedrock_stream_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestDecodeBedrockStream_' -count=1",
@@ -6200,9 +6200,9 @@
         "internal/persistence/transcript/trajectory_compressor_test.go",
         "internal/audit/trajectory_link.go",
         "internal/audit/trajectory_link_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
       ],
       "test_commands": [
         "go test ./internal/persistence/transcript -run TrajectoryCompressor -count=1",
@@ -6246,8 +6246,8 @@
         "../hermes-agent/gateway/run.py:_handle_usage_command",
         "../hermes-agent/tests/gateway/test_usage_command.py",
         "../hermes-agent/agent/account_usage.py:render_account_usage_lines,fetch_account_usage",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Provider account usage reporting",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Provider account usage reporting"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Provider account usage reporting",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Provider account usage reporting"
       ],
       "ready_when": [
         "`Provider account usage read model + renderer` exposes AccountUsageSnapshot, AccountUsageFetcher, fake clock/client seams, and stable text/JSON rendering.",
@@ -6285,7 +6285,7 @@
         "internal/cli/command_registry.go",
         "cmd/gormes/main.go",
         "cmd/gormes/usage_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestGatewayUsageCommand' -count=1",
@@ -6331,8 +6331,8 @@
         "cmd/gormes/gateway.go",
         "internal/config/config.go",
         "internal/llm/http_client.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#providers-models-and-credentials",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#providers-models-and-credentials",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli",
         "references/go-agent-os/GORMES-REUSE-AUDIT.md:Row A Native runtime wiring replaces dead localhost backend assumption",
         "internal/llm/http_client.go:NewHTTPClientWithProvider",
         "internal/gateway/proxy_mode_test.go"
@@ -6367,7 +6367,7 @@
         "internal/config/",
         "cmd/gormes/",
         "internal/gateway/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/runtime ./internal/config ./internal/llm ./internal/gateway ./cmd/gormes -run 'NativeRuntime|ResolveInference|Gateway.*Provider|ExplicitEndpoint' -count=1",
@@ -6429,7 +6429,7 @@
         "internal/tools/managed_tool_gateway_test.go",
         "internal/tools/mcp_client.go",
         "internal/tools/mcp_oauth.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'Test.*Managed.*Gateway|Test.*MCP.*Gateway' -count=1",
@@ -6517,7 +6517,7 @@
         "internal/gateway/approval_queue.go",
         "internal/gateway/approval_queue_test.go",
         "internal/gateway/hook_consent.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestApprovalQueue' -count=1",
@@ -6597,7 +6597,7 @@
       "write_scope": [
         "internal/gateway/hook_consent.go",
         "internal/gateway/hook_consent_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run TestHookAutoAcceptParser -count=1",
@@ -6682,7 +6682,7 @@
         "internal/channels/discord/bot.go",
         "internal/slack/bot.go",
         "internal/doctor/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run '^TestWhitelist' -count=1",
@@ -6781,7 +6781,7 @@
         "internal/apiserver/",
         "internal/tools/gateway_discover.go",
         "internal/tools/gateway_discover_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'Gateway.*HTTP|Gateway.*Capability' -count=1",
@@ -6830,7 +6830,7 @@
         "../openclaw/src/commands/gateway-status/probe-run.ts",
         "../openclaw/src/infra/bonjour-discovery.ts",
         "../openclaw/src/infra/session-cost-usage.ts",
-        "docs/content/building-gormes/openclaw-platform-parity-audit.md"
+        "webpages/docs/content/building-gormes/openclaw-platform-parity-audit.md"
       ],
       "ready_when": [
         "Gateway status and health commands are operational.",
@@ -6854,7 +6854,7 @@
         "internal/tools/gateway_discover_test.go",
         "cmd/gormes/gateway_discover.go",
         "cmd/gormes/gateway_discover_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestGatewayDiscover -count=1",
@@ -6923,7 +6923,7 @@
         "internal/gateway/manager.go",
         "internal/gateway/session_context.go",
         "internal/gateway/status_command.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run MultiAgent -count=1",
@@ -6993,7 +6993,7 @@
         "internal/gateway/auto_resume.go",
         "internal/gateway/auto_resume_test.go",
         "internal/gateway/manager.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run '^TestGatewayAutoResume' -count=1",
@@ -7080,7 +7080,7 @@
       "write_scope": [
         "internal/gateway/reasoning_command.go",
         "internal/gateway/reasoning_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestParseReasoningCommand' -count=1",
@@ -7148,7 +7148,7 @@
         "internal/gateway/reasoning_command.go",
         "internal/gateway/reasoning_command_test.go",
         "internal/gateway/manager.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestApplyReasoningCommand|TestGatewayManagerDispatchesReasoning' -count=1",
@@ -7228,8 +7228,8 @@
         "cmd/gormes/setup.go",
         "cmd/gormes/setup_gateway_test.go",
         "internal/gateway/platform_manifest.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestSetupGateway' -count=1",
@@ -7314,7 +7314,7 @@
       "write_scope": [
         "cmd/gormes/gateway_status.go",
         "cmd/gormes/gateway_status_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestGatewayStatusCommand' -count=1",
@@ -7390,7 +7390,7 @@
         "cmd/gormes/gateway_stop.go",
         "cmd/gormes/gateway_restart.go",
         "cmd/gormes/gateway_mutating_unavailable_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestGatewayStop|TestGatewayRestart|TestGatewayMutating' -count=1",
@@ -7461,7 +7461,7 @@
       "write_scope": [
         "cmd/gormes/gateway.go",
         "cmd/gormes/gateway_mutating_unavailable_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestGatewayWindowsScheduledTask|TestGatewayMutating' -count=1",
@@ -7529,7 +7529,7 @@
       "write_scope": [
         "cmd/gormes/gateway.go",
         "cmd/gormes/gateway_mutating_unavailable_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestGatewayWindowsScheduledTask|TestGatewayWindowsDetachedCtrlC|TestGatewayMutating' -count=1",
@@ -7587,7 +7587,7 @@
         "internal/skills sync code consumed by defaultSkillSyncFor (three-way bundled skill behavior precedent)",
         "install.sh:fetch_release_binary (release artifact and install log precedent)",
         "webpages/landing/src/data/progress.json + webpages/landing/legacy/go-renderer/internal/site/data/progress.json (generated release/site data mirrors)",
-        "docs/development-skills/*/SKILL.md (bundled skill source layout)"
+        "development-skills/*/SKILL.md (bundled skill source layout)"
       ],
       "ready_when": [
         "`Gormes update verified binary swap and rollback` is complete and exposes snapshot/rollback primitives for release installs.",
@@ -7624,7 +7624,7 @@
         "internal/cli/update_release_assets_test.go",
         "internal/skills/update_sync_test.go",
         "internal/skills",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes ./internal/cli ./internal/skills -run 'TestUpdateReleaseAsset|TestUpdateReleaseSkill|TestSyncBundledSkills' -count=1",
@@ -7708,7 +7708,7 @@
         "internal/gateway/planned_stop_test.go",
         "internal/cli/service_restart.go",
         "internal/cli/service_restart_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestGatewayStop.*Planned|TestGatewayStop' -count=1",
@@ -7779,7 +7779,7 @@
         "internal/gateway/status.go",
         "cmd/gormes/gateway_status.go",
         "cmd/gormes/gateway_status_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestStaleCode' -count=1",
@@ -7990,7 +7990,7 @@
       "write_scope": [
         "internal/tuigateway/tool_progress_mode.go",
         "internal/tuigateway/tool_progress_mode_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tuigateway -run TestNormalizeToolProgressMode -count=1",
@@ -8061,7 +8061,7 @@
       "write_scope": [
         "internal/tuigateway/completion_path.go",
         "internal/tuigateway/completion_path_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tuigateway -run TestNormalizeCompletionPath -count=1",
@@ -8135,7 +8135,7 @@
       "write_scope": [
         "internal/tuigateway/tool_summary.go",
         "internal/tuigateway/tool_summary_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tuigateway -run TestFormatToolSummary -count=1",
@@ -8214,7 +8214,7 @@
         "internal/tuigateway/config_health_test.go",
         "internal/tuigateway/personality.go",
         "internal/tuigateway/media_personality_event_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tuigateway -run 'TestTUIConfigHealth|TestTUISessionOptions' -count=1",
@@ -8299,7 +8299,7 @@
         "cmd/gormes/tui_model_override_test.go",
         "internal/config/",
         "internal/llm/model_registry.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run TestTUIModelOverride -count=1",
@@ -8368,7 +8368,7 @@
       "write_scope": [
         "internal/tui/auto_title.go",
         "internal/tui/auto_title_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run TestBuildAutoTitleRequest -count=1",
@@ -8413,7 +8413,7 @@
         "internal/tui/view.go",
         "internal/tui/model.go",
         "internal/tui/mouse_tracking.go",
-        "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
+        "webpages/docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
       ],
       "ready_when": [
         "internal/tui already exposes Bubble Tea model/view/update files and a mouse tracking config; adding a single new file with one constant compiles cleanly alongside them.",
@@ -8434,7 +8434,7 @@
       "write_scope": [
         "internal/tui/selection_help.go",
         "internal/tui/selection_help_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run 'TestTerminalNativeSelectionHelpExists|TestTerminalNativeSelectionHelpNoFakeShortcuts|TestTUIPackageDoesNotAdvertiseCopyHotkey' -count=1",
@@ -8509,7 +8509,7 @@
         "internal/tui/slash_dispatch.go",
         "internal/tui/model.go",
         "internal/tui/update.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run 'TestRunningPlaceholder_' -count=1",
@@ -8584,7 +8584,7 @@
         "internal/tui/hermes_behavioral_fidelity_test.go",
         "internal/tui/view.go",
         "internal/kernel/tools_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run '^TestIterationLimitFinalization_' -count=1",
@@ -8668,7 +8668,7 @@
         "cmd/gormes/remote_tui.go",
         "cmd/gormes/remote_tui_test.go",
         "cmd/gormes/tui_status.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tuigateway -run 'TestDialWebSocketAttach|TestWebSocketAttach|TestRedactRemoteURL|TestGatewayMuxWebSocket' -count=1",
@@ -8718,8 +8718,8 @@
       "source_refs": [
         "../hermes-agent/gateway/platforms/api_server.py",
         "../hermes-agent/tests/gateway/test_api_server.py",
-        "docs/content/upstream-hermes/user-guide/features/api-server.md",
-        "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
+        "webpages/docs/content/upstream-hermes/user-guide/features/api-server.md",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
       ],
       "ready_when": [
         "Native kernel turn loop, gateway session handles, and provider event streaming are stable enough for HTTP replay fixtures."
@@ -8742,7 +8742,7 @@
         "internal/gateway/",
         "internal/kernel/",
         "internal/apiserver/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway ./internal/kernel ./internal/apiserver -count=1"
@@ -8818,7 +8818,7 @@
         "internal/llm/client.go",
         "internal/llm/http_client.go",
         "internal/llm/openai_multimodal_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/apiserver -run 'TestAPIServerNormalizeMultimodal|TestChatCompletions' -count=1",
@@ -8858,7 +8858,7 @@
       "source_refs": [
         "../hermes-agent/gateway/platforms/api_server.py",
         "../hermes-agent/tests/gateway/test_api_server.py",
-        "docs/content/upstream-hermes/user-guide/features/api-server.md"
+        "webpages/docs/content/upstream-hermes/user-guide/features/api-server.md"
       ],
       "ready_when": [
         "Chat-completions HTTP surface is native and response storage can reuse its auth, session, and error-envelope contracts."
@@ -8883,7 +8883,7 @@
         "internal/apiserver/",
         "internal/persistence/session/",
         "internal/gateway/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/apiserver ./internal/persistence/session ./internal/gateway -count=1"
@@ -8919,7 +8919,7 @@
       "source_refs": [
         "../hermes-agent/gateway/platforms/api_server.py",
         "../hermes-agent/tests/gateway/test_api_server.py",
-        "docs/content/upstream-hermes/user-guide/features/api-server.md"
+        "webpages/docs/content/upstream-hermes/user-guide/features/api-server.md"
       ],
       "ready_when": [
         "Responses store and run event stream can persist terminal and non-terminal snapshots."
@@ -8939,7 +8939,7 @@
       "write_scope": [
         "internal/apiserver/",
         "internal/kernel/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/apiserver ./internal/kernel -count=1"
@@ -8975,7 +8975,7 @@
       "source_refs": [
         "../hermes-agent/tests/gateway/test_proxy_mode.py",
         "../hermes-agent/gateway/platforms/base.py",
-        "docs/content/upstream-hermes/user-guide/features/api-server.md"
+        "webpages/docs/content/upstream-hermes/user-guide/features/api-server.md"
       ],
       "ready_when": [
         "Native chat-completions API server accepts X-Hermes-Session-Id and streaming SSE fixtures."
@@ -8995,7 +8995,7 @@
       "write_scope": [
         "internal/gateway/",
         "internal/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway ./internal/config -count=1"
@@ -9035,7 +9035,7 @@
         "./hermes-agent/tests/gateway/test_replay_entry_fields.py@70bfd429e",
         "internal/gateway/proxy_mode.go:safeProxyHistory",
         "internal/llm/client.go:Message",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Gateway, Channels, Cron, API, TUI, And CLI / OpenAI-compatible API"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Gateway, Channels, Cron, API, TUI, And CLI / OpenAI-compatible API"
       ],
       "ready_when": [
         "Gateway proxy mode forwarding contract is complete and safeProxyHistory already filters unsafe empty/tool-only history.",
@@ -9060,7 +9060,7 @@
       "write_scope": [
         "internal/gateway/proxy_mode.go",
         "internal/gateway/proxy_mode_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestProxySubmitter_(PreservesAssistantReplayMetadata|ForwardsSessionHeaderAndFiltersUnsafeHistory)' -count=1",
@@ -9139,7 +9139,7 @@
       "note": "Complete: TDD landed native dashboard contract fixtures and Go-only API helpers for chat send/stream, Responses-backed session list/delete, model picker options, OAuth status, run-event tool progress, and disabled/degraded panel status without importing upstream React/Vite assets.",
       "write_scope": [
         "internal/apiserver/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/apiserver -count=1"
@@ -9196,7 +9196,7 @@
       "write_scope": [
         "internal/apiserver/",
         "internal/cli/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/apiserver ./internal/cli -count=1"
@@ -9255,7 +9255,7 @@
       "write_scope": [
         "internal/apiserver/detailed_health.go",
         "internal/apiserver/detailed_health_snapshot_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/apiserver -run '^TestDetailedHealthSnapshot_' -count=1",
@@ -9332,7 +9332,7 @@
         "internal/apiserver/detailed_health_endpoint_test.go",
         "internal/apiserver/server.go",
         "internal/apiserver/chat_completions_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/apiserver -run '^TestAPIServerDetailedHealthEndpoint_' -count=1",
@@ -9412,7 +9412,7 @@
       "write_scope": [
         "internal/apiserver/",
         "internal/automation/cron/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/apiserver -run '^TestAPIServerCronAdmin_(List|Get|RunHistory)' -count=1",
@@ -9485,7 +9485,7 @@
         "internal/apiserver/",
         "internal/automation/cron/",
         "internal/tools/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/apiserver -run '^TestAPIServerCronAdmin_(Create|Update|Delete|Pause|Resume|Trigger)' -count=1",
@@ -9574,7 +9574,7 @@
         "internal/cli/toolset_config.go",
         "internal/cli/api_server_toolset_test.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/apiserver -run 'TestAPIServerJobsCompat|TestAPIServerCronAdmin' -count=1",
@@ -9640,7 +9640,7 @@
         "internal/provider/lazy_client_test.go",
         "internal/runtime/coldstart_bench_test.go",
         "cmd/gormes/provider_client.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/provider -run LazyInit -count=1",
@@ -9702,7 +9702,7 @@
       "write_scope": [
         "internal/kernel/kernel.go",
         "internal/kernel/kernel_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kernel -run 'SetModel|ModelSwitch|SessionModel|CrossProvider' -count=1",
@@ -9733,7 +9733,7 @@
       "name": "Hermes web dashboard strict-fidelity contract map",
       "priority": "P1",
       "status": "complete",
-      "contract": "Build a report-only Hermes web dashboard strict-fidelity classifier for `cmd/repoctl hermes-contract-inventory`: scan the current `hermes-agent/web/src` dashboard tree, group exact files into deterministic surface families (terminal chat/PTY, sessions, profiles, plugins and page-scoped slots, OAuth/provider panels, model picker, cron/admin/jobs, i18n, themes, and gateway client event shapes), and attach each family to an existing Gormes API/TUI gateway row, planned child row, source-pair entry, explicit exclusion, or owned-divergence note. The classifier is evidence-only: it must not import or execute React/TypeScript dashboard code, mutate `internal/apiserver` or `internal/tuigateway` behavior, or claim strict dashboard parity without row/source-pair/test proof.",
+      "contract": "Build a report-only Hermes web dashboard strict-fidelity classifier for `cmd/gormes-repo hermes-contract-inventory`: scan the current `hermes-agent/web/src` dashboard tree, group exact files into deterministic surface families (terminal chat/PTY, sessions, profiles, plugins and page-scoped slots, OAuth/provider panels, model picker, cron/admin/jobs, i18n, themes, and gateway client event shapes), and attach each family to an existing Gormes API/TUI gateway row, planned child row, source-pair entry, explicit exclusion, or owned-divergence note. The classifier is evidence-only: it must not import or execute React/TypeScript dashboard code, mutate `internal/apiserver` or `internal/tuigateway` behavior, or claim strict dashboard parity without row/source-pair/test proof.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "docs",
@@ -9745,7 +9745,7 @@
       "degraded_mode": "Until this classifier lands, strict-fidelity reports can only show Hermes `web/src` dashboard files as an undifferentiated unmapped bucket, so Gormes must avoid claiming complete dashboard/API/TUI gateway parity.",
       "fixture": "internal/repoctl/hermes_contract_inventory_dashboard_test.go",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:OpenAI-compatible API",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:OpenAI-compatible API",
         "internal/fidelity/report.go:buildCandidateInventory",
         "internal/repoctl/hermes_contract_inventory.go:RenderHermesContractInventoryMarkdown",
         "internal/repoctl/hermes_contract_inventory_test.go:TestWriteHermesContractInventoryWritesJSONAndMarkdown",
@@ -9805,7 +9805,7 @@
         "go test ./internal/repoctl -run TestHermesContractInventoryClassifiesWebDashboardSurface -count=1",
         "go test ./internal/repoctl ./internal/fidelity -count=1",
         "go test ./internal/apiserver ./internal/tuigateway -run 'TestDashboardContract|TestDashboardExtensionStatus|TestDashboardPluginsEndpoint|TestDashboardSSE|TestAPIServerCronAdmin|TestAPIServerCapabilitiesEndpoint|TestGatewayMux' -count=1",
-        "go run ./cmd/repoctl hermes-source-pairs validate",
+        "go run ./cmd/gormes-repo hermes-source-pairs validate",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -9913,7 +9913,7 @@
       "degraded_mode": "If the EventDispatcher is nil, unavailable, or fails to publish, the channel send remains successful and the manager records only local debug evidence; no second event bus is started.",
       "fixture": "internal/gateway/event_dispatch_manager_test.go",
       "source_refs": [
-        "docs/content/papers/agentic-os-design.md",
+        "webpages/docs/content/papers/agentic-os-design.md",
         "hermes-agent/gateway/run.py@b816fd4e2:2595",
         "hermes-agent/gateway/run.py@b816fd4e2:4859",
         "internal/events/bus.go",
@@ -9943,7 +9943,7 @@
         "internal/gateway/event_dispatch_manager_test.go",
         "internal/gateway/hooks.go",
         "internal/gateway/manager.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestGatewayMessageSentEvent|TestManagerHooks|TestEventDispatcher' -count=1",
@@ -9983,7 +9983,7 @@
         "system"
       ],
       "source_refs": [
-        "docs/content/papers/agentic-os-design.md",
+        "webpages/docs/content/papers/agentic-os-design.md",
         "internal/events/bus.go",
         "internal/llm/turn_events.go",
         "internal/tools/tool_events.go",
@@ -10016,7 +10016,7 @@
       "note": "Complete 2026-05-07: the all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public, and release/operator surfaces with 72 planned rows. No new row was added. The source-backed planner change was this stale dependency: Telegram gateway event-bus adapter, event bus core, and turn/tool producers were already complete, so this P1 integration row was made builder-ready for the completed Telegram slice while the umbrella parent remains non-selectable for future channel children. TDD then added internal/gateway/event_bus_integration_test.go, proving Telegram inbound publication, agent turn events, wrapped tool execution events, Telegram reply publication, a second TUI-style subscriber receiving the same lifecycle, and timestamp-ordered session flow without live Telegram, providers, or gateway processes.",
       "write_scope": [
         "internal/gateway/event_bus_integration_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run TestEventBusIntegration -count=1",
@@ -10078,7 +10078,7 @@
       "write_scope": [
         "internal/skills/delta_maintenance.go",
         "internal/skills/delta_maintenance_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills ./internal/memory -run 'TestDeltaMaintenance_' -count=1",
@@ -10173,8 +10173,8 @@
         "internal/cli/toolset_config_test.go",
         "cmd/gormes/yuanbao_gateway_test.go",
         "cmd/gormes/gateway.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/gateway-donor-map/"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/gateway-donor-map/"
       ],
       "test_commands": [
         "go test ./internal/channels/yuanbao ./internal/config -count=1",
@@ -10189,6 +10189,67 @@
         "origin_type": "hybrid",
         "upstream_ref": "hermes:ab687963 gateway/platforms/yuanbao.py",
         "note": "Hermes defines the Yuanbao platform/tool surface; Gormes adapts it through shared Go gateway, config, and toolset contracts."
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.H",
+    "pos": 1,
+    "item": {
+      "name": "Gateway channel registration degraded-status helper",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gateway channel registration records missing credentials, startup failures, allowed-chat discovery, and degraded runtime status through one behavior-preserving helper instead of per-channel repeated mechanics.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "gateway",
+      "trust_class": [
+        "operator",
+        "gateway"
+      ],
+      "degraded_mode": "Existing gateway runtime status continues to mark failed/degraded platforms with the same redacted error text; helper centralizes the write path only.",
+      "fixture": "internal/app/gateway/*registration_test.go",
+      "source_refs": [
+        ".tld/gormes-agent.mmd",
+        "internal/app/gateway/channels.go",
+        "internal/gateway/codemap.md"
+      ],
+      "ready_when": [
+        "Existing Slack/Teams/Yuanbao registration tests characterize current degraded-status behavior before refactor."
+      ],
+      "not_ready_when": [
+        "The slice changes which channels register, changes public gateway status JSON, or mixes in channel adapter rewrites."
+      ],
+      "acceptance": [
+        "Missing-credential and startup-failure tests still assert the same platform state and error text.",
+        "RegisterConfiguredGatewayChannels has a single helper path for degraded status writes used by at least Slack, Teams, and Yuanbao branches."
+      ],
+      "write_scope": [
+        "internal/app/gateway/channels.go",
+        "internal/app/gateway/*registration_test.go"
+      ],
+      "test_commands": [
+        "go test ./internal/app/gateway -run 'Registration|ConfiguredGatewayChannels|Degraded' -count=1"
+      ],
+      "done_signal": [
+        "Focused gateway app registration tests pass and repeated degraded-status write mechanics are centralized without public behavior drift.",
+        "`go test ./internal/app/gateway -run 'Registration|ConfiguredGatewayChannels|Degraded' -count=1`, `go run ./cmd/progress validate`, and `git diff --check` pass."
+      ],
+      "evidence": {
+        "implementation": [
+          "internal/app/gateway/channels.go: gatewayChannelRegistrationDegraded centralizes degraded runtime-status writes and warnings for channel registration failures.",
+          "internal/app/gateway/channels.go: Slack, Teams, and Yuanbao missing-credential/startup-failure branches use the shared helper while preserving existing error text and nonblocking registration behavior."
+        ],
+        "verification": [
+          "GREEN: go test ./internal/app/gateway -run 'Registration|ConfiguredGatewayChannels|Degraded' -count=1 passed."
+        ]
+      },
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-06-08T00:00:00Z",
+        "note": "Derived from tld architecture review finding: channel registration repeats degraded/status/error mechanics across gateway channel branches."
       }
     }
   }

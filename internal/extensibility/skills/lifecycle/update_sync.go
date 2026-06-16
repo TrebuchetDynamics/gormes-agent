@@ -55,12 +55,8 @@ func SyncBundledSkillsFromManifest(ctx context.Context, req BundledSkillManifest
 		}
 		summary := SkillProfileSyncSummary{Profile: profile.Name}
 		if strings.TrimSpace(profile.Root) == "" {
-			summary.Failed++
-			report.Evidence = append(report.Evidence, SkillProfileSyncEvidence{
-				Code:    SkillProfileSyncInvalidProfile,
-				Profile: profile.Name,
-				Reason:  "profile root is empty",
-			})
+			summary, evidence := invalidProfileRootSyncResult(profile)
+			report.Evidence = append(report.Evidence, evidence)
 			report.Summaries = append(report.Summaries, summary)
 			continue
 		}

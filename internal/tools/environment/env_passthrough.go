@@ -1,139 +1,22 @@
 package environment
 
-import (
-	"sort"
-	"strings"
-)
+import "github.com/TrebuchetDynamics/gormes-agent/internal/tools/environment/passthrough"
 
-// ProviderCredentialEnvBlocklist names Hermes/Gormes-managed provider
-// credentials that skills must not be allowed to smuggle into sandboxed child
-// processes. The list intentionally covers the common provider API key/token
-// variables from Hermes' _HERMES_PROVIDER_ENV_BLOCKLIST; non-provider third
-// party keys such as TENOR_API_KEY remain registerable.
-var ProviderCredentialEnvBlocklist = map[string]struct{}{
-	"ANTHROPIC_API_KEY":     {},
-	"ANTHROPIC_AUTH_TOKEN":  {},
-	"ANTHROPIC_TOKEN":       {},
-	"AWS_ACCESS_KEY_ID":     {},
-	"AWS_SECRET_ACCESS_KEY": {},
-	"AZURE_OPENAI_API_KEY":  {},
-	"COHERE_API_KEY":        {},
-	"GEMINI_API_KEY":        {},
-	"GOOGLE_API_KEY":        {},
-	"GROQ_API_KEY":          {},
-	"MISTRAL_API_KEY":       {},
-	"NOUS_API_KEY":          {},
-	"OPENAI_API_KEY":        {},
-	"OPENROUTER_API_KEY":    {},
-	"XAI_API_KEY":           {},
-}
+// ProviderCredentialEnvBlocklist is the mutable provider credential blocklist
+// used when new session registries are constructed. Existing registries keep a
+// construction-time snapshot so later mutations cannot cross session bounds.
+var ProviderCredentialEnvBlocklist = passthrough.ProviderCredentialEnvBlocklist
 
 // EnvPassthroughRegistry is a session-scoped allowlist for environment
 // variables that may pass through to sandboxed tools. It mirrors Hermes'
 // ContextVar-backed registry with an explicit Go object so callers can keep
 // separate sessions isolated and tests can prove no cross-session bleed.
-type EnvPassthroughRegistry struct {
-	registered map[string]struct{}
-	configured map[string]struct{}
-	blocklist  map[string]struct{}
-}
+type EnvPassthroughRegistry = passthrough.Registry
 
 // NewEnvPassthroughRegistry creates a registry with config-sourced allowlist
 // entries. Provider credentials in the configured list are ignored, matching
 // Hermes' safety rule that operator config also cannot override sandbox
 // credential scrubbing.
 func NewEnvPassthroughRegistry(configured []string) *EnvPassthroughRegistry {
-	r := &EnvPassthroughRegistry{
-		registered: map[string]struct{}{},
-		configured: map[string]struct{}{},
-		blocklist:  ProviderCredentialEnvBlocklist,
-	}
-	for _, name := range configured {
-		name = normalizeEnvPassthroughName(name)
-		if name == "" || r.isProviderCredential(name) {
-			continue
-		}
-		r.configured[name] = struct{}{}
-	}
-	return r
-}
-
-// Register adds skill-declared environment variables to the session allowlist
-// and returns the sanitized names that were rejected as provider credentials.
-func (r *EnvPassthroughRegistry) Register(names []string) []string {
-	if r == nil {
-		return nil
-	}
-	blocked := make([]string, 0)
-	for _, raw := range names {
-		name := normalizeEnvPassthroughName(raw)
-		if name == "" {
-			continue
-		}
-		if r.isProviderCredential(name) {
-			blocked = append(blocked, name)
-			continue
-		}
-		r.registered[name] = struct{}{}
-	}
-	return blocked
-}
-
-// IsAllowed reports whether name was registered for this session or listed in
-// the config allowlist.
-func (r *EnvPassthroughRegistry) IsAllowed(name string) bool {
-	if r == nil {
-		return false
-	}
-	name = normalizeEnvPassthroughName(name)
-	if name == "" {
-		return false
-	}
-	if _, ok := r.registered[name]; ok {
-		return true
-	}
-	_, ok := r.configured[name]
-	return ok
-}
-
-// All returns the sorted union of session-registered and configured allowlist
-// names. Sorting keeps tool/runtime evidence deterministic.
-func (r *EnvPassthroughRegistry) All() []string {
-	if r == nil {
-		return nil
-	}
-	set := make(map[string]struct{}, len(r.registered)+len(r.configured))
-	for name := range r.registered {
-		set[name] = struct{}{}
-	}
-	for name := range r.configured {
-		set[name] = struct{}{}
-	}
-	out := make([]string, 0, len(set))
-	for name := range set {
-		out = append(out, name)
-	}
-	sort.Strings(out)
-	return out
-}
-
-// ClearRegistered resets only the skill/session-scoped allowlist. Configured
-// allowlist entries remain, matching Hermes' clear_env_passthrough semantics.
-func (r *EnvPassthroughRegistry) ClearRegistered() {
-	if r == nil {
-		return
-	}
-	clear(r.registered)
-}
-
-func (r *EnvPassthroughRegistry) isProviderCredential(name string) bool {
-	if r == nil {
-		return false
-	}
-	_, ok := r.blocklist[name]
-	return ok
-}
-
-func normalizeEnvPassthroughName(name string) string {
-	return strings.TrimSpace(name)
+	return passthrough.NewRegistryWithBlocklist(configured, ProviderCredentialEnvBlocklist)
 }

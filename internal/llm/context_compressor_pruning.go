@@ -411,7 +411,7 @@ func toolCallIndex(messages []Message) map[string]pruningToolCall {
 			if tc.ID == "" {
 				continue
 			}
-			out[tc.ID] = pruningToolCall{name: tc.Name, args: append(json.RawMessage(nil), tc.Arguments...)}
+			out[tc.ID] = pruningToolCall{name: tc.Name, args: cloneRawMessage(tc.Arguments)}
 		}
 	}
 	return out
@@ -469,43 +469,6 @@ func hasInvalidToolArguments(messages []Message) bool {
 		}
 	}
 	return false
-}
-
-func cloneMessages(in []Message) []Message {
-	if in == nil {
-		return nil
-	}
-	out := make([]Message, len(in))
-	for i := range in {
-		out[i] = cloneMessage(in[i])
-	}
-	return out
-}
-
-func cloneMessage(msg Message) Message {
-	out := msg
-	if msg.ContentParts != nil {
-		out.ContentParts = append([]MessageContentPart(nil), msg.ContentParts...)
-	}
-	if msg.CacheControl != nil {
-		cc := *msg.CacheControl
-		out.CacheControl = &cc
-	}
-	if msg.Reasoning != nil {
-		reasoning := *msg.Reasoning
-		out.Reasoning = &reasoning
-	}
-	if msg.ReasoningContent != nil {
-		reasoningContent := *msg.ReasoningContent
-		out.ReasoningContent = &reasoningContent
-	}
-	if msg.ToolCalls != nil {
-		out.ToolCalls = make([]ToolCall, len(msg.ToolCalls))
-		for i, tc := range msg.ToolCalls {
-			out.ToolCalls[i] = ToolCall{ID: tc.ID, Name: tc.Name, Arguments: append(json.RawMessage(nil), tc.Arguments...)}
-		}
-	}
-	return out
 }
 
 func roleAt(messages []Message, idx int, fallback string) string {

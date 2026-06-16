@@ -100,7 +100,11 @@ func TestToolDeclaration_RendersIndependentNestedSchemaCopies(t *testing.T) {
 		ToolName:   "honcho_chat",
 		InputSchema: map[string]any{
 			"properties": map[string]any{
-				"peer": map[string]any{"type": "string"},
+				"peer": map[string]any{
+					"type": "string",
+					"enum": []string{"alice", "bob"},
+				},
+				"limit": map[string]string{"type": "integer"},
 			},
 			"oneOf": []map[string]any{{"required": []any{"peer"}}},
 		},
@@ -109,6 +113,8 @@ func TestToolDeclaration_RendersIndependentNestedSchemaCopies(t *testing.T) {
 	providerParams := decl.ProviderSchema()["parameters"].(map[string]any)
 	providerProps := providerParams["properties"].(map[string]any)
 	providerProps["peer"].(map[string]any)["type"] = "number"
+	providerProps["peer"].(map[string]any)["enum"].([]string)[0] = "tampered"
+	providerProps["limit"].(map[string]string)["type"] = "number"
 	providerParams["oneOf"].([]map[string]any)[0]["required"].([]any)[0] = "tampered"
 
 	meta := decl.MCPMetadata()
@@ -117,6 +123,14 @@ func TestToolDeclaration_RendersIndependentNestedSchemaCopies(t *testing.T) {
 	originalPeer := decl.InputSchema["properties"].(map[string]any)["peer"].(map[string]any)["type"]
 	if originalPeer != "string" {
 		t.Fatalf("declaration peer type = %v, want independent original string", originalPeer)
+	}
+	originalEnum := decl.InputSchema["properties"].(map[string]any)["peer"].(map[string]any)["enum"].([]string)[0]
+	if originalEnum != "alice" {
+		t.Fatalf("declaration enum[0] = %v, want independent original alice", originalEnum)
+	}
+	originalLimitType := decl.InputSchema["properties"].(map[string]any)["limit"].(map[string]string)["type"]
+	if originalLimitType != "integer" {
+		t.Fatalf("declaration limit type = %v, want independent original integer", originalLimitType)
 	}
 	originalRequired := decl.InputSchema["oneOf"].([]map[string]any)[0]["required"].([]any)[0]
 	if originalRequired != "peer" {

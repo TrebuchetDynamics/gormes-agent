@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -17,6 +16,7 @@ import (
 	runtimegateway "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway/jsonio"
 )
 
 const defaultGatewayServiceName = "gormes-runtimegateway.service"
@@ -142,12 +142,7 @@ func runGatewayRestart(cmd *cobra.Command, _ []string, opts Options) error {
 
 func writeGatewayRestartSuccess(cmd *cobra.Command, asJSON bool, report gatewayRestartReportJSON) error {
 	if asJSON {
-		body, err := json.MarshalIndent(report, "", "  ")
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(cmd.OutOrStdout(), string(body))
-		return nil
+		return jsonio.WriteIndented(cmd.OutOrStdout(), report)
 	}
 	switch report.Mode {
 	case "service":

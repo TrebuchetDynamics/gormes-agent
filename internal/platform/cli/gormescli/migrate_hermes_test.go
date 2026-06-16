@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -79,12 +78,8 @@ func snapshotMigrateDir(t *testing.T, root string) []string {
 
 func executeMigrateHermes(args ...string) (*cobra.Command, string, string, error) {
 	cmd := NewMigrateCommand(MigrateCommandOptions{BuildProvenance: testBuildProvenance, ExitCodeError: NewExitCodeError})
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs(args)
-	err := cmd.Execute()
-	return cmd, stdout.String(), stderr.String(), err
+	stdout, stderr, err := executeCobraCommandForTest(cmd, cobraCommandExecutionOptions{}, args...)
+	return cmd, stdout, stderr, err
 }
 
 // TestMigrateHermesDryRun_JSONIncludesBuildProvenance proves

@@ -6,6 +6,30 @@ import (
 	"time"
 )
 
+func TestRSSWatchdogPolicy_NilRSSReaderUnavailable(t *testing.T) {
+	checkedAt := time.Date(2026, 4, 27, 5, 45, 0, 0, time.UTC)
+
+	decision := RSSWatchdogPolicy{MaxRSSMB: 100}.Check(nil, func() time.Time {
+		return checkedAt
+	})
+
+	if decision.Reason != RSSWatchdogUnavailable {
+		t.Fatalf("Reason = %q, want %q", decision.Reason, RSSWatchdogUnavailable)
+	}
+	if decision.RequestDrain {
+		t.Fatal("RequestDrain = true, want false when RSS reader is nil")
+	}
+	if decision.Evidence.Reason != RSSWatchdogUnavailable {
+		t.Fatalf("Evidence.Reason = %q, want %q", decision.Evidence.Reason, RSSWatchdogUnavailable)
+	}
+	if decision.Evidence.ErrorText != "rss reader is nil" {
+		t.Fatalf("Evidence.ErrorText = %q, want rss reader is nil", decision.Evidence.ErrorText)
+	}
+	if !decision.Evidence.CheckedAt.Equal(checkedAt) {
+		t.Fatalf("Evidence.CheckedAt = %s, want %s", decision.Evidence.CheckedAt, checkedAt)
+	}
+}
+
 func TestRSSWatchdogPolicy_RSSReadFailure(t *testing.T) {
 	checkedAt := time.Date(2026, 4, 27, 5, 30, 0, 0, time.UTC)
 

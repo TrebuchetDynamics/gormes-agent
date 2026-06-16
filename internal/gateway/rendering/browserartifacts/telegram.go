@@ -17,13 +17,13 @@ import (
 func Telegram(envelope tools.BrowserResultEnvelope) string {
 	var lines []string
 	lines = append(lines, "🌐 *Browser artifact*")
-	if title := strings.TrimSpace(envelope.State.Title); title != "" {
+	if title := browserArtifactLineValue(envelope.State.Title); title != "" {
 		lines = append(lines, "Title: "+escapeTelegramMarkdown(title))
 	}
-	if u := strings.TrimSpace(envelope.State.URL); u != "" {
+	if u := browserArtifactLineValue(envelope.State.URL); u != "" {
 		lines = append(lines, "URL: "+escapeTelegramMarkdown(u))
 	}
-	if artifact := strings.TrimSpace(envelope.Tool.Artifact); artifact != "" {
+	if artifact := browserArtifactLineValue(envelope.Tool.Artifact); artifact != "" {
 		detail := artifact
 		if envelope.Tool.Bytes > 0 {
 			detail = fmt.Sprintf("%s (%d bytes)", artifact, envelope.Tool.Bytes)
@@ -42,7 +42,7 @@ func Telegram(envelope tools.BrowserResultEnvelope) string {
 	if preview := firstNonEmptyBrowserPreview(envelope.Tool.Preview, envelope.State.Text, envelope.Text); preview != "" {
 		lines = append(lines, "Preview: "+escapeTelegramMarkdown(preview))
 	}
-	if evidence := strings.TrimSpace(envelope.Evidence); evidence != "" {
+	if evidence := browserArtifactLineValue(envelope.Evidence); evidence != "" {
 		lines = append(lines, "Evidence: "+escapeTelegramMarkdown(evidence))
 	}
 	lines = append(lines, escapeTelegramMarkdown("browser_artifact_text_fallback"))
@@ -53,10 +53,22 @@ func escapeTelegramMarkdown(text string) string {
 	return telegramtext.EscapeMarkdownV2(text)
 }
 
+func browserArtifactLineValue(value string) string {
+	fields := strings.Fields(value)
+	for i, field := range fields {
+		trimmed := strings.Trim(field, "()[]{}.,;:'\"`")
+		lower := strings.ToLower(trimmed)
+		if strings.HasPrefix(trimmed, "/") || strings.HasPrefix(trimmed, "~/") || strings.HasPrefix(lower, "file://") || strings.Contains(trimmed, ":\\") {
+			fields[i] = "[path]"
+		}
+	}
+	return strings.Join(fields, " ")
+}
+
 func joinBrowserArtifactLines(lines []string, limit int) string {
 	var kept []string
 	for _, line := range lines {
-		line = strings.Join(strings.Fields(line), " ")
+		line = browserArtifactLineValue(line)
 		if line == "" {
 			continue
 		}
@@ -70,7 +82,7 @@ func joinBrowserArtifactLines(lines []string, limit int) string {
 
 func firstNonEmptyBrowserPreview(candidates ...string) string {
 	for _, candidate := range candidates {
-		candidate = strings.Join(strings.Fields(candidate), " ")
+		candidate = browserArtifactLineValue(candidate)
 		if candidate != "" {
 			return candidate
 		}

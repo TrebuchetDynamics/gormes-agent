@@ -102,7 +102,7 @@ type idleKernel struct {
 }
 
 func (k *idleKernel) Submit(kernel.PlatformEvent) error { return nil }
-func (k *idleKernel) Render() <-chan kernel.RenderFrame { return k.render }
+func (k *idleKernel) Subscribe() (<-chan kernel.RenderFrame, func()) { return k.render, func() {} }
 
 type codex401ThenSuccessKernel struct {
 	mu      sync.Mutex
@@ -128,4 +128,6 @@ func (k *codex401ThenSuccessKernel) Submit(e kernel.PlatformEvent) error {
 	return nil
 }
 
-func (k *codex401ThenSuccessKernel) Render() <-chan kernel.RenderFrame { return k.render }
+func (k *codex401ThenSuccessKernel) Subscribe() (<-chan kernel.RenderFrame, func()) {
+	return k.render, func() {}
+}

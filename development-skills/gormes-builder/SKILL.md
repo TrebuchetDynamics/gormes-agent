@@ -29,7 +29,7 @@ source refs. Do not depend on the Python runtime from Gormes code.
 
 1. Read `AGENTS.md`.
 2. Read the selected logical progress row through `cmd/progress` / `internal/planning/progress`. Use parity evidence docs only as source-backed classification evidence, not as the executable backlog.
-3. Read the relevant section of `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` for subsystem context.
+3. Read the relevant section of `webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` for subsystem context.
 4. Read exact upstream Hermes/Honcho source refs named by the row or evidence doc and current Gormes target files before editing.
 5. Read `references/delivery-gates.md` before final verification.
 
@@ -57,6 +57,16 @@ loop implementation.
 
 If the user names a specific behavior, find the matching logical progress row or route to `gormes-planner` to create/refine one. Otherwise choose the highest-value builder-ready row that is actually buildable.
 
+Before reporting "builder blocked", always refresh the control plane in the live checkout:
+
+```sh
+go run ./cmd/progress validate
+go run ./cmd/progress next-work
+go run ./cmd/progress next-work --repo-only
+```
+
+Do not rely on a pasted or earlier `next-work` result after planner/progress files have changed. If `next-work --repo-only` returns `decision=build`, treat that row as the selected builder row even when its `contract_status` is `draft`; the progress selector is authoritative. If `next-work --repo-only` returns `decision=plan`, stop runtime work and emit a planner task packet naming the blocked/vague rows or parity atoms that need sharpening.
+
 Before selecting implementation work, run a stale-classification preflight for the candidate cluster. This prevents duplicate builds when Gormes already implements behavior but the evidence doc still says `missing`:
 
 - Search the likely Go packages and tests named by the row/evidence entry, subsystem, command, tool name, gateway channel, or upstream symbol.
@@ -72,6 +82,8 @@ A buildable row has these properties:
 - `write_scope`, `test_commands`, acceptance, degraded mode, and done signal are concrete;
 - it is not blocked by a missing prerequisite.
 
+If `cmd/progress next-work --repo-only` selects a row that appears to violate one of these checks, do not silently skip it or report generic blockage. Name the exact missing field/source/write-scope issue and route that precise repair to `gormes-planner`. If the issue is only stale parity evidence while code already exists, perform the stale-classification preflight and update evidence or route to planner instead of duplicating runtime code.
+
 Prefer rows that unblock the widest cluster of other missing work. Do not implement broad umbrella rows that cover multiple subsystems; route them to `gormes-planner` for splitting first.
 
 For repeated "actually implemented features" sweeps, builder should not be the first skill. Route to `gormes-hermes-parity` + `gormes-planner` to reconcile stale classifications, then return here only when a corrected missing/partial progress row has a concrete remaining runtime gap.
@@ -81,7 +93,7 @@ Useful discovery:
 ```sh
 go run ./cmd/progress next-work
 go run ./cmd/progress list --module <module>
-rg -n "missing|partial|provider|<topic>" docs/content/building-gormes docs/parity-evidence
+rg -n "missing|partial|provider|<topic>" webpages/docs/content/building-gormes webpages/docs/parity-evidence
 ```
 
 ## Build Workflow
@@ -183,6 +195,8 @@ For complex rows, use `gormes-tdd-slice` for the red-green loop. For uncertain A
 ## Failure Handling
 
 If tests fail from your own changes, fix them before reporting done. If the selected row is unbuildable because the parity classification is wrong, update the progress/evidence surface or report the exact blocker.
+
+A valid blocked report must include the fresh `next-work --repo-only` output, the exact selected row or `decision=plan` reason, and the smallest planner repair packet. Do not say "no builder-ready rows" when the fresh command prints `decision=build`.
 
 If the working tree is dirty before you start, preserve existing changes. Do not revert user or previous-agent work. Work with the current `development` checkout and mention any verification limits caused by unrelated changes.
 

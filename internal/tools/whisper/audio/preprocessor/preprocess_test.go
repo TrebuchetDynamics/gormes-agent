@@ -2,11 +2,11 @@ package preprocessor
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -31,7 +31,7 @@ func TestPreprocess_ReturnsWAVPCMDirectly(t *testing.T) {
 		t.Fatalf("SampleRate = %d, want 16000", got.SampleRate)
 	}
 	want := []int16{0, 1024, -1024, 32767, -32768}
-	if !equalInt16(got.Samples, want) {
+	if !slices.Equal(got.Samples, want) {
 		t.Fatalf("Samples = %v, want %v", got.Samples, want)
 	}
 }
@@ -63,7 +63,7 @@ func TestPreprocess_ConvertsOGGToPCMWhenConverterAvailable(t *testing.T) {
 	if string(convertedBytes) != string(wantInput) {
 		t.Fatalf("converter input bytes = %q, want %q", convertedBytes, wantInput)
 	}
-	if got.SampleRate != 16000 || !equalInt16(got.Samples, wantSamples) {
+	if got.SampleRate != 16000 || !slices.Equal(got.Samples, wantSamples) {
 		t.Fatalf("PCM = %+v, want 16000/%v", got, wantSamples)
 	}
 	if _, statErr := os.Stat(convertedFrom); !errors.Is(statErr, os.ErrNotExist) {
@@ -128,42 +128,16 @@ func TestEncodePCM16MonoWAVRoundTripsThroughPreprocess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Preprocess encoded WAV: %v", err)
 	}
-	if got.SampleRate != want.SampleRate || !equalInt16(got.Samples, want.Samples) {
+	if got.SampleRate != want.SampleRate || !slices.Equal(got.Samples, want.Samples) {
 		t.Fatalf("round-trip PCM = %+v, want %+v", got, want)
 	}
 }
 
 func testWAVPCM16Mono16k(t *testing.T, samples []int16) []byte {
 	t.Helper()
-	dataSize := len(samples) * 2
-	raw := make([]byte, 44+dataSize)
-	copy(raw[0:4], "RIFF")
-	binary.LittleEndian.PutUint32(raw[4:8], uint32(36+dataSize))
-	copy(raw[8:12], "WAVE")
-	copy(raw[12:16], "fmt ")
-	binary.LittleEndian.PutUint32(raw[16:20], 16)
-	binary.LittleEndian.PutUint16(raw[20:22], 1)
-	binary.LittleEndian.PutUint16(raw[22:24], 1)
-	binary.LittleEndian.PutUint32(raw[24:28], 16000)
-	binary.LittleEndian.PutUint32(raw[28:32], 16000*2)
-	binary.LittleEndian.PutUint16(raw[32:34], 2)
-	binary.LittleEndian.PutUint16(raw[34:36], 16)
-	copy(raw[36:40], "data")
-	binary.LittleEndian.PutUint32(raw[40:44], uint32(dataSize))
-	for i, sample := range samples {
-		binary.LittleEndian.PutUint16(raw[44+(i*2):46+(i*2)], uint16(sample))
+	raw, err := codec.EncodePCM16MonoWAV(contract.PCM{SampleRate: 16000, Samples: samples})
+	if err != nil {
+		t.Fatalf("EncodePCM16MonoWAV test fixture: %v", err)
 	}
 	return raw
-}
-
-func equalInt16(left, right []int16) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for i := range left {
-		if left[i] != right[i] {
-			return false
-		}
-	}
-	return true
 }

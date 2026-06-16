@@ -41,6 +41,7 @@ jobs:
           cache-dependency-path: |
             webpages/docs/package-lock.json
             webpages/blog/package-lock.json
+            webpages/landing/package-lock.json
 
       - name: Download modules
         run: go mod download
@@ -53,12 +54,34 @@ jobs:
         working-directory: webpages/blog
         run: npm ci
 
+      - name: Install landing dependencies
+        working-directory: webpages/landing
+        run: npm ci
+
       - name: Run Go tests
         run: go test ./... -count=1
+
+      - name: Run core race tests
+        run: go test -race ./internal/kernel ./internal/gateway ./internal/adapters/channels/navivox ./internal/adapters/apiserver -count=1
+
+      - name: Check Go vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.3.0 ./...
 
       - name: Test engineering blog
         working-directory: webpages/blog
         run: npm run test
+
+      - name: Build docs site
+        working-directory: webpages/docs
+        run: npm run build
+
+      - name: Test landing data and asset sync
+        working-directory: webpages/landing
+        run: npm run test:data && npm run test:sync-assets
+
+      - name: Build landing site
+        working-directory: webpages/landing
+        run: npm run build
 
       - name: Validate progress
         run: go run ./cmd/progress validate
@@ -66,13 +89,16 @@ jobs:
       - name: Check whitespace
         run: git diff --check
 
-      - name: Verify version matches tag
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Verify release version matches code
         run: |
-          tag_version="${GITHUB_REF_NAME#v}"
           code_version=$(grep 'var Version =' cmd/gormes/main.go | sed 's/.*"\(.*\)".*/\1/')
-          if [ "$tag_version" != "$code_version" ]; then
-            echo "Version mismatch: tag=$tag_version, code=$code_version"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            requested_version="${{ inputs.version }}"
+          else
+            requested_version="${GITHUB_REF_NAME#v}"
+          fi
+          if [ "$requested_version" != "$code_version" ]; then
+            echo "Version mismatch: requested=$requested_version, code=$code_version"
             exit 1
           fi
 

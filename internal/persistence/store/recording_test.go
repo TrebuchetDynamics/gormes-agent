@@ -31,6 +31,25 @@ func TestRecordingStore_CapturesCommands(t *testing.T) {
 	}
 }
 
+func TestRecordingStore_ClonesCommandPayloads(t *testing.T) {
+	r := NewRecording()
+	payload := json.RawMessage(`{"x":1}`)
+	if _, err := r.Exec(context.Background(), Command{Kind: AppendUserTurn, Payload: payload}); err != nil {
+		t.Fatalf("Exec: %v", err)
+	}
+	payload[5] = '9'
+
+	first := r.Commands()
+	if got := string(first[0].Payload); got != `{"x":1}` {
+		t.Fatalf("stored payload changed after caller mutation: %q", got)
+	}
+	first[0].Payload[5] = '8'
+	second := r.Commands()
+	if got := string(second[0].Payload); got != `{"x":1}` {
+		t.Fatalf("stored payload changed after snapshot mutation: %q", got)
+	}
+}
+
 func TestRecordingStore_ConcurrentSafe(t *testing.T) {
 	r := NewRecording()
 	ctx := context.Background()
@@ -46,6 +65,21 @@ func TestRecordingStore_ConcurrentSafe(t *testing.T) {
 	}
 	if got := len(r.Commands()); got != 50 {
 		t.Errorf("len(Commands) = %d, want 50", got)
+	}
+}
+
+func TestRecordingStore_AllowsNilContext(t *testing.T) {
+	r := NewRecording()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("RecordingStore Exec panicked with nil context: %v", r)
+		}
+	}()
+	if _, err := r.Exec(nil, Command{Kind: AppendUserTurn}); err != nil {
+		t.Fatalf("Exec nil context: %v", err)
+	}
+	if got := len(r.Commands()); got != 1 {
+		t.Fatalf("len(Commands) = %d, want 1", got)
 	}
 }
 

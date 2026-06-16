@@ -58,7 +58,7 @@
         "internal/gonchotools/",
         "internal/memory/",
         "internal/tools/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/e2e -run '^TestPythonFreeNormalAgentTurn$' -count=1",
@@ -93,12 +93,12 @@
         "system"
       ],
       "degraded_mode": "If a nested upstream path is not represented in the feature map, swarm audit, or progress row, the test reports nested_feature_unmapped with the upstream path and expected ledger evidence.",
-      "fixture": "docs/upstream_coverage_test.go::TestNestedUpstreamFeatureCoverage",
+      "fixture": "webpages/docs/upstream_coverage_test.go::TestNestedUpstreamFeatureCoverage",
       "source_refs": [
-        "docs/upstream_coverage_test.go",
-        "docs/upstream_coverage_test.go::TestNestedUpstreamFeatureCoverage",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
-        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "webpages/docs/upstream_coverage_test.go",
+        "webpages/docs/upstream_coverage_test.go::TestNestedUpstreamFeatureCoverage",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+        "webpages/docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
         "../hermes-agent/agent/transports/",
         "../hermes-agent/tools/yuanbao_tools.py",
         "../hermes-agent/acp_adapter/",
@@ -133,15 +133,15 @@
       ],
       "note": "Complete in the 2026-04-28 gormes-planner swarm pass: TestNestedUpstreamFeatureCoverage now checks representative nested Hermes/Honcho paths against the feature map, runtime plan, swarm audit, upstream ledger, and progress.json, rejecting broad-only evidence and proving the nested matrix is executable.",
       "write_scope": [
-        "docs/upstream_coverage_test.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
-        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/upstream_coverage_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+        "webpages/docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./docs -run 'TestUpstreamCoverageLedgerMatchesSourceClasses|TestNestedUpstreamFeatureCoverage' -count=1",
         "go run ./cmd/progress validate",
-        "go test ./docs -count=1"
+        "go test ./webpages/docs -count=1"
       ],
       "done_signal": [
         "Nested upstream feature paths from the swarm audit are protected by docs tests, making feature-level mapping drift visible before builder selection."
@@ -271,15 +271,15 @@
       "degraded_mode": "If a caller still imports `internal/llm` for Gormes-owned runtime behavior after the migration, package-boundary tests report hermes_namespace_runtime_leak with the importing package and the target replacement package. Hermes compatibility docs and drift manifests remain available under `internal/compat/hermes` so removing the staging namespace does not hide upstream parity evidence.",
       "fixture": "internal/compat/hermes/namespace_contract_test.go::TestHermesCompatibilityBoundaryOwnsOnlyCompatibilitySurfaces",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/boundaries.md:Hermes Compatibility Namespace Boundary",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Namespace note",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Gormes-Native Pending Decisions",
+        "webpages/docs/content/building-gormes/architecture_plan/boundaries.md:Hermes Compatibility Namespace Boundary",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Namespace note",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Gormes-Native Pending Decisions",
         "internal/llm/",
         "internal/kernel/",
         "internal/runtime/",
         "internal/config/",
         "internal/support/e2e/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "ready_when": [
         "Hermes provider registry and alias manifest is complete so provider IDs, aliases, auth modes, and model metadata have one source-backed table before package movement.",
@@ -320,10 +320,10 @@
         "internal/runtime/",
         "internal/kernel/",
         "internal/llm/",
-        "docs/content/building-gormes/architecture_plan/boundaries.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/boundaries.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/compat/hermes ./internal/provider ./internal/modelregistry ./internal/toolcall ./internal/contextengine ./internal/runtime ./internal/kernel ./internal/e2e -count=1",
@@ -384,8 +384,8 @@
       ],
       "acceptance": [
         "The relevant Hermes files/tests no longer appear as anonymous examples in the strict-fidelity unmapped bucket; they are linked to rows, source pairs, planned child rows, explicit exclusions, or owned-divergence notes.",
-        "`go run ./cmd/repoctl hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence.",
-        "`go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits.",
+        "`go run ./cmd/gormes-repo hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence.",
+        "`go run ./cmd/gormes-repo hermes-source-pairs validate` passes after any source-pair edits.",
         "`go run ./cmd/progress validate` passes and generated docs show the row in the correct module."
       ],
       "note": "Complete 2026-05-21: hermes-source-pairs now classifies agent runtime tails for conversation_loop, tool_executor, context_engine, Codex transport, chat-completions transport, and LSP manager. Contract inventory strict failures dropped from 3000 to 2984 by linking these source/test files to source-pair evidence and progress rows without claiming unsupported full runtime parity.",
@@ -398,8 +398,8 @@
       ],
       "test_commands": [
         "go test ./internal/runtime ./internal/provider ./internal/tools -count=1",
-        "go run ./cmd/repoctl hermes-source-pairs validate",
-        "go run ./cmd/repoctl hermes-contract-inventory --repo-root ."
+        "go run ./cmd/gormes-repo hermes-source-pairs validate",
+        "go run ./cmd/gormes-repo hermes-contract-inventory --repo-root ."
       ],
       "done_signal": [
         "Strict-fidelity blockers for this bucket are classified into the canonical backlog/source-pair evidence with no side queue and no unsupported full-parity claim."
@@ -418,9 +418,9 @@
       ],
       "validation": [
         "go test ./internal/repoctl -run TestRepositorySourcePairsClassifyHermesAgentRuntimeTail -count=1",
-        "go run ./cmd/repoctl hermes-source-pairs validate",
-        "go run ./cmd/repoctl hermes-source-pairs report",
-        "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+        "go run ./cmd/gormes-repo hermes-source-pairs validate",
+        "go run ./cmd/gormes-repo hermes-source-pairs report",
+        "go run ./cmd/gormes-repo hermes-contract-inventory --repo-root .",
         "go test ./internal/runtime ./internal/provider ./internal/tools -count=1",
         "go test ./... -count=1",
         "go run ./cmd/progress validate",
@@ -446,7 +446,7 @@
         "system"
       ],
       "source_refs": [
-        "docs/content/papers/safety-and-deployment.md",
+        "webpages/docs/content/papers/safety-and-deployment.md",
         "internal/llm/turn.go",
         "internal/llm/agent_loop.go"
       ],
@@ -499,7 +499,7 @@
         "operator"
       ],
       "source_refs": [
-        "docs/content/papers/safety-and-deployment.md",
+        "webpages/docs/content/papers/safety-and-deployment.md",
         "internal/llm/turn.go"
       ],
       "ready_when": [
@@ -550,7 +550,7 @@
         "system"
       ],
       "source_refs": [
-        "docs/content/papers/safety-and-deployment.md",
+        "webpages/docs/content/papers/safety-and-deployment.md",
         "internal/llm/safety_plan_gate.go",
         "internal/tools/safety_tool_gate.go",
         "internal/llm/refuse_action.go"
@@ -604,8 +604,8 @@
       "fixture": "internal/tools/secrets_test.go; cmd/gormes/secrets_command_test.go",
       "source_refs": [
         "openclaw secrets apply/audit/configure/reload CLI surface",
-        "docs/content/building-gormes/openclaw-platform-parity-audit.md",
-        "docs/content/building-gormes/fleet-operational-patterns.md"
+        "webpages/docs/content/building-gormes/openclaw-platform-parity-audit.md",
+        "webpages/docs/content/building-gormes/fleet-operational-patterns.md"
       ],
       "ready_when": [
         "Hermes credential/oauth store migration (5.O) is validated.",
@@ -629,7 +629,7 @@
         "internal/tools/secrets.go",
         "internal/tools/secrets_test.go",
         "cmd/gormes/secrets.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestSecrets -count=1",
@@ -764,7 +764,7 @@
         "internal/gateway/hooks.go",
         "internal/gateway/hooks_test.go",
         "internal/kernel/kernel.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'HookAgent' -count=1",
@@ -877,8 +877,8 @@
         "system"
       ],
       "source_refs": [
-        "docs/content/papers/agentic-os-design.md",
-        "docs/content/papers/safety-and-deployment.md",
+        "webpages/docs/content/papers/agentic-os-design.md",
+        "webpages/docs/content/papers/safety-and-deployment.md",
         "OpenCode event bus architecture",
         "internal/gateway/router.go",
         "internal/llm/turn.go"
@@ -902,7 +902,7 @@
         "internal/events/bus.go",
         "internal/events/bus_test.go",
         "internal/events/types.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/events -run TestEventBus -count=1",
@@ -975,7 +975,7 @@
         "internal/tui/",
         "internal/tools/approval/",
         "cmd/gormes/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/i18n -count=1",
@@ -1060,7 +1060,7 @@
       "write_scope": [
         "internal/i18n/",
         "locales/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/i18n -count=1",
@@ -1109,7 +1109,7 @@
         "./deer-flow/backend/packages/harness/deerflow/agents/factory.py",
         "./deer-flow/backend/packages/harness/deerflow/agents/features.py",
         "./deer-flow/backend/packages/harness/deerflow/agents/middlewares/",
-        "docs/content/building-gormes/development-skills/deerflow-pattern-theft.md"
+        "webpages/docs/content/building-gormes/development-skills/deerflow-pattern-theft.md"
       ],
       "ready_when": [
         "internal/core/agent/ has a Middleware interface and a MiddlewareChain type with deterministic ordering.",
@@ -1139,7 +1139,7 @@
         "internal/core/agent/builtin.go",
         "internal/llm/",
         "internal/kernel/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/agent -count=1",
@@ -1218,7 +1218,7 @@
         "internal/channels/threadtext/",
         "internal/channels/telegram/",
         "internal/channels/feishu/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run '^TestPicoClawChannelRegression_' -count=1",
@@ -1308,7 +1308,7 @@
         "internal/goncho/",
         "internal/core/agent/",
         "internal/skills/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/subagent ./internal/goncho ./internal/agent ./internal/skills -run '^TestDynamicAgentIdentity_' -count=1",

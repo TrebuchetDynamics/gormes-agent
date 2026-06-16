@@ -3,6 +3,8 @@ package mirror
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -33,6 +35,54 @@ func TestSelectDeliveryMirrorSession_PrefersExactUserAndThread(t *testing.T) {
 	}
 }
 
+func TestSelectDeliveryMirrorSessionNormalizesReturnedMetadata(t *testing.T) {
+	candidates := []session.Metadata{
+		{SessionID: " sess-valid ", Source: " Slack ", ChatID: " C123 ", UserID: " u1 ", UpdatedAt: 10},
+	}
+
+	got, ok := SelectDeliveryMirrorSession(candidates, DeliveryMirrorTarget{Platform: "slack", ChatID: "C123", UserID: "u1"})
+	if !ok {
+		t.Fatal("SelectDeliveryMirrorSession ok = false, want match")
+	}
+	if got.SessionID != "sess-valid" || got.Source != "slack" || got.ChatID != "C123" || got.UserID != "u1" {
+		t.Fatalf("selected metadata = %+v, want normalized identifiers", got)
+	}
+}
+
+func TestSelectDeliveryMirrorSessionRejectsControlCharacterTargetChatID(t *testing.T) {
+	candidates := []session.Metadata{
+		{SessionID: "sess-bad", Source: "slack", ChatID: "C123\nshadow", UpdatedAt: 99},
+	}
+
+	if got, ok := SelectDeliveryMirrorSession(candidates, DeliveryMirrorTarget{Platform: "slack", ChatID: "C123\nshadow"}); ok {
+		t.Fatalf("SelectDeliveryMirrorSession = %+v, true; want no mirror for control-character target chat id", got)
+	}
+}
+
+func TestSelectDeliveryMirrorSessionIgnoresControlCharacterSessionIDCandidates(t *testing.T) {
+	candidates := []session.Metadata{
+		{SessionID: "sess\nbad", Source: "slack", ChatID: "C123", UpdatedAt: 99},
+		{SessionID: "sess-valid", Source: "slack", ChatID: "C123", UpdatedAt: 10},
+	}
+
+	got, ok := SelectDeliveryMirrorSession(candidates, DeliveryMirrorTarget{Platform: "slack", ChatID: "C123"})
+	if !ok || got.SessionID != "sess-valid" {
+		t.Fatalf("SelectDeliveryMirrorSession = %+v, %v; want sess-valid ignoring control-character session id", got, ok)
+	}
+}
+
+func TestSelectDeliveryMirrorSessionIgnoresEmptySessionIDCandidates(t *testing.T) {
+	candidates := []session.Metadata{
+		{SessionID: "", Source: "slack", ChatID: "C123", UpdatedAt: 99},
+		{SessionID: "sess-valid", Source: "slack", ChatID: "C123", UpdatedAt: 10},
+	}
+
+	got, ok := SelectDeliveryMirrorSession(candidates, DeliveryMirrorTarget{Platform: "slack", ChatID: "C123"})
+	if !ok || got.SessionID != "sess-valid" {
+		t.Fatalf("SelectDeliveryMirrorSession = %+v, %v; want sess-valid ignoring empty session id", got, ok)
+	}
+}
+
 func TestSelectDeliveryMirrorSession_AmbiguousGroupWithoutUser(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -50,6 +100,13 @@ func TestSelectDeliveryMirrorSession_AmbiguousGroupWithoutUser(t *testing.T) {
 			candidates: []session.Metadata{
 				{SessionID: "sess-known", Source: "telegram", ChatID: "-100", UserID: "u1", UpdatedAt: 10},
 				{SessionID: "sess-unknown", Source: "telegram", ChatID: "-100", UpdatedAt: 20},
+			},
+		},
+		{
+			name: "multiple unknown user provenance",
+			candidates: []session.Metadata{
+				{SessionID: "sess-unknown-a", Source: "telegram", ChatID: "-100", UpdatedAt: 10},
+				{SessionID: "sess-unknown-b", Source: "telegram", ChatID: "-100", UpdatedAt: 20},
 			},
 		},
 	}
@@ -70,6 +127,185 @@ func TestSelectDeliveryMirrorSession_ExplicitUserMustMatchSingleCandidate(t *tes
 
 	if got, ok := SelectDeliveryMirrorSession(candidates, DeliveryMirrorTarget{Platform: "telegram", ChatID: "-100", UserID: "u2"}); ok {
 		t.Fatalf("SelectDeliveryMirrorSession = %+v, want no mirror to different explicit user", got)
+	}
+}
+
+func TestMirrorDeliveryToSessionHonorsCanceledContextBeforeStoreExec(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	st := &countingMirrorStore{}
+
+	result, err := MirrorDeliveryToSession(ctx, st, []session.Metadata{{SessionID: "sess-target", Source: "slack", ChatID: "C123", UpdatedAt: 42}}, DeliveryMirrorTarget{
+		Platform:    "slack",
+		ChatID:      "C123",
+		MessageText: "hello",
+	}, time.Date(2026, 5, 1, 12, 30, 0, 0, time.UTC))
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("MirrorDeliveryToSession err = %v, want context.Canceled", err)
+	}
+	if result.Mirrored {
+		t.Fatalf("result = %+v, want not mirrored", result)
+	}
+	if st.calls != 0 {
+		t.Fatalf("store Exec calls = %d, want canceled context to avoid store call", st.calls)
+	}
+}
+
+type countingMirrorStore struct{ calls int }
+
+func (s *countingMirrorStore) Exec(ctx context.Context, _ store.Command) (store.Ack, error) {
+	s.calls++
+	if err := ctx.Err(); err != nil {
+		return store.Ack{}, err
+	}
+	return store.Ack{}, nil
+}
+
+func TestMirrorDeliveryToSessionAllowsNilContext(t *testing.T) {
+	rec := store.NewRecording()
+	candidates := []session.Metadata{{SessionID: "sess-target", Source: "slack", ChatID: "C123", UpdatedAt: 42}}
+
+	result, err := MirrorDeliveryToSession(nil, rec, candidates, DeliveryMirrorTarget{
+		Platform:    "slack",
+		ChatID:      "C123",
+		MessageText: "hello",
+	}, time.Date(2026, 5, 1, 12, 30, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("MirrorDeliveryToSession nil context error = %v", err)
+	}
+	if !result.Mirrored || result.SessionID != "sess-target" {
+		t.Fatalf("result = %+v, want mirrored target with nil context", result)
+	}
+	if got := len(rec.Commands()); got != 1 {
+		t.Fatalf("recorded commands = %d, want 1", got)
+	}
+}
+
+func TestMirrorDeliveryToSessionNormalizesSelectedMetadataPayload(t *testing.T) {
+	rec := store.NewRecording()
+	now := time.Date(2026, 5, 1, 12, 30, 0, 0, time.UTC)
+	candidates := []session.Metadata{
+		{SessionID: " sess-target ", Source: " slack ", ChatID: " C123 ", UpdatedAt: 42},
+	}
+
+	result, err := MirrorDeliveryToSession(context.Background(), rec, candidates, DeliveryMirrorTarget{
+		Platform:    "slack",
+		ChatID:      "C123",
+		MessageText: "hello",
+	}, now)
+	if err != nil {
+		t.Fatalf("MirrorDeliveryToSession error = %v", err)
+	}
+	if !result.Mirrored || result.SessionID != "sess-target" {
+		t.Fatalf("result = %+v, want normalized mirrored session", result)
+	}
+	var payload struct {
+		SessionID string `json:"session_id"`
+		ChatID    string `json:"chat_id"`
+	}
+	cmds := rec.Commands()
+	if len(cmds) != 1 {
+		t.Fatalf("commands = %+v, want one mirror command", cmds)
+	}
+	if err := json.Unmarshal(cmds[0].Payload, &payload); err != nil {
+		t.Fatalf("payload decode: %v", err)
+	}
+	if payload.SessionID != "sess-target" || payload.ChatID != "C123" {
+		t.Fatalf("payload = %+v, want normalized session/chat metadata", payload)
+	}
+}
+
+func TestMirrorDeliveryToSessionRemovesControlCharactersFromSourceLabel(t *testing.T) {
+	rec := store.NewRecording()
+	candidates := []session.Metadata{{SessionID: "sess-target", Source: "slack", ChatID: "C123", UpdatedAt: 42}}
+
+	_, err := MirrorDeliveryToSession(context.Background(), rec, candidates, DeliveryMirrorTarget{
+		Platform:    "slack",
+		ChatID:      "C123",
+		MessageText: "hello",
+		SourceLabel: "cli\x1b[31m\u009bsource",
+	}, time.Date(2026, 5, 1, 12, 30, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("MirrorDeliveryToSession error = %v", err)
+	}
+	cmds := rec.Commands()
+	if len(cmds) != 1 {
+		t.Fatalf("commands = %+v, want one", cmds)
+	}
+	var payload struct {
+		MetaJSON string `json:"meta_json"`
+	}
+	if err := json.Unmarshal(cmds[0].Payload, &payload); err != nil {
+		t.Fatalf("payload decode: %v", err)
+	}
+	for _, forbidden := range []string{"\x1b", "\u009b"} {
+		if strings.Contains(payload.MetaJSON, forbidden) {
+			t.Fatalf("meta_json kept control character %q: %q", forbidden, payload.MetaJSON)
+		}
+	}
+	if !strings.Contains(payload.MetaJSON, "cli [31m source") {
+		t.Fatalf("meta_json = %q, want sanitized source label", payload.MetaJSON)
+	}
+}
+
+func TestMirrorDeliveryToSessionRedactsSecretLikeSourceLabel(t *testing.T) {
+	rec := store.NewRecording()
+	candidates := []session.Metadata{{SessionID: "sess-target", Source: "slack", ChatID: "C123", UpdatedAt: 42}}
+
+	_, err := MirrorDeliveryToSession(context.Background(), rec, candidates, DeliveryMirrorTarget{
+		Platform:    "slack",
+		ChatID:      "C123",
+		MessageText: "hello",
+		SourceLabel: "tool api_key=plain-secret-token",
+	}, time.Date(2026, 5, 1, 12, 30, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("MirrorDeliveryToSession error = %v", err)
+	}
+	cmds := rec.Commands()
+	if len(cmds) != 1 {
+		t.Fatalf("commands = %+v, want one mirror command", cmds)
+	}
+	var payload struct {
+		MetaJSON string `json:"meta_json"`
+	}
+	if err := json.Unmarshal(cmds[0].Payload, &payload); err != nil {
+		t.Fatalf("payload decode: %v", err)
+	}
+	for _, forbidden := range []string{"plain-secret-token", "api_key"} {
+		if strings.Contains(payload.MetaJSON, forbidden) {
+			t.Fatalf("meta_json leaked secret-like source label %q: %s", forbidden, payload.MetaJSON)
+		}
+	}
+	if !strings.Contains(payload.MetaJSON, "[redacted]") {
+		t.Fatalf("meta_json missing redaction marker: %s", payload.MetaJSON)
+	}
+}
+
+func TestMirrorDeliveryToSessionPreservesMessageWhitespace(t *testing.T) {
+	rec := store.NewRecording()
+	candidates := []session.Metadata{{SessionID: "sess-target", Source: "slack", ChatID: "C123", UpdatedAt: 42}}
+	message := "  indented answer\n\n  - keep spaces  "
+
+	_, err := MirrorDeliveryToSession(context.Background(), rec, candidates, DeliveryMirrorTarget{
+		Platform:    "slack",
+		ChatID:      "C123",
+		MessageText: message,
+	}, time.Date(2026, 5, 1, 12, 30, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("MirrorDeliveryToSession error = %v", err)
+	}
+	cmds := rec.Commands()
+	if len(cmds) != 1 {
+		t.Fatalf("commands = %+v, want one mirror command", cmds)
+	}
+	var payload struct {
+		Content string `json:"content"`
+	}
+	if err := json.Unmarshal(cmds[0].Payload, &payload); err != nil {
+		t.Fatalf("payload decode: %v", err)
+	}
+	if payload.Content != message {
+		t.Fatalf("mirrored content = %q, want exact message %q", payload.Content, message)
 	}
 }
 

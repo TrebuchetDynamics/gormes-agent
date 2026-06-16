@@ -54,6 +54,21 @@ func TestInProcessExecutorUnknownTool(t *testing.T) {
 	}
 }
 
+func TestInProcessExecutorNilRegistryReturnsError(t *testing.T) {
+	exec := NewInProcessToolExecutor(nil)
+
+	stream, err := exec.Execute(context.Background(), ToolRequest{ToolName: "echo"})
+	if err == nil {
+		t.Fatal("Execute with nil registry: want error, got nil")
+	}
+	if stream != nil {
+		t.Fatalf("stream = %#v, want nil", stream)
+	}
+	if !strings.Contains(err.Error(), "nil tool registry") {
+		t.Fatalf("err = %v, want nil tool registry", err)
+	}
+}
+
 func TestInProcessExecutorToolErrorEmitsFailed(t *testing.T) {
 	reg := core.NewRegistry()
 	if err := reg.Register(&builtins.EchoTool{}); err != nil {

@@ -57,7 +57,7 @@ The accepted design is partially cut over:
 1. `cmd/autoloop` provides the autoloop CLI, wrappers, audit/digest/service
    commands, and typed primitives for candidates, locks, worktrees, promotion,
    companions, and backends.
-2. `cmd/repoctl` replaces build/progress/README/compat maintenance scripts.
+2. `cmd/gormes-repo` replaces build/progress/README/compat maintenance scripts.
 3. Full `autoloop run` runtime parity is still staged follow-up work: the
    current Go command is a run skeleton over candidate/backend invocation and
    does not yet wire the full legacy loop, worktree, claim, ledger, promotion,
@@ -115,9 +115,9 @@ The `service` subcommands replace `install-service.sh`, `install-audit.sh`, and
 Implemented subcommands:
 
 ```text
-repoctl benchmark record
+gormes-repo benchmark record
 repoctl progress sync
-repoctl readme update
+gormes-repo readme update
 repoctl compat go122
 ```
 
@@ -130,7 +130,7 @@ scripts/update-readme.sh
 scripts/check-go1.22-compat.sh
 ```
 
-The Makefile calls `go run ./cmd/repoctl ...` for repo maintenance during this
+The Makefile calls `go run ./cmd/gormes-repo ...` for repo maintenance during this
 transition. Compiled `repoctl` binaries may replace those calls later where
 appropriate.
 
@@ -140,7 +140,7 @@ Start with a deliberately small package split:
 
 ```text
 cmd/autoloop/
-cmd/repoctl/
+cmd/gormes-repo/
 internal/autoloop/
 internal/repoctl/
 testdata/legacy-shell/
@@ -306,7 +306,7 @@ timer install, and legacy timer disable behavior under `autoloop service`.
 
 Completed for `repoctl` and the orchestrator wrapper/CLI surface. Docs,
 Makefile targets, systemd rendering, and orchestrator/repoctl operator
-entrypoints now route through `cmd/repoctl` or `cmd/autoloop`. Full autoloop
+entrypoints now route through `cmd/gormes-repo` or `cmd/autoloop`. Full autoloop
 runtime parity and the three live companion scripts remain staged follow-up
 work. Legacy long-form orchestrator shell remains as vendored parity fixtures
 under `testdata/legacy-shell/`.
@@ -324,7 +324,7 @@ Use TDD for every behavior slice:
 Required commands by milestone:
 
 ```text
-go test ./internal/repoctl ./cmd/repoctl
+go test ./internal/repoctl ./cmd/gormes-repo
 go test ./internal/autoloop ./cmd/autoloop
 go test ./...
 ```
@@ -369,7 +369,7 @@ production validation.
    a later port.
 7. Legacy shell retained for parity lives under `testdata/legacy-shell/` and is
    marked vendored for GitHub language reporting.
-8. `go test ./internal/repoctl ./cmd/repoctl ./internal/autoloop ./cmd/autoloop`
+8. `go test ./internal/repoctl ./cmd/gormes-repo ./internal/autoloop ./cmd/autoloop`
    passes.
 9. Active docs and operator instructions reference `autoloop` and `repoctl`,
    not the old shell entrypoints.

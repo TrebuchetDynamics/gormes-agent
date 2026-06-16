@@ -3,6 +3,7 @@ package readmodel
 import (
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/model"
 )
@@ -22,6 +23,7 @@ func (d Directory) FormatForDisplay() string {
 	sort.Strings(platforms)
 	for _, platform := range platforms {
 		entries := append([]model.Entry(nil), d.Platforms[platform]...)
+		model.SortEntriesByNameID(entries)
 		if platform == "discord" {
 			guilds := map[string][]model.Entry{}
 			dms := []model.Entry{}
@@ -38,16 +40,17 @@ func (d Directory) FormatForDisplay() string {
 			}
 			sort.Strings(guildNames)
 			for _, guild := range guildNames {
-				lines = append(lines, "Discord ("+guild+"):")
+				lines = append(lines, "Discord ("+displayDirectoryText(guild)+"):")
 				model.SortEntriesByNameID(guilds[guild])
 				for _, entry := range guilds[guild] {
-					lines = append(lines, "  discord:"+model.TargetDisplayName(platform, entry))
+					lines = append(lines, "  discord:"+displayDirectoryText(model.TargetDisplayName(platform, entry)))
 				}
 			}
 			if len(dms) > 0 {
 				lines = append(lines, "Discord (DMs):")
+				model.SortEntriesByNameID(dms)
 				for _, entry := range dms {
-					lines = append(lines, "  discord:"+model.TargetDisplayName(platform, entry))
+					lines = append(lines, "  discord:"+displayDirectoryText(model.TargetDisplayName(platform, entry)))
 				}
 			}
 			lines = append(lines, "")
@@ -55,13 +58,24 @@ func (d Directory) FormatForDisplay() string {
 		}
 		lines = append(lines, strings.Title(platform)+":")
 		for _, entry := range entries {
-			lines = append(lines, "  "+platform+":"+model.TargetDisplayName(platform, entry))
+			lines = append(lines, "  "+platform+":"+displayDirectoryText(model.TargetDisplayName(platform, entry)))
 		}
 		lines = append(lines, "")
 	}
 	lines = append(lines, `Use these as the "target" parameter when sending.`)
 	lines = append(lines, `Bare platform name (e.g. "telegram") sends to home channel.`)
 	return strings.Join(lines, "\n")
+}
+
+func displayDirectoryText(value string) string {
+	value = strings.Map(func(r rune) rune {
+		if unicode.Is(unicode.Cf, r) {
+			return -1
+		}
+		return r
+	}, value)
+	value = strings.ReplaceAll(value, "`", "'")
+	return strings.Join(strings.Fields(value), " ")
 }
 
 func (d Directory) hasEntries() bool {

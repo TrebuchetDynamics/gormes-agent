@@ -5,10 +5,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // ImageGenerationStatus is the typed envelope outcome surfaced to transcripts
@@ -34,6 +36,10 @@ const (
 	// ImageGenerationStatusProviderNotRegistered indicates image_gen.provider
 	// names a plugin provider that is not currently registered.
 	ImageGenerationStatusProviderNotRegistered ImageGenerationStatus = "provider_not_registered"
+
+	// ImageGenerationStatusProviderUnavailable indicates the selected provider
+	// exists but is not currently available for generation.
+	ImageGenerationStatusProviderUnavailable ImageGenerationStatus = "image_gen_provider_unavailable"
 )
 
 // ImageGenerationEnvelope is the stable, transcript-safe result of an image
@@ -87,6 +93,17 @@ var reSKToken = regexp.MustCompile(`sk-[A-Za-z0-9_\-]+`)
 // reKeyAssign matches KEY=value style leaks for known sensitive env vars.
 var reKeyAssign = regexp.MustCompile(`(?i)(ANTHROPIC_API_KEY|OPENAI_API_KEY)\s*=\s*\S+`)
 
+// reKeySpace matches provider messages such as "Key <credential>" that are
+// common in FAL transport errors and do not use assignment syntax.
+var reKeySpace = regexp.MustCompile(`(?i)\bKey\s+[A-Za-z0-9._~+/=\-]+`)
+
+// reGenericSecretAssign matches credential-shaped key/value pairs commonly
+// surfaced by provider SDK errors (kept in sync with the runner redactor).
+var reGenericSecretAssign = regexp.MustCompile(`(?i)\b(sk|key|token|secret)[-_]?[A-Za-z0-9]*[=:]\s*["']?[^"'\s]+`)
+
+// reJWT matches JWT-like access tokens that may appear in provider errors.
+var reJWT = regexp.MustCompile(`\b[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]{20,}\b`)
+
 // extByMediaType returns a best-effort artifact extension for the given
 // IANA media type. Falls back to .bin so the path is always usable.
 func extByMediaType(mt string) string {
@@ -110,25 +127,167 @@ func hashPrompt(prompt string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// redactReason scrubs known credential shapes from a free-form error
-// message and elides the raw prompt if it appears verbatim.
-func redactReason(reason, prompt string) string {
-	if reason == "" {
+type artifactPathPlan struct {
+	rel  string
+	full string
+}
+
+func artifactCandidateName(promptHash, mediaType string, attempt int) string {
+	ext := extByMediaType(mediaType)
+	if attempt == 0 {
+		return fmt.Sprintf("image-%s%s", promptHash[:16], ext)
+	}
+	return fmt.Sprintf("image-%s-%d%s", promptHash[:16], attempt+1, ext)
+}
+
+func planArtifactPath(absDir, name string) (artifactPathPlan, error) {
+	full := filepath.Join(absDir, name)
+
+	// Belt-and-braces: refuse to write outside the resolved OutputDir
+	// even if extByMediaType ever returned a path-bearing extension.
+	rel, err := filepath.Rel(absDir, full)
+	if err != nil || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
+		return artifactPathPlan{}, fmt.Errorf("image_generation: refusing to write outside output dir")
+	}
+	return artifactPathPlan{rel: rel, full: full}, nil
+}
+
+func writeUniqueArtifact(absDir, promptHash, mediaType string, bytes []byte) (string, error) {
+	const maxArtifactNameAttempts = 10_000
+	for attempt := 0; attempt < maxArtifactNameAttempts; attempt++ {
+		plan, err := planArtifactPath(absDir, artifactCandidateName(promptHash, mediaType, attempt))
+		if err != nil {
+			return "", err
+		}
+
+		file, err := os.OpenFile(plan.full, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if errors.Is(err, os.ErrExist) {
+			continue
+		}
+		if err != nil {
+			return "", fmt.Errorf("image_generation: create artifact: %w", err)
+		}
+
+		n, writeErr := file.Write(bytes)
+		closeErr := file.Close()
+		if writeErr != nil {
+			_ = os.Remove(plan.full)
+			return "", fmt.Errorf("image_generation: write artifact: %w", writeErr)
+		}
+		if n != len(bytes) {
+			_ = os.Remove(plan.full)
+			return "", fmt.Errorf("image_generation: write artifact: %w", io.ErrShortWrite)
+		}
+		if closeErr != nil {
+			_ = os.Remove(plan.full)
+			return "", fmt.Errorf("image_generation: close artifact: %w", closeErr)
+		}
+		return plan.rel, nil
+	}
+	return "", fmt.Errorf("image_generation: could not allocate artifact path")
+}
+
+// redactPrompt removes the raw prompt before token-level scrubbing mutates
+// embedded credential-shaped substrings and makes the prompt impossible to
+// match as a whole.
+func redactPrompt(reason, prompt string) string {
+	if prompt == "" || !strings.Contains(reason, prompt) {
 		return reason
 	}
-	out := reason
-	out = reBearer.ReplaceAllString(out, "[REDACTED_BEARER]")
+	return strings.ReplaceAll(reason, prompt, "[REDACTED_PROMPT]")
+}
+
+func redactKnownSecrets(reason string) string {
+	out := reBearer.ReplaceAllString(reason, "[REDACTED_BEARER]")
 	out = reSKToken.ReplaceAllString(out, "[REDACTED_SK_TOKEN]")
 	out = reKeyAssign.ReplaceAllString(out, "[REDACTED_API_KEY]")
+	out = reKeySpace.ReplaceAllString(out, "[REDACTED_KEY]")
+	out = reGenericSecretAssign.ReplaceAllString(out, "[REDACTED_SECRET]")
+	out = reJWT.ReplaceAllString(out, "[REDACTED_JWT]")
 	for _, marker := range secretRedactionMarkers {
 		// Defence-in-depth: drop any residual marker substring that
 		// survived regex-based redaction.
 		out = strings.ReplaceAll(out, marker, "[REDACTED]")
 	}
-	if prompt != "" && strings.Contains(out, prompt) {
-		out = strings.ReplaceAll(out, prompt, "[REDACTED_PROMPT]")
-	}
 	return out
+}
+
+const maxImageGenerationReasonLength = 240
+
+func truncateReason(reason string) string {
+	if len(reason) <= maxImageGenerationReasonLength {
+		return reason
+	}
+	cut := maxImageGenerationReasonLength
+	for cut > 0 && !utf8.ValidString(reason[:cut]) {
+		cut--
+	}
+	return reason[:cut] + "..."
+}
+
+// redactReason scrubs known credential shapes from a free-form error
+// message and elides the raw prompt if it appears verbatim.
+func redactReason(reason, prompt string) string {
+	out := strings.TrimSpace(reason)
+	if out == "" {
+		return "redacted image generation error"
+	}
+	out = redactPrompt(out, strings.TrimSpace(prompt))
+	out = redactKnownSecrets(out)
+	return truncateReason(out)
+}
+
+func redactImageGenError(text string) string {
+	return redactImageGenErrorForPrompt(text, "")
+}
+
+func redactImageGenErrorForPrompt(text, prompt string) string {
+	return redactReason(text, prompt)
+}
+
+func validateEnvelopeIdentity(req ImageGenerationRequest) error {
+	if req.Provider == "" {
+		return errors.New("image_generation: provider is required")
+	}
+	if req.Model == "" {
+		return errors.New("image_generation: model is required")
+	}
+	return nil
+}
+
+func degradedStatus(status ImageGenerationStatus) ImageGenerationStatus {
+	switch status {
+	case ImageGenerationStatusUnavailable,
+		ImageGenerationStatusProviderError,
+		ImageGenerationStatusProviderNotRegistered,
+		ImageGenerationStatusProviderUnavailable:
+		return status
+	default:
+		return ImageGenerationStatusProviderError
+	}
+}
+
+func buildDegradedEnvelope(req ImageGenerationRequest, promptHash string) ImageGenerationEnvelope {
+	return ImageGenerationEnvelope{
+		Provider:   req.Provider,
+		Model:      req.Model,
+		PromptHash: promptHash,
+		Status:     degradedStatus(req.ErrorStatus),
+		Reason:     redactReason(req.Err.Error(), req.Prompt),
+	}
+}
+
+func validateArtifactRequest(req ImageGenerationRequest) error {
+	if req.OutputDir == "" {
+		return errors.New("image_generation: output dir is required")
+	}
+	if len(req.Bytes) == 0 {
+		return errors.New("image_generation: bytes required for ok envelope")
+	}
+	if req.MediaType == "" {
+		return errors.New("image_generation: media type is required")
+	}
+	return nil
 }
 
 // BuildImageGenerationEnvelope is the pure, transcript-safe boundary for
@@ -137,41 +296,19 @@ func redactReason(reason, prompt string) string {
 // degraded envelope with no file write. It never echoes raw prompt text or
 // provider credentials.
 func BuildImageGenerationEnvelope(req ImageGenerationRequest) (ImageGenerationEnvelope, error) {
-	if req.Provider == "" {
-		return ImageGenerationEnvelope{}, errors.New("image_generation: provider is required")
-	}
-	if req.Model == "" {
-		return ImageGenerationEnvelope{}, errors.New("image_generation: model is required")
-	}
-	if req.OutputDir == "" {
-		return ImageGenerationEnvelope{}, errors.New("image_generation: output dir is required")
+	if err := validateEnvelopeIdentity(req); err != nil {
+		return ImageGenerationEnvelope{}, err
 	}
 
 	promptHash := hashPrompt(req.Prompt)
 
 	// Error path: never write a file, never echo bytes, redact reason.
 	if req.Err != nil {
-		status := req.ErrorStatus
-		switch status {
-		case ImageGenerationStatusUnavailable, ImageGenerationStatusProviderError, ImageGenerationStatusProviderNotRegistered:
-			// ok
-		default:
-			status = ImageGenerationStatusProviderError
-		}
-		return ImageGenerationEnvelope{
-			Provider:   req.Provider,
-			Model:      req.Model,
-			PromptHash: promptHash,
-			Status:     status,
-			Reason:     redactReason(req.Err.Error(), req.Prompt),
-		}, nil
+		return buildDegradedEnvelope(req, promptHash), nil
 	}
 
-	if len(req.Bytes) == 0 {
-		return ImageGenerationEnvelope{}, errors.New("image_generation: bytes required for ok envelope")
-	}
-	if req.MediaType == "" {
-		return ImageGenerationEnvelope{}, errors.New("image_generation: media type is required")
+	if err := validateArtifactRequest(req); err != nil {
+		return ImageGenerationEnvelope{}, err
 	}
 
 	// Resolve output dir to an absolute path so subsequent path checks are
@@ -184,18 +321,9 @@ func BuildImageGenerationEnvelope(req ImageGenerationRequest) (ImageGenerationEn
 		return ImageGenerationEnvelope{}, fmt.Errorf("image_generation: create output dir: %w", err)
 	}
 
-	name := fmt.Sprintf("image-%s%s", promptHash[:16], extByMediaType(req.MediaType))
-	full := filepath.Join(absDir, name)
-
-	// Belt-and-braces: refuse to write outside the resolved OutputDir
-	// even if extByMediaType ever returned a path-bearing extension.
-	rel, err := filepath.Rel(absDir, full)
-	if err != nil || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
-		return ImageGenerationEnvelope{}, fmt.Errorf("image_generation: refusing to write outside output dir")
-	}
-
-	if err := os.WriteFile(full, req.Bytes, 0o644); err != nil {
-		return ImageGenerationEnvelope{}, fmt.Errorf("image_generation: write artifact: %w", err)
+	rel, err := writeUniqueArtifact(absDir, promptHash, req.MediaType, req.Bytes)
+	if err != nil {
+		return ImageGenerationEnvelope{}, err
 	}
 
 	return ImageGenerationEnvelope{

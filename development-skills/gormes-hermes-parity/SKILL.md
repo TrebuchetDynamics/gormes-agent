@@ -67,7 +67,7 @@ Auto-selection priority when no topic is supplied:
 1. Recent user-visible setup, provider, channel, install, or auth failures.
 2. Explicit implemented-feature reconciliation requests, especially around gateway, channels, tools, CLI, or TUI atoms marked `missing`.
 3. Stale upstream evidence on high-priority or in-progress rows.
-4. High-signal release families from `docs/hermes-releases/FEATURE-MATRIX.md`
+4. High-signal release families from `webpages/docs/hermes-releases/FEATURE-MATRIX.md`
    or topology hints from `hermes-knowledge-graph.json`, used only to choose a
    bounded pass before source verification.
 5. Vague umbrella rows blocking builder work.
@@ -88,7 +88,7 @@ Hard dependencies block claims of parity:
   or `excluded` classification.
 - Focused validation that exercises real behavior; empty test selectors do not
   count.
-- `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` for canonical parity classification.
+- `webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` for canonical parity classification.
 
 Soft dependencies sharpen output but do not always block:
 
@@ -98,7 +98,7 @@ Soft dependencies sharpen output but do not always block:
 - OpenClaw checkout when the behavior exists in Hermes. OpenClaw-only ideas
   route to `gormes-openclaw-parity`.
 - `./honcho` when the selected scope is unrelated to Goncho.
-- Hermes release matrix evidence in `docs/hermes-releases/FEATURE-MATRIX.md`
+- Hermes release matrix evidence in `webpages/docs/hermes-releases/FEATURE-MATRIX.md`
   when choosing a release-era feature family; it is a routing/study aid, not a
   parity classification source.
 - Understand Anything graphs when present at `./hermes-knowledge-graph.json`
@@ -252,7 +252,7 @@ Load only the reference needed for the current pass:
 | Behavior atom matrix, inventory searches, source buckets | `references/behavior-atoms.md` |
 | Which upstream file is authoritative for a surface | `references/active-upstream-contracts.md` |
 | Live transcripts, repeated operator failures, channel-visible artifacts | `references/operator-evidence.md` |
-| Release-era feature routing and improvement priority hints | `docs/hermes-releases/FEATURE-MATRIX.md` |
+| Release-era feature routing and improvement priority hints | `webpages/docs/hermes-releases/FEATURE-MATRIX.md` |
 | Owned/excluded divergence, ADR guidance, taxonomy refactors | `references/taxonomy-and-owned-divergence.md` |
 | Feedback loops, vertical slices, validation gates, report shape | `references/validation-and-feedback-loops.md` |
 
@@ -320,7 +320,7 @@ on its own without parity evidence; record the upstream sha in
    `$HERMES_SRC/.understand-anything/knowledge-graph.json` exists, query its
    layers/tour first to pick likely source files; then read those files before
    making parity claims. If the pass was seeded by
-   `docs/hermes-releases/FEATURE-MATRIX.md`, use the graph only to choose
+   `webpages/docs/hermes-releases/FEATURE-MATRIX.md`, use the graph only to choose
    source files for the selected release family.
 4. Load only the reference file needed for the chosen surface.
 5. Inventory upstream behavior as behavior atoms, then identify the closest
@@ -341,7 +341,7 @@ on its own without parity evidence; record the upstream sha in
    vertical implementation slice.
 10. Keep the two canonical surfaces distinct:
     - parity classifications and behavior evidence live in
-      `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`.
+      `webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`.
     - implementation backlog rows live in progress data, accessed only through
       `internal/planning/progress.Load`/`cmd/progress` (monolithic file or
       split layout, transparently; never hand-parse members).

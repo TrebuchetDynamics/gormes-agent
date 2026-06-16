@@ -20,6 +20,22 @@ func TestNoopStore_AckFast(t *testing.T) {
 	}
 }
 
+func TestNoopStore_AllowsNilContext(t *testing.T) {
+	s := NewNoop()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("NoopStore Exec panicked with nil context: %v", r)
+		}
+	}()
+	ack, err := s.Exec(nil, Command{Kind: AppendUserTurn})
+	if err != nil {
+		t.Fatalf("Exec nil context: %v", err)
+	}
+	if ack.TurnID != 0 {
+		t.Fatalf("TurnID = %d, want 0 from NoopStore", ack.TurnID)
+	}
+}
+
 func TestNoopStore_RespectsCancelledCtx(t *testing.T) {
 	s := NewNoop()
 	ctx, cancel := context.WithCancel(context.Background())

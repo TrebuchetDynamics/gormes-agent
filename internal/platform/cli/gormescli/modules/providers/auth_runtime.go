@@ -82,6 +82,8 @@ type authAddOptions struct {
 	Insecure                    bool
 	CABundle                    string
 	EmergencyImportFromCodexCLI string
+	SkipCodexCLIImport          bool
+	SetupOutput                 bool
 }
 
 type anthropicOAuthLoginRequest struct {
@@ -500,7 +502,7 @@ func runAuthAddCodexOAuthCommand(cmd *cobra.Command, opts authAddOptions) error 
 	if importPath := strings.TrimSpace(opts.EmergencyImportFromCodexCLI); importPath != "" {
 		return runAuthAddCodexEmergencyImportCommand(cmd, opts, importPath)
 	}
-	if importPath := defaultCodexCLIAuthPath(); importPath != "" {
+	if importPath := defaultCodexCLIAuthPath(); importPath != "" && !opts.SkipCodexCLIImport {
 		status, err := config.NewCodexOAuthStateStore(config.CodexOAuthStateStoreOptions{}).ImportCodexCLITokens(config.CodexCLIImportRequest{
 			AuthPath:  importPath,
 			Explicit:  true,
@@ -516,6 +518,10 @@ func runAuthAddCodexOAuthCommand(cmd *cobra.Command, opts authAddOptions) error 
 				return fmt.Errorf("gormes auth add %s --type oauth: config_update_failed: %w", config.CodexOAuthProvider, err)
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), "Found existing Codex CLI credentials.")
+			if opts.SetupOutput {
+				fmt.Fprintln(cmd.OutOrStdout(), "OpenAI Codex credentials imported into Gormes.")
+				return nil
+			}
 			fmt.Fprintf(cmd.OutOrStdout(), "auth_oauth_saved provider=%s account_id=%s label=%s source=%s redacted=true\n", config.CodexOAuthProvider, status.AccountID, status.Label, status.Source)
 			fmt.Fprintln(cmd.OutOrStdout(), "Credentials imported into the Gormes credential pool; future Codex CLI or VS Code refreshes do not rotate Gormes tokens.")
 			return nil
@@ -544,6 +550,10 @@ func runAuthAddCodexOAuthCommand(cmd *cobra.Command, opts authAddOptions) error 
 	}
 	if err := updateConfigForCodexOAuthProvider(opts.InferenceURL); err != nil {
 		return fmt.Errorf("gormes auth add %s --type oauth: config_update_failed: %w", config.CodexOAuthProvider, err)
+	}
+	if opts.SetupOutput {
+		fmt.Fprintln(cmd.OutOrStdout(), "OpenAI Codex login complete.")
+		return nil
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "auth_oauth_saved provider=%s account_id=%s label=%s source=%s redacted=true\n", config.CodexOAuthProvider, status.AccountID, status.Label, status.Source)
 	fmt.Fprintln(cmd.OutOrStdout(), "Hermes will keep working independently with its own session; the Codex CLI / VS Code extension cannot rotate Gormes tokens.")

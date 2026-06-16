@@ -8,6 +8,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory/goncho"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/memory/goncho/testutil"
 )
 
 func TestGonchoProofMatrix_MemoryV1GovernanceTombstonesAndRecallContracts(t *testing.T) {
@@ -19,7 +20,7 @@ func TestGonchoProofMatrix_MemoryV1GovernanceTombstonesAndRecallContracts(t *tes
 		t.Fatalf("governance defaults = %+v, want private memory and denied foreign config reads", contract)
 	}
 	for _, want := range []string{"sqlite", "fts5", "graph"} {
-		if !stringSliceContains(contract.FastRecallPath, want) {
+		if !testutil.StringSliceContains(contract.FastRecallPath, want) {
 			t.Fatalf("FastRecallPath = %+v, missing %s", contract.FastRecallPath, want)
 		}
 	}
@@ -93,13 +94,4 @@ func TestGonchoProofMatrix_MemoryV1GovernanceTombstonesAndRecallContracts(t *tes
 			t.Fatalf("shared artifact = %+v, want proposed before shared mutation", artifact)
 		}
 	}
-}
-
-func stringSliceContains(items []string, want string) bool {
-	for _, item := range items {
-		if item == want {
-			return true
-		}
-	}
-	return false
 }

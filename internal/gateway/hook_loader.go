@@ -209,6 +209,9 @@ func registerLoadedHook(hooks *Hooks, spec LoadedHook, points []HookPoint, log *
 }
 
 func runHookCommand(ctx context.Context, spec LoadedHook, ev HookEvent) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	payload, err := json.Marshal(hookPayload{
 		Point:    ev.Point,
 		Platform: ev.Platform,

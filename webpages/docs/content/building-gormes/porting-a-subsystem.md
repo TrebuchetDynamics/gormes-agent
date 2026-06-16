@@ -76,11 +76,11 @@ truncation policy that already exists.
 Routing:
 
 - **Provider, auth, streaming, quota, retry, OAuth, error classification** →
-  use the `gormes-provider-parity` skill (`docs/development-skills/gormes-provider-parity/SKILL.md`)
+  use the `gormes-provider-parity` skill (`development-skills/gormes-provider-parity/SKILL.md`)
   plus the donor table in `references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md`.
   GoClaw OAuth/quota and Plandex retry/drift live there as named files.
 - **Anything else (runtime, tools, memory, channels, utilities)** → use the
-  `gormes-references` skill (`docs/development-skills/gormes-references/SKILL.md`).
+  `gormes-references` skill (`development-skills/gormes-references/SKILL.md`).
   Its "Donor Maps By Subsystem" section names the file to read for each
   problem class (engram store/relations/write_queue, nanobot
   truncate/tokencount/runtime/tools, trpc-agent-go await_user_reply/callbacks,
@@ -124,8 +124,8 @@ Use this packet when adding or refining rows:
 
 For broad or high-risk subsystems, write:
 
-- `docs/superpowers/specs/YYYY-MM-DD-<subsystem>-design.md`
-- `docs/superpowers/plans/YYYY-MM-DD-<subsystem>.md`
+- `webpages/docs/superpowers/specs/YYYY-MM-DD-<subsystem>-design.md`
+- `webpages/docs/superpowers/plans/YYYY-MM-DD-<subsystem>.md`
 
 Use them to explain architecture and dependency order, then copy the actual
 execution slices into `progress.json`.

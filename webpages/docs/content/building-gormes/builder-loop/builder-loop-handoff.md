@@ -66,11 +66,11 @@ A worker pass is complete only when:
 <!-- PROGRESS:START kind=builder-loop-handoff -->
 ## Control Plane
 
-- Entrypoint: `docs/development-skills/gormes-skill-manager/SKILL.md`
-- Plan: `docs/content/building-gormes/architecture_plan/completion-plan.md`
-- Candidate source: `docs/content/building-gormes/architecture_plan/progress.json`
-- Agent queue: `docs/content/building-gormes/builder-loop/agent-queue.md`
-- Progress schema: `docs/content/building-gormes/builder-loop/progress-schema.md`
+- Entrypoint: `development-skills/gormes-skill-manager/SKILL.md`
+- Plan: `webpages/docs/content/building-gormes/architecture_plan/completion-plan.md`
+- Candidate source: `webpages/docs/content/building-gormes/architecture_plan/progress.json`
+- Agent queue: `webpages/docs/content/building-gormes/builder-loop/agent-queue.md`
+- Progress schema: `webpages/docs/content/building-gormes/builder-loop/progress-schema.md`
 - Unit tests: `go test ./internal/progress -count=1`
 
 ## Candidate Policy
@@ -83,7 +83,7 @@ A worker pass is complete only when:
 - Run row-local tests first, then focused package tests, then go run ./cmd/progress validate.
 - Update progress evidence only for the row being built.
 - If validation fails from stale loop assumptions, fix the docs or progress row instead of invoking old loop binaries.
-- Canonical skill files live in docs/development-skills; .agents/skills, .claude/skills, and .codex/skills are symlink loader views.
+- Canonical skill files live in development-skills; .agents/skills, .claude/skills, and .codex/skills are symlink loader views.
 - Prefer contract rows with write_scope, test_commands, and done_signal.
 - Do not create side queues; missing work becomes a progress.json row.
 <!-- PROGRESS:END -->

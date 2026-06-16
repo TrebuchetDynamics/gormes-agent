@@ -114,6 +114,55 @@ func TestAuthAddCodexImportsCodexCLIAuthWhenAvailable(t *testing.T) {
 	}
 }
 
+func TestAuthAddCodexSkipCLIImportStartsFreshOAuthLogin(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	codexHome := filepath.Join(t.TempDir(), "codex-home")
+	authPath := filepath.Join(codexHome, "auth.json")
+	freshToken := codexTestJWT(t, time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC))
+	writeCodexCLIAuthFixture(t, authPath, freshToken, "plain-codex-cli-refresh")
+	t.Setenv("CODEX_HOME", codexHome)
+
+	calls := 0
+	prev := authCodexOAuthLogin
+	authCodexOAuthLogin = func(_ context.Context, req codexOAuthLoginRequest) (config.CodexOAuthTokens, error) {
+		calls++
+		if req.Label != "fresh-codex" {
+			t.Fatalf("login request label = %q, want fresh-codex", req.Label)
+		}
+		return config.CodexOAuthTokens{
+			AccountID:    "codex-fresh-device",
+			Label:        "fresh-codex",
+			AccessToken:  "plain-fresh-device-access",
+			RefreshToken: "plain-fresh-device-refresh",
+			BaseURL:      "https://chatgpt.com/backend-api/codex",
+			Source:       config.CodexOAuthSourceDeviceCode,
+		}, nil
+	}
+	t.Cleanup(func() { authCodexOAuthLogin = prev })
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "add", "openai-codex", "--type", "oauth", "--label", "fresh-codex", "--skip-codex-cli-import")
+	if err != nil {
+		t.Fatalf("Execute: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if calls != 1 {
+		t.Fatalf("device-code login calls = %d, want 1", calls)
+	}
+	pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: config.CodexOAuthProvider})
+	if err != nil {
+		t.Fatalf("LoadCredentialPool: %v", err)
+	}
+	entries := pool.Entries()
+	if len(entries) != 1 || entries[0].AccessToken != "plain-fresh-device-access" || entries[0].Source != config.CodexOAuthSourceDeviceCode {
+		t.Fatalf("stored entries = %#v, want fresh device-code credential", entries)
+	}
+	for _, leak := range []string{freshToken, "plain-codex-cli-refresh", authPath} {
+		if strings.Contains(stdout+stderr, leak) {
+			t.Fatalf("auth add leaked skipped Codex CLI import detail %q:\nstdout=%s\nstderr=%s", leak, stdout, stderr)
+		}
+	}
+}
+
 func TestAuthAddCodexFallsBackToDeviceCodeWhenCodexCLIAuthIsExpired(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	codexHome := filepath.Join(t.TempDir(), "codex-home")
@@ -155,6 +204,29 @@ func TestAuthAddCodexFallsBackToDeviceCodeWhenCodexCLIAuthIsExpired(t *testing.T
 	for _, leak := range []string{"plain-expired-refresh", authPath} {
 		if strings.Contains(stdout+stderr, leak) {
 			t.Fatalf("auth add leaked stale Codex CLI detail %q:\nstdout=%s\nstderr=%s", leak, stdout, stderr)
+		}
+	}
+}
+
+func TestAuthAddCodexSetupOutputSuppressesMachineEvidence(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	prev := authCodexOAuthLogin
+	authCodexOAuthLogin = func(context.Context, codexOAuthLoginRequest) (config.CodexOAuthTokens, error) {
+		return config.CodexOAuthTokens{AccessToken: "plain-device-access", RefreshToken: "plain-device-refresh"}, nil
+	}
+	t.Cleanup(func() { authCodexOAuthLogin = prev })
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "add", "openai-codex", "--type", "oauth", "--setup-output")
+	if err != nil {
+		t.Fatalf("Execute: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "OpenAI Codex login complete.") {
+		t.Fatalf("stdout = %q, want human setup completion", stdout)
+	}
+	for _, noisy := range []string{"auth_oauth_saved", "redacted=true", "cannot rotate Gormes tokens"} {
+		if strings.Contains(stdout+stderr, noisy) {
+			t.Fatalf("setup output contained machine/noisy auth evidence %q:\nstdout=%s\nstderr=%s", noisy, stdout, stderr)
 		}
 	}
 }
@@ -746,7 +818,12 @@ func TestRunCodexDeviceCodeLoginUsesHermesDeviceFlow(t *testing.T) {
 	if strings.Contains(out.String(), "access-from-device") || strings.Contains(out.String(), "refresh-from-device") {
 		t.Fatalf("device login output leaked tokens:\n%s", out.String())
 	}
-	if !strings.Contains(out.String(), "CODE-123") {
-		t.Fatalf("device login output missing user code:\n%s", out.String())
+	for _, want := range []string{"To continue, follow these steps:", "1. Open this URL", "2. Enter this code:", "CODE-123", "Waiting for sign-in... (press Ctrl+C to cancel)"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("device login output missing %q:\n%s", want, out.String())
+		}
+	}
+	if strings.Contains(out.String(), "redacted=true") {
+		t.Fatalf("interactive device login output leaked machine redaction evidence:\n%s", out.String())
 	}
 }

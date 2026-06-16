@@ -9,7 +9,7 @@ OneBot is useful as a bridge-pattern donor, not as a platform target that should
 
 ## Status
 
-`docs/content/building-gormes/architecture_plan/subsystem-inventory.md` currently groups QQ Bot into the Phase `2.B.10` regional/device adapter tranche, but it still does not list OneBot as a first-class Gormes gateway platform. That is the right default: OneBot is a community bridge protocol sitting in front of other runtimes.
+`webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` currently groups QQ Bot into the Phase `2.B.10` regional/device adapter tranche, but it still does not list OneBot as a first-class Gormes gateway platform. That is the right default: OneBot is a community bridge protocol sitting in front of other runtimes.
 
 Evidence level:
 
@@ -17,7 +17,7 @@ Evidence level:
 - The donor commit inspected for this research was `6421f146a99df1bebcd4b1ca8de2a289dfca3622`.
 - The upstream donor repo is `https://github.com/sipeed/picoclaw`.
 - Any `pkg/...` or `docs/...` path listed below is relative to that donor root, not relative to the Gormes repo.
-- Current Gormes planning and the upstream Hermes QQ operator story were verified in-tree against `docs/content/building-gormes/architecture_plan/subsystem-inventory.md` and `docs/content/upstream-hermes/user-guide/messaging/qqbot.md`.
+- Current Gormes planning and the upstream Hermes QQ operator story were verified in-tree against `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` and `webpages/docs/content/upstream-hermes/user-guide/messaging/qqbot.md`.
 
 Keep the boundary explicit: PicoClaw's OneBot adapter is donor input for community bridge mechanics only. Gormes architecture remains authoritative, and the official QQ Bot path should stay the primary plan.
 
@@ -40,8 +40,8 @@ What is not broadly reusable is the product assumption behind it: Gormes would b
 - Provenance note: the following `pkg/...` and `docs/...` paths are relative to the external donor root `<picoclaw donor repo>` at commit `6421f146a99df1bebcd4b1ca8de2a289dfca3622`, not relative to the Gormes repo.
 - `picoclaw/pkg/channels/onebot/onebot.go`
 - `picoclaw/docs/channels/onebot/README.md`
-- `docs/content/upstream-hermes/user-guide/messaging/qqbot.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/upstream-hermes/user-guide/messaging/qqbot.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 ## What To Copy vs What To Rebuild
 
@@ -93,7 +93,7 @@ Rebuild in Gormes-native form:
 
 - `picoclaw/pkg/channels/onebot/onebot.go`: `NewOneBotChannel`, `ReactToMessage`, `Start`, `connect`, `pinger`, `fetchSelfID`, `sendAPIRequest`, `reconnectLoop`, `Send`, `SendMedia`, `buildMessageSegments`, `buildSendRequest`, `listen`, `parseMessageSegments`, `handleRawEvent`, `handleMessage`.
 - `picoclaw/docs/channels/onebot/README.md`
-- `docs/content/upstream-hermes/user-guide/messaging/qqbot.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/upstream-hermes/user-guide/messaging/qqbot.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 Recommendation: `adapt pattern only`.

@@ -24,9 +24,12 @@ type resolvedSession = sessionctx.ResolvedSession
 
 func sessionSourceFromInbound(ev InboundEvent) SessionSource {
 	platform := normalizedPlatformName(ev.Platform)
-	chatType := "dm"
-	if strings.TrimSpace(ev.ThreadID) != "" {
-		chatType = "thread"
+	chatType := strings.TrimSpace(ev.ChatType)
+	if chatType == "" {
+		chatType = "dm"
+		if strings.TrimSpace(ev.ThreadID) != "" {
+			chatType = "thread"
+		}
 	}
 	messageID := strings.TrimSpace(ev.MessageID)
 	if messageID == "" {

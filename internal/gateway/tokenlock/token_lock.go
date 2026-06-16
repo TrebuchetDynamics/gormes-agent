@@ -8,12 +8,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/jsonfile"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/runtimeproc"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 const TokenLockKind = "gormes-gateway-token-lock"
@@ -96,7 +98,7 @@ func NewTokenLockStore(dir string) *TokenLockStore {
 		now:        func() time.Time { return time.Now().UTC() },
 		pid:        os.Getpid,
 		startTime:  runtimeproc.ProcessStartTime,
-		argv:       func() []string { return append([]string(nil), os.Args...) },
+		argv:       func() []string { return slices.Clone(os.Args) },
 		processes:  runtimeproc.ProcTable{},
 		removeFile: os.Remove,
 	}
@@ -107,6 +109,13 @@ func NewTokenLockStore(dir string) *TokenLockStore {
 func TokenCredentialHash(credential string) string {
 	sum := sha256.Sum256([]byte(credential))
 	return hex.EncodeToString(sum[:])
+}
+
+func tokenLockContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
 }
 
 // LockPath returns the lock path for platform plus credential identity.
@@ -120,6 +129,7 @@ func (s *TokenLockStore) Acquire(ctx context.Context, req TokenLockRequest) (*To
 	if s == nil {
 		s = NewTokenLockStore("")
 	}
+	ctx = tokenLockContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return nil, TokenLockEvidence{}, err
 	}
@@ -127,12 +137,25 @@ func (s *TokenLockStore) Acquire(ctx context.Context, req TokenLockRequest) (*To
 	platform := sanitizeTokenLockPlatform(req.Platform)
 	hash := TokenCredentialHash(req.Credential)
 	path := filepath.Join(s.lockDir(), platform+"-"+hash+".lock")
+	legacyPlatform := legacyTokenLockPlatform(req.Platform)
+	legacyPath := ""
+	if legacyPlatform != "" && legacyPlatform != platform {
+		legacyPath = filepath.Join(s.lockDir(), legacyPlatform+"-"+hash+".lock")
+	}
 	record := s.currentRecord(platform, hash)
 	evidenceStatus := TokenLockStatusAcquired
 	var staleValidation runtimeproc.Validation
 
 	for attempt := 0; attempt < 2; attempt++ {
-		existing, err := readTokenLockRecord(path)
+		activePath := path
+		existing, err := readTokenLockRecord(activePath)
+		if errors.Is(err, os.ErrNotExist) && legacyPath != "" {
+			if legacyExisting, legacyErr := readTokenLockRecord(legacyPath); !errors.Is(legacyErr, os.ErrNotExist) {
+				activePath = legacyPath
+				existing = legacyExisting
+				err = legacyErr
+			}
+		}
 		switch {
 		case errors.Is(err, os.ErrNotExist):
 			lock, evidence, err := s.createLock(ctx, path, record, evidenceStatus, staleValidation)
@@ -141,34 +164,34 @@ func (s *TokenLockStore) Acquire(ctx context.Context, req TokenLockRequest) (*To
 			}
 			return lock, evidence, err
 		case err != nil:
-			return nil, s.evidence(record, path, TokenLockStatusHeld, runtimeproc.Validation{}, err.Error()), err
+			return nil, s.evidence(record, activePath, TokenLockStatusHeld, runtimeproc.Validation{}, err.Error()), err
 		}
 
-		if existing.Platform != platform || existing.CredentialHash != hash {
-			evidence := s.evidence(record, path, TokenLockStatusCredentialHashMismatch, runtimeproc.Validation{}, "lock record identity does not match requested platform and credential hash")
+		if !tokenLockRecordMatchesPlatform(existing.Platform, platform, legacyPlatform) || existing.CredentialHash != hash {
+			evidence := s.evidence(record, activePath, TokenLockStatusCredentialHashMismatch, runtimeproc.Validation{}, "lock record identity does not match requested platform and credential hash")
 			evidence.OwnerPID = existing.PID
 			evidence.OwnerStartTime = existing.StartTime
 			return nil, evidence, ErrTokenLockCredentialHashMismatch
 		}
 
 		if s.ownsRecord(existing) {
-			if err := writeTokenLockRecordAtomic(path, record); err != nil {
-				return nil, s.evidence(record, path, TokenLockStatusHeld, runtimeproc.Validation{}, err.Error()), err
+			if err := writeTokenLockRecordAtomic(activePath, record); err != nil {
+				return nil, s.evidence(record, activePath, TokenLockStatusHeld, runtimeproc.Validation{}, err.Error()), err
 			}
-			lock := &TokenScopedGatewayLock{store: s, path: path, record: record}
-			return lock, s.evidence(record, path, TokenLockStatusAcquired, runtimeproc.Validation{}, ""), nil
+			lock := &TokenScopedGatewayLock{store: s, path: activePath, record: record}
+			return lock, s.evidence(record, activePath, TokenLockStatusAcquired, runtimeproc.Validation{}, ""), nil
 		}
 
 		validation := s.validateTokenLockOwner(existing)
 		if !tokenLockValidationProvesGone(validation) {
-			evidence := s.evidence(record, path, TokenLockStatusHeld, validation, "credential lock is held by a live or unverified process")
+			evidence := s.evidence(record, activePath, TokenLockStatusHeld, validation, "credential lock is held by a live or unverified process")
 			evidence.OwnerPID = existing.PID
 			evidence.OwnerStartTime = existing.StartTime
 			return nil, evidence, fmt.Errorf("%w: %s", ErrTokenLockHeld, path)
 		}
 
-		if err := s.remove(path); err != nil {
-			evidence := s.evidence(record, path, TokenLockStatusHeld, validation, "stale credential lock could not be cleared: "+err.Error())
+		if err := s.remove(activePath); err != nil {
+			evidence := s.evidence(record, activePath, TokenLockStatusHeld, validation, "stale credential lock could not be cleared: "+err.Error())
 			evidence.OwnerPID = existing.PID
 			evidence.OwnerStartTime = existing.StartTime
 			return nil, evidence, fmt.Errorf("%w: %v", ErrTokenLockHeld, err)
@@ -203,6 +226,7 @@ func (l *TokenScopedGatewayLock) Release(ctx context.Context) (TokenLockEvidence
 	if l == nil || l.store == nil || l.path == "" {
 		return TokenLockEvidence{}, nil
 	}
+	ctx = tokenLockContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return TokenLockEvidence{}, err
 	}
@@ -215,7 +239,7 @@ func (l *TokenScopedGatewayLock) Release(ctx context.Context) (TokenLockEvidence
 	}
 	if err != nil {
 		evidence.Status = TokenLockStatusReleaseFailed
-		evidence.Message = err.Error()
+		evidence.Message = sanitizeTokenLockMessage(err.Error())
 		return evidence, fmt.Errorf("%w: %v", ErrTokenLockReleaseFailed, err)
 	}
 	if existing.Platform != l.record.Platform ||
@@ -231,7 +255,7 @@ func (l *TokenScopedGatewayLock) Release(ctx context.Context) (TokenLockEvidence
 		evidence.Status = TokenLockStatusReleaseFailed
 		evidence.OwnerPID = existing.PID
 		evidence.OwnerStartTime = existing.StartTime
-		evidence.Message = err.Error()
+		evidence.Message = sanitizeTokenLockMessage(err.Error())
 		return evidence, fmt.Errorf("%w: %v", ErrTokenLockReleaseFailed, err)
 	}
 	return evidence, nil
@@ -247,7 +271,7 @@ func (s *TokenLockStore) lockDir() string {
 func (s *TokenLockStore) currentRecord(platform, credentialHash string) tokenLockRecord {
 	pid := s.pid()
 	startTime, _ := s.startTime(pid)
-	argv := append([]string(nil), s.argv()...)
+	argv := sanitizeTokenLockArgv(s.argv())
 	return tokenLockRecord{
 		Kind:           TokenLockKind,
 		Platform:       platform,
@@ -260,15 +284,70 @@ func (s *TokenLockStore) currentRecord(platform, credentialHash string) tokenLoc
 	}
 }
 
+func sanitizeTokenLockArgv(argv []string) []string {
+	return sanitizeTokenLockParts(slices.Clone(argv))
+}
+
+func sanitizeTokenLockArg(arg string) string {
+	arg = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			return ' '
+		}
+		if unicode.Is(unicode.Cf, r) {
+			return -1
+		}
+		return r
+	}, arg)
+	arg = strings.Join(strings.Fields(arg), " ")
+	arg = redaction.RedactSecrets(arg)
+	lower := strings.ToLower(arg)
+	if strings.Contains(lower, "[redacted]") && (strings.Contains(lower, "api-key") || strings.Contains(lower, "api_key") || strings.Contains(lower, "apikey") || strings.Contains(lower, "authorization") || strings.Contains(lower, "bearer") || strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "password")) {
+		return "[redacted]"
+	}
+	return arg
+}
+
+func sanitizeTokenLockCommand(command string) string {
+	return strings.Join(sanitizeTokenLockParts(strings.Fields(command)), " ")
+}
+
+func sanitizeTokenLockParts(parts []string) []string {
+	out := make([]string, 0, len(parts))
+	for i := 0; i < len(parts); i++ {
+		part := parts[i]
+		lower := strings.ToLower(part)
+		if tokenLockSplitSecretField(lower) && !strings.ContainsAny(part, "=:") {
+			out = append(out, "[redacted]")
+			if i+1 < len(parts) {
+				i++
+				if strings.Contains(strings.ToLower(parts[i]), "bearer") && i+1 < len(parts) {
+					i++
+				}
+			}
+			continue
+		}
+		out = append(out, sanitizeTokenLockArg(part))
+	}
+	return out
+}
+
+func tokenLockSplitSecretField(value string) bool {
+	return strings.Contains(value, "authorization") || strings.Contains(value, "bearer")
+}
+
 func (s *TokenLockStore) ownsRecord(record tokenLockRecord) bool {
 	current := s.currentRecord(record.Platform, record.CredentialHash)
-	return record.PID > 0 &&
-		record.PID == current.PID &&
-		record.StartTime != 0 &&
-		record.StartTime == current.StartTime
+	if record.PID <= 0 || record.PID != current.PID {
+		return false
+	}
+	if record.StartTime == 0 || current.StartTime == 0 {
+		return record.StartTime == current.StartTime
+	}
+	return record.StartTime == current.StartTime
 }
 
 func (s *TokenLockStore) createLock(ctx context.Context, path string, record tokenLockRecord, status TokenLockStatus, validation runtimeproc.Validation) (*TokenScopedGatewayLock, TokenLockEvidence, error) {
+	ctx = tokenLockContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return nil, TokenLockEvidence{}, err
 	}
@@ -310,7 +389,7 @@ func (s *TokenLockStore) validateTokenLockOwner(record tokenLockRecord) runtimep
 	validation := runtimeproc.Validation{
 		PID:               record.PID,
 		ExpectedStartTime: record.StartTime,
-		Command:           record.Command,
+		Command:           sanitizeTokenLockCommand(record.Command),
 		CheckedAt:         checkedAt,
 	}
 	if record.PID <= 0 {
@@ -334,12 +413,17 @@ func (s *TokenLockStore) validateTokenLockOwner(record tokenLockRecord) runtimep
 			validation.Message = "process is not running"
 		default:
 			validation.Status = runtimeproc.ValidationStalePID
-			validation.Message = err.Error()
+			validation.Message = sanitizeTokenLockMessage(err.Error())
 		}
 		return validation
 	}
 
 	validation.ActualStartTime = process.StartTime
+	if process.Stopped {
+		validation.Status = runtimeproc.ValidationStopped
+		validation.Message = "process is stopped"
+		return validation
+	}
 	if record.StartTime == 0 || process.StartTime == 0 {
 		validation.Status = runtimeproc.ValidationLive
 		validation.Live = true
@@ -351,15 +435,10 @@ func (s *TokenLockStore) validateTokenLockOwner(record tokenLockRecord) runtimep
 		validation.Message = "process start time does not match token lock"
 		return validation
 	}
-	if process.Stopped {
-		validation.Status = runtimeproc.ValidationStopped
-		validation.Message = "process is stopped"
-		return validation
-	}
 	validation.Status = runtimeproc.ValidationLive
 	validation.Live = true
 	if validation.Command == "" {
-		validation.Command = process.Command
+		validation.Command = sanitizeTokenLockCommand(process.Command)
 	}
 	return validation
 }
@@ -385,13 +464,19 @@ func (s *TokenLockStore) evidence(record tokenLockRecord, path string, status To
 		OwnerPID:          record.PID,
 		OwnerStartTime:    record.StartTime,
 		ProcessValidation: validation,
-		Message:           message,
+		Message:           sanitizeTokenLockMessage(message),
 		UpdatedAt:         s.now().UTC().Format(time.RFC3339Nano),
 	}
 	if evidence.ProcessValidation.Status == "" {
 		evidence.ProcessValidation = runtimeproc.Validation{}
 	}
 	return evidence
+}
+
+func sanitizeTokenLockMessage(message string) string {
+	msg := redaction.RedactSecrets(message)
+	msg = strings.NewReplacer("`", "'", "*", "'", "#", "＃").Replace(msg)
+	return strings.Join(strings.Fields(msg), " ")
 }
 
 func (s *TokenLockStore) remove(path string) error {
@@ -404,14 +489,20 @@ func (s *TokenLockStore) remove(path string) error {
 func readTokenLockRecord(path string) (tokenLockRecord, error) {
 	var record tokenLockRecord
 	exists, err := jsonfile.Read(context.Background(), path, &record, "token lock record")
-	if !exists || errors.Is(err, jsonfile.ErrEmpty) {
+	if errors.Is(err, jsonfile.ErrEmpty) {
 		return tokenLockRecord{}, os.ErrNotExist
 	}
 	if err != nil {
-		if jsonfile.IsReadError(err) {
+		if jsonfile.IsReadError(err) || !exists {
 			return tokenLockRecord{}, err
 		}
 		return tokenLockRecord{}, fmt.Errorf("decode token lock record: %w", err)
+	}
+	if !exists {
+		return tokenLockRecord{}, os.ErrNotExist
+	}
+	if record.Kind != TokenLockKind {
+		return tokenLockRecord{}, fmt.Errorf("invalid token lock kind %q", record.Kind)
 	}
 	return record, nil
 }
@@ -423,7 +514,14 @@ func writeTokenLockRecordAtomic(path string, record tokenLockRecord) error {
 	})
 }
 
-func sanitizeTokenLockPlatform(platform string) string {
+func tokenLockRecordMatchesPlatform(recordPlatform, platform, legacyPlatform string) bool {
+	if recordPlatform == platform {
+		return true
+	}
+	return legacyPlatform != "" && recordPlatform == legacyPlatform
+}
+
+func legacyTokenLockPlatform(platform string) string {
 	platform = strings.ToLower(strings.TrimSpace(platform))
 	var b strings.Builder
 	lastUnderscore := false
@@ -444,4 +542,35 @@ func sanitizeTokenLockPlatform(platform string) string {
 		return "unknown"
 	}
 	return out
+}
+
+func sanitizeTokenLockPlatform(platform string) string {
+	normalized := strings.ToLower(strings.TrimSpace(platform))
+	var b strings.Builder
+	lastUnderscore := false
+	for _, r := range normalized {
+		allowed := unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_'
+		if allowed {
+			b.WriteRune(r)
+			lastUnderscore = false
+			continue
+		}
+		if !lastUnderscore {
+			b.WriteByte('_')
+			lastUnderscore = true
+		}
+	}
+	out := strings.Trim(b.String(), "._-")
+	if out == "" {
+		out = "unknown"
+	}
+	if normalized != "" && out != normalized {
+		out += "_" + tokenLockPlatformHash(normalized)
+	}
+	return out
+}
+
+func tokenLockPlatformHash(platform string) string {
+	sum := sha256.Sum256([]byte(platform))
+	return hex.EncodeToString(sum[:])[:12]
 }

@@ -57,6 +57,32 @@ func TestNavivoxRunRecordVoiceTurnPreservesEvidenceAndUnknownUsage(t *testing.T)
 	}
 }
 
+func TestNavivoxRunRecordToolMetadataRejectsCollapsedSensitiveKeys(t *testing.T) {
+	now := time.Unix(1_700_100_050, 0).UTC()
+	record := NewRunRecord("req-tool", "s-tool", "inspect workspace", nil, now)
+	record.AppendToolEvent("tool-1", "read_file", "finished", "Read README", map[string]any{
+		"artifact_ref":     "artifact://readme-summary",
+		"raw audio bytes":  "raw-audio-bytes-must-not-persist",
+		"audio bytes path": "/private/raw.wav",
+	}, now.Add(time.Second))
+
+	if len(record.ToolEvents) != 1 {
+		t.Fatalf("tool events = %+v", record.ToolEvents)
+	}
+	if record.ToolEvents[0].Metadata["artifact_ref"] != "artifact://readme-summary" {
+		t.Fatalf("tool metadata = %+v", record.ToolEvents[0].Metadata)
+	}
+	body, err := json.Marshal(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"raw-audio-bytes-must-not-persist", "/private/raw.wav"} {
+		if strings.Contains(string(body), forbidden) {
+			t.Fatalf("tool metadata leaked %q: %s", forbidden, body)
+		}
+	}
+}
+
 func TestNavivoxRunRecordToolTimelineAndCompletion(t *testing.T) {
 	now := time.Unix(1_700_100_100, 0).UTC()
 	record := NewRunRecord("req-text", "s-text", "inspect workspace", map[string]any{}, now)

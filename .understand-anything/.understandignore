@@ -53,8 +53,7 @@
 # deer-flow/
 # /@pi2many-hermes
 # /@py2many-hermes
-# docs/www-tests/node_modules/
-# docs/www-tests/test-results/
+# webpages/docs/www-tests/node_modules/
 # webpages/docs/www-tests/test-results/
 # scripts/whatsapp-bridge/node_modules/
 # .claude-flow/

@@ -132,6 +132,9 @@ func TestBuildDefaultRegistryPassesTerminalCWDToTerminalTool(t *testing.T) {
 
 	reg := BuildDefaultRegistry(context.Background(), config.Config{
 		Terminal: config.TerminalCfg{CWD: projectDir},
+		Agents: config.AgentsCfg{Defaults: config.AgentDefaultsCfg{
+			Workspace: projectDir,
+		}},
 	}, nil, "")
 	tool, ok := reg.Get("terminal")
 	if !ok {
@@ -155,8 +158,12 @@ func TestBuildDefaultRegistryPassesTerminalCWDToTerminalTool(t *testing.T) {
 }
 
 func TestBuildDefaultRegistryEnablesTerminalOutputCompaction(t *testing.T) {
+	workdir := t.TempDir()
 	reg := BuildDefaultRegistry(context.Background(), config.Config{
-		Terminal: config.TerminalCfg{CWD: t.TempDir()},
+		Terminal: config.TerminalCfg{CWD: workdir},
+		Agents: config.AgentsCfg{Defaults: config.AgentDefaultsCfg{
+			Workspace: workdir,
+		}},
 	}, nil, "")
 	tool, ok := reg.Get("terminal")
 	if !ok {
@@ -306,8 +313,8 @@ func TestBuildDefaultRegistryAppliesProfileWorkspaceAllowList(t *testing.T) {
 	if err := json.Unmarshal(raw, &termOut); err != nil {
 		t.Fatalf("unmarshal terminal %s: %v", raw, err)
 	}
-	if termOut["status"] != "blocked" || !strings.Contains(asRegistryString(termOut["error"]), tools.ProfileWorkspaceScopeViolation) {
-		t.Fatalf("terminal = %#v, want profile workspace fail-closed block", termOut)
+	if termOut["status"] != "completed" || strings.TrimSpace(asRegistryString(termOut["stdout"])) != "ran" {
+		t.Fatalf("terminal = %#v, want command allowed inside configured workspace", termOut)
 	}
 
 	execTool, ok := reg.Get("execute_code")
@@ -324,6 +331,133 @@ func TestBuildDefaultRegistryAppliesProfileWorkspaceAllowList(t *testing.T) {
 	}
 	if execOut["status"] != "blocked" || execOut["evidence"] != tools.ProfileWorkspaceScopeViolation {
 		t.Fatalf("execute_code = %#v, want profile workspace fail-closed block", execOut)
+	}
+}
+
+func TestBuildDefaultRegistryDefaultsToActiveProfileRoot(t *testing.T) {
+	root := t.TempDir()
+	gormesHome := filepath.Join(root, ".gormes", "profiles", "coder")
+	outside := filepath.Join(root, "git", "gormes")
+	for _, dir := range []string{gormesHome, outside} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(gormesHome, "notes.txt"), []byte("profile notes\n"), 0o644); err != nil {
+		t.Fatalf("write profile notes: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(outside, "repo.txt"), []byte("outside repo\n"), 0o644); err != nil {
+		t.Fatalf("write outside repo: %v", err)
+	}
+	t.Setenv("HOME", root)
+	t.Setenv("GORMES_HOME", gormesHome)
+
+	reg := BuildDefaultRegistry(context.Background(), config.Config{
+		Terminal: config.TerminalCfg{CWD: gormesHome},
+		Profiles: map[string]config.ProfileCfg{
+			"coder": {Enabled: true, Name: "Coder"},
+		},
+	}, nil, "")
+
+	readTool, ok := reg.Get("read_file")
+	if !ok {
+		t.Fatal("read_file not registered")
+	}
+	raw, err := readTool.Execute(context.Background(), json.RawMessage(`{"path":"notes.txt"}`))
+	if err != nil {
+		t.Fatalf("read profile notes Execute: %v", err)
+	}
+	var readOut map[string]any
+	if err := json.Unmarshal(raw, &readOut); err != nil {
+		t.Fatalf("unmarshal read_file %s: %v", raw, err)
+	}
+	if readOut["error"] != nil || !strings.Contains(asRegistryString(readOut["content"]), "profile notes") {
+		t.Fatalf("read_file profile root = %#v, want allowed", readOut)
+	}
+
+	raw, err = readTool.Execute(context.Background(), json.RawMessage(`{"path":`+quoteJSONRegistry(t, filepath.Join(outside, "repo.txt"))+`}`))
+	if err != nil {
+		t.Fatalf("read outside Execute: %v", err)
+	}
+	if err := json.Unmarshal(raw, &readOut); err != nil {
+		t.Fatalf("unmarshal outside read_file %s: %v", raw, err)
+	}
+	if !strings.Contains(asRegistryString(readOut["error"]), tools.ProfileWorkspaceScopeViolation) || !strings.Contains(asRegistryString(readOut["error"]), tools.ProfileWorkspaceDeniedMessage) {
+		t.Fatalf("read_file outside = %#v, want stable profile workspace denial", readOut)
+	}
+}
+
+func TestBuildDefaultRegistryAllowsConfiguredProfileAllowedPaths(t *testing.T) {
+	root := t.TempDir()
+	gormesHome := filepath.Join(root, ".gormes", "profiles", "coder")
+	repo := filepath.Join(root, "git", "gormes")
+	shared := filepath.Join(root, "shared")
+	for _, dir := range []string{gormesHome, repo, shared} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(repo, "repo.txt"), []byte("repo notes\n"), 0o644); err != nil {
+		t.Fatalf("write repo notes: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(shared, "shared.txt"), []byte("shared notes\n"), 0o644); err != nil {
+		t.Fatalf("write shared notes: %v", err)
+	}
+	t.Setenv("HOME", root)
+	t.Setenv("GORMES_HOME", gormesHome)
+
+	reg := BuildDefaultRegistry(context.Background(), config.Config{
+		Terminal: config.TerminalCfg{CWD: gormesHome},
+		Profiles: map[string]config.ProfileCfg{
+			"coder": {
+				Enabled:          true,
+				AllowedPaths:     []string{"~/git/gormes"},
+				AllowedPathRules: []config.ProfileAllowedPathConfig{{Path: "~/shared", Access: "read"}},
+			},
+		},
+	}, nil, "")
+	readTool, ok := reg.Get("read_file")
+	if !ok {
+		t.Fatal("read_file not registered")
+	}
+	raw, err := readTool.Execute(context.Background(), json.RawMessage(`{"path":`+quoteJSONRegistry(t, filepath.Join(repo, "repo.txt"))+`}`))
+	if err != nil {
+		t.Fatalf("read allowlisted repo Execute: %v", err)
+	}
+	var readOut map[string]any
+	if err := json.Unmarshal(raw, &readOut); err != nil {
+		t.Fatalf("unmarshal read_file %s: %v", raw, err)
+	}
+	if readOut["error"] != nil || !strings.Contains(asRegistryString(readOut["content"]), "repo notes") {
+		t.Fatalf("read_file allowlisted repo = %#v, want allowed", readOut)
+	}
+
+	raw, err = readTool.Execute(context.Background(), json.RawMessage(`{"path":`+quoteJSONRegistry(t, filepath.Join(shared, "shared.txt"))+`}`))
+	if err != nil {
+		t.Fatalf("read allowed_path rule Execute: %v", err)
+	}
+	if err := json.Unmarshal(raw, &readOut); err != nil {
+		t.Fatalf("unmarshal read_file %s: %v", raw, err)
+	}
+	if readOut["error"] != nil || !strings.Contains(asRegistryString(readOut["content"]), "shared notes") {
+		t.Fatalf("read_file allowed_path rule = %#v, want allowed", readOut)
+	}
+}
+
+func TestBuildDefaultRegistryCreatesActiveProfileWorkspaceRoot(t *testing.T) {
+	root := t.TempDir()
+	gormesHome := filepath.Join(root, ".gormes", "profiles", "newcoder")
+	t.Setenv("HOME", root)
+	t.Setenv("GORMES_HOME", gormesHome)
+
+	BuildDefaultRegistry(context.Background(), config.Config{
+		Profiles: map[string]config.ProfileCfg{
+			"newcoder": {Enabled: true},
+		},
+	}, nil, "")
+
+	if info, err := os.Stat(gormesHome); err != nil || !info.IsDir() {
+		t.Fatalf("active profile workspace root not created: info=%v err=%v", info, err)
 	}
 }
 

@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -29,12 +28,7 @@ func newTestStatusCommand(t *testing.T) *cobra.Command {
 }
 
 func executeStatusCommandForTest(cmd *cobra.Command, args ...string) (string, string, error) {
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs(args)
-	err := cmd.Execute()
-	return stdout.String(), stderr.String(), err
+	return executeCobraCommandForTest(cmd, cobraCommandExecutionOptions{}, args...)
 }
 
 func TestStatusCommandShowsProgressBlockers(t *testing.T) {

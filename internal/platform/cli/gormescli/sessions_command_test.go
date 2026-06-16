@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -410,6 +409,76 @@ func TestSessionPrune_JSONEmitsStructuredOutcome(t *testing.T) {
 	assertSessionCommandTurnCount(t, "old-session-2", 0)
 }
 
+func TestSessionListProfileMainUsesBaseMirrorSourceWhenProfileMirrorMissing(t *testing.T) {
+	mainRoot := seedProfileMainSessionWithBaseMirror(t, "sess-profile-main", "user", "hello from telegram")
+	// Real `gormes --profile main ...` scopes the session command process to
+	// the profile root before session paths are resolved. Reproduce that
+	// storage scope directly so a missing profile-local mirror must still find
+	// the legacy base-home mirror for materialized main-profile sessions.
+	t.Setenv("GORMES_HOME", mainRoot)
+	stdout, stderr, err := runSessionsCommand(t, nil, "session", "list", "--json")
+	if err != nil {
+		t.Fatalf("session list --profile main --json: %v\nstderr=%s", err, stderr)
+	}
+	var got struct {
+		Sessions []struct {
+			ID     string `json:"id"`
+			Source string `json:"source"`
+		} `json:"sessions"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("session list JSON: %v\nstdout=%s", err, stdout)
+	}
+	if len(got.Sessions) != 1 || got.Sessions[0].ID != "sess-profile-main" {
+		t.Fatalf("sessions = %+v, want profile-main session", got.Sessions)
+	}
+	if got.Sessions[0].Source != "telegram" {
+		t.Fatalf("profile main session source = %q, want telegram from base mirror; stdout=%s", got.Sessions[0].Source, stdout)
+	}
+}
+
+func TestSessionExportProfileMainUsesBaseMirrorPlatformWhenProfileMirrorMissing(t *testing.T) {
+	mainRoot := seedProfileMainSessionWithBaseMirror(t, "sess-profile-main-export", "assistant", "export body")
+	t.Setenv("GORMES_HOME", mainRoot)
+	stdout, stderr, err := runSessionsCommand(t, nil, "session", "export", "sess-profile-main-export")
+	if err != nil {
+		t.Fatalf("session export profile main: %v\nstderr=%s", err, stderr)
+	}
+	if !strings.Contains(stdout, "**Platform:** telegram") {
+		t.Fatalf("export platform = non-telegram, want base mirror source; stdout=%s", stdout)
+	}
+}
+
+func seedProfileMainSessionWithBaseMirror(t *testing.T, sessionID, role, content string) string {
+	t.Helper()
+	dataHome := t.TempDir()
+	baseHome := filepath.Join(dataHome, "gormes")
+	mainRoot := filepath.Join(baseHome, "profiles", "main")
+	if err := os.MkdirAll(mainRoot, 0o700); err != nil {
+		t.Fatalf("create main profile root: %v", err)
+	}
+	t.Setenv("XDG_DATA_HOME", dataHome)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dataHome, "config"))
+	t.Setenv("GORMES_HOME", baseHome)
+
+	store, err := memory.OpenSqlite(filepath.Join(mainRoot, "memory.db"), 8, nil)
+	if err != nil {
+		t.Fatalf("OpenSqlite profile memory: %v", err)
+	}
+	if _, err := store.DB().Exec(
+		`INSERT INTO turns(session_id, role, content, ts_unix, chat_id, meta_json, turn_key) VALUES (?, ?, ?, ?, ?, NULL, NULL)`,
+		sessionID, role, content, int64(123), "",
+	); err != nil {
+		t.Fatalf("seed profile turn: %v", err)
+	}
+	if err := store.Close(context.Background()); err != nil {
+		t.Fatalf("close profile memory: %v", err)
+	}
+
+	writeSessionMirrorIndex(t, sessionID, "telegram")
+	return mainRoot
+}
+
 func writeSessionMirrorIndex(t *testing.T, sessionID, source string) {
 	t.Helper()
 	path := config.SessionIndexMirrorPath()
@@ -454,16 +523,7 @@ func runSessionsCommand(t *testing.T, in *strings.Reader, args ...string) (strin
 	// Each newSessionRootCommandForTest() builds a fresh session command tree via
 	// newSessionCommandForTest(), so flag state is naturally isolated — no
 	// explicit per-flag reset needed.
-	cmd := newSessionRootCommandForTest()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	if in != nil {
-		cmd.SetIn(in)
-	}
-	cmd.SetArgs(args)
-	err := cmd.Execute()
-	return stdout.String(), stderr.String(), err
+	return executeCobraCommandForTest(newSessionRootCommandForTest(), cobraCommandExecutionOptions{Input: in}, args...)
 }
 
 // TestSessionCommand_ConstructorReturnsIndependentInstances proves

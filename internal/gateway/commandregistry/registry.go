@@ -1,12 +1,14 @@
 package commandregistry
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/commandline"
 	gatewayevents "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/events"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 type EventKind = gatewayevents.EventKind
@@ -232,6 +234,12 @@ func buildRecognizedUnavailableSlashCommands() map[string]struct{} {
 func ResolveCommand(name string) (CommandDef, bool) {
 	key := SlashCommandName(name)
 	cmd, ok := commandLookup[key]
+	if ok {
+		return cmd, true
+	}
+	if strings.Contains(key, "_") {
+		cmd, ok = commandLookup[strings.ReplaceAll(key, "_", "-")]
+	}
 	return cmd, ok
 }
 
@@ -262,7 +270,7 @@ type GatewayCommandDispatch struct {
 // mapped EventKind; unknown slash commands become EventUnknown.
 func ParseInboundText(text string) (EventKind, string) {
 	body := strings.TrimSpace(text)
-	if !strings.HasPrefix(body, "/") {
+	if !hasSlashCommandPrefix(body) {
 		return EventSubmit, body
 	}
 	resolved := ResolveGatewayCommandDispatch(body)
@@ -316,6 +324,10 @@ func SlashCommandKindCarriesBody(kind EventKind) bool {
 // (for example /skill-name) before falling back to unknown-command guidance,
 // while legacy adapters can keep ParseInboundText's empty unknown body to avoid
 // accidentally submitting unknown slash text.
+func hasSlashCommandPrefix(body string) bool {
+	return strings.HasPrefix(body, "/") || strings.HasPrefix(body, "／")
+}
+
 func ParseInboundTextPreserveUnknown(text string) (EventKind, string) {
 	kind, body := ParseInboundText(text)
 	if kind == EventUnknown {
@@ -347,11 +359,75 @@ func ResolveGatewayCommandDispatch(text string) GatewayCommandDispatch {
 // tells users how to inspect commands or resend literal text without allowing
 // the slash token to fall through as a provider prompt.
 func UnknownSlashCommandGuidance(name string) string {
-	cleaned := SlashCommandName(name)
+	commandName := SlashCommandName(name)
+	if commandName == "" {
+		commandName, _ = commandline.Split(strings.TrimSpace(name))
+		commandName = strings.TrimLeft(commandName, "/／")
+	}
+	cleaned := renderUnknownSlashCommandName(commandName)
 	if cleaned == "" {
 		cleaned = "unknown"
 	}
 	return fmt.Sprintf("unknown command `/%s`. Type /commands to see what's available, or resend without the leading slash to send as a regular message.", cleaned)
+}
+
+func renderUnknownSlashCommandName(name string) string {
+	name = collapseRedactedUnknownCommandAssignments(redaction.RedactSecrets(name))
+	name = strings.NewReplacer("`", "'", "*", "'").Replace(name)
+	var b strings.Builder
+	b.Grow(len(name))
+	for _, r := range name {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) || hiddenUnknownCommandFormattingRune(r) {
+			b.WriteByte(' ')
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return strings.Join(strings.Fields(b.String()), " ")
+}
+
+func hiddenUnknownCommandFormattingRune(r rune) bool {
+	switch {
+	case r >= 0x200b && r <= 0x200f:
+		return true
+	case r >= 0x2028 && r <= 0x202e:
+		return true
+	case r >= 0x2060 && r <= 0x2069:
+		return true
+	case r == 0xfeff || r == 0xfffc:
+		return true
+	case r >= 0xfff9 && r <= 0xfffb:
+		return true
+	default:
+		return false
+	}
+}
+
+func collapseRedactedUnknownCommandAssignments(value string) string {
+	replacer := strings.NewReplacer(
+		"api_key=[redacted]", "[redacted]",
+		"api-key=[redacted]", "[redacted]",
+		"authorization=[redacted]", "[redacted]",
+		"bearer=[redacted]", "[redacted]",
+		"token=[redacted]", "[redacted]",
+		"secret=[redacted]", "[redacted]",
+		"password=[redacted]", "[redacted]",
+	)
+	value = replacer.Replace(value)
+	if unknownCommandSecretAssignment(value) {
+		return "[redacted]"
+	}
+	return value
+}
+
+func unknownCommandSecretAssignment(value string) bool {
+	lower := strings.ToLower(value)
+	for _, marker := range []string{"api_key", "api-key", "apikey", "authorization", "bearer", "token", "secret", "password"} {
+		if strings.Contains(lower, marker+"=") || strings.Contains(lower, marker+":") {
+			return true
+		}
+	}
+	return strings.HasPrefix(lower, "bearer-") || strings.HasPrefix(lower, "bearer_")
 }
 
 // GatewayHelpLines renders registry-driven help output in canonical order,
@@ -389,7 +465,7 @@ func TelegramBotCommands() []PlatformCommand {
 		}
 		out = append(out, PlatformCommand{
 			Name:        strings.ReplaceAll(cmd.Name, "-", "_"),
-			Description: cmd.Description,
+			Description: renderPlatformCommandDescription(cmd.Description),
 		})
 	}
 	return out
@@ -410,12 +486,15 @@ func TelegramBotCommandsWith(dynamic []PlatformCommand) []PlatformCommand {
 	out := TelegramBotCommands()
 	seen := platformCommandNameSet(out)
 	for _, cmd := range sortedPlatformCommands(dynamic) {
+		if !safeDynamicPlatformCommandName(cmd.Name) {
+			continue
+		}
 		name := NormalizeTelegramCommandName(cmd.Name)
-		if name == "" || seen[name] {
+		if name == "" || !dynamicCommandNameSafe(cmd.Name) || seen[name] || dynamicCommandCollidesWithRegisteredSlash(name) {
 			continue
 		}
 		seen[name] = true
-		out = append(out, PlatformCommand{Name: name, Description: strings.TrimSpace(cmd.Description)})
+		out = append(out, PlatformCommand{Name: name, Description: renderPlatformCommandDescription(cmd.Description)})
 	}
 	return out
 }
@@ -438,13 +517,101 @@ func SlackSubcommandMap() map[string]string {
 func SlackSubcommandMapWith(dynamic []PlatformCommand) map[string]string {
 	out := SlackSubcommandMap()
 	for _, cmd := range sortedPlatformCommands(dynamic) {
+		if !safeDynamicPlatformCommandName(cmd.Name) {
+			continue
+		}
 		name := NormalizeSlackCommandName(cmd.Name)
-		if name == "" {
+		if name == "" || !dynamicCommandNameSafe(cmd.Name) || dynamicCommandCollidesWithRegisteredSlash(name) {
 			continue
 		}
 		out[name] = "/" + name
 	}
 	return out
+}
+
+func safeDynamicPlatformCommandName(name string) bool {
+	name = strings.TrimSpace(name)
+	if name == "" || malformedSlashCommandPrefix(name) || containsPlatformCommandControl(name) {
+		return false
+	}
+	redacted, count := redaction.RedactSecretsWithCount(name, "[redacted]")
+	if count == 0 || redacted == name {
+		return true
+	}
+	lower := strings.ToLower(name)
+	compact := compactDynamicCommandName(lower)
+	return !(strings.Contains(lower, "api_key") || strings.Contains(lower, "api-key") || strings.Contains(compact, "apikey") || strings.Contains(lower, "authorization") || strings.Contains(lower, "bearer") || strings.Contains(lower, "token") || strings.Contains(lower, "password"))
+}
+
+func containsPlatformCommandControl(name string) bool {
+	for _, r := range name {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			return true
+		}
+	}
+	return false
+}
+
+func malformedSlashCommandPrefix(name string) bool {
+	runes := []rune(name)
+	return len(runes) > 1 && (runes[0] == '/' || runes[0] == '／') && (runes[1] == '/' || runes[1] == '／')
+}
+
+func compactDynamicCommandName(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func renderPlatformCommandDescription(value string) string {
+	var b strings.Builder
+	for _, r := range redaction.RedactSecrets(value) {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			b.WriteByte(' ')
+			continue
+		}
+		b.WriteRune(r)
+	}
+	fields := strings.Fields(b.String())
+	out := make([]string, 0, len(fields))
+	for i := 0; i < len(fields); i++ {
+		field := fields[i]
+		lower := strings.ToLower(field)
+		nextRedacted := i+1 < len(fields) && strings.Contains(strings.ToLower(fields[i+1]), "[redacted]")
+		if commandDescriptionSecretField(lower) && (strings.Contains(lower, "[redacted]") || nextRedacted) {
+			out = append(out, "[redacted]")
+			if nextRedacted {
+				i++
+			}
+			continue
+		}
+		out = append(out, field)
+	}
+	return strings.Join(out, " ")
+}
+
+func commandDescriptionSecretField(value string) bool {
+	return strings.Contains(value, "api_key") || strings.Contains(value, "api-key") || strings.Contains(value, "apikey") || strings.Contains(value, "authorization") || strings.Contains(value, "bearer") || strings.Contains(value, "token") || strings.Contains(value, "secret") || strings.Contains(value, "password")
+}
+
+func dynamicCommandNameSafe(value string) bool {
+	lower := strings.ToLower(value)
+	for _, marker := range []string{"api_key", "api-key", "apikey", "authorization", "bearer", "token", "secret", "password"} {
+		if strings.Contains(lower, marker+"=") || strings.Contains(lower, marker+":") {
+			return redaction.RedactSecrets(value) == value
+		}
+	}
+	return true
+}
+
+func dynamicCommandCollidesWithRegisteredSlash(name string) bool {
+	_, ok := ResolveCommand(name)
+	return ok
 }
 
 func platformCommandNameSet(commands []PlatformCommand) map[string]bool {
@@ -456,13 +623,8 @@ func platformCommandNameSet(commands []PlatformCommand) map[string]bool {
 }
 
 func sortedPlatformCommands(commands []PlatformCommand) []PlatformCommand {
-	out := append([]PlatformCommand(nil), commands...)
-	sort.SliceStable(out, func(i, j int) bool {
-		if out[i].Name != out[j].Name {
-			return out[i].Name < out[j].Name
-		}
-		return out[i].Description < out[j].Description
-	})
+	out := slices.Clone(commands)
+	SortPlatformCommands(out)
 	return out
 }
 
@@ -507,10 +669,12 @@ func SplitGatewayCommandLine(input string) (token, args string) {
 
 // SortPlatformCommands sorts platform commands by name and description for deterministic registration.
 func SortPlatformCommands(commands []PlatformCommand) {
-	sort.SliceStable(commands, func(i, j int) bool {
-		if commands[i].Name != commands[j].Name {
-			return commands[i].Name < commands[j].Name
-		}
-		return commands[i].Description < commands[j].Description
-	})
+	slices.SortStableFunc(commands, comparePlatformCommand)
+}
+
+func comparePlatformCommand(a, b PlatformCommand) int {
+	if byName := cmp.Compare(a.Name, b.Name); byName != 0 {
+		return byName
+	}
+	return cmp.Compare(a.Description, b.Description)
 }

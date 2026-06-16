@@ -27,7 +27,7 @@ func TestRenderTextInputChromeAddsReusableLabelAndHint(t *testing.T) {
 	}
 }
 
-func TestRenderComposerInputChromeAddsReusableAffordance(t *testing.T) {
+func TestRenderComposerInputChromeStaysBareLikeHermesPrompt(t *testing.T) {
 	got := RenderComposerInputChrome(ComposerInputChrome{
 		Width:   72,
 		Prompt:  "❯ hello",
@@ -36,10 +36,12 @@ func TestRenderComposerInputChromeAddsReusableAffordance(t *testing.T) {
 		Focused: true,
 	})
 
-	assertContainsInOrder(t, got, "Ask Gormes", "Enter send", "Shift+Enter newline", "❯ hello")
-	for _, line := range strings.Split(got, "\n") {
-		if width := lipgloss.Width(line); width > 72 {
-			t.Fatalf("composer chrome line width %d exceeds 72:\n%q\n\n%s", width, line, got)
+	if got != "❯ hello" {
+		t.Fatalf("composer chrome = %q, want bare Hermes prompt", got)
+	}
+	for _, noisy := range []string{"Ask Gormes", "Enter send", "Shift+Enter newline"} {
+		if strings.Contains(got, noisy) {
+			t.Fatalf("composer chrome leaked helper text %q: %q", noisy, got)
 		}
 	}
 }
@@ -57,35 +59,6 @@ func TestRenderComposerInputChromeReusesCompactPromptOnNarrowTerminals(t *testin
 	}
 }
 
-func TestRenderComposerInputChromeShowsContextualHints(t *testing.T) {
-	tests := []struct {
-		name      string
-		draft     string
-		multiline bool
-		want      string
-	}{
-		{name: "empty", want: "/ commands"},
-		{name: "plain", draft: "hello", want: "Shift+Enter newline"},
-		{name: "slash", draft: "/he", want: "Tab complete"},
-		{name: "multiline", draft: "line 1\nline 2", multiline: true, want: "Enter send"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := RenderComposerInputChrome(ComposerInputChrome{
-				Width:     72,
-				Prompt:    "❯ " + tt.draft,
-				Draft:     tt.draft,
-				Skin:      DefaultHermesSkin(),
-				Focused:   true,
-				Multiline: tt.multiline,
-			})
-			if !strings.Contains(got, tt.want) {
-				t.Fatalf("composer hint missing %q:\n%s", tt.want, got)
-			}
-		})
-	}
-}
-
 func TestComposerInputChromeProvidesModeAwareKeyHelp(t *testing.T) {
 	plain := ComposerInputChrome{Draft: "hello"}.KeyHelp()
 	if len(plain) != 2 || plain[0].Keys[0] != "Enter" || plain[1].Keys[0] != "Shift+Enter" {
@@ -97,7 +70,7 @@ func TestComposerInputChromeProvidesModeAwareKeyHelp(t *testing.T) {
 	}
 }
 
-func TestRenderComposerInputChromeShowsPausedState(t *testing.T) {
+func TestRenderComposerInputChromeDoesNotAddPausedHeader(t *testing.T) {
 	got := RenderComposerInputChrome(ComposerInputChrome{
 		Width:   72,
 		Prompt:  "❯ draft",
@@ -105,15 +78,55 @@ func TestRenderComposerInputChromeShowsPausedState(t *testing.T) {
 		Focused: false,
 	})
 
-	assertContainsInOrder(t, got, "Composer paused", "❯ draft")
+	if got != "❯ draft" {
+		t.Fatalf("paused composer chrome = %q, want bare prompt", got)
+	}
 }
 
-func TestComposerInputChromeViewportGatePreservesShortTranscriptSpace(t *testing.T) {
-	if showComposerInputChrome(80, 14) {
-		t.Fatal("composer affordance should stay hidden on short terminals")
+func TestViewProfileLabelDoesNotLeakIntoHermesComposerPrompt(t *testing.T) {
+	m := NewModelWithOptions(make(chan kernel.RenderFrame), func(string) {}, func() {}, Options{ProfileName: "main"})
+	m.width = 100
+	m.height = 24
+	m.frame = kernel.RenderFrame{Phase: kernel.PhaseIdle, Model: "test/model"}
+
+	if strings.Contains(m.editor.View(), "Type a message and hit Enter…") {
+		t.Fatalf("editor state should not retain old inline placeholder that can leak into Hermes composer: %q", m.editor.View())
 	}
-	if !showComposerInputChrome(80, 24) {
-		t.Fatal("composer affordance should show on roomy terminals")
+	got := m.View()
+	if strings.Contains(got, "main ❯") {
+		t.Fatalf("profile label leaked into Hermes composer prompt:\n%s", got)
+	}
+	if strings.Contains(got, "❯ Type a message and hit Enter…") {
+		t.Fatalf("View leaked inline placeholder into bare Hermes composer prompt:\n%s", got)
+	}
+	assertPromptRulePair(t, got, m.width, "❯")
+	for _, stale := range []string{"Profile:", "main ❯", "profile main"} {
+		if strings.Contains(got, stale) {
+			t.Fatalf("View leaked profile marker %q into Hermes chat chrome:\n%s", stale, got)
+		}
+	}
+}
+
+func TestComposerContinuationPromptBlankPreservesStyledText(t *testing.T) {
+	styled := "❯ hello\n\x1b[36m❯\x1b[0m \x1b[37mworld"
+	got := alignComposerContinuationPrompts(styled)
+	plain := StripANSIForTUI(got)
+	if !strings.Contains(plain, "❯ hello\n  world") {
+		t.Fatalf("continuation prompt blank plain text = %q, want Hermes prompt-width blank", plain)
+	}
+	if !strings.Contains(got, "\x1b[37mworld") {
+		t.Fatalf("continuation prompt blank should preserve text styling suffix, got %q", got)
+	}
+	if strings.Contains(strings.Split(plain, "\n")[1], "❯") {
+		t.Fatalf("continuation row retained prompt glyph: %q", plain)
+	}
+}
+
+func TestComposerInputChromeViewportGateKeepsBarePrompt(t *testing.T) {
+	for _, size := range [][2]int{{80, 14}, {80, 24}} {
+		if showComposerInputChrome(size[0], size[1]) {
+			t.Fatalf("composer affordance should stay hidden for Hermes-like bare prompt at %dx%d", size[0], size[1])
+		}
 	}
 }
 
@@ -132,7 +145,10 @@ func TestViewShowsComposerAffordanceOnlyWhenRoomy(t *testing.T) {
 	m.frame = frame
 
 	roomy := m.View()
-	assertContainsInOrder(t, roomy, "done", "Ask Gormes", "❯")
+	assertContainsInOrder(t, roomy, "done", "❯")
+	if strings.Contains(roomy, "Ask Gormes") {
+		t.Fatalf("roomy terminal View() rendered noisy composer affordance:\n%s", roomy)
+	}
 
 	m.height = 14
 	compact := m.View()

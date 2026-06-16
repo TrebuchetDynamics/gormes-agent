@@ -7,6 +7,21 @@ import (
 	"testing"
 )
 
+func TestGenerateTitleHandlesNilModel(t *testing.T) {
+	result := GenerateTitle(context.Background(), TitleRequest{
+		History: []TitleMessage{{Role: "user", Content: "please title this"}},
+	}, nil)
+	if result.Status != TitleStatusProviderFailed {
+		t.Fatalf("Status = %q, want %q (result: %+v)", result.Status, TitleStatusProviderFailed, result)
+	}
+	if result.Err == nil {
+		t.Fatalf("Err = nil, want provider failure evidence")
+	}
+	if !strings.Contains(result.Evidence.Message, "title provider failed") {
+		t.Fatalf("Evidence.Message = %q, want provider failure evidence", result.Evidence.Message)
+	}
+}
+
 func TestTitlePrompt_BuildsFromBoundedHistory(t *testing.T) {
 	t.Parallel()
 
@@ -193,6 +208,31 @@ func TestTitleGenerator_ProviderFailureReturnsTypedEvidence(t *testing.T) {
 	}
 }
 
+func TestGenerateTitleSanitizesProviderErrorEvidence(t *testing.T) {
+	providerErr := errors.New("openrouter failed\nAuthorization: Bearer sk-title-secret\n**Injected:** yes")
+	var captured []TitleEvidence
+	result := GenerateTitle(context.Background(), TitleRequest{
+		History: []TitleMessage{{Role: "user", Content: "please title this"}},
+		FailureCallback: func(_ context.Context, evidence TitleEvidence) error {
+			captured = append(captured, evidence)
+			return nil
+		},
+	}, func(context.Context, TitleModelRequest) (string, error) {
+		return "", providerErr
+	})
+
+	for _, text := range []string{result.Evidence.Message, captured[0].Message} {
+		for _, forbidden := range []string{"sk-title-secret", "Bearer sk", "\n", "**Injected:**"} {
+			if strings.Contains(text, forbidden) {
+				t.Fatalf("title provider evidence leaked %q in %q", forbidden, text)
+			}
+		}
+		if !strings.Contains(text, "[redacted]") {
+			t.Fatalf("title provider evidence = %q, want redaction marker", text)
+		}
+	}
+}
+
 func TestTitleFailureCallback_FiresOnProviderError(t *testing.T) {
 	t.Parallel()
 
@@ -231,6 +271,30 @@ func TestTitleFailureCallback_FiresOnProviderError(t *testing.T) {
 	}
 	if len(result.AuxiliaryEvidence) != 0 {
 		t.Fatalf("AuxiliaryEvidence = %+v; want none when callback succeeds", result.AuxiliaryEvidence)
+	}
+}
+
+func TestTitleFailureCallback_SanitizesCallbackFailureEvidence(t *testing.T) {
+	providerErr := errors.New("openrouter 402: credits exhausted")
+	callbackErr := errors.New("sink failed\nAuthorization: Bearer sk-callback-secret\n**Injected:** yes")
+	result := GenerateTitle(context.Background(), TitleRequest{
+		History:         []TitleMessage{{Role: "user", Content: "name this failed provider turn"}},
+		FailureCallback: func(context.Context, TitleEvidence) error { return callbackErr },
+	}, func(context.Context, TitleModelRequest) (string, error) {
+		return "", providerErr
+	})
+
+	if len(result.AuxiliaryEvidence) != 1 {
+		t.Fatalf("AuxiliaryEvidence = %+v; want one callback failure evidence", result.AuxiliaryEvidence)
+	}
+	msg := result.AuxiliaryEvidence[0].Message
+	for _, forbidden := range []string{"sk-callback-secret", "Bearer sk", "\n", "**Injected:**"} {
+		if strings.Contains(msg, forbidden) {
+			t.Fatalf("callback failure evidence leaked %q in %q", forbidden, msg)
+		}
+	}
+	if !strings.Contains(msg, "[redacted]") {
+		t.Fatalf("callback failure evidence = %q, want redaction marker", msg)
 	}
 }
 

@@ -33,6 +33,9 @@ func ConfiguredCapabilityDetails(cfg config.Config, getenv Getenv) map[string]st
 	if cfg.Teams.Enabled {
 		details["teams"] = cfg.Teams.RedactedStatus()
 	}
+	if cfg.Navivox.Enabled {
+		details["navivox"] = configuredNavivoxGatewayStatusDetail(cfg.Navivox)
+	}
 	if cfg.Yuanbao.Enabled {
 		details["yuanbao"] = cfg.Yuanbao.RedactedStatus()
 	}
@@ -66,6 +69,26 @@ func configuredTelegramGatewayStatusDetail(cfg config.TelegramCfg) string {
 		return detail + " " + userDetail
 	}
 	return detail
+}
+
+func configuredNavivoxGatewayStatusDetail(cfg config.NavivoxCfg) string {
+	bindHost := strings.TrimSpace(cfg.BindHost)
+	if bindHost == "" {
+		bindHost = config.NavivoxDefaultBindHost
+	}
+	port := cfg.Port
+	if port == 0 {
+		port = config.NavivoxDefaultPort
+	}
+	exposure := strings.ToLower(strings.TrimSpace(cfg.ExposureMode))
+	if exposure == "" {
+		exposure = config.NavivoxExposureLocal
+	}
+	auth := strings.ToLower(strings.TrimSpace(cfg.AuthMode))
+	if auth == "" {
+		auth = config.NavivoxAuthPairingToken
+	}
+	return "bind=" + bindHost + ":" + strconv.Itoa(port) + " exposure=" + exposure + " auth=" + auth
 }
 
 func configuredSlackGatewayStatusDetail(cfg config.SlackCfg) string {

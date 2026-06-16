@@ -69,6 +69,19 @@ func TestManager_ChannelScopeAutoSkillsAndPrompt(t *testing.T) {
 	}
 }
 
+func TestRefreshSkillGroupsAllowsNilContext(t *testing.T) {
+	refreshable := &refreshableGatewayChannel{fakeChannel: newFakeChannel("discord"), panicOnNilContext: true}
+	m := NewManagerWithSubmitter(ManagerConfig{}, &fakeKernel{}, nil)
+	if err := m.Register(refreshable); err != nil {
+		t.Fatalf("Register refreshable: %v", err)
+	}
+
+	results := m.RefreshSkillGroups(nil)
+	if len(results) != 1 || results[0].Channel != "discord" {
+		t.Fatalf("RefreshSkillGroups nil context results = %#v, want discord result", results)
+	}
+}
+
 func TestReloadSkillsRefreshesSkillGroupAdapters(t *testing.T) {
 	refreshable := &refreshableGatewayChannel{fakeChannel: newFakeChannel("discord")}
 	plain := newFakeChannel("slack")
@@ -103,13 +116,17 @@ func TestReloadSkillsRefreshesSkillGroupAdapters(t *testing.T) {
 
 type refreshableGatewayChannel struct {
 	*fakeChannel
-	calls int
-	err   error
+	calls             int
+	err               error
+	panicOnNilContext bool
 }
 
 var errChannelScopeRefresh = errString("collector failed")
 
-func (c *refreshableGatewayChannel) RefreshSkillGroup(context.Context) (SkillGroupRefreshResult, error) {
+func (c *refreshableGatewayChannel) RefreshSkillGroup(ctx context.Context) (SkillGroupRefreshResult, error) {
+	if c.panicOnNilContext && ctx == nil {
+		panic("nil context")
+	}
 	c.calls++
 	if c.err != nil {
 		return SkillGroupRefreshResult{Channel: c.Name(), Count: 2, Hidden: 1}, c.err

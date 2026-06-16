@@ -266,40 +266,43 @@ func TestUpdateCommand_SkillSyncGlyphs(t *testing.T) {
 }
 
 // TestUpdateCommand_WebBuildFactoryNilWhenNoPackageJson proves the
-// silent-default contract: when the checkout has no web/package.json,
+// silent-default contract: when the checkout has no tracked web package.json,
 // the factory returns nil and the lifecycle emits no web_build_*
 // evidence at all.
 func TestUpdateCommand_WebBuildFactoryNilWhenNoPackageJson(t *testing.T) {
 	tmp := t.TempDir()
 	if got := defaultWebBuildFor(tmp, false); got != nil {
-		t.Fatalf("defaultWebBuildFor must return nil when web/package.json is absent; got non-nil")
+		t.Fatalf("defaultWebBuildFor must return nil when no web package.json is present; got non-nil")
 	}
 }
 
-// TestUpdateCommand_WebBuildFactoryWiredWhenPackageJsonPresent proves the
-// factory returns a non-nil runner when web/package.json exists.
-func TestUpdateCommand_WebBuildFactoryWiredWhenPackageJsonPresent(t *testing.T) {
+// TestUpdateCommand_WebBuildFactoryWiredForWebpagesPackages proves the
+// factory follows the repository's current webpages/* layout instead of the
+// removed top-level web/package.json path.
+func TestUpdateCommand_WebBuildFactoryWiredForWebpagesPackages(t *testing.T) {
 	tmp := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(tmp, "web"), 0o755); err != nil {
-		t.Fatalf("mkdir web: %v", err)
+	pkgDir := filepath.Join(tmp, "webpages", "landing")
+	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
+		t.Fatalf("mkdir landing: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(tmp, "web", "package.json"), []byte(`{}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(pkgDir, "package.json"), []byte(`{}`), 0o644); err != nil {
 		t.Fatalf("write package.json: %v", err)
 	}
 	if got := defaultWebBuildFor(tmp, false); got == nil {
-		t.Fatalf("defaultWebBuildFor must return non-nil when web/package.json exists")
+		t.Fatalf("defaultWebBuildFor must return non-nil when webpages/landing/package.json exists")
 	}
 }
 
 // TestUpdateCommand_WebBuildSkipFlagShortCircuitsRunner proves --skip-web
-// flows through the factory closure: even when web/package.json exists,
+// flows through the factory closure: even when a webpages/* package.json exists,
 // the runner returns Skipped without running npm.
 func TestUpdateCommand_WebBuildSkipFlagShortCircuitsRunner(t *testing.T) {
 	tmp := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(tmp, "web"), 0o755); err != nil {
-		t.Fatalf("mkdir web: %v", err)
+	pkgDir := filepath.Join(tmp, "webpages", "docs")
+	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
+		t.Fatalf("mkdir docs: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(tmp, "web", "package.json"), []byte(`{}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(pkgDir, "package.json"), []byte(`{}`), 0o644); err != nil {
 		t.Fatalf("write package.json: %v", err)
 	}
 	runner := defaultWebBuildFor(tmp, true)

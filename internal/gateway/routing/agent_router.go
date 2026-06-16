@@ -1,6 +1,8 @@
 package routing
 
 import (
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -56,6 +58,9 @@ func (d AgentRouteDecision) SessionKey() string {
 	if mainKey == "" {
 		mainKey = "main"
 	}
+	if strings.Contains(agentID, ":") {
+		return "agent:" + strconv.Itoa(len(agentID)) + ":" + agentID + ":" + strconv.Itoa(len(mainKey)) + ":" + mainKey
+	}
 	return "agent:" + agentID + ":" + mainKey
 }
 
@@ -69,18 +74,18 @@ func NewAgentRouter(agents config.AgentsCfg, bindings []config.AgentBindingCfg) 
 }
 
 func cloneAgentsCfg(agents config.AgentsCfg) config.AgentsCfg {
-	agents.List = append([]config.AgentCfg(nil), agents.List...)
+	agents.List = slices.Clone(agents.List)
 	for i := range agents.List {
-		agents.List[i].Skills = append([]string(nil), agents.List[i].Skills...)
+		agents.List[i].Skills = slices.Clone(agents.List[i].Skills)
 		agents.List[i].Tools = cloneAgentToolPolicy(agents.List[i].Tools)
 	}
 	return agents
 }
 
 func cloneAgentBindings(bindings []config.AgentBindingCfg) []config.AgentBindingCfg {
-	out := append([]config.AgentBindingCfg(nil), bindings...)
+	out := slices.Clone(bindings)
 	for i := range out {
-		out[i].Match.Roles = append([]string(nil), out[i].Match.Roles...)
+		out[i].Match.Roles = slices.Clone(out[i].Match.Roles)
 	}
 	return out
 }
@@ -116,7 +121,7 @@ func (r AgentRouter) Resolve(req AgentRouteRequest) AgentRouteDecision {
 		Workspace:    agent.Workspace,
 		AgentDir:     agent.AgentDir,
 		Model:        agent.Model,
-		Skills:       append([]string(nil), agent.Skills...),
+		Skills:       slices.Clone(agent.Skills),
 		Tools:        cloneAgentToolPolicy(agent.Tools),
 		BindingIndex: bestIndex,
 		BindingTier:  bestTier,
@@ -126,8 +131,8 @@ func (r AgentRouter) Resolve(req AgentRouteRequest) AgentRouteDecision {
 
 func cloneAgentToolPolicy(policy config.AgentToolPolicy) config.AgentToolPolicy {
 	return config.AgentToolPolicy{
-		Allow: append([]string(nil), policy.Allow...),
-		Deny:  append([]string(nil), policy.Deny...),
+		Allow: slices.Clone(policy.Allow),
+		Deny:  slices.Clone(policy.Deny),
 	}
 }
 

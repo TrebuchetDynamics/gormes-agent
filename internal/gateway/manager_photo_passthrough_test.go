@@ -1,44 +1,17 @@
 package gateway
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
-	"image"
-	"image/color"
-	"image/jpeg"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/gatewaytest"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
-
-// writeFixtureJPEGForManager mirrors writeFixtureJPEG in turn_adapter_test.go
-// but lives here so this test file is self-contained. Generates a synthetic
-// 4x4 solid-color JPEG into the supplied dir.
-func writeFixtureJPEGForManager(t *testing.T, dir, name string, fillR, fillG, fillB uint8) string {
-	t.Helper()
-	img := image.NewRGBA(image.Rect(0, 0, 4, 4))
-	fill := color.RGBA{R: fillR, G: fillG, B: fillB, A: 255}
-	for y := 0; y < 4; y++ {
-		for x := 0; x < 4; x++ {
-			img.Set(x, y, fill)
-		}
-	}
-	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90}); err != nil {
-		t.Fatalf("encode fixture jpeg: %v", err)
-	}
-	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, buf.Bytes(), 0o600); err != nil {
-		t.Fatalf("write fixture jpeg: %v", err)
-	}
-	return path
-}
 
 // TestManager_SubmitPinned_PhotoAttachmentBecomesImageURLContentPart drives the
 // real channel-inbound submission path (Manager.submitPinned, called from
@@ -49,7 +22,7 @@ func writeFixtureJPEGForManager(t *testing.T, dir, name string, fillR, fillG, fi
 // the image bytes never made it onto the kernel turn message.
 func TestManager_SubmitPinned_PhotoAttachmentBecomesImageURLContentPart(t *testing.T) {
 	dir := t.TempDir()
-	jpgPath := writeFixtureJPEGForManager(t, dir, "screenshot.jpg", 100, 200, 150)
+	jpgPath := gatewaytest.WriteFixtureJPEG(t, dir, "screenshot.jpg", 100, 200, 150)
 	wantBytes, err := os.ReadFile(jpgPath)
 	if err != nil {
 		t.Fatalf("read fixture: %v", err)
@@ -116,7 +89,7 @@ func TestManager_SubmitPinned_PhotoAttachmentBecomesImageURLContentPart(t *testi
 
 func TestManager_SubmitPinned_ImageOnlyPhotoUsesDefaultPromptContentPart(t *testing.T) {
 	dir := t.TempDir()
-	jpgPath := writeFixtureJPEGForManager(t, dir, "screenshot.jpg", 100, 200, 150)
+	jpgPath := gatewaytest.WriteFixtureJPEG(t, dir, "screenshot.jpg", 100, 200, 150)
 
 	platform := "telegram"
 	tg := newFakeChannel(platform)

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway/commandtest"
 )
 
 func TestGatewayBootInstall_Uninstall_Termux(t *testing.T) {
@@ -15,10 +17,8 @@ func TestGatewayBootInstall_Uninstall_Termux(t *testing.T) {
 	t.Setenv("HOME", tmpHome)
 	t.Setenv("TERMUX_VERSION", "0.119.0")
 
-	cmd := NewBootInstallCommand()
-	var out strings.Builder
-	cmd.SetOut(&out)
-	if err := cmd.Execute(); err != nil {
+	_, _, err := commandtest.Execute(t, NewBootInstallCommand())
+	if err != nil {
 		t.Fatalf("boot-install: %v", err)
 	}
 	script := filepath.Join(tmpHome, ".termux", "boot", "gormes-gateway.sh")
@@ -33,10 +33,8 @@ func TestGatewayBootInstall_Uninstall_Termux(t *testing.T) {
 		t.Fatalf("script missing tmux command: %s", data)
 	}
 
-	out.Reset()
-	cmd = NewBootUninstallCommand()
-	cmd.SetOut(&out)
-	if err := cmd.Execute(); err != nil {
+	_, _, err = commandtest.Execute(t, NewBootUninstallCommand())
+	if err != nil {
 		t.Fatalf("boot-uninstall: %v", err)
 	}
 	if _, err := os.Stat(script); !os.IsNotExist(err) {
@@ -48,8 +46,7 @@ func TestGatewayBootInstall_RequiresTermux(t *testing.T) {
 	t.Setenv("TERMUX_VERSION", "")
 	t.Setenv("PREFIX", "")
 	t.Setenv("HOME", "/tmp")
-	cmd := NewBootInstallCommand()
-	if err := cmd.Execute(); err == nil {
+	if _, _, err := commandtest.Execute(t, NewBootInstallCommand()); err == nil {
 		t.Fatal("expected error on non-Termux host")
 	}
 }
@@ -59,13 +56,11 @@ func TestGatewayBootUninstall_Idempotent(t *testing.T) {
 	t.Setenv("HOME", tmpHome)
 	t.Setenv("TERMUX_VERSION", "0.119.0")
 
-	cmd := NewBootUninstallCommand()
-	var out strings.Builder
-	cmd.SetOut(&out)
-	if err := cmd.Execute(); err != nil {
+	out, _, err := commandtest.Execute(t, NewBootUninstallCommand())
+	if err != nil {
 		t.Fatalf("boot-uninstall on missing script: %v", err)
 	}
-	if !strings.Contains(out.String(), "does not exist") {
-		t.Fatalf("expected 'does not exist' message, got: %s", out.String())
+	if !strings.Contains(out, "does not exist") {
+		t.Fatalf("expected 'does not exist' message, got: %s", out)
 	}
 }

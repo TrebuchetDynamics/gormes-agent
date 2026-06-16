@@ -277,7 +277,7 @@ func validateTemplatePairRelPath(rel string) (string, error) {
 		return "", errors.New("path must use slash separators")
 	}
 	clean := filepath.ToSlash(filepath.Clean(filepath.FromSlash(rel)))
-	if clean == "." || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, "../") {
+	if unsafeRelativePath(clean, "/") || filepath.IsAbs(clean) {
 		return "", fmt.Errorf("unsafe relative path %q", rel)
 	}
 	return clean, nil

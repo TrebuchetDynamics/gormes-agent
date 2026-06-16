@@ -1,7 +1,6 @@
 package slashcompletion
 
 import (
-	"sort"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
@@ -19,39 +18,53 @@ type Completion struct {
 }
 
 func CommandCompletions(input string) []Completion {
-	if !strings.HasPrefix(input, "/") {
+	req, ok := parseCompletionRequest(input)
+	if !ok || !req.commandOnly() {
 		return nil
 	}
-	if strings.ContainsAny(input, " \t") {
+	return commandCompletionCandidates(req.commandPrefix)
+}
+
+type commandCompletionHit struct {
+	name      string
+	entry     cli.CommandPolicy
+	canonical bool
+}
+
+func commandCompletionCandidates(prefix completionPrefix) []Completion {
+	plan := planCommandCompletionCandidates(prefix, cli.CommandRegistry)
+	if plan.empty() {
 		return nil
 	}
-	prefix := strings.ToLower(strings.TrimPrefix(input, "/"))
-	type hit struct {
-		name  string
-		entry cli.CommandPolicy
-	}
-	seen := map[string]hit{}
-	for _, cmd := range cli.CommandRegistry {
-		if strings.HasPrefix(cmd.Name, prefix) {
-			seen[cmd.Name] = hit{name: cmd.Name, entry: cmd}
-		}
+	return renderCommandCompletionPlan(plan)
+}
+
+type commandCompletionPlan struct {
+	candidateEvidence
+	Hits        map[string]commandCompletionHit
+	SortedNames []string
+}
+
+func (p commandCompletionPlan) empty() bool {
+	return len(p.SortedNames) == 0
+}
+
+func planCommandCompletionCandidates(prefix completionPrefix, registry []cli.CommandPolicy) commandCompletionPlan {
+	plan := commandCompletionPlan{Hits: map[string]commandCompletionHit{}}
+	for _, cmd := range registry {
+		plan.recordCandidateResult(addCommandCompletionHit(plan.Hits, prefix, cmd.Name, cmd, true))
 		for _, alias := range cmd.Aliases {
-			if strings.HasPrefix(alias, prefix) {
-				seen[alias] = hit{name: alias, entry: cmd}
-			}
+			plan.recordCandidateResult(addCommandCompletionHit(plan.Hits, prefix, alias, cmd, false))
 		}
 	}
-	if len(seen) == 0 {
-		return nil
-	}
-	names := make([]string, 0, len(seen))
-	for n := range seen {
-		names = append(names, n)
-	}
-	sort.Strings(names)
-	out := make([]Completion, 0, len(names))
-	for _, name := range names {
-		h := seen[name]
+	plan.SortedNames = sortedCompletionKeys(plan.Hits)
+	return plan
+}
+
+func renderCommandCompletionPlan(plan commandCompletionPlan) []Completion {
+	out := make([]Completion, 0, len(plan.SortedNames))
+	for _, name := range plan.SortedNames {
+		h := plan.Hits[name]
 		out = append(out, Completion{
 			Name:        name,
 			Display:     "/" + name,
@@ -62,48 +75,95 @@ func CommandCompletions(input string) []Completion {
 	return out
 }
 
+type commandCompletionCandidateResult struct {
+	EmptyDropped bool
+	PrefixMissed bool
+	DuplicateKey string
+}
+
+func (p *commandCompletionPlan) recordCandidateResult(result commandCompletionCandidateResult) {
+	if result.EmptyDropped {
+		p.EmptyDropped++
+	}
+	if result.PrefixMissed {
+		p.PrefixMissed++
+	}
+	if result.DuplicateKey != "" {
+		p.DuplicateKeys = append(p.DuplicateKeys, result.DuplicateKey)
+	}
+}
+
+func addCommandCompletionHit(seen map[string]commandCompletionHit, prefix completionPrefix, rawName string, entry cli.CommandPolicy, canonical bool) commandCompletionCandidateResult {
+	identity := newCompletionIdentity(rawName)
+	if !identity.Valid() {
+		return commandCompletionCandidateResult{EmptyDropped: true}
+	}
+	if !prefix.Matches(identity.Name) {
+		return commandCompletionCandidateResult{PrefixMissed: true}
+	}
+	if existing, ok := seen[identity.Key]; ok {
+		if shouldReplaceCommandCompletionHit(existing, canonical) {
+			seen[identity.Key] = commandCompletionHit{name: identity.Key, entry: entry, canonical: canonical}
+		}
+		return commandCompletionCandidateResult{DuplicateKey: identity.Key}
+	}
+	seen[identity.Key] = commandCompletionHit{name: identity.Key, entry: entry, canonical: canonical}
+	return commandCompletionCandidateResult{}
+}
+
+func shouldReplaceCommandCompletionHit(existing commandCompletionHit, incomingCanonical bool) bool {
+	return !existing.canonical && incomingCanonical
+}
+
 func PromptTemplateCompletions(input string, catalog prompttemplates.Catalog) []Completion {
-	if !strings.HasPrefix(input, "/") || strings.ContainsAny(input, " \t") {
+	req, ok := parseCompletionRequest(input)
+	if !ok || !req.commandOnly() {
 		return nil
 	}
-	prefix := strings.ToLower(strings.TrimPrefix(input, "/"))
-	var out []Completion
+	plan := planPromptTemplateCompletions(req.commandPrefix, catalog)
+	if plan.empty() {
+		return nil
+	}
+	return plan.Completions
+}
+
+func planPromptTemplateCompletions(prefix completionPrefix, catalog prompttemplates.Catalog) slashCompletionCandidatePlan {
+	candidates := make([]slashCompletionCandidate, 0, len(catalog.Templates))
 	for _, tmpl := range catalog.Templates {
-		if !strings.HasPrefix(tmpl.Name, prefix) {
-			continue
-		}
-		out = append(out, Completion{
-			Name:         tmpl.Name,
-			Display:      "/" + tmpl.Name,
+		name := completionName(tmpl.Name)
+		candidates = append(candidates, slashCompletionCandidate{
+			Name:         name,
+			Display:      "/" + name,
 			Description:  tmpl.Description,
 			ArgumentHint: tmpl.ArgumentHint,
-			Available:    true,
 		})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out
+	return planSlashCompletionCandidates(prefix, candidates)
 }
 
 func SkillCompletions(input string, commands []skills.SkillSlashCommand) []Completion {
-	if !strings.HasPrefix(input, "/") || strings.ContainsAny(input, " \t") {
+	req, ok := parseCompletionRequest(input)
+	if !ok || !req.commandOnly() {
 		return nil
 	}
-	prefix := strings.ToLower(strings.TrimPrefix(input, "/"))
-	var out []Completion
+	plan := planSkillCompletions(req.commandPrefix, commands)
+	if plan.empty() {
+		return nil
+	}
+	return plan.Completions
+}
+
+func planSkillCompletions(prefix completionPrefix, commands []skills.SkillSlashCommand) slashCompletionCandidatePlan {
+	candidates := make([]slashCompletionCandidate, 0, len(commands))
 	for _, command := range commands {
-		name := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(command.Command)), "/")
-		if name == "" || !strings.HasPrefix(name, prefix) {
-			continue
-		}
-		out = append(out, Completion{
+		name := completionKey(command.Command)
+		candidates = append(candidates, slashCompletionCandidate{
 			Name:        name,
 			Display:     "/" + name,
 			Description: command.Description,
-			Available:   true,
 		})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out
+	return planSlashCompletionCandidates(prefix, candidates)
 }
 
 func WithPromptTemplates(input string, catalog prompttemplates.Catalog) []Completion {
@@ -116,208 +176,159 @@ func WithDynamic(input string, commands []skills.SkillSlashCommand, catalog prom
 		SkillCompletions(input, commands),
 		PromptTemplateCompletions(input, catalog),
 	}
-	count := 0
-	for _, group := range groups {
-		count += len(group)
-	}
-	if count == 0 {
-		return nil
-	}
-	seen := make(map[string]struct{}, count)
-	out := make([]Completion, 0, count)
-	for _, group := range groups {
-		for _, c := range group {
-			if _, ok := seen[c.Name]; ok {
-				continue
-			}
-			seen[c.Name] = struct{}{}
-			out = append(out, c)
-		}
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out
+	return uniqueSortedCompletions(flattenCompletionGroups(groups))
 }
 
 func SubcommandCompletions(input string) []Completion {
-	if !strings.HasPrefix(input, "/") {
+	flow, ok := resolveSubcommandFlow(input)
+	if !ok {
 		return nil
 	}
-	parts := strings.SplitN(input, " ", 2)
-	if len(parts) != 2 {
-		return nil
+	return matchingSubcommandCompletions(flow.Subcommands, flow.Prefix)
+}
+
+type subcommandCandidate struct {
+	name string
+	key  string
+}
+
+type subcommandCandidatePlan struct {
+	candidateEvidence
+	Candidates []subcommandCandidate
+}
+
+func (p subcommandCandidatePlan) empty() bool {
+	return len(p.Candidates) == 0
+}
+
+func planMatchingSubcommandCandidates(subcommands []string, prefix completionPrefix) subcommandCandidatePlan {
+	if len(subcommands) == 0 {
+		return subcommandCandidatePlan{}
 	}
-	policy, ok := cli.ResolveCommandPolicy(parts[0])
-	if !ok || len(policy.Subcommands) == 0 {
-		return nil
-	}
-	subText := parts[1]
-	if strings.ContainsAny(subText, " \t") {
-		return nil
-	}
-	prefix := strings.ToLower(subText)
-	out := make([]Completion, 0, len(policy.Subcommands))
-	for _, sub := range policy.Subcommands {
-		if !strings.HasPrefix(sub, prefix) {
+	seen := make(map[string]struct{}, len(subcommands))
+	plan := subcommandCandidatePlan{Candidates: make([]subcommandCandidate, 0, len(subcommands))}
+	for _, sub := range subcommands {
+		admission := admitCompletionCandidate(sub, prefix, seen)
+		if plan.recordRejectedAdmission(admission) {
 			continue
 		}
-		out = append(out, Completion{Name: sub, Display: sub, Available: true})
+		plan.Candidates = append(plan.Candidates, subcommandCandidate{name: admission.Identity.Name, key: admission.Identity.Key})
 	}
-	if len(out) == 0 {
+	if plan.empty() {
+		plan.Candidates = nil
+	}
+	return plan
+}
+
+func matchingSubcommandCandidates(subcommands []string, prefix completionPrefix) []subcommandCandidate {
+	plan := planMatchingSubcommandCandidates(subcommands, prefix)
+	if plan.empty() {
 		return nil
 	}
+	return plan.Candidates
+}
+
+func matchingSubcommandCompletions(subcommands []string, prefix completionPrefix) []Completion {
+	candidates := matchingSubcommandCandidates(subcommands, prefix)
+	if len(candidates) == 0 {
+		return nil
+	}
+	out := make([]Completion, 0, len(candidates))
+	for _, candidate := range candidates {
+		out = append(out, Completion{Name: candidate.name, Display: candidate.name, Available: true})
+	}
 	return out
-}
-
-func AcceptedText(input string, completion Completion, acceptExact bool) (string, bool) {
-	name := strings.TrimSpace(strings.TrimPrefix(completion.Name, "/"))
-	if name == "" {
-		return input, false
-	}
-	if base, ok := subcommandBase(input); ok {
-		next := base + " " + name
-		return next, next != input
-	}
-
-	next := "/" + name
-	exact := strings.TrimSpace(input) == next
-	if exact && !acceptExact {
-		return input, false
-	}
-	if shouldAppendSpace(completion) && (acceptExact || !exact) {
-		next += " "
-	}
-	return next, next != input
-}
-
-func subcommandBase(input string) (string, bool) {
-	parts := strings.SplitN(input, " ", 2)
-	if len(parts) != 2 {
-		return "", false
-	}
-	policy, ok := cli.ResolveCommandPolicy(parts[0])
-	if !ok || len(policy.Subcommands) == 0 {
-		return "", false
-	}
-	if strings.ContainsAny(parts[1], " \t") {
-		return "", false
-	}
-	return parts[0], true
-}
-
-func shouldAppendSpace(completion Completion) bool {
-	name := strings.TrimSpace(strings.TrimPrefix(completion.Name, "/"))
-	if name == "" {
-		return false
-	}
-	if _, ok := noTrailingSpaceCommands[name]; ok {
-		return false
-	}
-	if strings.TrimSpace(completion.ArgumentHint) != "" {
-		return true
-	}
-	policy, ok := cli.ResolveCommandPolicy(name)
-	if !ok {
-		return false
-	}
-	if _, ok := noTrailingSpaceCommands[policy.Name]; ok {
-		return false
-	}
-	if len(policy.Subcommands) > 0 {
-		return true
-	}
-	_, ok = argumentCommandNames[policy.Name]
-	return ok
-}
-
-var noTrailingSpaceCommands = map[string]struct{}{
-	"model":       {},
-	"personality": {},
-	"provider":    {},
-	"skin":        {},
-}
-
-var argumentCommandNames = map[string]struct{}{
-	"approve":    {},
-	"background": {},
-	"branch":     {},
-	"commands":   {},
-	"compress":   {},
-	"copy":       {},
-	"cron":       {},
-	"curator":    {},
-	"goal":       {},
-	"image":      {},
-	"insights":   {},
-	"new":        {},
-	"platform":   {},
-	"queue":      {},
-	"quit":       {},
-	"resume":     {},
-	"rollback":   {},
-	"sessions":   {},
-	"snapshot":   {},
-	"steer":      {},
-	"subgoal":    {},
-	"title":      {},
-	"topic":      {},
-	"tools":      {},
 }
 
 func AutoSuggest(input string) string {
 	if !strings.HasPrefix(input, "/") {
 		return ""
 	}
-	if !strings.ContainsAny(input, " \t") {
-		word := strings.ToLower(strings.TrimPrefix(input, "/"))
-		if word == "" {
-			return ""
-		}
-		seen := map[string]struct{}{}
-		for _, cmd := range cli.CommandRegistry {
-			if strings.HasPrefix(cmd.Name, word) {
-				seen[cmd.Name] = struct{}{}
-			}
-			for _, alias := range cmd.Aliases {
-				if strings.HasPrefix(alias, word) {
-					seen[alias] = struct{}{}
-				}
-			}
-		}
-		matches := make([]string, 0, len(seen))
-		for n := range seen {
-			matches = append(matches, n)
-		}
-		sort.Strings(matches)
-		var extending []string
-		for _, m := range matches {
-			if m != word {
-				extending = append(extending, m)
-			}
-		}
-		if len(extending) != 1 {
-			return ""
-		}
-		unique := extending[0]
-		return unique[len(word):]
+	if !containsCompletionWhitespace(input) {
+		return singleCommandSuffix(input)
 	}
+	return singleSubcommandSuffix(input)
+}
 
-	parts := strings.SplitN(input, " ", 2)
-	if len(parts) != 2 || strings.ContainsAny(parts[1], " \t") {
+func singleCommandSuffix(input string) string {
+	word := commandAutoSuggestWord(input)
+	plan := commandAutoSuggestPlanFor(word)
+	if !plan.shouldExtend() {
 		return ""
 	}
-	policy, ok := cli.ResolveCommandPolicy(parts[0])
-	if !ok || len(policy.Subcommands) == 0 {
-		return ""
+	unique := plan.Extending[0]
+	return unique[len(word):]
+}
+
+func commandAutoSuggestWord(input string) string {
+	return newCompletionPrefix(input).String()
+}
+
+type commandAutoSuggestPlan struct {
+	Word      string
+	Exact     bool
+	Extending []string
+}
+
+func (p commandAutoSuggestPlan) shouldExtend() bool {
+	return p.Word != "" && !p.Exact && len(p.Extending) == 1
+}
+
+func commandAutoSuggestPlanFor(word string) commandAutoSuggestPlan {
+	if word == "" {
+		return commandAutoSuggestPlan{}
 	}
-	prefix := strings.ToLower(parts[1])
-	var matches []string
-	for _, sub := range policy.Subcommands {
-		if strings.HasPrefix(sub, prefix) && sub != prefix {
-			matches = append(matches, sub)
+	seen := map[string]struct{}{}
+	for _, cmd := range cli.CommandRegistry {
+		addAutoSuggestMatch(seen, word, cmd.Name)
+		for _, alias := range cmd.Aliases {
+			addAutoSuggestMatch(seen, word, alias)
 		}
 	}
-	if len(matches) != 1 {
+	plan := commandAutoSuggestPlan{Word: word}
+	for _, match := range sortedCompletionKeys(seen) {
+		if match == word {
+			plan.Exact = true
+			continue
+		}
+		plan.Extending = append(plan.Extending, match)
+	}
+	return plan
+}
+
+func addAutoSuggestMatch(seen map[string]struct{}, word, rawName string) {
+	identity := newCompletionIdentity(rawName)
+	if strings.HasPrefix(identity.Key, word) {
+		seen[identity.Key] = struct{}{}
+	}
+}
+
+func singleSubcommandSuffix(input string) string {
+	flow, ok := resolveSubcommandFlow(input)
+	if !ok {
 		return ""
 	}
-	return matches[0][len(prefix):]
+	return singleSubcommandCandidateSuffix(flow.Prefix, matchingSubcommandCandidates(flow.Subcommands, flow.Prefix))
+}
+
+func singleSubcommandCandidateSuffix(prefix completionPrefix, matches []subcommandCandidate) string {
+	prefixText := prefix.String()
+	var suffixes []string
+	for _, match := range matches {
+		suffix, ok := subcommandCandidateSuffix(prefixText, match.key)
+		if ok {
+			suffixes = append(suffixes, suffix)
+		}
+	}
+	if len(suffixes) != 1 {
+		return ""
+	}
+	return suffixes[0]
+}
+
+func subcommandCandidateSuffix(prefixText, candidateKey string) (string, bool) {
+	if candidateKey == prefixText || !strings.HasPrefix(candidateKey, prefixText) {
+		return "", false
+	}
+	return candidateKey[len(prefixText):], true
 }

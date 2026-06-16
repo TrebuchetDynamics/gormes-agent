@@ -44,7 +44,7 @@ compatibility, and Go donors only shape implementation details.
 | P0 | Native prompt builder | `../hermes-agent/agent/prompt_builder.py` | `internal/agenttemplate`, prompt assembly packages |
 | P1 | Provider fallback chain | `mercury-agent/src/core/providers.ts`, `picoclaw/pkg/providers/` | `internal/provider` |
 | P1 | Browser harness doctor | `go-browser-harness` docs and tests | browser harness CLI and Gormes doctor evidence |
-| P1 | goscrapling browser/crawler gate planning | `../goscrapling/docs/content/building-goscrapling/strategy/portfolio-and-gormes-fit.md`, `../goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json` | Keep goscrapling behind `web_extract`/`web_crawl`; require browser fetcher and spider prerequisite fixtures before dynamic extraction or local crawling |
+| P1 | goscrapling browser/crawler gate planning | `../goscrapling/webpages/docs/content/building-goscrapling/strategy/portfolio-and-gormes-fit.md`, `../goscrapling/webpages/docs/content/building-goscrapling/architecture_plan/progress.json` | Keep goscrapling behind `web_extract`/`web_crawl`; require browser fetcher and spider prerequisite fixtures before dynamic extraction or local crawling |
 | P1 | Loop detection | Mercury loop-detection patterns | `internal/kernel`, `internal/agent` |
 | P2 | Structured memory types | Honcho models, Engram store references | `internal/goncho` |
 | P2 | Skill metadata placement | Space Agent skill metadata patterns, Hermes skills | `internal/skills` |

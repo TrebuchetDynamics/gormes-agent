@@ -21,7 +21,7 @@ import (
 // block — enough to force the full IO cycle without otherwise changing
 // any field on the targeted row.
 func TestApplyHealthUpdates_RoundTripPreservesCheckedInProgressJSON(t *testing.T) {
-	src := filepath.Join("..", "..", "..", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
+	src := filepath.Join("..", "..", "..", "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
 	original, err := os.ReadFile(src)
 	if err != nil {
 		t.Skipf("checked-in progress.json not found, skipping compat test: %v", err)
@@ -114,7 +114,7 @@ func TestApplyHealthUpdates_RoundTripPreservesCheckedInProgressJSON(t *testing.T
 // natural-numeric order). The first SaveProgress will canonicalize it;
 // every subsequent SaveProgress must produce identical bytes.
 func TestSaveProgress_IdempotentOnRealCheckedInFile(t *testing.T) {
-	src := filepath.Join("..", "..", "..", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
+	src := filepath.Join("..", "..", "..", "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
 	original, err := os.ReadFile(src)
 	if err != nil {
 		t.Skipf("checked-in progress.json not found, skipping idempotency test: %v", err)
@@ -183,7 +183,7 @@ func TestSaveProgress_IdempotentOnRealCheckedInFile(t *testing.T) {
 }
 
 func TestSaveProgress_IdempotentWithBothHealthAndVerdict(t *testing.T) {
-	src := filepath.Join("..", "..", "..", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
+	src := filepath.Join("..", "..", "..", "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
 	original, err := os.ReadFile(src)
 	if err != nil {
 		t.Skipf("checked-in progress.json not found, skipping: %v", err)

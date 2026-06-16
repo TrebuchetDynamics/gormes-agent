@@ -40,19 +40,15 @@ func TestLogsCommand_FileFallbackRoutesThroughCobraWriters(t *testing.T) {
 	t.Cleanup(func() { logsEndpointURL = prevURL })
 	logsEndpointURL = "http://127.0.0.1:1/dead-endpoint"
 
-	cmd := newLogsCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{})
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("logs: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	stdout, stderr, err := executeCobraCommandForTest(newLogsCommand(), cobraCommandExecutionOptions{})
+	if err != nil {
+		t.Fatalf("logs: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
-	if stdout.String() == "" {
+	if stdout == "" {
 		t.Fatalf("logs must write to cmd.OutOrStdout(); captured stdout is empty (output likely went to os.Stdout)")
 	}
-	if !strings.Contains(stdout.String(), "gateway started") {
-		t.Fatalf("logs stdout missing the seeded log body:\n%s", stdout.String())
+	if !strings.Contains(stdout, "gateway started") {
+		t.Fatalf("logs stdout missing the seeded log body:\n%s", stdout)
 	}
 }
 
@@ -105,13 +101,9 @@ func TestLogsCommand_JSONEmitsStructuredEntries(t *testing.T) {
 	t.Cleanup(func() { logsEndpointURL = prevURL })
 	logsEndpointURL = srv.URL + "/api/logs"
 
-	cmd := newLogsCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"--json"})
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("logs --json: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	stdout, stderr, err := executeCobraCommandForTest(newLogsCommand(), cobraCommandExecutionOptions{}, "--json")
+	if err != nil {
+		t.Fatalf("logs --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
 
 	var got struct {
@@ -125,8 +117,8 @@ func TestLogsCommand_JSONEmitsStructuredEntries(t *testing.T) {
 			Message string `json:"message"`
 		} `json:"entries"`
 	}
-	if jsonErr := json.Unmarshal(stdout.Bytes(), &got); jsonErr != nil {
-		t.Fatalf("logs --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout.String())
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("logs --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
 	}
 	if got.Build.Version != Version {
 		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)

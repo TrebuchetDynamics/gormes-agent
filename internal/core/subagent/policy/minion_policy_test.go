@@ -112,6 +112,28 @@ func TestMinionPolicyRejectsChildAgentShellDurableSubmit(t *testing.T) {
 	}
 }
 
+func TestMinionPolicyRejectsChildAgentLLMSubagentSubmit(t *testing.T) {
+	policy := DefaultMinionRoutingPolicy()
+
+	decision, err := policy.Route(MinionRoutingRequest{
+		Kind:          WorkKindLLMSubagent,
+		Trust:         TrustChildAgent,
+		JudgmentHeavy: true,
+	})
+	if !errors.Is(err, ErrDurableRouteDenied) {
+		t.Fatalf("Route error = %v, want ErrDurableRouteDenied", err)
+	}
+	if decision.Route != RouteDenied {
+		t.Errorf("Route = %q, want %q", decision.Route, RouteDenied)
+	}
+	if decision.Lane != LaneLLMSubagent {
+		t.Errorf("Lane = %q, want %q", decision.Lane, LaneLLMSubagent)
+	}
+	if decision.Allowed {
+		t.Error("Allowed = true, want false")
+	}
+}
+
 func TestMinionPolicyTrustMatrixDocumentsSubmitBoundary(t *testing.T) {
 	policy := DefaultMinionRoutingPolicy()
 

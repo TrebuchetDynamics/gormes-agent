@@ -54,10 +54,11 @@ type ProxySubmitter struct {
 	status  RuntimeStatusWriter
 	frames  chan kernel.RenderFrame
 
-	mu         sync.Mutex
-	history    []llm.Message
-	active     bool
-	generation uint64
+	mu               sync.Mutex
+	history          []llm.Message
+	active           bool
+	activeGeneration uint64
+	generation       uint64
 }
 
 // NewProxySubmitter constructs a proxy-mode submitter. The default client uses
@@ -82,7 +83,7 @@ func NewProxySubmitter(cfg ProxySubmitterConfig) (*ProxySubmitter, error) {
 		client:  client,
 		status:  cfg.RuntimeStatus,
 		frames:  make(chan kernel.RenderFrame, 16),
-		history: append([]llm.Message(nil), cfg.History...),
+		history: cloneProxyMessages(cfg.History),
 	}, nil
 }
 
@@ -106,7 +107,8 @@ func (p *ProxySubmitter) Submit(ev kernel.PlatformEvent) error {
 		p.active = true
 		p.generation++
 		generation := p.generation
-		history := append([]llm.Message(nil), p.history...)
+		p.activeGeneration = generation
+		history := cloneProxyMessages(p.history)
 		p.mu.Unlock()
 
 		go p.runTurn(context.Background(), generation, ev, history)
@@ -114,6 +116,8 @@ func (p *ProxySubmitter) Submit(ev kernel.PlatformEvent) error {
 	case kernel.PlatformEventCancel:
 		p.mu.Lock()
 		p.generation++
+		p.active = false
+		p.activeGeneration = 0
 		p.mu.Unlock()
 		return nil
 	default:
@@ -130,6 +134,8 @@ func (p *ProxySubmitter) ResetSession() error {
 	p.mu.Lock()
 	p.history = nil
 	p.generation++
+	p.active = false
+	p.activeGeneration = 0
 	p.mu.Unlock()
 	return nil
 }
@@ -213,17 +219,43 @@ func (p *ProxySubmitter) runTurn(ctx context.Context, generation uint64, ev kern
 	}
 	finalHistory := append(historyWithUser, llm.Message{Role: "assistant", Content: draft.String()})
 	p.mu.Lock()
-	p.history = append([]llm.Message(nil), finalHistory...)
+	p.history = cloneProxyMessages(finalHistory)
 	p.active = false
+	p.activeGeneration = 0
 	p.mu.Unlock()
 
 	p.writeProxyStatus(proxyStateRunning, "")
 	p.frames <- kernel.RenderFrame{
 		Phase:     kernel.PhaseIdle,
-		History:   finalHistory,
+		History:   cloneProxyMessages(finalHistory),
 		SessionID: sessionID,
 		Model:     p.model,
 	}
+}
+
+func cloneProxyMessages(messages []llm.Message) []llm.Message {
+	if len(messages) == 0 {
+		return nil
+	}
+	out := make([]llm.Message, len(messages))
+	for i, msg := range messages {
+		out[i] = msg
+		out[i].ContentParts = append([]llm.MessageContentPart(nil), msg.ContentParts...)
+		if msg.CacheControl != nil {
+			cache := *msg.CacheControl
+			out[i].CacheControl = &cache
+		}
+		if msg.Reasoning != nil {
+			reasoning := *msg.Reasoning
+			out[i].Reasoning = &reasoning
+		}
+		if msg.ReasoningContent != nil {
+			reasoningContent := *msg.ReasoningContent
+			out[i].ReasoningContent = &reasoningContent
+		}
+		out[i].ToolCalls = nil
+	}
+	return out
 }
 
 func safeProxyHistory(history []llm.Message) []llm.Message {
@@ -280,16 +312,19 @@ func hasSafeProxyContentParts(parts []llm.MessageContentPart) bool {
 func (p *ProxySubmitter) finishProxyError(generation uint64, sessionID string, history []llm.Message, err error) {
 	message := p.degradedErrorMessage(err)
 	p.mu.Lock()
-	if p.generation == generation {
-		p.history = append([]llm.Message(nil), history...)
+	if p.generation != generation {
+		p.mu.Unlock()
+		return
 	}
+	p.history = cloneProxyMessages(history)
 	p.active = false
+	p.activeGeneration = 0
 	p.mu.Unlock()
 
 	p.writeProxyStatus(proxyStateDegraded, message)
 	p.frames <- kernel.RenderFrame{
 		Phase:     kernel.PhaseFailed,
-		History:   history,
+		History:   cloneProxyMessages(history),
 		SessionID: sessionID,
 		Model:     p.model,
 		LastError: message,
@@ -302,22 +337,59 @@ func (p *ProxySubmitter) degradedErrorMessage(err error) string {
 		return "missing proxy credentials: remote API rejected the proxy request"
 	}
 	if classification.Status > 0 {
-		return fmt.Sprintf("proxy remote error (%d): %s", classification.Status, err.Error())
+		return fmt.Sprintf("proxy remote error (%d): %s", classification.Status, proxyErrorText(err))
 	}
-	return "proxy unreachable: " + err.Error()
+	return "proxy unreachable: " + proxyErrorText(err)
+}
+
+func proxyErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := strings.TrimSpace(err.Error())
+	if msg == "" {
+		return ""
+	}
+	lower := strings.ToLower(msg)
+	compact := compactProxySecretSeparators(lower)
+	for _, marker := range []string{"api_key", "apikey", "authorization", "bearer", "secret", "password", "token="} {
+		if strings.Contains(lower, marker) || strings.Contains(compact, marker) {
+			return "[redacted]"
+		}
+	}
+	replacer := strings.NewReplacer("`", "'", "*", "'", "#", "＃")
+	return strings.Join(strings.Fields(replacer.Replace(msg)), " ")
+}
+
+func compactProxySecretSeparators(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func (p *ProxySubmitter) finishStale(generation uint64, sessionID string) {
 	message := fmt.Sprintf("stale generation: ignored proxy response for generation %d", generation)
 	p.mu.Lock()
-	p.active = false
-	history := append([]llm.Message(nil), p.history...)
+	if p.activeGeneration != 0 && p.activeGeneration != generation {
+		p.mu.Unlock()
+		return
+	}
+	if p.activeGeneration == generation {
+		p.active = false
+		p.activeGeneration = 0
+	}
+	history := cloneProxyMessages(p.history)
 	p.mu.Unlock()
 
 	p.writeProxyStatus(proxyStateDegraded, message)
 	p.frames <- kernel.RenderFrame{
 		Phase:     kernel.PhaseFailed,
-		History:   history,
+		History:   cloneProxyMessages(history),
 		SessionID: sessionID,
 		Model:     p.model,
 		LastError: message,

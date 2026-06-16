@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"net"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway/commandtest"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -201,33 +201,15 @@ func gatewayProbeRuntimeSummaryForTest(t *testing.T, summary tools.GatewayRuntim
 
 func executeGatewayDiscoverCommand(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
-	var stdout, stderr bytes.Buffer
-	cmd := NewDiscoverCommand(testGatewayOptions())
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs(args)
-	err := cmd.Execute()
-	return stdout.String(), stderr.String(), err
+	return commandtest.Execute(t, NewDiscoverCommand(testGatewayOptions()), args...)
 }
 
 func executeGatewayProbeCommand(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
-	var stdout, stderr bytes.Buffer
-	cmd := NewProbeCommand(testGatewayOptions())
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs(args)
-	err := cmd.Execute()
-	return stdout.String(), stderr.String(), err
+	return commandtest.Execute(t, NewProbeCommand(testGatewayOptions()), args...)
 }
 
 func executeGatewayUsageCostCommand(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
-	var stdout, stderr bytes.Buffer
-	cmd := NewUsageCostCommand(testGatewayOptions())
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs(args)
-	err := cmd.Execute()
-	return stdout.String(), stderr.String(), err
+	return commandtest.Execute(t, NewUsageCostCommand(testGatewayOptions()), args...)
 }

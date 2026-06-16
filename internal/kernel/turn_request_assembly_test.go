@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel/testfixtures"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
@@ -18,16 +19,17 @@ func TestKernelTurnRequestAssemblyPreservesGuidancePrefillToolAndUsageOrder(t *t
 	registry.MustRegister(&tools.MockTool{NameStr: "session_search"})
 	registry.MustRegister(&tools.MockTool{NameStr: "web_search"})
 
-	recall := &mockRecall{returnContent: "<memory-context>remembered</memory-context>"}
-	skills := &stubSkillProvider{
-		block: "<skills>\n## gormes-tdd-slice\nUse TDD.\n</skills>",
-		names: []string{"gormes-tdd-slice"},
+	recall := &testfixtures.RecallProvider{ReturnContent: "<memory-context>remembered</memory-context>"}
+	skills := &testfixtures.SkillProvider{
+		Block: "<skills>\n## gormes-tdd-slice\nUse TDD.\n</skills>",
+		Names: []string{"gormes-tdd-slice"},
 	}
-	usage := &stubSkillUsageRecorder{}
+	usage := &testfixtures.SkillUsageRecorder{}
 
 	k := New(Config{
 		Model:          "gpt-5.5-codex",
 		Endpoint:       "http://mock",
+		SystemPrompt:   llm.DefaultAgentIdentity,
 		Tools:          registry,
 		Recall:         recall,
 		RecallDeadline: time.Second,
@@ -61,27 +63,29 @@ func TestKernelTurnRequestAssemblyPreservesGuidancePrefillToolAndUsageOrder(t *t
 	}
 
 	messages := request.Messages
-	wantRoles := []string{"system", "system", "system", "system", "system", "system", "system", "system", "user", "assistant", "user"}
+	wantRoles := []string{"system", "system", "system", "system", "system", "system", "system", "system", "system", "user", "assistant", "user"}
 	if gotRoles := messageRoles(messages); !reflect.DeepEqual(gotRoles, wantRoles) {
 		t.Fatalf("message roles = %#v, want %#v\nmessages=%#v", gotRoles, wantRoles, messages)
 	}
-	assertMessageContains(t, messages[0], "<session-context>active</session-context>")
-	assertMessageContains(t, messages[1], llm.SessionSearchGuidance)
-	assertMessageContains(t, messages[2], llm.ToolUseEnforcementGuidance)
-	assertMessageContains(t, messages[3], llm.OpenAIModelExecutionGuidance)
-	assertMessageContains(t, messages[4], llm.ResearchQualityGuidance)
-	assertMessageContains(t, messages[5], llm.MemoryGuidance)
-	assertMessageContains(t, messages[5], "<memory-context>remembered</memory-context>")
-	assertMessageContains(t, messages[6], llm.SkillsGuidance)
-	assertMessageContains(t, messages[7], "gormes-tdd-slice")
-	if messages[8].Content != "example request" || messages[9].Content != "example answer" || messages[10].Content != "ship the slice" {
-		t.Fatalf("tail messages = %#v, want prefill before current user", messages[8:])
+	assertMessageContains(t, messages[0], "You are Gorm")
+	assertMessageContains(t, messages[0], "run by gormes")
+	assertMessageContains(t, messages[1], "<session-context>active</session-context>")
+	assertMessageContains(t, messages[2], llm.SessionSearchGuidance)
+	assertMessageContains(t, messages[3], llm.ToolUseEnforcementGuidance)
+	assertMessageContains(t, messages[4], llm.OpenAIModelExecutionGuidance)
+	assertMessageContains(t, messages[5], llm.ResearchQualityGuidance)
+	assertMessageContains(t, messages[6], llm.MemoryGuidance)
+	assertMessageContains(t, messages[6], "<memory-context>remembered</memory-context>")
+	assertMessageContains(t, messages[7], llm.SkillsGuidance)
+	assertMessageContains(t, messages[8], "gormes-tdd-slice")
+	if messages[9].Content != "example request" || messages[10].Content != "example answer" || messages[11].Content != "ship the slice" {
+		t.Fatalf("tail messages = %#v, want prefill before current user", messages[9:])
 	}
-	if recall.lastInput.UserMessage != "ship the slice" || recall.lastInput.ChatKey != "telegram:42" || recall.lastInput.SessionID != "sess-request-assembly" {
-		t.Fatalf("recall input = %#v, want user/chat/session evidence", recall.lastInput)
+	if recall.LastInput.UserMessage != "ship the slice" || recall.LastInput.ChatKey != "telegram:42" || recall.LastInput.SessionID != "sess-request-assembly" {
+		t.Fatalf("recall input = %#v, want user/chat/session evidence", recall.LastInput)
 	}
-	if usage.calls != 1 || !reflect.DeepEqual(usage.got, [][]string{{"gormes-tdd-slice"}}) {
-		t.Fatalf("skill usage = calls %d got %#v, want one recorded selected skill", usage.calls, usage.got)
+	if usage.Calls != 1 || !reflect.DeepEqual(usage.Got, [][]string{{"gormes-tdd-slice"}}) {
+		t.Fatalf("skill usage = calls %d got %#v, want one recorded selected skill", usage.Calls, usage.Got)
 	}
 }
 

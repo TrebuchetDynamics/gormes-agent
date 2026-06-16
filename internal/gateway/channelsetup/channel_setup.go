@@ -91,6 +91,10 @@ func BuildChannelSetupPlan(cfg config.Config) ChannelSetupPlan {
 	return BuildChannelSetupPlanWithOptions(cfg, ChannelSetupPlanOptions{})
 }
 
+func ProfileSetupChannelIDs() []string {
+	return []string{"telegram", "whatsapp", "discord", "slack", "navivox"}
+}
+
 // BuildChannelSetupPlanWithOptions builds setup guidance from config plus
 // caller-supplied read-model evidence such as gateway pairing status.
 func BuildChannelSetupPlanWithOptions(cfg config.Config, opts ChannelSetupPlanOptions) ChannelSetupPlan {
@@ -181,8 +185,8 @@ func applyWhatsAppPairingSetupStatus(entry *ChannelSetupEntry, pairing PairingSt
 		}
 		entry.CurrentValues = append(entry.CurrentValues,
 			"whatsapp.pairing="+string(state),
-			"whatsapp.pairing_approved_users="+strconv.Itoa(platform.ApprovedCount),
-			"whatsapp.pairing_pending_codes="+strconv.Itoa(platform.PendingCount),
+			"whatsapp.pairing_approved_users="+strconv.Itoa(nonNegativeCount(platform.ApprovedCount)),
+			"whatsapp.pairing_pending_codes="+strconv.Itoa(nonNegativeCount(platform.PendingCount)),
 		)
 		if state == PairingPlatformStatePaired && entry.Status == ChannelSetupStatusConfigured {
 			entry.Status = ChannelSetupStatusPaired
@@ -197,6 +201,13 @@ func applyWhatsAppPairingSetupStatus(entry *ChannelSetupEntry, pairing PairingSt
 		break
 	}
 	applyWhatsAppPairingDegradedSetupStatus(entry, pairing.Degraded)
+}
+
+func nonNegativeCount(value int) int {
+	if value < 0 {
+		return 0
+	}
+	return value
 }
 
 func applyWhatsAppPairingDegradedSetupStatus(entry *ChannelSetupEntry, degraded []PairingDegradedEvidence) {

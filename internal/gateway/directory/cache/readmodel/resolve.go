@@ -19,7 +19,7 @@ func (d Directory) Resolve(platform, query string) (gatewaydelivery.Target, mode
 	}
 	for _, entry := range entries {
 		if entry.ID == raw {
-			return model.DeliveryTarget(platform, entry), model.Evidence{}
+			return resolvedEntryTarget(platform, raw, entry)
 		}
 	}
 	normalized := model.NormalizeQuery(raw)
@@ -38,13 +38,11 @@ func (d Directory) Resolve(platform, query string) (gatewaydelivery.Target, mode
 }
 
 func exactNameMatches(platform string, entries []model.Entry, normalized string) []model.Entry {
-	matches := make([]model.Entry, 0, 1)
-	for _, entry := range entries {
-		if model.NormalizeQuery(entry.Name) == normalized || model.NormalizeQuery(model.TargetDisplayName(platform, entry)) == normalized {
-			matches = append(matches, entry)
-		}
-	}
-	return matches
+	return collectMatches(entries, func(entry model.Entry) bool {
+		return model.NormalizeQuery(entry.Name) == normalized ||
+			model.NormalizeQuery(model.TargetDisplayName(platform, entry)) == normalized ||
+			model.NormalizeQuery(displayDirectoryText(model.TargetDisplayName(platform, entry))) == normalized
+	})
 }
 
 func guildQualifiedQueryParts(raw string) (guildPart, channelPart string, ok bool) {
@@ -58,19 +56,26 @@ func guildQualifiedQueryParts(raw string) (guildPart, channelPart string, ok boo
 }
 
 func guildQualifiedMatches(entries []model.Entry, guildPart, channelPart string) []model.Entry {
-	matches := make([]model.Entry, 0, 1)
-	for _, entry := range entries {
-		if model.NormalizeGuildQuery(model.EntryGuild(entry)) == guildPart && model.NormalizeQuery(entry.Name) == channelPart {
-			matches = append(matches, entry)
-		}
-	}
-	return matches
+	return collectMatches(entries, func(entry model.Entry) bool {
+		guildMatches := model.NormalizeGuildQuery(model.EntryGuild(entry)) == guildPart ||
+			model.NormalizeGuildQuery(displayDirectoryText(model.EntryGuild(entry))) == guildPart
+		channelMatches := model.NormalizeQuery(entry.Name) == channelPart ||
+			model.NormalizeQuery(displayDirectoryText(entry.Name)) == channelPart
+		return guildMatches && channelMatches
+	})
 }
 
 func prefixNameMatches(entries []model.Entry, normalized string) []model.Entry {
+	return collectMatches(entries, func(entry model.Entry) bool {
+		return strings.HasPrefix(model.NormalizeQuery(entry.Name), normalized) ||
+			strings.HasPrefix(model.NormalizeQuery(displayDirectoryText(entry.Name)), normalized)
+	})
+}
+
+func collectMatches(entries []model.Entry, keep func(model.Entry) bool) []model.Entry {
 	matches := make([]model.Entry, 0, 1)
 	for _, entry := range entries {
-		if strings.HasPrefix(model.NormalizeQuery(entry.Name), normalized) {
+		if keep(entry) {
 			matches = append(matches, entry)
 		}
 	}
@@ -78,14 +83,33 @@ func prefixNameMatches(entries []model.Entry, normalized string) []model.Entry {
 }
 
 func resolveDirectoryMatches(platform, raw string, matches []model.Entry) (gatewaydelivery.Target, model.Evidence, bool) {
-	switch len(matches) {
+	validTargets := make([]gatewaydelivery.Target, 0, len(matches))
+	for _, match := range matches {
+		target, evidence := resolvedEntryTarget(platform, raw, match)
+		if evidence.Code != "" {
+			continue
+		}
+		validTargets = append(validTargets, target)
+	}
+	switch len(validTargets) {
 	case 0:
-		return gatewaydelivery.Target{}, model.Evidence{}, false
+		if len(matches) == 0 {
+			return gatewaydelivery.Target{}, model.Evidence{}, false
+		}
+		return gatewaydelivery.Target{}, model.Evidence{Code: model.EvidenceChannelDirectoryMissing, Platform: platform, Query: raw}, true
 	case 1:
-		return model.DeliveryTarget(platform, matches[0]), model.Evidence{}, true
+		return validTargets[0], model.Evidence{}, true
 	default:
 		return gatewaydelivery.Target{}, model.Evidence{Code: model.EvidenceChannelTargetAmbiguous, Platform: platform, Query: raw}, true
 	}
+}
+
+func resolvedEntryTarget(platform, raw string, entry model.Entry) (gatewaydelivery.Target, model.Evidence) {
+	target := model.DeliveryTarget(platform, entry)
+	if target.ChatID == "" || !target.IsExplicit {
+		return gatewaydelivery.Target{}, model.Evidence{Code: model.EvidenceChannelDirectoryMissing, Platform: platform, Query: raw}
+	}
+	return target, model.Evidence{}
 }
 
 // ValidateDeliveryTarget returns channel_target_stale when an explicit target

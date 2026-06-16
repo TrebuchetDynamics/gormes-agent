@@ -109,6 +109,9 @@ func (r *Registry) Register(t Tool) error {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.tools == nil {
+		r.tools = make(map[string]Tool)
+	}
 	if _, exists := r.tools[name]; exists {
 		return fmt.Errorf("%w: %s", ErrDuplicate, name)
 	}

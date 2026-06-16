@@ -5,6 +5,78 @@ import (
 	"testing"
 )
 
+type recordingHubRegistryProvider struct {
+	called bool
+}
+
+func (p *recordingHubRegistryProvider) Snapshot(context.Context) ([]HubSearchResult, error) {
+	p.called = true
+	return []HubSearchResult{{Name: "alpha", Description: "alpha skill", InstallID: "skills/alpha", Score: 0.9}}, nil
+}
+
+type cancelingHubRegistryProvider struct {
+	cancel context.CancelFunc
+}
+
+func (p cancelingHubRegistryProvider) Snapshot(context.Context) ([]HubSearchResult, error) {
+	p.cancel()
+	return []HubSearchResult{{Name: "alpha", Description: "alpha skill", InstallID: "skills/alpha", Score: 0.9}}, nil
+}
+
+func TestHubSearchContextCanceledDuringProviderDoesNotReturnResults(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	provider := cancelingHubRegistryProvider{cancel: cancel}
+
+	resp, err := Search(ctx, "alpha", []HubRegistryProvider{provider}, HubSearchOptions{})
+	if err != context.Canceled {
+		t.Fatalf("Search err = %v response=%+v, want context.Canceled", err, resp)
+	}
+	if len(resp.Results) != 0 {
+		t.Fatalf("Search returned results after cancellation: %+v", resp.Results)
+	}
+}
+
+func TestPreferHermesIndexProviderCanceledContextDoesNotReadIndex(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	index := &recordingHubRegistryProvider{}
+	fallback := NewInMemoryRegistryProvider([]HubSearchResult{{Name: "fallback", InstallID: "skills/fallback"}}, nil)
+
+	providers, evidence := PreferHermesIndexProvider(ctx, index, []HubRegistryProvider{fallback})
+	if evidence != "" {
+		t.Fatalf("evidence = %q, want empty when cancellation leaves fallback routing unchanged", evidence)
+	}
+	if len(providers) != 1 || providers[0] != fallback {
+		t.Fatalf("providers = %#v, want fallback provider unchanged", providers)
+	}
+	if index.called {
+		t.Fatal("PreferHermesIndexProvider called index provider after context was canceled")
+	}
+}
+
+func TestHubSearchCanceledContextDoesNotReadProviders(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	provider := &recordingHubRegistryProvider{}
+
+	resp, err := Search(ctx, "alpha", []HubRegistryProvider{provider}, HubSearchOptions{})
+	if err != context.Canceled {
+		t.Fatalf("Search canceled err = %v response=%+v, want context.Canceled", err, resp)
+	}
+	if provider.called {
+		t.Fatal("Search called provider after context was canceled")
+	}
+
+	provider = &recordingHubRegistryProvider{}
+	browseResp, err := Browse(ctx, []HubRegistryProvider{provider}, HubBrowseOptions{})
+	if err != context.Canceled {
+		t.Fatalf("Browse canceled err = %v response=%+v, want context.Canceled", err, browseResp)
+	}
+	if provider.called {
+		t.Fatal("Browse called provider after context was canceled")
+	}
+}
+
 // TestHubSearchEmptyQueryReturnsEmptyEvidence asserts that an empty or
 // whitespace-only query short-circuits before touching providers and reports
 // HubSearchEvidenceEmptyQuery instead of forwarding any results.
@@ -144,6 +216,37 @@ func TestHubSearchBrowsePagesReadOnlySnapshots(t *testing.T) {
 	}
 	if resp.Evidence != "" {
 		t.Fatalf("Evidence = %q, want empty for successful browse", resp.Evidence)
+	}
+}
+
+func TestHubBrowseNoResultsClampsPageMetadata(t *testing.T) {
+	resp, err := Browse(context.Background(), nil, HubBrowseOptions{Page: 99, PageSize: 10})
+	if err != nil {
+		t.Fatalf("Browse returned unexpected error: %v", err)
+	}
+	if resp.Page != 1 || resp.TotalPages != 0 || resp.Total != 0 || resp.Evidence != HubSearchEvidenceNoResults {
+		t.Fatalf("page metadata = page %d total_pages %d total %d evidence %q, want page 1 total_pages 0 total 0 no_results", resp.Page, resp.TotalPages, resp.Total, resp.Evidence)
+	}
+	if len(resp.Results) != 0 {
+		t.Fatalf("Results = %+v, want empty", resp.Results)
+	}
+}
+
+func TestHubBrowseHugePageSizeDoesNotOverflowPageMetadata(t *testing.T) {
+	provider := NewInMemoryRegistryProvider([]HubSearchResult{
+		{Name: "alpha", Description: "alpha skill", InstallID: "skills/alpha", Score: 0.9},
+		{Name: "beta", Description: "beta skill", InstallID: "skills/beta", Score: 0.8},
+	}, nil)
+
+	resp, err := Browse(context.Background(), []HubRegistryProvider{provider}, HubBrowseOptions{Page: 1, PageSize: int(^uint(0) >> 1)})
+	if err != nil {
+		t.Fatalf("Browse returned unexpected error: %v", err)
+	}
+	if resp.Page != 1 || resp.TotalPages != 1 || resp.Total != 2 {
+		t.Fatalf("page metadata = page %d total_pages %d total %d, want page 1/1 total 2", resp.Page, resp.TotalPages, resp.Total)
+	}
+	if len(resp.Results) != 2 {
+		t.Fatalf("Results count = %d, want all results with huge page size", len(resp.Results))
 	}
 }
 

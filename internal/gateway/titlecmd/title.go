@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/commandline"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 const MaxSessionTitleRunes = 100
@@ -18,7 +19,14 @@ func ParseArg(text string) (string, bool) {
 	if arg, ok := commandline.PayloadIfCommand(body, "title"); ok {
 		return arg, arg != ""
 	}
+	if isSlashCommandLike(body) {
+		return "", false
+	}
 	return body, true
+}
+
+func isSlashCommandLike(body string) bool {
+	return strings.HasPrefix(body, "/") || strings.HasPrefix(body, "／")
 }
 
 func Sanitize(title string) (string, error) {
@@ -32,7 +40,7 @@ func Sanitize(title string) (string, error) {
 		}
 		b.WriteRune(r)
 	}
-	cleaned := strings.Join(strings.Fields(b.String()), " ")
+	cleaned := sanitizeTitleSecrets(b.String())
 	if cleaned == "" {
 		return "", nil
 	}
@@ -42,11 +50,35 @@ func Sanitize(title string) (string, error) {
 	return cleaned, nil
 }
 
+func sanitizeTitleSecrets(value string) string {
+	value = redaction.RedactSecrets(value)
+	fields := strings.Fields(value)
+	out := make([]string, 0, len(fields))
+	for i := 0; i < len(fields); i++ {
+		field := fields[i]
+		lower := strings.ToLower(field)
+		nextRedacted := i+1 < len(fields) && strings.Contains(strings.ToLower(fields[i+1]), "[redacted]")
+		if secretLikeTitleField(lower) && (strings.Contains(lower, "[redacted]") || nextRedacted) {
+			out = append(out, "[redacted]")
+			if nextRedacted {
+				i++
+			}
+			continue
+		}
+		out = append(out, field)
+	}
+	return strings.Join(out, " ")
+}
+
+func secretLikeTitleField(value string) bool {
+	return strings.Contains(value, "api_key") || strings.Contains(value, "api-key") || strings.Contains(value, "apikey") || strings.Contains(value, "authorization") || strings.Contains(value, "bearer") || strings.Contains(value, "token") || strings.Contains(value, "secret") || strings.Contains(value, "password")
+}
+
 func skipRune(r rune) bool {
 	if r < 0x20 && r != '\t' && r != '\n' && r != '\r' {
 		return true
 	}
-	if r == 0x7f {
+	if r == 0x7f || (r >= 0x80 && r <= 0x9f) {
 		return true
 	}
 	switch {

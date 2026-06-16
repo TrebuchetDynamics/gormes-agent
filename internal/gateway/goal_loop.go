@@ -72,7 +72,7 @@ func (m *Manager) handleGoalCommand(ctx context.Context, ch Channel, ev InboundE
 	}
 	goal, err := session.SetGoal(ctx, store, sessionID, args, m.goalMaxTurns(), m.now())
 	if err != nil {
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "goal_metadata_unavailable: "+err.Error())
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "goal_metadata_unavailable: "+goalCommandErrorText(err))
 		return
 	}
 
@@ -94,14 +94,14 @@ func (m *Manager) handleGoalCommand(ctx context.Context, ch Channel, ev InboundE
 		_, _ = session.ClearGoal(ctx, store, sessionID, m.now())
 		goal, err = session.SetGoal(ctx, store, state.SessionID, args, m.goalMaxTurns(), m.now())
 		if err != nil {
-			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "goal_metadata_unavailable: "+err.Error())
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "goal_metadata_unavailable: "+goalCommandErrorText(err))
 			return
 		}
 	}
 	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf(
 		"⊙ Goal set (%d-turn budget): %s\nI'll keep working until the goal is done, you pause/clear it, or the budget is exhausted.\nControls: /goal status · /goal pause · /goal resume · /goal clear",
 		goal.MaxTurns,
-		goal.Goal,
+		goalDisplayText(goal.Goal),
 	))
 }
 
@@ -117,6 +117,40 @@ func (m *Manager) sendGoalStatus(ctx context.Context, ch Channel, ev InboundEven
 }
 
 func formatGoalStatusLine(state *session.GoalState) string { return goalloop.FormatStatusLine(state) }
+
+func goalCommandErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	return goalDisplayText(err.Error())
+}
+
+func goalDisplayText(value string) string {
+	msg := strings.TrimSpace(value)
+	if msg == "" {
+		return ""
+	}
+	lower := strings.ToLower(msg)
+	compact := compactGoalSecretSeparators(lower)
+	for _, marker := range []string{"token", "api_key", "apikey", "authorization", "bearer", "secret", "password"} {
+		if strings.Contains(lower, marker) || strings.Contains(compact, marker) {
+			return "[redacted]"
+		}
+	}
+	replacer := strings.NewReplacer("`", "'", "*", "'", "#", "＃")
+	return strings.Join(strings.Fields(replacer.Replace(msg)), " ")
+}
+
+func compactGoalSecretSeparators(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
 
 func (m *Manager) pauseGoal(ctx context.Context, ch Channel, ev InboundEvent) {
 	sessionID, ok := m.goalSessionIDForInbound(ctx, ev)
@@ -134,7 +168,7 @@ func (m *Manager) pauseGoal(ctx context.Context, ch Channel, ev InboundEvent) {
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "No goal set.")
 		return
 	}
-	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "⏸ Goal paused: "+state.Goal)
+	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "⏸ Goal paused: "+goalDisplayText(state.Goal))
 }
 
 func (m *Manager) resumeGoal(ctx context.Context, ch Channel, ev InboundEvent) {
@@ -153,7 +187,7 @@ func (m *Manager) resumeGoal(ctx context.Context, ch Channel, ev InboundEvent) {
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "No goal to resume.")
 		return
 	}
-	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "▶ Goal resumed: "+state.Goal+"\nSend any message to continue, or wait — I'll take the next step on the next turn.")
+	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "▶ Goal resumed: "+goalDisplayText(state.Goal)+"\nSend any message to continue, or wait — I'll take the next step on the next turn.")
 }
 
 func (m *Manager) clearGoal(ctx context.Context, ch Channel, ev InboundEvent) {
@@ -291,7 +325,7 @@ func (m *Manager) handleGoalPostTurnContinuation(ctx context.Context, ch Channel
 			m.log.Warn("save done goal", "session_id", state.SessionID, "err", err)
 			return
 		}
-		_, _ = m.sendWithHooks(ctx, ch, state.ChatID, "✓ Goal achieved: "+verdict.Reason)
+		_, _ = m.sendWithHooks(ctx, ch, state.ChatID, "✓ Goal achieved: "+goalDisplayText(verdict.Reason))
 		return
 	}
 
@@ -310,7 +344,7 @@ func (m *Manager) handleGoalPostTurnContinuation(ctx context.Context, ch Channel
 		m.log.Warn("save continuing goal", "session_id", state.SessionID, "err", err)
 		return
 	}
-	_, _ = m.sendWithHooks(ctx, ch, state.ChatID, fmt.Sprintf("↻ Continuing toward goal (%d/%d): %s", goal.TurnsUsed, goal.MaxTurns, verdict.Reason))
+	_, _ = m.sendWithHooks(ctx, ch, state.ChatID, fmt.Sprintf("↻ Continuing toward goal (%d/%d): %s", goal.TurnsUsed, goal.MaxTurns, goalDisplayText(verdict.Reason)))
 	m.queueGoalContinuation(ctx, ch, state, session.ContinuationPrompt(goal.Goal, goal.Subgoals))
 }
 

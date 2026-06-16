@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel/testfixtures"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
@@ -128,7 +129,7 @@ func TestCompressorBudgetUpdatesAfterFallback(t *testing.T) {
 		{Kind: llm.EventToken, Token: "ok"},
 		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-fallback")
-	engine := &fakeContextEngine{}
+	engine := &testfixtures.ContextEngine{}
 
 	k := New(Config{
 		Model:         "primary-model",
@@ -154,10 +155,10 @@ func TestCompressorBudgetUpdatesAfterFallback(t *testing.T) {
 	}
 	_, _ = drainUntilIdle(t, k.Render(), initial.Seq, 2*time.Second)
 
-	if len(engine.modelUpdates) < 2 {
-		t.Fatalf("model updates = %#v, want initial primary and fallback updates", engine.modelUpdates)
+	if len(engine.ModelUpdates) < 2 {
+		t.Fatalf("model updates = %#v, want initial primary and fallback updates", engine.ModelUpdates)
 	}
-	got := engine.modelUpdates[len(engine.modelUpdates)-1]
+	got := engine.ModelUpdates[len(engine.ModelUpdates)-1]
 	if got.Provider != "openai-codex" || got.Model != "gpt-5.5" {
 		t.Fatalf("last context model update = %#v, want fallback provider/model", got)
 	}

@@ -15,15 +15,15 @@ replace the canonical backlog.
 
 ## Canonical backlog and proof files
 
-- Canonical backlog: `docs/content/building-gormes/architecture_plan/progress.json`.
+- Canonical backlog: `webpages/docs/content/building-gormes/architecture_plan/progress.json`.
 - CLI parity backlog home: Phase `5`, subphase `5.O`, `Hermes CLI Parity`.
 - Provider/auth runtime backlog home: Phase `4`, especially subphases `4.A`,
   `4.G`, and `4.H` for provider bindings, token vault/auth, and provider-error
   behavior.
 - Executable CLI parity manifest: `cmd/gormes/hermes_cli_parity.go`.
 - Executable CLI parity tests: `cmd/gormes/hermes_cli_parity_test.go`.
-- Auth command manifest: `docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md`.
-- Feature map rule: `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` says missing P0/P1 Hermes behavior must become or refine a `progress.json` row, not live as a side-channel TODO.
+- Auth command manifest: `webpages/docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md`.
+- Feature map rule: `webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` says missing P0/P1 Hermes behavior must become or refine a `progress.json` row, not live as a side-channel TODO.
 
 If this page disagrees with `progress.json`, fix `progress.json` first and then
 update or regenerate derived docs. This page is an operator-readable matrix; the

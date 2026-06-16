@@ -73,6 +73,20 @@ func (m *approvalBlockClient) blockOutputs() []approvalBlockCall {
 	return out
 }
 
+func TestSlackApprovalSectionTextSanitizesPromptBreakingMarkup(t *testing.T) {
+	section := slackApprovalSectionText("rm ```\n*approve everything*", "dangerous\n<!channel> `token`")
+	for _, forbidden := range []string{"```\n*approve", "<!channel>", "`token`", "dangerous\n"} {
+		if strings.Contains(section, forbidden) {
+			t.Fatalf("slack approval section leaked prompt-breaking markup %q in:\n%s", forbidden, section)
+		}
+	}
+	for _, want := range []string{"```rm ''' 'approve everything'```", "Reason: dangerous (!channel) 'token'"} {
+		if !strings.Contains(section, want) {
+			t.Fatalf("slack approval section missing sanitized fragment %q in:\n%s", want, section)
+		}
+	}
+}
+
 func TestSlackApprovalButtons_PostsBlockKitPrompt(t *testing.T) {
 	client := newApprovalBlockClient()
 	resolver := &adaptertest.ApprovalRecorder{}
@@ -217,6 +231,60 @@ func TestSlackApprovalButtons_UnavailableWhenSlackOrApprovalStorageMissing(t *te
 	}
 	if calls := resolver.Snapshot(); len(calls) != 0 {
 		t.Fatalf("resolver calls = %+v, want no command approval resolution on unavailable prompt", calls)
+	}
+}
+
+func TestSlackApprovalDecisionTextSanitizesActorMarkup(t *testing.T) {
+	got := slackApprovalDecisionText(gateway.ApprovalChoiceOnce, "ada\n<!channel> *admin* `token`")
+	for _, forbidden := range []string{"\n", "<!channel>", "*admin*", "`token`"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("slack approval decision leaked actor markup %q in %q", forbidden, got)
+		}
+	}
+	if got != "Approved once by ada (!channel) 'admin' 'token'" {
+		t.Fatalf("slack approval decision = %q, want sanitized actor", got)
+	}
+}
+
+func TestSlackApprovalCallbackCarriesGatewayTicketID(t *testing.T) {
+	client := newApprovalBlockClient()
+	resolver := &adaptertest.ApprovalRecorder{}
+	b := New(Config{
+		AllowedChannelID: "C123",
+		ApprovalResolver: resolver,
+	}, client, newIdleSlackKernel(), nil)
+	msgTS, err := b.SendExecApproval(context.Background(), ApprovalPrompt{
+		ChannelID:   "C123",
+		ThreadTS:    "1711111111.000300",
+		Command:     "rm -rf /tmp/project",
+		SessionKey:  "slack:C123:sess-ticket",
+		TicketID:    88,
+		Description: "dangerous command",
+	})
+	if err != nil {
+		t.Fatalf("SendExecApproval: %v", err)
+	}
+
+	b.handleEvent(context.Background(), Event{
+		RequestID: "callback-ticket-1",
+		ChannelID: "C123",
+		UserID:    "U42",
+		ApprovalAction: &ApprovalAction{
+			ActionID:   "hermes_approve_once",
+			SessionKey: "slack:C123:sess-ticket",
+			MessageTS:  msgTS,
+			ChannelID:  "C123",
+			UserID:     "U42",
+			UserName:   "ada",
+		},
+	})
+
+	resolved := resolver.Snapshot()
+	if len(resolved) != 1 {
+		t.Fatalf("resolver calls = %+v, want one", resolved)
+	}
+	if resolved[0].TicketID != 88 {
+		t.Fatalf("TicketID = %d, want 88", resolved[0].TicketID)
 	}
 }
 

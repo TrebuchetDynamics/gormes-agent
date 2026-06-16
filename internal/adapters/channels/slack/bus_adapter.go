@@ -1,23 +1,21 @@
 package slack
 
 import (
-	"errors"
-
-	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/busadapter"
+	slackbus "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/slack/bus"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
-var ErrEventBusUnavailable = errors.New("slack_event_bus_unavailable")
+var ErrEventBusUnavailable = slackbus.ErrEventBusUnavailable
 
 // BusAdapter mirrors Slack-normalized inbound events onto the shared gateway
 // event bus without changing the existing channel inbox path.
-type BusAdapter = busadapter.BusAdapter
+type BusAdapter = slackbus.BusAdapter
 
 // NewBusAdapter returns a BusAdapter that publishes events tagged with "slack".
 func NewBusAdapter(dispatcher *gateway.EventDispatcher) *BusAdapter {
-	return busadapter.New(dispatcher, "slack", slackBusTraceID, ErrEventBusUnavailable)
+	return slackbus.NewBusAdapter(dispatcher)
 }
 
 func slackBusTraceID(ev gateway.InboundEvent) string {
-	return busadapter.TraceIDFromAccountChatThreadMessage("slack", ev)
+	return slackbus.TraceID(ev)
 }

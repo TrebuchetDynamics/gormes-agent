@@ -256,19 +256,22 @@ func NewServerChecked(cfg Config) (*Server, error) {
 	return NewServer(cfg), nil
 }
 
-// ValidateStartupSecurity rejects placeholder API keys on wildcard or
-// network-accessible dashboard hosts. Loopback-only development remains
-// allowed so local dashboards can use deterministic fixture keys.
+// ValidateStartupSecurity rejects missing or placeholder API keys on wildcard
+// or network-accessible dashboard hosts. Loopback-only development remains
+// allowed so local dashboards can use deterministic fixture keys or no key.
 func ValidateStartupSecurity(cfg Config) error {
 	key := strings.TrimSpace(cfg.APIKey)
-	if key == "" || !weakAPIKeyPlaceholder(key) {
-		return nil
-	}
 	host := strings.TrimSpace(cfg.DashboardBoundHost)
 	if host == "" || isLoopbackHost(hostNameOnly(host)) {
 		return nil
 	}
-	return errors.New("api_server_weak_key: refusing network-exposed API server with weak development key")
+	if key == "" {
+		return errors.New("api_server_missing_key: refusing network-exposed API server without an API key")
+	}
+	if weakAPIKeyPlaceholder(key) {
+		return errors.New("api_server_weak_key: refusing network-exposed API server with weak development key")
+	}
+	return nil
 }
 
 func weakAPIKeyPlaceholder(value string) bool {

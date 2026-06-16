@@ -1,10 +1,10 @@
 package live
 
 import (
-	"bytes"
 	"strings"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway/commandtest"
 	"github.com/spf13/cobra"
 )
 
@@ -25,16 +25,15 @@ func TestGatewayCommandUsesInjectedRunAndSubcommands(t *testing.T) {
 		UsageCostCommand: stubGatewayChild("usage-cost"),
 	}, Options{})
 
-	var stdout bytes.Buffer
-	cmd.SetOut(&stdout)
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true
 
-	if err := cmd.Execute(); err != nil {
+	stdout, _, err := commandtest.Execute(t, cmd)
+	if err != nil {
 		t.Fatalf("gateway: %v", err)
 	}
-	if !ran || !strings.Contains(stdout.String(), "gateway-run") {
-		t.Fatalf("gateway run seam not called; ran=%v stdout=%q", ran, stdout.String())
+	if !ran || !strings.Contains(stdout, "gateway-run") {
+		t.Fatalf("gateway run seam not called; ran=%v stdout=%q", ran, stdout)
 	}
 	for _, want := range []string{"stop", "restart", "reload", "status", "fleet", "discover", "probe", "usage-cost", "start", "install", "uninstall", "run", "setup", "migrate-legacy", "list"} {
 		if _, _, err := cmd.Find([]string{want}); err != nil {

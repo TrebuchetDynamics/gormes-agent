@@ -113,14 +113,10 @@ func TestRenderStatusSummary_ReportsMigratedMemoryFlushedSeparatelyFromExpiryFin
 		},
 	})
 
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"session_expiry:",
 		"- finalized session=sess-legacy source=telegram chat=42 user=u-42 expiry_finalized=true migrated_memory_flushed=true",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("RenderStatusSummary missing %q\n%s", want, got)
-		}
-	}
+	)
 }
 
 type expiryMigrationSessionMap struct {

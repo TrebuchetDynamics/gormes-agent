@@ -23,11 +23,13 @@ type ApprovalPrompt struct {
 	ThreadID    string
 	Command     string
 	SessionKey  string
+	TicketID    uint64
 	Description string
 }
 
 type telegramApprovalState struct {
 	SessionKey string
+	TicketID   uint64
 	ChatID     int64
 	MessageID  int
 	ThreadID   string
@@ -77,6 +79,7 @@ func (b *Bot) SendExecApproval(ctx context.Context, prompt ApprovalPrompt) (stri
 	}
 	b.storeApprovalSessionKey(approvalID, telegramApprovalState{
 		SessionKey: sessionKey,
+		TicketID:   prompt.TicketID,
 		ChatID:     chatID,
 		MessageID:  msg.MessageID,
 		ThreadID:   strings.TrimSpace(prompt.ThreadID),
@@ -116,13 +119,14 @@ func (b *Bot) handleCallbackQuery(ctx context.Context, query *tgbotapi.CallbackQ
 		actorName = "User"
 	}
 	_ = b.answerCallback(query.ID, label)
-	_ = b.editApprovalMessage(query, label+" by "+actorName)
+	_ = b.editApprovalMessage(query, label+" by "+telegramApprovalActorText(actorName))
 
 	if b.cfg.ApprovalResolver == nil {
 		return true
 	}
 	if err := b.cfg.ApprovalResolver.ResolveGatewayApproval(ctx, gateway.ApprovalResolution{
 		SessionKey: state.SessionKey,
+		TicketID:   state.TicketID,
 		Choice:     choice,
 		Platform:   b.Name(),
 		ChatID:     strconv.FormatInt(state.ChatID, 10),
@@ -272,6 +276,15 @@ func (b *Bot) editApprovalMessage(query *tgbotapi.CallbackQuery, text string) er
 
 func telegramApprovalDecisionLabel(choice gateway.ApprovalChoice) string {
 	return telegramcallbacks.ApprovalDecisionLabel(choice)
+}
+
+func telegramApprovalActorText(actor string) string {
+	replacer := strings.NewReplacer(
+		"`", "'",
+		"*", "'",
+		"#", "＃",
+	)
+	return strings.Join(strings.Fields(replacer.Replace(actor)), " ")
 }
 
 func telegramCallbackActor(query *tgbotapi.CallbackQuery) (string, string) {

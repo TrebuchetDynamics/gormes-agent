@@ -57,7 +57,7 @@
         "internal/tools/browser_hybrid_routing.go",
         "internal/tools/browser_ssrf_guard.go",
         "internal/tools/result_budget.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestBrowserContract|TestBrowserResultEnvelope|TestBrowserTranscript' -count=1",
@@ -137,8 +137,8 @@
         "internal/tools/browser_harness_tools_test.go",
         "internal/tools/browser_use_harness_bridge.go",
         "internal/tools/browser_use_harness_bridge_test.go",
-        "docs/development-skills/gormes-browser-harness/SKILL.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "development-skills/gormes-browser-harness/SKILL.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "(cd ../go-browser-harness && go test ./... -count=1)",
@@ -264,7 +264,7 @@
         "internal/tools/browser_provider_bridge.go",
         "internal/tools/browser_provider_bridge_test.go",
         "internal/tools/browser_contract.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestBrowserProvider' -count=1",
@@ -357,7 +357,7 @@
       "write_scope": [
         "internal/tools/browser_camofox_bridge.go",
         "internal/tools/browser_camofox_bridge_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestCamofox' -count=1",
@@ -464,7 +464,7 @@
         "internal/tools/browser_use_harness_bridge_test.go",
         "internal/tools/browser_contract.go",
         "internal/tools/browser_hybrid_routing.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestBrowserUse|^TestBrowserHarness' -count=1",
@@ -560,7 +560,7 @@
         "internal/tools/browser_harness_tools_test.go",
         "cmd/gormes/registry.go",
         "cmd/gormes/registry_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestBrowserHarness' -count=1",
@@ -654,7 +654,7 @@
         "internal/tools/web_tools_test.go",
         "cmd/gormes/registry.go",
         "cmd/gormes/registry_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestWeb|TestResolveWeb' -count=1",
@@ -749,7 +749,7 @@
         "cmd/gormes/telegram.go",
         "cmd/gormes/gateway.go",
         "cmd/gormes/main.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestWeb|TestResolveWeb' -count=1",
@@ -851,7 +851,7 @@
         "cmd/gormes/registry.go",
         "cmd/gormes/registry_test.go",
         "cmd/gormes/web_content_processor.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestWeb|TestResolveWeb' -count=1",
@@ -947,7 +947,7 @@
         "go.mod",
         "go.sum",
         "go.mod::github.com/TrebuchetDynamics/goscrapling v0.1.0",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestGoscraplingDependencyUsesPublicV010Release -count=1",
@@ -1040,7 +1040,7 @@
         "internal/tools/web_tools.go",
         "internal/tools/web_tools_test.go",
         "cmd/gormes/registry_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestWeb|TestResolveWeb' -count=1",
@@ -1143,14 +1143,14 @@
         "cmd/gormes/registry_test.go",
         "cmd/gormes/doctor.go",
         "cmd/gormes/doctor_custom_provider_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestResolveWebBackend|TestWebLiveProviderSmoke|TestWeb|TestResolveWeb' -count=1",
         "go test ./cmd/gormes -run 'TestBuildDefaultRegistry|TestDoctorWebToolsStatusReportsManagedGateway' -count=1",
         "go test ./internal/tools ./cmd/gormes -count=1",
         "go test ./... -count=1",
-        "go test ./docs -count=1",
+        "go test ./webpages/docs -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1226,7 +1226,7 @@
         "internal/tools/web_tools.go",
         "internal/tools/web_tools_test.go",
         "internal/config/config.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestWebSearchToolCallsBraveBackend|TestWebSearchToolCallsDuckDuckGoBackend|TestBraveProvider_DegradedWhenNoKey|TestResolveWebBackendSupportsAdditionalSearchBackends' -count=1",
@@ -1292,7 +1292,7 @@
         "internal/tools/browser_artifact_test.go",
         "internal/gateway/render.go",
         "internal/gateway/render_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/gateway -run 'Browser.*Artifact|Browser.*Console|Render' -count=1",
@@ -1377,7 +1377,7 @@
       "write_scope": [
         "internal/tools/browser_harness_backend.go",
         "internal/tools/browser_use_harness_bridge_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestBrowserHarnessChromedpBackendConsoleExpression' -count=1",
@@ -1442,7 +1442,7 @@
         "internal/gateway/telegram_browser_render_test.go",
         "internal/channels/telegram/",
         "internal/tools/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/channels/telegram ./internal/tools -run 'Telegram.*Browser|Browser.*Artifact|Render' -count=1",
@@ -1511,7 +1511,7 @@
       "write_scope": [
         "internal/tools/browser_hybrid_routing.go",
         "internal/tools/browser_hybrid_routing_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^(TestRouteBrowserNavigation|TestIsPrivateBrowserHost)' -count=1",
@@ -1579,7 +1579,7 @@
         "internal/tools/browser_ssrf_guard.go",
         "internal/tools/browser_ssrf_guard_test.go",
         "internal/tools/browser_hybrid_routing.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestBrowserSSRFGuard_' -count=1",
@@ -1645,16 +1645,16 @@
         "Browser Use cloud + Go browser harness bridge"
       ],
       "acceptance": [
-        "Documentation row in docs/content/building-gormes/architecture_plan/hermes-gormes-parity-matrix.md cites this row as the lane G integration slot.",
+        "Documentation row in webpages/docs/content/building-gormes/architecture_plan/hermes-gormes-parity-matrix.md cites this row as the lane G integration slot.",
         "JSON contract version constant browserHarnessActionSchemaVersion stays pinned at gormes.browser.action.v1 until the future repo's first integration test ships.",
         "The umbrella stays inventory-only — no runtime code under cmd/, internal/runtime/, or internal/tools/browser_harness_tools.go changes as part of this row.",
         "Once the sibling repo materializes, this row's done_signal closes when an end-to-end test in this repo can exec the harness binary against gormes.browser.action.v1 and observe a PageSnapshot or ErrBrowserHarnessUnavailable."
       ],
       "note": "Placeholder umbrella reserved by the parity matrix audit (2026-04-29). The Gormes-side contract and degraded path are already complete; the missing piece is the Go binary that consumes the JSON action stream. Until that binary lands, browser_* tools degrade deterministically. Treating this as an umbrella avoids creating runtime work today but keeps lane G's integration plan visible in the dispatch surface.",
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/hermes-gormes-parity-matrix.md",
-        "docs/content/building-gormes/architecture_plan/parity-lane-coordinator-brief.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-gormes-parity-matrix.md",
+        "webpages/docs/content/building-gormes/architecture_plan/parity-lane-coordinator-brief.md",
         "www.gormes.ai/internal/site/data/progress.json"
       ],
       "test_commands": [
@@ -1725,7 +1725,7 @@
       "write_scope": [
         "internal/tools/browser_inactivity_cleanup.go",
         "internal/tools/browser_inactivity_cleanup_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestBrowserInactivityCleanup -count=1",
@@ -1965,8 +1965,8 @@
         "internal/tools/web_tools.go:executeCrawl",
         "internal/tools/web_tools_test.go:TestWebCrawlToolCallsFirecrawlAndNormalizesPages",
         "internal/tools/web_tools_test.go:TestWebCrawlToolCallsTavilyWithInstructions",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Browser and web research",
-        "docs/content/building-gormes/architecture_plan/progress.json/modules/browser.json:Goscrapling local crawler adapter gate for web_crawl"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Browser and web research",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/browser.json:Goscrapling local crawler adapter gate for web_crawl"
       ],
       "ready_when": [
         "The parent `Goscrapling local crawler adapter gate for web_crawl` remains blocked on robots/cache/checkpoint/session-adapter primitives; this row only adds explicit-selection degraded evidence and resolver spelling, not the crawler adapter.",
@@ -1992,7 +1992,7 @@
       "write_scope": [
         "internal/tools/web_tools.go",
         "internal/tools/web_tools_test.go",
-        "docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/browser.json"
       ],
       "test_commands": [

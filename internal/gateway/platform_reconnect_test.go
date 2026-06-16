@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -20,6 +21,64 @@ func (c platformLifecycleTestChannel) Run(ctx context.Context, _ chan<- InboundE
 
 func (c platformLifecycleTestChannel) Send(context.Context, string, string) (string, error) {
 	return c.name + "-msg", nil
+}
+
+func TestRuntimeStatusWriterFuncAllowsNilContext(t *testing.T) {
+	writer := RuntimeStatusWriterFunc(func(ctx context.Context, _ RuntimeStatusUpdate) error {
+		if ctx == nil {
+			panic("nil context")
+		}
+		return nil
+	})
+
+	if err := writer.UpdateRuntimeStatus(nil, RuntimeStatusUpdate{Platform: "telegram"}); err != nil {
+		t.Fatalf("UpdateRuntimeStatus error = %v, want nil", err)
+	}
+}
+
+func TestPlatformReconnectLifecycle_StartHonorsCanceledContextBeforeConnect(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	connectCalls := 0
+	statusCalls := 0
+
+	result := StartPlatformLifecycle(ctx, []PlatformStartupPlan{{
+		Platform: "telegram",
+		Connect: func(context.Context) (Channel, error) {
+			connectCalls++
+			return platformLifecycleTestChannel{name: "telegram"}, nil
+		},
+	}}, PlatformLifecycleOptions{StatusSink: RuntimeStatusWriterFunc(func(context.Context, RuntimeStatusUpdate) error {
+		statusCalls++
+		return nil
+	})})
+
+	if connectCalls != 0 || statusCalls != 0 {
+		t.Fatalf("canceled lifecycle connectCalls=%d statusCalls=%d, want no side effects", connectCalls, statusCalls)
+	}
+	if len(result.Connected) != 0 || len(result.Failed) != 0 {
+		t.Fatalf("canceled lifecycle result = %+v, want empty", result)
+	}
+}
+
+func TestPlatformReconnectLifecycle_StartAllowsNilContextWithTimeout(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("StartPlatformLifecycle panicked with nil context: %v", r)
+		}
+	}()
+
+	result := StartPlatformLifecycle(nil, []PlatformStartupPlan{{
+		Platform: "telegram",
+		Timeout:  time.Second,
+		Connect: func(context.Context) (Channel, error) {
+			return platformLifecycleTestChannel{name: "telegram"}, nil
+		},
+	}}, PlatformLifecycleOptions{})
+
+	if _, ok := result.Connected["telegram"]; !ok {
+		t.Fatalf("connected = %+v, want telegram connected with nil context", result.Connected)
+	}
 }
 
 func TestPlatformReconnectLifecycle_StartContinuesAfterTimeout(t *testing.T) {
@@ -135,6 +194,18 @@ func TestPlatformReconnectLifecycle_ReconnectSuccessClearsFailure(t *testing.T) 
 				t.Fatalf("connected = %+v, want telegram installed after reconnect", connected)
 			}
 		})
+	}
+}
+
+func TestPlatformLifecycleErrorSanitizerRedactsBearerAndCollapsesOperatorText(t *testing.T) {
+	got := sanitizePlatformLifecycleError(errors.New("connect failed\nAuthorization: Bearer sk-secret-token\n**Injected:** yes"))
+	for _, forbidden := range []string{"sk-secret-token", "Bearer sk", "\n", "**Injected:**"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("sanitizePlatformLifecycleError leaked %q in %q", forbidden, got)
+		}
+	}
+	if got != "[redacted]" {
+		t.Fatalf("sanitizePlatformLifecycleError = %q, want [redacted]", got)
 	}
 }
 

@@ -36,6 +36,24 @@ func TestWorkspaceGuard_AcceptsPathUnderAllowedRoot(t *testing.T) {
 	}
 }
 
+func TestWorkspaceGuard_AcceptsAllowedChildWithDotDotPrefix(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	sub := filepath.Join(root, "..project")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	g := newGuardOrSkip(t, []string{root})
+	got, err := g.Resolve(sub)
+	if err != nil {
+		t.Fatalf("Resolve returned error: %v", err)
+	}
+	want, _ := filepath.EvalSymlinks(sub)
+	if got != want {
+		t.Fatalf("Resolve = %q, want %q", got, want)
+	}
+}
+
 func TestWorkspaceGuard_RefusesEmpty(t *testing.T) {
 	t.Parallel()
 	g := newGuardOrSkip(t, []string{t.TempDir()})

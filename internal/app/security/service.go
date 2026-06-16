@@ -128,7 +128,11 @@ func cliSecurityAuditStateFiles() []toolspkg.SecurityAuditStateFile {
 			continue
 		}
 		seen[path] = struct{}{}
-		files = append(files, cliSecurityAuditStateFile(path))
+		file := cliSecurityAuditStateFile(path)
+		if !file.Exists {
+			continue
+		}
+		files = append(files, file)
 	}
 	return files
 }
@@ -348,32 +352,85 @@ func appendUniqueSecurityAuditSecrets(secrets []string, values ...string) []stri
 }
 
 func cliSecurityAuditFixCandidates() []toolspkg.SecurityAuditFixCandidate {
+	home := config.GormesHome()
+	baseHome := config.GormesBaseHome()
 	paths := []string{
 		config.ConfigPath(),
 		config.EnvPath(),
-		filepath.Join(config.GormesHome(), "secrets-runtime.json"),
+		config.LogPath(),
+		config.GatewayRuntimeStatusPath(),
+		filepath.Join(filepath.Dir(config.GatewayRuntimeStatusPath()), "gateway.pid"),
+		config.SessionDBPath(),
+		config.SessionIndexMirrorPath(),
+		config.MemoryDBPath(),
+		config.MemoryDBPath() + "-wal",
+		config.MemoryDBPath() + "-shm",
+		config.ToolAuditLogPath(),
+		filepath.Join(home, "active_profile"),
+		filepath.Join(home, "auth.json"),
+		filepath.Join(home, "channel_directory_sources.json"),
+		filepath.Join(home, "gateway.log"),
+		filepath.Join(home, "runtime", "gateway.log"),
+		filepath.Join(home, "runtime", "runtimegateway.log"),
+		filepath.Join(home, "secrets-runtime.json"),
+		filepath.Join(baseHome, "active_profile"),
+		filepath.Join(baseHome, "auth.json"),
+		filepath.Join(baseHome, "channel_directory_sources.json"),
+		filepath.Join(baseHome, "gateway.log"),
+		filepath.Join(baseHome, "runtime", "gateway.log"),
+		filepath.Join(baseHome, "runtime", "runtimegateway.log"),
+		filepath.Join(baseHome, "secrets-runtime.json"),
 	}
+	for _, pattern := range []string{
+		filepath.Join(baseHome, "profiles", "*", ".env"),
+		filepath.Join(baseHome, "profiles", "*", "config.toml"),
+		filepath.Join(baseHome, "profiles", "*", "channel_directory_sources.json"),
+		filepath.Join(baseHome, "profiles", "*", "memory.db"),
+		filepath.Join(baseHome, "profiles", "*", "memory.db-wal"),
+		filepath.Join(baseHome, "profiles", "*", "memory.db-shm"),
+		filepath.Join(baseHome, "profiles", "*", "sessions", "index.yaml"),
+		filepath.Join(baseHome, "profiles", "*", "runtime", "gateway.pid"),
+		filepath.Join(baseHome, "profiles", "*", "runtime", "gateway_state.json"),
+		filepath.Join(baseHome, "profiles", "*", "tools", "audit.jsonl"),
+	} {
+		matches, _ := filepath.Glob(pattern)
+		paths = append(paths, matches...)
+	}
+
 	var fixes []toolspkg.SecurityAuditFixCandidate
+	seen := map[string]struct{}{}
 	for _, path := range paths {
-		info, err := os.Stat(path)
-		if err != nil || info.IsDir() {
+		path = strings.TrimSpace(path)
+		if path == "" {
 			continue
 		}
-		mode := int(info.Mode().Perm())
-		if mode&0o077 == 0 {
+		if _, ok := seen[path]; ok {
 			continue
 		}
-		fixes = append(fixes, toolspkg.SecurityAuditFixCandidate{
-			Code:        toolspkg.SecurityAuditFixFilePermissions,
-			Category:    toolspkg.SecurityAuditCategoryStateIntegrity,
-			Path:        path,
-			CurrentMode: mode,
-			DesiredMode: 0o600,
-			Safe:        true,
-			Message:     "restrict file permissions to the operator account",
-		})
+		seen[path] = struct{}{}
+		fixes = appendSecurityAuditPermissionFix(fixes, path)
 	}
 	return fixes
+}
+
+func appendSecurityAuditPermissionFix(fixes []toolspkg.SecurityAuditFixCandidate, path string) []toolspkg.SecurityAuditFixCandidate {
+	info, err := os.Stat(path)
+	if err != nil || info.IsDir() {
+		return fixes
+	}
+	mode := int(info.Mode().Perm())
+	if mode&0o077 == 0 {
+		return fixes
+	}
+	return append(fixes, toolspkg.SecurityAuditFixCandidate{
+		Code:        toolspkg.SecurityAuditFixFilePermissions,
+		Category:    toolspkg.SecurityAuditCategoryStateIntegrity,
+		Path:        path,
+		CurrentMode: mode,
+		DesiredMode: 0o600,
+		Safe:        true,
+		Message:     "restrict file permissions to the operator account",
+	})
 }
 
 func cliSecurityAuditFixApplier(candidate toolspkg.SecurityAuditFixCandidate) error {

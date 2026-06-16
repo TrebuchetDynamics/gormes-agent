@@ -183,7 +183,7 @@ func TestHomeAssistantSafetyRejectsTraversalAndBlockedDomains(t *testing.T) {
 		{name: "blocked shell command", args: `{"domain":"shell_command","service":"turn_on"}`, want: "blocked for security"},
 		{name: "blocked addon", args: `{"domain":"addon","service":"restart"}`, want: "blocked for security"},
 		{name: "invalid entity", args: `{"domain":"light","service":"turn_on","entity_id":"../../../etc/passwd"}`, want: "Invalid entity_id"},
-		{name: "invalid data", args: `{"domain":"light","service":"turn_on","entity_id":"light.bedroom","data":"{not valid json}"}`, want: "Invalid JSON"},
+		{name: "invalid data", args: `{"domain":"light","service":"turn_on","entity_id":"light.bedroom","data":"{not valid json}"}`, want: "invalid JSON"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			raw, err := tool.Execute(context.Background(), json.RawMessage(tc.args))

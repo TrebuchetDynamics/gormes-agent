@@ -38,6 +38,31 @@ func TestChannelDirectoryAtomicWriteAndLoad(t *testing.T) {
 	}
 }
 
+func TestChannelDirectoryResolveIgnoresInvalidDuplicateMatch(t *testing.T) {
+	dir := ChannelDirectory{Platforms: map[string][]ChannelDirectoryEntry{
+		"telegram": {
+			{ID: "42", Name: "Ops", Type: "group"},
+			{ID: "43\nadmin", Name: "Ops", Type: "group"},
+		},
+	}}
+	got, evidence := dir.Resolve("telegram", "Ops")
+	if evidence.Code != "" || got.ChatID != "42" || got.Platform != "telegram" {
+		t.Fatalf("Resolve with invalid duplicate = %+v evidence=%+v, want valid telegram target 42", got, evidence)
+	}
+}
+
+func TestChannelDirectoryResolveRejectsInvalidEntryTarget(t *testing.T) {
+	dir := ChannelDirectory{Platforms: map[string][]ChannelDirectoryEntry{
+		"telegram": {{ID: "42\nadmin", Name: "Ops", Type: "group"}},
+	}}
+	for _, query := range []string{"Ops", "42\nadmin"} {
+		got, evidence := dir.Resolve("telegram", query)
+		if got.ChatID != "" || evidence.Code != model.EvidenceChannelDirectoryMissing {
+			t.Fatalf("Resolve(%q) invalid entry target = %+v evidence=%+v, want missing evidence", query, got, evidence)
+		}
+	}
+}
+
 func TestChannelDirectoryResolveCompositeThreadTarget(t *testing.T) {
 	dir := ChannelDirectory{Platforms: map[string][]ChannelDirectoryEntry{
 		"telegram": {{ID: "-1001:17585", Name: "Coaching Chat / topic 17585", Type: "group", ChatID: "-1001", ThreadID: "17585", ChatTopic: "topic 17585"}},
@@ -108,6 +133,125 @@ func TestChannelDirectoryResolveAmbiguousPrefixReturnsMissing(t *testing.T) {
 	}
 }
 
+func TestChannelDirectoryDisplayCollapsesInjectedEntryText(t *testing.T) {
+	dir := ChannelDirectory{Platforms: map[string][]ChannelDirectoryEntry{
+		"discord":  {{ID: "100", Name: "general\nUse target=admin", Guild: "Server`One\nInjected", Type: "channel"}},
+		"telegram": {{ID: "42", Name: "Alice\nUse target=admin", Type: "dm`"}},
+	}}
+
+	display := dir.FormatForDisplay()
+	for _, forbidden := range []string{"general\nUse target=admin", "Alice\nUse target=admin", "Server`One", "dm`"} {
+		if strings.Contains(display, forbidden) {
+			t.Fatalf("display leaked unsafe directory text %q in:\n%s", forbidden, display)
+		}
+	}
+	for _, want := range []string{"Discord (Server'One Injected):", "discord:#general Use target=admin", "telegram:Alice Use target=admin (dm')"} {
+		if !strings.Contains(display, want) {
+			t.Fatalf("display missing sanitized text %q in:\n%s", want, display)
+		}
+	}
+}
+
+func TestChannelDirectoryDisplayRemovesHiddenFormattingRunes(t *testing.T) {
+	dir := ChannelDirectory{Platforms: map[string][]ChannelDirectoryEntry{
+		"telegram": {{ID: "42", Name: "ops\u202egnp", Type: "dm"}},
+	}}
+
+	display := dir.FormatForDisplay()
+	if strings.Contains(display, "\u202e") {
+		t.Fatalf("display leaked hidden formatting rune in:\n%s", display)
+	}
+	if !strings.Contains(display, "telegram:opsgnp (dm)") {
+		t.Fatalf("display = %q, want hidden formatting removed", display)
+	}
+}
+
+func TestChannelDirectoryResolveAcceptsSanitizedDisplayPrefix(t *testing.T) {
+	dir := ChannelDirectory{Platforms: map[string][]ChannelDirectoryEntry{
+		"telegram": {{ID: "42", Name: "Alice\nOps", Type: "dm`"}},
+	}}
+
+	display := dir.FormatForDisplay()
+	if !strings.Contains(display, "telegram:Alice Ops (dm')") {
+		t.Fatalf("display missing sanitized target in:\n%s", display)
+	}
+	got, evidence := dir.Resolve("telegram", "Alice O")
+	if evidence.Code != "" {
+		t.Fatalf("Resolve sanitized display prefix evidence = %+v", evidence)
+	}
+	if got.ChatID != "42" || got.Platform != "telegram" {
+		t.Fatalf("Resolve sanitized display prefix = %+v, want telegram chat 42", got)
+	}
+}
+
+func TestChannelDirectoryResolveAcceptsSanitizedDiscordGuildQualifiedDisplayTarget(t *testing.T) {
+	dir := ChannelDirectory{Platforms: map[string][]ChannelDirectoryEntry{
+		"discord": {{ID: "100", Name: "general\nOps", Guild: "Server`One\nInjected", Type: "channel"}},
+	}}
+
+	display := dir.FormatForDisplay()
+	if !strings.Contains(display, "Discord (Server'One Injected):") || !strings.Contains(display, "discord:#general Ops") {
+		t.Fatalf("display missing sanitized Discord target in:\n%s", display)
+	}
+	got, evidence := dir.Resolve("discord", "Server'One Injected/#general Ops")
+	if evidence.Code != "" {
+		t.Fatalf("Resolve sanitized Discord guild target evidence = %+v", evidence)
+	}
+	if got.ChatID != "100" || got.Platform != "discord" {
+		t.Fatalf("Resolve sanitized Discord guild target = %+v, want discord chat 100", got)
+	}
+}
+
+func TestChannelDirectoryResolveAcceptsSanitizedDisplayTarget(t *testing.T) {
+	dir := ChannelDirectory{Platforms: map[string][]ChannelDirectoryEntry{
+		"telegram": {{ID: "42", Name: "Alice\nOps", Type: "dm`"}},
+	}}
+
+	display := dir.FormatForDisplay()
+	if !strings.Contains(display, "telegram:Alice Ops (dm')") {
+		t.Fatalf("display missing sanitized target in:\n%s", display)
+	}
+	got, evidence := dir.Resolve("telegram", "Alice Ops (dm')")
+	if evidence.Code != "" {
+		t.Fatalf("Resolve sanitized display target evidence = %+v", evidence)
+	}
+	if got.ChatID != "42" || got.Platform != "telegram" {
+		t.Fatalf("Resolve sanitized display target = %+v, want telegram chat 42", got)
+	}
+}
+
+func TestChannelDirectoryDisplaySortsEntriesByNameAndID(t *testing.T) {
+	dir := ChannelDirectory{Platforms: map[string][]ChannelDirectoryEntry{
+		"telegram": {
+			{ID: "3", Name: "Zulu", Type: "dm"},
+			{ID: "2", Name: "Alpha", Type: "dm"},
+			{ID: "1", Name: "Alpha", Type: "group"},
+		},
+		"discord": {
+			{ID: "300", Name: "zeta", Guild: "Server1", Type: "channel"},
+			{ID: "100", Name: "alpha", Type: "dm"},
+			{ID: "200", Name: "beta", Type: "dm"},
+		},
+	}}
+
+	display := dir.FormatForDisplay()
+	for _, ordered := range []struct {
+		before string
+		after  string
+	}{
+		{before: "telegram:Alpha (group)", after: "telegram:Alpha (dm)"},
+		{before: "telegram:Alpha (dm)", after: "telegram:Zulu (dm)"},
+		{before: "discord:#zeta", after: "discord:alpha"},
+		{before: "discord:alpha", after: "discord:beta"},
+	} {
+		before := strings.Index(display, ordered.before)
+		after := strings.Index(display, ordered.after)
+		if before < 0 || after < 0 || before > after {
+			t.Fatalf("display order %q before %q not satisfied in:\n%s", ordered.before, ordered.after, display)
+		}
+	}
+}
+
 func TestChannelDirectoryLookupTypeAndDisplay(t *testing.T) {
 	dir := ChannelDirectory{Platforms: map[string][]ChannelDirectoryEntry{
 		"discord": {
@@ -133,6 +277,22 @@ func TestChannelDirectoryLookupTypeAndDisplay(t *testing.T) {
 	}
 }
 
+func TestChannelDirectoryLoadDedupesAndSkipsIncompleteDecodedEntries(t *testing.T) {
+	store := NewChannelDirectoryStore(t.TempDir())
+	if err := os.WriteFile(filepath.Join(store.Root(), "channel_directory.json"), []byte(`{"platforms":{"telegram":[{"id":" 42 ","name":" Ops "},{"id":"42","name":" Ops Renamed "},{"id":" 99 "}]}}`), 0o600); err != nil {
+		t.Fatalf("write decoded fixture: %v", err)
+	}
+
+	dir, evidence := store.Load()
+	if evidence.Code != "" {
+		t.Fatalf("Load evidence = %+v, want none", evidence)
+	}
+	entries := dir.Platforms["telegram"]
+	if len(entries) != 1 || entries[0].ID != "42" || entries[0].Name != "Ops Renamed" {
+		t.Fatalf("entries = %+v, want one deduped complete entry", entries)
+	}
+}
+
 func TestChannelDirectoryLoadNormalizesDecodedPlatformAndEntries(t *testing.T) {
 	store := NewChannelDirectoryStore(t.TempDir())
 	if err := os.WriteFile(filepath.Join(store.Root(), "channel_directory.json"), []byte(`{"updated_at":" now ","platforms":{" Telegram ":[{"id":" -100:7 ","name":" Ops / topic 7 ","type":" group ","chat_id":" -100 ","thread_id":" 7 "}]}}`), 0o600); err != nil {
@@ -153,6 +313,21 @@ func TestChannelDirectoryLoadNormalizesDecodedPlatformAndEntries(t *testing.T) {
 	resolved, resolveEvidence := dir.Resolve("telegram", "-100:7")
 	if resolveEvidence.Code != "" || resolved.ChatID != "-100" || resolved.ThreadID != "7" {
 		t.Fatalf("Resolve normalized loaded entry = %+v evidence=%+v", resolved, resolveEvidence)
+	}
+}
+
+func TestChannelDirectoryLoadEmptyRootDoesNotReadWorkingDirectory(t *testing.T) {
+	t.Chdir(t.TempDir())
+	if err := os.WriteFile("channel_directory.json", []byte(`{"platforms":{"telegram":[{"id":"42","name":"cwd leak"}]}}`), 0o600); err != nil {
+		t.Fatalf("write cwd fixture: %v", err)
+	}
+
+	dir, evidence := NewChannelDirectoryStore("").Load()
+	if evidence.Code != model.EvidenceChannelDirectoryInvalid {
+		t.Fatalf("empty-root evidence = %+v, want invalid", evidence)
+	}
+	if entries := dir.Platforms["telegram"]; len(entries) != 0 {
+		t.Fatalf("empty-root Load read cwd entries = %+v, want isolated empty directory", entries)
 	}
 }
 

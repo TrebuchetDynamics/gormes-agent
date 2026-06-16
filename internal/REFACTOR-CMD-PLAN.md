@@ -16,7 +16,7 @@ worktrees.
 ## Backlog Rule
 
 This file is **not** the executable backlog. The executable backlog remains
-`docs/content/building-gormes/architecture_plan/progress.json`, accessed through
+`webpages/docs/content/building-gormes/architecture_plan/progress.json`, accessed through
 `internal/progress.Load` / `SaveProgress` or `cmd/progress`. Before implementing
 any slice below, add or refine one progress row with the slice's exact write
 scope, source refs, acceptance, and test commands. Do not keep adding unchecked
@@ -106,7 +106,7 @@ Current Gormes topology facts:
   not top-level product modules.
 - `cmd/progress` is a thin entrypoint over `internal/progressctl`, and
   `internal/progressctl` imports `internal/builderloop` plus
-  `internal/progress`. `cmd/repoctl` is similarly a thin entrypoint over
+  `internal/progress`. `cmd/gormes-repo` is similarly a thin entrypoint over
   `internal/repoctl`.
 
 Hermes reference facts from the in-repo checkout `./hermes-agent`:
@@ -670,7 +670,7 @@ Files/packages:
 - `internal/repoctl`
 - `internal/fidelity`
 - `internal/cmdrunner` moved separately to `internal/runtime/cmdrunner`
-- entrypoints in `cmd/progress` and `cmd/repoctl`
+- entrypoints in `cmd/progress` and `cmd/gormes-repo`
 
 Current interface burden:
 
@@ -700,7 +700,7 @@ Deletion test:
 
 Two-adapter test:
 
-- `cmd/progress` and `cmd/repoctl` are separate adapters over related
+- `cmd/progress` and `cmd/gormes-repo` are separate adapters over related
   progress/repo evidence mechanics.
 - `plannerloop` and `builderloop` both use trigger/runner mechanics.
 
@@ -719,7 +719,7 @@ First safe TDD slices:
 Focused validation:
 
 ```sh
-go test ./cmd/progress ./cmd/repoctl ./internal/progress/... ./internal/runtime/... -count=1
+go test ./cmd/progress ./cmd/gormes-repo ./internal/progress/... ./internal/runtime/... -count=1
 go test ./internal/protocols/acp ./cmd/gormes -run 'ACP|Progress|Repo|Fidelity' -count=1
 go run ./cmd/progress validate
 git diff --check
@@ -1009,7 +1009,7 @@ write_scope:
   - internal/progress
   - internal/runtime
   - cmd/progress
-  - cmd/repoctl
+  - cmd/gormes-repo
   - internal/protocols/acp
 source_refs:
   - cmd/progress/main.go
@@ -1017,10 +1017,10 @@ source_refs:
   - internal/progress
   - internal/builderloop
   - internal/plannerloop
-  - cmd/repoctl/main.go
+  - cmd/gormes-repo/main.go
   - internal/repoctl
 test_commands:
-  - go test ./cmd/progress ./cmd/repoctl ./internal/progress/... ./internal/runtime/... -count=1
+  - go test ./cmd/progress ./cmd/gormes-repo ./internal/progress/... ./internal/runtime/... -count=1
   - go test ./internal/protocols/acp ./cmd/gormes -run 'ACP|Progress|Repo|Fidelity' -count=1
   - go run ./cmd/progress validate
   - git diff --check
@@ -1033,7 +1033,7 @@ test_commands:
 | CLI path rehome | command manifest/topology test fails on `internal/app` or old imports | `go test ./cmd/gormes ./internal/cli/... -run 'CLIContract|Root|Setup|Profile|Provider|Gateway|Channels|Session|Navivox|CommandRegistry' -count=1` |
 | Tool helper move | descriptor/execution/render test fails when old helper path or behavior drifts | `go test ./internal/tools ./cmd/gormes -run 'Compact|Terminal|ExecuteCode|Registry|SessionSearch|Kanban|Goncho' -count=1` |
 | Channel adapter move | platform manifest/transcript fixture fails on old channel surface | `go test ./internal/channels/<platform> ./internal/gateway ./cmd/gormes -run '<Platform>|Gateway|Doctor' -count=1` |
-| Progress delivery move | progress command fixture fails on old import path or doc behavior | `go test ./cmd/progress ./cmd/repoctl ./internal/progress/... ./internal/runtime/... -count=1` |
+| Progress delivery move | progress command fixture fails on old import path or doc behavior | `go test ./cmd/progress ./cmd/gormes-repo ./internal/progress/... ./internal/runtime/... -count=1` |
 | Runtime process move | public caller test proves timeout/stdout/stderr semantics before move | `go test ./internal/runtime/... ./internal/protocols/acp -run 'Command|Runner|Timeout|ACP' -count=1` |
 | Any progress row edit | `go run ./cmd/progress validate` before edit | `go run ./cmd/progress write && go run ./cmd/progress validate` |
 | Any slice | `git diff --check` | `git diff --check` |

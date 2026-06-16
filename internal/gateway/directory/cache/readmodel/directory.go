@@ -43,7 +43,7 @@ func NewDirectory(updatedAt string) Directory {
 func (d *Directory) UpsertEntries(platform string, entries ...model.Entry) int {
 	d.Platforms = model.EnsurePlatformBuckets(d.Platforms)
 	platform = model.NormalizePlatform(platform)
-	if platform == "" {
+	if platform == "" || containsDirectoryControl(platform) {
 		return 0
 	}
 	merged := 0
@@ -67,7 +67,11 @@ func (s Store) jsonFile() storage.File {
 // Load reads the directory. Missing or invalid files return empty directories
 // plus structured degraded evidence.
 func (s Store) Load() (Directory, model.Evidence) {
-	dir, err := storage.LoadValue(s.jsonFile(), emptyDirectory, ensureDirectory)
+	file := s.jsonFile()
+	if err := file.Require(); err != nil {
+		return emptyDirectory(), model.Evidence{Code: model.EvidenceChannelDirectoryInvalid}
+	}
+	dir, err := storage.LoadValue(file, emptyDirectory, ensureDirectory)
 	if errors.Is(err, os.ErrNotExist) {
 		return emptyDirectory(), model.Evidence{Code: model.EvidenceChannelDirectoryMissing}
 	} else if err != nil {
@@ -88,7 +92,7 @@ func (s Store) SaveWithWriter(dir Directory, writer func(string, []byte, os.File
 	if writer == nil {
 		writer = os.WriteFile
 	}
-	dir.Platforms = model.EnsurePlatformBuckets(dir.Platforms)
+	dir = normalizeDecodedDirectory(dir)
 	return s.jsonFile().WriteAtomic(dir, storage.Writer(writer))
 }
 
@@ -105,17 +109,21 @@ func ensureDirectory(dir Directory) Directory {
 // operator-edited or older cache files need the same platform/field trimming so
 // lookup, display, and stale-target validation all see one canonical shape.
 func normalizeDecodedDirectory(dir Directory) Directory {
-	dir.UpdatedAt = strings.TrimSpace(dir.UpdatedAt)
+	dir.UpdatedAt = strings.Join(strings.Fields(dir.UpdatedAt), " ")
 	platforms := model.EmptyPlatformBuckets[model.Entry]()
 	for platform, entries := range model.EnsurePlatformBuckets(dir.Platforms) {
 		platform = model.NormalizePlatform(platform)
-		if platform == "" {
+		if platform == "" || containsDirectoryControl(platform) {
 			continue
 		}
 		for _, entry := range entries {
-			platforms[platform] = append(platforms[platform], model.NormalizeEntry(entry))
+			platforms[platform], _ = model.UpsertValidEntry(platforms[platform], entry)
 		}
 	}
 	dir.Platforms = platforms
 	return dir
+}
+
+func containsDirectoryControl(value string) bool {
+	return strings.ContainsFunc(value, func(r rune) bool { return r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) })
 }

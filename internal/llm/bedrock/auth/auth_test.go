@@ -1,8 +1,9 @@
 package auth
 
 import (
-	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/bedrock/testutil"
 )
 
 func TestResolveBedrockAuth_BearerTokenWins(t *testing.T) {
@@ -18,7 +19,7 @@ func TestResolveBedrockAuth_BearerTokenWins(t *testing.T) {
 	if evidence.State != "present" {
 		t.Fatalf("State = %q, want present", evidence.State)
 	}
-	if got := evidence.String(); got == "" || containsAnyString(got, "bearer-token-test-secret", "AKIA_TEST", "secret-test-value") {
+	if got := evidence.String(); got == "" || testutil.ContainsAnyString(got, "bearer-token-test-secret", "AKIA_TEST", "secret-test-value") {
 		t.Fatalf("Evidence.String() leaked credential material: %q", got)
 	}
 }
@@ -129,17 +130,8 @@ func TestBedrockAuthEvidence_RedactsSecrets(t *testing.T) {
 		"Evidence.Error":  evidence.Error(),
 	}
 	for label, text := range texts {
-		if containsAnyString(text, accessKey, secretKey, bearerToken) {
+		if testutil.ContainsAnyString(text, accessKey, secretKey, bearerToken) {
 			t.Fatalf("%s leaked credential material: %q", label, text)
 		}
 	}
-}
-
-func containsAnyString(s string, needles ...string) bool {
-	for _, needle := range needles {
-		if needle != "" && strings.Contains(s, needle) {
-			return true
-		}
-	}
-	return false
 }

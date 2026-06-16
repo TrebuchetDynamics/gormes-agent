@@ -12,9 +12,8 @@ import (
 // ConvertWithFFmpeg is a stub for noffmpeg builds. It returns a typed error
 // indicating that ffmpeg is not available, rather than spawning a subprocess.
 func ConvertWithFFmpeg(ctx context.Context, inputPath, outputPath string) error {
-	return &contract.PreprocessError{
-		Code: contract.AudioPreprocessUnavailable,
-		Path: inputPath,
-		Err:  errors.New("ffmpeg not available in noffmpeg build; install ffmpeg or rebuild without -tags noffmpeg"),
-	}
+	return contract.NewUnavailableError(
+		inputPath,
+		errors.New("ffmpeg not available in noffmpeg build; install ffmpeg or rebuild without -tags noffmpeg"),
+	)
 }

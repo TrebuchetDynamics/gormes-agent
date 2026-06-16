@@ -215,9 +215,8 @@ func (t *SessionSearchTool) Execute(ctx context.Context, args json.RawMessage) (
 
 func (t *SessionSearchTool) executeSessionSearch(ctx context.Context, args SessionSearchArgs, mode string, metas []session.Metadata, filter memory.SearchFilter, scopeEvidence *memory.CrossChatRecallEvidence, limit int) (json.RawMessage, error) {
 	if mode == "recent" {
-		recentMetas, lineageEvidence := recentSessionSearchCandidateMetadata(metas, args.CurrentSessionID)
-		searchLimit := limit + sessionSearchMaxLimit + len(metas) - len(recentMetas)
-		sessions, err := memory.SearchSessions(ctx, t.db, metas, filter, searchLimit)
+		plan := newRecentSessionSearchPlan(metas, args.CurrentSessionID, filter, limit)
+		sessions, err := memory.SearchSessions(ctx, t.db, metas, plan.Filter, plan.SearchLimit)
 		if err != nil {
 			return nil, err
 		}
@@ -226,12 +225,12 @@ func (t *SessionSearchTool) executeSessionSearch(ctx context.Context, args Sessi
 			results = append(results, sessionSearchHitFromSession(hit))
 		}
 		var evidence []SessionSearchEvidence
-		if lineageEvidence != nil {
-			evidence = append(evidence, *lineageEvidence)
+		if plan.Evidence != nil {
+			evidence = append(evidence, *plan.Evidence)
 		}
 		var safetyEvidence *SessionSearchEvidence
 		results, safetyEvidence = excludeCurrentLineageFromRecent(results, metas, args.CurrentSessionID)
-		if safetyEvidence != nil && lineageEvidence == nil {
+		if safetyEvidence != nil && plan.Evidence == nil {
 			evidence = append(evidence, *safetyEvidence)
 		}
 		if len(results) > limit {
@@ -287,12 +286,62 @@ func sourceFilterDeniedEvidence(reason string) SessionSearchEvidence {
 	}
 }
 
+type recentSessionSearchPlan struct {
+	CandidateMetadata []session.Metadata
+	Filter            memory.SearchFilter
+	SearchLimit       int
+	Evidence          *SessionSearchEvidence
+}
+
+func newRecentSessionSearchPlan(metas []session.Metadata, currentSessionID string, filter memory.SearchFilter, limit int) recentSessionSearchPlan {
+	candidateMetas, evidence := recentSessionSearchCandidateMetadata(metas, currentSessionID)
+	return recentSessionSearchPlan{
+		CandidateMetadata: candidateMetas,
+		Filter:            sessionSearchFilterForMetadata(filter, candidateMetas),
+		SearchLimit:       recentSessionSearchLimit(limit, len(metas)-len(candidateMetas)),
+		Evidence:          evidence,
+	}
+}
+
+func recentSessionSearchLimit(limit int, excludedMetadata int) int {
+	if excludedMetadata < 0 {
+		excludedMetadata = 0
+	}
+	return limit + sessionSearchMaxLimit + excludedMetadata
+}
+
+func sessionSearchFilterForMetadata(filter memory.SearchFilter, metas []session.Metadata) memory.SearchFilter {
+	if len(filter.SessionIDs) == 0 {
+		return filter
+	}
+	allowed := make(map[string]struct{}, len(metas))
+	for _, meta := range metas {
+		sessionID := strings.TrimSpace(meta.SessionID)
+		if sessionID != "" {
+			allowed[sessionID] = struct{}{}
+		}
+	}
+	filtered := make([]string, 0, len(filter.SessionIDs))
+	for _, sessionID := range filter.SessionIDs {
+		sessionID = strings.TrimSpace(sessionID)
+		if sessionID == "" || slices.Contains(filtered, sessionID) {
+			continue
+		}
+		if _, ok := allowed[sessionID]; ok {
+			filtered = append(filtered, sessionID)
+		}
+	}
+	filter.SessionIDs = filtered
+	return filter
+}
+
 func recentSessionSearchCandidateMetadata(metas []session.Metadata, currentSessionID string) ([]session.Metadata, *SessionSearchEvidence) {
 	currentRoot, ok := sessionSearchLineageRoot(metas, currentSessionID)
 	if !ok || currentRoot == "" {
 		return metas, nil
 	}
 	currentSessionID = strings.TrimSpace(currentSessionID)
+	currentLineage := sessionSearchLineageIDSet(metas, currentSessionID)
 	out := make([]session.Metadata, 0, len(metas))
 	excluded := false
 	for _, meta := range metas {
@@ -301,11 +350,7 @@ func recentSessionSearchCandidateMetadata(metas []session.Metadata, currentSessi
 			out = append(out, meta)
 			continue
 		}
-		if sessionID == currentSessionID || sessionID == currentRoot {
-			excluded = true
-			continue
-		}
-		if resultRoot, ok := sessionSearchLineageRoot(metas, sessionID); ok && resultRoot == currentRoot {
+		if sessionSearchLineageIntersects(metas, sessionID, currentLineage) {
 			excluded = true
 			continue
 		}
@@ -322,14 +367,11 @@ func excludeCurrentLineageFromRecent(results []SessionSearchHit, metas []session
 	if !ok || currentRoot == "" {
 		return results, nil
 	}
+	currentLineage := sessionSearchLineageIDSet(metas, currentSessionID)
 	out := make([]SessionSearchHit, 0, len(results))
 	excluded := false
 	for _, result := range results {
-		if result.SessionID == strings.TrimSpace(currentSessionID) || result.SessionID == currentRoot {
-			excluded = true
-			continue
-		}
-		if resultRoot, ok := sessionSearchLineageRoot(metas, result.SessionID); ok && resultRoot == currentRoot {
+		if sessionSearchLineageIntersects(metas, result.SessionID, currentLineage) {
 			excluded = true
 			continue
 		}
@@ -350,9 +392,49 @@ func recentSessionSearchLineageExcludedEvidence(currentRoot string) *SessionSear
 }
 
 func sessionSearchLineageRoot(metas []session.Metadata, sessionID string) (string, bool) {
+	lineageIDs, ok := sessionSearchLineageIDs(metas, sessionID)
+	if !ok || len(lineageIDs) == 0 {
+		return strings.TrimSpace(sessionID), ok
+	}
+	return lineageIDs[len(lineageIDs)-1], true
+}
+
+func sessionSearchLineageIDSet(metas []session.Metadata, sessionID string) map[string]struct{} {
+	lineageIDs, ok := sessionSearchLineageIDs(metas, sessionID)
+	if !ok {
+		return nil
+	}
+	out := make(map[string]struct{}, len(lineageIDs))
+	for _, lineageID := range lineageIDs {
+		out[lineageID] = struct{}{}
+	}
+	return out
+}
+
+func sessionSearchLineageIntersects(metas []session.Metadata, sessionID string, currentLineage map[string]struct{}) bool {
+	if len(currentLineage) == 0 {
+		return false
+	}
+	sessionID = strings.TrimSpace(sessionID)
+	if _, ok := currentLineage[sessionID]; ok {
+		return true
+	}
+	lineageIDs, ok := sessionSearchLineageIDs(metas, sessionID)
+	if !ok {
+		return false
+	}
+	for _, lineageID := range lineageIDs {
+		if _, ok := currentLineage[lineageID]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func sessionSearchLineageIDs(metas []session.Metadata, sessionID string) ([]string, bool) {
 	sessionID = strings.TrimSpace(sessionID)
 	if sessionID == "" {
-		return "", false
+		return nil, false
 	}
 	byID := make(map[string]session.Metadata, len(metas))
 	for _, meta := range metas {
@@ -362,24 +444,25 @@ func sessionSearchLineageRoot(metas []session.Metadata, sessionID string) (strin
 		}
 	}
 	if _, ok := byID[sessionID]; !ok {
-		return sessionID, false
+		return nil, false
 	}
-	root := sessionID
+	lineageIDs := []string{}
 	seen := map[string]struct{}{}
-	for {
-		if _, ok := seen[root]; ok {
-			return root, true
+	for id := sessionID; ; {
+		if _, ok := seen[id]; ok {
+			return lineageIDs, true
 		}
-		seen[root] = struct{}{}
-		meta := byID[root]
+		seen[id] = struct{}{}
+		lineageIDs = append(lineageIDs, id)
+		meta := byID[id]
 		parent := strings.TrimSpace(meta.ParentSessionID)
 		if parent == "" {
-			return root, true
+			return lineageIDs, true
 		}
 		if _, ok := byID[parent]; !ok {
-			return parent, true
+			return append(lineageIDs, parent), true
 		}
-		root = parent
+		id = parent
 	}
 }
 

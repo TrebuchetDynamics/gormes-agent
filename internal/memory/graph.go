@@ -44,12 +44,27 @@ func writeGraphBatch(ctx context.Context, db *sql.DB, v ValidatedOutput, turnIDs
 
 	// Name -> id map (validator guarantees relationship source/target names
 	// exist in entities[]; the orphan check already dropped mismatches).
+	// Relationships carry only names, not types, so a name shared by two
+	// differently-typed entities is genuinely ambiguous: we cannot know which
+	// entity the edge means. Track those names and drop their relationships
+	// rather than connect to an arbitrary (wrong) entity.
 	idByName := make(map[string]int64, len(v.Entities))
+	ambiguousName := make(map[string]struct{})
 	for _, e := range v.Entities {
+		if _, seen := idByName[e.Name]; seen {
+			ambiguousName[e.Name] = struct{}{}
+			continue
+		}
 		idByName[e.Name] = idByKey[e.Name+"\x00"+e.Type]
 	}
 
 	for _, r := range v.Relationships {
+		if _, amb := ambiguousName[r.Source]; amb {
+			continue
+		}
+		if _, amb := ambiguousName[r.Target]; amb {
+			continue
+		}
 		src, srcOK := idByName[r.Source]
 		tgt, tgtOK := idByName[r.Target]
 		if !srcOK || !tgtOK {

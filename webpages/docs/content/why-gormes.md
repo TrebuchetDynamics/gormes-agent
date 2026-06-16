@@ -48,6 +48,6 @@ Gormes is local software, not hosted zero-infrastructure SaaS. The practical cho
 ## Further Reading
 
 - [Quick Start on GitHub](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md)
-- [Executive Roadmap](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/ARCH_PLAN.md)
-- [Phase 2.A — Tool Registry](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/superpowers/specs/2026-04-19-gormes-phase2-tools-design.md)
-- [Phase 2.B.1 — Telegram Scout](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/superpowers/specs/2026-04-19-gormes-phase2b-telegram.md)
+- [Executive Roadmap](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/webpages/docs/ARCH_PLAN.md)
+- [Phase 2.A — Tool Registry](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/webpages/docs/superpowers/specs/2026-04-19-gormes-phase2-tools-design.md)
+- [Phase 2.B.1 — Telegram Scout](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/webpages/docs/superpowers/specs/2026-04-19-gormes-phase2b-telegram.md)

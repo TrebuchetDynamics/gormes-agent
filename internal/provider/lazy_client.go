@@ -36,6 +36,7 @@ func NewClientPool() *ClientPool {
 func (p *ClientPool) Register(name string, factory ClientFactory) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.ensureInitializedLocked()
 	p.factories[name] = factory
 }
 
@@ -65,6 +66,9 @@ func (p *ClientPool) Get(name string) (llm.Client, error) {
 	if !ok {
 		return nil, fmt.Errorf("provider %q not registered", name)
 	}
+	if factory == nil {
+		return nil, fmt.Errorf("provider %q factory is nil", name)
+	}
 
 	client, err := factory()
 	if err != nil {
@@ -81,6 +85,7 @@ func (p *ClientPool) Get(name string) (llm.Client, error) {
 func (p *ClientPool) Reset() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.ensureInitializedLocked()
 	p.clients = make(map[string]llm.Client)
 }
 
@@ -93,4 +98,13 @@ func (p *ClientPool) Invalidate(name string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	delete(p.clients, name)
+}
+
+func (p *ClientPool) ensureInitializedLocked() {
+	if p.factories == nil {
+		p.factories = make(map[string]ClientFactory)
+	}
+	if p.clients == nil {
+		p.clients = make(map[string]llm.Client)
+	}
 }

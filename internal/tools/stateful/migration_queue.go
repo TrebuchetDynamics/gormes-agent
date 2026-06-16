@@ -3,6 +3,7 @@ package stateful
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -133,9 +134,12 @@ func (q *StatefulToolMigrationQueue) AuthorizePath(toolName, candidate string) S
 		return StatefulToolEvidence{Code: ToolPathDenied, Tool: toolName, Message: "path cannot be normalized"}
 	}
 	for _, root := range q.roots {
-		rel, err := filepath.Rel(root, candidateAbs)
-		if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		decision := classifyStatefulCandidatePath(root, candidateAbs)
+		if decision.Allowed() {
 			return StatefulToolEvidence{Code: ToolStatePathAllowed, Tool: toolName, Message: "path is inside injected mutation root"}
+		}
+		if decision.LexicallyInside && !decision.PhysicallyInside {
+			return StatefulToolEvidence{Code: ToolPathDenied, Tool: toolName, Message: "path escapes injected mutation root through resolved filesystem path"}
 		}
 	}
 	return StatefulToolEvidence{Code: ToolPathDenied, Tool: toolName, Message: "path is outside injected mutation roots"}
@@ -170,25 +174,61 @@ func missingStatefulPlanField(plan StatefulToolPlan) string {
 	if strings.TrimSpace(plan.Name) == "" {
 		return "name"
 	}
-	if plan.Domain == "" {
+	if !isKnownStatefulDomain(plan.Domain) {
 		return "domain"
 	}
-	if plan.RootPolicy == "" {
+	if !isKnownStatefulRootPolicy(plan.RootPolicy) {
 		return "root_policy"
 	}
-	if plan.RollbackPolicy == "" {
+	if !isKnownStatefulRollbackPolicy(plan.RollbackPolicy) {
 		return "rollback_policy"
 	}
 	if plan.Domain != ToolStateDomainReadOnly && plan.RollbackPolicy == ToolRollbackPolicyNone {
 		return "rollback_policy"
 	}
-	if plan.ConcurrencyPolicy == "" {
+	if !isKnownStatefulConcurrencyPolicy(plan.ConcurrencyPolicy) {
 		return "concurrency_policy"
 	}
 	if strings.TrimSpace(plan.OwnerRow) == "" {
 		return "owner_row"
 	}
 	return ""
+}
+
+func isKnownStatefulDomain(domain ToolStateDomain) bool {
+	switch domain {
+	case ToolStateDomainReadOnly, ToolStateDomainFile, ToolStateDomainSession, ToolStateDomainCheckpoint, ToolStateDomainProcess:
+		return true
+	default:
+		return false
+	}
+}
+
+func isKnownStatefulRootPolicy(policy ToolRootPolicy) bool {
+	switch policy {
+	case ToolRootPolicyInjectedXDG, ToolRootPolicyGormesData:
+		return true
+	default:
+		return false
+	}
+}
+
+func isKnownStatefulRollbackPolicy(policy ToolRollbackPolicy) bool {
+	switch policy {
+	case ToolRollbackPolicyNone, ToolRollbackPolicyAuditLog, ToolRollbackPolicyCheckpoint:
+		return true
+	default:
+		return false
+	}
+}
+
+func isKnownStatefulConcurrencyPolicy(policy ToolConcurrencyPolicy) bool {
+	switch policy {
+	case ToolConcurrencyConcurrentReads, ToolConcurrencySerializedWrites:
+		return true
+	default:
+		return false
+	}
 }
 
 func normalizeStatefulMutationRoot(root string) (string, bool) {
@@ -209,4 +249,74 @@ func normalizeStatefulCandidatePath(candidate string) (string, bool) {
 		return "", false
 	}
 	return filepath.Clean(candidate), true
+}
+
+type statefulPathDecision struct {
+	Root               string
+	Candidate          string
+	ResolvedRoot       string
+	ResolvedCandidate  string
+	LexicallyInside    bool
+	PhysicalResolution bool
+	PhysicallyInside   bool
+}
+
+func (d statefulPathDecision) Allowed() bool {
+	return d.LexicallyInside && (!d.PhysicalResolution || d.PhysicallyInside)
+}
+
+func classifyStatefulCandidatePath(root, candidate string) statefulPathDecision {
+	decision := statefulPathDecision{Root: root, Candidate: candidate}
+	decision.LexicallyInside = statefulPathInside(root, candidate)
+	if !decision.LexicallyInside {
+		return decision
+	}
+	resolvedRoot, rootOK := resolveStatefulPath(root)
+	resolvedCandidate, candidateOK := resolveStatefulPath(candidate)
+	if !rootOK || !candidateOK {
+		return decision
+	}
+	decision.PhysicalResolution = true
+	decision.ResolvedRoot = resolvedRoot
+	decision.ResolvedCandidate = resolvedCandidate
+	decision.PhysicallyInside = statefulPathInside(resolvedRoot, resolvedCandidate)
+	return decision
+}
+
+func statefulPathInside(root, candidate string) bool {
+	rel, err := filepath.Rel(root, candidate)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+func resolveStatefulPath(path string) (string, bool) {
+	path = filepath.Clean(path)
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		return filepath.Clean(resolved), true
+	}
+	ancestor := path
+	missing := []string{}
+	for {
+		if _, err := os.Stat(ancestor); err == nil {
+			resolved, err := filepath.EvalSymlinks(ancestor)
+			if err != nil {
+				return "", false
+			}
+			parts := append([]string{filepath.Clean(resolved)}, reverseStatefulPathParts(missing)...)
+			return filepath.Clean(filepath.Join(parts...)), true
+		}
+		parent := filepath.Dir(ancestor)
+		if parent == ancestor {
+			return "", false
+		}
+		missing = append(missing, filepath.Base(ancestor))
+		ancestor = parent
+	}
+}
+
+func reverseStatefulPathParts(parts []string) []string {
+	out := make([]string, len(parts))
+	for i := range parts {
+		out[i] = parts[len(parts)-1-i]
+	}
+	return out
 }

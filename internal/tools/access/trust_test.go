@@ -42,6 +42,22 @@ func TestTrustClass_ExecuteDenied(t *testing.T) {
 	}
 }
 
+func TestTrustClass_AllowedToolWithoutHandlerReturnsError(t *testing.T) {
+	exec := NewTrustClassExecutor()
+	exec.Register(TrustClassTool{
+		Name:           "misconfigured_tool",
+		AllowedClasses: []TrustClass{TrustClassOperator},
+	})
+
+	_, err := exec.Execute("misconfigured_tool", TrustClassOperator, nil)
+	if err == nil {
+		t.Fatal("expected error for missing tool handler")
+	}
+	if !strings.Contains(err.Error(), "tool_handler_missing") {
+		t.Fatalf("expected tool_handler_missing error, got %v", err)
+	}
+}
+
 func TestTrustClass_ListToolsFiltersByTrustClass(t *testing.T) {
 	exec := NewTrustClassExecutor()
 	exec.Register(TrustClassTool{

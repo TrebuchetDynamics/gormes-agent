@@ -1,6 +1,7 @@
 package statusbar
 
 import (
+	"math"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -56,6 +57,22 @@ func TestRenderFaceTickerStableAtSameFrame(t *testing.T) {
 	}
 }
 
+func TestRenderFaceTickerNormalizesStateWhitespace(t *testing.T) {
+	got := RenderFaceTicker(" reasoning ", 0)
+	want := RenderFaceTicker("reasoning", 0)
+	if got != want {
+		t.Fatalf("RenderFaceTicker did not normalize state whitespace: got %q, want %q", got, want)
+	}
+}
+
+func TestRenderFaceTickerNegativeFramesWrapCycle(t *testing.T) {
+	got := RenderFaceTicker("idle", -1)
+	want := RenderFaceTicker("idle", 5)
+	if got != want {
+		t.Fatalf("RenderFaceTicker negative frame did not wrap: got %q, want %q", got, want)
+	}
+}
+
 func TestRenderContextBar(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -82,5 +99,42 @@ func TestRenderContextBar(t *testing.T) {
 				t.Fatalf("context bar rune count = %d, want %d: %q", utf8.RuneCountInString(got), ContextBarWidth, got)
 			}
 		})
+	}
+}
+
+func TestRenderContextBarMatchesHermesFillPolicy(t *testing.T) {
+	for _, pct := range []int{0, 5, 6, 49, 50, 94, 95, 100} {
+		got := RenderContextBar(float64(pct))
+		want := HermesContextBar(pct)
+		if got != want {
+			t.Fatalf("RenderContextBar(%d) = %q, want HermesContextBar(%d) %q", pct, got, pct, want)
+		}
+	}
+}
+
+func TestRenderContextBarWithLabelUsesClampedPercent(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		pct  float64
+		want string
+	}{
+		{name: "negative", pct: -10, want: "[░░░░░░░░░░] 0%"},
+		{name: "over hundred", pct: 150, want: "[██████████] 100%"},
+		{name: "not a number", pct: math.NaN(), want: "[░░░░░░░░░░] 0%"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := RenderContextBarWithLabel(tt.pct); got != tt.want {
+				t.Fatalf("RenderContextBarWithLabel(%v) = %q, want %q", tt.pct, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestClampContextPercentAlwaysReturnsFiniteBounds(t *testing.T) {
+	for _, pct := range []float64{math.NaN(), math.Inf(-1), -1, 0, 42.5, 100, 101, math.Inf(1)} {
+		got := ClampContextPercent(pct)
+		if math.IsNaN(got) || got < 0 || got > 100 {
+			t.Fatalf("ClampContextPercent(%v) = %v, want finite value in [0,100]", pct, got)
+		}
 	}
 }

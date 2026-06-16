@@ -86,6 +86,10 @@ _Avoid_: gateway CLI, gateway process manager, runtime orchestrator
 The Gateway CLI Orchestrator step that inspects configured channel credentials/accounts, invokes the relevant Channel Adapter factories, registers runnable channels with the gateway manager, and records degraded channel evidence for configured-but-unrunnable platforms. It is a startup assembly concern, not message handling or process lifecycle control.
 _Avoid_: channel transport logic, gateway stop/restart logic, provider setup
 
+**Gateway Manager Test Harness**:
+The shared gateway test construction surface that combines a fake kernel-compatible submitter with fake Channel Adapters to characterize Manager behavior across command, turn, delivery, lifecycle, and status scenarios. Its graph centrality is test coverage reuse, not proof of production runtime coupling.
+_Avoid_: production manager dependency graph, runtime god object, channel adapter abstraction
+
 ### TUI Operator Experience
 
 **Hermes TUI Contract**:

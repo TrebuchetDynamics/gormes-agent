@@ -1,6 +1,11 @@
 package source
 
-import "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/model/policy"
+import (
+	"strconv"
+	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/model/policy"
+)
 
 func rememberedSourceID(entry RememberedSourceEntry) string {
 	chatID := policy.TrimText(entry.ChatID)
@@ -8,6 +13,9 @@ func rememberedSourceID(entry RememberedSourceEntry) string {
 		return ""
 	}
 	if threadID := policy.TrimText(entry.ThreadID); threadID != "" {
+		if strings.Contains(chatID, ":") || strings.Contains(threadID, ":") {
+			return strconv.Itoa(len(chatID)) + ":" + chatID + ":" + strconv.Itoa(len(threadID)) + ":" + threadID
+		}
 		return chatID + ":" + threadID
 	}
 	return chatID

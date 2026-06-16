@@ -13,18 +13,20 @@ import (
 // [hermes].endpoint, so enabling the unit before setup completes guarantees
 // a `provider setup: hermes endpoint unconfigured` crash-loop on next boot.
 //
-// The plan must still report `install_system_service: yes` so the iso-bin
+// The plan must still report `service    install` so the iso-bin
 // boundary tests stay green; the new contract is that the line carries a
 // "not auto-enabled" qualifier under --skip-setup.
 func TestInstall_SkipSetup_DryRunReportsManualEnable(t *testing.T) {
 	sb := t.TempDir()
 	out := runInstallDryRun(t, map[string]string{
-		"GORMES_INSTALL_HOME":    filepath.Join(sb, "home"),
-		"GORMES_SKIP_SETUP":      "1",
-		"GORMES_RESTART_GATEWAY": "never",
+		"GORMES_INSTALL_HOME":           filepath.Join(sb, "home"),
+		"GORMES_SKIP_SETUP":             "1",
+		"GORMES_RESTART_GATEWAY":        "never",
+		"GORMES_INSTALL_TEST_SYSTEMD":   "1",
+		"GORMES_INSTALL_TEST_CONTAINER": "0",
 	})
-	if !strings.Contains(out, "install_system_service: yes") {
-		t.Fatalf("dry-run plan should still report install_system_service: yes\nso fresh-user installs keep auto-start; got:\n%s", out)
+	if !strings.Contains(out, "service    install") {
+		t.Fatalf("dry-run plan should still report service    install\nso fresh-user installs keep auto-start; got:\n%s", out)
 	}
 	if !strings.Contains(out, "not auto-enabled") {
 		t.Fatalf("dry-run plan should disclose that --skip-setup leaves the\nsystemd service NOT auto-enabled; got:\n%s", out)

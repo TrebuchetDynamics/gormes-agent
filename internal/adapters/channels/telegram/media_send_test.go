@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -52,6 +53,19 @@ func TestBot_SendMediaUsesTelegramFileTypes(t *testing.T) {
 	}
 	if cfg, ok := sent[2].(tgbotapi.VideoConfig); !ok || cfg.ReplyToMessageID != 99 {
 		t.Fatalf("sent[2] = %T/%+v, want VideoConfig with reply_to 99", sent[2], sent[2])
+	}
+}
+
+func TestBot_SendMediaRejectsInvalidReplyID(t *testing.T) {
+	mc := newMockClient()
+	b := New(Config{AllowedChatID: 42}, mc, nil)
+
+	_, err := b.SendMedia(context.Background(), "42", "abc", gateway.OutboundMedia{
+		Path: writeTelegramTestMedia(t, "photo.png"),
+		Kind: gateway.OutboundMediaKindImage,
+	})
+	if err == nil || !strings.Contains(err.Error(), `invalid reply msgID "abc"`) {
+		t.Fatalf("SendMedia err = %v, want invalid reply msgID", err)
 	}
 }
 

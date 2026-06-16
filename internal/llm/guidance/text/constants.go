@@ -9,7 +9,7 @@
 //
 // This file is pure data — no imports beyond stdlib, no live-turn or runtime
 // wiring. Wiring slices that compose these blocks into the system prompt are
-// tracked separately in `docs/content/building-gormes/architecture_plan/progress.json`.
+// tracked separately in `webpages/docs/content/building-gormes/architecture_plan/progress.json`.
 //
 // Upstream pin: hermes-agent commit e612c3d6f00624868ce3f73bb6beaacfea36337f
 // (./hermes-agent/agent/prompt_builder.py). Byte-equivalence with the

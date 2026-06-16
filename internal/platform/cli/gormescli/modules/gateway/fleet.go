@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	runtimegateway "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway/jsonio"
 )
 
 type gatewayFleetSupervisor interface {
@@ -108,16 +108,12 @@ type gatewayFleetOperationJSON struct {
 
 func renderGatewayFleetStatusJSON(out io.Writer, opts Options, status runtimegateway.FleetStatus) error {
 	payload := gatewayFleetStatusJSON{Build: gatewayBuildProvenance(opts), Status: status}
-	enc := json.NewEncoder(out)
-	enc.SetIndent("", "  ")
-	return enc.Encode(payload)
+	return jsonio.WriteIndented(out, payload)
 }
 
 func renderGatewayFleetOperationJSON(out io.Writer, opts Options, report runtimegateway.FleetOperationReport) error {
 	payload := gatewayFleetOperationJSON{Build: gatewayBuildProvenance(opts), Report: report}
-	enc := json.NewEncoder(out)
-	enc.SetIndent("", "  ")
-	return enc.Encode(payload)
+	return jsonio.WriteIndented(out, payload)
 }
 
 func renderGatewayFleetStatusText(out io.Writer, status runtimegateway.FleetStatus) error {

@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"sort"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
@@ -65,6 +64,9 @@ func (m *Manager) enabledSkillPlatformCommands(ctx context.Context) []PlatformCo
 		if name == "" {
 			continue
 		}
+		if _, collides := ResolveCommand(name); collides {
+			continue
+		}
 		key := strings.ToLower(name)
 		if _, ok := seen[key]; ok {
 			continue
@@ -72,11 +74,5 @@ func (m *Manager) enabledSkillPlatformCommands(ctx context.Context) []PlatformCo
 		seen[key] = struct{}{}
 		out = append(out, PlatformCommand{Name: name, Description: command.Description})
 	}
-	sort.SliceStable(out, func(i, j int) bool {
-		if out[i].Name != out[j].Name {
-			return out[i].Name < out[j].Name
-		}
-		return out[i].Description < out[j].Description
-	})
-	return out
+	return sortedPlatformCommands(out)
 }

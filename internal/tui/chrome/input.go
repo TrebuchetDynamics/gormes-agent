@@ -63,22 +63,7 @@ func RenderTextInput(in TextInput) string {
 }
 
 func RenderComposerInput(in ComposerInput) string {
-	prompt := strings.TrimRight(in.Prompt, "\n")
-	if ComposerInputExtraRows(in.Width) == 0 || strings.TrimSpace(prompt) == "" {
-		return prompt
-	}
-
-	title := "Ask Gormes"
-	if !in.Focused {
-		title = "Composer paused"
-	}
-	return RenderTextInput(TextInput{
-		Width:  in.Width,
-		Label:  title,
-		Hint:   keyhelp.RenderBar(composerInputHintWidth(in.Width, title), in.KeyHelp, ComposerKeyHelp(in.Draft, in.Multiline)),
-		Value:  prompt,
-		Styles: in.Styles,
-	})
+	return strings.TrimRight(in.Prompt, "\n")
 }
 
 func ComposerKeyHelp(draft string, multiline bool) []keyhelp.Item {
@@ -100,12 +85,9 @@ func composerInputHintWidth(width int, title string) int {
 }
 
 func ComposerInputExtraRows(width int) int {
-	if width < 40 {
-		return 0
-	}
-	return 1
+	return 0
 }
 
 func ShowComposerInput(width int, height int) bool {
-	return width >= 40 && height >= 18
+	return false
 }

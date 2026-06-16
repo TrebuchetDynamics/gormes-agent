@@ -62,8 +62,8 @@
       "degraded_mode": "Context status reports disabled compression, cooldowns, unknown tools, token-budget pressure, and replay gaps.",
       "fixture": "internal/llm/testdata/context_status and internal/kernel context-engine replay fixtures",
       "source_refs": [
-        "docs/content/upstream-hermes/source-study.md",
-        "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
+        "webpages/docs/content/upstream-hermes/source-study.md",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
       ],
       "ready_when": [
         "Provider interface + stream fixture harness can replay context status without live provider calls."
@@ -84,7 +84,7 @@
       "write_scope": [
         "internal/kernel/",
         "internal/llm/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kernel ./internal/llm -count=1"
@@ -148,7 +148,7 @@
       "write_scope": [
         "internal/llm/",
         "internal/tools/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run TestContextCompressorHeadroom -count=1",
@@ -219,7 +219,7 @@
         "internal/llm/context_compressor_pruning_test.go",
         "internal/llm/context_compressor_budget.go",
         "internal/tools/result_budget.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run TestContextCompressorPruning -count=1",
@@ -337,7 +337,7 @@
         "system"
       ],
       "source_refs": [
-        "docs/content/papers/safety-and-deployment.md",
+        "webpages/docs/content/papers/safety-and-deployment.md",
         "internal/llm/safety_tool_gate.go",
         "internal/llm/safety_tool_gate_test.go"
       ],
@@ -417,8 +417,8 @@
       "degraded_mode": "Doctor reports disabled tools, missing dependencies, schema drift, and unavailable provider-specific paths.",
       "fixture": "internal/tools upstream schema parity manifest fixtures",
       "source_refs": [
-        "docs/content/upstream-hermes/reference/tools-reference.md",
-        "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
+        "webpages/docs/content/upstream-hermes/reference/tools-reference.md",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
       ],
       "ready_when": [
         "Upstream tool descriptor inventory can be captured without porting handlers in the same slice."
@@ -439,7 +439,7 @@
       "note": "Complete: TDD added an embedded upstream tool parity manifest generated from `tools/registry.py`, `toolsets.py`, and discovered schemas. The fixture captures 55 tool rows plus static/resolved toolsets with required env vars, provider paths, JSON schemas, result envelopes, trust classes, dependencies, and degraded status metadata. `LoadUpstreamToolParityManifest`, descriptor-row port gating, and the parity doctor now report disabled tools, missing dependencies, schema drift, and unavailable provider-specific paths before any handler port can claim completion.",
       "write_scope": [
         "internal/tools/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -count=1"
@@ -478,7 +478,7 @@
         "./hermes-agent/tests/run_agent/test_tool_arg_coercion.py@7330183d0:TestCoerceToolArgs",
         "internal/llm/tool_call_repair.go",
         "internal/llm/tool_call_argument_repair_test.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / Tool registry and toolsets"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / Tool registry and toolsets"
       ],
       "ready_when": [
         "The completed tool-call repair + schema sanitizer row provides the provider-boundary repair seam and advertised-schema validation.",
@@ -503,7 +503,7 @@
       "write_scope": [
         "internal/llm/tool_call_repair.go",
         "internal/llm/tool_call_argument_repair_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'ToolCallArguments.*(Stringified|Nullable|MalformedArray)|ToolCallArgumentsRepair|SanitizeToolDescriptors' -count=1",
@@ -586,7 +586,7 @@
       "write_scope": [
         "internal/tools/testdata/upstream_tool_parity_manifest.json",
         "internal/tools/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestToolParityManifestHermesB35D692F -count=1",
@@ -671,7 +671,7 @@
         "internal/tools/parity_test.go",
         "internal/tools/parity_b35d692f_test.go",
         "internal/tools/parity_ea86714_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestToolParityManifestHermesEA86714|TestUpstreamToolParityManifestCapturesRegistryInventory|TestToolParityDoctorReportsManifestDrift' -count=1",
@@ -757,7 +757,7 @@
         "internal/tools/testdata/upstream_tool_parity_manifest.json",
         "internal/tools/parity_524cbabd_test.go",
         "internal/tools/parity_ea86714_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestToolParityManifestHermes524CBABDPatchSchema|TestUpstreamToolParityManifestCapturesRegistryInventory|TestToolParityDoctorReportsManifestDrift' -count=1",
@@ -837,7 +837,7 @@
         "internal/tools/msgraph_auth_test.go",
         "internal/tools/msgraph_client.go",
         "internal/tools/msgraph_client_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestMicrosoftGraph|TestMSGraph' -count=1",
@@ -905,7 +905,7 @@
       "write_scope": [
         "internal/cli/toolset_config.go",
         "internal/cli/toolset_config_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run 'TestPlatformToolsetStatusKeepsHomeAssistantWhenHASSTokenSet|TestPlatformToolsetStatusLeavesHomeAssistantOffWithoutHASSToken' -count=1",
@@ -984,7 +984,7 @@
         "cmd/gormes/registry.go",
         "cmd/gormes/registry_test.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestHomeAssistant' -count=1",
@@ -1065,10 +1065,10 @@
       ],
       "note": "Planner guard only. Todo, Clarify, and Debug helpers are the executable rows; this row prevents future agents from reopening a broad pure-tools mega-port.",
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/subsystem-inventory.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md"
       ],
-      "no_test_required": "Documentation/research/planning row \u2014 automated tests not applicable",
+      "no_test_required": "Documentation/research/planning row — automated tests not applicable",
       "done_signal": [
         "The pure-core tool tranche is represented by concrete child rows and this umbrella is not selected for implementation."
       ],
@@ -1126,7 +1126,7 @@
       "note": "Complete: TDD landed internal/tools/process_notifications_test.go and a pure fake-clock process notification policy. The fixture proves notify_on_complete/watch_patterns mutual exclusion with operator evidence, per-session 1/15s watch throttling, three-strike watch disablement with notify_on_complete promotion, suppress-after-exit behavior, and global overflow trip/release summaries without spawning processes.",
       "write_scope": [
         "internal/tools/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestProcessNotification -count=1",
@@ -1173,7 +1173,7 @@
         "references/go-agent-os/nanobot/pkg/agents/truncate.go",
         "references/go-agent-os/axe/internal/artifact/tracker.go",
         "internal/tools/",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#tools-sandboxes-and-security"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#tools-sandboxes-and-security"
       ],
       "ready_when": [
         "The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing.",
@@ -1199,7 +1199,7 @@
       "write_scope": [
         "internal/tools/",
         "internal/llm/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools ./internal/llm -run 'Tool.*Budget|Truncat|Artifact' -count=1",
@@ -1234,9 +1234,9 @@
       "fixture": "internal/tools/operation_spec_test.go",
       "source_refs": [
         "mercury-agent:permission manifest (trust-class enforcement)",
-        "docs/content/building-gormes/must-have-features.md",
-        "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md",
-        "docs/content/building-gormes/upstream-lessons.md"
+        "webpages/docs/content/building-gormes/must-have-features.md",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-5-final-purge.md",
+        "webpages/docs/content/building-gormes/upstream-lessons.md"
       ],
       "ready_when": [
         "Tool registry inventory + schema parity harness is complete.",
@@ -1263,7 +1263,7 @@
         "internal/tools/executor.go",
         "internal/tools/executor_test.go",
         "internal/doctor/tool_descriptors.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestOperationSpec|TestTrustClass|TestExecutor' -count=1",
@@ -1318,8 +1318,8 @@
       ],
       "acceptance": [
         "The relevant Hermes files/tests no longer appear as anonymous examples in the strict-fidelity unmapped bucket; they are linked to rows, source pairs, planned child rows, explicit exclusions, or owned-divergence notes.",
-        "`go run ./cmd/repoctl hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence.",
-        "`go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits.",
+        "`go run ./cmd/gormes-repo hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence.",
+        "`go run ./cmd/gormes-repo hermes-source-pairs validate` passes after any source-pair edits.",
         "`go run ./cmd/progress validate` passes and generated docs show the row in the correct module."
       ],
       "note": "Complete 2026-05-21: hermes-source-pairs now classifies the named tool-tail refs for web_tools, x_search, TTS, transcription, image generation, URL safety, and website policy. Contract inventory strict failures dropped from 3025 to 3000 by linking these files/tests to source-pair evidence and progress rows without changing runtime tool schemas or claiming unsupported full parity.",
@@ -1332,8 +1332,8 @@
       ],
       "test_commands": [
         "go test ./internal/tools ./internal/tools/safety ./internal/tools/budget -count=1",
-        "go run ./cmd/repoctl hermes-source-pairs validate",
-        "go run ./cmd/repoctl hermes-contract-inventory --repo-root ."
+        "go run ./cmd/gormes-repo hermes-source-pairs validate",
+        "go run ./cmd/gormes-repo hermes-contract-inventory --repo-root ."
       ],
       "done_signal": [
         "Strict-fidelity blockers for this bucket are classified into the canonical backlog/source-pair evidence with no side queue and no unsupported full-parity claim."
@@ -1345,17 +1345,17 @@
       },
       "implementation": [
         "internal/repoctl/source_pairs_repository_test.go",
-        "docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
-        "docs/content/building-gormes/architecture_plan/hermes-source-pairs.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.md",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.md"
       ],
       "validation": [
         "go test ./internal/repoctl -run TestRepositorySourcePairsClassifyHermesToolTail -count=1",
-        "go run ./cmd/repoctl hermes-source-pairs validate",
-        "go run ./cmd/repoctl hermes-source-pairs report",
-        "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+        "go run ./cmd/gormes-repo hermes-source-pairs validate",
+        "go run ./cmd/gormes-repo hermes-source-pairs report",
+        "go run ./cmd/gormes-repo hermes-contract-inventory --repo-root .",
         "go test ./internal/tools ./internal/tools/safety ./internal/tools/budget -count=1",
         "go test ./... -count=1",
         "go run ./cmd/progress validate",
@@ -1390,8 +1390,8 @@
         "../hermes-agent/environments/web_research_env.py",
         "../hermes-agent/environments/tool_call_parsers/hermes_parser.py",
         "../hermes-agent/environments/tool_call_parsers/deepseek_v3_1_parser.py",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Sandbox/environments",
-        "docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Per-model tool-call parsers"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Sandbox/environments",
+        "webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Per-model tool-call parsers"
       ],
       "ready_when": [
         "Tool execution descriptor and command-runner seams are validated enough to define an interface without starting real backends.",
@@ -1422,7 +1422,7 @@
         "internal/tools/environment_contract_test.go",
         "internal/llm/tool_call_parser_manifest.go",
         "internal/llm/tool_call_parser_manifest_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools ./internal/llm -run 'TestEnvironmentContract|TestToolCallParserManifest' -count=1",
@@ -1467,7 +1467,7 @@
       "source_refs": [
         "../hermes-agent/tools/environments/base.py@2e6699b3:BaseEnvironment._wrap_command",
         "../hermes-agent/tools/terminal_tool.py@2e6699b3",
-        "docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Sandboxing backends"
+        "webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Sandboxing backends"
       ],
       "ready_when": [
         "Environment interface + file sync contract has landed and exposes a shell-wrapper construction seam before backend-specific execution is enabled.",
@@ -1492,7 +1492,7 @@
       "write_scope": [
         "internal/tools/environment_snapshot.go",
         "internal/tools/environment_snapshot_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestEnvironmentSnapshotSource_' -count=1",
@@ -1564,7 +1564,7 @@
         "internal/tools/terminal_cwd_recovery_test.go",
         "internal/tools/environment_contract.go",
         "internal/config/config.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestTerminal.*DeletedCWD|TestPersistentShell.*DeletedCWD|TestTerminalBackground.*DeletedCWD' -count=1",
@@ -1615,7 +1615,7 @@
         "../hermes-agent/environments/tool_call_parsers/mistral_parser.py",
         "../hermes-agent/environments/tool_call_parsers/qwen3_coder_parser.py",
         "../hermes-agent/environments/tool_call_parsers/qwen_parser.py",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Raw tool-call parser fixture matrix"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Raw tool-call parser fixture matrix"
       ],
       "ready_when": [
         "Environment interface + file sync contract has established the parser-family inventory and fake fixture harness.",
@@ -1641,8 +1641,8 @@
         "internal/llm/tool_call_parser_manifest.go",
         "internal/llm/tool_call_parser_manifest_test.go",
         "internal/llm/testdata/tool_call_parsers/",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/upstream_coverage_test.go"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/upstream_coverage_test.go"
       ],
       "test_commands": [
         "go test ./internal/llm -run 'TestToolCallParserManifest|TestRawToolCallParser' -count=1",
@@ -1743,7 +1743,7 @@
       "write_scope": [
         "internal/tools/singularity_env.go",
         "internal/tools/singularity_env_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestSingularity' -count=1",
@@ -1798,8 +1798,8 @@
       "fixture": "internal/tools/sandbox_explain_test.go",
       "source_refs": [
         "openclaw sandbox explain command",
-        "docs/content/building-gormes/fleet-operational-patterns.md",
-        "docs/content/building-gormes/fleet-integration-plan.md"
+        "webpages/docs/content/building-gormes/fleet-operational-patterns.md",
+        "webpages/docs/content/building-gormes/fleet-integration-plan.md"
       ],
       "ready_when": [
         "Docker sandbox backend (5.B) is operational.",
@@ -1821,7 +1821,7 @@
         "internal/tools/sandbox_explain.go",
         "internal/tools/sandbox_explain_test.go",
         "cmd/gormes/sandbox.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestSandboxExplain -count=1",
@@ -1907,7 +1907,7 @@
         "internal/llm/image_routing_test.go",
         "internal/llm/client.go",
         "internal/llm/model_registry.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run '^TestImageInputRouting_|^TestBuildNativeImageContentParts_' -count=1",
@@ -1991,7 +1991,7 @@
         "internal/llm/openai_compatible_role_test.go",
         "cmd/gormes/registry.go",
         "cmd/gormes/registry_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestVisionAnalyze' -count=1",
@@ -2077,7 +2077,7 @@
         "internal/llm/image_shrink_retry_test.go",
         "internal/llm/errors.go",
         "internal/llm/image_routing.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run '^TestImageShrinkRetry_|^TestClassifyProviderError_ImageTooLarge' -count=1",
@@ -2140,7 +2140,7 @@
       "write_scope": [
         "internal/tools/image_generation_result.go",
         "internal/tools/image_generation_result_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestImageGenerationResult_' -count=1",
@@ -2210,7 +2210,7 @@
         "internal/tools/image_generation.go",
         "internal/tools/image_generation_test.go",
         "cmd/gormes/registry_image.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestFALGenImageProviderQueueREST|TestImageGen' -count=1",
@@ -2281,12 +2281,12 @@
         "TestVideoAnalyze_LocalPathSanitization proves directory-traversal and absolute-path inputs are bounded by the workspace root and rejected with workspace_root_violation evidence.",
         "TestVideoAnalyze_URLSchemeAllowlist proves only http/https URL schemes pass to a fake fetcher; file/ftp/data are rejected."
       ],
-      "note": "Complete: video_analyze tool registered via NewVideoAnalyzeTool/VideoAnalyzeConfig. Fixture-proven against fakeVideoAnalyzeProvider with vision routing, unsupported provider rejection, workspace path sanitization, and URL scheme allowlist. No real Gemini transport \u2014 provider seam ready for downstream adapter rows.",
+      "note": "Complete: video_analyze tool registered via NewVideoAnalyzeTool/VideoAnalyzeConfig. Fixture-proven against fakeVideoAnalyzeProvider with vision routing, unsupported provider rejection, workspace path sanitization, and URL scheme allowlist. No real Gemini transport — provider seam ready for downstream adapter rows.",
       "write_scope": [
         "internal/tools/video_analyze.go",
         "internal/tools/video_analyze_test.go",
         "internal/tools/registry.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run VideoAnalyze -count=1",
@@ -2333,7 +2333,7 @@
     "item": {
       "name": "MCP stdio transport + tool/list discovery",
       "status": "complete",
-      "contract": "internal/tools/mcp_stdio.go exposes a stdio MCP client (NewStdioClient(def MCPServerDefinition, opts StdioClientOpts) (*StdioClient, error); (*StdioClient).Initialize(ctx) error; (*StdioClient).ListTools(ctx) ([]MCPRawTool, error); (*StdioClient).Close() error) that speaks JSON-RPC over a stdio.ReadWriteCloser injected from tests \u2014 deterministic over an in-process fake server with no real subprocess",
+      "contract": "internal/tools/mcp_stdio.go exposes a stdio MCP client (NewStdioClient(def MCPServerDefinition, opts StdioClientOpts) (*StdioClient, error); (*StdioClient).Initialize(ctx) error; (*StdioClient).ListTools(ctx) ([]MCPRawTool, error); (*StdioClient).Close() error) that speaks JSON-RPC over a stdio.ReadWriteCloser injected from tests — deterministic over an in-process fake server with no real subprocess",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
@@ -2378,7 +2378,7 @@
       "write_scope": [
         "internal/tools/mcp_stdio.go",
         "internal/tools/mcp_stdio_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestStdioClient_' -count=1",
@@ -2407,7 +2407,7 @@
     "item": {
       "name": "MCP HTTP transport + tool/list discovery",
       "status": "complete",
-      "contract": "internal/tools/mcp_http.go exposes an HTTP MCP client (NewHTTPClient(def MCPServerDefinition, opts HTTPClientOpts) (*HTTPClient, error); (*HTTPClient).Initialize(ctx) error; (*HTTPClient).ListTools(ctx) ([]MCPRawTool, error); (*HTTPClient).Close() error) that speaks JSON-RPC over an injectable http.RoundTripper \u2014 deterministic over httptest.Server in unit tests with no real network egress",
+      "contract": "internal/tools/mcp_http.go exposes an HTTP MCP client (NewHTTPClient(def MCPServerDefinition, opts HTTPClientOpts) (*HTTPClient, error); (*HTTPClient).Initialize(ctx) error; (*HTTPClient).ListTools(ctx) ([]MCPRawTool, error); (*HTTPClient).Close() error) that speaks JSON-RPC over an injectable http.RoundTripper — deterministic over httptest.Server in unit tests with no real network egress",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
@@ -2452,7 +2452,7 @@
       "write_scope": [
         "internal/tools/mcp_http.go",
         "internal/tools/mcp_http_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestHTTPClient_' -count=1",
@@ -2476,7 +2476,7 @@
     "item": {
       "name": "MCP schema normalization + structured-content adapter",
       "status": "complete",
-      "contract": "internal/tools/mcp_normalize.go converts MCPRawTool slices and tools/call results into native tool descriptors and model-facing strings \u2014 sanitizes tool names, validates InputSchema is a JSON-Schema object, flattens structured content vs text content into a single string, isolates server stderr to a per-server log path, and emits a `tools/list_changed`-style refresh hook so dynamic discovery updates replace stale descriptors deterministically",
+      "contract": "internal/tools/mcp_normalize.go converts MCPRawTool slices and tools/call results into native tool descriptors and model-facing strings — sanitizes tool names, validates InputSchema is a JSON-Schema object, flattens structured content vs text content into a single string, isolates server stderr to a per-server log path, and emits a `tools/list_changed`-style refresh hook so dynamic discovery updates replace stale descriptors deterministically",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
@@ -2523,7 +2523,7 @@
       "write_scope": [
         "internal/tools/mcp_normalize.go",
         "internal/tools/mcp_normalize_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestNormalizeTools_|TestRenderToolCallResult_|TestBoundedStderrSink_' -count=1",
@@ -2600,7 +2600,7 @@
         "internal/tools/mcp_oauth_refresh.go",
         "internal/tools/mcp_circuit_breaker_test.go",
         "internal/tools/mcp_reconnect_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestMCP(CircuitBreaker|Reconnect|Probe)' -count=1",
@@ -2679,7 +2679,7 @@
         "internal/tools/mcp_stdio.go",
         "internal/automation/cron/scheduler.go",
         "internal/automation/cron/scheduler_mcp_cleanup_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestMCPOrphanCleanup_' -count=1",
@@ -2730,7 +2730,7 @@
         "references/go-agent-os/trpc-agent-go/tool/filter.go",
         "internal/tools/",
         "internal/plugins/",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#tools-sandboxes-and-security"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#tools-sandboxes-and-security"
       ],
       "ready_when": [
         "The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing.",
@@ -2757,7 +2757,7 @@
         "internal/tools/",
         "internal/plugins/",
         "internal/gateway/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools ./internal/plugins -run 'ToolDeclaration|ToolFilter|MCPHost|Audit' -count=1",
@@ -2802,7 +2802,7 @@
         "../hermes-agent/acp_adapter/events.py",
         "../hermes-agent/acp_registry/agent.json",
         "../hermes-agent/tests/acp/",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:ACP server/session/tools/permissions matrix"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:ACP server/session/tools/permissions matrix"
       ],
       "ready_when": [
         "MCP schema normalization and managed gateway bridge rows are validated enough to reuse tool/permission descriptors.",
@@ -2822,8 +2822,8 @@
       "write_scope": [
         "internal/protocols/acp/server_manifest.go",
         "internal/protocols/acp/server_manifest_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/upstream_coverage_test.go"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/upstream_coverage_test.go"
       ],
       "test_commands": [
         "go test ./internal/protocols/acp -run TestACPServerManifest -count=1",
@@ -2863,10 +2863,10 @@
       "source_refs": [
         "openclaw acp client CLI surface",
         "internal/protocols/acp/server_manifest_test.go",
-        "docs/content/building-gormes/openclaw-platform-parity-audit.md"
+        "webpages/docs/content/building-gormes/openclaw-platform-parity-audit.md"
       ],
       "ready_when": [
-        "ACP server side (5.H) is validated \u2014 server manifest, auth, session, tools, permissions, events.",
+        "ACP server side (5.H) is validated — server manifest, auth, session, tools, permissions, events.",
         "Gateway session store supports key/label resolution."
       ],
       "not_ready_when": [
@@ -2890,7 +2890,7 @@
         "cmd/gormes/acp.go",
         "cmd/gormes/acp_command_test.go",
         "cmd/gormes/main.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/protocols/acp -run TestClient -count=1",
@@ -2965,7 +2965,7 @@
         "internal/protocols/acp/client.go",
         "cmd/gormes/acp.go",
         "cmd/gormes/acp_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/protocols/acp -run 'TestACPJSONRPC|TestClient|TestACPServerManifest' -count=1",
@@ -3046,7 +3046,7 @@
         "internal/protocols/acp/stdio_ping_suppression.go",
         "internal/protocols/acp/stdio_ping_suppression_test.go",
         "internal/protocols/acp/server.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/protocols/acp -run '^TestACPStdio|^TestACPBenignPing|^TestACPProbe' -count=1",
@@ -3118,7 +3118,7 @@
       "write_scope": [
         "internal/protocols/acp/session_runtime.go",
         "internal/protocols/acp/session_runtime_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/protocols/acp -run 'TestACPJSONRPC.*CWD|TestACPLoadResumeUpdatesPromptCWD' -count=1",
@@ -3268,7 +3268,7 @@
       "write_scope": [
         "internal/tools/dangerous_hardline.go",
         "internal/tools/dangerous_hardline_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestDetectHardline' -count=1",
@@ -3341,7 +3341,7 @@
       "write_scope": [
         "internal/tools/dangerous_command.go",
         "internal/tools/dangerous_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestGuardCommand|TestBlockedResultEvidenceFields|TestDetectDangerous' -count=1",
@@ -3389,7 +3389,7 @@
         "./hermes-agent/tests/tools/test_delegate.py@93e25ceb1:test_batch_mode_accepts_json_string_tasks",
         "./hermes-agent/tests/tools/test_delegate.py@93e25ceb1:test_batch_mode_rejects_non_object_tasks",
         "./hermes-agent/tests/tools/test_delegate.py@93e25ceb1:test_batch_mode_rejects_malformed_json_string_tasks",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Delegate/subagents",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Delegate/subagents",
         "internal/core/subagent/batch.go",
         "internal/core/subagent/delegate_tool.go"
       ],
@@ -3410,7 +3410,7 @@
       "write_scope": [
         "internal/core/subagent/delegate_tool.go",
         "internal/core/subagent/delegate_tool_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/subagent -run 'TestDelegateToolBatch|TestDelegateToolMetadata|TestDelegateToolExecuteHappyPath' -count=1",
@@ -3477,7 +3477,7 @@
         "internal/core/subagent/types.go",
         "internal/core/subagent/runner.go",
         "internal/core/subagent/dangerous_approval_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/subagent -run '^TestSubagentDangerousCommand_' -count=1",
@@ -3548,7 +3548,7 @@
         "internal/tools/approval_callback_test.go",
         "internal/tools/dangerous_command.go",
         "internal/core/subagent/manager.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools ./internal/subagent -run 'TestApprovalCallbackPropagation_|TestGuardCommand' -count=1",
@@ -3616,7 +3616,7 @@
         "internal/core/subagent/background_review_toolset_test.go",
         "internal/core/subagent/manager.go",
         "internal/tools/registry.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/subagent ./internal/tools -run '^TestBackgroundReviewToolsetRestriction' -count=1",
@@ -3664,7 +3664,7 @@
         "internal/kernel/kernel.go",
         "internal/config/config.go",
         "cmd/gormes/telegram.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / Approval and security policy"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / Approval and security policy"
       ],
       "ready_when": [
         "Cron approval mode config normalizer is complete.",
@@ -3703,7 +3703,7 @@
         "internal/config/config.go",
         "internal/config/config_test.go",
         "cmd/gormes/telegram.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestGuardCronCommand|TestTerminalToolCronApprovalMode|TestNormalizeCronApprovalMode|TestCronApprovalMode' -count=1",
@@ -3911,8 +3911,8 @@
       "source_refs": [
         "mercury-agent:src/tools/shellBlocklist.ts (36+ patterns)",
         "hermes-agent:tools/terminal_tool.py (dangerous command guards)",
-        "docs/content/building-gormes/must-have-features.md",
-        "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
+        "webpages/docs/content/building-gormes/must-have-features.md",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
       ],
       "ready_when": [
         "Hardline command pattern table + DetectHardline function is validated on main.",
@@ -3936,7 +3936,7 @@
         "internal/tools/shell_blocklist_test.go",
         "internal/tools/dangerous_command.go",
         "internal/config/shell_blocklist.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestShellBlocklist' -count=1",
@@ -3990,8 +3990,8 @@
         "mercury-agent:src/tools/filesystemScope.ts (folder-level restrictions)",
         "hermes-agent:tools/path_security.py",
         "space-agent:server/api/AGENTS.md (path normalization, batch preflight)",
-        "docs/content/building-gormes/must-have-features.md",
-        "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
+        "webpages/docs/content/building-gormes/must-have-features.md",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
       ],
       "ready_when": [
         "Native file task tool surface (read_file, search_files, write_file, patch) is validated on main.",
@@ -4020,7 +4020,7 @@
         "internal/tools/search_files.go",
         "internal/config/filesystem_scope.go",
         "internal/doctor/filesystem_scope.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestFilesystemScope' -count=1",
@@ -4073,8 +4073,8 @@
       "source_refs": [
         "mercury-agent:src/tools/approval.ts (inline y/n/always)",
         "hermes-agent:tools/approval.py",
-        "docs/content/building-gormes/must-have-features.md",
-        "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
+        "webpages/docs/content/building-gormes/must-have-features.md",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
       ],
       "ready_when": [
         "Approval mode config normalization is validated on main.",
@@ -4101,7 +4101,7 @@
         "internal/tools/approval_prompt.go",
         "internal/tools/approval_session.go",
         "internal/audit/approval.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestApprovalUX' -count=1",
@@ -4158,9 +4158,9 @@
       "fixture": "internal/tools/trust_class_test.go",
       "source_refs": [
         "mercury-agent:permission manifest (trust-class based tool visibility)",
-        "docs/content/building-gormes/must-have-features.md",
-        "docs/content/building-gormes/upstream-lessons.md",
-        "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
+        "webpages/docs/content/building-gormes/must-have-features.md",
+        "webpages/docs/content/building-gormes/upstream-lessons.md",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
       ],
       "ready_when": [
         "Tool descriptor layer (OperationSpec) is complete.",
@@ -4185,7 +4185,7 @@
         "internal/tools/executor.go",
         "internal/tools/executor_test.go",
         "internal/doctor/trust_class.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestTrustClass' -count=1",
@@ -4234,8 +4234,8 @@
       "fixture": "internal/tools/security_audit_test.go",
       "source_refs": [
         "openclaw security audit --deep --fix --json CLI surface",
-        "docs/content/building-gormes/openclaw-platform-parity-audit.md",
-        "docs/content/building-gormes/must-have-features.md"
+        "webpages/docs/content/building-gormes/openclaw-platform-parity-audit.md",
+        "webpages/docs/content/building-gormes/must-have-features.md"
       ],
       "ready_when": [
         "Shell blocklist + filesystem scoping (5.J) is operational.",
@@ -4258,7 +4258,7 @@
         "internal/tools/security_audit.go",
         "internal/tools/security_audit_test.go",
         "cmd/gormes/security.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestSecurityAudit -count=1",
@@ -4319,14 +4319,14 @@
         "TestRedactionDefaultOn_NewConfigEnablesRedaction proves a fresh Gormes config has redaction enabled by default.",
         "TestRedactionDefaultOn_ExplicitOptOutHonored proves `redaction.enabled: false` in config disables redaction and is logged as an explicit operator choice."
       ],
-      "note": "Complete 2026-05-07T19:23:35Z: writeCredentialPoolAuthStore now uses tools.AtomicReplace (tempfile \u2192 fsync \u2192 rename) instead of raw os.WriteFile, closing the auth.json TOCTOU window. New internal/redaction package provides RedactionConfig with default-on contract and explicit operator opt-out via Enabled=false. Tests prove no-torn-write, mode preservation, tempfile cleanup, and default-on/opt-out redaction behavior.",
+      "note": "Complete 2026-05-07T19:23:35Z: writeCredentialPoolAuthStore now uses tools.AtomicReplace (tempfile → fsync → rename) instead of raw os.WriteFile, closing the auth.json TOCTOU window. New internal/redaction package provides RedactionConfig with default-on contract and explicit operator opt-out via Enabled=false. Tests prove no-torn-write, mode preservation, tempfile cleanup, and default-on/opt-out redaction behavior.",
       "write_scope": [
         "internal/auth/atomic_write.go",
         "internal/auth/atomic_write_test.go",
         "internal/mcp/oauth_persistence.go",
         "internal/redaction/defaults.go",
         "internal/redaction/defaults_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/auth -run AtomicWrite -count=1",
@@ -4476,7 +4476,7 @@
       "name": "Checkpoints CLI (status/list/prune/clear/clear-legacy)",
       "priority": "P2",
       "status": "complete",
-      "contract": "Gormes exposes a `gormes checkpoints` CLI commandtree mirroring Hermes' `hermes_cli/checkpoints.py` (faa13e49f): bare `gormes checkpoints` \u2192 status, `gormes checkpoints status [--limit N]` \u2192 total size + project count + per-project breakdown with workdir/commits/last-touch/state, `gormes checkpoints list [--limit N]` \u2192 alias for status, `gormes checkpoints prune [--retention-days N] [--max-size-mb N] [--keep-orphans]` \u2192 delete orphan/stale checkpoints and GC the store with a confirmation prompt, `gormes checkpoints clear [-f|--force]` \u2192 delete the entire checkpoint base (asks confirmation unless -f), `gormes checkpoints clear-legacy [-f|--force]` \u2192 delete only legacy archive directories. All commands consume the existing internal/tools.CheckpointManager read model (store_status, prune, clear, clear_legacy) and require no live agent, provider, network, or gateway. Output formatting mirrors Hermes: bytes in human-readable units (B/KB/MB/GB/TB), timestamps in relative age (Xs/m/h/d ago), orphan/live state flags, and per-project columnar layout.",
+      "contract": "Gormes exposes a `gormes checkpoints` CLI commandtree mirroring Hermes' `hermes_cli/checkpoints.py` (faa13e49f): bare `gormes checkpoints` → status, `gormes checkpoints status [--limit N]` → total size + project count + per-project breakdown with workdir/commits/last-touch/state, `gormes checkpoints list [--limit N]` → alias for status, `gormes checkpoints prune [--retention-days N] [--max-size-mb N] [--keep-orphans]` → delete orphan/stale checkpoints and GC the store with a confirmation prompt, `gormes checkpoints clear [-f|--force]` → delete the entire checkpoint base (asks confirmation unless -f), `gormes checkpoints clear-legacy [-f|--force]` → delete only legacy archive directories. All commands consume the existing internal/tools.CheckpointManager read model (store_status, prune, clear, clear_legacy) and require no live agent, provider, network, or gateway. Output formatting mirrors Hermes: bytes in human-readable units (B/KB/MB/GB/TB), timestamps in relative age (Xs/m/h/d ago), orphan/live state flags, and per-project columnar layout.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tools",
@@ -4495,8 +4495,8 @@
         "cmd/gormes/checkpoints.go"
       ],
       "ready_when": [
-        "Checkpoint shadow-repo GC policy is complete (verified \u2014 internal/tools/checkpoint_manager.go exists with NewCheckpointManager, Status, store_status semantics).",
-        "File read dedup cache invalidation and wrapper guard is complete (verified \u2014 this is the read-contract guard).",
+        "Checkpoint shadow-repo GC policy is complete (verified — internal/tools/checkpoint_manager.go exists with NewCheckpointManager, Status, store_status semantics).",
+        "File read dedup cache invalidation and wrapper guard is complete (verified — this is the read-contract guard).",
         "The slice can test with t.TempDir checkpoint roots and synthetic shadow repos only; no live git, provider, network, gateway, or write-capable file tools are needed.",
         "internal/tools/checkpoint_manager.go exposes or can be extended to expose store_status, prune, clear_all, and clear_legacy as exported functions the CLI can call."
       ],
@@ -4532,7 +4532,7 @@
         "cmd/gormes/checkpoints.go",
         "cmd/gormes/checkpoints_test.go",
         "cmd/gormes/main.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestCheckpointsCLI' -count=1",
@@ -4607,7 +4607,7 @@
         "../hermes-agent/tests/tools/test_checkpoint_manager.py@478444c2",
         "../hermes-agent/cli.py@478444c2:startup checkpoint cleanup",
         "../hermes-agent/gateway/run.py@478444c2:startup checkpoint cleanup",
-        "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
+        "webpages/docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
       ],
       "ready_when": [
         "The row can be implemented as pure filesystem fixtures under t.TempDir with fake timestamps and no model/tool execution.",
@@ -4632,7 +4632,7 @@
       "write_scope": [
         "internal/tools/checkpoint_manager.go",
         "internal/tools/checkpoint_manager_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestCheckpointManager' -count=1",
@@ -4705,7 +4705,7 @@
       "write_scope": [
         "internal/tools/file_read_guard.go",
         "internal/tools/file_read_guard_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestFileReadGuard_' -count=1",
@@ -4776,7 +4776,7 @@
       "write_scope": [
         "internal/tools/file_read_guard.go",
         "internal/tools/file_read_blocked_stub_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestFileReadRepeatedStubBlocked_|^TestFileReadGuard_' -count=1",
@@ -4866,7 +4866,7 @@
         "internal/tools/terminal_tool_test.go",
         "cmd/gormes/registry.go",
         "cmd/gormes/registry_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run '^TestReadFileTool_|^TestSearchFilesTool_|^TestWriteFileAndPatchTools_|^TestTerminalTool|^TestFileReadGuard_|^TestFileReadRepeatedStubBlocked_' -count=1",
@@ -4972,7 +4972,7 @@
         "internal/tools/file_task_tools.go",
         "internal/tools/file_read_tool_test.go",
         "internal/tools/patch_parser.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestPatchToolV4A|TestWriteFileAndPatchTools|TestPatchRejectsStaleAfterExternalChange' -count=1",
@@ -5032,7 +5032,7 @@
         "./hermes-agent/tools/patch_parser.py@f1f42a7b9:OperationType.MOVE/_validate_operations/_apply_move",
         "./hermes-agent/tests/tools/test_patch_parser.py@f1f42a7b9:TestParseMoveFile",
         "internal/tools/file_task_tools.go:PatchTool V4A move validation/apply",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / File Ops + Patches"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / File Ops + Patches"
       ],
       "ready_when": [
         "V4A patch mode for native patch tool is complete.",
@@ -5062,7 +5062,7 @@
       "write_scope": [
         "internal/tools/file_task_tools.go",
         "internal/tools/file_read_tool_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestPatchToolV4AMove|TestPatchToolV4A|TestWriteFileAndPatchTools|TestPatchRejectsStaleAfterExternalChange' -count=1",
@@ -5153,7 +5153,7 @@
         "Config/secrets/session fixtures prove writeTOMLAtomic, writeSetupToolsConfig, writeSecretsSnapshotFile, and session index mirror writes use the shared helper and retain their current redaction/permission guarantees.",
         "Existing file-task and config writer tests remain green."
       ],
-      "note": "2026-05-06 all-topic Hermes/Honcho weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. No planned P0 row remained; this unblocked Hermes-source-backed state-write safety row was promoted to P0 because config, setup, secrets, session mirrors, migration writers, and future write-capable tools can detach symlinked managed deployments unless the shared atomic helper lands first. The same sweep corrected the row write_scope from the stale webpages/docs mirror path to the canonical docs/content progress.json path. Complete: TDD added internal/tools/atomic_replace.go with symlink-preserving AtomicReplace plus fixtures for live symlinks, broken symlinks, and existing permission preservation; migrated writeTOMLAtomic, resetSetupDefaultConfig, writeSetupToolsConfig, writeSecretsSnapshotFile, and session writeAtomic to the shared helper. Evidence: go test ./internal/tools -run TestAtomicReplace -count=1 PASS; go test ./internal/config ./cmd/gormes ./internal/persistence/session -run 'Test.*(Atomic|Symlink|Secrets|SetupTools|IndexMirror)' -count=1 PASS; go test ./internal/tools ./internal/config ./cmd/gormes ./internal/persistence/session -count=1 PASS.",
+      "note": "2026-05-06 all-topic Hermes/Honcho weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. No planned P0 row remained; this unblocked Hermes-source-backed state-write safety row was promoted to P0 because config, setup, secrets, session mirrors, migration writers, and future write-capable tools can detach symlinked managed deployments unless the shared atomic helper lands first. The same sweep corrected the row write_scope from the stale webpages/docs mirror path to the canonical webpages/docs/content progress.json path. Complete: TDD added internal/tools/atomic_replace.go with symlink-preserving AtomicReplace plus fixtures for live symlinks, broken symlinks, and existing permission preservation; migrated writeTOMLAtomic, resetSetupDefaultConfig, writeSetupToolsConfig, writeSecretsSnapshotFile, and session writeAtomic to the shared helper. Evidence: go test ./internal/tools -run TestAtomicReplace -count=1 PASS; go test ./internal/config ./cmd/gormes ./internal/persistence/session -run 'Test.*(Atomic|Symlink|Secrets|SetupTools|IndexMirror)' -count=1 PASS; go test ./internal/tools ./internal/config ./cmd/gormes ./internal/persistence/session -count=1 PASS.",
       "write_scope": [
         "internal/tools/atomic_replace.go",
         "internal/tools/atomic_replace_test.go",
@@ -5165,7 +5165,7 @@
         "cmd/gormes/secrets_command_test.go",
         "internal/persistence/session/index_mirror.go",
         "internal/persistence/session/index_mirror_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestAtomicReplace -count=1",
@@ -5248,7 +5248,7 @@
         "internal/tools/file_staleness_test.go",
         "internal/tools/file_state_registry_test.go",
         "internal/tools/terminal_tool.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestFileStateRegistry|Test.*Stale|TestRelativePathUsesLiveTaskCWD|TestWriteFileAndPatchTools' -count=1",
@@ -5338,7 +5338,7 @@
       "write_scope": [
         "internal/tools/terminal_tool.go",
         "internal/tools/terminal_tool_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestTerminalTool(RecoversWhenConfiguredWorkdirDeleted|RecoversWhenProcessCWDDeleted|ExplicitMissingWorkdirStillErrors|RunsForegroundCommand|DefaultWorkdirExpandsTilde)' -count=1",
@@ -5414,7 +5414,7 @@
         "internal/tools/file_task_tools.go",
         "internal/tools/file_search_drift_test.go",
         "internal/tools/file_read_tool_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestSearchFiles.*Hidden|TestSearchContextLineParser|TestSearchFilesTool' -count=1",
@@ -5508,7 +5508,7 @@
       "write_scope": [
         "internal/tools/file_task_tools.go",
         "internal/tools/file_lint_delta_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'Test.*StructuredLint|TestWriteFileAndPatchTools|TestPatchToolV4A|TestPatchRejectsStaleAfterExternalChange' -count=1",
@@ -5593,7 +5593,7 @@
       "write_scope": [
         "internal/tools/file_task_tools.go",
         "internal/tools/file_lint_delta_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'Test.*PythonLint|Test.*StructuredLint|TestWriteFileAndPatchTools|TestPatchToolV4A|TestPatchRejectsStaleAfterExternalChange' -count=1",
@@ -5681,7 +5681,7 @@
       "write_scope": [
         "internal/tools/file_task_tools.go",
         "internal/tools/file_lint_delta_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'Test.*ShellLint|Test.*PythonLint|Test.*StructuredLint|TestWriteFileAndPatchTools|TestPatchToolV4A|TestPatchRejectsStaleAfterExternalChange' -count=1",
@@ -5770,7 +5770,7 @@
       "write_scope": [
         "internal/tools/file_task_tools.go",
         "internal/tools/file_read_tool_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestPatchToolReplaceNoMatch|TestWriteFileAndPatchTools|TestPatchToolV4A|TestPatchRejectsStaleAfterExternalChange' -count=1",
@@ -5857,7 +5857,7 @@
       "write_scope": [
         "internal/tools/file_task_tools.go",
         "internal/tools/file_read_tool_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestPatchToolFuzzyReplace|TestPatchToolReplaceNoMatch|TestWriteFileAndPatchTools|TestPatchToolV4A|TestPatchRejectsStaleAfterExternalChange' -count=1",
@@ -5955,7 +5955,7 @@
       "write_scope": [
         "internal/tools/file_task_tools.go",
         "internal/tools/file_read_tool_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestPatchToolFuzzyReplaceUnicode|TestPatchToolFuzzyReplace|TestPatchToolReplaceNoMatch|TestWriteFileAndPatchTools|TestPatchToolV4A|TestPatchRejectsStaleAfterExternalChange' -count=1",
@@ -6045,7 +6045,7 @@
       "write_scope": [
         "internal/tools/file_task_tools.go",
         "internal/tools/file_read_tool_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestPatchToolFuzzyReplaceBlockAnchor|TestPatchToolFuzzyReplaceUnicode|TestPatchToolFuzzyReplace|TestPatchToolReplaceNoMatch|TestWriteFileAndPatchTools|TestPatchToolV4A|TestPatchRejectsStaleAfterExternalChange' -count=1",
@@ -6140,7 +6140,7 @@
       "write_scope": [
         "internal/tools/file_task_tools.go",
         "internal/tools/file_read_tool_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestPatchToolV4AFuzzyHunk|TestPatchToolV4A|TestPatchToolFuzzyReplace|TestPatchToolReplaceNoMatch|TestWriteFileAndPatchTools|TestPatchRejectsStaleAfterExternalChange' -count=1",
@@ -6234,7 +6234,7 @@
       "write_scope": [
         "internal/tools/file_task_tools.go",
         "internal/tools/file_read_tool_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestPatchToolFuzzyReplaceContextAware|TestPatchToolFuzzyReplaceBlockAnchor|TestPatchToolFuzzyReplaceUnicode|TestPatchToolFuzzyReplace|TestPatchToolReplaceNoMatch|TestPatchToolV4A|TestPatchRejectsStaleAfterExternalChange' -count=1",
@@ -6325,7 +6325,7 @@
       "write_scope": [
         "internal/tools/file_task_tools.go",
         "internal/tools/file_read_tool_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestPatchToolV4ARollback|TestPatchToolV4A|TestPatchToolFuzzyReplace|TestPatchToolReplaceNoMatch|TestWriteFileAndPatchTools|TestPatchRejectsStaleAfterExternalChange' -count=1",
@@ -6416,7 +6416,7 @@
       "write_scope": [
         "internal/tools/file_task_tools.go",
         "internal/tools/file_read_tool_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestPatchToolReplacePostWriteVerification|TestPatchToolFuzzyReplace|TestPatchToolReplaceNoMatch|TestPatchToolV4A|TestPatchRejectsStaleAfterExternalChange' -count=1",
@@ -6637,7 +6637,7 @@
         "internal/tools/todo_tool.go",
         "internal/tools/todo_tool_test.go",
         "internal/tools/tool.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestTodoTool -count=1",
@@ -6718,7 +6718,7 @@
         "cmd/gormes/registry.go",
         "cmd/gormes/registry_test.go",
         "cmd/gormes/oneshot_safety_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestClarifyTool -count=1",
@@ -6800,7 +6800,7 @@
       "write_scope": [
         "internal/persistence/sessionsearchtool/session_search_tool.go",
         "internal/persistence/sessionsearchtool/session_search_tool_schema_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/persistence/sessionsearchtool -run '^TestSessionSearchToolSchema_' -count=1",
@@ -6895,7 +6895,7 @@
         "internal/persistence/sessionsearchtool/session_search_tool_execution_test.go",
         "internal/memory/session_catalog.go",
         "internal/memory/session_catalog_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/persistence/sessionsearchtool -run '^TestSessionSearchToolExecution_' -count=1",
@@ -6983,7 +6983,7 @@
         "internal/memory/shutdown_handoff.go",
         "internal/memory/shutdown_handoff_test.go",
         "internal/gateway/session_expiry_hooks_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/memory -run '^TestShutdownMemoryHandoff_' -count=1",
@@ -7052,7 +7052,7 @@
       "write_scope": [
         "internal/tools/debug_helpers.go",
         "internal/tools/debug_helpers_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestDebugSession -count=1",
@@ -7103,7 +7103,7 @@
       "source_refs": [
         "../hermes-agent/hermes_cli/debug.py@90a3e73d:_sweep_expired_pastes",
         "../hermes-agent/gateway/run.py@90a3e73d:_start_cron_ticker",
-        "docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Debug helpers"
+        "webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Debug helpers"
       ],
       "ready_when": [
         "Debug helpers are split into a Go-native diagnostic surface with redaction and no hidden writes.",
@@ -7130,7 +7130,7 @@
         "internal/cli/debug_paste_sweep_test.go",
         "internal/automation/cron/debug_paste_sweep.go",
         "internal/automation/cron/debug_paste_sweep_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run '^TestDebugPasteSweep_' -count=1",
@@ -7202,7 +7202,7 @@
         "internal/builderloop/backend_failure_test.go",
         "internal/builderloop/run.go",
         "internal/builderloop/run_health_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/builderloop -run '^(TestClassifyBackendFailureDetectsUsageLimitStdinExit|TestRunOnce_BackendUsageLimitDoesNotQuarantineRow|TestRunOnce_BackendDegradedEventEmittedAfterThreshold)$' -count=1",
@@ -7262,9 +7262,9 @@
       ],
       "note": "Umbrella only: keep for inventory continuity. 2026-04-30 parity audit refreshed this parent with exact upstream Hermes refs at /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d and current Gormes native refs; execute only the dependency chain rows, not this parent. The child rows now carry the runnable TDD fixtures for parser/repeat, prompt/script safety, action envelope, context_from output chaining, and multi-target delivery. Do not assign this umbrella directly.",
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
-      "no_test_required": "Documentation/research/planning row \u2014 automated tests not applicable",
+      "no_test_required": "Documentation/research/planning row — automated tests not applicable",
       "done_signal": [
         "Parent row remains non-selectable and source-backed while the dependency-ordered child rows provide the runnable implementation and tests."
       ]
@@ -7322,7 +7322,7 @@
       "write_scope": [
         "internal/automation/cron/schedule_parser.go",
         "internal/automation/cron/schedule_parser_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/automation/cron -run 'TestParseCronSchedule_|TestCronNextRunDecision_' -count=1",
@@ -7402,7 +7402,7 @@
         "internal/automation/cron/run_completion_test.go",
         "internal/automation/cron/executor.go",
         "internal/automation/cron/executor_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/automation/cron -run '^TestCronRunCompletion_|^TestExecutorRecordAndUpdateJob_UsesRunCompletionState' -count=1",
@@ -7477,7 +7477,7 @@
       "write_scope": [
         "internal/automation/cron/prompt_script_safety.go",
         "internal/automation/cron/prompt_script_safety_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/automation/cron -run 'TestScanPromptForCronThreat_|TestValidatePreRunScriptPath_' -count=1",
@@ -7558,7 +7558,7 @@
         "internal/automation/cron/prompt_script_safety_test.go",
         "internal/tools/cronjob_tool.go",
         "internal/tools/cronjob_tool_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/automation/cron -run 'TestScanPromptForCronThreat_(GitHubAuthHeaderAllowlist|BlocksAuthorizationHeaderExfil)' -count=1",
@@ -7653,7 +7653,7 @@
         "internal/tools/cronjob_tool_test.go",
         "internal/automation/cron/job.go",
         "internal/automation/cron/store.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestCronjobTool_' -count=1",
@@ -7735,7 +7735,7 @@
       "write_scope": [
         "internal/automation/cron/run_release.go",
         "internal/automation/cron/run_release_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/automation/cron -run '^TestRunReleaseLedger_' -count=1",
@@ -7804,7 +7804,7 @@
         "internal/automation/cron/executor.go",
         "internal/automation/cron/executor_test.go",
         "internal/automation/cron/release_binding_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/automation/cron -run '^TestExecutorRun_' -count=1",
@@ -7869,7 +7869,7 @@
         "internal/automation/cron/",
         "internal/tools/",
         "cmd/gormes/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/automation/cron -run TestCronContextFrom -count=1",
@@ -7911,7 +7911,7 @@
         "The row is assigned directly instead of the smaller `Cron prompt/script safety + pre-run script contract` helper row above."
       ],
       "note": "Deprecated umbrella retained for roadmap continuity; the executable safety helper is the earlier row with the same title and full contract metadata. Do not assign this duplicate note-only row.",
-      "no_test_required": "Documentation/research/planning row \u2014 automated tests not applicable"
+      "no_test_required": "Documentation/research/planning row — automated tests not applicable"
     }
   },
   {
@@ -7960,7 +7960,7 @@
         "internal/automation/cron/delivery_plan_test.go",
         "internal/automation/cron/sink.go",
         "internal/automation/cron/executor.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/automation/cron -run '^TestCronDeliveryPlan_' -count=1",
@@ -8034,7 +8034,7 @@
       "write_scope": [
         "internal/automation/cron/delivery_plan.go",
         "internal/automation/cron/delivery_plan_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/automation/cron -run '^TestCronDeliveryPlan_RoutingIntentAll' -count=1",
@@ -8088,8 +8088,8 @@
       "source_refs": [
         "workspace-mineru/AGENTS.md",
         "workspace-link/AGENTS.md",
-        "docs/content/building-gormes/fleet-operational-patterns.md",
-        "docs/content/building-gormes/fleet-integration-plan.md"
+        "webpages/docs/content/building-gormes/fleet-operational-patterns.md",
+        "webpages/docs/content/building-gormes/fleet-integration-plan.md"
       ],
       "ready_when": [
         "Gormes status command can surface structured blocker data.",
@@ -8124,7 +8124,7 @@
         "cmd/gormes/main.go",
         "internal/builderloop/candidates.go",
         "internal/builderloop/candidates_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestBlocker -count=1",
@@ -8191,7 +8191,7 @@
         "internal/config/secretref_test.go",
         "internal/config/config.go",
         "internal/config/writer.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config -run TestSecretRef -count=1",
@@ -8252,7 +8252,7 @@
         "internal/runtime/",
         "cmd/gormes/gateway.go",
         "cmd/gormes/doctor.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config ./internal/runtime ./cmd/gormes -run 'SecretRef.*Runtime|Gateway.*SecretRef|Doctor.*SecretRef' -count=1",
@@ -8315,7 +8315,7 @@
         "internal/tools/security_audit_test.go",
         "internal/config/",
         "internal/tools/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools ./cmd/gormes -run 'SecurityAudit|SecurityFix' -count=1",
@@ -8377,7 +8377,7 @@
         "internal/gateway/auto_title_wiring.go",
         "internal/gateway/auto_title_wiring_test.go",
         "internal/gateway/manager.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kernel -run TestKernel_FinalizeAssistantTurnStoreErrorLogged -count=1",
@@ -8416,8 +8416,8 @@
         "workspace-link/skills/session-health-monitor/SKILL.md",
         "workspace-mineru/skills/fleet-admin/SKILL.md",
         "internal/goncho/service.go",
-        "docs/content/building-gormes/fleet-operational-patterns.md",
-        "docs/content/building-gormes/fleet-integration-plan.md"
+        "webpages/docs/content/building-gormes/fleet-operational-patterns.md",
+        "webpages/docs/content/building-gormes/fleet-integration-plan.md"
       ],
       "ready_when": [
         "Goncho session store exposes session size and heartbeat data.",
@@ -8440,7 +8440,7 @@
         "internal/tools/health.go",
         "internal/tools/health_test.go",
         "cmd/gormes/health.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestHealth -count=1",
@@ -8474,8 +8474,8 @@
         "workspace-link/skills/deep-research/SKILL.md",
         "workspace-riju/skills/fecim-physics-validation/SKILL.md",
         "internal/doctor/doctor.go",
-        "docs/content/building-gormes/fleet-operational-patterns.md",
-        "docs/content/building-gormes/fleet-integration-plan.md"
+        "webpages/docs/content/building-gormes/fleet-operational-patterns.md",
+        "webpages/docs/content/building-gormes/fleet-integration-plan.md"
       ],
       "ready_when": [
         "Doctor check registry supports per-check pass/fail/skip/error status.",
@@ -8496,7 +8496,7 @@
       "write_scope": [
         "internal/doctor/evidence.go",
         "internal/doctor/evidence_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/doctor -run TestEvidence -count=1",
@@ -8530,8 +8530,8 @@
         "workspace-link/AGENTS.md",
         "workspace-mineru/AGENTS.md",
         "SHARED-PROTOCOLS.md",
-        "docs/content/building-gormes/fleet-operational-patterns.md",
-        "docs/content/building-gormes/fleet-integration-plan.md"
+        "webpages/docs/content/building-gormes/fleet-operational-patterns.md",
+        "webpages/docs/content/building-gormes/fleet-integration-plan.md"
       ],
       "ready_when": [
         "Builder skill post-commit hook is defined.",
@@ -8553,7 +8553,7 @@
       "write_scope": [
         "internal/tools/git_delivery.go",
         "internal/tools/git_delivery_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestGitDelivery -count=1",
@@ -8587,8 +8587,8 @@
         "workspace-link/skills/qmd/SKILL.md",
         "workspace-mineru/skills/qmd/SKILL.md",
         "internal/goncho/service.go",
-        "docs/content/building-gormes/fleet-operational-patterns.md",
-        "docs/content/building-gormes/fleet-integration-plan.md"
+        "webpages/docs/content/building-gormes/fleet-operational-patterns.md",
+        "webpages/docs/content/building-gormes/fleet-integration-plan.md"
       ],
       "ready_when": [
         "Goncho embedding model integration is available.",
@@ -8611,7 +8611,7 @@
         "internal/tools/qmd.go",
         "internal/tools/qmd_test.go",
         "cmd/gormes/search.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestQMD -count=1",
@@ -8647,8 +8647,8 @@
         "workspace-mineru/AGENTS.md",
         "internal/persistence/session/session.go",
         "internal/goncho/service.go",
-        "docs/content/building-gormes/fleet-operational-patterns.md",
-        "docs/content/building-gormes/fleet-integration-plan.md"
+        "webpages/docs/content/building-gormes/fleet-operational-patterns.md",
+        "webpages/docs/content/building-gormes/fleet-integration-plan.md"
       ],
       "ready_when": [
         "Session health monitoring (5.N) provides size data.",
@@ -8671,7 +8671,7 @@
         "internal/persistence/session/rollover.go",
         "internal/persistence/session/rollover_test.go",
         "cmd/gormes/session_rollover.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/persistence/session -run TestRollover -count=1",
@@ -8707,7 +8707,7 @@
         "../openclaw/src/commands/channels/capabilities.test.ts@42d73fd955",
         "internal/gateway/platform_manifest.go:HermesGatewayPlatformManifest",
         "cmd/gormes/gateway_status.go:configuredGatewayStatusChannels",
-        "docs/content/building-gormes/openclaw-platform-parity-audit.md"
+        "webpages/docs/content/building-gormes/openclaw-platform-parity-audit.md"
       ],
       "ready_when": [
         "Gormes' gateway platform manifest is available as a source-backed adapter inventory.",
@@ -8731,7 +8731,7 @@
         "cmd/gormes/channels_capabilities.go",
         "cmd/gormes/channels_capabilities_test.go",
         "cmd/gormes/main.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/channels -run TestCapabilities -count=1",
@@ -8768,7 +8768,7 @@
         "../agent-zero@7c71185f/agent.py:prepare_prompt,read_prompt,parse_prompt",
         "../agent-zero@7c71185f/helpers/files.py:read_prompt_file,process_includes,_get_dirs_after",
         "../agent-zero@7c71185f/skills/a0-development/SKILL.md:Prompt System",
-        "docs/content/building-gormes/agent-zero-feature-analysis.md",
+        "webpages/docs/content/building-gormes/agent-zero-feature-analysis.md",
         "internal/kernel/extensions.go",
         "internal/skills/profile_sync.go"
       ],
@@ -8794,7 +8794,7 @@
         "internal/llm/prompt_fragments.go",
         "internal/llm/prompt_fragments_test.go",
         "prompts/*.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run TestPromptFragments -count=1",
@@ -8869,7 +8869,7 @@
         "internal/tools/",
         "cmd/gormes/gateway.go",
         "cmd/gormes/provider_client.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run MultiAgent.*Isolation -count=1",
@@ -8937,7 +8937,7 @@
         "internal/automation/cron/run_store.go",
         "internal/automation/cron/run_state_concurrency_test.go",
         "internal/automation/cron/executor.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/automation/cron -run 'TestCronSchedulerExpandsConfigEnvRefs|TestCronRunStateParallelWritesSerialize' -count=1",
@@ -9008,7 +9008,7 @@
       "write_scope": [
         "internal/automation/cron/executor.go",
         "internal/automation/cron/executor_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/automation/cron -run 'TestCronExecutorDoesNotUseDeliveryOriginAsSessionIdentity|TestCronDeliveryPlan|TestCronSchedulerExpandsConfigEnvRefs|TestCronNoAgent' -count=1",
@@ -9105,7 +9105,7 @@
         "internal/automation/cron/store.go",
         "internal/automation/cron/run_store.go",
         "internal/tools/cronjob_tool.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/automation/cron -run 'TestCronScriptExecution|TestCronWorkdirExecution|TestCronInactivityTimeout|TestCronCodexExecutionPath|TestCronStateFilePermissions' -count=1",
@@ -9193,7 +9193,7 @@
         "web/src/pages/CronPage.tsx",
         "web/src/styles.css",
         "web/tests/run-tests.mjs",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "npm --prefix web test -- --run CronDashboardPage",
@@ -9322,8 +9322,8 @@
         "internal/tools/sendmessage/send_message_test.go",
         "internal/gateway/delivery.go:ParseDeliveryTarget",
         "internal/automation/cron/delivery_plan.go:resolveCronDeliveryTarget",
-        "docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md:Send-message tool",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Operator tools"
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md:Send-message tool",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Operator tools"
       ],
       "ready_when": [
         "Gormes already has a minimal `internal/tools/sendmessage` package and gateway delivery-target parsing, but the parity atom still says missing because the handler lacks Hermes `action=list`, optional schema, target guidance, and fail-closed no-backend evidence.",
@@ -9346,9 +9346,9 @@
       "write_scope": [
         "internal/tools/sendmessage/send_message.go",
         "internal/tools/sendmessage/send_message_test.go",
-        "docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
         "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
-        "docs/content/building-gormes/architecture_plan/progress.json/modules/tools.json",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tools.json",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tools.json"
       ],
       "test_commands": [
@@ -9466,7 +9466,7 @@
         "hermes-agent/tools/osv_check.py:_parse_package_from_args",
         "hermes-agent/tools/osv_check.py:_query_osv",
         "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md: OSV supply-chain check",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md: Tools, Sandboxes, And Security / Approval and security policy",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md: Tools, Sandboxes, And Security / Approval and security policy",
         "internal/tools/mcp/"
       ],
       "ready_when": [
@@ -9492,7 +9492,7 @@
         "internal/tools/mcp_process*.go",
         "internal/tools/managed_tool_gateway.go",
         "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
-        "docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tools.json"
       ],
       "test_commands": [
@@ -9539,7 +9539,7 @@
         "cmd/gormes/main.go:toolsetsForToolName",
         "internal/platform/cli/toolsets/",
         "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md: Toolset distributions",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md: Tools, Sandboxes, And Security / Tool registry and toolsets"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md: Tools, Sandboxes, And Security / Tool registry and toolsets"
       ],
       "ready_when": [
         "The upstream contract is pure data plus sampling helpers; it can be tested without model calls, provider credentials, batch jobs, or live tools.",
@@ -9562,9 +9562,9 @@
         "internal/platform/cli/toolsets/",
         "internal/tools/parity/",
         "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
-        "docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tools.json",
-        "docs/content/building-gormes/architecture_plan/progress.json/modules/tools.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tools.json"
       ],
       "test_commands": [
         "go test ./internal/platform/cli/toolsets -run 'TestHermesToolsetDistribution|TestToolsetDistribution' -count=1",
@@ -9693,7 +9693,7 @@
         "../hermes-agent/hermes_cli/mcp_config.py:613-614:non_oauth_redirect",
         "../hermes-agent/hermes_cli/mcp_config.py:740-758:_probe_single_server_dispatch",
         "internal/plugins/mcp_oauth_state.go",
-        "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
       ],
       "ready_when": [
         "MCP OAuth state store + noninteractive auth errors row exposes the persisted state and remove helper (row 15458).",
@@ -9725,7 +9725,7 @@
         "internal/tools/mcp_login_test.go",
         "cmd/gormes/mcp_login.go",
         "cmd/gormes/mcp_login_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run '^TestMCPLogin' -count=1",
@@ -9794,7 +9794,7 @@
         "internal/cli/",
         "internal/tools/",
         "internal/kernel/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run TestOneshotSafety -count=1",
@@ -9841,7 +9841,7 @@
         "./hermes-agent/tests/hermes_cli/test_tools_config.py@7d276bfbe:test_get_platform_tools_mixed_does_not_resurrect_default_off",
         "internal/cli/toolset_config.go",
         "internal/cli/toolset_config_test.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / Tool registry and toolsets"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / Tool registry and toolsets"
       ],
       "ready_when": [
         "Platform toolset config persistence + MCP sentinel is validated, so PlatformStatus already has the pure helper seam for persisted platform_toolsets.",
@@ -9865,7 +9865,7 @@
       "write_scope": [
         "internal/cli/toolset_config.go",
         "internal/cli/toolset_config_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run 'TestPlatformToolsetConfig.*Composite|TestPlatformToolsetConfigMixedComposite' -count=1",
@@ -9927,7 +9927,7 @@
       "write_scope": [
         "internal/tools/execute_code_strict_mode.go",
         "internal/tools/execute_code_strict_mode_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestStrictMode_' -count=1",
@@ -10021,7 +10021,7 @@
         "internal/tools/execute_code.go",
         "internal/tools/execute_code_project_mode.go",
         "internal/tools/execute_code_project_mode_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestProjectMode|TestStrictMode|TestExecuteCode' -count=1",
@@ -10079,7 +10079,7 @@
         "system"
       ],
       "source_refs": [
-        "docs/content/papers/safety-and-deployment.md",
+        "webpages/docs/content/papers/safety-and-deployment.md",
         "arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025)",
         "internal/tools/executor.go"
       ],
@@ -10104,7 +10104,7 @@
         "internal/tools/command_classifier_test.go",
         "internal/tools/transactional_executor.go",
         "internal/tools/transactional_executor_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestCommandClassifier -count=1",
@@ -10169,7 +10169,7 @@
         "internal/tools/transactional_executor.go",
         "internal/tools/transactional_executor_test.go",
         "internal/tools/snapshot.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run TestTransactionalExecutor -count=1",
@@ -10203,7 +10203,7 @@
         "operator"
       ],
       "source_refs": [
-        "docs/content/papers/safety-and-deployment.md",
+        "webpages/docs/content/papers/safety-and-deployment.md",
         "OpenSandbox (github.com/alibaba/OpenSandbox)",
         "internal/tools/sandbox.go"
       ],
@@ -10255,7 +10255,7 @@
         "system"
       ],
       "source_refs": [
-        "docs/content/papers/agentic-os-design.md",
+        "webpages/docs/content/papers/agentic-os-design.md",
         "hermes-agent/run_agent.py@b816fd4e2:925",
         "hermes-agent/run_agent.py@b816fd4e2:9539",
         "hermes-agent/run_agent.py@b816fd4e2:9780",
@@ -10285,7 +10285,7 @@
         "internal/llm/turn_events_test.go",
         "internal/tools/tool_events.go",
         "internal/tools/tool_events_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run TestTurnEvents -count=1",
@@ -10320,7 +10320,7 @@
       ],
       "fixture": "internal/goncho/memory_tools_test.go; internal/tools/memory_tool_descriptors_test.go",
       "source_refs": [
-        "docs/content/papers/agent-memory-systems.md",
+        "webpages/docs/content/papers/agent-memory-systems.md",
         "arXiv:2601.01885 (AgeMem 2026)",
         "internal/goncho/memory_tools.go",
         "internal/goncho/local_markdown_memory.go",
@@ -10342,7 +10342,7 @@
         "summarize_memories(filter) compresses related entries",
         "forget_memory(id) removes from active index (soft delete)",
         "All operations are tool-descriptor compatible (MCP-style schema)",
-        "Agent can chain operations (retrieve \u2192 summarize \u2192 store)",
+        "Agent can chain operations (retrieve → summarize → store)",
         "Agent memory is isolated by agent/workspace/peer in shared local stores"
       ],
       "note": "Complete: store_memory now persists metadata into Goncho provenance; retrieve/update/summarize/forget are proven through tool calls; summarize_memories returns deterministic chainable summary text; all five tools expose MCP-compatible descriptors plus tools.OperationSpec memory audit metadata; local stores scope active retrieval and mutation by agent/workspace/peer so multi-agent memory remains independent.",
@@ -10383,8 +10383,8 @@
       "source_refs": [
         "internal/REFACTOR-CMD-PLAN.md:Tool Adapter Enclave",
         "internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tool registry and toolsets",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Code execution",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tool registry and toolsets",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Code execution",
         "hermes-agent/tools/registry.py",
         "hermes-agent/tools/terminal_tool.py",
         "hermes-agent/tools/tool_output_limits.py",
@@ -10422,7 +10422,7 @@
         "cmd/gormes/registry.go",
         "cmd/gormes/registry_test.go",
         "internal/tools/codemap.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal -run TestInternalTopology -count=1",
@@ -10455,8 +10455,8 @@
       "source_refs": [
         "internal/REFACTOR-CMD-PLAN.md:Tool Adapter Enclave",
         "internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tool registry and toolsets",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Operator tools",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tool registry and toolsets",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Operator tools",
         "hermes-agent/gateway/run.py",
         "hermes-agent/agent/display.py",
         "internal/tools/trace/tooltrace.go:FormatPlain",
@@ -10490,7 +10490,7 @@
         "internal/discord/render.go",
         "internal/tools/codemap.md",
         "internal/tools/trace/codemap.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal -run TestInternalTopology -count=1",
@@ -10523,7 +10523,7 @@
       "source_refs": [
         "internal/REFACTOR-CMD-PLAN.md:Tool Adapter Enclave",
         "internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tool registry and toolsets",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tool registry and toolsets",
         "hermes-agent/tools/session_search_tool.py",
         "hermes-agent/tests/tools/test_session_search.py",
         "internal/tools/sessionsearch/session_search_tool.go:NewSessionSearchTool",
@@ -10556,7 +10556,7 @@
         "cmd/gormes/registry.go",
         "cmd/gormes/registry_test.go",
         "internal/tools/codemap.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal -run TestInternalTopology -count=1",
@@ -10621,7 +10621,7 @@
         "internal/tools/mcp_http.go",
         "internal/tools/mcp_client.go",
         "internal/tools/managed_tool_gateway.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tools -run 'TestMCPStreamableHTTP_|TestMCPLegacySSEEndpoint_' -count=1",

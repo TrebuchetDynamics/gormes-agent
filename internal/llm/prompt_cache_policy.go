@@ -127,32 +127,5 @@ func ApplyPromptCacheControl(messages []Message, policy PromptCachePolicy) []Mes
 }
 
 func clonePromptCacheMessages(messages []Message) []Message {
-	out := make([]Message, len(messages))
-	for i, msg := range messages {
-		out[i] = msg
-		out[i].CacheControl = cloneCacheControl(msg.CacheControl)
-		if len(msg.ContentParts) > 0 {
-			out[i].ContentParts = append([]MessageContentPart(nil), msg.ContentParts...)
-		}
-		if len(msg.ToolCalls) > 0 {
-			out[i].ToolCalls = append([]ToolCall(nil), msg.ToolCalls...)
-		}
-		if msg.Reasoning != nil {
-			reasoning := *msg.Reasoning
-			out[i].Reasoning = &reasoning
-		}
-		if msg.ReasoningContent != nil {
-			reasoningContent := *msg.ReasoningContent
-			out[i].ReasoningContent = &reasoningContent
-		}
-	}
-	return out
-}
-
-func cloneCacheControl(in *CacheControl) *CacheControl {
-	if in == nil {
-		return nil
-	}
-	out := *in
-	return &out
+	return cloneMessages(messages)
 }

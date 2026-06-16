@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -207,12 +206,5 @@ func newSendCommandWithDeliveryForTest(deliver SendDeliveryFunc) *cobra.Command 
 }
 
 func executeSendCommandForTest(cmd *cobra.Command, args ...string) (string, string, error) {
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SilenceUsage = true
-	cmd.SilenceErrors = true
-	cmd.SetArgs(args)
-	err := cmd.Execute()
-	return stdout.String(), stderr.String(), err
+	return executeCobraCommandForTest(cmd, cobraCommandExecutionOptions{SilenceUsage: true, SilenceErrors: true}, args...)
 }

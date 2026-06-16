@@ -2,7 +2,10 @@ package stateful
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -60,6 +63,52 @@ func TestStatefulToolMigrationQueueRejectsMissingRollback(t *testing.T) {
 	}
 }
 
+func TestStatefulToolMigrationQueueRejectsUnknownContractEnums(t *testing.T) {
+	q := NewStatefulToolMigrationQueue(StatefulToolQueueOptions{MutationRoots: []string{t.TempDir()}})
+
+	cases := []struct {
+		name string
+		plan StatefulToolPlan
+		want string
+	}{
+		{
+			name: "domain",
+			plan: StatefulToolPlan{Name: "write_file", Domain: ToolStateDomain("custom"), RootPolicy: ToolRootPolicyInjectedXDG, RollbackPolicy: ToolRollbackPolicyCheckpoint, ConcurrencyPolicy: ToolConcurrencySerializedWrites, OwnerRow: "File write/patch tool port"},
+			want: "domain",
+		},
+		{
+			name: "root_policy",
+			plan: StatefulToolPlan{Name: "write_file", Domain: ToolStateDomainFile, RootPolicy: ToolRootPolicy("custom"), RollbackPolicy: ToolRollbackPolicyCheckpoint, ConcurrencyPolicy: ToolConcurrencySerializedWrites, OwnerRow: "File write/patch tool port"},
+			want: "root_policy",
+		},
+		{
+			name: "rollback_policy",
+			plan: StatefulToolPlan{Name: "write_file", Domain: ToolStateDomainFile, RootPolicy: ToolRootPolicyInjectedXDG, RollbackPolicy: ToolRollbackPolicy("custom"), ConcurrencyPolicy: ToolConcurrencySerializedWrites, OwnerRow: "File write/patch tool port"},
+			want: "rollback_policy",
+		},
+		{
+			name: "concurrency_policy",
+			plan: StatefulToolPlan{Name: "write_file", Domain: ToolStateDomainFile, RootPolicy: ToolRootPolicyInjectedXDG, RollbackPolicy: ToolRollbackPolicyCheckpoint, ConcurrencyPolicy: ToolConcurrencyPolicy("custom"), OwnerRow: "File write/patch tool port"},
+			want: "concurrency_policy",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ev := q.Register(tc.plan)
+			if ev.Code != ToolStateContractMissing {
+				t.Fatalf("evidence code = %q, want %q (%#v)", ev.Code, ToolStateContractMissing, ev)
+			}
+			if !strings.Contains(ev.Message, tc.want) {
+				t.Fatalf("evidence message = %q, want field %q", ev.Message, tc.want)
+			}
+			if _, ok := q.Plan(tc.plan.Name); ok {
+				t.Fatalf("invalid plan was registered: %#v", tc.plan)
+			}
+		})
+	}
+}
+
 func TestStatefulToolMigrationQueuePathIsolation(t *testing.T) {
 	root := t.TempDir()
 	q := NewStatefulToolMigrationQueue(StatefulToolQueueOptions{MutationRoots: []string{root}})
@@ -75,6 +124,29 @@ func TestStatefulToolMigrationQueuePathIsolation(t *testing.T) {
 	}
 	if ev := q.AuthorizePath("write_file", "/etc/passwd"); ev.Code != ToolPathDenied {
 		t.Fatalf("foreign absolute evidence = %#v, want %q", ev, ToolPathDenied)
+	}
+}
+
+func TestStatefulToolMigrationQueueRejectsSymlinkEscape(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("secret"), 0o600); err != nil {
+		t.Fatalf("write outside fixture: %v", err)
+	}
+	link := filepath.Join(root, "linked-outside")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlink fixture unavailable: %v", err)
+	}
+	q := NewStatefulToolMigrationQueue(StatefulToolQueueOptions{MutationRoots: []string{root}})
+	if ev := q.Register(StatefulToolPlan{Name: "write_file", Domain: ToolStateDomainFile, RootPolicy: ToolRootPolicyInjectedXDG, RollbackPolicy: ToolRollbackPolicyCheckpoint, ConcurrencyPolicy: ToolConcurrencySerializedWrites, OwnerRow: "File write/patch tool port"}); ev.Code != ToolStateContractRegistered {
+		t.Fatalf("register evidence: %#v", ev)
+	}
+
+	if ev := q.AuthorizePath("write_file", filepath.Join(link, "secret.txt")); ev.Code != ToolPathDenied {
+		t.Fatalf("symlink escape evidence = %#v, want %q", ev, ToolPathDenied)
+	}
+	if ev := q.AuthorizePath("write_file", filepath.Join(link, "new.txt")); ev.Code != ToolPathDenied {
+		t.Fatalf("new-file symlink escape evidence = %#v, want %q", ev, ToolPathDenied)
 	}
 }
 

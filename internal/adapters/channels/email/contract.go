@@ -4,21 +4,17 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"html"
-	"io"
-	"mime"
-	"mime/multipart"
 	"net/mail"
-	"regexp"
 	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/email/allowlist"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/email/body"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/email/delivery"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
 const platformName = "email"
-
-var htmlTagPattern = regexp.MustCompile(`<[^>]+>`)
 
 // ReplyTarget captures the outbound threading headers for an email reply.
 type ReplyTarget struct {
@@ -44,12 +40,7 @@ type InboundDispatchOptions struct {
 }
 
 // SenderDeniedEvidence is bounded denial evidence for non-allowlisted email.
-type SenderDeniedEvidence struct {
-	Code   string
-	Sender string
-	Domain string
-	Reason string
-}
+type SenderDeniedEvidence = allowlist.SenderDeniedEvidence
 
 // InboundDispatchResult reports whether an RFC 822 message was accepted,
 // dropped by policy, or ignored because it had no usable sender/body.
@@ -163,41 +154,19 @@ func normalizeInboundMessage(msg *mail.Message, from *mail.Address) (NormalizedI
 }
 
 func normalizeEmailAddress(addr string) string {
-	return strings.ToLower(strings.TrimSpace(addr))
+	return allowlist.NormalizeAddress(addr)
 }
 
 func emailSenderAllowed(sender string, allowed []string) bool {
-	if len(allowed) == 0 {
-		return true
-	}
-	for _, candidate := range allowed {
-		if normalizeEmailAddress(candidate) == sender {
-			return true
-		}
-	}
-	return false
+	return allowlist.SenderAllowed(sender, allowed)
 }
 
 func emailAddressDomain(sender string) string {
-	_, domain, ok := strings.Cut(sender, "@")
-	if !ok {
-		return ""
-	}
-	return strings.TrimSpace(domain)
+	return allowlist.AddressDomain(sender)
 }
 
 func evidenceSender(sender string) string {
-	local, domain, ok := strings.Cut(sender, "@")
-	if !ok {
-		if local == "" {
-			return "***"
-		}
-		return local[:1] + "***"
-	}
-	if local == "" {
-		return "***@" + domain
-	}
-	return local[:1] + "***@" + domain
+	return allowlist.EvidenceSender(sender)
 }
 
 func firstAddress(raw string) (*mail.Address, bool) {
@@ -208,90 +177,12 @@ func firstAddress(raw string) (*mail.Address, bool) {
 	return list[0], true
 }
 
-func extractBody(contentType string, body io.Reader) (string, error) {
-	mediaType, params, err := mime.ParseMediaType(contentType)
-	if err != nil {
-		mediaType = "text/plain"
-		params = map[string]string{}
-	}
-
-	switch {
-	case strings.HasPrefix(mediaType, "multipart/"):
-		return extractMultipartBody(params["boundary"], body)
-	case mediaType == "text/html":
-		return htmlToText(body)
-	default:
-		text, readErr := io.ReadAll(body)
-		if readErr != nil {
-			return "", fmt.Errorf("email: read body: %w", readErr)
-		}
-		return strings.TrimSpace(string(text)), nil
-	}
-}
-
-func extractMultipartBody(boundary string, body io.Reader) (string, error) {
-	if strings.TrimSpace(boundary) == "" {
-		return "", nil
-	}
-	reader := multipart.NewReader(body, boundary)
-	var fallback string
-	for {
-		part, err := reader.NextPart()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return "", fmt.Errorf("email: read multipart: %w", err)
-		}
-		content, err := extractBody(part.Header.Get("Content-Type"), part)
-		if err != nil {
-			return "", err
-		}
-		content = strings.TrimSpace(content)
-		if content == "" {
-			continue
-		}
-		mediaType, _, _ := mime.ParseMediaType(part.Header.Get("Content-Type"))
-		if mediaType == "text/plain" {
-			return content, nil
-		}
-		if fallback == "" {
-			fallback = content
-		}
-	}
-	return fallback, nil
-}
-
-func htmlToText(body io.Reader) (string, error) {
-	raw, err := io.ReadAll(body)
-	if err != nil {
-		return "", fmt.Errorf("email: read html body: %w", err)
-	}
-	text := string(raw)
-	replacer := strings.NewReplacer(
-		"<br>", "\n",
-		"<br/>", "\n",
-		"<br />", "\n",
-		"</p>", "\n",
-		"</div>", "\n",
-	)
-	text = replacer.Replace(text)
-	text = htmlTagPattern.ReplaceAllString(text, "")
-	text = html.UnescapeString(text)
-	return normalizeWhitespace(text), nil
+func extractBody(contentType string, reader interface{ Read([]byte) (int, error) }) (string, error) {
+	return body.Extract(contentType, reader)
 }
 
 func normalizeWhitespace(text string) string {
-	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
-	out := make([]string, 0, len(lines))
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		out = append(out, line)
-	}
-	return strings.TrimSpace(strings.Join(out, "\n"))
+	return body.NormalizeWhitespace(text)
 }
 
 func isReplySubject(subject string) bool {
@@ -321,48 +212,11 @@ func replyReferences(existing, messageID string) string {
 
 // Delivery captures the outbound email payload BuildDelivery serializes
 // into RFC 5322 byte form.
-type Delivery struct {
-	From       string
-	To         string
-	Subject    string
-	InReplyTo  string
-	References string
-	Body       string
-	// Date is preserved verbatim when non-empty; otherwise BuildDelivery
-	// supplies an RFC 5322 Date from the injected clock.
-	Date string
-}
+type Delivery = delivery.Delivery
 
 // BuildDelivery serializes an outbound email reply to RFC 5322 bytes. It
 // always emits exactly one Date header: caller-supplied Date is preserved,
 // otherwise a Date is computed from now() (or time.Now when nil).
 func BuildDelivery(d Delivery, now func() time.Time) []byte {
-	if now == nil {
-		now = time.Now
-	}
-	var b bytes.Buffer
-	if d.From != "" {
-		fmt.Fprintf(&b, "From: %s\r\n", d.From)
-	}
-	if d.To != "" {
-		fmt.Fprintf(&b, "To: %s\r\n", d.To)
-	}
-	if d.Subject != "" {
-		fmt.Fprintf(&b, "Subject: %s\r\n", d.Subject)
-	}
-	if d.InReplyTo != "" {
-		fmt.Fprintf(&b, "In-Reply-To: %s\r\n", d.InReplyTo)
-	}
-	if d.References != "" {
-		fmt.Fprintf(&b, "References: %s\r\n", d.References)
-	}
-	date := strings.TrimSpace(d.Date)
-	if date == "" {
-		date = now().Format(time.RFC1123Z)
-	}
-	fmt.Fprintf(&b, "Date: %s\r\n", date)
-	fmt.Fprintf(&b, "Content-Type: text/plain; charset=UTF-8\r\n")
-	fmt.Fprintf(&b, "\r\n")
-	fmt.Fprint(&b, d.Body)
-	return b.Bytes()
+	return delivery.Build(d, now)
 }

@@ -2,7 +2,7 @@
 // It implements store.Store with fire-and-forget semantics: Exec returns
 // an Ack in microseconds after enqueueing a Command on a bounded channel;
 // a single-owner background worker performs all SQL I/O. On queue-full:
-// log + drop. See docs/superpowers/specs/2026-04-20-gormes-phase3a-memory-design.md.
+// log + drop. See webpages/docs/superpowers/specs/2026-04-20-gormes-phase3a-memory-design.md.
 package memory
 
 import (
@@ -81,6 +81,10 @@ func OpenSqlite(path string, queueCap int, log *slog.Logger) (*SqliteStore, erro
 		_ = db.Close()
 		return nil, err
 	}
+	if err := enforcePrivateSQLiteFiles(path); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 
 	s := &SqliteStore{
 		db:    db,
@@ -90,6 +94,28 @@ func OpenSqlite(path string, queueCap int, log *slog.Logger) (*SqliteStore, erro
 	}
 	go s.run()
 	return s, nil
+}
+
+func enforcePrivateSQLiteFiles(path string) error {
+	for _, candidate := range []string{path, path + "-wal", path + "-shm"} {
+		info, err := os.Stat(candidate)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return fmt.Errorf("memory: stat %s: %w", candidate, err)
+		}
+		if !info.Mode().IsRegular() {
+			continue
+		}
+		if info.Mode().Perm() == 0o600 {
+			continue
+		}
+		if err := os.Chmod(candidate, 0o600); err != nil {
+			return fmt.Errorf("memory: chmod %s: %w", candidate, err)
+		}
+	}
+	return nil
 }
 
 func applyPragmas(db *sql.DB) error {

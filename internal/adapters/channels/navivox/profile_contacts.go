@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -368,7 +369,7 @@ func normalizeProfileScope(serverID, profileID string) (string, string) {
 
 func profileContactKey(serverID, profileID string) string {
 	serverID, profileID = normalizeProfileScope(serverID, profileID)
-	return serverID + "::" + profileID
+	return strconv.Itoa(len(serverID)) + ":" + serverID + strconv.Itoa(len(profileID)) + ":" + profileID
 }
 
 func normalizeProfileContact(contact ProfileContact) ProfileContact {

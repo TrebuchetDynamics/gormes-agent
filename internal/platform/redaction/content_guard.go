@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/textvalue"
 )
@@ -93,6 +94,18 @@ func RedactSecretsWithCount(text, marker string) (string, int) {
 	if marker == "" {
 		marker = defaultSecretMarker
 	}
+	out, count := redactSecretsOnce(text, marker)
+	normalized := normalizeSecretFormatting(text)
+	if normalized != text {
+		normalizedOut, normalizedCount := redactSecretsOnce(normalized, marker)
+		if normalizedCount > 0 && normalizedCount >= count {
+			return normalizedOut, normalizedCount
+		}
+	}
+	return out, count
+}
+
+func redactSecretsOnce(text, marker string) (string, int) {
 	out := text
 	count := 0
 	for _, pattern := range secretPrefixPatterns {
@@ -117,6 +130,15 @@ func RedactSecretsWithCount(text, marker string) (string, int) {
 func ContainsSecret(text string) bool {
 	_, count := RedactSecretsWithCount(text, defaultSecretMarker)
 	return count > 0
+}
+
+func normalizeSecretFormatting(text string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.Is(unicode.Cf, r) {
+			return -1
+		}
+		return r
+	}, text)
 }
 
 func CheckSensitivePath(path string) SensitivePathDecision {

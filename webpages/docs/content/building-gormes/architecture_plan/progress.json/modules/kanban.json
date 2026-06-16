@@ -71,7 +71,7 @@
         "internal/cli/command_registry_policy_test.go",
         "cmd/gormes/hermes_cli_parity.go",
         "cmd/gormes/hermes_cli_parity_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kanban -count=1",
@@ -180,7 +180,7 @@
         "internal/kanban/",
         "internal/gateway/",
         "cmd/gormes/kanban.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kanban -run TestKanbanDispatcher -count=1",
@@ -296,7 +296,7 @@
         "internal/gateway/",
         "internal/cli/",
         "cmd/gormes/kanban.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kanban -run 'TestKanban(ProcessSpawner|WorkerLifecycle)' -count=1",
@@ -377,7 +377,7 @@
         "internal/kanban/",
         "cmd/gormes/registry.go",
         "cmd/gormes/registry_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kanbantools -run TestKanbanTools -count=1",
@@ -474,7 +474,7 @@
         "internal/kanbantools/kanban_tools.go",
         "internal/kanbantools/kanban_tools_test.go",
         "cmd/gormes/registry_kanban_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kanbantools -run 'TestKanbanTools' -count=1",
@@ -545,7 +545,7 @@
         "./hermes-agent/tests/tools/test_kanban_tools.py@4a1840e68:test_worker_can_comment_on_foreign_task",
         "internal/kanbantools/kanban_tools.go",
         "internal/kanbantools/kanban_tools_test.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / Operator tools"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / Operator tools"
       ],
       "ready_when": [
         "Hermes Kanban worker tools and prompt gating is complete enough to expose native kanban_comment through the worker toolset.",
@@ -567,7 +567,7 @@
       "write_scope": [
         "internal/kanbantools/kanban_tools.go",
         "internal/kanbantools/kanban_tools_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kanbantools -run 'TestKanbanTools(Comment|WorkerCanComment|DenyForeignTaskMutationForWorkers|WorkerLifecycleStoresStructuredHandoff)' -count=1",
@@ -649,7 +649,7 @@
         "internal/dashboard/",
         "web/",
         "cmd/gormes/kanban.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/apiserver -run TestDashboardKanban -count=1",
@@ -753,7 +753,7 @@
         "cmd/gormes/main.go",
         "cmd/gormes/kanban.go",
         "cmd/gormes/tui_kanban_slash_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tui -run 'TestKanbanSlash|TestHermesSlashDispatchBehavior' -count=1",
@@ -853,7 +853,7 @@
         "internal/gateway/kanban_command_test.go",
         "cmd/gormes/gateway.go",
         "cmd/gormes/gateway_kanban_slash_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestKanbanCommand|TestActiveTurnCommandBypass' -count=1",
@@ -944,7 +944,7 @@
         "cmd/gormes/kanban.go",
         "cmd/gormes/tui_kanban_slash_test.go",
         "internal/gateway/kanban_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestRunTUIKanbanSlashCommand' -count=1",
@@ -1035,7 +1035,7 @@
         "internal/apiserver/server.go",
         "internal/apiserver/dashboard.go",
         "internal/apiserver/dashboard_kanban_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/apiserver -run 'TestDashboardKanban_(DispatchQuickPath|Unauthorized|StoreUnavailable|OverviewLaneSummary)' -count=1",
@@ -1123,7 +1123,7 @@
         "internal/apiserver/server.go",
         "internal/apiserver/dashboard.go",
         "internal/apiserver/dashboard_kanban_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/apiserver -run TestDashboardKanban_TaskRuns -count=1",
@@ -1214,7 +1214,7 @@
       "write_scope": [
         "internal/gateway/status_command.go",
         "internal/gateway/status_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/gateway -run TestStatusCommandIncludesKanbanDispatcherStatus -count=1",
@@ -1541,7 +1541,7 @@
         "cmd/gormes/main.go",
         "cmd/gormes/chat_command_test.go",
         "cmd/gormes/oneshot_flags_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestChatCommandPinsCurrentKanbanBoardDBForTools|TestChatCommandPreservesExplicitKanbanDBPin' -count=1",
@@ -1628,7 +1628,7 @@
       "write_scope": [
         "internal/kanban/store.go",
         "internal/kanban/store_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kanban -run TestKanbanStoreAddColumnIfMissingIgnoresDuplicateColumnRace -count=1",
@@ -1727,7 +1727,7 @@
         "internal/kanban/notify_test.go",
         "cmd/gormes/kanban.go",
         "cmd/gormes/kanban_notify_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kanban -run TestNotifySubscription -count=1",
@@ -1824,7 +1824,7 @@
       "write_scope": [
         "internal/kanban/notifier.go",
         "internal/kanban/notifier_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kanban -run TestKanbanNotifier -count=1",
@@ -1922,7 +1922,7 @@
         "internal/kanban/stats_test.go",
         "cmd/gormes/kanban.go",
         "cmd/gormes/kanban_stats_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kanban -run TestBoardStats -count=1",
@@ -2007,7 +2007,7 @@
         "internal/kanban/stats_test.go",
         "internal/kanban/store.go",
         "internal/kanban/store_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kanban -run 'TestBoardStats|TestKanbanTaskScansCorruptTimestampsAsZero' -count=1",
@@ -2095,7 +2095,7 @@
         "internal/kanban/dispatcher_test.go",
         "internal/kanban/process_spawner.go",
         "internal/kanban/process_spawner_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kanban -run 'TestKanbanDispatcher.*WorkspaceRoot|TestKanbanProcessSpawner.*LogRoot' -count=1",
@@ -2184,7 +2184,7 @@
       "write_scope": [
         "cmd/gormes/kanban.go",
         "cmd/gormes/kanban_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run TestKanbanTaskCommandsUseCurrentBoard -count=1",
@@ -2274,7 +2274,7 @@
       "write_scope": [
         "cmd/gormes/kanban.go",
         "cmd/gormes/kanban_runs_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run TestKanbanRunsCommand -count=1",
@@ -2364,7 +2364,7 @@
         "cmd/gormes/kanban.go",
         "cmd/gormes/kanban_boards_test.go",
         "cmd/gormes/kanban_boards_list_json_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run TestKanbanBoards -count=1",
@@ -2455,7 +2455,7 @@
       "write_scope": [
         "cmd/gormes/kanban.go",
         "cmd/gormes/kanban_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestKanbanCommand(BoardFlag|PreservesExplicitDBPin)' -count=1",
@@ -2550,7 +2550,7 @@
         "internal/kanban/store_test.go",
         "cmd/gormes/kanban.go",
         "cmd/gormes/kanban_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kanban -run '^TestKanbanGC_' -count=1",
@@ -2653,7 +2653,7 @@
         "cmd/gormes/hermes_cli_parity_test.go",
         "internal/cli/command_registry.go",
         "internal/cli/command_registry_policy_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kanban -run '^TestReadWorkerLog' -count=1",
@@ -2756,7 +2756,7 @@
         "cmd/gormes/hermes_cli_parity_test.go",
         "internal/cli/command_registry.go",
         "internal/cli/command_registry_policy_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestKanbanTailCommand|TestHermesCLIParityManifestClassifiesKanbanCoreAndResiduals' -count=1",
@@ -2852,7 +2852,7 @@
         "internal/kanban/reclaim.go",
         "internal/kanban/zombie_darwin.go",
         "internal/kanban/zombie_other.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kanban -run Heartbeat -count=1",
@@ -2918,7 +2918,7 @@
         "internal/kanban/store.go",
         "internal/gateway/kanban_command_test.go",
         "internal/gateway/kanban_command.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kanban -run TestSpecify -count=1",

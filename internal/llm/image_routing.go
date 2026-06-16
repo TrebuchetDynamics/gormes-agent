@@ -3,10 +3,14 @@ package llm
 import (
 	"encoding/base64"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 // ImageInputMode selects how user-attached images are presented to the
@@ -120,6 +124,9 @@ func ExtractImageRefs(text string) ([]string, []string) {
 			continue
 		}
 		expanded := expandImagePath(text[match[2]:match[3]])
+		if redaction.CheckSensitivePath(expanded).Blocked {
+			continue
+		}
 		info, err := os.Stat(expanded)
 		if err != nil || info.IsDir() {
 			continue
@@ -140,7 +147,7 @@ func ExtractImageRefs(text string) ([]string, []string) {
 		url := strings.TrimRightFunc(text[loc[0]:loc[1]], func(r rune) bool {
 			return strings.ContainsRune(".,;:!?)]>", r)
 		})
-		if url == "" {
+		if url == "" || !isRemoteHTTPImageURL(url) {
 			continue
 		}
 		if _, ok := seenURLs[url]; ok {
@@ -216,7 +223,7 @@ func BuildNativeImageContentParts(userText string, imagePaths []string, imageURL
 	for _, group := range imageURLGroups {
 		for _, rawURL := range group {
 			url := strings.TrimSpace(rawURL)
-			if url == "" {
+			if url == "" || !isRemoteHTTPImageURL(url) {
 				continue
 			}
 			parts = append(parts, MessageContentPart{
@@ -245,7 +252,71 @@ func BuildNativeImageContentParts(userText string, imagePaths []string, imageURL
 	return parts, skipped
 }
 
+func isRemoteHTTPImageURL(rawURL string) bool {
+	rawURL = strings.TrimSpace(rawURL)
+	if strings.ContainsFunc(rawURL, func(r rune) bool { return r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) }) {
+		return false
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	if parsed.Scheme != "https" && parsed.Scheme != "http" {
+		return false
+	}
+	if parsed.User != nil {
+		return false
+	}
+	host := strings.ToLower(strings.TrimSpace(parsed.Hostname()))
+	if host == "" || host == "localhost" || strings.HasSuffix(host, ".localhost") || numericAddressLikeHost(host) {
+		return false
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		if !ip.IsGlobalUnicast() || ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
+			return false
+		}
+	}
+	return true
+}
+
+func numericAddressLikeHost(host string) bool {
+	labels := strings.Split(host, ".")
+	if len(labels) == 0 {
+		return false
+	}
+	for _, label := range labels {
+		if label == "" || !numericAddressLikeLabel(label) {
+			return false
+		}
+	}
+	return true
+}
+
+func numericAddressLikeLabel(label string) bool {
+	if strings.HasPrefix(label, "0x") {
+		label = strings.TrimPrefix(label, "0x")
+		if label == "" {
+			return false
+		}
+		for _, r := range label {
+			if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+				return false
+			}
+		}
+		return true
+	}
+	for _, r := range label {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return label != ""
+}
+
 func imageFileToDataURL(rawPath string) (string, error) {
+	if redaction.CheckSensitivePath(rawPath).Blocked {
+		return "", fmt.Errorf("image_routing: sensitive image path redacted")
+	}
 	info, err := os.Stat(rawPath)
 	if err != nil {
 		return "", err

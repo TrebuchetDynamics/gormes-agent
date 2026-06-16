@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/transcription/local"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper"
 )
 
@@ -174,7 +175,7 @@ func TestLocalSTTProvider_Transcribe_UsesRequestedModelTier(t *testing.T) {
 }
 
 func TestStitchChunkTranscriptsRemovesBoundaryOverlap(t *testing.T) {
-	got := stitchChunkTranscripts([]string{
+	got := local.StitchChunkTranscripts([]string{
 		"ask not what your country",
 		"your country can do for you",
 		"for you ask what you can do",
@@ -186,7 +187,7 @@ func TestStitchChunkTranscriptsRemovesBoundaryOverlap(t *testing.T) {
 }
 
 func TestStitchChunkTranscriptsKeepsDistinctChunksOnNewLines(t *testing.T) {
-	got := stitchChunkTranscripts([]string{"first sentence", "second sentence"})
+	got := local.StitchChunkTranscripts([]string{"first sentence", "second sentence"})
 	want := "first sentence\nsecond sentence"
 	if got != want {
 		t.Fatalf("stitched transcript = %q, want %q", got, want)

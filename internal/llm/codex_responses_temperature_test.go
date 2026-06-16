@@ -40,7 +40,7 @@ func TestCodexResponsesTemperatureFixturesAvoidDeletedFlushDonorReferences(t *te
 	files := []string{
 		"internal/llm/unsupported_temperature_retry_test.go",
 		"internal/llm/codex_responses_temperature_test.go",
-		"docs/content/building-gormes/architecture_plan/progress.json",
+		"webpages/docs/content/building-gormes/architecture_plan/progress.json",
 	}
 	forbidden := []string{
 		strings.Join([]string{"tests/run_agent/test", "flush", "memories", "codex.py"}, "_"),
@@ -68,7 +68,7 @@ func readRepositoryTextFile(t *testing.T, slashPath string) string {
 	}
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
 	path := filepath.Join(repoRoot, filepath.FromSlash(slashPath))
-	if slashPath == "docs/content/building-gormes/architecture_plan/progress.json" {
+	if slashPath == "webpages/docs/content/building-gormes/architecture_plan/progress.json" {
 		return readLogicalProgressText(t, path)
 	}
 	raw, err := os.ReadFile(path)

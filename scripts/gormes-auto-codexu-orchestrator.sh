@@ -12,7 +12,7 @@ case "${1:-}" in
     ;;
   *)
     printf '%s\n' "gormes-auto-codexu-orchestrator: autonomous builder-loop command removed."
-    printf '%s\n' "Use repo-local skills for planning/building, go run ./cmd/progress for progress docs, and go run ./cmd/repoctl for repo metadata."
+    printf '%s\n' "Use repo-local skills for planning/building, go run ./cmd/progress for progress docs, and go run ./cmd/gormes-repo for repo metadata."
     exit 2
     ;;
 esac

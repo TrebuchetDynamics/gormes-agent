@@ -44,6 +44,42 @@ func TestKey_UsesMsgIDFallbackWhenMessageIDMissing(t *testing.T) {
 	}
 }
 
+func TestKey_MissingPlatformScopeDegrades(t *testing.T) {
+	result := Key(EventKeyParts{
+		Platform:  " ",
+		ChatID:    "chat-1",
+		MessageID: "msg-1",
+	})
+
+	if result.Key != "" {
+		t.Fatalf("Key missing platform key = %q, want empty", result.Key)
+	}
+	if result.Evidence != EvidenceMissingScope {
+		t.Fatalf("Key missing platform evidence = %q, want %q", result.Evidence, EvidenceMissingScope)
+	}
+	if result.Identity.ID != "msg-1" {
+		t.Fatalf("Key missing platform identity = %+v, want preserved message identity", result.Identity)
+	}
+}
+
+func TestKey_MissingChatScopeDegrades(t *testing.T) {
+	result := Key(EventKeyParts{
+		Platform:  "telegram",
+		ChatID:    "\t ",
+		MessageID: "msg-1",
+	})
+
+	if result.Key != "" {
+		t.Fatalf("Key missing chat key = %q, want empty", result.Key)
+	}
+	if result.Evidence != EvidenceMissingScope {
+		t.Fatalf("Key missing chat evidence = %q, want %q", result.Evidence, EvidenceMissingScope)
+	}
+	if result.Identity.ID != "msg-1" {
+		t.Fatalf("Key missing chat identity = %+v, want preserved message identity", result.Identity)
+	}
+}
+
 func TestKey_MissingBothMessageIDsDegrades(t *testing.T) {
 	result := Key(EventKeyParts{
 		Platform:  "telegram",

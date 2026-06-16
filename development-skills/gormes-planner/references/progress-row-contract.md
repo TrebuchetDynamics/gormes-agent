@@ -33,7 +33,7 @@ not builder-selectable:
 - `ready_when`: say the parent is inventory-only and child rows remain present.
 - `not_ready_when`: explicitly block assigning the umbrella as one combined
   implementation slice.
-- `write_scope`: normally just `docs/content/building-gormes/architecture_plan/progress.json`
+- `write_scope`: normally just `webpages/docs/content/building-gormes/architecture_plan/progress.json`
   unless generated docs or site data are expected.
 - `no_test_required`: explain that executable child rows carry the tests.
 - `done_signal`: state that the parent remains non-selectable and source-backed

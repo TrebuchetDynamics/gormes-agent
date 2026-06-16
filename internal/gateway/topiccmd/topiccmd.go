@@ -3,6 +3,8 @@ package topiccmd
 import (
 	"fmt"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 // Capabilities mirrors the bounded BotFather topic settings checked before
@@ -27,10 +29,19 @@ func PrivateChat(platform string, isDirectMessage bool, chatType, chatID string)
 	if !isTelegramPlatform(platform) {
 		return false
 	}
-	if isDirectMessage {
+	switch strings.ToLower(strings.TrimSpace(chatType)) {
+	case "group", "supergroup", "channel":
+		return false
+	case "private", "private_chat", "dm", "direct":
 		return true
-	}
-	if strings.TrimSpace(chatType) != "" {
+	case "":
+		if strings.HasPrefix(strings.TrimSpace(chatID), "-") {
+			return false
+		}
+		if isDirectMessage {
+			return true
+		}
+	default:
 		return false
 	}
 	// Older adapter fixtures may not carry ChatType. Telegram private chat IDs
@@ -68,7 +79,45 @@ How to enable them:
 3. Open Bot Settings > Threads Settings.
 4. Turn on Threaded Mode and make sure users are allowed to create new threads.
 
-Then send /topic again.`, reason)
+Then send /topic again.`, guidanceLine(reason))
+}
+
+func guidanceLine(value string) string {
+	value = collapseRedactedReasonAssignments(redaction.RedactSecrets(value))
+	value = strings.NewReplacer("`", "'", "*", "'").Replace(value)
+	return strings.Join(strings.Fields(value), " ")
+}
+
+func collapseRedactedReasonAssignments(value string) string {
+	replacer := strings.NewReplacer(
+		"api_key=[redacted]", "[redacted]",
+		"api-key=[redacted]", "[redacted]",
+		"authorization=[redacted]", "[redacted]",
+		"bearer=[redacted]", "[redacted]",
+		"token=[redacted]", "[redacted]",
+		"secret=[redacted]", "[redacted]",
+		"password=[redacted]", "[redacted]",
+	)
+	fields := strings.Fields(replacer.Replace(value))
+	out := make([]string, 0, len(fields))
+	for i := 0; i < len(fields); i++ {
+		field := fields[i]
+		lower := strings.ToLower(field)
+		nextRedacted := i+1 < len(fields) && strings.Contains(strings.ToLower(fields[i+1]), "[redacted]")
+		if topicSecretField(lower) && (strings.Contains(lower, "[redacted]") || nextRedacted) {
+			out = append(out, "[redacted]")
+			if nextRedacted {
+				i++
+			}
+			continue
+		}
+		out = append(out, field)
+	}
+	return strings.Join(out, " ")
+}
+
+func topicSecretField(value string) bool {
+	return strings.Contains(value, "api_key") || strings.Contains(value, "api-key") || strings.Contains(value, "apikey") || strings.Contains(value, "authorization") || strings.Contains(value, "bearer") || strings.Contains(value, "token") || strings.Contains(value, "secret") || strings.Contains(value, "password")
 }
 
 // CapabilityDebouncedText is the bounded evidence reply when setup guidance was recently sent.

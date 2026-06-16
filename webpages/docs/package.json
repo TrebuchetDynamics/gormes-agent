@@ -6,6 +6,8 @@
     "sync:content": "node ./scripts/sync-starlight-content.mjs",
     "test:content": "node --test ./scripts/starlight-content.test.mjs",
     "test:progress-artifact": "node --test ./scripts/progress-artifact.test.mjs",
+    "clean": "node ./scripts/clean-local-artifacts.mjs",
+    "clean:deps": "node ./scripts/clean-local-artifacts.mjs --deps",
     "predev": "npm run sync:content",
     "dev": "node ../shared/node/with-compatible-node.mjs astro dev",
     "prebuild": "npm run sync:content",
@@ -14,10 +16,10 @@
     "preview": "node ../shared/node/with-compatible-node.mjs astro preview"
   },
   "dependencies": {
-    "@astrojs/starlight": "latest",
-    "astro": "latest"
+    "@astrojs/starlight": "0.38.4",
+    "astro": "6.2.1"
   },
   "devDependencies": {
-    "typescript": "latest"
+    "typescript": "5.9.3"
   }
 }

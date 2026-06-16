@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/gatewaytest"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
@@ -30,6 +31,28 @@ func TestStartSkipsMissingBootFile(t *testing.T) {
 	if got := len(client.Requests()); got != 0 {
 		t.Fatalf("client requests = %d, want 0", got)
 	}
+}
+
+func TestStartAllowsNilContext(t *testing.T) {
+	path := writeBootFile(t, "# Startup Checklist\n\n1. Check nil context startup.")
+	client := llm.NewMockClient()
+	client.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "[SILENT]"},
+		{Kind: llm.EventDone, FinishReason: "stop"},
+	}, "")
+
+	started := Start(nil, Config{
+		Path:   path,
+		Model:  "boot-model",
+		Client: client,
+		Log:    discardBootLogger(),
+	})
+	if !started {
+		t.Fatal("Start() = false, want true")
+	}
+	gatewaytest.WaitFor(t, 200*time.Millisecond, func() bool {
+		return len(client.Requests()) == 1
+	})
 }
 
 func TestStartRunsWrappedBootPromptInBackground(t *testing.T) {
@@ -51,7 +74,7 @@ func TestStartRunsWrappedBootPromptInBackground(t *testing.T) {
 		t.Fatal("Start() = false, want true")
 	}
 
-	waitFor(t, 200*time.Millisecond, func() bool {
+	gatewaytest.WaitFor(t, 200*time.Millisecond, func() bool {
 		return len(client.Requests()) == 1
 	})
 
@@ -77,6 +100,23 @@ func TestStartRunsWrappedBootPromptInBackground(t *testing.T) {
 	}
 	if !strings.Contains(req.Messages[0].Content, "[SILENT]") {
 		t.Fatalf("request content = %q, want SILENT instruction", req.Messages[0].Content)
+	}
+}
+
+func TestLogBootCompletionOnlySuppressesExactSilentReply(t *testing.T) {
+	handler := &recordBootLogHandler{}
+	log := slog.New(handler)
+
+	logBootCompletion(log, "not [SILENT]; found an issue")
+
+	if len(handler.records) != 1 {
+		t.Fatalf("records = %d, want one completion log", len(handler.records))
+	}
+	if !strings.Contains(handler.records[0], "found an issue") {
+		t.Fatalf("completion log = %q, want non-exact SILENT response reported", handler.records[0])
+	}
+	if strings.Contains(handler.records[0], "nothing to report") {
+		t.Fatalf("completion log = %q, non-exact SILENT response should not be suppressed", handler.records[0])
 	}
 }
 
@@ -163,21 +203,25 @@ func writeBootFile(t *testing.T, content string) string {
 	return path
 }
 
-func discardBootLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(io.Discard, nil))
+type recordBootLogHandler struct {
+	records []string
 }
 
-func waitFor(t *testing.T, timeout time.Duration, cond func() bool) {
-	t.Helper()
-	if timeout < time.Second {
-		timeout = time.Second
-	}
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		if cond() {
-			return
-		}
-		time.Sleep(2 * time.Millisecond)
-	}
-	t.Fatalf("condition not met within %s", timeout)
+func (h *recordBootLogHandler) Enabled(context.Context, slog.Level) bool { return true }
+
+func (h *recordBootLogHandler) Handle(_ context.Context, record slog.Record) error {
+	text := record.Message
+	record.Attrs(func(attr slog.Attr) bool {
+		text += " " + attr.Key + "=" + attr.Value.String()
+		return true
+	})
+	h.records = append(h.records, text)
+	return nil
+}
+
+func (h *recordBootLogHandler) WithAttrs([]slog.Attr) slog.Handler { return h }
+func (h *recordBootLogHandler) WithGroup(string) slog.Handler      { return h }
+
+func discardBootLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }

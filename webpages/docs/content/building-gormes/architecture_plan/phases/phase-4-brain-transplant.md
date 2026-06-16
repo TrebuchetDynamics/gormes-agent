@@ -100,9 +100,9 @@ Only after the Bedrock request, stream, credential, and stale-client slices are 
 Phase 4 is the densest donor area in Gormes. Almost every sub-phase has a
 working Go shape under `references/go-agent-os/`. Route through the
 `gormes-provider-parity` skill
-(`docs/development-skills/gormes-provider-parity/SKILL.md`) for
+(`development-skills/gormes-provider-parity/SKILL.md`) for
 adapter/auth/retry work and the `gormes-references` skill
-(`docs/development-skills/gormes-references/SKILL.md`) for context-engine,
+(`development-skills/gormes-references/SKILL.md`) for context-engine,
 kernel, and credential work. The full provider table lives in
 `references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md`.
 

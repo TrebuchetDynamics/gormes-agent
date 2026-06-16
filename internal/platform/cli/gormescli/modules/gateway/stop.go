@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -13,6 +12,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	runtimegateway "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway/jsonio"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -191,12 +191,7 @@ func runGatewayStop(cmd *cobra.Command, _ []string, opts Options) error {
 }
 
 func writeGatewayStopJSON(out interface{ Write(p []byte) (int, error) }, report gatewayStopReportJSON) error {
-	body, err := json.MarshalIndent(report, "", "  ")
-	if err != nil {
-		return err
-	}
-	fmt.Fprintln(out, string(body))
-	return nil
+	return jsonio.WriteIndented(out, report)
 }
 
 func gatewayStopPID(snapshot runtimegateway.RuntimeStatusSnapshot) int {

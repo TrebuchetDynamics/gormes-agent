@@ -7,9 +7,9 @@ import (
 	"io"
 	"os"
 	"strings"
-	"unicode/utf8"
 
 	basetui "github.com/TrebuchetDynamics/gormes-agent/internal/tui"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard/layout"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -218,11 +218,11 @@ func (m model) View() string {
 	var b strings.Builder
 	if len(m.steps) > 1 {
 		progress := fmt.Sprintf("Gormes Setup — step %d of %d", m.index+1, len(m.steps))
-		b.WriteString(setupTrimToWidth(progress, m.viewWidth()))
+		b.WriteString(layout.TrimToWidth(progress, m.viewWidth()))
 		b.WriteString("\n\n")
 	}
 	if step.Prompt != "" {
-		b.WriteString(wrapSetupText(step.Prompt, m.viewWidth()))
+		b.WriteString(layout.WrapText(step.Prompt, m.viewWidth()))
 		b.WriteString("\n\n")
 	}
 
@@ -257,8 +257,8 @@ func (m model) View() string {
 	case KindMultiLine:
 		help = "Enter submit  Ctrl+J newline  Esc abort"
 	}
-	b.WriteString(wrapSetupText(help, m.viewWidth()))
-	return clampSetupView(trimSetupTrailingWhitespace(b.String()), m.viewWidth(), m.viewHeight())
+	b.WriteString(layout.WrapText(help, m.viewWidth()))
+	return layout.ClampView(layout.TrimTrailingWhitespace(b.String()), m.viewWidth(), m.viewHeight())
 }
 
 func (m model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -442,7 +442,7 @@ func (m *model) prepareActiveStep() tea.Cmd {
 			ti.EchoMode = textinput.EchoPassword
 			ti.EchoCharacter = '*'
 		}
-		ti.Width = setupInputWidth(m.width)
+		ti.Width = layout.InputWidth(m.width)
 		basetui.ApplyTextInputSkin(&ti, basetui.DefaultHermesSkin())
 		m.text = ti
 		return m.text.Focus()
@@ -451,7 +451,7 @@ func (m *model) prepareActiveStep() tea.Cmd {
 		ta.Prompt = "> "
 		ta.ShowLineNumbers = false
 		ta.Placeholder = step.Placeholder
-		ta.SetWidth(setupInputWidth(m.width))
+		ta.SetWidth(layout.InputWidth(m.width))
 		ta.SetHeight(4)
 		ta.SetValue(step.value.Text)
 		basetui.ApplyTextareaSkin(&ta, basetui.DefaultHermesSkin())
@@ -462,7 +462,7 @@ func (m *model) prepareActiveStep() tea.Cmd {
 			ti := textinput.New()
 			ti.Prompt = ""
 			ti.Placeholder = "Type to filter..."
-			ti.Width = max(1, setupInputWidth(m.width)-10) // account for "Filter: " prefix
+			ti.Width = layout.Max(1, layout.InputWidth(m.width)-10) // account for "Filter: " prefix
 			basetui.ApplyTextInputSkin(&ti, basetui.DefaultHermesSkin())
 			m.searchInput = ti
 			m.pickFiltered, m.pickFilteredIndices = FilterChoices(step.Choices, "")
@@ -515,7 +515,7 @@ func (m *model) prepareActiveStep() tea.Cmd {
 }
 
 func (m *model) resizeInputs() {
-	width := setupInputWidth(m.width)
+	width := layout.InputWidth(m.width)
 	switch m.activeKind() {
 	case KindText, KindPassword:
 		m.text.Width = width
@@ -524,7 +524,7 @@ func (m *model) resizeInputs() {
 	case KindPick:
 		step, ok := m.activeStep()
 		if ok && step.pickDisplay == pickDisplaySearch {
-			m.searchInput.Width = max(1, width-10)
+			m.searchInput.Width = layout.Max(1, width-10)
 		}
 	}
 }
@@ -560,11 +560,7 @@ func (m model) renderPick(step Step) string {
 		if i == m.pickCursor {
 			prefix = "→ "
 		}
-		label := choice.Label
-		if label == "" {
-			label = choice.ID
-		}
-		b.WriteString(wrapSetupIndented(fmt.Sprintf("%s%d. ", prefix, i+1), label, m.viewWidth()))
+		b.WriteString(layout.WrapIndented(fmt.Sprintf("%s%d. ", prefix, i+1), choiceLabel(choice), m.viewWidth()))
 		b.WriteByte('\n')
 	}
 	return strings.TrimRight(b.String(), "\n")
@@ -579,11 +575,7 @@ func (m model) renderRadioPick(step Step) string {
 			prefix = " → "
 			marker = "(●)"
 		}
-		label := choice.Label
-		if label == "" {
-			label = choice.ID
-		}
-		b.WriteString(wrapSetupIndented(prefix+marker+" ", label, m.viewWidth()))
+		b.WriteString(layout.WrapIndented(prefix+marker+" ", choiceLabel(choice), m.viewWidth()))
 		b.WriteByte('\n')
 	}
 	return strings.TrimRight(b.String(), "\n")
@@ -630,17 +622,14 @@ func (m model) renderSearchPick(step Step) string {
 			prefix = "❯ "
 			style = styles.Selected
 		}
-		label := choice.Label
-		if label == "" {
-			label = choice.ID
-		}
+		label := choiceLabel(choice)
 		// Index number for quick reference
 		idxStr := styles.Dim.Render(fmt.Sprintf("%3d ", i+1))
 		// Truncate label to fit within terminal width
 		prefixWidth := lipgloss.Width(prefix) + lipgloss.Width(idxStr)
 		maxLabelWidth := m.viewWidth() - prefixWidth
 		if maxLabelWidth > 0 && lipgloss.Width(label) > maxLabelWidth {
-			label = setupTrimToWidth(label, maxLabelWidth)
+			label = layout.TrimToWidth(label, maxLabelWidth)
 		}
 		b.WriteString(prefix + idxStr + style.Render(label) + setupClearLineTail + "\n")
 	}
@@ -653,6 +642,13 @@ func (m model) renderSearchPick(step Step) string {
 	}
 
 	return strings.TrimRight(b.String(), "\n")
+}
+
+func choiceLabel(choice Choice) string {
+	if choice.Label != "" {
+		return choice.Label
+	}
+	return choice.ID
 }
 
 func searchScrollWindow(cursor, total, height int) (start, end int) {
@@ -738,11 +734,7 @@ func (m model) renderChecklist(step Step) string {
 		if _, ok := m.checklistSelected[choice.ID]; ok {
 			marker = "[✓]"
 		}
-		label := choice.Label
-		if label == "" {
-			label = choice.ID
-		}
-		b.WriteString(wrapSetupIndented(prefix+marker+" ", label, m.viewWidth()))
+		b.WriteString(layout.WrapIndented(prefix+marker+" ", choiceLabel(choice), m.viewWidth()))
 		b.WriteByte('\n')
 	}
 	return strings.TrimRight(b.String(), "\n")
@@ -784,205 +776,12 @@ func (m model) viewWidth() int {
 	if m.width <= 0 {
 		return 80
 	}
-	return max(1, m.width)
+	return layout.Max(1, m.width)
 }
 
 func (m model) viewHeight() int {
 	if m.height <= 0 {
 		return 24
 	}
-	return max(1, m.height)
-}
-
-func setupInputWidth(terminalWidth int) int {
-	if terminalWidth <= 0 {
-		return 76
-	}
-	// Bubbles textinput/textarea add prompt/cursor cells around this content
-	// width. Keep the component inside the actual terminal instead of forcing a
-	// 20-column minimum that overflows cramped setup terminals.
-	return max(1, terminalWidth-4)
-}
-
-func wrapSetupIndented(prefix, text string, width int) string {
-	if width <= 0 {
-		width = 80
-	}
-	if prefix == "" {
-		return wrapSetupText(text, width)
-	}
-	indentWidth := lipgloss.Width(prefix)
-	bodyWidth := max(1, width-indentWidth)
-	wrapped := wrapSetupText(text, bodyWidth)
-	lines := strings.Split(wrapped, "\n")
-	indent := strings.Repeat(" ", indentWidth)
-	for i, line := range lines {
-		if i == 0 {
-			lines[i] = prefix + line
-			continue
-		}
-		lines[i] = indent + line
-	}
-	return strings.Join(lines, "\n")
-}
-
-func wrapSetupText(text string, width int) string {
-	if width <= 0 {
-		width = 80
-	}
-	var out []string
-	for _, line := range strings.Split(text, "\n") {
-		out = append(out, wrapSetupLine(line, width)...)
-	}
-	return strings.Join(out, "\n")
-}
-
-func wrapSetupLine(line string, width int) []string {
-	line = strings.TrimRight(line, " \t")
-	if line == "" {
-		return []string{""}
-	}
-	var lines []string
-	for lipgloss.Width(line) > width {
-		cut := setupWrapCut(line, width)
-		lines = append(lines, strings.TrimRight(line[:cut], " \t"))
-		line = strings.TrimLeft(line[cut:], " \t")
-		if line == "" {
-			break
-		}
-	}
-	if line != "" {
-		lines = append(lines, line)
-	}
-	return lines
-}
-
-func setupWrapCut(line string, width int) int {
-	if width <= 0 {
-		_, size := utf8.DecodeRuneInString(line)
-		return max(1, size)
-	}
-	lastSpace := -1
-	used := 0
-	for i, r := range line {
-		if r == ' ' || r == '\t' {
-			lastSpace = i
-		}
-		rw := lipgloss.Width(string(r))
-		if used+rw > width {
-			if lastSpace > 0 {
-				return lastSpace
-			}
-			if i > 0 {
-				return i
-			}
-			return i + len(string(r))
-		}
-		used += rw
-	}
-	return len(line)
-}
-
-func trimSetupTrailingWhitespace(s string) string {
-	lines := strings.Split(s, "\n")
-	for i, line := range lines {
-		lines[i] = strings.TrimRight(line, " \t")
-	}
-	return strings.Join(lines, "\n")
-}
-
-func clampSetupView(s string, width, height int) string {
-	if height <= 0 || height > 10 {
-		return s
-	}
-	lines := strings.Split(s, "\n")
-	if len(lines) <= height {
-		return s
-	}
-	if height <= 2 {
-		return setupTrimToWidth("terminal too small; resize", width)
-	}
-	marker := setupTrimToWidth("… omitted; resize", width)
-	out := make([]string, 0, height)
-	out = append(out, lines[0])
-	if height > 5 {
-		if prompt := setupPromptLine(lines); prompt != "" {
-			out = append(out, setupTrimToWidth(prompt, width))
-		} else if len(lines) > 1 && strings.TrimSpace(lines[1]) != "" {
-			out = append(out, lines[1])
-		}
-	}
-	out = append(out, marker)
-	if focal := setupFocalLine(lines); focal != "" && len(out) < height-2 {
-		out = append(out, setupTrimToWidth(focal, width))
-	}
-	for _, line := range setupHelpTail(lines, height-len(out)) {
-		out = append(out, line)
-	}
-	for len(out) > height {
-		out = append(out[:len(out)-2], out[len(out)-1])
-	}
-	return strings.Join(out, "\n")
-}
-
-func setupPromptLine(lines []string) string {
-	for _, line := range lines[1:] {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			continue
-		}
-		if strings.HasPrefix(trimmed, ">") || strings.HasPrefix(trimmed, "→") || strings.Contains(trimmed, "submit") || strings.Contains(trimmed, "abort") {
-			continue
-		}
-		return line
-	}
-	return ""
-}
-
-func setupFocalLine(lines []string) string {
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, ">") || strings.HasPrefix(trimmed, "→") || strings.HasPrefix(trimmed, "Filter:") {
-			return line
-		}
-	}
-	return ""
-}
-
-func setupHelpTail(lines []string, limit int) []string {
-	if limit <= 0 {
-		return nil
-	}
-	start := len(lines) - limit
-	if start < 0 {
-		start = 0
-	}
-	return append([]string(nil), lines[start:]...)
-}
-
-func setupTrimToWidth(text string, width int) string {
-	if width <= 0 || lipgloss.Width(text) <= width {
-		return text
-	}
-	if width == 1 {
-		return "…"
-	}
-	ellipsis := "…"
-	limit := width - lipgloss.Width(ellipsis)
-	used := 0
-	for i, r := range text {
-		rw := lipgloss.Width(string(r))
-		if used+rw > limit {
-			return strings.TrimRight(text[:i], " \t") + ellipsis
-		}
-		used += rw
-	}
-	return text
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
+	return layout.Max(1, m.height)
 }

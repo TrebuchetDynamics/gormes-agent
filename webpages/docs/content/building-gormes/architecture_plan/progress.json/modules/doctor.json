@@ -64,7 +64,7 @@
         "internal/doctor/termux_test.go",
         "cmd/gormes/doctor.go",
         "cmd/gormes/doctor_runE_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/doctor -run TestCheckTermuxRuntime -count=1",
@@ -149,7 +149,7 @@
         "internal/doctor/durable_ledger.go",
         "internal/doctor/durable_ledger_test.go",
         "internal/doctor/durable_rss_watchdog_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/doctor -run '^TestDoctorDurableWorkerRSSWatchdog_' -count=1",
@@ -191,8 +191,8 @@
       "source_refs": [
         "openclaw plugins CLI surface",
         "internal/plugins/ current implementation",
-        "docs/content/building-gormes/fleet-operational-patterns.md",
-        "docs/content/building-gormes/fleet-integration-plan.md"
+        "webpages/docs/content/building-gormes/fleet-operational-patterns.md",
+        "webpages/docs/content/building-gormes/fleet-integration-plan.md"
       ],
       "ready_when": [
         "Agent Hooks Registry (5.I) is operational.",
@@ -216,7 +216,7 @@
         "internal/plugins/marketplace_test.go",
         "internal/plugins/doctor.go",
         "internal/plugins/sandbox.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/plugins -run 'TestMarketplace|TestDoctor' -count=1",
@@ -274,7 +274,7 @@
         "cmd/gormes/doctor_github_auth_test.go",
         "internal/doctor/doctor.go",
         "internal/doctor/github_auth_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/doctor -run 'TestDoctorGitHubAuth' -count=1",
@@ -340,7 +340,7 @@
         "internal/protocols/acp/bridge_status_test.go",
         "cmd/gormes/doctor.go",
         "cmd/gormes/doctor_acp_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/protocols/acp ./cmd/gormes -run 'ACP.*Bridge|ACP.*Status|DoctorACP' -count=1",
@@ -399,7 +399,7 @@
       "write_scope": [
         "cmd/gormes/doctor.go",
         "cmd/gormes/doctor_custom_provider_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestDoctorCustomEndpoint|TestDoctorCmdInvokesCustomEndpointReadiness|TestDoctorOfflineOutputDoesNotMentionHermesAPIServer' -count=1",
@@ -479,7 +479,7 @@
         "internal/doctor/doctor.go",
         "internal/doctor/doctor_fix.go",
         "internal/doctor/doctor_fix_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1",
@@ -551,7 +551,7 @@
         "internal/doctor/doctor_section_test.go",
         "cmd/gormes/doctor.go",
         "cmd/gormes/doctor_section_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1",
@@ -608,7 +608,7 @@
       ],
       "note": "Planner pass 2026-05-16: umbrella inventory parent for deferred doctor section CONTENT. Not builder-selectable. SPLIT 2026-05-16 (gormes-hermes-parity -> gormes-planner) into 5 sibling child rows: 'gormes doctor ◆ Directory Structure section content' (P1, builder-ready, SELECTED first slice), 'gormes doctor ◆ Skills Hub section content' (P2), 'gormes doctor ◆ Auth Providers section content' (P2, route via gormes-provider-parity), 'gormes doctor ◆ Profiles section content' (P3, owned-divergence), 'gormes doctor ◆ Security Advisories section content' (P3, large — Go advisory-dataset port). Parent stays non-selectable; children carry the tests. Sequenced after the shipped 'gormes doctor ◆ Section grouping' row so content attaches under existing `◆` headers via internal/doctor.sectionForCheck. CLOSED 2026-05-15: all 5/5 child rows shipped with tests — Directory Structure, Skills Hub, Auth Providers, Profiles, and Security Advisories (final, gormes-tdd-slice). This tracking parent's purpose (don't lose the deferred content behaviors) is fully discharged; see each child row for per-slice evidence.",
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "no_test_required": "Inventory parent; executable child rows (one per upstream section's content) carry the focused tests when split.",
       "done_signal": [
@@ -671,7 +671,7 @@
         "internal/doctor/doctor_section.go",
         "cmd/gormes/doctor.go",
         "cmd/gormes/doctor_directory_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1",
@@ -732,7 +732,7 @@
         "internal/doctor/doctor_section.go",
         "cmd/gormes/doctor.go",
         "cmd/gormes/doctor_skills_hub_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1",
@@ -799,7 +799,7 @@
         "internal/doctor/doctor_section.go",
         "cmd/gormes/doctor.go",
         "cmd/gormes/doctor_auth_providers_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1",
@@ -878,7 +878,7 @@
         "internal/doctor/doctor_section.go",
         "cmd/gormes/doctor.go",
         "cmd/gormes/doctor_profiles_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1",
@@ -952,7 +952,7 @@
         "internal/doctor/doctor_section.go",
         "cmd/gormes/doctor.go",
         "cmd/gormes/doctor_security_advisories_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/security ./internal/doctor ./cmd/gormes -run 'Advisor|Doctor' -count=1",

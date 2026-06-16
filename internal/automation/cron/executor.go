@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/core/subagent"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
@@ -27,7 +28,9 @@ import (
 // importing the full kernel package's internals.
 type KernelAPI interface {
 	Submit(e kernel.PlatformEvent) error
-	Render() <-chan kernel.RenderFrame
+	// Subscribe returns an independent render stream so concurrent cron runs (and
+	// the gateway) sharing one kernel do not steal each other's frames.
+	Subscribe() (<-chan kernel.RenderFrame, func())
 }
 
 // Runner is the narrow interface the Scheduler uses to fire a job.
@@ -187,8 +190,11 @@ func (e *Executor) runOneTurn(ctx context.Context, job Job) error {
 	const durableWorker = "cron-executor"
 	durableActive := e.startDurableCronRun(ctx, sessionID, job, promptHash, durableWorker)
 
-	// Subscribe BEFORE Submit so we don't miss the final frame.
-	frames := e.cfg.Kernel.Render()
+	// Subscribe BEFORE Submit so we don't miss the final frame. An independent
+	// subscription (not the shared Render channel) keeps this run's frames from
+	// being stolen by the gateway or a sibling cron job on the same kernel.
+	frames, unsubscribe := e.cfg.Kernel.Subscribe()
+	defer unsubscribe()
 	done := make(chan string, 1) // receives the final assistant text
 	activity := make(chan kernel.RenderFrame, 1)
 	callCtx, cancel := context.WithTimeout(ctx, e.cfg.CallTimeout)
@@ -1031,5 +1037,20 @@ func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s
 	}
-	return s[:n] + "…"
+	return cutBytesAtRuneBoundary(s, n) + "…"
+}
+
+// cutBytesAtRuneBoundary returns the longest prefix of s that is at most n
+// bytes and does not split a multibyte UTF-8 sequence.
+func cutBytesAtRuneBoundary(s string, n int) string {
+	if n >= len(s) {
+		return s
+	}
+	if n < 0 {
+		return ""
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
+	}
+	return s[:n]
 }

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"log/slog"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/internal/channelutil"
@@ -79,6 +80,10 @@ type ImageCacheFunc func(ctx context.Context, url, contentType string) (string, 
 type ApprovalStore interface {
 	HasBlockingApproval(sessionKey string) bool
 	ResolveApproval(sessionKey, choice string) error
+}
+
+type ticketedApprovalStore interface {
+	ResolveApprovalWithTicket(sessionKey string, ticketID uint64, choice string) error
 }
 
 type Config struct {
@@ -232,6 +237,7 @@ func (c *Channel) normalizeAttachments(ctx context.Context, attachments []Attach
 type ApprovalRequest struct {
 	Command     string
 	SessionKey  string
+	TicketID    uint64
 	Description string
 }
 
@@ -253,6 +259,8 @@ func (c *Channel) SendExecApproval(ctx context.Context, chatID string, req Appro
 	if c.client == nil {
 		return "", errors.New("teams_client_unavailable")
 	}
+	req.Command = sanitizeTeamsApprovalText(req.Command)
+	req.Description = sanitizeTeamsApprovalText(req.Description)
 	card := ApprovalCard{
 		Title:          "Command Approval Required",
 		CommandPreview: bounded(req.Command, 2000),
@@ -271,6 +279,7 @@ type ApprovalAction struct {
 	ClickerAADID string
 	ClickerID    string
 	SessionKey   string
+	TicketID     uint64
 	Action       string
 }
 
@@ -295,7 +304,7 @@ func (c *Channel) HandleApprovalAction(action ApprovalAction) ApprovalActionResu
 	if c.cfg.ApprovalStore == nil || !c.cfg.ApprovalStore.HasBlockingApproval(sessionKey) {
 		return ApprovalActionResult{Status: "expired", Message: "Approval already resolved or expired."}
 	}
-	if err := c.cfg.ApprovalStore.ResolveApproval(sessionKey, choice); err != nil {
+	if err := resolveTeamsApproval(c.cfg.ApprovalStore, sessionKey, action.TicketID, choice); err != nil {
 		return ApprovalActionResult{Status: "expired", Message: "Approval already resolved or expired."}
 	}
 	return ApprovalActionResult{Status: "resolved", Choice: choice, Message: approvalChoiceLabel(choice)}
@@ -305,9 +314,10 @@ func (c *Channel) approvalClickAllowed(action ApprovalAction) bool {
 	if c.cfg.AllowAllUsers || len(c.cfg.AllowedUsers) == 0 {
 		return true
 	}
-	clicker := firstNonEmpty(action.ClickerAADID, action.ClickerID)
+	clicker := strings.TrimSpace(firstNonEmpty(action.ClickerAADID, action.ClickerID))
 	for _, allowed := range c.cfg.AllowedUsers {
-		if strings.TrimSpace(allowed) == "*" || strings.TrimSpace(allowed) == clicker {
+		allowed = strings.TrimSpace(allowed)
+		if allowed == "*" || strings.EqualFold(allowed, clicker) {
 			return true
 		}
 	}
@@ -315,12 +325,35 @@ func (c *Channel) approvalClickAllowed(action ApprovalAction) bool {
 }
 
 func approvalData(req ApprovalRequest, action string) map[string]string {
-	return map[string]string{
-		"session_key":   req.SessionKey,
-		"cmd":           bounded(req.Command, 200),
-		"desc":          req.Description,
+	data := map[string]string{
+		"session_key":   strings.TrimSpace(req.SessionKey),
+		"cmd":           bounded(sanitizeTeamsApprovalText(req.Command), 200),
+		"desc":          sanitizeTeamsApprovalText(req.Description),
 		"hermes_action": action,
 	}
+	if req.TicketID != 0 {
+		data["ticket_id"] = strconv.FormatUint(req.TicketID, 10)
+	}
+	return data
+}
+
+func resolveTeamsApproval(store ApprovalStore, sessionKey string, ticketID uint64, choice string) error {
+	if ticketID != 0 {
+		if ticketed, ok := store.(ticketedApprovalStore); ok {
+			return ticketed.ResolveApprovalWithTicket(sessionKey, ticketID, choice)
+		}
+	}
+	return store.ResolveApproval(sessionKey, choice)
+}
+
+func sanitizeTeamsApprovalText(value string) string {
+	replacer := strings.NewReplacer(
+		"`", "'",
+		"*", "'",
+		"[", "(",
+		"]", ")",
+	)
+	return strings.Join(strings.Fields(replacer.Replace(value)), " ")
 }
 
 func mapApprovalChoice(action string) (string, bool) {

@@ -47,9 +47,7 @@ func (s *fakeAuxSink) record(_ context.Context, ev session.AutoTitleEvidence) {
 func (s *fakeAuxSink) snapshot() []session.AutoTitleEvidence {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	out := make([]session.AutoTitleEvidence, len(s.received))
-	copy(out, s.received)
-	return out
+	return cloneSlice(s.received)
 }
 
 // buildAutoTitleManager constructs a gateway Manager wired with a hermetic

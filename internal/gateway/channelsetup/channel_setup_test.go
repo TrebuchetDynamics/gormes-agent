@@ -1,13 +1,37 @@
 package channelsetup
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/profilechanneltest"
 )
+
+func TestProfileSetupChannelIDsAreStableAndPlanned(t *testing.T) {
+	ids := ProfileSetupChannelIDs()
+	want := []string{"telegram", "whatsapp", "discord", "slack", "navivox"}
+	if !reflect.DeepEqual(ids, want) {
+		t.Fatalf("ProfileSetupChannelIDs() = %#v, want %#v", ids, want)
+	}
+
+	ids[0] = "mutated"
+	if got := ProfileSetupChannelIDs()[0]; got != "telegram" {
+		t.Fatalf("ProfileSetupChannelIDs returned mutable shared state, first id = %q", got)
+	}
+
+	plan := BuildChannelSetupPlan(config.Config{})
+	planned := map[string]bool{}
+	for _, entry := range plan.Channels {
+		planned[entry.ID] = true
+	}
+	for _, id := range want {
+		if !planned[id] {
+			t.Fatalf("ProfileSetupChannelIDs includes %q but channel setup plan does not", id)
+		}
+	}
+}
 
 func TestChannelSetupTelegramStatusAndRedaction(t *testing.T) {
 	const token = "123456:secret-token-that-must-not-leak"
@@ -153,7 +177,7 @@ func TestProfileChannelSetupPlanWhatsAppUsesReadinessAndRedactsScopes(t *testing
 
 func TestProfileChannelSetupPlanWhatsAppReportsDuplicateTokenHashConflict(t *testing.T) {
 	const rawSharedToken = "123456:shared-whatsapp-token-that-must-not-leak"
-	sharedHash := tokenCredentialHash(rawSharedToken)
+	sharedHash := profilechanneltest.TokenCredentialHash(rawSharedToken)
 	cfg := config.Config{
 		Profiles: map[string]config.ProfileCfg{
 			"main": {
@@ -180,8 +204,8 @@ func TestProfileChannelSetupPlanWhatsAppReportsDuplicateTokenHashConflict(t *tes
 			},
 		},
 		Credentials: map[string]config.CredentialCfg{
-			"main-whatsapp":  channelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
-			"sales-whatsapp": channelCredential("whatsapp", "sales", "GORMES_SALES_WHATSAPP_TOKEN"),
+			"main-whatsapp":  profilechanneltest.ChannelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+			"sales-whatsapp": profilechanneltest.ChannelCredential("whatsapp", "sales", "GORMES_SALES_WHATSAPP_TOKEN"),
 		},
 	}
 
@@ -262,6 +286,47 @@ func TestProfileChannelSetupPlanWhatsAppNormalizesProfileChannelKey(t *testing.T
 	}
 }
 
+func TestProfileChannelSetupPlanWhatsAppClampsNegativePairingCounts(t *testing.T) {
+	cfg := config.Config{
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"whatsapp": {
+						Enabled:      true,
+						Credential:   "main-whatsapp",
+						AllowedChats: []string{"12025550123@s.whatsapp.net"},
+					},
+				},
+			},
+		},
+		Credentials: map[string]config.CredentialCfg{
+			"main-whatsapp": profilechanneltest.ChannelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+		},
+	}
+
+	plan := BuildChannelSetupPlanWithOptions(cfg, ChannelSetupPlanOptions{
+		Pairing: PairingStatus{
+			Platforms: []PairingPlatformStatus{{
+				Platform:      "whatsapp",
+				State:         PairingPlatformStatePaired,
+				PendingCount:  -2,
+				ApprovedCount: -1,
+			}},
+		},
+	})
+	whatsapp := findChannelSetupEntry(t, plan, "whatsapp")
+	rendered := strings.Join(whatsapp.CurrentValues, "\n")
+	if strings.Contains(rendered, "=-") {
+		t.Fatalf("whatsapp pairing counts should not render negative values:\n%s", rendered)
+	}
+	for _, want := range []string{"whatsapp.pairing_approved_users=0", "whatsapp.pairing_pending_codes=0"} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("whatsapp setup values missing clamped count %q:\n%s", want, rendered)
+		}
+	}
+}
+
 func TestProfileChannelSetupPlanWhatsAppReportsPairedLoginStatus(t *testing.T) {
 	cfg := config.Config{
 		Profiles: map[string]config.ProfileCfg{
@@ -278,7 +343,7 @@ func TestProfileChannelSetupPlanWhatsAppReportsPairedLoginStatus(t *testing.T) {
 			},
 		},
 		Credentials: map[string]config.CredentialCfg{
-			"main-whatsapp": channelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+			"main-whatsapp": profilechanneltest.ChannelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
 		},
 	}
 
@@ -332,7 +397,7 @@ func TestProfileChannelSetupPlanWhatsAppReportsUnpairedLoginStatus(t *testing.T)
 			},
 		},
 		Credentials: map[string]config.CredentialCfg{
-			"main-whatsapp": channelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+			"main-whatsapp": profilechanneltest.ChannelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
 		},
 	}
 
@@ -387,7 +452,7 @@ func TestProfileChannelSetupPlanWhatsAppReportsPairingDegradedStatus(t *testing.
 			},
 		},
 		Credentials: map[string]config.CredentialCfg{
-			"main-whatsapp": channelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+			"main-whatsapp": profilechanneltest.ChannelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
 		},
 	}
 
@@ -442,7 +507,7 @@ func TestProfileChannelSetupPlanWhatsAppSeparatesGroupAndDirectAllowedChats(t *t
 			},
 		},
 		Credentials: map[string]config.CredentialCfg{
-			"main-whatsapp": channelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+			"main-whatsapp": profilechanneltest.ChannelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
 		},
 	}
 
@@ -482,7 +547,7 @@ func TestProfileChannelSetupPlanWhatsAppCanonicalizesAllowedUserJIDForms(t *test
 			},
 		},
 		Credentials: map[string]config.CredentialCfg{
-			"main-whatsapp": channelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+			"main-whatsapp": profilechanneltest.ChannelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
 		},
 	}
 
@@ -516,7 +581,7 @@ func TestProfileChannelSetupPlanWhatsAppRequiresAccessPolicy(t *testing.T) {
 			},
 		},
 		Credentials: map[string]config.CredentialCfg{
-			"main-whatsapp": channelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+			"main-whatsapp": profilechanneltest.ChannelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
 		},
 	}
 
@@ -550,23 +615,6 @@ func TestChannelSetupPlanListsMessagingPlatforms(t *testing.T) {
 			t.Fatalf("%s RequiredFields empty, want setup guidance", want)
 		}
 	}
-}
-
-func channelCredential(channel, ownerProfile, envID string) config.CredentialCfg {
-	return config.CredentialCfg{
-		Kind:         "channel",
-		Channel:      channel,
-		OwnerProfile: ownerProfile,
-		SecretRef: &config.SecretRef{
-			Source: config.SecretRefSourceEnv,
-			ID:     envID,
-		},
-	}
-}
-
-func tokenCredentialHash(credential string) string {
-	sum := sha256.Sum256([]byte(credential))
-	return hex.EncodeToString(sum[:])
 }
 
 func findChannelSetupEntry(t *testing.T, plan ChannelSetupPlan, id string) ChannelSetupEntry {

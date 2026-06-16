@@ -1,6 +1,10 @@
 package tracker
 
-import "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/dedup/evidence"
+import (
+	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/dedup/evidence"
+)
 
 // Result reports whether a message was already tracked and any bounded-cache
 // evidence a caller may surface later.
@@ -34,6 +38,7 @@ func (d *MessageDeduplicator) Track(messageID string) Result {
 	if d == nil || d.maxSize <= 0 {
 		return Result{Evidence: evidence.Disabled}
 	}
+	messageID = strings.TrimSpace(messageID)
 	if messageID == "" {
 		return Result{}
 	}
@@ -41,6 +46,7 @@ func (d *MessageDeduplicator) Track(messageID string) Result {
 		d.seen = make(map[string]struct{}, d.maxSize)
 	}
 	if _, ok := d.seen[messageID]; ok {
+		d.refresh(messageID)
 		return Result{
 			Duplicate: true,
 			Evidence:  evidence.Duplicate,
@@ -59,4 +65,15 @@ func (d *MessageDeduplicator) Track(messageID string) Result {
 	d.seen[messageID] = struct{}{}
 	d.order = append(d.order, messageID)
 	return result
+}
+
+func (d *MessageDeduplicator) refresh(messageID string) {
+	for i, id := range d.order {
+		if id != messageID {
+			continue
+		}
+		copy(d.order[i:], d.order[i+1:])
+		d.order[len(d.order)-1] = messageID
+		return
+	}
 }

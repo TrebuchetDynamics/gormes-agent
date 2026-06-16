@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/memory/goncho/testutil"
 )
 
 func TestMemoryV1ContractDeclaresStableCompatibilitySurface(t *testing.T) {
@@ -22,17 +24,17 @@ func TestMemoryV1ContractDeclaresStableCompatibilitySurface(t *testing.T) {
 		t.Fatalf("agent isolation defaults = private %t self_improvement %t, want both true", contract.PrivateAgentMemoryDefault, contract.SelfImprovementPerAgentDefault)
 	}
 	for _, want := range []string{"sqlite", "fts5", "graph"} {
-		if !stringSliceContains(contract.FastRecallPath, want) {
+		if !testutil.StringSliceContains(contract.FastRecallPath, want) {
 			t.Fatalf("FastRecallPath = %#v, missing %q", contract.FastRecallPath, want)
 		}
 	}
 	for _, forbidden := range []string{"qmd", "embedding_generation", "remote_honcho", "hosted_api"} {
-		if stringSliceContains(contract.FastRecallPath, forbidden) {
+		if testutil.StringSliceContains(contract.FastRecallPath, forbidden) {
 			t.Fatalf("FastRecallPath = %#v, must not require %q", contract.FastRecallPath, forbidden)
 		}
 	}
 	for _, want := range []string{"qmd_deep_search", "embeddings", "dialectic", "dream_consolidation"} {
-		if !stringSliceContains(contract.OptionalQualityLayers, want) {
+		if !testutil.StringSliceContains(contract.OptionalQualityLayers, want) {
 			t.Fatalf("OptionalQualityLayers = %#v, missing %q", contract.OptionalQualityLayers, want)
 		}
 	}
@@ -146,13 +148,4 @@ func TestMemoryV1AgentIsolationAndSelfImprovementArtifacts(t *testing.T) {
 			t.Fatalf("shared artifact = %+v, want reviewed/proposed path before shared mutation", artifact)
 		}
 	}
-}
-
-func stringSliceContains(items []string, want string) bool {
-	for _, item := range items {
-		if item == want {
-			return true
-		}
-	}
-	return false
 }

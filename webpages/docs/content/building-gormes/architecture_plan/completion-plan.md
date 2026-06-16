@@ -13,7 +13,7 @@ Telegram": **Gormes is complete when it is Hermes in Go, with Goncho as the
 Honcho-compatible Go port inside Gormes.**
 
 The canonical backlog remains
-[`progress.json`](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/content/building-gormes/architecture_plan/progress.json).
+[`progress.json`](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/webpages/docs/content/building-gormes/architecture_plan/progress.json).
 This page explains how to drive that backlog without spending unbounded planner
 tokens or creating parallel queues.
 
@@ -71,7 +71,7 @@ Use this page with:
 
 ## Current Finish Ledger
 
-As of the 2026-06-02 `cmd/progress next-work --repo-only` scan, the split canonical backlog contains 1,185 row objects: 1,182 complete and 3 planned. The repo-local `web_crawl explicit local-crawler unavailable evidence`, `Root tools command config-backed toolset toggles`, `Native TUI voice record key uses voice toggle adapter`, `Hermes send_message tool list and target contract`, `Goscrapling local crawler fixture adapter seam for web_crawl`, `Image generation managed-gateway provider binding`, `OSV malware advisory check for MCP package launch`, and `Hermes toolset distribution manifest and deterministic sampler` slices are complete. Treat old phase-open counts as historical context only; current implementation intent comes from the row objects and generated queue pages.
+As of the 2026-06-08 `cmd/progress next-work --repo-only` scan, the split canonical backlog contains 1,195 row objects: 1,192 complete and 3 planned. The repo-local `web_crawl explicit local-crawler unavailable evidence`, `Root tools command config-backed toolset toggles`, `Native TUI voice record key uses voice toggle adapter`, `Hermes send_message tool list and target contract`, `Goscrapling local crawler fixture adapter seam for web_crawl`, `Image generation managed-gateway provider binding`, `OSV malware advisory check for MCP package launch`, `Hermes toolset distribution manifest and deterministic sampler`, `Bitwarden secrets command status/sync/disable`, `Bitwarden managed bws install + checksum verification`, `Bitwarden disk cache parity`, `Credential-pool borrowed-source disk boundary`, `Native TUI live voice capture and playback parity`, `Telegram batch debouncer shared state helper`, `Gateway channel registration degraded-status helper`, `Channel-neutral memory settings projection seam`, and `Telegram render-send MarkdownV2 contract fixture` slices are complete. Treat old phase-open counts as historical context only; current implementation intent comes from the row objects and generated queue pages.
 
 | Phase | Non-complete rows | Planner meaning |
 |---|---:|---|
@@ -79,20 +79,17 @@ As of the 2026-06-02 `cmd/progress next-work --repo-only` scan, the split canoni
 | Phase 2 — Gateway | 0 | Gateway, channel, slash/skill/tool exposure, and operator-control rows are currently closed in the active backlog. New Hermes/Pi findings must become fresh rows before builder work. |
 | Phase 3 — Memory | 0 | Current Goncho/Honcho memory closure rows are complete; future memory work must be sourced from a new parity or product row. |
 | Phase 4 — Brain Transplant | 0 | Native-turn/provider/context rows in the active backlog are closed; regressions still need row-backed parity evidence before implementation. |
-| Phase 5 — Final Purge | 0 | Tool, CLI, and browser rows in the active repo-local backlog are currently closed; full goscrapling runtime binding remains deferred until public robots/cache/checkpoint/session-adapter APIs are ready. |
+| Phase 5 — Final Purge | 0 | Tool, CLI, browser, Bitwarden status/sync/disable/install/setup/cache, credential-pool borrowed-source disk-boundary, and native TUI voice orchestration rows are closed; full goscrapling runtime binding remains deferred until public robots/cache/checkpoint/session-adapter APIs are ready. |
 | Phase 6 — Learning Loop | 0 | Skill extraction, retrieval, scoring, and operator surfaces are closed in the active backlog; new learning-loop work starts with planner evidence. |
 | Phase 7 — Paused Channels | 0 | The paused channel backlog has no active non-complete rows. Do not expand channels without a fixture-ready progress row. |
 | Phase 8 — Reputation & Publication | 3 | Public-social, engineering-writeup, and agentic-porting-kit rows remain planned but operator/external-access gated. |
-| Phase 9 — Design & Security Hardening | 0 | Design/security hardening rows are currently closed; new findings need source-backed rows. |
+| Phase 9 — Design & Security Hardening | 0 | Architecture-deepening rows from the tld diagram review are complete; new phase 9 work must start with planner evidence. |
 
 Structured blocker receipts remain attached to planned rows (three active
 blocker records plus one resolved release receipt), but blocker metadata is not
-builder-ready work. The current queue has no unblocked repo-local builder-ready
-slice. Planner work should choose one planned row, either satisfy/remove its
-blocker or sharpen the contract, then validate progress before assigning it to a
-builder. The current best follow-up planner candidates are the WASI TTS runtime
-source selection, the full Goscrapling runtime binding release gate, or
-publication rows after operator input.
+builder-ready work. The current queue has no repo-local builder-ready rows;
+`cmd/progress next-work --repo-only` returns `decision=plan` until a planner splits or repairs another repo-scoped row.
+The remaining planned publication rows stay operator/input gated until their blockers clear.
 
 The first closure target is not "all green"; it is a **Python-free normal
 agent turn** with local Goncho memory and tested tool-call continuation. That is
@@ -179,7 +176,7 @@ Definition of done for this lane:
 ## Skill-Routed Operating Model
 
 Every substantial agent pass starts by choosing a repo-local skill. Canonical
-skill files live under `docs/development-skills/`; `.agents/skills/`,
+skill files live under `development-skills/`; `.agents/skills/`,
 `.claude/skills/`, and `.codex/skills/` are symlink loader views.
 
 | Situation | Skill path |
@@ -265,7 +262,7 @@ Primary gates for control-plane code changes:
 ```sh
 go test ./internal/progress -count=1
 go run ./cmd/progress validate
-go test ./docs -count=1
+go test ./webpages/docs -count=1
 ```
 
 Planner-doc passes should use non-loop validation only:
@@ -273,7 +270,7 @@ Planner-doc passes should use non-loop validation only:
 ```sh
 go run ./cmd/progress validate
 go test ./internal/progress -count=1
-go test ./docs -count=1
+go test ./webpages/docs -count=1
 ```
 
 ### Lane 1 — Native Agent Spine

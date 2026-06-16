@@ -87,13 +87,7 @@ func TestArchiveAgentCreatedSkillAndListArchivedNames(t *testing.T) {
 	root := t.TempDir()
 	active := filepath.Join(root, "active")
 	for _, name := range []string{"agent-skill", "pinned-skill", "manual-skill"} {
-		dir := filepath.Join(active, name)
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			t.Fatalf("mkdir %s: %v", name, err)
-		}
-		if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("---\nname: "+name+"\n---\n# "+name+"\n"), 0o600); err != nil {
-			t.Fatalf("write %s SKILL.md: %v", name, err)
-		}
+		writeSkillDoc(t, filepath.Join(active, name, "SKILL.md"), name, name+" description", "# "+name)
 	}
 	if err := MarkAgentCreated(root, "agent-skill"); err != nil {
 		t.Fatalf("MarkAgentCreated agent-skill: %v", err)

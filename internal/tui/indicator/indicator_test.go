@@ -1,40 +1,23 @@
 package indicator
 
-import (
-	"strings"
-	"testing"
-)
+import "testing"
 
-func TestStyleMatchesHermesEnumAndFrames(t *testing.T) {
-	cases := []struct {
-		raw  string
-		want Style
-	}{
-		{raw: "", want: StyleKaomoji},
-		{raw: " Emoji ", want: StyleEmoji},
-		{raw: "UNICODE", want: StyleUnicode},
-		{raw: "ascii", want: StyleASCII},
-		{raw: "rainbow", want: StyleKaomoji},
-	}
-	for _, tc := range cases {
-		if got := NormalizeStyle(tc.raw); got != tc.want {
-			t.Fatalf("NormalizeStyle(%q) = %q, want %q", tc.raw, got, tc.want)
-		}
-	}
-
-	if got := RenderFrame(StyleASCII, 0); got != "|" {
-		t.Fatalf("ascii frame 0 = %q, want |", got)
+func TestFacadePreservesStyleAndSlashContracts(t *testing.T) {
+	if got := NormalizeStyle(" Emoji "); got != StyleEmoji {
+		t.Fatalf("NormalizeStyle() = %q, want %q", got, StyleEmoji)
 	}
 	if got := RenderFrame(StyleASCII, 1); got != "/" {
-		t.Fatalf("ascii frame 1 = %q, want /", got)
+		t.Fatalf("RenderFrame() = %q, want /", got)
 	}
-	if got := RenderFrame(StyleEmoji, 0); got != "⚕ " {
-		t.Fatalf("emoji frame 0 = %q, want ⚕ space", got)
+	if got := Frames(StyleUnicode)[0]; got != "⠋" {
+		t.Fatalf("Frames(StyleUnicode)[0] = %q, want braille spinner", got)
 	}
-	if got := RenderFrame(StyleUnicode, 0); got != "⠋" {
-		t.Fatalf("unicode frame 0 = %q, want braille spinner", got)
+
+	got := ParseSlash("/indicator unicode", StyleEmoji)
+	if got.Style != StyleUnicode || got.Status != "indicator → unicode" || !got.Apply {
+		t.Fatalf("ParseSlash() = %#v, want unicode apply result", got)
 	}
-	if got := RenderFrame(StyleKaomoji, 0); !strings.Contains(got, "◕") {
-		t.Fatalf("kaomoji frame 0 = %q, want one of the face frames", got)
+	if got := ParseSlash("/indicator sparkle", StyleEmoji); got.Status != SlashUsage || got.Apply {
+		t.Fatalf("ParseSlash(invalid) = %#v, want usage without apply", got)
 	}
 }

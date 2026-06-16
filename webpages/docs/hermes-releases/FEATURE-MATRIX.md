@@ -2,13 +2,13 @@
 
 Source set: upstream Hermes release notes mirrored in this directory, `RELEASE_v0.2.0.md` through `RELEASE_v0.15.1.md`.
 
-Use this matrix as a study aid, not as final parity proof. Release notes identify user-visible feature families and maturity signals; a Gormes parity row still needs exact upstream source refs from `./hermes-agent`, an existing atom in `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`, and a focused Gormes test target.
+Use this matrix as a study aid, not as final parity proof. Release notes identify user-visible feature families and maturity signals; a Gormes parity row still needs exact upstream source refs from `./hermes-agent`, an existing atom in `webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`, and a focused Gormes test target.
 
 ## How to use this matrix
 
 1. Pick one improvement lane from the priority list below.
 2. Search the release notes for the feature family and capture the release context.
-3. Search `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` for matching atoms.
+3. Search `webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` for matching atoms.
 4. If `hermes-knowledge-graph.json` exists, use its layers/tour as a topology index to pick likely upstream files, then read those files directly.
 5. Inspect the current upstream source under `./hermes-agent` before creating or refining any builder row.
 6. If Gormes already has the behavior, reconcile the atom to `covered` or `partial` instead of duplicating work.
@@ -16,9 +16,9 @@ Use this matrix as a study aid, not as final parity proof. Release notes identif
 Useful commands:
 
 ```sh
-rg -n "kanban|goal|handoff|session_search|promptware|Bitwarden|Responses" docs/hermes-releases docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md
-rg -n "gateway|Telegram|Discord|Slack|ntfy|LINE|SimpleX|Teams|QQBot" docs/hermes-releases docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md
-rg -n "MCP|ACP|browser|computer use|tool gateway|image_gen|web search" docs/hermes-releases docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md
+rg -n "kanban|goal|handoff|session_search|promptware|Bitwarden|Responses" webpages/docs/hermes-releases webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md
+rg -n "gateway|Telegram|Discord|Slack|ntfy|LINE|SimpleX|Teams|QQBot" webpages/docs/hermes-releases webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md
+rg -n "MCP|ACP|browser|computer use|tool gateway|image_gen|web search" webpages/docs/hermes-releases webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md
 node -e 'const g=require("./hermes-knowledge-graph.json"); for (const l of g.layers||[]) console.log(`${l.id}\t${l.name}\t${(l.nodeIds||[]).length}`)' 2>/dev/null || true
 ```
 
@@ -84,4 +84,4 @@ node -e 'const g=require("./hermes-knowledge-graph.json"); for (const l of g.lay
 
 ## Guardrail
 
-Do not mark any Gormes behavior `covered` from this matrix alone. This document names study targets. Parity status lives in `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`, backed by upstream source paths and Gormes tests.
+Do not mark any Gormes behavior `covered` from this matrix alone. This document names study targets. Parity status lives in `webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`, backed by upstream source paths and Gormes tests.

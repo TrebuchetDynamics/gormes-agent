@@ -2,7 +2,7 @@
 
 // Package subagent implements goroutine-per-subagent execution isolation
 // with deterministic context cancellation, bounded batch concurrency, and
-// a swappable Runner interface. See docs/superpowers/specs/2026-04-20-gormes-phase2e-subagent-design.md.
+// a swappable Runner interface. See webpages/docs/superpowers/specs/2026-04-20-gormes-phase2e-subagent-design.md.
 package subagent
 
 import (

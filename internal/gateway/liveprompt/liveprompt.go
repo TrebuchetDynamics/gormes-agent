@@ -103,17 +103,17 @@ func DefaultMemoryDir(cwd string) string {
 		return override
 	}
 	gormesHome := config.GormesHome()
-	if dir := filepath.Join(gormesHome, "memory"); hasAnyFile(dir, "USER.md", "MEMORY.md") {
-		return dir
-	}
-	if dir := filepath.Join(gormesHome, "memories"); hasAnyFile(dir, "USER.md", "MEMORY.md") {
-		return dir
-	}
 	if root := findAncestorWithAny(cwd, "USER.md", "MEMORY.md"); root != "" {
 		return root
 	}
 	if root := findAncestorSubdirWithAny(cwd, "memory", "USER.md", "MEMORY.md"); root != "" {
 		return root
+	}
+	if dir := filepath.Join(gormesHome, "memory"); hasAnyFile(dir, "USER.md", "MEMORY.md") {
+		return dir
+	}
+	if dir := filepath.Join(gormesHome, "memories"); hasAnyFile(dir, "USER.md", "MEMORY.md") {
+		return dir
 	}
 	return filepath.Join(gormesHome, "memory")
 }
@@ -288,15 +288,45 @@ func buildRuntimeFactsBlock(profileDir, cwd string) string {
 	var b strings.Builder
 	b.WriteString("## Current Runtime Facts")
 	b.WriteString("\n\nActive workspace: `")
-	b.WriteString(workspace)
+	b.WriteString(runtimeFactPathText(workspace))
 	b.WriteString("`")
 	if cwd != "" {
 		b.WriteString("\nCurrent working directory: `")
-		b.WriteString(cwd)
+		b.WriteString(runtimeFactPathText(cwd))
 		b.WriteString("`")
 	}
 	b.WriteString("\n\nIf asked for the active/current workspace, answer from the Active workspace line above. Treat older workspace examples in context files as historical unless they match this runtime fact.")
 	return b.String()
+}
+
+func runtimeFactPathText(value string) string {
+	value = strings.ReplaceAll(value, "`", "'")
+	var b strings.Builder
+	for _, r := range value {
+		if hiddenRuntimeFactFormattingRune(r) {
+			b.WriteByte(' ')
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return strings.Join(strings.Fields(b.String()), " ")
+}
+
+func hiddenRuntimeFactFormattingRune(r rune) bool {
+	switch {
+	case r >= 0x200b && r <= 0x200f:
+		return true
+	case r >= 0x2028 && r <= 0x202e:
+		return true
+	case r >= 0x2060 && r <= 0x2069:
+		return true
+	case r == 0xfeff || r == 0xfffc:
+		return true
+	case r >= 0xfff9 && r <= 0xfffb:
+		return true
+	default:
+		return false
+	}
 }
 
 func activeWorkspaceFromLiveTurnContext(profileDir, cwd string) string {

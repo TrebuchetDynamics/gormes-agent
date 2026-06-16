@@ -8,6 +8,24 @@ import (
 	"testing"
 )
 
+func TestBackgroundReviewRunnerFuncAllowsNilContext(t *testing.T) {
+	messages, err := BackgroundReviewRunnerFunc(func(ctx context.Context, fork BackgroundReviewFork) ([]BackgroundReviewMessage, error) {
+		if ctx == nil {
+			panic("nil context")
+		}
+		if fork.Prompt != "review" {
+			t.Fatalf("fork prompt = %q, want review", fork.Prompt)
+		}
+		return []BackgroundReviewMessage{{Role: "assistant", Content: "ok"}}, nil
+	}).RunBackgroundReview(nil, BackgroundReviewFork{Prompt: "review"})
+	if err != nil {
+		t.Fatalf("RunBackgroundReview error = %v, want nil", err)
+	}
+	if len(messages) != 1 || messages[0].Content != "ok" {
+		t.Fatalf("messages = %+v, want assistant ok", messages)
+	}
+}
+
 func TestBackgroundReviewFork_InheritsActiveRuntime(t *testing.T) {
 	credentialPool := &struct{ name string }{"pool"}
 	memoryStore := &struct{ name string }{"memory"}

@@ -335,6 +335,86 @@ func TestNavivoxE2EHTTPTurnRequiresJSONContentType(t *testing.T) {
 	}
 }
 
+func TestNavivoxE2EHTTPTurnRejectsOversizedRequestID(t *testing.T) {
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		GatewayID:    "gw_0123456789abcdef0123456789abcdef",
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+
+	requestID := strings.Repeat("r", 129)
+	req, err := http.NewRequest(http.MethodPost, server.URL+"/v1/navivox/turn", strings.NewReader(`{"request_id":"`+requestID+`","text":"hello"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("oversized request_id status = %d, want 400", resp.StatusCode)
+	}
+	select {
+	case ev := <-inbox:
+		t.Fatalf("oversized request_id enqueued event = %+v, want none", ev)
+	default:
+	}
+}
+
+func TestNavivoxE2EHTTPTurnRejectsOversizedSessionID(t *testing.T) {
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		GatewayID:    "gw_0123456789abcdef0123456789abcdef",
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+
+	sessionID := strings.Repeat("s", 257)
+	req, err := http.NewRequest(http.MethodPost, server.URL+"/v1/navivox/turn", strings.NewReader(`{"request_id":"req-session-too-long","session_id":"`+sessionID+`","text":"hello"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("oversized session_id status = %d, want 400", resp.StatusCode)
+	}
+	select {
+	case ev := <-inbox:
+		t.Fatalf("oversized session_id enqueued event = %+v, want none", ev)
+	default:
+	}
+}
+
 func TestNavivoxE2EHTTPTurnRejectsTrailingJSON(t *testing.T) {
 	ch, err := NewChannel(config.NavivoxCfg{
 		Enabled:      true,

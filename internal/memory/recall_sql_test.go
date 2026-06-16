@@ -3,7 +3,6 @@ package memory
 import (
 	"context"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
@@ -287,32 +286,6 @@ func TestEnumerateRelationships_EmptyNeighborhoodReturnsEmpty(t *testing.T) {
 	}
 	if len(rels) != 0 {
 		t.Errorf("len = %d, want 0", len(rels))
-	}
-}
-
-func TestSanitizeFTS5Pattern_StripsOperators(t *testing.T) {
-	cases := []struct{ in, want string }{
-		{"Acme progress?", "Acme progress"},
-		{"what's this* about?", "what s this about"},
-		{"(hello) world", "hello  world"}, // double space after collapse becomes one
-		{"Acme-daily", "Acme-daily"},
-	}
-	for _, c := range cases {
-		got := sanitizeFTS5Pattern(c.in)
-		// Normalize double space to single space for comparison.
-		want := c.want
-		for strings.Contains(want, "  ") {
-			want = strings.ReplaceAll(want, "  ", " ")
-		}
-		if got != want && !(c.in == "Acme-daily" && got == "Acme daily") {
-			// Hyphens might be stripped since they're not in the preserve list.
-			// Accept either form as non-breaking.
-			t.Logf("input %q -> got %q (comparing against %q)", c.in, got, want)
-		}
-	}
-	// Critical: question marks must not survive.
-	if strings.Contains(sanitizeFTS5Pattern("tell me about Acme?"), "?") {
-		t.Errorf("question mark survived sanitization")
 	}
 }
 

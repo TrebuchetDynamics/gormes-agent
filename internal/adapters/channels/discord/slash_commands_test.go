@@ -170,6 +170,36 @@ func TestDiscordSystemMessagesAreDropped(t *testing.T) {
 	}
 }
 
+func TestDiscordInteractionUserPrefersMemberThenFallsBackToUser(t *testing.T) {
+	interaction := &discordgo.InteractionCreate{Interaction: &discordgo.Interaction{
+		Member: &discordgo.Member{User: &discordgo.User{ID: " member-id ", Username: "member-user", GlobalName: " Member Name "}},
+		User:   &discordgo.User{ID: " user-id ", Username: "user-name", GlobalName: " User Name "},
+	}}
+	if got := interactionUserID(interaction); got != "member-id" {
+		t.Fatalf("interactionUserID with member = %q, want member-id", got)
+	}
+	if got := interactionUserName(interaction); got != "Member Name" {
+		t.Fatalf("interactionUserName with member = %q, want Member Name", got)
+	}
+
+	interaction.Member = nil
+	if got := interactionUserID(interaction); got != "user-id" {
+		t.Fatalf("interactionUserID fallback = %q, want user-id", got)
+	}
+	if got := interactionUserName(interaction); got != "User Name" {
+		t.Fatalf("interactionUserName fallback = %q, want User Name", got)
+	}
+}
+
+func TestDiscordInteractionUserNameFallsBackToUsername(t *testing.T) {
+	interaction := &discordgo.InteractionCreate{Interaction: &discordgo.Interaction{
+		User: &discordgo.User{ID: "user-id", Username: " user-name "},
+	}}
+	if got := interactionUserName(interaction); got != "user-name" {
+		t.Fatalf("interactionUserName = %q, want user-name", got)
+	}
+}
+
 func newCommandInteraction(name, channelID, userID string, opts map[string]any) *discordgo.InteractionCreate {
 	options := make([]*discordgo.ApplicationCommandInteractionDataOption, 0, len(opts))
 	for key, value := range opts {

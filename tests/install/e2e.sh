@@ -150,19 +150,19 @@ case_plan_dryrun_inside_sandbox() {
   GORMES_RESTART_GATEWAY=never \
   sh "$INSTALL_SH" --dry-run > "$log" 2>&1
 
-  assert_grep "install_home: $SANDBOX/home" "$log"
-  assert_grep "managed_binary: $SANDBOX/home/bin/gormes" "$log"
-  assert_grep "published_binary: $SANDBOX/bin/gormes" "$log"
-  assert_grep "update_active_path_command: skipped" "$log"
-  assert_grep "edit_shell_rc_files: skipped" "$log"
-  assert_grep "install_system_service: skipped" "$log"
-  assert_grep "restart_gateway: never" "$log"
+  assert_grep "home       $SANDBOX/home" "$log"
+  assert_grep "managed    $SANDBOX/home/bin/gormes" "$log"
+  assert_grep "command    $SANDBOX/bin/gormes" "$log"
+  assert_grep "path       skip \(GORMES_BIN_DIR sandbox\)" "$log"
+  assert_grep "shell rc   skip \(protects ~/.bashrc, ~/.profile, ~/.zshrc\)" "$log"
+  assert_grep "service    skip \(protects ~/.config/systemd/user/\)" "$log"
+  assert_grep "gateway    restart=never" "$log"
 
   # No plan line should announce writes outside the sandbox. Guard the three
   # production paths the installer normally edits.
-  assert_no_grep "managed_binary: $HOME/" "$log"
-  assert_no_grep "published_binary: $HOME/" "$log"
-  assert_no_grep "install_home: $HOME/" "$log"
+  assert_no_grep "managed    $HOME/" "$log"
+  assert_no_grep "command    $HOME/" "$log"
+  assert_no_grep "home       $HOME/" "$log"
 }
 
 case_binary_fetch_happy_path() {

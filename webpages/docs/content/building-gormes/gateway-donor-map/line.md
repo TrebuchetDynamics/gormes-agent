@@ -9,7 +9,7 @@ LINE matters mainly as a webhook-first channel. The donor value is not a full ad
 
 ## Status
 
-`docs/content/building-gormes/architecture_plan/subsystem-inventory.md` does not currently list LINE as a planned Gormes gateway platform. The shared subsystem inventory does, however, establish that Gormes expects gateway connectors and HTTP-facing subsystems rather than each platform owning the whole runtime.
+`webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` does not currently list LINE as a planned Gormes gateway platform. The shared subsystem inventory does, however, establish that Gormes expects gateway connectors and HTTP-facing subsystems rather than each platform owning the whole runtime.
 
 Evidence level:
 
@@ -17,7 +17,7 @@ Evidence level:
 - The donor commit inspected for this research was `6421f146a99df1bebcd4b1ca8de2a289dfca3622`.
 - The upstream donor repo is `https://github.com/sipeed/picoclaw`.
 - Any `pkg/...` or `docs/...` path listed below is relative to that donor root, not relative to the Gormes repo.
-- Gormes architectural expectations were verified in-tree against `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`.
+- Gormes architectural expectations were verified in-tree against `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`.
 
 Keep the boundary explicit: PicoClaw contributes LINE webhook and Messaging API edge mechanics only. Gormes gateway architecture remains authoritative.
 
@@ -42,7 +42,7 @@ The implementation is not a direct copy candidate because outbound media support
 - `picoclaw/pkg/channels/line/line.go`
 - `picoclaw/pkg/channels/line/line_test.go`
 - `picoclaw/docs/channels/line/README.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 ## What To Copy vs What To Rebuild
 
@@ -97,6 +97,6 @@ Rebuild in Gormes-native form:
 - `picoclaw/pkg/channels/line/line.go`: `Start`, `fetchBotInfo`, `WebhookPath`, `ServeHTTP`, `webhookHandler`, `verifySignature`, `processEvent`, `isBotMentioned`, `stripBotMention`, `resolveChatID`, `Send`, `SendMedia`, `sendReply`, `sendPush`, `StartTyping`, `sendLoading`, `callAPI`, `downloadContent`.
 - `picoclaw/pkg/channels/line/line_test.go`
 - `picoclaw/docs/channels/line/README.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 Recommendation: `adapt pattern only`.

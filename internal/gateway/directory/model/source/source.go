@@ -1,6 +1,8 @@
 package source
 
 import (
+	"strings"
+
 	entrymodel "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/model/entry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/directory/model/policy"
 )
@@ -52,9 +54,29 @@ func EmptyRememberedSourceLedger() RememberedSourceLedger {
 	return RememberedSourceLedger{Platforms: policy.EmptyPlatformBuckets[RememberedSourceEntry]()}
 }
 
-// EnsureRememberedSourceLedger initializes the platform buckets after JSON decode.
+// EnsureRememberedSourceLedger initializes and normalizes platform buckets after
+// JSON decode so older/operator-edited ledgers keep the same lookup contract as
+// entries written through RememberSource.
 func EnsureRememberedSourceLedger(ledger RememberedSourceLedger) RememberedSourceLedger {
-	ledger.Platforms = policy.EnsurePlatformBuckets(ledger.Platforms)
+	ledger.UpdatedAt = strings.Join(strings.Fields(ledger.UpdatedAt), " ")
+	platforms := policy.EmptyPlatformBuckets[RememberedSourceEntry]()
+	for platform, entries := range policy.EnsurePlatformBuckets(ledger.Platforms) {
+		platform = entrymodel.NormalizePlatform(platform)
+		if platform == "" {
+			continue
+		}
+		for _, entry := range entries {
+			if policy.TrimText(entry.Platform) == "" {
+				entry.Platform = platform
+			}
+			entry = NormalizeRememberedSourceEntry(entry)
+			if entry.Platform == "" || entry.ID == "" {
+				continue
+			}
+			platforms[entry.Platform], _ = UpsertRememberedSourceEntry(platforms[entry.Platform], entry)
+		}
+	}
+	ledger.Platforms = platforms
 	return ledger
 }
 
@@ -67,6 +89,7 @@ func RememberedSourceEntryFromSource(source Source) RememberedSourceEntry {
 		UserID:       policy.TrimText(source.UserID),
 		UserName:     policy.TrimText(source.UserName),
 		ThreadID:     policy.TrimText(source.ThreadID),
+		ChatTopic:    policy.TrimText(source.ChatTopic),
 		GuildID:      policy.TrimText(source.GuildID),
 		ParentChatID: policy.TrimText(source.ParentChatID),
 		MessageID:    policy.TrimText(source.MessageID),
@@ -120,6 +143,32 @@ func UpsertRememberedSourceEntry(entries []RememberedSourceEntry, item Remembere
 	return policy.UpsertByNormalizedID(entries, item, NormalizeRememberedSourceEntry, func(entry RememberedSourceEntry) string {
 		return entry.ID
 	}, func(entry RememberedSourceEntry) bool {
-		return entry.Platform != "" && entry.ID != ""
+		return entry.Platform != "" && entry.ID != "" && !rememberedSourceContainsControl(entry)
 	})
+}
+
+func rememberedSourceContainsControl(entry RememberedSourceEntry) bool {
+	return containsControl(entry.Platform) ||
+		containsControl(entry.ID) ||
+		containsControl(entry.Name) ||
+		containsControl(entry.Type) ||
+		containsControl(entry.ChatID) ||
+		containsControl(entry.ChatName) ||
+		containsControl(entry.UserID) ||
+		containsControl(entry.UserName) ||
+		containsControl(entry.ThreadID) ||
+		containsControl(entry.ChatTopic) ||
+		containsControl(entry.GuildID) ||
+		containsControl(entry.ParentChatID) ||
+		containsControl(entry.MessageID) ||
+		containsControl(entry.UpdatedAt)
+}
+
+func containsControl(value string) bool {
+	for _, r := range value {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			return true
+		}
+	}
+	return false
 }

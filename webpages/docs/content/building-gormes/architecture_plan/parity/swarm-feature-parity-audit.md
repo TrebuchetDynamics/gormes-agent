@@ -154,8 +154,8 @@ next fixture-ready slice is the production Telegram provider-payload golden.
 | Source-class inventory | [Upstream Coverage Ledger](../upstream-coverage-ledger/) | mapped-by-symbol at top-level source-class granularity |
 | Feature-family map | [Hermes And Honcho Feature Map](../hermes-honcho-feature-map/) | mapped-by-contract |
 | Reconciled implementation plan | [Hermes/Honcho To Gormes Go Runtime Plan](../hermes-honcho-go-runtime-plan/) | owned planning surface for Go package targets, classifications, dependency order, and row split candidates |
-| Executable nested coverage gate | `docs/upstream_coverage_test.go::TestNestedUpstreamFeatureCoverage` | mapped-by-symbol for representative nested upstream paths |
-| Implementation backlog | `docs/content/building-gormes/architecture_plan/progress.json` | owned canonical register; no side backlog |
+| Executable nested coverage gate | `webpages/docs/upstream_coverage_test.go::TestNestedUpstreamFeatureCoverage` | mapped-by-symbol for representative nested upstream paths |
+| Implementation backlog | `webpages/docs/content/building-gormes/architecture_plan/progress.json` | owned canonical register; no side backlog |
 
 ## Feature-Level Gap Register
 
@@ -191,11 +191,11 @@ Every gap below must resolve to one of three states before implementation:
 | ACP adapter slices | `../hermes-agent/acp_adapter/{auth,entry,events,permissions,server,session,tools}.py` | future `internal/protocols/acp` or `internal/plugins` + `internal/apiserver` | Row-backed by Phase 5.H `ACP server side`; later planner splits may carve registry/stdio launch, session lifecycle, event rendering, tool rendering, permission bridge, and model/slash-command state rows from that packet. |
 | MCP server/runtime | `../hermes-agent/mcp_serve.py`, `tools/mcp_tool.py`, `tools/managed_tool_gateway.py` | `internal/plugins`, `internal/tools`, `internal/apiserver` | Split Phase 5.G rows for conversation bridge, resource/prompt wrappers, sampling runtime, prompt-injection scan, and OSV checks. |
 | Plugin inventory | `../hermes-agent/plugins/**` | `internal/plugins`, `internal/tools`, `internal/goncho` | Still row-backed by Phase 5.I plugin SDK/inventory rows and Phase 5.O `Hermes CLI command-tree parity manifest` for dynamic plugin command discovery; disk cleanup, image generation plugins, and memory plugins beyond Honcho must be split before builder selection. |
-| Skill catalog parity | `../hermes-agent/skills/**`, `../hermes-agent/optional-skills/**` | `internal/skills`, `docs/development-skills`, `cmd/gormes` | Still row-backed by Phase 5.F/6.C skill registry, prompt snapshot, and learning-loop rows; bundled/optional catalog provenance and enablement remain split targets. |
+| Skill catalog parity | `../hermes-agent/skills/**`, `../hermes-agent/optional-skills/**` | `internal/skills`, `development-skills`, `cmd/gormes` | Still row-backed by Phase 5.F/6.C skill registry, prompt snapshot, and learning-loop rows; bundled/optional catalog provenance and enablement remain split targets. |
 | Sandbox environment details | `tools/environments/**`, `environments/**`, `tools/credential_files.py`, `tools/env_passthrough.py` | `internal/tools`, `internal/cmdrunner`, `internal/config` | Row-backed by `Environment interface + file sync contract`; local env scrubbing, SSH, managed Modal, file sync checksum/delete, credential mounts, and env passthrough remain narrow follow-up rows. |
 | Browser/media/security surfaces | `browser_*`, `browser_providers/**`, `tts_tool.py`, `voice_mode.py`, `transcription_tools.py`, `tirith_security.py`, `website_policy.py`, `url_safety.py` | `internal/tools`, `internal/doctor`, future browser/media packages | Still row-backed by Phase 5.C/5.E/5.J browser, media, voice, and security rows; CDP/dialog/snapshot/provider routing, voice state, TTS/transcription, and URL/site/tool-output security must stay separate builder packets. |
 | Operator tools | `todo_tool.py`, `clarify_tool.py`, `debug_helpers.py`, `send_message_tool.py`, `interrupt.py`, `memory_tool.py`, `rl_training_tool.py`, `mixture_of_agents_tool.py` | `internal/tools`, `internal/gateway`, `internal/persistence/sessionsearchtool`, `internal/subagent` | Still row-backed by Phase 5.N operator-tool rows; each operator-visible contract must be made builder-ready before handler ports. |
-| Supply-chain and skills-index workflow parity | `.github/workflows/supply-chain-audit.yml`, `.github/workflows/skills-index.yml` | docs/CI contract or `cmd/repoctl` | still row-backed by Phase 5.P/6; add a CI contract row if these workflows remain part of public operational parity. |
+| Supply-chain and skills-index workflow parity | `.github/workflows/supply-chain-audit.yml`, `.github/workflows/skills-index.yml` | docs/CI contract or `cmd/gormes-repo` | still row-backed by Phase 5.P/6; add a CI contract row if these workflows remain part of public operational parity. |
 
 ## Hermes Gateway, CLI, And Release Gaps
 

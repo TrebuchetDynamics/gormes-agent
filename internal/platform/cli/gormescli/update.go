@@ -1985,20 +1985,11 @@ func defaultBackupWriterFor() cli.BackupWriter {
 	}
 	keep := resolveBackupKeep()
 	return func(ctx context.Context) (cli.BackupResult, error) {
-		stamp := time.Now().UTC().Format("20060102T150405Z")
-		dest := filepath.Join(home, "lifecycle", "backups", "pre-update-"+stamp+".zip")
-		res, err := cli.WriteBackupZip(ctx, home, dest)
-		if err != nil {
-			return res, err
-		}
-		// Prune is best-effort: a prune failure must not surface as a
-		// backup-write failure (the new zip is already on disk and
-		// usable).
-		if count, freed, _ := cli.PruneBackups(filepath.Dir(dest), keep); count > 0 {
-			res.PrunedCount = count
-			res.PrunedBytes = freed
-		}
-		return res, nil
+		return cli.WritePreUpdateBackup(ctx, cli.PreUpdateBackupRequest{
+			Home: home,
+			Now:  time.Now().UTC(),
+			Keep: keep,
+		})
 	}
 }
 
@@ -2021,17 +2012,15 @@ func defaultConfigMigrate(_ context.Context) error {
 
 // defaultWebBuildFor builds the production WebBuildRunner. Behavior:
 //
-//	skipWeb=true                            → runner returns Skipped
-//	`<checkoutDir>/web/package.json` absent → factory returns nil (silent default)
-//	npm not on PATH                         → runner returns Unavailable
-//	otherwise                               → runner runs `npm install --silent`
-//	                                          then `npm run build` in the web/
-//	                                          dir; non-zero exit returns error
+//	skipWeb=true                               → runner returns Skipped
+//	no known web package.json exists           → factory returns nil (silent default)
+//	npm not on PATH                            → runner returns Unavailable
+//	otherwise                                  → runner runs npm install/ci then npm run build
+//	                                             in each tracked web package; non-zero exit returns error
 func defaultWebBuildFor(checkoutDir string, skipWeb bool) cli.WebBuildRunner {
-	webDir := filepath.Join(checkoutDir, "web")
-	pkgJSON := filepath.Join(webDir, "package.json")
-	if _, err := os.Stat(pkgJSON); err != nil {
-		// No web/ tree means there's nothing to rebuild — silent default.
+	webDirs := existingWebPackageDirs(checkoutDir)
+	if len(webDirs) == 0 {
+		// No tracked web package means there's nothing to rebuild — silent default.
 		return nil
 	}
 	return func(ctx context.Context) (cli.WebBuildResult, error) {
@@ -2041,18 +2030,40 @@ func defaultWebBuildFor(checkoutDir string, skipWeb bool) cli.WebBuildRunner {
 		if _, err := exec.LookPath("npm"); err != nil {
 			return cli.WebBuildResult{Unavailable: true, Reason: "npm not on PATH; install Node.js to enable web UI rebuild"}, nil
 		}
-		install := exec.CommandContext(ctx, "npm", "install", "--silent")
-		install.Dir = webDir
-		if out, err := install.CombinedOutput(); err != nil {
-			return cli.WebBuildResult{}, fmt.Errorf("npm install failed: %v: %s", err, strings.TrimSpace(string(out)))
+		for _, webDir := range webDirs {
+			installArgs := []string{"install", "--silent"}
+			if _, err := os.Stat(filepath.Join(webDir, "package-lock.json")); err == nil {
+				installArgs = []string{"ci", "--silent"}
+			}
+			install := exec.CommandContext(ctx, "npm", installArgs...)
+			install.Dir = webDir
+			if out, err := install.CombinedOutput(); err != nil {
+				return cli.WebBuildResult{}, fmt.Errorf("npm %s failed in %s: %v: %s", strings.Join(installArgs, " "), webDir, err, strings.TrimSpace(string(out)))
+			}
+			build := exec.CommandContext(ctx, "npm", "run", "build")
+			build.Dir = webDir
+			if out, err := build.CombinedOutput(); err != nil {
+				return cli.WebBuildResult{}, fmt.Errorf("npm run build failed in %s: %v: %s", webDir, err, strings.TrimSpace(string(out)))
+			}
 		}
-		build := exec.CommandContext(ctx, "npm", "run", "build")
-		build.Dir = webDir
-		if out, err := build.CombinedOutput(); err != nil {
-			return cli.WebBuildResult{}, fmt.Errorf("npm run build failed: %v: %s", err, strings.TrimSpace(string(out)))
-		}
-		return cli.WebBuildResult{Detail: "web UI built in " + webDir}, nil
+		return cli.WebBuildResult{Detail: "web UI built in " + strings.Join(webDirs, ", ")}, nil
 	}
+}
+
+func existingWebPackageDirs(checkoutDir string) []string {
+	var dirs []string
+	for _, rel := range []string{
+		filepath.Join("webpages", "docs"),
+		filepath.Join("webpages", "blog"),
+		filepath.Join("webpages", "landing"),
+		"web", // legacy managed-source layout, kept for old checkouts.
+	} {
+		dir := filepath.Join(checkoutDir, rel)
+		if _, err := os.Stat(filepath.Join(dir, "package.json")); err == nil {
+			dirs = append(dirs, dir)
+		}
+	}
+	return dirs
 }
 
 // updateGlyphAndColor maps an UpdateEvidenceKind to a status glyph and the

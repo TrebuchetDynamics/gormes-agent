@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -199,10 +198,5 @@ func readFileString(t *testing.T, path string) string {
 }
 
 func executeSlackCommandForTest(cmd *cobra.Command, args ...string) (string, string, error) {
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs(args)
-	err := cmd.Execute()
-	return stdout.String(), stderr.String(), err
+	return executeCobraCommandForTest(cmd, cobraCommandExecutionOptions{}, args...)
 }

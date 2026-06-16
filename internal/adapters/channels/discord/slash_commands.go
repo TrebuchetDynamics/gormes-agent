@@ -435,35 +435,32 @@ func discordOptionInt(data discordgo.ApplicationCommandInteractionData, name str
 }
 
 func interactionUserID(i *discordgo.InteractionCreate) string {
-	if i == nil || i.Interaction == nil {
+	user := interactionUser(i)
+	if user == nil {
 		return ""
 	}
-	if i.Member != nil && i.Member.User != nil {
-		return strings.TrimSpace(i.Member.User.ID)
-	}
-	if i.User != nil {
-		return strings.TrimSpace(i.User.ID)
-	}
-	return ""
+	return strings.TrimSpace(user.ID)
 }
 
 func interactionUserName(i *discordgo.InteractionCreate) string {
-	if i == nil || i.Interaction == nil {
+	user := interactionUser(i)
+	if user == nil {
 		return ""
 	}
+	if name := strings.TrimSpace(user.GlobalName); name != "" {
+		return name
+	}
+	return strings.TrimSpace(user.Username)
+}
+
+func interactionUser(i *discordgo.InteractionCreate) *discordgo.User {
+	if i == nil || i.Interaction == nil {
+		return nil
+	}
 	if i.Member != nil && i.Member.User != nil {
-		if name := strings.TrimSpace(i.Member.User.GlobalName); name != "" {
-			return name
-		}
-		return strings.TrimSpace(i.Member.User.Username)
+		return i.Member.User
 	}
-	if i.User != nil {
-		if name := strings.TrimSpace(i.User.GlobalName); name != "" {
-			return name
-		}
-		return strings.TrimSpace(i.User.Username)
-	}
-	return ""
+	return i.User
 }
 
 func interactionRoleIDs(i *discordgo.InteractionCreate) []string {

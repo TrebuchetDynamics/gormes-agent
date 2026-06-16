@@ -36,7 +36,7 @@ Agents that only live in a terminal are academic. Agents that live where the ope
 ## Donor pointers
 
 When implementing a new gateway slice, route through the
-`gormes-references` skill (`docs/development-skills/gormes-references/SKILL.md`)
+`gormes-references` skill (`development-skills/gormes-references/SKILL.md`)
 before re-deriving a shape. The most useful Go donors for gateway/runtime work
 live under `references/go-agent-os/`:
 

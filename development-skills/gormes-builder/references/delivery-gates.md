@@ -45,7 +45,7 @@ Adjust package lists to the actual touched files.
 
 ## Docs And Web Gates
 
-If `docs/` changed:
+If `webpages/docs/` changed:
 
 ```sh
 go test ./webpages/docs -count=1

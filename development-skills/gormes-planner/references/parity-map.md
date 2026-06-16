@@ -1,6 +1,6 @@
 # Gormes Planner Parity Map
 
-Use this checklist to decide whether Gormes is still missing Hermes or Honcho behavior. The canonical feature-family map is `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md`; the canonical reconciled implementation map is `docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md`. This file is only a quick trigger list. Do not paste this whole list into progress rows; use it to drive focused passes.
+Use this checklist to decide whether Gormes is still missing Hermes or Honcho behavior. The canonical feature-family map is `webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md`; the canonical reconciled implementation map is `webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md`. This file is only a quick trigger list. Do not paste this whole list into progress rows; use it to drive focused passes.
 
 Broad globs such as `agent/**`, `tools/**`, `src/**`, `sdks/**`, or `mcp/**`
 do not prove feature coverage. A full-map pass must classify every subsystem as

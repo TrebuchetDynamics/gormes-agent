@@ -2,6 +2,7 @@ package kernel
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
@@ -20,6 +21,9 @@ func (k *Kernel) buildTurnRequest(ctx context.Context, in turnRequestAssemblyInp
 	msgs := []llm.Message{in.UserMessage}
 	systemMsgs := make([]llm.Message, 0, 8)
 
+	if prompt := strings.TrimSpace(k.cfg.SystemPrompt); prompt != "" {
+		systemMsgs = append(systemMsgs, llm.Message{Role: "system", Content: prompt})
+	}
 	if gonchoCtx := k.gonchoContext(ctx); gonchoCtx != "" {
 		systemMsgs = append(systemMsgs, llm.Message{Role: "system", Content: gonchoCtx})
 	}

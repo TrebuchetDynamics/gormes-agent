@@ -104,15 +104,15 @@ if [[ "$MODE" == "update" ]]; then
   else
     echo "phase0: hermes already current"
   fi
-  go run ./cmd/repoctl --repo-root "$ROOT" hermes-source-pairs sync-sha --hermes-src "$HERMES_SRC" --hermes-sha "$current_sha"
+  go run ./cmd/gormes-repo --repo-root "$ROOT" hermes-source-pairs sync-sha --hermes-src "$HERMES_SRC" --hermes-sha "$current_sha"
   HERMES_SRC="$HERMES_SRC" scripts/hermes-py2many-map.sh
-  go run ./cmd/repoctl --repo-root "$ROOT" hermes-source-pairs report --hermes-src "$HERMES_SRC" --hermes-sha "$current_sha"
+  go run ./cmd/gormes-repo --repo-root "$ROOT" hermes-source-pairs report --hermes-src "$HERMES_SRC" --hermes-sha "$current_sha"
   go run ./cmd/progress validate
   echo "phase0: update ok"
   exit 0
 fi
 
-go run ./cmd/repoctl --repo-root "$ROOT" hermes-source-pairs validate --hermes-src "$HERMES_SRC" --hermes-sha "$current_sha"
+go run ./cmd/gormes-repo --repo-root "$ROOT" hermes-source-pairs validate --hermes-src "$HERMES_SRC" --hermes-sha "$current_sha"
 HERMES_SRC="$HERMES_SRC" scripts/hermes-py2many-map.sh --dry-run
 
 echo "phase0: check ok"

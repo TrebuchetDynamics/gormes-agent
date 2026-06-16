@@ -75,6 +75,18 @@ func ReadFile(path string, ev *Evidence) (string, bool) {
 	return content, true
 }
 
+// LoadFile reads, scans, and truncates a context file while preserving the
+// caller-provided evidence metadata such as Source and Path.
+func LoadFile(path, filename string, maxChars int, ev Evidence) (string, Evidence, bool) {
+	content, ok := ReadFile(path, &ev)
+	if !ok {
+		return "", ev, false
+	}
+	content, ev = ScanContent(content, filename, ev)
+	content, ev = TruncateContent(content, filename, maxChars, ev)
+	return content, ev, true
+}
+
 // ScanContent blocks known prompt-injection and invisible-character patterns.
 func ScanContent(content, filename string, ev Evidence) (string, Evidence) {
 	findings := []string{}

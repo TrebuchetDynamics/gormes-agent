@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	cronlock "github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron/lock"
 	"go.etcd.io/bbolt"
 )
 
@@ -76,8 +77,8 @@ func TestScheduler_DefaultTickLockPathUsesGormesHome(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 	want := filepath.Join(home, "cron", ".tick.lock")
-	if got := defaultCronTickLockPath(); got != want {
-		t.Fatalf("defaultCronTickLockPath() = %q, want %q", got, want)
+	if got := cronlock.DefaultPath(); got != want {
+		t.Fatalf("cronlock.DefaultPath() = %q, want %q", got, want)
 	}
 }
 

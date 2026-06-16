@@ -50,7 +50,7 @@ func (r *Refresher) Refresh(ctx context.Context) (cache.Directory, model.Evidenc
 	if err := r.Directory.Save(dir); err != nil {
 		return lastGood, model.Evidence{Code: model.EvidenceChannelDirectoryRefreshFailed}
 	}
-	return dir, model.Evidence{}
+	return dir, sourceEvidence
 }
 
 func timestamp(now func() time.Time) string {

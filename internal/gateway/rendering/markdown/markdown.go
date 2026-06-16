@@ -190,10 +190,13 @@ func link(s string, start int, target FormatTarget) (string, int, bool) {
 		return "", start, false
 	}
 	urlEnd := urlStart + closeURL
-	label := strings.TrimSpace(s[start+1 : textEnd])
+	label := sanitizeLinkLabel(s[start+1 : textEnd])
 	url := strings.TrimSpace(s[urlStart:urlEnd])
 	if label == "" || url == "" || strings.ContainsAny(url, " \n\r\t") {
 		return "", start, false
+	}
+	if unsafeLinkURL(url) {
+		return esc(target, label), urlEnd + 1, true
 	}
 	switch target {
 	case FormatTargetTelegram:
@@ -204,7 +207,7 @@ func link(s string, start int, target FormatTarget) (string, int, bool) {
 	case FormatTargetDiscord:
 		return "[" + label + "](" + url + ")", urlEnd + 1, true
 	case FormatTargetSlack:
-		return "<" + url + "|" + label + ">", urlEnd + 1, true
+		return "<" + esc(target, url) + "|" + esc(target, label) + ">", urlEnd + 1, true
 	}
 	return "", start, false
 }
@@ -529,9 +532,41 @@ func leadingWhitespaceLen(s string) int {
 	return i
 }
 
+func sanitizeLinkLabel(label string) string {
+	fields := strings.Fields(label)
+	for i, field := range fields {
+		lower := strings.ToLower(field)
+		switch lower {
+		case "@everyone", "@here", "@channel":
+			fields[i] = strings.TrimPrefix(field, "@")
+		}
+	}
+	return strings.Join(fields, " ")
+}
+
 func telegramLinkURLAllowed(url string) bool {
 	lower := strings.ToLower(url)
 	return strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") || strings.HasPrefix(lower, "tg://")
+}
+
+func unsafeLinkURL(url string) bool {
+	lower := strings.ToLower(strings.TrimSpace(url))
+	if containsLinkControl(lower) || containsLinkMention(lower) {
+		return true
+	}
+	if idx := strings.Index(lower, ":"); idx > 0 {
+		scheme := lower[:idx]
+		return scheme != "http" && scheme != "https" && scheme != "tg"
+	}
+	return false
+}
+
+func containsLinkControl(value string) bool {
+	return strings.ContainsFunc(value, func(r rune) bool { return r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) })
+}
+
+func containsLinkMention(value string) bool {
+	return strings.Contains(value, "@everyone") || strings.Contains(value, "@here") || strings.Contains(value, "@channel")
 }
 
 func inlineDelimiterBounded(s string, start, end int) bool {
@@ -564,12 +599,35 @@ func nextInlineSpecial(s string, start int) int {
 	return next
 }
 
+func demoteBroadcastMentions(text string) string {
+	lower := strings.ToLower(text)
+	var b strings.Builder
+	b.Grow(len(text))
+	for i := 0; i < len(text); {
+		switch {
+		case strings.HasPrefix(lower[i:], "@everyone"):
+			b.WriteString("everyone")
+			i += len("@everyone")
+		case strings.HasPrefix(lower[i:], "@channel"):
+			b.WriteString("channel")
+			i += len("@channel")
+		case strings.HasPrefix(lower[i:], "@here"):
+			b.WriteString("here")
+			i += len("@here")
+		default:
+			b.WriteByte(text[i])
+			i++
+		}
+	}
+	return b.String()
+}
+
 // FormatFinalDiscordText renders final assistant text for Discord markdown.
 func FormatFinalDiscordText(text string) string {
-	return FormatFinalMarkdown(text, FormatTargetDiscord)
+	return demoteBroadcastMentions(FormatFinalMarkdown(text, FormatTargetDiscord))
 }
 
 // FormatFinalSlackText renders final assistant text for Slack mrkdwn.
 func FormatFinalSlackText(text string) string {
-	return FormatFinalMarkdown(text, FormatTargetSlack)
+	return demoteBroadcastMentions(FormatFinalMarkdown(text, FormatTargetSlack))
 }

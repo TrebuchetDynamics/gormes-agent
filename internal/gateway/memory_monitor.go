@@ -14,7 +14,7 @@ import (
 
 const defaultMemoryMonitorInterval = 5 * time.Minute
 
-type MemoryPressureStatus = memorypressure.Status
+type MemoryPressureStatus = memorypressure.PressureStatus
 
 const (
 	MemoryPressureOK          = memorypressure.StatusOK
@@ -73,6 +73,13 @@ type MemoryMonitor struct {
 	mu     sync.Mutex
 }
 
+func memoryMonitorContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
 func NewMemoryMonitor(cfg MemoryMonitorConfig) *MemoryMonitor {
 	if cfg.Sampler == nil {
 		cfg.Sampler = NewRuntimeMemorySampler()
@@ -94,6 +101,7 @@ func (m *MemoryMonitor) Start(ctx context.Context) bool {
 	if m == nil || m.cfg.Status == nil || m.cfg.Sampler == nil {
 		return false
 	}
+	ctx = memoryMonitorContext(ctx)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.cancel != nil {
@@ -102,7 +110,8 @@ func (m *MemoryMonitor) Start(ctx context.Context) bool {
 	runCtx, cancel := context.WithCancel(ctx)
 	m.cancel = cancel
 	m.done = make(chan struct{}, 1)
-	go m.run(runCtx)
+	done := m.done
+	go m.run(runCtx, done)
 	return true
 }
 
@@ -110,6 +119,7 @@ func (m *MemoryMonitor) Stop(ctx context.Context) error {
 	if m == nil {
 		return nil
 	}
+	ctx = memoryMonitorContext(ctx)
 	m.mu.Lock()
 	cancel := m.cancel
 	done := m.done
@@ -128,8 +138,8 @@ func (m *MemoryMonitor) Stop(ctx context.Context) error {
 	}
 }
 
-func (m *MemoryMonitor) run(ctx context.Context) {
-	defer close(m.done)
+func (m *MemoryMonitor) run(ctx context.Context, done chan struct{}) {
+	defer close(done)
 	_ = m.SampleOnce(ctx)
 	ticker := time.NewTicker(m.cfg.Interval)
 	defer ticker.Stop()
@@ -152,7 +162,7 @@ func (m *MemoryMonitor) SampleOnce(ctx context.Context) error {
 		evidence := RuntimeMemoryPressureEvidence{
 			Status:    MemoryPressureUnavailable,
 			Action:    MemoryPressureActionNone,
-			Message:   err.Error(),
+			Message:   memoryPressureErrorText(err),
 			CheckedAt: m.cfg.Now().UTC().Format(time.RFC3339Nano),
 			Redacted:  true,
 			Evidence:  []string{"memory_pressure_unavailable"},
@@ -161,6 +171,36 @@ func (m *MemoryMonitor) SampleOnce(ctx context.Context) error {
 	}
 	evidence := EvaluateMemoryPressure(sample, m.cfg.Policy, m.cfg.Owner(), m.cfg.Now())
 	return m.writeEvidence(ctx, evidence)
+}
+
+func memoryPressureErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := strings.TrimSpace(err.Error())
+	if msg == "" {
+		return ""
+	}
+	lower := strings.ToLower(msg)
+	compact := compactMemorySecretSeparators(lower)
+	for _, marker := range []string{"api_key", "apikey", "authorization", "bearer", "secret", "password", "token="} {
+		if strings.Contains(lower, marker) || strings.Contains(compact, marker) {
+			return "[redacted]"
+		}
+	}
+	replacer := strings.NewReplacer("`", "'", "*", "'", "#", "＃")
+	return strings.Join(strings.Fields(replacer.Replace(msg)), " ")
+}
+
+func compactMemorySecretSeparators(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func (m *MemoryMonitor) writeEvidence(ctx context.Context, evidence RuntimeMemoryPressureEvidence) error {
@@ -181,6 +221,7 @@ func NewRuntimeMemorySampler() RuntimeMemorySampler {
 }
 
 func (s RuntimeMemorySampler) SampleMemory(ctx context.Context) (MemorySample, error) {
+	ctx = memoryMonitorContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return MemorySample{}, err
 	}

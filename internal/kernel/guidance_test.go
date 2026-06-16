@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel/testfixtures"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
@@ -47,8 +48,8 @@ func TestKernel_LiveTurnGuidanceGatedByCapabilities(t *testing.T) {
 	reg.MustRegister(&tools.MockTool{NameStr: "session_search"})
 	reg.MustRegister(&tools.MockTool{NameStr: "read_file"})
 	reg.MustRegister(&tools.MockTool{NameStr: "web_search"})
-	recall := &mockRecall{returnContent: "<memory-context>remembered</memory-context>"}
-	skills := &stubSkillProvider{block: "<skills>\n## gormes-tdd-slice\nUse TDD.\n</skills>", names: []string{"gormes-tdd-slice"}}
+	recall := &testfixtures.RecallProvider{ReturnContent: "<memory-context>remembered</memory-context>"}
+	skills := &testfixtures.SkillProvider{Block: "<skills>\n## gormes-tdd-slice\nUse TDD.\n</skills>", Names: []string{"gormes-tdd-slice"}}
 
 	req := captureGuidanceRequest(t, Config{
 		Model:  "gpt-5.5-codex",

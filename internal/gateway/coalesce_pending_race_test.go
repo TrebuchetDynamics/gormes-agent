@@ -173,7 +173,5 @@ func (b *blockingPlaceholderChannel) SendPlaceholder(ctx context.Context, chatID
 func (b *blockingPlaceholderChannel) placeholdersSnapshot() []string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	out := make([]string, len(b.placeholders))
-	copy(out, b.placeholders)
-	return out
+	return cloneSlice(b.placeholders)
 }

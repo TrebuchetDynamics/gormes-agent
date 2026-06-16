@@ -79,6 +79,27 @@ first_run_discovery = true
 	if err := os.Chmod(configPath, 0o644); err != nil {
 		t.Fatalf("chmod config: %v", err)
 	}
+	legacyLogPath := filepath.Join(config.GormesHome(), "gateway.log")
+	if err := os.WriteFile(legacyLogPath, []byte("gateway log\n"), 0o664); err != nil {
+		t.Fatalf("write legacy gateway log: %v", err)
+	}
+	profileRoot := filepath.Join(config.GormesHome(), "profiles", "main")
+	profileMemoryPath := filepath.Join(profileRoot, "memory.db")
+	profileIndexPath := filepath.Join(profileRoot, "sessions", "index.yaml")
+	for _, fixture := range []struct {
+		path string
+		body string
+	}{
+		{profileMemoryPath, "sqlite fixture"},
+		{profileIndexPath, "sessions: {}\n"},
+	} {
+		if err := os.MkdirAll(filepath.Dir(fixture.path), 0o755); err != nil {
+			t.Fatalf("mkdir fixture dir: %v", err)
+		}
+		if err := os.WriteFile(fixture.path, []byte(fixture.body), 0o644); err != nil {
+			t.Fatalf("write fixture %s: %v", fixture.path, err)
+		}
+	}
 
 	cmd := newSecurityRootCommandForTest()
 	stdout, stderr, err := executeRootCommandForTest(cmd, "security", "audit", "--deep", "--fix", "--json")
@@ -110,12 +131,26 @@ first_run_discovery = true
 	if !securityCommandFixApplied(result.Fixes, toolspkg.SecurityAuditFixGatewayAuthTokenGenerated) {
 		t.Fatalf("fixes = %+v, missing gateway auth token generation", result.Fixes)
 	}
+	for _, finding := range result.Findings {
+		if finding.Code == toolspkg.SecurityAuditFindingStateFileMissing {
+			t.Fatalf("security audit reported optional missing state file: %+v", finding)
+		}
+	}
 	info, err := os.Stat(configPath)
 	if err != nil {
 		t.Fatalf("stat config: %v", err)
 	}
 	if got := info.Mode().Perm(); got != 0o600 {
 		t.Fatalf("config mode = %o, want 600", got)
+	}
+	for _, path := range []string{legacyLogPath, profileMemoryPath, profileIndexPath} {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("stat fixed path %s: %v", path, err)
+		}
+		if got := info.Mode().Perm(); got != 0o600 {
+			t.Fatalf("%s mode = %o, want 600", path, got)
+		}
 	}
 	envBody, err := os.ReadFile(config.EnvPath())
 	if err != nil {

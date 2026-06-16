@@ -14,7 +14,7 @@ providers, and operator experience; any Go-native divergence must be explicit,
 tested, and visible to operators.
 
 Use this page when deciding what to audit, plan, or build next. Use
-[`progress.json`](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/content/building-gormes/architecture_plan/progress.json)
+[`progress.json`](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/webpages/docs/content/building-gormes/architecture_plan/progress.json)
 for the actual queue, and use [Hermes And Honcho Feature Map](../hermes-honcho-feature-map/)
 when deciding where an upstream feature belongs in Go.
 
@@ -22,13 +22,13 @@ when deciding where an upstream feature belongs in Go.
 
 | Lane | Owns | Primary phases | Main packages/docs |
 |---|---|---|---|
-| 0 — Control Plane Discipline | skill routing, row quality, progress validation gates | 1.C, 1.D, generated handoff docs | `docs/development-skills/`, `.agents/skills/`, `.claude/skills/`, `.codex/skills/`, `cmd/progress`, `cmd/repoctl`, `internal/progress`, `AGENTS.md`, `CLAUDE.md` |
-| 1 — Native Agent Spine | provider adapters, prompt/context, kernel loop, retry, compression, model routing, telemetry, normal-turn e2e | 4.A-4.I, parts of 2.E, 5.Q | `internal/llm`, `internal/kernel`, `internal/e2e`, `internal/gateway`, `internal/telemetry`, `docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md` |
-| 2 — Goncho Memory And Honcho Compatibility | local memory, Honcho-compatible public contracts, session lineage, scoped recall, SDK-style local harness | 3.E, 3.F, 3.G, 5.I, 5.N, 4.B | `internal/goncho`, `internal/gonchotools`, `internal/memory`, `internal/persistence/session`, `docs/content/building-gormes/goncho_honcho_memory/` |
-| 3 — Tool Surface, Security, And Skills | tool descriptors, toolsets, plugins, MCP/ACP, file/shell/browser/media tools, approvals, skill plumbing | 2.A, 2.G, 5.A-5.M | `internal/tools`, `internal/plugins`, `internal/skills`, `internal/doctor`, `docs/content/building-gormes/architecture_plan/phase-5-final-purge.md` |
-| 4 — Gateway, Channels, Cron, And Delivery | shared gateway, adapters, active-turn policy, home channel, pairing, restart, cron, delivery routing | 2.B-2.F, 7, 5.N, 5.Q | `internal/gateway`, `internal/automation/cron`, `internal/channels/*`, `internal/slack`, `internal/discord`, `docs/content/building-gormes/gateway-donor-map/` |
+| 0 — Control Plane Discipline | skill routing, row quality, progress validation gates | 1.C, 1.D, generated handoff docs | `development-skills/`, `.agents/skills/`, `.claude/skills/`, `.codex/skills/`, `cmd/progress`, `cmd/gormes-repo`, `internal/progress`, `AGENTS.md`, `CLAUDE.md` |
+| 1 — Native Agent Spine | provider adapters, prompt/context, kernel loop, retry, compression, model routing, telemetry, normal-turn e2e | 4.A-4.I, parts of 2.E, 5.Q | `internal/llm`, `internal/kernel`, `internal/e2e`, `internal/gateway`, `internal/telemetry`, `webpages/docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md` |
+| 2 — Goncho Memory And Honcho Compatibility | local memory, Honcho-compatible public contracts, session lineage, scoped recall, SDK-style local harness | 3.E, 3.F, 3.G, 5.I, 5.N, 4.B | `internal/goncho`, `internal/gonchotools`, `internal/memory`, `internal/persistence/session`, `webpages/docs/content/building-gormes/goncho_honcho_memory/` |
+| 3 — Tool Surface, Security, And Skills | tool descriptors, toolsets, plugins, MCP/ACP, file/shell/browser/media tools, approvals, skill plumbing | 2.A, 2.G, 5.A-5.M | `internal/tools`, `internal/plugins`, `internal/skills`, `internal/doctor`, `webpages/docs/content/building-gormes/architecture_plan/phase-5-final-purge.md` |
+| 4 — Gateway, Channels, Cron, And Delivery | shared gateway, adapters, active-turn policy, home channel, pairing, restart, cron, delivery routing | 2.B-2.F, 7, 5.N, 5.Q | `internal/gateway`, `internal/automation/cron`, `internal/channels/*`, `internal/slack`, `internal/discord`, `webpages/docs/content/building-gormes/gateway-donor-map/` |
 | 5 — CLI, API, TUI, Packaging, And Release | Hermes CLI parity, OpenAI-compatible API, TUI gateway, installers, services, release docs | 5.O-5.Q, 5.P, Phase 1 TUI divergence | `cmd/gormes`, `internal/cli`, `internal/apiserver`, `internal/tui`, `internal/tuigateway`, `www.gormes.ai/` |
-| 6 — Learning Loop | skill detection, extraction, review, retrieval, feedback, promotion | 6.A-6.F | `internal/skills`, `internal/memory`, `internal/kernel`, `docs/development-skills/`, Phase 6 docs |
+| 6 — Learning Loop | skill detection, extraction, review, retrieval, feedback, promotion | 6.A-6.F | `internal/skills`, `internal/memory`, `internal/kernel`, `development-skills/`, Phase 6 docs |
 
 ## Lane Exit Gates
 
@@ -70,7 +70,7 @@ Exit when:
 - every active/P0 row has `test_commands` or `no_test_required`;
 - invalid progress blocks builder selection until a planner pass fixes it;
 - repo-local skill routing is documented in `AGENTS.md` and `CLAUDE.md`;
-- `docs/development-skills/` is the canonical skill source and loader
+- `development-skills/` is the canonical skill source and loader
   directories are symlinks;
 - generated queue pages expose sane next work.
 
@@ -79,7 +79,7 @@ Gate:
 ```sh
 go test ./internal/progress -count=1
 go run ./cmd/progress validate
-go test ./docs -count=1
+go test ./webpages/docs -count=1
 ```
 
 ### Lane 1 — Native Agent Spine
@@ -169,7 +169,7 @@ Gate:
 
 ```sh
 go test ./cmd/gormes ./internal/cli ./internal/apiserver ./internal/tui ./internal/tuigateway -count=1
-go test ./docs -count=1
+go test ./webpages/docs -count=1
 (cd webpages/landing && go test ./... -count=1)
 ```
 

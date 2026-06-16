@@ -116,8 +116,8 @@ reason for inclusion.
 
 ## Cross-Reference
 
-- `docs/content/building-gormes/strategy/success-plan.md` — full strategy
-- `docs/content/building-gormes/architecture_plan/progress.json` — executable
+- `webpages/docs/content/building-gormes/strategy/success-plan.md` — full strategy
+- `webpages/docs/content/building-gormes/architecture_plan/progress.json` — executable
   rows, Phase 8
 - `README.md` — operator-facing messaging
 - `webpages/landing/` — public site messaging

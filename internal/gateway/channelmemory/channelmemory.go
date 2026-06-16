@@ -1,6 +1,7 @@
 package channelmemory
 
 import (
+	"strings"
 	"time"
 
 	gonchoservice "github.com/TrebuchetDynamics/goncho/service"
@@ -14,6 +15,8 @@ import (
 // Settings is the channel-neutral view of local memory settings.
 // Today the public config source is still the legacy [telegram] section for
 // compatibility, but channel runtimes should consume this neutral shape.
+const ExtractorCallTimeout = 2 * time.Minute
+
 type Settings struct {
 	QueueCap              int
 	ExtractorBatchSize    int
@@ -32,31 +35,43 @@ type Settings struct {
 }
 
 func SettingsFromConfig(cfg config.Config) Settings {
-	legacy := cfg.Telegram
+	return SettingsFromProjection(cfg.ChannelMemorySettings())
+}
+
+func SettingsFromProjection(projection config.ChannelMemorySettings) Settings {
 	return Settings{
-		QueueCap:              legacy.MemoryQueueCap,
-		ExtractorBatchSize:    legacy.ExtractorBatchSize,
-		ExtractorPollInterval: legacy.ExtractorPollInterval,
-		LegacyRecallEnabled:   legacy.RecallEnabled,
+		QueueCap:              projection.QueueCap,
+		ExtractorBatchSize:    projection.ExtractorBatchSize,
+		ExtractorPollInterval: projection.ExtractorPollInterval,
+		LegacyRecallEnabled:   projection.LegacyRecallEnabled,
 		Recall: memory.RecallConfig{
-			WeightThreshold:       legacy.RecallWeightThreshold,
-			MaxFacts:              legacy.RecallMaxFacts,
-			Depth:                 legacy.RecallDepth,
-			DecayHorizonDays:      legacy.RecallDecayHorizonDays,
-			SemanticModel:         legacy.SemanticModel,
-			SemanticTopK:          legacy.SemanticTopK,
-			SemanticMinSimilarity: legacy.SemanticMinSimilarity,
-			QueryEmbedTimeout:     legacy.QueryEmbedTimeout,
+			WeightThreshold:       projection.RecallWeightThreshold,
+			MaxFacts:              projection.RecallMaxFacts,
+			Depth:                 projection.RecallDepth,
+			DecayHorizonDays:      projection.RecallDecayHorizonDays,
+			SemanticModel:         projection.SemanticModel,
+			SemanticTopK:          projection.SemanticTopK,
+			SemanticMinSimilarity: projection.SemanticMinSimilarity,
+			QueryEmbedTimeout:     projection.QueryEmbedTimeout,
 		},
-		MirrorEnabled:        legacy.MirrorEnabled,
-		MirrorPath:           legacy.MirrorPath,
-		MirrorInterval:       legacy.MirrorInterval,
-		SemanticEnabled:      legacy.SemanticEnabled,
-		SemanticEndpoint:     legacy.SemanticEndpoint,
-		SemanticModel:        legacy.SemanticModel,
-		EmbedderPollInterval: legacy.EmbedderPollInterval,
-		EmbedderBatchSize:    legacy.EmbedderBatchSize,
-		EmbedderCallTimeout:  legacy.EmbedderCallTimeout,
+		MirrorEnabled:        projection.MirrorEnabled,
+		MirrorPath:           projection.MirrorPath,
+		MirrorInterval:       projection.MirrorInterval,
+		SemanticEnabled:      projection.SemanticEnabled,
+		SemanticEndpoint:     projection.SemanticEndpoint,
+		SemanticModel:        projection.SemanticModel,
+		EmbedderPollInterval: projection.EmbedderPollInterval,
+		EmbedderBatchSize:    projection.EmbedderBatchSize,
+		EmbedderCallTimeout:  projection.EmbedderCallTimeout,
+	}
+}
+
+func (s Settings) ExtractorConfig(model string) memory.ExtractorConfig {
+	return memory.ExtractorConfig{
+		Model:        model,
+		BatchSize:    s.ExtractorBatchSize,
+		PollInterval: s.ExtractorPollInterval,
+		CallTimeout:  ExtractorCallTimeout,
 	}
 }
 
@@ -65,7 +80,7 @@ func (s Settings) LegacyRecallActive(peerConfigured bool) bool {
 }
 
 func (s Settings) SemanticFusionActive(legacyRecallActive bool) bool {
-	return legacyRecallActive && s.SemanticEnabled && s.SemanticModel != ""
+	return legacyRecallActive && s.SemanticEnabled && strings.TrimSpace(s.SemanticModel) != ""
 }
 
 // Options describes channel-agnostic memory wiring for any edge runtime.

@@ -7,26 +7,29 @@
 package busadapter
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
+var errEventBusUnavailable = errors.New("event_bus_unavailable")
+
 // BusAdapter mirrors channel-normalized inbound events onto the shared gateway
 // event bus without changing the existing channel inbox path.
 type BusAdapter struct {
-	dispatcher    *gateway.EventDispatcher
-	platformName  string
-	traceIDFunc   func(gateway.InboundEvent) string
+	dispatcher     *gateway.EventDispatcher
+	platformName   string
+	traceIDFunc    func(gateway.InboundEvent) string
 	errUnavailable error
 }
 
 // New returns a BusAdapter that publishes events tagged with platformName.
 func New(dispatcher *gateway.EventDispatcher, platformName string, traceIDFunc func(gateway.InboundEvent) string, errUnavailable error) *BusAdapter {
 	return &BusAdapter{
-		dispatcher:    dispatcher,
-		platformName:  platformName,
-		traceIDFunc:   traceIDFunc,
+		dispatcher:     dispatcher,
+		platformName:   platformName,
+		traceIDFunc:    traceIDFunc,
 		errUnavailable: errUnavailable,
 	}
 }
@@ -34,8 +37,11 @@ func New(dispatcher *gateway.EventDispatcher, platformName string, traceIDFunc f
 // PublishInboundMessage publishes a gateway.MessageEventPayload constructed
 // from ev. If traceID is empty a platform-specific trace ID is auto-derived.
 func (a *BusAdapter) PublishInboundMessage(traceID string, ev gateway.InboundEvent) error {
-	if a == nil || a.dispatcher == nil || !a.dispatcher.Available() {
-		return a.errUnavailable
+	if a == nil {
+		return errEventBusUnavailable
+	}
+	if a.dispatcher == nil || !a.dispatcher.Available() {
+		return a.unavailableError()
 	}
 	if strings.TrimSpace(ev.Platform) == "" {
 		ev.Platform = a.platformName
@@ -50,6 +56,13 @@ func (a *BusAdapter) PublishInboundMessage(traceID string, ev gateway.InboundEve
 // PlatformName returns the platform name this adapter was configured for.
 func (a *BusAdapter) PlatformName() string {
 	return a.platformName
+}
+
+func (a *BusAdapter) unavailableError() error {
+	if a != nil && a.errUnavailable != nil {
+		return a.errUnavailable
+	}
+	return errEventBusUnavailable
 }
 
 // TraceIDFromChatUserMessage builds a trace ID from platform:chatID:userID:messageID.

@@ -198,19 +198,30 @@ func parseManagedGatewayImageJSON(raw []byte) (ImageProviderResult, bool, error)
 	if url := stringField(obj, "image_url", "url", "uri"); url != "" {
 		return ImageProviderResult{ImageURL: url, MediaType: mediaType, Model: model}, true, nil
 	}
-	if images, ok := obj["images"].([]any); ok && len(images) > 0 {
-		if first, ok := images[0].(map[string]any); ok {
-			if url := stringField(first, "url", "image_url", "uri"); url != "" {
-				return ImageProviderResult{ImageURL: url, MediaType: nonEmpty(stringField(first, "media_type", "mime_type", "mimeType"), mediaType), Model: model}, true, nil
+	if images, ok := obj["images"].([]any); ok {
+		for _, candidate := range images {
+			first, ok := candidate.(map[string]any)
+			if !ok {
+				continue
 			}
-			if b64 := stringField(first, "image_base64", "b64_json", "base64"); b64 != "" {
-				data, err := base64.StdEncoding.DecodeString(b64)
-				if err != nil {
-					return ImageProviderResult{}, true, fmt.Errorf("managed image gateway invalid base64 image: %w", err)
-				}
-				return ImageProviderResult{ImageBytes: data, MediaType: nonEmpty(stringField(first, "media_type", "mime_type", "mimeType"), mediaType), Model: model}, true, nil
+			if parsed, ok, err := parseManagedGatewayImageObject(first, mediaType, model); err != nil || ok {
+				return parsed, ok, err
 			}
 		}
+	}
+	return ImageProviderResult{}, false, nil
+}
+
+func parseManagedGatewayImageObject(obj map[string]any, mediaType, model string) (ImageProviderResult, bool, error) {
+	if url := stringField(obj, "url", "image_url", "uri"); url != "" {
+		return ImageProviderResult{ImageURL: url, MediaType: nonEmpty(stringField(obj, "media_type", "mime_type", "mimeType"), mediaType), Model: model}, true, nil
+	}
+	if b64 := stringField(obj, "image_base64", "b64_json", "base64", "bytes_base64"); b64 != "" {
+		data, err := base64.StdEncoding.DecodeString(b64)
+		if err != nil {
+			return ImageProviderResult{}, true, fmt.Errorf("managed image gateway invalid base64 image: %w", err)
+		}
+		return ImageProviderResult{ImageBytes: data, MediaType: nonEmpty(stringField(obj, "media_type", "mime_type", "mimeType"), mediaType), Model: model}, true, nil
 	}
 	return ImageProviderResult{}, false, nil
 }

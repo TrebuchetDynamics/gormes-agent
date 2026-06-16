@@ -121,6 +121,34 @@ func TestLoadDotenvFiles_SetsUnsetEnvVars(t *testing.T) {
 	_ = os.Unsetenv("GORMES_DOTENV_TEST_UNSET")
 }
 
+func TestLoadDotenvFiles_ProfileHomeInheritsBaseDotenv(t *testing.T) {
+	baseHome := t.TempDir()
+	profileHome := filepath.Join(baseHome, "profiles", "rijuriju")
+	if err := os.MkdirAll(profileHome, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(baseHome, ".env"), []byte("GORMES_PROFILE_DOTENV_TEST=from-base\nGORMES_PROFILE_DOTENV_OVERRIDE=base\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(profileHome, ".env"), []byte("GORMES_PROFILE_DOTENV_OVERRIDE=profile\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GORMES_HOME", profileHome)
+	_ = os.Unsetenv("GORMES_PROFILE_DOTENV_TEST")
+	_ = os.Unsetenv("GORMES_PROFILE_DOTENV_OVERRIDE")
+
+	LoadDotenvFiles()
+
+	if got := os.Getenv("GORMES_PROFILE_DOTENV_TEST"); got != "from-base" {
+		t.Fatalf("base profile dotenv = %q, want inherited base value", got)
+	}
+	if got := os.Getenv("GORMES_PROFILE_DOTENV_OVERRIDE"); got != "profile" {
+		t.Fatalf("profile dotenv override = %q, want profile", got)
+	}
+	_ = os.Unsetenv("GORMES_PROFILE_DOTENV_TEST")
+	_ = os.Unsetenv("GORMES_PROFILE_DOTENV_OVERRIDE")
+}
+
 func TestLoadDotenvFiles_DoesNotOverrideExistingEnv(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)

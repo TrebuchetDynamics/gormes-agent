@@ -3,8 +3,6 @@ package gateway
 import (
 	"context"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -36,16 +34,12 @@ func TestManager_DynamicSkillSlashSubmitExpandsBeforeKernel(t *testing.T) {
 	if submit.Kind != kernel.PlatformEventSubmit {
 		t.Fatalf("submit kind = %v, want submit", submit.Kind)
 	}
-	for _, want := range []string{
+	assertContainsAll(t, submit.Text,
 		`[IMPORTANT: The user has invoked the "review-skill" skill`,
 		"Review the requested code carefully.",
 		"The user has provided the following instruction alongside the skill invocation: inspect src",
 		"[Runtime note: telegram]",
-	} {
-		if !strings.Contains(submit.Text, want) {
-			t.Fatalf("submit text missing %q:\n%s", want, submit.Text)
-		}
-	}
+	)
 	if strings.HasPrefix(strings.TrimSpace(submit.Text), "/review-skill") {
 		t.Fatalf("raw slash leaked into kernel submit: %q", submit.Text)
 	}
@@ -53,6 +47,90 @@ func TestManager_DynamicSkillSlashSubmitExpandsBeforeKernel(t *testing.T) {
 		if strings.Contains(strings.ToLower(sent.Text), "unknown command") {
 			t.Fatalf("dynamic skill was treated as unknown: %#v", sent)
 		}
+	}
+}
+
+func TestManager_DynamicSkillSlashSubmitRejectsMixedDoubleSlashEscape(t *testing.T) {
+	root := writeGatewaySkillSlashTestSkill(t, "review-skill", "Review the requested code carefully.")
+	ch := newFakeChannel("telegram")
+	fk := &fakeKernel{}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SkillRuntime: skills.NewRuntime(root, 8*1024, 5, ""),
+	}, fk, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	ch.pushInbound(InboundEvent{Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "m1", Kind: EventSubmit, Text: "/／review-skill inspect src"})
+
+	waitFor(t, 300*time.Millisecond, func() bool { return len(ch.sentSnapshot()) == 1 || len(fk.submitsSnapshot()) > 0 })
+	if submits := fk.submitsSnapshot(); len(submits) != 0 {
+		t.Fatalf("mixed double slash expanded/submitted to kernel: %#v", submits)
+	}
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 || !strings.Contains(strings.ToLower(sent[0].Text), "unknown command") {
+		t.Fatalf("mixed double slash response = %#v, want unknown command guidance", sent)
+	}
+}
+
+func TestManager_DynamicSkillSlashSubmitAcceptsFullwidthSlash(t *testing.T) {
+	root := writeGatewaySkillSlashTestSkill(t, "review-skill", "Review the requested code carefully.")
+	ch := newFakeChannel("telegram")
+	fk := &fakeKernel{}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SkillRuntime: skills.NewRuntime(root, 8*1024, 5, ""),
+	}, fk, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	ch.pushInbound(InboundEvent{Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "m1", Kind: EventSubmit, Text: "／review-skill inspect src"})
+
+	waitFor(t, 300*time.Millisecond, func() bool { return len(fk.submitsSnapshot()) == 1 })
+	submit := fk.submitsSnapshot()[0]
+	if !strings.Contains(submit.Text, `invoked the "review-skill" skill`) || !strings.Contains(submit.Text, "inspect src") {
+		t.Fatalf("fullwidth slash skill did not expand before kernel:\n%s", submit.Text)
+	}
+	if strings.Contains(submit.Text, "／review-skill") {
+		t.Fatalf("fullwidth raw slash invocation leaked into expanded submit:\n%s", submit.Text)
+	}
+}
+
+func TestManager_DynamicSkillFullwidthSlashFromUnknownEventUsesPreservedRawText(t *testing.T) {
+	root := writeGatewaySkillSlashTestSkill(t, "ops-skill", "Operate safely.")
+	ch := newFakeChannel("discord")
+	fk := &fakeKernel{}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"discord": "C42"},
+		SkillRuntime: skills.NewRuntime(root, 8*1024, 5, ""),
+	}, fk, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	ch.pushInbound(InboundEvent{Platform: "discord", ChatID: "C42", UserID: "u", MsgID: "m1", Kind: EventUnknown, Text: "／ops-skill now"})
+
+	waitFor(t, 300*time.Millisecond, func() bool { return len(fk.submitsSnapshot()) == 1 || len(ch.sentSnapshot()) > 0 })
+	if sent := ch.sentSnapshot(); len(sent) > 0 {
+		t.Fatalf("fullwidth unknown-event skill was treated as unknown: %#v", sent)
+	}
+	submits := fk.submitsSnapshot()
+	if len(submits) != 1 || !strings.Contains(submits[0].Text, `invoked the "ops-skill" skill`) {
+		t.Fatalf("fullwidth unknown-event skill did not expand before kernel: %#v", submits)
 	}
 }
 
@@ -86,14 +164,5 @@ func TestManager_DynamicSkillSlashFromUnknownEventUsesPreservedRawText(t *testin
 
 func writeGatewaySkillSlashTestSkill(t *testing.T, name, body string) string {
 	t.Helper()
-	root := t.TempDir()
-	dir := filepath.Join(root, "active", name)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatalf("MkdirAll: %v", err)
-	}
-	raw := "---\nname: " + name + "\ndescription: Invoke " + name + "\n---\n\n" + body + "\n"
-	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(raw), 0o644); err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
-	return root
+	return writeActiveSkill(t, name, "Invoke "+name, body)
 }

@@ -456,7 +456,7 @@ func TestReadmeDocumentsDoctorAndArchitecturalEdge(t *testing.T) {
 	// Assert stable README invariants only — things that should not drift
 	// across phase boundaries. Binary size, Go minor version, and specific
 	// architectural terms (coalescing mailbox ms, Route-B) are too brittle;
-	// they belong in docs/ARCH_PLAN.md or per-phase specs, not README.
+	// they belong in webpages/docs/ARCH_PLAN.md or per-phase specs, not README.
 	// Assert stable invariants of the repo-root README.
 	// Brittle assertions removed:
 	//   - "7.9 MB static binary" / specific sizes — drifts with each phase

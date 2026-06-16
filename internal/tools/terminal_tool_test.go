@@ -61,40 +61,64 @@ func TestTerminalToolUsesProfileSubprocessHome(t *testing.T) {
 	}
 }
 
-func TestTerminalToolFailsClosedWithProfileWorkspaceAllowList(t *testing.T) {
+func TestTerminalToolEnforcesProfileWorkspaceScope(t *testing.T) {
 	root := t.TempDir()
-	project := filepath.Join(root, "project")
-	if err := os.MkdirAll(project, 0o755); err != nil {
-		t.Fatalf("mkdir project: %v", err)
+	profileRoot := filepath.Join(root, ".gormes", "profiles", "coder")
+	outside := filepath.Join(root, "outside")
+	for _, dir := range []string{profileRoot, outside} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("outside"), 0o644); err != nil {
+		t.Fatalf("write outside secret: %v", err)
 	}
 	scope, err := NewProfileWorkspaceScope(ProfileWorkspaceScopeOptions{
-		ProjectRoots: []string{project},
+		ProfileName:  "coder",
+		ProfileRoot:  profileRoot,
 		OperatorHome: root,
 	})
 	if err != nil {
 		t.Fatalf("NewProfileWorkspaceScope: %v", err)
 	}
-	created := filepath.Join(project, "created-by-terminal")
 	tool := NewTerminalTool(TerminalToolConfig{
-		Workdir:        project,
+		Workdir:        profileRoot,
 		DefaultTimeout: 5 * time.Second,
 		WorkspaceScope: scope,
 	})
 
 	out := executeTerminalTool(t, tool, `{"command":"printf ran > created-by-terminal"}`)
+	if out["status"] != "completed" {
+		t.Fatalf("status = %v, want completed: %#v", out["status"], out)
+	}
+	if got, err := os.ReadFile(filepath.Join(profileRoot, "created-by-terminal")); err != nil || string(got) != "ran" {
+		t.Fatalf("terminal command did not write inside profile workspace: content=%q err=%v", got, err)
+	}
 
-	if out["status"] != "blocked" {
-		t.Fatalf("status = %v, want blocked: %#v", out["status"], out)
+	blockedCases := []struct {
+		name string
+		args string
+	}{
+		{"absolute outside path", `{"command":"cat ` + filepath.ToSlash(filepath.Join(outside, "secret.txt")) + `"}`},
+		{"home shorthand", `{"command":"cat ~/.ssh/id_rsa"}`},
+		{"home environment variable", `{"command":"cat $HOME/.ssh/id_rsa"}`},
+		{"braced home environment variable", `{"command":"cat ${HOME}/.ssh/id_rsa"}`},
+		{"parent traversal", `{"command":"cat ../../../../outside/secret.txt"}`},
+		{"outside workdir", `{"command":"printf nope","workdir":"` + filepath.ToSlash(outside) + `"}`},
 	}
-	if !strings.Contains(asString(out["error"]), ProfileWorkspaceScopeViolation) {
-		t.Fatalf("error = %v, want %s", out["error"], ProfileWorkspaceScopeViolation)
-	}
-	evidence, ok := out["evidence"].(map[string]any)
-	if !ok || evidence["code"] != ProfileWorkspaceScopeViolation {
-		t.Fatalf("evidence = %#v, want profile workspace scope violation code", out["evidence"])
-	}
-	if _, err := os.Stat(created); !os.IsNotExist(err) {
-		t.Fatalf("terminal command ran despite fail-closed policy, stat err=%v", err)
+	for _, tc := range blockedCases {
+		t.Run(tc.name, func(t *testing.T) {
+			out := executeTerminalTool(t, tool, tc.args)
+			if out["status"] != "blocked" {
+				t.Fatalf("status = %v, want blocked: %#v", out["status"], out)
+			}
+			if !strings.Contains(asString(out["error"]), ProfileWorkspaceScopeViolation) {
+				t.Fatalf("error = %v, want %s", out["error"], ProfileWorkspaceScopeViolation)
+			}
+			if !strings.Contains(asString(out["error"]), ProfileWorkspaceDeniedMessage) {
+				t.Fatalf("error = %v, want stable allow-list guidance", out["error"])
+			}
+		})
 	}
 }
 

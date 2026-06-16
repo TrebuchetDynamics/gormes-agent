@@ -60,9 +60,18 @@ func (r *hookRecorder) record(_ context.Context, ev HookEvent) {
 func (r *hookRecorder) snapshot() []HookEvent {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	out := make([]HookEvent, len(r.events))
-	copy(out, r.events)
-	return out
+	return cloneSlice(r.events)
+}
+
+func TestHooksFireAllowsNilContext(t *testing.T) {
+	hooks := NewHooks()
+	hooks.Add(HookBeforeSend, func(ctx context.Context, _ HookEvent) {
+		if ctx == nil {
+			panic("nil context")
+		}
+	})
+
+	hooks.Fire(nil, HookEvent{Point: HookBeforeSend})
 }
 
 func TestManagerHooksReceiveLifecycle(t *testing.T) {

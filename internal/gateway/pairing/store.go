@@ -1,6 +1,7 @@
 package pairing
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -10,7 +11,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -194,17 +195,25 @@ func NewPairingStore(path string) *PairingStore {
 	}
 }
 
+func pairingContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
 // GeneratePairingCode applies the Hermes-compatible pairing-code policy and
 // persists pending state plus operator-visible policy evidence.
 func (s *PairingStore) GeneratePairingCode(ctx context.Context, request PairingCodeRequest) (PairingCodeResult, error) {
 	if s == nil || s.path == "" {
 		return PairingCodeResult{}, nil
 	}
+	ctx = pairingContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return PairingCodeResult{}, err
 	}
 
-	request.Platform = strings.TrimSpace(request.Platform)
+	request.Platform = normalizePairingPlatform(request.Platform)
 	request.UserID = strings.TrimSpace(request.UserID)
 	request.UserName = strings.TrimSpace(request.UserName)
 	if request.Platform == "" {
@@ -213,6 +222,9 @@ func (s *PairingStore) GeneratePairingCode(ctx context.Context, request PairingC
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return PairingCodeResult{}, err
+	}
 
 	state, err := s.readStateLocked()
 	if err != nil {
@@ -316,17 +328,24 @@ func (s *PairingStore) ApprovePairingCode(ctx context.Context, platformName, cod
 	if s == nil || s.path == "" {
 		return PairingApprovalResult{}, nil
 	}
+	ctx = pairingContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return PairingApprovalResult{}, err
 	}
-	platformName = strings.TrimSpace(platformName)
+	platformName = normalizePairingPlatform(platformName)
 	code = normalizePairingCode(code)
 	if platformName == "" {
 		return PairingApprovalResult{}, fmt.Errorf("approve pairing code: platform is required")
 	}
+	if code == "" {
+		return PairingApprovalResult{Status: PairingApprovalInvalid}, nil
+	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return PairingApprovalResult{}, err
+	}
 
 	state, err := s.readStateLocked()
 	if err != nil {
@@ -385,10 +404,11 @@ func (s *PairingStore) RecordPendingPairing(ctx context.Context, record PairingP
 	if s == nil || s.path == "" {
 		return nil
 	}
+	ctx = pairingContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	record.Platform = strings.TrimSpace(record.Platform)
+	record.Platform = normalizePairingPlatform(record.Platform)
 	record.Code = normalizePairingCode(record.Code)
 	record.UserID = strings.TrimSpace(record.UserID)
 	if record.Platform == "" || record.Code == "" || record.UserID == "" {
@@ -401,6 +421,9 @@ func (s *PairingStore) RecordPendingPairing(ctx context.Context, record PairingP
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 
 	state, err := s.readStateLocked()
 	if err != nil {
@@ -428,10 +451,11 @@ func (s *PairingStore) RecordApprovedPairing(ctx context.Context, record Pairing
 	if s == nil || s.path == "" {
 		return nil
 	}
+	ctx = pairingContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	record.Platform = strings.TrimSpace(record.Platform)
+	record.Platform = normalizePairingPlatform(record.Platform)
 	record.UserID = strings.TrimSpace(record.UserID)
 	if record.Platform == "" || record.UserID == "" {
 		return fmt.Errorf("record approved pairing: platform and user_id are required")
@@ -443,6 +467,9 @@ func (s *PairingStore) RecordApprovedPairing(ctx context.Context, record Pairing
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 
 	state, err := s.readStateLocked()
 	if err != nil {
@@ -470,12 +497,16 @@ func (s *PairingStore) ReadPairingStatus(ctx context.Context) (PairingStatus, er
 	if s == nil || s.path == "" {
 		return emptyPairingStatus("", nil), nil
 	}
+	ctx = pairingContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return PairingStatus{}, err
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return PairingStatus{}, err
+	}
 
 	state, degraded, err := s.readStateForStatusLocked()
 	if err != nil {
@@ -499,7 +530,7 @@ func (s *PairingStore) statusFromState(state pairingFile) PairingStatus {
 	for platform := range state.Platforms {
 		platforms = append(platforms, platform)
 	}
-	sort.Strings(platforms)
+	slices.Sort(platforms)
 
 	for _, platformName := range platforms {
 		platform := state.Platforms[platformName]
@@ -553,29 +584,8 @@ func (s *PairingStore) statusFromState(state pairingFile) PairingStatus {
 		}
 	}
 
-	sort.SliceStable(status.Pending, func(i, j int) bool {
-		left, right := status.Pending[i], status.Pending[j]
-		if left.Platform != right.Platform {
-			return left.Platform < right.Platform
-		}
-		if left.UserID != right.UserID {
-			return left.UserID < right.UserID
-		}
-		if !left.CreatedAt.Equal(right.CreatedAt) {
-			return left.CreatedAt.Before(right.CreatedAt)
-		}
-		return left.Code < right.Code
-	})
-	sort.SliceStable(status.Approved, func(i, j int) bool {
-		left, right := status.Approved[i], status.Approved[j]
-		if left.Platform != right.Platform {
-			return left.Platform < right.Platform
-		}
-		if left.UserID != right.UserID {
-			return left.UserID < right.UserID
-		}
-		return left.ApprovedAt.Before(right.ApprovedAt)
-	})
+	slices.SortStableFunc(status.Pending, comparePendingPairingRecord)
+	slices.SortStableFunc(status.Approved, compareApprovedPairingRecord)
 	for _, evidence := range state.Evidence {
 		status.Degraded = append(status.Degraded, PairingDegradedEvidence{
 			Reason:   evidence.Reason,
@@ -589,23 +599,57 @@ func (s *PairingStore) statusFromState(state pairingFile) PairingStatus {
 			Count:    evidence.Count,
 		})
 	}
-	sort.SliceStable(status.Degraded, func(i, j int) bool {
-		left, right := status.Degraded[i], status.Degraded[j]
-		if !left.At.Equal(right.At) {
-			return left.At.Before(right.At)
-		}
-		if left.Reason != right.Reason {
-			return left.Reason < right.Reason
-		}
-		if left.Platform != right.Platform {
-			return left.Platform < right.Platform
-		}
-		if left.UserID != right.UserID {
-			return left.UserID < right.UserID
-		}
-		return left.Code < right.Code
-	})
+	slices.SortStableFunc(status.Degraded, compareDegradedPairingEvidence)
 	return status
+}
+
+func comparePendingPairingRecord(left, right PairingPendingRecord) int {
+	if byPlatform := cmp.Compare(left.Platform, right.Platform); byPlatform != 0 {
+		return byPlatform
+	}
+	if byUserID := cmp.Compare(left.UserID, right.UserID); byUserID != 0 {
+		return byUserID
+	}
+	if byCreatedAt := compareTime(left.CreatedAt, right.CreatedAt); byCreatedAt != 0 {
+		return byCreatedAt
+	}
+	return cmp.Compare(left.Code, right.Code)
+}
+
+func compareApprovedPairingRecord(left, right PairingApprovedRecord) int {
+	if byPlatform := cmp.Compare(left.Platform, right.Platform); byPlatform != 0 {
+		return byPlatform
+	}
+	if byUserID := cmp.Compare(left.UserID, right.UserID); byUserID != 0 {
+		return byUserID
+	}
+	return compareTime(left.ApprovedAt, right.ApprovedAt)
+}
+
+func compareDegradedPairingEvidence(left, right PairingDegradedEvidence) int {
+	if byAt := compareTime(left.At, right.At); byAt != 0 {
+		return byAt
+	}
+	if byReason := cmp.Compare(left.Reason, right.Reason); byReason != 0 {
+		return byReason
+	}
+	if byPlatform := cmp.Compare(left.Platform, right.Platform); byPlatform != 0 {
+		return byPlatform
+	}
+	if byUserID := cmp.Compare(left.UserID, right.UserID); byUserID != 0 {
+		return byUserID
+	}
+	return cmp.Compare(left.Code, right.Code)
+}
+
+func compareTime(left, right time.Time) int {
+	if left.Before(right) {
+		return -1
+	}
+	if right.Before(left) {
+		return 1
+	}
+	return 0
 }
 
 func (s *PairingStore) ensurePairingPlatformLocked(state *pairingFile, platformName string) pairingPlatformFile {
@@ -758,6 +802,7 @@ func (s *PairingStore) readStateLocked() (pairingFile, error) {
 }
 
 func (s *PairingStore) writeStateLocked(ctx context.Context, state pairingFile) error {
+	ctx = pairingContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -802,16 +847,121 @@ func decodePairingState(raw []byte) (pairingFile, error) {
 	if state.Lockouts == nil {
 		state.Lockouts = map[string]time.Time{}
 	}
-	for name, platform := range state.Platforms {
+	normalizePairingPlatformMap(&state)
+	normalizePairingPolicyMaps(&state)
+	return state, nil
+}
+
+func normalizePairingPlatformMap(state *pairingFile) {
+	if state == nil {
+		return
+	}
+	keys := make([]string, 0, len(state.Platforms))
+	for name := range state.Platforms {
+		keys = append(keys, name)
+	}
+	slices.Sort(keys)
+	normalized := map[string]pairingPlatformFile{}
+	for _, name := range keys {
+		platform := state.Platforms[name]
 		if platform.Pending == nil {
 			platform.Pending = map[string]pairingPendingFileRecord{}
 		}
 		if platform.Approved == nil {
 			platform.Approved = map[string]pairingApprovedFileRecord{}
 		}
-		state.Platforms[name] = platform
+		canonical := normalizePairingPlatform(name)
+		if canonical == "" {
+			canonical = name
+		}
+		existing := normalized[canonical]
+		if existing.Pending == nil {
+			existing.Pending = map[string]pairingPendingFileRecord{}
+		}
+		if existing.Approved == nil {
+			existing.Approved = map[string]pairingApprovedFileRecord{}
+		}
+		for code, record := range platform.Pending {
+			code = normalizePairingCode(code)
+			record.UserID = strings.TrimSpace(record.UserID)
+			record.UserName = strings.TrimSpace(record.UserName)
+			if code == "" || record.UserID == "" {
+				continue
+			}
+			existing.Pending[code] = record
+		}
+		for userID, record := range platform.Approved {
+			userID = strings.TrimSpace(userID)
+			if userID == "" {
+				continue
+			}
+			existing.Approved[userID] = record
+		}
+		normalized[canonical] = existing
 	}
-	return state, nil
+	state.Platforms = normalized
+}
+
+func normalizePairingPolicyMaps(state *pairingFile) {
+	if state == nil {
+		return
+	}
+	if len(state.RateLimits) > 0 {
+		normalized := map[string]time.Time{}
+		for key, lastRequest := range state.RateLimits {
+			key = normalizePairingRateLimitMapKey(key)
+			if key == "" || lastRequest.IsZero() {
+				continue
+			}
+			lastRequest = lastRequest.UTC()
+			if existing, ok := normalized[key]; !ok || existing.Before(lastRequest) {
+				normalized[key] = lastRequest
+			}
+		}
+		state.RateLimits = normalized
+	}
+	if len(state.Failures) > 0 {
+		normalized := map[string]int{}
+		for platform, count := range state.Failures {
+			platform = normalizePairingPlatform(platform)
+			if platform == "" || count <= 0 {
+				continue
+			}
+			normalized[platform] += count
+		}
+		state.Failures = normalized
+	}
+	if len(state.Lockouts) > 0 {
+		normalized := map[string]time.Time{}
+		for platform, until := range state.Lockouts {
+			platform = normalizePairingPlatform(platform)
+			if platform == "" || until.IsZero() {
+				continue
+			}
+			until = until.UTC()
+			if existing, ok := normalized[platform]; !ok || existing.Before(until) {
+				normalized[platform] = until
+			}
+		}
+		state.Lockouts = normalized
+	}
+}
+
+func normalizePairingRateLimitMapKey(key string) string {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return ""
+	}
+	parts := strings.Split(key, ":")
+	if len(parts) == 2 {
+		platform := normalizePairingPlatform(parts[0])
+		userID := strings.TrimSpace(parts[1])
+		if platform == "" || userID == "" {
+			return ""
+		}
+		return pairingRateLimitKey(platform, userID)
+	}
+	return key
 }
 
 func newPairingFile(now time.Time) pairingFile {
@@ -890,7 +1040,14 @@ type pairingEvidenceFileRecord struct {
 }
 
 func pairingRateLimitKey(platformName, userID string) string {
+	if strings.Contains(platformName, ":") || strings.Contains(userID, ":") {
+		return fmt.Sprintf("%d:%s:%d:%s", len(platformName), platformName, len(userID), userID)
+	}
 	return platformName + ":" + userID
+}
+
+func normalizePairingPlatform(platform string) string {
+	return strings.ToLower(strings.TrimSpace(platform))
 }
 
 func normalizePairingCode(code string) string {

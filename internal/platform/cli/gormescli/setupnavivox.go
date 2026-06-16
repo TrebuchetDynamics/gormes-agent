@@ -1,10 +1,28 @@
 package gormescli
 
 import (
+	"github.com/spf13/cobra"
+
 	"github.com/TrebuchetDynamics/gormes-agent/internal/app/setupnavivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/network/vpnhost"
 )
+
+type SetupNavivoxOptions = setupnavivox.GatewayOptions
+
+type SetupNavivoxProfileChannelOptions = setupnavivox.ProfileChannelOptions
+
+type SetupNavivoxProfileChannelBinding = setupnavivox.ProfileChannelBinding
+
+func RunSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config, opts SetupNavivoxOptions) error {
+	opts.Context = cmd.Context()
+	opts.Out = cmd.OutOrStdout()
+	opts.Config = cfg
+	if opts.ProviderAuthConfigured == nil {
+		opts.ProviderAuthConfigured = ConfiguredProviderAuthPresent
+	}
+	return setupnavivox.RunGateway(opts)
+}
 
 func SetupNavivoxPairingURI(cfg config.NavivoxCfg) (string, error) {
 	return setupnavivox.PairingURI(cfg)

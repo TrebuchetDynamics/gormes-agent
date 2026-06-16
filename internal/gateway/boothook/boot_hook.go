@@ -26,6 +26,9 @@ type Config struct {
 // Start starts a background BOOT.md run when the file exists and is non-empty.
 // It returns false when there is nothing to do.
 func Start(ctx context.Context, cfg Config) bool {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if cfg.Client == nil || strings.TrimSpace(cfg.Model) == "" {
 		return false
 	}
@@ -61,6 +64,9 @@ func loadBootContent(path string) (string, error) {
 }
 
 func runBootHook(ctx context.Context, cfg Config, prompt string) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -142,7 +148,7 @@ func buildBootPrompt(content string) string {
 
 func logBootCompletion(log *slog.Logger, response string) {
 	trimmed := strings.TrimSpace(response)
-	if trimmed == "" || strings.Contains(trimmed, "[SILENT]") {
+	if trimmed == "" || trimmed == "[SILENT]" {
 		log.Info("boot-md completed (nothing to report)")
 		return
 	}

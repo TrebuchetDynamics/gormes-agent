@@ -165,13 +165,13 @@ timeout 5m go run ./cmd/progress validate
 git diff --check
 ```
 
-Run public-surface gates when `docs/`, `www.gormes.ai/`, `README.md`, or
+Run public-surface gates when `webpages/docs/`, `www.gormes.ai/`, `README.md`, or
 progress mirror files changed:
 
 ```sh
 timeout 20m sh -c 'cd webpages/landing/legacy/go-renderer && go test ./... -count=1'
 timeout 30m sh -c 'cd webpages/landing && npm run test:e2e'
-timeout 30m sh -c 'cd docs/www-tests && npm run test:e2e'
+timeout 30m sh -c 'cd webpages/docs/www-tests && npm run test:e2e'
 ```
 
 6. For a full release/publish lane, run `gormes-git` once the release diff is

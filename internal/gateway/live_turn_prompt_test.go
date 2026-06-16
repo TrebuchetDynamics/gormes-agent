@@ -271,16 +271,12 @@ func TestLiveTurn_SystemPrompt_IncludesAuthoritativeWorkspaceFact(t *testing.T) 
 
 	got := newLiveTurnHarness(t, "telegram").dispatchWithMemory(t.TempDir(), workdir, t.TempDir())
 
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"## Current Runtime Facts",
-		"Active workspace: `" + workspace + "`",
-		"Current working directory: `" + workdir + "`",
+		"Active workspace: `"+workspace+"`",
+		"Current working directory: `"+workdir+"`",
 		"If asked for the active/current workspace, answer from the Active workspace line above",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("SessionContext missing authoritative workspace fact %q. got:\n%s", want, got)
-		}
-	}
+	)
 	if strings.Index(got, "Active workspace: `"+workspace+"`") > strings.Index(got, "workspace-mineru agents") {
 		t.Fatalf("authoritative workspace fact must precede stale workspace examples. got:\n%s", got)
 	}
@@ -358,11 +354,7 @@ func TestLiveTurn_SystemPrompt_DurableUserBlockOrder(t *testing.T) {
 		t.Fatalf("expected durable (%d) before session (%d). got:\n%s", di, si, got)
 	}
 	// All four bodies must be present.
-	for _, want := range []string{soul, project, userBody, memoryBody} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("SessionContext missing body %q. got:\n%s", want, got)
-		}
-	}
+	assertContainsAll(t, got, soul, project, userBody, memoryBody)
 }
 
 func TestLiveTurn_SystemPrompt_DurableUserBlockChannelNeutral(t *testing.T) {
@@ -815,17 +807,13 @@ func TestLiveTurn_TelegramFinalProviderRequestIncludesOperatorContext(t *testing
 		t.Fatalf("provider request messages = %#v, want leading system context before user", req.Messages)
 	}
 	system := req.Messages[0].Content
-	for _, want := range []string{
+	assertContainsAll(t, system,
 		"You are Gormes, not ChatGPT.",
 		"# User\nName: Juan",
 		"# Memory\nGormes identity must persist.",
 		"## Current Session Context",
 		"**Source:** telegram chat `42`",
-	} {
-		if !strings.Contains(system, want) {
-			t.Fatalf("provider system prompt missing %q in:\n%s", want, system)
-		}
-	}
+	)
 	if req.Messages[len(req.Messages)-1].Role != "user" || req.Messages[len(req.Messages)-1].Content != "who are you?" {
 		t.Fatalf("provider final user message = %+v, want Telegram submit", req.Messages[len(req.Messages)-1])
 	}

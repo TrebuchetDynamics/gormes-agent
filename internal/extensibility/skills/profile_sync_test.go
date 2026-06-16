@@ -44,6 +44,21 @@ func TestBundledSkillProfileSyncWritesActiveAndNamedProfiles(t *testing.T) {
 	}
 }
 
+func TestBundledSkillProfileSyncReportsInvalidProfileRoot(t *testing.T) {
+	report, err := SyncBundledSkillsToProfiles(context.Background(), BundledSkillProfileSyncRequest{
+		Profiles: []SkillProfileRoot{{Name: "work", Root: "   "}},
+	})
+	if err != nil {
+		t.Fatalf("SyncBundledSkillsToProfiles() error = %v", err)
+	}
+	if len(report.Summaries) != 1 || report.Summaries[0].Profile != "work" || report.Summaries[0].Failed != 1 {
+		t.Fatalf("summaries = %+v, want failed invalid work profile", report.Summaries)
+	}
+	if len(report.Evidence) != 1 || report.Evidence[0].Code != SkillProfileSyncInvalidProfile || report.Evidence[0].Reason != "profile root is empty" {
+		t.Fatalf("evidence = %+v, want invalid profile root evidence", report.Evidence)
+	}
+}
+
 func TestBundledSkillProfileSyncPreservesUserModifiedSkills(t *testing.T) {
 	bundledRoot := t.TempDir()
 	writeProfileSyncSkill(t, bundledRoot, "productivity", "reviewer", "Review docs")

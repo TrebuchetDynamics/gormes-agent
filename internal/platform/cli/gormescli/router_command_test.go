@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,15 +11,7 @@ import (
 
 func runRouterTestCommand(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
-	cmd := NewRouterCommand()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SilenceUsage = true
-	cmd.SilenceErrors = true
-	cmd.SetArgs(args)
-	err := cmd.Execute()
-	return stdout.String(), stderr.String(), err
+	return executeCobraCommandForTest(NewRouterCommand(), cobraCommandExecutionOptions{SilenceUsage: true, SilenceErrors: true}, args...)
 }
 
 func TestRouterDryRunRendersConfigWithoutBindingPort(t *testing.T) {

@@ -53,6 +53,35 @@ func TestManager_RegisterEmptyName(t *testing.T) {
 	}
 }
 
+func TestManager_ConfigMapsAreSnapshotted(t *testing.T) {
+	allowedChats := map[string]string{"telegram": "42"}
+	allowedUsers := map[string]map[string]bool{"telegram": {"u1": true}}
+	m := NewManager(ManagerConfig{
+		AllowedChats: allowedChats,
+		AllowedUsers: allowedUsers,
+	}, nil, slog.Default())
+
+	allowedChats["telegram"] = "99"
+	allowedUsers["telegram"]["u2"] = true
+	allowedUsers["slack"] = map[string]bool{"u3": true}
+
+	if !m.allowed(InboundEvent{Platform: "telegram", ChatID: "42"}) {
+		t.Fatal("manager lost original allowed chat after caller mutated config map")
+	}
+	if m.allowed(InboundEvent{Platform: "telegram", ChatID: "99"}) {
+		t.Fatal("manager observed caller mutation to allowed chat map")
+	}
+	if !m.allowed(InboundEvent{Platform: "telegram", ChatID: "unlisted", UserID: "u1"}) {
+		t.Fatal("manager lost original allowed user after caller mutated nested map")
+	}
+	if m.allowed(InboundEvent{Platform: "telegram", ChatID: "unlisted", UserID: "u2"}) {
+		t.Fatal("manager observed caller mutation to nested allowed users map")
+	}
+	if m.allowed(InboundEvent{Platform: "slack", ChatID: "unlisted", UserID: "u3"}) {
+		t.Fatal("manager observed caller-added platform allowed users map")
+	}
+}
+
 func TestManager_AllowedUsesPlatformUserAllowlist(t *testing.T) {
 	m := NewManager(ManagerConfig{
 		AllowedUsers: map[string]map[string]bool{
@@ -119,9 +148,7 @@ func (f *fakeKernel) Render() <-chan kernel.RenderFrame {
 func (f *fakeKernel) submitsSnapshot() []kernel.PlatformEvent {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]kernel.PlatformEvent, len(f.submits))
-	copy(out, f.submits)
-	return out
+	return cloneSlice(f.submits)
 }
 
 func stopManagerTestRun(t *testing.T, cancel context.CancelFunc, done <-chan struct{}) {
@@ -223,6 +250,31 @@ func TestManager_ReloadCommandAppliesReloadableAllowlistWithoutRestart(t *testin
 	}
 }
 
+func TestManager_ReloadSnapshotsWhitelistConfig(t *testing.T) {
+	reloadedWhitelists := map[string]WhitelistConfig{"telegram": {Enabled: true, IDs: []string{"42"}}}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "old"},
+		ReloadConfig: func(context.Context) (ManagerConfig, error) {
+			return ManagerConfig{
+				AllowedUsers:          map[string]map[string]bool{"telegram": {"*": true}},
+				AllowedChatWhitelists: reloadedWhitelists,
+			}, nil
+		},
+	}, &fakeKernel{}, slog.Default())
+
+	if err := m.Reload(context.Background()); err != nil {
+		t.Fatalf("Reload: %v", err)
+	}
+	reloadedWhitelists["telegram"] = WhitelistConfig{Enabled: true, IDs: []string{"99"}}
+
+	if !m.allowed(InboundEvent{Platform: "telegram", ChatID: "42"}) {
+		t.Fatal("manager lost reloaded whitelist after caller mutated returned map")
+	}
+	if m.allowed(InboundEvent{Platform: "telegram", ChatID: "99"}) {
+		t.Fatal("manager observed caller mutation to reloaded whitelist map")
+	}
+}
+
 func TestManager_ReloadCommandKeepsLastGoodConfigOnFailure(t *testing.T) {
 	tg := newFakeChannel("telegram")
 	fk := &fakeKernel{}
@@ -303,16 +355,12 @@ func TestManager_Inbound_VerboseDisabledSendsHermesGateGuidance(t *testing.T) {
 		return len(tg.sentSnapshot()) == 1
 	})
 	got := tg.sentSnapshot()[0].Text
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"The `/verbose` command is not enabled for messaging platforms.",
 		"Gormes `config.toml`",
 		"[display]",
 		"tool_progress_command = true",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("/verbose disabled response missing %q in %q", want, got)
-		}
-	}
+	)
 	if strings.Contains(got, "unavailable in this build") {
 		t.Fatalf("/verbose disabled response = %q, want Gormes config guidance instead of unavailable text", got)
 	}
@@ -349,14 +397,10 @@ func TestManager_Inbound_VerboseCyclesAndPersistsPerPlatform(t *testing.T) {
 		return len(tg.sentSnapshot()) == 1
 	})
 	got := tg.sentSnapshot()[0].Text
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"⚙️ Tool progress: **NEW**",
 		"saved for **telegram**",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("/verbose enabled response missing %q in %q", want, got)
-		}
-	}
+	)
 	if strings.Contains(got, "unavailable in this build") {
 		t.Fatalf("/verbose enabled response = %q, want cycle result", got)
 	}
@@ -366,6 +410,112 @@ func TestManager_Inbound_VerboseCyclesAndPersistsPerPlatform(t *testing.T) {
 	if got := m.toolProgressMode("telegram"); got != "new" {
 		t.Fatalf("toolProgressMode(telegram) = %q, want runtime override new", got)
 	}
+}
+
+func TestManager_Inbound_VerbosePersistErrorSanitizesOperatorReply(t *testing.T) {
+	tg := newFakeChannel("telegram")
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:               map[string]string{"telegram": "42"},
+		ToolProgressCommandEnabled: true,
+		ToolProgressModes:          map[string]string{"telegram": "off"},
+		PersistToolProgressMode: func(string, string) error {
+			return errors.New("save failed\n**Injected:** bearer plain-secret")
+		},
+	}, &fakeKernel{}, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	tg.pushInbound(InboundEvent{Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "m", Kind: EventVerbose, Text: "/verbose"})
+
+	waitFor(t, 200*time.Millisecond, func() bool { return len(tg.sentSnapshot()) == 1 })
+	got := tg.sentSnapshot()[0].Text
+	for _, forbidden := range []string{"plain-secret", "**Injected:**", "\n**"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("/verbose persist error leaked unsafe text %q in:\n%s", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "could not save to config: [redacted]") {
+		t.Fatalf("/verbose persist error missing redaction marker:\n%s", got)
+	}
+}
+
+func TestManager_Inbound_ModelCommandSanitizesModelAndProvider(t *testing.T) {
+	ch := newFakeChannel("slack")
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:           map[string]string{"slack": "42"},
+		LiveTurnActiveModel:    func() string { return "bad`**model**" },
+		LiveTurnActiveProvider: func() string { return "openai\n# injected" },
+	}, &fakeKernel{}, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	ch.pushInbound(InboundEvent{Platform: "slack", ChatID: "42", UserID: "u", MsgID: "m", Kind: EventModel, Text: "/model"})
+
+	waitFor(t, 200*time.Millisecond, func() bool { return len(ch.sentSnapshot()) == 1 })
+	got := ch.sentSnapshot()[0].Text
+	for _, forbidden := range []string{"bad`**model**", "# injected", "\n#"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("/model leaked unsafe field %q in:\n%s", forbidden, got)
+		}
+	}
+	assertContainsAll(t, got, "🤖 **Model:** `bad'''model''`", "📡 **Provider:** `openai ＃ injected`")
+}
+
+func TestManager_Inbound_ProfileCommandSanitizesHomePath(t *testing.T) {
+	t.Setenv("GORMES_HOME", "/tmp/gormes`**home**\n# injected")
+	ch := newFakeChannel("slack")
+	m := NewManagerWithSubmitter(ManagerConfig{AllowedChats: map[string]string{"slack": "42"}}, &fakeKernel{}, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	ch.pushInbound(InboundEvent{Platform: "slack", ChatID: "42", UserID: "u", MsgID: "m", Kind: EventProfile, Text: "/profile"})
+
+	waitFor(t, 200*time.Millisecond, func() bool { return len(ch.sentSnapshot()) == 1 })
+	got := ch.sentSnapshot()[0].Text
+	for _, forbidden := range []string{"`**home**", "# injected", "\n#"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("/profile leaked unsafe home path %q in:\n%s", forbidden, got)
+		}
+	}
+	assertContainsAll(t, got, "👤 **Profile:** `(default)`", "📂 **Home:** `/tmp/gormes'''home'' ＃ injected`")
+}
+
+func TestManager_Inbound_GatewayCommandSanitizesConnectedPlatformNames(t *testing.T) {
+	ch := newFakeChannel("slack`**bot**\n# injected")
+	m := NewManagerWithSubmitter(ManagerConfig{AllowedChats: map[string]string{"slack`**bot**\n# injected": "42"}}, &fakeKernel{}, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	ch.pushInbound(InboundEvent{Platform: ch.Name(), ChatID: "42", UserID: "u", MsgID: "m", Kind: EventGateway, Text: "/gateway"})
+
+	waitFor(t, 200*time.Millisecond, func() bool { return len(ch.sentSnapshot()) == 1 })
+	got := ch.sentSnapshot()[0].Text
+	for _, forbidden := range []string{"`**bot**", "# injected", "\n#"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("/gateway leaked unsafe platform name %q in:\n%s", forbidden, got)
+		}
+	}
+	assertContainsAll(t, got, "📡 **Connected Platforms:** slack'''bot'' ＃ injected")
 }
 
 func TestManager_ToolProgressModeUsesHermesPlatformDefaults(t *testing.T) {
@@ -551,6 +701,33 @@ func TestManager_Inbound_Reset(t *testing.T) {
 		defer fk.mu.Unlock()
 		return fk.resets == 1
 	})
+}
+
+func TestManager_Inbound_ResetErrorSanitizesOperatorReply(t *testing.T) {
+	tg := newFakeChannel("telegram")
+	fk := &fakeKernel{resetErr: errors.New("reset failed\n**Injected:** token=plain-secret")}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+	}, fk, slog.Default())
+	_ = m.Register(tg)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	tg.pushInbound(InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventReset})
+
+	waitFor(t, 200*time.Millisecond, func() bool { return len(tg.sentSnapshot()) == 1 })
+	got := tg.sentSnapshot()[0].Text
+	for _, forbidden := range []string{"plain-secret", "**Injected:**", "\n"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("reset error leaked unsafe text %q in %q", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "Session reset failed: [redacted]") {
+		t.Fatalf("reset error missing redaction marker: %q", got)
+	}
 }
 
 func TestManager_Inbound_Start_RepliesHelp(t *testing.T) {
@@ -923,6 +1100,7 @@ func TestManager_Outbound_FreshFinalAfterSendsFreshFinal(t *testing.T) {
 type replyPlaceholderFakeChannel struct {
 	*fakeChannel
 
+	mu                sync.Mutex
 	replyPlaceholders []fakeReplyPlaceholder
 	replies           []fakeReplySend
 }
@@ -931,13 +1109,29 @@ type fakeReplyPlaceholder struct{ ChatID, ReplyToMsgID string }
 type fakeReplySend struct{ ChatID, ReplyToMsgID, Text string }
 
 func (f *replyPlaceholderFakeChannel) SendReplyPlaceholder(ctx context.Context, chatID, replyToMsgID string) (string, error) {
+	f.mu.Lock()
 	f.replyPlaceholders = append(f.replyPlaceholders, fakeReplyPlaceholder{ChatID: chatID, ReplyToMsgID: replyToMsgID})
+	f.mu.Unlock()
 	return f.fakeChannel.SendPlaceholder(ctx, chatID)
 }
 
 func (f *replyPlaceholderFakeChannel) SendReply(ctx context.Context, chatID, replyToMsgID, text string) (string, error) {
+	f.mu.Lock()
 	f.replies = append(f.replies, fakeReplySend{ChatID: chatID, ReplyToMsgID: replyToMsgID, Text: text})
+	f.mu.Unlock()
 	return f.fakeChannel.Send(ctx, chatID, text)
+}
+
+func (f *replyPlaceholderFakeChannel) replyPlaceholdersSnapshot() []fakeReplyPlaceholder {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return cloneSlice(f.replyPlaceholders)
+}
+
+func (f *replyPlaceholderFakeChannel) repliesSnapshot() []fakeReplySend {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return cloneSlice(f.replies)
 }
 
 func (f *replyPlaceholderFakeChannel) SendChatAction(context.Context, string, string) error {
@@ -975,14 +1169,15 @@ func TestManager_Outbound_FirstStreamingContentRepliesToInboundMessage(t *testin
 
 	frames <- kernel.RenderFrame{Phase: kernel.PhaseStreaming, SessionID: "sess-1", DraftText: "partial"}
 	waitFor(t, 200*time.Millisecond, func() bool {
-		return len(tg.replies) == 1
+		return len(tg.repliesSnapshot()) == 1
 	})
 
-	if got := tg.replies[0]; got.ChatID != "42" || got.ReplyToMsgID != "telegram-user-msg-1" || !strings.Contains(got.Text, "partial") {
+	replies := tg.repliesSnapshot()
+	if got := replies[0]; got.ChatID != "42" || got.ReplyToMsgID != "telegram-user-msg-1" || !strings.Contains(got.Text, "partial") {
 		t.Fatalf("reply send = %+v, want chat 42 replying to inbound message with stream content", got)
 	}
-	if len(tg.replyPlaceholders) != 0 {
-		t.Fatalf("reply placeholders = %#v, want none for Hermes-style first content send", tg.replyPlaceholders)
+	if placeholders := tg.replyPlaceholdersSnapshot(); len(placeholders) != 0 {
+		t.Fatalf("reply placeholders = %#v, want none for Hermes-style first content send", placeholders)
 	}
 }
 

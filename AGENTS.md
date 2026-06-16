@@ -2,7 +2,7 @@
 
 This file briefs every agent (codexu, claudeu, claude-code, opencode, or
 any future backend) that runs against this repository. Read it before
-touching code or docs in `cmd/`, `internal/`, `docs/content/building-gormes/`,
+touching code or docs in `cmd/`, `internal/`, `webpages/docs/content/building-gormes/`,
 or `progress.json`.
 
 ## Branch and CI safety rule
@@ -14,6 +14,9 @@ agent in this workspace, including workspace-mineru / workspace-mimeru agents.
   repair work directly on `main` after the bootstrap that created this rule.
 - Work directly on the existing `development` branch only. Do not create or use
   short-lived branches, feature branches, or git worktrees for Gormes work.
+  The release-prep GitHub Actions workflow may create `release/<version>` PR
+  branches as an automation-only exception; agents must not create or use those
+  branches for normal work.
 - Before editing, confirm the current branch is `development`. If it is not,
   stop before changing files and switch safely to `development` or report the
   blocker; never create another branch or worktree as the workaround.
@@ -111,7 +114,7 @@ replace the deleted autonomous loop executables.
 
 All planner and builder skills talk through these files. **Do not bypass them.**
 
-- `docs/content/building-gormes/architecture_plan/progress.json` — canonical
+- `webpages/docs/content/building-gormes/architecture_plan/progress.json` — canonical
   prioritized trajectory and single logical backlog. Planner skills write;
   builder skills read to select one row. Always go through
   `internal/progress.Load`/`SaveProgress` (or `cmd/progress`), which
@@ -119,10 +122,10 @@ All planner and builder skills talk through these files. **Do not bypass them.**
   split/per-module directory layout (one logical backlog, physically one or
   many files); never hand-parse member files. Schema lives at
   `internal/progress/`; rendered surfaces live under
-  `docs/content/building-gormes/`.
+  `webpages/docs/content/building-gormes/`.
 - `cmd/progress` — focused command for validating `progress.json` and
   regenerating progress-driven docs.
-- `cmd/repoctl` — focused command for repo metadata updates such as benchmark
+- `cmd/gormes-repo` — focused command for repo metadata updates such as benchmark
   and README refreshes.
 - Historical `.codex/builder-loop/` and `.codex/planner-loop/` ledgers may
   exist as evidence, but they are no longer active control-plane queues.
@@ -165,8 +168,8 @@ All planner and builder skills talk through these files. **Do not bypass them.**
 | Implementing one row | `development-skills/gormes-builder/SKILL.md` |
 | Driving red-green-refactor | `development-skills/gormes-tdd-slice/SKILL.md` |
 | Refactoring one `cmd/gormes` command domain into `internal/app/<domain>` | `development-skills/cmd-internal-refactor/SKILL.md` |
-| Changing the row schema or rendered docs | `internal/progress/` and the schema doc rendered at `docs/content/building-gormes/builder-loop/progress-schema.md` |
-| Onboarding to the architecture with no prior context | this file, then `docs/content/building-gormes/_index.md` |
+| Changing the row schema or rendered docs | `internal/progress/` and the schema doc rendered at `webpages/docs/content/building-gormes/builder-loop/progress-schema.md` |
+| Onboarding to the architecture with no prior context | this file, then `webpages/docs/content/building-gormes/_index.md` |
 
 ## Repository Map
 

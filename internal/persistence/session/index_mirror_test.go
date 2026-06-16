@@ -51,6 +51,49 @@ func TestSessionIndexMirror_WriteCreatesStableOrderedYAML(t *testing.T) {
 	if string(raw) != want {
 		t.Fatalf("mirror YAML =\n%s\nwant:\n%s", raw, want)
 	}
+	info, err := os.Stat(outPath)
+	if err != nil {
+		t.Fatalf("Stat(%q): %v", outPath, err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("mirror mode = %v, want 0600", got)
+	}
+}
+
+func TestSessionIndexMirror_WriteTightensExistingWorldReadableIndex(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "sessions.db")
+	m, err := OpenBolt(dbPath)
+	if err != nil {
+		t.Fatalf("OpenBolt: %v", err)
+	}
+	defer m.Close()
+
+	ctx := context.Background()
+	if err := m.Put(ctx, "telegram:42", "sess-telegram"); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+
+	outDir := filepath.Join(t.TempDir(), "sessions")
+	outPath := filepath.Join(outDir, "index.yaml")
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(outPath, []byte("stale: true\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile stale: %v", err)
+	}
+
+	mirror := NewSessionIndexMirror(m, outPath)
+	if err := mirror.Write(); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+
+	info, err := os.Stat(outPath)
+	if err != nil {
+		t.Fatalf("Stat(%q): %v", outPath, err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("mirror mode = %v, want 0600", got)
+	}
 }
 
 func TestSessionIndexMirror_WriteIsReadOnlyForSessionState(t *testing.T) {

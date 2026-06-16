@@ -81,6 +81,33 @@ func PlatformPausedNextRetry(now time.Time) time.Time {
 	return now.Add(100 * 365 * 24 * time.Hour)
 }
 
+func platformCommandDisplayText(value string) string {
+	msg := strings.TrimSpace(value)
+	if msg == "" {
+		return ""
+	}
+	lower := strings.ToLower(msg)
+	compact := compactPlatformSecretSeparators(lower)
+	for _, marker := range []string{"token", "api_key", "apikey", "authorization", "bearer", "secret", "password"} {
+		if strings.Contains(lower, marker) || strings.Contains(compact, marker) {
+			return "[redacted]"
+		}
+	}
+	replacer := strings.NewReplacer("`", "'", "*", "'", "#", "＃")
+	return strings.Join(strings.Fields(replacer.Replace(msg)), " ")
+}
+
+func compactPlatformSecretSeparators(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 func knownGatewayPlatformID(name string) (string, bool) {
 	want := identity.NormalizePlatformID(name)
 	if want == "" {
@@ -161,7 +188,7 @@ func HandlePlatformCommand(text string, connectedNames []string, failures map[st
 		for _, name := range failedNames {
 			info := failures[name]
 			if info.Paused {
-				reason := info.PauseReason
+				reason := platformCommandDisplayText(info.PauseReason)
 				if reason == "" {
 					reason = "paused"
 				}

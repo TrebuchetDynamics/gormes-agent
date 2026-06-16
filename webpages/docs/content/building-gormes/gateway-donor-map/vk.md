@@ -9,7 +9,7 @@ VK is technically serviceable in PicoClaw, but it is a bad fit for the current G
 
 ## Status
 
-VK does not appear in `docs/content/building-gormes/architecture_plan/subsystem-inventory.md` as a planned gateway adapter. The donor exists in PicoClaw, but Gormes currently has no stated phase slot or operator-facing Hermes docs for VK.
+VK does not appear in `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` as a planned gateway adapter. The donor exists in PicoClaw, but Gormes currently has no stated phase slot or operator-facing Hermes docs for VK.
 
 Evidence level:
 
@@ -17,7 +17,7 @@ Evidence level:
 - The donor commit inspected for this research was `6421f146a99df1bebcd4b1ca8de2a289dfca3622`.
 - The upstream donor repo is `https://github.com/sipeed/picoclaw`.
 - Any `pkg/...` or `docs/...` path listed below is relative to that donor root, not relative to the Gormes repo.
-- Current Gormes planning status was verified in-tree against `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`.
+- Current Gormes planning status was verified in-tree against `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`.
 
 Keep the boundary explicit: PicoClaw can still be studied as donor input, but Gormes architecture and roadmap priorities remain authoritative.
 
@@ -37,7 +37,7 @@ That said, "technically reusable" is not the same as "worth reusing now."
 - `picoclaw/pkg/channels/vk/vk.go`
 - `picoclaw/pkg/channels/vk/vk_test.go`
 - `picoclaw/docs/channels/vk/README.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 ## What To Copy vs What To Rebuild
 
@@ -84,6 +84,6 @@ Even then, several parts would still need rebuilding:
 - `picoclaw/pkg/channels/vk/vk.go`: `Start`, `handleMessage`, `Send`, `isMentioned`, `processAttachments`.
 - `picoclaw/pkg/channels/vk/vk_test.go`
 - `picoclaw/docs/channels/vk/README.md`
-- `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
+- `webpages/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 
 Recommendation: `not worth reusing`.

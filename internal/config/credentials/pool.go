@@ -1,7 +1,8 @@
 package credentials
 
 import (
-	"encoding/base64"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -12,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config/credentials/homepaths"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config/credentials/jwtclaims"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -80,6 +83,7 @@ type PooledCredential struct {
 	AgentKeyID         string `json:"agent_key_id,omitempty"`
 	AgentKeyExpiresAt  string `json:"agent_key_expires_at,omitempty"`
 	AgentKeyObtainedAt string `json:"agent_key_obtained_at,omitempty"`
+	SecretFingerprint  string `json:"secret_fingerprint,omitempty"`
 	RequestCount       int    `json:"request_count,omitempty"`
 	MaxConcurrentLease int    `json:"max_concurrent_leases,omitempty"`
 }
@@ -742,19 +746,7 @@ func credentialLabelFromJWT(accessToken, fallback string) string {
 }
 
 func decodeJWTClaims(token string) (map[string]any, bool) {
-	parts := strings.Split(token, ".")
-	if len(parts) < 2 {
-		return nil, false
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return nil, false
-	}
-	var claims map[string]any
-	if err := json.Unmarshal(payload, &claims); err != nil {
-		return nil, false
-	}
-	return claims, true
+	return jwtclaims.Decode(token)
 }
 
 func cloneCredentialEntries(entries []PooledCredential) []PooledCredential {
@@ -812,11 +804,77 @@ func readCredentialPoolAuthStore(hermesHome string) (credentialPoolAuthStore, er
 	return store, nil
 }
 
+func sanitizeCredentialPoolAuthStoreForDisk(store credentialPoolAuthStore) credentialPoolAuthStore {
+	if store.CredentialPool == nil {
+		return store
+	}
+	out := store
+	out.CredentialPool = make(map[string][]PooledCredential, len(store.CredentialPool))
+	for provider, entries := range store.CredentialPool {
+		providerEntries := make([]PooledCredential, len(entries))
+		for i, entry := range entries {
+			providerEntries[i] = sanitizeBorrowedCredentialForDisk(provider, entry)
+		}
+		out.CredentialPool[provider] = providerEntries
+	}
+	return out
+}
+
+func sanitizeBorrowedCredentialForDisk(provider string, entry PooledCredential) PooledCredential {
+	if !isBorrowedCredentialSource(entry.Source, provider) {
+		return entry
+	}
+	fingerprint := borrowedCredentialSecretFingerprint(entry)
+	entry.AccessToken = ""
+	entry.RefreshToken = ""
+	entry.AgentKey = ""
+	if fingerprint != "" {
+		entry.SecretFingerprint = fingerprint
+	}
+	return entry
+}
+
+func isBorrowedCredentialSource(source, provider string) bool {
+	normalizedSource := strings.ToLower(strings.TrimSpace(source))
+	if normalizedSource == "" || normalizedSource == "manual" || strings.HasPrefix(normalizedSource, "manual:") {
+		return false
+	}
+	normalizedProvider := strings.ToLower(strings.TrimSpace(provider))
+	switch normalizedProvider + "\x00" + normalizedSource {
+	case "anthropic\x00hermes_pkce",
+		"minimax-oauth\x00oauth",
+		"nous\x00device_code",
+		"openai-codex\x00device-code",
+		"openai-codex\x00device_code",
+		"openai-codex\x00codex-cli-import",
+		"xai-oauth\x00loopback_pkce":
+		return false
+	default:
+		return true
+	}
+}
+
+func borrowedCredentialSecretFingerprint(entry PooledCredential) string {
+	for _, value := range []string{entry.AgentKey, entry.AccessToken, entry.RefreshToken, entry.SecretFingerprint} {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if strings.HasPrefix(value, "sha256:") && len(value) == len("sha256:0123456789abcdef") {
+			return value
+		}
+		sum := sha256.Sum256([]byte(value))
+		return "sha256:" + hex.EncodeToString(sum[:])[:16]
+	}
+	return ""
+}
+
 func writeCredentialPoolAuthStore(hermesHome string, store credentialPoolAuthStore) error {
 	if err := os.MkdirAll(hermesHome, 0o700); err != nil {
 		return err
 	}
 	path := filepath.Join(hermesHome, "auth.json")
+	store = sanitizeCredentialPoolAuthStoreForDisk(store)
 	data, err := json.MarshalIndent(store, "", "  ")
 	if err != nil {
 		return err
@@ -861,7 +919,7 @@ func writeCredentialPoolAuthStore(hermesHome string, store credentialPoolAuthSto
 func credentialPoolHermesHome(input string) (string, error) {
 	home := strings.TrimSpace(input)
 	if home == "" {
-		home = gormesBaseHome()
+		home = homepaths.BaseHome()
 	}
 	absHome, err := filepath.Abs(home)
 	if err != nil {
@@ -870,28 +928,11 @@ func credentialPoolHermesHome(input string) (string, error) {
 	return absHome, nil
 }
 
-func gormesBaseHome() string {
-	return gormesBaseHomeFor(gormesHome())
-}
+func gormesBaseHome() string { return homepaths.BaseHome() }
 
-func gormesHome() string {
-	if v := strings.TrimSpace(os.Getenv("GORMES_HOME")); v != "" {
-		return v
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".gormes")
-}
+func gormesHome() string { return homepaths.GormesHome() }
 
-func gormesBaseHomeFor(current string) string {
-	clean := filepath.Clean(strings.TrimSpace(current))
-	if clean == "." || clean == string(filepath.Separator) {
-		return current
-	}
-	if filepath.Base(filepath.Dir(clean)) == "profiles" {
-		return filepath.Dir(filepath.Dir(clean))
-	}
-	return current
-}
+func gormesBaseHomeFor(current string) string { return homepaths.BaseHomeFor(current) }
 
 func sanitizedEvidenceText(input string) string {
 	trimmed := strings.TrimSpace(input)

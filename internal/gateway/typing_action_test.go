@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -39,9 +40,7 @@ func (f *typingActionFakeChannel) SendChatAction(_ context.Context, chatID, acti
 func (f *typingActionFakeChannel) actionSnapshot() []typingActionCall {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]typingActionCall, len(f.actions))
-	copy(out, f.actions)
-	return out
+	return cloneSlice(f.actions)
 }
 
 func TestTypingAction_FiresOnFirstStreamingFrame(t *testing.T) {
@@ -147,9 +146,14 @@ func TestTypingActionCapableChannelSendsFirstTextInsteadOfHourglass(t *testing.T
 
 func TestTypingAction_ThrottledToFourSecondWindow(t *testing.T) {
 	now := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+	var nowMu sync.Mutex
 	ch := newTypingActionFakeChannel("telegram")
 	m := NewManagerWithSubmitter(ManagerConfig{
-		Now: func() time.Time { return now },
+		Now: func() time.Time {
+			nowMu.Lock()
+			defer nowMu.Unlock()
+			return now
+		},
 	}, nil, slog.Default())
 	if err := m.Register(ch); err != nil {
 		t.Fatalf("Register: %v", err)
@@ -174,7 +178,9 @@ func TestTypingAction_ThrottledToFourSecondWindow(t *testing.T) {
 		t.Fatalf("typing actions inside window = %d, want 1", got)
 	}
 
+	nowMu.Lock()
 	now = now.Add(4*time.Second + time.Millisecond)
+	nowMu.Unlock()
 	m.dispatchFrame(context.Background(), kernel.RenderFrame{
 		Phase:     kernel.PhaseStreaming,
 		DraftText: "still working",
@@ -186,9 +192,14 @@ func TestTypingAction_ThrottledToFourSecondWindow(t *testing.T) {
 
 func TestTypingAction_StopsOnPhaseIdle(t *testing.T) {
 	now := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+	var nowMu sync.Mutex
 	ch := newTypingActionFakeChannel("telegram")
 	m := NewManagerWithSubmitter(ManagerConfig{
-		Now: func() time.Time { return now },
+		Now: func() time.Time {
+			nowMu.Lock()
+			defer nowMu.Unlock()
+			return now
+		},
 	}, nil, slog.Default())
 	if err := m.Register(ch); err != nil {
 		t.Fatalf("Register: %v", err)
@@ -207,7 +218,9 @@ func TestTypingAction_StopsOnPhaseIdle(t *testing.T) {
 		Phase:     kernel.PhaseStreaming,
 		DraftText: "working",
 	}, &co, &coCancel)
+	nowMu.Lock()
 	now = now.Add(5 * time.Second)
+	nowMu.Unlock()
 	m.dispatchFrame(context.Background(), kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
 		History: []llm.Message{

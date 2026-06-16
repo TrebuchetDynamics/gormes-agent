@@ -65,12 +65,7 @@ func newChannelOnlyFake(name string) *channelOnlyFake {
 func (f *channelOnlyFake) Name() string { return f.name }
 
 func (f *channelOnlyFake) Run(ctx context.Context, inbox chan<- InboundEvent) error {
-	f.mu.Lock()
-	f.inbox = inbox
-	f.mu.Unlock()
-	close(f.started)
-	<-ctx.Done()
-	return nil
+	return runStartedFakeChannel(ctx, inbox, &f.inbox, &f.mu, f.started)
 }
 
 func (f *channelOnlyFake) Send(_ context.Context, chatID, text string) (string, error) {
@@ -93,18 +88,20 @@ func (f *channelOnlyFake) pushInbound(e InboundEvent) {
 func (f *channelOnlyFake) sentSnapshot() []fakeSent {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]fakeSent, len(f.sent))
-	copy(out, f.sent)
-	return out
+	return cloneSlice(f.sent)
 }
 
 func (f *fakeChannel) Name() string { return f.name }
 
 func (f *fakeChannel) Run(ctx context.Context, inbox chan<- InboundEvent) error {
-	f.mu.Lock()
-	f.inbox = inbox
-	f.mu.Unlock()
-	close(f.started)
+	return runStartedFakeChannel(ctx, inbox, &f.inbox, &f.mu, f.started)
+}
+
+func runStartedFakeChannel(ctx context.Context, inbox chan<- InboundEvent, target *chan<- InboundEvent, mu *sync.Mutex, started chan struct{}) error {
+	mu.Lock()
+	*target = inbox
+	mu.Unlock()
+	close(started)
 	<-ctx.Done()
 	return nil
 }
@@ -201,23 +198,23 @@ func (f *fakeChannel) pushInbound(e InboundEvent) {
 func (f *fakeChannel) sentSnapshot() []fakeSent {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]fakeSent, len(f.sent))
-	copy(out, f.sent)
+	return cloneSlice(f.sent)
+}
+
+func cloneSlice[T any](in []T) []T {
+	out := make([]T, len(in))
+	copy(out, in)
 	return out
 }
 
 func (f *fakeChannel) editsSnapshot() []fakeEdit {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]fakeEdit, len(f.edits))
-	copy(out, f.edits)
-	return out
+	return cloneSlice(f.edits)
 }
 
 func (f *fakeChannel) mediaSnapshot() []fakeMedia {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]fakeMedia, len(f.media))
-	copy(out, f.media)
-	return out
+	return cloneSlice(f.media)
 }

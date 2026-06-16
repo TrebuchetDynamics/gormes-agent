@@ -40,6 +40,12 @@ func Clone(v any) any {
 	switch typed := v.(type) {
 	case map[string]any:
 		return CloneMap(typed)
+	case map[string]string:
+		out := make(map[string]string, len(typed))
+		for k, v := range typed {
+			out[k] = v
+		}
+		return out
 	case []any:
 		out := make([]any, len(typed))
 		for i, item := range typed {
@@ -52,6 +58,14 @@ func Clone(v any) any {
 			out[i] = CloneMap(item)
 		}
 		return out
+	case []string:
+		return append([]string(nil), typed...)
+	case []int:
+		return append([]int(nil), typed...)
+	case []float64:
+		return append([]float64(nil), typed...)
+	case []bool:
+		return append([]bool(nil), typed...)
 	case json.RawMessage:
 		return CloneRaw(typed)
 	case []byte:

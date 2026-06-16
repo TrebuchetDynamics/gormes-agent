@@ -3,6 +3,7 @@ package tools
 import "github.com/TrebuchetDynamics/gormes-agent/internal/tools/filesystem"
 
 const ProfileWorkspaceScopeViolation = filesystem.ProfileWorkspaceScopeViolation
+const ProfileWorkspaceDeniedMessage = filesystem.ProfileWorkspaceDeniedMessage
 
 type ProfileWorkspaceAccess = filesystem.ProfileWorkspaceAccess
 

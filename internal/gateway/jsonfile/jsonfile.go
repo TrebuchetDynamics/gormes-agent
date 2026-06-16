@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // ErrEmpty reports that a JSON file exists but has no bytes to decode.
@@ -27,14 +28,25 @@ func IsReadError(err error) bool {
 	return errors.As(err, &readErr)
 }
 
+func jsonfileContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
 // Read decodes a JSON file when it exists. A missing file returns false with no
 // error so marker stores can keep their missing/invalid state machines local.
 func Read(ctx context.Context, path string, out any, label string) (bool, error) {
+	ctx = jsonfileContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
 	if label == "" {
 		label = "json file"
+	}
+	if strings.TrimSpace(path) == "" {
+		return false, fmt.Errorf("%s path is empty", label)
 	}
 	raw, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
@@ -116,11 +128,15 @@ func WriteAtomicWithOptions(ctx context.Context, path string, payload any, label
 // own their encode/defaulting pipeline but should share the gateway JSON-file
 // write/rename contract.
 func WriteRawAtomicWithOptions(ctx context.Context, path string, raw []byte, label string, opts WriteOptions) error {
+	ctx = jsonfileContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	if label == "" {
 		label = "json file"
+	}
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("%s path is empty", label)
 	}
 	dirMode := opts.DirMode
 	if dirMode == 0 {
@@ -166,6 +182,9 @@ func WriteRawAtomicWithOptions(ctx context.Context, path string, raw []byte, lab
 		if err := tmp.Close(); err != nil {
 			return fmt.Errorf("close %s temp file: %w", label, err)
 		}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	if opts.FileMode != 0 {
 		if err := os.Chmod(tmpPath, opts.FileMode); err != nil {

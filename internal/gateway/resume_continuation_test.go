@@ -58,15 +58,11 @@ func TestManager_SubmitFollowsCompressionContinuation(t *testing.T) {
 	if got.SessionID != "sess-live" {
 		t.Fatalf("submitted SessionID = %q, want live compression descendant sess-live", got.SessionID)
 	}
-	for _, want := range []string{
+	assertContainsAll(t, got.SessionContext,
 		"**Session ID:** `sess-live`",
 		"**Requested Session ID:** `sess-root`",
 		"**Resume Continuation:** `sess-root` -> `sess-child` -> `sess-live`",
-	} {
-		if !strings.Contains(got.SessionContext, want) {
-			t.Fatalf("SessionContext missing %q in:\n%s", want, got.SessionContext)
-		}
-	}
+	)
 	if strings.Contains(got.SessionContext, "sess-fork") {
 		t.Fatalf("SessionContext included fork child in compression continuation:\n%s", got.SessionContext)
 	}
@@ -118,15 +114,11 @@ func TestManager_SubmitReportsUnresolvedContinuationFallback(t *testing.T) {
 	if got.SessionID != "sess-root" {
 		t.Fatalf("submitted SessionID = %q, want unresolved fallback sess-root", got.SessionID)
 	}
-	for _, want := range []string{
+	assertContainsAll(t, got.SessionContext,
 		"**Session ID:** `sess-root`",
 		"**Requested Session ID:** `sess-root`",
 		"**Resume Continuation Status:** `loop`",
-	} {
-		if !strings.Contains(got.SessionContext, want) {
-			t.Fatalf("SessionContext missing %q in:\n%s", want, got.SessionContext)
-		}
-	}
+	)
 }
 
 type unresolvedLineageMap struct {

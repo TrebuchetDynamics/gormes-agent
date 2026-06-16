@@ -41,6 +41,20 @@ func TestResolveSkillsAndPrompts(t *testing.T) {
 	}
 }
 
+func TestNormalizeSkillBindingsClonesSkillSlices(t *testing.T) {
+	bindings := []SkillBinding{{ID: "C-exact", Skills: []string{"alpha", "beta"}}}
+
+	normalized := NormalizeSkillBindings(bindings)
+	if len(normalized) != 1 || len(normalized[0].Skills) != 2 {
+		t.Fatalf("NormalizeSkillBindings = %#v, want one binding with skills", normalized)
+	}
+	normalized[0].Skills[0] = "mutated"
+
+	if bindings[0].Skills[0] != "alpha" {
+		t.Fatalf("NormalizeSkillBindings leaked mutable Skills slice to caller: original=%#v normalized=%#v", bindings, normalized)
+	}
+}
+
 func TestMapConfigNilValuesAreAbsent(t *testing.T) {
 	bindings := []map[string]any{
 		{"skill": "missing-id"},

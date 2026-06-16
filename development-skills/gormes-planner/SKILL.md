@@ -34,16 +34,16 @@ If the task might instead be parity audit, implementation, TDD, interface design
 ## Source Order
 
 1. Read `AGENTS.md` and preserve the skill-driven evidence contract.
-2. Treat the logical progress backlog as canonical for implementation intent. Use `cmd/progress` and `internal/planning/progress` (`Load`/`SaveProgress`) for progress data; never hand-parse split-layout members or create side queues.
-3. Treat `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` as the canonical Hermes/Honcho-to-Go map for subsystem context.
-4. Treat `docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md` as the completeness check for whether all feature-bearing Hermes/Honcho source classes are mapped.
-5. Treat `docs/hermes-releases/FEATURE-MATRIX.md` as a release-note study aid for choosing high-signal improvement lanes; it is not an executable queue and never replaces source refs or behavior atoms.
+2. Treat the logical progress backlog as canonical for implementation intent and TODO intake. Use `cmd/progress` and `internal/planning/progress` (`Load`/`SaveProgress`) for progress data; never hand-parse split-layout members or create side queues. Do not append active work to `TODO.md`.
+3. Treat `webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` as the canonical Hermes/Honcho-to-Go map for subsystem context.
+4. Treat `webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md` as the completeness check for whether all feature-bearing Hermes/Honcho source classes are mapped.
+5. Treat `webpages/docs/hermes-releases/FEATURE-MATRIX.md` as a release-note study aid for choosing high-signal improvement lanes; it is not an executable queue and never replaces source refs or behavior atoms.
 6. Use `./hermes-knowledge-graph.json` or `$HERMES_SRC/.understand-anything/knowledge-graph.json` as topology/routing accelerators before broad source searches; graph nodes and layers are navigation hints, not coverage proof.
 7. Treat `development-skills/<name>/SKILL.md` as the canonical skill source; `.agents/skills/`, `.claude/skills/`, and `.codex/skills/` are symlink loader views.
 8. Use in-repo upstream references when present, otherwise sibling checkouts:
    - `$HERMES_SRC`: `./hermes-agent`, then `../hermes-agent`
    - `$HONCHO_SRC`: `./honcho`, then `../honcho`
-9. Use existing Gormes code under `cmd/`, `internal/`, `docs/`, and `www.gormes.ai` as implementation evidence.
+9. Use existing Gormes code under `cmd/`, `internal/`, `webpages/docs/`, and `www.gormes.ai` as implementation evidence.
 10. Read existing parity evidence docs before creating or reshaping progress rows; they are source-backed classification evidence, not the backlog itself.
 11. For CLI/config/migration parity, inspect `$HERMES_SRC/hermes_cli/main.py`,
     `$HERMES_SRC/hermes_cli/commands.py`,
@@ -68,13 +68,13 @@ State the pass goal before editing. Examples:
 - "Map Honcho session/message/memory contracts into Goncho rows."
 - "Split broad gateway rows into worker-ready TDD slices."
 
-Reject vague expansion. If the user says "finish Gormes", choose one subsystem pass and explain why it is next.
+Reject vague expansion. If the user says "finish Gormes", choose one subsystem pass and explain why it is next. If the user asks to add TODOs or missing features, first route the raw idea through `gormes-progress-slicer`; planner edits only rows that can be made concrete with source refs, write scope, readiness, and validation.
 
 Keep passes small enough to finish. A planner pass should produce builder-ready tracer-bullet rows, not a grand essay.
 
 For full-map requests, update the feature map first, then reshape
 the progress rows. The docs map explains the destination; the logical progress backlog is the
-executable queue. If the request is seeded by `docs/hermes-releases/FEATURE-MATRIX.md`
+executable queue. If the request is seeded by `webpages/docs/hermes-releases/FEATURE-MATRIX.md`
 or `hermes-knowledge-graph.json`, use those artifacts to choose the smallest
 release family or source topology to inspect, then prove the active contract in
 `$HERMES_SRC` before editing rows or evidence.
@@ -90,12 +90,13 @@ passes when sibling upstream checkouts are available.
 Run lightweight discovery first:
 
 ```sh
-# Inspect the canonical logical backlog
+# Inspect the canonical logical backlog / TODO control plane
 go run ./cmd/progress next-work
+go run ./cmd/progress next-work --repo-only
 go run ./cmd/progress list --module <module>
 
 # Consult parity evidence as source-backed classification, not as the queue
-rg -n "missing|partial|covered|<topic>" docs/parity-evidence docs/content/building-gormes
+rg -n "missing|partial|covered|<topic>" webpages/docs/parity-evidence webpages/docs/content/building-gormes
 
 # Discover Gormes code surface
 find cmd internal -maxdepth 2 -type f -name '*.go' | sort
@@ -115,6 +116,20 @@ For "actually implemented features" or stale-`missing` sweeps, treat the pass as
 - If the reconciliation reveals a concrete remaining runtime gap, leave the row/evidence entry `partial` and make the builder-facing gap explicit enough for `gormes-builder` to select only that remainder.
 
 Before changing rows, zoom out one level: name the relevant modules, callers, public contracts, tests, and upstream files. If this map is unclear, do more discovery instead of planning from vibes.
+
+### TODO Intake, Builder-Blocked Reports, And Row Creation
+
+When turning a TODO, parity gap, missing-feature note, or builder-blocked report into backlog work:
+
+- Re-run `go run ./cmd/progress next-work` and `go run ./cmd/progress next-work --repo-only` yourself before accepting a pasted "no rows" report; builder status can be stale after planner/progress edits.
+- Treat `decision=build` from `cmd/progress next-work --repo-only` as authoritative: planner should not add a duplicate row, even when the selected row still says `contract_status=draft`. Instead report the selected row and route to `gormes-builder`.
+- Treat `decision=plan` / `no unblocked builder-ready rows` as the planner trigger: pick one blocked/vague planned row or one source-backed `partial`/`missing` parity atom and sharpen it into a repo-scoped builder-ready row.
+- Search existing progress rows first; refine or split before adding duplicates.
+- Keep parity classifications in `HERMES-BEHAVIOR-ATOMS.md`; create progress rows only for buildable implementation work.
+- A new or repaired row must include exact source refs, module, write scope, acceptance/done signal, ready-when, not-ready-when, dependencies, and validation commands.
+- If the user names a surface such as "TUI parity" and all rows in that module are complete, reconcile stale parity atoms first; create a row only for the concrete remaining gap (for example, native TUI live voice capture) after proving it is not already covered.
+- Dirty planning/docs work is not a reason to refuse planning. It is a hygiene constraint: inspect `git diff --name-only`, avoid overwriting unrelated edits, and either refine the already-dirty progress/evidence surface or report the exact file-collision blocker.
+- Do not create `TODO.md`, issue-list, prompt-only, or private-ledger side queues. If `TODO.md` exists, treat it as historical/resolved receipt storage unless Juan explicitly requests archival editing.
 
 ### 3. Map Upstream To Gormes
 
@@ -235,6 +250,17 @@ Every executable row must be one worker-sized slice and include enough detail fo
 - `source_refs`
 - `done_signal`
 
+After editing, prove the row is actually selectable:
+
+```sh
+go run ./cmd/progress validate
+go run ./cmd/progress next-work --repo-only
+```
+
+If the selected next-work row is not the one you just repaired, explain why
+(the other row has higher priority/unblocks more work) and do not claim the
+builder remains blocked.
+
 Rows derived from the feature map should also identify the map section in
 `source_refs`, `fixture`, or the row note, plus the Go package target and
 public interface the builder should test.
@@ -247,7 +273,7 @@ Apply the deep-module test when planning Go interfaces: a good Gormes module sho
 
 Planner passes may edit planning surfaces:
 
-- logical progress data under `docs/content/building-gormes/architecture_plan/progress.json` or its split layout, through `cmd/progress` / `internal/planning/progress`
+- logical progress data under `webpages/docs/content/building-gormes/architecture_plan/progress.json` or its split layout, through `cmd/progress` / `internal/planning/progress`
 - parity evidence docs when source-backed classifications change
 - generated building-gormes docs
 - upstream study docs

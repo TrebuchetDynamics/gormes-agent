@@ -75,7 +75,7 @@ func TestInstall_DryRunSandboxBinDir_ReportsActivePathUpdateSkipped(t *testing.T
 		"GORMES_RESTART_GATEWAY": "never",
 	})
 
-	if !strings.Contains(out, "update_active_path_command: skipped") {
+	if !strings.Contains(out, "path       skip") {
 		t.Fatalf("dry-run plan should report active-PATH-command update as skipped\nwhen GORMES_BIN_DIR is set; got:\n%s", out)
 	}
 	// The reason must surface so the operator sees why isolation engaged.
@@ -96,7 +96,7 @@ func TestInstall_DryRunGormesPrefix_ReportsActivePathUpdateSkipped(t *testing.T)
 		"GORMES_RESTART_GATEWAY": "never",
 	})
 
-	if !strings.Contains(out, "update_active_path_command: skipped") {
+	if !strings.Contains(out, "path       skip") {
 		t.Fatalf("dry-run plan should report active-PATH-command update as skipped\nwhen GORMES_PREFIX is set; got:\n%s", out)
 	}
 }
@@ -115,10 +115,10 @@ func TestInstall_DryRunDefaultBinDir_StillUpdatesActivePathCommand(t *testing.T)
 		// Deliberately NOT setting GORMES_BIN_DIR / GORMES_PREFIX.
 	})
 
-	if !strings.Contains(out, "update_active_path_command: yes") {
+	if !strings.Contains(out, "path       publish/adopt") {
 		t.Fatalf("dry-run plan should report active-PATH-command update as enabled\nwhen no sandbox env vars are set; got:\n%s", out)
 	}
-	if strings.Contains(out, "update_active_path_command: skipped") {
+	if strings.Contains(out, "path       skip") {
 		t.Fatalf("dry-run plan must not report skipped when no sandbox env vars are set; got:\n%s", out)
 	}
 }
@@ -136,7 +136,7 @@ func TestInstall_DryRunVerboseSandbox_IncludesSkipReason(t *testing.T) {
 		"GORMES_INSTALL_VERBOSE": "1",
 	}, "--verbose")
 
-	if !strings.Contains(out, "update_active_path_command: skipped") {
+	if !strings.Contains(out, "path       skip") {
 		t.Fatalf("verbose dry-run plan should report active-PATH-command update as skipped; got:\n%s", out)
 	}
 	// Verbose plan should explain the sandbox boundary semantics.

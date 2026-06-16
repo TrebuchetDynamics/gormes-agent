@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 type AccountUsageReason string
@@ -493,9 +495,18 @@ func credentialMissing(provider string) *AccountUsageUnavailable {
 func requestFailed(endpoint string, err error) *AccountUsageUnavailable {
 	return &AccountUsageUnavailable{
 		Reason:   AccountUsageReasonRequestFailed,
-		Message:  "account usage request failed: " + err.Error(),
+		Message:  "account usage request failed: " + accountUsageErrorText(err),
 		Endpoint: redactAccountUsageEndpoint(endpoint),
 	}
+}
+
+func accountUsageErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := redaction.RedactSecrets(err.Error())
+	msg = strings.NewReplacer("`", "'", "*", "'", "#", "＃").Replace(msg)
+	return strings.Join(strings.Fields(msg), " ")
 }
 
 func httpStatus(endpoint string, status int) *AccountUsageUnavailable {

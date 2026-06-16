@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	gatewaypersonality "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/personality"
@@ -37,7 +36,7 @@ func (m *Manager) handlePersonalityCommand(ctx context.Context, ch Channel, ev I
 	}
 	m.setActivePersonality(name)
 	_, _ = m.sendWithHooksReply(ctx, ch, ev.ChatID, ev.MsgID,
-		fmt.Sprintf("Personality set to **%s**.", name))
+		gatewaypersonality.RenderSetConfirmation(name))
 	_ = prompt // used at prompt assembly time
 }
 

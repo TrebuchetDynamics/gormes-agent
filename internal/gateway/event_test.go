@@ -62,16 +62,12 @@ func TestInboundEvent_SubmitTextAddsChannelNeutralAudioTranscriptionHint(t *test
 	}
 
 	got := ev.SubmitText()
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"Attachments:",
-		"- audio voice.ogg: " + audioPath + " (mediaType=audio/ogg, sourceId=discord-attachment-1, sizeBytes=321)",
+		"- audio voice.ogg: "+audioPath+" (mediaType=audio/ogg, sourceId=discord-attachment-1, sizeBytes=321)",
 		"Audio transcription:",
-		"- transcribe_audio audio_path=" + strconv.Quote(audioPath) + " (kind=audio, fileName=voice.ogg, mediaType=audio/ogg)",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("SubmitText() missing %q in:\n%s", want, got)
-		}
-	}
+		"- transcribe_audio audio_path="+strconv.Quote(audioPath)+" (kind=audio, fileName=voice.ogg, mediaType=audio/ogg)",
+	)
 	if strings.Contains(strings.ToLower(got), "telegram") {
 		t.Fatalf("SubmitText() = %q, want channel-neutral audio hint", got)
 	}

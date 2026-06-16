@@ -6,7 +6,7 @@ import (
 )
 
 func TestLoad_RealFile_Phase5ExecuteCode(t *testing.T) {
-	p, err := Load("../../../docs/content/building-gormes/architecture_plan/progress.json")
+	p, err := Load("../../../webpages/docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}

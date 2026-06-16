@@ -6,9 +6,27 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
+
+type lockedTestClock struct {
+	mu  sync.Mutex
+	now time.Time
+}
+
+func (c *lockedTestClock) Now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.now
+}
+
+func (c *lockedTestClock) Set(now time.Time) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.now = now
+}
 
 // TestAPIServerCapabilities_BuildAttribution proves `/v1/capabilities`
 // carries the configured BuildInfo at the top of the JSON response so
@@ -1427,12 +1445,12 @@ func TestAPIServerRunsList_OrderDescNewestFirst(t *testing.T) {
 		ResponseStore: NewResponseStore(10),
 		RunTTL:        time.Hour,
 	})
-	now := time.Unix(1_700_006_000, 0)
-	srv.now = func() time.Time { return now }
+	clock := &lockedTestClock{now: time.Unix(1_700_006_000, 0)}
+	srv.now = clock.Now
 	h := srv.Handler()
 
 	for i := 0; i < 3; i++ {
-		now = time.Unix(1_700_006_000+int64(i), 0)
+		clock.Set(time.Unix(1_700_006_000+int64(i), 0))
 		if rec := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil); rec.Code != http.StatusAccepted {
 			t.Fatalf("POST %d = %d", i, rec.Code)
 		}
@@ -1477,12 +1495,12 @@ func TestAPIServerRunsList_IncludesTotalCount(t *testing.T) {
 		ResponseStore: NewResponseStore(10),
 		RunTTL:        time.Hour,
 	})
-	now := time.Unix(1_700_005_000, 0)
-	srv.now = func() time.Time { return now }
+	clock := &lockedTestClock{now: time.Unix(1_700_005_000, 0)}
+	srv.now = clock.Now
 	h := srv.Handler()
 
 	for i := 0; i < 4; i++ {
-		now = time.Unix(1_700_005_000+int64(i), 0)
+		clock.Set(time.Unix(1_700_005_000+int64(i), 0))
 		if rec := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil); rec.Code != http.StatusAccepted {
 			t.Fatalf("POST %d = %d", i, rec.Code)
 		}
@@ -1520,13 +1538,13 @@ func TestAPIServerRunsList_LimitsResultCount(t *testing.T) {
 		ResponseStore: NewResponseStore(10),
 		RunTTL:        time.Hour,
 	})
-	now := time.Unix(1_700_004_000, 0)
-	srv.now = func() time.Time { return now }
+	clock := &lockedTestClock{now: time.Unix(1_700_004_000, 0)}
+	srv.now = clock.Now
 	h := srv.Handler()
 
 	// Submit 3 runs with distinct nano-times.
 	for i := 0; i < 3; i++ {
-		now = time.Unix(1_700_004_000+int64(i), 0)
+		clock.Set(time.Unix(1_700_004_000+int64(i), 0))
 		rec := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil)
 		if rec.Code != http.StatusAccepted {
 			t.Fatalf("POST %d = %d", i, rec.Code)

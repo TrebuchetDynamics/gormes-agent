@@ -57,6 +57,45 @@ func (l gatewayTelegramTokenLocker) AcquireTelegramToken(ctx context.Context, to
 	})
 }
 
+func (b *Bot) prepareStartupWithRetry(ctx context.Context) error {
+	attempt := 0
+	for {
+		if err := b.prepareStartup(ctx); err != nil {
+			var startupErr *TelegramStartupError
+			if !errors.As(err, &startupErr) || !startupErr.Retryable {
+				return err
+			}
+			attempt++
+			b.log.Warn("telegram startup retryable failure; retrying", "attempt", attempt, "err", sanitizeTelegramStartupError(err))
+			if !b.waitBeforeTelegramStartupRetry(ctx) {
+				return nil
+			}
+			continue
+		}
+		return nil
+	}
+}
+
+func (b *Bot) waitBeforeTelegramStartupRetry(ctx context.Context) bool {
+	delay := b.telegramPollingConflictRetryDelay()
+	if delay <= 0 {
+		select {
+		case <-ctx.Done():
+			return false
+		default:
+			return true
+		}
+	}
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
+}
+
 func (b *Bot) prepareStartup(ctx context.Context) error {
 	if err := telegramValidateWebhookSecret(); err != nil {
 		return err

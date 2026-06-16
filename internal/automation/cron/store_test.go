@@ -110,6 +110,13 @@ func TestStore_CreateRejectsDuplicateName(t *testing.T) {
 	}
 }
 
+func TestNormalizeJobRecordUsesFirstNonEmptySkillAsFallbackName(t *testing.T) {
+	got := NormalizeJobRecord(Job{ID: "job-1", Skills: []string{" ", " deploy-check "}, Schedule: "@daily"}, "")
+	if got.Name != "deploy-check" {
+		t.Fatalf("Name = %q, want first non-empty skill", got.Name)
+	}
+}
+
 func TestStore_ListNormalizesPartialLegacyRecords(t *testing.T) {
 	s, done := newTestStore(t)
 	defer done()

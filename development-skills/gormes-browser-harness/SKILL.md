@@ -29,7 +29,7 @@ it as `$HERMES_SRC` before comparing browser behavior.
 ## Source Order
 
 1. Inspect current Gormes rows in
-   `docs/content/building-gormes/architecture_plan/progress.json`, Phase 5.C
+   `webpages/docs/content/building-gormes/architecture_plan/progress.json`, Phase 5.C
    `Browser Automation`.
 2. Inspect Hermes upstream first:
    - `$HERMES_SRC/tools/browser_tool.py`

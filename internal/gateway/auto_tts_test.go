@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -43,6 +44,9 @@ func (f *fakeGatewayTTSTool) Execute(_ context.Context, args json.RawMessage) (j
 	f.platform = in.Platform
 	f.voice = in.Voice
 	f.speed = in.Speed
+	if err := os.WriteFile("/tmp/gormes-auto-tts.mp3", []byte("audio"), 0o600); err != nil {
+		return nil, err
+	}
 	return json.Marshal(map[string]any{
 		"success":   true,
 		"media_tag": "MEDIA:/tmp/gormes-auto-tts.mp3",
@@ -118,11 +122,7 @@ func TestTTSStatusDefaultsEnabledWithUsableEngine(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("sent = %+v, want one status message", got)
 	}
-	for _, want := range []string{"TTS: enabled", "engine: edge"} {
-		if !strings.Contains(got[0].Text, want) {
-			t.Fatalf("/tts status missing %q in:\n%s", want, got[0].Text)
-		}
-	}
+	assertContainsAll(t, got[0].Text, "TTS: enabled", "engine: edge")
 	if strings.Contains(got[0].Text, "disabled") {
 		t.Fatalf("/tts default status should not report disabled:\n%s", got[0].Text)
 	}
@@ -298,13 +298,9 @@ func TestManagerAudioRequestedTurnAddsDeliveryGuidance(t *testing.T) {
 		return len(fk.submitsSnapshot()) == 1
 	})
 	got := fk.submitsSnapshot()[0].SessionContext
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"Gateway audio delivery is enabled for this turn.",
 		"Do not claim that you generated audio yourself",
 		"do not claim the TTS provider is unavailable",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("SessionContext missing %q:\n%s", want, got)
-		}
-	}
+	)
 }

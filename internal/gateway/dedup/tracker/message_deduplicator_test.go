@@ -36,6 +36,40 @@ func TestMessageDeduplicator_MaxSizeEvictsOldest(t *testing.T) {
 	}
 }
 
+func TestMessageDeduplicator_WhitespaceIDIsIgnored(t *testing.T) {
+	dedup := NewMessageDeduplicator(2)
+
+	for i := 0; i < 2; i++ {
+		result := dedup.Track(" \t\n ")
+		if result.Duplicate || result.Evidence != "" {
+			t.Fatalf("Track(whitespace) attempt %d = %+v, want ignored without evidence", i+1, result)
+		}
+	}
+	if len(dedup.seen) != 0 || len(dedup.order) != 0 {
+		t.Fatalf("whitespace ID was tracked: seen=%v order=%v", dedup.seen, dedup.order)
+	}
+}
+
+func TestMessageDeduplicator_DuplicateRefreshesRecency(t *testing.T) {
+	dedup := NewMessageDeduplicator(2)
+
+	if result := dedup.Track("msg-1"); result.Duplicate || result.Evidence != "" {
+		t.Fatalf("Track(msg-1) = %+v, want newly tracked", result)
+	}
+	if result := dedup.Track("msg-2"); result.Duplicate || result.Evidence != "" {
+		t.Fatalf("Track(msg-2) = %+v, want newly tracked", result)
+	}
+	if result := dedup.Track("msg-1"); !result.Duplicate || result.Evidence != evidence.Duplicate {
+		t.Fatalf("duplicate Track(msg-1) = %+v, want duplicate evidence", result)
+	}
+	if result := dedup.Track("msg-3"); result.Duplicate || result.Evidence != evidence.Evicted || result.EvictedID != "msg-2" {
+		t.Fatalf("Track(msg-3) = %+v, want eviction of least recently seen msg-2", result)
+	}
+	if result := dedup.Track("msg-1"); !result.Duplicate || result.Evidence != evidence.Duplicate {
+		t.Fatalf("Track(msg-1) after eviction = %+v, want duplicate because duplicate refreshed recency", result)
+	}
+}
+
 func TestMessageDeduplicator_DuplicateReturnsSeen(t *testing.T) {
 	dedup := NewMessageDeduplicator(2)
 

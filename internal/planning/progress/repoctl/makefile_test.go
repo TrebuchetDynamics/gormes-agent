@@ -28,9 +28,9 @@ func TestMakefileUsesFocusedProgressAndRepoHelpers(t *testing.T) {
 	}
 
 	for _, required := range []string{
-		"go run ./cmd/repoctl benchmark record",
+		"go run ./cmd/gormes-repo benchmark record",
 		"go run ./cmd/progress write",
-		"go run ./cmd/repoctl readme update",
+		"go run ./cmd/gormes-repo readme update",
 	} {
 		if !strings.Contains(makefile, required) {
 			t.Fatalf("Makefile missing %q", required)

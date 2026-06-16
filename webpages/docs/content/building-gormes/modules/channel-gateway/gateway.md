@@ -10,9 +10,9 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module group:** Channel Gateway
 **Module:** `gateway`
-**Rows:** 161
-**Status counts:** `complete`: 161 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 14 · `P1`: 52 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
+**Rows:** 162
+**Status counts:** `complete`: 162 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P0`: 14 · `P1`: 53 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
 
 ## Phase 1 — The Dashboard
 
@@ -338,3 +338,11 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | Status | Priority | Module | Row |
 |---|---|---|---|
 | `complete` | `P4` | `gateway` | Yuanbao gateway runtime + toolset registration |
+
+## Phase 9 — Design & Security Hardening
+
+### 9.H — Architecture Deepening from tld Diagram Review
+
+| Status | Priority | Module | Row |
+|---|---|---|---|
+| `complete` | `P1` | `gateway` | Gateway channel registration degraded-status helper |

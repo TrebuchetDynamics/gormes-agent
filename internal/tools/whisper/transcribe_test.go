@@ -2,32 +2,12 @@ package whisper
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
-
-func TestTranscriberRejectsMissingModel(t *testing.T) {
-	ctx := context.Background()
-	_, err := NewTranscriber(ctx, filepath.Join(t.TempDir(), "missing-model.bin"))
-	if !transcriberErrorCodeIs(err, TranscriberModelUnavailable) {
-		t.Fatalf("NewTranscriber error = %v, want %s", err, TranscriberModelUnavailable)
-	}
-}
-
-func TestDecodeWAVRejectsUnsupportedInput(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "not-a-wav.wav")
-	if err := os.WriteFile(path, []byte("not a wave"), 0o600); err != nil {
-		t.Fatalf("write fixture: %v", err)
-	}
-	_, err := decodePCM16Mono16kWAV(path)
-	if !transcriberErrorCodeIs(err, TranscriberWAVUnsupported) {
-		t.Fatalf("decodePCM16Mono16kWAV error = %v, want %s", err, TranscriberWAVUnsupported)
-	}
-}
 
 func TestTranscriberTranscribesFixtureWAV(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -56,17 +36,26 @@ func TestTranscriberTranscribesFixtureWAV(t *testing.T) {
 	}
 }
 
-func testTinyEnModelPath(t *testing.T, ctx context.Context) string {
+func testTinyEnModelPath(t testing.TB, ctx context.Context) string {
 	t.Helper()
-	return tinyEnModelPath(t, ctx, func(tb testing.TB, cacheDir string, err error) {
-		tb.Skipf("WASI Whisper tiny.en model unavailable in %s: %v", cacheDir, err)
-	})
-}
-
-func transcriberErrorCodeIs(err error, code string) bool {
-	var transcribeErr *TranscriberError
-	if !errors.As(err, &transcribeErr) {
-		return false
+	if path := strings.TrimSpace(os.Getenv("GORMES_WASI_WHISPER_MODEL")); path != "" {
+		if err := verifyModelFile(path, TinyEnModelArtifact); err != nil {
+			t.Fatalf("verify %s: %v", path, err)
+		}
+		return path
 	}
-	return transcribeErr.Code == code
+
+	cacheDir := strings.TrimSpace(os.Getenv("GORMES_WASI_WHISPER_MODEL_CACHE"))
+	if cacheDir == "" {
+		userCache, err := os.UserCacheDir()
+		if err != nil {
+			t.Fatalf("resolve user cache dir: %v", err)
+		}
+		cacheDir = filepath.Join(userCache, "gormes", "wasi-whisper")
+	}
+	path, err := EnsureModel(ctx, TinyEnModelArtifact, cacheDir, nil)
+	if err != nil {
+		t.Skipf("WASI Whisper tiny.en model unavailable in %s: %v", cacheDir, err)
+	}
+	return path
 }

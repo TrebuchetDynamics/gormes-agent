@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -11,15 +10,7 @@ import (
 
 func runAgentTestCommand(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
-	cmd := newAgentCommandForTest()
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SilenceUsage = true
-	cmd.SilenceErrors = true
-	cmd.SetArgs(args)
-	err := cmd.Execute()
-	return stdout.String(), stderr.String(), err
+	return executeCobraCommandForTest(newAgentCommandForTest(), cobraCommandExecutionOptions{SilenceUsage: true, SilenceErrors: true}, args...)
 }
 
 func TestAgentResetCommandCreatesTemplatesInTarget(t *testing.T) {

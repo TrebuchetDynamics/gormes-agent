@@ -85,18 +85,22 @@ func (t *TelegramFallbackTransport) RoundTrip(req *http.Request) (*http.Response
 	if t == nil {
 		return http.DefaultTransport.RoundTrip(req)
 	}
+	primary := t.primary
+	if primary == nil {
+		primary = http.DefaultTransport
+	}
 	if req == nil || req.URL == nil || req.URL.Hostname() != telegramAPIHost || len(t.fallbackIPs) == 0 {
-		return t.primary.RoundTrip(req)
+		return primary.RoundTrip(req)
 	}
 
 	attempts := t.attemptOrder()
 	var lastErr error
 	for _, ip := range attempts {
-		rt := t.primary
+		rt := primary
 		if ip != "" {
 			rt = t.fallbacks[ip]
 			if rt == nil {
-				rt = t.primary
+				rt = primary
 			}
 		}
 		resp, err := rt.RoundTrip(req)

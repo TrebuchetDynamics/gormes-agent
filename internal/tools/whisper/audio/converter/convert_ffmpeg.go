@@ -19,7 +19,7 @@ import (
 func ConvertWithFFmpeg(ctx context.Context, inputPath, outputPath string) error {
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
-		return &contract.PreprocessError{Code: contract.AudioPreprocessUnavailable, Path: filepath.Base(inputPath), Err: errors.New("ffmpeg not found")}
+		return contract.NewUnavailableError(filepath.Base(inputPath), errors.New("ffmpeg not found"))
 	}
 	cmd := exec.CommandContext(ctx, ffmpeg, "-y", "-i", inputPath, "-ar", "16000", "-ac", "1", outputPath)
 	out, err := cmd.CombinedOutput()
@@ -27,7 +27,7 @@ func ConvertWithFFmpeg(ctx context.Context, inputPath, outputPath string) error 
 		return nil
 	}
 	if ctx.Err() != nil {
-		return &contract.PreprocessError{Code: contract.AudioPreprocessUnavailable, Path: filepath.Base(inputPath), Err: ctx.Err()}
+		return contract.NewUnavailableError(filepath.Base(inputPath), ctx.Err())
 	}
 	detail := strings.TrimSpace(string(out))
 	if detail == "" {
@@ -37,5 +37,5 @@ func ConvertWithFFmpeg(ctx context.Context, inputPath, outputPath string) error 
 		detail = detail[:300] + "...(truncated)"
 	}
 	detail = pathredact.Text(detail, inputPath, outputPath)
-	return &contract.PreprocessError{Code: contract.AudioPreprocessUnavailable, Path: filepath.Base(inputPath), Err: fmt.Errorf("ffmpeg failed: %s", detail)}
+	return contract.NewUnavailableError(filepath.Base(inputPath), fmt.Errorf("ffmpeg failed: %s", detail))
 }

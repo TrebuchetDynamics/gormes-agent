@@ -37,7 +37,7 @@ Default to zoom-out map for vague debugging. Use architecture review when the us
    ```sh
    find <area> -maxdepth 2 -type f -name '*.go' | sort
    rg -n "type .*interface|func New|func \(.*\)|TODO|panic\(|os\.Getenv|http\.Client|time\.Now|json\.Marshal|AtomicReplace|Status|Evidence" <area>
-   rg -n "<public command/tool/error/status text>" cmd internal docs/content/building-gormes
+   rg -n "<public command/tool/error/status text>" cmd internal webpages/docs/content/building-gormes
    go test ./<package> -run '<focused existing test pattern>' -count=1
    ```
 

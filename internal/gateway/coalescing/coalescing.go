@@ -2,6 +2,7 @@ package coalescing
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 )
@@ -31,6 +32,8 @@ type Evidence struct {
 // outcomes. The sink must not block or panic; panics are not recovered here —
 // callers must ensure the sink is safe to call from any goroutine.
 type EvidenceSink func(Evidence)
+
+var errNoSender = errors.New("coalescer sender is not configured")
 
 func EvidenceSinkOption(sink EvidenceSink) Option {
 	return func(c *Coalescer) {
@@ -139,8 +142,17 @@ func (c *Coalescer) FlushImmediate(ctx context.Context, text string) {
 }
 
 func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finalize bool) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return
+	}
 	c.deliveryMu.Lock()
 	defer c.deliveryMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return
+	}
 
 	state := c.finalDeliverySnapshot()
 	msgID := state.msgID
@@ -167,7 +179,7 @@ func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finali
 	if msgID == "" {
 		sentAt := c.now()
 		sentID, err = c.sendInitialVisibleMessage(ctx, text, finalize)
-		if err == nil {
+		if err == nil || sentID != "" {
 			createdAt = sentAt
 		}
 	} else {
@@ -179,6 +191,14 @@ func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finali
 		// Mid-stream (non-finalize) edit errors are expected during streaming
 		// throttle (e.g., Telegram rate limits). Keep the silent-swallow
 		// behavior for those; only act on finalize errors.
+		if sentID != "" {
+			c.mu.Lock()
+			if c.pendingMsgID == "" {
+				c.pendingMsgID = sentID
+				c.messageCreatedAt = createdAt
+			}
+			c.mu.Unlock()
+		}
 		if !finalize {
 			return
 		}
@@ -237,9 +257,17 @@ func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finali
 }
 
 func (c *Coalescer) sendInitialVisibleMessage(ctx context.Context, text string, finalize bool) (string, error) {
+	if c.sender == nil {
+		return "", errNoSender
+	}
 	if c.initialTextSend {
 		if msgID, err, ok := c.sendInitialText(ctx, text); ok {
-			return msgID, err
+			if err == nil {
+				return msgID, nil
+			}
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return "", err
+			}
 		}
 	}
 	msgID, err := c.sender.SendPlaceholder(ctx, c.chatID)
@@ -247,7 +275,7 @@ func (c *Coalescer) sendInitialVisibleMessage(ctx context.Context, text string, 
 		return "", err
 	}
 	if err := editCoalescedMessage(ctx, c.sender, c.chatID, msgID, text, finalize); err != nil {
-		return "", err
+		return msgID, err
 	}
 	return msgID, nil
 }
@@ -269,6 +297,11 @@ func (c *Coalescer) Run(ctx context.Context) {
 }
 
 func (c *Coalescer) tryFlush(ctx context.Context) {
+	if ctx != nil {
+		if err := ctx.Err(); err != nil {
+			return
+		}
+	}
 	c.deliveryMu.Lock()
 	defer c.deliveryMu.Unlock()
 
@@ -293,6 +326,14 @@ func (c *Coalescer) tryFlush(ctx context.Context) {
 	if msgID == "" {
 		sentID, err := c.sendInitialVisibleMessage(ctx, text, false)
 		if err != nil {
+			if sentID != "" {
+				c.mu.Lock()
+				if c.pendingMsgID == "" {
+					c.pendingMsgID = sentID
+					c.messageCreatedAt = now
+				}
+				c.mu.Unlock()
+			}
 			return
 		}
 		c.mu.Lock()
@@ -402,6 +443,9 @@ type messageDeleter interface {
 }
 
 func editCoalescedMessage(ctx context.Context, sender PlaceholderEditor, chatID, msgID, text string, finalize bool) error {
+	if sender == nil {
+		return errNoSender
+	}
 	if finalizer, ok := sender.(finalizingMessageEditor); ok {
 		return finalizer.EditMessageFinal(ctx, chatID, msgID, text, finalize)
 	}

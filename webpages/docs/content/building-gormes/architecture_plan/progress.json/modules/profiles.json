@@ -40,7 +40,7 @@
         "internal/llm/",
         "internal/gateway/live_turn_prompt.go",
         "internal/gateway/live_turn_prompt_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "GOCACHE=/tmp/gormes-go-cache go test ./internal/llm ./internal/gateway -run 'ContextRoot|SOUL|DurableUserContext|LiveTurn' -count=1",
@@ -239,9 +239,9 @@
         "cmd/gormes/profile.go",
         "cmd/gormes/profile_command_test.go",
         "cmd/gormes/hermes_cli_parity.go",
-        "docs/content/cli/profile.md",
-        "docs/content/recipes/profiles.md",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/cli/profile.md",
+        "webpages/docs/content/recipes/profiles.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'Profile|HermesCLIParityManifest' -count=1",
@@ -318,7 +318,7 @@
         "internal/cli/profile_distribution_test.go",
         "cmd/gormes/profile.go",
         "cmd/gormes/profile_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run '^TestReadProfileDistributionManifest' -count=1",
@@ -370,7 +370,7 @@
         "cmd/gormes/profile.go",
         "internal/cli/profile_name.go",
         "internal/cli/profile_root.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree"
       ],
       "ready_when": [
         "Gormes profile command binding and distribution metadata readout are complete, so `profile` command wiring and profile-root resolution already exist.",
@@ -400,7 +400,7 @@
         "internal/cli/profile_create_test.go",
         "cmd/gormes/profile.go",
         "cmd/gormes/profile_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run '^TestCreateProfile' -count=1",
@@ -453,7 +453,7 @@
         "cmd/gormes/hermes_cli_parity.go:286",
         "../hermes-agent/gateway/run.py:_handle_model_command",
         "../hermes-agent/gateway/run.py:_handle_profile_command",
-        "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
       ],
       "ready_when": [
         "Hermes config.yaml model/provider runtime bridge row is complete and exposes a typed read model.",
@@ -487,7 +487,7 @@
       "write_scope": [
         "internal/cli/selector.go",
         "internal/cli/selector_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run '^TestModelSelector|^TestProfileSelector' -count=1",
@@ -564,7 +564,7 @@
       "write_scope": [
         "cmd/gormes/main.go",
         "cmd/gormes/chat_command_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run '^TestChatCommand(ProfileFlag|Query|SkillsFlag|WithoutQuery)' -count=1",
@@ -633,7 +633,7 @@
       "write_scope": [
         "internal/cli/profile_name.go",
         "internal/cli/profile_name_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run 'TestValidateProfileName_' -count=1",
@@ -696,7 +696,7 @@
       "write_scope": [
         "internal/cli/profile_root.go",
         "internal/cli/profile_root_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run 'TestResolveProfileRoot_' -count=1",
@@ -767,7 +767,7 @@
       "write_scope": [
         "internal/cli/active_profile.go",
         "internal/cli/active_profile_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/cli -run 'TestReadActiveProfile_|TestWriteActiveProfile_|TestClearActiveProfile_' -count=1",
@@ -824,12 +824,12 @@
         "system"
       ],
       "degraded_mode": "Until child rows ship, legacy profile/config paths remain compatibility inputs. This parent must not write runtime code, prompt for live credentials, select one global active/default profile, or treat per-profile config.toml files as the v2 canonical destination. Operators should see v2 as planned direction with child rows carrying executable behavior.",
-      "fixture": "docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center + internal/config/profile_config_v2.go:DefaultConfigDocumentV2",
+      "fixture": "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center + internal/config/profile_config_v2.go:DefaultConfigDocumentV2",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#invariants",
-        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#root-shape",
-        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#migration-rules",
-        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
+        "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md#invariants",
+        "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md#root-shape",
+        "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md#migration-rules",
+        "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
         "internal/config/config.go:CurrentConfigVersion",
         "internal/config/config.go:Config.Profiles",
         "internal/config/profile_config_v2.go:DefaultProfileID",
@@ -877,7 +877,7 @@
       "note": "Planner closeout by development-goal iteration 50 on 2026-05-23. The Profile Control Center v2 parent is now satisfied by validated child evidence: canonical config.toml v2 docs, root profile service schema, legacy migration planner, control-center read model, control-center TUI draft/apply shell, per-profile provider credential readiness, per-profile channel credential readiness, Navivox multi-server profile routing, workspace allow-list enforcement, profile-local subprocess HOME, and long-term fleet supervisor planning. The parent remains inventory evidence only; future Navivox product rows and release rows are separate work. Validation: go run ./cmd/progress validate; go test ./internal/progress -count=1; go test ./cmd/progress -count=1; go test ./webpages/docs -count=1; git diff --check.",
       "write_scope": [
         "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/profiles.json",
-        "docs/content/building-gormes/architecture_plan/profile-config-v2.md"
+        "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md"
       ],
       "no_test_required": "Inventory-only umbrella; executable child rows carry focused tests, and this planner slice is guarded by internal/progress TestLoad_RealFile_ProfileControlCenterV2Umbrella plus go run ./cmd/progress validate.",
       "done_signal": [
@@ -934,7 +934,7 @@
         "cmd/gormes/setup_profiles_test.go",
         "internal/config/writer.go",
         "internal/config/writer_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'Setup|Profile' -count=1",
@@ -998,7 +998,7 @@
         "cmd/gormes/setup_profiles_test.go",
         "internal/config/agents.go",
         "internal/config/writer.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'Setup|Profile' -count=1",
@@ -1308,7 +1308,7 @@
       "degraded_mode": "If v2 config is missing, the read model surfaces legacy_config_detected/migration_available rows instead of pretending the old per-profile config shape is current.",
       "fixture": "internal/cli/gormescli/modules/profiles/control_center_model_test.go",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
+        "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
         "internal/cli/gormescli/modules/profiles/setup.go",
         "cmd/gormes/setup_profiles_tui.go",
         "internal/config/config.go",
@@ -1345,7 +1345,7 @@
         "internal/cli/gormescli/modules/profiles/control_center_model_test.go",
         "internal/cli/gormescli/modules/profiles/setup.go",
         "cmd/gormes/setup_profiles_tui.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
@@ -1385,7 +1385,7 @@
       "degraded_mode": "If terminal capabilities are limited, the TUI falls back to deterministic list/input screens with the same read-model labels and draft/apply semantics.",
       "fixture": "internal/cli/gormescli/modules/profiles/control_center_tui_test.go",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
+        "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
         "cmd/gormes/setup_profiles_tui.go",
         "internal/cli/gormescli/modules/profiles/control_center_model.go",
         "internal/tui/wizard/",
@@ -1425,7 +1425,7 @@
         "internal/cli/gormescli/modules/profiles/control_center_tui_test.go",
         "internal/tui/wizard/",
         "webpages/docs/profile_docs_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "internal/config/profile_config_v2.go",
         "internal/config/profile_config_v2_test.go"
@@ -1520,7 +1520,7 @@
       "note": "Complete: internal/tuigateway/image.go ports _estimate_image_tokens and _image_meta as EstimateImageTokens(width, height int) int and ReadImageMetadata(path string) (ImageMetadata, error) — the metadata reader caps reads at 64 KiB through io.LimitReader so PNG/JPEG/GIF headers decode in O(header) and a fake 12 MiB pseudo-PNG falls back to name-only without exhausting memory. internal/tuigateway/personality.go ports _render_personality_prompt and _validate_personality as RenderPersonalityPrompt(value any) string and ValidatePersonality(value string, personalities map[string]any) (name, prompt string, err error) with deterministic alias handling (`none`, `default`, `neutral`) and sorted, raw-casing-preserving error messages. internal/tuigateway/platform_event.go declares the PlatformEventKind enum plus SubmitEvent, CancelEvent, ResizeEvent, ProgressEvent, ImageMetadataEvent — each round-trips encoding/json with stable field tags, and ValidPlatformEventKind gives O(1) discriminator validation. Fixtures in internal/tuigateway/media_personality_event_test.go cover tile-math math + zero/negative guard, PNG/JPEG/GIF fixture decode, non-image and missing-file fallbacks, the bounded-read invariant, personality dict assembly + plain-string passthrough + alias clearing + sorted available-list error + raw-casing preservation, and JSON round-trip plus omitempty checks for every event variant. No NewRemoteClient, NewGatewayMux, SSE dialer, JSON-RPC dispatcher, or live image read outside t.TempDir() exists in this slice.",
       "write_scope": [
         "internal/tuigateway/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/tuigateway -run 'Test.*Image|Test.*Personality|Test.*PlatformEvent|Test.*Media' -count=1",
@@ -1591,7 +1591,7 @@
       "write_scope": [
         "internal/config/config.go",
         "internal/llm/prompt_assembly.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config -count=1",
@@ -1635,7 +1635,7 @@
       "source_refs": [
         "./hermes-agent/cli-config.yaml.example",
         "./hermes-agent/hermes_cli/config.py",
-        "docs/content/building-gormes/development-skills/deerflow-pattern-theft.md"
+        "webpages/docs/content/building-gormes/development-skills/deerflow-pattern-theft.md"
       ],
       "ready_when": [
         "internal/config/config.go has AgentRuntimeCfg with Personalities, MaxTurns, ReasoningEffort, GatewayTimeout, APIMaxRetries, Verbose fields.",
@@ -1653,7 +1653,7 @@
       "write_scope": [
         "internal/config/config.go",
         "internal/llm/prompt_assembly.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config -count=1",

@@ -48,6 +48,13 @@ func TestJSONLWriterAppendsStableSchemaInOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile(%q): %v", path, err)
 	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("Stat(%q): %v", path, err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("audit log mode = %o, want 0600", got)
+	}
 
 	lines := bytes.Split(bytes.TrimSpace(raw), []byte("\n"))
 	if len(lines) != 2 {
@@ -116,6 +123,29 @@ func TestJSONLWriterAppendsStableSchemaInOrder(t *testing.T) {
 	}
 	if gotSecond.Error != "synthetic failure" {
 		t.Fatalf("second error = %q, want %q", gotSecond.Error, "synthetic failure")
+	}
+}
+
+func TestJSONLWriterTightensExistingWorldReadableLog(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "tools", "audit.jsonl")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(""), 0o644); err != nil {
+		t.Fatalf("WriteFile fixture: %v", err)
+	}
+
+	writer := NewJSONLWriter(path)
+	if err := writer.Record(Record{Tool: "echo", Args: json.RawMessage(`{}`)}); err != nil {
+		t.Fatalf("Record: %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("Stat(%q): %v", path, err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("audit log mode = %o, want 0600", got)
 	}
 }
 

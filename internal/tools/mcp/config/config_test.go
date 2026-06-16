@@ -55,6 +55,46 @@ func TestResolveMCPConfigRejectsAmbiguousTopLevelServerBlocks(t *testing.T) {
 	}
 }
 
+func TestLookupMCPServersBlockReportsExplicitCandidateStates(t *testing.T) {
+	tests := []struct {
+		name         string
+		root         map[string]any
+		wantFound    bool
+		wantConflict bool
+		wantVariants []string
+	}{
+		{name: "absent", root: map[string]any{}},
+		{name: "single snake case", root: map[string]any{"mcp_servers": map[string]any{}}, wantFound: true},
+		{name: "single camel case", root: map[string]any{"mcpServers": map[string]any{}}, wantFound: true},
+		{
+			name:         "ambiguous variants sorted",
+			root:         map[string]any{"mcpServers": map[string]any{}, "MCP_SERVERS": map[string]any{}},
+			wantConflict: true,
+			wantVariants: []string{"MCP_SERVERS", "mcpServers"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := lookupMCPServersBlock(tc.root)
+			if got.Found != tc.wantFound {
+				t.Fatalf("Found = %v, want %v", got.Found, tc.wantFound)
+			}
+			if got.Conflict.HasConflict() != tc.wantConflict {
+				t.Fatalf("conflict = %#v, want conflict=%v", got.Conflict, tc.wantConflict)
+			}
+			if len(got.Conflict.Variants) != len(tc.wantVariants) {
+				t.Fatalf("variants = %#v, want %#v", got.Conflict.Variants, tc.wantVariants)
+			}
+			for i := range tc.wantVariants {
+				if got.Conflict.Variants[i] != tc.wantVariants[i] {
+					t.Fatalf("variants = %#v, want %#v", got.Conflict.Variants, tc.wantVariants)
+				}
+			}
+		})
+	}
+}
+
 func TestResolveMCPConfigRejectsInvalidEnabledBoolean(t *testing.T) {
 	resolved, err := ResolveMCPConfig(map[string]any{
 		"mcp_servers": map[string]any{

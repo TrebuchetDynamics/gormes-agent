@@ -11,7 +11,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -368,7 +367,7 @@ const (
 	imageGenEvidenceOK                    imageGenEvidence = "image_gen_ok"
 	imageGenEvidenceDisabled              imageGenEvidence = "image_gen_disabled"
 	imageGenEvidenceInvalidArguments      imageGenEvidence = "image_gen_invalid_arguments"
-	imageGenEvidenceProviderUnavailable   imageGenEvidence = "image_gen_provider_unavailable"
+	imageGenEvidenceProviderUnavailable   imageGenEvidence = imageGenEvidence(ImageGenerationStatusProviderUnavailable)
 	imageGenEvidenceProviderNotRegistered imageGenEvidence = "provider_not_registered"
 	imageGenEvidenceAPIError              imageGenEvidence = "image_gen_api_error"
 )
@@ -439,28 +438,9 @@ func (r *ImageGenRunner) Generate(ctx context.Context, req ImageGenRequest) Imag
 		size = meta.Sizes["landscape"]
 	}
 
-	numImages := req.NumImages
-	if numImages <= 0 {
-		numImages = 1
-	}
+	providerReq := prepareImageProviderRequest(req, aspectRatio, model, sizeStyle, size, meta)
 
-	outputFormat := DefaultOutputFormat
-	if v, ok := meta.Defaults["output_format"].(string); ok {
-		outputFormat = v
-	}
-
-	providerResult, err := provider.Generate(ctx, ImageProviderRequest{
-		Prompt:            req.Prompt,
-		AspectRatio:       aspectRatio,
-		SizeStyle:         sizeStyle,
-		Size:              size,
-		Model:             model,
-		NumImages:         numImages,
-		Seed:              req.Seed,
-		OutputFormat:      outputFormat,
-		NumInferenceSteps: req.NumInferenceSteps,
-		GuidanceScale:     req.GuidanceScale,
-	})
+	providerResult, err := provider.Generate(ctx, providerReq)
 	if err != nil {
 		return imageGenFailure(providerName, imageGenEvidenceAPIError, redactImageGenErrorForPrompt(err.Error(), req.Prompt))
 	}
@@ -501,6 +481,34 @@ func (r *ImageGenRunner) Generate(ctx context.Context, req ImageGenRequest) Imag
 		result.ImageURL = ""
 	}
 	return result
+}
+
+func prepareImageProviderRequest(req ImageGenRequest, aspectRatio, model, sizeStyle, size string, meta FALModelMetadata) ImageProviderRequest {
+	numImages := req.NumImages
+	if numImages <= 0 {
+		numImages = 1
+	}
+
+	outputFormat := DefaultOutputFormat
+	if v, ok := meta.Defaults["output_format"].(string); ok {
+		outputFormat = v
+	}
+	if req.OutputFormat != nil && strings.TrimSpace(*req.OutputFormat) != "" {
+		outputFormat = strings.TrimSpace(*req.OutputFormat)
+	}
+
+	return ImageProviderRequest{
+		Prompt:            req.Prompt,
+		AspectRatio:       aspectRatio,
+		SizeStyle:         sizeStyle,
+		Size:              size,
+		Model:             model,
+		NumImages:         numImages,
+		Seed:              req.Seed,
+		OutputFormat:      outputFormat,
+		NumInferenceSteps: req.NumInferenceSteps,
+		GuidanceScale:     req.GuidanceScale,
+	}
 }
 
 func (r *ImageGenRunner) selectProvider(ctx context.Context) (string, ImageGenerator, imageGenEvidence) {
@@ -550,35 +558,6 @@ func imageGenFailure(provider string, evidence imageGenEvidence, message string)
 		Evidence: ImageGenerationStatus(strings.TrimSpace(string(evidence))),
 		Error:    redactImageGenError(message),
 	}
-}
-
-// imageGenSecretPatterns matches credential shapes in error messages.
-var imageGenSecretPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+`),
-	regexp.MustCompile(`(?i)\bKey\s+[A-Za-z0-9._~+/=\-]+`),
-	regexp.MustCompile(`(?i)\b(sk|key|token|secret)[-_]?[A-Za-z0-9]*[=:]\s*["']?[^"'\s]+`),
-	regexp.MustCompile(`\b[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]{20,}\b`),
-}
-
-func redactImageGenError(text string) string {
-	return redactImageGenErrorForPrompt(text, "")
-}
-
-func redactImageGenErrorForPrompt(text, prompt string) string {
-	redacted := strings.TrimSpace(text)
-	for _, pattern := range imageGenSecretPatterns {
-		redacted = pattern.ReplaceAllString(redacted, "[redacted]")
-	}
-	if prompt = strings.TrimSpace(prompt); prompt != "" {
-		redacted = strings.ReplaceAll(redacted, prompt, "[redacted_prompt]")
-	}
-	if len(redacted) > 240 {
-		redacted = redacted[:240] + "..."
-	}
-	if redacted == "" {
-		return "redacted image generation error"
-	}
-	return redacted
 }
 
 // falAPIKeyPresent returns true if FAL_API_KEY is set in the environment.
@@ -868,6 +847,15 @@ func buildFALPayload(req ImageProviderRequest, meta FALModelMetadata) map[string
 		payload["aspect_ratio"] = req.Size
 	}
 
+	if strings.TrimSpace(req.OutputFormat) != "" {
+		payload["output_format"] = strings.TrimSpace(req.OutputFormat)
+	}
+	if req.NumInferenceSteps != nil {
+		payload["num_inference_steps"] = *req.NumInferenceSteps
+	}
+	if req.GuidanceScale != nil {
+		payload["guidance_scale"] = *req.GuidanceScale
+	}
 	if req.Seed != nil {
 		payload["seed"] = *req.Seed
 	}

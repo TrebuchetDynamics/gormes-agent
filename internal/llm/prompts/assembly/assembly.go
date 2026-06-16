@@ -7,6 +7,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/guidance"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/prompts/skillprompt"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm/prompts/turnmetadata"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 type PromptAssemblyOptions struct {
@@ -112,12 +113,13 @@ func BuildSystemPrompt(opts PromptAssemblyOptions) PromptAssemblyResult {
 			Reason:   "skills_loaded",
 		})
 	} else if err != nil {
+		errText := promptAssemblyErrorText(err)
 		evidence = append(evidence, PromptBlockEvidence{
 			Block:    "skills_snapshot",
 			Included: false,
-			Reason:   err.Error(),
+			Reason:   errText,
 		})
-		errors = append(errors, err.Error())
+		errors = append(errors, errText)
 	} else {
 		evidence = append(evidence, PromptBlockEvidence{
 			Block:    "skills_snapshot",
@@ -151,4 +153,13 @@ func BuildSystemPrompt(opts PromptAssemblyOptions) PromptAssemblyResult {
 		Blocks: evidence,
 		Errors: errors,
 	}
+}
+
+func promptAssemblyErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := redaction.RedactSecrets(err.Error())
+	msg = strings.NewReplacer("`", "'", "*", "'", "#", "＃").Replace(msg)
+	return strings.Join(strings.Fields(msg), " ")
 }

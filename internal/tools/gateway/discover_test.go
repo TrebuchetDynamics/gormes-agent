@@ -390,6 +390,27 @@ Gormes\032Gateway._openclaw-gw._tcp.local. can be reached at workstation.local.:
 	}
 }
 
+func TestParseDNSSDResolveGatewayKeepsMultipleResolvedAddresses(t *testing.T) {
+	stdout := `Lookup Gormes Gateway._openclaw-gw._tcp.local.
+Gormes Gateway._openclaw-gw._tcp.local. can be reached at workstation.local.:18789 (interface 4)
+Gormes Gateway._openclaw-gw._tcp.local. can be reached at 192.0.2.10:18789 (interface 4)
+ "displayName=Juan Gateway"
+`
+
+	endpoints := parseDNSSDResolveGateway(stdout, "Gormes Gateway")
+	if len(endpoints) != 2 {
+		t.Fatalf("endpoints = %+v, want both resolved gateway addresses", endpoints)
+	}
+	if endpoints[0].Address != "workstation.local" || endpoints[1].Address != "192.0.2.10" {
+		t.Fatalf("addresses = %q, %q; want resolved addresses in DNS-SD order", endpoints[0].Address, endpoints[1].Address)
+	}
+	for _, endpoint := range endpoints {
+		if endpoint.TXT["displayName"] != "Juan Gateway" {
+			t.Fatalf("endpoint = %+v, want shared TXT metadata on each resolved address", endpoint)
+		}
+	}
+}
+
 func TestParseDNSSDResolveGatewayDropsAmbiguousUnbracketedIPv6HostPort(t *testing.T) {
 	stdout := `Lookup Gormes Gateway._openclaw-gw._tcp.local.
 Gormes Gateway._openclaw-gw._tcp.local. can be reached at fe80::1:18789 (interface 4)
@@ -929,9 +950,9 @@ func TestGatewayDiscoverUsageCostDeduplicatesSessionIDByNewestUsage(t *testing.T
 	}
 }
 
-func TestGatewayUsageCostDedupKeepsFirstRowWhenTimestampsTie(t *testing.T) {
+func TestGatewayUsageCostDedupPrefersRicherUsageWhenTimestampsTie(t *testing.T) {
 	now := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
-	flow := evaluateGatewayUsageCostCandidates([]GatewayUsageSession{{
+	for _, sessions := range [][]GatewayUsageSession{{{
 		SessionID: "sess-tie",
 		UpdatedAt: now,
 		TokensIn:  100,
@@ -939,13 +960,23 @@ func TestGatewayUsageCostDedupKeepsFirstRowWhenTimestampsTie(t *testing.T) {
 		SessionID: "sess-tie",
 		UpdatedAt: now,
 		TokensIn:  200,
-	}}, now.Add(-24*time.Hour), GatewayUsagePricing{})
+	}}, {{
+		SessionID: "sess-tie",
+		UpdatedAt: now,
+		TokensIn:  200,
+	}, {
+		SessionID: "sess-tie",
+		UpdatedAt: now,
+		TokensIn:  100,
+	}}} {
+		flow := evaluateGatewayUsageCostCandidates(sessions, now.Add(-24*time.Hour), GatewayUsagePricing{})
 
-	if got := len(flow.Accepted); got != 1 {
-		t.Fatalf("Accepted len = %d, want 1; flow=%+v", got, flow)
-	}
-	if flow.Accepted[0].TokensIn != 100 {
-		t.Fatalf("Accepted[0] = %+v, want first same-timestamp row preserved", flow.Accepted[0])
+		if got := len(flow.Accepted); got != 1 {
+			t.Fatalf("Accepted len = %d, want 1; flow=%+v", got, flow)
+		}
+		if flow.Accepted[0].TokensIn != 200 {
+			t.Fatalf("Accepted[0] = %+v, want same-timestamp row with richer usage independent of input order", flow.Accepted[0])
+		}
 	}
 }
 

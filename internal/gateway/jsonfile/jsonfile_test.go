@@ -10,6 +10,90 @@ import (
 	"testing"
 )
 
+func TestReadRejectsBlankPathWithoutReadingCwdFile(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	if err := os.WriteFile(" ", []byte(`{"name":"leaked"}`), 0o600); err != nil {
+		t.Fatalf("write cwd space file: %v", err)
+	}
+	var out struct {
+		Name string `json:"name"`
+	}
+
+	exists, err := Read(context.Background(), " ", &out, "test record")
+	if err == nil {
+		t.Fatal("Read blank path err = nil, want error")
+	}
+	if exists || out.Name != "" {
+		t.Fatalf("Read blank path exists=%v out=%+v, want no decoded cwd file", exists, out)
+	}
+}
+
+func TestReadAllowsNilContext(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "record.json")
+	if err := os.WriteFile(path, []byte(`{"name":"gort"}`), 0o600); err != nil {
+		t.Fatalf("write record: %v", err)
+	}
+	var out struct {
+		Name string `json:"name"`
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("Read panicked with nil context: %v", r)
+		}
+	}()
+
+	exists, err := Read(nil, path, &out, "test record")
+	if err != nil || !exists || out.Name != "gort" {
+		t.Fatalf("Read nil context = exists %v out %+v err %v, want decoded gort", exists, out, err)
+	}
+}
+
+func TestWriteAtomicWithOptionsRejectsBlankPathBeforeCreatingFile(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	writerCalled := false
+
+	err := WriteAtomicWithOptions(context.Background(), " ", map[string]string{"name": "gort"}, "test record", WriteOptions{
+		Writer: func(string, []byte, os.FileMode) error {
+			writerCalled = true
+			return nil
+		},
+	})
+	if err == nil {
+		t.Fatal("WriteAtomicWithOptions blank path err = nil, want error")
+	}
+	if writerCalled {
+		t.Fatal("writer was called for blank path")
+	}
+	entries, readErr := os.ReadDir(root)
+	if readErr != nil {
+		t.Fatalf("read cwd: %v", readErr)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("blank path created cwd entries: %+v", entries)
+	}
+}
+
+func TestWriteAtomicWithOptionsAllowsNilContext(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "record.json")
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("WriteAtomicWithOptions panicked with nil context: %v", r)
+		}
+	}()
+
+	if err := WriteAtomicWithOptions(nil, path, map[string]string{"name": "gort"}, "test record", WriteOptions{FileMode: 0o600}); err != nil {
+		t.Fatalf("WriteAtomicWithOptions nil context: %v", err)
+	}
+	var out struct {
+		Name string `json:"name"`
+	}
+	if _, err := Read(context.Background(), path, &out, "test record"); err != nil || out.Name != "gort" {
+		t.Fatalf("written record out=%+v err=%v, want decoded gort", out, err)
+	}
+}
+
 func TestWriteAtomicWithOptionsUsesFilesystemPolicy(t *testing.T) {
 	ctx := context.Background()
 	root := filepath.Join(t.TempDir(), "state")
@@ -102,6 +186,37 @@ func TestWriteAtomicWithOptionsUsesInjectedWriterBeforeRename(t *testing.T) {
 	}
 	if string(raw) != "old\n" {
 		t.Fatalf("record = %q, want old record preserved", string(raw))
+	}
+}
+
+func TestWriteAtomicWithOptionsHonorsContextCanceledDuringInjectedWriter(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	root := t.TempDir()
+	path := filepath.Join(root, "record.json")
+	if err := os.WriteFile(path, []byte("old\n"), 0o600); err != nil {
+		t.Fatalf("write old record: %v", err)
+	}
+
+	err := WriteAtomicWithOptions(ctx, path, map[string]string{"name": "new"}, "test record", WriteOptions{
+		FileMode:   0o600,
+		TmpPattern: ".custom-*.tmp",
+		Writer: func(tmpPath string, data []byte, perm os.FileMode) error {
+			if err := os.WriteFile(tmpPath, data, perm); err != nil {
+				return err
+			}
+			cancel()
+			return nil
+		},
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("WriteAtomicWithOptions error = %v, want context.Canceled", err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read record: %v", err)
+	}
+	if string(raw) != "old\n" {
+		t.Fatalf("record = %q, want old record preserved after cancellation", string(raw))
 	}
 }
 

@@ -184,9 +184,9 @@ func ResolveMCPConfig(raw any, opts MCPConfigOptions) (MCPConfigResolution, erro
 	if root == nil {
 		return MCPConfigResolution{}, nil
 	}
-	serversRaw, ok, variants := lookupMCPServersBlock(root)
-	if len(variants) > 1 {
-		reason := fmt.Sprintf("ambiguous mcp server block fields: %s", strings.Join(variants, ", "))
+	block := lookupMCPServersBlock(root)
+	if block.Conflict.HasConflict() {
+		reason := block.Conflict.Reason()
 		status := MCPServerStatus{
 			Name:   "mcp_servers",
 			Status: MCPConfigStatusInvalidConfig,
@@ -195,10 +195,10 @@ func ResolveMCPConfig(raw any, opts MCPConfigOptions) (MCPConfigResolution, erro
 		issue := mcpConfigIssue{server: "mcp_servers", status: MCPConfigStatusInvalidConfig, message: reason}
 		return MCPConfigResolution{Statuses: []MCPServerStatus{status}}, &MCPConfigError{Issues: []mcpConfigIssue{issue}}
 	}
-	if !ok {
+	if !block.Found {
 		return MCPConfigResolution{}, nil
 	}
-	serversMap := mcpMap(serversRaw)
+	serversMap := mcpMap(block.Value)
 	if serversMap == nil {
 		status := MCPServerStatus{
 			Name:   "mcp_servers",
@@ -612,7 +612,37 @@ func mcpMap(value any) map[string]any {
 	}
 }
 
-func lookupMCPServersBlock(root map[string]any) (any, bool, []string) {
+type mcpServerBlockCandidate struct {
+	Value    any
+	Found    bool
+	Conflict mcpFieldConflict
+}
+
+type mcpFieldConflict struct {
+	Field    string
+	Variants []string
+}
+
+func (c mcpFieldConflict) HasConflict() bool {
+	return len(c.Variants) > 1
+}
+
+func (c mcpFieldConflict) Reason() string {
+	return fmt.Sprintf("ambiguous %s: %s", c.Field, strings.Join(c.Variants, ", "))
+}
+
+func lookupMCPServersBlock(root map[string]any) mcpServerBlockCandidate {
+	variants := mcpServerBlockVariants(root)
+	if len(variants) == 0 {
+		return mcpServerBlockCandidate{}
+	}
+	if len(variants) > 1 {
+		return mcpServerBlockCandidate{Conflict: mcpFieldConflict{Field: "mcp server block fields", Variants: variants}}
+	}
+	return mcpServerBlockCandidate{Value: root[variants[0]], Found: true}
+}
+
+func mcpServerBlockVariants(root map[string]any) []string {
 	variants := make([]string, 0, 2)
 	for key := range root {
 		if strings.EqualFold(key, "mcp_servers") || strings.EqualFold(key, "mcpServers") {
@@ -620,13 +650,7 @@ func lookupMCPServersBlock(root map[string]any) (any, bool, []string) {
 		}
 	}
 	sort.Strings(variants)
-	if len(variants) == 0 {
-		return nil, false, nil
-	}
-	if len(variants) > 1 {
-		return nil, false, variants
-	}
-	return root[variants[0]], true, nil
+	return variants
 }
 
 func sortedMCPKeys(values map[string]any) []string {

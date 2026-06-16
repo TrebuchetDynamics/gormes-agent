@@ -169,6 +169,23 @@ def audit_jsonl(path: pathlib.Path) -> dict[str, Any]:
     return out
 
 
+def audit_profiles(home: pathlib.Path) -> dict[str, Any]:
+    profiles_dir = home / "profiles"
+    out: dict[str, Any] = {"path": str(profiles_dir), "state": "missing", "profiles": {}}
+    if not profiles_dir.exists():
+        return out
+    out["state"] = "present"
+    for profile_root in sorted(p for p in profiles_dir.iterdir() if p.is_dir()):
+        name = profile_root.name
+        out["profiles"][name] = {
+            "root": str(profile_root),
+            "memory_db": audit_memory_db(profile_root / "memory.db"),
+            "sessions_db": file_info(profile_root / "sessions.db"),
+            "session_index": file_info(profile_root / "sessions" / "index.yaml"),
+        }
+    return out
+
+
 def scan_permissions(home: pathlib.Path) -> list[dict[str, Any]]:
     risky = []
     for path in [home, home / "sessions" / "index.yaml", home / "tools" / "audit.jsonl", home / "subagents" / "runs.jsonl", home / "memory" / "MEMORY.md", home / "memory" / "USER.md"]:
@@ -187,7 +204,8 @@ def scan_permissions(home: pathlib.Path) -> list[dict[str, Any]]:
             total += st.st_size
             if st.st_mode & stat.S_IROTH:
                 world += 1
-        risky.append({"path": str(audio), "audio_files": count, "total_bytes": total, "world_readable_files": world})
+        if world > 0:
+            risky.append({"path": str(audio), "audio_files": count, "total_bytes": total, "world_readable_files": world})
     return risky
 
 
@@ -197,7 +215,13 @@ def main() -> int:
         "home": str(home),
         "generated_at": iso(datetime.now(tz=timezone.utc).timestamp()),
         "files": {name: file_info(home / name) for name in ["sessions.db", "memory.db", "gateway.pid", "gateway_state.json", "sessions/index.yaml"]},
+        "runtime": {
+            "gateway_pid": file_info(home / "runtime" / "gateway.pid"),
+            "gateway_state": file_info(home / "runtime" / "gateway_state.json"),
+            "runtime_log": file_info(home / "runtime" / "runtimegateway.log"),
+        },
         "memory_db": audit_memory_db(home / "memory.db"),
+        "profiles": audit_profiles(home),
         "jsonl": {
             "subagent_runs": audit_jsonl(home / "subagents" / "runs.jsonl"),
             "tool_audit": audit_jsonl(home / "tools" / "audit.jsonl"),
@@ -206,10 +230,14 @@ def main() -> int:
         "permission_risks": scan_permissions(home),
         "process_locks": {},
     }
-    sessions_db = home / "sessions.db"
-    if sessions_db.exists():
-        report["process_locks"]["lsof"] = run(["lsof", str(sessions_db)])
-        report["process_locks"]["fuser"] = run(["fuser", "-v", str(sessions_db)])
+    sessions_db_candidates = [home / "sessions.db"] + sorted((home / "profiles").glob("*/sessions.db"))
+    for sessions_db in sessions_db_candidates:
+        if sessions_db.exists():
+            key = str(sessions_db.relative_to(home))
+            report["process_locks"][key] = {
+                "lsof": run(["lsof", str(sessions_db)]),
+                "fuser": run(["fuser", "-v", str(sessions_db)]),
+            }
     print(json.dumps(report, indent=2, sort_keys=True))
     return 0
 

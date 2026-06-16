@@ -216,10 +216,14 @@ func mergeToolPolicies(parent, child ToolPolicy) ToolPolicy {
 	parent = normalizeToolPolicy(parent)
 	child = normalizeToolPolicy(child)
 	return ToolPolicy{
-		AllowedToolsets: appendUniqueStrings(parent.AllowedToolsets, child.AllowedToolsets...),
-		DeniedTools:     appendUniqueStrings(parent.DeniedTools, child.DeniedTools...),
-		PathGlobs:       appendUniqueStrings(parent.PathGlobs, child.PathGlobs...),
+		AllowedToolsets: mergeToolPolicyValues(parent.AllowedToolsets, child.AllowedToolsets),
+		DeniedTools:     mergeToolPolicyValues(parent.DeniedTools, child.DeniedTools),
+		PathGlobs:       mergeToolPolicyValues(parent.PathGlobs, child.PathGlobs),
 	}
+}
+
+func mergeToolPolicyValues(parent, child []string) []string {
+	return appendUniqueStrings(parent, child...)
 }
 
 func normalizeToolPolicy(policy ToolPolicy) ToolPolicy {

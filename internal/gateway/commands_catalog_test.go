@@ -46,6 +46,40 @@ func TestManagerCommandsCommandIncludesSkillsAndDoesNotLeakDuringActiveTurn(t *t
 	}
 }
 
+func TestManagerCommandsCommandOmitsSkillsCollidingWithBuiltins(t *testing.T) {
+	root := writeCommandsCatalogSkill(t, "set-home", "Collides with built-in sethome alias.")
+	ch := newFakeChannel("telegram")
+	fk := &fakeKernel{}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SkillRuntime: skills.NewRuntime(root, 8*1024, 5, ""),
+	}, fk, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	ch.pushInbound(InboundEvent{Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "m1", Kind: EventSubmit, Text: "/commands 99"})
+
+	waitFor(t, 300*time.Millisecond, func() bool {
+		for _, sent := range ch.sentSnapshot() {
+			if strings.Contains(sent.Text, "Available commands") {
+				if strings.Contains(sent.Text, "`/set-home`") {
+					t.Fatalf("commands catalog exposed colliding skill command:\n%s", sent.Text)
+				}
+				return true
+			}
+		}
+		return false
+	})
+	if got := len(fk.submitsSnapshot()); got != 0 {
+		t.Fatalf("kernel submits = %d, want no model submission for /commands", got)
+	}
+}
+
 func TestManagerCommandsCommandHandlesParsedGatewayEvent(t *testing.T) {
 	root := writeCommandsCatalogSkill(t, "ops-skill", "Operate safely.")
 	ch := newFakeChannel("telegram")
@@ -113,14 +147,5 @@ func TestManagerCommandsCommandDegradesWhenSkillScanFails(t *testing.T) {
 
 func writeCommandsCatalogSkill(t *testing.T, name, body string) string {
 	t.Helper()
-	root := t.TempDir()
-	dir := filepath.Join(root, "active", name)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatalf("MkdirAll: %v", err)
-	}
-	raw := "---\nname: " + name + "\ndescription: Invoke " + name + "\n---\n\n" + body + "\n"
-	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(raw), 0o644); err != nil {
-		t.Fatalf("WriteFile SKILL.md: %v", err)
-	}
-	return root
+	return writeActiveSkill(t, name, "Invoke "+name, body)
 }

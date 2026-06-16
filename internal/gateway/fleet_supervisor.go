@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 const (
@@ -149,6 +150,13 @@ type FleetOperationSummary struct {
 	Failed           int `json:"failed"`
 }
 
+func fleetContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
 func NewFleetSupervisor(cfg config.Config, opts FleetSupervisorOptions) *FleetSupervisor {
 	worker := opts.Worker
 	if worker == nil {
@@ -164,6 +172,7 @@ func (s *FleetSupervisor) Status(ctx context.Context) (FleetStatus, error) {
 	if s == nil {
 		return FleetStatus{}, nil
 	}
+	ctx = fleetContext(ctx)
 	credentialHashes, unavailableCredentialHashes := s.resolveCredentialHashes()
 	readiness := BuildProfileChannelReadinessWithOptions(s.cfg, ProfileChannelReadinessOptions{CredentialHashes: credentialHashes})
 	applyFleetCredentialHashUnavailable(&readiness, unavailableCredentialHashes)
@@ -217,6 +226,7 @@ func (s *FleetSupervisor) runAll(ctx context.Context, action FleetOperation, def
 	if s == nil {
 		return report, nil
 	}
+	ctx = fleetContext(ctx)
 	for _, target := range s.profileTargets() {
 		if err := ctx.Err(); err != nil {
 			return report, err
@@ -443,6 +453,9 @@ func normalizeFleetRuntime(runtime FleetProfileRuntime) FleetProfileRuntime {
 	}
 	runtime.Version = strings.TrimSpace(runtime.Version)
 	runtime.LastError = strings.TrimSpace(runtime.LastError)
+	if runtime.PID < 0 {
+		runtime.PID = 0
+	}
 	return runtime
 }
 
@@ -659,29 +672,54 @@ func fleetCommandOperationEvidence(action FleetOperation, success FleetOperation
 		return FleetOperationEvidence{Status: success, RuntimeOwner: FleetRuntimeOwnerProfileCommandWorker, Message: fmt.Sprintf("gateway %s command completed without parseable JSON", commandName)}
 	}
 	parts := []string{"gateway " + commandName}
-	if report.Action != "" {
-		parts = append(parts, "action="+report.Action)
+	if actionText := fleetCommandReportField(report.Action); actionText != "" {
+		parts = append(parts, "action="+actionText)
 	}
-	if report.Mode != "" {
-		parts = append(parts, "mode="+report.Mode)
+	if mode := fleetCommandReportField(report.Mode); mode != "" {
+		parts = append(parts, "mode="+mode)
 	}
-	if report.Manager != "" {
-		parts = append(parts, "manager="+report.Manager)
+	if manager := fleetCommandReportField(report.Manager); manager != "" {
+		parts = append(parts, "manager="+manager)
 	}
-	if report.Service != "" {
-		parts = append(parts, "service="+report.Service)
+	if service := fleetCommandReportField(report.Service); service != "" {
+		parts = append(parts, "service="+service)
 	}
-	if report.Outcome != "" {
-		parts = append(parts, "outcome="+report.Outcome)
+	if outcome := fleetCommandReportField(report.Outcome); outcome != "" {
+		parts = append(parts, "outcome="+outcome)
 	}
-	if report.FinalStatus != "" {
-		parts = append(parts, "final_status="+report.FinalStatus)
+	if finalStatus := fleetCommandReportField(report.FinalStatus); finalStatus != "" {
+		parts = append(parts, "final_status="+finalStatus)
 	}
 	status := success
 	if action == FleetOperationStopAll {
 		status = FleetOperationStatusStopped
 	}
 	return FleetOperationEvidence{Status: status, RuntimeOwner: FleetRuntimeOwnerProfileCommandWorker, Message: strings.Join(parts, " ")}
+}
+
+func fleetCommandReportField(value string) string {
+	value = strings.Join(strings.Fields(value), " ")
+	value = redaction.RedactSecrets(value)
+	fields := strings.Fields(value)
+	out := make([]string, 0, len(fields))
+	for i := 0; i < len(fields); i++ {
+		field := fields[i]
+		lower := strings.ToLower(field)
+		nextRedacted := i+1 < len(fields) && strings.Contains(strings.ToLower(fields[i+1]), "[redacted]")
+		if fleetCommandSecretField(lower) && (strings.Contains(lower, "[redacted]") || nextRedacted) {
+			out = append(out, "[redacted]")
+			if nextRedacted {
+				i++
+			}
+			continue
+		}
+		out = append(out, field)
+	}
+	return strings.TrimSpace(strings.Join(out, " "))
+}
+
+func fleetCommandSecretField(value string) bool {
+	return strings.Contains(value, "api_key") || strings.Contains(value, "api-key") || strings.Contains(value, "apikey") || strings.Contains(value, "authorization") || strings.Contains(value, "bearer") || strings.Contains(value, "token") || strings.Contains(value, "secret") || strings.Contains(value, "password")
 }
 
 func fleetGatewayServiceName(target FleetProfileTarget) string {

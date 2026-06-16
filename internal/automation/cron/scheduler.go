@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	cronlock "github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron/lock"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	rc "github.com/robfig/cron/v3"
 )
@@ -61,7 +62,7 @@ func NewScheduler(cfg SchedulerConfig, log *slog.Logger) *Scheduler {
 // called to tear down.
 func (s *Scheduler) Start(ctx context.Context) error {
 	if strings.TrimSpace(s.cfg.LockPath) == "" {
-		s.cfg.LockPath = defaultCronTickLockPath()
+		s.cfg.LockPath = cronlock.DefaultPath()
 	}
 	jobs, err := s.cfg.Store.List()
 	if err != nil {
@@ -107,7 +108,7 @@ func (s *Scheduler) runTick(ctx context.Context, jobs []Job) {
 		s.tickMu.Lock()
 		defer s.tickMu.Unlock()
 
-		lock, acquired, err := acquireCronTickLock(s.cfg.LockPath)
+		lock, acquired, err := cronlock.Acquire(s.cfg.LockPath)
 		if err != nil {
 			s.log.Debug("cron: tick skipped; lock unavailable", "lock_path", s.cfg.LockPath, "err", err)
 			return

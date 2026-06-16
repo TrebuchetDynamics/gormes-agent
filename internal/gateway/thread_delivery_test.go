@@ -57,12 +57,7 @@ func newThreadAwareFakeChannel(name string) *threadAwareFakeChannel {
 func (f *threadAwareFakeChannel) Name() string { return f.name }
 
 func (f *threadAwareFakeChannel) Run(ctx context.Context, inbox chan<- InboundEvent) error {
-	f.mu.Lock()
-	f.inbox = inbox
-	f.mu.Unlock()
-	close(f.started)
-	<-ctx.Done()
-	return nil
+	return runStartedFakeChannel(ctx, inbox, &f.inbox, &f.mu, f.started)
 }
 
 func (f *threadAwareFakeChannel) Send(_ context.Context, chatID, text string) (string, error) {
@@ -137,25 +132,19 @@ func (f *threadAwareFakeChannel) nextID() string {
 func (f *threadAwareFakeChannel) threadSendSnapshot() []threadSendCall {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]threadSendCall, len(f.threadSends))
-	copy(out, f.threadSends)
-	return out
+	return cloneSlice(f.threadSends)
 }
 
 func (f *threadAwareFakeChannel) threadReplySnapshot() []threadReplyCall {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]threadReplyCall, len(f.threadReplies))
-	copy(out, f.threadReplies)
-	return out
+	return cloneSlice(f.threadReplies)
 }
 
 func (f *threadAwareFakeChannel) threadActionSnapshot() []threadActionCall {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]threadActionCall, len(f.threadActions))
-	copy(out, f.threadActions)
-	return out
+	return cloneSlice(f.threadActions)
 }
 
 func pinThreadedTurn(m *Manager, threadID string) {

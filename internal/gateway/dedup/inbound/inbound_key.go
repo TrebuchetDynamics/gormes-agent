@@ -7,7 +7,10 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/dedup/evidence"
 )
 
-const EvidenceMissingMessageID evidence.Reason = evidence.MissingMessageID
+const (
+	EvidenceMissingMessageID evidence.Reason = evidence.MissingMessageID
+	EvidenceMissingScope     evidence.Reason = evidence.MissingScope
+)
 
 type EventKeyParts struct {
 	Platform  string
@@ -71,6 +74,9 @@ func Key(ev EventKeyParts) KeyResult {
 	scope := Scope{Platform: ev.Platform, AccountID: ev.AccountID, ChatID: ev.ChatID, ThreadID: ev.ThreadID}
 	if identity.ID == "" {
 		return KeyResult{Evidence: EvidenceMissingMessageID, Scope: scope}
+	}
+	if strings.TrimSpace(scope.Platform) == "" || strings.TrimSpace(scope.ChatID) == "" {
+		return KeyResult{Evidence: EvidenceMissingScope, Identity: identity, Scope: scope}
 	}
 	return KeyResult{
 		Key:      scope.TrackingKey(identity),

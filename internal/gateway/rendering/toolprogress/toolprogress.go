@@ -12,13 +12,13 @@ import (
 // ToolProgressStatus is the channel-neutral lifecycle state for structured
 // tool progress. Text-only channels can ignore it; first-party channels such
 // as Navivox can render it as native UI instead of assistant prose.
-type Status string
+type ToolProgressStatus string
 
 const (
-	Started  Status = "started"
-	Updated  Status = "updated"
-	Finished Status = "finished"
-	Failed   Status = "failed"
+	Started  ToolProgressStatus = "started"
+	Updated  ToolProgressStatus = "updated"
+	Finished ToolProgressStatus = "finished"
+	Failed   ToolProgressStatus = "failed"
 )
 
 // ToolProgressEvent carries redacted, bounded tool-progress evidence. It must
@@ -26,7 +26,7 @@ const (
 type Event struct {
 	ID       string
 	ToolName string
-	Status   Status
+	Status   ToolProgressStatus
 	Summary  string
 	Metadata map[string]any
 }
@@ -110,7 +110,7 @@ func toolTraceName(text string) string {
 	return payload
 }
 
-func toolProgressStatusForPhase(phase kernel.Phase) Status {
+func toolProgressStatusForPhase(phase kernel.Phase) ToolProgressStatus {
 	switch phase {
 	case kernel.PhaseIdle:
 		return Finished
@@ -121,7 +121,7 @@ func toolProgressStatusForPhase(phase kernel.Phase) Status {
 	}
 }
 
-func Summary(name string, status Status) string {
+func Summary(name string, status ToolProgressStatus) string {
 	switch status {
 	case Finished:
 		return name + " finished"
@@ -134,7 +134,7 @@ func Summary(name string, status Status) string {
 	}
 }
 
-func toolProgressSummary(name string, status Status) string {
+func toolProgressSummary(name string, status ToolProgressStatus) string {
 	return Summary(name, status)
 }
 

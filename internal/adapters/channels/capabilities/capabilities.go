@@ -67,7 +67,7 @@ func BuildCapabilityReports(opts CapabilityOptions) ([]CapabilityReport, error) 
 	configured := normalizeConfigured(opts.Configured)
 	reports := []CapabilityReport{}
 
-	for _, entry := range gateway.HermesGatewayPlatformManifest() {
+	for _, entry := range gateway.OperatorPlatformManifest() {
 		if entry.Kind != gateway.PlatformKindChannel {
 			continue
 		}

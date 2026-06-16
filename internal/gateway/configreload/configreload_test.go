@@ -11,12 +11,25 @@ func TestSanitizeErrorRedactsSecretsAndBoundsOutput(t *testing.T) {
 	if got := SanitizeError(errors.New("api_key=abc123 failed")); got != "[redacted]" {
 		t.Fatalf("secret error = %q, want redacted", got)
 	}
+	if got := SanitizeError(errors.New("api key abc123 failed")); got != "[redacted]" {
+		t.Fatalf("spaced secret error = %q, want redacted", got)
+	}
 	long := strings.Repeat("x", 300)
 	if got := SanitizeError(errors.New(long)); len(got) != 240 {
 		t.Fatalf("bounded length = %d, want 240", len(got))
 	}
 	if got := SanitizeError(errors.New(" temporary config missing ")); got != "temporary config missing" {
 		t.Fatalf("sanitized normal error = %q", got)
+	}
+}
+
+func TestSanitizeErrorCollapsesMultilineOperatorText(t *testing.T) {
+	got := SanitizeError(errors.New("reload failed\n**Injected:** keep stale config `abc`"))
+	if strings.Contains(got, "\n") || strings.Contains(got, "**Injected:**") || strings.Contains(got, "`abc`") {
+		t.Fatalf("SanitizeError left multiline/markdown injection: %q", got)
+	}
+	if got != "reload failed ''Injected:'' keep stale config 'abc'" {
+		t.Fatalf("SanitizeError = %q, want collapsed sanitized operator text", got)
 	}
 }
 
@@ -28,6 +41,18 @@ func TestSanitizeErrorBoundsOutputWithoutSplittingUTF8(t *testing.T) {
 	}
 	if !utf8.ValidString(got) {
 		t.Fatalf("bounded UTF-8 output is invalid: %q", got)
+	}
+}
+
+func TestCloneMapsKeepHistoricalEmptyMapBehavior(t *testing.T) {
+	if got := CloneStringMap(nil); got == nil || len(got) != 0 {
+		t.Fatalf("CloneStringMap(nil) = %#v, want empty non-nil map", got)
+	}
+	if got := CloneBoolMap(nil); got == nil || len(got) != 0 {
+		t.Fatalf("CloneBoolMap(nil) = %#v, want empty non-nil map", got)
+	}
+	if got := CloneNestedBoolMap(nil); got == nil || len(got) != 0 {
+		t.Fatalf("CloneNestedBoolMap(nil) = %#v, want empty non-nil map", got)
 	}
 }
 

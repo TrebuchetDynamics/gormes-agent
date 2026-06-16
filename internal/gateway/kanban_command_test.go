@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -136,11 +137,11 @@ func TestKanbanCommandLongOutputIsBoundedAndGormesBranded(t *testing.T) {
 func TestKanbanCommandBypassesActiveTurnWithoutModelLeak(t *testing.T) {
 	ch := newFakeChannel("telegram")
 	fk := &fakeKernel{}
-	var called int
+	var called atomic.Int32
 	m := NewManagerWithSubmitter(ManagerConfig{
 		AllowedChats: map[string]string{"telegram": "42"},
 		KanbanSlashRunner: func(context.Context, string) (string, error) {
-			called++
+			called.Add(1)
 			return "kanban tasks", nil
 		},
 	}, fk, slog.Default())
@@ -157,7 +158,7 @@ func TestKanbanCommandBypassesActiveTurnWithoutModelLeak(t *testing.T) {
 
 	ch.pushInbound(InboundEvent{Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "m2", Kind: EventSubmit, Text: "/kanban list"})
 	waitFor(t, 200*time.Millisecond, func() bool {
-		return called == 1 && len(ch.sentSnapshot()) == 1
+		return called.Load() == 1 && len(ch.sentSnapshot()) == 1
 	})
 
 	if got := len(fk.submitsSnapshot()); got != 1 {

@@ -26,6 +26,8 @@ type AuthAddOptions struct {
 	Insecure                    bool
 	CABundle                    string
 	EmergencyImportFromCodexCLI string
+	SkipCodexCLIImport          bool
+	SetupOutput                 bool
 }
 
 // AuthSeams routes the provider command tree to the auth runtime while that
@@ -119,6 +121,8 @@ func runAuthAddCommandFromProvider(cmd *cobra.Command, opts AuthAddOptions) erro
 		Insecure:                    opts.Insecure,
 		CABundle:                    opts.CABundle,
 		EmergencyImportFromCodexCLI: opts.EmergencyImportFromCodexCLI,
+		SkipCodexCLIImport:          opts.SkipCodexCLIImport,
+		SetupOutput:                 opts.SetupOutput,
 	})
 }
 
@@ -203,6 +207,8 @@ func newAuthAddCommand(seams AuthSeams) *cobra.Command {
 	var insecure bool
 	var caBundle string
 	var emergencyImportFromCodexCLI string
+	var skipCodexCLIImport bool
+	var setupOutput bool
 
 	cmd := &cobra.Command{
 		Use:   "add <provider>",
@@ -223,6 +229,8 @@ func newAuthAddCommand(seams AuthSeams) *cobra.Command {
 				Insecure:                    insecure,
 				CABundle:                    caBundle,
 				EmergencyImportFromCodexCLI: emergencyImportFromCodexCLI,
+				SkipCodexCLIImport:          skipCodexCLIImport,
+				SetupOutput:                 setupOutput,
 			})
 		},
 	}
@@ -238,6 +246,9 @@ func newAuthAddCommand(seams AuthSeams) *cobra.Command {
 	cmd.Flags().BoolVar(&insecure, "insecure", false, "disable OAuth TLS verification")
 	cmd.Flags().StringVar(&caBundle, "ca-bundle", "", "OAuth CA bundle")
 	cmd.Flags().StringVar(&emergencyImportFromCodexCLI, "emergency-import-from-codex-cli", "", "explicitly import Codex CLI auth.json after accepting the refresh-token race envelope")
+	cmd.Flags().BoolVar(&skipCodexCLIImport, "skip-codex-cli-import", false, "for openai-codex OAuth, skip automatic Codex CLI import and start a fresh provider login")
+	cmd.Flags().BoolVar(&setupOutput, "setup-output", false, "use human setup-wizard auth output instead of machine evidence lines")
+	_ = cmd.Flags().MarkHidden("setup-output")
 	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action: 'added', provider, id, label, redacted}` (api-key path only)")
 	return cmd
 }

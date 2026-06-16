@@ -30,7 +30,7 @@ func stripANSI(s string) string {
 
 func assertInstallSummaryComplete(t *testing.T, out string) {
 	t.Helper()
-	if !strings.Contains(out, "Installation Complete!") && !strings.Contains(out, "Gormes installed") {
+	if !strings.Contains(out, "Gormes installed") && !strings.Contains(out, "Gormes installed") {
 		t.Fatalf("success summary missing:\n%s", out)
 	}
 }
@@ -38,7 +38,7 @@ func assertInstallSummaryComplete(t *testing.T, out string) {
 func assertInstallSummarySource(t *testing.T, out, source string) {
 	t.Helper()
 	for _, line := range strings.Split(out, "\n") {
-		if strings.Contains(line, "Source:") && strings.Contains(line, source) {
+		if strings.Contains(strings.ToLower(line), "source") && strings.Contains(line, source) {
 			return
 		}
 	}
@@ -795,20 +795,20 @@ func TestInstallSH_DefaultInstallNarratesHermesStyleExperience(t *testing.T) {
 	checkout := filepath.Join(home, ".gormes", "gormes-agent")
 	cleanOut := stripANSI(out)
 	for _, want := range []string{
-		"Gormes Agent Installer",
-		"Go-native Hermes-compatible agent runtime.",
-		"Single binary. No Python, venv, Node, or Docker needed.",
+		"Gormes installer",
+		"Go-native Hermes-compatible agent runtime",
+		"single binary",
 		"✓ Detected: linux (fedora)",
-		"→ Checking Go",
-		"✓ Go go1.26.0 found",
-		"→ Checking Git",
-		"✓ Git 2.53.0 found",
-		"→ Checking Node.js (for browser tools)",
-		"✓ Node.js v22.22.0 found",
-		"→ Checking ripgrep (fast file search)",
-		"✓ ripgrep 14.1.1 found",
-		"→ Checking ffmpeg (TTS voice messages)",
-		"✓ ffmpeg 7.1.1 found",
+		"Checks",
+		"✓ Go go1.26.0",
+		"✓ Git",
+		"✓ Git 2.53.0",
+		"✓ Node.js",
+		"✓ Node.js v22.22.0",
+		"✓ ripgrep",
+		"✓ ripgrep 14.1.1",
+		"✓ ffmpeg",
+		"✓ ffmpeg 7.1.1",
 		"→ Installing to " + checkout,
 		"→ Trying SSH clone",
 		"→ SSH failed, trying HTTPS",
@@ -819,7 +819,7 @@ func TestInstallSH_DefaultInstallNarratesHermesStyleExperience(t *testing.T) {
 		"→ Setting up gormes command",
 		"✓ gormes command ready",
 		"→ Setup wizard skipped (no terminal available).",
-		"Installation Complete!",
+		"Gormes installed",
 		"1. Navivox (recommended)",
 		"Pair your Android app and continue setup there.",
 		"→ Recommended: gormes navivox pair",
@@ -862,7 +862,7 @@ func TestInstallSH_DefaultInstallRecommendsNavivoxFirstSetupPath(t *testing.T) {
 	cleanOut := stripANSI(out)
 
 	for _, want := range []string{
-		"Installation Complete!",
+		"Gormes installed",
 		"1. Navivox (recommended)",
 		"Pair your Android app and continue setup there.",
 		"2. CLI setup",
@@ -911,10 +911,10 @@ func TestInstallSH_LocalInstallSkipsSetupRecommendationWhenConfigAlreadyExists(t
 	}
 	cleanOut := stripANSI(out)
 	for _, want := range []string{
-		"setup_wizard: skipped (existing setup detected)",
-		"using local source checkout " + local,
-		"→ Existing Gormes setup detected; skipping setup recommendation.",
-		"Run `gormes setup` to change providers, channels, or Navivox pairing.",
+		"setup      skip (existing config)",
+		"Source " + local,
+		"→ Setup already configured",
+		"Change later: gormes setup",
 	} {
 		if !strings.Contains(cleanOut, want) {
 			t.Fatalf("local install output missing %q:\n%s", want, out)
@@ -947,7 +947,7 @@ func TestInstallSH_SkipSetupFlagAvoidsWizardEvenWithTerminal(t *testing.T) {
 		t.Fatalf("install.sh failed: %v\n%s\nlog:\n%s", err, out, readTextFile(t, logPath))
 	}
 
-	if !strings.Contains(stripANSI(out), "→ Skipping setup wizard (--skip-setup)") {
+	if !strings.Contains(stripANSI(out), "→ Setup skipped (--skip-setup)") {
 		t.Fatalf("--skip-setup did not explain setup skip:\n%s", out)
 	}
 	log := readTextFile(t, logPath)
@@ -1264,7 +1264,7 @@ esac
 	if !strings.Contains(log, "go build") {
 		t.Fatalf("dirty checkout with matching build tag did not rebuild:\n%s\noutput:\n%s", log, out)
 	}
-	if !strings.Contains(out, "source tree has local changes; rebuilding") {
+	if !strings.Contains(out, "Dirty source tree; rebuilding") {
 		t.Fatalf("dirty rebuild output missing explanation:\n%s", out)
 	}
 }
@@ -1492,10 +1492,10 @@ fi
 	if strings.Contains(log, "systemctl --user restart gormes-gateway-") {
 		t.Fatalf("--no-restart still restarted profile gateway services:\n%s", log)
 	}
-	if !strings.Contains(out, "gateway restart skipped by policy=never") {
+	if !strings.Contains(out, "Gateway restart skipped (policy=never)") {
 		t.Fatalf("--no-restart output missing skip evidence:\n%s", out)
 	}
-	if !strings.Contains(out, "profile gateway restart skipped by policy=never") {
+	if !strings.Contains(out, "Profile gateway restart skipped (policy=never)") {
 		t.Fatalf("--no-restart output missing profile skip evidence:\n%s", out)
 	}
 }
@@ -1517,7 +1517,7 @@ func TestInstallSH_DryRunDoesNotBuildPublishOrRestart(t *testing.T) {
 	if got := readTextFile(t, logPath); got != "" {
 		t.Fatalf("dry-run invoked toolchain:\n%s", got)
 	}
-	if !strings.Contains(out, "dry run") || !strings.Contains(out, "branch: development") {
+	if !strings.Contains(out, "dry run") || !strings.Contains(out, "branch     development") {
 		t.Fatalf("dry-run summary missing plan:\n%s", out)
 	}
 	if _, err := os.Stat(filepath.Join(home, ".gormes")); err == nil {
@@ -1551,7 +1551,7 @@ func TestInstallSH_VerboseDryRunShowsResolvedPlan(t *testing.T) {
 		"checkout: " + filepath.Join(home, "gormes-agent"),
 		"managed_binary: " + filepath.Join(home, "bin", "gormes"),
 		"published_binary: " + filepath.Join(binDir, "gormes"),
-		"restart_gateway: never",
+		"gateway    restart=never",
 		"dry run",
 	} {
 		if !strings.Contains(out, want) {
@@ -1629,7 +1629,7 @@ func TestInstallSH_VerboseDryRunReportsTermuxPreflightIssues(t *testing.T) {
 		"termux_prefix: " + prefix,
 		"termux_pkg: missing",
 		"issue: Termux pkg missing; source builds cannot install git/golang automatically",
-		"restart_gateway: never",
+		"gateway    restart=never",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("verbose Termux preflight output missing %q\n%s", want, out)
@@ -1701,7 +1701,7 @@ func TestInstallSH_LocalBuildUsesCurrentCheckoutWithoutGitUpdate(t *testing.T) {
 	if !strings.Contains(log, "-o "+filepath.Join(home, ".gormes", "bin", "gormes")+" ./cmd/gormes") {
 		t.Fatalf("--local did not build gormes:\n%s", log)
 	}
-	if !strings.Contains(out, "source: "+local) {
+	if !strings.Contains(out, "source     "+local) {
 		t.Fatalf("--local summary did not name local source:\n%s", out)
 	}
 }

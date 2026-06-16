@@ -248,7 +248,7 @@
       "source_refs": [
         "../hermes-agent/agent/memory_manager.py",
         "../hermes-agent/tests/run_agent/test_memory_sync_interrupted.py",
-        "docs/content/building-gormes/architecture_plan/phase-3-memory.md"
+        "webpages/docs/content/building-gormes/architecture_plan/phase-3-memory.md"
       ],
       "ready_when": [
         "The turn-finalization path can tell a normal completion from an interrupt, cancellation, or client disconnect."
@@ -270,7 +270,7 @@
         "internal/kernel/",
         "internal/memory/",
         "internal/goncho/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/kernel ./internal/memory ./internal/goncho -count=1"
@@ -304,7 +304,7 @@
         "../honcho/docs/docs.json@e659b6b",
         "internal/goncho/host_integration.go",
         "internal/goncho/host_integration_test.go",
-        "docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md"
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md"
       ],
       "ready_when": [
         "Honcho host integration compatibility fixtures already map baseline SillyTavern chat-instance sessions, recall modes, host-scoped config, and honcho_* external tool names."
@@ -325,8 +325,8 @@
       "write_scope": [
         "internal/goncho/",
         "internal/gonchotools/",
-        "docs/content/building-gormes/goncho_honcho_memory/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho ./internal/gonchotools -count=1"
@@ -365,7 +365,7 @@
       "degraded_mode": "Memory status and operator evidence report unresolved, conflicting, or denied cross-chat identity bindings.",
       "fixture": "internal/memory cross-chat allow-deny recall fixtures",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/phase-3-memory.md"
+        "webpages/docs/content/building-gormes/architecture_plan/phase-3-memory.md"
       ],
       "ready_when": [
         "Honcho-compatible scope/source tool schema is complete and exposes source allowlist semantics."
@@ -389,7 +389,7 @@
       "write_scope": [
         "internal/memory/",
         "internal/goncho/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/memory ./internal/goncho -count=1"
@@ -421,8 +421,8 @@
         "internal/memory/session_catalog.go",
         "internal/goncho/service.go",
         "cmd/gormes/memory.go",
-        "docs/content/building-gormes/architecture_plan/phase-3-memory.md",
-        "docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md"
+        "webpages/docs/content/building-gormes/architecture_plan/phase-3-memory.md",
+        "webpages/docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md"
       ],
       "ready_when": [
         "Cross-chat deny-path fixtures are complete, Honcho-compatible scope/source tool schemas are visible, and SillyTavern host mapping drift is either fixture-locked or explicitly degraded."
@@ -447,7 +447,7 @@
         "internal/memory/",
         "internal/goncho/",
         "cmd/gormes/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/memory ./internal/goncho ./cmd/gormes -count=1"
@@ -624,7 +624,7 @@
         "operator"
       ],
       "source_refs": [
-        "docs/content/papers/agent-memory-systems.md",
+        "webpages/docs/content/papers/agent-memory-systems.md",
         "arXiv:2601.01885 (AgeMem 2026)",
         "Generative Agents (Park et al. 2023) recency+importance+relevance retrieval",
         "internal/goncho/store.go"
@@ -653,7 +653,7 @@
         "internal/goncho/memory_tools_test.go",
         "internal/tools/memory_tool_descriptors.go",
         "internal/tools/memory_tool_descriptors_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/goncho -run TestImportanceScorer -count=1",

@@ -36,9 +36,9 @@ exclude:
   - "scripts/.swarm/"
 
   # Generated site / docs artifacts
-  - "docs/public/"
-  - "docs/www-tests/test-results/"
-  - "docs/www-tests/playwright-report/"
+  - "webpages/docs/public/"
+  - "webpages/docs/www-tests/test-results/"
+  - "webpages/docs/www-tests/playwright-report/"
   - "www.gormes.ai/data/"
   - "www.gormes.ai/.claude-flow/"
   - "www.gormes.ai/.swarm/"

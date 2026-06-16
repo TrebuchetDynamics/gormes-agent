@@ -3,13 +3,15 @@ package plannedstop
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/jsonfile"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/markerfile"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/runtimeproc"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 const markerKind = "gormes-gateway-planned-stop"
@@ -77,6 +79,9 @@ func (s *Store) Write(ctx context.Context, marker Marker) error {
 	if s == nil || s.path == "" {
 		return nil
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -89,33 +94,63 @@ func (s *Store) Write(ctx context.Context, marker Marker) error {
 	if marker.WrittenAt == "" {
 		marker.WrittenAt = s.currentTime().Format(time.RFC3339Nano)
 	}
+	marker.Reason = sanitizeMarkerReason(marker.Reason)
 	return jsonfile.WriteAtomic(ctx, s.path, marker, "planned stop marker")
+}
+
+func sanitizeMarkerReason(reason string) string {
+	reason = strings.Join(strings.Fields(reason), " ")
+	reason = redaction.RedactSecrets(reason)
+	fields := strings.Fields(reason)
+	out := make([]string, 0, len(fields))
+	for i := 0; i < len(fields); i++ {
+		field := fields[i]
+		lower := strings.ToLower(field)
+		nextRedacted := i+1 < len(fields) && strings.Contains(strings.ToLower(fields[i+1]), "[redacted]")
+		if plannedStopSecretField(lower) && (strings.Contains(lower, "[redacted]") || nextRedacted) {
+			out = append(out, "[redacted]")
+			if nextRedacted {
+				i++
+			}
+			continue
+		}
+		out = append(out, field)
+	}
+	return strings.Join(out, " ")
+}
+
+func plannedStopSecretField(value string) bool {
+	return strings.Contains(value, "api_key") || strings.Contains(value, "api-key") || strings.Contains(value, "apikey") || strings.Contains(value, "authorization") || strings.Contains(value, "bearer") || strings.Contains(value, "token") || strings.Contains(value, "secret") || strings.Contains(value, "password")
 }
 
 func (s *Store) ConsumeForSelf(ctx context.Context) (ConsumeResult, error) {
 	if s == nil || s.path == "" {
 		return ConsumeResult{Status: ConsumeMissing}, nil
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if err := ctx.Err(); err != nil {
 		return ConsumeResult{}, err
 	}
 	var marker Marker
 	exists, err := jsonfile.Read(ctx, s.path, &marker, "planned stop marker")
-	if !exists {
-		return ConsumeResult{Status: ConsumeMissing}, nil
-	}
 	if errors.Is(err, jsonfile.ErrEmpty) {
 		_ = s.Clear(context.Background())
 		return ConsumeResult{Status: ConsumeInvalid, Reason: "empty marker"}, nil
 	}
 	if err != nil {
-		if jsonfile.IsReadError(err) {
+		if jsonfile.IsReadError(err) || !exists {
 			return ConsumeResult{}, err
 		}
 		_ = s.Clear(context.Background())
 		return ConsumeResult{Status: ConsumeInvalid, Reason: "decode marker: " + err.Error()}, nil
 	}
-	if marker.Kind != "" && marker.Kind != markerKind {
+	if !exists {
+		return ConsumeResult{Status: ConsumeMissing}, nil
+	}
+	marker.Reason = sanitizeMarkerReason(marker.Reason)
+	if marker.Kind != markerKind {
 		_ = s.Clear(context.Background())
 		return ConsumeResult{Status: ConsumeInvalid, Reason: "marker kind mismatch", Marker: marker}, nil
 	}
@@ -135,23 +170,17 @@ func (s *Store) ConsumeForSelf(ctx context.Context) (ConsumeResult, error) {
 }
 
 func (s *Store) Clear(ctx context.Context) error {
-	if s == nil || s.path == "" {
+	if s == nil {
 		return nil
 	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if err := os.Remove(s.path); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("remove planned stop marker: %w", err)
-	}
-	return nil
+	return markerfile.Clear(ctx, s.path, "planned stop marker")
 }
 
 func (s *Store) currentTime() time.Time {
-	if s != nil && s.now != nil {
-		return s.now().UTC()
+	if s == nil {
+		return markerfile.CurrentTime(nil)
 	}
-	return time.Now().UTC()
+	return markerfile.CurrentTime(s.now)
 }
 
 func (s *Store) currentPID() int {
@@ -162,10 +191,10 @@ func (s *Store) currentPID() int {
 }
 
 func (s *Store) markerTTL() time.Duration {
-	if s != nil && s.ttl > 0 {
-		return s.ttl
+	if s == nil {
+		return MarkerTTL
 	}
-	return MarkerTTL
+	return markerfile.PositiveDuration(s.ttl, MarkerTTL)
 }
 
 func (s *Store) markerStale(marker Marker) bool {

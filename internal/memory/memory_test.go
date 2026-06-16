@@ -66,6 +66,49 @@ func TestOpenSqlite_AutoCreatesParentDir(t *testing.T) {
 	}
 }
 
+func TestOpenSqlite_CreatesPrivateDatabaseFiles(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "memory.db")
+	s, err := OpenSqlite(path, 0, nil)
+	if err != nil {
+		t.Fatalf("OpenSqlite: %v", err)
+	}
+	defer s.Close(context.Background())
+
+	for _, candidate := range []string{path, path + "-wal", path + "-shm"} {
+		info, err := os.Stat(candidate)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			t.Fatalf("Stat(%q): %v", candidate, err)
+		}
+		if got := info.Mode().Perm(); got != 0o600 {
+			t.Fatalf("%s mode = %o, want 0600", filepath.Base(candidate), got)
+		}
+	}
+}
+
+func TestOpenSqlite_TightensExistingWorldReadableDatabase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "memory.db")
+	if err := os.WriteFile(path, nil, 0o644); err != nil {
+		t.Fatalf("WriteFile fixture: %v", err)
+	}
+
+	s, err := OpenSqlite(path, 0, nil)
+	if err != nil {
+		t.Fatalf("OpenSqlite: %v", err)
+	}
+	defer s.Close(context.Background())
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("Stat(%q): %v", path, err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("memory.db mode = %o, want 0600", got)
+	}
+}
+
 func TestOpenSqlite_SetsWALMode(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "memory.db")
 	s, _ := OpenSqlite(path, 0, nil)

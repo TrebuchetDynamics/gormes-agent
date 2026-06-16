@@ -71,7 +71,7 @@ Execution should be TDD-first and local-signal-first:
 ## Donor pointers
 
 When implementing a Phase 6 slice, route through the
-`gormes-references` skill (`docs/development-skills/gormes-references/SKILL.md`)
+`gormes-references` skill (`development-skills/gormes-references/SKILL.md`)
 before inventing a new shape. Useful donors:
 
 | Learning-loop problem | Donor file |

@@ -64,6 +64,9 @@ func (h *Hooks) Fire(ctx context.Context, ev HookEvent) {
 	if h == nil {
 		return
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	h.mu.RLock()
 	handlers := append([]HookFunc(nil), h.handlers[ev.Point]...)
 	h.mu.RUnlock()

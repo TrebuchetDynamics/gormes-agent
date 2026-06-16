@@ -44,7 +44,7 @@ curator model routing, and memory nudge settings.
 
 OpenClaw is useful donor evidence, not a parity contract. Relevant source refs
 include `openclaw/qa/new-scenarios-2026-04.md`,
-`openclaw/docs/install/migrating-hermes.md`, and active-memory entries in
+`openclaw/webpages/docs/install/migrating-hermes.md`, and active-memory entries in
 `openclaw/CHANGELOG.md`; use them for optional Gormes-owned ideas such as
 explicit channel memory-search QA, graceful memory-plugin degradation,
 per-conversation recall filters, timeout partial summaries, and operator

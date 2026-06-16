@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
 var (
@@ -60,7 +61,13 @@ func BuildSkillSlashCommands(skills []document.Skill) []SkillSlashCommand {
 
 func ResolveSkillSlashCommand(commands []SkillSlashCommand, raw string) (SkillSlashCommand, bool) {
 	key := strings.ToLower(strings.TrimSpace(raw))
-	key = strings.TrimPrefix(key, "/")
+	if strings.HasPrefix(key, "/") || strings.HasPrefix(key, "／") {
+		_, size := utf8.DecodeRuneInString(key)
+		key = key[size:]
+		if strings.HasPrefix(key, "/") || strings.HasPrefix(key, "／") {
+			return SkillSlashCommand{}, false
+		}
+	}
 	if i := strings.IndexAny(key, " \t\r\n"); i >= 0 {
 		key = key[:i]
 	}
@@ -79,7 +86,7 @@ func ResolveSkillSlashCommand(commands []SkillSlashCommand, raw string) (SkillSl
 
 func BuildSkillSlashCommandMessage(command SkillSlashCommand, userInstruction string, opts SlashMessageOptions) string {
 	parts := []string{
-		`[IMPORTANT: The user has invoked the "` + command.Name + `" skill, indicating they want you to follow its instructions. The full skill content is loaded below.]`,
+		`[IMPORTANT: The user has invoked the "` + renderSlashEnvelopeField(command.Name) + `" skill, indicating they want you to follow its instructions. The full skill content is loaded below.]`,
 		"",
 		strings.TrimSpace(command.Skill.Body),
 	}
@@ -87,7 +94,7 @@ func BuildSkillSlashCommandMessage(command SkillSlashCommand, userInstruction st
 	if command.SkillDir != "" {
 		parts = append(parts,
 			"",
-			"[Skill directory: "+command.SkillDir+"]",
+			"[Skill directory: "+renderSlashEnvelopeField(command.SkillDir)+"]",
 			"Resolve any relative paths in this skill against that directory before reading files or running scripts.",
 		)
 	}
@@ -98,7 +105,7 @@ func BuildSkillSlashCommandMessage(command SkillSlashCommand, userInstruction st
 			"The user has provided the following instruction alongside the skill invocation: "+instruction,
 		)
 	}
-	if note := strings.TrimSpace(opts.RuntimeNote); note != "" {
+	if note := renderSlashEnvelopeField(opts.RuntimeNote); note != "" {
 		parts = append(parts,
 			"",
 			"[Runtime note: "+note+"]",
@@ -106,6 +113,14 @@ func BuildSkillSlashCommandMessage(command SkillSlashCommand, userInstruction st
 	}
 
 	return strings.Join(parts, "\n")
+}
+
+func renderSlashEnvelopeField(value string) string {
+	replacer := strings.NewReplacer(
+		"`", "'",
+		"\"", "'",
+	)
+	return strings.Join(strings.Fields(replacer.Replace(strings.TrimSpace(value))), " ")
 }
 
 func NormalizeSkillCommandName(name string) string {

@@ -3,7 +3,9 @@ package gormescli
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -141,21 +143,88 @@ func BuildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 func profileWorkspaceScopeFromConfig(cfg config.Config) *tools.ProfileWorkspaceScope {
 	operatorHome, err := os.UserHomeDir()
 	if err != nil || strings.TrimSpace(operatorHome) == "" {
-		operatorHome = config.GormesHome()
+		operatorHome = config.GormesBaseHome()
 	}
-	roots := append([]string(nil), cfg.Agents.Defaults.Workspaces...)
-	if len(roots) == 0 && strings.TrimSpace(cfg.Agents.Defaults.Workspace) != "" {
-		roots = []string{cfg.Agents.Defaults.Workspace}
+	profileID, profileRoot := activeProfileWorkspaceRoot()
+	if err := os.MkdirAll(profileRoot, 0o700); err != nil {
+		return tools.NewFailClosedProfileWorkspaceScope(fmt.Errorf("profile workspace: create %s: %w", profileRoot, err))
+	}
+	profileCfg := cfg.Profiles[profileID]
+	workspaceRoot := strings.TrimSpace(profileCfg.Workspace)
+	if workspaceRoot == "" {
+		workspaceRoot = profileRoot
+	} else if isConfiguredProfileWorkspaceRoot(workspaceRoot, profileID, operatorHome) {
+		if err := os.MkdirAll(resolveWorkspaceConfigPath(workspaceRoot, operatorHome), 0o700); err != nil {
+			return tools.NewFailClosedProfileWorkspaceScope(fmt.Errorf("profile workspace: create %s: %w", workspaceRoot, err))
+		}
+	}
+	roots := profileAllowedPathRoots(profileCfg)
+	roots = append(roots, cfg.Agents.Defaults.Workspaces...)
+	if strings.TrimSpace(cfg.Agents.Defaults.Workspace) != "" {
+		roots = append(roots, cfg.Agents.Defaults.Workspace)
 	}
 	scope, err := tools.NewProfileWorkspaceScope(tools.ProfileWorkspaceScopeOptions{
-		ProjectRoots: roots,
-		ProfileRoot:  config.GormesHome(),
-		OperatorHome: operatorHome,
+		ProfileName:   profileID,
+		ProjectRoots:  roots,
+		ProfileRoot:   profileRoot,
+		WorkspaceRoot: workspaceRoot,
+		OperatorHome:  operatorHome,
 	})
 	if err != nil {
 		return tools.NewFailClosedProfileWorkspaceScope(err)
 	}
 	return scope
+}
+
+func activeProfileWorkspaceRoot() (string, string) {
+	home := filepath.Clean(strings.TrimSpace(config.GormesHome()))
+	if home == "." || home == "" {
+		home = filepath.Clean(config.GormesBaseHome())
+	}
+	if filepath.Base(filepath.Dir(home)) == "profiles" {
+		return filepath.Base(home), home
+	}
+	// Legacy/unscoped processes keep using the configured GORMES_HOME as their
+	// local workspace root. Profile-scoped commands set GORMES_HOME to
+	// <base>/profiles/<name> before config/tool wiring, which activates the
+	// homogeneous profile workspace layout without materializing profiles/main
+	// during older base-home tests or operator commands.
+	return config.DefaultProfileID, home
+}
+
+func isConfiguredProfileWorkspaceRoot(raw, profileID, operatorHome string) bool {
+	if strings.TrimSpace(raw) == "" || strings.TrimSpace(profileID) == "" {
+		return false
+	}
+	resolved := resolveWorkspaceConfigPath(raw, operatorHome)
+	want := filepath.Join(config.GormesBaseHome(), "profiles", profileID)
+	return filepath.Clean(resolved) == filepath.Clean(want)
+}
+
+func resolveWorkspaceConfigPath(raw, operatorHome string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "~" {
+		return operatorHome
+	}
+	if strings.HasPrefix(raw, "~/") {
+		return filepath.Join(operatorHome, strings.TrimPrefix(raw, "~/"))
+	}
+	if filepath.IsAbs(raw) {
+		return filepath.Clean(raw)
+	}
+	return filepath.Join(operatorHome, raw)
+}
+
+func profileAllowedPathRoots(profile config.ProfileCfg) []string {
+	roots := make([]string, 0, len(profile.AllowedPaths)+len(profile.Workspaces)+len(profile.AllowedPathRules))
+	roots = append(roots, profile.AllowedPaths...)
+	roots = append(roots, profile.Workspaces...)
+	for _, rule := range profile.AllowedPathRules {
+		if strings.TrimSpace(rule.Path) != "" {
+			roots = append(roots, rule.Path)
+		}
+	}
+	return roots
 }
 
 func browserCDPEnv(cfg config.Config) map[string]string {

@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/commandregistry"
@@ -141,7 +142,7 @@ func platformCommandNameSet(commands []PlatformCommand) map[string]bool {
 }
 
 func sortedPlatformCommands(commands []PlatformCommand) []PlatformCommand {
-	out := append([]PlatformCommand(nil), commands...)
+	out := slices.Clone(commands)
 	commandregistry.SortPlatformCommands(out)
 	return out
 }

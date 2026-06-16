@@ -22,9 +22,87 @@ func TestRegistryResolvesAliasesAndParsesBodies(t *testing.T) {
 		t.Fatalf("ParseInboundText(/queue ...) = (%v, %q), want EventQueue with raw body", kind, body)
 	}
 
+	kind, body = ParseInboundText("／queue keep going")
+	if kind != EventQueue || body != "／queue keep going" {
+		t.Fatalf("ParseInboundText(fullwidth /queue ...) = (%v, %q), want EventQueue with raw body", kind, body)
+	}
+
 	kind, body = ParseInboundText("/undo")
 	if kind != EventSubmit || body != "/undo" {
 		t.Fatalf("ParseInboundText(/undo) = (%v, %q), want unavailable command preserved as submit", kind, body)
+	}
+
+	setHome, ok := ResolveCommand("/set_home")
+	if !ok || setHome.Name != "sethome" {
+		t.Fatalf("ResolveCommand(/set_home) = (%+v, %v), want sethome underscore alias for platform-safe command text", setHome, ok)
+	}
+}
+
+func TestDoubleSlashDoesNotResolveAsCommand(t *testing.T) {
+	if cmd, ok := ResolveCommand("//title"); ok {
+		t.Fatalf("ResolveCommand(//title) = %+v, true; want not resolved", cmd)
+	}
+	kind, body := ParseInboundText("//title Friendly Greeting")
+	if kind == EventTitle || body == "//title Friendly Greeting" && kind != EventUnknown {
+		t.Fatalf("ParseInboundText(//title) = (%v, %q), want no title command dispatch", kind, body)
+	}
+}
+
+func TestUnknownSlashGuidanceRedactsAuthorizationCommandToken(t *testing.T) {
+	guidance := UnknownSlashCommandGuidance("/authorization=Bearer-sk-live-token")
+	for _, forbidden := range []string{"authorization", "Bearer", "bearer", "sk-live-token"} {
+		if strings.Contains(guidance, forbidden) {
+			t.Fatalf("guidance leaked authorization command token %q: %s", forbidden, guidance)
+		}
+	}
+	if !strings.Contains(guidance, "[redacted]") {
+		t.Fatalf("guidance missing redaction marker: %s", guidance)
+	}
+}
+
+func TestUnknownSlashGuidanceRedactsSecretLikeCommandToken(t *testing.T) {
+	guidance := UnknownSlashCommandGuidance("/api_key=plain-secret-token")
+	for _, forbidden := range []string{"plain-secret-token", "api_key"} {
+		if strings.Contains(guidance, forbidden) {
+			t.Fatalf("guidance leaked secret-like command token %q: %s", forbidden, guidance)
+		}
+	}
+	if !strings.Contains(guidance, "[redacted]") {
+		t.Fatalf("guidance missing redaction marker: %s", guidance)
+	}
+}
+
+func TestUnknownSlashGuidanceRemovesHiddenFormatting(t *testing.T) {
+	guidance := UnknownSlashCommandGuidance("/sta\u200btus")
+	for _, forbidden := range []string{"\u200b", "\u202e"} {
+		if strings.Contains(guidance, forbidden) {
+			t.Fatalf("guidance kept hidden formatting %q: %q", forbidden, guidance)
+		}
+	}
+	if !strings.Contains(guidance, "/sta tus") {
+		t.Fatalf("guidance = %q, want sanitized visible command token", guidance)
+	}
+}
+
+func TestUnknownSlashGuidanceRemovesControlCharacters(t *testing.T) {
+	guidance := UnknownSlashCommandGuidance("/bad\x1b[31m\u009bname")
+	for _, forbidden := range []string{"\x1b", "\u009b"} {
+		if strings.Contains(guidance, forbidden) {
+			t.Fatalf("guidance kept control character %q: %q", forbidden, guidance)
+		}
+	}
+	if !strings.Contains(guidance, "/bad [31m name") {
+		t.Fatalf("guidance = %q, want sanitized visible command token", guidance)
+	}
+}
+
+func TestUnknownSlashGuidanceSanitizesCommandToken(t *testing.T) {
+	guidance := UnknownSlashCommandGuidance("bad`name")
+	if strings.Contains(guidance, "`/bad`name`") || strings.Count(guidance, "`") != 2 {
+		t.Fatalf("guidance has unsafe backtick command rendering: %s", guidance)
+	}
+	if !strings.Contains(guidance, "/bad'name") {
+		t.Fatalf("guidance = %s, want sanitized command token", guidance)
 	}
 }
 
@@ -81,14 +159,82 @@ func TestPlatformExposureDeterministicAndSafe(t *testing.T) {
 		}
 	}
 
+	dynamicTelegram := TelegramBotCommandsWith([]PlatformCommand{{Name: "set-home", Description: "collides with built-in alias"}})
+	if platformCommandsContainName(dynamicTelegram, "set_home") {
+		t.Fatalf("TelegramBotCommandsWith exposed dynamic command colliding with built-in alias: %#v", dynamicTelegram)
+	}
+
+	dynamicTelegram = TelegramBotCommandsWith([]PlatformCommand{{Name: "dynamic-skill", Description: "first line\nsecond\u009b line"}})
+	if desc, ok := platformCommandDescription(dynamicTelegram, "dynamic_skill"); !ok || desc != "first line second line" {
+		t.Fatalf("TelegramBotCommandsWith dynamic description = %q ok=%v, want sanitized single line", desc, ok)
+	}
+
+	malformedDynamicTelegram := TelegramBotCommandsWith([]PlatformCommand{{Name: "//review", Description: "malformed double slash"}})
+	if platformCommandsContainName(malformedDynamicTelegram, "review") {
+		t.Fatalf("TelegramBotCommandsWith exposed malformed double-slash dynamic command: %#v", malformedDynamicTelegram)
+	}
+
+	controlDynamicTelegram := TelegramBotCommandsWith([]PlatformCommand{{Name: "safe\x1bname", Description: "control-bearing name"}})
+	if platformCommandsContainName(controlDynamicTelegram, "safe_name") {
+		t.Fatalf("TelegramBotCommandsWith exposed control-character dynamic command name: %#v", controlDynamicTelegram)
+	}
+
+	dynamicTelegram = TelegramBotCommandsWith([]PlatformCommand{{Name: "secret-skill", Description: "uses api_key=plain-secret-token"}})
+	if desc, ok := platformCommandDescription(dynamicTelegram, "secret_skill"); !ok || strings.Contains(desc, "plain-secret-token") || strings.Contains(desc, "api_key") || !strings.Contains(desc, "[redacted]") {
+		t.Fatalf("TelegramBotCommandsWith dynamic secret description = %q ok=%v, want redacted", desc, ok)
+	}
+	dynamicTelegram = TelegramBotCommandsWith([]PlatformCommand{{Name: "auth-skill", Description: "uses authorization=Bearer sk-live-token"}})
+	if desc, ok := platformCommandDescription(dynamicTelegram, "auth_skill"); !ok || strings.Contains(desc, "sk-live-token") || strings.Contains(strings.ToLower(desc), "authorization") || strings.Contains(strings.ToLower(desc), "bearer") || !strings.Contains(desc, "[redacted]") {
+		t.Fatalf("TelegramBotCommandsWith dynamic authorization description = %q ok=%v, want redacted", desc, ok)
+	}
+
+	secretDynamicTelegram := TelegramBotCommandsWith([]PlatformCommand{{Name: "api_key=plain-secret-token", Description: "secret-bearing dynamic name"}})
+	if platformCommandsContainName(secretDynamicTelegram, "api_key_plain_secret_token") {
+		t.Fatalf("TelegramBotCommandsWith exposed secret-bearing dynamic command name: %#v", secretDynamicTelegram)
+	}
+	authorizationDynamicTelegram := TelegramBotCommandsWith([]PlatformCommand{{Name: "authorization=Bearer sk-live", Description: "authorization-bearing dynamic name"}})
+	if platformCommandsContainName(authorizationDynamicTelegram, "authorization_bearer_sk_live") {
+		t.Fatalf("TelegramBotCommandsWith exposed authorization-bearing dynamic command name: %#v", authorizationDynamicTelegram)
+	}
+
 	dynamicSlack := SlackSubcommandMapWith([]PlatformCommand{
 		{Name: "/Planner.Pro_[SAFE]! now", Description: "dynamic skill"},
+		{Name: "//review", Description: "malformed double slash"},
+		{Name: "safe\x1bname", Description: "control-bearing name"},
+		{Name: "api_key=plain-secret-token", Description: "secret-bearing dynamic name"},
+		{Name: "authorization=Bearer sk-live", Description: "authorization-bearing dynamic name"},
 		{Name: "!!!", Description: "empty after normalization"},
 	})
 	if got := dynamicSlack["planner-pro-safe-now"]; got != "/planner-pro-safe-now" {
 		t.Fatalf("SlackSubcommandMapWith sanitized dynamic command = %q, want /planner-pro-safe-now", got)
 	}
+	if _, ok := dynamicSlack["review"]; ok {
+		t.Fatalf("SlackSubcommandMapWith exposed malformed double-slash dynamic command: %#v", dynamicSlack)
+	}
+	if _, ok := dynamicSlack["safe-name"]; ok {
+		t.Fatalf("SlackSubcommandMapWith exposed control-character dynamic command name: %#v", dynamicSlack)
+	}
+	if _, ok := dynamicSlack["api-key-plain-secret-token"]; ok {
+		t.Fatalf("SlackSubcommandMapWith exposed secret-bearing dynamic command name: %#v", dynamicSlack)
+	}
+	if _, ok := dynamicSlack["authorization-bearer-sk-live"]; ok {
+		t.Fatalf("SlackSubcommandMapWith exposed authorization-bearing dynamic command name: %#v", dynamicSlack)
+	}
 	if _, ok := dynamicSlack["!!!"]; ok {
 		t.Fatalf("SlackSubcommandMapWith exposed punctuation-only command: %#v", dynamicSlack)
 	}
+}
+
+func platformCommandsContainName(commands []PlatformCommand, name string) bool {
+	_, ok := platformCommandDescription(commands, name)
+	return ok
+}
+
+func platformCommandDescription(commands []PlatformCommand, name string) (string, bool) {
+	for _, cmd := range commands {
+		if cmd.Name == name {
+			return cmd.Description, true
+		}
+	}
+	return "", false
 }

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // secretMarkers lists substrings that must never appear in any
@@ -117,6 +118,53 @@ func TestImageGenerationResult_WritesArtifactEnvelope(t *testing.T) {
 	}
 }
 
+func TestImageGenerationResult_DoesNotOverwriteSamePromptArtifacts(t *testing.T) {
+	dir := t.TempDir()
+
+	req := ImageGenerationRequest{
+		Provider:  "fal",
+		Model:     "fal-ai/flux-2-pro",
+		Prompt:    "repeatable prompt",
+		OutputDir: dir,
+		Bytes:     []byte("first-image"),
+		MediaType: "image/png",
+	}
+
+	first, err := BuildImageGenerationEnvelope(req)
+	if err != nil {
+		t.Fatalf("first BuildImageGenerationEnvelope: %v", err)
+	}
+
+	req.Bytes = []byte("second-image")
+	second, err := BuildImageGenerationEnvelope(req)
+	if err != nil {
+		t.Fatalf("second BuildImageGenerationEnvelope: %v", err)
+	}
+
+	if first.Artifact == "" || second.Artifact == "" {
+		t.Fatalf("artifacts must be populated: first=%q second=%q", first.Artifact, second.Artifact)
+	}
+	if first.Artifact == second.Artifact {
+		t.Fatalf("same prompt generated the same artifact path %q; earlier result would be overwritten", first.Artifact)
+	}
+
+	gotFirst, err := os.ReadFile(filepath.Join(dir, first.Artifact))
+	if err != nil {
+		t.Fatalf("read first artifact: %v", err)
+	}
+	if string(gotFirst) != "first-image" {
+		t.Fatalf("first artifact content = %q, want first-image", string(gotFirst))
+	}
+
+	gotSecond, err := os.ReadFile(filepath.Join(dir, second.Artifact))
+	if err != nil {
+		t.Fatalf("read second artifact: %v", err)
+	}
+	if string(gotSecond) != "second-image" {
+		t.Fatalf("second artifact content = %q, want second-image", string(gotSecond))
+	}
+}
+
 func TestImageGenerationResult_RedactsPromptAndSecrets(t *testing.T) {
 	dir := t.TempDir()
 
@@ -154,6 +202,111 @@ func TestImageGenerationResult_RedactsPromptAndSecrets(t *testing.T) {
 	wantHash := hex.EncodeToString(sum[:])
 	if env.PromptHash != wantHash {
 		t.Errorf("PromptHash = %q, want %q", env.PromptHash, wantHash)
+	}
+}
+
+func TestImageGenerationResult_ErrorEnvelopeRedactsPromptEvenWhenPromptContainsSecretShape(t *testing.T) {
+	dir := t.TempDir()
+	prompt := "operator prompt with embedded sk-prompt-token and Bearer prompt-token"
+
+	env, err := BuildImageGenerationEnvelope(ImageGenerationRequest{
+		Provider:    "openai",
+		Model:       "gpt-image-1.5",
+		Prompt:      prompt,
+		OutputDir:   dir,
+		Err:         errors.New("provider rejected prompt: " + prompt),
+		ErrorStatus: ImageGenerationStatusProviderError,
+	})
+	if err != nil {
+		t.Fatalf("BuildImageGenerationEnvelope: %v", err)
+	}
+
+	for _, form := range renderEnvelopeForms(t, env) {
+		if strings.Contains(form, "operator prompt with embedded") || strings.Contains(form, "prompt-token") {
+			t.Fatalf("error envelope leaks prompt fragments after secret redaction: %s", form)
+		}
+		for _, marker := range secretMarkers {
+			if strings.Contains(form, marker) {
+				t.Fatalf("error envelope leaks secret marker %q: %s", marker, form)
+			}
+		}
+	}
+}
+
+func TestImageGenerationResult_ErrorEnvelopeReasonTruncationPreservesUTF8(t *testing.T) {
+	env, err := BuildImageGenerationEnvelope(ImageGenerationRequest{
+		Provider:    "openai",
+		Model:       "gpt-image-1.5",
+		Prompt:      "safe prompt",
+		Err:         errors.New(strings.Repeat("a", maxImageGenerationReasonLength-1) + "€"),
+		ErrorStatus: ImageGenerationStatusProviderError,
+	})
+	if err != nil {
+		t.Fatalf("BuildImageGenerationEnvelope: %v", err)
+	}
+	if !utf8.ValidString(env.Reason) {
+		t.Fatalf("truncated reason is not valid UTF-8: %q", env.Reason)
+	}
+	if !strings.HasSuffix(env.Reason, "...") {
+		t.Fatalf("truncated reason should keep ellipsis suffix, got %q", env.Reason)
+	}
+}
+
+func TestImageGenerationResult_ErrorEnvelopeRedactsCredentialShapesUsedByRunner(t *testing.T) {
+	dir := t.TempDir()
+	jwt := "aaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbb.cccccccccccccccccccc"
+	falKey := "FAL_SECRET_TOKEN_123456789"
+	env, err := BuildImageGenerationEnvelope(ImageGenerationRequest{
+		Provider:    "openai",
+		Model:       "gpt-image-1.5",
+		Prompt:      "safe prompt",
+		OutputDir:   dir,
+		Err:         errors.New("provider failed token=abc123 secret=shh Key " + falKey + " " + jwt),
+		ErrorStatus: ImageGenerationStatusProviderError,
+	})
+	if err != nil {
+		t.Fatalf("BuildImageGenerationEnvelope: %v", err)
+	}
+
+	for _, leaked := range []string{"token=abc123", "secret=shh", "Key " + falKey, falKey, jwt} {
+		if strings.Contains(env.Reason, leaked) {
+			t.Fatalf("error envelope leaks credential shape %q in reason %q", leaked, env.Reason)
+		}
+	}
+}
+
+func TestImageGenerationResult_ErrorEnvelopeDoesNotRequireOutputDir(t *testing.T) {
+	env, err := BuildImageGenerationEnvelope(ImageGenerationRequest{
+		Provider:    "openai",
+		Model:       "gpt-image-1.5",
+		Prompt:      "a safe prompt",
+		Err:         errors.New("provider not configured"),
+		ErrorStatus: ImageGenerationStatusUnavailable,
+	})
+	if err != nil {
+		t.Fatalf("BuildImageGenerationEnvelope: %v", err)
+	}
+	if env.Status != ImageGenerationStatusUnavailable {
+		t.Fatalf("Status = %q, want %q", env.Status, ImageGenerationStatusUnavailable)
+	}
+	if env.Artifact != "" {
+		t.Fatalf("Artifact = %q, want empty for degraded envelope", env.Artifact)
+	}
+}
+
+func TestImageGenerationResult_ErrorEnvelopePreservesProviderUnavailableEvidence(t *testing.T) {
+	env, err := BuildImageGenerationEnvelope(ImageGenerationRequest{
+		Provider:    "openai",
+		Model:       "gpt-image-1.5",
+		Prompt:      "a safe prompt",
+		Err:         errors.New("provider unavailable"),
+		ErrorStatus: ImageGenerationStatusProviderUnavailable,
+	})
+	if err != nil {
+		t.Fatalf("BuildImageGenerationEnvelope: %v", err)
+	}
+	if env.Status != ImageGenerationStatusProviderUnavailable {
+		t.Fatalf("Status = %q, want provider-unavailable evidence", env.Status)
 	}
 }
 

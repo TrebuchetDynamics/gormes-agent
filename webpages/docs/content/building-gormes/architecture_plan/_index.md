@@ -5,7 +5,7 @@ weight: 20
 
 # Gormes — Executive Roadmap
 
-**Single source of truth:** [`progress.json`](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/content/building-gormes/architecture_plan/progress.json) — machine-readable, validated + regenerated on build.
+**Single source of truth:** [`progress.json`](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/webpages/docs/content/building-gormes/architecture_plan/progress.json) — machine-readable, validated + regenerated on build.
 
 **Public site:** https://gormes.ai
 
@@ -16,7 +16,7 @@ weight: 20
 - [Source code](https://github.com/TrebuchetDynamics/gormes-agent) — Implementation
 
 **Execution control plane:** repo-local Gormes skills consume this
-`progress.json` and the generated `docs/content/building-gormes/` pages to
+`progress.json` and the generated `webpages/docs/content/building-gormes/` pages to
 select and execute eligible work. The old loop command binaries are gone; the
 roadmap is still the machine-readable queue for developing the full
 `gormes-agent`.
@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 108/111 subphases shipped · 3 in progress · 0 planned
+**Overall:** 109/112 subphases shipped · 3 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -103,7 +103,7 @@ classification and row-backed implementation queue.
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 4/7 subphases |
-| Phase 9 — Design & Security Hardening | ✅ | 7/7 subphases |
+| Phase 9 — Design & Security Hardening | ✅ | 8/8 subphases |
 
 ---
 
@@ -1215,6 +1215,11 @@ classification and row-backed implementation queue.
 - [x] `channels` Per-profile channel credential readiness and allow-lists
 - [x] `providers` Gormes setup providers plural alias
 - [x] `cli` Root tools command config-backed toolset toggles
+- [x] `providers` Bitwarden secrets command status/sync/disable
+- [x] `providers` Bitwarden managed bws install + checksum verification
+- [x] `providers` Bitwarden secrets setup wizard
+- [x] `providers` Bitwarden disk cache parity
+- [x] `providers` Credential-pool borrowed-source disk boundary
 
 ### 5.P — Docker / Packaging ✅
 
@@ -1317,6 +1322,7 @@ classification and row-backed implementation queue.
 - [x] `tui` Native TUI /skin get-set binding
 - [x] `gateway` Gormes JSONL RPC mode over agent runtime events
 - [x] `tui` Native TUI voice record key uses voice toggle adapter
+- [x] `tui` Native TUI live voice capture and playback parity
 
 ### 5.R — Code Execution Mode Policy ✅
 
@@ -1661,15 +1667,22 @@ classification and row-backed implementation queue.
 - [x] `tools` MCP Streamable HTTP session lifecycle compatibility
 - [x] `runtime` Dynamic agent identity inheritance regression matrix
 
+### 9.H — Architecture Deepening from tld Diagram Review ✅
+
+- [x] `config` Channel-neutral memory settings projection seam
+- [x] `gateway` Gateway channel registration degraded-status helper
+- [x] `channels` Telegram batch debouncer shared state helper
+- [x] `channels` Telegram render-send MarkdownV2 contract fixture
+
 <!-- PROGRESS:END -->
 
 ---
 
 ## Phase 3 Deep Dive
 
-`3.E.7` and `3.E.8` now have a frozen architecture target in `docs/superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-plan.md`. The contract is `user_id > chat_id > session_id`, recall remains same-chat default, cross-chat recall is opt-in, and `parent_session_id` is reserved for compression/fork descendants instead of becoming a generic session rewrite mechanism.
+`3.E.7` and `3.E.8` now have a frozen architecture target in `webpages/docs/superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-plan.md`. The contract is `user_id > chat_id > session_id`, recall remains same-chat default, cross-chat recall is opt-in, and `parent_session_id` is reserved for compression/fork descendants instead of becoming a generic session rewrite mechanism.
 
-Execution is now sequenced in `docs/superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md`, with the closeout order fixed as `3.E.6.1 -> 3.E.7.2 -> 3.E.8.1 -> 3.E.8.2` so freshness, fence safety, lineage metadata, and search/observability land in that order.
+Execution is now sequenced in `webpages/docs/superpowers/plans/memory-identity/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md`, with the closeout order fixed as `3.E.6.1 -> 3.E.7.2 -> 3.E.8.1 -> 3.E.8.2` so freshness, fence safety, lineage metadata, and search/observability land in that order.
 
 ---
 
@@ -1681,7 +1694,7 @@ Before any Phase 4 coding starts, the [Pre-Phase-4 E2E Gate](./phases/phase-3-me
 
 ## Data Format
 
-[`progress.json`](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/content/building-gormes/architecture_plan/progress.json) is the machine-readable source of truth. Top-level structure:
+[`progress.json`](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/webpages/docs/content/building-gormes/architecture_plan/progress.json) is the machine-readable source of truth. Top-level structure:
 
 - `meta` — schema version, last-updated timestamp, canonical URLs
 - `phases` — six phases keyed `"1"`..`"6"`, each containing `subphases`

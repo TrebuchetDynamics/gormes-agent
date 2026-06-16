@@ -4,9 +4,11 @@ import (
 	"github.com/spf13/cobra"
 
 	appprofile "github.com/TrebuchetDynamics/gormes-agent/internal/app/profile"
+	appsetup "github.com/TrebuchetDynamics/gormes-agent/internal/app/setup"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/commandruntime"
 	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/profiles"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/profileseedruntime"
 )
 
 type CommandSeams = appprofile.Seams
@@ -23,7 +25,7 @@ type ControlCenterDraft = profilemodule.ControlCenterDraft
 
 type ControlCenterDraftChange = profilemodule.ControlCenterDraftChange
 
-func NewCommand(build func() gormescli.BuildProvenance) *cobra.Command {
+func NewCommand(build func() commandruntime.BuildProvenance) *cobra.Command {
 	return appprofile.NewCommand(build)
 }
 
@@ -39,11 +41,11 @@ func DefaultListKnownProfiles() ([]string, error) {
 	return appprofile.DefaultListKnownProfiles()
 }
 
-func ProfileSeedSeamsFromProfileSeams(seams CommandSeams, build func() gormescli.BuildProvenance) gormescli.ProfileSeedSeams {
+func ProfileSeedSeamsFromProfileSeams(seams CommandSeams, build func() commandruntime.BuildProvenance) profileseedruntime.ProfileSeedSeams {
 	return appprofile.ProfileSeedSeamsFromProfileSeams(seams, build)
 }
 
-func SetupSections() []gormescli.SetupSection {
+func SetupSections() []appsetup.SetupSection {
 	return profilemodule.SetupSections()
 }
 

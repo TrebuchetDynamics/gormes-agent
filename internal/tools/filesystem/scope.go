@@ -3,6 +3,7 @@ package filesystem
 import filescope "github.com/TrebuchetDynamics/gormes-agent/internal/tools/filesystem/scope"
 
 const ProfileWorkspaceScopeViolation = filescope.ProfileWorkspaceScopeViolation
+const ProfileWorkspaceDeniedMessage = filescope.ProfileWorkspaceDeniedMessage
 
 const (
 	ProfileWorkspaceAccessRead     = filescope.ProfileWorkspaceAccessRead

@@ -34,6 +34,10 @@ func BuildChannelSetupPlan(cfg config.Config) ChannelSetupPlan {
 	return gatewaychannelsetup.BuildChannelSetupPlan(cfg)
 }
 
+func ProfileSetupChannelIDs() []string {
+	return gatewaychannelsetup.ProfileSetupChannelIDs()
+}
+
 // BuildChannelSetupPlanWithOptions builds setup guidance from config plus
 // caller-supplied read-model evidence such as gateway pairing status.
 func BuildChannelSetupPlanWithOptions(cfg config.Config, opts ChannelSetupPlanOptions) ChannelSetupPlan {

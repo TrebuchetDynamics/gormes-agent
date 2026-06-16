@@ -48,5 +48,5 @@ tool name, and local `web_crawl` must wait for goscrapling spider robots,
 cache, checkpoint, and session-adapter rows. Provider crawl/search routing stays
 owned by Gormes.
 
-See `goscrapling/docs/content/building-goscrapling/strategy/portfolio-and-gormes-fit.md`
+See `goscrapling/webpages/docs/content/building-goscrapling/strategy/portfolio-and-gormes-fit.md`
 in this repository for the goscrapling-side boundary.

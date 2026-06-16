@@ -3,7 +3,6 @@ package gateway
 import (
 	"context"
 	"log/slog"
-	"strings"
 	"testing"
 	"time"
 
@@ -51,16 +50,12 @@ func TestManager_Inbound_SubmitInjectsSessionContext(t *testing.T) {
 	if got.SessionID != "sess-stored" {
 		t.Fatalf("SessionID = %q, want %q", got.SessionID, "sess-stored")
 	}
-	for _, want := range []string{
+	assertContainsAll(t, got.SessionContext,
 		"## Current Session Context",
 		"**Source:** telegram chat `42`",
 		"`origin`",
 		"`local`",
 		"`discord`",
 		"`telegram`",
-	} {
-		if !strings.Contains(got.SessionContext, want) {
-			t.Fatalf("SessionContext missing %q in:\n%s", want, got.SessionContext)
-		}
-	}
+	)
 }

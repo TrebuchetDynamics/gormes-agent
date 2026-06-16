@@ -76,12 +76,18 @@ func (f *failOnFinalEditor) Send(_ context.Context, chatID, text string) (string
 	return id, nil
 }
 
+type initialSendFailsPlaceholderWorks struct {
+	*fakeChannel
+}
+
+func (f *initialSendFailsPlaceholderWorks) Send(context.Context, string, string) (string, error) {
+	return "", errors.New("direct send failed")
+}
+
 func (f *failOnFinalEditor) plainSendsSnapshot() []fakeSent {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]fakeSent, len(f.plainSends))
-	copy(out, f.plainSends)
-	return out
+	return cloneSlice(f.plainSends)
 }
 
 // itoa is a minimal helper so this file has no strconv import dependency.
@@ -148,6 +154,20 @@ func TestCoalescer_EditFailure_PlainSendFallback(t *testing.T) {
 	}
 	if evCopy[0].Code != "edit_failed_fallback" {
 		t.Fatalf("evidence code = %q, want %q", evCopy[0].Code, "edit_failed_fallback")
+	}
+}
+
+func TestCoalescer_InitialTextSendFailureFallsBackToPlaceholderEdit(t *testing.T) {
+	ch := &initialSendFailsPlaceholderWorks{fakeChannel: newFakeChannel("telegram")}
+	c := newCoalescer(ch, time.Second, "chat42", coalescerInitialTextSend())
+
+	c.flushImmediate(context.Background(), "partial response")
+
+	if sent := ch.sentSnapshot(); len(sent) != 1 || sent[0].Text != "⏳" {
+		t.Fatalf("sent = %#v, want placeholder fallback after direct send failure", sent)
+	}
+	if edits := ch.editsSnapshot(); len(edits) != 1 || edits[0].Text != "partial response" {
+		t.Fatalf("edits = %#v, want placeholder edited to stream text", edits)
 	}
 }
 

@@ -71,48 +71,74 @@ When the worktree already contains a broad root-file relocation:
 - avoid domains with overlapping helpers unless you can preserve them through a facade;
 - report validation limits caused by unrelated dirty files instead of claiming full closeout.
 
+## Same-domain acceleration
+
+A refactor pass is one domain, not one file. When the operator supplies a file list or says the burn-down is too slow, pick the largest same-contract cluster that can validate together. Examples: setup-first/quick setup, setup gateway profile bindings, setup tools, or setup profiles TUI. Do not join unrelated setup sections only because they share the `setup_` prefix.
+
+For giant root files, move the selected subflow through a narrow root adapter and delete standalone root files for that subflow. Leave package-spanning e2e tests in root only when they genuinely cover multiple domains; classify them as deferred candidates rather than pretending the selected domain is complete.
+
 ## Candidate and count commands
 
 Useful discovery commands:
 
 ```bash
+# Repo-root-safe preflight. Use this even when the agent cwd is cmd/gormes.
+repo=$(git rev-parse --show-toplevel)
+git -C "$repo" status --short --branch --untracked-files=all
+
 # Root topology count and names: files plus subdirectories, not only Go files
-find cmd/gormes -maxdepth 1 -mindepth 1 -printf '%f\n' | sort
-find cmd/gormes -maxdepth 1 -mindepth 1 | wc -l
+find "$repo/cmd/gormes" -maxdepth 1 -mindepth 1 -printf '%f\n' | sort
+find "$repo/cmd/gormes" -maxdepth 1 -mindepth 1 | wc -l
 
 # Go-only burn-down can be reported separately
-find cmd/gormes -maxdepth 1 -type f -name '*.go' -printf '%f\n' | sort
-find cmd/gormes -maxdepth 1 -type f -name '*.go' | wc -l
+find "$repo/cmd/gormes" -maxdepth 1 -type f -name '*.go' -printf '%f\n' | sort
+find "$repo/cmd/gormes" -maxdepth 1 -type f -name '*.go' | wc -l
+
+# Fast prefix inventory for candidate-table seeding; confirm manually before selecting.
+find "$repo/cmd/gormes" -maxdepth 1 -type f -printf '%f\n' \
+  | sed -E 's/(_test)?\.go$//; s/_(test|e2e)$//; s/_.*$//' \
+  | sort | uniq -c | sort -nr
+
+# Existing app/CLI owners that may make a tests-only burn-down possible
+find "$repo/internal/app" "$repo/internal/platform/cli/gormescli" -maxdepth 2 -type f 2>/dev/null \
+  | sed "s#^$repo/##" | sort
 
 # Current direct internal imports from root package
-go list -f '{{join .Imports "\n"}}' ./cmd/gormes | grep '^github.com/TrebuchetDynamics/gormes-agent/internal' | sort
+( cd "$repo" && go list -f '{{join .Imports "\n"}}' ./cmd/gormes ) \
+  | grep '^github.com/TrebuchetDynamics/gormes-agent/internal' | sort
 
 # Focused dirty state for a domain
-git diff --name-status -- cmd/gormes internal/platform/cli/gormescli internal/app/<domain> | grep -i '<domain>\|<command>'
+git -C "$repo" diff --name-status -- cmd/gormes internal/platform/cli/gormescli internal/app/<domain> \
+  | grep -i '<domain>\|<command>'
 ```
 
 Use the folder-refactor tools when the harness provides them:
 
 ```text
-folder_refactor_scan target=cmd/gormes      # before planning a topology claim
-folder_refactor_audit target=cmd/gormes     # before claiming root topology complete
+folder_refactor_scan target=/absolute/path/to/repo/cmd/gormes      # before planning a topology claim
+folder_refactor_audit target=/absolute/path/to/repo/cmd/gormes     # before claiming root topology complete
 ```
+
+Avoid cwd-relative scan targets when the agent is already inside `cmd/gormes`; they can resolve as `cmd/gormes/cmd/gormes`.
 
 ## Hermes graph query shape
 
 Prefer targeted graph queries over loading the full graph:
 
 ```bash
-jq -r '
+repo=$(git rev-parse --show-toplevel)
+test -r "$repo/hermes-knowledge-graph.json"
+pattern='<domain>|<command>'
+jq -r --arg re "$pattern" '
   .nodes[]
-  | select(((.id // "")|test("<domain>|<command>"; "i"))
-        or ((.filePath // "")|test("<domain>|<command>"; "i"))
-        or ((.summary // "")|test("<domain>|<command>"; "i")))
+  | select(((.id // "")|test($re; "i"))
+        or ((.filePath // "")|test($re; "i"))
+        or ((.summary // "")|test($re; "i")))
   | [.id, (.filePath // ""), (.summary // "")] | @tsv
-' hermes-knowledge-graph.json
+' "$repo/hermes-knowledge-graph.json"
 ```
 
-Graph refs are navigation evidence only. Preserve current Gormes behavior during refactor; report behavior drift separately.
+If the query has no relevant hits, do not invent Hermes refs. A no-Hermes-analogue classification is allowed only for Gormes-owned domains with explicit local evidence such as repocheck source refs, progress docs, command tests, or code ownership. Graph refs are navigation evidence only. Preserve current Gormes behavior during refactor; report behavior drift separately.
 
 ## CLI boundary checklist
 
@@ -124,14 +150,27 @@ Before and after the move, preserve:
 - exit codes and error wording;
 - test fixtures, golden output, and command-constructor freshness.
 
+Use the same before/after oracle for the selected domain so refactors can reveal bugs instead of only proving compilation. If the oracle fails before editing, classify a preexisting bug; if it fails only after the move, classify an introduced regression and fix it before closeout.
+
 ## Validation patterns
 
 Focused first:
 
 ```bash
+# Baseline/after-move bug oracle for behavior slices; use the same command both times.
+go test ./cmd/gormes -run '<Domain|Command>' -count=1
+GORMES_HOME="$(mktemp -d)" go run ./cmd/gormes <command> --help
+
+# Tests-only/root burn-down slice when behavior and wiring already live under internal/.
+go test ./internal/platform/cli/gormescli -run '<Domain|Command>' -count=1
+go test ./cmd/gormes -run '<Domain|Command>' -count=1
+
+# Behavior extraction slice.
 go test ./internal/app/<domain> -count=1
 go test ./internal/platform/cli/gormescli -run '<Domain|Command>' -count=1
 go test ./cmd/gormes -run '<Domain|Command>' -count=1
+
+# Package/topology closeout for any slice.
 go test ./cmd/gormes -count=1
 go test ./cmd/gormes/... -count=1
 go test ./internal/support/repochecks -run 'Cmd|Internal|Topology|Import' -count=1

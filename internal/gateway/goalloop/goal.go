@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 const (
@@ -31,6 +32,9 @@ type JudgeVerdict struct {
 }
 
 func EvaluateJudge(ctx context.Context, judge Judge, goal, lastResponse string) JudgeVerdict {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if strings.TrimSpace(goal) == "" {
 		return JudgeVerdict{Verdict: JudgeVerdictSkipped, Reason: "empty goal"}
 	}
@@ -42,9 +46,15 @@ func EvaluateJudge(ctx context.Context, judge Judge, goal, lastResponse string) 
 	}
 	raw, err := judge.JudgeGoal(ctx, goal, lastResponse)
 	if err != nil {
-		return JudgeVerdict{Verdict: JudgeVerdictContinue, Reason: "judge error: " + err.Error()}
+		return JudgeVerdict{Verdict: JudgeVerdictContinue, Reason: "judge error: " + sanitizeJudgeReason(err.Error())}
 	}
 	return ParseJudgeResponse(raw)
+}
+
+func sanitizeJudgeReason(reason string) string {
+	reason = redaction.RedactSecrets(reason)
+	reason = strings.NewReplacer("`", "'", "*", "'", "#", "＃").Replace(reason)
+	return strings.Join(strings.Fields(reason), " ")
 }
 
 func ParseJudgeResponse(raw string) JudgeVerdict {
@@ -151,12 +161,39 @@ func FormatStatusLine(state *session.GoalState) string {
 	if status == "" {
 		status = string(session.GoalStatusActive)
 	}
-	line := fmt.Sprintf("Goal %s (%d/%d): %s", status, state.TurnsUsed, state.MaxTurns, state.Goal)
+	line := fmt.Sprintf("Goal %s (%d/%d): %s", status, state.TurnsUsed, state.MaxTurns, displayText(state.Goal))
 	if reason := strings.TrimSpace(state.LastReason); reason != "" {
-		line += "\nLast verdict: " + strings.TrimSpace(state.LastVerdict) + " — " + reason
+		line += "\nLast verdict: " + displayText(state.LastVerdict) + " — " + displayText(reason)
 	}
 	if reason := strings.TrimSpace(state.PausedReason); reason != "" {
-		line += "\nPaused reason: " + reason
+		line += "\nPaused reason: " + displayText(reason)
 	}
 	return line
+}
+
+func displayText(value string) string {
+	msg := strings.TrimSpace(value)
+	if msg == "" {
+		return ""
+	}
+	lower := strings.ToLower(msg)
+	compact := compactSecretSeparators(lower)
+	for _, marker := range []string{"token", "api_key", "apikey", "authorization", "bearer", "secret", "password"} {
+		if strings.Contains(lower, marker) || strings.Contains(compact, marker) {
+			return "[redacted]"
+		}
+	}
+	replacer := strings.NewReplacer("`", "'", "*", "'", "#", "＃")
+	return strings.Join(strings.Fields(replacer.Replace(msg)), " ")
+}
+
+func compactSecretSeparators(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }

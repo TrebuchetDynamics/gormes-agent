@@ -9,7 +9,7 @@ weight: 20
 Docs-focused checks:
 
 ```bash
-go test ./docs -count=1
+go test ./webpages/docs -count=1
 go run ./cmd/progress validate
 git diff --check
 ```
@@ -17,7 +17,7 @@ git diff --check
 When changing rendered docs behavior, also run the Playwright docs tests:
 
 ```bash
-cd docs/www-tests
+cd webpages/docs/www-tests
 npm run test:e2e
 ```
 

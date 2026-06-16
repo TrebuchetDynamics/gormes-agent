@@ -61,7 +61,7 @@ Minimum validation:
 
 ```sh
 go run ./cmd/progress validate
-go test ./docs -count=1
+go test ./webpages/docs -count=1
 ```
 
 If progress rows or generated progress docs changed:

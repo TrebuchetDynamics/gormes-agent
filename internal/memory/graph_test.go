@@ -85,6 +85,38 @@ func TestGraph_UpsertRelationshipAccumulatesWeight(t *testing.T) {
 	}
 }
 
+func TestGraph_DropsRelationshipWithAmbiguousEntityName(t *testing.T) {
+	s := openGraph(t)
+	// Two distinct entities share a name with different types. A relationship
+	// references that name, but the relationship model carries no type, so the
+	// endpoint is ambiguous. The edge must be dropped rather than connected to
+	// an arbitrary (wrong) entity.
+	batch := ValidatedOutput{
+		Entities: []ValidatedEntity{
+			{Name: "Mercury", Type: "PERSON"},
+			{Name: "Mercury", Type: "PLACE"},
+			{Name: "Sun", Type: "ORGANIZATION"},
+		},
+		Relationships: []ValidatedRelationship{
+			{Source: "Mercury", Target: "Sun", Predicate: "RELATED_TO", Weight: 1.0},
+		},
+	}
+	if err := writeGraphBatch(context.Background(), s.db, batch, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	var entCount int
+	_ = s.db.QueryRow(`SELECT COUNT(*) FROM entities`).Scan(&entCount)
+	if entCount != 3 {
+		t.Fatalf("entities = %d, want 3 (all typed entities kept)", entCount)
+	}
+	var relCount int
+	_ = s.db.QueryRow(`SELECT COUNT(*) FROM relationships`).Scan(&relCount)
+	if relCount != 0 {
+		t.Fatalf("relationships = %d, want 0 (ambiguous 'Mercury' endpoint must be dropped, not connected arbitrarily)", relCount)
+	}
+}
+
 func TestGraph_UpsertRelationshipWeightCapAt10(t *testing.T) {
 	s := openGraph(t)
 	batch := ValidatedOutput{

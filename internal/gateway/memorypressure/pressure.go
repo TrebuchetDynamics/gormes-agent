@@ -13,13 +13,13 @@ const (
 	BytesPerMegabyte     = 1024 * 1024
 )
 
-type Status string
+type PressureStatus string
 
 const (
-	StatusOK          Status = "ok"
-	StatusWarn        Status = "warn"
-	StatusCritical    Status = "critical"
-	StatusUnavailable Status = "unavailable"
+	StatusOK          PressureStatus = "ok"
+	StatusWarn        PressureStatus = "warn"
+	StatusCritical    PressureStatus = "critical"
+	StatusUnavailable PressureStatus = "unavailable"
 )
 
 type Action string
@@ -53,7 +53,11 @@ func NormalizePolicy(policy Policy) Policy {
 	if policy.CriticalRSSMB < policy.WarnRSSMB {
 		policy.CriticalRSSMB = policy.WarnRSSMB
 	}
-	if policy.CriticalAction == "" {
+	switch policy.CriticalAction {
+	case ActionRestart, ActionNone:
+	case "":
+		policy.CriticalAction = ActionRestart
+	default:
 		policy.CriticalAction = ActionRestart
 	}
 	return policy
@@ -73,20 +77,20 @@ type Sample struct {
 }
 
 type Evidence struct {
-	Status          Status   `json:"status,omitempty"`
-	RSSMB           int      `json:"rss_mb,omitempty"`
-	WarnRSSMB       int      `json:"warn_rss_mb,omitempty"`
-	CriticalRSSMB   int      `json:"critical_rss_mb,omitempty"`
-	UptimeSeconds   int64    `json:"uptime_seconds,omitempty"`
-	GoRoutines      int      `json:"goroutines,omitempty"`
-	GCCollections   uint32   `json:"gc_collections,omitempty"`
-	Action          Action   `json:"action,omitempty"`
-	TargetPID       int      `json:"target_pid,omitempty"`
-	TargetStartTime int64    `json:"target_start_time,omitempty"`
-	Evidence        []string `json:"evidence,omitempty"`
-	Message         string   `json:"message,omitempty"`
-	CheckedAt       string   `json:"checked_at,omitempty"`
-	Redacted        bool     `json:"redacted"`
+	Status          PressureStatus `json:"status,omitempty"`
+	RSSMB           int            `json:"rss_mb,omitempty"`
+	WarnRSSMB       int            `json:"warn_rss_mb,omitempty"`
+	CriticalRSSMB   int            `json:"critical_rss_mb,omitempty"`
+	UptimeSeconds   int64          `json:"uptime_seconds,omitempty"`
+	GoRoutines      int            `json:"goroutines,omitempty"`
+	GCCollections   uint32         `json:"gc_collections,omitempty"`
+	Action          Action         `json:"action,omitempty"`
+	TargetPID       int            `json:"target_pid,omitempty"`
+	TargetStartTime int64          `json:"target_start_time,omitempty"`
+	Evidence        []string       `json:"evidence,omitempty"`
+	Message         string         `json:"message,omitempty"`
+	CheckedAt       string         `json:"checked_at,omitempty"`
+	Redacted        bool           `json:"redacted"`
 }
 
 func Evaluate(sample Sample, policy Policy, owner Owner, now time.Time) Evidence {
@@ -113,8 +117,12 @@ func Evaluate(sample Sample, policy Policy, owner Owner, now time.Time) Evidence
 		evidence.Evidence = []string{"memory_pressure_critical"}
 		evidence.Message = "gateway RSS is above critical threshold"
 		if evidence.Action == ActionRestart {
-			evidence.TargetPID = owner.PID
-			evidence.TargetStartTime = owner.StartTime
+			if owner.PID > 0 {
+				evidence.TargetPID = owner.PID
+			}
+			if owner.StartTime > 0 {
+				evidence.TargetStartTime = owner.StartTime
+			}
 			evidence.Evidence = append(evidence.Evidence, "memory_pressure_restart_requested")
 		}
 	case rssMB >= policy.WarnRSSMB:
@@ -130,22 +138,22 @@ func Format(evidence Evidence) string {
 		return ""
 	}
 	parts := []string{
-		fmt.Sprintf("memory_pressure: %s", evidence.Status),
-		fmt.Sprintf("rss=%dMB", evidence.RSSMB),
-		fmt.Sprintf("warn=%dMB", evidence.WarnRSSMB),
-		fmt.Sprintf("critical=%dMB", evidence.CriticalRSSMB),
+		fmt.Sprintf("memory_pressure: %s", formatValue(string(evidence.Status))),
+		fmt.Sprintf("rss=%dMB", nonNegativeInt(evidence.RSSMB)),
+		fmt.Sprintf("warn=%dMB", nonNegativeInt(evidence.WarnRSSMB)),
+		fmt.Sprintf("critical=%dMB", nonNegativeInt(evidence.CriticalRSSMB)),
 	}
-	if evidence.UptimeSeconds > 0 {
-		parts = append(parts, fmt.Sprintf("uptime=%ds", evidence.UptimeSeconds))
+	if uptime := nonNegativeInt64(evidence.UptimeSeconds); uptime > 0 {
+		parts = append(parts, fmt.Sprintf("uptime=%ds", uptime))
 	}
-	if evidence.GoRoutines > 0 {
-		parts = append(parts, fmt.Sprintf("goroutines=%d", evidence.GoRoutines))
+	if goroutines := nonNegativeInt(evidence.GoRoutines); goroutines > 0 {
+		parts = append(parts, fmt.Sprintf("goroutines=%d", goroutines))
 	}
 	if evidence.GCCollections > 0 {
 		parts = append(parts, fmt.Sprintf("gc=%d", evidence.GCCollections))
 	}
 	if evidence.Action != "" && evidence.Action != ActionNone {
-		parts = append(parts, "action="+string(evidence.Action))
+		parts = append(parts, "action="+formatValue(string(evidence.Action)))
 	}
 	if evidence.TargetPID > 0 {
 		parts = append(parts, fmt.Sprintf("target_pid=%d", evidence.TargetPID))
@@ -154,10 +162,34 @@ func Format(evidence Evidence) string {
 		parts = append(parts, fmt.Sprintf("target_start_time=%d", evidence.TargetStartTime))
 	}
 	if len(evidence.Evidence) > 0 {
-		parts = append(parts, "evidence="+strings.Join(evidence.Evidence, ","))
+		items := make([]string, 0, len(evidence.Evidence))
+		for _, item := range evidence.Evidence {
+			if item = formatValue(item); item != "" {
+				items = append(items, item)
+			}
+		}
+		parts = append(parts, "evidence="+strings.Join(items, ","))
 	}
 	if evidence.Message != "" {
-		parts = append(parts, "message="+strconv.Quote(evidence.Message))
+		parts = append(parts, "message="+strconv.Quote(formatValue(evidence.Message)))
 	}
 	return strings.Join(parts, " ")
+}
+
+func formatValue(value string) string {
+	return strings.Join(strings.Fields(value), " ")
+}
+
+func nonNegativeInt(value int) int {
+	if value < 0 {
+		return 0
+	}
+	return value
+}
+
+func nonNegativeInt64(value int64) int64 {
+	if value < 0 {
+		return 0
+	}
+	return value
 }

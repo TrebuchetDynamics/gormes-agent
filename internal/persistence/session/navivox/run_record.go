@@ -340,8 +340,10 @@ func cloneEvidenceMap(raw map[string]any) map[string]any {
 
 func sensitiveKey(key string) bool {
 	key = strings.ToLower(key)
-	for _, marker := range []string{"secret", "token", "password", "api_key", "apikey", "credential", "raw_audio", "audio_bytes"} {
-		if strings.Contains(key, marker) {
+	collapsed := strings.NewReplacer("_", "", "-", "", ".", "", ":", " ").Replace(key)
+	collapsed = strings.Join(strings.Fields(collapsed), "")
+	for _, marker := range []string{"secret", "token", "password", "apikey", "credential", "rawaudio", "audiobytes"} {
+		if strings.Contains(collapsed, marker) {
 			return true
 		}
 	}

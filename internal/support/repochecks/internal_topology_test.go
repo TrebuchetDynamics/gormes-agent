@@ -225,7 +225,7 @@ func defaultTopologyMigrations() []topologyMigration {
 			SourceRefs: []string{
 				"internal/REFACTOR-CMD-PLAN.md:Tool Adapter Enclave",
 				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
-				"docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tool registry and toolsets",
+				"webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tool registry and toolsets",
 				"hermes-agent/tools/session_search_tool.py",
 				"hermes-agent/tests/tools/test_session_search.py",
 				"internal/tools/sessionsearch/session_search_tool.go:NewSessionSearchTool",
@@ -298,7 +298,7 @@ func defaultTopologyMigrations() []topologyMigration {
 			SourceRefs: []string{
 				"internal/REFACTOR-CMD-PLAN.md:Progress Delivery Enclave",
 				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
-				"cmd/repoctl/main.go:run",
+				"cmd/gormes-repo/main.go:run",
 				"internal/planning/progress/repoctl/bench.go:RecordBenchmark",
 				"internal/planning/progress/repoctl/hermes_contract_inventory.go:WriteHermesContractInventory",
 			},

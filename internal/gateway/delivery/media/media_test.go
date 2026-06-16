@@ -7,6 +7,54 @@ import (
 	"testing"
 )
 
+func TestPrepareMediaContentIgnoresMediaSubstringInsideWord(t *testing.T) {
+	dir := t.TempDir()
+	path := fileWithContent(t, dir, "photo.png", "image")
+
+	content := PrepareMediaContent("Not a tag: XMEDIA:" + path + " remains.")
+	if len(content.Media) != 0 {
+		t.Fatalf("Media = %+v, want no extraction from MEDIA substring inside word", content.Media)
+	}
+	if !strings.Contains(content.Text, "XMEDIA:"+path) {
+		t.Fatalf("Text = %q, want original XMEDIA substring preserved", content.Text)
+	}
+	if len(content.Evidence) != 0 {
+		t.Fatalf("Evidence = %+v, want no media evidence for non-tag substring", content.Evidence)
+	}
+}
+
+func TestPrepareMediaContentExtractsUnbracketedTagBeforeClosingParen(t *testing.T) {
+	dir := t.TempDir()
+	path := fileWithContent(t, dir, "photo.png", "image")
+
+	content := PrepareMediaContent("Here is the file (MEDIA:" + path + ")")
+	if len(content.Media) != 1 || content.Media[0].Path != path {
+		t.Fatalf("Media = %+v, want extracted path %q before closing parenthesis", content.Media, path)
+	}
+	if strings.Contains(content.Text, "MEDIA:") || strings.Contains(content.Text, "[MEDIA:redacted]") {
+		t.Fatalf("Text = %q, want media tag stripped without redaction", content.Text)
+	}
+	if !strings.Contains(content.Text, "()") {
+		t.Fatalf("Text = %q, want surrounding parentheses preserved", content.Text)
+	}
+}
+
+func TestPrepareMediaContentExtractsUnbracketedTagBeforeSentencePunctuation(t *testing.T) {
+	dir := t.TempDir()
+	path := fileWithContent(t, dir, "photo.png", "image")
+
+	content := PrepareMediaContent("Here is the file MEDIA:" + path + ".")
+	if len(content.Media) != 1 || content.Media[0].Path != path {
+		t.Fatalf("Media = %+v, want extracted path %q before trailing punctuation", content.Media, path)
+	}
+	if strings.Contains(content.Text, "MEDIA:") || strings.Contains(content.Text, "[MEDIA:redacted]") {
+		t.Fatalf("Text = %q, want media tag stripped without redaction", content.Text)
+	}
+	if !strings.HasSuffix(content.Text, ".") {
+		t.Fatalf("Text = %q, want trailing sentence punctuation preserved", content.Text)
+	}
+}
+
 func TestPrepareMediaContentExtractsHermesTags(t *testing.T) {
 	audioPath := filepath.Join(t.TempDir(), "voice.ogg")
 	if err := os.WriteFile(audioPath, []byte("audio"), 0o600); err != nil {
@@ -95,6 +143,76 @@ func TestPrepareMediaContentExtractsBracketedPathWithSpaces(t *testing.T) {
 	}
 	if len(content.Media) != 1 || content.Media[0].Path != path || !content.Media[0].AsVoice {
 		t.Fatalf("Media = %+v, want one voice attachment for %q", content.Media, path)
+	}
+}
+
+func TestCleanMediaPathRejectsControlCharacters(t *testing.T) {
+	for _, raw := range []string{"voice\nadmin.ogg", "voice\radmin.ogg", "voice\tadmin.ogg"} {
+		if got, ok := CleanMediaPath(raw); ok {
+			t.Fatalf("CleanMediaPath(%q) = %q, true; want rejected control-character path", raw, got)
+		}
+	}
+}
+
+func TestCleanMediaPathRejectsHiddenFormattingRunes(t *testing.T) {
+	dir := t.TempDir()
+	path := fileWithContent(t, dir, "photo\u202e.png", "image")
+	if got, ok := CleanMediaPath(path); ok {
+		t.Fatalf("CleanMediaPath(%q) = %q, true; want rejected hidden-formatting path", path, got)
+	}
+}
+
+func TestCleanMediaPathRejectsSensitiveCredentialPaths(t *testing.T) {
+	for _, raw := range []string{
+		filepath.Join(t.TempDir(), ".ssh", "config.txt"),
+		filepath.Join(t.TempDir(), ".aws", "credentials.txt"),
+		filepath.Join(t.TempDir(), ".kube", "config.txt"),
+	} {
+		if got, ok := CleanMediaPath(raw); ok {
+			t.Fatalf("CleanMediaPath(%q) = %q, true; want rejected sensitive credential path", raw, got)
+		}
+	}
+}
+
+func TestCleanMediaPathRejectsRemoteURL(t *testing.T) {
+	for _, raw := range []string{"https://cdn.example/audio.mp3", "file://tmp/audio.mp3", "data:audio/mpeg;base64,AAAA.mp3"} {
+		if got, ok := CleanMediaPath(raw); ok {
+			t.Fatalf("CleanMediaPath(%q) = %q, true; want rejected remote/scheme path", raw, got)
+		}
+	}
+}
+
+func TestCleanMediaPathRejectsBackslashTraversal(t *testing.T) {
+	for _, raw := range []string{`..\\secret.mp3`, `subdir\\..\\secret.mp3`, `..\secret.mp3`, `subdir\..\secret.mp3`} {
+		if got, ok := CleanMediaPath(raw); ok {
+			t.Fatalf("CleanMediaPath(%q) = %q, true; want rejected backslash traversal", raw, got)
+		}
+	}
+}
+
+func TestCleanMediaPathRejectsSymlinkedMedia(t *testing.T) {
+	dir := t.TempDir()
+	target := fileWithContent(t, dir, "secret.txt", "not really an image")
+	link := filepath.Join(dir, "photo.png")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	if got, ok := CleanMediaPath(link); ok {
+		t.Fatalf("CleanMediaPath(%q) = %q, true; want symlink rejected", link, got)
+	}
+}
+
+func TestPrepareMediaContentRejectsMissingMediaFile(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "ghost.png")
+	content := PrepareMediaContent("see MEDIA:" + missing)
+	if len(content.Media) != 0 {
+		t.Fatalf("Media = %+v, want missing file ignored", content.Media)
+	}
+	if !strings.Contains(content.Text, "[MEDIA:redacted]") {
+		t.Fatalf("Text = %q, want redacted marker for missing media", content.Text)
+	}
+	if len(content.Evidence) != 1 || content.Evidence[0].Code != MediaEvidenceIgnored || content.Evidence[0].Target != "[redacted]" {
+		t.Fatalf("Evidence = %+v, want redacted ignored evidence", content.Evidence)
 	}
 }
 

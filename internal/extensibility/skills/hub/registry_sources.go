@@ -21,6 +21,45 @@ var trustedSkillRepos = map[string]bool{
 	"anthropics/skills": true,
 }
 
+func defaultRegistryLimit(limit int) int {
+	if limit <= 0 {
+		return 10
+	}
+	return limit
+}
+
+func registryTextMatches(query string, fields ...string) bool {
+	return strings.Contains(strings.ToLower(strings.Join(fields, " ")), strings.ToLower(query))
+}
+
+func fetchRegistryJSON(ctx context.Context, client *http.Client, reqURL string, target any, headers map[string]string, forbiddenRateLimited bool) error {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
+	}
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusTooManyRequests || (forbiddenRateLimited && resp.StatusCode == http.StatusForbidden) {
+		return ErrRegistryRateLimited
+	}
+	if resp.StatusCode != http.StatusOK {
+		return ErrRegistryUnavailable
+	}
+	if err := json.NewDecoder(resp.Body).Decode(target); err != nil {
+		return fmt.Errorf("%w: %v", ErrRegistryMalformed, err)
+	}
+	return nil
+}
+
 type GitHubRegistryTap struct {
 	Repo string
 	Path string
@@ -95,24 +134,9 @@ func githubContents(ctx context.Context, client *http.Client, repo, path string)
 	if strings.TrimSpace(path) != "" {
 		reqURL += "/" + strings.Trim(path, "/")
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusForbidden {
-		return nil, ErrRegistryRateLimited
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, ErrRegistryUnavailable
-	}
 	var entries []githubContentEntry
-	if err := json.NewDecoder(resp.Body).Decode(&entries); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRegistryMalformed, err)
+	if err := fetchRegistryJSON(ctx, client, reqURL, &entries, nil, true); err != nil {
+		return nil, err
 	}
 	return entries, nil
 }
@@ -120,27 +144,12 @@ func githubContents(ctx context.Context, client *http.Client, repo, path string)
 func githubSkillMetadata(ctx context.Context, client *http.Client, repo, skillPath string) (HubSearchResult, error) {
 	skillPath = strings.Trim(skillPath, "/")
 	reqURL := "https://api.github.com/repos/" + repo + "/contents/" + skillPath + "/SKILL.md"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
-	if err != nil {
-		return HubSearchResult{}, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return HubSearchResult{}, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusForbidden {
-		return HubSearchResult{}, ErrRegistryRateLimited
-	}
-	if resp.StatusCode != http.StatusOK {
-		return HubSearchResult{}, ErrRegistryUnavailable
-	}
 	var file struct {
 		Content  string `json:"content"`
 		Encoding string `json:"encoding"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&file); err != nil {
-		return HubSearchResult{}, fmt.Errorf("%w: %v", ErrRegistryMalformed, err)
+	if err := fetchRegistryJSON(ctx, client, reqURL, &file, nil, true); err != nil {
+		return HubSearchResult{}, err
 	}
 	if file.Encoding != "base64" {
 		return HubSearchResult{}, ErrRegistryMalformed
@@ -180,39 +189,17 @@ func (p *SkillsShRegistryProvider) Snapshot(ctx context.Context) ([]HubSearchRes
 	if p == nil || p.query == "" {
 		return nil, ErrRegistryUnavailable
 	}
-	client := p.client
-	if client == nil {
-		client = http.DefaultClient
-	}
-	limit := p.limit
-	if limit <= 0 {
-		limit = 10
-	}
+	limit := defaultRegistryLimit(p.limit)
 	u, _ := url.Parse("https://skills.sh/api/search")
 	q := u.Query()
 	q.Set("q", p.query)
 	q.Set("limit", strconv.Itoa(limit))
 	u.RawQuery = q.Encode()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusTooManyRequests {
-		return nil, ErrRegistryRateLimited
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, ErrRegistryUnavailable
-	}
 	var data struct {
 		Skills []map[string]any `json:"skills"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRegistryMalformed, err)
+	if err := fetchRegistryJSON(ctx, p.client, u.String(), &data, nil, false); err != nil {
+		return nil, err
 	}
 	results := make([]HubSearchResult, 0, len(data.Skills))
 	for _, item := range data.Skills {
@@ -386,28 +373,7 @@ func (p *WellKnownRegistryProvider) Snapshot(ctx context.Context) ([]HubSearchRe
 	if p == nil || p.baseURL == "" {
 		return nil, ErrRegistryUnavailable
 	}
-	client := p.client
-	if client == nil {
-		client = http.DefaultClient
-	}
-
 	indexURL := wellKnownIndexURL(p.baseURL)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, indexURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusTooManyRequests {
-		return nil, ErrRegistryRateLimited
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, ErrRegistryUnavailable
-	}
-
 	var index struct {
 		Skills []struct {
 			Name        string   `json:"name"`
@@ -415,8 +381,8 @@ func (p *WellKnownRegistryProvider) Snapshot(ctx context.Context) ([]HubSearchRe
 			Tags        []string `json:"tags"`
 		} `json:"skills"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&index); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRegistryMalformed, err)
+	if err := fetchRegistryJSON(ctx, p.client, indexURL, &index, nil, false); err != nil {
+		return nil, err
 	}
 
 	base := strings.TrimSuffix(indexURL, "/index.json")
@@ -477,34 +443,13 @@ func (p *ClawHubRegistryProvider) Snapshot(ctx context.Context) ([]HubSearchResu
 	if p == nil || p.baseURL == "" {
 		return nil, ErrRegistryUnavailable
 	}
-	client := p.client
-	if client == nil {
-		client = http.DefaultClient
-	}
-
 	listURL, err := clawHubSkillsURL(p.baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, listURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusTooManyRequests {
-		return nil, ErrRegistryRateLimited
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, ErrRegistryUnavailable
-	}
-
 	var data any
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRegistryMalformed, err)
+	if err := fetchRegistryJSON(ctx, p.client, listURL, &data, nil, false); err != nil {
+		return nil, err
 	}
 	items, ok := clawHubItems(data)
 	if !ok {
@@ -630,11 +575,7 @@ func (p *ClaudeMarketplaceRegistryProvider) Snapshot(ctx context.Context) ([]Hub
 	if client == nil {
 		client = http.DefaultClient
 	}
-	limit := p.limit
-	if limit <= 0 {
-		limit = 10
-	}
-	query := strings.ToLower(p.query)
+	limit := defaultRegistryLimit(p.limit)
 	var (
 		results []HubSearchResult
 		lastErr error
@@ -648,7 +589,7 @@ func (p *ClaudeMarketplaceRegistryProvider) Snapshot(ctx context.Context) ([]Hub
 		for _, plugin := range plugins {
 			name := asString(plugin["name"])
 			desc := asString(plugin["description"])
-			if !strings.Contains(strings.ToLower(name+" "+desc), query) {
+			if !registryTextMatches(p.query, name, desc) {
 				continue
 			}
 			identifier := claudeMarketplaceIdentifier(repo, asString(plugin["source"]))
@@ -672,27 +613,11 @@ func (p *ClaudeMarketplaceRegistryProvider) Snapshot(ctx context.Context) ([]Hub
 
 func claudeMarketplacePlugins(ctx context.Context, client *http.Client, repo string) ([]map[string]any, error) {
 	reqURL := "https://api.github.com/repos/" + repo + "/contents/.claude-plugin/marketplace.json"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
-	}
-	req.Header.Set("Accept", "application/vnd.github.v3.raw")
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusForbidden {
-		return nil, ErrRegistryRateLimited
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, ErrRegistryUnavailable
-	}
 	var data struct {
 		Plugins []map[string]any `json:"plugins"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRegistryMalformed, err)
+	if err := fetchRegistryJSON(ctx, client, reqURL, &data, map[string]string{"Accept": "application/vnd.github.v3.raw"}, true); err != nil {
+		return nil, err
 	}
 	return data.Plugins, nil
 }
@@ -725,38 +650,15 @@ func (p *LobeHubRegistryProvider) Snapshot(ctx context.Context) ([]HubSearchResu
 	if p == nil || p.query == "" {
 		return nil, ErrRegistryUnavailable
 	}
-	client := p.client
-	if client == nil {
-		client = http.DefaultClient
-	}
-	limit := p.limit
-	if limit <= 0 {
-		limit = 10
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://chat-agents.lobehub.com/index.json", nil)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusForbidden {
-		return nil, ErrRegistryRateLimited
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, ErrRegistryUnavailable
-	}
+	limit := defaultRegistryLimit(p.limit)
 	var data any
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRegistryMalformed, err)
+	if err := fetchRegistryJSON(ctx, p.client, "https://chat-agents.lobehub.com/index.json", &data, nil, true); err != nil {
+		return nil, err
 	}
 	agents, ok := lobeHubAgents(data)
 	if !ok {
 		return nil, ErrRegistryMalformed
 	}
-	query := strings.ToLower(p.query)
 	results := make([]HubSearchResult, 0, len(agents))
 	for _, agent := range agents {
 		meta := lobeHubMeta(agent)
@@ -767,7 +669,7 @@ func (p *LobeHubRegistryProvider) Snapshot(ctx context.Context) ([]HubSearchResu
 		title := firstNonEmpty(asString(meta["title"]), identifier)
 		desc := asString(meta["description"])
 		tags := stringSlice(meta["tags"])
-		if !strings.Contains(strings.ToLower(title+" "+desc+" "+strings.Join(tags, " ")), query) {
+		if !registryTextMatches(p.query, title, desc, strings.Join(tags, " ")) {
 			continue
 		}
 		results = append(results, HubSearchResult{

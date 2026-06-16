@@ -18,8 +18,8 @@ re-reading the full Honcho docs tree.
 
 Before starting any packet, read:
 
-- `docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md`
-- `docs/content/building-gormes/architecture_plan/progress.json`
+- `webpages/docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md`
+- `webpages/docs/content/building-gormes/architecture_plan/progress.json`
 - `internal/goncho/types.go`
 - `internal/goncho/service.go`
 - `internal/goncho/sql.go`
@@ -30,7 +30,7 @@ If the work touches generated roadmap pages or the site, also run:
 
 - `go run ./cmd/progress validate`
 - `go run ./cmd/progress write`
-- `go test ./docs -count=1`
+- `go test ./webpages/docs -count=1`
 - `(cd www.gormes.ai && go test ./... -count=1)`
 
 ## Packet 1 - Context Representation Options
@@ -354,8 +354,8 @@ Source docs:
 - `../honcho/docs/v3/guides/integrations/claude-code.mdx`
 - `../honcho/docs/v3/guides/integrations/mcp.mdx`
 - `../honcho/docs/v3/openapi.json` schema `DialecticOptions`
-- `docs/content/building-gormes/goncho_honcho_memory/01-prompts.md`
-- `docs/content/building-gormes/goncho_honcho_memory/02-tool-schemas.md`
+- `webpages/docs/content/building-gormes/goncho_honcho_memory/01-prompts.md`
+- `webpages/docs/content/building-gormes/goncho_honcho_memory/02-tool-schemas.md`
 
 Current Gormes files:
 
@@ -592,7 +592,7 @@ Source docs:
 
 - `../honcho/docs/v3/openapi.json`
 - `../honcho/docs/v3/api-reference/endpoint/**/*.mdx`
-- `docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md`
+- `webpages/docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md`
 
 Endpoint groups to audit:
 
@@ -639,7 +639,7 @@ Source docs:
 - `../honcho/docs/v3/guides/integrations/openclaw.mdx`
 - `../honcho/docs/v3/guides/integrations/paperclip.mdx`
 - `../honcho/docs/v3/guides/integrations/sillytavern.mdx`
-- `docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md`
+- `webpages/docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md`
 - `internal/persistence/session/directory.go`
 - `internal/memory/session_catalog.go`
 
@@ -704,7 +704,7 @@ Source docs:
 - `../honcho/docs/v3/contributing/self-hosting.mdx`
 - `../honcho/docs/v3/contributing/configuration.mdx`
 - `../honcho/docs/v3/contributing/troubleshooting.mdx`
-- `docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md`
+- `webpages/docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md`
 - `cmd/gormes/doctor.go`
 - `cmd/gormes/memory.go`
 - `internal/memory/status.go`
@@ -770,8 +770,8 @@ Source docs:
 
 - `../honcho/docs/v3/documentation/features/advanced/streaming-response.mdx`
 - `../honcho/docs/v3/documentation/features/chat.mdx`
-- `docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md`
-- `docs/content/building-gormes/architecture_plan/phase-3-memory.md`
+- `webpages/docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md`
+- `webpages/docs/content/building-gormes/architecture_plan/phase-3-memory.md`
 
 Current Gormes files:
 
@@ -828,7 +828,7 @@ Source docs:
 
 - `../honcho/docs/v3/contributing/configuration.mdx`
 - `../honcho/docs/v3/contributing/self-hosting.mdx`
-- `docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md`
+- `webpages/docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md`
 - `internal/config/config.go`
 - `internal/config/config_test.go`
 

@@ -501,11 +501,11 @@ generic notes without bounded tests or write scope do not.
 
 ## Generated Agent Surfaces
 
-- `+"`docs/content/building-gormes/builder-loop/builder-loop-handoff.md`"+` lists shared skill entrypoint, plan, candidate source, generated docs, test command, and candidate policy.
-- `+"`docs/content/building-gormes/builder-loop/agent-queue.md`"+` lists only unblocked, non-umbrella contract rows with owner, size, readiness, degraded mode, fixture, write scope, test commands or a no-test-required reason, done signal, acceptance, and source references.
-- `+"`docs/content/building-gormes/builder-loop/blocked-slices.md`"+` keeps blocked rows out of the execution queue while preserving their unblock condition.
-- `+"`docs/content/building-gormes/builder-loop/umbrella-cleanup.md`"+` lists broad inventory rows that must be split before assignment.
-- `+"`docs/content/building-gormes/modules/`"+` contains generated module-scoped roadmap review pages. These are views over the single logical backlog, not side queues.
+- `+"`webpages/docs/content/building-gormes/builder-loop/builder-loop-handoff.md`"+` lists shared skill entrypoint, plan, candidate source, generated docs, test command, and candidate policy.
+- `+"`webpages/docs/content/building-gormes/builder-loop/agent-queue.md`"+` lists only unblocked, non-umbrella contract rows with owner, size, readiness, degraded mode, fixture, write scope, test commands or a no-test-required reason, done signal, acceptance, and source references.
+- `+"`webpages/docs/content/building-gormes/builder-loop/blocked-slices.md`"+` keeps blocked rows out of the execution queue while preserving their unblock condition.
+- `+"`webpages/docs/content/building-gormes/builder-loop/umbrella-cleanup.md`"+` lists broad inventory rows that must be split before assignment.
+- `+"`webpages/docs/content/building-gormes/modules/`"+` contains generated module-scoped roadmap review pages. These are views over the single logical backlog, not side queues.
 
 ## Good Row
 
@@ -521,7 +521,7 @@ generic notes without bounded tests or write scope do not.
   "trust_class": ["system"],
   "degraded_mode": "Provider status reports missing fixture coverage before routing can select the adapter.",
   "fixture": "internal/llm/testdata/provider_transcripts",
-  "source_refs": ["docs/content/upstream-hermes/source-study.md"],
+  "source_refs": ["webpages/docs/content/upstream-hermes/source-study.md"],
   "ready_when": ["Anthropic transcript fixtures replay without live credentials."],
   "write_scope": ["internal/llm/"],
   "test_commands": ["go test ./internal/llm -count=1"],

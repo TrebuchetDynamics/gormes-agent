@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 // ChainAttemptEvidence records what happened during a single provider attempt.
@@ -109,6 +112,15 @@ func (c *ProviderChain) Dispatch(ctx context.Context, req ChatRequest) (Stream, 
 	return nil, result, result.FinalError
 }
 
+func chainErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := redaction.RedactSecrets(err.Error())
+	msg = strings.NewReplacer("`", "'", "*", "'", "#", "＃").Replace(msg)
+	return strings.Join(strings.Fields(msg), " ")
+}
+
 func (c *ProviderChain) tryProvider(ctx context.Context, providerName string, req ChatRequest, result *ChainResult) (Stream, bool) {
 	client, err := c.Factory.NewClient(providerName)
 	if err != nil {
@@ -116,7 +128,7 @@ func (c *ProviderChain) tryProvider(ctx context.Context, providerName string, re
 			Provider:   providerName,
 			StartTime:  time.Now(),
 			Decision:   ChainDecisionFallback,
-			ErrorMsg:   err.Error(),
+			ErrorMsg:   chainErrorText(err),
 			ErrorKind:  string(ProviderErrorUnknown),
 			AttemptNum: 1,
 		})
@@ -154,7 +166,7 @@ func (c *ProviderChain) tryProvider(ctx context.Context, providerName string, re
 				Duration:   duration,
 				ErrorKind:  string(ProviderErrorUnknown),
 				Decision:   ChainDecisionAbort,
-				ErrorMsg:   err.Error(),
+				ErrorMsg:   chainErrorText(err),
 				AttemptNum: attemptNum,
 			})
 			result.FailedProviders = append(result.FailedProviders, providerName)
@@ -170,7 +182,7 @@ func (c *ProviderChain) tryProvider(ctx context.Context, providerName string, re
 			Duration:   duration,
 			ErrorKind:  classification.Kind.String(),
 			Decision:   decision,
-			ErrorMsg:   err.Error(),
+			ErrorMsg:   chainErrorText(err),
 			AttemptNum: attemptNum,
 		})
 

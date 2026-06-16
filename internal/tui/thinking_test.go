@@ -7,6 +7,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/testenv"
 )
 
 // TestThinking_RenderEmpty verifies that RenderThinking returns empty for invisible state.
@@ -89,7 +90,7 @@ func TestThinking_NoTruncationWhenNotMarked(t *testing.T) {
 }
 
 func TestThinkingWithSkinUsesSharedStyles(t *testing.T) {
-	forceLipglossTrueColor(t)
+	testenv.TrueColor(t)
 	skin := BuiltinSkins()["poseidon"]
 
 	thinking := RenderThinkingWithSkin(ThinkingState{Visible: true, Content: "checking style seams"}, skin)

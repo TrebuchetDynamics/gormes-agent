@@ -81,7 +81,7 @@ registration. See [Phase 2](../../architecture_plan/phase-2-gateway/) and
 ## Donor pointers
 
 When implementing a new tool, tool-output policy, or runtime seam, route
-through the `gormes-references` skill (`docs/development-skills/gormes-references/SKILL.md`)
+through the `gormes-references` skill (`development-skills/gormes-references/SKILL.md`)
 before re-deriving a shape. The most useful Go donors for tools/runtime work:
 
 | Tool/runtime problem | Donor file |

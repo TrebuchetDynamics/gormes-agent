@@ -265,36 +265,62 @@ func defaults() Config {
 }
 
 func loadFile(cfg *Config) error {
-	path := ConfigPath()
-	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		// Try YAML fallback for Hermes migrants
-		yamlPath := YAMLConfigPath()
-		yamlData, yamlErr := os.ReadFile(yamlPath)
-		if os.IsNotExist(yamlErr) {
-			return nil // no config at all
+	currentHome := GormesHome()
+	baseHome := GormesBaseHome()
+	baseLoaded := false
+	if baseHome != currentHome {
+		if loaded, err := loadConfigFileAt(cfg, filepath.Join(baseHome, "config.toml"), filepath.Join(baseHome, "config.yaml"), true); err != nil {
+			return err
+		} else if loaded {
+			baseLoaded = true
+			normalizeDecodedConfigVersion(cfg)
+			if err := migrateConfig(cfg); err != nil {
+				return err
+			}
 		}
-		if yamlErr != nil {
-			return fmt.Errorf("read %s: %w", yamlPath, yamlErr)
-		}
-		cfg.ConfigVersion = 0
-		cfg.LegacyConfigVersion = 0
-		if err := yaml.NewDecoder(bytes.NewReader(yamlData)).Decode(cfg); err != nil {
-			return fmt.Errorf("decode %s: %w", yamlPath, err)
-		}
-		normalizeDecodedConfigVersion(cfg)
-		return migrateConfig(cfg)
 	}
+	loaded, err := loadConfigFileAt(cfg, ConfigPath(), YAMLConfigPath(), !baseLoaded)
 	if err != nil {
-		return fmt.Errorf("read %s: %w", path, err)
-	}
-	cfg.ConfigVersion = 0
-	cfg.LegacyConfigVersion = 0
-	if err := toml.NewDecoder(bytes.NewReader(data)).EnableUnmarshalerInterface().Decode(cfg); err != nil {
 		return err
+	}
+	if !loaded {
+		return nil
 	}
 	normalizeDecodedConfigVersion(cfg)
 	return migrateConfig(cfg)
+}
+
+func loadConfigFileAt(cfg *Config, tomlPath, yamlPath string, resetVersion bool) (bool, error) {
+	data, err := os.ReadFile(tomlPath)
+	if os.IsNotExist(err) {
+		// Try YAML fallback for Hermes migrants.
+		yamlData, yamlErr := os.ReadFile(yamlPath)
+		if os.IsNotExist(yamlErr) {
+			return false, nil
+		}
+		if yamlErr != nil {
+			return false, fmt.Errorf("read %s: %w", yamlPath, yamlErr)
+		}
+		if resetVersion {
+			cfg.ConfigVersion = 0
+			cfg.LegacyConfigVersion = 0
+		}
+		if err := yaml.NewDecoder(bytes.NewReader(yamlData)).Decode(cfg); err != nil {
+			return false, fmt.Errorf("decode %s: %w", yamlPath, err)
+		}
+		return true, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("read %s: %w", tomlPath, err)
+	}
+	if resetVersion {
+		cfg.ConfigVersion = 0
+		cfg.LegacyConfigVersion = 0
+	}
+	if err := toml.NewDecoder(bytes.NewReader(data)).EnableUnmarshalerInterface().Decode(cfg); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func normalizeTelegramNotifications(raw string) string {

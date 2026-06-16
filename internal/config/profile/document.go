@@ -17,8 +17,17 @@ func ProfilesDocument(profiles map[string]Config) map[string]any {
 		if profile.Description != "" {
 			entry["description"] = profile.Description
 		}
+		if profile.Workspace != "" {
+			entry["workspace"] = profile.Workspace
+		}
 		if len(profile.Workspaces) > 0 {
 			entry["workspaces"] = append([]string(nil), profile.Workspaces...)
+		}
+		if len(profile.AllowedPaths) > 0 {
+			entry["allowed_paths"] = append([]string(nil), profile.AllowedPaths...)
+		}
+		if len(profile.AllowedPathRules) > 0 {
+			entry["allowed_path"] = AllowedPathRulesDocument(profile.AllowedPathRules)
 		}
 		if len(profile.Tags) > 0 {
 			entry["tags"] = append([]string(nil), profile.Tags...)
@@ -39,6 +48,18 @@ func ProfilesDocument(profiles map[string]Config) map[string]any {
 			entry["channels"] = channels
 		}
 		out[id] = entry
+	}
+	return out
+}
+
+func AllowedPathRulesDocument(rules []AllowedPathConfig) []map[string]any {
+	out := make([]map[string]any, 0, len(rules))
+	for _, rule := range rules {
+		entry := map[string]any{"path": rule.Path}
+		if rule.Access != "" {
+			entry["access"] = rule.Access
+		}
+		out = append(out, entry)
 	}
 	return out
 }

@@ -13,6 +13,18 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
+func TestFinalizeExpiredSessionsAllowsNilContextWhenDisabled(t *testing.T) {
+	m := NewManagerWithSubmitter(ManagerConfig{}, &fakeKernel{}, slog.Default())
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("FinalizeExpiredSessions panicked with nil context: %v", r)
+		}
+	}()
+	if err := m.FinalizeExpiredSessions(nil); err != nil {
+		t.Fatalf("FinalizeExpiredSessions nil context: %v", err)
+	}
+}
+
 func TestSessionExpiryHooks_FinalizeAndCachedAgentCleanupRunOnceAndPersistAcrossReload(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 4, 25, 18, 5, 0, 0, time.UTC)
@@ -104,6 +116,49 @@ func TestSessionExpiryHooks_FinalizeAndCachedAgentCleanupRunOnceAndPersistAcross
 	}
 }
 
+func TestSessionExpiryHooks_SkipsAlreadyFinalizedStatusEvenIfBooleanMissing(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 4, 25, 18, 8, 0, 0, time.UTC)
+	smap := session.NewMemMap()
+	if err := smap.PutMetadata(ctx, session.Metadata{
+		SessionID:               "sess-finalized-status",
+		Source:                  "telegram",
+		ChatID:                  "42",
+		UserID:                  "u-42",
+		UpdatedAt:               now.Add(-2 * time.Hour).Unix(),
+		ExpiryFinalizeStatus:    session.ExpiryFinalizeStatusFinalized,
+		ExpiryFinalizeAttempts:  1,
+		ExpiryFinalized:         false,
+		ExpiryFinalizeLastError: "",
+	}); err != nil {
+		t.Fatalf("PutMetadata finalized status session: %v", err)
+	}
+
+	status := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
+	scanner := &sessionExpiryScannerFixture{store: smap, keys: map[string]string{"telegram:42": "sess-finalized-status"}}
+	hooks := &sessionExpiryHookFixture{}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		SessionMap:    smap,
+		RuntimeStatus: status,
+		SessionExpiry: SessionExpiryConfig{Scanner: scanner, Finalizer: hooks},
+		Now:           func() time.Time { return now },
+	}, &fakeKernel{}, slog.Default())
+
+	if err := m.FinalizeExpiredSessions(ctx); err != nil {
+		t.Fatalf("FinalizeExpiredSessions: %v", err)
+	}
+	if got := hooks.finalizeSnapshot(); len(got) != 0 {
+		t.Fatalf("finalize calls = %+v, want none for finalized status", got)
+	}
+	meta, ok, err := smap.GetMetadata(ctx, "sess-finalized-status")
+	if err != nil || !ok {
+		t.Fatalf("GetMetadata = ok %v err %v", ok, err)
+	}
+	if meta.ExpiryFinalizeAttempts != 1 {
+		t.Fatalf("ExpiryFinalizeAttempts = %d, want unchanged 1", meta.ExpiryFinalizeAttempts)
+	}
+}
+
 func TestSessionExpiryHooks_FailedFinalizationRetriesThreeTimesThenGivesUp(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 4, 25, 18, 10, 0, 0, time.UTC)
@@ -191,6 +246,107 @@ func TestSessionExpiryHooks_FailedFinalizationRetriesThreeTimesThenGivesUp(t *te
 	}
 }
 
+func TestSessionExpiryHooks_FailureEvidenceSanitizesFinalizerErrors(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 4, 25, 18, 12, 0, 0, time.UTC)
+	smap := session.NewMemMap()
+	if err := smap.PutMetadata(ctx, session.Metadata{
+		SessionID: "sess-secret-error",
+		Source:    "telegram",
+		ChatID:    "42",
+		UserID:    "u-42",
+		UpdatedAt: now.Add(-2 * time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("PutMetadata retry session: %v", err)
+	}
+
+	status := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
+	status.now = func() time.Time { return now }
+	scanner := &sessionExpiryScannerFixture{store: smap, keys: map[string]string{"telegram:42": "sess-secret-error"}}
+	hooks := &sessionExpiryHookFixture{finalizeErr: errors.New("finalize failed\n**Injected:** token=plain-secret")}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		SessionMap:    smap,
+		RuntimeStatus: status,
+		SessionExpiry: SessionExpiryConfig{Scanner: scanner, Finalizer: hooks, MaxFinalizeAttempts: 3},
+		Now:           func() time.Time { return now },
+	}, &fakeKernel{}, slog.Default())
+
+	if err := m.FinalizeExpiredSessions(ctx); err != nil {
+		t.Fatalf("FinalizeExpiredSessions: %v", err)
+	}
+	meta, ok, err := smap.GetMetadata(ctx, "sess-secret-error")
+	if err != nil || !ok {
+		t.Fatalf("GetMetadata = ok %v err %v", ok, err)
+	}
+	for _, forbidden := range []string{"plain-secret", "**Injected:**", "finalize failed"} {
+		if strings.Contains(meta.ExpiryFinalizeLastError, forbidden) {
+			t.Fatalf("metadata finalization error leaked %q in %q", forbidden, meta.ExpiryFinalizeLastError)
+		}
+	}
+	if meta.ExpiryFinalizeLastError != "[redacted]" {
+		t.Fatalf("metadata finalization error = %q, want redacted", meta.ExpiryFinalizeLastError)
+	}
+	runtime, err := status.ReadRuntimeStatus(ctx)
+	if err != nil {
+		t.Fatalf("ReadRuntimeStatus: %v", err)
+	}
+	latest := latestExpiryFinalizeEvidence(runtime.ExpiryFinalize)
+	if latest.Error != "[redacted]" {
+		t.Fatalf("runtime finalization error = %q, want redacted", latest.Error)
+	}
+}
+
+func TestSessionExpiryHooks_ClampsNegativeScannerAttempts(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 4, 25, 18, 18, 0, 0, time.UTC)
+	smap := session.NewMemMap()
+	status := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
+	status.now = func() time.Time { return now }
+	hooks := &sessionExpiryHookFixture{}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		SessionMap:    smap,
+		RuntimeStatus: status,
+		SessionExpiry: SessionExpiryConfig{
+			Scanner: sessionExpiryStaticScanner{candidates: []SessionExpiryCandidate{{
+				SessionKey: "telegram:42",
+				Metadata: session.Metadata{
+					SessionID:              "sess-negative-attempts",
+					Source:                 "telegram",
+					ChatID:                 "42",
+					ExpiryFinalizeAttempts: -7,
+				},
+			}}},
+			Finalizer: hooks,
+		},
+		Now: func() time.Time { return now },
+	}, &fakeKernel{}, slog.Default())
+
+	if err := m.FinalizeExpiredSessions(ctx); err != nil {
+		t.Fatalf("FinalizeExpiredSessions: %v", err)
+	}
+	if got := hooks.finalizeSnapshot(); len(got) != 1 {
+		t.Fatalf("finalize calls = %+v, want one", got)
+	} else if got[0].Attempt != 1 {
+		t.Fatalf("finalize attempt = %d, want clamped first attempt", got[0].Attempt)
+	}
+	meta, ok, err := smap.GetMetadata(ctx, "sess-negative-attempts")
+	if err != nil || !ok {
+		t.Fatalf("GetMetadata = ok %v err %v", ok, err)
+	}
+	if meta.ExpiryFinalizeAttempts != 1 {
+		t.Fatalf("persisted attempts = %d, want 1", meta.ExpiryFinalizeAttempts)
+	}
+	runtime, err := status.ReadRuntimeStatus(ctx)
+	if err != nil {
+		t.Fatalf("ReadRuntimeStatus: %v", err)
+	}
+	for _, record := range runtime.ExpiryFinalize {
+		if record.Attempts < 0 {
+			t.Fatalf("runtime expiry finalize evidence leaked negative attempts: %+v", runtime.ExpiryFinalize)
+		}
+	}
+}
+
 func TestSessionExpiryHooks_StatusSummaryRendersRetryEvidenceWithAttemptCounts(t *testing.T) {
 	got := RenderStatusSummary(StatusSummary{
 		Runtime: RuntimeStatus{
@@ -204,15 +360,11 @@ func TestSessionExpiryHooks_StatusSummaryRendersRetryEvidenceWithAttemptCounts(t
 		},
 	})
 
-	for _, want := range []string{
+	assertContainsAll(t, got,
 		"- expiry_finalize_pending session=sess-pending source=telegram chat=42 attempts=0",
 		"- expiry_finalize_failed session=sess-failed source=telegram chat=43 attempts=1 error=\"temporary hook failure\"",
 		"- expiry_finalize_gave_up session=sess-gave-up source=telegram chat=44 attempts=3 error=\"still failing\"",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("RenderStatusSummary missing %q\n%s", want, got)
-		}
-	}
+	)
 }
 
 func TestSessionExpiryHooks_ResumeSubmitDoesNotLaunchMemoryFlushOrExtractorWork(t *testing.T) {
@@ -285,6 +437,14 @@ func TestSessionExpiryHooks_ResumeSubmitDoesNotLaunchMemoryFlushOrExtractorWork(
 	}
 }
 
+type sessionExpiryStaticScanner struct {
+	candidates []SessionExpiryCandidate
+}
+
+func (s sessionExpiryStaticScanner) ExpiredSessions(context.Context, time.Time) ([]SessionExpiryCandidate, error) {
+	return append([]SessionExpiryCandidate(nil), s.candidates...), nil
+}
+
 type sessionExpiryScannerFixture struct {
 	store interface {
 		GetMetadata(context.Context, string) (session.Metadata, bool, error)
@@ -332,17 +492,13 @@ func (h *sessionExpiryHookFixture) CleanupCachedAgent(_ context.Context, ev Sess
 func (h *sessionExpiryHookFixture) finalizeSnapshot() []SessionExpiryEvent {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	out := make([]SessionExpiryEvent, len(h.finalize))
-	copy(out, h.finalize)
-	return out
+	return cloneSlice(h.finalize)
 }
 
 func (h *sessionExpiryHookFixture) cleanupSnapshot() []SessionExpiryEvent {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	out := make([]SessionExpiryEvent, len(h.cleanup))
-	copy(out, h.cleanup)
-	return out
+	return cloneSlice(h.cleanup)
 }
 
 func openSessionExpiryBolt(t *testing.T, path string) *session.BoltMap {

@@ -24,6 +24,7 @@ func TestFileToolsUseProfileWorkspaceScopeAcrossRoots(t *testing.T) {
 	writeFile(t, filepath.Join(profile, ".env"), "secret")
 
 	scope, err := NewProfileWorkspaceScope(ProfileWorkspaceScopeOptions{
+		ProfileName:  "coder",
 		ProjectRoots: []string{project1, project2},
 		ProfileRoot:  profile,
 		OperatorHome: root,
@@ -56,9 +57,47 @@ func TestFileToolsUseProfileWorkspaceScopeAcrossRoots(t *testing.T) {
 		t.Fatalf("write project2 = %#v, want ok", wrote)
 	}
 
-	wrote = executeWriteFileTool(t, write, `{"path":`+quoteJSON(t, filepath.Join(profile, ".env"))+`,"content":"leak\n"}`)
+	wrote = executeWriteFileTool(t, write, `{"path":`+quoteJSON(t, filepath.Join(root, "outside-write.txt"))+`,"content":"leak\n"}`)
 	if !strings.Contains(asString(wrote["error"]), ProfileWorkspaceScopeViolation) {
-		t.Fatalf("write profile secret = %#v, want %s", wrote, ProfileWorkspaceScopeViolation)
+		t.Fatalf("write outside workspace = %#v, want %s", wrote, ProfileWorkspaceScopeViolation)
+	}
+}
+
+func TestSearchFilesSkipsSymlinkEscapesUnderProfileWorkspaceScope(t *testing.T) {
+	root := t.TempDir()
+	profileRoot := filepath.Join(root, ".gormes", "profiles", "coder")
+	outside := filepath.Join(root, "outside")
+	for _, dir := range []string{profileRoot, outside} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	writeFile(t, filepath.Join(profileRoot, "inside.txt"), "needle inside")
+	writeFile(t, filepath.Join(outside, "secret.txt"), "needle outside")
+	if err := os.Symlink(filepath.Join(outside, "secret.txt"), filepath.Join(profileRoot, "linked-secret.txt")); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+
+	scope, err := NewProfileWorkspaceScope(ProfileWorkspaceScopeOptions{
+		ProfileName:  "coder",
+		ProfileRoot:  profileRoot,
+		OperatorHome: root,
+	})
+	if err != nil {
+		t.Fatalf("NewProfileWorkspaceScope: %v", err)
+	}
+	search := NewSearchFilesTool(FileTaskToolConfig{Root: profileRoot, WorkspaceScope: scope})
+
+	out := executeSearchFilesTool(t, search, `{"pattern":"needle","path":".","target":"content","output_mode":"files_only"}`)
+	if out["error"] != nil {
+		t.Fatalf("search_files = %#v, want allowed search", out)
+	}
+	files, ok := out["files"].([]any)
+	if !ok {
+		t.Fatalf("files = %#v, want array", out["files"])
+	}
+	if len(files) != 1 || files[0] != "inside.txt" {
+		t.Fatalf("files = %#v, want only inside.txt; full output=%#v", files, out)
 	}
 }
 

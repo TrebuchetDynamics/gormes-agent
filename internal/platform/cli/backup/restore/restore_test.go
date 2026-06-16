@@ -76,6 +76,151 @@ func TestRestoreFromZip_OverwritesExistingFiles(t *testing.T) {
 	}
 }
 
+func TestRestoreFromZip_ReplacesExistingSymlinkInsteadOfFollowingIt(t *testing.T) {
+	zipPath := filepath.Join(t.TempDir(), "pre-update-x.zip")
+	f, err := os.Create(zipPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	zw := zip.NewWriter(f)
+	w, err := zw.Create("config.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write([]byte("restored")); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	dst := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "outside.txt")
+	mustWrite(t, outside, "outside-original")
+	if err := os.Symlink(outside, filepath.Join(dst, "config.toml")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+
+	if err := RestoreFromZip(context.Background(), zipPath, dst); err != nil {
+		t.Fatalf("RestoreFromZip: %v", err)
+	}
+	outsideBody, err := os.ReadFile(outside)
+	if err != nil {
+		t.Fatalf("read outside target: %v", err)
+	}
+	if string(outsideBody) != "outside-original" {
+		t.Fatalf("restore followed an existing symlink and overwrote outside file: %q", outsideBody)
+	}
+	info, err := os.Lstat(filepath.Join(dst, "config.toml"))
+	if err != nil {
+		t.Fatalf("lstat restored config: %v", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		t.Fatalf("restore must replace the symlink with a regular file")
+	}
+	got, err := os.ReadFile(filepath.Join(dst, "config.toml"))
+	if err != nil {
+		t.Fatalf("read restored config: %v", err)
+	}
+	if string(got) != "restored" {
+		t.Fatalf("restored config = %q, want restored", got)
+	}
+}
+
+func TestRestoreFromZip_RejectsSymlinkParentBeforeAnyWrites(t *testing.T) {
+	zipPath := filepath.Join(t.TempDir(), "pre-update-x.zip")
+	f, err := os.Create(zipPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	zw := zip.NewWriter(f)
+	for _, entry := range []struct {
+		name string
+		body string
+	}{
+		{name: "config.toml", body: "safe-but-must-not-land"},
+		{name: "skills/secret.txt", body: "would-escape"},
+	} {
+		w, err := zw.Create(entry.name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write([]byte(entry.body)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	dst := t.TempDir()
+	outside := t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(dst, "skills")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+
+	err = RestoreFromZip(context.Background(), zipPath, dst)
+	if err == nil {
+		t.Fatal("restore through a symlinked parent must be rejected")
+	}
+	if !strings.Contains(err.Error(), "symlink") && !strings.Contains(err.Error(), "escapes") {
+		t.Fatalf("error must describe symlink escape; got %q", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(dst, "config.toml")); !os.IsNotExist(statErr) {
+		t.Fatalf("restore must reject symlink-parent archive before writing earlier safe entries; stat err = %v", statErr)
+	}
+	if _, statErr := os.Stat(filepath.Join(outside, "secret.txt")); !os.IsNotExist(statErr) {
+		t.Fatalf("restore must not write through symlinked parent; stat err = %v", statErr)
+	}
+}
+
+func TestRestoreFromZip_RejectsArchiveFileDirectoryConflictBeforeAnyWrites(t *testing.T) {
+	zipPath := filepath.Join(t.TempDir(), "pre-update-conflict.zip")
+	f, err := os.Create(zipPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	zw := zip.NewWriter(f)
+	w, err := zw.Create("config.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write([]byte("safe-but-must-not-land")); err != nil {
+		t.Fatal(err)
+	}
+	w, err = zw.Create("config.toml/nested.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write([]byte("conflict")); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	dst := t.TempDir()
+	err = RestoreFromZip(context.Background(), zipPath, dst)
+	if err == nil {
+		t.Fatal("file/directory archive conflict must be rejected")
+	}
+	if !strings.Contains(err.Error(), "conflict") {
+		t.Fatalf("error must describe archive conflict; got %q", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(dst, "config.toml")); !os.IsNotExist(statErr) {
+		t.Fatalf("restore must reject conflicting archive before writing earlier entries; stat err = %v", statErr)
+	}
+}
+
 // TestRestoreFromZip_RejectsPathTraversal proves the helper rejects zip
 // entries whose names try to escape destDir via `..` or absolute paths.
 // A malicious or corrupted zip must not be able to write outside the
@@ -237,6 +382,43 @@ func TestValidateRestoreZip_DistinguishesMissingFromCorrupt(t *testing.T) {
 	})
 }
 
+func TestValidateRestoreZip_RejectsArchiveFileDirectoryConflict(t *testing.T) {
+	zipPath := filepath.Join(t.TempDir(), "conflict.zip")
+	f, err := os.Create(zipPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	zw := zip.NewWriter(f)
+	w, err := zw.Create("config.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write([]byte("file")); err != nil {
+		t.Fatal(err)
+	}
+	w, err = zw.Create("config.toml/nested.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write([]byte("nested")); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	err = ValidateRestoreZip(zipPath)
+	if err == nil {
+		t.Fatal("validator must reject file/directory archive conflicts")
+	}
+	if !strings.Contains(err.Error(), "conflict") {
+		t.Fatalf("error must describe archive conflict; got %q", err)
+	}
+}
+
 // TestValidateRestoreZip_RejectsPathTraversalEntry proves the validator
 // rejects path-traversal zip entries — the same gate RestoreFromZip
 // applies at extract time. Surfacing it during dry-run lets operators
@@ -347,6 +529,43 @@ func TestSummarizeRestoreZipImpact_RejectsPathTraversal(t *testing.T) {
 	_, err = SummarizeRestoreZipImpact(zipPath, t.TempDir())
 	if err == nil {
 		t.Fatal("path-traversal entry must be rejected by impact summarizer")
+	}
+}
+
+func TestSummarizeRestoreZipImpact_RejectsArchiveFileDirectoryConflict(t *testing.T) {
+	zipPath := filepath.Join(t.TempDir(), "conflict.zip")
+	f, err := os.Create(zipPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	zw := zip.NewWriter(f)
+	w, err := zw.Create("config.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write([]byte("file")); err != nil {
+		t.Fatal(err)
+	}
+	w, err = zw.Create("config.toml/nested.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write([]byte("nested")); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = SummarizeRestoreZipImpact(zipPath, t.TempDir())
+	if err == nil {
+		t.Fatal("impact summarizer must reject file/directory archive conflicts")
+	}
+	if !strings.Contains(err.Error(), "conflict") {
+		t.Fatalf("error must describe archive conflict; got %q", err)
 	}
 }
 

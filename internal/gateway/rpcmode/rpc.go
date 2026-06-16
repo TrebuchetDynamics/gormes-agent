@@ -214,11 +214,38 @@ func rpcSuccess(id, command string, data any) RPCRecord {
 }
 
 func rpcError(id, command, message string) RPCRecord {
-	rec := RPCRecord{"type": "response", "command": command, "success": false, "error": message}
+	rec := RPCRecord{"type": "response", "command": command, "success": false, "error": rpcErrorText(message)}
 	if id != "" {
 		rec["id"] = id
 	}
 	return rec
+}
+
+func rpcErrorText(message string) string {
+	msg := strings.TrimSpace(message)
+	if msg == "" {
+		return ""
+	}
+	lower := strings.ToLower(msg)
+	compact := compactRPCSecretSeparators(lower)
+	for _, marker := range []string{"api_key", "apikey", "authorization", "bearer", "secret", "password", "token="} {
+		if strings.Contains(lower, marker) || strings.Contains(compact, marker) {
+			return "[redacted]"
+		}
+	}
+	replacer := strings.NewReplacer("`", "'", "*", "'", "#", "＃")
+	return strings.Join(strings.Fields(replacer.Replace(msg)), " ")
+}
+
+func compactRPCSecretSeparators(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func rpcString(v any) string {

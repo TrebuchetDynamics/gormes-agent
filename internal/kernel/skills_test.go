@@ -8,43 +8,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel/testfixtures"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
-type stubSkillProvider struct {
-	block string
-	names []string
-	err   error
-	calls int
-	last  string
-}
-
-func (s *stubSkillProvider) BuildSkillBlock(_ context.Context, userMessage string) (string, []string, error) {
-	s.calls++
-	s.last = userMessage
-	return s.block, append([]string(nil), s.names...), s.err
-}
-
-type stubSkillUsageRecorder struct {
-	calls int
-	got   [][]string
-	err   error
-}
-
-func (s *stubSkillUsageRecorder) RecordSkillUsage(_ context.Context, skillNames []string) error {
-	s.calls++
-	s.got = append(s.got, append([]string(nil), skillNames...))
-	return s.err
-}
-
 func TestKernel_InjectsSkillBlockAndRecordsUsage(t *testing.T) {
-	provider := &stubSkillProvider{
-		block: "<skills>\n## careful-review\nReview carefully.\n</skills>",
-		names: []string{"careful-review"},
+	provider := &testfixtures.SkillProvider{
+		Block: "<skills>\n## careful-review\nReview carefully.\n</skills>",
+		Names: []string{"careful-review"},
 	}
-	recorder := &stubSkillUsageRecorder{}
+	recorder := &testfixtures.SkillUsageRecorder{}
 	mc := llm.NewMockClient()
 	mc.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "sess-skills")
 
@@ -86,23 +61,23 @@ func TestKernel_InjectsSkillBlockAndRecordsUsage(t *testing.T) {
 	if req.Messages[2].Role != "user" || req.Messages[2].Content != "please review this patch" {
 		t.Fatalf("Messages[2] = %+v, want user submit", req.Messages[2])
 	}
-	if provider.calls != 1 {
-		t.Fatalf("provider calls = %d, want 1", provider.calls)
+	if provider.Calls != 1 {
+		t.Fatalf("provider calls = %d, want 1", provider.Calls)
 	}
-	if provider.last != "please review this patch" {
-		t.Fatalf("provider last user message = %q", provider.last)
+	if provider.Last != "please review this patch" {
+		t.Fatalf("provider last user message = %q", provider.Last)
 	}
-	if recorder.calls != 1 {
-		t.Fatalf("recorder calls = %d, want 1", recorder.calls)
+	if recorder.Calls != 1 {
+		t.Fatalf("recorder calls = %d, want 1", recorder.Calls)
 	}
-	if !reflect.DeepEqual(recorder.got, [][]string{{"careful-review"}}) {
-		t.Fatalf("recorder got = %#v, want [[careful-review]]", recorder.got)
+	if !reflect.DeepEqual(recorder.Got, [][]string{{"careful-review"}}) {
+		t.Fatalf("recorder got = %#v, want [[careful-review]]", recorder.Got)
 	}
 }
 
 func TestKernel_SkillProviderErrorFallsBackToUserOnly(t *testing.T) {
-	provider := &stubSkillProvider{err: errors.New("boom")}
-	recorder := &stubSkillUsageRecorder{}
+	provider := &testfixtures.SkillProvider{Err: errors.New("boom")}
+	recorder := &testfixtures.SkillUsageRecorder{}
 	mc := llm.NewMockClient()
 	mc.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "sess-skills-fallback")
 
@@ -134,7 +109,7 @@ func TestKernel_SkillProviderErrorFallsBackToUserOnly(t *testing.T) {
 	if reqs[0].Messages[0].Role != "user" || reqs[0].Messages[0].Content != "plain request" {
 		t.Fatalf("Messages[0] = %+v, want user/plain request", reqs[0].Messages[0])
 	}
-	if recorder.calls != 0 {
-		t.Fatalf("recorder calls = %d, want 0", recorder.calls)
+	if recorder.Calls != 0 {
+		t.Fatalf("recorder calls = %d, want 0", recorder.Calls)
 	}
 }

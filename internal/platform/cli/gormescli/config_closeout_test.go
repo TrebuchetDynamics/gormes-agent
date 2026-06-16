@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,12 +22,7 @@ func newConfigCommandForTest() *cobra.Command {
 }
 
 func executeConfigCommandForTest(cmd *cobra.Command, args ...string) (string, string, error) {
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs(args)
-	err := cmd.Execute()
-	return stdout.String(), stderr.String(), err
+	return executeCobraCommandForTest(cmd, cobraCommandExecutionOptions{}, args...)
 }
 
 // TestConfigEdit_NoEditorReportsConfigPath: when EDITOR/VISUAL is unset and

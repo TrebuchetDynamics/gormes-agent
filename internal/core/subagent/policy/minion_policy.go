@@ -151,11 +151,7 @@ func (p MinionRoutingPolicy) routeDeterministic(req MinionRoutingRequest) (Minio
 		Allowed:          p.CanSubmit(req.Trust, req.Kind),
 		Reason:           "deterministic restart-survivable work uses durable orchestration",
 	}
-	if !decision.Allowed {
-		decision.Route = RouteDenied
-		return decision, fmt.Errorf("%w: %s cannot submit %s", ErrDurableRouteDenied, req.Trust, req.Kind)
-	}
-	return decision, nil
+	return requireAllowedSubmit(decision, req)
 }
 
 func (p MinionRoutingPolicy) routeLLMSubagent(req MinionRoutingRequest) (MinionRoutingDecision, error) {
@@ -168,9 +164,13 @@ func (p MinionRoutingPolicy) routeLLMSubagent(req MinionRoutingRequest) (MinionR
 		Allowed:      p.CanSubmit(req.Trust, req.Kind),
 		Reason:       "judgment-heavy LLM work stays on the live Go-native subagent route",
 	}
-	if !decision.Allowed {
-		decision.Route = RouteDenied
-		return decision, fmt.Errorf("%w: %s cannot submit %s", ErrDurableRouteDenied, req.Trust, req.Kind)
+	return requireAllowedSubmit(decision, req)
+}
+
+func requireAllowedSubmit(decision MinionRoutingDecision, req MinionRoutingRequest) (MinionRoutingDecision, error) {
+	if decision.Allowed {
+		return decision, nil
 	}
-	return decision, nil
+	decision.Route = RouteDenied
+	return decision, fmt.Errorf("%w: %s cannot submit %s", ErrDurableRouteDenied, req.Trust, req.Kind)
 }

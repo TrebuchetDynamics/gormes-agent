@@ -35,9 +35,7 @@ func (r *recordingSubmitter) Render() <-chan kernel.RenderFrame { return nil }
 func (r *recordingSubmitter) snapshot() []kernel.PlatformEvent {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	out := make([]kernel.PlatformEvent, len(r.submits))
-	copy(out, r.submits)
-	return out
+	return cloneSlice(r.submits)
 }
 
 // turnAdapterFixtureChannel is a minimal Channel used by both Telegram and
@@ -74,9 +72,7 @@ func (c *turnAdapterFixtureChannel) Send(_ context.Context, chatID, text string)
 func (c *turnAdapterFixtureChannel) sentSnapshot() []fakeSent {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	out := make([]fakeSent, len(c.sent))
-	copy(out, c.sent)
-	return out
+	return cloneSlice(c.sent)
 }
 
 // channelNeutralCapture pins the channel-neutral fields the adapter exposes to

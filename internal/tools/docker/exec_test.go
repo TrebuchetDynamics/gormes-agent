@@ -88,6 +88,30 @@ func TestDockerExec_MountPolicyAllowlist(t *testing.T) {
 		}
 	})
 
+	t.Run("deduplicates cleaned host paths before mounting", func(t *testing.T) {
+		runner := &fakeDockerRunner{
+			result: DockerExecResult{Stdout: "ok", ExitCode: 0},
+		}
+		backend := NewDockerExecBackend(runner, DockerExecConfig{
+			WorkspacePath:      "/tmp/data",
+			ContainerWorkspace: "/workspace",
+		}, []string{"/tmp/data", "/tmp/data/", "/tmp/../tmp/data", "/tmp/other"})
+
+		_, err := backend.Execute(context.Background(), "ls", nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(runner.lastMounts) != 2 {
+			t.Fatalf("expected 2 unique mounts, got %d: %#v", len(runner.lastMounts), runner.lastMounts)
+		}
+		if got := runner.lastMounts[0]; got.HostPath != "/tmp/data" || got.ContainerPath != "/workspace" || got.ReadOnly {
+			t.Fatalf("workspace mount = %#v, want host /tmp/data at /workspace read-write", got)
+		}
+		if got := runner.lastMounts[1]; got.HostPath != "/tmp/other" || !got.ReadOnly {
+			t.Fatalf("second mount = %#v, want read-only /tmp/other", got)
+		}
+	})
+
 	t.Run("workspace path is read-write", func(t *testing.T) {
 		runner := &fakeDockerRunner{
 			result: DockerExecResult{Stdout: "ok", ExitCode: 0},
@@ -109,6 +133,63 @@ func TestDockerExec_MountPolicyAllowlist(t *testing.T) {
 			t.Error("expected workspace mount to be read-write")
 		}
 	})
+
+	t.Run("workspace mount uses default container workspace when omitted", func(t *testing.T) {
+		runner := &fakeDockerRunner{
+			result: DockerExecResult{Stdout: "ok", ExitCode: 0},
+		}
+		backend := NewDockerExecBackend(runner, DockerExecConfig{
+			WorkspacePath: "/tmp/data",
+		}, []string{"/tmp/data"})
+
+		_, err := backend.Execute(context.Background(), "ls", nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(runner.lastMounts) != 1 {
+			t.Fatalf("expected 1 mount, got %d", len(runner.lastMounts))
+		}
+		if got := runner.lastMounts[0].ContainerPath; got != "/workspace" {
+			t.Fatalf("workspace mount container path = %q, want /workspace", got)
+		}
+		if runner.lastCWD != "/workspace" {
+			t.Fatalf("cwd = %q, want /workspace", runner.lastCWD)
+		}
+	})
+
+	for _, tt := range []struct {
+		name               string
+		containerWorkspace string
+		want               string
+	}{
+		{name: "trims configured container workspace", containerWorkspace: " /workspace/project ", want: "/workspace/project"},
+		{name: "defaults relative container workspace", containerWorkspace: "workspace/project", want: "/workspace"},
+		{name: "defaults whitespace container workspace", containerWorkspace: " \t ", want: "/workspace"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			runner := &fakeDockerRunner{
+				result: DockerExecResult{Stdout: "ok", ExitCode: 0},
+			}
+			backend := NewDockerExecBackend(runner, DockerExecConfig{
+				WorkspacePath:      "/tmp/data",
+				ContainerWorkspace: tt.containerWorkspace,
+			}, []string{"/tmp/data"})
+
+			_, err := backend.Execute(context.Background(), "ls", nil)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(runner.lastMounts) != 1 {
+				t.Fatalf("expected 1 mount, got %d", len(runner.lastMounts))
+			}
+			if got := runner.lastMounts[0].ContainerPath; got != tt.want {
+				t.Fatalf("workspace mount container path = %q, want %q", got, tt.want)
+			}
+			if runner.lastCWD != tt.want {
+				t.Fatalf("cwd = %q, want %q", runner.lastCWD, tt.want)
+			}
+		})
+	}
 
 	t.Run("non-workspace paths are read-only", func(t *testing.T) {
 		runner := &fakeDockerRunner{
@@ -142,7 +223,7 @@ func TestDockerExec_MountPolicyAllowlist(t *testing.T) {
 		runner := &fakeDockerRunner{
 			result: DockerExecResult{Stdout: "ok", ExitCode: 0},
 		}
-		hostPaths := []string{"/etc/passwd", "/proc/cpuinfo", "/sys/kernel", "/var/run/docker.sock"}
+		hostPaths := []string{"/etc/passwd", "/proc/cpuinfo", "/sys/kernel", "/var/run/docker.sock", "/var/run/docker.sock/child"}
 		backend := NewDockerExecBackend(runner, DockerExecConfig{}, hostPaths)
 
 		_, err := backend.Execute(context.Background(), "ls", nil)
@@ -151,6 +232,43 @@ func TestDockerExec_MountPolicyAllowlist(t *testing.T) {
 		}
 		if len(runner.lastMounts) != 0 {
 			t.Errorf("expected 0 mounts (all blocked), got %d: %v", len(runner.lastMounts), runner.lastMounts)
+		}
+	})
+
+	t.Run("does not block sibling paths with dangerous prefix names", func(t *testing.T) {
+		runner := &fakeDockerRunner{
+			result: DockerExecResult{Stdout: "ok", ExitCode: 0},
+		}
+		hostPaths := []string{"/var/run/docker.sock.backup", "/etcetera/project"}
+		backend := NewDockerExecBackend(runner, DockerExecConfig{}, hostPaths)
+
+		_, err := backend.Execute(context.Background(), "ls", nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(runner.lastMounts) != 2 {
+			t.Fatalf("expected 2 sibling mounts to remain allowed, got %d: %#v", len(runner.lastMounts), runner.lastMounts)
+		}
+	})
+
+	t.Run("rejects empty and relative host paths", func(t *testing.T) {
+		runner := &fakeDockerRunner{
+			result: DockerExecResult{Stdout: "ok", ExitCode: 0},
+		}
+		backend := NewDockerExecBackend(runner, DockerExecConfig{
+			WorkspacePath:      ".",
+			ContainerWorkspace: "/workspace",
+		}, []string{"", ".", "project", "../project", " /tmp/data "})
+
+		_, err := backend.Execute(context.Background(), "ls", nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(runner.lastMounts) != 1 {
+			t.Fatalf("expected only absolute host path to mount, got %d: %#v", len(runner.lastMounts), runner.lastMounts)
+		}
+		if got := runner.lastMounts[0]; got.HostPath != "/tmp/data" || got.ContainerPath != "/tmp/data" || !got.ReadOnly {
+			t.Fatalf("mount = %#v, want read-only /tmp/data", got)
 		}
 	})
 }
@@ -204,6 +322,35 @@ func TestDockerExec_EnvPassthrough(t *testing.T) {
 		}
 		if len(runner.lastEnv) != 2 {
 			t.Errorf("expected 2 env vars, got %d", len(runner.lastEnv))
+		}
+	})
+
+	t.Run("passes env snapshot when no allowlist", func(t *testing.T) {
+		runner := &fakeDockerRunner{
+			result: DockerExecResult{Stdout: "ok", ExitCode: 0},
+		}
+		backend := NewDockerExecBackend(runner, DockerExecConfig{
+			Env: map[string]string{
+				"DEBUG": "1",
+			},
+		}, nil)
+
+		_, err := backend.Execute(context.Background(), "env", nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		runner.lastEnv["DEBUG"] = "mutated-by-runner"
+		runner.lastEnv["LEAKED"] = "yes"
+
+		_, err = backend.Execute(context.Background(), "env", nil)
+		if err != nil {
+			t.Fatalf("unexpected second error: %v", err)
+		}
+		if got := runner.lastEnv["DEBUG"]; got != "1" {
+			t.Fatalf("second env DEBUG = %q, want original snapshot value", got)
+		}
+		if _, ok := runner.lastEnv["LEAKED"]; ok {
+			t.Fatalf("second env unexpectedly retained runner mutation: %#v", runner.lastEnv)
 		}
 	})
 }

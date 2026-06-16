@@ -176,6 +176,77 @@ func TestGatewayRestartCommand_DuplicateRedeliveryIsSuppressedOnce(t *testing.T)
 	}
 }
 
+func TestRestartTakeoverStoreAllowsNilContext(t *testing.T) {
+	now := time.Date(2026, 5, 10, 10, 30, 0, 0, time.UTC)
+	store := NewRestartTakeoverStore(filepath.Join(t.TempDir(), "restart_takeover.json"))
+	store.now = func() time.Time { return now }
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("restart takeover store panicked with nil context: %v", r)
+		}
+	}()
+
+	seed := RestartTakeoverMarker{
+		SourcePlatform: "telegram",
+		ChatID:         "42",
+		UpdateID:       "update-101",
+		MessageID:      "msg-9",
+	}
+	if err := store.Write(nil, seed); err != nil {
+		t.Fatalf("Write nil context: %v", err)
+	}
+	marker, ok, _, err := store.Read(nil)
+	if err != nil || !ok {
+		t.Fatalf("Read nil context marker=%+v ok=%v err=%v, want existing marker", marker, ok, err)
+	}
+	if err := store.MarkNotificationSent(nil, marker, now.Add(time.Second)); err != nil {
+		t.Fatalf("MarkNotificationSent nil context: %v", err)
+	}
+	_, suppressed, err := store.SuppressDuplicate(nil, InboundEvent{
+		Platform:  "telegram",
+		ChatID:    "42",
+		MsgID:     "msg-9",
+		MessageID: "update-101",
+		Kind:      EventRestart,
+	})
+	if err != nil || !suppressed {
+		t.Fatalf("SuppressDuplicate nil context suppressed=%v err=%v, want suppressed", suppressed, err)
+	}
+}
+
+func TestRestartTakeoverStoreSuppressDuplicateTrimsMarkerIDs(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 5, 10, 11, 0, 0, 0, time.UTC)
+	store := NewRestartTakeoverStore(filepath.Join(t.TempDir(), "restart_takeover.json"))
+	store.now = func() time.Time { return now }
+	if err := store.Write(ctx, RestartTakeoverMarker{
+		SourcePlatform: "telegram",
+		ChatID:         "42",
+		UpdateID:       " update-101 ",
+		MessageID:      " msg-9 ",
+		RequestedAt:    now.Format(time.RFC3339Nano),
+	}); err != nil {
+		t.Fatalf("seed marker: %v", err)
+	}
+
+	marker, suppressed, err := store.SuppressDuplicate(ctx, InboundEvent{
+		Platform:  "telegram",
+		ChatID:    "42",
+		MsgID:     "msg-9",
+		MessageID: "update-101",
+		Kind:      EventRestart,
+	})
+	if err != nil {
+		t.Fatalf("SuppressDuplicate: %v", err)
+	}
+	if !suppressed {
+		t.Fatalf("SuppressDuplicate suppressed=false marker=%+v, want trimmed marker IDs to match redelivered event", marker)
+	}
+	if _, statErr := os.Stat(store.path); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("marker stat after duplicate suppression = %v, want removed", statErr)
+	}
+}
+
 func TestGatewayRestartCommand_ServiceManagerUnavailableReportsDegradedWithoutExit(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 4, 25, 17, 42, 0, 0, time.UTC)
@@ -383,6 +454,43 @@ func TestGatewayRestartCommand_DrainTimeoutUsesResumePendingRecovery(t *testing.
 	}
 }
 
+func TestGatewayRestartCommand_TakeoverStartupNotificationTrimsMarkerAddress(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	statusStore := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
+	statusStore.now = func() time.Time { return now }
+	markerStore := NewRestartTakeoverStore(filepath.Join(t.TempDir(), "restart_takeover.json"))
+	markerStore.now = func() time.Time { return now }
+	if err := markerStore.Write(ctx, RestartTakeoverMarker{
+		SourcePlatform: " telegram ",
+		ChatID:         " 42 ",
+		UpdateID:       " update-101 ",
+		MessageID:      " msg-9 ",
+		Generation:     3,
+		RequestedAt:    now.Format(time.RFC3339Nano),
+	}); err != nil {
+		t.Fatalf("seed marker: %v", err)
+	}
+
+	ch := newFakeChannel("telegram")
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:  map[string]string{"telegram": "42"},
+		RuntimeStatus: statusStore,
+		Restart:       RestartConfig{MarkerStore: markerStore},
+		Now:           func() time.Time { return now },
+	}, &fakeKernel{}, nil)
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	if err := m.ConsumeRestartTakeoverMarker(ctx); err != nil {
+		t.Fatalf("ConsumeRestartTakeoverMarker: %v", err)
+	}
+	if sent := ch.sentSnapshot(); len(sent) != 1 || sent[0].ChatID != "42" || !strings.Contains(sent[0].Text, "Gateway restarted") {
+		t.Fatalf("restart notification sends = %#v, want trimmed telegram/42 restarted notification", sent)
+	}
+}
+
 func TestGatewayRestartCommand_TakeoverStartupNotificationIsOnceAndExpiryClearsMarker(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 4, 25, 17, 44, 0, 0, time.UTC)
@@ -440,6 +548,45 @@ func TestGatewayRestartCommand_TakeoverStartupNotificationIsOnceAndExpiryClearsM
 	}
 	if _, err := os.Stat(markerStore.path); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("expired marker stat = %v, want removed", err)
+	}
+}
+
+func TestRestartTakeoverStoreReadExpiresFutureMarkerBeyondTTL(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 5, 10, 10, 0, 0, 0, time.UTC)
+	store := NewRestartTakeoverStore(filepath.Join(t.TempDir(), "restart_takeover.json"))
+	store.now = func() time.Time { return now }
+	if err := store.Write(ctx, RestartTakeoverMarker{
+		SourcePlatform: "telegram",
+		ChatID:         "42",
+		UpdateID:       "update-101",
+		RequestedAt:    now.Add(2 * RestartTakeoverMarkerTTL).Format(time.RFC3339Nano),
+	}); err != nil {
+		t.Fatalf("Write future marker: %v", err)
+	}
+
+	marker, ok, expired, err := store.Read(ctx)
+	if err != nil {
+		t.Fatalf("Read future marker: %v", err)
+	}
+	if ok || !expired {
+		t.Fatalf("Read future marker = marker=%+v ok=%v expired=%v, want expired non-ok", marker, ok, expired)
+	}
+	if _, err := os.Stat(store.path); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("future marker stat = %v, want removed", err)
+	}
+}
+
+func TestRestartTakeoverStoreReadPropagatesUnreadableMarker(t *testing.T) {
+	ctx := context.Background()
+	store := NewRestartTakeoverStore(t.TempDir())
+
+	marker, ok, expired, err := store.Read(ctx)
+	if err == nil {
+		t.Fatalf("Read err = nil marker=%+v ok=%v expired=%v, want read error for directory marker path", marker, ok, expired)
+	}
+	if ok || expired {
+		t.Fatalf("Read ok=%v expired=%v, want unreadable marker to be an error not missing/expired", ok, expired)
 	}
 }
 

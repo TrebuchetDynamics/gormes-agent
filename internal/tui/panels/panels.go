@@ -332,19 +332,25 @@ func compactClarifyLines(lines []string, budget int) []string {
 	}
 	pruned := make([]string, 0, len(lines))
 	for _, l := range lines {
-		if len(pruned) >= budget && strings.TrimSpace(l) == "" {
+		if strings.TrimSpace(l) == "" {
 			continue
 		}
 		pruned = append(pruned, l)
 	}
+	if len(pruned) <= budget {
+		return pruned
+	}
+
+	// The question line sits after the title. Truncate it first, then drop
+	// it entirely if the choice list plus hint still need the row.
+	if len(pruned) > 2 {
+		pruned[1] = "… (question truncated)"
+	}
+	if len(pruned) > budget && len(pruned) > 2 {
+		pruned = append(pruned[:1], pruned[2:]...)
+	}
 	if len(pruned) > budget {
-		// Truncate the question line (index 2 after title + blank); fall
-		// back to head-trimming to preserve the choices/hint at the tail.
-		excess := len(pruned) - budget
-		if excess > 0 && len(pruned) > 3 {
-			pruned = append(pruned[:2], pruned[2+excess:]...)
-			pruned = append([]string{pruned[0], pruned[1], "… (question truncated)"}, pruned[2:]...)
-		}
+		pruned = pruned[len(pruned)-budget:]
 	}
 	return pruned
 }

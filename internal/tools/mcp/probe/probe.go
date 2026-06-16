@@ -26,7 +26,7 @@ func ServerTools(ctx context.Context, servers []config.MCPServerDefinition, conn
 			continue
 		}
 		seen[server.Name] = true
-		session, err := connect(ctx, server)
+		session, err := connect(ctx, cloneServerDefinition(server))
 		if err != nil || session == nil {
 			continue
 		}
@@ -36,6 +36,26 @@ func ServerTools(ctx context.Context, servers []config.MCPServerDefinition, conn
 			continue
 		}
 		out[server.Name] = cloneRawTools(tools)
+	}
+	return out
+}
+
+func cloneServerDefinition(in config.MCPServerDefinition) config.MCPServerDefinition {
+	out := in
+	out.Args = append([]string(nil), in.Args...)
+	out.Env = cloneStringMap(in.Env)
+	out.Headers = cloneStringMap(in.Headers)
+	out.Sampling.AllowedModels = append([]string(nil), in.Sampling.AllowedModels...)
+	return out
+}
+
+func cloneStringMap(in map[string]string) map[string]string {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[k] = v
 	}
 	return out
 }

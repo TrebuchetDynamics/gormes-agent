@@ -3,6 +3,8 @@ package ttsconfig
 import (
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/gatewaytest"
 )
 
 func TestResolveSpeedAliases(t *testing.T) {
@@ -38,11 +40,43 @@ func TestSortedVoiceListingDoesNotChangeDefaultVoice(t *testing.T) {
 	}
 }
 
-func TestConfigString(t *testing.T) {
-	got := DefaultConfig.String()
-	for _, want := range []string{"TTS: enabled", "engine: edge", "voice: en-US-AriaNeural", "speed: normal", "language: auto"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("Config.String() missing %q in:\n%s", want, got)
+func TestConfigStringRedactsAuthorizationFields(t *testing.T) {
+	got := (Config{
+		Enabled:  true,
+		Engine:   EngineLocal,
+		Voice:    "authorization=Bearer voice-secret-token",
+		Speed:    SpeedNormal,
+		Language: "authorization=Bearer language-secret-token",
+	}).String()
+	for _, forbidden := range []string{"voice-secret-token", "language-secret-token", "authorization", "Bearer", "bearer"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("Config.String leaked authorization field %q in:\n%s", forbidden, got)
 		}
 	}
+	if !strings.Contains(got, "[redacted]") {
+		t.Fatalf("Config.String missing redaction marker:\n%s", got)
+	}
+}
+
+func TestConfigStringRedactsSecretLikeFields(t *testing.T) {
+	got := (Config{
+		Enabled:  true,
+		Engine:   EngineEdge,
+		Voice:    "api_key=plain-secret-token",
+		Speed:    SpeedNormal,
+		Language: "token=language-secret",
+	}).String()
+	for _, forbidden := range []string{"plain-secret-token", "language-secret", "api_key", "token="} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("Config.String leaked secret-like field %q in:\n%s", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "[redacted]") {
+		t.Fatalf("Config.String missing redaction marker in:\n%s", got)
+	}
+}
+
+func TestConfigString(t *testing.T) {
+	got := DefaultConfig.String()
+	gatewaytest.AssertContainsAll(t, got, "TTS: enabled", "engine: edge", "voice: en-US-AriaNeural", "speed: normal", "language: auto")
 }

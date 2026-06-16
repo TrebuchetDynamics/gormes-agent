@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
@@ -49,15 +48,7 @@ func (f *modelCommandFakeSeams) seams() ModelCommandSeams {
 
 func runModelTestCommand(t *testing.T, seams ModelCommandSeams, args ...string) (string, string, error) {
 	t.Helper()
-	cmd := NewModelCommandWithSeams(seams)
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SilenceUsage = true
-	cmd.SilenceErrors = true
-	cmd.SetArgs(args)
-	err := cmd.Execute()
-	return stdout.String(), stderr.String(), err
+	return executeCobraCommandForTest(NewModelCommandWithSeams(seams), cobraCommandExecutionOptions{SilenceUsage: true, SilenceErrors: true}, args...)
 }
 
 func TestModelPickerRequiresTTY(t *testing.T) {

@@ -1,6 +1,6 @@
 .PHONY: build build-slim run test test-integration test-e2e test-release test-live lint fmt clean update-readme validate-progress generate-progress orchestrator-test orchestrator-test-all orchestrator-lint
 
-VERSION ?= $(shell sed -nE 's/^[[:space:]]*(var[[:space:]]+)?Version[[:space:]]*=[[:space:]]*"([^"]+)".*/\2/p' cmd/gormes/version.go | head -n1)
+VERSION ?= $(shell sed -nE 's/^[[:space:]]*(var[[:space:]]+)?Version[[:space:]]*=[[:space:]]*"([^"]+)".*/\2/p' cmd/gormes/main.go | head -n1)
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 GIT_DIRTY ?= $(shell git diff --quiet 2>/dev/null && git diff --cached --quiet 2>/dev/null && echo false || echo true)
 BUILD_FLAGS := -trimpath -ldflags="-s -w -X main.Version=$(VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.GitDirty=$(GIT_DIRTY)"
@@ -31,12 +31,12 @@ generate-progress:
 
 define record-benchmark
 	@echo "Recording benchmark..."
-	@go run ./cmd/repoctl benchmark record
+	@go run ./cmd/gormes-repo benchmark record
 endef
 
 define update-readme
 	@echo "Updating README.md..."
-	@go run ./cmd/repoctl readme update
+	@go run ./cmd/gormes-repo readme update
 endef
 
 update-readme:

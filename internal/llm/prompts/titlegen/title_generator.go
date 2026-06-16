@@ -2,8 +2,11 @@ package titlegen
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 const titlePrompt = "Generate a short, descriptive title (3-7 words) for a conversation that starts with the following exchange. The title should capture the main topic or intent. Return ONLY the title text, nothing else. No quotes, no punctuation at the end, no prefixes."
@@ -66,6 +69,8 @@ type TitleEvidence struct {
 	Message string
 }
 
+var errTitleModelUnavailable = errors.New("title model unavailable")
+
 type TitleProviderError struct {
 	Kind TitleStatus
 	Err  error
@@ -89,6 +94,9 @@ func (e *TitleProviderError) Unwrap() error {
 }
 
 func GenerateTitle(ctx context.Context, req TitleRequest, model TitleModelFunc) TitleResult {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if len(boundedTitleHistory(req)) == 0 {
 		return TitleResult{
 			Status: TitleStatusAutoTitleSkipped,
@@ -107,20 +115,12 @@ func GenerateTitle(ctx context.Context, req TitleRequest, model TitleModelFunc) 
 		MaxTokens:   defaultTitleMaxTokens,
 		Temperature: defaultTitleTemperature,
 	}
+	if model == nil {
+		return titleProviderFailed(ctx, req.FailureCallback, errTitleModelUnavailable)
+	}
 	title, err := model(ctx, modelReq)
 	if err != nil {
-		result := TitleResult{
-			Status: TitleStatusProviderFailed,
-			Evidence: TitleEvidence{
-				Kind:    TitleStatusProviderFailed,
-				Message: "title provider failed: " + err.Error(),
-			},
-			Err: &TitleProviderError{Kind: TitleStatusProviderFailed, Err: err},
-		}
-		if callbackEvidence, ok := invokeTitleFailureCallback(ctx, req.FailureCallback, result.Evidence); ok {
-			result.AuxiliaryEvidence = append(result.AuxiliaryEvidence, callbackEvidence)
-		}
-		return result
+		return titleProviderFailed(ctx, req.FailureCallback, err)
 	}
 	title = cleanTitleCandidate(title, req.MaxTitleChars)
 	if title == "" {
@@ -138,6 +138,34 @@ func GenerateTitle(ctx context.Context, req TitleRequest, model TitleModelFunc) 
 	}
 }
 
+func titleProviderFailed(ctx context.Context, callback TitleFailureCallback, err error) TitleResult {
+	result := TitleResult{
+		Status: TitleStatusProviderFailed,
+		Evidence: TitleEvidence{
+			Kind:    TitleStatusProviderFailed,
+			Message: "title provider failed: " + titleErrorText(err),
+		},
+		Err: &TitleProviderError{Kind: TitleStatusProviderFailed, Err: err},
+	}
+	if callbackEvidence, ok := invokeTitleFailureCallback(ctx, callback, result.Evidence); ok {
+		result.AuxiliaryEvidence = append(result.AuxiliaryEvidence, callbackEvidence)
+	}
+	return result
+}
+
+func titleErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	return sanitizeTitleEvidenceText(err.Error())
+}
+
+func sanitizeTitleEvidenceText(text string) string {
+	msg := redaction.RedactSecrets(text)
+	msg = strings.NewReplacer("`", "'", "*", "'", "#", "＃").Replace(msg)
+	return strings.Join(strings.Fields(msg), " ")
+}
+
 func invokeTitleFailureCallback(ctx context.Context, callback TitleFailureCallback, evidence TitleEvidence) (failure TitleEvidence, ok bool) {
 	if callback == nil {
 		return TitleEvidence{}, false
@@ -146,7 +174,7 @@ func invokeTitleFailureCallback(ctx context.Context, callback TitleFailureCallba
 		if v := recover(); v != nil {
 			failure = TitleEvidence{
 				Kind:    TitleStatusCallbackFailed,
-				Message: fmt.Sprintf("title failure callback failed: %v", v),
+				Message: "title failure callback failed: " + sanitizeTitleEvidenceText(fmt.Sprint(v)),
 			}
 			ok = true
 		}
@@ -154,7 +182,7 @@ func invokeTitleFailureCallback(ctx context.Context, callback TitleFailureCallba
 	if err := callback(ctx, evidence); err != nil {
 		return TitleEvidence{
 			Kind:    TitleStatusCallbackFailed,
-			Message: "title failure callback failed: " + err.Error(),
+			Message: "title failure callback failed: " + titleErrorText(err),
 		}, true
 	}
 	return TitleEvidence{}, false

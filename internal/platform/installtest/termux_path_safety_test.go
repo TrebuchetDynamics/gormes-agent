@@ -24,8 +24,8 @@ func TestInstall_DryRunTermuxPublishesOnlyToPrefixBin(t *testing.T) {
 		"release_arch: android-arm64",
 		"published_binary: " + wantPublished,
 		"managed_binary: " + wantManaged,
-		"update_active_path_command: skipped (Termux runtime; respecting " + wantPrefixBin + " boundary)",
-		"install_system_service: skipped (Termux runtime;",
+		"path       skip (Termux PREFIX boundary)",
+		"service    manual (Termux: tmux + termux-wake-lock)",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("Termux dry-run output missing %q:\n%s", want, out)

@@ -46,23 +46,28 @@ func BuildTurnMetadataBlock(opts TurnMetadataOptions) string {
 	if !opts.Now.IsZero() {
 		fmt.Fprintf(&sb, "Conversation started: %s", opts.Now.Format(turnMetadataTimeFormat))
 	}
-	if opts.SessionID != "" {
+	if sessionID := turnMetadataField(opts.SessionID); sessionID != "" {
 		if sb.Len() > 0 {
 			sb.WriteByte('\n')
 		}
-		fmt.Fprintf(&sb, "Session ID: %s", opts.SessionID)
+		fmt.Fprintf(&sb, "Session ID: %s", sessionID)
 	}
-	if opts.Model != "" {
+	if model := turnMetadataField(opts.Model); model != "" {
 		if sb.Len() > 0 {
 			sb.WriteByte('\n')
 		}
-		fmt.Fprintf(&sb, "Model: %s", opts.Model)
+		fmt.Fprintf(&sb, "Model: %s", model)
 	}
-	if opts.Provider != "" {
+	if provider := turnMetadataField(opts.Provider); provider != "" {
 		if sb.Len() > 0 {
 			sb.WriteByte('\n')
 		}
-		fmt.Fprintf(&sb, "Provider: %s", opts.Provider)
+		fmt.Fprintf(&sb, "Provider: %s", provider)
 	}
 	return sb.String()
+}
+
+func turnMetadataField(value string) string {
+	value = strings.ReplaceAll(value, "`", "'")
+	return strings.Join(strings.Fields(value), " ")
 }

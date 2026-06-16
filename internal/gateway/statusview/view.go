@@ -1,10 +1,14 @@
 package statusview
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
+	"unicode"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 // StatusChannel is a configured channel row for the read-only gateway status
@@ -168,13 +172,34 @@ func RenderStatusSummary(summary StatusSummary) string {
 	if len(pending) > 0 || len(approved) > 0 {
 		b.WriteString("pairing:\n")
 		for _, record := range pending {
-			b.WriteString(fmt.Sprintf("- pending %s user=%s code=%s age=%ds\n", record.Platform, record.UserID, record.Code, record.AgeSeconds))
+			b.WriteString("- pending")
+			if platform := statusLineValue(record.Platform); platform != "" {
+				b.WriteByte(' ')
+				b.WriteString(platform)
+			}
+			if userID := statusLineValue(record.UserID); userID != "" {
+				b.WriteString(" user=")
+				b.WriteString(userID)
+			}
+			if code := statusLineValue(record.Code); code != "" {
+				b.WriteString(" code=")
+				b.WriteString(code)
+			}
+			b.WriteString(fmt.Sprintf(" age=%ds\n", nonNegativeInt64(record.AgeSeconds)))
 		}
 		for _, record := range approved {
-			b.WriteString(fmt.Sprintf("- approved %s user=%s", record.Platform, record.UserID))
-			if record.UserName != "" {
+			b.WriteString("- approved")
+			if platform := statusLineValue(record.Platform); platform != "" {
+				b.WriteByte(' ')
+				b.WriteString(platform)
+			}
+			if userID := statusLineValue(record.UserID); userID != "" {
+				b.WriteString(" user=")
+				b.WriteString(userID)
+			}
+			if userName := statusLineValue(record.UserName); userName != "" {
 				b.WriteString(" name=")
-				b.WriteString(record.UserName)
+				b.WriteString(userName)
 			}
 			b.WriteByte('\n')
 		}
@@ -199,17 +224,17 @@ func RenderStatusSummary(summary StatusSummary) string {
 		b.WriteString("degraded:\n")
 		for _, evidence := range degraded {
 			b.WriteString("- pairing")
-			if evidence.Platform != "" {
+			if platform := statusLineValue(evidence.Platform); platform != "" {
 				b.WriteByte(' ')
-				b.WriteString(evidence.Platform)
+				b.WriteString(platform)
 			}
-			if evidence.Reason != "" {
+			if reason := statusLineValue(evidence.Reason); reason != "" {
 				b.WriteByte(' ')
-				b.WriteString(evidence.Reason)
+				b.WriteString(reason)
 			}
-			if evidence.Message != "" {
+			if message := statusLineValue(evidence.Message); message != "" {
 				b.WriteString(": ")
-				b.WriteString(evidence.Message)
+				b.WriteString(message)
 			}
 			b.WriteByte('\n')
 		}
@@ -223,7 +248,7 @@ func renderRuntimeLine(runtime RuntimeStatus) string {
 		return "runtime: missing"
 	}
 
-	state := runtime.GatewayState
+	state := statusLineValue(runtime.GatewayState)
 	if state == "" {
 		state = "unknown"
 	}
@@ -231,9 +256,9 @@ func renderRuntimeLine(runtime RuntimeStatus) string {
 	if runtime.PID > 0 {
 		parts = append(parts, fmt.Sprintf("pid=%d", runtime.PID))
 	}
-	parts = append(parts, fmt.Sprintf("active_agents=%d", runtime.ActiveAgents))
-	if runtime.ExitReason != "" {
-		parts = append(parts, fmt.Sprintf("exit_reason=%q", runtime.ExitReason))
+	parts = append(parts, fmt.Sprintf("active_agents=%d", nonNegativeInt(runtime.ActiveAgents)))
+	if exitReason := statusLineValue(runtime.ExitReason); exitReason != "" {
+		parts = append(parts, fmt.Sprintf("exit_reason=%q", exitReason))
 	}
 	if runtime.RestartRequested {
 		parts = append(parts, "restart_requested=true")
@@ -247,8 +272,8 @@ func renderRuntimeLine(runtime RuntimeStatus) string {
 	if len(runtime.ServiceManagerUnavailable) > 0 {
 		parts = append(parts, fmt.Sprintf("service_manager_unavailable=%d", len(runtime.ServiceManagerUnavailable)))
 	}
-	if runtime.ConfigReload.Status != "" {
-		parts = append(parts, fmt.Sprintf("config_reload=%s", runtime.ConfigReload.Status))
+	if status := statusLineValue(runtime.ConfigReload.Status); status != "" {
+		parts = append(parts, fmt.Sprintf("config_reload=%s", status))
 	}
 	return fmt.Sprintf("runtime: %s (%s)", state, strings.Join(parts, " "))
 }
@@ -291,26 +316,27 @@ func memoryPressureEvidenceEmpty(evidence RuntimeMemoryPressureEvidence) bool {
 }
 
 func formatMemoryPressureEvidence(evidence RuntimeMemoryPressureEvidence) string {
-	if evidence.Status == "" {
+	status := statusLineValue(evidence.Status)
+	if status == "" {
 		return ""
 	}
 	parts := []string{
-		fmt.Sprintf("memory_pressure: %s", evidence.Status),
-		fmt.Sprintf("rss=%dMB", evidence.RSSMB),
-		fmt.Sprintf("warn=%dMB", evidence.WarnRSSMB),
-		fmt.Sprintf("critical=%dMB", evidence.CriticalRSSMB),
+		fmt.Sprintf("memory_pressure: %s", status),
+		fmt.Sprintf("rss=%dMB", nonNegativeInt(evidence.RSSMB)),
+		fmt.Sprintf("warn=%dMB", nonNegativeInt(evidence.WarnRSSMB)),
+		fmt.Sprintf("critical=%dMB", nonNegativeInt(evidence.CriticalRSSMB)),
 	}
-	if evidence.UptimeSeconds > 0 {
-		parts = append(parts, fmt.Sprintf("uptime=%ds", evidence.UptimeSeconds))
+	if uptime := nonNegativeInt64(evidence.UptimeSeconds); uptime > 0 {
+		parts = append(parts, fmt.Sprintf("uptime=%ds", uptime))
 	}
-	if evidence.GoRoutines > 0 {
-		parts = append(parts, fmt.Sprintf("goroutines=%d", evidence.GoRoutines))
+	if goroutines := nonNegativeInt(evidence.GoRoutines); goroutines > 0 {
+		parts = append(parts, fmt.Sprintf("goroutines=%d", goroutines))
 	}
 	if evidence.GCCollections > 0 {
 		parts = append(parts, fmt.Sprintf("gc=%d", evidence.GCCollections))
 	}
 	if evidence.Action != "" && evidence.Action != "none" {
-		parts = append(parts, "action="+evidence.Action)
+		parts = append(parts, "action="+statusLineValue(evidence.Action))
 	}
 	if evidence.TargetPID > 0 {
 		parts = append(parts, fmt.Sprintf("target_pid=%d", evidence.TargetPID))
@@ -319,19 +345,28 @@ func formatMemoryPressureEvidence(evidence RuntimeMemoryPressureEvidence) string
 		parts = append(parts, fmt.Sprintf("target_start_time=%d", evidence.TargetStartTime))
 	}
 	if len(evidence.Evidence) > 0 {
-		parts = append(parts, "evidence="+strings.Join(evidence.Evidence, ","))
+		cleaned := make([]string, 0, len(evidence.Evidence))
+		for _, item := range evidence.Evidence {
+			if item = statusLineValue(item); item != "" {
+				cleaned = append(cleaned, item)
+			}
+		}
+		if len(cleaned) > 0 {
+			parts = append(parts, "evidence="+strings.Join(cleaned, ","))
+		}
 	}
 	if evidence.Message != "" {
-		parts = append(parts, "message="+strconv.Quote(evidence.Message))
+		parts = append(parts, "message="+strconv.Quote(statusLineValue(evidence.Message)))
 	}
 	return strings.Join(parts, " ")
 }
 
 func renderChannelLine(channel StatusChannel, runtime RuntimeStatus, pairing PairingPlatformStatus) string {
 	lifecycle := "unknown"
-	if runtime.Platforms != nil {
-		if platform, ok := runtime.Platforms[channel.Name]; ok && platform.State != "" {
-			lifecycle = platform.State
+	platform, hasPlatform := platformRuntimeStatus(runtime.Platforms, channel.Name)
+	if hasPlatform {
+		if state := statusLineValue(platform.State); state != "" {
+			lifecycle = state
 		}
 	}
 
@@ -339,21 +374,23 @@ func renderChannelLine(channel StatusChannel, runtime RuntimeStatus, pairing Pai
 	pendingCount := 0
 	approvedCount := 0
 	if pairing.Platform != "" {
-		pairingState = pairing.State
+		if state := statusLineValue(pairing.State); state != "" {
+			pairingState = state
+		}
 		pendingCount = pairing.PendingCount
 		approvedCount = pairing.ApprovedCount
 	}
 
-	target := channel.Detail
+	target := statusLineValue(channel.Detail)
 	if target == "" {
 		target = "-"
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "- %s: lifecycle=%s", channel.Name, lifecycle)
-	if runtime.Platforms != nil {
-		if platform, ok := runtime.Platforms[channel.Name]; ok && platform.ErrorMessage != "" {
-			fmt.Fprintf(&b, " error=%q", platform.ErrorMessage)
+	fmt.Fprintf(&b, "- %s: lifecycle=%s", statusLineValue(channel.Name), lifecycle)
+	if hasPlatform {
+		if errorMessage := statusLineValue(platform.ErrorMessage); errorMessage != "" {
+			fmt.Fprintf(&b, " error=%q", errorMessage)
 		}
 	}
 	fmt.Fprintf(&b, "; pairing=%s pending=%d approved=%d; target=%s", pairingState, pendingCount, approvedCount, target)
@@ -363,17 +400,17 @@ func renderChannelLine(channel StatusChannel, runtime RuntimeStatus, pairing Pai
 func renderExpiryFinalizedEvidence(evidence RuntimeExpiryFinalizedEvidence) string {
 	var b strings.Builder
 	b.WriteString("- finalized")
-	if evidence.SessionID != "" {
-		fmt.Fprintf(&b, " session=%s", evidence.SessionID)
+	if sessionID := statusLineValue(evidence.SessionID); sessionID != "" {
+		fmt.Fprintf(&b, " session=%s", sessionID)
 	}
-	if evidence.Source != "" {
-		fmt.Fprintf(&b, " source=%s", evidence.Source)
+	if source := statusLineValue(evidence.Source); source != "" {
+		fmt.Fprintf(&b, " source=%s", source)
 	}
-	if evidence.ChatID != "" {
-		fmt.Fprintf(&b, " chat=%s", evidence.ChatID)
+	if chatID := statusLineValue(evidence.ChatID); chatID != "" {
+		fmt.Fprintf(&b, " chat=%s", chatID)
 	}
-	if evidence.UserID != "" {
-		fmt.Fprintf(&b, " user=%s", evidence.UserID)
+	if userID := statusLineValue(evidence.UserID); userID != "" {
+		fmt.Fprintf(&b, " user=%s", userID)
 	}
 	fmt.Fprintf(&b, " expiry_finalized=%t", evidence.ExpiryFinalized)
 	if evidence.MigratedMemoryFlushed {
@@ -384,27 +421,27 @@ func renderExpiryFinalizedEvidence(evidence RuntimeExpiryFinalizedEvidence) stri
 
 func renderExpiryFinalizeEvidence(evidence RuntimeExpiryFinalizeEvidence) string {
 	var b strings.Builder
-	status := evidence.Status
+	status := statusLineValue(evidence.Status)
 	if status == "" {
 		status = "expiry_finalize_pending"
 	}
 	b.WriteString("- ")
 	b.WriteString(status)
-	if evidence.SessionID != "" {
-		fmt.Fprintf(&b, " session=%s", evidence.SessionID)
+	if sessionID := statusLineValue(evidence.SessionID); sessionID != "" {
+		fmt.Fprintf(&b, " session=%s", sessionID)
 	}
-	if evidence.Source != "" {
-		fmt.Fprintf(&b, " source=%s", evidence.Source)
+	if source := statusLineValue(evidence.Source); source != "" {
+		fmt.Fprintf(&b, " source=%s", source)
 	}
-	if evidence.ChatID != "" {
-		fmt.Fprintf(&b, " chat=%s", evidence.ChatID)
+	if chatID := statusLineValue(evidence.ChatID); chatID != "" {
+		fmt.Fprintf(&b, " chat=%s", chatID)
 	}
-	if evidence.UserID != "" {
-		fmt.Fprintf(&b, " user=%s", evidence.UserID)
+	if userID := statusLineValue(evidence.UserID); userID != "" {
+		fmt.Fprintf(&b, " user=%s", userID)
 	}
-	fmt.Fprintf(&b, " attempts=%d", evidence.Attempts)
-	if evidence.Error != "" {
-		fmt.Fprintf(&b, " error=%q", evidence.Error)
+	fmt.Fprintf(&b, " attempts=%d", nonNegativeInt(evidence.Attempts))
+	if errText := statusLineValue(evidence.Error); errText != "" {
+		fmt.Fprintf(&b, " error=%q", errText)
 	}
 	return b.String()
 }
@@ -412,18 +449,18 @@ func renderExpiryFinalizeEvidence(evidence RuntimeExpiryFinalizeEvidence) string
 func sortedStatusChannels(channels []StatusChannel) []StatusChannel {
 	out := make([]StatusChannel, 0, len(channels))
 	for _, channel := range channels {
-		channel.Name = strings.TrimSpace(channel.Name)
-		channel.Detail = strings.TrimSpace(channel.Detail)
+		channel.Name = statusLineValue(channel.Name)
+		channel.Detail = statusLineValue(channel.Detail)
 		if channel.Name == "" {
 			continue
 		}
 		out = append(out, channel)
 	}
-	sort.SliceStable(out, func(i, j int) bool {
-		if out[i].Name != out[j].Name {
-			return out[i].Name < out[j].Name
+	slices.SortStableFunc(out, func(a, b StatusChannel) int {
+		if byName := cmp.Compare(a.Name, b.Name); byName != 0 {
+			return byName
 		}
-		return out[i].Detail < out[j].Detail
+		return cmp.Compare(a.Detail, b.Detail)
 	})
 	return out
 }
@@ -431,103 +468,178 @@ func sortedStatusChannels(channels []StatusChannel) []StatusChannel {
 func pairingPlatformMap(platforms []PairingPlatformStatus) map[string]PairingPlatformStatus {
 	out := make(map[string]PairingPlatformStatus, len(platforms))
 	for _, platform := range platforms {
+		platform.Platform = statusLineValue(platform.Platform)
 		if platform.Platform == "" {
 			continue
 		}
+		platform.State = statusLineValue(platform.State)
+		platform.PendingCount = nonNegativeInt(platform.PendingCount)
+		platform.ApprovedCount = nonNegativeInt(platform.ApprovedCount)
 		out[platform.Platform] = platform
 	}
 	return out
 }
 
+func platformRuntimeStatus(platforms map[string]PlatformRuntimeStatus, name string) (PlatformRuntimeStatus, bool) {
+	if platforms == nil {
+		return PlatformRuntimeStatus{}, false
+	}
+	name = statusLineValue(name)
+	if platform, ok := platforms[name]; ok {
+		return platform, true
+	}
+	for key, platform := range platforms {
+		if statusLineValue(key) == name {
+			return platform, true
+		}
+	}
+	return PlatformRuntimeStatus{}, false
+}
+
 func sortedPendingPairingRecords(records []PairingPendingRecord) []PairingPendingRecord {
-	out := append([]PairingPendingRecord(nil), records...)
-	sort.SliceStable(out, func(i, j int) bool {
-		left, right := out[i], out[j]
-		if left.Platform != right.Platform {
-			return left.Platform < right.Platform
+	out := slices.Clone(records)
+	slices.SortStableFunc(out, func(left, right PairingPendingRecord) int {
+		if byPlatform := cmp.Compare(left.Platform, right.Platform); byPlatform != 0 {
+			return byPlatform
 		}
-		if left.UserID != right.UserID {
-			return left.UserID < right.UserID
+		if byUserID := cmp.Compare(left.UserID, right.UserID); byUserID != 0 {
+			return byUserID
 		}
-		if left.AgeSeconds != right.AgeSeconds {
-			return left.AgeSeconds < right.AgeSeconds
+		if byAgeSeconds := cmp.Compare(left.AgeSeconds, right.AgeSeconds); byAgeSeconds != 0 {
+			return byAgeSeconds
 		}
-		return left.Code < right.Code
+		return cmp.Compare(left.Code, right.Code)
 	})
 	return out
 }
 
 func sortedApprovedPairingRecords(records []PairingApprovedRecord) []PairingApprovedRecord {
-	out := append([]PairingApprovedRecord(nil), records...)
-	sort.SliceStable(out, func(i, j int) bool {
-		left, right := out[i], out[j]
-		if left.Platform != right.Platform {
-			return left.Platform < right.Platform
+	out := slices.Clone(records)
+	slices.SortStableFunc(out, func(left, right PairingApprovedRecord) int {
+		if byPlatform := cmp.Compare(left.Platform, right.Platform); byPlatform != 0 {
+			return byPlatform
 		}
-		if left.UserID != right.UserID {
-			return left.UserID < right.UserID
+		if byUserID := cmp.Compare(left.UserID, right.UserID); byUserID != 0 {
+			return byUserID
 		}
-		return left.UserName < right.UserName
+		return cmp.Compare(left.UserName, right.UserName)
 	})
 	return out
 }
 
 func sortedExpiryFinalizedEvidence(records []RuntimeExpiryFinalizedEvidence) []RuntimeExpiryFinalizedEvidence {
-	out := append([]RuntimeExpiryFinalizedEvidence(nil), records...)
-	sort.SliceStable(out, func(i, j int) bool {
-		left, right := out[i], out[j]
-		if left.SessionID != right.SessionID {
-			return left.SessionID < right.SessionID
+	out := slices.Clone(records)
+	slices.SortStableFunc(out, func(left, right RuntimeExpiryFinalizedEvidence) int {
+		if bySessionID := cmp.Compare(left.SessionID, right.SessionID); bySessionID != 0 {
+			return bySessionID
 		}
-		if left.Source != right.Source {
-			return left.Source < right.Source
+		if bySource := cmp.Compare(left.Source, right.Source); bySource != 0 {
+			return bySource
 		}
-		if left.ChatID != right.ChatID {
-			return left.ChatID < right.ChatID
+		if byChatID := cmp.Compare(left.ChatID, right.ChatID); byChatID != 0 {
+			return byChatID
 		}
-		return left.UserID < right.UserID
+		return cmp.Compare(left.UserID, right.UserID)
 	})
 	return out
 }
 
 func sortedExpiryFinalizeEvidence(records []RuntimeExpiryFinalizeEvidence) []RuntimeExpiryFinalizeEvidence {
-	out := append([]RuntimeExpiryFinalizeEvidence(nil), records...)
-	sort.SliceStable(out, func(i, j int) bool {
-		left, right := out[i], out[j]
-		if left.SessionID != right.SessionID {
-			return left.SessionID < right.SessionID
+	out := slices.Clone(records)
+	slices.SortStableFunc(out, func(left, right RuntimeExpiryFinalizeEvidence) int {
+		if bySessionID := cmp.Compare(left.SessionID, right.SessionID); bySessionID != 0 {
+			return bySessionID
 		}
-		if left.Status != right.Status {
-			return left.Status < right.Status
+		if byStatus := cmp.Compare(left.Status, right.Status); byStatus != 0 {
+			return byStatus
 		}
-		if left.Source != right.Source {
-			return left.Source < right.Source
+		if bySource := cmp.Compare(left.Source, right.Source); bySource != 0 {
+			return bySource
 		}
-		if left.ChatID != right.ChatID {
-			return left.ChatID < right.ChatID
+		if byChatID := cmp.Compare(left.ChatID, right.ChatID); byChatID != 0 {
+			return byChatID
 		}
-		return left.UserID < right.UserID
+		return cmp.Compare(left.UserID, right.UserID)
 	})
 	return out
 }
 
 func sortedPairingDegradedEvidence(records []PairingDegradedEvidence) []PairingDegradedEvidence {
-	out := append([]PairingDegradedEvidence(nil), records...)
-	sort.SliceStable(out, func(i, j int) bool {
-		left, right := out[i], out[j]
-		if left.Platform != right.Platform {
-			return left.Platform < right.Platform
+	out := slices.Clone(records)
+	slices.SortStableFunc(out, func(left, right PairingDegradedEvidence) int {
+		if byPlatform := cmp.Compare(left.Platform, right.Platform); byPlatform != 0 {
+			return byPlatform
 		}
-		if left.Reason != right.Reason {
-			return left.Reason < right.Reason
+		if byReason := cmp.Compare(left.Reason, right.Reason); byReason != 0 {
+			return byReason
 		}
-		if left.UserID != right.UserID {
-			return left.UserID < right.UserID
+		if byUserID := cmp.Compare(left.UserID, right.UserID); byUserID != 0 {
+			return byUserID
 		}
-		if left.Code != right.Code {
-			return left.Code < right.Code
+		if byCode := cmp.Compare(left.Code, right.Code); byCode != 0 {
+			return byCode
 		}
-		return left.Message < right.Message
+		return cmp.Compare(left.Message, right.Message)
 	})
 	return out
+}
+
+func statusLineValue(value string) string {
+	value = collapseRedactedStatusAssignments(redaction.RedactSecrets(value))
+	value = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			return ' '
+		}
+		if unicode.Is(unicode.Cf, r) {
+			return -1
+		}
+		return r
+	}, value)
+	return strings.Join(strings.Fields(value), " ")
+}
+
+func collapseRedactedStatusAssignments(value string) string {
+	replacer := strings.NewReplacer(
+		"api_key=[redacted]", "[redacted]",
+		"api-key=[redacted]", "[redacted]",
+		"authorization=[redacted]", "[redacted]",
+		"bearer=[redacted]", "[redacted]",
+		"token=[redacted]", "[redacted]",
+		"secret=[redacted]", "[redacted]",
+		"password=[redacted]", "[redacted]",
+	)
+	fields := strings.Fields(replacer.Replace(value))
+	out := make([]string, 0, len(fields))
+	for i := 0; i < len(fields); i++ {
+		field := fields[i]
+		lower := strings.ToLower(field)
+		nextRedacted := i+1 < len(fields) && strings.Contains(strings.ToLower(fields[i+1]), "[redacted]")
+		if statusSecretField(lower) && (strings.Contains(lower, "[redacted]") || nextRedacted) {
+			out = append(out, "[redacted]")
+			if nextRedacted {
+				i++
+			}
+			continue
+		}
+		out = append(out, field)
+	}
+	return strings.Join(out, " ")
+}
+
+func statusSecretField(value string) bool {
+	return strings.Contains(value, "api_key") || strings.Contains(value, "api-key") || strings.Contains(value, "apikey") || strings.Contains(value, "authorization") || strings.Contains(value, "bearer") || strings.Contains(value, "token") || strings.Contains(value, "secret") || strings.Contains(value, "password")
+}
+
+func nonNegativeInt(value int) int {
+	if value < 0 {
+		return 0
+	}
+	return value
+}
+
+func nonNegativeInt64(value int64) int64 {
+	if value < 0 {
+		return 0
+	}
+	return value
 }

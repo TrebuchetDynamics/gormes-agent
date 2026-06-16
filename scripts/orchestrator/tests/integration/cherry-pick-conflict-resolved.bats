@@ -26,9 +26,9 @@ setup() {
   # hunk; -Xtheirs resolves the overlap in favour of the incoming worker.
   echo '{}' > "$REPO_ROOT/progress.fixture.json"
 
-  mkdir -p "$REPO_ROOT/docs/content/building-gormes/architecture_plan"
+  mkdir -p "$REPO_ROOT/webpages/docs/content/building-gormes/architecture_plan"
   cp "$FIXTURES_DIR/progress.fixture.json" \
-     "$REPO_ROOT/docs/content/building-gormes/architecture_plan/progress.json"
+     "$REPO_ROOT/webpages/docs/content/building-gormes/architecture_plan/progress.json"
   (
     cd "$REPO_ROOT"
     git -c user.email=t@t -c user.name=T add -A

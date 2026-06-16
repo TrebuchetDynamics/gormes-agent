@@ -23,7 +23,7 @@ repo_root=$(CDPATH= cd -- "$script_dir/.." && pwd)
 hours=12
 gormes_home="${GORMES_HOME:-$HOME/.gormes}"
 hermes_home="${HERMES_HOME:-$HOME/.hermes}"
-modules_dir="$repo_root/docs/content/building-gormes/modules"
+modules_dir="$repo_root/webpages/docs/content/building-gormes/modules"
 codexu_bin="${CODEXU_BIN:-codexu}"
 out_dir=""
 dry_run=0
@@ -47,7 +47,7 @@ Collect redacted evidence from every Gormes profile/session touched inside the
 lookback window, then ask codexu to audit response quality, memory, learning
 loop, token usage, accuracy, formatting, web search, tool execution, runtime,
 profile/channel routing, TTS/media, and security issues before mapping fixes
-back to docs/content/building-gormes/modules.
+back to webpages/docs/content/building-gormes/modules.
 
 Options:
   --hours N             Look back N hours. Default: 12.
@@ -998,7 +998,7 @@ Lookback: last $hours hours since $cutoff_iso UTC
 $hermes_prompt_note
 
 Task:
-1. Read the evidence bundle and the relevant files under docs/content/building-gormes/modules. The evidence is limited by --hours; audit every profile/session represented inside that window.
+1. Read the evidence bundle and the relevant files under webpages/docs/content/building-gormes/modules. The evidence is limited by --hours; audit every profile/session represented inside that window.
 2. If Hermes upstream is enabled, inspect the Hermes source for the same behavior before proposing a fix. Use Hermes as a behavior oracle, not as runtime dependency.
 3. Audit every aspect of the agent behavior inside the lookback window: response quality, instruction following, memory, learning loop, token/cost usage, accuracy, response format, web-search quality, tool execution, provider/runtime health, profile/session/channel routing, TTS/STT/media, privacy/security, latency, and reliability.
 4. Find issues where the visible answer, tool use, runtime state, token usage, search behavior, or persisted state conflicts with user intent, tool output, module contracts, or Hermes behavior.

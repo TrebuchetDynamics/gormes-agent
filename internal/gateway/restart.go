@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/jsonfile"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/markerfile"
 )
 
 const (
@@ -109,10 +110,18 @@ func SelfRestartViaExec() error {
 	return syscall.Exec(executable, os.Args, os.Environ())
 }
 
+func restartContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
 func (s *RestartTakeoverStore) Write(ctx context.Context, marker RestartTakeoverMarker) error {
 	if s == nil || s.path == "" {
 		return nil
 	}
+	ctx = restartContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -129,24 +138,25 @@ func (s *RestartTakeoverStore) Read(ctx context.Context) (RestartTakeoverMarker,
 	if s == nil || s.path == "" {
 		return RestartTakeoverMarker{}, false, false, nil
 	}
+	ctx = restartContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return RestartTakeoverMarker{}, false, false, err
 	}
 	var marker RestartTakeoverMarker
 	exists, err := jsonfile.Read(ctx, s.path, &marker, "restart takeover marker")
-	if !exists {
-		return RestartTakeoverMarker{}, false, false, nil
-	}
 	if errors.Is(err, jsonfile.ErrEmpty) {
 		_ = s.Clear(context.Background())
 		return RestartTakeoverMarker{}, false, true, nil
 	}
 	if err != nil {
-		if jsonfile.IsReadError(err) {
+		if jsonfile.IsReadError(err) || !exists {
 			return RestartTakeoverMarker{}, false, false, err
 		}
 		_ = s.Clear(context.Background())
 		return RestartTakeoverMarker{}, false, true, nil
+	}
+	if !exists {
+		return RestartTakeoverMarker{}, false, false, nil
 	}
 	if marker.Kind != "" && marker.Kind != restartTakeoverMarkerKind {
 		_ = s.Clear(context.Background())
@@ -179,30 +189,24 @@ func (s *RestartTakeoverStore) MarkNotificationSent(ctx context.Context, marker 
 }
 
 func (s *RestartTakeoverStore) Clear(ctx context.Context) error {
-	if s == nil || s.path == "" {
+	if s == nil {
 		return nil
 	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if err := os.Remove(s.path); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("remove restart takeover marker: %w", err)
-	}
-	return nil
+	return markerfile.Clear(ctx, s.path, "restart takeover marker")
 }
 
 func (s *RestartTakeoverStore) currentTime() time.Time {
-	if s != nil && s.now != nil {
-		return s.now().UTC()
+	if s == nil {
+		return markerfile.CurrentTime(nil)
 	}
-	return time.Now().UTC()
+	return markerfile.CurrentTime(s.now)
 }
 
 func (s *RestartTakeoverStore) markerTTL() time.Duration {
-	if s != nil && s.ttl > 0 {
-		return s.ttl
+	if s == nil {
+		return RestartTakeoverMarkerTTL
 	}
-	return RestartTakeoverMarkerTTL
+	return markerfile.PositiveDuration(s.ttl, RestartTakeoverMarkerTTL)
 }
 
 func (s *RestartTakeoverStore) expired(marker RestartTakeoverMarker) bool {
@@ -210,7 +214,9 @@ func (s *RestartTakeoverStore) expired(marker RestartTakeoverMarker) bool {
 	if err != nil {
 		return true
 	}
-	return s.currentTime().Sub(requestedAt) > s.markerTTL()
+	age := s.currentTime().Sub(requestedAt)
+	ttl := s.markerTTL()
+	return age > ttl || age < -ttl
 }
 
 func restartMarkerMatchesEvent(marker RestartTakeoverMarker, ev InboundEvent) bool {
@@ -225,10 +231,12 @@ func restartMarkerMatchesEvent(marker RestartTakeoverMarker, ev InboundEvent) bo
 	}
 	updateID := restartUpdateID(ev)
 	messageID := strings.TrimSpace(ev.MsgID)
-	if marker.UpdateID != "" && marker.UpdateID == updateID {
+	markerUpdateID := strings.TrimSpace(marker.UpdateID)
+	if markerUpdateID != "" && markerUpdateID == updateID {
 		return true
 	}
-	return marker.MessageID != "" && marker.MessageID == messageID
+	markerMessageID := strings.TrimSpace(marker.MessageID)
+	return markerMessageID != "" && markerMessageID == messageID
 }
 
 func restartUpdateID(ev InboundEvent) string {

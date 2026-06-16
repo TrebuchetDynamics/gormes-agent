@@ -1,9 +1,6 @@
 package matrix
 
-import (
-	"os"
-	"strings"
-)
+import "strings"
 
 type Config struct {
 	Homeserver        string
@@ -19,18 +16,7 @@ type Config struct {
 }
 
 func EnvConfig() Config {
-	return Config{
-		Homeserver:        trimMatrixHomeserver(os.Getenv("MATRIX_HOMESERVER")),
-		AccessToken:       strings.TrimSpace(os.Getenv("MATRIX_ACCESS_TOKEN")),
-		UserID:            strings.TrimSpace(os.Getenv("MATRIX_USER_ID")),
-		Password:          strings.TrimSpace(os.Getenv("MATRIX_PASSWORD")),
-		DeviceID:          strings.TrimSpace(os.Getenv("MATRIX_DEVICE_ID")),
-		Encryption:        parseMatrixBool(os.Getenv("MATRIX_ENCRYPTION"), false),
-		AutoThread:        parseMatrixBool(os.Getenv("MATRIX_AUTO_THREAD"), true),
-		RequireMention:    parseMatrixBool(os.Getenv("MATRIX_REQUIRE_MENTION"), true),
-		FreeResponseRooms: splitMatrixList(os.Getenv("MATRIX_FREE_RESPONSE_ROOMS")),
-		AllowedRooms:      splitMatrixList(os.Getenv("MATRIX_ALLOWED_ROOMS")),
-	}
+	return ResolveBootstrapConfig(nil, nil)
 }
 
 func (c Config) IsAvailable() bool {

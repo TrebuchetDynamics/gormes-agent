@@ -26,13 +26,18 @@ func TestDefaultSoulMDPortsUpstreamDefaultSoulWithGormPersona(t *testing.T) {
 		"Gorm, an AI assistant run by gormes, a Go-native Hermes-compatible agent runtime",
 		1,
 	)
+	want = strings.Replace(want,
+		"You are Gorm, an AI assistant run by gormes, a Go-native Hermes-compatible agent runtime.",
+		"You are Gorm by default, an AI assistant run by gormes, a Go-native Hermes-compatible agent runtime. If the user asks you to use another name in the current conversation, honor that preference.",
+		1,
+	)
 	if DefaultSoulMD != want {
 		t.Fatalf("DefaultSoulMD drifted from Hermes DEFAULT_SOUL_MD with Gorm persona substitution\n--- got ---\n%q\n--- want ---\n%q", DefaultSoulMD, want)
 	}
 }
 
 func TestDefaultSoulMDOwnsGormPersonaBoundary(t *testing.T) {
-	for _, want := range []string{"You are Gorm,", "run by gormes"} {
+	for _, want := range []string{"You are Gorm by default", "run by gormes", "honor that preference"} {
 		if !strings.Contains(DefaultSoulMD, want) {
 			t.Fatalf("DefaultSoulMD must contain %q:\n%s", want, DefaultSoulMD)
 		}

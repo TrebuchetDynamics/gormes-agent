@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	configwriter "github.com/TrebuchetDynamics/gormes-agent/internal/config/configwriter"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config/credentials"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config/paths"
 )
 
 // parseDotenv reads KEY=VALUE lines from r and returns the key→value
@@ -214,6 +216,11 @@ func snapshotShellEnv() map[string]struct{} {
 // precedence order (last write wins for unset keys). Cross-agent homes are
 // imported only through explicit migration commands, never normal startup.
 func dotenvCandidatePaths() []string {
+	current := paths.GormesHome()
+	base := paths.GormesBaseHomeFor(current)
+	if base != current {
+		return []string{filepath.Join(base, ".env"), configwriter.EnvPath()}
+	}
 	return []string{configwriter.EnvPath()}
 }
 

@@ -39,10 +39,10 @@ copying Python mega-files or TypeScript database gravity.
 | Prepare a skill-builder handoff | [Contract Readiness](./contract-readiness/) | [Progress Schema](./builder-loop/progress-schema/), [Skill Builder Handoff](./builder-loop/builder-loop-handoff/) |
 | Port an upstream subsystem | [Hermes/Honcho To Gormes Go Runtime Plan](./architecture_plan/hermes-honcho-go-runtime-plan/) | [Hermes And Honcho Feature Map](./architecture_plan/hermes-honcho-feature-map/), [Upstream Coverage Ledger](./architecture_plan/upstream-coverage-ledger/), [Swarm Feature Parity Audit](./architecture_plan/swarm-feature-parity-audit/), [Porting a Subsystem](./porting-a-subsystem/), [Upstream Lessons](./upstream-lessons/), [Testing](./testing/) |
 | Reuse gateway adapter ideas | [Gateway Donor Map](./gateway-donor-map/) | [Shared Adapter Patterns](./gateway-donor-map/shared-adapter-patterns/), then the channel dossier |
-| Find a Go donor for a non-gateway subsystem (runtime, tools, memory, utilities) before writing code | `gormes-references` skill (`docs/development-skills/gormes-references/SKILL.md`) | `references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md` for provider/auth/streaming, then `gormes-tdd-slice` |
+| Find a Go donor for a non-gateway subsystem (runtime, tools, memory, utilities) before writing code | `gormes-references` skill (`development-skills/gormes-references/SKILL.md`) | `references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md` for provider/auth/streaming, then `gormes-tdd-slice` |
 | Continue Goncho/Honcho memory work | [Goncho Honcho Memory](./goncho_honcho_memory/) | [Prompts](./goncho_honcho_memory/01-prompts/), [Tool Schemas](./goncho_honcho_memory/02-tool-schemas/) |
 | Study operational fleet patterns | [Fleet Operational Patterns](./fleet-operational-patterns/) | [Fleet Integration Plan](./fleet-integration-plan/), [Implementation Roadmap](./implementation-roadmap/) |
-| Plan fleet-derived features | [Fleet Integration Plan](./fleet-integration-plan/) | `docs/content/building-gormes/architecture_plan/progress.json`, [Implementation Roadmap](./implementation-roadmap/) |
+| Plan fleet-derived features | [Fleet Integration Plan](./fleet-integration-plan/) | `webpages/docs/content/building-gormes/architecture_plan/progress.json`, [Implementation Roadmap](./implementation-roadmap/) |
 
 ## Planning rules
 
@@ -62,8 +62,8 @@ small/medium/large rows; `umbrella` rows stay inventory until split.
 
 Repo-local skills are the executor for this roadmap, not a separate backlog.
 `gormes-builder` reads
-`docs/content/building-gormes/architecture_plan/progress.json`, uses the
-generated `docs/content/building-gormes/` pages as the human-readable handoff
+`webpages/docs/content/building-gormes/architecture_plan/progress.json`, uses the
+generated `webpages/docs/content/building-gormes/` pages as the human-readable handoff
 surface, selects one eligible row, and develops the full `gormes-agent` toward
 the architecture plan with tests.
 
@@ -76,7 +76,7 @@ prompts.
 
 The old `cmd/planner-loop` and `cmd/builder-loop` executables are removed.
 Use `go run ./cmd/progress validate` and `go run ./cmd/progress write` for
-progress maintenance, and use `go run ./cmd/repoctl ...` for repo metadata.
+progress maintenance, and use `go run ./cmd/gormes-repo ...` for repo metadata.
 
 ## Current queue rule
 
@@ -106,8 +106,8 @@ Use the planning docs in this order:
 4. Pick work from [Agent Queue](./builder-loop/agent-queue/) for a
    builder-ready handoff, then use [Next Slices](./builder-loop/next-slices/)
    for the shorter ranking.
-5. Use `docs/development-skills/gormes-builder/SKILL.md` and
-   `docs/development-skills/gormes-tdd-slice/SKILL.md` to implement one row;
+5. Use `development-skills/gormes-builder/SKILL.md` and
+   `development-skills/gormes-tdd-slice/SKILL.md` to implement one row;
    `.agents/skills/`, `.claude/skills/`, and `.codex/skills/` are symlink
    loader views.
 6. Check [Contract Readiness](./contract-readiness/) before implementation; an

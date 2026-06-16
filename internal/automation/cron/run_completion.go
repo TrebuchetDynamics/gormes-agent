@@ -133,7 +133,7 @@ func recurringNextRunUnavailableEvidence(parsed ParsedSchedule, decision CronRun
 	if display == "" {
 		display = string(parsed.Kind)
 	}
-	return unavailableEvidence(
+	return NewUnavailableEvidence(
 		"cron_next_run_unavailable",
 		fmt.Sprintf("next run unavailable for %s schedule %q: %s", parsed.Kind, display, detail),
 	)
@@ -143,7 +143,7 @@ func evidenceOrDefault(evidence *CronUnavailableEvidence, code, message string) 
 	if evidence != nil {
 		return evidence
 	}
-	return unavailableEvidence(code, message)
+	return NewUnavailableEvidence(code, message)
 }
 
 func appendRunCompletionEvidence(existing string, evidence, cause *CronUnavailableEvidence) string {

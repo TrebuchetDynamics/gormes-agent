@@ -19,12 +19,13 @@ type RecordingStore struct {
 func NewRecording() *RecordingStore { return &RecordingStore{} }
 
 func (r *RecordingStore) Exec(ctx context.Context, cmd Command) (Ack, error) {
+	ctx = storeContext(ctx)
 	if err := ctx.Err(); err != nil {
 		return Ack{}, err
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.cmds = append(r.cmds, cmd)
+	r.cmds = append(r.cmds, cloneCommand(cmd))
 	return Ack{}, nil
 }
 
@@ -34,6 +35,13 @@ func (r *RecordingStore) Commands() []Command {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	out := make([]Command, len(r.cmds))
-	copy(out, r.cmds)
+	for i, cmd := range r.cmds {
+		out[i] = cloneCommand(cmd)
+	}
 	return out
+}
+
+func cloneCommand(cmd Command) Command {
+	cmd.Payload = append([]byte(nil), cmd.Payload...)
+	return cmd
 }

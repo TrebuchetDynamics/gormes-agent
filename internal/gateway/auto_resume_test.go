@@ -2,6 +2,8 @@ package gateway
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"testing"
@@ -9,6 +11,22 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
+
+type autoResumeWhitespaceSessionMap struct {
+	items  []session.Metadata
+	puts   []struct{ key, sessionID string }
+	putErr error
+}
+
+func (m *autoResumeWhitespaceSessionMap) Get(context.Context, string) (string, error) { return "", nil }
+func (m *autoResumeWhitespaceSessionMap) Put(_ context.Context, key, sessionID string) error {
+	m.puts = append(m.puts, struct{ key, sessionID string }{key: key, sessionID: sessionID})
+	return m.putErr
+}
+func (m *autoResumeWhitespaceSessionMap) Close() error { return nil }
+func (m *autoResumeWhitespaceSessionMap) ListAllMetadata(context.Context) ([]session.Metadata, error) {
+	return append([]session.Metadata(nil), m.items...), nil
+}
 
 // TestGatewayAutoResume_RecoversInterruptedSession proves a session
 // interrupted by gateway shutdown (ResumePending=true) resumes with
@@ -75,6 +93,241 @@ func TestGatewayAutoResume_RecoversInterruptedSession(t *testing.T) {
 	}
 	if ok && meta.ResumePending {
 		t.Fatalf("ResumePending still true after auto-resume: %+v", meta)
+	}
+}
+
+func TestGatewayAutoResume_AllowsNilContext(t *testing.T) {
+	now := time.Date(2026, 5, 7, 10, 0, 0, 0, time.UTC)
+	tg := newFakeChannel("telegram")
+	smap := &autoResumeWhitespaceSessionMap{items: []session.Metadata{{
+		SessionID:      "sess-nil-context",
+		Source:         "telegram",
+		ChatID:         "42",
+		UserID:         "u-42",
+		ResumePending:  true,
+		ResumeReason:   string(session.ResumeReasonRestartTimeout),
+		ResumeMarkedAt: now.Add(-10 * time.Minute).Unix(),
+		UpdatedAt:      now.Add(-10 * time.Minute).Unix(),
+	}}}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		Now:          func() time.Time { return now },
+	}, &fakeKernel{}, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	inbox := make(chan InboundEvent, 1)
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("auto-resume panicked with nil context: %v", r)
+		}
+	}()
+
+	m.autoResumePendingSessions(nil, inbox)
+
+	select {
+	case ev := <-inbox:
+		if ev.MsgID != "auto-resume-sess-nil-context-"+fmt.Sprint(now.Add(-10*time.Minute).Unix()) {
+			t.Fatalf("auto-resume event = %+v, want nil-context resume event", ev)
+		}
+	default:
+		t.Fatal("auto-resume nil context scheduled no event")
+	}
+}
+
+func TestGatewayAutoResume_SkipsHiddenFormattingChatID(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 5, 7, 10, 0, 0, 0, time.UTC)
+	tg := newFakeChannel("telegram")
+	smap := &autoResumeWhitespaceSessionMap{items: []session.Metadata{{
+		SessionID:      "sess-hidden-chat",
+		Source:         "telegram",
+		ChatID:         "42\u202e",
+		ResumePending:  true,
+		ResumeReason:   string(session.ResumeReasonRestartTimeout),
+		ResumeMarkedAt: now.Add(-10 * time.Minute).Unix(),
+		UpdatedAt:      now.Add(-10 * time.Minute).Unix(),
+	}}}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		Now:          func() time.Time { return now },
+	}, &fakeKernel{}, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	inbox := make(chan InboundEvent, 1)
+
+	m.autoResumePendingSessions(ctx, inbox)
+
+	select {
+	case ev := <-inbox:
+		t.Fatalf("hidden-formatting chat id scheduled event: %+v", ev)
+	default:
+	}
+	if len(smap.puts) != 0 {
+		t.Fatalf("hidden-formatting chat id repaired session map with puts: %#v", smap.puts)
+	}
+}
+
+func TestGatewayAutoResume_SkipsWhitespaceSessionID(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 5, 7, 10, 0, 0, 0, time.UTC)
+	tg := newFakeChannel("telegram")
+	smap := &autoResumeWhitespaceSessionMap{items: []session.Metadata{{
+		SessionID:      "   ",
+		Source:         "telegram",
+		ChatID:         "42",
+		ResumePending:  true,
+		ResumeReason:   string(session.ResumeReasonRestartTimeout),
+		ResumeMarkedAt: now.Add(-10 * time.Minute).Unix(),
+		UpdatedAt:      now.Add(-10 * time.Minute).Unix(),
+	}}}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		Now:          func() time.Time { return now },
+	}, &fakeKernel{}, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	inbox := make(chan InboundEvent, 1)
+
+	m.autoResumePendingSessions(ctx, inbox)
+
+	select {
+	case ev := <-inbox:
+		t.Fatalf("whitespace session id scheduled event: %+v", ev)
+	default:
+	}
+	if len(smap.puts) != 0 {
+		t.Fatalf("whitespace session id repaired session map with puts: %#v", smap.puts)
+	}
+}
+
+func TestGatewayAutoResume_SkipsWhenContextCanceledAfterMetadataList(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	now := time.Date(2026, 5, 7, 10, 0, 0, 0, time.UTC)
+	tg := newFakeChannel("telegram")
+	smap := &autoResumeWhitespaceSessionMap{items: []session.Metadata{{
+		SessionID:      "sess-canceled",
+		Source:         "telegram",
+		ChatID:         "42",
+		UserID:         "u-42",
+		ResumePending:  true,
+		ResumeReason:   string(session.ResumeReasonRestartTimeout),
+		ResumeMarkedAt: now.Add(-10 * time.Minute).Unix(),
+		UpdatedAt:      now.Add(-10 * time.Minute).Unix(),
+	}}}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		Now:          func() time.Time { return now },
+	}, &fakeKernel{}, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	inbox := make(chan InboundEvent, 1)
+
+	m.autoResumePendingSessions(ctx, inbox)
+
+	select {
+	case ev := <-inbox:
+		t.Fatalf("auto-resume scheduled event after context cancellation: %+v", ev)
+	default:
+	}
+	if len(smap.puts) != 0 {
+		t.Fatalf("auto-resume repaired session map after context cancellation: %#v", smap.puts)
+	}
+}
+
+func TestGatewayAutoResume_SkipsWhenSessionMappingRepairFails(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 5, 7, 10, 0, 0, 0, time.UTC)
+	tg := newFakeChannel("telegram")
+	smap := &autoResumeWhitespaceSessionMap{
+		items: []session.Metadata{{
+			SessionID:      "sess-interrupted",
+			Source:         "telegram",
+			ChatID:         "42",
+			UserID:         "u-42",
+			ResumePending:  true,
+			ResumeReason:   string(session.ResumeReasonRestartTimeout),
+			ResumeMarkedAt: now.Add(-10 * time.Minute).Unix(),
+			UpdatedAt:      now.Add(-10 * time.Minute).Unix(),
+		}},
+		putErr: errors.New("session map unavailable"),
+	}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		Now:          func() time.Time { return now },
+	}, &fakeKernel{}, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	inbox := make(chan InboundEvent, 1)
+
+	m.autoResumePendingSessions(ctx, inbox)
+
+	select {
+	case ev := <-inbox:
+		t.Fatalf("auto-resume scheduled event after failed session mapping repair: %+v", ev)
+	default:
+	}
+	if len(smap.puts) != 1 || smap.puts[0].key != "telegram:42" || smap.puts[0].sessionID != "sess-interrupted" {
+		t.Fatalf("session mapping repair attempts = %#v, want one canonical repair", smap.puts)
+	}
+}
+
+func TestGatewayAutoResume_NormalizesStoredSourceForChannelLookup(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 5, 7, 10, 0, 0, 0, time.UTC)
+	tg := newFakeChannel("telegram")
+	fk := &fakeKernel{}
+	smap := session.NewMemMap()
+
+	if err := smap.PutMetadata(ctx, session.Metadata{
+		SessionID:      "sess-case-source",
+		Source:         " Telegram ",
+		ChatID:         "42",
+		UserID:         "u-42",
+		ResumePending:  true,
+		ResumeReason:   string(session.ResumeReasonRestartTimeout),
+		ResumeMarkedAt: now.Add(-10 * time.Minute).Unix(),
+		UpdatedAt:      now.Add(-10 * time.Minute).Unix(),
+	}); err != nil {
+		t.Fatalf("PutMetadata: %v", err)
+	}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		Now:          func() time.Time { return now },
+	}, fk, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() { _ = m.Run(runCtx) }()
+
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(fk.submitsSnapshot()) >= 1
+	})
+	got := fk.submitsSnapshot()
+	if len(got) == 0 {
+		t.Fatal("expected kernel submit from auto-resume with case-normalized source")
+	}
+	if got[0].SessionID != "sess-case-source" {
+		t.Fatalf("auto-resumed SessionID = %q, want sess-case-source", got[0].SessionID)
 	}
 }
 

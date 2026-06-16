@@ -1,6 +1,9 @@
 package pagination
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 const MaxMessageLen = 4000
 
@@ -9,7 +12,15 @@ func PlainText(s string) []string {
 }
 
 func TelegramText(s string) []string {
-	return paginateOutboundText(s, telegramPageMarker)
+	pages := paginateOutboundText(s, telegramPageMarker)
+	if len(pages) == 1 {
+		pages[0] = removeDanglingMarkdownEscape(pages[0])
+		return pages
+	}
+	for i, page := range pages {
+		pages[i] = sanitizeTelegramPage(page)
+	}
+	return pages
 }
 
 func plainText(s string) []string {
@@ -80,10 +91,62 @@ func outboundSplitIndex(runes []rune, limit int) int {
 }
 
 func markdownSafeSplitIndex(runes []rune, split int) int {
-	if split <= 1 || split > len(runes) || trailingBackslashCount(runes[:split])%2 == 0 {
+	if split <= 0 || split > len(runes) || trailingBackslashCount(runes[:split])%2 == 0 {
 		return split
 	}
+	if split == 1 && len(runes) > 1 {
+		return 2
+	}
 	return split - 1
+}
+
+func sanitizeTelegramPage(page string) string {
+	body, marker, ok := splitTelegramPageMarker(page)
+	if ok {
+		return removeDanglingMarkdownEscape(body) + marker
+	}
+	return removeDanglingMarkdownEscape(page)
+}
+
+func splitTelegramPageMarker(page string) (body, marker string, ok bool) {
+	idx := strings.LastIndex(page, "\n\n\\(")
+	if idx < 0 {
+		return "", "", false
+	}
+	candidate := page[idx:]
+	if !validTelegramPageMarker(candidate) {
+		return "", "", false
+	}
+	return page[:idx], candidate, true
+}
+
+func validTelegramPageMarker(marker string) bool {
+	if !strings.HasPrefix(marker, "\n\n\\(") || !strings.HasSuffix(marker, "\\)") {
+		return false
+	}
+	inner := strings.TrimSuffix(strings.TrimPrefix(marker, "\n\n\\("), "\\)")
+	left, right, ok := strings.Cut(inner, "/")
+	return ok && decimalText(left) && decimalText(right)
+}
+
+func decimalText(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func removeDanglingMarkdownEscape(s string) string {
+	runes := []rune(s)
+	if len(runes) > 0 && trailingBackslashCount(runes)%2 == 1 {
+		return string(runes[:len(runes)-1])
+	}
+	return s
 }
 
 func trailingBackslashCount(runes []rune) int {

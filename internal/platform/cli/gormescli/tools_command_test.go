@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"slices"
@@ -80,15 +79,7 @@ func newToolsCommandForTest() *cobra.Command {
 }
 
 func executeToolsCommandForTest(cmd *cobra.Command, args ...string) (string, string, error) {
-	if len(args) > 0 && args[0] == "tools" {
-		args = args[1:]
-	}
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs(args)
-	err := cmd.Execute()
-	return stdout.String(), stderr.String(), err
+	return executeCobraCommandForTest(cmd, cobraCommandExecutionOptions{StripLeadingArg: "tools"}, args...)
 }
 
 func writeToolsCommandFixtureConfig(t *testing.T, body string) {

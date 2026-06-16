@@ -12,8 +12,8 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -21,7 +21,9 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel/fallback"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel/lifecycle"
+	kernelmodelrouting "github.com/TrebuchetDynamics/gormes-agent/internal/kernel/modelrouting"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel/skills"
+	kernelstreamdiag "github.com/TrebuchetDynamics/gormes-agent/internal/kernel/streamdiag"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
@@ -77,6 +79,10 @@ type Config struct {
 	// Skills injects a deterministic procedural block ahead of the user turn.
 	// Nil means no skill runtime.
 	Skills SkillProvider
+	// SystemPrompt is the base identity/context prompt prepended to every turn.
+	// Empty preserves caller-owned prompt assembly for gateway paths that already
+	// pass a session context block.
+	SystemPrompt string
 	// PrefillMessages are ephemeral few-shot messages inserted into provider
 	// requests after system/context messages and before visible conversation.
 	// They are never appended to kernel history or persisted.
@@ -146,6 +152,15 @@ type Kernel struct {
 
 	render chan RenderFrame
 	events chan PlatformEvent
+
+	// subscribers are independent render mailboxes handed out by Subscribe().
+	// Unlike the single shared render channel, each gets its own copy of every
+	// frame, so multiple consumers (e.g. the gateway plus cron runs sharing one
+	// kernel) never steal frames from one another. Guarded by subMu.
+	subMu       sync.Mutex
+	subscribers map[int]chan RenderFrame
+	nextSubID   int
+	subsClosed  bool
 
 	// Atomic — shared-read, kernel-write. Monotonically increasing per process.
 	seq atomic.Uint64
@@ -259,70 +274,92 @@ func (k *Kernel) applySessionModel(ctx context.Context, e PlatformEvent) error {
 }
 
 func (k *Kernel) shouldSwapSessionProvider(next string) bool {
-	current := strings.TrimSpace(firstNonEmpty(k.sessionProvider, k.cfg.Provider))
-	next = strings.TrimSpace(next)
-	return next != "" && next != current
+	return kernelmodelrouting.ShouldSwapProvider(k.sessionProvider, k.cfg.Provider, next)
 }
 
 func sessionModelRoute(provider, model string) (llm.ModelRoute, bool) {
-	entry, ok := llm.ResolveProviderManifestEntry(provider)
-	if !ok {
-		return llm.ModelRoute{}, false
-	}
-	if entry.ImplementationStatus != llm.ProviderImplemented && entry.ImplementationStatus != llm.ProviderOwned {
-		return llm.ModelRoute{}, false
-	}
-	route := llm.ModelRoute{
-		Provider:  strings.ToLower(strings.TrimSpace(entry.ID)),
-		Model:     strings.TrimSpace(model),
-		BaseURL:   strings.TrimSpace(entry.BaseURLOverride),
-		APIMode:   sessionModelAPIMode(entry.TransportFamily),
-		APIKeyEnv: firstString(entry.EnvVars),
-		KeyEnv:    strings.TrimSpace(entry.BaseURLEnvVar),
-	}
-	return route, route.Provider != "" && route.Model != ""
+	return kernelmodelrouting.Route(provider, model)
 }
 
 func sessionModelAPIMode(transport string) string {
-	switch strings.TrimSpace(transport) {
-	case "openai_chat":
-		return "chat_completions"
-	default:
-		return strings.TrimSpace(transport)
-	}
-}
-
-func firstString(values []string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
-	}
-	return ""
+	return kernelmodelrouting.APIMode(transport)
 }
 
 func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
-	}
-	return ""
+	return kernelmodelrouting.FirstNonEmpty(values...)
 }
 
 func modelMatchesAny(model string, needles []string) bool {
-	for _, needle := range needles {
-		needle = strings.ToLower(strings.TrimSpace(needle))
-		if needle != "" && strings.Contains(model, needle) {
-			return true
-		}
-	}
-	return false
+	return kernelmodelrouting.MatchesAny(model, needles)
 }
 
 // Render returns the receive side of the render mailbox. The channel is
 // closed when Run exits.
 func (k *Kernel) Render() <-chan RenderFrame { return k.render }
+
+// Subscribe returns an independent render stream plus a function to release it.
+// Each subscription has its own cap-RenderMailboxCap replace-latest mailbox, so
+// multiple consumers do not compete on a single channel (which would let one
+// steal frames meant for another). Call the returned func to unsubscribe; all
+// subscriptions are also closed when Run exits. Safe to call from any goroutine.
+func (k *Kernel) Subscribe() (<-chan RenderFrame, func()) {
+	ch := make(chan RenderFrame, RenderMailboxCap)
+	k.subMu.Lock()
+	if k.subsClosed {
+		k.subMu.Unlock()
+		close(ch)
+		return ch, func() {}
+	}
+	if k.subscribers == nil {
+		k.subscribers = make(map[int]chan RenderFrame)
+	}
+	id := k.nextSubID
+	k.nextSubID++
+	k.subscribers[id] = ch
+	k.subMu.Unlock()
+
+	var once sync.Once
+	return ch, func() {
+		once.Do(func() {
+			k.subMu.Lock()
+			if c, ok := k.subscribers[id]; ok {
+				delete(k.subscribers, id)
+				close(c)
+			}
+			k.subMu.Unlock()
+		})
+	}
+}
+
+// closeSubscribers closes every live subscription and blocks future ones from
+// receiving. Called once on Run exit.
+func (k *Kernel) closeSubscribers() {
+	k.subMu.Lock()
+	k.subsClosed = true
+	for id, ch := range k.subscribers {
+		close(ch)
+		delete(k.subscribers, id)
+	}
+	k.subMu.Unlock()
+}
+
+// fanOutFrame delivers frame to every subscription with the same replace-latest
+// (drain-then-send) semantics as the shared render channel. Holds subMu so a
+// concurrent unsubscribe cannot close a channel mid-send.
+func (k *Kernel) fanOutFrame(frame RenderFrame) {
+	k.subMu.Lock()
+	for _, ch := range k.subscribers {
+		select {
+		case <-ch:
+		default:
+		}
+		select {
+		case ch <- frame:
+		default:
+		}
+	}
+	k.subMu.Unlock()
+}
 
 // Submit enqueues a platform event. Returns ErrEventMailboxFull if the
 // mailbox is saturated; the caller decides whether to retry or drop.
@@ -415,6 +452,7 @@ func (k *Kernel) ResumeSession(sessionID string, history []llm.Message) error {
 // render channel on exit.
 func (k *Kernel) Run(ctx context.Context) error {
 	defer close(k.render)
+	defer k.closeSubscribers()
 	k.emitFrame("idle")
 	for {
 		select {
@@ -1033,6 +1071,11 @@ func (k *Kernel) requestMaxIterationSummary(ctx context.Context, base llm.ChatRe
 		Content: maxIterationSummaryRequest,
 	})
 
+	// Discard any partial text streamed during the over-budget tool round. The
+	// summary is a fresh, standalone response and replaces that interrupted
+	// fragment; without this reset streamInner would append the summary onto the
+	// leftover draft and persist a malformed mixed final message.
+	k.draft = ""
 	k.lastError = ""
 	k.phase = PhaseFinalizing
 	k.emitFrame(fmt.Sprintf("iteration budget exhausted (%d/%d); requesting summary", maxIter, maxIter))
@@ -1255,90 +1298,31 @@ func (k *Kernel) streamDropProviderName() string {
 }
 
 func streamDropRetryClassification(err error) llm.ProviderErrorClassification {
-	classification := llm.ClassifyProviderError(err)
-	if classification.Class == llm.ClassRetryable {
-		return classification
-	}
-	return llm.ProviderErrorClassification{
-		Kind:      llm.ProviderErrorRetryable,
-		Class:     llm.ClassRetryable,
-		Retryable: true,
-	}
+	return kernelstreamdiag.RetryClassification(err)
 }
 
 func streamDropErrorType(err error) string {
-	if err == nil {
-		return "unknown"
-	}
-	var httpErr *llm.HTTPError
-	if errors.As(err, &httpErr) {
-		return "HTTPError"
-	}
-	return streamDropConcreteErrorType(err)
+	return kernelstreamdiag.ErrorType(err)
 }
 
 func streamDropConcreteErrorType(err error) string {
-	if err == nil {
-		return "unknown"
-	}
-	name := strings.TrimPrefix(fmt.Sprintf("%T", err), "*")
-	if idx := strings.LastIndex(name, "."); idx >= 0 {
-		name = name[idx+1:]
-	}
-	if name == "" {
-		return "unknown"
-	}
-	return name
+	return kernelstreamdiag.ConcreteErrorType(err)
 }
 
 func streamDropErrorChain(err error) string {
-	if err == nil {
-		return "unknown"
-	}
-	parts := make([]string, 0, 4)
-	for current := err; current != nil && len(parts) < 4; current = errors.Unwrap(current) {
-		parts = append(parts, fmt.Sprintf("%s(%s)", streamDropConcreteErrorType(current), compactStreamDropText(current.Error(), 200)))
-	}
-	if len(parts) == 0 {
-		return "unknown"
-	}
-	return strings.Join(parts, " <- ")
+	return kernelstreamdiag.ErrorChain(err)
 }
 
 func formatStreamDiagnosticHeaders(headers map[string]string) string {
-	if len(headers) == 0 {
-		return ""
-	}
-	pairs := make([]string, 0, len(headers))
-	for rawName, rawValue := range headers {
-		name := strings.ToLower(strings.TrimSpace(rawName))
-		value := compactStreamDropText(rawValue, 120)
-		if name == "" || value == "" {
-			continue
-		}
-		pairs = append(pairs, name+"="+value)
-	}
-	sort.Strings(pairs)
-	return strings.Join(pairs, " ")
+	return kernelstreamdiag.FormatHeaders(headers)
 }
 
 func compactStreamDropText(text string, maxLen int) string {
-	text = strings.Join(strings.Fields(strings.TrimSpace(text)), " ")
-	if maxLen > 3 && len(text) > maxLen {
-		return text[:maxLen-3] + "..."
-	}
-	return text
+	return kernelstreamdiag.CompactText(text, maxLen)
 }
 
 func streamDropErrorText(err error) string {
-	if err == nil {
-		return "unknown stream drop"
-	}
-	text := strings.TrimSpace(err.Error())
-	if text == "" {
-		return streamDropErrorType(err)
-	}
-	return text
+	return kernelstreamdiag.ErrorText(err)
 }
 
 // streamInner runs one stream attempt. Pumps events from llm.Stream.Recv
@@ -1562,6 +1546,8 @@ func (k *Kernel) emitFrame(status string) {
 	default:
 		// Should be unreachable after the drain above.
 	}
+	// Deliver the same frame to every independent subscription.
+	k.fanOutFrame(frame)
 }
 
 // residentModel is the kernel's between-turns model: the resident in-session
@@ -1593,17 +1579,11 @@ func (k *Kernel) displayReasoningEffort(status llm.ProviderStatus) llm.Reasoning
 }
 
 func selectTurnModel(residentModel, override string) string {
-	if model := strings.TrimSpace(override); model != "" {
-		return model
-	}
-	return residentModel
+	return kernelmodelrouting.SelectTurnModel(residentModel, override)
 }
 
 func selectTurnReasoningEffort(residentEffort, override string, status llm.ProviderStatus) llm.ReasoningEffortEvidence {
-	if effort := strings.TrimSpace(override); effort != "" {
-		return llm.ResolveReasoningEffort(effort, llm.ReasoningEffortSourceTurnOverride, status)
-	}
-	return llm.ResolveReasoningEffort(residentEffort, llm.ReasoningEffortSourceConfigDefault, status)
+	return kernelmodelrouting.SelectTurnReasoningEffort(residentEffort, override, status)
 }
 
 // cronFlag returns 1 when the turn carries a cron_job_id (Phase 2.D),

@@ -3,6 +3,8 @@ package autotitle
 import (
 	"context"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 // Evidence codes describe the single observable outcome of one
@@ -127,7 +129,7 @@ func Perform(
 	if err != nil {
 		return Evidence{
 			Code:   CodeStoreReadFailed,
-			Reason: "auto-title store read failed: " + err.Error(),
+			Reason: "auto-title store read failed: " + autoTitleErrorText(err),
 		}
 	}
 	if exists && strings.TrimSpace(current) != "" {
@@ -147,7 +149,7 @@ func Perform(
 	if err != nil {
 		return Evidence{
 			Code:   CodeProviderFailed,
-			Reason: "title provider failed: " + err.Error(),
+			Reason: "title provider failed: " + autoTitleErrorText(err),
 		}
 	}
 	title = strings.TrimSpace(title)
@@ -162,7 +164,7 @@ func Perform(
 		return Evidence{
 			Code:   CodeStoreWriteFailed,
 			Title:  title,
-			Reason: "auto-title store write failed: " + err.Error(),
+			Reason: "auto-title store write failed: " + autoTitleErrorText(err),
 		}
 	}
 
@@ -170,6 +172,15 @@ func Perform(
 		Code:  CodeComplete,
 		Title: title,
 	}
+}
+
+func autoTitleErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := redaction.RedactSecrets(err.Error())
+	msg = strings.NewReplacer("`", "'", "*", "'", "#", "＃").Replace(msg)
+	return strings.Join(strings.Fields(msg), " ")
 }
 
 // hasEligibleTurn reports whether transcript contains at least one

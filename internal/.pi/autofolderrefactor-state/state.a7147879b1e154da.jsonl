@@ -1,0 +1,100 @@
+{"ts":"2026-06-06T19:19:50-06:00","candidate":"platform/cli/gormescli/tuiapp","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T20:19:51-06:00"}
+{"ts":"2026-06-06T19:22:58-06:00","candidate":"platform/cli/gormescli/modules/channels","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T20:22:58-06:00"}
+{"ts":"2026-06-06T19:22:59-06:00","candidate":"platform/cli/gormescli/modules/profiles/controlcenter","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T19:23:01-06:00","candidate":"platform/cli/gormescli/modules/sessions","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T19:25:32-06:00","candidate":"platform/cli/gormescli/modules/profiles","reason":"no metric progress rollback","scope":"candidate","state":"cooldown","until":"2026-06-06T20:25:32-06:00"}
+{"ts":"2026-06-06T19:25:33-06:00","candidate":"platform/cli/gormescli/channelruntime","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T19:25:35-06:00","candidate":"platform/cli/gormescli/contractruntime","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T19:30:08-06:00","candidate":"platform/cli/gormescli/modules/gateway","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T20:30:08-06:00"}
+{"ts":"2026-06-06T19:30:09-06:00","candidate":"platform/cli/gormescli","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T19:32:45-06:00","candidate":"llm/guidance","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T20:32:45-06:00"}
+{"ts":"2026-06-06T19:34:01-06:00","candidate":"llm/repair","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T20:34:01-06:00"}
+{"ts":"2026-06-06T19:37:16-06:00","candidate":"llm/safety","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T20:37:16-06:00"}
+{"ts":"2026-06-06T19:38:22-06:00","candidate":"llm/bedrock","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T20:38:22-06:00"}
+{"ts":"2026-06-06T19:42:37-06:00","candidate":"llm/prompts/eval","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T20:42:37-06:00"}
+{"ts":"2026-06-06T19:42:38-06:00","candidate":"llm/safety/react","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T19:42:40-06:00","candidate":"llm","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T19:46:41-06:00","candidate":"tools/tts","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T20:46:41-06:00"}
+{"ts":"2026-06-06T19:48:34-06:00","candidate":"tools/approval","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T20:48:34-06:00"}
+{"ts":"2026-06-06T19:50:33-06:00","candidate":"tools/imagegen","reason":"validation rollback","scope":"candidate","state":"blocked"}
+{"ts":"2026-06-06T19:53:12-06:00","candidate":"tools/parity","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T20:53:12-06:00"}
+{"ts":"2026-06-06T19:58:37-06:00","candidate":"tools/transcription","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T20:58:37-06:00"}
+{"ts":"2026-06-06T20:01:05-06:00","candidate":"tools/parity/manifest","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:01:05-06:00"}
+{"ts":"2026-06-06T20:03:36-06:00","candidate":"tools/docker","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:03:36-06:00"}
+{"ts":"2026-06-06T20:06:52-06:00","candidate":"tools/environment","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:06:52-06:00"}
+{"ts":"2026-06-06T20:06:53-06:00","candidate":"tools","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T20:08:42-06:00","candidate":"gateway/directory/model","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:08:42-06:00"}
+{"ts":"2026-06-06T20:11:28-06:00","candidate":"gateway/directory/model/entry","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:11:28-06:00"}
+{"ts":"2026-06-06T20:13:50-06:00","candidate":"gateway/approval","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:13:50-06:00"}
+{"ts":"2026-06-06T20:16:35-06:00","candidate":"gateway/profilechannels","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:16:35-06:00"}
+{"ts":"2026-06-06T20:16:37-06:00","candidate":"gateway/directory/model/entry/contract","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:16:39-06:00","candidate":"gateway/directory/model/policy","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:16:40-06:00","candidate":"gateway/directory/cache/readmodel","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:16:42-06:00","candidate":"gateway/directory/model/source","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:17:46-06:00","candidate":"gateway/directory/storage","reason":"no changes","scope":"candidate","state":"cooldown","until":"2026-06-06T21:17:46-06:00"}
+{"ts":"2026-06-06T20:19:19-06:00","candidate":"gateway/directory/cache","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:19:19-06:00"}
+{"ts":"2026-06-06T20:20:42-06:00","candidate":"gateway/directory","reason":"no metric progress rollback","scope":"candidate","state":"cooldown","until":"2026-06-06T21:20:42-06:00"}
+{"ts":"2026-06-06T20:20:44-06:00","candidate":"gateway","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T20:20:45-06:00","candidate":"extensibility/skills/hub","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:22:51-06:00","candidate":"extensibility/skills/document","reason":"no metric progress rollback","scope":"candidate","state":"cooldown","until":"2026-06-06T21:22:51-06:00"}
+{"ts":"2026-06-06T20:22:53-06:00","candidate":"extensibility/skills","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T20:29:45-06:00","candidate":"kernel","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:29:45-06:00"}
+{"ts":"2026-06-06T20:34:14-06:00","candidate":"memory/goncho","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:34:14-06:00"}
+{"ts":"2026-06-06T20:34:15-06:00","candidate":"memory/extraction","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:34:17-06:00","candidate":"memory/lifecycle","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:34:19-06:00","candidate":"memory/ranking","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:34:20-06:00","candidate":"memory","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T20:38:54-06:00","candidate":"automation/cron","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:38:54-06:00"}
+{"ts":"2026-06-06T20:42:25-06:00","candidate":"platform/cli/gormescli/tuiapp","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:42:25-06:00"}
+{"ts":"2026-06-06T20:44:24-06:00","candidate":"platform/cli/gormescli/modules/channels","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:44:24-06:00"}
+{"ts":"2026-06-06T20:50:04-06:00","candidate":"platform/cli/onboarding","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:50:04-06:00"}
+{"ts":"2026-06-06T20:51:14-06:00","candidate":"platform/cli/display","reason":"no metric progress rollback","scope":"candidate","state":"cooldown","until":"2026-06-06T21:51:14-06:00"}
+{"ts":"2026-06-06T20:51:15-06:00","candidate":"platform/cli","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T20:51:17-06:00","candidate":"adapters/channels/telegram/media","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:51:18-06:00","candidate":"adapters/channels/telegram/callbacks","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:51:20-06:00","candidate":"adapters/channels/telegram/send","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:51:21-06:00","candidate":"adapters/channels/telegram","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T20:53:34-06:00","candidate":"core/subagent/lifecycle","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:53:34-06:00"}
+{"ts":"2026-06-06T20:53:35-06:00","candidate":"core/subagent/review","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T20:53:37-06:00","candidate":"core/subagent","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T20:55:00-06:00","candidate":"config/integration","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T21:55:00-06:00"}
+{"ts":"2026-06-06T21:00:27-06:00","candidate":"config/credentials","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:00:27-06:00"}
+{"ts":"2026-06-06T21:04:36-06:00","candidate":"config/channels","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:04:36-06:00"}
+{"ts":"2026-06-06T21:04:38-06:00","candidate":"config/integration/channels","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:04:39-06:00","candidate":"config/profile","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:04:41-06:00","candidate":"config/integration/auxiliary","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:04:42-06:00","candidate":"config/integration/profiles","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:04:44-06:00","candidate":"config/configwriter","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:04:45-06:00","candidate":"config","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T21:06:42-06:00","candidate":"tui/composer","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:06:42-06:00"}
+{"ts":"2026-06-06T21:09:49-06:00","candidate":"tui/statusbar","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:09:49-06:00"}
+{"ts":"2026-06-06T21:12:04-06:00","candidate":"tui/skin","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:12:04-06:00"}
+{"ts":"2026-06-06T21:14:51-06:00","candidate":"tui/slashcompletion","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:14:51-06:00"}
+{"ts":"2026-06-06T21:17:12-06:00","candidate":"tui/wizard","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:17:12-06:00"}
+{"ts":"2026-06-06T21:19:16-06:00","candidate":"tui/modelpicker","reason":"no metric progress rollback","scope":"candidate","state":"cooldown","until":"2026-06-06T22:19:16-06:00"}
+{"ts":"2026-06-06T21:21:06-06:00","candidate":"tui/local/sessionadapters","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:21:06-06:00"}
+{"ts":"2026-06-06T21:21:08-06:00","candidate":"tui/local/preferences","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:22:17-06:00","candidate":"tui/local/runtime","reason":"no metric progress rollback","scope":"candidate","state":"cooldown","until":"2026-06-06T22:22:17-06:00"}
+{"ts":"2026-06-06T21:23:55-06:00","candidate":"tui/local","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:23:55-06:00"}
+{"ts":"2026-06-06T21:23:56-06:00","candidate":"tui","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T21:26:12-06:00","candidate":"adapters/channels/discord/legacy","reason":"no metric progress rollback","scope":"candidate","state":"cooldown","until":"2026-06-06T22:26:12-06:00"}
+{"ts":"2026-06-06T21:26:13-06:00","candidate":"adapters/channels/discord/messaging","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:26:15-06:00","candidate":"adapters/channels/discord/legacy/runtime","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:26:17-06:00","candidate":"adapters/channels/discord/attachments","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:26:18-06:00","candidate":"adapters/channels/discord/interactions","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:26:20-06:00","candidate":"adapters/channels/discord","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T21:29:06-06:00","candidate":"planning/progress/repoctl","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:29:06-06:00"}
+{"ts":"2026-06-06T21:32:03-06:00","candidate":"planning/progress/repoctl/inventory","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:32:03-06:00"}
+{"ts":"2026-06-06T21:35:54-06:00","candidate":"kernel","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T23:35:54-06:00"}
+{"ts":"2026-06-06T21:41:30-06:00","candidate":"planning/progress/ctl","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:41:30-06:00"}
+{"ts":"2026-06-06T21:44:07-06:00","candidate":"automation/cron","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T23:44:07-06:00"}
+{"ts":"2026-06-06T21:44:08-06:00","candidate":"planning/progress/triggers","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:44:10-06:00","candidate":"planning/progress/plannerloop/ledgerlog","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:44:12-06:00","candidate":"planning/progress/repoctl/sourcepairs","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:44:13-06:00","candidate":"planning/progress/loopcost","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:44:14-06:00","candidate":"planning/progress/markdown","reason":"already clean","scope":"candidate","state":"done"}
+{"ts":"2026-06-06T21:44:16-06:00","candidate":"planning/progress","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T21:46:14-06:00","candidate":"adapters/apiserver/ui","reason":"no metric progress rollback","scope":"candidate","state":"cooldown","until":"2026-06-06T22:46:14-06:00"}
+{"ts":"2026-06-06T21:47:12-06:00","candidate":"adapters/apiserver/assets","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T22:47:12-06:00"}
+{"ts":"2026-06-06T21:47:14-06:00","candidate":"adapters/apiserver","reason":"sub-candidates exhausted this run","scope":"parent","state":"exhausted"}
+{"ts":"2026-06-06T21:50:38-06:00","candidate":"platform/cli/gormescli/modules/gateway","reason":"landed","scope":"candidate","state":"cooldown","until":"2026-06-06T23:50:39-06:00"}

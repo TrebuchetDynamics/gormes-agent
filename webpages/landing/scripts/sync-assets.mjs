@@ -32,7 +32,7 @@ async function refreshBenchmarks() {
     return;
   }
 
-  const result = spawnSync('go', ['run', './cmd/repoctl', 'benchmark', 'record'], {
+  const result = spawnSync('go', ['run', './cmd/gormes-repo', 'benchmark', 'record'], {
     cwd: repoRoot,
     env: process.env,
     stdio: 'inherit',

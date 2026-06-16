@@ -78,12 +78,30 @@ func (ProcTable) LookupRuntimeProcess(pid int) (ProcessInfo, error) {
 	info := ProcessInfo{
 		PID:       pid,
 		StartTime: startTime,
-		Stopped:   state == "T" || state == "t",
+		Stopped:   stoppedProcState(state),
 	}
 	if cmdline, ok := readProcCmdline(pid); ok {
 		info.Command = cmdline
 	}
 	return info, nil
+}
+
+func validProcState(state string) bool {
+	switch state {
+	case "R", "S", "D", "Z", "z", "T", "t", "W", "X", "x", "K", "P", "I":
+		return true
+	default:
+		return false
+	}
+}
+
+func stoppedProcState(state string) bool {
+	switch state {
+	case "T", "t", "Z", "z", "X", "x":
+		return true
+	default:
+		return false
+	}
 }
 
 func readProcCmdline(pid int) (string, bool) {
@@ -123,15 +141,15 @@ func parseProcStatStartTime(stat string) (int64, bool) {
 
 func parseProcStatIdentity(stat string) (int64, string, bool) {
 	commEnd := strings.LastIndex(stat, ")")
-	if commEnd < 0 || commEnd+2 >= len(stat) {
+	if commEnd < 0 || commEnd+2 >= len(stat) || stat[commEnd+1] != ' ' {
 		return 0, "", false
 	}
 	fields := strings.Fields(stat[commEnd+2:])
-	if len(fields) <= 19 {
+	if len(fields) <= 19 || !validProcState(fields[0]) {
 		return 0, "", false
 	}
 	var start int64
-	if _, err := fmt.Sscan(fields[19], &start); err != nil {
+	if _, err := fmt.Sscan(fields[19], &start); err != nil || start <= 0 {
 		return 0, "", false
 	}
 	return start, fields[0], true

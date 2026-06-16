@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 var (
@@ -98,8 +100,7 @@ func (q *Queue) RegisterSlashConfirmation(sessionKey string, req Request) (Ticke
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.ensureLocked()
-	q.nextID++
-	ticket := Ticket{SessionKey: sessionKey, ID: q.nextID}
+	ticket := Ticket{SessionKey: sessionKey, ID: q.nextTicketIDLocked()}
 	q.pending[sessionKey] = &entry{
 		pending: Pending{
 			Ticket:    ticket,
@@ -125,7 +126,12 @@ func (q *Queue) PendingSlashConfirmation(sessionKey string) (Pending, bool) {
 	return clonePending(entry.pending), true
 }
 
-func (q *Queue) ResolveSlashConfirmation(_ context.Context, res Resolution) (Outcome, error) {
+func (q *Queue) ResolveSlashConfirmation(ctx context.Context, res Resolution) (Outcome, error) {
+	if ctx != nil {
+		if err := ctx.Err(); err != nil {
+			return Outcome{}, err
+		}
+	}
 	sessionKey := strings.TrimSpace(res.SessionKey)
 	if sessionKey == "" {
 		return Outcome{}, ErrEmptySession
@@ -139,6 +145,11 @@ func (q *Queue) ResolveSlashConfirmation(_ context.Context, res Resolution) (Out
 
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	if ctx != nil {
+		if err := ctx.Err(); err != nil {
+			return Outcome{}, err
+		}
+	}
 	q.ensureLocked()
 	entry := q.pending[sessionKey]
 	if entry == nil {
@@ -176,17 +187,40 @@ func (q *Queue) ClearSlashConfirmationSession(sessionKey string) bool {
 }
 
 func (q *Queue) SlashConfirmationOutcome(ticket Ticket) (Outcome, bool) {
-	if q == nil || ticket.ID == 0 || strings.TrimSpace(ticket.SessionKey) == "" {
+	sessionKey := strings.TrimSpace(ticket.SessionKey)
+	if q == nil || ticket.ID == 0 || sessionKey == "" {
 		return Outcome{}, false
 	}
 
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	outcome, ok := q.outcomes[ticket.ID]
-	if !ok || outcome.Ticket.SessionKey != ticket.SessionKey {
+	if !ok || outcome.Ticket.SessionKey != sessionKey {
 		return Outcome{}, false
 	}
 	return cloneOutcome(outcome), true
+}
+
+func (q *Queue) nextTicketIDLocked() uint64 {
+	for {
+		q.nextID++
+		if q.nextID == 0 || q.ticketIDInUseLocked(q.nextID) {
+			continue
+		}
+		return q.nextID
+	}
+}
+
+func (q *Queue) ticketIDInUseLocked(id uint64) bool {
+	if _, ok := q.outcomes[id]; ok {
+		return true
+	}
+	for _, entry := range q.pending {
+		if entry != nil && entry.pending.Ticket.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 func (q *Queue) ensureLocked() {
@@ -211,9 +245,49 @@ func validChoice(choice Choice) bool {
 }
 
 func cloneRequest(req Request) Request {
-	req.Command = strings.TrimSpace(req.Command)
-	req.Evidence = cloneStringMap(req.Evidence)
+	req.Command = sanitizeRequestText(req.Command)
+	req.Description = sanitizeRequestText(req.Description)
+	req.Evidence = cloneEvidence(req.Evidence)
 	return req
+}
+
+func sanitizeRequestText(value string) string {
+	value = strings.Join(strings.Fields(value), " ")
+	value = redaction.RedactSecrets(value)
+	fields := strings.Fields(value)
+	for i, field := range fields {
+		lower := strings.ToLower(field)
+		if strings.Contains(lower, "[redacted]") && (strings.Contains(lower, "api_key") || strings.Contains(lower, "api-key") || strings.Contains(lower, "apikey") || strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "password")) {
+			fields[i] = "[redacted]"
+		}
+	}
+	return strings.Join(fields, " ")
+}
+
+func cloneEvidence(input map[string]string) map[string]string {
+	if input == nil {
+		return nil
+	}
+	out := make(map[string]string, len(input))
+	for key, value := range input {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		key = sanitizeRequestText(key)
+		value = sanitizeRequestText(value)
+		if secretLikeRequestField(key) {
+			key = "[redacted]"
+			value = "[redacted]"
+		}
+		out[key] = value
+	}
+	return out
+}
+
+func secretLikeRequestField(value string) bool {
+	lower := strings.ToLower(value)
+	return strings.Contains(lower, "api_key") || strings.Contains(lower, "api-key") || strings.Contains(lower, "apikey") || strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "password")
 }
 
 func cloneResolution(res Resolution) Resolution {
@@ -230,15 +304,4 @@ func cloneOutcome(outcome Outcome) Outcome {
 	outcome.Request = cloneRequest(outcome.Request)
 	outcome.Resolution = cloneResolution(outcome.Resolution)
 	return outcome
-}
-
-func cloneStringMap(input map[string]string) map[string]string {
-	if input == nil {
-		return nil
-	}
-	out := make(map[string]string, len(input))
-	for key, value := range input {
-		out[key] = value
-	}
-	return out
 }

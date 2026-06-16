@@ -93,7 +93,7 @@ func (r *ImageGenProviderRegistry) ResolveActive(ctx context.Context, configured
 			return ImageGenActiveProvider{Name: configured, Evidence: ImageGenerationStatusProviderNotRegistered}
 		}
 		if !provider.Available(ctx) {
-			return ImageGenActiveProvider{Name: configured, Evidence: ImageGenerationStatus("image_gen_provider_unavailable")}
+			return ImageGenActiveProvider{Name: configured, Evidence: ImageGenerationStatusProviderUnavailable}
 		}
 		return ImageGenActiveProvider{Name: configured, Provider: provider}
 	}
@@ -120,7 +120,7 @@ func (r *ImageGenProviderRegistry) ResolveActive(ctx context.Context, configured
 			return resolved
 		}
 	}
-	return ImageGenActiveProvider{Evidence: ImageGenerationStatus("image_gen_provider_unavailable")}
+	return ImageGenActiveProvider{Evidence: ImageGenerationStatusProviderUnavailable}
 }
 
 func (r *ImageGenProviderRegistry) resolveAvailable(ctx context.Context, name string) ImageGenActiveProvider {
@@ -129,7 +129,7 @@ func (r *ImageGenProviderRegistry) resolveAvailable(ctx context.Context, name st
 		return ImageGenActiveProvider{}
 	}
 	if !provider.Available(ctx) {
-		return ImageGenActiveProvider{Name: name, Evidence: ImageGenerationStatus("image_gen_provider_unavailable")}
+		return ImageGenActiveProvider{Name: name, Evidence: ImageGenerationStatusProviderUnavailable}
 	}
 	return ImageGenActiveProvider{Name: name, Provider: provider}
 }

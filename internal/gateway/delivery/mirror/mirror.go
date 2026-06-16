@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/delivery/address"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/redaction"
 )
 
 const (
@@ -36,16 +38,23 @@ func SelectDeliveryMirrorSession(candidates []session.Metadata, target DeliveryM
 	chatID := address.ID(target.ChatID)
 	threadID := address.ID(target.ThreadID)
 	userID := address.ID(target.UserID)
-	if platform == "" || chatID == "" {
+	if platform == "" || chatID == "" || containsMirrorControlRune(platform) || containsMirrorControlRune(chatID) || containsMirrorControlRune(threadID) || containsMirrorControlRune(userID) {
 		return session.Metadata{}, false
 	}
 
 	matches := make([]session.Metadata, 0, len(candidates))
 	for _, meta := range candidates {
-		if address.Platform(meta.Source) != platform {
+		sessionID := address.ID(meta.SessionID)
+		metaSource := address.Platform(meta.Source)
+		metaChatID := address.ID(meta.ChatID)
+		metaUserID := address.ID(meta.UserID)
+		if sessionID == "" || containsMirrorControlRune(sessionID) || containsMirrorControlRune(metaSource) || containsMirrorControlRune(metaChatID) || containsMirrorControlRune(metaUserID) {
 			continue
 		}
-		if !address.ChatMatches(meta.ChatID, chatID, threadID) {
+		if metaSource != platform {
+			continue
+		}
+		if !address.ChatMatches(metaChatID, chatID, threadID) {
 			continue
 		}
 		matches = append(matches, meta)
@@ -66,10 +75,33 @@ func SelectDeliveryMirrorSession(candidates []session.Metadata, target DeliveryM
 			best = meta
 		}
 	}
-	return best, true
+	return normalizeSelectedMetadata(best), true
+}
+
+func containsMirrorControlRune(value string) bool {
+	for _, r := range value {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeSelectedMetadata(meta session.Metadata) session.Metadata {
+	meta.SessionID = address.ID(meta.SessionID)
+	meta.Source = address.Platform(meta.Source)
+	meta.ChatID = address.ID(meta.ChatID)
+	meta.UserID = address.ID(meta.UserID)
+	return meta
 }
 
 func MirrorDeliveryToSession(ctx context.Context, st store.Store, candidates []session.Metadata, target DeliveryMirrorTarget, now time.Time) (DeliveryMirrorResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return DeliveryMirrorResult{}, err
+	}
 	if st == nil {
 		return DeliveryMirrorResult{Evidence: DeliveryMirrorStoreUnavailable}, nil
 	}
@@ -77,11 +109,11 @@ func MirrorDeliveryToSession(ctx context.Context, st store.Store, candidates []s
 	if !ok {
 		return DeliveryMirrorResult{Evidence: DeliveryMirrorSessionMissing}, nil
 	}
-	content := address.ID(target.MessageText)
-	if content == "" {
+	content := target.MessageText
+	if strings.TrimSpace(content) == "" {
 		return DeliveryMirrorResult{Evidence: DeliveryMirrorSessionMissing}, nil
 	}
-	source := address.ID(target.SourceLabel)
+	source := sanitizeMirrorSourceLabel(target.SourceLabel)
 	if source == "" {
 		source = "gormes"
 	}
@@ -111,6 +143,32 @@ func MirrorDeliveryToSession(ctx context.Context, st store.Store, candidates []s
 	return DeliveryMirrorResult{Mirrored: true, SessionID: selected.SessionID}, nil
 }
 
+func sanitizeMirrorSourceLabel(value string) string {
+	value = address.ID(value)
+	value = redaction.RedactSecrets(value)
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			b.WriteByte(' ')
+			continue
+		}
+		b.WriteRune(r)
+	}
+	fields := strings.Fields(b.String())
+	for i, field := range fields {
+		lower := strings.ToLower(field)
+		if strings.Contains(lower, "[redacted]") && mirrorSecretField(lower) {
+			fields[i] = "[redacted]"
+		}
+	}
+	return strings.Join(fields, " ")
+}
+
+func mirrorSecretField(value string) bool {
+	return strings.Contains(value, "api_key") || strings.Contains(value, "api-key") || strings.Contains(value, "apikey") || strings.Contains(value, "token") || strings.Contains(value, "secret") || strings.Contains(value, "password")
+}
+
 func deliveryMirrorFilterByUser(items []session.Metadata, userID string) ([]session.Metadata, bool) {
 	if userID != "" {
 		exact := items[:0]
@@ -129,11 +187,11 @@ func deliveryMirrorFilterByUser(items []session.Metadata, userID string) ([]sess
 
 func deliveryMirrorHasAmbiguousUserProvenance(items []session.Metadata) bool {
 	knownUsers := map[string]struct{}{}
-	hasUnknownUser := false
+	unknownUsers := 0
 	for _, meta := range items {
 		userID := address.ID(meta.UserID)
 		if userID == "" {
-			hasUnknownUser = true
+			unknownUsers++
 			continue
 		}
 		knownUsers[userID] = struct{}{}
@@ -141,5 +199,5 @@ func deliveryMirrorHasAmbiguousUserProvenance(items []session.Metadata) bool {
 			return true
 		}
 	}
-	return hasUnknownUser && len(knownUsers) > 0
+	return unknownUsers > 0 && (len(knownUsers) > 0 || unknownUsers > 1)
 }

@@ -76,6 +76,8 @@ func LooksLikeNetworkError(err error) bool {
 		"network is unreachable",
 		"i/o timeout",
 		"timeout",
+		"too many requests",
+		"retry after",
 	} {
 		if strings.Contains(text, needle) {
 			return true

@@ -1,6 +1,9 @@
 package ttsconfig
 
-import "sync"
+import (
+	"strings"
+	"sync"
+)
 
 // Store owns per-session TTS settings.
 type Store struct {
@@ -16,7 +19,8 @@ func NewStore() *Store {
 // Get returns the stored config for sessionKey, creating the default config on
 // first use to preserve the gateway's historical per-session behavior.
 func (s *Store) Get(sessionKey string) Config {
-	if s == nil {
+	sessionKey = strings.TrimSpace(sessionKey)
+	if s == nil || sessionKey == "" {
 		return DefaultConfig
 	}
 	s.mu.Lock()
@@ -34,7 +38,8 @@ func (s *Store) Get(sessionKey string) Config {
 
 // Set stores cfg for sessionKey.
 func (s *Store) Set(sessionKey string, cfg Config) {
-	if s == nil {
+	sessionKey = strings.TrimSpace(sessionKey)
+	if s == nil || sessionKey == "" {
 		return
 	}
 	s.mu.Lock()

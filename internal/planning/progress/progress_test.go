@@ -50,7 +50,7 @@ func TestLoad_MinimalFixture(t *testing.T) {
 }
 
 func TestLoad_RealFile(t *testing.T) {
-	p, err := Load("../../../docs/content/building-gormes/architecture_plan/progress.json")
+	p, err := Load("../../../webpages/docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -102,7 +102,7 @@ func TestLoad_RealFile(t *testing.T) {
 }
 
 func TestLoad_RealFile_ContractMetadata(t *testing.T) {
-	p, err := Load("../../../docs/content/building-gormes/architecture_plan/progress.json")
+	p, err := Load("../../../webpages/docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -149,7 +149,7 @@ func TestLoad_RealFile_ContractMetadata(t *testing.T) {
 }
 
 func TestLoad_RealFile_Phase1PlannerWrapperCloseout(t *testing.T) {
-	p, err := Load("../../../docs/content/building-gormes/architecture_plan/progress.json")
+	p, err := Load("../../../webpages/docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -188,7 +188,7 @@ func containsString(values []string, want string) bool {
 }
 
 func TestLoad_RealFile_GoscraplingCrawlerFixtureAdapterSeam(t *testing.T) {
-	p, err := Load("../../../docs/content/building-gormes/architecture_plan/progress.json")
+	p, err := Load("../../../webpages/docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -219,7 +219,7 @@ func TestLoad_RealFile_GoscraplingCrawlerFixtureAdapterSeam(t *testing.T) {
 }
 
 func TestLoad_RealFile_NativeTUISlashHandlerCoverage(t *testing.T) {
-	p, err := Load("../../../docs/content/building-gormes/architecture_plan/progress.json")
+	p, err := Load("../../../webpages/docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -257,7 +257,7 @@ func TestLoad_RealFile_NativeTUISlashHandlerCoverage(t *testing.T) {
 }
 
 func TestLoad_RealFile_ProfileControlCenterV2Umbrella(t *testing.T) {
-	p, err := Load("../../../docs/content/building-gormes/architecture_plan/progress.json")
+	p, err := Load("../../../webpages/docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -268,8 +268,8 @@ func TestLoad_RealFile_ProfileControlCenterV2Umbrella(t *testing.T) {
 		t.Fatalf("Profile Control Center umbrella metadata = status %q contract_status %q size %q owner %q module %q, want complete/validated/umbrella/tools/profiles", umbrella.Status, umbrella.ContractStatus, umbrella.SliceSize, umbrella.ExecutionOwner, umbrella.Module)
 	}
 	for _, want := range []string{
-		"docs/content/building-gormes/architecture_plan/profile-config-v2.md#invariants",
-		"docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
+		"webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md#invariants",
+		"webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
 		"internal/config/profile_config_v2.go:ProfileCfg",
 		"internal/config/profile_config_v2.go:DefaultConfigDocumentV2",
 		"cmd/gormes/setup_profiles_tui.go:setupProfilesTUIState",
@@ -295,7 +295,7 @@ func TestLoad_RealFile_ProfileControlCenterV2Umbrella(t *testing.T) {
 }
 
 func TestLoad_RealFile_Phase4Anthropic(t *testing.T) {
-	p, err := Load("../../../docs/content/building-gormes/architecture_plan/progress.json")
+	p, err := Load("../../../webpages/docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -315,7 +315,7 @@ func TestLoad_RealFile_Phase4Anthropic(t *testing.T) {
 }
 
 func TestLoad_RealFile_Phase2Ledger(t *testing.T) {
-	p, err := Load("../../../docs/content/building-gormes/architecture_plan/progress.json")
+	p, err := Load("../../../webpages/docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -439,7 +439,7 @@ func TestLoad_RealFile_Phase2Ledger(t *testing.T) {
 }
 
 func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
-	p, err := Load("../../../docs/content/building-gormes/architecture_plan/progress.json")
+	p, err := Load("../../../webpages/docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -1086,7 +1086,7 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 }
 
 func TestLoad_RealFile_Phase3Ledger(t *testing.T) {
-	p, err := Load("../../../docs/content/building-gormes/architecture_plan/progress.json")
+	p, err := Load("../../../webpages/docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -1140,7 +1140,7 @@ func TestLoad_RealFile_Phase3Ledger(t *testing.T) {
 }
 
 func TestLoad_RealFile_Phase3ExecutionQueue(t *testing.T) {
-	p, err := Load("../../../docs/content/building-gormes/architecture_plan/progress.json")
+	p, err := Load("../../../webpages/docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}

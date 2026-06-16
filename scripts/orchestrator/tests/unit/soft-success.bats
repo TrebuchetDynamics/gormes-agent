@@ -37,9 +37,9 @@ make_orchestrator_repo() {
   local repo="$1"
   git init -q -b main "$repo"
   cp "$FIXTURES_DIR/progress.fixture.json" "$repo/progress.json"
-  mkdir -p "$repo/docs/content/building-gormes/architecture_plan"
+  mkdir -p "$repo/webpages/docs/content/building-gormes/architecture_plan"
   cp "$FIXTURES_DIR/progress.fixture.json" \
-    "$repo/docs/content/building-gormes/architecture_plan/progress.json"
+    "$repo/webpages/docs/content/building-gormes/architecture_plan/progress.json"
   (
     cd "$repo"
     git -c user.email=t@t -c user.name=T add -A
@@ -82,7 +82,7 @@ Snippet: ok
 
 7) Post-doc closeout
 Files:
-- docs/content/building-gormes/architecture_plan/progress.json
+- webpages/docs/content/building-gormes/architecture_plan/progress.json
 
 8) Commit
 Branch: $branch

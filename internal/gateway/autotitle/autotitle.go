@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/renderframe"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
@@ -56,6 +57,9 @@ func Run(
 // session.TitleTurn slices to llm.TitleModelRequest messages so the title model
 // boundary is platform-independent.
 func TitleModelToGenerator(ctx context.Context, fn llm.TitleModelFunc, transcript []session.TitleTurn) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	msgs := make([]llm.TitleModelMessage, 0, len(transcript))
 	for _, t := range transcript {
 		msgs = append(msgs, llm.TitleModelMessage{Role: t.Role, Content: t.Content})
@@ -70,10 +74,5 @@ func TitleModelToGenerator(ctx context.Context, fn llm.TitleModelFunc, transcrip
 // LastAssistantText extracts the Content of the last assistant-role message in
 // the frame History. Returns empty string when no assistant message is found.
 func LastAssistantText(f kernel.RenderFrame) string {
-	for i := len(f.History) - 1; i >= 0; i-- {
-		if f.History[i].Role == "assistant" {
-			return f.History[i].Content
-		}
-	}
-	return ""
+	return renderframe.LastAssistantText(f)
 }

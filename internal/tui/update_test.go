@@ -9,10 +9,10 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
-// R3: when a turn is active but nothing else signals progress yet (no tool
-// trace, no draft, no error), the live frame shows the reused thinking
-// indicator so the user is never left wondering.
-func TestStreamFeedback_ThinkingIndicatorWhenActiveAndQuiet(t *testing.T) {
+// Active turns keep waiting feedback in the hint/status area. The transcript
+// should stay Hermes-like and quiet until concrete draft text or tool progress
+// exists.
+func TestStreamFeedback_QuietActiveTurnDoesNotInjectThinkingBlock(t *testing.T) {
 	frame := kernel.RenderFrame{
 		Phase: kernel.PhaseStreaming,
 		History: []llm.Message{
@@ -21,8 +21,8 @@ func TestStreamFeedback_ThinkingIndicatorWhenActiveAndQuiet(t *testing.T) {
 	}
 	got := renderConv(frame, 100, 12)
 
-	if !strings.Contains(got, "🤔") || !strings.Contains(got, "Reasoning") {
-		t.Fatalf("active+quiet turn missing reused thinking indicator:\n%s", got)
+	if strings.Contains(got, "🤔") || strings.Contains(got, "Reasoning") {
+		t.Fatalf("active+quiet turn injected noisy thinking indicator:\n%s", got)
 	}
 	if !strings.Contains(got, "do the thing") {
 		t.Fatalf("user content dropped:\n%s", got)

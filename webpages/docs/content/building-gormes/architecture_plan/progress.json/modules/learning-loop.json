@@ -62,7 +62,7 @@
         "internal/llm/background_review_test.go",
         "internal/core/subagent/background_review_toolset.go",
         "internal/tools/skill_manager.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm ./internal/subagent ./internal/tools -run 'TestBackgroundReviewFork|TestBackgroundReviewToolsetRestriction|TestSkillManager' -count=1",
@@ -100,7 +100,7 @@
       "degraded_mode": "Without this slice, Gormes can run the background review fork only from coarse interval counters and cannot explain why a turn should trigger memory/skill review before later extractor, scorer, or promotion logic runs.",
       "fixture": "internal/llm/learning_loop_signal_test.go",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md:6.A deterministic detector execution note",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md:6.A deterministic detector execution note",
         "hermes-agent/tests/run_agent/test_codex_app_server_integration.py::test_background_review_NOT_invoked_below_threshold",
         "hermes-agent/tests/run_agent/test_codex_app_server_integration.py::test_background_review_skill_trigger_fires_above_threshold",
         "hermes-agent/tests/run_agent/test_memory_nudge_counter_hydration.py::_run_hydration",
@@ -196,7 +196,7 @@
       "write_scope": [
         "internal/skills/curator.go",
         "internal/skills/curator_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/skills -run 'TestCuratorPromptTransientEnvironmentGuard|TestCuratorRun' -count=1",
@@ -243,7 +243,7 @@
         "operator"
       ],
       "source_refs": [
-        "docs/content/papers/agentic-os-design.md",
+        "webpages/docs/content/papers/agentic-os-design.md",
         "Hermes Agent GEPA engine (hermes-agent/agent/)",
         "internal/llm/prompt_evaluator.go",
         "internal/llm/eval_scenarios.go"
@@ -268,7 +268,7 @@
         "internal/llm/prompt_evaluator.go",
         "internal/llm/prompt_evaluator_test.go",
         "internal/llm/eval_scenarios.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run TestPromptEvaluator -count=1",
@@ -296,7 +296,7 @@
         "operator"
       ],
       "source_refs": [
-        "docs/content/papers/agentic-os-design.md",
+        "webpages/docs/content/papers/agentic-os-design.md",
         "Hermes Agent GEPA engine",
         "internal/llm/prompt_evaluator.go"
       ],
@@ -318,7 +318,7 @@
       "write_scope": [
         "internal/llm/prompt_optimizer.go",
         "internal/llm/prompt_optimizer_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/llm -run TestPromptOptimizer -count=1",
@@ -348,7 +348,7 @@
       "degraded_mode": "If the learning loop stays buried in architecture docs, users will believe Gormes only has the no-stack runtime wedge and will continue assigning the self-improvement story exclusively to Hermes.",
       "fixture": "webpages/docs/content/building-gormes/core-systems/learning-loop.md::operator proof",
       "source_refs": [
-        "docs/content/building-gormes/strategy/market-positioning.md",
+        "webpages/docs/content/building-gormes/strategy/market-positioning.md",
         "webpages/docs/content/building-gormes/core-systems/learning-loop.md",
         "webpages/docs/content/cli/curator.md",
         "webpages/docs/content/cli/skills.md",
@@ -380,7 +380,7 @@
         "webpages/docs/content/cli/memory.md",
         "webpages/docs/content/why-gormes.md",
         "webpages/docs/docs_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./webpages/docs -run 'Test.*Learning.*Loop|Test.*Curator.*Docs|Test.*Skill.*Docs' -count=1",

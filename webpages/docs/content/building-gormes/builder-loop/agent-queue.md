@@ -8,7 +8,7 @@ aliases:
 # Agent Queue
 
 This page is generated from the canonical progress file:
-`docs/content/building-gormes/architecture_plan/progress.json`.
+`webpages/docs/content/building-gormes/architecture_plan/progress.json`.
 
 It lists unblocked, non-umbrella contract rows that are ready for a focused
 skill-driven implementation attempt. Each card carries the execution owner,

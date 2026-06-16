@@ -1,7 +1,6 @@
 package gormescli
 
 import (
-	"bytes"
 	"strings"
 	"testing"
 
@@ -29,19 +28,16 @@ func TestDashboardHelpDoesNotPanic(t *testing.T) {
 			root := newRootCommandWithFactoryForTest("dashboard", func() *cobra.Command {
 				return NewDashboardCommand(DefaultDashboardCommandOptions(Version, "test-git", false))
 			})
-			var stdout, stderr bytes.Buffer
-			root.SetOut(&stdout)
-			root.SetErr(&stderr)
-			root.SetArgs(tc.args)
 			defer func() {
 				if r := recover(); r != nil {
 					t.Fatalf("Execute(%v) panicked: %v", tc.args, r)
 				}
 			}()
-			if err := root.Execute(); err != nil {
+			stdout, stderr, err := executeCobraCommandForTest(root, cobraCommandExecutionOptions{}, tc.args...)
+			if err != nil {
 				t.Fatalf("Execute(%v) returned error: %v", tc.args, err)
 			}
-			combined := stdout.String() + stderr.String()
+			combined := stdout + stderr
 			if tc.args[0] != "__complete" && !strings.Contains(combined, "dashboard") {
 				t.Fatalf("Execute(%v) output missing 'dashboard' marker; got:\n%s", tc.args, combined)
 			}

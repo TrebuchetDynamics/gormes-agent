@@ -2,6 +2,7 @@ package tui
 
 import (
 	"bytes"
+	"context"
 	"reflect"
 	"strings"
 	"time"
@@ -83,9 +84,14 @@ type submittedMsg struct{}
 type cancelledMsg struct{}
 
 type activeTurnTickMsg struct{}
+type statusTickMsg struct{}
 
 func activeTurnTickCmd() tea.Cmd {
 	return tea.Tick(120*time.Millisecond, func(time.Time) tea.Msg { return activeTurnTickMsg{} })
+}
+
+func statusTickCmd() tea.Cmd {
+	return tea.Tick(time.Second, func(time.Time) tea.Msg { return statusTickMsg{} })
 }
 
 // Update is the Bubble Tea event loop. MUST NOT block: every kernel
@@ -122,28 +128,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 		}
 		if got, ok := resolveVoiceRecordTeaKey(msg, m.voiceRecordKey); ok && got.Action == HermesActionToggleVoiceRecording {
-			if m.voiceToggle == nil {
-				key := tools.ResolveVoiceRecordKey(m.voiceRecordKey, tools.VoiceRecordKeyOptions{})
-				m.statusMessage = "voice recording toggle unavailable in native TUI (" + string(key.Evidence) + "; key " + key.Display + ")"
-				return m, tea.Batch(cmds...)
-			}
-			result, err := m.voiceToggle(VoiceToggleRequest{Action: "record", SessionID: m.SessionID()})
-			if err != nil {
-				m.transientPage = nil
-				m.statusMessage = "voice: " + err.Error()
-				return m, tea.Batch(cmds...)
-			}
-			if strings.TrimSpace(result.RecordKey) != "" {
-				binding := tools.ResolveVoiceRecordKey(result.RecordKey, tools.VoiceRecordKeyOptions{})
-				m.voiceRecordKey = binding.Raw
-			}
-			lines := renderVoiceToggleLines("status", result)
-			m.transientPage = &TransientPageState{Title: "Voice", Body: strings.Join(lines, "\n")}
-			if len(lines) > 0 {
-				m.statusMessage = lines[0]
-			} else {
-				m.statusMessage = "voice: no status"
-			}
+			m.handleVoiceRecordKey()
 			return m, tea.Batch(cmds...)
 		}
 		if msg.Type == tea.KeyUp || msg.Type == tea.KeyDown {
@@ -246,6 +231,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case frameMsg:
 		m.frame = kernel.RenderFrame(msg)
+		m.maybePlayVoiceTTS()
 		// Authoritative inFlight reset: the kernel reports PhaseIdle on
 		// success and PhaseFailed on terminal failure.
 		if m.frame.Phase == kernel.PhaseIdle || m.frame.Phase == kernel.PhaseFailed {
@@ -276,6 +262,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, activeTurnTickCmd())
 			return m, tea.Batch(cmds...)
 		}
+
+	case statusTickMsg:
+		cmds = append(cmds, statusTickCmd())
+		return m, tea.Batch(cmds...)
 
 	case modelPickerConfirmedMsg:
 		cmd := m.handleModelPickerConfirmed(ModelPickerResult(msg))
@@ -679,6 +669,148 @@ func (m Model) cancelCmd() tea.Cmd {
 		cancel()
 		return cancelledMsg{}
 	}
+}
+
+func (m *Model) handleVoiceRecordKey() {
+	if m.voiceToggle == nil {
+		m.statusMessage = "voice_recorder_unavailable: voice adapter unavailable"
+		return
+	}
+	result, err := m.voiceToggle(VoiceToggleRequest{Action: "status", SessionID: m.SessionID()})
+	if err != nil {
+		m.statusMessage = "voice: " + err.Error()
+		return
+	}
+	if strings.TrimSpace(result.RecordKey) != "" {
+		m.voiceRecordKey = result.RecordKey
+	}
+	if !result.Enabled {
+		m.statusMessage = "voice: mode is off — enable with /voice on"
+		return
+	}
+	if m.voiceRuntime.Recorder == nil {
+		m.voiceRecording = false
+		m.voiceProcessing = false
+		m.statusMessage = "voice_recorder_unavailable: no recorder configured"
+		return
+	}
+	ctx := context.Background()
+	req := VoiceRecordRequest{SessionID: m.SessionID()}
+	if !m.voiceRecording {
+		evidence, err := m.voiceRuntime.Recorder.Start(ctx, req)
+		if err != nil {
+			m.voiceRecording = false
+			m.voiceProcessing = false
+			m.statusMessage = "voice_recorder_unavailable: " + err.Error()
+			return
+		}
+		m.voiceRecording = true
+		m.voiceProcessing = false
+		m.statusMessage = firstVoiceEvidence(evidence, "voice recording started")
+		return
+	}
+	m.voiceRecording = false
+	m.voiceProcessing = true
+	artifact, evidence, err := m.voiceRuntime.Recorder.Stop(ctx, req)
+	if err != nil {
+		m.voiceProcessing = false
+		m.statusMessage = "voice_recorder_error: " + err.Error()
+		return
+	}
+	if m.voiceRuntime.Transcriber == nil {
+		m.voiceProcessing = false
+		m.statusMessage = "voice_stt_unavailable: no transcription provider configured"
+		return
+	}
+	transcript, sttEvidence, err := m.voiceRuntime.Transcriber.Transcribe(ctx, artifact)
+	m.voiceProcessing = false
+	if err != nil {
+		m.statusMessage = "voice_stt_unavailable: " + err.Error()
+		return
+	}
+	text := strings.TrimSpace(transcript.Text)
+	if text != "" {
+		m.injectVoiceTranscript(text)
+	}
+	if msg := firstVoiceEvidence(sttEvidence, ""); msg != "" {
+		m.statusMessage = msg
+	} else {
+		m.statusMessage = firstVoiceEvidence(evidence, "voice transcribed")
+	}
+}
+
+func (m *Model) handleVoiceRecordKeyStatusOnly() {
+	if m.voiceToggle == nil {
+		key := tools.ResolveVoiceRecordKey(m.voiceRecordKey, tools.VoiceRecordKeyOptions{})
+		m.statusMessage = "voice recording toggle unavailable in native TUI (" + string(key.Evidence) + "; key " + key.Display + ")"
+		return
+	}
+	result, err := m.voiceToggle(VoiceToggleRequest{Action: "record", SessionID: m.SessionID()})
+	if err != nil {
+		m.transientPage = nil
+		m.statusMessage = "voice: " + err.Error()
+		return
+	}
+	if strings.TrimSpace(result.RecordKey) != "" {
+		binding := tools.ResolveVoiceRecordKey(result.RecordKey, tools.VoiceRecordKeyOptions{})
+		m.voiceRecordKey = binding.Raw
+	}
+	lines := renderVoiceToggleLines("status", result)
+	m.transientPage = &TransientPageState{Title: "Voice", Body: strings.Join(lines, "\n")}
+	if len(lines) > 0 {
+		m.statusMessage = lines[0]
+	} else {
+		m.statusMessage = "voice: no status"
+	}
+}
+
+func (m *Model) injectVoiceTranscript(text string) {
+	current := strings.TrimRight(m.editor.Value(), "\n")
+	if strings.TrimSpace(current) == "" {
+		m.editor.SetValue(text)
+		return
+	}
+	m.editor.SetValue(current + "\n" + text)
+}
+
+func (m *Model) maybePlayVoiceTTS() {
+	if m.voiceRuntime.Playback == nil || m.voiceToggle == nil || m.frame.Seq == 0 || m.frame.Seq == m.voiceLastSpokenSeq {
+		return
+	}
+	result, err := m.voiceToggle(VoiceToggleRequest{Action: "status", SessionID: m.SessionID()})
+	if err != nil || !result.Enabled || !result.TTS {
+		return
+	}
+	text := latestAssistantText(m.frame.History)
+	if strings.TrimSpace(text) == "" {
+		return
+	}
+	evidence, err := m.voiceRuntime.Playback.Speak(context.Background(), text)
+	m.voiceLastSpokenSeq = m.frame.Seq
+	if err != nil {
+		m.statusMessage = "voice_tts_unavailable: " + err.Error()
+		return
+	}
+	m.statusMessage = firstVoiceEvidence(evidence, "voice_tts_played")
+}
+
+func latestAssistantText(history []llm.Message) string {
+	for i := len(history) - 1; i >= 0; i-- {
+		if strings.EqualFold(history[i].Role, "assistant") && strings.TrimSpace(history[i].Content) != "" {
+			return history[i].Content
+		}
+	}
+	return ""
+}
+
+func firstVoiceEvidence(e VoiceRecordEvidence, fallback string) string {
+	if strings.TrimSpace(e.Message) != "" {
+		return e.Message
+	}
+	if strings.TrimSpace(e.Code) != "" {
+		return e.Code
+	}
+	return fallback
 }
 
 func maxInt(a, b int) int {

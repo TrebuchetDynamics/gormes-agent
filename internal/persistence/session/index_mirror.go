@@ -303,15 +303,19 @@ func writeAtomic(path string, data []byte) error {
 		_ = tmp.Close()
 		return fmt.Errorf("session: write temp mirror for %s: %w", path, err)
 	}
-	if err := tmp.Chmod(0o644); err != nil {
+	if err := tmp.Chmod(0o600); err != nil {
 		_ = tmp.Close()
 		return fmt.Errorf("session: chmod temp mirror for %s: %w", path, err)
 	}
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("session: close temp mirror for %s: %w", path, err)
 	}
-	if _, err := toolspkg.AtomicReplace(tmpPath, path, toolspkg.AtomicReplaceOptions{FirstWriteMode: 0o644}); err != nil {
+	result, err := toolspkg.AtomicReplace(tmpPath, path, toolspkg.AtomicReplaceOptions{FirstWriteMode: 0o600})
+	if err != nil {
 		return fmt.Errorf("session: rename mirror into place for %s: %w", path, err)
+	}
+	if err := os.Chmod(result.Path, 0o600); err != nil {
+		return fmt.Errorf("session: chmod mirror for %s: %w", path, err)
 	}
 	return nil
 }

@@ -5,6 +5,20 @@ import (
 	"testing"
 )
 
+func TestAPIServerStartupSecurity_RefusesNetworkExposedMissingAPIKey(t *testing.T) {
+	for _, host := range []string{"0.0.0.0", "::", "[::]", "192.168.1.25", "api.example.test"} {
+		t.Run(host, func(t *testing.T) {
+			_, err := NewServerChecked(Config{DashboardBoundHost: host})
+			if err == nil {
+				t.Fatalf("NewServerChecked() error = nil, want missing API key rejection")
+			}
+			if !strings.Contains(err.Error(), "api_server_missing_key") {
+				t.Fatalf("error = %q, want api_server_missing_key", err)
+			}
+		})
+	}
+}
+
 func TestAPIServerWeakKeyGuard_RefusesNetworkExposedPlaceholders(t *testing.T) {
 	for _, host := range []string{"0.0.0.0", "::", "[::]", "192.168.1.25", "api.example.test"} {
 		t.Run(host, func(t *testing.T) {

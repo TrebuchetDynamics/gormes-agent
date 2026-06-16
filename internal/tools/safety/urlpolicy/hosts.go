@@ -32,6 +32,10 @@ func ExtractHostFromURL(rawURL string) string {
 	}
 
 	if idx := strings.Index(rawURL, "://"); idx == -1 {
+		candidate := stripURLTail(rawURL)
+		if strings.Count(candidate, ":") > 1 && !strings.HasPrefix(candidate, "[") {
+			return NormalizeHost(candidate)
+		}
 		parsed, err = url.Parse("//" + rawURL)
 		if err == nil && parsed.Hostname() != "" {
 			return NormalizeHost(parsed.Hostname())

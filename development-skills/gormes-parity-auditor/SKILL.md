@@ -41,8 +41,8 @@ wrong home directory, leaked tool call, or missing reset/template state.
 List:
 
 - upstream files and symbols in `$HERMES_SRC` or `$HONCHO_SRC`;
-- source classes in `docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md`;
-- matching sections in `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md`;
+- source classes in `webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md`;
+- matching sections in `webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md`;
 - current Gormes packages and commands;
 - tests/fixtures proving existing behavior;
 - progress rows that already cover the surface.

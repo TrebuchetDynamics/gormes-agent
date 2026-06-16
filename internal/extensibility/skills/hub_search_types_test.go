@@ -64,9 +64,9 @@ func TestHubSearchResultZeroValue(t *testing.T) {
 
 func TestInMemoryRegistryProviderSnapshot(t *testing.T) {
 	input := []HubSearchResult{
-		{Name: "zeta", Description: "z skill", Source: "fixture", InstallID: "fixture/zeta", Score: 0.30},
-		{Name: "alpha", Description: "a skill", Source: "fixture", InstallID: "fixture/alpha", Score: 0.90},
-		{Name: "mu", Description: "m skill", Source: "fixture", InstallID: "fixture/mu", Score: 0.60},
+		{Name: "zeta", Description: "z skill", Source: "fixture", InstallID: "fixture/zeta", Score: 0.30, Tags: []string{"z-tag"}},
+		{Name: "alpha", Description: "a skill", Source: "fixture", InstallID: "fixture/alpha", Score: 0.90, Tags: []string{"a-tag"}},
+		{Name: "mu", Description: "m skill", Source: "fixture", InstallID: "fixture/mu", Score: 0.60, Tags: []string{"m-tag"}},
 	}
 
 	provider := NewInMemoryRegistryProvider(input, nil)
@@ -77,9 +77,9 @@ func TestInMemoryRegistryProviderSnapshot(t *testing.T) {
 	}
 
 	want := []HubSearchResult{
-		{Name: "alpha", Description: "a skill", Source: "fixture", InstallID: "fixture/alpha", Score: 0.90},
-		{Name: "mu", Description: "m skill", Source: "fixture", InstallID: "fixture/mu", Score: 0.60},
-		{Name: "zeta", Description: "z skill", Source: "fixture", InstallID: "fixture/zeta", Score: 0.30},
+		{Name: "alpha", Description: "a skill", Source: "fixture", InstallID: "fixture/alpha", Score: 0.90, Tags: []string{"a-tag"}},
+		{Name: "mu", Description: "m skill", Source: "fixture", InstallID: "fixture/mu", Score: 0.60, Tags: []string{"m-tag"}},
+		{Name: "zeta", Description: "z skill", Source: "fixture", InstallID: "fixture/zeta", Score: 0.30, Tags: []string{"z-tag"}},
 	}
 	if !reflect.DeepEqual(first, want) {
 		t.Fatalf("Snapshot returned %v, want sorted %v", first, want)
@@ -94,6 +94,7 @@ func TestInMemoryRegistryProviderSnapshot(t *testing.T) {
 	}
 
 	first[0].Name = "mutated"
+	first[0].Tags[0] = "mutated-tag"
 	again, err := provider.Snapshot(context.Background())
 	if err != nil {
 		t.Fatalf("third Snapshot returned unexpected error: %v", err)
@@ -103,6 +104,7 @@ func TestInMemoryRegistryProviderSnapshot(t *testing.T) {
 	}
 
 	input[0].Name = "constructor-mutated"
+	input[1].Tags[0] = "constructor-mutated-tag"
 	afterCtor, err := provider.Snapshot(context.Background())
 	if err != nil {
 		t.Fatalf("fourth Snapshot returned unexpected error: %v", err)

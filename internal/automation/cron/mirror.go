@@ -133,7 +133,7 @@ func oneLine(s string, n int) string {
 	s = strings.ReplaceAll(s, "\n", " ")
 	s = strings.ReplaceAll(s, "\r", " ")
 	if len(s) > n {
-		return s[:n] + "…"
+		return cutBytesAtRuneBoundary(s, n) + "…"
 	}
 	return s
 }

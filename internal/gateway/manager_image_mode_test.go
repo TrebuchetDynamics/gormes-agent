@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/gatewaytest"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
@@ -82,7 +83,7 @@ func TestManager_ImageModeAuxiliaryVisionForcesText(t *testing.T) {
 func submitManagerImageModeTurn(t *testing.T, cfg ManagerConfig) kernel.PlatformEvent {
 	t.Helper()
 	dir := t.TempDir()
-	jpgPath := writeFixtureJPEGForManager(t, dir, "screenshot.jpg", 100, 200, 150)
+	jpgPath := gatewaytest.WriteFixtureJPEG(t, dir, "screenshot.jpg", 100, 200, 150)
 
 	platform := "telegram"
 	tg := newFakeChannel(platform)

@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	runtimegateway "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway/jsonio"
 )
 
 type gatewayStatusRuntimeStore interface {
@@ -116,9 +116,7 @@ func renderGatewayStatusJSON(cmd *cobra.Command, opts Options, cfg config.Config
 		Missing:    missing,
 		Slack:      gatewaySlackDiagnosticSummary(cfg, runtime),
 	}
-	enc := json.NewEncoder(cmd.OutOrStdout())
-	enc.SetIndent("", "  ")
-	return enc.Encode(payload)
+	return jsonio.WriteIndented(cmd.OutOrStdout(), payload)
 }
 
 func renderGatewaySlackDiagnosticLine(cfg config.Config, runtime runtimegateway.RuntimeStatus) string {

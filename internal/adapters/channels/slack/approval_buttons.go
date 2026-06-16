@@ -26,6 +26,7 @@ type ApprovalPrompt struct {
 	ThreadTS    string
 	Command     string
 	SessionKey  string
+	TicketID    uint64
 	Description string
 }
 
@@ -78,7 +79,7 @@ func (b *Bot) SendExecApproval(ctx context.Context, prompt ApprovalPrompt) (stri
 	if err != nil {
 		return "", slackApprovalUnavailable("post_failed", err)
 	}
-	b.rememberApprovalPrompt(ts, blocks)
+	b.rememberApprovalPrompt(ts, blocks, prompt.TicketID)
 	return ts, nil
 }
 
@@ -109,7 +110,7 @@ func (b *Bot) handleApprovalAction(ctx context.Context, e Event) error {
 		return nil
 	}
 
-	blocks, claimed := b.claimApprovalPrompt(messageTS)
+	blocks, ticketID, claimed := b.claimApprovalPrompt(messageTS)
 	if !claimed {
 		return nil
 	}
@@ -121,6 +122,7 @@ func (b *Bot) handleApprovalAction(ctx context.Context, e Event) error {
 	updateErr := blockClient.UpdateBlockMessage(ctx, channelID, messageTS, decision, updateBlocks)
 	resolveErr := b.cfg.ApprovalResolver.ResolveGatewayApproval(ctx, gateway.ApprovalResolution{
 		SessionKey: sessionKey,
+		TicketID:   ticketID,
 		Choice:     choice,
 		Platform:   "slack",
 		ChatID:     channelID,
@@ -176,11 +178,11 @@ func slackApprovalButton(label, actionID, sessionKey, style string) SlackBlock {
 }
 
 func slackApprovalSectionText(command, description string) string {
-	cmd := strings.TrimSpace(command)
+	cmd := sanitizeSlackApprovalText(command)
 	if cmd == "" {
 		cmd = "(empty command)"
 	}
-	desc := strings.TrimSpace(description)
+	desc := sanitizeSlackApprovalText(description)
 	if desc == "" {
 		desc = "dangerous command"
 	}
@@ -204,6 +206,16 @@ func slackApprovalSectionText(command, description string) string {
 		}
 		return channelutil.TruncateRunes(text, slackApprovalSectionLimit)
 	}
+}
+
+func sanitizeSlackApprovalText(value string) string {
+	replacer := strings.NewReplacer(
+		"`", "'",
+		"*", "'",
+		"<", "(",
+		">", ")",
+	)
+	return strings.Join(strings.Fields(replacer.Replace(value)), " ")
 }
 
 func formatSlackApprovalSection(command, description string) string {
@@ -239,7 +251,7 @@ func isSlackApprovalAction(actionID string) bool {
 }
 
 func slackApprovalDecisionText(choice gateway.ApprovalChoice, actor string) string {
-	actor = strings.TrimSpace(actor)
+	actor = sanitizeSlackApprovalText(actor)
 	if actor == "" {
 		actor = "unknown user"
 	}
@@ -280,7 +292,7 @@ func resolvedSlackApprovalBlocks(blocks []SlackBlock, decision string) []SlackBl
 	return out
 }
 
-func (b *Bot) rememberApprovalPrompt(messageTS string, blocks []SlackBlock) {
+func (b *Bot) rememberApprovalPrompt(messageTS string, blocks []SlackBlock, ticketID uint64) {
 	if strings.TrimSpace(messageTS) == "" {
 		return
 	}
@@ -292,22 +304,26 @@ func (b *Bot) rememberApprovalPrompt(messageTS string, blocks []SlackBlock) {
 	if b.approvalBlocks == nil {
 		b.approvalBlocks = map[string][]SlackBlock{}
 	}
+	if b.approvalTickets == nil {
+		b.approvalTickets = map[string]uint64{}
+	}
 	b.approvalResolved[messageTS] = false
 	b.approvalBlocks[messageTS] = cloneSlackBlocks(blocks)
+	b.approvalTickets[messageTS] = ticketID
 }
 
-func (b *Bot) claimApprovalPrompt(messageTS string) ([]SlackBlock, bool) {
+func (b *Bot) claimApprovalPrompt(messageTS string) ([]SlackBlock, uint64, bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.approvalResolved == nil {
-		return nil, false
+		return nil, 0, false
 	}
 	resolved, ok := b.approvalResolved[messageTS]
 	if !ok || resolved {
-		return nil, false
+		return nil, 0, false
 	}
 	b.approvalResolved[messageTS] = true
-	return cloneSlackBlocks(b.approvalBlocks[messageTS]), true
+	return cloneSlackBlocks(b.approvalBlocks[messageTS]), b.approvalTickets[messageTS], true
 }
 
 func cloneSlackBlocks(blocks []SlackBlock) []SlackBlock {

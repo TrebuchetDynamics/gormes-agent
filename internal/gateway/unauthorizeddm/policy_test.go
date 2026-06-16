@@ -2,12 +2,11 @@ package unauthorizeddm
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/pairing"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/unauthorizeddmtest"
 )
 
 type sentReply struct {
@@ -41,8 +40,104 @@ func TestHandle_DenyModeSendsDeterministicDenialAndRecordsEvidence(t *testing.T)
 	if len(sent) != 1 || sent[0].chatID != "unauthorized-dm" || sent[0].text != DenialText {
 		t.Fatalf("sent = %#v, want one deterministic denial to original DM", sent)
 	}
-	assertNoAuthorizedSessionLeak(t, sent[0].text)
-	assertDegradedEvidence(t, store, pairing.PairingDegradedAllowlistDenied, "telegram", "stranger")
+	unauthorizeddmtest.AssertNoAuthorizedSessionLeak(t, sent[0].text)
+	unauthorizeddmtest.AssertDegradedEvidence(t, store, pairing.PairingDegradedAllowlistDenied, "telegram", "stranger")
+}
+
+func TestHandle_HonorsCanceledContextBeforePairingReply(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var sent []sentReply
+
+	decision, err := Handle(ctx, Event{
+		Platform:      "telegram",
+		ChatID:        "424242",
+		DirectMessage: true,
+		PairingUserID: "stranger",
+	}, Policy{
+		Behavior: BehaviorPair,
+		GeneratePairingCode: func(context.Context, pairing.PairingCodeRequest) (pairing.PairingCodeResult, error) {
+			cancel()
+			return pairing.PairingCodeResult{Status: pairing.PairingCodeIssued, Code: "ABCD1234"}, nil
+		},
+		Send: captureSend(&sent),
+	})
+	if err == nil || !strings.Contains(err.Error(), context.Canceled.Error()) {
+		t.Fatalf("Handle err = %v, want context.Canceled", err)
+	}
+	if len(sent) != 0 {
+		t.Fatalf("sent=%+v, want canceled context to avoid public pairing reply", sent)
+	}
+	if !decision.Handled || decision.ReplySent || decision.PairingStatus != pairing.PairingCodeIssued {
+		t.Fatalf("decision = %#v, want issued pairing status without reply side effect", decision)
+	}
+}
+
+func TestHandle_HonorsCanceledContextBeforePairingMutation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	var generated int
+	var sent []sentReply
+
+	decision, err := Handle(ctx, Event{
+		Platform:      "telegram",
+		ChatID:        "424242",
+		DirectMessage: true,
+		PairingUserID: "stranger",
+	}, Policy{
+		Behavior: BehaviorPair,
+		GeneratePairingCode: func(context.Context, pairing.PairingCodeRequest) (pairing.PairingCodeResult, error) {
+			generated++
+			return pairing.PairingCodeResult{Status: pairing.PairingCodeIssued, Code: "ABCD1234"}, nil
+		},
+		Send: captureSend(&sent),
+	})
+	if err == nil || !strings.Contains(err.Error(), context.Canceled.Error()) {
+		t.Fatalf("Handle err = %v, want context.Canceled", err)
+	}
+	if generated != 0 || len(sent) != 0 {
+		t.Fatalf("generated=%d sent=%+v, want canceled context to avoid mutation/send", generated, sent)
+	}
+	if !decision.Handled || decision.ReplySent || decision.PairingStatus != "" {
+		t.Fatalf("decision = %#v, want handled without side effects", decision)
+	}
+}
+
+func TestHandle_PairModeFallsBackToEventUserIDWhenPairingUserIDMissing(t *testing.T) {
+	store := newTestStore(t)
+	var sent []sentReply
+
+	decision, err := Handle(context.Background(), Event{
+		Platform:      "telegram",
+		ChatID:        "424242",
+		ChatName:      "Private Chat",
+		UserID:        "telegram-user-42",
+		UserName:      "Mallory",
+		DirectMessage: true,
+	}, Policy{
+		Behavior:            BehaviorPair,
+		GeneratePairingCode: store.GeneratePairingCode,
+		Send:                captureSend(&sent),
+	})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+	if !decision.ReplySent || decision.PairingStatus != pairing.PairingCodeIssued {
+		t.Fatalf("decision = %#v, want pairing code issued using event UserID fallback", decision)
+	}
+
+	status, err := store.ReadPairingStatus(context.Background())
+	if err != nil {
+		t.Fatalf("ReadPairingStatus: %v", err)
+	}
+	if len(status.Pending) != 1 {
+		t.Fatalf("pending = %+v, want one pending pairing", status.Pending)
+	}
+	if status.Pending[0].UserID != "telegram-user-42" || status.Pending[0].UserName != "Mallory" {
+		t.Fatalf("pending identity = %+v, want fallback event user identity", status.Pending[0])
+	}
+	if len(sent) != 1 || !strings.Contains(sent[0].text, status.Pending[0].Code) {
+		t.Fatalf("sent = %+v, want pairing prompt with issued code", sent)
+	}
 }
 
 func TestHandle_PairModeSendsOneBoundedPromptAndRecordsPending(t *testing.T) {
@@ -73,7 +168,7 @@ func TestHandle_PairModeSendsOneBoundedPromptAndRecordsPending(t *testing.T) {
 	if len(sent[0].text) > 240 {
 		t.Fatalf("pairing prompt length = %d, want bounded <= 240: %q", len(sent[0].text), sent[0].text)
 	}
-	assertNoAuthorizedSessionLeak(t, sent[0].text)
+	unauthorizeddmtest.AssertNoAuthorizedSessionLeak(t, sent[0].text)
 
 	status, err := store.ReadPairingStatus(context.Background())
 	if err != nil {
@@ -86,7 +181,7 @@ func TestHandle_PairModeSendsOneBoundedPromptAndRecordsPending(t *testing.T) {
 	if pending.Platform != "telegram" || pending.UserID != "424242" || pending.UserName != "Private Chat" {
 		t.Fatalf("pending = %+v, want telegram private-chat fallback identity", pending)
 	}
-	assertPairingCode(t, pending.Code)
+	unauthorizeddmtest.AssertPairingCode(t, pending.Code)
 	if !strings.Contains(sent[0].text, pending.Code) || !strings.Contains(sent[0].text, "gormes pairing approve telegram "+pending.Code) {
 		t.Fatalf("pairing prompt = %q, want code and operator approval command", sent[0].text)
 	}
@@ -104,6 +199,40 @@ func TestHandle_PairModeSendsOneBoundedPromptAndRecordsPending(t *testing.T) {
 	}
 	if got := len(sent); got != 1 {
 		t.Fatalf("send count after rate-limited repeat = %d, want still one prompt", got)
+	}
+}
+
+func TestFormatPairingPromptBoundsUntrustedFields(t *testing.T) {
+	got := FormatPairingPrompt(strings.Repeat("platform", 80), strings.Repeat("CODE", 80))
+	if len(got) > 240 {
+		t.Fatalf("FormatPairingPrompt length = %d, want bounded <= 240:\n%s", len(got), got)
+	}
+}
+
+func TestFormatPairingPromptRedactsSecretLikeFields(t *testing.T) {
+	got := FormatPairingPrompt("telegram api_key=platform-secret", "token=pairing-secret")
+	for _, forbidden := range []string{"platform-secret", "pairing-secret", "api_key", "token="} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("FormatPairingPrompt leaked secret-like field %q in:\n%s", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "[redacted]") {
+		t.Fatalf("FormatPairingPrompt missing redaction marker in:\n%s", got)
+	}
+}
+
+func TestFormatPairingPromptSanitizesOperatorCommandFields(t *testing.T) {
+	got := FormatPairingPrompt(" telegram\nrm -rf /` ", " ABCD1234\nBAD ")
+	for _, forbidden := range []string{"\nrm -rf", "`telegram", "ABCD1234\nBAD"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("FormatPairingPrompt leaked unsafe field %q in:\n%s", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "Pairing code: `ABCD1234 BAD`") {
+		t.Fatalf("prompt missing sanitized code in:\n%s", got)
+	}
+	if !strings.Contains(got, "`gormes pairing approve telegram rm -rf /' ABCD1234 BAD`") {
+		t.Fatalf("prompt missing sanitized operator command in:\n%s", got)
 	}
 }
 
@@ -130,7 +259,7 @@ func TestHandle_IgnoreModeStaysSilentAndDoesNotStartAgent(t *testing.T) {
 	if len(sent) != 0 {
 		t.Fatalf("sent = %#v, want no platform reply", sent)
 	}
-	assertPairingFileNotCreated(t, store)
+	unauthorizeddmtest.AssertPairingFileNotCreated(t, store)
 }
 
 func TestHandle_GroupOrChannelMessagesStaySilent(t *testing.T) {
@@ -160,7 +289,7 @@ func TestHandle_GroupOrChannelMessagesStaySilent(t *testing.T) {
 	if len(sent) != 0 {
 		t.Fatalf("sent = %#v, want no group/channel replies", sent)
 	}
-	assertPairingFileNotCreated(t, store)
+	unauthorizeddmtest.AssertPairingFileNotCreated(t, store)
 }
 
 func captureSend(sent *[]sentReply) SendFunc {
@@ -170,59 +299,7 @@ func captureSend(sent *[]sentReply) SendFunc {
 	}
 }
 
-var testStorePaths = map[*pairing.PairingStore]string{}
-
 func newTestStore(t *testing.T) *pairing.PairingStore {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "pairing.json")
-	store := pairing.NewPairingStore(path)
-	testStorePaths[store] = path
-	return store
-}
-
-func assertPairingCode(t *testing.T, code string) {
-	t.Helper()
-	const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-	if len(code) != 8 {
-		t.Fatalf("len(%q) = %d, want %d", code, len(code), 8)
-	}
-	for _, c := range code {
-		if !strings.ContainsRune(alphabet, c) {
-			t.Fatalf("code %q contains %q outside Hermes alphabet %q", code, c, alphabet)
-		}
-	}
-}
-
-func assertNoAuthorizedSessionLeak(t *testing.T, text string) {
-	t.Helper()
-	for _, leak := range []string{"allowed", "authorized", "session", "allowed-chat-42"} {
-		if strings.Contains(strings.ToLower(text), leak) {
-			t.Fatalf("response %q leaks authorized-session state marker %q", text, leak)
-		}
-	}
-}
-
-func assertDegradedEvidence(t *testing.T, store *pairing.PairingStore, reason pairing.PairingDegradedReason, platform, userID string) {
-	t.Helper()
-	status, err := store.ReadPairingStatus(context.Background())
-	if err != nil {
-		t.Fatalf("ReadPairingStatus: %v", err)
-	}
-	if len(status.Pending) != 0 || len(status.Approved) != 0 {
-		t.Fatalf("status = %+v, want denied user evidence without pending or approved records", status)
-	}
-	for _, evidence := range status.Degraded {
-		if evidence.Reason == reason && evidence.Platform == platform && evidence.UserID == userID {
-			return
-		}
-	}
-	t.Fatalf("degraded evidence = %+v, want %s for %s/%s", status.Degraded, reason, platform, userID)
-}
-
-func assertPairingFileNotCreated(t *testing.T, store *pairing.PairingStore) {
-	t.Helper()
-	path := testStorePaths[store]
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		t.Fatalf("pairing store file err = %v, want not created", err)
-	}
+	return unauthorizeddmtest.NewStore(t)
 }
