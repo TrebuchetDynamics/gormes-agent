@@ -72,6 +72,14 @@ type Mirror struct {
 	wg         sync.WaitGroup
 	lastHash   string // content hash to avoid redundant writes
 	lastHashMu sync.Mutex
+	now        func() time.Time // injectable clock for the "Last synced" stamp
+}
+
+func (m *Mirror) nowUTC() time.Time {
+	if m.now != nil {
+		return m.now().UTC()
+	}
+	return time.Now().UTC()
 }
 
 // StartMirror spawns the background sync goroutine. If cfg.Enabled is false,
@@ -159,11 +167,10 @@ func (m *Mirror) sync() {
 		return
 	}
 
-	// Render Markdown
-	content := m.renderMarkdown(entities, rels)
-
-	// Compute hash to avoid redundant writes
-	hash := hashContent(content)
+	// Compute the change-detection hash over the graph-derived content only,
+	// with a fixed (empty) timestamp. Including the volatile "Last synced" stamp
+	// here would make every tick hash differently and rewrite USER.md needlessly.
+	hash := hashContent(m.renderMarkdown(entities, rels, ""))
 	m.lastHashMu.Lock()
 	if hash == m.lastHash {
 		m.lastHashMu.Unlock()
@@ -171,6 +178,9 @@ func (m *Mirror) sync() {
 	}
 	m.lastHash = hash
 	m.lastHashMu.Unlock()
+
+	// Render the file with the real sync timestamp only once a change is known.
+	content := m.renderMarkdown(entities, rels, m.nowUTC().Format(time.RFC3339))
 
 	// Write atomically (tmp + rename)
 	if err := m.writeAtomic(content); err != nil {
@@ -246,12 +256,12 @@ func (m *Mirror) queryRelationships(ctx context.Context) ([]relationship, error)
 
 // renderMarkdown produces the Hermes-compatible USER.md format.
 // Groups entities by type, lists relationships with weights.
-func (m *Mirror) renderMarkdown(entities []entity, rels []relationship) string {
+func (m *Mirror) renderMarkdown(entities []entity, rels []relationship, syncedAt string) string {
 	var b strings.Builder
 
 	// Header
 	b.WriteString("# Memory Export (Gormes)\n\n")
-	b.WriteString(fmt.Sprintf("Last synced: %s\n\n", time.Now().UTC().Format(time.RFC3339)))
+	b.WriteString(fmt.Sprintf("Last synced: %s\n\n", syncedAt))
 	b.WriteString("## Overview\n\n")
 	b.WriteString(fmt.Sprintf("- **Total entities:** %d\n", len(entities)))
 	b.WriteString(fmt.Sprintf("- **Total relationships:** %d\n\n", len(rels)))
