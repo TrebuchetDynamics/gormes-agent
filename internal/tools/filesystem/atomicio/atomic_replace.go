@@ -76,7 +76,25 @@ func AtomicReplace(tmpPath, targetPath string, opts AtomicReplaceOptions) (Atomi
 			return AtomicReplaceResult{}, &AtomicReplaceError{Code: AtomicWriteFailed, Op: "set first-write mode", Err: err}
 		}
 	}
+	// Fsync the parent directory so the rename (and, for first writes, the new
+	// file) survives a crash; otherwise the directory entry can be lost even
+	// though the replace returned success. This matters for the secrets/config
+	// writers that depend on AtomicWrite. Best-effort: the rename already
+	// succeeded, and directory fsync is unsupported on some platforms (notably
+	// Windows), so a sync failure must not fail an otherwise-complete replace.
+	syncParentDir(resolved)
 	return AtomicReplaceResult{Path: resolved, PreservedSymlink: preserved}, nil
+}
+
+// syncParentDir flushes the directory entry of path to stable storage on a
+// best-effort basis. Errors are intentionally ignored (see AtomicReplace).
+func syncParentDir(path string) {
+	d, err := os.Open(filepath.Dir(path))
+	if err != nil {
+		return
+	}
+	_ = d.Sync()
+	_ = d.Close()
 }
 
 func atomicReplaceTarget(targetPath string) (string, bool, error) {
