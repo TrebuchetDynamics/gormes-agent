@@ -17,6 +17,16 @@ func IsThreadNotFoundError(err error) bool {
 	return strings.Contains(strings.ToLower(err.Error()), "thread not found")
 }
 
+func IsReplyNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	lower := strings.ToLower(err.Error())
+	return strings.Contains(lower, "message to be replied not found") ||
+		strings.Contains(lower, "reply message not found") ||
+		strings.Contains(lower, "replied message not found")
+}
+
 func IsTimedOutError(err error) bool {
 	if err == nil {
 		return false

@@ -11,10 +11,12 @@ import (
 
 // ContextEngine is a controllable llm.ContextEngine test double for kernel tests.
 type ContextEngine struct {
-	BoundaryCalls []llm.CompressionBoundary
-	ModelUpdates  []llm.ContextModelContext
-	CompressErr   error
-	CompressCalls int
+	BoundaryCalls   []llm.CompressionBoundary
+	ModelUpdates    []llm.ContextModelContext
+	CompressErr     error
+	CompressResult  []llm.Message
+	CompressRequest llm.CompressionRequest
+	CompressCalls   int
 }
 
 func (e *ContextEngine) Name() string                          { return "fake" }
@@ -38,10 +40,14 @@ func (e *ContextEngine) GetHistoryTokenEstimate() int               { return 0 }
 func (e *ContextEngine) HandleToolCall(_ context.Context, _ string, _ json.RawMessage, _ llm.ContextToolCallOptions) (json.RawMessage, error) {
 	return nil, nil
 }
-func (e *ContextEngine) Compress(_ context.Context, msgs []llm.Message, _ llm.CompressionRequest) ([]llm.Message, llm.CompressionReport, error) {
+func (e *ContextEngine) Compress(_ context.Context, msgs []llm.Message, req llm.CompressionRequest) ([]llm.Message, llm.CompressionReport, error) {
 	e.CompressCalls++
+	e.CompressRequest = req
 	if e.CompressErr != nil {
 		return msgs, llm.CompressionReport{}, e.CompressErr
+	}
+	if e.CompressResult != nil {
+		return append([]llm.Message(nil), e.CompressResult...), llm.CompressionReport{State: "compressed", BeforeMessages: len(msgs), AfterMessages: len(e.CompressResult)}, nil
 	}
 	return msgs, llm.CompressionReport{}, nil
 }

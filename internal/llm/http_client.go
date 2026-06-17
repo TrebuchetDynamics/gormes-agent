@@ -71,6 +71,8 @@ func (c *httpClient) ProviderStatus() ProviderStatus {
 	var status ProviderStatus
 	if c.usesCodexResponsesTransport() {
 		status = codexResponsesProviderStatus()
+	} else if c.usesGeminiNativeTransport() {
+		status = geminiNativeProviderStatus()
 	} else {
 		status = openAICompatibleProviderStatus(c.provider, c.baseURL)
 	}
@@ -172,6 +174,9 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 	req = c.prepareVisionUnsupportedRequest(req)
 	if c.usesCodexResponsesTransport() {
 		return c.openCodexResponsesStream(ctx, req)
+	}
+	if c.usesGeminiNativeTransport() {
+		return c.openGeminiNativeStream(ctx, req)
 	}
 
 	body, descriptors, err := c.buildOpenAICompatibleChatRequestBody(req)
@@ -437,7 +442,11 @@ func (c *httpClient) doProviderPost(ctx context.Context, sessionID, model, endpo
 		httpReq.Header.Set("Accept", accept)
 	}
 	if c.apiKey != "" {
-		httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+		if c.usesGeminiNativeTransport() {
+			httpReq.Header.Set("x-goog-api-key", c.apiKey)
+		} else {
+			httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+		}
 	}
 	ApplyOpenRouterAttributionHeaders(httpReq, c.provider, c.baseURL)
 	ApplyOpenRouterGrokPromptCacheAffinityHeader(httpReq, c.provider, c.baseURL, model, sessionID)
@@ -469,6 +478,57 @@ func (c *httpClient) usesCodexResponsesTransport() bool {
 	return provider == "openai-codex" || provider == "codex"
 }
 
+func (c *httpClient) usesGeminiNativeTransport() bool {
+	provider := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(c.provider)), "_", "-")
+	if provider != "gemini" && provider != "google" && provider != "google-gemini" {
+		return false
+	}
+	return !strings.Contains(strings.ToLower(strings.TrimSpace(c.baseURL)), "/openai")
+}
+
+func (c *httpClient) openGeminiNativeStream(ctx context.Context, req ChatRequest) (Stream, error) {
+	transport := geminiNativeTransport{}
+	providerReq, err := transport.BuildRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.doProviderPost(ctx, req.SessionID, req.Model, providerReq.Path, providerReq.Body, "text/event-stream")
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 300 {
+		raw, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		return nil, newHTTPError(resp.StatusCode, string(raw), resp.Header)
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return geminiNativeSSEStream(raw, providerReq.ToolDescriptors), nil
+}
+
+func geminiNativeSSEStream(raw []byte, descriptors []ToolDescriptor) Stream {
+	var frames []geminiStreamEvent
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "" || data == "[DONE]" {
+			continue
+		}
+		var frame geminiStreamEvent
+		if err := json.Unmarshal([]byte(data), &frame); err == nil {
+			frames = append(frames, frame)
+		}
+	}
+	encoded, _ := json.Marshal(frames)
+	return newGeminiCloudCodeStream(encoded, descriptors)
+}
+
 func (c *httpClient) openAICompatibleURL(endpointPath string) string {
 	rawBaseURL := strings.TrimSpace(c.baseURL)
 	if rawBaseURL == "" {
@@ -481,6 +541,11 @@ func (c *httpClient) openAICompatibleURL(endpointPath string) string {
 
 	basePath := strings.TrimRight(parsed.Path, "/")
 	endpointPath = "/" + strings.TrimLeft(endpointPath, "/")
+	endpointRawQuery := ""
+	if pathPart, queryPart, ok := strings.Cut(endpointPath, "?"); ok {
+		endpointPath = pathPart
+		endpointRawQuery = queryPart
+	}
 	// Collapse a `/v1` prefix when both basePath and endpointPath carry it.
 	// Live regression 2026-05-10: operators copy-pasting OpenRouter's
 	// documented base URL `https://openrouter.ai/api/v1` produced a final
@@ -502,6 +567,13 @@ func (c *httpClient) openAICompatibleURL(endpointPath string) string {
 		parsed.Path = basePath + endpointPath
 	}
 	parsed.RawPath = ""
+	if endpointRawQuery != "" {
+		if parsed.RawQuery == "" {
+			parsed.RawQuery = endpointRawQuery
+		} else {
+			parsed.RawQuery = parsed.RawQuery + "&" + endpointRawQuery
+		}
+	}
 	return parsed.String()
 }
 

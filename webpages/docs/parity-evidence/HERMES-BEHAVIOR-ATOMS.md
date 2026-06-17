@@ -55,7 +55,7 @@ file+line ref or explicit `missing`, and a classification.
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
 | Context engine status | `agent/context_engine.py` | `internal/llm/context_engine.go` | covered | Context status with token pressure. |
-| Context compression | `agent/context_compressor.py` | `internal/llm/context_compressor_engine.go`; `internal/llm/context_compressor_pruning.go`; `internal/llm/context_compressor_*_test.go` | partial | Provider-backed explicit `ContextEngine.Compress` path now summarizes middle turns through the shared LLM client boundary, preserves protected head/tail, prunes with the existing pure helper, and reports enabled status/error evidence. Remaining gap: bind the engine into operator-facing `/compress`/runtime compression surfaces without hidden normal-turn compression. |
+| Context compression | `agent/context_compressor.py` | `internal/llm/context_compressor_engine.go`; `internal/llm/context_compressor_pruning.go`; `internal/llm/context_compressor_*_test.go`; `internal/kernel/manual_compress_test.go`; `internal/gateway/command_dispatch_test.go` | covered | Provider-backed explicit `ContextEngine.Compress` path summarizes middle turns through the shared LLM client boundary, preserves protected head/tail, prunes with the pure helper, reports status/error evidence, and is bound to operator-facing `/compress` without hidden normal-turn compression. |
 | Manual compression feedback | `agent/manual_compression_feedback.py`; `tests/test_cli_manual_compress.py` | `internal/llm/compression/manual_feedback.go`; `internal/llm/compression/manual_feedback_test.go`; `internal/llm/manual_compression_feedback.go`; `internal/llm/manual_compression_feedback_test.go` | covered | Pure Go manual compression feedback now matches Hermes' user-facing noop/compressed headlines, comma-formatted approximate-token lines with `→`, denser-summary note, `/compress <focus>` parsing, and safe session-split evidence. |
 | Token budget | `agent/context_engine.py` | `internal/kernel/` | covered | Token budget tracking. |
 | Protected head/tail | `agent/context_engine.py`; `agent/context_compressor.py` `_protect_head_size` `_find_tail_cut_by_tokens` `_align_boundary_backward` | `internal/llm/context_compression_boundary.go`; `internal/llm/context_compression_boundary_test.go` | covered | Pure Go boundary planner preserves leading system prompt plus first N non-system head messages, selects a token-budget tail, keeps the latest user message in protected tail, and avoids splitting assistant tool-call/result groups before summarization. |
@@ -68,16 +68,16 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| SOUL.md identity prompt | `agent/prompt_builder.py` | `internal/llm/context_files.go` | covered | Context files scanned and injected. |
+| SOUL.md identity prompt | `agent/prompt_builder.py` | `internal/llm/context_files.go`; `internal/gateway/live_turn_prompt_test.go`; `internal/app/gormescmd/telegram_test.go` | covered | Context files are scanned and injected; gateway and production Telegram provider-payload golden tests assert Gormes identity reaches the final provider request. |
 | AGENTS.md / project context | `agent/prompt_builder.py` | `internal/llm/context_files.go` | covered | File discovery and injection. |
 | USER.md / MEMORY.md durable context | `tools/memory_tool.py` | `internal/llm/durable_user_context.go` | covered | Durable context built. |
-| Skill guidance injection | `skill_preprocessing.py` | `internal/kernel/kernel.go` `SkillsPrompt` | partial | Hermes ordering differs. |
+| Skill guidance injection | `skill_preprocessing.py` | `internal/kernel/turn_request_assembly.go`; `internal/kernel/turn_request_assembly_test.go`; `internal/kernel/guidance_test.go` | covered | Final provider requests inject `SkillsGuidance` immediately before the selected skill block when skills are available, record selected skill usage, and omit guidance when no skills are active. |
 | Timestamp/model/provider metadata | `run_agent.py` `:3770-3779` | `internal/llm/turn_metadata.go` | covered | Block assembly exists. |
 | Platform/session context | `gateway/run.py` `BuildSessionContextPrompt` | `internal/gateway/` | covered | Session context built. |
 | Developer role swap (GPT-5/Codex) | `tests/run_agent/test_provider_parity.py:TestDeveloperRoleSwap`; `tests/agent/transports/test_chat_completions.py:test_developer_role_swap` | `internal/llm/model_guidance.go`; `internal/llm/guidance/modelpolicy/model.go`; `internal/llm/openai_compatible_role_test.go`; `internal/llm/http_client.go` | covered | API-boundary tests prove OpenAI-compatible chat requests serialize the first system message as `developer` for GPT-5/Codex models, keep nonmatching models as `system`, avoid mutating internal messages, and keep Codex Responses instructions separate. |
-| Tool-use enforcement guidance | `agent/prompt_builder.py` `TOOL_USE_ENFORCEMENT_MODELS`; `agent/system_prompt.py` `build_system_prompt_parts` | `internal/llm/guidance/text/constants.go`; `internal/gateway/liveprompt/liveprompt.go` `buildToolUseEnforcementBlock` | covered | Constants match upstream and live prompt injection uses substring matches for ToolUseEnforcementModels (gpt, codex, gemini, gemma, grok, glm, qwen, deepseek). |
-| Memory guidance | `agent/prompt_builder.py` `MEMORY_GUIDANCE` | `internal/llm/guidance_constants.go` | covered | Byte-equivalent constant ported. |
-| Skills guidance constant | `agent/prompt_builder.py` `SKILLS_GUIDANCE` | `internal/llm/guidance_constants.go` | covered | Byte-equivalent constant ported. |
+| Tool-use enforcement guidance | `agent/prompt_builder.py` `TOOL_USE_ENFORCEMENT_MODELS`; `agent/system_prompt.py` `build_system_prompt_parts` | `internal/llm/guidance/text/constants.go`; `internal/gateway/liveprompt/liveprompt.go` `buildToolUseEnforcementBlock`; `internal/kernel/guidance_test.go` | covered | Constants match upstream; live prompt and final provider request injection use substring matches for ToolUseEnforcementModels (gpt, codex, gemini, gemma, grok, glm, qwen, deepseek). |
+| Memory guidance | `agent/prompt_builder.py` `MEMORY_GUIDANCE` | `internal/llm/guidance_constants.go`; `internal/kernel/turn_request_assembly.go`; `internal/kernel/guidance_test.go` | covered | Byte-equivalent constant ported and final provider requests inject it with retrieved memory context when recall is configured. |
+| Skills guidance constant | `agent/prompt_builder.py` `SKILLS_GUIDANCE` | `internal/llm/guidance_constants.go`; `internal/kernel/turn_request_assembly.go`; `internal/kernel/guidance_test.go` | covered | Byte-equivalent constant ported and final provider requests inject it before selected skill guidance blocks. |
 
 ### 1.5 Redaction
 
@@ -96,9 +96,9 @@ file+line ref or explicit `missing`, and a classification.
 |---|---|---|---|---|
 | Chat Completions transport | `agent/transports/chat_completions.py` | `internal/llm/http_client.go` | covered | Transport request building and fixture replay. |
 | Anthropic Messages transport | `agent/anthropic_adapter.py` | `internal/llm/` | covered | Adapter shipped. |
-| Bedrock Converse transport | `agent/bedrock_adapter.py` | `internal/llm/` | partial | Stream events; SigV4 pending. |
+| Bedrock Converse transport | `agent/bedrock_adapter.py` | `internal/llm/bedrock/`; `internal/llm/provider_transport_contract_test.go` | covered | Runtime binding, stream/SigV4/stale-client seams are covered by Bedrock runtime/auth/signer/cache tests. |
 | Codex Responses transport | `agent/codex_responses_adapter.py`; `agent/transports/codex.py` | `internal/llm/` | covered | Responses conversion shipped, including stable session `prompt_cache_key` body routing and ChatGPT Codex backend cache-scope headers. |
-| Gemini transport | `agent/gemini_native_adapter.py` | → `missing` | missing | Not ported. |
+| Gemini transport | `agent/gemini_native_adapter.py` | `internal/llm/gemini_native.go`; `internal/llm/gemini_native_test.go`; `internal/llm/http_client.go` | covered | Native Gemini request mapping and SSE runtime path use `:streamGenerateContent?alt=sse` with `x-goog-api-key` for Google/Gemini non-OpenAI bases. |
 | Google Code Assist | `agent/gemini_cloudcode_adapter.py`; `agent/google_code_assist.py` | `internal/llm/gemini_cloudcode.go`; `internal/llm/gemini_cloudcode_test.go`; `internal/llm/google_code_assist.go`; `internal/llm/google_code_assist_test.go`; `internal/llm/googlecodeassist/` | covered | Gemini Cloud Code request/stream mapper plus Google Code Assist project/quota resolver are complete with fake token/HTTP fixtures for headers, project precedence, onboarding, quota parsing, stream/tool normalization, and safe Google error classification. Browser OAuth/live Google credentials remain outside these pure provider fixtures. |
 | OpenRouter | `tools/openrouter_client.py` | `internal/llm/openrouter_compatible.go`; `internal/llm/http_client.go`; `internal/llm/openrouter_compatible_test.go` | covered | OpenRouter runtime resolution, OpenAI-compatible transport, attribution headers (`HTTP-Referer`, `X-OpenRouter-Title`, categories), OpenRouter-base custom routes, Grok prompt-cache affinity, model metadata/pricing, Pareto extra body, and safe error classification are fixture-covered without live credentials. |
 
@@ -113,8 +113,8 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Credential pool | `agent/credential_pool.py`; `agent/credential_persistence.py`; `hermes_cli/auth.py` `write_credential_pool` | `internal/config/credentials/pool.go`; `internal/config/credential_pool.go`; `internal/cli/` | partial | Gormes has credential command surface, native auth.json pool storage, and Hermes-style borrowed/reference-only disk-boundary sanitization for Bitwarden/env/config/unknown sources with stable secret fingerprints and manual/owned OAuth preservation. Remaining source-backed parity includes broader source removal/suppression parity. |
-| OAuth device code | `hermes_cli/auth.py` `_login_openai_codex` | `cmd/gormes/auth.go` | partial | Codex OAuth path exists but paused/Hermes drift unclear. |
+| Credential pool | `agent/credential_pool.py`; `agent/credential_persistence.py`; `hermes_cli/auth.py` `write_credential_pool` | `internal/config/credentials/pool.go`; `internal/config/credential_pool.go`; `internal/platform/cli/gormescli/modules/providers/auth_runtime.go` | partial | Gormes has credential command surface, native auth.json pool storage, bare `gormes auth` redacted credential-pool readout, and Hermes-style borrowed/reference-only disk-boundary sanitization for Bitwarden/env/config/unknown sources with stable secret fingerprints and manual/owned OAuth preservation. Remaining source-backed parity includes broader source removal/suppression parity. |
+| OAuth device code | `hermes_cli/auth.py` `_login_openai_codex` | `cmd/gormes auth add <provider> --type oauth`; `internal/platform/cli/gormescli/modules/providers/auth_oauth_runtime_test.go` | covered | Codex/Anthropic/Nous/Google OAuth credential paths implemented; Codex device-code user-code, poll, exchange, import, fallback, redacted storage, and no-secret output are covered. |
 | Credential file token vault | `tools/credential_files.py`; `tools/path_security.py`; `agent/credential_sources.py` source-removal registry | `internal/config/token_vault.go` | covered | Gormes row 4.G covers safe relative credential-file resolution, unsafe-path rejection, dedupe, clear semantics, and redacted evidence. |
 | Bitwarden Secrets Manager source | `agent/secret_sources/bitwarden.py`; `hermes_cli/env_loader.py` `_apply_external_secret_sources`; `hermes_cli/secrets_cli.py` | `internal/config/externalsecrets/bitwarden.go`; `internal/config/config.go`; `internal/app/secrets/`; `internal/platform/cli/gormescli/secrets.go` | partial | Gormes loads `[secrets.bitwarden]` during config startup, invokes `bws secret list`, injects env vars before env config resolution, labels applied keys as Bitwarden, preserves the bootstrap token, degrades without blocking startup, exposes CLI `secrets bitwarden` status/sync/disable/install/setup, ships managed pinned `bws` install/checksum verification, has setup token/env/config/project-selection/test-fetch redaction tests, and ports Hermes' in-process plus `$GORMES_HOME/cache/bws_cache.json` Bitwarden disk cache with token-fingerprint/project/server keys, TTL freshness, 0600 atomic writes, fresh disk-cache promotion, disabled-cache fallback, malformed/stale/wrong-key/server-mismatch fallback, and no token/secret logging. Remaining Hermes parity: broader credential-pool source removal/suppression provenance after borrowed-source disk-boundary sanitization is covered. |
 | Auth commands (add/list/remove/reset/status/logout/spotify) | `hermes_cli/auth_commands.py` | `cmd/gormes/auth.go` | partial | Most commands exist; Spotify and top-level logout planned. |
@@ -127,7 +127,7 @@ file+line ref or explicit `missing`, and a classification.
 | Retry budget | `agent/retry_utils.py` | `internal/kernel/` `NewRetryBudget` | covered | Retry budget with backoff. |
 | Rate limit tracker | `agent/rate_limit_tracker.py` | `internal/llm/rate_limit_tracker.go`; `internal/llm/rate_limit_tracker_test.go`; `internal/llm/http_client.go`; `internal/llm/status.go` | covered | Nous/OpenRouter/OpenAI-compatible `x-ratelimit-*` headers parse into request/token minute/hour buckets with captured-at freshness, elapsed reset estimates, Hermes-shaped full/compact display helpers, malformed/no-header degraded behavior, and HTTP provider status capture without live credentials. |
 | Prompt cache | `agent/prompt_caching.py`; `tests/agent/test_prompt_caching.py` | `internal/llm/prompt_cache_policy.go`; `internal/llm/prompt_cache_policy_test.go`; `internal/llm/http_client.go`; `internal/llm/status.go`; `internal/llm/anthropic_client.go`; `internal/llm/provider_status_test.go` | covered | Hermes `system_and_3` prompt-cache policy is ported with native Anthropic, OpenRouter Claude, third-party Anthropic-compatible, MiniMax, Qwen/opencode/Alibaba envelope, unsupported-provider stripping, deep-copy/no-mutation, 1h TTL, four-breakpoint, request serialization, and visible provider-status evidence fixtures. |
-| Account usage reporting | `agent/account_usage.py` | `internal/llm/` | partial | Provider account usage read model exists; renderer for Codex/Anthropic/OpenRouter. |
+| Account usage reporting | `agent/account_usage.py` | `internal/llm/account_usage.go`; `internal/llm/account_usage_test.go`; `internal/gateway/usage_command.go`; `internal/gateway/usage_command_test.go`; `internal/app/gormescmd/gateway_test.go` | covered | Codex, Anthropic OAuth, and OpenRouter account/quota windows render with remaining/used percentages, credit details, degraded unsupported/missing/OAuth/HTTP/malformed/request-failed evidence, and redacted provider errors; `/usage` and gateway wiring tests cover operator-visible evidence. |
 
 ### 2.5 Error classification
 
@@ -182,7 +182,7 @@ file+line ref or explicit `missing`, and a classification.
 | `/help` | `hermes_cli/commands.py` | `internal/tui/slash_help.go` + `internal/gateway/commands.go` | covered | Both TUI and gateway. |
 | `/new` / `/reset` | `hermes_cli/commands.py` | `internal/tui/slash_new.go` + `internal/gateway/` | covered | Session reset. |
 | `/stop` | `hermes_cli/commands.py` | `internal/tui/slash_stop.go` + `internal/gateway/` | covered | Cancel active turn. |
-| `/status` | `gateway/run.py` `_handle_status_command`; `locales/en.yaml` `gateway.status.agent_running`, `gateway.status.tokens`, `gateway.status.queued` | `internal/gateway/status_command.go`; `internal/gateway/status_command_test.go` | covered | Gateway `/status` renders the Hermes field order and labels with Markdown bold, active-agent marker `Yes ⚡`, `Cumulative API tokens (re-sent each call)` with comma-formatted totals, queued follow-up depth, connected platforms, title/session metadata, and reply-thread/provider-bypass behavior; Gormes-owned route/Kanban status sections remain additive. |
+| `/status` | `gateway/run.py` `_handle_status_command`; `locales/en.yaml` `gateway.status.agent_running`, `gateway.status.tokens`, `gateway.status.queued` | `internal/gateway/status_command.go`; `internal/gateway/status_command_test.go` | covered | Gateway `/status` renders the Hermes field order and labels with Markdown bold, omits Title when unavailable, uses active-agent marker `Yes ⚡`, `Cumulative API tokens (re-sent each call)` with comma-formatted totals, queued follow-up depth, connected platforms, title/session metadata, and reply-thread/provider-bypass behavior; Gormes-owned route/Kanban status sections remain additive. |
 | `/title` | `gateway/run.py` `_handle_title_command` | `internal/gateway/title_command.go` + `title_command_test.go` | covered | Set/show session title with sanitization and persistence. |
 | `/model` | `hermes_cli/main.py` `model_parser` | `internal/tui/slash_model.go` + `internal/gateway/model_picker.go` | covered | Interactive model picker. |
 | `/skin` | `hermes_cli/commands.py` | `internal/tui/slash_skin.go` | covered | Skin switching. |
@@ -289,7 +289,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Telegram | `gateway/platforms/telegram.py` | `internal/channels/telegram/` | covered | Bot adapter with MarkdownV2, reply quoting, menus. |
+| Telegram | `gateway/platforms/telegram.py` | `internal/adapters/channels/telegram/` | covered | Bot adapter with MarkdownV2, reply quoting, topic threading, and menus. |
 | Discord | `gateway/platforms/discord.py` | `internal/channels/discord/` | covered | Discord adapter. |
 | Slack | `gateway/platforms/slack.py` | `internal/channels/slack/` | covered | Slack Socket Mode adapter. |
 | WhatsApp | `gateway/platforms/whatsapp.py` | `internal/channels/whatsapp/` | covered | WhatsApp bridge/adapter. |
@@ -308,10 +308,11 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| MarkdownV2 parse mode | `gateway/platforms/telegram.py` | `internal/channels/telegram/bot.go` | covered | Bold/italic/code/headers/spoilers. |
-| Reply quoting | `gateway/platforms/telegram.py` `ReplyToMessageID` | `internal/channels/telegram/bot.go` | partial | Outbound reply quoting exists; reply modes not parity. |
+| MarkdownV2 parse mode | `gateway/platforms/telegram.py` | `internal/adapters/channels/telegram/bot.go` | covered | Bold/italic/code/headers/spoilers. |
+| Reply quoting | `gateway/platforms/telegram.py` `ReplyToMessageID` | `internal/gateway/manager.go`; `internal/adapters/channels/telegram/bot.go`; `internal/adapters/channels/telegram/thread_fallback_test.go` | covered | Gateway reply modes `all`/`first`/`off` select reply targets; Telegram SendReply/SendThreadReply pass `reply_to_message_id` and retry without it when the original message was deleted. |
+| Forum topic threading | `gateway/platforms/telegram.py` `message_thread_id` | `internal/gateway/thread_delivery_test.go`; `internal/adapters/channels/telegram/thread_send_test.go`; `internal/adapters/channels/telegram/thread_fallback_test.go` | covered | Thread-aware sends include `message_thread_id`, omit General-topic thread IDs for text replies when needed, keep chat actions threaded, and retry without stale thread IDs. |
 | Placeholder lifecycle | `gateway/platforms/base.py` `:1718-1724` | `internal/gateway/coalesce.go` | partial | Editable ⏳ placeholder; typing action not proven. |
-| setMyCommands | `gateway/platforms/telegram.py` `:822-837` | `internal/channels/telegram/bot.go` | partial | Static menu on startup; no dynamic refresh. |
+| setMyCommands | `gateway/platforms/telegram.py` `:822-837` | `internal/adapters/channels/telegram/bot.go`; `internal/gateway/commandregistry/registry.go`; `internal/app/gateway/channels.go`; `internal/adapters/channels/telegram/bot_test.go`; `internal/app/gormescmd/gateway_test.go` | covered | Startup menu is built from the canonical command registry plus enabled dynamic skill slash commands, normalizes Telegram names, filters malformed/secret-bearing dynamic commands, caps at Telegram's command limit, and is tested through channel and app wiring. |
 | Silent notification defaults | `gateway/platforms/telegram.py` | `internal/channels/telegram/thread_send_test.go` | covered | Placeholder sends silent; finals notify. |
 
 ---
@@ -346,8 +347,8 @@ file+line ref or explicit `missing`, and a classification.
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
 | Browser action contract | `tools/browser_tool.py` | `internal/tools/browser_contract.go` | covered | Action/result schema. |
-| Browser snapshots | `tools/browser_tool.py` | `internal/tools/browser_harness_tools.go` | partial | Backend planned. |
-| Screenshot artifacts | `tools/browser_tool.py` | `internal/tools/browser_contract.go` | covered | Envelope fields. |
+| Browser snapshots | `tools/browser_tool.py` | `internal/tools/browser_harness_tools.go`; `internal/tools/browser_harness_backend.go`; `internal/tools/browser_harness_chromedp_transport.go`; `internal/tools/browser_use_harness_bridge_test.go` | covered | In-process CDP/Chromedp backend covers navigate, snapshot/DOM text, click, type, scroll, back, press, console, image, vision, CDP, dialog, target-session persistence, unavailable evidence, and Browser Use bridge shaping through fakeable transport tests. |
+| Screenshot artifacts | `tools/browser_tool.py` | `internal/tools/browser_contract.go`; `internal/tools/browser_harness_backend.go`; `internal/gateway/rendering/browserartifacts`; `internal/gateway/rendering/telegram_browser_render_test.go` | covered | Envelope fields, bounded screenshot artifacts, and Telegram artifact rendering are tested. |
 | SSRF guard | `tools/browser_tool.py` | `internal/tools/browser_ssrf_guard.go` | covered | Private URL guard. |
 
 ### 6.5 TTS / voice
@@ -518,19 +519,19 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Google Gemini native | `agent/gemini_native_adapter.py` | → `missing` | missing | Not ported. |
-| Google Cloud Code adapter | `agent/gemini_cloudcode_adapter.py` | → `missing` | missing | Not ported. |
-| Google Gemini OAuth | `agent/google_oauth.py` | → `missing` | missing | Not ported. |
-| Google Code Assist | `agent/google_code_assist.py` | → `missing` | missing | Not ported. |
-| Bedrock stream events | `agent/bedrock_adapter.py` | `internal/llm/` | partial | Stream events partial; SigV4 pending. |
-| Bedrock SigV4 credentials | `agent/bedrock_adapter.py` | → `missing` | missing | Not ported. |
-| Bedrock stale-client eviction | `agent/bedrock_adapter.py` | → `missing` | missing | Not ported. |
-| Codex OAuth / device-code | `hermes_cli/auth.py` `_login_openai_codex` | `cmd/gormes/auth.go` | partial | Codex auth path exists; paused pending upstream drift investigation. |
+| Google Gemini native | `agent/gemini_native_adapter.py` | `internal/llm/gemini_native.go`; `internal/llm/gemini_native_test.go`; `internal/llm/http_client.go` | covered | Native Gemini transport/runtime maps messages, native SSE deltas, API-key header, and query-preserving stream URL. |
+| Google Cloud Code adapter | `agent/gemini_cloudcode_adapter.py` | `internal/llm/gemini_cloudcode.go`; `internal/llm/gemini_cloudcode_test.go` | covered | Gemini Cloud Code request/stream mapper is fixture-covered. |
+| Google Gemini OAuth | `agent/google_oauth.py`; `hermes_cli/auth.py` | `internal/platform/cli/gormescli/modules/providers/auth_runtime.go`; `internal/platform/cli/gormescli/modules/providers/auth_oauth_runtime_test.go`; `internal/config/credentials/googleoauth/`; `internal/config/credentials/google_oauth_state_test.go` | covered | `gormes auth add google-gemini-cli --type oauth` generates a PKCE auth URL, prints manual URL, optionally opens browser, waits for local callback, exchanges tokens, stores Google PKCE credentials, and refreshes through fakeable tests. |
+| Google Code Assist | `agent/google_code_assist.py` | `internal/llm/google_code_assist.go`; `internal/llm/google_code_assist_test.go`; `internal/llm/googlecodeassist/` | covered | Project/quota resolver, onboarding, stream/tool normalization, and safe Google error classification are fixture-covered. |
+| Bedrock stream events | `agent/bedrock_adapter.py` | `internal/llm/bedrock/runtime/`; `internal/llm/provider_transport_contract_test.go` | covered | Bedrock runtime stream mapping is covered. |
+| Bedrock SigV4 credentials | `agent/bedrock_adapter.py` | `internal/llm/bedrock/sigv4/`; `internal/llm/bedrock/auth/` | covered | AWS credential resolution and SigV4 signer are tested with secret-redaction failure cases. |
+| Bedrock stale-client eviction | `agent/bedrock_adapter.py` | `internal/llm/bedrock/stale/`; `internal/llm/bedrock/runtime/client_cache_test.go` | covered | Transport/protocol stale errors evict cached clients; non-retryable request failures do not. |
+| Codex OAuth / device-code | `hermes_cli/auth.py` `_login_openai_codex` | `cmd/gormes auth add openai-codex --type oauth`; `RunCodexDeviceCodeLogin` | covered | User-code request, poll, token exchange, Codex CLI import, expired-import fallback, redacted output, and credential-pool persistence are tested. |
 | Codex stale-token relogin | `agent/auxiliary_client.py` | → `missing` | missing | Not ported. |
 | Codex model enumeration | `agent/models_dev.py` | → `missing` | missing | Not ported. |
-| OpenRouter attribution headers | `tools/openrouter_client.py` | → `missing` | missing | Not ported. |
-| Provider model metadata | `agent/model_metadata.py` | → `missing` | missing | Not ported. |
-| Provider usage pricing | `agent/usage_pricing.py` | → `missing` | missing | Not ported. |
+| OpenRouter attribution headers | `tools/openrouter_client.py` | `internal/llm/openrouter_compatible.go`; `internal/app/providerclient/service_test.go` | covered | Runtime requests carry OpenRouter key plus attribution headers. |
+| Provider model metadata | `agent/model_metadata.py` | `internal/llm/model_registry.go`; `internal/llm/model_registry_test.go`; `internal/llm/routing/modelcatalog/` | covered | Static and cached model metadata/context/pricing catalog paths are fixture-covered. |
+| Provider usage pricing | `agent/usage_pricing.py` | `internal/llm/model_registry.go`; `internal/llm/account_usage_test.go`; `internal/llm/modelcatalog/` | covered | Pricing and account usage read models cover provider usage evidence. |
 | Copilot ACP client | `agent/copilot_acp_client.py` | → `missing` | missing | Not ported. |
 | Credential pool multi-source | `agent/credential_pool.py` | → `missing` | missing | Not ported. |
 | Credential sources (env/dotenv/config) | `agent/credential_sources.py` | `internal/config/` | partial | Env and config loading exist; Hermes has richer fallback chain. |
@@ -549,7 +550,7 @@ file+line ref or explicit `missing`, and a classification.
 | Gateway config reload (SIGHUP) | `gateway/run.py` | `internal/gateway/` | covered | Config reload via SIGHUP. |
 | Gateway webhook command | `hermes_cli/webhook.py` | → `missing` | missing | Not ported. |
 | Gateway logs CLI | `hermes_cli/logs.py` | `internal/tui/slash_logs.go` + `cmd/gormes/` | covered | Log tail in TUI and CLI. |
-| Gateway backup CLI | `hermes_cli/backup.py` | → `missing` | missing | Not ported. |
+| Gateway backup CLI | `hermes_cli/backup.py` | `internal/platform/cli/gormescli/hermes_rowbacked_commands.go`; `internal/platform/cli/gormescli/hermes_rowbacked_commands_test.go` | covered | `gormes backup` creates restore-compatible zip archives of GORMES_HOME/source directories with dry-run and JSON evidence. |
 | Gateway failure/restart policy | `gateway/run.py` | `internal/gateway/` | covered | Restart on unexpected signal. |
 | Multi-account channels | `gateway/run.py` | `internal/gateway/` | covered | Account-level registration. |
 | Channel bootstrap sequence | `gateway/platforms/base.py` | `internal/channels/*` | partial | Individual channels; framework bootstrap not abstract. |
@@ -605,9 +606,10 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
+| CLI command tree | `hermes_cli/main.py`; `cli.py`; `hermes_cli/commands.py` | `internal/platform/cli/gormescli/contractruntime`; `internal/platform/cli/commands/registry`; `internal/platform/cli/gormescli/hermes_rowbacked_commands_test.go` | covered | Live Cobra paths are mapped to module owners, slash aliases/policies are validated, and row-backed unavailable surfaces emit structured evidence. |
 | Config YAML reading | `hermes_cli/config.py` `load_config` | `internal/config/` `Load` | covered | Hermes-compatible config.yaml as bridge. |
 | Config env expansion | `hermes_cli/config.py` | `internal/config/` | covered | Env var expansion in config values. |
-| Config profile resolution | `hermes_cli/config.py` | `internal/config/` + `internal/cli/profileseed` | covered | Profile loading and merging. |
+| Config profile resolution | `hermes_cli/config.py` | `internal/config/`; `internal/config/auth/provider_credential_resolution.go`; `internal/app/profile`; `internal/app/setupfirst`; `internal/app/setupprofile` | covered | Profile loading/merging plus provider credential source ordering across route env, SecretRef, inline, manifest env, Codex OAuth, credential pool, profile filtering, setup-first, and fallback config tests. |
 | Config show command | `cli.py` | `cmd/gormes/config.go` | covered | `gormes config show`. |
 | Config edit command | `cli.py` | `cmd/gormes/config.go` `newConfigEditCommand` + `config_closeout_test.go` | covered | Opens system editor for config file; creates file before opening; fallback editor chain EDITOR > VISUAL > common binaries. |
 | Config check command | `cli.py` | `cmd/gormes/config.go` `newConfigCheckCommand` + `config_closeout_test.go` | covered | Validates config syntax, reports version, dotenv availability, missing provider fields; redacts secrets; future version fails. |
@@ -624,12 +626,12 @@ file+line ref or explicit `missing`, and a classification.
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
 | Session ID generation (Hermes-style) | `gateway/session.py` | `internal/gateway/` | covered | Session ID with Hermes-style format. |
-| Session title auto-generation | `agent/title_generator.py` | `internal/persistence/session/auto_title.go` | partial | Helper unwired in gateway. |
-| Session title persistence | `gateway/session.py` | `internal/persistence/session/` | partial | Metadata persisted. |
-| Created timestamp | `gateway/run.py` `:4672` | `internal/gateway/status_command.go` | covered | CreatedAt on fresh sessions. |
-| Last activity timestamp | `gateway/run.py` `:4673` | `internal/gateway/status_command.go` | partial | UpdatedAt written; full refresh not proven. |
-| Token accounting | `gateway/run.py` `:4674` | `internal/gateway/usage_command.go` | partial | Per-frame totals; session-wide not proven. |
-| Session reset/new/retry/undo | `gateway/run.py` | `internal/gateway/` | partial | `/new` via EventReset; `/retry`, `/undo` missing. |
+| Session title auto-generation | `agent/title_generator.py` | `internal/gateway/auto_title_wiring.go`; `internal/gateway/auto_title_wiring_test.go`; `internal/app/gormescmd/gateway_test.go`; `internal/persistence/session/auto_title.go` | covered | Gateway PhaseIdle delivery invokes the configured TitleModel/TitleStore once per eligible session, records non-complete evidence, and production gateway config wires both seams. |
+| Session title persistence | `gateway/session.py` | `internal/persistence/session/`; `internal/gateway/title_command.go`; `internal/gateway/auto_title_wiring_test.go`; `internal/gateway/status_command.go` | covered | Manual and auto titles persist in session metadata, survive status lookups, and manual titles are preserved. |
+| Created timestamp | `gateway/run.py` `:4672` | `internal/gateway/manager.go`; `internal/gateway/status_command.go`; `internal/gateway/manager_test.go` | covered | Fresh conversational sessions write CreatedAt metadata and /status reads it before falling back to Hermes-style ID parsing. |
+| Last activity timestamp | `gateway/run.py` `:4673` | `internal/gateway/manager.go`; `internal/gateway/status_command.go`; `internal/gateway/manager_test.go` | covered | Conversational session metadata refresh preserves CreatedAt and updates UpdatedAt on subsequent turns; /status renders metadata UpdatedAt. |
+| Token accounting | `gateway/run.py` `:4674` | `internal/gateway/usage_command.go`; `internal/gateway/status_command.go`; `internal/gateway/status_command_test.go` | covered | Render-frame token totals persist into session metadata without being erased by empty frames, and `/status` renders the durable cumulative total when it exceeds the current frame. |
+| Session reset/new/retry/undo | `gateway/run.py`; `cli.py` | `internal/gateway/commandregistry/registry.go`; `internal/gateway/command_dispatch.go`; `internal/gateway/session_history_store.go`; `internal/gateway/session_history_store_test.go`; `internal/app/gateway/service.go` | covered | `/new` and `/reset` alias share EventReset. Gateway `/retry` loads the durable session transcript, rewrites persisted history before the last user turn, resumes the kernel, and resubmits that user text. Gateway `/undo [N]` rewinds the durable SQLite transcript from the Nth prior user turn, resumes the kernel with retained history, and acknowledges the removed turn preview. Runtime wires the concrete SQLite `SessionHistoryStore` from `memory.db`. |
 | Session resume | `gateway/run.py` | `internal/gateway/` | covered | Durable pause/resume. |
 | Session context prompt (BuildSessionContextPrompt) | `gateway/run.py` | `internal/gateway/` | covered | Platform/session context block. |
 | Compression boundary callbacks | `gateway/run.py` | → `missing` | missing | Not ported. |
@@ -645,7 +647,7 @@ file+line ref or explicit `missing`, and a classification.
 |---|---|---|---|---|
 | Plugin discovery | `plugins/` | `internal/plugins/` | covered | Manifest and capability loader. |
 | Plugin registry | `plugins/registry.py` | `internal/plugins/` | covered | Plugin registration. |
-| Memory/Honcho plugin | `plugins/memory/` | `internal/goncho/` + `internal/plugins/` | covered | Goncho as memory plugin. |
+| Memory/Honcho plugin | `plugins/memory/` | `internal/goncho/`; `internal/tools/memory/durable`; `internal/tools/goncho`; `internal/memory/lifecycle` | covered | Goncho as memory plugin; durable USER.md/MEMORY.md add/read/replace/remove, Goncho Memory V1 tool catalogs/transcripts, markdown reload/export, and provider lifecycle are covered by tests. |
 | Disk cleanup plugin | `plugins/disk-cleanup/` | → `missing` | missing | Not ported. |
 | Spotify plugin | `plugins/spotify/` | → `missing` | missing | Not ported. |
 | Google Meet plugin | `plugins/google_meet/` | → `missing` | missing | Not ported. |
@@ -838,7 +840,7 @@ file+line ref or explicit `missing`, and a classification.
 | Error formatting (redacted, no HTML) | `gateway/run.py` `:4396-4439` | `internal/gateway/render.go` | covered | Secret and HTML sanitization. |
 | Typing action (Telegram) | `gateway/platforms/base.py` | `internal/channels/telegram/bot.go` | partial | Placeholder sent; typing action not proven. |
 | Stale placeholder cleanup | `gateway/platforms/base.py` `:1718-1724` | `internal/gateway/coalesce.go` | covered | Fresh-final deletes and replaces. |
-| Duplicate message suppression | `gateway/run.py` | `internal/gateway/` | partial | Restart duplicate suppressed; chat text dedup missing. |
+| Duplicate message suppression | `gateway/run.py` | `internal/gateway/message_deduplicator.go`; `internal/gateway/manager.go`; `internal/gateway/message_deduplicator_manager_test.go` | covered | Message-ID dedup suppresses repeated platform deliveries, and active-turn/follow-up content dedup suppresses same-text repeats from the same platform/chat/thread/user while allowing the same text from different users. |
 | Silent notification defaults | `gateway/platforms/telegram.py` | `internal/channels/telegram/thread_send_test.go` | covered | Placeholder sends silent; finals notify. |
 
 ---
@@ -898,9 +900,9 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Full backup CLI | `hermes_cli/backup.py` `run_backup` | → `missing` | missing | Full backup of config/sessions/memory. |
+| Full backup CLI | `hermes_cli/backup.py` `run_backup` | `gormes backup`; `internal/platform/cli/backup/archive`; `internal/platform/cli/gormescli/hermes_rowbacked_commands_test.go` | covered | Full-home/source backup writes restore-compatible zip archives, excludes unsafe/ephemeral backup paths, and emits JSON/dry-run evidence. |
 | Import CLI | `hermes_cli/backup.py` `run_import` | → `missing` | missing | Import from backup zip. |
-| Backup validation | `hermes_cli/backup.py` `_validate_backup_zip` | → `missing` | missing | Validate backup integrity. |
+| Backup validation | `hermes_cli/backup.py` `_validate_backup_zip` | `internal/platform/cli/backup/restore`; `internal/platform/cli/backup/restore/restore_test.go`; `internal/platform/cli/gormescli/restore_command_test.go` | covered | Restore validation rejects corrupt, missing, conflicting, and path-traversal archives and validates dry-run restore input before extraction. |
 | Quick snapshot create | `hermes_cli/checkpoints.py` `create_quick_snapshot` | → `missing` | missing | Pre-operation snapshot. |
 | Quick snapshot list | `hermes_cli/checkpoints.py` `list_quick_snapshots` | → `missing` | missing | List available snapshots. |
 | Checkpoint TUI | `hermes_cli/checkpoints.py` | `internal/tui/slash_checkpoint.go` | partial | Checkpoint via TUI slash command. |

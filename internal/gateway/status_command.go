@@ -14,13 +14,6 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
-// statusTitleUnavailable is the documented degraded-mode sentinel rendered
-// when the session has no metadata title and no auto-title generation has
-// produced one. Holding the field in the response (rather than silently
-// omitting it) preserves Hermes /status field-order parity and surfaces the
-// auto-title gap as visible operator evidence.
-const statusTitleUnavailable = "title_unavailable"
-
 func (m *Manager) handleStatusCommand(ctx context.Context, ch Channel, ev InboundEvent) {
 	_, _ = m.sendWithHooksReply(ctx, ch, ev.ChatID, ev.MsgID, m.formatGatewayStatus(ctx, ev))
 }
@@ -47,10 +40,6 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 			lastActivity = formatStatusTime(time.Unix(meta.UpdatedAt, 0))
 		}
 	}
-	if title == "" {
-		title = statusTitleUnavailable
-	}
-
 	tokens := frame.Telemetry.TokensInTotal + frame.Telemetry.TokensOutTotal
 	if metadataTokens > tokens {
 		tokens = metadataTokens
@@ -74,12 +63,16 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 		"📊 **Gormes Gateway Status**",
 		"",
 		"**Session ID:** `" + statusCodeValue(sessionID) + "`",
-		"**Title:** " + esc(title),
-		"**Created:** " + esc(created),
-		"**Last Activity:** " + esc(lastActivity),
-		fmt.Sprintf("**Cumulative API tokens (re-sent each call):** %s", formatStatusTokenTotal(tokens)),
-		"**Agent Running:** " + agentRunning,
 	}
+	if title != "" {
+		lines = append(lines, "**Title:** "+esc(title))
+	}
+	lines = append(lines,
+		"**Created:** "+esc(created),
+		"**Last Activity:** "+esc(lastActivity),
+		fmt.Sprintf("**Cumulative API tokens (re-sent each call):** %s", formatStatusTokenTotal(tokens)),
+		"**Agent Running:** "+agentRunning,
+	)
 	if queueDepth := m.followUpQueueDepth(); queueDepth > 0 {
 		lines = append(lines, fmt.Sprintf("**Queued follow-ups:** %d", queueDepth))
 	}

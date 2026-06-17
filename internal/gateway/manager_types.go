@@ -83,6 +83,9 @@ type ManagerConfig struct {
 	// overrides. Values take precedence over ToolProgressMode for the named platform.
 	ToolProgressModes map[string]string
 	SessionMap        session.Map
+	// SessionHistoryStore rewrites/replays durable session transcripts for
+	// /retry and /undo. Nil leaves those commands unavailable.
+	SessionHistoryStore SessionHistoryStore
 	// SessionReset controls automatic session clearing on inactivity or daily
 	// boundary. Mirrors Hermes session_reset config section.
 	SessionResetPolicy      string // "inactivity", "daily", "both", "none" (default: "inactivity")
@@ -224,6 +227,28 @@ type KernelSubmitter interface {
 	Render() <-chan kernel.RenderFrame
 }
 
+type kernelSessionResumer interface {
+	ResumeSession(sessionID string, history []llm.Message) error
+}
+
+type kernelManualCompressor interface {
+	ManualCompress(focus string) error
+}
+
+type SessionHistoryRewindResult struct {
+	SessionID    string
+	History      []llm.Message
+	TargetText   string
+	TurnsUndone  int
+	RewoundCount int
+}
+
+type SessionHistoryStore interface {
+	LoadSessionHistory(ctx context.Context, sessionID string) ([]llm.Message, error)
+	RewriteSessionHistory(ctx context.Context, sessionID string, history []llm.Message) error
+	RewindSessionHistory(ctx context.Context, sessionID string, userTurns int) (SessionHistoryRewindResult, error)
+}
+
 type kernelSubmitter = KernelSubmitter
 
 type AgentRuntimeFactory func(context.Context, AgentRuntimeRequest) (KernelSubmitter, error)
@@ -254,23 +279,24 @@ type Manager struct {
 	mu       sync.Mutex
 	channels map[string]Channel
 
-	turnMu             sync.Mutex
-	turnPlatform       string
-	turnChatID         string
-	turnMsgID          string
-	turnSessionKey     string
-	turnSessionID      string
-	turnSource         SessionSource
-	turnCancelled      bool
-	turnFrameSeen      bool
-	turnLastUserText   string // captures the last inbound submit text for auto-title
-	turnAudioRequested bool
-	turnKernel         KernelSubmitter
-	turnReplySent      bool // tracks first reply for ReplyMode "first"
-	kernelSessionKey   string
-	shuttingDown       bool
-	followUps          []InboundEvent
-	lastUsageFrame     kernel.RenderFrame
+	turnMu              sync.Mutex
+	turnPlatform        string
+	turnChatID          string
+	turnMsgID           string
+	turnSessionKey      string
+	turnSessionID       string
+	turnSource          SessionSource
+	turnCancelled       bool
+	turnFrameSeen       bool
+	turnLastUserText    string // captures the last inbound submit text for auto-title
+	turnContentDedupKey string
+	turnAudioRequested  bool
+	turnKernel          KernelSubmitter
+	turnReplySent       bool // tracks first reply for ReplyMode "first"
+	kernelSessionKey    string
+	shuttingDown        bool
+	followUps           []InboundEvent
+	lastUsageFrame      kernel.RenderFrame
 
 	reasoningDispatcher *ReasoningDispatcher
 	ttsConfigStore      *TTSConfigStore

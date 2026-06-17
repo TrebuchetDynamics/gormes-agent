@@ -217,6 +217,7 @@ func RunGateway(cmd *cobra.Command, _ []string, opts RunOptions) error {
 		}
 		nextAllowedChats, nextAllowDiscovery, nextAllowedWhitelists := GatewayPolicyMaps(next)
 		nextCfg := opts.GatewayManagerConfig(next, nextAllowedChats, nextAllowDiscovery, nextAllowedWhitelists, smap, hc, hooks, runtimeStatus, restartCfg)
+		nextCfg.SessionHistoryStore = gateway.NewSQLSessionHistoryStore(mstore.DB())
 		nextCfg.DynamicAgentRegistry = dynamicAgentRegistry
 		nextReg := gormescli.BuildDefaultRegistry(rootCtx, next, hc, next.Hermes.Model, gormescli.WithSessionSearch(mstore.DB(), smap))
 		if gonchoRuntime != nil {
@@ -232,6 +233,7 @@ func RunGateway(cmd *cobra.Command, _ []string, opts RunOptions) error {
 		return nextCfg, nil
 	}
 	mgrCfg := opts.GatewayManagerConfig(cfg, allowedChats, allowDiscovery, allowedWhitelists, smap, hc, hooks, runtimeStatus, restartCfg)
+	mgrCfg.SessionHistoryStore = gateway.NewSQLSessionHistoryStore(mstore.DB())
 	mgrCfg.DynamicAgentRegistry = dynamicAgentRegistry
 	mgrCfg.ToolRegistry = reg
 	mgrCfg.SkillRuntime = skills.NewRuntime(cfg.SkillsRoot(), cfg.Skills.MaxDocumentBytes, cfg.Skills.SelectionCap, cfg.SkillsUsageLogPath())

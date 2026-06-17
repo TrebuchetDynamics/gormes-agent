@@ -28,6 +28,13 @@ var ErrResumeDuringTurn = errors.New("kernel: cannot resume session during activ
 // with an empty session id.
 var ErrResumeSessionIDRequired = errors.New("kernel: resume session id required")
 
+// ErrCompressDuringTurn is returned by Kernel.ManualCompress when the kernel is
+// not idle/failed. In-flight turns must never have history rewritten under them.
+var ErrCompressDuringTurn = errors.New("kernel: cannot compress session during active turn")
+
+// ErrCompressionUnavailable is returned when no context engine is wired.
+var ErrCompressionUnavailable = errors.New("kernel: context compression unavailable")
+
 // Phase is the kernel state-machine phase. Transitions happen only on the
 // Run goroutine, serialised by the select loop.
 type Phase int
@@ -121,6 +128,9 @@ const (
 	// history to a previously persisted transcript. Valid only from idle/failed;
 	// rejected with ErrResumeDuringTurn otherwise.
 	PlatformEventResumeSession
+	// PlatformEventManualCompress asks the context engine to summarize/rewrite
+	// resident history at an explicit operator boundary. Valid only idle/failed.
+	PlatformEventManualCompress
 )
 
 type PlatformEvent struct {

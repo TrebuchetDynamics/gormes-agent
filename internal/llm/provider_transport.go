@@ -38,6 +38,7 @@ var providerTransports = map[string]ProviderTransport{
 	"anthropic_messages": anthropicMessagesTransport{},
 	"bedrock_converse":   bedrockConverseTransport{},
 	"codex_responses":    codexResponsesTransport{},
+	geminiNativeAPIMode:  geminiNativeTransport{},
 }
 
 func GetProviderTransport(apiMode string) (ProviderTransport, bool) {

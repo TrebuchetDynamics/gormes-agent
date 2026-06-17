@@ -69,4 +69,6 @@ const (
 	EventPlatformControl = eventcommands.EventPlatformControl
 	// EventPersonality handles `/personality` subcommands (list, switch, none).
 	EventPersonality = eventcommands.EventPersonality
+	// EventCompress handles explicit session/context compression.
+	EventCompress = eventcommands.EventCompress
 )

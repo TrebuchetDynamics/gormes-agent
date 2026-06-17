@@ -726,6 +726,7 @@ func (b *Bot) SendThread(ctx context.Context, chatID, threadID, text string) (st
 
 func (b *Bot) sendThreadParamsWithRetry(ctx context.Context, params tgbotapi.Params, includeThread bool) (string, error) {
 	var lastErr error
+	includeReply := strings.TrimSpace(params["reply_to_message_id"]) != ""
 	for attempt := 0; attempt < maxSendRetries; attempt++ {
 		msg, err := b.sendRawMessageWithParseFallback(ctx, params)
 		if err == nil {
@@ -736,6 +737,11 @@ func (b *Bot) sendThreadParamsWithRetry(ctx context.Context, params tgbotapi.Par
 		if isThreadNotFoundError(err) && includeThread {
 			delete(params, "message_thread_id")
 			includeThread = false
+			continue
+		}
+		if isReplyNotFoundError(err) && includeReply {
+			delete(params, "reply_to_message_id")
+			includeReply = false
 			continue
 		}
 		if isTimedOutError(err) {
@@ -1064,6 +1070,10 @@ func isMarkdownParseError(err error) bool {
 
 func isThreadNotFoundError(err error) bool {
 	return telegramsend.IsThreadNotFoundError(err)
+}
+
+func isReplyNotFoundError(err error) bool {
+	return telegramsend.IsReplyNotFoundError(err)
 }
 
 func isTimedOutError(err error) bool {
