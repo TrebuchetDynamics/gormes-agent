@@ -120,10 +120,12 @@ func runCommand(ctx context.Context, opts dashboardOptions, options CommandOptio
 		}
 	}
 
-	// Live persistent sessions (memory.db, concurrent-safe). Opened after the
-	// turn loop so a dashboard-created transcript DB is visible immediately.
-	if lister, closer, ok := newSessionsLister(); ok {
-		cfg.SessionsList = lister
+	// Live persistent sessions + chat history (memory.db, concurrent-safe).
+	// Opened after the turn loop so a dashboard-created transcript DB is visible
+	// immediately.
+	if list, history, closer, ok := newSessionReader(); ok {
+		cfg.SessionsList = list
+		cfg.ChatHistory = history
 		defer closer()
 	}
 	// Live cron jobs (sessions.db / bbolt; best-effort — skipped when the
