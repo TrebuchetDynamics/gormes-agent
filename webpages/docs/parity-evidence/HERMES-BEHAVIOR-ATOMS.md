@@ -416,29 +416,29 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| `/health` | `api_server.py` `:3400` | `internal/apiserver/` | covered | Health check. |
-| `/health/detailed` | `api_server.py` `:3401` | → `missing` | missing | Detailed health (not ported). |
-| `/v1/health` | `api_server.py` `:3402` | `internal/apiserver/` | covered | Versioned health. |
-| `/v1/models` | `api_server.py` `:3403` | → `missing` | missing | Model listing. |
-| `/v1/capabilities` | `api_server.py` `:3404` | → `missing` | missing | Server capabilities document. |
-| `/v1/chat/completions` | `api_server.py` `:3405` | `internal/apiserver/` | covered | OpenAI-compatible streaming. |
-| `/v1/responses` (POST) | `api_server.py` `:3406` | → `missing` | missing | New Responses API endpoint. |
-| `/v1/responses/{id}` (GET) | `api_server.py` `:3407` | → `missing` | missing | Fetch stored response. |
-| `/v1/responses/{id}` (DELETE) | `api_server.py` `:3408` | → `missing` | missing | Delete stored response. |
-| `/api/jobs` (GET) | `api_server.py` `:3410` | → `missing` | missing | List scheduled jobs. |
-| `/api/jobs` (POST) | `api_server.py` `:3411` | → `missing` | missing | Create scheduled job. |
-| `/api/jobs/{id}` (GET) | `api_server.py` `:3412` | → `missing` | missing | Get job by ID. |
-| `/api/jobs/{id}` (PATCH) | `api_server.py` `:3413` | → `missing` | missing | Update job. |
-| `/api/jobs/{id}` (DELETE) | `api_server.py` `:3414` | → `missing` | missing | Delete job. |
-| `/api/jobs/{id}/pause` | `api_server.py` `:3415` | → `missing` | missing | Pause job. |
-| `/api/jobs/{id}/resume` | `api_server.py` `:3416` | → `missing` | missing | Resume job. |
-| `/api/jobs/{id}/run` | `api_server.py` `:3417` | → `missing` | missing | Run job immediately. |
-| `/v1/runs` (POST) | `api_server.py` `:3419` | → `missing` | missing | Create assistant run (threads API). |
-| `/v1/runs/{id}` (GET) | `api_server.py` `:3420` | → `missing` | missing | Get run status. |
-| `/v1/runs/{id}/events` (GET) | `api_server.py` `:3421` | → `missing` | missing | Stream run events (SSE). |
-| `/v1/runs/{id}/approval` (POST) | `api_server.py` `:3422` | → `missing` | missing | Approve pending action. |
-| `/v1/runs/{id}/stop` (POST) | `api_server.py` `:3423` | → `missing` | missing | Stop running run. |
-| Dashboard | `hermes_cli/web_server.py` | → `missing` | missing | Dashboard not ported. |
+| `/health` | `api_server.py` `:3400` | `internal/adapters/apiserver/server.go` | covered | Health check. |
+| `/health/detailed` | `api_server.py` `:3401` | `internal/adapters/apiserver/server.go` `handleDetailedHealth` | covered | Detailed health endpoint implemented and registered. |
+| `/v1/health` | `api_server.py` `:3402` | `internal/adapters/apiserver/server.go` | covered | Versioned health. |
+| `/v1/models` | `api_server.py` `:3403` | `internal/adapters/apiserver/server.go` `handleModels` | covered | Model listing implemented. |
+| `/v1/capabilities` | `api_server.py` `:3404` | `internal/adapters/apiserver/server.go` `handleCapabilities` | covered | Server capabilities document implemented. |
+| `/v1/chat/completions` | `api_server.py` `:3405` | `internal/adapters/apiserver/server.go` | covered | OpenAI-compatible streaming. |
+| `/v1/responses` (POST) | `api_server.py` `:3406` | `internal/adapters/apiserver/responses.go` `handleResponses` | covered | Responses API POST implemented with full SSE streaming. |
+| `/v1/responses/{id}` (GET) | `api_server.py` `:3407` | `internal/adapters/apiserver/responses.go` `handleResponseByID` | covered | Fetch stored response by ID implemented. |
+| `/v1/responses/{id}` (DELETE) | `api_server.py` `:3408` | `internal/adapters/apiserver/responses.go` `handleResponseByID` | covered | Delete stored response implemented. |
+| `/api/jobs` (GET) | `api_server.py` `:3410` | `internal/adapters/apiserver/cron_admin_mutate.go` `handleLegacyAPIJobsList` | covered | List scheduled jobs implemented. |
+| `/api/jobs` (POST) | `api_server.py` `:3411` | `internal/adapters/apiserver/cron_admin_mutate.go` `handleLegacyAPIJobsCreate` | covered | Create scheduled job implemented. |
+| `/api/jobs/{id}` (GET) | `api_server.py` `:3412` | `internal/adapters/apiserver/cron_admin_mutate.go` `handleLegacyAPIJobsGet` | covered | Get job by ID implemented. |
+| `/api/jobs/{id}` (PATCH) | `api_server.py` `:3413` | `internal/adapters/apiserver/cron_admin_mutate.go` `handleLegacyAPIJobsUpdate` | covered | Update job implemented. |
+| `/api/jobs/{id}` (DELETE) | `api_server.py` `:3414` | `internal/adapters/apiserver/cron_admin_mutate.go` `handleLegacyAPIJobsDelete` | covered | Delete job implemented. |
+| `/api/jobs/{id}/pause` | `api_server.py` `:3415` | `internal/adapters/apiserver/cron_admin_mutate.go` `handleLegacyAPIJobsPauseResume` | covered | Pause job implemented. |
+| `/api/jobs/{id}/resume` | `api_server.py` `:3416` | `internal/adapters/apiserver/cron_admin_mutate.go` `handleLegacyAPIJobsPauseResume` | covered | Resume job implemented. |
+| `/api/jobs/{id}/run` | `api_server.py` `:3417` | `internal/adapters/apiserver/cron_admin_mutate.go` `handleLegacyAPIJobsRun` | covered | Run job immediately implemented. |
+| `/v1/runs` (POST) | `api_server.py` `:3419` | `internal/adapters/apiserver/runs.go` `handleRuns` | covered | Create assistant run implemented with SSE event streaming. |
+| `/v1/runs/{id}` (GET) | `api_server.py` `:3420` | `internal/adapters/apiserver/runs.go` `handleRunByID` | covered | Get run status implemented. |
+| `/v1/runs/{id}/events` (GET) | `api_server.py` `:3421` | `internal/adapters/apiserver/runs.go` `handleRunEvents` | covered | Stream run events (SSE) implemented. |
+| `/v1/runs/{id}/approval` (POST) | `api_server.py` `:3422` | → `missing` | missing | Approve pending action not yet ported. |
+| `/v1/runs/{id}/stop` (POST) | `api_server.py` `:3423` | `internal/adapters/apiserver/runs.go` `handleRunEvents` | covered | Stop run implemented via path-suffix dispatch in handleRunEvents. |
+| Dashboard | `hermes_cli/web_server.py` | `internal/adapters/apiserver/dashboard.go` | covered | Web dashboard implemented (804 lines); serves chat history, sessions, and config UI. |
 
 ---
 

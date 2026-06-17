@@ -308,6 +308,7 @@ func readHermesGatewayConnectorIDs() ([]string, error) {
 		"yuanbao_media":        true,
 		"yuanbao_proto":        true,
 		"yuanbao_sticker":      true,
+		"whatsapp_common":      true,
 	}
 	var ids []string
 	for _, entry := range entries {
