@@ -29,6 +29,27 @@ func TestDashboardSSE_ContentType(t *testing.T) {
 	}
 }
 
+func TestDashboardSSEEmitsInitialStatusFrame(t *testing.T) {
+	s := &Server{modelName: "gormes-agent"}
+	ctx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest("GET", "/dashboard/events", nil).WithContext(ctx)
+	rec := httptest.NewRecorder()
+
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+	}()
+	s.handleDashboardSSE(rec, req)
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "event: status") {
+		t.Fatalf("SSE stream missing named status event:\n%s", body)
+	}
+	if !strings.Contains(body, "● live") {
+		t.Fatalf("status frame missing live indicator:\n%s", body)
+	}
+}
+
 func TestDashboardStatusFragment(t *testing.T) {
 	s := &Server{modelName: "gpt-4", providerName: "openai"}
 	req := httptest.NewRequest("GET", "/dashboard/status", nil)

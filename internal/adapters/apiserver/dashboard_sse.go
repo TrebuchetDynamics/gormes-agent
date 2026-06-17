@@ -25,7 +25,13 @@ func (s *Server) handleDashboardSSE(w http.ResponseWriter, r *http.Request) {
 	defer s.unregisterSSEClient(ch)
 
 	writeSSEEvent(w, "connected", map[string]string{"status": "ok"})
+	// Push an immediate status frame so the nav indicator goes live on connect
+	// instead of waiting a full tick.
+	io.WriteString(w, sseFrame("status", s.statusFrameHTML()))
 	flusher.Flush()
+
+	ticker := time.NewTicker(dashboardStatusInterval)
+	defer ticker.Stop()
 
 	for {
 		select {
@@ -33,10 +39,24 @@ func (s *Server) handleDashboardSSE(w http.ResponseWriter, r *http.Request) {
 			// msg is already a fully-formatted SSE frame (event + data).
 			io.WriteString(w, msg)
 			flusher.Flush()
+		case <-ticker.C:
+			io.WriteString(w, sseFrame("status", s.statusFrameHTML()))
+			flusher.Flush()
 		case <-r.Context().Done():
 			return
 		}
 	}
+}
+
+// dashboardStatusInterval is how often each connected dashboard receives a
+// refreshed nav status frame over SSE.
+const dashboardStatusInterval = 5 * time.Second
+
+// statusFrameHTML renders the compact nav status indicator swapped into
+// #nav-status (sse-swap="status"). It replaces the static "Connecting…" text
+// once the SSE stream is live.
+func (s *Server) statusFrameHTML() string {
+	return fmt.Sprintf(`<span style="color:var(--ok)">● live</span> %s`, html.EscapeString(truncateStr(s.modelName, 14)))
 }
 
 func (s *Server) registerSSEClient(ch chan string) {

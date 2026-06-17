@@ -91,6 +91,14 @@ func TestDashboardLoadsAndServesSSEExtension(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), "defineExtension('sse'") {
 		t.Fatalf("/static/sse.js did not serve the htmx sse extension")
 	}
+	// The nav status indicator must open its own SSE connection and listen for
+	// the "status" event, with exactly one #nav-status element (no duplicate id).
+	if n := strings.Count(body, `id="nav-status"`); n != 1 {
+		t.Fatalf("want exactly one #nav-status element, got %d", n)
+	}
+	if !strings.Contains(body, `sse-connect="/dashboard/events"`) || !strings.Contains(body, `sse-swap="status"`) {
+		t.Fatalf("nav status not wired to SSE status events")
+	}
 }
 
 func TestDashboardUnknownPathIs404(t *testing.T) {

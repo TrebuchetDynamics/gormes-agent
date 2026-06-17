@@ -262,7 +262,7 @@ func Layout(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\">📜 Logs</a><div class=\"sep\"></div><div style=\"padding:9px 16px;color:var(--dim);font-size:10px\" id=\"nav-status\">Connecting…</div></nav><main>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\">📜 Logs</a><div class=\"sep\"></div><div style=\"padding:9px 16px;color:var(--dim);font-size:10px\" id=\"nav-status\" sse-connect=\"/dashboard/events\" sse-swap=\"status\" hx-swap=\"innerHTML\">Connecting…</div></nav><main>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -270,7 +270,7 @@ func Layout(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</main><div id=\"nav-status\" sse-swap=\"status\" hx-swap=\"innerHTML\"></div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</main></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

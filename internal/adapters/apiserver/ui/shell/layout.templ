@@ -65,14 +65,14 @@ templ Layout(title string) {
 			<a href="/system" class={ templ.KV("active", title == "System") }>🖥️ System</a>
 			<a href="/logs" class={ templ.KV("active", title == "Logs") }>📜 Logs</a>
 			<div class="sep"></div>
-			<div style="padding:9px 16px;color:var(--dim);font-size:10px" id="nav-status">
+			<div style="padding:9px 16px;color:var(--dim);font-size:10px" id="nav-status"
+				sse-connect="/dashboard/events" sse-swap="status" hx-swap="innerHTML">
 				Connecting…
 			</div>
 		</nav>
 		<main>
 			{ children... }
 		</main>
-		<div id="nav-status" sse-swap="status" hx-swap="innerHTML"></div>
 	</body>
 	</html>
 }
