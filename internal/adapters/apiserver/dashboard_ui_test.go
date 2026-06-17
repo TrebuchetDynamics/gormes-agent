@@ -75,6 +75,24 @@ func TestDashboardPagesRenderWithNav(t *testing.T) {
 	}
 }
 
+func TestDashboardLoadsAndServesSSEExtension(t *testing.T) {
+	h := newUITestServer().Handler()
+	// Pages must load both htmx core and the sse extension, or sse-swap is inert.
+	page := getUI(t, h, "/chat")
+	body := page.Body.String()
+	if !strings.Contains(body, "/static/htmx.min.js") || !strings.Contains(body, "/static/sse.js") {
+		t.Fatalf("chat page missing htmx/sse script tags; body head:\n%s", body[:min(len(body), 600)])
+	}
+	// The extension itself must be served from the embedded static FS.
+	rec := getUI(t, h, "/static/sse.js")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /static/sse.js = %d, want 200", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "defineExtension('sse'") {
+		t.Fatalf("/static/sse.js did not serve the htmx sse extension")
+	}
+}
+
 func TestDashboardUnknownPathIs404(t *testing.T) {
 	h := newUITestServer().Handler()
 	rec := getUI(t, h, "/definitely-not-a-page")

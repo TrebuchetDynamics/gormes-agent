@@ -142,8 +142,13 @@ func TestBroadcastSSE(t *testing.T) {
 	if len(received1) != 2 || len(received2) != 2 {
 		t.Fatalf("broadcast: ch1=%d ch2=%d, want 2 each", len(received1), len(received2))
 	}
-	if received1[0] != "test data" || received1[1] != "more data" {
-		t.Fatal("broadcast data mismatch")
+	// Frames must carry the named event so htmx sse-swap="frame" matches, plus
+	// the data payload.
+	if received1[0] != "event: frame\ndata: test data\n\n" {
+		t.Fatalf("broadcast frame format = %q", received1[0])
+	}
+	if !strings.Contains(received1[1], "event: frame") || !strings.Contains(received1[1], "data: more data") {
+		t.Fatalf("broadcast frame missing event/data: %q", received1[1])
 	}
 }
 

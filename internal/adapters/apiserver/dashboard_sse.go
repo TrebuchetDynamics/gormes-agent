@@ -30,7 +30,8 @@ func (s *Server) handleDashboardSSE(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case msg := <-ch:
-			fmt.Fprintf(w, "data: %s\n\n", msg)
+			// msg is already a fully-formatted SSE frame (event + data).
+			io.WriteString(w, msg)
 			flusher.Flush()
 		case <-r.Context().Done():
 			return
@@ -56,14 +57,35 @@ func (s *Server) unregisterSSEClient(ch chan string) {
 }
 
 func (s *Server) broadcastSSE(event, data string) {
+	frame := sseFrame(event, data)
 	s.sseMu.Lock()
 	defer s.sseMu.Unlock()
 	for _, ch := range s.sseClients {
 		select {
-		case ch <- data:
+		case ch <- frame:
 		default:
 		}
 	}
+}
+
+// sseFrame formats a named Server-Sent Event. The event name must be set so
+// htmx's sse extension (sse-swap="<name>") matches it; an unnamed event would
+// arrive as the default "message" type and never trigger the swap. Multi-line
+// data is split into one `data:` field per line per the SSE spec.
+func sseFrame(event, data string) string {
+	var b strings.Builder
+	if event != "" {
+		b.WriteString("event: ")
+		b.WriteString(event)
+		b.WriteByte('\n')
+	}
+	for _, line := range strings.Split(data, "\n") {
+		b.WriteString("data: ")
+		b.WriteString(line)
+		b.WriteByte('\n')
+	}
+	b.WriteByte('\n')
+	return b.String()
 }
 
 func (s *Server) handleDashboardStatusFragment(w http.ResponseWriter, _ *http.Request) {
