@@ -12,6 +12,11 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/httpstream"
 )
 
+// sseClientBufferSize bounds each SSE connection's pending-frame queue. It is
+// sized for bursty token-by-token chat streaming so deltas are not dropped by
+// the non-blocking broadcast.
+const sseClientBufferSize = 256
+
 func (s *Server) handleDashboardSSE(w http.ResponseWriter, r *http.Request) {
 	httpstream.SetSSEHeaders(w)
 	w.Header().Set("Connection", "keep-alive")
@@ -20,7 +25,9 @@ func (s *Server) handleDashboardSSE(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "streaming not supported", http.StatusInternalServerError)
 		return
 	}
-	ch := make(chan string, 32)
+	// Buffered generously so a burst of streamed chat token frames is not
+	// dropped by the non-blocking broadcast before the writer drains them.
+	ch := make(chan string, sseClientBufferSize)
 	s.registerSSEClient(ch)
 	defer s.unregisterSSEClient(ch)
 
@@ -229,7 +236,7 @@ func (s *Server) runDashboardChatTurn(prompt string) {
 	ctx, cancel := context.WithTimeout(context.Background(), dashboardChatTurnTimeout)
 	defer cancel()
 
-	streamed := false
+	streamStarted := false
 	res, err := s.loop.StreamTurn(ctx, TurnRequest{
 		UserMessage: prompt,
 		SessionID:   s.currentChatSessionID(),
@@ -238,25 +245,36 @@ func (s *Server) runDashboardChatTurn(prompt string) {
 			if token == "" {
 				return nil
 			}
-			streamed = true
+			if !streamStarted {
+				streamStarted = true
+				// Open the assistant reply inline so subsequent token deltas
+				// flow into a single growing message after this marker.
+				s.broadcastSSE("frame", `<span class="stream reply-marker">🤖 </span>`)
+			}
+			// Each token delta is its own SSE frame appended to the feed
+			// (hx-swap="beforeend"), so the reply renders token by token.
 			s.broadcastSSE("frame", fmt.Sprintf(`<span class="stream">%s</span>`, html.EscapeString(token)))
 			return nil
 		},
 	})
 	if err != nil {
 		s.logStore.Append("chat", "error: "+err.Error())
+		if streamStarted {
+			// Close the partially streamed line before the error.
+			s.broadcastSSE("frame", `<div class="line"></div>`)
+		}
 		s.broadcastSSE("frame", fmt.Sprintf(`<div class="line error">⚠ %s</div>`, html.EscapeString(err.Error())))
 		return
 	}
 	s.logStore.Append("chat", "assistant reply delivered")
-	if streamed {
-		// Terminate the streamed token line so the next turn starts fresh.
+	if streamStarted {
+		// Terminate the streamed reply line so the next turn starts fresh.
 		s.broadcastSSE("frame", `<div class="line"></div>`)
 		return
 	}
 	// Non-streaming loop: emit the complete assistant reply as one frame.
 	if reply := strings.TrimSpace(res.Content); reply != "" {
-		s.broadcastSSE("frame", fmt.Sprintf(`<div class="line stream">%s</div>`, html.EscapeString(reply)))
+		s.broadcastSSE("frame", fmt.Sprintf(`<div class="line stream">🤖 %s</div>`, html.EscapeString(reply)))
 	}
 }
 
