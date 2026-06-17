@@ -101,9 +101,10 @@ func runCommand(ctx context.Context, opts dashboardOptions, options CommandOptio
 		stderr = os.Stderr
 	}
 
-	// Wire the native turn loop so dashboard chat runs real agent turns. A
-	// build failure (e.g. missing provider credentials) degrades to
-	// display-only chat rather than blocking dashboard startup.
+	// Wire the native turn loop FIRST so dashboard chat runs real agent turns
+	// and the transcript store (memory.db) exists before the session directory
+	// is opened below. A build failure (e.g. missing provider credentials)
+	// degrades to display-only chat rather than blocking dashboard startup.
 	if options.BuildTurnLoop != nil {
 		if ctx == nil {
 			ctx = context.Background()
@@ -117,6 +118,21 @@ func runCommand(ctx context.Context, opts dashboardOptions, options CommandOptio
 				defer cleanup()
 			}
 		}
+	}
+
+	// Live persistent sessions (memory.db, concurrent-safe). Opened after the
+	// turn loop so a dashboard-created transcript DB is visible immediately.
+	if lister, closer, ok := newSessionsLister(); ok {
+		cfg.SessionsList = lister
+		defer closer()
+	}
+	// Live cron jobs (sessions.db / bbolt; best-effort — skipped when the
+	// gateway holds the exclusive lock).
+	if reader, closer, ok := newCronReader(); ok {
+		cfg.CronJobs = reader
+		defer closer()
+	} else {
+		fmt.Fprintln(stderr, "Dashboard cron panel disabled (cron store unavailable; gateway may hold sessions.db)")
 	}
 
 	srv, err := apiserver.NewServerChecked(cfg)

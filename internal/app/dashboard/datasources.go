@@ -1,15 +1,22 @@
 package dashboard
 
 import (
+	"context"
 	"os"
 	"sort"
 	"strconv"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/apiserver"
+	cronapp "github.com/TrebuchetDynamics/gormes-agent/internal/app/cron"
+	appsession "github.com/TrebuchetDynamics/gormes-agent/internal/app/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config/paths"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills/catalog"
+	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
+
+// dashboardSessionListLimit caps how many recent sessions the dashboard lists.
+const dashboardSessionListLimit = 50
 
 // knownProviderEnvKeys is the curated list of provider credential variables the
 // Env page reports presence for. Only the name, a set/unset flag, and the
@@ -70,4 +77,46 @@ func buildSkillsList() []apiserver.DashboardSkill {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
+}
+
+// newSessionsLister opens the persistent session directory (memory.db) and
+// returns a lister for the dashboard Sessions page plus a closer. SQLite
+// tolerates concurrent processes, so this works alongside a running gateway.
+// Returns ok=false when the directory cannot be opened (e.g. no sessions yet).
+func newSessionsLister() (func() []apiserver.DashboardSession, func(), bool) {
+	db, err := appsession.OpenSessionDirectoryDB()
+	if err != nil {
+		return nil, nil, false
+	}
+	lister := func() []apiserver.DashboardSession {
+		entries, err := sessionpkg.ListDirectorySessions(context.Background(), db, sessionpkg.DirectoryFilter{Limit: dashboardSessionListLimit})
+		if err != nil {
+			return nil
+		}
+		out := make([]apiserver.DashboardSession, 0, len(entries))
+		for _, e := range entries {
+			out = append(out, apiserver.DashboardSession{
+				ID:             e.ID,
+				Title:          e.Title,
+				Preview:        e.Preview,
+				Source:         e.Source,
+				MessageCount:   e.MessageCount,
+				LastActiveUnix: e.LastActiveAt,
+			})
+		}
+		return out
+	}
+	return lister, func() { _ = db.Close() }, true
+}
+
+// newCronReader opens the cron job store (backed by the bbolt session DB) and
+// returns it as a read facade plus a closer. bbolt takes an exclusive file
+// lock, so this returns ok=false when another process (e.g. the gateway) holds
+// sessions.db — the cron panel then degrades to "not wired".
+func newCronReader() (apiserver.CronJobReader, func(), bool) {
+	store, smap, err := cronapp.OpenStore("")
+	if err != nil {
+		return nil, nil, false
+	}
+	return store, func() { _ = smap.Close() }, true
 }

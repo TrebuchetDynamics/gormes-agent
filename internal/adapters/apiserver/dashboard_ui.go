@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/apiserver/ui/fragments"
 	"github.com/a-h/templ"
@@ -49,6 +50,28 @@ func (s *Server) handleSessionsFragment(w http.ResponseWriter, r *http.Request) 
 	if !s.guardFragment(w, r) {
 		return
 	}
+	// Prefer the persistent session directory (memory.db) so the page shows the
+	// same sessions as `gormes session list` and they survive restarts.
+	if s.sessionsList != nil {
+		sessions := s.sessionsList()
+		rows := make([][]string, 0, len(sessions))
+		for _, sess := range sessions {
+			rows = append(rows, []string{
+				truncateStr(sess.ID, 18),
+				orDash(sess.Source),
+				strconv.Itoa(sess.MessageCount),
+				orDash(strings.TrimSpace(sess.Preview)),
+			})
+		}
+		s.renderFragment(w, r, fragments.Table(
+			[]string{"Session", "Source", "Messages", "Preview"},
+			rows,
+			"No sessions yet.",
+		))
+		return
+	}
+
+	// Fallback: in-memory response store (programmatic API sessions).
 	sessions, _, err := s.responseStore.ListSessions(dashboardMaxSessionLimit, 0, s.now())
 	if err != nil {
 		s.renderFragment(w, r, fragments.Notice("err", "Session store error: "+err.Error()))
