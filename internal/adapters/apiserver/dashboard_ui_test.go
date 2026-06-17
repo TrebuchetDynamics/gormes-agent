@@ -99,6 +99,14 @@ func TestDashboardLoadsAndServesSSEExtension(t *testing.T) {
 	if !strings.Contains(body, `sse-connect="/dashboard/events"`) || !strings.Contains(body, `sse-swap="status"`) {
 		t.Fatalf("nav status not wired to SSE status events")
 	}
+	// Favicon is linked and served (suppresses the browser's /favicon.ico 404).
+	if !strings.Contains(body, `href="/static/favicon.svg"`) {
+		t.Fatalf("page missing favicon link")
+	}
+	ico := getUI(t, h, "/static/favicon.svg")
+	if ico.Code != http.StatusOK || !strings.Contains(ico.Body.String(), "<svg") {
+		t.Fatalf("favicon.svg not served: code=%d", ico.Code)
+	}
 }
 
 func TestDashboardUnknownPathIs404(t *testing.T) {
