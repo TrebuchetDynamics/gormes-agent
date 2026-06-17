@@ -105,6 +105,43 @@ func TestRunDashboardChatTurnStreamsEscapedTokens(t *testing.T) {
 	}
 }
 
+func TestRunDashboardChatTurnRendersTokensInOrder(t *testing.T) {
+	srv := NewServer(Config{
+		ModelName:          "gormes-agent",
+		DashboardBoundHost: "127.0.0.1",
+		Loop:               fakeStreamLoop{tokens: []string{"Hel", "lo", " world"}, reply: "Hello world"},
+	})
+	ch := make(chan string, 64)
+	srv.registerSSEClient(ch)
+	defer srv.unregisterSSEClient(ch)
+
+	srv.runDashboardChatTurn("hi")
+
+	frames := drainSSE(ch)
+	if len(frames) < 5 {
+		t.Fatalf("expected marker + 3 token frames + terminator, got %d: %v", len(frames), frames)
+	}
+	// First frame opens the assistant reply.
+	if !strings.Contains(frames[0], "reply-marker") {
+		t.Fatalf("first frame should be the assistant marker, got %q", frames[0])
+	}
+	// Each token is its own frame, in order (token-by-token).
+	wantTokens := []string{"Hel", "lo", " world"}
+	ti := 0
+	for _, f := range frames[1:] {
+		if ti < len(wantTokens) && strings.Contains(f, "<span class=\"stream\">"+wantTokens[ti]+"</span>") {
+			ti++
+		}
+	}
+	if ti != len(wantTokens) {
+		t.Fatalf("tokens not rendered in order; matched %d/%d; frames=%v", ti, len(wantTokens), frames)
+	}
+	// Last frame terminates the streamed line.
+	if last := frames[len(frames)-1]; !strings.Contains(last, `<div class="line">`) {
+		t.Fatalf("last frame should terminate the reply line, got %q", last)
+	}
+}
+
 func TestRunDashboardChatTurnBroadcastsError(t *testing.T) {
 	srv := NewServer(Config{
 		ModelName:          "gormes-agent",
