@@ -2709,7 +2709,8 @@
         "owned_since": "2026-06-16T00:00:00Z",
         "upstream_ref": "hermes:hermes_cli/web_server.py + web/src/pages (React dashboard)",
         "note": "Hermes ships a React/Vite dashboard; Gormes owns an htmx/Templ-in-Go equivalent as a deliberate presentation divergence, tracked under Phase 8.D alongside the Gormes-owned chat TUI rows. Data/behavior parity is the gate, not visual parity."
-      }
+      },
+      "completed_at": "2026-06-17T03:59:34Z"
     }
   }
 ]
