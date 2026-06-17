@@ -133,6 +133,7 @@ func (p *TTSCommandProvider) Synthesize(ctx context.Context, req TTSProviderRequ
 		"voice":       firstNonEmptyTTS(req.Voice, p.cfg.Voice),
 		"model":       p.cfg.Model,
 		"speed":       speed,
+		"language":    req.Language,
 	})
 
 	if err := p.runner.RunTTSCommand(ctx, TTSCommandExecution{
@@ -338,7 +339,13 @@ func (p EdgeTTSCommandProvider) Synthesize(ctx context.Context, req TTSProviderR
 	defer cancel()
 
 	args := []string{"--text", req.Text, "--write-media", req.OutputPath}
-	if voice := firstNonEmptyTTS(req.Voice, p.Voice); voice != "" {
+	voice := firstNonEmptyTTS(req.Voice, p.Voice)
+	if voice == "" || strings.EqualFold(voice, "en-US-AriaNeural") {
+		if languageVoice := edgeTTSVoiceForLanguage(req.Language, req.Text); languageVoice != "" {
+			voice = languageVoice
+		}
+	}
+	if voice != "" {
 		args = append(args, "--voice", voice)
 	}
 	cmd := exec.CommandContext(ctx, cmdPath, args...)

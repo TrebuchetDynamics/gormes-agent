@@ -1,0 +1,51 @@
+// Package fragments holds the small, auto-escaped HTML partials the dashboard
+// pages load over htmx (hx-get / hx-swap). Handlers map server-side data into
+// the neutral view models below so no untrusted string is ever interpolated
+// into HTML by hand.
+package fragments
+
+// Table renders a generic data table, or an empty-state notice when there are
+// no rows. Every cell is auto-escaped by templ.
+templ Table(headers []string, rows [][]string, empty string) {
+	if len(rows) == 0 {
+		<div style="color:var(--dim)">{ empty }</div>
+	} else {
+		<table>
+			<thead>
+				<tr>
+					for _, h := range headers {
+						<th>{ h }</th>
+					}
+				</tr>
+			</thead>
+			<tbody>
+				for _, row := range rows {
+					<tr>
+						for _, cell := range row {
+							<td>{ cell }</td>
+						}
+					</tr>
+				}
+			</tbody>
+		</table>
+	}
+}
+
+// Notice renders a single status/empty/error line. kind is one of
+// "ok", "err", "warn", "dim" and selects the badge colour.
+templ Notice(kind string, msg string) {
+	<div class={ "badge", "badge-" + kind } style="display:inline-block">{ msg }</div>
+}
+
+// LogLines renders a terminal-style log view, newest last.
+templ LogLines(lines []string, empty string) {
+	if len(lines) == 0 {
+		<div style="color:var(--dim)">{ empty }</div>
+	} else {
+		<div class="terminal-box" style="max-height:520px">
+			for _, line := range lines {
+				<div class="line">{ line }</div>
+			}
+		</div>
+	}
+}

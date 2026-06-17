@@ -25,6 +25,7 @@ type Request struct {
 	Platform   string
 	Voice      string
 	Speed      float64
+	Language   string
 }
 
 // Result is the redacted helper/tool result envelope.
@@ -47,6 +48,7 @@ type ProviderRequest struct {
 	Platform   string
 	Voice      string
 	Speed      float64
+	Language   string
 }
 
 // ProviderResult is the provider-specific response before the runner normalizes it.

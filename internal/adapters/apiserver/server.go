@@ -84,6 +84,41 @@ type Config struct {
 	// specific binary. Zero-value is safe — fields default to empty
 	// strings and false.
 	BuildInfo BuildInfo
+	// ConfigSummary supplies the read-only key/value rows shown on the
+	// dashboard Config page. The `gormes dashboard` command fills it from
+	// effective config; it must never include secret values. When nil the
+	// Config fragment reports that config is not wired.
+	ConfigSummary func() []DashboardKeyValue
+	// EnvStatus supplies credential-presence rows for the Env page: a
+	// provider/env key name, whether it is set, and the source — never the
+	// secret value itself. When nil the Env fragment reports it is not wired.
+	EnvStatus func() []DashboardEnvKey
+	// SkillsList supplies the installed-skill rows for the Skills page. When
+	// nil the Skills fragment reports skill listing is not wired.
+	SkillsList func() []DashboardSkill
+}
+
+// DashboardKeyValue is a neutral, already-redacted name/value pair rendered as
+// a table row on the dashboard. Producers must redact secrets before building
+// these; the HTTP layer renders the value verbatim (auto-escaped).
+type DashboardKeyValue struct {
+	Key   string
+	Value string
+}
+
+// DashboardEnvKey is a credential-presence row: the env/key name, whether a
+// value is present, and where it came from. The actual secret is never carried.
+type DashboardEnvKey struct {
+	Name   string
+	Set    bool
+	Source string
+}
+
+// DashboardSkill is an installed-skill summary row for the Skills page.
+type DashboardSkill struct {
+	Name    string
+	Source  string
+	Enabled bool
 }
 
 // BuildInfo is the binary attribution payload surfaced by the
@@ -153,6 +188,11 @@ type Server struct {
 	kanbanStore            KanbanStore
 	kanbanDispatcher       KanbanDispatcher
 	buildInfo              BuildInfo
+	configSummary          func() []DashboardKeyValue
+	envStatus              func() []DashboardEnvKey
+	skillsList             func() []DashboardSkill
+	chatMu                 sync.Mutex
+	chatSessionID          string
 	statusMu               sync.Mutex
 	previousResponseMisses int
 	now                    func() time.Time
@@ -238,6 +278,10 @@ func NewServer(cfg Config) *Server {
 		kanbanStore:           cfg.KanbanStore,
 		kanbanDispatcher:      cfg.KanbanDispatcher,
 		buildInfo:             cfg.BuildInfo,
+		configSummary:         cfg.ConfigSummary,
+		envStatus:             cfg.EnvStatus,
+		skillsList:            cfg.SkillsList,
+		chatSessionID:         dashboardChatSessionID,
 		now:                   time.Now,
 		mux:                   http.NewServeMux(),
 		logStore:              NewLogStore(200),
@@ -376,8 +420,33 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/kanban/tasks/", s.handleDashboardKanbanTaskByID)
 	s.mux.HandleFunc("/api/logs", s.handleDashboardLogs)
 	s.mux.Handle("/static/", staticHandler())
+	// HTML dashboard pages (full documents).
+	s.mux.HandleFunc("/", s.handleRootPage)
 	s.mux.HandleFunc("/dashboard", s.handleWebDashboard)
-	s.mux.HandleFunc("/dashboard/", s.handleWebDashboard)
+	s.mux.HandleFunc("/chat", s.handlePageChat)
+	s.mux.HandleFunc("/sessions", s.handlePageSessions)
+	s.mux.HandleFunc("/skills", s.handlePageSkills)
+	s.mux.HandleFunc("/config", s.handlePageConfig)
+	s.mux.HandleFunc("/cron", s.handlePageCron)
+	s.mux.HandleFunc("/env", s.handlePageEnv)
+	s.mux.HandleFunc("/models", s.handlePageModels)
+	s.mux.HandleFunc("/system", s.handlePageSystem)
+	s.mux.HandleFunc("/logs", s.handlePageLogs)
+	// HTML fragments consumed by the pages over htmx.
+	s.mux.HandleFunc("/dashboard/status", s.handleDashboardStatusFragment)
+	s.mux.HandleFunc("/dashboard/events", s.handleDashboardSSE)
+	s.mux.HandleFunc("/dashboard/memory", s.handleDashboardMemoryFragment)
+	s.mux.HandleFunc("/dashboard/sessions-fragment", s.handleSessionsFragment)
+	s.mux.HandleFunc("/agent/execute", s.handleAgentExecute)
+	s.mux.HandleFunc("/agent/reset", s.handleDashboardNewChat)
+	s.mux.HandleFunc("/ui/sessions", s.handleSessionsFragment)
+	s.mux.HandleFunc("/ui/config", s.handleConfigFragment)
+	s.mux.HandleFunc("/ui/skills", s.handleSkillsFragment)
+	s.mux.HandleFunc("/ui/cron", s.handleCronFragment)
+	s.mux.HandleFunc("/ui/env", s.handleEnvFragment)
+	s.mux.HandleFunc("/ui/models", s.handleModelsFragment)
+	s.mux.HandleFunc("/ui/system", s.handleSystemFragment)
+	s.mux.HandleFunc("/ui/logs", s.handleLogsFragment)
 	s.mux.HandleFunc("/v1/admin/cron/jobs", s.handleCronAdminJobs)
 	s.mux.HandleFunc("/v1/admin/cron/jobs/", s.handleCronAdminJobByID)
 	s.mux.HandleFunc("/api/jobs", s.handleLegacyAPIJobs)

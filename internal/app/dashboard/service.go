@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,6 +23,13 @@ type CommandOptions struct {
 	GoVersion string
 	Stderr    io.Writer
 	OpenURL   func(string) error
+	// BuildTurnLoop, when set, constructs the native turn loop that backs
+	// dashboard chat. It is invoked once at server start with the command
+	// context; the returned cleanup runs at shutdown. When nil (or when it
+	// returns an error), chat degrades to display-only task injection. The
+	// factory lives in the CLI layer because building a kernel needs the
+	// provider client and tool registry, which the app package must not import.
+	BuildTurnLoop func(ctx context.Context) (apiserver.TurnLoop, func(), error)
 }
 
 type dashboardOptions struct {
@@ -36,7 +44,7 @@ func NewCommand(options CommandOptions) *cobra.Command {
 		Short: "Start the Gormes web dashboard",
 		Long:  "Starts an HTTP server with an htmx-based web dashboard for managing sessions, config, skills, and logs.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runCommand(opts, options)
+			return runCommand(cmd.Context(), opts, options)
 		},
 	}
 	cmd.Flags().IntVar(&opts.Port, "port", 43827, "Dashboard HTTP server port")
@@ -69,7 +77,7 @@ func OpenURL(url string) error {
 	return cmd.Start()
 }
 
-func runCommand(opts dashboardOptions, options CommandOptions) error {
+func runCommand(ctx context.Context, opts dashboardOptions, options CommandOptions) error {
 	apiKey := options.APIKey
 	if apiKey == "" {
 		apiKey = "gormes-dashboard-dev"
@@ -83,6 +91,32 @@ func runCommand(opts dashboardOptions, options CommandOptions) error {
 			GitDirty:  options.GitDirty,
 			GoVersion: options.GoVersion,
 		},
+		ConfigSummary: buildConfigSummary,
+		EnvStatus:     buildEnvStatus,
+		SkillsList:    buildSkillsList,
+	}
+
+	stderr := options.Stderr
+	if stderr == nil {
+		stderr = os.Stderr
+	}
+
+	// Wire the native turn loop so dashboard chat runs real agent turns. A
+	// build failure (e.g. missing provider credentials) degrades to
+	// display-only chat rather than blocking dashboard startup.
+	if options.BuildTurnLoop != nil {
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		loop, cleanup, err := options.BuildTurnLoop(ctx)
+		if err != nil {
+			fmt.Fprintf(stderr, "Dashboard chat disabled (turn loop unavailable): %v\n", err)
+		} else {
+			cfg.Loop = loop
+			if cleanup != nil {
+				defer cleanup()
+			}
+		}
 	}
 
 	srv, err := apiserver.NewServerChecked(cfg)
@@ -91,10 +125,6 @@ func runCommand(opts dashboardOptions, options CommandOptions) error {
 	}
 	addr := fmt.Sprintf("127.0.0.1:%d", opts.Port)
 	url := fmt.Sprintf("http://%s/dashboard", addr)
-	stderr := options.Stderr
-	if stderr == nil {
-		stderr = os.Stderr
-	}
 	fmt.Fprintf(stderr, "Gormes dashboard starting at %s\n", url)
 	if !opts.NoOpen {
 		openURL := options.OpenURL

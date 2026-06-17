@@ -36,13 +36,13 @@ func Layout(title string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout.templ`, Line: 9, Col: 16}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapters/apiserver/ui/shell/layout.templ`, Line: 9, Col: 16}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " — Gormes</title><style>\n\t\t\t:root{--bg:#041c1c;--fg:#ffe6cb;--accent:#FFD700;--muted:#B8860B;--border:#CD7F32;--card:color-mix(in srgb,#ffe6cb 4%,#041c1c);--ok:#4caf50;--err:#ef5350;--warn:#ffa726;--dim:#8B8682}\n\t\t\t*{margin:0;padding:0;box-sizing:border-box}\n\t\t\tbody{font-family:system-ui,monospace;background:var(--bg);color:var(--fg);display:flex;height:100vh;overflow:hidden;text-transform:uppercase;font-size:13px;letter-spacing:.5px}\n\t\t\tnav{width:200px;border-right:1px solid var(--border);display:flex;flex-direction:column;padding:12px 0;flex-shrink:0}\n\t\t\tnav .brand{padding:14px 16px;font-size:15px;font-weight:700;color:var(--accent);letter-spacing:2px;margin-bottom:8px}\n\t\t\tnav a{display:flex;align-items:center;gap:8px;padding:9px 16px;color:var(--fg);text-decoration:none;font-size:12px;transition:background .12s}\n\t\t\tnav a:hover,nav a.active{background:var(--card);color:var(--accent)}\n\t\t\tnav .sep{border-top:1px solid var(--border);margin:8px 0}\n\t\t\tmain{flex:1;overflow-y:auto;padding:20px 28px}\n\t\t\th1{font-size:16px;color:var(--accent);margin-bottom:16px;letter-spacing:1px}\n\t\t\th2{font-size:13px;color:var(--accent);margin-bottom:8px}\n\t\t\t.card{background:var(--card);border:1px solid var(--border);border-radius:5px;padding:14px;margin-bottom:10px}\n\t\t\t.badge{padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600}\n\t\t\t.badge-ok{background:var(--ok);color:#fff}.badge-err{background:var(--err);color:#fff}.badge-warn{background:var(--warn);color:#000}.badge-dim{background:var(--dim);color:#fff}\n\t\t\t.row{display:flex;gap:12px;flex-wrap:wrap}\n\t\t\t.col{flex:1;min-width:200px}\n\t\t\t.status-grid{display:flex;gap:12px;margin-bottom:16px}\n\t\t\t.status-box{flex:1;text-align:center;padding:18px 12px;background:var(--card);border:1px solid var(--border);border-radius:5px}\n\t\t\t.status-box .val{font-size:22px;font-weight:700;color:var(--accent)}\n\t\t\t.status-box .lbl{font-size:10px;color:var(--dim);margin-top:4px}\n\t\t\t.terminal-box{background:#0a1a1a;border:1px solid var(--border);border-radius:5px;padding:12px;font-family:monospace;font-size:11px;text-transform:none;max-height:400px;overflow-y:auto;white-space:pre-wrap;line-height:1.5;color:#a0c8c8}\n\t\t\t.terminal-box .line{padding:2px 0}\n\t\t\t.terminal-box .thinking{color:var(--warn)}\n\t\t\t.terminal-box .tool{color:var(--accent)}\n\t\t\t.terminal-box .error{color:var(--err)}\n\t\t\t.terminal-box .stream{color:var(--fg)}\n\t\t\ttable{width:100%;border-collapse:collapse;font-size:11px}\n\t\t\tth,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--border)}\n\t\t\tth{color:var(--accent);font-size:10px}\n\t\t\ttd{text-transform:none}\n\t\t\tform{display:flex;gap:8px;margin-bottom:12px}\n\t\t\tinput,select,textarea{background:var(--card);border:1px solid var(--border);color:var(--fg);padding:8px 10px;border-radius:4px;font-family:monospace;font-size:12px;flex:1;text-transform:none}\n\t\t\tbutton{background:var(--accent);color:var(--bg);border:none;padding:8px 16px;border-radius:4px;font-weight:700;cursor:pointer;font-size:12px;text-transform:uppercase;letter-spacing:1px;transition:opacity .15s}\n\t\t\tbutton:hover{opacity:.85}\n\t\t\tbutton:disabled{opacity:.4;cursor:default}\n\t\t\t.htmx-indicator{display:none}.htmx-request .htmx-indicator{display:inline}.htmx-request.htmx-indicator{display:inline}\n\t\t\t.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}\n\t\t</style><script src=\"/static/htmx.min.js\"></script></head><body hx-ext=\"sse\"><nav><div class=\"brand\">⚕ Gormes</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " — Gormes</title><style>\n\t\t\t:root{--bg:#041c1c;--fg:#ffe6cb;--accent:#FFD700;--muted:#B8860B;--border:#CD7F32;--card:color-mix(in srgb,#ffe6cb 4%,#041c1c);--ok:#4caf50;--err:#ef5350;--warn:#ffa726;--dim:#8B8682}\n\t\t\t*{margin:0;padding:0;box-sizing:border-box}\n\t\t\tbody{font-family:system-ui,monospace;background:var(--bg);color:var(--fg);display:flex;height:100vh;overflow:hidden;text-transform:uppercase;font-size:13px;letter-spacing:.5px}\n\t\t\tnav{width:200px;border-right:1px solid var(--border);display:flex;flex-direction:column;padding:12px 0;flex-shrink:0}\n\t\t\tnav .brand{padding:14px 16px;font-size:15px;font-weight:700;color:var(--accent);letter-spacing:2px;margin-bottom:8px}\n\t\t\tnav a{display:flex;align-items:center;gap:8px;padding:9px 16px;color:var(--fg);text-decoration:none;font-size:12px;transition:background .12s}\n\t\t\tnav a:hover,nav a.active{background:var(--card);color:var(--accent)}\n\t\t\tnav .sep{border-top:1px solid var(--border);margin:8px 0}\n\t\t\tmain{flex:1;overflow-y:auto;padding:20px 28px}\n\t\t\th1{font-size:16px;color:var(--accent);margin-bottom:16px;letter-spacing:1px}\n\t\t\th2{font-size:13px;color:var(--accent);margin-bottom:8px}\n\t\t\t.card{background:var(--card);border:1px solid var(--border);border-radius:5px;padding:14px;margin-bottom:10px}\n\t\t\t.badge{padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600}\n\t\t\t.badge-ok{background:var(--ok);color:#fff}.badge-err{background:var(--err);color:#fff}.badge-warn{background:var(--warn);color:#000}.badge-dim{background:var(--dim);color:#fff}\n\t\t\t.row{display:flex;gap:12px;flex-wrap:wrap}\n\t\t\t.col{flex:1;min-width:200px}\n\t\t\t.status-grid{display:flex;gap:12px;margin-bottom:16px}\n\t\t\t.status-box{flex:1;text-align:center;padding:18px 12px;background:var(--card);border:1px solid var(--border);border-radius:5px}\n\t\t\t.status-box .val{font-size:22px;font-weight:700;color:var(--accent)}\n\t\t\t.status-box .lbl{font-size:10px;color:var(--dim);margin-top:4px}\n\t\t\t.terminal-box{background:#0a1a1a;border:1px solid var(--border);border-radius:5px;padding:12px;font-family:monospace;font-size:11px;text-transform:none;max-height:400px;overflow-y:auto;white-space:pre-wrap;line-height:1.5;color:#a0c8c8}\n\t\t\t.terminal-box .line{padding:2px 0}\n\t\t\t.terminal-box .thinking{color:var(--warn)}\n\t\t\t.terminal-box .tool{color:var(--accent)}\n\t\t\t.terminal-box .error{color:var(--err)}\n\t\t\t.terminal-box .stream{color:var(--fg)}\n\t\t\ttable{width:100%;border-collapse:collapse;font-size:11px}\n\t\t\tth,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--border)}\n\t\t\tth{color:var(--accent);font-size:10px}\n\t\t\ttd{text-transform:none}\n\t\t\tform{display:flex;gap:8px;margin-bottom:12px}\n\t\t\tinput,select,textarea{background:var(--card);border:1px solid var(--border);color:var(--fg);padding:8px 10px;border-radius:4px;font-family:monospace;font-size:12px;flex:1;text-transform:none}\n\t\t\tbutton{background:var(--accent);color:var(--bg);border:none;padding:8px 16px;border-radius:4px;font-weight:700;cursor:pointer;font-size:12px;text-transform:uppercase;letter-spacing:1px;transition:opacity .15s}\n\t\t\tbutton:hover{opacity:.85}\n\t\t\tbutton:disabled{opacity:.4;cursor:default}\n\t\t\t.htmx-indicator{display:none}.htmx-request .htmx-indicator{display:inline}.htmx-request.htmx-indicator{display:inline}\n\t\t\t.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}\n\t\t</style><script src=\"/static/htmx.min.js\"></script><script src=\"/static/sse.js\"></script></head><body hx-ext=\"sse\"><nav><div class=\"brand\">⚕ Gormes</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -58,7 +58,7 @@ func Layout(title string) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var3).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapters/apiserver/ui/shell/layout.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -80,7 +80,7 @@ func Layout(title string) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var5).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapters/apiserver/ui/shell/layout.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -102,7 +102,7 @@ func Layout(title string) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var7).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapters/apiserver/ui/shell/layout.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -124,7 +124,7 @@ func Layout(title string) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var9).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapters/apiserver/ui/shell/layout.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -146,7 +146,7 @@ func Layout(title string) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var11).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapters/apiserver/ui/shell/layout.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -156,25 +156,113 @@ func Layout(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var13 = []any{templ.KV("active", title == "Config")}
+		var templ_7745c5c3_Var13 = []any{templ.KV("active", title == "Models")}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var13...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<a href=\"/config\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<a href=\"/models\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var13).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapters/apiserver/ui/shell/layout.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\">⚙️ Config</a><div class=\"sep\"></div><div style=\"padding:9px 16px;color:var(--dim);font-size:10px\" id=\"nav-status\">Connecting…</div></nav><main>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\">🧠 Models</a> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var15 = []any{templ.KV("active", title == "Config")}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var15...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<a href=\"/config\" class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var16 string
+		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var15).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapters/apiserver/ui/shell/layout.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "\">⚙️ Config</a> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var17 = []any{templ.KV("active", title == "Env")}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var17...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<a href=\"/env\" class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var18 string
+		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var17).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapters/apiserver/ui/shell/layout.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\">🔑 Env</a><div class=\"sep\"></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var19 = []any{templ.KV("active", title == "System")}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var19...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<a href=\"/system\" class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var20 string
+		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var19).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapters/apiserver/ui/shell/layout.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\">🖥️ System</a> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var21 = []any{templ.KV("active", title == "Logs")}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var21...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<a href=\"/logs\" class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var22 string
+		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var21).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapters/apiserver/ui/shell/layout.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\">📜 Logs</a><div class=\"sep\"></div><div style=\"padding:9px 16px;color:var(--dim);font-size:10px\" id=\"nav-status\" sse-connect=\"/dashboard/events\" sse-swap=\"status\" hx-swap=\"innerHTML\">Connecting…</div></nav><main>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -182,7 +270,7 @@ func Layout(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</main><div id=\"nav-status\" sse-swap=\"status\" hx-swap=\"innerHTML\"></div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</main></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

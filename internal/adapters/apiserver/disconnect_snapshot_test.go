@@ -262,6 +262,8 @@ func (s *cancelRecordingKernelSubmitter) Render() <-chan kernel.RenderFrame {
 	return s.render
 }
 
+func (s *cancelRecordingKernelSubmitter) ResetSession() error { return nil }
+
 func (s *cancelRecordingKernelSubmitter) waitForKind(t *testing.T, kind kernel.PlatformEventKind) {
 	t.Helper()
 	deadline := time.After(time.Second)

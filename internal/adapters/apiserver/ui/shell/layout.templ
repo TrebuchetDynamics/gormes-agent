@@ -47,6 +47,7 @@ templ Layout(title string) {
 			.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 		</style>
 		<script src="/static/htmx.min.js"></script>
+		<script src="/static/sse.js"></script>
 	</head>
 	<body hx-ext="sse">
 		<nav>
@@ -57,16 +58,21 @@ templ Layout(title string) {
 			<div class="sep"></div>
 			<a href="/skills" class={ templ.KV("active", title == "Skills") }>📦 Skills</a>
 			<a href="/cron" class={ templ.KV("active", title == "Cron") }>⏰ Cron</a>
+			<a href="/models" class={ templ.KV("active", title == "Models") }>🧠 Models</a>
 			<a href="/config" class={ templ.KV("active", title == "Config") }>⚙️ Config</a>
+			<a href="/env" class={ templ.KV("active", title == "Env") }>🔑 Env</a>
 			<div class="sep"></div>
-			<div style="padding:9px 16px;color:var(--dim);font-size:10px" id="nav-status">
+			<a href="/system" class={ templ.KV("active", title == "System") }>🖥️ System</a>
+			<a href="/logs" class={ templ.KV("active", title == "Logs") }>📜 Logs</a>
+			<div class="sep"></div>
+			<div style="padding:9px 16px;color:var(--dim);font-size:10px" id="nav-status"
+				sse-connect="/dashboard/events" sse-swap="status" hx-swap="innerHTML">
 				Connecting…
 			</div>
 		</nav>
 		<main>
 			{ children... }
 		</main>
-		<div id="nav-status" sse-swap="status" hx-swap="innerHTML"></div>
 	</body>
 	</html>
 }

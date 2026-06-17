@@ -129,9 +129,18 @@ func GatewayRuntimeStatusPath() string {
 }
 
 // GatewayLockDir returns the machine-local directory for token-scoped gateway
-// credential locks.
+// credential locks. Profile homes share their owner root lock directory so one
+// Telegram bot token cannot be claimed concurrently by multiple profiles.
 func GatewayLockDir() string {
-	return filepath.Join(GormesHome(), "runtime", "gateway-locks")
+	return filepath.Join(gatewayLockRoot(GormesHome()), "runtime", "gateway-locks")
+}
+
+func gatewayLockRoot(home string) string {
+	clean := filepath.Clean(home)
+	if filepath.Base(filepath.Dir(clean)) == "profiles" {
+		return filepath.Dir(filepath.Dir(clean))
+	}
+	return clean
 }
 
 // BootPath returns the BOOT.md path used by the built-in gateway startup hook.

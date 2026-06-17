@@ -13,5 +13,7 @@ func NewDashboardCommand(options DashboardCommandOptions) *cobra.Command {
 }
 
 func DefaultDashboardCommandOptions(version string, gitCommit string, gitDirty bool) DashboardCommandOptions {
-	return appdashboard.DefaultCommandOptions(version, gitCommit, gitDirty)
+	opts := appdashboard.DefaultCommandOptions(version, gitCommit, gitDirty)
+	opts.BuildTurnLoop = buildDashboardTurnLoop
+	return opts
 }

@@ -29,6 +29,27 @@ func TestDashboardSSE_ContentType(t *testing.T) {
 	}
 }
 
+func TestDashboardSSEEmitsInitialStatusFrame(t *testing.T) {
+	s := &Server{modelName: "gormes-agent"}
+	ctx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest("GET", "/dashboard/events", nil).WithContext(ctx)
+	rec := httptest.NewRecorder()
+
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+	}()
+	s.handleDashboardSSE(rec, req)
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "event: status") {
+		t.Fatalf("SSE stream missing named status event:\n%s", body)
+	}
+	if !strings.Contains(body, "● live") {
+		t.Fatalf("status frame missing live indicator:\n%s", body)
+	}
+}
+
 func TestDashboardStatusFragment(t *testing.T) {
 	s := &Server{modelName: "gpt-4", providerName: "openai"}
 	req := httptest.NewRequest("GET", "/dashboard/status", nil)
@@ -142,8 +163,13 @@ func TestBroadcastSSE(t *testing.T) {
 	if len(received1) != 2 || len(received2) != 2 {
 		t.Fatalf("broadcast: ch1=%d ch2=%d, want 2 each", len(received1), len(received2))
 	}
-	if received1[0] != "test data" || received1[1] != "more data" {
-		t.Fatal("broadcast data mismatch")
+	// Frames must carry the named event so htmx sse-swap="frame" matches, plus
+	// the data payload.
+	if received1[0] != "event: frame\ndata: test data\n\n" {
+		t.Fatalf("broadcast frame format = %q", received1[0])
+	}
+	if !strings.Contains(received1[1], "event: frame") || !strings.Contains(received1[1], "data: more data") {
+		t.Fatalf("broadcast frame missing event/data: %q", received1[1])
 	}
 }
 

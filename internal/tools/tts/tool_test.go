@@ -25,7 +25,7 @@ func TestTextToSpeechToolDescriptor(t *testing.T) {
 	if err := json.Unmarshal(tool.Schema(), &schema); err != nil {
 		t.Fatalf("schema invalid JSON: %v", err)
 	}
-	for _, field := range []string{"text", "output_path"} {
+	for _, field := range []string{"text", "output_path", "language"} {
 		if _, ok := schema.Properties[field]; !ok {
 			t.Fatalf("schema missing %q in %s", field, tool.Schema())
 		}
@@ -123,6 +123,28 @@ func TestTextToSpeechToolExecuteHonorsProviderOverride(t *testing.T) {
 	}
 }
 
+func TestTextToSpeechToolExecutePassesLanguageHint(t *testing.T) {
+	output := filepath.Join(t.TempDir(), "voice.mp3")
+	edge := &fakeTTSProvider{available: true}
+	tool := NewTextToSpeechTool(NewTTSRunner(TTSConfig{Provider: "edge"}, map[string]TTSProvider{
+		"edge": edge,
+	}))
+	raw, err := tool.Execute(context.Background(), json.RawMessage(`{"text":"Hola, puedo ayudarte.","output_path":`+strconvQuote(output)+`,"language":"auto"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	var result TTSResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		t.Fatalf("result JSON: %v", err)
+	}
+	if !result.Success || edge.calls != 1 {
+		t.Fatalf("result=%+v calls=%d, want successful edge call", result, edge.calls)
+	}
+	if edge.last.Language != "auto" {
+		t.Fatalf("provider language = %q, want auto", edge.last.Language)
+	}
+}
+
 func TestTextToSpeechToolExecute(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "voice.mp3")
 	tool := NewTextToSpeechTool(NewTTSRunner(TTSConfig{Provider: "edge"}, map[string]TTSProvider{
@@ -138,6 +160,24 @@ func TestTextToSpeechToolExecute(t *testing.T) {
 	}
 	if !result.Success || result.FilePath != output || result.MediaTag != "MEDIA:"+output {
 		t.Fatalf("result = %+v, want success envelope with MEDIA tag", result)
+	}
+}
+
+func TestEdgeTTSVoiceForLanguageAutoDetectsSpanishOutput(t *testing.T) {
+	got := edgeTTSVoiceForLanguage("auto", "Hola, claro. Puedo ayudarte con la tarea.")
+	if got != "es-ES-ElviraNeural" {
+		t.Fatalf("edgeTTSVoiceForLanguage(auto spanish) = %q, want es-ES-ElviraNeural", got)
+	}
+}
+
+func TestEdgeTTSVoiceForLanguageAutoWeightsEnglishAndSpanish(t *testing.T) {
+	english := edgeTTSVoiceForLanguage("auto", "Hello, I can help you with the task.")
+	if english != "en-US-AriaNeural" {
+		t.Fatalf("edgeTTSVoiceForLanguage(auto english) = %q, want en-US-AriaNeural", english)
+	}
+	spanishDominant := edgeTTSVoiceForLanguage("auto", "Hello Juan, gracias. Puedo ayudarte con la tarea.")
+	if spanishDominant != "es-ES-ElviraNeural" {
+		t.Fatalf("edgeTTSVoiceForLanguage(auto mixed Spanish-dominant) = %q, want es-ES-ElviraNeural", spanishDominant)
 	}
 }
 
