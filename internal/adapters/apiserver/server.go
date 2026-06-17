@@ -96,6 +96,23 @@ type Config struct {
 	// SkillsList supplies the installed-skill rows for the Skills page. When
 	// nil the Skills fragment reports skill listing is not wired.
 	SkillsList func() []DashboardSkill
+	// SessionsList supplies persistent session-directory rows for the Sessions
+	// page and the dashboard "recent sessions" panel. The `gormes dashboard`
+	// command fills it from the session directory (memory.db) — the same source
+	// as `gormes session list`. When nil, the sessions fragment falls back to
+	// the in-memory response store.
+	SessionsList func() []DashboardSession
+}
+
+// DashboardSession is a neutral persistent-session summary row for the Sessions
+// page, sourced from the session directory.
+type DashboardSession struct {
+	ID             string
+	Title          string
+	Preview        string
+	Source         string
+	MessageCount   int
+	LastActiveUnix int64
 }
 
 // DashboardKeyValue is a neutral, already-redacted name/value pair rendered as
@@ -191,6 +208,7 @@ type Server struct {
 	configSummary          func() []DashboardKeyValue
 	envStatus              func() []DashboardEnvKey
 	skillsList             func() []DashboardSkill
+	sessionsList           func() []DashboardSession
 	chatMu                 sync.Mutex
 	chatSessionID          string
 	statusMu               sync.Mutex
@@ -281,6 +299,7 @@ func NewServer(cfg Config) *Server {
 		configSummary:         cfg.ConfigSummary,
 		envStatus:             cfg.EnvStatus,
 		skillsList:            cfg.SkillsList,
+		sessionsList:          cfg.SessionsList,
 		chatSessionID:         dashboardChatSessionID,
 		now:                   time.Now,
 		mux:                   http.NewServeMux(),

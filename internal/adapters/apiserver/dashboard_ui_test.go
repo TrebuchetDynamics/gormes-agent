@@ -109,6 +109,37 @@ func TestDashboardLoadsAndServesSSEExtension(t *testing.T) {
 	}
 }
 
+func TestSessionsFragmentUsesPersistentDirectory(t *testing.T) {
+	srv := NewServer(Config{
+		ModelName:          "gormes-agent",
+		DashboardBoundHost: "127.0.0.1",
+		SessionsList: func() []DashboardSession {
+			return []DashboardSession{
+				{ID: "sess-abc123def456", Source: "telegram", MessageCount: 7, Preview: "remember 42"},
+			}
+		},
+	})
+	rec := getUI(t, srv.Handler(), "/ui/sessions")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /ui/sessions = %d, want 200", rec.Code)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"Source", "Preview", "sess-abc123", "telegram", "7", "remember 42"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("sessions fragment missing %q; body=%s", want, body)
+		}
+	}
+}
+
+func TestSessionsFragmentFallsBackWhenDirectoryUnwired(t *testing.T) {
+	// No SessionsList -> falls back to the in-memory response store (empty).
+	srv := NewServer(Config{ModelName: "gormes-agent", DashboardBoundHost: "127.0.0.1"})
+	rec := getUI(t, srv.Handler(), "/ui/sessions")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "No sessions yet.") {
+		t.Fatalf("fallback sessions fragment unexpected: code=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestDashboardUnknownPathIs404(t *testing.T) {
 	h := newUITestServer().Handler()
 	rec := getUI(t, h, "/definitely-not-a-page")
