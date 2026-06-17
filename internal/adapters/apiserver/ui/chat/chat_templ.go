@@ -43,7 +43,7 @@ func Page() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"card\"><h2>💬 Interactive Chat</h2><div class=\"terminal-box\" id=\"chat-feed\" hx-ext=\"sse\" sse-connect=\"/dashboard/events\" sse-swap=\"frame\" hx-swap=\"beforeend\" style=\"max-height:600px\"><div class=\"line thinking\">Starting chat session…</div></div></div><form hx-post=\"/agent/execute\" hx-target=\"#chat-feed\" hx-swap=\"beforeend\" hx-on::after-request=\"this.reset()\" style=\"margin-top:12px\"><input type=\"text\" name=\"prompt\" placeholder=\"Type your message…\" required style=\"flex:1\"> <button type=\"submit\">Send</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"card\"><h2>💬 Interactive Chat <button hx-post=\"/agent/reset\" hx-target=\"#chat-feed\" hx-swap=\"innerHTML\" hx-confirm=\"Start a new chat? The current conversation will be cleared.\" style=\"float:right;padding:4px 10px;font-size:11px\">🆕 New chat</button></h2><div class=\"terminal-box\" id=\"chat-feed\" hx-ext=\"sse\" sse-connect=\"/dashboard/events\" sse-swap=\"frame\" hx-swap=\"beforeend\" style=\"max-height:600px\"><div class=\"line thinking\">Starting chat session…</div></div></div><form hx-post=\"/agent/execute\" hx-target=\"#chat-feed\" hx-swap=\"beforeend\" hx-on::after-request=\"this.reset()\" style=\"margin-top:12px\"><input type=\"text\" name=\"prompt\" placeholder=\"Type your message…\" required style=\"flex:1\"> <button type=\"submit\">Send</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

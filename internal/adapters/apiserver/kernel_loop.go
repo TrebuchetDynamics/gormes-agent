@@ -12,6 +12,7 @@ import (
 type kernelSubmitter interface {
 	Submit(kernel.PlatformEvent) error
 	Render() <-chan kernel.RenderFrame
+	ResetSession() error
 }
 
 // KernelTurnLoop adapts the native single-owner kernel loop to the HTTP
@@ -41,6 +42,24 @@ func (l *KernelTurnLoop) RunTurn(ctx context.Context, req TurnRequest) (TurnResu
 
 func (l *KernelTurnLoop) StreamTurn(ctx context.Context, req TurnRequest, cb StreamCallbacks) (TurnResult, error) {
 	return l.run(ctx, req, cb.OnToken)
+}
+
+// ResetSession clears the underlying kernel's conversation history and
+// server-assigned session id so the next turn starts a fresh conversation. It
+// takes the same lock as run, so it waits for any in-flight turn to finish
+// (the kernel rejects resets mid-turn) and then resynchronizes the loop's
+// frame tracking from the post-reset frame.
+func (l *KernelTurnLoop) ResetSession() error {
+	if l == nil || l.kernel == nil {
+		return errors.New("kernel turn loop is not configured")
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if err := l.kernel.ResetSession(); err != nil {
+		return err
+	}
+	l.drainPendingFrames()
+	return nil
 }
 
 func (l *KernelTurnLoop) run(ctx context.Context, req TurnRequest, onToken func(string) error) (TurnResult, error) {

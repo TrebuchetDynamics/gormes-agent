@@ -191,6 +191,8 @@ type Server struct {
 	configSummary          func() []DashboardKeyValue
 	envStatus              func() []DashboardEnvKey
 	skillsList             func() []DashboardSkill
+	chatMu                 sync.Mutex
+	chatSessionID          string
 	statusMu               sync.Mutex
 	previousResponseMisses int
 	now                    func() time.Time
@@ -279,6 +281,7 @@ func NewServer(cfg Config) *Server {
 		configSummary:         cfg.ConfigSummary,
 		envStatus:             cfg.EnvStatus,
 		skillsList:            cfg.SkillsList,
+		chatSessionID:         dashboardChatSessionID,
 		now:                   time.Now,
 		mux:                   http.NewServeMux(),
 		logStore:              NewLogStore(200),
@@ -435,6 +438,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/dashboard/memory", s.handleDashboardMemoryFragment)
 	s.mux.HandleFunc("/dashboard/sessions-fragment", s.handleSessionsFragment)
 	s.mux.HandleFunc("/agent/execute", s.handleAgentExecute)
+	s.mux.HandleFunc("/agent/reset", s.handleDashboardNewChat)
 	s.mux.HandleFunc("/ui/sessions", s.handleSessionsFragment)
 	s.mux.HandleFunc("/ui/config", s.handleConfigFragment)
 	s.mux.HandleFunc("/ui/skills", s.handleSkillsFragment)

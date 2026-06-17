@@ -5,7 +5,12 @@ import "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/apiserver/ui
 templ Page() {
 	@shell.Layout("Chat") {
 		<div class="card">
-			<h2>💬 Interactive Chat</h2>
+			<h2>
+				💬 Interactive Chat
+				<button hx-post="/agent/reset" hx-target="#chat-feed" hx-swap="innerHTML"
+					hx-confirm="Start a new chat? The current conversation will be cleared."
+					style="float:right;padding:4px 10px;font-size:11px">🆕 New chat</button>
+			</h2>
 			<div class="terminal-box" id="chat-feed"
 				hx-ext="sse"
 				sse-connect="/dashboard/events"

@@ -84,9 +84,66 @@ func (s *Server) handleDashboardMemoryFragment(w http.ResponseWriter, _ *http.Re
 <div style="color:var(--dim);font-size:11px">Click a memory node to inspect</div>`)
 }
 
-// dashboardChatSessionID keeps dashboard chat turns on one continuous native
-// session so the kernel preserves conversation history across messages.
+// dashboardChatSessionID is the default dashboard chat session id. Turns share
+// it so the kernel preserves conversation history across messages; "new chat"
+// rotates to a fresh id so the next conversation persists as its own session.
 const dashboardChatSessionID = "dashboard-chat"
+
+// SessionResetter is implemented by turn loops that can clear conversation
+// state (history + session id). *KernelTurnLoop satisfies it; non-kernel or
+// fake loops may not, in which case "new chat" still clears the visible feed
+// and rotates the session id.
+type SessionResetter interface {
+	ResetSession() error
+}
+
+func (s *Server) currentChatSessionID() string {
+	s.chatMu.Lock()
+	defer s.chatMu.Unlock()
+	if s.chatSessionID == "" {
+		s.chatSessionID = dashboardChatSessionID
+	}
+	return s.chatSessionID
+}
+
+// startNewChat rotates the dashboard chat session id so subsequent turns
+// persist under a fresh session distinct from the previous conversation.
+func (s *Server) startNewChat() {
+	s.chatMu.Lock()
+	defer s.chatMu.Unlock()
+	s.chatSessionID = "dashboard-chat-" + randomHexFromTime(s.now())[:12]
+}
+
+// handleDashboardNewChat resets the agent conversation (clearing kernel
+// context when a resettable loop is wired) and rotates the chat session id,
+// returning a fresh feed body that replaces the visible conversation.
+func (s *Server) handleDashboardNewChat(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		io.WriteString(w, `<div class="line error">Method not allowed</div>`)
+		return
+	}
+	if !s.dashboardUIAllowed(r) {
+		w.WriteHeader(http.StatusUnauthorized)
+		io.WriteString(w, `<div class="line error">Unauthorized</div>`)
+		return
+	}
+	if s.loop != nil {
+		if resetter, ok := s.loop.(SessionResetter); ok {
+			if err := resetter.ResetSession(); err != nil {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.WriteHeader(http.StatusOK)
+				io.WriteString(w, fmt.Sprintf(`<div class="line error">⚠ Could not start a new chat: %s</div>`, html.EscapeString(err.Error())))
+				return
+			}
+		}
+	}
+	s.startNewChat()
+	s.logStore.Append("chat", "new chat started")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, `<div class="line thinking">🆕 Started a new chat.</div>`)
+}
 
 // dashboardChatTurnTimeout bounds a single dashboard chat turn. It is generous
 // because agent turns can run tools, but it prevents an orphaned turn from
@@ -133,7 +190,7 @@ func (s *Server) runDashboardChatTurn(prompt string) {
 	streamed := false
 	res, err := s.loop.StreamTurn(ctx, TurnRequest{
 		UserMessage: prompt,
-		SessionID:   dashboardChatSessionID,
+		SessionID:   s.currentChatSessionID(),
 	}, StreamCallbacks{
 		OnToken: func(token string) error {
 			if token == "" {

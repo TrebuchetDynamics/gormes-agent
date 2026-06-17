@@ -8,7 +8,32 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
+
+// resettableLoop is a TurnLoop that also satisfies SessionResetter.
+type resettableLoop struct {
+	fakeStreamLoop
+	resetCalls int
+	resetErr   error
+}
+
+func (r *resettableLoop) ResetSession() error {
+	r.resetCalls++
+	return r.resetErr
+}
+
+// resetRecordingKernel is a minimal kernelSubmitter for exercising
+// KernelTurnLoop.ResetSession.
+type resetRecordingKernel struct {
+	render chan kernel.RenderFrame
+	resets int
+}
+
+func (k *resetRecordingKernel) Submit(kernel.PlatformEvent) error { return nil }
+func (k *resetRecordingKernel) Render() <-chan kernel.RenderFrame { return k.render }
+func (k *resetRecordingKernel) ResetSession() error               { k.resets++; return nil }
 
 func postForm(t *testing.T, h http.Handler, path, body string) *httptest.ResponseRecorder {
 	t.Helper()
@@ -116,6 +141,54 @@ func TestRunDashboardChatTurnNonStreamingEmitsFullReply(t *testing.T) {
 	frames := strings.Join(drainSSE(ch), "\n")
 	if !strings.Contains(frames, "the whole answer") {
 		t.Fatalf("expected full reply broadcast when nothing streamed; got: %s", frames)
+	}
+}
+
+func TestDashboardNewChatResetsAndRotatesSession(t *testing.T) {
+	loop := &resettableLoop{}
+	srv := NewServer(Config{ModelName: "gormes-agent", DashboardBoundHost: "127.0.0.1", Loop: loop})
+	before := srv.currentChatSessionID()
+	if before != dashboardChatSessionID {
+		t.Fatalf("default chat session id = %q, want %q", before, dashboardChatSessionID)
+	}
+	rec := postForm(t, srv.Handler(), "/agent/reset", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /agent/reset = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "new chat") {
+		t.Fatalf("reset body missing confirmation; got: %s", rec.Body.String())
+	}
+	if loop.resetCalls != 1 {
+		t.Fatalf("kernel reset calls = %d, want 1", loop.resetCalls)
+	}
+	after := srv.currentChatSessionID()
+	if after == before || !strings.HasPrefix(after, "dashboard-chat-") {
+		t.Fatalf("chat session id not rotated: before=%q after=%q", before, after)
+	}
+}
+
+func TestDashboardNewChatWithoutResetterStillRotates(t *testing.T) {
+	// fakeStreamLoop does not implement SessionResetter -> kernel reset is
+	// skipped but the feed clears and the session id still rotates.
+	srv := NewServer(Config{ModelName: "gormes-agent", DashboardBoundHost: "127.0.0.1", Loop: fakeStreamLoop{}})
+	before := srv.currentChatSessionID()
+	rec := postForm(t, srv.Handler(), "/agent/reset", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /agent/reset = %d, want 200", rec.Code)
+	}
+	if srv.currentChatSessionID() == before {
+		t.Fatalf("chat session id not rotated without a resetter")
+	}
+}
+
+func TestKernelTurnLoopResetSessionCallsKernel(t *testing.T) {
+	k := &resetRecordingKernel{render: make(chan kernel.RenderFrame, 1)}
+	loop := NewKernelTurnLoop(k)
+	if err := loop.ResetSession(); err != nil {
+		t.Fatalf("ResetSession: %v", err)
+	}
+	if k.resets != 1 {
+		t.Fatalf("kernel ResetSession calls = %d, want 1", k.resets)
 	}
 }
 
