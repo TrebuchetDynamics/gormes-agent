@@ -71,10 +71,42 @@ type Streams struct {
 type DurableReconnectSchema struct {
 	Supported         bool     `json:"supported"`
 	IssueEndpoint     string   `json:"issue_endpoint"`
+	ListEndpoint      string   `json:"list_endpoint"`
+	RevokeEndpoint    string   `json:"revoke_endpoint"`
 	AuthMethods       []string `json:"auth_methods"`
+	Scopes            []string `json:"scopes"`
 	Platforms         []string `json:"platforms"`
+	Interim           bool     `json:"interim"`
 	EffectiveSecurity string   `json:"effective_security"`
 	BlockedReason     string   `json:"blocked_reason"`
+}
+
+// DurableReconnectIssueEndpoint is the separate mutating endpoint that issues,
+// lists, and (with /revoke) revokes Navivox device credentials. It is distinct
+// from /v1/navivox/status so credential mutation never rides the status read.
+const (
+	DurableReconnectIssueEndpoint  = "/v1/navivox/device-credentials"
+	DurableReconnectRevokeEndpoint = "/v1/navivox/device-credentials/revoke"
+)
+
+// durableReconnectSecurityAllowed reports whether the transport is safe enough
+// to issue durable credentials. Mirrors the Navivox client's safe set: TLS,
+// loopback, or an authenticated private network. Insecure non-loopback HTTP is
+// refused by default rather than warned.
+func durableReconnectSecurityAllowed(effectiveSecurity string) bool {
+	switch strings.ToLower(strings.TrimSpace(effectiveSecurity)) {
+	case "tls", "https", "loopback", "private_network", "private-network":
+		return true
+	default:
+		return false
+	}
+}
+
+// DurableReconnectSecurityAllowed reports whether the transport is safe enough
+// to issue durable credentials, independent of whether the capability document
+// currently advertises durable reconnect as supported.
+func DurableReconnectSecurityAllowed(effectiveSecurity string) bool {
+	return durableReconnectSecurityAllowed(effectiveSecurity)
 }
 
 type DocumentSchema struct {
@@ -152,13 +184,30 @@ func Document(params DocumentParams) DocumentSchema {
 }
 
 func DurableReconnect(effectiveSecurity string) DurableReconnectSchema {
+	if !durableReconnectSecurityAllowed(effectiveSecurity) {
+		return DurableReconnectSchema{
+			Supported:         false,
+			AuthMethods:       []string{},
+			Scopes:            []string{},
+			Platforms:         []string{"android"},
+			EffectiveSecurity: effectiveSecurity,
+			BlockedReason: "Durable reconnect is disabled on insecure non-loopback transport; " +
+				"use loopback, TLS, or an authenticated private network.",
+		}
+	}
 	return DurableReconnectSchema{
-		Supported:         false,
-		IssueEndpoint:     "",
-		AuthMethods:       []string{},
+		Supported:      true,
+		IssueEndpoint:  DurableReconnectIssueEndpoint,
+		ListEndpoint:   DurableReconnectIssueEndpoint,
+		RevokeEndpoint: DurableReconnectRevokeEndpoint,
+		// pairing_token authorizes initial issuance; device_bearer is the interim
+		// issued credential type (the gold-standard device_key_challenge follows).
+		AuthMethods:       []string{"pairing_token", "device_bearer"},
+		Scopes:            []string{"navivox"},
 		Platforms:         []string{"android"},
+		Interim:           true,
 		EffectiveSecurity: effectiveSecurity,
-		BlockedReason:     "Durable credential issuance is not implemented yet.",
+		BlockedReason:     "",
 	}
 }
 
@@ -253,6 +302,9 @@ func Endpoints() []Endpoint {
 		{Method: http.MethodGet, Path: "/v1/navivox/sessions", Auth: "navivox", Stability: "stable", Description: "Session list"},
 		{Method: http.MethodGet, Path: "/v1/navivox/sessions/{session_id}", Auth: "navivox", Stability: "stable", Description: "Session snapshot"},
 		{Method: http.MethodPost, Path: "/v1/navivox/turn", Auth: "navivox", Stability: "stable", Description: "Queue a text turn"},
+		{Method: http.MethodPost, Path: DurableReconnectIssueEndpoint, Auth: "navivox", Stability: "experimental", Description: "Issue an interim Navivox device credential"},
+		{Method: http.MethodGet, Path: DurableReconnectIssueEndpoint, Auth: "navivox", Stability: "experimental", Description: "List this install's Navivox device credentials"},
+		{Method: http.MethodPost, Path: DurableReconnectRevokeEndpoint, Auth: "navivox", Stability: "experimental", Description: "Revoke a Navivox device credential"},
 		{Method: "WS", Path: "/v1/navivox/stream", Auth: "navivox", Stability: "stable", Description: "Canonical Navivox event stream"},
 	}
 }

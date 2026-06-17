@@ -53,6 +53,8 @@ type Channel struct {
 	voiceProfiles      voiceProfileBackend
 	runRecords         map[string]*sessionpkg.NavivoxRunRecord
 	latestRunBySession map[string]string
+
+	deviceCredentials map[string]*deviceCredentialRecord
 }
 
 type ChannelOption func(*Channel)
@@ -118,6 +120,7 @@ func NewChannel(cfg config.NavivoxCfg, log *slog.Logger, opts ...ChannelOption) 
 		voiceProfiles:      defaultVoiceProfileBackend(),
 		runRecords:         map[string]*sessionpkg.NavivoxRunRecord{},
 		latestRunBySession: map[string]string{},
+		deviceCredentials:  map[string]*deviceCredentialRecord{},
 	}
 	for _, opt := range opts {
 		if opt != nil {
@@ -177,6 +180,8 @@ func (c *Channel) Handler(inbox chan<- gateway.InboundEvent) http.Handler {
 	mux.HandleFunc("/v1/navivox/sessions", c.withAuth(c.handleSessions))
 	mux.HandleFunc("/v1/navivox/sessions/", c.withAuth(c.handleSessionByID))
 	mux.HandleFunc("/v1/navivox/turn", c.withAuth(c.handleTurn(inbox)))
+	mux.HandleFunc("/v1/navivox/device-credentials/revoke", c.withAuth(c.handleDeviceCredentialRevoke))
+	mux.HandleFunc("/v1/navivox/device-credentials", c.withAuth(c.handleDeviceCredentials))
 	mux.HandleFunc("/v1/navivox/stream", c.handleStream(inbox))
 	return c.cors(mux)
 }
