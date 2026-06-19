@@ -22,6 +22,7 @@ type credentialPersistenceRecord struct {
 	Scopes        []string `json:"scopes"`
 	CreatedAt     string   `json:"created_at"`
 	ExpiresAt     string   `json:"expires_at,omitempty"`
+	LastUsedAt    string   `json:"last_used_at,omitempty"`
 	Revoked       bool     `json:"revoked"`
 	SecretHashHex string   `json:"secret_hash"`
 }
@@ -49,6 +50,7 @@ func loadCredentialsFromDisk(path string) (map[string]*deviceCredentialRecord, e
 		copy(hash[:], hashBytes)
 		createdAt, _ := time.Parse(time.RFC3339, rec.CreatedAt)
 		expiresAt, _ := time.Parse(time.RFC3339, rec.ExpiresAt)
+		lastUsedAt, _ := time.Parse(time.RFC3339, rec.LastUsedAt)
 		// Back-fill expiry for credentials written before expiry was introduced.
 		if expiresAt.IsZero() && !createdAt.IsZero() {
 			expiresAt = createdAt.Add(navivoxDeviceCredentialTTL)
@@ -60,6 +62,7 @@ func loadCredentialsFromDisk(path string) (map[string]*deviceCredentialRecord, e
 			Scopes:       rec.Scopes,
 			CreatedAt:    createdAt,
 			ExpiresAt:    expiresAt,
+			LastUsedAt:   lastUsedAt,
 			Revoked:      rec.Revoked,
 			secretHash:   hash,
 		}
@@ -81,6 +84,9 @@ func saveCredentialsToDisk(path string, credentials map[string]*deviceCredential
 		}
 		if !rec.ExpiresAt.IsZero() {
 			r.ExpiresAt = rec.ExpiresAt.UTC().Format(time.RFC3339)
+		}
+		if !rec.LastUsedAt.IsZero() {
+			r.LastUsedAt = rec.LastUsedAt.UTC().Format(time.RFC3339)
 		}
 		records = append(records, r)
 	}

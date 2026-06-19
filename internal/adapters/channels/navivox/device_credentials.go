@@ -25,6 +25,7 @@ type deviceCredentialRecord struct {
 	Scopes       []string
 	CreatedAt    time.Time
 	ExpiresAt    time.Time
+	LastUsedAt   time.Time
 	Revoked      bool
 	secretHash   [32]byte
 }
@@ -115,7 +116,7 @@ func (c *Channel) issueDeviceCredential(w http.ResponseWriter, r *http.Request) 
 		"created_at":     now.UTC().Format(time.RFC3339),
 		"expires_at":     expiresAt.UTC().Format(time.RFC3339),
 	})
-	c.persistCredentialsToDisk()
+	go c.persistCredentialsToDisk()
 }
 
 func (c *Channel) listDeviceCredentials(w http.ResponseWriter, r *http.Request) {
@@ -140,14 +141,18 @@ func (c *Channel) listDeviceCredentials(w http.ResponseWriter, r *http.Request) 
 
 	views := make([]map[string]any, 0, len(records))
 	for _, record := range records {
-		views = append(views, map[string]any{
+		view := map[string]any{
 			"credential_id":  record.CredentialID,
 			"app_install_id": record.AppInstallID,
 			"scopes":         record.Scopes,
 			"created_at":     record.CreatedAt.UTC().Format(time.RFC3339),
 			"expires_at":     record.ExpiresAt.UTC().Format(time.RFC3339),
 			"revoked":        record.Revoked,
-		})
+		}
+		if !record.LastUsedAt.IsZero() {
+			view["last_used_at"] = record.LastUsedAt.UTC().Format(time.RFC3339)
+		}
+		views = append(views, view)
 	}
 	// No secret or secret hash is ever included in list responses.
 	writeNavivoxJSON(w, http.StatusOK, map[string]any{
@@ -191,7 +196,7 @@ func (c *Channel) handleDeviceCredentialRevoke(w http.ResponseWriter, r *http.Re
 		"credential_id": credentialID,
 		"revoked":       true,
 	})
-	c.persistCredentialsToDisk()
+	go c.persistCredentialsToDisk()
 }
 
 func navivoxCappedDurableScopes(requested []string) []string {
