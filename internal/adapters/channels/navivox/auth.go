@@ -2,6 +2,7 @@ package navivox
 
 import (
 	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/base64"
 	"net"
 	"net/http"
@@ -122,6 +123,13 @@ func navivoxAuthFailureKey(r *http.Request) string {
 }
 
 func (c *Channel) authenticate(r *http.Request) (string, bool) {
+	// Device bearer supersedes the channel's bootstrap auth mode: any client
+	// that was previously issued a device credential can reconnect without
+	// re-scanning the QR code, regardless of how the channel was initially
+	// configured (pairing_token, static_token, etc.).
+	if identity, ok := c.authenticateDeviceBearer(r); ok {
+		return identity, true
+	}
 	mode := strings.ToLower(strings.TrimSpace(c.cfg.AuthMode))
 	switch mode {
 	case config.NavivoxAuthTailscaleIdentity:
@@ -137,9 +145,42 @@ func (c *Channel) authenticate(r *http.Request) (string, bool) {
 			return "", false
 		}
 		return identity, true
+	case config.NavivoxAuthDeviceBearer:
+		// Pure device-bearer mode (for serve with no bootstrap token).
+		return "", false
 	default:
 		return "", false
 	}
+}
+
+// authenticateDeviceBearer validates a device credential bearer token of the
+// form "{credentialId}:{secret}". The secret is never stored; only its
+// SHA-256 hash is compared against the record kept at credential-issuance time.
+func (c *Channel) authenticateDeviceBearer(r *http.Request) (string, bool) {
+	token, ok := navivoxSingleTokenCredential(r)
+	if !ok || token == "" {
+		return "", false
+	}
+	sep := strings.IndexByte(token, ':')
+	if sep <= 0 || sep >= len(token)-1 {
+		return "", false
+	}
+	credentialID := token[:sep]
+	secret := token[sep+1:]
+	if strings.TrimSpace(credentialID) == "" || strings.TrimSpace(secret) == "" {
+		return "", false
+	}
+	c.mu.Lock()
+	record, ok := c.deviceCredentials[credentialID]
+	c.mu.Unlock()
+	if !ok || record == nil || record.Revoked {
+		return "", false
+	}
+	hash := sha256.Sum256([]byte(secret))
+	if !hmac.Equal(hash[:], record.secretHash[:]) {
+		return "", false
+	}
+	return credentialID, true
 }
 
 func (c *Channel) authenticateTailscaleIdentity(r *http.Request) (string, bool) {

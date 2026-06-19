@@ -17,6 +17,7 @@ const (
 	NavivoxAuthStaticToken               = navivox.NavivoxAuthStaticToken
 	NavivoxAuthTailscaleIdentity         = navivox.NavivoxAuthTailscaleIdentity
 	NavivoxAuthTokenAndTailscaleIdentity = navivox.NavivoxAuthTokenAndTailscaleIdentity
+	NavivoxAuthDeviceBearer              = navivox.NavivoxAuthDeviceBearer
 
 	NavivoxMinExposedTokenLength        = navivox.NavivoxMinExposedTokenLength
 	NavivoxMinExposedTokenDistinctChars = navivox.NavivoxMinExposedTokenDistinctChars

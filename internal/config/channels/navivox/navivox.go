@@ -26,6 +26,7 @@ const (
 	NavivoxAuthStaticToken               = "static_token"
 	NavivoxAuthTailscaleIdentity         = "tailscale_identity"
 	NavivoxAuthTokenAndTailscaleIdentity = "token_and_tailscale_identity"
+	NavivoxAuthDeviceBearer              = "device_bearer"
 
 	NavivoxMinExposedTokenLength        = 32
 	NavivoxMinExposedTokenDistinctChars = 16

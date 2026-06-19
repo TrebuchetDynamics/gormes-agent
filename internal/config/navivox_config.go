@@ -17,6 +17,7 @@ const (
 	NavivoxAuthStaticToken               = channels.NavivoxAuthStaticToken
 	NavivoxAuthTailscaleIdentity         = channels.NavivoxAuthTailscaleIdentity
 	NavivoxAuthTokenAndTailscaleIdentity = channels.NavivoxAuthTokenAndTailscaleIdentity
+	NavivoxAuthDeviceBearer              = channels.NavivoxAuthDeviceBearer
 )
 
 type NavivoxCfg = channels.NavivoxCfg
