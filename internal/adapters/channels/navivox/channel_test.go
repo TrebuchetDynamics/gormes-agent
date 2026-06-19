@@ -1530,3 +1530,48 @@ func TestNavivoxTurnInProgressRejectedForDifferentDevice(t *testing.T) {
 		t.Fatalf("device B second attempt = %+v, want session_started after A's turn ended", startedB)
 	}
 }
+
+func TestNavivoxTurnInProgressRejectedForSameDevice(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 4)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+	httpc := newNavivoxHTTPContract(t, server.URL)
+
+	var cred struct {
+		CredentialID string `json:"credential_id"`
+		Secret       string `json:"secret"`
+	}
+	httpc.JSON(http.MethodPost, "/v1/navivox/device-credentials", `{"app_install_id":"device-a"}`, http.StatusCreated, &cred)
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/v1/navivox/stream"
+	header := http.Header{"Authorization": {"Bearer " + cred.CredentialID + ":" + cred.Secret}}
+	dialer := websocket.Dialer{Subprotocols: []string{navivoxWebSocketProtocol}}
+	conn, _, err := dialer.Dial(wsURL, header)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+
+	if err := conn.WriteJSON(ClientMessage{Type: "start_turn", RequestID: "req-1", SessionID: "s-1", Text: "first turn"}); err != nil {
+		t.Fatal(err)
+	}
+	started := readNonProfileContactEvent(t, conn)
+	if started.Type != "session_started" {
+		t.Fatalf("first turn = %+v, want session_started", started)
+	}
+	select {
+	case <-inbox:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for first turn in inbox")
+	}
+
+	// Same device, different session: must be rejected.
+	if err := conn.WriteJSON(ClientMessage{Type: "start_turn", RequestID: "req-2", SessionID: "s-2", Text: "second turn"}); err != nil {
+		t.Fatal(err)
+	}
+	rejected := readNonProfileContactEvent(t, conn)
+	if rejected.Type != "error" || rejected.Code != "turn_in_progress" {
+		t.Fatalf("concurrent same-device turn got %+v, want error turn_in_progress", rejected)
+	}
+}
