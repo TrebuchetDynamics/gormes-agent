@@ -310,7 +310,11 @@ func (c *Channel) sweepSessions() {
 			delete(c.sessions, id)
 			delete(c.activeTurnBySession, id)
 		} else if _, active := c.activeTurnBySession[id]; active {
-			if now.Sub(state.UpdatedAt) > navivoxActiveTurnMaxAge {
+			limit := c.cfg.ActiveTurnTimeout
+			if limit <= 0 {
+				limit = navivoxActiveTurnMaxAge
+			}
+			if now.Sub(state.UpdatedAt) > limit {
 				delete(c.activeTurnBySession, id)
 			}
 		}
