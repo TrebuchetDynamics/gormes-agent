@@ -659,8 +659,9 @@ func (c *Channel) handleSessionByID(w http.ResponseWriter, r *http.Request, _ st
 }
 
 type navivoxError struct {
-	code    string
-	message string
+	code      string
+	message   string
+	sessionID string
 }
 
 func (e navivoxError) Error() string { return e.message }
@@ -688,6 +689,14 @@ func statusForNavivoxError(err error) int {
 	default:
 		return http.StatusServiceUnavailable
 	}
+}
+
+func sessionIDForNavivoxError(err error) string {
+	var ne navivoxError
+	if errors.As(err, &ne) {
+		return ne.sessionID
+	}
+	return ""
 }
 
 func safeNavivoxError(err error) string {

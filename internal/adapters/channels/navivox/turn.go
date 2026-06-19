@@ -81,7 +81,13 @@ func (c *Channel) handleTurn(inbox chan<- gateway.InboundEvent) func(http.Respon
 		}
 		sessionID, contact, err := c.enqueueTurn(r.Context(), inbox, turnInputFromRequest(req), identity)
 		if err != nil {
-			writeNavivoxError(w, statusForNavivoxError(err), safeNavivoxRequestID(req.RequestID), codeForNavivoxError(err), safeNavivoxError(err))
+			writeNavivoxJSON(w, statusForNavivoxError(err), ServerEvent{
+				Type:      "error",
+				RequestID: safeNavivoxRequestID(req.RequestID),
+				Code:      codeForNavivoxError(err),
+				Message:   safeNavivoxError(err),
+				SessionID: sessionIDForNavivoxError(err),
+			})
 			return
 		}
 		requestID, _ := normalizeNavivoxRequestID(req.RequestID)
@@ -143,10 +149,16 @@ func (c *Channel) enqueueTurn(ctx context.Context, inbox chan<- gateway.InboundE
 	metadata := c.voiceProfileMetadataForTurn(turn.Metadata, profileID)
 	c.mu.Lock()
 	if len(c.activeTurnBySession) > 0 {
+		var activeSessionID string
+		for id := range c.activeTurnBySession {
+			activeSessionID = id
+			break
+		}
 		c.mu.Unlock()
 		return "", nil, navivoxError{
-			code:    "turn_in_progress",
-			message: "A turn is already in progress.",
+			code:      "turn_in_progress",
+			message:   "A turn is already in progress.",
+			sessionID: activeSessionID,
 		}
 	}
 	if c.activeTurnBySession == nil {

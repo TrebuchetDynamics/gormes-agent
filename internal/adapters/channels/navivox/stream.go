@@ -196,6 +196,7 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 					RequestID: safeNavivoxRequestID(msg.RequestID),
 					Code:      codeForNavivoxError(err),
 					Message:   safeNavivoxError(err),
+					SessionID: sessionIDForNavivoxError(err),
 				})
 			}
 		}
