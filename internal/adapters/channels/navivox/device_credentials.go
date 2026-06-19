@@ -103,6 +103,9 @@ func (c *Channel) issueDeviceCredential(w http.ResponseWriter, r *http.Request) 
 	c.deviceCredentials[credentialID] = record
 	c.mu.Unlock()
 
+	// Persist before responding: the client receives the secret only after it is
+	// durably stored so a crash cannot produce a credential the server has forgotten.
+	c.persistCredentialsToDisk()
 	// The raw secret is returned exactly once and never logged or persisted.
 	writeNavivoxJSON(w, http.StatusCreated, map[string]any{
 		"object":         "gormes.navivox.device_credential",
@@ -116,7 +119,6 @@ func (c *Channel) issueDeviceCredential(w http.ResponseWriter, r *http.Request) 
 		"created_at":     now.UTC().Format(time.RFC3339),
 		"expires_at":     expiresAt.UTC().Format(time.RFC3339),
 	})
-	go c.persistCredentialsToDisk()
 }
 
 func (c *Channel) listDeviceCredentials(w http.ResponseWriter, r *http.Request) {
