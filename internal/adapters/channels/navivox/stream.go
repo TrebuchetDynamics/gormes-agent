@@ -18,6 +18,7 @@ const (
 	navivoxWebSocketTokenProtocolPrefix = "gormes.navivox.token."
 	navivoxEventBufferCap               = 256
 	navivoxSessionMaxAge                = 24 * time.Hour
+	navivoxActiveTurnMaxAge             = 10 * time.Minute
 	navivoxSessionSweepInterval         = 5 * time.Minute
 	navivoxWebSocketPingInterval        = 25 * time.Second
 	navivoxWebSocketReadTimeout         = 90 * time.Second
@@ -307,6 +308,11 @@ func (c *Channel) sweepSessions() {
 	for id, state := range c.sessions {
 		if now.Sub(state.UpdatedAt) > navivoxSessionMaxAge {
 			delete(c.sessions, id)
+			delete(c.activeTurnBySession, id)
+		} else if _, active := c.activeTurnBySession[id]; active {
+			if now.Sub(state.UpdatedAt) > navivoxActiveTurnMaxAge {
+				delete(c.activeTurnBySession, id)
+			}
 		}
 	}
 }
