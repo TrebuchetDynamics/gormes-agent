@@ -142,6 +142,19 @@ func (c *Channel) enqueueTurn(ctx context.Context, inbox chan<- gateway.InboundE
 	serverID, profileID := profileScopeFromMetadata(turn.Metadata)
 	metadata := c.voiceProfileMetadataForTurn(turn.Metadata, profileID)
 	c.mu.Lock()
+	for _, owner := range c.activeTurnBySession {
+		if owner != identity {
+			c.mu.Unlock()
+			return "", nil, navivoxError{
+				code:    "turn_in_progress",
+				message: "Another device is currently in a turn.",
+			}
+		}
+	}
+	if c.activeTurnBySession == nil {
+		c.activeTurnBySession = make(map[string]string)
+	}
+	c.activeTurnBySession[sessionID] = identity
 	session := c.ensureSessionLocked(sessionID, requestID)
 	session.ProfileServer = serverID
 	session.ProfileID = profileID

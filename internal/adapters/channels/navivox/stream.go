@@ -296,6 +296,7 @@ func (cl *client) enqueueTurnControl(ctx context.Context, inbox chan<- gateway.I
 	if err := enqueue(ctx, inbox, ev); err != nil {
 		return err
 	}
+	cl.ch.clearActiveTurn(sessionID)
 	return cl.write(ServerEvent{Type: "done", RequestID: msg.RequestID, SessionID: sessionID, Status: status})
 }
 
@@ -376,6 +377,15 @@ func (c *Channel) broadcast(sessionID string, ev ServerEvent) {
 	if state := c.sessions[sessionID]; state != nil {
 		state.UpdatedAt = c.now()
 	}
+	if ev.Type == "done" {
+		delete(c.activeTurnBySession, sessionID)
+	}
+	c.mu.Unlock()
+}
+
+func (c *Channel) clearActiveTurn(sessionID string) {
+	c.mu.Lock()
+	delete(c.activeTurnBySession, sessionID)
 	c.mu.Unlock()
 }
 

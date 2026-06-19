@@ -56,6 +56,13 @@ type Channel struct {
 
 	deviceCredentials map[string]*deviceCredentialRecord
 	credentialsPath   string
+
+	// activeTurnBySession maps navivox session ID to the identity of the client
+	// that started the current turn. Used to reject concurrent turns from a
+	// different device with a turn_in_progress error rather than silently queuing.
+	// Entries are set by enqueueTurn and cleared when "done" is broadcast or the
+	// turn is cancelled/stopped.
+	activeTurnBySession map[string]string
 }
 
 type ChannelOption func(*Channel)
