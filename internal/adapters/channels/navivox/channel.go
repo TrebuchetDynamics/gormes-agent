@@ -135,7 +135,7 @@ func NewChannel(cfg config.NavivoxCfg, log *slog.Logger, opts ...ChannelOption) 
 		clients:            map[*client]struct{}{},
 		authFailures:       map[string]navivoxAuthFailureState{},
 		profileContacts:    map[string]ProfileContact{},
-		configAdmin:        defaultConfigAdminBackend(),
+		configAdmin:        runtimeConfigAdminBackend(cfg),
 		voiceProfiles:      defaultVoiceProfileBackend(),
 		runRecords:         map[string]*sessionpkg.NavivoxRunRecord{},
 		latestRunBySession: map[string]string{},

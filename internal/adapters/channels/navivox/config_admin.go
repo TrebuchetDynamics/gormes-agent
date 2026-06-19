@@ -36,6 +36,21 @@ func defaultConfigAdminBackend() configAdminBackend {
 	}
 }
 
+// runtimeConfigAdminBackend builds the configAdminBackend used by a live
+// Channel. The load function returns the channel's startup config instead of
+// re-reading from disk, so validation can never fail due to runtime state
+// diverging from the on-disk config (e.g. the token being removed from the
+// env file while gormes is still running on an already-issued device bearer).
+func runtimeConfigAdminBackend(navivox config.NavivoxCfg) configAdminBackend {
+	return configAdminBackend{
+		configPath: config.ConfigPath(),
+		envPath:    config.EnvPath(),
+		load: func() (config.Config, error) {
+			return config.Config{Navivox: navivox}, nil
+		},
+	}
+}
+
 type configAdminField struct {
 	Key         string   `json:"key"`
 	Type        string   `json:"type"`

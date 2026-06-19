@@ -183,6 +183,10 @@ func (c *Channel) authenticateDeviceBearer(r *http.Request) (string, bool) {
 	if !hmac.Equal(hash[:], record.secretHash[:]) {
 		return "", false
 	}
+	c.mu.Lock()
+	record.LastUsedAt = c.now()
+	c.mu.Unlock()
+	go c.persistCredentialsToDisk()
 	return credentialID, true
 }
 
