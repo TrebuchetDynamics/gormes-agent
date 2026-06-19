@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/navivox/capability"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/httpjson"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
@@ -477,12 +478,13 @@ type navivoxTransportSecurityStatus struct {
 func navivoxTransportSecurityStatusForRequest(r *http.Request, cfg config.NavivoxCfg) navivoxTransportSecurityStatus {
 	tls := r != nil && r.TLS != nil
 	privateNetwork := config.NavivoxExposureRequiresVPN(cfg.ExposureMode)
+	effectiveSecurity := navivoxEffectiveTransportSecurity(tls, privateNetwork, cfg.ExposureMode)
 	return navivoxTransportSecurityStatus{
-		EffectiveSecurity:         navivoxEffectiveTransportSecurity(tls, privateNetwork, cfg.ExposureMode),
+		EffectiveSecurity:         effectiveSecurity,
 		ExposureMode:              cfg.ExposureMode,
 		TLS:                       tls,
 		PrivateNetwork:            privateNetwork,
-		DurableCredentialsAllowed: false,
+		DurableCredentialsAllowed: capability.DurableReconnectSecurityAllowed(effectiveSecurity),
 	}
 }
 

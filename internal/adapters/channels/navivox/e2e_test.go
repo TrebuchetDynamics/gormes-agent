@@ -819,8 +819,8 @@ func TestNavivoxE2EAuthenticatedClientSeesGatewayIdentityAndRunsScopedTurn(t *te
 	if status.GatewayID != gatewayID || status.GatewayLabel != "Kitchen Gormes" {
 		t.Fatalf("status identity = %+v, want authenticated gateway identity and label", status)
 	}
-	if status.TransportSecurity.EffectiveSecurity != "loopback" || status.TransportSecurity.ExposureMode != config.NavivoxExposureLocal || status.TransportSecurity.TLS || status.TransportSecurity.PrivateNetwork || status.TransportSecurity.DurableCredentialsAllowed {
-		t.Fatalf("transport security = %+v, want loopback session-only status", status.TransportSecurity)
+	if status.TransportSecurity.EffectiveSecurity != "loopback" || status.TransportSecurity.ExposureMode != config.NavivoxExposureLocal || status.TransportSecurity.TLS || status.TransportSecurity.PrivateNetwork || !status.TransportSecurity.DurableCredentialsAllowed {
+		t.Fatalf("transport security = %+v, want loopback durable-allowed status", status.TransportSecurity)
 	}
 
 	var contacts profileContactSnapshot
