@@ -2,7 +2,7 @@ package main
 
 import "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescmd"
 
-var Version = "0.2.25"
+var Version = "0.2.26"
 
 // VersionDateAlias is the Hermes-style vYYYY.M.D paired alias for the
 // operator-facing semantic release version.

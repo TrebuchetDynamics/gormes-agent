@@ -189,6 +189,9 @@ func (c *Channel) handleDeviceCredentialRevoke(w http.ResponseWriter, r *http.Re
 	}
 	c.mu.Unlock()
 
+	// Persist synchronously before responding: a crash between response and write
+	// would leave the credential valid on disk after restart.
+	c.persistCredentialsToDisk()
 	// Idempotent: revocation reports success even for already-revoked or unknown
 	// IDs so it never leaks which credential IDs exist.
 	writeNavivoxJSON(w, http.StatusOK, map[string]any{
@@ -196,7 +199,6 @@ func (c *Channel) handleDeviceCredentialRevoke(w http.ResponseWriter, r *http.Re
 		"credential_id": credentialID,
 		"revoked":       true,
 	})
-	go c.persistCredentialsToDisk()
 }
 
 func navivoxCappedDurableScopes(requested []string) []string {

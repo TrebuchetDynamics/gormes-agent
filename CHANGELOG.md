@@ -8,6 +8,18 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.26] - 2026-06-19
+
+Date alias: `v2026.6.19`.
+
+> **Navivox device credential activity tracking and non-blocking persistence.**
+
+### Added
+- `last_used_at` field on device credentials: stamped on each successful `device_bearer` reconnect, persisted to `device-credentials.json`, and exposed in the list endpoint response so operators can audit credential activity.
+
+### Fixed
+- `persistCredentialsToDisk` is now fire-and-forget (`go c.persistCredentialsToDisk()`) in the issue, revoke, and auth paths — HTTP responses are no longer held while the disk write completes.
+
 ## [0.2.25] - 2026-06-19
 
 Date alias: `v2026.6.19`.
