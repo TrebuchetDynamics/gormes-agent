@@ -176,6 +176,9 @@ func (c *Channel) authenticateDeviceBearer(r *http.Request) (string, bool) {
 	if !ok || record == nil || record.Revoked {
 		return "", false
 	}
+	if !record.ExpiresAt.IsZero() && c.now().After(record.ExpiresAt) {
+		return "", false
+	}
 	hash := sha256.Sum256([]byte(secret))
 	if !hmac.Equal(hash[:], record.secretHash[:]) {
 		return "", false

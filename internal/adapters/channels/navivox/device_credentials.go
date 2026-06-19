@@ -24,6 +24,7 @@ type deviceCredentialRecord struct {
 	GatewayID    string
 	Scopes       []string
 	CreatedAt    time.Time
+	ExpiresAt    time.Time
 	Revoked      bool
 	secretHash   [32]byte
 }
@@ -31,6 +32,10 @@ type deviceCredentialRecord struct {
 // navivoxDurableCredentialScopes caps the interim slice to a single coarse
 // scope; finer scopes arrive with the keypair-challenge slice.
 var navivoxDurableCredentialScopes = []string{"navivox"}
+
+// navivoxDeviceCredentialTTL is the lifetime of an interim device credential.
+// After this duration gormes rejects the credential and the app must re-pair.
+const navivoxDeviceCredentialTTL = 365 * 24 * time.Hour
 
 func (c *Channel) handleDeviceCredentials(w http.ResponseWriter, r *http.Request, _ string) {
 	switch r.Method {
@@ -83,12 +88,14 @@ func (c *Channel) issueDeviceCredential(w http.ResponseWriter, r *http.Request) 
 	scopes := navivoxCappedDurableScopes(body.Scopes)
 	now := c.now()
 
+	expiresAt := now.Add(navivoxDeviceCredentialTTL)
 	record := &deviceCredentialRecord{
 		CredentialID: credentialID,
 		AppInstallID: appInstallID,
 		GatewayID:    c.gatewayID,
 		Scopes:       scopes,
 		CreatedAt:    now,
+		ExpiresAt:    expiresAt,
 		secretHash:   sha256.Sum256([]byte(secret)),
 	}
 	c.mu.Lock()
@@ -106,6 +113,7 @@ func (c *Channel) issueDeviceCredential(w http.ResponseWriter, r *http.Request) 
 		"gateway_id":     c.gatewayID,
 		"app_install_id": appInstallID,
 		"created_at":     now.UTC().Format(time.RFC3339),
+		"expires_at":     expiresAt.UTC().Format(time.RFC3339),
 	})
 	c.persistCredentialsToDisk()
 }
@@ -137,6 +145,7 @@ func (c *Channel) listDeviceCredentials(w http.ResponseWriter, r *http.Request) 
 			"app_install_id": record.AppInstallID,
 			"scopes":         record.Scopes,
 			"created_at":     record.CreatedAt.UTC().Format(time.RFC3339),
+			"expires_at":     record.ExpiresAt.UTC().Format(time.RFC3339),
 			"revoked":        record.Revoked,
 		})
 	}

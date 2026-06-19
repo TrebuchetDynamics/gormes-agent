@@ -21,6 +21,7 @@ type credentialPersistenceRecord struct {
 	GatewayID     string   `json:"gateway_id"`
 	Scopes        []string `json:"scopes"`
 	CreatedAt     string   `json:"created_at"`
+	ExpiresAt     string   `json:"expires_at,omitempty"`
 	Revoked       bool     `json:"revoked"`
 	SecretHashHex string   `json:"secret_hash"`
 }
@@ -47,12 +48,18 @@ func loadCredentialsFromDisk(path string) (map[string]*deviceCredentialRecord, e
 		var hash [32]byte
 		copy(hash[:], hashBytes)
 		createdAt, _ := time.Parse(time.RFC3339, rec.CreatedAt)
+		expiresAt, _ := time.Parse(time.RFC3339, rec.ExpiresAt)
+		// Back-fill expiry for credentials written before expiry was introduced.
+		if expiresAt.IsZero() && !createdAt.IsZero() {
+			expiresAt = createdAt.Add(navivoxDeviceCredentialTTL)
+		}
 		out[rec.CredentialID] = &deviceCredentialRecord{
 			CredentialID: rec.CredentialID,
 			AppInstallID: rec.AppInstallID,
 			GatewayID:    rec.GatewayID,
 			Scopes:       rec.Scopes,
 			CreatedAt:    createdAt,
+			ExpiresAt:    expiresAt,
 			Revoked:      rec.Revoked,
 			secretHash:   hash,
 		}
@@ -63,7 +70,7 @@ func loadCredentialsFromDisk(path string) (map[string]*deviceCredentialRecord, e
 func saveCredentialsToDisk(path string, credentials map[string]*deviceCredentialRecord) error {
 	records := make([]credentialPersistenceRecord, 0, len(credentials))
 	for _, rec := range credentials {
-		records = append(records, credentialPersistenceRecord{
+		r := credentialPersistenceRecord{
 			CredentialID:  rec.CredentialID,
 			AppInstallID:  rec.AppInstallID,
 			GatewayID:     rec.GatewayID,
@@ -71,7 +78,11 @@ func saveCredentialsToDisk(path string, credentials map[string]*deviceCredential
 			CreatedAt:     rec.CreatedAt.UTC().Format(time.RFC3339),
 			Revoked:       rec.Revoked,
 			SecretHashHex: hex.EncodeToString(rec.secretHash[:]),
-		})
+		}
+		if !rec.ExpiresAt.IsZero() {
+			r.ExpiresAt = rec.ExpiresAt.UTC().Format(time.RFC3339)
+		}
+		records = append(records, r)
 	}
 	file := credentialPersistenceFile{Version: 1, Credentials: records}
 	data, err := json.MarshalIndent(file, "", "  ")
