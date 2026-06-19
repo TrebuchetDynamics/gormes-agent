@@ -346,6 +346,9 @@ func (c *Channel) removeClient(cl *client) {
 			state.Subscribers--
 		}
 	}
+	if c.singleUsePairingStream {
+		c.pairingStreamConsumed = false
+	}
 	c.mu.Unlock()
 	close(cl.events)
 	<-cl.done
