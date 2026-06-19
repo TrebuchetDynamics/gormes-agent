@@ -113,10 +113,16 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			writeNavivoxError(w, http.StatusBadRequest, "", "protocol_required", "Navivox WebSocket protocol is required")
 			return
 		}
+		// Device bearer credentials bypass the single-use pairing stream gate:
+		// reconnects don't need a new QR scan.
+		_, isDeviceBearer := c.authenticateDeviceBearer(r)
 		releasePairingStream, ok := c.reservePairingStream()
 		if !ok {
-			writeNavivoxError(w, http.StatusConflict, "", "pairing_token_consumed", "Pairing token already claimed")
-			return
+			if !isDeviceBearer {
+				writeNavivoxError(w, http.StatusConflict, "", "pairing_token_consumed", "Pairing token already claimed")
+				return
+			}
+			releasePairingStream = func(bool) {}
 		}
 		upgrader := websocket.Upgrader{
 			Subprotocols: []string{navivoxWebSocketProtocol},
@@ -345,9 +351,6 @@ func (c *Channel) removeClient(cl *client) {
 		if state := c.sessions[sessionID]; state != nil && state.Subscribers > 0 {
 			state.Subscribers--
 		}
-	}
-	if c.singleUsePairingStream {
-		c.pairingStreamConsumed = false
 	}
 	c.mu.Unlock()
 	close(cl.events)

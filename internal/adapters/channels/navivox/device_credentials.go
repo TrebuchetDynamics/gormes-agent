@@ -107,6 +107,7 @@ func (c *Channel) issueDeviceCredential(w http.ResponseWriter, r *http.Request) 
 		"app_install_id": appInstallID,
 		"created_at":     now.UTC().Format(time.RFC3339),
 	})
+	c.persistCredentialsToDisk()
 }
 
 func (c *Channel) listDeviceCredentials(w http.ResponseWriter, r *http.Request) {
@@ -181,6 +182,7 @@ func (c *Channel) handleDeviceCredentialRevoke(w http.ResponseWriter, r *http.Re
 		"credential_id": credentialID,
 		"revoked":       true,
 	})
+	c.persistCredentialsToDisk()
 }
 
 func navivoxCappedDurableScopes(requested []string) []string {

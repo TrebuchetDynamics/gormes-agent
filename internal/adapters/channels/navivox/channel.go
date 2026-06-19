@@ -55,6 +55,7 @@ type Channel struct {
 	latestRunBySession map[string]string
 
 	deviceCredentials map[string]*deviceCredentialRecord
+	credentialsPath   string
 }
 
 type ChannelOption func(*Channel)
@@ -68,6 +69,16 @@ func WithProfileRouting(report config.NavivoxProfileRoutingReport) ChannelOption
 func WithSingleUsePairingStream() ChannelOption {
 	return func(c *Channel) {
 		c.singleUsePairingStream = true
+	}
+}
+
+// WithCredentialsPath enables disk persistence for device credentials.
+// On startup, existing credentials are loaded from path; after each issue or
+// revoke, the full set is atomically written back to path. The raw secret is
+// never written — only the SHA-256 hash is stored.
+func WithCredentialsPath(path string) ChannelOption {
+	return func(c *Channel) {
+		c.credentialsPath = path
 	}
 }
 
@@ -125,6 +136,13 @@ func NewChannel(cfg config.NavivoxCfg, log *slog.Logger, opts ...ChannelOption) 
 	for _, opt := range opts {
 		if opt != nil {
 			opt(ch)
+		}
+	}
+	if ch.credentialsPath != "" {
+		if loaded, err := loadCredentialsFromDisk(ch.credentialsPath); err == nil {
+			ch.deviceCredentials = loaded
+		} else {
+			log.Warn("navivox: could not load device credentials from disk", "path", ch.credentialsPath, "error", err)
 		}
 	}
 	return ch, nil

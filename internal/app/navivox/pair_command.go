@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -112,6 +113,7 @@ func runNavivoxPair(cmd *cobra.Command, opts PairOptions) error {
 	}
 	runtimeCfg := config.NavivoxCfg{
 		Enabled:         true,
+		GatewayID:       navivoxPairGatewayID(),
 		BindHost:        target.Host,
 		Port:            opts.Port,
 		ExposureMode:    target.ExposureMode,
@@ -266,7 +268,10 @@ func startNavivoxPairBridge(ctx context.Context, cfg config.NavivoxCfg, autoPort
 	bridgeCtx, stop := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	inbox := make(chan gateway.InboundEvent, 16)
-	channel, err := channelnavivox.NewChannel(cfg, nil, channelnavivox.WithSingleUsePairingStream())
+	channel, err := channelnavivox.NewChannel(cfg, nil,
+		channelnavivox.WithSingleUsePairingStream(),
+		channelnavivox.WithCredentialsPath(navivoxCredentialsPath()),
+	)
 	if err != nil {
 		stop()
 		_ = ln.Close()
@@ -377,3 +382,29 @@ func StopPairBridge(stop context.CancelFunc, done <-chan error) error {
 }
 
 func PairPortInUse(err error) bool { return navivoxPairPortInUse(err) }
+
+// navivoxCredentialsPath returns the path where device credentials are persisted.
+func navivoxCredentialsPath() string {
+	return filepath.Join(config.GormesHome(), "state", "navivox", "device-credentials.json")
+}
+
+// navivoxPairGatewayID returns a stable gateway ID for pair sessions, creating
+// and saving one on first use. Stability means the Flutter app can reconnect
+// after gormes restarts without re-scanning the QR code, because the saved
+// gateway ID and stored device credential stay valid across restarts.
+func navivoxPairGatewayID() string {
+	path := filepath.Join(config.GormesHome(), "state", "navivox", "gateway-id")
+	if data, err := os.ReadFile(path); err == nil {
+		if id := strings.TrimSpace(string(data)); id != "" {
+			return id
+		}
+	}
+	id, err := config.NewNavivoxGatewayID()
+	if err != nil {
+		return "" // NewChannel will generate one; non-fatal
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err == nil {
+		_ = os.WriteFile(path, []byte(id+"\n"), 0600)
+	}
+	return id
+}
