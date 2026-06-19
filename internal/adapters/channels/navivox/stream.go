@@ -19,6 +19,8 @@ const (
 	navivoxEventBufferCap               = 256
 	navivoxSessionMaxAge                = 24 * time.Hour
 	navivoxSessionSweepInterval         = 5 * time.Minute
+	navivoxWebSocketPingInterval        = 25 * time.Second
+	navivoxWebSocketReadTimeout         = 90 * time.Second
 )
 
 type sessionState struct {
@@ -138,7 +140,18 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			done:     make(chan struct{}, 1),
 		}
 		conn.SetReadLimit(navivoxMaxTurnRequestBytes + 4096)
+		conn.SetPongHandler(func(string) error {
+			return conn.SetReadDeadline(time.Now().Add(navivoxWebSocketReadTimeout))
+		})
+		conn.SetPingHandler(func(data string) error {
+			_ = conn.SetReadDeadline(time.Now().Add(navivoxWebSocketReadTimeout))
+			cl.writeMu.Lock()
+			defer cl.writeMu.Unlock()
+			return cl.conn.WriteMessage(websocket.PongMessage, []byte(data))
+		})
+		_ = conn.SetReadDeadline(time.Now().Add(navivoxWebSocketReadTimeout))
 		go cl.eventPump()
+		go cl.pingLoop()
 		c.addClient(cl)
 		defer c.removeClient(cl)
 		defer conn.Close()
@@ -147,6 +160,7 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			if err != nil {
 				return
 			}
+			_ = conn.SetReadDeadline(time.Now().Add(navivoxWebSocketReadTimeout))
 			if len(payload) > navivoxMaxTurnRequestBytes {
 				var envelope struct {
 					RequestID string `json:"request_id"`
@@ -364,6 +378,24 @@ func (cl *client) eventPump() {
 	for ev := range cl.events {
 		if err := cl.write(ev); err != nil {
 			return
+		}
+	}
+}
+
+func (cl *client) pingLoop() {
+	ticker := time.NewTicker(navivoxWebSocketPingInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-cl.done:
+			return
+		case <-ticker.C:
+			cl.writeMu.Lock()
+			err := cl.conn.WriteMessage(websocket.PingMessage, nil)
+			cl.writeMu.Unlock()
+			if err != nil {
+				return
+			}
 		}
 	}
 }
