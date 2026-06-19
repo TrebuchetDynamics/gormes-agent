@@ -8,6 +8,24 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.25] - 2026-06-19
+
+Date alias: `v2026.6.19`.
+
+> **Navivox durable reconnect, concurrent turn guard, credential persistence, and channel hardening.**
+
+### Added
+- `device_bearer` auth for durable reconnect: devices issue credentials on first pair and reconnect without re-scanning the QR code. Credentials are persisted to `$GORMES_HOME/state/navivox/device-credentials.json`, expire after 365 days, and are keyed by `credentialId:secret` Bearer token.
+- Concurrent turn guard: new turns are rejected with `turn_in_progress` (including the active session ID) when any turn is already in progress, globally across all sessions and devices.
+- Configurable active turn timeout with stale-entry sweep to prevent deadlock if a turn never completes.
+- WebSocket keepalive ping/pong with read deadline to detect dead connections early.
+- Active `session_id` included in `turn_in_progress` error response so clients can subscribe to the ongoing turn.
+
+### Fixed
+- `DurableCredentialsAllowed` in `/v1/navivox/status` was hardcoded `false`; now computed from effective transport security (loopback/TLS/private-network → `true`), consistent with the capabilities document.
+- Pairing evidence slice capped at 100 entries to prevent unbounded `pairing.json` growth under rate-limit or brute-force traffic.
+- `pairingStreamConsumed` reset on client disconnect so the next client can consume the pairing stream.
+
 ## [0.2.24] - 2026-06-05
 
 Date alias: `v2026.6.5`.
