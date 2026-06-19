@@ -18,7 +18,10 @@ const (
 	navivoxWebSocketTokenProtocolPrefix = "gormes.navivox.token."
 	navivoxEventBufferCap               = 256
 	navivoxSessionMaxAge                = 24 * time.Hour
+	navivoxActiveTurnMaxAge             = 10 * time.Minute
 	navivoxSessionSweepInterval         = 5 * time.Minute
+	navivoxWebSocketPingInterval        = 25 * time.Second
+	navivoxWebSocketReadTimeout         = 90 * time.Second
 )
 
 type sessionState struct {
@@ -111,10 +114,16 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			writeNavivoxError(w, http.StatusBadRequest, "", "protocol_required", "Navivox WebSocket protocol is required")
 			return
 		}
+		// Device bearer credentials bypass the single-use pairing stream gate:
+		// reconnects don't need a new QR scan.
+		_, isDeviceBearer := c.authenticateDeviceBearer(r)
 		releasePairingStream, ok := c.reservePairingStream()
 		if !ok {
-			writeNavivoxError(w, http.StatusConflict, "", "pairing_token_consumed", "Pairing token already claimed")
-			return
+			if !isDeviceBearer {
+				writeNavivoxError(w, http.StatusConflict, "", "pairing_token_consumed", "Pairing token already claimed")
+				return
+			}
+			releasePairingStream = func(bool) {}
 		}
 		upgrader := websocket.Upgrader{
 			Subprotocols: []string{navivoxWebSocketProtocol},
@@ -138,7 +147,18 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			done:     make(chan struct{}, 1),
 		}
 		conn.SetReadLimit(navivoxMaxTurnRequestBytes + 4096)
+		conn.SetPongHandler(func(string) error {
+			return conn.SetReadDeadline(time.Now().Add(navivoxWebSocketReadTimeout))
+		})
+		conn.SetPingHandler(func(data string) error {
+			_ = conn.SetReadDeadline(time.Now().Add(navivoxWebSocketReadTimeout))
+			cl.writeMu.Lock()
+			defer cl.writeMu.Unlock()
+			return cl.conn.WriteMessage(websocket.PongMessage, []byte(data))
+		})
+		_ = conn.SetReadDeadline(time.Now().Add(navivoxWebSocketReadTimeout))
 		go cl.eventPump()
+		go cl.pingLoop()
 		c.addClient(cl)
 		defer c.removeClient(cl)
 		defer conn.Close()
@@ -147,6 +167,7 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			if err != nil {
 				return
 			}
+			_ = conn.SetReadDeadline(time.Now().Add(navivoxWebSocketReadTimeout))
 			if len(payload) > navivoxMaxTurnRequestBytes {
 				var envelope struct {
 					RequestID string `json:"request_id"`
@@ -175,6 +196,7 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 					RequestID: safeNavivoxRequestID(msg.RequestID),
 					Code:      codeForNavivoxError(err),
 					Message:   safeNavivoxError(err),
+					SessionID: sessionIDForNavivoxError(err),
 				})
 			}
 		}
@@ -276,6 +298,7 @@ func (cl *client) enqueueTurnControl(ctx context.Context, inbox chan<- gateway.I
 	if err := enqueue(ctx, inbox, ev); err != nil {
 		return err
 	}
+	cl.ch.clearActiveTurn(sessionID)
 	return cl.write(ServerEvent{Type: "done", RequestID: msg.RequestID, SessionID: sessionID, Status: status})
 }
 
@@ -286,6 +309,15 @@ func (c *Channel) sweepSessions() {
 	for id, state := range c.sessions {
 		if now.Sub(state.UpdatedAt) > navivoxSessionMaxAge {
 			delete(c.sessions, id)
+			delete(c.activeTurnBySession, id)
+		} else if _, active := c.activeTurnBySession[id]; active {
+			limit := c.cfg.ActiveTurnTimeout
+			if limit <= 0 {
+				limit = navivoxActiveTurnMaxAge
+			}
+			if now.Sub(state.UpdatedAt) > limit {
+				delete(c.activeTurnBySession, id)
+			}
 		}
 	}
 }
@@ -356,6 +388,15 @@ func (c *Channel) broadcast(sessionID string, ev ServerEvent) {
 	if state := c.sessions[sessionID]; state != nil {
 		state.UpdatedAt = c.now()
 	}
+	if ev.Type == "done" {
+		delete(c.activeTurnBySession, sessionID)
+	}
+	c.mu.Unlock()
+}
+
+func (c *Channel) clearActiveTurn(sessionID string) {
+	c.mu.Lock()
+	delete(c.activeTurnBySession, sessionID)
 	c.mu.Unlock()
 }
 
@@ -364,6 +405,24 @@ func (cl *client) eventPump() {
 	for ev := range cl.events {
 		if err := cl.write(ev); err != nil {
 			return
+		}
+	}
+}
+
+func (cl *client) pingLoop() {
+	ticker := time.NewTicker(navivoxWebSocketPingInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-cl.done:
+			return
+		case <-ticker.C:
+			cl.writeMu.Lock()
+			err := cl.conn.WriteMessage(websocket.PingMessage, nil)
+			cl.writeMu.Unlock()
+			if err != nil {
+				return
+			}
 		}
 	}
 }

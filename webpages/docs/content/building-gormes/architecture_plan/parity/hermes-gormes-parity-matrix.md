@@ -41,15 +41,15 @@ Lane key (per the parity operating model):
 
 | # | Area | Status | Lane | Progress row |
 |---|---|---|---|---|
-| 1 | `/status` heading + fields + reply quoting + gateway-side execution | partial | B/C | Telegram /status Hermes-format closeout (planned) |
-| 2 | `/help` and Telegram setMyCommands menu | partial | B | Telegram dynamic BotCommand menu wiring (planned) |
-| 3 | Slash command registry (Hermes vs Gormes command names + aliases) | partial | B/H | Hermes CLI command-tree parity manifest (complete inventory); Telegram slash registry handler-coverage gap (planner refinement) |
+| 1 | `/status` heading + fields + reply quoting + gateway-side execution | parity | B/C | Hermes-format /status field order, optional title, tokens, running marker, reply quoting, and provider bypass are tested |
+| 2 | `/help` and Telegram setMyCommands menu | parity | B | Registry-driven /help plus Telegram setMyCommands with dynamic skill commands, sanitization, and platform limit coverage are tested |
+| 3 | Slash command registry (Hermes vs Gormes command names + aliases) | parity | B/H | Gateway and CLI registries recognize shared/gateway command names and aliases, preserve unavailable evidence, and derive help/menu surfaces from the canonical registry |
 | 4 | Unknown command behavior | parity | B | Active-turn slash bypass tests cover unknown |
 | 5 | Unavailable command behavior | parity | B | active_turn_command_bypass_test (covered) |
 | 6 | Active-turn slash bypass behavior | parity | B | Gateway active-turn policy manifest closeout (planned for closeout edge cases) |
 | 7 | Busy/admission behavior | parity | B | Active-turn follow-up queue + late-arrival drain policy (complete) |
-| 8 | Telegram reply quoting (every bot response) | partial | B | Telegram reply_to_mode and reply-context parity (planned) |
-| 9 | Telegram message threading (forum topic threads) | partial | B | Telegram reply_to_mode and reply-context parity (planned) |
+| 8 | Telegram reply quoting (every bot response) | parity | B | Reply modes all/first/off, SendReply/SendThreadReply reply_to_message_id, and deleted-target fallback are wired and tested |
+| 9 | Telegram message threading (forum topic threads) | parity | B | Thread-aware sends include message_thread_id, General-topic behavior, chat actions, and stale-thread fallback tests |
 | 10 | Telegram markdown rendering (bold/italic/code/headers/spoilers/strike) | parity | B | Telegram MarkdownV2 parse-mode rendering closeout (complete) |
 | 11 | Telegram code blocks | parity | B | Telegram MarkdownV2 parse-mode rendering closeout (complete) |
 | 12 | Telegram bullets/headings | parity | B | Telegram MarkdownV2 parse-mode rendering closeout (complete) |
@@ -60,67 +60,67 @@ Lane key (per the parity operating model):
 | 17 | Hourglass lifecycle (no clutter) | parity | B | Telegram typing action + placeholder lifecycle parity (planned for typing-indicator polish) |
 | 18 | Message edits vs new messages | parity | B | Coalescer placeholder-then-edit fixture covers it |
 | 19 | Streaming cadence | parity | B | Coalescer window + freshFinalAfter govern cadence |
-| 20 | Tool trace formatting (memory/search_files/read_file/patch/terminal icons) | partial only for configurable skin emoji overrides; channel renderer parity is validated | B | Gateway stream/tool trace formatting fixture matrix (complete/validated); Native TUI Hermes tool progress + modal panel renderers (complete/validated) |
-| 21 | Duplicate collapse | partial | B | Restart duplicate-suppression covers operator path; chat-text dedup not implemented (new low-priority gap) |
-| 22 | Mobile-readable formatting | parity for MarkdownV2 parse-mode and shared tool-progress traces; partial for broader style polish | B | Telegram MarkdownV2 parse-mode rendering closeout (complete); Gateway stream/tool trace formatting fixture matrix (complete/validated); Native TUI Hermes tool progress + modal panel renderers (complete/validated) |
+| 20 | Tool trace formatting (memory/search_files/read_file/patch/terminal icons) | parity | B | Gateway/TUI/shared tool trace icons, modes, duplicate collapse, previews, and per-platform mode overrides are validated; skin YAML emoji customization is tracked outside this renderer row |
+| 21 | Duplicate collapse | parity | B | Message-ID dedup plus same-content active/follow-up collapse are scoped by platform/chat/thread/user and tested |
+| 22 | Mobile-readable formatting | parity | B | Telegram MarkdownV2 parse-mode, fallback, shared tool-progress traces, and native TUI tool progress/modal renderers are covered |
 | 23 | Identity / persona ("My name is Gormes" not "ChatGPT") | parity | D | Live-turn SOUL.md and project context wiring (channel-neutral) (complete) |
-| 24 | Final provider request includes Gormes identity (integration test) | parity at gateway, planned at production cmd | D | Telegram production live-turn provider payload golden (planned, P0) |
-| 25 | Final provider request includes USER.md / MEMORY.md | parity at gateway | D | Live-turn USER.md and MEMORY.md durable user context block (channel-neutral) (complete) |
-| 26 | Final provider request includes AGENTS.md / project context | parity at gateway | D | Live-turn SOUL.md and project context wiring (complete) |
-| 27 | Final provider request includes skill guidance | partial | D | Toolset-aware skills prompt snapshot (planned, blocking parent umbrella) |
+| 24 | Final provider request includes Gormes identity (integration test) | parity | D | Gateway and production Telegram provider-payload golden tests assert Gormes identity/system context reaches the final request |
+| 25 | Final provider request includes USER.md / MEMORY.md | parity | D | Live-turn USER.md and MEMORY.md durable user context block (channel-neutral) (complete) |
+| 26 | Final provider request includes AGENTS.md / project context | parity | D | Live-turn SOUL.md and project context wiring (complete) |
+| 27 | Final provider request includes skill guidance | parity | D | Final provider requests inject SkillsGuidance before selected skill blocks and record selected skill usage when skills are active |
 | 28 | Final provider request includes platform context | parity | D | Session context BuildSessionContextPrompt (covered by gateway test fixture) |
 | 29 | Final provider request includes session metadata | parity | D | BuildSessionContextPrompt covers this |
-| 30 | Final provider request includes timestamp/timezone/model/provider | parity at gateway | D | Live-turn timestamp + model/provider/session metadata block + self-help guidance (complete) |
-| 31 | Final provider request includes tool guidance constants | partial | D | Live-turn model/tool guidance wiring (planned) |
+| 30 | Final provider request includes timestamp/timezone/model/provider | parity | D | Live-turn timestamp + model/provider/session metadata block + self-help guidance (complete) |
+| 31 | Final provider request includes tool guidance constants | parity | D | Final provider requests inject memory, session_search, skills, tool-use enforcement, model, and research guidance when matching capabilities are active |
 | 32 | Context-file production discovery (~/.gormes/SOUL.md, workspace fallback, Hermes profile fallback) | parity | D | Live-turn SOUL/AGENTS wiring uses GORMES_HOME → memory/ → HERMES_HOME → CWD ancestor chain |
-| 33 | Session ID generation (Hermes-style format) | partial | C | Gateway conversational session metadata refresh (planned) |
-| 34 | Session title auto-generation | missing wiring | C | Gateway conversational session metadata refresh (planned); hermes.GenerateTitle exists but is unwired |
-| 35 | Session title persistence (across restarts) | partial | C | Gateway conversational session metadata refresh (planned) |
-| 36 | Manual title preservation (don't overwrite) | parity (in /status pull-through) | C | status_command.go preserves existing meta.Title |
-| 37 | Created timestamp (no `(unknown)`) | partial | C | status_command.go uses session-ID prefix, returns `(unknown)` if not a known format. Gateway conversational session metadata refresh (planned) |
-| 38 | Last activity timestamp | partial | C | Gateway conversational session metadata refresh (planned) |
-| 39 | Token accounting accuracy | partial | C | Gateway session token accounting parity (planned) |
+| 33 | Session ID generation (Hermes-style format) | parity | C | Conversational submits generate YYYYMMDD_HHMMSS_<suffix> IDs, persist mapping metadata, and reuse the mapped ID across turns |
+| 34 | Session title auto-generation | parity | C | Gateway PhaseIdle auto-title calls the configured TitleModel/TitleStore once per eligible session and production config wires both seams |
+| 35 | Session title persistence (across restarts) | parity | C | Manual and auto titles persist in session metadata and /status reads preserved titles |
+| 36 | Manual title preservation (don't overwrite) | parity | C | status_command.go preserves existing meta.Title |
+| 37 | Created timestamp (no `(unknown)`) | parity | C | Fresh conversational sessions write CreatedAt metadata and /status reads it before fallback parsing |
+| 38 | Last activity timestamp | parity | C | Conversational session metadata refresh preserves CreatedAt and updates UpdatedAt on subsequent turns |
+| 39 | Token accounting accuracy | parity | C | Render-frame token totals persist into session metadata and /status renders durable cumulative totals |
 | 40 | Agent Running status accuracy | parity | C | hasActiveTurn() drives status |
 | 41 | Connected Platforms accuracy | parity | C | connectedPlatforms() drives status |
 | 42 | Session resume | parity | C | Durable pause/resume intent contract (complete) |
-| 43 | Session reset/new/retry/undo | partial | C | /new shipped via EventReset; /retry, /undo unwired (49-file CLI tree port umbrella) |
-| 44 | Memory/Goncho durable user memory | partial | E | Hermes memory tool over Goncho/local durable store (planned) |
-| 45 | Memory prompt insertion | parity at gateway | D/E | Live-turn USER.md and MEMORY.md durable user context block (complete) |
-| 46 | Memory write/read lifecycle | partial | E | Goncho memory provider lifecycle adapter (planned) |
+| 43 | Session reset/new/retry/undo | parity | C | /new + /reset alias, durable SQLite-backed /retry transcript rewrite, and /undo [N] rewind/resume are wired and tested |
+| 44 | Memory/Goncho durable user memory | parity | E | Hermes memory tool over local durable markdown/Goncho Memory V1 store is covered by memory and Goncho tests |
+| 45 | Memory prompt insertion | parity | D/E | Live-turn USER.md and MEMORY.md durable user context block is injected channel-neutrally and tested |
+| 46 | Memory write/read lifecycle | parity | E | Memory add/read/replace/remove plus Goncho provider lifecycle/markdown reload/export are covered |
 | 47 | Memory redaction | parity | E | Existing redaction fixtures in internal/memory and internal/audit |
-| 48 | Session summaries / compression boundary | partial | E | Long session management, Context compression, Manual compression feedback + context references, Kernel compression-boundary callback binding (all planned) |
+| 48 | Session summaries / compression boundary | parity | E | Provider-backed compression, summary lineage, manual /compress binding, feedback, context references, and boundary callbacks are covered |
 | 49 | GONCHO branding (not Kancho, not Honcho-renamed) | parity | E | internal/goncho/ ships and tests assert workspace=gormes peer=gormes |
-| 50 | Provider registry parity | partial | F | Bedrock / Gemini Cloud Code / OpenRouter / Google Code Assist / Codex provider runtime rows planned |
+| 50 | Provider registry parity | parity | F | Registry/aliases plus OpenRouter, Google Code Assist, Gemini Cloud Code, Codex Responses, Bedrock runtime/SigV4/stale-client, Gemini native transport/runtime, and google-gemini-cli OAuth login/runtime/refresh are covered |
 | 51 | Auth status command | parity | F/H | cmd/gormes/auth_status_command_test.go covers it |
 | 52 | Auth add/list/remove/logout commands | parity | F/H | cmd/gormes/auth_command_test.go covers per-provider lifecycle |
-| 53 | Codex device-code/OAuth path | partial | F/H | Hermes auth OAuth provider adapters (planned) |
-| 54 | Credential pool | partial | F | Gormes auth bare interactive credential-pool readout (planned) |
+| 53 | Codex device-code/OAuth path | parity | F/H | gormes auth add openai-codex --type oauth runs Hermes-compatible device flow plus Codex CLI import/fallback |
+| 54 | Credential pool | parity | F | Bare gormes auth lists credential pools with redacted provider/account evidence and Bedrock identity status |
 | 55 | Provider request shape | parity | F | hermes.ChatRequest used end-to-end |
 | 56 | Provider stream handling | parity | F | OpenStream + retry budget shipped in kernel |
 | 57 | Retry behavior | parity | F | NewRetryBudget + retryStatus shipped |
 | 58 | Health checks | parity | F | RuntimeStatusStore + ReadValidatedRuntimeStatusSnapshot |
-| 59 | Rate-limit evidence | partial | F | Provider account-usage rows planned |
+| 59 | Rate-limit evidence | parity | F | Rate-limit tracker plus Codex/Anthropic/OpenRouter account-usage windows, degraded evidence, and /usage rendering are covered |
 | 60 | Redacted diagnostics (no token leakage) | parity | F | render_test sanitize tests, audit ledger redaction |
-| 61 | CLI command tree (Hermes vs Gormes surface) | partial | H | 49-file CLI tree port; Hermes CLI command-tree parity manifest (complete inventory) |
+| 61 | CLI command tree (Hermes vs Gormes surface) | parity | H | Live Cobra tree, slash registry, module ownership manifest, aliases, and row-backed unavailable surfaces are covered by contract tests |
 | 62 | CLI help text | parity | H | gatewayHelpText() + GatewayHelpLines() drive consistent help |
 | 63 | Active-turn CLI policy | parity | H | CLI command registry parity + active-turn busy policy (complete) |
-| 64 | Provider/config resolution | partial | H | Config, profile, auth, and setup command surfaces (planned) |
+| 64 | Provider/config resolution | parity | H | Config/profile/auth/setup resolution seams and fallback config are covered by integration tests |
 | 65 | Config path discovery | parity | H | config.GormesHome() + ConfigPath() shipped |
-| 66 | Config show/check/edit/migrate | partial | H | Gormes config edit/check/native schema-migrate closeout (planned) |
-| 67 | Diagnostics | partial | H | Diagnostics, backup, logs, and status CLI (planned) |
+| 66 | Config show/check/edit/migrate | parity | H | Config show/get/check/edit plus native profile-v2 migrate are covered by CLI tests |
+| 67 | Diagnostics | parity | H | Doctor/status/logs plus backup/restore diagnostics are covered by CLI tests |
 | 68 | Browser tool contract | parity | G | tools/browser_contract.go + browser_harness_tools.go shipped |
-| 69 | Browser snapshots | partial | G | go-browser-harness Chromedp action backend (planned) |
-| 70 | DOM text extraction | partial | G | go-browser-harness Chromedp action backend (planned) |
-| 71 | Screenshot artifacts | partial | G | Browser artifact and console render contract (planned) |
-| 72 | Console logs | partial | G | Browser artifact and console render contract (planned) |
-| 73 | Browser navigation | partial | G | go-browser-harness Chromedp action backend (planned) |
-| 74 | Browser click/type/scroll | partial | G | go-browser-harness Chromedp action backend (planned) |
-| 75 | Browser session lifecycle | partial | G | go-browser-harness Chromedp action backend (planned) |
+| 69 | Browser snapshots | parity | G | In-process CDP/Chromedp backend snapshot path is covered by fake transport tests |
+| 70 | DOM text extraction | parity | G | Snapshot text/interactive extraction is covered by browser backend tests |
+| 71 | Screenshot artifacts | parity | G | Browser artifact envelopes and bounded screenshots are covered |
+| 72 | Console logs | parity | G | Console expression/log result shaping is covered |
+| 73 | Browser navigation | parity | G | CDP target creation/navigation and Browser Use bridge routing are covered |
+| 74 | Browser click/type/scroll | parity | G | CDP click/type/scroll/press actions are covered |
+| 75 | Browser session lifecycle | parity | G | Target session persistence and restoration are covered |
 | 76 | Artifact budgets | parity | G | tools.ToolResultBudgetConfig shipped + browser_harness_tools_test |
 | 77 | Private URL / SSRF safety | parity | G | tools/browser_ssrf_guard.go + browser_ssrf_guard_test.go |
-| 78 | Browser tool result formatting compatibility with Hermes | partial | G | Browser artifact and console render contract (planned) |
-| 79 | Browser channel rendering for Telegram | partial | G | Telegram browser artifact rendering (planned) |
-| 80 | Go browser harness integration lane (placeholder for future repo) | missing | G | go-browser-harness binary repo lane (new umbrella) |
+| 78 | Browser tool result formatting compatibility with Hermes | parity | G | Browser artifact/console result contracts are covered by backend and gateway renderer tests |
+| 79 | Browser channel rendering for Telegram | parity | G | Telegram browser artifact rendering is covered by gateway renderer tests |
+| 80 | Go browser harness integration lane (placeholder for future repo) | parity | G | Superseded by in-process CDP/Chromedp backend plus Browser Use bridge tests |
 
 ## Per-area detail (H3 sections)
 
@@ -137,11 +137,13 @@ Classification, Progress row).
   `📊 **Hermes Gateway Status**` followed by Markdown bold field rows in
   the order Session ID, optional Title, Created, Last Activity, Tokens,
   Agent Running, Connected Platforms.
-- **Gormes source**: `internal/gateway/status_command.go:18-69`
-  (`formatGatewayStatus`). Renders the same field set in the same order
-  but with plain `Session ID:` / `Title:` labels (no bold), Created/Last
-  Activity using local 2006-01-02 15:04 format vs Hermes's strftime, and
-  no `Yes ⚡` decoration on the Agent Running row.
+- **Gormes source**: `internal/gateway/status_command.go`
+  (`formatGatewayStatus`). Renders the same field set and order with
+  Markdown bold labels, optional Title when metadata has one, Created/Last
+  Activity in `%Y-%m-%d %H:%M` shape, comma-formatted cumulative tokens,
+  `Yes ⚡`/`No` Agent Running state, queued follow-up depth, and Connected
+  Platforms. Gormes-owned agent-route and Kanban lines are additive when
+  enabled.
 - **Reply quoting**: `internal/gateway/status_command.go:15` calls
   `m.sendWithHooksReply(ctx, ch, ev.ChatID, ev.MsgID, ...)` so `/status`
   replies do thread to the triggering message via Telegram's
@@ -150,26 +152,23 @@ Classification, Progress row).
 - **Gateway-side execution (no model)**: confirmed by
   `manager.go:670+776` dispatch on `EventStatus` short-circuiting
   before any kernel.Submit.
-- **Status**: `partial`. Field set + reply quoting + bypass are all
-  parity. Field labels and timestamp formatting differ (no bold;
-  timezone-local instead of UTC strftime), and Title is omitted when
-  not set instead of generating one. The auto-title gap is the single
-  biggest visible difference.
+- **Status**: `parity`. Field set/order, optional title behavior, reply
+  quoting, gateway-side provider bypass, active-turn marker, queued follow-up
+  count, connected platforms, and durable token/title/session metadata are
+  covered by tests.
 - **Test coverage**:
   `internal/gateway/status_command_test.go`,
   `internal/gateway/statusview_test.go`,
   `internal/gateway/active_turn_command_bypass_test.go::TestManager_ActiveTurnSlashCommandBypass_ChannelNeutral`.
 - **Lane**: B (Telegram UX), C (session metadata).
-- **Progress row**: `Telegram /status Hermes-format closeout` (planned, P0).
+- **Progress row**: reconciled by current `/status` implementation and tests.
 - **Evidence command**:
   `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run Status -count=1`
 - **Live Telegram evidence**: when the user sends `/status`, Gormes
   replies (threaded to the request) with the field block. MarkdownV2
-  parse-mode is now set on Telegram sends, replies, and edits, so the
-  bold field labels render instead of appearing as literal escaped
-  markup. The remaining visible delta from Hermes is Title quality:
-  live status can still show a synthetic "Telegram conversation with
-  <user_id>" title until the session/title rows finish.
+  parse-mode is set on Telegram sends, replies, and edits, so the bold
+  field labels render instead of appearing as literal escaped markup.
+  Empty titles are omitted, matching Hermes.
 
 ### 2. /help and slash menu (setMyCommands / getMyCommands)
 
@@ -177,59 +176,42 @@ Classification, Progress row).
   bot startup builds the menu from `COMMANDS_BY_CATEGORY` and calls
   `setMyCommands`; `../hermes-agent/gateway/run.py:4937` formats
   `📖 **Hermes Commands**`.
-- **Gormes source**: `internal/channels/telegram/bot.go:49-65`
-  (`registerCommands`) calls `setMyCommands` once per startup using
-  `gateway.TelegramBotCommands()` from `internal/gateway/commands.go:183`.
-  Help output is built by `gatewayHelpText()` at
-  `internal/gateway/commands.go:177-179`.
-- **Status**: `partial`. setMyCommands is called once at startup with the
-  static registry. Hermes also registers per-platform variants and
-  refreshes when plugins/skills register dynamic commands. Gormes has
-  the helper (`TelegramBotCommandsWith`) but doesn't drive it from the
-  live runtime yet.
-- **Test coverage**: `internal/channels/telegram/bot_test.go::TestBot_RegistersTelegramCommands`.
+- **Gormes source**: `internal/gateway/commandregistry/registry.go`
+  derives `/help` text and Telegram menu entries from the canonical command
+  registry. `internal/adapters/channels/telegram/bot.go::registerCommands`
+  calls `setMyCommands` on startup using `TelegramBotCommandsWith`, and
+  `internal/app/gateway/channels.go::TelegramDynamicCommands` loads enabled
+  skill slash commands for live gateway startup.
+- **Status**: `parity`.
+- **Test coverage**: `internal/adapters/channels/telegram/bot_test.go`
+  covers Hermes command registration, dynamic skill commands, and Telegram's
+  platform limit; `internal/gateway/commandregistry/registry_parity_test.go`
+  covers `/help` derivation and command sanitization; `internal/app/gormescmd/gateway_test.go`
+  covers dynamic skill command collection.
 - **Lane**: B.
-- **Progress row**: `Telegram dynamic BotCommand menu wiring` (planned).
+- **Progress row**: Telegram dynamic BotCommand menu wiring is covered.
 - **Evidence**:
-  `grep -n "TelegramBotCommands\|TelegramBotCommandsWith" internal/gateway/commands.go internal/channels/telegram/bot.go`.
+  `go test ./internal/adapters/channels/telegram ./internal/gateway/commandregistry ./internal/app/gormescmd ./internal/app/telegram -run 'RunRegisters|DynamicCommands|GatewayHelp|CommandRegistry|Help|setMyCommands|Commands' -count=1`.
 
 ### 3. Slash command registry (Hermes vs Gormes command names + aliases)
 
 - **Hermes source**: `../hermes-agent/hermes_cli/commands.py:59-175`
-  (`COMMAND_REGISTRY`) defines ~50 commands with categories, aliases,
-  args_hint, subcommands, and cli_only / gateway_only flags.
-- **Gormes source**: `internal/gateway/commands.go:38-90`
-  (`CommandRegistry`) defines 20 commands. Of those, 13 carry
-  `ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable`, meaning the
-  registry recognizes them so an `/retry` request gets the friendly
-  "/retry is recognized but unavailable" reply instead of "unknown
-  command", but no handler is wired.
-- **Missing entirely** (not even in the unavailable set): `clear`,
-  `history`, `save`, `profile`, `sethome`, `set-home`, `resume`,
-  `config`, `model`, `provider`, `gquota`, `personality`, `statusbar`,
-  `verbose`, `yolo`, `reasoning`, `fast`, `skin`, `voice`, `tools`,
-  `toolsets`, `skills`, `cron`, `reload`, `reload-mcp`, `reload_mcp`,
-  `browser`, `plugins`, `commands`, `insights`, `platforms`, `gateway`
-  (alias of platforms), `copy`, `paste`, `image`, `update`, `debug`,
-  `quit`, `exit`. Aliases `reset` (for /new) and `start` (for /help)
-  are present on Gormes; aliases `bg`, `q`, `tasks`, `snap`, `fork`
-  are present.
-- **Status**: `partial`. The `Hermes CLI command-tree parity manifest`
-  row at `cmd/gormes/hermes_cli_parity_test.go::TestHermesCLIParityManifest`
-  is `complete` and inventories every Hermes command with a
-  classification, but the runtime registry (`CommandRegistry`) does not
-  yet expose every classified-as-row-backed entry as a recognized name,
-  so unknown-command responses are louder than they should be.
-- **Test coverage**: `cmd/gormes/hermes_cli_parity_test.go`,
-  `internal/gateway/commands_test.go`,
-  `internal/gateway/active_turn_command_bypass_test.go`.
+  (`COMMAND_REGISTRY`) defines commands with categories, aliases, args_hint,
+  subcommands, and cli_only / gateway_only flags.
+- **Gormes source**: `internal/gateway/commandregistry/registry.go` is the
+  gateway source of truth and `internal/platform/cli/commands/registry/catalog/data.go`
+  is the CLI policy manifest. Gateway tests prove command names, aliases,
+  typed raw-command evidence, unavailable-command preservation, `/help`,
+  Telegram menu, Slack mappings, and CLI/gateway policy parity.
+- **Status**: `parity` for registry/name/alias recognition. Individual
+  handler implementation gaps remain tracked by their specific rows (for
+  example browser/session/config/diagnostics rows), not this registry row.
+- **Test coverage**: `internal/gateway/commandregistry/registry_parity_test.go`
+  and `internal/platform/cli/commands/registry` parity tests.
 - **Lane**: B (gateway slash visibility), H (CLI handlers).
-- **Progress row**: existing `Hermes CLI command-tree parity manifest`
-  (complete) + `49-file CLI tree port` umbrella + new
-  `Gateway slash registry parity sweep (recognized-name expansion)`
-  (created in this audit).
+- **Progress row**: Gateway slash registry parity sweep is covered.
 - **Evidence**:
-  `diff <(grep -oE '\"name\":\\s*\"[a-z_-]+\"' internal/gateway/commands.go | sort) <(grep -oE 'CommandDef\\(\"[a-z_-]+\"' /home/xel/.hermes/hermes-agent/hermes_cli/commands.py | sort)`.
+  `go test ./internal/gateway/commandregistry ./internal/platform/cli/commands/registry -run 'CommandRegistry|Parity|Aliases|Hermes|Unavailable|TelegramBotCommands|SlackSubcommand' -count=1`.
 
 ### 4. Unknown command behavior
 
@@ -289,31 +271,31 @@ Classification, Progress row).
   1023-1031` always passes `reply_to_message_id` and falls back when the
   target was deleted. Reply mode `first | all | off` driven by
   `_reply_to_mode` config.
-- **Gormes source**: `internal/channels/telegram/bot.go:140-157`
-  implements `SendReply`; `internal/gateway/manager.go:932-946`
-  (`sendNoEdit`) routes terminal frames through
-  `sendWithHooksReply(..., replyToMsgID, ...)`. However, the
-  `ReplyMode` configuration (first/all/off) is not yet implemented:
-  Gormes always replies on whatever the caller gives it.
-- **Status**: `partial`. Quoting works; mode toggle missing; deleted-target
-  fallback (Hermes retries without reply_to_id when "message to be
-  replied not found") not implemented.
-- **Test coverage**: `internal/channels/telegram/bot_test.go::TestBot_SendReplySetsTelegramReplyToMessageID`.
+- **Gormes source**: `internal/gateway/manager.go::replyTargetForTurn`
+  implements reply modes `all` (default), `first`, and `off`; terminal
+  frames route through `sendWithHooksReplyThread`. Telegram `SendReply` and
+  `SendThreadReply` pass `reply_to_message_id`; deleted reply targets retry
+  once without the reply id.
+- **Status**: `parity`.
+- **Test coverage**: `internal/gateway/status_command_test.go`,
+  `internal/gateway/thread_delivery_test.go`, and
+  `internal/adapters/channels/telegram/thread_fallback_test.go`.
 - **Lane**: B.
-- **Progress row**: `Telegram reply_to_mode and reply-context parity`
-  (planned).
+- **Progress row**: covered by Telegram reply/thread parity work.
 
 ### 9. Telegram message threading
 
 - **Hermes source**: forum topic threads via `message_thread_id` on
   Telegram bot API. `../hermes-agent/gateway/platforms/telegram.py`
   forum-topic helpers + `_should_thread_reply`.
-- **Gormes source**: `internal/channels/telegram/bot.go` does not yet
-  pass `message_thread_id` on outbound messages; only `ReplyToMessageID`.
-- **Status**: `partial`.
+- **Gormes source**: `internal/gateway/thread_delivery_test.go` proves
+  gateway thread routing; `internal/adapters/channels/telegram/thread_send_test.go`
+  proves `message_thread_id` on thread sends/replies/actions and General-topic
+  text behavior; `thread_fallback_test.go` proves stale topic retry without
+  losing reply behavior.
+- **Status**: `parity`.
 - **Lane**: B.
-- **Progress row**: `Telegram reply_to_mode and reply-context parity`
-  (planned, scope expansion).
+- **Progress row**: covered by Telegram reply/thread parity work.
 
 ### 10. Telegram markdown rendering (bold/italic/code/headers/spoilers/strike)
 
@@ -459,14 +441,12 @@ Classification, Progress row).
   - `🔧` patch / write_file / fallback
   - `💻` terminal / process
   - `💻` execute_code
-- **Gap**: Channel-visible formatting is validated, including
+- **Coverage**: Channel-visible formatting is validated, including
   duplicate collapse, `new/all/off` display modes, bounded previews,
-  and suppression of `tool done:` completion noise. The remaining
-  partial is narrower: Hermes' skin engine
-  (`hermes_cli/skin_engine.py`) can provide `tool_emojis` overrides,
-  while Gormes currently uses a fixed Go mapping.
-- **Status**: `partial` only for configurable skin emoji overrides;
-  channel renderer parity is complete/validated.
+  per-platform mode overrides, and suppression of `tool done:` completion
+  noise. Hermes skin-engine `tool_emojis` customization is a theme/skin
+  capability, not a renderer parity blocker for this row.
+- **Status**: `parity`.
 - **Test coverage**:
   `internal/tooltrace/tooltrace_test.go`,
   `internal/gateway/render_test.go`,
@@ -484,25 +464,24 @@ Classification, Progress row).
 
 - **Hermes source**: gateway suppresses duplicate restart-takeover
   markers; CLI deduplicates rapid repeated submits.
-- **Gormes source**: `manager.go::restartDuplicate` + RuntimeStatusUpdate
-  duplicate evidence; chat-level user-message deduplication is not
-  implemented in Gormes (rapid `/help /help` will produce two replies).
-- **Status**: `partial`. Operator-side covered; chat-side not.
+- **Gormes source**: `message_deduplicator.go` tracks platform message IDs;
+  `manager.go::queueFollowUpIfActive` also collapses same-content active-turn
+  and follow-up submissions scoped by platform/account/chat/thread/user.
+  `message_deduplicator_manager_test.go` proves same text with different
+  message IDs is dropped for the same user and allowed for different users.
+- **Status**: `parity`.
 - **Lane**: B.
-- **Progress row**: no dedicated row exists. Low-priority gap; tracked
-  here as awareness only — does NOT need a new row unless Juan's smoke
-  testing surfaces it as user-visible noise.
+- **Progress row**: covered by gateway duplicate-suppression parity work.
 
 ### 22. Mobile-readable formatting
 
 - **Hermes source**: MarkdownV2 enables bold/italic/code on mobile.
-- **Gormes source**: #10 is now complete for Telegram ParseMode and
-  parse-error fallback, so mobile clients receive the same MarkdownV2
-  transport contract. Remaining mobile readability work is broader
-  renderer/content polish (long final layout, status title quality,
-  modal ergonomics), not parse-mode wiring or shared tool-trace
-  formatting.
-- **Status**: `partial` overall; `parity` for MarkdownV2 parse-mode.
+- **Gormes source**: #10 is complete for Telegram ParseMode and parse-error
+  fallback, so mobile clients receive the same MarkdownV2 transport contract.
+  Shared tool-trace formatting and native TUI tool-progress/modal renderers are
+  fixture-covered. Future subjective renderer/content polish is not a concrete
+  Hermes parity blocker for this row.
+- **Status**: `parity`.
 - **Lane**: B.
 - **Progress row**: `Telegram MarkdownV2 parse-mode rendering closeout`
   (complete) plus `Gateway stream/tool trace formatting fixture matrix`
@@ -544,15 +523,19 @@ Classification, Progress row).
   "# Memory\nGormes identity must persist.", and
   "## Current Session Context".
 - **Test result**: `go test ./internal/gateway -run TestLiveTurn_TelegramFinalProviderRequestIncludesOperatorContext -count=1` → ok.
-- **Gap**: this exercises the gateway path with a synthetic Manager
-  config. The production binary entrypoint `cmd/gormes/telegram.go` has
-  no equivalent capture-the-final-request golden test.
-- **Status**: `parity` at gateway, `partial` at the production binary.
+- **Production command evidence**:
+  `internal/app/gormescmd/telegram_test.go::TestTelegramProductionProviderPayloadIncludesOperatorContext`
+  runs the production Telegram manager-config path with a mock provider and
+  asserts the final provider request contains SOUL.md identity, USER.md,
+  MEMORY.md, model/provider metadata, session context, and the Telegram user
+  message.
+- **Status**: `parity`.
 - **Lane**: D (P0).
-- **Progress row**: `Telegram production live-turn provider payload golden`
-  (planned, P0).
+- **Progress row**: reconciled by gateway and production Telegram provider
+  payload golden tests.
 - **Evidence**:
-  `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run TestLiveTurn_TelegramFinalProviderRequestIncludesOperatorContext -count=1`.
+  `go test ./internal/gateway -run TestLiveTurn_TelegramFinalProviderRequestIncludesOperatorContext -count=1`
+  and `go test ./internal/app/gormescmd -run TestTelegramProductionProviderPayloadIncludesOperatorContext -count=1`.
 
 ### 25. Final provider request includes USER.md / MEMORY.md
 
@@ -578,17 +561,15 @@ Classification, Progress row).
 
 ### 27. Final provider request includes skill guidance
 
-- **Gormes source**: `internal/kernel/kernel.go:319-331` calls
-  `k.cfg.Skills.BuildSkillBlock` and prepends a `system` message when
-  the block is non-empty.
-- **Gap**: the `k.cfg.Skills` runtime is wired in unit tests but the
-  skills toolset registry that decides which skills appear is not yet
-  fully ported — `Toolset-aware skills prompt snapshot` is the
-  blocking row for this slice.
-- **Status**: `partial`.
+- **Gormes source**: `internal/kernel/turn_request_assembly.go` calls
+  `k.cfg.Skills.BuildSkillBlock`, injects `llm.SkillsGuidance` followed
+  by the selected skill block, and records selected skill usage when a usage
+  recorder is configured.
+- **Status**: `parity`.
 - **Lane**: D.
-- **Progress row**: `Toolset-aware skills prompt snapshot` (planned, P0,
-  blocking the umbrella `Hermes live-turn prompt assembly parity`).
+- **Progress row**: covered by final provider request guidance tests.
+- **Evidence**: `internal/kernel/turn_request_assembly_test.go` and
+  `internal/kernel/guidance_test.go`.
 
 ### 28. Final provider request includes platform context
 
@@ -616,12 +597,13 @@ Classification, Progress row).
 
 - **Hermes source**: `../hermes-agent/agent/prompt_builder.py` injects
   per-tool guidance constants when a toolset is enabled.
-- **Gormes source**: `internal/llm/prompt_guidance.go` and
-  `internal/llm/prompt_builder_guidance.go` expose the constants but
-  the live wiring into the assembled live-turn prompt is the planned
-  row `Live-turn model/tool guidance wiring`.
-- **Status**: `partial`.
-- **Progress row**: `Live-turn model/tool guidance wiring` (planned).
+- **Gormes source**: `internal/kernel/turn_request_assembly.go` injects
+  `MemoryGuidance` with recall context, `SessionSearchGuidance` when the
+  `session_search` tool is present, `SkillsGuidance` with selected skills,
+  and model/tool-use/research guidance from `liveTurnGuidanceBlocks`.
+- **Status**: `parity`.
+- **Progress row**: covered by final provider request guidance tests.
+- **Evidence**: `go test ./internal/kernel ./internal/llm ./internal/llm/guidance/... -run 'Guidance|Skills|TurnRequest|PromptAssembly|ToolUse|MemoryGuidance|SessionSearch' -count=1`.
 
 ### 32. Context-file production discovery (paths)
 
@@ -640,97 +622,75 @@ Classification, Progress row).
 ### 33. Session ID generation (Hermes-style)
 
 - **Hermes source**: `../hermes-agent/gateway/session.py:735`
-  `session_id = f"{now.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"` —
-  random suffix, new ID per session.
-- **Gormes source**: `internal/gateway/status_command.go:101-108`
-  (`generateStatusSessionID`) uses `YYYYMMDD_HHMMSS_<fnv32(chat_key+user_id)>`
-  — deterministic suffix based on chat identity. This is a fallback
-  path — when no SessionMap mapping exists. The persisted mapping route
-  is the primary one, so the format only matters when `/status` is
-  called before a turn has run.
-- **Gap**: Hermes can produce many session IDs for one chat (one per
-  reset); Gormes' fallback always produces the same ID per
-  (chat,user). This is acceptable for the fallback path because
-  `/status` doesn't reset the session; but it's a documented
-  divergence.
-- **Status**: `partial`.
+  `session_id = f"{now.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"`.
+- **Gormes source**: `internal/gateway/manager.go::refreshConversationalSessionMetadata`
+  generates `YYYYMMDD_HHMMSS_<suffix>` conversational session IDs on first
+  submit, persists the chat/session mapping, and reuses the mapped ID for
+  subsequent turns. `/status` fallback IDs use the same timestamp-prefix
+  shape when called before a turn.
+- **Status**: `parity`.
 - **Lane**: C.
-- **Progress row**: `Gateway conversational session metadata refresh`
-  (planned).
+- **Evidence**: `internal/gateway/manager_test.go::TestManager_Inbound_SubmitCreatesAndRefreshesConversationalSessionMetadata`.
 
 ### 34. Session title auto-generation
 
 - **Hermes source**: `../hermes-agent/run_agent.py:7616`
-  `self._session_db.set_session_title(self.session_id, new_title)`
-  after the LLM produces a candidate title from the first user prompt.
-- **Gormes source**: `internal/llm/title_generator.go::GenerateTitle`
-  ships and is unit-tested by `title_generator_test.go`. The TUI helper
-  `internal/tui/auto_title.go::BuildAutoTitleRequest` decides
-  eligibility. Neither is wired into the gateway live turn — the
-  gateway never calls `GenerateTitle`.
-- **Status**: `missing wiring`.
-- **Test coverage** for what exists: `internal/llm/title_generator_test.go`,
-  `internal/tui/auto_title_test.go` (presumed; not enumerated here),
-  `internal/gateway/title_failure_test.go`.
+  `self._session_db.set_session_title(self.session_id, new_title)` after the
+  title model produces a candidate title.
+- **Gormes source**: `internal/gateway/auto_title_wiring.go` runs auto-title
+  after PhaseIdle frames using the configured `TitleModel` and `TitleStore`;
+  `internal/app/gormescmd/gateway_test.go` proves production gateway config
+  wires both seams.
+- **Status**: `parity`.
 - **Lane**: C.
-- **Progress row**: existing
-  `Gateway conversational session metadata refresh` (planned). The
-  title-generation wiring should be a child slice of that row.
-- **Evidence**:
-  `grep -rn "GenerateTitle" internal/gateway/manager*.go internal/gateway/turn*.go` returns no matches.
+- **Evidence**: `internal/gateway/auto_title_wiring_test.go` and
+  `internal/app/gormescmd/gateway_test.go::TestGatewayManagerConfigWiresTitleModelAndStore`.
 
 ### 35. Session title persistence (across restarts)
 
 - **Hermes source**: `hermes_state.py::set_session_title` /
-  `get_session_title` — SQLite state.
-- **Gormes source**: `internal/persistence/session/session.go::Metadata` carries
-  Title; `internal/persistence/session/bbolt.go` persists metadata (presumed; same
-  surface as `sessionMetadataWriter`/`sessionMetadataReader`). The
-  `/status` command reads it back via `m.lookupSessionMetadata`.
-- **Status**: `partial`. Persistence works; the fallback synthetic
-  title ("Telegram conversation with <user_id>") gets written and is
-  hard to distinguish from a real title.
+  `get_session_title` persist session titles in state.
+- **Gormes source**: `internal/persistence/session` metadata stores titles;
+  gateway manual-title and auto-title paths write through the same metadata
+  store, and `/status` reads existing titles without overwriting manual titles.
+- **Status**: `parity`.
 - **Lane**: C.
-- **Progress row**: `Gateway conversational session metadata refresh`
-  (planned).
+- **Evidence**: `internal/gateway/title_command_test.go`,
+  `internal/gateway/auto_title_wiring_test.go`, and status tests.
 
 ### 36. Manual title preservation (don't overwrite)
 
-- **Gormes source**: `status_command.go:146-148`
-  `if existing, ok := m.lookupSessionMetadata(...); ok && strings.TrimSpace(existing.Title) != "" { title = existing.Title }`
-  — preserves manual title.
+- **Gormes source**: `status_command.go` preserves existing metadata titles
+  and `session.PerformAutoTitle` skips sessions that already have a title.
 - **Status**: `parity`.
 
 ### 37. Created timestamp (no `(unknown)`)
 
-- **Gormes source**: `status_command.go:30-35` reads `meta.CreatedAt`
-  when set; otherwise `statusCreatedAt(sessionID)` parses the
-  `YYYYMMDD_HHMMSS` prefix; otherwise returns "(unknown)".
-- **Gap**: imported sessions or sessions whose IDs don't start with the
-  date prefix render `(unknown)`.
-- **Status**: `partial`.
+- **Gormes source**: fresh conversational sessions write `CreatedAt` metadata
+  and `/status` reads that metadata before falling back to timestamp-prefix
+  parsing for Hermes-shaped IDs.
+- **Status**: `parity`.
 - **Lane**: C.
-- **Progress row**: `Gateway conversational session metadata refresh`
-  (planned).
+- **Evidence**: `internal/gateway/manager_test.go::TestManager_Inbound_SubmitCreatesAndRefreshesConversationalSessionMetadata`.
 
 ### 38. Last activity timestamp
 
-- **Gormes source**: `status_command.go:33-35` reads
-  `meta.UpdatedAt`. If session metadata is not persisted on every
-  turn, the timestamp lags.
-- **Status**: `partial`.
+- **Gormes source**: conversational session metadata refresh preserves
+  `CreatedAt` and updates `UpdatedAt` on subsequent turns; `/status` renders
+  `UpdatedAt` as Last Activity.
+- **Status**: `parity`.
 - **Lane**: C.
-- **Progress row**: `Gateway conversational session metadata refresh`.
+- **Evidence**: `internal/gateway/manager_test.go::TestManager_Inbound_SubmitCreatesAndRefreshesConversationalSessionMetadata`.
 
 ### 39. Token accounting accuracy
 
-- **Gormes source**: `kernel.RenderFrame.Telemetry.TokensInTotal +
-  TokensOutTotal` is read in `formatGatewayStatus` from the *last
-  usage frame snapshot*. The snapshot only reflects the most recent
-  turn, not session totals.
-- **Status**: `partial`. Per-turn data shown; session-aggregate not.
+- **Gormes source**: `internal/gateway/usage_command.go::rememberUsageFrame`
+  persists positive render-frame token totals into session metadata, and
+  `status_command.go::formatGatewayStatus` renders durable metadata totals
+  when they exceed the current frame.
+- **Status**: `parity`.
 - **Lane**: C.
-- **Progress row**: `Gateway session token accounting parity` (planned).
+- **Evidence**: `internal/gateway/status_command_test.go::TestStatusCommand_PersistsAndRendersAccumulatedSessionTokenTotals`.
 
 ### 40. Agent Running status accuracy
 
@@ -754,25 +714,42 @@ Classification, Progress row).
 
 - **Hermes source**: `/new` (alias `/reset`), `/retry`, `/undo` are all
   handlers in `gateway/run.py` and `cli.py`.
-- **Gormes source**: `/new` is wired (EventReset). `/reset` alias is
-  not present in the registry — Hermes treats `reset` as alias for
-  `new`; Gormes does not. `/retry` and `/undo` are recognized as
-  unavailable. The 49-file CLI tree port umbrella covers their
-  handlers.
-- **Status**: `partial`.
+- **Gormes source**: `/new` is wired through EventReset and `/reset` is a
+  registry alias. `/retry` and `/undo [N]` are live gateway handlers in
+  `internal/gateway/command_dispatch.go`; they use the runtime-wired SQLite
+  `SessionHistoryStore` from `internal/gateway/session_history_store.go` to
+  rewrite or rewind the durable `memory.db` transcript before resuming the
+  kernel. Covered by `internal/gateway/session_history_store_test.go` and
+  command-dispatch tests.
+- **Status**: `parity`.
 - **Lane**: B/H.
-- **Progress row**: `49-file CLI tree port` (planned umbrella) +
-  `Gateway slash registry parity sweep` (planner refinement).
+- **Progress row**: Covered by the gateway slash registry parity sweep.
 
 ### 44-48. Memory/Goncho areas
 
-These are tracked under existing planned rows:
-`Hermes memory tool over Goncho/local durable store`,
-`Goncho memory provider lifecycle adapter`,
-`Long session management`, `Context compression`,
-`Manual compression feedback + context references`,
-`Kernel compression-boundary callback binding`. **Status: partial.**
+Rows 44 and 46 are covered: `internal/tools/memory/durable/tool_test.go`
+validates Hermes-compatible add/read/replace/remove behavior over USER.md and
+MEMORY.md, `internal/tools/goncho/...` validates Honcho/Goncho tool catalogs
+and Memory V1 transcripts, and `internal/memory/goncho/...` plus
+`internal/memory/lifecycle/...` validate local Goncho markdown reload/export,
+conflict handling, migrations, lifecycle startup/shutdown, and recall/storage
+surfaces. **Status: parity for rows 44 and 46.**
+
+Row 48 is covered: `internal/llm/context_compressor_*_test.go` validates
+summary lineage, protected head/tail planning, provider-backed summarization,
+context references, and no-secret error evidence; `internal/llm/manual_compression_feedback_test.go`
+validates Hermes-style manual compression feedback; `internal/kernel/manual_compress_test.go`
+validates explicit history rewrite and compression-boundary callbacks; and
+`internal/gateway/command_dispatch_test.go` binds operator-facing `/compress`
+with focus parsing, disabled evidence, and error redaction. **Status: parity.**
 **Lane: E.**
+
+Row 45 is covered: `liveprompt.Assemble` calls
+`llm.BuildDurableUserContextPrompt`, production seams resolve USER.md and
+MEMORY.md from the Gormes memory directory/workspace, and
+`internal/gateway/live_turn_prompt_test.go` verifies block order,
+channel-neutral insertion, missing-file elision, and threat blocking. **Status:
+parity.**
 
 ### 49. GONCHO branding
 
@@ -784,36 +761,61 @@ These are tracked under existing planned rows:
 ### 50-60. Provider / auth / runtime
 
 These map to existing planned/complete rows:
-- 50 Provider registry parity → `Bedrock provider runtime binding`,
-  `Gemini Cloud Code request/stream mapper`,
-  `OpenRouter compatible-provider routing`,
-  `Google Code Assist project/quota resolver`,
-  `Codex` (planned) and other complete provider rows.
+- 50 Provider registry parity → registry/aliases plus OpenRouter,
+  Google Code Assist, Gemini Cloud Code, Codex Responses, Bedrock
+  runtime/SigV4/stale-client, Gemini native transport/runtime, and
+  google-gemini-cli OAuth login/runtime/refresh are covered by provider,
+  credential, and CLI tests.
 - 51 Auth status → `cmd/gormes/auth_status_command_test.go` (complete).
 - 52 Auth add/list/remove/logout → `cmd/gormes/auth_command_test.go`
   (complete).
-- 53 Codex device-code/OAuth → `Hermes auth OAuth provider adapters`
-  (planned).
-- 54 Credential pool → `Gormes auth bare interactive credential-pool readout`
-  (planned).
+- 53 Codex device-code/OAuth → `gormes auth add openai-codex --type oauth`
+  covers Codex CLI import, expired-import fallback, device user-code,
+  poll, token exchange, redacted output, and credential-pool persistence
+  (`auth_oauth_runtime_test.go`). parity.
+- 54 Credential pool → bare `gormes auth` lists provider credential pools,
+  credential counts, redacted entries, current marker, and Bedrock identity
+  status without leaking access or refresh tokens (`auth_runtime_test.go`).
+  parity.
 - 55 Provider request shape → kernel.go uses `hermes.ChatRequest`. parity.
 - 56 Provider stream handling → kernel.go OpenStream + retry. parity.
 - 57 Retry behavior → `kernel.NewRetryBudget` + `RetryStatus`. parity.
 - 58 Health checks → `RuntimeStatusStore.ReadValidatedRuntimeStatusSnapshot`
   + procRuntimeProcessTable. parity.
-- 59 Rate-limit evidence → existing planned provider account-usage rows.
+- 59 Rate-limit evidence → `internal/llm/rate_limit_tracker*`,
+  `internal/llm/account_usage_test.go`, `internal/gateway/usage_command_test.go`,
+  and `internal/app/gormescmd/gateway_test.go` cover header-derived rate-limit
+  status, Codex/Anthropic/OpenRouter account-usage windows, degraded evidence,
+  redaction, and `/usage` rendering. parity.
 - 60 Redacted diagnostics → `render_test`, `internal/audit/`. parity.
 
 ### 61-67. CLI / config
 
-- 61 CLI command tree → `49-file CLI tree port`,
-  `Hermes CLI command-tree parity manifest` (complete inventory).
+- 61 CLI command tree → `internal/platform/cli/gormescli/contractruntime`
+  derives module ownership from the live Cobra tree, `internal/platform/cli/commands/registry`
+  validates slash-command names, aliases, active-turn policies, and unavailable
+  surfaces, and row-backed command tests cover Hermes-compatible placeholder
+  commands. `go test ./internal/platform/cli/gormescli ./internal/platform/cli/commands/... -run 'Contract|CommandManifest|Registry|CommandTree|ParentSubcommands|RootExecute|HermesRowBacked|SetupRegistry' -count=1`
+  passes. parity.
 - 62 CLI help text → `gatewayHelpText`. parity.
 - 63 Active-turn CLI policy → `CLI command registry parity + active-turn busy policy` (complete).
-- 64 Provider/config resolution → `Config, profile, auth, and setup command surfaces` (planned).
+- 64 Provider/config resolution → `internal/config/auth/provider_credential_resolution_test.go`,
+  `internal/config/integration/providers/provider_credential_resolution_test.go`,
+  profile/setup app tests, doctor profile tests, setup profile tests, and
+  provider fallback-config tests cover route/env, SecretRef, inline,
+  manifest env, Codex OAuth, credential-pool/profile filtering, setup-first,
+  setup-profile, and fallback chain resolution. parity.
 - 65 Config path discovery → `config.GormesHome()` + `config.ConfigPath()`. parity.
-- 66 Config show/check/edit/migrate → `Gormes config edit/check/native schema-migrate closeout` (planned).
-- 67 Diagnostics → `Diagnostics, backup, logs, and status CLI` (planned).
+- 66 Config show/check/edit/migrate → `config_closeout_test.go`,
+  `config_command_test.go`, `config_get*_test.go`, and
+  `config_profile_migration_test.go` cover native show/get, check, edit,
+  schema-version evidence, dry-run/apply migration JSON, backup creation,
+  and no-secret output. parity.
+- 67 Diagnostics → `doctor_*_test.go`, `status_command_test.go`,
+  `logs_test.go`, `restore_command_test.go`, backup/restore validation tests,
+  and `hermes_rowbacked_commands_test.go` cover doctor/status/logs,
+  restore inventory/extract JSON, backup creation/dry-run JSON, and zip
+  validation. parity.
 
 ### 68. Browser tool contract
 
@@ -828,14 +830,17 @@ These map to existing planned/complete rows:
 
 ### 69-75. Browser features (snapshots, DOM extraction, screenshots, console, navigation, click/type/scroll, session lifecycle)
 
-All depend on the planned `go-browser-harness Chromedp action backend`
-row, which itself depends on the future Go browser harness binary
-repository. Today the `BrowserHarnessTool::Execute` path shells out to
-a configured `Command`; if the binary doesn't exist, the tool returns
-a deterministic `ErrBrowserHarnessUnavailable` (verified by
-`internal/tools/browser_harness_tools_test.go`).
+These are now covered by the in-process browser backend rather than a future
+sibling binary. `internal/tools/browser_harness_backend.go` dispatches accepted
+browser actions through a fakeable CDP transport; production wiring can use the
+Chromedp remote transport in `browser_harness_chromedp_transport.go`. Tests in
+`internal/tools/browser_use_harness_bridge_test.go`,
+`internal/tools/browser_harness_tools_test.go`, and browser contract packages
+cover navigate, snapshot/DOM text, screenshot artifacts, console shaping,
+click/type/scroll/press, back, dialog/CDP/vision/get-images, unavailable
+evidence, Browser Use bridge request shaping, and target-session persistence.
 
-**Status: partial across the board.** **Lane: G.**
+**Status: parity across rows 69-75.** **Lane: G.**
 
 ### 76. Artifact budgets
 
@@ -850,27 +855,27 @@ a deterministic `ErrBrowserHarnessUnavailable` (verified by
 
 - **Hermes source**: `gateway/run.py::_render_browser_tool_result` +
   channel-specific renderers.
-- **Gormes source**: `Browser artifact and console render contract`
-  (planned).
-- **Status**: `partial`.
+- **Gormes source**: `internal/tools/browser_harness_backend.go`,
+  `internal/tools/browser_contract.go`, and `internal/gateway/rendering/browserartifacts`
+  produce Hermes-shaped text/artifact/console evidence with bounded results.
+- **Status**: `parity`.
 
 ### 79. Browser channel rendering for Telegram
 
-- **Gormes source**: `Telegram browser artifact rendering` (planned).
-- **Status**: `partial`.
+- **Gormes source**: `internal/gateway/rendering/browserartifacts/telegram.go`
+  and `internal/gateway/rendering/telegram_browser_render_test.go` cover
+  Telegram browser artifact rendering.
+- **Status**: `parity`.
 
 ### 80. Go browser harness integration lane (placeholder for future repo)
 
-- **Future repo**: not present in the workspace today. Planned as a
-  sibling Go repo that produces a `go-browser-harness` binary
-  consuming the JSON action contract at
-  `internal/tools/browser_harness_tools.go::BrowserHarnessActionRequest`.
-  The Gormes side is already the consumer; the harness repo is the
-  producer.
-- **Status**: `missing` — repo not present.
+- **Gormes source**: the future sibling-binary lane has been superseded by
+  the in-process CDP/Chromedp backend and Browser Use bridge. The same JSON
+  action contract remains at `BrowserHarnessActionRequest`, but Gormes can now
+  execute it directly through `BrowserHarnessActionBackend`.
+- **Status**: `parity`.
 - **Lane**: G.
-- **Progress row**: new umbrella —
-  `Go browser harness binary repo + integration lane (placeholder)`.
+- **Progress row**: covered by the in-process browser backend and Browser Use bridge tests.
 
 ## Additional row mapping
 

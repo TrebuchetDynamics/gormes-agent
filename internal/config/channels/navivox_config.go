@@ -1,6 +1,10 @@
 package channels
 
-import "github.com/TrebuchetDynamics/gormes-agent/internal/config/channels/navivox"
+import (
+	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config/channels/navivox"
+)
 
 const (
 	NavivoxDefaultBindHost     = navivox.NavivoxDefaultBindHost
@@ -17,6 +21,7 @@ const (
 	NavivoxAuthStaticToken               = navivox.NavivoxAuthStaticToken
 	NavivoxAuthTailscaleIdentity         = navivox.NavivoxAuthTailscaleIdentity
 	NavivoxAuthTokenAndTailscaleIdentity = navivox.NavivoxAuthTokenAndTailscaleIdentity
+	NavivoxAuthDeviceBearer              = navivox.NavivoxAuthDeviceBearer
 
 	NavivoxMinExposedTokenLength        = navivox.NavivoxMinExposedTokenLength
 	NavivoxMinExposedTokenDistinctChars = navivox.NavivoxMinExposedTokenDistinctChars
@@ -44,6 +49,7 @@ type NavivoxCfg struct {
 	AllowedTailnetIdentities []string                    `toml:"allowed_tailnet_identities" yaml:"allowed_tailnet_identities"`
 	PublicConfirmed          bool                        `toml:"public_confirmed" yaml:"public_confirmed"`
 	Servers                  map[string]NavivoxServerCfg `toml:"servers" yaml:"servers"`
+	ActiveTurnTimeout        time.Duration               `toml:"active_turn_timeout" yaml:"active_turn_timeout"`
 }
 
 type NavivoxServerCfg struct {
@@ -107,6 +113,7 @@ func (c NavivoxCfg) asNavivoxCfg() navivox.NavivoxCfg {
 		AllowedTailnetIdentities: c.AllowedTailnetIdentities,
 		PublicConfirmed:          c.PublicConfirmed,
 		Servers:                  servers,
+		ActiveTurnTimeout:        c.ActiveTurnTimeout,
 	}
 }
 
@@ -131,5 +138,6 @@ func (c *NavivoxCfg) applyNavivoxCfg(impl navivox.NavivoxCfg) {
 		AllowedTailnetIdentities: impl.AllowedTailnetIdentities,
 		PublicConfirmed:          impl.PublicConfirmed,
 		Servers:                  servers,
+		ActiveTurnTimeout:        impl.ActiveTurnTimeout,
 	}
 }

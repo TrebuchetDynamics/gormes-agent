@@ -45,6 +45,7 @@ const (
 	EventSpawn           = gatewayevents.EventSpawn
 	EventPlatformControl = gatewayevents.EventPlatformControl
 	EventPersonality     = gatewayevents.EventPersonality
+	EventCompress        = gatewayevents.EventCompress
 )
 
 // CommandDef is the canonical slash-command definition shared by gateway
@@ -130,6 +131,7 @@ var CommandRegistry = []CommandDef{
 	{Name: "clear", Description: "Clear screen and start a new session", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "commands", Description: "Browse all commands and skills", Kind: EventCommands, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "compact", Description: "Toggle compact transcript", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "compress", Description: "Summarize older session context now", Kind: EventCompress, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "config", Description: "Show current configuration", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "copy", Description: "Copy the last assistant response to clipboard", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "cron", Description: "Manage scheduled tasks", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
@@ -172,7 +174,6 @@ var CommandRegistry = []CommandDef{
 	{Name: "undo", Description: "Remove the last user/assistant exchange", Kind: EventUndo, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "title", Description: "Set a title for the current session", Kind: EventTitle, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "branch", Description: "Branch the current session (explore a different path)", Kind: EventUnknown, Aliases: []string{"fork"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
-	{Name: "compress", Description: "Manually compress conversation context", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "rollback", Description: "List or restore filesystem checkpoints", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "snapshot", Description: "Create or restore state snapshots of Gormes config/state", Kind: EventUnknown, Aliases: []string{"snap"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "approve", Description: "Approve a pending dangerous command", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
@@ -307,6 +308,7 @@ var slashCommandKindsCarryingBody = map[EventKind]struct{}{
 	EventSpawn:           {},
 	EventPlatformControl: {},
 	EventPersonality:     {},
+	EventCompress:        {},
 }
 
 // SlashCommandKindCarriesBody reports whether a command kind keeps its raw slash body.

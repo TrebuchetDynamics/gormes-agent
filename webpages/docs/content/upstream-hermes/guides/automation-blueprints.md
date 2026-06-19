@@ -1,24 +1,25 @@
 ---
-weight: 15
-title: "Automation Templates"
-description: "Ready-to-use automation recipes — scheduled tasks, GitHub event triggers, API webhooks, and multi-skill workflows"
+sidebar_position: 15
+title: "Automation Blueprints"
+description: "Ready-to-use automation blueprints — scheduled tasks, GitHub event triggers, API webhooks, and multi-skill workflows"
 ---
 
+# Automation Blueprints
 
-# Automation Templates
+Copy-paste blueprints for common automation patterns. Each blueprint uses Hermes's built-in [cron scheduler](https://hermes-agent.nousresearch.com/user-guide/features/cron) for time-based triggers and [webhook platform](https://hermes-agent.nousresearch.com/user-guide/messaging/webhooks) for event-driven triggers.
 
-Copy-paste recipes for common automation patterns. Each template uses Hermes's built-in [cron scheduler](../../user-guide/features/cron/) for time-based triggers and [webhook platform](../../user-guide/messaging/webhooks/) for event-driven triggers.
+Every blueprint works with **any model** — not locked to a single provider.
 
-Every template works with **any model** — not locked to a single provider.
+For parameterized blueprints with forms instead of cron syntax, see the [Automation Blueprints Catalog](https://hermes-agent.nousresearch.com/reference/automation-blueprints-catalog).
 
 > **Tip: Three Trigger Types**
-> | Trigger | How | Tool |
-> |---------|-----|------|
-> | **Schedule** | Runs on a cadence (hourly, nightly, weekly) | `cronjob` tool or `/cron` slash command |
-> | **GitHub Event** | Fires on PR opens, pushes, issues, CI results | Webhook platform (`hermes webhook subscribe`) |
-> | **API Call** | External service POSTs JSON to your endpoint | Webhook platform (config.yaml routes or `hermes webhook subscribe`) |
->
-> All three support delivery to Telegram, Discord, Slack, SMS, email, GitHub comments, or local files.
+| Trigger | How | Tool |
+|---------|-----|------|
+| **Schedule** | Runs on a cadence (hourly, nightly, weekly) | `cronjob` tool or `/cron` slash command |
+| **GitHub Event** | Fires on PR opens, pushes, issues, CI results | Webhook platform (`hermes webhook subscribe`) |
+| **API Call** | External service POSTs JSON to your endpoint | Webhook platform (config.yaml routes or `hermes webhook subscribe`) |
+
+All three support delivery to Telegram, Discord, Slack, SMS, email, GitHub comments, or local files.
 
 
 ---
@@ -75,7 +76,7 @@ Review for:
 - Missing tests for new behavior
 
 Post a concise review. If the PR is a trivial docs/typo change, say so briefly." \
-  --skills "github-code-review" \
+  --skill github-code-review \
   --deliver github_comment
 ```
 
@@ -297,7 +298,7 @@ Focus on:
 
 Skip routine dependency bumps and CI fixes. If nothing notable, respond with [SILENT].
 If there are findings, organize by repo with brief analysis of each item." \
-  --skills "competitive-pr-scout" \
+  --skill competitive-pr-scout \
   --name "Competitor scout" \
   --deliver telegram
 ```
@@ -336,7 +337,7 @@ Daily arXiv scan that saves summaries to your note-taking system.
 ```bash
 hermes cron create "0 8 * * *" \
   "Search arXiv for the 3 most interesting papers on 'language model reasoning' OR 'tool-use agents' from the past day. For each paper, create an Obsidian note with the title, authors, abstract summary, key contribution, and potential relevance to Hermes Agent development." \
-  --skills "arxiv,obsidian" \
+  --skill arxiv --skill obsidian \
   --name "Paper digest" \
   --deliver local
 ```
@@ -431,7 +432,7 @@ If action is 'closed' and pull_request.merged is true:
 5. Reference the original PR in the new PR description
 
 If action is not 'closed' or not merged, respond with [SILENT]." \
-  --skills "github-pr-workflow" \
+  --skill github-pr-workflow \
   --deliver log
 ```
 
@@ -515,7 +516,7 @@ hermes cron create "0 3 * * 0" \
 
 Write a security report with findings categorized by severity (Critical, High, Medium, Low).
 If nothing found, report a clean bill of health." \
-  --skills "codebase-security-audit" \
+  --skill codebase-security-audit \
   --name "Weekly security audit" \
   --deliver telegram
 ```

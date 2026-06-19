@@ -33,6 +33,10 @@ func (b *Bot) sendTelegramText(ctx context.Context, req telegramTextSendRequest)
 		msgCfg.ParseMode = req.ParseMode
 		msgCfg.ReplyToMessageID = replyID
 		msg, err := b.sendMessageConfig(msgCfg)
+		if err != nil && replyID != 0 && isReplyNotFoundError(err) {
+			msgCfg.ReplyToMessageID = 0
+			msg, err = b.sendMessageConfig(msgCfg)
+		}
 		if err != nil {
 			return "", err
 		}

@@ -1,8 +1,11 @@
 package gormescli
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -35,12 +38,6 @@ func TestHermesRowBackedMiscCommandConstructorsEmitStructuredUnavailableJSON(t *
 			wantCommand: "gormes debug delete",
 			wantRow:     HermesDiagnosticsRow,
 			destructive: true,
-		},
-		{
-			name:        "backup",
-			args:        []string{"backup", "--json"},
-			wantCommand: "gormes backup",
-			wantRow:     "Backup/update opt-in and exclusion policy",
 		},
 		{
 			name:        "import",
@@ -78,6 +75,73 @@ func TestHermesRowBackedMiscCommandConstructorsEmitStructuredUnavailableJSON(t *
 			}
 		})
 	}
+}
+
+func TestBackupCommandCreatesRestoreCompatibleZip(t *testing.T) {
+	source := t.TempDir()
+	if err := os.WriteFile(filepath.Join(source, "config.toml"), []byte("[hermes]\nmodel='gpt'\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(source, "checkpoints"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(source, "checkpoints", "skip.txt"), []byte("skip"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	outPath := filepath.Join(t.TempDir(), "pre-update-test.zip")
+
+	cmd := newHermesRowBackedMiscRootForTest()
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetArgs([]string{"backup", "--source", source, "--output", outPath, "--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("backup --json: %v\nstdout=%s", err, stdout.String())
+	}
+	var got backupReportJSON
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("backup stdout must be JSON: %v\nstdout=%s", err, stdout.String())
+	}
+	if got.Build.Version != "test-version" || got.Action != "backup_created" || got.Path != outPath || got.Source != source || got.FileCount != 1 || got.SizeBytes <= 0 {
+		t.Fatalf("backup report = %+v", got)
+	}
+	zr, err := zip.OpenReader(outPath)
+	if err != nil {
+		t.Fatalf("open backup zip: %v", err)
+	}
+	defer zr.Close()
+	if len(zr.File) != 1 || zr.File[0].Name != "config.toml" {
+		t.Fatalf("zip files = %#v, want only config.toml", zipFileNames(zr.File))
+	}
+}
+
+func TestBackupCommandDryRunJSONDoesNotCreateZip(t *testing.T) {
+	source := t.TempDir()
+	outPath := filepath.Join(t.TempDir(), "pre-update-test.zip")
+	cmd := newHermesRowBackedMiscRootForTest()
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetArgs([]string{"backup", "--source", source, "--output", outPath, "--dry-run", "--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("backup --dry-run --json: %v\nstdout=%s", err, stdout.String())
+	}
+	var got backupReportJSON
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("dry-run stdout must be JSON: %v\nstdout=%s", err, stdout.String())
+	}
+	if got.Action != "preview" || !got.DryRun || got.Path != outPath || got.Source != source {
+		t.Fatalf("dry-run report = %+v", got)
+	}
+	if _, err := os.Stat(outPath); !os.IsNotExist(err) {
+		t.Fatalf("dry-run created zip or stat failed: %v", err)
+	}
+}
+
+func zipFileNames(files []*zip.File) []string {
+	out := make([]string, 0, len(files))
+	for _, f := range files {
+		out = append(out, f.Name)
+	}
+	return out
 }
 
 func newHermesRowBackedMiscRootForTest() *cobra.Command {

@@ -2,6 +2,7 @@ package gormescli
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log/slog"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/transcript"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
@@ -19,6 +21,12 @@ import (
 // dashboardMemoryQueueCap bounds the async write queue of the dashboard's
 // SQLite transcript store.
 const dashboardMemoryQueueCap = 1024
+
+// dashboardChatSessionID is the default chat session id the apiserver submits
+// turns under; the factory resumes this session's transcript on startup so the
+// agent remembers the conversation across restarts. Keep in sync with the
+// apiserver default of the same value.
+const dashboardChatSessionID = "dashboard-chat"
 
 // buildDashboardTurnLoop constructs a native kernel-backed turn loop for the
 // dashboard chat surface and persists its transcript so chats survive restarts
@@ -79,6 +87,17 @@ func buildDashboardTurnLoop(ctx context.Context) (apiserver.TurnLoop, func(), er
 
 	go k.Run(runCtx)
 
+	// Reload prior conversation so the agent remembers across restarts: replay
+	// the persisted dashboard-chat transcript into the kernel's context.
+	// Best-effort — a missing/empty transcript just starts fresh.
+	if history := loadDashboardChatHistory(); len(history) > 0 {
+		if err := k.ResumeSession(dashboardChatSessionID, history); err != nil {
+			log.Warn("dashboard: could not resume prior chat history", "err", err, "messages", len(history))
+		} else {
+			log.Info("dashboard: resumed prior chat history", "messages", len(history))
+		}
+	}
+
 	cleanup := func() {
 		cancel()
 		if memStore != nil {
@@ -87,4 +106,27 @@ func buildDashboardTurnLoop(ctx context.Context) (apiserver.TurnLoop, func(), er
 	}
 
 	return apiserver.NewKernelTurnLoop(k), cleanup, nil
+}
+
+// loadDashboardChatHistory reads the persisted dashboard-chat transcript from
+// memory.db and returns it as kernel messages for resume. It opens a short-
+// lived read connection (the driver is registered via the memory package) and
+// returns nil on any error or when there is no prior transcript.
+func loadDashboardChatHistory() []llm.Message {
+	db, err := sql.Open("sqlite3", config.MemoryDBPath())
+	if err != nil {
+		return nil
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	_, _ = db.Exec("PRAGMA busy_timeout=5000")
+	msgs, err := transcript.LoadMessages(context.Background(), db, dashboardChatSessionID)
+	if err != nil {
+		return nil
+	}
+	out := make([]llm.Message, 0, len(msgs))
+	for _, m := range msgs {
+		out = append(out, llm.Message{Role: m.Role, Content: m.Content})
+	}
+	return out
 }

@@ -447,6 +447,25 @@ func (k *Kernel) ResumeSession(sessionID string, history []llm.Message) error {
 	}
 }
 
+// ManualCompress rewrites the resident visible history through the configured
+// ContextEngine at an explicit operator boundary. It is synchronous for gateway
+// and TUI command handlers and preserves the single-owner invariant by routing
+// through the Run goroutine.
+func (k *Kernel) ManualCompress(focus string) error {
+	ack := make(chan error, 1)
+	select {
+	case k.events <- PlatformEvent{Kind: PlatformEventManualCompress, Text: focus, ack: ack}:
+	default:
+		return ErrEventMailboxFull
+	}
+	select {
+	case err := <-ack:
+		return err
+	case <-time.After(30 * time.Second):
+		return errors.New("kernel: ManualCompress ack timeout")
+	}
+}
+
 // Run is the kernel loop. MUST be called from exactly one goroutine. Exits
 // when ctx is cancelled or a PlatformEventQuit is received. Closes the
 // render channel on exit.
@@ -564,6 +583,40 @@ func (k *Kernel) Run(ctx context.Context) error {
 				k.lastError = ""
 				k.phase = PhaseIdle
 				k.emitFrame("session resumed")
+				if e.ack != nil {
+					e.ack <- nil
+				}
+			case PlatformEventManualCompress:
+				if k.phase != PhaseIdle && k.phase != PhaseFailed {
+					if e.ack != nil {
+						e.ack <- ErrCompressDuringTurn
+					}
+					continue
+				}
+				if k.cfg.ContextEngine == nil {
+					if e.ack != nil {
+						e.ack <- ErrCompressionUnavailable
+					}
+					continue
+				}
+				before := cloneKernelMessages(k.history)
+				currentTokens := 0
+				if status := k.cfg.ContextEngine.Status(); status.LastTotalTokens > 0 {
+					currentTokens = status.LastTotalTokens
+				}
+				after, _, err := k.cfg.ContextEngine.Compress(ctx, before, llm.CompressionRequest{CurrentTokens: currentTokens, FocusTopic: strings.TrimSpace(e.Text)})
+				if err != nil {
+					k.lastError = err.Error()
+					k.emitFrame("compression failed")
+					if e.ack != nil {
+						e.ack <- err
+					}
+					continue
+				}
+				k.history = cloneKernelMessages(after)
+				k.lastError = ""
+				_ = k.cfg.ContextEngine.OnCompressionBoundary(ctx, llm.CompressionBoundary{OldSessionID: k.sessionID, NewSessionID: k.sessionID, Reason: "manual_compress"})
+				k.emitFrame("session compressed")
 				if e.ack != nil {
 					e.ack <- nil
 				}
@@ -1225,6 +1278,10 @@ func (k *Kernel) handleRetryEvent(e PlatformEvent) bool {
 		if e.ack != nil {
 			e.ack <- ErrSetModelDuringTurn
 		}
+	case PlatformEventManualCompress:
+		if e.ack != nil {
+			e.ack <- ErrCompressDuringTurn
+		}
 	case PlatformEventSteer:
 		k.queueSteerGuidance(e.Text)
 	}
@@ -1414,6 +1471,10 @@ streamLoop:
 				// the switch without mutating the resident override.
 				if e.ack != nil {
 					e.ack <- ErrSetModelDuringTurn
+				}
+			case PlatformEventManualCompress:
+				if e.ack != nil {
+					e.ack <- ErrCompressDuringTurn
 				}
 			case PlatformEventQuit:
 				*cancelled = true

@@ -67,6 +67,8 @@ const (
 	EventPlatformControl
 	// EventPersonality handles `/personality` subcommands (list, switch, none).
 	EventPersonality
+	// EventCompress handles explicit session/context compression.
+	EventCompress
 )
 
 // String returns the stable log/test representation of an EventKind.
@@ -134,6 +136,8 @@ func (k EventKind) String() string {
 		return "platform_control"
 	case EventPersonality:
 		return "personality"
+	case EventCompress:
+		return "compress"
 	default:
 		return "unknown"
 	}

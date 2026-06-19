@@ -7,6 +7,7 @@ import (
 	"net"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config/channels/internal/textlist"
 )
@@ -26,6 +27,7 @@ const (
 	NavivoxAuthStaticToken               = "static_token"
 	NavivoxAuthTailscaleIdentity         = "tailscale_identity"
 	NavivoxAuthTokenAndTailscaleIdentity = "token_and_tailscale_identity"
+	NavivoxAuthDeviceBearer              = "device_bearer"
 
 	NavivoxMinExposedTokenLength        = 32
 	NavivoxMinExposedTokenDistinctChars = 16
@@ -62,6 +64,7 @@ type NavivoxCfg struct {
 	AllowedTailnetIdentities []string                    `toml:"allowed_tailnet_identities" yaml:"allowed_tailnet_identities"`
 	PublicConfirmed          bool                        `toml:"public_confirmed" yaml:"public_confirmed"`
 	Servers                  map[string]NavivoxServerCfg `toml:"servers" yaml:"servers"`
+	ActiveTurnTimeout        time.Duration               `toml:"active_turn_timeout" yaml:"active_turn_timeout"`
 }
 
 type NavivoxServerCfg struct {

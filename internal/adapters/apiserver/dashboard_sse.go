@@ -194,6 +194,41 @@ func (s *Server) handleDashboardNewChat(w http.ResponseWriter, r *http.Request) 
 	io.WriteString(w, `<div class="line thinking">🆕 Started a new chat.</div>`)
 }
 
+// handleChatHistoryFragment renders the persisted transcript for the current
+// chat session so the feed shows prior messages on page load (reload after a
+// restart). Loaded once via hx-trigger="load"; live token frames append after.
+func (s *Server) handleChatHistoryFragment(w http.ResponseWriter, r *http.Request) {
+	if !s.guardFragment(w, r) {
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if s.chatHistory == nil {
+		io.WriteString(w, `<div class="line thinking">Starting chat session…</div>`)
+		return
+	}
+	msgs := s.chatHistory(s.currentChatSessionID())
+	var b strings.Builder
+	for _, m := range msgs {
+		content := html.EscapeString(strings.TrimSpace(m.Content))
+		if content == "" {
+			continue
+		}
+		switch strings.ToLower(strings.TrimSpace(m.Role)) {
+		case "user":
+			fmt.Fprintf(&b, `<div class="line">❯ %s</div>`, content)
+		case "assistant":
+			fmt.Fprintf(&b, `<div class="line stream">🤖 %s</div>`, content)
+		default:
+			// Skip tool/system messages in the human-facing feed.
+		}
+	}
+	if b.Len() == 0 {
+		io.WriteString(w, `<div class="line thinking">No earlier messages — start chatting.</div>`)
+		return
+	}
+	io.WriteString(w, b.String())
+}
+
 // dashboardChatTurnTimeout bounds a single dashboard chat turn. It is generous
 // because agent turns can run tools, but it prevents an orphaned turn from
 // living forever after the page is closed.

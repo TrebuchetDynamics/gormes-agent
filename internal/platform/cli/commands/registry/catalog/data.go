@@ -61,7 +61,7 @@ var CommandRegistry = []CommandPolicy{
 	{Name: "busy", Description: "Control what Enter does while Gormes is working", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true, Subcommands: []string{"queue", "steer", "interrupt", "status"}},
 	{Name: "clear", Description: "Clear screen and start a new session", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyBusyReject, Ported: true},
 	{Name: "commands", Description: "Browse all commands and skills", Surface: CommandSurfaceGateway, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
-	{Name: "compress", Description: "Manually compress conversation context", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "compress", Description: "Manually compress conversation context", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "compact", Description: "Toggle compact transcript", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true, Subcommands: []string{"on", "off", "toggle"}},
 	{Name: "config", Description: "Show current configuration", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "copy", Description: "Copy the last assistant response to clipboard", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},

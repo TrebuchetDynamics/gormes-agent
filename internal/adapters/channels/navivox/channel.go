@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/navivox/capability"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/internal/httpjson"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
@@ -53,6 +54,16 @@ type Channel struct {
 	voiceProfiles      voiceProfileBackend
 	runRecords         map[string]*sessionpkg.NavivoxRunRecord
 	latestRunBySession map[string]string
+
+	deviceCredentials map[string]*deviceCredentialRecord
+	credentialsPath   string
+
+	// activeTurnBySession maps navivox session ID to the identity of the client
+	// that started the current turn. Used to reject concurrent turns from a
+	// different device with a turn_in_progress error rather than silently queuing.
+	// Entries are set by enqueueTurn and cleared when "done" is broadcast or the
+	// turn is cancelled/stopped.
+	activeTurnBySession map[string]string
 }
 
 type ChannelOption func(*Channel)
@@ -66,6 +77,16 @@ func WithProfileRouting(report config.NavivoxProfileRoutingReport) ChannelOption
 func WithSingleUsePairingStream() ChannelOption {
 	return func(c *Channel) {
 		c.singleUsePairingStream = true
+	}
+}
+
+// WithCredentialsPath enables disk persistence for device credentials.
+// On startup, existing credentials are loaded from path; after each issue or
+// revoke, the full set is atomically written back to path. The raw secret is
+// never written — only the SHA-256 hash is stored.
+func WithCredentialsPath(path string) ChannelOption {
+	return func(c *Channel) {
+		c.credentialsPath = path
 	}
 }
 
@@ -118,10 +139,18 @@ func NewChannel(cfg config.NavivoxCfg, log *slog.Logger, opts ...ChannelOption) 
 		voiceProfiles:      defaultVoiceProfileBackend(),
 		runRecords:         map[string]*sessionpkg.NavivoxRunRecord{},
 		latestRunBySession: map[string]string{},
+		deviceCredentials:  map[string]*deviceCredentialRecord{},
 	}
 	for _, opt := range opts {
 		if opt != nil {
 			opt(ch)
+		}
+	}
+	if ch.credentialsPath != "" {
+		if loaded, err := loadCredentialsFromDisk(ch.credentialsPath); err == nil {
+			ch.deviceCredentials = loaded
+		} else {
+			log.Warn("navivox: could not load device credentials from disk", "path", ch.credentialsPath, "error", err)
 		}
 	}
 	return ch, nil
@@ -177,6 +206,8 @@ func (c *Channel) Handler(inbox chan<- gateway.InboundEvent) http.Handler {
 	mux.HandleFunc("/v1/navivox/sessions", c.withAuth(c.handleSessions))
 	mux.HandleFunc("/v1/navivox/sessions/", c.withAuth(c.handleSessionByID))
 	mux.HandleFunc("/v1/navivox/turn", c.withAuth(c.handleTurn(inbox)))
+	mux.HandleFunc("/v1/navivox/device-credentials/revoke", c.withAuth(c.handleDeviceCredentialRevoke))
+	mux.HandleFunc("/v1/navivox/device-credentials", c.withAuth(c.handleDeviceCredentials))
 	mux.HandleFunc("/v1/navivox/stream", c.handleStream(inbox))
 	return c.cors(mux)
 }
@@ -447,12 +478,13 @@ type navivoxTransportSecurityStatus struct {
 func navivoxTransportSecurityStatusForRequest(r *http.Request, cfg config.NavivoxCfg) navivoxTransportSecurityStatus {
 	tls := r != nil && r.TLS != nil
 	privateNetwork := config.NavivoxExposureRequiresVPN(cfg.ExposureMode)
+	effectiveSecurity := navivoxEffectiveTransportSecurity(tls, privateNetwork, cfg.ExposureMode)
 	return navivoxTransportSecurityStatus{
-		EffectiveSecurity:         navivoxEffectiveTransportSecurity(tls, privateNetwork, cfg.ExposureMode),
+		EffectiveSecurity:         effectiveSecurity,
 		ExposureMode:              cfg.ExposureMode,
 		TLS:                       tls,
 		PrivateNetwork:            privateNetwork,
-		DurableCredentialsAllowed: false,
+		DurableCredentialsAllowed: capability.DurableReconnectSecurityAllowed(effectiveSecurity),
 	}
 }
 
@@ -629,8 +661,9 @@ func (c *Channel) handleSessionByID(w http.ResponseWriter, r *http.Request, _ st
 }
 
 type navivoxError struct {
-	code    string
-	message string
+	code      string
+	message   string
+	sessionID string
 }
 
 func (e navivoxError) Error() string { return e.message }
@@ -658,6 +691,14 @@ func statusForNavivoxError(err error) int {
 	default:
 		return http.StatusServiceUnavailable
 	}
+}
+
+func sessionIDForNavivoxError(err error) string {
+	var ne navivoxError
+	if errors.As(err, &ne) {
+		return ne.sessionID
+	}
+	return ""
 }
 
 func safeNavivoxError(err error) string {

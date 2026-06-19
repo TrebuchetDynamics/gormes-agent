@@ -717,7 +717,7 @@ func TestNavivoxE2EPublicHTTPStatusAdvertisesInsecureTransport(t *testing.T) {
 	}
 }
 
-func TestNavivoxE2ECapabilitiesAdvertiseDurableReconnectFailClosed(t *testing.T) {
+func TestNavivoxE2ECapabilitiesAdvertiseDurableReconnectOnLoopback(t *testing.T) {
 	ch, err := NewChannel(config.NavivoxCfg{
 		Enabled:      true,
 		GatewayID:    "gw_0123456789abcdef0123456789abcdef",
@@ -739,24 +739,32 @@ func TestNavivoxE2ECapabilitiesAdvertiseDurableReconnectFailClosed(t *testing.T)
 		DurableReconnect struct {
 			Supported         bool     `json:"supported"`
 			IssueEndpoint     string   `json:"issue_endpoint"`
+			ListEndpoint      string   `json:"list_endpoint"`
+			RevokeEndpoint    string   `json:"revoke_endpoint"`
 			AuthMethods       []string `json:"auth_methods"`
+			Scopes            []string `json:"scopes"`
 			Platforms         []string `json:"platforms"`
+			Interim           bool     `json:"interim"`
 			EffectiveSecurity string   `json:"effective_security"`
 			BlockedReason     string   `json:"blocked_reason"`
 		} `json:"durable_reconnect"`
 	}
 	httpc.JSON(http.MethodGet, "/v1/navivox/capabilities", "", http.StatusOK, &caps)
-	if caps.DurableReconnect.Supported {
-		t.Fatalf("durable_reconnect.supported = true, want fail-closed until credential issuance exists: %+v", caps.DurableReconnect)
+	if !caps.DurableReconnect.Supported {
+		t.Fatalf("durable_reconnect.supported = false on loopback, want supported now issuance exists: %+v", caps.DurableReconnect)
 	}
-	if caps.DurableReconnect.IssueEndpoint != "" || len(caps.DurableReconnect.AuthMethods) != 0 {
-		t.Fatalf("durable reconnect issue contract = endpoint=%q auth=%v, want empty while unsupported", caps.DurableReconnect.IssueEndpoint, caps.DurableReconnect.AuthMethods)
+	if caps.DurableReconnect.IssueEndpoint != "/v1/navivox/device-credentials" ||
+		caps.DurableReconnect.RevokeEndpoint != "/v1/navivox/device-credentials/revoke" {
+		t.Fatalf("durable reconnect issue contract = issue=%q revoke=%q, want device-credentials endpoints", caps.DurableReconnect.IssueEndpoint, caps.DurableReconnect.RevokeEndpoint)
+	}
+	if len(caps.DurableReconnect.AuthMethods) == 0 || !caps.DurableReconnect.Interim {
+		t.Fatalf("durable reconnect auth=%v interim=%v, want non-empty interim auth methods", caps.DurableReconnect.AuthMethods, caps.DurableReconnect.Interim)
 	}
 	if caps.DurableReconnect.EffectiveSecurity != "loopback" {
 		t.Fatalf("durable_reconnect.effective_security = %q, want loopback", caps.DurableReconnect.EffectiveSecurity)
 	}
-	if !strings.Contains(strings.ToLower(caps.DurableReconnect.BlockedReason), "not implemented") {
-		t.Fatalf("durable_reconnect.blocked_reason = %q, want implementation blocker", caps.DurableReconnect.BlockedReason)
+	if caps.DurableReconnect.BlockedReason != "" {
+		t.Fatalf("durable_reconnect.blocked_reason = %q, want empty when supported", caps.DurableReconnect.BlockedReason)
 	}
 }
 
@@ -811,8 +819,8 @@ func TestNavivoxE2EAuthenticatedClientSeesGatewayIdentityAndRunsScopedTurn(t *te
 	if status.GatewayID != gatewayID || status.GatewayLabel != "Kitchen Gormes" {
 		t.Fatalf("status identity = %+v, want authenticated gateway identity and label", status)
 	}
-	if status.TransportSecurity.EffectiveSecurity != "loopback" || status.TransportSecurity.ExposureMode != config.NavivoxExposureLocal || status.TransportSecurity.TLS || status.TransportSecurity.PrivateNetwork || status.TransportSecurity.DurableCredentialsAllowed {
-		t.Fatalf("transport security = %+v, want loopback session-only status", status.TransportSecurity)
+	if status.TransportSecurity.EffectiveSecurity != "loopback" || status.TransportSecurity.ExposureMode != config.NavivoxExposureLocal || status.TransportSecurity.TLS || status.TransportSecurity.PrivateNetwork || !status.TransportSecurity.DurableCredentialsAllowed {
+		t.Fatalf("transport security = %+v, want loopback durable-allowed status", status.TransportSecurity)
 	}
 
 	var contacts profileContactSnapshot

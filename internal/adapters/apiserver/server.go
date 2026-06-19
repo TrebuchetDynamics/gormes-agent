@@ -102,6 +102,18 @@ type Config struct {
 	// as `gormes session list`. When nil, the sessions fragment falls back to
 	// the in-memory response store.
 	SessionsList func() []DashboardSession
+	// ChatHistory loads the persisted transcript for a chat session id so the
+	// chat feed shows prior messages on page load (reload-on-restart). The
+	// command fills it from the transcript store (memory.db). When nil, the
+	// chat feed starts empty.
+	ChatHistory func(sessionID string) []DashboardChatMessage
+}
+
+// DashboardChatMessage is a neutral persisted chat message for restoring the
+// chat feed on load.
+type DashboardChatMessage struct {
+	Role    string
+	Content string
 }
 
 // DashboardSession is a neutral persistent-session summary row for the Sessions
@@ -209,6 +221,7 @@ type Server struct {
 	envStatus              func() []DashboardEnvKey
 	skillsList             func() []DashboardSkill
 	sessionsList           func() []DashboardSession
+	chatHistory            func(sessionID string) []DashboardChatMessage
 	chatMu                 sync.Mutex
 	chatSessionID          string
 	statusMu               sync.Mutex
@@ -300,6 +313,7 @@ func NewServer(cfg Config) *Server {
 		envStatus:             cfg.EnvStatus,
 		skillsList:            cfg.SkillsList,
 		sessionsList:          cfg.SessionsList,
+		chatHistory:           cfg.ChatHistory,
 		chatSessionID:         dashboardChatSessionID,
 		now:                   time.Now,
 		mux:                   http.NewServeMux(),
@@ -456,6 +470,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/dashboard/events", s.handleDashboardSSE)
 	s.mux.HandleFunc("/dashboard/memory", s.handleDashboardMemoryFragment)
 	s.mux.HandleFunc("/dashboard/sessions-fragment", s.handleSessionsFragment)
+	s.mux.HandleFunc("/dashboard/chat-history", s.handleChatHistoryFragment)
 	s.mux.HandleFunc("/agent/execute", s.handleAgentExecute)
 	s.mux.HandleFunc("/agent/reset", s.handleDashboardNewChat)
 	s.mux.HandleFunc("/ui/sessions", s.handleSessionsFragment)

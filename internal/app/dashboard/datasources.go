@@ -13,6 +13,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config/paths"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills/catalog"
 	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/transcript"
 )
 
 // dashboardSessionListLimit caps how many recent sessions the dashboard lists.
@@ -79,16 +80,17 @@ func buildSkillsList() []apiserver.DashboardSkill {
 	return out
 }
 
-// newSessionsLister opens the persistent session directory (memory.db) and
-// returns a lister for the dashboard Sessions page plus a closer. SQLite
-// tolerates concurrent processes, so this works alongside a running gateway.
-// Returns ok=false when the directory cannot be opened (e.g. no sessions yet).
-func newSessionsLister() (func() []apiserver.DashboardSession, func(), bool) {
+// newSessionReader opens the persistent session store (memory.db) once and
+// returns a sessions lister (for the Sessions page) and a chat-history loader
+// (for restoring the chat feed on load), plus a closer. SQLite tolerates
+// concurrent processes, so this works alongside a running gateway. Returns
+// ok=false when the store cannot be opened (e.g. no sessions yet).
+func newSessionReader() (list func() []apiserver.DashboardSession, history func(string) []apiserver.DashboardChatMessage, closer func(), ok bool) {
 	db, err := appsession.OpenSessionDirectoryDB()
 	if err != nil {
-		return nil, nil, false
+		return nil, nil, nil, false
 	}
-	lister := func() []apiserver.DashboardSession {
+	list = func() []apiserver.DashboardSession {
 		entries, err := sessionpkg.ListDirectorySessions(context.Background(), db, sessionpkg.DirectoryFilter{Limit: dashboardSessionListLimit})
 		if err != nil {
 			return nil
@@ -106,7 +108,18 @@ func newSessionsLister() (func() []apiserver.DashboardSession, func(), bool) {
 		}
 		return out
 	}
-	return lister, func() { _ = db.Close() }, true
+	history = func(sessionID string) []apiserver.DashboardChatMessage {
+		msgs, err := transcript.LoadMessages(context.Background(), db, sessionID)
+		if err != nil {
+			return nil
+		}
+		out := make([]apiserver.DashboardChatMessage, 0, len(msgs))
+		for _, m := range msgs {
+			out = append(out, apiserver.DashboardChatMessage{Role: m.Role, Content: m.Content})
+		}
+		return out
+	}
+	return list, history, func() { _ = db.Close() }, true
 }
 
 // newCronReader opens the cron job store (backed by the bbolt session DB) and

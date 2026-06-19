@@ -31,6 +31,8 @@ const (
 
 	maxPendingPairingCodesPerPlatform = 3
 	maxPairingApprovalFailures        = 5
+
+	maxPairingEvidenceRecords = 100
 )
 
 // PairingPlatformState is the operator-facing per-platform pairing state.
@@ -749,6 +751,9 @@ func (s *PairingStore) recordPairingEvidenceLocked(state *pairingFile, reason Pa
 		Until:    until.UTC(),
 		Count:    count,
 	})
+	if len(state.Evidence) > maxPairingEvidenceRecords {
+		state.Evidence = state.Evidence[len(state.Evidence)-maxPairingEvidenceRecords:]
+	}
 }
 
 func (s *PairingStore) readStateForStatusLocked() (pairingFile, []PairingDegradedEvidence, error) {

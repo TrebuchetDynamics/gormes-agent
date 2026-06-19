@@ -51,6 +51,8 @@ var platformConnectedCheckers = map[string]platformConnectedChecker{
 	"yuanbao":               extraAll("app_id", "app_secret"),
 	"dingtalk":              extraAll("client_id", "client_secret"),
 	"teams":                 extraAll("client_id", "client_secret", "tenant_id"),
+	"whatsapp_cloud":        extraAll("phone_number_id", "access_token"),
+	"photon":                extraAll("project_id", "project_secret"),
 }
 
 func PlatformLooksConfigured(cfg PlatformConnectionConfig) (bool, bool) {

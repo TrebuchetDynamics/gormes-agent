@@ -229,6 +229,51 @@ func TestKernelTurnLoopResetSessionCallsKernel(t *testing.T) {
 	}
 }
 
+func TestChatHistoryFragmentRendersPriorMessages(t *testing.T) {
+	var gotSID string
+	srv := NewServer(Config{
+		ModelName:          "gormes-agent",
+		DashboardBoundHost: "127.0.0.1",
+		ChatHistory: func(sid string) []DashboardChatMessage {
+			gotSID = sid
+			return []DashboardChatMessage{
+				{Role: "user", Content: "hello <there>"},
+				{Role: "assistant", Content: "hi back"},
+				{Role: "tool", Content: "tool-noise"},
+			}
+		},
+	})
+	rec := getUI(t, srv.Handler(), "/dashboard/chat-history")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /dashboard/chat-history = %d, want 200", rec.Code)
+	}
+	if gotSID != "dashboard-chat" {
+		t.Fatalf("history loaded for %q, want current session dashboard-chat", gotSID)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "❯ hello &lt;there&gt;") {
+		t.Fatalf("user message not rendered/escaped: %s", body)
+	}
+	if !strings.Contains(body, "🤖 hi back") {
+		t.Fatalf("assistant message not rendered: %s", body)
+	}
+	if strings.Contains(body, "tool-noise") {
+		t.Fatalf("tool message should be skipped in the feed: %s", body)
+	}
+}
+
+func TestChatHistoryFragmentEmptyState(t *testing.T) {
+	srv := NewServer(Config{
+		ModelName:          "gormes-agent",
+		DashboardBoundHost: "127.0.0.1",
+		ChatHistory:        func(string) []DashboardChatMessage { return nil },
+	})
+	rec := getUI(t, srv.Handler(), "/dashboard/chat-history")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "No earlier messages") {
+		t.Fatalf("empty history fragment unexpected: code=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestAgentExecuteDegradesWithoutLoop(t *testing.T) {
 	// newUITestServer wires no Loop -> chat is display-only.
 	h := newUITestServer().Handler()

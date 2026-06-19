@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1033,6 +1034,7 @@ func (m *Manager) pinTurn(platform, chatID, msgID string) {
 	m.turnCancelled = false
 	m.turnFrameSeen = false
 	m.turnLastUserText = ""
+	m.turnContentDedupKey = ""
 	m.turnAudioRequested = false
 	m.turnKernel = nil
 	m.turnReplySent = false
@@ -1051,6 +1053,7 @@ func (m *Manager) clearTurn() {
 	m.turnCancelled = false
 	m.turnFrameSeen = false
 	m.turnLastUserText = ""
+	m.turnContentDedupKey = ""
 	m.turnAudioRequested = false
 	m.turnKernel = nil
 	m.resetToolProgress()
@@ -1060,6 +1063,12 @@ func (m *Manager) setTurnLastUserText(text string) {
 	m.turnMu.Lock()
 	defer m.turnMu.Unlock()
 	m.turnLastUserText = text
+}
+
+func (m *Manager) setTurnContentDedupKey(key string) {
+	m.turnMu.Lock()
+	defer m.turnMu.Unlock()
+	m.turnContentDedupKey = key
 }
 
 func (m *Manager) setTurnAudioRequested(requested bool) {
@@ -1292,11 +1301,40 @@ func (m *Manager) queueFollowUpIfActive(ev InboundEvent) (queued bool, full bool
 	if !m.hasActiveTurnLocked() {
 		return false, false
 	}
+	key := inboundContentDedupKey(ev)
+	if key != "" {
+		if key == m.turnContentDedupKey {
+			return true, false
+		}
+		for _, pending := range m.followUps {
+			if key == inboundContentDedupKey(pending) {
+				return true, false
+			}
+		}
+	}
 	if len(m.followUps) >= followUpQueueCap {
 		return false, true
 	}
 	m.followUps = append(m.followUps, ev)
 	return true, false
+}
+
+func inboundContentDedupKey(ev InboundEvent) string {
+	text := strings.Join(strings.Fields(ev.SubmitText()), " ")
+	if text == "" {
+		return ""
+	}
+	parts := []string{ev.Platform, ev.AccountID, ev.ChatID, ev.ThreadID, ev.UserID, text}
+	var b strings.Builder
+	for i, part := range parts {
+		if i > 0 {
+			b.WriteByte('|')
+		}
+		b.WriteString(strconv.Itoa(len(part)))
+		b.WriteByte(':')
+		b.WriteString(part)
+	}
+	return b.String()
 }
 
 func (m *Manager) followUpQueueDepth() int {
@@ -1344,6 +1382,7 @@ func (m *Manager) popNextFollowUpAsActive() (InboundEvent, bool) {
 	m.turnSource = SessionSource{}
 	m.turnCancelled = false
 	m.turnFrameSeen = false
+	m.turnContentDedupKey = inboundContentDedupKey(next)
 	m.turnAudioRequested = false
 	m.resetToolProgress()
 	return next, true
@@ -1677,6 +1716,7 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 	}
 	m.setPinnedTurnSession(sessionKey, resolved.SessionID, source)
 	m.setTurnLastUserText(ev.Text)
+	m.setTurnContentDedupKey(inboundContentDedupKey(ev))
 	audioRequested := inboundRequestsAudioReply(ev)
 	m.setTurnAudioRequested(audioRequested)
 	sessionBlock := BuildSessionContextPrompt(SessionContext{

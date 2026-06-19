@@ -114,11 +114,20 @@ func TestManager_GuestMentionBypassOnlyAdmitsTelegramDirectMention(t *testing.T)
 }
 
 type fakeKernel struct {
-	mu        sync.Mutex
-	submits   []kernel.PlatformEvent
-	resets    int
-	submitErr error
-	resetErr  error
+	mu            sync.Mutex
+	submits       []kernel.PlatformEvent
+	resets        int
+	resumes       []fakeKernelResume
+	compressFocus []string
+	submitErr     error
+	resetErr      error
+	resumeErr     error
+	compressErr   error
+}
+
+type fakeKernelResume struct {
+	SessionID string
+	History   []llm.Message
 }
 
 func (f *fakeKernel) Submit(e kernel.PlatformEvent) error {
@@ -145,10 +154,36 @@ func (f *fakeKernel) Render() <-chan kernel.RenderFrame {
 	return nil
 }
 
+func (f *fakeKernel) ResumeSession(sessionID string, history []llm.Message) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.resumeErr != nil {
+		return f.resumeErr
+	}
+	f.resumes = append(f.resumes, fakeKernelResume{SessionID: sessionID, History: append([]llm.Message(nil), history...)})
+	return nil
+}
+
+func (f *fakeKernel) ManualCompress(focus string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.compressErr != nil {
+		return f.compressErr
+	}
+	f.compressFocus = append(f.compressFocus, focus)
+	return nil
+}
+
 func (f *fakeKernel) submitsSnapshot() []kernel.PlatformEvent {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return cloneSlice(f.submits)
+}
+
+func (f *fakeKernel) resumesSnapshot() []fakeKernelResume {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return cloneSlice(f.resumes)
 }
 
 func stopManagerTestRun(t *testing.T, cancel context.CancelFunc, done <-chan struct{}) {

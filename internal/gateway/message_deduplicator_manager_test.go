@@ -210,6 +210,61 @@ func TestGatewayInboundDedup_UsesMsgIDFallbackWhenMessageIDMissing(t *testing.T)
 	}
 }
 
+func TestGatewayInboundDedup_DropsSameContentFollowUpFromSameUser(t *testing.T) {
+	ctx := context.Background()
+	tg := newFakeChannel("telegram")
+	fk := &fakeKernel{}
+	m := NewManagerWithSubmitter(ManagerConfig{AllowedChats: map[string]string{"telegram": "chat-1"}}, fk, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	first := InboundEvent{Platform: "telegram", ChatID: "chat-1", ThreadID: "thread-1", UserID: "user-1", MsgID: "msg-1", MessageID: "platform-1", Kind: EventSubmit, Text: "same text"}
+	dup := first
+	dup.MsgID = "msg-2"
+	dup.MessageID = "platform-2"
+	if err := m.handleInbound(ctx, first); err != nil {
+		t.Fatalf("first handleInbound: %v", err)
+	}
+	if err := m.handleInbound(ctx, dup); err != nil {
+		t.Fatalf("duplicate content handleInbound: %v", err)
+	}
+	m.drainNextFollowUp(ctx)
+
+	submits := fk.submitsSnapshot()
+	if len(submits) != 1 || submits[0].Text != "same text" {
+		t.Fatalf("submits = %#v, want one same-text submit", submits)
+	}
+}
+
+func TestGatewayInboundDedup_AllowsSameContentFromDifferentUsers(t *testing.T) {
+	ctx := context.Background()
+	tg := newFakeChannel("telegram")
+	fk := &fakeKernel{}
+	m := NewManagerWithSubmitter(ManagerConfig{AllowedChats: map[string]string{"telegram": "chat-1"}}, fk, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	first := InboundEvent{Platform: "telegram", ChatID: "chat-1", ThreadID: "thread-1", UserID: "user-1", MsgID: "msg-1", MessageID: "platform-1", Kind: EventSubmit, Text: "same text"}
+	otherUser := first
+	otherUser.UserID = "user-2"
+	otherUser.MsgID = "msg-2"
+	otherUser.MessageID = "platform-2"
+	if err := m.handleInbound(ctx, first); err != nil {
+		t.Fatalf("first handleInbound: %v", err)
+	}
+	if err := m.handleInbound(ctx, otherUser); err != nil {
+		t.Fatalf("other user handleInbound: %v", err)
+	}
+	m.drainNextFollowUp(ctx)
+
+	submits := fk.submitsSnapshot()
+	if len(submits) != 2 {
+		t.Fatalf("submits = %#v, want same text from both users", submits)
+	}
+}
+
 func assertGatewayDedupEvidence(t *testing.T, status *RuntimeStatusStore, platform string, want MessageDeduplicatorEvidence) {
 	t.Helper()
 

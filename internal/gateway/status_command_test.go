@@ -557,10 +557,10 @@ func TestStatusCommand_TitleFromMetadata(t *testing.T) {
 	}
 }
 
-// TestStatusCommand_TitleUnavailable proves that an empty metadata title
-// renders the documented degraded-mode sentinel rather than silently
-// omitting the Title field or substituting a synthetic title.
-func TestStatusCommand_TitleUnavailable(t *testing.T) {
+// TestStatusCommand_OmitsUnavailableTitle proves that an empty metadata title
+// matches Hermes by omitting the Title field rather than rendering a degraded
+// sentinel or substituting a synthetic title.
+func TestStatusCommand_OmitsUnavailableTitle(t *testing.T) {
 	ctx := context.Background()
 	k := &fakeKernel{}
 	smap := session.NewMemMap()
@@ -598,9 +598,8 @@ func TestStatusCommand_TitleUnavailable(t *testing.T) {
 		t.Fatalf("sent count = %d, want 1: %#v", len(sent), sent)
 	}
 	got := sent[0].Text
-	want := "**Title:** " + tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, "title_unavailable")
-	if !strings.Contains(got, want) {
-		t.Fatalf("status response missing degraded %q in:\n%s", want, got)
+	if strings.Contains(got, "**Title:**") || strings.Contains(got, "title_unavailable") {
+		t.Fatalf("status response rendered an unavailable title instead of omitting it:\n%s", got)
 	}
 	if strings.Contains(got, "(untitled)") {
 		t.Fatalf("status leaked legacy (untitled) placeholder:\n%s", got)
@@ -928,14 +927,13 @@ func TestManagerStatusCommandInitializesMissingChatSession(t *testing.T) {
 		t.Fatalf("metadata = %+v, want telegram/42/user-juan updated_at=%d", meta, now.Unix())
 	}
 	// Status-created sessions deliberately leave Title empty rather than
-	// invent a synthetic "Telegram conversation with X" string. The row's
-	// degraded_mode requires the renderer to surface title_unavailable.
+	// invent a synthetic "Telegram conversation with X" string. Hermes omits
+	// the Title line until a persisted title is available.
 	if strings.TrimSpace(meta.Title) != "" {
-		t.Fatalf("metadata title = %q, want empty so renderer surfaces title_unavailable degraded mode", meta.Title)
+		t.Fatalf("metadata title = %q, want empty so renderer omits unavailable title", meta.Title)
 	}
-	wantSentinel := "**Title:** " + tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, "title_unavailable")
-	if !strings.Contains(got, wantSentinel) {
-		t.Fatalf("status response missing degraded title sentinel %q in:\n%s", wantSentinel, got)
+	if strings.Contains(got, "**Title:**") || strings.Contains(got, "title_unavailable") {
+		t.Fatalf("status response rendered unavailable title instead of omitting it:\n%s", got)
 	}
 	if strings.Contains(got, "Telegram conversation with") || strings.Contains(got, "Telegram chat ") {
 		t.Fatalf("status response leaked synthetic legacy title:\n%s", got)
