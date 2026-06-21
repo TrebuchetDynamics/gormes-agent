@@ -115,7 +115,20 @@ func (k *Kernel) buildTurnRequest(ctx context.Context, in turnRequestAssemblyInp
 		request.Tools = wireDescs
 	}
 	if k.cfg.ContextEngine != nil {
-		request.Tools = append(request.Tools, k.cfg.ContextEngine.ToolDescriptors()...)
+		// Guard: drop any context-engine tool whose name collides with a
+		// built-in. Built-ins always win dispatch (toolexec checks cfg.Tools
+		// first), so advertising the same name from the context engine would
+		// present the LLM with duplicate tool names. Mirrors Hermes
+		// fix(memory): reject memory tools that shadow core tool names (fe8920db1).
+		builtinNames := make(map[string]bool, len(request.Tools))
+		for _, d := range request.Tools {
+			builtinNames[d.Name] = true
+		}
+		for _, d := range k.cfg.ContextEngine.ToolDescriptors() {
+			if !builtinNames[d.Name] {
+				request.Tools = append(request.Tools, d)
+			}
+		}
 	}
 	return request
 }
