@@ -216,6 +216,7 @@ func normalizeCodexResponsesResponseWithTools(response codexResponsesResponse, t
 	var toolCalls []ToolCall
 	events := make([]Event, 0, len(output)+1)
 	incomplete := status == "queued" || status == "in_progress" || status == "incomplete"
+	sawReasoningItem := false
 
 	for _, item := range output {
 		itemStatus := strings.ToLower(strings.TrimSpace(item.Status))
@@ -224,6 +225,13 @@ func normalizeCodexResponsesResponseWithTools(response codexResponsesResponse, t
 		}
 		switch item.Type {
 		case "reasoning":
+			sawReasoningItem = true
+			// rs_tmp_ IDs are transient Codex reasoning items that must not be
+			// persisted or replayed — skip them. Mirrors Hermes
+			// fix(codex): drop transient rs_tmp reasoning replay state (b1a46b304).
+			if strings.HasPrefix(item.ID, "rs_tmp_") {
+				continue
+			}
 			text := codexResponsesReasoningText(item)
 			if text == "" {
 				continue
@@ -295,6 +303,13 @@ func normalizeCodexResponsesResponseWithTools(response codexResponsesResponse, t
 	if len(toolCalls) > 0 {
 		finishReason = "tool_calls"
 	} else if incomplete {
+		finishReason = "incomplete"
+	} else if sawReasoningItem && content == "" {
+		// Reasoning-only response (encrypted thinking state, no visible text or
+		// tool calls). Marking this "stop" sends it into the empty-content retry
+		// loop; treat it as incomplete so the caller continues the turn.
+		// Mirrors Hermes fix(codex): drop transient rs_tmp reasoning replay state
+		// (b1a46b304).
 		finishReason = "incomplete"
 	}
 	events = append(events, Event{
