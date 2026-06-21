@@ -284,7 +284,7 @@ func ClassifyProviderError(err error) ProviderErrorClassification {
 		if containsAny(combined, invalidEncryptedContentPatterns) {
 			return providerError(ProviderErrorInvalidEncryptedContent, ClassFatal, httpErr.Status, message, false)
 		}
-		if containsAny(combined, requestValidationPatterns) {
+		if containsAny(combined, requestValidationPatterns) || requestValidationCodes[strings.ToLower(code)] {
 			return providerError(ProviderErrorFormatError, ClassFatal, httpErr.Status, message, false)
 		}
 		if httpErr.Status == http.StatusRequestEntityTooLarge ||
@@ -501,13 +501,28 @@ var providerPolicyBlockedPatterns = []string{
 
 // requestValidationPatterns matches request format errors that will fail on
 // every retry unchanged — allows fast format_error abort instead of looping.
+//
+// NOTE: "invalid_request_error" is deliberately omitted from this slice.
+// OpenAI stamps that same type on genuine context-overflow 400s
+// ("context_length_exceeded" code), so including it here would route real
+// overflows into FormatError instead of Context, preventing compression.
+// The unambiguous signals are the explicit "unsupported/unknown parameter"
+// substrings and the provider-level error codes in requestValidationCodes
+// (Hermes error_classifier.py parity, fix from 2ce3ae3d1).
 var requestValidationPatterns = []string{
 	"unknown parameter",
 	"unsupported parameter",
 	"unrecognized request argument",
-	"invalid_request_error",
 	"unknown_parameter",
 	"unsupported_parameter",
+}
+
+// requestValidationCodes are provider-level error codes that unambiguously
+// signal an unsupported/unknown parameter — distinct from the generic
+// "invalid_request_error" code that providers also use for overflow.
+var requestValidationCodes = map[string]bool{
+	"unknown_parameter":    true,
+	"unsupported_parameter": true,
 }
 
 // modelNotFoundPatterns matches model availability errors.

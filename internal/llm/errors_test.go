@@ -418,3 +418,41 @@ func TestHTTPErrorErrorExtractsDetailJSONWithoutLeakingRawBody(t *testing.T) {
 		t.Fatalf("Message = %q, want extracted detail", classification.Message)
 	}
 }
+
+// TestClassifyProviderError_UnsupportedParamNotMisclassifiedAsOverflow verifies
+// Hermes error_classifier.py parity (fix 2ce3ae3d1): a 400 whose body contains
+// "max_tokens" (an overflow pattern) but whose message says "unsupported
+// parameter" must be classified as FormatError, not ContextOverflow — the
+// validation guard must fire before the context check.
+// Separately, a genuine OpenAI overflow 400 using "invalid_request_error" as
+// the error type (but "context_length_exceeded" as the code) must still be
+// classified as ContextOverflow with ShouldCompress=true.
+func TestClassifyProviderError_UnsupportedParamNotMisclassifiedAsOverflow(t *testing.T) {
+	// GPT-5-style "unsupported parameter" 400: message contains "max_tokens"
+	// (overflow pattern) but ALSO contains "unsupported parameter".
+	unsupportedParam := &HTTPError{
+		Status: 400,
+		Body: `{"error":{"code":"unknown_parameter","message":"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}`,
+	}
+	got := ClassifyProviderError(unsupportedParam)
+	if got.Kind != ProviderErrorFormatError {
+		t.Errorf("unsupported param 400: Kind = %q, want %q (should not misclassify as context overflow)", got.Kind, ProviderErrorFormatError)
+	}
+	if got.ShouldCompress {
+		t.Errorf("unsupported param 400: ShouldCompress = true, want false (must not trigger compression loop)")
+	}
+
+	// Genuine OpenAI overflow: "invalid_request_error" type + "context_length_exceeded" code.
+	// Must reach the context overflow path, not FormatError.
+	overflow := &HTTPError{
+		Status: 400,
+		Body: `{"error":{"message":"This model's maximum context length is 4096 tokens, however you requested 5001 tokens. Please reduce your prompt.","type":"invalid_request_error","param":"messages","code":"context_length_exceeded"}}`,
+	}
+	gotOvf := ClassifyProviderError(overflow)
+	if gotOvf.Kind != ProviderErrorContext {
+		t.Errorf("overflow 400: Kind = %q, want %q (invalid_request_error must not block overflow classification)", gotOvf.Kind, ProviderErrorContext)
+	}
+	if !gotOvf.ShouldCompress {
+		t.Errorf("overflow 400: ShouldCompress = false, want true")
+	}
+}
