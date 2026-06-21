@@ -582,7 +582,7 @@ file+line ref or explicit `missing`, and a classification.
 | Sandbox: SSH | `tools/environments/ssh.py` | `internal/tools/environment_ssh.go`; `internal/tools/environment_test.go` | partial | SSH environment seam covers config parsing, path mapping, upload/download/execute/cleanup evidence, control socket shape, remote home detection, and bulk tar upload; live credential/session parity and full Hermes lifecycle remain unproven. |
 | Sandbox: Singularity | `tools/environments/singularity.py` | `internal/tools/singularity_env.go`; `internal/tools/singularity_env_test.go` | partial | Apptainer/Singularity executable resolution, version preflight, hardened instance start planning, overlay binding, exec, login shell, cleanup planning, timeout/error evidence, and redacted bounded output are fixture-covered; live runtime execution lifecycle remains unproven. |
 | Sandbox: local | `tools/environments/local.py` | `internal/cmdrunner/` | partial | Guarded local execution. |
-| Raw tool-call parser: DeepSeek | `environments/tool_call_parsers/deepseek_parser.py` | → `missing` | missing | Not ported. |
+| Raw tool-call parser: DeepSeek | `environments/tool_call_parsers/deepseek_parser.py` | `internal/llm/repair/toolcallparsers/deepseekv31/deepseek_v3_1.go` | covered | DeepSeek V3.1 fullwidth-token parser: `<｜tool▁call▁begin｜>name<｜tool▁sep｜>{args}<｜tool▁call▁end｜>`. Multi-call, degraded-JSON, missing-sep cases handled. Manifest mapped with 2 golden fixtures. 5 tests pass. |
 | Raw tool-call parser: Qwen | `environments/tool_call_parsers/qwen_parser.py` | `internal/llm/repair/toolcallparsers/qwen/qwen.go` | covered | Qwen 2.5 uses same `tool_call_xml_json_body` format as Hermes. Package delegates to hermesxml parser; manifest entry updated to `mapped` with golden fixtures; 2 tests pass. |
 | Raw tool-call parser: Mistral | `environments/tool_call_parsers/mistral_parser.py` | → `missing` | missing | Not ported. |
 | Raw tool-call parser: GLM | `environments/tool_call_parsers/glm_parser.py` | → `missing` | missing | Not ported. |
@@ -823,8 +823,8 @@ file+line ref or explicit `missing`, and a classification.
 | Agentic OPD environment | `environments/agentic_opd_env.py` | → `missing` | missing | Not ported. |
 | Web research environment | `environments/web_research_env.py`; `tools/web_tools.py`; `tools/x_search_tool.py` degraded citation handling | `internal/tools/web_tools.go` | partial | Root environment not ported, but native web_search now emits backend/source provenance and marks Perplexity no-citation answers as degraded so research flows can distinguish source-backed results from model-synthesized answers. |
 | Hermes base environment | `environments/hermes_base_env.py` | → `missing` | missing | Not ported. |
-| DeepSeek tool-call parser | `environments/tool_call_parsers/deepseek_parser.py` | → `missing` | missing | Not ported. |
-| Qwen tool-call parser | `environments/tool_call_parsers/qwen_parser.py` | → `missing` | missing | Not ported. (duplicate of section 17 — noted in both for completeness) |
+| DeepSeek tool-call parser | `environments/tool_call_parsers/deepseek_parser.py` | `internal/llm/repair/toolcallparsers/deepseekv31/deepseek_v3_1.go` | covered | See section 17 Row: DeepSeek V3.1 fullwidth-token parser implemented with 5 tests. |
+| Qwen tool-call parser | `environments/tool_call_parsers/qwen_parser.py` | `internal/llm/repair/toolcallparsers/qwen/qwen.go` | covered | See section 17 Row: Qwen 2.5 delegates to hermesxml; 2 tests pass. |
 
 ---
 

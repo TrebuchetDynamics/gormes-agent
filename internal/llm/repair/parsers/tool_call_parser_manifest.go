@@ -25,7 +25,7 @@ func ToolCallParserManifest() []ToolCallParserEntry {
 			ModelFamily:        "deepseek_v3_1",
 			ExpectedInputStyle: "fullwidth_token_pair_no_json_block",
 			Status:             ToolCallParserStatusMapped,
-			TargetGoPackage:    "internal/llm/toolcallparsers/deepseekv31",
+			TargetGoPackage:    "internal/llm/repair/toolcallparsers/deepseekv31",
 			GoldenFixtures: []string{
 				"deepseek_v3_1_basic.json",
 				"deepseek_v3_1_malformed.json",
