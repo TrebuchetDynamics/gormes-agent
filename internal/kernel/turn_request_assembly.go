@@ -49,6 +49,20 @@ func (k *Kernel) buildTurnRequest(ctx context.Context, in turnRequestAssemblyInp
 			systemMsgs = append(systemMsgs, llm.Message{Role: "system", Content: llm.MemoryGuidance + "\n\n" + ctxStr})
 		}
 	}
+	if k.cfg.MemoryPrefetch != nil {
+		deadline := k.cfg.RecallDeadline
+		if deadline <= 0 {
+			deadline = 100 * time.Millisecond
+		}
+		prefetchCtx, prefetchCancel := context.WithTimeout(ctx, deadline)
+		hint, err := k.cfg.MemoryPrefetch.Prefetch(prefetchCtx, in.UserText, k.sessionID)
+		prefetchCancel()
+		if err != nil {
+			k.log.Warn("kernel: memory prefetch failed; continuing without hint", "err", err)
+		} else if strings.TrimSpace(hint) != "" {
+			systemMsgs = append(systemMsgs, llm.Message{Role: "system", Content: llm.MemoryGuidance + "\n\n" + hint})
+		}
+	}
 	if k.cfg.Skills != nil {
 		block, skillNames, err := k.cfg.Skills.BuildSkillBlock(ctx, in.UserText)
 		if err != nil {

@@ -53,3 +53,30 @@ func (a *KernelPreCompressAdapter) PreCompress(ctx context.Context, messages []l
 	hint, _ := a.lc.PreCompress(ctx, msgs)
 	return hint, nil
 }
+
+// KernelPrefetchAdapter wraps MemoryProviderLifecycle to satisfy the
+// kernel.MemoryPrefetcher interface. Wire it as kernel.Config.MemoryPrefetch:
+//
+//	cfg.MemoryPrefetch = memory.NewKernelPrefetchAdapter(lc)
+type KernelPrefetchAdapter struct {
+	lc *MemoryProviderLifecycle
+}
+
+// NewKernelPrefetchAdapter wraps lc to expose the kernel.MemoryPrefetcher
+// interface, mapping (query, sessionID) to lifecycle.MemoryPrefetchRequest.
+func NewKernelPrefetchAdapter(lc *MemoryProviderLifecycle) *KernelPrefetchAdapter {
+	return &KernelPrefetchAdapter{lc: lc}
+}
+
+// Prefetch calls lc.Prefetch with the supplied query and sessionID and returns
+// the merged context hint. Evidence is discarded; the turn proceeds on error.
+func (a *KernelPrefetchAdapter) Prefetch(ctx context.Context, query, sessionID string) (string, error) {
+	if a.lc == nil {
+		return "", nil
+	}
+	hint, _ := a.lc.Prefetch(ctx, lifecycle.MemoryPrefetchRequest{
+		Query:     query,
+		SessionID: sessionID,
+	})
+	return hint, nil
+}

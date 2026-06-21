@@ -129,6 +129,11 @@ type Config struct {
 	// give registered memory providers a chance to augment the compression
 	// context hint via the Hermes-compatible PreCompress hook. Nil = disabled.
 	MemoryLifecycle MemoryPreCompressor
+	// MemoryPrefetch, when non-nil, is called before each turn to let
+	// registered memory providers inject supplementary context (Hermes-compatible
+	// pre-turn memory prefetch). The returned string is appended as a system
+	// message after the existing Recall context. Nil = disabled.
+	MemoryPrefetch MemoryPrefetcher
 }
 
 // BackgroundReviewSpawner is the injection boundary for the post-turn
@@ -146,6 +151,15 @@ type MemoryPreCompressor interface {
 	// The hint is appended to the user-supplied focus topic. Empty = no-op.
 	// Errors are logged and compression proceeds without the hint.
 	PreCompress(ctx context.Context, messages []llm.Message) (string, error)
+}
+
+// MemoryPrefetcher exposes the Hermes-compatible pre-turn memory prefetch
+// hook. When non-nil, the kernel calls Prefetch before each LLM request and
+// injects the returned context string as a system message. Nil = disabled.
+type MemoryPrefetcher interface {
+	// Prefetch returns supplementary memory context for the given user query
+	// and session. Empty = no-op. Errors are non-fatal; the turn proceeds.
+	Prefetch(ctx context.Context, query, sessionID string) (string, error)
 }
 
 type AgentLifecyclePoint = lifecycle.Point
