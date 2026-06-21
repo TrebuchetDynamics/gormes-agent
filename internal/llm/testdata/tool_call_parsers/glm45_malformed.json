@@ -1,0 +1,8 @@
+{
+  "parser": "glm45",
+  "label": "glm_4_5_moe_missing_name_degraded",
+  "raw_output": "<tool_call><arguments><arg_key>city</arg_key><arg_value>Paris</arg_value></arguments></tool_call>",
+  "expected_calls": null,
+  "degraded": true,
+  "degraded_reason": "missing_name_element"
+}

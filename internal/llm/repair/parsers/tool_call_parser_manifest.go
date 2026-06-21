@@ -42,15 +42,23 @@ func ToolCallParserManifest() []ToolCallParserEntry {
 			UpstreamFile:       "glm45_parser.py",
 			ModelFamily:        "glm_4_5_moe",
 			ExpectedInputStyle: "tool_call_arg_key_arg_value_xml",
-			Status:             ToolCallParserStatusRowBacked,
-			TargetGoPackage:    "internal/llm/toolcallparsers/glm45",
+			Status:             ToolCallParserStatusMapped,
+			TargetGoPackage:    "internal/llm/repair/toolcallparsers/glm45",
+			GoldenFixtures: []string{
+				"glm45_basic.json",
+				"glm45_malformed.json",
+			},
 		},
 		{
 			UpstreamFile:       "glm47_parser.py",
 			ModelFamily:        "glm_4_7",
 			ExpectedInputStyle: "tool_call_arg_key_arg_value_xml_newline_tolerant",
-			Status:             ToolCallParserStatusRowBacked,
-			TargetGoPackage:    "internal/llm/toolcallparsers/glm47",
+			Status:             ToolCallParserStatusMapped,
+			TargetGoPackage:    "internal/llm/repair/toolcallparsers/glm47",
+			GoldenFixtures: []string{
+				"glm47_basic.json",
+				"glm47_malformed.json",
+			},
 		},
 		{
 			UpstreamFile:       "hermes_parser.py",
