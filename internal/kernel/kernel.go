@@ -134,6 +134,10 @@ type Config struct {
 	// pre-turn memory prefetch). The returned string is appended as a system
 	// message after the existing Recall context. Nil = disabled.
 	MemoryPrefetch MemoryPrefetcher
+	// MemorySyncTurn, when non-nil, is called after each successful turn so
+	// memory providers can persist the exchange (Hermes-compatible post-turn
+	// SyncTurn hook). The call is fire-and-forget in a goroutine. Nil = disabled.
+	MemorySyncTurn MemorySyncTurnWriter
 }
 
 // BackgroundReviewSpawner is the injection boundary for the post-turn
@@ -160,6 +164,14 @@ type MemoryPrefetcher interface {
 	// Prefetch returns supplementary memory context for the given user query
 	// and session. Empty = no-op. Errors are non-fatal; the turn proceeds.
 	Prefetch(ctx context.Context, query, sessionID string) (string, error)
+}
+
+// MemorySyncTurnWriter exposes the Hermes-compatible post-turn SyncTurn hook.
+// When non-nil, the kernel calls SyncTurn after each successful turn so memory
+// providers can persist the exchange. Nil = disabled.
+type MemorySyncTurnWriter interface {
+	// SyncTurn persists one completed turn exchange. Errors are non-fatal.
+	SyncTurn(ctx context.Context, userText, assistantText, platform, model, provider, sessionID string) error
 }
 
 type AgentLifecyclePoint = lifecycle.Point
@@ -1116,6 +1128,22 @@ toolLoop:
 		turnModel := model
 		turnProv := k.cfg.Provider
 		go rev.SpawnReview(context.Background(), snapshot, turnModel, turnProv)
+	}
+	// Persist turn to memory providers (Hermes-compatible SyncTurn post-turn hook).
+	if k.lastError == "" && !cancelled && k.cfg.MemorySyncTurn != nil {
+		syncText := text
+		syncAssistant := ""
+		if n := len(k.history); n > 0 && k.history[n-1].Role == "assistant" {
+			syncAssistant = k.history[n-1].Content
+		}
+		syncWriter := k.cfg.MemorySyncTurn
+		syncModel := model
+		syncProv := k.cfg.Provider
+		syncPlatform := platformFromChatKey(k.cfg.ChatKey)
+		syncSession := k.sessionID
+		go func() {
+			_ = syncWriter.SyncTurn(context.Background(), syncText, syncAssistant, syncPlatform, syncModel, syncProv, syncSession)
+		}()
 	}
 	k.phase = PhaseIdle
 	k.activeModel = k.cfg.Model

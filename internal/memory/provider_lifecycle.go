@@ -80,3 +80,34 @@ func (a *KernelPrefetchAdapter) Prefetch(ctx context.Context, query, sessionID s
 	})
 	return hint, nil
 }
+
+// KernelSyncTurnAdapter wraps MemoryProviderLifecycle to satisfy the
+// kernel.MemorySyncTurnWriter interface. Wire it as kernel.Config.MemorySyncTurn:
+//
+//	cfg.MemorySyncTurn = memory.NewKernelSyncTurnAdapter(lc)
+type KernelSyncTurnAdapter struct {
+	lc *MemoryProviderLifecycle
+}
+
+// NewKernelSyncTurnAdapter wraps lc to expose the kernel.MemorySyncTurnWriter
+// interface, mapping flat strings to lifecycle.MemoryTurn.
+func NewKernelSyncTurnAdapter(lc *MemoryProviderLifecycle) *KernelSyncTurnAdapter {
+	return &KernelSyncTurnAdapter{lc: lc}
+}
+
+// SyncTurn delegates to lc.SyncTurn. Evidence is discarded; errors are
+// non-fatal at the kernel level (the turn already completed).
+func (a *KernelSyncTurnAdapter) SyncTurn(ctx context.Context, userText, assistantText, platform, model, provider, sessionID string) error {
+	if a.lc == nil {
+		return nil
+	}
+	a.lc.SyncTurn(ctx, lifecycle.MemoryTurn{
+		SessionID: sessionID,
+		User:      userText,
+		Assistant: assistantText,
+		Platform:  platform,
+		Model:     model,
+		Provider:  provider,
+	})
+	return nil
+}
