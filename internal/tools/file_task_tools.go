@@ -299,6 +299,30 @@ func fileReadEvidenceWithPath(in []FileReadEvidence, path string) []FileReadEvid
 	return out
 }
 
+// searchPatternHasNewline returns true when a content-search regex attempts to
+// match a newline: either a literal U+000A in the pattern string, or a regex
+// \n escape (odd number of backslashes before 'n'). searchContents runs
+// line-by-line so neither form can ever match across line breaks (Hermes parity
+// for the line-oriented newline warning, ref tools/file_operations.py).
+func searchPatternHasNewline(pattern string) bool {
+	if strings.ContainsRune(pattern, '\n') {
+		return true
+	}
+	for i := 1; i < len(pattern); i++ {
+		if pattern[i] != 'n' {
+			continue
+		}
+		count := 0
+		for j := i - 1; j >= 0 && pattern[j] == '\\'; j-- {
+			count++
+		}
+		if count%2 == 1 {
+			return true
+		}
+	}
+	return false
+}
+
 // SearchFilesTool implements a local ripgrep-like search_files contract.
 type SearchFilesTool struct {
 	cfg FileTaskToolConfig
@@ -450,19 +474,24 @@ func (t *SearchFilesTool) searchFileNames(ctx context.Context, root, base, relBa
 		}
 		return nil
 	})
-	if err != nil {
+	timedOut := err != nil && (errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled))
+	if err != nil && !timedOut {
 		return marshalToolPayload(map[string]any{"path": relBase, "error": "search files: " + err.Error()})
 	}
 	sort.Strings(matches)
 	window, truncated := windowStrings(matches, offset, limit)
-	return marshalToolPayload(map[string]any{
+	payload := map[string]any{
 		"pattern":   pattern,
 		"target":    "files",
 		"path":      relBase,
 		"count":     len(matches),
 		"files":     window,
-		"truncated": truncated,
-	})
+		"truncated": truncated || timedOut,
+	}
+	if timedOut {
+		payload["limit_reason"] = "search_timeout"
+	}
+	return marshalToolPayload(payload)
 }
 
 func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBase string, in struct {
@@ -536,22 +565,44 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 		}
 		return nil
 	})
-	if err != nil {
+	timedOut := err != nil && (errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled))
+	if err != nil && !timedOut {
 		return marshalToolPayload(map[string]any{"path": relBase, "error": "search contents: " + err.Error()})
 	}
 
+	// Warn when zero results are caused by a newline regex that can never
+	// match in line-oriented search (Hermes tools/file_operations.py parity).
+	const newlinePatternWarning = "0 results found. Note: search_files content " +
+		"search is line-oriented so `\\n` in the regex does not match line " +
+		"breaks. Use context=N to inspect neighboring lines, or escape as " +
+		"`\\\\n` when searching for a literal backslash+n."
+	totalMatchCount := len(results.entries)
+	newlineWarn := totalMatchCount == 0 && len(filesSeen) == 0 && searchPatternHasNewline(in.Pattern)
+
+	addTimeoutReason := func(payload map[string]any, truncated bool) {
+		if timedOut {
+			payload["truncated"] = true
+			payload["limit_reason"] = "search_timeout"
+		} else {
+			payload["truncated"] = truncated
+		}
+	}
 	switch outputMode {
 	case "files_only":
 		files := sortedMapKeys(filesSeen)
 		window, truncated := windowStrings(files, offset, limit)
-		return marshalToolPayload(map[string]any{
-			"pattern":   in.Pattern,
-			"target":    "content",
-			"path":      relBase,
-			"count":     len(files),
-			"files":     window,
-			"truncated": truncated,
-		})
+		payload := map[string]any{
+			"pattern": in.Pattern,
+			"target":  "content",
+			"path":    relBase,
+			"count":   len(files),
+			"files":   window,
+		}
+		addTimeoutReason(payload, truncated)
+		if newlineWarn {
+			payload["warning"] = newlinePatternWarning
+		}
+		return marshalToolPayload(payload)
 	case "count":
 		files := sortedMapKeys(filesSeen)
 		window, truncated := windowStrings(files, offset, limit)
@@ -559,24 +610,32 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 		for _, file := range window {
 			rows = append(rows, map[string]any{"path": file, "count": counts[file]})
 		}
-		return marshalToolPayload(map[string]any{
-			"pattern":   in.Pattern,
-			"target":    "content",
-			"path":      relBase,
-			"count":     len(files),
-			"matches":   rows,
-			"truncated": truncated,
-		})
+		payload := map[string]any{
+			"pattern": in.Pattern,
+			"target":  "content",
+			"path":    relBase,
+			"count":   len(files),
+			"matches": rows,
+		}
+		addTimeoutReason(payload, truncated)
+		if newlineWarn {
+			payload["warning"] = newlinePatternWarning
+		}
+		return marshalToolPayload(payload)
 	case "content":
 		window, truncated := windowSearchContentEntries(results.entries, offset, limit)
-		return marshalToolPayload(map[string]any{
-			"pattern":   in.Pattern,
-			"target":    "content",
-			"path":      relBase,
-			"count":     len(results.entries),
-			"matches":   searchContentEntryPayloads(window),
-			"truncated": truncated,
-		})
+		payload := map[string]any{
+			"pattern": in.Pattern,
+			"target":  "content",
+			"path":    relBase,
+			"count":   len(results.entries),
+			"matches": searchContentEntryPayloads(window),
+		}
+		addTimeoutReason(payload, truncated)
+		if newlineWarn {
+			payload["warning"] = newlinePatternWarning
+		}
+		return marshalToolPayload(payload)
 	default:
 		return marshalToolPayload(map[string]any{"error": "search_files output_mode must be content, files_only, or count"})
 	}

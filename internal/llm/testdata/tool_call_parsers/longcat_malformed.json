@@ -1,0 +1,8 @@
+{
+  "parser": "longcat",
+  "label": "longcat_flash_malformed_json_body",
+  "raw_output": "<tool_call>NOT_JSON</tool_call>",
+  "expected_calls": null,
+  "degraded": true,
+  "degraded_reason": "invalid_json_in_tool_call_body"
+}

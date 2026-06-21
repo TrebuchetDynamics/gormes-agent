@@ -1,0 +1,8 @@
+{
+  "parser": "mistral",
+  "label": "mistral_malformed_json_array",
+  "raw_output": "[TOOL_CALLS] NOT_VALID_JSON",
+  "expected_calls": null,
+  "degraded": true,
+  "degraded_reason": "invalid_json_array_after_sentinel"
+}

@@ -167,8 +167,13 @@ const (
 	ProviderErrorModelNotFound     ProviderErrorKind = "model_not_found"
 	ProviderErrorPolicyBlocked     ProviderErrorKind = "provider_policy_blocked"
 	ProviderErrorFormatError       ProviderErrorKind = "format_error"
-	ProviderErrorThinkingSignature ProviderErrorKind = "thinking_signature"
-	ProviderErrorLongContextTier   ProviderErrorKind = "long_context_tier"
+	ProviderErrorThinkingSignature            ProviderErrorKind = "thinking_signature"
+	ProviderErrorLongContextTier              ProviderErrorKind = "long_context_tier"
+	ProviderErrorContentPolicyBlocked         ProviderErrorKind = "content_policy_blocked"
+	ProviderErrorMultimodalToolUnsupported    ProviderErrorKind = "multimodal_tool_content_unsupported"
+	ProviderErrorInvalidEncryptedContent      ProviderErrorKind = "invalid_encrypted_content"
+	ProviderErrorLlamaCppGrammarPattern       ProviderErrorKind = "llama_cpp_grammar_pattern"
+	ProviderErrorOAuthLongContextForbidden    ProviderErrorKind = "oauth_long_context_beta_forbidden"
 )
 
 func (k ProviderErrorKind) String() string {
@@ -222,12 +227,73 @@ func ClassifyProviderError(err error) ProviderErrorClassification {
 			out.ShouldFallback = true
 			return out
 		}
+		// Anthropic thinking block signature mismatch or frozen-block mutation (400).
+		// Classified before generic 400 handlers so it gets retryable recovery.
+		if httpErr.Status == http.StatusBadRequest &&
+			strings.Contains(combined, "thinking") &&
+			(strings.Contains(combined, "signature") ||
+				strings.Contains(combined, "cannot be modified") ||
+				strings.Contains(combined, "must remain as they were")) {
+			return providerError(ProviderErrorThinkingSignature, ClassRetryable, httpErr.Status, message, true)
+		}
+		// Anthropic long-context tier gate (429 "extra usage" + "long context").
+		if httpErr.Status == http.StatusTooManyRequests &&
+			strings.Contains(combined, "extra usage") &&
+			strings.Contains(combined, "long context") {
+			out := providerError(ProviderErrorLongContextTier, ClassRetryable, httpErr.Status, message, true)
+			out.ShouldCompress = true
+			return out
+		}
+		// Anthropic OAuth 1M-context beta not available for this subscription.
+		if httpErr.Status == http.StatusBadRequest &&
+			strings.Contains(combined, "long context beta") &&
+			strings.Contains(combined, "not yet available") {
+			return providerError(ProviderErrorOAuthLongContextForbidden, ClassFatal, httpErr.Status, message, false)
+		}
 		if containsAny(combined, imageTooLargePatterns) {
 			return providerError(ProviderErrorImageTooLarge, ClassFatal, httpErr.Status, message, false)
 		}
+		if containsAny(combined, multimodalToolContentPatterns) {
+			return providerError(ProviderErrorMultimodalToolUnsupported, ClassFatal, httpErr.Status, message, false)
+		}
+		if containsAny(combined, contentPolicyPatterns) {
+			return providerError(ProviderErrorContentPolicyBlocked, ClassFatal, httpErr.Status, message, false)
+		}
+		if containsAny(combined, providerPolicyBlockedPatterns) {
+			out := providerError(ProviderErrorPolicyBlocked, ClassFatal, httpErr.Status, message, false)
+			out.ShouldFallback = true
+			return out
+		}
+		if containsAny(combined, modelNotFoundPatterns) {
+			out := providerError(ProviderErrorModelNotFound, ClassFatal, httpErr.Status, message, false)
+			out.ShouldFallback = true
+			return out
+		}
+		if containsAny(combined, billingPatterns) {
+			out := providerError(ProviderErrorBilling, ClassFatal, httpErr.Status, message, false)
+			out.ShouldRotateCredential = true
+			out.ShouldFallback = true
+			return out
+		}
+		if httpErr.Status == http.StatusPaymentRequired {
+			out := providerError(ProviderErrorBilling, ClassFatal, httpErr.Status, message, false)
+			out.ShouldRotateCredential = true
+			out.ShouldFallback = true
+			return out
+		}
+		if containsAny(combined, invalidEncryptedContentPatterns) {
+			return providerError(ProviderErrorInvalidEncryptedContent, ClassFatal, httpErr.Status, message, false)
+		}
+		if containsAny(combined, requestValidationPatterns) || requestValidationCodes[strings.ToLower(code)] {
+			return providerError(ProviderErrorFormatError, ClassFatal, httpErr.Status, message, false)
+		}
 		if httpErr.Status == http.StatusRequestEntityTooLarge ||
-			containsAny(combined, contextPatterns) ||
-			isContextCode(code) {
+			containsAny(combined, payloadTooLargePatterns) {
+			out := providerError(ProviderErrorPayloadTooLarge, ClassFatal, httpErr.Status, message, false)
+			out.ShouldCompress = true
+			return out
+		}
+		if containsAny(combined, contextPatterns) || isContextCode(code) {
 			out := providerError(ProviderErrorContext, ClassFatal, httpErr.Status, message, false)
 			out.ShouldCompress = true
 			return out
@@ -237,7 +303,7 @@ func ClassifyProviderError(err error) ProviderErrorClassification {
 			return providerError(ProviderErrorRetryable, ClassRetryable, httpErr.Status, message, true)
 		}
 		if httpErr.Status == 529 {
-			return providerError(ProviderErrorRetryable, ClassRetryable, httpErr.Status, message, true)
+			return providerError(ProviderErrorOverloaded, ClassRetryable, httpErr.Status, message, true)
 		}
 		if httpErr.Status >= 400 && httpErr.Status < 500 {
 			return providerError(ProviderErrorNonRetryable, ClassFatal, httpErr.Status, message, false)
@@ -259,18 +325,45 @@ func ClassifyProviderError(err error) ProviderErrorClassification {
 		out.ShouldFallback = true
 		return out
 	}
+	if containsAny(combined, billingPatterns) {
+		out := providerError(ProviderErrorBilling, ClassFatal, 0, message, false)
+		out.ShouldRotateCredential = true
+		out.ShouldFallback = true
+		return out
+	}
 	if containsAny(combined, authPatterns) {
 		out := providerError(ProviderErrorAuth, ClassFatal, 0, message, false)
 		out.ShouldRotateCredential = true
 		out.ShouldFallback = true
 		return out
 	}
+	if containsAny(combined, contentPolicyPatterns) {
+		return providerError(ProviderErrorContentPolicyBlocked, ClassFatal, 0, message, false)
+	}
 	if containsAny(combined, imageTooLargePatterns) {
 		return providerError(ProviderErrorImageTooLarge, ClassFatal, 0, message, false)
+	}
+	if containsAny(combined, modelNotFoundPatterns) {
+		out := providerError(ProviderErrorModelNotFound, ClassFatal, 0, message, false)
+		out.ShouldFallback = true
+		return out
 	}
 	if containsAny(combined, contextPatterns) {
 		out := providerError(ProviderErrorContext, ClassFatal, 0, message, false)
 		out.ShouldCompress = true
+		return out
+	}
+	if containsAny(combined, llamaCppGrammarPatterns) {
+		return providerError(ProviderErrorLlamaCppGrammarPattern, ClassFatal, 0, message, false)
+	}
+	if containsAny(combined, sslTransientPatterns) {
+		out := providerError(ProviderErrorTimeout, ClassRetryable, 0, message, true)
+		out.ShouldFallback = true
+		return out
+	}
+	if containsAny(combined, serverDisconnectPatterns) {
+		out := providerError(ProviderErrorRetryable, ClassRetryable, 0, message, true)
+		out.ShouldFallback = true
 		return out
 	}
 	var netErr net.Error
@@ -305,10 +398,19 @@ var rateLimitPatterns = []string{
 	"resource_exhausted",
 	"requests per minute",
 	"tokens per minute",
+	"requests per day",
 	"try again in",
+	"please retry after",
 	"retry after",
 	"rate increased too quickly",
 	"too many concurrent requests",
+	// Gemini weekly / account usage limits. Both trigger credential rotation so
+	// the pool can try the next pooled credential. Mirrors Hermes
+	// fix(credential-pool): correct pool rotation when weekly usage limit is
+	// reached (4117fc364).
+	"gousagelimit",
+	"usage limit reached",
+	"usage limit has been reached",
 }
 
 var authPatterns = []string{
@@ -333,6 +435,11 @@ var imageTooLargePatterns = []string{
 	"unsupported image dimensions",
 	"unsupported image dimension",
 	"image dimensions are too large",
+	"image exceeds",
+	"image_too_large",
+	"image dimensions exceed",
+	"dimensions exceed max allowed size",
+	"max allowed size: 8000",
 }
 
 var contextPatterns = []string{
@@ -360,6 +467,169 @@ var contextPatterns = []string{
 	"max input token",
 	"input token",
 	"exceeds the maximum number of input tokens",
+	"truncating input",
+	"max_tokens",
+}
+
+// contentPolicyPatterns matches provider safety-filter rejections that are
+// deterministic per-request — retrying the same prompt will fail again.
+var contentPolicyPatterns = []string{
+	"flagged for possible cybersecurity risk",
+	"trusted access for cyber",
+	"violates our usage policies",
+	"violates openai's usage policies",
+	"your request was flagged by",
+	"prompt was flagged by our safety",
+	"responses cannot be generated due to safety",
+	"content_filter",
+	"responsibleaipolicyviolation",
+}
+
+// multimodalToolContentPatterns matches 400-class errors where the provider
+// rejected list-type content in a tool message (expects string only).
+// Recovery: strip image parts from tool messages, retry.
+var multimodalToolContentPatterns = []string{
+	"text is not set",
+	"tool message content must be a string",
+	"tool content must be a string",
+	"tool message must be a string",
+	"expected string, got list",
+	"expected string, got array",
+	"tool_call.content must be string",
+}
+
+// providerPolicyBlockedPatterns matches OpenRouter aggregator-level policy
+// rejections (account data/privacy setting blocks every endpoint).
+var providerPolicyBlockedPatterns = []string{
+	"no endpoints available matching your guardrail",
+	"no endpoints available matching your data policy",
+	"no endpoints found matching your data policy",
+}
+
+// requestValidationPatterns matches request format errors that will fail on
+// every retry unchanged — allows fast format_error abort instead of looping.
+//
+// NOTE: "invalid_request_error" is deliberately omitted from this slice.
+// OpenAI stamps that same type on genuine context-overflow 400s
+// ("context_length_exceeded" code), so including it here would route real
+// overflows into FormatError instead of Context, preventing compression.
+// The unambiguous signals are the explicit "unsupported/unknown parameter"
+// substrings and the provider-level error codes in requestValidationCodes
+// (Hermes error_classifier.py parity, fix from 2ce3ae3d1).
+var requestValidationPatterns = []string{
+	"unknown parameter",
+	"unsupported parameter",
+	"unrecognized request argument",
+	"unknown_parameter",
+	"unsupported_parameter",
+}
+
+// requestValidationCodes are provider-level error codes that unambiguously
+// signal an unsupported/unknown parameter — distinct from the generic
+// "invalid_request_error" code that providers also use for overflow.
+var requestValidationCodes = map[string]bool{
+	"unknown_parameter":    true,
+	"unsupported_parameter": true,
+}
+
+// modelNotFoundPatterns matches model availability errors.
+var modelNotFoundPatterns = []string{
+	"is not a valid model",
+	"invalid model",
+	"model not found",
+	"model_not_found",
+	"does not exist",
+	"no such model",
+	"unknown model",
+	"unsupported model",
+}
+
+// billingPatterns matches confirmed credit/quota exhaustion.
+var billingPatterns = []string{
+	"insufficient credits",
+	"insufficient_quota",
+	"insufficient balance",
+	"credit balance",
+	"credits exhausted",
+	"credits have been exhausted",
+	"no usable credits",
+	"top up your credits",
+	"payment required",
+	"billing hard limit",
+	"exceeded your current quota",
+	"account is deactivated",
+	"plan does not include",
+	"out of funds",
+	"run out of funds",
+	"balance_depleted",
+	"model_not_supported_on_free_tier",
+	"not available on the free tier",
+}
+
+// payloadTooLargePatterns matches 413-class errors embedded in message text.
+var payloadTooLargePatterns = []string{
+	"request entity too large",
+	"payload too large",
+	"error code: 413",
+}
+
+// serverDisconnectPatterns are ambiguous transport-level closes that Hermes
+// treats as potential context overflow when the session is large.
+// Mirrors Hermes fix(context_compressor): treat streaming premature-close as
+// transient (35f773c45) — includes httpcore RemoteProtocolError / LocalProtocolError
+// substrings and "response ended prematurely".
+var serverDisconnectPatterns = []string{
+	"server disconnected",
+	"peer closed connection",
+	"connection reset by peer",
+	"connection was closed",
+	"network connection lost",
+	"unexpected eof",
+	"incomplete chunked read",
+	"response ended prematurely",
+	"remoteprotocolerror",
+	"localprotocolerror",
+}
+
+// sslTransientPatterns are SSL/TLS mid-stream failures that should retry but
+// NOT trigger context compression (unlike server disconnect, these are pure
+// network-layer hiccups unrelated to request size).
+var sslTransientPatterns = []string{
+	"bad record mac",
+	"ssl alert",
+	"tls alert",
+	"ssl handshake failure",
+	"tlsv1 alert",
+	"sslv3 alert",
+	"bad_record_mac",
+	"ssl_alert",
+	"tls_alert",
+	"[ssl:",
+}
+
+// invalidEncryptedContentPatterns matches Responses API replay-blob rejection.
+var invalidEncryptedContentPatterns = []string{
+	"invalid_encrypted_content",
+	"encrypted_content",
+	"previous_response_id",
+}
+
+// llamaCppGrammarPatterns matches llama.cpp json-schema-to-grammar failures
+// caused by unsupported regex escapes in pattern/format fields.
+var llamaCppGrammarPatterns = []string{
+	"grammar error",
+	"failed to parse grammar",
+	"json-schema-to-grammar",
+	"unsupported json schema",
+}
+
+// oauthLongContextPatterns matches Anthropic OAuth subscription rejections
+// of the 1M-context beta (disable beta header and retry).
+var oauthLongContextPatterns = []string{
+	"anthropic-beta",
+	"output-128k",
+	"interleaved-thinking",
+	"long context",
 }
 
 var timeoutMessagePatterns = []string{
@@ -556,6 +826,26 @@ func stringField(v any) string {
 		return strconv.FormatFloat(x, 'f', -1, 64)
 	case json.Number:
 		return x.String()
+	case map[string]any:
+		// Nested dict: providers like HF router embed a structured object in
+		// error.message (e.g. {"message":{"type":"Bad Request","message":"..."}}}).
+		// Walk the priority key list to extract the most descriptive string —
+		// mirrors Hermes fix(agent): summarize structured provider error messages.
+		for _, key := range []string{"message", "detail", "error", "code", "type"} {
+			if s := stringField(x[key]); s != "" {
+				return s
+			}
+		}
+		return ""
+	case []any:
+		// List: join non-empty string representations of each element.
+		var parts []string
+		for _, item := range x {
+			if s := stringField(item); s != "" {
+				parts = append(parts, s)
+			}
+		}
+		return strings.Join(parts, "; ")
 	default:
 		return ""
 	}

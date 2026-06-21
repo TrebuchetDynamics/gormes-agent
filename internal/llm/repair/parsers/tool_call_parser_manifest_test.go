@@ -110,6 +110,15 @@ func TestToolCallParserManifestStatusReflectsFixtures(t *testing.T) {
 	mappedExpected := map[string]bool{
 		"hermes_parser.py":        true,
 		"deepseek_v3_1_parser.py": true,
+		"deepseek_v3_parser.py":   true,
+		"qwen_parser.py":          true,
+		"qwen3_coder_parser.py":   true,
+		"mistral_parser.py":       true,
+		"llama_parser.py":         true,
+		"glm45_parser.py":         true,
+		"glm47_parser.py":         true,
+		"kimi_k2_parser.py":       true,
+		"longcat_parser.py":       true,
 	}
 	for _, entry := range manifest {
 		if mappedExpected[entry.UpstreamFile] {

@@ -1,0 +1,8 @@
+{
+  "parser": "deepseek_v3",
+  "label": "deepseek_v3_missing_sep_degraded",
+  "raw_output": "<｜tool▁call▁begin｜>fn<｜tool▁call▁end｜>",
+  "expected_calls": null,
+  "degraded": true,
+  "degraded_reason": "missing_separator_token"
+}

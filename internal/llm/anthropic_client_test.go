@@ -284,3 +284,52 @@ func TestAnthropicOpenStream_MapsRateLimitErrors(t *testing.T) {
 		t.Fatalf("Classify(err) = %q, want %q", got, ClassRetryable)
 	}
 }
+
+func TestSanitizeAnthropicToolDescriptors_StripsTopLevelCombinators(t *testing.T) {
+	// Anthropic's native API rejects top-level oneOf/allOf/anyOf with HTTP 400.
+	// Mirrors Hermes fix(anthropic): strip top-level oneOf/allOf/anyOf from
+	// tool input_schema (a219a0a4d).
+	tools := []ToolDescriptor{
+		{
+			Name:        "memory",
+			Description: "store",
+			Schema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"action": {"type": "string", "enum": ["add", "replace"]},
+					"content": {"type": "string"},
+					"nested": {
+						"type": "object",
+						"oneOf": [{"required": ["mode"]}]
+					}
+				},
+				"required": ["action"],
+				"allOf": [{"required": ["content"]}],
+				"anyOf": [{"required": ["action"]}],
+				"oneOf": [{"required": ["action"]}]
+			}`),
+		},
+	}
+	got := sanitizeAnthropicToolDescriptors(tools)
+	if len(got) != 1 {
+		t.Fatalf("len = %d, want 1", len(got))
+	}
+	var schema map[string]any
+	if err := json.Unmarshal(got[0].Schema, &schema); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	for _, key := range []string{"allOf", "anyOf", "oneOf"} {
+		if _, ok := schema[key]; ok {
+			t.Errorf("top-level %q not stripped from Anthropic tool schema", key)
+		}
+	}
+	if _, ok := schema["required"]; !ok {
+		t.Error("required was stripped (should be preserved)")
+	}
+	// Nested combinator inside a property must be preserved.
+	props, _ := schema["properties"].(map[string]any)
+	nested, _ := props["nested"].(map[string]any)
+	if _, ok := nested["oneOf"]; !ok {
+		t.Error("nested oneOf inside a property was stripped (should be preserved)")
+	}
+}

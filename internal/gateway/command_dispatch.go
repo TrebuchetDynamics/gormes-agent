@@ -185,6 +185,10 @@ var gatewayCommandHandlers = map[EventKind]gatewayCommandHandler{
 		m.handleCompressCommand(ctx, ch, ev)
 		return nil
 	},
+	EventTools: func(m *Manager, ctx context.Context, ch Channel, ev InboundEvent) error {
+		m.handleToolsCommand(ctx, ch, ev)
+		return nil
+	},
 }
 
 func (m *Manager) handleCompressCommand(ctx context.Context, ch Channel, ev InboundEvent) {

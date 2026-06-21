@@ -53,6 +53,24 @@ func TestPromptCachePolicyMatchesHermesProviderMatrix(t *testing.T) {
 			wantLayout: PromptCacheLayoutEnvelope,
 		},
 		{
+			name:       "nous portal claude chat completions",
+			provider:   "nous",
+			baseURL:    "https://inference-api.nousresearch.com/v1",
+			apiMode:    "chat_completions",
+			model:      "anthropic/claude-opus-4-6",
+			wantCache:  true,
+			wantLayout: PromptCacheLayoutEnvelope,
+		},
+		{
+			name:       "nous portal qwen chat completions",
+			provider:   "nous",
+			baseURL:    "https://inference-api.nousresearch.com/v1",
+			apiMode:    "chat_completions",
+			model:      "moonshotai/qwen3.6-plus",
+			wantCache:  true,
+			wantLayout: PromptCacheLayoutEnvelope,
+		},
+		{
 			name:       "generic openai wire model",
 			provider:   "openai",
 			baseURL:    "https://api.openai.com/v1",
@@ -106,6 +124,77 @@ func TestApplyPromptCacheControlSystemAndLastThree(t *testing.T) {
 		if cached && got[idx].CacheControl.TTL != "1h" {
 			t.Fatalf("message %d TTL = %q, want 1h", idx, got[idx].CacheControl.TTL)
 		}
+	}
+}
+
+func TestMarkToolsForLongLivedCache(t *testing.T) {
+	tools := []ToolDescriptor{
+		{Name: "first", Description: "first tool"},
+		{Name: "last", Description: "last tool"},
+	}
+
+	nativePolicy := PromptCachePolicy{ShouldCache: true, Layout: PromptCacheLayoutNativeAnthropic, TTL: "1h"}
+	got := markToolsForLongLivedCache(tools, nativePolicy)
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2", len(got))
+	}
+	if got[0].CacheControl != nil {
+		t.Fatalf("first tool has cache_control, want nil")
+	}
+	if got[1].CacheControl == nil || got[1].CacheControl.Type != "ephemeral" || got[1].CacheControl.TTL != "1h" {
+		t.Fatalf("last tool cache_control = %+v, want ephemeral/1h", got[1].CacheControl)
+	}
+	if tools[1].CacheControl != nil {
+		t.Fatal("markToolsForLongLivedCache mutated the input slice")
+	}
+
+	envelopePolicy := PromptCachePolicy{ShouldCache: true, Layout: PromptCacheLayoutEnvelope, TTL: "1h"}
+	gotEnvelope := markToolsForLongLivedCache(tools, envelopePolicy)
+	if gotEnvelope[1].CacheControl == nil {
+		t.Fatal("last tool missing cache_control for Envelope layout")
+	}
+
+	unsupportedPolicy := PromptCachePolicy{ShouldCache: false, Layout: PromptCacheLayoutUnsupported}
+	gotNone := markToolsForLongLivedCache(tools, unsupportedPolicy)
+	if gotNone[1].CacheControl != nil {
+		t.Fatal("tool unexpectedly cached for unsupported policy")
+	}
+}
+
+func TestOpenAICompatibleToolCachingOnLastTool(t *testing.T) {
+	client := NewHTTPClientWithProvider("https://openrouter.ai/api/v1", "", "openrouter")
+	req := ChatRequest{
+		Model: "anthropic/claude-sonnet-4-5",
+		Messages: []Message{
+			{Role: "system", Content: "system"},
+			{Role: "user", Content: "hello"},
+		},
+		Tools: []ToolDescriptor{
+			{Name: "alpha", Schema: json.RawMessage(`{"type":"object"}`)},
+			{Name: "beta", Schema: json.RawMessage(`{"type":"object"}`)},
+		},
+	}
+	body, _, err := client.(*httpClient).buildOpenAICompatibleChatRequestBody(req)
+	if err != nil {
+		t.Fatalf("buildOpenAICompatibleChatRequestBody() error = %v", err)
+	}
+	var decoded struct {
+		Tools []struct {
+			Name         string          `json:"name"`
+			CacheControl json.RawMessage `json:"cache_control,omitempty"`
+		} `json:"tools"`
+	}
+	if err := json.Unmarshal(body, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(decoded.Tools) != 2 {
+		t.Fatalf("tools len = %d, want 2", len(decoded.Tools))
+	}
+	if len(decoded.Tools[0].CacheControl) > 0 {
+		t.Fatalf("first tool has cache_control = %s, want none", decoded.Tools[0].CacheControl)
+	}
+	if len(decoded.Tools[1].CacheControl) == 0 {
+		t.Fatal("last tool missing cache_control for OpenRouter Claude")
 	}
 }
 

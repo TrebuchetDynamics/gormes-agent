@@ -121,6 +121,57 @@ type Config struct {
 	// a Before error aborts the turn. After hooks run in reverse chain order
 	// after the turn completes (or fails). Nil means no middlewares are active.
 	AgentMiddleware *agent.MiddlewareChain
+	// BackgroundReview, when non-nil, is called after each successful turn to
+	// run the Hermes-compatible memory/skill self-improvement review in a
+	// daemon goroutine. The runner must be goroutine-safe. Nil = disabled.
+	BackgroundReview BackgroundReviewSpawner
+	// MemoryLifecycle, when non-nil, is invoked at the compression boundary to
+	// give registered memory providers a chance to augment the compression
+	// context hint via the Hermes-compatible PreCompress hook. Nil = disabled.
+	MemoryLifecycle MemoryPreCompressor
+	// MemoryPrefetch, when non-nil, is called before each turn to let
+	// registered memory providers inject supplementary context (Hermes-compatible
+	// pre-turn memory prefetch). The returned string is appended as a system
+	// message after the existing Recall context. Nil = disabled.
+	MemoryPrefetch MemoryPrefetcher
+	// MemorySyncTurn, when non-nil, is called after each successful turn so
+	// memory providers can persist the exchange (Hermes-compatible post-turn
+	// SyncTurn hook). The call is fire-and-forget in a goroutine. Nil = disabled.
+	MemorySyncTurn MemorySyncTurnWriter
+}
+
+// BackgroundReviewSpawner is the injection boundary for the post-turn
+// background memory/skill review goroutine. Implementations must not block
+// the caller; they own their own goroutine lifetime.
+type BackgroundReviewSpawner interface {
+	SpawnReview(ctx context.Context, messages []llm.Message, model, provider string)
+}
+
+// MemoryPreCompressor exposes the single hook called at the kernel compression
+// boundary. Implementations receive the turn history and may return a context
+// hint string that is appended to the compressor's FocusTopic. Nil = disabled.
+type MemoryPreCompressor interface {
+	// PreCompress returns an optional context hint for the compressor.
+	// The hint is appended to the user-supplied focus topic. Empty = no-op.
+	// Errors are logged and compression proceeds without the hint.
+	PreCompress(ctx context.Context, messages []llm.Message) (string, error)
+}
+
+// MemoryPrefetcher exposes the Hermes-compatible pre-turn memory prefetch
+// hook. When non-nil, the kernel calls Prefetch before each LLM request and
+// injects the returned context string as a system message. Nil = disabled.
+type MemoryPrefetcher interface {
+	// Prefetch returns supplementary memory context for the given user query
+	// and session. Empty = no-op. Errors are non-fatal; the turn proceeds.
+	Prefetch(ctx context.Context, query, sessionID string) (string, error)
+}
+
+// MemorySyncTurnWriter exposes the Hermes-compatible post-turn SyncTurn hook.
+// When non-nil, the kernel calls SyncTurn after each successful turn so memory
+// providers can persist the exchange. Nil = disabled.
+type MemorySyncTurnWriter interface {
+	// SyncTurn persists one completed turn exchange. Errors are non-fatal.
+	SyncTurn(ctx context.Context, userText, assistantText, platform, model, provider, sessionID string) error
 }
 
 type AgentLifecyclePoint = lifecycle.Point
@@ -164,12 +215,19 @@ type Kernel struct {
 
 	// Atomic — shared-read, kernel-write. Monotonically increasing per process.
 	seq atomic.Uint64
+	// maxToolIterations is the live per-turn tool budget. Initialised from
+	// cfg.MaxToolIterations at New() and updateable by SetMaxToolIterations so
+	// a long-lived gateway kernel picks up config changes (e.g. after /reload)
+	// without a restart — mirrors Hermes fix(gateway): refresh cached agent
+	// max_iterations from current config (ca92e9a36).
+	maxToolIterations atomic.Int32
 
 	// All fields below this line are OWNED EXCLUSIVELY by the Run goroutine.
 	// No other goroutine may read or write them without a channel-based
 	// handshake. Violating this invariant is a race.
 	phase           Phase
 	draft           string
+	draftReasoning  string // accumulated reasoning tokens for the current turn
 	history         []llm.Message
 	soul            []SoulEntry
 	sessionID       string
@@ -199,7 +257,11 @@ func New(cfg Config, c llm.Client, s store.Store, tm telemetry.Telemetry, log *s
 	if cfg.ContextEngine != nil {
 		cfg.ContextEngine.UpdateModelContext(llm.ContextModelContext{Model: cfg.Model})
 	}
-	return &Kernel{
+	maxIter := cfg.MaxToolIterations
+	if maxIter <= 0 {
+		maxIter = DefaultMaxToolIterations
+	}
+	k := &Kernel{
 		cfg:         cfg,
 		client:      c,
 		store:       s,
@@ -211,6 +273,18 @@ func New(cfg Config, c llm.Client, s store.Store, tm telemetry.Telemetry, log *s
 		activeModel: cfg.Model,
 		retryStatus: NewRetryStatus(),
 	}
+	k.maxToolIterations.Store(int32(maxIter))
+	return k
+}
+
+// SetMaxToolIterations updates the per-turn tool iteration budget live. Safe
+// to call from any goroutine (the atomic is read at the start of each turn).
+// Use for gateway /reload so config changes take effect without a restart.
+func (k *Kernel) SetMaxToolIterations(n int) {
+	if n <= 0 {
+		n = DefaultMaxToolIterations
+	}
+	k.maxToolIterations.Store(int32(n))
 }
 
 func (k *Kernel) liveTurnGuidanceBlocks(model string) []string {
@@ -296,6 +370,12 @@ func modelMatchesAny(model string, needles []string) bool {
 // Render returns the receive side of the render mailbox. The channel is
 // closed when Run exits.
 func (k *Kernel) Render() <-chan RenderFrame { return k.render }
+
+// ConfigModel returns the model name baked into the kernel configuration at
+// construction time. It does not reflect per-turn or per-session model
+// overrides; use it only for pre-flight checks that need to know whether a
+// default model was configured at all. The value is immutable after New().
+func (k *Kernel) ConfigModel() string { return k.cfg.Model }
 
 // Subscribe returns an independent render stream plus a function to release it.
 // Each subscription has its own cap-RenderMailboxCap replace-latest mailbox, so
@@ -604,7 +684,19 @@ func (k *Kernel) Run(ctx context.Context) error {
 				if status := k.cfg.ContextEngine.Status(); status.LastTotalTokens > 0 {
 					currentTokens = status.LastTotalTokens
 				}
-				after, _, err := k.cfg.ContextEngine.Compress(ctx, before, llm.CompressionRequest{CurrentTokens: currentTokens, FocusTopic: strings.TrimSpace(e.Text)})
+				// Call Hermes-compatible PreCompress hook so memory providers can
+				// inject context hints into the compression request.
+				focusTopic := strings.TrimSpace(e.Text)
+				if lc := k.cfg.MemoryLifecycle; lc != nil {
+					if hint, _ := lc.PreCompress(ctx, before); strings.TrimSpace(hint) != "" {
+						if focusTopic != "" {
+							focusTopic = focusTopic + "\n\n" + hint
+						} else {
+							focusTopic = hint
+						}
+					}
+				}
+				after, _, err := k.cfg.ContextEngine.Compress(ctx, before, llm.CompressionRequest{CurrentTokens: currentTokens, FocusTopic: focusTopic})
 				if err != nil {
 					k.lastError = err.Error()
 					k.emitFrame("compression failed")
@@ -717,6 +809,7 @@ func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []llm.Me
 	// are on the Run goroutine.
 	k.history = append(k.history, userMsg)
 	k.draft = ""
+	k.draftReasoning = ""
 	k.lastError = ""
 	k.retryStatus = NewRetryStatus()
 	k.activeModel = model
@@ -746,10 +839,7 @@ func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []llm.Me
 	fallbackIndex := 0
 	emptyResponses := 0
 	maxEmptyResponses := k.maxEmptyResponseRetries()
-	maxIter := k.cfg.MaxToolIterations
-	if maxIter <= 0 {
-		maxIter = DefaultMaxToolIterations
-	}
+	maxIter := int(k.maxToolIterations.Load())
 
 	var (
 		cancelled       bool
@@ -816,6 +906,23 @@ toolLoop:
 						"max", maxReconnect.String(),
 					)
 					return
+				}
+				// ── Auth/billing/policy provider failover ────────────────
+				// A ClassFatal error flagged ShouldFallback (auth 401/403,
+				// billing 402, model-not-found, policy block) means the active
+				// credential or endpoint is broken in a way retrying won't fix.
+				// Escalate to the fallback chain instead of surfacing a terminal
+				// error — mirrors Hermes fix(agent): fail over to fallback
+				// provider on persistent auth failure (401/403).
+				// Also triggers when the retry budget is exhausted on a
+				// rate-limit (ClassRetryable + ShouldFallback), matching Hermes'
+				// billing/rate-limit failover path.
+				if classification.ShouldFallback && len(fallbackRoutes) > 0 {
+					k.emitFrame("provider error — switching to fallback provider")
+					if k.activateFallback(ctx, &request, fallbackRoutes, &fallbackIndex) {
+						replaceOnNextToken = true
+						continue retryLoop
+					}
 				}
 				prov.ErrorClass = llm.Classify(err).String()
 				prov.ErrorText = err.Error()
@@ -1029,8 +1136,13 @@ toolLoop:
 				Platform:     platformFromChatKey(k.cfg.ChatKey),
 			})
 		}
-		k.history = append(k.history, llm.Message{Role: "assistant", Content: finalContent})
+		assistantMsg := llm.Message{Role: "assistant", Content: finalContent}
+		if k.draftReasoning != "" {
+			assistantMsg.Reasoning = &llm.ReasoningContent{Text: k.draftReasoning}
+		}
+		k.history = append(k.history, assistantMsg)
 		k.draft = ""
+		k.draftReasoning = ""
 		// Phase 3.A: finalize in the memory store. Fire-and-forget — the worker
 		// handles I/O off the hot path. 250ms context bound kept as a safety net
 		// in case someone injects a synchronous store in the future.
@@ -1058,6 +1170,30 @@ toolLoop:
 
 	prov.LogDone(k.log)
 	k.client = primaryClient
+	// Spawn background memory/skill review (Hermes-compatible post-turn fork).
+	if k.lastError == "" && k.cfg.BackgroundReview != nil {
+		snapshot := cloneKernelMessages(k.history)
+		rev := k.cfg.BackgroundReview
+		turnModel := model
+		turnProv := k.cfg.Provider
+		go rev.SpawnReview(context.Background(), snapshot, turnModel, turnProv)
+	}
+	// Persist turn to memory providers (Hermes-compatible SyncTurn post-turn hook).
+	if k.lastError == "" && !cancelled && k.cfg.MemorySyncTurn != nil {
+		syncText := text
+		syncAssistant := ""
+		if n := len(k.history); n > 0 && k.history[n-1].Role == "assistant" {
+			syncAssistant = k.history[n-1].Content
+		}
+		syncWriter := k.cfg.MemorySyncTurn
+		syncModel := model
+		syncProv := k.cfg.Provider
+		syncPlatform := platformFromChatKey(k.cfg.ChatKey)
+		syncSession := k.sessionID
+		go func() {
+			_ = syncWriter.SyncTurn(context.Background(), syncText, syncAssistant, syncPlatform, syncModel, syncProv, syncSession)
+		}()
+	}
 	k.phase = PhaseIdle
 	k.activeModel = k.cfg.Model
 	k.activeReasoning = llm.ReasoningEffortEvidence{}
@@ -1538,6 +1674,7 @@ streamLoop:
 					// Reasoning doesn't count as visible content; the NEXT EventToken
 					// still clears the draft. Do NOT flip replaceOnNextToken here.
 				}
+				k.draftReasoning += ev.Reasoning
 				k.addSoul("reasoning: " + truncate(ev.Reasoning, 60))
 				dirty = true
 			case llm.EventDone:

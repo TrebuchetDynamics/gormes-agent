@@ -1,0 +1,9 @@
+{
+  "parser": "llama",
+  "label": "llama_3_x_python_tag_single_call",
+  "raw_output": "<|python_tag|>{\"name\": \"get_weather\", \"parameters\": {\"city\": \"Paris\"}}",
+  "expected_calls": [
+    {"name": "get_weather", "arguments": "{\"city\": \"Paris\"}"}
+  ],
+  "degraded": false
+}

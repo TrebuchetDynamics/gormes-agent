@@ -252,7 +252,7 @@ func defaults() Config {
 			MaxDepth:              2,
 			MaxConcurrentChildren: 3,
 			DefaultMaxIterations:  8,
-			DefaultTimeout:        45 * time.Second,
+			DefaultTimeout:        0, // 0 = no wall-clock cap; mirrors Hermes fix(delegation) bba9b519a
 			RunLogPath:            "",
 			MaxWaiting:            128,
 		},

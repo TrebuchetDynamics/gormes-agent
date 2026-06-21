@@ -145,9 +145,10 @@ func modelSupportsAnthropicFastMode(model string) bool {
 // kernel populates Tools by calling tools.Registry.Descriptors()
 // and converting them.
 type ToolDescriptor struct {
-	Name        string
-	Description string
-	Schema      json.RawMessage
+	Name         string
+	Description  string
+	Schema       json.RawMessage
+	CacheControl *CacheControl
 }
 
 // MarshalJSON for ToolDescriptor wraps in OpenAI's function envelope.
@@ -158,9 +159,10 @@ func (d ToolDescriptor) MarshalJSON() ([]byte, error) {
 		Parameters  json.RawMessage `json:"parameters"`
 	}{Name: d.Name, Description: d.Description, Parameters: sanitizeToolSchema(d.Schema)}
 	wrap := struct {
-		Type     string `json:"type"`
-		Function any    `json:"function"`
-	}{Type: "function", Function: inner}
+		Type         string        `json:"type"`
+		Function     any           `json:"function"`
+		CacheControl *CacheControl `json:"cache_control,omitempty"`
+	}{Type: "function", Function: inner, CacheControl: d.CacheControl}
 	return json.Marshal(wrap)
 }
 

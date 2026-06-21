@@ -155,6 +155,7 @@ type orToolDescriptor struct {
 		Description string          `json:"description"`
 		Parameters  json.RawMessage `json:"parameters"`
 	} `json:"function"`
+	CacheControl *CacheControl `json:"cache_control,omitempty"`
 }
 
 type orChatRequest struct {
@@ -168,6 +169,11 @@ type orChatRequest struct {
 	ServiceTier         string             `json:"service_tier,omitempty"`
 	ExtraBody           map[string]any     `json:"extra_body,omitempty"`
 	Tools               []orToolDescriptor `json:"tools,omitempty"`
+	// Verbosity routes reasoning effort for OpenRouter adaptive Anthropic models
+	// (Claude 4.6+) that use adaptive thinking and ignore reasoning.effort.
+	// Mirrors Hermes fix(openrouter): route reasoning_effort to verbosity for
+	// adaptive Anthropic models (183d86b3e).
+	Verbosity string `json:"verbosity,omitempty"`
 }
 
 func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, error) {
@@ -282,7 +288,7 @@ func (c *httpClient) buildOpenAICompatibleChatRequestBody(req ChatRequest) ([]by
 	if err != nil {
 		return nil, nil, err
 	}
-	descriptors := SanitizeToolDescriptorsForModel(req.Model, req.Tools)
+	descriptors := markToolsForLongLivedCache(SanitizeToolDescriptorsForModel(req.Model, req.Tools), policy)
 	tools := make([]orToolDescriptor, len(descriptors))
 	for i, t := range descriptors {
 		tools[i] = orToolDescriptor{
@@ -292,9 +298,17 @@ func (c *httpClient) buildOpenAICompatibleChatRequestBody(req ChatRequest) ([]by
 				Description string          `json:"description"`
 				Parameters  json.RawMessage `json:"parameters"`
 			}{Name: t.Name, Description: t.Description, Parameters: t.Schema},
+			CacheControl: t.CacheControl,
 		}
 	}
 	maxTokens, maxCompletionTokens := openAICompatibleMaxTokenFields(req.MaxTokens, c.provider, c.baseURL, req.Model)
+	// For OpenRouter adaptive Anthropic models (Claude 4.6+), reasoning.effort
+	// is ignored; send verbosity instead and suppress reasoning_effort.
+	verbosity := openRouterAdaptiveAnthropicVerbosity(c.provider, c.baseURL, req.Model, reasoningEffort)
+	adaptiveAnthropicEffort := reasoningEffort
+	if verbosity != "" {
+		adaptiveAnthropicEffort = nil
+	}
 	body, err := json.Marshal(orChatRequest{
 		Model:               req.Model,
 		Messages:            msgs,
@@ -302,10 +316,11 @@ func (c *httpClient) buildOpenAICompatibleChatRequestBody(req ChatRequest) ([]by
 		MaxTokens:           maxTokens,
 		MaxCompletionTokens: maxCompletionTokens,
 		Temperature:         req.Temperature,
-		ReasoningEffort:     reasoningEffort,
+		ReasoningEffort:     adaptiveAnthropicEffort,
 		ServiceTier:         normalizeServiceTier(req.RequestOverrides.ServiceTier),
 		ExtraBody:           buildOpenRouterParetoExtraBody(c.provider, c.baseURL, req.Model, req.RequestOverrides.OpenRouterMinCodingScore),
 		Tools:               tools,
+		Verbosity:           verbosity,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -579,12 +594,37 @@ func (c *httpClient) openAICompatibleURL(endpointPath string) string {
 
 func openAICompatibleMaxTokenFields(maxTokens int, provider, baseURL, model string) (int, int) {
 	if maxTokens <= 0 {
-		return 0, 0
+		// Ollama/LM-Studio/local and custom providers default to a tiny
+		// num_predict (128 tokens) when max_tokens is omitted, truncating
+		// most agent responses. Send a generous floor so the provider behaves
+		// like any cloud provider while still letting the operator set a
+		// per-model cap. Mirrors Hermes fix(ollama): set default_max_tokens
+		// for custom/Ollama provider (09ec26c66).
+		if openAICompatibleNeedsDefaultMaxTokens(provider, baseURL) {
+			maxTokens = 65536
+		} else {
+			return 0, 0
+		}
 	}
-	if openAICompatibleIsAzureOpenAI(provider, baseURL) && openAICompatibleUsesMaxCompletionTokens(model) {
+	// Pre-emptively send max_completion_tokens for model families that
+	// reject max_tokens regardless of the endpoint hostname — mirrors
+	// Hermes utils.py model_forces_max_completion_tokens (fix 19c07c403).
+	if openAICompatibleUsesMaxCompletionTokens(model) {
 		return 0, maxTokens
 	}
 	return maxTokens, 0
+}
+
+// openAICompatibleNeedsDefaultMaxTokens returns true for local/self-hosted
+// providers that truncate responses at a tiny default when max_tokens is absent.
+// Only matches explicit provider IDs — not generic loopback URLs — to avoid
+// false positives for test servers that happen to run on localhost.
+func openAICompatibleNeedsDefaultMaxTokens(provider, _ string) bool {
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case "custom", "ollama", "local", "lmstudio", "lm-studio", "lm_studio", "vllm":
+		return true
+	}
+	return false
 }
 
 func openAICompatibleIsAzureOpenAI(provider, baseURL string) bool {
@@ -596,12 +636,21 @@ func openAICompatibleIsAzureOpenAI(provider, baseURL string) bool {
 	return strings.Contains(strings.ToLower(baseURL), "openai.azure.com")
 }
 
+// openAICompatibleUsesMaxCompletionTokens returns true when the model family
+// requires max_completion_tokens instead of max_tokens. Hermes uses prefix
+// matching on the normalized (lower-cased, vendor-prefix-stripped) name.
+// Families: gpt-4o, gpt-4.1, gpt-5+, o1, o3, o4 (fix 19c07c403).
 func openAICompatibleUsesMaxCompletionTokens(model string) bool {
 	model = strings.ToLower(strings.TrimSpace(model))
 	if slash := strings.LastIndex(model, "/"); slash >= 0 {
 		model = model[slash+1:]
 	}
-	return strings.HasPrefix(model, "gpt-5") || openAICompatibleIsOSeriesModel(model)
+	for _, prefix := range []string{"gpt-4o", "gpt-4.1", "gpt-5"} {
+		if model == prefix || strings.HasPrefix(model, prefix+"-") || strings.HasPrefix(model, prefix+".") {
+			return true
+		}
+	}
+	return openAICompatibleIsOSeriesModel(model)
 }
 
 func openAICompatibleIsOSeriesModel(model string) bool {
@@ -762,11 +811,22 @@ func openAICompatibleReasoningContent(msg Message, provider, model, baseURL stri
 	if !openAICompatibleRequiresReasoningEcho(provider, model, baseURL) {
 		return nil
 	}
+	// Step 1: explicit reasoning_content (wire-level field from prior DeepSeek/Kimi turn).
+	// Upgrade "" → " " for DeepSeek V4 Pro which rejects empty strings (Hermes #17341).
 	if msg.ReasoningContent != nil {
-		return msg.ReasoningContent
+		rc := *msg.ReasoningContent
+		if rc == "" {
+			rc = " "
+		}
+		return &rc
 	}
-	empty := ""
-	return &empty
+	// No wire-level reasoning_content available. Gormes isolates generic internal Reasoning
+	// (cross-provider storage from any prior provider) from the wire format — the msg.Reasoning
+	// field is never promoted to reasoning_content to prevent cross-provider chain-of-thought
+	// leakage. Pad with a single space to satisfy providers that require the field.
+	// Hermes: "Space (not "") because DeepSeek V4 Pro tightened validation" (refs #17341).
+	space := " "
+	return &space
 }
 
 func openAICompatibleRequiresReasoningEcho(provider, model, baseURL string) bool {

@@ -83,9 +83,10 @@ type anthropicToolResultBlock struct {
 }
 
 type anthropicTool struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description,omitempty"`
-	InputSchema json.RawMessage `json:"input_schema"`
+	Name         string          `json:"name"`
+	Description  string          `json:"description,omitempty"`
+	InputSchema  json.RawMessage `json:"input_schema"`
+	CacheControl *CacheControl   `json:"cache_control,omitempty"`
 }
 
 // NewAnthropicClient returns a Client that talks directly to Anthropic's
@@ -136,8 +137,14 @@ func (c *anthropicClient) OpenStream(ctx context.Context, req ChatRequest) (Stre
 	if err := c.requireReady(); err != nil {
 		return nil, err
 	}
-	descriptors := SanitizeToolDescriptors(req.Tools)
-	req.Tools = descriptors
+	policy := PromptCachePolicyFor(PromptCachePolicyInput{
+		BaseURL: c.baseURL,
+		APIMode: "anthropic_messages",
+		Model:   req.Model,
+	})
+	req.Messages = ApplyPromptCacheControl(req.Messages, policy)
+	descriptors := sanitizeAnthropicToolDescriptors(req.Tools)
+	req.Tools = markToolsForLongLivedCache(descriptors, policy)
 	payload, err := buildAnthropicRequest(req)
 	if err != nil {
 		return nil, err
@@ -328,11 +335,12 @@ func buildAnthropicRequest(req ChatRequest) (anthropicRequest, error) {
 		return anthropicRequest{}, err
 	}
 	tools := make([]anthropicTool, 0, len(req.Tools))
-	for _, tool := range SanitizeToolDescriptors(req.Tools) {
+	for _, tool := range req.Tools {
 		tools = append(tools, anthropicTool{
-			Name:        tool.Name,
-			Description: tool.Description,
-			InputSchema: tool.Schema,
+			Name:         tool.Name,
+			Description:  tool.Description,
+			InputSchema:  tool.Schema,
+			CacheControl: tool.CacheControl,
 		})
 	}
 	maxTokens := req.MaxTokens

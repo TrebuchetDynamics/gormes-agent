@@ -87,7 +87,7 @@ func TestBuildCodexResponsesPayload_ConvertsChatInputToolsAndCallIDs(t *testing.
       "description": "Looks up fixture status.",
       "strict": false,
       "parameters": {
-        "type": "object",
+        "additionalProperties": false,
         "properties": {
           "query": {
             "type": "string"
@@ -96,7 +96,7 @@ func TestBuildCodexResponsesPayload_ConvertsChatInputToolsAndCallIDs(t *testing.
         "required": [
           "query"
         ],
-        "additionalProperties": false
+        "type": "object"
       }
     }
   ],
@@ -216,5 +216,169 @@ func TestNormalizeCodexResponsesResponse_MapsOutputItemsUsageAndToolCalls(t *tes
 	}
 	if len(final.ToolCalls) != 1 || final.ToolCalls[0].ID != "call_lookup" {
 		t.Fatalf("final tool calls = %+v, want call_lookup", final.ToolCalls)
+	}
+}
+
+func TestCodexResponsesToolSchema_StripsPatternAndFormat(t *testing.T) {
+	// xAI's /responses endpoint rejects "pattern" and "format" keywords in tool
+	// schemas (HTTP 400). Mirrors Hermes fix(schema_sanitizer): strip
+	// pattern/format from Responses-format tools for xAI compatibility.
+	tools := []ToolDescriptor{
+		{
+			Name:        "mcp_search",
+			Description: "search",
+			Schema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"query": {"type": "string"},
+					"ts": {"type": "string", "format": "date-time"},
+					"domains": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"pattern": "^[a-z]+\\.com$"
+						}
+					}
+				}
+			}`),
+		},
+	}
+	got := codexResponsesTools(tools)
+	if len(got) != 1 {
+		t.Fatalf("got %d tools, want 1", len(got))
+	}
+	var schema map[string]any
+	if err := json.Unmarshal(got[0].Parameters, &schema); err != nil {
+		t.Fatalf("unmarshal schema: %v", err)
+	}
+	props, _ := schema["properties"].(map[string]any)
+	if ts, ok := props["ts"].(map[string]any); ok {
+		if _, hasFormat := ts["format"]; hasFormat {
+			t.Error("format keyword was not stripped from schema")
+		}
+	}
+	domains, _ := props["domains"].(map[string]any)
+	items, _ := domains["items"].(map[string]any)
+	if _, hasPattern := items["pattern"]; hasPattern {
+		t.Error("pattern keyword was not stripped from nested items schema")
+	}
+	if items["type"] != "string" {
+		t.Errorf("items.type = %v, want string (type should be preserved)", items["type"])
+	}
+}
+
+func TestCodexResponsesToolSchema_StripsTopLevelCombinators(t *testing.T) {
+	// OpenAI Codex / xAI Responses backends reject top-level allOf/anyOf/oneOf/enum/not.
+	// Mirrors Hermes fix: strip Codex-hostile top-level schema combinators (3924cb408).
+	tools := []ToolDescriptor{
+		{
+			Name:        "memory",
+			Description: "store",
+			Schema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"action": {"type": "string", "enum": ["add", "replace"]},
+					"content": {"type": "string"},
+					"nested": {
+						"type": "object",
+						"properties": {"mode": {"type": "string"}},
+						"allOf": [{"required": ["mode"]}]
+					}
+				},
+				"required": ["action"],
+				"allOf": [{"if": {"properties": {"action": {"const": "add"}}}, "then": {"required": ["content"]}}],
+				"anyOf": [{"required": ["action"]}],
+				"oneOf": [{"required": ["action"]}],
+				"not": {"required": ["bogus"]},
+				"enum": ["bogus-top-level"]
+			}`),
+		},
+	}
+	got := codexResponsesTools(tools)
+	if len(got) != 1 {
+		t.Fatalf("got %d tools, want 1", len(got))
+	}
+	var schema map[string]any
+	if err := json.Unmarshal(got[0].Parameters, &schema); err != nil {
+		t.Fatalf("unmarshal schema: %v", err)
+	}
+	for _, key := range []string{"allOf", "anyOf", "oneOf", "not", "enum"} {
+		if _, ok := schema[key]; ok {
+			t.Errorf("top-level %q was not stripped", key)
+		}
+	}
+	// Properties and required must survive stripping.
+	if _, ok := schema["required"]; !ok {
+		t.Error("required was stripped (should be preserved)")
+	}
+	props, _ := schema["properties"].(map[string]any)
+	if props == nil {
+		t.Fatal("properties missing after stripping")
+	}
+	// Nested combinator inside a property schema must be preserved.
+	nested, _ := props["nested"].(map[string]any)
+	if _, ok := nested["allOf"]; !ok {
+		t.Error("nested allOf inside a property was stripped (should be preserved)")
+	}
+}
+
+func TestGrokSupportsReasoningEffort(t *testing.T) {
+	// Allowlisted prefixes
+	for _, model := range []string{
+		"grok-3-mini", "grok-3-mini-fast", "grok-3-mini-2025",
+		"grok-4.20-multi-agent-0309", "grok-4.3", "grok-4.3-turbo",
+		"x-ai/grok-3-mini", "openrouter/x-ai/grok-4.3",
+	} {
+		if !grokSupportsReasoningEffort(model) {
+			t.Errorf("grokSupportsReasoningEffort(%q) = false, want true", model)
+		}
+	}
+	// Non-allowlisted (should not send effort)
+	for _, model := range []string{
+		"grok-3", "grok-4", "grok-4-0709", "grok-4-fast",
+		"grok-4-1-fast", "grok-code-fast-1", "gpt-5-codex", "",
+	} {
+		if grokSupportsReasoningEffort(model) {
+			t.Errorf("grokSupportsReasoningEffort(%q) = true, want false", model)
+		}
+	}
+}
+
+func TestBuildCodexResponsesPayload_GrokReasoningEffort(t *testing.T) {
+	effort := ReasoningEffortHigh
+	payload, err := buildCodexResponsesPayload(ChatRequest{
+		Model:           "grok-3-mini",
+		MaxTokens:       1024,
+		ReasoningEffort: &effort,
+		Messages:        []Message{{Role: "user", Content: "think deeply"}},
+	})
+	if err != nil {
+		t.Fatalf("buildCodexResponsesPayload() error = %v", err)
+	}
+	if payload.Reasoning == nil || payload.Reasoning.Effort != "high" {
+		t.Fatalf("Reasoning = %+v, want {Effort:high}", payload.Reasoning)
+	}
+	if len(payload.Include) == 0 || payload.Include[0] != "reasoning.encrypted_content" {
+		t.Fatalf("Include = %v, want [reasoning.encrypted_content]", payload.Include)
+	}
+}
+
+func TestBuildCodexResponsesPayload_NonGrokNoReasoningEffort(t *testing.T) {
+	effort := ReasoningEffortHigh
+	// grok-4 is NOT on the allowlist and should not get reasoning.effort
+	payload, err := buildCodexResponsesPayload(ChatRequest{
+		Model:           "grok-4",
+		MaxTokens:       1024,
+		ReasoningEffort: &effort,
+		Messages:        []Message{{Role: "user", Content: "think"}},
+	})
+	if err != nil {
+		t.Fatalf("buildCodexResponsesPayload() error = %v", err)
+	}
+	if payload.Reasoning != nil {
+		t.Fatalf("Reasoning = %+v, want nil for grok-4 (rejects reasoningEffort)", payload.Reasoning)
+	}
+	if len(payload.Include) > 0 {
+		t.Fatalf("Include = %v, want nil for grok-4", payload.Include)
 	}
 }

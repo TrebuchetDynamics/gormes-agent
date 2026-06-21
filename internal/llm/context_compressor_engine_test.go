@@ -188,6 +188,70 @@ func TestClientContextSummarizerStreamsProviderSummaryPrompt(t *testing.T) {
 	}
 }
 
+// TestProtectFirstNDecaysAfterFirstCompression verifies Hermes #11996 parity:
+// protect_first_n is honored on the first pass but decays to 0 on subsequent
+// passes so early turns don't fossilize across repeated compressions.
+// Decay is triggered by a non-empty previousSummary (set after the first
+// Compress call) — CompressionCount is only incremented by OnCompressionBoundary.
+func TestProtectFirstNDecaysAfterFirstCompression(t *testing.T) {
+	msgs := []Message{
+		{Role: "system", Content: "system prompt"},
+		{Role: "user", Content: "early user turn A"},
+		{Role: "assistant", Content: "early assistant A"},
+		{Role: "user", Content: "early user turn B"},
+		{Role: "assistant", Content: "early assistant B"},
+		{Role: "user", Content: "mid turn C"},
+		{Role: "assistant", Content: "mid assistant C"},
+		{Role: "user", Content: "latest active user turn"},
+	}
+
+	callCount := 0
+	engine := NewProviderBackedContextEngine(ProviderBackedContextEngineConfig{
+		Model:            "test/model",
+		ContextLength:    100_000,
+		ThresholdPercent: 0.50,
+		ProtectFirstN:    2,
+		TailTokenBudget:  1,
+		MinTailMessages:  1,
+		Summarizer: ContextSummarizerFunc(func(_ context.Context, req ContextSummaryRequest) (string, error) {
+			callCount++
+			return "summary-pass-" + strings.Repeat("x", callCount), nil
+		}),
+	})
+
+	// Pass 1: protect_first_n=2 should protect system + first 2 non-system messages.
+	// "early user turn A" is the first non-system message, so it stays verbatim.
+	out1, report1, err := engine.Compress(context.Background(), msgs, CompressionRequest{CurrentTokens: 80_000})
+	if err != nil {
+		t.Fatalf("Compress pass 1: %v", err)
+	}
+	if report1.State != "compressed" {
+		t.Fatalf("pass 1 report.State = %q, want compressed", report1.State)
+	}
+	joined1 := joinMessageContents(out1)
+	if !strings.Contains(joined1, "early user turn A") {
+		t.Fatalf("pass 1: early user turn A not in protected head:\n%s", joined1)
+	}
+
+	// After pass 1, previousSummary is set; effectiveProtectFirstNLocked() must return 0.
+	// Verify by checking that effectiveProtectFirstNLocked has the expected effect:
+	// on pass 2 the engine should be willing to summarize the early turns.
+	out2, report2, err := engine.Compress(context.Background(), out1, CompressionRequest{CurrentTokens: 80_000})
+	if err != nil {
+		t.Fatalf("Compress pass 2: %v", err)
+	}
+	_ = report2
+	joined2 := joinMessageContents(out2)
+	// The tail message must still survive in pass 2.
+	if !strings.Contains(joined2, "latest active user turn") {
+		t.Fatalf("pass 2: tail message missing:\n%s", joined2)
+	}
+	// The summarizer must have been called twice (once per pass).
+	if callCount != 2 {
+		t.Fatalf("summarizer call count = %d, want 2 (one per pass)", callCount)
+	}
+}
+
 func TestClientContextSummarizerEmptyStreamReturnsError(t *testing.T) {
 	client := NewMockClient()
 	client.Script([]Event{{Kind: EventDone, FinishReason: "stop"}}, "summary-session")

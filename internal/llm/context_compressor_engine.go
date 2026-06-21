@@ -261,6 +261,18 @@ func (e *ProviderBackedContextEngine) UpdateFromResponse(usage ContextUsage) {
 	e.refreshLocked()
 }
 
+// effectiveProtectFirstNLocked returns the active protect_first_n value, which
+// decays to 0 after the first compression pass. Once a session has been
+// compressed at least once, early turns are captured in the handoff summary, so
+// re-protecting them would fossilize them unboundedly across repeated passes
+// (Hermes #11996). Caller must hold e.mu.
+func (e *ProviderBackedContextEngine) effectiveProtectFirstNLocked() int {
+	if e.status.CompressionCount >= 1 || e.previousSummary != "" {
+		return 0
+	}
+	return e.protectFirstN
+}
+
 func (e *ProviderBackedContextEngine) ShouldCompress(promptTokens int) bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -271,7 +283,7 @@ func (e *ProviderBackedContextEngine) ShouldCompress(promptTokens int) bool {
 func (e *ProviderBackedContextEngine) Compress(ctx context.Context, messages []Message, req CompressionRequest) ([]Message, CompressionReport, error) {
 	e.mu.Lock()
 	budgetStatus := e.budget.Status()
-	protectFirstN := e.protectFirstN
+	protectFirstN := e.effectiveProtectFirstNLocked()
 	tailTokenBudget := e.tailTokenBudget
 	if tailTokenBudget <= 0 {
 		tailTokenBudget = budgetStatus.TailTokenBudget

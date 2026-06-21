@@ -26,6 +26,12 @@ type codexResponsesPayload struct {
 	ServiceTier       string               `json:"service_tier,omitempty"`
 	ToolChoice        string               `json:"tool_choice,omitempty"`
 	ParallelToolCalls bool                 `json:"parallel_tool_calls,omitempty"`
+	Reasoning         *codexResponsesReasoning `json:"reasoning,omitempty"`
+	Include           []string             `json:"include,omitempty"`
+}
+
+type codexResponsesReasoning struct {
+	Effort string `json:"effort"`
 }
 
 type codexResponsesMessageItem struct {
@@ -180,6 +186,17 @@ func buildCodexResponsesPayload(req ChatRequest) (codexResponsesPayload, error) 
 		ToolChoice:        "auto",
 		ParallelToolCalls: true,
 	}
+	// xAI Grok models that accept reasoning.effort get an explicit effort dial plus
+	// the encrypted-content include. Models that reject the parameter get no
+	// reasoning key at all (a default medium would 400). Mirrors Hermes
+	// fix(xai): omit reasoning.effort for grok models that reject it (d6e1fadbf).
+	if req.ReasoningEffort != nil && grokSupportsReasoningEffort(req.Model) {
+		effort := strings.ToLower(strings.TrimSpace(string(*req.ReasoningEffort)))
+		if effort != "" {
+			payload.Reasoning = &codexResponsesReasoning{Effort: effort}
+			payload.Include = []string{"reasoning.encrypted_content"}
+		}
+	}
 	return payload, nil
 }
 
@@ -216,6 +233,7 @@ func normalizeCodexResponsesResponseWithTools(response codexResponsesResponse, t
 	var toolCalls []ToolCall
 	events := make([]Event, 0, len(output)+1)
 	incomplete := status == "queued" || status == "in_progress" || status == "incomplete"
+	sawReasoningItem := false
 
 	for _, item := range output {
 		itemStatus := strings.ToLower(strings.TrimSpace(item.Status))
@@ -224,6 +242,13 @@ func normalizeCodexResponsesResponseWithTools(response codexResponsesResponse, t
 		}
 		switch item.Type {
 		case "reasoning":
+			sawReasoningItem = true
+			// rs_tmp_ IDs are transient Codex reasoning items that must not be
+			// persisted or replayed — skip them. Mirrors Hermes
+			// fix(codex): drop transient rs_tmp reasoning replay state (b1a46b304).
+			if strings.HasPrefix(item.ID, "rs_tmp_") {
+				continue
+			}
 			text := codexResponsesReasoningText(item)
 			if text == "" {
 				continue
@@ -296,6 +321,13 @@ func normalizeCodexResponsesResponseWithTools(response codexResponsesResponse, t
 		finishReason = "tool_calls"
 	} else if incomplete {
 		finishReason = "incomplete"
+	} else if sawReasoningItem && content == "" {
+		// Reasoning-only response (encrypted thinking state, no visible text or
+		// tool calls). Marking this "stop" sends it into the empty-content retry
+		// loop; treat it as incomplete so the caller continues the turn.
+		// Mirrors Hermes fix(codex): drop transient rs_tmp reasoning replay state
+		// (b1a46b304).
+		finishReason = "incomplete"
 	}
 	events = append(events, Event{
 		Kind:         EventDone,
@@ -352,7 +384,7 @@ func codexResponsesTools(tools []ToolDescriptor) []codexResponsesTool {
 		if name == "" {
 			continue
 		}
-		params := cloneToolSchemaOrDefault(tool.Schema)
+		params := codexResponsesToolSchema(tool.Schema)
 		out = append(out, codexResponsesTool{
 			Type:        "function",
 			Name:        name,
@@ -362,6 +394,71 @@ func codexResponsesTools(tools []ToolDescriptor) []codexResponsesTool {
 		})
 	}
 	return out
+}
+
+// codexResponsesToolSchema clones the schema and strips keywords that the xAI
+// Responses API rejects with HTTP 400: "pattern", "format", and top-level
+// schema combinators (allOf/anyOf/oneOf/enum/not). Nested combinators inside
+// property schemas are preserved. Mirrors Hermes fix(schema_sanitizer):
+// strip pattern/format (2551f0813/bdc2113b5) and strip Codex-hostile top-level
+// combinators (3924cb408).
+func codexResponsesToolSchema(raw json.RawMessage) json.RawMessage {
+	if len(raw) == 0 {
+		return cloneToolSchemaOrDefault(raw)
+	}
+	var node any
+	if err := json.Unmarshal(raw, &node); err != nil {
+		return cloneToolSchemaOrDefault(raw)
+	}
+	stripped := stripSchemaPatternAndFormat(node)
+	stripped = stripTopLevelCombinators(stripped)
+	out, err := json.Marshal(stripped)
+	if err != nil {
+		return cloneToolSchemaOrDefault(raw)
+	}
+	return out
+}
+
+// stripTopLevelCombinators removes allOf/anyOf/oneOf/enum/not from the root of
+// a tool parameter schema. These keys cause HTTP 400 on the OpenAI Codex and
+// xAI Responses backends. Nested combinators inside properties are preserved.
+func stripTopLevelCombinators(node any) any {
+	m, ok := node.(map[string]any)
+	if !ok {
+		return node
+	}
+	out := make(map[string]any, len(m))
+	for key, value := range m {
+		switch key {
+		case "allOf", "anyOf", "oneOf", "enum", "not":
+			// drop top-level combinator
+		default:
+			out[key] = value
+		}
+	}
+	return out
+}
+
+func stripSchemaPatternAndFormat(node any) any {
+	switch v := node.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(v))
+		for key, value := range v {
+			if key == "pattern" || key == "format" {
+				continue
+			}
+			out[key] = stripSchemaPatternAndFormat(value)
+		}
+		return out
+	case []any:
+		out := make([]any, len(v))
+		for i, item := range v {
+			out[i] = stripSchemaPatternAndFormat(item)
+		}
+		return out
+	default:
+		return node
+	}
 }
 
 func codexResponsesArguments(raw json.RawMessage) string {
@@ -426,6 +523,31 @@ func codexResponsesPromptCacheKey(sessionID string) string {
 func deterministicCodexResponsesCallID(name, arguments string, index int) string {
 	sum := sha256.Sum256([]byte(name + ":" + arguments + ":" + strconv.Itoa(index)))
 	return "call_" + hex.EncodeToString(sum[:])[:12]
+}
+
+// grokSupportsReasoningEffort reports whether a Grok model accepts the
+// reasoning.effort parameter on api.x.ai/v1/responses. Conservative allowlist:
+// unknown models get no effort dial rather than a 400.
+// Mirrors Hermes fix(xai): omit reasoning.effort for grok models that reject it
+// (d6e1fadbf).
+//
+// Accepts effort: grok-3-mini, grok-3-mini-fast, grok-4.20-multi-agent-*, grok-4.3*
+// Rejects effort: grok-3, grok-4, grok-4-*, grok-code-fast-*
+func grokSupportsReasoningEffort(model string) bool {
+	name := strings.ToLower(strings.TrimSpace(model))
+	if name == "" {
+		return false
+	}
+	// Strip aggregator prefixes (x-ai/, openrouter/x-ai/, xai/)
+	if idx := strings.LastIndex(name, "/"); idx >= 0 {
+		name = name[idx+1:]
+	}
+	for _, prefix := range []string{"grok-3-mini", "grok-4.20-multi-agent", "grok-4.3"} {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func splitCodexResponsesToolID(raw string) (callID string, responseItemID string) {

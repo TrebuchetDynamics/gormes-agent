@@ -18,6 +18,25 @@ func SanitizeToolDescriptors(descriptors []ToolDescriptor) []ToolDescriptor {
 	return fromRepairToolDescriptors(repaired)
 }
 
+// sanitizeAnthropicToolDescriptors sanitizes descriptors for the native
+// Anthropic API, additionally stripping top-level oneOf/allOf/anyOf that the
+// Anthropic validator rejects. Mirrors Hermes fix(anthropic) a219a0a4d.
+func sanitizeAnthropicToolDescriptors(descriptors []ToolDescriptor) []ToolDescriptor {
+	if len(descriptors) == 0 {
+		return nil
+	}
+	out := make([]ToolDescriptor, 0, len(descriptors))
+	for _, d := range descriptors {
+		out = append(out, ToolDescriptor{
+			Name:         d.Name,
+			Description:  d.Description,
+			Schema:       sanitizeAnthropicToolSchema(d.Schema),
+			CacheControl: d.CacheControl,
+		})
+	}
+	return out
+}
+
 // RepairToolCalls repairs deterministic JSON malformations and validates the
 // final arguments against the currently advertised tool descriptors.
 func RepairToolCalls(calls []ToolCall, descriptors []ToolDescriptor) ([]ToolCall, error) {
@@ -90,6 +109,44 @@ func fromRepairToolCalls(calls []repair.ToolCall) []ToolCall {
 
 func sanitizeToolSchema(raw json.RawMessage) json.RawMessage {
 	return repair.SanitizeToolSchema(raw)
+}
+
+// sanitizeAnthropicToolSchema sanitizes a tool schema for the native Anthropic
+// API: runs the standard sanitizer then strips top-level oneOf/allOf/anyOf which
+// the Anthropic validator rejects with HTTP 400.
+// Mirrors Hermes fix(anthropic): strip top-level oneOf/allOf/anyOf from tool
+// input_schema (a219a0a4d).
+func sanitizeAnthropicToolSchema(raw json.RawMessage) json.RawMessage {
+	out := repair.SanitizeToolSchema(raw)
+	return stripAnthropicForbiddenTopLevel(out)
+}
+
+// stripAnthropicForbiddenTopLevel removes oneOf/allOf/anyOf from the root of
+// a tool parameter schema. These union keywords cause HTTP 400 from the native
+// Anthropic API. Nested occurrences inside properties are preserved.
+func stripAnthropicForbiddenTopLevel(raw json.RawMessage) json.RawMessage {
+	var node map[string]any
+	if len(raw) == 0 || json.Unmarshal(raw, &node) != nil {
+		return raw
+	}
+	modified := false
+	for _, key := range []string{"oneOf", "allOf", "anyOf"} {
+		if _, ok := node[key]; ok {
+			delete(node, key)
+			modified = true
+		}
+	}
+	if !modified {
+		return raw
+	}
+	if _, ok := node["type"]; !ok {
+		node["type"] = "object"
+	}
+	out, err := json.Marshal(node)
+	if err != nil {
+		return raw
+	}
+	return out
 }
 
 func repairToolCallArguments(raw json.RawMessage) (json.RawMessage, map[string]any, error) {

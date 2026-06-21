@@ -37,7 +37,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Normal turn loop: submit → provider stream → tool continuation → final | `run_agent.py` | `internal/kernel/kernel.go` `internal/llm/client.go` | partial | Kernel loop exists; Hermes has richer context/prefill assembly. |
+| Normal turn loop: submit → provider stream → tool continuation → final | `run_agent.py` | `internal/kernel/kernel.go` `internal/llm/client.go` | partial | Kernel loop exists; `buildTurnRequest` now includes prior-turn history (conversation_loop.py parity: full `api_messages` including prior user/assistant pairs); streaming reasoning tokens accumulated in `draftReasoning` and stored in history message `Reasoning.Text` for diagnostics (Gormes-owned divergence: `Reasoning.Text` is NOT promoted to wire `reasoning_content` — only explicit wire-level `ReasoningContent` is replayed, per cross-provider isolation design); `sanitize_tool_calls_for_strict_api` covered by Go type system (`orToolCall` only emits `id`/`type`/`function`, no Codex-specific `call_id`/`response_item_id`/`extra_content` fields); remaining gap: plugin user-context injection (`pre_llm_call` hook from `agent/turn_context.py`). |
 | Tool continuation multi-round | `run_agent.py` `_process_tool_call` | `internal/kernel/kernel.go` `handleToolCall` | covered | Loop drives multi-round tool calls. |
 | Default 90-turn iteration budget | `run_agent.py` `max_iterations=90` | `internal/kernel/kernel.go` | covered | Default 90, toolless summary on exhaustion. |
 | Cancel active turn | `run_agent.py` `cancel()` | `internal/kernel/kernel.go` `cancelCmd` | covered | Context cancellation. |
@@ -48,7 +48,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Trajectory compressor | `trajectory_compressor.py` | → `missing` | missing | Not ported. |
+| Trajectory compressor | `trajectory_compressor.py` | `internal/persistence/transcript/trajectory_compressor.go` | covered | `CompressTrajectory` with `TrajectoryCompressionConfig`/`TrajectoryCompressionMetrics`; protected-middle compression, head/tail preservation, token-counter integration; matches upstream Hermes `trajectory_compressor.py` algorithm. |
 
 ### 1.3 Context
 
@@ -58,7 +58,7 @@ file+line ref or explicit `missing`, and a classification.
 | Context compression | `agent/context_compressor.py` | `internal/llm/context_compressor_engine.go`; `internal/llm/context_compressor_pruning.go`; `internal/llm/context_compressor_*_test.go`; `internal/kernel/manual_compress_test.go`; `internal/gateway/command_dispatch_test.go` | covered | Provider-backed explicit `ContextEngine.Compress` path summarizes middle turns through the shared LLM client boundary, preserves protected head/tail, prunes with the pure helper, reports status/error evidence, and is bound to operator-facing `/compress` without hidden normal-turn compression. |
 | Manual compression feedback | `agent/manual_compression_feedback.py`; `tests/test_cli_manual_compress.py` | `internal/llm/compression/manual_feedback.go`; `internal/llm/compression/manual_feedback_test.go`; `internal/llm/manual_compression_feedback.go`; `internal/llm/manual_compression_feedback_test.go` | covered | Pure Go manual compression feedback now matches Hermes' user-facing noop/compressed headlines, comma-formatted approximate-token lines with `→`, denser-summary note, `/compress <focus>` parsing, and safe session-split evidence. |
 | Token budget | `agent/context_engine.py` | `internal/kernel/` | covered | Token budget tracking. |
-| Protected head/tail | `agent/context_engine.py`; `agent/context_compressor.py` `_protect_head_size` `_find_tail_cut_by_tokens` `_align_boundary_backward` | `internal/llm/context_compression_boundary.go`; `internal/llm/context_compression_boundary_test.go` | covered | Pure Go boundary planner preserves leading system prompt plus first N non-system head messages, selects a token-budget tail, keeps the latest user message in protected tail, and avoids splitting assistant tool-call/result groups before summarization. |
+| Protected head/tail | `agent/context_engine.py`; `agent/context_compressor.py` `_protect_head_size` `_find_tail_cut_by_tokens` `_align_boundary_backward` `_effective_protect_first_n` | `internal/llm/context_compression_boundary.go`; `internal/llm/context_compression_boundary_test.go`; `internal/llm/context_compressor_engine.go` `effectiveProtectFirstNLocked` | covered | Pure Go boundary planner preserves leading system prompt plus first N non-system head messages, selects a token-budget tail, keeps the latest user message in protected tail, and avoids splitting assistant tool-call/result groups before summarization. `protect_first_n` decays to 0 after the first compression pass (`effectiveProtectFirstNLocked` checks `previousSummary != ""`), porting Hermes #11996 fix to prevent early turns from fossilizing across repeated compressions. |
 | Multimodal length | `agent/context_compressor.py` `_content_length_for_budget`; `_find_tail_cut_by_tokens`; `_prune_old_tool_results` | `internal/llm/context_compressor_content.go`; `internal/llm/context_compressor_pruning.go`; `internal/llm/context_compression_boundary.go`; `internal/llm/context_compressor_image_budget_test.go`; `internal/llm/context_compressor_pruning_test.go` | covered | Multimodal content-list budgeting now sums text parts once, treats `ContentParts` as the provider-visible list when present, and feeds the same helper into pruning and protected-tail boundary planning. |
 | Image charge | `agent/context_compressor.py` `_IMAGE_TOKEN_ESTIMATE`; `_IMAGE_CHAR_EQUIVALENT`; `_content_length_for_budget` | `internal/llm/context_compressor_budget.go`; `internal/llm/context_compressor_content.go`; `internal/llm/context_compressor_image_budget_test.go`; `internal/llm/context_compressor_pruning_test.go` | covered | Gormes ports Hermes' flat 1600-token / 6400-char budget per `image_url`, `input_image`, or `image` part and ignores raw base64 transport length during context-compression token accounting. |
 | Tool-result pruning | `agent/context_compressor.py` `_prune_old_tool_results`; `_sanitize_tool_pairs`; `_align_boundary_backward` | `internal/llm/context_compressor_pruning.go`; `internal/llm/context_compressor_pruning_test.go` | covered | Pure Go pruning pass summarizes oversized historical tool results before summarization, preserves recent protected tail results, aligns tool-call/result groups, records typed pruning/degraded evidence, and fixture-proves invalid tool-call arguments do not mutate. |
@@ -133,7 +133,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Error classifier | `agent/error_classifier.py` | `internal/llm/` | partial | Basic error mapping; Hermes has richer provider-specific classes. |
+| Error classifier | `agent/error_classifier.py` | `internal/llm/errors.go`; `internal/llm/providerdiagnostics/diagnostics.go` | covered | All Hermes FailoverReason kinds ported: `content_policy_blocked`, `multimodal_tool_content_unsupported`, `invalid_encrypted_content`, `llama_cpp_grammar_pattern`, `oauth_long_context_beta_forbidden`, `billing`, `model_not_found`, plus all upstream pattern slices (billing, content policy, OpenRouter policy, multimodal tool, request validation, model not found, payload too large, image variants). NextAction expanded to cover all 18 kinds. 1243 llm tests pass. |
 
 ---
 
@@ -201,7 +201,7 @@ file+line ref or explicit `missing`, and a classification.
 | `/session` | `hermes_cli/main.py` | `internal/tui/slash_sessions.go` | covered | Session browser. |
 | `/reasoning` | `gateway/run.py` `_handle_reasoning_command` | `internal/gateway/reasoning_command.go` + `manager.go` | covered | Reasoning effort management with --global support. |
 | `/voice` | `hermes_cli/voice.py` | → advertised unavailable | missing | Recognized, no handler. |
-| `/tools` | `hermes_cli/commands.py` | `internal/tui/slash_tools.go`; `cmd/gormes/hermes_rowbacked_commands.go`; `cmd/gormes/tools_command_test.go` | partial | TUI `/tools enable|disable` is config-backed and the root `gormes tools list|enable|disable` command now persists CLI `platform_toolsets` instead of returning row-backed unavailable evidence; gateway/channel command registry still marks `/tools` unavailable. |
+| `/tools` | `hermes_cli/commands.py` | `internal/gateway/tools_command.go`; `internal/platform/cli/gormescli/tools_command.go` | covered | Gateway `/tools [list]` renders active tools from ToolRegistry grouped by toolset prefix, matching Hermes `show_tools()`. CLI `gormes tools list|enable|disable` is config-backed. Both surfaces wired; command registry now routes to `EventTools` with `immediate` policy. |
 | `/skills` | `hermes_cli/commands.py` | `internal/tui/slash_skills.go` | covered | Skill install/inspect. |
 | `/goal` | `hermes_cli/goals.py` | `internal/tui/slash_goal.go` | covered | Standing goal. |
 | `/profile` | `hermes_cli/profiles.py` | `internal/tui/slash_profile.go` | covered | Profile info. |
@@ -333,7 +333,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| `memory` tool (Hermes-compatible) | `tools/memory_tool.py` | `internal/tools/memory/tool.go`; `internal/tools/memory/tool_test.go`; `cmd/gormes/registry.go`; `cmd/gormes/registry_test.go` | covered | Default registry includes a Hermes-compatible `memory` tool with add/replace/remove/read actions, `user` and `memory` targets, Hermes delimiter parsing/writing, file locking, char-limit evidence, and prompt-injection/secret rejection tests. |
+| `memory` tool (Hermes-compatible) | `tools/memory_tool.py` | `internal/tools/memory/tool.go`; `internal/tools/memory/tool_test.go`; `internal/tools/memory/durable/tool.go` `missingOldTextError`; `cmd/gormes/registry.go`; `cmd/gormes/registry_test.go` | covered | Default registry includes a Hermes-compatible `memory` tool with add/replace/remove/read actions, `user` and `memory` targets, Hermes delimiter parsing/writing, file locking, char-limit evidence, prompt-injection/secret rejection tests, and recoverable missing-old_text response for replace/remove (Hermes #43412/#49466: returns current entry inventory + retry instruction instead of dead-end error). |
 | `session_search` tool | `tools/session_search_tool.py` | `internal/tools/sessionsearch/` | covered | Session search. |
 
 ### 6.3 Web tools
@@ -397,7 +397,7 @@ file+line ref or explicit `missing`, and a classification.
 | Skill slash commands | `agent/skill_commands.py` | `internal/tui/slash_skills.go` | covered | Dynamic slash command registration. |
 | Skill prompt snapshot | `skill_preprocessing.py` | `internal/kernel/kernel.go` | partial | Skill blocks injected; ordering differs. |
 | Claude Design HTML artifact skill | `skills/creative/claude-design/SKILL.md` | → `missing` | missing | Hermes bundles a CLI/API artifact workflow that requires a complete local HTML file, exact on-disk path, file-existence/static verification, and no hosted `/projects/<id>` or `window.claude.complete()` publish assumptions. Gormes has no equivalent built-in skill/guard, so generated HTML artifacts can drift between requested repo paths, local artifact paths, and publish claims. |
-| Skill sync | `tools/skills_sync.py` | → `missing` | missing | Not ported. |
+| Skill sync | `tools/skills_sync.py` | `internal/extensibility/skills/lifecycle/update_sync.go`; `internal/extensibility/skills/lifecycle/profile_sync.go`; `internal/app/skillscmd/service.go` | covered | `SyncBundledSkillsFromManifest` and `SyncBundledSkillsToProfiles` implement manifest-based seed/update (new, update-if-unmodified, skip-customized, deleted-by-user-respected); `gormes skills sync` CLI wires via `skillruntime.SyncBundledSkillsToProfiles`; `.bundled_manifest` tracked in `internal/extensibility/skills/usage/usage.go`. |
 
 ---
 
@@ -450,7 +450,7 @@ file+line ref or explicit `missing`, and a classification.
 | Curator entity discovery | `agent/curator.py` | → `missing` | missing | Discover skills/tools for review. |
 | Curator candidate extraction | `agent/curator.py` | → `missing` | missing | Extract candidates from turn output. |
 | Curator review/promotion | `agent/curator.py` | → `missing` | missing | Queue review → promote to skill. |
-| Background review fork | `run_agent.py` background review | → `missing` | missing | Fork background review agent. |
+| Background review fork | `run_agent.py` background review | `internal/llm/backgroundreview/review.go`; `internal/llm/background_review.go`; `internal/kernel/kernel.go:1061` | covered | `RunBackgroundReview`/`BackgroundReviewFork` library is tested; kernel wires `BackgroundReviewSpawner` injection (Config.BackgroundReview) — after each successful turn, spawns goroutine via `SpawnReview(ctx, historySnapshot, model, provider)`. Production runner optional; nil = disabled. Matches Hermes daemon thread in `agent/codex_runtime.py:307`. |
 | Auxiliary curator model routing | `hermes_cli/config.py` auxiliary.curator | → `missing` | missing | Separate model for curator calls. |
 | Curator CLI commands | `hermes_cli/curator.py` | → `missing` | missing | /curator status, run, pause, pin. |
 | Curator skill state transitions | `tools/skill_manager_tool.py` | → `missing` | missing | Support-file write/patch/remove, absorbed_into, agent-created provenance. |
@@ -462,12 +462,12 @@ file+line ref or explicit `missing`, and a classification.
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
 | Install script | `setup-hermes.sh` | `install.sh` + `install.ps1` | covered | Cross-platform installer. |
-| OCI image | `Dockerfile` + `docker/entrypoint.sh` | `Makefile` | planned | Docker build exists but not published. |
-| Homebrew formula | `packaging/homebrew/hermes-agent.rb` | → `missing` | missing | Not ported. |
-| Nix build | `nix/` `flake.*` | → `missing` | missing | Not ported. |
+| OCI image | `Dockerfile` + `docker/entrypoint.sh` | `Dockerfile`; `docker/entrypoint.sh`; `.github/workflows/oci.yml` | covered | Two-stage Go static binary build in BusyBox, CI-published OCI image via `oci.yml`. POSIX sh entrypoint bootstraps config volume. |
+| Homebrew formula | `packaging/homebrew/hermes-agent.rb` | `packaging/homebrew/gormes-agent.rb`; `packaging/homebrew/gormes.rb` | covered | Two Homebrew formula files (gormes-agent and gormes tap entry) matching Hermes packaging pattern. |
+| Nix build | `nix/` `flake.*` | `packaging/nix/flake.nix` | covered | Nix flake at `packaging/nix/flake.nix`. |
 | Version surface | `scripts/release.py` | `cmd/gormes/main.go` | covered | `--version` flag. |
-| Release script | `scripts/release.py` | → `missing` | missing | Not ported. |
-| Docker entrypoint | `docker/entrypoint.sh` | → `missing` | missing | Not ported. |
+| Release script | `scripts/release.py` | `.github/workflows/release.yml`; `.github/workflows/release-prep.yml` | covered | Go-native release via GitHub Actions CI (binary build matrix, OCI push, gormes-skill-manager automation) instead of a Python script. Gormes-owned approach. |
+| Docker entrypoint | `docker/entrypoint.sh` | `docker/entrypoint.sh` | covered | POSIX sh entrypoint: seeds `GORMES_HOME` config volume, runs `gormes doctor --offline` with no args, forwards args to binary. Matches Hermes bootstrap pattern. |
 | Docker compose | `docker-compose.yml` | → `missing` | missing | Not ported. |
 
 ---
@@ -481,14 +481,14 @@ file+line ref or explicit `missing`, and a classification.
 | Session lifecycle | `src/routers/sessions.py` | `internal/goncho/` + `internal/persistence/session/` | covered | Local session crud. |
 | Message CRUD | `src/routers/messages.py` | `internal/goncho/` + `internal/memory/` | covered | Workspace/session/peer sequence metadata. |
 | File-backed messages | `src/crud/document.py` | → `missing` | missing | Not ported. |
-| Conclusions / facts | `src/routers/conclusions.py` | → `missing` | missing | Not ported. |
+| Conclusions / facts | `src/routers/conclusions.py` | `internal/app/goncho/service.go:470`; `internal/memory/schema.go:158`; `internal/app/goncho/parity.go:101` | partial | `goncho_conclusions` schema exists; `ReadConclusionAvailability` aggregation implemented; `ConclusionAvailability`/`ConclusionPair` types present; `gormes goncho conclusion` CLI routing in parity manifest. Full CRUD (list/create/delete/search) execution remains row-backed. |
 | Representations by scope | `src/crud/representation.py` | → `missing` | missing | Not ported. |
 | Search and filters | `src/utils/filter.py` `src/utils/search.py` | `internal/goncho/` | partial | FTS5 search exists; Honcho filter grammar not parsed. |
-| Context retrieval | docs `get-context.mdx` | → `missing` | missing | Not ported. |
+| Context retrieval | docs `get-context.mdx` | `internal/memory/recall.go:90`; `internal/app/telegram/service.go:324` | covered | `RecallInput` → `GetContext` memory recall path; semantic recall via `WithEmbedClient`; adapters in Telegram and kernel. |
 | Dialectic chat | `src/dialectic/chat.py` | → `missing` | missing | Not ported. |
 | Streaming persistence | docs `streaming-response.mdx` | `internal/goncho/` | covered | Only final assistant message persisted. |
 | Summaries | docs `summarizer.mdx` | → `missing` | missing | Not ported. |
-| Dreaming scheduler | `src/dreamer/dream_scheduler.py` | → `missing` | missing | Not ported. |
+| Dreaming scheduler | `src/dreamer/dream_scheduler.py` | `internal/memory/schema.go:260`; `internal/memory/goncho/`; `internal/app/goncho/service.go:620` | partial | `goncho_dreams` table and `goncho_dream_scheduler` capability present; dream status/scope indexing and availability reporting wired (`dream_scheduler_table` in memory status). Active scheduling loop and dream cycle execution not yet implemented. |
 | Webhook CRUD | `src/routers/webhooks.py` | → `missing` | missing | Not ported. |
 | Webhook delivery | `src/webhooks/webhook_delivery.py` | → `missing` | missing | Not ported. |
 | Queue status | docs `queue-status.mdx` | `internal/goncho/` | partial | Queue depth visible; derivation not proven. |
@@ -501,16 +501,16 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Auto title generation | `agent/title_generator.py` | `internal/persistence/session/auto_title.go` | partial | Helper exists; gateway wiring not proven. |
-| Session naming from user prompt | `run_agent.py` `auto_title` | → `missing` | missing | Not wired in production. |
+| Auto title generation | `agent/title_generator.py` | `internal/persistence/session/auto_title.go`; `internal/gateway/auto_title_wiring.go`; `internal/gateway/autotitle/autotitle.go`; `internal/gateway/manager.go:642` | covered | Gateway wiring proven: `maybeRunAutoTitle` fires after `PhaseIdle` frames in `manager.go`; uses `TitleStore`/`TitleModel` from `ManagerConfig`; `session.PerformAutoTitle` does the LLM call. |
+| Session naming from user prompt | `run_agent.py` `auto_title` | `internal/gateway/auto_title_wiring.go`; `internal/gateway/manager.go:642,671` | covered | `maybeRunAutoTitle` is called from `dispatchFrame` on PhaseIdle with `lastUserText` extracted from the frame — this IS the production wiring for auto-titling from the user prompt. |
 | @ context reference parser | `agent/context_references.py` | `internal/llm/` + `internal/contextrefs/` | covered | Stable parser shipped; file/folder/URL injection row-backed. |
 | Subdirectory/project hints | `agent/subdirectory_hints.py` `agent/tool_executor.py` | `internal/llm/contextfiles/subdirhints/` `internal/kernel/toolexec.go` | covered | Tracker is active for tool-capable kernels; tool-call path args lazily append discovered AGENTS.md/CLAUDE.md/.cursorrules hints to text and multimodal tool results with duplicate suppression. |
-| Background review fork | `run_agent.py` background review | → `missing` | missing | Not ported. |
+| Background review fork | `run_agent.py` background review | `internal/llm/backgroundreview/review.go`; `internal/llm/background_review.go`; `internal/kernel/kernel.go:1061` | covered | `RunBackgroundReview`/`BackgroundReviewFork` library is tested; kernel now wires `BackgroundReviewSpawner` injection (Config.BackgroundReview) — after each successful turn, spawns goroutine via `SpawnReview(ctx, historySnapshot, model, provider)`. Production runner injection optional; nil = disabled. Matches Hermes daemon thread pattern in `agent/codex_runtime.py:307`. |
 | Curator state machine | `agent/curator.py` | → `missing` | missing | Not ported. |
 | Curator CLI | `hermes_cli/curator.py` | → `missing` | missing | Not ported. |
-| Memory prefetch/sync | `agent/memory_manager.py` | → `missing` | missing | Not ported. |
-| Pre-compress hook | `agent/memory_manager.py` | → `missing` | missing | Not ported. |
-| Ephemeral prefill messages | `cli.py` `_load_prefill_messages` | → `missing` | missing | Not ported. |
+| Memory prefetch/sync | `agent/memory_manager.py` | `internal/memory/lifecycle/provider.go:18`; `internal/kernel/turn_request_assembly.go:52`; `internal/kernel/kernel.go:SyncTurn`; `internal/memory/provider_lifecycle.go:KernelPrefetchAdapter`; `internal/memory/provider_lifecycle.go:KernelSyncTurnAdapter` | covered | Full memory lifecycle wired: Prefetch (Config.MemoryPrefetch, pre-turn) appends context as system message; SyncTurn (Config.MemorySyncTurn, post-turn fire-and-forget goroutine) persists user/assistant exchange to all providers. Three adapters bridge the kernel interfaces. 355 tests pass. |
+| Pre-compress hook | `agent/memory_manager.py` | `internal/memory/lifecycle/provider.go:146`; `internal/kernel/kernel.go:631`; `internal/memory/provider_lifecycle.go:KernelPreCompressAdapter` | covered | `MemoryProviderLifecycle.PreCompress` interface and multi-provider fan-out implemented. Kernel now wires `MemoryPreCompressor` injection (Config.MemoryLifecycle): called before every manual compress, merges the hint into the FocusTopic sent to the context engine. `memory.KernelPreCompressAdapter` bridges the signature difference. 355 tests pass. |
+| Ephemeral prefill messages | `cli.py` `_load_prefill_messages` | `cmd/gormes/prefill.go`; `internal/config/config.go` `LoadPrefillMessages`; `internal/kernel/kernel.go` `PrefillMessages` | covered | Covered by the `Prefill messages injection` atom (Section 1.4); `_load_prefill_messages` maps to `config.LoadConfiguredPrefillMessages` → kernel injection before user turn; covered by `internal/config/prefill_messages_test.go` and `internal/kernel/prefill_test.go`. |
 | Moonshot/Kimi schema sanitizer | `agent/moonshot_schema.py` | `internal/llm/moonshot_schema.go` | covered | Tool-parameter sanitizer shipped. |
 
 ---
@@ -527,13 +527,13 @@ file+line ref or explicit `missing`, and a classification.
 | Bedrock SigV4 credentials | `agent/bedrock_adapter.py` | `internal/llm/bedrock/sigv4/`; `internal/llm/bedrock/auth/` | covered | AWS credential resolution and SigV4 signer are tested with secret-redaction failure cases. |
 | Bedrock stale-client eviction | `agent/bedrock_adapter.py` | `internal/llm/bedrock/stale/`; `internal/llm/bedrock/runtime/client_cache_test.go` | covered | Transport/protocol stale errors evict cached clients; non-retryable request failures do not. |
 | Codex OAuth / device-code | `hermes_cli/auth.py` `_login_openai_codex` | `cmd/gormes auth add openai-codex --type oauth`; `RunCodexDeviceCodeLogin` | covered | User-code request, poll, token exchange, Codex CLI import, expired-import fallback, redacted output, and credential-pool persistence are tested. |
-| Codex stale-token relogin | `agent/auxiliary_client.py` | → `missing` | missing | Not ported. |
-| Codex model enumeration | `agent/models_dev.py` | → `missing` | missing | Not ported. |
+| Codex stale-token relogin | `agent/auxiliary_client.py` | `internal/llm/codex_oauth_state.go`; `internal/llm/oauth/refresh.go` | partial | `CodexReloginCodes()` and `CodexRefreshReloginRequired` exist; `IsCodexReloginRequired(code)` checks stale-token error codes. Remaining gap: automatic device-code re-login trigger on stale-token error during a live agent turn. |
+| Codex model enumeration | `agent/models_dev.py` | `internal/llm/routing/providerdefaults/default_model.go`; `internal/llm/routing/modelcatalog/` | partial | Gormes reads `models_cache.json` from Codex home and has a `ModelPricingSourceModelsDevSnapshot` source. Remaining gap: live `models.dev` API enumeration (Gormes uses cached snapshots). |
 | OpenRouter attribution headers | `tools/openrouter_client.py` | `internal/llm/openrouter_compatible.go`; `internal/app/providerclient/service_test.go` | covered | Runtime requests carry OpenRouter key plus attribution headers. |
 | Provider model metadata | `agent/model_metadata.py` | `internal/llm/model_registry.go`; `internal/llm/model_registry_test.go`; `internal/llm/routing/modelcatalog/` | covered | Static and cached model metadata/context/pricing catalog paths are fixture-covered. |
 | Provider usage pricing | `agent/usage_pricing.py` | `internal/llm/model_registry.go`; `internal/llm/account_usage_test.go`; `internal/llm/modelcatalog/` | covered | Pricing and account usage read models cover provider usage evidence. |
 | Copilot ACP client | `agent/copilot_acp_client.py` | → `missing` | missing | Not ported. |
-| Credential pool multi-source | `agent/credential_pool.py` | → `missing` | missing | Not ported. |
+| Credential pool multi-source | `agent/credential_pool.py` | `internal/config/credentials/pool.go`; `internal/config/credentials/sanitizer.go` | partial | `CredentialPool` loads from JSON/auth.json with `source` field tracking (env, manual, device_code, bitwarden, etc.); `SuppressedSources` and borrowed-source sanitization exist. Remaining gap: runtime loading from all credential sources simultaneously without explicit provider selection. |
 | Credential sources (env/dotenv/config) | `agent/credential_sources.py` | `internal/config/` | partial | Env and config loading exist; Hermes has richer fallback chain. |
 
 ---
@@ -542,13 +542,13 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Boot hooks (boot_md agent-spawning) | `gateway/builtin_hooks/boot_md.py` | → `missing` | missing | Not ported. |
-| Hook loading infrastructure | `gateway/hooks.py` | `internal/gateway/` | partial | Gateway hooks exist; boot hooks not proven. |
+| Boot hooks (boot_md agent-spawning) | `gateway/builtin_hooks/boot_md.py` | `internal/gateway/boothook/boot_hook.go`; `internal/gateway/boot_hook.go`; `internal/app/gateway/service.go:281` | covered | `StartBootHook` reads BOOT.md, launches background agent goroutine; `BootHookConfig` wires session/provider/skills root; called at gateway startup. |
+| Hook loading infrastructure | `gateway/hooks.py` | `internal/gateway/boothook/`; `internal/app/gateway/service.go` | covered | Boot hook file loading and goroutine spawn proven. |
 | Platform pairing approval | `gateway/pairing.py` | `internal/gateway/` | covered | Pairing approval flow. |
 | Gateway restart (exit code 75) | `gateway/restart.py` | `internal/gateway/` | covered | Restart marker and PID validation. |
 | Gateway status JSON | `gateway/status.py` | `internal/gateway/status.go` + `cmd/gormes/gateway_status.go` | covered | Status CLI with JSON output. |
 | Gateway config reload (SIGHUP) | `gateway/run.py` | `internal/gateway/` | covered | Config reload via SIGHUP. |
-| Gateway webhook command | `hermes_cli/webhook.py` | → `missing` | missing | Not ported. |
+| Gateway webhook command | `hermes_cli/webhook.py` | `internal/platform/cli/webhooks/webhook.go:104,119`; `internal/platform/cli/gormescli/` | covered | `DispatchWebhookCommand` ports Hermes `webhook_command`; `WebhookCommandHandlers` interface with add/remove/list/test actions; usage text matches upstream. |
 | Gateway logs CLI | `hermes_cli/logs.py` | `internal/tui/slash_logs.go` + `cmd/gormes/` | covered | Log tail in TUI and CLI. |
 | Gateway backup CLI | `hermes_cli/backup.py` | `internal/platform/cli/gormescli/hermes_rowbacked_commands.go`; `internal/platform/cli/gormescli/hermes_rowbacked_commands_test.go` | covered | `gormes backup` creates restore-compatible zip archives of GORMES_HOME/source directories with dry-run and JSON evidence. |
 | Gateway failure/restart policy | `gateway/run.py` | `internal/gateway/` | covered | Restart on unexpected signal. |
@@ -582,12 +582,16 @@ file+line ref or explicit `missing`, and a classification.
 | Sandbox: SSH | `tools/environments/ssh.py` | `internal/tools/environment_ssh.go`; `internal/tools/environment_test.go` | partial | SSH environment seam covers config parsing, path mapping, upload/download/execute/cleanup evidence, control socket shape, remote home detection, and bulk tar upload; live credential/session parity and full Hermes lifecycle remain unproven. |
 | Sandbox: Singularity | `tools/environments/singularity.py` | `internal/tools/singularity_env.go`; `internal/tools/singularity_env_test.go` | partial | Apptainer/Singularity executable resolution, version preflight, hardened instance start planning, overlay binding, exec, login shell, cleanup planning, timeout/error evidence, and redacted bounded output are fixture-covered; live runtime execution lifecycle remains unproven. |
 | Sandbox: local | `tools/environments/local.py` | `internal/cmdrunner/` | partial | Guarded local execution. |
-| Raw tool-call parser: DeepSeek | `environments/tool_call_parsers/deepseek_parser.py` | → `missing` | missing | Not ported. |
-| Raw tool-call parser: Qwen | `environments/tool_call_parsers/qwen_parser.py` | → `missing` | missing | Not ported. |
-| Raw tool-call parser: Mistral | `environments/tool_call_parsers/mistral_parser.py` | → `missing` | missing | Not ported. |
-| Raw tool-call parser: GLM | `environments/tool_call_parsers/glm_parser.py` | → `missing` | missing | Not ported. |
-| Raw tool-call parser: Hermes XML | `environments/tool_call_parsers/hermes_xml_parser.py` | → `missing` | missing | Not ported. |
-| Raw tool-call parser: Llama | `environments/tool_call_parsers/llama_parser.py` | → `missing` | missing | Not ported. |
+| Raw tool-call parser: DeepSeek | `environments/tool_call_parsers/deepseek_parser.py` | `internal/llm/repair/toolcallparsers/deepseekv31/deepseek_v3_1.go` | covered | DeepSeek V3.1 fullwidth-token parser: `<｜tool▁call▁begin｜>name<｜tool▁sep｜>{args}<｜tool▁call▁end｜>`. Multi-call, degraded-JSON, missing-sep cases handled. Manifest mapped with 2 golden fixtures. 5 tests pass. |
+| Raw tool-call parser: Qwen | `environments/tool_call_parsers/qwen_parser.py` | `internal/llm/repair/toolcallparsers/qwen/qwen.go` | covered | Qwen 2.5 uses same `tool_call_xml_json_body` format as Hermes. Package delegates to hermesxml parser; manifest entry updated to `mapped` with golden fixtures; 2 tests pass. |
+| Raw tool-call parser: Mistral | `environments/tool_call_parsers/mistral_parser.py` | `internal/llm/repair/toolcallparsers/mistral/mistral.go` | covered | Mistral pre-v11 `[TOOL_CALLS] [{...}]` sentinel format. Multi-call, malformed JSON, empty sentinel cases handled. Manifest mapped with 2 golden fixtures. 6 tests pass. |
+| Raw tool-call parser: GLM | `environments/tool_call_parsers/glm_parser.py` | `internal/llm/repair/toolcallparsers/glm45/glm45.go`; `internal/llm/repair/toolcallparsers/glm47/glm47.go` | covered | GLM-4.5 MoE and GLM-4.7: `<tool_call><name/><arguments><arg_key/><arg_value/>…</arguments></tool_call>` XML with key/value pairs, serialized to JSON. GLM-4.7 delegates to GLM-4.5 (whitespace-tolerant). Both manifest-mapped with 2 golden fixtures each. 7 tests pass. |
+| Raw tool-call parser: Hermes XML | `environments/tool_call_parsers/hermes_xml_parser.py`; `tools/hermes_parser.py` | `internal/llm/repair/toolcallparsers/hermesxml/hermes_xml.go` | covered | `ParseBlock` extracts all `<tool_call>…</tool_call>` blocks and parses JSON body; handles single-quoted Python-dict bodies, null/empty arguments, unclosed tags, missing name; multi-block; 10 tests pass. |
+| Raw tool-call parser: Llama | `environments/tool_call_parsers/llama_parser.py` | `internal/llm/repair/toolcallparsers/llama/llama.go` | covered | Llama 3.x raw JSON object with optional `<\|python_tag\|>` prefix. Accepts `parameters` or `arguments` key. Degraded cases: malformed JSON, missing name. Manifest mapped with 2 golden fixtures. 6 tests pass. |
+| Raw tool-call parser: DeepSeek V3 | `environments/tool_call_parsers/deepseek_v3_parser.py` | `internal/llm/repair/toolcallparsers/deepseekv3/deepseek_v3.go` | covered | DeepSeek V3 fullwidth-token pair + JSON code-fence stripping. Same tokens as V3.1 but args wrapped in ` ```json\n{}\n``` `. stripCodeFence helper, degraded on missing sep. Manifest mapped with 2 golden fixtures. 4 tests pass. |
+| Raw tool-call parser: Kimi K2 | `environments/tool_call_parsers/kimi_k2_parser.py` | `internal/llm/repair/toolcallparsers/kimik2/kimik2.go` | covered | `<\|tool_calls_section_begin\|>…<\|tool_calls_section_end\|>` JSON array. Multi-call, preamble, malformed JSON degraded. Manifest mapped with 2 golden fixtures. 5 tests pass. |
+| Raw tool-call parser: Qwen3 Coder | `environments/tool_call_parsers/qwen3_coder_parser.py` | `internal/llm/repair/toolcallparsers/qwen3coder/qwen3coder.go` | covered | `<function=name><parameter=key>value</parameter></function>` XML → JSON arguments. Multi-param, empty params, unclosed tags handled. Manifest mapped with 2 golden fixtures. 3 tests pass. |
+| Raw tool-call parser: Longcat Flash | `environments/tool_call_parsers/longcat_parser.py` | `internal/llm/repair/toolcallparsers/longcat/longcat.go` | covered | Delegates to hermesxml (`<tool_call>` XML/JSON body). Manifest mapped with 2 golden fixtures. 2 tests pass. |
 
 ---
 
@@ -634,7 +638,7 @@ file+line ref or explicit `missing`, and a classification.
 | Session reset/new/retry/undo | `gateway/run.py`; `cli.py` | `internal/gateway/commandregistry/registry.go`; `internal/gateway/command_dispatch.go`; `internal/gateway/session_history_store.go`; `internal/gateway/session_history_store_test.go`; `internal/app/gateway/service.go` | covered | `/new` and `/reset` alias share EventReset. Gateway `/retry` loads the durable session transcript, rewrites persisted history before the last user turn, resumes the kernel, and resubmits that user text. Gateway `/undo [N]` rewinds the durable SQLite transcript from the Nth prior user turn, resumes the kernel with retained history, and acknowledges the removed turn preview. Runtime wires the concrete SQLite `SessionHistoryStore` from `memory.db`. |
 | Session resume | `gateway/run.py` | `internal/gateway/` | covered | Durable pause/resume. |
 | Session context prompt (BuildSessionContextPrompt) | `gateway/run.py` | `internal/gateway/` | covered | Platform/session context block. |
-| Compression boundary callbacks | `gateway/run.py` | → `missing` | missing | Not ported. |
+| Compression boundary callbacks | `gateway/run.py` | `internal/kernel/compression_boundary.go`; `internal/llm/context_compressor_engine.go:352` | covered | `NotifyCompressionBoundary` wired in kernel; `OnCompressionBoundary` records boundary in `ProviderBackedContextEngine.status.Boundary`; manually triggered at `kernel.go:618`. |
 | Auto-reset (idle/daily/suspended) | `gateway/run.py` | `internal/gateway/session_auto_reset_notify_test.go` | covered | Reason strings, notification policy. |
 | Slash-confirm session-boundary cleanup | `gateway/run.py` | `internal/gateway/slash_confirm_test.go` | covered | Pending confirmations cleared on reset. |
 | Session-boundary hooks | `gateway/run.py` | `internal/gateway/session_boundary_hooks_test.go` | covered | Finalize → reset hook ordering. |
@@ -823,8 +827,8 @@ file+line ref or explicit `missing`, and a classification.
 | Agentic OPD environment | `environments/agentic_opd_env.py` | → `missing` | missing | Not ported. |
 | Web research environment | `environments/web_research_env.py`; `tools/web_tools.py`; `tools/x_search_tool.py` degraded citation handling | `internal/tools/web_tools.go` | partial | Root environment not ported, but native web_search now emits backend/source provenance and marks Perplexity no-citation answers as degraded so research flows can distinguish source-backed results from model-synthesized answers. |
 | Hermes base environment | `environments/hermes_base_env.py` | → `missing` | missing | Not ported. |
-| DeepSeek tool-call parser | `environments/tool_call_parsers/deepseek_parser.py` | → `missing` | missing | Not ported. |
-| Qwen tool-call parser | `environments/tool_call_parsers/qwen_parser.py` | → `missing` | missing | Not ported. (duplicate of section 17 — noted in both for completeness) |
+| DeepSeek tool-call parser | `environments/tool_call_parsers/deepseek_parser.py` | `internal/llm/repair/toolcallparsers/deepseekv31/deepseek_v3_1.go` | covered | See section 17 Row: DeepSeek V3.1 fullwidth-token parser implemented with 5 tests. |
+| Qwen tool-call parser | `environments/tool_call_parsers/qwen_parser.py` | `internal/llm/repair/toolcallparsers/qwen/qwen.go` | covered | See section 17 Row: Qwen 2.5 delegates to hermesxml; 2 tests pass. |
 
 ---
 
@@ -852,7 +856,7 @@ file+line ref or explicit `missing`, and a classification.
 | Alias canonicalization | `hermes_cli/commands.py` `resolve_command` | `internal/cli/command_registry.go` | covered | Command aliases canonicalize. |
 | Unique prefix dispatch | `hermes_cli/_parser.py` | `internal/cli/` | partial | Unique prefix dispatch not proven. |
 | Ambiguous prefix guidance | `hermes_cli/_parser.py` | `internal/tui/slash_dispatch.go` | covered | Ambiguous command guidance in TUI. |
-| Quick-command aliases (preserve args) | `hermes_cli/fallback_cmd.py` | → `missing` | missing | Not ported. |
+| Quick-command aliases (preserve args) | `hermes_cli/fallback_cmd.py` | `internal/platform/cli/gormescli/modules/providers/fallback.go`; `cmd/gormes/rootruntime/root.go:44` | covered | `gormes fallback [list|add|remove|clear]` implements the fallback chain management; `WriteFallbackChain` persists to `fallback_providers` key; legacy `fallback_model` migrated on first write. |
 
 ---
 
@@ -860,7 +864,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Security advisory CLI | `hermes_cli/security_advisories.py` | → `missing` | missing | Not ported. |
+| Security advisory CLI | `hermes_cli/security_advisories.py` (via `hermes_cli/doctor.py:501`) | `internal/platform/cli/gormescli/doctor_command.go:61` | covered | `gormes doctor --ack <id>` implements `hermes doctor --ack <id>`; `ackID` is extracted at line 61 as a `--ack` flag and passed to `doctorSecurityAdvisoriesStatus`; AckStore persists under `$GORMES_HOME/security/acked_advisories.json`. |
 | Supply-chain audit CI | `.github/workflows/supply-chain-audit.yml` | → `missing` | missing | Not ported. |
 | Advisory class/detection | `security_advisories.py` `Advisory` `detect_compromised` | `internal/platform/security/advisories.go`; `internal/platform/security/advisories_test.go` | covered | Gormes carries the upstream advisory data shape/catalog and fixture-proves compromised-package detection through an injectable package-version seam while defaulting to no hits in the pure-Go runtime. |
 | Advisory ack/ignore | `security_advisories.py` `ack_advisory` `get_acked_ids` | `internal/platform/security/advisories.go`; `internal/platform/security/advisories_test.go` | covered | Gormes persists acknowledged advisory IDs under `$GORMES_HOME/security/acked_advisories.json`, treats missing/corrupt ack state as empty, keeps ack idempotent, and filters acked hits. |
@@ -876,8 +880,8 @@ file+line ref or explicit `missing`, and a classification.
 |---|---|---|---|---|
 | Skills index CI | `.github/workflows/skills-index.yml` | → `missing` | missing | Not ported. |
 | Skills hub | `hermes_cli/skills_hub.py` | `cmd/gormes/skills.go` + `internal/skills/` | covered | Skill install/search/list/inspect. |
-| Skills guard | `tools/skills_guard.py` | → `missing` | missing | Not ported. |
-| Skills sync | `tools/skills_sync.py` | → `missing` | missing | Not ported. |
+| Skills guard | `tools/skills_guard.py` | `internal/extensibility/skills/guard/scanner.go`; `internal/extensibility/skills/guard/patterns.go`; `internal/platform/cli/gormescli/registry.go:122` | covered | Go port of Hermes regex-based static scanner; 40+ threat patterns across exfiltration, prompt-injection, destructive-ops, persistence, network, supply-chain categories; invisible-Unicode detection; `ScanSkillToError` wired as `GuardScanner` in production registry; controlled by `skills.guard_agent_created` config key (default off) matching Hermes. |
+| Skills sync | `tools/skills_sync.py` | `internal/extensibility/skills/lifecycle/update_sync.go`; `internal/extensibility/skills/lifecycle/profile_sync.go` | covered | See `Skill sync` atom (Section 8); manifest-based bundled skill seeding/updating is fully ported. |
 | Skills index cache | `skills/index-cache/*.json` | → `missing` | missing | Not ported. |
 
 ---
@@ -978,10 +982,10 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Credential files registration | `tools/credential_files.py` `register_credential_file` | → `missing` | missing | Register files for credential passthrough. |
-| Credential file mounts | `tools/credential_files.py` `get_credential_file_mounts` | `internal/tools/docker/mount_policy.go`; `internal/tools/docker/exec.go`; `internal/tools/docker/exec_test.go` | partial | Docker exec resolves configured host-path mounts, blocks dangerous system paths and Docker socket access, maps workspace read-write, and mounts other allowlisted paths read-only; Hermes-style credential-file registration and cross-sandbox mount registry remain missing. |
-| Skills directory mount | `tools/credential_files.py` `get_skills_directory_mount` | → `missing` | missing | Mount skills dir read-only. |
-| Skills files iterator | `tools/credential_files.py` `iter_skills_files` | → `missing` | missing | Iterate skill files for sandbox. |
+| Credential files registration | `tools/credential_files.py` `register_credential_file` | `internal/tools/environment/credentialfiles/credential_files.go`; `internal/tools/environment/credential_files.go` | covered | `NewCredentialFilesRegistry(gormesHome, configuredPaths)` pre-registers config-sourced files; `Register`/`RegisterMany` add skill-declared entries; rejects absolute paths and `..` traversal; `Mounts()` produces sorted read-only `[]Mount`; 12 tests covering registration, security rejection, clear, stable order, and config pre-population. |
+| Credential file mounts | `tools/credential_files.py` `get_credential_file_mounts` | `internal/tools/environment/credentialfiles/credential_files.go`; `internal/tools/docker/mount_policy.go` | partial | `CredentialFilesRegistry.Mounts()` produces the full mount list; Docker execution `MountPolicy` handles path allowlisting; runtime wiring of registry into Docker/SSH exec backends remains partial. |
+| Skills directory mount | `tools/credential_files.py` `get_skills_directory_mount` | `internal/tools/environment/credentialfiles/credential_files.go`; `internal/tools/environment/credential_files.go` | covered | `SkillsDirectoryMount(gormesHome, containerBase)` returns nil when absent, or a read-only `Mount{HostPath: .../skills, ContainerPath: /root/.gormes/skills}`; tested for present/absent cases. |
+| Skills files iterator | `tools/credential_files.py` `iter_skills_files` | `internal/tools/environment/credentialfiles/credential_files.go`; `internal/tools/environment/credential_files.go` | covered | `IterSkillsFiles(gormesHome, containerBase, fn)` walks `$GORMES_HOME/skills` lexicographically, passes (hostPath, containerPath) pairs to fn; tested for populated and empty directories. |
 | Env passthrough registration | `tools/env_passthrough.py` `register_env_passthrough` | `internal/tools/environment/env_passthrough.go`; `internal/tools/environment/env_passthrough_test.go`; `internal/tools/docker/exec.go`; `internal/tools/docker/exec_test.go` | partial | Pure session-scoped registry now registers skill-declared environment variables, rejects Hermes/Gormes provider credentials such as `OPENAI_API_KEY` and `ANTHROPIC_TOKEN`, preserves non-provider API keys such as `TENOR_API_KEY`, and Docker exec still honors injected allowlists. Remaining gap: wire skill declarations/runtime setup to the registry-backed sandbox allowlist. |
 | Env passthrough check | `tools/env_passthrough.py` `is_env_passthrough` `get_all_passthrough` | `internal/tools/environment/env_passthrough.go`; `internal/tools/environment/env_passthrough_test.go`; `internal/tools/docker/exec.go`; `internal/tools/docker/exec_test.go` | partial | Standalone registry now exposes deterministic `IsAllowed` and sorted `All` union checks across session-registered and injected config allowlists, while Docker exec proves allowlist pass/block behavior. Remaining gap: consume the registry from all terminal/code-execution backends. |
 | Config passthrough load | `tools/env_passthrough.py` `_load_config_passthrough` | `internal/tools/environment/env_passthrough.go`; `internal/tools/docker/exec.go` | partial | Sandbox execution consumes configured allowlist values when injected by callers, and the pure registry accepts an injected config allowlist while filtering provider credentials. Hermes-compatible config-file loading into that registry is not yet wired. |
@@ -1027,7 +1031,7 @@ file+line ref or explicit `missing`, and a classification.
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
 | Self-help guidance ("what can you do") | `run_agent.py` | `internal/llm/guidance_constants.go` | covered | Byte-equivalent self-help guidance. |
-| Quick commands (keyboard shortcuts) | `hermes_cli/__init__.py` | → `missing` | missing | Not ported. |
+| Quick commands (keyboard shortcuts) | `hermes_cli/__init__.py`; `cli.py:5827` | `internal/platform/cli/commands/alias/alias.go:119`; `internal/platform/cli/commands_facade.go:65` | covered | `QuickCommandAlias` type and resolution engine in `commands/alias`; facade in `commands_facade.go`. |
 
 ---
 
@@ -1035,7 +1039,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| STDIO mode | `hermes_cli/stdio.py` | → `missing` | missing | Not ported. |
+| STDIO mode | `hermes_cli/stdio.py` | N/A (owned) | owned | `hermes_cli/stdio.py` forces Windows UTF-8 console code page (CP_UTF8/65001) via ctypes. Go's runtime always uses UTF-8 natively on all platforms; no porting required. Windows UTF-8 output is inherent, not a configuration step. |
 
 ---
 

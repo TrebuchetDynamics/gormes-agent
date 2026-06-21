@@ -1,6 +1,8 @@
 package tools
 
 import (
+	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -243,5 +245,120 @@ func lineString(value any) string {
 		return strconv.Itoa(int(typed))
 	default:
 		return ""
+	}
+}
+
+// TestSearchPatternHasNewline verifies the detection of regex newline escapes
+// (Hermes tools/file_operations.py _pattern_has_regex_newline parity).
+func TestSearchPatternHasNewline(t *testing.T) {
+	cases := []struct {
+		pattern string
+		want    bool
+	}{
+		{`\n`, true},          // single backslash-n: regex newline escape
+		{`\\\n`, true},        // triple backslash-n: still an odd count before n (\\\ + n → 3 backslashes, odd)
+		{`\\n`, false},        // double backslash-n: literal backslash+n, NOT a newline escape
+		{"foo\nbar", true},    // literal newline in string
+		{"foo", false},        // plain pattern, no newline
+		{"bar\\\\n", false},   // four backslashes + n: even count, not a newline escape
+		{`\n\n`, true},        // two newline escapes: first one triggers it
+		{`a\nb`, true},        // embedded \n
+	}
+	for _, tc := range cases {
+		got := searchPatternHasNewline(tc.pattern)
+		if got != tc.want {
+			t.Errorf("searchPatternHasNewline(%q) = %v, want %v", tc.pattern, got, tc.want)
+		}
+	}
+}
+
+// TestSearchFilesNewlinePatternWarning verifies that a line-oriented regex
+// containing \n that returns zero results emits a diagnostic warning
+// (Hermes tools/file_operations.py _maybe_warn_line_oriented_newline_pattern parity).
+func TestSearchFilesNewlinePatternWarning(t *testing.T) {
+	root := t.TempDir()
+	writeSearchFixture(t, root, "a.txt", "hello world\ngoodbye world\n")
+	tool := NewSearchFilesTool(FileTaskToolConfig{Root: root})
+
+	for _, mode := range []string{"content", "files_only", "count"} {
+		args := `{"pattern":"hello\ngoodbye","target":"content","output_mode":"` + mode + `"}`
+		out := executeSearchFilesTool(t, tool, args)
+		warning, _ := out["warning"].(string)
+		if warning == "" {
+			t.Errorf("output_mode=%s: expected warning for \\n pattern with 0 results, got %#v", mode, out)
+			continue
+		}
+		if !strings.Contains(warning, "line-oriented") {
+			t.Errorf("output_mode=%s: warning %q does not mention line-oriented", mode, warning)
+		}
+		if _, hasErr := out["error"]; hasErr {
+			t.Errorf("output_mode=%s: unexpected error field in output: %#v", mode, out)
+		}
+	}
+
+	// A literal backslash+n pattern (\\n) should NOT trigger the warning.
+	outNoWarn := executeSearchFilesTool(t, tool, `{"pattern":"\\\\n","target":"content"}`)
+	if _, hasWarn := outNoWarn["warning"]; hasWarn {
+		t.Errorf("escaped \\\\n pattern triggered spurious newline warning: %#v", outNoWarn)
+	}
+}
+
+// TestSearchFilesTimeoutReturnsPartialResults verifies that when the caller's
+// context expires mid-walk, search_files returns whatever partial results were
+// accumulated rather than an error. Mirrors Hermes fix(search): keep partial
+// results on search timeout (1fa761f8d).
+func TestSearchFilesTimeoutReturnsPartialResults(t *testing.T) {
+	root := t.TempDir()
+	for _, rel := range []string{"a.txt", "b.txt", "c.txt"} {
+		writeSearchFixture(t, root, rel, "needle\n")
+	}
+	tool := NewSearchFilesTool(FileTaskToolConfig{Root: root})
+
+	// Pre-cancelled context — the walk hits ctx.Err() immediately.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	raw, err := tool.Execute(ctx, []byte(`{"pattern":"needle","target":"content"}`))
+	if err != nil {
+		t.Fatalf("Execute with cancelled context returned Go error: %v", err)
+	}
+	var out map[string]any
+	if jsonErr := json.Unmarshal(raw, &out); jsonErr != nil {
+		t.Fatalf("unmarshal: %v", jsonErr)
+	}
+	if errField, hasErr := out["error"]; hasErr {
+		t.Fatalf("output has error field on timeout: %v", errField)
+	}
+	if reason, _ := out["limit_reason"].(string); reason != "search_timeout" {
+		t.Fatalf("limit_reason = %q, want search_timeout; output=%#v", reason, out)
+	}
+	if truncated, _ := out["truncated"].(bool); !truncated {
+		t.Fatalf("truncated = false, want true on search_timeout; output=%#v", out)
+	}
+}
+
+func TestSearchFileNamesTimeoutReturnsPartialResults(t *testing.T) {
+	root := t.TempDir()
+	for _, rel := range []string{"a.txt", "b.txt", "c.txt"} {
+		writeSearchFixture(t, root, rel, "")
+	}
+	tool := NewSearchFilesTool(FileTaskToolConfig{Root: root})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	raw, err := tool.Execute(ctx, []byte(`{"pattern":"*.txt","target":"files"}`))
+	if err != nil {
+		t.Fatalf("Execute with cancelled context returned Go error: %v", err)
+	}
+	var out map[string]any
+	if jsonErr := json.Unmarshal(raw, &out); jsonErr != nil {
+		t.Fatalf("unmarshal: %v", jsonErr)
+	}
+	if errField, hasErr := out["error"]; hasErr {
+		t.Fatalf("output has error field on timeout: %v", errField)
+	}
+	if reason, _ := out["limit_reason"].(string); reason != "search_timeout" {
+		t.Fatalf("limit_reason = %q, want search_timeout; output=%#v", reason, out)
 	}
 }

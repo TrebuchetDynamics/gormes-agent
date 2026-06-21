@@ -38,6 +38,10 @@ func coalescerInitialTextSend() coalescerOption {
 	return coalescing.InitialTextSend()
 }
 
+func coalescerStreamCursor(cursor string) coalescerOption {
+	return coalescing.StreamCursor(cursor)
+}
+
 // coalescer batches outbound edits for one turn. The manager owns one
 // instance per active turn and tears it down on terminal phases.
 type coalescer struct {

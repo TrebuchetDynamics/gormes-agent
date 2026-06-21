@@ -79,7 +79,21 @@ func (m *Manager) applyReloadableConfig(ctx context.Context, next ManagerConfig)
 	if next.ReloadConfig != nil {
 		m.cfg.ReloadConfig = next.ReloadConfig
 	}
+	if next.MaxToolIterations > 0 {
+		m.cfg.MaxToolIterations = next.MaxToolIterations
+	}
+	k := m.kernel
+	maxIter := m.cfg.MaxToolIterations
 	m.mu.Unlock()
+
+	// Propagate MaxToolIterations to the live kernel after releasing the lock
+	// so config changes take effect without a gateway restart — mirrors Hermes
+	// fix(gateway): refresh cached agent max_iterations from current config.
+	if maxIter > 0 {
+		if setter, ok := k.(interface{ SetMaxToolIterations(int) }); ok {
+			setter.SetMaxToolIterations(maxIter)
+		}
+	}
 
 	evidence := RuntimeConfigReloadEvidence{Status: RuntimeConfigReloadApplied, Redacted: true}
 	m.writeRuntimeStatus(ctx, RuntimeStatusUpdate{ConfigReloadEvidence: &evidence})

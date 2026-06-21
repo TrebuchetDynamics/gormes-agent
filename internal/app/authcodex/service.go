@@ -112,17 +112,52 @@ type TokenResponse struct {
 }
 
 func RequestDeviceCode(ctx context.Context, client *http.Client, issuer, clientID string) (DeviceCode, error) {
+	// OpenAI's auth endpoint rate-limits repeated device-code requests (HTTP
+	// 429). Retry with capped backoff (honoring Retry-After) before surfacing
+	// a clear, actionable message — mirrors Hermes fix(auth): retry Codex
+	// device-code login on 429 with clear rate-limit message (cbfa018ae).
 	payload, _ := json.Marshal(map[string]string{"client_id": clientID})
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, issuer+"/api/accounts/deviceauth/usercode", bytes.NewReader(payload))
-	if err != nil {
-		return DeviceCode{}, err
+	const maxAttempts = 4
+	var resp *http.Response
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		payload2 := make([]byte, len(payload))
+		copy(payload2, payload)
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, issuer+"/api/accounts/deviceauth/usercode", bytes.NewReader(payload2))
+		if err != nil {
+			return DeviceCode{}, err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		r, err := client.Do(req)
+		if err != nil {
+			return DeviceCode{}, fmt.Errorf("device_code_request_failed")
+		}
+		resp = r
+		if resp.StatusCode != http.StatusTooManyRequests {
+			break
+		}
+		resp.Body.Close()
+		resp.Body = nil
+		if attempt < maxAttempts {
+			delay := parseRetryAfterSeconds(resp.Header.Get("Retry-After"))
+			if delay <= 0 {
+				delay = 1 << attempt // 2s, 4s, 8s
+			}
+			if delay > 60 {
+				delay = 60
+			}
+			select {
+			case <-ctx.Done():
+				return DeviceCode{}, ctx.Err()
+			case <-time.After(time.Duration(delay) * time.Second):
+			}
+		}
 	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
-	if err != nil {
-		return DeviceCode{}, fmt.Errorf("device_code_request_failed")
+	if resp == nil || resp.StatusCode == http.StatusTooManyRequests {
+		return DeviceCode{}, fmt.Errorf("device_code_rate_limited: OpenAI is rate-limiting Codex login requests (HTTP 429). Wait a minute and run the login again.")
 	}
-	defer resp.Body.Close()
+	if resp.Body != nil {
+		defer resp.Body.Close()
+	}
 	if resp.StatusCode != http.StatusOK {
 		return DeviceCode{}, fmt.Errorf("device_code_request_error")
 	}
@@ -265,4 +300,18 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+// parseRetryAfterSeconds parses a Retry-After header value (integer seconds
+// or HTTP-date) and returns the number of seconds to wait. Returns 0 when the
+// header is absent or unparseable.
+func parseRetryAfterSeconds(header string) int {
+	header = strings.TrimSpace(header)
+	if header == "" {
+		return 0
+	}
+	if n, err := strconv.Atoi(header); err == nil && n > 0 {
+		return n
+	}
+	return 0
 }

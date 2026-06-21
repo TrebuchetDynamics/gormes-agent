@@ -1,0 +1,9 @@
+{
+  "parser": "mistral",
+  "label": "mistral_pre_v11_single_call",
+  "raw_output": "[TOOL_CALLS] [{\"name\": \"get_weather\", \"arguments\": {\"city\": \"Paris\"}}]",
+  "expected_calls": [
+    {"name": "get_weather", "arguments": "{\"city\": \"Paris\"}"}
+  ],
+  "degraded": false
+}

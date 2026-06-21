@@ -1,0 +1,8 @@
+{
+  "parser": "glm47",
+  "label": "glm_4_7_missing_arg_value_degraded",
+  "raw_output": "<tool_call><name>fn</name><arguments><arg_key>k</arg_key></arguments></tool_call>",
+  "expected_calls": null,
+  "degraded": true,
+  "degraded_reason": "arg_key_missing_matching_arg_value"
+}

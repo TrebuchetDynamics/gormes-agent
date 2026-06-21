@@ -50,6 +50,13 @@ func PromptCachePolicyFor(input PromptCachePolicyInput) PromptCachePolicy {
 	if baseURLHostMatches(baseURL, "openrouter.ai") && isClaude {
 		return supportedPromptCachePolicy(PromptCacheLayoutEnvelope, "prompt_cache_supported: OpenRouter Claude cache_control envelope")
 	}
+	// Nous Portal proxies to OpenRouter; Claude and Qwen both get envelope-layout
+	// caching. Mirrors Hermes fix(cache): route Nous Portal Qwen through Portal-Claude
+	// cache pathway (7993e03c0).
+	isNousPortal := baseURLHostMatches(baseURL, "nousresearch.com") || providerDash == "nous"
+	if isNousPortal && (isClaude || strings.Contains(model, "qwen")) {
+		return supportedPromptCachePolicy(PromptCacheLayoutEnvelope, "prompt_cache_supported: Nous Portal Claude/Qwen cache_control envelope")
+	}
 	if isAnthropicWire && isClaude {
 		return supportedPromptCachePolicy(PromptCacheLayoutNativeAnthropic, "prompt_cache_supported: third-party Anthropic messages Claude cache_control")
 	}
@@ -74,11 +81,34 @@ func openAICompatiblePromptCacheStatus(provider, baseURL string) CapabilityStatu
 	if baseURLHostMatches(baseURL, "openrouter.ai") {
 		return CapabilityStatus{Available: true, Reason: "prompt_cache_supported: OpenRouter Claude requests serialize cache_control when model policy allows it"}
 	}
+	if baseURLHostMatches(baseURL, "nousresearch.com") || providerLower == "nous" {
+		return CapabilityStatus{Available: true, Reason: "prompt_cache_supported: Nous Portal requests serialize cache_control when model policy allows it"}
+	}
 	switch providerLower {
 	case "opencode", "opencode-zen", "opencode-go", "alibaba":
 		return CapabilityStatus{Available: true, Reason: "prompt_cache_supported: Qwen/Alibaba requests serialize cache_control when model policy allows it"}
 	}
 	return unavailableCapability("cache_control stripped: prompt_cache_stripped unsupported OpenAI-compatible request mapping omits cache_control")
+}
+
+// markToolsForLongLivedCache marks the last tool in the list with a 1h
+// cache_control marker so the entire tools array is cached cross-session for
+// providers that support Anthropic prompt caching. Anthropic's cache order is
+// tools → system → messages; the last-tool marker caches everything before it.
+// Mirrors Hermes feat(prompt-cache): cross-session 1h prefix cache (7b7636655).
+func markToolsForLongLivedCache(tools []ToolDescriptor, policy PromptCachePolicy) []ToolDescriptor {
+	if !policy.ShouldCache || len(tools) == 0 {
+		return tools
+	}
+	if policy.Layout != PromptCacheLayoutNativeAnthropic && policy.Layout != PromptCacheLayoutEnvelope {
+		return tools
+	}
+	out := make([]ToolDescriptor, len(tools))
+	copy(out, tools)
+	last := out[len(out)-1]
+	last.CacheControl = &CacheControl{Type: defaultPromptCacheControlType, TTL: defaultPromptCacheTTL}
+	out[len(out)-1] = last
+	return out
 }
 
 // ApplyPromptCacheControl returns a deep copy with the system_and_3 cache

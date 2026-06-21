@@ -137,7 +137,12 @@ func TestAzureOpenAIProviderStatusIncludesTransportEvidence(t *testing.T) {
 	}
 }
 
-func TestAzureOpenAINonAzureGenericGPT5KeepsMaxTokensFirstRequest(t *testing.T) {
+// TestNonAzureGPT5UsesMaxCompletionTokensPreemptively verifies that gpt-5
+// family models use max_completion_tokens on the FIRST request regardless of
+// the provider (not just Azure) — Hermes utils.py model_forces_max_completion_tokens
+// parity, fix 19c07c403. The old behavior (max_tokens first, retry on 400)
+// caused an extra round-trip and still failed on strict endpoints.
+func TestNonAzureGPT5UsesMaxCompletionTokensPreemptively(t *testing.T) {
 	var captured []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		raw, err := io.ReadAll(r.Body)
@@ -164,11 +169,11 @@ func TestAzureOpenAINonAzureGenericGPT5KeepsMaxTokensFirstRequest(t *testing.T) 
 	defer stream.Close()
 
 	body := decodeJSONMap(t, captured)
-	if got := body["max_tokens"]; got != float64(4096) {
-		t.Fatalf("generic max_tokens = %#v, want 4096 in body %s", got, captured)
+	if _, ok := body["max_tokens"]; ok {
+		t.Fatalf("gpt-5 on openrouter: first request sent max_tokens instead of max_completion_tokens: %s", captured)
 	}
-	if _, ok := body["max_completion_tokens"]; ok {
-		t.Fatalf("generic provider unexpectedly emitted max_completion_tokens: %s", captured)
+	if got := body["max_completion_tokens"]; got != float64(4096) {
+		t.Fatalf("gpt-5 on openrouter: max_completion_tokens = %#v, want 4096 in body %s", got, captured)
 	}
 }
 

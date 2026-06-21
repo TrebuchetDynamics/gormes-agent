@@ -105,7 +105,7 @@ func (*MemoryTool) Description() string {
 }
 
 func (*MemoryTool) Schema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{"action":{"type":"string","enum":["add","replace","remove","read"],"description":"Memory action to perform: add, replace, remove, or read current entries without mutation."},"target":{"type":"string","enum":["user","memory"],"description":"user stores facts about the user; memory stores assistant/environment notes."},"content":{"type":"string","description":"Content for add, and Hermes-compatible replacement content when new_content is omitted."},"old_text":{"type":"string","description":"Substring identifying the entry to replace or remove."},"new_content":{"type":"string","description":"Replacement content for replace; content is also accepted for Hermes compatibility."}},"required":["action","target"]}`)
+	return json.RawMessage(`{"type":"object","properties":{"action":{"type":"string","enum":["add","replace","remove","read"],"description":"Memory action to perform: add, replace, remove, or read current entries without mutation."},"target":{"type":"string","enum":["user","memory"],"description":"user stores facts about the user; memory stores assistant/environment notes."},"content":{"type":"string","description":"Content for add, and Hermes-compatible replacement content when new_content is omitted."},"old_text":{"type":"string","description":"REQUIRED for 'replace' and 'remove': a short unique substring identifying the existing entry to modify. Omit only for 'add'."},"new_content":{"type":"string","description":"Replacement content for replace; content is also accepted for Hermes compatibility."}},"required":["action","target"]}`)
 }
 
 func (*MemoryTool) Timeout() time.Duration { return 0 }
@@ -218,7 +218,7 @@ func (t *MemoryTool) replace(path, target string, entries []string, oldText, new
 	oldText = strings.TrimSpace(oldText)
 	newContent = strings.TrimSpace(newContent)
 	if oldText == "" {
-		return memoryError(MemoryEvidenceInvalidArgs, "old_text cannot be empty")
+		return missingOldTextError(target, entries, "replace", t.limitFor(target))
 	}
 	if newContent == "" {
 		return memoryError(MemoryEvidenceInvalidArgs, "new_content cannot be empty; use remove to delete entries")
@@ -246,7 +246,7 @@ func (t *MemoryTool) replace(path, target string, entries []string, oldText, new
 func (t *MemoryTool) remove(path, target string, entries []string, oldText string) MemoryToolResult {
 	oldText = strings.TrimSpace(oldText)
 	if oldText == "" {
-		return memoryError(MemoryEvidenceInvalidArgs, "old_text cannot be empty")
+		return missingOldTextError(target, entries, "remove", t.limitFor(target))
 	}
 	idx, matches, evidence := findMemoryEntry(entries, oldText)
 	if evidence != "" {
@@ -547,6 +547,26 @@ func memoryLimitError(currentEntries []string, limit int, message string) Memory
 
 func memoryError(evidence string, message string) MemoryToolResult {
 	return MemoryToolResult{Success: false, Entries: []string{}, Evidence: evidence, Error: message}
+}
+
+// missingOldTextError returns a recoverable response when replace/remove is called
+// without old_text. Structured-output clients may omit the optional old_text field,
+// so a bare "old_text is required" is a dead end. Instead, return the current entry
+// inventory with a retry instruction so the model can reissue with old_text set
+// (Hermes parity: issues #43412, #49466).
+func missingOldTextError(target string, entries []string, action string, limit int) MemoryToolResult {
+	entries = append([]string(nil), entries...)
+	return MemoryToolResult{
+		Success: false,
+		Evidence: MemoryEvidenceInvalidArgs,
+		Error: fmt.Sprintf(
+			"'%s' needs old_text — a short unique substring of the entry to %s. "+
+				"None was provided. Reissue the %s with old_text set to part of one of the current_entries below.",
+			action, action, action,
+		),
+		CurrentEntries: entries,
+		Usage:          memoryUsage(entries, limit),
+	}
 }
 
 var memoryThreatPatterns = []struct {

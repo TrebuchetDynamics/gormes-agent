@@ -1,0 +1,9 @@
+{
+  "parser": "kimik2",
+  "label": "kimi_k2_section_pair_single_call",
+  "raw_output": "<|tool_calls_section_begin|>\n[{\"name\": \"get_weather\", \"arguments\": {\"city\": \"Paris\"}}]\n<|tool_calls_section_end|>",
+  "expected_calls": [
+    {"name": "get_weather", "arguments": "{\"city\": \"Paris\"}"}
+  ],
+  "degraded": false
+}

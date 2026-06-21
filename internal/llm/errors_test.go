@@ -177,6 +177,148 @@ func TestClassifyProviderError_GenericTimeoutMessages(t *testing.T) {
 	}
 }
 
+func TestClassifyProviderError_ContentPolicyBlocked(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+	}{
+		{"openai flagged", `{"error":{"message":"Your request was flagged by our safety filters.","code":"content_filter"}}`},
+		{"openai cybersecurity", `{"error":{"message":"flagged for possible cybersecurity risk"}}`},
+		{"anthropic safety", `{"error":{"message":"prompt was flagged by our safety system"}}`},
+		{"azure policy violation", `{"error":{"code":"responsibleaipolicyviolation","message":"blocked"}}`},
+		{"violates policies", `{"error":{"message":"This request violates our usage policies."}}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ClassifyProviderError(&HTTPError{Status: 400, Body: tc.body})
+			if got.Kind != ProviderErrorContentPolicyBlocked {
+				t.Fatalf("Kind = %q, want %q", got.Kind, ProviderErrorContentPolicyBlocked)
+			}
+			if got.Class != ClassFatal {
+				t.Fatalf("Class = %q, want ClassFatal", got.Class)
+			}
+			if got.Retryable {
+				t.Fatal("Retryable = true, want false (deterministic rejection)")
+			}
+		})
+	}
+}
+
+func TestClassifyProviderError_MultimodalToolContentUnsupported(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+	}{
+		{"xiaomi mimo text not set", `{"error":{"code":"400","message":"Param Incorrect","param":"text is not set"}}`},
+		{"tool message must be string", `{"error":{"message":"tool message content must be a string"}}`},
+		{"expected string got list", `{"error":{"message":"expected string, got list"}}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ClassifyProviderError(&HTTPError{Status: 400, Body: tc.body})
+			if got.Kind != ProviderErrorMultimodalToolUnsupported {
+				t.Fatalf("Kind = %q, want %q", got.Kind, ProviderErrorMultimodalToolUnsupported)
+			}
+			if got.Class != ClassFatal {
+				t.Fatalf("Class = %q, want ClassFatal", got.Class)
+			}
+		})
+	}
+}
+
+func TestClassifyProviderError_BillingPatterns(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+	}{
+		{"insufficient credits", `{"error":{"message":"You have insufficient credits."}}`},
+		{"payment required status", ``},
+		{"balance depleted", `{"error":{"code":"balance_depleted","message":"Account balance depleted"}}`},
+		{"out of funds", `{"error":{"message":"Your account is out of funds."}}`},
+		{"free tier blocked", `{"error":{"message":"model_not_supported_on_free_tier"}}`},
+	}
+	errs := []error{
+		&HTTPError{Status: 400, Body: cases[0].body},
+		&HTTPError{Status: 402},
+		&HTTPError{Status: 400, Body: cases[2].body},
+		&HTTPError{Status: 400, Body: cases[3].body},
+		&HTTPError{Status: 400, Body: cases[4].body},
+	}
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ClassifyProviderError(errs[i])
+			if got.Kind != ProviderErrorBilling {
+				t.Fatalf("Kind = %q, want %q", got.Kind, ProviderErrorBilling)
+			}
+			if got.Class != ClassFatal {
+				t.Fatalf("Class = %q, want ClassFatal", got.Class)
+			}
+			if !got.ShouldRotateCredential {
+				t.Fatal("ShouldRotateCredential = false, want true")
+			}
+			if !got.ShouldFallback {
+				t.Fatal("ShouldFallback = false, want true")
+			}
+		})
+	}
+}
+
+func TestClassifyProviderError_ModelNotFound(t *testing.T) {
+	got := ClassifyProviderError(&HTTPError{Status: 404, Body: `{"error":{"message":"The model gpt-5 does not exist","code":"model_not_found"}}`})
+	if got.Kind != ProviderErrorModelNotFound {
+		t.Fatalf("Kind = %q, want %q", got.Kind, ProviderErrorModelNotFound)
+	}
+	if !got.ShouldFallback {
+		t.Fatal("ShouldFallback = false, want true")
+	}
+}
+
+func TestClassifyProviderError_OpenRouterPolicyBlocked(t *testing.T) {
+	body := `{"error":{"message":"No endpoints available matching your guardrail restrictions and data policy. Configure: https://openrouter.ai/settings/privacy"}}`
+	got := ClassifyProviderError(&HTTPError{Status: 404, Body: body})
+	if got.Kind != ProviderErrorPolicyBlocked {
+		t.Fatalf("Kind = %q, want %q", got.Kind, ProviderErrorPolicyBlocked)
+	}
+	if !got.ShouldFallback {
+		t.Fatal("ShouldFallback = false, want true")
+	}
+}
+
+func TestClassifyProviderError_ImageTooLargeAnthropicVariants(t *testing.T) {
+	cases := []string{
+		`image exceeds 5 MB maximum`,
+		`image dimensions exceed max allowed size: 8000 pixels`,
+		`dimensions exceed max allowed size`,
+	}
+	for _, msg := range cases {
+		body := `{"error":{"message":"` + msg + `"}}`
+		got := ClassifyProviderError(&HTTPError{Status: 400, Body: body})
+		if got.Kind != ProviderErrorImageTooLarge {
+			t.Fatalf("msg %q: Kind = %q, want %q", msg, got.Kind, ProviderErrorImageTooLarge)
+		}
+	}
+}
+
+func TestClassifyProviderError_Overloaded529(t *testing.T) {
+	got := ClassifyProviderError(&HTTPError{Status: 529, Body: `{"error":{"message":"Overloaded"}}`})
+	if got.Kind != ProviderErrorOverloaded {
+		t.Fatalf("Kind = %q, want %q", got.Kind, ProviderErrorOverloaded)
+	}
+	if !got.Retryable {
+		t.Fatal("Retryable = false, want true")
+	}
+}
+
+func TestClassifyProviderError_BillingMessageOnly(t *testing.T) {
+	got := ClassifyProviderError(errors.New("insufficient credits to continue"))
+	if got.Kind != ProviderErrorBilling {
+		t.Fatalf("Kind = %q, want %q", got.Kind, ProviderErrorBilling)
+	}
+	if !got.ShouldRotateCredential {
+		t.Fatal("ShouldRotateCredential = false, want true")
+	}
+}
+
 func TestDefaultChainErrorClassifierTimeoutRetriesThenFallback(t *testing.T) {
 	classifier := &DefaultChainErrorClassifier{MaxRetriesPerProvider: 2}
 	classification := ProviderErrorClassification{Kind: ProviderErrorTimeout, Class: ClassRetryable, Retryable: true}
@@ -274,5 +416,80 @@ func TestHTTPErrorErrorExtractsDetailJSONWithoutLeakingRawBody(t *testing.T) {
 	}
 	if classification.Message != "Unauthorized" {
 		t.Fatalf("Message = %q, want extracted detail", classification.Message)
+	}
+}
+
+// TestClassifyProviderError_UnsupportedParamNotMisclassifiedAsOverflow verifies
+// Hermes error_classifier.py parity (fix 2ce3ae3d1): a 400 whose body contains
+// "max_tokens" (an overflow pattern) but whose message says "unsupported
+// parameter" must be classified as FormatError, not ContextOverflow — the
+// validation guard must fire before the context check.
+// Separately, a genuine OpenAI overflow 400 using "invalid_request_error" as
+// the error type (but "context_length_exceeded" as the code) must still be
+// classified as ContextOverflow with ShouldCompress=true.
+func TestClassifyProviderError_UnsupportedParamNotMisclassifiedAsOverflow(t *testing.T) {
+	// GPT-5-style "unsupported parameter" 400: message contains "max_tokens"
+	// (overflow pattern) but ALSO contains "unsupported parameter".
+	unsupportedParam := &HTTPError{
+		Status: 400,
+		Body: `{"error":{"code":"unknown_parameter","message":"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}`,
+	}
+	got := ClassifyProviderError(unsupportedParam)
+	if got.Kind != ProviderErrorFormatError {
+		t.Errorf("unsupported param 400: Kind = %q, want %q (should not misclassify as context overflow)", got.Kind, ProviderErrorFormatError)
+	}
+	if got.ShouldCompress {
+		t.Errorf("unsupported param 400: ShouldCompress = true, want false (must not trigger compression loop)")
+	}
+
+	// Genuine OpenAI overflow: "invalid_request_error" type + "context_length_exceeded" code.
+	// Must reach the context overflow path, not FormatError.
+	overflow := &HTTPError{
+		Status: 400,
+		Body: `{"error":{"message":"This model's maximum context length is 4096 tokens, however you requested 5001 tokens. Please reduce your prompt.","type":"invalid_request_error","param":"messages","code":"context_length_exceeded"}}`,
+	}
+	gotOvf := ClassifyProviderError(overflow)
+	if gotOvf.Kind != ProviderErrorContext {
+		t.Errorf("overflow 400: Kind = %q, want %q (invalid_request_error must not block overflow classification)", gotOvf.Kind, ProviderErrorContext)
+	}
+	if !gotOvf.ShouldCompress {
+		t.Errorf("overflow 400: ShouldCompress = false, want true")
+	}
+}
+
+func TestSanitizeProviderErrorBodyNestedStructuredMessage(t *testing.T) {
+	// Mirrors Hermes fix(agent): summarize structured provider error messages
+	// (e4452ffb8). Some providers (e.g. HF router) embed a structured object in
+	// the error.message field instead of a plain string. The sanitizer must
+	// recursively extract the human-readable message rather than returning a
+	// generic "provider returned JSON error body" fallback.
+	cases := []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "nested dict in error.message",
+			body: `{"error":{"message":{"type":"Bad Request","code":"context_length_exceeded","message":"This model's maximum context length is 4096 tokens"}}}`,
+			want: "This model's maximum context length is 4096 tokens",
+		},
+		{
+			name: "flat string error.message (unchanged)",
+			body: `{"error":{"message":"rate limit exceeded"}}`,
+			want: "rate limit exceeded",
+		},
+		{
+			name: "list in error.message",
+			body: `{"error":{"message":["token limit exceeded","please reduce your input"]}}`,
+			want: "token limit exceeded; please reduce your input",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := sanitizeProviderErrorBody(tc.body)
+			if !strings.Contains(got, tc.want) {
+				t.Errorf("sanitizeProviderErrorBody(%q) = %q, want it to contain %q", tc.body, got, tc.want)
+			}
+		})
 	}
 }

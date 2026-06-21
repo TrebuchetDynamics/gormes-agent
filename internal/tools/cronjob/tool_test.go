@@ -664,3 +664,100 @@ func (s *permissiveCronjobToolTestStore) Delete(id string) error {
 	delete(s.jobs, id)
 	return nil
 }
+
+// TestCronjobTool_RunExecutesImmediatelyWhenExecuteNowWired verifies that
+// action='run' calls ExecuteNow and reports {executed, execution_success}
+// when the callback is wired — Hermes cronjob_tools.py _execute_job_now
+// parity (fix 65d7c7faf).
+func TestCronjobTool_RunExecutesImmediatelyWhenExecuteNowWired(t *testing.T) {
+	store, done := newCronjobToolTestStore(t)
+	defer done()
+
+	var firedIDs []string
+	tool := toolcron.NewCronjobTool(toolcron.CronjobToolConfig{
+		Store:       store,
+		ScriptsRoot: t.TempDir(),
+		Now:         fixedCronjobToolNow,
+		ExecuteNow: func(ctx context.Context, jobID string) error {
+			firedIDs = append(firedIDs, jobID)
+			return nil
+		},
+	})
+
+	created := execCronjobTool[cronjobCreateResult](t, tool, map[string]any{
+		"action":   "create",
+		"name":     "run-immediate",
+		"schedule": "every 30m",
+		"prompt":   "Check for updates.",
+	})
+
+	var runResult struct {
+		Success bool `json:"success"`
+		Job     struct {
+			ID               string `json:"id"`
+			Executed         bool   `json:"executed"`
+			ExecutionSuccess bool   `json:"execution_success"`
+		} `json:"job"`
+		RunNow *toolcron.CronjobRunNowRequest `json:"run_now"`
+	}
+	raw := execCronjobToolRaw(t, tool, map[string]any{"action": "run", "job_id": created.JobID})
+	if err := json.Unmarshal(raw, &runResult); err != nil {
+		t.Fatalf("unmarshal: %v (body=%s)", err, raw)
+	}
+	if !runResult.Success {
+		t.Fatalf("run success=false; body=%s", raw)
+	}
+	if !runResult.Job.Executed {
+		t.Fatalf("job.executed=false; body=%s", raw)
+	}
+	if runResult.RunNow != nil {
+		t.Fatalf("run_now should be absent when ExecuteNow is wired; body=%s", raw)
+	}
+	if len(firedIDs) != 1 || firedIDs[0] != created.JobID {
+		t.Fatalf("ExecuteNow called with %v, want [%s]", firedIDs, created.JobID)
+	}
+}
+
+// TestCronjobTool_RunSkipsWhenExecuteNowErrors verifies that an error from
+// ExecuteNow is reflected as executed=false in the result.
+func TestCronjobTool_RunSkipsWhenExecuteNowErrors(t *testing.T) {
+	store, done := newCronjobToolTestStore(t)
+	defer done()
+
+	tool := toolcron.NewCronjobTool(toolcron.CronjobToolConfig{
+		Store:       store,
+		ScriptsRoot: t.TempDir(),
+		Now:         fixedCronjobToolNow,
+		ExecuteNow: func(ctx context.Context, jobID string) error {
+			return errors.New("executor unavailable")
+		},
+	})
+
+	created := execCronjobTool[cronjobCreateResult](t, tool, map[string]any{
+		"action":   "create",
+		"name":     "run-fail",
+		"schedule": "every 1h",
+		"prompt":   "Fail fast.",
+	})
+
+	var runResult struct {
+		Success bool `json:"success"`
+		Job     struct {
+			Executed         bool `json:"executed"`
+			ExecutionSuccess bool `json:"execution_success"`
+		} `json:"job"`
+	}
+	raw := execCronjobToolRaw(t, tool, map[string]any{"action": "run", "job_id": created.JobID})
+	if err := json.Unmarshal(raw, &runResult); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if !runResult.Success {
+		t.Fatalf("success should still be true (job found, fire attempt made); got false")
+	}
+	if runResult.Job.Executed {
+		t.Fatalf("job.executed should be false when ExecuteNow errors")
+	}
+	if runResult.Job.ExecutionSuccess {
+		t.Fatalf("execution_success should be false when executor errored")
+	}
+}

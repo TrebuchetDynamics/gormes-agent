@@ -99,13 +99,18 @@ func TestOpenRouterAttributionHeaders(t *testing.T) {
 		t.Fatal(err)
 	}
 	ApplyOpenRouterAttributionHeaders(req, "openrouter", "https://example.test/v1")
-	for _, header := range []string{"HTTP-Referer", "X-OpenRouter-Title", "X-OpenRouter-Categories"} {
+	// X-Title is the canonical OpenRouter dashboard header (X-OpenRouter-Title was not recognized).
+	// Mirrors Hermes fix(openrouter): use canonical X-Title attribution header (6430d6756).
+	for _, header := range []string{"HTTP-Referer", "X-Title", "X-OpenRouter-Categories"} {
 		if got := req.Header.Get(header); got == "" {
 			t.Fatalf("%s header is empty, want OpenRouter attribution", header)
 		}
 	}
-	if got := req.Header.Get("X-OpenRouter-Title"); strings.Contains(strings.ToLower(got), "hermes") {
-		t.Fatalf("X-OpenRouter-Title = %q leaks Hermes label; Gormes should own OpenRouter attribution", got)
+	if got := req.Header.Get("X-Title"); strings.Contains(strings.ToLower(got), "hermes") {
+		t.Fatalf("X-Title = %q leaks Hermes label; Gormes should own OpenRouter attribution", got)
+	}
+	if got := req.Header.Get("X-OpenRouter-Title"); got != "" {
+		t.Fatalf("X-OpenRouter-Title = %q, want empty (replaced by canonical X-Title)", got)
 	}
 
 	customReq, err := http.NewRequest(http.MethodPost, "https://openrouter.ai/api/v1/chat/completions", nil)
@@ -122,7 +127,7 @@ func TestOpenRouterAttributionHeaders(t *testing.T) {
 		t.Fatal(err)
 	}
 	ApplyOpenRouterAttributionHeaders(plainReq, "custom", "https://example.test/v1")
-	for _, header := range []string{"HTTP-Referer", "X-OpenRouter-Title", "X-OpenRouter-Categories"} {
+	for _, header := range []string{"HTTP-Referer", "X-Title", "X-OpenRouter-Title", "X-OpenRouter-Categories"} {
 		if got := plainReq.Header.Get(header); got != "" {
 			t.Fatalf("%s = %q, want no OpenRouter attribution for non-OpenRouter route", header, got)
 		}
@@ -259,5 +264,55 @@ func mapLookupEnv(values map[string]string) func(string) (string, bool) {
 	return func(name string) (string, bool) {
 		value, ok := values[name]
 		return value, ok
+	}
+}
+
+func TestOpenRouterAdaptiveAnthropicVerbosity(t *testing.T) {
+	const orURL = "https://openrouter.ai/api/v1"
+	const orProv = "openrouter"
+
+	effortPtr := func(e ReasoningEffort) *ReasoningEffort { return &e }
+
+	tests := []struct {
+		name     string
+		model    string
+		effort   *ReasoningEffort
+		wantVerb string
+	}{
+		// Adaptive models (Claude 4.6+) — should get verbosity
+		{"sonnet-4-6 medium", "anthropic/claude-sonnet-4-6", effortPtr(ReasoningEffortMedium), "medium"},
+		{"sonnet-4-6 high", "anthropic/claude-sonnet-4-6", effortPtr(ReasoningEffortHigh), "high"},
+		{"sonnet-4-6 xhigh clamped to high", "anthropic/claude-sonnet-4-6", effortPtr(ReasoningEffortXHigh), "high"},
+		{"sonnet-4-6 low", "anthropic/claude-sonnet-4-6", effortPtr(ReasoningEffortLow), "low"},
+		{"sonnet-4-6 minimal→low", "anthropic/claude-sonnet-4-6", effortPtr(ReasoningEffortMinimal), "low"},
+		{"fable-5 model", "anthropic/claude-fable-5", effortPtr(ReasoningEffortHigh), "high"},
+		{"bare claude prefix", "claude-sonnet-4-6-20260101", effortPtr(ReasoningEffortMedium), "medium"},
+		// none effort → no verbosity (can't disable adaptive thinking; omit)
+		{"sonnet-4-6 none→no verb", "anthropic/claude-sonnet-4-6", effortPtr(ReasoningEffortNone), ""},
+		// nil effort → no verbosity
+		{"sonnet-4-6 nil effort", "anthropic/claude-sonnet-4-6", nil, ""},
+		// Optional-reasoning models — no verbosity; they use reasoning.effort
+		{"claude-3.5-sonnet", "anthropic/claude-3-5-sonnet", effortPtr(ReasoningEffortHigh), ""},
+		{"opus-4-5", "anthropic/claude-opus-4-5", effortPtr(ReasoningEffortHigh), ""},
+		{"sonnet-4-5", "anthropic/claude-sonnet-4-5", effortPtr(ReasoningEffortHigh), ""},
+		{"haiku-4-5", "anthropic/claude-haiku-4-5", effortPtr(ReasoningEffortHigh), ""},
+		// Non-Anthropic models — no verbosity
+		{"gpt-4o", "openai/gpt-4o", effortPtr(ReasoningEffortHigh), ""},
+		{"grok", "x-ai/grok-2", effortPtr(ReasoningEffortHigh), ""},
+		// Non-OpenRouter route — no verbosity
+		{"non-openrouter", "anthropic/claude-sonnet-4-6", effortPtr(ReasoningEffortHigh), ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prov, url := orProv, orURL
+			if tt.name == "non-openrouter" {
+				prov, url = "openai", "https://api.openai.com/v1"
+			}
+			got := openRouterAdaptiveAnthropicVerbosity(prov, url, tt.model, tt.effort)
+			if got != tt.wantVerb {
+				t.Errorf("openRouterAdaptiveAnthropicVerbosity(%q, %q, effort=%v) = %q, want %q",
+					url, tt.model, tt.effort, got, tt.wantVerb)
+			}
+		})
 	}
 }

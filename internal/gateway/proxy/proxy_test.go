@@ -186,8 +186,9 @@ func TestProxySubmitter_PreservesAssistantReplayMetadata(t *testing.T) {
 		t.Fatalf("reasoned reasoning_content = %#v, want %q", got, structuredReasoning)
 	}
 	sentinel := proxyMessageByContent(t, req.Messages, "empty sentinel")
-	if got, ok := sentinel["reasoning_content"].(string); !ok || got != "" {
-		t.Fatalf("sentinel reasoning_content = %#v (present=%v), want empty string", sentinel["reasoning_content"], ok)
+	// DeepSeek V4 Pro rejects empty-string reasoning_content; Hermes #17341 upgrades "" → " ".
+	if got, ok := sentinel["reasoning_content"].(string); !ok || got != " " {
+		t.Fatalf("sentinel reasoning_content = %#v (present=%v), want space (DeepSeek V4 Pro rejects empty string)", sentinel["reasoning_content"], ok)
 	}
 	parts := proxyMessageByRoleAndContentPart(t, req.Messages, "assistant", "content part survived")
 	if _, ok := parts["tool_calls"]; ok {

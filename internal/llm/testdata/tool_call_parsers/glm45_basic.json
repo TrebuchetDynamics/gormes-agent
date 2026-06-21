@@ -1,0 +1,9 @@
+{
+  "parser": "glm45",
+  "label": "glm_4_5_moe_arg_key_value_xml_single_call",
+  "raw_output": "<tool_call>\n<name>get_weather</name>\n<arguments>\n<arg_key>city</arg_key><arg_value>Paris</arg_value>\n</arguments>\n</tool_call>",
+  "expected_calls": [
+    {"name": "get_weather", "arguments": "{\"city\":\"Paris\"}"}
+  ],
+  "degraded": false
+}

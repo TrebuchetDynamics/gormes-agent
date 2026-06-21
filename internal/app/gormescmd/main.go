@@ -1811,6 +1811,7 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 			fetcher := llm.NewAccountUsageFetcher(providermodule.AccountUsageHTTPClient{Client: providermodule.UsageHTTPClient}, func() time.Time { return time.Now().UTC() })
 			return fetcher.Fetch(ctx, llm.AccountUsageFetchRequest{Provider: provider, BaseURL: cfg.Hermes.Endpoint, APIKey: cfg.Hermes.APIKey})
 		},
+		MaxToolIterations: gormescli.ConfiguredMaxToolIterations(cfg),
 	}
 }
 

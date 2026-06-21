@@ -1,0 +1,8 @@
+{
+  "parser": "llama",
+  "label": "llama_3_x_malformed_json_after_tag",
+  "raw_output": "<|python_tag|>NOT_VALID_JSON",
+  "expected_calls": null,
+  "degraded": true,
+  "degraded_reason": "invalid_json_after_python_tag"
+}

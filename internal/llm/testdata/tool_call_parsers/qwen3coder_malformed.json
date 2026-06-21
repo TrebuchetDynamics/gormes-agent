@@ -1,0 +1,8 @@
+{
+  "parser": "qwen3coder",
+  "label": "qwen3_coder_unclosed_function_open_tag",
+  "raw_output": "<function=",
+  "expected_calls": null,
+  "degraded": true,
+  "degraded_reason": "unclosed_function_open_tag_no_name"
+}

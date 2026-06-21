@@ -167,6 +167,157 @@ func TestCompressorBudgetUpdatesAfterFallback(t *testing.T) {
 	}
 }
 
+func TestFallbackActivationOnAuthFailure(t *testing.T) {
+	// Mirrors Hermes fix(agent): fail over to fallback provider on persistent
+	// auth failure (401/403). A 401 from the primary provider must activate the
+	// configured fallback chain instead of surfacing a terminal error.
+	authErr := &llm.HTTPError{Status: 401}
+	primary := llm.NewMockClient()
+	primary.ScriptErr(authErr)
+
+	fallback := llm.NewMockClient()
+	fallback.SetProviderStatus(llm.ProviderStatus{Provider: "anthropic", Runtime: "chat_completions"})
+	fallback.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Fallback after auth failure."},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensOut: 1},
+	}, "sess-auth-fallback")
+
+	k := New(Config{
+		Model:     "primary-model",
+		Endpoint:  "http://mock",
+		Admission: Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		Fallback: llm.NormalizeFallbackModelConfig(map[string]any{
+			"provider": "anthropic",
+			"model":    "claude-opus-4-20250514",
+		}),
+		FallbackClientFactory: func(_ context.Context, route llm.ModelRoute) (llm.Client, error) {
+			if route.Provider != "anthropic" || route.Model != "claude-opus-4-20250514" {
+				t.Fatalf("fallback route = %#v, want anthropic claude-opus-4-20250514", route)
+			}
+			return fallback, nil
+		},
+	}, primary, store.NewNoop(), telemetry.New(), nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+	initial := <-k.Render()
+
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "hi"}); err != nil {
+		t.Fatal(err)
+	}
+
+	_, final := drainUntilIdle(t, k.Render(), initial.Seq, 2*time.Second)
+	if len(primary.Requests()) != 1 {
+		t.Fatalf("primary OpenStream calls = %d, want 1 (the auth-failing call)", len(primary.Requests()))
+	}
+	if reqs := fallback.Requests(); len(reqs) != 1 || reqs[0].Model != "claude-opus-4-20250514" {
+		t.Fatalf("fallback requests = %#v, want one request on fallback model", reqs)
+	}
+	if len(final.History) == 0 || final.History[len(final.History)-1].Content != "Fallback after auth failure." {
+		t.Fatalf("final history = %#v, want fallback answer", final.History)
+	}
+	if !hasSoulEvent(final.SoulEvents, "fallback_activated: anthropic/claude-opus-4-20250514") {
+		t.Fatalf("SoulEvents = %#v, want fallback_activated evidence", final.SoulEvents)
+	}
+}
+
+func TestFallbackActivationOnBillingFailure(t *testing.T) {
+	// A 402 Payment Required from the primary provider (billing) must also
+	// activate the fallback chain — ShouldFallback is set for billing errors.
+	billingErr := &llm.HTTPError{Status: 402}
+	primary := llm.NewMockClient()
+	primary.ScriptErr(billingErr)
+
+	fallback := llm.NewMockClient()
+	fallback.SetProviderStatus(llm.ProviderStatus{Provider: "openai", Runtime: "chat_completions"})
+	fallback.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Billing fallback response."},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensOut: 1},
+	}, "sess-billing-fallback")
+
+	k := New(Config{
+		Model:     "primary-model",
+		Endpoint:  "http://mock",
+		Admission: Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		Fallback: llm.FallbackModelPolicy{
+			Enabled: true,
+			Routes:  []llm.ModelRoute{{Provider: "openai", Model: "gpt-4.1"}},
+		},
+		FallbackClientFactory: func(_ context.Context, _ llm.ModelRoute) (llm.Client, error) {
+			return fallback, nil
+		},
+	}, primary, store.NewNoop(), telemetry.New(), nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+	initial := <-k.Render()
+
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "billing test"}); err != nil {
+		t.Fatal(err)
+	}
+
+	_, final := drainUntilIdle(t, k.Render(), initial.Seq, 2*time.Second)
+	if !hasSoulEvent(final.SoulEvents, "fallback_activated: openai/gpt-4.1") {
+		t.Fatalf("SoulEvents = %#v, want fallback_activated evidence on billing failure", final.SoulEvents)
+	}
+}
+
+func TestContentFilterRefusalNotRetriedAsFallback(t *testing.T) {
+	// Mirrors Hermes fix(agent): surface model refusals instead of retrying
+	// them as errors (bb46bf8ce). A content_filter finish reason is a policy
+	// refusal, not an empty-response transient failure — the kernel must not
+	// activate the fallback chain for it.
+	primary := llm.NewMockClient()
+	primary.Script([]llm.Event{
+		// Content-filter refusal with empty content.
+		{Kind: llm.EventDone, FinishReason: "content_filter", TokensOut: 0},
+	}, "sess-refusal")
+
+	fallbackCalled := false
+	fallback := llm.NewMockClient()
+	fallback.SetProviderStatus(llm.ProviderStatus{Provider: "anthropic", Runtime: "chat_completions"})
+	fallback.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Fallback answer."},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensOut: 1},
+	}, "sess-fallback")
+
+	k := New(Config{
+		Model:     "primary-model",
+		Endpoint:  "http://mock",
+		Admission: Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		Fallback: llm.FallbackModelPolicy{
+			Enabled: true,
+			Routes:  []llm.ModelRoute{{Provider: "anthropic", Model: "claude-opus-4-20250514"}},
+		},
+		FallbackClientFactory: func(_ context.Context, _ llm.ModelRoute) (llm.Client, error) {
+			fallbackCalled = true
+			return fallback, nil
+		},
+	}, primary, store.NewNoop(), telemetry.New(), nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+	initial := <-k.Render()
+
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "hi"}); err != nil {
+		t.Fatal(err)
+	}
+	_, final := drainUntilIdle(t, k.Render(), initial.Seq, 2*time.Second)
+
+	if fallbackCalled {
+		t.Fatal("fallback must NOT be activated on content_filter refusal")
+	}
+	if hasSoulEvent(final.SoulEvents, "fallback_activated") {
+		t.Fatalf("SoulEvents = %#v, content_filter must not trigger fallback_activated", final.SoulEvents)
+	}
+	if len(primary.Requests()) != 1 {
+		t.Fatalf("primary calls = %d, want exactly 1 (refusal not retried)", len(primary.Requests()))
+	}
+}
+
 func hasSoulEvent(events []SoulEntry, needle string) bool {
 	for _, event := range events {
 		if strings.Contains(event.Text, needle) {

@@ -1,0 +1,9 @@
+{
+  "parser": "qwen",
+  "label": "qwen_2_5_malformed_json_body",
+  "raw_output": "Let me try. <tool_call>\nnot valid json here\n</tool_call>",
+  "expected_content": "Let me try.",
+  "expected_calls": [],
+  "degraded": true,
+  "degraded_reason": "tool_call block body is not valid JSON"
+}

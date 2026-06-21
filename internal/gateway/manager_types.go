@@ -209,6 +209,12 @@ type ManagerConfig struct {
 	// the hard backstop.
 	GoalJudge    GoalJudge
 	GoalMaxTurns int
+	// MaxToolIterations is the per-turn kernel tool iteration budget. When
+	// non-zero, it is propagated to the live kernel on each /reload so config
+	// changes take effect without a gateway restart — mirrors Hermes fix
+	// fix(gateway): refresh cached agent max_iterations from current config
+	// (ca92e9a36 / 460b1e50e).
+	MaxToolIterations int
 	// TelegramTopicStore owns Telegram private-chat topic-mode state. Nil keeps
 	// topic mutations unavailable while still allowing /topic help to render.
 	TelegramTopicStore TelegramTopicStore

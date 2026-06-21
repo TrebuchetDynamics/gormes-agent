@@ -18,7 +18,19 @@ type turnRequestAssemblyInput struct {
 }
 
 func (k *Kernel) buildTurnRequest(ctx context.Context, in turnRequestAssemblyInput) llm.ChatRequest {
-	msgs := []llm.Message{in.UserMessage}
+	// Include conversation history from prior turns. When called from runTurn,
+	// k.history already has in.UserMessage appended as the last element, so we
+	// take all but the last entry as prior history and append in.UserMessage
+	// explicitly. When called from tests with no prior history, n<=1 and we
+	// skip the prior-history slice, falling back to just in.UserMessage.
+	var msgs []llm.Message
+	if n := len(k.history); n > 1 {
+		msgs = make([]llm.Message, 0, n)
+		msgs = append(msgs, cloneKernelMessages(k.history[:n-1])...)
+		msgs = append(msgs, in.UserMessage)
+	} else {
+		msgs = []llm.Message{in.UserMessage}
+	}
 	systemMsgs := make([]llm.Message, 0, 8)
 
 	if prompt := strings.TrimSpace(k.cfg.SystemPrompt); prompt != "" {
@@ -47,6 +59,20 @@ func (k *Kernel) buildTurnRequest(ctx context.Context, in turnRequestAssemblyInp
 		recallCancel()
 		if ctxStr != "" {
 			systemMsgs = append(systemMsgs, llm.Message{Role: "system", Content: llm.MemoryGuidance + "\n\n" + ctxStr})
+		}
+	}
+	if k.cfg.MemoryPrefetch != nil {
+		deadline := k.cfg.RecallDeadline
+		if deadline <= 0 {
+			deadline = 100 * time.Millisecond
+		}
+		prefetchCtx, prefetchCancel := context.WithTimeout(ctx, deadline)
+		hint, err := k.cfg.MemoryPrefetch.Prefetch(prefetchCtx, in.UserText, k.sessionID)
+		prefetchCancel()
+		if err != nil {
+			k.log.Warn("kernel: memory prefetch failed; continuing without hint", "err", err)
+		} else if strings.TrimSpace(hint) != "" {
+			systemMsgs = append(systemMsgs, llm.Message{Role: "system", Content: llm.MemoryGuidance + "\n\n" + hint})
 		}
 	}
 	if k.cfg.Skills != nil {
@@ -89,7 +115,20 @@ func (k *Kernel) buildTurnRequest(ctx context.Context, in turnRequestAssemblyInp
 		request.Tools = wireDescs
 	}
 	if k.cfg.ContextEngine != nil {
-		request.Tools = append(request.Tools, k.cfg.ContextEngine.ToolDescriptors()...)
+		// Guard: drop any context-engine tool whose name collides with a
+		// built-in. Built-ins always win dispatch (toolexec checks cfg.Tools
+		// first), so advertising the same name from the context engine would
+		// present the LLM with duplicate tool names. Mirrors Hermes
+		// fix(memory): reject memory tools that shadow core tool names (fe8920db1).
+		builtinNames := make(map[string]bool, len(request.Tools))
+		for _, d := range request.Tools {
+			builtinNames[d.Name] = true
+		}
+		for _, d := range k.cfg.ContextEngine.ToolDescriptors() {
+			if !builtinNames[d.Name] {
+				request.Tools = append(request.Tools, d)
+			}
+		}
 	}
 	return request
 }

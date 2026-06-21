@@ -429,11 +429,12 @@ func TestProviderTranscriptHarness_AnthropicFlushesPendingToolCallOnEOF(t *testi
 				Model    string `json:"model"`
 				Stream   bool   `json:"stream"`
 				Messages []struct {
-					Role    string `json:"role"`
-					Content string `json:"content"`
+					Role    string          `json:"role"`
+					Content json.RawMessage `json:"content"`
 				} `json:"messages"`
 				Tools []struct {
-					Name string `json:"name"`
+					Name         string          `json:"name"`
+					CacheControl json.RawMessage `json:"cache_control,omitempty"`
 				} `json:"tools"`
 			}
 			if err := json.Unmarshal(got.Body, &body); err != nil {
@@ -442,11 +443,23 @@ func TestProviderTranscriptHarness_AnthropicFlushesPendingToolCallOnEOF(t *testi
 			if body.Model != "claude-fixture" || !body.Stream {
 				t.Fatalf("request model/stream = %q/%v, want claude-fixture/true", body.Model, body.Stream)
 			}
-			if len(body.Messages) != 1 || body.Messages[0].Role != "user" || body.Messages[0].Content != "weather in Monterrey" {
-				t.Fatalf("messages = %+v, want single user weather request", body.Messages)
+			if len(body.Messages) != 1 || body.Messages[0].Role != "user" {
+				t.Fatalf("messages = %+v, want single user weather message", body.Messages)
+			}
+			// Anthropic client now applies prompt caching: user content is
+			// converted from a plain string to a [{type:text,...,cache_control}] block.
+			var userBlocks []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			}
+			if err := json.Unmarshal(body.Messages[0].Content, &userBlocks); err != nil || len(userBlocks) == 0 || userBlocks[0].Text != "weather in Monterrey" {
+				t.Fatalf("user content = %s (err=%v), want weather text block", body.Messages[0].Content, err)
 			}
 			if len(body.Tools) != 1 || body.Tools[0].Name != "get_weather" {
 				t.Fatalf("tools = %+v, want get_weather descriptor", body.Tools)
+			}
+			if len(body.Tools[0].CacheControl) == 0 {
+				t.Fatal("last tool missing cache_control; expected tool-level caching for Anthropic")
 			}
 		},
 		wantEvents: []eventSnapshot{{
@@ -552,9 +565,13 @@ func TestProviderTranscriptHarness_AnthropicReplaysRequestStreamFinishAndUsage(t
 			if len(body.Messages) != 3 {
 				t.Fatalf("messages len = %d, want 3 after tool-result continuation mapping", len(body.Messages))
 			}
-			var userContent string
-			if err := json.Unmarshal(body.Messages[0].Content, &userContent); err != nil || userContent != "weather in Monterrey" {
-				t.Fatalf("user content = %s (err=%v), want weather prompt", body.Messages[0].Content, err)
+			// Anthropic client applies prompt caching: user content is a text block.
+			var userBlocks []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			}
+			if err := json.Unmarshal(body.Messages[0].Content, &userBlocks); err != nil || len(userBlocks) == 0 || userBlocks[0].Text != "weather in Monterrey" {
+				t.Fatalf("user content = %s (err=%v), want weather text block", body.Messages[0].Content, err)
 			}
 			var assistantContent []struct {
 				Type string `json:"type"`

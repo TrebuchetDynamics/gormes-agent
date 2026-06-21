@@ -19,12 +19,13 @@ var (
 // via Script / ScriptRunEvents; each OpenStream / OpenRunEvents call dequeues
 // the next scripted sequence and returns a Stream / RunEventStream backed by it.
 type MockClient struct {
-	mu         sync.Mutex
-	streams    []*MockStream
-	runStreams []*MockRunEventStream
-	healthErr  error
-	requests   []ChatRequest
-	status     ProviderStatus
+	mu           sync.Mutex
+	streams      []*MockStream
+	streamErrors []error
+	runStreams   []*MockRunEventStream
+	healthErr    error
+	requests     []ChatRequest
+	status       ProviderStatus
 }
 
 func NewMockClient() *MockClient { return &MockClient{} }
@@ -50,6 +51,14 @@ func (m *MockClient) ProviderStatus() ProviderStatus {
 			BudgetTelemetry: unavailableCapability("mock provider status not configured"),
 		},
 	}
+}
+
+// ScriptErr queues an error to be returned from the next OpenStream call instead
+// of a stream. Use for testing OpenStream-level failures (auth, billing, etc.).
+func (m *MockClient) ScriptErr(err error) {
+	m.mu.Lock()
+	m.streamErrors = append(m.streamErrors, err)
+	m.mu.Unlock()
 }
 
 // Script queues a Stream emitting the given Events for the next OpenStream call.
@@ -81,6 +90,11 @@ func (m *MockClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.requests = append(m.requests, req)
+	if len(m.streamErrors) > 0 {
+		err := m.streamErrors[0]
+		m.streamErrors = m.streamErrors[1:]
+		return nil, err
+	}
 	if len(m.streams) == 0 {
 		// Return an already-exhausted stream so callers see a clean EOF.
 		return &MockStream{}, nil

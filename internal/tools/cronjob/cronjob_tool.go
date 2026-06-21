@@ -30,10 +30,18 @@ type CronjobToolConfig struct {
 	ScriptsRoot       string
 	Now               func() time.Time
 	RunNowUnsupported bool
+	// ExecuteNow, when set, makes action='run' execute the job immediately
+	// instead of just returning a run_now signal. The function is called with
+	// the job ID; the caller (scheduler/executor layer) looks up and fires the
+	// job. On return, the tool re-reads LastStatus from the store to report
+	// execution_success. Mirrors Hermes cronjob_tools.py _execute_job_now
+	// (fix 65d7c7faf). When nil, falls back to the legacy run_now signal.
+	ExecuteNow func(ctx context.Context, jobID string) error
 }
 
 // CronjobTool is a store-only action adapter. It never starts the scheduler,
-// submits to the kernel, calls providers, or executes scripts.
+// submits to the kernel, calls providers, or executes scripts — unless
+// ExecuteNow is wired in CronjobToolConfig for immediate action='run' support.
 type CronjobTool struct {
 	cfg CronjobToolConfig
 }
@@ -66,7 +74,6 @@ func (*CronjobTool) Schema() json.RawMessage {
 func (*CronjobTool) Timeout() time.Duration { return 0 }
 
 func (t *CronjobTool) Execute(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
-	_ = ctx
 	var in cronjobArgs
 	if err := json.Unmarshal(args, &in); err != nil {
 		return cronjobError("invalid cronjob args: " + err.Error()), nil
@@ -105,7 +112,7 @@ func (t *CronjobTool) Execute(ctx context.Context, args json.RawMessage) (json.R
 	case "remove":
 		return t.remove(store, in), nil
 	case "run":
-		return t.runNow(store, in), nil
+		return t.runNow(ctx, store, in), nil
 	default:
 		return cronjobError(fmt.Sprintf("unknown cron action %q", in.Action)), nil
 	}
@@ -457,7 +464,7 @@ func (t *CronjobTool) remove(store *reflectedCronStore, in cronjobArgs) json.Raw
 	})
 }
 
-func (t *CronjobTool) runNow(store *reflectedCronStore, in cronjobArgs) json.RawMessage {
+func (t *CronjobTool) runNow(ctx context.Context, store *reflectedCronStore, in cronjobArgs) json.RawMessage {
 	id := strings.TrimSpace(in.JobID)
 	if id == "" {
 		return cronjobError("job_id is required for action 'run'")
@@ -465,6 +472,25 @@ func (t *CronjobTool) runNow(store *reflectedCronStore, in cronjobArgs) json.Raw
 	entry, errRaw := getCronjobEntry(store, id)
 	if errRaw != nil {
 		return errRaw
+	}
+	if t.cfg.ExecuteNow != nil {
+		execErr := t.cfg.ExecuteNow(ctx, entry.record.ID)
+		executed := execErr == nil
+		execSuccess := false
+		if executed {
+			if reread, err := store.Get(entry.record.ID); err == nil {
+				execSuccess = reread.record.LastStatus != "error"
+			}
+		}
+		return cronjobJSON(map[string]any{
+			"success": true,
+			"job": map[string]any{
+				"id":                entry.record.ID,
+				"name":              entry.record.Name,
+				"executed":          executed,
+				"execution_success": execSuccess,
+			},
+		})
 	}
 	req := CronjobRunNowRequest{
 		Action:     "run_now",

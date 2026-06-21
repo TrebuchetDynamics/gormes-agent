@@ -162,3 +162,52 @@ func decodedMessages(t *testing.T, body map[string]any) []map[string]any {
 	}
 	return messages
 }
+
+// TestOpenAICompatibleUsesMaxCompletionTokensModelFamilies verifies the model
+// family detection for max_completion_tokens pre-selection (Hermes
+// utils.py model_forces_max_completion_tokens parity, fix 19c07c403).
+func TestOpenAICompatibleUsesMaxCompletionTokensModelFamilies(t *testing.T) {
+	cases := []struct {
+		model string
+		want  bool
+	}{
+		// gpt-4o family
+		{"gpt-4o", true},
+		{"gpt-4o-mini", true},
+		{"gpt-4o-2024-11-20", true},
+		// gpt-4.1 family
+		{"gpt-4.1", true},
+		{"gpt-4.1-mini", true},
+		{"gpt-4.1-nano", true},
+		// gpt-5 family
+		{"gpt-5", true},
+		{"gpt-5.4-mini", true},
+		// O-series
+		{"o1", true},
+		{"o1-mini", true},
+		{"o1-preview", true},
+		{"o3", true},
+		{"o3-mini", true},
+		{"o4", true},
+		{"o4-mini", true},
+		// Vendor-prefixed (OpenRouter style)
+		{"openai/gpt-4o", true},
+		{"openrouter/openai/gpt-5", true},
+		// Negatives: classic families keep max_tokens
+		{"gpt-4", false},
+		{"gpt-4-turbo", false},
+		{"gpt-3.5-turbo", false},
+		{"claude-3-opus", false},
+		{"llama-3", false},
+		{"mistral-7b", false},
+		{"deepseek-v2", false},
+		// gpt-4-32k must NOT match gpt-4o prefix
+		{"gpt-4-32k", false},
+	}
+	for _, tc := range cases {
+		got := openAICompatibleUsesMaxCompletionTokens(tc.model)
+		if got != tc.want {
+			t.Errorf("openAICompatibleUsesMaxCompletionTokens(%q) = %v, want %v", tc.model, got, tc.want)
+		}
+	}
+}

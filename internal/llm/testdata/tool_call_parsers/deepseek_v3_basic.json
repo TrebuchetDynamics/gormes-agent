@@ -1,0 +1,9 @@
+{
+  "parser": "deepseek_v3",
+  "label": "deepseek_v3_with_json_codeblock",
+  "raw_output": "<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>get_weather<｜tool▁sep｜>```json\n{\"city\": \"Paris\"}\n```<｜tool▁call▁end｜>",
+  "expected_calls": [
+    {"name": "get_weather", "arguments": "{\"city\": \"Paris\"}"}
+  ],
+  "degraded": false
+}

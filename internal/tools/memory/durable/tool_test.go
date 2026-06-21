@@ -478,3 +478,44 @@ func assertFileNotContains(t *testing.T, path, unwanted string) {
 		t.Fatalf("%s = %q, did not want %q", path, raw, unwanted)
 	}
 }
+
+// TestMemoryToolMissingOldTextReturnsRecoverableInventory verifies Hermes parity
+// for issues #43412 / #49466: replace/remove without old_text must return the
+// current entry inventory with a retry instruction instead of a dead-end error.
+func TestMemoryToolMissingOldTextReturnsRecoverableInventory(t *testing.T) {
+	dir := t.TempDir()
+	tool := NewMemoryTool(MemoryToolConfig{MemoryDir: dir})
+
+	add := executeMemoryTool(t, tool, map[string]any{
+		"action": "add", "target": "memory", "content": "existing entry",
+	})
+	if !add.Success {
+		t.Fatalf("seed add failed: %+v", add)
+	}
+
+	for _, action := range []string{"replace", "remove"} {
+		t.Run(action, func(t *testing.T) {
+			args := map[string]any{"action": action, "target": "memory"}
+			if action == "replace" {
+				args["new_content"] = "new value"
+			}
+			result := executeMemoryTool(t, tool, args)
+			if result.Success {
+				t.Fatalf("%s with no old_text: Success=true, want false", action)
+			}
+			if !strings.Contains(result.Error, "old_text") || !strings.Contains(result.Error, "Reissue") {
+				t.Fatalf("%s missing retry instruction in Error: %q", action, result.Error)
+			}
+			if len(result.CurrentEntries) == 0 {
+				t.Fatalf("%s: CurrentEntries empty, want inventory for recovery", action)
+			}
+			if result.Usage == "" {
+				t.Fatalf("%s: Usage empty, want usage string", action)
+			}
+			read := executeMemoryTool(t, tool, map[string]any{"action": "read", "target": "memory"})
+			if !read.Success || len(read.Entries) != 1 {
+				t.Fatalf("%s: entry mutated despite missing old_text: %+v", action, read)
+			}
+		})
+	}
+}

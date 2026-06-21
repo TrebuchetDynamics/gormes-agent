@@ -1,0 +1,9 @@
+{
+  "parser": "glm47",
+  "label": "glm_4_7_newline_tolerant_arg_key_value_xml",
+  "raw_output": "<tool_call>\n  <name>\n  get_weather\n  </name>\n  <arguments>\n    <arg_key>\n    city\n    </arg_key>\n    <arg_value>\n    Paris\n    </arg_value>\n  </arguments>\n</tool_call>",
+  "expected_calls": [
+    {"name": "get_weather", "arguments": "{\"city\":\"Paris\"}"}
+  ],
+  "degraded": false
+}

@@ -1,0 +1,9 @@
+{
+  "parser": "qwen3coder",
+  "label": "qwen3_coder_function_parameter_xml_single_call",
+  "raw_output": "<function=get_weather>\n<parameter=city>Paris</parameter>\n</function>",
+  "expected_calls": [
+    {"name": "get_weather", "arguments": "{\"city\":\"Paris\"}"}
+  ],
+  "degraded": false
+}

@@ -78,8 +78,16 @@ func buildGeminiCloudCodeRequestBody(req ChatRequest, descriptors []ToolDescript
 	if req.Temperature != nil {
 		payload.GenerationConfig.Temperature = *req.Temperature
 	}
+	// Always send maxOutputTokens. Without it some Gemini model variants (and
+	// Vertex-hosted Gemini) default to a very low limit that truncates tool
+	// calls mid-stream. Use a generous floor when the caller has not requested
+	// a specific cap. Mirrors Hermes fix(gemini): default native maxOutputTokens
+	// (ec46f5912).
+	const geminiDefaultMaxOutputTokens = 65535
 	if req.MaxTokens > 0 {
 		payload.GenerationConfig.MaxOutputTokens = req.MaxTokens
+	} else {
+		payload.GenerationConfig.MaxOutputTokens = geminiDefaultMaxOutputTokens
 	}
 	if len(descriptors) > 0 {
 		payload.ToolConfig = &geminiToolConfig{
