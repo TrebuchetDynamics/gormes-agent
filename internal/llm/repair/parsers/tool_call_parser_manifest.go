@@ -57,7 +57,7 @@ func ToolCallParserManifest() []ToolCallParserEntry {
 			ModelFamily:        "hermes",
 			ExpectedInputStyle: "tool_call_xml_json_body",
 			Status:             ToolCallParserStatusMapped,
-			TargetGoPackage:    "internal/llm/toolcallparsers/hermes",
+			TargetGoPackage:    "internal/llm/repair/toolcallparsers/hermesxml",
 			GoldenFixtures: []string{
 				"hermes_basic.json",
 				"hermes_malformed.json",

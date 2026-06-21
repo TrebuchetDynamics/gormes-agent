@@ -31,3 +31,10 @@ func (c Config) ExternalSkillsDirs() ([]string, []SkillsExternalDirEvidence) {
 func (c Config) SkillsUsageLogPath() string {
 	return skillsconfig.UsageLogPath(c.SkillsRoot(), c.Skills.UsageLogPath)
 }
+
+// GuardAgentCreatedSkills reports whether the static-analysis guard scanner
+// should run on agent-created skills. Mirrors Hermes' skills.guard_agent_created
+// config key (off by default). Enable via: gormes config set skills.guard_agent_created true
+func (c Config) GuardAgentCreatedSkills() bool {
+	return c.Skills.GuardAgentCreated
+}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills/guard"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
@@ -117,7 +118,9 @@ func BuildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 		reg.MustRegister(tool)
 	}
 	reg.MustRegister(tools.NewSkillManagerTool(tools.SkillManagerToolConfig{
-		Root: cfg.SkillsRoot(),
+		Root:             cfg.SkillsRoot(),
+		GuardAgentCreated: cfg.GuardAgentCreatedSkills(),
+		GuardScanner:     guard.ScanSkillToError,
 	}))
 	RegisterKanbanTools(reg)
 	for _, tool := range tools.NewBrowserHarnessTools(tools.BrowserHarnessToolsConfig{
