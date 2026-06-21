@@ -227,6 +227,29 @@ func ClassifyProviderError(err error) ProviderErrorClassification {
 			out.ShouldFallback = true
 			return out
 		}
+		// Anthropic thinking block signature mismatch or frozen-block mutation (400).
+		// Classified before generic 400 handlers so it gets retryable recovery.
+		if httpErr.Status == http.StatusBadRequest &&
+			strings.Contains(combined, "thinking") &&
+			(strings.Contains(combined, "signature") ||
+				strings.Contains(combined, "cannot be modified") ||
+				strings.Contains(combined, "must remain as they were")) {
+			return providerError(ProviderErrorThinkingSignature, ClassRetryable, httpErr.Status, message, true)
+		}
+		// Anthropic long-context tier gate (429 "extra usage" + "long context").
+		if httpErr.Status == http.StatusTooManyRequests &&
+			strings.Contains(combined, "extra usage") &&
+			strings.Contains(combined, "long context") {
+			out := providerError(ProviderErrorLongContextTier, ClassRetryable, httpErr.Status, message, true)
+			out.ShouldCompress = true
+			return out
+		}
+		// Anthropic OAuth 1M-context beta not available for this subscription.
+		if httpErr.Status == http.StatusBadRequest &&
+			strings.Contains(combined, "long context beta") &&
+			strings.Contains(combined, "not yet available") {
+			return providerError(ProviderErrorOAuthLongContextForbidden, ClassFatal, httpErr.Status, message, false)
+		}
 		if containsAny(combined, imageTooLargePatterns) {
 			return providerError(ProviderErrorImageTooLarge, ClassFatal, httpErr.Status, message, false)
 		}
@@ -333,6 +356,16 @@ func ClassifyProviderError(err error) ProviderErrorClassification {
 	if containsAny(combined, llamaCppGrammarPatterns) {
 		return providerError(ProviderErrorLlamaCppGrammarPattern, ClassFatal, 0, message, false)
 	}
+	if containsAny(combined, sslTransientPatterns) {
+		out := providerError(ProviderErrorTimeout, ClassRetryable, 0, message, true)
+		out.ShouldFallback = true
+		return out
+	}
+	if containsAny(combined, serverDisconnectPatterns) {
+		out := providerError(ProviderErrorRetryable, ClassRetryable, 0, message, true)
+		out.ShouldFallback = true
+		return out
+	}
 	var netErr net.Error
 	if errors.As(err, &netErr) && netErr.Timeout() {
 		return providerError(ProviderErrorRetryable, ClassRetryable, 0, message, true)
@@ -427,6 +460,8 @@ var contextPatterns = []string{
 	"max input token",
 	"input token",
 	"exceeds the maximum number of input tokens",
+	"truncating input",
+	"max_tokens",
 }
 
 // contentPolicyPatterns matches provider safety-filter rejections that are
@@ -514,6 +549,34 @@ var payloadTooLargePatterns = []string{
 	"request entity too large",
 	"payload too large",
 	"error code: 413",
+}
+
+// serverDisconnectPatterns are ambiguous transport-level closes that Hermes
+// treats as potential context overflow when the session is large.
+var serverDisconnectPatterns = []string{
+	"server disconnected",
+	"peer closed connection",
+	"connection reset by peer",
+	"connection was closed",
+	"network connection lost",
+	"unexpected eof",
+	"incomplete chunked read",
+}
+
+// sslTransientPatterns are SSL/TLS mid-stream failures that should retry but
+// NOT trigger context compression (unlike server disconnect, these are pure
+// network-layer hiccups unrelated to request size).
+var sslTransientPatterns = []string{
+	"bad record mac",
+	"ssl alert",
+	"tls alert",
+	"ssl handshake failure",
+	"tlsv1 alert",
+	"sslv3 alert",
+	"bad_record_mac",
+	"ssl_alert",
+	"tls_alert",
+	"[ssl:",
 }
 
 // invalidEncryptedContentPatterns matches Responses API replay-blob rejection.
