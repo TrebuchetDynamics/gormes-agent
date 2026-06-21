@@ -125,6 +125,10 @@ type Config struct {
 	// run the Hermes-compatible memory/skill self-improvement review in a
 	// daemon goroutine. The runner must be goroutine-safe. Nil = disabled.
 	BackgroundReview BackgroundReviewSpawner
+	// MemoryLifecycle, when non-nil, is invoked at the compression boundary to
+	// give registered memory providers a chance to augment the compression
+	// context hint via the Hermes-compatible PreCompress hook. Nil = disabled.
+	MemoryLifecycle MemoryPreCompressor
 }
 
 // BackgroundReviewSpawner is the injection boundary for the post-turn
@@ -132,6 +136,16 @@ type Config struct {
 // the caller; they own their own goroutine lifetime.
 type BackgroundReviewSpawner interface {
 	SpawnReview(ctx context.Context, messages []llm.Message, model, provider string)
+}
+
+// MemoryPreCompressor exposes the single hook called at the kernel compression
+// boundary. Implementations receive the turn history and may return a context
+// hint string that is appended to the compressor's FocusTopic. Nil = disabled.
+type MemoryPreCompressor interface {
+	// PreCompress returns an optional context hint for the compressor.
+	// The hint is appended to the user-supplied focus topic. Empty = no-op.
+	// Errors are logged and compression proceeds without the hint.
+	PreCompress(ctx context.Context, messages []llm.Message) (string, error)
 }
 
 type AgentLifecyclePoint = lifecycle.Point
@@ -615,7 +629,19 @@ func (k *Kernel) Run(ctx context.Context) error {
 				if status := k.cfg.ContextEngine.Status(); status.LastTotalTokens > 0 {
 					currentTokens = status.LastTotalTokens
 				}
-				after, _, err := k.cfg.ContextEngine.Compress(ctx, before, llm.CompressionRequest{CurrentTokens: currentTokens, FocusTopic: strings.TrimSpace(e.Text)})
+				// Call Hermes-compatible PreCompress hook so memory providers can
+				// inject context hints into the compression request.
+				focusTopic := strings.TrimSpace(e.Text)
+				if lc := k.cfg.MemoryLifecycle; lc != nil {
+					if hint, _ := lc.PreCompress(ctx, before); strings.TrimSpace(hint) != "" {
+						if focusTopic != "" {
+							focusTopic = focusTopic + "\n\n" + hint
+						} else {
+							focusTopic = hint
+						}
+					}
+				}
+				after, _, err := k.cfg.ContextEngine.Compress(ctx, before, llm.CompressionRequest{CurrentTokens: currentTokens, FocusTopic: focusTopic})
 				if err != nil {
 					k.lastError = err.Error()
 					k.emitFrame("compression failed")
