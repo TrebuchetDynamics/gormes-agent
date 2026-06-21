@@ -230,6 +230,13 @@ func (c *Channel) Send(ctx context.Context, chatID, text string) (string, error)
 	return msgID, ctx.Err()
 }
 
+// SendMedia implements gateway.MediaSender as a no-op. The Navivox client
+// handles TTS natively on the device, so gateway-synthesized audio files
+// are silently discarded rather than surfaced as "Media attachment unavailable."
+func (c *Channel) SendMedia(_ context.Context, _ string, _ string, _ gateway.OutboundMedia) (string, error) {
+	return "", nil
+}
+
 func (c *Channel) SendPlaceholder(ctx context.Context, chatID string) (string, error) {
 	msgID := c.newID()
 	c.mu.Lock()
