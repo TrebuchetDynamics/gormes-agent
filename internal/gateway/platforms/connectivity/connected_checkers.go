@@ -53,6 +53,8 @@ var platformConnectedCheckers = map[string]platformConnectedChecker{
 	"teams":                 extraAll("client_id", "client_secret", "tenant_id"),
 	"whatsapp_cloud":        extraAll("phone_number_id", "access_token"),
 	"photon":                extraAll("project_id", "project_secret"),
+	"raft":                  enabledOnly,
+	"relay":                 enabledOnly,
 }
 
 func PlatformLooksConfigured(cfg PlatformConnectionConfig) (bool, bool) {
