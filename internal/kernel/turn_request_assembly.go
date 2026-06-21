@@ -18,7 +18,19 @@ type turnRequestAssemblyInput struct {
 }
 
 func (k *Kernel) buildTurnRequest(ctx context.Context, in turnRequestAssemblyInput) llm.ChatRequest {
-	msgs := []llm.Message{in.UserMessage}
+	// Include conversation history from prior turns. When called from runTurn,
+	// k.history already has in.UserMessage appended as the last element, so we
+	// take all but the last entry as prior history and append in.UserMessage
+	// explicitly. When called from tests with no prior history, n<=1 and we
+	// skip the prior-history slice, falling back to just in.UserMessage.
+	var msgs []llm.Message
+	if n := len(k.history); n > 1 {
+		msgs = make([]llm.Message, 0, n)
+		msgs = append(msgs, cloneKernelMessages(k.history[:n-1])...)
+		msgs = append(msgs, in.UserMessage)
+	} else {
+		msgs = []llm.Message{in.UserMessage}
+	}
 	systemMsgs := make([]llm.Message, 0, 8)
 
 	if prompt := strings.TrimSpace(k.cfg.SystemPrompt); prompt != "" {

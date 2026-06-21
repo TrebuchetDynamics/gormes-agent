@@ -89,6 +89,79 @@ func TestKernelTurnRequestAssemblyPreservesGuidancePrefillToolAndUsageOrder(t *t
 	}
 }
 
+// TestKernelTurnRequestAssemblyIncludesPriorTurnHistory proves that messages
+// from prior turns are included in the assembled provider request, matching
+// Hermes conversation_loop.py which sends full api_messages history.
+func TestKernelTurnRequestAssemblyIncludesPriorTurnHistory(t *testing.T) {
+	k := New(Config{
+		Model:    "claude-3-5-sonnet",
+		Endpoint: "http://mock",
+	}, llm.NewMockClient(), store.NewNoop(), telemetry.New(), nil)
+	k.sessionID = "sess-history-test"
+
+	// Simulate two prior turns already in k.history.
+	k.history = []llm.Message{
+		{Role: "user", Content: "first question"},
+		{Role: "assistant", Content: "first answer"},
+		{Role: "user", Content: "second question"},  // ← current user message
+	}
+
+	request := k.buildTurnRequest(context.Background(), turnRequestAssemblyInput{
+		Model:       "claude-3-5-sonnet",
+		SessionID:   k.sessionID,
+		UserText:    "second question",
+		UserMessage: llm.Message{Role: "user", Content: "second question"},
+	})
+
+	// Find conversation messages (non-system).
+	var convMsgs []llm.Message
+	for _, m := range request.Messages {
+		if m.Role != "system" {
+			convMsgs = append(convMsgs, m)
+		}
+	}
+
+	if len(convMsgs) < 3 {
+		t.Fatalf("conversation messages = %d, want at least 3 (user1, assistant1, user2); got %+v", len(convMsgs), convMsgs)
+	}
+	if convMsgs[len(convMsgs)-3].Content != "first question" {
+		t.Errorf("prior user turn missing: got %+v", convMsgs)
+	}
+	if convMsgs[len(convMsgs)-2].Content != "first answer" {
+		t.Errorf("prior assistant turn missing: got %+v", convMsgs)
+	}
+	if convMsgs[len(convMsgs)-1].Content != "second question" {
+		t.Errorf("current user turn wrong: got %+v", convMsgs)
+	}
+}
+
+// TestKernelTurnRequestAssemblyFreshKernelNoHistory ensures a fresh kernel
+// (no prior history) still sends the current user message correctly.
+func TestKernelTurnRequestAssemblyFreshKernelNoHistory(t *testing.T) {
+	k := New(Config{
+		Model:    "claude-3-5-sonnet",
+		Endpoint: "http://mock",
+	}, llm.NewMockClient(), store.NewNoop(), telemetry.New(), nil)
+	k.sessionID = "sess-fresh"
+
+	request := k.buildTurnRequest(context.Background(), turnRequestAssemblyInput{
+		Model:       "claude-3-5-sonnet",
+		SessionID:   k.sessionID,
+		UserText:    "hello",
+		UserMessage: llm.Message{Role: "user", Content: "hello"},
+	})
+
+	var convMsgs []llm.Message
+	for _, m := range request.Messages {
+		if m.Role != "system" {
+			convMsgs = append(convMsgs, m)
+		}
+	}
+	if len(convMsgs) != 1 || convMsgs[0].Content != "hello" {
+		t.Fatalf("fresh kernel: conv messages = %+v, want exactly [user:hello]", convMsgs)
+	}
+}
+
 func messageRoles(messages []llm.Message) []string {
 	roles := make([]string, len(messages))
 	for i, msg := range messages {

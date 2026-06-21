@@ -37,7 +37,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Normal turn loop: submit → provider stream → tool continuation → final | `run_agent.py` | `internal/kernel/kernel.go` `internal/llm/client.go` | partial | Kernel loop exists; Hermes has richer context/prefill assembly. |
+| Normal turn loop: submit → provider stream → tool continuation → final | `run_agent.py` | `internal/kernel/kernel.go` `internal/llm/client.go` | partial | Kernel loop exists; `buildTurnRequest` now includes prior-turn history (conversation_loop.py parity: full `api_messages` including prior user/assistant pairs); remaining gap: Hermes per-turn reasoning copy, plugin user-context injection, and sanitize-tool-calls-for-strict-api paths. |
 | Tool continuation multi-round | `run_agent.py` `_process_tool_call` | `internal/kernel/kernel.go` `handleToolCall` | covered | Loop drives multi-round tool calls. |
 | Default 90-turn iteration budget | `run_agent.py` `max_iterations=90` | `internal/kernel/kernel.go` | covered | Default 90, toolless summary on exhaustion. |
 | Cancel active turn | `run_agent.py` `cancel()` | `internal/kernel/kernel.go` `cancelCmd` | covered | Context cancellation. |
