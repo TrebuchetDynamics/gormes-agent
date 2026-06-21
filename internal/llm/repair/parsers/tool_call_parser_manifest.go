@@ -35,8 +35,12 @@ func ToolCallParserManifest() []ToolCallParserEntry {
 			UpstreamFile:       "deepseek_v3_parser.py",
 			ModelFamily:        "deepseek_v3",
 			ExpectedInputStyle: "fullwidth_token_pair_with_json_codeblock",
-			Status:             ToolCallParserStatusRowBacked,
-			TargetGoPackage:    "internal/llm/toolcallparsers/deepseekv3",
+			Status:             ToolCallParserStatusMapped,
+			TargetGoPackage:    "internal/llm/repair/toolcallparsers/deepseekv3",
+			GoldenFixtures: []string{
+				"deepseek_v3_basic.json",
+				"deepseek_v3_malformed.json",
+			},
 		},
 		{
 			UpstreamFile:       "glm45_parser.py",
@@ -76,8 +80,12 @@ func ToolCallParserManifest() []ToolCallParserEntry {
 			UpstreamFile:       "kimi_k2_parser.py",
 			ModelFamily:        "kimi_k2",
 			ExpectedInputStyle: "tool_calls_section_begin_end_pair",
-			Status:             ToolCallParserStatusRowBacked,
-			TargetGoPackage:    "internal/llm/toolcallparsers/kimik2",
+			Status:             ToolCallParserStatusMapped,
+			TargetGoPackage:    "internal/llm/repair/toolcallparsers/kimik2",
+			GoldenFixtures: []string{
+				"kimik2_basic.json",
+				"kimik2_malformed.json",
+			},
 		},
 		{
 			UpstreamFile:       "llama_parser.py",
@@ -94,8 +102,12 @@ func ToolCallParserManifest() []ToolCallParserEntry {
 			UpstreamFile:       "longcat_parser.py",
 			ModelFamily:        "longcat_flash",
 			ExpectedInputStyle: "longcat_tool_call_xml_json_body",
-			Status:             ToolCallParserStatusRowBacked,
-			TargetGoPackage:    "internal/llm/toolcallparsers/longcat",
+			Status:             ToolCallParserStatusMapped,
+			TargetGoPackage:    "internal/llm/repair/toolcallparsers/longcat",
+			GoldenFixtures: []string{
+				"longcat_basic.json",
+				"longcat_malformed.json",
+			},
 		},
 		{
 			UpstreamFile:       "mistral_parser.py",
@@ -112,8 +124,12 @@ func ToolCallParserManifest() []ToolCallParserEntry {
 			UpstreamFile:       "qwen3_coder_parser.py",
 			ModelFamily:        "qwen3_coder",
 			ExpectedInputStyle: "tool_call_function_parameter_xml",
-			Status:             ToolCallParserStatusRowBacked,
-			TargetGoPackage:    "internal/llm/toolcallparsers/qwen3coder",
+			Status:             ToolCallParserStatusMapped,
+			TargetGoPackage:    "internal/llm/repair/toolcallparsers/qwen3coder",
+			GoldenFixtures: []string{
+				"qwen3coder_basic.json",
+				"qwen3coder_malformed.json",
+			},
 		},
 		{
 			UpstreamFile:       "qwen_parser.py",

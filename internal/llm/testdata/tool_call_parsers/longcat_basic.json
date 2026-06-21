@@ -1,0 +1,9 @@
+{
+  "parser": "longcat",
+  "label": "longcat_flash_xml_json_body_single_call",
+  "raw_output": "<tool_call>{\"name\": \"fn\", \"arguments\": {\"x\": 1}}</tool_call>",
+  "expected_calls": [
+    {"name": "fn", "arguments": "{\"x\": 1}"}
+  ],
+  "degraded": false
+}

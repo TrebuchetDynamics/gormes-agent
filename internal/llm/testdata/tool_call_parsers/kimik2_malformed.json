@@ -1,0 +1,8 @@
+{
+  "parser": "kimik2",
+  "label": "kimi_k2_malformed_json_array",
+  "raw_output": "<|tool_calls_section_begin|>NOT_JSON<|tool_calls_section_end|>",
+  "expected_calls": null,
+  "degraded": true,
+  "degraded_reason": "invalid_json_array_in_section"
+}
