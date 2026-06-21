@@ -121,6 +121,17 @@ type Config struct {
 	// a Before error aborts the turn. After hooks run in reverse chain order
 	// after the turn completes (or fails). Nil means no middlewares are active.
 	AgentMiddleware *agent.MiddlewareChain
+	// BackgroundReview, when non-nil, is called after each successful turn to
+	// run the Hermes-compatible memory/skill self-improvement review in a
+	// daemon goroutine. The runner must be goroutine-safe. Nil = disabled.
+	BackgroundReview BackgroundReviewSpawner
+}
+
+// BackgroundReviewSpawner is the injection boundary for the post-turn
+// background memory/skill review goroutine. Implementations must not block
+// the caller; they own their own goroutine lifetime.
+type BackgroundReviewSpawner interface {
+	SpawnReview(ctx context.Context, messages []llm.Message, model, provider string)
 }
 
 type AgentLifecyclePoint = lifecycle.Point
@@ -1058,6 +1069,14 @@ toolLoop:
 
 	prov.LogDone(k.log)
 	k.client = primaryClient
+	// Spawn background memory/skill review (Hermes-compatible post-turn fork).
+	if k.lastError == "" && k.cfg.BackgroundReview != nil {
+		snapshot := cloneKernelMessages(k.history)
+		rev := k.cfg.BackgroundReview
+		turnModel := model
+		turnProv := k.cfg.Provider
+		go rev.SpawnReview(context.Background(), snapshot, turnModel, turnProv)
+	}
 	k.phase = PhaseIdle
 	k.activeModel = k.cfg.Model
 	k.activeReasoning = llm.ReasoningEffortEvidence{}
