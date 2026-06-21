@@ -69,6 +69,8 @@ const (
 	EventPersonality
 	// EventCompress handles explicit session/context compression.
 	EventCompress
+	// EventTools handles /tools list|enable|disable subcommands.
+	EventTools
 )
 
 // String returns the stable log/test representation of an EventKind.
@@ -138,6 +140,8 @@ func (k EventKind) String() string {
 		return "personality"
 	case EventCompress:
 		return "compress"
+	case EventTools:
+		return "tools"
 	default:
 		return "unknown"
 	}

@@ -71,4 +71,6 @@ const (
 	EventPersonality = eventcommands.EventPersonality
 	// EventCompress handles explicit session/context compression.
 	EventCompress = eventcommands.EventCompress
+	// EventTools handles /tools list|enable|disable subcommands.
+	EventTools = eventcommands.EventTools
 )

@@ -46,6 +46,7 @@ const (
 	EventPlatformControl = gatewayevents.EventPlatformControl
 	EventPersonality     = gatewayevents.EventPersonality
 	EventCompress        = gatewayevents.EventCompress
+	EventTools           = gatewayevents.EventTools
 )
 
 // CommandDef is the canonical slash-command definition shared by gateway
@@ -164,7 +165,7 @@ var CommandRegistry = []CommandDef{
 	{Name: "spawn", Description: "Spawn a channel-native agent thread", Kind: EventSpawn, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "skin", Description: "Show or change the display skin/theme", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "statusbar", Description: "Toggle the context/model status bar", Kind: EventUnknown, Aliases: []string{"sb"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
-	{Name: "tools", Description: "Manage tools", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "tools", Description: "List or manage active tools", Kind: EventTools, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "toolsets", Description: "List available toolsets", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "update", Description: "Update Gormes to the latest version", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "verbose", Description: "Cycle tool progress display", Kind: EventVerbose, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},

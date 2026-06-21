@@ -1,0 +1,10 @@
+{
+  "parser": "qwen",
+  "label": "qwen_2_5_basic_single_call",
+  "raw_output": "Let me search for that. <tool_call>\n{\"name\": \"web_search\", \"arguments\": {\"query\": \"golang concurrency patterns\"}}\n</tool_call>",
+  "expected_content": "Let me search for that.",
+  "expected_calls": [
+    {"name": "web_search", "arguments": "{\"query\":\"golang concurrency patterns\"}"}
+  ],
+  "degraded": false
+}

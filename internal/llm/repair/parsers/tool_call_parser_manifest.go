@@ -103,8 +103,12 @@ func ToolCallParserManifest() []ToolCallParserEntry {
 			UpstreamFile:       "qwen_parser.py",
 			ModelFamily:        "qwen_2_5",
 			ExpectedInputStyle: "tool_call_xml_json_body",
-			Status:             ToolCallParserStatusRowBacked,
-			TargetGoPackage:    "internal/llm/toolcallparsers/qwen",
+			Status:             ToolCallParserStatusMapped,
+			TargetGoPackage:    "internal/llm/repair/toolcallparsers/qwen",
+			GoldenFixtures: []string{
+				"qwen_basic.json",
+				"qwen_malformed.json",
+			},
 		},
 	}
 	sort.Slice(entries, func(i, j int) bool {

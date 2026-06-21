@@ -201,7 +201,7 @@ file+line ref or explicit `missing`, and a classification.
 | `/session` | `hermes_cli/main.py` | `internal/tui/slash_sessions.go` | covered | Session browser. |
 | `/reasoning` | `gateway/run.py` `_handle_reasoning_command` | `internal/gateway/reasoning_command.go` + `manager.go` | covered | Reasoning effort management with --global support. |
 | `/voice` | `hermes_cli/voice.py` | → advertised unavailable | missing | Recognized, no handler. |
-| `/tools` | `hermes_cli/commands.py` | `internal/tui/slash_tools.go`; `cmd/gormes/hermes_rowbacked_commands.go`; `cmd/gormes/tools_command_test.go` | partial | TUI `/tools enable|disable` is config-backed and the root `gormes tools list|enable|disable` command now persists CLI `platform_toolsets` instead of returning row-backed unavailable evidence; gateway/channel command registry still marks `/tools` unavailable. |
+| `/tools` | `hermes_cli/commands.py` | `internal/gateway/tools_command.go`; `internal/platform/cli/gormescli/tools_command.go` | covered | Gateway `/tools [list]` renders active tools from ToolRegistry grouped by toolset prefix, matching Hermes `show_tools()`. CLI `gormes tools list|enable|disable` is config-backed. Both surfaces wired; command registry now routes to `EventTools` with `immediate` policy. |
 | `/skills` | `hermes_cli/commands.py` | `internal/tui/slash_skills.go` | covered | Skill install/inspect. |
 | `/goal` | `hermes_cli/goals.py` | `internal/tui/slash_goal.go` | covered | Standing goal. |
 | `/profile` | `hermes_cli/profiles.py` | `internal/tui/slash_profile.go` | covered | Profile info. |
@@ -583,7 +583,7 @@ file+line ref or explicit `missing`, and a classification.
 | Sandbox: Singularity | `tools/environments/singularity.py` | `internal/tools/singularity_env.go`; `internal/tools/singularity_env_test.go` | partial | Apptainer/Singularity executable resolution, version preflight, hardened instance start planning, overlay binding, exec, login shell, cleanup planning, timeout/error evidence, and redacted bounded output are fixture-covered; live runtime execution lifecycle remains unproven. |
 | Sandbox: local | `tools/environments/local.py` | `internal/cmdrunner/` | partial | Guarded local execution. |
 | Raw tool-call parser: DeepSeek | `environments/tool_call_parsers/deepseek_parser.py` | → `missing` | missing | Not ported. |
-| Raw tool-call parser: Qwen | `environments/tool_call_parsers/qwen_parser.py` | → `missing` | missing | Not ported. |
+| Raw tool-call parser: Qwen | `environments/tool_call_parsers/qwen_parser.py` | `internal/llm/repair/toolcallparsers/qwen/qwen.go` | covered | Qwen 2.5 uses same `tool_call_xml_json_body` format as Hermes. Package delegates to hermesxml parser; manifest entry updated to `mapped` with golden fixtures; 2 tests pass. |
 | Raw tool-call parser: Mistral | `environments/tool_call_parsers/mistral_parser.py` | → `missing` | missing | Not ported. |
 | Raw tool-call parser: GLM | `environments/tool_call_parsers/glm_parser.py` | → `missing` | missing | Not ported. |
 | Raw tool-call parser: Hermes XML | `environments/tool_call_parsers/hermes_xml_parser.py`; `tools/hermes_parser.py` | `internal/llm/repair/toolcallparsers/hermesxml/hermes_xml.go` | covered | `ParseBlock` extracts all `<tool_call>…</tool_call>` blocks and parses JSON body; handles single-quoted Python-dict bodies, null/empty arguments, unclosed tags, missing name; multi-block; 10 tests pass. |
