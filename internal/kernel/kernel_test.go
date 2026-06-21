@@ -748,3 +748,27 @@ func TestKernelStreamingReasoningAccumulatedInHistory(t *testing.T) {
 		t.Fatalf("assistant.Reasoning.Text = %q, want 'first thought second thought'", assistant.Reasoning.Text)
 	}
 }
+
+func TestSetMaxToolIterationsUpdatesLiveKernel(t *testing.T) {
+	// Mirrors Hermes fix(gateway): refresh cached agent max_iterations from
+	// current config (ca92e9a36). SetMaxToolIterations must update the atomic
+	// so a long-lived gateway kernel picks up config changes between turns
+	// without a restart.
+	k, _ := fixture(t)
+
+	// Default should be DefaultMaxToolIterations.
+	if got := int(k.maxToolIterations.Load()); got != DefaultMaxToolIterations {
+		t.Fatalf("initial maxToolIterations = %d, want %d", got, DefaultMaxToolIterations)
+	}
+
+	k.SetMaxToolIterations(200)
+	if got := int(k.maxToolIterations.Load()); got != 200 {
+		t.Fatalf("after SetMaxToolIterations(200), got %d, want 200", got)
+	}
+
+	// Zero/negative falls back to DefaultMaxToolIterations.
+	k.SetMaxToolIterations(0)
+	if got := int(k.maxToolIterations.Load()); got != DefaultMaxToolIterations {
+		t.Fatalf("after SetMaxToolIterations(0), got %d, want %d", got, DefaultMaxToolIterations)
+	}
+}

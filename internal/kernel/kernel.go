@@ -215,6 +215,12 @@ type Kernel struct {
 
 	// Atomic — shared-read, kernel-write. Monotonically increasing per process.
 	seq atomic.Uint64
+	// maxToolIterations is the live per-turn tool budget. Initialised from
+	// cfg.MaxToolIterations at New() and updateable by SetMaxToolIterations so
+	// a long-lived gateway kernel picks up config changes (e.g. after /reload)
+	// without a restart — mirrors Hermes fix(gateway): refresh cached agent
+	// max_iterations from current config (ca92e9a36).
+	maxToolIterations atomic.Int32
 
 	// All fields below this line are OWNED EXCLUSIVELY by the Run goroutine.
 	// No other goroutine may read or write them without a channel-based
@@ -251,7 +257,11 @@ func New(cfg Config, c llm.Client, s store.Store, tm telemetry.Telemetry, log *s
 	if cfg.ContextEngine != nil {
 		cfg.ContextEngine.UpdateModelContext(llm.ContextModelContext{Model: cfg.Model})
 	}
-	return &Kernel{
+	maxIter := cfg.MaxToolIterations
+	if maxIter <= 0 {
+		maxIter = DefaultMaxToolIterations
+	}
+	k := &Kernel{
 		cfg:         cfg,
 		client:      c,
 		store:       s,
@@ -263,6 +273,18 @@ func New(cfg Config, c llm.Client, s store.Store, tm telemetry.Telemetry, log *s
 		activeModel: cfg.Model,
 		retryStatus: NewRetryStatus(),
 	}
+	k.maxToolIterations.Store(int32(maxIter))
+	return k
+}
+
+// SetMaxToolIterations updates the per-turn tool iteration budget live. Safe
+// to call from any goroutine (the atomic is read at the start of each turn).
+// Use for gateway /reload so config changes take effect without a restart.
+func (k *Kernel) SetMaxToolIterations(n int) {
+	if n <= 0 {
+		n = DefaultMaxToolIterations
+	}
+	k.maxToolIterations.Store(int32(n))
 }
 
 func (k *Kernel) liveTurnGuidanceBlocks(model string) []string {
@@ -817,10 +839,7 @@ func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []llm.Me
 	fallbackIndex := 0
 	emptyResponses := 0
 	maxEmptyResponses := k.maxEmptyResponseRetries()
-	maxIter := k.cfg.MaxToolIterations
-	if maxIter <= 0 {
-		maxIter = DefaultMaxToolIterations
-	}
+	maxIter := int(k.maxToolIterations.Load())
 
 	var (
 		cancelled       bool
