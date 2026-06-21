@@ -57,6 +57,7 @@ func (fk *fakeKernel) Submit(e kernel.PlatformEvent) error {
 }
 
 func (fk *fakeKernel) Subscribe() (<-chan kernel.RenderFrame, func()) { return fk.render, func() {} }
+func (fk *fakeKernel) ConfigModel() string                          { return "fake-model" }
 
 type erroringKernel struct{ err error }
 
@@ -66,6 +67,7 @@ func (e *erroringKernel) Subscribe() (<-chan kernel.RenderFrame, func()) {
 	close(ch)
 	return ch, func() {}
 }
+func (e *erroringKernel) ConfigModel() string { return "fake-model" }
 
 func newTestExecutorEnv(t *testing.T, fk KernelAPI) (*Executor, *atomic.Value, func()) {
 	t.Helper()
@@ -420,5 +422,45 @@ func TestExecutorRecordAndUpdateJob_UsesRunCompletionState(t *testing.T) {
 	}
 	if len(runs) != 3 {
 		t.Fatalf("runs = %d, want 3", len(runs))
+	}
+}
+
+// noModelKernel is a KernelAPI whose ConfigModel returns "" to simulate a
+// kernel with no configured default model.
+type noModelKernel struct{ fakeKernel }
+
+func (k *noModelKernel) ConfigModel() string { return "" }
+
+// TestExecutor_FailFastWhenNoModelResolved verifies Hermes #43899 parity:
+// when a cron job has no per-job model AND the kernel has no default model,
+// runOneTurn returns an actionable error instead of letting an empty model
+// reach the provider as an opaque HTTP 400. The kernel must not receive any
+// Submit call because the fail-fast fires before event submission.
+func TestExecutor_FailFastWhenNoModelResolved(t *testing.T) {
+	fk := &noModelKernel{fakeKernel: *newFakeKernel("should not run", 0)}
+	e, _, cleanup := newTestExecutorEnv(t, fk)
+	defer cleanup()
+
+	// Job with no per-job model set.
+	job := NewJob("no-model-job", "@daily", "do something")
+	job.Model = ""
+	_ = e.cfg.JobStore.Create(job)
+
+	// Run should detect missing model and fail fast without submitting a turn.
+	e.Run(context.Background(), job)
+
+	// The fail-fast fires before startedAt / recordAndUpdateJob, so no Run
+	// record is stored; verify the kernel was never called.
+	fk.fakeKernel.mu.Lock()
+	submittedEvents := append([]kernel.PlatformEvent(nil), fk.fakeKernel.events...)
+	fk.fakeKernel.mu.Unlock()
+	if len(submittedEvents) != 0 {
+		t.Fatalf("kernel received %d Submit call(s) despite no model configured: %+v", len(submittedEvents), submittedEvents)
+	}
+
+	// No run record should have been stored either.
+	runs, _ := e.cfg.RunStore.LatestRuns(context.Background(), job.ID, 5)
+	if len(runs) != 0 {
+		t.Fatalf("expected 0 run records when fail-fast fires, got %d: %+v", len(runs), runs)
 	}
 }

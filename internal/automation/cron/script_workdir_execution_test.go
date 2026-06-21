@@ -161,6 +161,7 @@ func (k *envCapturingKernel) Submit(e kernel.PlatformEvent) error {
 func (k *envCapturingKernel) Subscribe() (<-chan kernel.RenderFrame, func()) {
 	return k.render, func() {}
 }
+func (k *envCapturingKernel) ConfigModel() string { return "fake-model" }
 
 type RunnerFunc func(context.Context, Job)
 

@@ -299,6 +299,30 @@ func fileReadEvidenceWithPath(in []FileReadEvidence, path string) []FileReadEvid
 	return out
 }
 
+// searchPatternHasNewline returns true when a content-search regex attempts to
+// match a newline: either a literal U+000A in the pattern string, or a regex
+// \n escape (odd number of backslashes before 'n'). searchContents runs
+// line-by-line so neither form can ever match across line breaks (Hermes parity
+// for the line-oriented newline warning, ref tools/file_operations.py).
+func searchPatternHasNewline(pattern string) bool {
+	if strings.ContainsRune(pattern, '\n') {
+		return true
+	}
+	for i := 1; i < len(pattern); i++ {
+		if pattern[i] != 'n' {
+			continue
+		}
+		count := 0
+		for j := i - 1; j >= 0 && pattern[j] == '\\'; j-- {
+			count++
+		}
+		if count%2 == 1 {
+			return true
+		}
+	}
+	return false
+}
+
 // SearchFilesTool implements a local ripgrep-like search_files contract.
 type SearchFilesTool struct {
 	cfg FileTaskToolConfig
@@ -540,18 +564,31 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 		return marshalToolPayload(map[string]any{"path": relBase, "error": "search contents: " + err.Error()})
 	}
 
+	// Warn when zero results are caused by a newline regex that can never
+	// match in line-oriented search (Hermes tools/file_operations.py parity).
+	const newlinePatternWarning = "0 results found. Note: search_files content " +
+		"search is line-oriented so `\\n` in the regex does not match line " +
+		"breaks. Use context=N to inspect neighboring lines, or escape as " +
+		"`\\\\n` when searching for a literal backslash+n."
+	totalMatchCount := len(results.entries)
+	newlineWarn := totalMatchCount == 0 && len(filesSeen) == 0 && searchPatternHasNewline(in.Pattern)
+
 	switch outputMode {
 	case "files_only":
 		files := sortedMapKeys(filesSeen)
 		window, truncated := windowStrings(files, offset, limit)
-		return marshalToolPayload(map[string]any{
+		payload := map[string]any{
 			"pattern":   in.Pattern,
 			"target":    "content",
 			"path":      relBase,
 			"count":     len(files),
 			"files":     window,
 			"truncated": truncated,
-		})
+		}
+		if newlineWarn {
+			payload["warning"] = newlinePatternWarning
+		}
+		return marshalToolPayload(payload)
 	case "count":
 		files := sortedMapKeys(filesSeen)
 		window, truncated := windowStrings(files, offset, limit)
@@ -559,24 +596,32 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 		for _, file := range window {
 			rows = append(rows, map[string]any{"path": file, "count": counts[file]})
 		}
-		return marshalToolPayload(map[string]any{
+		payload := map[string]any{
 			"pattern":   in.Pattern,
 			"target":    "content",
 			"path":      relBase,
 			"count":     len(files),
 			"matches":   rows,
 			"truncated": truncated,
-		})
+		}
+		if newlineWarn {
+			payload["warning"] = newlinePatternWarning
+		}
+		return marshalToolPayload(payload)
 	case "content":
 		window, truncated := windowSearchContentEntries(results.entries, offset, limit)
-		return marshalToolPayload(map[string]any{
+		payload := map[string]any{
 			"pattern":   in.Pattern,
 			"target":    "content",
 			"path":      relBase,
 			"count":     len(results.entries),
 			"matches":   searchContentEntryPayloads(window),
 			"truncated": truncated,
-		})
+		}
+		if newlineWarn {
+			payload["warning"] = newlinePatternWarning
+		}
+		return marshalToolPayload(payload)
 	default:
 		return marshalToolPayload(map[string]any{"error": "search_files output_mode must be content, files_only, or count"})
 	}

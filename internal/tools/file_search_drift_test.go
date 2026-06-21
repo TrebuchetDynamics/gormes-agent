@@ -245,3 +245,58 @@ func lineString(value any) string {
 		return ""
 	}
 }
+
+// TestSearchPatternHasNewline verifies the detection of regex newline escapes
+// (Hermes tools/file_operations.py _pattern_has_regex_newline parity).
+func TestSearchPatternHasNewline(t *testing.T) {
+	cases := []struct {
+		pattern string
+		want    bool
+	}{
+		{`\n`, true},          // single backslash-n: regex newline escape
+		{`\\\n`, true},        // triple backslash-n: still an odd count before n (\\\ + n → 3 backslashes, odd)
+		{`\\n`, false},        // double backslash-n: literal backslash+n, NOT a newline escape
+		{"foo\nbar", true},    // literal newline in string
+		{"foo", false},        // plain pattern, no newline
+		{"bar\\\\n", false},   // four backslashes + n: even count, not a newline escape
+		{`\n\n`, true},        // two newline escapes: first one triggers it
+		{`a\nb`, true},        // embedded \n
+	}
+	for _, tc := range cases {
+		got := searchPatternHasNewline(tc.pattern)
+		if got != tc.want {
+			t.Errorf("searchPatternHasNewline(%q) = %v, want %v", tc.pattern, got, tc.want)
+		}
+	}
+}
+
+// TestSearchFilesNewlinePatternWarning verifies that a line-oriented regex
+// containing \n that returns zero results emits a diagnostic warning
+// (Hermes tools/file_operations.py _maybe_warn_line_oriented_newline_pattern parity).
+func TestSearchFilesNewlinePatternWarning(t *testing.T) {
+	root := t.TempDir()
+	writeSearchFixture(t, root, "a.txt", "hello world\ngoodbye world\n")
+	tool := NewSearchFilesTool(FileTaskToolConfig{Root: root})
+
+	for _, mode := range []string{"content", "files_only", "count"} {
+		args := `{"pattern":"hello\ngoodbye","target":"content","output_mode":"` + mode + `"}`
+		out := executeSearchFilesTool(t, tool, args)
+		warning, _ := out["warning"].(string)
+		if warning == "" {
+			t.Errorf("output_mode=%s: expected warning for \\n pattern with 0 results, got %#v", mode, out)
+			continue
+		}
+		if !strings.Contains(warning, "line-oriented") {
+			t.Errorf("output_mode=%s: warning %q does not mention line-oriented", mode, warning)
+		}
+		if _, hasErr := out["error"]; hasErr {
+			t.Errorf("output_mode=%s: unexpected error field in output: %#v", mode, out)
+		}
+	}
+
+	// A literal backslash+n pattern (\\n) should NOT trigger the warning.
+	outNoWarn := executeSearchFilesTool(t, tool, `{"pattern":"\\\\n","target":"content"}`)
+	if _, hasWarn := outNoWarn["warning"]; hasWarn {
+		t.Errorf("escaped \\\\n pattern triggered spurious newline warning: %#v", outNoWarn)
+	}
+}

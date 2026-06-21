@@ -31,6 +31,9 @@ type KernelAPI interface {
 	// Subscribe returns an independent render stream so concurrent cron runs (and
 	// the gateway) sharing one kernel do not steal each other's frames.
 	Subscribe() (<-chan kernel.RenderFrame, func())
+	// ConfigModel returns the model name baked into the kernel at construction
+	// time, used for pre-flight model-resolution checks in cron.
+	ConfigModel() string
 }
 
 // Runner is the narrow interface the Scheduler uses to fire a job.
@@ -178,6 +181,13 @@ func (e *Executor) runOneTurn(ctx context.Context, job Job) error {
 	runtimeJob, envEvidence := ExpandCronJobEnvRefs(job, e.cfg.LookupEnv)
 	if len(envEvidence) > 0 {
 		e.log.Warn("cron: unresolved env refs", "job_id", job.ID, "evidence", envEvidence)
+	}
+	// Fail fast if no model can be resolved: per-job model (after env expansion)
+	// takes precedence; if empty, the kernel falls back to its config model. An
+	// empty model flowing to the provider surfaces as an opaque HTTP 400 —
+	// mirror Hermes #43899 / fix(cron): resolve model.default + fail fast.
+	if strings.TrimSpace(runtimeJob.Model) == "" && strings.TrimSpace(e.cfg.Kernel.ConfigModel()) == "" {
+		return &cronNoModelError{JobID: job.ID, JobName: job.Name}
 	}
 	startedAt := time.Now().Unix()
 	promptHash := shortHash(job.Prompt)
@@ -397,6 +407,29 @@ completed:
 	e.completeDurableCronRun(sessionID, durableWorker, durableActive, run)
 	e.recordAndUpdateJob(ctx, runtimeJob, run, operatorReportContext{SessionID: sessionID, DeliveryPlan: deliveryPlan, DeliveryOutcome: outcome})
 	return nil
+}
+
+// cronNoModelError is returned by runOneTurn when neither the per-job model
+// nor the kernel's config model resolves to a non-empty string. This surfaces
+// an actionable error instead of letting an empty model reach the provider as
+// an opaque HTTP 400 (Hermes #43899 parity).
+type cronNoModelError struct {
+	JobID   string
+	JobName string
+}
+
+func (e *cronNoModelError) Error() string {
+	name := e.JobName
+	if name == "" {
+		name = e.JobID
+	}
+	return fmt.Sprintf(
+		"cron_no_model: job %q has no model configured (job.model is empty, "+
+			"GORMES_MODEL env is unset, and the runtime config has no default model). "+
+			"Set a per-job model via `gormes cronjob update job_id=%s model=<name>` "+
+			"or configure a default with `gormes model <name>`.",
+		name, e.JobID,
+	)
 }
 
 const CronPromptInjectionBlockedCode = "cron_prompt_injection_blocked"

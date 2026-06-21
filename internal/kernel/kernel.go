@@ -349,6 +349,12 @@ func modelMatchesAny(model string, needles []string) bool {
 // closed when Run exits.
 func (k *Kernel) Render() <-chan RenderFrame { return k.render }
 
+// ConfigModel returns the model name baked into the kernel configuration at
+// construction time. It does not reflect per-turn or per-session model
+// overrides; use it only for pre-flight checks that need to know whether a
+// default model was configured at all. The value is immutable after New().
+func (k *Kernel) ConfigModel() string { return k.cfg.Model }
+
 // Subscribe returns an independent render stream plus a function to release it.
 // Each subscription has its own cap-RenderMailboxCap replace-latest mailbox, so
 // multiple consumers do not compete on a single channel (which would let one
