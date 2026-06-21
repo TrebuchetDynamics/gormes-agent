@@ -267,6 +267,61 @@ func TestCodexResponsesToolSchema_StripsPatternAndFormat(t *testing.T) {
 	}
 }
 
+func TestCodexResponsesToolSchema_StripsTopLevelCombinators(t *testing.T) {
+	// OpenAI Codex / xAI Responses backends reject top-level allOf/anyOf/oneOf/enum/not.
+	// Mirrors Hermes fix: strip Codex-hostile top-level schema combinators (3924cb408).
+	tools := []ToolDescriptor{
+		{
+			Name:        "memory",
+			Description: "store",
+			Schema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"action": {"type": "string", "enum": ["add", "replace"]},
+					"content": {"type": "string"},
+					"nested": {
+						"type": "object",
+						"properties": {"mode": {"type": "string"}},
+						"allOf": [{"required": ["mode"]}]
+					}
+				},
+				"required": ["action"],
+				"allOf": [{"if": {"properties": {"action": {"const": "add"}}}, "then": {"required": ["content"]}}],
+				"anyOf": [{"required": ["action"]}],
+				"oneOf": [{"required": ["action"]}],
+				"not": {"required": ["bogus"]},
+				"enum": ["bogus-top-level"]
+			}`),
+		},
+	}
+	got := codexResponsesTools(tools)
+	if len(got) != 1 {
+		t.Fatalf("got %d tools, want 1", len(got))
+	}
+	var schema map[string]any
+	if err := json.Unmarshal(got[0].Parameters, &schema); err != nil {
+		t.Fatalf("unmarshal schema: %v", err)
+	}
+	for _, key := range []string{"allOf", "anyOf", "oneOf", "not", "enum"} {
+		if _, ok := schema[key]; ok {
+			t.Errorf("top-level %q was not stripped", key)
+		}
+	}
+	// Properties and required must survive stripping.
+	if _, ok := schema["required"]; !ok {
+		t.Error("required was stripped (should be preserved)")
+	}
+	props, _ := schema["properties"].(map[string]any)
+	if props == nil {
+		t.Fatal("properties missing after stripping")
+	}
+	// Nested combinator inside a property schema must be preserved.
+	nested, _ := props["nested"].(map[string]any)
+	if _, ok := nested["allOf"]; !ok {
+		t.Error("nested allOf inside a property was stripped (should be preserved)")
+	}
+}
+
 func TestGrokSupportsReasoningEffort(t *testing.T) {
 	// Allowlisted prefixes
 	for _, model := range []string{

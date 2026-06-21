@@ -396,10 +396,12 @@ func codexResponsesTools(tools []ToolDescriptor) []codexResponsesTool {
 	return out
 }
 
-// codexResponsesToolSchema clones the schema and strips "pattern" and "format"
-// keywords that the xAI Responses API rejects with HTTP 400. Mirrors Hermes
-// fix(schema_sanitizer): strip pattern/format from Responses-format tools for
-// xAI compatibility (2551f0813 / bdc2113b5).
+// codexResponsesToolSchema clones the schema and strips keywords that the xAI
+// Responses API rejects with HTTP 400: "pattern", "format", and top-level
+// schema combinators (allOf/anyOf/oneOf/enum/not). Nested combinators inside
+// property schemas are preserved. Mirrors Hermes fix(schema_sanitizer):
+// strip pattern/format (2551f0813/bdc2113b5) and strip Codex-hostile top-level
+// combinators (3924cb408).
 func codexResponsesToolSchema(raw json.RawMessage) json.RawMessage {
 	if len(raw) == 0 {
 		return cloneToolSchemaOrDefault(raw)
@@ -409,9 +411,30 @@ func codexResponsesToolSchema(raw json.RawMessage) json.RawMessage {
 		return cloneToolSchemaOrDefault(raw)
 	}
 	stripped := stripSchemaPatternAndFormat(node)
+	stripped = stripTopLevelCombinators(stripped)
 	out, err := json.Marshal(stripped)
 	if err != nil {
 		return cloneToolSchemaOrDefault(raw)
+	}
+	return out
+}
+
+// stripTopLevelCombinators removes allOf/anyOf/oneOf/enum/not from the root of
+// a tool parameter schema. These keys cause HTTP 400 on the OpenAI Codex and
+// xAI Responses backends. Nested combinators inside properties are preserved.
+func stripTopLevelCombinators(node any) any {
+	m, ok := node.(map[string]any)
+	if !ok {
+		return node
+	}
+	out := make(map[string]any, len(m))
+	for key, value := range m {
+		switch key {
+		case "allOf", "anyOf", "oneOf", "enum", "not":
+			// drop top-level combinator
+		default:
+			out[key] = value
+		}
 	}
 	return out
 }

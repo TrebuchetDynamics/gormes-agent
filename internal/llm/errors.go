@@ -575,6 +575,9 @@ var payloadTooLargePatterns = []string{
 
 // serverDisconnectPatterns are ambiguous transport-level closes that Hermes
 // treats as potential context overflow when the session is large.
+// Mirrors Hermes fix(context_compressor): treat streaming premature-close as
+// transient (35f773c45) — includes httpcore RemoteProtocolError / LocalProtocolError
+// substrings and "response ended prematurely".
 var serverDisconnectPatterns = []string{
 	"server disconnected",
 	"peer closed connection",
@@ -583,6 +586,9 @@ var serverDisconnectPatterns = []string{
 	"network connection lost",
 	"unexpected eof",
 	"incomplete chunked read",
+	"response ended prematurely",
+	"remoteprotocolerror",
+	"localprotocolerror",
 }
 
 // sslTransientPatterns are SSL/TLS mid-stream failures that should retry but
