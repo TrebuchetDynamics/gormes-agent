@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/TrebuchetDynamics/gollmfree"
 	"github.com/TrebuchetDynamics/gollmfree/providers"
@@ -29,7 +30,11 @@ func NewGollmfreeClient() Client {
 	if err != nil {
 		registry = &gollmfree.Registry{}
 	}
-	return &gollmfreeClient{inner: gollmfree.NewClient(gollmfree.WithRegistry(registry))}
+	return &gollmfreeClient{inner: gollmfree.NewClient(
+		gollmfree.WithRegistry(registry),
+		gollmfree.WithTimeout(60*time.Second),
+		gollmfree.WithMaxRetries(2),
+	)}
 }
 
 func (c *gollmfreeClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, error) {
