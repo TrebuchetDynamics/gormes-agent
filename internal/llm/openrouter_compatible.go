@@ -118,8 +118,10 @@ func ApplyOpenRouterGrokPromptCacheAffinityHeader(req *http.Request, provider, b
 
 func OpenRouterAttributionHeaders() map[string]string {
 	return map[string]string{
-		"HTTP-Referer":            "https://gormes.ai",
-		"X-OpenRouter-Title":      "Gormes Agent",
+		"HTTP-Referer": "https://gormes.ai",
+		// X-Title is the canonical attribution header OpenRouter's dashboard reads;
+		// X-OpenRouter-Title was not recognized there. Mirrors Hermes 6430d6756.
+		"X-Title":                 "Gormes Agent",
 		"X-OpenRouter-Categories": "productivity,cli-agent",
 	}
 }

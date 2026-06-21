@@ -628,7 +628,7 @@ func TestProviderHTTPClient_OpenRouterRequestsCarryAttribution(t *testing.T) {
 		if r.Header.Get("Authorization") != "Bearer or-test-key" {
 			t.Fatalf("Authorization = %q, want OpenRouter key", r.Header.Get("Authorization"))
 		}
-		if r.Header.Get("HTTP-Referer") == "" || r.Header.Get("X-OpenRouter-Title") == "" || r.Header.Get("X-OpenRouter-Categories") == "" {
+		if r.Header.Get("HTTP-Referer") == "" || r.Header.Get("X-Title") == "" || r.Header.Get("X-OpenRouter-Categories") == "" {
 			t.Fatalf("OpenRouter attribution headers missing: %#v", r.Header)
 		}
 		sawAttribution = true

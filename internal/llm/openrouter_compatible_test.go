@@ -99,13 +99,18 @@ func TestOpenRouterAttributionHeaders(t *testing.T) {
 		t.Fatal(err)
 	}
 	ApplyOpenRouterAttributionHeaders(req, "openrouter", "https://example.test/v1")
-	for _, header := range []string{"HTTP-Referer", "X-OpenRouter-Title", "X-OpenRouter-Categories"} {
+	// X-Title is the canonical OpenRouter dashboard header (X-OpenRouter-Title was not recognized).
+	// Mirrors Hermes fix(openrouter): use canonical X-Title attribution header (6430d6756).
+	for _, header := range []string{"HTTP-Referer", "X-Title", "X-OpenRouter-Categories"} {
 		if got := req.Header.Get(header); got == "" {
 			t.Fatalf("%s header is empty, want OpenRouter attribution", header)
 		}
 	}
-	if got := req.Header.Get("X-OpenRouter-Title"); strings.Contains(strings.ToLower(got), "hermes") {
-		t.Fatalf("X-OpenRouter-Title = %q leaks Hermes label; Gormes should own OpenRouter attribution", got)
+	if got := req.Header.Get("X-Title"); strings.Contains(strings.ToLower(got), "hermes") {
+		t.Fatalf("X-Title = %q leaks Hermes label; Gormes should own OpenRouter attribution", got)
+	}
+	if got := req.Header.Get("X-OpenRouter-Title"); got != "" {
+		t.Fatalf("X-OpenRouter-Title = %q, want empty (replaced by canonical X-Title)", got)
 	}
 
 	customReq, err := http.NewRequest(http.MethodPost, "https://openrouter.ai/api/v1/chat/completions", nil)
@@ -122,7 +127,7 @@ func TestOpenRouterAttributionHeaders(t *testing.T) {
 		t.Fatal(err)
 	}
 	ApplyOpenRouterAttributionHeaders(plainReq, "custom", "https://example.test/v1")
-	for _, header := range []string{"HTTP-Referer", "X-OpenRouter-Title", "X-OpenRouter-Categories"} {
+	for _, header := range []string{"HTTP-Referer", "X-Title", "X-OpenRouter-Title", "X-OpenRouter-Categories"} {
 		if got := plainReq.Header.Get(header); got != "" {
 			t.Fatalf("%s = %q, want no OpenRouter attribution for non-OpenRouter route", header, got)
 		}

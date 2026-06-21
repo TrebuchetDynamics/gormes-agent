@@ -143,7 +143,7 @@ func (c *anthropicClient) OpenStream(ctx context.Context, req ChatRequest) (Stre
 		Model:   req.Model,
 	})
 	req.Messages = ApplyPromptCacheControl(req.Messages, policy)
-	descriptors := SanitizeToolDescriptors(req.Tools)
+	descriptors := sanitizeAnthropicToolDescriptors(req.Tools)
 	req.Tools = markToolsForLongLivedCache(descriptors, policy)
 	payload, err := buildAnthropicRequest(req)
 	if err != nil {
