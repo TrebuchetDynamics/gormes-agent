@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gollmfree"
+	"github.com/TrebuchetDynamics/gollmfree/providers"
 )
 
 // gollmfreeClient wraps the gollmfree library as a Gormes llm.Client.
@@ -16,8 +17,19 @@ type gollmfreeClient struct {
 }
 
 // NewGollmfreeClient returns a Client backed by gollmfree's provider pool.
+// It registers PollinationsAI as the initial provider (no API key required).
 func NewGollmfreeClient() Client {
-	return &gollmfreeClient{inner: gollmfree.NewClient()}
+	pollinations := providers.NewPollinationsAI()
+	registry, err := gollmfree.NewRegistry(gollmfree.ProviderInfo{
+		Name:            pollinations.Name(),
+		Provider:        pollinations,
+		SupportedModels: pollinations.SupportedModels(),
+		DefaultPriority: 1,
+	})
+	if err != nil {
+		registry = &gollmfree.Registry{}
+	}
+	return &gollmfreeClient{inner: gollmfree.NewClient(gollmfree.WithRegistry(registry))}
 }
 
 func (c *gollmfreeClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, error) {

@@ -3,6 +3,7 @@ module github.com/TrebuchetDynamics/gormes-agent
 go 1.26.4
 
 require (
+	github.com/TrebuchetDynamics/gollmfree v0.0.0-20260609150422-ba07bb628de3
 	github.com/TrebuchetDynamics/goncho v0.3.2
 	github.com/a-h/templ v0.3.1001
 	github.com/charmbracelet/bubbles v1.0.0
@@ -33,7 +34,6 @@ require (
 
 require (
 	github.com/PuerkitoBio/goquery v1.10.3 // indirect
-	github.com/TrebuchetDynamics/gollmfree v0.0.0-20260609150422-ba07bb628de3 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/antchfx/htmlquery v1.3.6 // indirect
 	github.com/antchfx/xpath v1.3.6 // indirect
