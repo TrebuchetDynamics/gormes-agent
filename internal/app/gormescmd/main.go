@@ -41,6 +41,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/security"
 	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway"
 	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
@@ -310,6 +311,9 @@ func newRootCommandWithRuntime(runtime rootRuntime) *cobra.Command {
 	root := gormescli.NewRootCommand(gormescli.RootOptions{
 		Version: Version,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			if banner := gormescli.AdvisoryStartupBanner(config.GormesHome(), security.NoInstalledPackages, time.Now()); banner != "" {
+				fmt.Fprintln(cmd.ErrOrStderr(), banner)
+			}
 			return applyProfileStartupFlag(cmd)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {

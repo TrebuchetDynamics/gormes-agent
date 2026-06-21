@@ -6,6 +6,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	runtimegateway "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway/startupsecurity"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/security"
 )
 
 // StartupSecurityReport is the sanitized startup admission result used before
@@ -36,4 +37,16 @@ func StartupAllowAllConfigured(lookupEnv func(string) string) bool {
 // gateway logger while skipping empty evidence entries.
 func LogStartupSecurityEvidence(evidence []runtimegateway.AdmissionEvidence, log *slog.Logger) {
 	startupsecurity.LogEvidence(evidence, log)
+}
+
+// AdvisoryGatewayLogEntry returns the one-line operator log entry for active
+// security advisories, or an empty string when none need logging. It mirrors
+// Hermes' gateway_log_message helper (security_advisories.py) with an
+// injectable seam so the production gateway passes security.NoInstalledPackages
+// and tests can inject a compromised-version seam without modifying the catalog.
+func AdvisoryGatewayLogEntry(gormesHome string, installed security.PackageVersionFunc) string {
+	hits := security.DetectCompromised(security.DefaultCatalog(), installed)
+	store := security.NewAckStore(gormesHome)
+	acked, _ := store.AckedIDs()
+	return security.GatewayLogMessage(hits, acked)
 }

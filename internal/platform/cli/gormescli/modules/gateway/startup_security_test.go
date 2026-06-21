@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/security"
 )
 
 func TestGatewayStartupAllowlistWarning(t *testing.T) {
@@ -115,6 +116,57 @@ func TestGatewayWeakCredentialGuard_IgnoresDisabledOrEmptyTokens(t *testing.T) {
 	report := EvaluateStartupSecurity(cfg, emptyGatewaySecurityEnv)
 	if countGatewayStartupSecurityCode(report, "gateway_weak_credential_disabled") != 0 {
 		t.Fatalf("report = %#v, want no weak-credential evidence", report)
+	}
+}
+
+// TestAdvisoryGatewayLogEntryEmitsOnCompromisedPackage proves that the gateway
+// advisory log helper returns a non-empty message when the injected seam
+// reports a compromised package version (parity intent:
+// security_advisories.py gateway_log_message).
+func TestAdvisoryGatewayLogEntryEmitsOnCompromisedPackage(t *testing.T) {
+	home := t.TempDir()
+	installed := func(pkg string) string {
+		if pkg == "mistralai" {
+			return "2.4.6" // the compromised PyPI release
+		}
+		return ""
+	}
+	msg := AdvisoryGatewayLogEntry(home, installed)
+	if !strings.Contains(msg, "Security advisory") {
+		t.Fatalf("msg = %q, want Security advisory", msg)
+	}
+	if !strings.Contains(msg, "shai-hulud-2026-05") {
+		t.Fatalf("msg = %q, want advisory ID shai-hulud-2026-05", msg)
+	}
+}
+
+// TestAdvisoryGatewayLogEntryEmptyOnCleanRuntime proves no message is returned
+// when NoInstalledPackages (the production Go-binary seam) is used.
+func TestAdvisoryGatewayLogEntryEmptyOnCleanRuntime(t *testing.T) {
+	home := t.TempDir()
+	msg := AdvisoryGatewayLogEntry(home, security.NoInstalledPackages)
+	if msg != "" {
+		t.Fatalf("msg = %q, want empty for clean runtime", msg)
+	}
+}
+
+// TestAdvisoryGatewayLogEntrySilentWhenAcked proves that an acknowledged
+// advisory produces an empty log entry.
+func TestAdvisoryGatewayLogEntrySilentWhenAcked(t *testing.T) {
+	home := t.TempDir()
+	installed := func(pkg string) string {
+		if pkg == "mistralai" {
+			return "2.4.6"
+		}
+		return ""
+	}
+	store := security.NewAckStore(home)
+	if err := store.Ack("shai-hulud-2026-05"); err != nil {
+		t.Fatalf("ack: %v", err)
+	}
+	msg := AdvisoryGatewayLogEntry(home, installed)
+	if msg != "" {
+		t.Fatalf("msg = %q, want empty after ack", msg)
 	}
 }
 

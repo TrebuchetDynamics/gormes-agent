@@ -37,6 +37,7 @@ import (
 	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway"
 	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/security"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	gormesruntime "github.com/TrebuchetDynamics/gormes-agent/internal/runtime"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
@@ -83,6 +84,9 @@ func RunGateway(cmd *cobra.Command, _ []string, opts RunOptions) error {
 	securityReport := gatewaymodule.EvaluateStartupSecurity(cfg, os.Getenv)
 	cfg = securityReport.Config
 	gatewaymodule.LogStartupSecurityEvidence(securityReport.Evidence, slog.Default())
+	if msg := gatewaymodule.AdvisoryGatewayLogEntry(config.GormesHome(), security.NoInstalledPackages); msg != "" {
+		slog.Default().Warn(msg)
+	}
 	if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled && !cfg.Teams.Enabled && !cfg.Yuanbao.Enabled && !cfg.Navivox.Enabled && !gormescli.SimpleXEnv(os.LookupEnv).Enabled {
 		return fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], [teams], [yuanbao], [navivox], or SIMPLEX_WS_URL")
 	}
