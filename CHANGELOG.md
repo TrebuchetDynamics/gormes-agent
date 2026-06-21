@@ -8,6 +8,21 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.27] - 2026-06-21
+
+Date alias: `v2026.6.21`.
+
+> **Security advisory wiring and Hermes platform migration reconciliation.**
+
+### Added
+- Advisory startup banner: `AdvisoryStartupBanner` is called in `PersistentPreRunE` so every CLI subcommand prints an advisory to stderr when a compromised installed package is detected (injectable seam; production Go binary is always silent).
+- Advisory gateway log entry: `AdvisoryGatewayLogEntry` is called at `RunGateway` startup and emits a structured `slog.Warn` when an unacknowledged advisory is active.
+
+### Changed
+- Platform inventory updated for Hermes upstream `35752fc3a`: telegram, slack, email, sms, whatsapp, wecom, feishu, matrix, and dingtalk moved from `gateway/platforms/` to bundled plugins (`plugins/platforms/*/adapter.py`); `relay` Platform enum value and `raft` bundled plugin added; `feishu_meeting_invite` connector removed; `signal_format` added to connector ignore list; connected checkers registered for `relay` and `raft`.
+- Source-pairs Hermes SHA bumped to `35752fc3a`.
+- Upstream doc mirrors: `managed-scope.md` and `raft.md` added.
+
 ## [0.2.26] - 2026-06-19
 
 Date alias: `v2026.6.19`.

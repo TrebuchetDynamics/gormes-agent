@@ -237,9 +237,9 @@ Hermes-Agent, with upstream Git history preserved for attribution, remains the b
 
 ## Status
 
-Latest public release: [v0.2.26](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.26) (`v2026.6.19`).
+Latest public release: [v0.2.27](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.27) (`v2026.6.21`).
 
-Termux/Android status: `v0.2.26` carries forward the installer recovery for the `v0.2.20` Termux executable-argument issue. Affected users should reinstall from the latest release and verify with `gormes version` plus `gormes doctor --offline`.
+Termux/Android status: `v0.2.27` carries forward the installer recovery for the `v0.2.20` Termux executable-argument issue. Affected users should reinstall from the latest release and verify with `gormes version` plus `gormes doctor --offline`.
 
 CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. Release assets ship for Linux, macOS, Windows, and Termux/Android with SHA-256 checksums and SBOMs. The current Linux build measures ~52.1 MB (`benchmarks.json`).
 
