@@ -26,6 +26,18 @@ func WithConfigAdminReloader(reload func(context.Context) error) ChannelOption {
 	}
 }
 
+// WithRuntimeConfig sets the full startup config for the config-admin backend.
+// When set, config-admin can expose and write global fields such as
+// hermes.provider, hermes.model, and hermes.api_key in addition to the
+// navivox.* fields exposed by default.
+func WithRuntimeConfig(fullCfg config.Config) ChannelOption {
+	return func(c *Channel) {
+		c.configAdmin.load = func() (config.Config, error) {
+			return fullCfg, nil
+		}
+	}
+}
+
 func defaultConfigAdminBackend() configAdminBackend {
 	return configAdminBackend{
 		configPath: config.ConfigPath(),
@@ -283,6 +295,12 @@ func (b configAdminBackend) envPathOrDefault() string {
 
 func configAdminSchema() []configAdminField {
 	return []configAdminField{
+		// Global Gormes provider/model config
+		{Key: "hermes.provider", Type: "string", Title: "Provider", Description: "LLM provider (openai, anthropic, openrouter, etc.)", Reload: "restart_or_reload"},
+		{Key: "hermes.model", Type: "string", Title: "Model", Description: "Default model name", Reload: "restart_or_reload"},
+		{Key: "hermes.api_key", Type: "secret", Title: "API Key", Secret: true, Actions: []string{"set", "rotate", "delete"}, Reload: "restart_or_reload"},
+		{Key: "hermes.endpoint", Type: "string", Title: "API Endpoint", Description: "Custom provider endpoint URL (leave empty for default)", Reload: "restart_or_reload"},
+		// Navivox channel config
 		{Key: "navivox.enabled", Type: "bool", Title: "Enable Navivox", Reload: "restart_or_reload"},
 		{Key: "navivox.bind_host", Type: "string", Title: "Bind host", Reload: "restart_or_reload"},
 		{Key: "navivox.port", Type: "int", Title: "Port", Reload: "restart_or_reload"},
@@ -326,6 +344,12 @@ func configAdminValues(cfg config.Config) []configAdminValueState {
 
 func configAdminFieldValue(cfg config.Config, key string) any {
 	switch key {
+	case "hermes.provider":
+		return cfg.Hermes.Provider
+	case "hermes.model":
+		return cfg.Hermes.Model
+	case "hermes.endpoint":
+		return cfg.Hermes.Endpoint
 	case "navivox.enabled":
 		return cfg.Navivox.Enabled
 	case "navivox.bind_host":
@@ -349,6 +373,8 @@ func configAdminFieldValue(cfg config.Config, key string) any {
 
 func secretValueForConfigAdmin(cfg config.Config, key string) string {
 	switch key {
+	case "hermes.api_key":
+		return cfg.Hermes.APIKey
 	case "navivox.token":
 		return cfg.Navivox.Token
 	default:
@@ -370,6 +396,12 @@ func applyConfigAdminChangeToConfig(cfg *config.Config, field configAdminField, 
 	}
 	value := strings.TrimSpace(change.Value)
 	switch field.Key {
+	case "hermes.provider":
+		cfg.Hermes.Provider = value
+	case "hermes.model":
+		cfg.Hermes.Model = value
+	case "hermes.endpoint":
+		cfg.Hermes.Endpoint = value
 	case "navivox.enabled":
 		parsed, err := parseConfigAdminBool(value)
 		if err != nil {

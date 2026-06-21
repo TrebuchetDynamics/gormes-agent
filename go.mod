@@ -3,6 +3,7 @@ module github.com/TrebuchetDynamics/gormes-agent
 go 1.26.4
 
 require (
+	github.com/TrebuchetDynamics/gollmfree v0.1.0
 	github.com/TrebuchetDynamics/goncho v0.3.2
 	github.com/a-h/templ v0.3.1001
 	github.com/charmbracelet/bubbles v1.0.0
@@ -41,7 +42,6 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/sahilm/fuzzy v0.1.1 // indirect
 	golang.org/x/net v0.55.0 // indirect
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect

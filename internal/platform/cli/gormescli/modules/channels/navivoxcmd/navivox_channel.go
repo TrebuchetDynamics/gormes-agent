@@ -13,7 +13,10 @@ import (
 const NavivoxPlatformName = navivox.PlatformName
 
 func NewNavivoxGatewayChannel(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {
-	return navivox.NewChannel(cfg.Navivox, log, navivox.WithProfileRouting(cfg.NavivoxProfileRouting()))
+	return navivox.NewChannel(cfg.Navivox, log,
+		navivox.WithProfileRouting(cfg.NavivoxProfileRouting()),
+		navivox.WithRuntimeConfig(cfg),
+	)
 }
 
 func NewNavivoxPairBridgeHandler(cfg config.NavivoxCfg, inbox chan gateway.InboundEvent) (http.Handler, error) {

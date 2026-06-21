@@ -44,6 +44,9 @@ type SimpleProviderFactory struct {
 
 // NewClient creates a Client for the given provider name.
 func (f *SimpleProviderFactory) NewClient(providerName string) (Client, error) {
+	if providerName == "gollmfree" {
+		return NewGollmfreeClient(), nil
+	}
 	baseURL := ""
 	apiKey := ""
 	if f.BaseURLFor != nil {

@@ -58,6 +58,8 @@ type Channel struct {
 	deviceCredentials map[string]*deviceCredentialRecord
 	credentialsPath   string
 
+	profileAdmin profileAdminBackend
+
 	// activeTurnBySession maps navivox session ID to the identity of the client
 	// that started the current turn. Used to reject concurrent turns from a
 	// different device with a turn_in_progress error rather than silently queuing.
@@ -137,6 +139,7 @@ func NewChannel(cfg config.NavivoxCfg, log *slog.Logger, opts ...ChannelOption) 
 		profileContacts:    map[string]ProfileContact{},
 		configAdmin:        runtimeConfigAdminBackend(cfg),
 		voiceProfiles:      defaultVoiceProfileBackend(),
+		profileAdmin:       defaultProfileAdminBackend(),
 		runRecords:         map[string]*sessionpkg.NavivoxRunRecord{},
 		latestRunBySession: map[string]string{},
 		deviceCredentials:  map[string]*deviceCredentialRecord{},
@@ -199,6 +202,8 @@ func (c *Channel) Handler(inbox chan<- gateway.InboundEvent) http.Handler {
 	mux.HandleFunc("/v1/navivox/profile-seed", c.withAuth(c.handleProfileSeed))
 	mux.HandleFunc("/v1/navivox/config-admin", c.withAuth(c.handleConfigAdmin))
 	mux.HandleFunc("/v1/navivox/config-admin/", c.withAuth(c.handleConfigAdmin))
+	mux.HandleFunc("/v1/navivox/profile-admin", c.withAuth(c.handleProfileAdmin))
+	mux.HandleFunc("/v1/navivox/profile-admin/", c.withAuth(c.handleProfileAdmin))
 	mux.HandleFunc("/v1/navivox/voice-profiles", c.withAuth(c.handleVoiceProfiles))
 	mux.HandleFunc("/v1/navivox/voice-profiles/", c.withAuth(c.handleVoiceProfiles))
 	mux.HandleFunc("/v1/navivox/run-records/", c.withAuth(c.handleRunRecord))
@@ -223,6 +228,13 @@ func (c *Channel) Send(ctx context.Context, chatID, text string) (string, error)
 	c.updateProfileContactForSession(chatID, text, "assistant", ProfileContactTurnIdle)
 	c.broadcast(chatID, ServerEvent{Type: "done", SessionID: chatID})
 	return msgID, ctx.Err()
+}
+
+// SendMedia implements gateway.MediaSender as a no-op. The Navivox client
+// handles TTS natively on the device, so gateway-synthesized audio files
+// are silently discarded rather than surfaced as "Media attachment unavailable."
+func (c *Channel) SendMedia(_ context.Context, _ string, _ string, _ gateway.OutboundMedia) (string, error) {
+	return "", nil
 }
 
 func (c *Channel) SendPlaceholder(ctx context.Context, chatID string) (string, error) {
