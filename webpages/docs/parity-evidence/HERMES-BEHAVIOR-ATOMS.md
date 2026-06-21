@@ -48,7 +48,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Trajectory compressor | `trajectory_compressor.py` | → `missing` | missing | Not ported. |
+| Trajectory compressor | `trajectory_compressor.py` | `internal/persistence/transcript/trajectory_compressor.go` | covered | `CompressTrajectory` with `TrajectoryCompressionConfig`/`TrajectoryCompressionMetrics`; protected-middle compression, head/tail preservation, token-counter integration; matches upstream Hermes `trajectory_compressor.py` algorithm. |
 
 ### 1.3 Context
 
@@ -481,14 +481,14 @@ file+line ref or explicit `missing`, and a classification.
 | Session lifecycle | `src/routers/sessions.py` | `internal/goncho/` + `internal/persistence/session/` | covered | Local session crud. |
 | Message CRUD | `src/routers/messages.py` | `internal/goncho/` + `internal/memory/` | covered | Workspace/session/peer sequence metadata. |
 | File-backed messages | `src/crud/document.py` | → `missing` | missing | Not ported. |
-| Conclusions / facts | `src/routers/conclusions.py` | → `missing` | missing | Not ported. |
+| Conclusions / facts | `src/routers/conclusions.py` | `internal/app/goncho/service.go:470`; `internal/memory/schema.go:158`; `internal/app/goncho/parity.go:101` | partial | `goncho_conclusions` schema exists; `ReadConclusionAvailability` aggregation implemented; `ConclusionAvailability`/`ConclusionPair` types present; `gormes goncho conclusion` CLI routing in parity manifest. Full CRUD (list/create/delete/search) execution remains row-backed. |
 | Representations by scope | `src/crud/representation.py` | → `missing` | missing | Not ported. |
 | Search and filters | `src/utils/filter.py` `src/utils/search.py` | `internal/goncho/` | partial | FTS5 search exists; Honcho filter grammar not parsed. |
-| Context retrieval | docs `get-context.mdx` | → `missing` | missing | Not ported. |
+| Context retrieval | docs `get-context.mdx` | `internal/memory/recall.go:90`; `internal/app/telegram/service.go:324` | covered | `RecallInput` → `GetContext` memory recall path; semantic recall via `WithEmbedClient`; adapters in Telegram and kernel. |
 | Dialectic chat | `src/dialectic/chat.py` | → `missing` | missing | Not ported. |
 | Streaming persistence | docs `streaming-response.mdx` | `internal/goncho/` | covered | Only final assistant message persisted. |
 | Summaries | docs `summarizer.mdx` | → `missing` | missing | Not ported. |
-| Dreaming scheduler | `src/dreamer/dream_scheduler.py` | → `missing` | missing | Not ported. |
+| Dreaming scheduler | `src/dreamer/dream_scheduler.py` | `internal/memory/schema.go:260`; `internal/memory/goncho/`; `internal/app/goncho/service.go:620` | partial | `goncho_dreams` table and `goncho_dream_scheduler` capability present; dream status/scope indexing and availability reporting wired (`dream_scheduler_table` in memory status). Active scheduling loop and dream cycle execution not yet implemented. |
 | Webhook CRUD | `src/routers/webhooks.py` | → `missing` | missing | Not ported. |
 | Webhook delivery | `src/webhooks/webhook_delivery.py` | → `missing` | missing | Not ported. |
 | Queue status | docs `queue-status.mdx` | `internal/goncho/` | partial | Queue depth visible; derivation not proven. |
@@ -542,13 +542,13 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Boot hooks (boot_md agent-spawning) | `gateway/builtin_hooks/boot_md.py` | → `missing` | missing | Not ported. |
-| Hook loading infrastructure | `gateway/hooks.py` | `internal/gateway/` | partial | Gateway hooks exist; boot hooks not proven. |
+| Boot hooks (boot_md agent-spawning) | `gateway/builtin_hooks/boot_md.py` | `internal/gateway/boothook/boot_hook.go`; `internal/gateway/boot_hook.go`; `internal/app/gateway/service.go:281` | covered | `StartBootHook` reads BOOT.md, launches background agent goroutine; `BootHookConfig` wires session/provider/skills root; called at gateway startup. |
+| Hook loading infrastructure | `gateway/hooks.py` | `internal/gateway/boothook/`; `internal/app/gateway/service.go` | covered | Boot hook file loading and goroutine spawn proven. |
 | Platform pairing approval | `gateway/pairing.py` | `internal/gateway/` | covered | Pairing approval flow. |
 | Gateway restart (exit code 75) | `gateway/restart.py` | `internal/gateway/` | covered | Restart marker and PID validation. |
 | Gateway status JSON | `gateway/status.py` | `internal/gateway/status.go` + `cmd/gormes/gateway_status.go` | covered | Status CLI with JSON output. |
 | Gateway config reload (SIGHUP) | `gateway/run.py` | `internal/gateway/` | covered | Config reload via SIGHUP. |
-| Gateway webhook command | `hermes_cli/webhook.py` | → `missing` | missing | Not ported. |
+| Gateway webhook command | `hermes_cli/webhook.py` | `internal/platform/cli/webhooks/webhook.go:104,119`; `internal/platform/cli/gormescli/` | covered | `DispatchWebhookCommand` ports Hermes `webhook_command`; `WebhookCommandHandlers` interface with add/remove/list/test actions; usage text matches upstream. |
 | Gateway logs CLI | `hermes_cli/logs.py` | `internal/tui/slash_logs.go` + `cmd/gormes/` | covered | Log tail in TUI and CLI. |
 | Gateway backup CLI | `hermes_cli/backup.py` | `internal/platform/cli/gormescli/hermes_rowbacked_commands.go`; `internal/platform/cli/gormescli/hermes_rowbacked_commands_test.go` | covered | `gormes backup` creates restore-compatible zip archives of GORMES_HOME/source directories with dry-run and JSON evidence. |
 | Gateway failure/restart policy | `gateway/run.py` | `internal/gateway/` | covered | Restart on unexpected signal. |
@@ -1035,7 +1035,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| STDIO mode | `hermes_cli/stdio.py` | → `missing` | missing | Not ported. |
+| STDIO mode | `hermes_cli/stdio.py` | N/A (owned) | owned | `hermes_cli/stdio.py` forces Windows UTF-8 console code page (CP_UTF8/65001) via ctypes. Go's runtime always uses UTF-8 natively on all platforms; no porting required. Windows UTF-8 output is inherent, not a configuration step. |
 
 ---
 
