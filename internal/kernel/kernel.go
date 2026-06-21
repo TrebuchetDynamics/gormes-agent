@@ -888,6 +888,23 @@ toolLoop:
 					)
 					return
 				}
+				// ── Auth/billing/policy provider failover ────────────────
+				// A ClassFatal error flagged ShouldFallback (auth 401/403,
+				// billing 402, model-not-found, policy block) means the active
+				// credential or endpoint is broken in a way retrying won't fix.
+				// Escalate to the fallback chain instead of surfacing a terminal
+				// error — mirrors Hermes fix(agent): fail over to fallback
+				// provider on persistent auth failure (401/403).
+				// Also triggers when the retry budget is exhausted on a
+				// rate-limit (ClassRetryable + ShouldFallback), matching Hermes'
+				// billing/rate-limit failover path.
+				if classification.ShouldFallback && len(fallbackRoutes) > 0 {
+					k.emitFrame("provider error — switching to fallback provider")
+					if k.activateFallback(ctx, &request, fallbackRoutes, &fallbackIndex) {
+						replaceOnNextToken = true
+						continue retryLoop
+					}
+				}
 				prov.ErrorClass = llm.Classify(err).String()
 				prov.ErrorText = err.Error()
 				prov.LogError(k.log)
