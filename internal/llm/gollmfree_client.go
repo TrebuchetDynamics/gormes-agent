@@ -18,15 +18,19 @@ type gollmfreeClient struct {
 }
 
 // NewGollmfreeClient returns a Client backed by gollmfree's provider pool.
-// It registers PollinationsAI as the initial provider (no API key required).
+// Registers PollinationsAI (primary), Chatai, Yqcloud, and WeWordle as
+// sequential fallback providers. No API key required for any of them.
 func NewGollmfreeClient() Client {
-	pollinations := providers.NewPollinationsAI()
-	registry, err := gollmfree.NewRegistry(gollmfree.ProviderInfo{
-		Name:            pollinations.Name(),
-		Provider:        pollinations,
-		SupportedModels: pollinations.SupportedModels(),
-		DefaultPriority: 1,
-	})
+	poll := providers.NewPollinationsAI()
+	chatai := providers.NewChatai()
+	yqcloud := providers.NewYqcloud()
+	wewordle := providers.NewWeWordle()
+	registry, err := gollmfree.NewRegistry(
+		gollmfree.ProviderInfo{Name: poll.Name(), Provider: poll, SupportedModels: poll.SupportedModels(), DefaultPriority: 1},
+		gollmfree.ProviderInfo{Name: chatai.Name(), Provider: chatai, SupportedModels: chatai.SupportedModels(), DefaultPriority: 2},
+		gollmfree.ProviderInfo{Name: yqcloud.Name(), Provider: yqcloud, SupportedModels: yqcloud.SupportedModels(), DefaultPriority: 3},
+		gollmfree.ProviderInfo{Name: wewordle.Name(), Provider: wewordle, SupportedModels: wewordle.SupportedModels(), DefaultPriority: 4},
+	)
 	if err != nil {
 		registry = &gollmfree.Registry{}
 	}
