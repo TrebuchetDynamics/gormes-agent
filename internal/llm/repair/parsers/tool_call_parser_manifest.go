@@ -75,8 +75,12 @@ func ToolCallParserManifest() []ToolCallParserEntry {
 			UpstreamFile:       "llama_parser.py",
 			ModelFamily:        "llama_3_x_4",
 			ExpectedInputStyle: "raw_json_object_with_optional_python_tag",
-			Status:             ToolCallParserStatusRowBacked,
-			TargetGoPackage:    "internal/llm/toolcallparsers/llama",
+			Status:             ToolCallParserStatusMapped,
+			TargetGoPackage:    "internal/llm/repair/toolcallparsers/llama",
+			GoldenFixtures: []string{
+				"llama_basic.json",
+				"llama_malformed.json",
+			},
 		},
 		{
 			UpstreamFile:       "longcat_parser.py",
@@ -89,8 +93,12 @@ func ToolCallParserManifest() []ToolCallParserEntry {
 			UpstreamFile:       "mistral_parser.py",
 			ModelFamily:        "mistral",
 			ExpectedInputStyle: "tool_calls_bot_token_pre_v11_or_v11",
-			Status:             ToolCallParserStatusRowBacked,
-			TargetGoPackage:    "internal/llm/toolcallparsers/mistral",
+			Status:             ToolCallParserStatusMapped,
+			TargetGoPackage:    "internal/llm/repair/toolcallparsers/mistral",
+			GoldenFixtures: []string{
+				"mistral_basic.json",
+				"mistral_malformed.json",
+			},
 		},
 		{
 			UpstreamFile:       "qwen3_coder_parser.py",
