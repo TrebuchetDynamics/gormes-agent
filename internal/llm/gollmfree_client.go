@@ -18,18 +18,16 @@ type gollmfreeClient struct {
 }
 
 // NewGollmfreeClient returns a Client backed by gollmfree's provider pool.
-// Registers PollinationsAI (primary), Chatai, Yqcloud, and WeWordle as
-// sequential fallback providers. No API key required for any of them.
+// Only PollinationsAI is registered; Chatai, Yqcloud, and WeWordle are
+// implemented in gollmfree/providers but their live endpoints are currently
+// inactive (DNS failures / wrong paths as of 2026-06-21). Re-add them here
+// once working endpoints are confirmed.
+// MaxRetries=0: one attempt per provider prevents rapid-fire 429 hammering
+// on PollinationsAI's 1-request-at-a-time anonymous queue.
 func NewGollmfreeClient() Client {
 	poll := providers.NewPollinationsAI()
-	chatai := providers.NewChatai()
-	yqcloud := providers.NewYqcloud()
-	wewordle := providers.NewWeWordle()
 	registry, err := gollmfree.NewRegistry(
 		gollmfree.ProviderInfo{Name: poll.Name(), Provider: poll, SupportedModels: poll.SupportedModels(), DefaultPriority: 1},
-		gollmfree.ProviderInfo{Name: chatai.Name(), Provider: chatai, SupportedModels: chatai.SupportedModels(), DefaultPriority: 2},
-		gollmfree.ProviderInfo{Name: yqcloud.Name(), Provider: yqcloud, SupportedModels: yqcloud.SupportedModels(), DefaultPriority: 3},
-		gollmfree.ProviderInfo{Name: wewordle.Name(), Provider: wewordle, SupportedModels: wewordle.SupportedModels(), DefaultPriority: 4},
 	)
 	if err != nil {
 		registry = &gollmfree.Registry{}
@@ -37,7 +35,7 @@ func NewGollmfreeClient() Client {
 	return &gollmfreeClient{inner: gollmfree.NewClient(
 		gollmfree.WithRegistry(registry),
 		gollmfree.WithTimeout(60*time.Second),
-		gollmfree.WithMaxRetries(2),
+		gollmfree.WithMaxRetries(0),
 	)}
 }
 
