@@ -3,7 +3,7 @@ module github.com/TrebuchetDynamics/gormes-agent
 go 1.26.4
 
 require (
-	github.com/TrebuchetDynamics/gollmfree v0.0.0-20260609150422-ba07bb628de3
+	github.com/TrebuchetDynamics/gollmfree v0.1.0
 	github.com/TrebuchetDynamics/goncho v0.3.2
 	github.com/a-h/templ v0.3.1001
 	github.com/charmbracelet/bubbles v1.0.0
@@ -48,8 +48,6 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.50.1 // indirect
 )
-
-replace github.com/TrebuchetDynamics/gollmfree => ../gollmfree
 
 require (
 	github.com/bwmarrin/discordgo v0.29.0
