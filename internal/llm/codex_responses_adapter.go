@@ -26,6 +26,12 @@ type codexResponsesPayload struct {
 	ServiceTier       string               `json:"service_tier,omitempty"`
 	ToolChoice        string               `json:"tool_choice,omitempty"`
 	ParallelToolCalls bool                 `json:"parallel_tool_calls,omitempty"`
+	Reasoning         *codexResponsesReasoning `json:"reasoning,omitempty"`
+	Include           []string             `json:"include,omitempty"`
+}
+
+type codexResponsesReasoning struct {
+	Effort string `json:"effort"`
 }
 
 type codexResponsesMessageItem struct {
@@ -179,6 +185,17 @@ func buildCodexResponsesPayload(req ChatRequest) (codexResponsesPayload, error) 
 		ServiceTier:       normalizeServiceTier(req.RequestOverrides.ServiceTier),
 		ToolChoice:        "auto",
 		ParallelToolCalls: true,
+	}
+	// xAI Grok models that accept reasoning.effort get an explicit effort dial plus
+	// the encrypted-content include. Models that reject the parameter get no
+	// reasoning key at all (a default medium would 400). Mirrors Hermes
+	// fix(xai): omit reasoning.effort for grok models that reject it (d6e1fadbf).
+	if req.ReasoningEffort != nil && grokSupportsReasoningEffort(req.Model) {
+		effort := strings.ToLower(strings.TrimSpace(string(*req.ReasoningEffort)))
+		if effort != "" {
+			payload.Reasoning = &codexResponsesReasoning{Effort: effort}
+			payload.Include = []string{"reasoning.encrypted_content"}
+		}
 	}
 	return payload, nil
 }
@@ -483,6 +500,31 @@ func codexResponsesPromptCacheKey(sessionID string) string {
 func deterministicCodexResponsesCallID(name, arguments string, index int) string {
 	sum := sha256.Sum256([]byte(name + ":" + arguments + ":" + strconv.Itoa(index)))
 	return "call_" + hex.EncodeToString(sum[:])[:12]
+}
+
+// grokSupportsReasoningEffort reports whether a Grok model accepts the
+// reasoning.effort parameter on api.x.ai/v1/responses. Conservative allowlist:
+// unknown models get no effort dial rather than a 400.
+// Mirrors Hermes fix(xai): omit reasoning.effort for grok models that reject it
+// (d6e1fadbf).
+//
+// Accepts effort: grok-3-mini, grok-3-mini-fast, grok-4.20-multi-agent-*, grok-4.3*
+// Rejects effort: grok-3, grok-4, grok-4-*, grok-code-fast-*
+func grokSupportsReasoningEffort(model string) bool {
+	name := strings.ToLower(strings.TrimSpace(model))
+	if name == "" {
+		return false
+	}
+	// Strip aggregator prefixes (x-ai/, openrouter/x-ai/, xai/)
+	if idx := strings.LastIndex(name, "/"); idx >= 0 {
+		name = name[idx+1:]
+	}
+	for _, prefix := range []string{"grok-3-mini", "grok-4.20-multi-agent", "grok-4.3"} {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func splitCodexResponsesToolID(raw string) (callID string, responseItemID string) {

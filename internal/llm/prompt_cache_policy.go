@@ -50,6 +50,13 @@ func PromptCachePolicyFor(input PromptCachePolicyInput) PromptCachePolicy {
 	if baseURLHostMatches(baseURL, "openrouter.ai") && isClaude {
 		return supportedPromptCachePolicy(PromptCacheLayoutEnvelope, "prompt_cache_supported: OpenRouter Claude cache_control envelope")
 	}
+	// Nous Portal proxies to OpenRouter; Claude and Qwen both get envelope-layout
+	// caching. Mirrors Hermes fix(cache): route Nous Portal Qwen through Portal-Claude
+	// cache pathway (7993e03c0).
+	isNousPortal := baseURLHostMatches(baseURL, "nousresearch.com") || providerDash == "nous"
+	if isNousPortal && (isClaude || strings.Contains(model, "qwen")) {
+		return supportedPromptCachePolicy(PromptCacheLayoutEnvelope, "prompt_cache_supported: Nous Portal Claude/Qwen cache_control envelope")
+	}
 	if isAnthropicWire && isClaude {
 		return supportedPromptCachePolicy(PromptCacheLayoutNativeAnthropic, "prompt_cache_supported: third-party Anthropic messages Claude cache_control")
 	}
@@ -73,6 +80,9 @@ func openAICompatiblePromptCacheStatus(provider, baseURL string) CapabilityStatu
 	providerLower := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(provider)), "_", "-")
 	if baseURLHostMatches(baseURL, "openrouter.ai") {
 		return CapabilityStatus{Available: true, Reason: "prompt_cache_supported: OpenRouter Claude requests serialize cache_control when model policy allows it"}
+	}
+	if baseURLHostMatches(baseURL, "nousresearch.com") || providerLower == "nous" {
+		return CapabilityStatus{Available: true, Reason: "prompt_cache_supported: Nous Portal requests serialize cache_control when model policy allows it"}
 	}
 	switch providerLower {
 	case "opencode", "opencode-zen", "opencode-go", "alibaba":

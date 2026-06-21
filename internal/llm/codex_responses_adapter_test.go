@@ -266,3 +266,64 @@ func TestCodexResponsesToolSchema_StripsPatternAndFormat(t *testing.T) {
 		t.Errorf("items.type = %v, want string (type should be preserved)", items["type"])
 	}
 }
+
+func TestGrokSupportsReasoningEffort(t *testing.T) {
+	// Allowlisted prefixes
+	for _, model := range []string{
+		"grok-3-mini", "grok-3-mini-fast", "grok-3-mini-2025",
+		"grok-4.20-multi-agent-0309", "grok-4.3", "grok-4.3-turbo",
+		"x-ai/grok-3-mini", "openrouter/x-ai/grok-4.3",
+	} {
+		if !grokSupportsReasoningEffort(model) {
+			t.Errorf("grokSupportsReasoningEffort(%q) = false, want true", model)
+		}
+	}
+	// Non-allowlisted (should not send effort)
+	for _, model := range []string{
+		"grok-3", "grok-4", "grok-4-0709", "grok-4-fast",
+		"grok-4-1-fast", "grok-code-fast-1", "gpt-5-codex", "",
+	} {
+		if grokSupportsReasoningEffort(model) {
+			t.Errorf("grokSupportsReasoningEffort(%q) = true, want false", model)
+		}
+	}
+}
+
+func TestBuildCodexResponsesPayload_GrokReasoningEffort(t *testing.T) {
+	effort := ReasoningEffortHigh
+	payload, err := buildCodexResponsesPayload(ChatRequest{
+		Model:           "grok-3-mini",
+		MaxTokens:       1024,
+		ReasoningEffort: &effort,
+		Messages:        []Message{{Role: "user", Content: "think deeply"}},
+	})
+	if err != nil {
+		t.Fatalf("buildCodexResponsesPayload() error = %v", err)
+	}
+	if payload.Reasoning == nil || payload.Reasoning.Effort != "high" {
+		t.Fatalf("Reasoning = %+v, want {Effort:high}", payload.Reasoning)
+	}
+	if len(payload.Include) == 0 || payload.Include[0] != "reasoning.encrypted_content" {
+		t.Fatalf("Include = %v, want [reasoning.encrypted_content]", payload.Include)
+	}
+}
+
+func TestBuildCodexResponsesPayload_NonGrokNoReasoningEffort(t *testing.T) {
+	effort := ReasoningEffortHigh
+	// grok-4 is NOT on the allowlist and should not get reasoning.effort
+	payload, err := buildCodexResponsesPayload(ChatRequest{
+		Model:           "grok-4",
+		MaxTokens:       1024,
+		ReasoningEffort: &effort,
+		Messages:        []Message{{Role: "user", Content: "think"}},
+	})
+	if err != nil {
+		t.Fatalf("buildCodexResponsesPayload() error = %v", err)
+	}
+	if payload.Reasoning != nil {
+		t.Fatalf("Reasoning = %+v, want nil for grok-4 (rejects reasoningEffort)", payload.Reasoning)
+	}
+	if len(payload.Include) > 0 {
+		t.Fatalf("Include = %v, want nil for grok-4", payload.Include)
+	}
+}
