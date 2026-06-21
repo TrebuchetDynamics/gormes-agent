@@ -592,7 +592,17 @@ func (c *httpClient) openAICompatibleURL(endpointPath string) string {
 
 func openAICompatibleMaxTokenFields(maxTokens int, provider, baseURL, model string) (int, int) {
 	if maxTokens <= 0 {
-		return 0, 0
+		// Ollama/LM-Studio/local and custom providers default to a tiny
+		// num_predict (128 tokens) when max_tokens is omitted, truncating
+		// most agent responses. Send a generous floor so the provider behaves
+		// like any cloud provider while still letting the operator set a
+		// per-model cap. Mirrors Hermes fix(ollama): set default_max_tokens
+		// for custom/Ollama provider (09ec26c66).
+		if openAICompatibleNeedsDefaultMaxTokens(provider, baseURL) {
+			maxTokens = 65536
+		} else {
+			return 0, 0
+		}
 	}
 	// Pre-emptively send max_completion_tokens for model families that
 	// reject max_tokens regardless of the endpoint hostname — mirrors
@@ -601,6 +611,18 @@ func openAICompatibleMaxTokenFields(maxTokens int, provider, baseURL, model stri
 		return 0, maxTokens
 	}
 	return maxTokens, 0
+}
+
+// openAICompatibleNeedsDefaultMaxTokens returns true for local/self-hosted
+// providers that truncate responses at a tiny default when max_tokens is absent.
+// Only matches explicit provider IDs — not generic loopback URLs — to avoid
+// false positives for test servers that happen to run on localhost.
+func openAICompatibleNeedsDefaultMaxTokens(provider, _ string) bool {
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case "custom", "ollama", "local", "lmstudio", "lm-studio", "lm_studio", "vllm":
+		return true
+	}
+	return false
 }
 
 func openAICompatibleIsAzureOpenAI(provider, baseURL string) bool {
