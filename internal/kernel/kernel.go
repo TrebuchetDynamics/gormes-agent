@@ -221,6 +221,7 @@ type Kernel struct {
 	// handshake. Violating this invariant is a race.
 	phase           Phase
 	draft           string
+	draftReasoning  string // accumulated reasoning tokens for the current turn
 	history         []llm.Message
 	soul            []SoulEntry
 	sessionID       string
@@ -780,6 +781,7 @@ func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []llm.Me
 	// are on the Run goroutine.
 	k.history = append(k.history, userMsg)
 	k.draft = ""
+	k.draftReasoning = ""
 	k.lastError = ""
 	k.retryStatus = NewRetryStatus()
 	k.activeModel = model
@@ -1092,8 +1094,13 @@ toolLoop:
 				Platform:     platformFromChatKey(k.cfg.ChatKey),
 			})
 		}
-		k.history = append(k.history, llm.Message{Role: "assistant", Content: finalContent})
+		assistantMsg := llm.Message{Role: "assistant", Content: finalContent}
+		if k.draftReasoning != "" {
+			assistantMsg.Reasoning = &llm.ReasoningContent{Text: k.draftReasoning}
+		}
+		k.history = append(k.history, assistantMsg)
 		k.draft = ""
+		k.draftReasoning = ""
 		// Phase 3.A: finalize in the memory store. Fire-and-forget — the worker
 		// handles I/O off the hot path. 250ms context bound kept as a safety net
 		// in case someone injects a synchronous store in the future.
@@ -1625,6 +1632,7 @@ streamLoop:
 					// Reasoning doesn't count as visible content; the NEXT EventToken
 					// still clears the draft. Do NOT flip replaceOnNextToken here.
 				}
+				k.draftReasoning += ev.Reasoning
 				k.addSoul("reasoning: " + truncate(ev.Reasoning, 60))
 				dirty = true
 			case llm.EventDone:

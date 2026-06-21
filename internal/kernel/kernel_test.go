@@ -702,3 +702,49 @@ func TestKernel_SetSessionModelUnknownProviderDoesNotMutateResidentModel(t *test
 		t.Fatalf("frame = %+v, want resident model unchanged with error evidence", frame)
 	}
 }
+
+// TestKernelStreamingReasoningAccumulatedInHistory proves that reasoning events
+// emitted during a stream turn are accumulated and stored in the history entry.
+// This enables per-turn reasoning diagnostics and future wire-level replay.
+func TestKernelStreamingReasoningAccumulatedInHistory(t *testing.T) {
+	k, mc := fixture(t)
+
+	mc.Script([]llm.Event{
+		{Kind: llm.EventReasoning, Reasoning: "first thought"},
+		{Kind: llm.EventReasoning, Reasoning: " second thought"},
+		{Kind: llm.EventToken, Token: "Final answer."},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 5, TokensOut: 3},
+	}, "ses-reasoning")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = k.Run(ctx) }()
+
+	waitForFrameMatching(t, k.render, func(f RenderFrame) bool {
+		return f.Phase == PhaseIdle
+	}, time.Second)
+
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "think please", SessionID: "ses-reasoning"}); err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+
+	frame := waitForFrameMatching(t, k.render, func(f RenderFrame) bool {
+		return f.Phase == PhaseIdle && f.Seq > 1
+	}, 2*time.Second)
+
+	// Inspect history — the last entry should be the assistant with accumulated reasoning.
+	hist := frame.History
+	if len(hist) < 2 {
+		t.Fatalf("history len = %d, want at least user+assistant", len(hist))
+	}
+	assistant := hist[len(hist)-1]
+	if assistant.Role != "assistant" || assistant.Content != "Final answer." {
+		t.Fatalf("assistant = %+v, want role=assistant content='Final answer.'", assistant)
+	}
+	if assistant.Reasoning == nil {
+		t.Fatalf("assistant.Reasoning = nil, want accumulated reasoning from stream")
+	}
+	if assistant.Reasoning.Text != "first thought second thought" {
+		t.Fatalf("assistant.Reasoning.Text = %q, want 'first thought second thought'", assistant.Reasoning.Text)
+	}
+}

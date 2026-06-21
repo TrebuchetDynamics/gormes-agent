@@ -762,18 +762,20 @@ func openAICompatibleReasoningContent(msg Message, provider, model, baseURL stri
 	if !openAICompatibleRequiresReasoningEcho(provider, model, baseURL) {
 		return nil
 	}
+	// Step 1: explicit reasoning_content (wire-level field from prior DeepSeek/Kimi turn).
+	// Upgrade "" → " " for DeepSeek V4 Pro which rejects empty strings (Hermes #17341).
 	if msg.ReasoningContent != nil {
 		rc := *msg.ReasoningContent
-		// DeepSeek V4 Pro rejects empty-string reasoning_content in thinking mode.
-		// Hermes agent_runtime_helpers.py line 2203: upgrade "" → " " on replay.
 		if rc == "" {
 			rc = " "
 		}
 		return &rc
 	}
-	// No reasoning content available: pad with a single space so providers
-	// that require the field get a valid non-empty value.
-	// Hermes: "Space (not "") because DeepSeek V4 Pro tightened validation".
+	// No wire-level reasoning_content available. Gormes isolates generic internal Reasoning
+	// (cross-provider storage from any prior provider) from the wire format — the msg.Reasoning
+	// field is never promoted to reasoning_content to prevent cross-provider chain-of-thought
+	// leakage. Pad with a single space to satisfy providers that require the field.
+	// Hermes: "Space (not "") because DeepSeek V4 Pro tightened validation" (refs #17341).
 	space := " "
 	return &space
 }
