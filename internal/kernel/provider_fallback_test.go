@@ -264,6 +264,60 @@ func TestFallbackActivationOnBillingFailure(t *testing.T) {
 	}
 }
 
+func TestContentFilterRefusalNotRetriedAsFallback(t *testing.T) {
+	// Mirrors Hermes fix(agent): surface model refusals instead of retrying
+	// them as errors (bb46bf8ce). A content_filter finish reason is a policy
+	// refusal, not an empty-response transient failure — the kernel must not
+	// activate the fallback chain for it.
+	primary := llm.NewMockClient()
+	primary.Script([]llm.Event{
+		// Content-filter refusal with empty content.
+		{Kind: llm.EventDone, FinishReason: "content_filter", TokensOut: 0},
+	}, "sess-refusal")
+
+	fallbackCalled := false
+	fallback := llm.NewMockClient()
+	fallback.SetProviderStatus(llm.ProviderStatus{Provider: "anthropic", Runtime: "chat_completions"})
+	fallback.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Fallback answer."},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensOut: 1},
+	}, "sess-fallback")
+
+	k := New(Config{
+		Model:     "primary-model",
+		Endpoint:  "http://mock",
+		Admission: Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		Fallback: llm.FallbackModelPolicy{
+			Enabled: true,
+			Routes:  []llm.ModelRoute{{Provider: "anthropic", Model: "claude-opus-4-20250514"}},
+		},
+		FallbackClientFactory: func(_ context.Context, _ llm.ModelRoute) (llm.Client, error) {
+			fallbackCalled = true
+			return fallback, nil
+		},
+	}, primary, store.NewNoop(), telemetry.New(), nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+	initial := <-k.Render()
+
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "hi"}); err != nil {
+		t.Fatal(err)
+	}
+	_, final := drainUntilIdle(t, k.Render(), initial.Seq, 2*time.Second)
+
+	if fallbackCalled {
+		t.Fatal("fallback must NOT be activated on content_filter refusal")
+	}
+	if hasSoulEvent(final.SoulEvents, "fallback_activated") {
+		t.Fatalf("SoulEvents = %#v, content_filter must not trigger fallback_activated", final.SoulEvents)
+	}
+	if len(primary.Requests()) != 1 {
+		t.Fatalf("primary calls = %d, want exactly 1 (refusal not retried)", len(primary.Requests()))
+	}
+}
+
 func hasSoulEvent(events []SoulEntry, needle string) bool {
 	for _, event := range events {
 		if strings.Contains(event.Text, needle) {

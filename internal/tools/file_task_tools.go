@@ -474,19 +474,24 @@ func (t *SearchFilesTool) searchFileNames(ctx context.Context, root, base, relBa
 		}
 		return nil
 	})
-	if err != nil {
+	timedOut := err != nil && (errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled))
+	if err != nil && !timedOut {
 		return marshalToolPayload(map[string]any{"path": relBase, "error": "search files: " + err.Error()})
 	}
 	sort.Strings(matches)
 	window, truncated := windowStrings(matches, offset, limit)
-	return marshalToolPayload(map[string]any{
+	payload := map[string]any{
 		"pattern":   pattern,
 		"target":    "files",
 		"path":      relBase,
 		"count":     len(matches),
 		"files":     window,
-		"truncated": truncated,
-	})
+		"truncated": truncated || timedOut,
+	}
+	if timedOut {
+		payload["limit_reason"] = "search_timeout"
+	}
+	return marshalToolPayload(payload)
 }
 
 func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBase string, in struct {
@@ -560,7 +565,8 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 		}
 		return nil
 	})
-	if err != nil {
+	timedOut := err != nil && (errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled))
+	if err != nil && !timedOut {
 		return marshalToolPayload(map[string]any{"path": relBase, "error": "search contents: " + err.Error()})
 	}
 
@@ -573,18 +579,26 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 	totalMatchCount := len(results.entries)
 	newlineWarn := totalMatchCount == 0 && len(filesSeen) == 0 && searchPatternHasNewline(in.Pattern)
 
+	addTimeoutReason := func(payload map[string]any, truncated bool) {
+		if timedOut {
+			payload["truncated"] = true
+			payload["limit_reason"] = "search_timeout"
+		} else {
+			payload["truncated"] = truncated
+		}
+	}
 	switch outputMode {
 	case "files_only":
 		files := sortedMapKeys(filesSeen)
 		window, truncated := windowStrings(files, offset, limit)
 		payload := map[string]any{
-			"pattern":   in.Pattern,
-			"target":    "content",
-			"path":      relBase,
-			"count":     len(files),
-			"files":     window,
-			"truncated": truncated,
+			"pattern": in.Pattern,
+			"target":  "content",
+			"path":    relBase,
+			"count":   len(files),
+			"files":   window,
 		}
+		addTimeoutReason(payload, truncated)
 		if newlineWarn {
 			payload["warning"] = newlinePatternWarning
 		}
@@ -597,13 +611,13 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 			rows = append(rows, map[string]any{"path": file, "count": counts[file]})
 		}
 		payload := map[string]any{
-			"pattern":   in.Pattern,
-			"target":    "content",
-			"path":      relBase,
-			"count":     len(files),
-			"matches":   rows,
-			"truncated": truncated,
+			"pattern": in.Pattern,
+			"target":  "content",
+			"path":    relBase,
+			"count":   len(files),
+			"matches": rows,
 		}
+		addTimeoutReason(payload, truncated)
 		if newlineWarn {
 			payload["warning"] = newlinePatternWarning
 		}
@@ -611,13 +625,13 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 	case "content":
 		window, truncated := windowSearchContentEntries(results.entries, offset, limit)
 		payload := map[string]any{
-			"pattern":   in.Pattern,
-			"target":    "content",
-			"path":      relBase,
-			"count":     len(results.entries),
-			"matches":   searchContentEntryPayloads(window),
-			"truncated": truncated,
+			"pattern": in.Pattern,
+			"target":  "content",
+			"path":    relBase,
+			"count":   len(results.entries),
+			"matches": searchContentEntryPayloads(window),
 		}
+		addTimeoutReason(payload, truncated)
 		if newlineWarn {
 			payload["warning"] = newlinePatternWarning
 		}

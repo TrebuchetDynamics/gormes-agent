@@ -1,6 +1,8 @@
 package tools
 
 import (
+	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -298,5 +300,65 @@ func TestSearchFilesNewlinePatternWarning(t *testing.T) {
 	outNoWarn := executeSearchFilesTool(t, tool, `{"pattern":"\\\\n","target":"content"}`)
 	if _, hasWarn := outNoWarn["warning"]; hasWarn {
 		t.Errorf("escaped \\\\n pattern triggered spurious newline warning: %#v", outNoWarn)
+	}
+}
+
+// TestSearchFilesTimeoutReturnsPartialResults verifies that when the caller's
+// context expires mid-walk, search_files returns whatever partial results were
+// accumulated rather than an error. Mirrors Hermes fix(search): keep partial
+// results on search timeout (1fa761f8d).
+func TestSearchFilesTimeoutReturnsPartialResults(t *testing.T) {
+	root := t.TempDir()
+	for _, rel := range []string{"a.txt", "b.txt", "c.txt"} {
+		writeSearchFixture(t, root, rel, "needle\n")
+	}
+	tool := NewSearchFilesTool(FileTaskToolConfig{Root: root})
+
+	// Pre-cancelled context — the walk hits ctx.Err() immediately.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	raw, err := tool.Execute(ctx, []byte(`{"pattern":"needle","target":"content"}`))
+	if err != nil {
+		t.Fatalf("Execute with cancelled context returned Go error: %v", err)
+	}
+	var out map[string]any
+	if jsonErr := json.Unmarshal(raw, &out); jsonErr != nil {
+		t.Fatalf("unmarshal: %v", jsonErr)
+	}
+	if errField, hasErr := out["error"]; hasErr {
+		t.Fatalf("output has error field on timeout: %v", errField)
+	}
+	if reason, _ := out["limit_reason"].(string); reason != "search_timeout" {
+		t.Fatalf("limit_reason = %q, want search_timeout; output=%#v", reason, out)
+	}
+	if truncated, _ := out["truncated"].(bool); !truncated {
+		t.Fatalf("truncated = false, want true on search_timeout; output=%#v", out)
+	}
+}
+
+func TestSearchFileNamesTimeoutReturnsPartialResults(t *testing.T) {
+	root := t.TempDir()
+	for _, rel := range []string{"a.txt", "b.txt", "c.txt"} {
+		writeSearchFixture(t, root, rel, "")
+	}
+	tool := NewSearchFilesTool(FileTaskToolConfig{Root: root})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	raw, err := tool.Execute(ctx, []byte(`{"pattern":"*.txt","target":"files"}`))
+	if err != nil {
+		t.Fatalf("Execute with cancelled context returned Go error: %v", err)
+	}
+	var out map[string]any
+	if jsonErr := json.Unmarshal(raw, &out); jsonErr != nil {
+		t.Fatalf("unmarshal: %v", jsonErr)
+	}
+	if errField, hasErr := out["error"]; hasErr {
+		t.Fatalf("output has error field on timeout: %v", errField)
+	}
+	if reason, _ := out["limit_reason"].(string); reason != "search_timeout" {
+		t.Fatalf("limit_reason = %q, want search_timeout; output=%#v", reason, out)
 	}
 }

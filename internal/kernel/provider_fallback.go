@@ -20,6 +20,14 @@ func emptyFinalResponse(draft string, final llm.Event) bool {
 	if final.FinishReason == "tool_calls" || len(final.ToolCalls) > 0 {
 		return false
 	}
+	// A content_filter finish reason is a policy refusal, not a network or
+	// rate-limit empty — retrying would burn paid API calls. Treat it as
+	// non-empty so the caller breaks out of the tool loop and surfaces the
+	// refusal. Mirrors Hermes fix(agent): surface model refusals instead of
+	// retrying them as errors (bb46bf8ce).
+	if final.FinishReason == "content_filter" {
+		return false
+	}
 	return strings.TrimSpace(draft) == ""
 }
 
