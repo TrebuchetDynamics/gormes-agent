@@ -581,7 +581,10 @@ func openAICompatibleMaxTokenFields(maxTokens int, provider, baseURL, model stri
 	if maxTokens <= 0 {
 		return 0, 0
 	}
-	if openAICompatibleIsAzureOpenAI(provider, baseURL) && openAICompatibleUsesMaxCompletionTokens(model) {
+	// Pre-emptively send max_completion_tokens for model families that
+	// reject max_tokens regardless of the endpoint hostname — mirrors
+	// Hermes utils.py model_forces_max_completion_tokens (fix 19c07c403).
+	if openAICompatibleUsesMaxCompletionTokens(model) {
 		return 0, maxTokens
 	}
 	return maxTokens, 0
@@ -596,12 +599,21 @@ func openAICompatibleIsAzureOpenAI(provider, baseURL string) bool {
 	return strings.Contains(strings.ToLower(baseURL), "openai.azure.com")
 }
 
+// openAICompatibleUsesMaxCompletionTokens returns true when the model family
+// requires max_completion_tokens instead of max_tokens. Hermes uses prefix
+// matching on the normalized (lower-cased, vendor-prefix-stripped) name.
+// Families: gpt-4o, gpt-4.1, gpt-5+, o1, o3, o4 (fix 19c07c403).
 func openAICompatibleUsesMaxCompletionTokens(model string) bool {
 	model = strings.ToLower(strings.TrimSpace(model))
 	if slash := strings.LastIndex(model, "/"); slash >= 0 {
 		model = model[slash+1:]
 	}
-	return strings.HasPrefix(model, "gpt-5") || openAICompatibleIsOSeriesModel(model)
+	for _, prefix := range []string{"gpt-4o", "gpt-4.1", "gpt-5"} {
+		if model == prefix || strings.HasPrefix(model, prefix+"-") || strings.HasPrefix(model, prefix+".") {
+			return true
+		}
+	}
+	return openAICompatibleIsOSeriesModel(model)
 }
 
 func openAICompatibleIsOSeriesModel(model string) bool {
