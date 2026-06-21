@@ -813,6 +813,26 @@ func stringField(v any) string {
 		return strconv.FormatFloat(x, 'f', -1, 64)
 	case json.Number:
 		return x.String()
+	case map[string]any:
+		// Nested dict: providers like HF router embed a structured object in
+		// error.message (e.g. {"message":{"type":"Bad Request","message":"..."}}}).
+		// Walk the priority key list to extract the most descriptive string —
+		// mirrors Hermes fix(agent): summarize structured provider error messages.
+		for _, key := range []string{"message", "detail", "error", "code", "type"} {
+			if s := stringField(x[key]); s != "" {
+				return s
+			}
+		}
+		return ""
+	case []any:
+		// List: join non-empty string representations of each element.
+		var parts []string
+		for _, item := range x {
+			if s := stringField(item); s != "" {
+				parts = append(parts, s)
+			}
+		}
+		return strings.Join(parts, "; ")
 	default:
 		return ""
 	}

@@ -456,3 +456,40 @@ func TestClassifyProviderError_UnsupportedParamNotMisclassifiedAsOverflow(t *tes
 		t.Errorf("overflow 400: ShouldCompress = false, want true")
 	}
 }
+
+func TestSanitizeProviderErrorBodyNestedStructuredMessage(t *testing.T) {
+	// Mirrors Hermes fix(agent): summarize structured provider error messages
+	// (e4452ffb8). Some providers (e.g. HF router) embed a structured object in
+	// the error.message field instead of a plain string. The sanitizer must
+	// recursively extract the human-readable message rather than returning a
+	// generic "provider returned JSON error body" fallback.
+	cases := []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "nested dict in error.message",
+			body: `{"error":{"message":{"type":"Bad Request","code":"context_length_exceeded","message":"This model's maximum context length is 4096 tokens"}}}`,
+			want: "This model's maximum context length is 4096 tokens",
+		},
+		{
+			name: "flat string error.message (unchanged)",
+			body: `{"error":{"message":"rate limit exceeded"}}`,
+			want: "rate limit exceeded",
+		},
+		{
+			name: "list in error.message",
+			body: `{"error":{"message":["token limit exceeded","please reduce your input"]}}`,
+			want: "token limit exceeded; please reduce your input",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := sanitizeProviderErrorBody(tc.body)
+			if !strings.Contains(got, tc.want) {
+				t.Errorf("sanitizeProviderErrorBody(%q) = %q, want it to contain %q", tc.body, got, tc.want)
+			}
+		})
+	}
+}
