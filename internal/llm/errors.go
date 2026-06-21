@@ -404,6 +404,13 @@ var rateLimitPatterns = []string{
 	"retry after",
 	"rate increased too quickly",
 	"too many concurrent requests",
+	// Gemini weekly / account usage limits. Both trigger credential rotation so
+	// the pool can try the next pooled credential. Mirrors Hermes
+	// fix(credential-pool): correct pool rotation when weekly usage limit is
+	// reached (4117fc364).
+	"gousagelimit",
+	"usage limit reached",
+	"usage limit has been reached",
 }
 
 var authPatterns = []string{
