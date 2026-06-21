@@ -787,24 +787,26 @@ func TestHermesSlashCompletion_LocalNativeHandlersAreAvailable(t *testing.T) {
 // ActiveTurnPolicyUnavailable with explicit evidence — never letting the slash
 // text leak to the kernel.
 func TestHermesSlashCompletion_UnavailableCommandsStillComplete(t *testing.T) {
-	completions := HermesSlashCommandCompletions("/too")
+	// /agents is still unported (ActiveTurnPolicyUnavailable); use it as the
+	// canonical unavailable-command fixture. /tools was ported in v0.2.25.
+	completions := HermesSlashCommandCompletions("/age")
 	names := completionNames(completions)
-	if !containsString(names, "tools") {
-		t.Fatalf("HermesSlashCommandCompletions(\"/too\") = %v, want to include unavailable command \"tools\"", names)
+	if !containsString(names, "agents") {
+		t.Fatalf("HermesSlashCommandCompletions(\"/age\") = %v, want to include unavailable command \"agents\"", names)
 	}
 
-	verdict := cli.EvaluateActiveTurnVerdict("/tools", false)
+	verdict := cli.EvaluateActiveTurnVerdict("/agents", false)
 	if !verdict.Known {
-		t.Errorf("EvaluateActiveTurnVerdict(/tools) Known = false, want true (registry recognizes /tools)")
+		t.Errorf("EvaluateActiveTurnVerdict(/agents) Known = false, want true (registry recognizes /agents)")
 	}
 	if verdict.Allowed {
-		t.Errorf("EvaluateActiveTurnVerdict(/tools) Allowed = true, want false for unavailable command")
+		t.Errorf("EvaluateActiveTurnVerdict(/agents) Allowed = true, want false for unavailable command")
 	}
 	if verdict.Policy != cli.ActiveTurnPolicyUnavailable {
-		t.Errorf("EvaluateActiveTurnVerdict(/tools) Policy = %q, want %q", verdict.Policy, cli.ActiveTurnPolicyUnavailable)
+		t.Errorf("EvaluateActiveTurnVerdict(/agents) Policy = %q, want %q", verdict.Policy, cli.ActiveTurnPolicyUnavailable)
 	}
 	if !strings.Contains(strings.ToLower(verdict.Evidence), "unavailable") {
-		t.Errorf("EvaluateActiveTurnVerdict(/tools) Evidence = %q, want to mention unavailable", verdict.Evidence)
+		t.Errorf("EvaluateActiveTurnVerdict(/agents) Evidence = %q, want to mention unavailable", verdict.Evidence)
 	}
 }
 
