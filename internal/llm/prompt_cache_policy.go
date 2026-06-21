@@ -81,6 +81,26 @@ func openAICompatiblePromptCacheStatus(provider, baseURL string) CapabilityStatu
 	return unavailableCapability("cache_control stripped: prompt_cache_stripped unsupported OpenAI-compatible request mapping omits cache_control")
 }
 
+// markToolsForLongLivedCache marks the last tool in the list with a 1h
+// cache_control marker so the entire tools array is cached cross-session for
+// providers that support Anthropic prompt caching. Anthropic's cache order is
+// tools → system → messages; the last-tool marker caches everything before it.
+// Mirrors Hermes feat(prompt-cache): cross-session 1h prefix cache (7b7636655).
+func markToolsForLongLivedCache(tools []ToolDescriptor, policy PromptCachePolicy) []ToolDescriptor {
+	if !policy.ShouldCache || len(tools) == 0 {
+		return tools
+	}
+	if policy.Layout != PromptCacheLayoutNativeAnthropic && policy.Layout != PromptCacheLayoutEnvelope {
+		return tools
+	}
+	out := make([]ToolDescriptor, len(tools))
+	copy(out, tools)
+	last := out[len(out)-1]
+	last.CacheControl = &CacheControl{Type: defaultPromptCacheControlType, TTL: defaultPromptCacheTTL}
+	out[len(out)-1] = last
+	return out
+}
+
 // ApplyPromptCacheControl returns a deep copy with the system_and_3 cache
 // strategy: the first system message plus the last three non-system messages.
 func ApplyPromptCacheControl(messages []Message, policy PromptCachePolicy) []Message {

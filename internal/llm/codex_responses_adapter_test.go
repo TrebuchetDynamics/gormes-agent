@@ -87,7 +87,7 @@ func TestBuildCodexResponsesPayload_ConvertsChatInputToolsAndCallIDs(t *testing.
       "description": "Looks up fixture status.",
       "strict": false,
       "parameters": {
-        "type": "object",
+        "additionalProperties": false,
         "properties": {
           "query": {
             "type": "string"
@@ -96,7 +96,7 @@ func TestBuildCodexResponsesPayload_ConvertsChatInputToolsAndCallIDs(t *testing.
         "required": [
           "query"
         ],
-        "additionalProperties": false
+        "type": "object"
       }
     }
   ],
@@ -216,5 +216,53 @@ func TestNormalizeCodexResponsesResponse_MapsOutputItemsUsageAndToolCalls(t *tes
 	}
 	if len(final.ToolCalls) != 1 || final.ToolCalls[0].ID != "call_lookup" {
 		t.Fatalf("final tool calls = %+v, want call_lookup", final.ToolCalls)
+	}
+}
+
+func TestCodexResponsesToolSchema_StripsPatternAndFormat(t *testing.T) {
+	// xAI's /responses endpoint rejects "pattern" and "format" keywords in tool
+	// schemas (HTTP 400). Mirrors Hermes fix(schema_sanitizer): strip
+	// pattern/format from Responses-format tools for xAI compatibility.
+	tools := []ToolDescriptor{
+		{
+			Name:        "mcp_search",
+			Description: "search",
+			Schema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"query": {"type": "string"},
+					"ts": {"type": "string", "format": "date-time"},
+					"domains": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"pattern": "^[a-z]+\\.com$"
+						}
+					}
+				}
+			}`),
+		},
+	}
+	got := codexResponsesTools(tools)
+	if len(got) != 1 {
+		t.Fatalf("got %d tools, want 1", len(got))
+	}
+	var schema map[string]any
+	if err := json.Unmarshal(got[0].Parameters, &schema); err != nil {
+		t.Fatalf("unmarshal schema: %v", err)
+	}
+	props, _ := schema["properties"].(map[string]any)
+	if ts, ok := props["ts"].(map[string]any); ok {
+		if _, hasFormat := ts["format"]; hasFormat {
+			t.Error("format keyword was not stripped from schema")
+		}
+	}
+	domains, _ := props["domains"].(map[string]any)
+	items, _ := domains["items"].(map[string]any)
+	if _, hasPattern := items["pattern"]; hasPattern {
+		t.Error("pattern keyword was not stripped from nested items schema")
+	}
+	if items["type"] != "string" {
+		t.Errorf("items.type = %v, want string (type should be preserved)", items["type"])
 	}
 }

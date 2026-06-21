@@ -155,6 +155,7 @@ type orToolDescriptor struct {
 		Description string          `json:"description"`
 		Parameters  json.RawMessage `json:"parameters"`
 	} `json:"function"`
+	CacheControl *CacheControl `json:"cache_control,omitempty"`
 }
 
 type orChatRequest struct {
@@ -287,7 +288,7 @@ func (c *httpClient) buildOpenAICompatibleChatRequestBody(req ChatRequest) ([]by
 	if err != nil {
 		return nil, nil, err
 	}
-	descriptors := SanitizeToolDescriptorsForModel(req.Model, req.Tools)
+	descriptors := markToolsForLongLivedCache(SanitizeToolDescriptorsForModel(req.Model, req.Tools), policy)
 	tools := make([]orToolDescriptor, len(descriptors))
 	for i, t := range descriptors {
 		tools[i] = orToolDescriptor{
@@ -297,6 +298,7 @@ func (c *httpClient) buildOpenAICompatibleChatRequestBody(req ChatRequest) ([]by
 				Description string          `json:"description"`
 				Parameters  json.RawMessage `json:"parameters"`
 			}{Name: t.Name, Description: t.Description, Parameters: t.Schema},
+			CacheControl: t.CacheControl,
 		}
 	}
 	maxTokens, maxCompletionTokens := openAICompatibleMaxTokenFields(req.MaxTokens, c.provider, c.baseURL, req.Model)

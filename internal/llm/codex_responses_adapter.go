@@ -367,7 +367,7 @@ func codexResponsesTools(tools []ToolDescriptor) []codexResponsesTool {
 		if name == "" {
 			continue
 		}
-		params := cloneToolSchemaOrDefault(tool.Schema)
+		params := codexResponsesToolSchema(tool.Schema)
 		out = append(out, codexResponsesTool{
 			Type:        "function",
 			Name:        name,
@@ -377,6 +377,48 @@ func codexResponsesTools(tools []ToolDescriptor) []codexResponsesTool {
 		})
 	}
 	return out
+}
+
+// codexResponsesToolSchema clones the schema and strips "pattern" and "format"
+// keywords that the xAI Responses API rejects with HTTP 400. Mirrors Hermes
+// fix(schema_sanitizer): strip pattern/format from Responses-format tools for
+// xAI compatibility (2551f0813 / bdc2113b5).
+func codexResponsesToolSchema(raw json.RawMessage) json.RawMessage {
+	if len(raw) == 0 {
+		return cloneToolSchemaOrDefault(raw)
+	}
+	var node any
+	if err := json.Unmarshal(raw, &node); err != nil {
+		return cloneToolSchemaOrDefault(raw)
+	}
+	stripped := stripSchemaPatternAndFormat(node)
+	out, err := json.Marshal(stripped)
+	if err != nil {
+		return cloneToolSchemaOrDefault(raw)
+	}
+	return out
+}
+
+func stripSchemaPatternAndFormat(node any) any {
+	switch v := node.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(v))
+		for key, value := range v {
+			if key == "pattern" || key == "format" {
+				continue
+			}
+			out[key] = stripSchemaPatternAndFormat(value)
+		}
+		return out
+	case []any:
+		out := make([]any, len(v))
+		for i, item := range v {
+			out[i] = stripSchemaPatternAndFormat(item)
+		}
+		return out
+	default:
+		return node
+	}
 }
 
 func codexResponsesArguments(raw json.RawMessage) string {
