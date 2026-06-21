@@ -707,6 +707,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 				coalescerNow(m.now),
 				coalescerEvidenceSink(m.cfg.CoalescerEvidenceSink),
 				coalescerInitialTextSend(),
+				coalescerStreamCursor(streamPreviewCursorForPlatform(platform)),
 			}
 			nc := newCoalescer(hookedPlaceholderEditor{
 				base:         pe,

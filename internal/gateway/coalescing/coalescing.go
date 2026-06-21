@@ -3,6 +3,7 @@ package coalescing
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"time"
 )
@@ -65,6 +66,17 @@ func InitialTextSend() Option {
 	}
 }
 
+// StreamCursor sets the cursor suffix appended to streaming preview messages.
+// When a terminal edit fails and the last visible text was the full answer
+// with the cursor appended, the coalescer treats the content as already
+// delivered (suppressing a duplicate full-send). Mirrors Hermes
+// fix(gateway): suppress duplicate final stream sends (197337cc4).
+func StreamCursor(cursor string) Option {
+	return func(c *Coalescer) {
+		c.streamCursor = cursor
+	}
+}
+
 // coalescer batches outbound edits for one turn. The manager owns one
 // instance per active turn and tears it down on terminal phases.
 type Coalescer struct {
@@ -73,6 +85,7 @@ type Coalescer struct {
 	chatID       string
 	now          func() time.Time
 	evidenceSink EvidenceSink
+	streamCursor string // suffix appended to streaming previews; used to detect already-visible finals
 
 	// deliveryMu serializes visible send/edit attempts. State snapshots are
 	// only valid for a delivery decision while this lock is held; otherwise a
@@ -202,10 +215,17 @@ func (c *Coalescer) FlushImmediateFinal(ctx context.Context, text string, finali
 		if !finalize {
 			return
 		}
-		if lastSentText == text {
-			// Hermes suppresses a second final delivery when the streamed
-			// preview already contains the completed answer. If the terminal
-			// edit fails here, a plain Send would duplicate the visible reply.
+		// Hermes suppresses a second final delivery when the streamed preview
+		// already contains the completed answer. If the terminal edit fails here,
+		// a plain Send would duplicate the visible reply. Also suppress when the
+		// preview was the answer plus the streaming cursor (e.g. "answer ▉") and
+		// the final text is just "answer" — the user already sees the full
+		// answer, only the cursor is stuck on screen. Mirrors Hermes
+		// fix(gateway): suppress duplicate final stream sends (197337cc4).
+		cursorStrippedMatch := c.streamCursor != "" &&
+			strings.HasSuffix(lastSentText, c.streamCursor) &&
+			strings.TrimSuffix(lastSentText, c.streamCursor) == text
+		if lastSentText == text || cursorStrippedMatch {
 			c.mu.Lock()
 			c.clearPendingAfterDeliveryLocked(text, finalize)
 			c.mu.Unlock()

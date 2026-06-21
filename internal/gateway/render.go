@@ -8,6 +8,11 @@ import (
 
 const maxMessageLen = rendering.MaxMessageLen
 
+// streamPreviewCursorForPlatform returns the cursor suffix that is appended to
+// streaming preview messages on the given platform. Used by the coalescer to
+// detect when a failed final cursor-strip edit still delivered the full answer.
+func streamPreviewCursorForPlatform(_ string) string { return " ▉" }
+
 // FormatStreamPlain renders a streaming frame as plain text.
 func FormatStreamPlain(f kernel.RenderFrame) string { return rendering.FormatStreamPlain(f) }
 

@@ -174,6 +174,53 @@ func TestCoalescerFinalFlushHonorsCanceledContextBeforeDelivery(t *testing.T) {
 	}
 }
 
+// TestCoalescerCursorStrippedFinalEditFailureNoSend verifies that when the
+// final cursor-strip edit fails (Telegram flood control) but the last streamed
+// text was "answer ▉" (the full answer plus cursor), the coalescer does NOT
+// fall back to a plain Send — the full answer is already visible to the user,
+// only the cursor would be stripped. Mirrors Hermes fix(gateway): suppress
+// duplicate final stream sends (197337cc4).
+func TestCoalescerCursorStrippedFinalEditFailureNoSend(t *testing.T) {
+	editErr := context.DeadlineExceeded // simulate Telegram flood-control failure
+	sender := &trackingCursorSender{editErr: editErr}
+	c := New(sender, time.Second, "chat-1",
+		StreamCursor(" ▉"),
+	)
+
+	// Simulate a streaming frame that was already sent with the cursor.
+	c.mu.Lock()
+	c.pendingMsgID = "msg-1"
+	c.lastSentText = "The answer. ▉"
+	c.mu.Unlock()
+
+	// Final flush strips the cursor — text == "The answer." without cursor.
+	c.FlushImmediateFinal(context.Background(), "The answer.", true)
+
+	if sender.sendCalls > 0 {
+		t.Fatalf("Send called %d times; expected 0 — answer was already visible with cursor", sender.sendCalls)
+	}
+}
+
+type trackingCursorSender struct {
+	editCalls int
+	sendCalls int
+	editErr   error
+}
+
+func (s *trackingCursorSender) SendPlaceholder(_ context.Context, _ string) (string, error) {
+	return "msg-1", nil
+}
+
+func (s *trackingCursorSender) EditMessage(_ context.Context, _, _, _ string) error {
+	s.editCalls++
+	return s.editErr
+}
+
+func (s *trackingCursorSender) Send(_ context.Context, _ string, text string) (string, error) {
+	s.sendCalls++
+	return "msg-2", nil
+}
+
 func TestCoalescerNilSenderDoesNotPanicOnFinalFlush(t *testing.T) {
 	var evidences []Evidence
 	c := New(nil, time.Second, "chat-1", EvidenceSinkOption(func(ev Evidence) {
