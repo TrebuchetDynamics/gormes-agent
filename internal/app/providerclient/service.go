@@ -52,6 +52,9 @@ func (p *Pool) Reset() {
 }
 
 func NewHTTPClient(cfg config.Config, provider string) (llm.Client, error) {
+	if NormalizeProviderName(provider) == "gollmfree" {
+		return llm.NewGollmfreeClient(), nil
+	}
 	endpoint, apiKey, err := ResolveCredentials(cfg, provider)
 	if err != nil {
 		return nil, err
@@ -67,6 +70,9 @@ func ResolveCredentials(cfg config.Config, provider string) (endpoint, apiKey st
 }
 
 func NewHTTPClientWithCredentialHome(cfg config.Config, provider, credentialHome string) (llm.Client, error) {
+	if NormalizeProviderName(provider) == "gollmfree" {
+		return llm.NewGollmfreeClient(), nil
+	}
 	endpoint, apiKey, err := ResolveCredentialsWithHome(cfg, provider, credentialHome)
 	if err != nil {
 		return nil, err
