@@ -763,10 +763,19 @@ func openAICompatibleReasoningContent(msg Message, provider, model, baseURL stri
 		return nil
 	}
 	if msg.ReasoningContent != nil {
-		return msg.ReasoningContent
+		rc := *msg.ReasoningContent
+		// DeepSeek V4 Pro rejects empty-string reasoning_content in thinking mode.
+		// Hermes agent_runtime_helpers.py line 2203: upgrade "" → " " on replay.
+		if rc == "" {
+			rc = " "
+		}
+		return &rc
 	}
-	empty := ""
-	return &empty
+	// No reasoning content available: pad with a single space so providers
+	// that require the field get a valid non-empty value.
+	// Hermes: "Space (not "") because DeepSeek V4 Pro tightened validation".
+	space := " "
+	return &space
 }
 
 func openAICompatibleRequiresReasoningEcho(provider, model, baseURL string) bool {

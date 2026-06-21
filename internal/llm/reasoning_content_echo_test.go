@@ -143,8 +143,8 @@ func TestReasoningContentEchoPadsAllAssistantReplayForThinkingProviders(t *testi
 
 			for i, wantContent := range []string{"Calling terminal.", "No tool call here."} {
 				assistant := messages[i+1]
-				if got, ok := assistant["reasoning_content"].(string); !ok || got != "" {
-					t.Fatalf("assistant message %d reasoning_content = %v (present=%v), want empty string", i+1, assistant["reasoning_content"], ok)
+				if got, ok := assistant["reasoning_content"].(string); !ok || got != " " {
+					t.Fatalf("assistant message %d reasoning_content = %v (present=%v), want space placeholder", i+1, assistant["reasoning_content"], ok)
 				}
 				if got := assistant["content"]; got != wantContent {
 					t.Fatalf("assistant message %d content = %v, want ordinary content preserved", i+1, got)
@@ -154,7 +154,7 @@ func TestReasoningContentEchoPadsAllAssistantReplayForThinkingProviders(t *testi
 	}
 }
 
-func TestReasoningContentEchoPlainAssistantIsolationUsesEmptyPlaceholderForGenericReasoning(t *testing.T) {
+func TestReasoningContentEchoPlainAssistantIsolationUsesSpacePlaceholderForGenericReasoning(t *testing.T) {
 	tests := []struct {
 		name     string
 		provider string
@@ -215,8 +215,8 @@ func TestReasoningContentEchoPlainAssistantIsolationUsesEmptyPlaceholderForGener
 			})
 
 			toolAssistant := messages[1]
-			if got, ok := toolAssistant["reasoning_content"].(string); !ok || got != "" {
-				t.Fatalf("assistant tool-call reasoning_content = %v (present=%v), want empty string", toolAssistant["reasoning_content"], ok)
+			if got, ok := toolAssistant["reasoning_content"].(string); !ok || got != " " {
+				t.Fatalf("assistant tool-call reasoning_content = %v (present=%v), want space placeholder (not empty; DeepSeek V4 Pro rejects empty string)", toolAssistant["reasoning_content"], ok)
 			}
 			if _, ok := toolAssistant["reasoning"]; ok {
 				t.Fatalf("assistant request leaked storage-only reasoning field: %+v", toolAssistant)
@@ -226,8 +226,8 @@ func TestReasoningContentEchoPlainAssistantIsolationUsesEmptyPlaceholderForGener
 			}
 
 			plainAssistant := messages[2]
-			if got, ok := plainAssistant["reasoning_content"].(string); !ok || got != "" {
-				t.Fatalf("plain assistant reasoning_content = %v (present=%v), want empty string", plainAssistant["reasoning_content"], ok)
+			if got, ok := plainAssistant["reasoning_content"].(string); !ok || got != " " {
+				t.Fatalf("plain assistant reasoning_content = %v (present=%v), want space placeholder", plainAssistant["reasoning_content"], ok)
 			}
 			if _, ok := plainAssistant["reasoning"]; ok {
 				t.Fatalf("plain assistant leaked storage-only reasoning field: %+v", plainAssistant)
