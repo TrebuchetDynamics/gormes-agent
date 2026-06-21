@@ -462,12 +462,12 @@ file+line ref or explicit `missing`, and a classification.
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
 | Install script | `setup-hermes.sh` | `install.sh` + `install.ps1` | covered | Cross-platform installer. |
-| OCI image | `Dockerfile` + `docker/entrypoint.sh` | `Makefile` | planned | Docker build exists but not published. |
-| Homebrew formula | `packaging/homebrew/hermes-agent.rb` | → `missing` | missing | Not ported. |
-| Nix build | `nix/` `flake.*` | → `missing` | missing | Not ported. |
+| OCI image | `Dockerfile` + `docker/entrypoint.sh` | `Dockerfile`; `docker/entrypoint.sh`; `.github/workflows/oci.yml` | covered | Two-stage Go static binary build in BusyBox, CI-published OCI image via `oci.yml`. POSIX sh entrypoint bootstraps config volume. |
+| Homebrew formula | `packaging/homebrew/hermes-agent.rb` | `packaging/homebrew/gormes-agent.rb`; `packaging/homebrew/gormes.rb` | covered | Two Homebrew formula files (gormes-agent and gormes tap entry) matching Hermes packaging pattern. |
+| Nix build | `nix/` `flake.*` | `packaging/nix/flake.nix` | covered | Nix flake at `packaging/nix/flake.nix`. |
 | Version surface | `scripts/release.py` | `cmd/gormes/main.go` | covered | `--version` flag. |
-| Release script | `scripts/release.py` | → `missing` | missing | Not ported. |
-| Docker entrypoint | `docker/entrypoint.sh` | → `missing` | missing | Not ported. |
+| Release script | `scripts/release.py` | `.github/workflows/release.yml`; `.github/workflows/release-prep.yml` | covered | Go-native release via GitHub Actions CI (binary build matrix, OCI push, gormes-skill-manager automation) instead of a Python script. Gormes-owned approach. |
+| Docker entrypoint | `docker/entrypoint.sh` | `docker/entrypoint.sh` | covered | POSIX sh entrypoint: seeds `GORMES_HOME` config volume, runs `gormes doctor --offline` with no args, forwards args to binary. Matches Hermes bootstrap pattern. |
 | Docker compose | `docker-compose.yml` | → `missing` | missing | Not ported. |
 
 ---
@@ -508,7 +508,7 @@ file+line ref or explicit `missing`, and a classification.
 | Background review fork | `run_agent.py` background review | `internal/llm/backgroundreview/review.go`; `internal/llm/background_review.go`; `internal/kernel/kernel.go:1061` | covered | `RunBackgroundReview`/`BackgroundReviewFork` library is tested; kernel now wires `BackgroundReviewSpawner` injection (Config.BackgroundReview) — after each successful turn, spawns goroutine via `SpawnReview(ctx, historySnapshot, model, provider)`. Production runner injection optional; nil = disabled. Matches Hermes daemon thread pattern in `agent/codex_runtime.py:307`. |
 | Curator state machine | `agent/curator.py` | → `missing` | missing | Not ported. |
 | Curator CLI | `hermes_cli/curator.py` | → `missing` | missing | Not ported. |
-| Memory prefetch/sync | `agent/memory_manager.py` | → `missing` | missing | Not ported. |
+| Memory prefetch/sync | `agent/memory_manager.py` | `internal/memory/lifecycle/provider.go:18`; `internal/memory/lifecycle/provider.go:120` | partial | `LifecycleProvider.Prefetch` interface and `MemoryProviderLifecycle.Prefetch` fan-out exist. `SyncTurn` hook also defined. Neither Prefetch nor SyncTurn are called from the kernel pre-turn or post-turn path yet. |
 | Pre-compress hook | `agent/memory_manager.py` | `internal/memory/lifecycle/provider.go:146`; `internal/kernel/kernel.go:631`; `internal/memory/provider_lifecycle.go:KernelPreCompressAdapter` | covered | `MemoryProviderLifecycle.PreCompress` interface and multi-provider fan-out implemented. Kernel now wires `MemoryPreCompressor` injection (Config.MemoryLifecycle): called before every manual compress, merges the hint into the FocusTopic sent to the context engine. `memory.KernelPreCompressAdapter` bridges the signature difference. 355 tests pass. |
 | Ephemeral prefill messages | `cli.py` `_load_prefill_messages` | `cmd/gormes/prefill.go`; `internal/config/config.go` `LoadPrefillMessages`; `internal/kernel/kernel.go` `PrefillMessages` | covered | Covered by the `Prefill messages injection` atom (Section 1.4); `_load_prefill_messages` maps to `config.LoadConfiguredPrefillMessages` → kernel injection before user turn; covered by `internal/config/prefill_messages_test.go` and `internal/kernel/prefill_test.go`. |
 | Moonshot/Kimi schema sanitizer | `agent/moonshot_schema.py` | `internal/llm/moonshot_schema.go` | covered | Tool-parameter sanitizer shipped. |
