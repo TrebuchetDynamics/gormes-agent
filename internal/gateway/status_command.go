@@ -48,6 +48,10 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 	if m.hasActiveTurn() {
 		agentRunning = "Yes ⚡"
 	}
+	activeModel := strings.TrimSpace(frame.Model)
+	if activeModel == "" {
+		activeModel = strings.TrimSpace(m.activeConfigModel())
+	}
 	platforms := m.connectedPlatforms()
 	if len(platforms) == 0 && strings.TrimSpace(ev.Platform) != "" {
 		platforms = []string{strings.TrimSpace(ev.Platform)}
@@ -73,6 +77,9 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 		fmt.Sprintf("**Cumulative API tokens (re-sent each call):** %s", formatStatusTokenTotal(tokens)),
 		"**Agent Running:** "+agentRunning,
 	)
+	if activeModel != "" {
+		lines = append(lines, "**Model:** "+esc(activeModel))
+	}
 	if queueDepth := m.followUpQueueDepth(); queueDepth > 0 {
 		lines = append(lines, fmt.Sprintf("**Queued follow-ups:** %d", queueDepth))
 	}
@@ -97,6 +104,16 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 		"**Connected Platforms:** "+esc(connected),
 	)
 	return strings.Join(lines, "\n")
+}
+
+func (m *Manager) activeConfigModel() string {
+	if over := m.modelOverride; over.Model != "" {
+		return over.Model
+	}
+	if m.cfg.LiveTurnActiveModel != nil {
+		return m.cfg.LiveTurnActiveModel()
+	}
+	return ""
 }
 
 func (m *Manager) kanbanDispatcherStatus(ctx context.Context) (KanbanDispatcherStatus, bool) {
