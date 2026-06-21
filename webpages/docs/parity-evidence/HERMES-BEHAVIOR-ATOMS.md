@@ -133,7 +133,7 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Error classifier | `agent/error_classifier.py` | `internal/llm/` | partial | Basic error mapping; Hermes has richer provider-specific classes. |
+| Error classifier | `agent/error_classifier.py` | `internal/llm/errors.go`; `internal/llm/providerdiagnostics/diagnostics.go` | covered | All Hermes FailoverReason kinds ported: `content_policy_blocked`, `multimodal_tool_content_unsupported`, `invalid_encrypted_content`, `llama_cpp_grammar_pattern`, `oauth_long_context_beta_forbidden`, `billing`, `model_not_found`, plus all upstream pattern slices (billing, content policy, OpenRouter policy, multimodal tool, request validation, model not found, payload too large, image variants). NextAction expanded to cover all 18 kinds. 1243 llm tests pass. |
 
 ---
 

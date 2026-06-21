@@ -59,18 +59,42 @@ func Build(input Input) Diagnostic {
 // NextAction maps a provider-error classification to the next operator action.
 func NextAction(classification Classification) string {
 	switch classification.Kind {
-	case "auth":
+	case "auth", "auth_permanent":
 		return "refresh_or_replace_provider_credential"
+	case "billing":
+		return "add_credits_or_rotate_credential"
 	case "rate_limit":
 		return "retry_after_or_rotate_credential"
-	case "context":
+	case "context", "context_overflow":
 		return "compress_context_or_reduce_prompt"
 	case "image_too_large":
 		return "shrink_or_remove_image_input"
-	case "retryable", "timeout":
+	case "payload_too_large":
+		return "compress_payload_or_remove_attachments"
+	case "model_not_found":
+		return "verify_model_id_or_use_fallback"
+	case "provider_policy_blocked":
+		return "check_openrouter_privacy_settings"
+	case "content_policy_blocked":
+		return "revise_prompt_content"
+	case "multimodal_tool_content_unsupported":
+		return "strip_image_parts_from_tool_messages"
+	case "invalid_encrypted_content":
+		return "clear_previous_response_id_and_retry"
+	case "llama_cpp_grammar_pattern":
+		return "remove_pattern_format_fields_from_tools"
+	case "oauth_long_context_beta_forbidden":
+		return "disable_long_context_beta_header"
+	case "format_error":
+		return "inspect_provider_request_configuration"
+	case "retryable", "timeout", "overloaded", "server_error":
 		return "retry_with_bounded_backoff"
 	case "non_retryable":
 		return "inspect_provider_request_configuration"
+	case "thinking_signature":
+		return "strip_or_regenerate_thinking_block"
+	case "long_context_tier":
+		return "upgrade_anthropic_plan_or_reduce_context"
 	default:
 		if classification.Class == "retryable" {
 			return "retry_with_bounded_backoff"
