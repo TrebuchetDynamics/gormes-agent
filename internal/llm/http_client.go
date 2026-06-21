@@ -168,6 +168,11 @@ type orChatRequest struct {
 	ServiceTier         string             `json:"service_tier,omitempty"`
 	ExtraBody           map[string]any     `json:"extra_body,omitempty"`
 	Tools               []orToolDescriptor `json:"tools,omitempty"`
+	// Verbosity routes reasoning effort for OpenRouter adaptive Anthropic models
+	// (Claude 4.6+) that use adaptive thinking and ignore reasoning.effort.
+	// Mirrors Hermes fix(openrouter): route reasoning_effort to verbosity for
+	// adaptive Anthropic models (183d86b3e).
+	Verbosity string `json:"verbosity,omitempty"`
 }
 
 func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, error) {
@@ -295,6 +300,13 @@ func (c *httpClient) buildOpenAICompatibleChatRequestBody(req ChatRequest) ([]by
 		}
 	}
 	maxTokens, maxCompletionTokens := openAICompatibleMaxTokenFields(req.MaxTokens, c.provider, c.baseURL, req.Model)
+	// For OpenRouter adaptive Anthropic models (Claude 4.6+), reasoning.effort
+	// is ignored; send verbosity instead and suppress reasoning_effort.
+	verbosity := openRouterAdaptiveAnthropicVerbosity(c.provider, c.baseURL, req.Model, reasoningEffort)
+	adaptiveAnthropicEffort := reasoningEffort
+	if verbosity != "" {
+		adaptiveAnthropicEffort = nil
+	}
 	body, err := json.Marshal(orChatRequest{
 		Model:               req.Model,
 		Messages:            msgs,
@@ -302,10 +314,11 @@ func (c *httpClient) buildOpenAICompatibleChatRequestBody(req ChatRequest) ([]by
 		MaxTokens:           maxTokens,
 		MaxCompletionTokens: maxCompletionTokens,
 		Temperature:         req.Temperature,
-		ReasoningEffort:     reasoningEffort,
+		ReasoningEffort:     adaptiveAnthropicEffort,
 		ServiceTier:         normalizeServiceTier(req.RequestOverrides.ServiceTier),
 		ExtraBody:           buildOpenRouterParetoExtraBody(c.provider, c.baseURL, req.Model, req.RequestOverrides.OpenRouterMinCodingScore),
 		Tools:               tools,
+		Verbosity:           verbosity,
 	})
 	if err != nil {
 		return nil, nil, err

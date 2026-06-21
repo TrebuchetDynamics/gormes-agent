@@ -129,6 +129,57 @@ func openRouterModelIsGrok(model string) bool {
 	return strings.HasPrefix(model, "x-ai/grok-") || strings.HasPrefix(model, "xai/grok-")
 }
 
+// openRouterAdaptiveAnthropicVerbosity returns the verbosity string that
+// OpenRouter should receive for Claude 4.6+ models (adaptive/mandatory
+// thinking). These models ignore reasoning.effort and use the top-level
+// verbosity field instead. Returns "" when no verbosity should be emitted
+// (model is not adaptive, or effort is none/empty).
+//
+// Mirrors Hermes fix(openrouter): route reasoning_effort to verbosity for
+// adaptive Anthropic models (183d86b3e).
+func openRouterAdaptiveAnthropicVerbosity(provider, baseURL, model string, effort *ReasoningEffort) string {
+	if !IsOpenRouterRoute(provider, baseURL) {
+		return ""
+	}
+	m := strings.ToLower(strings.TrimSpace(model))
+	// Must be an Anthropic model.
+	isAnthropic := strings.HasPrefix(m, "anthropic/") || strings.HasPrefix(m, "claude") || strings.Contains(m, "claude")
+	if !isAnthropic {
+		return ""
+	}
+	// Older models with optional reasoning — not adaptive.
+	optional := []string{
+		"claude-3",
+		"claude-opus-4-0", "claude-opus-4.0", "claude-opus-4-1", "claude-opus-4.1",
+		"claude-sonnet-4-0", "claude-sonnet-4.0",
+		"claude-opus-4-2025", "claude-sonnet-4-2025",
+		"claude-opus-4-5", "claude-opus-4.5",
+		"claude-sonnet-4-5", "claude-sonnet-4.5",
+		"claude-haiku-4-5", "claude-haiku-4.5",
+	}
+	for _, sub := range optional {
+		if strings.Contains(m, sub) {
+			return ""
+		}
+	}
+	// Adaptive model confirmed. Map effort to Anthropic verbosity tiers.
+	if effort == nil {
+		return ""
+	}
+	switch *effort {
+	case ReasoningEffortNone:
+		return "" // disabled — can't truly disable adaptive thinking, so omit verbosity
+	case ReasoningEffortMinimal, ReasoningEffortLow:
+		return "low"
+	case ReasoningEffortMedium:
+		return "medium"
+	case ReasoningEffortHigh, ReasoningEffortXHigh:
+		return "high"
+	default:
+		return ""
+	}
+}
+
 func buildOpenRouterParetoExtraBody(provider, baseURL, model, score string) map[string]any {
 	if !IsOpenRouterRoute(provider, baseURL) || strings.TrimSpace(model) != "openrouter/pareto-code" {
 		return nil
