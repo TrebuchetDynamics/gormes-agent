@@ -41,12 +41,12 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/security"
 	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway"
 	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/profileapp"
 	tuiapp "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/tuiapp"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/security"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/runtime"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
@@ -513,6 +513,7 @@ func rootCommandFactories(runtime rootRuntime) gormescli.CommandFactories {
 			})
 		},
 		"auth":      func() *cobra.Command { return providermodule.NewAuthCommand(providerCommandOptions()) },
+		"login":     gormescli.NewDeprecatedLoginCommand,
 		"providers": func() *cobra.Command { return providermodule.NewProvidersCommand(providerCommandOptions()) },
 		"logout": func() *cobra.Command {
 			return gormescli.NewLogoutCommand(gormescli.LogoutSeams{
