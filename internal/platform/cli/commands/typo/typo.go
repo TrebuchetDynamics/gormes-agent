@@ -8,7 +8,7 @@ func TypoSuggestion(args []string) (string, bool) {
 	}
 	switch args[0] {
 	case "login":
-		return "Use `gormes auth add <provider> --type oauth` for provider OAuth.", true
+		return "The 'gormes login' command has been removed.\nUse 'gormes auth' to manage credentials,\n'gormes model' to select a provider, or 'gormes setup' for full setup.", true
 	case "onboard":
 		return "Use `gormes setup` for first-run setup, or `gormes doctor --offline --target terminal --json` for machine-readable readiness.", true
 	default:

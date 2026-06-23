@@ -7,15 +7,16 @@ import (
 
 func TestTypoSuggestionGuidesRemovedLoginCommand(t *testing.T) {
 	got, ok := TypoSuggestion([]string{"login"})
-	if !ok || !strings.Contains(got, "gormes auth add <provider> --type oauth") {
-		t.Fatalf("TypoSuggestion(login) = %q, %v; want auth add guidance", got, ok)
+	if !ok || !strings.Contains(got, "gormes login") || !strings.Contains(got, "gormes auth") ||
+		!strings.Contains(got, "gormes model") || !strings.Contains(got, "gormes setup") {
+		t.Fatalf("TypoSuggestion(login) = %q, %v; want Hermes-aligned three-alternative deprecation message", got, ok)
 	}
 }
 
 func TestTypoSuggestionDoesNotInspectLoginProviderArgValues(t *testing.T) {
 	got, ok := TypoSuggestion([]string{"login", "--provider", "plain-secret-provider", "--portal-url", "https://example.invalid"})
-	if !ok || !strings.Contains(got, "gormes auth add <provider> --type oauth") {
-		t.Fatalf("TypoSuggestion(login --provider ...) = %q, %v; want auth add guidance", got, ok)
+	if !ok || !strings.Contains(got, "gormes auth") {
+		t.Fatalf("TypoSuggestion(login --provider ...) = %q, %v; want auth guidance", got, ok)
 	}
 	if containsAny(got, "plain-secret-provider", "https://example.invalid") {
 		t.Fatalf("suggestion leaked arg value: %q", got)
