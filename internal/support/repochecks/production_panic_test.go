@@ -22,7 +22,7 @@ func TestProductionPanicsAreExplicitlyClassified(t *testing.T) {
 		"internal/planning/progress/split.go:266":                              "typed progress split key exhaustiveness invariant",
 		"internal/platform/cli/gormescli/contractruntime/setup_registry.go:72": "static CLI setup registry metadata invariant",
 		"internal/platform/cli/gormescli/plugins.go:23":                        "miswired plugin lifecycle manager programming error",
-		"internal/platform/cli/gormescli/rootruntime/root.go:208":              "static root command factory table invariant",
+		"internal/platform/cli/gormescli/rootruntime/root.go:209":              "static root command factory table invariant",
 		"internal/tools/browser_harness_backend.go:186":                        "nil transport programming error in constructor",
 		"internal/tools/discord/toolsets/toolset.go:226":                       "static Discord toolset registration invariant",
 		"internal/tools/goncho/honcho/adapter/tools.go:18":                     "nil registry programming error in tool registration",
