@@ -37,15 +37,17 @@ func TestCompactPairDescriptorContainsImportFields(t *testing.T) {
 	}
 	values := parsed.Query()
 	for key, want := range map[string]string{
-		"base_url":         "http://127.0.0.1:8765",
-		"websocket_url":    "ws://127.0.0.1:8765/v1/navivox/stream",
-		"capabilities_url": "http://127.0.0.1:8765/v1/navivox/capabilities",
-		"auth_mode":        "pairing_token",
-		"exposure_mode":    "local",
-		"rest_token":       "nvbx_qr",
+		"base_url":      "http://127.0.0.1:8765",
+		"websocket_url": "ws://127.0.0.1:8765/v1/navivox/stream",
+		"rest_token":    "nvbx_qr",
 	} {
 		if got := values.Get(key); got != want {
 			t.Fatalf("%s = %q, want %q", key, got, want)
+		}
+	}
+	for _, omitted := range []string{"capabilities_url", "auth_mode", "exposure_mode", "token_required"} {
+		if got := values.Get(omitted); got != "" {
+			t.Fatalf("compact descriptor kept %s=%q", omitted, got)
 		}
 	}
 }
@@ -61,6 +63,17 @@ func TestWritePNGCreatesPrivateQRCode(t *testing.T) {
 	}
 	if got := info.Mode().Perm(); got != 0o600 {
 		t.Fatalf("mode = %v, want 0600", got)
+	}
+}
+
+func TestForColumnsPrintsTailscalePairQRAtSixtyNineColumns(t *testing.T) {
+	descriptor := CompactPairDescriptor("pairing_token", "tailscale", "nvbx_k381IqJKd8SNw52ycedVaVrq6ccNYUH7zTuB0EpicYk", "http://100.97.156.104:8765", "ws://100.97.156.104:8765/v1/navivox/stream")
+	qr, err := ForColumns(descriptor, 69)
+	if err != nil {
+		t.Fatalf("ForColumns: %v", err)
+	}
+	if qr.TooNarrow || qr.Text == "" || qr.Width > 69 {
+		t.Fatalf("qr = %+v, want printable QR within 69 columns", qr)
 	}
 }
 
