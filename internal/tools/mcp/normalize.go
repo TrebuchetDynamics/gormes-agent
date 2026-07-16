@@ -38,6 +38,18 @@ func RenderToolCallResult(parts []StructuredContent) string {
 	return content.Render(parts)
 }
 
+// RenderCallResult renders one parsed tools/call result with server-aware
+// resource-link guidance. MCP error envelopes retain their model-facing text;
+// only an error with no renderable content falls back to the stable generic
+// message used by Hermes.
+func RenderCallResult(result CallResult, serverName string) string {
+	rendered := content.RenderForServer(result.Content, serverName)
+	if rendered == "" && result.IsError {
+		return "MCP tool returned an error"
+	}
+	return rendered
+}
+
 type StderrSink = mcpstderr.Sink
 
 func NewBoundedStderrSink(path string, tailBytes int) StderrSink {

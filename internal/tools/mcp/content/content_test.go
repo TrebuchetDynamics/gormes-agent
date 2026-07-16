@@ -25,6 +25,20 @@ func TestRenderToolCallResultStructuredContent(t *testing.T) {
 	}
 }
 
+func TestRenderForServerPreservesMixedResourceOrderAndWireName(t *testing.T) {
+	parts := []Structured{
+		{Kind: "text", Text: "File ID: F123"},
+		{Kind: "resource_link", URI: "slack://files/F123", Name: "report.pdf", MimeType: "application/pdf"},
+		{Kind: "resource", URI: "mem://notes", MimeType: "text/plain", Text: "embedded notes"},
+	}
+
+	got := RenderForServer(parts, "slack/team")
+	want := "File ID: F123\n[MCP resource link: uri=slack://files/F123, name=report.pdf, mimeType=application/pdf — fetch it with mcp__slack_team__read_resource]\nembedded notes"
+	if got != want {
+		t.Fatalf("RenderForServer() = %q, want %q", got, want)
+	}
+}
+
 func TestRenderToolCallResultUnknownContentKindFallsBackToText(t *testing.T) {
 	parts := []Structured{
 		{Kind: "unknown_xyz", Text: "fallback text"},

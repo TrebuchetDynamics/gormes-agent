@@ -22,6 +22,10 @@ func RenderToolCallResult(parts []StructuredContent) string {
 	return mcptools.RenderToolCallResult(parts)
 }
 
+func RenderMCPCallResult(result MCPCallResult, serverName string) string {
+	return mcptools.RenderCallResult(result, serverName)
+}
+
 func NewBoundedStderrSink(path string, tail int) StderrSink {
 	return mcptools.NewBoundedStderrSink(path, tail)
 }

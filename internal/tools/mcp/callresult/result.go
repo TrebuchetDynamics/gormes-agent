@@ -37,11 +37,13 @@ type rawToolCallResult struct {
 type rawToolCallContent struct {
 	Type     string `json:"type"`
 	Text     string `json:"text,omitempty"`
+	Name     string `json:"name,omitempty"`
 	MimeType string `json:"mimeType,omitempty"`
 	URI      string `json:"uri,omitempty"`
 	Resource *struct {
 		URI      string `json:"uri,omitempty"`
 		MimeType string `json:"mimeType,omitempty"`
+		Text     string `json:"text,omitempty"`
 	} `json:"resource,omitempty"`
 }
 
@@ -89,6 +91,7 @@ func normalizeContent(block rawToolCallContent) content.Structured {
 	out := content.Structured{
 		Kind:     block.Type,
 		Text:     block.Text,
+		Name:     block.Name,
 		MimeType: block.MimeType,
 		URI:      block.URI,
 	}
@@ -98,6 +101,9 @@ func normalizeContent(block rawToolCallContent) content.Structured {
 		}
 		if out.MimeType == "" {
 			out.MimeType = block.Resource.MimeType
+		}
+		if out.Text == "" {
+			out.Text = block.Resource.Text
 		}
 	}
 	return out
