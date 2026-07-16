@@ -2776,6 +2776,73 @@
   },
   {
     "phase": "5",
+    "subphase": "5.G",
+    "pos": 13,
+    "item": {
+      "name": "MCP resource-link and embedded-text result preservation",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "The MCP tools/call adapter preserves ResourceLink uri/name/mimeType metadata and nested EmbeddedResource text, renders mixed blocks in wire order, names the real mcp__<server>__read_resource tool in link guidance, and surfaces embedded text from isError results instead of replacing it with a generic failure.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "tools",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "A resource link without a URI renders nothing; an isError result with no renderable text returns the stable `MCP tool returned an error` fallback; binary embedded resources and AudioContent remain explicit follow-up work rather than being silently claimed by this text/link slice.",
+      "fixture": "internal/tools/mcp/callresult/result_test.go and internal/tools/mcp/content/content_test.go",
+      "source_refs": [
+        "hermes-agent/tools/mcp_tool.py@bb5fc723:_render_mcp_resource_block,_make_tool_handler",
+        "hermes-agent/tests/tools/test_mcp_resource_content.py@bb5fc723:TestRenderResourceBlock,TestErrorPathResourceText",
+        "hermes-agent commit 1d98f8dd9 (resource content materialization)",
+        "hermes-agent commit 284a3cd47 (real ResourceLink wire name and isError resource text)",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:MCP tools and managed gateway",
+        "internal/tools/mcp/callresult/result.go",
+        "internal/tools/mcp/content/content.go"
+      ],
+      "ready_when": [
+        "The in-repo Hermes checkout contains tools/mcp_tool.py at bb5fc723 and tests/tools/test_mcp_resource_content.py.",
+        "The existing public ParseCallResult and RenderToolCallResult adapter seams remain available under internal/tools/mcp."
+      ],
+      "not_ready_when": [
+        "The slice expands into binary resource/audio cache ownership, OAuth/session lifecycle, transport changes, or live MCP network fixtures.",
+        "The implementation drops unknown content blocks or changes existing image/resource placeholder behavior without regression coverage."
+      ],
+      "acceptance": [
+        "ParseCallResult preserves ResourceLink type, URI, name, and mimeType from a tools/call JSON fixture.",
+        "ParseCallResult promotes nested EmbeddedResource resource.text into the normalized model-facing content block without losing URI or mimeType.",
+        "Server-aware rendering preserves mixed text/resource block order and renders ResourceLink guidance containing URI, optional name/mimeType, and the exact mcp__<sanitized-server>__read_resource wire name.",
+        "Rendering an isError result includes nested EmbeddedResource text, while an empty error result uses `MCP tool returned an error`.",
+        "Unknown content kinds still fall back to text without leaking raw JSON or panicking."
+      ],
+      "note": "Fresh Hermes drift identified 2026-07-14 after advancing the in-repo submodule from a0471e246 to bb5fc723b. This first vertical slice closes text/link data loss only; binary EmbeddedResource and AudioContent cache materialization must remain a separately shaped row. Reconciled 2026-07-14 (implemented-feature-reconciliation): Go evidence in internal/tools/mcp/callresult, internal/tools/mcp/content, and internal/tools/mcp_normalize_test.go proves every acceptance and done_signal criterion (8 callresult/content tests plus TestRenderMCPCallResult_ErrorEmbeddedResourceText and TestRenderMCPCallResult_EmptyErrorFallback pass; ./internal/tools/... green; go build ./... clean). Upstream refs re-verified at Hermes HEAD bda8bd76a (bb5fc723 is an ancestor; _render_mcp_resource_block, _cache_mcp_audio_block, _make_tool_handler unchanged at HEAD). Row flipped planned->complete; binary EmbeddedResource + AudioContent cache atom remains missing as a separately shaped row.",
+      "write_scope": [
+        "internal/tools/mcp/callresult/result.go",
+        "internal/tools/mcp/callresult/result_test.go",
+        "internal/tools/mcp/content/content.go",
+        "internal/tools/mcp/content/content_test.go",
+        "internal/tools/mcp/normalize.go",
+        "internal/tools/mcp/client.go",
+        "internal/tools/mcp_normalize.go",
+        "internal/tools/mcp_normalize_test.go",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools/mcp/callresult ./internal/tools/mcp/content -count=1",
+        "go test ./internal/tools -run 'TestRenderMCPCallResult_' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Focused MCP parser/renderer tests prove ResourceLink metadata, embedded text, mixed ordering, exact reader wire-name guidance, and isError fallback behavior.",
+        "The Phase 5.G row is complete with exact Go evidence, and the MCP parity atom still names binary/audio materialization as the remaining gap."
+      ]
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.H",
     "pos": 0,
     "item": {

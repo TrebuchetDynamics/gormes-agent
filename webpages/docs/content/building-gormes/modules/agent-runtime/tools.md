@@ -10,9 +10,9 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module group:** Agent Runtime
 **Module:** `tools`
-**Rows:** 151
-**Status counts:** `complete`: 151 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 23 · `P1`: 57 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26
+**Rows:** 152
+**Status counts:** `complete`: 152 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P0`: 23 · `P1`: 58 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26
 
 ## Phase 3 — The Black Box (Memory)
 
@@ -109,6 +109,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `tools` | MCP circuit breaker cooldown + reconnect reset |
 | `complete` | `P2` | `tools` | MCP stdio orphan cleanup after cron ticks |
 | `complete` | `P1` | `tools` | Gormes-native MCP host runtime boundary |
+| `complete` | `P1` | `tools` | MCP resource-link and embedded-text result preservation |
 
 ### 5.H — ACP Integration
 

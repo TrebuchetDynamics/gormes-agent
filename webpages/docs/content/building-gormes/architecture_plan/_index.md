@@ -877,6 +877,7 @@ classification and row-backed implementation queue.
 - [x] `tools` MCP stdio orphan cleanup after cron ticks
 - [x] `tools` Gormes-native MCP host runtime boundary
 - [x] `channels` MCP channels_list tool
+- [x] `tools` MCP resource-link and embedded-text result preservation
 
 ### 5.H — ACP Integration ✅
 

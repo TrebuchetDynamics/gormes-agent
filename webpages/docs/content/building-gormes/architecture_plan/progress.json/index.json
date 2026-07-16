@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-06-08",
+    "last_updated": "2026-07-14",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -562,7 +562,7 @@
             "last_upstream_check": "2026-05-05T00:00:00Z",
             "origin_decision": "Hermes b816fd4e2 MCP tests add call-level circuit-breaker cooldown, half-open probe, reconnect reset, lifecycle-event precedence, and probe-cleanup coverage beyond Gormes' validated config/discovery/OAuth/browser-login/managed-gateway/orphan-cleanup rows. The next drift is a fake-clock MCP tool-call recovery seam, not another OAuth store or live MCP transport. Honcho MCP HONCHO_API_URL remains server-local MCP config and does not change internal Goncho memory naming."
           },
-          "item_count": 13
+          "item_count": 14
         },
         {
           "id": "5.H",
