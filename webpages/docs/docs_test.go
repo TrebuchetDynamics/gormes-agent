@@ -40,6 +40,7 @@ var (
 var upstreamHermesSupplementPages = map[string]struct{}{
 	"upstream-hermes/good-and-bad.md":                          {},
 	"upstream-hermes/gormes-takeaways.md":                      {},
+	"upstream-hermes/guides/build-a-hermes-plugin.md":          {},
 	"upstream-hermes/source-study.md":                          {},
 	"upstream-hermes/user-guide/features/automation/_index.md": {},
 	"upstream-hermes/user-guide/features/context/_index.md":    {},
