@@ -9,7 +9,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/app/mcplogin"
+	configpaths "github.com/TrebuchetDynamics/gormes-agent/internal/config/paths"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
+	mcpcatalog "github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/catalog"
+	mcpprobe "github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/probe"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/probe/sdkhttp"
 )
 
 const mcpRowBackedRow = "ACP server side"
@@ -20,8 +24,11 @@ type MCPLoginRuntime = mcplogin.Runtime
 type MCPLoginOptions = mcplogin.Options
 
 type MCPCommandOptions struct {
-	BuildProvenance func() BuildProvenance
-	ExitCodeError   func(int, error) error
+	BuildProvenance   func() BuildProvenance
+	ExitCodeError     func(int, error) error
+	Catalog           func() mcpcatalog.Catalog
+	MCPConfigPath     func() string
+	MCPProbeConnector mcpprobe.Connector
 }
 
 func (opts MCPCommandOptions) withDefaults() MCPCommandOptions {
@@ -30,6 +37,15 @@ func (opts MCPCommandOptions) withDefaults() MCPCommandOptions {
 	}
 	if opts.ExitCodeError == nil {
 		opts.ExitCodeError = NewExitCodeError
+	}
+	if opts.Catalog == nil {
+		opts.Catalog = mcpcatalog.Embedded
+	}
+	if opts.MCPConfigPath == nil {
+		opts.MCPConfigPath = configpaths.ConfigPath
+	}
+	if opts.MCPProbeConnector == nil {
+		opts.MCPProbeConnector = sdkhttp.NewConnector(nil)
 	}
 	return opts
 }
@@ -81,6 +97,9 @@ func NewMCPCommandWithRuntime(runtime MCPLoginRuntime, opts MCPCommandOptions) *
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON on invalid invocation: {build, action: 'unknown_subcommand', error}")
 	cmd.AddCommand(newMCPLoginCommand(runtime, opts))
+	cmd.AddCommand(newMCPCatalogCommand(opts))
+	cmd.AddCommand(newMCPInstallCommand(opts))
+	cmd.AddCommand(newMCPConfigCommands(opts)...)
 	cmd.AddCommand(newMCPRowBackedCommands(opts)...)
 	return cmd
 }
@@ -92,45 +111,11 @@ func newMCPRowBackedCommands(opts MCPCommandOptions) []*cobra.Command {
 			Short: "Run a Hermes-compatible MCP server",
 			Row:   mcpRowBackedRow,
 		}, opts),
-		newMCPRowBackedCommand(RowBackedCommandSpec{
-			Use:   "add <name>",
-			Short: "Add an MCP server",
-			Row:   mcpRowBackedRow,
-		}, opts),
-		newMCPRowBackedCommand(RowBackedCommandSpec{
-			Use:         "remove <name>",
-			Aliases:     []string{"rm"},
-			Short:       "Remove an MCP server",
-			Row:         mcpRowBackedRow,
-			Destructive: true,
-			FlagSet:     mcpUnavailableYesFlag,
-		}, opts),
-		newMCPRowBackedCommand(RowBackedCommandSpec{
-			Use:     "list",
-			Aliases: []string{"ls"},
-			Short:   "List MCP servers",
-			Row:     mcpRowBackedRow,
-		}, opts),
-		newMCPRowBackedCommand(RowBackedCommandSpec{
-			Use:   "test <name>",
-			Short: "Test an MCP server",
-			Row:   mcpRowBackedRow,
-		}, opts),
-		newMCPRowBackedCommand(RowBackedCommandSpec{
-			Use:     "configure <name>",
-			Aliases: []string{"config"},
-			Short:   "Configure an MCP server",
-			Row:     mcpRowBackedRow,
-		}, opts),
 	}
 }
 
 func newMCPRowBackedCommand(spec RowBackedCommandSpec, opts MCPCommandOptions, children ...*cobra.Command) *cobra.Command {
 	return NewRowBackedCommand(spec, RowBackedCommandOptions{BuildProvenance: opts.BuildProvenance}, children...)
-}
-
-func mcpUnavailableYesFlag(cmd *cobra.Command) {
-	cmd.Flags().BoolP("yes", "y", false, "skip confirmation")
 }
 
 func newMCPLoginCommand(runtime MCPLoginRuntime, opts MCPCommandOptions) *cobra.Command {

@@ -184,7 +184,7 @@ func TestWideE2E_UserBootstrapJourneyKeepsSecretsRedactedAndCoreFeaturesUsable(t
 		{name: "skills_inventory", args: []string{"skills", "list"}, want: []string{"builtin"}},
 		{name: "learning_loop_status", args: []string{"curator", "status", "--json"}, want: []string{"state", "skills"}},
 		{name: "learning_loop_dry_run", args: []string{"curator", "run", "--dry-run", "--sync", "--json"}, want: []string{"dry_run", "curator skipped"}},
-		{name: "mcp_inventory", args: []string{"mcp", "list"}, exitCode: 2, want: []string{"row-backed in Gormes"}},
+		{name: "mcp_inventory", args: []string{"mcp", "list"}, want: []string{"No MCP servers are configured in the active Gormes profile"}},
 		{name: "kanban_init", args: []string{"kanban", "init", "--json"}, want: []string{"initialized", "kanban.db"}},
 		{name: "kanban_list", args: []string{"kanban", "list", "--json"}, want: []string{"tasks"}},
 		{name: "session_inventory", args: []string{"session", "list", "--json"}, want: []string{"sessions"}},

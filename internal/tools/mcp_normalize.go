@@ -12,6 +12,7 @@ type NormalizedTool = mcptools.NormalizedTool
 type SchemaRejection = mcptools.SchemaRejection
 type NormalizeResult = mcptools.NormalizeResult
 type StructuredContent = mcptools.StructuredContent
+type MCPRenderOptions = mcptools.RenderOptions
 type StderrSink = mcptools.StderrSink
 
 func NormalizeTools(serverName string, raw []MCPRawTool) NormalizeResult {
@@ -24,6 +25,10 @@ func RenderToolCallResult(parts []StructuredContent) string {
 
 func RenderMCPCallResult(result MCPCallResult, serverName string) string {
 	return mcptools.RenderCallResult(result, serverName)
+}
+
+func RenderMCPCallResultWithOptions(result MCPCallResult, opts MCPRenderOptions) string {
+	return mcptools.RenderCallResultWithOptions(result, opts)
 }
 
 func NewBoundedStderrSink(path string, tail int) StderrSink {

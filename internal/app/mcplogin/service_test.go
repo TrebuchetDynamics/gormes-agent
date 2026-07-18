@@ -3,9 +3,11 @@ package mcplogin
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config/configwriter"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -83,6 +85,32 @@ func TestRunLoadConfigErrorIsTypedForExit2Wrapper(t *testing.T) {
 	}
 	if got := ExitCodeForError(err); got != 2 {
 		t.Fatalf("ExitCodeForError = %d, want 2", got)
+	}
+}
+
+func TestLoadDefaultMCPConfigReadsActiveGormesProfile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("HERMES_HOME", filepath.Join(t.TempDir(), "must-not-read"))
+	path := filepath.Join(home, "config.toml")
+	if err := configwriter.WriteTOMLAtomic(path, map[string]any{
+		"mcp_servers": map[string]any{
+			"linear": map[string]any{
+				"url":     "https://mcp.linear.app/mcp",
+				"enabled": true,
+				"auth":    "oauth",
+			},
+		},
+	}); err != nil {
+		t.Fatalf("WriteTOMLAtomic: %v", err)
+	}
+
+	resolved, err := LoadDefaultMCPConfig()
+	if err != nil {
+		t.Fatalf("LoadDefaultMCPConfig: %v", err)
+	}
+	if len(resolved.Servers) != 1 || resolved.Servers[0].Name != "linear" || resolved.Servers[0].URL != "https://mcp.linear.app/mcp" {
+		t.Fatalf("servers = %#v", resolved.Servers)
 	}
 }
 

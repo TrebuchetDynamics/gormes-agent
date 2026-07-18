@@ -1,0 +1,54 @@
+# Nous-approved MCP catalog entry.
+# Presence in this directory = approval. Merged via PR review.
+manifest_version: 1
+
+name: n8n
+description: Manage and inspect n8n workflows from Gormes (stdio bridge, no public port).
+source: https://github.com/CyberSamuraiX/hermes-n8n-mcp
+
+transport:
+  type: stdio
+  command: "${INSTALL_DIR}/.venv/bin/python"
+  args:
+    - "${INSTALL_DIR}/server.py"
+
+install:
+  type: git
+  url: https://github.com/CyberSamuraiX/hermes-n8n-mcp.git
+  ref: main
+  bootstrap:
+    - "python3 -m venv .venv"
+    - ".venv/bin/pip install -r requirements.txt"
+
+auth:
+  type: api_key
+  env:
+    - name: N8N_BASE_URL
+      prompt: "n8n instance URL"
+      default: "http://127.0.0.1:5678"
+      required: true
+      secret: false
+    - name: N8N_API_KEY
+      prompt: "n8n API key (generate under Settings → API)"
+      required: true
+      secret: true
+
+tools:
+  default_enabled:
+    - health
+    - list_workflows
+    - get_workflow
+    - find_workflows
+    - list_executions
+    - get_execution
+    - recent_failures
+    - export_workflow
+
+post_install: |
+  The n8n bridge expects to talk to a running n8n instance over the URL you
+  provided. Generate an API key in n8n under Settings → API.
+
+  Workflow activate/deactivate calls are real mutations against your live n8n.
+  Treat them carefully.
+
+  Start a new Gormes session to load the n8n tools.

@@ -2,6 +2,7 @@ package probe
 
 import (
 	"context"
+	"errors"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/descriptor"
@@ -14,6 +15,35 @@ type Session interface {
 }
 
 type Connector func(context.Context, config.MCPServerDefinition) (Session, error)
+
+var ErrConnectorUnavailable = errors.New("mcp probe connector unavailable")
+
+// One connects to exactly one validated server, lists its tools, and closes the
+// temporary session. It preserves errors for operator-facing classification;
+// the older bulk ServerTools helper intentionally keeps its lossy best-effort
+// semantics.
+func One(ctx context.Context, server config.MCPServerDefinition, connect Connector) (tools []descriptor.RawTool, err error) {
+	if connect == nil {
+		return nil, ErrConnectorUnavailable
+	}
+	session, err := connect(ctx, cloneServerDefinition(server))
+	if err != nil {
+		return nil, err
+	}
+	if session == nil {
+		return nil, ErrConnectorUnavailable
+	}
+	defer func() {
+		if closeErr := session.Close(); err == nil && closeErr != nil {
+			err = closeErr
+		}
+	}()
+	tools, err = session.ListTools(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return cloneRawTools(tools), nil
+}
 
 func ServerTools(ctx context.Context, servers []config.MCPServerDefinition, connect Connector) map[string][]descriptor.RawTool {
 	out := map[string][]descriptor.RawTool{}

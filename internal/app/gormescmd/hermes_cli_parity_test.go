@@ -199,6 +199,15 @@ func TestHermesCLIParityManifestNoUnknowns(t *testing.T) {
 	}
 }
 
+func TestHermesCLIParityManifestClassifiesConcreteMCPCommands(t *testing.T) {
+	for _, path := range [][]string{{"mcp", "add"}, {"mcp", "remove"}, {"mcp", "rm"}, {"mcp", "list"}, {"mcp", "ls"}, {"mcp", "test"}, {"mcp", "configure"}, {"mcp", "config"}, {"mcp", "login"}} {
+		entry := requireHermesCLIEntry(t, path)
+		if entry.Status != hermesCLIImplemented || entry.Target == "" {
+			t.Fatalf("MCP entry %v = %+v, want implemented target", path, entry)
+		}
+	}
+}
+
 func TestHermesCLIParityManifestParserCommandsResolveInCobra(t *testing.T) {
 	root := newRootCommandWithRuntime(rootRuntime{})
 	var missing []string
@@ -221,7 +230,6 @@ func TestHermesCLIParityRowBackedCommandsEmitStructuredUnavailableJSON(t *testin
 	cases := [][]string{
 		{"webhook", "subscribe", "--json"},
 		{"hooks", "revoke", "--json"},
-		{"mcp", "list", "--json"},
 		{"skills", "tap", "add", "--json"},
 		{"memory", "reset", "--json"},
 		{"kanban", "assign", "--json"},

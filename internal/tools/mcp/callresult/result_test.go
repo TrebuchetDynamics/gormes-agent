@@ -68,6 +68,31 @@ func TestParsePreservesResourceLinkMetadataAndEmbeddedText(t *testing.T) {
 	}
 }
 
+func TestParsePreservesAudioDataAndEmbeddedResourceBlob(t *testing.T) {
+	raw := json.RawMessage(`{
+		"content":[
+			{"type":"audio","data":"YXVkaW8=","mimeType":"audio/wav"},
+			{"type":"resource","resource":{"uri":"file:///reports/q1.pdf","mimeType":"application/pdf","blob":"cGRm"}}
+		]
+	}`)
+
+	got, err := Parse(raw)
+	if err != nil {
+		t.Fatalf("Parse returned error: %v", err)
+	}
+	if len(got.Content) != 2 {
+		t.Fatalf("Content = %#v, want audio and embedded resource", got.Content)
+	}
+	audio := got.Content[0]
+	if audio.Kind != "audio" || audio.Data != "YXVkaW8=" || audio.MimeType != "audio/wav" {
+		t.Fatalf("audio = %#v, want preserved type/data/mimeType", audio)
+	}
+	resource := got.Content[1]
+	if resource.Kind != "resource" || resource.Blob != "cGRm" || resource.URI != "file:///reports/q1.pdf" || resource.MimeType != "application/pdf" {
+		t.Fatalf("resource = %#v, want preserved blob/uri/mimeType", resource)
+	}
+}
+
 func TestParseIgnoresNullStructuredContent(t *testing.T) {
 	for _, raw := range []json.RawMessage{
 		nil,

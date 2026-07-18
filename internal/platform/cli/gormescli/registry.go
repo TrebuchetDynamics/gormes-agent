@@ -7,17 +7,24 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills/guard"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/probe/sdkhttp"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/remote"
+	mcpruntime "github.com/TrebuchetDynamics/gormes-agent/internal/tools/mcp/runtime"
 )
 
 type registryOptions struct {
-	searchDB       *sql.DB
-	searchSessions SessionSearchDirectory
+	searchDB            *sql.DB
+	searchSessions      SessionSearchDirectory
+	mcpConnector        remote.Connector
+	mcpConnectorSet     bool
+	mcpDiscoveryTimeout time.Duration
 }
 
 type RegistryOpt func(*registryOptions)
@@ -26,6 +33,17 @@ func WithSessionSearch(db *sql.DB, sessions SessionSearchDirectory) RegistryOpt 
 	return func(o *registryOptions) {
 		o.searchDB = db
 		o.searchSessions = sessions
+	}
+}
+
+// WithMCPRuntimeConnector overrides the configured MCP runtime transport.
+// Passing nil explicitly disables MCP runtime registration; tests use this to
+// prove pre-network gates without opening sockets.
+func WithMCPRuntimeConnector(connector remote.Connector, discoveryTimeout time.Duration) RegistryOpt {
+	return func(o *registryOptions) {
+		o.mcpConnector = connector
+		o.mcpConnectorSet = true
+		o.mcpDiscoveryTimeout = discoveryTimeout
 	}
 }
 
@@ -118,9 +136,9 @@ func BuildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 		reg.MustRegister(tool)
 	}
 	reg.MustRegister(tools.NewSkillManagerTool(tools.SkillManagerToolConfig{
-		Root:             cfg.SkillsRoot(),
+		Root:              cfg.SkillsRoot(),
 		GuardAgentCreated: cfg.GuardAgentCreatedSkills(),
-		GuardScanner:     guard.ScanSkillToError,
+		GuardScanner:      guard.ScanSkillToError,
 	}))
 	RegisterKanbanTools(reg)
 	for _, tool := range tools.NewBrowserHarnessTools(tools.BrowserHarnessToolsConfig{
@@ -140,6 +158,18 @@ func BuildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 		ChildClient: childClient,
 		ChildModel:  childModel,
 	})
+	if len(cfg.MCPServers) > 0 {
+		connector := o.mcpConnector
+		if !o.mcpConnectorSet {
+			connector = sdkhttp.NewSessionConnector(nil)
+		}
+		if connector != nil {
+			mcpruntime.RegisterConfiguredHTTP(parentCtx, reg, cfg.MCPServers, connector, mcpruntime.Options{
+				ArtifactRoot:     filepath.Join(config.GormesHome(), "cache", "mcp"),
+				DiscoveryTimeout: o.mcpDiscoveryTimeout,
+			})
+		}
+	}
 	return reg
 }
 

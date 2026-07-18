@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config/mcpstore"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -87,5 +88,5 @@ func ExitCodeForError(err error) int {
 }
 
 func LoadDefaultMCPConfig() (tools.MCPConfigResolution, error) {
-	return tools.MCPConfigResolution{}, nil
+	return (mcpstore.Store{}).Load(tools.MCPConfigOptions{})
 }

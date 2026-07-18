@@ -11,9 +11,10 @@ import (
 )
 
 type fakeSession struct {
-	tools  []descriptor.RawTool
-	err    error
-	closed bool
+	tools    []descriptor.RawTool
+	err      error
+	closeErr error
+	closed   bool
 }
 
 func (s *fakeSession) ListTools(context.Context) ([]descriptor.RawTool, error) {
@@ -25,7 +26,44 @@ func (s *fakeSession) ListTools(context.Context) ([]descriptor.RawTool, error) {
 
 func (s *fakeSession) Close() error {
 	s.closed = true
-	return nil
+	return s.closeErr
+}
+
+func TestOnePreservesErrorsClosesAndCopiesResult(t *testing.T) {
+	schema := json.RawMessage(`{"type":"object"}`)
+	session := &fakeSession{tools: []descriptor.RawTool{{Name: "ok", InputSchema: schema}}}
+	original := config.MCPServerDefinition{Name: "srv", Enabled: true, Headers: map[string]string{"Authorization": "secret"}}
+	tools, err := One(context.Background(), original, func(_ context.Context, def config.MCPServerDefinition) (Session, error) {
+		def.Headers["Authorization"] = "mutated"
+		return session, nil
+	})
+	if err != nil {
+		t.Fatalf("One: %v", err)
+	}
+	if !session.closed || original.Headers["Authorization"] != "secret" || len(tools) != 1 {
+		t.Fatalf("closed=%v original=%+v tools=%+v", session.closed, original, tools)
+	}
+	schema[0] = '['
+	if string(tools[0].InputSchema) != `{"type":"object"}` {
+		t.Fatalf("schema aliases session: %s", tools[0].InputSchema)
+	}
+
+	wantClose := errors.New("close failed")
+	_, err = One(context.Background(), original, func(context.Context, config.MCPServerDefinition) (Session, error) {
+		return &fakeSession{closeErr: wantClose}, nil
+	})
+	if !errors.Is(err, wantClose) {
+		t.Fatalf("close error = %v", err)
+	}
+	if _, err := One(context.Background(), original, nil); !errors.Is(err, ErrConnectorUnavailable) {
+		t.Fatalf("nil connector error = %v", err)
+	}
+	wantConnect := errors.New("connect failed")
+	if _, err := One(context.Background(), original, func(context.Context, config.MCPServerDefinition) (Session, error) {
+		return nil, wantConnect
+	}); !errors.Is(err, wantConnect) {
+		t.Fatalf("connect error = %v", err)
+	}
 }
 
 func TestServerToolsSkipsDisabledAndCleansUp(t *testing.T) {

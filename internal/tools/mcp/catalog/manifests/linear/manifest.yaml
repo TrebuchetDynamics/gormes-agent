@@ -1,0 +1,21 @@
+# Nous-approved MCP catalog entry.
+# Presence in this directory = approval. Merged via PR review.
+manifest_version: 1
+
+name: linear
+description: Find, create, and update Linear issues, projects, and comments.
+source: https://linear.app/docs/mcp
+
+transport:
+  type: http
+  url: https://mcp.linear.app/mcp
+
+auth:
+  type: oauth
+
+post_install: |
+  On first connection, Gormes will open a browser to authenticate with Linear.
+  After auth, restart your Gormes session so the Linear tools are loaded.
+
+  You can re-run the tool checklist any time with:
+    gormes mcp configure linear

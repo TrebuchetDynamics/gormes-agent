@@ -8,7 +8,7 @@ import (
 )
 
 func TestConfigSchemaAllowedSectionsAndList(t *testing.T) {
-	for _, section := range []string{"hermes", "router", "profiles", "credentials", "telegram", "navivox", "updates"} {
+	for _, section := range []string{"hermes", "router", "profiles", "credentials", "telegram", "navivox", "mcp_servers", "updates"} {
 		if !AllowsSection(section) {
 			t.Fatalf("AllowsSection(%q) = false, want true", section)
 		}
