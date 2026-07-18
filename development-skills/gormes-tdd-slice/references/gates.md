@@ -27,6 +27,14 @@ go test ./cmd/gormes ./internal/platform/cli ./internal/platform/doctor -count=1
 go test ./internal/planning/progress -count=1
 ```
 
+## Security-Sensitive Gates
+
+For filesystem, process, network, secret, or durable-state changes, require the
+row to define trust ownership and applicable path/symlink/cap/timeout/redaction
+policy. Focused fixtures must use `t.TempDir`, fake transport/process seams, and
+include the named fail-closed cases. If policy is absent, return to planner;
+tests must not decide product security policy implicitly.
+
 ## Parity-Focused Gates
 
 - Goncho/Honcho: public `honcho_*` compatibility behavior, local Goncho

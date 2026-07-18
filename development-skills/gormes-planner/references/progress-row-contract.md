@@ -23,6 +23,45 @@ Use these fields when the schema allows them:
 - `done_signal`: final evidence the builder should report.
 - `provenance`: `upstream`, `gormes`, or `hybrid`; avoid fake upstream refs.
 
+Allowed schema values must come from `internal/planning/progress`, not planner
+invention:
+
+- `trust_class`: `operator`, `gateway`, `child-agent`, `system`.
+- `execution_owner`: `docs`, `gateway`, `memory`, `provider`, `tools`,
+  `skills`, `orchestrator`, `tui`, or `goncho`.
+- `contract_status`: `missing`, `draft`, `fixture_ready`, or `validated`.
+- `slice_size`: `small`, `medium`, `large`, or non-executable `umbrella`.
+
+A repo builder row must keep every `write_scope` path under the current repo.
+External paths, placeholders such as `(separate repo)`, or optional alternatives
+make the row non-repo-scoped until split.
+
+## Security-Sensitive Row Readiness
+
+Rows that read files, resolve profile paths, execute processes, make outbound
+requests, expose secrets, or mutate durable state stay `draft` until policy is
+explicit. Put unresolved choices in `not_ready_when`; use
+`gormes-interface-designer` when the caller-facing API is unclear.
+
+Before `fixture_ready`, the row must state as applicable:
+
+- who controls the config/input and its `trust_class`;
+- injected root/home and allowed relative, absolute, tilde, and environment
+  expansion forms;
+- traversal and symlink policy, file type/size/encoding limits, and whether
+  reads may escape the injected root;
+- executable allow/root policy, argv (no shell interpolation), cwd,
+  environment scrubbing, timeout, output cap, and cancellation;
+- network allowlist/redirect/timeout/body-cap policy;
+- secret redaction and durable-write/atomicity behavior;
+- fail-closed degraded evidence and hermetic `t.TempDir`/fake-transport
+  fixtures, including escape, missing, malformed, and oversized cases.
+
+Do not use a developer's live `~/.gormes`, `~/.hermes`, credentials, network,
+or process environment as the fixture. If compatibility requires a broader
+upstream policy such as absolute paths, record the risk and owner decision
+instead of silently narrowing or broadening it.
+
 ## Inventory And Umbrella Parent Rows
 
 If you add `contract` or `contract_status` to a broad `slice_size: umbrella`
@@ -98,6 +137,23 @@ validation, and the relevant docs tests pass.
 Never edit an existing row's `health` block by hand. It is historical runtime
 evidence and must be preserved verbatim when reshaping a row. If splitting a
 row, the new rows naturally start without the old health block.
+
+## Split-Layout Mutation Receipt
+
+Before a typed save, record `git status --short`. Use
+`internal/planning/progress.Load` / `SaveProgress`; do not decode or edit module
+JSON directly. After saving:
+
+1. inspect changed `progress.json/modules/*` files;
+2. keep the intended module and any module already dirty before the pass;
+3. restore only incidental serialization changes to modules that were clean and
+   unrelated before the pass;
+4. run `go run ./cmd/progress write` and validate;
+5. when totals changed, update
+   `architecture_plan/completion-plan.md` and run
+   `TestCompletionPlanCurrentFinishLedgerMatchesProgress`.
+
+Never use a broad checkout/reset command over pre-existing dirty planning work.
 
 ## No Parallel Backlog
 

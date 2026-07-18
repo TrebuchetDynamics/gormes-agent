@@ -33,6 +33,85 @@ BAD_PATTERNS = {
 }
 
 REQUIRED_SNIPPETS = {
+    "gormes-builder": {
+        "SKILL.md": [
+            "next-work says decision=build",
+            "references/planner-handoff.md",
+            "git status --short",
+            "may leave an umbrella parity atom `partial`",
+            "internal/planning/progress.Load",
+            "repair_reason=security_policy_missing",
+            "red_command:",
+            "next_selector:",
+            "unreplicated",
+        ],
+        "references/planner-handoff.md": [
+            "selector_output:",
+            "first_red_fixture:",
+            "exclusions:",
+            "planner_action:",
+        ],
+        "references/delivery-gates.md": [
+            "git status --short",
+            "TestCompletionPlanCurrentFinishLedgerMatchesProgress",
+            "RED Receipt",
+            "Security-Sensitive Policy",
+            "keep that atom `partial`",
+        ],
+        "agents/openai.yaml": [
+            "decision=plan",
+            "decision=build",
+            "typed progress state",
+        ],
+    },
+    "gormes-planner": {
+        "SKILL.md": [
+            "Decision=Plan Fast Path",
+            "internal/planning/progress.Load",
+            "TestCompletionPlanCurrentFinishLedgerMatchesProgress",
+            "Do not edit runtime",
+            "references/specialized-lanes.md",
+            "../gormes-builder/references/planner-handoff.md",
+            "security-sensitive readiness gate",
+            "selector_result:",
+            "unreplicated",
+        ],
+        "references/progress-row-contract.md": [
+            "`operator`, `gateway`, `child-agent`, `system`",
+            "Security-Sensitive Row Readiness",
+            "traversal and symlink policy",
+            "Split-Layout Mutation Receipt",
+            "TestCompletionPlanCurrentFinishLedgerMatchesProgress",
+        ],
+        "references/specialized-lanes.md": [
+            "CLI, Config, And Migration Parity",
+            "Persona, Templates, Skills, And Reset Defaults",
+            "External Review Feedback Ingestion",
+        ],
+        "agents/openai.yaml": [
+            "decision=plan",
+            "typed progress tooling",
+            "never implement runtime code",
+        ],
+    },
+    "gormes-tdd-slice": {
+        "SKILL.md": [
+            "fresh repo-only `decision=build`",
+            "../gormes-builder/references/planner-handoff.md",
+            "git status --short",
+            "Missing policy routes back to planner before RED",
+            "red: <exact command/test/observable reason>",
+            "unreplicated",
+        ],
+        "references/gates.md": [
+            "Security-Sensitive Gates",
+            "tests must not decide product security policy implicitly",
+        ],
+        "agents/openai.yaml": [
+            "selected row or reproduced bug",
+            "decision=plan",
+        ],
+    },
     "cmd-internal-refactor": {
         "SKILL.md": [
             "internal/platform/cli/gormescli",

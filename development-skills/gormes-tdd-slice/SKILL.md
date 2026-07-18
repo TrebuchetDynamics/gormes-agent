@@ -1,6 +1,6 @@
 ---
 name: gormes-tdd-slice
-description: Build or fix one Gormes behavior with tests. Use for TDD, red-green-refactor, progress-row implementation, or Goncho/Hermes parity slices.
+description: Build one selected Gormes behavior with red-green-refactor. Use when the row or reproduced bug defines a test target. Do not use after decision=plan or for broad planning.
 ---
 
 # Gormes TDD Slice
@@ -29,7 +29,7 @@ when absent. Resolve it as `$HERMES_SRC` before writing parity tests.
 
 ### 1. Select One Behavior
 
-Use the selected logical progress row or route to `gormes-planner` to create/refine one. State:
+Use the selected logical progress row or route to `gormes-planner` to create/refine one. When invoked after `gormes-builder`, require fresh repo-only `decision=build`; if it says `decision=plan`, do not invent a test target—stop with the canonical [builder-to-planner handoff](../gormes-builder/references/planner-handoff.md). State:
 
 - public interface under test;
 - feature-map target or upstream concept;
@@ -59,7 +59,11 @@ The failing test should prove the feature-map behavior through a public
 contract. Avoid private helper tests unless the progress row explicitly makes
 that helper the exported contract for the slice.
 
-Run the focused test and confirm it fails for the right reason.
+Run the focused test and record the exact command, test name, and observable
+failure reason. A missing symbol may be valid RED when the selected public API
+does not exist yet; an unrelated syntax error, missing dependency, stale
+fixture, or harness setup failure is not. After GREEN/refactor, rerun that same
+command and retain both receipts.
 
 For visual/output regressions, prefer explicit artifact tests:
 
@@ -104,6 +108,11 @@ For runtime-lock or installer-adjacent tests, isolate state with
 home. Never make a test pass by depending on the developer's live
 `workspace-gormes`, `workspace-mineru`, `~/.gormes`, or `~/.hermes` paths.
 
+For filesystem/process/network/security rows, use `t.TempDir`, fake transports,
+and inert executables. Cover the row's named escape/symlink, missing,
+malformed, oversized, timeout, and redaction cases; do not infer policy that is
+absent from the selected row. Missing policy routes back to planner before RED.
+
 ### 3. GREEN
 
 Write the smallest implementation that passes this test. Stay inside write scope. Do not add speculative future behavior.
@@ -133,10 +142,36 @@ Only refactor after tests pass. Prefer deep modules: small interface, substantia
 Run focused package tests, then `go test ./... -count=1` for the affected packages, and the gates in `references/gates.md`.
 
 If the working tree contains unrelated user or parallel-agent changes, do not
-revert them. Run the focused tests for the selected behavior first, then broaden
-only as far as the current tree permits. If unrelated failures block a full
-gate, report them separately with file paths and failure commands.
+revert them. Record `git status --short` before and after the slice so untracked
+new tests/implementation files are reviewed. Run focused tests for the selected
+behavior first, then broaden only as far as the current tree permits. If
+unrelated failures block a full gate, report them separately with exact test
+names, file paths, and commands.
 
-## Final Report
+## Example
 
-Report red-green cycles, feature-map target, behavior shipped, tests run, progress/parity status before/after, and the Hermes source refs used to verify the behavior.
+A selected profile-backed `in_file` row defines root, absolute/symlink, size,
+and degraded policy. RED proves a matching temp watchlist is ignored today for
+the expected missing operator; GREEN proves acceptance plus fail-closed escape
+and oversized fixtures. If policy is absent, stop before RED and return planner
+handoff.
+
+Behavioral evaluation: this scenario is pinned for deterministic review, but
+no paid paired model run was approved; the skill improvement is unreplicated.
+
+## Output Contract
+
+```text
+behavior: <selected public contract>
+red: <exact command/test/observable reason>
+green: <same command and result>
+refactor: <change and rerun receipt, or none>
+files: <tracked/untracked paths>
+validation: <focused and broad receipts>
+progress_parity: <before→after or unchanged reason>
+upstream: <exact source symbols/tests>
+remaining: <gaps/blockers or none>
+```
+
+If no selected behavior exists or security policy is missing, emit the builder
+to planner handoff instead of this completion receipt.

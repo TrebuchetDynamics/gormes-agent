@@ -1,4 +1,4 @@
 interface:
   display_name: "Gormes Builder"
-  short_description: "Build Gormes from progress.json rows."
-  default_prompt: "Use $gormes-builder to select a builder-ready progress.json row, implement the Gormes slice with tests, and preserve Hermes parity evidence from ./hermes-agent."
+  short_description: "Implement one selected Gormes row or hand decision=plan to planner."
+  default_prompt: "Use $gormes-builder to rerun repo-only selection, stop with the exact planner handoff when decision=plan, or record RED then TDD one selected row when decision=build; reject unresolved security policy, preserve dirty work, typed progress state, and parity evidence."

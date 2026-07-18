@@ -1,6 +1,6 @@
 ---
 name: gormes-builder
-description: Implement one builder-ready Gormes progress row with tests. Use for Go runtime/docs/web changes, Goncho/Hermes parity slices, TDD/e2e verification, or delivery continuation.
+description: Implement one selected repo-scoped Gormes row with tests. Use when next-work says decision=build. Do not use for decision=plan, broad parity audits, or untracked feature ideas.
 ---
 
 # Gormes Builder
@@ -65,7 +65,7 @@ go run ./cmd/progress next-work
 go run ./cmd/progress next-work --repo-only
 ```
 
-Do not rely on a pasted or earlier `next-work` result after planner/progress files have changed. If `next-work --repo-only` returns `decision=build`, treat that row as the selected builder row even when its `contract_status` is `draft`; the progress selector is authoritative. If `next-work --repo-only` returns `decision=plan`, stop runtime work and emit a planner task packet naming the blocked/vague rows or parity atoms that need sharpening.
+Do not rely on a pasted or earlier `next-work` result after planner/progress files have changed. If `next-work --repo-only` returns `decision=build`, treat that row as the selected builder row even when its `contract_status` is `draft`; the progress selector is authoritative. If `next-work --repo-only` returns `decision=plan`, stop runtime work and emit the exact [builder-to-planner handoff](references/planner-handoff.md). Do not let `gormes-tdd-slice` invent an untracked behavior.
 
 Before selecting implementation work, run a stale-classification preflight for the candidate cluster. This prevents duplicate builds when Gormes already implements behavior but the evidence doc still says `missing`:
 
@@ -125,6 +125,12 @@ Before editing, build a short builder packet:
 - degraded mode;
 - done signal.
 
+For filesystem, process, network, secret, or durable-state rows, apply the
+planner row contract's security-sensitive readiness checklist. If path roots,
+symlinks, caps, environment, timeout, redaction, atomicity, or trust ownership
+are unresolved, do not guess in code; emit a planner packet with
+`repair_reason=security_policy_missing`.
+
 ### 2. Write Or Confirm A Failing Test
 
 Use TDD unless the row is explicitly `no_test_required`.
@@ -144,7 +150,16 @@ Use TDD unless the row is explicitly `no_test_required`.
 - For channel-visible tool-loop rows, include a fixture that proves the raw
   budget error, leaked tool-call XML/text, and duplicate final send are absent.
 
-Run the focused test and capture the failure before implementing when feasible.
+Run the focused test and capture a RED receipt before implementation:
+
+```text
+red_command: <exact focused command>
+red_test: <test name>
+red_reason: <observable missing/wrong behavior, not an unrelated compile/setup failure>
+```
+
+If RED is infeasible, use the row's explicit `no_test_required` reason or stop;
+do not describe a green-only check as TDD.
 
 Use tracer-bullet TDD. Write one behavior test, make it pass, then repeat. Do not write all imagined tests first and then all implementation. Good tests verify observable behavior through public interfaces and survive internal refactors.
 
@@ -167,6 +182,12 @@ go test ./... -count=1
 go run ./cmd/progress validate
 ```
 
+When the tree is already dirty, record pre-pass dirty paths and, when affordable,
+the known full-gate failures. After implementation, inspect `git status --short`
+as well as `git diff`; ordinary diff output omits untracked new files. Own every
+new failure in touched packages. Report unrelated full-suite failures with exact
+test names/commands instead of weakening focused gates.
+
 Use `references/delivery-gates.md` to decide when docs, web, Playwright, or orchestrator suites are required.
 
 If implementation changes a feature-map claim, update the row or send the work
@@ -178,7 +199,9 @@ implemented, do not silently build against them. Patch the row or hand it to
 
 ### 5. Update Surfaces
 
-If implementation changes public behavior, update the matching docs, generated data, or website content. If the behavior is fully implemented, update the progress row and any parity evidence status from missing/partial to covered with exact files and validation.
+If implementation changes public behavior, update the matching docs, generated data, or website content. Mark the selected row complete/validated only when every acceptance bullet is proven. A completed narrow row may leave an umbrella parity atom `partial`; promote an atom to `covered` only when no named behavior gap remains.
+
+Update progress through `internal/planning/progress.Load` / `SaveProgress`, then regenerate and validate. Preserve pre-existing dirty module files, inspect split-layout serialization changes, and reconcile the completion ledger when row totals/open counts change; use the planner [row contract](../gormes-planner/references/progress-row-contract.md) for mutation hygiene.
 
 Never create a parallel backlog. Missing follow-up work goes into logical progress rows; parity evidence docs may carry source-backed classification details.
 
@@ -196,21 +219,37 @@ For complex rows, use `gormes-tdd-slice` for the red-green loop. For uncertain A
 
 If tests fail from your own changes, fix them before reporting done. If the selected row is unbuildable because the parity classification is wrong, update the progress/evidence surface or report the exact blocker.
 
-A valid blocked report must include the fresh `next-work --repo-only` output, the exact selected row or `decision=plan` reason, and the smallest planner repair packet. Do not say "no builder-ready rows" when the fresh command prints `decision=build`.
+A valid blocked report must follow the [builder-to-planner packet](references/planner-handoff.md): preserve fresh repo-only selector output, name the exact repair reason, include verified source/insertion/RED evidence or `unknown`, and exclude adjacent work. Do not say "no builder-ready rows" when the fresh command prints `decision=build`.
 
 If the working tree is dirty before you start, preserve existing changes. Do not revert user or previous-agent work. Work with the current `development` checkout and mention any verification limits caused by unrelated changes.
 
 Do not push from this skill unless the user explicitly routed through `gormes-git`. If upstream advanced, fetch and inspect before any integration action; preserve your code/tests and route commit/push recovery to `gormes-git`.
 
-## Final Report
+## Example
 
-Report:
+Fresh repo-only selection says `decision=plan`. Builder emits the packet for a
+known partial atom, stops before tests/runtime edits, and hands it to planner.
+If selection says `decision=build`, builder writes one observable RED test,
+ships only that row, preserves adjacent partial gaps, and validates before
+completion.
 
-1. Progress row / behavior and status before/after
-2. Behavior shipped
-3. Files changed
-4. Tests/e2e run
-5. Feature-map/progress/evidence consistency
-6. Progress or parity evidence updates
-7. Remaining blockers or next row to build
-8. Hermes source refs used to verify behavior
+Behavioral evaluation: this scenario is pinned for deterministic review, but
+no paid paired model run was approved; the skill improvement is unreplicated.
+
+## Output Contract
+
+```text
+row: <phase/subphase/name>
+status: <before→after>
+behavior: <observable result>
+red_green: <RED command/reason; GREEN command/result>
+files: <builder-owned tracked and untracked paths>
+validation: <focused, row, broad, progress/docs receipts>
+parity: <atom before→after, or unchanged partial with named gaps>
+upstream: <exact Hermes/Honcho symbols/tests>
+remaining: <blockers/follow-up gaps>
+next_selector: <fresh repo-only result>
+```
+
+If blocked, output the canonical planner handoff instead. Never call the full
+suite green when unrelated failures remain.
