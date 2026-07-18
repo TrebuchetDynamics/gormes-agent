@@ -71,15 +71,15 @@ Use this page with:
 
 ## Current Finish Ledger
 
-As of the 2026-06-08 `cmd/progress next-work --repo-only` scan, the split canonical backlog contains 1,196 row objects: 1,193 complete and 3 planned. The repo-local `web_crawl explicit local-crawler unavailable evidence`, `Root tools command config-backed toolset toggles`, `Native TUI voice record key uses voice toggle adapter`, `Hermes send_message tool list and target contract`, `Goscrapling local crawler fixture adapter seam for web_crawl`, `Image generation managed-gateway provider binding`, `OSV malware advisory check for MCP package launch`, `Hermes toolset distribution manifest and deterministic sampler`, `Bitwarden secrets command status/sync/disable`, `Bitwarden managed bws install + checksum verification`, `Bitwarden disk cache parity`, `Credential-pool borrowed-source disk boundary`, `Native TUI live voice capture and playback parity`, `Telegram batch debouncer shared state helper`, `Gateway channel registration degraded-status helper`, `Channel-neutral memory settings projection seam`, and `Telegram render-send MarkdownV2 contract fixture` slices are complete. Treat old phase-open counts as historical context only; current implementation intent comes from the row objects and generated queue pages.
+As of the 2026-07-17 `cmd/progress next-work --repo-only` scan, the split canonical backlog contains 1,209 row objects: 1,204 complete and 5 planned. The repo-local `web_crawl explicit local-crawler unavailable evidence`, `Root tools command config-backed toolset toggles`, `Native TUI voice record key uses voice toggle adapter`, `Hermes send_message tool list and target contract`, `Goscrapling local crawler fixture adapter seam for web_crawl`, `Image generation managed-gateway provider binding`, `OSV malware advisory check for MCP package launch`, `Hermes toolset distribution manifest and deterministic sampler`, `Bitwarden secrets command status/sync/disable`, `Bitwarden managed bws install + checksum verification`, `Bitwarden disk cache parity`, `Credential-pool borrowed-source disk boundary`, `Native TUI live voice capture and playback parity`, `Telegram batch debouncer shared state helper`, `Gateway channel registration degraded-status helper`, `Channel-neutral memory settings projection seam`, and `Telegram render-send MarkdownV2 contract fixture` slices are complete. Treat old phase-open counts as historical context only; current implementation intent comes from the row objects and generated queue pages.
 
 | Phase | Non-complete rows | Planner meaning |
 |---|---:|---|
 | Phase 1 — Dashboard / control plane | 0 | Skill-era control rows are complete: planning/building route through canonical development skills and symlink loader views instead of deleted loop binaries. |
-| Phase 2 — Gateway | 0 | Gateway, channel, slash/skill/tool exposure, and operator-control rows are currently closed in the active backlog. New Hermes/Pi findings must become fresh rows before builder work. |
+| Phase 2 — Gateway | 0 | Webhook filters, confined watchlists, and Go-native direct-executable route transforms are complete under the approved security policies; new gateway work requires a fresh source-backed row. |
 | Phase 3 — Memory | 0 | Current Goncho/Honcho memory closure rows are complete; future memory work must be sourced from a new parity or product row. |
 | Phase 4 — Brain Transplant | 0 | Native-turn/provider/context rows in the active backlog are closed; regressions still need row-backed parity evidence before implementation. |
-| Phase 5 — Final Purge | 0 | Tool, CLI, browser, Bitwarden status/sync/disable/install/setup/cache, credential-pool borrowed-source disk-boundary, and native TUI voice orchestration rows are closed; full goscrapling runtime binding remains deferred until public robots/cache/checkpoint/session-adapter APIs are ready. |
+| Phase 5 — Final Purge | 2 | The approved MCP catalog/config/list/remove slices, explicit include/none/all tool-selection persistence, bounded official-Go-SDK HTTP test, and configured non-OAuth HTTP registry/invocation tracer bullet are complete. Config mutation remains profile-scoped and atomic; HTTP discovery/invocation is deadline/response/prompt bounded, no-redirect/no-retry, hermetically verified, and reaches the real default registry/kernel executor path. A fixture-ready config-only MCP server enable/disable persistence child is assignable; the remaining long-lived lifecycle/reload, stdio/header-secret, interactive configure probing, durable cleanup, picker/bootstrap, OAuth transport, utilities, and toolset aliases stay in a non-executable draft umbrella. Other tool, CLI, browser, Bitwarden, voice, and MCP result-materialization rows are closed. |
 | Phase 6 — Learning Loop | 0 | Skill extraction, retrieval, scoring, and operator surfaces are closed in the active backlog; new learning-loop work starts with planner evidence. |
 | Phase 7 — Paused Channels | 0 | The paused channel backlog has no active non-complete rows. Do not expand channels without a fixture-ready progress row. |
 | Phase 8 — Reputation & Publication | 3 | Public-social, engineering-writeup, and agentic-porting-kit rows remain planned but operator/external-access gated. |
@@ -87,9 +87,13 @@ As of the 2026-06-08 `cmd/progress next-work --repo-only` scan, the split canoni
 
 Structured blocker receipts remain attached to planned rows (three active
 blocker records plus one resolved release receipt), but blocker metadata is not
-builder-ready work. The current queue has no repo-local builder-ready rows;
-`cmd/progress next-work --repo-only` returns `decision=plan` until a planner splits or repairs another repo-scoped row.
-The remaining planned publication rows stay operator/input gated until their blockers clear.
+builder-ready work. The current queue has no repo-local builder-ready row;
+Phase 5.G `Gormes MCP explicit tool-selection configure` is complete.
+Parent `Hermes MCP catalog install/configure lifecycle` remains a draft umbrella
+for long-lived session/reload behavior, stdio/header-secret add, git/bootstrap,
+stdio/OAuth and interactive configure probing, utility tools, toolset aliases,
+durable token/artifact cleanup, enable/disable, and picker behavior. The remaining planned publication rows stay
+operator/input gated until their blockers clear.
 
 The first closure target is not "all green"; it is a **Python-free normal
 agent turn** with local Goncho memory and tested tool-call continuation. That is

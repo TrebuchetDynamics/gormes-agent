@@ -2843,6 +2843,929 @@
   },
   {
     "phase": "5",
+    "subphase": "5.G",
+    "pos": 14,
+    "item": {
+      "name": "MCP binary EmbeddedResource and AudioContent cache materialization",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "The MCP tools/call adapter preserves encoded AudioContent data and EmbeddedResource blob payloads through ParseCallResult, then an additive content.RenderWithOptions(parts, RenderOptions{ServerName, ArtifactDir}) path enforces Hermes' fixed 50 MiB cap, decodes base64, writes unique path-safe files beneath the caller-supplied profile artifact directory, and emits MEDIA:<path> for audio or a read_file/terminal pointer for embedded documents. Existing Render/RenderForServer APIs remain source-compatible and filesystem-free when ArtifactDir is empty; malformed, oversize, unavailable-cache, and hostile-name inputs fail open with inline markers and never panic or expose raw base64.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "tools",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "An oversize blob renders `[MCP embedded resource too large to cache: <bytes>, uri=<uri>]`; an undecodable blob renders `[MCP embedded resource could not be decoded: <mime or uri>]`; an AudioContent block over the cap renders `[MCP audio resource too large to cache: ~<bytes>]`; a missing cache helper renders `[MCP embedded resource received (<bytes>, <type>) but document cache unavailable in this process]`. No raw base64, no panics, no path traversal from hostile URIs.",
+      "fixture": "internal/tools/mcp/content.RenderWithOptions with t.TempDir ArtifactDir; parser JSON fixtures for AudioContent.data and EmbeddedResource.resource.blob; no live MCP network",
+      "source_refs": [
+        "hermes-agent/tools/mcp_tool.py@bb5fc723:_cache_mcp_image_block (L674-715), _MCP_RESOURCE_MAX_BYTES/_MCP_RESOURCE_MAX_B64_CHARS (L724-728), _mcp_resource_filename (L731-764), _cache_mcp_audio_block (L766-804), _render_mcp_resource_block blob branch (L846-882)",
+        "hermes-agent/tools/mcp_tool.py@bb5fc723:_make_tool_handler render loop (L4139-4168) — image/audio/resource render order",
+        "hermes-agent/gateway/platforms/base.py:cache_image_from_bytes,cache_audio_from_bytes,cache_document_from_bytes (upstream compatibility evidence; not a Go package-shape contract)",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:MCP tools and managed gateway",
+        "internal/tools/mcp/callresult/result.go:rawToolCallContent,normalizeContent (transport-free parser to preserve data/blob fields)",
+        "internal/tools/mcp/content/content.go:Structured,Render,RenderForServer (additive RenderOptions/RenderWithOptions home)",
+        "internal/tools/mcp/normalize.go and internal/tools/mcp_normalize.go (source-compatible facade seam)",
+        "internal/tools/tts/tool.go:L42,L130,L200-217 (Gormes caller-supplied OutputDir + MEDIA:<path> producer precedent)",
+        "internal/tools/imagegen/result.go:L109,L143-191 (Gormes path-safe unique artifact writer precedent)",
+        "internal/gateway/delivery/media/media.go:L49,L55-82 (PrepareMediaContent MEDIA:<path> consumer contract)"
+      ],
+      "ready_when": [
+        "ParseCallResult remains transport/filesystem-free and preserves AudioContent.data plus EmbeddedResource.resource.blob in content.Structured alongside mimeType/URI metadata.",
+        "content.RenderWithOptions is additive: existing Render and RenderForServer signatures remain unchanged and delegate with ArtifactDir empty, so current callers/tests remain source-compatible.",
+        "ArtifactDir is caller-supplied (profile-scoped in production, t.TempDir in tests); blank ArtifactDir performs no write and returns the stable cache-unavailable marker."
+      ],
+      "not_ready_when": [
+        "The implementation introduces a one-implementation cache interface, factory, or new cache package; RenderWithOptions inside the existing content package is the decided minimal/deep seam.",
+        "ParseCallResult performs filesystem IO or needs profile/runtime dependencies.",
+        "The implementation hard-codes os.TempDir, an operator path, or workspace-gormes/workspace-mineru; callers own ArtifactDir.",
+        "The slice expands into image-generation parsing, OAuth/session lifecycle, transport changes, or live MCP fixtures."
+      ],
+      "acceptance": [
+        "ParseCallResult preserves AudioContent type/data/mimeType and EmbeddedResource blob/URI/mimeType without decoding or leaking either payload.",
+        "RenderWithOptions decodes a capped embedded blob, writes a unique sanitized file beneath ArtifactDir, and renders a marker containing the local path, mime type, byte count, and read_file/terminal guidance.",
+        "RenderWithOptions decodes capped audio, writes a MIME-derived extension beneath ArtifactDir, and emits MEDIA:<path> accepted by internal/gateway/delivery/media.PrepareMediaContent.",
+        "Payloads above the fixed Hermes 50 MiB decoded/base64 caps, invalid base64, blank ArtifactDir, and write failures return the stable degraded markers without panic or raw-base64 output.",
+        "URI/name hints cannot escape ArtifactDir or inject control characters; writes use unique files and restrictive permissions.",
+        "Existing text/resource-link/embedded-text rendering, mixed ordering, isError fallback, and mcp__<server>__read_resource guidance remain unchanged."
+      ],
+      "note": "Planner/interface decision 2026-07-14 following completed Phase 5.G pos 13 (commit 2d6a26ff0). Considered (A) additive concrete content.RenderWithOptions + RenderOptions{ServerName,ArtifactDir}, (B) a new cache package/interface, and (C) materialization during ParseCallResult. Chose A: it preserves the pure parser and existing renderer signatures, hides decode/size/path/write mechanics in the already-owning content package, is hermetic with t.TempDir, and avoids a one-implementation abstraction. Rejected B as YAGNI/shallow indirection and C because parsing must remain transport/filesystem-free. The parity atom remains missing until focused tests and facade wiring prove this row complete. Builder/TDD completion 2026-07-14: Parse preserves AudioContent.data and EmbeddedResource.blob; additive RenderWithOptions writes capped payloads to unique 0600 files beneath caller-supplied ArtifactDir, emits document read guidance or MEDIA:<path>, preserves legacy render APIs, and degrades inline for malformed/oversize/unavailable/write-failure inputs without raw payload leakage. Hostile URI filename/control injection is sanitized. Focused callresult/content, MCP facade, MCP subtree, and gateway media tests pass.",
+      "write_scope": [
+        "internal/tools/mcp/callresult/result.go",
+        "internal/tools/mcp/callresult/result_test.go",
+        "internal/tools/mcp/content/content.go",
+        "internal/tools/mcp/content/content_test.go",
+        "internal/tools/mcp/normalize.go",
+        "internal/tools/mcp_normalize.go",
+        "internal/tools/mcp_normalize_test.go",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools/mcp/callresult ./internal/tools/mcp/content -count=1",
+        "go test ./internal/tools -run 'TestRenderMCPCallResult' -count=1",
+        "go test ./internal/gateway/delivery/media -run 'PrepareMediaContent|MEDIA' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Focused parser/renderer fixtures prove capped embedded blob and audio data decode into unique temp-dir artifacts and render a read pointer or MEDIA:<path> compatible with PrepareMediaContent.",
+        "Oversize, invalid-base64, blank-dir, write-failure, and hostile-name fixtures produce exact degraded markers with no panic, path escape, or raw payload leakage; the completed pos 13 tests remain green.",
+        "The MCP binary EmbeddedResource + AudioContent parity atom moves missing->covered with exact Go tests, and Phase 5.G pos 14 moves planned->complete."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.G",
+    "pos": 15,
+    "item": {
+      "name": "Hermes approved MCP catalog manifest + list command",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes ships the three Nous-approved Hermes optional MCP manifests (Linear, n8n, Unreal Engine) as embedded Go package data and exposes `gormes mcp catalog` plus `--json` output. A small `internal/tools/mcp/catalog` module parses manifest_version 1 into typed stdio/http transport, auth/env, tool-default, optional pinned-git-install, and post-install fields; injected fs.FS fixtures prove deterministic sorted list/get and diagnostics. Invalid manifests are skipped with stable invalid diagnostics, future manifest versions are skipped with update-required diagnostics, and shipped embedded manifests must all parse. The command is read-only: it reports name, description, transport/auth type, source, and install availability without probing servers, reading profiles, resolving secrets, making network requests, cloning repositories, running commands, or mutating MCP config.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "tools",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "A missing embedded catalog produces an empty successful list. Invalid entries are omitted with non-secret diagnostics; future manifest versions produce update-required diagnostics. Individual manifests are capped at 256 KiB and duplicate names fail closed. The command never loads credentials, profile config, network state, or executable content.",
+      "fixture": "fstest.MapFS manifest fixtures plus embedded Linear/n8n/Unreal Engine manifests copied from hermes-agent@bb5fc723; Cobra stdout/JSON fixtures use in-memory catalog injection and no live home, network, credentials, scripts, or subprocesses",
+      "source_refs": [
+        "hermes-agent/hermes_cli/mcp_catalog.py@bb5fc723:EnvVarSpec,AuthSpec,TransportSpec,InstallSpec,ToolsSpec,CatalogEntry,_parse_manifest,list_catalog,catalog_diagnostics,get_entry",
+        "hermes-agent/hermes_cli/mcp_picker.py@bb5fc723:_print_rows_text,show_catalog",
+        "hermes-agent/tests/hermes_cli/test_mcp_catalog.py@bb5fc723:TestManifestParsing,TestCatalogDiagnostics,shipped catalog fixtures",
+        "hermes-agent/optional-mcps/linear/manifest.yaml@bb5fc723",
+        "hermes-agent/optional-mcps/n8n/manifest.yaml@bb5fc723",
+        "hermes-agent/optional-mcps/unreal-engine/manifest.yaml@bb5fc723",
+        "internal/platform/cli/gormescli/mcplogin.go:NewMCPCommandWithRuntime,newMCPRowBackedCommands",
+        "internal/tools/mcp/config/config.go:existing MCP config model (read-only context; no mutation in this row)",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Approved optional MCP catalog",
+        "internal/tools/mcp/catalog/catalog.go:Catalog,Load,Get,Diagnostics",
+        "internal/tools/mcp/catalog/embed.go:Embedded",
+        "internal/tools/mcp/catalog/catalog_test.go:parser,diagnostic,cap,duplicate,embedded,defensive-copy fixtures",
+        "internal/platform/cli/gormescli/mcpcatalog.go:newMCPCatalogCommand,newMCPCatalogReport",
+        "internal/platform/cli/gormescli/mcpcatalog_test.go:JSON,text,empty,future-diagnostic,registration fixtures"
+      ],
+      "ready_when": [
+        "The catalog package accepts fs.FS for hermetic fixtures and exposes embedded data through one production constructor; no provider/factory interface is added.",
+        "Manifest parsing is limited to version 1, 256 KiB per file, strict names/env identifiers, stdio or http transports, api_key/oauth/none auth, string args/default tools, and pinned git install metadata.",
+        "`gormes mcp catalog` is a concrete read-only Cobra subcommand under the existing MCP parent and supports deterministic human and JSON output through injected writers/catalog data."
+      ],
+      "not_ready_when": [
+        "The slice clones repositories, executes bootstrap commands, launches/probes MCP servers, prompts for secrets, writes dotenv/config files, or implements install/remove/configure/picker side effects.",
+        "The implementation reads manifests from a developer checkout or live home instead of embedded package data/injected fs.FS fixtures.",
+        "The implementation silently accepts future schema versions, duplicate names, unbounded files, malformed env identifiers, unsupported transport/auth/install types, or leaks manifest parser internals in CLI output."
+      ],
+      "unblocks": [
+        "Hermes MCP catalog install/configure lifecycle"
+      ],
+      "acceptance": [
+        "Typed parser fixtures cover minimal stdio and http entries, api-key/OAuth/none auth, env metadata, tool defaults, pinned git metadata, post-install text, official/name lookup, deterministic order, duplicate names, and the 256 KiB cap.",
+        "Invalid manifests are skipped with kind=invalid diagnostics; future manifest versions are skipped with kind=future_manifest diagnostics; valid neighbors remain listed.",
+        "Embedded catalog tests prove Linear, n8n, and Unreal Engine parse from checked-in package data and preserve their upstream name/transport/auth/source metadata.",
+        "`gormes mcp catalog` lists approved entries with Gormes command guidance; `--json` emits a stable typed envelope containing entries and diagnostics. Empty catalogs succeed with explicit empty evidence.",
+        "The command performs no profile/config/secret/network/process access and existing `gormes mcp login/serve/add/remove/list/test/configure` command-tree tests remain green.",
+        "Parity evidence moves the optional MCP catalog atom missing to partial, naming install/configure lifecycle as the only remaining catalog gap."
+      ],
+      "note": "Planner 2026-07-16: pinned Hermes bb5fc723 introduced optional-mcps plus hermes_cli/mcp_catalog.py and mcp_picker.py, while Gormes only exposed row-backed mcp add/remove/list/test/configure and concrete OAuth login. Builder 2026-07-16: internal/tools/mcp/catalog now parses injected fs.FS catalogs with strict version/name/transport/auth/env/install validation, a 256 KiB cap, deterministic sorting, duplicate fail-closed behavior, stable invalid/future diagnostics, defensive copies, and embedded Gormes-branded Linear/n8n/Unreal Engine manifests. `gormes mcp catalog` is a concrete read-only command with deterministic text and JSON output; it reads no profile/config/secrets and performs no probe/network/process/install work. RED 1 proved missing Load/types; RED 2 proved catalog was an unknown MCP subcommand; RED 3 caught stale Hermes branding in an upstream description. Validation: 13 catalog tests, 5 focused MCP CLI tests, 746 full gormescli tests, and 172 tests across internal/tools/mcp/... passed. The parity atom is partial with install/configure lifecycle as the only remaining catalog gap.",
+      "write_scope": [
+        "internal/tools/mcp/catalog/",
+        "internal/platform/cli/gormescli/mcpcatalog.go",
+        "internal/platform/cli/gormescli/mcpcatalog_test.go",
+        "internal/platform/cli/gormescli/mcplogin.go",
+        "internal/platform/cli/gormescli/mcplogin_command_test.go",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools/mcp/catalog -count=1",
+        "go test ./internal/platform/cli/gormescli -run 'MCP.*Catalog|MCPCommand' -count=1",
+        "go test ./internal/tools/mcp/... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermetic parser, embedded-manifest, and Cobra fixtures prove deterministic approved-catalog discovery and diagnostics with zero profile/network/process side effects.",
+        "This row moves planned/fixture_ready to complete/validated and the catalog parity atom becomes partial with only install/configure lifecycle remaining.",
+        "Fresh repo-only selection advances past this row and focused MCP/CLI/progress/ledger/diff gates pass."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:bb5fc723 hermes_cli/mcp_catalog.py",
+          "hermes:bb5fc723 hermes_cli/mcp_picker.py",
+          "hermes:bb5fc723 tests/hermes_cli/test_mcp_catalog.py",
+          "hermes:bb5fc723 optional-mcps/*/manifest.yaml"
+        ],
+        "note": "Hermes manifest and discovery behavior is upstream parity; embedded package data, strict caps, JSON output, and absence of runtime install side effects are Gormes-owned Go hardening."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.G",
+    "pos": 16,
+    "item": {
+      "name": "Gormes MCP catalog HTTP config install + default loader",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Add one Gormes-native, profile-scoped MCP config persistence boundary and use it to make approved HTTP catalog entries operational without network or process side effects. The concrete store reads and atomically updates the top-level `mcp_servers` table in the active Gormes `config.toml`, resolves it through the existing pure `internal/tools/mcp/config` model, and becomes the production implementation behind `internal/app/mcplogin.LoadDefaultMCPConfig`. Add `gormes mcp install <name>` with human and `--json` output for embedded entries whose transport is HTTP, install block is absent, and auth declares no env vars. Installing writes only URL, enabled=true, the OAuth marker when declared, and manifest tool defaults; reinstall is idempotent and preserves an existing `tools.include`. Linear and Unreal Engine are eligible. n8n and every entry requiring git/bootstrap, stdio launch materialization, or env collection fail closed with stable `extended_install_required` evidence and no writes. No server probe, OAuth browser flow, secret prompt, dotenv mutation, git/network access, subprocess, picker UI, uninstall, enable/disable, or arbitrary custom-server add behavior belongs to this slice.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "tools",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Unknown catalog names return not_found. Ineligible stdio/install/env entries return extended_install_required. Missing config.toml is treated as an empty document; malformed or ambiguous mcp_servers config, unsafe catalog data, or any atomic write failure returns redacted config_unavailable/config_rejected evidence and leaves prior bytes unchanged. No failure path probes a server, opens OAuth, reads or writes dotenv, or exposes profile paths in operator-facing errors.",
+      "fixture": "t.TempDir profile/config.toml documents, injected catalog values, and in-memory Cobra writers; tests poison HOME/HERMES_HOME and provide no network, MCP server, credentials, git, shell, or subprocess",
+      "source_refs": [
+        "hermes-agent/hermes_cli/mcp_catalog.py@bb5fc723:_build_server_config,install_entry",
+        "hermes-agent/hermes_cli/mcp_config.py@bb5fc723:_save_mcp_server,_get_mcp_servers",
+        "hermes-agent/tests/hermes_cli/test_mcp_catalog.py@bb5fc723:TestInstall.test_install_http_oauth_writes_auth_marker,TestInstall.test_install_simple_stdio_writes_config,TestToolSelection.test_reinstall_preserves_prior_user_selection",
+        "internal/tools/mcp/catalog/catalog.go:Catalog,Entry,Transport,Auth,Tools",
+        "internal/tools/mcp/config/config.go:ResolveMCPConfig,ParseMCPConfigJSON,MCPConfigResolution",
+        "internal/config/configwriter/writer.go:ReadTOMLDoc,WriteTOMLAtomic",
+        "internal/config/paths/paths.go:ConfigPath,GormesHome",
+        "internal/app/mcplogin/service.go:LoadDefaultMCPConfig,Runtime.LoadConfig",
+        "internal/platform/cli/gormescli/mcplogin.go:NewMCPCommandWithRuntime,MCPCommandOptions",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Approved optional MCP catalog",
+        "internal/config/mcpstore/store.go:Store.Load,Store.UpsertHTTP,HTTPRecord",
+        "internal/config/mcpstore/store_test.go:temp-profile,atomic-failure,malformed,unsafe-URL fixtures",
+        "internal/app/mcplogin/service_test.go:TestLoadDefaultMCPConfigReadsActiveGormesProfile",
+        "internal/platform/cli/gormescli/mcpcataloginstall.go:newMCPInstallCommand,runMCPInstallCommand",
+        "internal/platform/cli/gormescli/mcpcatalog_test.go:HTTP install,rejection,reinstall,redaction fixtures"
+      ],
+      "ready_when": [
+        "The persistence module is a concrete store with an injected TOML path and no one-implementation interface; production defaults to config/paths.ConfigPath(), which already follows the active GORMES_HOME/profile root.",
+        "Eligibility is mechanically limited to embedded HTTP entries with no install block and no auth env declarations; Linear OAuth and Unreal no-auth fixtures are eligible, while n8n is rejected before any write.",
+        "The store reuses configwriter atomic 0600 writes, semantically preserves unrelated top-level config and sibling MCP entries, and validates the candidate mcp_servers document through the existing pure resolver before replacement.",
+        "The first RED fixture invokes `gormes mcp install linear --json` against a temp config and proves the command is currently unknown; GREEN proves the resulting config resolves through LoadDefaultMCPConfig without network/process/secret activity."
+      ],
+      "not_ready_when": [
+        "Implementation introduces a separate mcp.json/config.yaml state file, writes Hermes homes, mutates dotenv, stores raw credentials, or bypasses active Gormes profile scoping.",
+        "Implementation clones git, executes bootstrap or stdio commands, probes/connects to MCP servers, starts OAuth, follows redirects, prompts interactively, or adds picker/uninstall/custom-server behavior.",
+        "Reinstall discards prior tools.include, an ineligible entry partially mutates config, a failed atomic replacement changes prior bytes, or human/JSON errors leak profile paths, config contents, secrets, or raw parser errors."
+      ],
+      "blocked_by": [
+        "Hermes approved MCP catalog manifest + list command"
+      ],
+      "unblocks": [
+        "Hermes MCP catalog install/configure lifecycle"
+      ],
+      "acceptance": [
+        "A concrete profile-scoped store loads absent/valid config.toml, rejects malformed or ambiguous mcp_servers documents, and atomically upserts one validated server while semantically preserving unrelated top-level keys and sibling servers.",
+        "`gormes mcp install linear` and `gormes mcp install unreal-engine` emit deterministic Gormes-branded human/JSON evidence and persist enabled HTTP records; Linear includes the OAuth marker and both resolve through the production default MCP config loader.",
+        "`official/<name>` lookup works; unknown names and n8n return stable not_found/extended_install_required evidence with nonzero exit status and byte-for-byte unchanged config.",
+        "Idempotent reinstall preserves any existing tools.include selection while refreshing manifest-owned URL/auth/enabled fields; manifest defaults are written only when no prior selection exists.",
+        "First write creates profile directories with 0700 and config.toml with 0600; injected write failure leaves the old file intact. Operator output and JSON never include config bodies, secrets, inherited Hermes branding, or raw host paths.",
+        "No test opens a network connection, launches a process, probes an MCP server, starts OAuth, reads a real user home, or accesses credentials; existing catalog, MCP config/login, and CLI command-tree tests remain green."
+      ],
+      "note": "Planner/interface design 2026-07-16: compared (A) a deep concrete store over the active Gormes config.toml, (B) a separate mcp.json store, and (C) direct Cobra/configwriter mutations. Chose A because it preserves Hermes' single mcp_servers contract, Gormes profile semantics, atomic 0600 writes, pure resolver reuse, and hermetic injection while hiding document mutation from CLI callers. Rejected B as a second source of truth and C as shallow duplicated persistence. This child deliberately covers only config-safe HTTP entries; it cannot execute n8n or close git/bootstrap/secret/probe/picker parity. Builder 2026-07-16: added a concrete active-config TOML store, mcp_servers schema/config field, production default loader, and concrete `gormes mcp install` for eligible HTTP catalog entries. Linear/Unreal install without network/process/secret/probe activity; n8n, unknown entries, malformed config, unsafe URLs, and write failures fail closed with stable evidence. Reinstall preserves tools.include and unrelated config. RED 1 proved MCPConfigPath/install command absence; RED 2 caught stale catalog guidance still pointing at row-backed `mcp add`. GREEN: 47 store/config/login tests, 20 focused MCP CLI tests, 172 MCP package tests, 329 config package tests, 752 full gormescli tests, and 1,042 internal/app tests passed.",
+      "write_scope": [
+        "internal/config/mcpstore/",
+        "internal/config/config.go",
+        "internal/config/schema/schema.go",
+        "internal/config/schema/schema_test.go",
+        "internal/tools/mcp/catalog/",
+        "internal/app/mcplogin/service.go",
+        "internal/app/mcplogin/service_test.go",
+        "internal/platform/cli/gormescli/mcplogin.go",
+        "internal/platform/cli/gormescli/mcplogin_command_test.go",
+        "internal/platform/cli/gormescli/mcpcatalog_test.go",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/config/mcpstore ./internal/tools/mcp/config ./internal/app/mcplogin -count=1",
+        "go test ./internal/platform/cli/gormescli -run 'MCP.*(Install|Login|Catalog|Command)' -count=1",
+        "go test ./internal/tools/mcp/... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Temp-profile fixtures prove eligible embedded HTTP entries can be installed and loaded at runtime through one native atomic config boundary with no network/process/secret side effects.",
+        "Ineligible n8n/bootstrap/env behavior remains fail-closed and the parent lifecycle umbrella names the remaining secret, git/bootstrap, probe/tool-selection, uninstall, enable/disable, and picker children."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:bb5fc723 hermes_cli/mcp_catalog.py:_build_server_config,install_entry",
+          "hermes:bb5fc723 tests/hermes_cli/test_mcp_catalog.py:TestInstall.test_install_http_oauth_writes_auth_marker"
+        ],
+        "note": "Hermes config-install behavior is the target; Gormes narrows the first child to side-effect-free HTTP persistence and uses native TOML/profile/atomic-write policy."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.G",
+    "pos": 17,
+    "item": {
+      "name": "Gormes MCP custom HTTP config add + redacted list",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Replace only the row-backed `gormes mcp add` and `gormes mcp list` commands with a concrete, noninteractive, config-only lifecycle over the proven profile-scoped MCP TOML store. `mcp add <name> --url <http-or-https-url>` accepts strict server names, optionally `--auth oauth`, and `--force` for explicit overwrite; it never probes/connects, prompts, resolves or writes secrets, launches OAuth, invokes stdio, or starts a process. A first write persists enabled=true and the URL (plus auth=oauth when selected) atomically; duplicates fail with already_exists unless --force, and --force preserves prior tools.include while replacing manifest/operator-owned HTTP fields. `mcp list` and `ls` return all configured HTTP and stdio records in sorted order through deterministic human and `--json` envelopes, but expose only name, transport, enabled/status, auth kind, tool-selection count, and a redacted target (HTTP scheme+host only or stdio command basename); headers, env values/names, URL userinfo/query/fragment/path, command directories/args, config paths, and raw parser errors never appear. Remove/rm, test, configure/config, header/API-key auth, stdio add/presets/env/args, connectivity probes, OAuth execution/token mutation, picker, and catalog bootstrap remain excluded.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "tools",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Missing config is an empty successful list. Invalid names/URLs/auth modes return invalid_input; duplicate add returns already_exists; malformed or ambiguous config returns config_rejected; read/write failures return config_unavailable. Every failure is nonzero, emits stable redacted human/JSON evidence, and leaves prior bytes unchanged. List never requires or resolves live credentials and invalid config produces no partial server list.",
+      "fixture": "t.TempDir config.toml fixtures with HTTP, stdio, OAuth, disabled, selected-tools, query/userinfo/header/env secret sentinels; injected MCPConfigPath and in-memory Cobra writers; no live home, network, DNS, MCP server, credentials, OAuth, shell, or subprocess",
+      "source_refs": [
+        "hermes-agent/hermes_cli/subcommands/mcp.py@bb5fc723:build_mcp_parser add/remove/list flags",
+        "hermes-agent/hermes_cli/mcp_config.py@bb5fc723:_get_mcp_servers,_save_mcp_server,cmd_mcp_add,cmd_mcp_list",
+        "hermes-agent/tests/hermes_cli/test_mcp_config.py@bb5fc723:TestMcpList,TestMcpAdd.test_add_no_transport,TestMcpAdd.test_add_http_server_all_tools,TestMcpAdd.test_add_connection_failure_save_disabled",
+        "hermes-agent/tests/hermes_cli/test_mcp_add_command_dest.py@bb5fc723",
+        "internal/config/mcpstore/store.go:Store,HTTPRecord,UpsertHTTP,Load",
+        "internal/platform/cli/gormescli/mcplogin.go:newMCPRowBackedCommands",
+        "internal/platform/cli/gormescli/mcpcataloginstall.go:runMCPInstallCommand",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md:MCP config helpers",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Approved optional MCP catalog",
+        "internal/config/mcpstore/store.go:Store.AddHTTP,Store.List,ServerSummary,RedactedHTTPTarget",
+        "internal/config/mcpstore/store_test.go:duplicate-force,structural-redaction,atomic-failure fixtures",
+        "internal/platform/cli/gormescli/mcpconfig.go:newMCPAddCommand,newMCPListCommand",
+        "internal/platform/cli/gormescli/mcpconfig_test.go:add/list/duplicate/invalid/redaction/malformed fixtures",
+        "internal/app/gormescmd/fresh_install_e2e_test.go:mcp concrete-list fresh-install fixture",
+        "internal/app/gormescmd/hermes_cli_parity_test.go:mcp list JSON parity fixture",
+        "internal/app/gormescmd/wide_e2e_test.go:mcp inventory fixture",
+        "internal/app/hermescliparity/service.go:hermesMCPCommands implemented add/list/ls classification"
+      ],
+      "ready_when": [
+        "The existing concrete mcpstore remains the only persistence implementation; extend it with typed redacted listing and duplicate-aware HTTP add instead of adding a second config store or a one-implementation interface.",
+        "Cobra owns only argument validation/rendering; persistence accepts an injected config path and uses the existing atomic 0600 writer. --force is the sole noninteractive overwrite authorization.",
+        "List redaction is structural, not regex-only: HTTP output is scheme+host; stdio output is filepath.Base(command); all args, env, headers, userinfo, path, query, fragment, and raw config errors are absent.",
+        "The first RED fixture invokes `gormes mcp add custom --url https://example.test/private?token=leak --json` and proves add is currently row-backed; GREEN proves persistence while neither output nor list contains user/secret/path/query data."
+      ],
+      "not_ready_when": [
+        "Implementation probes or connects, performs DNS/network access, launches OAuth, reads/writes dotenv or token stores, prompts interactively, executes stdio, accepts command/args/env/preset/header secrets, or implements remove/test/configure/picker behavior.",
+        "List emits raw URLs, command paths/args, headers, env names/values, tool names, profile/config paths, parser errors, or a partial list after malformed config.",
+        "Duplicate add overwrites without --force, --force discards tools.include, unsupported auth/transport flags are silently accepted, or failed writes alter prior bytes."
+      ],
+      "blocked_by": [
+        "Gormes MCP catalog HTTP config install + default loader"
+      ],
+      "unblocks": [
+        "Hermes MCP catalog install/configure lifecycle"
+      ],
+      "acceptance": [
+        "`gormes mcp add <name> --url <url> [--auth oauth] [--force] [--json]` is concrete, validates names/http(s) URLs/auth, writes enabled HTTP config atomically, and reports configured_unverified without any connection attempt.",
+        "A duplicate fails already_exists byte-for-byte unchanged; --force updates URL/auth/enabled and preserves prior tools.include. Unsupported header auth, stdio flags, missing URL, URL userinfo, and non-http(s)/missing-host URLs fail invalid_input without writes.",
+        "`gormes mcp list|ls [--json]` sorts records and reports name, transport, enabled/status, auth, tool-selection count, and structurally redacted target for existing HTTP and stdio entries; secret sentinels from URL/query/userinfo/path, args, env, and headers never appear.",
+        "Empty config lists successfully. Malformed/ambiguous config and injected read/write failures produce stable config_rejected/config_unavailable evidence, no partial list, no path/content leakage, and unchanged prior bytes.",
+        "Existing catalog install/list/login behavior remains green; remove/rm, test, configure/config and serve remain explicitly row-backed or concrete exactly as before.",
+        "Parity evidence keeps MCP config helpers partial and narrows remaining gaps to custom stdio/header/secret add, probe/test/configure, remove/token cleanup, enable/disable, and picker/catalog bootstrap behavior."
+      ],
+      "note": "Planner 2026-07-16: upstream cmd_mcp_add interleaves transport persistence, secret prompts, OAuth startup, live probe, tool selection, and optional disabled save. This child intentionally ports only the config-safe HTTP write plus redacted list contract. It uses explicit --force rather than an interactive overwrite prompt and reports configured_unverified because no probe occurs; those are Go-native noninteractive safety divergences, while the parent umbrella retains the omitted behavior. Builder 2026-07-16: replaced row-backed add/list with concrete config-only commands over mcpstore. Custom HTTP add supports none/OAuth markers, explicit --force overwrite, structured human/JSON evidence, and no probe; list deterministically reports HTTP/stdio summaries with structural URL/command redaction and no headers/env/args. Duplicate, userinfo/non-http, header/stdio/env/preset/probe options, malformed config, and write failures fail closed without mutation or leakage. RED proved --url was unknown on the row-backed add command. GREEN: 6 mcpstore tests, 34 focused MCP CLI tests, 766 full gormescli tests, 331 config tests, and 172 MCP package tests passed. Broad-gate repair: refreshed fresh-install/wide E2E expectations and Hermes CLI parity classifications so mcp add/list/ls/login are no longer mislabeled row-backed; 40 focused gormescmd cases and the full non-doc Go suite passed.",
+      "write_scope": [
+        "internal/config/mcpstore/",
+        "internal/platform/cli/gormescli/mcplogin.go",
+        "internal/platform/cli/gormescli/mcpconfig.go",
+        "internal/platform/cli/gormescli/mcpconfig_test.go",
+        "internal/platform/cli/gormescli/mcplogin_command_test.go",
+        "internal/platform/cli/gormescli/mcpcatalog_test.go",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "internal/app/gormescmd/fresh_install_e2e_test.go",
+        "internal/app/gormescmd/hermes_cli_parity_test.go",
+        "internal/app/gormescmd/wide_e2e_test.go",
+        "internal/app/hermescliparity/service.go",
+        "internal/app/hermescliparity/service_test.go"
+      ],
+      "test_commands": [
+        "go test ./internal/config/mcpstore -count=1",
+        "go test ./internal/platform/cli/gormescli -run 'MCP.*(Add|List|Install|Login|Catalog|Command)' -count=1",
+        "go test ./internal/tools/mcp/... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Temp-profile command fixtures prove operators can atomically configure and safely inventory custom HTTP MCP records without network/process/secret side effects or output leakage.",
+        "Parent lifecycle umbrella remains partial with every excluded stdio/header/secret/probe/remove/configure/picker/bootstrap behavior named."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:bb5fc723 hermes_cli/mcp_config.py:cmd_mcp_add,cmd_mcp_list",
+          "hermes:bb5fc723 tests/hermes_cli/test_mcp_config.py:TestMcpAdd,TestMcpList"
+        ],
+        "note": "Hermes add/list contracts are the target; Gormes stages a noninteractive config-only HTTP add and structural redaction before live probe/secret/process behavior."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.G",
+    "pos": 18,
+    "item": {
+      "name": "Gormes MCP config remove with explicit confirmation",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Replace only the row-backed `gormes mcp remove <name>` / `rm` command with a concrete noninteractive config deletion over the proven profile-scoped MCP TOML store. Removal requires explicit `--yes`; without it the command returns confirmation_required and performs no read-modify-write. With --yes, the store validates the exact server name, reads the full document, removes only `mcp_servers.<name>`, removes the top-level mcp_servers table when it becomes empty, semantically preserves every unrelated config key and sibling server, validates the candidate document, and atomically writes mode 0600. Human and --json output report removed/not_found/confirmation_required/config_rejected/config_unavailable plus `credentials_preserved=true` and `artifacts_preserved=true`. This slice intentionally does not delete dotenv values, OAuth token state, catalog clones, bootstrap artifacts, command files, caches, or any path outside config.toml: Gormes currently has only a pure in-memory MCP OAuth store, so durable token-file cleanup cannot be claimed. No prompt, probe, network, OAuth, process, picker, enable/disable, or uninstall behavior belongs here.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "tools",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Missing/unknown server returns not_found and leaves bytes unchanged. Missing --yes returns confirmation_required before mutation. Invalid names return invalid_input. Malformed/ambiguous config returns config_rejected; read/write failure returns config_unavailable and preserves prior bytes. Errors/output never include config paths, raw config values, headers/env/URLs/commands, secrets, or host errors. Credential/artifact preservation is explicit, not silent.",
+      "fixture": "t.TempDir config.toml with target and sibling HTTP/stdio records, unrelated config, secret sentinels, injected failing writer, and in-memory Cobra output; no live home, token files, credentials, network, OAuth, MCP server, shell, or subprocess",
+      "source_refs": [
+        "hermes-agent/hermes_cli/mcp_config.py@bb5fc723:_remove_mcp_server,cmd_mcp_remove",
+        "hermes-agent/tests/hermes_cli/test_mcp_config.py@bb5fc723:TestMcpRemove.test_remove_existing_server,TestMcpRemove.test_remove_nonexistent,TestMcpRemove.test_remove_cleans_oauth_tokens",
+        "internal/config/mcpstore/store.go:Store,serverMap",
+        "internal/tools/mcp/oauth/tokens/store.go:Store is pure in-memory; Clear",
+        "internal/platform/cli/gormescli/mcplogin.go:newMCPRowBackedCommands remove/rm",
+        "internal/app/hermescliparity/service.go:hermesMCPCommands",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md:MCP config helpers",
+        "internal/config/mcpstore/store.go:Store.Remove",
+        "internal/config/mcpstore/store_test.go:remove-last,missing,write-failure fixtures",
+        "internal/platform/cli/gormescli/mcpconfig.go:newMCPRemoveCommand,runMCPRemoveCommand",
+        "internal/platform/cli/gormescli/mcpconfig_test.go:remove confirmation,alias,missing,invalid,malformed,redaction fixtures",
+        "internal/app/hermescliparity/service.go:hermesMCPCommands remove/rm implemented classification"
+      ],
+      "ready_when": [
+        "The concrete mcpstore gains Remove(name) with the same injected path/atomic writer seam; no new persistence interface or token-file abstraction is introduced.",
+        "Cobra requires --yes rather than reading stdin; remove/rm share one implementation and support deterministic human/JSON output.",
+        "The contract explicitly preserves credentials and artifacts because no durable Gormes MCP token/clone store exists; that remaining upstream behavior stays in the parent umbrella.",
+        "The first RED fixture invokes `gormes mcp remove custom --yes --json` against a temp config and proves the command is row-backed; GREEN proves exact-key deletion and sibling/unrelated preservation."
+      ],
+      "not_ready_when": [
+        "Implementation prompts from stdin, deletes dotenv/token/cache/clone/artifact files, clears unrelated in-memory stores, probes/connects, launches OAuth, runs a process, or guesses a durable token path.",
+        "Removal proceeds without --yes, uses substring/case-folded matching, deletes sibling/unrelated config, leaves an empty mcp_servers table, or changes bytes on missing name/failure.",
+        "Output exposes server config, URL/command/env/header details, config paths, secrets, raw parser/writer errors, or implies credentials/artifacts were deleted."
+      ],
+      "blocked_by": [
+        "Gormes MCP custom HTTP config add + redacted list"
+      ],
+      "unblocks": [
+        "Hermes MCP catalog install/configure lifecycle"
+      ],
+      "acceptance": [
+        "`gormes mcp remove <name> --yes [--json]` and alias `rm` concretely remove one exact configured record; deleting the last record removes the top-level table, while siblings and unrelated config survive.",
+        "Without --yes, invalid names, unknown names, malformed config, and injected write failures return stable confirmation_required/invalid_input/not_found/config_rejected/config_unavailable evidence with nonzero exit and byte-for-byte unchanged config.",
+        "Success output/JSON includes credentials_preserved=true and artifacts_preserved=true; tests seed token/header/env/path sentinels and prove none appear in stdout, stderr, or errors.",
+        "No test touches a live home, durable token file, clone, network, OAuth, MCP server, or process; add/list/install/login behavior and the broad command E2E remain green.",
+        "Hermes CLI parity marks remove/rm implemented for config deletion but retains durable OAuth-token/catalog-artifact cleanup in the parent umbrella; MCP config parity remains partial."
+      ],
+      "note": "Planner 2026-07-17: upstream cmd_mcp_remove confirms interactively, removes config, and asks MCPOAuthManager to delete cached/disk token state. Gormes currently has only an in-memory MCP OAuth store and no catalog clone lifecycle. This child chooses explicit --yes and config-only atomic deletion, truthfully reports credentials/artifacts preserved, and leaves durable cleanup as a separate policy-backed gap. Builder 2026-07-17: replaced row-backed remove/rm with exact atomic config deletion requiring --yes. Success truthfully reports credentials_preserved and artifacts_preserved; no token, dotenv, clone, cache, process, OAuth, or network cleanup is attempted. Last-entry deletion removes the top-level table; siblings/unrelated config survive. Confirmation, missing/invalid names, malformed config, and writer failures are non-mutating and redacted. RED proved remove still returned row-backed unavailable evidence. GREEN: 8 mcpstore tests, 39 focused MCP CLI tests, 771 full gormescli tests, 333 config tests, 34 focused parity/E2E cases, and the full non-doc Go suite passed.",
+      "write_scope": [
+        "internal/config/mcpstore/",
+        "internal/platform/cli/gormescli/mcplogin.go",
+        "internal/platform/cli/gormescli/mcpconfig.go",
+        "internal/platform/cli/gormescli/mcpconfig_test.go",
+        "internal/app/hermescliparity/service.go",
+        "internal/app/hermescliparity/service_test.go",
+        "internal/app/gormescmd/fresh_install_e2e_test.go",
+        "internal/app/gormescmd/hermes_cli_parity_test.go",
+        "internal/app/gormescmd/wide_e2e_test.go",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/config/mcpstore -count=1",
+        "go test ./internal/platform/cli/gormescli -run 'MCP.*(Remove|Add|List|Install|Login|Catalog|Command)' -count=1",
+        "go test ./internal/app/hermescliparity ./internal/app/gormescmd -run 'MCP|FreshInstallE2E_OfflineCornerCommandMatrix|WideE2E_UserBootstrapJourney' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Temp-profile fixtures prove exact atomic config deletion requires explicit confirmation and cannot leak or delete credentials/artifacts.",
+        "Parity/evidence surfaces truthfully separate implemented config removal from unresolved durable token/catalog-artifact cleanup."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:bb5fc723 hermes_cli/mcp_config.py:cmd_mcp_remove,_remove_mcp_server",
+          "hermes:bb5fc723 tests/hermes_cli/test_mcp_config.py:TestMcpRemove"
+        ],
+        "note": "Hermes config deletion is ported; interactive prompting becomes explicit --yes, while absent durable Gormes token/artifact stores make upstream cleanup a retained gap."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.G",
+    "pos": 19,
+    "item": {
+      "name": "Go-native MCP HTTP probe + test command",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Replace only the row-backed `gormes mcp test <name>` command for configured HTTP servers with a real Go-native Streamable HTTP initialize + paginated tools/list probe. Adapt the pinned official `github.com/modelcontextprotocol/go-sdk/mcp` v1.6.1 client behind the existing `internal/tools/mcp/probe.Connector`/`Session` boundary; do not hand-roll MCP framing and do not add Python, shell, or Hermes runtime dependencies. Read one exact server from the active profile-scoped TOML through mcpstore, resolve configured header environment placeholders only inside the transport boundary, honor a positive command/config timeout capped at five minutes, disable standalone SSE and retries, reject redirects, cap each HTTP response at 4 MiB, close the MCP session, and never mutate config. Human and `--json` output report only the exact server name, HTTP transport, connected/not_found/disabled/auth_required/unsupported_transport/invalid_input/config_rejected/config_unavailable/timeout/connection_failed evidence, bounded elapsed milliseconds, sanitized tool names/descriptions, tool count, and truncation. OAuth-configured HTTP servers return auth_required without opening a browser or sending an unauthenticated probe. Stdio servers return unsupported_transport without starting a process. This slice does not add/configure servers, select tools, invoke tools, probe prompts/resources, persist tokens, launch OAuth, enable/disable servers, run stdio commands, or alter the agent runtime host.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "tools",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Unknown/invalid/disabled/OAuth/stdio/config-unavailable cases fail before network. Context deadline, oversized/malformed response, redirect, SDK/protocol error, HTTP failure, tool-page overflow, and cleanup failure return stable redacted evidence with nonzero exit. No raw URL, path/query/userinfo, header/env name or value, config path, tool schema, SDK/parser/transport error, response body, redirect target, or host error appears in stdout, stderr, JSON, logs, or returned errors. Tool names/descriptions are untrusted: strip terminal controls, structurally redact secret-shaped text, bound each field, sort deterministically, and cap rendered tools while retaining the discovered count/truncated flag.",
+      "fixture": "Official Go MCP SDK StreamableHTTPHandler behind httptest.Server plus injected probe sessions, temp profile config, fake clock, context deadlines, redirect/oversize/malformed/stalled handlers, OAuth/stdio definitions, secret/control-character tool metadata, and in-memory Cobra output; no internet, DNS, live MCP server, credentials, OAuth, browser, user home, shell, git, or subprocess",
+      "source_refs": [
+        "hermes-agent/hermes_cli/mcp_config.py@bb5fc723:_probe_single_server,cmd_mcp_test",
+        "hermes-agent/tests/hermes_cli/test_mcp_config.py@bb5fc723:TestMcpTest,TestProbeEnvResolution,TestProbeCapabilityGating",
+        "internal/tools/mcp/probe/probe.go:Connector,Session,ServerTools",
+        "internal/tools/mcp/config/config.go:MCPServerDefinition.ConnectTimeout,ResolveMCPConfig",
+        "internal/config/mcpstore/store.go:Store.Load,ServerSummary",
+        "internal/platform/cli/gormescli/mcplogin.go:newMCPRowBackedCommands test",
+        "github.com/modelcontextprotocol/go-sdk@v1.6.1:mcp.Client.Connect,StreamableClientTransport,ClientSession.Tools,ClientSession.Close",
+        "https://github.com/modelcontextprotocol/go-sdk#version-compatibility",
+        "go.mod:github.com/modelcontextprotocol/go-sdk v1.6.1",
+        "internal/tools/mcp/probe/probe.go:One",
+        "internal/tools/mcp/probe/sdkhttp/connector.go:NewConnector,sessionAdapter,policyTransport",
+        "internal/tools/mcp/probe/sdkhttp/connector_test.go:official SDK pagination/header/close,no-SSE,no-retry,redirect,deadline,response-cap fixtures",
+        "internal/config/mcpstore/store.go:Store.Server",
+        "internal/config/mcpstore/store_test.go:exact/header/OAuth/disabled server fixtures",
+        "internal/platform/cli/gormescli/mcpconfig.go:newMCPTestCommand,runMCPTestCommand,renderMCPProbeTools",
+        "internal/platform/cli/gormescli/mcpconfig_test.go:default official-SDK connector,pre-network gates,timeout/redaction/truncation/malformed fixtures",
+        "internal/app/hermescliparity/service.go:hermesMCPCommands test HTTP implemented classification"
+      ],
+      "ready_when": [
+        "The existing probe Connector/Session boundary remains the caller contract; a small sdkhttp adapter hides the official SDK, HTTP policy, pagination, and cleanup rather than adding a CLI-only fake abstraction.",
+        "Production transport is HTTP-only for this child. OAuth returns auth_required and stdio returns unsupported_transport before any side effect; both remain explicit parent gaps.",
+        "The official stable Go SDK is pinned at v1.6.1, which supports MCP specs 2025-11-25, 2025-06-18, 2025-03-26, and 2024-11-05 and requires Go 1.25 while Gormes uses Go 1.26.4.",
+        "The first RED fixture invokes `gormes mcp test ink --json` with an injected successful connector and proves the command still returns row-backed evidence. GREEN then proves one real httptest Streamable HTTP initialize/tools-list exchange through the sdkhttp adapter."
+      ],
+      "not_ready_when": [
+        "Implementation uses Python, Bash, shell parsing, curl, arbitrary subprocesses, hand-written MCP protocol framing, live internet/DNS, or a Hermes checkout/runtime dependency.",
+        "The command follows redirects, retries, opens standalone SSE, exceeds the capped timeout/body/tool/output limits, probes OAuth without a token handler, starts stdio, mutates config, selects/invokes tools, or probes unadvertised capability families.",
+        "Any output/log/error exposes URLs beyond scheme+host, config/host paths, headers/env, secrets, tool schemas, response bodies, redirect targets, raw SDK/parser/transport errors, ANSI/control sequences, or unbounded server text."
+      ],
+      "blocked_by": [
+        "Gormes MCP config remove with explicit confirmation"
+      ],
+      "unblocks": [
+        "Hermes MCP catalog install/configure lifecycle"
+      ],
+      "acceptance": [
+        "`gormes mcp test <name> [--timeout DURATION] [--json]` resolves one exact active-profile server and performs a real official-SDK Streamable HTTP initialize plus all tools/list pages; success is deterministic, sanitized, bounded, and read-only.",
+        "A hermetic httptest official-SDK server proves headers reach the configured same-origin endpoint without appearing in output, tools are discovered and sorted, pagination works through the adapter, and the session closes; injected fixtures prove no live network is required.",
+        "Missing/invalid/disabled/OAuth/stdio server, malformed config, redirect, timeout/cancellation, response over 4 MiB, malformed/protocol/connection failure, excessive tools, and close failure return stable nonzero evidence without config mutation or sensitive/raw diagnostics.",
+        "HTTP requests are single-origin, no-redirect, no-retry, no-standalone-SSE, deadline-bound, and response-capped. Stdio/OAuth/process/browser/token behavior is absent and remains named in the parent umbrella.",
+        "Hermes CLI parity marks `mcp test` implemented only for HTTP connectivity/tool discovery and keeps stdio/OAuth/probe-configure parity partial; add/install/list/remove/login behavior and broad non-doc Go tests remain green."
+      ],
+      "note": "Planner/interface/context pass 2026-07-17: Hermes connects temporarily and lists tools, but its Python helper mixes transports and exposes raw exceptions. Gormes stages the behavior around the already-proven Connector/Session seam. A CLI-only injected probe was rejected because it would not create a reusable transport. The official MCP Go SDK v1.6.1 adapter was selected over hand-written JSON-RPC; this child allows only bounded Streamable HTTP and leaves direct-executable stdio and durable OAuth integration for separate policy-complete children. Builder 2026-07-17: replaced row-backed mcp test with a real profile-scoped HTTP probe using the official MCP Go SDK v1.6.1. The reusable sdkhttp adapter performs Streamable HTTP initialize and paginated tools/list behind the existing probe Connector/Session seam, disables redirects/retries/standalone SSE, applies an absolute deadline to requests and cleanup, caps every response at 4 MiB, blocks protocol-reserved configured headers, clears ambient cookie jars, bounds discovery at 1,000 tools, and closes sessions. CLI output sorts and caps 100 rendered tools, strips terminal controls, redacts secret-shaped server metadata, hides all URL/header/env/schema/raw-error details, and never writes config. OAuth, disabled, stdio, invalid/missing, and malformed cases fail before network. RED was the missing MCPProbeConnector compile seam. GREEN: 11 probe/SDK tests, 10 mcpstore tests, 53 focused MCP CLI tests, 785 full gormescli tests, 179 MCP package tests, 335 config tests, 1,042 internal/app tests, 1,935 internal/tools tests, and the full non-doc Go suite passed.",
+      "write_scope": [
+        "go.mod",
+        "go.sum",
+        "internal/config/mcpstore/",
+        "internal/tools/mcp/probe/",
+        "internal/platform/cli/gormescli/mcplogin.go",
+        "internal/platform/cli/gormescli/mcpconfig.go",
+        "internal/platform/cli/gormescli/mcpconfig_test.go",
+        "internal/app/hermescliparity/service.go",
+        "internal/app/hermescliparity/service_test.go",
+        "internal/app/gormescmd/fresh_install_e2e_test.go",
+        "internal/app/gormescmd/hermes_cli_parity_test.go",
+        "internal/app/gormescmd/wide_e2e_test.go",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools/mcp/probe/... -count=1",
+        "go test ./internal/config/mcpstore -count=1",
+        "go test ./internal/platform/cli/gormescli -run 'MCP.*(Test|Remove|Add|List|Install|Login|Catalog|Command)' -count=1",
+        "go test ./internal/app/hermescliparity ./internal/app/gormescmd -run 'MCP|FreshInstallE2E_OfflineCornerCommandMatrix|WideE2E_UserBootstrapJourney' -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "A real hermetic Streamable HTTP server proves production Go SDK initialization, paginated tool discovery, closure, and same-origin header delivery under strict bounds.",
+        "CLI fixtures prove every pre-network gate and every network failure class is non-mutating, redacted, deterministic, and leaves stdio/OAuth behavior visibly unresolved."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:bb5fc723 hermes_cli/mcp_config.py:_probe_single_server,cmd_mcp_test",
+          "hermes:bb5fc723 tests/hermes_cli/test_mcp_config.py:TestMcpTest,TestProbeEnvResolution,TestProbeCapabilityGating",
+          "modelcontextprotocol/go-sdk:v1.6.1 mcp Streamable HTTP client"
+        ],
+        "note": "Hermes behavior is the product contract; the official Go SDK is implementation evidence. Gormes hardens raw-exception, redirect, retry, response-size, untrusted-output, OAuth, and stdio boundaries."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.G",
+    "pos": 20,
+    "item": {
+      "name": "Go-native configured MCP HTTP registry + invocation",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Make configured, enabled, non-OAuth HTTP MCP tools available to real Gormes kernel turns through the existing `tools.Registry`. Extend the official-Go-SDK HTTP adapter with a narrow remote Session/Connector seam that lists tools, calls one tool, and closes. Add a deep MCP runtime registrar that resolves `config.Config.MCPServers`, attempts at most 16 HTTP servers concurrently within one 1.5-second default startup budget, closes every discovery session, normalizes descriptors, applies exact raw-name `tools.include`/`tools.exclude` filters with include precedence, and registers provider-visible names as `mcp__<sanitized-server>__<sanitized-tool>` without replacing built-ins. Each registered Tool stores only its validated definition/original wire name/connector; Execute uses the ordinary tool timeout context to open a fresh Streamable HTTP session, invoke with object arguments, render the existing MCP content/result contract (including safe artifact materialization beneath a caller-owned profile cache root), and close. Discovery/config/server failures fail open for built-in tools and register nothing for that server. Invocation failures are stable, secret-redacted unavailable/timeout errors. OAuth and stdio are skipped before side effects. This tracer bullet intentionally does not own long-lived sessions, background/late discovery, reload, toolset aliases, prompts/resources utility tools, OAuth recovery, stdio processes, sampling, parallel-call opt-in, or persistent status; those remain in the umbrella.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "tools",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Nil/empty config is a zero-cost no-op. Invalid top-level/server/filter config rejects all MCP registration without changing built-ins. Disabled, OAuth, and stdio records are skipped before connect. Server limit, total discovery deadline, connector/list/close failure, unsafe/oversize schema or server metadata, duplicate sanitized names, and registry collisions reject only affected tools/servers with safe count/name evidence; no URL/header/env/config path/raw SDK/parser/server text is logged or returned. Per-call connect/call/close errors become stable mcp_tool_unavailable or mcp_tool_timeout errors containing only the sanitized server/tool identity. Tool-result content remains model-visible under the existing MCP renderer, while diagnostics never include request arguments or secrets.",
+      "fixture": "Official Go MCP SDK StreamableHTTPHandler behind httptest.Server, injected remote sessions, temp artifact root, in-memory config.Config.MCPServers and tools.Registry/InProcessToolExecutor; stalled/malformed/oversize/auth/disabled/stdio/filter/collision/unsafe-metadata fixtures; no internet, DNS, credentials, OAuth, browser, user home, shell, git, or subprocess",
+      "source_refs": [
+        "hermes-agent/tools/mcp_tool.py@bb5fc723:mcp_prefixed_tool_name,_convert_mcp_schema,_register_server_tools,_make_tool_handler,discover_mcp_tools",
+        "hermes-agent/hermes_cli/mcp_startup.py@bb5fc723:start_background_mcp_discovery,wait_for_mcp_discovery",
+        "hermes-agent/tests/tools/test_mcp_tool.py@bb5fc723:TestSchemaConversion,TestDiscoverAndRegister,TestMCPSelectiveToolLoading,TestMCPBuiltinCollisionGuard",
+        "hermes-agent/tests/hermes_cli/test_mcp_startup.py@bb5fc723:test_cli_get_tool_definitions_briefly_waits_for_fast_mcp_thread",
+        "internal/platform/cli/gormescli/registry.go:BuildDefaultRegistry",
+        "internal/tools/toolkit/core/tool.go:Tool,Registry.Register,Registry.Descriptors",
+        "internal/tools/toolkit/execution/executor.go:InProcessToolExecutor.Execute",
+        "internal/kernel/turn_request_assembly.go:Kernel.buildTurnRequest Registry.Descriptors",
+        "internal/tools/mcp/descriptor/normalize.go:NormalizeTools,SanitizeNameComponent",
+        "internal/tools/mcp/content/content.go:RenderWithOptions",
+        "internal/tools/mcp/probe/sdkhttp/connector.go:NewConnector,sessionAdapter",
+        "github.com/modelcontextprotocol/go-sdk@v1.6.1:mcp.ClientSession.CallTool,Tools,Close",
+        "internal/tools/mcp/remote/session.go:Session,Connector,ProbeConnector",
+        "internal/tools/mcp/probe/sdkhttp/connector.go:NewSessionConnector,sessionAdapter.CallTool",
+        "internal/tools/mcp/runtime/runtime.go:RegisterConfiguredHTTP,remoteTool",
+        "internal/tools/mcp/runtime/runtime_test.go:filter,prefix,invocation,gate,metadata,collision,budget,timeout,redaction fixtures",
+        "internal/platform/cli/gormescli/registry.go:BuildDefaultRegistry MCP registration",
+        "internal/platform/cli/gormescli/registry_mcp_test.go:official-SDK default-registry descriptor and InProcessToolExecutor invocation"
+      ],
+      "ready_when": [
+        "The remote connector seam is shared by CLI probe and runtime invocation; the registrar depends on that seam, not the SDK or a CLI fake directly.",
+        "Startup discovery has one explicit total budget and bounded server/tool/schema counts. It collects concurrent results then registers in sorted server/tool order so collisions are deterministic.",
+        "Fresh-per-call sessions are an explicit temporary ownership choice: no session survives discovery or Execute, so registry/kernel shutdown APIs need not change in this child.",
+        "The first RED fixture builds the default registry from one configured HTTP server and proves `mcp__fixture__echo` is absent. GREEN proves descriptor registration plus invocation through the ordinary InProcessToolExecutor and official hermetic server."
+      ],
+      "not_ready_when": [
+        "Implementation adds global session state, background goroutines after BuildDefaultRegistry returns, reload/cache mutation, stdio/process launch, OAuth/browser/token handling, prompts/resources, sampling, or toolset alias behavior.",
+        "Discovery is sequential/unbounded, follows redirects, retries, leaves sessions open, lets a server replace a built-in, ignores include/exclude, registers raw unprefixed names, or leaks unsafe schema/description text into provider prompts.",
+        "Any returned/logged error includes URL/path/query, headers/env, config/profile paths, SDK/parser/HTTP details, response bodies, tool arguments, secrets, or unsanitized server-controlled text."
+      ],
+      "blocked_by": [
+        "Go-native MCP HTTP probe + test command"
+      ],
+      "unblocks": [
+        "Hermes MCP catalog install/configure lifecycle"
+      ],
+      "acceptance": [
+        "BuildDefaultRegistry with one enabled non-OAuth HTTP config and a fast hermetic official-SDK server contains a stable `mcp__<server>__<tool>` descriptor whose schema is an object, whose safe description is bounded, and whose source wire name remains exact for calls.",
+        "The ordinary InProcessToolExecutor invokes the registered descriptor, forwards object arguments to the original MCP tool name, renders text/resource/error content through existing MCP result code, closes the session, and never exposes URL/header/env/schema/raw transport errors in execution diagnostics.",
+        "Include wins over exclude; exclude-only, no-filter, disabled, OAuth, stdio, malformed filters, unsafe/oversize metadata, duplicate sanitized names, server-name collisions, and built-in collisions have deterministic hermetic coverage and never remove built-ins.",
+        "At most 16 servers, 100 discovered tools per server, 64 KiB schema per tool, 512 KiB aggregate registered schema, 1.5-second default total discovery, and existing 4 MiB per-response SDK adapter cap are enforced; timeout/cancellation leaves no sessions or goroutines behind.",
+        "Hermes parity marks configured HTTP MCP descriptor registration and fresh-session invocation implemented, while long-lived lifecycle, late refresh/reload, OAuth, stdio, utilities, toolset aliases, and parallel/sampling behavior remain partial. Full registry, kernel tool-loop, MCP, config, app, and non-doc Go gates stay green."
+      ],
+      "note": "Planner/architecture/interface pass 2026-07-17: Gormes already has descriptor normalization, MCP result rendering, a concurrent-safe registry sampled on every kernel turn, and a bounded official-SDK HTTP probe, but BuildDefaultRegistry never consumes Config.MCPServers. A long-lived bridge was rejected because Registry has no Close owner and gateway reload/cache semantics are unresolved. Reusing the legacy hand-written HTTPClient was rejected because the official adapter now owns stricter redirect/retry/deadline/body policy. The selected fresh-session tracer bullet is intentionally less efficient but creates the first real configured MCP agent-turn path without hidden lifecycle state. Builder 2026-07-17: BuildDefaultRegistry now consumes Config.MCPServers and registers enabled non-OAuth HTTP tools under Hermes' mcp__<server>__<tool> names. The deep runtime registrar resolves config, discovers up to 16 servers concurrently under one 1.5s budget, applies include-over-exclude filters, caps 100 tools/server, 64 KiB/tool and 512 KiB aggregate schemas, rejects unsafe prompt/schema metadata and deterministic collisions, and preserves built-ins. The shared official-SDK adapter now exposes a narrow live CallTool session. Each registered tool opens a fresh deadline-bound session, forwards only decoded object arguments to the exact wire name, renders existing text/resource/error semantics into a profile cache root, wraps output as untrusted content with secret/prompt-injection protection, and closes. OAuth, stdio, long-lived sessions, reload/late refresh, utilities, toolset aliases, sampling, and parallel opt-in remain excluded. RED proved the configured mcp__fixture__echo descriptor was absent. GREEN: 17 remote/SDK/runtime tests, 83 MCP/registry tests, 30 kernel tool/request tests, 208 MCP/toolkit tests, 786 full gormescli tests, 1,042 internal/app tests, 1,946 internal/tools tests, 17 race-enabled runtime/SDK tests, and the full non-doc Go suite passed.",
+      "write_scope": [
+        "internal/tools/mcp/remote/",
+        "internal/tools/mcp/probe/sdkhttp/",
+        "internal/tools/mcp/runtime/",
+        "internal/platform/cli/gormescli/registry.go",
+        "internal/platform/cli/gormescli/registry_mcp_test.go",
+        "internal/kernel/tools_test.go",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools/mcp/remote ./internal/tools/mcp/probe/sdkhttp ./internal/tools/mcp/runtime -count=1",
+        "go test ./internal/platform/cli/gormescli -run 'MCP|Registry' -count=1",
+        "go test ./internal/kernel -run 'Tool|TurnRequestAssembly' -count=1",
+        "go test ./internal/tools/mcp/... ./internal/tools/toolkit/... -count=1",
+        "go test ./internal/app/... ./internal/platform/cli/gormescli -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "A configured temp-profile HTTP MCP descriptor appears in the actual default registry and executes through the same InProcessToolExecutor used by kernel turns against a hermetic official SDK server.",
+        "Failure/filter/collision/budget fixtures prove MCP registration cannot delay startup beyond policy, override built-ins, leak secrets, or leave transport/session ownership behind."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:bb5fc723 tools/mcp_tool.py:mcp_prefixed_tool_name,_register_server_tools,_make_tool_handler,discover_mcp_tools",
+          "hermes:bb5fc723 tests/tools/test_mcp_tool.py:TestDiscoverAndRegister,TestMCPSelectiveToolLoading,TestMCPBuiltinCollisionGuard",
+          "modelcontextprotocol/go-sdk:v1.6.1 ClientSession CallTool/Tools/Close"
+        ],
+        "note": "Hermes defines naming/filter/registration/invocation behavior. Gormes owns the stricter bounded fresh-session lifecycle as a staged divergence until long-lived registry ownership and reload are planned."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.G",
+    "pos": 21,
+    "item": {
+      "name": "Gormes MCP explicit tool-selection configure",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Replace the row-backed `gormes mcp configure <name>` command with an explicit, noninteractive tool-selection mutation for one existing profile-scoped MCP server. Expose alias `mcp config`. Exactly one of `--include <wire-name>[,<wire-name>...]`, `--none`, or `--all` is required. Include mode canonicalizes a bounded, duplicate-free sorted list of exact MCP source wire names into `mcp_servers.<name>.tools.include` and removes `tools.exclude`; none writes an explicit empty include list so the server contributes no callable tools; all removes include/exclude and removes the tools table only when otherwise empty. Preserve the complete server record, sibling servers, unrelated config, and non-selection children of the tools table. Use the existing active-profile config path and atomic writer only; do not probe/connect, resolve OAuth, launch processes, read secrets, or mutate runtime state. Emit stable text/JSON containing only the validated server name, selection mode, selected count, `runtime_refresh_required=true`, and safe evidence. Missing/invalid server, malformed config/tools blocks, invalid/duplicate/oversize/control-bearing names, conflicting/missing modes, and writer failure are non-mutating and return redacted nonzero evidence. The already-validated MCP runtime applies include precedence on the next registry build. Interactive discovery/checklist, live reload, prompts/resources toggles, enable/disable, stdio/OAuth transport, and picker UX remain in the umbrella.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "tools",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "The command never opens network/process/browser/OAuth/secret surfaces. An absent or invalid mode, invalid server/tool name, missing server, malformed document/tools block, validation failure, or atomic writer failure leaves the original config bytes unchanged and returns only invalid_input, not_found, config_rejected, or config_unavailable evidence. No URL/header/env/args/config path/raw parser/writer error or selected tool text appears in output or errors. Successful persistence truthfully reports that an existing process must rebuild/reload its registry.",
+      "fixture": "temp profile config.toml written through configwriter, injected failing Store.WriteDocument, Cobra command text/JSON capture, and the existing runtime registrar with in-memory fake discovery; no user home, network, DNS, credentials, OAuth, browser, shell, git, subprocess, or live MCP server",
+      "source_refs": [
+        "hermes-agent/hermes_cli/subcommands/mcp.py@bb5fc723:build_mcp_parser configure/config",
+        "hermes-agent/hermes_cli/mcp_config.py@bb5fc723:cmd_mcp_configure",
+        "hermes-agent/hermes_cli/mcp_catalog.py@bb5fc723:_write_tools_include,_apply_tool_selection",
+        "hermes-agent/tests/hermes_cli/test_mcp_catalog.py@bb5fc723:TestToolSelection,TestToolsConfigConvergence",
+        "internal/config/mcpstore/store.go:Store,serverMap",
+        "internal/platform/cli/gormescli/mcpconfig.go:newMCPConfigCommands",
+        "internal/tools/mcp/runtime/runtime.go:parseToolFilter,filterAndSortTools",
+        "internal/app/hermescliparity/service.go:hermesMCPCommands",
+        "internal/config/mcpstore/store.go:Store.ConfigureTools,ToolSelection",
+        "internal/config/mcpstore/store_test.go:include/none/all preservation and non-mutation fixtures",
+        "internal/platform/cli/gormescli/mcpconfig.go:newMCPConfigureCommand,runMCPConfigureCommand",
+        "internal/platform/cli/gormescli/mcpconfig_test.go:configure/config persistence, redaction, runtime integration, and failure fixtures",
+        "internal/tools/mcp/runtime/runtime.go:toolFilter.includeSet explicit-empty semantics",
+        "internal/tools/mcp/runtime/runtime_test.go:explicit none vs absent/exclude selection fixture",
+        "internal/app/hermescliparity/service.go:concrete configure/config manifest entries"
+      ],
+      "ready_when": [
+        "The config-safe add/list/remove and configured HTTP runtime rows are validated, so this child mutates the exact `tools.include` contract already consumed by production registry construction.",
+        "Selection semantics are explicit: include writes a canonical exact-name whitelist and clears exclude; none writes include=[]; all clears only include/exclude and prunes an otherwise-empty tools table.",
+        "The first RED fixture proves `mcp configure` still emits row-backed unavailable evidence; GREEN proves persisted selection changes which hermetic runtime descriptors register after a fresh registry build.",
+        "Filesystem policy is inherited from mcpstore/configwriter: active profile path, 0700 parent, atomic 0600 file, no second state file, and injected writer failure coverage."
+      ],
+      "not_ready_when": [
+        "Implementation probes a server, launches OAuth/browser/process behavior, reads ambient secrets, adds stdin/curses UI, mutates a live registry, or claims changes affect an already-running process.",
+        "All mode deletes non-selection tools children, include mode preserves exclude, unknown/malformed servers are partially rewritten, or tool names/config/parser/writer details can leak through output/errors.",
+        "The CLI accepts multiple/no selection modes, unbounded/control-bearing names, duplicate names, or writes before all input/document validation succeeds."
+      ],
+      "blocked_by": [
+        "Go-native configured MCP HTTP registry + invocation"
+      ],
+      "unblocks": [
+        "Hermes MCP catalog install/configure lifecycle"
+      ],
+      "acceptance": [
+        "`gormes mcp configure demo --include search,create --json` and alias `mcp config` atomically persist sorted `tools.include=[\"create\",\"search\"]`, remove exclude, preserve endpoint/auth/headers/env/args/enabled/connect timeout, sibling servers, unrelated config, and report configured/include/count=2/runtime_refresh_required without exposing selection text or sensitive config.",
+        "`--none` persists an explicit empty include list; `--all` clears include/exclude while preserving any other tools children and prunes the tools table when empty. A subsequent hermetic `RegisterConfiguredHTTP` build registers exactly the selected/all/none descriptors without config mutation or live network.",
+        "No mode, conflicting modes, missing/invalid server, malformed top-level/server/tools blocks, empty/duplicate/over-128-rune/control-bearing tool names, over-100 selections, and injected writer failure return stable nonzero redacted evidence and byte-for-byte unchanged config.",
+        "Hermes CLI parity marks configure/config concrete for explicit persistence while interactive probe/checklist, live reload, enable/disable, utility controls, OAuth, and stdio remain partial. Focused store/CLI/runtime/parity tests plus broad config/app/non-doc gates stay green."
+      ],
+      "note": "Planner/interface pass 2026-07-17: upstream `cmd_mcp_configure` probes then drives a curses checklist, but its durable contract converges on `tools.include`, removes exclude for a whitelist, writes include=[] for none, and clears filtering for all. Gormes already consumes this shape in the real runtime but only exposes a row-backed command. A probe-coupled API was rejected because it would combine bounded transport failure with atomic persistence and make noninteractive automation impossible. A generic map editor was rejected because it would expose secret-bearing server entries. The selected deep Store mutation is deterministic and profile-safe; interactive probe/picker and live reload stay separate policy-complete children. Scope repair 2026-07-17: RED review proved the existing filter cannot distinguish absent include from explicit include=[]; runtime.go is included so none mode can preserve Hermes' zero-tool contract rather than silently enabling all tools. Builder 2026-07-17: replaced the row-backed configure placeholder with concrete `gormes mcp configure|config <name>` persistence. Exactly one of --include, --none, or --all is required. A private repeatable comma flag preserves raw control-bearing input for fail-closed validation instead of pflag StringSlice silently discarding text after a newline. mcpstore atomically sorts and writes at most 100 exact <=128-rune names, clears exclude for include/none, writes include=[] for none, and removes only include/exclude for all while preserving non-selection tools settings and every server/config sibling. All failures leave bytes unchanged and expose only stable evidence. Runtime filtering now distinguishes absent include (all) from explicit include=[] (none). Text/JSON disclose no selected names, endpoints, headers, env, args, config paths, or raw parser/writer errors and truthfully require runtime refresh. RED receipts: the CLI test failed with unknown flag --include; the explicit-none runtime test registered all tools. GREEN: 24 store tests, 14 configure CLI tests, 12 runtime tests, 800 full gormescli tests, 649 parity/gormescmd tests, 32 race-enabled focused tests, 2,382 affected broad tests, go vet, and the full non-doc Go suite passed.",
+      "write_scope": [
+        "internal/config/mcpstore/",
+        "internal/platform/cli/gormescli/mcplogin.go",
+        "internal/platform/cli/gormescli/mcpconfig.go",
+        "internal/platform/cli/gormescli/mcpconfig_test.go",
+        "internal/tools/mcp/runtime/",
+        "internal/app/hermescliparity/service.go",
+        "internal/app/gormescmd/hermes_cli_parity_test.go",
+        "internal/app/gormescmd/fresh_install_e2e_test.go",
+        "internal/app/gormescmd/wide_e2e_test.go",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/config/mcpstore -count=1",
+        "go test ./internal/platform/cli/gormescli -run 'MCP.*(Configure|Config|List|Add|Remove|Test|Install|Login|Catalog|Command)' -count=1",
+        "go test ./internal/tools/mcp/runtime -run 'RegisterConfiguredHTTP.*Selection|RegisterConfiguredHTTP.*Filter' -count=1",
+        "go test ./internal/app/hermescliparity ./internal/app/gormescmd -run 'MCP|FreshInstallE2E_OfflineCornerCommandMatrix|WideE2E_UserBootstrapJourney' -count=1",
+        "go test ./internal/config/... ./internal/tools/mcp/... ./internal/platform/cli/gormescli ./internal/app/... -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "A temp-profile CLI fixture proves include/none/all and config alias persistence, exact preservation, non-mutation failures, modes, permissions, and redacted text/JSON evidence.",
+        "A runtime integration fixture rebuilds from the written config and proves selected/all/none tool descriptor visibility through the existing registrar without any live side effect."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:bb5fc723 hermes_cli/mcp_config.py:cmd_mcp_configure",
+          "hermes:bb5fc723 hermes_cli/mcp_catalog.py:_write_tools_include,_apply_tool_selection"
+        ],
+        "note": "Hermes defines exact include/none/all persistence semantics; Gormes owns the explicit noninteractive flags and stricter no-probe atomic/redaction policy."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.G",
+    "pos": 22,
+    "item": {
+      "name": "Hermes MCP catalog install/configure lifecycle",
+      "priority": "P2",
+      "status": "planned",
+      "contract": "Port the remaining approved MCP catalog lifecycle after the read-only manifest/list row: install config-only stdio/http entries, collect declared env values through existing secret-safe operator seams, preserve prior tool selections on reinstall, probe tools through injected clients, and explicitly update/disable/remove entries. Pinned git-install/bootstrap manifests require a separate Go-native process and network policy; Hermes shell=True bootstrap is not an acceptable implementation contract.",
+      "contract_status": "draft",
+      "slice_size": "umbrella",
+      "execution_owner": "tools",
+      "module": "tools",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Until process/network/secret/persistence policy is approved, install/configure remains unavailable with stable guidance to use existing explicit `gormes mcp add/configure` surfaces; catalog listing remains read-only.",
+      "fixture": "future temp-profile config/dotenv store, fake MCP probe, fake git/network/process runner, and approval fixtures; no live credentials, network, homes, repositories, shells, or MCP servers",
+      "source_refs": [
+        "hermes-agent/hermes_cli/mcp_catalog.py@bb5fc723:install_entry,uninstall_entry,_do_git_install,_run_bootstrap,_probe_tools",
+        "hermes-agent/hermes_cli/mcp_picker.py@bb5fc723:install_by_name,run_picker,_handle_row",
+        "hermes-agent/tests/hermes_cli/test_mcp_catalog.py@bb5fc723:TestInstall,TestToolSelection,TestCustomMcpRows",
+        "internal/tools/mcp/config/config.go",
+        "internal/tools/mcp/probe/probe.go",
+        "internal/platform/cli/gormescli/mcplogin.go",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Approved optional MCP catalog"
+      ],
+      "ready_when": [
+        "The approved manifest/list row is complete and validated.",
+        "Planner splits config-only install from pinned-git/bootstrap execution if one fixture-ready row cannot own both safely.",
+        "The config-only HTTP child is complete before planner creates secret, git/bootstrap, probe/tool-selection, uninstall, enable/disable, or picker children.",
+        "The custom HTTP add/redacted list child is complete before custom stdio/header/secret, probe/test/configure, remove/token-cleanup, enable/disable, or picker children.",
+        "The explicit-confirmation config-remove child is complete before any durable OAuth-token or catalog-artifact cleanup child.",
+        "The Go-native bounded HTTP probe/test child is complete before stdio/OAuth/configure probe behavior is split.",
+        "The configured HTTP registry/invocation tracer bullet is complete before long-lived session/reload/stdio/OAuth runtime children are split."
+      ],
+      "not_ready_when": [
+        "Owner has not approved outbound URL/ref allowlisting, redirect policy, clone size/depth, install root, symlink/atomic replacement, bootstrap executable allowlist/argv/cwd/environment, timeout/cancellation/output caps, and rollback policy.",
+        "Secret prompts and dotenv/config writes lack explicit profile-root confinement, 0600/atomicity, redaction, duplicate/update semantics, and crash recovery.",
+        "Implementation would port Hermes shell=True bootstrap, auto-update catalog entries, use live MCP/network/process fixtures, or combine interactive picker UI with persistence mechanics in one untestable slice."
+      ],
+      "blocked_by": [
+        "Hermes approved MCP catalog manifest + list command",
+        "Gormes MCP catalog HTTP config install + default loader",
+        "Gormes MCP custom HTTP config add + redacted list",
+        "Gormes MCP config remove with explicit confirmation",
+        "Go-native MCP HTTP probe + test command",
+        "Go-native configured MCP HTTP registry + invocation",
+        "Gormes MCP server enable/disable persistence"
+      ],
+      "acceptance": [
+        "A future planner split provides fixture-ready acceptance for config-only install/update/disable/remove before any git/bootstrap behavior.",
+        "Reinstall preserves prior user tool selection, probe failures apply manifest defaults deterministically, and secrets never enter config/output/logs.",
+        "Git/bootstrap entries remain disabled until the separately approved process/network policy is implemented with rollback evidence."
+      ],
+      "note": "Planner 2026-07-16: explicit follow-up preserving the only remaining optional-MCP-catalog gap. This row is deliberately draft because upstream executes arbitrary shell bootstrap and performs git/network/profile writes; builder must not infer those policies. Selector repair: this combined persistence/probe/git/bootstrap lifecycle is an umbrella, not an executable large slice; planner must split a config-only child before builder work. Split 2026-07-16: first executable child is Gormes MCP catalog HTTP config install + default loader; the umbrella retains every process/network/secret/probe/destructive/UI remainder. Child completion 2026-07-16: HTTP-only config install/default loading is validated; remaining umbrella work is generic custom add/remove/list/test/configure plus secret/git/bootstrap/probe/tool-selection/uninstall/enable-disable/picker behavior. Split 2026-07-16: custom HTTP config add + redacted list is the next executable child; stdio/header/secret/probe/remove/configure/picker behavior remains in this umbrella. Child completion 2026-07-16: custom HTTP add and redacted list are validated. Remaining umbrella behavior is custom stdio/header-secret add, live probe/test/tool configure, remove plus OAuth-token cleanup, enable/disable, picker, and n8n git/bootstrap/secret lifecycle. Split 2026-07-17: exact config removal with mandatory --yes is executable; durable token/artifact cleanup remains here because Gormes has no durable MCP token/clone store. Child completion 2026-07-17: exact config remove/rm with mandatory --yes is validated. Durable OAuth-token/catalog-artifact cleanup remains unresolved because no durable Gormes MCP token/clone store exists. Split 2026-07-17: bounded official-Go-SDK Streamable HTTP test is executable; stdio process probing and OAuth transport integration remain here. Child completion 2026-07-17: bounded official-Go-SDK Streamable HTTP mcp test is validated. Direct-executable stdio probe, authenticated OAuth transport integration, prompt/resource/configure probing, and broader lifecycle behavior remain unresolved. Split 2026-07-17: configured non-OAuth HTTP descriptor registration and fresh-session invocation are executable; long-lived lifecycle/reload/stdio/OAuth/utilities/toolset aliases remain here. Child completion 2026-07-17: configured non-OAuth HTTP MCP descriptors and fresh-session invocation now participate in the real default registry/kernel executor path. Long-lived session ownership, late refresh/reload, direct-executable stdio, authenticated OAuth transport, utility tools, toolset aliases, sampling, and parallel-call policy remain unresolved. Child completion 2026-07-17: explicit noninteractive include/none/all tool-selection persistence is validated and consumed correctly by fresh registry builds. Interactive probe/checklist/picker UX, live reload/late refresh, enable/disable, utility controls, stdio, authenticated OAuth, durable cleanup, and n8n bootstrap remain unresolved. Split 2026-07-17: config-only server enable/disable persistence is fixture-ready; live runtime reload, interactive picker UX, stdio/OAuth transport, durable cleanup, utility aliases, and git/bootstrap remain in the umbrella.",
+      "write_scope": [
+        "internal/tools/mcp/catalog/",
+        "internal/tools/mcp/config/",
+        "internal/tools/mcp/probe/",
+        "internal/platform/cli/gormescli/",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools/mcp/catalog ./internal/tools/mcp/config ./internal/tools/mcp/probe -count=1",
+        "go test ./internal/platform/cli/gormescli -run 'MCP.*Catalog|MCPCommand' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Planner has split and approved the config/persistence and optional git/bootstrap policies; all resulting children are fixture-ready or validated.",
+        "Catalog install/configure behavior is hermetically proven and the optional MCP catalog parity atom moves partial to covered."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:bb5fc723 hermes_cli/mcp_catalog.py:install_entry",
+          "hermes:bb5fc723 hermes_cli/mcp_picker.py:install_by_name,run_picker"
+        ],
+        "note": "Hermes lifecycle is the parity target; shell bootstrap is rejected in favor of a future owner-approved Go-native process/network/persistence policy."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.G",
+    "pos": 23,
+    "item": {
+      "name": "Gormes MCP server enable/disable persistence",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Add noninteractive `gormes mcp enable <name>` and `gormes mcp disable <name>` commands that atomically update only an existing active-profile `mcp_servers.<name>.enabled` field, preserve every other server field including tool filters and secret references, emit redacted text or JSON evidence, and state that a runtime reload is required. This slice performs no probe, network request, process launch, secret lookup, or live registry mutation.",
+      "contract_status": "fixture_ready",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "tools",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "Invalid names, missing servers, malformed config, or atomic-write failures return stable redacted evidence and leave the config unchanged; active runtimes remain unchanged until reload or restart.",
+      "fixture": "t.TempDir active-profile config.toml with HTTP and stdio entries, synthetic secret-reference/header fields, explicit tool filters, injected MCPConfigPath, and no environment, process, network, OAuth, or live MCP server access",
+      "source_refs": [
+        "hermes-agent/hermes_cli/mcp_picker.py@bb5fc723:_enable_disable,_handle_row",
+        "hermes-agent/hermes_cli/mcp_catalog.py@bb5fc723:is_enabled",
+        "hermes-agent/tests/tools/test_mcp_probe.py@bb5fc723:TestProbeMCPServerTools.test_skips_disabled_servers",
+        "internal/config/mcpstore/store.go:Store.ConfigureTools,Store.Remove,Store.List",
+        "internal/tools/mcp/config/config.go:resolveMCPEnabled,disabledMCPServer",
+        "internal/platform/cli/gormescli/mcpconfig.go:newMCPConfigCommands",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Approved optional MCP catalog"
+      ],
+      "ready_when": [
+        "The existing typed MCP resolver continues to treat omitted enabled as true and explicit false as disabled without resolving credentials for operator output.",
+        "The existing active-profile MCP store and atomic 0600 config writer are used; no second persistence path is introduced.",
+        "The commands are explicitly persistence-only and report runtime_refresh_required rather than mutating an active registry."
+      ],
+      "not_ready_when": [
+        "Implementation would read or print secret values, expose raw parser/writer errors, probe an MCP server, access the network, launch a process, or use a live profile/home fixture.",
+        "Implementation would add interactive picker behavior, live runtime reload, stdio/OAuth transport work, durable credential cleanup, or git/bootstrap lifecycle behavior to this slice."
+      ],
+      "blocked_by": [
+        "Gormes MCP custom HTTP config add + redacted list",
+        "Go-native configured MCP HTTP registry + invocation"
+      ],
+      "unblocks": [
+        "Hermes MCP catalog install/configure lifecycle"
+      ],
+      "acceptance": [
+        "Enable and disable update only the exact existing server's enabled boolean for both HTTP and stdio-shaped fixtures while preserving URL/command, args, headers/env references, auth, timeouts, sampling, and tools fields.",
+        "Invalid names, absent servers, malformed server maps, and injected write failures return stable redacted text/JSON evidence, a nonzero exit, and byte-unchanged config.",
+        "`gormes mcp list` reflects the persisted state; a fresh resolver/registry excludes disabled servers and includes them again after enable without any live reload claim.",
+        "Successful text and JSON output identifies only the sanitized server name, enabled state, and runtime_refresh_required=true; it never contains config values, paths, headers, environment values, or raw errors."
+      ],
+      "note": "Planner split 2026-07-17 from the remaining MCP lifecycle umbrella. Scope is intentionally config-only; Hermes picker UX and active-session refresh are separate children.",
+      "write_scope": [
+        "internal/config/mcpstore/",
+        "internal/platform/cli/gormescli/",
+        "internal/tools/mcp/config/",
+        "internal/tools/mcp/runtime/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/config/mcpstore -run 'TestStoreSetEnabled' -count=1",
+        "go test ./internal/platform/cli/gormescli -run 'TestMCP(Enable|Disable)' -count=1",
+        "go test ./internal/tools/mcp/config ./internal/tools/mcp/runtime -run 'Disabled|Enabled' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Focused store and CLI tests prove field-preserving atomic enable/disable writes, redacted failure behavior, and explicit runtime-refresh guidance.",
+        "Fresh config resolution and registry construction honor the persisted state, and the umbrella retains every non-config lifecycle gap."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:bb5fc723 hermes_cli/mcp_picker.py:_enable_disable",
+          "hermes:bb5fc723 tests/tools/test_mcp_probe.py:TestProbeMCPServerTools.test_skips_disabled_servers"
+        ],
+        "note": "Hermes server enablement semantics are the parity target; explicit noninteractive commands and atomic profile persistence are Gormes-owned hardening."
+      }
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.H",
     "pos": 0,
     "item": {

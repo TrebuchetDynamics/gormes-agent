@@ -4098,6 +4098,237 @@
   },
   {
     "phase": "2",
+    "subphase": "2.B.5",
+    "pos": 82,
+    "item": {
+      "name": "Webhook declarative route filters + helper manifest classification",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Webhook RouteConfig accepts declarative filter specs and Runtime evaluates them after signature/event parsing but before idempotency, prompt rendering, delivery, Accepted storage, or OnAccepted. Supported core operators match Hermes: nested all/any/not plus exists, missing, equals, not_equals, contains, in, and regex against payload, event/event_type, and case-insensitive request headers. A non-match returns HTTP 200 status=ignored reason=filter and does not consume the delivery ID. The gateway platform inventory classifies webhook_filters.py as a helper of webhook.py rather than a standalone connector. Profile-backed in_file filters and route script transforms remain explicit follow-ups.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "channels",
+      "trust_class": [
+        "gateway",
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Malformed filter objects, unsupported operators, invalid regex, bad field paths, and wrong all/any/list shapes fail closed as a filter non-match with stable `200 ignored reason=filter`; they never panic, dispatch, consume idempotency state, read files, or execute processes.",
+      "fixture": "internal/adapters/channels/webhook runtime fixtures using InsecureNoAuth, synthetic JSON payloads/headers, dynamic-route rewrite proving ignored delivery IDs remain reusable; internal/gateway/platforms/inventory source-discovery fixture against ./hermes-agent",
+      "source_refs": [
+        "hermes-agent/gateway/platforms/webhook_filters.py@bb5fc723:WebhookRouteProcessor.resolve_filter_field,filter_matches,route_filters_match (L94-225)",
+        "hermes-agent/gateway/platforms/webhook.py@bb5fc723:_handle_webhook filter integration before route scripts/dispatch (L565-617)",
+        "hermes-agent/tests/gateway/test_webhook_adapter.py@bb5fc723:TestPayloadFilters.test_filter_rejects_before_agent_dispatch,test_filter_accepts_nested_any_and_in_file,test_filter_applies_to_deliver_only_before_delivery (L617-758)",
+        "internal/adapters/channels/webhook/bridge.go:RouteConfig,BuildPromptDelivery",
+        "internal/adapters/channels/webhook/runtime.go:Runtime.Handle insertion point before seenDelivery/BuildPromptDelivery",
+        "internal/adapters/channels/webhook/dynamic_routes.go:DynamicRouteSet JSON reload fixture",
+        "internal/gateway/platforms/inventory/manifest_test.go:readHermesGatewayConnectorIDs helper-file classification",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Channels"
+      ],
+      "ready_when": [
+        "The evaluator is a concrete package-local helper under internal/adapters/channels/webhook; no interface/factory is introduced.",
+        "RouteConfig filters round-trip through static/dynamic JSON routes and accept either one object or an ordered list whose members must all match.",
+        "Runtime evaluates filters only after ParseInbound succeeds and before seenDelivery, BuildPromptDelivery, Accepted append, or OnAccepted."
+      ],
+      "not_ready_when": [
+        "The slice adds in_file/profile-home filesystem reads or script/subprocess execution; those require separate path-security/process-policy rows.",
+        "The implementation treats webhook_filters.py as a connector manifest entry instead of a helper imported by webhook.py.",
+        "The implementation logs payload/filter values, weakens signature/event/rate-limit gates, or changes accepted webhook prompt/delivery behavior."
+      ],
+      "acceptance": [
+        "RouteConfig decodes filters from static and dynamic route JSON without changing existing secret/events/prompt/delivery fields.",
+        "Pure evaluator fixtures cover nested all/any/not, payload/event/event_type/header field resolution, exists/missing/equals/not_equals/contains/in/regex, and fail-closed invalid specs.",
+        "A non-matching runtime request returns status code 200, status ignored, reason filter; Accepted and OnAccepted remain untouched.",
+        "A delivery ID rejected by a filter can later be accepted after a dynamic route reload changes the filter, proving filtering occurs before idempotency storage.",
+        "Matching requests preserve existing prompt rendering and delivery behavior.",
+        "Platform connector discovery ignores webhook_filters.py while still requiring the real webhook.py manifest entry; TestHermesGatewayPlatformManifestCoversUpstream passes for this drift."
+      ],
+      "note": "Planner 2026-07-14: fresh Hermes bb5fc723 adds gateway/platforms/webhook_filters.py. Source proves it is an imported helper, not a connector, so the manifest gate must exclude it. Gormes already has signed ingress, dynamic routes, prompt delivery, rate limiting, and dedupe, but RouteConfig/Runtime lack declarative filters. This row ships the pure core vertically and leaves in_file plus run_route_script as separate security-sensitive candidates; completion should move the new parity atom missing->partial, not covered. Builder 2026-07-14: implemented concrete package-local pure filters in route_filters.go; Runtime.Handle returns 200 ignored reason=filter before seenDelivery/BuildPromptDelivery/Accepted/OnAccepted; dynamic reload proves rejected delivery IDs remain reusable. Core object/list all/any/not and exists/missing/equals/not_equals/contains/in/regex payload/event/header behavior is hermetically covered. Platform inventory now excludes helper webhook_filters.py while retaining webhook.py. Validation: go test ./internal/adapters/channels/webhook -count=1; go test ./internal/gateway/platforms/inventory -run TestHermesGatewayPlatformManifestCoversUpstream -count=1. Parity remains partial because in_file and script execution are excluded.",
+      "write_scope": [
+        "internal/adapters/channels/webhook/bridge.go",
+        "internal/adapters/channels/webhook/dynamic_routes_test.go",
+        "internal/adapters/channels/webhook/route_filters.go",
+        "internal/adapters/channels/webhook/route_filters_test.go",
+        "internal/adapters/channels/webhook/runtime.go",
+        "internal/adapters/channels/webhook/runtime_test.go",
+        "internal/gateway/platforms/inventory/manifest_test.go",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/adapters/channels/webhook -run 'Filter|DynamicRoute|Runtime' -count=1",
+        "go test ./internal/gateway/platforms/inventory -run TestHermesGatewayPlatformManifestCoversUpstream -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Hermetic webhook tests prove matching, ignored-before-dedupe, dynamic reload, fail-closed invalid specs, and unchanged accepted delivery behavior.",
+        "The platform inventory gate classifies webhook_filters.py as helper-backed by webhook.py and passes against bb5fc723.",
+        "The webhook filter parity atom moves missing->partial with in_file and route scripts named as remaining gaps; this row moves planned->complete with exact Go evidence."
+      ]
+    }
+  },
+  {
+    "phase": "2",
+    "subphase": "2.B.5",
+    "pos": 83,
+    "item": {
+      "name": "Webhook profile-confined in_file route filters",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Webhook RuntimeConfig injects ProfileHome into the package-local route-filter evaluator. The in_file operator resolves only relative paths plus ~/.hermes and ~/.gormes aliases beneath that root; it does not expand environment variables and rejects other tilde forms, platform-absolute paths, lexical traversal, and symlink escapes. It reads only regular UTF-8 files up to 1 MiB, interpreting JSON arrays as values, JSON objects as keys, JSON scalars as one value, and invalid JSON as trimmed non-empty lines. Membership uses the existing filter equality semantics and remains before idempotency, prompt rendering, Accepted storage, and OnAccepted. Route scripts remain excluded.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "channels",
+      "trust_class": [
+        "gateway",
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Blank ProfileHome/path, unsupported tilde, absolute/traversal/symlink-escape paths, missing/non-regular/unreadable files, files over 1 MiB, invalid UTF-8, and unsupported decoded shapes fail closed as a non-match. Runtime returns the existing 200 ignored reason=filter envelope without dispatch or idempotency consumption and never logs file contents, resolved host paths, or payload values.",
+      "fixture": "t.TempDir profile home with JSON list/object/scalar and line watchlists; nested any runtime request modeled on Hermes TestPayloadFilters; in-root symlink plus escape, absolute, traversal, missing, directory, invalid UTF-8, and 1 MiB+1 fixtures; no live home, network, credentials, or subprocess",
+      "source_refs": [
+        "hermes-agent/gateway/platforms/webhook_filters.py@bb5fc723:_resolve_profile_path,_load_filter_file_values,WebhookRouteProcessor.filter_matches in_file (L29-89,L191-192)",
+        "hermes-agent/tests/gateway/test_webhook_adapter.py@bb5fc723:TestPayloadFilters.test_filter_accepts_nested_any_and_in_file (L650-720)",
+        "internal/adapters/channels/webhook/route_filters.go:evaluateFilter,filterValuesEqual",
+        "internal/adapters/channels/webhook/runtime.go:RuntimeConfig,Runtime.Handle filter-before-seenDelivery boundary",
+        "internal/adapters/channels/webhook/route_filters_test.go:core/filter degradation fixtures",
+        "internal/adapters/channels/webhook/runtime_test.go:filter-before-dispatch/idempotency fixture",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Webhook route filters and transforms"
+      ],
+      "ready_when": [
+        "Owner approved the Gormes-confined divergence from Hermes absolute/env-expanded paths: inject ProfileHome; allow relative and ~/.hermes or ~/.gormes aliases only; reject escape; cap reads at 1 MiB.",
+        "The existing pure filter evaluator and Runtime.Handle pre-dedupe integration are green before this slice begins.",
+        "Path resolution and file loading remain concrete package-local helpers; no filesystem/provider interface or new package is introduced."
+      ],
+      "not_ready_when": [
+        "Implementation permits arbitrary absolute paths, environment expansion, traversal, symlink escape, live ~/.gormes or ~/.hermes reads, or uncapped file reads.",
+        "The slice adds route scripts, shell execution, subprocess policy, network watchlists, caching, polling/watchers, or config UI.",
+        "The implementation changes existing pure operator semantics or moves filtering after idempotency/dispatch."
+      ],
+      "acceptance": [
+        "RuntimeConfig.ProfileHome is caller-injected; blank home makes in_file fail closed and no helper reads process-global GORMES_HOME/HERMES_HOME or user home state.",
+        "Relative paths and ~/.hermes or ~/.gormes aliases resolve beneath ProfileHome; platform-absolute paths, escaping .. paths, unsupported tilde forms, and symlink escapes are rejected while in-root symlinks remain usable.",
+        "Regular UTF-8 files up to 1 MiB load deterministically: JSON arrays provide values, JSON object keys provide values, JSON scalars provide one value, and invalid JSON falls back to trimmed non-empty lines.",
+        "Missing, directory, unreadable, invalid UTF-8, and 1 MiB+1 files produce a non-match without panic, content/path disclosure, dispatch, or idempotency consumption.",
+        "A nested any filter matching a temp JSON watchlist accepts the webhook and renders the existing prompt; a non-member returns 200 ignored reason=filter and leaves callbacks/Accepted untouched.",
+        "Existing all/any/not and pure field/operator fixtures remain green; no script/process code is added."
+      ],
+      "note": "Owner decision approved via lgtm: choose the recommended Gormes safety policy rather than Hermes' arbitrary absolute/env-expanded uncapped file reads. This is an owned hardening divergence inside an otherwise Hermes-compatible in_file operator. Completion keeps the umbrella webhook filter/script atom partial because route script transforms remain missing. Builder closeout: RuntimeConfig.ProfileHome feeds the package-local evaluator; route_filters.go confines relative and ~/.hermes/~/.gormes aliases to a real profile directory, rejects absolute/traversal/unsupported-tilde/symlink escapes, reads regular UTF-8 files through a 1 MiB cap, and supports JSON array/object-key/scalar plus line-list values. Runtime fixtures prove nested-any acceptance and non-member delivery IDs remain reusable. Validation: go test ./internal/adapters/channels/webhook -count=1. The umbrella atom remains partial because route scripts are excluded.",
+      "write_scope": [
+        "internal/adapters/channels/webhook/route_filters.go",
+        "internal/adapters/channels/webhook/route_filters_test.go",
+        "internal/adapters/channels/webhook/runtime.go",
+        "internal/adapters/channels/webhook/runtime_test.go",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/adapters/channels/webhook -run 'InFile|FiltersBeforeDispatchAndIdempotency|RouteFiltersMatch' -count=1",
+        "go test ./internal/adapters/channels/webhook -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Hermetic filter/runtime tests prove confined aliases, supported watchlist shapes, nested-any acceptance, pre-dedupe rejection, and every named fail-closed path without live filesystem state.",
+        "The selected row moves planned/fixture_ready to complete/validated with exact Go evidence; the umbrella webhook filter/script atom remains partial and names only scripts as the remaining gap.",
+        "Fresh repo-only selection advances past this row and focused progress/ledger/diff gates pass."
+      ]
+    }
+  },
+  {
+    "phase": "2",
+    "subphase": "2.B.5",
+    "pos": 84,
+    "item": {
+      "name": "Webhook Go-native route script transforms",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Webhook RouteConfig accepts an operator-controlled script path and Runtime transforms the parsed JSON payload after declarative filters but before idempotency, prompt rendering, delivery, Accepted storage, or OnAccepted. Gormes executes only a regular Go-native/direct executable beneath the injected ProfileHome/scripts root: no shell, interpreter selection, command arguments, environment expansion, or PATH lookup chooses the executable. Relative paths plus ~/.hermes/scripts and ~/.gormes/scripts aliases are allowed; absolute paths, traversal, unsupported tilde forms, missing/non-regular/non-executable files, and symlink escapes fail closed. JSON payload enters on stdin; cwd is the script directory; the child receives only the documented scrubbed environment; parent cancellation and a clamped 30-second timeout stop execution; stdout is capped at 1 MiB and stderr at 64 KiB. Empty or [SILENT] output, sentinel objects, launch/timeout/cap/nonzero failures, and non-object JSON fail closed as HTTP 200 ignored reason=script without consuming the delivery ID. A JSON object replaces the payload; redacted non-JSON text is merged as script_output. Scripts are trusted operator code running with the Gormes OS account and are not a sandbox.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "channels",
+      "trust_class": [
+        "gateway",
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "A configured script with blank ProfileHome, invalid or escaping paths, missing/non-regular/non-executable files, launch failure, parent cancellation, timeout, oversized stdout/stderr, nonzero exit, empty or [SILENT] output, ignore sentinels, and non-object JSON all fail closed as 200 ignored reason=script before dedupe or dispatch. An omitted/blank Script means the route has no transform and preserves existing accepted behavior. Logs and responses expose neither payloads, script output, stderr, host paths, inherited secrets, nor raw process errors.",
+      "fixture": "internal/adapters/channels/webhook tests use t.TempDir ProfileHome/scripts and a copied current Go test binary whose TestMain helper mode is selected by basename; fake JSON payloads exercise transform/silent/failure/cap/timeout/cancellation/path escape without Bash, Python, live homes, credentials, network, or inherited secret environment",
+      "source_refs": [
+        "hermes-agent/gateway/platforms/webhook_filters.py@bb5fc723:_resolve_script_path,WebhookRouteProcessor.run_route_script",
+        "hermes-agent/gateway/platforms/webhook.py@bb5fc723:_handle_webhook script integration before idempotency/prompt dispatch",
+        "hermes-agent/tests/gateway/test_webhook_adapter.py@bb5fc723:TestWebhookAdapter.test_script_transforms_payload_before_prompt_rendering,test_script_tilde_hermes_path_resolves_to_active_profile_home,test_script_silent_stdout_ignores_without_idempotency_hit,test_script_nonzero_exit_ignores_webhook",
+        "internal/adapters/channels/webhook/bridge.go:RouteConfig,BuildPromptDelivery",
+        "internal/adapters/channels/webhook/runtime.go:RuntimeConfig,Runtime.Handle filter-before-seenDelivery boundary",
+        "internal/adapters/channels/webhook/dynamic_routes.go:DynamicRouteSet operator-owned route JSON",
+        "internal/platform/redaction/content_guard.go:RedactSecrets",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Webhook route filters and transforms",
+        "internal/adapters/channels/webhook/route_scripts.go:runRouteScript,resolveRouteScriptPath,routeScriptEnvironment,routeScriptBuffer",
+        "internal/adapters/channels/webhook/route_scripts_test.go:TestWebhookRuntime_ScriptBeforePrompt,TestWebhookRuntime_RouteScriptDirectExecutionPolicy,TestWebhookRuntime_RouteScriptInvalidPathsFailClosed,TestWebhookRuntime_RouteScriptOutputContracts,TestWebhookRuntime_RouteScriptTimeoutAndCancellation,TestWebhookRuntime_RouteScriptIgnoredDeliveryIDRemainsReusable"
+      ],
+      "ready_when": [
+        "Owner selected the Go-native policy: operator-controlled direct executables only under injected ProfileHome/scripts; no Bash/Python dispatch, shell interpolation, script arguments, absolute path, environment expansion, or executable PATH lookup.",
+        "RouteConfig.Script is a string and Runtime keeps Handle compatibility while adding a context-aware entrypoint so request cancellation reaches the direct child process.",
+        "The process receives stdin JSON and only HOME/GORMES_HOME/HERMES_HOME (and USERPROFILE on Windows) set to ProfileHome plus inherited PATH and Windows SystemRoot/ComSpec/PATHEXT compatibility variables; all other parent environment entries are omitted.",
+        "Script timeout defaults to and is capped at 30 seconds; a positive lower RuntimeConfig timeout is allowed for operator policy and hermetic tests. Stdout and stderr storage remain bounded at 1 MiB and 64 KiB respectively.",
+        "The existing filter-before-dedupe runtime and internal/platform/redaction.RedactSecrets are reused; no generic process package, shell parser, script registry, watcher, cache, or one-implementation interface is introduced."
+      ],
+      "not_ready_when": [
+        "Implementation invokes Bash, Python, cmd.exe, PowerShell, /bin/sh, a shell command string, extension-selected interpreters, route-provided argv, or PATH-resolved script names.",
+        "Implementation inherits the full parent environment, logs stdout/stderr/payload/host paths, leaves output unbounded, permits a timeout above 30 seconds, or executes before signature/event/filter admission.",
+        "Implementation treats scripts as sandboxed or safe for untrusted authors; script configuration is operator-owned trusted code and runs with the Gormes OS account.",
+        "Implementation permits absolute, traversal, unsupported tilde, or symlink-escape paths, reads a live user home in tests, or adds script persistence/config UI/network access beyond the child process itself."
+      ],
+      "acceptance": [
+        "Static and dynamic route JSON round-trip Script without changing existing secret/events/filters/prompt/delivery fields.",
+        "Relative executable names and ~/.hermes/scripts or ~/.gormes/scripts aliases resolve beneath the real injected ProfileHome/scripts directory; absolute, traversal, unsupported tilde, missing, directory, non-executable, and symlink-escape fixtures return ignored reason=script without process launch.",
+        "The concrete package-local runner invokes exactly the resolved executable with no arguments or shell, cwd set to its parent, compact JSON on stdin, and only the documented environment allowlist; helper-process tests prove parent secrets are absent.",
+        "A transformed JSON object replaces Parsed.Payload before BuildPromptDelivery, so prompt and Accepted raw payload use transformed fields; non-JSON redacted text adds script_output while JSON arrays/scalars fail closed.",
+        "Empty output, [SILENT], object [SILENT]=true, object __hermes_ignore__=true, nonzero exit, launch failure, timeout, parent cancellation, stdout over 1 MiB, and stderr over 64 KiB return 200 ignored reason=script before seenDelivery/Accepted/OnAccepted and do not disclose process output.",
+        "A delivery ID ignored by a script remains reusable after a dynamic route update or helper behavior change; accepted routes preserve existing filter, prompt, delivery, callback, and dedupe behavior.",
+        "Go-native helper fixtures pass without Bash, Python, network, credentials, live profile state, or environment-secret inheritance; existing webhook filter/in_file tests remain green."
+      ],
+      "note": "Owner decision 2026-07-16: Go native always. This intentionally diverges from Hermes extension-based Bash/Python interpreter selection while preserving the route-transform observable contract. Direct executables may use an operator-provided shebang/runtime, but Gormes performs no interpreter discovery or shell invocation. Script code is trusted operator code, not a sandbox. Builder 2026-07-16: RouteConfig.Script and Runtime.HandleContext now run profile-confined direct executables after filters and before dedupe/prompt/callbacks. The child receives compact JSON stdin, no argv, script-parent cwd, an exact scrubbed environment, a maximum 30-second timeout, and bounded 1 MiB stdout/64 KiB stderr. Empty/silent/sentinel/non-object/nonzero/launch/timeout/cancel/cap failures ignore without consuming delivery IDs; JSON objects replace the prompt payload and redacted text becomes script_output. RED proved the missing RouteConfig.Script field; a second RED exposed os/exec bypassing the first cap through promoted bytes.Buffer.ReadFrom, fixed by owning the bounded buffer. Focused validation: 39 script/dynamic tests, 89 webhook package tests, and 22 redaction tests passed. The parity atom is covered with the Go-native divergence recorded.",
+      "write_scope": [
+        "internal/adapters/channels/webhook/bridge.go",
+        "internal/adapters/channels/webhook/dynamic_routes_test.go",
+        "internal/adapters/channels/webhook/route_scripts.go",
+        "internal/adapters/channels/webhook/route_scripts_test.go",
+        "internal/adapters/channels/webhook/runtime.go",
+        "internal/adapters/channels/webhook/runtime_test.go",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/adapters/channels/webhook -run 'RouteScript|ScriptBeforePrompt|ScriptBeforeIdempotency|DynamicRoute' -count=1",
+        "go test ./internal/adapters/channels/webhook -count=1",
+        "go test ./internal/platform/redaction -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermetic Go helper-process fixtures prove confined direct execution, exact argv/cwd/stdin/env, transformed prompt/payload, every named fail-closed path, bounded output, timeout/cancellation, and reusable ignored delivery IDs.",
+        "The webhook filter/script parity atom moves partial to covered with the Go-native interpreter divergence recorded; this row moves planned/fixture_ready to complete/validated with exact Go files and test receipts.",
+        "Fresh repo-only selection advances past this row and focused webhook, redaction, progress/ledger, docs, and diff gates pass or report only pre-existing unrelated failures."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:bb5fc723 gateway/platforms/webhook_filters.py:_resolve_script_path,WebhookRouteProcessor.run_route_script",
+          "hermes:bb5fc723 gateway/platforms/webhook.py:_handle_webhook",
+          "hermes:bb5fc723 tests/gateway/test_webhook_adapter.py:script transform tests"
+        ],
+        "note": "Hermes observable transform/ignore ordering is upstream parity; direct executable-only dispatch, profile confinement, environment allowlist, bounded output, and 30-second cap are owner-approved Gormes hardening."
+      }
+    }
+  },
+  {
+    "phase": "2",
     "subphase": "2.B.10",
     "pos": 0,
     "item": {
@@ -8332,6 +8563,11 @@
         "Focused rendering/Telegram tests pass and the cross-package render-send contract is protected by one fixture before future refactors.",
         "`go test ./internal/gateway/rendering ./internal/adapters/channels/telegram -run 'Telegram|MarkdownV2|ParseMode|Render' -count=1`, `go run ./cmd/progress validate`, and `git diff --check` pass."
       ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-06-08T00:00:00Z",
+        "note": "Derived from tld architecture review finding: Telegram rendering is intentionally split between gateway formatting and adapter parse-mode/fallback behavior and needs an explicit cross-package fixture."
+      },
       "evidence": {
         "implementation": [
           "internal/adapters/channels/telegram/bot_parse_mode_test.go: TestBot_Send_RenderedFinalTelegramTextUsesMarkdownV2WithPlainFallback exercises gateway.FormatFinalTelegramText through Bot.Send and proves MarkdownV2 send plus plain fallback stripping.",
@@ -8340,11 +8576,6 @@
         "verification": [
           "GREEN: go test ./internal/gateway/rendering ./internal/adapters/channels/telegram -run 'Telegram|MarkdownV2|ParseMode|Render' -count=1 passed."
         ]
-      },
-      "provenance": {
-        "origin_type": "gormes",
-        "owned_since": "2026-06-08T00:00:00Z",
-        "note": "Derived from tld architecture review finding: Telegram rendering is intentionally split between gateway formatting and adapter parse-mode/fallback behavior and needs an explicit cross-package fixture."
       }
     }
   }

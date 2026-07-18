@@ -133,7 +133,7 @@
             "last_upstream_check": "2026-05-05T16:08:51Z",
             "origin_decision": "Hermes session/delivery drift remains upstream-led for Telegram require-mention/topic-mode, WhatsApp unsafe identifiers, message deduplication, outbound email Date headers, and the channel media/approval/auth/reaction surfaces found in the May 2026 channel sweeps. Telegram group command-suffix behavior from 3ff3dfb5 is split into helper, config, and adapter-binding rows; the helper/config slices are complete and the adapter binding remains fixture-ready. WhatsApp unsafe inbound evidence is now split into raw sender/chat/reply rejection first and alias-endpoint filtering second, both scoped to inbound.go plus a new safety fixture with identity.go read-only. Gateway inbound dedup now has the helper-only key row validated and a manager-binding row with event/helper files explicitly read-only after the last write-scope violation. The May 2026 channel sweeps keep Discord authenticated attachment safety, Discord persisted thread participation, Slack Block Kit approvals, Telegram document/photo batching, cross-platform image/document MEDIA delivery, Telegram inline approvals, Telegram startup safety, Slack mention gating, Discord interaction auth, and processing lifecycle reactions in this already-open P1 session/delivery lane because each gap is user-visible channel behavior over an existing adapter baseline. Follow-up sweeps add row-backed weaknesses for Telegram text/caption batching, cross-platform multi-image native batching, Discord message admission/reply-mode policy, webhook dynamic-route/rate-limit runtime behavior, Slack/Discord channel-scoped skills and prompts, Telegram fallback/reconnect recovery, Telegram sticker vision adapter binding, Discord native slash/thread command registration, Telegram entity-only mention boundaries, Telegram forum thread/send retry safety, Telegram semantic MarkdownV2 formatting, and gateway platform reconnect/health resilience after comparing Gormes adapters with Hermes b816fd4e2 gateway tests. The second 2026-05-05 sweep adds gateway startup admission safety for allowlist warnings, weak placeholder platform tokens, and network-exposed API-server placeholder keys. Webhook runtime drift is tracked here rather than reopening complete Phase 7.D, Telegram sticker adapter binding is tracked here rather than reopening complete Phase 2.F.4, and platform lifecycle drift is tracked here rather than reopening complete Phase 2.F.3."
           },
-          "item_count": 82
+          "item_count": 85
         },
         {
           "id": "2.B.10",
@@ -562,7 +562,7 @@
             "last_upstream_check": "2026-05-05T00:00:00Z",
             "origin_decision": "Hermes b816fd4e2 MCP tests add call-level circuit-breaker cooldown, half-open probe, reconnect reset, lifecycle-event precedence, and probe-cleanup coverage beyond Gormes' validated config/discovery/OAuth/browser-login/managed-gateway/orphan-cleanup rows. The next drift is a fake-clock MCP tool-call recovery seam, not another OAuth store or live MCP transport. Honcho MCP HONCHO_API_URL remains server-local MCP config and does not change internal Goncho memory naming."
           },
-          "item_count": 14
+          "item_count": 24
         },
         {
           "id": "5.H",
