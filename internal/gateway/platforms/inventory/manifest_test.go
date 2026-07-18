@@ -301,6 +301,7 @@ func readHermesGatewayConnectorIDs() ([]string, error) {
 		"base":                 true,
 		"helpers":              true,
 		"telegram_network":     true,
+		"webhook_filters":      true,
 		"signal_format":        true,
 		"signal_rate_limit":    true,
 		"wecom_crypto":         true,

@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"os"
 	"testing"
 	"time"
 )
@@ -135,6 +136,126 @@ func TestWebhookRuntime_ReloadsDynamicRoutesAndBuildsAcceptedEnvelope(t *testing
 	})
 	if duplicate.StatusCode != 200 || duplicate.Status != "duplicate" {
 		t.Fatalf("duplicate response = %+v, want duplicate envelope", duplicate)
+	}
+}
+
+func TestWebhookRuntime_FiltersBeforeDispatchAndIdempotency(t *testing.T) {
+	home := t.TempDir()
+	path := home + "/" + DynamicRoutesFilename
+	writeDynamicRoutes(t, path, `{
+		"todoist": {
+			"secret": "INSECURE_NO_AUTH",
+			"filters": {"field": "payload.label", "equals": "urgent"},
+			"prompt": "Task: {payload.content}"
+		}
+	}`)
+	accepted := 0
+	rt := NewRuntime(RuntimeConfig{
+		Routes:       NewDynamicRouteSet(home, nil),
+		MaxBodyBytes: 1024,
+		OnAccepted:   func(AcceptedWebhook) { accepted++ },
+	})
+	req := InboundRequest{
+		Headers: map[string]string{"X-GitHub-Delivery": "filter-1"},
+		Body:    []byte(`{"payload":{"label":"later","content":"Buy milk"}}`),
+	}
+
+	filtered := rt.Handle("todoist", req)
+	if filtered.StatusCode != 200 || filtered.Status != "ignored" || filtered.Reason != "filter" {
+		t.Fatalf("filtered response = %+v, want 200 ignored reason=filter", filtered)
+	}
+	if len(rt.Accepted()) != 0 || accepted != 0 {
+		t.Fatalf("filtered request dispatched: Accepted=%d callback=%d", len(rt.Accepted()), accepted)
+	}
+
+	writeDynamicRoutes(t, path, `{
+		"todoist": {
+			"secret": "INSECURE_NO_AUTH",
+			"filters": {"field": "payload.label", "equals": "later"},
+			"prompt": "Task: {payload.content}"
+		}
+	}`)
+	next := time.Now().Add(2 * time.Second)
+	if err := os.Chtimes(path, next, next); err != nil {
+		t.Fatalf("Chtimes() error = %v", err)
+	}
+
+	matched := rt.Handle("todoist", req)
+	if matched.StatusCode != 202 || matched.Status != "accepted" {
+		t.Fatalf("same delivery after matching reload = %+v, want 202 accepted", matched)
+	}
+	if got := rt.Accepted()[0].Prompt; got != "Task: Buy milk" {
+		t.Fatalf("accepted prompt = %q, want rendered payload", got)
+	}
+	if accepted != 1 {
+		t.Fatalf("OnAccepted calls = %d, want 1", accepted)
+	}
+}
+
+func TestWebhookRuntime_InFileNestedAny(t *testing.T) {
+	home := t.TempDir()
+	if err := os.MkdirAll(home+"/data", 0o700); err != nil {
+		t.Fatalf("MkdirAll(data) error = %v", err)
+	}
+	if err := os.WriteFile(home+"/data/watchlist.json", []byte(`["chat-1","chat-2"]`), 0o600); err != nil {
+		t.Fatalf("WriteFile(watchlist) error = %v", err)
+	}
+	writeDynamicRoutes(t, home+"/"+DynamicRoutesFilename, `{
+		"waha": {
+			"secret": "INSECURE_NO_AUTH",
+			"filters": [
+				{"field": "payload.fromMe", "equals": false},
+				{"any": [
+					{"field": "payload.chatId", "in_file": "~/.hermes/data/watchlist.json"},
+					{"field": "payload.id.remote", "in_file": "data/watchlist.json"}
+				]}
+			],
+			"prompt": "Message from {payload.chatId}: {payload.body}"
+		}
+	}`)
+	accepted := 0
+	rt := NewRuntime(RuntimeConfig{
+		Routes:       NewDynamicRouteSet(home, nil),
+		ProfileHome:  home,
+		MaxBodyBytes: 1024,
+		OnAccepted:   func(AcceptedWebhook) { accepted++ },
+	})
+	body := []byte(`{"payload":{"fromMe":false,"chatId":"chat-2","body":"hello"}}`)
+	resp := rt.Handle("waha", InboundRequest{
+		Headers: map[string]string{"X-GitHub-Delivery": "in-file-1"},
+		Body:    body,
+	})
+
+	if resp.StatusCode != 202 || resp.Status != "accepted" {
+		t.Fatalf("in_file response = %+v, want 202 accepted", resp)
+	}
+	if accepted != 1 || len(rt.Accepted()) != 1 {
+		t.Fatalf("dispatch evidence callback=%d Accepted=%d, want 1/1", accepted, len(rt.Accepted()))
+	}
+	if got := rt.Accepted()[0].Prompt; got != "Message from chat-2: hello" {
+		t.Fatalf("Prompt = %q, want rendered watchlist message", got)
+	}
+
+	nonMemberBody := []byte(`{"payload":{"fromMe":false,"chatId":"chat-3","body":"later"}}`)
+	nonMemberReq := InboundRequest{
+		Headers: map[string]string{"X-GitHub-Delivery": "in-file-2"},
+		Body:    nonMemberBody,
+	}
+	if ignored := rt.Handle("waha", nonMemberReq); ignored.StatusCode != 200 || ignored.Status != "ignored" || ignored.Reason != "filter" {
+		t.Fatalf("non-member response = %+v, want 200 ignored reason=filter", ignored)
+	}
+	if accepted != 1 || len(rt.Accepted()) != 1 {
+		t.Fatalf("non-member dispatched callback=%d Accepted=%d", accepted, len(rt.Accepted()))
+	}
+
+	if err := os.WriteFile(home+"/data/watchlist.json", []byte(`["chat-1","chat-2","chat-3"]`), 0o600); err != nil {
+		t.Fatalf("WriteFile(updated watchlist) error = %v", err)
+	}
+	if retried := rt.Handle("waha", nonMemberReq); retried.StatusCode != 202 || retried.Status != "accepted" {
+		t.Fatalf("same delivery after watchlist update = %+v, want 202 accepted", retried)
+	}
+	if accepted != 2 || len(rt.Accepted()) != 2 {
+		t.Fatalf("retry dispatch evidence callback=%d Accepted=%d, want 2/2", accepted, len(rt.Accepted()))
 	}
 }
 
