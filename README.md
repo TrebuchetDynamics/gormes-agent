@@ -33,7 +33,7 @@ Navivox adds the phone path: a trusted local or self-hosted app channel so opera
 |---|---|
 | Runtime shape | One Go binary for CLI, TUI, provider turns, tools, skills, memory, sessions, dashboard, and gateways |
 | Install proof | `gormes doctor --offline` and `gormes --offline` run before any provider token is needed |
-| Release artifact | Linux build ~52.1 MB; no local Python, Node, Redis, vector DB, or Docker daemon required |
+| Release artifact | Linux build ~53.2 MB; no local Python, Node, Redis, vector DB, or Docker daemon required |
 | Bundled skills | 30 Hermes skills across coding, GitHub, browser/web, research, productivity, and media workflows |
 | Local state | SQLite under `~/.gormes`; no Redis, vector DB, Python service, or Node service on the local path |
 | Stable channels | Telegram, Discord, and Slack through one gateway process |
@@ -237,11 +237,11 @@ Hermes-Agent, with upstream Git history preserved for attribution, remains the b
 
 ## Status
 
-Latest public release: [v0.2.27](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.27) (`v2026.6.21`).
+Latest public release: [v0.2.28](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.28) (`v2026.7.20`).
 
-Termux/Android status: `v0.2.27` carries forward the installer recovery for the `v0.2.20` Termux executable-argument issue. Affected users should reinstall from the latest release and verify with `gormes version` plus `gormes doctor --offline`.
+Termux/Android status: `v0.2.28` carries forward the installer recovery for the `v0.2.20` Termux executable-argument issue. Affected users should reinstall from the latest release and verify with `gormes version` plus `gormes doctor --offline`.
 
-CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. Release assets ship for Linux, macOS, Windows, and Termux/Android with SHA-256 checksums and SBOMs. The current Linux build measures ~52.1 MB (`benchmarks.json`).
+CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. Release assets ship for Linux, macOS, Windows, and Termux/Android with SHA-256 checksums and SBOMs. The current Linux build measures ~53.2 MB (`benchmarks.json`).
 
 <details>
 <summary>Roadmap phase rollup</summary>

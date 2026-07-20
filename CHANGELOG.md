@@ -8,6 +8,24 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.28] - 2026-07-20
+
+Date alias: `v2026.7.20`.
+
+> **Native MCP catalog/runtime, webhook route controls, and CLI compatibility fixes.**
+
+### Added
+- Native MCP catalog manifests, config installation, HTTP probing, and runtime support for managed MCP servers.
+- Webhook route filters and script transforms for bounded inbound routing customization.
+
+### Changed
+- Hermes source mirrors, parity evidence, progress surfaces, and planner/builder delivery contracts were refreshed from the current upstream inventory.
+
+### Fixed
+- MCP call results preserve ResourceLink and embedded-resource text content.
+- The hidden `gormes login` compatibility command now exits successfully with the Hermes-format deprecation message.
+- Navivox pairing QR output fits narrow terminals.
+
 ## [0.2.27] - 2026-06-21
 
 Date alias: `v2026.6.21`.
