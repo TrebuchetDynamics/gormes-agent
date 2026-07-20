@@ -19,7 +19,7 @@ The bootstrap installers (`install.sh`, `install.ps1`) already fall back to a so
 - **Non-main branches or feature work** where release archives are not published.
 - **Unsupported platforms** that do not yet have a release asset.
 
-Source builds require Git and Go 1.26.4+. The installer can fetch a managed Go for you; for a hand-built source clone, install Go from your distribution or [go.dev](https://go.dev/dl/).
+Source builds require Git and Go 1.26.5+. The installer can fetch a managed Go for you; for a hand-built source clone, install Go from your distribution or [go.dev](https://go.dev/dl/).
 
 ## Clone and build
 

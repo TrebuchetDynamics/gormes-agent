@@ -1,6 +1,6 @@
 module github.com/TrebuchetDynamics/gormes-agent/www.gormes.ai
 
-go 1.26.4
+go 1.26.5
 
 require github.com/TrebuchetDynamics/gormes-agent v0.0.0
 

@@ -3341,7 +3341,7 @@
       "ready_when": [
         "The existing probe Connector/Session boundary remains the caller contract; a small sdkhttp adapter hides the official SDK, HTTP policy, pagination, and cleanup rather than adding a CLI-only fake abstraction.",
         "Production transport is HTTP-only for this child. OAuth returns auth_required and stdio returns unsupported_transport before any side effect; both remain explicit parent gaps.",
-        "The official stable Go SDK is pinned at v1.6.1, which supports MCP specs 2025-11-25, 2025-06-18, 2025-03-26, and 2024-11-05 and requires Go 1.25 while Gormes uses Go 1.26.4.",
+        "The official stable Go SDK is pinned at v1.6.1, which supports MCP specs 2025-11-25, 2025-06-18, 2025-03-26, and 2024-11-05 and requires Go 1.25 while Gormes uses Go 1.26.5.",
         "The first RED fixture invokes `gormes mcp test ink --json` with an injected successful connector and proves the command still returns row-backed evidence. GREEN then proves one real httptest Streamable HTTP initialize/tools-list exchange through the sdkhttp adapter."
       ],
       "not_ready_when": [

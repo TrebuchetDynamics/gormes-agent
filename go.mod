@@ -1,6 +1,6 @@
 module github.com/TrebuchetDynamics/gormes-agent
 
-go 1.26.4
+go 1.26.5
 
 require (
 	github.com/TrebuchetDynamics/gollmfree v0.1.0

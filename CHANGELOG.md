@@ -20,6 +20,7 @@ Date alias: `v2026.7.20`.
 
 ### Changed
 - Hermes source mirrors, parity evidence, progress surfaces, and planner/builder delivery contracts were refreshed from the current upstream inventory.
+- The source-build floor and managed installer fallback now use Go 1.26.5, which fixes GO-2026-5856 in `crypto/tls`.
 
 ### Fixed
 - MCP call results preserve ResourceLink and embedded-resource text content.
