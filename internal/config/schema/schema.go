@@ -43,6 +43,7 @@ var allowedSections = map[string]struct{}{
 	"skills":      {},
 	"delegation":  {},
 	"goncho":      {},
+	"mcp_servers": {},
 	"display":     {},
 	"updates":     {},
 }

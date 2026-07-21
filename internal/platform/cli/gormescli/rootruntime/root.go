@@ -40,6 +40,7 @@ var RootCommandOrder = []string{
 	"auth",
 	"providers",
 	"logout",
+	"login",
 	"config",
 	"fallback",
 	"router",

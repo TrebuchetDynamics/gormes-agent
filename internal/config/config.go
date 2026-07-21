@@ -61,6 +61,7 @@ type Config struct {
 	Skills        SkillsCfg                `toml:"skills" yaml:"skills"`
 	Delegation    DelegationCfg            `toml:"delegation" yaml:"delegation"`
 	Goncho        GonchoCfg                `toml:"goncho" yaml:"goncho"`
+	MCPServers    map[string]any           `toml:"mcp_servers" yaml:"mcp_servers"`
 	Updates       UpdatesCfg               `toml:"updates" yaml:"updates"`
 	// Resume is set only via the --resume CLI flag; intentionally not
 	// a TOML field. Empty means "use whatever internal/persistence/session had

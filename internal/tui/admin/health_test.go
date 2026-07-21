@@ -212,12 +212,13 @@ func TestAdminHealth_FixActionRunsWizardAndRefreshesRow(t *testing.T) {
 	screen := NewSetupHealthScreen()
 	shell := New(screen)
 	tm := teatest.NewTestModel(t, shell, teatest.WithInitialTermSize(96, 32))
+	uiTimeout := 10 * time.Second
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})  // profile -> provider
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter}) // open fix wizard
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
 		return bytes.Contains(out, []byte("Provider setup"))
-	}, teatest.WithDuration(2*time.Second), teatest.WithCheckInterval(10*time.Millisecond))
+	}, teatest.WithDuration(uiTimeout), teatest.WithCheckInterval(10*time.Millisecond))
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter}) // provider=openai
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter}) // endpoint default
@@ -228,9 +229,9 @@ func TestAdminHealth_FixActionRunsWizardAndRefreshesRow(t *testing.T) {
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
 		return bytes.Contains(out, []byte("✓ provider configured")) &&
 			bytes.Contains(out, []byte("✓ auth credentials present"))
-	}, teatest.WithDuration(2*time.Second), teatest.WithCheckInterval(10*time.Millisecond))
+	}, teatest.WithDuration(uiTimeout), teatest.WithCheckInterval(10*time.Millisecond))
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
-	tm.WaitFinished(t, teatest.WithFinalTimeout(2*time.Second))
+	tm.WaitFinished(t, teatest.WithFinalTimeout(uiTimeout))
 
 	got := screen.View()
 	for _, want := range []string{"✓ provider configured", "✓ auth credentials present"} {

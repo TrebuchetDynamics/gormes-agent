@@ -39,6 +39,60 @@ func TestParsePreservesStructuredContentEnvelope(t *testing.T) {
 	}
 }
 
+func TestParsePreservesResourceLinkMetadataAndEmbeddedText(t *testing.T) {
+	raw := json.RawMessage(`{
+		"content":[
+			{"type":"resource_link","uri":"slack://files/F123","name":"report.pdf","mimeType":"application/pdf"},
+			{"type":"resource","resource":{"uri":"mem://error","mimeType":"text/plain","text":"quota exceeded for workspace W1"}}
+		],
+		"isError":true
+	}`)
+
+	got, err := Parse(raw)
+	if err != nil {
+		t.Fatalf("Parse returned error: %v", err)
+	}
+	if !got.IsError {
+		t.Fatal("IsError = false, want true")
+	}
+	if len(got.Content) != 2 {
+		t.Fatalf("Content = %#v, want resource link and embedded resource", got.Content)
+	}
+	link := got.Content[0]
+	if link.Kind != "resource_link" || link.URI != "slack://files/F123" || link.Name != "report.pdf" || link.MimeType != "application/pdf" {
+		t.Fatalf("resource link = %#v, want preserved type/uri/name/mimeType", link)
+	}
+	embedded := got.Content[1]
+	if embedded.Kind != "resource" || embedded.URI != "mem://error" || embedded.MimeType != "text/plain" || embedded.Text != "quota exceeded for workspace W1" {
+		t.Fatalf("embedded resource = %#v, want nested text/uri/mimeType", embedded)
+	}
+}
+
+func TestParsePreservesAudioDataAndEmbeddedResourceBlob(t *testing.T) {
+	raw := json.RawMessage(`{
+		"content":[
+			{"type":"audio","data":"YXVkaW8=","mimeType":"audio/wav"},
+			{"type":"resource","resource":{"uri":"file:///reports/q1.pdf","mimeType":"application/pdf","blob":"cGRm"}}
+		]
+	}`)
+
+	got, err := Parse(raw)
+	if err != nil {
+		t.Fatalf("Parse returned error: %v", err)
+	}
+	if len(got.Content) != 2 {
+		t.Fatalf("Content = %#v, want audio and embedded resource", got.Content)
+	}
+	audio := got.Content[0]
+	if audio.Kind != "audio" || audio.Data != "YXVkaW8=" || audio.MimeType != "audio/wav" {
+		t.Fatalf("audio = %#v, want preserved type/data/mimeType", audio)
+	}
+	resource := got.Content[1]
+	if resource.Kind != "resource" || resource.Blob != "cGRm" || resource.URI != "file:///reports/q1.pdf" || resource.MimeType != "application/pdf" {
+		t.Fatalf("resource = %#v, want preserved blob/uri/mimeType", resource)
+	}
+}
+
 func TestParseIgnoresNullStructuredContent(t *testing.T) {
 	for _, raw := range []json.RawMessage{
 		nil,

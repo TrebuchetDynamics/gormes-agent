@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"sort"
@@ -14,6 +15,7 @@ import (
 const (
 	dashboardDefaultSessionLimit = 20
 	dashboardMaxSessionLimit     = 100
+	maxClientSessions            = 100
 )
 
 const (
@@ -240,28 +242,102 @@ func (s *Server) handleDashboardPlugins(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) handleDashboardSessions(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
-		return
-	}
 	if !s.dashboardAuthorized(r) {
 		writeDashboardUnauthorized(w)
 		return
 	}
+	if r.Method == http.MethodPost {
+		s.createClientSession(w, r)
+		return
+	}
+	if r.Method != http.MethodGet {
+		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+		return
+	}
 	limit := parseDashboardInt(r.URL.Query().Get("limit"), dashboardDefaultSessionLimit, 1, dashboardMaxSessionLimit)
 	offset := parseDashboardInt(r.URL.Query().Get("offset"), 0, 0, 1_000_000)
-	sessions, total, err := s.responseStore.ListSessions(limit, offset, s.now())
+	sessions, err := s.dashboardSessionInfos()
 	if err != nil {
 		writeOpenAIError(w, http.StatusInternalServerError, "Internal server error: "+err.Error(), "server_error", "", "session_store_failed")
 		return
 	}
+	total := len(sessions)
+	if offset >= total {
+		sessions = []DashboardSessionInfo{}
+	} else {
+		end := offset + limit
+		if end > total {
+			end = total
+		}
+		sessions = sessions[offset:end]
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"build":    s.buildInfo,
 		"sessions": sessions,
+		"data":     sessions,
 		"total":    total,
 		"limit":    limit,
 		"offset":   offset,
 	})
+}
+
+func (s *Server) createClientSession(w http.ResponseWriter, r *http.Request) {
+	body, err := readLimitedBody(w, r, s.maxBodyBytes)
+	if err != nil {
+		writeOpenAIError(w, http.StatusRequestEntityTooLarge, "Request body too large.", "invalid_request_error", "", "body_too_large")
+		return
+	}
+	var request struct {
+		ID    string `json:"id"`
+		Title string `json:"title"`
+		Model string `json:"model"`
+	}
+	if err := json.Unmarshal(body, &request); err != nil {
+		writeOpenAIError(w, http.StatusBadRequest, "Invalid JSON in request body", "invalid_request_error", "", "invalid_json")
+		return
+	}
+	request.ID = strings.TrimSpace(request.ID)
+	request.Title = strings.TrimSpace(request.Title)
+	request.Model = strings.TrimSpace(request.Model)
+	if request.ID == "" || len(request.ID) > 256 || strings.ContainsAny(request.ID, "/\\") {
+		writeOpenAIError(w, http.StatusBadRequest, "Invalid session id", "invalid_request_error", "id", "invalid_session_id")
+		return
+	}
+	if len(request.Title) > 256 || len(request.Model) > 256 {
+		writeOpenAIError(w, http.StatusBadRequest, "Session metadata is too long", "invalid_request_error", "", "invalid_session_metadata")
+		return
+	}
+	exists, err := s.dashboardSessionExists(request.ID)
+	if err != nil {
+		writeOpenAIError(w, http.StatusInternalServerError, "Internal server error: "+err.Error(), "server_error", "", "session_store_failed")
+		return
+	}
+	if exists {
+		writeOpenAIError(w, http.StatusConflict, "Session already exists: "+request.ID, "invalid_request_error", "id", "session_exists")
+		return
+	}
+	now := s.now().Unix()
+	session := DashboardSessionInfo{
+		ID:         request.ID,
+		Title:      stringPointer(request.Title),
+		Model:      stringPointer(request.Model),
+		StartedAt:  now,
+		LastActive: now,
+	}
+	s.sessionMu.Lock()
+	if _, exists := s.clientSessions[request.ID]; exists {
+		s.sessionMu.Unlock()
+		writeOpenAIError(w, http.StatusConflict, "Session already exists: "+request.ID, "invalid_request_error", "id", "session_exists")
+		return
+	}
+	if len(s.clientSessions) >= maxClientSessions {
+		s.sessionMu.Unlock()
+		writeOpenAIError(w, http.StatusTooManyRequests, "Client session limit reached", "invalid_request_error", "", "session_limit_exceeded")
+		return
+	}
+	s.clientSessions[request.ID] = session
+	s.sessionMu.Unlock()
+	writeJSON(w, http.StatusCreated, map[string]any{"build": s.buildInfo, "session": session})
 }
 
 func (s *Server) handleDashboardSessionByID(w http.ResponseWriter, r *http.Request) {
@@ -269,30 +345,127 @@ func (s *Server) handleDashboardSessionByID(w http.ResponseWriter, r *http.Reque
 		writeDashboardUnauthorized(w)
 		return
 	}
-	sessionID := strings.TrimPrefix(r.URL.Path, "/api/sessions/")
-	if decoded, err := url.PathUnescape(sessionID); err == nil {
-		sessionID = decoded
+	suffix := strings.TrimPrefix(r.URL.Path, "/api/sessions/")
+	messages := strings.HasSuffix(suffix, "/messages")
+	if messages {
+		suffix = strings.TrimSuffix(suffix, "/messages")
 	}
-	sessionID = strings.TrimSpace(sessionID)
-	if sessionID == "" || strings.Contains(sessionID, "/") {
+	if decoded, err := url.PathUnescape(suffix); err == nil {
+		suffix = decoded
+	}
+	sessionID := strings.TrimSpace(suffix)
+	if sessionID == "" || strings.ContainsAny(sessionID, "/\\") {
 		writeOpenAIError(w, http.StatusNotFound, "Session not found", "invalid_request_error", "", "session_not_found")
 		return
 	}
-	switch r.Method {
-	case http.MethodDelete:
-		deleted, err := s.responseStore.DeleteSession(sessionID)
+	if messages {
+		if r.Method != http.MethodGet {
+			writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+			return
+		}
+		exists, err := s.dashboardSessionExists(sessionID)
 		if err != nil {
 			writeOpenAIError(w, http.StatusInternalServerError, "Internal server error: "+err.Error(), "server_error", "", "session_store_failed")
 			return
 		}
-		if !deleted {
+		if !exists {
 			writeOpenAIError(w, http.StatusNotFound, "Session not found: "+sessionID, "invalid_request_error", "", "session_not_found")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"build": s.buildInfo, "ok": true, "session_id": sessionID})
-	default:
-		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+		history := []DashboardChatMessage{}
+		if s.chatHistory != nil {
+			history = append(history, s.chatHistory(sessionID)...)
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"build": s.buildInfo, "data": history, "messages": history})
+		return
 	}
+	if r.Method != http.MethodDelete {
+		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+		return
+	}
+	s.sessionMu.Lock()
+	_, pending := s.clientSessions[sessionID]
+	s.sessionMu.Unlock()
+	deleted, err := s.responseStore.DeleteSession(sessionID)
+	if err != nil {
+		writeOpenAIError(w, http.StatusInternalServerError, "Internal server error: "+err.Error(), "server_error", "", "session_store_failed")
+		return
+	}
+	if pending {
+		s.sessionMu.Lock()
+		delete(s.clientSessions, sessionID)
+		s.sessionMu.Unlock()
+		deleted = true
+	}
+	if !deleted {
+		writeOpenAIError(w, http.StatusNotFound, "Session not found: "+sessionID, "invalid_request_error", "", "session_not_found")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"build": s.buildInfo, "ok": true, "session_id": sessionID, "id": sessionID, "deleted": true})
+}
+
+func (s *Server) dashboardSessionInfos() ([]DashboardSessionInfo, error) {
+	var sessions []DashboardSessionInfo
+	if s.sessionsList != nil {
+		for _, session := range s.sessionsList() {
+			sessions = append(sessions, DashboardSessionInfo{
+				ID:           session.ID,
+				Source:       stringPointer(session.Source),
+				Title:        stringPointer(session.Title),
+				StartedAt:    session.LastActiveUnix,
+				LastActive:   session.LastActiveUnix,
+				MessageCount: session.MessageCount,
+				Preview:      stringPointer(session.Preview),
+			})
+		}
+	} else {
+		stored, _, err := s.responseStore.ListSessions(dashboardMaxSessionLimit, 0, s.now())
+		if err != nil {
+			return nil, err
+		}
+		sessions = append(sessions, stored...)
+	}
+	seen := make(map[string]bool, len(sessions))
+	for _, session := range sessions {
+		seen[session.ID] = true
+	}
+	s.sessionMu.Lock()
+	for id, session := range s.clientSessions {
+		if seen[id] {
+			delete(s.clientSessions, id)
+			continue
+		}
+		sessions = append(sessions, session)
+	}
+	s.sessionMu.Unlock()
+	sort.Slice(sessions, func(i, j int) bool {
+		if sessions[i].LastActive != sessions[j].LastActive {
+			return sessions[i].LastActive > sessions[j].LastActive
+		}
+		return sessions[i].ID < sessions[j].ID
+	})
+	return sessions, nil
+}
+
+func (s *Server) dashboardSessionExists(sessionID string) (bool, error) {
+	sessions, err := s.dashboardSessionInfos()
+	if err != nil {
+		return false, err
+	}
+	for _, session := range sessions {
+		if session.ID == sessionID {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func stringPointer(value string) *string {
+	if value == "" {
+		return nil
+	}
+	copy := value
+	return &copy
 }
 
 func writeDashboardUnauthorized(w http.ResponseWriter) {

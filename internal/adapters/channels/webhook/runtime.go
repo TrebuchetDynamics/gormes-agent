@@ -1,12 +1,15 @@
 package webhook
 
 import (
+	"context"
 	"errors"
 	"time"
 )
 
 type RuntimeConfig struct {
 	Routes             *DynamicRouteSet
+	ProfileHome        string
+	ScriptTimeout      time.Duration
 	RateLimitPerMinute int
 	MaxBodyBytes       int64
 	Now                func() time.Time
@@ -16,6 +19,8 @@ type RuntimeConfig struct {
 
 type Runtime struct {
 	routes         *DynamicRouteSet
+	profileHome    string
+	scriptTimeout  time.Duration
 	rateLimit      int
 	maxBodyBytes   int64
 	now            func() time.Time
@@ -31,6 +36,7 @@ type Runtime struct {
 type RuntimeResponse struct {
 	StatusCode int
 	Status     string
+	Reason     string
 	Error      string
 	Route      string
 	Event      string
@@ -56,6 +62,8 @@ func NewRuntime(cfg RuntimeConfig) *Runtime {
 	}
 	return &Runtime{
 		routes:         cfg.Routes,
+		profileHome:    trim(cfg.ProfileHome),
+		scriptTimeout:  clampRouteScriptTimeout(cfg.ScriptTimeout),
 		rateLimit:      cfg.RateLimitPerMinute,
 		maxBodyBytes:   cfg.MaxBodyBytes,
 		now:            now,
@@ -67,6 +75,13 @@ func NewRuntime(cfg RuntimeConfig) *Runtime {
 }
 
 func (r *Runtime) Handle(routeName string, req InboundRequest) RuntimeResponse {
+	return r.HandleContext(context.Background(), routeName, req)
+}
+
+func (r *Runtime) HandleContext(ctx context.Context, routeName string, req InboundRequest) RuntimeResponse {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	routeName = trim(routeName)
 	route, ok := r.reloadAndRoute(routeName)
 	if !ok {
@@ -97,6 +112,16 @@ func (r *Runtime) Handle(routeName string, req InboundRequest) RuntimeResponse {
 	}
 	if !allowed {
 		return RuntimeResponse{StatusCode: 200, Status: "ignored", Route: routeName, Event: parsed.EventType}
+	}
+	if !routeFiltersMatchWithHome(route.Filters, parsed.Payload, parsed.EventType, req.Headers, r.profileHome) {
+		return RuntimeResponse{StatusCode: 200, Status: "ignored", Reason: "filter", Route: routeName, Event: parsed.EventType}
+	}
+	if trim(route.Script) != "" {
+		payload, ok := runRouteScript(ctx, r.profileHome, route.Script, parsed.Payload, r.scriptTimeout)
+		if !ok {
+			return RuntimeResponse{StatusCode: 200, Status: "ignored", Reason: "script", Route: routeName, Event: parsed.EventType}
+		}
+		parsed.Payload = payload
 	}
 
 	if r.seenDelivery(parsed.DeliveryID) {

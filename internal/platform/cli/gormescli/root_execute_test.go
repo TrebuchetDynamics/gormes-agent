@@ -30,11 +30,6 @@ func TestRootExecutionRemovedTopLevelEntrypointsReturnReplacementGuidance(t *tes
 		want []string
 	}{
 		{
-			name: "login",
-			args: []string{"login", "--provider", "plain-secret-provider"},
-			want: []string{"unknown command \"login\"", "gormes auth add <provider> --type oauth"},
-		},
-		{
 			name: "onboard",
 			args: []string{"onboard", "--json"},
 			want: []string{"unknown command \"onboard\"", "gormes setup", "gormes doctor --offline --target terminal --json"},

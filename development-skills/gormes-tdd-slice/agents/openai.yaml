@@ -1,4 +1,4 @@
 interface:
   display_name: "Gormes TDD Slice"
-  short_description: "Deliver one Gormes row with TDD."
-  default_prompt: "Use $gormes-tdd-slice to deliver one Gormes behavior with red-green-refactor tests, row-specific verification, and Hermes parity evidence when applicable."
+  short_description: "TDD one selected Gormes behavior; never invent work after decision=plan."
+  default_prompt: "Use $gormes-tdd-slice only with a selected row or reproduced bug, record the exact behavioral RED then GREEN command, stay in write scope, use hermetic security fixtures, and return missing policy or decision=plan to planner."

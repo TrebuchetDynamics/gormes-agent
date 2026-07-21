@@ -1,6 +1,6 @@
 ---
 name: gormes-planner
-description: Plan Gormes roadmap/progress rows from Hermes/Honcho evidence. Use for phase updates, row splitting, feature maps, docs, or Goncho parity planning without runtime code.
+description: Shape source-backed Gormes progress rows. Use for decision=plan builder handoffs, row splitting, feature maps, or parity planning. Do not use when decision=build or for runtime code.
 ---
 
 # Gormes Planner
@@ -55,7 +55,7 @@ For TUI and channel UX parity, choose the active upstream implementation
 explicitly. `$HERMES_SRC/ui-tui` is authoritative for the current
 full-screen terminal app; `$HERMES_SRC/cli.py` remains evidence
 for legacy prompt-toolkit behavior and command semantics. If a parity evidence
-evidence entry points only at stale upstream files, refine the row/evidence
+entry points only at stale upstream files, refine the row/evidence
 before handing it to a builder.
 
 ## Workflow
@@ -117,19 +117,39 @@ For "actually implemented features" or stale-`missing` sweeps, treat the pass as
 
 Before changing rows, zoom out one level: name the relevant modules, callers, public contracts, tests, and upstream files. If this map is unclear, do more discovery instead of planning from vibes.
 
-### TODO Intake, Builder-Blocked Reports, And Row Creation
+### Decision=Plan Fast Path
 
-When turning a TODO, parity gap, missing-feature note, or builder-blocked report into backlog work:
+Use this directly when a builder reports `decision=plan`; do not send an exact,
+source-backed packet through another discovery loop.
 
-- Re-run `go run ./cmd/progress next-work` and `go run ./cmd/progress next-work --repo-only` yourself before accepting a pasted "no rows" report; builder status can be stale after planner/progress edits.
-- Treat `decision=build` from `cmd/progress next-work --repo-only` as authoritative: planner should not add a duplicate row, even when the selected row still says `contract_status=draft`. Instead report the selected row and route to `gormes-builder`.
-- Treat `decision=plan` / `no unblocked builder-ready rows` as the planner trigger: pick one blocked/vague planned row or one source-backed `partial`/`missing` parity atom and sharpen it into a repo-scoped builder-ready row.
-- Search existing progress rows first; refine or split before adding duplicates.
-- Keep parity classifications in `HERMES-BEHAVIOR-ATOMS.md`; create progress rows only for buildable implementation work.
-- A new or repaired row must include exact source refs, module, write scope, acceptance/done signal, ready-when, not-ready-when, dependencies, and validation commands.
-- If the user names a surface such as "TUI parity" and all rows in that module are complete, reconcile stale parity atoms first; create a row only for the concrete remaining gap (for example, native TUI live voice capture) after proving it is not already covered.
-- Dirty planning/docs work is not a reason to refuse planning. It is a hygiene constraint: inspect `git diff --name-only`, avoid overwriting unrelated edits, and either refine the already-dirty progress/evidence surface or report the exact file-collision blocker.
-- Do not create `TODO.md`, issue-list, prompt-only, or private-ledger side queues. If `TODO.md` exists, treat it as historical/resolved receipt storage unless Juan explicitly requests archival editing.
+1. Re-run both selectors in the live checkout:
+   `go run ./cmd/progress next-work` and
+   `go run ./cmd/progress next-work --repo-only`.
+2. If repo-only now says `decision=build`, stop planning, name that row, and
+   route to `gormes-builder`; never add a duplicate.
+3. If it still says `decision=plan`, search existing rows first. Refine one
+   vague planned row, or choose one proven `partial`/`missing` behavior atom
+   with exact upstream refs and a real in-repo gap.
+4. Run a stale-classification preflight against current Go code/tests. If the
+   behavior exists, correct evidence instead of creating runtime work.
+5. Create one repo-scoped vertical row through
+   `internal/planning/progress.Load` / `SaveProgress`. Include every field in
+   [the row contract](references/progress-row-contract.md).
+6. Regenerate, validate, and rerun repo-only selection. The pass succeeds only
+   when the intended row is selected, or a higher-ranked row is selected and
+   explicitly reported.
+
+A builder-blocked packet should follow the canonical
+[builder-to-planner handoff](../gormes-builder/references/planner-handoff.md):
+name the candidate atom/row, exact upstream symbols/tests, current Go insertion
+point, intended module, exclusions, and first hermetic RED fixture; preserve
+`unknown` rather than inventing evidence. Keep classifications in
+`HERMES-BEHAVIOR-ATOMS.md`; implementation intent belongs in the logical
+backlog. Do not create `TODO.md`, issue lists, prompt queues, or private
+ledgers.
+
+Dirty planning/docs work is a hygiene constraint, not a refusal reason. Record
+the pre-pass dirty paths before editing and follow the split-layout rules below.
 
 ### 3. Map Upstream To Gormes
 
@@ -147,96 +167,16 @@ Do not mark a row or evidence entry covered unless repository evidence proves th
 
 For large areas, design vertical slices. Each row should deliver one narrow behavior through all required layers rather than one horizontal layer of a future system.
 
-### CLI, Config, And Migration Parity
+### Specialized Lanes
 
-When planning Hermes command or config parity:
-
-- Treat `Hermes CLI command-tree parity manifest` as the gate before claiming
-  broad command parity or assigning handler ports.
-- Separate native config lifecycle from cross-product imports:
-  `gormes config migrate` updates Gormes' own schema, while
-  `gormes migrate hermes` and `gormes migrate openclaw` import external state.
-- Classify Gormes-owned additions such as `goncho`, `--offline`, `--remote`,
-  and XDG/TOML config as `owned` with source-backed rationale. Hermes-owned
-  `-z/--oneshot` is removed-command guidance in Gormes; `gormes chat -q` is
-  the canonical scripted-chat surface.
-- Do not accept broad globs (`hermes_cli/**`, `gateway/**`, `_handle_*`) as
-  sole evidence. Pair them with exact commands, symbols, fixtures, or tests.
-- Preserve the public command spelling `openclaw`; typo-like requests such as
-  `ooenclaw` should be planned as deterministic suggestions to
-  `gormes migrate openclaw`, not silent aliases, unless a dedicated
-  compatibility row explicitly changes that API policy.
-
-### Persona, Templates, Skills, And Reset Defaults
-
-When planning agent-default or "Gormes bot persona" parity, inspect the
-upstream sources that actually seed and inject identity:
-`$HERMES_SRC/hermes_cli/default_soul.py`,
-`$HERMES_SRC/hermes_cli/config.py`,
-`$HERMES_SRC/hermes_cli/profiles.py`,
-`$HERMES_SRC/agent/prompt_builder.py`, and
-`$HERMES_SRC/docker/SOUL.md` when container defaults matter. Rows must say
-whether Gormes is porting Hermes' default `SOUL.md`, intentionally replacing
-the brand text with Gormes identity, or preserving user-owned local
-customization.
-
-For skills parity, use exact sources such as
-`$HERMES_SRC/agent/skill_commands.py`,
-`$HERMES_SRC/agent/skill_preprocessing.py`,
-`$HERMES_SRC/agent/skill_utils.py`,
-`$HERMES_SRC/tools/skills_tool.py`,
-`$HERMES_SRC/tools/skill_manager_tool.py`, and
-`$HERMES_SRC/tools/skills_sync.py`. Plan user-visible skill behavior:
-load order, template files, linked references, enabled/disabled/platform
-filtering, reset/sync commands, and how skill tool calls appear to the model.
-
-For reset behavior, separate session reset from development-environment reset.
-Hermes session reset evidence lives in files such as
-`$HERMES_SRC/tests/gateway/test_session_boundary_hooks.py`,
-`$HERMES_SRC/tests/gateway/test_session_reset_notify.py`,
-`$HERMES_SRC/tests/gateway/test_session_model_reset.py`, and
-`$HERMES_SRC/tests/run_agent/test_session_reset_fix.py`. A Gormes
-development reset follow-up must first inspect the completed `Gormes agent
-template reset command` row, `internal/agenttemplate`, and
-`cmd/gormes/agent_reset_test.go`. Extend or correct that surface with explicit
-write_scope, fixture state, and acceptance; do not hide reset behavior inside
-installer or generic runtime rows, and do not create a duplicate reset row.
-
-Workspace-specific paths such as `workspace-gormes` and `workspace-mineru` are
-planning evidence, not product defaults. Rows may require discovery or
-fixture-backed behavior around those layouts, but must reject hard-coded
-operator paths in Gormes code.
-
-### External Review Feedback Ingestion
-
-When the input is exact external review feedback (Greptile/Grep-style PR review,
-GitHub review comment, CI annotation, static-analysis finding, or pasted local
-review log), this skill owns row shaping, not code fixes.
-
-Use this workflow:
-
-1. **Preserve exact evidence.** Record reviewer text, PR/check URL when
-   available, file path, line/symbol, command output, and commit SHA. If the
-   feedback is only summarized, stop and ask for the exact text.
-2. **Classify each finding.** Choose exactly one: existing-row refinement, new
-   builder-ready row, duplicate of an existing row, out-of-scope noise, or
-   blocker needing Juan/system input.
-3. **Prefer existing rows.** Refine `ready_when`, `not_ready_when`,
-   `acceptance`, `source_refs`, `write_scope`, or `test_commands` before adding
-   a new row.
-4. **Create at most one new row per bounded review theme.** The row must be a
-   vertical slice with exact review evidence in `source_refs`, `fixture`, or a
-   provenance note.
-5. **Reject side queues.** Do not create TODO files, issue lists, private
-   review ledgers, or prompt-only task lists outside the progress control plane.
-6. **Hand implementation back to builders.** If a finding is already
-   builder-ready and does not need row shaping, route back to
-   `gormes-review-loop` plus `gormes-tdd-slice` instead of editing planning
-   surfaces.
+Load [specialized planner lanes](references/specialized-lanes.md) only when the
+request concerns CLI/config/migration parity, persona/templates/skills/reset
+defaults, or exact external review feedback. Keep those rare rules out of the
+default planning path.
 
 ### 4. Rewrite Rows For Builders
 
-Every executable row must be one worker-sized slice and include enough detail for a builder agent to start TDD immediately:
+Every executable row must be one worker-sized slice and include enough detail for a builder agent to start TDD immediately. Apply the row contract's security-sensitive readiness gate before using `fixture_ready`; unresolved filesystem, process, network, secret, or persistence policy stays `draft`.
 
 - `execution_owner`
 - `slice_size`
@@ -279,7 +219,20 @@ Planner passes may edit planning surfaces:
 - upstream study docs
 - public progress/web copy when roadmap messaging changes
 
-Planner passes must not implement runtime feature code under `cmd/**/*.go` or `internal/**/*.go`. If runtime code is required, create a builder-ready row.
+Planner passes must not implement runtime feature code under `cmd/**/*.go` or `internal/**/*.go`. Do not edit runtime during a planner pass, even when the insertion point is obvious. If runtime code is required, create a builder-ready row.
+
+#### Split-Layout Dirty-Tree Hygiene
+
+- Load and save the logical backlog only through
+  `internal/planning/progress.Load` / `SaveProgress` or `cmd/progress`; never
+  hand-parse or directly mutate module JSON.
+- Snapshot dirty paths before saving. Afterwards inspect changed files under
+  `progress.json/modules/`; expected row-module changes are allowed.
+- If canonical serialization touches an unrelated module that was clean before
+  the pass, restore only that incidental clean-file change. Never restore,
+  overwrite, or normalize a file that was already dirty.
+- Run `go run ./cmd/progress write` after the logical row is correct. Reconcile
+  the hand-maintained completion ledger when row totals/open counts changed.
 
 ### 6. Iterate Deliberately
 
@@ -297,12 +250,20 @@ When an interface shape is uncertain, create an interface-design task or use the
 
 ### 7. Validate
 
-After evidence/edit updates, run only non-loop validation:
+After evidence/edit updates, run non-loop validation:
 
 ```sh
+go run ./cmd/progress write
+go run ./cmd/progress validate
+go run ./cmd/progress next-work --repo-only
 go test ./internal/planning/progress -count=1
+go test ./webpages/docs -run TestCompletionPlanCurrentFinishLedgerMatchesProgress -count=1
 go test ./webpages/docs -count=1
+git diff --check
 ```
+
+Run `write` only when progress data changed. Report unrelated full-docs
+failures separately; focused progress/ledger gates must still pass.
 
 If this pass introduces planner-loop behavior, keep it explicitly scoped,
 progress-row-backed, and validated. If validation exposes stale loop
@@ -314,16 +275,32 @@ If `www.gormes.ai` content/data changed, also run:
 (cd webpages/landing && go test ./... -count=1)
 ```
 
-## Final Report
+## Example
 
-Report:
+Builder packet: `decision=plan`; the webhook filter atom is `partial`; upstream
+names `_load_filter_file_values`; current Go filters omit `in_file`.
 
-1. Scope scanned
-2. Upstream features mapped
-3. Progress rows added/refined/split
-4. Goncho/Honcho implications
-5. Feature-map sections changed
-6. Builder-ready next rows
-7. Validation evidence
-8. Remaining unmapped Hermes/Honcho areas
-9. Risks or blockers
+Planner outcome: rerun selectors, prove the gap, and define injected home,
+absolute/symlink, size, and degraded policy with hermetic fixtures. If any
+owner decision remains, keep the row `draft`; otherwise prove repo-only selects
+it. Script execution stays excluded.
+
+Behavioral evaluation: this scenario is pinned for deterministic review, but
+no paid paired model run was approved; the skill improvement is unreplicated.
+
+## Output Contract
+
+```text
+scope: <bounded subsystem/pass>
+upstream_mapped: <exact symbols/tests>
+rows_changed: <phase/subphase/name and before→after>
+feature_map_evidence: <changed anchor or unchanged reason>
+selector_result: <exact decision/build row or decision/plan reason>
+validation: <commands and outcomes>
+remaining: <named gaps, including Goncho/Honcho implications>
+risks: <security/owner blockers or none>
+next_skill: <gormes-builder or evidence/design skill>
+```
+
+Do not claim `builder_ready` unless fresh repo-only selection proves it. Include
+exact full-docs failures when unrelated gates remain red.

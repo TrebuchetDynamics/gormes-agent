@@ -101,6 +101,7 @@ Use this order when several skills could apply:
 | `goscrapling v0.1.0`, tagged sibling repo, scrape dependency, use from GitHub release | released-module E2E integration | `gormes-context-sourcing` then `gormes-tdd-slice` |
 | architecture/planner/parity/builder loop, delivery loop extension | bounded delivery orchestration | `gormes-delivery-loop` |
 | plan, roadmap, progress row | planner pass | `gormes-planner` |
+| builder packet with `decision=plan`, no builder-ready rows, or exact partial atom | direct row repair/creation | `gormes-planner` (skip slicer when the packet is already concrete) |
 | TODO, backlog item, add work, missing feature, rough idea, "where track todos" | canonical backlog intake | `gormes-progress-slicer` then `gormes-planner` |
 | split plan/PRD/review into rows | vertical slicing | `gormes-progress-slicer` |
 | implement row, build slice | builder pass | `gormes-builder` + `gormes-tdd-slice` |
@@ -231,6 +232,10 @@ Use these composition rules:
 
 - If the user asks to **do work now**, avoid a pure planner answer unless the
   row is missing or vague.
+- If a fresh builder packet says `decision=plan`, route directly to
+  `gormes-planner`. Add `gormes-progress-slicer` only when the objective is
+  broad; an exact partial atom plus upstream refs is already sufficiently
+  sliced for planner row shaping.
 - If the user says to **use a release/tag from another repo**, never rely on a
   sibling checkout or local `replace` by default. Verify the upstream module tag
   first, then write an E2E/TDD proof that imports or exercises the released

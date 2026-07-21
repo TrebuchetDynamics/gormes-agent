@@ -112,8 +112,8 @@ type Config struct {
 // DashboardChatMessage is a neutral persisted chat message for restoring the
 // chat feed on load.
 type DashboardChatMessage struct {
-	Role    string
-	Content string
+	Role    string `json:"role"`
+	Content string `json:"content"`
 }
 
 // DashboardSession is a neutral persistent-session summary row for the Sessions
@@ -222,6 +222,8 @@ type Server struct {
 	skillsList             func() []DashboardSkill
 	sessionsList           func() []DashboardSession
 	chatHistory            func(sessionID string) []DashboardChatMessage
+	sessionMu              sync.Mutex
+	clientSessions         map[string]DashboardSessionInfo
 	chatMu                 sync.Mutex
 	chatSessionID          string
 	statusMu               sync.Mutex
@@ -314,6 +316,7 @@ func NewServer(cfg Config) *Server {
 		skillsList:            cfg.SkillsList,
 		sessionsList:          cfg.SessionsList,
 		chatHistory:           cfg.ChatHistory,
+		clientSessions:        make(map[string]DashboardSessionInfo),
 		chatSessionID:         dashboardChatSessionID,
 		now:                   time.Now,
 		mux:                   http.NewServeMux(),
@@ -353,7 +356,7 @@ func ValidateStartupSecurity(cfg Config) error {
 
 func weakAPIKeyPlaceholder(value string) bool {
 	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "***", "changeme", "your_api_key", "placeholder":
+	case "***", "changeme", "gormes-dashboard-dev", "your_api_key", "placeholder":
 		return true
 	default:
 		return false
@@ -599,10 +602,11 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"build":    s.buildInfo,
-		"object":   "hermes.api_server.capabilities",
-		"platform": "gormes-agent",
-		"model":    s.modelName,
+		"schema_version": 1,
+		"build":          s.buildInfo,
+		"object":         "hermes.api_server.capabilities",
+		"platform":       "gormes-agent",
+		"model":          s.modelName,
 		"auth": map[string]any{
 			"type":     "bearer",
 			"required": s.apiKey != "",
@@ -616,6 +620,7 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 			"run_status":                 true,
 			"run_events_sse":             true,
 			"run_stop":                   true,
+			"run_approval_response":      true,
 			"runs_list":                  true,
 			"runs_list_filters":          []string{"status", "since", "limit", "order", "session_id", "session_id_prefix"},
 			"run_events_params":          []string{"backlog_only", "keep"},
@@ -636,12 +641,16 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 			"health":           {"method": "GET", "path": "/health"},
 			"health_detailed":  {"method": "GET", "path": "/health/detailed"},
 			"models":           {"method": "GET", "path": "/v1/models"},
+			"sessions":         {"method": "GET", "path": "/api/sessions"},
+			"session_create":   {"method": "POST", "path": "/api/sessions"},
+			"session_messages": {"method": "GET", "path": "/api/sessions/{session_id}/messages"},
 			"chat_completions": {"method": "POST", "path": "/v1/chat/completions"},
 			"responses":        {"method": "POST", "path": "/v1/responses"},
 			"runs":             {"method": "POST", "path": "/v1/runs"},
 			"runs_list":        {"method": "GET", "path": "/v1/runs"},
 			"run_status":       {"method": "GET", "path": "/v1/runs/{run_id}"},
 			"run_events":       {"method": "GET", "path": "/v1/runs/{run_id}/events"},
+			"run_approval":     {"method": "POST", "path": "/v1/runs/{run_id}/approval"},
 			"run_stop":         {"method": "POST", "path": "/v1/runs/{run_id}/stop"},
 		},
 	})

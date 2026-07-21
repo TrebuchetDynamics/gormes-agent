@@ -139,12 +139,12 @@ func Manifest() []Entry {
 	)
 	entries = append(entries, hermesNestedCommands("memory", "hermes_cli/main.py:memory_sub", "Goncho memory integration into normal agent turn", []string{"setup", "status", "off", "reset"})...)
 	entries = append(entries, hermesToolsCommands()...)
-	entries = append(entries, hermesNestedCommands("mcp", "hermes_cli/main.py:mcp_sub", "ACP server side", []string{"serve", "add", "remove", "list", "test", "configure", "login"})...)
-	entries = append(entries,
-		hermesNestedAlias("mcp", "rm", "remove", "hermes_cli/main.py:mcp_sub:remove aliases", "ACP server side"),
-		hermesNestedAlias("mcp", "ls", "list", "hermes_cli/main.py:mcp_sub:list aliases", "ACP server side"),
-		hermesNestedAlias("mcp", "config", "configure", "hermes_cli/main.py:mcp_sub:configure aliases", "ACP server side"),
-	)
+	entries = append(entries, hermesMCPCommands()...)
+	mcpConfigAlias := hermesNestedAlias("mcp", "config", "configure", "hermes_cli/main.py:mcp_sub:configure aliases", "Hermes MCP catalog install/configure lifecycle")
+	mcpConfigAlias.Status = StatusImplemented
+	mcpConfigAlias.Target = "cmd/gormes mcp configure"
+	mcpConfigAlias.Residual = "mcp config resolves to explicit profile-scoped tool-selection persistence; interactive probe/checklist remains partial"
+	entries = append(entries, mcpConfigAlias)
 	entries = append(entries, hermesNestedCommands("sessions", "hermes_cli/main.py:sessions_subparsers", "Session shutdown memory transcript handoff", []string{"list", "export", "delete", "prune", "stats", "rename", "browse"})...)
 	entries = append(entries, hermesKanbanCommands()...)
 	entries = append(entries, hermesClawCommands()...)
@@ -228,6 +228,21 @@ func hermesToolsCommands() []Entry {
 		hermesImplementedPath([]string{"tools", "list"}, KindCommand, "hermes_cli/commands.py:CommandDef(\"tools\")", "cmd/gormes tools list", "lists CLI platform toolsets from Gormes config without row-backed unavailable evidence"),
 		hermesImplementedPath([]string{"tools", "disable"}, KindCommand, "hermes_cli/commands.py:CommandDef(\"tools\")", "cmd/gormes tools disable", "disables named CLI platform toolsets through the shared config-backed adapter"),
 		hermesImplementedPath([]string{"tools", "enable"}, KindCommand, "hermes_cli/commands.py:CommandDef(\"tools\")", "cmd/gormes tools enable", "enables named CLI platform toolsets through the shared config-backed adapter"),
+	}
+}
+
+func hermesMCPCommands() []Entry {
+	const source = "hermes_cli/subcommands/mcp.py:build_mcp_parser"
+	return []Entry{
+		hermesRowPath([]string{"mcp", "serve"}, KindCommand, source+":serve", "ACP server side", "MCP server mode remains classified by its ACP row"),
+		hermesImplementedPath([]string{"mcp", "add"}, KindCommand, source+":add", "cmd/gormes mcp add", "config-only custom HTTP add is implemented; stdio/header-secret/probe behavior remains in the lifecycle umbrella"),
+		hermesImplementedPath([]string{"mcp", "remove"}, KindCommand, source+":remove", "cmd/gormes mcp remove", "exact config deletion with mandatory --yes is implemented; durable OAuth-token and catalog-artifact cleanup remains in the lifecycle umbrella"),
+		hermesImplementedPath([]string{"mcp", "rm"}, KindAlias, source+":remove aliases", "cmd/gormes mcp remove", "mcp rm resolves to explicit-confirmation config deletion"),
+		hermesImplementedPath([]string{"mcp", "list"}, KindCommand, source+":list", "cmd/gormes mcp list", "deterministic structurally redacted HTTP/stdio config inventory is implemented"),
+		hermesImplementedPath([]string{"mcp", "ls"}, KindAlias, source+":list aliases", "cmd/gormes mcp list", "mcp ls resolves to the concrete redacted list"),
+		hermesImplementedPath([]string{"mcp", "test"}, KindCommand, source+":test", "cmd/gormes mcp test", "bounded official-Go-SDK Streamable HTTP initialize and tool discovery are implemented; stdio and OAuth transport probing remain in the lifecycle umbrella"),
+		hermesImplementedPath([]string{"mcp", "configure"}, KindCommand, source+":configure", "cmd/gormes mcp configure", "explicit profile-scoped include/none/all persistence is implemented; interactive probe/checklist and live reload remain in the lifecycle umbrella"),
+		hermesImplementedPath([]string{"mcp", "login"}, KindCommand, source+":login", "cmd/gormes mcp login", "OAuth login command is concrete; fuller authenticated-session lifecycle remains partial"),
 	}
 }
 

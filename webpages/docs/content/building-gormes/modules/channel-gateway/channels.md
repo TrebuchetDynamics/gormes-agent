@@ -10,9 +10,9 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module group:** Channel Gateway
 **Module:** `channels`
-**Rows:** 136
-**Status counts:** `complete`: 136 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 7 · `P1`: 47 · `P2`: 29 · `P3`: 4 · `P4`: 2 · `unset`: 47
+**Rows:** 139
+**Status counts:** `complete`: 139 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P0`: 7 · `P1`: 50 · `P2`: 29 · `P3`: 4 · `P4`: 2 · `unset`: 47
 
 ## Phase 2 — The Gateway
 
@@ -103,6 +103,9 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `channels` | Telegram Markdown table row-label bullet suppression |
 | `complete` | `P0` | `channels` | Telegram streaming edit Markdown safety |
 | `complete` | `P1` | `channels` | Telegram guest mention allowlist bypass |
+| `complete` | `P1` | `channels` | Webhook declarative route filters + helper manifest classification |
+| `complete` | `P1` | `channels` | Webhook profile-confined in_file route filters |
+| `complete` | `P1` | `channels` | Webhook Go-native route script transforms |
 
 ### 2.B.10 — WeChat Adapter
 

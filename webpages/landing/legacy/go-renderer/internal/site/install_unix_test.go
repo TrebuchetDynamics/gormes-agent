@@ -298,7 +298,7 @@ func writeFakeUnixToolchain(t *testing.T, root string) (string, string) {
 
 	linkBasicUnixTools(t, bin)
 	writeExecutable(t, filepath.Join(bin, "git"), fakeGitScript())
-	writeExecutable(t, filepath.Join(bin, "go"), fakeGoScript("go", "go1.26.0"))
+	writeExecutable(t, filepath.Join(bin, "go"), fakeGoScript("go", "go1.26.5"))
 	writeVersionTool(t, filepath.Join(bin, "node"), "v22.22.0")
 	writeVersionTool(t, filepath.Join(bin, "rg"), "ripgrep 14.1.1")
 	writeVersionTool(t, filepath.Join(bin, "ffmpeg"), "ffmpeg version 7.1.1 Copyright")
@@ -382,7 +382,7 @@ printf '`+version+`\n'
 
 func linkBasicUnixTools(t *testing.T, bin string) {
 	t.Helper()
-	for _, name := range []string{"awk", "cat", "chmod", "cp", "dirname", "head", "ln", "mkdir", "mv", "rm", "sed", "sha256sum", "sleep", "uname"} {
+	for _, name := range []string{"awk", "cat", "chmod", "cp", "dirname", "head", "ln", "mkdir", "mv", "rm", "sed", "sha256sum", "sleep", "tail", "uname"} {
 		realPath, err := exec.LookPath(name)
 		if err != nil {
 			t.Fatalf("look up %s: %v", name, err)
@@ -648,7 +648,7 @@ func writeBootstrapTemplates(t *testing.T, root string, systemGoVersion string) 
 	managedGoTemplate := filepath.Join(root, "managed-go.template")
 	writeExecutable(t, gitTemplate, fakeGitScript())
 	writeExecutable(t, goTemplate, fakeGoScript("go", systemGoVersion))
-	writeExecutable(t, managedGoTemplate, fakeGoScript("managed-go", "go1.26.0"))
+	writeExecutable(t, managedGoTemplate, fakeGoScript("managed-go", "go1.26.5"))
 	return gitTemplate, goTemplate, managedGoTemplate
 }
 
@@ -800,7 +800,7 @@ func TestInstallSH_DefaultInstallNarratesHermesStyleExperience(t *testing.T) {
 		"single binary",
 		"✓ Detected: linux (fedora)",
 		"Checks",
-		"✓ Go go1.26.0",
+		"✓ Go go1.26.5",
 		"✓ Git",
 		"✓ Git 2.53.0",
 		"✓ Node.js",
@@ -1830,7 +1830,7 @@ func TestInstallSH_TermuxInstallsMissingGitAndGo(t *testing.T) {
 		t.Fatalf("mkdir fakebin: %v", err)
 	}
 	linkBasicUnixTools(t, fakebin)
-	gitTemplate, goTemplate, managedGoTemplate := writeBootstrapTemplates(t, root, "go1.26.0")
+	gitTemplate, goTemplate, managedGoTemplate := writeBootstrapTemplates(t, root, "go1.26.5")
 	writeFakePackageManager(t, fakebin, "pkg")
 
 	out, err := runInstallScript(t,

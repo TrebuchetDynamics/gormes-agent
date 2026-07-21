@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 109/112 subphases shipped · 3 in progress · 0 planned
+**Overall:** 108/112 subphases shipped · 4 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -99,7 +99,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | ✅ | 23/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 4/7 subphases |
@@ -294,6 +294,9 @@ classification and row-backed implementation queue.
 - [x] `gateway` Gateway per-platform circuit breaker + /platform pause/resume/list command
 - [x] `gateway` Gateway /model interactive provider/model picker
 - [x] `gateway` Gateway memory monitor pressure policy
+- [x] `channels` Webhook declarative route filters + helper manifest classification
+- [x] `channels` Webhook profile-confined in_file route filters
+- [x] `channels` Webhook Go-native route script transforms
 
 ### 2.B.10 — WeChat Adapter ✅
 
@@ -744,7 +747,7 @@ classification and row-backed implementation queue.
 - [x] `providers` P95 latency-aware failover
 - [x] `providers` Capability-based model tier routing
 
-## Phase 5 — The Final Purge ✅
+## Phase 5 — The Final Purge 🔨
 
 *Python tool scripts ported to Go or WASM*
 
@@ -862,7 +865,7 @@ classification and row-backed implementation queue.
 - [x] `skills` Gateway/TUI dynamic skill slash invocation parity
 - [x] `skills` TUI/gateway reload-skills command refresh binding
 
-### 5.G — MCP Integration ✅
+### 5.G — MCP Integration 🔨
 
 - [x] `tools` MCP client
 - [x] `goncho` Goncho MCP tool catalog
@@ -877,6 +880,17 @@ classification and row-backed implementation queue.
 - [x] `tools` MCP stdio orphan cleanup after cron ticks
 - [x] `tools` Gormes-native MCP host runtime boundary
 - [x] `channels` MCP channels_list tool
+- [x] `tools` MCP resource-link and embedded-text result preservation
+- [x] `tools` MCP binary EmbeddedResource and AudioContent cache materialization
+- [x] `tools` Hermes approved MCP catalog manifest + list command
+- [x] `tools` Gormes MCP catalog HTTP config install + default loader
+- [x] `tools` Gormes MCP custom HTTP config add + redacted list
+- [x] `tools` Gormes MCP config remove with explicit confirmation
+- [x] `tools` Go-native MCP HTTP probe + test command
+- [x] `tools` Go-native configured MCP HTTP registry + invocation
+- [x] `tools` Gormes MCP explicit tool-selection configure
+- [ ] `tools` Hermes MCP catalog install/configure lifecycle
+- [ ] `tools` Gormes MCP server enable/disable persistence
 
 ### 5.H — ACP Integration ✅
 
@@ -1323,6 +1337,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Gormes JSONL RPC mode over agent runtime events
 - [x] `tui` Native TUI voice record key uses voice toggle adapter
 - [x] `tui` Native TUI live voice capture and playback parity
+- [x] `gateway` Hermes Wing/Desktop core remote API compatibility
 
 ### 5.R — Code Execution Mode Policy ✅
 

@@ -1,4 +1,4 @@
 interface:
   display_name: "Gormes Planner"
-  short_description: "Plan Hermes and Honcho parity rows."
-  default_prompt: "Use $gormes-planner to inspect upstream Hermes/Honcho evidence, refine progress.json rows, and update planning docs without implementing runtime feature code."
+  short_description: "Turn parity gaps and decision=plan handoffs into buildable rows."
+  default_prompt: "Use $gormes-planner to rerun selectors, shape one source-backed gap through typed progress tooling, keep unresolved filesystem/process/network/secret policy draft, prove repo-only selection, and never implement runtime code."

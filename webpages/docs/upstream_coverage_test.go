@@ -30,6 +30,11 @@ func TestUpstreamCoverageLedgerMatchesSourceClasses(t *testing.T) {
 			represented: map[string]string{
 				".plans":                         "`.plans/**`",
 				"AGENTS.md":                      "`AGENTS.md`",
+				"CONTRIBUTING.es.md":             "CONTRIBUTING",
+				"README.es.md":                   "README",
+				"README.ur-pk.md":                "README",
+				"README.zh-CN.md":                "README",
+				"SECURITY.es.md":                 "SECURITY",
 				"CLAUDE.md":                      "`CLAUDE.md`",
 				"CONTRIBUTING.md":                "CONTRIBUTING",
 				"Dockerfile":                     "`Dockerfile`",
@@ -38,6 +43,7 @@ func TestUpstreamCoverageLedgerMatchesSourceClasses(t *testing.T) {
 				"acp_adapter":                    "`acp_adapter/auth.py:detect_provider`",
 				"acp_registry":                   "`acp_registry/**`",
 				"agent":                          "`agent/*.py`",
+				"apps":                           "`apps/{desktop,bootstrap-installer,shared}/**`",
 				"batch_runner.py":                "`batch_runner.py`",
 				"cli-config.yaml.example":        "`cli-config.yaml.example`",
 				"cli.py":                         "`cli.py`",
@@ -45,8 +51,10 @@ func TestUpstreamCoverageLedgerMatchesSourceClasses(t *testing.T) {
 				"cron":                           "`cron/*.py`",
 				"datagen-config-examples":        "`datagen-config-examples/**`",
 				"docker":                         "`docker/**`",
+				"docker-compose.windows.yml":     "`docker-compose.windows.yml`",
 				"docker-compose.yml":             "`docker-compose.yml`",
-				"environments":                   "`environments/agent_loop.py`",
+				"docs":                           "`docs/**`",
+				"hermes_bootstrap.py":            "`hermes_bootstrap.py`",
 				"flake.lock":                     "`flake.*`",
 				"flake.nix":                      "`flake.*`",
 				"gateway":                        "`gateway/**/*.py`",
@@ -58,20 +66,25 @@ func TestUpstreamCoverageLedgerMatchesSourceClasses(t *testing.T) {
 				"hermes_state.py":                "`hermes_state.py`",
 				"hermes_time.py":                 "`hermes_time.py`",
 				"mcp_serve.py":                   "`mcp_serve.py`",
+				"locales":                        "`locales/**`",
 				"mini_swe_runner.py":             "`mini_swe_runner.py`",
 				"model_tools.py":                 "`model_tools.py`",
 				"nix":                            "`nix/**`",
+				"optional-mcps":                  "`optional-mcps/**`",
 				"optional-skills":                "`optional-skills/**`",
 				"package-lock.json":              "`package-lock.json`",
 				"package.json":                   "`package.json`",
 				"packaging":                      "`packaging/**`",
 				"plans":                          "`plans/**`",
 				"plugins":                        "`plugins/**`",
+				"providers":                      "`providers/**`",
 				"pyproject.toml":                 "`pyproject.toml`",
 				"rl_cli.py":                      "`rl_cli.py`",
 				"run_agent.py":                   "`run_agent.py`",
 				"scripts":                        "`scripts/**`",
+				"setup-hermes.sh":                "`setup-hermes.sh`",
 				"setup-llm.sh":                   "`setup-llm.sh`",
+				"setup.py":                       "`setup.py`",
 				"skills":                         "`skills/**`",
 				"tests":                          "`tests/**`",
 				"tools":                          "`tools/*.py`",
@@ -86,7 +99,7 @@ func TestUpstreamCoverageLedgerMatchesSourceClasses(t *testing.T) {
 				"website":                        "`website/**`",
 			},
 			ignored: ignoredCoverageClasses(
-				".dockerignore", ".env.example", ".envrc", ".gitattributes",
+				".dockerignore", ".env.example", ".envrc", ".gitattributes", ".hadolint.yaml",
 				".github", ".gitignore", ".gitmodules", ".mailmap", "LICENSE",
 				"MANIFEST.in", "assets", "tinker-atropos",
 			),
@@ -130,6 +143,7 @@ func TestUpstreamCoverageLedgerMatchesSourceClasses(t *testing.T) {
 	}
 
 	for _, check := range checks {
+		check.root = preferredUpstreamRoot(check.name, check.root)
 		t.Run(check.name, func(t *testing.T) {
 			if _, err := os.Stat(check.root); err != nil {
 				if os.IsNotExist(err) {
@@ -210,14 +224,6 @@ func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 			evidence:       []string{"run_agent.py", "Normal agent loop", "Python-free normal agent turn e2e harness"},
 		},
 		{
-			name:           "Hermes environment agent loop",
-			repo:           "Hermes",
-			root:           filepath.Join("..", "..", "..", "hermes-agent"),
-			path:           "environments/agent_loop.py",
-			classification: "still row-backed",
-			evidence:       []string{"environments/agent_loop.py", "Normal agent loop", "Phase 4.I"},
-		},
-		{
 			name:           "Hermes prompt builder",
 			repo:           "Hermes",
 			root:           filepath.Join("..", "..", "..", "hermes-agent"),
@@ -295,7 +301,7 @@ func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 			root:           filepath.Join("..", "..", "..", "hermes-agent"),
 			path:           "tools/yuanbao_tools.py",
 			classification: "still row-backed",
-			evidence:       []string{"tools/yuanbao_tools.py", "Yuanbao tool drift", "Phase 7.E"},
+			evidence:       []string{"tools/yuanbao_tools.py", "Yuanbao tool drift", "Yuanbao gateway runtime + toolset registration"},
 		},
 		{
 			name:           "Hermes plugin inventory",
@@ -397,9 +403,9 @@ func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 			name:           "Hermes OpenClaw migration script",
 			repo:           "Hermes",
 			root:           filepath.Join("..", "..", "..", "hermes-agent"),
-			path:           "optional-skills/migration/openclaw-migration/scripts/openclaw_to_llm.py",
+			path:           "optional-skills/migration/openclaw-migration/scripts/openclaw_to_hermes.py",
 			classification: "still row-backed",
-			evidence:       []string{"openclaw_to_llm.py", "OpenClaw migration dry-run manifest", "Phase 5.O"},
+			evidence:       []string{"openclaw_to_hermes.py", "OpenClaw migration dry-run manifest", "Phase 5.O"},
 		},
 		{
 			name:           "Hermes Nix flake",
@@ -637,9 +643,9 @@ func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 			name:           "Hermes browser provider routing",
 			repo:           "Hermes",
 			root:           filepath.Join("..", "..", "..", "hermes-agent"),
-			path:           "tools/browser_providers/firecrawl.py",
+			path:           "plugins/browser/firecrawl/provider.py",
 			classification: "mapped-by-contract",
-			evidence:       []string{"tools/browser_providers/firecrawl.py", "Browser, web, media, voice, image"},
+			evidence:       []string{"plugins/browser/firecrawl/provider.py", "Browser, web, media, voice, image"},
 		},
 		{
 			name:           "Hermes config schema example",
@@ -675,14 +681,9 @@ func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 	)
 	addChecks("Hermes environment runtime", "Hermes", hermesRoot, "still row-backed",
 		[]string{"Environment interface + file sync contract", "Phase 5.B"},
-		"environments/hermes_base_env.py",
-		"environments/agentic_opd_env.py",
-		"environments/web_research_env.py",
-	)
-	addChecks("Hermes raw parser", "Hermes", hermesRoot, "still row-backed",
-		[]string{"Raw tool-call parser fixture matrix", "Phase 5.M"},
-		"environments/tool_call_parsers/hermes_parser.py",
-		"environments/tool_call_parsers/deepseek_v3_1_parser.py",
+		"tools/environments/base.py",
+		"tools/environments/file_sync.py",
+		"tools/environments/local.py",
 	)
 	addChecks("Hermes ACP entry", "Hermes", hermesRoot, "mapped-by-contract",
 		[]string{"ACP server side", "Phase 5.H"},
@@ -789,6 +790,7 @@ func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 	)
 
 	for _, check := range checks {
+		check.root = preferredUpstreamRoot(check.repo, check.root)
 		t.Run(check.repo+"/"+check.name, func(t *testing.T) {
 			if _, err := os.Stat(check.root); err != nil {
 				if os.IsNotExist(err) {
@@ -846,6 +848,18 @@ func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 		requireBuilderReadyProgressRow(t, "OCI image")
 		requireBuilderReadyProgressRow(t, "Homebrew")
 	})
+}
+
+func preferredUpstreamRoot(repo, fallback string) string {
+	name := "honcho"
+	if strings.EqualFold(repo, "Hermes") {
+		name = "hermes-agent"
+	}
+	candidate := filepath.Join("..", "..", name)
+	if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+		return candidate
+	}
+	return fallback
 }
 
 func ignoredCoverageClasses(names ...string) map[string]struct{} {

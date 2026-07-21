@@ -41,6 +41,9 @@ func stubRootFactories() CommandFactories {
 	for _, name := range RootCommandOrder {
 		name := name
 		factories[name] = func() *cobra.Command {
+			if name == "login" {
+				return NewDeprecatedLoginCommand()
+			}
 			return &cobra.Command{Use: name}
 		}
 	}

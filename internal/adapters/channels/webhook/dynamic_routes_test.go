@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -24,7 +25,7 @@ func TestWebhookDynamicRoutes_LoadMergeMtimeAndRemoval(t *testing.T) {
 	}
 
 	writeDynamicRoutes(t, path, `{
-		"dynamic": {"secret": "dynamic-secret", "prompt": "dyn", "events": ["push"]},
+		"dynamic": {"secret": "dynamic-secret", "prompt": "dyn", "events": ["push"], "filters": [{"field": "payload.label", "equals": "urgent"}], "script": "processor"},
 		"conflict": {"secret": "dynamic-secret", "prompt": "dynamic loses"}
 	}`)
 	if err := routes.Reload(); err != nil {
@@ -32,6 +33,10 @@ func TestWebhookDynamicRoutes_LoadMergeMtimeAndRemoval(t *testing.T) {
 	}
 	if got, ok := routes.Route("dynamic"); !ok || got.Secret != "dynamic-secret" {
 		t.Fatalf("dynamic route = %#v ok:%v, want loaded route", got, ok)
+	} else if filters, ok := got.Filters.([]any); !ok || len(filters) != 1 {
+		t.Fatalf("dynamic route filters = %#v, want one decoded filter", got.Filters)
+	} else if got.Script != "processor" {
+		t.Fatalf("dynamic route script = %q, want processor", got.Script)
 	}
 	if got, _ := routes.Route("conflict"); got.Secret != "static-secret" {
 		t.Fatalf("conflict route secret = %q, want static-secret", got.Secret)
@@ -71,6 +76,31 @@ func TestWebhookDynamicRoutes_LoadMergeMtimeAndRemoval(t *testing.T) {
 	}
 	if _, ok := routes.Route("static"); !ok {
 		t.Fatal("static route missing after dynamic file removal")
+	}
+}
+
+func TestWebhookRouteConfig_FiltersDecodeObjectAndList(t *testing.T) {
+	for _, body := range []string{
+		`{"filters":{"field":"event","equals":"push"}}`,
+		`{"filters":[{"field":"event","equals":"push"}]}`,
+	} {
+		var route RouteConfig
+		if err := json.Unmarshal([]byte(body), &route); err != nil {
+			t.Fatalf("Unmarshal(%s) error = %v", body, err)
+		}
+		if !routeFiltersMatch(route.Filters, nil, "push", nil) {
+			t.Fatalf("decoded filters did not match: %#v", route.Filters)
+		}
+	}
+}
+
+func TestWebhookDynamicRoutes_ScriptConfigDecode(t *testing.T) {
+	var route RouteConfig
+	if err := json.Unmarshal([]byte(`{"secret":"INSECURE_NO_AUTH","script":"processor","prompt":"Task: {body}"}`), &route); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+	if route.Secret != InsecureNoAuth || route.Script != "processor" || route.Prompt != "Task: {body}" {
+		t.Fatalf("RouteConfig = %#v, want script with unchanged fields", route)
 	}
 }
 

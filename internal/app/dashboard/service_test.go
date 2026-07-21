@@ -7,6 +7,13 @@ func TestNewCommandPreservesDashboardFlagsWithoutPortShorthand(t *testing.T) {
 	if cmd.Use != "dashboard" {
 		t.Fatalf("Use = %q, want dashboard", cmd.Use)
 	}
+	host := cmd.Flags().Lookup("host")
+	if host == nil {
+		t.Fatalf("missing --host flag")
+	}
+	if got := host.DefValue; got != "127.0.0.1" {
+		t.Fatalf("--host default = %q, want 127.0.0.1", got)
+	}
 	port := cmd.Flags().Lookup("port")
 	if port == nil {
 		t.Fatalf("missing --port flag")

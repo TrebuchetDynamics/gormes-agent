@@ -12,15 +12,15 @@ import (
 func TestInstallersRequireCurrentGoToolchain(t *testing.T) {
 	root := repoRoot(t)
 	goMod := readFileFromRoot(t, root, "go.mod")
-	if !strings.Contains(goMod, "\ngo 1.26.4\n") {
-		t.Fatalf("go.mod must declare Go 1.26.4; got:\n%s", goMod)
+	if !strings.Contains(goMod, "\ngo 1.26.5\n") {
+		t.Fatalf("go.mod must declare Go 1.26.5; got:\n%s", goMod)
 	}
 
 	installSH := readFileFromRoot(t, root, "install.sh")
 	wantInstallSH := []string{
-		`GO_VERSION="${GORMES_GO_VERSION:-1.26.4}"`,
-		"Go 1.26.4+ required",
-		"go1.26.[4-9]*|go1.26.[1-9][0-9]*|go1.2[7-9]*|go1.[3-9][0-9]*|go[2-9]*)",
+		`GO_VERSION="${GORMES_GO_VERSION:-1.26.5}"`,
+		"Go 1.26.5+ required",
+		"go1.26.[5-9]*|go1.26.[1-9][0-9]*|go1.2[7-9]*|go1.[3-9][0-9]*|go[2-9]*)",
 	}
 	for _, want := range wantInstallSH {
 		if !strings.Contains(installSH, want) {
@@ -38,10 +38,10 @@ func TestInstallersRequireCurrentGoToolchain(t *testing.T) {
 
 	installPS1 := readFileFromRoot(t, root, "scripts/install.ps1")
 	wantInstallPS1 := []string{
-		"GORMES_GO_VERSION    managed Go fallback version (default: 1.26.4)",
-		"} else { '1.26.4' }",
-		"Go 1.26.4+ required",
-		"^go1\\.26\\.([4-9]|[1-9][0-9])",
+		"GORMES_GO_VERSION    managed Go fallback version (default: 1.26.5)",
+		"} else { '1.26.5' }",
+		"Go 1.26.5+ required",
+		"^go1\\.26\\.([5-9]|[1-9][0-9])",
 	}
 	for _, want := range wantInstallPS1 {
 		if !strings.Contains(installPS1, want) {
@@ -64,8 +64,8 @@ func TestInstallersRequireCurrentGoToolchain(t *testing.T) {
 		"webpages/docs/content/start-here/_index.md",
 	} {
 		body := readFileFromRoot(t, root, rel)
-		if !strings.Contains(body, "Go 1.26.4+") && !strings.Contains(body, "default `1.26.4`") {
-			t.Errorf("%s must advertise Go 1.26.4+ or managed Go 1.26.4 for source builds", rel)
+		if !strings.Contains(body, "Go 1.26.5+") && !strings.Contains(body, "default `1.26.5`") {
+			t.Errorf("%s must advertise Go 1.26.5+ or managed Go 1.26.5 for source builds", rel)
 		}
 		if strings.Contains(body, "Go 1.25+") || strings.Contains(body, "Go 1.26+") {
 			t.Errorf("%s still advertises stale vulnerable Go floor", rel)

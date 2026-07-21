@@ -604,6 +604,45 @@ func (s *Server) handleRunEvents(w http.ResponseWriter, r *http.Request) {
 		s.streamRunEvents(w, r, runID)
 		return
 	}
+	if runID, ok := strings.CutSuffix(suffix, "/approval"); ok {
+		if runID == "" || strings.Contains(runID, "/") {
+			writeOpenAIError(w, http.StatusNotFound, "Run not found", "invalid_request_error", "", "run_not_found")
+			return
+		}
+		if r.Method != http.MethodPost {
+			writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+			return
+		}
+		if _, exists := s.runs.snapshot(runID); !exists {
+			writeOpenAIError(w, http.StatusNotFound, "Run not found: "+runID, "invalid_request_error", "", "run_not_found")
+			return
+		}
+		body, err := readLimitedBody(w, r, s.maxBodyBytes)
+		if err != nil {
+			writeOpenAIError(w, http.StatusRequestEntityTooLarge, "Request body too large.", "invalid_request_error", "", "body_too_large")
+			return
+		}
+		var request map[string]any
+		if err := json.Unmarshal(body, &request); err != nil {
+			writeOpenAIError(w, http.StatusBadRequest, "Invalid JSON in request body", "invalid_request_error", "", "invalid_json")
+			return
+		}
+		choice := strings.ToLower(strings.TrimSpace(stringField(request, "choice")))
+		if choice == "" {
+			choice = strings.ToLower(strings.TrimSpace(stringField(request, "decision")))
+		}
+		switch choice {
+		case "approve", "approved", "allow":
+			choice = "once"
+		}
+		switch choice {
+		case "once", "session", "always", "deny":
+			writeOpenAIError(w, http.StatusConflict, "Run has no active approval session: "+runID, "invalid_request_error", "", "approval_not_active")
+		default:
+			writeOpenAIError(w, http.StatusBadRequest, "Invalid approval choice; expected one of: once, session, always, deny", "invalid_request_error", "choice", "invalid_approval_choice")
+		}
+		return
+	}
 	if runID, ok := strings.CutSuffix(suffix, "/stop"); ok {
 		if runID == "" || strings.Contains(runID, "/") {
 			writeOpenAIError(w, http.StatusNotFound, "Run not found", "invalid_request_error", "", "run_not_found")

@@ -17,6 +17,8 @@ var templateToken = regexp.MustCompile(`\{([a-zA-Z0-9_.]+)\}`)
 type RouteConfig struct {
 	Secret       string         `json:"secret,omitempty"`
 	Events       []string       `json:"events,omitempty"`
+	Filters      any            `json:"filters,omitempty"`
+	Script       string         `json:"script,omitempty"`
 	Prompt       string         `json:"prompt,omitempty"`
 	Deliver      string         `json:"deliver,omitempty"`
 	DeliverExtra map[string]any `json:"deliver_extra,omitempty"`

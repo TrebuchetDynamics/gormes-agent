@@ -9895,6 +9895,73 @@
   },
   {
     "phase": "5",
+    "subphase": "5.Q",
+    "pos": 83,
+    "item": {
+      "name": "Hermes Wing/Desktop core remote API compatibility",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "The native Gormes API server exposes the capability-negotiated core remote contract consumed by Hermes Wing and Hermes Desktop: bearer and X-Hermes-Session-Token authentication remain supported on their existing surfaces; capabilities use additive schema version 1 and advertise only callable routes; session list and message responses carry both Wing's data envelope and Desktop's sessions/messages envelope; an explicitly created empty client session remains process-local until its first turn; run submission, SSE, status, stop, and fail-closed approval responses keep stable Hermes paths and event semantics. Desktop administration, local installer ownership, profiles/providers/models/skills mutation, memory, backup, and gateway lifecycle remain excluded. The dashboard command accepts an explicit bind host for trusted LAN/VPN/tailnet clients while refusing non-loopback startup without a non-placeholder API key.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "gateway",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Missing persistent session data returns an empty authorized collection; empty client-created sessions are not persisted; unknown sessions/runs/approvals return typed 404 errors; invalid approval decisions fail closed; unadvertised Desktop administration stays unavailable instead of being inferred. Non-loopback binding without a strong configured API key refuses startup.",
+      "fixture": "internal/adapters/apiserver/client_compat_test.go",
+      "source_refs": [
+        "../hermes-wing/docs/product/hermes-compatibility.md: capability schema, required bootstrap endpoints, event-stream contract",
+        "../hermes-wing/lib/core/hermes/client/hermes_api_client.dart: listSessions, createSession, sessionMessages, startRun, runEvents, respondApproval, stopRun",
+        "../hermes-desktop/src/main/remote-sessions.ts: remoteListSessions and remoteGetSessionMessages",
+        "../hermes-desktop/src/main/run-stream.ts: supportsHermesRunsTransport",
+        "hermes-agent/gateway/platforms/api_server.py: capabilities, sessions, runs, approvals",
+        "internal/adapters/apiserver/server.go: Config, routes, handleCapabilities",
+        "internal/adapters/apiserver/dashboard.go: session handlers",
+        "internal/adapters/apiserver/runs.go: run lifecycle handlers"
+      ],
+      "ready_when": [
+        "Wing and Desktop source contracts are available in sibling checkouts and identify exact methods, paths, auth headers, and response envelopes.",
+        "Existing Gormes run submission/SSE/status/stop and dashboard auth tests remain the implementation baseline.",
+        "The first RED fixture exercises the public HTTP handler only with an in-memory turn loop and session callbacks; no live provider, sibling process, credential, or user database is required."
+      ],
+      "not_ready_when": [
+        "The slice adds Desktop installer/config/filesystem ownership or optional admin/profile/provider/model/skill/memory/backup routes.",
+        "The server advertises a route it cannot safely call or weakens bearer/dashboard token checks.",
+        "Tests depend on a running Hermes Wing/Desktop process or private operator data."
+      ],
+      "acceptance": [
+        "A Wing-shaped bootstrap fixture authenticates, reads schema-versioned capabilities, creates a process-local session, lists it through data, and reads messages through data.",
+        "A Desktop-shaped fixture uses X-Hermes-Session-Token and reads the same sessions/messages through sessions and messages envelopes.",
+        "Capabilities advertise existing run submission/events/status/stop plus a fail-closed approval endpoint; malformed decisions and unknown approvals never resume work.",
+        "Existing run SSE and stop fixtures remain green, and omitted admin surfaces remain unadvertised.",
+        "`gormes dashboard --host <trusted-address>` binds the requested host, while non-loopback startup without `GORMES_DASHBOARD_API_KEY` fails before listening."
+      ],
+      "note": "Complete 2026-07-20: RED `go test ./internal/adapters/apiserver -run TestClientCompatibility_WingAndDesktopSessionContract -count=1` failed on missing schema_version, session-create, dual list/history envelopes, and Desktop token support. GREEN adds schema-v1 capability discovery, bounded process-local empty sessions, dual Wing/Desktop session and message envelopes, existing run SSE/status/stop discovery, and a validated fail-closed approval-response route. `gormes dashboard --host` now enables trusted LAN/VPN/tailnet clients while non-loopback startup rejects missing or development-placeholder keys. Focused apiserver/dashboard packages, a real built-binary bearer + X-Hermes-Session-Token smoke, Hermes Wing's 215 API/channel tests, Hermes Desktop's 19 remote-session/run-stream tests, and the full Go gate passed. Desktop installer/config/profile/provider/model/skill/memory/backup administration remains intentionally unadvertised.",
+      "write_scope": [
+        "internal/adapters/apiserver/server.go",
+        "internal/adapters/apiserver/dashboard.go",
+        "internal/adapters/apiserver/runs.go",
+        "internal/adapters/apiserver/client_compat_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "internal/app/dashboard/service.go",
+        "internal/app/dashboard/service_test.go",
+        "webpages/docs/content/cli/runtime/dashboard.md"
+      ],
+      "test_commands": [
+        "go test ./internal/adapters/apiserver -run 'TestClientCompatibility|TestAPIServerRuns' -count=1",
+        "go test ./internal/app/dashboard -count=1"
+      ],
+      "done_signal": [
+        "Hermetic Wing/Desktop-shaped clients complete authenticated bootstrap, session/history reads, run transport discovery, stop, and fail-closed approval handling against one Gormes HTTP handler."
+      ]
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.V",
     "pos": 2,
     "item": {
@@ -10237,6 +10304,11 @@
         "Focused gateway app registration tests pass and repeated degraded-status write mechanics are centralized without public behavior drift.",
         "`go test ./internal/app/gateway -run 'Registration|ConfiguredGatewayChannels|Degraded' -count=1`, `go run ./cmd/progress validate`, and `git diff --check` pass."
       ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-06-08T00:00:00Z",
+        "note": "Derived from tld architecture review finding: channel registration repeats degraded/status/error mechanics across gateway channel branches."
+      },
       "evidence": {
         "implementation": [
           "internal/app/gateway/channels.go: gatewayChannelRegistrationDegraded centralizes degraded runtime-status writes and warnings for channel registration failures.",
@@ -10245,11 +10317,6 @@
         "verification": [
           "GREEN: go test ./internal/app/gateway -run 'Registration|ConfiguredGatewayChannels|Degraded' -count=1 passed."
         ]
-      },
-      "provenance": {
-        "origin_type": "gormes",
-        "owned_since": "2026-06-08T00:00:00Z",
-        "note": "Derived from tld architecture review finding: channel registration repeats degraded/status/error mechanics across gateway channel branches."
       }
     }
   }

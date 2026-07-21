@@ -1,0 +1,20 @@
+# Nous-approved MCP catalog entry.
+# Presence in this directory = approval. Merged via PR review.
+manifest_version: 1
+
+name: unreal-engine
+description: Drive the Unreal Engine 5.8 editor over its local MCP server.
+source: https://dev.epicgames.com/documentation/unreal-engine/unreal-mcp-in-unreal-editor
+
+transport:
+  type: http
+  url: http://127.0.0.1:8000/mcp
+
+auth:
+  type: none
+
+post_install: |
+  This entry connects to Epic's official Unreal MCP plugin, which runs INSIDE
+  the Unreal Editor. Enable the plugin and start its local MCP server before
+  starting Gormes. Re-run the tool checklist with:
+    gormes mcp configure unreal-engine

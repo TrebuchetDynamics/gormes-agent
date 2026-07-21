@@ -7,7 +7,7 @@ import (
 
 func TestGitHubActionsUseGoModToolchain(t *testing.T) {
 	goMod := readRepoFile(t, "go.mod")
-	if !strings.Contains(goMod, "\ngo 1.26.4\n") {
+	if !strings.Contains(goMod, "\ngo 1.26.5\n") {
 		t.Fatalf("go.mod must declare the current patched Go floor; got:\n%s", goMod)
 	}
 

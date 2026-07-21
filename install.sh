@@ -37,7 +37,7 @@ RELEASES_API_URL="${GORMES_RELEASES_API_URL:-https://api.github.com/repos/Trebuc
 RELEASES_DOWNLOAD_BASE="${GORMES_RELEASES_DOWNLOAD_BASE:-https://github.com/TrebuchetDynamics/gormes-agent/releases/download}"
 RELEASES_LATEST_URL="${GORMES_RELEASES_LATEST_URL:-https://github.com/TrebuchetDynamics/gormes-agent/releases/latest}"
 BRANCH="${GORMES_BRANCH:-main}"
-GO_VERSION="${GORMES_GO_VERSION:-1.26.4}"
+GO_VERSION="${GORMES_GO_VERSION:-1.26.5}"
 RESTART_GATEWAY="${GORMES_RESTART_GATEWAY:-auto}"
 RUN_SETUP=true
 SETUP_COMPLETED=false
@@ -587,7 +587,7 @@ check_platform() {
 
 check_go_version() {
   goversion=$(current_go_version)
-  go_version_supported "$goversion" || fail "Go 1.26.4+ required; found ${goversion}"
+  go_version_supported "$goversion" || fail "Go 1.26.5+ required; found ${goversion}"
 }
 
 current_go_version() {
@@ -601,7 +601,7 @@ current_go_version() {
 
 go_version_supported() {
   case "$1" in
-    go1.26.[4-9]*|go1.26.[1-9][0-9]*|go1.2[7-9]*|go1.[3-9][0-9]*|go[2-9]*)
+    go1.26.[5-9]*|go1.26.[1-9][0-9]*|go1.2[7-9]*|go1.[3-9][0-9]*|go[2-9]*)
       return 0 ;;
     *)
       return 1 ;;

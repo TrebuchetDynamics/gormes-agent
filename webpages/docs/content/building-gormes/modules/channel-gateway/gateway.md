@@ -10,9 +10,9 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module group:** Channel Gateway
 **Module:** `gateway`
-**Rows:** 162
-**Status counts:** `complete`: 162 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 14 · `P1`: 53 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
+**Rows:** 163
+**Status counts:** `complete`: 163 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P0`: 15 · `P1`: 53 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
 
 ## Phase 1 — The Dashboard
 
@@ -315,6 +315,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P2` | `gateway` | Kernel cross-provider client swap for in-session model switch |
 | `complete` | `P1` | `gateway` | Hermes web dashboard strict-fidelity contract map |
 | `complete` | `P1` | `gateway` | Gormes JSONL RPC mode over agent runtime events |
+| `complete` | `P0` | `gateway` | Hermes Wing/Desktop core remote API compatibility |
 
 ### 5.V — Unified Event Bus
 

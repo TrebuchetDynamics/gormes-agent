@@ -67,10 +67,6 @@ func CompactPairDescriptor(authMode, exposureMode, token, baseURL, wsURL string)
 	values := url.Values{}
 	values.Set("base_url", baseURL)
 	values.Set("websocket_url", wsURL)
-	values.Set("capabilities_url", strings.TrimRight(baseURL, "/")+"/v1/navivox/capabilities")
-	values.Set("auth_mode", authMode)
-	values.Set("exposure_mode", exposureMode)
-	values.Set("token_required", "true")
 	values.Set("rest_token", token)
 	return (&url.URL{Scheme: "navivox", Host: "connect", RawQuery: values.Encode()}).String()
 }

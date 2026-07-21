@@ -10,9 +10,9 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module group:** Agent Runtime
 **Module:** `tools`
-**Rows:** 151
-**Status counts:** `complete`: 151 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 23 · `P1`: 57 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26
+**Rows:** 162
+**Status counts:** `complete`: 160 · `in_progress`: 0 · `planned`: 2
+**Priority counts:** `P0`: 23 · `P1`: 67 · `P2`: 36 · `P3`: 8 · `P4`: 2 · `unset`: 26
 
 ## Phase 3 — The Black Box (Memory)
 
@@ -109,6 +109,17 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `tools` | MCP circuit breaker cooldown + reconnect reset |
 | `complete` | `P2` | `tools` | MCP stdio orphan cleanup after cron ticks |
 | `complete` | `P1` | `tools` | Gormes-native MCP host runtime boundary |
+| `complete` | `P1` | `tools` | MCP resource-link and embedded-text result preservation |
+| `complete` | `P1` | `tools` | MCP binary EmbeddedResource and AudioContent cache materialization |
+| `complete` | `P1` | `tools` | Hermes approved MCP catalog manifest + list command |
+| `complete` | `P1` | `tools` | Gormes MCP catalog HTTP config install + default loader |
+| `complete` | `P1` | `tools` | Gormes MCP custom HTTP config add + redacted list |
+| `complete` | `P1` | `tools` | Gormes MCP config remove with explicit confirmation |
+| `complete` | `P1` | `tools` | Go-native MCP HTTP probe + test command |
+| `complete` | `P1` | `tools` | Go-native configured MCP HTTP registry + invocation |
+| `complete` | `P1` | `tools` | Gormes MCP explicit tool-selection configure |
+| `planned` | `P2` | `tools` | Hermes MCP catalog install/configure lifecycle |
+| `planned` | `P1` | `tools` | Gormes MCP server enable/disable persistence |
 
 ### 5.H — ACP Integration
 

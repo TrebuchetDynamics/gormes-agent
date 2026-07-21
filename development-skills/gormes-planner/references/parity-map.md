@@ -32,7 +32,7 @@ Map every Hermes feature group to Go code, docs, fixtures, and progress rows:
 - Channel bootstrap registry: per-platform manifest, transport, identity/self-filter, inbound normalization, outbound delivery, sticker/mirror/directory cache.
 - Cron/scheduling: durable jobs, triggers, retries, idempotence, status, context_from chaining.
 - ACP and MCP catalogs: ACP auth/session/events/tools/permissions registry; MCP server/runtime, sampling, conversation bridge, prompt/resource wrappers, OAuth state machines, managed gateway clients.
-- Webhooks: endpoint CRUD/test/signature, outbound webhook delivery, HMAC, retries/backoff/failure state, disabled endpoints, and queue-empty events.
+- Webhooks: signed ingress and dynamic routes; route-local declarative filters (`all`/`any`/`not`, field operators, profile-backed `in_file`); script transforms as a separate process-security slice; endpoint CRUD/test/signature; outbound delivery, HMAC, retries/backoff/failure state, disabled endpoints, and queue-empty events.
 - Dreaming and learning loop: scheduled dream execution, observations, peer-card side effects, skill candidate extraction, review/promotion.
 - Plugins/skills: discovery, parsing, installation, invocation, lockfiles, provenance.
 - Config/secrets: config files (incl. `cli-config.yaml.example` schema parity), env overrides, credential redaction, doctor checks, native `config edit/check/migrate`, explicit `gormes migrate hermes` / `gormes migrate openclaw` import commands, and typo-suggestion behavior for requests like `gormes migrate ooenclaw`.
