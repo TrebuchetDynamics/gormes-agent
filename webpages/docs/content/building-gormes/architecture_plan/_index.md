@@ -1337,6 +1337,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Gormes JSONL RPC mode over agent runtime events
 - [x] `tui` Native TUI voice record key uses voice toggle adapter
 - [x] `tui` Native TUI live voice capture and playback parity
+- [x] `gateway` Hermes Wing/Desktop core remote API compatibility
 
 ### 5.R — Code Execution Mode Policy ✅
 

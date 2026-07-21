@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-07-14",
+    "last_updated": "2026-07-20",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -699,7 +699,7 @@
             "last_upstream_check": "2026-05-09T00:00:00Z",
             "origin_decision": "Current Hermes Ink (`ui-tui/src/components`, `ui-tui/src/app`, `ui-tui/packages/hermes-ink`, and `ui-tui/src/__tests__`) remains the TUI source of truth. The 2026-05-09 all-topic weakness sweep refreshed Hermes to a7e7921db and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Provider/auth, gateway/channel, tools, memory/Goncho, browser, docs/public, and release/operator gaps stayed complete, owned, blocked, or row-backed; the newly refreshed active Ink change was markdown/prose wrap-trim behavior, now tracked by `Native TUI markdown soft-wrap boundary trim`. Gormes keeps the Go-native Bubble Tea/kernel/API boundary and splits TUI drift into narrow renderer rows rather than reopening completed chat-completions, cron-admin, keybinding, slash, or websocket rows."
           },
-          "item_count": 83
+          "item_count": 84
         },
         {
           "id": "5.R",

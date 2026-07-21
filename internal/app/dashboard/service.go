@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -33,6 +36,7 @@ type CommandOptions struct {
 }
 
 type dashboardOptions struct {
+	Host   string
 	Port   int
 	NoOpen bool
 }
@@ -47,6 +51,7 @@ func NewCommand(options CommandOptions) *cobra.Command {
 			return runCommand(cmd.Context(), opts, options)
 		},
 	}
+	cmd.Flags().StringVar(&opts.Host, "host", "127.0.0.1", "Dashboard HTTP server bind host")
 	cmd.Flags().IntVar(&opts.Port, "port", 43827, "Dashboard HTTP server port")
 	cmd.Flags().BoolVar(&opts.NoOpen, "no-open", false, "do not open the dashboard in a browser")
 	return cmd
@@ -78,13 +83,18 @@ func OpenURL(url string) error {
 }
 
 func runCommand(ctx context.Context, opts dashboardOptions, options CommandOptions) error {
+	host := strings.TrimSpace(opts.Host)
+	if host == "" {
+		host = "127.0.0.1"
+	}
 	apiKey := options.APIKey
-	if apiKey == "" {
+	if apiKey == "" && dashboardLoopbackHost(host) {
 		apiKey = "gormes-dashboard-dev"
 	}
 	cfg := apiserver.Config{
-		APIKey:             apiKey,
-		DashboardBoundHost: "127.0.0.1",
+		APIKey:                apiKey,
+		DashboardSessionToken: apiKey,
+		DashboardBoundHost:    host,
 		BuildInfo: apiserver.BuildInfo{
 			Version:   options.Version,
 			GitCommit: options.GitCommit,
@@ -141,7 +151,7 @@ func runCommand(ctx context.Context, opts dashboardOptions, options CommandOptio
 	if err != nil {
 		return err
 	}
-	addr := fmt.Sprintf("127.0.0.1:%d", opts.Port)
+	addr := net.JoinHostPort(strings.Trim(host, "[]"), strconv.Itoa(opts.Port))
 	url := fmt.Sprintf("http://%s/dashboard", addr)
 	fmt.Fprintf(stderr, "Gormes dashboard starting at %s\n", url)
 	if !opts.NoOpen {
@@ -160,4 +170,13 @@ func runCommand(ctx context.Context, opts dashboardOptions, options CommandOptio
 
 	server := &http.Server{Addr: addr, Handler: srv.Handler()}
 	return server.ListenAndServe()
+}
+
+func dashboardLoopbackHost(host string) bool {
+	host = strings.Trim(strings.TrimSpace(host), "[]")
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }

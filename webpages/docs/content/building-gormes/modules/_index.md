@@ -29,7 +29,7 @@ External channel adapters, gateway orchestration, fleet operation, and Navivox i
 |---|---:|---:|---:|---:|---|
 | [Channels](channel-gateway/channels/) | 139 | 139 | 0 | 0 | `P0`: 7 · `P1`: 50 · `P2`: 29 · `P3`: 4 · `P4`: 2 · `unset`: 47 |
 | [Fleet](channel-gateway/fleet/) | 23 | 23 | 0 | 0 | `P0`: 2 · `P1`: 7 · `P2`: 6 · `P3`: 3 · `unset`: 5 |
-| [Gateway](channel-gateway/gateway/) | 162 | 162 | 0 | 0 | `P0`: 14 · `P1`: 53 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54 |
+| [Gateway](channel-gateway/gateway/) | 163 | 163 | 0 | 0 | `P0`: 15 · `P1`: 53 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54 |
 | [Navivox](channel-gateway/navivox/) | 28 | 28 | 0 | 0 | `P0`: 3 · `P1`: 19 · `unset`: 6 |
 
 ## Delivery Control Plane

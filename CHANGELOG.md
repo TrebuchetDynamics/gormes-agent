@@ -17,6 +17,7 @@ Date alias: `v2026.7.20`.
 ### Added
 - Native MCP catalog manifests, config installation, HTTP probing, and runtime support for managed MCP servers.
 - Webhook route filters and script transforms for bounded inbound routing customization.
+- Core Hermes Wing/Desktop remote API compatibility for authenticated capability discovery, session/history envelopes, run SSE/stop, fail-closed approval responses, and trusted-host dashboard binding.
 
 ### Changed
 - Hermes source mirrors, parity evidence, progress surfaces, and planner/builder delivery contracts were refreshed from the current upstream inventory.
