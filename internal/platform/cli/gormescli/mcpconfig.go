@@ -29,6 +29,7 @@ const (
 	mcpConfigEvidenceConfirmationRequired = "confirmation_required"
 	mcpConfigEvidenceNotFound             = "not_found"
 	mcpConfigEvidenceDisabled             = "disabled"
+	mcpConfigEvidenceEnabled              = "enabled"
 	mcpConfigEvidenceAuthRequired         = "auth_required"
 	mcpConfigEvidenceUnsupportedTransport = "unsupported_transport"
 	mcpConfigEvidenceTimeout              = "timeout"
@@ -82,6 +83,16 @@ type mcpConfigureReportJSON struct {
 	Error                  string          `json:"error,omitempty"`
 }
 
+type mcpSetEnabledReportJSON struct {
+	Build                  BuildProvenance `json:"build"`
+	Action                 string          `json:"action"`
+	Name                   string          `json:"name,omitempty"`
+	Evidence               string          `json:"evidence"`
+	Enabled                bool            `json:"enabled"`
+	RuntimeRefreshRequired bool            `json:"runtime_refresh_required"`
+	Error                  string          `json:"error,omitempty"`
+}
+
 type mcpRemoveReportJSON struct {
 	Build                BuildProvenance `json:"build"`
 	Action               string          `json:"action"`
@@ -112,7 +123,11 @@ type mcpListReportJSON struct {
 }
 
 func newMCPConfigCommands(opts MCPCommandOptions) []*cobra.Command {
-	return []*cobra.Command{newMCPAddCommand(opts), newMCPRemoveCommand(opts), newMCPListCommand(opts), newMCPTestCommand(opts), newMCPConfigureCommand(opts)}
+	return []*cobra.Command{
+		newMCPAddCommand(opts), newMCPRemoveCommand(opts), newMCPListCommand(opts),
+		newMCPTestCommand(opts), newMCPConfigureCommand(opts),
+		newMCPSetEnabledCommand(opts, true), newMCPSetEnabledCommand(opts, false),
+	}
 }
 
 type mcpToolNamesFlag struct {
@@ -219,6 +234,58 @@ func emitMCPConfigureFailure(cmd *cobra.Command, opts MCPCommandOptions, asJSON 
 		}
 	}
 	return opts.exitCodeError(1, errors.New(report.Error))
+}
+
+func newMCPSetEnabledCommand(opts MCPCommandOptions, enabled bool) *cobra.Command {
+	verb := "disable"
+	if enabled {
+		verb = "enable"
+	}
+	var asJSON bool
+	cmd := &cobra.Command{
+		Use:          verb + " <name>",
+		Short:        verb + " one configured MCP server",
+		Args:         cobra.ExactArgs(1),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runMCPSetEnabledCommand(cmd, opts, args[0], enabled, asJSON)
+		},
+	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: {build, action, name, evidence, enabled, runtime_refresh_required, error}")
+	return cmd
+}
+
+func runMCPSetEnabledCommand(cmd *cobra.Command, opts MCPCommandOptions, name string, enabled, asJSON bool) error {
+	action := "mcp_disable"
+	evidence := mcpConfigEvidenceDisabled
+	verb := "Disabled"
+	if enabled {
+		action = "mcp_enable"
+		evidence = mcpConfigEvidenceEnabled
+		verb = "Enabled"
+	}
+	report := mcpSetEnabledReportJSON{
+		Build:   opts.buildProvenance(),
+		Action:  action,
+		Name:    safeMCPConfigureName(name),
+		Enabled: enabled,
+	}
+	if err := (mcpstore.Store{Path: opts.MCPConfigPath()}).SetEnabled(name, enabled); err != nil {
+		report.Evidence, report.Error = classifyMCPConfigError(err)
+		if asJSON {
+			if writeErr := writeMCPJSON(cmd, report); writeErr != nil {
+				return writeErr
+			}
+		}
+		return opts.exitCodeError(1, errors.New(report.Error))
+	}
+	report.Evidence = evidence
+	report.RuntimeRefreshRequired = true
+	if asJSON {
+		return writeMCPJSON(cmd, report)
+	}
+	_, err := fmt.Fprintf(cmd.OutOrStdout(), "%s MCP %q in the active Gormes profile. Reload or restart the active runtime to apply it.\n", verb, report.Name)
+	return err
 }
 
 func newMCPAddCommand(opts MCPCommandOptions) *cobra.Command {

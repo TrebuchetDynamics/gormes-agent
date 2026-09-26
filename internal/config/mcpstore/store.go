@@ -260,6 +260,46 @@ func (store Store) ConfigureTools(name string, selection ToolSelection) error {
 	return nil
 }
 
+// SetEnabled changes only the enabled flag on one existing MCP server. It does
+// not probe the server or mutate a running client; callers must refresh runtime
+// configuration after the durable write succeeds.
+func (store Store) SetEnabled(name string, enabled bool) error {
+	name = strings.TrimSpace(name)
+	if !validServerName(name) {
+		return &Error{Kind: ErrorInvalidInput}
+	}
+	doc, err := configwriter.ReadTOMLDoc(store.path())
+	if err != nil {
+		return &Error{Kind: ErrorUnavailable}
+	}
+	servers, err := serverMap(doc)
+	if err != nil {
+		return err
+	}
+	rawEntry, exists := servers[name]
+	if !exists {
+		return &Error{Kind: ErrorNotFound}
+	}
+	entry, ok := rawEntry.(map[string]any)
+	if !ok {
+		return &Error{Kind: ErrorRejected}
+	}
+	entry["enabled"] = enabled
+	servers[name] = entry
+	doc["mcp_servers"] = servers
+	if _, err := mcpconfig.ResolveMCPConfig(doc, mcpconfig.MCPConfigOptions{LookupEnv: redactedEnvironment}); err != nil {
+		return &Error{Kind: ErrorRejected}
+	}
+	write := store.WriteDocument
+	if write == nil {
+		write = configwriter.WriteTOMLAtomic
+	}
+	if err := write(store.path(), doc); err != nil {
+		return &Error{Kind: ErrorUnavailable}
+	}
+	return nil
+}
+
 func normalizeToolSelection(selection ToolSelection) ([]string, error) {
 	switch selection.Mode {
 	case ToolSelectionInclude:
