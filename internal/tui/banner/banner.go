@@ -679,7 +679,13 @@ func wrapWelcomeWords(text string, width int) []string {
 	current := ""
 	for _, word := range words {
 		if lipgloss.Width(word) > width {
-			word = statusbar.HermesTrimToWidth(word, width)
+			parts := splitWelcomeWord(word, width)
+			if current != "" {
+				lines = append(lines, current)
+				current = ""
+			}
+			lines = append(lines, parts[:len(parts)-1]...)
+			word = parts[len(parts)-1]
 		}
 		if current == "" {
 			current = word
@@ -697,6 +703,26 @@ func wrapWelcomeWords(text string, width int) []string {
 		lines = append(lines, current)
 	}
 	return lines
+}
+
+func splitWelcomeWord(word string, width int) []string {
+	if width <= 0 {
+		return []string{word}
+	}
+	parts := make([]string, 0, 2)
+	var current strings.Builder
+	for _, r := range word {
+		next := string(r)
+		if current.Len() > 0 && lipgloss.Width(current.String()+next) > width {
+			parts = append(parts, current.String())
+			current.Reset()
+		}
+		current.WriteRune(r)
+	}
+	if current.Len() > 0 {
+		parts = append(parts, current.String())
+	}
+	return parts
 }
 
 func welcomeWidePanelBox(s skin.HermesSkin, version string, versionDateAlias string, gitCommit string, content string, width int) string {

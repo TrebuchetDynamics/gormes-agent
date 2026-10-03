@@ -255,9 +255,16 @@ func findBundledSkillsRoot() string {
 		return ""
 	}
 	for {
-		candidate := filepath.Join(dir, "skills")
-		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			return candidate
+		// Gormes-owned assets take precedence over the upstream skills
+		// reference symlink so project-owned skills survive upstream changes.
+		for _, name := range []string{"bundled-skills", "skills"} {
+			candidate := filepath.Join(dir, name)
+			if candidate == dir {
+				continue
+			}
+			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+				return candidate
+			}
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {

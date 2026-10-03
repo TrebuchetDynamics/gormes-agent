@@ -48,10 +48,7 @@ func TestTouchDesignerSkill_ParsesBundledMetadata(t *testing.T) {
 
 func TestTouchDesignerSkill_MovedFromOptionalCatalog(t *testing.T) {
 	activeRoot := t.TempDir()
-	bundledRoot, err := filepath.Abs(filepath.Join("..", "..", "..", "skills"))
-	if err != nil {
-		t.Fatalf("Abs(bundled skills): %v", err)
-	}
+	bundledRoot := bundledTouchDesignerRoot(t)
 	t.Setenv("GORMES_SKILLS_ROOT", activeRoot)
 	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", bundledRoot)
 	clearEnvVars(t, "TOUCHDESIGNER_MCP_URL", "TWOZERO_MCP_URL")
@@ -70,7 +67,7 @@ func TestTouchDesignerSkill_MovedFromOptionalCatalog(t *testing.T) {
 	if row.Trust != "system" {
 		t.Fatalf("Trust = %q, want system", row.Trust)
 	}
-	if !strings.HasSuffix(filepath.ToSlash(row.Path), "skills/creative/touchdesigner-mcp/SKILL.md") {
+	if !strings.HasSuffix(filepath.ToSlash(row.Path), "bundled-skills/creative/touchdesigner-mcp/SKILL.md") {
 		t.Fatalf("Path = %q, want shipped bundled SKILL.md path", row.Path)
 	}
 
@@ -119,10 +116,7 @@ func TestTouchDesignerSkill_NoCredentialPrerequisitesEnableCatalogAndPrompt(t *t
 }
 
 func TestTouchDesignerSkill_ReferenceFilesAreInertSkillAssets(t *testing.T) {
-	bundledRoot, err := filepath.Abs(filepath.Join("..", "..", "..", "skills"))
-	if err != nil {
-		t.Fatalf("Abs(bundled skills): %v", err)
-	}
+	bundledRoot := bundledTouchDesignerRoot(t)
 	skillDir := filepath.Join(bundledRoot, "creative", "touchdesigner-mcp")
 	refsPath := filepath.Join(skillDir, "references", "mcp-tools.md")
 	raw, err := os.ReadFile(refsPath)
@@ -159,9 +153,18 @@ func TestTouchDesignerSkill_ReferenceFilesAreInertSkillAssets(t *testing.T) {
 	}
 }
 
+func bundledTouchDesignerRoot(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.Abs(filepath.Join("..", "..", "..", "bundled-skills"))
+	if err != nil {
+		t.Fatalf("Abs(bundled skills): %v", err)
+	}
+	return root
+}
+
 func readBundledTouchDesignerSkill(t *testing.T) []byte {
 	t.Helper()
-	path := filepath.Join("..", "..", "..", "skills", "creative", "touchdesigner-mcp", "SKILL.md")
+	path := filepath.Join(bundledTouchDesignerRoot(t), "creative", "touchdesigner-mcp", "SKILL.md")
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("ReadFile(%q): %v", path, err)

@@ -788,6 +788,70 @@ func runAuthRemoveCommand(cmd *cobra.Command, providerInput, target string) erro
 	return nil
 }
 
+func runAuthPriorityCommand(cmd *cobra.Command, providerInput, target string, requested int) error {
+	provider := normalizeAuthProvider(providerInput)
+	if provider == "" {
+		return errors.New("gormes auth priority: provider is required")
+	}
+	pool, evidence, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: provider})
+	if err != nil {
+		return fmt.Errorf("gormes auth priority %s: %s", provider, evidence.Code)
+	}
+	entries := pool.Entries()
+	index, err := resolveAuthPriorityTarget(entries, target)
+	if err != nil {
+		return fmt.Errorf("gormes auth priority %s: %w", provider, err)
+	}
+	matched := entries[index]
+	moved, err := pool.MoveEntry(matched.ID, requested)
+	if err != nil {
+		return fmt.Errorf("gormes auth priority %s: credential_priority_write_failed", provider)
+	}
+	if moved == nil {
+		return fmt.Errorf("gormes auth priority %s: credential_not_found", provider)
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Set %s credential %q to priority %d (#%d in `gormes auth list %s`)\n", provider, moved.Label, moved.Priority, moved.Priority+1, provider)
+	if moved.Priority != requested {
+		reason := "the pool bounds the requested priority"
+		if requested >= 0 && requested < len(entries) && provider == "anthropic" {
+			reason = "Anthropic keeps manually added credentials ahead of seeded ones"
+		}
+		fmt.Fprintf(cmd.ErrOrStderr(), "note: requested priority %d; effective priority is %d because %s.\n", requested, moved.Priority, reason)
+	}
+	return nil
+}
+
+func resolveAuthPriorityTarget(entries []config.PooledCredential, target string) (int, error) {
+	raw := strings.TrimSpace(target)
+	if raw == "" {
+		return -1, errors.New("no credential target provided")
+	}
+	for i := range entries {
+		if entries[i].ID == raw {
+			return i, nil
+		}
+	}
+	labelIndex := -1
+	for i := range entries {
+		if strings.EqualFold(strings.TrimSpace(entries[i].Label), raw) {
+			if labelIndex >= 0 {
+				return -1, errors.New("ambiguous credential label; use the numeric index or entry id")
+			}
+			labelIndex = i
+		}
+	}
+	if labelIndex >= 0 {
+		return labelIndex, nil
+	}
+	if index, err := strconv.Atoi(raw); err == nil {
+		if index >= 1 && index <= len(entries) {
+			return index - 1, nil
+		}
+		return -1, fmt.Errorf("no credential #%d", index)
+	}
+	return -1, errors.New("credential target not found")
+}
+
 func runAuthResetCommand(cmd *cobra.Command, providerInput string) error {
 	provider := normalizeAuthProvider(providerInput)
 	entries, err := loadAuthEntries(provider)

@@ -11,7 +11,7 @@
 // wiring. Wiring slices that compose these blocks into the system prompt are
 // tracked separately in `webpages/docs/content/building-gormes/architecture_plan/progress.json`.
 //
-// Upstream pin: hermes-agent commit e612c3d6f00624868ce3f73bb6beaacfea36337f
+// Upstream pin: hermes-agent commit d0288be5b3330d2442e3907185b8e9d0958297bb
 // (./hermes-agent/agent/prompt_builder.py). Byte-equivalence with the
 // upstream constants is enforced by guidance_constants_test.go; if Hermes
 // changes a constant, the test fails loudly so a follow-up port row can land
@@ -19,28 +19,26 @@
 
 package text
 
-// MemoryGuidance is the upstream MEMORY_GUIDANCE constant.
-// Source: ./hermes-agent/agent/prompt_builder.py MEMORY_GUIDANCE
-const MemoryGuidance = "You have persistent memory across sessions. Save durable facts using the memory " +
-	"tool: user preferences, environment details, tool quirks, and stable conventions. " +
-	"Memory is injected into every turn, so keep it compact and focused on facts that " +
-	"will still matter later.\n" +
-	"Prioritize what reduces future user steering — the most valuable memory is one " +
-	"that prevents the user from having to correct or remind you again. " +
-	"User preferences and recurring corrections matter more than procedural task details.\n" +
-	"Do NOT save task progress, session outcomes, completed-work logs, or temporary TODO " +
-	"state to memory; use session_search to recall those from past transcripts. " +
-	"Specifically: do not record PR numbers, issue numbers, commit SHAs, 'fixed bug X', " +
-	"'submitted PR Y', 'Phase N done', file counts, or any artifact that will be stale " +
-	"in 7 days. If a fact will be stale in a week, it does not belong in memory. " +
-	"If you've discovered a new way to do something, solved a problem that could be " +
-	"necessary later, save it as a skill with the skill tool.\n" +
-	"Write memories as declarative facts, not instructions to yourself. " +
-	"'User prefers concise responses' ✓ — 'Always respond concisely' ✗. " +
-	"'Project uses pytest with xdist' ✓ — 'Run tests with pytest -n 4' ✗. " +
-	"Imperative phrasing gets re-read as a directive in later sessions and can " +
-	"cause repeated work or override the user's current request. Procedures and " +
-	"workflows belong in skills, not memory."
+// MemoryGuidance is the upstream MEMORY_GUIDANCE constant, evaluated for
+// build_memory_guidance(True, True) (memory and skill-write guidance enabled).
+// Source: ./hermes-agent/agent/prompt_builder.py MEMORY_GUIDANCE /
+// build_memory_guidance.
+const MemoryGuidance = "You have persistent memory, carried across sessions and loaded " +
+	"into each new session's context; the memory tool's schema defines what belongs there. " +
+	"Skills come first: when you learn something while doing a task — a " +
+	"procedure, a pitfall, and the user's preferences and corrections " +
+	"for that kind of work — record it in the skill you used or built " +
+	"for the task (skill_manage), where it loads only when relevant. " +
+	"Memory is the narrow exception for facts that apply to EVERY " +
+	"session regardless of task (who the user is, environment facts, " +
+	"standing conventions with no task home); it has a hard character " +
+	"budget, so when it fills, replace or consolidate stale entries " +
+	"rather than skipping the save. Write entries as declarative facts, " +
+	"not instructions to yourself: 'User prefers concise responses' ✓ — " +
+	"'Always respond concisely' ✗ (imperative phrasing gets re-read as " +
+	"a directive in later sessions and can override the user's current " +
+	"request). A fact stale within a week belongs in session history; " +
+	"procedures and workflows belong in skills."
 
 // SessionSearchGuidance is the upstream SESSION_SEARCH_GUIDANCE constant.
 // Source: ./hermes-agent/agent/prompt_builder.py SESSION_SEARCH_GUIDANCE
@@ -50,12 +48,11 @@ const SessionSearchGuidance = "When the user references something from a past co
 
 // SkillsGuidance is the upstream SKILLS_GUIDANCE constant.
 // Source: ./hermes-agent/agent/prompt_builder.py SKILLS_GUIDANCE
-const SkillsGuidance = "After completing a complex task (5+ tool calls), fixing a tricky error, " +
-	"or discovering a non-trivial workflow, save the approach as a " +
-	"skill with skill_manage so you can reuse it next time.\n" +
-	"When using a skill and finding it outdated, incomplete, or wrong, " +
-	"patch it immediately with skill_manage(action='patch') — don't wait to be asked. " +
-	"Skills that aren't maintained become liabilities."
+const SkillsGuidance = "When you work out a non-trivial workflow, record it with skill_manage for future reuse.\n\n" +
+	"## Skill Safety Rule\n" +
+	"A skill placeholder containing `[SKILL_PRUNED]` lost its content in context compression and is inaccessible — " +
+	"reload it with skill_view(name='...') before acting on anything that depends on it. After reloading, ignore any " +
+	"remaining `[SKILL_PRUNED]` markers for that same skill; they are historical artifacts of earlier compactions."
 
 // ToolUseEnforcementGuidance is the upstream TOOL_USE_ENFORCEMENT_GUIDANCE constant.
 // Source: ./hermes-agent/agent/prompt_builder.py TOOL_USE_ENFORCEMENT_GUIDANCE
@@ -76,7 +73,7 @@ const ToolUseEnforcementGuidance = "# Tool-use enforcement\n" +
 // Substring matches against the active model name trigger tool-use enforcement
 // guidance.
 // Source: ./hermes-agent/agent/prompt_builder.py TOOL_USE_ENFORCEMENT_MODELS
-var ToolUseEnforcementModels = []string{"gpt", "codex", "gemini", "gemma", "grok", "glm", "qwen", "deepseek"}
+var ToolUseEnforcementModels = []string{"gpt", "codex", "gemini", "gemma", "grok", "glm", "qwen", "deepseek", "muse"}
 
 // DeveloperRoleModels is the upstream DEVELOPER_ROLE_MODELS tuple. Substring
 // matches against the active model name cause the API boundary to send the

@@ -9,6 +9,82 @@ import (
 	"time"
 )
 
+func TestCredentialPoolMoveEntryPersistsContiguousOrderAndPreservesState(t *testing.T) {
+	hermesHome := t.TempDir()
+	original := []PooledCredential{
+		{ID: "alpha", Label: "Alpha", AuthType: CredentialAuthAPIKey, Priority: 0, Source: "manual", AccessToken: "alpha-token", RequestCount: 5},
+		{ID: "beta", Label: "Beta", AuthType: CredentialAuthOAuth, Priority: 1, Source: "manual:oauth", AccessToken: "beta-token", LastStatus: CredentialStatusExhausted, LastErrorCode: 429, LastErrorReason: "rate_limited", LastErrorMessage: "wait", LastErrorResetAt: 42},
+		{ID: "gamma", Label: "Gamma", AuthType: CredentialAuthAPIKey, Priority: 2, Source: "manual", AccessToken: "gamma-token"},
+	}
+	if err := SaveCredentialPoolEntries(CredentialPoolOptions{HermesHome: hermesHome, Provider: "fixture-provider"}, original); err != nil {
+		t.Fatal(err)
+	}
+	pool, _, err := LoadCredentialPool(CredentialPoolOptions{HermesHome: hermesHome, Provider: "fixture-provider"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	moved, err := pool.MoveEntry("gamma", -10)
+	if err != nil {
+		t.Fatalf("MoveEntry: %v", err)
+	}
+	if moved == nil || moved.ID != "gamma" || moved.Priority != 0 {
+		t.Fatalf("moved = %#v, want gamma clamped to priority 0", moved)
+	}
+	loaded, _, err := LoadCredentialPool(CredentialPoolOptions{HermesHome: hermesHome, Provider: "fixture-provider"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries := loaded.Entries()
+	if ids := strings.Join(credentialEntryIDs(entries), ","); ids != "gamma,alpha,beta" {
+		t.Fatalf("reloaded order = %s", ids)
+	}
+	if entries[1].Priority != 1 || entries[2].Priority != 2 || entries[2].LastStatus != CredentialStatusExhausted || entries[2].LastErrorCode != 429 || entries[2].LastErrorReason != "rate_limited" || entries[2].LastErrorMessage != "wait" || entries[2].LastErrorResetAt != 42 || entries[2].AccessToken != "beta-token" {
+		t.Fatalf("non-priority fields not preserved: %#v", entries)
+	}
+}
+
+func TestCredentialPoolMoveEntryKeepsAnthropicManualCredentialsFirst(t *testing.T) {
+	pool := newFixtureCredentialPool(t, []PooledCredential{
+		{ID: "seeded", Label: "Seeded", Priority: 0, Source: "hermes_pkce"},
+		{ID: "manual", Label: "Manual", Priority: 1, Source: "manual:api_key"},
+	}, CredentialPoolStrategyFillFirst, time.Unix(1_700_000_000, 0))
+	pool.provider = "anthropic"
+	moved, err := pool.MoveEntry("seeded", 0)
+	if err != nil {
+		t.Fatalf("MoveEntry: %v", err)
+	}
+	entries := pool.Entries()
+	if moved == nil || moved.Priority != 1 || len(entries) != 2 || entries[0].ID != "manual" || entries[1].ID != "seeded" {
+		t.Fatalf("moved=%#v entries=%#v, want manual before seeded", moved, entries)
+	}
+}
+
+func TestCredentialPoolMoveEntryMissingIDDoesNotWrite(t *testing.T) {
+	hermesHome := t.TempDir()
+	if err := SaveCredentialPoolEntries(CredentialPoolOptions{HermesHome: hermesHome, Provider: "fixture-provider"}, []PooledCredential{{ID: "alpha", Label: "Alpha", Source: "manual", AccessToken: "alpha-token"}}); err != nil {
+		t.Fatal(err)
+	}
+	authPath := filepath.Join(hermesHome, "auth.json")
+	before, err := os.ReadFile(authPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pool, _, err := LoadCredentialPool(CredentialPoolOptions{HermesHome: hermesHome, Provider: "fixture-provider"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if moved, err := pool.MoveEntry("missing", 0); err == nil || moved != nil {
+		t.Fatalf("MoveEntry missing = %#v, %v; want error and nil", moved, err)
+	}
+	after, err := os.ReadFile(authPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) != string(after) {
+		t.Fatalf("missing target mutated auth store: before=%s after=%s", before, after)
+	}
+}
+
 func TestCredentialPoolLoadRoundTrip(t *testing.T) {
 	hermesHome := t.TempDir()
 	now := time.Unix(1_700_000_000, 0).UTC()

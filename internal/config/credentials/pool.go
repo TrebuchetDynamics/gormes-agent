@@ -344,6 +344,65 @@ func LoadCredentialPool(opts CredentialPoolOptions) (*CredentialPool, Credential
 	return pool, CredentialPoolEvidence{Code: code, Provider: provider, Strategy: pool.strategy, Count: totalCount, FilteredCount: filteredCount, Message: message, Redacted: true}, nil
 }
 
+func (p *CredentialPool) MoveEntry(credentialID string, priority int) (*PooledCredential, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	index := -1
+	for i := range p.entries {
+		if p.entries[i].ID == credentialID {
+			index = i
+			break
+		}
+	}
+	if index < 0 {
+		return nil, fmt.Errorf("credential not found")
+	}
+
+	oldEntries := cloneCredentialEntries(p.entries)
+	entry := p.entries[index]
+	others := make([]PooledCredential, 0, len(p.entries)-1)
+	others = append(others, p.entries[:index]...)
+	others = append(others, p.entries[index+1:]...)
+	position := priority
+	if position < 0 {
+		position = 0
+	}
+	if position > len(others) {
+		position = len(others)
+	}
+	entries := make([]PooledCredential, 0, len(p.entries))
+	entries = append(entries, others[:position]...)
+	entries = append(entries, entry)
+	entries = append(entries, others[position:]...)
+	for i := range entries {
+		entries[i].Priority = i
+	}
+
+	if p.provider == "anthropic" {
+		manual, seeded := make([]PooledCredential, 0, len(entries)), make([]PooledCredential, 0, len(entries))
+		for _, candidate := range entries {
+			source := strings.ToLower(strings.TrimSpace(candidate.Source))
+			if source == "manual" || strings.HasPrefix(source, "manual:") {
+				manual = append(manual, candidate)
+			} else {
+				seeded = append(seeded, candidate)
+			}
+		}
+		entries = append(manual, seeded...)
+		for i := range entries {
+			entries[i].Priority = i
+		}
+	}
+
+	p.entries = entries
+	if err := p.persistUnlocked(); err != nil {
+		p.entries = oldEntries
+		return nil, err
+	}
+	return cloneCredential(p.entryByIDUnlocked(credentialID)), nil
+}
+
 func (p *CredentialPool) Entries() []PooledCredential {
 	p.mu.Lock()
 	defer p.mu.Unlock()

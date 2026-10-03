@@ -2,6 +2,8 @@ package providers
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -327,6 +329,147 @@ func TestGormesAuthListJSONEmptyPoolEmitsEmptyArray(t *testing.T) {
 	if len(got.Credentials) != 0 {
 		t.Fatalf("empty pool credentials must have len=0; got %d", len(got.Credentials))
 	}
+}
+
+func TestAuthPriorityMovesCredentialAndReportsRedactedEffectivePosition(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	seedAuthCommandCredentials(t, "openrouter", []config.PooledCredential{
+		{ID: "cred-a", Label: "Alpha", AuthType: config.CredentialAuthAPIKey, Source: "manual", AccessToken: "priority-secret-a", RequestCount: 7},
+		{ID: "cred-b", Label: "Beta", AuthType: config.CredentialAuthOAuth, Source: "manual", AccessToken: "priority-secret-b", LastStatus: config.CredentialStatusExhausted, LastErrorCode: 429, LastErrorReason: "rate_limited"},
+	})
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "priority", "openrouter", "bEtA", "0")
+	if err != nil {
+		t.Fatalf("auth priority: %v\\nstdout=%s\\nstderr=%s", err, stdout, stderr)
+	}
+	if strings.Contains(stdout+stderr, "priority-secret") {
+		t.Fatalf("auth priority leaked credential secret:\\nstdout=%s\\nstderr=%s", stdout, stderr)
+	}
+	if !strings.Contains(stdout, "priority 0") || !strings.Contains(stdout, "#1") {
+		t.Fatalf("stdout = %q, want effective zero-based and displayed one-based priority", stdout)
+	}
+
+	pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: "openrouter"})
+	if err != nil {
+		t.Fatalf("reload credential pool: %v", err)
+	}
+	entries := pool.Entries()
+	if len(entries) != 2 || entries[0].ID != "cred-b" || entries[0].Priority != 0 || entries[1].ID != "cred-a" || entries[1].Priority != 1 {
+		t.Fatalf("persisted entries = %#v, want cred-b then cred-a with contiguous priorities", entries)
+	}
+	if entries[0].LastStatus != config.CredentialStatusExhausted || entries[0].LastErrorCode != 429 || entries[0].LastErrorReason != "rate_limited" || entries[1].RequestCount != 7 {
+		t.Fatalf("non-priority fields changed: %#v", entries)
+	}
+}
+
+func TestAuthPriorityTargetFormsAndClamping(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		target   string
+		priority string
+		wantIDs  string
+	}{
+		{name: "displayed index", target: "2", priority: "0", wantIDs: "cred-b,cred-a,cred-c"},
+		{name: "entry id and oversized priority", target: "cred-a", priority: "99", wantIDs: "cred-b,cred-c,cred-a"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupOneshotFlagTestEnv(t)
+			seedAuthCommandCredentials(t, "openrouter", []config.PooledCredential{
+				{ID: "cred-a", Label: "Alpha", Source: "manual", AccessToken: "priority-a"},
+				{ID: "cred-b", Label: "Beta", Source: "manual", AccessToken: "priority-b"},
+				{ID: "cred-c", Label: "Gamma", Source: "manual", AccessToken: "priority-c"},
+			})
+			cmd := newRootCommandWithRuntime(rootRuntime{})
+			stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "priority", "openrouter", tc.target, tc.priority)
+			if err != nil {
+				t.Fatalf("auth priority: %v\\nstdout=%s\\nstderr=%s", err, stdout, stderr)
+			}
+			pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: "openrouter"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := strings.Join(credentialIDs(pool.Entries()), ","); got != tc.wantIDs {
+				t.Fatalf("priority order = %s, want %s", got, tc.wantIDs)
+			}
+			if tc.priority == "99" && (!strings.Contains(stderr, "requested priority 99") || !strings.Contains(stderr, "pool bounds")) {
+				t.Fatalf("clamp note = %q, want requested/effective explanation", stderr)
+			}
+		})
+	}
+}
+
+func TestAuthPriorityRejectsAmbiguousOrMissingTargetWithoutWriting(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		target string
+		want   string
+	}{
+		{name: "ambiguous case-insensitive label", target: "ALPHA", want: "ambiguous credential label"},
+		{name: "missing target", target: "missing", want: "credential target not found"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupOneshotFlagTestEnv(t)
+			seedAuthCommandCredentials(t, "openrouter", []config.PooledCredential{
+				{ID: "cred-a", Label: "Alpha", Source: "manual", AccessToken: "priority-a"},
+				{ID: "cred-b", Label: "alpha", Source: "manual", AccessToken: "priority-b"},
+			})
+			authPath := filepath.Join(config.GormesHome(), "auth.json")
+			before, err := os.ReadFile(authPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cmd := newRootCommandWithRuntime(rootRuntime{})
+			stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "priority", "openrouter", tc.target, "0")
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("priority error = %v, want %q\\nstdout=%s\\nstderr=%s", err, tc.want, stdout, stderr)
+			}
+			after, readErr := os.ReadFile(authPath)
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			if string(before) != string(after) {
+				t.Fatalf("rejected priority changed auth store")
+			}
+			if strings.Contains(stdout+stderr+err.Error(), "priority-a") || strings.Contains(stdout+stderr+err.Error(), "priority-b") {
+				t.Fatalf("rejected priority leaked credential values")
+			}
+		})
+	}
+}
+
+func TestAuthPriorityAnthropicManualEntriesRemainFirst(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	seedAuthCommandCredentials(t, "anthropic", []config.PooledCredential{
+		{ID: "seeded", Label: "Seeded", Source: "hermes_pkce", AccessToken: "anthropic-seeded-token"},
+		{ID: "manual", Label: "Manual", Source: "manual:api_key", AccessToken: "anthropic-manual-token"},
+	})
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "priority", "anthropic", "seeded", "0")
+	if err != nil {
+		t.Fatalf("auth priority anthropic: %v\\nstdout=%s\\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "priority 1") || !strings.Contains(stderr, "manual") {
+		t.Fatalf("output stdout=%q stderr=%q, want manual-first effective priority explanation", stdout, stderr)
+	}
+	if strings.Contains(stdout+stderr, "anthropic-seeded-token") || strings.Contains(stdout+stderr, "anthropic-manual-token") {
+		t.Fatalf("auth priority leaked Anthropic credentials")
+	}
+	pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: "anthropic"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(credentialIDs(pool.Entries()), ","); got != "manual,seeded" {
+		t.Fatalf("Anthropic priority order = %s, want manual,seeded", got)
+	}
+}
+
+func credentialIDs(entries []config.PooledCredential) []string {
+	ids := make([]string, len(entries))
+	for i, entry := range entries {
+		ids[i] = entry.ID
+	}
+	return ids
 }
 
 func TestGormesAuthRemoveByIndexIDOrLabel(t *testing.T) {
